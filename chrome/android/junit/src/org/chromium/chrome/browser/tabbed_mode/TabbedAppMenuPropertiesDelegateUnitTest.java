@@ -35,7 +35,6 @@ import android.content.pm.PackageManager;
 import android.view.ContextThemeWrapper;
 import android.view.View;
 
-import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import org.hamcrest.Matchers;
@@ -167,7 +166,6 @@ import java.util.List;
 @RunWith(BaseRobolectricTestRunner.class)
 @DisableFeatures({
     ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_PAGE_SUMMARY,
-    ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION,
     ChromeFeatureList.FEED_AUDIO_OVERVIEWS,
     ChromeFeatureList.GLIC,
     ChromeFeatureList.TASK_MANAGER_CLANK,
@@ -502,7 +500,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
      * Preparation to mock the "final" method TabGroupModelFilter#getTabsWithNoOtherRelatedTabs
      * which plays a part to enable group tabs.
      */
-    private void prepareMocksForGroupTabsOnTabModel(@NonNull TabModel tabmodel) {
+    private void prepareMocksForGroupTabsOnTabModel(TabModel tabmodel) {
         when(mTabGroupModelFilter.getTabModel()).thenReturn(tabmodel);
         when(tabmodel.getCount()).thenReturn(2);
         Tab mockTab1 = mock(Tab.class);
@@ -590,6 +588,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                                 R.id.all_bookmarks_menu_id,
                                 R.id.divider_line_id,
                                 R.id.preferences_id,
+                                R.id.ntp_customization_id,
                                 R.id.help_id));
 
         if (ExtensionsBuildflags.ENABLE_DESKTOP_ANDROID_EXTENSIONS) {
@@ -1551,13 +1550,11 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     }
 
     @Test
+    @Config(sdk = 31)
     public void testPageMenuItems_instanceSwitcher_newWindow() {
         setUpMocksForPageMenu();
         when(mTab.getUrl()).thenReturn(JUnitTestGURLs.SEARCH_URL);
-
-        doReturn(true)
-                .when(mTabbedAppMenuPropertiesDelegate)
-                .instanceSwitcherWithMultiInstanceEnabled();
+        MultiWindowTestUtils.enableMultiInstance();
 
         MultiWindowTestUtils.createInstance(
                 /* instanceId= */ 0,
@@ -1597,13 +1594,12 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     }
 
     @Test
+    @Config(sdk = 31)
     public void testPageMenuItems_instanceSwitcher_moveTabToOtherWindow() {
         setUpMocksForPageMenu();
         when(mTab.getUrl()).thenReturn(JUnitTestGURLs.SEARCH_URL);
 
-        doReturn(true)
-                .when(mTabbedAppMenuPropertiesDelegate)
-                .instanceSwitcherWithMultiInstanceEnabled();
+        MultiWindowTestUtils.enableMultiInstance();
         mIsMoveToOtherWindowSupported = true;
 
         MVCListAdapter.ModelList modelList = createMenuForMultiWindow();
@@ -1611,13 +1607,11 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     }
 
     @Test
+    @Config(sdk = 31)
     public void testPageMenuItems_instanceSwitcher_manageAllWindow() {
         setUpMocksForPageMenu();
         when(mTab.getUrl()).thenReturn(JUnitTestGURLs.SEARCH_URL);
-
-        doReturn(true)
-                .when(mTabbedAppMenuPropertiesDelegate)
-                .instanceSwitcherWithMultiInstanceEnabled();
+        MultiWindowTestUtils.enableMultiInstance();
 
         MultiWindowTestUtils.createInstance(
                 /* instanceId= */ 0, /* url= */ "https://url0", /* tabCount= */ 1, /* taskId= */ 0);
@@ -1951,7 +1945,6 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     }
 
     @Test
-    @EnableFeatures({ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION})
     public void testCustomizeNewTabPageOption() {
         MockTab ntpTab = new MockTab(1, mProfile);
         ntpTab.setUrl(new GURL(getOriginalNativeNtpUrl()));
@@ -2066,12 +2059,15 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
             boolean isInMultiWindowMode,
             boolean isInMultiDisplayMode,
             boolean isMultiInstanceRunning) {
-        for (int i = 0; i < currentWindowInstances; ++i) {
-            MultiWindowTestUtils.createInstance(
-                    /* instanceId= */ i,
-                    /* url= */ "https://url" + i,
-                    /* tabCount= */ 1,
-                    /* taskId= */ i);
+        if (isInstanceSwitcherEnabled) {
+            MultiWindowTestUtils.enableMultiInstance();
+            for (int i = 0; i < currentWindowInstances; ++i) {
+                MultiWindowTestUtils.createInstance(
+                        /* instanceId= */ i,
+                        /* url= */ "https://url" + i,
+                        /* tabCount= */ 1,
+                        /* taskId= */ i);
+            }
         }
         mShadowPackageManager.setSystemFeature(PackageManager.FEATURE_AUTOMOTIVE, isAutomotive);
         doReturn(isInstanceSwitcherEnabled)
@@ -2095,11 +2091,13 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
 
     @Test
     public void testShouldShowNewMenu_alreadyMaxWindows_returnsFalse() {
+        int windowLimit = 10;
+        MultiWindowUtils.setMaxInstancesForTesting(windowLimit);
         assertFalse(
                 doTestShouldShowNewMenu(
                         /* isAutomotive= */ false,
                         /* isInstanceSwitcherEnabled= */ true,
-                        /* currentWindowInstances= */ 10,
+                        /* currentWindowInstances= */ windowLimit,
                         /* isTabletSizeScreen= */ true,
                         /* canEnterMultiWindowMode= */ false,
                         /* isChromeRunningInAdjacentWindow= */ false,
@@ -2290,31 +2288,16 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     }
 
     private boolean doTestShouldShowMoveToOtherWindowMenu(
-            int totalTabCount,
-            boolean isInstanceSwitcherEnabled,
-            int currentWindowInstances,
-            boolean isTabletSizeScreen,
-            boolean canEnterMultiWindowMode,
-            boolean isChromeRunningInAdjacentWindow,
-            boolean isInMultiWindowMode,
-            boolean isInMultiDisplayMode,
-            boolean isMultiInstanceRunning,
-            boolean isMoveToOtherWindowSupported) {
-        doReturn(isInstanceSwitcherEnabled)
+            boolean isInMultiDisplayMode, boolean isMoveToOtherWindowSupported) {
+        doReturn(false)
                 .when(mTabbedAppMenuPropertiesDelegate)
                 .instanceSwitcherWithMultiInstanceEnabled();
-        doReturn(isTabletSizeScreen).when(mTabbedAppMenuPropertiesDelegate).isTabletSizeScreen();
-        doReturn(canEnterMultiWindowMode)
-                .when(mMultiWindowModeStateDispatcher)
-                .canEnterMultiWindowMode();
-        doReturn(isChromeRunningInAdjacentWindow)
-                .when(mMultiWindowModeStateDispatcher)
-                .isChromeRunningInAdjacentWindow();
-        doReturn(isInMultiWindowMode).when(mMultiWindowModeStateDispatcher).isInMultiWindowMode();
+        doReturn(true).when(mTabbedAppMenuPropertiesDelegate).isTabletSizeScreen();
+        doReturn(false).when(mMultiWindowModeStateDispatcher).canEnterMultiWindowMode();
+        doReturn(false).when(mMultiWindowModeStateDispatcher).isChromeRunningInAdjacentWindow();
+        doReturn(false).when(mMultiWindowModeStateDispatcher).isInMultiWindowMode();
         doReturn(isInMultiDisplayMode).when(mMultiWindowModeStateDispatcher).isInMultiDisplayMode();
-        doReturn(isMultiInstanceRunning)
-                .when(mMultiWindowModeStateDispatcher)
-                .isMultiInstanceRunning();
+        doReturn(false).when(mMultiWindowModeStateDispatcher).isMultiInstanceRunning();
         doReturn(isMoveToOtherWindowSupported)
                 .when(mMultiWindowModeStateDispatcher)
                 .isMoveToOtherWindowSupported(any());
@@ -2326,15 +2309,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     public void testShouldShowMoveToOtherWindow_returnsTrue() {
         assertTrue(
                 doTestShouldShowMoveToOtherWindowMenu(
-                        /* totalTabCount= */ 1,
-                        /* isInstanceSwitcherEnabled= */ false,
-                        /* currentWindowInstances= */ 1,
-                        /* isTabletSizeScreen= */ true,
-                        /* canEnterMultiWindowMode= */ false,
-                        /* isChromeRunningInAdjacentWindow= */ false,
-                        /* isInMultiWindowMode= */ false,
                         /* isInMultiDisplayMode= */ false,
-                        /* isMultiInstanceRunning= */ false,
                         /* isMoveToOtherWindowSupported= */ true));
     }
 
@@ -2342,15 +2317,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     public void testShouldShowMoveToOtherWindow_dispatcherReturnsFalse_returnsFalse() {
         assertFalse(
                 doTestShouldShowMoveToOtherWindowMenu(
-                        /* totalTabCount= */ 1,
-                        /* isInstanceSwitcherEnabled= */ false,
-                        /* currentWindowInstances= */ 1,
-                        /* isTabletSizeScreen= */ true,
-                        /* canEnterMultiWindowMode= */ false,
-                        /* isChromeRunningInAdjacentWindow= */ false,
-                        /* isInMultiWindowMode= */ false,
                         /* isInMultiDisplayMode= */ true,
-                        /* isMultiInstanceRunning= */ false,
                         /* isMoveToOtherWindowSupported= */ false));
         verify(mTabbedAppMenuPropertiesDelegate, never()).isTabletSizeScreen();
     }

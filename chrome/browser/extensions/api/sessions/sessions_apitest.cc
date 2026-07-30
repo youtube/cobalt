@@ -11,12 +11,14 @@
 #include "base/command_line.h"
 #include "base/containers/to_vector.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/ptr_util.h"
 #include "base/path_service.h"
 #include "base/strings/pattern.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
 #include "base/test/test_future.h"
@@ -58,6 +60,7 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "extensions/browser/api_test_utils.h"
+#include "extensions/browser/test_event_router_observer.h"
 #include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension_builder.h"
 #include "google_apis/gaia/gaia_id.h"
@@ -68,8 +71,14 @@
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
+#include "base/android/callback_android.h"
+#include "base/android/jni_android.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/flags/android/chrome_feature_list.h"
+#include "chrome/browser/ui/android/tab_model/tab_model.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "chrome/test/test_support_jni_headers/TabWindowManagerNativeTestSupport_jni.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
 static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
@@ -181,6 +190,36 @@ syncer::ClientTagHash TagHashFromSpecifics(
     const sync_pb::SessionSpecifics& specifics) {
   return syncer::ClientTagHash::FromUnhashed(
       syncer::SESSIONS, sync_sessions::SessionStore::GetClientTag(specifics));
+}
+
+// Closes a browser window and waits for it to finish closing.
+void CloseWindowAndWait(BrowserWindowInterface* window) {
+#if BUILDFLAG(IS_ANDROID)
+  // On Android, headless TabModelSelector creation happens after
+  // OnBrowserClosed(), so grab the ID here to check later.
+  JNIEnv* env = base::android::AttachCurrentThread();
+  TabListInterface* tab_list = TabListInterface::From(window);
+  ASSERT_TRUE(tab_list);
+  TabModel* tab_model = static_cast<TabModel*>(tab_list);
+  int window_id = Java_TabWindowManagerNativeTestSupport_getWindowIdForModel(
+      env, tab_model->GetJavaObject());
+  ASSERT_NE(window_id, -1);
+#endif
+
+  // Close the window and wait for OnBrowserClosed() notification.
+  BrowserClosedWaiter waiter(window);
+  window->GetWindow()->Close();
+  waiter.Wait();
+
+#if BUILDFLAG(IS_ANDROID)
+  // On Android we have to wait for the headless TabModelSelector to be created.
+  base::RunLoop run_loop;
+  base::OnceClosure quit_closure = run_loop.QuitClosure();
+  Java_TabWindowManagerNativeTestSupport_waitForTabModelSelectorWithId(
+      env, window_id,
+      base::android::ToJniCallback(env, std::move(quit_closure)));
+  run_loop.Run();
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 }  // namespace
@@ -335,8 +374,6 @@ IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, GetDevicesListEmpty) {
   EXPECT_TRUE(devices.empty());
 }
 
-// TODO(crbug.com/486849736): This test is currently disabled by filter file on
-// some Android bots. See the bug for details.
 IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, RestoreMostRecentlyClosedWindow) {
   // Open a second window.
   BrowserWindowInterface* browser2 =
@@ -368,9 +405,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, RestoreMostRecentlyClosedWindow) {
   ASSERT_TRUE(NavigateToURL(contents1, GURL("chrome://credits/")));
 
   // Close the second window and wait for it to close.
-  BrowserClosedWaiter close_waiter(browser2);
-  browser2->GetWindow()->Close();
-  close_waiter.Wait();
+  CloseWindowAndWait(browser2);
 
   // Get ready for a browser to be created.
   BrowserCreatedWaiter browser_waiter;
@@ -437,10 +472,6 @@ IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, RestoreMostRecentlyClosedWindow) {
   EXPECT_FALSE(tab_list3->GetTab(1)->IsActivated());
 }
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-// TODO(crbug.com/405219627): Port to desktop Android once we support restoring
-// windows (which store their info on the Java side) via session ID. This will
-// require a stable identifier we can use to look up closed windows.
 IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, RestoreWindowBySessionId) {
   // Open a second window.
   BrowserWindowInterface* browser2 =
@@ -462,9 +493,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, RestoreWindowBySessionId) {
   ASSERT_TRUE(NavigateToURL(contents0, GURL("chrome://version/")));
 
   // Close the second window and wait for it to close.
-  BrowserClosedWaiter close_waiter(browser2);
-  browser2->GetWindow()->Close();
-  close_waiter.Wait();
+  CloseWindowAndWait(browser2);
 
   // chrome.sessions.getRecentlyClosed() should return 1 entry.
   std::optional<base::Value> result = utils::RunFunctionAndReturnSingleResult(
@@ -505,7 +534,6 @@ IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, RestoreWindowBySessionId) {
   EXPECT_EQ(GURL("chrome://version/"),
             tab_list3->GetTab(0)->GetContents()->GetVisibleURL());
 }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, RestoreForeignSessionWindow) {
   CreateSessionModels();
@@ -572,10 +600,6 @@ IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, RestoreNonEditableTabstrip) {
 // Tests chrome.sessions.getRecentlyClosed() for windows. Opens a second browser
 // window with two tabs, closes it, then calls the extension API function and
 // verifies one window with two tabs was recently closed.
-// TODO(crbug.com/482432028): This test is currently disabled by filter file on
-// some Android hardware bots. See bug for details.
-// TODO(crbug.com/486849736): This test is currently disabled by filter file on
-// some Android bots. See the bug for details.
 IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, GetRecentlyClosedWindow) {
   // Open a second window.
   BrowserWindowInterface* browser2 =
@@ -607,12 +631,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, GetRecentlyClosedWindow) {
   ASSERT_TRUE(NavigateToURL(contents1, GURL("chrome://credits/")));
 
   // Close the second window and wait for it to close.
-  BrowserClosedWaiter waiter(browser2);
-  browser2->GetWindow()->Close();
-  waiter.Wait();
-
-  // Ensure posted tasks from window close have run.
-  base::RunLoop().RunUntilIdle();
+  CloseWindowAndWait(browser2);
 
   // NOTE: At this point persistent tab state may not yet be initialized on
   // Android. SessionsGetRecentlyClosedFunction copes with this by using a
@@ -731,8 +750,6 @@ IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, GetRecentlyClosedMaxResults) {
   }
 }
 
-// TODO(crbug.com/482432028): This test is currently disabled by filter file on
-// some Android hardware bots. See bug for details.
 IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest,
                        GetRecentlyClosedMaxResultsWithWindow) {
   // Start with an empty tab restore service.
@@ -784,9 +801,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest,
   ASSERT_TRUE(NavigateToURL(contents0, GURL("chrome://version/")));
 
   // Close the second window and wait for it to close.
-  BrowserClosedWaiter close_waiter(browser2);
-  browser2->GetWindow()->Close();
-  close_waiter.Wait();
+  CloseWindowAndWait(browser2);
 
   {
     // Querying for all recently closed entries should return 2 results, a
@@ -903,6 +918,41 @@ IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, CheckActiveTabStatus) {
   ASSERT_TRUE(tab_active_status) << "Active state for the tab is missing.";
 
   EXPECT_TRUE(*tab_active_status) << "The selected tab should be active.";
+}
+
+IN_PROC_BROWSER_TEST_F(ExtensionSessionsTest, OnChangedEvent) {
+  // Simulate a listener being added (otherwise events won't fire).
+  EventListenerInfo info(api::sessions::OnChanged::kEventName, "extension_id",
+                         GURL(), nullptr, profile());
+  SessionsAPI::GetFactoryInstance()->Get(profile())->OnListenerAdded(info);
+
+  // Open a second window.
+  BrowserWindowInterface* browser2 =
+      CreateBrowserWindowWithType(BrowserWindowInterface::TYPE_NORMAL);
+
+  // Platforms like Win/Mac/Linux create browsers with no tabs, whereas Android
+  // creates browsers with a single tab. Ensure there is one tab.
+  auto* tab_list2 = TabListInterface::From(browser2);
+  if (tab_list2->GetTabCount() == 0) {
+    tab_list2->OpenTab(GURL("about:blank"), /*index=*/-1);
+  }
+  ASSERT_EQ(1, tab_list2->GetTabCount());
+
+  // Navigate the tab, otherwise window close does not persist it in the tab
+  // restore service.
+  content::WebContents* contents0 = tab_list2->GetTab(0)->GetContents();
+  ASSERT_TRUE(NavigateToURL(contents0, GURL("chrome://version/")));
+
+  // Listen for events.
+  TestEventRouterObserver event_observer(EventRouter::Get(profile()));
+
+  // Close the second window and wait for it to close.
+  BrowserClosedWaiter waiter(browser2);
+  browser2->GetWindow()->Close();
+  waiter.Wait();
+
+  // An OnChanged event should fire.
+  event_observer.WaitForEventWithName(api::sessions::OnChanged::kEventName);
 }
 
 }  // namespace extensions

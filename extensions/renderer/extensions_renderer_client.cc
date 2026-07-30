@@ -64,6 +64,21 @@ void ExtensionsRendererClient::Set(ExtensionsRendererClient* client) {
   g_client = client;
 }
 
+bool ExtensionsRendererClient::IsActivityLoggingEnabled() const {
+  return dispatcher_ && dispatcher_->activity_logging_enabled();
+}
+
+bool ExtensionsRendererClient::IsPolicyActivityLoggingEnabled() const {
+  return false;
+}
+
+void ExtensionsRendererClient::SetPolicyActivityLoggingEnabled(bool enabled) {}
+
+PolicyActivityLogFilter*
+ExtensionsRendererClient::GetPolicyActivityLogFilter() {
+  return nullptr;
+}
+
 void ExtensionsRendererClient::OnExtensionLoaded(const Extension& extension) {
   resource_request_policy_->OnExtensionLoaded(extension);
 }

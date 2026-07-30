@@ -17,6 +17,7 @@
 #include "chrome/browser/ui/views/frame/browser_root_view.h"
 #include "chrome/browser/ui/views/tabs/dragging/tab_drag_context.h"
 #include "chrome/browser/ui/views/tabs/dragging/tab_drag_controller.h"
+#include "chrome/browser/ui/views/tabs/shared/drop_arrow.h"
 #include "chrome/browser/ui/views/tabs/tab.h"
 #include "chrome/browser/ui/views/tabs/tab_group_header.h"
 #include "chrome/browser/ui/views/tabs/tab_group_highlight.h"
@@ -46,14 +47,6 @@
 
 namespace {
 
-// Size of the drop indicator.
-int g_drop_indicator_width = 0;
-int g_drop_indicator_height = 0;
-
-int GetDropArrowImageResourceId(bool is_down) {
-  return is_down ? IDR_TAB_DROP_DOWN : IDR_TAB_DROP_UP;
-}
-
 }  // namespace
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -79,7 +72,8 @@ TabContainerImpl::RemoveTabDelegate::RemoveTabDelegate(
 void TabContainerImpl::RemoveTabDelegate::AnimationEnded(
     const gfx::Animation* animation) {
   StopObserving();
-  tab_container()->OnTabCloseAnimationCompleted(static_cast<Tab*>(slot_view()));
+  tab_container()->OnTabCloseAnimationCompleted(
+      views::AsViewClass<Tab>(slot_view()));
 }
 
 void TabContainerImpl::RemoveTabDelegate::AnimationCanceled(
@@ -107,15 +101,6 @@ TabContainerImpl::TabContainerImpl(
   bounds_animator_.AddObserver(this);
 
   overall_bounds_view_->SetVisible(false);
-
-  if (g_drop_indicator_width == 0) {
-    // Direction doesn't matter, both images are the same size.
-    gfx::ImageSkia* drop_image =
-        ui::ResourceBundle::GetSharedInstance().GetImageSkiaNamed(
-            GetDropArrowImageResourceId(true));
-    g_drop_indicator_width = drop_image->width();
-    g_drop_indicator_height = drop_image->height();
-  }
 }
 
 TabContainerImpl::~TabContainerImpl() {
@@ -942,7 +927,7 @@ std::optional<BrowserRootView::DropIndex> TabContainerImpl::GetDropIndex(
     }
 
     if (view->GetTabSlotViewType() == TabSlotView::ViewType::kTab) {
-      Tab* const tab = static_cast<Tab*>(view);
+      Tab* const tab = views::AsViewClass<Tab>(view);
       // Closing tabs should be skipped.
       if (tab->closing()) {
         continue;
@@ -1000,7 +985,8 @@ std::optional<BrowserRootView::DropIndex> TabContainerImpl::GetDropIndex(
         }
       }
     } else {
-      TabGroupHeader* const group_header = static_cast<TabGroupHeader*>(view);
+      TabGroupHeader* const group_header =
+          views::AsViewClass<TabGroupHeader>(view);
       const int first_tab_index =
           controller_->GetFirstTabInGroup(group_header->group().value())
               .value();
@@ -1100,59 +1086,6 @@ void TabContainerImpl::OnBoundsAnimatorDone(views::BoundsAnimator* animator) {
   }
 
   PreferredSizeChanged();
-}
-
-// TabContainerImpl::DropArrow:
-// ----------------------------------------------------------
-
-TabContainerImpl::DropArrow::DropArrow(const BrowserRootView::DropIndex& index,
-                                       bool point_down,
-                                       views::Widget* context)
-    : index_(index), point_down_(point_down) {
-  arrow_window_ = new views::Widget;
-  views::Widget::InitParams params(
-      views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET,
-      views::Widget::InitParams::TYPE_POPUP);
-  params.z_order = ui::ZOrderLevel::kFloatingUIElement;
-  params.opacity = views::Widget::InitParams::WindowOpacity::kTranslucent;
-  params.accept_events = false;
-  params.bounds = gfx::Rect(g_drop_indicator_width, g_drop_indicator_height);
-  params.context = context->GetNativeWindow();
-  arrow_window_->Init(std::move(params));
-  arrow_view_ =
-      arrow_window_->SetContentsView(std::make_unique<views::ImageView>());
-  arrow_view_->SetImage(
-      ui::ImageModel::FromResourceId(GetDropArrowImageResourceId(point_down_)));
-  scoped_observation_.Observe(arrow_window_.get());
-
-  arrow_window_->Show();
-}
-
-TabContainerImpl::DropArrow::~DropArrow() {
-  // Close eventually deletes the window, which deletes arrow_view too.
-  if (arrow_window_) {
-    arrow_window_->Close();
-  }
-}
-
-void TabContainerImpl::DropArrow::SetPointDown(bool down) {
-  if (point_down_ == down) {
-    return;
-  }
-
-  point_down_ = down;
-  arrow_view_->SetImage(
-      ui::ImageModel::FromResourceId(GetDropArrowImageResourceId(point_down_)));
-}
-
-void TabContainerImpl::DropArrow::SetWindowBounds(const gfx::Rect& bounds) {
-  arrow_window_->SetBounds(bounds);
-}
-
-void TabContainerImpl::DropArrow::OnWidgetDestroying(views::Widget* widget) {
-  DCHECK(scoped_observation_.IsObservingSource(arrow_window_.get()));
-  scoped_observation_.Reset();
-  arrow_window_ = nullptr;
 }
 
 views::ViewModelT<Tab>* TabContainerImpl::GetTabsViewModel() {
@@ -1662,11 +1595,10 @@ bool TabContainerImpl::ShouldTabBeVisible(const Tab* tab) const {
   return right_edge + active_tab_width - tab->width() <= tabstrip_right;
 }
 
-gfx::Rect TabContainerImpl::GetDropBounds(int drop_index,
-                                          bool drop_before,
-                                          bool drop_in_group,
-                                          bool* is_beneath) {
-  DCHECK_NE(drop_index, -1);
+gfx::Rect TabContainerImpl::GetDropBounds(
+    const BrowserRootView::DropIndex& drop_index,
+    DropArrow::Direction* direction) {
+  DCHECK_NE(drop_index.index, -1);
 
   // The X location the indicator points to.
   int center_x = -1;
@@ -1677,19 +1609,25 @@ gfx::Rect TabContainerImpl::GetDropBounds(int drop_index,
     return gfx::Rect();
   }
 
-  Tab* tab = GetTabAtModelIndex(std::min(drop_index, GetTabCount() - 1));
+  Tab* tab = GetTabAtModelIndex(std::min(drop_index.index, GetTabCount() - 1));
   const bool first_in_group =
-      drop_index < GetTabCount() && tab->group().has_value() &&
+      drop_index.index < GetTabCount() && tab->group().has_value() &&
       GetModelIndexOf(tab) ==
           controller_->GetFirstTabInGroup(tab->group().value());
 
   const int overlap = tab->tab_style()->GetTabOverlap();
+  const bool drop_before =
+      drop_index.relative_to_index ==
+      BrowserRootView::DropIndex::RelativeToIndex::kInsertBeforeIndex;
+  const bool drop_in_group =
+      drop_index.group_inclusion ==
+      BrowserRootView::DropIndex::GroupInclusion::kIncludeInGroup;
   if (!drop_before || !first_in_group || drop_in_group) {
     // Dropping between tabs, or between a group header and the group's first
     // tab.
     center_x = tab->x();
     const int width = tab->width();
-    if (drop_index < GetTabCount()) {
+    if (drop_index.index < GetTabCount()) {
       center_x += drop_before ? (overlap / 2) : (width / 2);
     } else {
       center_x += width - (overlap / 2);
@@ -1704,17 +1642,20 @@ gfx::Rect TabContainerImpl::GetDropBounds(int drop_index,
   center_x = GetMirroredXInView(center_x);
 
   // Determine the screen bounds.
-  gfx::Point drop_loc(center_x - g_drop_indicator_width / 2,
-                      -g_drop_indicator_height);
+  const gfx::Size drop_arrow_size = DropArrow::GetSize();
+  gfx::Point drop_loc(center_x - drop_arrow_size.width() / 2,
+                      -drop_arrow_size.height());
   ConvertPointToScreen(this, &drop_loc);
-  gfx::Rect drop_bounds(drop_loc.x(), drop_loc.y(), g_drop_indicator_width,
-                        g_drop_indicator_height);
+  gfx::Rect drop_bounds(drop_loc.x(), drop_loc.y(), drop_arrow_size.width(),
+                        drop_arrow_size.height());
 
   // If the rect doesn't fit on the monitor, push the arrow to the bottom.
   display::Screen* screen = display::Screen::Get();
   display::Display display = screen->GetDisplayMatching(drop_bounds);
-  *is_beneath = !display.bounds().Contains(drop_bounds);
-  if (*is_beneath) {
+  const bool is_beneath = !display.bounds().Contains(drop_bounds);
+  *direction =
+      is_beneath ? DropArrow::Direction::kUp : DropArrow::Direction::kDown;
+  if (is_beneath) {
     drop_bounds.Offset(0, drop_bounds.height() + height());
   }
 
@@ -1733,28 +1674,20 @@ void TabContainerImpl::SetDropArrow(
   const bool drop_before =
       index->relative_to_index ==
       BrowserRootView::DropIndex::RelativeToIndex::kInsertBeforeIndex;
-  const bool group_inclusion =
-      index->group_inclusion ==
-      BrowserRootView::DropIndex::GroupInclusion::kIncludeInGroup;
   controller_->OnDropIndexUpdate(index->index, drop_before);
 
   if (drop_arrow_ && (index == drop_arrow_->index())) {
     return;
   }
 
-  bool is_beneath;
-  gfx::Rect drop_bounds =
-      GetDropBounds(index->index, drop_before, group_inclusion, &is_beneath);
-
   if (!drop_arrow_) {
-    drop_arrow_ = std::make_unique<DropArrow>(*index, !is_beneath, GetWidget());
+    drop_arrow_ = std::make_unique<DropArrow>(
+        *index, GetWidget()->GetNativeWindow(),
+        base::BindRepeating(&TabContainerImpl::GetDropBounds,
+                            base::Unretained(this)));
   } else {
-    drop_arrow_->set_index(*index);
-    drop_arrow_->SetPointDown(!is_beneath);
+    drop_arrow_->SetIndex(*index);
   }
-
-  // Reposition the window.
-  drop_arrow_->SetWindowBounds(drop_bounds);
 }
 
 void TabContainerImpl::UpdateAccessibleTabIndices() {

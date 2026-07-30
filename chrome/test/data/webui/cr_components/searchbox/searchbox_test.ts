@@ -13,9 +13,7 @@ import {getDeepActiveElement} from 'chrome://resources/js/util.js';
 import {NavigationPredictor} from 'chrome://resources/mojo/components/omnibox/browser/omnibox.mojom-webui.js';
 import type {AutocompleteMatch} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {RenderType, SideType} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
-import type {InputState} from 'chrome://resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
-import {ToolMode} from 'chrome://resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
-import {assertDeepEquals, assertEquals, assertFalse, assertNotEquals, assertNull, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {assertEquals, assertFalse, assertNotEquals, assertNull, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import type {MetricsTracker} from 'chrome://webui-test/metrics_test_support.js';
 import {fakeMetricsPrivate} from 'chrome://webui-test/metrics_test_support.js';
 import {TestMock} from 'chrome://webui-test/test_mock.js';
@@ -166,7 +164,7 @@ async function setupRealboxTest(): Promise<{
   return {realbox, testProxy, testMetricsReporterProxy, metrics};
 }
 
-suite('NewTabPageRealboxTest', () => {
+suite('SearchboxTest', () => {
   let realbox: SearchboxElement;
   let testProxy: TestSearchboxBrowserProxy;
   let testMetricsReporterProxy: TestMock<BrowserProxyImpl>;
@@ -1156,10 +1154,9 @@ suite('NewTabPageRealboxTest', () => {
 
   test('autocomplete result change does not impact focus', async () => {
     realbox = await createAndAppendRealbox();
+    realbox.$.input.dispatchEvent(new MouseEvent('mousedown', {button: 0}));
 
-    realbox.$.input.value = 'he';
-    realbox.$.input.dispatchEvent(new InputEvent('input'));
-
+    // Voice search button is visible when input is empty.
     realbox.shadowRoot.querySelector<HTMLElement>(
                           '#voiceSearchButton')!.focus();
     assertEquals('voiceSearchButton', getDeepActiveElement()!.id);
@@ -1167,12 +1164,86 @@ suite('NewTabPageRealboxTest', () => {
     const matches = [createSearchMatchForTesting(), createUrlMatch()];
     testProxy.callbackRouterRemote.autocompleteResultChanged(
         createAutocompleteResultForTesting({
-          input: realbox.$.input.value.trimStart(),
+          input: '',
           matches: matches,
         }));
     assertTrue(await areMatchesShowing());
 
     assertEquals('voiceSearchButton', getDeepActiveElement()!.id);
+  });
+
+  test('dropdown suppressed in multi-line mode', async () => {
+    realbox = await createAndAppendRealbox({multiLineEnabled: true});
+
+    // The initial scroll height of the input.
+    (realbox as any).initialInputScrollHeight_ = 20;
+
+    // The text currently fits on one line (no wrapping).
+    Object.defineProperty(realbox.$.input, 'scrollHeight', {
+      value: 20,
+      configurable: true,
+    });
+
+    realbox.$.input.value = 'hello';
+    realbox.$.input.dispatchEvent(new InputEvent('input'));
+
+    const matches = [createSearchMatchForTesting(), createUrlMatch()];
+    testProxy.callbackRouterRemote.autocompleteResultChanged(
+        createAutocompleteResultForTesting({
+          input: realbox.$.input.value.trimStart(),
+          matches: matches,
+        }));
+
+    // Dropdown should be visible (not wrapping and matchNums > 1).
+    assertTrue(await areMatchesShowing());
+
+    // Simulate text wrapping.
+    // Change 'scrollHeight' to 40, which is > initialInputScrollHeight_ (20).
+    Object.defineProperty(realbox.$.input, 'scrollHeight', {
+      value: 40,
+      configurable: true,
+    });
+
+    realbox.$.input.value = 'hello world';
+    realbox.$.input.dispatchEvent(new InputEvent('input'));
+
+    testProxy.callbackRouterRemote.autocompleteResultChanged(
+        createAutocompleteResultForTesting({
+          input: realbox.$.input.value.trimStart(),
+          matches: matches,
+        }));
+
+    // Dropdown should be hidden.
+    assertFalse(await areMatchesShowing());
+
+    // Reset wrapping (simulate text deleted or unwrapped).
+    Object.defineProperty(realbox.$.input, 'scrollHeight', {
+      value: 20,
+      configurable: true,
+    });
+
+    realbox.$.input.value = 'hello';
+    realbox.$.input.dispatchEvent(new InputEvent('input'));
+
+    testProxy.callbackRouterRemote.autocompleteResultChanged(
+        createAutocompleteResultForTesting({
+          input: realbox.$.input.value.trimStart(),
+          matches: matches,
+        }));
+
+    // Dropdown should be visible again.
+    assertTrue(await areMatchesShowing());
+
+    // Browser returns only 1 match.
+    const singleMatch = [createSearchMatchForTesting()];
+    testProxy.callbackRouterRemote.autocompleteResultChanged(
+        createAutocompleteResultForTesting({
+          input: realbox.$.input.value.trimStart(),
+          matches: singleMatch,
+        }));
+
+    // Dropdown should be hidden (only mirror query match in multi-line mode).
+    assertFalse(await areMatchesShowing());
   });
 
   //============================================================================
@@ -1450,7 +1521,7 @@ suite('NewTabPageRealboxTest', () => {
       shiftKey: true,
     });
     realbox.$.input.dispatchEvent(shiftEnter);
-    assertFalse(shiftEnter.defaultPrevented);
+    assertTrue(shiftEnter.defaultPrevented);
 
     // Did not navigate to the first match since it's not selected.
     assertEquals(0, testProxy.handler.getCallCount('openAutocompleteMatch'));
@@ -2635,7 +2706,7 @@ suite('NewTabPageRealboxTest', () => {
     assertTrue(isVisible(realboxIcon.$.iconImg));
   });
 
-  test('lens searchboxes always use default icons in searchbox', async () => {
+  test('searchboxes always use default icons in searchbox', async () => {
     // Arrange.
     loadTimeData.overrideValues({
       searchboxDefaultIcon: 'hello.svg',
@@ -3093,309 +3164,59 @@ suite('NewTabPageRealboxTest', () => {
     assertFalse(backspaceEvent.defaultPrevented);
   });
 
-  test('onInputStateChanged updates inputState', async () => {
-    realbox = await createAndAppendRealbox();
-    const inputState = {
-      allowedModels: [],
-      allowedTools: [],
-      allowedInputTypes: [],
-      activeModel: 0,
-      activeTool: 0,
-      disabledModels: [],
-      disabledTools: [],
-      disabledInputTypes: [],
-      inputTypeConfigs: [],
-      toolConfigs: [],
-      modelConfigs: [],
-      toolsSectionConfig: null,
-      modelSectionConfig: null,
-      hintText: '',
-      maxInstances: {},
-      maxTotalInputs: 0,
-    } as InputState;
-    testProxy.callbackRouterRemote.onInputStateChanged(inputState);
+  test('pressing Enter in empty input prevents new line', async () => {
+    // Ensure the input is empty.
+    realbox.$.input.value = '';
+    realbox.$.input.dispatchEvent(new MouseEvent('mousedown', {button: 0}));
+    await testProxy.handler.whenCalled('queryAutocomplete');
+    testProxy.callbackRouterRemote.autocompleteResultChanged(
+        createAutocompleteResultForTesting({
+          input: '',
+          matches: [createSearchMatchForTesting()],
+        }));
     await microtasksFinished();
-    assertDeepEquals((realbox as any).inputState_, inputState);
-  });
-});
-
-suite('NewTabPageRealboxTabsTest', () => {
-  let realbox: SearchboxElement;
-  let testProxy: TestSearchboxBrowserProxy;
-
-  setup(async () => {
-    loadTimeData.overrideValues({
-      ntpRealboxNextEnabled: true,
-    });
-
-    testProxy = new TestSearchboxBrowserProxy();
-    SearchboxBrowserProxy.setInstance(testProxy);
-
-    realbox = await createAndAppendRealbox(
-        {ntpRealboxNextEnabled: true, searchboxLayoutMode: 'Compact'});
-  });
-
-  test('on tab strip change does not trigger getRecentTabs call', async () => {
-    testProxy.callbackRouterRemote.onTabStripChanged();
-    await microtasksFinished();
-
-    // Tab strip change does not trigger getRecentTabs call automatically.
-    assertEquals(testProxy.handler.getCallCount('getRecentTabs'), 0);
-  });
-
-  test('getRecentTabs only fires when context menu is open', async () => {
-    const contextElement =
-        realbox.shadowRoot.querySelector('contextual-entrypoint-and-carousel');
-    assertTrue(!!contextElement);
-    contextElement.dispatchEvent(new CustomEvent('context-menu-opened'));
-    await microtasksFinished();
-
-    // A forced getRecentTabs call is made when the context menu is opened.
-    assertEquals(testProxy.handler.getCallCount('getRecentTabs'), 1);
-    testProxy.handler.reset();
-
-    const sampleTabs = [
-      {
-        tabId: 1,
-        title: 'Sample Tab 1',
-        url: 'https://example.com/1',
-        showInRecentTabChip: true,
-        lastActive: {internalValue: BigInt(1)},
-      },
-      {
-        tabId: 2,
-        title: 'Sample Tab 2',
-        url: 'https://example.com/2',
-        showInRecentTabChip: true,
-        lastActive: {internalValue: BigInt(2)},
-      },
-    ];
-    testProxy.handler.setResultFor(
-        'getRecentTabs', Promise.resolve({tabs: sampleTabs}));
-
-    testProxy.callbackRouterRemote.onTabStripChanged();
-    await microtasksFinished();
-
-    assertEquals(testProxy.handler.getCallCount('getRecentTabs'), 1);
-    assertDeepEquals((realbox as any).tabSuggestions_, sampleTabs);
-
-    // Once the context menu is closed again, getRecentTabs should not be called
-    // on tab strip changes.
-    contextElement.dispatchEvent(new CustomEvent('context-menu-closed'));
-    await microtasksFinished();
-    testProxy.handler.reset();
-
-    testProxy.callbackRouterRemote.onTabStripChanged();
-    await microtasksFinished();
-    assertEquals(testProxy.handler.getCallCount('getRecentTabs'), 0);
-  });
-});
-
-suite('NewTabPageRealboxNextTest', () => {
-  let realbox: SearchboxElement;
-  let testProxy: TestSearchboxBrowserProxy;
-  let metrics: MetricsTracker;
-
-  setup(async () => {
-    ({realbox, testProxy, metrics} = await setupRealboxTest());
-  });
-
-  test('adding context files opens composebox', async () => {
-    // Arrange.
-    realbox = await createAndAppendRealbox({
-      composeButtonEnabled: true,
-      composeboxEnabled: true,
-      searchboxLayoutMode: 'TallBottomContext',
-      ntpRealboxNextEnabled: true,
-    });
-    const contextElement =
-        realbox.shadowRoot.querySelector('contextual-entrypoint-and-carousel');
-    assertTrue(!!contextElement);
-
-    // Act & Assert.
-    const whenOpenComposeBox = eventToPromise('open-composebox', realbox);
-    contextElement.dispatchEvent(new CustomEvent('add-tab-context', {
-      detail: {id: 1, title: 'title'},
+    const enterEvent = new KeyboardEvent('keydown', {
       bubbles: true,
-      composed: true,
-    }));
-    const event = await whenOpenComposeBox;
-    assertEquals(event.detail.contextFiles.length, 1);
-    assertEquals(event.detail.contextFiles[0].tabId, 1);
-    assertEquals(event.detail.contextFiles[0].title, 'title');
-  });
-
-  test('clicking deep search button opens composebox', async () => {
-    // Arrange.
-    loadTimeData.overrideValues({
-      composeboxShowDeepSearchButton: true,
+      cancelable: true,
+      composed: true,  // So it propagates across shadow DOM boundary.
+      key: 'Enter',
     });
-    realbox = await createAndAppendRealbox(
-        {ntpRealboxNextEnabled: true, searchboxLayoutMode: 'Compact'});
-    const contextElement =
-        realbox.shadowRoot.querySelector('contextual-entrypoint-and-carousel');
-    assertTrue(!!contextElement);
-    const entrypointAndMenu =
-        contextElement.shadowRoot.querySelector(
-            'cr-composebox-contextual-entrypoint-and-menu');
-    assertTrue(!!entrypointAndMenu);
-    const contextMenuEntrypoint =
-        entrypointAndMenu.shadowRoot.querySelector(
-            'cr-composebox-context-menu-entrypoint');
-    assertTrue(!!contextMenuEntrypoint);
 
-    testProxy.handler.setResultFor(
-        'getRecentTabs', Promise.resolve({tabs: []}));
-
-    // Act.
-    const whenOpenComposeBox = eventToPromise('open-composebox', realbox);
-
-    const entrypointButton =
-        contextMenuEntrypoint.shadowRoot.querySelector<HTMLElement>(
-            '#entrypoint');
-    assertTrue(!!entrypointButton);
-    entrypointButton.click();
+    // Dispatch the Enter key event.
+    realbox.$.input.dispatchEvent(enterEvent);
     await microtasksFinished();
 
-    const deepSearchButton =
-        contextMenuEntrypoint.shadowRoot.querySelector<HTMLElement>(
-            '#deepSearch');
-    assertTrue(!!deepSearchButton);
-    deepSearchButton.click();
+    // Assert that the default action (inserting a new line) is prevented.
+    assertTrue(enterEvent.defaultPrevented);
 
-    // Assert.
-    const event = await whenOpenComposeBox;
-    assertEquals(ToolMode.kDeepSearch, event.detail.mode);
-    // Calling deep search should not be logged as context being added.
-    assertEquals(
-        0,
-        metrics.count(
-            'ContextualSearch.ContextAdded.ContextAddedMethod.NewTabPage'));
+    // Assert that no navigation was triggered since the input is empty.
+    assertEquals(0, testProxy.handler.getCallCount('openAutocompleteMatch'));
   });
 
-  test('clicking create image button opens composebox', async () => {
-    // Arrange.
-    loadTimeData.overrideValues({
-      composeboxShowCreateImageButton: true,
-    });
-    realbox = await createAndAppendRealbox(
-        {ntpRealboxNextEnabled: true, searchboxLayoutMode: 'Compact'});
-    const contextElement =
-        realbox.shadowRoot.querySelector('contextual-entrypoint-and-carousel');
-    assertTrue(!!contextElement);
-    const entrypointAndMenu =
-        contextElement.shadowRoot.querySelector(
-            'cr-composebox-contextual-entrypoint-and-menu');
-    assertTrue(!!entrypointAndMenu);
-    const contextMenuEntrypoint =
-        entrypointAndMenu.shadowRoot.querySelector(
-            'cr-composebox-context-menu-entrypoint');
-    assertTrue(!!contextMenuEntrypoint);
-
-    testProxy.handler.setResultFor(
-        'getRecentTabs', Promise.resolve({tabs: []}));
-
-    // Act.
-    const whenOpenComposeBox = eventToPromise('open-composebox', realbox);
-
-    const entrypointButton =
-        contextMenuEntrypoint.shadowRoot.querySelector<HTMLElement>(
-            '#entrypoint');
-    assertTrue(!!entrypointButton);
-    entrypointButton.click();
+  test('pressing Shift+Enter in multi-line input allows new line', async () => {
+    // Enable multi-line mode.
+    realbox.multiLineEnabled = true;
     await microtasksFinished();
 
-    const createImageButton =
-        contextMenuEntrypoint.shadowRoot.querySelector<HTMLElement>(
-            '#createImage');
-    assertTrue(!!createImageButton);
-    createImageButton.click();
+    realbox.$.input.value = '';
 
-    // Assert.
-    const event = await whenOpenComposeBox;
-    assertEquals(ToolMode.kImageGen, event.detail.mode);
-  });
-
-  // TODO(crbug.com/453570027): Test is flaky.
-  test.skip(
-      'Contextual component empty area click focuses search input',
-      async () => {
-        // Arrange.
-        realbox = await createAndAppendRealbox({
-          composeButtonEnabled: true,
-          composeboxEnabled: true,
-          searchboxLayoutMode: 'TallTopContext',
-          ntpRealboxNextEnabled: true,
-        });
-        const contextElement = realbox.shadowRoot.querySelector(
-            'contextual-entrypoint-and-carousel');
-        assertTrue(!!contextElement);
-        contextElement.dispatchEvent(
-            new CustomEvent('context-menu-container-click'));
-        assertEquals(1, testProxy.handler.getCallCount('onFocusChanged'));
-        assertEquals(1, testProxy.handler.getCallCount('queryAutocomplete'));
-      });
-
-  test('pasting files adds them to contextual entrypoint', async () => {
-    loadTimeData.overrideValues({composeboxFileMaxCount: 2});
-    realbox = await createAndAppendRealbox({ntpRealboxNextEnabled: true});
-    let passedFileList: FileList|null = null;
-    realbox.$.context.addPastedFiles = (files: FileList|null) => {
-      passedFileList = files;
-    };
-
-    const pngFile = new File([''], 'pasted.png', {type: 'image/png'});
-    const pdfFile = new File([''], 'pasted.pdf', {type: 'application/pdf'});
-
-    const dataTransfer = new DataTransfer();
-    dataTransfer.items.add(pngFile);
-    dataTransfer.items.add(pdfFile);
-    const pasteEvent = new ClipboardEvent('paste', {
-      clipboardData: dataTransfer,
+    const shiftEnterEvent = new KeyboardEvent('keydown', {
       bubbles: true,
       cancelable: true,
       composed: true,
+      key: 'Enter',
+      shiftKey: true,  // Simulate holding the Shift key.
     });
 
-    realbox.$.input.dispatchEvent(pasteEvent);
+    // Dispatch the Shift + Enter key event.
+    realbox.$.input.dispatchEvent(shiftEnterEvent);
     await microtasksFinished();
 
-    assertNotEquals(null, passedFileList);
-    assertEquals(2, passedFileList!.length);
-    const file1 = passedFileList!.item(0);
-    assertNotEquals(null, file1);
-    assertEquals('pasted.png', file1!.name);
-    assertEquals('image/png', file1!.type);
-    const file2 = passedFileList!.item(1);
-    assertNotEquals(null, file2);
-    assertEquals('pasted.pdf', file2!.name);
-    assertEquals('application/pdf', file2!.type);
-    assertFalse((realbox as any).pastedInInput_);
-  });
+    // Assert that the default action is NOT prevented (browser will insert new
+    // line).
+    assertFalse(shiftEnterEvent.defaultPrevented);
 
-  test('pasting text sets pastedInInput flag', async () => {
-    // Re-create realbox to pick up new loadTimeData.
-    realbox = await createAndAppendRealbox({ntpRealboxNextEnabled: true});
-
-    let addFilesCalled = false;
-    realbox.$.context.addPastedFiles = (_files: FileList|null) => {
-      addFilesCalled = true;
-    };
-
-    const dataTransfer = new DataTransfer();
-    dataTransfer.setData('text/plain', 'hello');
-    const pasteEvent = new ClipboardEvent('paste', {
-      clipboardData: dataTransfer,
-      bubbles: true,
-      cancelable: true,
-      composed: true,
-    });
-
-    realbox.$.input.dispatchEvent(pasteEvent);
-    await microtasksFinished();
-
-    assertFalse(pasteEvent.defaultPrevented);
-    assertFalse(addFilesCalled);
-    assertTrue((realbox as any).pastedInInput_);
+    // Assert that no navigation was triggered.
+    assertEquals(0, testProxy.handler.getCallCount('openAutocompleteMatch'));
   });
 });

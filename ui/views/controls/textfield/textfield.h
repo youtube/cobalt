@@ -524,8 +524,12 @@ class VIEWS_EXPORT Textfield : public View,
   // Returns the last click root location (relative to the root window).
   gfx::Point GetLastClickRootLocation() const;
 
-  // Get the text from the selection clipboard.
-  virtual std::u16string GetSelectionClipboardText() const;
+  // Called when PasteSelectionClipboard() is done reading text from the
+  // clipboard. The callback is passed the result of the paste operation, i.e.
+  // whether or not the paste succeeded.
+  void OnTextReadForPasteSelectionClipboard(
+      base::OnceCallback<void(bool)> callback,
+      std::u16string text);
 
   // Executes the given |command|.
   virtual void ExecuteTextEditCommand(ui::TextEditCommand command);
@@ -552,8 +556,9 @@ class VIEWS_EXPORT Textfield : public View,
   // gesture event.
   void RequestFocusForGesture(const ui::GestureEventDetails& details);
 
-  virtual Textfield::EditCommandResult DoExecuteTextEditCommand(
-      ui::TextEditCommand command);
+  virtual void DoExecuteTextEditCommand(
+      ui::TextEditCommand command,
+      base::OnceCallback<void(Textfield::EditCommandResult)> callback);
 
   // Handles key press event ahead of OnKeyPressed(). This is used for Textarea
   // to handle the return key. Use TextfieldController::HandleKeyEvent to
@@ -573,6 +578,12 @@ class VIEWS_EXPORT Textfield : public View,
   bool IsMenuShowing() const;
 
   void AddedToWidget() override;
+
+  // Convenience method to call TextfieldController::OnBeforeUserAction();
+  void OnBeforeUserAction();
+
+  // Convenience method to call TextfieldController::OnAfterUserAction();
+  void OnAfterUserAction();
 
 #if BUILDFLAG(SUPPORTS_AX_TEXT_OFFSETS)
   void UpdateAccessibleTextOffsetsIfNeeded();
@@ -602,7 +613,8 @@ class VIEWS_EXPORT Textfield : public View,
   void OnAfterPointerAction(bool text_changed, bool selection_changed) override;
   // Callers within Textfield should call UpdateAfterChange depending on the
   // return value.
-  bool PasteSelectionClipboard() override;
+  void PasteSelectionClipboard(
+      base::OnceCallback<void(bool)> callback) override;
   void UpdateSelectionClipboard() override;
 
   // Updates the painted background color.
@@ -652,12 +664,6 @@ class VIEWS_EXPORT Textfield : public View,
   // Convenience method to notify the InputMethod and TouchSelectionController.
   void OnCaretBoundsChanged();
 
-  // Convenience method to call TextfieldController::OnBeforeUserAction();
-  void OnBeforeUserAction();
-
-  // Convenience method to call TextfieldController::OnAfterUserAction();
-  void OnAfterUserAction();
-
   // Calls |model_->Cut()| and notifies TextfieldController on success.
   bool Cut();
 
@@ -666,7 +672,13 @@ class VIEWS_EXPORT Textfield : public View,
 
   // Calls |model_->Paste()| and calls TextfieldController::ContentsChanged()
   // explicitly if paste succeeded.
-  bool Paste();
+  void Paste(base::OnceCallback<void(bool)> callback);
+
+  // Called when Paste() is done reading text from the clipboard. The callback
+  // is passed the result of the paste operation, i.e. whether or not the paste
+  // succeeded.
+  void OnTextReadForPaste(base::OnceCallback<void(bool)> callback,
+                          std::u16string text);
 
   // Utility function to prepare the context menu.
   void UpdateContextMenu();
@@ -741,6 +753,12 @@ class VIEWS_EXPORT Textfield : public View,
   // accessibility. Currently only on Windows when UIA is enabled.
   void RefreshAccessibleTextOffsets();
 #endif  // BUILDFLAG(SUPPORTS_AX_TEXT_OFFSETS)
+
+  void OnTextCommandExecuted(gfx::SelectionModel selection_model,
+                             Textfield::EditCommandResult result);
+
+  void OnPasted(base::OnceCallback<void(Textfield::EditCommandResult)> callback,
+                bool pasted);
 
   // The text model.
   std::unique_ptr<TextfieldModel> model_;

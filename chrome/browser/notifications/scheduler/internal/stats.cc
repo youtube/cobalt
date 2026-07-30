@@ -60,6 +60,10 @@ std::string ToHistogramTipsFeatureSuffix(
       return ".Signin";
     case TipsNotificationsFeatureType::kCreateTabGroups:
       return ".CreateTabGroups";
+    case TipsNotificationsFeatureType::kCustomizeMVT:
+      return ".CustomizeMVT";
+    case TipsNotificationsFeatureType::kRecentTabs:
+      return ".RecentTabs";
     default:
       NOTREACHED();
   }

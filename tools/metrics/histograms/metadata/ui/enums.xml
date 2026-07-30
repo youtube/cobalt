@@ -471,6 +471,9 @@ chromium-metrics-reviews@google.com.
   <int value="79" label="UMA_FUSEBOX_UPLOAD_FAILED"/>
   <int value="80" label="UMA_BOOKMARK_LINK_COPIED"/>
   <int value="81" label="UMA_BOOKMARK_LINK_COPIED_NON_SELECTION"/>
+  <int value="82" label="UMA_CROSS_DEVICE_SETTING_IMPORT"/>
+  <int value="83" label="UMA_CROSS_DEVICE_SETTING_UNDO"/>
+  <int value="84" label="UMA_CROSS_DEVICE_SETTING_REDO"/>
 </enum>
 
 <enum name="WebUIPreloadReason">
@@ -670,6 +673,7 @@ chromium-metrics-reviews@google.com.
   <int value="-2024468885" label="chrome://ntp-tiles-internals/"/>
   <int value="-2020874093" label="chrome://lock-reauth/"/>
   <int value="-2008798042" label="chrome://extended-updates-dialog/"/>
+  <int value="-1995370569" label="chrome://private-ai-internals/"/>
   <int value="-1977692791" label="chrome://crash/"/>
   <int value="-1970917350" label="chrome-untrusted://compose/"/>
   <int value="-1969079493"
@@ -827,6 +831,7 @@ chromium-metrics-reviews@google.com.
   <int value="-359703631" label="chrome://slow_trace/"/>
   <int value="-336117866" label="chrome://focus-mode-media/"/>
   <int value="-332876060" label="chrome://autofill-ml-internals/"/>
+  <int value="-251863235" label="chrome-untrusted://glic/"/>
   <int value="-245337017" label="chrome://user-actions/"/>
   <int value="-233401490" label="chrome://accessory-update/"/>
   <int value="-222190329" label="chrome://dino/"/>
@@ -856,7 +861,6 @@ chromium-metrics-reviews@google.com.
   <int value="48333657" label="chrome://about/"/>
   <int value="57900378" label="chrome://conch/"/>
   <int value="58807865" label="chrome://local-state/"/>
-  <int value="67875391" label="chrome://legion-internals/"/>
   <int value="71502624" label="chrome://history-sync-optin/"/>
   <int value="84832110" label="chrome://fileicon/"/>
   <int value="104579118" label="chrome://boca-app/"/>

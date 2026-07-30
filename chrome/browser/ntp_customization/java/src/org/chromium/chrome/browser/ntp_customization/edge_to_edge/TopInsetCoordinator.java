@@ -53,6 +53,11 @@ public class TopInsetCoordinator implements InsetObserver.WindowInsetsConsumer, 
     private int mAppliedTopPadding;
     private boolean mConsumeTopInset;
 
+    // When the status indicator (e.g. offline indicator) is visible, edge-to-edge on top should be
+    // disabled because the status indicator occupies the space below the status bar and the NTP
+    // background cannot extend into the status bar area anyway.
+    private boolean mStatusIndicatorVisible;
+
     // A flag to indicate whether it is in the layout transition from the Tab switcher to a NTP.
     private boolean mInTabSwitcherToNtpTransition;
     // If true, there is an attempt to add a LayoutStateObserver when the LayoutStateProvider hasn't
@@ -179,23 +184,15 @@ public class TopInsetCoordinator implements InsetObserver.WindowInsetsConsumer, 
         // We shouldn't use mTrackingTab, which can be set to null in removeObservers(), and it
         // won't be updated if mTabSupplierObserver is removed.
         Tab currentTab = mTabSupplier.get();
-        if (currentTab == null
-                // When swipe the toolbar inside NTP, currentTab == null. So the
-                // EdgeToEdgeLayoutCoordinator will add the top padding.
-                // We need to notify the observer of ToolbarPositionController to remove the top
-                // padding.
-                && (mLayoutStateProvider == null
-                        || mLayoutStateProvider.getActiveLayoutType()
-                                != LayoutType.TOOLBAR_SWIPE)) {
-            return windowInsetsCompat;
-        }
 
         mSystemInsets = windowInsetsCompat.getInsets(WindowInsetsCompat.Type.systemBars());
 
         // As long as the current native page supports to show edge to edge on top,
         // TopInsetCoordinator needs to consume the top padding every time when onApplyWindowInsets
         // is called to change the top padding of EdgeToEdgeLayout.
-        mConsumeTopInset = NtpCustomizationUtils.supportsEnableEdgeToEdgeOnTop(currentTab);
+        mConsumeTopInset =
+                NtpCustomizationUtils.supportsEnableEdgeToEdgeOnTop(currentTab)
+                        && !mStatusIndicatorVisible;
         computeEdgePaddings();
         if (mEnableLogs) {
             Log.i(
@@ -297,8 +294,26 @@ public class TopInsetCoordinator implements InsetObserver.WindowInsetsConsumer, 
 
     private void notifyObservers() {
         for (var observer : mObservers) {
-            observer.onToEdgeChange(mSystemInsets.top, mConsumeTopInset);
+            observer.onToEdgeChange(
+                    mSystemInsets.top,
+                    mConsumeTopInset,
+                    mLayoutStateProvider != null
+                            ? mLayoutStateProvider.getActiveLayoutType()
+                            : LayoutType.NONE);
         }
+    }
+
+    /**
+     * Sets whether the status indicator (e.g. offline indicator) is currently visible. When
+     * visible, edge-to-edge on top is disabled to avoid the status indicator being obscured by the
+     * status bar.
+     *
+     * @param visible Whether the status indicator is visible.
+     */
+    public void setStatusIndicatorVisible(boolean visible) {
+        if (mStatusIndicatorVisible == visible) return;
+        mStatusIndicatorVisible = visible;
+        mInsetObserver.retriggerOnApplyWindowInsets();
     }
 
     /** Destroys the TopInsetCoordinator instance. */

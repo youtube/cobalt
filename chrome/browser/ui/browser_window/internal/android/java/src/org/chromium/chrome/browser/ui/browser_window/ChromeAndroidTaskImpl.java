@@ -41,6 +41,7 @@ import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher.Activit
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcherProvider;
 import org.chromium.chrome.browser.lifecycle.ConfigurationChangedObserver;
 import org.chromium.chrome.browser.lifecycle.TopResumedActivityChangedWithNativeObserver;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.NewWindowAppSource;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.browser.tabmodel.IncognitoTabModel;
@@ -566,6 +567,12 @@ final class ChromeAndroidTaskImpl
     }
 
     @Override
+    public void removeAllFeaturesForActivity(ActivityWindowAndroid activityWindowAndroid) {
+        ThreadUtils.assertOnUiThread();
+        removeAllFeaturesForActivityInternal(activityWindowAndroid);
+    }
+
+    @Override
     public @Nullable Intent createIntentForNormalBrowserWindow(boolean isIncognito) {
         ThreadUtils.assertOnUiThread();
         var topActivityScopedObjects = mActivityScopedObjectsDeque.peekFirst();
@@ -578,7 +585,8 @@ final class ChromeAndroidTaskImpl
             return null;
         }
 
-        return multiInstanceManager.createNewWindowIntent(isIncognito);
+        return multiInstanceManager.createNewWindowIntent(
+                isIncognito, NewWindowAppSource.BROWSER_WINDOW_CREATOR);
     }
 
     @Override
@@ -1314,17 +1322,19 @@ final class ChromeAndroidTaskImpl
 
         if (activityScopedObjectsToRemove != null) {
             mActivityScopedObjectsDeque.remove(activityScopedObjectsToRemove);
+            removeAllFeaturesForActivity(activityWindowAndroid);
+        }
+    }
 
-            Iterator<Entry<ChromeAndroidTaskFeatureKey, ChromeAndroidTaskFeature>> iterator =
-                    mFeatures.entrySet().iterator();
-            while (iterator.hasNext()) {
-                Entry<ChromeAndroidTaskFeatureKey, ChromeAndroidTaskFeature> entry =
-                        iterator.next();
-                ChromeAndroidTaskFeatureKey key = entry.getKey();
-                if (activityWindowAndroid == key.mActivityWindowAndroid) {
-                    entry.getValue().onFeatureRemoved();
-                    iterator.remove();
-                }
+    private void removeAllFeaturesForActivityInternal(ActivityWindowAndroid activityWindowAndroid) {
+        Iterator<Entry<ChromeAndroidTaskFeatureKey, ChromeAndroidTaskFeature>> iterator =
+                mFeatures.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Entry<ChromeAndroidTaskFeatureKey, ChromeAndroidTaskFeature> entry = iterator.next();
+            ChromeAndroidTaskFeatureKey key = entry.getKey();
+            if (activityWindowAndroid == key.mActivityWindowAndroid) {
+                entry.getValue().onFeatureRemoved();
+                iterator.remove();
             }
         }
     }

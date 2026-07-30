@@ -10,6 +10,8 @@
 
 #include "base/check.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
+#include "base/run_loop.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "content/public/test/browser_task_environment.h"
@@ -75,7 +77,7 @@ class WebUIMetricsReporterTest : public testing::Test {
   MetricsReporter::HasMarkCallback TestHasMarkCallback(bool expected_has_mark) {
     return base::BindOnce(
         [](bool expected_has_mark, bool has_mark) {
-          EXPECT_EQ(expected_has_mark, expected_has_mark);
+          EXPECT_EQ(expected_has_mark, has_mark);
         },
         expected_has_mark);
   }
@@ -205,4 +207,51 @@ TEST_F(WebUIMetricsReporterTest, MeasureRetrieveRemote) {
   task_environment_.FastForwardBy(base::Seconds(1));
   metrics_reporter_.Measure("remote_mark",
                             TestMeasureCallback(base::Seconds(1)));
+}
+
+// Measure() should drop the callback if the start mark is missing locally and
+// remotely. This fulfills the intention of verifying that missing marks do not
+// record metrics.
+TEST_F(WebUIMetricsReporterTest, MeasureDropsCallbackWhenStartMarkMissing) {
+  EXPECT_CALL(page_metrics_, OnGetMark("missing_start_mark", _))
+      .WillOnce([](const std::string& mark,
+                   MetricsReporter::OnGetMarkCallback callback) {
+        std::move(callback).Run(std::nullopt);
+      });
+
+  base::RunLoop run_loop;
+  auto fail_callback = base::BindOnce(
+      [](base::ScopedClosureRunner, base::TimeDelta) {
+        ADD_FAILURE()
+            << "Callback should not be called for missing start mark.";
+      },
+      base::ScopedClosureRunner(run_loop.QuitClosure()));
+
+  metrics_reporter_.Measure("missing_start_mark", std::move(fail_callback));
+
+  run_loop.Run();
+}
+
+// Measure() with an explicit end time should drop the callback if the start
+// mark is missing locally and remotely.
+TEST_F(WebUIMetricsReporterTest,
+       MeasureWithEndTimeDropsCallbackWhenStartMarkMissing) {
+  EXPECT_CALL(page_metrics_, OnGetMark("missing_start_mark", _))
+      .WillOnce([](const std::string& mark,
+                   MetricsReporter::OnGetMarkCallback callback) {
+        std::move(callback).Run(std::nullopt);
+      });
+
+  base::RunLoop run_loop;
+  auto fail_callback = base::BindOnce(
+      [](base::ScopedClosureRunner, base::TimeDelta) {
+        ADD_FAILURE()
+            << "Callback should not be called for missing start mark.";
+      },
+      base::ScopedClosureRunner(run_loop.QuitClosure()));
+
+  metrics_reporter_.Measure("missing_start_mark", base::TimeTicks::Now(),
+                            std::move(fail_callback));
+
+  run_loop.Run();
 }

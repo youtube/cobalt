@@ -86,6 +86,7 @@
 #include "third_party/blink/renderer/core/layout/layout_replaced.h"
 #include "third_party/blink/renderer/core/layout/layout_theme.h"
 #include "third_party/blink/renderer/core/layout/map_coordinates_flags.h"
+#include "third_party/blink/renderer/core/paint/paint_layer.h"
 #include "third_party/blink/renderer/core/scroll/scroll_alignment.h"
 #include "third_party/blink/renderer/core/scroll/scroll_into_view_util.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
@@ -887,28 +888,27 @@ DOMMatrix* CanvasRenderingContext2D::DrawElementInternal(
     return nullptr;
   }
 
+  if (!IsDrawElementImageEligible(element, "DrawElementImage",
+                                  exception_state)) {
+    return nullptr;
+  }
+
   TRACE_EVENT0("blink", "DrawElementImage");
 
-  element->GetDocument().View()->UpdateAllLifecyclePhasesExceptPaint(
-      DocumentUpdateReason::kCanvasDrawElementImage);
-
-  // Element size in physical coordinates.
-  gfx::SizeF box_size;
-  if (element->GetLayoutBox()) {
-    box_size = gfx::SizeF(element->GetLayoutBox()->StitchedSize());
-  }
-  gfx::RectF src_rect(box_size);
-  std::optional<CullRect> cull_rect;
-  if (sx && sy && swidth && sheight) {
-    float dpr = element->ComputedStyleRef().EffectiveZoom();
-    src_rect = gfx::RectF(*sx * dpr, *sy * dpr, *swidth * dpr, *sheight * dpr);
-    cull_rect.emplace(gfx::ToEnclosingRect(src_rect));
-  }
-
-  std::optional<cc::PaintRecord> paint_record = GetElementPaintRecord(
-      element, cull_rect, "drawElementImage()", exception_state);
-  if (!paint_record) {
+  std::optional<CanvasChildPaintRecord> child_paint_record =
+      GetChildPaintRecord(element);
+  if (!child_paint_record) {
+    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
+                                      "No cached paint record for element.");
     return nullptr;
+  }
+  float dpr = child_paint_record->scale;
+  gfx::SizeF box_size = child_paint_record->box_size;
+  cc::PaintRecord paint_record = std::move(child_paint_record->record);
+
+  gfx::RectF src_rect(box_size);
+  if (sx && sy && swidth && sheight) {
+    src_rect = gfx::RectF(*sx * dpr, *sy * dpr, *swidth * dpr, *sheight * dpr);
   }
 
   // The filter needs to be resolved before calling Draw, because it
@@ -931,18 +931,6 @@ DOMMatrix* CanvasRenderingContext2D::DrawElementInternal(
     // If no explicit destination size is given, default to the ideal size.
     dst_rect.set_size(ideal_dst_size);
   }
-
-  CompositorElementId placeholder_id =
-      CompositorElementIdFromDOMNodeId(element->GetDomNodeId());
-  {
-    auto* c = GetOrCreatePaintCanvas();
-    cc::RecordPaintCanvas::DisableFlushCheckScope disable_flush_check_scope(
-        static_cast<cc::RecordPaintCanvas*>(c));
-    c->drawElementImagePlaceholder(placeholder_id);
-  };
-
-  // TODO(crbug.com/480074852): All the drawing code below should be removed
-  // once the placeholder op recorded above is handled during BeginMainFrame.
 
   // TODO(crbug.com/421834883): This code is based on image drawing. Maybe we
   // need a distinct paint_type: kImagePaintType seems to do the right thing
@@ -1001,7 +989,7 @@ DOMMatrix* CanvasRenderingContext2D::DrawElementInternal(
         c->clipRect(SkRect::MakeXYWH(src_rect.x(), src_rect.y(),
                                      src_rect.width(), src_rect.height()));
 
-        c->drawPicture(paint_record.value(),
+        c->drawPicture(std::move(paint_record),
                        // use a save at the beginning of the record to keep
                        // transforms local:
                        true);
@@ -1337,58 +1325,38 @@ CanvasRenderingContext2D::CreateCanvasResourceProvider() {
   const SkAlphaType alpha_type = GetAlphaType();
   const viz::SharedImageFormat format = GetSharedImageFormat();
   const gfx::ColorSpace color_space = GetColorSpace();
-  const bool use_gpu = canvas()->ShouldTryToUseGpuRaster() &&
-                       canvas()->ShouldAccelerate2dContext();
+  const bool use_gpu_raster = canvas()->ShouldTryToUseGpuRaster() &&
+                              canvas()->ShouldAccelerate2dContext();
   const bool is_gpu_compositing_enabled =
       SharedGpuContext::IsGpuCompositingEnabled();
   if (is_gpu_compositing_enabled) {
-    if (use_gpu) {
+    // We can try to create a SharedImage provider if either (a) we are using
+    // GPU raster or (b) we are using CPU raster and native
+    // mappable buffers are supported, in which case the created SharedImage
+    // could be mapped onto the CPU for software raster writes and then read by
+    // the display compositor.
+    if (use_gpu_raster ||
+        SharedGpuContext::NativeMappableSharedImagesSupportedForCanvas2D()) {
       gpu::SharedImageUsageSet shared_image_usage_flags =
           gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
-      if (canvas()->LowLatencyEnabled()) {
-        // Try a SharedImage provider with usage optimized for low-latency.
-        bool can_use_swapchain = SharedGpuContext::ContextProviderWrapper()
-                                     ->ContextProvider()
-                                     .SharedImageInterface()
-                                     ->GetCapabilities()
-                                     .shared_image_swap_chain;
-        bool can_use_concurrent_read_write =
-            can_use_swapchain ||
-            (SharedGpuContext::MaySupportImageChromium() &&
-             (RuntimeEnabledFeatures::Canvas2dImageChromiumEnabled() ||
-              base::FeatureList::IsEnabled(
-                  features::kLowLatencyCanvas2dImageChromium)));
-        if (can_use_concurrent_read_write) {
-          shared_image_usage_flags |= gpu::SHARED_IMAGE_USAGE_SCANOUT;
-          shared_image_usage_flags |=
-              gpu::SHARED_IMAGE_USAGE_CONCURRENT_READ_WRITE;
-        }
-      } else {
-        // In the case we are hardware compositing, try to enable the usage of
-        // the image as scanout buffer (overlay).
-        if (SharedGpuContext::MaySupportImageChromium() &&
-            RuntimeEnabledFeatures::Canvas2dImageChromiumEnabled()) {
-          shared_image_usage_flags |= gpu::SHARED_IMAGE_USAGE_SCANOUT;
-        }
+
+      // Determine whether this SharedImage can be configured for low-latency
+      // or placement in overlays.
+      bool low_latency_supported =
+          use_gpu_raster && canvas()->LowLatencyEnabled() &&
+          SharedGpuContext::LowLatencyUsageSupportedForCanvas2D();
+      if (low_latency_supported) {
+        shared_image_usage_flags |=
+            gpu::SHARED_IMAGE_USAGE_SCANOUT |
+            gpu::SHARED_IMAGE_USAGE_CONCURRENT_READ_WRITE;
+      } else if (SharedGpuContext::OverlaysSupportedForCanvas2D()) {
+        shared_image_usage_flags |= gpu::SHARED_IMAGE_USAGE_SCANOUT;
       }
+
       provider = Canvas2DResourceProviderSharedImage::CreateWithClear(
           canvas()->Size(), format, alpha_type, color_space,
-          SharedGpuContext::ContextProviderWrapper(), RasterMode::kGPU,
-          shared_image_usage_flags, canvas());
-    } else if (SharedGpuContext::MaySupportImageChromium() &&
-               RuntimeEnabledFeatures::Canvas2dImageChromiumEnabled()) {
-      // In this case, we are using CPU raster and GPU compositing and native
-      // mappable buffers are supported. Try to use a
-      // Canvas2DResourceProviderSharedImage, which if successful will result in
-      // using a SharedImage that can be mapped onto the CPU for software raster
-      // writes and then read by the display compositor (and potentially used as
-      // an overlay).
-      const gpu::SharedImageUsageSet shared_image_usage_flags =
-          gpu::SHARED_IMAGE_USAGE_DISPLAY_READ |
-          gpu::SHARED_IMAGE_USAGE_SCANOUT;
-      provider = Canvas2DResourceProviderSharedImage::CreateWithClear(
-          canvas()->Size(), format, alpha_type, color_space,
-          SharedGpuContext::ContextProviderWrapper(), RasterMode::kCPU,
+          SharedGpuContext::ContextProviderWrapper(),
+          use_gpu_raster ? RasterMode::kGPU : RasterMode::kCPU,
           shared_image_usage_flags, canvas());
     }
   } else {  // SW compositing

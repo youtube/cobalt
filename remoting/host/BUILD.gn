@@ -154,6 +154,7 @@ source_set("ipc_constants") {
     "//base",
     "//components/named_mojo_ipc_server",
     "//mojo/public/cpp/platform",
+    "//remoting/base",
     "//remoting/host/base",
   ]
 }
@@ -342,8 +343,6 @@ static_library("common") {
     "backoff_timer.cc",
     "backoff_timer.h",
     "basic_desktop_environment.cc",
-    "branding.cc",
-    "branding.h",
     "chromoting_host.cc",
     "chromoting_host.h",
     "chromoting_host_context.cc",
@@ -531,7 +530,6 @@ static_library("common") {
     "//remoting/signaling",
     "//services/network:network_service",
     "//services/network/public/cpp",
-    "//third_party/libjingle_xmpp:rtc_xmllite",
     "//third_party/webrtc_overrides:webrtc_component",
     "//ui/events",
 
@@ -783,7 +781,6 @@ static_library("test_support") {
     ":common",
     "//remoting/base:test_support",
     "//remoting/host/file_transfer:test_support",
-    "//third_party/libjingle_xmpp:rtc_xmllite",
     "//third_party/protobuf:protobuf_lite",
     "//third_party/webrtc_overrides:webrtc_component",
   ]
@@ -1175,7 +1172,6 @@ if (enable_me2me_host) {
       "//remoting/protocol",
       "//remoting/signaling",
       "//services/network/public/cpp",
-      "//third_party/libjingle_xmpp:rtc_xmllite",
       "//third_party/webrtc_overrides:webrtc_component",
     ]
 

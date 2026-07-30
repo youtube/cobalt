@@ -76,8 +76,6 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.Robolectric;
 import org.robolectric.annotation.Config;
-import org.robolectric.annotation.LooperMode;
-import org.robolectric.annotation.LooperMode.Mode;
 
 import org.chromium.base.Callback;
 import org.chromium.base.CallbackUtils;
@@ -86,6 +84,7 @@ import org.chromium.base.MathUtils;
 import org.chromium.base.Token;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.RobolectricUtil;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
@@ -159,7 +158,6 @@ import org.chromium.components.tab_groups.TabGroupColorId;
 import org.chromium.ui.base.LocalizationUtils;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.dragdrop.DragDropGlobalState;
-import org.chromium.ui.dragdrop.DragDropGlobalState.TrackerToken;
 import org.chromium.ui.shadows.ShadowAppCompatResources;
 import org.chromium.ui.util.MotionEventUtils;
 import org.chromium.ui.widget.RectProvider;
@@ -180,7 +178,6 @@ import java.util.stream.IntStream;
         manifest = Config.NONE,
         qualifiers = "sw600dp",
         shadows = {ShadowAppCompatResources.class})
-@LooperMode(Mode.LEGACY)
 @DisableFeatures({
     ChromeFeatureList.DATA_SHARING,
     ChromeFeatureList.TAB_STRIP_CLOSE_REFACTOR_ANDROID,
@@ -230,7 +227,6 @@ public class StripLayoutHelperTest {
     @Mock private ServiceStatus mServiceStatus;
     @Mock private DataSharingUIDelegate mDataSharingUiDelegate;
     @Mock private Bitmap mAvatarBitmap;
-    @Mock private TintedCompositorButton mCloseButton;
     @Mock TabStripIphController mController;
     @Mock private TabStripContextMenuCoordinator mTabStripContextMenuCoordinator;
 
@@ -2366,45 +2362,6 @@ public class StripLayoutHelperTest {
     }
 
     @Test
-    @Feature("Advanced Peripherals Support")
-    public void testCloseTabsContextMenu_PreventsHovercard() {
-        // Set up: see testOnLongPress_OnCloseButton setup.
-        initializeTest(false, false, 0);
-        StripLayoutTab[] tabs = getMockedStripLayoutTabs(150f);
-        mStripLayoutHelper.setStripLayoutTabsForTesting(tabs);
-
-        // Mock tab's view.
-        View tabView = new View(mActivity);
-        tabView.setLayoutParams(new MarginLayoutParams(150, 50));
-        when(mModel.getTabAt(1).getView()).thenReturn(tabView);
-
-        // Long press on second tab's close button.
-        StripLayoutTab tab = tabs[1];
-        when(tab.checkCloseHitTest(anyFloat(), anyFloat())).thenReturn(true);
-        when(tab.getCloseButton()).thenReturn(mCloseButton);
-        when(mCloseButton.getParentView()).thenReturn(tab);
-        when(mCloseButton.getType()).thenReturn(ButtonType.TAB_CLOSE);
-        mStripLayoutHelper.setTabAtPositionForTesting(tab);
-        mStripLayoutHelper.onLongPress(150f, 0f);
-
-        assertTrue(
-                "Expected 'close all tabs' context menu to be showing",
-                mStripLayoutHelper.isCloseButtonMenuShowingForTesting());
-
-        // Now try to hover on the tab.
-        mStripLayoutHelper.updateLastHoveredTab(tab);
-
-        verify(mTabHoverCardView, never())
-                .show(
-                        nullable(Tab.class),
-                        anyBoolean(),
-                        anyFloat(),
-                        anyFloat(),
-                        anyFloat(),
-                        anyFloat());
-    }
-
-    @Test
     @Feature("Tab Context Menu")
     @EnableFeatures(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
     public void testBottomSheet_constructedWithoutDestroyHide() {
@@ -2648,6 +2605,7 @@ public class StripLayoutHelperTest {
         initializeTest(false, false, 0);
         StripLayoutTab[] tabs = getMockedStripLayoutTabs(150f);
         mStripLayoutHelper.setStripLayoutTabsForTesting(tabs);
+        mStripLayoutHelper.setTabContextMenuCoordinatorForTesting(mTabContextMenuCoordinator);
 
         // Mock tab's view.
         View tabView = new View(mActivity);
@@ -2663,13 +2621,11 @@ public class StripLayoutHelperTest {
         mStripLayoutHelper.setTabAtPositionForTesting(tabs[1]);
         mStripLayoutHelper.onLongPress(150f, 0f);
 
-        // Verify that we show the popup menu anchored on the close button.
+        // Verify that we show the tab context menu.
         assertFalse(
                 "Should not be in reorder mode after long press on tab close button.",
                 mStripLayoutHelper.getInReorderModeForTesting());
-        assertTrue(
-                "Should show menu anchored on close button after long press.",
-                mStripLayoutHelper.isCloseButtonMenuShowingForTesting());
+        verify(mTabContextMenuCoordinator).showMenu(any(), any());
     }
 
     @Test
@@ -2731,13 +2687,10 @@ public class StripLayoutHelperTest {
         mStripLayoutHelper.setTabAtPositionForTesting(null);
         mStripLayoutHelper.onLongPress(x, y);
 
-        // Verify that we do not show the popup menu anchored on the close button.
+        // Verify that we do not show the popup menu anchored on the Glic button.
         assertFalse(
                 "Should not be in reorder mode after long press on empty space on tab strip.",
                 mStripLayoutHelper.getInReorderModeForTesting());
-        assertFalse(
-                "Should not show after long press on empty space on tab strip.",
-                mStripLayoutHelper.isCloseButtonMenuShowingForTesting());
         assertFalse(
                 "Should not show after long press on empty space on tab strip.",
                 mStripLayoutHelper.isGlicButtonMenuShowingForTesting());
@@ -2856,11 +2809,12 @@ public class StripLayoutHelperTest {
                 0.1f);
 
         // Act: Call on close tab button handler.
+        Tab closingTab = mModel.getTabAt(2);
         mStripLayoutHelper.handleCloseButtonClick(
                 tabs[2], MotionEventUtils.MOTION_EVENT_BUTTON_NONE);
+        RobolectricUtil.runAllBackgroundAndUi();
 
         // Act: Fake the tab closure and end the animation, so the tab is removed from the model.
-        Tab closingTab = mModel.getTabAt(2);
         mStripLayoutHelper.finishAnimations();
         mStripLayoutHelper.tabClosed(closingTab);
 
@@ -3938,6 +3892,7 @@ public class StripLayoutHelperTest {
 
         // Act
         mStripLayoutHelper.handleCloseButtonClick(tabs[selectedTabIndex], motionEventButtonState);
+        RobolectricUtil.runAllBackgroundAndUi();
         mStripLayoutHelper.finishAnimations(); // end the closing animation
 
         // Assert
@@ -3977,12 +3932,12 @@ public class StripLayoutHelperTest {
         mStripLayoutHelper.updateLayout(TIMESTAMP);
 
         // Act: Call on close tab button handler.
+        Tab closingTab = mModel.getTabAt(closingIndex);
         mStripLayoutHelper.handleCloseButtonClick(
                 tabs[closingIndex], MotionEventUtils.MOTION_EVENT_BUTTON_NONE);
+        RobolectricUtil.runAllBackgroundAndUi();
 
         // Act: Finish the close animations.
-        Tab closingTab = mModel.getTabAt(closingIndex);
-        mStripLayoutHelper.getRunningAnimatorForTesting().end();
         mStripLayoutHelper.tabClosed(closingTab);
 
         // Assert: Tab is closed.
@@ -5388,9 +5343,7 @@ public class StripLayoutHelperTest {
                                         - tabCloseButton.getTouchTargetBounds().left)
                                 / 2;
         mStripLayoutHelper.click(TIMESTAMP, viewMidX, 0, MotionEvent.BUTTON_SECONDARY, 0);
-        assertTrue(
-                "Should show tab menu after secondary click on tab close.",
-                mStripLayoutHelper.isCloseButtonMenuShowingForTesting());
+        verify(mTabContextMenuCoordinator, times(2)).showMenu(any(), any());
     }
 
     @Test
@@ -5976,7 +5929,7 @@ public class StripLayoutHelperTest {
         mStripLayoutHelper.setLayerTitleCache(newTitleCache);
 
         // Verify the observers have been updated as expected.
-        verify(newTitleCache).getGroupTitleWidth(eq(false), eq(expectedTitle));
+        verify(newTitleCache).getTitleWidth(eq(false), eq(expectedTitle));
     }
 
     @Test
@@ -6221,23 +6174,6 @@ public class StripLayoutHelperTest {
     }
 
     @Test
-    public void testOpenContextMenu_closeButton() {
-        initializeTest(false, false, 0);
-        // Set up a view for ListMenu to use (otherwise constructing the ListMenu will fail).
-        View tabView = new View(mActivity);
-        when(mModel.getTabAt(anyInt())).thenReturn(mTab);
-        when(mTab.getView()).thenReturn(tabView);
-        StripLayoutTab parentTab = mStripLayoutHelper.getStripLayoutTabsForTesting()[0];
-        parentTab.getCloseButton().setKeyboardFocused(true);
-        assertTrue(
-                "Expected openKeyboardFocusedContextMenu to return true if tab context menu opened",
-                mStripLayoutHelper.openKeyboardFocusedContextMenu());
-        assertTrue(
-                "Expected close button context menu to be showing",
-                mStripLayoutHelper.isCloseButtonMenuShowingForTesting());
-    }
-
-    @Test
     public void testTabCreated_HorizontalAnimation() {
         // Initialize with default amount of tabs. Clear any animations.
         initializeTest(false, false, 3);
@@ -6264,11 +6200,12 @@ public class StripLayoutHelperTest {
         mStripLayoutHelper.updateLayout(TIMESTAMP);
 
         // Act: Call on close tab button handler.
+        Tab closingTab = mModel.getTabAt(9);
         mStripLayoutHelper.handleCloseButtonClick(
                 tabs[9], MotionEventUtils.MOTION_EVENT_BUTTON_NONE);
+        RobolectricUtil.runAllBackgroundAndUi();
 
         // Act: Fake the tab closure and end the animation, so the tab is removed from the model.
-        Tab closingTab = mModel.getTabAt(9);
         mStripLayoutHelper.finishAnimations();
         mStripLayoutHelper.tabClosed(closingTab);
 
@@ -7301,10 +7238,10 @@ public class StripLayoutHelperTest {
     private void setupDragDropState() {
         ChromeDropDataAndroid dropData =
                 new ChromeTabDropDataAndroid.Builder().withTab(mTab).build();
-        TrackerToken dragTrackerToken =
+        Token dragToken =
                 DragDropGlobalState.store(
                         /* dragSourceInstanceId= */ 1, dropData, /* dragShadowBuilder= */ null);
-        TabDragHandlerBase.setDragTrackerTokenForTesting(dragTrackerToken);
+        TabDragHandlerBase.setDragTokenForTesting(dragToken);
     }
 
     private class TestTabRemover implements TabRemover {

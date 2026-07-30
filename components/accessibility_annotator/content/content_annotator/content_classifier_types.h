@@ -12,9 +12,25 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/time/time.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
+#include "components/passage_embeddings/core/passage_embeddings_types.h"
+#include "services/metrics/public/cpp/ukm_source_id.h"
 #include "url/gurl.h"
 
 namespace accessibility_annotator {
+
+// The possible types of dependent information that might be missing from a
+// page that is undergoing evaluation for annotation. Used for logging.
+// LINT.IfChange(ContentAnnotatorMissingDependentInformation)
+enum class ContentAnnotatorMissingDependentInformation {
+  kSensitivityScoreMissing = 0,
+  kNavigationTimestampMissing = 1,
+  kAdoptedLanguageMissing = 2,
+  kPageTitleMissing = 3,
+  kAnnotatedPageContentMissing = 4,
+  kPageTitleEmbeddingMissing = 5,
+  kMaxValue = kPageTitleEmbeddingMissing,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/accessibility_annotator/enums.xml:ContentAnnotatorDependentInformationTypes)
 
 // The input to the content classifier, containing all data that might be used
 // for classification.
@@ -27,6 +43,7 @@ struct ContentClassificationInput {
   ~ContentClassificationInput();
 
   GURL url;
+  ukm::SourceId ukm_source_id = ukm::kInvalidSourceId;
   // LINT.IfChange
   std::optional<float> sensitivity_score;
   std::optional<base::Time> navigation_timestamp;
@@ -35,10 +52,14 @@ struct ContentClassificationInput {
   scoped_refptr<const base::RefCountedData<
       optimization_guide::proto::AnnotatedPageContent>>
       annotated_page_content;
+  std::optional<passage_embeddings::Embedding> page_title_embedding;
   // LINT.ThenChange(//components/accessibility_annotator/content/content_annotator/content_classifier_types.cc:ContentClassificationInputIsComplete)
 
   // Returns true if all fields are populated.
   bool IsComplete() const;
+
+  // Logs all missing fields to the missing dependencies UMA histogram.
+  void LogMissingFields() const;
 };
 
 // The result of a content classification, containing the output of one or more
@@ -66,6 +87,8 @@ struct ContentClassificationResult {
 
   std::optional<Result> title_keyword_result;
   std::optional<Result> url_match_result;
+  std::optional<bool> is_sensitive;
+  std::optional<bool> is_in_target_language;
 };
 
 }  // namespace accessibility_annotator

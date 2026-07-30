@@ -62,6 +62,8 @@ enum class StorageStateForUma {
   kSyncEnabled,
 };
 
+// LINT.IfChange(StorageFileForUma)
+
 // An enum class representing the two JSON files for storing bookmarks, used for
 // suffixing metrics.
 enum class StorageFileForUma {
@@ -70,6 +72,18 @@ enum class StorageFileForUma {
   // Represents `kAccountBookmarksFileName`.
   kAccount,
 };
+// LINT.ThenChange(/tools/metrics/histograms/metadata/bookmarks/enums.xml:StorageFileForUma)
+
+// LINT.IfChange(EncryptionType)
+
+// An enum class representing the encryption type of the bookmarks file.
+enum class EncryptionTypeForUma {
+  // Clear text, no encryption.
+  kClearText,
+  // Encryption is used.
+  kEncrypted,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/bookmarks/enums.xml:EncryptionType)
 
 // Records when a bookmark is added by the user.
 // `ancestor_user_folder_depth` is the count of user-generated folders which
@@ -108,7 +122,8 @@ void RecordTimeSinceLastScheduledSave(base::TimeDelta delta);
 void RecordTimeToLoadAtStartup(base::TimeDelta delta);
 
 // Records size of the bookmark file at startup.
-void RecordFileSizeAtStartup(int64_t total_bytes);
+void RecordFileSizeAtStartup(EncryptionTypeForUma encryption_type,
+                             int64_t total_bytes);
 
 // Records a bookmark URL edit.
 void RecordURLEdit(BookmarkEditSource source);
@@ -141,6 +156,33 @@ void RecordIdsReassignedOnProfileLoad(StorageFileForUma storage_file,
 void RecordBookmarksExistInStorageType(
     bool bookmark_bar_only,
     BookmarksExistInStorageType storage_type);
+
+// LINT.IfChange(BookmarksFileLoadResult)
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// Indicates the result of the bookmarks file load.
+enum class BookmarksFileLoadResult {
+  kSuccess = 0,
+  kFileMissing = 1,
+  kContentLoadingFailed = 2,
+  kDecryptionFailed = 3,
+  kJSONParsingFailed = 4,
+  kBookmarkCodecDecodingFailed = 5,
+  kMaxValue = kBookmarkCodecDecodingFailed,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/bookmarks/enums.xml:BookmarksFileLoadResult)
+
+void RecordBookmarksFileLoadResult(StorageFileForUma storage_file,
+                                   EncryptionTypeForUma encryption_type,
+                                   BookmarksFileLoadResult result);
+
+void RecordEncryptedBookmarksFileMatchesResult(StorageFileForUma storage_file,
+                                               bool file_matches);
+
+void RecordTimeToReadFile(StorageFileForUma storage_file,
+                          EncryptionTypeForUma encryption_type,
+                          base::TimeDelta delta);
 
 }  // namespace metrics
 

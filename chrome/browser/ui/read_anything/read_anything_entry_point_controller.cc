@@ -7,6 +7,7 @@
 #include <type_traits>
 
 #include "base/command_line.h"
+#include "base/metrics/histogram_functions.h"
 #include "chrome/browser/dom_distiller/tab_utils.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
@@ -14,15 +15,15 @@
 #include "chrome/browser/ui/read_anything/read_anything_enums.h"
 #include "chrome/browser/ui/read_anything/read_anything_prefs.h"
 #include "chrome/browser/ui/read_anything/read_anything_side_panel_controller_utils.h"
+#include "chrome/browser/ui/side_panel/side_panel_action_callback.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry_id.h"
+#include "chrome/browser/ui/side_panel/side_panel_enums.h"
+#include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/browser/ui/views/page_action/page_action_controller.h"
 #include "chrome/browser/ui/views/page_action/page_action_triggers.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_action_callback.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry_id.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_enums.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
 #include "components/feature_engagement/public/feature_constants.h"
 #include "components/prefs/pref_filter.h"
 #include "content/public/browser/web_contents.h"
@@ -106,6 +107,10 @@ void ReadAnythingEntryPointController::ShowUI(
   if (!bwi) {
     return;
   }
+  if (!IsUIShowing(bwi)) {
+    base::UmaHistogramEnumeration("Accessibility.ReadAnything.ShowTriggered",
+                                  open_trigger);
+  }
 
   if (features::IsImmersiveReadAnythingEnabled()) {
     // TODO(crbug.com/471001915): Once IRM flag is enabled by default, change
@@ -133,6 +138,11 @@ void ReadAnythingEntryPointController::ToggleUI(
     ReadAnythingOpenTrigger open_trigger) {
   if (!bwi) {
     return;
+  }
+
+  if (!IsUIShowing(bwi)) {
+    base::UmaHistogramEnumeration("Accessibility.ReadAnything.ShowTriggered",
+                                  open_trigger);
   }
 
   if (features::IsImmersiveReadAnythingEnabled()) {

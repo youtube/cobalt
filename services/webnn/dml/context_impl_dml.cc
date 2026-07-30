@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/349653202): Remove this and spanify to fix the errors.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "services/webnn/dml/context_impl_dml.h"
 
 #include <limits>
@@ -595,6 +590,7 @@ ContextImplDml::ContextImplDml(
     scoped_refptr<base::SingleThreadTaskRunner> main_task_runner)
     : WebNNContextImpl(std::move(receiver),
                        std::move(context_provider),
+                       ContextBackendUma::kDirectML,
                        GetProperties(adapter->max_supported_feature_level()),
                        std::move(options),
                        std::move(write_tensor_consumer),
@@ -697,9 +693,8 @@ ContextImplDml::CreateTensorImpl(
   //
   // Safe to use ContextImplDml* because this context owns the buffer
   // being connected and that context cannot destruct before the buffer.
-  return base::MakeRefCounted<TensorImplDml>(std::move(receiver),
-                                             std::move(buffer), AsWeakPtr(),
-                                             std::move(tensor_info));
+  return base::MakeRefCounted<TensorImplDml>(
+      std::move(receiver), std::move(buffer), *this, std::move(tensor_info));
 }
 
 base::expected<scoped_refptr<WebNNTensorImpl>, mojom::ErrorPtr>
@@ -719,9 +714,9 @@ ContextImplDml::CreateTensorFromSharedImageImpl(
                                         "Failed to create tensor."));
   }
 
-  return base::MakeRefCounted<TensorImplDml>(
-      std::move(receiver), std::move(representation), AsWeakPtr(),
-      std::move(tensor_info));
+  return base::MakeRefCounted<TensorImplDml>(std::move(receiver),
+                                             std::move(representation), *this,
+                                             std::move(tensor_info));
 }
 
 void ContextImplDml::ReadTensor(
@@ -812,8 +807,9 @@ void ContextImplDml::OnReadbackComplete(
     return;
   }
 
-  mojo_base::BigBuffer dst_buffer = WriteDataToDataPipeOrBigBuffer(base::span(
-      static_cast<const uint8_t*>(mapped_download_data), read_byte_size));
+  mojo_base::BigBuffer dst_buffer =
+      WriteDataToDataPipeOrBigBuffer(UNSAFE_TODO(base::span(
+          static_cast<const uint8_t*>(mapped_download_data), read_byte_size)));
 
   download_buffer->Unmap(0, nullptr);
 

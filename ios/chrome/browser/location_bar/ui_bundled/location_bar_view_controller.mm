@@ -20,7 +20,7 @@
 #import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_animator.h"
 #import "ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h"
-#import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
+#import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/intelligence/page_action_menu/ui/page_action_menu_entrypoint_view.h"
 #import "ios/chrome/browser/lens/ui_bundled/lens_entrypoint.h"
@@ -924,7 +924,7 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
   }
 
   // Used to easily trigger the Assistant sheet during development.
-  if (IsAssistantSheetEnabled()) {
+  if (IsAssistantContainerEnabled()) {
     UIAction* assistantAction =
         [UIAction actionWithTitle:l10n_util::GetNSString(
                                       IDS_IOS_DIAMOND_PROTOTYPE_ASK_GEMINI)
@@ -1117,7 +1117,9 @@ const CGFloat kShareIconBalancingHeightPadding = 1;
   }
   if (IsDirectBWGEntryPoint()) {
     [self.geminiHandler
-        startGeminiFlowWithEntryPoint:gemini::EntryPoint::OmniboxChip];
+        startGeminiFlowWithStartupState:
+            [[GeminiStartupState alloc]
+                initWithEntryPoint:gemini::EntryPoint::OmniboxChip]];
   } else {
     RecordAIHubIconTapped();
     [self.pageActionMenuHandler showPageActionMenu];

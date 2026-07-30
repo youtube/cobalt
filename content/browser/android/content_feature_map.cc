@@ -39,6 +39,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &features::kAccessibilityAtomicLiveRegions,
     &features::kAccessibilityDeprecateJavaNodeCache,
     &features::kAccessibilityDeprecateTypeAnnounce,
+    &features::kAccessibilityExposeNonAtomicTextFieldChildren,
     &features::kAccessibilityExtendedSelection,
     &features::kAccessibilityImeGetFormattedText,
     &features::kAccessibilityImproveLiveRegionAnnounce,
@@ -69,8 +70,8 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &features::kWebBluetoothNewPermissionsBackend,
     &features::kWebContentsDiscard,
     &features::kWebIdentityDigitalCredentials,
+    &features::kJavalessRendererExperimentOn,
     &features::kBtmTtl,
-    &features::kEnableJavalessRenderers,
     &features::kSpareRendererProcessPriority,
 };
 

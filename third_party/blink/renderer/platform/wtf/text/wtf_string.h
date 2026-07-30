@@ -265,21 +265,32 @@ class WTF_EXPORT String {
   bool contains(char c) const { return find(c) != kNotFound; }
   bool contains(const StringView& value) const { return find(value) != npos; }
 
-  // Find the last instance of a single character or string.
-  wtf_size_t ReverseFind(UChar c, unsigned start = UINT_MAX) const {
-    return impl_ ? impl_->ReverseFind(c, start) : kNotFound;
+  // Find the last instance of a single character.
+  // Returns `npos` if it's not found in this string.
+  size_type rfind(UChar c, size_type start = npos) const {
+    return impl_ ? impl_->ReverseFind(c, start) : npos;
   }
-  wtf_size_t ReverseFind(const StringView& value,
-                         unsigned start = UINT_MAX) const {
-    return impl_ ? impl_->ReverseFind(value, start) : kNotFound;
-  }
+  // Searches for the last occurrence of a substring within this string.
+  //
+  // This method performs a backward search starting from the 'start' index.
+  // If 'start' is npos, the search begins from the end of the string.
+  //
+  // Returns the index of the start of the found substring, or npos if
+  // no match is found.
+  //
+  // Special Cases:
+  // - If 'value' is empty, the search always succeeds and returns
+  //   the minimum of 'start' and length().
+  // - Null strings and zero-length strings are treated as equivalent
+  //   for both `this` string and the 'value' parameter.
+  size_type rfind(const StringView& value, size_type start = npos) const;
 
   // Returns the Unicode code point starting at the specified offset of this
   // string. If the offset points an unpaired surrogate, this function returns
   // 0.
   UChar32 CharacterStartingAt(unsigned) const;
 
-  bool StartsWith(const StringView& prefix) const {
+  bool starts_with(const StringView& prefix) const {
     return impl_ ? impl_->StartsWith(prefix) : prefix.empty();
   }
   // Unicode aware case insensitive string matching. Non-ASCII characters might
@@ -296,11 +307,11 @@ class WTF_EXPORT String {
   bool StartsWithIgnoringAsciiCase(const StringView& prefix) const {
     return impl_ ? impl_->StartsWithIgnoringAsciiCase(prefix) : prefix.empty();
   }
-  bool StartsWith(UChar character) const {
+  bool starts_with(UChar character) const {
     return impl_ ? impl_->StartsWith(character) : false;
   }
 
-  bool EndsWith(const StringView& suffix) const {
+  bool ends_with(const StringView& suffix) const {
     return impl_ ? impl_->EndsWith(suffix) : suffix.empty();
   }
   // Unicode aware case insensitive string matching. Non-ASCII characters might
@@ -315,7 +326,7 @@ class WTF_EXPORT String {
   bool EndsWithIgnoringAsciiCase(const StringView& suffix) const {
     return impl_ ? impl_->EndsWithIgnoringAsciiCase(suffix) : suffix.empty();
   }
-  bool EndsWith(UChar character) const {
+  bool ends_with(UChar character) const {
     return impl_ ? impl_->EndsWith(character) : false;
   }
 

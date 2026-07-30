@@ -5,8 +5,18 @@
 #ifndef CONTENT_BROWSER_CODE_CACHE_GENERATED_CODE_CACHE_CONTEXT_H_
 #define CONTENT_BROWSER_CODE_CACHE_GENERATED_CODE_CACHE_CONTEXT_H_
 
+#include <stdint.h>
+
+#include <memory>
+#include <optional>
+#include <string>
+
+#include "base/containers/span.h"
 #include "base/files/file_path.h"
+#include "base/functional/callback_forward.h"
+#include "base/location.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/sequence_checker.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/thread_annotations.h"
@@ -16,6 +26,7 @@
 #include "mojo/public/cpp/base/big_buffer.h"
 
 #if !BUILDFLAG(IS_FUCHSIA)
+#include "components/persistent_cache/entry_metadata.h"
 #include "components/persistent_cache/pending_backend.h"
 #include "components/persistent_cache/persistent_cache_collection.h"
 #endif
@@ -75,12 +86,11 @@ class CONTENT_EXPORT GeneratedCodeCacheContext
   std::optional<persistent_cache::PendingBackend> ShareReadOnlyConnection(
       const std::string& context_key);
 
-  // Using a persistent cache collection with `context_key` as the cache_id
-  // makes sure that there are seperate files for separate process locks. This
-  // will eventually allow the sharing of the files with the renderers.
+  // Inserts `content` and `metadata` for `resource_key` in the cache identified
+  // by `context_key`.
   void InsertIntoPersistentCacheCollection(
       const std::string& context_key,
-      std::string_view url,
+      base::span<const uint8_t> resource_key,
       base::span<const uint8_t> content,
       persistent_cache::EntryMetadata metadata);
 
@@ -93,11 +103,11 @@ class CONTENT_EXPORT GeneratedCodeCacheContext
     mojo_base::BigBuffer content;
   };
 
-  // TODO(crbug.com/377475540): Use types that are not interchangeable for
-  // `context_key` and `url` so that they cannot be mixed up by mistake.
+  // Returns the entry for `resource_key` in the cache identified by
+  // `context_key`, or no value in case of a cache miss or retrieval error.
   std::optional<MetadataAndContent> FindInPersistentCacheCollection(
       const std::string& context_key,
-      std::string_view url);
+      base::span<const uint8_t> resource_key);
 #endif  // !BUILDFLAG(IS_FUCHSIA)
 
  private:

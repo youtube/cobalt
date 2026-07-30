@@ -66,10 +66,10 @@ enum class GeminiPageContextComputationState {
   kPending,
 };
 
-// Enum representing the page context attachment state of the BWG experience.
+// Enum representing the page context attachment state of the Gemini experience.
 // This needs to stay in sync with GCRGeminiPageContextAttachmentState (and its
 // SDK counterpart).
-enum class BWGPageContextAttachmentState {
+enum class GeminiPageContextAttachmentState {
   // The attach state is unknown.
   kUnknown,
   // Page context should be attached.
@@ -84,6 +84,7 @@ enum class BWGPageContextAttachmentState {
 
 // Enum representing the Gemini view state.
 // This needs to stay in sync with GCRGeminiViewState (and its SDK counterpart).
+// LINT.IfChange(GeminiViewState)
 enum class GeminiViewState {
   // The Gemini view state is unknown.
   kUnknown,
@@ -97,7 +98,9 @@ enum class GeminiViewState {
   kCollapsed,
   // The Gemini view is expanded.
   kExpanded,
+  kMaxValue = kExpanded,
 };
+// LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:GeminiViewState)
 
 // Enum representing the UI element type for which a change is requested.
 // This needs to stay in sync with GCRGeminiUIElementType (and its SDK
@@ -135,7 +138,7 @@ void ResetGemini();
 
 // Updates the page attachment state of the floaty if it's invoked.
 void UpdatePageAttachmentState(
-    BWGPageContextAttachmentState bwg_attachment_state);
+    GeminiPageContextAttachmentState gemini_attachment_state);
 
 // Returns true if a URL is protected.
 bool IsProtectedUrl(std::string url);

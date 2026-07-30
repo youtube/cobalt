@@ -54,7 +54,9 @@ class JingleSession : public Session {
  private:
   friend class JingleSessionManager;
 
-  using ReplyCallback = base::OnceCallback<void(JingleMessageReply::ErrorType)>;
+  using ReplyCallback =
+      base::OnceCallback<void(const JingleMessage&,
+                              std::optional<JingleMessageReply::ErrorType>)>;
 
   explicit JingleSession(JingleSessionManager* session_manager);
 
@@ -79,12 +81,12 @@ class JingleSession : public Session {
   // Iq response handler.
   void OnMessageResponse(JingleMessage::ActionType request_type,
                          IqRequest* request,
-                         const jingle_xmpp::XmlElement* response);
+                         const JingleMessageReply& response);
 
   // Response handler for transport-info responses. Transport-info timeouts are
   // ignored and don't terminate connection.
   void OnTransportInfoResponse(IqRequest* request,
-                               const jingle_xmpp::XmlElement* response);
+                               const JingleMessageReply& response);
 
   // Called by JingleSessionManager on incoming |message|. Must call
   // |reply_callback| to send reply message before sending any other

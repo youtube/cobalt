@@ -301,7 +301,10 @@ SqlPersistentStore::Backend::Backend(
                   // This callback is only called while the `db_` instance
                   // is alive, and never during destructor, so it's safe
                   // to use base::Unretained.
-                  base::Unretained(this))),
+                  base::Unretained(this)))
+              .set_release_memory_after_writes(
+                  net::features::kSqlDiskCacheReleaseMemoryAfterWrites.Get())
+              .set_cache_size(net::features::kSqlDiskCacheCacheSize.Get()),
           // Tag for metrics collection.
           sql::Database::Tag("HttpCacheDiskCache")) {
 }
@@ -1323,7 +1326,10 @@ ResIdOrError SqlPersistentStore::Backend::WriteEntryDataAndMetadataInternal(
     statement.BindInt(5, CalculateCheckSum(blob_span, key.hash()));
     statement.BindInt(6, key.hash().value());
     statement.BindString(7, key.string());
-    statement.BindBlob(8, blob_span);
+    // SAFETY: The memory referenced by `blob_span` must outlive `statement`.
+    statement.BindBlob(
+        8, base::MakeRefCounted<base::RefCountedStaticMemory>(blob_span));
+
     if (!statement.Step()) {
       return base::unexpected(Error::kFailedToExecute);
     }
@@ -1410,7 +1416,11 @@ ResIdOrError SqlPersistentStore::Backend::WriteEntryDataAndMetadataInternal(
     if (has_head) {
       statement.BindInt(param_index++,
                         CalculateCheckSum(head_buffer->span(), key.hash()));
-      statement.BindBlob(param_index++, head_buffer->span());
+      // SAFETY: The memory referenced by `head_buffer` must outlive
+      // `statement`.
+      statement.BindBlob(param_index++,
+                         base::MakeRefCounted<base::RefCountedStaticMemory>(
+                             head_buffer->span()));
     }
     statement.BindInt64(param_index++, res_id->value());
 
@@ -1808,7 +1818,9 @@ Error SqlPersistentStore::Backend::InsertNewBlob(
   statement.BindInt64(2, end);
   const auto new_blob = buffer->first(base::checked_cast<size_t>(buf_len));
   statement.BindInt(3, CalculateCheckSum(new_blob, key.hash()));
-  statement.BindBlob(4, new_blob);
+  // SAFETY: The memory referenced by `new_blob` must outlive `statement`.
+  statement.BindBlob(
+      4, base::MakeRefCounted<base::RefCountedStaticMemory>(new_blob));
   if (!statement.Run()) {
     return Error::kFailedToExecute;
   }
@@ -1905,12 +1917,11 @@ Error SqlPersistentStore::Backend::DeleteResourceByResId(ResId res_id) {
   return Error::kOk;
 }
 
-Int64OrError SqlPersistentStore::Backend::DeleteResourceByResIdReturnUsage(
+Int64OrError SqlPersistentStore::Backend::DeleteLiveResourceByResIdReturnUsage(
     ResId res_id) {
-  TRACE_EVENT0("disk_cache", "SqlBackend.DeleteResourceByResIdReturnUsage");
+  TRACE_EVENT0("disk_cache", "SqlBackend.DeleteLiveResourceByResIdReturnUsage");
   sql::Statement delete_resource_stmt(db_.GetCachedStatement(
-      SQL_FROM_HERE,
-      GetQuery(Query::kDeleteResourceByResIds_DeleteFromResourcesReturnUsage)));
+      SQL_FROM_HERE, GetQuery(Query::kDeleteLiveResourceByResIdReturnUsage)));
   delete_resource_stmt.BindInt64(0, res_id.value());
   if (delete_resource_stmt.Step()) {
     return delete_resource_stmt.ColumnInt64(0);
@@ -2526,9 +2537,6 @@ EvictionResultOrError SqlPersistentStore::Backend::EvictEntriesHelper(
     if (eviction_hook_) {
       eviction_hook_.Run();
     }
-    if (auto error = DeleteBlobsByResId(res_id); error != Error::kOk) {
-      return base::unexpected(error);
-    }
 
     int64_t deleted_byte = 0;
     if (trust_target_size) {
@@ -2538,9 +2546,9 @@ EvictionResultOrError SqlPersistentStore::Backend::EvictEntriesHelper(
       // store_status_.total_size tracks payload only, so subtract overhead.
       deleted_byte = entry_size_with_overhead - kSqlBackendStaticResourceSize;
     } else {
-      auto usage_or_error = DeleteResourceByResIdReturnUsage(res_id);
+      auto usage_or_error = DeleteLiveResourceByResIdReturnUsage(res_id);
       if (!usage_or_error.has_value()) {
-        // DeleteResourceByResIdReturnUsage() only returns kNotFound as an
+        // DeleteLiveResourceByResIdReturnUsage() only returns kNotFound as an
         // error. In that case, continue eviction by ignoring the entry instead
         // of aborting.
         CHECK_EQ(usage_or_error.error(), Error::kNotFound);
@@ -2548,6 +2556,10 @@ EvictionResultOrError SqlPersistentStore::Backend::EvictEntriesHelper(
         continue;
       }
       deleted_byte = *usage_or_error;
+    }
+
+    if (auto error = DeleteBlobsByResId(res_id); error != Error::kOk) {
+      return base::unexpected(error);
     }
 
     deleted_res_ids.emplace_back(res_id);

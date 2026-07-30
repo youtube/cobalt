@@ -875,6 +875,16 @@ void ClientSideDetectionHost::RegisterAutofillManager() {
           kObservePreexistingManagers);
 }
 
+void ClientSideDetectionHost::ReportUnsafeSite(
+    std::optional<int> screenshot_width,
+    std::optional<int> screenshot_height,
+    const std::optional<std::string>& screenshot_data) {
+  screenshot_width_ = screenshot_width;
+  screenshot_height_ = screenshot_height;
+  screenshot_data_ = screenshot_data;
+  MaybeStartPreClassification(ClientSideDetectionType::USER_REPORT);
+}
+
 void ClientSideDetectionHost::MaybeStartPreClassification(
     ClientSideDetectionType request_type) {
   if (base::FeatureList::IsEnabled(kClientSideDetectionKillswitch)) {
@@ -936,8 +946,40 @@ void ClientSideDetectionHost::PrimaryPageChanged(content::Page& page) {
   // ping back but only cancel the showing of the interstitial.
   weak_factory_.InvalidateWeakPtrs();
 
+  if (base::FeatureList::IsEnabled(kClientSideDetectionNewObservers)) {
+    if (did_first_visually_non_empty_paint_ ^ on_first_contentful_paint_) {
+      auto value = did_first_visually_non_empty_paint_
+                       ? CSDObserverCalled::kDidFirstVisuallyNonEmptyPaint
+                       : CSDObserverCalled::kOnFirstContentfulPaint;
+      base::UmaHistogramEnumeration(
+          "SBClientPhishing.SingleObserverCalledOnNewPage", value);
+    }
+    did_first_visually_non_empty_paint_ = false;
+    on_first_contentful_paint_ = false;
+    trigger_model_request_sent_as_force_request_ = false;
+    return;
+  }
+
   trigger_model_request_sent_as_force_request_ = false;
   MaybeStartPreClassification(ClientSideDetectionType::TRIGGER_MODELS);
+}
+
+void ClientSideDetectionHost::DidFirstVisuallyNonEmptyPaint() {
+  if (base::FeatureList::IsEnabled(kClientSideDetectionNewObservers)) {
+    did_first_visually_non_empty_paint_ = true;
+    if (on_first_contentful_paint_) {
+      MaybeStartPreClassification(ClientSideDetectionType::TRIGGER_MODELS);
+    }
+  }
+}
+
+void ClientSideDetectionHost::OnFirstContentfulPaintInPrimaryMainFrame() {
+  if (base::FeatureList::IsEnabled(kClientSideDetectionNewObservers)) {
+    on_first_contentful_paint_ = true;
+    if (did_first_visually_non_empty_paint_) {
+      MaybeStartPreClassification(ClientSideDetectionType::TRIGGER_MODELS);
+    }
+  }
 }
 
 void ClientSideDetectionHost::OnPromptAdded() {
@@ -1110,6 +1152,29 @@ void ClientSideDetectionHost::OnCreditCardFormVisitCount(
   }
 
   MaybeStartPreClassification(ClientSideDetectionType::CREDIT_CARD_FORM);
+}
+
+void ClientSideDetectionHost::MaybeFillScreenshotData(
+    ClientPhishingRequest* request) {
+  if (request->client_side_detection_type() !=
+      ClientSideDetectionType::USER_REPORT) {
+    return;
+  }
+
+  if (screenshot_width_.has_value()) {
+    request->mutable_visual_features()
+        ->mutable_high_res_screenshot()
+        ->set_width(screenshot_width_.value());
+  }
+  if (screenshot_height_.has_value()) {
+    request->mutable_visual_features()
+        ->mutable_high_res_screenshot()
+        ->set_height(screenshot_height_.value());
+  }
+  if (screenshot_data_.has_value()) {
+    request->mutable_visual_features()->mutable_high_res_screenshot()->set_data(
+        screenshot_data_.value());
+  }
 }
 
 void ClientSideDetectionHost::KeyboardLockRequested() {
@@ -1551,9 +1616,11 @@ void ClientSideDetectionHost::MaybeSendClientPhishingRequest(
   visual_utils::CanExtractVisualFeaturesResult
       can_extract_visual_features_result = DetermineVisualFeaturesExtraction();
 
+  // Clear the blurred image from the visual features if we should not extract
+  // visual features.
   if (can_extract_visual_features_result !=
       visual_utils::CanExtractVisualFeaturesResult::kCanExtractVisualFeatures) {
-    verdict->clear_visual_features();
+    verdict->mutable_visual_features()->clear_image();
   } else {
     base::UmaHistogramBoolean("SBClientPhishing.HasVisualFeaturesImage2",
                               verdict->has_visual_features() &&
@@ -2167,6 +2234,11 @@ void ClientSideDetectionHost::AddMiscellaneousMetadataToClientPhishingRequest(
           ? "ConditionalImageResize.Enabled"
           : "ConditionalImageResize.Control");
 
+  verdict->mutable_population()->add_finch_active_groups(
+      base::FeatureList::IsEnabled(kClientSideDetectionNewObservers)
+          ? "ClientSideDetectionNewObservers.Enabled"
+          : "ClientSideDetectionNewObservers.Control");
+
   raw_ptr<VerdictCacheManager> cache_manager = delegate_->GetCacheManager();
   if (cache_manager) {
     ChromeUserPopulation::PageLoadToken token =
@@ -2189,6 +2261,8 @@ void ClientSideDetectionHost::AddMiscellaneousMetadataToClientPhishingRequest(
           ExtractClipboardData(last_copied_text_);
     }
   }
+
+  MaybeFillScreenshotData(verdict);
 
   if (IsEnhancedProtectionEnabled(*delegate_->GetPrefs())) {
     delegate_->AddReferrerChain(verdict, current_url_,

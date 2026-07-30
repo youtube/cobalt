@@ -316,7 +316,6 @@ component("net") {
     "base/sys_addrinfo.h",
     "base/task/task_runner.cc",
     "base/task/task_runner.h",
-    "base/trace_event_stub.h",
     "base/transport_info.cc",
     "base/transport_info.h",
     "base/upload_bytes_element_reader.cc",
@@ -1074,6 +1073,8 @@ component("net") {
     "socket/udp_socket_global_limits.h",
     "socket/websocket_endpoint_lock_manager.cc",
     "socket/websocket_endpoint_lock_manager.h",
+    "socket/websocket_stream_socket.cc",
+    "socket/websocket_stream_socket.h",
     "socket/websocket_transport_client_socket_pool.cc",
     "socket/websocket_transport_client_socket_pool.h",
     "spdy/alps_decoder.cc",
@@ -1450,6 +1451,7 @@ component("net") {
       "base/apple/url_conversions.mm",
       "base/network_change_notifier_apple.h",
       "base/network_change_notifier_apple.mm",
+      "base/network_change_notifier_apple_buildflags.h",
       "base/network_config_watcher_apple.cc",
       "base/network_config_watcher_apple.h",
       "base/platform_mime_util_apple.mm",
@@ -3096,6 +3098,7 @@ target(_test_target_type, "net_unittests") {
     "socket/transport_connect_job_unittest.cc",
     "socket/udp_socket_unittest.cc",
     "socket/websocket_endpoint_lock_manager_unittest.cc",
+    "socket/websocket_stream_socket_unittest.cc",
     "socket/websocket_transport_client_socket_pool_unittest.cc",
     "spdy/alps_decoder_test.cc",
     "spdy/bidirectional_stream_spdy_impl_unittest.cc",
@@ -4354,6 +4357,7 @@ if (is_apple) {
   fuzzer_test("net_url_conversions_fuzzer") {
     sources = [ "base/apple/url_conversions_fuzzer.mm" ]
     deps = [
+      ":net_fuzzer_test_support",
       "//base",
       "//net",
     ]

@@ -4,12 +4,15 @@
 
 #include "gpu/command_buffer/service/dawn_platform.h"
 
+#include <mutex>
+
 #include "base/compiler_specific.h"
 #include "base/containers/span.h"
 #include "base/metrics/histogram.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/post_job.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_arguments.h"
@@ -60,6 +63,28 @@ class AsyncWaitableEvent : public dawn::platform::WaitableEvent {
   scoped_refptr<AsyncWaitableEventImpl> waitable_event_impl_;
 };
 
+class AsyncJobHandle : public dawn::platform::JobHandle {
+ public:
+  explicit AsyncJobHandle(base::JobHandle&& job_handle)
+      : job_handle_(std::move(job_handle)) {}
+  ~AsyncJobHandle() override = default;
+
+  // Chromium's JobHandle can either be cancelled or joined, but not both (it
+  // crashes if you try to |Join| after |Cancel|). The Dawn platform's JobHandle
+  // allows both to be called without error, so we wrap it here and avoid
+  // calling them more than once.
+  void Cancel() override {
+    std::call_once(once_flag_, [&]() { job_handle_.Cancel(); });
+  }
+  void Join() override {
+    std::call_once(once_flag_, [&]() { job_handle_.Join(); });
+  }
+
+ private:
+  std::once_flag once_flag_;
+  base::JobHandle job_handle_;
+};
+
 class AsyncWorkerTaskPool : public dawn::platform::WorkerTaskPool {
  public:
   explicit AsyncWorkerTaskPool(gl::ProgressReporter* progress_reporter)
@@ -78,6 +103,17 @@ class AsyncWorkerTaskPool : public dawn::platform::WorkerTaskPool {
     return waitable_event;
   }
 
+  std::unique_ptr<dawn::platform::JobHandle> PostWorkerJob(
+      dawn::platform::PostWorkerJobCallback callback,
+      void* user_data) override {
+    std::unique_ptr<AsyncJobHandle> job_handle =
+        std::make_unique<AsyncJobHandle>(base::PostJob(
+            FROM_HERE, {base::TaskPriority::USER_VISIBLE},
+            base::BindRepeating(&RunWorkerJob, callback, user_data),
+            base::BindRepeating([](size_t) -> size_t { return 1; })));
+    return job_handle;
+  }
+
  private:
   static void RunWorkerTask(
       dawn::platform::PostWorkerTaskCallback callback,
@@ -90,6 +126,18 @@ class AsyncWorkerTaskPool : public dawn::platform::WorkerTaskPool {
       progress_reporter->ReportProgress();
     }
     waitable_event_impl->MarkAsComplete();
+  }
+
+  static void RunWorkerJob(dawn::platform::PostWorkerJobCallback callback,
+                           void* user_data,
+                           base::JobDelegate* delegate) {
+    dawn::platform::JobStatus status = dawn::platform::JobStatus::Continue;
+    while (!delegate->ShouldYield()) {
+      if (status != dawn::platform::JobStatus::Continue) {
+        return;
+      }
+      status = callback(user_data);
+    }
   }
 
   const raw_ptr<gl::ProgressReporter> progress_reporter_;

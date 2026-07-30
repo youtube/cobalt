@@ -114,8 +114,9 @@ bool IsFrameLazyLoadable(ExecutionContext* context,
   // Only http:// or https:// URLs are eligible for lazy loading, excluding
   // URLs like invalid or empty URLs, "about:blank", local file URLs, etc.
   // that it doesn't make sense to lazily load.
-  if (!url.ProtocolIsInHTTPFamily())
+  if (!url.ProtocolIsInHttpFamily()) {
     return false;
+  }
 
   // Do not lazyload frames when JavaScript is disabled, regardless of the
   // `loading` attribute.
@@ -651,7 +652,7 @@ bool HTMLFrameOwnerElement::LazyLoadIfPossible(
     const ResourceRequestHead& request,
     WebFrameLoadType frame_load_type) {
   const auto& loading_attr = FastGetAttribute(html_names::kLoadingAttr);
-  bool loading_lazy_set = EqualIgnoringASCIICase(loading_attr, "lazy");
+  bool loading_lazy_set = EqualIgnoringAsciiCase(loading_attr, "lazy");
 
   if (!IsFrameLazyLoadable(GetExecutionContext(), url, loading_lazy_set,
                            should_lazy_load_children_)) {
@@ -699,7 +700,7 @@ bool HTMLFrameOwnerElement::LoadOrRedirectSubframe(
 
   // If the subframe navigation is aborted or TAO fails, we report a "fallback"
   // entry that starts at navigation and ends at load/error event.
-  if (url.ProtocolIsInHTTPFamily()) {
+  if (url.ProtocolIsInHttpFamily()) {
     fallback_timing_info_ =
         CreateResourceTimingInfo(base::TimeTicks::Now(), url,
                                  /*response=*/nullptr);
@@ -718,7 +719,7 @@ bool HTMLFrameOwnerElement::LoadOrRedirectSubframe(
   // attribute gets parsed in ParseAttribute() before the "loading" attribute
   // does.
   if (should_lazy_load_children_ &&
-      EqualIgnoringASCIICase(FastGetAttribute(html_names::kLoadingAttr),
+      EqualIgnoringAsciiCase(FastGetAttribute(html_names::kLoadingAttr),
                              "eager")) {
     should_lazy_load_children_ = false;
   }
@@ -726,7 +727,7 @@ bool HTMLFrameOwnerElement::LoadOrRedirectSubframe(
   UpdateContainerPolicy();
   UpdateRequiredPolicy();
 
-  KURL url_to_request = url.IsNull() ? BlankURL() : url;
+  KURL url_to_request = url.IsNull() ? BlankUrl() : url;
   ResourceRequestHead request(url_to_request);
   request.SetReferrerPolicy(ReferrerPolicyAttribute());
   request.SetHasUserGesture(
@@ -778,7 +779,7 @@ bool HTMLFrameOwnerElement::LoadOrRedirectSubframe(
   // kReloadBypassingCache navigation, following the parent frame. If the frame
   // URL is about:blank, it should be committed synchronously as a
   // kReplaceCurrentItem navigation (see https://crbug.com/778318).
-  if (url != BlankURL() && !GetDocument().LoadEventFinished() &&
+  if (url != BlankUrl() && !GetDocument().LoadEventFinished() &&
       GetDocument().Loader()->LoadType() ==
           WebFrameLoadType::kReloadBypassingCache) {
     child_load_type = WebFrameLoadType::kReloadBypassingCache;

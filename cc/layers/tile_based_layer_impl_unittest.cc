@@ -79,13 +79,18 @@ class TestTileBasedLayerImpl : public TileBasedLayerImpl<FakeTiling> {
 
  private:
   // TileBasedLayerImpl:
+  gfx::Rect RecordedBounds() const override { return gfx::Rect(bounds()); }
+
   bool AppendQuadForTile(TilingSetCoverageIterator<FakeTiling> iter,
                          const AppendQuadsContext& context,
                          viz::CompositorRenderPass* render_pass,
                          AppendQuadsData* append_quads_data,
                          viz::SharedQuadState* shared_quad_state,
                          const Occlusion& scaled_occlusion,
-                         const gfx::Vector2d& quad_offset,
+                         const gfx::Rect& offset_geometry_rect,
+                         const gfx::Rect& offset_visible_geometry_rect,
+                         const gfx::Rect& visible_geometry_rect,
+                         bool needs_blending,
                          const std::optional<gfx::Rect>& scaled_cull_rect,
                          float max_contents_scale,
                          AppendQuadsCustomSharedData* custom_data) override {
@@ -419,7 +424,10 @@ class OcclusionTestTileBasedLayerImpl : public TestTileBasedLayerImpl {
                          AppendQuadsData* append_quads_data,
                          viz::SharedQuadState* shared_quad_state,
                          const Occlusion& scaled_occlusion,
-                         const gfx::Vector2d& quad_offset,
+                         const gfx::Rect& offset_geometry_rect,
+                         const gfx::Rect& offset_visible_geometry_rect,
+                         const gfx::Rect& visible_geometry_rect,
+                         bool needs_blending,
                          const std::optional<gfx::Rect>& scaled_cull_rect,
                          float max_contents_scale,
                          AppendQuadsCustomSharedData* custom_data) override {
@@ -576,11 +584,15 @@ class QuadOffsetTestTileBasedLayerImpl : public TestTileBasedLayerImpl {
                          AppendQuadsData* append_quads_data,
                          viz::SharedQuadState* shared_quad_state,
                          const Occlusion& scaled_occlusion,
-                         const gfx::Vector2d& quad_offset,
+                         const gfx::Rect& offset_geometry_rect,
+                         const gfx::Rect& offset_visible_geometry_rect,
+                         const gfx::Rect& visible_geometry_rect,
+                         bool needs_blending,
                          const std::optional<gfx::Rect>& scaled_cull_rect,
                          float max_contents_scale,
                          AppendQuadsCustomSharedData* custom_data) override {
-    quad_offset_ = quad_offset;
+    quad_offset_ =
+        offset_geometry_rect.origin() - iter.geometry_rect().origin();
     // Create a dummy quad to avoid tripping debug checks.
     auto* quad =
         render_pass->CreateAndAppendDrawQuad<viz::SolidColorDrawQuad>();
@@ -657,7 +669,10 @@ class QuadOffsetOrderTestTileBasedLayerImpl : public TestTileBasedLayerImpl {
                          AppendQuadsData* append_quads_data,
                          viz::SharedQuadState* shared_quad_state,
                          const Occlusion& scaled_occlusion,
-                         const gfx::Vector2d& quad_offset,
+                         const gfx::Rect& offset_geometry_rect,
+                         const gfx::Rect& offset_visible_geometry_rect,
+                         const gfx::Rect& visible_geometry_rect,
+                         bool needs_blending,
                          const std::optional<gfx::Rect>& scaled_cull_rect,
                          float max_contents_scale,
                          AppendQuadsCustomSharedData* custom_data) override {

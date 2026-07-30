@@ -7,10 +7,6 @@ assert(is_win || is_mac || is_linux || is_chromeos)
 import("//chrome/common/features.gni")
 import("//extensions/buildflags/buildflags.gni")
 
-source_set("side_panel_enums") {
-  sources = [ "side_panel_enums.h" ]
-}
-
 source_set("side_panel") {
   sources = [
     "bookmarks/bookmarks_side_panel_coordinator.cc",
@@ -26,6 +22,8 @@ source_set("side_panel") {
     "extensions/extension_side_panel_manager.cc",
     "extensions/extension_side_panel_manager.h",
     "extensions/extension_side_panel_utils.cc",
+    "glic/glic_side_panel_coordinator_impl.cc",
+    "glic/glic_side_panel_coordinator_impl.h",
     "history/history_side_panel_coordinator.cc",
     "history/history_side_panel_coordinator.h",
     "history_clusters/history_clusters_side_panel_controller.cc",
@@ -44,8 +42,6 @@ source_set("side_panel") {
     "reading_list/reading_list_side_panel_coordinator.h",
     "side_panel.cc",
     "side_panel.h",
-    "side_panel_action_callback.cc",
-    "side_panel_action_callback.h",
     "side_panel_animation_coordinator.cc",
     "side_panel_animation_coordinator.h",
     "side_panel_animation_ids.cc",
@@ -56,46 +52,19 @@ source_set("side_panel") {
     "side_panel_content_proxy.h",
     "side_panel_coordinator.cc",
     "side_panel_coordinator.h",
-    "side_panel_entry.cc",
-    "side_panel_entry.h",
-    "side_panel_entry_id.cc",
-    "side_panel_entry_id.h",
-    "side_panel_entry_key.cc",
-    "side_panel_entry_key.h",
-    "side_panel_entry_observer.h",
-    "side_panel_entry_scope.cc",
-    "side_panel_entry_scope.h",
-    "side_panel_entry_waiter.cc",
-    "side_panel_entry_waiter.h",
-    "side_panel_enums.h",
     "side_panel_header.cc",
     "side_panel_header.h",
     "side_panel_header_controller.cc",
     "side_panel_header_controller.h",
-    "side_panel_prefs.cc",
-    "side_panel_prefs.h",
-    "side_panel_registry.cc",
-    "side_panel_registry.h",
     "side_panel_resize_area.cc",
     "side_panel_resize_area.h",
     "side_panel_toolbar_pinning_controller.cc",
     "side_panel_toolbar_pinning_controller.h",
-    "side_panel_ui.h",
-    "side_panel_ui_base.cc",
-    "side_panel_ui_base.h",
     "side_panel_util.cc",
     "side_panel_util.h",
     "side_panel_web_ui_view.cc",
     "side_panel_web_ui_view.h",
   ]
-  if (enable_glic) {
-    sources += [
-      "glic/glic_legacy_side_panel_coordinator.cc",
-      "glic/glic_legacy_side_panel_coordinator.h",
-      "glic/glic_side_panel_coordinator_impl.cc",
-      "glic/glic_side_panel_coordinator_impl.h",
-    ]
-  }
   public_deps = [
     "//base",
     "//chrome/browser:browser_public_dependencies",
@@ -140,6 +109,7 @@ source_set("side_panel") {
     "//chrome/app:generated_resources_grit",
     "//chrome/app/vector_icons",
     "//chrome/browser/favicon",
+    "//chrome/browser/glic",
     "//chrome/browser/media/webrtc",
     "//chrome/browser/profiles",
     "//chrome/browser/resources:component_extension_resources",
@@ -155,6 +125,7 @@ source_set("side_panel") {
     "//chrome/browser/ui/bookmarks",
     "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/extensions",
+    "//chrome/browser/ui/side_panel",
     "//chrome/browser/ui/tabs:tab_strip",
     "//chrome/browser/ui/tabs:tabs_public",
     "//chrome/browser/ui/tabs/saved_tab_groups",
@@ -212,12 +183,9 @@ source_set("side_panel") {
     deps += [ "//chrome/common/extensions/api" ]
   }
 
-  if (enable_glic) {
-    deps += [ "//chrome/browser/glic" ]
-  }
-
   allow_circular_includes_from = [
     "//chrome/browser/ui/views/toolbar",
     "//chrome/browser/ui/customize_chrome",
+    "//chrome/browser/ui/side_panel:side_panel",
   ]
 }

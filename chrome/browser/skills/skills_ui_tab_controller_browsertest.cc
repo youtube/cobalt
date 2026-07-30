@@ -8,6 +8,7 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/test_future.h"
 #include "base/values.h"
+#include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/skills/skills_ui_tab_controller_interface.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -26,10 +27,6 @@
 #include "ui/views/interaction/element_tracker_views.h"
 #include "ui/views/test/widget_test.h"
 #include "ui/views/widget/widget.h"
-
-#if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/glic/public/glic_enabling.h"
-#endif
 
 namespace skills {
 
@@ -99,28 +96,33 @@ class SkillsUiTabControllerBrowserTest : public InProcessBrowserTest {
 IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest,
                        ShowDialogOpensWidget) {
   EXPECT_FALSE(IsDialogVisible());
-  histogram_tester_.ExpectBucketCount("Skills.Dialog.Creation.Action",
-                                      SkillsDialogAction::kOpened, 0);
+  histogram_tester_.ExpectBucketCount(
+      "Skills.Dialog.Creation.WebClient.Prefilled.Action",
+      SkillsDialogAction::kOpened, 0);
   skills::Skill test_skill("", "skill_name", "icon", "Test Prompt");
-  skills_ui_tab_controller()->ShowDialog(std::move(test_skill));
+  skills_ui_tab_controller()->ShowDialog(
+      std::move(test_skill), SkillsDialogEntryPoint::kWebClientPrefilled);
 
   EXPECT_TRUE(IsDialogVisible());
   EXPECT_NE(nullptr, GetDialogWebContents());
-  histogram_tester_.ExpectBucketCount("Skills.Dialog.Creation.Action",
-                                      SkillsDialogAction::kOpened, 1);
+  histogram_tester_.ExpectBucketCount(
+      "Skills.Dialog.Creation.WebClient.Prefilled.Action",
+      SkillsDialogAction::kOpened, 1);
 }
 
 // Verify calling ShowDialog twice doesn't open two dialogs.
 IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest, PreventDoubleOpen) {
   skills::Skill test_skill("id", "skill_name", "icon", "Test Prompt");
-  skills_ui_tab_controller()->ShowDialog(std::move(test_skill));
+  skills_ui_tab_controller()->ShowDialog(
+      std::move(test_skill), SkillsDialogEntryPoint::kWebClientPrefilled);
 
   views::Widget* first_widget = GetDialogWidget();
   ASSERT_TRUE(first_widget);
 
   // Try to open again immediately.
   skills::Skill test_skill2("id2", "skill_name2", "icon", "Test Prompt");
-  skills_ui_tab_controller()->ShowDialog(std::move(test_skill2));
+  skills_ui_tab_controller()->ShowDialog(
+      std::move(test_skill2), SkillsDialogEntryPoint::kWebClientPrefilled);
 
   // Widget should be exactly the same instance.
   views::Widget* second_widget = GetDialogWidget();
@@ -132,7 +134,8 @@ IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest, PreventDoubleOpen) {
 IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest,
                        CloseDialogDestroysWidget) {
   skills::Skill test_skill("id", "skill_name", "icon", "Test Prompt");
-  skills_ui_tab_controller()->ShowDialog(std::move(test_skill));
+  skills_ui_tab_controller()->ShowDialog(
+      std::move(test_skill), SkillsDialogEntryPoint::kWebClientPrefilled);
   EXPECT_TRUE(IsDialogVisible());
 
   // Trigger the close.
@@ -147,7 +150,8 @@ IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest,
                        NativeCloseCleansUpState) {
   // Open dialog.
   skills::Skill test_skill("id", "name", "icon", "prompt");
-  skills_ui_tab_controller()->ShowDialog(std::move(test_skill));
+  skills_ui_tab_controller()->ShowDialog(
+      std::move(test_skill), SkillsDialogEntryPoint::kWebClientPrefilled);
 
   views::Widget* widget = GetDialogWidget();
   ASSERT_TRUE(widget);
@@ -166,7 +170,8 @@ IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest,
 
   // Verify we can reopen (implies internal state was reset).
   skills::Skill test_skill2("id2", "name2", "icon2", "prompt2");
-  skills_ui_tab_controller()->ShowDialog(std::move(test_skill2));
+  skills_ui_tab_controller()->ShowDialog(
+      std::move(test_skill2), SkillsDialogEntryPoint::kWebClientPrefilled);
   EXPECT_TRUE(IsDialogVisible());
 }
 
@@ -174,7 +179,8 @@ IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest,
 // (Regression test for the destruction race condition).
 IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest, TabCloseDoesNotCrash) {
   skills::Skill test_skill("id", "name", "icon", "prompt");
-  skills_ui_tab_controller()->ShowDialog(std::move(test_skill));
+  skills_ui_tab_controller()->ShowDialog(
+      std::move(test_skill), SkillsDialogEntryPoint::kWebClientPrefilled);
   EXPECT_TRUE(IsDialogVisible());
 
   // Close the tab.
@@ -189,7 +195,8 @@ IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest, TabCloseDoesNotCrash) {
 IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest, DialogIsTabScoped) {
   auto* controller_a = skills_ui_tab_controller();
   skills::Skill test_skill("id", "skill_name", "icon", "Test Prompt");
-  controller_a->ShowDialog(std::move(test_skill));
+  controller_a->ShowDialog(std::move(test_skill),
+                           SkillsDialogEntryPoint::kWebClientPrefilled);
   EXPECT_TRUE(IsDialogVisible());
 
   // Open a new Tab B and switch to it.
@@ -203,7 +210,8 @@ IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest, DialogIsTabScoped) {
   // Controller B shouldn't have a dialog open.
   // Verify this by calling ShowDialog and ensuring it does open one.
   skills::Skill test_skill2("id2", "skill_name2", "icon", "Test Prompt");
-  controller_b->ShowDialog(std::move(test_skill2));
+  controller_b->ShowDialog(std::move(test_skill2),
+                           SkillsDialogEntryPoint::kWebClientPrefilled);
 
   EXPECT_TRUE(IsDialogVisible());
 
@@ -214,14 +222,14 @@ IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest, DialogIsTabScoped) {
 
 // Verify that the UI Controller (SkillsUI) received the delegate pointer.
 IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest, VerifyWebUIPlumbing) {
-#if BUILDFLAG(ENABLE_GLIC)
   // Enable Glic late to avoid a crash in GlicTabIndicatorHelper during tab
   // creation.
   glic::GlicEnabling::SetBypassEnablementChecksForTesting(true);
 
   // Show the dialog.
   skills::Skill test_skill("id", "skill_name", "icon", "Test Prompt");
-  skills_ui_tab_controller()->ShowDialog(std::move(test_skill));
+  skills_ui_tab_controller()->ShowDialog(
+      std::move(test_skill), SkillsDialogEntryPoint::kWebClientPrefilled);
 
   // Dig down to find the SkillsUI.
   // The controller holds the delegate -> which holds WebContents -> which holds
@@ -242,25 +250,25 @@ IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest, VerifyWebUIPlumbing) {
   EXPECT_EQ(skills_ui->GetInitialSkillForTesting().name, "skill_name");
   EXPECT_EQ(skills_ui->GetInitialSkillForTesting().icon, "icon");
   glic::GlicEnabling::SetBypassEnablementChecksForTesting(false);
-#endif
 }
 
 // Verify that clicking the Cancel button closes the dialog.
 IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest,
                        CancelButtonClosesDialog) {
-#if BUILDFLAG(ENABLE_GLIC)
   // Enable Glic late to avoid a crash in GlicTabIndicatorHelper during tab
   // creation.
   glic::GlicEnabling::SetBypassEnablementChecksForTesting(true);
   skills::Skill test_skill("", "name", "icon", "prompt");
-  skills_ui_tab_controller()->ShowDialog(std::move(test_skill));
+  skills_ui_tab_controller()->ShowDialog(
+      std::move(test_skill), SkillsDialogEntryPoint::kWebClientPrefilled);
 
   content::WebContents* web_contents = GetDialogWebContents();
   ASSERT_TRUE(web_contents);
   ASSERT_TRUE(content::WaitForLoadStop(web_contents));
 
-  histogram_tester_.ExpectBucketCount("Skills.Dialog.Creation.Action",
-                                      SkillsDialogAction::kCancelled, 0);
+  histogram_tester_.ExpectBucketCount(
+      "Skills.Dialog.Creation.WebClient.Prefilled.Action",
+      SkillsDialogAction::kCancelled, 0);
 
   // Setup Listener.
   base::test::TestFuture<void> close_future;
@@ -285,17 +293,16 @@ IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest,
   ASSERT_TRUE(close_future.Wait());
   EXPECT_FALSE(IsDialogVisible());
 
-  histogram_tester_.ExpectBucketCount("Skills.Dialog.Creation.Action",
-                                      SkillsDialogAction::kCancelled, 1);
+  histogram_tester_.ExpectBucketCount(
+      "Skills.Dialog.Creation.WebClient.Prefilled.Action",
+      SkillsDialogAction::kCancelled, 1);
   glic::GlicEnabling::SetBypassEnablementChecksForTesting(false);
-#endif
 }
 
 // Verify that the Skill data passed to ShowDialog correctly populates the
 // HTML input fields in the WebUI.
 IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest,
                        SkillPopulatesUIFields) {
-#if BUILDFLAG(ENABLE_GLIC)
   glic::GlicEnabling::SetBypassEnablementChecksForTesting(true);
 
   // Setup a specific test skill.
@@ -306,7 +313,8 @@ IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest,
   skills::Skill test_skill("test-id", kTestName, kTestIcon, kTestPrompt);
 
   // Open the dialog.
-  skills_ui_tab_controller()->ShowDialog(std::move(test_skill));
+  skills_ui_tab_controller()->ShowDialog(
+      std::move(test_skill), SkillsDialogEntryPoint::kWebClientPrefilled);
   EXPECT_TRUE(IsDialogVisible());
 
   //  Get the WebContents and wait for it to load.
@@ -355,16 +363,15 @@ IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest,
   EXPECT_EQ(*icon, kTestIcon);
 
   glic::GlicEnabling::SetBypassEnablementChecksForTesting(false);
-#endif
 }
 
 IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest,
                        KeyboardShortcutsAreRouted) {
-#if BUILDFLAG(ENABLE_GLIC)
   glic::GlicEnabling::SetBypassEnablementChecksForTesting(true);
 
   skills::Skill test_skill("id", "name", "icon", "prompt");
-  skills_ui_tab_controller()->ShowDialog(std::move(test_skill));
+  skills_ui_tab_controller()->ShowDialog(
+      std::move(test_skill), SkillsDialogEntryPoint::kWebClientPrefilled);
 
   content::WebContents* dialog_contents = GetDialogWebContents();
   ASSERT_TRUE(dialog_contents);
@@ -429,7 +436,6 @@ IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest,
     })()
   )");
   glic::GlicEnabling::SetBypassEnablementChecksForTesting(false);
-#endif
 }
 
 }  // namespace skills

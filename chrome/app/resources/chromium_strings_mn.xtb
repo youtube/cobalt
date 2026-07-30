@@ -239,6 +239,7 @@
 <translation id="3509308970982693815">Chromium-н бүх цонхыг хаасны дараагаар дахин хандана уу.</translation>
 <translation id="3522404737534491619">Цонхоо хуваалцахын тулд Системийн тохиргоонд Chromium-д дэлгэцийн үйлдэл бичихийг зөвшөөрнө үү</translation>
 <translation id="3530103706039034513"><ph name="EXISTING_USER" /> аль хэдийн нэвтэрсэн байна.  Хөтчийн үзэлтээ тусдаа байлгахын тулд Chromium-д <ph name="USER_EMAIL_ADDRESS" />-р өөрийн профайлаар нэвтэрнэ үү.</translation>
+<translation id="3531741627422851418">Хөдөлгөөнт төхөөрөмж дээр Chromium хөтчийг татах QR код</translation>
 <translation id="3561853857681580870">Дэлгэцээ хуваалцахын тулд Системийн тохиргоонд Chromium-д дэлгэцийн үйлдэл бичихийг зөвшөөрнө үү.</translation>
 <translation id="3588112919289558122">Сайжруулсан хамгаалалт нь Chromium-н танихгүй сайтуудын JavaScript-н оновчлолыг унтраадаг</translation>
 <translation id="3597003331831379823">Нэмэлт эрхтэйгээр тохируулгыг ажиллуулж чадсангүй. <ph name="METAINSTALLER_ERROR" /></translation>
@@ -586,6 +587,7 @@
 <translation id="7384121030444253939">Энэ өргөтгөлийг дэмжихээ больсон. Chromium танд оронд нь үүнийг хасахыг зөвлөж байна.</translation>
 <translation id="7413153308467572558">Орхисон газраасаа үргэлжлүүлнэ үү: Chromium таныг дахин эхлүүлэх бүрд табуудыг тань сэргээнэ. Үүнийг унтраахын тулд дараах руу очно уу</translation>
 <translation id="7427879960656355200">Нууц үгийг Chromium руу импортлох</translation>
+<translation id="744815265653811511">1. Доорх <ph name="BUTTON_LABEL" /> дээр товшино уу Windows-н тохиргоондоо <ph name="BUTTON_2" /> дээр товшино уу Chromium-г ажлын хэсэгтээ бэхэлж, шуурхай хандахын тулд Windows-н мэдэгдэлд <ph name="BUTTON_3" /> дээр товшино уу</translation>
 <translation id="7449453770951226939"><ph name="PAGE_TITLE" /> - Chromium Дев</translation>
 <translation id="7450541714075000668">Текстийг хуулсан</translation>
 <translation id="7451052299415159299">Энэ сайтыг ашиглахын тулд Chromium-д таны камерт хандах зөвшөөрөл шаардлагатай</translation>

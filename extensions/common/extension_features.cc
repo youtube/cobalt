@@ -54,9 +54,6 @@ BASE_FEATURE(kCheckingNoExtensionIdInExtensionIpcs,
              "EMF_NO_EXTENSION_ID_FOR_EXTENSION_SOURCE",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kSkipResetServiceWorkerURLLoaderFactories,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kEnableWebHidInWebView, base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(ENABLE_DESKTOP_ANDROID_EXTENSIONS)
@@ -183,6 +180,9 @@ BASE_FEATURE(kDisableExtensionsOnChromeUrlsSwitch,
 #endif
 );
 
+BASE_FEATURE(kEnterpriseExtensionDOMActivityTelemetry,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kUserScriptUserExtensionToggle, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kDebuggerAPIRestrictedToDevMode,
@@ -208,10 +208,16 @@ BASE_FEATURE(kEnableShouldShowPromotion, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kSearchEngineExplicitChoiceDialog,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE_PARAM(bool,
+                   kSearchEngineExplicitChoiceDialogEscapable,
+                   &kSearchEngineExplicitChoiceDialog,
+                   "escapable",
+                   false);
+
 BASE_FEATURE(kSearchEngineUnconditionalDialog,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kWebRequestAlternativeAddListener,
+BASE_FEATURE(kWebRequestPersistFilteredEventsViaEventRouter,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 }  // namespace extensions_features

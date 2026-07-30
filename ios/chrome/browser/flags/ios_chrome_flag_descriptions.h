@@ -53,8 +53,8 @@ extern const char kApplyClientsideModelPredictionsForPasswordTypesDescription[];
 extern const char kAskGeminiChipName[];
 extern const char kAskGeminiChipDescription[];
 
-extern const char kAssistantSheetName[];
-extern const char kAssistantSheetDescription[];
+extern const char kAssistantContainerName[];
+extern const char kAssistantContainerDescription[];
 
 extern const char kAutofillAcrossIframesName[];
 extern const char kAutofillAcrossIframesDescription[];
@@ -381,6 +381,9 @@ extern const char kFeedSwipeInProductHelpDescription[];
 extern const char kForceStartupSigninPromoName[];
 extern const char kForceStartupSigninPromoDescription[];
 
+extern const char kFullscreenRefactoringName[];
+extern const char kFullscreenRefactoringDescription[];
+
 extern const char kFullscreenScrollThresholdName[];
 extern const char kFullscreenScrollThresholdDescription[];
 
@@ -401,6 +404,9 @@ extern const char kGeminiCopresenceDescription[];
 
 extern const char kGeminiDynamicSettingsName[];
 extern const char kGeminiDynamicSettingsDescription[];
+
+extern const char kGeminiFloatyAllPagesName[];
+extern const char kGeminiFloatyAllPagesDescription[];
 
 extern const char kGeminiFullChatHistoryName[];
 extern const char kGeminiFullChatHistoryDescription[];
@@ -788,9 +794,6 @@ extern const char kPageContentAnnotationsDescription[];
 
 extern const char kPageContentAnnotationsRemotePageMetadataName[];
 extern const char kPageContentAnnotationsRemotePageMetadataDescription[];
-
-extern const char kPageVisibilityPageContentAnnotationsName[];
-extern const char kPageVisibilityPageContentAnnotationsDescription[];
 
 extern const char kPasswordFormClientsideClassifierName[];
 extern const char kPasswordFormClientsideClassifierDescription[];

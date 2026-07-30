@@ -28,7 +28,6 @@ export interface CrUrlListItemElement {
     badges: HTMLSlotElement,
     button: HTMLElement,
     content: HTMLSlotElement,
-    description: HTMLSlotElement,
     metadata: HTMLElement,
     customIcon: HTMLSlotElement,
   };
@@ -234,11 +233,11 @@ export class CrUrlListItemElement extends CrUrlListItemElementBase {
     return index <= 1;
   }
 
-  protected onBadgesSlotChange_() {
+  protected onBadgesSlotchange_() {
     this.hasBadges = this.$.badges.assignedElements({flatten: true}).length > 0;
   }
 
-  protected onContentSlotChange_() {
+  protected onContentSlotchange_() {
     this.hasSlottedContent_ =
         this.$.content.assignedElements({flatten: true}).length > 0;
   }

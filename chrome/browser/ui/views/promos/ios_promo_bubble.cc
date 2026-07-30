@@ -12,10 +12,10 @@
 #include "base/memory/raw_ptr.h"
 #include "base/not_fatal_until.h"
 #include "build/branding_buildflags.h"
+#include "chrome/browser/desktop_to_mobile_promos/promos_pref_names.h"
+#include "chrome/browser/desktop_to_mobile_promos/promos_utils.h"
 #include "chrome/browser/feature_engagement/tracker_factory.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/promos/promos_pref_names.h"
-#include "chrome/browser/promos/promos_utils.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/chrome_typography.h"
@@ -508,6 +508,12 @@ std::unique_ptr<views::View> IOSPromoBubble::CreateImageAndBodyTextView(
             .SetCornerRadius(
                 views::LayoutProvider::Get()->GetCornerRadiusMetric(
                     views::Emphasis::kHigh));
+
+    if (bubble_type == BubbleType::kQRCode) {
+      image_view_builder.SetAccessibleName(
+          l10n_util::GetStringUTF16(IDS_IOS_DESKTOP_PROMO_QR_CODE_ALT_TEXT));
+    }
+
     auto image_container_builder =
         views::Builder<views::View>()
             .SetLayoutManager(std::make_unique<views::FillLayout>())

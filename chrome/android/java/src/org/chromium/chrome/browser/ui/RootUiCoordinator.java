@@ -360,7 +360,7 @@ public class RootUiCoordinator
             mTabStripVisibilitySupplier;
     protected final SettableMonotonicObservableSupplier<LayoutManager> mLayoutManagerSupplier =
             ObservableSuppliers.createMonotonic();
-    protected final MonotonicObservableSupplier<ModalDialogManager> mModalDialogManagerSupplier;
+    protected final NonNullObservableSupplier<ModalDialogManager> mModalDialogManagerSupplier;
     private final AppMenuBlocker mAppMenuBlocker;
     private final BooleanSupplier mSupportsAppMenuSupplier;
     protected final BooleanSupplier mSupportsFindInPageSupplier;
@@ -408,6 +408,7 @@ public class RootUiCoordinator
     protected final NonNullObservableSupplier<Boolean> mXrSpaceModeObservableSupplier;
     private final boolean mIsTablet;
     private final TopInsetProvider mTopInsetProvider;
+    protected @Nullable TopInsetCoordinator mTopInsetCoordinator;
     private @Nullable ToolbarControlContainer mToolbarContainer;
     private @Nullable DesktopWindowStateManager mDesktopWindowStateManager;
     private final @Nullable ExclusiveAccessManager mExclusiveAccessManager;
@@ -488,7 +489,7 @@ public class RootUiCoordinator
             MonotonicObservableSupplier<LayoutManagerImpl> layoutManagerSupplier,
             MenuOrKeyboardActionController menuOrKeyboardActionController,
             Supplier<Integer> activityThemeColorSupplier,
-            MonotonicObservableSupplier<ModalDialogManager> modalDialogManagerSupplier,
+            NonNullObservableSupplier<ModalDialogManager> modalDialogManagerSupplier,
             AppMenuBlocker appMenuBlocker,
             BooleanSupplier supportsAppMenuSupplier,
             BooleanSupplier supportsFindInPage,
@@ -740,7 +741,8 @@ public class RootUiCoordinator
                         mExclusiveAccessManager);
 
         mExpandedBottomSheetHelper =
-                new ExpandedSheetHelperImpl(mModalDialogManagerSupplier, getTabObscuringHandler());
+                new ExpandedSheetHelperImpl(
+                        mModalDialogManagerSupplier.get(), getTabObscuringHandler());
         mBottomControlsStacker =
                 new BottomControlsStacker(mBrowserControlsManager, mActivity, mWindowAndroid);
         mTopControlsStacker =
@@ -1231,6 +1233,7 @@ public class RootUiCoordinator
                                 mActivityTabProvider.asObservable(),
                                 mWindowAndroid.getInsetObserver(),
                                 mLayoutStateProviderOneShotSupplier);
+                mTopInsetCoordinator = topInsetCoordinator;
                 transitiveTopInsetProvider.set(topInsetCoordinator);
             }
         }
@@ -1790,7 +1793,7 @@ public class RootUiCoordinator
                                         mActivity,
                                         mProfileSupplier.get(),
                                         ManagePasswordsReferrer.CHROME_SETTINGS,
-                                        mModalDialogManagerSupplier.asNonNull(),
+                                        mModalDialogManagerSupplier.get(),
                                         /* managePasskeys= */ false);
                             },
                             // Open Quick Delete Dialog callback:

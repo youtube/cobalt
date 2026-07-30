@@ -22,7 +22,6 @@ const NON_SCROLLABLE_VERTICAL_SPACING: number = 198;
 export interface AutoTabGroupsResultsElement {
   $: {
     feedbackButtons: CrFeedbackButtonsElement,
-    header: HTMLElement,
     learnMore: HTMLElement,
     scrollable: HTMLElement,
   };
@@ -130,7 +129,7 @@ export class AutoTabGroupsResultsElement extends CrLitElement {
     this.updateScroll_();
   }
 
-  protected onCreateAllGroupsClick_(event: CustomEvent) {
+  protected onCreateGroupClick_(event: CustomEvent) {
     event.stopPropagation();
     event.preventDefault();
 
@@ -150,13 +149,13 @@ export class AutoTabGroupsResultsElement extends CrLitElement {
     this.fire('learn-more-click');
   }
 
-  protected onLearnMoreKeyDown_(event: KeyboardEvent) {
+  protected onLearnMoreKeydown_(event: KeyboardEvent) {
     if (event.key === 'Enter') {
       this.onLearnMoreClick_();
     }
   }
 
-  protected onFeedbackKeyDown_(event: KeyboardEvent) {
+  protected onFeedbackKeydown_(event: KeyboardEvent) {
     if ((event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')) {
       return;
     }

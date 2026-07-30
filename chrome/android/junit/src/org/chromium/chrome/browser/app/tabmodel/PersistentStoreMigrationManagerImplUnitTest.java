@@ -356,6 +356,65 @@ public class PersistentStoreMigrationManagerImplUnitTest {
     }
 
     @Test
+    public void testShouldRazeShadowStoreForWindow() {
+        assertTrue(mManager.shouldRazeStoreForWindow(/* isAuthoritative= */ false));
+
+        mManager.onShadowStoreCreated(StoreType.TAB_STATE_STORE);
+        mManager.onShadowStoreCaughtUp();
+        assertFalse(mManager.shouldRazeStoreForWindow(/* isAuthoritative= */ false));
+
+        mManager.onShadowStoreRazed();
+        assertTrue(mManager.shouldRazeStoreForWindow(/* isAuthoritative= */ false));
+    }
+
+    @Test
+    public void testShouldRazeShadowStoreForWindow_FullMigration() {
+        ChromeFeatureList.sTabStorageSqlitePrototypeAuthoritativeReadSource.setForTesting(true);
+        ChromeFeatureList.sTabStorageSqlitePrototypeAllowFullMigration.setForTesting(true);
+        mManager = new PersistentStoreMigrationManagerImpl(WINDOW_TAG_1);
+
+        assertEquals(StoreType.TAB_STATE_STORE, mManager.getAuthoritativeStoreType());
+        assertEquals(StoreType.INVALID, mManager.getShadowStoreType());
+
+        // Perform a rollback.
+        ChromeFeatureList.sTabStorageSqlitePrototypeAuthoritativeReadSource.setForTesting(false);
+        ChromeFeatureList.sTabStorageSqlitePrototypeAllowFullMigration.setForTesting(false);
+        mManager = new PersistentStoreMigrationManagerImpl(WINDOW_TAG_1);
+
+        assertEquals(StoreType.LEGACY, mManager.getAuthoritativeStoreType());
+        assertEquals(StoreType.TAB_STATE_STORE, mManager.getShadowStoreType());
+
+        // 3. Verify that the shadow store should be razed.
+        assertTrue(mManager.shouldRazeStoreForWindow(/* isAuthoritative= */ false));
+    }
+
+    @Test
+    public void testOnAuthoritativeStoreInitialized() {
+        assertFalse(
+                ChromeSharedPreferences.getInstance().contains(CURRENT_AUTHORITATIVE_STORE_KEY_1));
+
+        mManager.onAuthoritativeStoreInitialized(StoreType.TAB_STATE_STORE);
+
+        assertTrue(
+                ChromeSharedPreferences.getInstance().contains(CURRENT_AUTHORITATIVE_STORE_KEY_1));
+        assertEquals(
+                StoreType.TAB_STATE_STORE,
+                ChromeSharedPreferences.getInstance()
+                        .readInt(CURRENT_AUTHORITATIVE_STORE_KEY_1, StoreType.INVALID));
+    }
+
+    @Test
+    public void testShouldRazeStoreForWindow_Authoritative() {
+        assertTrue(mManager.shouldRazeStoreForWindow(/* isAuthoritative= */ true));
+
+        mManager.onAuthoritativeStoreInitialized(StoreType.TAB_STATE_STORE);
+        assertFalse(mManager.shouldRazeStoreForWindow(/* isAuthoritative= */ true));
+
+        mManager.onWindowCleared();
+        assertTrue(mManager.shouldRazeStoreForWindow(/* isAuthoritative= */ true));
+    }
+
+    @Test
     public void testDefaultStore_TabStateStorageEnabled() {
         assertEquals(StoreType.LEGACY, mManager.getAuthoritativeStoreType());
         assertEquals(StoreType.TAB_STATE_STORE, mManager.getShadowStoreType());

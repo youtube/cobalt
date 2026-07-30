@@ -21,8 +21,6 @@ import android.content.ContentResolver;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
-import android.os.Handler;
-import android.os.Looper;
 import android.text.SpannableString;
 import android.text.style.RelativeSizeSpan;
 import android.widget.TextView;
@@ -36,13 +34,11 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.robolectric.annotation.Config;
-import org.robolectric.shadows.ShadowLooper;
 import org.robolectric.shadows.ShadowToast;
 
 import org.chromium.base.ContextUtils;
-import org.chromium.base.task.test.ShadowPostTask;
-import org.chromium.base.task.test.ShadowPostTask.TestImpl;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.RobolectricUtil;
 import org.chromium.ui.R;
 import org.chromium.ui.widget.ToastManager;
 import org.chromium.url.GURL;
@@ -50,9 +46,7 @@ import org.chromium.url.JUnitTestGURLs;
 
 /** Tests logic in the Clipboard class. */
 @RunWith(BaseRobolectricTestRunner.class)
-@Config(
-        manifest = Config.NONE,
-        shadows = {ShadowPostTask.class})
+@Config(manifest = Config.NONE)
 public class ClipboardTest {
     private static final String PLAIN_TEXT = "plain";
     private static final String HTML_TEXT = "<span style=\"color: red;\">HTML</span>";
@@ -60,13 +54,6 @@ public class ClipboardTest {
 
     @Before
     public void setup() {
-        ShadowPostTask.setTestImpl(
-                new TestImpl() {
-                    @Override
-                    public void postDelayedTask(int taskTraits, Runnable task, long delay) {
-                        new Handler(Looper.getMainLooper()).postDelayed(task, delay);
-                    }
-                });
         mTempImageUri = Uri.parse("content://tmp/test/image.jpg");
         ClipboardImpl.setSkipImageMimeTypeCheckForTesting(true);
     }
@@ -110,12 +97,12 @@ public class ClipboardTest {
 
         // simple set a null, check if there is no crash.
         clipboard.setImageUri(null);
-        ShadowLooper.idleMainLooper();
+        RobolectricUtil.runAllBackgroundAndUi();
         assertNull(clipboard.getImageUri());
 
         // Set actually data.
         clipboard.setImageUri(mTempImageUri);
-        ShadowLooper.idleMainLooper();
+        RobolectricUtil.runAllBackgroundAndUi();
         assertEquals(mTempImageUri, clipboard.getImageUri());
     }
 
@@ -222,11 +209,11 @@ public class ClipboardTest {
     @Config(shadows = ShadowToast.class)
     public void setTextWithNotification() {
         Clipboard.getInstance().setText("label", "text", false);
-        ShadowLooper.idleMainLooper();
+        RobolectricUtil.runAllBackgroundAndUi();
         assertNull(ShadowToast.getLatestToast());
 
         Clipboard.getInstance().setText("label", "text", true);
-        ShadowLooper.idleMainLooper();
+        RobolectricUtil.runAllBackgroundAndUi();
         if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2) {
             assertNotNull(ShadowToast.getLatestToast());
             assertTextFromLatestToast(R.string.copied);
@@ -239,11 +226,11 @@ public class ClipboardTest {
     @Config(shadows = ShadowToast.class)
     public void setImageWithNotification() {
         Clipboard.getInstance().setImageUri(mTempImageUri, false);
-        ShadowLooper.idleMainLooper();
+        RobolectricUtil.runAllBackgroundAndUi();
         assertNull(ShadowToast.getLatestToast());
 
         Clipboard.getInstance().setImageUri(mTempImageUri, true);
-        ShadowLooper.idleMainLooper();
+        RobolectricUtil.runAllBackgroundAndUi();
         if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2) {
             assertNotNull(ShadowToast.getLatestToast());
             assertTextFromLatestToast(R.string.image_copied);
@@ -256,7 +243,7 @@ public class ClipboardTest {
     @Config(shadows = ShadowToast.class)
     public void setImageWithFailedNotification() {
         Clipboard.getInstance().setImageUri(null, false);
-        ShadowLooper.idleMainLooper();
+        RobolectricUtil.runAllBackgroundAndUi();
         assertNotNull(ShadowToast.getLatestToast());
         assertTextFromLatestToast(R.string.copy_to_clipboard_failure_message);
     }

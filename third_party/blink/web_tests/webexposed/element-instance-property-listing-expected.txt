@@ -28,10 +28,13 @@ namespace http://www.w3.org/1999/xhtml
     property activeViewTransition
     property addEventListener
     property after
-    property anchorElement
+    property afterHTML
+    property afterHTMLUnsafe
     property animate
     property append
     property appendChild
+    property appendHTML
+    property appendHTMLUnsafe
     property ariaActiveDescendantElement
     property ariaAtomic
     property ariaAutoComplete
@@ -94,6 +97,8 @@ namespace http://www.w3.org/1999/xhtml
     property autofocus
     property baseURI
     property before
+    property beforeHTML
+    property beforeHTMLUnsafe
     property blur
     property checkVisibility
     property childElementCount
@@ -208,6 +213,7 @@ namespace http://www.w3.org/1999/xhtml
     property onclick
     property onclose
     property oncommand
+    property oncomplete
     property oncontentvisibilityautostatechange
     property oncontextlost
     property oncontextmenu
@@ -310,6 +316,8 @@ namespace http://www.w3.org/1999/xhtml
     property popover
     property prefix
     property prepend
+    property prependHTML
+    property prependHTMLUnsafe
     property previousElementSibling
     property previousSibling
     property pseudo
@@ -325,6 +333,8 @@ namespace http://www.w3.org/1999/xhtml
     property replaceChild
     property replaceChildren
     property replaceWith
+    property replaceWithHTML
+    property replaceWithHTMLUnsafe
     property requestFullscreen
     property requestPointerLock
     property role
@@ -350,7 +360,9 @@ namespace http://www.w3.org/1999/xhtml
     property slot
     property spellcheck
     property startViewTransition
+    property streamAppendHTML
     property streamAppendHTMLUnsafe
+    property streamHTML
     property streamHTMLUnsafe
     property style
     property tabIndex
@@ -553,6 +565,7 @@ html element canvas
     property height
     property layoutSubtree
     property onpaint
+    property requestPaint
     property toBlob
     property toDataURL
     property transferControlToOffscreen
@@ -577,6 +590,13 @@ html element colgroup
     property vAlign
     property width
 html element credential
+    property clientId
+    property configURL
+    property domainHint
+    property fields
+    property loginHint
+    property params
+    property type
 html element data
     property value
 html element datalist
@@ -797,6 +817,7 @@ html element input
     property autocomplete
     property checkValidity
     property checked
+    property createValueRange
     property defaultChecked
     property defaultValue
     property dirName
@@ -808,7 +829,6 @@ html element input
     property formMethod
     property formNoValidate
     property formTarget
-    property getValueRange
     property height
     property incremental
     property indeterminate
@@ -900,6 +920,7 @@ html element link
 html element listing
     property width
 html element login
+    property credential
 html element main
 html element map
     property areas
@@ -1164,11 +1185,11 @@ html element textarea
     property autocomplete
     property checkValidity
     property cols
+    property createValueRange
     property defaultValue
     property dirName
     property disabled
     property form
-    property getValueRange
     property labels
     property maxLength
     property minLength
@@ -1262,6 +1283,7 @@ html element usermedia
     property isValid
     property onpromptaction
     property onpromptdismiss
+    property onstream
     property onvalidationstatuschange
     property permissionStatus
     property type
@@ -1365,10 +1387,13 @@ namespace http://www.w3.org/2000/svg
     property activeViewTransition
     property addEventListener
     property after
-    property anchorElement
+    property afterHTML
+    property afterHTMLUnsafe
     property animate
     property append
     property appendChild
+    property appendHTML
+    property appendHTMLUnsafe
     property ariaActiveDescendantElement
     property ariaAtomic
     property ariaAutoComplete
@@ -1429,6 +1454,8 @@ namespace http://www.w3.org/2000/svg
     property autofocus
     property baseURI
     property before
+    property beforeHTML
+    property beforeHTMLUnsafe
     property blur
     property checkVisibility
     property childElementCount
@@ -1525,6 +1552,7 @@ namespace http://www.w3.org/2000/svg
     property onclick
     property onclose
     property oncommand
+    property oncomplete
     property oncontentvisibilityautostatechange
     property oncontextlost
     property oncontextmenu
@@ -1626,6 +1654,8 @@ namespace http://www.w3.org/2000/svg
     property part
     property prefix
     property prepend
+    property prependHTML
+    property prependHTMLUnsafe
     property previousElementSibling
     property previousSibling
     property pseudo
@@ -1641,6 +1671,8 @@ namespace http://www.w3.org/2000/svg
     property replaceChild
     property replaceChildren
     property replaceWith
+    property replaceWithHTML
+    property replaceWithHTMLUnsafe
     property requestFullscreen
     property requestPointerLock
     property role
@@ -1663,7 +1695,9 @@ namespace http://www.w3.org/2000/svg
     property shadowRoot
     property slot
     property startViewTransition
+    property streamAppendHTML
     property streamAppendHTMLUnsafe
+    property streamHTML
     property streamHTMLUnsafe
     property style
     property tabIndex

@@ -11,6 +11,7 @@
 #include "base/unguessable_token.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/web/web_performance_metrics_for_reporting.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_navigation_type.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/paint/timing/largest_contentful_paint_calculator.h"
 #include "third_party/blink/renderer/core/paint/timing/paint_timing_record.h"
@@ -87,7 +88,15 @@ class CORE_EXPORT SoftNavigationContext
   // |same_document_metrics_token|, while also recording the UrlChangeTime() as
   // base::TimeTicks::Now().
   void AddUrl(const String& url,
+              V8NavigationType::Enum navigation_type,
               base::UnguessableToken same_document_metrics_token);
+
+  // Returns the type of the initial same document navigation (first call to
+  // `AddUrl()`). Must not be called before the URL is set.
+  V8NavigationType::Enum NavigationType() const {
+    CHECK(HasUrl());
+    return navigation_type_;
+  }
 
   base::UnguessableToken SameDocumentMetricsToken() const {
     return same_document_metrics_token_;
@@ -136,12 +145,11 @@ class CORE_EXPORT SoftNavigationContext
     return first_input_or_scroll_time_.is_null();
   }
 
-  // Emits the soft navigation performance entry and latest buffered ICP entry,
-  // if there is one. The context must not have been previously emitted.
-  // `WasEmitted()` returns true after this is called.
+  // Emits the soft navigation performance entry. The context must not have been
+  // previously emitted. `WasEmitted()` returns true after this is called.
   //
-  // Note: There are several reasons why we might have an FCP but not a pending
-  // ICP, all of which should be fixed:
+  // Note: There are several reasons why we might have an FCP but have not
+  // emitted an ICP, all of which should be fixed:
   //   1. crbug.com/383568320: For <video>, we set the paint timestamp for the
   //      first video frame outside of paint, but require BeginMainFrame +
   //      presentation feedback to emit the ICP entry. The soft nav entry can be
@@ -182,11 +190,12 @@ class CORE_EXPORT SoftNavigationContext
 
   String initial_url_;
   base::UnguessableToken same_document_metrics_token_;
+  V8NavigationType::Enum navigation_type_ = V8NavigationType::Enum::kPush;
 
   Member<LocalDOMWindow> window_;
   Member<LargestContentfulPaintCalculator> lcp_calculator_;
   Member<PaintTimingRecord> first_image_or_text_;
-  Member<InteractionContentfulPaint> latest_unemitted_icp_entry_;
+  Member<InteractionContentfulPaint> largest_icp_entry_;
 
   size_t num_modified_dom_nodes_ = 0;
   uint64_t painted_area_ = 0;

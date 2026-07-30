@@ -264,6 +264,12 @@ void Host::Reload() {
   }
 }
 
+void Host::OnWebContentsNavigated() {
+  if (delegate_) {
+    delegate_->OnReload();
+  }
+}
+
 void Host::CreateContents(bool initially_hidden) {
   if (contents_) {
     return;
@@ -462,6 +468,12 @@ GlicPageHandler* Host::FindPageHandlerForWebUiContents(
 void Host::NotifyWindowIntentToShow() {
   if (handler_info_) {
     handler_info_->page_handler->NotifyWindowIntentToShow();
+  }
+}
+
+void Host::Zoom(mojom::ZoomAction zoom_action) {
+  if (GlicPageHandler* handler = page_handler()) {
+    handler->Zoom(zoom_action);
   }
 }
 

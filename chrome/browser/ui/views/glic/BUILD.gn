@@ -4,13 +4,13 @@
 
 import("//chrome/common/features.gni")
 
-assert(enable_glic)
-
 source_set("glic") {
   sources = []
 
   if (!is_android) {
     sources += [
+      "glic_actor_task_icon.h",
+      "glic_base_shim.h",
       "glic_button.h",
       "glic_button_interface.h",
     ]

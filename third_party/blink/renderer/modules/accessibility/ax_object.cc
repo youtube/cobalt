@@ -2961,8 +2961,11 @@ ax::mojom::blink::Role AXObject::ComputeFinalRoleForSerialization() const {
   //  * Parent is a focusgroup owner whose role was implied (parent has no
   //    explicit role attribute and was generic before inference).
   //  * Current element has no explicit ARIA role (aria_role_ still kUnknown).
-  //  * Current element's native role is generic container (to avoid overriding
-  //    richer native semantics like <button>, <a>, <input>, etc.).
+  //  * Current element's native role is generic container or button (to avoid
+  //    overriding richer native semantics like <a>, <input>, etc.).
+  //    Button is included because it is the most common interactive element
+  //    used inside focusgroup patterns (e.g. tabs, menu items) and authors
+  //    expect its role to be inferred from the focusgroup behavior.
   //  * The focusgroup owner's behavior maps to a child role (e.g. tablist->tab,
   //    radiogroup->radio, etc.).
   // TODO(crbug.com/40074157): Investigate why we need to check
@@ -2977,7 +2980,8 @@ ax::mojom::blink::Role AXObject::ComputeFinalRoleForSerialization() const {
       RuntimeEnabledFeatures::FocusgroupEnabled(
           element->GetExecutionContext()) &&
       (role_ == ax::mojom::blink::Role::kGenericContainer ||
-       role_ == ax::mojom::blink::Role::kUnknown)) {
+       role_ == ax::mojom::blink::Role::kUnknown ||
+       role_ == ax::mojom::blink::Role::kButton)) {
     // Avoid calling GetFocusgroupOwnerOfItem here to prevent
     // unnecessary style recalcs, and state-associated CHECKS.
     // Calling IsKeyboardFocusableSlow is safe here because we are passing the
@@ -6963,7 +6967,7 @@ AtomicString AXObject::Language() const {
 
   // Use the first accept language preference if present.
   if (Page* page = document->GetPage()) {
-    const String languages = page->GetChromeClient().AcceptLanguages();
+    const String languages = page->GetSettings().GetAcceptLanguages();
     String first_language = languages.Substring(0, languages.find(","));
     if (!first_language.empty()) {
       return AtomicString(first_language.StripWhiteSpace());
@@ -7221,7 +7225,7 @@ AXObject::AXObjectVector AXObject::TableRowChildren() const {
     if (child->IsTableRowLikeRole())
       result.push_back(child);
     else if (child->RoleValue() == ax::mojom::blink::Role::kRowGroup)
-      result.AppendVector(child->TableRowChildren());
+      result.append_range(child->TableRowChildren());
   }
   return result;
 }
@@ -7232,7 +7236,7 @@ AXObject::AXObjectVector AXObject::TableCellChildren() const {
     if (child->IsTableCellLikeRole())
       result.push_back(child);
     else if (child->RoleValue() == ax::mojom::blink::Role::kGenericContainer)
-      result.AppendVector(child->TableCellChildren());
+      result.append_range(child->TableCellChildren());
   }
   return result;
 }

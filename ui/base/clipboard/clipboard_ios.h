@@ -41,14 +41,14 @@ class COMPONENT_EXPORT(UI_BASE_CLIPBOARD) ClipboardIOS : public Clipboard {
   void Clear(ClipboardBuffer buffer) override;
 
   void ReadAvailableTypes(ClipboardBuffer buffer,
-                          const DataTransferEndpoint* data_dst,
-                          std::vector<std::u16string>* types) const override;
+                          const std::optional<DataTransferEndpoint>& data_dst,
+                          ReadAvailableTypesCallback callback) const override;
   void ReadText(ClipboardBuffer buffer,
-                const DataTransferEndpoint* data_dst,
-                std::u16string* result) const override;
+                const std::optional<DataTransferEndpoint>& data_dst,
+                ReadTextCallback callback) const override;
   void ReadAsciiText(ClipboardBuffer buffer,
-                     const DataTransferEndpoint* data_dst,
-                     std::string* result) const override;
+                     const std::optional<DataTransferEndpoint>& data_dst,
+                     ReadAsciiTextCallback callback) const override;
   void ReadHTML(ClipboardBuffer buffer,
                 const std::optional<DataTransferEndpoint>& data_dst,
                 ReadHtmlCallback callback) const override;
@@ -69,12 +69,11 @@ class COMPONENT_EXPORT(UI_BASE_CLIPBOARD) ClipboardIOS : public Clipboard {
   void ReadFilenames(ClipboardBuffer buffer,
                      const std::optional<DataTransferEndpoint>& data_dst,
                      ReadFilenamesCallback callback) const override;
-  void ReadBookmark(const DataTransferEndpoint* data_dst,
-                    std::u16string* title,
-                    std::string* url) const override;
+  void ReadBookmark(const std::optional<DataTransferEndpoint>& data_dst,
+                    ReadBookmarkCallback callback) const override;
   void ReadData(const ClipboardFormatType& format,
-                const DataTransferEndpoint* data_dst,
-                std::string* result) const override;
+                const std::optional<DataTransferEndpoint>& data_dst,
+                ReadDataCallback callback) const override;
 
   void WritePortableAndPlatformRepresentations(
       ClipboardBuffer buffer,

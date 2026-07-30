@@ -69,6 +69,7 @@ import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcherProvider;
 import org.chromium.chrome.browser.lifecycle.ConfigurationChangedObserver;
 import org.chromium.chrome.browser.lifecycle.TopResumedActivityChangedWithNativeObserver;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.NewWindowAppSource;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.browser.tabmodel.IncognitoTabModel;
@@ -739,6 +740,70 @@ public class ChromeAndroidTaskImplUnitTest {
     }
 
     @Test
+    public void removeAllFeaturesForActivity_removesFeatureAndInvokesOnFeatureRemoved()
+            throws Exception {
+        // Arrange.
+        var chromeAndroidTaskWithMockDeps = createChromeAndroidTaskWithMockDeps(/* taskId= */ 1);
+        var chromeAndroidTask = chromeAndroidTaskWithMockDeps.mChromeAndroidTask;
+        var testFeature = new TestChromeAndroidTaskFeature(chromeAndroidTask);
+        var windowAndroid =
+                chromeAndroidTaskWithMockDeps.mActivityScopedObjects.mActivityWindowAndroid;
+        var featureKey =
+                new ChromeAndroidTaskFeatureKey(
+                        TestChromeAndroidTaskFeature.class, /* profile= */ null, windowAndroid);
+        chromeAndroidTask.addFeature(featureKey, () -> testFeature);
+
+        // Act.
+        chromeAndroidTask.removeAllFeaturesForActivity(windowAndroid);
+
+        // Assert.
+        testFeature.mOnTaskRemovedHelper.waitForCallback(
+                /* currentCallCount= */ 0, /* numberOfCallsToWaitFor= */ 1);
+        assertNull(
+                "Feature should be removed from the Task.",
+                chromeAndroidTask.getFeatureForTesting(featureKey));
+    }
+
+    @Test
+    public void removeAllFeaturesForActivity_keepFeaturesNotAssociatedWithGivenActivity()
+            throws Exception {
+        // Arrange.
+        var chromeAndroidTaskWithMockDeps = createChromeAndroidTaskWithMockDeps(/* taskId= */ 1);
+        var chromeAndroidTask = chromeAndroidTaskWithMockDeps.mChromeAndroidTask;
+        var testFeature = new TestChromeAndroidTaskFeature(chromeAndroidTask);
+        var windowAndroid =
+                chromeAndroidTaskWithMockDeps.mActivityScopedObjects.mActivityWindowAndroid;
+        var featureKey =
+                new ChromeAndroidTaskFeatureKey(
+                        TestChromeAndroidTaskFeature.class, /* profile= */ null, windowAndroid);
+        chromeAndroidTask.addFeature(featureKey, () -> testFeature);
+
+        var activityScopedObjects2 = createActivityScopedObjects(/* taskId= */ 1);
+        chromeAndroidTask.addActivityScopedObjects(activityScopedObjects2);
+        var testFeature2 = new TestChromeAndroidTaskFeature(chromeAndroidTask);
+        var featureKey2 =
+                new ChromeAndroidTaskFeatureKey(
+                        TestChromeAndroidTaskFeature.class,
+                        /* profile= */ null,
+                        activityScopedObjects2.mActivityWindowAndroid);
+        chromeAndroidTask.addFeature(featureKey2, () -> testFeature2);
+
+        // Act.
+        chromeAndroidTask.removeAllFeaturesForActivity(windowAndroid);
+
+        // Assert.
+        testFeature.mOnTaskRemovedHelper.waitForCallback(
+                /* currentCallCount= */ 0, /* numberOfCallsToWaitFor= */ 1);
+        assertNull(
+                "Feature should be removed from the Task.",
+                chromeAndroidTask.getFeatureForTesting(featureKey));
+        assertEquals(
+                "Feature should not be removed from the Task.",
+                testFeature2,
+                chromeAndroidTask.getFeatureForTesting(featureKey2));
+    }
+
+    @Test
     public void createIntentForNormalBrowserWindow_notIncognito_callsMultiInstanceManager() {
         // Arrange.
         var chromeAndroidTaskWithMockDeps = createChromeAndroidTaskWithMockDeps(/* taskId= */ 1);
@@ -751,7 +816,9 @@ public class ChromeAndroidTaskImplUnitTest {
 
         // Assert.
         assertNotNull(intent);
-        verify(multiInstanceManager, times(1)).createNewWindowIntent(/* isIncognito= */ false);
+        verify(multiInstanceManager, times(1))
+                .createNewWindowIntent(
+                        /* isIncognito= */ false, NewWindowAppSource.BROWSER_WINDOW_CREATOR);
     }
 
     @Test
@@ -767,7 +834,9 @@ public class ChromeAndroidTaskImplUnitTest {
 
         // Assert.
         assertNotNull(intent);
-        verify(multiInstanceManager, times(1)).createNewWindowIntent(/* isIncognito= */ true);
+        verify(multiInstanceManager, times(1))
+                .createNewWindowIntent(
+                        /* isIncognito= */ true, NewWindowAppSource.BROWSER_WINDOW_CREATOR);
     }
 
     @Test

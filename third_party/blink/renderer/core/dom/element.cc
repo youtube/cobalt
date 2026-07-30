@@ -49,7 +49,9 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_pointer_lock_options.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_scroll_container.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_scroll_into_view_options.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_scroll_result.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_scroll_to_options.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_set_html_options.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_set_html_unsafe_options.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_shadow_root_init.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_timeline_range.h"
@@ -57,6 +59,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_boolean_scrollintoviewoptions.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_keyframeanimationoptions_unrestricteddouble.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_keyframeeffectoptions_unrestricteddouble.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_union_sethtmlunsafeoptions_trustedparseroptions.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_string_timelinerangeoffset.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_stringlegacynulltoemptystring_trustedhtml.h"
 #include "third_party/blink/renderer/core/accessibility/ax_context.h"
@@ -110,6 +113,7 @@
 #include "third_party/blink/renderer/core/dom/container_node.h"
 #include "third_party/blink/renderer/core/dom/dataset_dom_string_map.h"
 #include "third_party/blink/renderer/core/dom/document.h"
+#include "third_party/blink/renderer/core/dom/document_fragment.h"
 #include "third_party/blink/renderer/core/dom/document_lifecycle.h"
 #include "third_party/blink/renderer/core/dom/dom_token_list.h"
 #include "third_party/blink/renderer/core/dom/element_data_cache.h"
@@ -173,7 +177,6 @@
 #include "third_party/blink/renderer/core/fullscreen/fullscreen.h"
 #include "third_party/blink/renderer/core/geometry/dom_rect.h"
 #include "third_party/blink/renderer/core/geometry/dom_rect_list.h"
-#include "third_party/blink/renderer/core/html/anchor_element_observer.h"
 #include "third_party/blink/renderer/core/html/canvas/html_canvas_element.h"
 #include "third_party/blink/renderer/core/html/custom/custom_element.h"
 #include "third_party/blink/renderer/core/html/custom/custom_element_registry.h"
@@ -210,6 +213,7 @@
 #include "third_party/blink/renderer/core/html/html_template_element.h"
 #include "third_party/blink/renderer/core/html/media/html_video_element.h"
 #include "third_party/blink/renderer/core/html/nesting_level_incrementer.h"
+#include "third_party/blink/renderer/core/html/parser/fragment_parser_options.h"
 #include "third_party/blink/renderer/core/html/parser/html_element_stack.h"
 #include "third_party/blink/renderer/core/html/parser/html_parser_idioms.h"
 #include "third_party/blink/renderer/core/html/shadow/shadow_element_names.h"
@@ -244,6 +248,7 @@
 #include "third_party/blink/renderer/core/probe/core_probes.h"
 #include "third_party/blink/renderer/core/resize_observer/resize_observation.h"
 #include "third_party/blink/renderer/core/resize_observer/resize_observer_size.h"
+#include "third_party/blink/renderer/core/sanitizer/sanitizer.h"
 #include "third_party/blink/renderer/core/sanitizer/sanitizer_api.h"
 #include "third_party/blink/renderer/core/scroll/scroll_into_view_util.h"
 #include "third_party/blink/renderer/core/scroll/scroll_types.h"
@@ -260,6 +265,8 @@
 #include "third_party/blink/renderer/core/svg/svg_use_element.h"
 #include "third_party/blink/renderer/core/svg_names.h"
 #include "third_party/blink/renderer/core/timing/soft_navigation_heuristics.h"
+#include "third_party/blink/renderer/core/trustedtypes/trusted_parser_options.h"
+#include "third_party/blink/renderer/core/trustedtypes/trusted_types_names.h"
 #include "third_party/blink/renderer/core/trustedtypes/trusted_types_util.h"
 #include "third_party/blink/renderer/core/view_transition/view_transition_pseudo_element_base.h"
 #include "third_party/blink/renderer/core/view_transition/view_transition_supplement.h"
@@ -496,9 +503,6 @@ bool IsElementReflectionAttribute(const QualifiedName& name) {
     return true;
   }
   if (name == html_names::kPopovertargetAttr) {
-    return true;
-  }
-  if (name == html_names::kAnchorAttr) {
     return true;
   }
   if (name == html_names::kCommandforAttr) {
@@ -2039,26 +2043,6 @@ void Element::DefaultEventHandler(Event& event) {
   ContainerNode::DefaultEventHandler(event);
 }
 
-Element* Element::anchorElement() const {
-  if (!RuntimeEnabledFeatures::HTMLAnchorAttributeEnabled()) {
-    return nullptr;
-  }
-  return GetElementAttributeResolvingReferenceTarget(html_names::kAnchorAttr);
-}
-
-// For JavaScript binding, return the anchor element without resolving the
-// reference target, to avoid exposing shadow root content to JS.
-Element* Element::anchorElementForBinding() const {
-  CHECK(RuntimeEnabledFeatures::HTMLAnchorAttributeEnabled());
-  return GetElementAttribute(html_names::kAnchorAttr);
-}
-
-void Element::setAnchorElementForBinding(Element* new_element) {
-  CHECK(RuntimeEnabledFeatures::HTMLAnchorAttributeEnabled());
-  SetElementAttribute(html_names::kAnchorAttr, new_element);
-  EnsureAnchorElementObserver().Notify();
-}
-
 inline void Element::SynchronizeAttribute(const QualifiedName& name) const {
   if (!HasElementData()) {
     return;
@@ -2182,7 +2166,7 @@ namespace {
 
 // TODO(https://crbug.com/41406914): Ad-hoc method until we hook up with scroll
 // animation end.
-ScriptPromise<IDLUndefined> CreateScrollResolvedPromise(
+ScriptPromise<ScrollResult> CreateScrollResolvedPromise(
     ScriptState* script_state) {
   // Legacy binary tests pass a null `script_state`.
   if (!script_state ||
@@ -2191,21 +2175,21 @@ ScriptPromise<IDLUndefined> CreateScrollResolvedPromise(
   }
 
   auto* resolver =
-      MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(script_state);
-  resolver->Resolve();
+      MakeGarbageCollected<ScriptPromiseResolver<ScrollResult>>(script_state);
+  resolver->Resolve(ScrollResult::Create());
   return resolver->Promise();
 }
 
 }  // namespace
 
-ScriptPromise<IDLUndefined> Element::scrollIntoView(ScriptState* script_state,
+ScriptPromise<ScrollResult> Element::scrollIntoView(ScriptState* script_state,
                                                     bool align_to_top) {
   auto* arg =
       MakeGarbageCollected<V8UnionBooleanOrScrollIntoViewOptions>(align_to_top);
   return scrollIntoView(script_state, arg);
 }
 
-ScriptPromise<IDLUndefined> Element::scrollIntoView(
+ScriptPromise<ScrollResult> Element::scrollIntoView(
     ScriptState* script_state,
     const V8UnionBooleanOrScrollIntoViewOptions* arg) {
   ScrollIntoViewOptions* options = nullptr;
@@ -2927,7 +2911,7 @@ int Element::scrollHeight() {
   return 0;
 }
 
-ScriptPromise<IDLUndefined> Element::scrollBy(ScriptState* script_state,
+ScriptPromise<ScrollResult> Element::scrollBy(ScriptState* script_state,
                                               double x,
                                               double y) {
   ScrollToOptions* scroll_to_options = ScrollToOptions::Create();
@@ -2936,7 +2920,7 @@ ScriptPromise<IDLUndefined> Element::scrollBy(ScriptState* script_state,
   return scrollBy(script_state, scroll_to_options);
 }
 
-ScriptPromise<IDLUndefined> Element::scrollBy(
+ScriptPromise<ScrollResult> Element::scrollBy(
     ScriptState* script_state,
     const ScrollToOptions* scroll_to_options) {
   if (!InActiveDocument()) {
@@ -2952,11 +2936,11 @@ ScriptPromise<IDLUndefined> Element::scrollBy(
   GetDocument().UpdateStyleAndLayoutForNode(this,
                                             DocumentUpdateReason::kJavaScript);
 
-  ScriptPromiseResolver<IDLUndefined>* resolver = nullptr;
+  ScriptPromiseResolver<ScrollResult>* resolver = nullptr;
   if (script_state &&
       RuntimeEnabledFeatures::ProgrammaticScrollPromiseEnabled()) {
     resolver =
-        MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(script_state);
+        MakeGarbageCollected<ScriptPromiseResolver<ScrollResult>>(script_state);
   }
 
   if (GetDocument().ScrollingElementNoLayout() == this) {
@@ -2968,7 +2952,7 @@ ScriptPromise<IDLUndefined> Element::scrollBy(
   return resolver ? resolver->Promise() : EmptyPromise();
 }
 
-ScriptPromise<IDLUndefined> Element::scrollTo(ScriptState* script_state,
+ScriptPromise<ScrollResult> Element::scrollTo(ScriptState* script_state,
                                               double x,
                                               double y) {
   ScrollToOptions* scroll_to_options = ScrollToOptions::Create();
@@ -2977,21 +2961,26 @@ ScriptPromise<IDLUndefined> Element::scrollTo(ScriptState* script_state,
   return scrollTo(script_state, scroll_to_options);
 }
 
-ScriptPromise<IDLUndefined> Element::scrollTo(
+ScriptPromise<ScrollResult> Element::scrollTo(
     ScriptState* script_state,
     const ScrollToOptions* scroll_to_options) {
-  if (!InActiveDocument()) {
-    return CreateScrollResolvedPromise(script_state);
+  ScriptPromiseResolver<ScrollResult>* resolver = nullptr;
+  if (script_state &&
+      RuntimeEnabledFeatures::ProgrammaticScrollPromiseEnabled()) {
+    resolver =
+        MakeGarbageCollected<ScriptPromiseResolver<ScrollResult>>(script_state);
   }
-  SetScrollOffset(scroll_to_options);
-  return CreateScrollResolvedPromise(script_state);
+
+  ScrollTo(scroll_to_options, resolver);
+  return resolver ? resolver->Promise() : EmptyPromise();
 }
 
-// TODO(mustaq@chromium.org): Rename this method to avoid any confusion with the
-// same-named function in `ScrollableArea`. This method is public because it is
-// used by WebElement for (probably) non-programmatic scroll.
-bool Element::SetScrollOffset(const ScrollToOptions* scroll_to_options) {
+bool Element::ScrollTo(const ScrollToOptions* scroll_to_options,
+                       ScriptPromiseResolver<ScrollResult>* resolver) {
   if (!InActiveDocument()) {
+    if (resolver) {
+      resolver->Resolve();
+    }
     return false;
   }
 
@@ -3005,9 +2994,9 @@ bool Element::SetScrollOffset(const ScrollToOptions* scroll_to_options) {
                                             DocumentUpdateReason::kJavaScript);
 
   if (GetDocument().ScrollingElementNoLayout() == this) {
-    return ScrollFrameTo(scroll_to_options);
+    return ScrollFrameTo(scroll_to_options, resolver);
   } else {
-    return ScrollLayoutBoxTo(scroll_to_options);
+    return ScrollLayoutBoxTo(scroll_to_options, resolver);
   }
 }
 
@@ -3029,7 +3018,7 @@ void Element::scrollToForTesting(double x, double y) {
 }
 
 bool Element::ScrollLayoutBoxBy(const ScrollToOptions* scroll_to_options,
-                                ScriptPromiseResolver<IDLUndefined>* resolver) {
+                                ScriptPromiseResolver<ScrollResult>* resolver) {
   gfx::Vector2dF displacement;
   if (scroll_to_options->hasLeft()) {
     displacement.set_x(
@@ -3071,18 +3060,20 @@ bool Element::ScrollLayoutBoxBy(const ScrollToOptions* scroll_to_options,
       cc::ScrollSourceType::kRelativeScroll, scroll_behavior, resolver);
 }
 
-bool Element::ScrollLayoutBoxTo(const ScrollToOptions* scroll_to_options) {
+bool Element::ScrollLayoutBoxTo(const ScrollToOptions* scroll_to_options,
+                                ScriptPromiseResolver<ScrollResult>* resolver) {
   mojom::blink::ScrollBehavior scroll_behavior =
       ScrollableArea::V8EnumToScrollBehavior(
           scroll_to_options->behavior().AsEnum());
 
   LayoutBox* box = GetLayoutBoxForScrolling();
-  if (!box) {
-    return false;
-  }
+  PaintLayerScrollableArea* scrollable_area =
+      box ? box->GetScrollableArea() : nullptr;
 
-  PaintLayerScrollableArea* scrollable_area = box->GetScrollableArea();
   if (!scrollable_area) {
+    if (resolver) {
+      resolver->Resolve();
+    }
     return false;
   }
 
@@ -3134,13 +3125,13 @@ bool Element::ScrollLayoutBoxTo(const ScrollToOptions* scroll_to_options) {
     new_offset = scrollable_area->ScrollPositionToOffset(snap_point.value());
   }
 
-  return scrollable_area->SetScrollOffset(
-      new_offset, mojom::blink::ScrollType::kProgrammatic,
-      cc::ScrollSourceType::kAbsoluteScroll, scroll_behavior);
+  return scrollable_area->SetProgrammaticScrollOffset(
+      new_offset, cc::ScrollSourceType::kAbsoluteScroll, scroll_behavior,
+      resolver);
 }
 
 bool Element::ScrollFrameBy(const ScrollToOptions* scroll_to_options,
-                            ScriptPromiseResolver<IDLUndefined>* resolver) {
+                            ScriptPromiseResolver<ScrollResult>* resolver) {
   gfx::Vector2dF displacement;
   if (scroll_to_options->hasLeft()) {
     displacement.set_x(
@@ -3180,19 +3171,21 @@ bool Element::ScrollFrameBy(const ScrollToOptions* scroll_to_options,
       cc::ScrollSourceType::kRelativeScroll, scroll_behavior, resolver);
 }
 
-bool Element::ScrollFrameTo(const ScrollToOptions* scroll_to_options) {
+bool Element::ScrollFrameTo(const ScrollToOptions* scroll_to_options,
+                            ScriptPromiseResolver<ScrollResult>* resolver) {
   mojom::blink::ScrollBehavior scroll_behavior =
       ScrollableArea::V8EnumToScrollBehavior(
           scroll_to_options->behavior().AsEnum());
   LocalFrame* frame = GetDocument().GetFrame();
-  if (!frame || !frame->View() || !GetDocument().GetPage()) {
+  if (!frame || !frame->View() || !frame->View()->LayoutViewport() ||
+      !GetDocument().GetPage()) {
+    if (resolver) {
+      resolver->Resolve();
+    }
     return false;
   }
 
   ScrollableArea* viewport = frame->View()->LayoutViewport();
-  if (!viewport) {
-    return false;
-  }
 
   ScrollOffset new_offset = viewport->GetScrollOffset();
   if (scroll_to_options->hasLeft()) {
@@ -3215,11 +3208,10 @@ bool Element::ScrollFrameTo(const ScrollToOptions* scroll_to_options) {
   new_position =
       viewport->GetSnapPositionAndSetTarget(*strategy).value_or(new_position);
   new_offset = viewport->ScrollPositionToOffset(new_position);
-  // TODO(mustaq@chromium.org): Switch the following method to
-  // `SetProgrammaticScrollOffset`.
-  return viewport->SetScrollOffset(
-      new_offset, mojom::blink::ScrollType::kProgrammatic,
-      cc::ScrollSourceType::kAbsoluteScroll, scroll_behavior);
+
+  return viewport->SetProgrammaticScrollOffset(
+      new_offset, cc::ScrollSourceType::kAbsoluteScroll, scroll_behavior,
+      resolver);
 }
 
 bool Element::HandleScrollByPageCommand(CommandEventType command) {
@@ -3885,11 +3877,7 @@ void Element::AttributeChanged(const AttributeModificationParams& params) {
       StyleAttributeChanged(params.new_value, params.reason);
       SoftNavigationHeuristics::ModifiedAttribute(this, name);
     } else if (IsPresentationAttribute(name)) {
-      if (name == html_names::kAnchorAttr) {
-        if (RuntimeEnabledFeatures::HTMLAnchorAttributeEnabled()) {
-          EnsureAnchorElementObserver().Notify();
-        }
-      } else if (name == html_names::kHiddenAttr) {
+      if (name == html_names::kHiddenAttr) {
         if (params.new_value == keywords::kUntilFound) {
           EnsureDisplayLockContext().SetIsHiddenUntilFoundElement(true);
         } else if (DisplayLockContext* context = GetDisplayLockContext()) {
@@ -4216,10 +4204,6 @@ Node::InsertionNotificationRequest Element::InsertedInto(
     SetIsCanvasOrInCanvasSubtree(true);
   }
 
-  if (AnchorElementObserver* observer = GetAnchorElementObserver()) {
-    observer->Notify();
-  }
-
   if (!insertion_point.IsInTreeScope()) {
     return kInsertionDone;
   }
@@ -4505,10 +4489,6 @@ void Element::RemovedFrom(ContainerNode& insertion_point) {
     frame->GetEditor().ElementRemoved(this);
     frame->GetSpellChecker().ElementRemoved(this);
     frame->GetEventHandler().ElementRemoved(this);
-  }
-
-  if (AnchorElementObserver* observer = GetAnchorElementObserver()) {
-    observer->Notify();
   }
 
   // Removing an element means that we should remove this overscroll area,
@@ -5198,6 +5178,12 @@ void Element::RecalcStyle(const StyleRecalcChange change,
     }
 
     if (DynamicTo<HTMLOptionElement>(this)) {
+      UpdatePseudoElement(kPseudoIdCheckMark, child_change,
+                          child_recalc_context);
+    }
+
+    if (DynamicTo<HTMLInputElement>(this) &&
+        RuntimeEnabledFeatures::AppearanceBaseEnabled()) {
       UpdatePseudoElement(kPseudoIdCheckMark, child_change,
                           child_recalc_context);
     }
@@ -9197,82 +9183,82 @@ V8UnionStringLegacyNullToEmptyStringOrTrustedHTML* Element::outerHTML() const {
       V8UnionStringLegacyNullToEmptyStringOrTrustedHTML>(GetOuterHTMLString());
 }
 
+namespace {
+CustomElementRegistry* CustomElementRegistryForInnerHTML(Element* element) {
+  // Use null registry to create fragment if the context element is a
+  // template element as the container of the document fragment will be a
+  // document fragment without browsing context.
+  auto* template_element = DynamicTo<HTMLTemplateElement>(*element);
+  CustomElementRegistry* registry =
+      element->GetDocument().customElementRegistry();
+  if (RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled()) {
+    registry = template_element ? nullptr : element->customElementRegistry();
+  }
+  return registry;
+}
+}  // namespace
+
 void Element::SetInnerHTMLInternal(
     const String& html,
-    ParseDeclarativeShadowRoots parse_declarative_shadows,
-    ForceHtml force_html,
-    std::variant<std::monostate, SetHTMLOptions*, SetHTMLUnsafeOptions*>
-        options,
+    FragmentParserConfig::ParseDeclarativeShadowRoots parse_declarative_shadows,
+    FragmentParserConfig::ForceHtml force_html,
+    Sanitizer::Mode sanitizer_mode,
+    const FragmentParserOptions& options,
+    const AtomicString& property_name,
     ExceptionState& exception_state) {
+  if (exception_state.HadException()) {
+    return;
+  }
   if (html.empty() && !HasNonInBodyInsertionMode()) {
     setTextContent(html);
-  } else {
-    // Use null registry to create fragment if the context element is a
-    // template element as the container of the document fragment will be a
-    // document fragment without browsing context.
-    auto* template_element = DynamicTo<HTMLTemplateElement>(*this);
-    CustomElementRegistry* registry = GetDocument().customElementRegistry();
-    if (RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled()) {
-      registry = template_element ? nullptr : customElementRegistry();
-    }
-    const ParserContentPolicy content_policy =
-        (RuntimeEnabledFeatures::SetHTMLCanRunScriptsEnabled() &&
-         std::holds_alternative<SetHTMLUnsafeOptions*>(options) &&
-         std::get<SetHTMLUnsafeOptions*>(options)->runScripts())
-            ? kAllowScriptingContentAndDoNotMarkAlreadyStarted
-            : kAllowScriptingContent;
-
-    if (DocumentFragment* fragment = CreateFragmentForInnerOuterHTML(
-            html, this, content_policy, parse_declarative_shadows, force_html,
-            std::holds_alternative<std::monostate>(options)
-                ? ForceInertTemplate::kDontForce
-                : ForceInertTemplate::kForce,
-            registry, exception_state)) {
-      if (std::holds_alternative<SetHTMLOptions*>(options)) {
-        CHECK(RuntimeEnabledFeatures::SanitizerAPIEnabled());
-        SanitizerAPI::SanitizeSafeInternal(this, fragment,
-                                           std::get<SetHTMLOptions*>(options),
-                                           exception_state);
-      } else if (std::holds_alternative<SetHTMLUnsafeOptions*>(options)) {
-        CHECK(RuntimeEnabledFeatures::SanitizerAPIEnabled());
-        SanitizerAPI::SanitizeUnsafeInternal(
-            this, fragment, std::get<SetHTMLUnsafeOptions*>(options),
-            exception_state);
-      } else {
-        CHECK(std::holds_alternative<std::monostate>(options));
-        // No options; nothing to do.
-      }
-      ContainerNode* container = this;
-      if (template_element) {
-        container = template_element->content();
-      }
-      ReplaceChildrenWithFragment(container, fragment, exception_state);
-    }
+    return;
   }
+
+  DocumentFragment* fragment =
+      ParseHTMLFragment(html,
+                        {.sanitizer_mode = sanitizer_mode,
+                         .parse_declarative_shadows = parse_declarative_shadows,
+                         .force_html = force_html,
+                         .interface_name = trusted_types_names::kElement,
+                         .property_name = property_name,
+                         .context_element = this,
+                         .registry = CustomElementRegistryForInnerHTML(this)},
+                        options, exception_state);
+
+  if (!fragment) {
+    return;
+  }
+
+  ContainerNode* container = this;
+  if (auto* template_element = DynamicTo<HTMLTemplateElement>(this)) {
+    container = template_element->content();
+  }
+  ReplaceChildrenWithFragment(container, fragment, exception_state);
 }
 
 void Element::SetInnerHTMLWithoutTrustedTypes(const String& html,
                                               ExceptionState& exception_state) {
-  SetInnerHTMLInternal(html, ParseDeclarativeShadowRoots::kDontParse,
-                       ForceHtml::kDontForce, std::monostate{},
-                       exception_state);
+  SetInnerHTMLInternal(
+      html, FragmentParserConfig::ParseDeclarativeShadowRoots::kDontParse,
+      FragmentParserConfig::ForceHtml::kDontForce, Sanitizer::Mode::kUnsafe,
+      FragmentParserOptions(), trusted_types_names::kInnerHTML,
+      exception_state);
 }
 
 void Element::setInnerHTML(
     const V8UnionStringLegacyNullToEmptyStringOrTrustedHTML* html,
     ExceptionState& exception_state) {
   probe::BreakableLocation(GetExecutionContext(), "Element.setInnerHTML");
-  String compliant_html = TrustedTypesCheckForHTML(
-      html, GetExecutionContext(), trusted_types_names::kElement,
-      trusted_types_names::kInnerHTML, exception_state);
+  SetInnerHTMLWithoutTrustedTypes(
+      CheckTrustedTypes(html, trusted_types_names::kInnerHTML, exception_state),
+      exception_state);
+}
+
+void Element::SetOuterHTMLInternal(const String& html,
+                                   ExceptionState& exception_state) {
   if (exception_state.HadException()) {
     return;
   }
-  SetInnerHTMLWithoutTrustedTypes(compliant_html, exception_state);
-}
-
-void Element::SetOuterHTMLWithoutTrustedTypes(const String& html,
-                                              ExceptionState& exception_state) {
   Node* p = parentNode();
   if (!p) {
     exception_state.ThrowDOMException(
@@ -9293,15 +9279,20 @@ void Element::SetOuterHTMLWithoutTrustedTypes(const String& html,
   Node* prev = previousSibling();
   Node* next = nextSibling();
 
-  DocumentFragment* fragment = CreateFragmentForInnerOuterHTML(
-      html, parent, kAllowScriptingContent,
-      ParseDeclarativeShadowRoots::kDontParse, ForceHtml::kDontForce,
-      ForceInertTemplate::kDontForce,
-      RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled()
-          ? customElementRegistry()
-          : GetDocument().customElementRegistry(),
-      exception_state);
-  if (exception_state.HadException()) {
+  DocumentFragment* fragment = ParseHTMLFragment(
+      html,
+      {
+          .interface_name = trusted_types_names::kElement,
+          .property_name = trusted_types_names::kOuterHTML,
+          .context_element = parent,
+          .registry =
+              RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled()
+                  ? customElementRegistry()
+                  : GetDocument().customElementRegistry(),
+      },
+      FragmentParserOptions(), exception_state);
+
+  if (!fragment) {
     return;
   }
 
@@ -9326,16 +9317,17 @@ void Element::SetOuterHTMLWithoutTrustedTypes(const String& html,
   }
 }
 
+void Element::SetOuterHTMLWithoutTrustedTypes(const String& html,
+                                              ExceptionState& exception_state) {
+  SetOuterHTMLInternal(html, exception_state);
+}
+
 void Element::setOuterHTML(
     const V8UnionStringLegacyNullToEmptyStringOrTrustedHTML* html,
     ExceptionState& exception_state) {
-  String compliant_html = TrustedTypesCheckForHTML(
-      html, GetExecutionContext(), trusted_types_names::kElement,
-      trusted_types_names::kOuterHTML, exception_state);
-  if (exception_state.HadException()) {
-    return;
-  }
-  SetOuterHTMLWithoutTrustedTypes(compliant_html, exception_state);
+  SetOuterHTMLInternal(
+      CheckTrustedTypes(html, trusted_types_names::kOuterHTML, exception_state),
+      exception_state);
 }
 
 // Step 4 of http://domparsing.spec.whatwg.org/#insertadjacenthtml()
@@ -9538,10 +9530,12 @@ void Element::insertAdjacentText(const String& where,
   InsertAdjacent(where, GetDocument().createTextNode(text), exception_state);
 }
 
-void Element::InsertAdjacentHTMLWithoutTrustedTypes(
-    const String& where,
-    const String& markup,
-    ExceptionState& exception_state) {
+void Element::InsertAdjacentHTMLInternal(const String& where,
+                                         const String& html,
+                                         ExceptionState& exception_state) {
+  if (exception_state.HadException()) {
+    return;
+  }
   Node* context_node = ContextNodeForInsertion(where, this, exception_state);
   if (!context_node) {
     return;
@@ -9559,30 +9553,37 @@ void Element::InsertAdjacentHTMLWithoutTrustedTypes(
   }
 
   // Step 3 of http://domparsing.spec.whatwg.org/#insertadjacenthtml()
-  DocumentFragment* fragment = CreateFragmentForInnerOuterHTML(
-      markup, context_element, kAllowScriptingContent,
-      ParseDeclarativeShadowRoots::kDontParse, ForceHtml::kDontForce,
-      ForceInertTemplate::kDontForce,
-      RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled()
-          ? customElementRegistry()
-          : GetDocument().customElementRegistry(),
-      exception_state);
-  if (!fragment) {
-    return;
+  if (DocumentFragment* fragment = ParseHTMLFragment(
+          html,
+          {
+              .interface_name = trusted_types_names::kElement,
+              .property_name = trusted_types_names::kInsertAdjacentHTML,
+              .context_element = context_element,
+              .registry =
+                  RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled()
+                      ? customElementRegistry()
+                      : GetDocument().customElementRegistry(),
+          },
+          FragmentParserOptions(), exception_state)) {
+    InsertAdjacent(where, fragment, exception_state);
   }
-  InsertAdjacent(where, fragment, exception_state);
+}
+
+void Element::InsertAdjacentHTMLWithoutTrustedTypesForTesting(
+    const String& where,
+    const String& markup,
+    ExceptionState& exception_state) {
+  InsertAdjacentHTMLInternal(where, markup, exception_state);
 }
 
 void Element::insertAdjacentHTML(const String& where,
                                  const V8UnionStringOrTrustedHTML* html,
                                  ExceptionState& exception_state) {
-  String compliant_html = TrustedTypesCheckForHTML(
-      html, GetExecutionContext(), trusted_types_names::kElement,
-      trusted_types_names::kInsertAdjacentHTML, exception_state);
-  if (exception_state.HadException()) {
-    return;
-  }
-  InsertAdjacentHTMLWithoutTrustedTypes(where, compliant_html, exception_state);
+  InsertAdjacentHTMLInternal(
+      where,
+      CheckTrustedTypes(html, trusted_types_names::kInsertAdjacentHTML,
+                        exception_state),
+      exception_state);
 }
 
 void Element::setPointerCapture(PointerId pointer_id,
@@ -10315,17 +10316,12 @@ PseudoElement* Element::UpdatePseudoElement(
       if (element->NeedsReattachLayoutTree() &&
           !PseudoElementLayoutObjectIsNeeded(
               pseudo_id, element->GetComputedStyle(), this)) {
-        // RecalcStyle will have cancelled any CSS animations on the element
-        // if the underlying base style had display:none. An animation to
-        // display: none keeps the element and the animation alive.
-        if (!element->HasAnimations()) {
-          generate_pseudo = false;
-        }
-
-        // If the content property is relying on attr() we should add the
-        // originating element's ComputedStyle to the pseudo-element style
-        // cache, so that when attribute value changes it will force style
-        // invalidation.
+        generate_pseudo = false;
+        // If the content property is relying on attr(), we add the
+        // pseudo-element's ComputedStyle to the originating element's style
+        // cache, so that when the attribute value changes we will cause a
+        // pseudo-element update via
+        // ComputedStyle::Difference::kPseudoElementStyle.
         if (element->GetComputedStyle() &&
             element->GetComputedStyle()->HasAttrFunction() &&
             !GetComputedStyle()->GetCachedPseudoElementStyle(pseudo_id,
@@ -10340,9 +10336,8 @@ PseudoElement* Element::UpdatePseudoElement(
       element = nullptr;
     }
 
-    // A pseudo-element without computed style can only exist if being
-    // kept alive by an animation.
-    DCHECK(!element || element->GetComputedStyle() || element->HasAnimations());
+    // A pseudo-element without computed style should not exist.
+    DCHECK(!element || element->GetComputedStyle());
   }
 
   return element;
@@ -10390,9 +10385,10 @@ bool Element::SetAssociatedPseudoElement(
       pseudo_element->StyleForLayoutObject(style_recalc_context);
   if (!PseudoElementLayoutObjectIsNeeded(pseudo_id, pseudo_style, this)) {
     data_ = RareData()->SetPseudoElement(pseudo_id, nullptr, pseudo_argument);
-    // If the content property is relying on attr() we should add the
-    // originating element's ComputedStyle to the pseudo-element style cache, so
-    // that when attribute value changes it will force style invalidation.
+    // If the content property is relying on attr(), we add the pseudo-element's
+    // ComputedStyle to the originating element's style cache, so that when the
+    // attribute value changes we will cause a pseudo-element update via
+    // ComputedStyle::Difference::kPseudoElementStyle.
     if (pseudo_style && pseudo_style->HasAttrFunction() &&
         !GetComputedStyle()->GetCachedPseudoElementStyle(pseudo_id,
                                                          g_null_atom)) {
@@ -10583,11 +10579,8 @@ bool Element::PseudoElementStylesAffectCounters() const {
   }
 
   for (PseudoElement* pseudo_element : rare_data->GetPseudoElements()) {
-    if (const ComputedStyle* pseudo_element_style =
-            pseudo_element->GetComputedStyle()) {
-      if (pseudo_element_style->GetCounterDirectives()) {
-        return true;
-      }
+    if (pseudo_element->GetComputedStyle()->GetCounterDirectives()) {
+      return true;
     }
   }
 
@@ -10642,11 +10635,8 @@ bool Element::PseudoElementStylesDependOnFunc(Functor& func) const {
   }
 
   for (PseudoElement* pseudo_element : rare_data->GetPseudoElements()) {
-    if (const ComputedStyle* pseudo_element_style =
-            pseudo_element->GetComputedStyle()) {
-      if (func(*pseudo_element_style)) {
-        return true;
-      }
+    if (func(*pseudo_element->GetComputedStyle())) {
+      return true;
     }
   }
 
@@ -10841,7 +10831,12 @@ bool Element::CanGeneratePseudoElement(PseudoId pseudo_id) const {
     };
     const HTMLMenuItemElement* menu_item = DynamicTo<HTMLMenuItemElement>(this);
     const bool checkable_menu_item = menu_item && menu_item->IsCheckable();
-    if (!is_option_in_appearance_base_select(this) && !checkable_menu_item) {
+    const HTMLInputElement* input = DynamicTo<HTMLInputElement>(this);
+    const bool base_checkable_input =
+        RuntimeEnabledFeatures::AppearanceBaseEnabled() && input &&
+        input->IsAppearanceBase() && input->IsCheckable();
+    if (!is_option_in_appearance_base_select(this) && !checkable_menu_item &&
+        !base_checkable_input) {
       return false;
     }
   }
@@ -12428,23 +12423,20 @@ HeapLinkedHashSet<Member<Element>> AllSourceInterestInvokers(Element& target) {
 //    losing focus (not any ancestors), and then SetFocused(true) is called on
 //    the element gaining focus. Because the ancestor chain is not automatically
 //    notified, this function must walk the ancestors manually.
-void Element::HandleInterestForHoverOrFocus(InterestSource source,
-                                            bool recursive_call) {
+void Element::HandleInterestForHoverOrFocus(InterestSource source) {
   DCHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled());
   if (!IsInTreeScope() || !GetDocument().IsActive()) {
     return;
   }
-  // We manually "bubble" all calls to this function to all ancestors.
-  if (!recursive_call) {
-    for (auto& node : FlatTreeTraversal::InclusiveAncestorsOf(*this)) {
-      if (Element* element = DynamicTo<Element>(node)) {
-        element->HandleInterestForHoverOrFocus(source,
-                                               /*recursive_call*/ true);
-      }
+  for (Node& node : FlatTreeTraversal::InclusiveAncestorsOf(*this)) {
+    if (Element* element = DynamicTo<Element>(node)) {
+      element->ScheduleInterestChangesIfNeeded(source);
     }
-    return;
   }
+}
 
+void Element::ScheduleInterestChangesIfNeeded(InterestSource source) {
+  DCHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled());
   InvokerData* invoker_data = GetInvokerData();
   Element* upstream_invoker = SourceInterestInvoker();
   InvokerData* upstream_data =
@@ -13327,23 +13319,7 @@ bool Element::MayBeImplicitAnchor() const {
   return false;
 }
 
-AnchorElementObserver* Element::GetAnchorElementObserver() const {
-  if (const ElementRareDataVector* data = RareData()) {
-    return data->GetAnchorElementObserver();
-  }
-  return nullptr;
-}
-
-AnchorElementObserver& Element::EnsureAnchorElementObserver() {
-  DCHECK(RuntimeEnabledFeatures::HTMLAnchorAttributeEnabled());
-  return UnpackAndRefresh(EnsureRareData().EnsureAnchorElementObserver(this));
-}
-
 Element* Element::ImplicitAnchorElement() const {
-  if (Element* anchor = anchorElement()) {
-    DCHECK(RuntimeEnabledFeatures::HTMLAnchorAttributeEnabled());
-    return anchor;
-  }
   if (const HTMLElement* html_element = DynamicTo<HTMLElement>(this)) {
     if (Element* internal_anchor = html_element->implicitAnchor()) {
       return internal_anchor;
@@ -13468,43 +13444,75 @@ void Element::SetHTMLUnsafeWithoutTrustedTypes(
     const String& html,
     ExceptionState& exception_state) {
   UseCounter::Count(GetDocument(), WebFeature::kHTMLUnsafeMethods);
-  SetInnerHTMLInternal(html, ParseDeclarativeShadowRoots::kParse,
-                       ForceHtml::kForce, std::monostate{}, exception_state);
+  SetInnerHTMLInternal(
+      html, FragmentParserConfig::ParseDeclarativeShadowRoots::kParse,
+      FragmentParserConfig::ForceHtml::kForce, Sanitizer::Mode::kUnsafe,
+      FragmentParserOptions(), trusted_types_names::kSetHTMLUnsafe,
+      exception_state);
 }
 
 void Element::setHTMLUnsafe(const V8UnionStringOrTrustedHTML* html,
                             ExceptionState& exception_state) {
   UseCounter::Count(GetDocument(), WebFeature::kHTMLUnsafeMethods);
-  String compliant_html = TrustedTypesCheckForHTML(
-      html, GetExecutionContext(), trusted_types_names::kElement,
-      trusted_types_names::kSetHTMLUnsafe, exception_state);
-  if (exception_state.HadException()) {
-    return;
-  }
-  SetInnerHTMLInternal(compliant_html, ParseDeclarativeShadowRoots::kParse,
-                       ForceHtml::kForce, std::monostate{}, exception_state);
+  SetInnerHTMLInternal(
+      CheckTrustedTypes(html, trusted_types_names::kSetHTMLUnsafe,
+                        exception_state),
+      FragmentParserConfig::ParseDeclarativeShadowRoots::kParse,
+      FragmentParserConfig::ForceHtml::kForce, Sanitizer::Mode::kUnsafe,
+      FragmentParserOptions(), trusted_types_names::kSetHTMLUnsafe,
+      exception_state);
 }
 
+// TODO(nrosenthal): merge these calls once all the flags are merged.
 void Element::setHTMLUnsafe(const V8UnionStringOrTrustedHTML* html,
                             SetHTMLUnsafeOptions* options,
                             ExceptionState& exception_state) {
   CHECK(RuntimeEnabledFeatures::SanitizerAPIEnabled());
-  String compliant_html = TrustedTypesCheckForHTML(
-      html, GetExecutionContext(), trusted_types_names::kElement,
-      trusted_types_names::kSetHTMLUnsafe, exception_state);
-  if (exception_state.HadException()) {
-    return;
-  }
-  SetInnerHTMLInternal(compliant_html, ParseDeclarativeShadowRoots::kParse,
-                       ForceHtml::kForce, options, exception_state);
+  UseCounter::Count(GetDocument(), WebFeature::kHTMLUnsafeMethods);
+
+  SetInnerHTMLInternal(
+      CheckTrustedTypes(html, trusted_types_names::kSetHTMLUnsafe,
+                        exception_state),
+      FragmentParserConfig::ParseDeclarativeShadowRoots::kParse,
+      FragmentParserConfig::ForceHtml::kForce, Sanitizer::Mode::kUnsafe,
+      FragmentParserOptions(options), trusted_types_names::kSetHTMLUnsafe,
+      exception_state);
+}
+
+void Element::setHTMLUnsafe(const V8UnionStringOrTrustedHTML* html,
+                            TrustedParserOptions* options,
+                            ExceptionState& exception_state) {
+  CHECK(RuntimeEnabledFeatures::DocumentPatchingEnabled());
+  UseCounter::Count(GetDocument(), WebFeature::kHTMLUnsafeMethods);
+  SetInnerHTMLInternal(
+      CheckTrustedTypes(html, trusted_types_names::kSetHTMLUnsafe,
+                        exception_state),
+      FragmentParserConfig::ParseDeclarativeShadowRoots::kParse,
+      FragmentParserConfig::ForceHtml::kForce, Sanitizer::Mode::kUnsafe,
+      FragmentParserOptions(options), trusted_types_names::kSetHTMLUnsafe,
+      exception_state);
 }
 
 void Element::setHTML(const String& html,
                       SetHTMLOptions* options,
                       ExceptionState& exception_state) {
   CHECK(RuntimeEnabledFeatures::SanitizerAPIEnabled());
-  SetInnerHTMLInternal(html, ParseDeclarativeShadowRoots::kParse,
-                       ForceHtml::kForce, options, exception_state);
+  SetInnerHTMLInternal(
+      html, FragmentParserConfig::ParseDeclarativeShadowRoots::kParse,
+      FragmentParserConfig::ForceHtml::kForce, Sanitizer::Mode::kSafe,
+      FragmentParserOptions(options), trusted_types_names::kSetHTML,
+      exception_state);
+}
+
+void Element::setHTML(const String& html,
+                      TrustedParserOptions* options,
+                      ExceptionState& exception_state) {
+  CHECK(RuntimeEnabledFeatures::SanitizerAPIEnabled());
+  SetInnerHTMLInternal(
+      html, FragmentParserConfig::ParseDeclarativeShadowRoots::kParse,
+      FragmentParserConfig::ForceHtml::kForce, Sanitizer::Mode::kSafe,
+      FragmentParserOptions(options), trusted_types_names::kSetHTML,
+      exception_state);
 }
 
 void Element::SetNamedTriggers(NamedAnimationTriggerMap&& named_triggers) {

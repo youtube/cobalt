@@ -16,6 +16,8 @@ import org.chromium.ui.modelutil.PropertyModel.WritableObjectPropertyKey;
 /** Collection of properties that affect the autofill options settings screen. */
 @NullMarked
 class AutofillOptionsProperties {
+    static final ReadableObjectPropertyKey<String> FRAGMENT_TITLE =
+            new ReadableObjectPropertyKey<>("fragment_title");
     static final WritableBooleanPropertyKey THIRD_PARTY_AUTOFILL_ENABLED =
             new WritableBooleanPropertyKey("third_party_autofill_enabled");
     static final WritableBooleanPropertyKey THIRD_PARTY_TOGGLE_IS_READ_ONLY =
@@ -35,11 +37,12 @@ class AutofillOptionsProperties {
     static final ReadableObjectPropertyKey<Callback<Boolean>>
             ON_AUTOFILL_AI_REAUTH_SETTING_TOGGLED =
                     new ReadableObjectPropertyKey<>("on_autofill_ai_reauth_setting_toggled");
-    static final WritableBooleanPropertyKey AUTOFILL_AI_ENABLED =
-            new WritableBooleanPropertyKey("autofill_ai_enabled");
+    static final WritableBooleanPropertyKey AUTOFILL_AI_VISIBLE =
+            new WritableBooleanPropertyKey("autofill_ai_visible");
 
     static final PropertyKey[] ALL_KEYS =
             new PropertyKey[] {
+                FRAGMENT_TITLE,
                 THIRD_PARTY_AUTOFILL_ENABLED,
                 THIRD_PARTY_TOGGLE_IS_READ_ONLY,
                 ON_THIRD_PARTY_TOGGLE_CHANGED,
@@ -49,7 +52,7 @@ class AutofillOptionsProperties {
                 ON_AUTOFILL_AI_SETTING_TOGGLED,
                 AUTOFILL_AI_REAUTH_SETTING_ON,
                 ON_AUTOFILL_AI_REAUTH_SETTING_TOGGLED,
-                AUTOFILL_AI_ENABLED,
+                AUTOFILL_AI_VISIBLE,
             };
 
     /**

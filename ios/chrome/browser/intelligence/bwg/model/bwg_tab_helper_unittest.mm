@@ -27,7 +27,7 @@
 #import "ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service_factory.h"
-#import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
+#import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_wrapper.h"
 #import "ios/chrome/browser/intelligence/zero_state_suggestions/model/zero_state_suggestions_service_impl.h"
@@ -365,7 +365,10 @@ TEST_F(BwgTabHelperTest, TestGetServerId_Expired) {
 
 TEST_F(BwgTabHelperTest, TestWasShown_RestoresSession) {
   OCMExpect([mock_bwg_handler_
-      startGeminiFlowWithEntryPoint:gemini::EntryPoint::TabReopen]);
+      startGeminiFlowWithStartupState:[OCMArg checkWithBlock:^BOOL(
+                                                  GeminiStartupState* state) {
+        return state.entryPoint == gemini::EntryPoint::TabReopen;
+      }]]);
 
   // Background a session and then show the tab.
   tab_helper_->PrepareBwgFreBackgrounding();

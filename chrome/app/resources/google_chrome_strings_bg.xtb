@@ -689,6 +689,9 @@
 <translation id="8041795619940733262">Попитайте Google<ph name="LINE_BREAK" />за този раздел</translation>
 <translation id="80471789339884597">Благодарим ви, че инсталирахте <ph name="BUNDLE_NAME" />. Трябва да рестартирате всичките си браузъри, преди да използвате това приложение.</translation>
 <translation id="8064015586118426197">ChromeOS Flex</translation>
+<translation id="8064965390968184078">1. Кликнете върху „<ph name="BUTTON_LABEL" />“ по-долу.
+2. Кликнете върху „<ph name="BUTTON_2" />“ в настройките на Windows.
+3. Кликнете върху „<ph name="BUTTON_3" />“ в известието от Windows, за да фиксирате Chrome в лентата на задачите за бърз достъп.</translation>
 <translation id="8077579734294125741">Други потребителски профили в Chrome</translation>
 <translation id="8086881907087796310">Инсталирането не бе успешно, защото компютърът ви не отговаря на минималните изисквания за хардуера.</translation>
 <translation id="8113883687556086139">Потвърдете самоличността си, за да използвате и запазвате данните от Chrome в профила си (<ph name="ACCOUNT_EMAIL" />)</translation>
@@ -767,6 +770,7 @@
 <translation id="8914504000324227558">Повторно стартиране на Chrome</translation>
 <translation id="8922193594870374009">За да изпратите номер от <ph name="ORIGIN" /> до телефона си с Android, влезте в Chrome и на двете устройства.</translation>
 <translation id="8922998289262614701">Премахване на данните за това приложение от Chrome</translation>
+<translation id="8925636929359899517">Използваме информацията, за да подобряваме тази услуга. Вижте <ph name="BEGIN_LINK1" />Декларацията за поверителност<ph name="END_LINK1" /> и <ph name="BEGIN_LINK2" />Общите условия<ph name="END_LINK2" />.</translation>
 <translation id="8936233353620149764">Превключване на Gemini в Chrome</translation>
 <translation id="8948460679427074738">За това разширение не са публикувани практики за поверителност, като например как събира и използва данни. Chrome препоръчва да го премахнете.</translation>
 <translation id="8958307504142971576">Вече разполагате с повече функции в Chrome</translation>

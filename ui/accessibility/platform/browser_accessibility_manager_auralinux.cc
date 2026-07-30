@@ -192,6 +192,21 @@ void BrowserAccessibilityManagerAuraLinux::FireSourceEvent(
     case ax::mojom::Event::kLoadStart:
       FireLoadingEvent(node, true);
       break;
+    case ax::mojom::Event::kWindowActivated:
+      ToBrowserAccessibilityAuraLinux(node)
+          ->GetNode()
+          ->HandleWindowActivatedEvent();
+      break;
+    case ax::mojom::Event::kWindowDeactivated:
+      ToBrowserAccessibilityAuraLinux(node)
+          ->GetNode()
+          ->HandleWindowDeactivatedEvent();
+      break;
+    case ax::mojom::Event::kWindowVisibilityChanged:
+      ToBrowserAccessibilityAuraLinux(node)
+          ->GetNode()
+          ->OnWindowVisibilityChanged();
+      break;
     default:
       break;
   }
@@ -378,8 +393,10 @@ void BrowserAccessibilityManagerAuraLinux::FireGeneratedEvent(
     case AXEventGenerator::Event::FOCUS_CHANGED:
     case AXEventGenerator::Event::FLOW_FROM_CHANGED:
     case AXEventGenerator::Event::FLOW_TO_CHANGED:
+    case AXEventGenerator::Event::GRAMMAR_MARKER_CHANGED:
     case AXEventGenerator::Event::HASPOPUP_CHANGED:
     case AXEventGenerator::Event::HIERARCHICAL_LEVEL_CHANGED:
+    case AXEventGenerator::Event::HIGHLIGHT_MARKER_CHANGED:
     case AXEventGenerator::Event::IGNORED_CHANGED:
     case AXEventGenerator::Event::IMAGE_ANNOTATION_CHANGED:
     case AXEventGenerator::Event::KEY_SHORTCUTS_CHANGED:
@@ -406,6 +423,7 @@ void BrowserAccessibilityManagerAuraLinux::FireGeneratedEvent(
     case AXEventGenerator::Event::SCROLL_HORIZONTAL_POSITION_CHANGED:
     case AXEventGenerator::Event::SCROLL_VERTICAL_POSITION_CHANGED:
     case AXEventGenerator::Event::SET_SIZE_CHANGED:
+    case AXEventGenerator::Event::SPELLING_MARKER_CHANGED:
     case AXEventGenerator::Event::STATE_CHANGED:
     case AXEventGenerator::Event::TEXT_SELECTION_CHANGED:
     case AXEventGenerator::Event::WIN_IACCESSIBLE_STATE_CHANGED:

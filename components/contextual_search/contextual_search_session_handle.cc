@@ -4,6 +4,7 @@
 
 #include "components/contextual_search/contextual_search_session_handle.h"
 
+#include <algorithm>
 #include <vector>
 
 #include "base/containers/flat_set.h"
@@ -156,6 +157,11 @@ void ContextualSearchSessionHandle::StartFileContextUploadFlow(
   input_data->primary_content_type = mime_type;
   input_data->file_name = file_name;
 
+  if (mime_type == lens::MimeType::kPdf){
+    // For PDF file uploads, the file name is set in the page_title field.
+    input_data->page_title = file_name;
+  }
+
   base::span<const uint8_t> file_data_span = base::span(file_bytes);
   std::vector<uint8_t> file_data_vector(file_data_span.begin(),
                                         file_data_span.end());
@@ -239,6 +245,17 @@ void ContextualSearchSessionHandle::StartModalityChipUploadFlow(
 
 bool ContextualSearchSessionHandle::DeleteFile(
     const base::UnguessableToken& file_token) {
+  // If the file was already submitted, don't delete it from the context
+  // controller, so that the file info can be looked up in the future.
+  // This prevents the file info for submitted content from being deleted
+  // prematurely, such as when controlling the auto-tab chip for the transition
+  // from the LensOverlay searchbox to the contextual tasks page.
+  if (std::find(submitted_context_tokens_.begin(),
+                submitted_context_tokens_.end(),
+                file_token) != submitted_context_tokens_.end()) {
+    return false;
+  }
+
   // Remove the file token from the list of uploaded context tokens.
   auto it = std::find(uploaded_context_tokens_.begin(),
                       uploaded_context_tokens_.end(), file_token);
@@ -297,14 +314,18 @@ void ContextualSearchSessionHandle::CreateSearchUrl(
       contextual_search::SessionState::kNavigationOccurred);
   metrics_recorder->RecordQueryMetrics(query_text.size(),
                                        uploaded_context_tokens_.size());
-  // Move the uploaded tokens to the request's file_tokens. Make sure to dedupe
-  // the tokens with those already in the SearchUrlRequestInfo.
-  base::flat_set<base::UnguessableToken> file_tokens_set(
-      std::move(search_url_request_info->file_tokens));
-  file_tokens_set.insert(uploaded_context_tokens_.begin(),
-                         uploaded_context_tokens_.end());
-  search_url_request_info->file_tokens = std::move(file_tokens_set).extract();
-  uploaded_context_tokens_.clear();
+
+  // If the request info has no file tokens, move the uploaded tokens to the
+  // request. Otherwise, keep the file tokens as is and remove them from the
+  // uploaded context tokens manually.
+  if (search_url_request_info->file_tokens.empty()) {
+    search_url_request_info->file_tokens =
+        std::exchange(uploaded_context_tokens_, {});
+  } else {
+    for (const auto& token : search_url_request_info->file_tokens) {
+      std::erase(uploaded_context_tokens_, token);
+    }
+  }
 
   // Copy the tokens from this request to the list of all submitted tokens.
   submitted_context_tokens_.insert(submitted_context_tokens_.end(),

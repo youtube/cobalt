@@ -26,7 +26,6 @@
 #include "remoting/host/linux/gnome_display_config_monitor.h"
 #include "third_party/webrtc/modules/desktop_capture/desktop_capture_types.h"
 #include "third_party/webrtc/modules/desktop_capture/desktop_geometry.h"
-#include "ui/base/glib/scoped_gobject.h"
 
 namespace remoting {
 
@@ -50,6 +49,17 @@ class GnomeDesktopResizer : public DesktopResizer {
                          webrtc::ScreenId screen_id) override;
   void SetVideoLayout(const protocol::VideoLayout& layout) override;
 
+  // Blocks and queue up display changes, which will be executed when
+  // UnblockAndFlushDisplayChanges() is called. This is to work around a bug in
+  // GNOME where changing display settings right after the GNOME session has
+  // started may make the GNOME session unusable.
+  // See: https://gitlab.gnome.org/GNOME/mutter/-/issues/4642
+  void BlockAndQueueDisplayChanges();
+
+  // Unblocks and applies all display changes queued up after
+  // BlockAndQueueDisplayChanges() was called.
+  void UnblockAndFlushDisplayChanges();
+
   base::WeakPtr<GnomeDesktopResizer> GetWeakPtr();
 
  private:
@@ -70,20 +80,19 @@ class GnomeDesktopResizer : public DesktopResizer {
     webrtc::DesktopVector position;
 
     // The preferred scale. A supported monitor scale that is proportionally
-    // closest to this scale will be used. For the primary monitor, an
-    // additional text scale will be applied to adjust for the discrepancy
-    // between the monitor scale and the preferred scale; it won't be applied
-    // for non-primary monitors. Note that the text scale is global, so it won't
-    // work very well with a mixed DPI setup.
+    // closest to this scale will be used.
     double scale = 1.0;
   };
 
   GnomeDesktopResizer(
       base::WeakPtr<CaptureStreamManager> stream_manager,
       base::WeakPtr<GnomeDisplayConfigMonitor> display_config_monitor,
-      ScopedGObject<GSettings> registry,
       base::RepeatingCallback<void(const GnomeDisplayConfig&)>
           apply_monitors_config);
+
+  void DoSetResolution(const ScreenResolution& resolution,
+                       webrtc::ScreenId screen_id);
+  void DoSetVideoLayout(const protocol::VideoLayout& layout);
 
   void SetResolutionAndPosition(const ScreenResolution& resolution,
                                 std::optional<webrtc::DesktopVector> position,
@@ -106,9 +115,6 @@ class GnomeDesktopResizer : public DesktopResizer {
   // Delays `clear_preferred_config_timer_` if it's running; otherwise do
   // nothing.
   void MaybeDelayClearPreferredConfig();
-
-  double GetTextScalingFactor() const;
-  void SetTextScalingFactor(double text_scaling_factor);
 
   base::WeakPtr<CaptureStreamManager> stream_manager_
       GUARDED_BY_CONTEXT(sequence_checker_);
@@ -183,8 +189,10 @@ class GnomeDesktopResizer : public DesktopResizer {
   // See comments in DoApplyPreferredMonitorsConfig().
   bool ignore_fractional_scales_in_multimon_ = true;
 
-  // Used to set the text-scaling-factor.
-  ScopedGObject<GSettings> registry_;
+  bool block_and_queue_display_changes_ GUARDED_BY_CONTEXT(sequence_checker_) =
+      false;
+  std::vector<base::OnceClosure> pending_requests_
+      GUARDED_BY_CONTEXT(sequence_checker_);
 
   SEQUENCE_CHECKER(sequence_checker_);
 

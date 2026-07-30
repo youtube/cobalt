@@ -321,6 +321,7 @@ chromium-metrics-reviews@google.com.
     <variant name="PutRecord"/>
     <variant name="RenameIndex"/>
     <variant name="RenameObjectStore"/>
+    <variant name="RunIdleTasks"/>
     <variant name="SetIndexKeys"/>
   </token>
 </histogram>
@@ -509,6 +510,23 @@ chromium-metrics-reviews@google.com.
     PartitionedLockManager when GetUnacquirableLocks() takes over 2ms to
     complete. This is intended to facilitate tracking down performance issues.
     See crbug.com/384476946
+  </summary>
+</histogram>
+
+<histogram
+    name="IndexedDB.IdleTasksCompletionToNextActivity.{IndexedDBBackingStoreType}"
+    units="ms" expires_after="2026-10-01">
+  <owner>leimy@chromium.org</owner>
+  <owner>evanstade@microsoft.com</owner>
+  <owner>abhishek.shanthkumar@microsoft.com</owner>
+  <owner>chrome-owp-storage@google.com</owner>
+  <summary>
+    The time between the completion of idle maintenance tasks and the next
+    client-initiated activity in a bucket with an {IndexedDBBackingStoreType}
+    backing store. Logged when the first activity occurs after idle tasks were
+    scheduled and completed. Used to evaluate whether the idle timeout is
+    well-tuned: very small values indicate the timeout may be too short and
+    maintenance is delaying active work.
   </summary>
 </histogram>
 
@@ -756,6 +774,19 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="IndexedDB.SQLite.FreelistPercentageAtClose" units="%"
+    expires_after="2026-09-01">
+  <owner>leimy@chromium.org</owner>
+  <owner>evanstade@microsoft.com</owner>
+  <owner>abhishek.shanthkumar@microsoft.com</owner>
+  <owner>chrome-owp-storage@google.com</owner>
+  <summary>
+    The percentage of pages in the SQLite database that are on the freelist
+    (unused) at the time the database connection is closed. Logged once per
+    on-disk database close.
+  </summary>
+</histogram>
+
 <histogram name="IndexedDB.SQLite.OpenRetryResult" enum="IndexedDbStatusType"
     expires_after="2026-10-01">
   <owner>leimy@chromium.org</owner>
@@ -829,6 +860,20 @@ chromium-metrics-reviews@google.com.
     <variant name="InMemory"/>
     <variant name="OnDisk"/>
   </token>
+</histogram>
+
+<histogram name="IndexedDB.SQLite.VacuumEvent"
+    enum="IndexedDbSqliteVacuumEvent" expires_after="2026-09-01">
+  <owner>leimy@chromium.org</owner>
+  <owner>evanstade@microsoft.com</owner>
+  <owner>abhishek.shanthkumar@microsoft.com</owner>
+  <owner>chrome-owp-storage@google.com</owner>
+  <summary>
+    Tracks the vacuum funnel for SQLite-backed IndexedDB databases. The first
+    event is logged when a database is closed and the conditions for vacuuming
+    are met. Multiple events may be logged subsequently as the funnel
+    progresses.
+  </summary>
 </histogram>
 
 <histogram name="IndexedDB.SqliteMigration.RenameBlobResult"
@@ -2882,7 +2927,15 @@ chromium-metrics-reviews@google.com.
     clobbered.
   </summary>
   <token key="Operation">
+    <variant name="CloneMap"/>
+    <variant name="DeleteSessions"/>
+    <variant name="DeleteStorageKeysFromSession"/>
     <variant name="OpenDatabase"/>
+    <variant name="PurgeOrigins"/>
+    <variant name="PutMetadata"/>
+    <variant name="ReadAllMetadata"/>
+    <variant name="ReadMapKeyValues"/>
+    <variant name="UpdateMaps"/>
   </token>
 </histogram>
 

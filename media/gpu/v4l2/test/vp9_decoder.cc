@@ -90,14 +90,11 @@ void FillV4L2VP9SegmentationParams(const Vp9SegmentationParams& vp9_seg_params,
                     static_cast<size_t>(V4L2_VP9_SEG_LVL_MAX),
                 "mismatch in number of segmentation features");
 
-  for (size_t j = 0;
-       j < std::extent<decltype(vp9_seg_params.feature_enabled), 0>::value;
-       j++) {
-    for (size_t i = 0;
-         i < std::extent<decltype(vp9_seg_params.feature_enabled), 1>::value;
-         i++) {
-      if (vp9_seg_params.feature_enabled[j][i])
+  for (size_t j = 0; j < std::size(vp9_seg_params.feature_enabled); j++) {
+    for (size_t i = 0; i < std::size(vp9_seg_params.feature_enabled[j]); i++) {
+      if (vp9_seg_params.feature_enabled[j][i]) {
         v4l2_seg->feature_enabled[j] |= V4L2_VP9_SEGMENT_FEATURE_ENABLED(i);
+      }
     }
   }
 
@@ -302,7 +299,7 @@ void Vp9Decoder::SetupFrameParams(
   v4l2_frame_params->tile_cols_log2 = frame_hdr.tile_cols_log2;
   v4l2_frame_params->tile_rows_log2 = frame_hdr.tile_rows_log2;
   static_assert(Vp9RefType::VP9_FRAME_MAX - VP9_FRAME_LAST <
-                    std::extent<decltype(frame_hdr.ref_frame_sign_bias)>::value,
+                    std::tuple_size_v<decltype(frame_hdr.ref_frame_sign_bias)>,
                 "array sizes are incompatible");
   for (size_t i = 0; i < Vp9RefType::VP9_FRAME_MAX - VP9_FRAME_LAST; i++) {
     v4l2_frame_params->ref_frame_sign_bias |=

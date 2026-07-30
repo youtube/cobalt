@@ -96,7 +96,8 @@ ExtensionsMenuDelegateAndroid::GetMenuEntries(JNIEnv* env) {
 
     base::android::ScopedJavaLocalRef<jobject> j_item =
         Java_MenuEntryState_Constructor(
-            env, id, CreateJavaControlState(env, state.action_button));
+            env, id, CreateJavaControlState(env, state.action_button),
+            CreateJavaControlState(env, state.context_menu_button));
     java_entries.push_back(std::move(j_item));
   }
 
@@ -144,7 +145,8 @@ void ExtensionsMenuDelegateAndroid::OnActionAdded(
 void ExtensionsMenuDelegateAndroid::OnActionRemoved(
     const ToolbarActionsModel::ActionId& action_id,
     int index) {
-  // TODO(crbug.com/473213114)
+  JNIEnv* env = base::android::AttachCurrentThread();
+  Java_ExtensionsMenuBridge_onActionRemoved(env, java_object_, index);
 }
 
 void ExtensionsMenuDelegateAndroid::OnActionUpdated(
@@ -154,17 +156,10 @@ void ExtensionsMenuDelegateAndroid::OnActionUpdated(
 }
 
 void ExtensionsMenuDelegateAndroid::OnActionIconUpdated(
-    const ToolbarActionsModel::ActionId& action_id) {
+    const ToolbarActionsModel::ActionId& action_id,
+    int index) {
   JNIEnv* env = base::android::AttachCurrentThread();
-
-  const auto& models = menu_model_->action_models();
-  auto it = std::ranges::find_if(
-      models, [&](const auto& model) { return model->GetId() == action_id; });
-  CHECK(it != models.end());
-
-  int menu_entry_index = std::distance(models.begin(), it);
-  Java_ExtensionsMenuBridge_onActionIconUpdated(env, java_object_,
-                                                menu_entry_index);
+  Java_ExtensionsMenuBridge_onActionIconUpdated(env, java_object_, index);
 }
 
 void ExtensionsMenuDelegateAndroid::OnActionsInitialized() {

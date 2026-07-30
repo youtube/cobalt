@@ -25,6 +25,7 @@
 #include "ui/views/layout/proposed_layout.h"
 #include "ui/views/view.h"
 #include "ui/views/view_class_properties.h"
+#include "ui/views/view_utils.h"
 #include "ui/views/widget/widget.h"
 
 VerticalSplitTabView::VerticalSplitTabView(TabCollectionNode* collection_node)
@@ -86,9 +87,9 @@ void VerticalSplitTabView::OnPaint(gfx::Canvas* canvas) {
         collection_node_ ? collection_node_->GetDirectChildren()
                          : std::vector<views::View*>();
     std::optional<SkColor> background_color =
-        !children.empty()
-            ? static_cast<VerticalTabView*>(children[0])->GetBackgroundColor()
-            : std::nullopt;
+        !children.empty() ? views::AsViewClass<VerticalTabView>(children[0])
+                                ->GetBackgroundColor()
+                          : std::nullopt;
     if (background_color.has_value()) {
       cc::PaintFlags flags;
       flags.setAntiAlias(true);
@@ -194,8 +195,8 @@ VerticalSplitTabView::GetLinkDropIndex(const gfx::Point& loc_in_view) {
   // drag position to place the new tab before/after the split.
   return drag_handler.GetLinkDropIndexForNode(*collection_node_,
                                               loc_in_view.y() < height() / 2
-                                                  ? DragPositionHint::kTop
-                                                  : DragPositionHint::kBottom);
+                                                  ? DragPositionHint::kBefore
+                                                  : DragPositionHint::kAfter);
 }
 
 double VerticalSplitTabView::GetHoverAnimationValue() const {

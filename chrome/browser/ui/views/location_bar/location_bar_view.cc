@@ -310,6 +310,7 @@ void LocationBarView::Init() {
     chip_controller_ = std::make_unique<ChipController>(
         this, this,
         AddChildViewAt(std::make_unique<PermissionChipView>(
+                           PermissionChipView::Role::kPermissionRequestChip,
                            PermissionChipView::PressedCallback()),
                        0));
   }
@@ -1241,7 +1242,8 @@ std::optional<bubble_anchor_util::AnchorConfiguration>
 LocationBarView::GetChipAnchor() {
   auto* chip = GetChipController()->chip();
   if (chip->GetVisible()) {
-    return {{chip, chip, views::BubbleBorder::TOP_LEFT}};
+    return {{chip, PermissionChipView::kPermissionRequestChipElementId,
+             views::BubbleBorder::TOP_LEFT}};
   }
   return std::nullopt;
 }
@@ -2127,17 +2129,22 @@ void LocationBarView::OnLocationIconPressed(const ui::MouseEvent& event) {
       ui::Clipboard::IsMiddleClickPasteEnabled() &&
       ui::Clipboard::IsSupportedClipboardBuffer(
           ui::ClipboardBuffer::kSelection)) {
-    std::u16string text;
     ui::Clipboard::GetForCurrentThread()->ReadText(
-        ui::ClipboardBuffer::kSelection, /* data_dst = */ nullptr, &text);
-    text = omnibox::SanitizeTextForPaste(text);
-
-    if (!GetOmniboxController()->edit_model()->CanPasteAndGo(text)) {
-      return;
-    }
-
-    GetOmniboxController()->edit_model()->PasteAndGo(text, event.time_stamp());
+        ui::ClipboardBuffer::kSelection, /* data_dst = */ std::nullopt,
+        base::BindOnce(&LocationBarView::OnMiddleClickPaste,
+                       weak_factory_.GetWeakPtr(), event.time_stamp()));
   }
+}
+
+void LocationBarView::OnMiddleClickPaste(base::TimeTicks event_timestamp,
+                                         std::u16string text) {
+  text = omnibox::SanitizeTextForPaste(text);
+
+  if (!GetOmniboxController()->edit_model()->CanPasteAndGo(text)) {
+    return;
+  }
+
+  GetOmniboxController()->edit_model()->PasteAndGo(text, event_timestamp);
 }
 
 void LocationBarView::OnLocationIconDragged(const ui::MouseEvent& event) {

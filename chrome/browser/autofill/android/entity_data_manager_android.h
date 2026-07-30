@@ -65,6 +65,7 @@ class EntityDataManagerAndroid : public autofill::EntityDataManager::Observer {
   void RemoveEntityInstance(JNIEnv* env, const std::string& guid);
 
   base::android::ScopedJavaLocalRef<jobject> GetEntityInstance(
+      JNIEnv* env,
       const std::string& guid);
 
   // Add or replace an `EntityInstance` depending on whether it already exists
@@ -78,6 +79,11 @@ class EntityDataManagerAndroid : public autofill::EntityDataManager::Observer {
 
   // Returns all types of entities that Autofill AI supports.
   std::vector<EntityTypeAndroid> GetWritableEntityTypes(JNIEnv* env);
+
+  // Returns all entity types that Autofill AI supports, sorted by
+  // usefulness.
+  std::vector<EntityTypeAndroid> GetSortedEntityTypesForListDisplay(
+      JNIEnv* env) const;
 
  private:
   ~EntityDataManagerAndroid() override;

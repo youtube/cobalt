@@ -13,6 +13,7 @@
 #include "ui/display/display.h"
 #include "ui/display/display_util.h"
 #include "ui/display/headless/headless_screen_manager.h"
+#include "ui/display/headless/headless_screen_util.h"
 #include "ui/display/mojom/screen_orientation.mojom-shared.h"
 #include "ui/display/screen.h"
 #include "ui/display/screen_info.h"
@@ -149,8 +150,8 @@ Response EmulationHandler::AddScreen(
   }
 
   display::Display display;
-  display::HeadlessScreenManager::SetDisplayGeometry(
-      display, bounds, insets, device_pixel_ratio.value_or(1.0f));
+  headless::SetDisplayGeometry(display, bounds, insets,
+                               device_pixel_ratio.value_or(1.0f));
 
   if (rotation) {
     if (!display::Display::IsValidRotation(*rotation)) {
@@ -205,6 +206,23 @@ Response EmulationHandler::RemoveScreen(const String& screen_id) {
   }
 
   display::HeadlessScreenManager::Get()->RemoveDisplay(display_id);
+
+  return Response::Success();
+}
+
+Response EmulationHandler::SetPrimaryScreen(const String& screen_id) {
+  CHECK(display::Screen::Get()->IsHeadless());
+
+  int64_t display_id;
+  if (!base::StringToInt64(screen_id, &display_id)) {
+    return Response::InvalidParams("Invalid screen id: " + screen_id);
+  }
+
+  if (!GetDisplay(display_id)) {
+    return Response::InvalidParams("Unknown screen id: " + screen_id);
+  }
+
+  display::HeadlessScreenManager::Get()->SetPrimaryDisplay(display_id);
 
   return Response::Success();
 }

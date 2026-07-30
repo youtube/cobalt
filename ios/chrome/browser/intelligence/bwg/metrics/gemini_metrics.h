@@ -73,6 +73,9 @@ extern const char kFloatyShownFromSourceHistogram[];
 // UMA histogram key for IOS.Gemini.Floaty.HiddenFromSource.
 extern const char kFloatyHiddenFromSourceHistogram[];
 
+// UMA histogram key for IOS.Gemini.Floaty.DismissedState.
+extern const char kFloatyDismissedStateHistogram[];
+
 // Enum for the IOS.Gemini.FRE.PromoAction and IOS.Gemini.FRE.ConsentAction
 // histograms.
 // LINT.IfChange(IOSGeminiFREAction)
@@ -145,7 +148,7 @@ extern const char kGeminiSessionLengthFREWithPromptHistogram[];
 extern const char kGeminiSessionLengthFREWithAbandonedHistogram[];
 
 // TODO(crbug.com/481711842): Replace this enum and its
-// gemini_session_delegate.h equivalent with an enum in bwg_constants.h
+// gemini_session_delegate.h equivalent with an enum in gemini_constants.h
 // Enum for the IOS.Gemini.FirstPrompt.SubmissionMethod histogram.
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
@@ -221,7 +224,7 @@ enum class IOSGeminiSessionType {
 };
 
 // TODO(crbug.com/481711842): Replace this enum and its
-// gemini_session_delegate.h equivalent with an enum in bwg_constants.h
+// gemini_session_delegate.h equivalent with an enum in gemini_constants.h
 // Enum for the IOS.Gemini.Feedback histogram.
 // LINT.IfChange(IOSGeminiFeedback)
 enum class IOSGeminiFeedback {
@@ -440,8 +443,8 @@ void RecordFloatyExpandedToCollapsed();
 // Records the floaty transition from collapsed to expanded.
 void RecordFloatyCollapsedToExpanded();
 
-// Records the floaty dismissing while collapsed.
-void RecordFloatyDismissedWhileCollapsed();
+// Records the floaty dismissing with the given state.
+void RecordFloatyDismissedState(ios::provider::GeminiViewState state);
 
 // Records the length of time a floaty is minimized until it is expanded.
 void RecordFloatyMinimizedTime(base::TimeTicks elapsed_minimized_floaty_time);

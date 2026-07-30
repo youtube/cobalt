@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/views/tabs/projects/projects_panel_thread_item_view.h"
 
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/mock_callback.h"
 #include "build/branding_buildflags.h"
 #include "chrome/browser/ui/views/tabs/projects/layout_constants.h"
 #include "components/contextual_tasks/public/contextual_task.h"
@@ -12,43 +13,85 @@
 #include "ui/color/color_id.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
+#include "ui/views/test/button_test_api.h"
 #include "ui/views/test/views_test_base.h"
+#include "ui/views/view_utils.h"
 
 namespace {
 
-contextual_tasks::Thread CreateThread(const std::string& title) {
+contextual_tasks::Thread CreateThread(
+    const std::string& title,
+    std::optional<const std::string> server_id = std::nullopt) {
   return contextual_tasks::Thread(contextual_tasks::ThreadType::kAiMode,
-                                  /*server_id=*/"", title,
+                                  server_id.value_or(""), title,
                                   /*conversation_turn_id=*/"");
+}
+
+contextual_tasks::Thread CreateGeminiThread() {
+  return contextual_tasks::Thread(contextual_tasks::ThreadType::kGemini,
+                                  /*server_id=*/"", "Gemini Thread");
 }
 
 }  // namespace
 
 class ProjectsPanelThreadItemViewTest : public views::ViewsTestBase {};
 
-TEST_F(ProjectsPanelThreadItemViewTest, DisplaysIconAndTitle) {
-  const auto thread = CreateThread("Thread 1");
-  auto thread_item_view = std::make_unique<ProjectsPanelThreadItemView>(thread);
+TEST_F(ProjectsPanelThreadItemViewTest, DisplaysAimIconAndTitle) {
+  const auto aim_thread = CreateThread("Thread 1");
+  auto thread_item_view =
+      std::make_unique<ProjectsPanelThreadItemView>(aim_thread);
+
+  // Check that the item has an icon, label, and ink drop.
+  ASSERT_EQ(3u, thread_item_view->children().size());
+
+  // Check that correct chat type icon is used.
+  EXPECT_EQ(
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+      &vector_icons::kGoogleGLogoMonochromeIcon,
+#else
+      &vector_icons::kChatSparkIcon,
+#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
+      &thread_item_view->chat_type_icon_for_testing());
+
+  const views::Label* label = thread_item_view->title_for_testing();
+  EXPECT_TRUE(label);
+  EXPECT_EQ(base::UTF8ToUTF16(aim_thread.title), label->GetText());
+}
+
+TEST_F(ProjectsPanelThreadItemViewTest, DisplaysGeminiIconAndTitle) {
+  const auto gemini_thread = CreateGeminiThread();
+  auto thread_item_view =
+      std::make_unique<ProjectsPanelThreadItemView>(gemini_thread);
 
   // Check that the item has an image, label, and ink drop.
   ASSERT_EQ(3u, thread_item_view->children().size());
 
-  views::ImageView* image_view =
-      static_cast<views::ImageView*>(thread_item_view->children()[1]);
-  EXPECT_TRUE(image_view);
-
-  // Check that the image view has the correct icon.
-  EXPECT_EQ(ui::ImageModel::FromVectorIcon(
+  EXPECT_EQ(
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-                vector_icons::kGoogleGLogoMonochromeIcon,
+      &vector_icons::kGoogleAgentspaceMonochromeLogo25Icon,
 #else
-                vector_icons::kChatSparkIcon,
+      &vector_icons::kChatSparkIcon,
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
-                ui::kColorIcon, projects_panel::kListItemIconSize),
-            image_view->GetImageModel());
+      &thread_item_view->chat_type_icon_for_testing());
 
-  views::Label* label =
-      static_cast<views::Label*>(thread_item_view->children()[2]);
+  const views::Label* label = thread_item_view->title_for_testing();
   EXPECT_TRUE(label);
-  EXPECT_EQ(base::UTF8ToUTF16(thread.title), label->GetText());
+  EXPECT_EQ(base::UTF8ToUTF16(gemini_thread.title), label->GetText());
+}
+
+TEST_F(ProjectsPanelThreadItemViewTest, TriggersCallbackOnPressed) {
+  const std::string server_id = "test_server_id";
+  const auto thread = CreateThread("Thread 1", server_id);
+
+  base::MockCallback<ProjectsPanelThreadItemView::ThreadPressedCallback>
+      mock_callback;
+  auto thread_item_view = std::make_unique<ProjectsPanelThreadItemView>(
+      thread, mock_callback.Get());
+
+  EXPECT_CALL(mock_callback, Run(server_id)).Times(1);
+
+  ui::MouseEvent event(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
+                       base::TimeTicks(), ui::EF_LEFT_MOUSE_BUTTON,
+                       ui::EF_LEFT_MOUSE_BUTTON);
+  views::test::ButtonTestApi(thread_item_view.get()).NotifyClick(event);
 }

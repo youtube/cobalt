@@ -65,6 +65,7 @@ mojom::ActionResultCode LoginResultToActorResult(
     case actor_login::LoginStatusResult::kSuccessUsernameAndPasswordFilled:
     case actor_login::LoginStatusResult::kSuccessUsernameFilled:
     case actor_login::LoginStatusResult::kSuccessPasswordFilled:
+    case actor_login::LoginStatusResult::kSuccessFederated:
       return mojom::ActionResultCode::kOk;
     case actor_login::LoginStatusResult::kErrorNoSigninForm:
       return mojom::ActionResultCode::kLoginNotLoginPage;
@@ -76,6 +77,20 @@ mojom::ActionResultCode LoginResultToActorResult(
       return mojom::ActionResultCode::kLoginDeviceReauthRequired;
     case actor_login::LoginStatusResult::kErrorDeviceReauthFailed:
       return mojom::ActionResultCode::kLoginDeviceReauthFailed;
+    case actor_login::LoginStatusResult::kErrorFederatedContinuation:
+      // TODO(crbug.com/481685277): handle the continuation case.
+    case actor_login::LoginStatusResult::kErrorFederatedAccountNotLoggedIn:
+    case actor_login::LoginStatusResult::kErrorFederatedAccountIsSignUp:
+    case actor_login::LoginStatusResult::kErrorFederatedAccountNotAvailable:
+    case actor_login::LoginStatusResult::kErrorFederatedIdpReturnedError:
+    case actor_login::LoginStatusResult::kErrorFederatedIdpNetworkError:
+    case actor_login::LoginStatusResult::kErrorFederatedTokenRequestAborted:
+    case actor_login::LoginStatusResult::kErrorFederatedFrameNotActive:
+    case actor_login::LoginStatusResult::
+        kErrorFederatedExpectedAccountNotPresent:
+    case actor_login::LoginStatusResult::kErrorFederatedTimeout:
+      // TODO(crbug.com/477507796): Handle federated login errors.
+      return mojom::ActionResultCode::kLoginFillingNotAllowed;
   }
 }
 
@@ -254,9 +269,13 @@ void AttemptLoginTool::FetchIcons() {
     return;
   }
 
+  // TODO(https://crbug.com/488443317): For federated credentials, consider
+  // providing to the client `IdentityRequestAccount::picture` and
+  // `IdentityProviderMetadata::brand_icon_url` in lieu of a favicon.
   base::flat_set<GURL> unique_sites;
   for (const auto& cred : credentials_) {
-    if (!cred.source_site_or_app.empty()) {
+    if (cred.type == actor_login::CredentialType::kPassword &&
+        !cred.source_site_or_app.empty()) {
       unique_sites.insert(GURL(cred.source_site_or_app));
     }
   }

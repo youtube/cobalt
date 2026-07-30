@@ -203,7 +203,6 @@ class LocationBarMediator
     private final CallbackController mCallbackController = new CallbackController();
     private final OverrideUrlLoadingDelegate mOverrideUrlLoadingDelegate;
     private final LocaleManager mLocaleManager;
-    private final List<Runnable> mDeferredNativeRunnables = new ArrayList<>();
     private final OneshotSupplier<TemplateUrlService> mTemplateUrlServiceSupplier;
     private final Context mContext;
     private final BackKeyBehaviorDelegate mBackKeyBehavior;
@@ -411,7 +410,6 @@ class LocationBarMediator
         mVoiceRecognitionHandler.destroy();
         mVoiceRecognitionHandler = null;
         mLocationBarDataProvider.removeObserver(this);
-        mDeferredNativeRunnables.clear();
         mUrlFocusChangeListeners.clear();
         if (mPageZoomIndicatorCoordinator != null) {
             mPageZoomIndicatorCoordinator.setOnDismissCallbacks(null);
@@ -490,10 +488,6 @@ class LocationBarMediator
 
         onPrimaryColorChanged();
 
-        for (Runnable deferredRunnable : mDeferredNativeRunnables) {
-            mLocationBarLayout.post(deferredRunnable);
-        }
-        mDeferredNativeRunnables.clear();
         updateButtonVisibility();
     }
 
@@ -1045,19 +1039,17 @@ class LocationBarMediator
      *
      * @param activateNewSession Whether to begin a new input session if one is not already active.
      *     Active input sessions show Autocomplete and focused Omnibox.
-     * @return true if new input session has been activated.
      */
     @EnsuresNonNullIf("mCurrentInput")
     @VisibleForTesting
-    boolean beginOrResumeInput(boolean activateNewSession) {
-        if (mAutocompleteCoordinator == null) return false;
+    void beginOrResumeInput(boolean activateNewSession) {
         // Do not instantiate a new ephemeral session unless we're activating it as well.
         var session = FuseboxSessionState.from(mLocationBarDataProvider);
 
         // Target session must be either active, or activated.
         if (session == null || !(session.isSessionActive() || activateNewSession)) {
             endInputInternal();
-            return false;
+            return;
         }
 
         // If we're switching tab (active -> active), just reanchor observer.
@@ -1065,38 +1057,20 @@ class LocationBarMediator
             mCurrentInput.getRequestTypeSupplier().removeObserver(mAutocompleteRequestTypeObserver);
         }
 
-        session.setSessionActive(true);
+        session.activate(
+                mProfileSupplier,
+                () -> {
+                    if (mAutocompleteCoordinator == null) return;
+                    mAutocompleteCoordinator.beginInput(session);
+                    mFuseboxCoordinator.beginInput(session);
+                });
+
         mCurrentInput = session.getAutocompleteInput();
         mCurrentInput.getRequestTypeSupplier().addSyncObserver(mAutocompleteRequestTypeObserver);
 
         UrlBarData data = UrlBarData.forNonUrlText(mCurrentInput.getUserText());
         mUrlCoordinator.setUrlBarData(
                 data, UrlBar.ScrollType.NO_SCROLL, mCurrentInput.getSelection());
-
-        // In the event input session was activated before native initialization we cannot
-        // correctly determine the page classification, rendering the AutocompleteInput
-        // instance not sufficiently valid to facilitate Autocomplete.
-        if (mNativeInitialized) {
-            mAutocompleteCoordinator.beginInput(session);
-            mFuseboxCoordinator.beginInput(session);
-        } else {
-            mDeferredNativeRunnables.add(
-                    () -> {
-                        // mCurrentInput's timeline is fully contained within the mUrlHasFocus'
-                        // timeline. The check below confirms the mUrlHasFocus and ensures
-                        // mCurrentInput is not null.
-                        if (mCurrentInput == null) return;
-                        mCurrentInput.setPageClassification(
-                                mLocationBarDataProvider.getPageClassification(
-                                        /* prefetch= */ false));
-                        if (mAutocompleteCoordinator != null) {
-                            mAutocompleteCoordinator.beginInput(session);
-                            mFuseboxCoordinator.beginInput(session);
-                        }
-                    });
-        }
-
-        return true;
     }
 
     /** Ends the current Omnibox input session. */
@@ -1106,7 +1080,7 @@ class LocationBarMediator
         mFuseboxCoordinator.endInput();
         mCurrentInput.getRequestTypeSupplier().removeObserver(mAutocompleteRequestTypeObserver);
         var state = FuseboxSessionState.from(mLocationBarDataProvider);
-        if (state != null) state.setSessionActive(false);
+        if (state != null) state.deactivate();
         mCurrentInput = null;
     }
 
@@ -1838,7 +1812,7 @@ class LocationBarMediator
         }
         updateButtonVisibility();
         onSearchBoxHintTextChanged();
-        mLocationBarLayout.onSpecializedFuseboxModeActivatedC(isSpecializedRequestType);
+        mLocationBarLayout.onSpecializedFuseboxModeActivated(isSpecializedRequestType);
     }
 
     private boolean isLensOnOmniboxEnabled() {
@@ -1884,6 +1858,13 @@ class LocationBarMediator
                 TextView tv = (TextView) view;
                 return tv.getSelectionStart() == tv.getSelectionEnd()
                         && tv.getSelectionEnd() == tv.getText().length();
+            } else if (keyCode == KeyEvent.KEYCODE_DEL) {
+                if (mCurrentInput != null
+                        && !TextUtils.isEmpty(mCurrentInput.getKeyword())
+                        && TextUtils.isEmpty(mUrlCoordinator.getTextWithoutAutocomplete())) {
+                    mCurrentInput.setKeyword(null);
+                    return true;
+                }
             }
             return false;
         }
@@ -2014,11 +1995,6 @@ class LocationBarMediator
      */
     @Override
     public void beginInput(AutocompleteInput input) {
-        boolean isSearchQuery = input.getFocusReason() == OmniboxFocusReason.SEARCH_QUERY;
-        if (isSearchQuery && !mNativeInitialized) {
-            mDeferredNativeRunnables.add(() -> beginInput(input));
-            return;
-        }
         input.setPageClassification(mLocationBarDataProvider.getPageClassification(false));
         input.setPageUrl(mLocationBarDataProvider.getCurrentGurl());
         input.setPageTitle(mLocationBarDataProvider.getTitle());
@@ -2044,10 +2020,6 @@ class LocationBarMediator
 
         // Wait for the Url focus change before refreshing autocomplete.
         beginOrResumeInput(/* activateNewSession= */ true);
-
-        if (isSearchQuery) {
-            mUrlCoordinator.setKeyboardVisibility(true, false);
-        }
     }
 
     /**

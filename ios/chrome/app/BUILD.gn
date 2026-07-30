@@ -114,6 +114,9 @@ source_set("tasks_handling") {
     "//ios/chrome/browser/shared/model/url:constants",
     "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/browser/signin/model:system_identity_manager",
+    "//ios/chrome/common/app_group",
+    "//net",
+    "//url",
   ]
 
   frameworks = [ "Foundation.framework" ]
@@ -533,7 +536,6 @@ source_set("app_internal") {
     "//ios/chrome/browser/authentication/ui_bundled",
     "//ios/chrome/browser/banner_promo/model",
     "//ios/chrome/browser/bookmarks/model",
-    "//ios/chrome/browser/browsing_data/model",
     "//ios/chrome/browser/commerce/model/push_notification",
     "//ios/chrome/browser/content_notification/model:util",
     "//ios/chrome/browser/content_settings/model",

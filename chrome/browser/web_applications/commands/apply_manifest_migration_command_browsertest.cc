@@ -87,7 +87,7 @@ IN_PROC_BROWSER_TEST_F(ApplyManifestMigrationCommandBrowserTest,
   EXPECT_TRUE(ui_test_utils::NavigateToURL(
       browser(), https_server()->GetURL(kMigrateToWithSuggestMigrationUrl)));
   test::WaitForLoadCompleteAndMaybeManifestSeen(
-      *app_browser->tab_strip_model()->GetActiveWebContents());
+      *browser()->tab_strip_model()->GetActiveWebContents());
   provider().command_manager().AwaitAllCommandsCompleteForTesting();
 
   // Approve the migration, waiting for the old browser to be closed and new one

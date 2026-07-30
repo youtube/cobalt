@@ -258,10 +258,10 @@ const char kBrowserProcessUiThreadLogLevelParam[] = "ui_thread_log_level";
 const char kBrowserProcessThreadPoolLogLevelParam[] = "threadpool_log_level";
 constexpr base::FeatureParam<int> kIOThreadLogLevel{
     &kEnableHangWatcher, kBrowserProcessIoThreadLogLevelParam,
-    static_cast<int>(LoggingLevel::kUmaOnly)};
+    static_cast<int>(LoggingLevel::kUmaAndCrash)};
 constexpr base::FeatureParam<int> kUIThreadLogLevel{
     &kEnableHangWatcher, kBrowserProcessUiThreadLogLevelParam,
-    static_cast<int>(LoggingLevel::kUmaOnly)};
+    static_cast<int>(LoggingLevel::kUmaAndCrash)};
 constexpr base::FeatureParam<int> kThreadPoolLogLevel{
     &kEnableHangWatcher, kBrowserProcessThreadPoolLogLevelParam,
     static_cast<int>(LoggingLevel::kUmaOnly)};
@@ -301,7 +301,7 @@ const char kRendererProcessCompositorThreadLogLevelParam[] =
     "renderer_process_compositor_thread_log_level";
 constexpr base::FeatureParam<int> kRendererProcessIOThreadLogLevel{
     &kEnableHangWatcher, kRendererProcessIoThreadLogLevelParam,
-    static_cast<int>(LoggingLevel::kUmaOnly)};
+    static_cast<int>(LoggingLevel::kUmaAndCrash)};
 constexpr base::FeatureParam<int> kRendererProcessMainThreadLogLevel{
     &kEnableHangWatcher, kRendererProcessMainThreadLogLevelParam,
     static_cast<int>(LoggingLevel::kUmaOnly)};
@@ -325,7 +325,7 @@ constexpr base::FeatureParam<int> kUtilityProcessIOThreadLogLevel{
     static_cast<int>(LoggingLevel::kUmaOnly)};
 constexpr base::FeatureParam<int> kUtilityProcessMainThreadLogLevel{
     &kEnableHangWatcher, kUtilityProcessMainThreadLogLevelParam,
-    static_cast<int>(LoggingLevel::kUmaOnly)};
+    static_cast<int>(LoggingLevel::kUmaAndCrash)};
 constexpr base::FeatureParam<int> kUtilityProcessThreadPoolLogLevel{
     &kEnableHangWatcher, kUtilityProcessThreadPoolLogLevelParam,
     static_cast<int>(LoggingLevel::kUmaOnly)};
@@ -444,6 +444,39 @@ WatchHangsInScope::~WatchHangsInScope() {
   state->DecrementNestingLevel();
 }
 
+namespace {
+
+// Returns the effective log level to use, given `emit_crashes` and
+// `feature_param`. The result differs, depending on whether the crash reporting
+// was launched (enabled by default) for this process and thread.
+//
+// If crash reporting isn't yet launched (disabled by default),
+// `GetLoggingLevel` just returns `feature_param`. This allows rolling out crash
+// reporting for new processes and threads, while controlling the experiment
+// with field trials.
+//
+// If crash reporting is launched (enabled by default), the sampling rate
+// provided by `emit_crashes` (e.g. 1% stable) is applied. Crashes are emitted
+// if `emit_crashes` is true and `feature_param` acts as a killswitch.
+LoggingLevel GetLoggingLevel(bool emit_crashes,
+                             const base::FeatureParam<int>& feature_param) {
+  const LoggingLevel field_trial_log_level =
+      static_cast<LoggingLevel>(feature_param.Get());
+  if (static_cast<LoggingLevel>(feature_param.default_value) ==
+      LoggingLevel::kUmaAndCrash) {
+    // Crash reporting is launched (enabled by default) for this process and
+    // thread. Apply the sampling rate dictated by `emit_crashes` and use field
+    // trials as a kill-switch.
+    return emit_crashes ? field_trial_log_level : LoggingLevel::kUmaOnly;
+  } else {
+    // Crash reporting is not launched for this process and thread. Use the
+    // sampling rate from field trials.
+    return field_trial_log_level;
+  }
+}
+
+}  // namespace
+
 // static
 void HangWatcher::InitializeOnMainThread(ProcessType process_type,
                                          bool emit_crashes) {
@@ -471,61 +504,50 @@ void HangWatcher::InitializeOnMainThread(ProcessType process_type,
   // Retrieve thread-specific config for hang watching.
   if (process_type == HangWatcher::ProcessType::kBrowserProcess) {
     // Crashes are set to always emit. Override any feature flags.
-    if (emit_crashes) {
-      g_io_thread_log_level.store(
-          static_cast<LoggingLevel>(LoggingLevel::kUmaAndCrash),
-          std::memory_order_relaxed);
-      g_main_thread_log_level.store(
-          static_cast<LoggingLevel>(LoggingLevel::kUmaAndCrash),
-          std::memory_order_relaxed);
-    } else {
-      g_io_thread_log_level.store(
-          static_cast<LoggingLevel>(kIOThreadLogLevel.Get()),
-          std::memory_order_relaxed);
-      g_main_thread_log_level.store(
-          static_cast<LoggingLevel>(kUIThreadLogLevel.Get()),
-          std::memory_order_relaxed);
-    }
-
+    g_io_thread_log_level.store(
+        GetLoggingLevel(emit_crashes, kIOThreadLogLevel),
+        std::memory_order_relaxed);
+    g_main_thread_log_level.store(
+        GetLoggingLevel(emit_crashes, kUIThreadLogLevel),
+        std::memory_order_relaxed);
     g_threadpool_log_level.store(
-        static_cast<LoggingLevel>(kThreadPoolLogLevel.Get()),
+        GetLoggingLevel(emit_crashes, kThreadPoolLogLevel),
         std::memory_order_relaxed);
   } else if (process_type == HangWatcher::ProcessType::kGPUProcess) {
     g_threadpool_log_level.store(
-        static_cast<LoggingLevel>(kGPUProcessThreadPoolLogLevel.Get()),
+        GetLoggingLevel(emit_crashes, kGPUProcessThreadPoolLogLevel),
         std::memory_order_relaxed);
     g_io_thread_log_level.store(
-        static_cast<LoggingLevel>(kGPUProcessIOThreadLogLevel.Get()),
+        GetLoggingLevel(emit_crashes, kGPUProcessIOThreadLogLevel),
         std::memory_order_relaxed);
     g_main_thread_log_level.store(
-        static_cast<LoggingLevel>(kGPUProcessMainThreadLogLevel.Get()),
+        GetLoggingLevel(emit_crashes, kGPUProcessMainThreadLogLevel),
         std::memory_order_relaxed);
     g_compositor_thread_log_level.store(
-        static_cast<LoggingLevel>(kGPUProcessCompositorThreadLogLevel.Get()),
+        GetLoggingLevel(emit_crashes, kGPUProcessCompositorThreadLogLevel),
         std::memory_order_relaxed);
   } else if (process_type == HangWatcher::ProcessType::kRendererProcess) {
     g_threadpool_log_level.store(
-        static_cast<LoggingLevel>(kRendererProcessThreadPoolLogLevel.Get()),
+        GetLoggingLevel(emit_crashes, kRendererProcessThreadPoolLogLevel),
         std::memory_order_relaxed);
     g_io_thread_log_level.store(
-        static_cast<LoggingLevel>(kRendererProcessIOThreadLogLevel.Get()),
+        GetLoggingLevel(emit_crashes, kRendererProcessIOThreadLogLevel),
         std::memory_order_relaxed);
     g_main_thread_log_level.store(
-        static_cast<LoggingLevel>(kRendererProcessMainThreadLogLevel.Get()),
+        GetLoggingLevel(emit_crashes, kRendererProcessMainThreadLogLevel),
         std::memory_order_relaxed);
     g_compositor_thread_log_level.store(
-        static_cast<LoggingLevel>(
-            kRendererProcessCompositorThreadLogLevel.Get()),
+        GetLoggingLevel(emit_crashes, kRendererProcessCompositorThreadLogLevel),
         std::memory_order_relaxed);
   } else if (process_type == HangWatcher::ProcessType::kUtilityProcess) {
     g_threadpool_log_level.store(
-        static_cast<LoggingLevel>(kUtilityProcessThreadPoolLogLevel.Get()),
+        GetLoggingLevel(emit_crashes, kUtilityProcessThreadPoolLogLevel),
         std::memory_order_relaxed);
     g_io_thread_log_level.store(
-        static_cast<LoggingLevel>(kUtilityProcessIOThreadLogLevel.Get()),
+        GetLoggingLevel(emit_crashes, kUtilityProcessIOThreadLogLevel),
         std::memory_order_relaxed);
     g_main_thread_log_level.store(
-        static_cast<LoggingLevel>(kUtilityProcessMainThreadLogLevel.Get()),
+        GetLoggingLevel(emit_crashes, kUtilityProcessMainThreadLogLevel),
         std::memory_order_relaxed);
   }
 }
@@ -605,11 +627,7 @@ HangWatcher::HangWatcher()
     : monitoring_period_(kHangWatcherMonitoringPeriod.Get()),
       should_monitor_(WaitableEvent::ResetPolicy::AUTOMATIC),
       thread_(this, kThreadName),
-      tick_clock_(base::DefaultTickClock::GetInstance()),
-      memory_pressure_listener_registration_(
-          FROM_HERE,
-          base::MemoryPressureListenerTag::kHangWatcher,
-          this) {
+      tick_clock_(base::DefaultTickClock::GetInstance()) {
   // |thread_checker_| should not be bound to the constructing thread.
   DETACH_FROM_THREAD(hang_watcher_thread_checker_);
 
@@ -625,38 +643,6 @@ void HangWatcher::CreateHangWatcherInstance() {
   g_instance = new base::HangWatcher();
   // The hang watcher is leaked to make sure it survives all watched threads.
   ANNOTATE_LEAKING_OBJECT_PTR(g_instance);
-}
-
-debug::ScopedCrashKeyString
-HangWatcher::GetTimeSinceLastCriticalMemoryPressureCrashKey() {
-  DCHECK_CALLED_ON_VALID_THREAD(hang_watcher_thread_checker_);
-
-  // The crash key size is large enough to hold the biggest possible return
-  // value from base::TimeDelta::InSeconds().
-  constexpr debug::CrashKeySize kCrashKeyContentSize =
-      debug::CrashKeySize::Size32;
-  DCHECK_GE(static_cast<uint64_t>(kCrashKeyContentSize),
-            base::NumberToString(std::numeric_limits<int64_t>::max()).size());
-
-  static debug::CrashKeyString* crash_key = AllocateCrashKeyString(
-      "seconds-since-last-memory-pressure", kCrashKeyContentSize);
-
-  const base::TimeTicks last_critical_memory_pressure_time =
-      last_critical_memory_pressure_.load(std::memory_order_relaxed);
-  if (last_critical_memory_pressure_time.is_null()) {
-    constexpr char kNoMemoryPressureMsg[] = "No critical memory pressure";
-    static_assert(
-        std::size(kNoMemoryPressureMsg) <=
-            static_cast<uint64_t>(kCrashKeyContentSize),
-        "The crash key is too small to hold \"No critical memory pressure\".");
-    return debug::ScopedCrashKeyString(crash_key, kNoMemoryPressureMsg);
-  } else {
-    base::TimeDelta time_since_last_critical_memory_pressure =
-        base::TimeTicks::Now() - last_critical_memory_pressure_time;
-    return debug::ScopedCrashKeyString(
-        crash_key, base::NumberToString(
-                       time_since_last_critical_memory_pressure.InSeconds()));
-  }
 }
 
 std::string HangWatcher::GetTimeSinceLastSystemPowerResumeCrashKeyValue()
@@ -675,13 +661,6 @@ std::string HangWatcher::GetTimeSinceLastSystemPowerResumeCrashKeyValue()
   const TimeDelta time_since_last_system_resume =
       TimeTicks::Now() - last_system_power_resume_time;
   return NumberToString(time_since_last_system_resume.InSeconds());
-}
-
-void HangWatcher::OnMemoryPressure(MemoryPressureLevel memory_pressure_level) {
-  if (memory_pressure_level == MEMORY_PRESSURE_LEVEL_CRITICAL) {
-    last_critical_memory_pressure_.store(base::TimeTicks::Now(),
-                                         std::memory_order_relaxed);
-  }
 }
 
 HangWatcher::~HangWatcher() {
@@ -1059,10 +1038,6 @@ void HangWatcher::DoDumpWithoutCrashing(
 
   const debug::ScopedCrashKeyString list_of_hung_threads_crash_key_string(
       crash_key, list_of_hung_thread_ids);
-
-  const debug::ScopedCrashKeyString
-      time_since_last_critical_memory_pressure_crash_key_string =
-          GetTimeSinceLastCriticalMemoryPressureCrashKey();
 
   SCOPED_CRASH_KEY_STRING32("HangWatcher", "seconds-since-last-resume",
                             GetTimeSinceLastSystemPowerResumeCrashKeyValue());

@@ -2171,14 +2171,6 @@ gfx::Point Textfield::GetLastClickRootLocation() const {
   return selection_controller_.last_click_root_location();
 }
 
-std::u16string Textfield::GetSelectionClipboardText() const {
-  std::u16string selection_clipboard_text;
-  ui::Clipboard::GetForCurrentThread()->ReadText(
-      ui::ClipboardBuffer::kSelection, /* data_dst = */ nullptr,
-      &selection_clipboard_text);
-  return selection_clipboard_text;
-}
-
 void Textfield::ExecuteTextEditCommand(ui::TextEditCommand command) {
   DestroyTouchSelection();
 
@@ -2188,11 +2180,15 @@ void Textfield::ExecuteTextEditCommand(ui::TextEditCommand command) {
     return;
   }
 
-  OnBeforeUserAction();
-
   gfx::SelectionModel selection_model = GetSelectionModel();
-  auto [text_changed, cursor_changed] = DoExecuteTextEditCommand(command);
+  DoExecuteTextEditCommand(
+      command, base::BindOnce(&Textfield::OnTextCommandExecuted,
+                              weak_ptr_factory_.GetWeakPtr(), selection_model));
+}
 
+void Textfield::OnTextCommandExecuted(gfx::SelectionModel selection_model,
+                                      Textfield::EditCommandResult result) {
+  auto [text_changed, cursor_changed] = result;
   cursor_changed |= (GetSelectionModel() != selection_model);
   if (cursor_changed && HasSelection()) {
     UpdateSelectionClipboard();
@@ -2203,17 +2199,18 @@ void Textfield::ExecuteTextEditCommand(ui::TextEditCommand command) {
   OnAfterUserAction();
 }
 
-Textfield::EditCommandResult Textfield::DoExecuteTextEditCommand(
-    ui::TextEditCommand command) {
+void Textfield::DoExecuteTextEditCommand(
+    ui::TextEditCommand command,
+    base::OnceCallback<void(Textfield::EditCommandResult)> callback) {
   bool changed = false;
   bool cursor_changed = false;
   bool add_to_kill_buffer = false;
 
   base::AutoReset<bool> show_rejection_ui(&show_rejection_ui_if_any_, true);
 
-  // Some codepaths may bypass GetCommandForKeyEvent, so any selection-dependent
-  // modifications of the command should happen here.
   switch (command) {
+    // Some codepaths may bypass GetCommandForKeyEvent, so any
+    // selection-dependent modifications of the command should happen here.
     case ui::TextEditCommand::DELETE_TO_BEGINNING_OF_LINE:
     case ui::TextEditCommand::DELETE_TO_BEGINNING_OF_PARAGRAPH:
     case ui::TextEditCommand::DELETE_TO_END_OF_LINE:
@@ -2226,6 +2223,13 @@ Textfield::EditCommandResult Textfield::DoExecuteTextEditCommand(
         command = ui::TextEditCommand::DELETE_FORWARD;
       }
       break;
+
+    // Handle async PASTE separately to avoid splitting On[Before]UserAction
+    // across async boundaries.
+    case ui::TextEditCommand::PASTE:
+      Paste(base::BindOnce(&Textfield::OnPasted, weak_ptr_factory_.GetWeakPtr(),
+                           std::move(callback)));
+      return;
     default:
       break;
   }
@@ -2234,6 +2238,7 @@ Textfield::EditCommandResult Textfield::DoExecuteTextEditCommand(
   gfx::VisualCursorDirection begin = rtl ? gfx::CURSOR_RIGHT : gfx::CURSOR_LEFT;
   gfx::VisualCursorDirection end = rtl ? gfx::CURSOR_LEFT : gfx::CURSOR_RIGHT;
 
+  OnBeforeUserAction();
   switch (command) {
     case ui::TextEditCommand::DELETE_BACKWARD:
       changed = cursor_changed = model_->Backspace(add_to_kill_buffer);
@@ -2388,8 +2393,7 @@ Textfield::EditCommandResult Textfield::DoExecuteTextEditCommand(
       Copy();
       break;
     case ui::TextEditCommand::PASTE:
-      changed = cursor_changed = Paste();
-      break;
+      NOTREACHED();
     case ui::TextEditCommand::SELECT_ALL:
       SelectAll(false);
       break;
@@ -2409,7 +2413,14 @@ Textfield::EditCommandResult Textfield::DoExecuteTextEditCommand(
       NOTREACHED();
   }
 
-  return {changed, cursor_changed};
+  std::move(callback).Run({changed, cursor_changed});
+}
+
+void Textfield::OnPasted(
+    base::OnceCallback<void(Textfield::EditCommandResult)> callback,
+    bool pasted) {
+  OnBeforeUserAction();
+  std::move(callback).Run({pasted, pasted});
 }
 
 void Textfield::OffsetDoubleClickWord(size_t offset) {
@@ -2679,16 +2690,27 @@ void Textfield::OnAfterPointerAction(bool text_changed,
   UpdateAfterChange(text_change_type, selection_changed);
 }
 
-bool Textfield::PasteSelectionClipboard() {
-  DCHECK(performing_user_action_);
+void Textfield::PasteSelectionClipboard(
+    base::OnceCallback<void(bool)> callback) {
   DCHECK(!GetReadOnly());
-  const std::u16string selection_clipboard_text = GetSelectionClipboardText();
-  if (selection_clipboard_text.empty()) {
-    return false;
+  ui::Clipboard::GetForCurrentThread()->ReadText(
+      ui::ClipboardBuffer::kSelection, /* data_dst = */ std::nullopt,
+      base::BindOnce(&Textfield::OnTextReadForPasteSelectionClipboard,
+                     weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
+}
+
+void Textfield::OnTextReadForPasteSelectionClipboard(
+    base::OnceCallback<void(bool)> callback,
+    std::u16string text) {
+  if (text.empty()) {
+    std::move(callback).Run(false);
+    return;
   }
 
-  model_->InsertText(selection_clipboard_text);
-  return true;
+  OnBeforePointerAction();
+  model_->InsertText(text);
+  OnAfterPointerAction(true, true);
+  std::move(callback).Run(true);
 }
 
 void Textfield::UpdateSelectionClipboard() {
@@ -3013,32 +3035,50 @@ bool Textfield::Copy() {
   return true;
 }
 
-bool Textfield::Paste() {
+void Textfield::Paste(base::OnceCallback<void(bool)> callback) {
   if (GetReadOnly()) {
-    return false;
+    std::move(callback).Run(false);
+    return;
   }
 
-  bool pasted = false;
-  std::u16string text;
-  // Allow the controller to intercept paste and provide text; if not provided,
-  // fall back to the model's default clipboard handling.
-  if (controller_ && controller_->OnBeforePaste(this, &text)) {
-    pasted = model_->Paste(std::move(text));
-  } else {
-    pasted = model_->Paste();
-  }
-
-  if (!pasted) {
-    return false;
-  }
+  auto paste_cb = base::BindOnce(
+      [](base::WeakPtr<Textfield> textfield,
+         base::OnceCallback<void(bool)> callback,
+         std::optional<std::u16string> text) {
+        if (!textfield) {
+          std::move(callback).Run(false);
+          return;
+        }
+        if (text) {
+          textfield->OnTextReadForPaste(std::move(callback), std::move(*text));
+        } else {
+          ui::Clipboard::GetForCurrentThread()->ReadText(
+              ui::ClipboardBuffer::kCopyPaste, /* data_dst = */ std::nullopt,
+              base::BindOnce(&Textfield::OnTextReadForPaste, textfield,
+                             std::move(callback)));
+        }
+      },
+      weak_ptr_factory_.GetWeakPtr(), std::move(callback));
 
   if (controller_) {
-    controller_->OnAfterPaste();
+    controller_->OnBeforePaste(this, std::move(paste_cb));
+  } else {
+    std::move(paste_cb).Run(std::nullopt);
   }
+}
 
-  UpdateAccessibleTextSelection();
-
-  return true;
+void Textfield::OnTextReadForPaste(base::OnceCallback<void(bool)> callback,
+                                   std::u16string text) {
+  OnBeforeUserAction();
+  bool pasted = model_->Paste(std::move(text));
+  if (pasted) {
+    if (controller_) {
+      controller_->OnAfterPaste();
+    }
+    UpdateAccessibleTextSelection();
+  }
+  OnAfterUserAction();
+  std::move(callback).Run(pasted);
 }
 
 void Textfield::UpdateContextMenu() {

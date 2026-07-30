@@ -2026,16 +2026,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Android.DragDrop.Image.UriCreatedInterval" units="ms"
-    expires_after="2025-09-07">
-  <owner>shuyng@google.com</owner>
-  <owner>clank-large-form-factors@google.com</owner>
-  <summary>
-    Records the interval between two back-to-back image drags. This is used to
-    evaluate the duration to preserve the image data. Android only.
-  </summary>
-</histogram>
-
 <histogram name="Android.DragDrop.TabOrGroup.MaxInstanceFailureCount"
     units="failures" expires_after="2026-05-05">
   <owner>aishwaryarj@google.com</owner>
@@ -3673,7 +3663,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Android.MultiWindowMode.InactiveInstanceRestore.AppSource"
+<histogram name="Android.MultiWindowMode.InactiveInstanceRestore.AppSource2"
     enum="NewWindowAppSource" expires_after="2026-07-10">
   <owner>aishwaryarj@google.com</owner>
   <owner>clank-large-form-factors@google.com</owner>
@@ -3682,8 +3672,9 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Android.MultiWindowMode.NewWindow.AppSource2"
+<histogram name="Android.MultiWindowMode.NewWindow.AppSource3"
     enum="NewWindowAppSource" expires_after="2026-09-01">
+  <owner>aishwaryarj@google.com</owner>
   <owner>rathomas@google.com</owner>
   <owner>clank-large-form-factors@google.com</owner>
   <summary>
@@ -3745,17 +3736,6 @@ chromium-metrics-reviews@google.com.
     to be executed one way or another (i.e. does not record anything when popup
     blocker drops the request). If the popup is not opened in a new window, it
     is most likely opened as a new tab.
-  </summary>
-</histogram>
-
-<histogram name="Android.MultiWindowMode.TotalDuration" units="ms"
-    expires_after="2025-05-11">
-  <owner>skavuluru@google.com</owner>
-  <owner>twellington@chromium.org</owner>
-  <owner>clank-large-form-factors@google.com</owner>
-  <summary>
-    Total time spent in Android N+ multi-window (aka split-screen) mode.
-    Recorded when multi-window mode is exited.
   </summary>
 </histogram>
 
@@ -4483,17 +4463,6 @@ chromium-metrics-reviews@google.com.
     Recorded when the user clicks the Open in App item in the App Menu. A true
     value indicates OpenInAppInfo was non-null for the current tab when the item
     was clicked, and vice versa.
-  </summary>
-</histogram>
-
-<histogram name="Android.OverscrollFromBottom.BottomControlsStatus"
-    enum="BottomControlsStatus" expires_after="2026-02-24">
-  <owner>wenyufu@chromium.org</owner>
-  <owner>src/chrome/browser/ui/android/edge_to_edge/OWNERS</owner>
-  <summary>
-    Records when user starts a overscroll from the bottom on a tab, the status
-    of the bottom browser controls. This only records when the content is
-    scrollable, and the scroll starts from the bottom of the content page.
   </summary>
 </histogram>
 
@@ -5718,16 +5687,6 @@ chromium-metrics-reviews@google.com.
   <summary>
     Measures the amount of time due to a StrictMode violation from fetching for
     the thumbnail cache directory.
-  </summary>
-</histogram>
-
-<histogram name="Android.StyleUtils.FontLoadingOutcome"
-    enum="FontLoadingOutcome" expires_after="2026-04-05">
-  <owner>wenyufu@chromium.org</owner>
-  <owner>clank-app-team@google.com</owner>
-  <summary>
-    Records the outcome for loading font using applyTextAppearanceToTextPaint.
-    Recorded during layout initialization on tablets.
   </summary>
 </histogram>
 
@@ -9324,6 +9283,20 @@ chromium-metrics-reviews@google.com.
     <variant name="MetricsBridgeService"/>
     <variant name="VariationsSeedServer"/>
   </token>
+</histogram>
+
+<histogram
+    name="Android.WebView.Static.GetDefaultUserAgentCalledOnUiThreadIfChromiumNotStarted"
+    enum="Boolean" expires_after="2026-07-01">
+  <owner>abhijithnair@chromium.org</owner>
+  <owner>src/android_webview/OWNERS</owner>
+  <summary>
+    Records whether getDefaultUserAgent was called on the UI thread or not.
+    Emitted only if browser startup has not been started during the time of the
+    call.
+
+    This is only logged in Android WebView.
+  </summary>
 </histogram>
 
 <histogram name="Android.WebView.SupervisedUser.UrlCheckResult"

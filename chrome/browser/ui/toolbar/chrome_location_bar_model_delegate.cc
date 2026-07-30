@@ -186,7 +186,8 @@ const gfx::VectorIcon* ChromeLocationBarModelDelegate::GetVectorIconOverride()
   GURL url;
   GetURL(&url);
 
-  if (IsContextualTasksPage()) {
+  if (!contextual_tasks::ShouldShowExpandedSecurityChip() &&
+      IsContextualTasksPage()) {
     return &vector_icons::kGoogleColorIcon;
   }
 

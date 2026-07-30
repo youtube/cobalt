@@ -6,9 +6,7 @@
 #define COMPONENTS_PERFORMANCE_MANAGER_RESOURCE_ATTRIBUTION_CPU_MEASUREMENT_MONITOR_H_
 
 #include <optional>
-#include <set>
 
-#include "base/containers/variant_map.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
@@ -27,6 +25,8 @@
 #include "components/performance_manager/resource_attribution/graph_change.h"
 #include "components/performance_manager/resource_attribution/performance_manager_aliases.h"
 #include "components/performance_manager/resource_attribution/query_params.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 
 namespace resource_attribution {
 
@@ -94,9 +94,6 @@ class CPUMeasurementMonitor
   // context.
   QueryResultMap UpdateAndGetCPUMeasurements(
       std::optional<internal::QueryId> query_id = std::nullopt);
-
-  // Logs metrics on CPUMeasurementMonitor's memory usage to UMA.
-  void RecordMemoryMetrics();
 
   // FrameNode::Observer:
   void OnBeforeFrameNodeAdded(
@@ -169,14 +166,6 @@ class CPUMeasurementMonitor
   scoped_refptr<ScopedCPUTimeResult>& GetResultPtr(
       const ResourceContext& context);
 
-  // Adds the new measurements in `measurement_deltas` to ScopedCPUTimeResults.
-  // `graph_change` is the event that triggered the measurement or NoGraphChange
-  // if it wasn't triggered due to a graph change.
-  void ApplyMeasurementDeltas(
-      const base::VariantMap<ResourceContext, CPUTimeResult>&
-          measurement_deltas,
-      GraphChange graph_change = NoGraphChange());
-
   // Adds the measurement in `delta` to the result for `context`. The start time
   // of `delta` must follow the end time of the result. Used for adding
   // successive measurements of process, frame and worker contexts, so the
@@ -199,7 +188,7 @@ class CPUMeasurementMonitor
 
   // Returns all `OriginInBrowsingInstanceContext`s associated with live frame
   // or worker contexts.
-  std::set<OriginInBrowsingInstanceContext>
+  absl::flat_hash_set<OriginInBrowsingInstanceContext>
   GetLiveOriginInBrowsingInstanceContexts();
 
   // Measures the CPU usage of `process_node`, calculates the change in CPU
@@ -207,10 +196,8 @@ class CPUMeasurementMonitor
   // the results to frames and workers in the process using
   // SplitResourceAmongFramesAndWorkers(). The new CPU usage in this
   // measurement is added to `measurement_deltas`.
-  static void MeasureAndDistributeCPUUsage(
-      const ProcessNode* process_node,
-      GraphChange graph_change,
-      base::VariantMap<ResourceContext, CPUTimeResult>& measurement_deltas);
+  void MeasureAndDistributeCPUUsage(const ProcessNode* process_node,
+                                    GraphChange graph_change);
 
   SEQUENCE_CHECKER(sequence_checker_);
 
@@ -219,14 +206,14 @@ class CPUMeasurementMonitor
   // `OriginInBrowsingInstanceContext` is considered live as long as it's in
   // this map. Results for other context types are held in NodeInlineData in
   // live PM nodes.
-  base::VariantMap<OriginInBrowsingInstanceContext,
-                   scoped_refptr<ScopedCPUTimeResult>>
+  absl::flat_hash_map<OriginInBrowsingInstanceContext,
+                      scoped_refptr<ScopedCPUTimeResult>>
       origin_results_ GUARDED_BY_CONTEXT(sequence_checker_);
 
   // A map of non-owning pointers to all `ScopedCPUTimeResult` instances
   // associated with `OriginInBrowsingInstanceContext`.
-  base::VariantMap<OriginInBrowsingInstanceContext,
-                   raw_ptr<ScopedCPUTimeResult>>
+  absl::flat_hash_map<OriginInBrowsingInstanceContext,
+                      raw_ptr<ScopedCPUTimeResult>>
       weak_origin_results_ GUARDED_BY_CONTEXT(sequence_checker_);
 
   // CPU time results for dead contexts retained by ScopedResourceUsageQuery.
@@ -250,7 +237,7 @@ class CPUMeasurementMonitor
     //
     // When a context dies, its result is added to the `to_report` set of all
     // live queries.
-    std::set<scoped_refptr<ScopedCPUTimeResult>> to_report;
+    absl::flat_hash_set<scoped_refptr<ScopedCPUTimeResult>> to_report;
 
     // Results kept alive until the next measurement for this query, in case the
     // associated context is revived. If a context is revived while this set has
@@ -263,10 +250,10 @@ class CPUMeasurementMonitor
     // consecutive measurements for a query contain a result for a given
     // context, the cumulative CPU usage isn't reset between the two
     // measurements, even if the context was transiently dead.
-    std::set<scoped_refptr<ScopedCPUTimeResult>> kept_alive;
+    absl::flat_hash_set<scoped_refptr<ScopedCPUTimeResult>> kept_alive;
   };
-  base::VariantMap<internal::QueryId, DeadContextResults> dead_context_results_
-      GUARDED_BY_CONTEXT(sequence_checker_);
+  absl::flat_hash_map<internal::QueryId, DeadContextResults>
+      dead_context_results_ GUARDED_BY_CONTEXT(sequence_checker_);
 
   // Factory that creates CPUMeasurementDelegate objects for each ProcessNode
   // being measured.
@@ -295,7 +282,6 @@ class ScopedCPUTimeResult : public base::RefCounted<ScopedCPUTimeResult> {
 
   CPUTimeResult& result() { return result_; }
   const ResourceContext& context() const { return context_; }
-  size_t EstimateMemoryUsage() const;
 
  private:
   friend class base::RefCounted<ScopedCPUTimeResult>;

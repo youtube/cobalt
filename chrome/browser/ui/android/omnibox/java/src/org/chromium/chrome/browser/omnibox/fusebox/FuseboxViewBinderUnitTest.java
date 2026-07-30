@@ -274,6 +274,24 @@ public class FuseboxViewBinderUnitTest {
     }
 
     @Test
+    public void cameraButtonVisibility_setsVisibility() {
+        mModel.set(FuseboxProperties.POPUP_ATTACH_CAMERA_VISIBLE, true);
+        assertEquals(View.VISIBLE, mPopup.mCameraButton.getVisibility());
+
+        mModel.set(FuseboxProperties.POPUP_ATTACH_CAMERA_VISIBLE, false);
+        assertEquals(View.GONE, mPopup.mCameraButton.getVisibility());
+    }
+
+    @Test
+    public void galleryButtonVisibility_setsVisibility() {
+        mModel.set(FuseboxProperties.POPUP_ATTACH_GALLERY_VISIBLE, true);
+        assertEquals(View.VISIBLE, mPopup.mGalleryButton.getVisibility());
+
+        mModel.set(FuseboxProperties.POPUP_ATTACH_GALLERY_VISIBLE, false);
+        assertEquals(View.GONE, mPopup.mGalleryButton.getVisibility());
+    }
+
+    @Test
     public void fileButtonVisibility_setsVisibility() {
         mModel.set(FuseboxProperties.POPUP_ATTACH_FILE_VISIBLE, true);
         assertEquals(View.VISIBLE, mPopup.mFileButton.getVisibility());
@@ -312,11 +330,37 @@ public class FuseboxViewBinderUnitTest {
     }
 
     @Test
+    public void aiModeButtonVisibility_setsVisibility() {
+        mModel.set(FuseboxProperties.POPUP_TOOL_AI_MODE_VISIBLE, true);
+        assertEquals(View.VISIBLE, mPopup.mAiModeButton.getVisibility());
+
+        mModel.set(FuseboxProperties.POPUP_TOOL_AI_MODE_VISIBLE, false);
+        assertEquals(View.GONE, mPopup.mAiModeButton.getVisibility());
+    }
+
+    @Test
+    public void aiModeButtonEnabled_setsEnabled() {
+        mModel.set(FuseboxProperties.POPUP_TOOL_AI_MODE_ENABLED, true);
+        assertTrue(mPopup.mAiModeButton.isEnabled());
+
+        mModel.set(FuseboxProperties.POPUP_TOOL_AI_MODE_ENABLED, false);
+        assertFalse(mPopup.mAiModeButton.isEnabled());
+    }
+
+    @Test
     public void testCurrentTabButtonEnabled() {
         mModel.set(FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_ENABLED, true);
         assertTrue(mViewHolder.popup.mAddCurrentTab.isEnabled());
         mModel.set(FuseboxProperties.POPUP_ATTACH_CURRENT_TAB_ENABLED, false);
         assertFalse(mViewHolder.popup.mAddCurrentTab.isEnabled());
+    }
+
+    @Test
+    public void testClipboardButtonEnabled() {
+        mModel.set(FuseboxProperties.POPUP_ATTACH_CLIPBOARD_ENABLED, true);
+        assertTrue(mViewHolder.popup.mClipboardButton.isEnabled());
+        mModel.set(FuseboxProperties.POPUP_ATTACH_CLIPBOARD_ENABLED, false);
+        assertFalse(mViewHolder.popup.mClipboardButton.isEnabled());
     }
 
     @Test

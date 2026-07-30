@@ -4,31 +4,27 @@
 
 source_set("coordinator") {
   sources = [
-    "assistant_sheet_coordinator.h",
-    "assistant_sheet_coordinator.mm",
+    "assistant_container_coordinator.h",
+    "assistant_container_coordinator.mm",
   ]
   deps = [
-    ":child_coordinator",
+    ":commands",
     "//base",
-    "//ios/chrome/browser/assistant/aim/coordinator",
     "//ios/chrome/browser/assistant/ui",
     "//ios/chrome/browser/shared/coordinator/chrome_coordinator",
     "//ios/chrome/browser/shared/coordinator/layout_guide",
     "//ios/chrome/browser/shared/model/browser",
     "//ios/chrome/browser/shared/public/commands",
+    "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/browser/shared/ui/util",
     "//ios/chrome/browser/shared/ui/util:util_swift",
   ]
 }
 
-source_set("child_coordinator") {
-  sources = [
-    "assistant_sheet_child_coordinator.h",
-    "assistant_sheet_child_coordinator.mm",
-  ]
+source_set("commands") {
+  sources = [ "assistant_container_commands.h" ]
   deps = [
     "//base",
     "//ios/chrome/browser/assistant/ui",
-    "//ios/chrome/browser/shared/coordinator/chrome_coordinator",
   ]
 }

@@ -99,7 +99,7 @@ class MockExtensionsToolbarObserver
               (const ToolbarActionsModel::ActionId&),
               (override));
   MOCK_METHOD(void, OnPinnedActionsChanged, (), (override));
-  MOCK_METHOD(void, OnActiveWebContentsChanged, (), (override));
+  MOCK_METHOD(void, OnActiveWebContentsChanged, (bool), (override));
 };
 
 }  // namespace
@@ -311,7 +311,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionsToolbarViewModelBrowserTest,
 // Tests that the observer is notified when navigation happens.
 IN_PROC_BROWSER_TEST_F(ExtensionsToolbarViewModelBrowserTest,
                        ObserverCalledOnNavigation) {
-  EXPECT_CALL(mock_observer(), OnActiveWebContentsChanged())
+  EXPECT_CALL(mock_observer(), OnActiveWebContentsChanged(_))
       .Times(testing::AtLeast(1));
 
   NavigateTo("example.com");
@@ -320,11 +320,12 @@ IN_PROC_BROWSER_TEST_F(ExtensionsToolbarViewModelBrowserTest,
 // Tests that the observer is notified when the active tab changes.
 IN_PROC_BROWSER_TEST_F(ExtensionsToolbarViewModelBrowserTest,
                        ObserverCalledOnActiveTabChanged) {
-  EXPECT_CALL(mock_observer(), OnActiveWebContentsChanged())
+  EXPECT_CALL(mock_observer(), OnActiveWebContentsChanged(_))
       .Times(testing::AtLeast(1));
 
-  toolbar_model()->OnActiveTabChanged(
-      TabListInterface::From(browser_window_interface())->GetActiveTab());
+  TabListInterface* tab_list =
+      TabListInterface::From(browser_window_interface());
+  toolbar_model()->OnActiveTabChanged(*tab_list, tab_list->GetActiveTab());
 }
 
 // Tests that GetRequestAccessButtonParams returns empty when there are no

@@ -41,7 +41,7 @@ bool ShouldHaveAnchorElementMetricsSender(Document& document) {
       base::FeatureList::IsEnabled(features::kNavigationPredictor);
   const KURL& url = document.Url();
   return is_feature_enabled && document.IsInOutermostMainFrame() &&
-         url.IsValid() && url.ProtocolIsInHTTPFamily() &&
+         url.IsValid() && url.ProtocolIsInHttpFamily() &&
          document.GetExecutionContext() &&
          document.GetExecutionContext()->IsSecureContext();
 }
@@ -119,9 +119,9 @@ void AnchorElementMetricsSender::MaybeReportClickedMetricsOnClick(
   DCHECK(base::FeatureList::IsEnabled(features::kNavigationPredictor));
   Document* top_document = GetSupplementable();
   CHECK(top_document);
-  if (!anchor_element.Href().ProtocolIsInHTTPFamily() ||
-      !top_document->Url().ProtocolIsInHTTPFamily() ||
-      !anchor_element.GetDocument().Url().ProtocolIsInHTTPFamily()) {
+  if (!anchor_element.Href().ProtocolIsInHttpFamily() ||
+      !top_document->Url().ProtocolIsInHttpFamily() ||
+      !anchor_element.GetDocument().Url().ProtocolIsInHttpFamily()) {
     return;
   }
   if (!AssociateInterface()) {
@@ -481,7 +481,7 @@ void AnchorElementMetricsSender::DidFinishLifecycleUpdate(
   // into the DOM later or if they enter the viewport.
   anchor_elements_to_report_.clear();
 
-  metrics_removed_anchors_.AppendVector(removed_anchors_to_report_);
+  metrics_removed_anchors_.append_range(removed_anchors_to_report_);
   removed_anchors_to_report_.clear();
 
   if (!metrics_.empty() || !metrics_removed_anchors_.empty()) {

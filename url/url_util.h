@@ -286,8 +286,44 @@ void DecodeUrlEscapeSequences(std::string_view input,
                               DecodeUrlMode mode,
                               CanonOutputW* output);
 
+// A helper class to perform URL escape decoding, potentially without heap
+// allocation. This is an alternative to
+// `url::DecodeUrlEscapeSequences(input, mode)` which always allocates a
+// `std::string`. This class uses a stack-allocated buffer up to
+// `fixed_capacity` and avoids heap allocation if the decoded result fits in it.
+//
+// Examples:
+//
+//   url::UrlEscapeDecoder decoder(input, mode);
+//   FunctionAcceptsStringView(decoder.view());
+//
+//   FunctionAcceptsStringView(url::UrlEscapeDecoder(input, mode).view());
+//
+// The following code doesn't work because the view() result can't outlive the
+// UrlEscapeDecoder instance.
+//   std::u16string_view view = url::UrlEscapeDecoder(input, mode).view();
+template <size_t fixed_capacity = 1024>
+class UrlEscapeDecoder {
+ public:
+  // Constructs a decoder and decodes the given `input` string.
+  explicit UrlEscapeDecoder(std::string_view input, DecodeUrlMode mode) {
+    DecodeUrlEscapeSequences(input, mode, &output_);
+  }
+
+  // Returns a view of the decoded string. The returned `std::u16string_view`
+  // is valid only for the lifetime of this `UrlEscapeDecoder` instance.
+  std::u16string_view view() const LIFETIME_BOUND { return output_.view(); }
+
+ private:
+  RawCanonOutputT<char16_t, fixed_capacity> output_;
+};
+
 // Unescapes the given string using URL escaping rules.  The resultant string
 // is encoded in UTF-8.
+//
+// This function is less efficient than
+// `DecodeUrlEscapeSequences(input, mode, output)` and UrlEscapeDecoder because
+// this allocates a std::string instance and copies the content to it.
 COMPONENT_EXPORT(URL)
 std::string DecodeUrlEscapeSequences(std::string_view input,
                                      DecodeUrlMode mode);
@@ -298,16 +334,16 @@ std::string DecodeUrlEscapeSequences(std::string_view input,
 // This is used when we need a std::string_view result.
 //
 //   url::RawCanonOutputT<char> output;
-//   url::EncodeURIComponent(input, &output);
+//   url::EncodeUriComponent(input, &output);
 //   // Use output.view() here.
 COMPONENT_EXPORT(URL)
-void EncodeURIComponent(std::string_view input, CanonOutput* output);
+void EncodeUriComponent(std::string_view input, CanonOutput* output);
 
 // A helper class to perform URI component encoding, potentially without heap
-// allocation. This is an alternative to `url::EncodeUriComponent()` which
-// always allocates a `std::string`. This class uses a stack-allocated buffer
-// up to `fixed_capacity` and avoids heap allocation if the encoded result fits
-// in it.
+// allocation. This is an alternative to `url::EncodeUriComponent(input)`
+// which always allocates a `std::string`. This class uses a stack-allocated
+// buffer up to `fixed_capacity` and avoids heap allocation if the encoded
+// result fits in it.
 //
 // Examples:
 //
@@ -324,7 +360,7 @@ class UriComponentEncoder {
  public:
   // Constructs an encoder and encodes the given `input` string.
   explicit UriComponentEncoder(std::string_view input) {
-    EncodeURIComponent(input, &output_);
+    EncodeUriComponent(input, &output_);
   }
 
   // Returns a view of the encoded string. The returned `std::string_view` is
@@ -338,7 +374,7 @@ class UriComponentEncoder {
 // Escapes the given string as defined by the JS method encodeURIComponent. See
 // https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/encodeURIComponent
 //
-// This function is less efficient than EncodeURIComponent(input, output) and
+// This function is less efficient than EncodeUriComponent(input, output) and
 // UriComponentEncoder because this allocates a std::string instance and
 // copies the content to it.
 COMPONENT_EXPORT(URL)

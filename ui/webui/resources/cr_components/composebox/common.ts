@@ -6,7 +6,27 @@ import {ComposeboxContextAddedMethod} from '//resources/cr_components/search/con
 import type {UnguessableToken} from '//resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
 import type {Url} from '//resources/mojo/url/mojom/url.mojom-webui.js';
 
+import {FileUploadErrorType} from './composebox_query.mojom-webui.js';
 import type {FileUploadStatus} from './composebox_query.mojom-webui.js';
+
+export const FILE_VALIDATION_ERRORS_MAP = new Map<FileUploadErrorType, string>([
+  [
+    FileUploadErrorType.kBrowserProcessingError,
+    'composeboxFileUploadFailed',
+  ],
+  [
+    FileUploadErrorType.kImageProcessingError,
+    'composeFileTypesAllowedError',
+  ],
+  [
+    FileUploadErrorType.kServerSizeLimitExceeded,
+    'composeboxFileUploadInvalidTooLarge',
+  ],
+  [
+    FileUploadErrorType.kUnknown,
+    'composeboxFileUploadValidationFailed',
+  ],
+]);
 
 export interface ComposeboxFile {
   uuid: UnguessableToken;
@@ -18,6 +38,7 @@ export interface ComposeboxFile {
   url: Url|null;
   tabId: number|null;
   isDeletable: boolean;
+  iconName: string|null;
 }
 
 export interface FileUpload {
@@ -51,30 +72,15 @@ export enum GlifAnimationState {
 
 export function recordEnumerationValue(
     metricName: string, value: number, enumSize: number) {
-  // In rare cases chrome.metricsPrivate is not available.
-  // TODO(crbug.com/40162029): Remove this check once the bug is fixed.
-  if (!chrome.metricsPrivate) {
-    return;
-  }
-  chrome.metricsPrivate.recordEnumerationValue(metricName, value, enumSize);
+  chrome.histograms.recordEnumerationValue(metricName, value, enumSize);
 }
 
 export function recordUserAction(metricName: string) {
-  // In rare cases chrome.metricsPrivate is not available.
-  // TODO(crbug.com/40162029): Remove this check once the bug is fixed.
-  if (!chrome.metricsPrivate) {
-    return;
-  }
-  chrome.metricsPrivate.recordUserAction(metricName);
+  chrome.histograms.recordUserAction(metricName);
 }
 
 export function recordBoolean(metricName: string, value: boolean) {
-  // In rare cases chrome.metricsPrivate is not available.
-  // TODO(crbug.com/40162029): Remove this check once the bug is fixed.
-  if (!chrome.metricsPrivate) {
-    return;
-  }
-  chrome.metricsPrivate.recordBoolean(metricName, value);
+  chrome.histograms.recordBoolean(metricName, value);
 }
 
 // TODO(crbug.com/468329884): Consider making this a new contextual entry

@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.setup_list;
 
+import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.chrome.browser.firstrun.FirstRunStatus.isFirstRunTriggered;
 
 import android.content.SharedPreferences;
@@ -12,6 +13,7 @@ import androidx.annotation.IntDef;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.ContextUtils;
+import org.chromium.base.ObserverList;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.base.TimeUtils;
 import org.chromium.base.shared_preferences.SharedPreferencesManager;
@@ -28,6 +30,7 @@ import org.chromium.chrome.browser.sync.SyncServiceFactory;
 import org.chromium.components.search_engines.SearchEngineChoiceService;
 import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.signin.identitymanager.IdentityManager;
+import org.chromium.components.signin.identitymanager.PrimaryAccountChangeEvent;
 import org.chromium.components.sync.SyncService;
 
 import java.lang.annotation.Retention;
@@ -47,7 +50,14 @@ import java.util.concurrent.TimeUnit;
  * also maintains the dynamic ranking of modules, moving completed items to the end.
  */
 @NullMarked
-public class SetupListManager implements SharedPreferences.OnSharedPreferenceChangeListener {
+public class SetupListManager
+        implements SharedPreferences.OnSharedPreferenceChangeListener, IdentityManager.Observer {
+    /** Interface for observing changes to the Setup List state. */
+    public interface Observer {
+        /** Called when the Setup List's state (eligibility, ranking, or layout) has changed. */
+        void onSetupListStateChanged();
+    }
+
     // TODO(crbug.com/469425754): Re-arrange the class in a more meaningful manner.
     /** Defines the mutually exclusive UI layouts for the Setup List. */
     @IntDef({
@@ -108,6 +118,8 @@ public class SetupListManager implements SharedPreferences.OnSharedPreferenceCha
     private Set<String> mCompletedKeys = new HashSet<>();
     private @Nullable Profile mProfile;
     private final Set<Integer> mModulesAwaitingCompletionAnimation = new HashSet<>();
+    private boolean mHasRegisteredIdentityObserver;
+    private final ObserverList<Observer> mObservers = new ObserverList<>();
 
     /** The current UI layout phase of the Setup List. */
     private @SetupListActiveLayout int mActiveLayout = SetupListActiveLayout.SINGLE_CELL;
@@ -197,6 +209,18 @@ public class SetupListManager implements SharedPreferences.OnSharedPreferenceCha
         mActiveLayout = SetupListActiveLayout.INACTIVE;
         mRankedModules.clear();
         mModuleRankMap.clear();
+        unregisterObservers();
+    }
+
+    private void unregisterObservers() {
+        if (mHasRegisteredIdentityObserver && mProfile != null) {
+            IdentityManager identityManager =
+                    IdentityServicesProvider.get().getIdentityManager(mProfile);
+            if (identityManager != null) {
+                identityManager.removeObserver(this);
+            }
+            mHasRegisteredIdentityObserver = false;
+        }
     }
 
     private ModulePartition partitionModules() {
@@ -401,7 +425,35 @@ public class SetupListManager implements SharedPreferences.OnSharedPreferenceCha
 
         Integer moduleType = mKeyToModuleMap.get(key);
         if (moduleType != null) {
-            SetupListModuleUtils.setModuleCompleted(moduleType, /* silent= */ true);
+            setModuleCompleted(moduleType, /* silent= */ true);
+        }
+    }
+
+    /** Adds an observer to be notified of Setup List state changes. */
+    public void addObserver(Observer observer) {
+        mObservers.addObserver(observer);
+    }
+
+    /** Removes a previously added observer. */
+    public void removeObserver(Observer observer) {
+        mObservers.removeObserver(observer);
+    }
+
+    @Override
+    public void onPrimaryAccountChanged(PrimaryAccountChangeEvent eventDetails) {
+        @PrimaryAccountChangeEvent.Type
+        int eventType = eventDetails.getEventTypeFor(ConsentLevel.SIGNIN);
+        if (eventType == PrimaryAccountChangeEvent.Type.SET) {
+            setModuleCompleted(ModuleType.SIGN_IN_PROMO, /* silent= */ false);
+        } else {
+            reconcileState();
+        }
+        notifyStateChanged();
+    }
+
+    private void notifyStateChanged() {
+        for (Observer observer : mObservers) {
+            observer.onSetupListStateChanged();
         }
     }
 
@@ -417,7 +469,19 @@ public class SetupListManager implements SharedPreferences.OnSharedPreferenceCha
             return;
         }
 
-        mProfile = profile;
+        if (mProfile != profile) {
+            unregisterObservers();
+            mProfile = profile;
+        }
+
+        if (!mHasRegisteredIdentityObserver) {
+            IdentityManager identityManager =
+                    IdentityServicesProvider.get().getIdentityManager(mProfile);
+            assertNonNull(identityManager);
+            identityManager.addObserver(this);
+            mHasRegisteredIdentityObserver = true;
+        }
+
         for (int moduleType : BASE_SETUP_LIST_ORDER) {
             if (!isModuleCompleted(moduleType)
                     && SetupListModuleUtils.checkIsTaskCompletedInSystem(moduleType, profile)) {
@@ -436,18 +500,21 @@ public class SetupListManager implements SharedPreferences.OnSharedPreferenceCha
      *     immediately without animation.
      */
     public void setModuleCompleted(@ModuleType int moduleType, boolean silent) {
+        if (isModuleCompleted(moduleType)) return;
         String individualPrefKey = SetupListModuleUtils.getCompletionKeyForModule(moduleType);
         if (individualPrefKey == null) return;
 
         if (mCompletedKeys.contains(individualPrefKey)) return;
 
-        ChromeSharedPreferences.getInstance().writeBoolean(individualPrefKey, true);
         mCompletedKeys.add(individualPrefKey);
+        ChromeSharedPreferences.getInstance().writeBoolean(individualPrefKey, true);
 
         if (!silent) {
             mModulesAwaitingCompletionAnimation.add(moduleType);
         }
         reconcileState();
+
+        SetupListModuleUtils.recordSetupListItemCompletion(moduleType);
     }
 
     /**
@@ -518,6 +585,11 @@ public class SetupListManager implements SharedPreferences.OnSharedPreferenceCha
     /** Returns whether a module is awaiting its completion animation. */
     public boolean isModuleAwaitingCompletionAnimation(@ModuleType int moduleType) {
         return mModulesAwaitingCompletionAnimation.contains(moduleType);
+    }
+
+    /** Returns the set of all module types currently awaiting completion animation. */
+    public Set<Integer> getModulesAwaitingCompletionAnimation() {
+        return mModulesAwaitingCompletionAnimation;
     }
 
     /**

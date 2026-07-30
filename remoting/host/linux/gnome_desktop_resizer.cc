@@ -29,7 +29,6 @@
 #include "remoting/proto/control.pb.h"
 #include "third_party/webrtc/modules/desktop_capture/desktop_capture_types.h"
 #include "third_party/webrtc/modules/desktop_capture/desktop_geometry.h"
-#include "ui/base/glib/gsettings.h"
 
 namespace remoting {
 
@@ -41,15 +40,6 @@ constexpr GnomeDisplayConfig::LayoutMode kPreferredLayoutMode =
     GnomeDisplayConfig::LayoutMode::kLogical;
 
 constexpr base::TimeDelta kClearPreferredConfigDelay = base::Seconds(5);
-
-// Minimum text scaling factor (inverted if less than 1) required to be applied,
-// meaning the text scale will only be applied if
-// `preferred_scale / best_monitor_scale` is higher than kTextScaleThreshold,
-// or lower than `1 / kTextScaleThreshold`, otherwise it will be reverted to 1.
-// This is to prevent setting the text scale when the monitor scale is close
-// enough to the preferred scale, since a non-1 text scale usually negatively
-// affects how the OS layouts UI elements.
-constexpr double kTextScaleThreshold = 1.25;
 
 inline double InverseIfLessThanOne(double v) {
   return v < 1.0 ? 1.0 / v : v;
@@ -85,10 +75,6 @@ inline double FindBestScale(double preferred_scale,
   return *it;
 }
 
-inline bool IsSameScale(double s1, double s2) {
-  return std::abs(s1 - s2) < 0.01;
-}
-
 // Note: this method only adds a monitor for the purpose of layout calculation.
 // DO NOT call ApplyMonitorsConfig with the updated `config`.
 void AddMonitorForLayoutCalculation(GnomeDisplayConfig& config,
@@ -109,13 +95,6 @@ void AddMonitorForLayoutCalculation(GnomeDisplayConfig& config,
   info.modes.push_back(mode);
 }
 
-inline ScopedGObject<GSettings> CreateGsettingsRegistry() {
-  auto registry = ui::GSettingsNew("org.gnome.desktop.interface");
-  CHECK(registry)
-      << "ui::GSettingsNew(\"org.gnome.desktop.interface\") failed.";
-  return registry;
-}
-
 }  // namespace
 
 GnomeDesktopResizer::GnomeDesktopResizer(
@@ -125,7 +104,6 @@ GnomeDesktopResizer::GnomeDesktopResizer(
     : GnomeDesktopResizer(
           stream_manager,
           display_config_monitor,
-          CreateGsettingsRegistry(),
           base::BindRepeating(
               &GnomeDisplayConfigDBusClient::ApplyMonitorsConfig,
               display_config_client)) {}
@@ -133,12 +111,10 @@ GnomeDesktopResizer::GnomeDesktopResizer(
 GnomeDesktopResizer::GnomeDesktopResizer(
     base::WeakPtr<CaptureStreamManager> stream_manager,
     base::WeakPtr<GnomeDisplayConfigMonitor> display_config_monitor,
-    ScopedGObject<GSettings> registry,
     base::RepeatingCallback<void(const GnomeDisplayConfig&)>
         apply_monitors_config)
     : stream_manager_(stream_manager),
-      apply_monitors_config_(apply_monitors_config),
-      registry_(std::move(registry)) {
+      apply_monitors_config_(apply_monitors_config) {
   if (display_config_monitor) {
     monitors_changed_subscription_ = display_config_monitor->AddCallback(
         base::BindRepeating(&GnomeDesktopResizer::OnGnomeDisplayConfigReceived,
@@ -162,8 +138,7 @@ ScreenResolution GnomeDesktopResizer::GetCurrentResolution(
     return {};
   }
 
-  double text_scaling_factor = GetTextScalingFactor();
-  double dpi = kDefaultDpi * text_scaling_factor;
+  double dpi = kDefaultDpi;
   auto monitor_it = current_display_config_.FindMonitor(screen_id);
   if (monitor_it == current_display_config_.monitors.end()) {
     LOG(ERROR) << "Cannot find monitor with screen ID: " << screen_id;
@@ -187,6 +162,19 @@ void GnomeDesktopResizer::SetResolution(const ScreenResolution& resolution,
                                         webrtc::ScreenId screen_id) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
+  if (block_and_queue_display_changes_) {
+    pending_requests_.push_back(
+        base::BindOnce(&GnomeDesktopResizer::DoSetResolution,
+                       weak_ptr_factory_.GetWeakPtr(), resolution, screen_id));
+  } else {
+    DoSetResolution(resolution, screen_id);
+  }
+}
+
+void GnomeDesktopResizer::DoSetResolution(const ScreenResolution& resolution,
+                                          webrtc::ScreenId screen_id) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
   // Sometimes the client will send multiple SetResolution requests. The display
   // layout will become horizontal start-aligned after
   // SetResolutionAndPosition(), so we only set the preferred layout if it
@@ -207,6 +195,22 @@ void GnomeDesktopResizer::RestoreResolution(const ScreenResolution& original,
 }
 
 void GnomeDesktopResizer::SetVideoLayout(const protocol::VideoLayout& layout) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  if (block_and_queue_display_changes_) {
+    // We can clear the pending requests since all the previous
+    // SetResolution/SetVideoLayout calls will become irrelevant.
+    pending_requests_.clear();
+    pending_requests_.push_back(
+        base::BindOnce(&GnomeDesktopResizer::DoSetVideoLayout,
+                       weak_ptr_factory_.GetWeakPtr(), layout));
+  } else {
+    DoSetVideoLayout(layout);
+  }
+}
+
+void GnomeDesktopResizer::DoSetVideoLayout(
+    const protocol::VideoLayout& layout) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (!stream_manager_) {
@@ -332,6 +336,20 @@ void GnomeDesktopResizer::SetVideoLayout(const protocol::VideoLayout& layout) {
 
 base::WeakPtr<GnomeDesktopResizer> GnomeDesktopResizer::GetWeakPtr() {
   return weak_ptr_factory_.GetWeakPtr();
+}
+
+void GnomeDesktopResizer::BlockAndQueueDisplayChanges() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  block_and_queue_display_changes_ = true;
+}
+
+void GnomeDesktopResizer::UnblockAndFlushDisplayChanges() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  block_and_queue_display_changes_ = false;
+  for (auto& request : pending_requests_) {
+    std::move(request).Run();
+  }
+  pending_requests_.clear();
 }
 
 void GnomeDesktopResizer::SetResolutionAndPosition(
@@ -513,14 +531,6 @@ void GnomeDesktopResizer::DoApplyPreferredMonitorsConfig() {
       monitor.scale = best_monitor_scale;
       config_changed = true;
     }
-    // For the primary monitor, we correct the effective scale by applying
-    // a text scale. We can't do this for all monitors, since the text scale
-    // is globally applied, so we only do this for the primary monitor.
-    // Note: an integer scale is usually supported, so this is usually only
-    // applied when the client requests a fractional scale for a monitor.
-    if (monitor.is_primary) {
-      SetTextScalingFactor(preferred_config.scale / best_monitor_scale);
-    }
   }
 
   if (preferred_layout_.has_value()) {
@@ -588,28 +598,6 @@ void GnomeDesktopResizer::MaybeDelayClearPreferredConfig() {
 
   if (clear_preferred_config_timer_.IsRunning()) {
     clear_preferred_config_timer_.Reset();
-  }
-}
-
-double GnomeDesktopResizer::GetTextScalingFactor() const {
-  if (!registry_) {
-    return 1.0;
-  }
-  return g_settings_get_double(registry_.get(), "text-scaling-factor");
-}
-
-void GnomeDesktopResizer::SetTextScalingFactor(double text_scaling_factor) {
-  if (!registry_) {
-    return;
-  }
-  if (InverseIfLessThanOne(text_scaling_factor) < kTextScaleThreshold) {
-    // Revert text scale to 1 if it doesn't exceed the threshold.
-    text_scaling_factor = 1.0;
-  }
-  if (!IsSameScale(GetTextScalingFactor(), text_scaling_factor) &&
-      !g_settings_set_double(registry_.get(), "text-scaling-factor",
-                             text_scaling_factor)) {
-    LOG(ERROR) << "Failed to set text-scaling-factor";
   }
 }
 

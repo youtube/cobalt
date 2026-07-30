@@ -35,10 +35,6 @@ void RegisterWhatsNewModules(whats_new::WhatsNewRegistry* registry) {
       WhatsNewModule("Googlepayreauth", "vinnypersky@google.com",
                      BrowserCommand::kOpenPaymentsSettings));
 
-  // M138
-  registry->RegisterModule(
-      WhatsNewModule("TabGroupsSync", "dpenning@google.com"));
-
   // M142
   registry->RegisterModule(WhatsNewModule(::features::kSideBySide,
                                           "agale@google.com",
@@ -53,23 +49,15 @@ void RegisterWhatsNewModules(whats_new::WhatsNewRegistry* registry) {
   registry->RegisterModule(
       WhatsNewModule(chrome_pdf::features::kPdfInk2, "andyphan@chromium.org"));
 #endif  // BUILDFLAG(ENABLE_PDF)
-
-  // M144
-#if BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
-  registry->RegisterModule(WhatsNewModule(chrome_pdf::features::kPdfSaveToDrive,
-                                          "faizur@google.com"));
-#endif  // BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
 }
 
 void RegisterWhatsNewEditions(whats_new::WhatsNewRegistry* registry) {
   // Register editions here.
-#if BUILDFLAG(ENABLE_GLIC)
   registry->RegisterEdition(WhatsNewEdition(
       ::features::kGlicRollout, "tommasin@chromium.org",
       std::vector<BrowserCommand>{BrowserCommand::kOpenGlic,
                                   BrowserCommand::kOpenGlicSettings,
                                   BrowserCommand::kPrewarmGlicFre}));
-#endif  // BUILDFLAG(ENABLE_GLIC)
 }
 
 std::unique_ptr<WhatsNewRegistry> CreateWhatsNewRegistry() {

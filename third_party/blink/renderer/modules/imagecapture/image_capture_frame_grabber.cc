@@ -170,6 +170,11 @@ void ImageCaptureFrameGrabber::GrabFrame(
       MediaStreamVideoSink::UsesAlpha::kDefault);
 }
 
+// Killswitch guarding ImageCaptureFrameGrabber not caching the SkSurface used
+// for VideoFrame->StaticBitmapImage software draws.
+BASE_FEATURE(kImageCaptureFrameGrabberDrawCacheSkSurface,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 void ImageCaptureFrameGrabber::OnVideoFrame(
     media::VideoFrame* frame,
     ScriptPromiseResolver<ImageBitmap>* resolver) {
@@ -177,22 +182,42 @@ void ImageCaptureFrameGrabber::OnVideoFrame(
 
   auto required_provider_info = CreateSnapshotProviderInfoForVideoFrame(*frame);
 
-  if (!snapshot_provider_ ||
-      !required_provider_info.Matches(*snapshot_provider_)) {
-    if (!ShouldCreateAcceleratedImages(GetRasterContextProvider().get())) {
-      snapshot_provider_ =
-          CanvasNon2DSnapshotProviderBitmap::Create(required_provider_info);
-    } else {
+  if (!cached_draw_info_ ||
+      !required_provider_info.Matches(*cached_draw_info_)) {
+    cached_draw_info_.reset();
+    sw_draw_surface_.reset();
+    snapshot_provider_.reset();
+    if (ShouldCreateAcceleratedImages(GetRasterContextProvider().get())) {
       snapshot_provider_ = CanvasNon2DResourceProviderSharedImage::Create(
           required_provider_info.size, required_provider_info.format,
           required_provider_info.alpha_type, required_provider_info.color_space,
           SharedGpuContext::ContextProviderWrapper(),
           gpu::SHARED_IMAGE_USAGE_DISPLAY_READ);
+      if (snapshot_provider_) {
+        cached_draw_info_ = required_provider_info;
+      }
+    } else {
+      if (base::FeatureList::IsEnabled(
+              kImageCaptureFrameGrabberDrawCacheSkSurface)) {
+        sw_draw_surface_ = CanvasNon2DSnapshotProviderBitmap::CreateSurface(
+            required_provider_info);
+      }
+      cached_draw_info_ = required_provider_info;
     }
   }
 
-  scoped_refptr<StaticBitmapImage> image = CreateImageFromVideoFrame(
-      frame, snapshot_provider_.get(), &video_renderer_);
+  scoped_refptr<StaticBitmapImage> image;
+
+  if (cached_draw_info_) {
+    std::optional<CanvasSnapshotProvider::Info> sw_draw_info;
+    if (!snapshot_provider_) {
+      sw_draw_info = required_provider_info;
+    }
+
+    image = CreateImageFromVideoFrame(frame, snapshot_provider_.get(),
+                                      std::move(sw_draw_info), sw_draw_surface_,
+                                      &video_renderer_);
+  }
 
   timeout_task_handle_.Cancel();
   MediaStreamVideoSink::DisconnectFromTrack();

@@ -54,6 +54,7 @@
 #include "chrome/browser/glic/host/page_metadata_manager.h"
 #include "chrome/browser/glic/media/glic_media_link_helper.h"
 #include "chrome/browser/glic/public/context/glic_sharing_manager.h"
+#include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
@@ -125,12 +126,14 @@
 #include "chrome/browser/glic/host/context/glic_focused_browser_manager.h"
 #include "chrome/browser/skills/skills_service_factory.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "components/skills/features.h"
 #include "components/skills/public/skill.h"
 #include "components/skills/public/skills_service.h"
 #include "extensions/browser/guest_view/web_view/web_view_guest.h"
+#include "ui/base/base_window.h"
 #endif
 
 namespace mojo {
@@ -988,6 +991,14 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
       state->host_capabilities.push_back(mojom::HostCapability::kMultiInstance);
     }
 
+    if (base::FeatureList::IsEnabled(features::kAutoOpenGlicForPdf)) {
+      state->host_capabilities.push_back(mojom::HostCapability::kPdfZeroState);
+    }
+
+    if (base::FeatureList::IsEnabled(features::kGlicInvoke)) {
+      state->host_capabilities.push_back(mojom::HostCapability::kInvoke);
+    }
+
     const mojom::InvocationSource invocation_source =
         host().invocation_source().value_or(
             mojom::InvocationSource::kUnsupported);
@@ -1035,6 +1046,7 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
         base::FeatureList::IsEnabled(
             features::kGlicOpenPasswordManagerSettingsPageApi);
     state->enable_trust_first_onboarding =
+        !should_bypass_fre_ui &&
         GlicEnabling::IsTrustFirstOnboardingEnabledForProfile(profile_);
     state->onboarding_completed =
         GlicEnabling::HasConsentedForProfile(profile_);
@@ -1440,10 +1452,8 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
           "ShowManageSkillsUi cannot be called without Skills enabled.");
       return;
     }
-    NavigateParams params(profile_, GURL(chrome::kChromeUISkillsURL),
-                          ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
-    params.disposition = WindowOpenDisposition::SINGLETON_TAB;
-    Navigate(&params);
+
+    host().skills_manager().ShowManageSkillsUi();
 #else
     receiver_.ReportBadMessage(
         "ShowManageSkillsUi isn't supported on Android.");
@@ -1464,6 +1474,13 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
 #else
     receiver_.ReportBadMessage("GetSkill isn't supported on Android.");
 #endif  //  !BUILDFLAG(IS_ANDROID)
+  }
+
+  void RecordSkillsWebClientEvent(
+      glic::mojom::SkillsWebClientEvent action) override {
+    if (auto* instance_metrics = host().instance_metrics()) {
+      instance_metrics->RecordSkillsWebClientEvent(action);
+    }
   }
 
   void CreateActorTab(int32_t task_id,
@@ -2080,12 +2097,21 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
 // from Skills backend.
 #if !BUILDFLAG(IS_ANDROID)
   // SkillsService::Observer implementation.
-  void OnSkillUpdated(
-      std::string_view skill_id,
-      skills::SkillsService::UpdateSource update_source) override {
+  void OnSkillUpdated(std::string_view skill_id,
+                      skills::SkillsService::UpdateSource update_source,
+                      bool is_position_changed) override {
     if (!web_client_) {
       return;
     }
+
+    if (is_position_changed) {
+      // Update all the skill previews for simplicity as updating the position
+      // is not frequent.
+      host().skills_manager().UpdateSkillPreviews(std::nullopt);
+      web_client_->NotifySkillPreviewsChanged(GetSkillPreviewsList());
+      return;
+    }
+
     mojom::SkillPtr skill = GetSkillById(skill_id);
     if (!skill) {
       web_client_->NotifySkillDeleted(skill_id.data());
@@ -2519,6 +2545,10 @@ void GlicPageHandler::WebviewCommitted(const GURL& url) {
 
 void GlicPageHandler::NotifyWindowIntentToShow() {
   page_->IntentToShow();
+}
+
+void GlicPageHandler::Zoom(mojom::ZoomAction zoom_action) {
+  page_->Zoom(zoom_action);
 }
 
 content::RenderFrameHost* GlicPageHandler::GetGuestMainFrame() {

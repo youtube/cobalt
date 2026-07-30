@@ -18,10 +18,6 @@
 #include "ui/views/controls/separator.h"
 #include "ui/views/view.h"
 
-namespace contextual_tasks {
-struct Thread;
-}  // namespace contextual_tasks
-
 namespace gfx {
 class Point;
 }  // namespace gfx
@@ -38,7 +34,9 @@ class ViewShadow;
 }  // namespace views
 
 class BrowserWindowInterface;
+
 class ProjectsPanelController;
+class ProjectsPanelRecentThreadsView;
 class ProjectsPanelStateController;
 class ProjectsPanelTabGroupsView;
 
@@ -71,6 +69,9 @@ class ProjectsPanelView : public views::View,
   // Set whether the panel should appear elevated with rounded borders.
   void SetIsElevated(bool elevated);
 
+  // Whether the panel appears elevated with rounded borders.
+  bool is_elevated() { return elevated_; }
+
   // views::View:
   void Layout(PassKey) override;
   bool AcceleratorPressed(const ui::Accelerator& accelerator) override;
@@ -88,6 +89,8 @@ class ProjectsPanelView : public views::View,
   void OnTabGroupRemoved(const base::Uuid& sync_id, int old_index) override;
   void OnTabGroupsReordered(
       const std::vector<tab_groups::SavedTabGroup>& tab_groups) override;
+  void OnThreadsInitialized(
+      const std::vector<contextual_tasks::Thread>& threads) override;
 
   views::View* content_container_for_testing() { return content_container_; }
 
@@ -121,18 +124,16 @@ class ProjectsPanelView : public views::View,
                                    views::MenuButton& button);
   void OnTabGroupMoved(const base::Uuid& group_guid, int new_index);
   void OnCreateNewTabGroupButtonPressed();
+  void OnThreadButtonPressed(const std::string& thread_server_id);
 
   const raw_ptr<BrowserWindowInterface> browser_;
   raw_ptr<actions::ActionItem> root_action_item_ = nullptr;
   raw_ptr<views::View> content_container_ = nullptr;
   raw_ptr<ProjectsPanelControlsView> controls_view_ = nullptr;
   raw_ptr<ProjectsPanelTabGroupsView> tab_groups_view_ = nullptr;
+  raw_ptr<ProjectsPanelRecentThreadsView> threads_view_ = nullptr;
 
   std::unique_ptr<views::ViewShadow> content_shadow_;
-
-  // TODO(crbug.com/475300882): Remove once we fetch thread data from the
-  // controller.
-  const std::vector<contextual_tasks::Thread> threads_;
 
   std::unique_ptr<views::ActionViewController> action_view_controller_;
   std::unique_ptr<ProjectsPanelController> panel_controller_;

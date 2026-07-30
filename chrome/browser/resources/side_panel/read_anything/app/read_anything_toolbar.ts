@@ -284,6 +284,17 @@ export class ReadAnythingToolbarElement extends ReadAnythingToolbarElementBase {
     if (changedProperties.has('presentationState') &&
         (this.isReadingModeInSidePanel() || this.isReadingModeInactive())) {
       this.$.toolbarContainer.tabIndex = 0;
+      const currentFocusedElement =
+          this.$.toolbarContainer.querySelector<HTMLElement>('[tabindex="0"]');
+      if (!currentFocusedElement) {
+        const tabIndexElementId =
+            this.isReadAloudPlayable ? '#play-pause' : '#rate';
+        const element = this.$.toolbarContainer.querySelector<HTMLElement>(
+            tabIndexElementId);
+        if (element) {
+          element.tabIndex = 0;
+        }
+      }
     }
   }
 
@@ -521,7 +532,7 @@ export class ReadAnythingToolbarElement extends ReadAnythingToolbarElementBase {
     this.fire(ToolbarEvent.PREVIOUS_GRANULARITY);
   }
 
-  protected onTextStyleMenuButtonClickFromOverflow_(e: Event) {
+  protected onTextStyleMenuButtonFromOverflowClick_(e: Event) {
     const currentTarget = e.currentTarget as HTMLElement;
     const index = Number.parseInt(currentTarget.dataset['index']!);
     const menu = this.moreOptionsButtons_[index];
@@ -727,7 +738,7 @@ export class ReadAnythingToolbarElement extends ReadAnythingToolbarElementBase {
     this.fire(ToolbarEvent.PLAY_PAUSE);
   }
 
-  protected onToolbarKeyDown_(e: KeyboardEvent) {
+  protected onToolbarKeydown_(e: KeyboardEvent) {
     const toolbar = this.$.toolbarContainer;
     const buttons =
         Array.from(toolbar.querySelectorAll<HTMLElement>('.toolbar-button'));
@@ -756,7 +767,7 @@ export class ReadAnythingToolbarElement extends ReadAnythingToolbarElementBase {
     this.onKeyDown_(e, focusableElements);
   }
 
-  protected onFontSizeMenuKeyDown_(e: KeyboardEvent) {
+  protected onFontSizeMenuKeydown_(e: KeyboardEvent) {
     // The font size selection menu is laid out horizontally, so users should be
     // able to navigate it using either up and down arrows, or left and right
     // arrows.

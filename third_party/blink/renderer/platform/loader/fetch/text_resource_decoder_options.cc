@@ -15,11 +15,11 @@ TextResourceDecoderOptions::TextResourceDecoderOptions(
                                  content_type,
                                  default_encoding,
                                  AtomicString(),
-                                 KURL()) {}
+                                 NullUrl()) {}
 
 TextResourceDecoderOptions TextResourceDecoderOptions::CreateUTF8Decode() {
   return TextResourceDecoderOptions(kAlwaysUseUTF8ForText, kPlainTextContent,
-                                    Utf8Encoding(), AtomicString(), NullURL());
+                                    Utf8Encoding(), AtomicString(), NullUrl());
 }
 
 TextResourceDecoderOptions

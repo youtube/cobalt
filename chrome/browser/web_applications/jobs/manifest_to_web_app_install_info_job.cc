@@ -47,7 +47,6 @@
 #include "components/webapps/browser/installable/installable_evaluator.h"
 #include "components/webapps/browser/installable/installable_metrics.h"
 #include "content/public/browser/web_contents.h"
-#include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/manifest/manifest.h"
 #include "third_party/blink/public/common/safe_url_pattern.h"
@@ -825,15 +824,13 @@ void ManifestToWebAppInstallInfoJob::ParseManifestAndPopulateInfo() {
   const std::vector<blink::Manifest::ImageResource>& icons =
       GetLocalizedIconsFromManifest(*manifest_, application_locale);
   UpdateWebAppInstallInfoIconsFromManifestIfNeeded(icons, &install_info());
-  if (base::FeatureList::IsEnabled(features::kWebAppUsePrimaryIcon)) {
-    if (options_.use_manifest_icons_as_trusted) {
-      install_info().trusted_icons = install_info().manifest_icons;
-    } else {
-      std::optional<apps::IconInfo> primary_icon_metadata =
-          GetTrustedIconsFromManifest(icons);
-      if (primary_icon_metadata) {
-        install_info().trusted_icons = {*primary_icon_metadata};
-      }
+  if (options_.use_manifest_icons_as_trusted) {
+    install_info().trusted_icons = install_info().manifest_icons;
+  } else {
+    std::optional<apps::IconInfo> primary_icon_metadata =
+        GetTrustedIconsFromManifest(icons);
+    if (primary_icon_metadata) {
+      install_info().trusted_icons = {*primary_icon_metadata};
     }
   }
 
@@ -895,19 +892,6 @@ void ManifestToWebAppInstallInfoJob::ParseManifestAndPopulateInfo() {
 
   install_info().translations = ToWebAppTranslations(manifest_->translations);
 
-  install_info().permissions_policy.clear();
-  for (const auto& decl : manifest_->permissions_policy) {
-    network::ParsedPermissionsPolicyDeclaration copy;
-    copy.feature = decl.feature;
-    copy.self_if_matches = decl.self_if_matches;
-    for (const auto& origin : decl.allowed_origins) {
-      copy.allowed_origins.push_back(origin);
-    }
-    copy.matches_all_origins = decl.matches_all_origins;
-    copy.matches_opaque_src = decl.matches_opaque_src;
-    install_info().permissions_policy.push_back(std::move(copy));
-  }
-
   install_info().tab_strip = manifest_->tab_strip;
 
   if (HomeTabIconsExistInTabStrip(*install_info_)) {
@@ -944,12 +928,10 @@ void ManifestToWebAppInstallInfoJob::OnIconsFetchedGetInstallInfo(
   if (install_info().is_generated_icon) {
     debug_data_->Set("is_generated_icon", true);
   }
-  if (base::FeatureList::IsEnabled(features::kWebAppUsePrimaryIcon)) {
-    if (options_.use_manifest_icons_as_trusted) {
-      install_info().trusted_icon_bitmaps = install_info().icon_bitmaps;
-    } else {
-      PopulateTrustedIconBitmaps(install_info(), icons_map);
-    }
+  if (options_.use_manifest_icons_as_trusted) {
+    install_info().trusted_icon_bitmaps = install_info().icon_bitmaps;
+  } else {
+    PopulateTrustedIconBitmaps(install_info(), icons_map);
   }
   PopulateOtherIcons(&install_info(), icons_map);
   RecordDownloadedIconsResultAndHttpStatusCodes(result, icons_http_results);

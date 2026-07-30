@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/command_line.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/config/coverage/buildflags.h"
 #include "chrome/common/webui_url_constants.h"
@@ -19,21 +20,36 @@ class ContextualTasksBrowserTest : public WebUIMochaBrowserTest {
     set_test_loader_host(chrome::kChromeUIContextualTasksHost);
   }
 
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    WebUIMochaBrowserTest::SetUpCommandLine(command_line);
+    // TODO(crbug.com/489032845): Re-enable crash-on-JS-error for tests.
+    command_line->AppendSwitch("disable-crash-on-webui-js-error");
+  }
+
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, App) {
+// TODO(crbug.com/487802136): Flaky on Linux.
+#if BUILDFLAG(IS_LINUX)
+#define MAYBE_App DISABLED_App
+#else
+#define MAYBE_App App
+#endif
+IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, MAYBE_App) {
   RunTest("contextual_tasks/app_test.js", "mocha.run();");
 }
 
-// TODO(crbug.com/480689282): Test disabled because it is flaky.
-IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, DISABLED_Composebox) {
+IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, Composebox) {
   RunTest("contextual_tasks/composebox_test.js", "mocha.run();");
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, Composebox_MiscInputs) {
   RunTest("contextual_tasks/composebox_misc_inputs_test.js", "mocha.run();");
+}
+
+IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, Composebox_Submit) {
+  RunTest("contextual_tasks/composebox_submit_test.js", "mocha.run();");
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, PostMessageHandler) {

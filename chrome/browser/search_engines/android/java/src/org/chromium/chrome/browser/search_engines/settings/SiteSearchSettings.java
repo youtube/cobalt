@@ -15,7 +15,8 @@ import org.chromium.chrome.browser.search_engines.R;
 import org.chromium.chrome.browser.search_engines.settings.common.SearchEngineListPreference;
 import org.chromium.chrome.browser.search_engines.settings.custom_search_engine.CustomSearchEngineListCoordinator;
 import org.chromium.chrome.browser.search_engines.settings.custom_site_search.CustomSiteSearchCoordinator;
-import org.chromium.chrome.browser.search_engines.settings.custom_site_search.CustomSiteSearchListPreference;
+import org.chromium.chrome.browser.search_engines.settings.extensions.ExtensionSearchEngineCoordinator;
+import org.chromium.chrome.browser.search_engines.settings.inactive_shortcut.InactiveShortcutCoordinator;
 import org.chromium.chrome.browser.settings.ChromeBaseSettingsFragment;
 import org.chromium.components.browser_ui.settings.SettingsFragment;
 import org.chromium.components.browser_ui.settings.SettingsUtils;
@@ -32,11 +33,15 @@ public class SiteSearchSettings extends ChromeBaseSettingsFragment {
             "keyboard_shortcut_radio_group";
     private static final String CUSTOM_SEARCH_ENGINE_LIST_PREF = "custom_search_engine_item_list";
     private static final String CUSTOM_SITE_SEARCH_LIST_PREF = "custom_site_search_item_list";
+    private static final String INACTIVE_SHORTCUT_LIST_PREF = "inactive_shortcut_list";
+    private static final String EXTENSIONS_PREF_KEY = "extension_item_list";
     private final SettableMonotonicObservableSupplier<String> mPageTitle =
             ObservableSuppliers.createMonotonic();
 
     private @Nullable CustomSearchEngineListCoordinator mSearchEngineCoordinator;
     private @Nullable CustomSiteSearchCoordinator mSiteSearchCoordinator;
+    private @Nullable InactiveShortcutCoordinator mInactiveShortcutCoordinator;
+    private @Nullable ExtensionSearchEngineCoordinator mExtensionSearchEngineCoordinator;
 
     @Override
     public void onCreatePreferences(@Nullable Bundle savedInstanceState, @Nullable String rootKey) {
@@ -63,14 +68,36 @@ public class SiteSearchSettings extends ChromeBaseSettingsFragment {
         }
 
         SettingsUtils.addPreferencesFromResource(this, R.xml.custom_site_search_preferences);
-        CustomSiteSearchListPreference customSiteSearchPref =
+        SearchEngineListPreference customSiteSearchPref =
                 findPreference(CUSTOM_SITE_SEARCH_LIST_PREF);
         if (customSiteSearchPref != null) {
             if (mSiteSearchCoordinator == null) {
                 mSiteSearchCoordinator =
                         new CustomSiteSearchCoordinator(
-                                getContext(), getProfile(), customSiteSearchPref);
+                                getContext(),
+                                getProfile(),
+                                customSiteSearchPref,
+                                ((ModalDialogManagerHolder) getActivity()).getModalDialogManager());
             }
+        }
+
+        // Inactive Shortcuts
+        SettingsUtils.addPreferencesFromResource(this, R.xml.inactive_shortcut_preferences);
+        SearchEngineListPreference inactiveShortcutPref =
+                findPreference(INACTIVE_SHORTCUT_LIST_PREF);
+        if (mInactiveShortcutCoordinator == null) {
+            mInactiveShortcutCoordinator =
+                    new InactiveShortcutCoordinator(
+                            getContext(), getProfile(), inactiveShortcutPref);
+        }
+
+        // Extensions
+        SettingsUtils.addPreferencesFromResource(this, R.xml.extensions_preferences);
+        SearchEngineListPreference extensionsPref = findPreference(EXTENSIONS_PREF_KEY);
+        if (mExtensionSearchEngineCoordinator == null) {
+            mExtensionSearchEngineCoordinator =
+                    new ExtensionSearchEngineCoordinator(
+                            getContext(), getProfile(), extensionsPref);
         }
     }
 
@@ -93,6 +120,10 @@ public class SiteSearchSettings extends ChromeBaseSettingsFragment {
         if (mSiteSearchCoordinator != null) {
             mSiteSearchCoordinator.destroy();
             mSiteSearchCoordinator = null;
+        }
+        if (mInactiveShortcutCoordinator != null) {
+            mInactiveShortcutCoordinator.destroy();
+            mInactiveShortcutCoordinator = null;
         }
         super.onDestroy();
     }

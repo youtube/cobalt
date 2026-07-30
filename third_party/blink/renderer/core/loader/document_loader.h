@@ -241,17 +241,15 @@ class CORE_EXPORT DocumentLoader : public GarbageCollected<DocumentLoader>,
       const JavaScriptFrameworkDetectionResult&);
 
   // https://html.spec.whatwg.org/multipage/history.html#url-and-history-update-steps
-  void RunURLAndHistoryUpdateSteps(
-      const KURL&,
-      HistoryItem*,
-      mojom::blink::SameDocumentNavigationType,
-      scoped_refptr<SerializedScriptValue>,
-      WebFrameLoadType,
-      FirePopstate,
-      bool should_skip_screenshot,
-      bool is_browser_initiated = false,
-      bool is_synchronously_committed = true,
-      std::optional<scheduler::TaskAttributionId> task_state_id = std::nullopt);
+  void RunURLAndHistoryUpdateSteps(const KURL&,
+                                   HistoryItem*,
+                                   mojom::blink::SameDocumentNavigationType,
+                                   scoped_refptr<SerializedScriptValue>,
+                                   WebFrameLoadType,
+                                   FirePopstate,
+                                   bool should_skip_screenshot,
+                                   bool is_browser_initiated = false,
+                                   bool is_synchronously_committed = true);
 
   // |is_synchronously_committed| is described in comment for
   // CommitSameDocumentNavigation.
@@ -265,7 +263,6 @@ class CORE_EXPORT DocumentLoader : public GarbageCollected<DocumentLoader>,
       const SecurityOrigin* initiator_origin,
       bool is_browser_initiated,
       bool is_synchronously_committed,
-      std::optional<scheduler::TaskAttributionId> task_state_id,
       bool has_transient_user_activation,
       bool has_ua_visual_transition,
       bool should_skip_screenshot);
@@ -413,6 +410,14 @@ class CORE_EXPORT DocumentLoader : public GarbageCollected<DocumentLoader>,
   // to ensure the token can only be used to invoke a single text fragment.
   bool ConsumeTextFragmentToken();
 
+  // Returns the text fragment to scroll to and clears it.
+  std::optional<String> TakeInternalScrollToTextFragment();
+
+  // For testing purposes.
+  void SetInternalScrollToTextFragment(const String& text_fragment) {
+    internal_scroll_to_text_fragment_ = text_fragment;
+  }
+
   // Notifies that the prerendering document this loader is working for is
   // activated.
   void NotifyPrerenderingDocumentActivated(
@@ -547,7 +552,6 @@ class CORE_EXPORT DocumentLoader : public GarbageCollected<DocumentLoader>,
       bool is_browser_initiated,
       bool is_synchronously_committed,
       mojom::blink::TriggeringEventInfo,
-      std::optional<scheduler::TaskAttributionId> task_state_id,
       bool has_ua_visual_transition,
       bool should_skip_screenshot);
 
@@ -761,6 +765,10 @@ class CORE_EXPORT DocumentLoader : public GarbageCollected<DocumentLoader>,
   // to invoke. This token may be instead consumed to pass this permission
   // through a redirect.
   bool has_text_fragment_token_ = false;
+
+  // If set, the document should attempt to scroll this text fragment into view
+  // upon load, without highlighting it.
+  std::optional<String> internal_scroll_to_text_fragment_;
 
   // See WebNavigationParams for definition.
   const bool was_discarded_ = false;

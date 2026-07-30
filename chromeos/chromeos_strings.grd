@@ -7166,6 +7166,12 @@
       <message name="IDS_DEVICE_DISABLED_EXPLANATION_RESTRICTION_SCHEDULE_TOMORROW" desc="Message part DAY for IDS_DEVICE_DISABLED_EXPLANATION_RESTRICTION_SCHEDULE_TIME.">
         tomorrow
       </message>
+      <message name="IDS_DEVICE_DISABLED_EXPLANATION_WITH_LOCATION" desc="Shown on the device disabled screen if the admin has enabled location tracking. The explanation of the situation.">
+        Your administrator disabled your device and can access its location.
+      </message>
+      <message name="IDS_DEVICE_DISABLED_EXPLANATION_WITH_LOCATION_AND_DOMAIN" desc="Shown on the device disabled screen if the admin has enabled location tracking and set a custom message. The explanation of the situation.">
+        Your <ph name="DOMAIN_NAME">$1<ex>google.com</ex></ph> administrator disabled your device and can access its location.
+      </message>
 
       <!-- Strings for OnTask notifications -->
       <message name="IDS_ON_TASK_NOTIFICATION_TITLE" desc="Class Tools title for OnTask notifications">
@@ -7263,6 +7269,14 @@
       <!-- Strings for Class Tools remote receiver -->
       <message name="IDS_BOCA_RECEIVER_TITLE" desc="Title of an app which runs in kiosk mode and receives incoming screen share presentations. Screen share presentations are initiated from the Class Tools app on another ChromeOS device.">
         Class Tools display
+      </message>
+
+      <!-- Dictation accessibility feature confirmation dialog -->
+      <message name="IDS_ACCESSIBILITY_DICTATION_CONFIRMATION_TITLE" desc="The title for the modal dialog shown the first time the user enables dictation. Only displayed if the user is using network speech recognition.">
+        Dictation
+      </message>
+      <message name="IDS_ACCESSIBILITY_DICTATION_CONFIRMATION_TEXT" desc="The message shown the first time the user enables Dictation, explaining that the audio data will be sent to Google for transcription. Only displayed if the user is using network speech recognition.">
+        Dictation sends your voice to Google to allow voice typing in any text field.
       </message>
     </messages>
   </release>

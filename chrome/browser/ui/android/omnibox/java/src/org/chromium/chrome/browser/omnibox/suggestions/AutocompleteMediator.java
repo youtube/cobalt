@@ -118,6 +118,7 @@ class AutocompleteMediator
             mDeferredIMEWindowInsetApplicationCallback;
     private final OmniboxSuggestionsDropdownEmbedder mEmbedder;
     private @Nullable AutocompleteInput mAutocompleteInput;
+    private @Nullable FuseboxSessionState mSessionState;
     private final boolean mForcePhoneStyleOmnibox;
     private final Callback<@ControlsPosition Integer> mToolbarPositionChangedCallback =
             this::onToolbarPositionChanged;
@@ -360,13 +361,7 @@ class AutocompleteMediator
         }
     }
 
-    /**
-     * Show cached zero suggest results. Enables Autocomplete subsystem to offer most recently
-     * presented suggestions in the event where Native counterpart is not yet initialized.
-     *
-     * <p>Note: the only supported page context right now is the ANDROID_SEARCH_WIDGET.
-     */
-    void startCachedZeroSuggest() {
+    private boolean shouldSuppressZeroSuggest() {
         boolean disableZps =
                 ChromeFeatureList.sOmniboxAutofocusOnIncognitoNtpNoZeroSuggest.getValue();
 
@@ -375,11 +370,22 @@ class AutocompleteMediator
         // any zero suggest results would have been shown.
         if (disableZps && isOmniboxAutofocusOnIncognitoNtpActive()) {
             recordZeroSuggestSuppressionMetric(true);
+            return true;
+        }
+        return false;
+    }
+
+    /** Kicks off a zero-suggest request. */
+    void startZeroSuggest() {
+        if (!isInInputSession()) return;
+        if (shouldSuppressZeroSuggest()) return;
+
+        if (OmniboxFeatures.sServeJavaCachedZeroSuggest.isEnabled() && mAutocomplete == null) {
+            serveCachedZeroSuggest(mAutocompleteInput);
             return;
         }
 
-        maybeServeCachedResult();
-        postAutocompleteRequest(this::startZeroSuggest, SCHEDULE_FOR_IMMEDIATE_EXECUTION);
+        postAutocompleteRequest(this::fetchZeroSuggest, SCHEDULE_FOR_IMMEDIATE_EXECUTION);
     }
 
     /** Save AutocompleteResult to Cache for early serving. */
@@ -394,17 +400,19 @@ class AutocompleteMediator
                 mAutocompleteInput.getPageClassification(), result);
     }
 
-    /** Serve AutocompleteResult from Cache if Autocomplete is not yet initialized. */
-    private void maybeServeCachedResult() {
-        if (!isInInputSession()
-                || !mAutocompleteInput.isInCacheableContext()
-                || mAutocomplete != null) {
+    /**
+     * Show cached zero suggest results. Enables Autocomplete subsystem to offer most recently
+     * presented suggestions in the event where Native counterpart is not yet initialized.
+     *
+     * @param input The AutocompleteInput for which to show cached suggestions.
+     */
+    public void serveCachedZeroSuggest(AutocompleteInput input) {
+        if (shouldSuppressZeroSuggest()) return;
+        if (input == null || !input.isInCacheableContext()) {
             return;
         }
         onSuggestionsReceived(
-                CachedZeroSuggestionsManager.readFromCache(
-                        mAutocompleteInput.getPageClassification()),
-                true);
+                CachedZeroSuggestionsManager.readFromCache(input.getPageClassification()), true);
     }
 
     /** Notify the mediator that a item selection is pending and should be accepted. */
@@ -432,9 +440,10 @@ class AutocompleteMediator
      *     through the endInput() (valid -> valid). This is the case for tab switching.
      */
     void beginInput(FuseboxSessionState session) {
-        boolean alreadyInInput = mAutocompleteInput != null;
+        boolean alreadyInInput = mSessionState != null;
         cancelAutocompleteRequests();
         setAutocompleteInput(session.getAutocompleteInput());
+        mSessionState = session;
 
         if (!alreadyInInput) {
             // Propagate the information about omnibox session state change to all the processors
@@ -488,7 +497,7 @@ class AutocompleteMediator
      */
     void endInput() {
         // Session already inactive - stop.
-        if (mAutocompleteInput == null) return;
+        if (!isInInputSession()) return;
 
         // Propagate the information about omnibox session state change to all the processors first.
         // Processors need this for accounting purposes.
@@ -529,6 +538,7 @@ class AutocompleteMediator
         // a consequence the omnibox is unfocused).
         clearSuggestions();
         setAutocompleteInput(null);
+        mSessionState = null;
     }
 
     private void setAutocompleteInput(@Nullable AutocompleteInput input) {
@@ -537,6 +547,7 @@ class AutocompleteMediator
                     .getRequestTypeSupplier()
                     .removeObserver(mOnAutocompleteRequestTypeChanged);
             mAutocompleteInput.getKeywordSupplier().removeObserver(mOnKeywordChanged);
+            mUrlBarEditingTextProvider.setSiteSearchChip(null);
         }
         mAutocompleteInput = input;
         mOmniboxActionDelegate.setAutocompleteInput(input);
@@ -977,7 +988,7 @@ class AutocompleteMediator
 
         if (isInZeroPrefixContext || isOnFocusContext) {
             clearSuggestions();
-            startCachedZeroSuggest();
+            startZeroSuggest();
         } else {
             boolean preventAutocomplete = !mUrlBarEditingTextProvider.shouldAutocomplete();
             int cursorPosition =
@@ -1048,6 +1059,11 @@ class AutocompleteMediator
 
     private void onKeywordChanged(@Nullable String keyword) {
         mUrlBarEditingTextProvider.setSiteSearchChip(keyword);
+        if (isInInputSession()) {
+            onTextChanged(
+                    mUrlBarEditingTextProvider.getTextWithoutAutocomplete(),
+                    /* isOnFocusContext= */ false);
+        }
     }
 
     private void onFuseboxStateChanged(@FuseboxState int fuseboxState) {
@@ -1159,6 +1175,8 @@ class AutocompleteMediator
             long inputStart,
             boolean openInNewTab,
             boolean openInNewWindow) {
+        if (!isInInputSession()) return;
+
         try (TraceEvent e = TraceEvent.scoped("AutocompleteMediator.loadUrlFromOmniboxMatch")) {
             OmniboxMetrics.recordFocusToOpenTime(
                     System.currentTimeMillis()
@@ -1204,11 +1222,13 @@ class AutocompleteMediator
                                 finalTransition);
                     };
 
-            switch (assumeNonNull(mAutocompleteInput).getRequestType()) {
+            switch (mAutocompleteInput.getRequestType()) {
                 case AutocompleteRequestType.AI_MODE ->
-                        mFuseboxCoordinator.getAimUrl(url, onUrlReady);
+                        assumeNonNull(mSessionState.getComposeboxQueryControllerBridge())
+                                .getAimUrl(url, onUrlReady);
                 case AutocompleteRequestType.IMAGE_GENERATION ->
-                        mFuseboxCoordinator.getImageGenerationUrl(url, onUrlReady);
+                        assumeNonNull(mSessionState.getComposeboxQueryControllerBridge())
+                                .getImageGenerationUrl(url, onUrlReady);
                 default -> onUrlReady.onResult(url);
             }
         }
@@ -1278,7 +1298,7 @@ class AutocompleteMediator
      * incognito. This method should not be called directly. Schedule execution using
      * postAutocompleteRequest.
      */
-    private void startZeroSuggest() {
+    private void fetchZeroSuggest() {
         // Reset "edited" state in the omnibox if zero suggest is triggered -- new edits
         // now count as a new session.
         mNewOmniboxEditSessionTimestamp = -1;
@@ -1681,9 +1701,11 @@ class AutocompleteMediator
      * @return Whether there is currently an active omnibox session. An active session is defined by
      *     the presence of an {@link AutocompleteInput} and the activity window having focus.
      */
-    @EnsuresNonNullIf("mAutocompleteInput")
+    @EnsuresNonNullIf(
+            value = {"mAutocompleteInput", "mSessionState"},
+            result = true)
     private boolean isInInputSession() {
-        return mAutocompleteInput != null && mActivityWindowFocused;
+        return mSessionState != null && mAutocompleteInput != null && mActivityWindowFocused;
     }
 
     @Override

@@ -1399,9 +1399,13 @@ bool PaintCanvasVideoRenderer::CopyVideoFrameTexturesToGLTexture(
   const bool si_usable_by_gles2_interface =
       shared_image->GetTextureTarget() != 0;
 
-  // Copying shared image using GL directly require shared image to be either
-  // single plane or external sampler, and should be usable by GL.
-  if (si_format_has_single_texture && si_usable_by_gles2_interface) {
+  // Copying the shared image to the destination texture via a direct
+  // texture-to-texture copy requires being able to obtain a client-side GL
+  // texture for the shared image, which in turn requires that the shared image
+  // be either single-plane or use external sampler and that it be usable by GL.
+  bool can_obtain_texture_from_shared_image =
+      si_format_has_single_texture && si_usable_by_gles2_interface;
+  if (can_obtain_texture_from_shared_image) {
     CopySharedImageToTexture(
         destination_gl, video_frame->coded_size(), video_frame->visible_rect(),
         shared_image.get(), video_frame->acquire_sync_token(), target, texture,
@@ -1411,22 +1415,18 @@ bool PaintCanvasVideoRenderer::CopyVideoFrameTexturesToGLTexture(
     SynchronizeVideoFrameRead(std::move(video_frame), destination_gl,
                               raster_context_provider->ContextSupport());
     return true;
-  }
+  } else if (SupportsOneCopyUploadToGLTexture(
+                 video_frame->format(), shared_image->GetTextureTarget(),
+                 target, internal_format, type, level, dst_alpha_type)) {
+    // Do a service-side copy from the SharedImage to the destination texture
+    // via Skia wrapping the destination texture in an SkSurface. Note that
+    // this relies on the service-side GL implementation using a Ganesh/GL
+    // context. Currently this assumption is satisfied as the passthrough
+    // decoder always uses a Ganesh/GL context.
+    // TODO(crbug.com/40064510): Eliminate this reliance to enable one-copy
+    // upload to work for Graphite *without* depending on being able to create a
+    // Ganesh/GL context.
 
-  // It is not possible to support one-copy upload of pure software
-  // VideoFrames via MultiplanarSharedImage: these VideoFrames have format
-  // I420, and it is not possible across all platforms to upload the
-  // VideoFrame's data via raster to a MultiplanarSI with format I420 that is
-  // accessible by WebGL. Such an SI must be backed by a native buffer to be
-  // accessible to WebGL, and native buffer-backed I420 SharedImages are in
-  // general not supported (and *cannot* be supported on Windows). NOTE:
-  // Whether 1 GPU-GPU copy or 2 GPU-GPU copies are performed for pure video
-  // software upload should not be a significant factor in performance, as the
-  // dominant factor in terms of performance will be the fact that the
-  // VideoFrame's data needs to be uploaded from the CPU to the GPU.
-  if (SupportsOneCopyUploadToGLTexture(
-          video_frame->format(), shared_image->GetTextureTarget(), target,
-          internal_format, type, level, dst_alpha_type)) {
     // Trigger resource allocation for dst texture to back SkSurface.
     // Dst texture size should equal to video frame visible rect.
     BindAndTexImage2D(destination_gl, target, texture, internal_format, format,

@@ -283,8 +283,67 @@ IN_PROC_BROWSER_TEST_P(ExtensionApiTabTestWithContextType, Reload) {
   ASSERT_TRUE(RunExtensionTest("tabs/reload")) << message_;
 }
 
-// TODO(https://crbug.com/371432155): Enable these tests.
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+// Tests various behaviors of highlighting tabs using chrome.tabs.update(),
+// including that highlighting is additive, tabs can be unhighlighted, and
+// that extensions cannot unhighlight all tabs in a window.
+IN_PROC_BROWSER_TEST_F(ExtensionApiTabTest, UpdateHighlighted) {
+  constexpr char kManifest[] = R"({
+    "name": "Update Highlighted",
+    "version": "1.0",
+    "manifest_version": 3,
+    "background": {"service_worker": "background.js"}
+  })";
+
+  constexpr char kBackgroundJs[] = R"(
+    chrome.test.runTests([
+      async function highlightingTabs() {
+        // Open multiple tabs.
+        const win = await chrome.windows.create(
+                        {url: ['about:blank', 'about:blank', 'about:blank']});
+        const tabs = await chrome.tabs.query({windowId: win.id});
+        chrome.test.assertEq(3, tabs.length);
+        // Set the initial state. Only highlight the first tab.
+        // This is necessary because on desktop android, multiple tabs are
+        // highlighted in the newly-created window.
+        await chrome.tabs.update(tabs[0].id, {highlighted: true});
+        await chrome.tabs.update(tabs[1].id, {highlighted: false});
+        await chrome.tabs.update(tabs[2].id, {highlighted: false});
+
+        let highlightedTabs =
+            await chrome.tabs.query({windowId: win.id, highlighted: true});
+        chrome.test.assertEq(1, highlightedTabs.length);
+
+        chrome.test.assertEq(tabs[0].id, highlightedTabs[0].id);
+
+        // Highlight a different tab. Both tabs should be highlighted.
+        await chrome.tabs.update(tabs[2].id, {highlighted: true});
+        highlightedTabs =
+            await chrome.tabs.query({windowId: win.id, highlighted: true});
+        chrome.test.assertEq(2, highlightedTabs.length);
+        let highlightedIds = highlightedTabs.map(t => t.id);
+        chrome.test.assertEq(highlightedIds.sort(),
+                             [tabs[0].id, tabs[2].id].sort());
+
+        // Unhighlight the first tab. Only tabs[2] should be highlighted now.
+        await chrome.tabs.update(tabs[0].id, {highlighted: false});
+        highlightedTabs =
+            await chrome.tabs.query({windowId: win.id, highlighted: true});
+        chrome.test.assertEq(1, highlightedTabs.length);
+        chrome.test.assertEq(tabs[2].id, highlightedTabs[0].id);
+
+        chrome.test.succeed();
+      }
+    ]);
+  )";
+
+  extensions::TestExtensionDir test_dir;
+  test_dir.WriteManifest(kManifest);
+  test_dir.WriteFile(FILE_PATH_LITERAL("background.js"), kBackgroundJs);
+
+  extensions::ResultCatcher catcher;
+  ASSERT_TRUE(LoadExtension(test_dir.UnpackedPath()));
+  EXPECT_TRUE(catcher.GetNextResult()) << catcher.message();
+}
 
 class ExtensionApiCaptureTest : public ExtensionApiTabTest {
  public:
@@ -301,7 +360,8 @@ class ExtensionApiCaptureTest : public ExtensionApiTabTest {
 };
 
 // https://crbug.com/1450747 Flaky on Mac.
-#if BUILDFLAG(IS_MAC)
+// TODO(crbug.com/488154807): Flaky on desktop Android.
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID)
 #define MAYBE_CaptureVisibleTabJpeg DISABLED_CaptureVisibleTabJpeg
 #else
 #define MAYBE_CaptureVisibleTabJpeg CaptureVisibleTabJpeg
@@ -327,7 +387,9 @@ IN_PROC_BROWSER_TEST_F(ExtensionApiCaptureTest, MAYBE_CaptureVisibleTabJpeg) {
 
 // https://crbug.com/1450933 Flaky on Mac.
 // TODO(crbug.com/451698327): Disabled on Linux dbg due to flakiness.
-#if BUILDFLAG(IS_MAC) || (BUILDFLAG(IS_LINUX) && !defined(NDEBUG))
+// TODO(crbug.com/488154807): Flaky on desktop Android.
+#if BUILDFLAG(IS_MAC) || (BUILDFLAG(IS_LINUX) && !defined(NDEBUG)) || \
+    BUILDFLAG(IS_ANDROID)
 #define MAYBE_CaptureVisibleTabPng DISABLED_CaptureVisibleTabPng
 #else
 #define MAYBE_CaptureVisibleTabPng CaptureVisibleTabPng
@@ -359,7 +421,9 @@ IN_PROC_BROWSER_TEST_F(ExtensionApiCaptureTest,
 }
 
 // https://crbug.com/1107934 Flaky on Windows, Linux, ChromeOS.
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
+// TODO(crbug.com/488154807): Flaky on desktop Android.
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS) || \
+    BUILDFLAG(IS_ANDROID)
 #define MAYBE_CaptureVisibleFile DISABLED_CaptureVisibleFile
 #else
 #define MAYBE_CaptureVisibleFile CaptureVisibleFile
@@ -386,6 +450,9 @@ IN_PROC_BROWSER_TEST_F(ExtensionApiCaptureTest, CaptureNullWindow) {
   ASSERT_TRUE(RunExtensionTest("tabs/capture_visible_tab_null_window"))
       << message_;
 }
+
+// TODO(https://crbug.com/371432155): Enable these tests.
+#if BUILDFLAG(ENABLE_EXTENSIONS)
 
 IN_PROC_BROWSER_TEST_P(ExtensionApiTabTestWithContextType, OnCreated) {
   ASSERT_TRUE(RunExtensionTest("tabs/on_created")) << message_;

@@ -105,6 +105,14 @@ NET_EXPORT extern const base::FeatureParam<base::TimeDelta>
 // transactions complete.
 NET_EXPORT BASE_DECLARE_FEATURE(kUseHostResolverCache);
 
+// Enables Happy Eyeballs V2 by using TcpConnectJobs in place of
+// TransportConnectJobs. TcpConnectJobs start establishing TCP connections even
+// while only partial DNS results are available.
+//
+// `kHappyEyeballsV3` takes precedence over this, though this will still affect
+// proxy connections if both are enabled.
+NET_EXPORT BASE_DECLARE_FEATURE(kHappyEyeballsV2);
+
 // Enables the Happy Eyeballs v3, where we use intermediate DNS resolution
 // results to make connection attempts as soon as possible.
 NET_EXPORT BASE_DECLARE_FEATURE(kHappyEyeballsV3);
@@ -566,6 +574,12 @@ NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool, kSqlDiskCacheSerialCheckpoint);
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(
     bool,
     kSqlDiskCacheSizeAndPriorityAwareEviction);
+// Whether to aggressively release SQLite's cached memory after writes.
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
+                                      kSqlDiskCacheReleaseMemoryAfterWrites);
+// The size of in-memory cache of SQLite database. 0 invokes SQLite's default.
+// See https://sqlite.org/pragma.html#pragma_cache_size for more details.
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kSqlDiskCacheCacheSize);
 #endif  // ENABLE_DISK_CACHE_SQL_BACKEND
 
 // If enabled, ignore Strict-Transport-Security for [*.]localhost hosts.
@@ -768,6 +782,11 @@ NET_EXPORT BASE_DECLARE_FEATURE(kEnableBootstrapIPRandomizationForDoh);
 // Controls whether X509Util on Android (Cronet, and WebView only) should use
 // lock-free certificate verification mechanism.
 NET_EXPORT BASE_DECLARE_FEATURE(kUseLockFreeX509Verification);
+
+// When enabled, at the same time that DoH probes are started, a canary domain
+// will be probed to check whether Secure DNS is allowed by the network.
+NET_EXPORT BASE_DECLARE_FEATURE(kProbeSecureDnsCanaryDomain);
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(std::string, kSecureDnsCanaryDomainHost);
 
 #if BUILDFLAG(IS_APPLE)
 // If enabled, the GURL conversion for NSURLs will use the data representation

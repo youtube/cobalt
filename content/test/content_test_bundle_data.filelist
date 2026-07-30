@@ -497,6 +497,12 @@ data/accessibility/aria/aria-brailleroledescription-expected-blink.txt
 data/accessibility/aria/aria-brailleroledescription-expected-mac.txt
 data/accessibility/aria/aria-brailleroledescription-expected-win.txt
 data/accessibility/aria/aria-brailleroledescription.html
+data/accessibility/aria/aria-breadcrumb-expected-android-external.txt
+data/accessibility/aria/aria-breadcrumb-expected-android.txt
+data/accessibility/aria/aria-breadcrumb-expected-blink.txt
+data/accessibility/aria/aria-breadcrumb-expected-mac.txt
+data/accessibility/aria/aria-breadcrumb-expected-win.txt
+data/accessibility/aria/aria-breadcrumb.html
 data/accessibility/aria/aria-busy-expected-android-assist-data.txt
 data/accessibility/aria/aria-busy-expected-android-external.txt
 data/accessibility/aria/aria-busy-expected-android.txt
@@ -513,6 +519,8 @@ data/accessibility/aria/aria-button-expected-blink.txt
 data/accessibility/aria/aria-button-expected-mac.txt
 data/accessibility/aria/aria-button-expected-uia-win.txt
 data/accessibility/aria/aria-button-expected-win.txt
+data/accessibility/aria/aria-button-labeledby-expected-mac.txt
+data/accessibility/aria/aria-button-labeledby.html
 data/accessibility/aria/aria-button.html
 data/accessibility/aria/aria-caption-expected-android-external.txt
 data/accessibility/aria/aria-caption-expected-android.txt
@@ -2663,6 +2671,12 @@ data/accessibility/event/css-flex-text-update-expected-mac.txt
 data/accessibility/event/css-flex-text-update-expected-uia-win.txt
 data/accessibility/event/css-flex-text-update-expected-win.txt
 data/accessibility/event/css-flex-text-update.html
+data/accessibility/event/css-highlight-added-expected-uia-win.txt
+data/accessibility/event/css-highlight-added.html
+data/accessibility/event/css-highlight-grammar-error-expected-uia-win.txt
+data/accessibility/event/css-highlight-grammar-error.html
+data/accessibility/event/css-highlight-spelling-error-expected-uia-win.txt
+data/accessibility/event/css-highlight-spelling-error.html
 data/accessibility/event/css-visibility-collapse-expected-android.txt
 data/accessibility/event/css-visibility-collapse-expected-win.txt
 data/accessibility/event/css-visibility-collapse.html
@@ -3684,6 +3698,8 @@ data/accessibility/html/contenteditable-font-size-expected-blink.txt
 data/accessibility/html/contenteditable-font-size.html
 data/accessibility/html/contenteditable-li-contains-presentation-expected-blink.txt
 data/accessibility/html/contenteditable-li-contains-presentation.html
+data/accessibility/html/contenteditable-multi-node-expected-android-external.txt
+data/accessibility/html/contenteditable-multi-node.html
 data/accessibility/html/contenteditable-on-disallowed-element-expected-auralinux.txt
 data/accessibility/html/contenteditable-on-disallowed-element-expected-blink.txt
 data/accessibility/html/contenteditable-on-disallowed-element-expected-mac.txt
@@ -4994,6 +5010,9 @@ data/accessibility/html/menubar-element-roles.html
 data/accessibility/html/menuitem-checkbox-expected-auralinux.txt
 data/accessibility/html/menuitem-checkbox-expected-blink.txt
 data/accessibility/html/menuitem-checkbox.html
+data/accessibility/html/menuitem-disabled-expected-auralinux.txt
+data/accessibility/html/menuitem-disabled-expected-blink.txt
+data/accessibility/html/menuitem-disabled.html
 data/accessibility/html/menulist-popover-expected-auralinux.txt
 data/accessibility/html/menulist-popover-expected-blink.txt
 data/accessibility/html/menulist-popover.html

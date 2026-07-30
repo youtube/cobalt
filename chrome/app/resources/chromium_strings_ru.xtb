@@ -236,6 +236,7 @@
 <translation id="3509308970982693815">Закройте все окна Chromium и повторите попытку снова.</translation>
 <translation id="3522404737534491619">Чтобы запустить демонстрацию окна, в системных настройках разрешите Chromium записывать видео с экрана.</translation>
 <translation id="3530103706039034513">Активный профиль пользователя: <ph name="EXISTING_USER" />.  Чтобы данные о вашей работе в браузере хранились отдельно, войдите в собственный профиль Chromium (<ph name="USER_EMAIL_ADDRESS" />).</translation>
+<translation id="3531741627422851418">QR-код для скачивания браузера Chromium на мобильное устройство</translation>
 <translation id="3561853857681580870">Чтобы запустить демонстрацию экрана, в системных настройках разрешите Chromium записывать с него видео.</translation>
 <translation id="3588112919289558122">Улучшенная защита отключает оптимизацию JavaScript для сайтов, которые Chromium не распознаёт</translation>
 <translation id="3597003331831379823">Не удалось запустить настройку с повышенными привилегиями. <ph name="METAINSTALLER_ERROR" /></translation>
@@ -583,6 +584,9 @@
 <translation id="7384121030444253939">Это расширение больше не поддерживается. Рекомендуем удалить его из Chromium.</translation>
 <translation id="7413153308467572558">Продолжайте с того места, где остановились. Chromium восстанавливает вкладки после каждого перезапуска. Чтобы отключить эту функцию, откройте</translation>
 <translation id="7427879960656355200">Импорт паролей в Chromium</translation>
+<translation id="744815265653811511">1. Нажмите "<ph name="BUTTON_LABEL" />" ниже.
+2. Выберите "<ph name="BUTTON_2" />" в настройках Windows.
+3. Чтобы закрепить Chromium на панели задач для быстрого доступа, нажмите "<ph name="BUTTON_3" />" в уведомлении Windows.</translation>
 <translation id="7449453770951226939"><ph name="PAGE_TITLE" /> – Chromium для разработчиков</translation>
 <translation id="7450541714075000668">Текст скопирован.</translation>
 <translation id="7451052299415159299">Для этого сайта Chromium запрашивает доступ к камере.</translation>
@@ -598,6 +602,7 @@
 <translation id="761356813943268536">Chromium использует камеру и микрофон.</translation>
 <translation id="7617377681829253106">Chromium становится все лучше</translation>
 <translation id="7622753900276619808">Теперь вам доступно больше функций в Chromium.</translation>
+<translation id="7624307931717240213">Мы используем данные, чтобы улучшать сервис. Прочитайте Политику конфиденциальности и Условия использования.</translation>
 <translation id="7649070708921625228">Справка</translation>
 <translation id="7656340475565475526">Разрешить Chromium искать информацию в интернете</translation>
 <translation id="7658239707568436148">Отмена</translation>

@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.media;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
@@ -15,9 +16,12 @@ import android.widget.LinearLayout;
 import android.widget.ListView;
 
 import androidx.annotation.IntDef;
+import androidx.fragment.app.FragmentActivity;
 
 import com.google.android.material.materialswitch.MaterialSwitch;
 
+import org.chromium.base.ContextUtils;
+import org.chromium.base.Log;
 import org.chromium.base.ServiceLoaderUtil;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -45,6 +49,8 @@ import java.util.Map;
 /** Dialog for selecting a media source for media capture. */
 @NullMarked
 public class MediaCapturePickerDialog implements MediaCapturePickerTabObserver.Delegate {
+    private static final String TAG = "MediaCapture";
+
     // This web contents is the one that is receiving the shared content.
     private final ModalDialogManager mModalDialogManager;
     private final Context mContext;
@@ -181,12 +187,26 @@ public class MediaCapturePickerDialog implements MediaCapturePickerTabObserver.D
     private void startAndroidCapturePrompt() {
         MediaCapturePickerDelegate impl =
                 ServiceLoaderUtil.maybeCreate(MediaCapturePickerDelegate.class);
+        if (impl == null) {
+            Log.w(
+                    TAG,
+                    "PickerDialog: No PickerDelegate, start AndroidCapturePrompt with null Intent");
+        }
         Intent intent = impl == null ? null : impl.createScreenCaptureIntent(mContext, mParams);
 
-        var fragment = MediaCapturePickerHeadlessFragment.getInstanceForCurrentActivity();
-        assumeNonNull(fragment);
+        Activity activity = ContextUtils.activityFromContext(mContext);
+        // We should always get a non-null ChromeActivity which is a FragmentActivity.
+        // Crash here if this is not true for investigation.
+        MediaCapturePickerHeadlessFragment fragment =
+                MediaCapturePickerHeadlessFragment.getInstance(
+                        assumeNonNull((FragmentActivity) activity));
+        Log.d(TAG, "PickerDialog: Starting AndroidCapturePrompt for window/ screen sharing");
         fragment.startAndroidCapturePrompt(
                 (action, result) -> {
+                    Log.d(
+                            TAG,
+                            "PickerDialog: AndroidCapturePrompt received user action %d",
+                            action);
                     if (action != CaptureAction.CAPTURE_CANCELLED) {
                         ScreenCapture.onPick(mParams.webContents, result);
                     }
@@ -226,12 +246,18 @@ public class MediaCapturePickerDialog implements MediaCapturePickerTabObserver.D
                         assumeNonNull(mDelegate);
                         if (picked && mLastSelectedTabItemState != null) {
                             var tab = mLastSelectedTabItemState.mTab;
+                            Log.d(
+                                    TAG,
+                                    "PickerDialog: Tab %d with title '%s' was picked",
+                                    tab.getId(),
+                                    tab.getTitle());
                             tab.loadIfNeeded(TabLoadIfNeededCaller.MEDIA_CAPTURE_PICKER);
                             var webContents = tab.getWebContents();
                             assert webContents != null;
 
                             mDelegate.onPickTab(webContents, mAudioSwitch.isChecked());
                         } else {
+                            Log.d(TAG, "PickerDialog: cancelled");
                             mDelegate.onCancel();
                         }
                         mDelegate = null;
@@ -276,6 +302,7 @@ public class MediaCapturePickerDialog implements MediaCapturePickerTabObserver.D
 
         mScreenButton.setOnClickListener(view -> startAndroidCapturePrompt());
 
+        Log.d(TAG, "Show PickerDialog");
         mModalDialogManager.showDialog(mPropertyModel, ModalDialogManager.ModalDialogType.TAB);
     }
 }

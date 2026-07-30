@@ -15,6 +15,7 @@
 #include "chrome/browser/web_applications/commands/fetch_manifest_and_update_result.h"
 #include "chrome/browser/web_applications/commands/internal/callback_command.h"
 #include "chrome/browser/web_applications/isolated_web_apps/commands/isolated_web_app_apply_update_command.h"
+#include "chrome/browser/web_applications/model/migration_behavior.h"
 #include "chrome/browser/web_applications/os_integration/os_integration_sub_manager.h"
 #include "chrome/browser/web_applications/scheduler/apply_manifest_migration_result.h"
 #include "chrome/browser/web_applications/scheduler/apply_pending_manifest_update_result.h"
@@ -22,6 +23,7 @@
 #include "chrome/browser/web_applications/scheduler/fetch_installability_for_chrome_management_result.h"
 #include "chrome/browser/web_applications/scheduler/install_migrate_to_app_result.h"
 #include "chrome/browser/web_applications/scheduler/manifest_silent_update_result.h"
+#include "chrome/browser/web_applications/scheduler/navigate_and_trigger_install_dialog_result.h"
 #include "chrome/browser/web_applications/scheduler/web_app_install_from_migrate_from_field_result.h"
 #include "chrome/browser/web_applications/ui_manager/update_dialog_types.h"
 #include "chrome/browser/web_applications/web_app_command_manager.h"
@@ -91,10 +93,6 @@ struct IsolatedWebAppUpdatePrepareAndStoreCommandSuccess;
 struct SynchronizeOsOptions;
 struct WebAppIconDiagnosticResult;
 struct WebAppInstallInfo;
-
-namespace proto {
-enum WebAppMigrationBehavior : int;
-}  // namespace proto
 
 #if BUILDFLAG(IS_CHROMEOS)
 class CleanupBundleCacheSuccess;
@@ -289,9 +287,6 @@ class WebAppCommandScheduler {
   // command was able to trigger the install dialog. This opens a new tab,
   // navigates to `install_url`, and if the site is installable, it triggers
   // the install dialog for the user.
-  using NavigateAndTriggerInstallDialogCommandCallback =
-      base::OnceCallback<void(
-          NavigateAndTriggerInstallDialogCommandResult result)>;
   void ScheduleNavigateAndTriggerInstallDialog(
       const GURL& install_url,
       const GURL& origin_url,
@@ -768,7 +763,7 @@ class WebAppCommandScheduler {
   void ApplyManifestMigration(
       const webapps::AppId& source_app_id,
       const webapps::AppId& destination_app_id,
-      const proto::WebAppMigrationBehavior migration_behavior,
+      const MigrationBehavior migration_behavior,
       std::unique_ptr<ScopedKeepAlive> keep_alive,
       std::unique_ptr<ScopedProfileKeepAlive> profile_keep_alive,
       ApplyManifestMigrationResultCallback callback,

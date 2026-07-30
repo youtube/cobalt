@@ -12,6 +12,7 @@
 
 #include "ash/system/video_conference/video_conference_common.h"
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 
 namespace base {
 class UnguessableToken;
@@ -21,7 +22,6 @@ class CaptureModeVideoConferenceBrowserTests;
 
 namespace ash {
 
-class VideoConferenceClientWrapper;
 class VideoConferenceTrayController;
 struct VideoConferenceMediaState;
 
@@ -46,26 +46,24 @@ class VideoConferenceManagerAsh : public VideoConferenceManagerBase {
   // VideoConferenceManagerBase overrides.
   void GetMediaApps(base::OnceCallback<void(MediaApps)>) override;
   void ReturnToApp(const base::UnguessableToken& id) override;
-  void SetSystemMediaDeviceStatus(
-      crosapi::mojom::VideoConferenceMediaDevice device,
-      bool enabled) override;
+  void SetSystemMediaDeviceStatus(VideoConferenceMediaDevice device,
+                                  bool enabled) override;
   void CreateBackgroundImage() override;
 
   // Registers an ash-browser client. Non-mojo clients need to manually call
   // |UnregisterClient|, e.g. inside their destructor.
-  void RegisterCppClient(crosapi::mojom::VideoConferenceManagerClient* client,
+  void RegisterCppClient(VideoConferenceManagerClient* client,
                          const base::UnguessableToken& client_id);
 
   void NotifyMediaUsageUpdate(VideoConferenceMediaUsageStatus status,
                               base::OnceCallback<void(bool)> callback);
-  void NotifyDeviceUsedWhileDisabled(
-      crosapi::mojom::VideoConferenceMediaDevice device,
-      const std::u16string& app_name,
-      base::OnceCallback<void(bool)> callback);
+  void NotifyDeviceUsedWhileDisabled(VideoConferenceMediaDevice device,
+                                     const std::u16string& app_name,
+                                     base::OnceCallback<void(bool)> callback);
   void NotifyClientUpdate(VideoConferenceClientUpdate update);
 
   // Removes entry corresponding to |client_id| from
-  // |client_id_to_wrapper_|. Called by the destructor of
+  // |client_info_map_|. Called by the destructor of
   // cpp clients (ash browser, ARC++).
   void UnregisterClient(const base::UnguessableToken& client_id);
 
@@ -87,11 +85,15 @@ class VideoConferenceManagerAsh : public VideoConferenceManagerBase {
   friend class VideoConferenceAshfeatureClientTest;
   friend class VideoConferenceAppServiceClientTest;
 
-  // A (client_id, client_wrapper) entry is inserted into this map
+  struct ClientInfo {
+    raw_ptr<VideoConferenceManagerClient> client = nullptr;
+    VideoConferenceMediaState state;
+  };
+
+  // A (client_id, client_info) entry is inserted into this map
   // whenever a new client is registered on the manager and deleted
   // upon destruction of the client.
-  std::map<base::UnguessableToken, VideoConferenceClientWrapper>
-      client_id_to_wrapper_;
+  std::map<base::UnguessableToken, ClientInfo> client_info_map_;
 };
 
 }  // namespace ash

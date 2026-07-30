@@ -24,7 +24,6 @@
 #import "components/strings/grit/components_strings.h"
 #import "components/supervised_user/core/browser/supervised_user_utils.h"
 #import "ios/chrome/app/profile/first_run_profile_agent.h"
-#import "ios/chrome/browser/assistant/coordinator/assistant_sheet_coordinator.h"
 #import "ios/chrome/browser/bookmarks/model/bookmark_model_factory.h"
 #import "ios/chrome/browser/bookmarks/ui_bundled/home/bookmarks_coordinator.h"
 #import "ios/chrome/browser/bring_android_tabs/model/bring_android_tabs_to_ios_service.h"
@@ -44,7 +43,7 @@
 #import "ios/chrome/browser/history/ui_bundled/public/history_presentation_delegate.h"
 #import "ios/chrome/browser/incognito_reauth/ui_bundled/features.h"
 #import "ios/chrome/browser/incognito_reauth/ui_bundled/incognito_reauth_scene_agent.h"
-#import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
+#import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/intelligence/page_action_menu/coordinator/page_action_menu_coordinator.h"
 #import "ios/chrome/browser/main/ui/browser_layout_view_controller.h"
@@ -280,8 +279,7 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   GuidedTourCoordinator* _guidedTourCoordinator;
   // Completion block for when the `_guidedTourCoordinator` finishes.
   ProceduralBlock _guidedTourCompletionBlock;
-  // Coordinator for the Assistant Sheet.
-  AssistantSheetCoordinator* _assistantSheetCoordinator;
+
   // The view controller for the Tab Grid, defined manually so that the type can
   // be specified.
   TabGridViewController* _viewController;
@@ -373,13 +371,10 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   [_incognitoGridCoordinator stopChildCoordinators];
   [_regularGridCoordinator stopChildCoordinators];
   [_tabGroupsPanelCoordinator stopChildCoordinators];
-  [_assistantSheetCoordinator stop];
-  _assistantSheetCoordinator = nil;
 
   [self cancelCollaborationFlows];
 
   [self dismissPopovers];
-
   [self.inactiveTabsCoordinator hide];
 
   [_bookmarksCoordinator dismissBookmarkModalControllerAnimated:NO];
@@ -696,9 +691,6 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
                          animationEnabled:(BOOL)animationEnabled
                               isIncognito:(BOOL)isIncognito
                                completion:(ProceduralBlock)completionHandler {
-  TabGridTransitionType transitionType = [self
-      determineTabGridTransitionTypeWithAnimationEnabled:animationEnabled];
-
   Browser* browser = isIncognito ? self.incognitoBrowser : self.regularBrowser;
   if (!browser) {
     // The browser can be nil here, for example when switching account. Do not
@@ -712,18 +704,33 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
                              IsUrlNtp(activeWebState->GetVisibleURL());
 
   if (!activeWebState) {
-    transitionType = TabGridTransitionType::kAnimationDisabled;
+    animationEnabled = NO;
   }
 
-  self.transitionHandler = [[TabGridTransitionHandler alloc]
-               initWithTransitionType:transitionType
-                            direction:direction
-      tabGridTransitionLayoutProvider:self
-                tabGridViewController:_viewController
-          browserLayoutViewController:self.browserLayoutViewController
-                    layoutGuideCenter:LayoutGuideCenterForBrowser(browser)
-                  isRegularBrowserNTP:isRegularBrowserNTP
-                            incognito:isIncognito];
+  UIView* appContentView = IsChromeNextIaEnabled()
+                               ? [LayoutGuideCenterForBrowser(nil)
+                                     referencedViewUnderName:kAppContentGuide]
+                               : nil;
+  auto params = std::make_unique<TabGridTransitionHandlerInitParams>(
+      direction, self.browserLayoutViewController, _viewController,
+      appContentView);
+
+  if (animationEnabled) {
+    if (UIAccessibilityIsReduceMotionEnabled()) {
+      self.transitionHandler = [[TabGridTransitionHandler alloc]
+          initWithReducedMotionCommonParams:std::move(params)];
+    } else {
+      self.transitionHandler = [[TabGridTransitionHandler alloc]
+                     initWithCommonParams:std::move(params)
+          tabGridTransitionLayoutProvider:self
+                 browserLayoutGuideCenter:LayoutGuideCenterForBrowser(browser)
+                      isRegularBrowserNTP:isRegularBrowserNTP
+                                incognito:isIncognito];
+    }
+  } else {
+    self.transitionHandler = [[TabGridTransitionHandler alloc]
+        initWithNoAnimationCommonParams:std::move(params)];
+  }
   [self.transitionHandler performTransitionWithCompletion:completionHandler];
 }
 
@@ -888,18 +895,6 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   transitionHandler.animationDisabled = !animationEnabled;
 
   return transitionHandler;
-}
-
-// Determines the transion type to be used in the transition.
-- (TabGridTransitionType)determineTabGridTransitionTypeWithAnimationEnabled:
-    (BOOL)animationEnabled {
-  if (!animationEnabled) {
-    return TabGridTransitionType::kAnimationDisabled;
-  } else if (UIAccessibilityIsReduceMotionEnabled()) {
-    return TabGridTransitionType::kReducedMotion;
-  }
-
-  return TabGridTransitionType::kNormal;
 }
 
 // YES if there are tabs present on `page`. Should be called for regular or
@@ -1789,6 +1784,12 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
                 delegate:self];
   [_guidedTourCoordinator start];
   _guidedTourCompletionBlock = completion;
+}
+
+- (void)hideTabGridGuidedTour {
+  _guidedTourCompletionBlock = nil;
+  [_guidedTourCoordinator stop];
+  _guidedTourCoordinator = nil;
 }
 
 - (void)showPageActionMenuFromTabGrid {

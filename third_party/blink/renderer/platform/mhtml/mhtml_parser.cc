@@ -418,12 +418,12 @@ ArchiveResource* MHTMLParser::ParseNextPart(
       }
       // Note that we use line.utf8() and not line.ascii() as ascii turns
       // special characters (such as tab, line-feed...) into '?'.
-      content.AppendSpan(base::span<const char>(line.Utf8()));
+      content.append_range(line.Utf8());
       if (content_transfer_encoding == MIMEHeader::Encoding::kQuotedPrintable) {
         // The line reader removes the \r\n, but we need them for the content in
         // this case as the QuotedPrintable decoder expects CR-LF terminated
         // lines.
-        content.AppendSpan(base::span_from_cstring("\r\n"));
+        content.append_range(base::span_from_cstring("\r\n"));
       }
     }
   }
@@ -446,7 +446,7 @@ ArchiveResource* MHTMLParser::ParseNextPart(
     case MIMEHeader::Encoding::kEightBit:
     case MIMEHeader::Encoding::kSevenBit:
     case MIMEHeader::Encoding::kBinary:
-      data.AppendVector(content);
+      data.append_range(content);
       break;
     default:
       DVLOG(1) << "Invalid encoding for MHTML part.";
@@ -458,7 +458,7 @@ ArchiveResource* MHTMLParser::ParseNextPart(
   // if it is.  The specs mentions 5 ways to resolve a URL:
   // http://tools.ietf.org/html/rfc2557#section-5
   // IE and Firefox (UNMht) seem to generate only absolute URLs.
-  KURL location = KURL(NullURL(), mime_header.ContentLocation());
+  KURL location = KURL(NullUrl(), mime_header.ContentLocation());
   return MakeGarbageCollected<ArchiveResource>(
       content_buffer, location, mime_header.ContentID(),
       AtomicString(mime_header.ContentType()),
@@ -478,13 +478,14 @@ KURL MHTMLParser::ConvertContentIDToURI(const String& content_id) {
   if (content_id.length() <= 2)
     return KURL();
 
-  if (!content_id.StartsWith('<') || !content_id.EndsWith('>'))
+  if (!content_id.starts_with('<') || !content_id.ends_with('>')) {
     return KURL();
+  }
 
   StringBuilder uri_builder;
   uri_builder.Append("cid:");
   uri_builder.Append(content_id, 1, content_id.length() - 2);
-  return KURL(NullURL(), uri_builder.ToString());
+  return KURL(NullUrl(), uri_builder.ToString());
 }
 
 }  // namespace blink

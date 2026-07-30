@@ -11,8 +11,8 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/lens/lens_overlay_side_panel_coordinator.h"
 #include "chrome/browser/ui/lens/lens_search_controller.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry.h"
+#include "chrome/browser/ui/side_panel/side_panel_ui.h"
 
 namespace {
 
@@ -65,7 +65,7 @@ void LensResultsPanelRouter::OnOverlayShown() {
       service->OnLensOverlayStateChanged(
           lens_search_controller_->GetTabInterface()
               ->GetBrowserWindowInterface(),
-          /*is_showing=*/true);
+          /*is_showing=*/true, lens_search_controller_->invocation_source());
     }
     return;
   }
@@ -78,7 +78,7 @@ void LensResultsPanelRouter::OnOverlayHidden() {
       service->OnLensOverlayStateChanged(
           lens_search_controller_->GetTabInterface()
               ->GetBrowserWindowInterface(),
-          /*is_showing=*/false);
+          /*is_showing=*/false, lens_search_controller_->invocation_source());
     }
     return;
   }

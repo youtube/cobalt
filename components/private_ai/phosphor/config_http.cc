@@ -12,6 +12,7 @@
 
 #include "base/check.h"
 #include "base/functional/bind.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
@@ -30,15 +31,15 @@ namespace private_ai::phosphor {
 
 namespace {
 constexpr net::NetworkTrafficAnnotationTag kGetTokenTrafficAnnotation =
-    net::DefineNetworkTrafficAnnotation("legion_service_get_token",
+    net::DefineNetworkTrafficAnnotation("private_ai_get_token",
                                         R"(
     semantics {
-      sender: "Legion Service Client"
+      sender: "PrivateAI Service Client"
       description:
         "Request to a Google auth server to obtain an authorization token "
-        "for Legion client attestation."
+        "for PrivateAI client attestation."
       trigger:
-        "The Legion Service is out of client attestation tokens."
+        "The PrivateAI Service is out of client attestation tokens."
       data:
         "Sign-in OAuth Token"
       destination: GOOGLE_OWNED_SERVICE
@@ -60,7 +61,7 @@ constexpr net::NetworkTrafficAnnotationTag kGetTokenTrafficAnnotation =
       ""
     )");
 
-// The maximum size of the Legion requests - 256 KB (in practice these
+// The maximum size of the PrivateAI requests - 256 KB (in practice these
 // should be much smaller than this).
 const int kPrivateAiRequestMaxBodySize = 256 * 1024;
 const char kProtobufContentType[] = "application/x-protobuf";
@@ -121,7 +122,7 @@ void ConfigHttp::DoRequest(quiche::BlindSignMessageRequestType request_type,
   replacements.SetPathStr(path);
   GURL request_url = GetServerUrl().ReplaceComponents(replacements);
   if (!request_url.is_valid()) {
-    std::move(callback)(absl::InternalError("Invalid Legion Token URL"));
+    std::move(callback)(absl::InternalError("Invalid PrivateAI Token URL"));
     return;
   }
 
@@ -154,19 +155,24 @@ void ConfigHttp::DoRequest(quiche::BlindSignMessageRequestType request_type,
   url_loader_ptr->DownloadToString(
       GetOrCreateURLLoaderFactory(),
       base::BindOnce(&ConfigHttp::OnDoRequestCompleted,
-                     weak_ptr_factory_.GetWeakPtr(), std::move(url_loader),
-                     std::move(callback)),
+                     weak_ptr_factory_.GetWeakPtr(), base::TimeTicks::Now(),
+                     std::move(url_loader), std::move(callback)),
       kPrivateAiRequestMaxBodySize);
 }
 
 void ConfigHttp::OnDoRequestCompleted(
+    base::TimeTicks start_time,
     std::unique_ptr<network::SimpleURLLoader> url_loader,
     quiche::BlindSignMessageCallback callback,
     std::optional<std::string> response) {
+  base::UmaHistogramMediumTimes("PrivateAi.Phosphor.ConfigHttp.RequestLatency",
+                                base::TimeTicks::Now() - start_time);
   int response_code = 0;
   if (url_loader->ResponseInfo() && url_loader->ResponseInfo()->headers) {
     response_code = url_loader->ResponseInfo()->headers->response_code();
   }
+  base::UmaHistogramSparse("PrivateAi.Phosphor.ConfigHttp.ResponseCode",
+                           response_code);
 
   // A response code of 0 can be returned if no HTTP response is received, for
   // example in the case of a network error. This is also used by unit tests

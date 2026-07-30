@@ -276,8 +276,6 @@ component("base") {
     "containers/to_value_list.h",
     "containers/to_vector.h",
     "containers/unique_ptr_adapters.h",
-    "containers/variant_map.cc",
-    "containers/variant_map.h",
     "containers/vector_buffer.h",
     "critical_closure.h",
     "dcheck_is_on.h",
@@ -386,8 +384,6 @@ component("base") {
     "memory/memory_pressure_listener.h",
     "memory/memory_pressure_listener_registry.cc",
     "memory/memory_pressure_listener_registry.h",
-    "memory/memory_pressure_monitor.cc",
-    "memory/memory_pressure_monitor.h",
     "memory/page_size.h",
     "memory/platform_shared_memory_handle.cc",
     "memory/platform_shared_memory_handle.h",
@@ -447,6 +443,7 @@ component("base") {
     "memory_coordinator/memory_consumer_registry.h",
     "memory_coordinator/memory_consumer_registry_destruction_observer.h",
     "memory_coordinator/traits.h",
+    "memory_coordinator/utils.h",
     "message_loop/io_watcher.cc",
     "message_loop/io_watcher.h",
     "message_loop/message_pump.cc",
@@ -1980,7 +1977,6 @@ component("base") {
       "win/win_util.h",
       "win/winbase_shim.h",
       "win/wincred_shim.h",
-      "win/wincrypt_shim.h",
       "win/window_enumerator.cc",
       "win/window_enumerator.h",
       "win/windows_defines.inc",
@@ -2072,6 +2068,7 @@ component("base") {
       "apple/scoped_objc_class_swizzler.h",
       "apple/scoped_objc_class_swizzler.mm",
       "apple/scoped_typeref.h",
+      "apple/swift_callback_helpers.h",
       "apple/swift_interop_util.h",
       "file_version_info_apple.h",
       "file_version_info_apple.mm",
@@ -3499,7 +3496,6 @@ test("base_unittests") {
     "containers/to_value_list_unittest.cc",
     "containers/to_vector_unittest.cc",
     "containers/unique_ptr_adapters_unittest.cc",
-    "containers/variant_map_unittest.cc",
     "containers/vector_buffer_unittest.cc",
     "cpu_unittest.cc",
     "debug/alias_unittest.cc",
@@ -4440,11 +4436,15 @@ test("base_unittests") {
 
   deps += [
     "//third_party/perfetto:perfetto_test_support",
-    "//third_party/perfetto/include/perfetto/trace_processor:storage",
     "//third_party/perfetto/protos/perfetto/trace:lite",
     "//third_party/perfetto/protos/perfetto/trace/interned_data:lite",
     "//third_party/perfetto/protos/perfetto/trace/track_event:lite",
   ]
+
+  if (use_perfetto_trace_processor) {
+    deps +=
+        [ "//third_party/perfetto/include/perfetto/trace_processor:storage" ]
+  }
 
   if (enable_nocompile_tests) {
     deps += [ ":base_nocompile_tests" ]
@@ -5513,6 +5513,7 @@ if (is_android) {
     sources = [
       "android/java/src/org/chromium/base/AconfigFlaggedApiDelegate.java",
       "android/java/src/org/chromium/base/BindingRequestQueue.java",
+      "android/java/src/org/chromium/base/PasswordEchoSplitSettingDelegate.java",
       "android/java/src/org/chromium/base/SelectionActionMenuClientWrapper.java",
       "android/java/src/org/chromium/base/serial/SerialManager.java",
       "android/java/src/org/chromium/base/serial/SerialPort.java",
@@ -5824,11 +5825,6 @@ if (is_android) {
 
   robolectric_library("base_junit_test_support") {
     sources = [
-      "//third_party/robolectric/custom_asynctask/java/src/org/chromium/base/task/test/ShadowAsyncTask.java",
-      "//third_party/robolectric/custom_asynctask/java/src/org/chromium/base/task/test/ShadowAsyncTaskBridge.java",
-      "test/android/junit/src/org/chromium/base/task/test/BackgroundShadowAsyncTask.java",
-      "test/android/junit/src/org/chromium/base/task/test/CustomShadowAsyncTask.java",
-      "test/android/junit/src/org/chromium/base/task/test/ShadowPostTask.java",
       "test/android/junit/src/org/chromium/base/test/BaseRobolectricAndroidConfigurer.java",
       "test/android/junit/src/org/chromium/base/test/BaseRobolectricTestListener.java",
       "test/android/junit/src/org/chromium/base/test/BaseRobolectricTestRule.java",

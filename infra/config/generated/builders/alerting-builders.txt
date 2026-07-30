@@ -329,8 +329,6 @@ ci/chromeos-amd64-generic-rel-tast
 ci/chromeos-arm-generic-dbg
 ci/chromeos-arm-generic-rel
 ci/chromeos-arm64-generic-rel
-ci/chromeos-jacuzzi-rel
-ci/chromeos-octopus-rel
 ci/chromeos-x64-libfuzzer-asan-rel-tests
 ci/fuchsia-angle-builder
 ci/fuchsia-arm64-cast-receiver-rel
@@ -504,10 +502,8 @@ try/chromeos-amd64-generic-rel-gtest-and-tast
 try/chromeos-arm-generic-dbg
 try/chromeos-arm-generic-rel
 try/chromeos-arm64-generic-rel
-try/chromeos-jacuzzi-rel
 try/chromeos-js-coverage-rel
 try/chromeos-libfuzzer-asan-rel
-try/chromeos-octopus-rel
 try/chromeos-x64-libfuzzer-asan-rel-tests
 try/compile-size
 try/fuchsia-angle-try
@@ -651,6 +647,7 @@ try/linux-utr-tester
 try/linux-v4l2-codec-rel
 try/linux-wayland-mutter-rel
 try/linux-wayland-weston-rel
+try/linux-webium-product-rel
 try/linux-win-cross-rel
 try/linux-x64-centipede-asan-rel-tests
 try/linux-x64-libfuzzer-asan-dbg-tests
@@ -733,6 +730,7 @@ try/win-swangle-try-x86
 try/win-updater-try-builder-dbg
 try/win-updater-try-builder-rel
 try/win-utr-tester
+try/win-webium-product-rel
 try/win-x64-libfuzzer-asan-rel-tests
 try/win10-dbg
 try/win11-rel

@@ -229,6 +229,34 @@ suite('ContextualTasksAppTest', function() {
     await microtasksFinished();
   });
 
+  test('error page shown if pending error page is true for task', async () => {
+    const taskId = '123';
+    window.history.replaceState({}, '', `?task=${taskId}`);
+
+    const proxy = new TestContextualTasksBrowserProxy('http://example.com');
+    proxy.handler.setIsPendingErrorPage({value: taskId}, true);
+    BrowserProxyImpl.setInstance(proxy);
+
+    const appElement = document.createElement('contextual-tasks-app');
+    document.body.appendChild(appElement);
+    await microtasksFinished();
+
+    assertTrue(appElement.hasAttribute('is-error-page-visible_'));
+  });
+
+  test(
+      'error page not shown if pending error page is not true for task',
+      async () => {
+        const proxy = new TestContextualTasksBrowserProxy('http://example.com');
+        BrowserProxyImpl.setInstance(proxy);
+
+        const appElement = document.createElement('contextual-tasks-app');
+        document.body.appendChild(appElement);
+        await microtasksFinished();
+
+        assertFalse(appElement.hasAttribute('is-error-page-visible_'));
+      });
+
   test('toolbar visibility changes for tab and side panel', async () => {
     const proxy = new TestContextualTasksBrowserProxy(fixtureUrl);
     BrowserProxyImpl.setInstance(proxy);
@@ -505,53 +533,6 @@ suite('ContextualTasksAppTest', function() {
             '0', flexCenterStyle.zIndex,
             'Flex center container z-index should be 0');
       });
-
-  test('does not set basic mode when navigating from AI page', async () => {
-    const proxy = new TestContextualTasksBrowserProxy(fixtureUrl);
-    BrowserProxyImpl.setInstance(proxy);
-
-    const appElement = document.createElement('contextual-tasks-app');
-    document.body.appendChild(appElement);
-    await microtasksFinished();
-
-    // Verify initial state.
-    assertFalse(appElement.hasAttribute('is-in-basic-mode_'),
-        'Initial state should not be in basic mode');
-
-    // Ensure the app is on an AI page.
-    proxy.callbackRouterRemote.onAiPageStatusChanged(true);
-    await proxy.callbackRouterRemote.$.flushForTesting();
-    await microtasksFinished();
-
-    // Ensure the new page is also an AI page.
-    proxy.handler.setIsAiPage(true);
-
-    // Simulate navigation start.
-    const loadStartEvent = new Event('loadstart');
-    Object.assign(
-        loadStartEvent, {url: 'http://example.com', isTopLevel: true});
-    appElement.$.threadFrame.dispatchEvent(loadStartEvent);
-    await microtasksFinished();
-
-    // Should be in basic mode now because the app is navigating from an AI
-    // page.
-    assertTrue(appElement.hasAttribute('is-in-basic-mode_'),
-        'Should be in basic mode when navigating from an AI page');
-    assertTrue(appElement.isNavigatingForTesting(),
-        'Should be navigating after navigation starts');
-
-    // Simulate navigation complete.
-    appElement.$.threadFrame.dispatchEvent(new Event('contentload'));
-    await microtasksFinished();
-
-    // Should not exit basic mode since we are relying on backend now
-    // as the single source of truth, and backend has sent
-    // no notification for changing basic mode.
-    assertTrue(appElement.hasAttribute('is-in-basic-mode_'),
-        'Should not exit basic mode after navigation completes');
-    assertFalse(appElement.isNavigatingForTesting(),
-        'Should not be navigating after navigation completes');
-  });
 
   test('sets basic mode when navigating from AI page and backend sends notification',
       async () => {
@@ -907,7 +888,7 @@ suite('ContextualTasksAppTest', function() {
     const frameRect = appElement.$.threadFrame.getBoundingClientRect();
 
     // Verify styles applied
-    assertEquals('fixed', composebox.style.position);
+    assertEquals('relative', composebox.style.position);
     assertEquals(
         `${window.innerHeight - (frameRect.top + rect.bottom)}px`,
         composebox.style.bottom);
@@ -1061,4 +1042,212 @@ suite('ContextualTasksAppTest', function() {
         appElement.getIsFrameLoadingForTesting(),
         'isFrameLoading should be false');
   });
+
+  test('zero state animation plays when zero state changes', async () => {
+    loadTimeData.overrideValues({
+      friendlyZeroStateGaiaName: 'Test Name',
+    });
+    const proxy = new TestContextualTasksBrowserProxy(fixtureUrl);
+    BrowserProxyImpl.setInstance(proxy);
+
+    const appElement = document.createElement('contextual-tasks-app');
+    document.body.appendChild(appElement);
+    await microtasksFinished();
+
+    // Set initial state to true so we can transition to false then back to
+    // true.
+    appElement.setIsZeroStateForTesting(true);
+    await microtasksFinished();
+
+    const composebox = appElement.$.composebox;
+    const headerWrapper = appElement.$.composeboxHeaderWrapper;
+    // nameShimmer might not exist if friendlyZeroStateGaiaName_ is not set.
+    const nameShimmer = appElement.$.nameShimmer;
+
+    // Mock animate function.
+    let composeboxAnimateCalled = false;
+    let headerAnimateCalled = false;
+    let nameShimmerAnimateCalled = false;
+
+    // Mock getAnimations to return dummy animations that can be cancelled and
+    // played.
+    const createMockAnimation = (callback: () => void) =>
+        ({
+          cancel: () => {},
+          play: () => {
+            callback();
+            return Promise.resolve();
+          },
+        }) as unknown as Animation;
+
+    composebox.getAnimations = () => [createMockAnimation(() => {
+      composeboxAnimateCalled = true;
+    })];
+
+    headerWrapper.getAnimations = () => [createMockAnimation(() => {
+      headerAnimateCalled = true;
+    })];
+
+    if (nameShimmer) {
+      nameShimmer.getAnimations = () => [createMockAnimation(() => {
+        nameShimmerAnimateCalled = true;
+      })];
+    }
+
+    // Mock startExpandAnimation since it is called to trigger the glow
+    // animation.
+    (composebox as any).startExpandAnimation = () => {};
+
+    // Transition out of zero state first.
+    proxy.callbackRouterRemote.onZeroStateChange(false);
+    await proxy.callbackRouterRemote.$.flushForTesting();
+    await microtasksFinished();
+
+    // Transition back to zero state to trigger animations.
+    proxy.callbackRouterRemote.onZeroStateChange(true);
+    await proxy.callbackRouterRemote.$.flushForTesting();
+    await microtasksFinished();
+
+    // Verify animations were played.
+    assertTrue(composeboxAnimateCalled, 'Composebox animation should play');
+    assertTrue(headerAnimateCalled, 'Header animation should play');
+    if (nameShimmer) {
+      assertTrue(
+          nameShimmerAnimateCalled, 'Name shimmer animation should play');
+    }
+  });
+
+  test(
+      'sets pending basic mode to false when navigating from AI page and initially not in basic mode',
+      async () => {
+        loadTimeData.overrideValues({enableBasicMode: true});
+        const proxy = new TestContextualTasksBrowserProxy(fixtureUrl);
+        BrowserProxyImpl.setInstance(proxy);
+
+        const appElement = document.createElement('contextual-tasks-app');
+        document.body.appendChild(appElement);
+        await microtasksFinished();
+
+        // Verify initial state.
+        assertFalse(appElement.hasAttribute('is-in-basic-mode_'));
+
+        // Ensure the app is on an AI page.
+        proxy.callbackRouterRemote.onAiPageStatusChanged(true);
+        await proxy.callbackRouterRemote.$.flushForTesting();
+        await microtasksFinished();
+
+        // Ensure the new page is also an AI page.
+        proxy.handler.setIsAiPage(true);
+
+        // Simulate navigation start.
+        const loadStartEvent = new Event('loadstart');
+        Object.assign(
+            loadStartEvent, {url: 'http://example.com', isTopLevel: true});
+        appElement.$.threadFrame.dispatchEvent(loadStartEvent);
+        await microtasksFinished();
+
+        // Should be in basic mode now because the app is navigating from an AI
+        // page.
+        assertTrue(appElement.hasAttribute('is-in-basic-mode_'));
+
+        // Verify pendingBasicMode_ is false (private property access).
+        assertFalse((appElement as any).pendingBasicMode_);
+
+        // Simulate navigation complete.
+        appElement.$.threadFrame.dispatchEvent(new Event('contentload'));
+        await microtasksFinished();
+
+        // Should exit basic mode because pendingBasicMode_ was false.
+        assertFalse(appElement.hasAttribute('is-in-basic-mode_'));
+      });
+
+  test(
+      'does not set pending basic mode when navigating from AI page and initially in basic mode',
+      async () => {
+        loadTimeData.overrideValues({enableBasicMode: true});
+        const proxy = new TestContextualTasksBrowserProxy(fixtureUrl);
+        BrowserProxyImpl.setInstance(proxy);
+
+        const appElement = document.createElement('contextual-tasks-app');
+        document.body.appendChild(appElement);
+        await microtasksFinished();
+
+        // Force into basic mode initially.
+        proxy.callbackRouterRemote.hideInput();
+        await proxy.callbackRouterRemote.$.flushForTesting();
+        await microtasksFinished();
+        assertTrue(appElement.hasAttribute('is-in-basic-mode_'));
+
+        // Ensure the app is on an AI page.
+        proxy.callbackRouterRemote.onAiPageStatusChanged(true);
+        await proxy.callbackRouterRemote.$.flushForTesting();
+        await microtasksFinished();
+
+        // Ensure the new page is also an AI page.
+        proxy.handler.setIsAiPage(true);
+
+        // Simulate navigation start.
+        const loadStartEvent = new Event('loadstart');
+        Object.assign(
+            loadStartEvent, {url: 'http://example.com', isTopLevel: true});
+        appElement.$.threadFrame.dispatchEvent(loadStartEvent);
+        await microtasksFinished();
+
+        // Verify pendingBasicMode_ is null (private property access).
+        assertEquals(null, (appElement as any).pendingBasicMode_);
+
+        // Simulate navigation complete.
+        appElement.$.threadFrame.dispatchEvent(new Event('contentload'));
+        await microtasksFinished();
+
+        // Should remain in basic mode because pendingBasicMode_ was null.
+        assertTrue(appElement.hasAttribute('is-in-basic-mode_'));
+      });
+
+  test(
+      'updates basic mode on load commit when navigating from AI page and initially not in basic mode',
+      async () => {
+        loadTimeData.overrideValues({enableBasicMode: true});
+        const proxy = new TestContextualTasksBrowserProxy(fixtureUrl);
+        BrowserProxyImpl.setInstance(proxy);
+
+        const appElement = document.createElement('contextual-tasks-app');
+        document.body.appendChild(appElement);
+        await microtasksFinished();
+
+        // Verify initial state.
+        assertFalse(appElement.hasAttribute('is-in-basic-mode_'));
+
+        // Ensure the app is on an AI page.
+        proxy.callbackRouterRemote.onAiPageStatusChanged(true);
+        await proxy.callbackRouterRemote.$.flushForTesting();
+        await microtasksFinished();
+
+        // Ensure the new page is also an AI page.
+        proxy.handler.setIsAiPage(true);
+
+        // Simulate navigation start.
+        const loadStartEvent = new Event('loadstart');
+        Object.assign(
+            loadStartEvent, {url: 'http://example.com', isTopLevel: true});
+        appElement.$.threadFrame.dispatchEvent(loadStartEvent);
+        await microtasksFinished();
+
+        // Should be in basic mode now because the app is navigating from an AI
+        // page.
+        assertTrue(appElement.hasAttribute('is-in-basic-mode_'));
+
+        // Verify pendingBasicMode_ is false (private property access).
+        assertFalse((appElement as any).pendingBasicMode_);
+
+        // Simulate load commit.
+        const loadCommitEvent = new Event('loadcommit');
+        Object.assign(
+            loadCommitEvent, {url: 'http://example.com', isTopLevel: true});
+        appElement.$.threadFrame.dispatchEvent(loadCommitEvent);
+        await microtasksFinished();
+
+        // Should exit basic mode because pendingBasicMode_ was false.
+        assertFalse(appElement.hasAttribute('is-in-basic-mode_'));
+      });
 });

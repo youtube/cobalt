@@ -194,7 +194,15 @@ The embedder code for Android WebView lives in //android_webview. Details are
 
 ### Chromecast
 
-The embedder code for Chromecast lives in //chromecast.
+The embedder code for Chromecast lives in //chromecast. This code is used to
+build the *Cast Web Runtime*, also known as the "Cast Browser", which is used to
+display [web-based Google Cast apps](https://developers.google.com/cast/docs/web_receiver).
+
+The supported platforms are defined in the gn files in
+//chromecast/build/args/product. Each file corresponds to a single supported
+platform for the Cast Web Runtime.
+
+Details are [here](https://chromium.googlesource.com/chromium/src/chromecast/README.md).
 
 ### Cronet
 
@@ -203,7 +211,10 @@ embedder code for Cronet lives in //components/cronet. Details are [here](https:
 
 ### Fuchsia WebEngine
 
-The embedder code for Fuchsia WebEngine lives in //fuchsia_web. Details are
+Fuchsia WebEngine is an application running on the Fuchsia operating system for
+displaying web content and running cast applications (sometimes being referred
+as a Cast Receiver). The embedder code for Fuchsia WebEngine lives in
+//fuchsia_web. Details, including information on platform support, are
 [here](https://chromium.googlesource.com/chromium/src/+/main/fuchsia_web/README.md).
 
 ### Headless

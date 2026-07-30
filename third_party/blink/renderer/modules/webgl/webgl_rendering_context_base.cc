@@ -1312,7 +1312,7 @@ scoped_refptr<DrawingBuffer> WebGLRenderingContextBase::CreateDrawingBuffer(
   // non-WebGLImageChromium for OffscreenCanvas.
   // See detailed discussion in crbug.com/649668.
   DrawingBuffer::ChromiumImageUsage chromium_image_usage =
-      SharedGpuContext::MaySupportImageChromium() &&
+      SharedGpuContext::MaySupportWebGLImageChromium() &&
               !Host()->IsOffscreenCanvas()
           ? DrawingBuffer::kAllowChromiumImage
           : DrawingBuffer::kDisallowChromiumImage;
@@ -1987,7 +1987,7 @@ WebGLRenderingContextBase::GetSharedImageResourceProvider() {
     gpu::SharedImageUsageSet shared_image_usage_flags =
         gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
 
-    if (SharedGpuContext::MaySupportImageChromium() &&
+    if (SharedGpuContext::MaySupportWebGLImageChromium() &&
         RuntimeEnabledFeatures::WebGLImageChromiumEnabled()) {
       shared_image_usage_flags |= gpu::SHARED_IMAGE_USAGE_SCANOUT;
     }
@@ -4387,8 +4387,9 @@ ScriptValue WebGLRenderingContextBase::getUniform(
       return ScriptValue::CreateNull(script_state->GetIsolate());
     String name(name_impl->Substring(0, name_length));
     // Strip "[0]" from the name if it's an array.
-    if (size > 1 && name.EndsWith("[0]"))
+    if (size > 1 && name.ends_with("[0]")) {
       name = name.Left(name.length() - 3);
+    }
     // If it's an array, we need to iterate through each element, appending
     // "[index]" to the name.
     StringBuilder name_builder;
@@ -6453,6 +6454,10 @@ void WebGLRenderingContextBase::TexImageHelperMediaVideoFrame(
   auto info = CreateSnapshotProviderInfoForVideoFrame(
       *media_video_frame, dest_rect.size(), reinterpret_video_as_srgb);
   auto* snapshot_provider = image_cache.GetCanvasSnapshotProvider(info);
+  if (!snapshot_provider) {
+    return;
+  }
+
   std::optional<CanvasSnapshotProvider::Info> sw_draw_info;
   CanvasNon2DResourceProviderSharedImage* snapshot_provider_si = nullptr;
   sk_sp<SkSurface> sw_draw_surface;
@@ -7902,9 +7907,10 @@ bool WebGLRenderingContextBase::ValidateString(const char* function_name,
 }
 
 bool WebGLRenderingContextBase::IsPrefixReserved(const String& name) {
-  if (name.StartsWith("gl_") || name.StartsWith("webgl_") ||
-      name.StartsWith("_webgl_"))
+  if (name.starts_with("gl_") || name.starts_with("webgl_") ||
+      name.starts_with("_webgl_")) {
     return true;
+  }
   return false;
 }
 
@@ -8889,14 +8895,23 @@ CanvasSnapshotProvider* WebGLRenderingContextBase::
     return snapshot_provider;
   }
 
-  std::unique_ptr<CanvasSnapshotProvider> temp;
+  bool create_accelerated_provider = false;
   if (type_ == CacheType::kVideo) {
     viz::RasterContextProvider* raster_context_provider = nullptr;
     if (auto wrapper = SharedGpuContext::ContextProviderWrapper()) {
       raster_context_provider =
           wrapper->ContextProvider().RasterContextProvider();
     }
-    temp = CreateSnapshotProviderForVideo(info, raster_context_provider);
+    create_accelerated_provider =
+        ShouldCreateAcceleratedImages(raster_context_provider);
+  }
+
+  std::unique_ptr<CanvasSnapshotProvider> temp;
+  if (create_accelerated_provider) {
+    temp = CanvasNon2DResourceProviderSharedImage::Create(
+        info.size, info.format, info.alpha_type, info.color_space,
+        SharedGpuContext::ContextProviderWrapper(),
+        gpu::SHARED_IMAGE_USAGE_DISPLAY_READ);
   } else {
     temp = CanvasNon2DSnapshotProviderBitmap::Create(info);
   }

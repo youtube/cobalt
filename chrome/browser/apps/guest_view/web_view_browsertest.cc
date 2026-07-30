@@ -64,6 +64,8 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/dialogs/browser_dialogs.h"
 #include "chrome/browser/ui/hid/hid_chooser_controller.h"
 #include "chrome/browser/ui/login/login_handler.h"
@@ -141,6 +143,8 @@
 #include "extensions/browser/api/declarative_net_request/rules_monitor_service.h"
 #include "extensions/browser/api/declarative_webrequest/webrequest_constants.h"
 #include "extensions/browser/api/extensions_api_client.h"
+#include "extensions/browser/api/web_request/extension_web_request_event_router.h"
+#include "extensions/browser/app_window/app_window_registry.h"
 #include "extensions/browser/app_window/native_app_window.h"
 #include "extensions/browser/guest_view/web_view/web_view_guest.h"
 #include "extensions/browser/guest_view/web_view/web_view_renderer_state.h"
@@ -181,6 +185,7 @@
 #include "ui/latency/latency_info.h"
 #include "ui/shell_dialogs/select_file_dialog.h"
 #include "url/url_constants.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "ash/constants/ash_features.h"
@@ -1057,6 +1062,53 @@ IN_PROC_BROWSER_TEST_P(WebViewTest, AudibilityStatePropagates) {
   embedder_obs.WaitForCurrentlyAudible(false);
   EXPECT_FALSE(embedder->IsCurrentlyAudible());
   EXPECT_FALSE(guest_contents->IsCurrentlyAudible());
+}
+
+IN_PROC_BROWSER_TEST_P(WebViewTest, CanDragEnterDelegation) {
+  // TODO(crbug.com/40202416): This test doesn't apply for MPArch and
+  // can be removed when the InnerWebContents version is removed.
+  SKIP_FOR_MPARCH();
+
+  ASSERT_TRUE(StartEmbeddedTestServer());
+  LoadAppWithGuest("web_view/simple");
+
+  guest_view::GuestViewBase* guest = GetGuestView();
+  ASSERT_TRUE(guest);
+
+  content::WebContents* embedder = guest->owner_web_contents();
+
+  class MockDelegate : public content::WebContentsDelegate {
+   public:
+    bool CanDragEnter(content::WebContents* source,
+                      const content::DropData& data,
+                      blink::DragOperationsMask operations_allowed) override {
+      called = true;
+      return expected_return_value;
+    }
+    bool called = false;
+    bool expected_return_value = false;
+  };
+
+  MockDelegate delegate;
+  content::WebContentsDelegate* original_delegate = embedder->GetDelegate();
+  embedder->SetDelegate(&delegate);
+
+  content::DropData drop_data;
+  drop_data.url_infos.emplace_back(GURL("https://example.com"),
+                                   std::u16string());
+
+  delegate.expected_return_value = true;
+  EXPECT_TRUE(guest->web_contents()->GetDelegate()->CanDragEnter(
+      guest->web_contents(), drop_data, blink::kDragOperationCopy));
+  EXPECT_TRUE(delegate.called);
+
+  delegate.called = false;
+  delegate.expected_return_value = false;
+  EXPECT_FALSE(guest->web_contents()->GetDelegate()->CanDragEnter(
+      guest->web_contents(), drop_data, blink::kDragOperationCopy));
+  EXPECT_TRUE(delegate.called);
+
+  embedder->SetDelegate(original_delegate);
 }
 
 IN_PROC_BROWSER_TEST_P(WebViewTest, SetAudioMuted) {
@@ -8077,6 +8129,72 @@ IN_PROC_BROWSER_TEST_P(ContextualTasksWebViewTest, OpenLinkInNewTab) {
     EXPECT_TRUE(waiter.IsCommandExecuted().value());
     EXPECT_EQ(incognito_browser_count + 1, chrome::GetIncognitoBrowserCount());
   }
+}
+
+IN_PROC_BROWSER_TEST_P(ContextualTasksWebViewTest, WebRequestListenersCleanup) {
+  SKIP_FOR_MPARCH();  // TODO(crbug.com/40202416): Enable test for MPArch.
+
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  // Navigate to chrome://contextual-tasks
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL(chrome::kChromeUIContextualTasksURL)));
+  content::WebContents* embedder_web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+
+  // Wait for webview in contextual tasks to be created.
+  guest_view::GuestViewBase* guest_view1 =
+      GetGuestViewManager()->WaitForSingleGuestViewCreated();
+  GetGuestViewManager()->WaitUntilAttached(guest_view1);
+
+  // Verify that the onBeforeRequest listener is added.
+  auto* event_router =
+      extensions::WebRequestEventRouter::Get(browser()->profile());
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return event_router->GetListenerCountForTesting(
+               browser()->profile(), "webViewInternal.onBeforeRequest") == 1;
+  }));
+
+  // Add a second tab to keep the browser open when we detach the first one.
+  chrome::AddTabAt(browser(), GURL(url::kAboutBlankURL), -1, true);
+
+  // 2. Detach the tab containing the first webview.
+  std::unique_ptr<content::WebContents> detached_embedder =
+      browser()->tab_strip_model()->DetachWebContentsAtForInsertion(
+          0, TabRemovedReason::kInsertedIntoSidePanel);
+  ASSERT_EQ(embedder_web_contents, detached_embedder.get());
+
+  // 3. Create a new webcontents and navigate to chrome://contextual-tasks.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL(chrome::kChromeUIContextualTasksURL)));
+  content::WebContents* embedder2 =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  guest_view::GuestViewBase* guest_view2 =
+      GetGuestViewManager()->WaitForSingleGuestViewCreated();
+  GetGuestViewManager()->WaitUntilAttached(guest_view2);
+
+  // Verify that the onBeforeRequest listener is added to second webcontents.
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return event_router->GetListenerCountForTesting(
+               browser()->profile(), "webViewInternal.onBeforeRequest") == 2;
+  }));
+
+  // 5. Cleanup the detached webcontents.
+  detached_embedder.reset();
+
+  // 6. Verify that the original listener is cleaned up, but the second one
+  // isn't.
+  EXPECT_EQ(1u, event_router->GetListenerCountForTesting(
+                    browser()->profile(), "webViewInternal.onBeforeRequest"));
+
+  // 7. Cleanup the second webcontents and verify the second listener is cleaned
+  // up.
+  content::WebContentsDestroyedWatcher destroyed_watcher2(embedder2);
+  chrome::CloseTab(browser());
+  destroyed_watcher2.Wait();
+
+  EXPECT_EQ(0u, event_router->GetListenerCountForTesting(
+                    browser()->profile(), "webViewInternal.onBeforeRequest"));
 }
 
 class ContextualTasksChannelWebViewTest : public WebViewChannelTest {

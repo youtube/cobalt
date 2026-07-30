@@ -36,6 +36,8 @@
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/desktop_to_mobile_promos/ios_promo_trigger_service.h"
+#include "chrome/browser/ui/desktop_to_mobile_promos/ios_promo_trigger_service_factory.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/hats/hats_service.h"
 #include "chrome/browser/ui/hats/hats_service_factory.h"
@@ -58,18 +60,16 @@
 #include "chrome/browser/ui/lens/lens_searchbox_controller.h"
 #include "chrome/browser/ui/lens/lens_session_metrics_logger.h"
 #include "chrome/browser/ui/lens/page_content_type_conversions.h"
-#include "chrome/browser/ui/promos/ios_promo_trigger_service.h"
-#include "chrome/browser/ui/promos/ios_promo_trigger_service_factory.h"
 #include "chrome/browser/ui/search/omnibox_utils.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry_key.h"
+#include "chrome/browser/ui/side_panel/side_panel_enums.h"
+#include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
 #include "chrome/browser/ui/views/side_panel/side_panel.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry_key.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_enums.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_util.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/common/chrome_render_frame.mojom.h"
@@ -956,13 +956,10 @@ void LensOverlayController::IssueLensRequest(
     initialization_data_->selected_region_bitmap_.reset();
   }
 
-  if (GetContextualizationController()->GetCurrentPageContextEligibility()) {
-    GetLensQueryFlowRouter()->SendRegionSearch(
-        query_start_time, region.Clone(), selection_type,
-        initialization_data_->additional_search_query_params_, region_bytes,
-        invocation_source_);
-  }
-
+  GetLensQueryFlowRouter()->SendRegionSearch(
+      query_start_time, region.Clone(), selection_type,
+      initialization_data_->additional_search_query_params_, region_bytes,
+      invocation_source_);
   MaybeOpenSidePanel();
   GetLensSessionMetricsLogger()->RecordTimeToFirstInteraction(
       lens::LensOverlayFirstInteractionType::kRegionSelect);
@@ -985,12 +982,10 @@ void LensOverlayController::IssueMultimodalRequest(
     const std::string& text_query,
     lens::LensOverlaySelectionType selection_type,
     std::optional<SkBitmap> region_bitmap) {
-  if (GetContextualizationController()->GetCurrentPageContextEligibility()) {
-    GetLensQueryFlowRouter()->SendMultimodalRequest(
-        query_start_time, std::move(region), text_query, selection_type,
-        initialization_data_->additional_search_query_params_, region_bitmap,
-        invocation_source_);
-  }
+  GetLensQueryFlowRouter()->SendMultimodalRequest(
+      query_start_time, std::move(region), text_query, selection_type,
+      initialization_data_->additional_search_query_params_, region_bitmap,
+      invocation_source_);
 }
 
 void LensOverlayController::IssueSearchBoxRequest(
@@ -1034,13 +1029,11 @@ void LensOverlayController::IssueContextualTextRequest(
     base::Time query_start_time,
     const std::string& text_query,
     lens::LensOverlaySelectionType selection_type) {
-  if (GetContextualizationController()->GetCurrentPageContextEligibility()) {
-    lens_selection_type_ = selection_type;
-    GetLensQueryFlowRouter()->SendContextualTextQuery(
-        query_start_time, text_query, selection_type,
-        initialization_data_->additional_search_query_params_,
-        invocation_source_);
-  }
+  lens_selection_type_ = selection_type;
+  GetLensQueryFlowRouter()->SendContextualTextQuery(
+      query_start_time, text_query, selection_type,
+      initialization_data_->additional_search_query_params_,
+      invocation_source_);
 }
 
 void LensOverlayController::AddOverlayStateToSearchQuery(
@@ -1499,6 +1492,12 @@ void LensOverlayController::NotifyTabWillEnterBackground() {
   UpdateEntryPointsState();
 }
 
+bool LensOverlayController::IsOverlayViewShared() const {
+  // The view that host's Lens's WebUI is a direct child of the BrowserView,
+  // which means it can be shared across different tabs.
+  return true;
+}
+
 void LensOverlayController::ActivityRequestedByOverlay(
     ui::mojom::ClickModifiersPtr click_modifiers) {
   // The tab is expected to be in the foreground.
@@ -1690,10 +1689,8 @@ void LensOverlayController::IssueSearchBoxRequestPart2(
   lens::LensOverlayInvocationSource final_source =
       invocation_source.value_or(invocation_source_);
 
-  if (!GetContextualizationController()->GetCurrentPageContextEligibility()) {
-    // Do not send any requests if the page is not context eligible.
-  } else if (initialization_data_->selected_region_.is_null() &&
-             IsContextualSearchbox()) {
+  if (initialization_data_->selected_region_.is_null() &&
+      IsContextualSearchbox()) {
     GetLensQueryFlowRouter()->SendContextualTextQuery(
         query_start_time, search_box_text, lens_selection_type_,
         initialization_data_->additional_search_query_params_, final_source);

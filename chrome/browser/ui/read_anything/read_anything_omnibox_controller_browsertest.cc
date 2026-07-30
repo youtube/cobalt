@@ -18,14 +18,14 @@
 #include "chrome/browser/ui/read_anything/read_anything_controller.h"
 #include "chrome/browser/ui/read_anything/read_anything_entry_point_controller.h"
 #include "chrome/browser/ui/read_anything/read_anything_prefs.h"
+#include "chrome/browser/ui/side_panel/side_panel_action_callback.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry_id.h"
+#include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/page_action/page_action_controller.h"
 #include "chrome/browser/ui/views/page_action/page_action_triggers.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_action_callback.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry_id.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/prefs/pref_service.h"
@@ -160,4 +160,20 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingOmniboxControllerBrowserTest,
   histogram_tester.ExpectUniqueSample(
       "Accessibility.ReadAnything.EntryPointAfterOmnibox",
       ReadAnythingOpenTrigger::kReadAnythingContextMenu, 1);
+}
+
+IN_PROC_BROWSER_TEST_F(ReadAnythingOmniboxControllerBrowserTest,
+                       Activate_DoesNotLogTogglePresentationAfterOmniboxShown) {
+  base::HistogramTester histogram_tester;
+  controller_ = CreateController();
+
+  tabs::TabInterface* tab = browser()->tab_strip_model()->GetActiveTab();
+  tab->GetTabFeatures()->page_action_controller()->Show(
+      kActionSidePanelShowReadAnything);
+
+  controller_->Activate(
+      true, ReadAnythingOpenTrigger::kReadAnythingTogglePresentationButton);
+
+  histogram_tester.ExpectTotalCount(
+      "Accessibility.ReadAnything.EntryPointAfterOmnibox", 0);
 }

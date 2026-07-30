@@ -4,14 +4,16 @@
 
 #include "sandbox/win/tests/common/controller.h"
 
+#include <windows.h>
+
 #include <memory>
 #include <string>
 #include <string_view>
 
 #include "base/check.h"
+#include "base/check_op.h"
+#include "base/functional/bind.h"
 #include "base/functional/callback.h"
-#include "base/memory/platform_shared_memory_region.h"
-#include "base/memory/read_only_shared_memory_region.h"
 #include "base/no_destructor.h"
 #include "base/notreached.h"
 #include "base/path_service.h"
@@ -27,9 +29,6 @@
 #include "base/test/test_future.h"
 #include "base/test/test_timeouts.h"
 #include "base/time/time.h"
-#include "base/unguessable_token.h"
-#include "base/win/scoped_handle.h"
-#include "base/win/scoped_process_information.h"
 #include "base/win/windows_version.h"
 #include "sandbox/win/src/app_container.h"
 #include "sandbox/win/src/sandbox_factory.h"
@@ -84,73 +83,11 @@ class TargetTracker : public sandbox::BrokerServicesTargetTracker {
   }
 };
 
-int SharedMemoryCommand(base::span<const std::wstring> args) {
-  if (args.empty()) {
-    return SBOX_TEST_INVALID_PARAMETER;
-  }
-  size_t raw_handle;
-  if (!base::StringToSizeT(args[0], &raw_handle)) {
-    return SBOX_TEST_INVALID_PARAMETER;
-  }
-  // First extract the handle to the platform-native ScopedHandle.
-  base::win::ScopedHandle scoped_handle(reinterpret_cast<HANDLE>(raw_handle));
-  if (!scoped_handle.is_valid()) {
-    return SBOX_TEST_INVALID_PARAMETER;
-  }
-
-  std::string_view test_contents = "Hello World";
-  // Then convert to the low-level chromium region.
-  base::subtle::PlatformSharedMemoryRegion platform_region =
-      base::subtle::PlatformSharedMemoryRegion::Take(
-          std::move(scoped_handle),
-          base::subtle::PlatformSharedMemoryRegion::Mode::kReadOnly,
-          test_contents.size(), base::UnguessableToken::Create());
-  // Finally wrap the low-level region in the shared memory API.
-  base::ReadOnlySharedMemoryRegion region =
-      base::ReadOnlySharedMemoryRegion::Deserialize(std::move(platform_region));
-  if (!region.IsValid()) {
-    return SBOX_TEST_INVALID_PARAMETER;
-  }
-  base::ReadOnlySharedMemoryMapping view = region.Map();
-  if (!view.IsValid()) {
-    return SBOX_TEST_INVALID_PARAMETER;
-  }
-  const std::string contents(view.GetMemoryAsSpan<char>().data());
-  if (contents != test_contents) {
-    return SBOX_TEST_INVALID_PARAMETER;
-  }
-  Sleep(INFINITE);
-  return SBOX_TEST_TIMED_OUT;
-}
-
 constexpr char kChildSwitch[] = "child";
 constexpr char kNoSandboxSwitch[] = "no-sandbox";
 constexpr char kStateSwitch[] = "state";
 constexpr char kCommandSwitch[] = "cmd";
-
-base::CommandLine CreateCommandLine(std::string_view command,
-                                    base::span<const std::string> args,
-                                    SboxTestsState state,
-                                    bool no_sandbox) {
-  // Get the path to the sandboxed process.
-  base::FilePath prog_name;
-  CHECK(base::PathService::Get(base::FILE_EXE, &prog_name));
-  base::CommandLine cmd_line(prog_name);
-  cmd_line.AppendSwitch(kChildSwitch);
-  if (no_sandbox) {
-    cmd_line.AppendSwitch(kNoSandboxSwitch);
-  }
-  DCHECK_LE(MAX_STATE, 10);
-  cmd_line.AppendSwitchASCII(kStateSwitch,
-                             base::NumberToString(static_cast<int>(state)));
-  cmd_line.AppendSwitchUTF8(kCommandSwitch, command);
-  cmd_line.AppendArg("--");
-  for (const auto& arg : args) {
-    cmd_line.AppendArg(arg);
-  }
-
-  return cmd_line;
-}
+constexpr char kLegacySwitch[] = "legacy";
 
 std::wstring MakePathToSysBase(std::wstring_view name,
                                std::wstring_view sysname,
@@ -175,7 +112,49 @@ std::wstring MakePathToSysWow64(std::wstring_view name, bool is_obj_man_path) {
   return MakePathToSysBase(name, L"SysWOW64", is_obj_man_path);
 }
 
+int RunLegacyCommand(CommandFunction func,
+                     base::span<const std::wstring> args) {
+  std::vector<const wchar_t*> argv;
+  for (const auto& arg : args) {
+    argv.push_back(&arg[0]);
+  }
+  return func(static_cast<int>(argv.size()), std::data(argv));
+}
+
+base::RepeatingCallback<int(base::span<const std::wstring>)> BindCommand(
+    const std::string& command_name,
+    bool legacy_command) {
+  HMODULE module;
+  if (!::GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+                               GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                           reinterpret_cast<wchar_t*>(&DispatchCall),
+                           &module)) {
+    return {};
+  }
+
+  FARPROC func = ::GetProcAddress(module, command_name.c_str());
+  if (!func) {
+    return {};
+  }
+
+  if (legacy_command) {
+    return base::BindRepeating(RunLegacyCommand,
+                               reinterpret_cast<CommandFunction>(func));
+  } else {
+    return base::BindRepeating(reinterpret_cast<CommandFunctionArgs>(func));
+  }
+}
+
 }  // namespace
+
+namespace internal {
+
+template <>
+std::string ToString(const std::wstring& value) {
+  return base::WideToUTF8(value);
+}
+
+}  // namespace internal
 
 std::wstring MakePathToSys(std::wstring_view name, bool is_obj_man_path) {
   return (base::win::OSInfo::GetInstance()->IsWowX86OnAMD64())
@@ -220,56 +199,66 @@ BrokerServices* GetBroker() {
   return instance;
 }
 
-TestRunner::TestRunner(JobLevel job_level,
-                       TokenLevel startup_token,
-                       TokenLevel main_token) {
-  broker_ = nullptr;
-  timeout_ = TestTimeouts::test_launcher_timeout();
+// static
+base::CommandLine TestRunnerBase::CreateCommandLine(
+    std::string_view command,
+    base::span<const std::string> args,
+    SboxTestsState state,
+    bool no_sandbox,
+    bool legacy_command) {
+  // Get the path to the sandboxed process.
+  base::FilePath prog_name;
+  CHECK(base::PathService::Get(base::FILE_EXE, &prog_name));
+  base::CommandLine cmd_line(prog_name);
+  cmd_line.AppendSwitch(kChildSwitch);
+  if (no_sandbox) {
+    cmd_line.AppendSwitch(kNoSandboxSwitch);
+  }
+  if (legacy_command) {
+    cmd_line.AppendSwitch(kLegacySwitch);
+  }
+  DCHECK_LE(MAX_STATE, 10);
+  cmd_line.AppendSwitchASCII(kStateSwitch,
+                             base::NumberToString(static_cast<int>(state)));
+  cmd_line.AppendSwitchUTF8(kCommandSwitch, command);
+  cmd_line.AppendArg("--");
+  for (const auto& arg : args) {
+    cmd_line.AppendArg(arg);
+  }
 
-  broker_ = GetBroker();
-  if (!broker_) {
-    return;
-  }
-  policy_ = broker_->CreatePolicy();
-  if (!policy_) {
-    return;
-  }
-  auto result = policy_->GetConfig()->SetJobLevel(job_level, 0);
-  if (result != SBOX_ALL_OK) {
-    return;
-  }
-  result = policy_->GetConfig()->SetTokenLevel(startup_token, main_token);
-  if (result != SBOX_ALL_OK) {
-    return;
-  }
-  is_init_ = true;
+  return cmd_line;
 }
 
-TestRunner::TestRunner()
-    : TestRunner(JobLevel::kLockdown,
-                 USER_RESTRICTED_SAME_ACCESS,
-                 USER_LOCKDOWN) {}
+TestRunnerBase::TestRunnerBase(JobLevel job_level,
+                               TokenLevel startup_token,
+                               TokenLevel main_token) {
+  timeout_ = TestTimeouts::test_launcher_timeout();
+  broker_ = GetBroker();
+  CHECK(broker_);
+  policy_ = broker_->CreatePolicy();
+  CHECK(policy_);
+  CHECK_EQ(SBOX_ALL_OK, policy_->GetConfig()->SetJobLevel(job_level, 0));
+  CHECK_EQ(SBOX_ALL_OK,
+           policy_->GetConfig()->SetTokenLevel(startup_token, main_token));
+}
 
-TargetPolicy* TestRunner::GetPolicy() {
+TestRunnerBase::~TestRunnerBase() = default;
+
+TargetPolicy* TestRunnerBase::GetPolicy() {
   return policy_.get();
 }
 
-TestRunner::~TestRunner() {
-  if (target_process_.IsValid() && kill_on_destruction_) {
-    target_process_.Terminate(0, /*wait=*/false);
-  }
+TargetConfig* TestRunnerBase::GetConfig() {
+  return GetPolicy()->GetConfig();
 }
 
-bool TestRunner::WaitForAllTargets() {
+bool TestRunnerBase::WaitForAllTargets() {
   TargetTracker::WaitForAllTargets();
   return true;
 }
 
-bool TestRunner::AllowFileAccess(FileSemantics semantics,
-                                 std::wstring_view pattern) {
-  if (!is_init_) {
-    return false;
-  }
+bool TestRunnerBase::AllowFileAccess(FileSemantics semantics,
+                                     std::wstring_view pattern) {
   if (policy_->GetConfig()->IsConfigured()) {
     return false;
   }
@@ -277,11 +266,8 @@ bool TestRunner::AllowFileAccess(FileSemantics semantics,
           policy_->GetConfig()->AllowFileAccess(semantics, pattern));
 }
 
-bool TestRunner::AddRuleSys32(FileSemantics semantics,
-                              std::wstring_view pattern) {
-  if (!is_init_) {
-    return false;
-  }
+bool TestRunnerBase::AddRuleSys32(FileSemantics semantics,
+                                  std::wstring_view pattern) {
   std::wstring win32_path = MakePathToSys32(pattern, false);
   if (win32_path.empty()) {
     return false;
@@ -300,40 +286,10 @@ bool TestRunner::AddRuleSys32(FileSemantics semantics,
   return AllowFileAccess(semantics, win32_path.c_str());
 }
 
-// TODO(forshaw): This is to support old code which passes and entire command
-// line. Remove once the new API is implemented and all the old tests have been
-// updated.
-int TestRunner::RunTest(std::wstring_view command) {
-  // Note: To use the `CommandLine` class we add a fake program and the switch
-  // terminator so that it doesn't sort switch arguments which can change the
-  // ordering.
-  std::wstring dummy_cmd_line = L"dummy -- ";
-  dummy_cmd_line += command;
-  auto cmd_line = base::CommandLine::FromString(dummy_cmd_line);
-  auto cmd_args = cmd_line.GetArgs();
-  if (cmd_args.empty()) {
-    return SBOX_TEST_FAILED_TO_RUN_TEST;
-  }
-  std::vector<std::string> args;
-  for (size_t i = 1; i < cmd_args.size(); ++i) {
-    args.emplace_back(base::WideToUTF8(cmd_args[i]));
-  }
-  return RunTestInternal(base::WideToUTF8(cmd_args[0]), args);
-}
-
-int TestRunner::RunTestInternal(std::string_view command,
-                                base::span<const std::string> args) {
-  if (!is_init_) {
-    return SBOX_TEST_FAILED_TO_RUN_TEST;
-  }
-  // For simplicity TestRunner supports only one process per instance.
-  if (target_process_.IsValid()) {
-    if (target_process_.IsRunning()) {
-      return SBOX_TEST_FAILED_TO_RUN_TEST;
-    }
-    target_process_.Close();
-  }
-
+base::Process TestRunnerBase::CreateTestProcess(
+    std::string_view command,
+    base::span<const std::string> args,
+    bool legacy_command) {
   if (disable_csrss_) {
     auto* config = policy_->GetConfig();
     if (config->GetAppContainer() == nullptr) {
@@ -342,26 +298,14 @@ int TestRunner::RunTestInternal(std::string_view command,
   }
 
   // Launch the sandboxed process
-  auto cmd_line = CreateCommandLine(command, args, state_, no_sandbox_);
-  base::Process process = no_sandbox_ ? base::LaunchProcess(cmd_line, {})
-                                      : LaunchSandboxProcess(cmd_line);
+  auto cmd_line =
+      CreateCommandLine(command, args, state_, no_sandbox_, legacy_command);
+  return no_sandbox_ ? base::LaunchProcess(cmd_line, {})
+                     : LaunchSandboxProcess(cmd_line);
+}
 
-  if (!process.IsValid()) {
-    return SBOX_TEST_FAILED_TO_RUN_TEST;
-  }
-
-  // For an asynchronous run we don't bother waiting.
-  if (is_async_) {
-    target_process_ = std::move(process);
-    return SBOX_TEST_SUCCEEDED;
-  }
-
-  base::TimeDelta timeout = timeout_;
-  if (::IsDebuggerPresent()) {
-    // Don't kill the target process on a time-out while we are debugging.
-    timeout = base::TimeDelta::Max();
-  }
-
+int TestRunnerBase::WaitForResult(const base::Process& process) const {
+  auto timeout = ::IsDebuggerPresent() ? base::TimeDelta::Max() : timeout_;
   int exit_code = SBOX_TEST_SUCCEEDED;
   if (!process.WaitForExitWithTimeout(timeout, &exit_code)) {
     return SBOX_TEST_TIMED_OUT;
@@ -370,7 +314,7 @@ int TestRunner::RunTestInternal(std::string_view command,
   return exit_code;
 }
 
-base::Process TestRunner::LaunchSandboxProcess(
+base::Process TestRunnerBase::LaunchSandboxProcess(
     const base::CommandLine& cmd_line) {
   ResultCode result = SBOX_ALL_OK;
   DWORD last_error = ERROR_SUCCESS;
@@ -399,12 +343,12 @@ base::Process TestRunner::LaunchSandboxProcess(
   return base::Process(proc_info.TakeProcessHandle());
 }
 
-void TestRunner::SetTimeout(DWORD timeout_ms) {
+void TestRunnerBase::SetTimeout(DWORD timeout_ms) {
   SetTimeout(timeout_ms == INFINITE ? base::TimeDelta::Max()
                                     : base::Milliseconds(timeout_ms));
 }
 
-void TestRunner::SetTimeout(base::TimeDelta timeout) {
+void TestRunnerBase::SetTimeout(base::TimeDelta timeout) {
   // We do not take -ve timeouts.
   DCHECK(timeout >= base::TimeDelta());
   // We need millisecond DWORDS but also cannot take exactly INFINITE,
@@ -413,11 +357,48 @@ void TestRunner::SetTimeout(base::TimeDelta timeout) {
   timeout_ = timeout;
 }
 
-DWORD TestRunner::timeout_ms() {
-  if (timeout_.is_inf()) {
-    return INFINITE;
+TestRunner::~TestRunner() {
+  if (target_process_.IsValid() && kill_on_destruction_) {
+    target_process_.Terminate(0, /*wait=*/false);
   }
-  return static_cast<DWORD>(timeout_.InMilliseconds());
+}
+
+int TestRunner::RunTest(std::wstring_view command) {
+  // For simplicity TestRunner supports only one process per instance.
+  if (target_process_.IsValid()) {
+    if (target_process_.IsRunning()) {
+      return SBOX_TEST_FAILED_TO_RUN_TEST;
+    }
+    target_process_.Close();
+  }
+
+  // Note: To use the `CommandLine` class we add a fake program and the switch
+  // terminator so that it doesn't sort switch arguments which can change the
+  // ordering.
+  std::wstring dummy_cmd_line = L"dummy -- ";
+  dummy_cmd_line += command;
+  auto cmd_line = base::CommandLine::FromString(dummy_cmd_line);
+  auto cmd_args = cmd_line.GetArgs();
+  if (cmd_args.empty()) {
+    return SBOX_TEST_FAILED_TO_RUN_TEST;
+  }
+  std::vector<std::string> args;
+  for (size_t i = 1; i < cmd_args.size(); ++i) {
+    args.emplace_back(base::WideToUTF8(cmd_args[i]));
+  }
+  auto process = CreateTestProcess(base::WideToUTF8(cmd_args[0]), args,
+                                   /*legacy_command=*/true);
+  if (!process.IsValid()) {
+    return SBOX_TEST_FAILED_TO_RUN_TEST;
+  }
+
+  // For an asynchronous run we don't bother waiting.
+  if (is_async_) {
+    target_process_ = std::move(process);
+    return SBOX_TEST_SUCCEEDED;
+  }
+
+  return WaitForResult(process);
 }
 
 bool IsChildProcessForTesting() {
@@ -447,19 +428,13 @@ int DispatchCall() {
   }
   auto args = cmd_line->GetArgs();
   // We hard code two tests to avoid dispatch failures.
-  if (command_name == "wait") {
+  if (command_name == sandbox::WaitCommandTestRunner::type::kTestName) {
     Sleep(INFINITE);
     return SBOX_TEST_TIMED_OUT;
   }
 
-  if (command_name == "ping") {
+  if (command_name == PingCommandTestRunner::type::kTestName) {
     return SBOX_TEST_PING_OK;
-  }
-
-  // If the caller shared a shared memory handle with us attempt to open it
-  // in read only mode and sleep infinitely if we succeed.
-  if (command_name == "shared_memory_handle") {
-    return SharedMemoryCommand(args);
   }
 
   int state_value;
@@ -480,20 +455,14 @@ int DispatchCall() {
     return SBOX_TEST_FAILED_TO_EXECUTE_COMMAND;
   }
 
-  CommandFunction command = reinterpret_cast<CommandFunction>(
-                                ::GetProcAddress(module, command_name.c_str()));
+  auto command = BindCommand(command_name, cmd_line->HasSwitch(kLegacySwitch));
   if (!command) {
     return SBOX_TEST_FAILED_TO_EXECUTE_COMMAND;
   }
-  std::vector<wchar_t*> argv;
-  for (auto& arg : args) {
-    argv.push_back(&arg[0]);
-  }
-  int argc = static_cast<int>(argv.size());
   if (BEFORE_INIT == state) {
-    return command(argc, std::data(argv));
+    return command.Run(args);
   } else if (EVERY_STATE == state) {
-    command(argc, std::data(argv));
+    command.Run(args);
   }
   TargetServices* target = SandboxFactory::GetTargetServices();
   if (target) {
@@ -501,9 +470,9 @@ int DispatchCall() {
       return SBOX_TEST_FAILED_TO_EXECUTE_COMMAND;
     }
     if (BEFORE_REVERT == state) {
-      return command(argc, std::data(argv));
+      return command.Run(args);
     } else if (EVERY_STATE == state) {
-      command(argc, std::data(argv));
+      command.Run(args);
     }
 #if defined(ADDRESS_SANITIZER) || CHECK_WILL_STREAM()
     // Bind and leak dbghelp.dll before the token is lowered, otherwise some
@@ -519,11 +488,7 @@ int DispatchCall() {
     return SBOX_TEST_FAILED_TO_EXECUTE_COMMAND;
   }
 
-  return command(argc, std::data(argv));
-}
-
-base::CommandLine CreateCommandLineForTesting(std::string_view command) {
-  return CreateCommandLine(command, {}, MIN_STATE, /*no_sandbox=*/false);
+  return command.Run(args);
 }
 
 }  // namespace sandbox

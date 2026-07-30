@@ -43,6 +43,7 @@ class AutofillSuggestionController;
 class PopupSeparatorView;
 class PopupTitleView;
 class PopupWarningView;
+class PopupLoadingView;
 
 // Sub-popups and their parent popups are connected by providing children
 // with links to their parents. This interface defines the API exposed by
@@ -88,7 +89,11 @@ class PopupViewViews : public PopupBaseView,
   using RowPointer = std::variant<PopupRowView*,
                                   PopupSeparatorView*,
                                   PopupTitleView*,
-                                  PopupWarningView*>;
+                                  PopupWarningView*,
+                                  PopupLoadingView*>;
+
+  // The maximum width of the popup.
+  static constexpr int kAutofillPopupMaxWidth = 456;
 
   // The time it takes for a selected cell to open a sub-popup if it has one.
   static constexpr base::TimeDelta kMouseOpenSubPopupDelay =
@@ -234,6 +239,11 @@ class PopupViewViews : public PopupBaseView,
   // Reacts to key events under the assumption that the currently shown popup
   // contains Compose content.
   bool HandleKeyPressEventForCompose(
+      const input::NativeWebKeyboardEvent& event);
+
+  // Reacts to key events under the assumption that the currently shown popup
+  // contains @memory content.
+  bool HandleKeyPressEventForAtMemory(
       const input::NativeWebKeyboardEvent& event);
 
   // AutofillPopupView:

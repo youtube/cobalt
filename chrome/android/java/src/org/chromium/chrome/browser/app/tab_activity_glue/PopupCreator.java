@@ -8,6 +8,7 @@ import static android.view.Display.INVALID_DISPLAY;
 
 import static org.chromium.build.NullUtil.assertNonNull;
 
+import android.app.Activity;
 import android.app.ActivityManager.AppTask;
 import android.app.ActivityOptions;
 import android.content.Context;
@@ -116,22 +117,22 @@ public class PopupCreator implements PopupIntentCreator {
                 popupIntentCreator.createPopupIntent(windowFeatures, tab.isIncognitoBranded());
 
         return getReparentingTask(tab)
-                .begin(
-                        ContextUtils.getApplicationContext(),
-                        intent,
-                        activityOptions.toBundle(),
-                        null);
+                .begin(tab.getContext(), intent, activityOptions.toBundle(), null);
     }
 
     /**
      * Moves the given {@link WebContents} to a new Document Picture-in-Picture window.
      *
+     * @param srcActivity The {@link Activity} that initiated the Document Picture-in-Picture
+     *     request.
      * @param webContents The {@link WebContents} to move.
      * @param windowOptions The {@link PictureInPictureWindowOptions} to use for the new Document
      *     Picture-in-Picture window.
      */
     public static boolean moveWebContentsToNewDocumentPictureInPictureWindow(
-            WebContents webContents, PictureInPictureWindowOptions windowOptions) {
+            @Nullable Activity srcActivity,
+            WebContents webContents,
+            PictureInPictureWindowOptions windowOptions) {
         if (sMoveToNewDocumentPiPWindowResultForTesting != null) {
             return sMoveToNewDocumentPiPWindowResultForTesting;
         }
@@ -145,7 +146,9 @@ public class PopupCreator implements PopupIntentCreator {
 
         final Intent intent = initializeDocumentPipIntent(webContents, windowOptions);
         return tryStartActivity(
-                ContextUtils.getApplicationContext(), intent, activityOptions.toBundle());
+                srcActivity == null ? ContextUtils.getApplicationContext() : srcActivity,
+                intent,
+                activityOptions.toBundle());
     }
 
     /**

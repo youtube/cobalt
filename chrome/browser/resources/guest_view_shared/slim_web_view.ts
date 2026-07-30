@@ -11,13 +11,7 @@ import {EventDispatcher} from './event_dispatcher.js';
 import type {EventDict, EventMap} from './event_dispatcher.js';
 import {getCss} from './slim_web_view.css.js';
 import {getHtml} from './slim_web_view.html.js';
-import {BrowserProxyImpl} from './slim_web_view_browser_proxy.js';
-
-export interface SlimWebViewElement {
-  $: {
-    input: HTMLElement,
-  };
-}
+import {BrowserProxyImpl, PermissionResponseAction} from './slim_web_view_browser_proxy.js';
 
 const GUEST_INSTANCE_ID_PENDING: number = 0;
 
@@ -99,6 +93,76 @@ export class NewWindowEvent extends Event {
   }
 }
 
+export interface PermissionRequest {
+  url: string;
+  allow(): void;
+  deny(): void;
+}
+
+export class PermissionRequestEvent extends Event {
+  readonly permission: string;
+  readonly request: PermissionRequest;
+  private readonly requestId: number;
+  private readonly guestInstanceId: number;
+  private actionTaken: boolean = false;
+
+  static factory(args: EventDict, guestInstanceId: number) {
+    return new PermissionRequestEvent(args, guestInstanceId);
+  }
+
+  private constructor(args: EventDict, guestInstanceId: number) {
+    super('permissionrequest', {
+      bubbles: true,
+      cancelable: true,
+    });
+    this.permission = args.getString('permission');
+    this.requestId = args.getInt('requestId');
+    this.guestInstanceId = guestInstanceId;
+    const requestInfo = args.getDict('requestInfo');
+    this.request = {
+      url: requestInfo.getString('url'),
+      allow: this.allow.bind(this),
+      deny: this.deny.bind(this),
+    };
+  }
+
+  handle(element: HTMLElement) {
+    const performDefault = element.dispatchEvent(this);
+    if (!performDefault || this.actionTaken) {
+      // Because SlimWebView is only used in WebUIs, we assume that an action
+      // is always taken by the event handler that chose to prevent the default
+      // action. Note that the action might be taken asynchronously.
+      return;
+    }
+    this.actionTaken = true;
+    this.defaultAction();
+  }
+
+  private allow() {
+    assert(!this.actionTaken);
+    this.actionTaken = true;
+    BrowserProxyImpl.getInstance().handler.setPermission(
+        this.guestInstanceId, this.requestId, PermissionResponseAction.kAllow);
+  }
+
+  private deny() {
+    assert(!this.actionTaken);
+    this.actionTaken = true;
+    BrowserProxyImpl.getInstance().handler.setPermission(
+        this.guestInstanceId, this.requestId, PermissionResponseAction.kDeny);
+  }
+
+  private async defaultAction() {
+    const result = await BrowserProxyImpl.getInstance().handler.setPermission(
+        this.guestInstanceId, this.requestId,
+        PermissionResponseAction.kDefault);
+    if (!result.allowed) {
+      console.warn(`Permission ${this.permission} denied`);
+    }
+  }
+}
+
+
 class SizeChangedEvent extends Event {
   readonly oldHeight: number;
   readonly oldWidth: number;
@@ -176,6 +240,13 @@ const eventDescriptors: EventMap = new Map([
     },
   ],
   [
+    'permission',
+    {
+      factory: PermissionRequestEvent.factory,
+      handler: PermissionRequestEvent.prototype.handle,
+    },
+  ],
+  [
     'sizechanged',
     {
       factory: SizeChangedEvent.factory,
@@ -184,6 +255,11 @@ const eventDescriptors: EventMap = new Map([
   ],
   ['unresponsive', {}],
 ]);
+
+const slimWebViewContainerFinalizationRegistry =
+    new FinalizationRegistry((containerId: number) => {
+      chrome.slimWebViewPrivate.destroyContainer(containerId);
+    });
 
 export class SlimWebViewElement extends CrLitElement {
   static get is() {
@@ -301,9 +377,10 @@ export class SlimWebViewElement extends CrLitElement {
     };
     const result =
         await BrowserProxyImpl.getInstance().handler.createGuest(createParams);
+    // We immediately attach the guest to the embedder frame. The browser knows
+    // how to handle the guest's lifecycle after this, so we don't need to
+    // handle its destruction explicitly here.
     this.onGuestCreated(result.guestInstanceId);
-    // TODO(crbug.com/460804848): destroy guest when this element is destroyed,
-    // if guest is not attached.
   }
 
   private onGuestCreated(guestInstanceId: number) {
@@ -320,8 +397,7 @@ export class SlimWebViewElement extends CrLitElement {
     assert(iframeElement);
     assert(iframeElement.contentWindow);
     this.containerId = chrome.slimWebViewPrivate.getNextId();
-    // TODO(crbug.com/460804848): Bind the destruction of the container to the
-    // destruction of this element.
+    slimWebViewContainerFinalizationRegistry.register(this, this.containerId);
     chrome.slimWebViewPrivate.attachIframeGuest(
         this.containerId,
         this.guestInstanceId,
@@ -335,7 +411,9 @@ export class SlimWebViewElement extends CrLitElement {
   }
 
   private maybeSetupEventDispatcher() {
-    if (this.guestInstanceId === null || this.eventDispatcher !== null) {
+    if (this.guestInstanceId === null ||
+        this.guestInstanceId === GUEST_INSTANCE_ID_PENDING ||
+        this.eventDispatcher !== null) {
       return;
     }
     this.eventDispatcher = new EventDispatcher(
@@ -355,7 +433,9 @@ export class SlimWebViewElement extends CrLitElement {
     } catch (e) {
       assertNotReached(`Failed to parse URL for webview: ${e}`);
     }
-    assert(url.protocol === 'https:' || url.href === 'about:blank');
+    assert(
+        url.protocol === 'https:' || url.protocol === 'http:' ||
+        url.href === 'about:blank');
     BrowserProxyImpl.getInstance().handler.navigate(
         this.guestInstanceId, url.href);
   }

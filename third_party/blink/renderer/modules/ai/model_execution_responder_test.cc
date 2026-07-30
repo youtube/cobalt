@@ -81,6 +81,7 @@ TEST(CreateModelExecutionResponder, Simple) {
           },
           kTestTokenNumber, blink::Unretained(&complete_runloop),
           WrapPersistent(resolver)),
+      /*tool_call_callback=*/base::NullCallback(),
       /*overflow_callback=*/overflow_runloop.QuitClosure(),
       base::BindOnce(&RejectPromiseOnError<IDLString>,
                      WrapPersistent(resolver)),
@@ -92,7 +93,7 @@ TEST(CreateModelExecutionResponder, Simple) {
   responder.set_disconnect_handler(disconnect_runloop.QuitClosure());
   responder->OnStreaming("a");
   responder->OnStreaming("b");
-  responder->OnQuotaOverflow();
+  responder->OnContextOverflow();
   responder->OnCompletion(
       mojom::blink::ModelExecutionContextInfo::New(kTestTokenNumber));
   // Check that the promise will be resolved with the "result" string.
@@ -123,6 +124,7 @@ TEST(CreateModelExecutionResponder, ErrorPermissionDenied) {
       AIMetrics::AISessionType::kLanguageModel,
       base::BindOnce(&ResolvePromiseOnCompletion<IDLString>,
                      WrapPersistent(resolver)),
+      /*tool_call_callback=*/base::NullCallback(),
       /*overflow_callback=*/base::DoNothing(),
       base::BindOnce(&RejectPromiseOnError<IDLString>,
                      WrapPersistent(resolver)),
@@ -165,6 +167,7 @@ TEST(CreateModelExecutionResponder, AbortWithoutResponse) {
       AIMetrics::AISessionType::kLanguageModel,
       base::BindOnce(&ResolvePromiseOnCompletion<IDLString>,
                      WrapPersistent(resolver)),
+      /*tool_call_callback=*/base::NullCallback(),
       /*overflow_callback=*/base::DoNothing(),
       base::BindOnce(&RejectPromiseOnError<IDLString>,
                      WrapPersistent(resolver)),
@@ -207,6 +210,7 @@ TEST(CreateModelExecutionResponder, AbortAfterResponse) {
       AIMetrics::AISessionType::kLanguageModel,
       base::BindOnce(&ResolvePromiseOnCompletion<IDLString>,
                      WrapPersistent(resolver)),
+      /*tool_call_callback=*/base::NullCallback(),
       /*overflow_callback=*/base::DoNothing(),
       base::BindOnce(&RejectPromiseOnError<IDLString>,
                      WrapPersistent(resolver)),

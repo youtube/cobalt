@@ -48,11 +48,13 @@
 #include "third_party/blink/renderer/core/html/html_html_element.h"
 #include "third_party/blink/renderer/core/html/html_template_element.h"
 #include "third_party/blink/renderer/core/html/parser/html_construction_site.h"
+#include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/loader/frame_loader.h"
 #include "third_party/blink/renderer/core/svg/graphics/svg_image.h"
 #include "third_party/blink/renderer/core/xml/document_xml_tree_viewer.h"
 #include "third_party/blink/renderer/core/xml/parser/xhtml_subset.h"
 #include "third_party/blink/renderer/core/xmlns_names.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 
 namespace blink {
@@ -330,13 +332,22 @@ void XMLDocumentParserRs::ProcessingInstruction(rust::Str target,
     return;
   }
 
-  // ASSERT_NO_EXCEPTION here as we expect the XML parser to produce an error if
-  // the processing instruction would have had an invalid target name or would
-  // have contained the closing sequence '?>'.
   class ProcessingInstruction* pi =
       current_node_->GetDocument().createProcessingInstruction(
           RustStrToWtfString(target), RustStrToWtfString(data),
-          ASSERT_NO_EXCEPTION);
+          IGNORE_EXCEPTION);
+
+  // This situation can arise when the parser accepts a target name or data
+  // because of the XML definition of what a valid character is, but the
+  // construction of the ProcessingInstruction fails when document.cc's
+  // IsValidChar() rejects the target name or data. Follow the non-Rust
+  // implementation here to ignore this situation without throwing a
+  // non-wellformedness error.
+  // For other nullptr result cases of createProcessingInstruction the parser is
+  // expected to report parsing errors before getting here.
+  if (!pi) {
+    return;
+  }
 
   // Insertion needs to be done first to determine is_css_ in
   // ProcessingInstruction.
@@ -412,11 +423,14 @@ void XMLDocumentParserRs::StartElementNs(
   }
 
   AtomicString is;
+  bool has_customelementregistry_attr = false;
 
   for (const auto& attr : prefixed_attributes) {
     if (attr.GetName() == html_names::kIsAttr) {
       is = attr.Value();
-      break;
+    } else if (RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled() &&
+               attr.GetName() == html_names::kCustomelementregistryAttr) {
+      has_customelementregistry_attr = true;
     }
   }
 
@@ -430,6 +444,19 @@ void XMLDocumentParserRs::StartElementNs(
                       g_null_atom);
   }
 
+  CustomElementRegistry* registry = nullptr;
+  if (RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled() &&
+      !has_customelementregistry_attr) {
+    // If the element doesn't have the customelementregistry attribute, then
+    // it should inherit its registry from its parent.
+    if (auto* parent_element = DynamicTo<Element>(current_node_.Get())) {
+      registry = parent_element->customElementRegistry();
+    } else {
+      registry =
+          CustomElementRegistry::DefaultRegistry(current_node_->GetDocument());
+    }
+  }
+
   // Ported from XmlDocumentParser:
   // If we are constructing a custom element, then we must run extra steps as
   // described in the HTML spec below. This is similar to the steps in
@@ -440,8 +467,8 @@ void XMLDocumentParserRs::StartElementNs(
   std::optional<ThrowOnDynamicMarkupInsertionCountIncrementer>
       throw_on_dynamic_markup_insertions;
   if (!parsing_fragment_) {
-    if (HTMLConstructionSite::LookUpCustomElementDefinition(
-            *document_, q_name, is, document_->customElementRegistry())) {
+    if (HTMLConstructionSite::LookUpCustomElementDefinition(*document_, q_name,
+                                                            is, registry)) {
       throw_on_dynamic_markup_insertions.emplace(document_);
       document_->GetAgent().event_loop()->PerformMicrotaskCheckpoint();
       reactions.emplace(isolate);
@@ -452,7 +479,7 @@ void XMLDocumentParserRs::StartElementNs(
       q_name,
       parsing_fragment_ ? CreateElementFlags::ByFragmentParser(document_)
                         : CreateElementFlags::ByParser(document_),
-      is, CustomElementRegistry::DefaultRegistry(current_node_->GetDocument()));
+      is, registry);
 
   if (!new_element) {
     StopParsing();

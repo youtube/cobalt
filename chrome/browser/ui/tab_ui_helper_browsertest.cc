@@ -13,6 +13,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/performance_controls/test_support/memory_saver_browser_test_mixin.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
+#include "chrome/browser/ui/tabs/tab_network_state.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/tabs/public/tab_interface.h"
@@ -93,6 +94,24 @@ IN_PROC_BROWSER_TEST_F(TabUIHelperBrowserTest, DiscardUiChangeIsNotified) {
   EXPECT_TRUE(tab_ui_helper->GetDiscardedMemorySavings().has_value());
 }
 
+IN_PROC_BROWSER_TEST_F(TabUIHelperBrowserTest, NotifyWhenTabVisibilityChanges) {
+  ui_test_utils::NavigateToURLWithDisposition(
+      browser(), GetURL(), WindowOpenDisposition::NEW_BACKGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+
+  TabStripModel* const tab_strip_model = browser()->tab_strip_model();
+  tabs::TabInterface* const background_tab = tab_strip_model->GetTabAtIndex(1);
+  TabUIHelper* const background_tab_ui_helper =
+      TabUIHelper::From(background_tab);
+  ASSERT_FALSE(background_tab->IsActivated());
+  EXPECT_FALSE(
+      background_tab_ui_helper->was_active_at_least_once_for_testing());
+
+  tab_strip_model->SelectTabAt(1);
+  EXPECT_TRUE(background_tab->IsActivated());
+  EXPECT_TRUE(background_tab_ui_helper->was_active_at_least_once_for_testing());
+}
+
 IN_PROC_BROWSER_TEST_F(TabUIHelperBrowserTest, SettingAttentionIsNotified) {
   tabs::TabInterface* const tab_interface =
       browser()->tab_strip_model()->GetActiveTab();
@@ -119,6 +138,23 @@ IN_PROC_BROWSER_TEST_F(TabUIHelperBrowserTest, PinningTabIsNotified) {
   EXPECT_CALL(*tab_ui_change_waiter, OnTabUIChange()).Times(1);
   browser()->tab_strip_model()->SetTabPinned(0, true);
   ASSERT_TRUE(tab_interface->IsPinned());
+}
+
+IN_PROC_BROWSER_TEST_F(TabUIHelperBrowserTest, NetworkStateChangeIsNotified) {
+  tabs::TabInterface* const tab_interface =
+      browser()->tab_strip_model()->GetActiveTab();
+  TabUIHelper* const tab_ui_helper = TabUIHelper::From(tab_interface);
+  ASSERT_EQ(tab_ui_helper->GetTabNetworkState(), TabNetworkState::kNone);
+
+  // Pinning the tab will trigger a callback.
+  auto tab_ui_change_waiter =
+      std::make_unique<MockTabUIHelperSubscriber>(tab_ui_helper);
+  EXPECT_CALL(*tab_ui_change_waiter, OnTabUIChange())
+      .Times(testing::AnyNumber());
+  ui_test_utils::NavigateToURLWithDisposition(
+      browser(), GetURL(), WindowOpenDisposition::CURRENT_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+  EXPECT_EQ(tab_ui_helper->GetTabNetworkState(), TabNetworkState::kNone);
 }
 
 class TabUIHelperWithPrerenderingTest : public InProcessBrowserTest {

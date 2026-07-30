@@ -70,6 +70,8 @@ class PLATFORM_EXPORT PendingLayer {
   }
   bool HasText() const { return has_text_; }
 
+  bool HasVideo() const;
+
   void SetCompositingTypeToOverlap() {
     DCHECK_EQ(compositing_type_, kOther);
     compositing_type_ = kOverlap;
@@ -78,6 +80,8 @@ class PLATFORM_EXPORT PendingLayer {
   void SetPaintArtifact(const PaintArtifact& paint_artifact) {
     chunks_.SetPaintArtifact(paint_artifact);
   }
+
+  std::optional<CanvasChildPaintRecord> GetCanvasChildPaintRecord() const;
 
   using IsCompositedScrollFunction =
       PropertyTreeState::IsCompositedScrollFunction;
@@ -158,14 +162,17 @@ class PLATFORM_EXPORT PendingLayer {
   // one in |old_pending_layer|, and updates the layer according to the current
   // contents and properties of this PendingLayer.
   void UpdateCompositedLayer(PendingLayer* old_pending_layer,
+                             PropertyTreeState property_state_for_paint,
                              cc::LayerSelection&,
                              bool tracks_raster_invalidations,
                              cc::LayerTreeHost*);
 
   // A lighter version of UpdateCompositedLayer(). Called when the existing
   // composited layer has only repainted since the last update
-  void UpdateCompositedLayerForRepaint(const PaintArtifact& repainted_artifact,
-                                       cc::LayerSelection&);
+  void UpdateCompositedLayerForRepaint(
+      const PaintArtifact& repainted_artifact,
+      PropertyTreeState property_state_for_paint,
+      cc::LayerSelection&);
 
   // Another lighter version of UpdateCompositedLayers(). Called after
   // raster-inducing scrolls that don't need repaint or PaintArtifactCompositor
@@ -209,6 +216,7 @@ class PLATFORM_EXPORT PendingLayer {
   void UpdateScrollHitTestLayer(PendingLayer* old_pending_layer);
   void UpdateScrollbarLayer(PendingLayer* old_pending_layer);
   void UpdateContentLayer(PendingLayer* old_pending_layer,
+                          PropertyTreeState property_state_for_paint,
                           bool tracks_raster_invalidations);
   void UpdateSolidColorLayer(PendingLayer* old_pending_layer);
 

@@ -21,11 +21,15 @@ import java.util.List;
 public class EntityType {
     // This maps to a C++ enum which defines the name/type of the entity.
     private final @EntityTypeName int mTypeName;
-    // When `isReadOnly` is true, this entity type does not allow adding, deleting or editing.
+    // When true, this entity type does not allow adding, deleting or editing.
     private final boolean mIsReadOnly;
+    // When true, this entity type is enabled.
+    private final boolean mIsEnabled;
     // Used to sort entity types and groups and as title of each entity group in the list of
     // entities.
     private final String mTypeNameAsString;
+    // Used for histogram recording.
+    private final String mTypeNameAsMetricsString;
     // Used as title in the add entity dialog.
     private final String mAddEntityTypeString;
     // Used as title in the edit entity dialog.
@@ -39,7 +43,9 @@ public class EntityType {
     public EntityType(
             @EntityTypeName int typeName,
             boolean isReadOnly,
+            boolean isEnabled,
             @JniType("std::u16string") String typeNameAsString,
+            @JniType("std::string") String typeNameAsMetricsString,
             @JniType("std::string") String addEntityTypeString,
             @JniType("std::string") String editEntityTypeString,
             @JniType("std::string") String deleteEntityTypeString,
@@ -47,7 +53,9 @@ public class EntityType {
                     List<AttributeType> attributeTypes) {
         mTypeName = typeName;
         mIsReadOnly = isReadOnly;
+        mIsEnabled = isEnabled;
         mTypeNameAsString = typeNameAsString;
+        mTypeNameAsMetricsString = typeNameAsMetricsString;
         mAddEntityTypeString = addEntityTypeString;
         mEditEntityTypeString = editEntityTypeString;
         mDeleteEntityTypeString = deleteEntityTypeString;
@@ -59,12 +67,22 @@ public class EntityType {
         return mTypeName;
     }
 
+    @CalledByNative
     public boolean isReadOnly() {
         return mIsReadOnly;
     }
 
+    @CalledByNative
+    public boolean isEnabled() {
+        return mIsEnabled;
+    }
+
     public String getTypeNameAsString() {
         return mTypeNameAsString;
+    }
+
+    public String getTypeNameAsMetricsString() {
+        return mTypeNameAsMetricsString;
     }
 
     public String getAddEntityTypeString() {

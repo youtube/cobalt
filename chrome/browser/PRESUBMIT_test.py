@@ -434,6 +434,5 @@ class CheckNewDirectoryHasBuildGnTest(unittest.TestCase):
             mock_input_api, mock_output_api)
         self.assertEqual([], warnings)
 
-
 if __name__ == '__main__':
     unittest.main()

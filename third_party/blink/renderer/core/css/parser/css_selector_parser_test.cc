@@ -212,6 +212,8 @@ TEST(CSSSelectorParserTest, ValidSimpleAfterPseudoElementInCompound) {
 
 TEST(CSSSelectorParserTest, InvalidSimpleAfterPseudoElementInCompound) {
   test::TaskEnvironment task_environment;
+  // Ensure the feature is off so that ::after:hover etc. remain invalid.
+  ScopedPseudoElementsHoverableForTest scoped_feature(false);
   const char* test_cases[] = {
       "::before#id",
       "::after:hover",
@@ -245,6 +247,31 @@ TEST(CSSSelectorParserTest, InvalidSimpleAfterPseudoElementInCompound) {
         CSSNestingType::kNone, /*parent_rule_for_nesting=*/nullptr,
         /*semicolon_aborts_nested_selector=*/false, nullptr, arena);
     EXPECT_EQ(vector.size(), 0u);
+  }
+}
+
+TEST(CSSSelectorParserTest,
+     UserActionPseudoClassValidAfterHoverablePseudoElements) {
+  test::TaskEnvironment task_environment;
+  ScopedPseudoElementsHoverableForTest scoped_feature(true);
+  // When PseudoElementsHoverable is enabled, user-action pseudo-classes
+  // like :hover are valid after ::before, ::after, and ::marker.
+  const char* test_cases[] = {
+      "::after:hover",
+      "::before:hover",
+      "::marker:hover",
+  };
+
+  HeapVector<CSSSelector> arena;
+  for (StringView test_case : test_cases) {
+    CSSParserTokenStream stream(test_case);
+    base::span<CSSSelector> vector = CSSSelectorParser::ParseSelector(
+        stream,
+        MakeGarbageCollected<CSSParserContext>(
+            kHTMLStandardMode, SecureContextMode::kInsecureContext),
+        CSSNestingType::kNone, /*parent_rule_for_nesting=*/nullptr,
+        /*semicolon_aborts_nested_selector=*/false, nullptr, arena);
+    EXPECT_GT(vector.size(), 0u) << test_case;
   }
 }
 
@@ -1539,7 +1566,7 @@ static HeapVector<CSSSelector> FlattenSelector(const CSSSelector* selector) {
     if (const CSSSelectorList* list = selector->SelectorList()) {
       for (const CSSSelector* s = list->First(); s;
            s = CSSSelectorList::Next(*s)) {
-        result.AppendVector(FlattenSelector(s));
+        result.append_range(FlattenSelector(s));
       }
     }
     selector = selector->NextSimpleSelector();

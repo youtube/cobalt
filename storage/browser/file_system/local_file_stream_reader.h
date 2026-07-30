@@ -54,7 +54,7 @@ class COMPONENT_EXPORT(STORAGE_BROWSER) LocalFileStreamReader
   int Read(net::IOBuffer* buf,
            int buf_len,
            net::CompletionOnceCallback callback) override;
-  int64_t GetLength(net::Int64CompletionOnceCallback callback) override;
+  int64_t GetLength(GetLengthCallback callback) override;
 
  private:
   void Open(net::CompletionOnceCallback callback);
@@ -65,17 +65,17 @@ class COMPONENT_EXPORT(STORAGE_BROWSER) LocalFileStreamReader
       file_access::ScopedFileAccess scoped_file_access);
   void DidVerifyForOpen(net::CompletionOnceCallback callback,
                         file_access::ScopedFileAccess scoped_file_access,
-                        int64_t get_length_result);
-  void DidOpenFileStream(file_access::ScopedFileAccess scoped_file_access,
+                        base::expected<int64_t, net::Error> get_length_result);
+  void DidOpenFileStream(file_access::ScopedFileAccess /*scoped_file_access*/,
                          net::Error result);
-  void DidSeekFileStream(int64_t seek_result);
+  void DidSeekFileStream(base::expected<int64_t, net::Error> seek_result);
   void DidOpenForRead(net::IOBuffer* buf,
                       int buf_len,
                       net::CompletionOnceCallback callback,
                       int open_result);
   void OnRead(base::expected<base::ByteSize, net::Error> read_result);
 
-  void DidGetFileInfoForGetLength(net::Int64CompletionOnceCallback callback,
+  void DidGetFileInfoForGetLength(GetLengthCallback callback,
                                   base::FileErrorOr<base::File::Info> result);
 
   net::CompletionOnceCallback callback_;

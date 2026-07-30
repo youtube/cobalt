@@ -402,17 +402,6 @@
 <translation id="1305400589435476516">如果此政策已启用，系统将允许设备使用数据漫游功能。
 
       如果此政策已停用或未设置，数据漫游功能将不可用。</translation>
-<translation id="1308102257035078529">系统会将网址格式与正在接受检查的网页的网址进行比对。如果找到匹配项，则屏蔽 <ph name="CHROME_DEVTOOLS_NAME" />。如需了解网址格式，请参阅 https://support.google.com/chrome/a?p=url_blocklist_filter_format。
-
-如果已设置 <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> 政策，但未设置此政策，则所有不在许可清单上的网址都会被屏蔽。
-
-如果同时设置了此政策和 <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> 政策，则以许可清单为准。如果某个网址与许可清单上的格式匹配，则允许使用该网址；如果与屏蔽清单（而非许可清单）上的格式匹配，则该网址会被屏蔽；如果与两者都不匹配，则 <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" /> 政策将用作后备政策。
-
-如果这两项政策均未设置，则可用性由 <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" /> 政策决定。
-
-此政策还适用于为扩展程序和 Web 应用打开的 <ph name="CHROME_DEVTOOLS_NAME" />。
-
-此政策最多只能包含 1,000 个条目。</translation>
 <translation id="1309259005392595570">对 TLS 停用后量子密钥协议</translation>
 <translation id="1309465583050255779">如果 <ph name="DEFAULT_SEARCH_PROVIDER_ENABLED_POLICY_NAME" /> 已开启，您便可通过设置 <ph name="DEFAULT_SEARCH_PROVIDER_NAME_POLICY_NAME" /> 来指定默认搜索服务提供商的名称。
 
@@ -3962,6 +3951,23 @@ ServiceWorkerAutoPreload 功能会在 ServiceWorker 引导过程开始的同时�
 <translation id="3712861436661566358">强制执行资料分离</translation>
 <translation id="3719826155360621982">首页</translation>
 <translation id="3724039569609354541">在确定网站能否向网络端点发送请求时使用默认行为</translation>
+<translation id="3726715125055227414">此政策可将 <ph name="PRODUCT_OS_NAME" /> 配置为，在从登录界面发出网络请求时，对 TLS 1.3 中的首选密钥协议算法（受支持的群组）进行排序，以反映对特定合规制度所批准的算法的偏好程度。
+
+设置此政策并不能保证系统会协商使用任何特定算法。
+
+此政策旨在使服务器运营商能够区分具有或不具有合规性要求的客户端，从而仅针对明确配置为优先使用加密强度更高的算法的客户端，采用某些非默认算法。
+
+将此政策设为“<ph name="CNSA2_NAME" />”后，<ph name="PRODUCT_OS_NAME" /> 将优先采用符合商业国家安全算法套件 2.0 (CNSA 2.0) 要求的密钥交换方法。
+
+如果不设置此政策，或将其设为“<ph name="DEFAULT_NAME" />”，<ph name="PRODUCT_OS_NAME" /> 将使用其默认密钥交换方法。
+
+设置此政策并非安全方面的必要措施。<ph name="PRODUCT_OS_NAME" /> 使用的默认加密技术非常强大，足以抵御利用整个太阳的能量进行的暴力破解攻击。
+
+设置此政策会导致 <ph name="PRODUCT_OS_NAME" /> 在从登录界面发出网络请求时速度变慢。
+
+此政策仅影响 TLS 1.3 和 QUIC，不会影响早期版本的 TLS。
+
+此设备政策等同于用户政策 <ph name="PREFER_SLOW_KEX_ALGORITHMS_POLICY_NAME" />，但适用于登录界面上的登录个人资料。</translation>
 <translation id="3727476641336727380">如果 <ph name="ALLOW_SCREEN_WAKE_LOCKS_POLICY_NAME" /> 已启用或未设置，系统会允许使用屏幕唤醒锁定进行电源管理，除非 <ph name="ALLOW_WAKE_LOCKS_POLICY_NAME" /> 已停用。扩展程序可通过 Power Management Extension API 和 ARC 应用来请求屏幕唤醒锁定。
 
       如果此政策已停用，系统会将屏幕唤醒锁定请求降级为系统唤醒锁定请求。</translation>
@@ -4470,6 +4476,17 @@ ServiceWorkerAutoPreload 功能会在 ServiceWorker 引导过程开始的同时�
 <translation id="4090088362777472639">Ansible Playbook 的 SHA-256 哈希值。</translation>
 <translation id="4091040199847925434">禁止为帮助改进安全浏览功能而报告系统信息和网页内容</translation>
 <translation id="4093058072421210667">不允许使用内嵌图片功能。</translation>
+<translation id="4096503137212127216">此政策可用于在特定网址上屏蔽 <ph name="CHROME_DEVTOOLS_NAME" />。如需了解网址格式，请参阅 https://support.google.com/chrome/a?p=url_blocklist_filter_format。
+
+系统会将网址格式与正在接受检查的网页上每个框架的网址进行比对。最终行为取决于是否也设置了 <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> 政策。
+
+如果已设置此政策，但未设置 <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> 政策，则任何与此屏蔽清单上的格式匹配的框架网址都会屏蔽整个页面的 <ph name="CHROME_DEVTOOLS_NAME" />。如果框架的网址与任何格式都不匹配，则可用性由 <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" /> 政策决定。
+
+如果同时设置了此政策和 <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> 政策，则以许可清单为准。如果框架的网址与此许可清单上的格式匹配，那么即使它同时匹配屏蔽清单中的格式，也仍会被允许。如果某个网址与屏蔽清单（而非许可清单）上的格式匹配，则该网址会被屏蔽。如果某个网址与两者都不匹配，则 <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" /> 政策将用作后备政策。
+
+如果未设置此政策，<ph name="CHROME_DEVTOOLS_NAME" />的可用性将由 <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> 和 <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" /> 政策决定。
+
+此政策最多只能包含 1,000 个条目。</translation>
 <translation id="4098920079809952737">始终允许打印（无论是否有背景图片）</translation>
 <translation id="410061592404122032">每当网站想获得窗口管理权限时都询问</translation>
 <translation id="410068710490553233">允许登录其他 Google 账号</translation>
@@ -5002,25 +5019,6 @@ ServiceWorkerAutoPreload 功能会在 ServiceWorker 引导过程开始的同时�
 
       如需详细了解有效网址格式，请访问 https://chromeenterprise.google/policies/url-patterns/。</translation>
 <translation id="4485425108474077672">配置“打开新的标签页”页面网址</translation>
-<translation id="4485667899983529614">此政策可将 <ph name="PRODUCT_OS_NAME" /> 配置为，在从登录界面发出网络请求时，对 TLS 1.3 中的首选密钥协议算法（受支持群组）进行排序，以反映对特定合规制度所批准的算法的偏好程度。
-
-设置此政策并不能保证系统会协商使用任何特定算法。
-
-此政策的用途是，让希望为有合规性要求和没有合规性要求的客户端提供支持的服务器运营商能够区分这两种客户端，并且能够针对已明确配置为优先使用某些加密强度更高的非默认算法的客户端，仅使用其配置的算法。
-
-如果将此政策设为“<ph name="CNSA2_NAME" />”，<ph name="PRODUCT_OS_NAME" /> 将优先使用所要求的密钥交换方法，以便符合商业国家安全算法套件 2.0 (CNSA 2.0) 的规定。
-
-如果不设置此政策，或将其设为“<ph name="DEFAULT_NAME" />”，<ph name="PRODUCT_OS_NAME" /> 将使用其默认密钥交换方法。
-
-如果此政策设置为某个值，<ph name="PRODUCT_OS_NAME" /> 将优先使用后量子密钥协议算法，但如果 <ph name="DEVICE_POST_QUANTUM_KEY_AGREEMENT_ENABLED_POLICY_NAME" /> 已停用，则优先使用 <ph name="DEVICE_POST_QUANTUM_KEY_AGREEMENT_ENABLED_POLICY_NAME" /> 的设置。
-
-设置此政策并非安全方面的必要措施。<ph name="PRODUCT_OS_NAME" /> 使用的默认加密技术非常强大，足以抵御利用整个太阳的能量进行的暴力破解攻击。
-
-设置此政策会导致 <ph name="PRODUCT_OS_NAME" /> 在从登录界面发出网络请求时速度变慢。
-
-此政策仅影响 TLS 1.3 和 QUIC，不会影响早期版本的 TLS。
-
-此设备政策等同于用户政策 <ph name="PREFER_SLOW_KEX_ALGORITHMS_POLICY_NAME" />，但适用于登录界面上的登录个人资料。</translation>
 <translation id="4488959486611931919">注意：从 M118 起，Chrome 开始默认屏蔽这些 Cookie，自此系统便未报告任何网站服务中断情况，因此自 M127 起，这项功能将不可配置（此政策将失效）。
 
 对于通过 JavaScript 设定且包含特定控制字符（NULL、回车符和换行符）的 Cookie，可通过此政策选择暂时不更改 Chrome 的处理方式。
@@ -5733,6 +5731,19 @@ JavaScript 优化政策的例外情况仅在网站级别 (eTLD+1) 上强制执�
       在 M76 或更早版本中，不设置此政策意味着 <ph name="PRODUCT_NAME" /> 默认无法收集和上传这些日志。从 M77 开始，<ph name="PRODUCT_NAME" /> 默认能够从受基于云的用户级企业政策影响的大多数个人资料中收集并上传这些日志。从 M77 到 M80（含），<ph name="PRODUCT_NAME" /> 还默认能从受 <ph name="PRODUCT_NAME" /> 本地管理功能影响的个人资料中收集并上传这些日志。</translation>
 <translation id="4911334289324462969">端口 989（可在 2022 年 2 月 1 日之前解禁）</translation>
 <translation id="4917385247580444890">强</translation>
+<translation id="4917925819533520480">此政策可用于允许在特定网址上使用 <ph name="CHROME_DEVTOOLS_NAME" />。
+
+系统会将网址格式与正在接受检查的网页上每个框架的网址进行比对。最终行为取决于是否也设置了 <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> 政策。
+
+如果已设置此政策，但未设置 <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" />，则只有当每个框架的网址都与此许可清单上的格式匹配时，才允许使用 <ph name="CHROME_DEVTOOLS_NAME" />。如果有框架的网址不匹配，将屏蔽整个页面的开发者工具。如需了解网址格式，请参阅 https://support.google.com/chrome/a?p=url_blocklist_filter_format。
+
+如果同时设置了此政策和 <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> 政策，则以许可清单为准。如果框架的网址与此许可清单上的格式匹配，那么即使它同时匹配屏蔽清单中的格式，也仍会被允许。如果某个网址与屏蔽清单（而非许可清单）上的格式匹配，则该网址会被屏蔽。如果某个网址与两者都不匹配，则 <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" /> 政策将用作后备政策。
+
+如果未设置此政策，<ph name="CHROME_DEVTOOLS_NAME" />的可用性将由 <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> 和 <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" /> 政策决定。
+
+此政策还适用于为扩展程序和 Web 应用打开的 <ph name="CHROME_DEVTOOLS_NAME" />。
+
+此政策最多只能包含 1,000 个条目。</translation>
 <translation id="4918150584200819898">允许自动启动在线重新身份验证。</translation>
 <translation id="4918261735182294270">允许用户选择是否启用 <ph name="CHROME_SYNC_NAME" /></translation>
 <translation id="4918485681633125382">启用对 PDF 文档中 XFA 表单的支持</translation>
@@ -8155,24 +8166,6 @@ Related Website Set 中的所有网站都必须是采用 HTTPS 协议的可注�
           如果此政策已停用，<ph name="PRODUCT_OS_NAME" /> 设备将无法检索 <ph name="GOOGLE_CALENDAR_NAME" />活动来为已登录用户填充系统状态栏中的 <ph name="PRODUCT_OS_NAME" /> 日历微件。
 
           如果未设置此政策，则默认情况下，系统会为企业用户启用 <ph name="GOOGLE_CALENDAR_NAME" />功能。</translation>
-<translation id="6450557649904429321">此政策旨在配置 <ph name="PRODUCT_NAME" />，使其在 TLS 1.3 中优先选择符合特定合规制度要求的密钥协议算法（即受支持的群组），从而确保算法选择的合规性。
-
-设置此政策并不能保证系统会协商使用任何特定算法。
-
-此政策旨在帮助服务器运营商区分那些有合规性要求和没有合规性要求的客户端，从而能够针对明确配置为优先使用某些非默认算法的客户端，采用加密强度更高的算法。
-
-将此政策设为“<ph name="CNSA2_NAME" />”后，<ph name="PRODUCT_NAME" /> 将优先采用符合商业国家安全算法套件 2.0 (CNSA 2.0) 要求的密钥交换方法。
-
-如果不设置此政策，或将其设为“<ph name="DEFAULT_NAME" />”，<ph name="PRODUCT_NAME" /> 将使用其默认密钥交换方法。
-
-如果此政策设置为某个值，该值会将 <ph name="PRODUCT_NAME" /> 配置为优先选择后量子密钥协议算法，但 <ph name="POST_QUANTUM_KEY_AGREEMENT_ENABLED_POLICY_NAME" /> 已停用，则优先采用 <ph name="POST_QUANTUM_KEY_AGREEMENT_ENABLED_POLICY_NAME" /> 的设置。
-
-设置此政策并非安全方面的必要措施。<ph name="PRODUCT_NAME" /> 采用的默认加密技术非常强大，足以抵御
-动用太阳全部能量进行的暴力破解攻击。
-
-设置此政策会导致 <ph name="PRODUCT_NAME" /> 在访问网站时速度变慢。
-
-此政策仅影响 TLS 1.3 和 QUIC，不会影响早期版本的 TLS。</translation>
 <translation id="6452882999388592166">如果此政策已启用，系统会在浏览器启动时加载内置的 CryptoToken 组件扩展程序。如果此政策已停用或未设置，系统不会在浏览器启动时加载 CryptoToken。此政策旨在作为一种临时的变通方案，用于处理因未定义“chrome.runtime”（这是由于在 M106 中移除 CryptoToken 所致的不良后果）而无法正常运行的网站。网站不得依赖于无条件定义的“chrome.runtime”。</translation>
 <translation id="6453641799812499182">在新版 <ph name="CORS" /> 实现方案中启用 <ph name="CORS" /> 检查缓解功能</translation>
 <translation id="645425387487868471">为 <ph name="PRODUCT_NAME" /> 启用强制登录功能</translation>
@@ -10631,21 +10624,6 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
 <translation id="8035570672225663428">启用“自动调节充电”模式以暂缓充电进程，进而延长电池寿命</translation>
 <translation id="8038007682032315784">禁止在所有网页上使用 <ph name="SEARCH_SIDE_PANEL_FEATURE_NAME" /></translation>
 <translation id="8044493735196713914">报告设备引导模式</translation>
-<translation id="8044943551137872312">此政策可用于允许在特定网址上使用 <ph name="CHROME_DEVTOOLS_NAME" />。
-
-系统会将网址格式与正在接受检查的网页的网址进行比对。如果找到匹配项，则允许使用 <ph name="CHROME_DEVTOOLS_NAME" />。即使网址也与 <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> 政策相符，且 <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" /> 政策设为禁止（值为 2），此规则依然适用。如需了解网址格式，请参阅 https://support.google.com/chrome/a?p=url_blocklist_filter_format。
-
-如果未设置此政策，则许可清单不会产生任何影响。
-
-如果已设置此政策，但未设置 <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> 政策，则所有不在此清单上的网址都会被屏蔽。
-
-如果同时设置了此政策和 <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> 政策，则以许可清单为准。如果某个网址与许可清单上的格式匹配，则允许使用该网址；如果与屏蔽清单（而非许可清单）上的格式匹配，则该网址会被屏蔽；如果与两者都不匹配，则 <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" /> 政策将用作后备政策。
-
-如果这两项政策均未设置，则可用性由 <ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" /> 政策决定。
-
-此政策还适用于为扩展程序和 Web 应用打开的 <ph name="CHROME_DEVTOOLS_NAME" />。
-
-此政策最多只能包含 1,000 个条目。</translation>
 <translation id="80453040817068401">启用 <ph name="LACROS_NAME" /> 浏览器</translation>
 <translation id="804619600634661088">允许进行远程调试</translation>
 <translation id="8047264240841615226"><ph name="CHROME_DEVTOOLS_NAME" />生成式 AI 功能的设置</translation>
@@ -10673,6 +10651,19 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
 <translation id="8059352177830050556">启用设备背光信息报告功能</translation>
 <translation id="8062485064082966327">使用匿名 Google 服务为无标签图片提供自动说明</translation>
 <translation id="8066428282805800713">在 ChromeOS Flex 上发送其他硬件数据</translation>
+<translation id="8069233292746468045">此政策旨在配置 <ph name="PRODUCT_NAME" />，使其对 TLS 1.3 中的首选密钥协议算法（受支持的群组）进行排序，以反映对特定合规制度所批准的算法的偏好程度。设置此政策并不能保证系统会协商使用任何特定算法。
+
+此政策旨在使服务器运营商能够区分具有或不具有合规性要求的客户端，从而仅针对明确配置为优先使用加密强度更高的算法的客户端，采用某些非默认算法。
+
+将此政策设为“<ph name="CNSA2_NAME" />”后，<ph name="PRODUCT_NAME" /> 将优先采用符合商业国家安全算法套件 2.0 (CNSA 2.0) 要求的密钥交换方法。
+
+如果不设置此政策，或将其设为“<ph name="DEFAULT_NAME" />”，<ph name="PRODUCT_NAME" /> 将使用其默认密钥交换方法。
+
+设置此政策并非安全方面的必要措施。<ph name="PRODUCT_NAME" /> 使用的默认加密技术非常强大，足以抵御利用整个太阳的能量进行的暴力破解攻击。
+
+设置此政策会导致 <ph name="PRODUCT_NAME" /> 在访问网站时速度变慢。
+
+此政策仅影响 TLS 1.3 和 QUIC，不会影响早期版本的 TLS。</translation>
 <translation id="8071371098891664137">如果为 <ph name="PRINTERS_BULK_ACCESS_MODE_POLICY_NAME" /> 选择了 <ph name="PRINTERS_BLOCKLIST" />，您便可通过设置 <ph name="PRINTERS_BULK_BLOCKLIST_POLICY_NAME" /> 来指定用户不能使用哪些打印机。除了与此政策中所列 ID 对应的打印机之外，其他所有打印机都可供用户使用。ID 必须与 <ph name="PRINTERS_BULK_CONFIGURATION_POLICY_NAME" /> 所指定文件内的<ph name="ID_FIELD" />或<ph name="GUID_FIELD" />字段相符。</translation>
 <translation id="8076539570602616846">仅允许符合条件的 Google 账号通过 <ph name="PRODUCT_NAME" /> PDF 查看器将 PDF 文件保存到 Google 云端硬盘</translation>
 <translation id="8078297389450285582">如果此政策已启用或未设置，系统会开启智能调暗模式，并可推迟屏幕变暗的时间。倘若屏幕变暗时间推迟了，系统会随之调整屏幕关闭延迟时间、屏幕锁定延迟时间和闲置延迟时间，以使它们保持在原有设置下与屏幕变暗延迟时间的间隔。

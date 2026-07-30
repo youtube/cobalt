@@ -25,6 +25,7 @@ build_webui("build") {
     "searchbox_icon.ts",
     "searchbox_match.html.ts",
     "searchbox_match.ts",
+    "searchbox_recent_tab_chip.html.ts",
     "searchbox_searchbox_dropdown.html.ts",
     "searchbox_thumbnail.html.ts",
     "searchbox_thumbnail.ts",
@@ -43,7 +44,7 @@ build_webui("build") {
 
   ts_out_dir = "$root_gen_dir/ui/webui/resources/tsc/cr_components/searchbox"
   ts_composite = true
-  ts_definitions = [ "//tools/typescript/definitions/metrics_private.d.ts" ]
+  ts_definitions = [ "//tools/typescript/definitions/chrome_histograms.d.ts" ]
   ts_deps = [
     "//third_party/lit/v3_0:build_ts",
     "//ui/webui/resources/cr_components/composebox:build_ts",

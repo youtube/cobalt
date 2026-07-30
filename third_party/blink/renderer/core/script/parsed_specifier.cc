@@ -22,7 +22,7 @@ ParsedSpecifier ParsedSpecifier::Create(const String& specifier,
   //
   // <spec label="import-specifier" step="2">Let url be the result of parsing
   // specifier (with no base URL).</spec>
-  KURL url(NullURL(), specifier);
+  KURL url(NullUrl(), specifier);
   if (url.IsValid()) {
     // <spec label="import-specifier" step="4">If url’s scheme is either a fetch
     // scheme or "std", then return url.</spec>
@@ -38,8 +38,8 @@ ParsedSpecifier ParsedSpecifier::Create(const String& specifier,
   //
   // <spec label="import-specifier" step="1">If specifier starts with "/", "./",
   // or "../", then:</spec>
-  if (!specifier.StartsWith("/") && !specifier.StartsWith("./") &&
-      !specifier.StartsWith("../")) {
+  if (!specifier.starts_with('/') && !specifier.starts_with("./") &&
+      !specifier.starts_with("../")) {
     // Do not consider an empty specifier as a valid bare specifier.
     //
     // <spec
@@ -84,7 +84,7 @@ KURL ParsedSpecifier::GetUrl() const {
   switch (GetType()) {
     case Type::kInvalid:
     case Type::kBare:
-      return NullURL();
+      return NullUrl();
     case Type::kURL:
       return url_;
   }

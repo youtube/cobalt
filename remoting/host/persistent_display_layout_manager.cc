@@ -25,6 +25,36 @@ namespace {
 // Delay to throttle writes to the display layout file.
 constexpr base::TimeDelta kWriteDisplayLayoutDelay = base::Seconds(10);
 
+bool IsLayoutValid(const protocol::VideoLayout& layout) {
+  if (layout.video_track_size() < 1 || layout.video_track_size() > 4) {
+    LOG(ERROR) << "Invalid track count: " << layout.video_track_size();
+    return false;
+  }
+
+  for (const auto& track : layout.video_track()) {
+    if (track.position_x() < 0 || track.position_y() < 0) {
+      LOG(ERROR) << "Invalid position: " << track.position_x() << ","
+                 << track.position_y();
+      return false;
+    }
+    if (track.width() < 1 || track.width() > 32767 || track.height() < 1 ||
+        track.height() > 32767) {
+      LOG(ERROR) << "Invalid size: " << track.width() << "x" << track.height();
+      return false;
+    }
+    if (track.x_dpi() < 1) {
+      LOG(ERROR) << "Invalid x_dpi: " << track.x_dpi();
+      return false;
+    }
+    if (track.has_y_dpi() && track.y_dpi() != track.x_dpi()) {
+      LOG(ERROR) << "Invalid y_dpi: " << track.y_dpi()
+                 << " (must match x_dpi or be unset)";
+      return false;
+    }
+  }
+  return true;
+}
+
 }  // namespace
 
 PersistentDisplayLayoutManager::PersistentDisplayLayoutManager(
@@ -45,22 +75,20 @@ PersistentDisplayLayoutManager::~PersistentDisplayLayoutManager() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }
 
-void PersistentDisplayLayoutManager::Start(
-    std::unique_ptr<protocol::VideoLayout> default_layout) {
+void PersistentDisplayLayoutManager::Start() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  ReadFileAsync(display_layout_file_path_,
-                base::BindOnce(
-                    &PersistentDisplayLayoutManager::OnDisplayLayoutFileLoaded,
-                    weak_ptr_factory_.GetWeakPtr(), std::move(default_layout)));
+  ReadFileAsync(
+      display_layout_file_path_,
+      base::BindOnce(&PersistentDisplayLayoutManager::OnDisplayLayoutFileLoaded,
+                     weak_ptr_factory_.GetWeakPtr()));
 }
 
 void PersistentDisplayLayoutManager::OnDisplayLayoutFileLoaded(
-    std::unique_ptr<protocol::VideoLayout> default_layout,
     base::FileErrorOr<std::string> load_file_result) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  ApplyDisplayLayout(std::move(default_layout), load_file_result);
+  ApplyDisplayLayout(load_file_result);
   display_info_monitor_->AddCallback(base::BindRepeating(
       &PersistentDisplayLayoutManager::OnDisplayInfoReceived,
       weak_ptr_factory_.GetWeakPtr()));
@@ -78,26 +106,27 @@ void PersistentDisplayLayoutManager::OnDisplayInfoReceived() {
 }
 
 void PersistentDisplayLayoutManager::ApplyDisplayLayout(
-    std::unique_ptr<protocol::VideoLayout> default_layout,
     const base::FileErrorOr<std::string>& load_file_result) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  std::unique_ptr<protocol::VideoLayout> display_layout;
   if (load_file_result.has_value()) {
     auto display_layout_from_file = std::make_unique<protocol::VideoLayout>();
     if (display_layout_from_file->ParseFromString(*load_file_result)) {
+      // Run some simple checks to make sure the file is not corrupted.
+      if (!IsLayoutValid(*display_layout_from_file)) {
+        LOG(ERROR) << "Invalid display layout from file.";
+        return;
+      }
       for (protocol::VideoTrackLayout& track :
            *display_layout_from_file->mutable_video_track()) {
         // Clear the screen ID to indicate that a new display should be created.
         // See comment in protobuf.
         track.clear_screen_id();
       }
-      if (display_layout_from_file->video_track_size() > 0) {
-        display_layout = std::move(display_layout_from_file);
-      } else {
-        // The display layout may be empty if the previous host incarnation has
-        // failed to create the virtual monitors.
-        LOG(WARNING) << "Ignored empty display layout.";
+      if (desktop_resizer_) {
+        HOST_LOG << "Applying display layout from file: "
+                 << display_layout_file_path_;
+        desktop_resizer_->SetVideoLayout(*display_layout_from_file);
       }
     } else {
       LOG(ERROR) << "Failed to parse display layout.";
@@ -106,13 +135,6 @@ void PersistentDisplayLayoutManager::ApplyDisplayLayout(
              base::File::Error::FILE_ERROR_NOT_FOUND) {
     LOG(ERROR) << "Failed to read file " << display_layout_file_path_ << ": "
                << base::File::ErrorToString(load_file_result.error());
-  }
-  if (!display_layout) {
-    HOST_LOG << "Using default display layout.";
-    display_layout = std::move(default_layout);
-  }
-  if (desktop_resizer_) {
-    desktop_resizer_->SetVideoLayout(*display_layout);
   }
 }
 

@@ -32,8 +32,10 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.search_engines.R;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
+import org.chromium.chrome.browser.search_engines.settings.common.SiteSearchProperties;
 import org.chromium.components.favicon.LargeIconBridgeJni;
 import org.chromium.components.search_engines.TemplateUrl;
+import org.chromium.components.search_engines.TemplateUrlCategory;
 import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.ui.listmenu.BasicListMenu;
 import org.chromium.ui.listmenu.ListMenuDelegate;
@@ -72,7 +74,8 @@ public class CustomSearchEngineListMediatorUnitTest {
 
         List<TemplateUrl> urls = new ArrayList<>();
         urls.add(mTemplateUrl);
-        when(mTemplateUrlService.getTemplateUrls()).thenReturn(urls);
+        when(mTemplateUrlService.getTemplateUrlsByCategory(TemplateUrlCategory.DEFAULT))
+                .thenReturn(urls);
         when(mTemplateUrl.getKeyword()).thenReturn("keyword");
         when(mTemplateUrl.getShortName()).thenReturn("My Search Engine");
 
@@ -97,7 +100,7 @@ public class CustomSearchEngineListMediatorUnitTest {
         mMediator.onTemplateURLServiceChanged();
 
         verify(mModelList).clear();
-        verify(mTemplateUrlService).getTemplateUrls();
+        verify(mTemplateUrlService).getTemplateUrlsByCategory(TemplateUrlCategory.DEFAULT);
         verify(mModelList).add(any(ListItem.class));
     }
 
@@ -107,7 +110,7 @@ public class CustomSearchEngineListMediatorUnitTest {
         verify(mModelList).add(itemCaptor.capture());
 
         PropertyModel model = itemCaptor.getValue().model;
-        ListMenuDelegate delegate = model.get(CustomSearchEngineProperties.MENU_DELEGATE);
+        ListMenuDelegate delegate = model.get(SiteSearchProperties.MENU_DELEGATE);
 
         assertNotNull(delegate);
 
@@ -132,13 +135,33 @@ public class CustomSearchEngineListMediatorUnitTest {
     }
 
     @Test
-    public void testMakeDefault() {
+    public void testEditClicked() {
+        String keyword = "keyword";
+        when(mTemplateUrl.getKeyword()).thenReturn(keyword);
+
+        mMediator.onMenuItemClicked(R.string.site_search_list_menu_edit, mTemplateUrl);
+
+        verify(mOnEditSearchEngine).onResult(mTemplateUrl);
+    }
+
+    @Test
+    public void testMakeDefaultClicked() {
         String keyword = "keyword";
         when(mTemplateUrl.getKeyword()).thenReturn(keyword);
 
         mMediator.onMenuItemClicked(R.string.site_search_list_menu_make_default, mTemplateUrl);
 
         verify(mTemplateUrlService).setSearchEngine(keyword);
+    }
+
+    @Test
+    public void testDeleteClicked() {
+        String keyword = "keyword";
+        when(mTemplateUrl.getKeyword()).thenReturn(keyword);
+
+        mMediator.onMenuItemClicked(R.string.site_search_list_menu_delete, mTemplateUrl);
+
+        verify(mTemplateUrlService).removeSearchEngine(keyword);
     }
 
     @Test
@@ -152,7 +175,7 @@ public class CustomSearchEngineListMediatorUnitTest {
         verify(mModelList).add(itemCaptor.capture());
 
         PropertyModel model = itemCaptor.getValue().model;
-        ListMenuDelegate delegate = model.get(CustomSearchEngineProperties.MENU_DELEGATE);
+        ListMenuDelegate delegate = model.get(SiteSearchProperties.MENU_DELEGATE);
 
         assertNull(delegate);
     }

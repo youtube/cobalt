@@ -34,7 +34,7 @@ class ConfigHttp;
 
 // An implementation of TokenFetcher that uses HTTP fetching in
 // the `quiche::BlindSignAuth` library for retrieving blind-signed
-// authentication tokens for Legion.
+// authentication tokens for PrivateAI.
 class TokenFetcherImpl : public TokenFetcher {
  public:
   TokenFetcherImpl(OAuthTokenProvider* oauth_token_provider,
@@ -49,7 +49,7 @@ class TokenFetcherImpl : public TokenFetcher {
 
   // The account status has changed, so the delegate's `RequestOAuthToken`
   // behavior may change.
-  void AccountStatusChanged(bool account_available);
+  void OnAccountStatusChanged(bool account_available);
 
  private:
   friend class TokenFetcherImplTest;
@@ -80,6 +80,7 @@ class TokenFetcherImpl : public TokenFetcher {
   };
 
   void OnRequestOAuthTokenCompletedForGetAuthnTokens(
+      base::TimeTicks start_time,
       int batch_size,
       quiche::ProxyLayer proxy_layer,
       GetAuthnTokensCallback callback,

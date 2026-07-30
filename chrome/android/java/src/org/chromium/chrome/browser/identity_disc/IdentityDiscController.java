@@ -31,6 +31,7 @@ import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
 import org.chromium.chrome.browser.signin.SigninAndHistorySyncActivityLauncherImpl;
+import org.chromium.chrome.browser.signin.services.BadgeConfig;
 import org.chromium.chrome.browser.signin.services.DisplayableProfileData;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.browser.signin.services.ProfileDataCache;
@@ -72,8 +73,6 @@ import org.chromium.ui.base.ActivityResultTracker;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 
-import java.util.function.Supplier;
-
 /**
  * Handles displaying IdentityDisc on toolbar depending on several conditions (user sign-in state,
  * whether NTP is shown)
@@ -93,7 +92,7 @@ public class IdentityDiscController
     private final ActivityResultTracker mActivityResultTracker;
     private final DeviceLockActivityLauncher mDeviceLockActivityLauncher;
     private final BottomSheetController mBottomSheetController;
-    private final Supplier<@Nullable ModalDialogManager> mModalDialogManagerSupplier;
+    private final ModalDialogManager mModalDialogManager;
     private final SnackbarManager mSnackbarManager;
     private final MonotonicObservableSupplier<Profile> mProfileSupplier;
     private final Callback<Profile> mProfileSupplierObserver = this::setProfile;
@@ -127,7 +126,7 @@ public class IdentityDiscController
      * @param profileSupplier The supplier of the current profile.
      * @param bottomSheetController The {@link BottomSheetController} to show the sign-in bottom
      *     sheet.
-     * @param modalDialogManagerSupplier The supplier of the {@link ModalDialogManager}.
+     * @param modalDialogManager The {@link ModalDialogManager}.
      * @param snackbarManager The {@link SnackbarManager} to show sign-in/sign-out snackbars.
      */
     public IdentityDiscController(
@@ -137,7 +136,7 @@ public class IdentityDiscController
             DeviceLockActivityLauncher deviceLockActivityLauncher,
             MonotonicObservableSupplier<Profile> profileSupplier,
             BottomSheetController bottomSheetController,
-            Supplier<@Nullable ModalDialogManager> modalDialogManagerSupplier,
+            ModalDialogManager modalDialogManager,
             SnackbarManager snackbarManager) {
         mContext = activity;
         mActivity = activity;
@@ -146,7 +145,7 @@ public class IdentityDiscController
         mDeviceLockActivityLauncher = deviceLockActivityLauncher;
         mProfileSupplier = profileSupplier;
         mBottomSheetController = bottomSheetController;
-        mModalDialogManagerSupplier = modalDialogManagerSupplier;
+        mModalDialogManager = modalDialogManager;
         mSnackbarManager = snackbarManager;
 
         mProfileSupplier.addSyncObserverAndPostIfNonNull(mProfileSupplierObserver);
@@ -368,8 +367,9 @@ public class IdentityDiscController
                     coreAccountInfo.getId(),
                     mIdentityError == UserActionableError.NONE
                             ? null
-                            : ProfileDataCache.createToolbarIdentityDiscBadgeConfig(
-                                    mContext, R.drawable.ic_error_badge_16dp));
+                            : BadgeConfig.create(R.drawable.ic_error_badge_16dp)
+                                    .withToolbarIdentityDiscConfig()
+                                    .build(mContext));
         }
     }
 
@@ -544,7 +544,7 @@ public class IdentityDiscController
                                     mDeviceLockActivityLauncher,
                                     profileSupplier,
                                     () -> mBottomSheetController,
-                                    mModalDialogManagerSupplier,
+                                    mModalDialogManager,
                                     mSnackbarManager,
                                     SigninAccessPoint.NTP_SIGNED_OUT_ICON);
         }

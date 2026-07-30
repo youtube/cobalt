@@ -71,6 +71,7 @@
 #include "third_party/blink/renderer/core/html/forms/html_data_list_options_collection.h"
 #include "third_party/blink/renderer/core/html/forms/html_form_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_option_element.h"
+#include "third_party/blink/renderer/core/html/forms/html_select_element.h"
 #include "third_party/blink/renderer/core/html/forms/input_type.h"
 #include "third_party/blink/renderer/core/html/forms/radio_button_group_scope.h"
 #include "third_party/blink/renderer/core/html/forms/search_input_type.h"
@@ -471,6 +472,9 @@ void HTMLInputElement::UpdateType(const AtomicString& type_attribute_value) {
   if (input_type_->ShouldRespectListAttribute() !=
       new_type->ShouldRespectListAttribute())
     PseudoStateChanged(CSSSelector::kPseudoHasDatalist);
+  if (input_type_->IsTextFieldInputType() != new_type->IsTextFieldInputType()) {
+    PseudoStateChanged(CSSSelector::kPseudoTextField);
+  }
 
   bool placeholder_changed =
       input_type_->SupportsPlaceholder() != new_type->SupportsPlaceholder();
@@ -486,7 +490,7 @@ void HTMLInputElement::UpdateType(const AtomicString& type_attribute_value) {
 
   const AtomicString& dir = FastGetAttribute(html_names::kDirAttr);
   if ((!dir && (old_type->IsTelephoneInputType() || IsTelephone())) ||
-      (EqualIgnoringASCIICase(dir, "auto") &&
+      (EqualIgnoringAsciiCase(dir, "auto") &&
        (old_type->IsAutoDirectionalityFormAssociated() ||
         IsAutoDirectionalityFormAssociated()))) {
     const AtomicString& value_dir = AtomicString(DirectionForFormData());
@@ -848,7 +852,7 @@ void HTMLInputElement::ParseAttribute(
     AddToRadioButtonGroup();
     TextControlElement::ParseAttribute(params);
   } else if (name == html_names::kAutocompleteAttr) {
-    if (EqualIgnoringASCIICase(value, keywords::kOff)) {
+    if (EqualIgnoringAsciiCase(value, keywords::kOff)) {
       autocomplete_ = kOff;
     } else {
       if (value.empty())
@@ -1924,6 +1928,14 @@ HTMLInputElement::FilteredDataListOptions() const {
   if (!data_list)
     return filtered;
 
+  if (IsBaseAppearanceCombobox()) {
+    // This method is only used for the "native" autofill popup, which we don't
+    // want to render at all when we are also rendering the same datalist
+    // options in the base appearance datalist. Returning zero options here will
+    // prevent the autofill popup from rendering.
+    return filtered;
+  }
+
   // Ensure the editor has been created as InnerEditorValue() returns an empty
   // string if the editor wasn't created.
   EnsureInnerEditorElement();
@@ -2219,9 +2231,10 @@ void HTMLInputElement::setRangeText(const String& replacement,
                                    exception_state);
 }
 
-OpaqueRange* HTMLInputElement::getValueRange(unsigned start_offset,
-                                             unsigned end_offset,
-                                             ExceptionState& exception_state) {
+OpaqueRange* HTMLInputElement::createValueRange(
+    unsigned start_offset,
+    unsigned end_offset,
+    ExceptionState& exception_state) {
   CHECK(RuntimeEnabledFeatures::OpaqueRangeEnabled());
   if (!InputSupportsSelectionAPI()) {
     exception_state.ThrowDOMException(
@@ -2230,8 +2243,8 @@ OpaqueRange* HTMLInputElement::getValueRange(unsigned start_offset,
         "or password.");
     return nullptr;
   }
-  return TextControlElement::getValueRange(start_offset, end_offset,
-                                           exception_state);
+  return TextControlElement::createValueRange(start_offset, end_offset,
+                                              exception_state);
 }
 
 bool HTMLInputElement::SetupDateTimeChooserParameters(
@@ -2547,6 +2560,20 @@ bool HTMLInputElement::IsBaseAppearanceCombobox() const {
     return IsAppearanceBase() && datalist->IsAppearanceBase();
   }
   return false;
+}
+
+HTMLSelectElement* HTMLInputElement::FilterTarget() const {
+  if (!RuntimeEnabledFeatures::FilterableSelectEnabled()) {
+    return nullptr;
+  }
+  if (auto* select = DynamicTo<HTMLSelectElement>(
+          GetElementAttributeResolvingReferenceTarget(
+              html_names::kFilterAttr))) {
+    if (!select->UsesMenuList()) {
+      return select;
+    }
+  }
+  return nullptr;
 }
 
 }  // namespace blink

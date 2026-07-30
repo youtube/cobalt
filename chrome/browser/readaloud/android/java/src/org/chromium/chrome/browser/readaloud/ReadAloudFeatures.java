@@ -94,10 +94,6 @@ public final class ReadAloudFeatures {
         return ChromeFeatureList.isEnabled(ChromeFeatureList.READALOUD_AUDIO_OVERVIEWS);
     }
 
-    public static boolean isAudioOverviewsFeedbackAllowed() {
-        return ChromeFeatureList.isEnabled(ChromeFeatureList.READALOUD_AUDIO_OVERVIEWS_FEEDBACK);
-    }
-
     public static int getAudioOverviewsSpeedAdditionPercentage() {
         return ChromeFeatureList.sReadAloudAudioOverviewsSpeedAdditionPercentage.getValue();
     }
@@ -117,11 +113,6 @@ public final class ReadAloudFeatures {
     /** Returns true if playback is enabled. */
     public static boolean isPlaybackEnabled() {
         return ChromeFeatureList.isEnabled(ChromeFeatureList.READALOUD_PLAYBACK);
-    }
-
-    public static boolean shouldSkipAudioOverviewsDisclaimerWhenPossible() {
-        return ChromeFeatureList.isEnabled(
-                ChromeFeatureList.READALOUD_AUDIO_OVERVIEWS_SKIP_DISCLAIMER_WHEN_POSSIBLE);
     }
 
     /** Returns true if the ReadAloud CCT IPH should highlight the menu button. */
@@ -164,12 +155,15 @@ public final class ReadAloudFeatures {
     }
 
     public static List<String> getSupportedLanguagesForOverview() {
-      ImmutableList.Builder<String> result = ImmutableList.builder();
-      for (String language : ChromeFeatureList.sReadAloudAudioOverviewsSupportedLanguages.getValue().split(",")) {
-        String trimmed = language.trim();
-        if (!trimmed.isEmpty()) {
-          result.add(trimmed);
-        }
+        ImmutableList.Builder<String> result = ImmutableList.builder();
+        for (String language :
+                ChromeFeatureList.sReadAloudAudioOverviewsSupportedLanguages
+                        .getValue()
+                        .split(",")) {
+            String trimmed = language.trim();
+            if (!trimmed.isEmpty()) {
+                result.add(trimmed);
+            }
       }
       return result.build();
     }

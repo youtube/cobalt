@@ -66,7 +66,7 @@ void HTMLFrameElementBase::OpenURL(bool replace_current_item) {
   }
 
   if (url_.empty())
-    url_ = AtomicString(BlankURL().GetString());
+    url_ = AtomicString(BlankUrl().GetString());
   KURL url = GetDocument().CompleteURL(url_);
   if (ContentFrame() && !parent_frame->CanNavigate(*ContentFrame(), url)) {
     return;
@@ -100,7 +100,7 @@ void HTMLFrameElementBase::ParseAttribute(
           ContentFrame()->GetFrameToken(), srcdoc_value);
     }
     if (!value.IsNull()) {
-      SetLocation(SrcdocURL().GetString());
+      SetLocation(SrcdocUrl().GetString());
     } else {
       const AtomicString& src_value = FastGetAttribute(html_names::kSrcAttr);
       if (!src_value.IsNull()) {
@@ -108,7 +108,7 @@ void HTMLFrameElementBase::ParseAttribute(
       } else if (!params.old_value.IsNull()) {
         // We're resetting kSrcdocAttr, but kSrcAttr has no value, so load
         // about:blank. https://crbug.com/1233143
-        SetLocation(BlankURL().GetString());
+        SetLocation(BlankUrl().GetString());
       }
     }
   } else if (name == html_names::kSrcAttr &&
@@ -132,12 +132,13 @@ void HTMLFrameElementBase::ParseAttribute(
     // the user agent is expected to prevent any scrollbars from being shown for
     // the viewport of the Document's browsing context, regardless of the
     // 'overflow' property that applies to that viewport.
-    if (EqualIgnoringASCIICase(value, "off") ||
-        EqualIgnoringASCIICase(value, "noscroll") ||
-        EqualIgnoringASCIICase(value, "no"))
+    if (EqualIgnoringAsciiCase(value, "off") ||
+        EqualIgnoringAsciiCase(value, "noscroll") ||
+        EqualIgnoringAsciiCase(value, "no")) {
       SetScrollbarMode(mojom::blink::ScrollbarMode::kAlwaysOff);
-    else
+    } else {
       SetScrollbarMode(mojom::blink::ScrollbarMode::kAuto);
+    }
   } else if (name == html_names::kOnbeforeunloadAttr) {
     // FIXME: should <frame> elements have beforeunload handlers?
     SetAttributeEventListener(

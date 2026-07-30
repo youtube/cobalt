@@ -149,29 +149,42 @@ class WTF_EXPORT AtomicString {
   // If `value` is empty, this returns `true`.
   bool ContainsIgnoringAsciiCase(const StringView& value) const;
 
-  // Find the last instance of a single character or string.
-  wtf_size_t ReverseFind(UChar c, wtf_size_t start = UINT_MAX) const {
-    return string_.ReverseFind(c, start);
+  // Find the last instance of a single character.
+  // Returns `npos` if it's not found in this string.
+  size_type rfind(UChar c, size_type start = npos) const {
+    return string_.rfind(c, start);
   }
-  wtf_size_t ReverseFind(const StringView& value,
-                         wtf_size_t start = UINT_MAX) const {
-    return string_.ReverseFind(value, start);
+  // Searches for the last occurrence of a substring within this string.
+  //
+  // This method performs a backward search starting from the 'start' index.
+  // If 'start' is npos, the search begins from the end of the string.
+  //
+  // Returns the index of the start of the found substring, or npos if
+  // no match is found.
+  //
+  // Special Cases:
+  // - If 'value' is empty, the search always succeeds and returns
+  //   the minimum of 'start' and length().
+  // - Null strings and zero-length strings are treated as equivalent
+  //   for both `this` string and the 'value' parameter.
+  size_type rfind(const StringView& value, size_type start = npos) const {
+    return string_.rfind(value, start);
   }
 
   bool starts_with(const StringView& prefix) const {
-    return string_.StartsWith(prefix);
+    return string_.starts_with(prefix);
   }
   bool StartsWithIgnoringAsciiCase(const StringView& prefix) const {
     return string_.StartsWithIgnoringAsciiCase(prefix);
   }
   bool starts_with(UChar character) const {
-    return string_.StartsWith(character);
+    return string_.starts_with(character);
   }
 
   bool ends_with(const StringView& suffix) const {
-    return string_.EndsWith(suffix);
+    return string_.ends_with(suffix);
   }
-  bool ends_with(UChar character) const { return string_.EndsWith(character); }
+  bool ends_with(UChar character) const { return string_.ends_with(character); }
   // Returns true if this string ends with the specified `suffix`, using ASCII
   // case-insensitive matching. If `suffix` is empty, this returns `true`.
   bool EndsWithIgnoringAsciiCase(const StringView& suffix) const {

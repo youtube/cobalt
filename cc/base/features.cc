@@ -25,12 +25,7 @@ BASE_FEATURE(kComputeRasterTranslateForExternalScale,
 
 // Whether the compositor should attempt to sync with the scroll handlers before
 // submitting a frame.
-BASE_FEATURE(kSynchronizedScrolling,
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#else
-             base::FEATURE_ENABLED_BY_DEFAULT);
-#endif
+BASE_FEATURE(kSynchronizedScrolling, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kDeferImplInvalidation, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -250,7 +245,7 @@ BASE_FEATURE_PARAM(double,
                    0.2);
 
 BASE_FEATURE(kHandleNonDamagingInputsInScrollJankV4Metric,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 constexpr const char kEmitForAllScrolls[] = "emit_for_all_scrolls";
 constexpr const char kEmitForDamagingScrolls[] = "emit_for_damaging_scrolls";
@@ -270,7 +265,7 @@ BASE_FEATURE(kUnlockDuringGpuImageOperations,
 BASE_FEATURE(kMainIdleBypassScheduler, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, UKM will be reported for compositor frames.
-BASE_FEATURE(kReportUkm, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kReportUkm, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kBrowserControlsSmoothScroll, base::FEATURE_DISABLED_BY_DEFAULT);
 

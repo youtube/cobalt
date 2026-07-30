@@ -38,6 +38,7 @@
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/browser_apis/ui_controllers/toolbar/toolbar_ui_api_data_model.mojom.h"
 #include "components/prefs/pref_service.h"
 #include "components/viz/common/frame_sinks/copy_output_result.h"
 #include "content/public/browser/javascript_dialog_manager.h"
@@ -189,12 +190,13 @@ class WebUIToolbarWebViewPixelBrowserTest : public InProcessBrowserTest {
   void SetUpWebUI(const ui::ElementIdentifier& element_id,
                   ui::TrackedElement** element_out,
                   WebUIToolbarWebView** webui_toolbar_view_out,
-                  views::WebView** web_view_out) {
+                  views::WebView** web_view_out,
+                  Browser* browser) {
     // Wait for the WebUIToolbarWebView to be available.
     *webui_toolbar_view_out = nullptr;
     ASSERT_TRUE(base::test::RunUntil([&]() {
       BrowserView* browser_view =
-          BrowserView::GetBrowserViewForBrowser(browser());
+          BrowserView::GetBrowserViewForBrowser(browser);
       if (!browser_view || !browser_view->toolbar()) {
         return false;
       }
@@ -212,7 +214,7 @@ class WebUIToolbarWebViewPixelBrowserTest : public InProcessBrowserTest {
               *webui_toolbar_view_out);
     } else {
       ASSERT_TRUE(base::test::RunUntil([&]() {
-        *element_out = BrowserElements::From(browser())->GetElement(element_id);
+        *element_out = BrowserElements::From(browser)->GetElement(element_id);
         return *element_out != nullptr;
       }));
       ASSERT_TRUE(*element_out);
@@ -248,31 +250,44 @@ class WebUIToolbarWebViewPixelBrowserTest : public InProcessBrowserTest {
     return image.getColor(image.width() / 2, image.height() / 2);
   }
 
+  void BasicPixelTest(Browser* browser, const std::string& screenshot_name) {
+    ui::TrackedElement* element = nullptr;
+    WebUIToolbarWebView* webui_toolbar_view = nullptr;
+    views::WebView* web_view = nullptr;
+    ASSERT_NO_FATAL_FAILURE(SetUpWebUI(kWebUIToolbarElementIdentifier, &element,
+                                       &webui_toolbar_view, &web_view,
+                                       browser));
+
+    // Assert that WebContents is not loading, as it affects the state of the
+    // reload button.
+    ASSERT_FALSE(web_view->GetWebContents()->IsLoading());
+    // The WebView should be using the light color mode for regular windows,
+    // and dark color mode for incognito windows.
+    ASSERT_EQ(web_view->GetWidget()->GetColorMode(),
+              browser->profile()->IsIncognitoProfile()
+                  ? ui::ColorProviderKey::ColorMode::kDark
+                  : ui::ColorProviderKey::ColorMode::kLight);
+
+    // Pixel test
+    if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+            switches::kVerifyPixels)) {
+      views::ViewSkiaGoldPixelDiff pixel_diff(
+          "WebUIToolbarWebViewPixelBrowserTest");
+      EXPECT_TRUE(pixel_diff.CompareViewScreenshot(screenshot_name,
+                                                   webui_toolbar_view));
+    }
+  }
+
  private:
   base::test::ScopedFeatureList feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest, Basic) {
-  ui::TrackedElement* element = nullptr;
-  WebUIToolbarWebView* webui_toolbar_view = nullptr;
-  views::WebView* web_view = nullptr;
-  ASSERT_NO_FATAL_FAILURE(SetUpWebUI(kWebUIToolbarElementIdentifier, &element,
-                                     &webui_toolbar_view, &web_view));
+  BasicPixelTest(browser(), "Basic");
+}
 
-  // Assert that WebContents is not loading, as it affects the state of the
-  // reload button.
-  ASSERT_FALSE(web_view->GetWebContents()->IsLoading());
-  // The WebView should be using the light color mode.
-  ASSERT_EQ(web_view->GetWidget()->GetColorMode(),
-            ui::ColorProviderKey::ColorMode::kLight);
-
-  // Pixel test
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kVerifyPixels)) {
-    views::ViewSkiaGoldPixelDiff pixel_diff(
-        "WebUIToolbarWebViewPixelBrowserTest");
-    EXPECT_TRUE(pixel_diff.CompareViewScreenshot("Basic", webui_toolbar_view));
-  }
+IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest, IncognitoBasic) {
+  BasicPixelTest(CreateIncognitoBrowser(), "IncognitoBasic");
 }
 
 IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest, Accessibility) {
@@ -281,7 +296,8 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest, Accessibility) {
   WebUIToolbarWebView* webui_toolbar_view = nullptr;
   views::WebView* web_view = nullptr;
   ASSERT_NO_FATAL_FAILURE(SetUpWebUI(kWebUIToolbarElementIdentifier, &element,
-                                     &webui_toolbar_view, &web_view));
+                                     &webui_toolbar_view, &web_view,
+                                     browser()));
 
   // Find accessibility node for reload button.
   content::WaitForAccessibilityTreeToContainNodeWithName(
@@ -302,7 +318,7 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest, Accessibility) {
                                     ax::mojom::StringAttribute::kDescription));
   EXPECT_EQ(0, reload.GetIntAttribute(ax::mojom::IntAttribute::kHasPopup));
 
-  // Verify enabling menu is reflected in HasPopup attribute.
+  // Verify enabling devtools is reflected in HasPopup attribute.
   webui_toolbar_view->GetReloadControl()->SetDevToolsStatus(true);
   content::WaitForAccessibilityTreeToChange(web_view->GetWebContents());
   content::WaitForAccessibilityTreeToContainNodeWithName(
@@ -312,21 +328,49 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest, Accessibility) {
   ASSERT_TRUE(reload_node);
   EXPECT_EQ(2, reload_node->GetData().GetIntAttribute(
                    ax::mojom::IntAttribute::kHasPopup));
+  EXPECT_EQ("Reload this page, hold to see more options",
+            reload_node->GetData().GetStringAttribute(
+                ax::mojom::StringAttribute::kDescription));
+
+  // Verify that setting mode to kStop is reflected in HasPopup attribute.
+  webui_toolbar_view->GetReloadControl()->ChangeMode(ReloadControl::Mode::kStop,
+                                                     true);
+  content::WaitForAccessibilityTreeToChange(web_view->GetWebContents());
+  content::WaitForAccessibilityTreeToContainNodeWithName(
+      web_view->GetWebContents(), "Reload");
+  reload_node =
+      content::FindAccessibilityNode(web_view->GetWebContents(), find_criteria);
+  ASSERT_TRUE(reload_node);
+  EXPECT_EQ(0, reload_node->GetData().GetIntAttribute(
+                   ax::mojom::IntAttribute::kHasPopup));
+  EXPECT_EQ("Stop loading this page",
+            reload_node->GetData().GetStringAttribute(
+                ax::mojom::StringAttribute::kDescription));
+
+  // Verify it works when returning to kReload mode.
+  webui_toolbar_view->GetReloadControl()->ChangeMode(
+      ReloadControl::Mode::kReload, true);
+  content::WaitForAccessibilityTreeToChange(web_view->GetWebContents());
+  content::WaitForAccessibilityTreeToContainNodeWithName(
+      web_view->GetWebContents(), "Reload");
+  reload_node =
+      content::FindAccessibilityNode(web_view->GetWebContents(), find_criteria);
+  ASSERT_TRUE(reload_node);
+  EXPECT_EQ(2, reload_node->GetData().GetIntAttribute(
+                   ax::mojom::IntAttribute::kHasPopup));
+  EXPECT_EQ("Reload this page, hold to see more options",
+            reload_node->GetData().GetStringAttribute(
+                ax::mojom::StringAttribute::kDescription));
 }
 
-// TODO(crbug.com/479341115): Failing on mac-bots.
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_CheckReloadButtonColor DISABLED_CheckReloadButtonColor
-#else
-#define MAYBE_CheckReloadButtonColor CheckReloadButtonColor
-#endif  // BUILDFLAG(IS_MAC)
 IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
-                       MAYBE_CheckReloadButtonColor) {
+                       CheckReloadButtonColor) {
   ui::TrackedElement* element = nullptr;
   WebUIToolbarWebView* webui_toolbar_view = nullptr;
   views::WebView* web_view = nullptr;
   ASSERT_NO_FATAL_FAILURE(SetUpWebUI(kReloadButtonElementId, &element,
-                                     &webui_toolbar_view, &web_view));
+                                     &webui_toolbar_view, &web_view,
+                                     browser()));
 
   WebUIReloadControl* reload_control =
       static_cast<WebUIReloadControl*>(webui_toolbar_view->GetReloadControl());
@@ -344,7 +388,7 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
   // Show reload button context menu.
   webui_toolbar_view->GetReloadControl()->SetDevToolsStatus(true);
   webui_toolbar_view->HandleContextMenu(
-      browser_controls_api::mojom::ContextMenuType::kReload,
+      toolbar_ui_api::mojom::ContextMenuType::kReload,
       element->GetScreenBounds().bottom_right(),
       ui::mojom::MenuSourceType::kMouse);
 
@@ -362,21 +406,16 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
   }));
 }
 
-// TODO(crbug.com/479341115): Failing on mac-bots.
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_CheckSplitTabsButtonColor DISABLED_CheckSplitTabsButtonColor
-#else
-#define MAYBE_CheckSplitTabsButtonColor CheckSplitTabsButtonColor
-#endif  // BUILDFLAG(IS_MAC)
 IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
-                       MAYBE_CheckSplitTabsButtonColor) {
+                       CheckSplitTabsButtonColor) {
   browser()->profile()->GetPrefs()->SetBoolean(prefs::kPinSplitTabButton, true);
 
   ui::TrackedElement* element = nullptr;
   WebUIToolbarWebView* webui_toolbar_view = nullptr;
   views::WebView* web_view = nullptr;
   ASSERT_NO_FATAL_FAILURE(SetUpWebUI(kToolbarSplitTabsToolbarButtonElementId,
-                                     &element, &webui_toolbar_view, &web_view));
+                                     &element, &webui_toolbar_view, &web_view,
+                                     browser()));
 
   WebUISplitTabsControl* split_tabs_control =
       &webui_toolbar_view->split_tabs_control_;
@@ -403,7 +442,7 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
 
   // Show context menu.
   split_tabs_control->HandleContextMenu(
-      browser_controls_api::mojom::ContextMenuType::kSplitTabsContext,
+      toolbar_ui_api::mojom::ContextMenuType::kSplitTabsContext,
       element->GetScreenBounds().bottom_right(),
       ui::mojom::MenuSourceType::kMouse);
 
@@ -970,9 +1009,10 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewSplitTabsBrowserTest,
 
   // Wait for the button to know it is in split state.
   ASSERT_TRUE(base::test::RunUntil([&]() {
-    return content::EvalJs(web_view->GetWebContents(),
-                           base::StrCat({GetButtonAppJS(kSplitTabsSelector),
-                                         ".state.isCurrentTabSplit"}))
+    return content::EvalJs(
+               web_view->GetWebContents(),
+               base::StrCat({GetButtonAppJS(kSplitTabsSelector),
+                             "?.state?.isCurrentTabSplit === true"}))
         .ExtractBool();
   }));
 
@@ -1063,22 +1103,16 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewSplitTabsBrowserTest,
   ASSERT_TRUE(base::test::RunUntil(
       [&]() { return tab_strip_model->GetActiveTab()->IsSplit(); }));
 
-  // Now split. aria-haspopup should be 'menu'.
+  // Now split. aria-haspopup should be 'true'.
   // The state update is async from the browser back to the WebUI.
   EXPECT_TRUE(base::test::RunUntil([&]() {
     return content::EvalJs(web_contents, kGetAriaHasPopup).ExtractString() ==
-           "menu";
+           "true";
   }));
 }
 
-// TODO(crbug.com/479341115): Failing on mac-bots.
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_RightClickSplitTabsButton DISABLED_RightClickSplitTabsButton
-#else
-#define MAYBE_RightClickSplitTabsButton RightClickSplitTabsButton
-#endif  // BUILDFLAG(IS_MAC)
 IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewSplitTabsBrowserTest,
-                       MAYBE_RightClickSplitTabsButton) {
+                       RightClickSplitTabsButton) {
   WebUIToolbarWebView* webui_toolbar_view = GetWebUIToolbarWebView(browser());
   views::WebView* web_view = webui_toolbar_view->GetWebViewForTesting();
   PinSplitTabsButton(browser(), web_view);
@@ -1091,15 +1125,8 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewSplitTabsBrowserTest,
   // Verify no crash.
 }
 
-// TODO(crbug.com/479341115): Failing on mac-bots.
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_ClickSplitTabsButtonWhileSplit \
-  DISABLED_ClickSplitTabsButtonWhileSplit
-#else
-#define MAYBE_ClickSplitTabsButtonWhileSplit ClickSplitTabsButtonWhileSplit
-#endif  // BUILDFLAG(IS_MAC)
 IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewSplitTabsBrowserTest,
-                       MAYBE_ClickSplitTabsButtonWhileSplit) {
+                       ClickSplitTabsButtonWhileSplit) {
   WebUIToolbarWebView* webui_toolbar_view = GetWebUIToolbarWebView(browser());
   views::WebView* web_view = webui_toolbar_view->GetWebViewForTesting();
   PinSplitTabsButton(browser(), web_view);
@@ -1138,11 +1165,12 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewSplitTabsBrowserTest,
 
   // Verify icon is 'split-scene-right' (kEnd) because new tab is active and on
   // the right.
-  EXPECT_EQ("split-tabs-button:split-scene-right",
-            content::EvalJs(web_view->GetWebContents(),
-                            base::StrCat({GetButtonIconJS(kSplitTabsSelector),
-                                          "?.getAttribute('iron-icon')"}))
-                .ExtractString());
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return content::EvalJs(web_view->GetWebContents(),
+                           base::StrCat({GetButtonIconJS(kSplitTabsSelector),
+                                         "?.getAttribute('iron-icon') || ''"}))
+               .ExtractString() == "split-tabs-button:split-scene-right";
+  }));
 
   // Activate the other tab (Left/Start).
   int other_index = tab_strip_model->active_index() == 0 ? 1 : 0;
@@ -1152,7 +1180,7 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewSplitTabsBrowserTest,
   EXPECT_TRUE(base::test::RunUntil([&]() {
     return content::EvalJs(web_view->GetWebContents(),
                            base::StrCat({GetButtonIconJS(kSplitTabsSelector),
-                                         "?.getAttribute('iron-icon')"}))
+                                         "?.getAttribute('iron-icon') || ''"}))
                .ExtractString() == "split-tabs-button:split-scene-left";
   }));
 }

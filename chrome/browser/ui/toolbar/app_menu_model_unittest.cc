@@ -18,6 +18,7 @@
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/browser_features.h"
 #include "chrome/browser/defaults.h"
+#include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/password_manager/password_manager_test_util.h"
 #include "chrome/browser/prefs/browser_prefs.h"
 #include "chrome/browser/sharing_hub/sharing_hub_features.h"
@@ -346,7 +347,6 @@ TEST_F(AppMenuModelTest, DeclutterTabsItem) {
   EXPECT_EQ(1, model.log_metrics_count_);
 }
 
-#if BUILDFLAG(ENABLE_GLIC)
 TEST_F(AppMenuModelTest, GlicItem) {
   feature_list_.Reset();
   feature_list_.InitWithFeatures({features::kGlic, features::kGlicRollout}, {});
@@ -356,7 +356,6 @@ TEST_F(AppMenuModelTest, GlicItem) {
   model.ExecuteCommand(IDC_OPEN_GLIC, 0);
   EXPECT_EQ(1, model.log_metrics_count_);
 }
-#endif
 
 TEST_F(AppMenuModelTest, DoNotShowShareSubMenuItem) {
   PrefService* prefs = browser()->profile()->GetPrefs();
@@ -864,10 +863,19 @@ TEST_F(TestAppMenuModelSafetyHubTest, SafetyHubMenuNotification) {
   EXPECT_FALSE(new_model.GetLabelAt(menu_index).empty());
 }
 
-#if BUILDFLAG(ENABLE_GLIC)
 class TabSearchMenuModelTest : public AppMenuModelTest {
  public:
-  TabSearchMenuModelTest() = default;
+  TabSearchMenuModelTest() {
+    glic_enabled_feature_list_.InitWithFeatures(
+        {
+#if BUILDFLAG(IS_CHROMEOS)
+            chromeos::features::kFeatureManagementGlic
+#endif  // BUILDFLAG(IS_CHROMEOS)
+        },
+        /*disabled_features=*/{features::kGlicLocaleFiltering,
+                               features::kGlicCountryFiltering});
+  }
+
   ~TabSearchMenuModelTest() override = default;
 
   void SetUp() override {
@@ -882,23 +890,23 @@ class TabSearchMenuModelTest : public AppMenuModelTest {
         },
         /*disabled_features=*/{});
     AppMenuModelTest::SetUp();
+    // This is necessary because this isn't a browser test, and the
+    // global features that GlicEnabling depends on are not initialized
+    // correctly.
+    glic::GlicEnabling::SetBypassEnablementChecksForTesting(true);
+  }
+
+  void TearDown() override {
+    glic::GlicEnabling::SetBypassEnablementChecksForTesting(false);
+    AppMenuModelTest::TearDown();
   }
 
  private:
+  base::test::ScopedFeatureList glic_enabled_feature_list_;
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 TEST_F(TabSearchMenuModelTest, TabSearchItem) {
-  base::test::ScopedFeatureList scoped_feature_list_;
-  scoped_feature_list_.InitWithFeatures(
-      /*enabled_features=*/{features::kGlic, features::kGlicRollout,
-#if BUILDFLAG(IS_CHROMEOS)
-                            chromeos::features::kFeatureManagementGlic
-#endif  // BUILDFLAG(IS_CHROMEOS)
-      },
-      /*disabled_features=*/{features::kGlicLocaleFiltering,
-                             features::kGlicCountryFiltering});
-
   AppMenuModel model(this, browser());
   model.Init();
   ToolsMenuModel toolModel(&model, browser());
@@ -907,5 +915,3 @@ TEST_F(TabSearchMenuModelTest, TabSearchItem) {
   EXPECT_TRUE(tab_search_index.has_value());
   EXPECT_TRUE(toolModel.IsEnabledAt(tab_search_index.value()));
 }
-
-#endif

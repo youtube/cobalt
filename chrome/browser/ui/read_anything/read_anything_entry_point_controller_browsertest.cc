@@ -16,13 +16,13 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/read_anything/read_anything_controller.h"
 #include "chrome/browser/ui/read_anything/read_anything_prefs.h"
+#include "chrome/browser/ui/side_panel/side_panel_action_callback.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry_id.h"
+#include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/page_action/page_action_triggers.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_action_callback.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_entry_id.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/prefs/pref_service.h"
@@ -137,6 +137,9 @@ IN_PROC_BROWSER_TEST_P(ReadAnythingEntryPointControllerBrowserTest,
         "SidePanel.ReadAnything.ShowTriggered",
         SidePanelOpenTrigger::kPinnedEntryToolbarButton, 1);
   }
+  histogram_tester.ExpectUniqueSample(
+      "Accessibility.ReadAnything.ShowTriggered",
+      ReadAnythingOpenTrigger::kPinnedSidePanelEntryToolbarButton, 1);
 }
 
 IN_PROC_BROWSER_TEST_P(ReadAnythingEntryPointControllerBrowserTest,
@@ -154,6 +157,9 @@ IN_PROC_BROWSER_TEST_P(ReadAnythingEntryPointControllerBrowserTest,
     histogram_tester.ExpectUniqueSample("SidePanel.ReadAnything.ShowTriggered",
                                         SidePanelOpenTrigger::kAppMenu, 1);
   }
+  histogram_tester.ExpectUniqueSample(
+      "Accessibility.ReadAnything.ShowTriggered",
+      ReadAnythingOpenTrigger::kAppMenu, 1);
 }
 
 IN_PROC_BROWSER_TEST_P(ReadAnythingEntryPointControllerBrowserTest,
@@ -172,6 +178,9 @@ IN_PROC_BROWSER_TEST_P(ReadAnythingEntryPointControllerBrowserTest,
         "SidePanel.ReadAnything.ShowTriggered",
         SidePanelOpenTrigger::kReadAnythingContextMenu, 1);
   }
+  histogram_tester.ExpectUniqueSample(
+      "Accessibility.ReadAnything.ShowTriggered",
+      ReadAnythingOpenTrigger::kReadAnythingContextMenu, 1);
 }
 
 INSTANTIATE_TEST_SUITE_P(All,
@@ -218,6 +227,10 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingEntryPointControllerOmniboxBrowserTest,
   histogram_tester.ExpectUniqueSample(
       "SidePanel.ReadAnything.ShowTriggered",
       SidePanelOpenTrigger::kReadAnythingOmniboxChip, 1);
+
+  histogram_tester.ExpectUniqueSample(
+      "Accessibility.ReadAnything.ShowTriggered",
+      ReadAnythingOpenTrigger::kOmniboxChip, 1);
 }
 
 IN_PROC_BROWSER_TEST_F(ReadAnythingEntryPointControllerOmniboxBrowserTest,

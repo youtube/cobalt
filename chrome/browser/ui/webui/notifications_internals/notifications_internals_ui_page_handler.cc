@@ -45,6 +45,10 @@ void NotificationsInternalsUIPageHandler::ScheduleNotification(
     type = notifications::TipsNotificationsFeatureType::kSignin;
   } else if (feature_type == "create_tab_groups") {
     type = notifications::TipsNotificationsFeatureType::kCreateTabGroups;
+  } else if (feature_type == "customize_mvt") {
+    type = notifications::TipsNotificationsFeatureType::kCustomizeMVT;
+  } else if (feature_type == "recent_tabs") {
+    type = notifications::TipsNotificationsFeatureType::kRecentTabs;
   } else {
     NOTREACHED();
   }

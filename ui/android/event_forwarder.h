@@ -10,6 +10,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
 #include "ui/android/ui_android_export.h"
+#include "ui/gfx/geometry/point_f.h"
 
 namespace ui {
 
@@ -121,14 +122,15 @@ class UI_ANDROID_EXPORT EventForwarder {
 
   void RemoveObserver(Observer* observer);
 
-  float GetCurrentTouchSequenceYOffset();
+  gfx::PointF GetCurrentTouchSequenceOffset();
 
  private:
   friend class ViewAndroid;
 
   explicit EventForwarder(ViewAndroid* view);
 
-  base::android::ScopedJavaLocalRef<jobject> GetJavaObject();
+  base::android::ScopedJavaLocalRef<jobject> GetJavaObject(JNIEnv* env);
+  base::android::ScopedJavaLocalRef<jobject> GetOrCreateJavaObject(JNIEnv* env);
 
   // last_x_pos_ & last_y_pos_ are only used for trace events (see b/315762684
   // for a relevant investigation). They are useful in debugging but could be
@@ -136,12 +138,6 @@ class UI_ANDROID_EXPORT EventForwarder {
   float last_x_pos_{-1.0};
   float last_y_pos_{-1.0};
   const raw_ptr<ViewAndroid> view_;
-
-  // A weak reference to the Java object. The Java object will be kept alive by
-  // a static map in the Java code. ScopedJavaGlobalRef would scale poorly with
-  // a large number of WebContents as each entry would consume a slot in the
-  // finite global ref table.
-  JavaObjectWeakGlobalRef java_obj_;
 
   base::ObserverList<Observer> observers_;
   bool send_touch_moves_to_observers;

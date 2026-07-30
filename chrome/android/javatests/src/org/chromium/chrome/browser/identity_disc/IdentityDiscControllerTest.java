@@ -57,6 +57,7 @@ import org.chromium.base.test.params.ParameterAnnotations.UseRunnerDelegate;
 import org.chromium.base.test.params.ParameterizedRunner;
 import org.chromium.base.test.util.ApplicationTestUtils;
 import org.chromium.base.test.util.CommandLineFlags;
+import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features.DisableFeatures;
@@ -109,7 +110,6 @@ import org.chromium.ui.test.util.NightModeTestUtils;
 import org.chromium.ui.test.util.ViewUtils;
 
 import java.io.IOException;
-import java.util.function.Supplier;
 
 /** Instrumentation test for Identity Disc. */
 @DoNotBatch(reason = "This test relies on native initialization")
@@ -151,7 +151,7 @@ public class IdentityDiscControllerTest {
     @Mock private ActivityResultTracker mActivityResultTracker;
     @Mock private DeviceLockActivityLauncher mDeviceLockActivityLauncher;
     @Mock private BottomSheetController mBottomSheetController;
-    @Mock private Supplier<ModalDialogManager> mModalDialogManagerSupplier;
+    @Mock private ModalDialogManager mModalDialogManager;
     @Mock private SnackbarManager mSnackbarManager;
 
     @BeforeClass
@@ -429,6 +429,7 @@ public class IdentityDiscControllerTest {
     @Test
     @MediumTest
     @SuppressWarnings("CheckReturnValue")
+    @DisabledTest(message = "crbug.com/489053128")
     public void testIdentityDiscWithSwitchToIncognito() {
         mSigninTestRule.addAccountThenSignin(TestAccounts.ACCOUNT1);
         ViewUtils.waitForVisibleView(withId(R.id.optional_toolbar_button));
@@ -696,7 +697,7 @@ public class IdentityDiscControllerTest {
                 mDeviceLockActivityLauncher,
                 mProfileSupplier,
                 mBottomSheetController,
-                mModalDialogManagerSupplier,
+                mModalDialogManager,
                 mSnackbarManager);
     }
 

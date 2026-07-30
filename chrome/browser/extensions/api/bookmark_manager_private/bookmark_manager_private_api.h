@@ -27,6 +27,8 @@
 
 class Profile;
 
+class BookmarkUIOperationsHelperNonMergedSurfaces;
+
 namespace bookmarks {
 struct BookmarkNodeData;
 }
@@ -66,6 +68,9 @@ class BookmarkManagerPrivateAPI : public BrowserContextKeyedAPI,
                                   public EventRouter::Observer {
  public:
   explicit BookmarkManagerPrivateAPI(content::BrowserContext* browser_context);
+  BookmarkManagerPrivateAPI(const BookmarkManagerPrivateAPI&) = delete;
+  BookmarkManagerPrivateAPI& operator=(const BookmarkManagerPrivateAPI&) =
+      delete;
   ~BookmarkManagerPrivateAPI() override;
 
   // BrowserContextKeyedService implementation.
@@ -160,7 +165,7 @@ class BookmarkManagerPrivateCopyFunction
   ~BookmarkManagerPrivateCopyFunction() override = default;
 
   // BookmarksFunction:
-  ResponseValue RunOnReady() override;
+  ResponseAction RunOnReady() override;
 };
 
 class BookmarkManagerPrivateCutFunction
@@ -173,7 +178,7 @@ class BookmarkManagerPrivateCutFunction
   ~BookmarkManagerPrivateCutFunction() override = default;
 
   // BookmarksFunction:
-  ResponseValue RunOnReady() override;
+  ResponseAction RunOnReady() override;
 };
 
 class BookmarkManagerPrivatePasteFunction
@@ -182,11 +187,22 @@ class BookmarkManagerPrivatePasteFunction
   DECLARE_EXTENSION_FUNCTION("bookmarkManagerPrivate.paste",
                              BOOKMARKMANAGERPRIVATE_PASTE)
 
+  BookmarkManagerPrivatePasteFunction();
+
  protected:
-  ~BookmarkManagerPrivatePasteFunction() override = default;
+  ~BookmarkManagerPrivatePasteFunction() override;
 
   // BookmarksFunction:
-  ResponseValue RunOnReady() override;
+  ResponseAction RunOnReady() override;
+
+ private:
+  void OnCanPasteFinished(
+      std::unique_ptr<::BookmarkUIOperationsHelperNonMergedSurfaces> helper,
+      std::optional<std::vector<std::string>> selected_id_list,
+      const std::string& parent_id,
+      bool can_paste);
+  void OnPasteFinished(
+      std::unique_ptr<::BookmarkUIOperationsHelperNonMergedSurfaces> helper);
 };
 
 class BookmarkManagerPrivateCanPasteFunction
@@ -199,7 +215,10 @@ class BookmarkManagerPrivateCanPasteFunction
   ~BookmarkManagerPrivateCanPasteFunction() override = default;
 
   // BookmarksFunction:
-  ResponseValue RunOnReady() override;
+  ResponseAction RunOnReady() override;
+
+ private:
+  void OnCanPasteFinished(bool can_paste);
 };
 
 class BookmarkManagerPrivateIsActiveTabInSplitFunction
@@ -212,7 +231,7 @@ class BookmarkManagerPrivateIsActiveTabInSplitFunction
   ~BookmarkManagerPrivateIsActiveTabInSplitFunction() override = default;
 
   // BookmarksFunction:
-  ResponseValue RunOnReady() override;
+  ResponseAction RunOnReady() override;
 };
 
 class BookmarkManagerPrivateSortChildrenFunction
@@ -225,7 +244,7 @@ class BookmarkManagerPrivateSortChildrenFunction
   ~BookmarkManagerPrivateSortChildrenFunction() override = default;
 
   // BookmarksFunction:
-  ResponseValue RunOnReady() override;
+  ResponseAction RunOnReady() override;
 };
 
 class BookmarkManagerPrivateStartDragFunction
@@ -238,7 +257,7 @@ class BookmarkManagerPrivateStartDragFunction
   ~BookmarkManagerPrivateStartDragFunction() override = default;
 
   // BookmarksFunction:
-  ResponseValue RunOnReady() override;
+  ResponseAction RunOnReady() override;
 };
 
 class BookmarkManagerPrivateDropFunction
@@ -251,7 +270,7 @@ class BookmarkManagerPrivateDropFunction
   ~BookmarkManagerPrivateDropFunction() override = default;
 
   // BookmarksFunction:
-  ResponseValue RunOnReady() override;
+  ResponseAction RunOnReady() override;
 };
 
 class BookmarkManagerPrivateGetSubtreeFunction
@@ -264,7 +283,7 @@ class BookmarkManagerPrivateGetSubtreeFunction
   ~BookmarkManagerPrivateGetSubtreeFunction() override = default;
 
   // BookmarksFunction:
-  ResponseValue RunOnReady() override;
+  ResponseAction RunOnReady() override;
 };
 
 class BookmarkManagerPrivateRemoveTreesFunction
@@ -277,7 +296,7 @@ class BookmarkManagerPrivateRemoveTreesFunction
   ~BookmarkManagerPrivateRemoveTreesFunction() override = default;
 
   // BookmarksFunction:
-  ResponseValue RunOnReady() override;
+  ResponseAction RunOnReady() override;
 };
 
 class BookmarkManagerPrivateUndoFunction
@@ -290,7 +309,7 @@ class BookmarkManagerPrivateUndoFunction
   ~BookmarkManagerPrivateUndoFunction() override = default;
 
   // BookmarksFunction:
-  ResponseValue RunOnReady() override;
+  ResponseAction RunOnReady() override;
 };
 
 class BookmarkManagerPrivateRedoFunction
@@ -303,7 +322,7 @@ class BookmarkManagerPrivateRedoFunction
   ~BookmarkManagerPrivateRedoFunction() override = default;
 
   // BookmarksFunction:
-  ResponseValue RunOnReady() override;
+  ResponseAction RunOnReady() override;
 };
 
 class BookmarkManagerPrivateOpenInNewTabFunction
@@ -316,7 +335,7 @@ class BookmarkManagerPrivateOpenInNewTabFunction
   ~BookmarkManagerPrivateOpenInNewTabFunction() override = default;
 
   // BookmarksFunction:
-  ResponseValue RunOnReady() override;
+  ResponseAction RunOnReady() override;
 };
 
 class BookmarkManagerPrivateOpenInNewWindowFunction
@@ -329,7 +348,7 @@ class BookmarkManagerPrivateOpenInNewWindowFunction
   ~BookmarkManagerPrivateOpenInNewWindowFunction() override = default;
 
   // BookmarksFunction:
-  ResponseValue RunOnReady() override;
+  ResponseAction RunOnReady() override;
 };
 
 class BookmarkManagerPrivateOpenInNewTabGroupFunction
@@ -342,7 +361,7 @@ class BookmarkManagerPrivateOpenInNewTabGroupFunction
   ~BookmarkManagerPrivateOpenInNewTabGroupFunction() override = default;
 
   // BookmarksFunction:
-  ResponseValue RunOnReady() override;
+  ResponseAction RunOnReady() override;
 };
 
 class BookmarkManagerPrivateIOFunction : public BookmarksFunction,
@@ -380,7 +399,7 @@ class BookmarkManagerPrivateImportFunction
 
  private:
   // BookmarksFunction:
-  ResponseValue RunOnReady() override;
+  ResponseAction RunOnReady() override;
 };
 
 class BookmarkManagerPrivateExportFunction
@@ -397,7 +416,7 @@ class BookmarkManagerPrivateExportFunction
 
  private:
   // BookmarksFunction:
-  ResponseValue RunOnReady() override;
+  ResponseAction RunOnReady() override;
 };
 
 }  // namespace extensions

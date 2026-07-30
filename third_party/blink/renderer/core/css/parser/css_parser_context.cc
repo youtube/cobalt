@@ -71,7 +71,7 @@ CSSParserContext::CSSParserContext(const CSSParserContext* other,
 CSSParserContext::CSSParserContext(CSSParserMode mode,
                                    SecureContextMode secure_context_mode,
                                    const Document* use_counter_document)
-    : CSSParserContext(KURL(),
+    : CSSParserContext(NullUrl(),
                        true /* origin_clean */,
                        TextEncoding(),
                        mode,
@@ -229,13 +229,13 @@ void CSSParserContext::Count(WebDXFeature feature) const {
 }
 
 void CSSParserContext::CountDeprecation(WebFeature feature) const {
-  if (IsUseCounterRecordingEnabled() && document_) {
+  if (IsUseCounterRecordingEnabled()) {
     Deprecation::CountDeprecation(document_->GetExecutionContext(), feature);
   }
 }
 
-void CSSParserContext::Count(CSSParserMode mode, CSSPropertyID property) const {
-  if (IsUseCounterRecordingEnabled() && IsUseCounterEnabledForMode(mode)) {
+void CSSParserContext::Count(CSSPropertyID property) const {
+  if (IsUseCounterRecordingEnabled()) {
     document_->CountProperty(property);
   }
 }

@@ -9,6 +9,7 @@
 #include "base/check.h"
 #include "base/logging.h"
 #include "base/strings/strcat.h"
+#include "base/task/sequenced_task_runner.h"
 #include "components/private_ai/phosphor/token_manager.h"
 #include "content/public/browser/network_service_instance.h"
 #include "net/http/http_request_headers.h"
@@ -67,8 +68,9 @@ ConnectionProxy::ConnectionProxy(
   CHECK(inner_connection_factory_);
   CHECK(on_disconnect_);
 
-  token_manager_->GetAuthTokenForProxy(base::BindOnce(
-      &ConnectionProxy::OnProxyToken, weak_factory_.GetWeakPtr()));
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE,
+      base::BindOnce(&ConnectionProxy::FetchToken, weak_factory_.GetWeakPtr()));
 }
 
 ConnectionProxy::~ConnectionProxy() = default;
@@ -92,6 +94,8 @@ void ConnectionProxy::Send(proto::PrivateAiRequest request,
 }
 
 void ConnectionProxy::OnDestroy(ErrorCode error) {
+  on_disconnect_.Reset();
+
   auto pending_requests = std::move(pending_requests_);
   for (auto& pending : pending_requests) {
     std::move(pending.callback).Run(base::unexpected(error));
@@ -100,12 +104,21 @@ void ConnectionProxy::OnDestroy(ErrorCode error) {
   if (inner_connection_) {
     inner_connection_->OnDestroy(error);
   }
+
+  token_manager_ = nullptr;
+  network_service_ = nullptr;
+  weak_factory_.InvalidateWeakPtrsAndDoom();
 }
 
 void ConnectionProxy::CallOnDisconnect(ErrorCode error_code) {
   if (on_disconnect_) {
     std::move(on_disconnect_).Run(error_code);
   }
+}
+
+void ConnectionProxy::FetchToken() {
+  token_manager_->GetAuthTokenForProxy(base::BindOnce(
+      &ConnectionProxy::OnProxyToken, weak_factory_.GetWeakPtr()));
 }
 
 void ConnectionProxy::OnProxyToken(

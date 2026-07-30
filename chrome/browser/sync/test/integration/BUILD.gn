@@ -20,6 +20,8 @@ source_set("sync_integration_tests_impl") {
     ":sync_integration_test_support",
     "//chrome/browser/autofill",
     "//chrome/browser/bookmarks",
+    "//chrome/browser/glic",
+    "//chrome/browser/glic/test_support",
     "//chrome/browser/history",
     "//chrome/browser/metrics:test_support",
     "//chrome/browser/password_manager/factories",
@@ -180,6 +182,7 @@ source_set("sync_integration_tests_impl") {
       "two_client_send_tab_to_self_sync_test.cc",
       "two_client_sessions_sync_test.cc",
       "two_client_shared_tab_group_data_sync_test.cc",
+      "two_client_skills_sync_test.cc",
       "two_client_themes_sync_test.cc",
       "two_client_user_events_sync_test.cc",
       "two_client_wallet_credential_sync_test.cc",
@@ -363,13 +366,6 @@ source_set("sync_integration_tests_impl") {
       "//chrome/test/data/banners/",
       "//net/tools/testserver/",
       "//third_party/pywebsocket3/src/mod_pywebsocket/",
-    ]
-  }
-
-  if (enable_glic) {
-    deps += [
-      "//chrome/browser/glic",
-      "//chrome/browser/glic/test_support",
     ]
   }
 }

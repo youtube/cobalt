@@ -12,11 +12,13 @@ namespace features {
 
 BASE_DECLARE_FEATURE(kGlicTabRestoration);
 BASE_DECLARE_FEATURE(kGlicDaisyChainViaCoordinator);
+BASE_DECLARE_FEATURE(kGlicChromeStatusIcon);
 
 BASE_DECLARE_FEATURE(kGlicOrphanedReattachment);
 
 BASE_DECLARE_FEATURE(kAutoOpenGlicForPdf);
-extern const base::FeatureParam<std::string> kAutoOpenGlicForPdfArm;
+
+BASE_DECLARE_FEATURE(kGlicInvoke);
 
 }  // namespace features
 

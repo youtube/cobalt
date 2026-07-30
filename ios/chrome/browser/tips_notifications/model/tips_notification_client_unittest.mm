@@ -12,6 +12,7 @@
 #import "base/test/scoped_mock_clock_override.h"
 #import "base/test/simple_test_clock.h"
 #import "base/threading/thread_restrictions.h"
+#import "components/feature_engagement/public/event_constants.h"
 #import "components/feature_engagement/public/tracker.h"
 #import "components/prefs/scoped_user_pref_update.h"
 #import "components/safe_browsing/core/common/safe_browsing_prefs.h"
@@ -35,7 +36,7 @@
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/credential_provider_promo_commands.h"
-#import "ios/chrome/browser/shared/public/commands/docking_promo_commands.h"
+#import "ios/chrome/browser/shared/public/commands/promos_manager_commands.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
 #import "ios/chrome/browser/shared/public/commands/whats_new_commands.h"
@@ -494,6 +495,20 @@ TEST_F(TipsNotificationClientTest, SetUpListContinuationHandle) {
       TipsNotificationType::kSetUpListContinuation, 1);
 }
 
+// Tests that the client handles a Docking promo notification response.
+TEST_F(TipsNotificationClientTest, DockingHandle) {
+  StubPrepareToPresentModal();
+  id mock_handler = MockHandler(@protocol(PromosManagerCommands));
+  OCMExpect([mock_handler showDockingPromo]);
+
+  mock_response_ = MockRequestResponse(TipsNotificationType::kDocking);
+  client_->HandleNotificationInteraction(mock_response_);
+
+  EXPECT_OCMOCK_VERIFY(mock_handler);
+  histogram_tester_.ExpectUniqueSample("IOS.Notifications.Tips.Interaction",
+                                       TipsNotificationType::kDocking, 1);
+}
+
 // Tests that the client handles an Omnibox Position promo notification
 // response.
 TEST_F(TipsNotificationClientTest, OmniboxPositionHandle) {
@@ -823,7 +838,7 @@ TEST_F(TipsNotificationClientTest,
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeature(kIOSOneTimeDefaultBrowserNotification);
   SetFalseChromeLikelyDefaultBrowser();
-  tracker_->NotifyEvent("default_browser_fre_shown");
+  tracker_->NotifyEvent(feature_engagement::events::kIOSDefaultBrowserFREShown);
   RecordDefaultBrowserPromoLastAction(IOSDefaultBrowserPromoAction::kCancel);
 
   StubGetPendingRequests(nil);
@@ -842,7 +857,7 @@ TEST_F(TipsNotificationClientTest,
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeature(kIOSOneTimeDefaultBrowserNotification);
   SetFalseChromeLikelyDefaultBrowser();
-  tracker_->NotifyEvent("default_browser_fre_shown");
+  tracker_->NotifyEvent(feature_engagement::events::kIOSDefaultBrowserFREShown);
   test_clock_.Advance(base::Days(8));
   RecordDefaultBrowserPromoLastAction(IOSDefaultBrowserPromoAction::kCancel);
 

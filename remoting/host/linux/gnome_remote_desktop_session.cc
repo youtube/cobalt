@@ -19,6 +19,7 @@
 #include "base/strings/string_split.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/types/expected.h"
+#include "remoting/base/branding.h"
 #include "remoting/base/file_path_util_linux.h"
 #include "remoting/base/logging.h"
 #include "remoting/host/base/switches.h"
@@ -44,7 +45,7 @@ constexpr ObjectPathCStr kScreenCastObjectPath = "/org/gnome/Mutter/ScreenCast";
 
 base::FilePath GetDisplayLayoutFilePath() {
   return (base::FilePath(
-      GetConfigDirectoryPath().Append(GetHostHash() + ".display_layout.pb")));
+      GetConfigDir().Append(GetHostHash() + ".display_layout.pb")));
 }
 
 std::unique_ptr<protocol::VideoLayout> CreateDefaultLayout() {
@@ -333,7 +334,20 @@ void GnomeRemoteDesktopSession::OnDisplayConfigReceived(
   // on a physical machine with physical monitors.
   // TODO: yuweih - see what to do for ME2ME on a physical machine.
   if (config.monitors.empty()) {
-    persistent_display_layout_manager_.Start(CreateDefaultLayout());
+    // Apply the default layout immediately to allow GNOME to initialize.
+    desktop_resizer_.SetVideoLayout(*CreateDefaultLayout());
+
+    // Block and queue up any further display changes (including those made by
+    // `persistent_display_layout_manager_`) for a short period to avoid a race
+    // condition in GNOME/Mutter during session startup.
+    // See: https://gitlab.gnome.org/GNOME/mutter/-/issues/4642
+    desktop_resizer_.BlockAndQueueDisplayChanges();
+    base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(&GnomeDesktopResizer::UnblockAndFlushDisplayChanges,
+                       desktop_resizer_.GetWeakPtr()),
+        base::Seconds(3));
+    persistent_display_layout_manager_.Start();
   }
   initialization_state_ = InitializationState::kInitialized;
   init_callbacks_.Notify(base::ok());

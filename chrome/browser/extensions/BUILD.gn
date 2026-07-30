@@ -595,6 +595,7 @@ source_set("extensions") {
     "//extensions/browser",
     "//extensions/browser:crx_installer",
     "//extensions/browser:keepalive",
+    "//extensions/browser/api/content_settings",
     "//extensions/browser/api/storage:settings_namespace",
     "//extensions/browser/api/storage:settings_observer",
     "//extensions/browser/api/system_display:display_info_provider",
@@ -756,6 +757,8 @@ source_set("extensions") {
       "api/language_settings_private/language_settings_private_delegate_factory.cc",
       "api/language_settings_private/language_settings_private_delegate_factory.h",
       "api/management/chrome_management_api_delegate_nonandroid.cc",
+      "api/mime_handlers/dispatch_mime_handler_event.cc",
+      "api/mime_handlers/dispatch_mime_handler_event.h",
       "api/passwords_private/password_access_auth_timeout_handler.cc",
       "api/passwords_private/password_access_auth_timeout_handler.h",
       "api/passwords_private/password_check_delegate.cc",
@@ -795,8 +798,6 @@ source_set("extensions") {
       "api/settings_private/settings_private_event_router_factory.h",
       "api/side_panel/side_panel_service.cc",
       "api/side_panel/side_panel_service.h",
-      "api/streams_private/streams_private_api.cc",
-      "api/streams_private/streams_private_api.h",
       "api/system_private/system_private_api.cc",
       "api/system_private/system_private_api.h",
       "app_tab_helper.cc",
@@ -917,6 +918,7 @@ source_set("extensions") {
       "//chrome/browser/chooser_controller",
       "//chrome/browser/device_identity",
       "//chrome/browser/feedback",
+      "//chrome/browser/glic",
       "//chrome/browser/importer",
       "//chrome/browser/lifetime:termination_notification",
       "//chrome/browser/picture_in_picture",
@@ -935,6 +937,8 @@ source_set("extensions") {
       "//chrome/browser/ui/extensions",
       "//chrome/browser/ui/hats",
       "//chrome/browser/ui/prefs",
+      "//chrome/browser/ui/side_panel",
+      "//chrome/browser/ui/side_panel:side_panel_views_dependent",
       "//chrome/browser/ui/tabs",
       "//chrome/browser/ui/tabs:tab_group",
       "//chrome/browser/ui/tabs:tab_model",
@@ -1055,7 +1059,6 @@ source_set("extensions") {
       "//device/fido",
       "//extensions:extensions_resources",
       "//extensions/browser/api:extensions_api_client",
-      "//extensions/browser/api/content_settings",
       "//extensions/common:mojom",
       "//extensions/common/api",
       "//extensions/strings",
@@ -1550,10 +1553,6 @@ source_set("extensions") {
         "//components/enterprise/buildflags",
         "//components/enterprise/data_controls/core/browser",
       ]
-    }
-
-    if (enable_glic) {
-      deps += [ "//chrome/browser/glic" ]
     }
 
     if (!is_android && !is_chromeos) {

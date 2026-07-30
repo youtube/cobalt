@@ -29,9 +29,9 @@ export interface FooterInfo {
 
 export interface HistorySideBarElement {
   $: {
-    'history': HTMLAnchorElement,
-    'menu': CrMenuSelectorElement,
-    'syncedTabs': HTMLElement,
+    history: HTMLAnchorElement,
+    menu: CrMenuSelectorElement,
+    syncedTabs: HTMLElement,
   };
 }
 
@@ -194,7 +194,7 @@ export class HistorySideBarElement extends CrLitElement {
     }
   }
 
-  protected onSelectorActivate_() {
+  protected onMenuIronActivate_() {
     this.fire('history-close-drawer');
   }
 

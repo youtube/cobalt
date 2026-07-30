@@ -114,6 +114,7 @@ class CORE_EXPORT HTMLCanvasElement final
   void setLayoutSubtree(bool);
   bool layoutSubtree() const;
   DEFINE_ATTRIBUTE_EVENT_LISTENER(paint, kPaint)
+  void requestPaint();
 
   void SetSize(gfx::Size new_size);
 
@@ -187,6 +188,9 @@ class CORE_EXPORT HTMLCanvasElement final
   void SetNeedsPushProperties();
 
   void DiscardResources() override;
+
+  std::optional<CanvasChildPaintRecord> GetCanvasChildPaintRecord(
+      DOMNodeId child_id) const override;
 
   TextDirection GetTextDirection(const ComputedStyle*) override;
   const LayoutLocale* GetLocale() const override;

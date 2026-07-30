@@ -56,10 +56,6 @@ ml::Token ConvertToToken(blink::mojom::AILanguageModelPromptRole role) {
       return ml::Token::kUser;
     case blink::mojom::AILanguageModelPromptRole::kAssistant:
       return ml::Token::kModel;
-    case blink::mojom::AILanguageModelPromptRole::kToolCall:
-      return ml::Token::kToolCall;
-    case blink::mojom::AILanguageModelPromptRole::kToolResponse:
-      return ml::Token::kToolResponse;
   }
 }
 
@@ -81,7 +77,7 @@ on_device_model::mojom::InputPtr ConvertToInput(
           }
           input->pieces.push_back(content->get_bitmap());
           break;
-        case blink::mojom::AILanguageModelPromptContent::Tag::kAudio:
+        case blink::mojom::AILanguageModelPromptContent::Tag::kAudio: {
           if (!capabilities.Has(
                   on_device_model::CapabilityFlags::kAudioInput)) {
             return nullptr;
@@ -96,6 +92,11 @@ on_device_model::mojom::InputPtr ConvertToInput(
           audio_buffer.data = audio_data->data;
           input->pieces.push_back(std::move(audio_buffer));
           break;
+        }
+        case blink::mojom::AILanguageModelPromptContent::Tag::kToolCall:
+        case blink::mojom::AILanguageModelPromptContent::Tag::kToolResponse:
+          // TODO(crbug.com/422803232): Support on_device_model tool use.
+          return nullptr;
       }
     }
     if (!prompt->is_prefix) {
@@ -207,9 +208,9 @@ class AILanguageModel::PromptState
     }
   }
 
-  void OnQuotaOverflow() {
+  void OnContextOverflow() {
     if (responder_) {
-      responder_->OnQuotaOverflow();
+      responder_->OnContextOverflow();
     }
   }
 
@@ -867,16 +868,17 @@ void AILanguageModel::PromptGetInputSizeComplete(
 
   auto space_reserved = context_->ReserveSpace(*token_count);
   if (space_reserved == Context::SpaceReservationResult::kInsufficientSpace) {
-    auto quota = context_->GetAvailableTokens();
+    auto available_tokens = context_->GetAvailableTokens();
     prompt_state_->OnError(
         blink::mojom::ModelStreamingResponseStatus::kErrorInputTooLarge,
-        blink::mojom::QuotaErrorInfo::New(token_count.value(), quota));
+        blink::mojom::QuotaErrorInfo::New(token_count.value(),
+                                          available_tokens));
     return;
   }
 
   if (space_reserved == Context::SpaceReservationResult::kSpaceMadeAvailable) {
     HandleOverflow();
-    prompt_state_->OnQuotaOverflow();
+    prompt_state_->OnContextOverflow();
   }
 
   // Use a cloned version of the current session so it is easy to restore to
@@ -935,7 +937,7 @@ void AILanguageModel::OnPromptOutputComplete() {
     // will process the context including `model_output`, so it can be ignored
     // here.
     HandleOverflow();
-    responder->OnQuotaOverflow();
+    responder->OnContextOverflow();
   } else if (model_output) {
     // Add the output to the session since this is not added automatically from
     // the Generate() call. The previous token will be a kModel token from

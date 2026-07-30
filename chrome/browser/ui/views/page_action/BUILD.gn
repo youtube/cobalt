@@ -14,6 +14,7 @@ source_set("page_action") {
 
   public = [
     "action_ids.h",
+    "anchored_message_view.h",
     "collaboration_messaging_page_action_icon_view.h",
     "page_action_container_view.h",
     "page_action_controller.h",
@@ -28,7 +29,6 @@ source_set("page_action") {
     "page_action_triggers.h",
     "page_action_view.h",
     "page_action_view_params.h",
-    "pwa_install_view.h",
     "zoom_view.h",
   ]
 
@@ -70,6 +70,7 @@ source_set("page_action") {
 
 source_set("impl") {
   sources = [
+    "anchored_message_view.cc",
     "chip_selector.cc",
     "collaboration_messaging_page_action_icon_view.cc",
     "page_action_container_view.cc",
@@ -86,7 +87,6 @@ source_set("impl") {
     "page_action_properties_provider.cc",
     "page_action_triggers.cc",
     "page_action_view.cc",
-    "pwa_install_view.cc",
     "zoom_view.cc",
   ]
 

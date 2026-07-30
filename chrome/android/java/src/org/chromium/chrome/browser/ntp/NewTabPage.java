@@ -7,16 +7,12 @@ package org.chromium.chrome.browser.ntp;
 import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
 
-import android.animation.Animator;
-import android.animation.AnimatorListenerAdapter;
-import android.animation.ObjectAnimator;
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Point;
 import android.graphics.Rect;
-import android.os.Handler;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
@@ -28,9 +24,7 @@ import androidx.annotation.ColorInt;
 import androidx.annotation.VisibleForTesting;
 import androidx.core.content.ContextCompat;
 import androidx.core.view.ViewCompat;
-import androidx.interpolator.view.animation.FastOutSlowInInterpolator;
 
-import org.chromium.base.Callback;
 import org.chromium.base.CallbackController;
 import org.chromium.base.CallbackUtils;
 import org.chromium.base.Log;
@@ -49,7 +43,6 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.app.feed.FeedActionDelegateImpl;
-import org.chromium.chrome.browser.back_press.BackPressMetrics;
 import org.chromium.chrome.browser.bookmarks.BookmarkModel;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.device_lock.DeviceLockActivityLauncherImpl;
@@ -60,10 +53,10 @@ import org.chromium.chrome.browser.feed.FeedSurfaceCoordinator;
 import org.chromium.chrome.browser.feed.FeedSurfaceDelegate;
 import org.chromium.chrome.browser.feed.FeedSurfaceLifecycleManager;
 import org.chromium.chrome.browser.feed.FeedSurfaceProvider;
-import org.chromium.chrome.browser.feed.FeedSurfaceProvider.RestoringState;
 import org.chromium.chrome.browser.feed.FeedSwipeRefreshLayout;
 import org.chromium.chrome.browser.feed.NtpFeedSurfaceLifecycleManager;
 import org.chromium.chrome.browser.feed.componentinterfaces.SurfaceCoordinator;
+import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.lifecycle.LifecycleObserver;
 import org.chromium.chrome.browser.lifecycle.PauseResumeWithNativeObserver;
@@ -211,6 +204,7 @@ public class NewTabPage
     private @Nullable SingleTabSwitcherCoordinator mSingleTabSwitcherCoordinator;
     private @Nullable ViewGroup mSingleTabCardContainer;
     private @Nullable HomeModulesCoordinator mHomeModulesCoordinator;
+    private SetupListManager.@Nullable Observer mSetupListObserver;
     private @Nullable ViewGroup mHomeModulesContainer;
     private final SettableNullableObservableSupplier<Tab> mMostRecentTabSupplier =
             ObservableSuppliers.createNullable();
@@ -238,108 +232,6 @@ public class NewTabPage
     private @Nullable NtpSmoothTransitionDelegate mSmoothTransitionDelegate;
 
     private final CallbackController mCallbackController = new CallbackController();
-
-    @VisibleForTesting
-    public static class NtpSmoothTransitionDelegate implements SmoothTransitionDelegate {
-        private static final int SMOOTH_TRANSITION_DURATION_MS = 100;
-
-        private final View mView;
-        private Animator mAnimator;
-        private NonNullObservableSupplier<Integer> mRestoringState;
-        private boolean mAnimatorStarted;
-        private final Handler mHandler = new Handler();
-        final Callback<Integer> mOnScrollStateChanged =
-                new Callback<>() {
-                    @Override
-                    public void onResult(Integer restoreState) {
-                        if (restoreState == RestoringState.NO_STATE_TO_RESTORE
-                                || restoreState == RestoringState.RESTORED) {
-                            mAnimator.start();
-                            mRestoringState.removeObserver(this);
-                            mAnimatorStarted = true;
-                            mHandler.removeCallbacks(mFallback);
-                            BackPressMetrics.recordNTPSmoothTransitionMethod(false);
-                        }
-                    }
-                };
-        private final Runnable mFallback =
-                () -> {
-                    if (!mAnimatorStarted) {
-                        mAnimator.start();
-                        mAnimatorStarted = true;
-                        mRestoringState.removeObserver(mOnScrollStateChanged);
-                        BackPressMetrics.recordNTPSmoothTransitionMethod(true);
-                    }
-                };
-
-        public NtpSmoothTransitionDelegate(
-                View view, NonNullObservableSupplier<Integer> restoringState) {
-            mView = view;
-            mAnimator = buildSmoothTransition(view);
-            mRestoringState = restoringState;
-
-            // Fallback added for metric records only.
-            restoringState.addSyncObserverAndPostIfNonNull(
-                    new Callback<Integer>() {
-                        long mStart;
-
-                        @Override
-                        public void onResult(@Nullable Integer result) {
-                            assumeNonNull(result);
-                            if (result == RestoringState.WAITING_TO_RESTORE) {
-                                mStart = TimeUtils.currentTimeMillis();
-                            } else if (result == RestoringState.RESTORED) {
-                                BackPressMetrics.recordNTPFeedRestorationDuration(
-                                        TimeUtils.currentTimeMillis() - mStart);
-                            }
-                        }
-                    });
-        }
-
-        @Override
-        public void prepare() {
-            assert !mAnimator.isRunning() : "Previous animation should not be running";
-            assert !mAnimatorStarted : "Previous animation should not be finished or cancelled.";
-            cancel();
-            mView.setAlpha(0f);
-        }
-
-        @Override
-        public void start(Runnable onEnd) {
-            assert !mAnimator.isRunning() : "Previous animation have been done or cancelled";
-            mAnimatorStarted = false;
-
-            mAnimator.addListener(
-                    new AnimatorListenerAdapter() {
-                        @Override
-                        public void onAnimationEnd(Animator animation) {
-                            onEnd.run();
-                        }
-                    });
-            mRestoringState.addSyncObserverAndPostIfNonNull(mOnScrollStateChanged);
-            mHandler.postDelayed(
-                    mFallback, BackPressMetrics.MAX_FALLBACK_DELAY_NTP_SMOOTH_TRANSITION);
-        }
-
-        @Override
-        public void cancel() {
-            mRestoringState.removeObserver(mOnScrollStateChanged);
-            mHandler.removeCallbacks(mFallback);
-            mAnimator.cancel();
-            mView.setAlpha(1f);
-        }
-
-        private static Animator buildSmoothTransition(View view) {
-            var animator = ObjectAnimator.ofFloat(view, View.ALPHA, 0f, 1f);
-            animator.setInterpolator(new FastOutSlowInInterpolator());
-            animator.setDuration(SMOOTH_TRANSITION_DURATION_MS);
-            return animator;
-        }
-
-        public Animator getAnimatorForTesting() {
-            return mAnimator;
-        }
-    }
 
     @Override
     public void onControlsOffsetChanged(
@@ -514,7 +406,7 @@ public class NewTabPage
      * @param browserControlsStateProvider {@link BrowserControlsStateProvider} to observe for
      *     offset changes.
      * @param activityTabProvider Provides the current active tab.
-     * @param modalDialogManagerSupplier Supplies the {@link ModalDialogManager}.
+     * @param modalDialogManager The {@link ModalDialogManager}.
      * @param snackbarManager {@link SnackbarManager} object.
      * @param lifecycleDispatcher Activity lifecycle dispatcher.
      * @param tabModelSelector {@link TabModelSelector} object.
@@ -542,7 +434,7 @@ public class NewTabPage
             Activity activity,
             BrowserControlsStateProvider browserControlsStateProvider,
             Supplier<@Nullable Tab> activityTabProvider,
-            Supplier<@Nullable ModalDialogManager> modalDialogManagerSupplier,
+            ModalDialogManager modalDialogManager,
             SnackbarManager snackbarManager,
             ActivityLifecycleDispatcher lifecycleDispatcher,
             TabModelSelector tabModelSelector,
@@ -618,10 +510,8 @@ public class NewTabPage
                         // Showing the NTP is only meaningful when the page has been loaded already.
                         if (mIsLoaded) {
                             recordNtpShown();
-                            if (mHomeModulesCoordinator != null) {
-                                mHomeModulesCoordinator.updateModules();
-                            }
                         }
+                        maybeUpdateMagicStack();
                         mNewTabPageLayout.onSwitchToForeground();
                     }
 
@@ -640,7 +530,9 @@ public class NewTabPage
         mLifecycleObserver =
                 new PauseResumeWithNativeObserver() {
                     @Override
-                    public void onResumeWithNative() {}
+                    public void onResumeWithNative() {
+                        maybeUpdateMagicStack();
+                    }
 
                     @Override
                     public void onPauseWithNative() {
@@ -660,7 +552,7 @@ public class NewTabPage
                 snackbarManager,
                 isInNightMode,
                 shareDelegateSupplier,
-                modalDialogManagerSupplier,
+                modalDialogManager,
                 url,
                 edgeToEdgeControllerSupplier,
                 startupMetricsTracker);
@@ -724,7 +616,7 @@ public class NewTabPage
                 windowAndroid,
                 activityResultTracker,
                 bottomSheetController,
-                modalDialogManagerSupplier,
+                modalDialogManager,
                 snackbarManager,
                 mIsTablet,
                 mTabStripHeightSupplier,
@@ -759,7 +651,7 @@ public class NewTabPage
             SnackbarManager snackbarManager,
             boolean isInNightMode,
             Supplier<@Nullable ShareDelegate> shareDelegateSupplier,
-            Supplier<@Nullable ModalDialogManager> modalDialogManagerSupplier,
+            ModalDialogManager modalDialogManager,
             String url,
             MonotonicObservableSupplier<EdgeToEdgeController> edgeToEdgeControllerSupplier,
             StartupMetricsTracker startupMetricsTracker) {
@@ -779,7 +671,7 @@ public class NewTabPage
                                 SigninAndHistorySyncActivityLauncherImpl.get(),
                                 DeviceLockActivityLauncherImpl.get(),
                                 snackbarManager,
-                                modalDialogManagerSupplier,
+                                modalDialogManager,
                                 mNewTabPageManager.getNavigationDelegate(),
                                 BookmarkModel.getForProfile(profile),
                                 mTabModelSelector,
@@ -920,12 +812,17 @@ public class NewTabPage
      * @param systemTopInset The system's top inset, i.e., the height of the Status bar. While
      *     usually greater than zero, it can be zero in split-screen mode.
      * @param consumeTopInset Whether the parent layout will consume the top inset.
+     * @param layoutType The current active layout type from {@link LayoutType}.
      */
-    void onToEdgeChange(int systemTopInset, boolean consumeTopInset) {
+    void onToEdgeChange(int systemTopInset, boolean consumeTopInset, @LayoutType int layoutType) {
         // When consumeTopInset is false, it is possible: 1) the next Tab isn't NTP and 2) the next
         // Tab is NTP while NTP should show regular toolbar. NewTabPageLayout should only be
         // adjusted based on supportsEdgeToEdgeOnTop(), not the parent view's decision.
-        mNewTabPageLayout.onToEdgeChange(systemTopInset, supportsEdgeToEdgeOnTop());
+        // However, consumeTopInset being false takes priority — if the parent is not consuming top
+        // insets (e.g. status indicator is visible), the NTP must not apply its own top inset
+        // either, since the content view already has the system top padding.
+        mNewTabPageLayout.onToEdgeChange(
+                systemTopInset, consumeTopInset && supportsEdgeToEdgeOnTop());
     }
 
     /**
@@ -1164,6 +1061,12 @@ public class NewTabPage
         SuggestionsMetrics.recordSurfaceVisible();
     }
 
+    private void maybeUpdateMagicStack() {
+        if (mIsLoaded && mHomeModulesCoordinator != null) {
+            mHomeModulesCoordinator.updateModules();
+        }
+    }
+
     /** Records UMA for the NTP being hidden and the time spent on it. */
     private void recordNtpHidden() {
         RecordHistogram.deprecatedRecordMediumTimesHistogram(
@@ -1239,6 +1142,11 @@ public class NewTabPage
         }
         if (mHomeModulesCoordinator != null) {
             mHomeModulesCoordinator.destroy();
+        }
+
+        if (mSetupListObserver != null) {
+            SetupListManager.getInstance().removeObserver(mSetupListObserver);
+            mSetupListObserver = null;
         }
 
         if (mTopInsetChangeObserver != null) {
@@ -1513,6 +1421,16 @@ public class NewTabPage
                         HomeModulesConfigManager.getInstance(),
                         profileSupplier,
                         assertNonNull(assumeNonNull(mModuleRegistrySupplier).get()));
+
+        if (SetupListManager.getInstance().isSetupListActive()) {
+            mSetupListObserver =
+                    () -> {
+                        if (mHomeModulesCoordinator != null) {
+                            mHomeModulesCoordinator.refreshModules();
+                        }
+                    };
+            SetupListManager.getInstance().addObserver(mSetupListObserver);
+        }
     }
 
     private void onMagicStackShown(boolean isVisible) {

@@ -9,9 +9,8 @@
 #include "chrome/browser/glic/browser_ui/glic_button_controller_delegate.h"
 #include "chrome/browser/ui/tabs/glic_nudge_controller.h"
 #include "chrome/browser/ui/tabs/glic_nudge_delegate.h"
-#include "chrome/browser/ui/views/glic/glic_button.h"
 #include "chrome/browser/ui/views/glic/glic_button_interface.h"
-#include "chrome/browser/ui/views/tabs/glic/glic_actor_task_icon.h"
+#include "chrome/browser/ui/views/tabs/glic/tab_strip_glic_actor_task_icon.h"
 #include "chrome/browser/ui/views/tabs/glic/tab_strip_glic_button.h"
 #include "chrome/browser/ui/views/tabs/tab_search_container.h"
 #include "chrome/common/buildflags.h"
@@ -27,7 +26,7 @@ namespace gfx {
 class Insets;
 }
 namespace glic {
-class GlicActorTaskIcon;
+class TabStripGlicActorTaskIcon;
 }
 class BrowserWindowInterface;
 class GlicAndActorButtonsContainer;
@@ -102,7 +101,7 @@ class TabStripActionContainer : public views::View,
 
   views::LabelButton* GetGlicButton() { return glic_button_; }
 
-  glic::GlicActorTaskIcon* glic_actor_task_icon() {
+  glic::TabStripGlicActorTaskIcon* glic_actor_task_icon() {
     return glic_actor_task_icon_;
   }
 
@@ -125,11 +124,9 @@ class TabStripActionContainer : public views::View,
   void ShowGlicActorTaskIcon();
   void HideGlicActorTaskIcon();
   bool GetIsShowingGlicActorTaskIconNudge();
-#if BUILDFLAG(ENABLE_GLIC)
   views::FlexLayoutView* glic_actor_button_container();
   void TriggerGlicActorNudge(const std::u16string nudge_text);
   void ShowGlicActorNudge(const std::u16string nudge_text);
-#endif
 
   void UpdateButtonBorders(gfx::Insets button_insets);
 
@@ -147,7 +144,6 @@ class TabStripActionContainer : public views::View,
   void SetLockedExpansionMode(LockedExpansionMode mode,
                               TabStripNudgeButton* button);
 
-#if BUILDFLAG(ENABLE_GLIC)
   std::unique_ptr<glic::TabStripGlicButton> CreateGlicButton();
   void OnGlicButtonClicked();
   void OnGlicButtonDismissed();
@@ -155,7 +151,7 @@ class TabStripActionContainer : public views::View,
   void OnGlicButtonMouseDown();
   void OnGlicButtonAnimationEnded();
 
-  std::unique_ptr<glic::GlicActorTaskIcon> CreateGlicActorTaskIcon();
+  std::unique_ptr<glic::TabStripGlicActorTaskIcon> CreateGlicActorTaskIcon();
   void OnGlicActorTaskIconClicked();
 
   // TODO(crbug.com/431015299): Clean up when GlicButton and GlicActorTaskIcon
@@ -168,7 +164,6 @@ class TabStripActionContainer : public views::View,
   // Update the Glic and GlicActor button borders when showing or hiding the
   // task icon container.
   void UpdateGlicActorButtonContainerBorders();
-#endif
 
   void OnTabStripNudgeButtonTimeout(TabStripNudgeButton* button);
 
@@ -204,7 +199,7 @@ class TabStripActionContainer : public views::View,
 
   raw_ptr<GlicAndActorButtonsContainer> glic_actor_button_container_ = nullptr;
   raw_ptr<glic::TabStripGlicButton> glic_button_ = nullptr;
-  raw_ptr<glic::GlicActorTaskIcon> glic_actor_task_icon_ = nullptr;
+  raw_ptr<glic::TabStripGlicActorTaskIcon> glic_actor_task_icon_ = nullptr;
 
   const raw_ptr<BrowserWindowInterface> browser_window_interface_ = nullptr;
 

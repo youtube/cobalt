@@ -725,7 +725,7 @@ void FetchManager::Loader::DidReceiveResponse(
   response_http_status_code_ = response.HttpStatusCode();
 
   if (response.MimeType() == "application/wasm" &&
-      (response.CurrentRequestUrl().ProtocolIsInHTTPFamily() ||
+      (response.CurrentRequestUrl().ProtocolIsInHttpFamily() ||
        CommonSchemeRegistry::IsExtensionScheme(
            response.CurrentRequestUrl().Protocol().Ascii()))) {
     // We create a ScriptCachedMetadataHandler for WASM modules.
@@ -1677,7 +1677,7 @@ FetchLaterResult* FetchLaterManager::FetchLater(
 
   // 8. If request’s URL’s scheme is not an HTTP(S) scheme, then throw a
   // TypeError.
-  if (!request->Url().ProtocolIsInHTTPFamily()) {
+  if (!request->Url().ProtocolIsInHttpFamily()) {
     exception_state.ThrowTypeError(
         "fetchLater is only supported over HTTP(S).");
     return nullptr;
@@ -1890,7 +1890,7 @@ FetchLaterManager::PrepareNetworkRequest(
 
   FetchManagerResourceRequestContext resource_request_context;
   if (PrepareResourceRequestForCacheAccess(
-          kFetchLaterResourceType, fetch_client_settings_object, KURL(),
+          kFetchLaterResourceType, fetch_client_settings_object, NullUrl(),
           resource_request_context, fetcher->Context(),
           params) != std::nullopt) {
     return nullptr;

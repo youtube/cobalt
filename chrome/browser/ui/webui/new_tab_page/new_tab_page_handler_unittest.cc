@@ -23,6 +23,7 @@
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/token.h"
+#include "chrome/browser/desktop_to_mobile_promos/promos_pref_names.h"
 #include "chrome/browser/new_tab_page/microsoft_auth/microsoft_auth_service.h"
 #include "chrome/browser/new_tab_page/microsoft_auth/microsoft_auth_service_factory.h"
 #include "chrome/browser/new_tab_page/microsoft_auth/microsoft_auth_service_observer.h"
@@ -34,7 +35,6 @@
 #include "chrome/browser/new_tab_page/promos/promo_service_observer.h"
 #include "chrome/browser/optimization_guide/mock_optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
-#include "chrome/browser/promos/promos_pref_names.h"
 #include "chrome/browser/search/background/ntp_custom_background_service.h"
 #include "chrome/browser/search/background/ntp_custom_background_service_observer.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
@@ -838,7 +838,6 @@ TEST_F(NewTabPageHandlerTest, GetAnimatedDoodle) {
 
   ASSERT_TRUE(doodle);
   ASSERT_TRUE(doodle->image);
-  ASSERT_FALSE(doodle->interactive);
   EXPECT_EQ("data:light_mime_type;base64,bGlnaHQgaW1hZ2U=",
             doodle->image->light->image_url);
   EXPECT_EQ("https://doodle.com/light_animation",
@@ -863,22 +862,6 @@ TEST_F(NewTabPageHandlerTest, GetAnimatedDoodle) {
             doodle->image->dark->animation_impression_log_url);
   EXPECT_EQ("https://doodle.com/on_click_url", doodle->image->on_click_url);
   EXPECT_EQ("https://doodle.com/short_link", doodle->image->share_url);
-  EXPECT_EQ("alt text", doodle->description);
-}
-
-TEST_F(NewTabPageHandlerTest, GetInteractiveDoodle) {
-  search_provider_logos::EncodedLogo logo;
-  logo.metadata.type = search_provider_logos::LogoType::INTERACTIVE;
-  logo.metadata.full_page_url = GURL("https://doodle.com/full_page_url");
-  logo.metadata.iframe_width_px = 1;
-  logo.metadata.iframe_height_px = 2;
-  logo.metadata.alt_text = "alt text";
-
-  auto doodle = GetDoodle(logo);
-
-  EXPECT_EQ("https://doodle.com/full_page_url", doodle->interactive->url);
-  EXPECT_EQ(1u, doodle->interactive->width);
-  EXPECT_EQ(2u, doodle->interactive->height);
   EXPECT_EQ("alt text", doodle->description);
 }
 

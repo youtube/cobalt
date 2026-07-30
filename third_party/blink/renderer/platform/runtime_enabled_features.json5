@@ -330,6 +330,12 @@
       name: "AIPageContentCheckGeometry",
       status: "test"
     },
+    // Ensures that text content extracted from DOM nodes are valid UTF-8 Before
+    // providing them to consumers of AIPageContent.
+    {
+      name: "AIPageContentConvertNodeTextToUtf8",
+      status: "stable"
+    },
     {
       name: "AIPageContentIncludeSVGSubtree",
       status: "stable"
@@ -462,6 +468,10 @@
     {
       name: "AISummarizationAPIForWorkers",
       public: true,
+    },
+    {
+      name: "AISummarizationPerformancePreference",
+      status: "experimental",
     },
     {
       name: "AIWriterAPI",
@@ -700,6 +710,8 @@
     },
     {
       name: "AutofillEvent",
+      origin_trial_feature_name: "AutofillEvent",
+      origin_trial_allows_third_party: true,
       status: "experimental",
       public: true,
     },
@@ -830,6 +842,13 @@
       name: "BlockingFocusWithoutUserActivation",
       status: "experimental",
     },
+    {
+      // Prevents the popup document for the select element from being opened
+      // if the corresponding OS window is not focused. Enabled in M147, can be
+      // removed in M150.
+      name: "BlockSelectPopupUnfocusedWindow",
+      status: "stable",
+    },
     // Makes <body> marginwidth/marginheight take precedence over
     // left/right/top/bottom presentational margin attributes, and prevents
     // iframe marginwidth/marginheight injection when body margin attrs exist.
@@ -905,11 +924,6 @@
     {
       name: "Canvas2dGPUTransfer",
       status: "experimental",
-    },
-    {
-      name: "Canvas2dImageChromium",
-      base_feature: "none",
-      public: true,
     },
     {
       name: "Canvas2dLayers",
@@ -1023,6 +1037,13 @@
     },
     {
       name: "CheckVisibilityExtraProperties",
+      status: "stable",
+    },
+    {
+      // Clamps word boundary detection to the contenteditable scope when
+      // adjacent contenteditable spans have no whitespace between them.
+      // See https://crbug.com/40848794.
+      name: "ClampWordBoundaryToContentEditableScope",
       status: "stable",
     },
     {
@@ -1352,6 +1373,13 @@
       status: "experimental",
     },
     {
+      // Maps deprecated ActiveCaption to Canvas instead of CanvasText.
+      // https://drafts.csswg.org/css-color-4/#deprecated-system-colors
+      // https://crbug.com/41493724
+      name: "CSSActiveCaptionMapsToCanvas",
+      status: "stable",
+    },
+    {
       // Allows using counter() and counters() in alt text (after / in content property).
       name: "CSSAltCounter",
       status: "stable",
@@ -1419,11 +1447,6 @@
       name: "CSSColorTypedOM",
       status: "experimental",
     },
-    {
-      // https://github.com/w3c/csswg-drafts/issues/12090#issuecomment-3204775586
-      name: "CSSContainerNameNotTreeScoped",
-      status: "stable",
-    },
     // https://drafts.csswg.org/css-values-5/#progress
     // container-progress()
     {
@@ -1474,11 +1497,6 @@
       // Include custom properties in CSSComputedStyleDeclaration::item/length.
       // https://crbug.com/949807
       name: "CSSEnumeratedCustomProperties",
-      status: "stable",
-    },
-    {
-      // https://drafts.csswg.org/css-anchor-position-2/#anchored
-      name: "CSSFallbackContainerQueries",
       status: "stable",
     },
     {
@@ -1567,6 +1585,7 @@
     {
       name: "CSSLineClampLineBreakingEllipsis",
       depends_on: ["CSSLineClamp"],
+      status: "experimental",
     },
     {
       // This flag makes `(-webkit-)line-clamp: <integer>` clamp by both lines
@@ -1895,7 +1914,6 @@
       // https://issues.chromium.org/issues/357649033
       name: "CustomizableSelectListbox",
       status: "stable",
-      depends_on: ["SelectMobileDesktopParity"],
     },
     {
       // appearance:base-select for <select multiple size=1> with a picker.
@@ -2290,6 +2308,14 @@
       status: "experimental",
     },
     {
+      // When enabled, the readonly attribute will prevent constraint validation
+      // only in some cases, depending on the element.
+      // This was added in M147 and can be removed after M149.
+      // https://issues.chromium.org/issues/486228104
+      name: "ElementSpecificReadOnlyConstraintValidation",
+      status: "stable",
+    },
+    {
       name: "EmailVerificationProtocol",
       public: true,
       status: "test",
@@ -2624,6 +2650,13 @@
       // See https://crbug.com/321980469.
       name: "FileSystemObserverUnobserve",
       status: "experimental",
+    },
+    {
+      // Adds the filter attribute to the input element, which targets a
+      // listbox select element to perform filtering.
+      name: "FilterableSelect",
+      status: "experimental",
+      depends_on: ["CustomizableSelectListbox"],
     },
     {
       // Fix for https://crbug.com/41153707
@@ -3021,12 +3054,6 @@
       status: "experimental",
       base_feature: "none",
     },
-    // The `anchor` attribute, supported by both anchor positioning and the
-    // popover API.
-    {
-      name: "HTMLAnchorAttribute",
-      status: "experimental",
-    },
     // Additional default command/commandfor actions that aren't part of v1 of
     // commands. When this flag is disabled only v1 actions (popover and dialog
     // defaults) will work.
@@ -3416,6 +3443,14 @@
       status: "test",
       // Enabled by features::kLockedMode.
       public: true,
+    },
+    {
+      // When the start-of-line position cannot be determined (e.g., because
+      // the caret is in an empty inline element with no layout information),
+      // fall back to the start of the enclosing block rather than the start
+      // of the entire editable root. See https://crbug.com/41053053.
+      name: "LogicalStartOfLineBlockFallback",
+      status: "stable",
     },
     {
       name: "LoginElement",
@@ -4371,6 +4406,18 @@
       status: "stable",
     },
     {
+      // Support hit-testing for ::after, ::before, ::marker
+      // (e.g. for CSSPseudoElement).
+      name: "PseudoElementsHitTestable",
+      status: "experimental",
+    },
+    {
+      // Support :hover on ::after, ::before, ::marker.
+      name: "PseudoElementsHoverable",
+      depends_on: ["PseudoElementsHitTestable"],
+      status: "experimental",
+    },
+    {
       name: "PushMessageDataBytes",
       depends_on: ["PushMessaging"],
       status: "stable",
@@ -4812,9 +4859,11 @@
     {
       name: "SecurePaymentConfirmationCapabilities",
       status: {
-        "Android": "test",
-        "Mac": "test",
-        "Win": "test",
+        "Android": "experimental",
+        "Mac": "experimental",
+        "Win": "experimental",
+        "iOS": "",
+        "default": "test",
       },
     },
     {
@@ -4859,17 +4908,12 @@
       status: "stable",
     },
     {
-      // Prevents the <select> element from tracking <option>s inside a nested
-      // <datalist>. Shipping in M144, should be safe to remove in M146.
-      name: "SelectDisallowDatalist",
-      status: "stable",
-    },
-    {
       // The selectedcontentelement attribute is for connecting select elements
       // to arbitrary <selectedcontent> elements.
       // https://github.com/openui/open-ui/issues/1063
       name: "SelectedcontentelementAttribute",
       status: "test",
+      depends_on: ["SelectedcontentSpec"],
     },
     {
       // Aligns the implementation of the <selectedcontent> element with the
@@ -4888,8 +4932,8 @@
       status: "stable",
     },
     {
-      // Killswitch M141.
-      name: "SelectionHandleWithBottomClipped",
+      // Killswitch for crbug.com/451833352.
+      name: "SelectionEdgeVisibilityUsesFullEdge",
       status: "stable",
     },
     {
@@ -4931,16 +4975,6 @@
       // See https://chromestatus.com/feature/4811835974615040
       name: "SelectivePermissionsIntervention",
       status: "experimental",
-    },
-    {
-      // Makes the logic to choose between ListBox (in-page) or MenuList
-      // (dropdown) select element modes the same between mobile and desktop.
-      // Without this flag, mobile will always use MenuList and desktop always
-      // makes <select multiple> a ListBox.
-      // https://chromestatus.com/feature/5412736871825408
-      // https://issues.chromium.org/issues/439964654
-      name: "SelectMobileDesktopParity",
-      status: "stable",
     },
     {
       // Removes the forced overflow:hidden rules on the select element's
@@ -5137,6 +5171,14 @@
       status: "stable",
     },
     {
+      // Skips paragraph split in insertHTML when the fragment contains only
+      // inline content, preventing inline elements from being inserted
+      // outside their containing block.
+      // See https://crbug.com/41024699.
+      name: "SkipParagraphSplitForInlineInsertHTML",
+      status: "stable",
+    },
+    {
       // Skip lines that contain only pseudo-element content (like ::before
       // or ::after) when determining valid caret positions for line
       // navigation. Pseudo-elements don't have DOM nodes for caret positioning,
@@ -5188,8 +5230,8 @@
       status: "stable",
     },
     {
-      name: "SoftNavigationEagerIcpEntryEmission",
-      status: "test",
+      name: "SoftNavigationDetectionIncludeReplaceState",
+      status: "stable",
     },
     {
       name: "SoftNavigationHeuristics",
@@ -5200,6 +5242,12 @@
     {
       name: "SortedLayoutShiftSourcesByImpactArea",
       status: "stable",
+    },
+    {
+      // Source-specific multicast support in the Direct Sockets API.
+      name: "SourceSpecificMulticastInDirectSockets",
+      status: "test",
+      depends_on: ["MulticastInDirectSockets"],
     },
     {
       // Whether spatial navigation should use cursor inheritance to exclude
@@ -5305,6 +5353,10 @@
     },
     {
       name: "SvgAvoidCullingElementsWithTransformOperations",
+      status: "stable",
+    },
+    {
+      name: "SvgAvoidResettingFilterQualityForTiledPattern",
       status: "stable",
     },
     {
@@ -5521,6 +5573,13 @@
       status: "stable",
     },
     {
+      // When enabled, text-overflow ellipsis is clipped when
+      // selection focus is inside the element, revealing the full text content.
+      // See https://crbug.com/40731275
+      name: "TextOverflowClipWithSelection",
+      status: "test",
+    },
+    {
       // https://crbug.com/41492459
       name: "TextOverflowString",
       status: "test",
@@ -5685,6 +5744,15 @@
       // This feature acts as a kill switch for https://crbug.com/40580002.
       name: "TreatMhtmlInitialDocumentLoadsAsCrossDocument",
       status: "stable",
+    },
+    {
+      // When enabled, trusted types can be used to enforce sanitization &
+      // script running rules.
+      // For example, it can enforce that any HTML setter would go through a
+      // sanitizer. See https://github.com/w3c/trusted-types/issues/594
+      name: "TrustedTypesCreateParserOptions",
+      status: "experimental",
+      depends_on: ["SanitizerAPI", "SetHTMLCanRunScripts"],
     },
     {
       name: "TrustedTypesFromLiteral",
@@ -6449,6 +6517,11 @@
     // no problems are encountered.
     {
       name: "WindowDefaultStatus",
+    },
+    {
+      // Fixes an issue where Ctrl+Right Arrow skips punctuation before a newline.
+      name: "WordSkipSpacesPunctuationFix",
+      status: "stable",
     },
     {
       name: "WordSpacingWhiteSpacePre",

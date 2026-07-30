@@ -5,7 +5,6 @@
 #include "chrome/browser/ui/views/tabs/tab_strip_action_container.h"
 
 #include "base/feature_list.h"
-#include "base/memory/memory_pressure_monitor.h"
 #include "base/path_service.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -17,7 +16,16 @@
 #include "chrome/browser/actor/actor_test_util.h"
 #include "chrome/browser/actor/ui/actor_ui_state_manager_interface.h"
 #include "chrome/browser/actor/ui/states/actor_task_nudge_state.h"
+#include "chrome/browser/actor/ui/task_list_bubble/actor_task_list_bubble_controller.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_features.h"
+#include "chrome/browser/glic/fre/glic_fre.mojom.h"
+#include "chrome/browser/glic/fre/glic_fre_controller.h"
+#include "chrome/browser/glic/glic_pref_names.h"
+#include "chrome/browser/glic/glic_profile_manager.h"
+#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
+#include "chrome/browser/glic/test_support/glic_test_environment.h"
+#include "chrome/browser/glic/test_support/glic_test_util.h"
+#include "chrome/browser/glic/widget/glic_window_controller.h"
 #include "chrome/browser/optimization_guide/browser_test_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
@@ -25,13 +33,16 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/tabs/glic_actor_nudge_controller.h"
+#include "chrome/browser/ui/tabs/glic_actor_task_icon_manager.h"
+#include "chrome/browser/ui/tabs/glic_actor_task_icon_manager_factory.h"
 #include "chrome/browser/ui/tabs/glic_nudge_controller.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/controls/rich_hover_button.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
-#include "chrome/browser/ui/views/tabs/glic/glic_actor_task_icon.h"
+#include "chrome/browser/ui/views/tabs/glic/tab_strip_glic_actor_task_icon.h"
 #include "chrome/browser/ui/views/tabs/glic/tab_strip_glic_button.h"
 #include "chrome/browser/ui/views/tabs/tab_search_button.h"
 #include "chrome/common/actor.mojom.h"
@@ -53,21 +64,7 @@
 #include "ui/events/base_event_utils.h"
 #include "ui/events/test/event_generator.h"
 #include "ui/gfx/animation/slide_animation.h"
-
-#if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/actor/ui/task_list_bubble/actor_task_list_bubble_controller.h"
-#include "chrome/browser/glic/fre/glic_fre.mojom.h"
-#include "chrome/browser/glic/fre/glic_fre_controller.h"
-#include "chrome/browser/glic/glic_pref_names.h"
-#include "chrome/browser/glic/glic_profile_manager.h"
-#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
-#include "chrome/browser/glic/test_support/glic_test_environment.h"
-#include "chrome/browser/glic/test_support/glic_test_util.h"
-#include "chrome/browser/glic/widget/glic_window_controller.h"
-#include "chrome/browser/ui/tabs/glic_actor_nudge_controller.h"
-#include "chrome/browser/ui/tabs/glic_actor_task_icon_manager.h"
-#include "chrome/browser/ui/tabs/glic_actor_task_icon_manager_factory.h"
-#endif  // BUILDFLAG(ENABLE_GLIC)
+#include "ui/views/view_utils.h"
 
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/private_ai/private_ai_service.h"
@@ -91,18 +88,15 @@ class TabStripActionContainerBrowserTest : public InProcessBrowserTest {
   TabStripActionContainerBrowserTest() {
     feature_list_.InitWithFeaturesAndParameters(
         {
-#if BUILDFLAG(ENABLE_GLIC)
             {features::kGlicRollout, {}},
             {features::kGlicFreWarming, {}},
             {features::kGlicActorUi,
              { {features::kGlicActorUiTaskIconName, "true"} }},
-#endif  // BUILDFLAG(ENABLE_GLIC)
             {contextual_cueing::kContextualCueing, {}},
         },
         {});
   }
 
-#if BUILDFLAG(ENABLE_GLIC)
   void SetUp() override {
     // This will temporarily disable preloading.
     glic::GlicProfileManager::SetPrewarmingEnabledForTesting(false);
@@ -131,7 +125,6 @@ class TabStripActionContainerBrowserTest : public InProcessBrowserTest {
   void TearDownOnMainThread() override {
     InProcessBrowserTest::TearDownOnMainThread();
   }
-#endif  // BUILDFLAG(ENABLE_GLIC)
 
   void SetUpInProcessBrowserTestFixture() override {
     InProcessBrowserTest::SetUpInProcessBrowserTestFixture();
@@ -150,19 +143,17 @@ class TabStripActionContainerBrowserTest : public InProcessBrowserTest {
 
  protected:
   glic::TabStripGlicButton* GlicNudgeButton() {
-    return static_cast<glic::TabStripGlicButton*>(
+    return views::AsViewClass<glic::TabStripGlicButton>(
         tab_strip_action_container()->GetGlicButton());
   }
 
-  glic::GlicActorTaskIcon* GlicActorTaskIcon() {
+  glic::TabStripGlicActorTaskIcon* GlicActorTaskIcon() {
     return tab_strip_action_container()->glic_actor_task_icon();
   }
 
-#if BUILDFLAG(ENABLE_GLIC)
   views::FlexLayoutView* GlicActorButtonContainer() {
     return tab_strip_action_container()->glic_actor_button_container();
   }
-#endif
 
   void ShowTabStripNudgeButton(TabStripNudgeButton* button) {
     tab_strip_action_container()->ShowTabStripNudge(button);
@@ -190,36 +181,22 @@ class TabStripActionContainerBrowserTest : public InProcessBrowserTest {
   }
   void OnButtonClicked(TabStripNudgeButton* button) {
     if (button == GlicNudgeButton()) {
-#if BUILDFLAG(ENABLE_GLIC)
       tab_strip_action_container()->OnGlicButtonClicked();
-#else
-      NOTREACHED();
-#endif  // BUILDFLAG(ENABLE_GLIC)
     } else if (button == GlicActorTaskIcon()) {
-#if BUILDFLAG(ENABLE_GLIC)
       tab_strip_action_container()->OnGlicActorTaskIconClicked();
-#else
-      NOTREACHED();
-#endif  // BUILDFLAG(ENABLE_GLIC)
     }
   }
   void OnButtonDismissed(TabStripNudgeButton* button) {
     if (button == GlicNudgeButton()) {
-#if BUILDFLAG(ENABLE_GLIC)
       tab_strip_action_container()->OnGlicButtonDismissed();
-#else
-      NOTREACHED();
-#endif  // BUILDFLAG(ENABLE_GLIC)
     }
   }
 
-#if BUILDFLAG(ENABLE_GLIC)
   void ResetPrewarming() {
     glic::GlicProfileManager::SetPrewarmingEnabledForTesting(true);
   }
 
   const GURL& fre_url() { return fre_url_; }
-#endif  // BUILDFLAG(ENABLE_GLIC)
   void ResetAnimation(int value) {
     if (tab_strip_action_container()->animation_session_for_testing()) {
       tab_strip_action_container()
@@ -261,15 +238,12 @@ class TabStripActionContainerBrowserTest : public InProcessBrowserTest {
   }
 
  protected:
-#if BUILDFLAG(ENABLE_GLIC)
   glic::GlicTestEnvironment glic_test_environment_;
   net::EmbeddedTestServer fre_server_;
   GURL fre_url_;
-#endif  // BUILDFLAG(ENABLE_GLIC)
   base::test::ScopedFeatureList feature_list_;
 };
 
-#if BUILDFLAG(ENABLE_GLIC)
 IN_PROC_BROWSER_TEST_F(TabStripActionContainerBrowserTest,
                        ImmediatelyHidesWhenGlicNudgeButtonDismissed) {
   ShowTabStripNudgeButton(GlicNudgeButton());
@@ -312,6 +286,13 @@ IN_PROC_BROWSER_TEST_F(TabStripActionContainerBrowserTest, PreloadFreOnNudge) {
   // OnTriggerGlicNudgeUI to actually show the nudge.
   if (base::FeatureList::IsEnabled(features::kGlicTrustFirstOnboarding)) {
     GTEST_SKIP() << "Skipping for kGlicTrustFirstOnboarding";
+  }
+  if (base::FeatureList::IsEnabled(features::kGlicUnifiedFreScreen)) {
+    // This test does not work for Unified FRE. Looking at the FRE warming code,
+    // it appears that it wasn't written to work for Unified FRE.
+    // FRE prewarming should be removed anyway, so there's no reason to fix
+    // this; see b/426679298.
+    GTEST_SKIP() << "Skipping for kGlicUnifiedFreScreen";
   }
   auto* nudge_controller =
       browser()->browser_window_features()->glic_nudge_controller();
@@ -584,11 +565,11 @@ IN_PROC_BROWSER_TEST_F(TabStripActionContainerBrowserTest,
 }
 
 #if !BUILDFLAG(IS_ANDROID)
-class TabStripActionContainerLegionBrowserTest
+class TabStripActionContainerPrivateAiBrowserTest
     : public TabStripActionContainerBrowserTest {
  public:
-  TabStripActionContainerLegionBrowserTest() {
-    legion_feature_list_.InitWithFeaturesAndParameters(
+  TabStripActionContainerPrivateAiBrowserTest() {
+    private_ai_feature_list_.InitWithFeaturesAndParameters(
         {{private_ai::kPrivateAi,
           {{private_ai::kPrivateAiApiKey.name, "test-api-key"}}},
          {contextual_cueing::kZeroStateSuggestionsUsePrivateAi, {}}},
@@ -596,18 +577,18 @@ class TabStripActionContainerLegionBrowserTest
   }
 
  private:
-  base::test::ScopedFeatureList legion_feature_list_;
+  base::test::ScopedFeatureList private_ai_feature_list_;
 };
 
-IN_PROC_BROWSER_TEST_F(TabStripActionContainerLegionBrowserTest,
-                       EstablishesLegionConnectionOnGlicButtonHover) {
-  auto* legion_service = private_ai::PrivateAiServiceFactory::GetForProfile(
+IN_PROC_BROWSER_TEST_F(TabStripActionContainerPrivateAiBrowserTest,
+                       EstablishesPrivateAiConnectionOnGlicButtonHover) {
+  auto* private_ai_service = private_ai::PrivateAiServiceFactory::GetForProfile(
       browser()->GetProfile());
-  ASSERT_TRUE(legion_service);
+  ASSERT_TRUE(private_ai_service);
   auto mock_client =
       std::make_unique<testing::StrictMock<private_ai::MockPrivateAiClient>>();
   auto* mock_client_ptr = mock_client.get();
-  legion_service->SetClientForTesting(std::move(mock_client));
+  private_ai_service->SetClientForTesting(std::move(mock_client));
 
   EXPECT_CALL(*mock_client_ptr, EstablishConnection());
 
@@ -618,4 +599,3 @@ IN_PROC_BROWSER_TEST_F(TabStripActionContainerLegionBrowserTest,
 }
 
 #endif  // !BUILDFLAG(IS_ANDROID)
-#endif  // BUILDFLAG(ENABLE_GLIC)

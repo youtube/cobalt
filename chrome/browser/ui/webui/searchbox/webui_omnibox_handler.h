@@ -18,6 +18,8 @@
 #include "components/prefs/pref_change_registrar.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "mojo/public/cpp/bindings/receiver.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "ui/base/window_open_disposition.h"
 
 class MetricsReporter;
@@ -43,25 +45,16 @@ class WebuiOmniboxHandler : public ContextualSearchboxHandler,
 
   ~WebuiOmniboxHandler() override;
 
-  void SetEmbedder(base::WeakPtr<TopChromeWebUIController::Embedder> embedder) {
-    embedder_ = embedder;
-  }
-
   // searchbox::mojom::PageHandler:
   void ActivateKeyword(uint8_t line,
                        const GURL& url,
                        base::TimeTicks match_selection_timestamp,
                        bool is_mouse_event) override;
   void OnThumbnailRemoved() override {}
-  void ShowContextMenu(const gfx::Point& point) override;
   void OpenLensSearch() override;
   void AddTabContext(int32_t tab_id,
                      bool delay_upload,
                      AddTabContextCallback) override;
-
-  void OnShow();
-  void OnShowAiModeButtonPrefChanged();
-  void OnContentSharingPolicyChanged();
 
   void StepSelection(OmniboxPopupSelection::Direction direction,
                      OmniboxPopupSelection::Step step);
@@ -92,21 +85,16 @@ class WebuiOmniboxHandler : public ContextualSearchboxHandler,
   // OmniboxEditModel::Observer:
   void OnSelectionChanged(OmniboxPopupSelection old_selection,
                           OmniboxPopupSelection selection) override;
+  void OnKeywordStateChanged(bool is_keyword_selected) override;
+  void OnCharTyped(base::TimeTicks timestamp) override;
   void OnMatchIconUpdated(size_t index) override {}
   void OnContentsChanged() override {}
-  void OnKeywordStateChanged(bool is_keyword_selected) override;
-  void OnCharTyped(base::TimeTicks timstamp) override;
-
-  // `AimEligibilityService` callback.
-  void OnAimEligibilityChanged();
 
   // TabStripModelObserver:
   void OnTabStripModelChanged(
       TabStripModel* tab_strip_model,
       const TabStripModelChange& change,
       const TabStripSelectionChange& selection) override;
-
-  void OnNavigationFinished(content::NavigationHandle* navigation_handle);
 
  private:
   // Delegate to observe WebContents.
@@ -128,18 +116,21 @@ class WebuiOmniboxHandler : public ContextualSearchboxHandler,
   // ContextualSearchboxHandler:
   int GetContextMenuMaxTabSuggestions() override;
 
+  void OnShowAiModeButtonPrefChanged();
+  void OnContentSharingPolicyChanged();
+  void OnAimEligibilityChanged();
+  void OnNavigationFinished(content::NavigationHandle* navigation_handle);
+
   WebContentsObserver web_contents_observer_;
 
   // Observe `OmniboxEditModel` for updates that require updating the views.
   base::ScopedObservation<OmniboxEditModel, OmniboxEditModel::Observer>
       edit_model_observation_{this};
 
-  raw_ptr<MetricsReporter> metrics_reporter_;
   PrefChangeRegistrar pref_change_registrar_;
-
-  base::WeakPtr<TopChromeWebUIController::Embedder> embedder_;
-
   base::CallbackListSubscription aim_eligibility_subscription_;
+
+  raw_ptr<MetricsReporter> metrics_reporter_;
 
   base::WeakPtrFactory<WebuiOmniboxHandler> weak_ptr_factory_{this};
 };

@@ -17,6 +17,7 @@
 #include "chrome/browser/ui/views/tabs/tab/alert_indicator_button.h"
 #include "chrome/browser/ui/views/tabs/tab/tab_context_menu_controller.h"
 #include "chrome/common/buildflags.h"
+#include "components/performance_manager/public/freezing/freezing.h"
 #include "components/tabs/public/tab_interface.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 #include "ui/base/metadata/metadata_header_macros.h"
@@ -40,11 +41,9 @@ namespace tabs {
 class VerticalTabStripStateController;
 }
 
-#if BUILDFLAG(ENABLE_GLIC)
 namespace glic {
 class TabUnderlineView;
 }
-#endif
 
 // The view class for the tab. It is responsible for painting the
 // tab background and displaying the favicon, title, alert indicators and close
@@ -66,6 +65,11 @@ class VerticalTabView : public views::View,
   ~VerticalTabView() override;
 
   void StepLoadingAnimation(const base::TimeDelta& elapsed_time);
+
+  void CreateFreezingVote();
+  void ReleaseFreezingVote();
+  bool HasFreezingVote() const { return freezing_vote_.has_value(); }
+
   void UpdateHovered(bool hovered);
   bool IsHoverAnimationActive() const;
 
@@ -198,9 +202,7 @@ class VerticalTabView : public views::View,
   const raw_ptr<AlertIndicatorButton> alert_indicator_;
   const raw_ptr<TabCloseButton> close_button_;
 
-#if BUILDFLAG(ENABLE_GLIC)
   raw_ptr<glic::TabUnderlineView> glic_tab_underline_view_ = nullptr;
-#endif
 
   base::CallbackListSubscription node_destroyed_subscription_;
   base::CallbackListSubscription data_changed_subscription_;
@@ -225,6 +227,8 @@ class VerticalTabView : public views::View,
   std::optional<int> inactive_tab_fill_id_;
 
   base::CallbackListSubscription ax_name_changed_subscription_;
+
+  std::optional<performance_manager::freezing::FreezingVote> freezing_vote_;
 
   base::WeakPtrFactory<VerticalTabView> weak_ptr_factory_{this};
 };

@@ -30,7 +30,7 @@
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_snapshot_utils.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_page_context.h"
 #import "ios/chrome/browser/intelligence/bwg/ui/gemini_ui_utils.h"
-#import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
+#import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_wrapper.h"
 #import "ios/chrome/browser/intelligence/zero_state_suggestions/model/zero_state_suggestions_service_impl.h"
@@ -224,14 +224,6 @@ void BwgTabHelper::SetPageLoadedCallback(base::RepeatingClosure callback) {
   page_loaded_callback_ = std::move(callback);
 }
 
-NSString* BwgTabHelper::GetContextualCueLabel() {
-  return contextual_cue_label_;
-}
-
-void BwgTabHelper::SetContextualCueLabel(NSString* cue_label) {
-  contextual_cue_label_ = cue_label;
-}
-
 GeminiPageContext* BwgTabHelper::GetPartialPageContext() {
   GeminiPageContext* gemini_page_context = [[GeminiPageContext alloc] init];
   gemini_page_context.geminiPageContextComputationState =
@@ -359,7 +351,9 @@ void BwgTabHelper::WasShown(web::WebState* web_state) {
   if (is_bwg_session_active_in_background_) {
     if (!IsGeminiCopresenceEnabled()) {
       [bwg_commands_handler_
-          startGeminiFlowWithEntryPoint:gemini::EntryPoint::TabReopen];
+          startGeminiFlowWithStartupState:
+              [[GeminiStartupState alloc]
+                  initWithEntryPoint:gemini::EntryPoint::TabReopen]];
     }
     cached_snapshot_ = nil;
   }
@@ -559,9 +553,17 @@ void BwgTabHelper::PopulatePageContextFields() {
     page_context_wrapper_ = nil;
   }
 
+  PageContextWrapperConfig config =
+      PageContextWrapperConfigBuilder()
+          .SetUseRefactoredExtractor(IsPageContextExtractorRefactoredEnabled())
+          .SetGraftCrossOriginFrameContent(IsGeminiRichAPCExtractionEnabled())
+          .SetUseRichExtraction(IsGeminiRichAPCExtractionEnabled())
+          .Build();
+
   // Create a new wrapper.
   page_context_wrapper_ = [[PageContextWrapper alloc]
         initWithWebState:web_state_
+                  config:config
       completionCallback:page_context_wrapper_response_ready_callback_];
 
   // Configure it to fetch full context.

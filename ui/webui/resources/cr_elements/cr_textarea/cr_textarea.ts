@@ -18,7 +18,6 @@ export interface CrTextareaElement {
     footerContainer: HTMLElement,
     input: HTMLTextAreaElement,
     label: HTMLElement,
-    mirror: HTMLElement,
     secondFooter: HTMLElement,
     underline: HTMLElement,
   };
@@ -180,7 +179,15 @@ export class CrTextareaElement extends CrLitElement {
     this.value = this.internalValue_;
   }
 
-  protected onInputFocusChange_() {
+  protected onFocus_() {
+    this.onInputFocusChange_();
+  }
+
+  protected onBlur_() {
+    this.onInputFocusChange_();
+  }
+
+  private onInputFocusChange_() {
     // focused_ is used instead of :focus-within, so focus on elements within
     // the suffix slot does not trigger a change in input styles.
     if (this.shadowRoot.activeElement === this.$.input) {

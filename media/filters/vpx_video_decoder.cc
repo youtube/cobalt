@@ -245,7 +245,8 @@ bool VpxVideoDecoder::ConfigureDecoder(const VideoDecoderConfig& config) {
            VPX_CODEC_CAP_EXTERNAL_FRAME_BUFFER);
 
     DCHECK(!memory_pool_);
-    memory_pool_ = base::MakeRefCounted<FrameBufferPool>();
+    memory_pool_ =
+        base::MakeRefCounted<FrameBufferPool>(/*zero_initialize_memory=*/true);
 
     if (vpx_codec_set_frame_buffer_functions(
             vpx_codec_.get(), &GetVP9FrameBuffer, &ReleaseVP9FrameBuffer,
@@ -490,11 +491,11 @@ bool VpxVideoDecoder::CopyVpxImageToVideoFrame(
       break;
 
     case VPX_IMG_FMT_I422:
-      codec_format = PIXEL_FORMAT_I422;
+      codec_format = vpx_image_alpha ? PIXEL_FORMAT_I422A : PIXEL_FORMAT_I422;
       break;
 
     case VPX_IMG_FMT_I444:
-      codec_format = PIXEL_FORMAT_I444;
+      codec_format = vpx_image_alpha ? PIXEL_FORMAT_I444A : PIXEL_FORMAT_I444;
       break;
 
     case VPX_IMG_FMT_I42016:

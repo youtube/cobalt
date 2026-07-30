@@ -19,9 +19,12 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "extensions/browser/event_router.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_id.h"
 #include "url/origin.h"
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 using content::BrowserThread;
 using extensions::tab_capture::TabCaptureState;
@@ -78,8 +81,9 @@ class TabCaptureRegistry::LiveRequest : public content::WebContentsObserver {
     // This method can get duplicate calls if both audio and video were
     // requested, so return early to avoid duplicate dispatching of status
     // change events.
-    if (capture_state_ == next_capture_state)
+    if (capture_state_ == next_capture_state) {
       return;
+    }
 
     capture_state_ = next_capture_state;
     registry_->DispatchStatusChangeEvent(this);
@@ -276,12 +280,14 @@ void TabCaptureRegistry::OnRequestUpdate(
 
 void TabCaptureRegistry::DispatchStatusChangeEvent(
     const LiveRequest* request) const {
-  if (request->is_anonymous())
+  if (request->is_anonymous()) {
     return;
+  }
 
   EventRouter* router = EventRouter::Get(browser_context_);
-  if (!router)
+  if (!router) {
     return;
+  }
 
   base::ListValue args;
   tab_capture::CaptureInfo info;
@@ -297,8 +303,9 @@ void TabCaptureRegistry::DispatchStatusChangeEvent(
 TabCaptureRegistry::LiveRequest* TabCaptureRegistry::FindRequest(
     const content::WebContents* target_contents) const {
   for (const auto& request : requests_) {
-    if (request->web_contents() == target_contents)
+    if (request->web_contents() == target_contents) {
       return request.get();
+    }
   }
   return nullptr;
 }

@@ -115,16 +115,6 @@ class PageTimingMetricsSender {
   void SetUpDroppedFramesReporting(
       base::ReadOnlySharedMemoryRegion shared_memory_dropped_frames);
 
-  mojom::SoftNavigationMetricsPtr GetSoftNavigationMetrics() {
-    return soft_navigation_metrics_->Clone();
-  }
-
-  // Returns the start time of the current soft navigation, relative to
-  // (hard) navigation start.
-  base::TimeDelta GetSoftNavigationStartTime() {
-    return soft_navigation_metrics_->start_time;
-  }
-
   void DidObserveSoftLargestContentfulPaint(
       mojom::LargestContentfulPaintTimingPtr lcp);
 
@@ -162,6 +152,7 @@ class PageTimingMetricsSender {
   blink::UseCounterFeatureTracker feature_tracker_;
 
   mojom::SoftNavigationMetricsPtr soft_navigation_metrics_;
+  mojom::LargestContentfulPaintTimingPtr soft_largest_contentful_paint_;
 
   bool have_sent_ipc_ = false;
 

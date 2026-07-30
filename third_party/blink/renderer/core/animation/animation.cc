@@ -3150,23 +3150,25 @@ bool Animation::Update(TimingUpdateReason reason) {
     }
   }
 
-    if (idle || CalculateAnimationPlayState() ==
-                    V8AnimationPlayState::Enum::kFinished) {
-      // See crbug.com/420284818. Reset composited paint status to avoid
-      // staleness that can occur during the process of tearing down an
-      // animation. This is known to occur when a retargeted transition is
-      // finished before PreCommit has run the first time and a compositor state
-      // has been created.
-      if (!finished_ && !HasActiveAnimationsOnCompositor()) {
-        UpdateCompositedPaintStatus();
-      }
-
-      if (reason == kTimingUpdateForAnimationFrame) {
-        finished_ = true;
-
-        NotifyProbe();
-      }
+  if (idle || CalculateAnimationPlayState() ==
+                  V8AnimationPlayState::Enum::kFinished) {
+    // See crbug.com/420284818. Reset composited paint status to avoid
+    // staleness that can occur during the process of tearing down an
+    // animation. This is known to occur when a retargeted transition is
+    // finished before PreCommit has run the first time and a compositor state
+    // has been created.
+    if (!finished_ && !HasActiveAnimationsOnCompositor()) {
+      UpdateCompositedPaintStatus();
     }
+
+    if (reason == kTimingUpdateForAnimationFrame) {
+      finished_ = true;
+    }
+  }
+
+  if (reason == kTimingUpdateForAnimationFrame) {
+    NotifyProbe();
+  }
 
   DCHECK(!outdated_);
 

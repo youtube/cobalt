@@ -149,8 +149,9 @@ void TestPasswordsPrivateDelegate::RemoveBackupPassword(int id) {
 }
 
 void TestPasswordsPrivateDelegate::RemovePasswordException(int id) {
-  if (current_exceptions_.empty())
+  if (current_exceptions_.empty()) {
     return;
+  }
 
   // Since this is just mock data, remove the first element regardless of the
   // data contained.
@@ -377,6 +378,14 @@ void TestPasswordsPrivateDelegate::StartPasswordCheck(
   std::move(callback).Run(start_password_check_state_);
 }
 
+void TestPasswordsPrivateDelegate::StartPasswordChange(
+    int credential_id,
+    content::WebContents* web_contents) {
+  // TODO(crbug.com/485620841): Implement this, when the method does something
+  // more than just opening a URL.
+  start_password_change_called_ = true;
+}
+
 api::passwords_private::PasswordCheckStatus
 TestPasswordsPrivateDelegate::GetPasswordCheckStatus() {
   api::passwords_private::PasswordCheckStatus status;
@@ -424,15 +433,17 @@ void TestPasswordsPrivateDelegate::SetSavedPasswordsPresenter(
 void TestPasswordsPrivateDelegate::SendSavedPasswordsList() {
   PasswordsPrivateEventRouter* router =
       PasswordsPrivateEventRouterFactory::GetForProfile(profile_);
-  if (router)
+  if (router) {
     router->OnSavedPasswordsListChanged(current_entries_);
+  }
 }
 
 void TestPasswordsPrivateDelegate::SendPasswordExceptionsList() {
   PasswordsPrivateEventRouter* router =
       PasswordsPrivateEventRouterFactory::GetForProfile(profile_);
-  if (router)
+  if (router) {
     router->OnPasswordExceptionsListChanged(current_exceptions_);
+  }
 }
 
 bool TestPasswordsPrivateDelegate::IsCredentialPresentInInsecureCredentialsList(

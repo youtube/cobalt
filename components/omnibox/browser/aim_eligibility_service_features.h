@@ -20,9 +20,9 @@ BASE_DECLARE_FEATURE(kAimServerEligibilityEnabled);
 // to whether Co-Browse eligibility is enabled.
 BASE_DECLARE_FEATURE(kAimCoBrowseEligibilityCheckEnabled);
 
-// If enabled, allows the RequestType kCoBrowseAimUrlDetection to actually
-// fetch new AIM Eligibility responses.
-BASE_DECLARE_FEATURE(kAimCoBrowseAutomatedFetchRequestEnabled);
+// If enabled, creates the navigation throttle that fetches AIM eligibility
+// responses on AIM URL navigations.
+BASE_DECLARE_FEATURE(kAimUrlNavigationFetchEnabled);
 
 // If enabled, adds the User-Agent header suffix for Co-Browse to all AIM
 // Eligibility Service requests.
@@ -70,7 +70,17 @@ extern const base::FeatureParam<AimServerEligibilityIncludeClientLocaleMode>
 
 // If enabled, the AimEligibilityService will omit cookies and fetch OAuth
 // tokens for server requests.
-BASE_DECLARE_FEATURE(kAimEligibilityServiceOauth);
+BASE_DECLARE_FEATURE(kAimEligibilityServiceIdentityImprovements);
+// If true, enables OAuth for the AimEligibilityService.
+extern const base::FeatureParam<bool> kAimIdentityOauthEnabled;
+// If true, refreshes server eligibility when changes to the first valid account
+// in the cookie jar are detected iff in cookie fallback mode.
+extern const base::FeatureParam<bool> kAimIdentityRefreshOnCookieChanges;
+// If true, refreshes server eligibility when changes to the primary account
+// are detected.
+extern const base::FeatureParam<bool> kAimIdentityRefreshOnAccountChanges;
+// If true, drops the request if the accounts in the cookie jar are not fresh.
+extern const base::FeatureParam<bool> kAimIdentityDropRequestIfCookiesStale;
 
 // If enabled, debounces server requests by a short duration to prevent
 // duplicate requests.

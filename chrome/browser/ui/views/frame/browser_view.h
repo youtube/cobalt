@@ -124,6 +124,8 @@ enum class InstallableWebAppCheckResult;
 struct WebAppBannerData;
 }  // namespace webapps
 
+class CustomFloatingCorner;
+
 ///////////////////////////////////////////////////////////////////////////////
 // BrowserView
 //
@@ -328,9 +330,7 @@ class BrowserView : public BrowserWindow,
     return weak_ptr_factory_.GetWeakPtr();
   }
 
-#if BUILDFLAG(ENABLE_GLIC)
   views::LabelButton* GetGlicButton();
-#endif  // BUILDFLAG(ENABLE_GLIC)
 
   // Accessor for the BrowserView's TabSearchBubbleHost instance.
   TabSearchBubbleHost* GetTabSearchBubbleHost();
@@ -1142,9 +1142,6 @@ class BrowserView : public BrowserWindow,
   // `frame_timing_details` contains the paint timing information of the frame.
   void OnFirstPresentation(const viz::FrameTimingDetails& frame_timing_details);
 
-  // Called when the initial WebUI components are ready.
-  void OnInitialWebUIReady();
-
   // TODO(crbug.com/461955649): Move ExclusiveAccessContextImpl out of
   // BrowserView and make it shared so BrowserWindowFeatures can own it
   // directly.
@@ -1306,8 +1303,8 @@ class BrowserView : public BrowserWindow,
   raw_ptr<VerticalTabStripRegionView> vertical_tab_strip_region_view_ = nullptr;
 
   // Outward-projecting corners of the vertical tab strip.
-  raw_ptr<views::View> vertical_tab_strip_top_corner_ = nullptr;
-  raw_ptr<views::View> vertical_tab_strip_bottom_corner_ = nullptr;
+  raw_ptr<CustomFloatingCorner> vertical_tab_strip_top_corner_ = nullptr;
+  raw_ptr<CustomFloatingCorner> vertical_tab_strip_bottom_corner_ = nullptr;
 
   // The view responsible for housing the contents of the projects panel.
   raw_ptr<ProjectsPanelView> projects_panel_container_ = nullptr;

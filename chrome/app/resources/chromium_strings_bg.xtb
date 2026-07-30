@@ -582,6 +582,9 @@
 <translation id="7384121030444253939">Това разширение вече не се поддържа. Chromium препоръчва да го премахнете.</translation>
 <translation id="7413153308467572558">Продължавайте оттам, откъдето сте прекъснали: Chromium възстановява разделите ви при всяко рестартиране. За да изключите тази функция, отворете</translation>
 <translation id="7427879960656355200">Импортиране на пароли в Chromium</translation>
+<translation id="744815265653811511">1. Кликнете върху „<ph name="BUTTON_LABEL" />“ по-долу.
+2. Кликнете върху „<ph name="BUTTON_2" />“ в настройките на Windows.
+3. Кликнете върху „<ph name="BUTTON_3" />“ в известието от Windows, за да фиксирате Chromium в лентата на задачите за бърз достъп.</translation>
 <translation id="7449453770951226939"><ph name="PAGE_TITLE" /> – Chromium Dev</translation>
 <translation id="7450541714075000668">Текстът е копиран</translation>
 <translation id="7451052299415159299">Chromium се нуждае от разрешение за достъп до камерата ви за този сайт</translation>
@@ -597,6 +600,7 @@
 <translation id="761356813943268536">Chromium използва камерата и микрофона ви.</translation>
 <translation id="7617377681829253106">Chromium се подобри</translation>
 <translation id="7622753900276619808">Вече разполагате с повече функции в Chromium</translation>
+<translation id="7624307931717240213">Използваме информацията, за да подобряваме тази услуга. Вижте Декларацията за поверителност и Общите условия.</translation>
 <translation id="7649070708921625228">Помощ</translation>
 <translation id="7656340475565475526">Разрешете на Chromium да сърфира вместо вас</translation>
 <translation id="7658239707568436148">Отказ</translation>

@@ -899,13 +899,6 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Retain"/>
 </enum>
 
-<enum name="BottomControlsStatus">
-  <int value="0" label="HEIGHT_ZERO"/>
-  <int value="1" label="HIDDEN"/>
-  <int value="2" label="VISIBLE_FULL_HEIGHT"/>
-  <int value="3" label="VISIBLE_PARTIAL_HEIGHT"/>
-</enum>
-
 <enum name="BrowserControlsLockReason">
   <summary>The reason why browser controls were locked.</summary>
   <int value="0" label="CHROME_URL"/>
@@ -1162,12 +1155,6 @@ chromium-metrics-reviews@google.com.
   <int value="8" label="Undefined"/>
 </enum>
 
-<enum name="FontLoadingOutcome">
-  <int value="0" label="Fallback Font Family"/>
-  <int value="1" label="Font resource"/>
-  <int value="2" label="Font family"/>
-</enum>
-
 <enum name="GmsShortVersionCode">
   <summary>
     Special buckets for the cases when GMS Core version can't be obtained or is
@@ -1268,7 +1255,7 @@ chromium-metrics-reviews@google.com.
 <enum name="InputOnVizStateProcessingResult">
   <int value="0" label="ProcessedSuccessfully"/>
   <int value="1" label="CouldNotFindViewForFrameSinkId"/>
-  <int value="2" label="FrameSinkIdCorrespondsToChildView"/>
+  <int value="2" label="(Obsolete) FrameSinkIdCorrespondsToChildView"/>
   <int value="3" label="FrameSinkIdNotAttachedToRootCFS"/>
   <int value="4" label="DroppedOutOfOrderDownTime"/>
   <int value="5" label="DroppedTooManyPendingStates"/>
@@ -1467,11 +1454,25 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <enum name="NewWindowAppSource">
-  <int value="0" label="Undefined app source."/>
-  <int value="1" label="Menu option (eg. app menu, context menu, etc.)"/>
-  <int value="2" label="Window Manager in app menu."/>
-  <int value="3" label="Keyboard shortcut."/>
-  <int value="4" label="Recent Tabs page."/>
+  <int value="0" label="Unknown source"/>
+  <int value="1" label="App menu or strip tab / group context menu option"/>
+  <int value="2" label="In-app window manager"/>
+  <int value="3" label="Keyboard shortcut"/>
+  <int value="4" label="Recent Tabs page"/>
+  <int value="5" label="Dragged link or tab drop in OS launcher"/>
+  <int value="6"
+      label="Set of tabs or tab group reparenting to a new activity for an
+             existing instance"/>
+  <int value="7"
+      label="URL launch that may be triggered from a menu (eg. link context
+             menu) or keyboard shortcut (eg. load omnibox search result via
+             Shift + Enter)"/>
+  <int value="8" label="New tab launch for different profile type"/>
+  <int value="9" label="External navigation"/>
+  <int value="10" label="Dev tools"/>
+  <int value="11"
+      label="Browser window creation from native feature (eg. extensions)"/>
+  <int value="12" label="Upgrade to Android S multi-instance support"/>
 </enum>
 
 <enum name="NightMode">

@@ -321,6 +321,9 @@ class WrappedSkiaGraphiteCompoundImageRepresentation
   bool SupportsMultipleConcurrentReadAccess() final {
     return wrapped_->SupportsMultipleConcurrentReadAccess();
   }
+  bool SupportsDeferredGraphiteSubmit() final {
+    return wrapped_->SupportsDeferredGraphiteSubmit();
+  }
 
   std::vector<sk_sp<SkSurface>> BeginWriteAccess(
       const SkSurfaceProps& surface_props,
@@ -926,7 +929,7 @@ CompoundImageBacking::CompoundImageBacking(
 
   // Whenever CompoundImageBacking is created with a shm backing, mark it as
   // fully cleared.
-  SetClearedRect(gfx::Rect(size));
+  SetClearedRectInternal(gfx::Rect(size));
 
   // Create placeholder for GPU-backed element (streams = all except kMemory).
   ElementHolder gpu_element;
@@ -982,7 +985,7 @@ CompoundImageBacking::CompoundImageBacking(
 
   // |backing| may have a cleared rect set (e.g. from initial pixel data).
   // Propagate this to the CompoundImageBacking to keep them in sync.
-  ClearTrackingSharedImageBacking::SetClearedRect(backing->ClearedRect());
+  SetClearedRectInternal(backing->ClearedRect());
 
   // The backing is already created, so this is not a lazy initialization.
   element.backing = std::move(backing);
@@ -1006,6 +1009,7 @@ CompoundImageBacking::~CompoundImageBacking() {
 void CompoundImageBacking::NotifyBeginAccess(SharedImageBacking* backing,
                                              RepresentationAccessMode mode,
                                              SharedImageAccessStream stream) {
+  AutoLock auto_lock(this);
   ElementHolder* access_element = GetElement(backing);
   if (!access_element) {
     LOG(ERROR) << "Backing (" << backing->GetName()
@@ -1035,11 +1039,17 @@ void CompoundImageBacking::NotifyBeginAccess(SharedImageBacking* backing,
     if (copy_succeeded) {
       updated_backing = true;
 
-      // Propagate the clear rect from the source backing.
+      // Propagate the clear rect from the source backing to the destination
+      // backing as well as all the other child backings and
+      // CompoundImageBacking.
       const gfx::Rect src_cleared_rect =
           latest_content_element->GetBacking()->ClearedRect();
-      access_element->GetBacking()->SetClearedRect(src_cleared_rect);
-      SetClearedRect(src_cleared_rect);
+      SetClearedRectInternal(src_cleared_rect);
+      for (auto& element : elements_) {
+        if (element.backing) {
+          element.backing->SetClearedRect(src_cleared_rect);
+        }
+      }
     } else {
       LOG(ERROR) << "Failed to copy from "
                  << latest_content_element->GetBacking()->GetName() << " to "
@@ -1082,6 +1092,7 @@ void CompoundImageBacking::NotifyBeginAccess(SharedImageBacking* backing,
 
 void CompoundImageBacking::NotifyEndAccess(SharedImageBacking* backing,
                                            RepresentationAccessMode mode) {
+  AutoLock auto_lock(this);
   CHECK(backing);
 
   // If the last access was a write and an underlying backing was accessed,
@@ -1089,13 +1100,14 @@ void CompoundImageBacking::NotifyEndAccess(SharedImageBacking* backing,
   if (mode == RepresentationAccessMode::kWrite) {
     auto cleared_rect = backing->ClearedRect();
     if (cleared_rect != ClearedRect()) {
-      ClearTrackingSharedImageBacking::SetClearedRect(cleared_rect);
+      SetClearedRectInternal(cleared_rect);
     }
   }
 }
 
 void CompoundImageBacking::OnContextLost() {
   ClearTrackingSharedImageBacking::OnContextLost();
+  AutoLock auto_lock(this);
   for (const auto& element : elements_) {
     if (element.backing) {
       element.backing->OnContextLost();
@@ -1118,6 +1130,7 @@ void CompoundImageBacking::Update(std::unique_ptr<gfx::GpuFence> in_fence) {
   // created only at initialization time. Hence it is guaranteed to be at
   // elements_[0].
   // 3. |elements_| always contains at least one element.
+  AutoLock auto_lock(this);
   CHECK(!elements_.empty());
   auto& element = elements_[0];
   CHECK(element.backing);
@@ -1130,6 +1143,7 @@ void CompoundImageBacking::Update(std::unique_ptr<gfx::GpuFence> in_fence) {
 }
 
 bool CompoundImageBacking::CopyToGpuMemoryBuffer() {
+  AutoLock auto_lock(this);
   auto& shm_element = GetShmElement();
 
   if (HasLatestContent(shm_element)) {
@@ -1150,6 +1164,7 @@ bool CompoundImageBacking::CopyToGpuMemoryBuffer() {
 
 void CompoundImageBacking::CopyToGpuMemoryBufferAsync(
     base::OnceCallback<void(bool)> callback) {
+  AutoLock auto_lock(this);
   auto& shm_element = GetShmElement();
 
   if (HasLatestContent(shm_element)) {
@@ -1180,6 +1195,7 @@ void CompoundImageBacking::CopyToGpuMemoryBufferAsync(
 }
 
 void CompoundImageBacking::OnCopyToGpuMemoryBufferComplete(bool success) {
+  AutoLock auto_lock(this);
   if (success) {
     auto& shm_element = GetShmElement();
     shm_element.content_id_ = latest_content_id_;
@@ -1190,11 +1206,12 @@ void CompoundImageBacking::OnCopyToGpuMemoryBufferComplete(bool success) {
 gfx::Rect CompoundImageBacking::ClearedRect() const {
   // If we have a shm_backing, we always copy on access and mark entire backing
   // as cleared.
-  return ClearTrackingSharedImageBacking::ClearedRect();
+  return ClearedRectInternal();
 }
 
 void CompoundImageBacking::SetClearedRect(const gfx::Rect& cleared_rect) {
-  ClearTrackingSharedImageBacking::SetClearedRect(cleared_rect);
+  AutoLock auto_lock(this);
+  SetClearedRectInternal(cleared_rect);
 
   // Propagate the cleared rect to all underlying backings. This is important
   // because SetClearedRect can be called on a CompoundImageBacking without a
@@ -1210,6 +1227,7 @@ void CompoundImageBacking::SetClearedRect(const gfx::Rect& cleared_rect) {
 }
 
 void CompoundImageBacking::MarkForDestruction() {
+  AutoLock auto_lock(this);
   for (const auto& element : elements_) {
     if (element.backing) {
       element.backing->MarkForDestruction();
@@ -1226,6 +1244,7 @@ gfx::GpuMemoryBufferHandle CompoundImageBacking::GetGpuMemoryBufferHandle() {
   // created only at initialization time and never allocated dynamically during
   // runtime. Hence it is guaranteed to be at elements_[0].
   // 2. |elements_| always contains at least one element.
+  AutoLock auto_lock(this);
   CHECK(!elements_.empty());
   auto& element = elements_[0];
   CHECK(element.backing);
@@ -1236,6 +1255,7 @@ scoped_refptr<gfx::NativePixmap> CompoundImageBacking::GetNativePixmap() {
   // The purpose of this function is to get NativePixmap for overlay testing,
   // so it needs be the same NativePixmap that we would later get from the
   // ProduceOverlay representation. Hence using Overlay stream backing here.
+  AutoLock auto_lock(this);
   for (const auto& element : elements_) {
     if (element.access_streams.Has(SharedImageAccessStream::kOverlay) &&
         element.backing) {
@@ -1490,6 +1510,7 @@ base::trace_event::MemoryAllocatorDump* CompoundImageBacking::OnMemoryDump(
     uint64_t client_tracing_id) {
   // Create dump but don't add scalar size. The size will be inferred from the
   // sizes of the sub-backings.
+  AutoLock auto_lock(this);
   base::trace_event::MemoryAllocatorDump* dump =
       pmd->CreateAllocatorDump(dump_name);
 
@@ -1512,7 +1533,26 @@ base::trace_event::MemoryAllocatorDump* CompoundImageBacking::OnMemoryDump(
     if (!backing)
       continue;
 
-    auto element_client_guid = GetSubBackingGUIDForTracing(mailbox(), i + 1);
+    // When CompoundImageBacking wraps a single backing, use the client's global
+    // Mailbox GUID instead of sub-backing GUID. This ensures correct effective
+    // size attribution to the client process where client claims all of the
+    // memory/effective_size(since client usually has higher
+    // TracingImportance(2) than service side (0)).
+    // This does not work well when CompoundImageBacking has multiple gpu
+    // backings. In that case, each child element creates its own sub-backing
+    // GUID and links to it rather than linking to global mailbox GUID. However,
+    // the client only knows about the single Global Mailbox GUID. As a result,
+    // the client claims the Global GUID, but the GPU service claims the memory
+    // for the individual Sub-Backing GUIDs. This leads to over-reporting
+    // (actual effective_size = Client Size + Sum of Sub-Backings instead of
+    // expected effective_size = Sum of Sub-Backings). This is currently a known
+    // architectural limitation that requires further design to unify memory
+    // attribution (e.g., via dynamic IPC updates to the client about total
+    // elements OR by shifting total ownership to the service with higher
+    // importance).
+    auto element_client_guid =
+        elements_.size() == 1 ? client_guid
+                              : GetSubBackingGUIDForTracing(mailbox(), i + 1);
     std::string element_dump_name =
         base::StringPrintf("%s/element_%d", dump_name.c_str(), i);
     backing->OnMemoryDump(element_dump_name, element_client_guid, pmd,
@@ -1522,6 +1562,7 @@ base::trace_event::MemoryAllocatorDump* CompoundImageBacking::OnMemoryDump(
 }
 
 const std::vector<SkPixmap>& CompoundImageBacking::GetSharedMemoryPixmaps() {
+  AutoLock auto_lock(this);
   auto* shm_backing = GetShmElement().GetBacking();
   DCHECK(shm_backing);
 
@@ -1566,6 +1607,7 @@ CompoundImageBacking::GetElementWithLatestContent() {
 SharedImageBacking* CompoundImageBacking::GetOrAllocateBacking(
     SharedImageAccessStream stream,
     const AccessParams& params) {
+  AutoLock auto_lock(this);
   ElementHolder* best_match = nullptr;
   ElementHolder* any_match = nullptr;
 
@@ -1683,7 +1725,6 @@ void CompoundImageBacking::CreateBackingFromBackingFactory(
       estimated_size += element.backing->GetEstimatedSize();
   }
 
-  AutoLock auto_lock(this);
   UpdateEstimatedSize(estimated_size);
 }
 
@@ -1696,6 +1737,7 @@ void CompoundImageBacking::OnAddSecondaryReference() {
   // SharedImage can outlive original factory ref and so potentially
   // SharedimageFactory. We should create all backings now as we might not have
   // access to corresponding SharedImageBackingFactories later.
+  AutoLock auto_lock(this);
   for (auto& element : elements_) {
     element.CreateBackingIfNecessary();
   }

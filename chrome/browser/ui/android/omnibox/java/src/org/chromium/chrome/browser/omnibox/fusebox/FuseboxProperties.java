@@ -61,9 +61,17 @@ class FuseboxProperties {
     public static final WritableBooleanPropertyKey POPUP_ATTACH_CAMERA_ENABLED =
             new WritableBooleanPropertyKey();
 
+    /** Whether the Camera button in the popup is visible. */
+    public static final WritableBooleanPropertyKey POPUP_ATTACH_CAMERA_VISIBLE =
+            new WritableBooleanPropertyKey();
+
     /** Action to perform when the user clicks the Clipboard button in the popup. */
     public static final WritableObjectPropertyKey<Runnable> POPUP_ATTACH_CLIPBOARD_CLICKED =
             new WritableObjectPropertyKey<>();
+
+    /** Whether the Clipboard button in the popup is enabled. */
+    public static final WritableBooleanPropertyKey POPUP_ATTACH_CLIPBOARD_ENABLED =
+            new WritableBooleanPropertyKey();
 
     /** Whether the Clipboard button in the popup is visible. */
     public static final WritableBooleanPropertyKey POPUP_ATTACH_CLIPBOARD_VISIBLE =
@@ -111,6 +119,10 @@ class FuseboxProperties {
     public static final WritableBooleanPropertyKey POPUP_ATTACH_GALLERY_ENABLED =
             new WritableBooleanPropertyKey();
 
+    /** Whether the Gallery button in the popup is visible. */
+    public static final WritableBooleanPropertyKey POPUP_ATTACH_GALLERY_VISIBLE =
+            new WritableBooleanPropertyKey();
+
     /** Action to perform when the user clicks the tab picker button in the popup. */
     public static final WritableObjectPropertyKey<Runnable> POPUP_ATTACH_TAB_PICKER_CLICKED =
             new WritableObjectPropertyKey<>();
@@ -126,6 +138,14 @@ class FuseboxProperties {
     /** Action to perform when the user clicks the AI Mode button in the popup. */
     public static final WritableObjectPropertyKey<Runnable> POPUP_TOOL_AI_MODE_CLICKED =
             new WritableObjectPropertyKey<>();
+
+    /** Whether the AI Mode button in the popup is enabled. */
+    public static final WritableBooleanPropertyKey POPUP_TOOL_AI_MODE_ENABLED =
+            new WritableBooleanPropertyKey();
+
+    /** Whether the AI Mode button in the popup is visible. */
+    public static final WritableBooleanPropertyKey POPUP_TOOL_AI_MODE_VISIBLE =
+            new WritableBooleanPropertyKey();
 
     /** Action to perform when the user clicks the 'Create Image' button in the popup. */
     public static final WritableObjectPropertyKey<Runnable> POPUP_TOOL_CREATE_IMAGE_CLICKED =
@@ -156,7 +176,9 @@ class FuseboxProperties {
         COMPACT_UI,
         POPUP_ATTACH_CAMERA_CLICKED,
         POPUP_ATTACH_CAMERA_ENABLED,
+        POPUP_ATTACH_CAMERA_VISIBLE,
         POPUP_ATTACH_CLIPBOARD_CLICKED,
+        POPUP_ATTACH_CLIPBOARD_ENABLED,
         POPUP_ATTACH_CLIPBOARD_VISIBLE,
         POPUP_ATTACH_CURRENT_TAB_CLICKED,
         POPUP_ATTACH_CURRENT_TAB_ENABLED,
@@ -167,10 +189,13 @@ class FuseboxProperties {
         POPUP_ATTACH_FILE_VISIBLE,
         POPUP_ATTACH_GALLERY_CLICKED,
         POPUP_ATTACH_GALLERY_ENABLED,
+        POPUP_ATTACH_GALLERY_VISIBLE,
         POPUP_ATTACH_TAB_PICKER_CLICKED,
         POPUP_ATTACH_TAB_PICKER_ENABLED,
         POPUP_ATTACH_TAB_PICKER_VISIBLE,
         POPUP_TOOL_AI_MODE_CLICKED,
+        POPUP_TOOL_AI_MODE_ENABLED,
+        POPUP_TOOL_AI_MODE_VISIBLE,
         POPUP_TOOL_CREATE_IMAGE_CLICKED,
         POPUP_TOOL_CREATE_IMAGE_ENABLED,
         POPUP_TOOL_CREATE_IMAGE_VISIBLE,

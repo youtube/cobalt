@@ -241,6 +241,7 @@
 <translation id="3509308970982693815">অনুগ্ৰহ কৰি Chromiumৰ সকলো ৱিণ্ড’ বন্ধ কৰি পুনৰ চেষ্টা কৰক।</translation>
 <translation id="3522404737534491619">আপোনাৰ ৱিণ্ড’ শ্বেয়াৰ কৰিবলৈ, ছিষ্টেমৰ ছেটিঙত Chromiumৰ বাবে স্ক্ৰীন ৰেকৰ্ডিঙৰ অনুমতি দিয়ক</translation>
 <translation id="3530103706039034513"><ph name="EXISTING_USER" /> ইতিমধ্যে ছাইন ইন হৈ আছে।  আপোনাৰ ব্ৰাউজিং পৃথক কৰি ৰাখিবলৈ, আপোনাৰ নিজৰ প্ৰ’ফাইলত <ph name="USER_EMAIL_ADDRESS" /> হিচাপে Chromiumত ছাইন ইন কৰক</translation>
+<translation id="3531741627422851418">ম’বাইল ডিভাইচত Chromium ব্ৰাউজাৰ ডাউনল’ড কৰিবলৈ কিউআৰ ক’ড</translation>
 <translation id="3561853857681580870">আপোনাৰ স্ক্ৰীনখন শ্বেয়াৰ কৰিবলৈ, ছিষ্টেমৰ ছেটিঙত Chromiumৰ বাবে স্ক্ৰীন ৰেকৰ্ডিঙৰ অনুমতি দিয়ক।</translation>
 <translation id="3588112919289558122">Chromiumৰ বাবে অপৰিচিত ছাইটসমূহৰ ক্ষেত্ৰত বৰ্ধিত সুৰক্ষাই JavaScript অপ্টিমাইজেশ্বন অফ কৰে</translation>
 <translation id="3597003331831379823">উচ্চখাপৰ বিশেষাধিকাৰৰ সৈতে ছেটআপ চলাব কৰিব পৰা নগ’ল। <ph name="METAINSTALLER_ERROR" /></translation>
@@ -590,6 +591,9 @@ Chromiumএ আপোনাৰ ছেটিংসমূহ পুনৰুদ্
 <translation id="7384121030444253939">এই এক্সটেনশ্বনটো আৰু সমৰ্থিত নহয়। Chromiumএ তাৰ পৰিৱৰ্তে আপুনি এইটো আঁতৰোৱাটো চুপাৰিছ কৰে।</translation>
 <translation id="7413153308467572558">আপুনি য’ত এৰিছিল তাৰ পৰা অব্যাহত ৰাখক: আপুনি প্ৰতিবাৰে ৰিষ্টাৰ্ট কৰোঁতে Chromiumএ আপোনাৰ টেবসমূহ পুনঃস্থাপন কৰে। এইটো অফ কৰিবলৈ ইয়ালৈ যাওক</translation>
 <translation id="7427879960656355200">Chromiumলৈ পাছৱৰ্ড আমদানি কৰক</translation>
+<translation id="744815265653811511">১) তলৰ <ph name="BUTTON_LABEL" />ত ক্লিক কৰক
+২) আপোনাৰ Windowsৰ ছেটিঙত <ph name="BUTTON_2" />ত ক্লিক কৰক
+৩) দ্ৰুত এক্সেছৰ বাবে Chromiumক আপোনাৰ টাস্কবাৰত পিন কৰিবলৈ Windowsৰ জাননীত <ph name="BUTTON_3" />ত ক্লিক কৰক</translation>
 <translation id="7449453770951226939"><ph name="PAGE_TITLE" /> - Chromium Dev</translation>
 <translation id="7450541714075000668">পাঠৰ প্ৰতিলিপি কৰা হ’ল</translation>
 <translation id="7451052299415159299">এই ছাইটটোৰ বাবে আপোনাৰ কেমেৰালৈ এক্সেছ পাবলৈ Chromiumক অনুমতিৰ আৱশ্যক</translation>
@@ -605,6 +609,7 @@ Chromiumএ আপোনাৰ ছেটিংসমূহ পুনৰুদ্
 <translation id="761356813943268536">Chromiumএ আপোনাৰ কেমেৰা আৰু মাইক্ৰ'ফ'ন ব্যৱহাৰ কৰি আছে।</translation>
 <translation id="7617377681829253106">Chromium অধিক উৎকৃষ্ট হৈছে</translation>
 <translation id="7622753900276619808">Chromiumত এতিয়া আপোনাৰ বাবে অধিক সুবিধা উপলব্ধ</translation>
+<translation id="7624307931717240213">আমি এই সেৱাটো উন্নত কৰিবলৈ তথ্য ব্যৱহাৰ কৰোঁ। গোপনীয়তাৰ নীতি আৰু সেৱাৰ চৰ্তাৱলী চাওক।</translation>
 <translation id="7649070708921625228">সহায়</translation>
 <translation id="7656340475565475526">Chromiumক আপোনাৰ বাবে ব্ৰাউজ কৰিবলৈ দিয়ক</translation>
 <translation id="7658239707568436148">বাতিল কৰক</translation>

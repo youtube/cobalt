@@ -8,6 +8,7 @@
 #import <UIKit/UIKit.h>
 
 #import <memory>
+#import <set>
 
 #import "base/memory/raw_ptr.h"
 #import "base/time/time.h"
@@ -17,7 +18,7 @@
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller_observer.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_tab_helper_observer.h"
-#import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
+#import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/shared/model/browser/browser_user_data.h"
 #import "ios/chrome/browser/tabs/model/tabs_dependency_installer.h"
 #import "ios/public/provider/chrome/browser/bwg/bwg_api.h"
@@ -34,6 +35,7 @@ namespace optimization_guide::proto {
 class PageContext;
 }  // namespace optimization_guide::proto
 
+class ScopedFullscreenDisabler;
 @class BWGLinkOpeningHandler;
 @class GeminiPageStateChangeHandler;
 @class BWGSessionHandler;
@@ -71,8 +73,7 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   // Checks if the FRE needs to be shown and start the Gemini flow
   // accordingly.
   void StartGeminiFlow(UIViewController* base_view_controller,
-                       UIImage* image_attachment,
-                       gemini::EntryPoint entry_point);
+                       GeminiStartupState* startup_state);
 
   // Presents the floaty on a given view controller in a pending state
   // with a partial PageContext.
@@ -81,7 +82,7 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   void PresentFloatyWithPendingContext(
       UIViewController* base_view_controller,
       std::unique_ptr<optimization_guide::proto::PageContext> page_context,
-      gemini::EntryPoint entry_point);
+      GeminiStartupState* startup_state);
 
   // Updates the page context for the floaty.
   // TODO(crbug.com/465535924): Deprecated, new callers should use
@@ -128,15 +129,13 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
 
   // Starts the Gemini session (prepares context and shows overlay).
   void PresentFloaty(UIViewController* base_view_controller,
-                     UIImage* image_attachment,
-                     gemini::EntryPoint entry_point,
+                     GeminiStartupState* startup_state,
                      bool first_run_shown);
 
   // Presents the floaty on a given view controller in a pending state
   // with partial PageContext and optional image attachment.
   void PresentFloatyWithPendingContext(UIViewController* base_view_controller,
-                                       gemini::EntryPoint entry_point,
-                                       UIImage* image_attachment);
+                                       GeminiStartupState* startup_state);
 
   // Presents the floaty on a given view controller with page context,
   // given specific computation state and optional image attachment (can be
@@ -146,8 +145,7 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
       std::unique_ptr<optimization_guide::proto::PageContext>
           page_context_proto,
       ios::provider::GeminiPageContextComputationState computation_state,
-      gemini::EntryPoint entry_point,
-      UIImage* image_attachment = nil);
+      GeminiStartupState* startup_state);
 
   // Fetches the favicon for the page or a default favicon if not available.
   UIImage* FetchPageFavicon();
@@ -155,16 +153,6 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   // Adjusts the configuration around the Gemini page context based on user
   // prefs.
   void ApplyUserPrefsToPageContext(GeminiPageContext* gemini_page_context);
-
-  // Callback for when the page context is ready.
-  void OnPageContextReady(
-      UIViewController* base_view_controller,
-      UIImage* image_attachment,
-      base::TimeTicks start_time,
-      bool first_run_shown,
-      gemini::EntryPoint entry_point,
-      base::expected<std::unique_ptr<optimization_guide::proto::PageContext>,
-                     PageContextWrapperError> response);
 
   // Callback for when the page load takes too long, triggers best effort page
   // context generation.
@@ -215,6 +203,16 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   // the floaty state will be as if a floaty was never shown.
   bool ShouldShowFloatyForSource(gemini::FloatyUpdateSource source);
 
+  // Prepares the floaty to be shown by exiting fullscreen and stopping scroll
+  // animation. Not called every time the floaty is shown since there are
+  // instances where scrolling should be allowed when a floaty is shown.
+  void PrepareFloatyToBeShown();
+
+  // Resets the fullscreen disabler. Needs to be called each time
+  // PrepareFloatyToBeShown() is called or the floaty may permanently disable
+  // fullscreen mode. Called when the floaty is dismissed or collapsed.
+  void ResetFullscreenDisabler();
+
   // Creates a `GeminiPageContext` for the current web state.
   GeminiPageContext* CreateGeminiPageContext(
       ios::provider::GeminiPageContextComputationState computation_state,
@@ -225,6 +223,17 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   void UpdateActiveTabHelperWithPresentedSource(
       gemini::FloatyUpdateSource source,
       bool is_presented);
+
+  // Returns true if the floaty is temporarily hidden.
+  bool IsFloatyTemporarilyHidden() const;
+
+  // Returns true if the floaty is only hidden by the keyboard.
+  bool IsOnlyHiddenByKeyboard() const;
+
+  // Returns true if the source expects the floaty to re-show after hiding it.
+  // New sources must be added to the switch statement depending on if we
+  // expect the source to re-show the floaty after hiding it.
+  bool ShouldSourceReshowFloaty(gemini::FloatyUpdateSource source) const;
 
   // The gateway for bridging internal protocols.
   __strong id<BWGGatewayProtocol> bwg_gateway_ = nullptr;
@@ -262,8 +271,9 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   // Whether the keyboard is currently visible.
   bool is_keyboard_visible_ = false;
 
-  // Whether the floaty is currently hidden due to the keyboard being visible.
-  bool is_hidden_by_keyboard_ = false;
+  // Set of sources currently hiding the floaty. If this set is not empty, the
+  // floaty is considered temporarily hidden.
+  std::set<gemini::FloatyUpdateSource> active_hiding_sources_;
 
   // Called when keyboard state changes.
   void OnKeyboardStateChanged(bool is_visible);
@@ -275,10 +285,6 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
 
   // Whether the floaty is currently invoked.
   bool is_floaty_invoked_ = false;
-
-  // Whether the floaty is temporarily hidden. Used to hide the floaty without
-  // triggering logic related to ending floaty persistence.
-  bool is_floaty_temporarily_hidden_ = false;
 
   // Records when the floaty was last hidden. Prevents the floaty from
   // reappearing too soon, particularly after a
@@ -311,6 +317,15 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
 
   // Timer to force page context generation if page load takes too long.
   base::OneShotTimer page_context_timeout_timer_;
+
+  // Scoped fullscreen disabler.
+  std::unique_ptr<ScopedFullscreenDisabler> fullscreen_disabler_;
+
+  // Timer to reset the fullscreen disabler. Re-enabling fullscreen should be
+  // handled in floaty interaction logic such as the floaty being collapsed or
+  // dismissed. For any reason, if an exit point doesn't re-enable fullscreen,
+  // this timer will reset the fullscreen disabler after a short delay.
+  base::OneShotTimer fullscreen_disabler_timer_;
 
   // Weak pointer factory.
   base::WeakPtrFactory<GeminiBrowserAgent> weak_factory_{this};

@@ -79,7 +79,15 @@ void RemoveObsoleteKioskCryptohomes() {
 }
 
 // Starts kiosk app launch and shows the splash screen.
-void StartKioskSession(KioskAppId app, bool is_auto_launch = false) {
+// `local_state`, `application_locale_storage`, and
+// `browser_policy_connector_ash` must be non-null and must outlive
+// LoginDisplayHostWebUI.
+void StartKioskSession(
+    PrefService* local_state,
+    ApplicationLocaleStorage* application_locale_storage,
+    policy::BrowserPolicyConnectorAsh* browser_policy_connector_ash,
+    KioskAppId app,
+    bool is_auto_launch = false) {
   // Kiosk app launcher starts with login state.
   CHECK_DEREF(session_manager::SessionManager::Get())
       .SetSessionState(session_manager::SessionState::LOGIN_PRIMARY);
@@ -89,7 +97,8 @@ void StartKioskSession(KioskAppId app, bool is_auto_launch = false) {
       ->SetInputMethodLoginDefault(/*is_in_oobe_context=*/false);
 
   // Manages its own lifetime. See ShutdownDisplayHost().
-  auto* display_host = new LoginDisplayHostWebUI();
+  auto* display_host = new LoginDisplayHostWebUI(
+      local_state, application_locale_storage, browser_policy_connector_ash);
   display_host->StartKiosk(app, is_auto_launch);
 
   // Login screen is skipped but 'login-prompt-visible' signal is still needed.
@@ -97,11 +106,19 @@ void StartKioskSession(KioskAppId app, bool is_auto_launch = false) {
   SessionManagerClient::Get()->EmitLoginPromptVisible();
 }
 
-void StartAutoLaunchKioskSession() {
+// `local_state`, `application_locale_storage`, and
+// `browser_policy_connector_ash` must be non-null and must outlive
+// LoginDisplayHostWebUI.
+void StartAutoLaunchKioskSession(
+    PrefService* local_state,
+    ApplicationLocaleStorage* application_locale_storage,
+    policy::BrowserPolicyConnectorAsh* browser_policy_connector_ash) {
   auto app = KioskController::Get().GetAutoLaunchApp();
   CHECK(app.has_value());
 
-  StartKioskSession(app.value().id(), /*is_auto_launch=*/true);
+  StartKioskSession(local_state, application_locale_storage,
+                    browser_policy_connector_ash, app.value().id(),
+                    /*is_auto_launch=*/true);
 }
 
 // Starts the login/oobe screen.
@@ -371,8 +388,10 @@ void InitFeaturesSessionType(const user_manager::User* user) {
 
 ChromeSessionManager::ChromeSessionManager(
     PrefService* local_state,
+    policy::BrowserPolicyConnectorAsh* browser_policy_connector_ash,
     session_manager::SessionManager* session_manager)
     : local_state_(CHECK_DEREF(local_state)),
+      browser_policy_connector_ash_(CHECK_DEREF(browser_policy_connector_ash)),
       session_manager_(CHECK_DEREF(session_manager)),
       oobe_configuration_(std::make_unique<OobeConfiguration>()),
       user_session_initializer_(
@@ -397,15 +416,18 @@ void ChromeSessionManager::OnUserManagerCreated(
 
   // Record the stored session length for enrolled device.
   if (ash::InstallAttributes::Get()->IsEnterpriseManaged()) {
-    enterprise_user_session_metrics::RecordStoredSessionLength();
+    enterprise_user_session_metrics::RecordStoredSessionLength(
+        local_state_.get());
   }
 }
 
 void ChromeSessionManager::Initialize(
+    ApplicationLocaleStorage* application_locale_storage,
     scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory,
     const base::CommandLine& parsed_command_line,
     Profile* profile,
     bool is_running_test) {
+  CHECK(application_locale_storage);
   CHECK(shared_url_loader_factory);
 
   // If a forced powerwash was triggered and no confirmation from the user is
@@ -453,7 +475,8 @@ void ChromeSessionManager::Initialize(
 
   if (ShouldAutoLaunchKioskApp(parsed_command_line, local_state_.get())) {
     VLOG(1) << "Starting Chrome with kiosk auto launch.";
-    StartAutoLaunchKioskSession();
+    StartAutoLaunchKioskSession(&local_state_.get(), application_locale_storage,
+                                &browser_policy_connector_ash_.get());
   } else if (parsed_command_line.HasSwitch(switches::kLoginManager)) {
     oobe_configuration_->CheckConfiguration();
     if (is_running_test && !force_login_screen_in_test) {
@@ -477,7 +500,8 @@ void ChromeSessionManager::Shutdown() {
         session_length_limiter_->GetSessionDuration();
     if (!session_length.is_zero()) {
       enterprise_user_session_metrics::StoreSessionLength(
-          user_manager_->GetActiveUser()->GetType(), session_length);
+          local_state_.get(), user_manager_->GetActiveUser()->GetType(),
+          session_length);
     }
   }
   session_length_limiter_.reset();

@@ -46,6 +46,7 @@ source_set("impl") {
     "//chrome/browser/resources/new_tab_shared:resources_grit",
     "//chrome/browser/search",
     "//chrome/browser/ui/browser_window",
+    "//chrome/browser/ui/side_panel:side_panel_views_dependent",
     "//chrome/browser/ui/views/side_panel",
     "//chrome/browser/ui/webui:webui_util",
     "//chrome/browser/ui/webui/customize_buttons",
@@ -80,6 +81,7 @@ source_set("browser_tests") {
   deps = [
     ":test_support",
     "//chrome/browser/ui/webui:webui_util",
+    "//chrome/browser/ui/webui/top_chrome:test_support",
   ]
 }
 

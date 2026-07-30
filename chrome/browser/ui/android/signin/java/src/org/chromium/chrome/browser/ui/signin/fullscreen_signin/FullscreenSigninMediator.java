@@ -7,7 +7,6 @@ package org.chromium.chrome.browser.ui.signin.fullscreen_signin;
 import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
 
-import android.accounts.Account;
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.content.Context;
@@ -30,6 +29,7 @@ import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.privacy.settings.PrivacyPreferencesManager;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileProvider;
+import org.chromium.chrome.browser.signin.services.BadgeConfig;
 import org.chromium.chrome.browser.signin.services.DisplayableProfileData;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.browser.signin.services.ProfileDataCache;
@@ -204,10 +204,6 @@ public class FullscreenSigninMediator
     void reset() {
         mModel.set(FullscreenSigninProperties.SHOW_SIGNIN_PROGRESS_SPINNER_WITH_TEXT, false);
         mModel.set(FullscreenSigninProperties.SHOW_SIGNIN_PROGRESS_SPINNER, false);
-    }
-
-    private Account getSelectedAccount() {
-        return CoreAccountInfo.getAndroidAccountFrom(assertNonNull(mSelectedAccount));
     }
 
     private void onNativeLoaded() {
@@ -439,7 +435,7 @@ public class FullscreenSigninMediator
         }
 
         if (DeviceInfo.isAutomotive()) {
-            mDelegate.displayDeviceLockPage(getSelectedAccount());
+            mDelegate.displayDeviceLockPage(mSelectedAccount.getId());
             return;
         }
         proceedWithSignIn();
@@ -747,8 +743,9 @@ public class FullscreenSigninMediator
         // Selected account data will be updated in {@link #onProfileDataUpdated}
         mProfileDataCache.setBadge(
                 isChild
-                        ? ProfileDataCache.createDefaultSizeChildAccountBadgeConfig(
-                                mContext, R.drawable.ic_account_child_20dp)
+                        ? BadgeConfig.create(R.drawable.ic_account_child_20dp)
+                                .withDefaultSizeChildAccountConfig()
+                                .build(mContext)
                         : null);
     }
 

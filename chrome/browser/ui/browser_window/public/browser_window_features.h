@@ -12,17 +12,14 @@
 #include "extensions/buildflags/buildflags.h"
 #include "ui/base/unowned_user_data/user_data_factory.h"
 
-#if BUILDFLAG(ENABLE_GLIC)
 namespace glic {
 class GlicButtonController;
 class GlicIphController;
-class GlicLegacySidePanelCoordinator;
 }  // namespace glic
 
 namespace tabs {
 class GlicActorNudgeController;
 }  // namespace tabs
-#endif
 
 class ActorUiWindowController;
 class ContextHighlightWindowFeature;
@@ -50,6 +47,7 @@ class LocationBar;
 class CommentsSidePanelCoordinator;
 class ContentsBorderController;
 class ContextualTasksEphemeralButtonController;
+class ContextualTasksCloseButtonController;
 class CookieControlsBubbleCoordinator;
 class DataSharingBubbleController;
 class DesktopBrowserWindowCapabilities;
@@ -293,15 +291,9 @@ class BrowserWindowFeatures {
     return extension_installed_watcher_.get();
   }
 
-#if BUILDFLAG(ENABLE_GLIC)
-  glic::GlicLegacySidePanelCoordinator* glic_side_panel_coordinator() {
-    return glic_side_panel_coordinator_.get();
-  }
-
   glic::GlicIphController* glic_iph_controller() {
     return glic_iph_controller_.get();
   }
-#endif
 
   PinnedToolbarActionsController* pinned_toolbar_actions_controller() {
     return pinned_toolbar_actions_controller_.get();
@@ -672,17 +664,16 @@ class BrowserWindowFeatures {
   std::unique_ptr<ContextualTasksEphemeralButtonController>
       contextual_tasks_ephemeral_button_controller_;
 
+  std::unique_ptr<ContextualTasksCloseButtonController>
+      contextual_tasks_close_button_controller_;
+
   std::unique_ptr<tabs::GlicNudgeController> glic_nudge_controller_;
 
-#if BUILDFLAG(ENABLE_GLIC)
   std::unique_ptr<tabs::GlicActorNudgeController> glic_actor_nudge_controller_;
   std::unique_ptr<ActorTaskListBubbleController>
       actor_task_list_bubble_controller_;
   std::unique_ptr<glic::GlicButtonController> glic_button_controller_;
   std::unique_ptr<glic::GlicIphController> glic_iph_controller_;
-  std::unique_ptr<glic::GlicLegacySidePanelCoordinator>
-      glic_side_panel_coordinator_;
-#endif
 
   std::unique_ptr<contextual_tasks::ActiveTaskContextProvider>
       contextual_tasks_active_task_context_provider_;

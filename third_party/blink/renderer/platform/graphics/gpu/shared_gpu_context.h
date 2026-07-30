@@ -58,10 +58,31 @@ class PLATFORM_EXPORT SharedGpuContext {
   // This method performs context-specific check that's not available when
   // RuntimeEnabledFeatures is set.
 #if BUILDFLAG(IS_ANDROID)
-  static bool MaySupportImageChromium();
+  static bool MaySupportWebGLImageChromium();
 #else
-  static bool MaySupportImageChromium() { return true; }
+  static bool MaySupportWebGLImageChromium() { return true; }
 #endif
+
+  // Whether native mappable SharedImages are supported for Canvas2D.
+  static bool NativeMappableSharedImagesSupportedForCanvas2D();
+
+  // Forces NativeMappableSharedImagesSupportedForCanvas2D() to return the
+  // passed-in value. Cleared on the next invocation of Reset() of the global
+  // context.
+  static void SetNativeMappableSharedImagesSupportedForCanvas2DForTesting(
+      bool enable);
+
+  // Whether SharedImages used for canvas2D content may be placed into overlays.
+  static bool OverlaysSupportedForCanvas2D();
+
+  // Whether SharedImages used for canvas2D content may be given usage optimized
+  // for low-latency (SCANOUT and CONCURRENT_READ_WRITE).
+  static bool LowLatencyUsageSupportedForCanvas2D();
+
+  // Forces LowLatencyUsageSupportedForCanvas2D() to return the
+  // passed-in value. Cleared on the next invocation of Reset() of the global
+  // context.
+  static void SetLowLatencyUsageSupportedForCanvas2DForTesting(bool enable);
 
   using ContextProviderFactory =
       base::RepeatingCallback<std::unique_ptr<WebGraphicsContext3DProvider>()>;

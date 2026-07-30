@@ -12,6 +12,7 @@
 
 #include "ash/app_list/app_list_model_provider.h"
 #include "ash/app_list/model/app_list_item.h"
+#include "ash/constants/ash_pref_names.h"
 #include "ash/constants/ash_switches.h"
 #include "ash/public/cpp/app_list/app_list_types.h"
 #include "ash/public/cpp/app_menu_constants.h"
@@ -46,9 +47,7 @@
 #include "chrome/browser/ui/ash/shelf/chrome_shelf_controller.h"
 #include "chrome/browser/ui/ash/shelf/chrome_shelf_controller_util.h"
 #include "chrome/browser/ui/ash/shelf/shelf_controller_helper.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/grit/generated_resources.h"
-#include "chromeos/ash/experiences/arc/arc_features.h"
 #include "chromeos/ash/experiences/arc/mojom/app.mojom.h"
 #include "chromeos/ash/experiences/arc/session/connection_holder.h"
 #include "chromeos/ash/experiences/arc/test/arc_util_test_support.h"
@@ -86,11 +85,6 @@ class AppServicePromiseAppItemBrowserTest
     : public extensions::PlatformAppBrowserTest,
       public PromiseAppRegistryCache::Observer {
  public:
-  AppServicePromiseAppItemBrowserTest() {
-    scoped_feature_list_.InitWithFeatures({arc::kSyncInstallPriority}, {});
-  }
-  ~AppServicePromiseAppItemBrowserTest() override = default;
-
   // extensions::PlatformAppBrowserTest:
   void SetUpCommandLine(base::CommandLine* command_line) override {
     arc::SetArcAvailableCommandLineForTesting(command_line);
@@ -256,7 +250,6 @@ class AppServicePromiseAppItemBrowserTest
                           PromiseAppRegistryCache::Observer>
       obs_{this};
 
-  base::test::ScopedFeatureList scoped_feature_list_;
   std::unique_ptr<base::RunLoop> wait_run_loop_;
   net::EmbeddedTestServer https_server_;
 
@@ -301,7 +294,7 @@ IN_PROC_BROWSER_TEST_F(AppServicePromiseAppItemBrowserTest,
 
   // Verify that the promise app item is not added to local storage.
   const base::DictValue& local_items =
-      profile()->GetPrefs()->GetDict(prefs::kAppListLocalState);
+      profile()->GetPrefs()->GetDict(ash::prefs::kAppListLocalState);
   const base::DictValue* dict_item =
       local_items.FindDict(kTestPackageId.ToString());
   EXPECT_FALSE(dict_item);

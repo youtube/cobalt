@@ -31,12 +31,18 @@ class FakeCaptureStream : public CaptureStream {
                int pipewire_fd),
               (override));
   MOCK_METHOD(void, StartVideoCapture, (), (override));
+  MOCK_METHOD(void, StopVideoCapture, (), (override));
   MOCK_METHOD(void,
               SetCallback,
               (base::WeakPtr<webrtc::DesktopCapturer::Callback> callback),
               (override));
   MOCK_METHOD(void, SetUseDamageRegion, (bool use_damage_region), (override));
   MOCK_METHOD(void, SetMaxFrameRate, (std::uint32_t frame_rate), (override));
+  MOCK_METHOD(
+      void,
+      SetSharedMemoryFactory,
+      (std::unique_ptr<webrtc::SharedMemoryFactory> shared_memory_factory),
+      (override));
   MOCK_METHOD(std::unique_ptr<webrtc::MouseCursor>,
               CaptureCursor,
               (),

@@ -9,9 +9,16 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/scoped_observation.h"
+#include "components/contextual_tasks/public/contextual_task.h"
+#include "components/contextual_tasks/public/contextual_tasks_service.h"
 #include "components/saved_tab_groups/public/tab_group_sync_service.h"
+
+namespace contextual_tasks {
+class ContextualTasksUiService;
+}
 
 namespace tab_groups {
 class SavedTabGroup;
@@ -21,7 +28,9 @@ class BrowserWindowInterface;
 
 // Controller for the projects panel view. Handles fetching, resuming, and
 // activating tab groups and recent chat threads.
-class ProjectsPanelController : tab_groups::TabGroupSyncService::Observer {
+class ProjectsPanelController
+    : tab_groups::TabGroupSyncService::Observer,
+      contextual_tasks::ContextualTasksService::Observer {
  public:
   class Observer : public base::CheckedObserver {
    public:
@@ -34,10 +43,15 @@ class ProjectsPanelController : tab_groups::TabGroupSyncService::Observer {
                                    int old_index) = 0;
     virtual void OnTabGroupsReordered(
         const std::vector<tab_groups::SavedTabGroup>& tab_groups) = 0;
+    virtual void OnThreadsInitialized(
+        const std::vector<contextual_tasks::Thread>& threads) = 0;
   };
 
-  explicit ProjectsPanelController(
-      tab_groups::TabGroupSyncService* tab_group_sync_service);
+  ProjectsPanelController(
+      BrowserWindowInterface* browser,
+      tab_groups::TabGroupSyncService* tab_group_sync_service,
+      contextual_tasks::ContextualTasksService* contextual_tasks_service,
+      contextual_tasks::ContextualTasksUiService* contextual_tasks_ui_service);
   ProjectsPanelController(const ProjectsPanelController&) = delete;
   ProjectsPanelController& operator=(const ProjectsPanelController&) = delete;
   ~ProjectsPanelController() override;
@@ -46,11 +60,16 @@ class ProjectsPanelController : tab_groups::TabGroupSyncService::Observer {
   const std::vector<tab_groups::SavedTabGroup>& GetTabGroups();
 
   // Opens the tab group.
-  void OpenTabGroup(const base::Uuid& group_guid,
-                    BrowserWindowInterface* browser);
+  void OpenTabGroup(const base::Uuid& group_guid);
 
   // Moves the tab group to the new index.
   void MoveTabGroup(const base::Uuid& group_guid, int new_index);
+
+  // Returns all threads.
+  const std::vector<contextual_tasks::Thread>& GetThreads();
+
+  // Opens the thread.
+  void OpenThread(const std::string& thread_server_id);
 
   // Add and remove observers.
   void AddObserver(Observer* observer);
@@ -69,16 +88,35 @@ class ProjectsPanelController : tab_groups::TabGroupSyncService::Observer {
       const std::optional<tab_groups::LocalTabGroupID>& local_id) override;
   void OnTabGroupsReordered(tab_groups::TriggerSource source) override;
 
- private:
-  void SortTabGroups();
+  // ContextualTasksService::Observer
+  void OnContextualTasksServiceInitialized() override;
 
+ private:
+  void OnGotThreadUrlForResumption(GURL thread_url);
+
+  const raw_ptr<BrowserWindowInterface> browser_;
   const raw_ptr<tab_groups::TabGroupSyncService> tab_group_sync_service_;
+  const raw_ptr<contextual_tasks::ContextualTasksService>
+      contextual_tasks_service_;
+  const raw_ptr<contextual_tasks::ContextualTasksUiService>
+      contextual_tasks_ui_service_;
   std::vector<tab_groups::SavedTabGroup> tab_groups_;
+  std::vector<contextual_tasks::Thread> threads_;
+
+  // Maps thread server IDs to task UUIDs for resumption.
+  // TODO(crbug.com/489106220): Consider moving this mapping within
+  // ContextualTasksService or having a custom type with the thread and task ID
+  // for the view.
+  std::map<const std::string, const base::Uuid> thread_server_id_to_task_id_;
 
   base::ObserverList<Observer> observers_;
   base::ScopedObservation<tab_groups::TabGroupSyncService,
                           tab_groups::TabGroupSyncService::Observer>
       tab_group_sync_service_observer_{this};
+  base::ScopedObservation<contextual_tasks::ContextualTasksService,
+                          contextual_tasks::ContextualTasksService::Observer>
+      contextual_tasks_service_observer_{this};
+  base::WeakPtrFactory<ProjectsPanelController> weak_ptr_factory_{this};
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_TABS_PROJECTS_PROJECTS_PANEL_CONTROLLER_H_

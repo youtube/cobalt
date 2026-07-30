@@ -7,8 +7,10 @@
 
 #include <memory>
 #include <optional>
+#include <string_view>
 
 #include "base/memory/raw_ref.h"
+#include "base/values.h"
 #include "net/base/address_list.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/load_states.h"
@@ -34,22 +36,29 @@ class StreamSocket;
 // TryResumeIfWaiting() invoked. This allows for a simpler API from the
 // standpoint of the parent TcpConnectJob class, with sync and async host
 // resolutions needing to call the exact same connector method.
+//
+// `name` is a string identifying the connector, and is used for logging. It
+// must point at a statically allocated memory, as the Connector will not create
+// a copy of its value, but will use it in all logged events.
 class TcpConnectJob::Connector {
  public:
-  explicit Connector(TcpConnectJob* parent);
+  Connector(TcpConnectJob* parent, std::string_view name);
 
   Connector(const Connector&) = delete;
   Connector& operator=(const Connector&) = delete;
 
   ~Connector();
 
-  // Called when there may be ServiceEndpoint data available for the connector
-  // to advance. If `next_state_` is one of the two waiting state, updates
-  // `next_state_` and runs DoLoop(). Otherwise, returns ERR_IO_PENDING, since
-  // busy with something else. Must not be called if already done. On error,
-  // may return ERR_NAME_NOT_RESOLVED, if all IPs have been exhausted, rather
-  // than the error from the most recent connection attempt.
-  int OnEndpointDataAvailable();
+  // If `next_state_` is one of the two waiting states, updates `next_state_`
+  // and runs DoLoop() to attempt to pull needed data from parent class's host
+  // resolution. Returns ERR_IO_PENDING or final net::Error code. If not in a
+  // waiting state, always returns ERR_IO_PENDING. Must not be called if already
+  // done. On error, may return ERR_NAME_NOT_RESOLVED, if all IPs have been
+  // exhausted, rather than the error from the most recent connection attempt.
+  //
+  // Needs to be called by the parent job whenever the host resolution may have
+  // data available the Connector hasn't observed yet.
+  int TryAdvanceState();
 
   LoadState GetLoadState() const;
 
@@ -57,11 +66,30 @@ class TcpConnectJob::Connector {
   // completed successfully.
   std::unique_ptr<StreamSocket> PassSocket();
 
-  // Returns the current address. May only be called by the parent TcpConnectJob
-  // once the connector has successfully completed.
-  const IPEndPoint& CurrentAddress() const;
+  // Returns the ServiceEndpoint that was ultimately used. May only be called
+  // once the Connector has completed successfully, and may only be called once,
+  // since it moves out the cached value.
+  ServiceEndpoint PassFinalServiceEndpoint();
+
+  bool is_waiting_for_endpoint() const {
+    return next_state_ == State::kWaitForIPEndPoint;
+  }
+
+  // True if the job is waiting on DNS data before it can advance - either
+  // waiting for more IPs, or waiting on crypto ready.
+  bool is_waiting_on_dns() const {
+    return next_state_ == State::kWaitForIPEndPoint ||
+           next_state_ == State::kWaitForCryptoReady;
+  }
 
   bool is_done() const { return next_state_ == State::kDone; }
+
+  // Whether `this` is currently connecting to an IPv6 IP, or is connected to
+  // one and waiting for DNS to make progress.
+  bool is_connecting_to_ipv6() const {
+    return current_address_ &&
+           current_address_->GetFamily() == ADDRESS_FAMILY_IPV6;
+  }
 
  private:
   // Note that while in either of the "Wait" states, this is waiting on more
@@ -106,13 +134,23 @@ class TcpConnectJob::Connector {
   // sets state to complete. Must not be passed OK or ERR_IO_PENDING.
   int OnEndpointFailed(int error);
 
+  // Updates state_ to kDone and adds TCP_CONNECT_JOB_CONNECTOR_DONE event to
+  // the NetLog. Doesn't perform any other action.
+  void OnDone(int result);
+
+  // Creates a dictionary for use with NetLog containing `name_`.
+  base::DictValue NetLogDict() const;
+
   const raw_ref<TcpConnectJob> parent_;
+
+  const std::string_view name_;
 
   std::optional<IPEndPoint> current_address_;
 
   State next_state_ = State::kWaitForIPEndPoint;
 
   std::unique_ptr<StreamSocket> transport_socket_;
+  std::optional<ServiceEndpoint> final_service_endpoint_;
 };
 
 }  // namespace net

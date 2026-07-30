@@ -8,6 +8,7 @@
 #include "base/base64.h"
 #include "base/check_deref.h"
 #include "base/functional/bind.h"
+#include "base/memory/memory_pressure_listener_registry.h"
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
 #include "base/strings/string_split.h"
@@ -101,7 +102,6 @@
 #include "components/guest_view/browser/test_guest_view_manager.h"
 #include "components/keep_alive_registry/keep_alive_types.h"
 #include "components/keep_alive_registry/scoped_keep_alive.h"
-#include "components/memory_pressure/fake_memory_pressure_monitor.h"
 #include "content/public/browser/devtools_agent_host_client.h"
 #include "content/public/test/browser_test_utils.h"
 #endif  // !BUILDFLAG(IS_ANDROID)
@@ -189,9 +189,14 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
   base::DictValue params;
   params.Set("url", chrome::kChromeUINewTabURL);
   params.Set("browserContextId", context_id);
-  content::WebContentsAddedObserver observer;
-  SendCommandSync("Target.createTarget", std::move(params));
-  content::WebContents* wc = observer.GetWebContents();
+  const base::DictValue* create_target_result =
+      SendCommandSync("Target.createTarget", std::move(params));
+  std::string target_id = *create_target_result->FindString("targetId");
+  scoped_refptr<content::DevToolsAgentHost> agent_host =
+      content::DevToolsAgentHost::GetForId(target_id);
+  ASSERT_TRUE(agent_host);
+  content::WebContents* wc = agent_host->GetWebContents();
+  ASSERT_TRUE(wc);
   ASSERT_TRUE(content::WaitForLoadStop(wc));
   EXPECT_EQ(chrome::kChromeUINewTabURL, wc->GetLastCommittedURL().spec());
 
@@ -224,14 +229,17 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest,
       SendCommandSync("Target.createBrowserContext", std::move(params));
   std::string context_id = *result->FindString("browserContextId");
 
-  content::WebContentsAddedObserver observer;
-
   params = base::DictValue();
   params.Set("url", "http://this-page-does-not-exist.com/site.html");
   params.Set("browserContextId", context_id);
   result = SendCommandSync("Target.createTarget", std::move(params));
+  std::string target_id = *result->FindString("targetId");
 
-  content::WebContents* wc = observer.GetWebContents();
+  scoped_refptr<content::DevToolsAgentHost> agent_host =
+      content::DevToolsAgentHost::GetForId(target_id);
+  ASSERT_TRUE(agent_host);
+  content::WebContents* wc = agent_host->GetWebContents();
+  ASSERT_TRUE(wc);
   ASSERT_TRUE(content::WaitForLoadStop(wc));
 
   EXPECT_EQ(GURL("http://this-page-does-not-exist.com/site.html"),
@@ -424,17 +432,8 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, MAYBE_AutoAttachToUnloadedTab) {
 
   Browser* new_browser = chrome::FindBrowserWithTab(tab_waiter.Wait());
 
-  memory_pressure::test::FakeMemoryPressureMonitor fake_memory_pressure_monitor;
-  fake_memory_pressure_monitor.SetAndNotifyMemoryPressure(
+  base::MemoryPressureListenerRegistry::SimulatePressureNotification(
       base::MEMORY_PRESSURE_LEVEL_CRITICAL);
-  // Wait for async memory notifications to be delivered to Performance
-  // Manager on the main thread.
-  // TODO(crbug.com/436324601): Remove once memory pressure notifications
-  // are synchronous.
-  base::RunLoop run_loop;
-  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, run_loop.QuitClosure());
-  run_loop.Run();
 
   keep_alive.reset();
   profile_keep_alive.reset();
@@ -468,9 +467,14 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, MAYBE_AutoAttachToUnloadedTab) {
   set_auto_attach_params.Set("filter", std::move(filter));
   SendCommandSync("Target.setAutoAttach", std::move(set_auto_attach_params));
 
+  auto is_tab_target = [](const base::DictValue& params) {
+    const std::string* type = params.FindStringByDottedPath("targetInfo.type");
+    return type && *type == "tab";
+  };
+
   // Verify that two attachedToTarget tab target events are received.
-  const base::DictValue& attached_tab1_notif =
-      WaitForNotification("Target.attachedToTarget", true);
+  base::DictValue attached_tab1_notif = WaitForMatchingNotification(
+      "Target.attachedToTarget", base::BindRepeating(is_tab_target));
   const std::string& session_id1 =
       *attached_tab1_notif.FindStringByDottedPath("sessionId");
   ASSERT_EQ("tab",
@@ -484,8 +488,8 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, MAYBE_AutoAttachToUnloadedTab) {
                      set_auto_attach_params_for_tab.Clone(), session_id1,
                      false);
 
-  const base::DictValue& attached_tab2_notif =
-      WaitForNotification("Target.attachedToTarget", true);
+  base::DictValue attached_tab2_notif = WaitForMatchingNotification(
+      "Target.attachedToTarget", base::BindRepeating(is_tab_target));
   const std::string& session_id2 =
       *attached_tab2_notif.FindStringByDottedPath("sessionId");
   ASSERT_EQ("tab",
@@ -495,11 +499,16 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, MAYBE_AutoAttachToUnloadedTab) {
                      std::move(set_auto_attach_params_for_tab), session_id2,
                      false);
 
+  auto is_page_target = [](const base::DictValue& params) {
+    const std::string* type = params.FindStringByDottedPath("targetInfo.type");
+    return type && *type == "page";
+  };
+
   // Verify two attachedToTarget events for page targets are received.
-  base::DictValue attached_page1_notif =
-      WaitForNotification("Target.attachedToTarget", true);
-  base::DictValue attached_page2_notif =
-      WaitForNotification("Target.attachedToTarget", true);
+  base::DictValue attached_page1_notif = WaitForMatchingNotification(
+      "Target.attachedToTarget", base::BindRepeating(is_page_target));
+  base::DictValue attached_page2_notif = WaitForMatchingNotification(
+      "Target.attachedToTarget", base::BindRepeating(is_page_target));
 
   // The notifications can arrive in any order. The active tab is eagerly
   // loaded, so it should have a URL. The background tab may not.

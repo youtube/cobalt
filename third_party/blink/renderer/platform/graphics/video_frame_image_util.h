@@ -48,10 +48,10 @@ ImageOrientationToVideoTransformation(ImageOrientationEnum orientation);
 // `snapshot_provider` is given to CreateImageFromVideoFrame().
 PLATFORM_EXPORT bool WillCreateAcceleratedImagesFromVideoFrame();
 
-// Returns a StaticBitmapImage for the given frame. Accelerated images will be
-// preferred if possible. `snapshot_provider` must be non-null and should have a
-// size equal to frame->natural_size() and color space equal to
-// frame->CompatRGBColorSpace().
+// Returns a StaticBitmapImage for the given frame that is either accelerated or
+// unaccelerated via exactly one of `snapshot_provider` and `sw_draw_info` being
+// valid. If non-null, `snapshot_provider` should have a size equal to
+// frame->natural_size() and color space equal to frame->CompatRGBColorSpace().
 //
 // `video_renderer` may optionally be provided in cases where the same frame may
 // end up repeatedly converted.
@@ -63,27 +63,19 @@ PLATFORM_EXPORT bool WillCreateAcceleratedImagesFromVideoFrame();
 // If `reinterpret_video_as_srgb` true, then the video will be reinterpreted as
 // being originally having been in sRGB.
 //
+// The client may optionally provide a cached SkSurface for the software draw to
+// occur into; if not provided, the software draw will create a new SkSurface to
+// draw into.
+//
 // Returns nullptr if a StaticBitmapImage can't be created.
-PLATFORM_EXPORT scoped_refptr<StaticBitmapImage> CreateImageFromVideoFrame(
-    scoped_refptr<media::VideoFrame> frame,
-    CanvasSnapshotProvider* snapshot_provider,
-    media::PaintCanvasVideoRenderer* video_renderer = nullptr,
-    bool prefer_tagged_orientation = true,
-    bool reinterpret_video_as_srgb = false);
-
-// Variant of the above that explicitly separates whether an accelerated draw or
-// software draw is being requested via exactly one of `snapshot_provider` and
-// `sw_draw_info` being valid. The client may optionally provide a cached
-// SkSurface for the software draw to occur into; if not provided, the software
-// draw will create a new SkSurface to draw into.
 PLATFORM_EXPORT scoped_refptr<StaticBitmapImage> CreateImageFromVideoFrame(
     scoped_refptr<media::VideoFrame> frame,
     CanvasNon2DResourceProviderSharedImage* snapshot_provider,
     std::optional<CanvasSnapshotProvider::Info> sw_draw_info,
     sk_sp<SkSurface> cached_sw_draw_surface,
-    media::PaintCanvasVideoRenderer* video_renderer,
-    bool prefer_tagged_orientation,
-    bool reinterpret_video_as_srgb);
+    media::PaintCanvasVideoRenderer* video_renderer = nullptr,
+    bool prefer_tagged_orientation = true,
+    bool reinterpret_video_as_srgb = false);
 
 PLATFORM_EXPORT bool ShouldCreateAcceleratedImages(
     viz::RasterContextProvider* raster_context_provider);
@@ -114,15 +106,6 @@ CreateSnapshotProviderInfoForVideoFrame(
     const media::VideoFrame& frame,
     std::optional<gfx::Size> scaled_size = std::nullopt,
     bool reinterpret_video_as_srgb = false);
-
-// Creates a CanvasSnapshotProvider which is appropriate for drawing VideoFrame
-// objects into. Some callers to CreateImageFromVideoFrame() may choose to cache
-// their snapshot providers. If `raster_context_provider` is null a software
-// snapshot provider will be returned.
-PLATFORM_EXPORT std::unique_ptr<CanvasSnapshotProvider>
-CreateSnapshotProviderForVideo(
-    const CanvasSnapshotProvider::Info& info,
-    viz::RasterContextProvider* raster_context_provider = nullptr);
 
 }  // namespace blink
 

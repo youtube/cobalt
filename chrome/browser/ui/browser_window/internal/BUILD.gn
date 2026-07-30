@@ -9,6 +9,7 @@ source_set("internal") {
     "browser_collection.cc",
     "create_browser_window.cc",
     "global_browser_collection.cc",
+    "profile_browser_collection.cc",
   ]
   deps = [
     "//base",
@@ -30,7 +31,6 @@ source_set("internal") {
       "android/browser_window_interface_iterator_android.cc",
       "android/create_browser_window_android.cc",
       "android/global_browser_collection_platform_delegate_android.cc",
-      "android/profile_browser_collection_android.cc",
     ]
     deps += [
       ":jni",
@@ -50,7 +50,6 @@ source_set("internal") {
       "desktop_browser_window_capabilities.cc",
       "embedder_browser_window_features.cc",
       "global_browser_collection_platform_delegate_non_android.cc",
-      "profile_browser_collection_non_android.cc",
     ]
     public_deps = [ "//chrome/browser:browser_public_dependencies" ]
 
@@ -59,8 +58,10 @@ source_set("internal") {
       "//chrome/browser/actor/ui",
       "//chrome/browser/actor/ui/task_list_bubble:controller",
       "//chrome/browser/autocomplete:aim_eligibility_service",
+      "//chrome/browser/collaboration",
       "//chrome/browser/contextual_tasks:ui",
       "//chrome/browser/devtools",
+      "//chrome/browser/glic",
       "//chrome/browser/lens/region_search",
       "//chrome/browser/media/router:media_router_feature",
       "//chrome/browser/prefs",
@@ -73,12 +74,12 @@ source_set("internal") {
       "//chrome/browser/ui/commerce",
       "//chrome/browser/ui/context_highlight",
       "//chrome/browser/ui/contextual_search",
+      "//chrome/browser/ui/desktop_to_mobile_promos:controller",
       "//chrome/browser/ui/exclusive_access",
       "//chrome/browser/ui/extensions",
       "//chrome/browser/ui/find_bar",
       "//chrome/browser/ui/lens",
       "//chrome/browser/ui/performance_controls",
-      "//chrome/browser/ui/promos:controller",
       "//chrome/browser/ui/signin",
       "//chrome/browser/ui/sync",
       "//chrome/browser/ui/tabs",
@@ -137,10 +138,6 @@ source_set("internal") {
         "//chrome/browser/ash/boca/on_task",
         "//components/session_manager/core",
       ]
-    }
-
-    if (enable_glic) {
-      deps += [ "//chrome/browser/glic" ]
     }
 
     if (use_aura) {

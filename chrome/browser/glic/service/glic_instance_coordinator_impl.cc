@@ -36,7 +36,6 @@
 #include "chrome/common/chrome_features.h"
 #include "components/prefs/pref_service.h"
 #include "components/tabs/public/tab_interface.h"
-#include "components/web_modal/web_contents_modal_dialog_manager.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
@@ -326,7 +325,10 @@ void GlicInstanceCoordinatorImpl::Invoke(tabs::TabInterface* tab,
   }
 
   if (invoke_handlers_.contains(instance)) {
-    // TODO(crbug.com/483387751): Don't just fail silently here.
+    if (options.on_error) {
+      std::move(options.on_error).Run(GlicInvokeError::kInvokeInProgress);
+    }
+    // TODO(crbug.com/483387751): Show default toast here once implemented.
     return;
   }
 
@@ -334,7 +336,7 @@ void GlicInstanceCoordinatorImpl::Invoke(tabs::TabInterface* tab,
       *tab, GlicPinTrigger::kInstanceCreation, options.invocation_source));
 
   invoke_handlers_[instance] = std::make_unique<GlicInvokeHandler>(
-      *instance, std::move(options),
+      *instance, tab, std::move(options),
       base::BindOnce(&GlicInstanceCoordinatorImpl::OnInvokeHandlerComplete,
                      base::Unretained(this)));
   invoke_handlers_[instance]->Invoke();

@@ -517,7 +517,7 @@ void ActorFormFillingServiceImpl::GetSuggestions(
 
   std::vector<ActorFormFillingRequest> requests;
   requests.reserve(fill_requests.size());
-  for (const auto& [requested_data, representative_fields] : fill_requests) {
+  for (const auto& [requested_data, trigger_fields] : fill_requests) {
     using enum ActorFormFillingRequest::RequestedData;
 
     // A single FillRequest can result in multiple ActorFormFillingRequests
@@ -544,7 +544,7 @@ void ActorFormFillingServiceImpl::GetSuggestions(
           return;
         }
 
-        if (actor::ShouldSplitOutContactInfo(representative_fields,
+        if (actor::ShouldSplitOutContactInfo(trigger_fields,
                                              autofill_manager, log_manager)) {
           sub_requests.push_back(
               {FormFillingRequest_RequestedData_CONTACT_INFORMATION,
@@ -585,6 +585,8 @@ void ActorFormFillingServiceImpl::GetSuggestions(
         return;
       }
     }
+    url::Origin origin =
+        tab.GetContents()->GetPrimaryMainFrame()->GetLastCommittedOrigin();
 
     for (const SubRequest& sub_request : sub_requests) {
       std::vector<ActorSuggestionWithFillData> suggestion_data;
@@ -596,12 +598,12 @@ void ActorFormFillingServiceImpl::GetSuggestions(
         case FormFillingRequest_RequestedData_WORK_ADDRESS:
         case FormFillingRequest_RequestedData_CONTACT_INFORMATION:
           suggestion_data =
-              GetAddressSuggestions(representative_fields, autofill_manager,
+              GetAddressSuggestions(trigger_fields, autofill_manager,
                                     log_manager, sub_request.split_part);
           break;
         case FormFillingRequest_RequestedData_CREDIT_CARD:
           suggestion_data = GetCreditCardSuggestions(
-              representative_fields, autofill_manager, log_manager);
+              trigger_fields, autofill_manager, log_manager);
           break;
         default:
           LOG_AF(log_manager)
@@ -621,6 +623,7 @@ void ActorFormFillingServiceImpl::GetSuggestions(
 
       requests.emplace_back();
       requests.back().requested_data = sub_request.requested_data;
+      requests.back().request_origin = origin;
       requests.back().suggestions.reserve(suggestion_data.size());
       for (ActorSuggestionWithFillData& entry : suggestion_data) {
         entry.suggestion.id =
@@ -750,8 +753,14 @@ void ActorFormFillingServiceImpl::PreviewForm(const tabs::TabInterface& tab,
 void ActorFormFillingServiceImpl::ClearFormPreview(
     const tabs::TabInterface& tab,
     int form_index) {
-  // TODO(crbug.com/481381308): Implement clearing a previewed form.
-  NOTIMPLEMENTED();
+  base::expected<std::reference_wrapper<BrowserAutofillManager>,
+                 ActorFormFillingError>
+      maybe_manager = GetAutofillManager(tab);
+  if (!maybe_manager.has_value()) {
+    return;
+  }
+  AutofillManager& autofill_manager = maybe_manager.value();
+  autofill_manager.driver().RendererShouldClearPreviewedForm();
 }
 
 void ActorFormFillingServiceImpl::FillForm(

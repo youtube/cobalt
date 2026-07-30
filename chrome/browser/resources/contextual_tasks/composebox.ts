@@ -85,6 +85,10 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
         type: Boolean,
         reflect: true,
       },
+      maybeShowOverlayHintText: {
+        type: Boolean,
+        reflect: true,
+      },
       composeboxHeight_: {type: Number},
       composeboxDropdownHeight_: {type: Number},
       isComposeboxFocused_: {
@@ -122,6 +126,7 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
   accessor isZeroState: boolean = false;
   accessor isSidePanel: boolean = false;
   accessor isLensOverlayShowing: boolean = false;
+  accessor maybeShowOverlayHintText: boolean = false;
   accessor inputEnabled: boolean = true;
 
   protected accessor zeroStateSuggestions_: AutocompleteResult = {
@@ -279,13 +284,17 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
     }
   }
 
+  protected get showSuggestions_() {
+    return this.isZeroState;
+  }
+
   get showLensButton_() {
     //Lens should be hidden in the side panel if deep search is enabled.
     return this.isSidePanel && this.activeToolMode_ !== ToolMode.kDeepSearch;
   }
 
   protected getInputPlaceholder_() {
-    return this.isLensOverlayShowing ?
+    return this.maybeShowOverlayHintText ?
         loadTimeData.getString('composeboxHintTextLensOverlay') :
         '';
   }
@@ -347,14 +356,14 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
         !this.userDismissedTooltip_;
   }
 
-  protected onTooltipDismissed_() {
+  protected onOnboardingTooltipDismissed_() {
     this.userDismissedTooltip_ = true;
     this.onboardingTooltipIsVisible_ = false;
     this.stopObservingResize_();
     this.clearTooltipImpressionTimer_();
   }
 
-  protected onSuggestionsResultReceived_(e: CustomEvent<AutocompleteResult>) {
+  protected onSuggestionsResultChanged_(e: CustomEvent<AutocompleteResult>) {
     this.isLoading_ = false;
     this.zeroStateSuggestions_ = e.detail;
   }
@@ -374,17 +383,20 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
     this.$.composebox.clearAutocompleteMatches();
   }
 
-  startExpandAnimation() {
+  async startExpandAnimation() {
     const composebox = this.$.composebox;
     composebox.animationState = GlowAnimationState.NONE;
+    await composebox.updateComplete;
+    // Force a reflow to ensure the animation restarts.
+    composebox.offsetHeight;
     composebox.animationState = GlowAnimationState.EXPANDING;
   }
 
-  protected handleImageUpload_() {
+  protected onOpenImageUpload_() {
     this.pageHandler_.handleFileUpload(true);
   }
 
-  protected handleFileUpload_() {
+  protected onOpenFileUpload_() {
     this.pageHandler_.handleFileUpload(false);
   }
 

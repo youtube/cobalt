@@ -61,28 +61,49 @@ using TabReadbackCallback = base::OnceCallback<void(float, const SkBitmap&)>;
 // leak memory or cause callbacks to hang indefinitely.
 const base::TimeDelta kTabReadbackTimeout = base::Seconds(15);
 
+content::RenderWidgetHostView* GetRwhv(content::WebContents* web_contents) {
+  content::RenderViewHost* rvh = web_contents->GetRenderViewHost();
+  if (!rvh) {
+    return nullptr;
+  }
+  content::RenderWidgetHost* rwh = rvh->GetWidget();
+  return rwh ? rwh->GetView() : nullptr;
+}
+
 }  // namespace
 
 namespace android {
 
 class TabContentManager::TabReadbackRequest {
  public:
-  TabReadbackRequest(content::RenderWidgetHostView* rwhv,
+  TabReadbackRequest(content::WebContents* web_contents,
                      float thumbnail_scale,
                      TabReadbackCallback end_callback)
       : thumbnail_scale_(thumbnail_scale),
         end_callback_(std::move(end_callback)) {
-    DCHECK(rwhv);
     auto result_callback =
         base::BindOnce(&TabReadbackRequest::OnFinishGetTabThumbnailBitmap,
                        weak_factory_.GetWeakPtr());
 
-    gfx::Size view_size_in_pixels =
-        rwhv->GetNativeView()->GetPhysicalBackingSize();
-    if (view_size_in_pixels.IsEmpty()) {
+    auto* rwhv = GetRwhv(web_contents);
+    if (!rwhv) {
       std::move(result_callback).Run(viz::CopyOutputBitmapWithMetadata());
       return;
     }
+
+    // Cannot increment capturer count for rwhv that is null.
+    decrementor_ =
+        web_contents->IncrementCapturerCount(gfx::Size(), /*stay_hidden=*/true,
+                                             /*stay_awake=*/false,
+                                             /*is_activity=*/false);
+
+    gfx::Size view_size_in_pixels =
+        rwhv->GetNativeView()->GetPhysicalBackingSize();
+    if (!rwhv->IsSurfaceAvailableForCopy() || view_size_in_pixels.IsEmpty()) {
+      std::move(result_callback).Run(viz::CopyOutputBitmapWithMetadata());
+      return;
+    }
+
     gfx::Rect source_rect = gfx::Rect(view_size_in_pixels);
     gfx::Size thumbnail_size(
         gfx::ScaleToCeiledSize(view_size_in_pixels, thumbnail_scale_));
@@ -97,6 +118,7 @@ class TabContentManager::TabReadbackRequest {
 
   void OnFinishGetTabThumbnailBitmap(
       const content::CopyFromSurfaceResult& result) {
+    decrementor_.RunAndReset();
     if (!result.has_value() || drop_after_readback_) {
       std::move(end_callback_).Run(0.f, SkBitmap());
       return;
@@ -113,6 +135,7 @@ class TabContentManager::TabReadbackRequest {
   const float thumbnail_scale_;
   TabReadbackCallback end_callback_;
   bool drop_after_readback_{false};
+  base::ScopedClosureRunner decrementor_;
 
   base::WeakPtrFactory<TabReadbackRequest> weak_factory_{this};
 };
@@ -202,42 +225,15 @@ void TabContentManager::UpdateVisibleIds(const std::vector<int>& priority_ids,
   }
 }
 
-content::RenderWidgetHostView* TabContentManager::GetRwhvForTab(
-    JNIEnv* env,
-    const JavaRef<jobject>& tab) {
-  TabAndroid* tab_android = TabAndroid::GetNativeTab(env, tab);
-  DCHECK(tab_android);
-  const int tab_id = tab_android->GetAndroidId();
-  if (pending_tab_readbacks_.find(tab_id) != pending_tab_readbacks_.end()) {
-    return nullptr;
-  }
-
-  content::WebContents* web_contents = tab_android->web_contents();
-  DCHECK(web_contents);
-
-  content::RenderViewHost* rvh = web_contents->GetRenderViewHost();
-  if (!rvh) {
-    return nullptr;
-  }
-
-  content::RenderWidgetHost* rwh = rvh->GetWidget();
-  content::RenderWidgetHostView* rwhv = rwh ? rwh->GetView() : nullptr;
-  if (!rwhv || !rwhv->IsSurfaceAvailableForCopy()) {
-    return nullptr;
-  }
-
-  return rwhv;
-}
-
-std::unique_ptr<thumbnail::ThumbnailCaptureTracker, base::OnTaskRunnerDeleter>
-TabContentManager::TrackCapture(thumbnail::TabId tab_id) {
+TabContentManager::ThumbnailCaptureTrackerPtr TabContentManager::TrackCapture(
+    thumbnail::TabId tab_id) {
   CleanupTrackers();
-  std::unique_ptr<thumbnail::ThumbnailCaptureTracker, base::OnTaskRunnerDeleter>
-      tracker(new thumbnail::ThumbnailCaptureTracker(
-                  base::BindOnce(&TabContentManager::OnTrackingFinished,
-                                 weak_factory_.GetWeakPtr(), tab_id)),
-              base::OnTaskRunnerDeleter(
-                  base::SequencedTaskRunner::GetCurrentDefault()));
+  ThumbnailCaptureTrackerPtr tracker(
+      new thumbnail::ThumbnailCaptureTracker(
+          base::BindOnce(&TabContentManager::OnTrackingFinished,
+                         weak_factory_.GetWeakPtr(), tab_id)),
+      base::OnTaskRunnerDeleter(
+          base::SequencedTaskRunner::GetCurrentDefault()));
   in_flight_captures_[tab_id] = tracker->GetWeakPtr();
   return tracker;
 }
@@ -262,45 +258,43 @@ void TabContentManager::CleanupTrackers() {
 
 void TabContentManager::CaptureThumbnail(
     JNIEnv* env,
-    const JavaRef<jobject>& tab,
+    TabAndroid* tab_android,
     float thumbnail_scale,
     bool return_bitmap,
     const base::android::JavaRef<jobject>& j_callback) {
   // Ensure capture only happens on UI thread.
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
-  TabAndroid* tab_android = TabAndroid::GetNativeTab(env, tab);
   DCHECK(tab_android);
   const int tab_id = tab_android->GetAndroidId();
+  bool has_pending_readback = pending_tab_readbacks_.contains(tab_id);
 
-  content::RenderWidgetHostView* rwhv = GetRwhvForTab(env, tab);
-  // If the tab's ID is in the list of VisibleIds then it has a LayoutTab
-  // active and can be captured. Otherwise the surface will be missing and
-  // the capture will stall forever.
-  if (!rwhv || !thumbnail_cache_.IsInVisibleIds(tab_id)) {
+  content::WebContents* web_contents = tab_android->GetContents();
+  if (has_pending_readback || !web_contents ||
+      web_contents->IsBeingDestroyed() ||
+      !thumbnail_cache_.CheckAndUpdateThumbnailMetaData(
+          tab_id, tab_android->GetURL(), /*force_update=*/false)) {
     if (j_callback) {
       RunObjectCallbackAndroid(j_callback, nullptr);
     }
     return;
   }
-  if (!thumbnail_cache_.CheckAndUpdateThumbnailMetaData(
-          tab_id, tab_android->GetURL(), /*force_update=*/false)) {
-    return;
-  }
+
   auto tracker = TrackCapture(tab_id);
   TabReadbackCallback readback_done_callback =
       base::BindOnce(&TabContentManager::OnTabReadback,
                      weak_factory_.GetWeakPtr(), tab_id, std::move(tracker),
-                     ScopedJavaGlobalRef<jobject>(j_callback), return_bitmap);
+                     base::BindOnce(&RunObjectCallbackAndroid,
+                                    ScopedJavaGlobalRef<jobject>(j_callback)),
+                     return_bitmap);
   pending_tab_readbacks_[tab_id] = std::make_unique<TabReadbackRequest>(
-      rwhv, thumbnail_scale, std::move(readback_done_callback));
+      web_contents, thumbnail_scale, std::move(readback_done_callback));
 }
 
 void TabContentManager::CacheTabWithBitmap(JNIEnv* env,
-                                           const JavaRef<jobject>& tab,
+                                           TabAndroid* tab_android,
                                            const JavaRef<jobject>& bitmap,
                                            float thumbnail_scale) {
-  TabAndroid* tab_android = TabAndroid::GetNativeTab(env, tab);
   DCHECK(tab_android);
   int tab_id = tab_android->GetAndroidId();
   GURL url = tab_android->GetURL();
@@ -313,16 +307,16 @@ void TabContentManager::CacheTabWithBitmap(JNIEnv* env,
   // happens.
   if (thumbnail_cache_.CheckAndUpdateThumbnailMetaData(
           tab_id, url, tab_android->IsNativePage())) {
-    OnTabReadback(tab_id, TrackCapture(tab_id),
-                  /*j_callback=*/nullptr,
+    // Use default ctor rather than a base::DoNothing callback to skip extra
+    // invoking `SendThumbnailToJava`.
+    OnTabReadback(tab_id, TrackCapture(tab_id), JavaBitmapCallback(),
                   /*return_bitmap=*/false, thumbnail_scale, skbitmap);
   }
 }
 
 void TabContentManager::InvalidateIfChanged(JNIEnv* env,
                                             int32_t tab_id,
-                                            const JavaRef<jobject>& jurl) {
-  GURL url = url::GURLAndroid::ToNativeGURL(env, jurl);
+                                            const GURL& url) {
   thumbnail_cache_.InvalidateThumbnailIfChanged(tab_id, url);
 }
 
@@ -368,10 +362,12 @@ void TabContentManager::GetEtc1TabThumbnail(
     int32_t tab_id,
     const base::android::JavaRef<jobject>& j_callback) {
   thumbnail_cache_.DecompressEtc1ThumbnailFromFile(
-      tab_id, base::BindOnce(&TabContentManager::SendThumbnailToJava,
-                             weak_factory_.GetWeakPtr(),
-                             ScopedJavaGlobalRef<jobject>(j_callback),
-                             /*need_downsampling=*/false));
+      tab_id,
+      base::BindOnce(&TabContentManager::SendThumbnailToJava,
+                     weak_factory_.GetWeakPtr(),
+                     base::BindOnce(&RunObjectCallbackAndroid,
+                                    ScopedJavaGlobalRef<jobject>(j_callback)),
+                     /*need_downsampling=*/false));
 }
 
 void TabContentManager::OnUIResourcesWereEvicted() {
@@ -392,20 +388,16 @@ void TabContentManager::OnFinishedThumbnailRead(int tab_id) {
       env, weak_java_tab_content_manager_.get(env), tab_id);
 }
 
-void TabContentManager::OnTabReadback(
-    int tab_id,
-    std::unique_ptr<thumbnail::ThumbnailCaptureTracker,
-                    base::OnTaskRunnerDeleter> tracker,
-    ScopedJavaGlobalRef<jobject> j_callback,
-    bool return_bitmap,
-    float thumbnail_scale,
-    const SkBitmap& bitmap) {
+void TabContentManager::OnTabReadback(int tab_id,
+                                      ThumbnailCaptureTrackerPtr tracker,
+                                      JavaBitmapCallback callback,
+                                      bool return_bitmap,
+                                      float thumbnail_scale,
+                                      const SkBitmap& bitmap) {
   pending_tab_readbacks_.erase(tab_id);
 
-  if (j_callback) {
-    SendThumbnailToJava(j_callback, /*need_downsampling=*/true, return_bitmap,
-                        bitmap);
-  }
+  SendThumbnailToJava(std::move(callback), /*need_downsampling=*/true,
+                      return_bitmap, bitmap);
 
   if (thumbnail_scale > 0 && !bitmap.empty()) {
     thumbnail_cache_.Put(tab_id, std::move(tracker), bitmap, thumbnail_scale);
@@ -414,11 +406,13 @@ void TabContentManager::OnTabReadback(
   }
 }
 
-void TabContentManager::SendThumbnailToJava(
-    ScopedJavaGlobalRef<jobject> j_callback,
-    bool need_downsampling,
-    bool result,
-    const SkBitmap& bitmap) {
+void TabContentManager::SendThumbnailToJava(JavaBitmapCallback callback,
+                                            bool need_downsampling,
+                                            bool result,
+                                            const SkBitmap& bitmap) {
+  if (!callback) {
+    return;
+  }
   ScopedJavaLocalRef<jobject> j_bitmap;
   if (!bitmap.isNull() && result) {
     int scale = need_downsampling ? 2 : 1;
@@ -431,12 +425,12 @@ void TabContentManager::SendThumbnailToJava(
         bitmap, skia::ImageOperations::RESIZE_BETTER, width, height,
         dest_subset));
   }
-  RunObjectCallbackAndroid(j_callback, j_bitmap);
+  std::move(callback).Run(j_bitmap);
 }
 
 void TabContentManager::SetCaptureMinRequestTimeForTesting(JNIEnv* env,
-                                                           int32_t timeMs) {
-  thumbnail_cache_.SetCaptureMinRequestTimeForTesting(timeMs);
+                                                           int32_t time_ms) {
+  thumbnail_cache_.SetCaptureMinRequestTimeForTesting(time_ms);
 }
 
 bool TabContentManager::IsTabCaptureInFlightForTesting(JNIEnv* env,

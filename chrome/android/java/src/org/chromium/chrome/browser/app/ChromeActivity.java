@@ -78,6 +78,7 @@ import org.chromium.chrome.browser.IntentHandler;
 import org.chromium.chrome.browser.PlayServicesVersionInfo;
 import org.chromium.chrome.browser.TabStateThemeResourceProvider;
 import org.chromium.chrome.browser.WarmupManager;
+import org.chromium.chrome.browser.actor.ActorPictureInPictureController;
 import org.chromium.chrome.browser.ai.AiAssistantService;
 import org.chromium.chrome.browser.app.download.DownloadMessageUiDelegate;
 import org.chromium.chrome.browser.app.metrics.LaunchCauseMetrics;
@@ -387,6 +388,8 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
 
     // The FullscreenVideoPictureInPictureController is initialized lazily https://crbug.com/729738.
     private FullscreenVideoPictureInPictureController mFullscreenVideoPictureInPictureController;
+
+    private ActorPictureInPictureController mActorPipController;
 
     private final SettableMonotonicObservableSupplier<SnackbarManager> mSnackbarManagerSupplier =
             ObservableSuppliers.createMonotonic();
@@ -1379,6 +1382,14 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         return mFullscreenVideoPictureInPictureController;
     }
 
+    private @Nullable ActorPictureInPictureController maybeCreateActorPipController() {
+        if (mActorPipController == null && ChromeFeatureList.sGlic.isEnabled()) {
+            mActorPipController =
+                    new ActorPictureInPictureController(this, () -> mTabModelProfileSupplier.get());
+        }
+        return mActorPipController;
+    }
+
     @Override
     protected void onUserLeaveHint() {
         super.onUserLeaveHint();
@@ -1388,6 +1399,12 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         // Can be in finishing state. No need to attempt PIP.
         if (isActivityFinishingOrDestroyed()) {
             Log.i(TAG, "onUserLeaveHint: skipping PiP during shutdown");
+            return;
+        }
+
+        maybeCreateActorPipController();
+        if (mActorPipController != null && mActorPipController.shouldEnterPip()) {
+            mActorPipController.attemptPictureInPicture();
             return;
         }
 
@@ -1420,12 +1437,20 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
                 " custom tabs: " + wasInPictureInPictureForMinimizedCustomTabs());
         if (wasInPictureInPictureForMinimizedCustomTabs()) return;
         if (inPicture) {
-            ensureFullscreenVideoPictureInPictureController();
-            mFullscreenVideoPictureInPictureController.onEnteredPictureInPictureMode();
+            maybeCreateActorPipController();
+            if (mActorPipController == null || !mActorPipController.shouldEnterPip()) {
+                ensureFullscreenVideoPictureInPictureController();
+                mFullscreenVideoPictureInPictureController.onEnteredPictureInPictureMode();
+            }
             mLastPictureInPictureModeForTesting = true;
-        } else if (mFullscreenVideoPictureInPictureController != null) {
+        } else {
+            if (mActorPipController != null) {
+                mActorPipController.onFrameworkExitedPictureInPicture();
+            }
+            if (mFullscreenVideoPictureInPictureController != null) {
+                mFullscreenVideoPictureInPictureController.onFrameworkExitedPictureInPicture();
+            }
             mLastPictureInPictureModeForTesting = false;
-            mFullscreenVideoPictureInPictureController.onFrameworkExitedPictureInPicture();
         }
     }
 
@@ -1780,6 +1805,18 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
     @SuppressLint("NewApi")
     @Override
     protected final void onDestroy() {
+        // Destroy all ChromeAndroidTaskFeatures scoped to this ChromeActivity.
+        // For one ChromeAndroidTaskFeature, its native code may hold pointers
+        // to other native objects that are destroyed later in this method,
+        // such as the native TabListInterface, the native BrowserWindowInterface, etc.
+        // Therefore, ChromeAndroidTaskFeatures should be destroyed first to
+        // prevent issues like dereferencing a non-null but invalid pointer.
+        ChromeAndroidTask chromeAndroidTask = mChromeAndroidTaskSupplier.get();
+        if (chromeAndroidTask != null) {
+            var activityWindowAndroid = getWindowAndroid();
+            chromeAndroidTask.removeAllFeaturesForActivity(activityWindowAndroid);
+        }
+
         SnackbarManager snackbarManager = mSnackbarManagerSupplier.get();
         if (snackbarManager != null) {
             SnackbarManagerProvider.detach(snackbarManager);
@@ -1820,6 +1857,11 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         if (mFullscreenVideoPictureInPictureController != null) {
             mFullscreenVideoPictureInPictureController.onDestroy();
             mFullscreenVideoPictureInPictureController = null;
+        }
+
+        if (mActorPipController != null) {
+            mActorPipController.destroy();
+            mActorPipController = null;
         }
 
         onDestroyInternal();
@@ -2523,17 +2565,14 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
     /**
      * Records user actions and ukms associated with entering and exiting Android N multi-window
      * mode.
+     *
      * @param isInMultiWindowMode True if the activity is in multi-window mode.
      * @param isDeferredStartup True if the activity is deferred startup.
      */
     private void recordMultiWindowModeChanged(
             boolean isInMultiWindowMode, boolean isDeferredStartup) {
-        MultiWindowUtils.getInstance()
-                .recordMultiWindowModeChanged(
-                        isInMultiWindowMode,
-                        isDeferredStartup,
-                        isFirstActivity(),
-                        getActivityTab());
+        MultiWindowUtils.recordMultiWindowModeChanged(
+                isInMultiWindowMode, isDeferredStartup, isFirstActivity(), getActivityTab());
     }
 
     /**

@@ -59,6 +59,7 @@
 #include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/views/bookmarks/bookmark_bubble_view.h"
 #include "chrome/browser/ui/views/contextual_tasks/contextual_tasks_button.h"
+#include "chrome/browser/ui/views/contextual_tasks/contextual_tasks_close_tab_button.h"
 #include "chrome/browser/ui/views/extensions/extension_popup.h"
 #include "chrome/browser/ui/views/extensions/extensions_toolbar_button.h"
 #include "chrome/browser/ui/views/extensions/extensions_toolbar_coordinator.h"
@@ -87,6 +88,7 @@
 #include "chrome/browser/ui/views/toolbar/browser_app_menu_button.h"
 #include "chrome/browser/ui/views/toolbar/chrome_labs/chrome_labs_coordinator.h"
 #include "chrome/browser/ui/views/toolbar/home_button.h"
+#include "chrome/browser/ui/views/toolbar/live_toolbar_background.h"
 #include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions_container.h"
 #include "chrome/browser/ui/views/toolbar/reload_button.h"
 #include "chrome/browser/ui/views/toolbar/split_tabs_button.h"
@@ -306,6 +308,12 @@ ToolbarView::ToolbarView(Browser* browser, BrowserView* browser_view)
   GetViewAccessibility().SetRole(ax::mojom::Role::kToolbar);
 
   if (display_mode_ == DisplayMode::kNormal) {
+    if (base::FeatureList::IsEnabled(features::kGlassToolbar)) {
+      auto background = std::make_unique<LiveToolbarBackground>(browser_);
+      background->SetView(this);
+      SetBackground(std::move(background));
+    }
+
     for (const auto& view_and_command : GetViewCommandMap()) {
       chrome::AddCommandObserver(browser_, view_and_command.second, this);
     }
@@ -361,10 +369,12 @@ void ToolbarView::Init() {
   }
 
   if (display_mode_ == DisplayMode::kNormal) {
-    SetBackground(std::make_unique<CustomCornersBackground>(
-        *this, *browser_view_,
-        /*primary_color=*/CustomCornersBackground::ToolbarTheme(),
-        /*corner_color=*/CustomCornersBackground::FrameTheme()));
+    if (!base::FeatureList::IsEnabled(features::kGlassToolbar)) {
+      SetBackground(std::make_unique<CustomCornersBackground>(
+          *this, *browser_view_,
+          /*primary_color=*/CustomCornersBackground::ToolbarTheme(),
+          /*corner_color=*/CustomCornersBackground::FrameTheme()));
+    }
   } else if (display_mode_ == DisplayMode::kCustomTab) {
     custom_tab_bar_ =
         AddChildView(std::make_unique<CustomTabBarView>(browser_view_, this));
@@ -376,7 +386,9 @@ void ToolbarView::Init() {
     // in popups.
     pinned_toolbar_actions_container_ = AddChildView(
         std::make_unique<PinnedToolbarActionsContainer>(browser_view_, this));
-    SetBackground(views::CreateSolidBackground(kColorLocationBarBackground));
+    if (!base::FeatureList::IsEnabled(features::kGlassToolbar)) {
+      SetBackground(views::CreateSolidBackground(kColorLocationBarBackground));
+    }
     SetLayoutManager(std::make_unique<views::FlexLayout>())
         ->SetOrientation(views::LayoutOrientation::kHorizontal)
         .SetCrossAxisAlignment(views::LayoutAlignment::kCenter)
@@ -525,7 +537,6 @@ void ToolbarView::Init() {
     media_button_ = AddChildView(std::move(media_button));
   }
 
-#if BUILDFLAG(ENABLE_GLIC)
   if (glic::GlicEnabling::IsProfileEligible(browser_view_->GetProfile())) {
     auto* vertical_tab_strip_state_controller =
         tabs::VerticalTabStripStateController::From(browser_view_->browser());
@@ -540,7 +551,6 @@ void ToolbarView::Init() {
     }
     UpdateGlicButtonVisibility();
   }
-#endif  // BUILDFLAG(ENABLE_GLIC)
 
   avatar_ = AddChildView(std::make_unique<AvatarToolbarButton>(browser_view_));
   bool show_avatar_toolbar_button = true;
@@ -584,6 +594,12 @@ void ToolbarView::Init() {
       l10n_util::GetStringUTF16(IDS_APPMENU_TOOLTIP));
   app_menu_button->SetID(VIEW_ID_APP_MENU);
   app_menu_button_ = AddChildView(std::move(app_menu_button));
+
+  if (base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks) &&
+      contextual_tasks::GetExpandButtonOption() ==
+          contextual_tasks::ExpandButtonOption::kToolbarCloseButton) {
+    AddChildView(std::make_unique<ContextualTasksCloseTabButton>(browser_));
+  }
 
   LoadImages();
 
@@ -632,7 +648,6 @@ void ToolbarView::OnVerticalTabStripModeChanged(
   UpdateGlicButtonVisibility();
 }
 
-#if BUILDFLAG(ENABLE_GLIC)
 std::unique_ptr<glic::ToolbarGlicButton> ToolbarView::CreateGlicButton() {
   glic::GlicKeyedService* service =
       glic::GlicKeyedService::Get(browser_view_->GetProfile());
@@ -775,7 +790,6 @@ void ToolbarView::SetGlicPanelIsOpen(bool open) {
 
   glic_button_->SetGlicPanelIsOpen(open);
 }
-#endif  // ENABLE_GLIC
 
 void ToolbarView::AnimationEnded(const gfx::Animation* animation) {
   if (animation->GetCurrentValue() == 0) {

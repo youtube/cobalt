@@ -25,6 +25,7 @@
 #include "chrome/browser/ui/autofill/autofill_popup_view.h"
 #include "chrome/browser/ui/autofill/mock_autofill_popup_controller.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
+#include "chrome/browser/ui/views/autofill/popup/popup_loading_view.h"
 #include "chrome/browser/ui/views/autofill/popup/popup_row_content_view.h"
 #include "chrome/browser/ui/views/autofill/popup/popup_row_view.h"
 #include "chrome/browser/ui/views/autofill/popup/popup_search_bar_view.h"
@@ -33,6 +34,7 @@
 #include "chrome/browser/ui/views/autofill/popup/popup_view_utils.h"
 #include "chrome/browser/ui/views/autofill/popup/popup_view_views_test_api.h"
 #include "chrome/browser/ui/views/autofill/popup/popup_warning_view.h"
+#include "chrome/test/base/chrome_test_utils.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/views/chrome_views_test_base.h"
 #include "components/autofill/core/browser/metrics/autofill_metrics.h"
@@ -112,6 +114,7 @@ const std::vector<SuggestionType> kUnclickableSuggestionTypes{
     SuggestionType::kInsecureContextPaymentDisabledMessage,
     SuggestionType::kTitle,
     SuggestionType::kSeparator,
+    SuggestionType::kLoadingThrobber,
 };
 
 bool IsClickable(SuggestionType id) {
@@ -202,8 +205,14 @@ class PopupViewViewsTest : public ChromeViewsTestBase {
         .WillByDefault(Return(autofill_popup_sub_controller_.GetWeakPtr()));
     ON_CALL(autofill_popup_controller_, GetMainFillingProduct)
         .WillByDefault([&controller = autofill_popup_controller_]() {
-          return GetFillingProductFromSuggestionType(
-              controller.GetSuggestionAt(0).type);
+          if (controller.GetAutofillSuggestionTriggerSource() ==
+              AutofillSuggestionTriggerSource::kAtMemory) {
+            return FillingProduct::kAtMemory;
+          }
+          return controller.GetLineCount() > 0
+                     ? GetFillingProductFromSuggestionType(
+                           controller.GetSuggestionAt(0).type)
+                     : FillingProduct::kNone;
         });
   }
 
@@ -1815,7 +1824,12 @@ TEST_F(PopupViewViewsTest, CellSubPopupResetAfterSuggestionsUpdates) {
 // environment (namely creates a `TestingProfile`) that fails to be created in
 // the sub-process (see `EXPECT_CHECK_DEATH_WITH` doc for details). This fail
 // hides the real death reason to be tested.
-using PopupViewViewsDeathTest = ChromeViewsTestBase;
+class PopupViewViewsDeathTest
+    : public chrome_test_utils::TestingBrowserProcessDeathTestMixin,
+      public ChromeViewsTestBase {
+  using ChromeViewsTestBase::ChromeViewsTestBase;
+};
+
 TEST_F(PopupViewViewsDeathTest, OpenSubPopupWithNoChildrenCheckCrash) {
   NiceMock<MockAutofillPopupController> controller;
   controller.set_suggestions({
@@ -2511,6 +2525,73 @@ TEST_F(PopupViewViewsTest,
   EXPECT_CALL(announcement, Run).Times(0);
   controller().set_suggestions(suggestions);
   static_cast<AutofillPopupView&>(view()).OnSuggestionsChanged(false);
+}
+
+TEST_F(PopupViewViewsTest, SearchBar_RemainVisibleEvenWithNoSuggestions) {
+  ON_CALL(controller(), GetAutofillSuggestionTriggerSource)
+      .WillByDefault(Return(AutofillSuggestionTriggerSource::kAtMemory));
+  CreateAndShowView(/*ids=*/{}, CreateParamsForTestWidget(),
+                    AutofillPopupView::SearchBarConfig{
+                        .placeholder = u"Recall from memory",
+                        .no_results_message = u"No results found"});
+
+  // The popup should not be hidden due to no suggestions.
+  EXPECT_CALL(controller(), Hide(SuggestionHidingReason::kNoSuggestions))
+      .Times(0);
+  // It may be hidden when the search bar loses focus (e.g. on destruction).
+  EXPECT_CALL(controller(), Hide(SuggestionHidingReason::kSearchBarFocusLost))
+      .Times(testing::AnyNumber());
+
+  static_cast<AutofillPopupView&>(view()).OnSuggestionsChanged(false);
+
+  EXPECT_TRUE(widget().IsVisible());
+}
+
+TEST_F(PopupViewViewsTest, AtMemory_KeyboardNavigation) {
+  ON_CALL(controller(), GetAutofillSuggestionTriggerSource)
+      .WillByDefault(Return(AutofillSuggestionTriggerSource::kAtMemory));
+  input::NativeWebKeyboardEvent event(
+      blink::WebKeyboardEvent::Type::kRawKeyDown,
+      blink::WebInputEvent::kNoModifiers, ui::EventTimeForNow());
+  CreateAndShowView({SuggestionType::kAtMemorySearchResult},
+                    CreateParamsForTestWidget(),
+                    AutofillPopupView::SearchBarConfig{
+                        .placeholder = u"Recall from memory",
+                        .no_results_message = u"No results found"});
+
+  // The width should be at least kAutofillPopupMaxWidth.
+  EXPECT_GE(view().GetPreferredSize().width(),
+            PopupViewViews::kAutofillPopupMaxWidth);
+
+  // Allow Hide(kSearchBarFocusLost) which happens during teardown.
+  testing::Mock::VerifyAndClearExpectations(&controller());
+  EXPECT_CALL(controller(), Hide(SuggestionHidingReason::kSearchBarFocusLost))
+      .Times(testing::AnyNumber());
+
+  // RETURN triggers filter update when no suggestion is selected.
+  EXPECT_CALL(
+      controller(),
+      SetFilter(Eq(AutofillPopupController::SuggestionFilter(u"query"))));
+  test_api(view()).SetSearchQuery(u"query");
+  event.windows_key_code = ui::VKEY_RETURN;
+  EXPECT_TRUE(test_api(view()).HandleKeyPressEvent(event));
+
+  // DOWN selects the first suggestion if nothing is selected.
+  EXPECT_EQ(view().GetSelectedCell(), std::nullopt);
+  event.windows_key_code = ui::VKEY_DOWN;
+  EXPECT_TRUE(test_api(view()).HandleKeyPressEvent(event));
+  EXPECT_EQ(view().GetSelectedCell(),
+            std::make_optional<CellIndex>(0, CellType::kContent));
+
+  // RETURN key accepts selected suggestion.
+  EXPECT_CALL(controller(), AcceptSuggestion(0, _));
+  event.windows_key_code = ui::VKEY_RETURN;
+  EXPECT_TRUE(test_api(view()).HandleKeyPressEvent(event));
+
+  // ESCAPE hides popup.
+  EXPECT_CALL(controller(), Hide(SuggestionHidingReason::kUserAborted));
+  event.windows_key_code = ui::VKEY_ESCAPE;
+  EXPECT_TRUE(test_api(view()).HandleKeyPressEvent(event));
 }
 
 }  // namespace

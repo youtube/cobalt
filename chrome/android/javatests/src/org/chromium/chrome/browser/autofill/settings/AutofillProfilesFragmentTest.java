@@ -27,7 +27,9 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.app.Activity;
@@ -57,6 +59,7 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
@@ -75,7 +78,9 @@ import org.chromium.chrome.browser.autofill.AndroidAutofillAvailabilityStatus;
 import org.chromium.chrome.browser.autofill.AutofillClientProviderUtils;
 import org.chromium.chrome.browser.autofill.AutofillTestHelper;
 import org.chromium.chrome.browser.autofill.autofill_ai.EntityDataManager;
+import org.chromium.chrome.browser.autofill.autofill_ai.EntityDataManager.EntityDataManagerObserver;
 import org.chromium.chrome.browser.autofill.autofill_ai.EntityDataManagerFactory;
+import org.chromium.chrome.browser.autofill.editors.address.AddressEditorMediator;
 import org.chromium.chrome.browser.autofill.editors.address.EditorDialogView;
 import org.chromium.chrome.browser.autofill.options.AutofillOptionsFragment;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
@@ -89,7 +94,9 @@ import org.chromium.chrome.test.R;
 import org.chromium.components.autofill.AutofillProfile;
 import org.chromium.components.autofill.FieldType;
 import org.chromium.components.autofill.RecordType;
+import org.chromium.components.autofill.autofill_ai.EntityInstance;
 import org.chromium.components.autofill.autofill_ai.EntityInstanceWithLabels;
+import org.chromium.components.autofill.autofill_ai.utils.TestUtils;
 import org.chromium.components.browser_ui.settings.CardWithButtonPreference;
 import org.chromium.components.browser_ui.settings.ChromeSwitchPreference;
 import org.chromium.components.signin.base.AccountInfo;
@@ -103,6 +110,7 @@ import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modaldialog.ModalDialogProperties;
 import org.chromium.ui.modelutil.PropertyModel;
 
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -477,11 +485,11 @@ public class AutofillProfilesFragmentTest {
         HistogramWatcher deletionCanceledHistogramWatcher =
                 HistogramWatcher.newBuilder()
                         .expectBooleanRecordTimes(
-                                EditorDialogView.PROFILE_DELETED_HISTOGRAM,
+                                AddressEditorMediator.PROFILE_DELETED_HISTOGRAM,
                                 /* value= */ false,
                                 /* times= */ 1)
                         .expectBooleanRecordTimes(
-                                EditorDialogView.PROFILE_DELETED_SETTINGS_HISTOGRAM,
+                                AddressEditorMediator.PROFILE_DELETED_SETTINGS_HISTOGRAM,
                                 /* value= */ false,
                                 /* times= */ 1)
                         .build();
@@ -513,11 +521,11 @@ public class AutofillProfilesFragmentTest {
         HistogramWatcher deletionConfirmedHistogramWatcher =
                 HistogramWatcher.newBuilder()
                         .expectBooleanRecordTimes(
-                                EditorDialogView.PROFILE_DELETED_HISTOGRAM,
+                                AddressEditorMediator.PROFILE_DELETED_HISTOGRAM,
                                 /* value= */ true,
                                 /* times= */ 1)
                         .expectBooleanRecordTimes(
-                                EditorDialogView.PROFILE_DELETED_SETTINGS_HISTOGRAM,
+                                AddressEditorMediator.PROFILE_DELETED_SETTINGS_HISTOGRAM,
                                 /* value= */ true,
                                 /* times= */ 1)
                         .build();
@@ -1077,6 +1085,89 @@ public class AutofillProfilesFragmentTest {
                     }
                     Criteria.checkThat(
                             "Entities category count should be 2", categoryCount, Matchers.is(2));
+                });
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"Preferences"})
+    public void testAutofillAiEntities_opensEditorOnClick() throws Exception {
+        EntityInstanceWithLabels entity1 =
+                new EntityInstanceWithLabels(
+                        "guid1",
+                        /* entityInstanceLabel= */ "Vehicle",
+                        /* entityInstanceSubLabel= */ "Mercedez",
+                        /* storedInWallet= */ false);
+
+        when(sEntityDataManager.getEntitiesWithLabels()).thenReturn(Arrays.asList(entity1));
+
+        EntityInstance entityInstance =
+                new EntityInstance.Builder(TestUtils.getVehicleEntityType())
+                        .setGUID("guid1")
+                        .setRecordType(
+                                org.chromium.components.autofill.autofill_ai.RecordType.LOCAL)
+                        .setModifiedDate(LocalDate.of(2026, 2, 12))
+                        .setUseCount(0)
+                        .build();
+
+        when(sEntityDataManager.getEntityInstance("guid1")).thenReturn(entityInstance);
+        EntityDataManagerFactory.setInstanceForTesting(sEntityDataManager);
+
+        // Trigger a rebuild of the profile list to pick up the new mock entities.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> sSettingsActivityTestRule.getFragment().onPersonalDataChanged());
+
+        Preference vehicleEntity =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> sSettingsActivityTestRule.getFragment().findPreference("guid1"));
+        ThreadUtils.runOnUiThreadBlocking(vehicleEntity::performClick);
+
+        onView(withText("Edit Vehicle")).check(matches(isDisplayed()));
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"Preferences"})
+    public void testAutofillAiEntities_rebuildsOnEntityChange() throws Exception {
+        EntityInstanceWithLabels entity1 =
+                new EntityInstanceWithLabels(
+                        "guid1",
+                        /* entityInstanceLabel= */ "Vehicle",
+                        /* entityInstanceSubLabel= */ "Mercedez",
+                        /* storedInWallet= */ false);
+
+        when(sEntityDataManager.getEntitiesWithLabels()).thenReturn(Arrays.asList(entity1));
+        EntityDataManagerFactory.setInstanceForTesting(sEntityDataManager);
+
+        // Capture the observer registered by the fragment.
+        ArgumentCaptor<EntityDataManagerObserver> captor =
+                ArgumentCaptor.forClass(EntityDataManagerObserver.class);
+        verify(sEntityDataManager, atLeastOnce()).registerDataObserver(captor.capture());
+        EntityDataManagerObserver observer = captor.getValue();
+
+        // Initially check that the entity is rendered.
+        ThreadUtils.runOnUiThreadBlocking(() -> observer.onEntityInstancesChanged());
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    Preference vehicleEntity =
+                            sSettingsActivityTestRule.getFragment().findPreference("guid1");
+                    Criteria.checkThat(
+                            "Vehicle entity should exist", vehicleEntity, Matchers.notNullValue());
+                });
+
+        // Change the entities and notify the observer.
+        when(sEntityDataManager.getEntitiesWithLabels()).thenReturn(Collections.emptyList());
+        ThreadUtils.runOnUiThreadBlocking(() -> observer.onEntityInstancesChanged());
+
+        // Verify that the entity is gone.
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    Preference vehicleEntity =
+                            sSettingsActivityTestRule.getFragment().findPreference("guid1");
+                    Criteria.checkThat(
+                            "Vehicle entity should no longer exist",
+                            vehicleEntity,
+                            Matchers.nullValue());
                 });
     }
 

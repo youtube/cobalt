@@ -29,7 +29,7 @@ import {AnnotationMode} from '../constants.js';
           aria-label="$i18n{zoomTextInputAriaLabel}"
           @change="${this.onZoomChange_}"
           @pointerup="${this.onZoomInputPointerup_}"
-          @blur="${this.onZoomChange_}">
+          @blur="${this.onZoomBlur_}">
       </input>
       <cr-icon-button
           iron-icon="pdf:add"
@@ -73,17 +73,16 @@ import {AnnotationMode} from '../constants.js';
         <span class="vertical-separator"></span>
         <cr-icon-button id="undo" ?disabled="${!this.computeEnableUndo_()}"
             iron-icon="pdf:undo"
-            @click="${this.undo}"
+            @click="${this.onUndoClick_}"
             aria-label="$i18n{annotationUndo}"
             title="$i18n{annotationUndo}"></cr-icon-button>
         <cr-icon-button id="redo" ?disabled="${!this.computeEnableRedo_()}"
             iron-icon="pdf:redo"
-            @click="${this.redo}"
+            @click="${this.onRedoClick_}"
             aria-label="$i18n{annotationRedo}"
             title="$i18n{annotationRedo}"></cr-icon-button>
       </span>` : ''}
 </if>
-<if expr="enable_glic">
     ${this.pdfGlicSummarizeEnabled_ ? html`
     <span id="glic-controls">
       <span class="vertical-separator"></span>
@@ -95,7 +94,6 @@ import {AnnotationMode} from '../constants.js';
         $i18n{glicSummarize}
       </cr-button>
     </span>` : ''}
-</if>
   </div>
   <div id="end">
 <if expr="enable_pdf_save_to_drive">
@@ -133,8 +131,8 @@ import {AnnotationMode} from '../constants.js';
 </cr-progress>
 
 <cr-action-menu id="menu" @open-changed="${this.onMoreOpenChanged_}">
-  <button id="two-page-view-button" class="dropdown-item"
-      @click="${this.toggleTwoPageViewClick_}" role="checkbox"
+  <button id="twoPageViewButton" class="dropdown-item"
+      @click="${this.onTwoPageViewClick_}" role="checkbox"
       aria-checked="${this.getAriaChecked_(this.twoUpViewEnabled)}">
     <span class="check-container">
       <cr-icon icon="pdf:check"
@@ -144,7 +142,7 @@ import {AnnotationMode} from '../constants.js';
   </button>
 
   <button id="show-annotations-button"
-      class="dropdown-item" @click="${this.toggleDisplayAnnotations_}"
+      class="dropdown-item" @click="${this.onDisplayAnnotationsClick_}"
       role="checkbox"
       aria-checked="${this.getAriaChecked_(this.displayAnnotations_)}">
     <span class="check-container">
@@ -157,7 +155,7 @@ import {AnnotationMode} from '../constants.js';
 
   <hr>
 
-  <button id="present-button" class="dropdown-item"
+  <button id="presentButton" class="dropdown-item"
       @click="${this.onPresentClick_}"
       ?disabled="${!this.presentationModeAvailable_()}">
     <span class="check-container" aria-hidden="true"></span>

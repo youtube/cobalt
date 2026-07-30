@@ -436,6 +436,7 @@ if (_is_default_toolchain) {
       "//chrome/browser/magic_stack/android:java",
       "//chrome/browser/notifications/chime/android:java",
       "//chrome/browser/ntp_customization:java",
+      "//chrome/browser/ntp_customization:public_java",
       "//chrome/browser/omaha/android:java",
       "//chrome/browser/open_in_app/android:java",
       "//chrome/browser/optimization_guide/android:java",
@@ -1395,6 +1396,7 @@ if (_is_default_toolchain) {
 
     deps = [
       "javatests:chrome_test_java_org.chromium.chrome.browser",
+      "javatests:chrome_test_java_org.chromium.chrome.browser.actor",
       "javatests:chrome_test_java_org.chromium.chrome.browser.app",
       "javatests:chrome_test_java_org.chromium.chrome.browser.appearance",
       "javatests:chrome_test_java_org.chromium.chrome.browser.autofill",
@@ -2265,6 +2267,7 @@ if (_is_default_toolchain) {
       ":chrome_unit_test_java",
       "//build/config/android/test/resource_overlay:unit_device_javatests",
       "//chrome/android/features/tab_ui:unit_device_javatests",
+      "//chrome/browser/actor/android:unit_device_javatests",
       "//chrome/browser/android/customtabs/branding:unit_device_javatests",
       "//chrome/browser/android/intents:unit_device_javatests",
       "//chrome/browser/back_press/android:unit_device_javatests",
@@ -2359,6 +2362,7 @@ if (_is_default_toolchain) {
       "//chrome/browser/ui/android/digital_credentials:javatests",
       "//chrome/browser/ui/android/webid/internal:javatests",
       "//chrome/browser/ui/plus_addresses/android:javatests",
+      "//chrome/browser/ui/side_panel_container/internal:javatests",
       "//components/embedder_support/android:virtual_structure_javatests",
     ]
 
@@ -2945,9 +2949,9 @@ if (_is_default_toolchain) {
       "java/src/org/chromium/chrome/browser/KeyboardShortcuts.java",
       "java/src/org/chromium/chrome/browser/PlayServicesVersionInfo.java",
       "java/src/org/chromium/chrome/browser/RecentlyClosedEntriesManager.java",
+      "java/src/org/chromium/chrome/browser/RecentlyClosedWindowMetadata.java",
       "java/src/org/chromium/chrome/browser/ServiceTabLauncher.java",
       "java/src/org/chromium/chrome/browser/ShortcutHelper.java",
-      "java/src/org/chromium/chrome/browser/TabModelAndTimestamp.java",
       "java/src/org/chromium/chrome/browser/WarmupManager.java",
       "java/src/org/chromium/chrome/browser/about_settings/AboutSettingsBridge.java",
       "java/src/org/chromium/chrome/browser/accessibility/settings/AccessibilitySettingsBridge.java",

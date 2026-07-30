@@ -352,7 +352,8 @@ ComposeboxQueryController::GetRequestIdForViewportImage(
 }
 
 lens::AddedInputs ComposeboxQueryController::CreateAddedInputs(
-    const std::vector<base::UnguessableToken>& file_tokens) {
+    const std::vector<base::UnguessableToken>& file_tokens,
+    bool include_files_without_lens_usage_intent) {
   lens::AddedInputs added_inputs;
   if (!cluster_info_.has_value()) {
     return added_inputs;
@@ -365,7 +366,8 @@ lens::AddedInputs ComposeboxQueryController::CreateAddedInputs(
     }
 
     if (file_info->input_data &&
-        !file_info->input_data->has_lens_usage_intent) {
+        !file_info->input_data->has_lens_usage_intent &&
+        !include_files_without_lens_usage_intent) {
       continue;
     }
 
@@ -424,8 +426,11 @@ void ComposeboxQueryController::CreateSearchUrl(
   if (is_aim_search) {
     // For AIM queries, add the added inputs param to the request url params,
     // regardless of if any of the context was a Lens upload.
+    bool include_files_without_lens_usage_intent =
+        !search_url_request_info->image_crop.has_value();
     lens::AddedInputs added_inputs =
-        CreateAddedInputs(search_url_request_info->file_tokens);
+        CreateAddedInputs(search_url_request_info->file_tokens,
+                          include_files_without_lens_usage_intent);
     if (added_inputs.added_inputs_size() > 0) {
       std::string serialized_proto;
       CHECK(added_inputs.SerializeToString(&serialized_proto));
@@ -484,12 +489,13 @@ void ComposeboxQueryController::CreateSearchUrl(
       // TODO(crbug.com/462509148): Determine how to support interaction
       // requests for multi-context input flow.
       if (search_url_request_info->lens_overlay_selection_type.has_value()) {
+        request_id_generator_.SetContextId(
+            last_active_lens_file->request_id->context_id());
         auto interaction_request_id = request_id_generator_.GetNextRequestId(
             lens::RequestIdUpdateMode::kInteractionRequest,
             search_url_request_info->image_crop.has_value()
                 ? lens::LensOverlayRequestId::MEDIA_TYPE_DEFAULT_IMAGE
-                : last_active_lens_file->request_id->media_type(),
-            last_active_lens_file->GetContextId());
+                : last_active_lens_file->request_id->media_type());
         SendInteractionRequest(
             std::move(interaction_request_id),
             search_url_request_info->query_text,
@@ -506,8 +512,8 @@ void ComposeboxQueryController::CreateSearchUrl(
 
       // Add the "cvst" lns mode param to the url.
       if (is_aim_search) {
-        search_url_request_info->additional_params.insert(
-            {kLnsModeQueryParameterKey, kLnsModeQueryParameterValue});
+        search_url_request_info->additional_params[kLnsModeQueryParameterKey] =
+            kLnsModeQueryParameterValue;
       }
 
       // Get the encoded visual search interaction log data.
@@ -658,7 +664,8 @@ lens::ClientToAimMessage ComposeboxQueryController::CreateClientToAimRequest(
 
     // Add added inputs.
     lens::AddedInputs added_inputs =
-        CreateAddedInputs(create_client_to_aim_request_info->file_tokens);
+        CreateAddedInputs(create_client_to_aim_request_info->file_tokens,
+                          /*include_files_without_lens_usage_intent=*/false);
     if (added_inputs.added_inputs_size() > 0) {
       submit_query->mutable_payload()->mutable_added_inputs()->CopyFrom(
           added_inputs);
@@ -805,11 +812,11 @@ void ComposeboxQueryController::StartFileUploadFlow(
     int64_t context_id = contextual_input_data->context_id.has_value()
                              ? contextual_input_data->context_id.value()
                              : RandInt64();
+    request_id_generator_.SetContextId(context_id);
     current_file_info.request_id = *request_id_generator_.GetNextRequestId(
         lens::RequestIdUpdateMode::kMultiContextUploadRequest,
         lens::MimeTypeToMediaType(current_file_info.mime_type,
-                                  use_has_viewport_media_type),
-        context_id);
+                                  use_has_viewport_media_type));
   }
 
   // Update the file upload status to processing.
@@ -866,6 +873,7 @@ void ComposeboxQueryController::
         lens::LensOverlayClientContext client_context,
         scoped_refptr<lens::RefCountedLensOverlayClientLogs> client_logs,
         RequestBodyProtoCreatedCallback callback,
+        std::optional<std::string> file_name,
         lens::ImageData image_data) {
   lens::LensOverlayServerRequest request;
   auto* objects_request = request.mutable_objects_request();
@@ -874,6 +882,11 @@ void ComposeboxQueryController::
   objects_request->mutable_request_context()
       ->mutable_client_context()
       ->CopyFrom(client_context);
+
+  if (file_name.has_value()) {
+    image_data.mutable_image_metadata()->set_file_name(file_name.value());
+  }
+
   objects_request->mutable_image_data()->CopyFrom(image_data);
   request.mutable_client_logs()->CopyFrom(client_logs->client_logs());
   std::move(callback).Run(std::move(request), /*error_type=*/std::nullopt);
@@ -1318,6 +1331,7 @@ void ComposeboxQueryController::ProcessDecodedImageAndContinue(
     lens::LensOverlayRequestId request_id,
     const lens::ImageEncodingOptions& image_options,
     RequestBodyProtoCreatedCallback callback,
+    std::optional<std::string> file_name,
     const SkBitmap& bitmap) {
 #if !BUILDFLAG(IS_IOS)
   scoped_refptr<lens::RefCountedLensOverlayClientLogs> ref_counted_logs =
@@ -1344,14 +1358,15 @@ void ComposeboxQueryController::ProcessDecodedImageAndContinue(
       base::BindOnce(&ComposeboxQueryController::
                          CreateFileUploadRequestProtoWithImageDataAndContinue,
                      request_id, CreateClientContext(), ref_counted_logs,
-                     std::move(callback)));
+                     std::move(callback), file_name));
 #endif  // !BUILDFLAG(IS_IOS)
 }
 
 void ComposeboxQueryController::CreateImageUploadRequest(
     lens::LensOverlayRequestId request_id,
-    const std::vector<uint8_t>& image_data,
+    std::vector<uint8_t> image_data,
     std::optional<lens::ImageEncodingOptions> image_options,
+    std::optional<std::string> file_name,
     RequestBodyProtoCreatedCallback callback) {
 #if !BUILDFLAG(IS_IOS)
   CHECK(image_options.has_value());
@@ -1362,7 +1377,7 @@ void ComposeboxQueryController::CreateImageUploadRequest(
       /*desired_image_frame_size=*/gfx::Size(),
       base::BindOnce(&ComposeboxQueryController::ProcessDecodedImageAndContinue,
                      weak_ptr_factory_.GetWeakPtr(), request_id,
-                     image_options.value(), std::move(callback)));
+                     image_options.value(), std::move(callback), file_name));
 #endif  // !BUILDFLAG(IS_IOS)
 }
 
@@ -1387,7 +1402,7 @@ void ComposeboxQueryController::CreateUploadRequestBodiesAndContinue(
         GetRequestIdForViewportImage(file_token),
         // Pass ownership of the viewport screenshot bytes to the callback.
         std::move(contextual_input_data->viewport_screenshot_bytes.value()),
-        std::move(image_options),
+        std::move(image_options), /*file_name=*/std::nullopt,
         base::BindOnce(
             &ComposeboxQueryController::
                 AddPageIndexToImageUploadRequestAndContinue,
@@ -1419,6 +1434,7 @@ void ComposeboxQueryController::CreateUploadRequestBodiesAndContinue(
                     &ComposeboxQueryController::OnUploadRequestBodyReady,
                     weak_ptr_factory_.GetWeakPtr(), file_token,
                     file_info->num_outstanding_network_requests_++))),
+        /*file_name=*/std::nullopt,
         // Pass ownership of the viewport screenshot to the
         // callback.
         std::move(*contextual_input_data->viewport_screenshot));
@@ -1475,7 +1491,7 @@ void ComposeboxQueryController::CreateUploadRequestBodiesAndContinue(
             file_info->request_id.value(),
             // Pass ownership of the contextual input data to the callback.
             std::move(contextual_input_data->context_input->front().bytes_),
-            std::move(image_options),
+            std::move(image_options), contextual_input_data->file_name,
             base::BindOnce(
                 &ComposeboxQueryController::
                     AddLensUsageIntentToUploadRequestAndContinue,

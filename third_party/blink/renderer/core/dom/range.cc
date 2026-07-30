@@ -55,11 +55,13 @@
 #include "third_party/blink/renderer/core/html/html_body_element.h"
 #include "third_party/blink/renderer/core/html/html_element.h"
 #include "third_party/blink/renderer/core/html/html_html_element.h"
+#include "third_party/blink/renderer/core/html/parser/fragment_parser_options.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
 #include "third_party/blink/renderer/core/layout/layout_text.h"
 #include "third_party/blink/renderer/core/layout/layout_text_fragment.h"
 #include "third_party/blink/renderer/core/page/scrolling/sync_scroll_attempt_heuristic.h"
 #include "third_party/blink/renderer/core/svg/svg_svg_element.h"
+#include "third_party/blink/renderer/core/trustedtypes/trusted_types_names.h"
 #include "third_party/blink/renderer/core/trustedtypes/trusted_types_util.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
@@ -611,6 +613,10 @@ DocumentFragment* Range::ProcessContents(ActionType action,
   Node* process_end = ChildOfCommonRootBeforeOffset(
       &original_end.Container(), original_end.Offset(), common_root);
 
+  if (!process_end && !common_root->contains(&original_end.Container())) {
+    process_start = nullptr;
+  }
+
   // Collapse the range, making sure that the result is not within a node that
   // was partially selected.
   if (action == kExtractContents || action == kDeleteContents) {
@@ -999,9 +1005,10 @@ DocumentFragment* Range::createContextualFragment(
 
   // Step 1: Invoke Get Trusted Type compliant string.
   String compliant_markup = TrustedTypesCheckForHTML(
-      markup, OwnerDocument().GetExecutionContext(),
+      markup, owner_document_->GetExecutionContext(),
       trusted_types_names::kRange,
       trusted_types_names::kCreateContextualFragment, exception_state);
+
   if (exception_state.HadException()) {
     return nullptr;
   }
@@ -1039,9 +1046,8 @@ DocumentFragment* Range::createContextualFragment(
   }
 
   // Steps 7, 8, 9: Invoke fragment parsing, etc.
-  return blink::CreateContextualFragment(
-      compliant_markup, element,
-      kAllowScriptingContentAndDoNotMarkAlreadyStarted, exception_state);
+  return blink::CreateContextualFragment(compliant_markup, element,
+                                         exception_state);
 }
 
 void Range::detach() {
@@ -1717,7 +1723,7 @@ void Range::GetBorderAndTextQuads(Vector<gfx::QuadF>& quads) const {
       owner_document_->AdjustQuadsForScrollAndAbsoluteZoom(element_quads,
                                                            *layout_object);
 
-      quads.AppendVector(element_quads);
+      quads.append_range(element_quads);
       continue;
     }
 
@@ -1737,7 +1743,7 @@ void Range::GetBorderAndTextQuads(Vector<gfx::QuadF>& quads) const {
                                     ? end_.Offset()
                                     : std::numeric_limits<unsigned>::max();
     if (!layout_text->IsTextFragment()) {
-      quads.AppendVector(ComputeTextQuads(*owner_document_, *layout_text,
+      quads.append_range(ComputeTextQuads(*owner_document_, *layout_text,
                                           start_offset, end_offset));
       continue;
     }
@@ -1753,7 +1759,7 @@ void Range::GetBorderAndTextQuads(Vector<gfx::QuadF>& quads) const {
       const unsigned start_in_first_letter = start_offset;
       const unsigned end_in_first_letter =
           std::min(end_offset, first_letter_part.FragmentLength());
-      quads.AppendVector(ComputeTextQuads(*owner_document_, first_letter_part,
+      quads.append_range(ComputeTextQuads(*owner_document_, first_letter_part,
                                           start_in_first_letter,
                                           end_in_first_letter));
     }
@@ -1767,7 +1773,7 @@ void Range::GetBorderAndTextQuads(Vector<gfx::QuadF>& quads) const {
       const unsigned end_in_remaining_part =
           end_offset == UINT_MAX ? end_offset
                                  : end_offset - remaining_part.Start();
-      quads.AppendVector(ComputeTextQuads(*owner_document_, remaining_part,
+      quads.append_range(ComputeTextQuads(*owner_document_, remaining_part,
                                           start_in_remaining_part,
                                           end_in_remaining_part));
     }

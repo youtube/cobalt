@@ -11,6 +11,7 @@
 #include "base/memory/raw_ref.h"
 #include "base/timer/timer.h"
 #include "chrome/browser/ui/views/frame/browser_root_view.h"
+#include "chrome/browser/ui/views/tabs/shared/drop_arrow.h"
 #include "chrome/browser/ui/views/tabs/tab.h"
 #include "chrome/browser/ui/views/tabs/tab_container.h"
 #include "chrome/browser/ui/views/tabs/tab_group_underline.h"
@@ -170,48 +171,7 @@ class TabContainerImpl : public TabContainer,
   void UpdateZOrderCacheForTesting();
 
  private:
-  // Used during a drop session of a url. Tracks the position of the drop as
-  // well as a window used to highlight where the drop occurs.
-  class DropArrow : public views::WidgetObserver {
-   public:
-    DropArrow(const BrowserRootView::DropIndex& index,
-              bool point_down,
-              views::Widget* context);
-    DropArrow(const DropArrow&) = delete;
-    DropArrow& operator=(const DropArrow&) = delete;
-    ~DropArrow() override;
-
-    void set_index(const BrowserRootView::DropIndex& index) { index_ = index; }
-    BrowserRootView::DropIndex index() const { return index_; }
-
-    void SetPointDown(bool down);
-    bool point_down() const { return point_down_; }
-
-    void SetWindowBounds(const gfx::Rect& bounds);
-
-    // views::WidgetObserver:
-    void OnWidgetDestroying(views::Widget* widget) override;
-
-   private:
-    // Index of the tab to drop on.
-    BrowserRootView::DropIndex index_;
-
-    // Direction the arrow should point in. If true, the arrow is displayed
-    // above the tab and points down. If false, the arrow is displayed beneath
-    // the tab and points up.
-    bool point_down_ = false;
-
-    // Renders the drop indicator.
-    raw_ptr<views::Widget, DanglingUntriaged> arrow_window_ = nullptr;
-
-    raw_ptr<views::ImageView, DanglingUntriaged> arrow_view_ = nullptr;
-
-    base::ScopedObservation<views::Widget, views::WidgetObserver>
-        scoped_observation_{this};
-  };
-
   class RemoveTabDelegate;
-
   views::ViewModelT<Tab>* GetTabsViewModel();
 
   // Uses `bounds_animator_` to animate `view` to `target`. Use this rather than
@@ -314,12 +274,9 @@ class TabContainerImpl : public TabContainer,
   // -- Link Drag & Drop ------------------------------------------------------
 
   // Returns the bounds to render the drop at, in screen coordinates. Sets
-  // `is_beneath` to indicate whether the arrow is beneath the tab, or above
-  // it.
-  gfx::Rect GetDropBounds(int drop_index,
-                          bool drop_before,
-                          bool drop_in_group,
-                          bool* is_beneath);
+  // `direction` to indicate which way the arrow should point.
+  gfx::Rect GetDropBounds(const BrowserRootView::DropIndex& drop_index,
+                          DropArrow::Direction* direction);
 
   // Show drop arrow with passed `tab_data_index` and `drop_before`.
   // If `tab_data_index` is negative, the arrow will disappear.

@@ -206,8 +206,7 @@ cssvalue::CSSScopedKeywordValue* ConsumeScopedKeywordValue(
 
 // https://drafts.csswg.org/css-values-5/#ident
 CSSFunctionValue* ConsumeIdentFunction(CSSParserTokenStream&,
-                                       const CSSParserContext&,
-                                       CSSParserLocalContext&);
+                                       const CSSParserContext&);
 CSSCustomIdentValue* ConsumeCustomIdent(CSSParserTokenStream&,
                                         const CSSParserContext&,
                                         CSSParserLocalContext&);
@@ -1005,7 +1004,7 @@ CSSValue* ConsumeBackgroundPositionLonghand(
 
 inline bool AtIdent(const CSSParserToken& token, const char* ident) {
   return token.GetType() == kIdentToken &&
-         EqualIgnoringASCIICase(token.Value(), ident);
+         EqualIgnoringAsciiCase(token.Value(), ident);
 }
 
 inline bool ConsumeIfIdent(CSSParserTokenStream& stream, const char* ident) {

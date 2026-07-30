@@ -823,6 +823,7 @@ SelectorChecker::FeaturelessMatch SelectorChecker::MatchShadowHost(
     case CSSSelector::kPseudoTargetCurrent:
     case CSSSelector::kPseudoTargetBefore:
     case CSSSelector::kPseudoTargetAfter:
+    case CSSSelector::kPseudoTextField:
     case CSSSelector::kPseudoToolFormActive:
     case CSSSelector::kPseudoToolSubmitActive:
     case CSSSelector::kPseudoViewTransition:
@@ -2545,15 +2546,19 @@ bool SelectorChecker::CheckPseudoClass(const SelectorCheckingContext& context,
       }
       return element.HasFocusWithin();
     case CSSSelector::kPseudoActiveOption:
-      if (!RuntimeEnabledFeatures::CustomizableComboboxEnabled()) {
-        return false;
-      }
-      // This will only match for a base appearance combobox because
-      // HTMLDataListElement::ActiveOption will only return an option if the
-      // datalist is being rendered with base appearance.
       if (auto* option = DynamicTo<HTMLOptionElement>(element)) {
-        if (HTMLDataListElement* datalist = option->OwnerDataListElement()) {
-          return datalist->ActiveOption() == option;
+        if (RuntimeEnabledFeatures::CustomizableComboboxEnabled()) {
+          // This will only match for a base appearance combobox because
+          // HTMLDataListElement::ActiveOption will only return an option if the
+          // datalist is being rendered with base appearance.
+          if (HTMLDataListElement* datalist = option->OwnerDataListElement()) {
+            return datalist->ActiveOption() == option;
+          }
+        }
+        if (RuntimeEnabledFeatures::FilterableSelectEnabled()) {
+          if (HTMLSelectElement* select = option->OwnerSelectElement()) {
+            return option == select->ActiveOption();
+          }
         }
       }
       return false;
@@ -2842,6 +2847,12 @@ bool SelectorChecker::CheckPseudoClass(const SelectorCheckingContext& context,
                    : order_result == 1;
       }
       break;
+    }
+    case CSSSelector::kPseudoTextField: {
+      if (auto* input = DynamicTo<HTMLInputElement>(element)) {
+        return input->IsTextField();
+      }
+      return false;
     }
     case CSSSelector::kPseudoIndeterminate: {
       probe::ForcePseudoState(&element, CSSSelector::kPseudoIndeterminate,

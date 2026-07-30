@@ -37,15 +37,9 @@
 #include "ui/gfx/skia_span_util.h"
 
 #if BUILDFLAG(IS_WIN)
-// XpsObjectModel.h indirectly includes <wincrypt.h> which is
-// incompatible with Chromium's OpenSSL. By including wincrypt_shim.h
-// first, problems are avoided.
-// clang-format off
-#include "base/win/wincrypt_shim.h"
+#include <objbase.h>
 
 #include <XpsObjectModel.h>
-#include <objbase.h>
-// clang-format on
 
 #include "third_party/skia/include/docs/SkXPSDocument.h"
 #include "third_party/skia/include/encode/SkPngRustEncoder.h"
@@ -275,10 +269,18 @@ bool RecursiveBuildStructureTree(const ui::AXNode* ax_node,
           chrome_pdf::kPDFTableCellHeadersAttribute, header_ids);
       break;
     }
+    case ax::mojom::Role::kCanvas:
+    case ax::mojom::Role::kDocCover:
+    case ax::mojom::Role::kSvgRoot:
+      // These roles may contain rich fallback/descendant semantics.
+      // Only map to Figure when there are no children.
+      if (ax_node->GetUnignoredChildCount() > 0) {
+        tag->fTypeString = chrome_pdf::kPDFStructureTypeNonStruct;
+        break;
+      }
+      [[fallthrough]];
+    case ax::mojom::Role::kGraphicsSymbol:
     case ax::mojom::Role::kImage:
-      // TODO(thestig): Figure out if the `ax::mojom::Role::kFigure` case should
-      // share code with the `ax::mojom::Role::kImage` case, and if `valid`
-      // should be set.
       valid = true;
       [[fallthrough]];
     case ax::mojom::Role::kFigure: {

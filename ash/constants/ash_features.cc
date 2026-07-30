@@ -1093,11 +1093,6 @@ BASE_FEATURE(kInstantHotspotOnNearby, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kInstantTethering, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables or disables the internal server side speech recognition on ChromeOS.
-// Controls the launched locales.
-BASE_FEATURE(kInternalServerSideSpeechRecognition,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enables or disables the internal server side speech recognition on ChromeOS.
 // The supported locales for this feature are specified using the locales
 // filter in finch config.
 BASE_FEATURE(kInternalServerSideSpeechRecognitionByFinch,
@@ -1538,10 +1533,6 @@ BASE_FEATURE(kOrcaResizingSupport, base::FEATURE_DISABLED_BY_DEFAULT);
 // Enables or disables Orca on Demo mode.
 BASE_FEATURE(kOrcaSupportDemoMode, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// If enabled, OsSyncConsent Revamp will be shown.
-// enabling this without enabling Lacros flag will have no effect
-BASE_FEATURE(kOsSyncConsentRevamp, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enables Jelly colors and components to appear in the Parent Access Widget
 // if jelly-colors is also enabled.
 BASE_FEATURE(kParentAccessJelly, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1823,11 +1814,6 @@ BASE_FEATURE(kSendDeviceInfoToDemoServer, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Uses experimental component version for smart dim.
 BASE_FEATURE(kSmartDimExperimentalComponent, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Deprecates Sign in with Smart Lock feature. Hides Smart Lock at the sign in
-// screen, removes the Smart Lock subpage in settings, and shows a one-time
-// notification for users who previously had this feature enabled.
-BASE_FEATURE(kSmartLockSignInRemoved, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Replaces uses of `SystemNudge` with the new `AnchoredNudge` component.
 BASE_FEATURE(kSystemNudgeMigration, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -2712,9 +2698,7 @@ bool IsSnoopingProtectionEnabled() {
 
 bool IsInternalServerSideSpeechRecognitionEnabled() {
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-
-  return (ShouldForceEnableServerSideSpeechRecognition() ||
-          base::FeatureList::IsEnabled(kInternalServerSideSpeechRecognition));
+  return true;
 #else
   return false;
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
@@ -2954,10 +2938,6 @@ bool IsOobeAutoEnrollmentCheckForcedEnabled() {
 
 bool IsOobeSplitModifierKeyboardInfoEnabled() {
   return base::FeatureList::IsEnabled(kOobeSplitModifierKeyboardInfo);
-}
-
-bool IsOsSyncConsentRevampEnabled() {
-  return base::FeatureList::IsEnabled(kOsSyncConsentRevamp);
 }
 
 bool IsParentAccessJellyEnabled() {

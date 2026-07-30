@@ -54,6 +54,7 @@ ContextImplCoreml::ContextImplCoreml(
     scoped_refptr<base::SingleThreadTaskRunner> main_task_runner)
     : WebNNContextImpl(std::move(receiver),
                        std::move(context_provider),
+                       ContextBackendUma::kCoreML,
                        GraphBuilderCoreml::GetContextProperties(),
                        std::move(options),
                        mojo::ScopedDataPipeConsumerHandle(),
@@ -96,7 +97,7 @@ ContextImplCoreml::CreateTensorImpl(
         mojom::Error::New(mojom::Error::Code::kNotSupportedError,
                           "Creation of constant tensors is not supported."));
   }
-  return TensorImplCoreml::Create(std::move(receiver), AsWeakPtr(),
+  return TensorImplCoreml::Create(std::move(receiver), *this,
                                   std::move(tensor_info));
 }
 
@@ -105,7 +106,7 @@ ContextImplCoreml::CreateTensorFromSharedImageImpl(
     mojo::PendingAssociatedReceiver<mojom::WebNNTensor> receiver,
     mojom::TensorInfoPtr tensor_info,
     WebNNTensorImpl::RepresentationPtr representation) {
-  return TensorImplCoreml::Create(std::move(receiver), AsWeakPtr(),
+  return TensorImplCoreml::Create(std::move(receiver), *this,
                                   std::move(tensor_info),
                                   std::move(representation));
 }
