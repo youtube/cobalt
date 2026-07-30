@@ -266,9 +266,6 @@ class CORE_EXPORT ElementRareDataVector final
   [[nodiscard]] ElementRareDataVector* SetPart(DOMTokenList* part);
   DOMTokenList* GetPart() const;
 
-  [[nodiscard]] ElementRareDataVector* SetMarker(DOMTokenList* marker);
-  DOMTokenList* GetMarker() const;
-
   [[nodiscard]] ElementRareDataVector* SetPartNamesMap(
       const AtomicString part_names);
   const NamesMap* PartNamesMap() const;
@@ -413,7 +410,7 @@ class CORE_EXPORT ElementRareDataVector final
   DisplayAdElementMonitor* GetDisplayAdElementMonitor() const;
   std::pair<std::reference_wrapper<DisplayAdElementMonitor>,
             ElementRareDataVector*>
-  EnsureDisplayAdElementMonitor(Element*);
+  EnsureDisplayAdElementMonitor(Element*, AdProvenance);
 
   void SetDidAttachInternals() { flags_.did_attach_internals = true; }
   bool DidAttachInternals() const { return flags_.did_attach_internals; }
@@ -624,8 +621,7 @@ class CORE_EXPORT ElementRareDataVector final
     kFlatTreeNodeData = 46,
     kScrollTimelines = 47,
     kDOMNodeId = 49,
-    kMarker = 50,
-    kNumFields = 51,
+    kNumFields = 50,
   };
 
   inline const Member<ElementRareDataField>* ArrayBase() const {

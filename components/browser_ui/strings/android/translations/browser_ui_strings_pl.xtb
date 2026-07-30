@@ -125,7 +125,6 @@
 <translation id="2228071138934252756">Aby zezwolić aplikacji <ph name="APP_NAME" /> na dostęp do aparatu, musisz go też włączyć w <ph name="BEGIN_LINK" />Ustawieniach Androida<ph name="END_LINK" />.</translation>
 <translation id="2231160360698766265">Strony mogą odtwarzać treści chronione</translation>
 <translation id="2235344399760031203">Pliki cookie innych firm są blokowane</translation>
-<translation id="2238944249568001759">Sugerowane wyszukiwania na podstawie ostatnio otwartej karty</translation>
 <translation id="2241587408274973373">Karty na stronie nowej karty</translation>
 <translation id="2241634353105152135">Tylko raz</translation>
 <translation id="2253414712144136228">Usuń <ph name="NAME_OF_LIST_ITEM" /></translation>
@@ -214,7 +213,6 @@ Zaawansowana ochrona kontroluje te ustawienia Chrome:
 <translation id="3069226013421428034">Zezwalanie na logowanie przez usługę zewnętrzną w określonej witrynie.</translation>
 <translation id="310297983047869047">Poprzedni slajd</translation>
 <translation id="3108122610701115301">Ustaw jako wartość domyślną</translation>
-<translation id="3109724472072898302">Zwinięty</translation>
 <translation id="310979712355504754">Usuń wszystkie</translation>
 <translation id="311394601889664316">Nie zezwalaj witrynom na edytowanie plików ani folderów na urządzeniu</translation>
 <translation id="3114012059975132928">Odtwarzacz</translation>
@@ -262,13 +260,13 @@ Zaawansowana ochrona kontroluje te ustawienia Chrome:
 <translation id="3602290021589620013">Podgląd</translation>
 <translation id="3611658447322220736">Niedawno zamknięte strony mogą dokończyć wysyłanie i odbieranie danych</translation>
 <translation id="3619294456800709762">Witryny mogą automatycznie włączać obraz w obrazie</translation>
-<translation id="3628308229821498208">Sugerowane wyszukiwania</translation>
 <translation id="3632460243282703117">Subskrybuj</translation>
 <translation id="363748948745453283">Używana jest przybliżona lokalizacja</translation>
 <translation id="3641456520301071208">Strony mogą prosić o informacje o Twojej lokalizacji</translation>
 <translation id="3658847490588580244">Plansza dolna przeglądarki domyślnej</translation>
 <translation id="3669841141196828854">{COUNT,plural, =1{<ph name="RWS_MEMBERS_COUNT" /> witryna w grupie witryn <ph name="RWS_OWNER" />, które mają dostęp do danych o Twojej aktywności w tej grupie}few{<ph name="RWS_MEMBERS_COUNT" /> witryny w grupie witryn <ph name="RWS_OWNER" />, które mają dostęp do danych o Twojej aktywności w tej grupie}many{<ph name="RWS_MEMBERS_COUNT" /> witryn w grupie witryn <ph name="RWS_OWNER" />, które mają dostęp do danych o Twojej aktywności w tej grupie}other{<ph name="RWS_MEMBERS_COUNT" /> witryny w grupie witryn <ph name="RWS_OWNER" />, które mają dostęp do danych o Twojej aktywności w tej grupie}}</translation>
 <translation id="3676777756440746804">Strony nie mogą prosić Cię o korzystanie z informacji, które o Tobie zapisały</translation>
+<translation id="3677897809642449131">Strony mogą prosić o zgodę na używanie czujników ruchu</translation>
 <translation id="3678318839615834650">Plansza dolna kart na stronie nowej karty otwarta na całą wysokość</translation>
 <translation id="3697164069658504920">Gdy ta opcja jest włączona, strony internetowe mogą prosić o zgodę na używanie urządzeń USB. Gdy jest wyłączona, strony nie mogą używać urządzeń USB.</translation>
 <translation id="3703430731944883733">Zarządzaj plikiem danych</translation>
@@ -444,7 +442,6 @@ Zaawansowana ochrona kontroluje te ustawienia Chrome:
 <translation id="5515432237048785579">Plansza dolna karty Discover otwarta na całą wysokość</translation>
 <translation id="5516455585884385570">Otwórz ustawienia powiadomień</translation>
 <translation id="5527111080432883924">Pytaj, czy zezwolić stronom na odczytywanie tekstu i obrazów ze schowka (zalecane)</translation>
-<translation id="5553374991681107062">Najnowsze</translation>
 <translation id="5555115555607204100">Działanie witryn nie będzie przyspieszane za pomocą mechanizmu V8 w przeglądarce Chrome, ale będzie ona trochę bardziej odporna na ataki</translation>
 <translation id="5556459405103347317">Odśwież</translation>
 <translation id="5591840828808741583">Zablokowano: <ph name="SITE_NAME" /></translation>
@@ -490,6 +487,7 @@ Zaawansowana ochrona kontroluje te ustawienia Chrome:
 <translation id="5922853908706496913">Udostępnianie ekranu</translation>
 <translation id="5922967540311291836">Blokuj pliki cookie innych firm:</translation>
 <translation id="5923512600150154850">Spowoduje to usunięcie <ph name="DATASIZE" /> danych i plików cookie zapisanych przez strony.</translation>
+<translation id="5930707844513754220">Zobacz więcej na liście konfiguracji</translation>
 <translation id="5939518447894949180">Resetuj</translation>
 <translation id="5948139900367969951">Szybko docieraj do tego, co jest dla Ciebie ważne</translation>
 <translation id="5964247741333118902">Umieszczona treść</translation>
@@ -498,6 +496,7 @@ Zaawansowana ochrona kontroluje te ustawienia Chrome:
 <translation id="5976059395673079613"><ph name="PERMISSION" /> – <ph name="WARNING_MESSAGE" /></translation>
 <translation id="5998071268779572583">Włącz karty Discover</translation>
 <translation id="6012967556075291653">Przypięty skrót</translation>
+<translation id="6013003831291591200">Zadanie ukończone</translation>
 <translation id="6015775454662021376">Zarządzaj dostępem tej strony do Twojego urządzenia</translation>
 <translation id="6022659036123304283">Dostosuj Chrome do swoich potrzeb</translation>
 <translation id="6040143037577758943">Zamknij</translation>
@@ -522,7 +521,6 @@ Zaawansowana ochrona kontroluje te ustawienia Chrome:
 <translation id="6231752747840485235">Odinstalować aplikację „<ph name="APP_NAME" />”?</translation>
 <translation id="6234351944623978659">Kliknij Przeglądarka &gt; Chrome.</translation>
 <translation id="6260830281887654268">Plansza dolna kolekcji motywów wyglądu strony Nowa karta otwarta do połowy wysokości</translation>
-<translation id="6262191102408817757">Na podstawie ostatniej karty</translation>
 <translation id="6262279340360821358">Zablokowane: <ph name="PERMISSION_1" /> i <ph name="PERMISSION_2" /></translation>
 <translation id="6270391203985052864">Witryny mogą prosić o zgodę na wysyłanie powiadomień</translation>
 <translation id="6295158916970320988">Wszystkie witryny</translation>
@@ -602,7 +600,6 @@ Zaawansowana ochrona kontroluje te ustawienia Chrome:
 <translation id="7180611975245234373">Odśwież</translation>
 <translation id="7188508872042490670">Dane witryn na urządzeniu</translation>
 <translation id="7201549776650881587">Spowoduje to usunięcie wszystkich danych i plików cookie zapisanych przez strony internetowe w grupie <ph name="ORIGIN" /> lub jej aplikację na ekranie głównym</translation>
-<translation id="7203150201908454328">Rozwinięty</translation>
 <translation id="7213166370492037743">Nie zezwalaj witrynom na łączenie się z żadnym urządzeniem w sieci lokalnej</translation>
 <translation id="7219254577985949841">Usunąć dane witryny?</translation>
 <translation id="723171743924126238">Wybierz zdjęcia</translation>
@@ -676,7 +673,6 @@ Zaawansowana ochrona kontroluje te ustawienia Chrome:
 <translation id="8007176423574883786">Wyłączona na tym urządzeniu</translation>
 <translation id="802154636333426148">Nie udało się pobrać</translation>
 <translation id="8033047164036749181">Zasubskrybuj powiadomienia z tej witryny</translation>
-<translation id="8042586301629853791">Sortuj według:</translation>
 <translation id="8051193500142930381">Nie będą działać funkcje, które potrzebują kamery</translation>
 <translation id="8056330801132235235">Wartość domyślna Chrome</translation>
 <translation id="8067883171444229417">Odtwórz film</translation>
@@ -748,6 +744,7 @@ Zaawansowana ochrona kontroluje te ustawienia Chrome:
 <translation id="8707904142362025782">Strona może prosić o dostęp do kamery</translation>
 <translation id="8712637175834984815">OK</translation>
 <translation id="8715862698998036666">Aby zamknąć pełny ekran, przeciągnij od góry i przesuń palcem od lewej lub prawej krawędzi.</translation>
+<translation id="8716050156658570300">Strony mogą prosić o dostęp do czujników ruchu i światła</translation>
 <translation id="8719283222052720129">Przyznaj aplikacji <ph name="APP_NAME" /> uprawnienie w <ph name="BEGIN_LINK" />ustawieniach Androida<ph name="END_LINK" />.</translation>
 <translation id="8721719390026067591">Gdy ta opcja jest włączona, strony internetowe mogą prosić o zgodę na wyszukanie urządzeń Bluetooth. Gdy jest wyłączona, strony nie mogą wyszukiwać urządzeń Bluetooth.</translation>
 <translation id="8725066075913043281">Spróbuj ponownie</translation>

@@ -14,7 +14,7 @@
 // LINT.IfChange(PageActionIconType)
 enum class PageActionIconType {
   kBookmarkStar = 0,
-  kClickToCall = 1,
+  // DEPRECATED: kClickToCall = 1,
   kCookieControls = 2,
   kFileSystemAccess = 3,
   kFind = 4,
@@ -54,12 +54,13 @@ enum class PageActionIconType {
   kJsOptimizations = 38,
   kRecordReplay = 39,
   kIndigo = 40,
-  kMaxValue = kIndigo,
+  kFederation = 41,
+  kGlic = 42,
+  kMaxValue = kGlic,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/page/enums.xml:PageActionIconType)
 
 static_assert(static_cast<int>(PageActionIconType::kBookmarkStar) == 0);
-static_assert(static_cast<int>(PageActionIconType::kClickToCall) == 1);
 static_assert(static_cast<int>(PageActionIconType::kCookieControls) == 2);
 static_assert(static_cast<int>(PageActionIconType::kFileSystemAccess) == 3);
 static_assert(static_cast<int>(PageActionIconType::kFind) == 4);
@@ -92,6 +93,8 @@ static_assert(static_cast<int>(PageActionIconType::kContextualSidePanel) == 37);
 static_assert(static_cast<int>(PageActionIconType::kJsOptimizations) == 38);
 static_assert(static_cast<int>(PageActionIconType::kRecordReplay) == 39);
 static_assert(static_cast<int>(PageActionIconType::kIndigo) == 40);
+static_assert(static_cast<int>(PageActionIconType::kFederation) == 41);
+static_assert(static_cast<int>(PageActionIconType::kGlic) == 42);
 
 // Returns a bool indicating whether the given page action type has been
 // migrated to the new framework, which is based on ActionItems instead of

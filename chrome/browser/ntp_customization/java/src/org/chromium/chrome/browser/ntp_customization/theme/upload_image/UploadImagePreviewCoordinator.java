@@ -315,18 +315,14 @@ public class UploadImagePreviewCoordinator implements InsetObserver.WindowInsets
     private void setUpSearchBox(PropertyModel propertyModel, Profile profile) {
         Resources resources = mActivity.getResources();
         boolean showSearchBoxTall =
-                ComposeplateUtils.isComposeplateEnabled(/* isTablet= */ false, profile)
-                        && ChromeFeatureList.sAndroidComposeplateV2Enabled.getValue();
+                ComposeplateUtils.isComposeplateEnabled(/* isTablet= */ false, profile);
 
         propertyModel.set(
                 SEARCH_BOX_HEIGHT,
-                NtpCustomizationUtils.getSearchBoxHeightWithShadows(
-                        resources, showSearchBoxTall, /* hasShadowApplied= */ true));
+                NtpCustomizationUtils.getSearchBoxHeightWithShadows(resources, showSearchBoxTall));
 
         propertyModel.set(
-                SEARCH_BOX_TOP_MARGIN,
-                NtpCustomizationUtils.getLogoViewBottomMarginPx(
-                        resources, /* applyShadow= */ true));
+                SEARCH_BOX_TOP_MARGIN, NtpCustomizationUtils.getLogoViewBottomMarginPx(resources));
     }
 
     PropertyModel getPropertyModelForTesting() {

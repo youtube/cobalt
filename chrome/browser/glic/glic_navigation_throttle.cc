@@ -10,11 +10,15 @@
 #include "base/metrics/user_metrics.h"
 #include "base/strings/escape.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/values.h"
 #include "build/buildflag.h"
+#include "chrome/browser/browser_process.h"
+#include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/widget/browser_conditions.h"
 #include "chrome/browser/profiles/profile.h"
+#include "components/prefs/pref_service.h"
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
@@ -61,13 +65,30 @@ GURL GetGlicWebContinuityUrl() {
 // Retrieves the GURL for the Web Continuity Originating Host, defaulting to the
 // Guest URL's origin.
 GURL GetGlicWebContinuityOriginatingHostUrl() {
-  static const base::NoDestructor<GURL> continuity_url([]() {
+  static base::NoDestructor<std::string> last_pref_value("");
+  static base::NoDestructor<GURL> continuity_url;
+
+  std::string current_pref_value = g_browser_process->local_state()->GetString(
+      prefs::kGlicWebContinuityOriginatingHostUrlPreset);
+
+  if (current_pref_value != *last_pref_value || !continuity_url->is_valid()) {
+    *last_pref_value = current_pref_value;
+
     std::string continuity_url_str =
         features::kGlicWebContinuityOriginatingHost.Get();
     if (!continuity_url_str.empty()) {
       GURL url(continuity_url_str);
       if (url.is_valid()) {
-        return url;
+        *continuity_url = url;
+        return *continuity_url;
+      }
+    }
+
+    if (!current_pref_value.empty()) {
+      GURL url(current_pref_value);
+      if (url.is_valid()) {
+        *continuity_url = url;
+        return *continuity_url;
       }
     }
 
@@ -75,11 +96,12 @@ GURL GetGlicWebContinuityOriginatingHostUrl() {
     if (!guest_url_str.empty()) {
       GURL url(guest_url_str);
       if (url.is_valid()) {
-        return url.GetWithEmptyPath();
+        *continuity_url = url.GetWithEmptyPath();
+        return *continuity_url;
       }
     }
-    return GURL();
-  }());
+    *continuity_url = GURL();
+  }
   return *continuity_url;
 }
 
@@ -144,6 +166,7 @@ GlicNavigationThrottle::WillStartRequest() {
   GURL url = navigation_handle()->GetURL();
   std::optional<std::string> cid;
   std::optional<std::string> target_url_str;
+  std::optional<std::string> turn_id;
 
   Profile* profile =
       Profile::FromBrowserContext(web_contents->GetBrowserContext());
@@ -152,6 +175,7 @@ GlicNavigationThrottle::WillStartRequest() {
   size_t max_cid_length = features::kGlicWebContinuityMaxCIDLength.Get();
   size_t max_target_url_length =
       features::kGlicWebContinuityMaxTargetUrlLength.Get();
+  size_t max_turn_id_length = features::kGlicWebContinuityMaxTurnIdLength.Get();
 
   for (net::QueryIterator it(url); !it.IsAtEnd(); it.Advance()) {
     if (it.GetKey() == "cid") {
@@ -167,6 +191,13 @@ GlicNavigationThrottle::WillStartRequest() {
       if (target_url_str->length() > max_target_url_length) {
         LogCaptureResult(is_glic_enabled,
                          GeminiNavigationCaptureResult::kTargetUrlTooLong);
+        return PROCEED;
+      }
+    } else if (it.GetKey() == "turnId") {
+      turn_id = it.GetUnescapedValue();
+      if (turn_id->length() > max_turn_id_length) {
+        LogCaptureResult(is_glic_enabled,
+                         GeminiNavigationCaptureResult::kTurnIdTooLong);
         return PROCEED;
       }
     }
@@ -195,12 +226,12 @@ GlicNavigationThrottle::WillStartRequest() {
     tabs::TabInterface* tab =
         tabs::TabInterface::MaybeGetFromContents(web_contents);
     if (tab && tab->GetBrowserWindowInterface()) {
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-      glic_service->ShowUiWithConversationID(
-          tab->GetBrowserWindowInterface(),
-          glic::mojom::InvocationSource::kNavigationCapture, cid ? *cid : "");
-#pragma clang diagnostic pop
+      GlicInvokeOptions options(
+          glic::mojom::InvocationSource::kNavigationCapture);
+      if (cid) {
+        options.conversation = glic::ConversationId(*cid, turn_id);
+      }
+      glic_service->Invoke(tab, std::move(options));
     }
   }
 

@@ -89,27 +89,19 @@ class GlicPageHandler : public glic::mojom::PageHandler,
 
   void WebUiStateChanged(glic::mojom::WebUiState new_state) override;
 
-  void GetInternalsDataPayload(
-      GetInternalsDataPayloadCallback callback) override;
-
-  void SetGuestUrlPresets(const GURL& autopush_url,
-                          const GURL& staging_url,
-                          const GURL& preprod_url,
-                          const GURL& prod_url) override;
-
   // PanelStateObserver implementation.
   void PanelStateChanged(const glic::mojom::PanelState& panel_state,
                          const PanelStateContext& context) override;
 
   void UpdatePageState(mojom::PanelStateKind panelStateKind);
 
-  Host& host() { return host_.get(); }
+  Host& host() { return *host_; }
 
  private:
   GlicKeyedService* GetGlicService();
 
-  // HostManager keeps the host alive while GlicPageHandler is alive.
-  raw_ref<Host> host_;
+  // Owned by HostManager. Cleared when the page handler unregisters.
+  raw_ptr<Host> host_;
   // There should at most one WebClientHandler at a time. A new one is created
   // each time the webview loads a page.
   std::unique_ptr<GlicWebClientHandler> web_client_handler_;

@@ -169,8 +169,6 @@ static_library("safe_browsing") {
       "cloud_content_scanning/deep_scanning_utils.h",
       "cloud_content_scanning/file_analysis_request.cc",
       "cloud_content_scanning/file_analysis_request.h",
-      "cloud_content_scanning/file_opening_job.cc",
-      "cloud_content_scanning/file_opening_job.h",
       "delayed_warning_navigation_throttle.cc",
       "delayed_warning_navigation_throttle.h",
       "download_protection/check_client_download_request.cc",
@@ -272,6 +270,7 @@ static_library("safe_browsing") {
       "//chrome/browser/profiles",
       "//chrome/browser/profiles:profile",
       "//chrome/browser/search_engines",
+      "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/safety_hub",
       "//chrome/common/safe_browsing:archive_analyzer_results",
       "//chrome/common/safe_browsing:binary_feature_extractor",
@@ -329,6 +328,8 @@ static_library("safe_browsing") {
       "//services/preferences/public/mojom",
     ]
 
+    public_deps += [ "//chrome/browser/security_events" ]
+
     allow_circular_includes_from += [ "//chrome/browser/ui/safety_hub" ]
     if (safe_browsing_mode == 1) {
       # "Safe Browsing Full" files in addition to the "basic" ones to use for
@@ -344,6 +345,8 @@ static_library("safe_browsing") {
         "download_protection/download_protection_delegate_desktop.h",
         "download_protection/path_sanitizer.cc",
         "download_protection/path_sanitizer.h",
+        "extension_telemetry/activity_log_ingester.cc",
+        "extension_telemetry/activity_log_ingester.h",
         "extension_telemetry/cookies_get_all_signal.cc",
         "extension_telemetry/cookies_get_all_signal.h",
         "extension_telemetry/cookies_get_all_signal_processor.cc",
@@ -479,6 +482,7 @@ static_library("safe_browsing") {
         "//chrome/app/vector_icons",
         "//chrome/browser/ui/hats",
         "//chrome/common",
+        "//chrome/common/extensions",
         "//chrome/services/file_util/public/cpp",
         "//components/content_settings/core/browser",
         "//components/enterprise/connectors/core:cloud_content_scanning",

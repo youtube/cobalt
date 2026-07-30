@@ -55,7 +55,8 @@ void SendTabToSelfToolbarIconController::DisplayNewEntries(
   // If the active browser matches `profile_`, show the toolbar icon.
   // Otherwise, we will store this entry and wait to show on the next active
   // appropriate browser.
-  auto* browser = chrome::FindLastActiveWithProfile(profile_);
+  BrowserWindowInterface* const browser =
+      chrome::FindLastActiveWithProfile(profile_);
   if (browser && browser->IsActive() && CanShowOnBrowser(browser)) {
     ShowToolbarButton(*new_entry, browser);
     return;
@@ -77,7 +78,7 @@ void SendTabToSelfToolbarIconController::StorePendingEntry(
       new_entry_pending_notification->GetSharedTime(),
       new_entry_pending_notification->GetDeviceName(),
       new_entry_pending_notification->GetTargetDeviceSyncCacheGuid(),
-      PageContext());
+      new_entry_pending_notification->GetPageContext());
   // Prevent adding the observer several times. This might happen when the
   // window is inactive and this method is called more than once (i.e. the
   // server sends multiple entry batches).

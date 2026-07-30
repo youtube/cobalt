@@ -102,14 +102,16 @@ class ContextualSearchMetricsRecorder {
 
   // Notifies the metrics recorder that a query was submitted.
   virtual void NotifyQuerySubmitted(bool has_tab_context,
-                                    bool has_non_tab_context);
+                                    bool has_non_tab_context,
+                                    int query_text_length,
+                                    int file_count);
 
   // Activates a funnel for metrics logging.
   virtual void ActivateMetricsFunnel(const std::string& funnel_name);
 
-  virtual void OnFileUploadStatusChanged(
+  virtual void OnContextUploadStatusChanged(
       lens::MimeType file_mime_type,
-      ContextUploadStatus file_upload_status,
+      ContextUploadStatus context_upload_status,
       const std::optional<ContextUploadErrorType>& error_type);
 
   // Maps file errors to its string version for histogram naming.
@@ -123,7 +125,10 @@ class ContextualSearchMetricsRecorder {
 
   // Records several metrics about the query, such the number of characters
   // found in the query.
-  void RecordQueryMetrics(int text_length, int file_count);
+  void RecordQueryMetrics(bool has_tab_context,
+                          bool has_non_tab_context,
+                          int text_length,
+                          int file_count);
 
   void RecordFileSizeMetric(lens::MimeType mime_type, uint64_t file_size_bytes);
 
@@ -157,6 +162,9 @@ class ContextualSearchMetricsRecorder {
 
   // Records when a zero-suggest suggestion is clicked.
   virtual void RecordZeroSuggestClick(bool is_contextual);
+
+  // Records when a typed suggestion is clicked.
+  virtual void RecordTypedSuggestNavigation(bool is_verbatim);
 
  private:
   // Called when the session starts to correctly track session

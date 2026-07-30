@@ -43,10 +43,6 @@ BASE_DECLARE_FEATURE(
 // param.
 BASE_DECLARE_FEATURE(kEnableNotifyZeroStateRenderedCapability);
 
-// Replace the overflow menu in the side panel with an explicit button to move
-// the thread to a new tab.
-BASE_DECLARE_FEATURE(kContextualTasksExpandButton);
-
 // If enabled, adds the Sec-CH-UA-Full-Version-List header to all network
 // requests initiated from within an embedded Co-Browse <webview>.
 BASE_DECLARE_FEATURE(kContextualTasksSendFullVersionListEnabled);
@@ -54,6 +50,9 @@ BASE_DECLARE_FEATURE(kContextualTasksSendFullVersionListEnabled);
 // When contextual tasks is disabled and this flag is enabled, intecept the
 // contextual tasks URL and redirect to aim URL.
 BASE_DECLARE_FEATURE(kContextualTasksUrlRedirectToAimUrl);
+
+// Enables the use of Stratus dark mode colors.
+BASE_DECLARE_FEATURE(kContextualTasksUseStratusDarkModeColors);
 
 // Enables use of TabListInterface::InsertWebContentsAt in
 // ContextualTasksUiService.
@@ -173,6 +172,9 @@ extern bool ShouldForceBasicModeIfOpeningThreadHistory();
 // Returns the base URL for the AI page.
 extern std::string GetContextualTasksAiPageUrl();
 
+// Returns the base URL for a Gemini thread.
+extern std::string GetContextualTasksGeminiBaseUrl();
+
 // Returns scheme component of the "display url" associated with the contextual
 // tasks page.
 extern std::string GetContextualTasksDisplayUrlScheme();
@@ -198,6 +200,9 @@ extern std::vector<std::string> GetContextualTasksSignInDomains();
 
 // Whether the suggestions are enabled for Nextbox.
 extern bool GetIsContextualTasksSuggestionsEnabled();
+
+// Whether Smart Tab Sharing is enabled for the ContextualTasksContext feature.
+extern bool GetIsSmartTabSharingEnabled();
 
 // Enables tab auto-chip for contextual tasks. When disabled, no suggested
 // chips will be shown in the composebox automatically.
@@ -251,6 +256,9 @@ extern bool ShouldEnableCookieSync();
 // from AIM.
 extern bool ShouldEnableLockAndUnlockInputCapability();
 
+// Returns whether the Stratus dark mode colors should be used.
+extern bool ShouldUseStratusDarkModeColors();
+
 // Returns whether the file hint is enabled in the composebox.
 extern bool GetEnableFileHint();
 
@@ -265,8 +273,6 @@ extern const char kContextualTasksContextLibraryName[];
 extern const char kContextualTasksContextLibraryDescription[];
 extern const char kContextualTasksContextName[];
 extern const char kContextualTasksContextDescription[];
-extern const char kContextualTasksExpandButtonName[];
-extern const char kContextualTasksExpandButtonDescription[];
 extern const char kContextualTasksSuggestionsEnabledName[];
 extern const char kContextualTasksSuggestionsEnabledDescription[];
 

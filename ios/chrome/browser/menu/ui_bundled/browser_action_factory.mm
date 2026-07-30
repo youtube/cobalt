@@ -8,6 +8,7 @@
 #import "components/open_from_clipboard/clipboard_recent_content.h"
 #import "components/prefs/pref_service.h"
 #import "components/search_engines/template_url_service.h"
+#import "ios/chrome/browser/cobrowse/model/cobrowse_context.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/menu/ui_bundled/action_factory+protected.h"
@@ -171,41 +172,47 @@
   return action;
 }
 
-- (UIAction*)actionToOpenNewTab {
-  id<SceneCommands> handler =
-      HandlerForProtocol(self.browser->GetCommandDispatcher(), SceneCommands);
+- (UIAction*)actionToOpenNewTabWithBlock:(ProceduralBlock)block {
   UIAction* action =
       [self actionWithTitle:l10n_util::GetNSString(IDS_IOS_TOOLS_MENU_NEW_TAB)
                       image:DefaultSymbolWithPointSize(kNewTabActionSymbol,
                                                        kSymbolActionPointSize)
                        type:MenuActionType::OpenNewTab
-                      block:^{
-                        [handler openURLInNewTab:[OpenNewTabCommand
-                                                     commandWithIncognito:NO]];
-                      }];
+                      block:block];
   if (IsIncognitoModeForced(self.browser->GetProfile()->GetPrefs())) {
     action.attributes = UIMenuElementAttributesDisabled;
   }
   return action;
 }
 
-- (UIAction*)actionToOpenNewIncognitoTab {
-  id<SceneCommands> handler =
-      HandlerForProtocol(self.browser->GetCommandDispatcher(), SceneCommands);
+- (UIAction*)actionToOpenNewIncognitoTabWithBlock:(ProceduralBlock)block {
   UIAction* action =
       [self actionWithTitle:l10n_util::GetNSString(
                                 IDS_IOS_TOOLS_MENU_NEW_INCOGNITO_TAB)
                       image:CustomSymbolWithPointSize(kIncognitoSymbol,
                                                       kSymbolActionPointSize)
                        type:MenuActionType::OpenNewIncognitoTab
-                      block:^{
-                        [handler openURLInNewTab:[OpenNewTabCommand
-                                                     commandWithIncognito:YES]];
-                      }];
+                      block:block];
   if (IsIncognitoModeDisabled(self.browser->GetProfile()->GetPrefs())) {
     action.attributes = UIMenuElementAttributesDisabled;
   }
   return action;
+}
+
+- (UIAction*)actionToOpenNewTab {
+  id<SceneCommands> handler =
+      HandlerForProtocol(self.browser->GetCommandDispatcher(), SceneCommands);
+  return [self actionToOpenNewTabWithBlock:^{
+    [handler openURLInNewTab:[OpenNewTabCommand commandWithIncognito:NO]];
+  }];
+}
+
+- (UIAction*)actionToOpenNewIncognitoTab {
+  id<SceneCommands> handler =
+      HandlerForProtocol(self.browser->GetCommandDispatcher(), SceneCommands);
+  return [self actionToOpenNewIncognitoTabWithBlock:^{
+    [handler openURLInNewTab:[OpenNewTabCommand commandWithIncognito:YES]];
+  }];
 }
 
 - (UIAction*)actionToCloseCurrentTab {
@@ -502,13 +509,15 @@
   CHECK(IsAIMCobrowseDebugEntrypointEnabled());
   id<SceneCommands> handler =
       HandlerForProtocol(self.browser->GetCommandDispatcher(), SceneCommands);
-  return [self actionWithTitle:@"Open AIM prototype"
-                         image:DefaultSymbolWithPointSize(
-                                   kSparklesSymbol, kSymbolActionPointSize)
-                          type:MenuActionType::AIPrototyping
-                         block:^{
-                           [handler showAssistant];
-                         }];
+  return
+      [self actionWithTitle:@"Open AIM prototype"
+                      image:DefaultSymbolWithPointSize(kSparklesSymbol,
+                                                       kSymbolActionPointSize)
+                       type:MenuActionType::AIPrototyping
+                      block:^{
+                        [handler showAssistantWithContext:[CobrowseContext
+                                                              defaultContext]];
+                      }];
 }
 
 #pragma mark - ActionFactory

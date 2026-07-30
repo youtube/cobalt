@@ -142,12 +142,12 @@ chrome_ios_eg2_test("ios_chrome_settings_eg2tests_module") {
   xcode_test_application_name = "ios_chrome_eg2tests"
 
   deps = [
+    "//ios/chrome/browser/settings/clear_browsing_data/quick_delete_browsing_data/test:eg2_tests",
+    "//ios/chrome/browser/settings/clear_browsing_data/quick_delete_other_data/test:eg2_tests",
+    "//ios/chrome/browser/settings/clear_browsing_data/test:eg2_tests",
     "//ios/chrome/browser/settings/google_services/manage_accounts/test:eg2_tests",
     "//ios/chrome/browser/settings/ui_bundled:eg2_tests",
     "//ios/chrome/browser/settings/ui_bundled/autofill:eg2_tests",
-    "//ios/chrome/browser/settings/ui_bundled/clear_browsing_data/quick_delete_browsing_data/test:eg2_tests",
-    "//ios/chrome/browser/settings/ui_bundled/clear_browsing_data/quick_delete_other_data/test:eg2_tests",
-    "//ios/chrome/browser/settings/ui_bundled/clear_browsing_data/test:eg2_tests",
     "//ios/chrome/browser/settings/ui_bundled/content_settings:eg2_tests",
     "//ios/chrome/browser/settings/ui_bundled/google_services:eg2_tests",
     "//ios/chrome/browser/settings/ui_bundled/language:eg2_tests",
@@ -274,6 +274,11 @@ chrome_ios_eg2_test("ios_chrome_ui_eg2tests_module") {
     "//ios/chrome/browser/webui/ui_bundled/interstitials:eg2_tests",
     "//ios/chrome/browser/webui/ui_bundled/optimization_guide_internals:eg2_tests",
   ]
+
+  if (target_environment == "device") {
+    deps += [ "//ios/chrome/browser/picture_in_picture/test:eg2_tests" ]
+  }
+
   data_deps = [ ":ios_chrome_eg2tests" ]
 }
 
@@ -315,8 +320,8 @@ source_set("eg2_tests") {
   deps = [
     "//ios/chrome/app/strings",
     "//ios/chrome/browser/bookmarks/test:eg_test_support+eg2",
+    "//ios/chrome/browser/device_reauth/test:eg_test_support+eg2",
     "//ios/chrome/browser/settings/ui_bundled:settings_root_constants",
-    "//ios/chrome/browser/settings/ui_bundled/password:eg_test_support+eg2",
     "//ios/chrome/browser/settings/ui_bundled/password:password_constants",
     "//ios/chrome/browser/settings/ui_bundled/password/password_settings:password_settings_constants",
     "//ios/chrome/browser/shared/model/prefs:pref_names",

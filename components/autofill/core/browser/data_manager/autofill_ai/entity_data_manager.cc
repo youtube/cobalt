@@ -6,8 +6,10 @@
 
 #include <memory>
 
+#include "base/check_deref.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/uuid.h"
+#include "components/accessibility_annotator/core/accessibility_annotation_service.h"
 #include "components/autofill/core/browser/data_manager/autofill_ai/entity_instance_cleaner.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/integrators/autofill_ai/metrics/autofill_ai_metrics.h"
@@ -30,7 +32,8 @@ EntityDataManager::EntityDataManager(
     scoped_refptr<AutofillWebDataService> webdata_service,
     history::HistoryService* history_service,
     strike_database::StrikeDatabaseBase* strike_database,
-    AccessibilityAnnotatorDataAdapter* accessibility_annotator_data_adapter,
+    accessibility_annotator::AccessibilityAnnotationService*
+        accessibility_annotator_service,
     GeoIpCountryCode variation_country_code)
     : webdata_service_(std::move(webdata_service)),
       entity_instance_cleaner_(this, sync_service, pref_service),
@@ -56,28 +59,23 @@ EntityDataManager::EntityDataManager(
   // allow rollbacks.
   if (base::FeatureList::IsEnabled(
           features::kAutofillAiSetSyncablePrefFromAccountPref)) {
-    const PrefService::Preference* synced_pref =
-        pref_service->FindPreference(prefs::kAutofillAiSyncedOptInStatus);
-    CHECK(synced_pref);
+    using enum AutofillAiPrefMigrationStatus;
+    AutofillAiPrefMigrationStatus pref_migration =
+        kPrefNotMigratedAccountPrefNeverSet;
     if (HasSetLocalAutofillAiOptInStatus(pref_service, identity_manager)) {
-      if (!synced_pref->HasUserSetting()) {
+      const PrefService::Preference& synced_pref = CHECK_DEREF(
+          pref_service->FindPreference(prefs::kAutofillAiSyncedOptInStatus));
+      if (!synced_pref.HasUserSetting()) {
         pref_service->SetBoolean(prefs::kAutofillAiSyncedOptInStatus,
                                  user_is_opted_in);
-        base::UmaHistogramEnumeration(
-            "Autofill.Ai.OptIn.PrefMigration",
-            user_is_opted_in
-                ? AutofillAiPrefMigrationStatus::kPrefMigratedEnabled
-                : AutofillAiPrefMigrationStatus::kPrefMigratedDisabled);
+        pref_migration =
+            user_is_opted_in ? kPrefMigratedEnabled : kPrefMigratedDisabled;
       } else {
-        base::UmaHistogramEnumeration(
-            "Autofill.Ai.OptIn.PrefMigration",
-            AutofillAiPrefMigrationStatus::kPrefNotMigratedAlreadySet);
+        pref_migration = kPrefNotMigratedAlreadySet;
       }
-    } else {
-      base::UmaHistogramEnumeration(
-          "Autofill.Ai.OptIn.PrefMigration",
-          AutofillAiPrefMigrationStatus::kPrefNotMigratedAccountPrefNeverSet);
     }
+    base::UmaHistogramEnumeration("Autofill.Ai.OptIn.PrefMigration",
+                                  pref_migration);
   }
 
   // This assumes that `EntityDataManager` is created once on profile creation.
@@ -88,9 +86,9 @@ EntityDataManager::EntityDataManager(
 
   if (base::FeatureList::IsEnabled(
           features::kAutofillUseAccessibilityAnnotator) &&
-      accessibility_annotator_data_adapter) {
-    accessibility_annotator_data_adapter_observation_.Observe(
-        accessibility_annotator_data_adapter);
+      accessibility_annotator_service) {
+    accessibility_annotator_observation_.Observe(
+        &accessibility_annotator_service->GetEntityDataProvider());
   }
 }
 
@@ -98,6 +96,10 @@ EntityDataManager::~EntityDataManager() {
   if (pending_query_) {
     webdata_service_->CancelRequest(pending_query_);
   }
+}
+
+void EntityDataManager::Shutdown() {
+  history_service_observation_.Reset();
 }
 
 void EntityDataManager::LoadEntities() {
@@ -212,8 +214,9 @@ void EntityDataManager::OnHistoryDeletions(
   }
 }
 
-void EntityDataManager::OnAccessibilityAnnotatorDataChanged(
-    AccessibilityAnnotatorDataAdapter& adapter) {
+void EntityDataManager::OnEntityDataChanged(
+    accessibility_annotator::EntityDataProvider& provider,
+    accessibility_annotator::EntityTypeEnumSet entity_types) {
   DCHECK(base::FeatureList::IsEnabled(
       features::kAutofillUseAccessibilityAnnotator));
   // TODO(crbug.com/483403739): Implement.

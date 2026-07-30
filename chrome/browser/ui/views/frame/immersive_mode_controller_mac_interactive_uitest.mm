@@ -19,6 +19,7 @@
 #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller_mac.h"
 #include "chrome/browser/ui/views/frame/top_container_view.h"
+#include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/toolbar/browser_app_menu_button.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/common/pref_names.h"
@@ -27,6 +28,7 @@
 #include "components/prefs/pref_service.h"
 #include "content/public/test/browser_test.h"
 #include "third_party/blink/public/mojom/frame/fullscreen.mojom.h"
+#include "ui/base/hit_test.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #import "ui/views/cocoa/native_widget_mac_ns_window_host.h"
 #include "ui/views/widget/any_widget_observer.h"
@@ -574,43 +576,40 @@ IN_PROC_BROWSER_TEST_F(ImmersiveModeControllerMacInteractiveTest,
   EXPECT_EQ(controller->GetMinimumContentOffset(), 0);
 }
 
-// Reproducer for Top Container sizing/positioning issue when toggling vertical
-// tabs in immersive mode.
 IN_PROC_BROWSER_TEST_F(ImmersiveModeControllerMacInteractiveTest,
-                       VerticalTabsToggleInImmersiveModeRepro) {
-  ImmersiveModeController* controller =
-      ImmersiveModeController::From(browser());
+                       VerticalTabsNonClientHitTest) {
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
 
-  // 1. Enter Fullscreen Immersive mode
-  ui_test_utils::ToggleFullscreenModeAndWait(browser());
-  EXPECT_TRUE(controller->IsEnabled());
-
-  // 2. Update the pref for vertical tabs ONLY after we’ve entered immersive
-  // mode
+  // Toggle vertical tabs on
   tabs::VerticalTabStripStateController::From(browser())
       ->SetVerticalTabsEnabled(true);
   RunScheduledLayouts();
 
-  // 3. Exit Fullscreen Immersive mode (you should see vertical tabs appear)
+  // Enter Fullscreen Immersive mode
   ui_test_utils::ToggleFullscreenModeAndWait(browser());
-  EXPECT_FALSE(controller->IsEnabled());
-
-  // 4. Enter Fullscreen Immersive mode again
-  ui_test_utils::ToggleFullscreenModeAndWait(browser());
+  ImmersiveModeController* controller =
+      ImmersiveModeController::From(browser());
   EXPECT_TRUE(controller->IsEnabled());
 
-  // 5. Force the top container to show
-  std::unique_ptr<ImmersiveRevealedLock> lock =
-      controller->GetRevealedLock(ImmersiveModeController::ANIMATE_REVEAL_NO);
-  EXPECT_TRUE(controller->IsRevealed());
+  auto* vertical_tab_strip =
+      browser_view->vertical_tab_strip_region_view_for_testing();
+  ASSERT_TRUE(vertical_tab_strip);
+  EXPECT_TRUE(vertical_tab_strip->GetVisible());
 
-  // Verify the fix: The browser should not use the split tabbed overlay mode
-  // when vertical tabs are enabled.
-  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
-  EXPECT_FALSE(browser_view->UsesImmersiveFullscreenTabbedMode());
+  // Test a point in the empty area of the vertical tab strip
+  gfx::Point point_in_view(vertical_tab_strip->width() / 2,
+                           vertical_tab_strip->height() - 50);
+  gfx::Point screen_point = point_in_view;
+  views::View::ConvertPointToScreen(vertical_tab_strip, &screen_point);
 
-  // The tab_overlay_widget should either not exist or be hidden.
-  if (browser_view->tab_overlay_widget()) {
-    EXPECT_FALSE(browser_view->tab_overlay_widget()->IsVisible());
-  }
+  gfx::Point point_in_ncv = screen_point;
+  views::View::ConvertPointFromScreen(
+      browser_view->GetWidget()->non_client_view(), &point_in_ncv);
+
+  int hit_test = browser_view->GetWidget()->non_client_view()->NonClientHitTest(
+      point_in_ncv);
+
+  // In immersive fullscreen with vertical tabs, hitting the empty space of the
+  // vertical tab strip should return HTCAPTION.
+  EXPECT_EQ(hit_test, HTCAPTION);
 }

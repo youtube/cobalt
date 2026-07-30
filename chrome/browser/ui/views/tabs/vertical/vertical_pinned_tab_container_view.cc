@@ -57,7 +57,9 @@ views::ProposedLayout VerticalPinnedTabContainerView::CalculateProposedLayout(
   int total_width = 0;
   int total_height = 0;
 
-  const auto children = collection_node_->GetDirectChildren();
+  const std::vector<views::View*> children =
+      collection_node_ ? collection_node_->GetDirectChildren()
+                       : std::vector<views::View*>();
 
   int x = 0;
   int y = 0;
@@ -143,11 +145,22 @@ views::ProposedLayout VerticalPinnedTabContainerView::CalculateProposedLayout(
 
     layouts.child_layouts.emplace_back(child, true, bounds);
   }
-  layouts.host_size = gfx::Size(total_width, total_height);
+
+  // Make sure we snap to bounded width if defined. This is necessary as the
+  // `child_width` calculation above rounds width down and this can result in
+  // off-by-one width calculations when the number of children on a row changes.
+  // Changes in host width can be interpreted as a resize and animations may
+  // otherwise snap to target.
+  layouts.host_size =
+      gfx::Size(size_bounds.width().value_or(total_width), total_height);
   return layouts;
 }
 
 gfx::Size VerticalPinnedTabContainerView::GetMinimumSize() const {
+  if (!collection_node_) {
+    return gfx::Size();
+  }
+
   // The minimum size should be enough to show a row and a half, if needed.
   const int num_children = collection_node_->GetDirectChildren().size();
   const float min_rows = std::min((IsTabStripCollapsed() ? 1.5f : 1.0f),
@@ -158,6 +171,13 @@ gfx::Size VerticalPinnedTabContainerView::GetMinimumSize() const {
       (num_children > 1 ? kTabPadding : 0);
   return gfx::Size(GetLayoutConstant(LayoutConstant::kVerticalTabMinWidth),
                    min_height);
+}
+
+bool VerticalPinnedTabContainerView::IsDragging() const {
+  if (!collection_node_ || !collection_node_->GetController()) {
+    return false;
+  }
+  return GetDragHandler().IsDragging();
 }
 
 bool VerticalPinnedTabContainerView::IsViewDragging(

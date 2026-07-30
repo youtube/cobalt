@@ -48,6 +48,7 @@
 #include "components/autofill/core/browser/ui/payments/bnpl_tos_controller.h"
 #include "components/autofill/core/browser/ui/payments/bnpl_ui_delegate.h"
 #include "components/autofill/core/browser/ui/payments/select_bnpl_issuer_dialog_controller.h"
+#include "components/autofill/core/common/aliases.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/ukm/test_ukm_recorder.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
@@ -188,10 +189,16 @@ class MockBnplUiDelegate : public BnplUiDelegate {
        base::OnceClosure cancel_callback,
        bool has_seen_ai_terms),
       (override));
-  MOCK_METHOD(void,
-              UpdateBnplIssuerDialogUi,
-              (std::vector<BnplIssuerContext> bnpl_issuer_context),
-              (override));
+  MOCK_METHOD(
+      void,
+      UpdateBnplIssuerUi,
+      (std::vector<BnplIssuerContext> bnpl_issuer_context,
+       std::optional<int64_t> extracted_amount,
+       bool is_amount_supported_by_any_issuer,
+       const std::optional<std::string>& app_locale,
+       base::OnceCallback<void(autofill::BnplIssuer)> selected_issuer_callback,
+       base::OnceClosure cancel_callback),
+      (override));
   MOCK_METHOD(void, RemoveSelectBnplIssuerOrProgressUi, (), (override));
   MOCK_METHOD(void,
               ShowBnplTosUi,
@@ -234,7 +241,7 @@ class BnplManagerTest : public Test,
   const std::string kContextToken = "CONTEXT_TOKEN";
   const GURL kRedirectUrl = GURL("REDIRECT_URL");
   const GURL kPopupUrl = GURL("https://test.url/sometestpath/");
-  const std::string kAppLocale = "en-GB";
+  const std::string kAppLocale = "en-US";
   const std::u16string kLegalMessage = u"LEGAL_MESSAGE";
   const std::string kCurrency = "USD";
   const GURL kDomain = GURL("https://dummytest.com/somepathforurl");
@@ -403,9 +410,9 @@ class BnplManagerTest : public Test,
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS)
 // Tests that the initial state for a BNPL flow is set when
-// BnplManager::OnDidAcceptBnplSuggestion() is triggered.
-TEST_F(BnplManagerTest, OnDidAcceptBnplSuggestion_SetsInitialState) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(kAmount, base::DoNothing());
+// BnplManager::OnUserDecisionToUseBnpl() is triggered.
+TEST_F(BnplManagerTest, OnUserDecisionToUseBnpl_SetsInitialState) {
+  bnpl_manager_->OnUserDecisionToUseBnpl(kAmount, base::DoNothing());
 
   EXPECT_EQ(
       kAmount,
@@ -423,15 +430,15 @@ TEST_F(BnplManagerTest, OnDidAcceptBnplSuggestion_SetsInitialState) {
 }
 
 // Tests that the initial state for a BNPL flow is set when
-// BnplManager::OnDidAcceptBnplSuggestion() is triggered, even if the app locale
+// BnplManager::OnUserDecisionToUseBnpl() is triggered, even if the app locale
 // is not "en-US". This helps test that the flow is easily scalable to other app
 // locales.
 TEST_F(BnplManagerTest,
-       OnDidAcceptBnplSuggestion_SetsInitialStateWithDifferentAppLocale) {
+       OnUserDecisionToUseBnpl_SetsInitialStateWithDifferentAppLocale) {
   int64_t final_checkout_amount = 1000000;
   autofill_client().set_app_locale("en_GB");
-  bnpl_manager_->OnDidAcceptBnplSuggestion(final_checkout_amount,
-                                           base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(final_checkout_amount,
+                                         base::DoNothing());
 
   EXPECT_EQ(
       final_checkout_amount,
@@ -452,8 +459,8 @@ TEST_F(BnplManagerTest,
 // CreatePaymentInstrument request and loads risk data after ToS dialog
 // acceptance if it was not already loaded.
 TEST_F(BnplManagerTest, TosDialogAccepted_PrefetchedRiskDataNotLoaded) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(/*final_checkout_amount=*/1000000,
-                                           base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(/*final_checkout_amount=*/1000000,
+                                         base::DoNothing());
   auto* ongoing_flow_state = test_api(*bnpl_manager_).GetOngoingFlowState();
   std::string test_context_token = "test_context_token";
   BnplIssuer test_issuer = test::GetTestLinkedBnplIssuer();
@@ -484,8 +491,8 @@ TEST_F(BnplManagerTest, TosDialogAccepted_PrefetchedRiskDataNotLoaded) {
 // Tests that the the user accepting the ToS dialog triggers a
 // CreatePaymentInstrument request with the loaded risk data, if it is present.
 TEST_F(BnplManagerTest, TosDialogAccepted_PrefetchedRiskDataLoaded) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(/*final_checkout_amount=*/kAmount,
-                                           base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(/*final_checkout_amount=*/kAmount,
+                                         base::DoNothing());
   auto* ongoing_flow_state = test_api(*bnpl_manager_).GetOngoingFlowState();
   std::string test_context_token = "test_context_token";
   BnplIssuer test_issuer = test::GetTestLinkedBnplIssuer();
@@ -523,8 +530,8 @@ TEST_F(BnplManagerTest, TosDialogAccepted_PrefetchedRiskDataLoaded) {
 // loaded risk data, if it is present.
 TEST_F(BnplManagerTest,
        TosDialogAccepted_PrefetchedRiskDataLoaded_TosAcceptanceRequired) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(/*final_checkout_amount=*/kAmount,
-                                           base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(/*final_checkout_amount=*/kAmount,
+                                         base::DoNothing());
   auto* ongoing_flow_state = test_api(*bnpl_manager_).GetOngoingFlowState();
   const std::string test_context_token = "test_context_token";
   BnplIssuer issuer = test::GetTestLinkedBnplIssuer(
@@ -569,8 +576,8 @@ TEST_F(BnplManagerTest,
 // loads risk data after ToS dialog acceptance if it was not already loaded.
 TEST_F(BnplManagerTest,
        TosDialogAccepted_PrefetchedRiskDataNotLoaded_TosAcceptanceRequired) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(/*final_checkout_amount=*/1000000,
-                                           base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(/*final_checkout_amount=*/1000000,
+                                         base::DoNothing());
   auto* ongoing_flow_state = test_api(*bnpl_manager_).GetOngoingFlowState();
   const std::string test_context_token = "test_context_token";
   BnplIssuer issuer = test::GetTestLinkedBnplIssuer(
@@ -610,7 +617,7 @@ TEST_F(BnplManagerTest,
 // request details filled out correctly, and verifies that the VCN is correctly
 // filled and the state of BnplManager is reset.
 TEST_F(BnplManagerTest, FetchVcnDetails_CallsGetBnplPaymentInstrument) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(kAmount, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(kAmount, base::DoNothing());
   // TODO(crbug.com/400500799): Remove test helper method and set arguments from
   // source.
   BnplIssuer issuer = test::GetTestLinkedBnplIssuer();
@@ -677,7 +684,7 @@ TEST_F(BnplManagerTest, FetchVcnDetails_CallsGetBnplPaymentInstrument) {
 // Tests that OnVcnDetailsFetched shows an error UI when there is a
 // PaymentsRpcResult error.
 TEST_F(BnplManagerTest, FetchVcnDetails_RpcError) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(1'000'000, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(1'000'000, base::DoNothing());
   // TODO(crbug.com/400500799): Remove test helper method and set arguments from
   // source.
   BnplIssuer issuer = test::GetTestLinkedBnplIssuer();
@@ -716,7 +723,7 @@ TEST_F(BnplManagerTest, FetchVcnDetails_RpcError) {
 TEST_F(
     BnplManagerTest,
     OnIssuerSelected_CallsGetBnplPaymentInstrumentForFetchingUrl_LinkedIssuer) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(kAmount, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(kAmount, base::DoNothing());
   BnplIssuer linked_issuer = test::GetTestLinkedBnplIssuer();
 
   auto* ongoing_flow_state = test_api(*bnpl_manager_).GetOngoingFlowState();
@@ -747,7 +754,7 @@ TEST_F(
 TEST_F(
     BnplManagerTest,
     OnIssuerSelected_CallsGetBnplPaymentInstrumentForFetchingUrl_LinkedIssuer_RiskDataLoaded) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(kAmount, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(kAmount, base::DoNothing());
   BnplIssuer linked_issuer = test::GetTestLinkedBnplIssuer();
 
   // Set up risk data cache.
@@ -783,7 +790,7 @@ TEST_F(
 // Tests that the manager set flow state based on the url fetch result and
 // init the flow to redirect user to the site of the selected issuer.
 TEST_F(BnplManagerTest, OnIssuerSelected_OnRedirectUrlFetched) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(kAmount, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(kAmount, base::DoNothing());
   BnplIssuer linked_issuer = test::GetTestLinkedBnplIssuer();
 
   BnplFetchUrlResponseDetails response;
@@ -815,7 +822,7 @@ TEST_F(BnplManagerTest, OnIssuerSelected_OnRedirectUrlFetched) {
 // temporary error.
 TEST_F(BnplManagerTest,
        OnIssuerSelected_OnRedirectUrlFetched_TemporaryFailure) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(kAmount, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(kAmount, base::DoNothing());
   BnplIssuer linked_issuer = test::GetTestLinkedBnplIssuer();
 
   BnplFetchUrlResponseDetails response;
@@ -843,7 +850,7 @@ TEST_F(BnplManagerTest,
 // Tests that the error message is shown when redirect url fetch fails.
 TEST_F(BnplManagerTest,
        OnIssuerSelected_OnRedirectUrlFetched_PermanentFailure) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(kAmount, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(kAmount, base::DoNothing());
   BnplIssuer linked_issuer = test::GetTestLinkedBnplIssuer();
 
   BnplFetchUrlResponseDetails response;
@@ -872,7 +879,7 @@ TEST_F(BnplManagerTest,
 // Tests that when BNPL flow completed successfully, the manager will attempt to
 // fetch VCN.
 TEST_F(BnplManagerTest, OnPopupWindowCompleted_WithSuccess) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(kAmount, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(kAmount, base::DoNothing());
 
   // Init the `PaymentsWindowManager` BNPL flow.
   EXPECT_CALL(*payments_network_interface_,
@@ -907,7 +914,7 @@ TEST_F(BnplManagerTest, OnPopupWindowCompleted_WithSuccess) {
 // Tests that when BNPL flow completed with user closed, the flow status will
 // be reset.
 TEST_F(BnplManagerTest, OnPopupWindowCompleted_UserClosed) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(kAmount, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(kAmount, base::DoNothing());
 
   // Init the `PaymentsWindowManager` BNPL flow.
   EXPECT_CALL(*payments_network_interface_,
@@ -936,7 +943,7 @@ TEST_F(BnplManagerTest, OnPopupWindowCompleted_UserClosed) {
 
 // Tests that when BNPL flow completed with failure, the error message is shown.
 TEST_F(BnplManagerTest, OnPopupWindowCompleted_Failure) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(kAmount, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(kAmount, base::DoNothing());
 
   // Init the `PaymentsWindowManager` BNPL flow.
   EXPECT_CALL(*payments_network_interface_,
@@ -966,7 +973,7 @@ TEST_F(BnplManagerTest, OnPopupWindowCompleted_Failure) {
 
 // Tests that FetchVcnDetails will display an autofill progress UI.
 TEST_F(BnplManagerTest, FetchVcnDetails_ShowProgressUi) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(1'000'000, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(1'000'000, base::DoNothing());
   test_api(*bnpl_manager_)
       .PopulateManagerWithUserAndBnplIssuerDetails(
           kBillingCustomerNumber, kRiskData, kContextToken, kRedirectUrl,
@@ -982,7 +989,7 @@ TEST_F(BnplManagerTest, FetchVcnDetails_ShowProgressUi) {
 // Tests that calling Reset while fetching VCN details will reset the status of
 // BnplManager.
 TEST_F(BnplManagerTest, FetchVcnDetails_Reset) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(1'000'000, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(1'000'000, base::DoNothing());
   test_api(*bnpl_manager_)
       .PopulateManagerWithUserAndBnplIssuerDetails(
           kBillingCustomerNumber, kRiskData, kContextToken, kRedirectUrl,
@@ -1009,7 +1016,7 @@ TEST_F(BnplManagerTest, FetchVcnDetails_Reset) {
 // an unlinked issuer.
 TEST_F(BnplManagerTest,
        OnDidGetLegalMessageFromServer_ClosesTosAfterRedirectUrlReceived) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(1'000'000, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(1'000'000, base::DoNothing());
   BnplIssuer unlinked_issuer = test::GetTestUnlinkedBnplIssuer();
 
   EXPECT_CALL(*payments_network_interface_,
@@ -1043,7 +1050,7 @@ TEST_F(BnplManagerTest,
 // Tests that cancelling the ToS UI resets and ends the flow.
 TEST_F(BnplManagerTest,
        OnDidGetLegalMessageFromServer_TosCancellationResetsFlow) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(1'000'000, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(1'000'000, base::DoNothing());
   BnplIssuer unlinked_issuer = test::GetTestUnlinkedBnplIssuer();
 
   EXPECT_CALL(*payments_network_interface_,
@@ -1067,7 +1074,7 @@ TEST_F(BnplManagerTest,
 // externally linked issuer before proceeding with the flow.
 TEST_F(BnplManagerTest,
        OnIssuerSelected_SetsInstrumentIdForExternallyLinkedIssuer) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(kAmount, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(kAmount, base::DoNothing());
   BnplIssuer externally_linked_issuer = test::GetTestLinkedBnplIssuer(
       BnplIssuer::IssuerId::kBnplKlarna,
       /*actions_required=*/autofill::DenseSet(
@@ -1087,7 +1094,7 @@ TEST_F(BnplManagerTest,
 // Tests that `OnDidGetLegalMessageFromServer` shows an error when there is a
 // PaymentsRpcResult error.
 TEST_F(BnplManagerTest, OnDidGetLegalMessageFromServer_RpcError) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(1'000'000, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(1'000'000, base::DoNothing());
   BnplIssuer unlinked_issuer = test::GetTestUnlinkedBnplIssuer();
 
   EXPECT_CALL(*payments_network_interface_,
@@ -1106,12 +1113,12 @@ TEST_F(BnplManagerTest, OnDidGetLegalMessageFromServer_RpcError) {
   EXPECT_EQ(test_api(*bnpl_manager_).GetOngoingFlowState(), nullptr);
 }
 
-// Tests that `OnDidAcceptBnplSuggestion()` calls `ShowSelectBnplIssuerUi()` on
+// Tests that `OnUserDecisionToUseBnpl()` calls `ShowSelectBnplIssuerUi()` on
 // the UI delegate.
-TEST_F(BnplManagerTest, OnDidAcceptBnplSuggestion_ShowSelectBnplIssuerUi) {
+TEST_F(BnplManagerTest, OnUserDecisionToUseBnpl_ShowSelectBnplIssuerUi) {
   EXPECT_CALL(GetBnplUiDelegate(), ShowSelectBnplIssuerUi);
 
-  bnpl_manager_->OnDidAcceptBnplSuggestion(kAmount, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(kAmount, base::DoNothing());
 }
 
 // Tests that the BNPL flow will be reset if the user cancels the select issuer
@@ -1121,7 +1128,7 @@ TEST_F(BnplManagerTest, ShowSelectBnplIssuerUi_UserCancelled) {
   EXPECT_CALL(GetBnplUiDelegate(), ShowSelectBnplIssuerUi)
       .WillOnce(base::test::RunOnceCallback<3>());
 
-  bnpl_manager_->OnDidAcceptBnplSuggestion(kAmount, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(kAmount, base::DoNothing());
 
   EXPECT_EQ(test_api(*bnpl_manager_).GetOngoingFlowState(), nullptr);
 }
@@ -1143,7 +1150,7 @@ TEST_F(BnplManagerTest,
   EXPECT_CALL(GetBnplUiDelegate(), RemoveSelectBnplIssuerOrProgressUi())
       .Times(ShouldCloseViewBeforeSwitching() ? 1 : 0);
 
-  bnpl_manager_->OnDidAcceptBnplSuggestion(kAmount, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(kAmount, base::DoNothing());
 
   EXPECT_EQ(test_api(*bnpl_manager_).GetOngoingFlowState()->issuer,
             unlinked_issuer);
@@ -1152,7 +1159,7 @@ TEST_F(BnplManagerTest,
 // Tests that `GetDetailsForUpdateBnplPaymentInstrument` calls the payments
 // network interface with the request details filled out correctly.
 TEST_F(BnplManagerTest, GetDetailsForUpdateBnplPaymentInstrument_Success) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(kAmount, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(kAmount, base::DoNothing());
 
   BnplIssuer issuer = test::GetTestLinkedBnplIssuer(
       IssuerId::kBnplKlarna, {PaymentInstrument::ActionRequired::kAcceptTos});
@@ -1175,7 +1182,7 @@ TEST_F(BnplManagerTest, GetDetailsForUpdateBnplPaymentInstrument_Success) {
 // Tests that `UpdateBnplPaymentInstrument` calls the payments network interface
 // with the request details filled out correctly.
 TEST_F(BnplManagerTest, UpdateBnplPaymentInstrument_Success) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(kAmount, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(kAmount, base::DoNothing());
 
   BnplIssuer issuer = test::GetTestLinkedBnplIssuer();
   test_api(*bnpl_manager_).GetOngoingFlowState()->context_token = kContextToken;
@@ -1198,7 +1205,7 @@ TEST_F(BnplManagerTest, UpdateBnplPaymentInstrument_Success) {
 // Tests that a successful `UpdateBnplPaymentInstrument` response results in a
 // call to fetch the redirect URL.
 TEST_F(BnplManagerTest, OnBnplPaymentInstrumentUpdated_Success) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(kAmount, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(kAmount, base::DoNothing());
   test_api(*bnpl_manager_).GetOngoingFlowState()->issuer =
       test::GetTestLinkedBnplIssuer();
 
@@ -1216,7 +1223,7 @@ TEST_F(BnplManagerTest, OnBnplPaymentInstrumentUpdated_Success) {
 // Tests that a failed `UpdateBnplPaymentInstrument` response shows an error
 // UI and resets the flow.
 TEST_F(BnplManagerTest, OnBnplPaymentInstrumentUpdated_Failure) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(kAmount, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(kAmount, base::DoNothing());
   test_api(*bnpl_manager_).GetOngoingFlowState()->issuer =
       test::GetTestLinkedBnplIssuer();
 
@@ -1256,7 +1263,7 @@ TEST_F(BnplManagerTest,
   EXPECT_CALL(GetBnplUiDelegate(), RemoveSelectBnplIssuerOrProgressUi())
       .Times(ShouldCloseViewBeforeSwitching() ? 1 : 0);
 
-  bnpl_manager_->OnDidAcceptBnplSuggestion(kAmount, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(kAmount, base::DoNothing());
 }
 
 // Tests that update suggestions callback is called when suggestions are shown
@@ -1283,21 +1290,6 @@ TEST_F(BnplManagerTest,
   bnpl_manager_->OnSuggestionsShown(suggestions, callback.Get());
   bnpl_manager_->OnAmountExtractionReturned(1'234'560'000ULL,
                                             /*timeout_reached=*/false);
-}
-
-TEST_F(BnplManagerTest, ValidAmountReturnedInTimeUpdateUi) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(
-      /*final_checkout_amount=*/std::nullopt,
-      /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
-  int64_t test_amount = 50'000'000;
-  SetUpUnlinkedBnplIssuer(
-      /*price_lower_bound_in_micros=*/10'000'000,
-      /*price_higher_bound_in_micros=*/1'000'000'000, IssuerId::kBnplAfterpay);
-
-  EXPECT_CALL(GetBnplUiDelegate(), UpdateBnplIssuerDialogUi);
-
-  bnpl_manager_->OnAmountExtractionReturnedFromAi(
-      std::make_pair(test_amount, "USD"));
 }
 
 // Tests that update suggestions callback is called when suggestions are shown
@@ -1679,7 +1671,7 @@ TEST_F(BnplManagerTest, AddBnplSuggestion_BnplManagerNotNotified) {
 // response, expecting GetBnplPaymentInstrumentForFetchingUrl call with the
 // returned instrument ID.
 TEST_F(BnplManagerTest, CreateBnplPaymentInstrument_Success) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(kAmount, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(kAmount, base::DoNothing());
   auto* ongoing_flow_state = test_api(*bnpl_manager_).GetOngoingFlowState();
   ongoing_flow_state->app_locale = kAppLocale;
   ongoing_flow_state->billing_customer_number = kBillingCustomerNumber;
@@ -1715,7 +1707,7 @@ TEST_F(BnplManagerTest, CreateBnplPaymentInstrument_Success) {
 // Tests that when CreateBnplPaymentInstrument fails with an error the error
 // UI is shown and the flow is reset.
 TEST_F(BnplManagerTest, CreateBnplPaymentInstrument_Failure) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(kAmount, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(kAmount, base::DoNothing());
   auto* ongoing_flow_state = test_api(*bnpl_manager_).GetOngoingFlowState();
   ongoing_flow_state->app_locale = kAppLocale;
   ongoing_flow_state->billing_customer_number = kBillingCustomerNumber;
@@ -1748,7 +1740,7 @@ TEST_F(BnplManagerTest, CreateBnplPaymentInstrument_Failure) {
 // Tests that when UpdateBnplPaymentInstrument fails with an error the error
 // UI is shown and the flow is reset.
 TEST_F(BnplManagerTest, UpdateBnplPaymentInstrument_Failure) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(kAmount, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(kAmount, base::DoNothing());
   auto* ongoing_flow_state = test_api(*bnpl_manager_).GetOngoingFlowState();
   ongoing_flow_state->app_locale = kAppLocale;
   ongoing_flow_state->billing_customer_number = kBillingCustomerNumber;
@@ -1834,7 +1826,7 @@ TEST_F(BnplManagerTest, GetSortedBnplIssuerContext_OrdersEligibleFirst) {
   EXPECT_CALL(GetBnplUiDelegate(), ShowSelectBnplIssuerUi)
       .WillOnce(MoveArg<0>(&issuer_context));
 
-  bnpl_manager_->OnDidAcceptBnplSuggestion(15'000'000, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(15'000'000, base::DoNothing());
 
   EXPECT_THAT(
       issuer_context,
@@ -1896,7 +1888,7 @@ TEST_F(BnplManagerTest, GetSortedBnplIssuerContext_OrdersUneligibleLast) {
   EXPECT_CALL(GetBnplUiDelegate(), ShowSelectBnplIssuerUi)
       .WillOnce(MoveArg<0>(&issuer_context));
 
-  bnpl_manager_->OnDidAcceptBnplSuggestion(15'000'000, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(15'000'000, base::DoNothing());
 
   EXPECT_THAT(
       issuer_context,
@@ -1930,7 +1922,7 @@ TEST_F(BnplManagerTest, GetSortedBnplIssuerContext_IsEligible) {
   EXPECT_CALL(GetBnplUiDelegate(), ShowSelectBnplIssuerUi)
       .WillOnce(MoveArg<0>(&issuer_context));
 
-  bnpl_manager_->OnDidAcceptBnplSuggestion(15'000'000, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(15'000'000, base::DoNothing());
 
   EXPECT_THAT(issuer_context, ElementsAre(EqualsBnplIssuerContext(
                                   IssuerId::kBnplAfterpay,
@@ -1955,7 +1947,7 @@ TEST_F(BnplManagerTest, GetSortedBnplIssuerContext_NotSupportedMerchant) {
   EXPECT_CALL(GetBnplUiDelegate(), ShowSelectBnplIssuerUi)
       .WillOnce(MoveArg<0>(&issuer_context));
 
-  bnpl_manager_->OnDidAcceptBnplSuggestion(15'000'000, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(15'000'000, base::DoNothing());
 
   EXPECT_THAT(issuer_context,
               ElementsAre(EqualsBnplIssuerContext(
@@ -1981,7 +1973,7 @@ TEST_F(BnplManagerTest, GetSortedBnplIssuerContext_CheckoutAmountTooHigh) {
   EXPECT_CALL(GetBnplUiDelegate(), ShowSelectBnplIssuerUi)
       .WillOnce(MoveArg<0>(&issuer_context));
 
-  bnpl_manager_->OnDidAcceptBnplSuggestion(1'001'000'000, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(1'001'000'000, base::DoNothing());
 
   EXPECT_THAT(
       issuer_context,
@@ -2007,7 +1999,7 @@ TEST_F(BnplManagerTest, GetSortedBnplIssuerContext_CheckoutAmountTooLow) {
   EXPECT_CALL(GetBnplUiDelegate(), ShowSelectBnplIssuerUi)
       .WillOnce(MoveArg<0>(&issuer_context));
 
-  bnpl_manager_->OnDidAcceptBnplSuggestion(1'001'000'000, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(1'001'000'000, base::DoNothing());
 
   EXPECT_THAT(
       issuer_context,
@@ -2017,17 +2009,17 @@ TEST_F(BnplManagerTest, GetSortedBnplIssuerContext_CheckoutAmountTooLow) {
 }
 
 // Tests that the `kBnplSuggestionAccepted` event is logged once when
-// `OnDidAcceptBnplSuggestion()` is called.
-TEST_F(BnplManagerTest, OnDidAcceptBnplSuggestion_SuggestionAcceptedLogged) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(kAmount, base::DoNothing());
+// `OnUserDecisionToUseBnpl()` is called.
+TEST_F(BnplManagerTest, OnUserDecisionToUseBnpl_SuggestionAcceptedLogged) {
+  bnpl_manager_->OnUserDecisionToUseBnpl(kAmount, base::DoNothing());
   histogram_tester_->ExpectUniqueSample(
       "Autofill.FormEvents.CreditCard.Bnpl",
       /*sample=*/autofill_metrics::BnplFormEvent::kBnplSuggestionAccepted,
       /*expected_bucket_count=*/1);
 
   // Test that `kBnplSuggestionAccepted` is logged only once even if
-  // `OnDidAcceptBnplSuggestion()` is called more than once on the same page.
-  bnpl_manager_->OnDidAcceptBnplSuggestion(kAmount, base::DoNothing());
+  // `OnUserDecisionToUseBnpl()` is called more than once on the same page.
+  bnpl_manager_->OnUserDecisionToUseBnpl(kAmount, base::DoNothing());
   histogram_tester_->ExpectUniqueSample(
       "Autofill.FormEvents.CreditCard.Bnpl",
       /*sample=*/autofill_metrics::BnplFormEvent::kBnplSuggestionAccepted,
@@ -2143,7 +2135,7 @@ TEST_F(
                    .IsAutofillAmountExtractionAiTermsSeenPrefEnabled());
   ASSERT_FALSE(test_api(*bnpl_manager_).HasSeenAmountExtractionAiTerms());
 
-  bnpl_manager_->OnDidAcceptBnplSuggestion(
+  bnpl_manager_->OnUserDecisionToUseBnpl(
       /*final_checkout_amount=*/std::nullopt,
       /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
 
@@ -2251,7 +2243,7 @@ TEST_F(BnplManagerTest, IsBnplIssuerSupported_KlarnaDisabled) {
 #if !BUILDFLAG(IS_IOS)
 
 TEST_F(BnplManagerTest,
-       OnDidAcceptBnplSuggestion_AiBasedAmountExtractionPrefTurnedOn) {
+       OnUserDecisionToUseBnpl_AiBasedAmountExtractionPrefTurnedOn) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndEnableFeature(
       features::kAutofillEnableAiBasedAmountExtraction);
@@ -2268,13 +2260,13 @@ TEST_F(BnplManagerTest,
                                      /*has_seen_ai_terms=*/true));
 #endif  // BUILDFLAG(IS_ANDROID)
 
-  bnpl_manager_->OnDidAcceptBnplSuggestion(
+  bnpl_manager_->OnUserDecisionToUseBnpl(
       /*final_checkout_amount=*/std::nullopt,
       /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
 }
 
 TEST_F(BnplManagerTest,
-       OnDidAcceptBnplSuggestion_AiBasedAmountExtractionPrefTurnedOff) {
+       OnUserDecisionToUseBnpl_AiBasedAmountExtractionPrefTurnedOff) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndEnableFeature(
       features::kAutofillEnableAiBasedAmountExtraction);
@@ -2284,13 +2276,13 @@ TEST_F(BnplManagerTest,
       .Times(0);
   EXPECT_CALL(GetBnplUiDelegate(), ShowSelectBnplIssuerUi);
 
-  bnpl_manager_->OnDidAcceptBnplSuggestion(
+  bnpl_manager_->OnUserDecisionToUseBnpl(
       /*final_checkout_amount=*/std::nullopt,
       /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
 }
 
 TEST_F(BnplManagerTest,
-       OnDidAcceptBnplSuggestion_AiBasedAmountExtractionFeatureDisabled) {
+       OnUserDecisionToUseBnpl_AiBasedAmountExtractionFeatureDisabled) {
   EXPECT_CALL(*mock_amount_extraction_manager_,
               TriggerCheckoutAmountExtractionWithAi())
       .Times(0);
@@ -2300,15 +2292,14 @@ TEST_F(BnplManagerTest,
   EXPECT_CALL(GetBnplUiDelegate(), ShowSelectBnplIssuerUi);
 #endif  // BUILDFLAG(IS_ANDROID)
 
-  bnpl_manager_->OnDidAcceptBnplSuggestion(
+  bnpl_manager_->OnUserDecisionToUseBnpl(
       /*final_checkout_amount=*/std::nullopt,
       /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
 }
 
-// Tests that `OnDidAcceptBnplSuggestion` triggers amount extraction if the
+// Tests that `OnUserDecisionToUseBnpl` triggers amount extraction if the
 // user has already seen the terms and the feature is enabled.
-TEST_F(BnplManagerTest,
-       OnDidAcceptBnplSuggestion_TriggersExtractionIfTermsSeen) {
+TEST_F(BnplManagerTest, OnUserDecisionToUseBnpl_TriggersExtractionIfTermsSeen) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndEnableFeature(
       features::kAutofillEnableAiBasedAmountExtraction);
@@ -2324,13 +2315,13 @@ TEST_F(BnplManagerTest,
   EXPECT_CALL(*mock_amount_extraction_manager_,
               TriggerCheckoutAmountExtractionWithAi());
 
-  bnpl_manager_->OnDidAcceptBnplSuggestion(
+  bnpl_manager_->OnUserDecisionToUseBnpl(
       /*final_checkout_amount=*/std::nullopt,
       /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
 }
 
 TEST_F(BnplManagerTest,
-       OnDidAcceptBnplSuggestion_SetAutofillAmountExtractionAiTermsSeen) {
+       OnUserDecisionToUseBnpl_SetAutofillAmountExtractionAiTermsSeen) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndEnableFeature(
       features::kAutofillEnableAiBasedAmountExtraction);
@@ -2343,7 +2334,7 @@ TEST_F(BnplManagerTest,
                    .IsAutofillAmountExtractionAiTermsSeenPrefEnabled());
   EXPECT_CALL(GetBnplUiDelegate(), ShowSelectBnplIssuerUi);
 
-  bnpl_manager_->OnDidAcceptBnplSuggestion(
+  bnpl_manager_->OnUserDecisionToUseBnpl(
       /*final_checkout_amount=*/std::nullopt,
       /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
 
@@ -2360,14 +2351,14 @@ TEST_F(BnplManagerTest, OnIssuerSelected_TriggersExtractionAfterTermsNotSeen) {
   autofill_client().GetPrefs()->SetBoolean(
       prefs::kAutofillAmountExtractionAiTermsSeen, false);
 
-  bnpl_manager_->OnDidAcceptBnplSuggestion(
+  bnpl_manager_->OnUserDecisionToUseBnpl(
       /*final_checkout_amount=*/std::nullopt,
       /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
 
   InSequence s;
   EXPECT_CALL(*mock_amount_extraction_manager_,
               TriggerCheckoutAmountExtractionWithAi());
-  EXPECT_CALL(GetBnplUiDelegate(), UpdateBnplIssuerDialogUi);
+  EXPECT_CALL(GetBnplUiDelegate(), UpdateBnplIssuerUi);
 
   test_api(*bnpl_manager_).OnIssuerSelected(test::GetTestUnlinkedBnplIssuer());
 
@@ -2381,7 +2372,7 @@ TEST_F(BnplManagerTest, OnIssuerSelected_TriggersExtractionAfterTermsNotSeen) {
 TEST_F(
     BnplManagerTest,
     OnIssuerSelected_CallsGetDetailsForUpdateBnplPaymentInstrument_TosAcceptanceRequired) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(kAmount, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(kAmount, base::DoNothing());
 
   ASSERT_EQ(test_api(*bnpl_manager_).GetOngoingFlowState()->app_locale,
             kAppLocale);
@@ -2432,7 +2423,7 @@ TEST_F(
 TEST_F(
     BnplManagerTest,
     OnIssuerSelected_CallsGetDetailsForCreateBnplPaymentInstrument_UnlinkedIssuer) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(kAmount, base::DoNothing());
+  bnpl_manager_->OnUserDecisionToUseBnpl(kAmount, base::DoNothing());
 
   ASSERT_EQ(test_api(*bnpl_manager_).GetOngoingFlowState()->app_locale,
             kAppLocale);
@@ -2470,6 +2461,37 @@ TEST_F(
 
   EXPECT_EQ(test_api(*bnpl_manager_).GetOngoingFlowState()->issuer,
             unlinked_issuer);
+}
+
+TEST_F(
+    BnplManagerTest,
+    OnAmountExtractionReturnedFromAi_AmountReturnedInTime_UpdatesSelectionUi) {
+  bnpl_manager_->OnUserDecisionToUseBnpl(
+      /*final_checkout_amount=*/std::nullopt,
+      /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
+  int64_t test_amount = 50'000;
+  SetUpUnlinkedBnplIssuer(
+      /*price_lower_bound_in_micros=*/10'000'000,
+      /*price_higher_bound_in_micros=*/1'000'000'000, IssuerId::kBnplAffirm);
+  std::vector<BnplIssuerContext> issuer_contexts;
+  EXPECT_CALL(GetBnplUiDelegate(),
+              UpdateBnplIssuerUi(_, Eq(test_amount),
+                                 /*is_amount_supported_by_any_issuer=*/false,
+                                 Optional(Eq(kAppLocale)), _, _))
+      .WillOnce([&](base::span<const payments::BnplIssuerContext> contexts,
+                    auto, auto, auto, auto, auto) {
+        issuer_contexts.assign(contexts.begin(), contexts.end());
+        return true;
+      });
+
+  bnpl_manager_->OnAmountExtractionReturnedFromAi(
+      std::make_pair(test_amount, "USD"));
+
+  EXPECT_THAT(
+      issuer_contexts,
+      ElementsAre(EqualsBnplIssuerContext(
+          IssuerId::kBnplAffirm,
+          BnplIssuerEligibilityForPage::kNotEligibleCheckoutAmountTooLow)));
 }
 #endif  // !BUILDFLAG(IS_IOS)
 
@@ -2557,7 +2579,7 @@ TEST_F(BnplManagerTest,
   EXPECT_CALL(GetBnplUiDelegate(),
               ShowProgressUi(
                   AutofillProgressUiType::kBnplAmountExtractionProgressUi, _));
-  bnpl_manager_->OnDidAcceptBnplSuggestion(
+  bnpl_manager_->OnUserDecisionToUseBnpl(
       /*final_checkout_amount=*/std::nullopt,
       /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
   EXPECT_CALL(
@@ -2585,7 +2607,7 @@ TEST_F(BnplManagerTest,
   EXPECT_CALL(GetBnplUiDelegate(),
               ShowProgressUi(
                   AutofillProgressUiType::kBnplAmountExtractionProgressUi, _));
-  bnpl_manager_->OnDidAcceptBnplSuggestion(
+  bnpl_manager_->OnUserDecisionToUseBnpl(
       /*final_checkout_amount=*/std::nullopt,
       /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
   EXPECT_CALL(
@@ -2614,7 +2636,7 @@ TEST_F(BnplManagerTest,
   EXPECT_CALL(GetBnplUiDelegate(),
               ShowProgressUi(
                   AutofillProgressUiType::kBnplAmountExtractionProgressUi, _));
-  bnpl_manager_->OnDidAcceptBnplSuggestion(
+  bnpl_manager_->OnUserDecisionToUseBnpl(
       /*final_checkout_amount=*/std::nullopt,
       /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
   ON_CALL(*static_cast<MockAutofillOptimizationGuideDecider*>(
@@ -2658,7 +2680,7 @@ TEST_F(BnplManagerTest,
   EXPECT_CALL(GetBnplUiDelegate(),
               ShowProgressUi(
                   AutofillProgressUiType::kBnplAmountExtractionProgressUi, _));
-  bnpl_manager_->OnDidAcceptBnplSuggestion(
+  bnpl_manager_->OnUserDecisionToUseBnpl(
       /*final_checkout_amount=*/std::nullopt,
       /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
   ON_CALL(*static_cast<MockAutofillOptimizationGuideDecider*>(
@@ -2686,7 +2708,7 @@ TEST_F(BnplManagerTest,
 }
 
 TEST_F(BnplManagerTest,
-       OnDidAcceptBnplSuggestion_WhenValidAmount_ForwardsCallToDelegate) {
+       OnUserDecisionToUseBnpl_WhenValidAmount_ForwardsCallToDelegate) {
   SetUpLinkedBnplIssuer(/*price_lower_bound_in_micros=*/10'000'000,
                         /*price_higher_bound_in_micros=*/200'000'000,
                         IssuerId::kBnplAffirm,
@@ -2699,7 +2721,7 @@ TEST_F(BnplManagerTest,
   EXPECT_CALL(GetBnplUiDelegate(), ShowSelectBnplIssuerUi)
       .WillOnce(MoveArg<0>(&issuer_context));
 
-  bnpl_manager_->OnDidAcceptBnplSuggestion(
+  bnpl_manager_->OnUserDecisionToUseBnpl(
       /*final_checkout_amount=*/10'000'000,
       /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
 
@@ -2710,14 +2732,14 @@ TEST_F(BnplManagerTest,
 
 TEST_F(
     BnplManagerTest,
-    OnDidAcceptBnplSuggestion_WhenAmountIsNotSet_ShowProgressUiNotSelectionUi) {
+    OnUserDecisionToUseBnpl_WhenAmountIsNotSet_ShowProgressUiNotSelectionUi) {
   EXPECT_CALL(GetBnplUiDelegate(), ShowSelectBnplIssuerUi).Times(0);
   EXPECT_CALL(GetBnplUiDelegate(),
               ShowProgressUi(
                   AutofillProgressUiType::kBnplAmountExtractionProgressUi, _))
       .WillOnce(base::test::RunOnceCallback<1>());
 
-  bnpl_manager_->OnDidAcceptBnplSuggestion(
+  bnpl_manager_->OnUserDecisionToUseBnpl(
       /*final_checkout_amount=*/std::nullopt,
       /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
 }
@@ -2726,7 +2748,7 @@ TEST_F(BnplManagerTest, OnTouchToFillIssuerSelectionCancelled_ResetsFlow) {
   EXPECT_CALL(GetBnplUiDelegate(), ShowSelectBnplIssuerUi)
       .WillOnce(base::test::RunOnceCallback<3>());
 
-  bnpl_manager_->OnDidAcceptBnplSuggestion(
+  bnpl_manager_->OnUserDecisionToUseBnpl(
       /*final_checkout_amount=*/10'000'000,
       /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
 
@@ -2785,7 +2807,7 @@ TEST_F(BnplManagerTest, LogAiAmountExtractedInIssuerRange_WithinRange) {
   base::test::ScopedFeatureList scoped_feature_list{
       features::kAutofillEnableAiBasedAmountExtraction};
 
-  bnpl_manager_->OnDidAcceptBnplSuggestion(
+  bnpl_manager_->OnUserDecisionToUseBnpl(
       /*final_checkout_amount=*/std::nullopt,
       /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
   OnIssuerSelected(test::GetTestLinkedBnplIssuer(IssuerId::kBnplAffirm));
@@ -2819,7 +2841,7 @@ TEST_F(BnplManagerTest, LogAiAmountExtractedInIssuerRange_OutsideRange) {
   base::test::ScopedFeatureList scoped_feature_list{
       features::kAutofillEnableAiBasedAmountExtraction};
 
-  bnpl_manager_->OnDidAcceptBnplSuggestion(
+  bnpl_manager_->OnUserDecisionToUseBnpl(
       /*final_checkout_amount=*/std::nullopt,
       /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
   OnIssuerSelected(test::GetTestLinkedBnplIssuer(IssuerId::kBnplZip));
@@ -2853,7 +2875,7 @@ TEST_F(BnplManagerTest, LogAiAmountExtractedInIssuerRange_LogsOnlyOnce) {
   base::test::ScopedFeatureList scoped_feature_list{
       features::kAutofillEnableAiBasedAmountExtraction};
 
-  bnpl_manager_->OnDidAcceptBnplSuggestion(
+  bnpl_manager_->OnUserDecisionToUseBnpl(
       /*final_checkout_amount=*/std::nullopt,
       /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
   OnIssuerSelected(test::GetTestLinkedBnplIssuer(IssuerId::kBnplAffirm));
@@ -2875,7 +2897,7 @@ TEST_F(BnplManagerTest, LogAiAmountExtractedInIssuerRange_LogsOnlyOnce) {
 
 TEST_F(BnplManagerTest,
        OnAmountExtractionReturnedFromAi_NegativeAmount_ShowsErrorUi) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(
+  bnpl_manager_->OnUserDecisionToUseBnpl(
       /*final_checkout_amount=*/std::nullopt,
       /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
 
@@ -2893,7 +2915,7 @@ TEST_F(BnplManagerTest,
 
 TEST_F(BnplManagerTest,
        OnAmountExtractionReturnedFromAi_AmountMissing_ShowsErrorUi) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(
+  bnpl_manager_->OnUserDecisionToUseBnpl(
       /*final_checkout_amount=*/std::nullopt,
       /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
 
@@ -2910,7 +2932,7 @@ TEST_F(BnplManagerTest,
 }
 
 TEST_F(BnplManagerTest, OnAmountExtractionReturnedFromAi_Timeout_ShowsErrorUi) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(
+  bnpl_manager_->OnUserDecisionToUseBnpl(
       /*final_checkout_amount=*/std::nullopt,
       /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
 
@@ -2928,7 +2950,7 @@ TEST_F(BnplManagerTest, OnAmountExtractionReturnedFromAi_Timeout_ShowsErrorUi) {
 
 TEST_F(BnplManagerTest,
        OnAmountExtractionReturnedFromAi_NonUsdCurrency_ShowsErrorUi) {
-  bnpl_manager_->OnDidAcceptBnplSuggestion(
+  bnpl_manager_->OnUserDecisionToUseBnpl(
       /*final_checkout_amount=*/std::nullopt,
       /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
 
@@ -2943,7 +2965,77 @@ TEST_F(BnplManagerTest,
   bnpl_manager_->OnAmountExtractionReturnedFromAi(
       base::unexpected(AiAmountExtractionResult::Error::kUnsupportedCurrency));
 }
-
 #endif  // !BUILDFLAG(IS_IOS)
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
+TEST_F(
+    BnplManagerTest,
+    OnAmountExtractionReturnedFromAi_IssuerNotSelectedYet_PayLaterTabsUpdatesSuggestions) {
+  base::test::ScopedFeatureList feature_list{
+      features::kAutofillEnablePayNowPayLaterTabs};
+
+  base::MockRepeatingCallback<void(std::vector<Suggestion>,
+                                   AutofillSuggestionTriggerSource)>
+      mock_update_suggestions_callback;
+  bnpl_manager_->NotifyOfSuggestionGeneration(
+      AutofillSuggestionTriggerSource::kFormControlElementClicked);
+  bnpl_manager_->OnSuggestionsShown(
+      {Suggestion(SuggestionType::kCreditCardEntry),
+       Suggestion(SuggestionType::kManageCreditCard)},
+      mock_update_suggestions_callback.Get());
+
+  EXPECT_CALL(GetBnplUiDelegate(), ShowSelectBnplIssuerUi).Times(0);
+  EXPECT_CALL(GetBnplUiDelegate(), ShowProgressUi).Times(0);
+  bnpl_manager_->OnUserDecisionToUseBnpl(
+      /*final_checkout_amount=*/std::nullopt,
+      /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
+
+  SetUpLinkedBnplIssuer(/*price_lower_bound_in_micros=*/40'000'000,
+                        /*price_higher_bound_in_micros=*/1'000'000'000,
+                        IssuerId::kBnplAffirm,
+                        /*instrument_id=*/1234);
+  SetUpUnlinkedBnplIssuer(/*price_lower_bound_in_micros=*/1'000'000'000,
+                          /*price_higher_bound_in_micros=*/2'000'000'000,
+                          IssuerId::kBnplZip);
+  SetUpLinkedBnplIssuer(/*price_lower_bound_in_micros=*/40'000'000,
+                        /*price_higher_bound_in_micros=*/1'000'000'000,
+                        IssuerId::kBnplKlarna,
+                        /*instrument_id=*/5678);
+
+  autofill_client().SetAutofillSuggestions(
+      {Suggestion(SuggestionType::kLoadingThrobber),
+       Suggestion(SuggestionType::kBnplFootnote)});
+
+  using BnplIssuerAlias = autofill::Suggestion::BnplIssuer;
+  EXPECT_CALL(
+      mock_update_suggestions_callback,
+      Run(UnorderedElementsAre(
+              AllOf(Field(&Suggestion::type, SuggestionType::kBnplEntry),
+                    Field(&Suggestion::payload,
+                          VariantWith<BnplIssuerAlias>(
+                              Property(&BnplIssuerAlias::value,
+                                       Property(&BnplIssuer::issuer_id,
+                                                Eq(IssuerId::kBnplAffirm)))))),
+              AllOf(Field(&Suggestion::type, SuggestionType::kBnplEntry),
+                    Field(&Suggestion::payload,
+                          VariantWith<BnplIssuerAlias>(
+                              Property(&BnplIssuerAlias::value,
+                                       Property(&BnplIssuer::issuer_id,
+                                                Eq(IssuerId::kBnplKlarna)))))),
+              AllOf(Field(&Suggestion::type, SuggestionType::kBnplEntry),
+                    Field(&Suggestion::payload,
+                          VariantWith<BnplIssuerAlias>(
+                              Property(&BnplIssuerAlias::value,
+                                       Property(&BnplIssuer::issuer_id,
+                                                Eq(IssuerId::kBnplZip)))))),
+              Field(&Suggestion::type, SuggestionType::kBnplFootnote)),
+          AutofillSuggestionTriggerSource::kFormControlElementClicked));
+
+  bnpl_manager_->OnAmountExtractionReturnedFromAi(
+      std::make_pair(1'000'000, "USD"));
+}
+#endif  // #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
+        // BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace autofill::payments

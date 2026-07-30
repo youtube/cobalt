@@ -79,6 +79,8 @@
 #include "chrome/browser/ui/webui/ash/login/family_link_notice_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/fingerprint_setup_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/fjord_fw_update_screen_handler.h"
+#include "chrome/browser/ui/webui/ash/login/fjord_image_download_screen_handler.h"
+#include "chrome/browser/ui/webui/ash/login/fjord_image_selection_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/fjord_station_setup_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/fjord_touch_controller_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/gaia_info_screen_handler.h"
@@ -141,7 +143,6 @@
 #include "chrome/common/chrome_constants.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_switches.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/grit/browser_resources.h"
 #include "chrome/grit/chrome_unscaled_resources.h"
 #include "chrome/grit/component_extension_resources.h"
@@ -332,6 +333,8 @@ void CreateAndAddOobeUIDataSource(Profile* profile,
   source->AddBoolean("isDrivePinningEnabled",
                      drive::util::IsOobeDrivePinningScreenEnabled());
   source->AddBoolean("isFjordOobeEnabled", fjord_util::ShouldShowFjordOobe());
+  source->AddBoolean("isFjordOobeImageSwitchEnabled",
+                     fjord_util::ShouldShowFjordOobeImageSwitch());
 
   // Whether the timings in oobe_trace.js will be output to the console.
   source->AddBoolean(
@@ -405,7 +408,7 @@ const DisplayScaleFactor k4KDisplay = {3840, 1.5f},
 
 bool OobeUIConfig::IsWebUIEnabled(content::BrowserContext* browser_context) {
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  bool is_running_test = command_line->HasSwitch(::switches::kTestName) ||
+  bool is_running_test = command_line->HasSwitch(ash::switches::kTestName) ||
                          command_line->HasSwitch(::switches::kTestType);
 
   return ash::ProfileHelper::IsSigninProfile(
@@ -490,8 +493,12 @@ void OobeUI::ConfigureOobeDisplay() {
 
   AddScreenHandler(std::make_unique<MarketingOptInScreenHandler>());
 
-  AddScreenHandler(std::make_unique<GaiaScreenHandler>(network_state_informer_,
-                                                       error_screen));
+  // TODO(crbug.com/489929275): Avoid using g_browser_process.
+  AddScreenHandler(std::make_unique<GaiaScreenHandler>(
+      g_browser_process->local_state(),
+      g_browser_process->platform_part()->browser_policy_connector_ash(),
+      g_browser_process->shared_url_loader_factory(), network_state_informer_,
+      error_screen));
 
   AddScreenHandler(std::make_unique<OnlineAuthenticationScreenHandler>());
 
@@ -588,6 +595,10 @@ void OobeUI::ConfigureOobeDisplay() {
     AddScreenHandler(std::make_unique<FjordTouchControllerScreenHandler>());
     AddScreenHandler(std::make_unique<FjordStationSetupScreenHandler>());
     AddScreenHandler(std::make_unique<FjordFwUpdateScreenHandler>());
+    if (fjord_util::ShouldShowFjordOobeImageSwitch()) {
+      AddScreenHandler(std::make_unique<FjordImageSelectionScreenHandler>());
+      AddScreenHandler(std::make_unique<FjordImageDownloadScreenHandler>());
+    }
   }
 
   Profile* const profile = Profile::FromWebUI(web_ui());
@@ -609,7 +620,8 @@ void OobeUI::ConfigureOobeDisplay() {
   }
 
   if (policy::EnrollmentRequisitionManager::IsMeetDevice()) {
-    oobe_display_chooser_ = std::make_unique<OobeDisplayChooser>();
+    oobe_display_chooser_ = std::make_unique<OobeDisplayChooser>(
+        ash::Shell::Get()->cros_display_config());
   }
 }
 
@@ -707,10 +719,15 @@ OobeUI::OobeUI(content::WebUI* web_ui, const GURL& url)
   LOG(WARNING) << "OobeUI created";
   display_type_ = GetDisplayType(url);
 
+  // TODO(crbug.com/489929275): Avoid using g_browser_process.
+  policy::BrowserPolicyConnectorAsh* browser_policy_connector_ash =
+      g_browser_process->platform_part()->browser_policy_connector_ash();
+
   auto core_oobe_handler = std::make_unique<CoreOobeHandler>();
   core_handler_ = core_oobe_handler.get();
   core_oobe_ =
-      std::make_unique<CoreOobe>(display_type_, core_oobe_handler->AsWeakPtr());
+      std::make_unique<CoreOobe>(browser_policy_connector_ash, display_type_,
+                                 core_oobe_handler->AsWeakPtr());
   web_ui->AddMessageHandler(std::move(core_oobe_handler));
 
   ConfigureOobeDisplay();

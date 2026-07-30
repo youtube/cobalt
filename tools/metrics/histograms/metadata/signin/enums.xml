@@ -664,7 +664,7 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="Sync"/>
   <int value="1" label="Wallpaper Google Photos fetcher"/>
   <int value="2" label="Wallpaper fetcher delegate"/>
-  <int value="3" label="Ip Protection Service"/>
+  <int value="3" label="Ip Protection Service (deprecated 03/2026)"/>
   <int value="4" label="Sanitized image source"/>
   <int value="5" label="Optimization Guide (get hints)"/>
   <int value="6" label="Optimization Guide (model execution)"/>
@@ -752,6 +752,7 @@ chromium-metrics-reviews@google.com.
   <int value="88" label="Wallet Passes Service"/>
   <int value="89" label="Aim Eligibility Service"/>
   <int value="90" label="DevTools AiCode Client"/>
+  <int value="91" label="Accessibility Annotator"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/signin/public/base/oauth_consumer_id.h:OAuthConsumerId) -->
@@ -975,6 +976,7 @@ chromium-metrics-reviews@google.com.
   <int value="96" label="Ash Chrome session manager (ChromeOS only)"/>
   <int value="97" label="AvatarPill expanding on startup"/>
   <int value="98" label="Search AI Mode (Desktop only)"/>
+  <int value="99" label="App Bar (iOS only)"/>
 </enum>
 
 <enum name="SigninAccountReconcilorState">
@@ -1122,7 +1124,7 @@ chromium-metrics-reviews@google.com.
 <enum name="SigninLoadTokenFromDB">
   <int value="0" label="Loaded"/>
   <int value="1" label="Revoked by Dice migration"/>
-  <int value="2" label="Revoked as secondary account"/>
+  <int value="2" label="(Obsolete) Revoked as secondary account"/>
   <int value="3" label="Revoked on load due to cookie settings"/>
   <int value="4" label="Revoked on load due to invalid token characters"/>
   <int value="5" label="Revoked on load due to invalid account ID"/>
@@ -1348,6 +1350,10 @@ chromium-metrics-reviews@google.com.
       label="User tapped on undo right after signin through recent tabs promo">
     User tapped on the 'Undo' button in a snackbar shown right after signin
     through recent tabs promo. (Android only).
+  </int>
+  <int value="45" label="Capability restricts signin">
+    A forced sign-out when the account capability CanSignInToChrome restricts
+    signin. (iOS only).
   </int>
 </enum>
 

@@ -40,7 +40,8 @@ void HistorySyncOptinServiceDefaultDelegate::ShowHistorySyncOptinScreen(
     Profile* profile,
     HistorySyncOptinHelper::FlowCompletedCallback callback) {
   CHECK(profile);
-  Browser* browser = chrome::FindLastActiveWithProfile(profile);
+  BrowserWindowInterface* const browser =
+      chrome::FindLastActiveWithProfile(profile);
   if (!browser) {
     // The browser has been closed in the meantime, nothing to do.
     std::move(callback.value())
@@ -280,6 +281,7 @@ void HistorySyncOptinService::OnPrimaryAccountChanged(
     case signin_metrics::AccessPoint::kAshUserSessionManager:
     case signin_metrics::AccessPoint::kAvatarPillExpandPromo:
     case signin_metrics::AccessPoint::kSearchAIModeBubble:
+    case signin_metrics::AccessPoint::kIosAppBar:
       return;
   }
 
@@ -340,6 +342,9 @@ void HistorySyncOptinService::OnPrimaryAccountChanged(
 }
 
 void HistorySyncOptinService::ShowErrorDialogWithMessage(int error_message_id) {
+  BrowserWindowInterface* const browser =
+      chrome::FindLastActiveWithProfile(profile_);
   signin_util::ShowErrorDialogWithMessage(
-      chrome::FindLastActiveWithProfile(profile_), error_message_id);
+      browser ? browser->GetBrowserForMigrationOnly() : nullptr,
+      error_message_id);
 }

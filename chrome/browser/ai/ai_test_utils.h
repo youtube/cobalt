@@ -21,6 +21,7 @@
 #include "components/update_client/crx_update_item.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-forward.h"
 #include "services/on_device_model/public/mojom/download_observer.mojom.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -39,6 +40,9 @@ class AITestUtils {
 
     // Returns true on successful completion and false on error.
     bool WaitForCompletion();
+
+    // Returns true after tool calls are received.
+    bool WaitForToolCalls();
 
     void WaitForContextOverflow();
 
@@ -60,6 +64,10 @@ class AITestUtils {
 
     uint64_t current_tokens() const { return current_tokens_; }
 
+    const std::vector<blink::mojom::ToolCallPtr>& tool_calls() const {
+      return tool_calls_;
+    }
+
    private:
     // blink::mojom::ModelStreamingResponder:
     void OnError(blink::mojom::ModelStreamingResponseStatus status,
@@ -74,8 +82,10 @@ class AITestUtils {
     std::optional<blink::mojom::ModelStreamingResponseStatus> error_status_;
     blink::mojom::QuotaErrorInfoPtr quota_error_info_;
     std::vector<std::string> responses_;
+    std::vector<blink::mojom::ToolCallPtr> tool_calls_;
     uint64_t current_tokens_ = 0;
     base::RunLoop run_loop_;
+    base::RunLoop tool_calls_run_loop_;
     base::RunLoop context_overflow_run_loop_;
     mojo::Receiver<blink::mojom::ModelStreamingResponder> receiver_{this};
   };
@@ -98,6 +108,9 @@ class AITestUtils {
     blink::mojom::AIManager* GetAIManagerInterface();
     mojo::Remote<blink::mojom::AIManager> GetAIManagerRemote();
     size_t GetAIManagerContextBoundObjectSetSize();
+
+    // Navigates to disable the specified policy and recreates `ai_manager_`.
+    void DisablePolicy(network::mojom::PermissionsPolicyFeature feature);
 
     raw_ptr<MockOptimizationGuideKeyedService>
         mock_optimization_guide_keyed_service_;

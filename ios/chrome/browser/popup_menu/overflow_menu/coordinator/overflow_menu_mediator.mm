@@ -113,7 +113,9 @@
 #import "ios/chrome/browser/window_activities/model/window_activity_helpers.h"
 #import "ios/chrome/grit/ios_branded_strings.h"
 #import "ios/chrome/grit/ios_strings.h"
+#import "ios/public/provider/chrome/browser/cobalt/cobalt_api.h"
 #import "ios/public/provider/chrome/browser/user_feedback/user_feedback_api.h"
+#import "ios/web/common/features.h"
 #import "ios/web/common/user_agent.h"
 #import "ios/web/public/js_messaging/web_frame.h"
 #import "ios/web/public/navigation/navigation_item.h"
@@ -227,6 +229,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
 @property(nonatomic, strong) OverflowMenuDestination* whatsNewDestination;
 @property(nonatomic, strong)
     OverflowMenuDestination* spotlightDebuggerDestination;
+@property(nonatomic, strong) OverflowMenuDestination* cobaltDestination;
 
 @property(nonatomic, strong) OverflowMenuActionGroup* appActionsGroup;
 @property(nonatomic, strong) OverflowMenuActionGroup* pageActionsGroup;
@@ -327,6 +330,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
   self.localStatePrefs = nullptr;
 
   self.syncService = nullptr;
+  self.browserManagementService = nullptr;
   _searchEngineObserver.reset();
 }
 
@@ -497,6 +501,12 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
   }
 }
 
+- (void)setBrowserManagementService:
+    (policy::BrowserManagementService*)browserManagementService {
+  _browserManagementService = browserManagementService;
+  [self updateModel];
+}
+
 #pragma mark - Model Creation
 
 - (void)initializeModel {
@@ -529,6 +539,9 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
   self.settingsDestination = [self newSettingsDestination];
 
   self.spotlightDebuggerDestination = [self newSpotlightDebuggerDestination];
+
+  // Cobalt destination.
+  self.cobaltDestination = [self newCobaltDestination];
 
   // WhatsNew destination.
   self.whatsNewDestination = [self newWhatsNewDestination];
@@ -756,7 +769,6 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
 }
 
 - (OverflowMenuAction*)toggleReaderModeAction {
-  base::RecordAction(UserMetricsAction("MobileMenuReaderMode"));
 
   BOOL isReaderModeActive = [self isReaderModeActive];
   int nameID = isReaderModeActive ? IDS_IOS_TOOLS_MENU_HIDE_READER_MODE
@@ -771,6 +783,8 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
                          accessibilityID:kToolsMenuReaderMode
                             hideItemText:nil
                                  handler:^{
+                                   base::RecordAction(UserMetricsAction(
+                                       "MobileMenuReaderMode"));
                                    [weakSelf setReaderModeVisibility:
                                                  !isReaderModeActive];
                                  }];
@@ -791,65 +805,62 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
 }
 
 - (OverflowMenuAction*)dynamicTabGroupAction {
-  __weak __typeof(self) weakSelf = self;
-
   std::set<const TabGroup*> groups = self.webStateList->GetGroups();
-  const TabGroup* currentGroup = self.webStateList->GetGroupOfWebStateAt(
-      self.webStateList->GetIndexOfWebState(self.webState));
+  int index = self.webStateList->GetIndexOfWebState(self.webState);
+  const TabGroup* currentGroup =
+      self.webStateList->ContainsIndex(index)
+          ? self.webStateList->GetGroupOfWebStateAt(index)
+          : nullptr;
+
   ActionFactory* actionFactory = [[ActionFactory alloc]
       initWithScenario:kMenuScenarioHistogramTabGroupOverflowMenu];
 
-  // If there are no tab groups, display the "New Tab Group" button.
-  if (groups.empty()) {
-    return [self
-        createOverflowMenuActionWithName:
-            l10n_util::GetPluralNSStringF(
-                IDS_IOS_CONTENT_CONTEXT_ADDTABTONEWTABGROUP, 1)
-                              actionType:overflow_menu::ActionType::TabGroup
-                              symbolName:kNewTabGroupActionSymbol
-                            systemSymbol:YES
-                        monochromeSymbol:YES
-                         accessibilityID:kToolsMenuNewTabGroupId
-                            hideItemText:nil
-                                 handler:^{
-                                   [weakSelf createNewTabGroup];
-                                 }];
-  } else if (currentGroup) {
-    // If the current tab is in a group, display the "Move to Tab Group" button.
-    OverflowMenuAction* action = [self
-        createOverflowMenuActionWithNameID:
-            IDS_IOS_CONTENT_CONTEXT_MOVETABTOGROUP
-                                actionType:overflow_menu::ActionType::TabGroup
-                                symbolName:kOpenImageActionSymbol
-                              systemSymbol:YES
-                          monochromeSymbol:YES
-                           accessibilityID:kToolsMenuMoveTabToGroupId
-                              hideItemText:nil
-                                   handler:^{
-                                   }];
-    action.menu = [self createMoveTabToGroupMenu:groups
-                                    currentGroup:currentGroup
-                               withActionFactory:actionFactory];
-    return action;
+  __weak __typeof(self) weakSelf = self;
+
+  UIMenuElement* tabGroupMenuElement;
+  NSString* accessibilityID;
+  NSString* symbolName = kMoveTabToGroupActionSymbol;
+
+  if (currentGroup) {
+    tabGroupMenuElement = [actionFactory menuToMoveTabToGroupWithGroups:groups
+        currentGroup:currentGroup
+        moveBlock:^(const TabGroup* group) {
+          [weakSelf moveTabToGroup:group];
+        }
+        removeBlock:^{
+          [weakSelf removeTabFromGroup];
+        }];
+    accessibilityID = kToolsMenuMoveTabToGroupId;
   } else {
-    // If the current tab is not in a group but groups exist, display the "Add
-    // to Tab Group" button.
-    OverflowMenuAction* action = [self
-        createOverflowMenuActionWithName:
-            l10n_util::GetPluralNSStringF(
-                IDS_IOS_CONTENT_CONTEXT_ADDTABTOTABGROUP, 1)
-                              actionType:overflow_menu::ActionType::TabGroup
-                              symbolName:kOpenImageActionSymbol
-                            systemSymbol:YES
-                        monochromeSymbol:YES
-                         accessibilityID:kToolsMenuAddTabToGroupId
-                            hideItemText:nil
-                                 handler:^{
-                                 }];
-    action.menu = [self createAddTabToGroupMenu:groups
-                              withActionFactory:actionFactory];
-    return action;
+    tabGroupMenuElement =
+        [actionFactory menuToAddTabToGroupWithGroups:groups
+                                        numberOfTabs:1
+                                               block:^(const TabGroup* group) {
+                                                 [weakSelf addTabToGroup:group];
+                                               }];
+    accessibilityID = kToolsMenuAddTabToGroupId;
+    if (groups.empty()) {
+      symbolName = kNewTabGroupActionSymbol;
+      accessibilityID = kToolsMenuNewTabGroupId;
+    }
   }
+
+  OverflowMenuAction* action =
+      [self createOverflowMenuActionWithName:tabGroupMenuElement.title
+                                  actionType:overflow_menu::ActionType::TabGroup
+                                  symbolName:symbolName
+                                systemSymbol:YES
+                            monochromeSymbol:YES
+                             accessibilityID:accessibilityID
+                                hideItemText:nil
+                                     handler:^{
+                                       if (groups.empty()) {
+                                         [weakSelf createNewTabGroup];
+                                       }
+                                     }];
+
+  action.menu = tabGroupMenuElement;
+  return action;
 }
 
 - (OverflowMenuAction*)newAddBookmarkAction {
@@ -1235,6 +1246,24 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
   }];
 }
 
+- (OverflowMenuDestination*)newCobaltDestination {
+  auto destinationParameters =
+      ios::provider::GetCobaltOverflowMenuDestinationParameters();
+  if (destinationParameters.destination_name_id == 0) {
+    return nil;
+  }
+  __weak __typeof(self) weakSelf = self;
+  return [self
+      createOverflowMenuDestination:destinationParameters.destination_name_id
+                        destination:destinationParameters.destination
+                         symbolName:destinationParameters.symbol_name
+                       systemSymbol:destinationParameters.system_symbol
+                    accessibilityID:destinationParameters.accessibility_id
+                            handler:^{
+                              [weakSelf openCobalt];
+                            }];
+}
+
 - (OverflowMenuDestination*)newPriceNotificationsDestination {
   __weak __typeof(self) weakSelf = self;
   return [self createOverflowMenuDestination:IDS_IOS_TOOLS_MENU_PRICE_TRACKING
@@ -1254,6 +1283,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
     case overflow_menu::Destination::SiteInfo:
     case overflow_menu::Destination::Settings:
     case overflow_menu::Destination::SpotlightDebugger:
+    case overflow_menu::Destination::Cobalt:
       // These items are unhideable.
       return nil;
     case overflow_menu::Destination::Bookmarks:
@@ -1493,6 +1523,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
       overflow_menu::Destination::Settings,
       overflow_menu::Destination::PriceNotifications,
       overflow_menu::Destination::WhatsNew,
+      overflow_menu::Destination::Cobalt,
   };
 
   return destinations;
@@ -2108,6 +2139,17 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
       return self.whatsNewDestination;
     case overflow_menu::Destination::SpotlightDebugger:
       return self.spotlightDebuggerDestination;
+    case overflow_menu::Destination::Cobalt:
+      if (!web::features::IsCobaltEnabled()) {
+        return nil;
+      }
+      if (!self.browserManagementService) {
+        return nil;
+      }
+      if (self.browserManagementService->IsManaged()) {
+        return nil;
+      }
+      return self.cobaltDestination;
     case overflow_menu::Destination::PriceNotifications:
       BOOL priceNotificationsActive =
           self.webState && IsPriceTrackingEnabled(ProfileIOS::FromBrowserState(
@@ -2140,6 +2182,8 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
       return [self newWhatsNewDestination];
     case overflow_menu::Destination::SpotlightDebugger:
       return [self newSpotlightDebuggerDestination];
+    case overflow_menu::Destination::Cobalt:
+      return [self newCobaltDestination];
     case overflow_menu::Destination::PriceNotifications:
       return [self newPriceNotificationsDestination];
   }
@@ -2365,6 +2409,10 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
 
 // Creates a new tab group with the current tab.
 - (void)createNewTabGroup {
+  if (self.menuHasBeenDismissed) {
+    return;
+  }
+
   web::WebState* currentWebState = self.webState;
   [self dismissMenu];
   if (!currentWebState) {
@@ -2373,81 +2421,58 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
 
   std::set<web::WebStateID> identifiers;
   identifiers.insert(currentWebState->GetUniqueIdentifier());
-
   [self.tabGroupsHandler showTabGroupCreationForTabs:identifiers];
 }
 
-// Creates a submenu to move the active tab from the group to a
-// different tab group.
-- (UIMenu*)createMoveTabToGroupMenu:(const std::set<const TabGroup*>&)groups
-                       currentGroup:(const TabGroup*)currentGroup
-                  withActionFactory:(ActionFactory*)actionFactory {
-  UIMenuElement* moveToGroupMenuElement = [actionFactory
-      menuToMoveTabToGroupWithGroups:groups
-                        currentGroup:currentGroup
-                           moveBlock:[self moveTabToGroupBlock]
-                         removeBlock:[self removeTabFromGroupBlock]];
+// Creates a Move Tab to Group action for the Move Tab to Group menu.
+- (void)moveTabToGroup:(const TabGroup*)group {
+  if (self.menuHasBeenDismissed) {
+    return;
+  }
 
-  return base::apple::ObjCCast<UIMenu>(moveToGroupMenuElement);
+  int tabIndex = self.webStateList->GetIndexOfWebState(self.webState);
+  if (tabIndex == WebStateList::kInvalidIndex) {
+    return;
+  }
+  std::set<int> tabIndices = {tabIndex};
+  self.webStateList->MoveToGroup(tabIndices, group);
+  [self dismissMenu];
 }
 
-// Returns a Move Tab to Group block for the Move Tab to Group menu.
-- (void (^)(const TabGroup*))moveTabToGroupBlock {
-  return ^(const TabGroup* group) {
-    __weak __typeof(self) weakSelf = self;
-    int tabIndex = weakSelf.webStateList->GetIndexOfWebState(self.webState);
-    if (tabIndex == WebStateList::kInvalidIndex) {
-      return;
-    }
-    std::set<int> tabIndices = {tabIndex};
-    weakSelf.webStateList->MoveToGroup(tabIndices, group);
-    [self dismissMenu];
-  };
+// Removes the current tab from its group.
+- (void)removeTabFromGroup {
+  if (self.menuHasBeenDismissed) {
+    return;
+  }
+
+  int tabIndex = self.webStateList->GetIndexOfWebState(self.webState);
+  if (tabIndex == WebStateList::kInvalidIndex) {
+    return;
+  }
+  std::set<int> tabIndices = {tabIndex};
+  self.webStateList->RemoveFromGroups(tabIndices);
+  [self dismissMenu];
 }
 
-// Returns a Remove Tab from Group block for the Move Tab to Group menu.
-- (ProceduralBlock)removeTabFromGroupBlock {
-  return ^{
-    __weak __typeof(self) weakSelf = self;
-    int tabIndex = weakSelf.webStateList->GetIndexOfWebState(self.webState);
-    if (tabIndex == WebStateList::kInvalidIndex) {
-      return;
-    }
-    std::set<int> tabIndices = {tabIndex};
-    weakSelf.webStateList->RemoveFromGroups(tabIndices);
-    [self dismissMenu];
-  };
-}
+// Adds the current tab to the group `group`.
+- (void)addTabToGroup:(const TabGroup*)group {
+  if (self.menuHasBeenDismissed) {
+    return;
+  }
 
-// Creates a submenu to add the active tab to an existing tab group.
-- (UIMenu*)createAddTabToGroupMenu:(const std::set<const TabGroup*>&)groups
-                 withActionFactory:(ActionFactory*)actionFactory {
-  UIMenuElement* addToGroupMenuElement =
-      [actionFactory menuToAddTabToGroupWithGroups:groups
-                                      numberOfTabs:1
-                                             block:[self addTabToGroupBlock]];
+  int tabIndex = self.webStateList->GetIndexOfWebState(self.webState);
+  if (tabIndex == WebStateList::kInvalidIndex) {
+    return;
+  }
 
-  return base::apple::ObjCCast<UIMenu>(addToGroupMenuElement);
-}
+  std::set<int> tabIndices = {tabIndex};
 
-// Returns an Add Tab to Group block for the Add Tab to Group menu.
-- (void (^)(const TabGroup*))addTabToGroupBlock {
-  return ^(const TabGroup* group) {
-    __weak __typeof(self) weakSelf = self;
-    int tabIndex = weakSelf.webStateList->GetIndexOfWebState(self.webState);
-    if (tabIndex == WebStateList::kInvalidIndex) {
-      return;
-    }
-
-    std::set<int> tabIndices = {tabIndex};
-
-    if (group) {
-      weakSelf.webStateList->MoveToGroup(tabIndices, group);
-    } else {
-      [self createNewTabGroup];
-    }
-    [self dismissMenu];
-  };
+  if (group) {
+    self.webStateList->MoveToGroup(tabIndices, group);
+  } else {
+    [self createNewTabGroup];
+  }
+  [self dismissMenu];
 }
 
 // Dismisses the menu and adds the current page as a bookmark or opens the
@@ -2674,6 +2699,12 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
       showSavedPasswordsSettingsFromViewController:self.baseViewController];
 }
 
+// Dismisses the menu and opens Cobalt.
+- (void)openCobalt {
+  [self dismissMenu];
+  // TODO(crbug.com/475807780): Open Cobalt UI.
+}
+
 // Dismisses the menu and opens price notifications list.
 - (void)openPriceNotifications {
   RecordAction(UserMetricsAction("MobileMenuPriceNotifications"));
@@ -2773,6 +2804,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
     case overflow_menu::Destination::Settings:
     case overflow_menu::Destination::WhatsNew:
     case overflow_menu::Destination::SpotlightDebugger:
+    case overflow_menu::Destination::Cobalt:
     case overflow_menu::Destination::PriceNotifications:
       // Most destinations have no corresponding destination and nothing special
       // to be done when their shown state is toggled.

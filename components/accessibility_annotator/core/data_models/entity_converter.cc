@@ -80,9 +80,9 @@ Shipment ConvertShipment(
   return shipment;
 }
 
-DriverLicense ConvertDriverLicense(
+DriversLicense ConvertDriversLicense(
     const sync_pb::AccessibilityAnnotationSpecifics::DriversLicense& proto_dl) {
-  DriverLicense dl;
+  DriversLicense dl;
   if (proto_dl.has_name()) {
     dl.name = proto_dl.name();
   }
@@ -146,10 +146,10 @@ NationalId ConvertNationalId(
   return national_id;
 }
 
-Flight ConvertFlight(
+FlightReservation ConvertFlight(
     const sync_pb::AccessibilityAnnotationSpecifics::FlightReservation&
         proto_flight) {
-  Flight flight;
+  FlightReservation flight;
   if (proto_flight.has_flight_number()) {
     flight.flight_number = proto_flight.flight_number();
   }
@@ -171,6 +171,10 @@ Flight ConvertFlight(
   if (proto_flight.has_departure_date_unix_epoch_seconds()) {
     flight.departure_date = base::Time::FromSecondsSinceUnixEpoch(
         proto_flight.departure_date_unix_epoch_seconds());
+  }
+  if (proto_flight.has_arrival_date_unix_epoch_seconds()) {
+    flight.arrival_date = base::Time::FromSecondsSinceUnixEpoch(
+        proto_flight.arrival_date_unix_epoch_seconds());
   }
   return flight;
 }
@@ -220,7 +224,7 @@ std::optional<Entity> CreateEntityFromSpecifics(
       entity.specifics = ConvertShipment(specifics.shipment());
       break;
     case sync_pb::AccessibilityAnnotationSpecifics::kDriversLicense:
-      entity.specifics = ConvertDriverLicense(specifics.drivers_license());
+      entity.specifics = ConvertDriversLicense(specifics.drivers_license());
       break;
     case sync_pb::AccessibilityAnnotationSpecifics::kPassport:
       entity.specifics = ConvertPassport(specifics.passport());

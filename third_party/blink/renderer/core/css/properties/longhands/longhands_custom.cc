@@ -12890,45 +12890,42 @@ const CSSValue* WillChange::ParseSingleValue(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     CSSParserLocalContext& local_context) const {
-  if (stream.Peek().Id() == CSSValueID::kAuto) {
-    return css_parsing_utils::ConsumeIdent(stream);
+  if (const CSSValue* ident =
+          css_parsing_utils::ConsumeIdent<CSSValueID::kAuto>(stream)) {
+    return ident;
   }
 
-  CSSValueList* values = CSSValueList::CreateCommaSeparated();
   // Every comma-separated list of identifiers is a valid will-change value,
   // unless the list includes an explicitly disallowed identifier.
+  CSSValueList* values = CSSValueList::CreateCommaSeparated();
   while (true) {
     if (stream.Peek().GetType() != kIdentToken) {
       return nullptr;
     }
-    CSSPropertyID unresolved_property = UnresolvedCSSPropertyID(
-        context.GetExecutionContext(), stream.Peek().Value());
-    if (unresolved_property != CSSPropertyID::kInvalid &&
-        unresolved_property != CSSPropertyID::kVariable) {
-#if DCHECK_IS_ON()
-      DCHECK(CSSProperty::Get(ResolveCSSPropertyID(unresolved_property))
-                 .IsWebExposed(context.GetExecutionContext()));
-#endif
-      // Now "all" is used by both CSSValue and CSSPropertyValue.
-      // Need to return nullptr when currentValue is CSSPropertyID::kAll.
-      if (unresolved_property == CSSPropertyID::kWillChange ||
-          unresolved_property == CSSPropertyID::kAll) {
-        return nullptr;
-      }
-      values->Append(
-          *MakeGarbageCollected<CSSCustomIdentValue>(unresolved_property));
-      stream.ConsumeIncludingWhitespace();
+
+    if (const CSSValue* ident = css_parsing_utils::ConsumeIdent<
+            CSSValueID::kContents, CSSValueID::kScrollPosition>(stream)) {
+      values->Append(*ident);
+    } else if (css_parsing_utils::IdentMatches<
+                   CSSValueID::kNone, CSSValueID::kAll, CSSValueID::kAuto>(
+                   stream.Peek().Id())) {
+      // https://drafts.csswg.org/css-will-change-1/#typedef-animateable-feature
+      // "The <custom-ident> production used here excludes the keywords
+      //  will-change, none, all, auto, scroll-position, and contents, in
+      //  addition to the keywords normally excluded from <custom-ident>."
+      return nullptr;
+    } else if (const CSSPropertyID unresolved_property =
+                   UnresolvedCSSPropertyID(context.GetExecutionContext(),
+                                           stream.Peek().Value());
+               unresolved_property == CSSPropertyID::kWillChange) {
+      // See branch above.
+      return nullptr;
+    } else if (const CSSValue* custom_ident =
+                   css_parsing_utils::ConsumeCustomIdent(stream, context,
+                                                         local_context)) {
+      values->Append(*custom_ident);
     } else {
-      CSSValueID id = stream.Peek().Id();
-      if (id == CSSValueID::kContents || id == CSSValueID::kScrollPosition) {
-        values->Append(*css_parsing_utils::ConsumeIdent(stream));
-      } else if (!css_parsing_utils::IsCustomIdent<
-                     CSSValueID::kNone, CSSValueID::kAll, CSSValueID::kAuto>(
-                     id)) {
-        return nullptr;
-      } else {
-        stream.ConsumeIncludingWhitespace();
-      }
+      return nullptr;
     }
 
     if (!css_parsing_utils::ConsumeCommaIncludingWhitespace(stream)) {
@@ -12944,26 +12941,19 @@ const CSSValue* WillChange::CSSValueFromComputedStyleInternal(
     const LayoutObject*,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
-  return ComputedStyleUtils::ValueForWillChange(
-      style.WillChangeProperties(), style.WillChangeContents(),
-      style.WillChangeScrollPosition());
+  return ComputedStyleUtils::ValueForWillChange(style.WillChange());
 }
 
 void WillChange::ApplyInitial(StyleResolverState& state) const {
   ComputedStyleBuilder& builder = state.StyleBuilder();
-  builder.SetWillChangeContents(false);
-  builder.SetWillChangeScrollPosition(false);
-  builder.SetWillChangeProperties(Vector<CSSPropertyID>());
+  builder.SetWillChange(nullptr);
   builder.SetSubtreeWillChangeContents(
       state.ParentStyle()->SubtreeWillChangeContents());
 }
 
 void WillChange::ApplyInherit(StyleResolverState& state) const {
   ComputedStyleBuilder& builder = state.StyleBuilder();
-  builder.SetWillChangeContents(state.ParentStyle()->WillChangeContents());
-  builder.SetWillChangeScrollPosition(
-      state.ParentStyle()->WillChangeScrollPosition());
-  builder.SetWillChangeProperties(state.ParentStyle()->WillChangeProperties());
+  builder.SetWillChange(state.ParentStyle()->WillChange());
   builder.SetSubtreeWillChangeContents(
       state.ParentStyle()->SubtreeWillChangeContents());
 }
@@ -12971,34 +12961,90 @@ void WillChange::ApplyInherit(StyleResolverState& state) const {
 void WillChange::ApplyValue(StyleResolverState& state,
                             const CSSValue& value,
                             ValueMode) const {
-  bool will_change_contents = false;
-  bool will_change_scroll_position = false;
-  Vector<CSSPropertyID> will_change_properties;
+  ComputedStyleBuilder& builder = state.StyleBuilder();
 
   if (auto* identifier_value = DynamicTo<CSSIdentifierValue>(value)) {
     DCHECK_EQ(identifier_value->GetValueID(), CSSValueID::kAuto);
-  } else {
-    for (auto& will_change_value : To<CSSValueList>(value)) {
-      if (auto* ident_value =
-              DynamicTo<CSSCustomIdentValue>(will_change_value.Get())) {
-        will_change_properties.push_back(ident_value->ValueAsPropertyID());
-      } else if (To<CSSIdentifierValue>(*will_change_value).GetValueID() ==
-                 CSSValueID::kContents) {
-        will_change_contents = true;
-      } else if (To<CSSIdentifierValue>(*will_change_value).GetValueID() ==
-                 CSSValueID::kScrollPosition) {
-        will_change_scroll_position = true;
-      } else {
-        NOTREACHED();
+    builder.SetWillChange(nullptr);
+    builder.SetSubtreeWillChangeContents(
+        state.ParentStyle()->SubtreeWillChangeContents());
+    return;
+  }
+
+  static CSSBitset transform_properties({CSSPropertyID::kTransform,
+                                         CSSPropertyID::kPerspective,
+                                         CSSPropertyID::kTransformStyle});
+
+  static CSSBitset any_transform_properties(
+      {CSSPropertyID::kTransform, CSSPropertyID::kPerspective,
+       CSSPropertyID::kTransformStyle, CSSPropertyID::kTranslate,
+       CSSPropertyID::kScale, CSSPropertyID::kRotate,
+       CSSPropertyID::kOffsetPath, CSSPropertyID::kOffsetPosition});
+
+  const auto& value_list = To<CSSValueList>(value);
+
+  Vector<AtomicString> values;
+  values.ReserveInitialCapacity(value_list.length());
+
+  CSSBitset resolved_longhand_ids;
+  bool has_contents_value = false;
+  bool has_scroll_position_value = false;
+  bool has_transform_property = false;
+  bool has_any_transform_property = false;
+
+  auto process_longhand = [&](CSSPropertyID id) {
+    resolved_longhand_ids.Set(id);
+    if (transform_properties.Has(id)) {
+      has_transform_property = true;
+    }
+    if (any_transform_properties.Has(id)) {
+      has_any_transform_property = true;
+    }
+  };
+
+  for (const auto& item : value_list) {
+    if (const auto* ident_value = DynamicTo<CSSIdentifierValue>(*item)) {
+      const CSSValueID value_id = ident_value->GetValueID();
+      switch (value_id) {
+        case CSSValueID::kContents:
+          has_contents_value = true;
+          break;
+        case CSSValueID::kScrollPosition:
+          has_scroll_position_value = true;
+          break;
+        default:
+          NOTREACHED();
       }
+      values.push_back(GetCSSValueNameAs<AtomicString>(value_id));
+    } else if (auto* custom_ident =
+                   DynamicTo<CSSCustomIdentValue>(item.Get())) {
+      const AtomicString value_string = custom_ident->Value();
+      values.push_back(value_string);
+
+      const CSSPropertyID id = UnresolvedCSSPropertyID(
+          state.GetDocument().GetExecutionContext(), value_string);
+      if (id != CSSPropertyID::kInvalid && id != CSSPropertyID::kVariable) {
+        const CSSPropertyID resolved_id = ResolveCSSPropertyID(id);
+        StylePropertyShorthand shorthand = shorthandForProperty(resolved_id);
+        if (shorthand.length()) {
+          for (const CSSProperty* const longhand : shorthand.properties()) {
+            process_longhand(longhand->PropertyID());
+          }
+        } else {
+          process_longhand(resolved_id);
+        }
+      }
+    } else {
+      NOTREACHED();
     }
   }
-  ComputedStyleBuilder& builder = state.StyleBuilder();
-  builder.SetWillChangeContents(will_change_contents);
-  builder.SetWillChangeScrollPosition(will_change_scroll_position);
-  builder.SetWillChangeProperties(will_change_properties);
+
+  builder.SetWillChange(MakeGarbageCollected<StyleWillChangeData>(
+      std::move(values), std::move(resolved_longhand_ids),
+      has_scroll_position_value, has_transform_property,
+      has_any_transform_property));
   builder.SetSubtreeWillChangeContents(
-      will_change_contents || state.ParentStyle()->SubtreeWillChangeContents());
+      has_contents_value || state.ParentStyle()->SubtreeWillChangeContents());
 }
 
 const CSSValue* WordBreak::CSSValueFromComputedStyleInternal(

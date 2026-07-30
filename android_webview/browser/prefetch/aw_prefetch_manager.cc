@@ -13,6 +13,7 @@
 #include "android_webview/common/aw_features.h"
 #include "base/android/jni_string.h"
 #include "base/android/scoped_java_ref.h"
+#include "base/check_is_test.h"
 #include "base/trace_event/trace_event.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/common/content_features.h"
@@ -38,7 +39,11 @@ class AwPrefetchRequestStatusListener
       const base::android::JavaRef<jobject>& callback_executor)
       : prefetch_manager_java_object_(prefetch_manager_java_object),
         prefetch_java_callback_(callback),
-        prefetch_java_callback_executor_(callback_executor) {}
+        prefetch_java_callback_executor_(callback_executor) {
+    CHECK(prefetch_manager_java_object_);
+    CHECK(prefetch_java_callback_);
+    CHECK(prefetch_java_callback_executor_);
+  }
   ~AwPrefetchRequestStatusListener() override = default;
 
   void OnPrefetchStartFailedGeneric() override {
@@ -90,21 +95,39 @@ AwPrefetchManager::AwPrefetchManager(content::BrowserContext* browser_context)
 
 AwPrefetchManager::~AwPrefetchManager() = default;
 
+// static
 bool AwPrefetchManager::IsPrefetchRequest(
     const network::ResourceRequest& resource_request) {
   return AwPrefetchManager::IsSecPurposeForPrefetch(
       resource_request.headers.GetHeader(blink::kSecPurposeHeaderName));
 }
 
+// static
 bool AwPrefetchManager::IsPrerenderRequest(
     const network::ResourceRequest& resource_request) {
   return blink::IsSecPurposeForPrerender(
       resource_request.headers.GetHeader(blink::kSecPurposeHeaderName));
 }
 
+// static
 bool AwPrefetchManager::IsSecPurposeForPrefetch(
     std::optional<std::string> sec_purpose_header_value) {
   return blink::IsSecPurposeForPrefetch(sec_purpose_header_value);
+}
+
+// static
+void AwPrefetchManager::SetOrClearExternalPrefetchExperiment(
+    std::optional<int> variations_id) {
+  std::vector<int> experiment_ids;
+  if (variations_id.has_value()) {
+    experiment_ids.push_back(variations_id.value());
+  }
+
+  // Always invoke registration to ensure the metrics state is synchronized
+  // with the current request. Providing an empty ID list is necessary to
+  // clear state from previous requests if the current one lacks a
+  // Variations ID.
+  AwMetricsServiceAccessor::RegisterExternalExperiment(experiment_ids);
 }
 
 int AwPrefetchManager::StartPrefetchRequest(
@@ -133,12 +156,16 @@ int AwPrefetchManager::StartPrefetchRequest(
 
   std::optional<int> variations_id =
       GetVariationsIdFromPrefetchParameters(env, prefetch_params);
-  SetOrClearExternalPrefetchExperiment(variations_id);
+  AwPrefetchManager::SetOrClearExternalPrefetchExperiment(variations_id);
 
   std::unique_ptr<content::PrefetchRequestStatusListener>
-      request_status_listener =
-          std::make_unique<AwPrefetchRequestStatusListener>(java_obj_, callback,
-                                                            callback_executor);
+      request_status_listener;
+  if (java_obj_ && callback && callback_executor) {
+    request_status_listener = std::make_unique<AwPrefetchRequestStatusListener>(
+        java_obj_, callback, callback_executor);
+  } else {
+    CHECK_IS_TEST();
+  }
 
   // For WebView we will check if there is already a duplicate
   // prefetch request based on the URL and the No-Vary-Search hint. This is for
@@ -146,7 +173,9 @@ int AwPrefetchManager::StartPrefetchRequest(
   // TODO(crbug.com/393344309): Apply deduping to all prefetch requests (not
   // just WebView).
   if (browser_context_->IsPrefetchDuplicate(pf_url, expected_no_vary_search)) {
-    request_status_listener->OnPrefetchStartFailedDuplicate();
+    if (request_status_listener) {
+      request_status_listener->OnPrefetchStartFailedDuplicate();
+    }
     return NO_PREFETCH_KEY;
   }
 
@@ -202,22 +231,9 @@ void AwPrefetchManager::CancelPrefetch(JNIEnv* env, int32_t prefetch_key) {
   }
 }
 
-void AwPrefetchManager::SetOrClearExternalPrefetchExperiment(
-    std::optional<int> variations_id) {
-  std::vector<int> experiment_ids;
-  if (variations_id.has_value()) {
-    experiment_ids.push_back(variations_id.value());
-  }
-
-  // Always invoke registration to ensure the metrics state is synchronized
-  // with the current request. Providing an empty ID list is necessary to
-  // clear state from previous requests if the current one lacks a
-  // Variations ID.
-  AwMetricsServiceAccessor::RegisterExternalExperiment(experiment_ids);
-}
-
-bool AwPrefetchManager::GetIsPrefetchInCacheForTesting(JNIEnv* env,
-                                                       int32_t prefetch_key) {
+bool AwPrefetchManager::GetIsPrefetchInCacheForTesting(  // IN-TEST
+    JNIEnv* env,
+    int32_t prefetch_key) const {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   return all_prefetches_map_.find(prefetch_key) != all_prefetches_map_.end();
 }

@@ -12,6 +12,7 @@
 #include "base/component_export.h"
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
+#include "build/build_config.h"
 
 namespace history {
 
@@ -62,7 +63,14 @@ extern const base::FeatureParam<int> kMvtScoringParamDailyVisitCountCap;
 COMPONENT_EXPORT(HISTORY_FEATURES)
 BASE_DECLARE_FEATURE(kRazeOldHistoryDatabase);
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_IOS)
+COMPONENT_EXPORT(HISTORY_FEATURES)
+bool IsBrowsingHistoryActorIntegrationM2Enabled();
+
+COMPONENT_EXPORT(HISTORY_FEATURES)
+bool IsBrowsingHistoryActorIntegrationM3Enabled();
+
+#if !BUILDFLAG(IS_ANDROID)
 COMPONENT_EXPORT(HISTORY_FEATURES)
 BASE_DECLARE_FEATURE(kBrowsingHistoryActorIntegrationM2);
 
@@ -71,19 +79,17 @@ BASE_DECLARE_FEATURE(kBrowsingHistoryActorIntegrationM3);
 
 COMPONENT_EXPORT(HISTORY_FEATURES)
 BASE_DECLARE_FEATURE(kBrowsingHistorySimilarVisitsGrouping);
-
-COMPONENT_EXPORT(HISTORY_FEATURES)
-bool IsBrowsingHistoryActorIntegrationM2Enabled();
-
-COMPONENT_EXPORT(HISTORY_FEATURES)
-bool IsBrowsingHistoryActorIntegrationM3Enabled();
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#endif  // !BUILDFLAG(IS_ANDROID)
+#endif  // !BUILDFLAG(IS_IOS)
 
 COMPONENT_EXPORT(HISTORY_FEATURES)
 BASE_DECLARE_FEATURE(kHistoryQueryOnlyLocalFirst);
 
 COMPONENT_EXPORT(HISTORY_FEATURES)
 BASE_DECLARE_FEATURE(kWebHistoryUseNewApi);
+
+COMPONENT_EXPORT(HISTORY_FEATURES)
+BASE_DECLARE_FEATURE(kHistoryDatabaseWriteAheadLogging);
 
 }  // namespace history
 

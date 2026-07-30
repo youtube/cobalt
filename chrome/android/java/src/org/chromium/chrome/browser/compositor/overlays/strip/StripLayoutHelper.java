@@ -14,7 +14,6 @@ import static org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutU
 import static org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils.MIN_TAB_WIDTH_DP;
 import static org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils.PINNED_TAB_WIDTH_DP;
 import static org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils.TAB_OVERLAP_WIDTH_DP;
-import static org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils.isTabPinningFromStripEnabled;
 import static org.chromium.chrome.browser.tasks.tab_management.TabUiThemeUtil.FOLIO_FOOT_LENGTH_DP;
 
 import android.animation.Animator;
@@ -77,7 +76,6 @@ import org.chromium.chrome.browser.compositor.layouts.LayoutUpdateHost;
 import org.chromium.chrome.browser.compositor.layouts.components.CompositorButton;
 import org.chromium.chrome.browser.compositor.layouts.components.CompositorButton.ButtonType;
 import org.chromium.chrome.browser.compositor.layouts.components.TintedCompositorButton;
-import org.chromium.chrome.browser.compositor.layouts.phone.stack.StackScroller;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutGroupTitle.StripLayoutGroupTitleDelegate;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutView.StripLayoutViewOnClickHandler;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutView.StripLayoutViewOnKeyboardFocusHandler;
@@ -1575,9 +1573,7 @@ public class StripLayoutHelper
     }
 
     private void recordPinnedOnlyTabStripUserAction() {
-        if (isTabPinningFromStripEnabled()
-                && !mIsPinnedOnlyStripRecorded
-                && doPinnedTabsOccupyEntireVisibleArea()) {
+        if (!mIsPinnedOnlyStripRecorded && doPinnedTabsOccupyEntireVisibleArea()) {
             mIsPinnedOnlyStripRecorded = true;
             RecordUserAction.record("MobileToolbarPinnedOnlyTabStripSkipInit");
         }
@@ -2691,7 +2687,7 @@ public class StripLayoutHelper
             // Check whether the close button on the hovered tab is being hovered on.
             StripLayoutTabDelegate.updateTabCloseHoverState(hoveredTab, x, y);
         } else {
-            // Check whether new tab button or model selector button is being hovered.
+            // Check whether the model selector, Glic, or new tab button is being hovered.
             updateCompositorButtonHoverState(x, y);
         }
         mUpdateHost.requestUpdate();
@@ -2703,7 +2699,7 @@ public class StripLayoutHelper
      * @param x The x coordinate of the position of the hover move event.
      */
     public void onHoverMove(float x, float y) {
-        // Check whether new tab button or model selector button is being hovered.
+        // Check whether the model selector, Glic, or new tab button is being hovered.
         updateCompositorButtonHoverState(x, y);
 
         StripLayoutTab hoveredTab = getTabAtPosition(x);
@@ -2772,31 +2768,51 @@ public class StripLayoutHelper
         }
     }
 
-    /** Check whether model selector button or new tab button is being hovered. */
+    /** Check whether the model selector, Glic, or new tab button is being hovered. */
     private void updateCompositorButtonHoverState(float x, float y) {
-        boolean isModelSelectorHovered = false;
-        if (mModelSelectorButton != null) {
-            // Model selector button is being hovered.
-            isModelSelectorHovered = mModelSelectorButton.checkClickedOrHovered(x, y);
-            mModelSelectorButton.setHovered(isModelSelectorHovered);
+        boolean isModelSelectorHovered =
+                mModelSelectorButton != null && mModelSelectorButton.checkClickedOrHovered(x, y);
+        boolean isGlicHovered =
+                !isModelSelectorHovered
+                        && mGlicButton != null
+                        && mGlicButton.checkClickedOrHovered(x, y);
+        boolean isNewTabHovered =
+                !isModelSelectorHovered
+                        && !isGlicHovered
+                        && mNewTabButton.checkClickedOrHovered(x, y);
+
+        if (mModelSelectorButton != null && !isModelSelectorHovered) {
+            mModelSelectorButton.setHovered(false);
         }
-        // There's a delay in updating NTB's position/touch target when MSB initially appears on the
-        // strip, taking over NTB's position and moving NTB closer to the tabs. Consequently, hover
-        // highlights are observed on both NTB and MSB. To address this, this check is added to
-        // ensure only one button can be hovered at a time.
-        if (!isModelSelectorHovered) {
-            mNewTabButton.setHovered(mNewTabButton.checkClickedOrHovered(x, y));
-        } else {
+        if (mGlicButton != null && !isGlicHovered) {
+            mGlicButton.setHovered(false);
+        }
+        if (!isNewTabHovered) {
             mNewTabButton.setHovered(false);
+        }
+
+        // There's a delay in updating NTB's position/touch target when the MSB or Glic button
+        // initially appears on the strip, taking over NTB's position and moving NTB closer to the
+        // tabs. Consequently, hover highlights can be observed on multiple buttons. To address
+        // this, we allow only one button to be hovered at a time.
+        if (isModelSelectorHovered) {
+            assumeNonNull(mModelSelectorButton).setHovered(true);
+        } else if (isGlicHovered) {
+            assumeNonNull(mGlicButton).setHovered(true);
+        } else if (isNewTabHovered) {
+            mNewTabButton.setHovered(true);
         }
     }
 
     /** Clear button hover state */
     private void clearCompositorButtonHoverStateIfNotClicked() {
-        mNewTabButton.setHovered(false);
         if (mModelSelectorButton != null) {
             mModelSelectorButton.setHovered(false);
         }
+        if (mGlicButton != null) {
+            mGlicButton.setHovered(false);
+        }
+        mNewTabButton.setHovered(false);
     }
 
     void setTabHoverCardView(StripTabHoverCardView tabHoverCardView) {
@@ -3300,11 +3316,12 @@ public class StripLayoutHelper
         // Determine the anchor view rect to position the menu.
         float dpToPx = mContext.getResources().getDisplayMetrics().density;
         RectProvider anchorRectProvider = new RectProvider();
+        int tabWidthPx = Math.round(mCachedTabWidthSupplier.get() * dpToPx);
         anchorRectProvider.setRect(
                 new Rect(
                         Math.round(xDp * dpToPx),
                         Math.round(yDp * dpToPx),
-                        Math.round(xDp * dpToPx),
+                        Math.round(xDp * dpToPx) + tabWidthPx,
                         Math.round(yDp * dpToPx)));
         getAdjustedAnchorRect(anchorRectProvider);
 
@@ -3621,8 +3638,13 @@ public class StripLayoutHelper
                         .tabClosingSource(TabClosingSource.TABLET_TAB_STRIP);
         TabRemover tabRemover = mTabGroupModelFilter.getTabModel().getTabRemover();
         if (ChromeFeatureList.isEnabled(ChromeFeatureList.TAB_STRIP_CLOSE_REFACTOR_ANDROID)) {
-            int nextIndex = getNextIndexAfterClose(Collections.singleton(tab));
-            paramsBuilder.recommendedNextTab(mModel.getTabAt(nextIndex));
+            if (isSelectedTab(tabId)) {
+                // Iff closing the selected tab, set the recommended next tab. Explicitly set here
+                // in order to follow tab strip's next tab heuristic (left vs. right, expanded vs.
+                // collapsed, etc.).
+                int nextIndex = getNextIndexAfterClose(Collections.singleton(tab));
+                paramsBuilder.recommendedNextTab(mModel.getTabAt(nextIndex));
+            }
             tabRemover.closeTabs(paramsBuilder.build(), /* allowDialog= */ true, listener);
         } else {
             tabRemover.prepareCloseTabs(
@@ -3954,7 +3976,7 @@ public class StripLayoutHelper
             final Tab tab = assumeNonNull(mModel.getTabAt(i));
             final int id = tab.getId();
             final StripLayoutTab oldTab = findTabById(id);
-            boolean isPinned = isTabPinningFromStripEnabled() && tab.getIsPinned();
+            boolean isPinned = tab.getIsPinned();
             tabs[i] = oldTab != null ? oldTab : createStripTab(id, isPinned, tab.getMediaState());
             setAccessibilityDescription(tabs[i], tab);
         }
@@ -5397,7 +5419,8 @@ public class StripLayoutHelper
         anchorView.getAnchorRect(anchorRectProvider.getRect());
         getAdjustedAnchorRect(anchorRectProvider);
         var activity = assertNonNull(mWindowAndroid.getActivity().get());
-        mGlicButtonContextMenuCoordinator.showMenu(anchorRectProvider, activity);
+        mGlicButtonContextMenuCoordinator.showMenu(
+                anchorRectProvider, activity, mCachedTabWidthSupplier.get());
     }
 
     /**

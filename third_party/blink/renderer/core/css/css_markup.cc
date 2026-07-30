@@ -32,6 +32,7 @@
 #include "third_party/blink/renderer/core/css/properties/css_parsing_utils.h"
 #include "third_party/blink/renderer/platform/font_family_names.h"
 #include "third_party/blink/renderer/platform/fonts/font_family.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/text/character_visitor.h"
 #include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_buffer.h"
@@ -71,6 +72,66 @@ bool IsCSSTokenizerIdentifier(const StringView& string) {
   });
 }
 
+// Validates whether a string is a sequence of one or more space-separated CSS
+// ident tokens (without backslash-escape sequences). This is used to determine
+// whether a <family-name> can be serialized as unquoted space-separated idents
+// per the CSSWG resolution. See
+// https://github.com/w3c/csswg-drafts/issues/5846.
+//
+// Grammar: ident ( ' ' ident )*
+// Each ident: -? {nmstart} {nmchar}*
+bool IsCSSTokenizerIdentSequence(const StringView& string) {
+  unsigned length = string.length();
+  if (!length) {
+    return false;
+  }
+
+  return VisitCharacters(string, [](auto chars) {
+    size_t index = 0;
+
+    // Reject leading space.
+    if (chars[0] == ' ') {
+      return false;
+    }
+
+    while (index < chars.size()) {
+      // Parse one ident: -? {nmstart} {nmchar}*
+
+      // Optional leading hyphen.
+      if (chars[index] == '-') {
+        ++index;
+      }
+
+      // {nmstart} is required.
+      if (index >= chars.size() || !IsNameStartCodePoint(chars[index])) {
+        return false;
+      }
+      ++index;
+
+      // {nmchar}*
+      while (index < chars.size() && IsNameCodePoint(chars[index])) {
+        ++index;
+      }
+
+      // After an ident, we expect either end-of-string or a single space
+      // followed by another ident.
+      if (index < chars.size()) {
+        if (chars[index] != ' ') {
+          return false;  // Non-space, non-ident character.
+        }
+        ++index;
+        // Reject trailing space or consecutive spaces (next char must start
+        // a new ident, not be a space or end-of-string).
+        if (index >= chars.size() || chars[index] == ' ') {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  });
+}
+
 static void SerializeCharacter(UChar32 c, StringBuilder& append_to) {
   append_to.Append('\\');
   append_to.Append(c);
@@ -88,9 +149,9 @@ void SerializeIdentifier(const String& identifier,
   bool is_first_char_hyphen = false;
   unsigned index = 0;
   while (index < identifier.length()) {
-    UChar32 c = identifier.CharacterStartingAt(index);
+    UChar32 c = identifier.CodePointAtOrZero(index);
     if (c == 0) {
-      // Check for lone surrogate which characterStartingAt does not return.
+      // Check for lone surrogate which CodePointAtOrZero() does not return.
       c = identifier[index];
     }
 
@@ -127,7 +188,7 @@ void SerializeString(const String& string, StringBuilder& append_to) {
 
   unsigned index = 0;
   while (index < string.length()) {
-    UChar32 c = string.CharacterStartingAt(index);
+    UChar32 c = string.CodePointAtOrZero(index);
     index += U16_LENGTH(c);
 
     if (c <= 0x1f || c == 0x7f) {
@@ -155,7 +216,7 @@ String SerializeURI(const String& string) {
 String SerializeFontFamily(const AtomicString& string) {
   // Some <font-family> values are serialized without quotes.
   // See https://github.com/w3c/csswg-drafts/issues/5846
-  return css_parsing_utils::IsInvalidFontFamily(string)
+  return css_parsing_utils::FontFamilyNeedsQuoting(string)
              ? SerializeString(string)
              : string;
 }

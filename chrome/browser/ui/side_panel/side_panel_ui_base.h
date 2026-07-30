@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 
+#include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry_id.h"
@@ -18,7 +19,7 @@
 #include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 
-class Browser;
+class BrowserWindowInterface;
 class SidePanelEntry;
 class SidePanelEntryWaiter;
 
@@ -26,7 +27,7 @@ class SidePanelEntryWaiter;
 // side panel entries and state.
 class SidePanelUIBase : public SidePanelUI {
  public:
-  explicit SidePanelUIBase(Browser* browser);
+  explicit SidePanelUIBase(BrowserWindowInterface* browser);
   virtual ~SidePanelUIBase();
 
   SidePanelUIBase(const SidePanelUIBase&) = delete;
@@ -68,7 +69,7 @@ class SidePanelUIBase : public SidePanelUI {
                           content::WebContents* new_contents,
                           bool tab_removed_for_deletion) override;
 
-  Browser* browser() const { return browser_; }
+  BrowserWindowInterface* browser() const { return browser_; }
 
  protected:
   friend class SidePanelEntryWaiter;
@@ -159,7 +160,7 @@ class SidePanelUIBase : public SidePanelUI {
   SidePanelEntryWaiter* waiter(SidePanelEntry::PanelType type) const;
 
  private:
-  const raw_ptr<Browser> browser_;
+  const raw_ptr<BrowserWindowInterface> browser_;
   std::map<SidePanelEntry::PanelType, std::unique_ptr<PanelData>> panel_data_;
 };
 

@@ -11,7 +11,6 @@
 #include "third_party/blink/renderer/core/layout/grid/grid_item.h"
 #include "third_party/blink/renderer/core/layout/grid/grid_layout_utils.h"
 #include "third_party/blink/renderer/core/layout/grid/grid_track_collection.h"
-#include "third_party/blink/renderer/core/layout/grid/grid_track_sizing_algorithm.h"
 #include "third_party/blink/renderer/core/layout/grid_lanes/grid_lanes_running_positions.h"
 #include "third_party/blink/renderer/core/layout/grid_lanes/layout_grid_lanes.h"
 #include "third_party/blink/renderer/core/layout/grid_lanes/stacking_baseline_accumulator.h"
@@ -65,52 +64,38 @@ MinMaxSizesResult GridLanesLayoutAlgorithm::ComputeMinMaxSizes(
     MinMaxSizes sizes(override_intrinsic_inline_size,
                       override_intrinsic_inline_size);
     return MinMaxSizesResult{sizes,
-                             /* depends_on_block_constraints=*/false};
+                             /*depends_on_block_constraints=*/false};
   }
 
   const ComputedStyle& style = Style();
-  const bool is_for_columns =
-      style.GridLanesTrackSizingDirection() == kForColumns;
+  const auto grid_axis_direction = style.GridLanesTrackSizingDirection();
+  const bool is_for_columns = grid_axis_direction == kForColumns;
 
-  GridItems grid_lanes_items;
+  GridItems* grid_items = nullptr;
+  const GridLayoutSubtree* layout_subtree = nullptr;
 
   auto ComputeIntrinsicInlineSize = [&](SizingConstraint sizing_constraint) {
-    bool needs_intrinsic_track_size = false;
+    const bool should_apply_inline_size_containment =
+        node.ShouldApplyInlineSizeContainment();
 
     // TODO(almaher): Do we need to do something special for subgrid
     // related to GetGridLayoutSubtree()?
 
-    const bool should_apply_inline_size_containment =
-        node.ShouldApplyInlineSizeContainment();
-    GridSizingTrackCollection track_collection = ComputeGridAxisTracks(
-        sizing_constraint, /*intrinsic_repeat_track_sizes=*/nullptr,
-        should_apply_inline_size_containment, grid_lanes_items,
-        needs_intrinsic_track_size);
+    layout_subtree = ComputeGridLanesGeometry(
+        sizing_constraint, should_apply_inline_size_containment, &grid_items);
+    CHECK(grid_items);
 
-    // We have a repeat() track definition with an intrinsic sized track(s). The
-    // previous track sizing pass was used to find the track size to apply
-    // to the intrinsic sized track(s). Retrieve that value(s), and re-run track
-    // sizing to get the correct number of automatic repetitions for the
-    // repeat() definition.
-    //
-    // https://www.w3.org/TR/css-grid-3/#masonry-intrinsic-repeat
-    if (needs_intrinsic_track_size) {
-      HashMap<GridTrackSize, LayoutUnit> intrinsic_repeat_track_sizes =
-          GetIntrinsicRepeaterTrackSizes(!grid_lanes_items.IsEmpty(),
-                                         track_collection);
-      track_collection = ComputeGridAxisTracks(
-          sizing_constraint, &intrinsic_repeat_track_sizes,
-          should_apply_inline_size_containment, grid_lanes_items,
-          needs_intrinsic_track_size);
-    }
+    const auto* layout_data = layout_subtree->LayoutData();
+    const auto& track_collection =
+        is_for_columns ? layout_data->Columns() : layout_data->Rows();
 
     if (is_for_columns) {
-      // Track sizing is done during the guess placement step, which happens in
-      // `BuildGridAxisTracks`, so at this point, getting the width of all of
-      // the columns should correctly give us the intrinsic inline size.
+      // Track sizing is done during the guess placement step, so at this point,
+      // getting the width of all of the columns should correctly give us the
+      // intrinsic inline size.
       return track_collection.CalculateSetSpanSize();
     } else {
-      if (grid_lanes_items.IsEmpty()) {
+      if (grid_items->IsEmpty()) {
         // If there are no grid-lanes items, the intrinsic inline size is only
         // border, scrollbar, and padding.
         return BorderScrollbarPadding().InlineSum();
@@ -120,7 +105,7 @@ MinMaxSizesResult GridLanesLayoutAlgorithm::ComputeMinMaxSizes(
           track_collection, style,
           ResolveFlowToleranceForGridLanes(style, grid_lanes_available_size_));
 
-      PlaceGridLanesItems(track_collection, grid_lanes_items, running_positions,
+      PlaceGridLanesItems(*grid_items, *layout_data, running_positions,
                           sizing_constraint);
       // `stacking_axis_gap` represents the space between each of the items
       // in the row. We need to subtract this as it is always added to
@@ -152,60 +137,42 @@ MinMaxSizesResult GridLanesLayoutAlgorithm::ComputeMinMaxSizes(
 
   return {intrinsic_sizes,
           /*depends_on_block_constraints=*/HasBlockSizeDependentGridItem(
-              grid_lanes_items)};
+              *grid_items)};
 }
 
 const LayoutResult* GridLanesLayoutAlgorithm::Layout() {
-  bool needs_intrinsic_track_size = false;
-  GridItems grid_lanes_items;
   HeapVector<Member<LayoutBox>> oof_children;
   const auto& node = Node();
 
-  // Never apply inline size containment during the layout pass because size
-  // containment is independent from layout.
-  GridSizingTrackCollection track_collection = ComputeGridAxisTracks(
-      SizingConstraint::kLayout, /*intrinsic_repeat_track_sizes=*/nullptr,
-      /*should_apply_inline_size_containment=*/false, grid_lanes_items,
-      needs_intrinsic_track_size, &oof_children);
+  GridItems* grid_items = nullptr;
+  const GridLayoutSubtree* layout_subtree =
+      ComputeGridLanesGeometry(SizingConstraint::kLayout,
+                               /*should_apply_inline_size_containment=*/false,
+                               &grid_items, &oof_children);
+    CHECK(grid_items);
 
-  // We have a repeat() track definition with an intrinsic sized track(s). The
-  // previous track sizing pass was used to find the track size to apply
-  // to the intrinsic sized track(s). Retrieve that value(s), and re-run track
-  // sizing to get the correct number of automatic repetitions for the
-  // repeat() definition.
-  //
-  // https://www.w3.org/TR/css-grid-3/#masonry-intrinsic-repeat
-  if (needs_intrinsic_track_size) {
-    HashMap<GridTrackSize, LayoutUnit> intrinsic_repeat_track_sizes =
-        GetIntrinsicRepeaterTrackSizes(!grid_lanes_items.IsEmpty(),
-                                       track_collection);
-    track_collection = ComputeGridAxisTracks(
-        SizingConstraint::kLayout, &intrinsic_repeat_track_sizes,
-        /*should_apply_inline_size_containment=*/false, grid_lanes_items,
-        needs_intrinsic_track_size);
-  }
+  const auto* layout_data = layout_subtree->LayoutData();
+  const auto grid_axis_direction = Style().GridLanesTrackSizingDirection();
 
-  if (!grid_lanes_items.IsEmpty()) {
+  if (!grid_items->IsEmpty()) {
+    const auto& track_collection = grid_axis_direction == kForColumns
+                                       ? layout_data->Columns()
+                                       : layout_data->Rows();
+
     GridLanesRunningPositions running_positions(
         track_collection, Style(),
         ResolveFlowToleranceForGridLanes(Style(), grid_lanes_available_size_));
 
-    PlaceGridLanesItems(track_collection, grid_lanes_items, running_positions,
+    PlaceGridLanesItems(*grid_items, *layout_data, running_positions,
                         SizingConstraint::kLayout);
   }
 
   // TODO(layout-dev): This isn't great but matches legacy. Ideally this
   // would only apply when we have only flexible track(s).
-  if (grid_lanes_items.IsEmpty() && node.HasLineIfEmpty()) {
+  if (grid_items->IsEmpty() && node.HasLineIfEmpty()) {
     intrinsic_block_size_ = std::max(intrinsic_block_size_,
                                      node.EmptyLineBlockSize(GetBreakToken()));
   }
-
-  // Create track layout data to support grid-lanes overlay in DevTools.
-  std::unique_ptr<GridLayoutData> layout_data(
-      std::make_unique<GridLayoutData>());
-  layout_data->SetTrackCollection(
-      std::make_unique<GridLayoutTrackCollection>(track_collection));
 
   // Account for border, scrollbar, and padding in the intrinsic block size.
   intrinsic_block_size_ += BorderScrollbarPadding().BlockSum();
@@ -225,7 +192,7 @@ const LayoutResult* GridLanesLayoutAlgorithm::Layout() {
     PlaceOutOfFlowItems(*layout_data, block_size, oof_children);
   }
 
-  container_builder_.TransferGridLayoutData(std::move(layout_data));
+  container_builder_.SetGridLayoutData(layout_data);
   container_builder_.HandleOofsAndSpecialDescendants();
   return container_builder_.ToBoxFragment();
 }
@@ -306,6 +273,33 @@ LayoutUnit AlignContentOffset(
   NOTREACHED();
 }
 
+// Returns the margin on the baseline side of `item` for baseline alignment
+// calculations.
+LayoutUnit GetBaselineSideMargin(const GridItemData& item,
+                                 const BoxStrut& margins,
+                                 GridTrackSizingDirection track_direction) {
+  const bool is_for_columns = track_direction == kForColumns;
+  const bool is_last_baseline = item.IsLastBaselineSpecified(track_direction);
+  if (is_last_baseline) {
+    return is_for_columns ? margins.inline_end : margins.block_end;
+  }
+  return is_for_columns ? margins.inline_start : margins.block_start;
+}
+
+LayoutUnit CalculateSynthesizedBaselineShim(
+    const GridItemData& grid_item,
+    LayoutUnit block_size,
+    GridTrackSizingDirection track_direction,
+    LayoutUnit shared_baseline,
+    LayoutUnit extra_margin) {
+  if (shared_baseline == LayoutUnit::Min()) {
+    return LayoutUnit();
+  }
+  return shared_baseline -
+         GetSynthesizedLogicalBaseline(grid_item, block_size, track_direction) -
+         extra_margin;
+}
+
 }  // namespace
 
 LayoutUnit GridLanesLayoutAlgorithm::CalculateItemInlineContribution(
@@ -326,12 +320,15 @@ LayoutUnit GridLanesLayoutAlgorithm::CalculateItemInlineContribution(
 }
 
 void GridLanesLayoutAlgorithm::PlaceGridLanesItems(
-    GridSizingTrackCollection& track_collection,
-    GridItems& grid_lanes_items,
+    GridItems& grid_items,
+    const GridLayoutData& layout_data,
     GridLanesRunningPositions& running_positions,
     std::optional<SizingConstraint> sizing_constraint) {
   const auto& style = Style();
-  const auto grid_axis_direction = track_collection.Direction();
+  const auto grid_axis_direction = style.GridLanesTrackSizingDirection();
+  const auto& track_collection = grid_axis_direction == kForColumns
+                                     ? layout_data.Columns()
+                                     : layout_data.Rows();
   const bool is_for_columns = grid_axis_direction == kForColumns;
   const auto stacking_axis_gap = GridTrackSizingAlgorithm::CalculateGutterSize(
       style, grid_lanes_available_size_,
@@ -341,7 +338,8 @@ void GridLanesLayoutAlgorithm::PlaceGridLanesItems(
   std::optional<GridBaselineAccumulator> grid_baseline_accumulator;
   BaselineAccumulator* baseline_accumulator;
   if (is_for_columns) {
-    stacking_baseline_accumulator.emplace(&track_collection);
+    stacking_baseline_accumulator.emplace(running_positions,
+                                          grid_axis_direction);
     baseline_accumulator = &stacking_baseline_accumulator.value();
   } else {
     grid_baseline_accumulator.emplace(style.GetFontBaseline());
@@ -349,34 +347,15 @@ void GridLanesLayoutAlgorithm::PlaceGridLanesItems(
   }
   CHECK(baseline_accumulator);
 
-  // TODO(yanlingwang): Properly handle baselines here for intrinsic tracks.
-
-  // If an item is baseline aligned, placement is required in two passes because
-  // track baselines must be computed before items can be aligned.
-  if (has_baseline_aligned_items_) {
-    // In the initial placement pass, compute track baselines by placing items
-    // to determine their positions and baselines. `running_positions` is
-    // needed here in order to determine item placement. We use a copy of
-    // `running_positions` to preserve their original state for the second pass.
-    // Note that during this baseline calculation pass, items are not added to
-    // the container; only baseline information is computed and stored, since
-    // baselines are needed before items can be properly aligned and placed.
-    GridLanesRunningPositions running_positions_for_baseline(running_positions);
-    RunGridLanesPlacementPhase(
-        track_collection, grid_lanes_items, sizing_constraint,
-        stacking_axis_gap, PlacementPhase::kCalculateBaselines,
-        baseline_accumulator, running_positions_for_baseline);
-  }
-
   // Run a final placement pass of all items and add their layout results to
   // the container. This is the second placement pass if there are any items
   // requiring baseline alignment, and the only placement pass otherwise. Item
   // layout results are only added to the container during this final placement
   // pass, ensuring all alignment and baseline information is available before
   // items are positioned.
-  RunGridLanesPlacementPhase(
-      track_collection, grid_lanes_items, sizing_constraint, stacking_axis_gap,
-      PlacementPhase::kFinalPlacement, baseline_accumulator, running_positions);
+  RunGridLanesPlacementPhase(grid_items, layout_data, sizing_constraint,
+                             stacking_axis_gap, PlacementPhase::kFinalPlacement,
+                             baseline_accumulator, running_positions);
 
   // Propagate the baselines to the container.
   if (auto first_baseline = baseline_accumulator->FirstBaseline()) {
@@ -433,8 +412,8 @@ void GridLanesLayoutAlgorithm::PlaceGridLanesItems(
 }
 
 void GridLanesLayoutAlgorithm::RunGridLanesPlacementPhase(
-    GridSizingTrackCollection& track_collection,
-    GridItems& grid_lanes_items,
+    GridItems& grid_items,
+    const GridLayoutData& layout_data,
     std::optional<SizingConstraint> sizing_constraint,
     LayoutUnit stacking_axis_gap,
     PlacementPhase placement_phase,
@@ -446,15 +425,21 @@ void GridLanesLayoutAlgorithm::RunGridLanesPlacementPhase(
   const auto border_scrollbar_padding = BorderScrollbarPadding();
   const auto container_writing_direction =
       container_space.GetWritingDirection();
-  const auto grid_axis_direction = track_collection.Direction();
+  const auto container_writing_mode = container_space.GetWritingMode();
+  const auto grid_axis_direction = style.GridLanesTrackSizingDirection();
+  auto& track_collection = grid_axis_direction == kForColumns
+                               ? layout_data.Columns()
+                               : layout_data.Rows();
   const bool is_for_columns = grid_axis_direction == kForColumns;
+  const wtf_size_t grid_axis_start_offset =
+      Node().CachedPlacementData().StartOffset(grid_axis_direction);
 
-  for (auto& grid_lanes_item : grid_lanes_items) {
+  for (auto& grid_lanes_item : grid_items) {
     // Get the starting offset of where we want the item placed in the stacking
     // axis.
     LayoutUnit start_offset_in_stacking_axis =
         running_positions.FinalizeItemSpanAndGetMaxPosition(
-            grid_axis_start_offset_, grid_lanes_item, track_collection);
+            grid_axis_start_offset, grid_lanes_item, track_collection);
 
     // During track sizing, we may force a specific inline size on an item
     // if the available space in that direction is indefinite, particularly for
@@ -474,20 +459,21 @@ void GridLanesLayoutAlgorithm::RunGridLanesPlacementPhase(
       }
     }
 
-    // TODO(celestepan): Rename `containing_rect` to `item_rect` or something
-    // that better represents the fact that it only contains the current
-    // grid-lanes item we are working with.
-    //
     // This item is ultimately placed below the maximum running position among
     // its spanned tracks. Account for border, scrollbar, and padding in the
     // offset of the item.
-    LogicalRect containing_rect;
+    LogicalRect containing_grid_area;
 
     const ConstraintSpace space =
         is_for_layout
-            ? CreateConstraintSpaceForLayout(grid_lanes_item, track_collection,
-                                             opt_fixed_inline_size,
-                                             &containing_rect)
+            ? CreateConstraintSpaceForLayout(
+                  SubgriddedItemData(grid_lanes_item, &layout_data,
+                                     container_writing_mode),
+                  /*opt_layout_subtree=*/nullptr, &containing_grid_area,
+                  /*unavailable_block_size=*/LayoutUnit(),
+                  /*min_block_size_should_encompass_intrinsic_size=*/false,
+                  /*opt_child_block_offset=*/std::nullopt,
+                  opt_fixed_inline_size)
             : CreateConstraintSpaceForMeasure(
                   grid_lanes_item,
                   CalculateItemInlineContribution(
@@ -516,20 +502,22 @@ void GridLanesLayoutAlgorithm::RunGridLanesPlacementPhase(
     LayoutUnit fragment_size =
         is_for_columns ? fragment.BlockSize() + margins.BlockSum()
                        : fragment.InlineSize() + margins.InlineSum();
+    const LayoutUnit visual_stacking_axis_size =
+        fragment_size + stacking_axis_gap;
     const LayoutUnit fragment_stacking_axis_contribution =
-        (fragment_size + stacking_axis_gap).ClampNegativeToZero();
+        visual_stacking_axis_size.ClampNegativeToZero();
 
     // If dense packing is set, we need to figure out if the item can possibly
     // fit into any previous track openings. If it can, then we need to adjust
-    // `item_span` as well as the offset of `containing_rect`, which is sized
-    // based on the items within the grid-lanes container. Margins need to be
-    // added to the item's size in the stacking axis.
+    // `item_span` as well as the offset of `containing_grid_area`, which is
+    // sized based on the items within the grid-lanes container. Margins need to
+    // be added to the item's size in the stacking axis.
     const bool is_dense_packing = style.IsGridLanesPackDense();
     bool item_moved_to_earlier_opening = false;
     if (is_dense_packing) {
       LayoutUnit updated_item_start_offset =
           running_positions.GetEligibleTrackOpeningAndUpdateGridLanesItemSpan(
-              grid_axis_start_offset_,
+              grid_axis_start_offset,
               /*item_stacking_axis_contribution=*/
               fragment_stacking_axis_contribution,
               /*auto_placement_stacking_axis_offset=*/
@@ -544,9 +532,9 @@ void GridLanesLayoutAlgorithm::RunGridLanesPlacementPhase(
         const LayoutUnit grid_lanes_item_start_offset =
             track_collection.GetSetOffset(
                 grid_lanes_item.SetIndices(track_collection.Direction()).begin);
-        is_for_columns ? containing_rect.offset.inline_offset =
+        is_for_columns ? containing_grid_area.offset.inline_offset =
                              grid_lanes_item_start_offset
-                       : containing_rect.offset.block_offset =
+                       : containing_grid_area.offset.block_offset =
                              grid_lanes_item_start_offset;
 
         item_moved_to_earlier_opening = true;
@@ -562,12 +550,46 @@ void GridLanesLayoutAlgorithm::RunGridLanesPlacementPhase(
       // `start_offset_in_stacking_axis` specifies where in the stacking axis
       // the item should be placed, so we need to adjust the `containing_rect`
       // in the stacking axis to accommodate the newly placed item.
-      is_for_columns ? containing_rect.offset.block_offset =
-                           start_offset_in_stacking_axis +
-                           border_scrollbar_padding.block_start
-                     : containing_rect.offset.inline_offset =
-                           start_offset_in_stacking_axis +
-                           border_scrollbar_padding.inline_start;
+      const LayoutUnit border_scrollbar_padding_start =
+          is_for_columns ? border_scrollbar_padding.block_start
+                         : border_scrollbar_padding.inline_start;
+
+      LayoutUnit final_start_offset_in_stacking_axis =
+          start_offset_in_stacking_axis + border_scrollbar_padding_start;
+
+      // For fill-reverse, items stack from the end of the container instead
+      // of the start. We compute the base offset from the container's end so
+      // that alignment (which adds margins) works correctly without needing
+      // to mirror or swap margins after the fact.
+      //
+      // TODO(celestepan): Account for alignment with fill-reverse:
+      // justify/align-content, justify/align-items, and justify/align-self.
+      if (style.IsReverseGridLanesFillDirection()) {
+        // `ChildAvailableSize()` returns the content-box size of the container
+        // (i.e., the resolved size minus border, scrollbar, and padding). We
+        // use it here to determine the stacking-axis offset for fill-reverse.
+        //
+        // TODO(celestepan): Account for fill-reverse case with indefinite
+        // height (columns) and indefinite width (rows).
+        const LayoutUnit container_stacking_axis_size =
+            is_for_columns ? ChildAvailableSize().block_size
+                           : ChildAvailableSize().inline_size;
+
+        // Add back `stacking_axis_gap` when computing fill-reverse offsets;
+        // in fill-reverse, gaps appear before each item, so the item's offset
+        // must be increased to leave a visual gap in the stacking axis.
+        if (container_stacking_axis_size != kIndefiniteSize) {
+          final_start_offset_in_stacking_axis =
+              container_stacking_axis_size + border_scrollbar_padding_start +
+              stacking_axis_gap - start_offset_in_stacking_axis -
+              visual_stacking_axis_size;
+        }
+      }
+
+      is_for_columns ? containing_grid_area.offset.block_offset =
+                           final_start_offset_in_stacking_axis
+                     : containing_grid_area.offset.inline_offset =
+                           final_start_offset_in_stacking_axis;
 
       // TODO(celestepan): Account for extra margins from sub-grid items.
       //
@@ -597,22 +619,23 @@ void GridLanesLayoutAlgorithm::RunGridLanesPlacementPhase(
         inline_baseline_offset = ComputeBaselineOffset(
             grid_lanes_item, track_collection, baseline_fragment, fragment,
             style.GetFontBaseline(), kForColumns,
-            containing_rect.size.inline_size);
+            containing_grid_area.size.inline_size);
       } else {
         block_baseline_offset = ComputeBaselineOffset(
             grid_lanes_item, track_collection, baseline_fragment, fragment,
-            style.GetFontBaseline(), kForRows, containing_rect.size.block_size);
+            style.GetFontBaseline(), kForRows,
+            containing_grid_area.size.block_size);
       }
 
-      containing_rect.offset += LogicalOffset(
+      containing_grid_area.offset += LogicalOffset(
           AlignmentOffset(
-              containing_rect.size.inline_size, fragment.InlineSize(),
+              containing_grid_area.size.inline_size, fragment.InlineSize(),
               margins.inline_start, margins.inline_end, inline_baseline_offset,
               inline_alignment, grid_lanes_item.IsOverflowSafe(kForColumns)),
-          AlignmentOffset(containing_rect.size.block_size, fragment.BlockSize(),
-                          margins.block_start, margins.block_end,
-                          block_baseline_offset, block_alignment,
-                          grid_lanes_item.IsOverflowSafe(kForRows)));
+          AlignmentOffset(
+              containing_grid_area.size.block_size, fragment.BlockSize(),
+              margins.block_start, margins.block_end, block_baseline_offset,
+              block_alignment, grid_lanes_item.IsOverflowSafe(kForRows)));
     }
 
     // If the item was not placed in an earlier track opening, update
@@ -640,7 +663,6 @@ void GridLanesLayoutAlgorithm::RunGridLanesPlacementPhase(
           grid_lanes_item.resolved_position, grid_axis_direction);
     }
 
-    // TODO(yanlingwang): Properly handle baselines here for intrinsic tracks.
     if (placement_phase == PlacementPhase::kCalculateBaselines) {
       // In the baseline calculation pass, skip items without baseline
       // alignment since they don't contribute to track baselines. This check
@@ -659,21 +681,21 @@ void GridLanesLayoutAlgorithm::RunGridLanesPlacementPhase(
           grid_lanes_item.BaselineWritingDirection(grid_axis_direction),
           physical_fragment);
       const LayoutUnit extra_margin =
-          grid_lanes_item.IsLastBaselineSpecified(grid_axis_direction)
-              ? (is_for_columns ? margins.inline_end : margins.block_end)
-              : (is_for_columns ? margins.inline_start : margins.block_start);
+          GetBaselineSideMargin(grid_lanes_item, margins, grid_axis_direction);
 
       StoreItemBaseline(baseline_fragment, grid_axis_direction,
-                        style.GetFontBaseline(), extra_margin, track_collection,
+                        style.GetFontBaseline(), extra_margin,
+                        To<GridSizingTrackCollection>(track_collection),
                         grid_lanes_item);
     } else {
       // Items are only added to the container in the final placement pass.
       // During the baseline calculation pass, we only compute and store track
       // baselines without adding items, since baseline information is needed
       // before items can be properly aligned and placed.
-      container_builder_.AddResult(*result, containing_rect.offset, margins);
+      container_builder_.AddResult(*result, containing_grid_area.offset,
+                                   margins);
       baseline_accumulator->Accumulate(
-          grid_lanes_item, fragment, containing_rect.offset.block_offset,
+          grid_lanes_item, fragment, containing_grid_area.offset.block_offset,
           start_offset_in_stacking_axis, item_moved_to_earlier_opening);
     }
   }
@@ -727,18 +749,56 @@ void GridLanesLayoutAlgorithm::PlaceOutOfFlowItems(
   }
 }
 
-GridItems GridLanesLayoutAlgorithm::BuildVirtualGridLanesItems(
+LayoutUnit GridLanesLayoutAlgorithm::ComputeSharedBaselineForGroup(
+    const GridItems::GridItemDataVector& group_items,
+    GridTrackSizingDirection grid_axis_direction,
+    SizingConstraint sizing_constraint) const {
+  LayoutUnit shared_baseline = LayoutUnit::Min();
+
+  // All items in a group have the same baseline alignment, so if the first
+  // item isn't baseline aligned, there is no need to calculate a shared
+  // baseline for the group.
+  CHECK(!group_items.empty());
+  if (!group_items[0]->IsBaselineAligned(grid_axis_direction)) {
+    return shared_baseline;
+  }
+
+  for (const Member<GridItemData>& group_item : group_items) {
+    const auto space_for_measure = CreateConstraintSpaceForMeasure(*group_item);
+    const BoxStrut margins = ComputeMarginsFor(
+        space_for_measure, group_item->node.Style(), GetConstraintSpace());
+    const LayoutUnit extra_margin =
+        GetBaselineSideMargin(*group_item, margins, grid_axis_direction);
+
+    const LayoutResult* result = LayoutItemForMeasureWithFallback(
+        group_item, space_for_measure, sizing_constraint);
+    LogicalBoxFragment baseline_fragment(
+        group_item->BaselineWritingDirection(grid_axis_direction),
+        To<PhysicalBoxFragment>(result->GetPhysicalFragment()));
+    const LayoutUnit item_baseline = GetLogicalBaseline(
+        baseline_fragment, group_item->parent_grid_font_baseline,
+        group_item->IsLastBaselineSpecified(grid_axis_direction));
+
+    const LayoutUnit total_baseline = extra_margin + item_baseline;
+    shared_baseline = std::max(shared_baseline, total_baseline);
+  }
+  return shared_baseline;
+}
+
+GridItems* GridLanesLayoutAlgorithm::BuildVirtualGridLanesItems(
     const GridLineResolver& line_resolver,
     const GridItems& grid_lanes_items,
     const bool needs_intrinsic_track_size,
     SizingConstraint sizing_constraint,
-    const wtf_size_t auto_repetition_count) {
+    const wtf_size_t auto_repetition_count,
+    wtf_size_t& start_offset,
+    bool& has_baseline_aligned_items) const {
   const auto& style = Style();
   const auto grid_axis_direction = style.GridLanesTrackSizingDirection();
   const bool is_for_columns = grid_axis_direction == kForColumns;
 
   wtf_size_t max_end_line;
-  GridItems virtual_items;
+  GridItems* virtual_items = MakeGarbageCollected<GridItems>();
 
   // If there is an auto-fit track definition, store what tracks it spans.
   const GridTrackList& track_list =
@@ -755,18 +815,27 @@ GridItems GridLanesLayoutAlgorithm::BuildVirtualGridLanesItems(
 
   wtf_size_t unplaced_item_span_count = 0;
 
-  for (const auto& [group_items, group_properties] : Node().CollectItemGroups(
-           line_resolver, grid_lanes_items, max_end_line,
-           grid_axis_start_offset_, unplaced_item_span_count)) {
+  for (const auto& [group_items, group_properties] :
+       Node().CollectItemGroups(line_resolver, grid_lanes_items, max_end_line,
+                                start_offset, unplaced_item_span_count)) {
     auto* virtual_item = MakeGarbageCollected<GridItemData>();
 
     GridSpan span = group_properties.Span();
     wtf_size_t span_size = span.SpanSize();
     CHECK_GT(span_size, 0u);
 
+    // TODO(yanlingwang): correctly handle baseline shims for multi-spanning
+    // items
+    //
+    // For each group, iterate all items, compute each item's baseline, and
+    // choose the maximum as `shared_baseline` for the group. This value is
+    // later used to calculate baseline shims for alignment within the track.
+    const LayoutUnit shared_baseline = ComputeSharedBaselineForGroup(
+        group_items, grid_axis_direction, sizing_constraint);
+
     for (const Member<GridItemData>& group_item : group_items) {
       GridItemData& item_data = *group_item;
-      has_baseline_aligned_items_ |=
+      has_baseline_aligned_items |=
           item_data.IsBaselineSpecified(grid_axis_direction);
 
       const BlockNode& item_node = item_data.node;
@@ -785,6 +854,7 @@ GridItems GridLanesLayoutAlgorithm::BuildVirtualGridLanesItems(
           is_for_columns ? margins.InlineSum() : margins.BlockSum();
 
       MinMaxSizes min_max_contribution;
+      LayoutUnit baseline_shim;
       if (use_item_inline_contribution) {
         // The min/max contribution may depend on the block-size of the
         // grid-area: <div id="target" style="height: 200px; width: 600px;">
@@ -806,10 +876,28 @@ GridItems GridLanesLayoutAlgorithm::BuildVirtualGridLanesItems(
           item_data.is_sizing_dependent_on_block_size = true;
         }
         min_max_contribution = result.sizes;
+
+        if (item_data.IsBaselineAligned(grid_axis_direction)) {
+          const LayoutUnit extra_margin =
+              GetBaselineSideMargin(item_data, margins, grid_axis_direction);
+
+          const LayoutUnit min_shim = CalculateSynthesizedBaselineShim(
+              item_data, min_max_contribution.min_size, grid_axis_direction,
+              shared_baseline, extra_margin);
+          min_max_contribution.min_size += min_shim;
+
+          const LayoutUnit max_shim = CalculateSynthesizedBaselineShim(
+              item_data, min_max_contribution.max_size, grid_axis_direction,
+              shared_baseline, extra_margin);
+          min_max_contribution.max_size += max_shim;
+
+          baseline_shim = std::max(min_shim, max_shim);
+        }
       } else {
         LayoutUnit block_contribution = ComputeGridLanesItemBlockContribution(
             grid_axis_direction, sizing_constraint, space, &item_data,
-            needs_intrinsic_track_size);
+            needs_intrinsic_track_size, margins, shared_baseline,
+            baseline_shim);
         min_max_contribution =
             MinMaxSizes(block_contribution, block_contribution);
       }
@@ -822,8 +910,6 @@ GridItems GridLanesLayoutAlgorithm::BuildVirtualGridLanesItems(
       // on the tracks the virtual item spans. If a contribution may need to be
       // clamped, `maybe_clamp` will be set to true. See
       // https://drafts.csswg.org/css-grid/#min-size-auto for more details.
-      //
-      // TODO(almaher): Pass in the correct baseline shim.
       //
       // TODO(almaher): pass in `subgrid_minmax_sizes` when we support
       // subgrid.
@@ -876,8 +962,8 @@ GridItems GridLanesLayoutAlgorithm::BuildVirtualGridLanesItems(
                                             ? border_padding.InlineSum()
                                             : border_padding.BlockSum();
 
-        // TODO(almaher): The min clamp size should include baseline shim.
-        virtual_item->EncompassMinClampSize(margin_sum + border_padding_sum);
+        virtual_item->EncompassMinClampSize(margin_sum + border_padding_sum +
+                                            baseline_shim);
       } else {
         virtual_item->EncompassIntrinsicMinIgnoringTrackPlacementUnclamped(
             contribution_ignoring_tracks);
@@ -896,7 +982,7 @@ GridItems GridLanesLayoutAlgorithm::BuildVirtualGridLanesItems(
         while (item_span.EndLine() < max_end_line) {
           auto* item_copy = MakeGarbageCollected<GridItemData>(*virtual_item);
           item_copy->resolved_position.SetSpan(item_span, grid_axis_direction);
-          virtual_items.Append(std::move(item_copy));
+          virtual_items->Append(item_copy);
 
           // `Translate` will move the span to the start and end of the next
           // line, allowing us to "slide" over the entire implicit grid.
@@ -927,7 +1013,7 @@ GridItems GridLanesLayoutAlgorithm::BuildVirtualGridLanesItems(
       // us to look up the growth limit for each track quickly and accurately.
       //
       // [1] https://www.w3.org/TR/css-grid-3/#masonry-intrinsic-repeat
-      if (needs_intrinsic_track_size && virtual_items.IsEmpty()) {
+      if (needs_intrinsic_track_size && virtual_items->IsEmpty()) {
         auto* item_copy = MakeGarbageCollected<GridItemData>(*virtual_item);
         GridSpan single_span = GridSpan::TranslatedDefiniteGridSpan(0, 1);
         virtual_item->ClearContributionSizes();
@@ -936,7 +1022,7 @@ GridItems GridLanesLayoutAlgorithm::BuildVirtualGridLanesItems(
         if (single_span.EndLine() <= max_end_line) {
           virtual_item->resolved_position.SetSpan(single_span,
                                                   grid_axis_direction);
-          virtual_items.Append(virtual_item);
+          virtual_items->Append(virtual_item);
         }
         virtual_item = item_copy;
       }
@@ -953,7 +1039,7 @@ GridItems GridLanesLayoutAlgorithm::BuildVirtualGridLanesItems(
     DCHECK(span.IsTranslatedDefinite());
     if (span.EndLine() <= max_end_line) {
       virtual_item->resolved_position.SetSpan(span, grid_axis_direction);
-      virtual_items.Append(virtual_item);
+      virtual_items->Append(virtual_item);
     }
   }
   return virtual_items;
@@ -1033,35 +1119,16 @@ GridLanesLayoutAlgorithm::ComputeIntrinsicBlockSizeIgnoringChildren() {
   if (override_intrinsic_block_size == kIndefiniteSize) {
     if (Style().GridLanesTrackSizingDirection() != kForColumns) {
       // If we are in rows, we can use the grid-axis size as our block size.
-      bool needs_intrinsic_track_size = false;
-      GridItems grid_lanes_items;
+      const auto grid_axis_direction = Style().GridLanesTrackSizingDirection();
+      GridItems* grid_items = nullptr;
+      const GridLayoutSubtree* layout_subtree = ComputeGridLanesGeometry(
+          SizingConstraint::kLayout,
+          /*should_apply_inline_size_containment=*/true, &grid_items);
 
-      // TODO(almaher): Once support for subgrid is added and we have a sizing
-      // tree similar to grid, we may need to implement and call something
-      // similar to Grid's BuildGridSizingTreeIgnoringChildren() here.
-      GridSizingTrackCollection track_collection =
-          ComputeGridAxisTracks(SizingConstraint::kLayout,
-                                /*intrinsic_repeat_track_sizes=*/nullptr,
-                                /*should_apply_inline_size_containment=*/false,
-                                grid_lanes_items, needs_intrinsic_track_size);
-
-      // We have a repeat() track definition with an intrinsic sized track(s).
-      // The previous track sizing pass was used to find the track size to apply
-      // to the intrinsic sized track(s). Retrieve that value(s), and re-run
-      // track sizing to get the correct number of automatic repetitions for
-      // the repeat() definition.
-      //
-      // https://www.w3.org/TR/css-grid-3/#masonry-intrinsic-repeat
-      if (needs_intrinsic_track_size) {
-        HashMap<GridTrackSize, LayoutUnit> intrinsic_repeat_track_sizes =
-            GetIntrinsicRepeaterTrackSizes(!grid_lanes_items.IsEmpty(),
-                                           track_collection);
-        track_collection = ComputeGridAxisTracks(
-            SizingConstraint::kLayout, &intrinsic_repeat_track_sizes,
-            /*should_apply_inline_size_containment=*/false, grid_lanes_items,
-            needs_intrinsic_track_size);
-      }
-
+      const auto& track_collection =
+          grid_axis_direction == kForColumns
+              ? layout_subtree->LayoutData()->Columns()
+              : layout_subtree->LayoutData()->Rows();
       override_intrinsic_block_size = track_collection.CalculateSetSpanSize();
     } else {
       // If we are in columns, the block size should just be the size of an
@@ -1072,30 +1139,10 @@ GridLanesLayoutAlgorithm::ComputeIntrinsicBlockSizeIgnoringChildren() {
   return override_intrinsic_block_size + BorderScrollbarPadding().BlockSum();
 }
 
-// TODO(almaher): Eventually look into consolidating repeated code with
-// GridLayoutAlgorithm::ContributionSizeForGridItem().
-LayoutUnit GridLanesLayoutAlgorithm::ComputeGridLanesItemBlockContribution(
-    GridTrackSizingDirection track_direction,
-    SizingConstraint sizing_constraint,
-    const ConstraintSpace space_for_measure,
+const LayoutResult* GridLanesLayoutAlgorithm::LayoutItemForMeasureWithFallback(
     GridItemData* grid_lanes_item,
-    const bool needs_intrinsic_track_size) const {
-  DCHECK(grid_lanes_item);
-
-  // TODO(ikilpatrick): We'll need to record if any child used an indefinite
-  // size for its contribution, such that we can then do the 2nd pass on the
-  // track-sizing algorithm.
-
-  // TODO(almaher): Handle baseline logic here.
-
-  // TODO(ikilpatrick): This should try and skip layout when possible. Notes:
-  //  - We'll need to do a full layout for tables.
-  //  - We'll need special logic for replaced elements.
-  //  - We'll need to respect the aspect-ratio when appropriate.
-
-  // TODO(almaher): Properly handle subgrid here.
-
-  const LayoutResult* result = nullptr;
+    const ConstraintSpace& space_for_measure,
+    SizingConstraint sizing_constraint) const {
   if (space_for_measure.AvailableSize().inline_size == kIndefiniteSize) {
     // If we are orthogonal virtual item, resolving against an indefinite
     // size, set our inline size to our max-content contribution.
@@ -1122,74 +1169,134 @@ LayoutUnit GridLanesLayoutAlgorithm::ComputeGridLanesItemBlockContribution(
     const MinMaxSizes sizes = min_max_sizes_result.sizes;
     const auto fallback_space = CreateConstraintSpaceForMeasure(
         *grid_lanes_item, /*opt_fixed_inline_size=*/sizes.max_size);
-
-    result = LayoutGridLanesItemForMeasure(*grid_lanes_item, fallback_space,
-                                           sizing_constraint);
-  } else {
-    result = LayoutGridLanesItemForMeasure(*grid_lanes_item, space_for_measure,
-                                           sizing_constraint);
+    return LayoutGridLanesItemForMeasure(*grid_lanes_item, fallback_space,
+                                         sizing_constraint);
   }
+  return LayoutGridLanesItemForMeasure(*grid_lanes_item, space_for_measure,
+                                       sizing_constraint);
+}
+
+// TODO(almaher): Eventually look into consolidating repeated code with
+// GridLayoutAlgorithm::ContributionSizeForGridItem().
+LayoutUnit GridLanesLayoutAlgorithm::ComputeGridLanesItemBlockContribution(
+    GridTrackSizingDirection track_direction,
+    SizingConstraint sizing_constraint,
+    const ConstraintSpace space_for_measure,
+    GridItemData* grid_lanes_item,
+    const bool needs_intrinsic_track_size,
+    const BoxStrut& margins,
+    LayoutUnit shared_baseline,
+    LayoutUnit& baseline_shim) const {
+  DCHECK(grid_lanes_item);
+
+  // TODO(ikilpatrick): We'll need to record if any child used an indefinite
+  // size for its contribution, such that we can then do the 2nd pass on the
+  // track-sizing algorithm.
+
+  // TODO(ikilpatrick): This should try and skip layout when possible. Notes:
+  //  - We'll need to do a full layout for tables.
+  //  - We'll need special logic for replaced elements.
+  //  - We'll need to respect the aspect-ratio when appropriate.
+
+  // TODO(almaher): Properly handle subgrid here.
+
+  const LayoutResult* result = LayoutItemForMeasureWithFallback(
+      grid_lanes_item, space_for_measure, sizing_constraint);
 
   LogicalBoxFragment baseline_fragment(
       grid_lanes_item->BaselineWritingDirection(track_direction),
       To<PhysicalBoxFragment>(result->GetPhysicalFragment()));
 
-  // TODO(almaher): Properly handle baselines here.
+  if (grid_lanes_item->IsBaselineAligned(track_direction)) {
+    const LayoutUnit baseline = GetLogicalBaseline(
+        baseline_fragment, grid_lanes_item->parent_grid_font_baseline,
+        grid_lanes_item->IsLastBaselineSpecified(track_direction));
+    const LayoutUnit extra_margin =
+        GetBaselineSideMargin(*grid_lanes_item, margins, track_direction);
+    baseline_shim = shared_baseline - baseline - extra_margin;
+    return baseline_fragment.BlockSize() + baseline_shim;
+  }
 
   return baseline_fragment.BlockSize();
 }
 
-GridSizingTrackCollection GridLanesLayoutAlgorithm::ComputeGridAxisTracks(
-    const SizingConstraint sizing_constraint,
-    const HashMap<GridTrackSize, LayoutUnit>* intrinsic_repeat_track_sizes,
-    const bool should_apply_inline_size_containment,
-    GridItems& grid_lanes_items,
-    bool& needs_intrinsic_track_size,
+GridLayoutSubtree* GridLanesLayoutAlgorithm::ComputeGridLanesGeometry(
+    SizingConstraint sizing_constraint,
+    bool should_apply_inline_size_containment,
+    GridItems** grid_items,
     HeapVector<Member<LayoutBox>>* opt_oof_children) {
-  needs_intrinsic_track_size = false;
+  CHECK(grid_items);
 
-  const GridLineResolver line_resolver(
-      Style(), ComputeAutomaticRepetitions(intrinsic_repeat_track_sizes,
-                                           needs_intrinsic_track_size));
-  const auto& node = Node();
-  if (!should_apply_inline_size_containment) {
-    if (grid_lanes_items.IsEmpty()) {
-      grid_lanes_items = node.ConstructGridItems(
-          line_resolver,
-          /*must_invalidate_placement_cache=*/nullptr, opt_oof_children);
-    } else {
-      // If `grid_lanes_items` is not empty, that means that we are in
-      // a second track sizing pass required for intrinsic tracks within
-      // a repeat() track definition. Don't construct the grid-lanes items
-      // from scratch. Rather, adjust their spans based on the updated
-      // `line_resolver`.
-      node.AdjustGridItemSpans(grid_lanes_items, line_resolver);
-    }
+  GridSizingTree sizing_tree;
+
+  // TODO(almaher): For subgrid, we don't want to recompute the below and will
+  // want to return early here.
+
+  bool needs_intrinsic_track_size = false;
+  ComputeSizingTreeInGridAxis(
+      sizing_constraint, should_apply_inline_size_containment, &sizing_tree,
+      needs_intrinsic_track_size, opt_oof_children);
+
+  // We have a repeat() track definition with an intrinsic sized track(s). The
+  // previous track sizing pass was used to find the track size to apply
+  // to the intrinsic sized track(s). Retrieve that value(s), and re-run track
+  // sizing to get the correct number of automatic repetitions for the
+  // repeat() definition.
+  //
+  // https://www.w3.org/TR/css-grid-3/#masonry-intrinsic-repeat
+  if (needs_intrinsic_track_size) {
+    CalculateIntrinsicTrackSizes(sizing_tree);
+    ComputeSizingTreeInGridAxis(sizing_constraint,
+                                should_apply_inline_size_containment,
+                                &sizing_tree, needs_intrinsic_track_size);
   }
 
-  return BuildGridAxisTracks(line_resolver, grid_lanes_items, sizing_constraint,
-                             needs_intrinsic_track_size);
+  // TODO(almaher): We will want special logic here for `needs_additional_pass`,
+  // similar to grid.
+
+  CompleteFinalBaselineAlignment(&sizing_tree);
+
+  const auto grid_axis_direction = Style().GridLanesTrackSizingDirection();
+  auto& sizing_collection =
+      sizing_tree.LayoutData().SizingCollection(grid_axis_direction);
+  sizing_tree.LayoutData().SetTrackCollection(
+      MakeGarbageCollected<GridLayoutTrackCollection>(sizing_collection));
+
+  *grid_items = &sizing_tree.GetGridItems();
+  return MakeGarbageCollected<GridLayoutSubtree>((sizing_tree.FinalizeTree()));
 }
 
-GridSizingTrackCollection GridLanesLayoutAlgorithm::BuildGridAxisTracks(
+void GridLanesLayoutAlgorithm::BuildSizingCollection(
+    GridTrackSizingDirection track_direction,
     const GridLineResolver& line_resolver,
-    const GridItems& grid_lanes_items,
+    GridItems& grid_items,
+    GridLayoutData& layout_data,
     SizingConstraint sizing_constraint,
-    bool& needs_intrinsic_track_size) {
+    bool needs_intrinsic_track_size,
+    GridItems** opt_virtual_items) const {
   const auto& style = Style();
   const auto grid_axis_direction = style.GridLanesTrackSizingDirection();
-  GridItems virtual_items = BuildVirtualGridLanesItems(
-      line_resolver, grid_lanes_items, needs_intrinsic_track_size,
-      sizing_constraint, line_resolver.AutoRepetitions(grid_axis_direction));
+
+  // Grid-lanes only has tracks in the grid axis; the stacking axis is a no-op.
+  if (track_direction != grid_axis_direction) {
+    return;
+  }
+
+  bool has_baseline_aligned_items = false;
+  wtf_size_t start_offset = 0;
+  *opt_virtual_items = BuildVirtualGridLanesItems(
+      line_resolver, grid_items, needs_intrinsic_track_size, sizing_constraint,
+      line_resolver.AutoRepetitions(grid_axis_direction), start_offset,
+      has_baseline_aligned_items);
 
   // Cache placement data. This is used for DevTools inspector highlighting and
   // also to access the computed auto repetitions in
-  // GetIntrinsicRepeaterTrackSizes.
+  // `CalculateIntrinsicTrackSizes`.
   GridPlacementData placement_data(line_resolver);
   if (grid_axis_direction == kForColumns) {
-    placement_data.column_start_offset = grid_axis_start_offset_;
+    placement_data.column_start_offset = start_offset;
   } else {
-    placement_data.row_start_offset = grid_axis_start_offset_;
+    placement_data.row_start_offset = start_offset;
   }
   To<LayoutGridLanes>(Node().GetLayoutBox())
       ->SetCachedPlacementData(std::move(placement_data));
@@ -1197,10 +1304,9 @@ GridSizingTrackCollection GridLanesLayoutAlgorithm::BuildGridAxisTracks(
   auto BuildRanges = [&]() {
     GridRangeBuilder range_builder(
         style, grid_axis_direction,
-        line_resolver.AutoRepetitions(grid_axis_direction),
-        grid_axis_start_offset_);
+        line_resolver.AutoRepetitions(grid_axis_direction), start_offset);
 
-    for (auto& virtual_item : virtual_items) {
+    for (auto& virtual_item : **opt_virtual_items) {
       auto& range_indices = virtual_item.RangeIndices(grid_axis_direction);
       const auto& span = virtual_item.Span(grid_axis_direction);
 
@@ -1211,61 +1317,189 @@ GridSizingTrackCollection GridLanesLayoutAlgorithm::BuildGridAxisTracks(
     return range_builder.FinalizeRanges(needs_intrinsic_track_size);
   };
 
-  GridSizingTrackCollection track_collection(
-      BuildRanges(), grid_axis_direction,
-      /*must_create_baselines=*/has_baseline_aligned_items_,
-      /*should_store_collapsed_track_indexes=*/true);
-  track_collection.BuildSets(style, grid_lanes_available_size_);
+  layout_data.SetTrackCollection(
+      MakeGarbageCollected<GridSizingTrackCollection>(
+          BuildRanges(), grid_axis_direction,
+          /*must_create_baselines=*/has_baseline_aligned_items,
+          /*should_store_collapsed_track_indexes=*/true));
+}
 
-  // Allocate the major/minor baseline vectors now that we know the set count.
-  if (has_baseline_aligned_items_) {
-    track_collection.ResetBaselines();
-  }
+// TODO(almaher): This should eventually take a GridSizingSubtree instead of
+// GridSizingTree and be done for each layer of subgrid.
+void GridLanesLayoutAlgorithm::InitializeTrackSizes(
+    GridSizingTree* sizing_tree) const {
+  const auto& style = Style();
+  const auto grid_axis_direction = style.GridLanesTrackSizingDirection();
+  auto& layout_data = sizing_tree->LayoutData();
 
+  InitializeTrackCollection(kNoSubgriddedItemData, style, GetConstraintSpace(),
+                            BorderScrollbarPadding(),
+                            grid_lanes_available_size_, grid_axis_direction,
+                            &layout_data);
+
+  // TODO(almaher): For subgrid, we will want to get the tracks the parent.
+  auto& track_collection = layout_data.SizingCollection(grid_axis_direction);
   if (track_collection.HasNonDefiniteTrack()) {
-    GridTrackSizingAlgorithm::CacheGridItemsProperties(track_collection,
-                                                       &virtual_items);
-
-    const GridTrackSizingAlgorithm track_sizing_algorithm(
-        style, grid_lanes_available_size_, grid_lanes_min_available_size_,
-        sizing_constraint);
+    GridTrackSizingAlgorithm::CacheGridItemsProperties(
+        track_collection, &sizing_tree->GetVirtualItems());
 
     track_collection.CacheInitializedSetsGeometry(
         (grid_axis_direction == kForColumns)
             ? BorderScrollbarPadding().inline_start
             : BorderScrollbarPadding().block_start);
+  } else {
+    // If all tracks have a definite size upfront, we can use the current set
+    // sizes as the used track sizes (applying alignment, if present).
+    auto first_set_geometry = GridTrackSizingAlgorithm::ComputeFirstSetGeometry(
+        track_collection, style, grid_lanes_available_size_,
+        BorderScrollbarPadding());
 
-    // TODO(almaher): Once we introduce the sizing subtree for subgrid,
-    // we can use that to get the track collection, similar to grid.
+    track_collection.FinalizeSetsGeometry(first_set_geometry.start_offset,
+                                          first_set_geometry.gutter_size);
+  }
+
+  // TODO(almaher): Do this for each subgrid (similar to grid).
+}
+
+// TODO(almaher): This should eventually take a GridSizingSubtree instead of
+// GridSizingTree and be done for each layer of subgrid.
+void GridLanesLayoutAlgorithm::CompleteTrackSizingAlgorithm(
+    SizingConstraint sizing_constraint,
+    GridSizingTree* sizing_tree,
+    bool needs_intrinsic_track_size,
+    bool* /* opt_needs_additional_pass */) const {
+  const auto& style = Style();
+  const auto grid_axis_direction = style.GridLanesTrackSizingDirection();
+  auto& track_collection =
+      sizing_tree->LayoutData().SizingCollection(grid_axis_direction);
+
+  if (track_collection.HasNonDefiniteTrack()) {
+    const GridTrackSizingAlgorithm track_sizing_algorithm(
+        style, grid_lanes_available_size_, grid_lanes_min_available_size_,
+        sizing_constraint);
+
+    // TODO(almaher): We need some special handling for subgrid, similar to
+    // GridLayoutAlgorithm::ComputeUsedTrackSizes. We may be able to refactor to
+    // share code between the two.
     track_sizing_algorithm.ComputeUsedTrackSizes(
         [&](GridItemContributionType contribution_type,
             GridItemData* virtual_item) {
           return ContributionSizeForVirtualItem(
               track_collection, contribution_type, virtual_item);
         },
-        &track_collection, &virtual_items, needs_intrinsic_track_size);
+        &track_collection, &sizing_tree->GetVirtualItems(),
+        needs_intrinsic_track_size);
+
+    auto first_set_geometry = GridTrackSizingAlgorithm::ComputeFirstSetGeometry(
+        track_collection, style, grid_lanes_available_size_,
+        BorderScrollbarPadding());
+
+    track_collection.FinalizeSetsGeometry(first_set_geometry.start_offset,
+                                          first_set_geometry.gutter_size);
   }
 
-  auto first_set_geometry = GridTrackSizingAlgorithm::ComputeFirstSetGeometry(
-      track_collection, style, grid_lanes_available_size_,
-      BorderScrollbarPadding());
-
-  track_collection.FinalizeSetsGeometry(first_set_geometry.start_offset,
-                                        first_set_geometry.gutter_size);
-
-  return track_collection;
+  // TODO(almaher): Do this for each subgrid (similar to grid).
 }
 
-HashMap<GridTrackSize, LayoutUnit>
-GridLanesLayoutAlgorithm::GetIntrinsicRepeaterTrackSizes(
-    bool has_items,
-    const GridSizingTrackCollection& track_collection) const {
+void GridLanesLayoutAlgorithm::CompleteFinalBaselineAlignment(
+    GridSizingTree* sizing_tree) {
+  ComputeBaselineAlignment(sizing_tree);
+}
+
+void GridLanesLayoutAlgorithm::ComputeBaselineAlignment(
+    GridSizingTree* sizing_tree) {
+  DCHECK(sizing_tree);
+
+  const auto& style = Style();
+  const auto grid_axis_direction = style.GridLanesTrackSizingDirection();
+  auto& track_collection =
+      sizing_tree->LayoutData().SizingCollection(grid_axis_direction);
+
+  if (!track_collection.HasBaselines()) {
+    return;
+  }
+
+  track_collection.ResetBaselines();
+
+  const bool is_for_columns = grid_axis_direction == kForColumns;
+  const auto stacking_axis_gap = GridTrackSizingAlgorithm::CalculateGutterSize(
+      style, grid_lanes_available_size_,
+      is_for_columns ? kForRows : kForColumns);
+
+  // If an item is baseline aligned, placement is required in two passes because
+  // track baselines must be computed before items can be aligned. In the
+  // initial placement pass, compute track baselines by placing items to
+  // determine their positions and baselines. Note that during this baseline
+  // calculation pass, items are not added to the container; only baseline
+  // information is computed and stored, since baselines are needed before items
+  // can be properly aligned and placed.
+  GridLanesRunningPositions running_positions(
+      track_collection, style,
+      ResolveFlowToleranceForGridLanes(style, grid_lanes_available_size_));
+
+  // Use a dummy baseline accumulator since we only care about storing
+  // baselines on the track collection, not accumulating container baselines.
+  std::optional<StackingBaselineAccumulator> stacking_baseline_accumulator;
+  std::optional<GridBaselineAccumulator> grid_baseline_accumulator;
+  BaselineAccumulator* baseline_accumulator;
+  if (is_for_columns) {
+    stacking_baseline_accumulator.emplace(running_positions,
+                                          grid_axis_direction);
+    baseline_accumulator = &stacking_baseline_accumulator.value();
+  } else {
+    grid_baseline_accumulator.emplace(style.GetFontBaseline());
+    baseline_accumulator = &grid_baseline_accumulator.value();
+  }
+
+  RunGridLanesPlacementPhase(sizing_tree->GetGridItems(),
+                             sizing_tree->LayoutData(),
+                             SizingConstraint::kLayout, stacking_axis_gap,
+                             PlacementPhase::kCalculateBaselines,
+                             baseline_accumulator, running_positions);
+
+  // TODO(almaher): Do this for each layer of subgrid (similar to grid).
+}
+
+void GridLanesLayoutAlgorithm::ComputeSizingTreeInGridAxis(
+    SizingConstraint sizing_constraint,
+    const bool should_apply_inline_size_containment,
+    GridSizingTree* sizing_tree,
+    bool& needs_intrinsic_track_size,
+    HeapVector<Member<LayoutBox>>* opt_oof_children) {
+  DCHECK(sizing_tree);
+  const ComputedStyle& style = Style();
+
+  needs_intrinsic_track_size = false;
+  const auto* intrinsic_repeat_track_sizes =
+      sizing_tree->Size() > 0
+          ? sizing_tree->LayoutData().IntrinsicRepeatTrackSizes()
+          : nullptr;
+  const GridLineResolver line_resolver(
+      style, ComputeAutomaticRepetitions(intrinsic_repeat_track_sizes,
+                                         needs_intrinsic_track_size));
+
+  *sizing_tree =
+      should_apply_inline_size_containment
+          ? BuildGridSizingTreeIgnoringChildren(*this, line_resolver,
+                                                sizing_constraint,
+                                                needs_intrinsic_track_size)
+          : BuildGridSizingTree(*this, line_resolver, opt_oof_children,
+                                sizing_constraint, needs_intrinsic_track_size);
+
+  InitializeTrackSizes(sizing_tree);
+  CompleteTrackSizingAlgorithm(sizing_constraint, sizing_tree,
+                               needs_intrinsic_track_size);
+}
+
+void GridLanesLayoutAlgorithm::CalculateIntrinsicTrackSizes(
+    GridSizingTree& sizing_tree) const {
   const ComputedStyle& style = Style();
   GridTrackSizingDirection grid_axis_direction =
       style.GridLanesTrackSizingDirection();
   const bool is_for_columns = grid_axis_direction == kForColumns;
-
-  HashMap<GridTrackSize, LayoutUnit> intrinsic_repeat_track_sizes;
+  const bool has_items = !sizing_tree.GetGridItems().IsEmpty();
+  const auto& track_collection =
+      sizing_tree.LayoutData().SizingCollection(grid_axis_direction);
 
   const GridTrackList& track_list =
       is_for_columns ? style.GridTemplateColumns().GetTrackList()
@@ -1300,15 +1534,8 @@ GridLanesLayoutAlgorithm::GetIntrinsicRepeaterTrackSizes(
     const GridTrackSize& track_definition = track_list.RepeatTrackSize(
         auto_repeat_index, intrinsic_repeat_track_index);
 
-    auto track_size_it = intrinsic_repeat_track_sizes.find(track_definition);
-    if (track_size_it == intrinsic_repeat_track_sizes.end()) {
-      intrinsic_repeat_track_sizes.Set(track_definition, track_size);
-    } else {
-      // If multiple tracks of the same definition within the repeat() resolve
-      // to different sizes, we take the largest size to use when calculating
-      // the final number of auto repetitions to create.
-      track_size_it->value = max(track_size_it->value, track_size);
-    }
+    sizing_tree.LayoutData().AppendIntrinsicRepeatTrackSize(track_definition,
+                                                            track_size);
 
     if (intrinsic_repeat_track_index == repeat_size - 1) {
       // If there are no items, we only need to account for the track
@@ -1321,8 +1548,6 @@ GridLanesLayoutAlgorithm::GetIntrinsicRepeaterTrackSizes(
       ++intrinsic_repeat_track_index;
     }
   }
-
-  return intrinsic_repeat_track_sizes;
 }
 
 // https://drafts.csswg.org/css-grid-2/#auto-repeat
@@ -1417,12 +1642,28 @@ ConstraintSpace GridLanesLayoutAlgorithm::CreateConstraintSpace(
 // TODO(celestepan): If item-direction is row, we should not be returning an
 // indefinite inline size. Discussions are still ongoing on if we want to always
 // return min/max-content or inherit from the parent.
+//
+// TODO(almaher): Actually do something with `opt_layout_subtree`.
+//
+// TODO(almaher): `opt_child_block_offset` and `unavailable_block_size` aren't
+// used yet, but they will likely be needed for fragmentatation support.
+//
+// TODO(almaher): Should we do something with
+// `min_block_size_should_encompass_intrinsic_size`?
 ConstraintSpace GridLanesLayoutAlgorithm::CreateConstraintSpaceForLayout(
-    const GridItemData& grid_lanes_item,
-    const GridLayoutTrackCollection& track_collection,
-    std::optional<LayoutUnit> opt_fixed_inline_size,
-    LogicalRect* containing_rect) const {
-  const bool is_for_columns = track_collection.Direction() == kForColumns;
+    const SubgriddedItemData& subgridded_item,
+    const GridLayoutSubtree* opt_layout_subtree,
+    LogicalRect* containing_grid_area,
+    LayoutUnit unavailable_block_size,
+    bool min_block_size_should_encompass_intrinsic_size,
+    std::optional<LayoutUnit> opt_child_block_offset,
+    std::optional<LayoutUnit> opt_fixed_inline_size) const {
+  const auto writing_mode = GetConstraintSpace().GetWritingMode();
+  const bool is_for_columns =
+      Style().GridLanesTrackSizingDirection() == kForColumns;
+  const auto& track_collection = is_for_columns
+                                     ? subgridded_item.Columns(writing_mode)
+                                     : subgridded_item.Rows(writing_mode);
 
   auto containing_size = grid_lanes_available_size_;
   auto& grid_axis_size =
@@ -1430,12 +1671,12 @@ ConstraintSpace GridLanesLayoutAlgorithm::CreateConstraintSpaceForLayout(
 
   LayoutUnit start_offset;
   grid_axis_size =
-      grid_lanes_item.CalculateAvailableSize(track_collection, &start_offset);
+      subgridded_item->CalculateAvailableSize(track_collection, &start_offset);
 
-  if (containing_rect) {
-    is_for_columns ? containing_rect->offset.inline_offset = start_offset
-                   : containing_rect->offset.block_offset = start_offset;
-    containing_rect->size = containing_size;
+  if (containing_grid_area) {
+    is_for_columns ? containing_grid_area->offset.inline_offset = start_offset
+                   : containing_grid_area->offset.block_offset = start_offset;
+    containing_grid_area->size = containing_size;
   }
 
   // Unlike grid, in grid-lanes, we are only constrained by the final track
@@ -1445,9 +1686,8 @@ ConstraintSpace GridLanesLayoutAlgorithm::CreateConstraintSpaceForLayout(
   // layout and overflow of items that we don't get in grid.
   LogicalSize fixed_available_size = kIndefiniteLogicalSize;
   if (opt_fixed_inline_size) {
-    const auto writing_mode = GetConstraintSpace().GetWritingMode();
     const auto item_writing_mode =
-        grid_lanes_item.node.Style().GetWritingMode();
+        subgridded_item->node.Style().GetWritingMode();
     const bool is_parallel =
         IsParallelWritingMode(item_writing_mode, writing_mode);
     const bool used_block_constraint_at_track_sizing =
@@ -1469,7 +1709,7 @@ ConstraintSpace GridLanesLayoutAlgorithm::CreateConstraintSpaceForLayout(
 
   // TODO(almaher): Will likely need special fixed available size handling for
   // subgrid.
-  return CreateConstraintSpace(grid_lanes_item, containing_size,
+  return CreateConstraintSpace(*subgridded_item, containing_size,
                                fixed_available_size,
                                LayoutResultCacheSlot::kLayout);
 }

@@ -104,6 +104,7 @@
 #include "content/public/common/content_features.h"
 #include "content/public/common/url_constants.h"
 #include "content/public/common/url_utils.h"
+#include "extensions/buildflags/buildflags.h"
 #include "google_apis/google_api_keys.h"
 #include "ipc/constants.mojom.h"
 #include "net/base/features.h"
@@ -137,15 +138,16 @@
 #include "chrome/browser/user_education/user_education_service_factory.h"
 #endif
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 #include "chrome/browser/extensions/extension_management.h"
 #include "extensions/browser/extension_registry.h"
-#include "extensions/browser/extension_system.h"
 #include "extensions/browser/extension_util.h"
 #include "extensions/common/constants.h"
+#include "extensions/common/manifest.h"
 #include "extensions/common/manifest_handlers/devtools_page_handler.h"
+#include "extensions/common/mojom/api_permission_id.mojom-shared.h"
 #include "extensions/common/permissions/permissions_data.h"
-#endif
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 
 using content::BrowserThread;
 
@@ -782,6 +784,10 @@ std::string DevToolsUIBindings::GetTypeForMetrics() {
   return "DevTools";
 }
 
+bool DevToolsUIBindings::MayAccessAllCookies() {
+  return true;
+}
+
 namespace {
 bool IsAnyAidaPoweredFeatureEnabled() {
   return base::FeatureList::IsEnabled(::features::kDevToolsConsoleInsights) ||
@@ -792,10 +798,12 @@ bool IsAnyAidaPoweredFeatureEnabled() {
              ::features::kDevToolsAiAssistanceNetworkAgent) ||
          base::FeatureList::IsEnabled(
              ::features::kDevToolsAiAssistancePerformanceAgent) ||
-         base::FeatureList::IsEnabled(
-             ::features::kDevToolsAiCodeCompletion) ||
+         base::FeatureList::IsEnabled(::features::kDevToolsAiCodeCompletion) ||
          base::FeatureList::IsEnabled(::features::kDevToolsAiCodeGeneration) ||
-         base::FeatureList::IsEnabled(::features::kDevToolsAiCodeCompletionStyles);
+         base::FeatureList::IsEnabled(
+             ::features::kDevToolsAiCodeCompletionStyles) ||
+         base::FeatureList::IsEnabled(
+             ::features::kDevToolsAiAssistanceAccessibilityAgent);
 }
 }  // namespace
 
@@ -1847,6 +1855,16 @@ base::DictValue DevToolsUIBindings::GetHostConfigDictionary(Profile* profile) {
   }
 
   if (base::FeatureList::IsEnabled(
+          ::features::kDevToolsAiAssistanceAccessibilityAgent)) {
+    base::DictValue accessibility_agent_dict;
+    accessibility_agent_dict.Set(
+        "enabled", base::FeatureList::IsEnabled(
+                       ::features::kDevToolsAiAssistanceAccessibilityAgent));
+    response_dict.Set("devToolsAiAssistanceAccessibilityAgent",
+                      std::move(accessibility_agent_dict));
+  }
+
+  if (base::FeatureList::IsEnabled(
           ::features::kDevToolsAiAssistancePerformanceAgent)) {
     base::DictValue ai_assistance_performance_agent_dict;
     ai_assistance_performance_agent_dict.Set(
@@ -1903,9 +1921,8 @@ base::DictValue DevToolsUIBindings::GetHostConfigDictionary(Profile* profile) {
     ai_code_completion_dict.Set(
         "temperature", features::kDevToolsAiCodeCompletionTemperature.Get());
     ai_code_completion_dict.Set(
-        "userTier",
-        features::kDevToolsAiCodeCompletionUserTier.GetName(
-            features::kDevToolsAiCodeCompletionUserTier.Get()));
+        "userTier", features::kDevToolsAiCodeCompletionUserTier.GetName(
+                        features::kDevToolsAiCodeCompletionUserTier.Get()));
     response_dict.Set("devToolsAiCodeCompletion",
                       std::move(ai_code_completion_dict));
   }
@@ -1920,14 +1937,14 @@ base::DictValue DevToolsUIBindings::GetHostConfigDictionary(Profile* profile) {
     ai_code_generation_dict.Set(
         "temperature", features::kDevToolsAiCodeGenerationTemperature.Get());
     ai_code_generation_dict.Set(
-        "userTier",
-        features::kDevToolsAiCodeGenerationUserTier.GetName(
-            features::kDevToolsAiCodeGenerationUserTier.Get()));
+        "userTier", features::kDevToolsAiCodeGenerationUserTier.GetName(
+                        features::kDevToolsAiCodeGenerationUserTier.Get()));
     response_dict.Set("devToolsAiCodeGeneration",
                       std::move(ai_code_generation_dict));
   }
 
-  if (base::FeatureList::IsEnabled(::features::kDevToolsAiCodeCompletionStyles)) {
+  if (base::FeatureList::IsEnabled(
+          ::features::kDevToolsAiCodeCompletionStyles)) {
     base::DictValue ai_code_completion_styles_dict;
     ai_code_completion_styles_dict.Set(
         "enabled", base::FeatureList::IsEnabled(
@@ -1935,7 +1952,8 @@ base::DictValue DevToolsUIBindings::GetHostConfigDictionary(Profile* profile) {
     ai_code_completion_styles_dict.Set(
         "modelId", features::kDevToolsAiCodeCompletionStylesModelId.Get());
     ai_code_completion_styles_dict.Set(
-        "temperature", features::kDevToolsAiCodeCompletionStylesTemperature.Get());
+        "temperature",
+        features::kDevToolsAiCodeCompletionStylesTemperature.Get());
     ai_code_completion_styles_dict.Set(
         "userTier",
         features::kDevToolsAiCodeCompletionStylesUserTier.GetName(
@@ -2679,7 +2697,7 @@ void DevToolsUIBindings::OnPermissionDialogResult(
 }
 
 void DevToolsUIBindings::AddDevToolsExtensionsToClient() {
-#if BUILDFLAG(ENABLE_EXTENSIONS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   const extensions::ExtensionRegistry* registry =
       extensions::ExtensionRegistry::Get(profile_->GetOriginalProfile());
   if (!registry) {
@@ -2749,7 +2767,7 @@ void DevToolsUIBindings::AddDevToolsExtensionsToClient() {
                    base::Value(std::move(forbidden_origins)));
   CallClientMethod("DevToolsAPI", "addExtensions",
                    base::Value(std::move(results)));
-#endif
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 }
 
 void DevToolsUIBindings::RegisterExtensionsAPI(const std::string& origin,

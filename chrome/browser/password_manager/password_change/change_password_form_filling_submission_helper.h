@@ -62,6 +62,11 @@ class ChangePasswordFormFillingSubmissionHelper {
   ChangePasswordFormFillingSubmissionHelper(
       content::WebContents* web_contents,
       password_manager::PasswordManagerClient* client,
+      base::OnceCallback<void(SubmissionResult)> result_callback);
+
+  ChangePasswordFormFillingSubmissionHelper(
+      content::WebContents* web_contents,
+      password_manager::PasswordManagerClient* client,
       ModelQualityLogsUploader* logs_uploader,
       base::OnceCallback<void(SubmissionResult)> result_callback);
 
@@ -133,8 +138,6 @@ class ChangePasswordFormFillingSubmissionHelper {
   void OnButtonClicked(actor::mojom::ActionResultCode result);
 
   void OnSubmissionDetectedOrTimeout();
-
-  void OnSubmissionOutcomeChecked(SubmissionResult result);
 
   void OnChangePasswordFormFound(
       password_manager::PasswordFormManager* form_manager);

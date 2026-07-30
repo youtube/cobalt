@@ -68,6 +68,7 @@ source_set("impl") {
       "//chrome/browser/themes",
       "//chrome/browser/ui:browser_list",
       "//chrome/browser/ui:ui_features",
+      "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/hats",
       "//chrome/browser/ui/passwords",
       "//chrome/browser/ui/profiles",
@@ -99,4 +100,20 @@ source_set("signin_promo") {
     "//components/signin/public/base:signin_buildflags",
     "//url",
   ]
+}
+
+source_set("google_accounts_private_api") {
+  sources = [
+    "google_accounts_private_api_host.cc",
+    "google_accounts_private_api_host.h",
+    "google_accounts_private_api_util.cc",
+    "google_accounts_private_api_util.h",
+  ]
+  public_deps = [
+    "//base",
+    "//chrome/common:mojo_bindings",
+    "//content/public/browser",
+    "//mojo/public/cpp/bindings",
+  ]
+  deps = [ "//google_apis" ]
 }

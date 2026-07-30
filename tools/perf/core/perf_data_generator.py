@@ -427,7 +427,11 @@ BUILDERS = {
         'perf_trigger': False,
     },
     'android_arm64_high_end-builder-perf': {
-        'additional_compile_targets': ['trichrome_google_64_32_minimal_apks'],
+        'additional_compile_targets': [
+            'trichrome_google_64_32_minimal_apks',
+            'system_webview_apk',
+            'system_webview_google_apk',
+        ],
         'pinpoint_additional_compile_targets': [],
     },
     'linux-builder-perf': {
@@ -1546,10 +1550,6 @@ GTEST_BENCHMARKS = {
     BenchmarkMetadata(
         'jrprice@google.com, dsinclair@chromium.org', 'Dawn>Tint',
         'https://dawn.googlesource.com/dawn/+/HEAD/docs/tint/benchmark.md'),
-    'web_tests_cuj':
-    # TODO(b/435031130): Update info after finishing implementation.
-    BenchmarkMetadata('zhanliang@google.com',
-                      documentation_url='TODO(b/435031130)'),
 }
 
 RESOURCE_SIZES_METADATA = BenchmarkMetadata(

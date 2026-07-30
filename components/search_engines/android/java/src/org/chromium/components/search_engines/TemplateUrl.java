@@ -121,6 +121,15 @@ public class TemplateUrl {
         return pngData == null ? null : BitmapFactory.decodeByteArray(pngData, 0, pngData.length);
     }
 
+    /**
+     * @return Whether the user should be asked to confirm before removing this engine. Currently,
+     *     only built-in search engines and non default search engines created by policy require
+     *     confirmation before removal.
+     */
+    public boolean requiresRemovalConfirmation() {
+        return TemplateUrlJni.get().requiresRemovalConfirmation(mTemplateUrlPtr);
+    }
+
     public long getNativePtr() {
         return mTemplateUrlPtr;
     }
@@ -164,6 +173,8 @@ public class TemplateUrl {
         String getNewTabURL(long templateUrlPtr);
 
         GURL getFaviconURL(long templateUrlPtr);
+
+        boolean requiresRemovalConfirmation(long templateUrlPtr);
 
         byte @Nullable [] getBuiltInSearchEngineIcon(long templateUrlPtr);
     }

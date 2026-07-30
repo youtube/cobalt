@@ -125,7 +125,6 @@
 <translation id="2228071138934252756">Щоб надати додатку <ph name="APP_NAME" /> доступ до камери, також увімкніть її в <ph name="BEGIN_LINK" />налаштуваннях Android<ph name="END_LINK" />.</translation>
 <translation id="2231160360698766265">Сайти можуть відтворювати захищений контент</translation>
 <translation id="2235344399760031203">Сторонні файли cookie блокуються</translation>
-<translation id="2238944249568001759">Рекомендовані пошукові запити на основі вмісту останньої вкладки</translation>
 <translation id="2241587408274973373">Картки на сторінці нової вкладки</translation>
 <translation id="2241634353105152135">Лише цього разу</translation>
 <translation id="2253414712144136228">Видалити <ph name="NAME_OF_LIST_ITEM" /></translation>
@@ -214,7 +213,6 @@
 <translation id="3069226013421428034">Дозволити вхід через сторонні сервіси для певного сайту.</translation>
 <translation id="310297983047869047">Попередній слайд</translation>
 <translation id="3108122610701115301">Установити за умовчанням</translation>
-<translation id="3109724472072898302">Згорнуто</translation>
 <translation id="310979712355504754">Видалити всі</translation>
 <translation id="311394601889664316">Заборонити сайтам змінювати файли чи папки на пристрої</translation>
 <translation id="3114012059975132928">Відеопрогравач</translation>
@@ -262,13 +260,13 @@
 <translation id="3602290021589620013">Попередній перегляд</translation>
 <translation id="3611658447322220736">Нещодавно закриті сайти можуть завершувати надсилання й отримання даних</translation>
 <translation id="3619294456800709762">Дозволити сайтам автоматично вмикати режим "Картинка в картинці"</translation>
-<translation id="3628308229821498208">Рекомендовані пошукові запити</translation>
 <translation id="3632460243282703117">Підписатися</translation>
 <translation id="363748948745453283">Використовується приблизне місцезнаходження</translation>
 <translation id="3641456520301071208">Сайти можуть просити доступ до геоданих</translation>
 <translation id="3658847490588580244">Нижній екран вибору вебпереглядача за умовчанням</translation>
 <translation id="3669841141196828854">{COUNT,plural, =1{<ph name="RWS_MEMBERS_COUNT" /> сайт у групі сайту-власника <ph name="RWS_OWNER" />, який може переглядати ваші дії в групі}one{<ph name="RWS_MEMBERS_COUNT" /> сайт у групі сайту-власника <ph name="RWS_OWNER" />, які можуть переглядати ваші дії в групі}few{<ph name="RWS_MEMBERS_COUNT" /> сайти в групі сайту-власника <ph name="RWS_OWNER" />, які можуть переглядати ваші дії в групі}many{<ph name="RWS_MEMBERS_COUNT" /> сайтів у групі сайту-власника <ph name="RWS_OWNER" />, які можуть переглядати ваші дії в групі}other{<ph name="RWS_MEMBERS_COUNT" /> сайту в групі сайту-власника <ph name="RWS_OWNER" />, які можуть переглядати ваші дії в групі}}</translation>
 <translation id="3676777756440746804">Сайтам заборонено запитувати дозвіл на використання збереженої про вас інформації</translation>
+<translation id="3677897809642449131">Сайти можуть просити дозвіл на використання датчиків руху</translation>
 <translation id="3678318839615834650">Нижній екран сторінки нової вкладки з картками відкрито на всю висоту</translation>
 <translation id="3697164069658504920">Якщо цей параметр увімкнено, сайти можуть запитувати дозвіл використовувати пристрої USB. Якщо його вимкнено, сайти не можуть використовувати пристрої USB.</translation>
 <translation id="3703430731944883733">Керуйте своєю стрічкою</translation>
@@ -444,7 +442,6 @@
 <translation id="5515432237048785579">Нижній екран стрічки рекомендацій відкрито на всю висоту</translation>
 <translation id="5516455585884385570">Відкрити налаштування сповіщень</translation>
 <translation id="5527111080432883924">Запитувати, перш ніж дозволяти сайтам переглядати тексти й зображення в буфері обміну (рекомендовано)</translation>
-<translation id="5553374991681107062">Останні</translation>
 <translation id="5555115555607204100">Не прискорювати роботу сайтів за допомогою системи V8 для Chrome, але зробити вебпереглядач трохи стійкішим до атак</translation>
 <translation id="5556459405103347317">Перезавантажити</translation>
 <translation id="5591840828808741583">Сайт <ph name="SITE_NAME" /> заблоковано</translation>
@@ -490,6 +487,7 @@
 <translation id="5922853908706496913">Доступ до вашого екрана</translation>
 <translation id="5922967540311291836">Блокувати сторонні файли cookie:</translation>
 <translation id="5923512600150154850">Буде видалено <ph name="DATASIZE" /> даних і файлів cookie сайтів.</translation>
+<translation id="5930707844513754220">Переглянути інші налаштування</translation>
 <translation id="5939518447894949180">Скинути</translation>
 <translation id="5948139900367969951">Швидко переходьте до важливого контенту</translation>
 <translation id="5964247741333118902">Вбудований контент</translation>
@@ -498,6 +496,7 @@
 <translation id="5976059395673079613">"<ph name="PERMISSION" />" – <ph name="WARNING_MESSAGE" /></translation>
 <translation id="5998071268779572583">Увімкнути стрічку рекомендацій</translation>
 <translation id="6012967556075291653">Закріплений ярлик</translation>
+<translation id="6013003831291591200">Завдання виконано</translation>
 <translation id="6015775454662021376">Керуйте доступом цього сайту до вашого пристрою</translation>
 <translation id="6022659036123304283">Ваш персональний Chrome</translation>
 <translation id="6040143037577758943">Закрити</translation>
@@ -522,7 +521,6 @@
 <translation id="6231752747840485235">Видалити додаток <ph name="APP_NAME" />?</translation>
 <translation id="6234351944623978659">Натисніть "Вебпереглядач" &gt; "Chrome".</translation>
 <translation id="6260830281887654268">Нижній екран із колекціями тем для сторінки нової вкладки відкрито на половину висоти</translation>
-<translation id="6262191102408817757">На основі даних останньої використаної вкладки</translation>
 <translation id="6262279340360821358">Заблоковано: "<ph name="PERMISSION_1" />" і "<ph name="PERMISSION_2" />"</translation>
 <translation id="6270391203985052864">Сайти можуть просити дозвіл надсилати сповіщення</translation>
 <translation id="6295158916970320988">Усі сайти</translation>
@@ -602,7 +600,6 @@
 <translation id="7180611975245234373">Оновити</translation>
 <translation id="7188508872042490670">Дані сайтів на пристрої</translation>
 <translation id="7201549776650881587">У результаті буде видалено всі дані й файли cookie, збережені сайтами в групі сайту <ph name="ORIGIN" /> або додатками на головному екрані</translation>
-<translation id="7203150201908454328">Розгорнуто</translation>
 <translation id="7213166370492037743">Заборонити сайтам підключатися до пристроїв у вашій локальній мережі</translation>
 <translation id="7219254577985949841">Видалити дані сайту?</translation>
 <translation id="723171743924126238">Вибрати зображення</translation>
@@ -676,7 +673,6 @@
 <translation id="8007176423574883786">Вимкнено для цього пристрою</translation>
 <translation id="802154636333426148">Не вдалося завантажити</translation>
 <translation id="8033047164036749181">Підписатися на сповіщення із цього сайту</translation>
-<translation id="8042586301629853791">Порядок сортування:</translation>
 <translation id="8051193500142930381">Функції, яким потрібна камера, не працюватимуть</translation>
 <translation id="8056330801132235235">Chrome за умовчанням</translation>
 <translation id="8067883171444229417">Дивитися відео</translation>
@@ -748,6 +744,7 @@
 <translation id="8707904142362025782">Сайт може запитувати дозвіл на доступ до камери</translation>
 <translation id="8712637175834984815">OK</translation>
 <translation id="8715862698998036666">Щоб вийти з повноекранного режиму, проведіть пальцем по екрану зверху вниз і від лівого чи правого краю.</translation>
+<translation id="8716050156658570300">Сайти можуть просити дозвіл на використання датчиків руху й освітлення</translation>
 <translation id="8719283222052720129">Увімкніть дозвіл для додатка <ph name="APP_NAME" /> у <ph name="BEGIN_LINK" />налаштуваннях Android<ph name="END_LINK" />.</translation>
 <translation id="8721719390026067591">Якщо цей параметр увімкнено, сайти можуть просити дозвіл шукати пристрої з Bluetooth. Якщо його вимкнено, сайти не можуть шукати пристрої з Bluetooth.</translation>
 <translation id="8725066075913043281">Повторити спробу</translation>

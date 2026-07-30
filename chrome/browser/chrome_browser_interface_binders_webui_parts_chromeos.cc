@@ -166,7 +166,6 @@
 #include "chromeos/ash/services/orca/public/mojom/orca_service.mojom.h"
 #include "chromeos/components/print_management/mojom/printing_manager.mojom.h"  // nogncheck
 #include "chromeos/constants/chromeos_features.h"
-#include "chromeos/crosapi/mojom/structured_metrics_service.mojom.h"
 #include "chromeos/services/network_config/public/mojom/cros_network_config.mojom.h"  // nogncheck
 #include "chromeos/services/network_health/public/mojom/network_diagnostics.mojom.h"  // nogncheck
 #include "chromeos/services/network_health/public/mojom/network_health.mojom.h"  // nogncheck
@@ -548,7 +547,7 @@ void PopulateChromeWebUIFrameBindersPartsCros(
       new_window_proxy::mojom::NewWindowProxy, ash::EmojiUI>(map);
 
   if (base::FeatureList::IsEnabled(features::kSkyVault) &&
-      base::FeatureList::IsEnabled(features::kSkyVaultV2)) {
+      base::FeatureList::IsEnabled(ash::features::kSkyVaultV2)) {
     RegisterWebUIControllerInterfaceBinder<
         policy::local_user_files::mojom::PageHandlerFactory,
         policy::local_user_files::LocalFilesMigrationUI>(map);
@@ -594,9 +593,7 @@ void PopulateChromeWebUIFrameBindersPartsCros(
 void PopulateChromeWebUIFrameInterfaceBrokersTrustedPartsCros(
     content::WebUIBrowserInterfaceBrokerRegistry& registry) {
   registry.ForWebUI<ash::RecorderAppUI>()
-      .Add<ash::recorder_app::mojom::PageHandler>()
-      .Add<crosapi::mojom::StructuredMetricsService>();
-
+      .Add<ash::recorder_app::mojom::PageHandler>();
   registry.ForWebUI<ash::CameraAppUI>()
       .Add<cros::mojom::CameraAppDeviceProvider>()
       .Add<ash::camera_app::mojom::CameraAppHelper>();

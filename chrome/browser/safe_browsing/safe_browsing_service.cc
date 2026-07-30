@@ -51,6 +51,7 @@
 #include "chrome/common/url_constants.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/features.h"
+#include "components/content_settings/core/common/pref_names.h"
 #include "components/download/public/common/download_item.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/prefs/pref_service.h"
@@ -195,6 +196,19 @@ void TriggerSecuritySettingsBundleToastIfNeeded(
         // BUILDFLAG(IS_MAC)
 }
 
+// Helper function to determine if any Javascript Optimizer settings are
+// managed by a policy.
+// TODO(crbug.com/491533053): Find a better place to define this helper
+// function.
+bool IsJavascriptOptimizerPolicyManaged(const PrefService& prefs) {
+  return prefs.IsManagedPreference(
+             prefs::kManagedDefaultJavaScriptOptimizerSetting) ||
+         prefs.IsManagedPreference(
+             prefs::kManagedJavaScriptOptimizerAllowedForSites) ||
+         prefs.IsManagedPreference(
+             prefs::kManagedJavaScriptOptimizerBlockedForSites);
+}
+
 // Migrate enhanced-safe-browsing user to enhanced-security bundle if needed.
 void MigrateUserToEnhancedSecurityBundleIfNeeded(
     base::WeakPtr<Profile> profile) {
@@ -202,7 +216,14 @@ void MigrateUserToEnhancedSecurityBundleIfNeeded(
     return;
   }
 
+  // Do not perform migration if the any bundled settings are managed by a
+  // policy.
   PrefService* prefs = profile->GetPrefs();
+  if (IsSafeBrowsingPolicyManaged(*prefs) ||
+      IsJavascriptOptimizerPolicyManaged(*prefs)) {
+    return;
+  }
+
   if (!base::FeatureList::IsEnabled(kMigrateEnhancedSbUserToEnhancedBundle)) {
     return;
   }
@@ -234,6 +255,21 @@ void MigrateUserToEnhancedSecurityBundleIfNeeded(
   // LINT.ThenChange(//chrome/browser/resources/settings/privacy_page/security/security_page_v2.ts,//chrome/browser/safe_browsing/metrics/bundled_settings_metrics_provider.cc)
 
   SetSecurityBundleSetting(*prefs, SecuritySettingsBundleSetting::ENHANCED);
+
+  // TODO(crbug.com/491533053): Fix the circular dependency for generated
+  // preferences.
+  if (site_protection::CanEnableBlockingJavascriptOptimizersForUnfamiliarSites(
+          profile.get()) &&
+      site_protection::ComputeDefaultJavascriptOptimizerSetting(
+          profile.get()) ==
+          content_settings::JavascriptOptimizerSetting::kAllowed) {
+    HostContentSettingsMapFactory::GetForProfile(profile.get())
+        ->SetDefaultContentSetting(ContentSettingsType::JAVASCRIPT_OPTIMIZER,
+                                   CONTENT_SETTING_ALLOW);
+    prefs->SetBoolean(prefs::kJavascriptOptimizerBlockedForUnfamiliarSites,
+                      true);
+  }
+
   prefs->SetInteger(
       prefs::kSecuritySettingsBundleMigrationToastState,
       static_cast<int>(SecuritySettingsBundleToastState::kPending));

@@ -278,6 +278,10 @@
 #include "content/browser/ios/nfc_host.h"
 #endif
 
+#if BUILDFLAG(ENABLE_SURFACE_EMBED)
+#include "content/browser/surface_embed/surface_embed_connector_impl.h"
+#endif  // BUILDFLAG(ENABLE_SURFACE_EMBED)
+
 namespace content {
 
 namespace {
@@ -3463,6 +3467,13 @@ void WebContentsImpl::DetachUnownedInnerWebContents(
   inner_main_frame->UpdateAXTreeData();
 }
 
+#if BUILDFLAG(ENABLE_SURFACE_EMBED)
+SurfaceEmbedConnector* WebContentsImpl::GetSurfaceEmbedConnector() const {
+  return SurfaceEmbedConnectorImpl::FromWebContents(
+      const_cast<WebContentsImpl*>(this));
+}
+#endif  // BUILDFLAG(ENABLE_SURFACE_EMBED)
+
 void WebContentsImpl::AttachGuestPage(
     std::unique_ptr<GuestPageHolder> guest_page,
     RenderFrameHost* outer_render_frame_host) {
@@ -4577,9 +4588,6 @@ bool WebContentsImpl::PreHandleGestureEvent(
     }
   }
 
-  // TODO(crbug.com/475836809)
-  // Remove this delegate method. It exposes Blink types to the embedder. Since
-  // zoom blocking is now handled natively, we should audit remaining consumers.
   return delegate_ && delegate_->PreHandleGestureEvent(this, event);
 }
 

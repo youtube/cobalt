@@ -14,6 +14,7 @@
 #include "chrome/browser/contextual_cueing/contextual_cueing_service.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_service_factory.h"
 #include "chrome/browser/contextual_cueing/zero_state_suggestions_page_data.h"
+#include "chrome/browser/glic/browser_ui/glic_nudge_controller.h"
 #include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
@@ -24,7 +25,6 @@
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
-#include "chrome/browser/ui/tabs/glic_nudge_controller.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "components/feature_engagement/public/feature_constants.h"
@@ -107,7 +107,7 @@ ContextualCueingHelper::ContextualCueingHelper(
 
 ContextualCueingHelper::~ContextualCueingHelper() = default;
 
-tabs::GlicNudgeController* ContextualCueingHelper::GetGlicNudgeController() {
+glic::GlicNudgeController* ContextualCueingHelper::GetGlicNudgeController() {
 #if !BUILDFLAG(IS_ANDROID)
   if (!IsContextualCueingEnabled()) {
     return nullptr;
@@ -179,7 +179,7 @@ void ContextualCueingHelper::DidFinishNavigation(
   if (glic_nudge_controller) {
     glic_nudge_controller->UpdateNudgeLabel(
         web_contents(), std::string(), /*prompt_suggestion=*/std::nullopt,
-        tabs::GlicNudgeActivity::kNudgeIgnoredNavigation, base::DoNothing());
+        glic::GlicNudgeActivity::kNudgeIgnoredNavigation, base::DoNothing());
   }
 
   // Do not report page loads for these types of navigations.
@@ -398,13 +398,15 @@ void ContextualCueingHelper::OnCueingDecision(
       decision_result->auto_open_eligible &&
       base::FeatureList::IsEnabled(kEnableAutoOpenGlicSidePanel);
 
+  Profile* profile =
+      Profile::FromBrowserContext(web_contents()->GetBrowserContext());
   const bool is_auto_open_pdf_side_panel_cue =
       should_open_side_panel &&
       web_contents()->GetContentsMimeType() == pdf::kPDFMimeType &&
-      base::FeatureList::IsEnabled(features::kAutoOpenGlicForPdf);
+      glic::GlicEnabling::IsAutoOpenForPdfEnabled(profile);
 
   // Check nudge rate-limiting/backoff caps. Auto-open PDF side panel bypasses
-  // this check for a more detemrinistic feel.
+  // this check for a more deterministic feel.
   NudgeDecision can_show_decision;
   if (is_auto_open_pdf_side_panel_cue) {
     can_show_decision = NudgeDecision::kSuccess;
@@ -422,8 +424,6 @@ void ContextualCueingHelper::OnCueingDecision(
   if (should_open_side_panel) {
     auto* tab_interface = tabs::TabInterface::GetFromContents(web_contents());
     auto* browser_window_interface = tab_interface->GetBrowserWindowInterface();
-    Profile* profile =
-        Profile::FromBrowserContext(web_contents()->GetBrowserContext());
     auto* glic_service =
         glic::GlicKeyedServiceFactory::GetGlicKeyedService(profile);
     if (glic_service && browser_window_interface) {

@@ -42,6 +42,7 @@ source_set("model") {
     "//components/user_prefs",
     "//components/variations",
     "//ios/chrome/browser/content_settings/model",
+    "//ios/chrome/browser/enterprise/client_certificates:util",
     "//ios/chrome/browser/net/model",
     "//ios/chrome/browser/net/model:net_types",
     "//ios/chrome/browser/net/model:network_delegate",
@@ -164,6 +165,7 @@ source_set("keyed_service_factories") {
     "//ios/chrome/browser/download/model/background_service",
     "//ios/chrome/browser/drive/model:drive_service_factory",
     "//ios/chrome/browser/enterprise/client_certificates",
+    "//ios/chrome/browser/enterprise/cloud_content_scanning/model",
     "//ios/chrome/browser/enterprise/connectors",
     "//ios/chrome/browser/enterprise/connectors/reporting",
     "//ios/chrome/browser/enterprise/data_controls/model:ios_rules_service",
@@ -189,6 +191,7 @@ source_set("keyed_service_factories") {
     "//ios/chrome/browser/metrics/model",
     "//ios/chrome/browser/metrics/model:bookmark_model_metrics",
     "//ios/chrome/browser/metrics/model:google_groups_updater",
+    "//ios/chrome/browser/metrics/model:profile_metrics_service_factory",
     "//ios/chrome/browser/metrics/model:tab_usage_recorder_service_factory",
     "//ios/chrome/browser/ntp/model",
     "//ios/chrome/browser/omnibox/model/placeholder_service",
@@ -249,6 +252,8 @@ source_set("keyed_service_factories") {
     "//ios/chrome/browser/web/model/java_script_console",
     "//ios/chrome/browser/webauthn/model",
     "//ios/chrome/browser/webdata_services/model",
+    "//ios/public/provider/chrome/browser/cobalt:cobalt_api",
+    "//ios/web/common:features",
   ]
 
   if (ios_enable_credential_provider_extension) {
@@ -292,6 +297,7 @@ source_set("unit_tests") {
     "//base",
     "//base/test:test_support",
     "//components/prefs",
+    "//components/unexportable_keys:test_support",
     "//ios/chrome/browser/shared/model/prefs:pref_names",
     "//ios/chrome/browser/shared/model/profile",
     "//ios/chrome/browser/shared/model/profile/test",

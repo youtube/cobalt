@@ -84,7 +84,6 @@ AppServiceProxyAsh::AppServiceProxyAsh(
     : AppServiceProxyBase(profile, publisher_host_factory),
       icon_reader_(profile),
       icon_writer_(profile) {
-  instance_registry_observer_.Observe(&instance_registry_);
 }
 
 AppServiceProxyAsh::~AppServiceProxyAsh() {
@@ -139,15 +138,13 @@ void AppServiceProxyAsh::Initialize() {
   ::full_restore::FullRestoreSaveHandler::GetInstance()->SetAppRegistryCache(
       profile_->GetPath(), &app_registry_cache_);
 
-  AppServiceProxyBase::Initialize();
-
   auto* cache = &AppRegistryCache();
   if (!app_registry_cache_observer_.IsObservingSource(cache)) {
     app_registry_cache_observer_.Reset();
     app_registry_cache_observer_.Observe(cache);
   }
 
-  publisher_host_ = publisher_host_factory_->CreatePublisherHost(this);
+  AppServiceProxyBase::Initialize();
 
   if (!profile_->AsTestingProfile() &&
       !::ash::IsShimlessRmaAppBrowserContext(profile_)) {
@@ -630,18 +627,8 @@ bool AppServiceProxyAsh::MaybeShowLaunchPreventionDialog(
 }
 
 void AppServiceProxyAsh::OnLaunched(LaunchCallback callback,
-                                    LaunchResult&& launch_result) {
-  base::RepeatingCallback<bool(void)> ready_to_run_callback =
-      base::BindRepeating(&AppServiceProxyAsh::CanRunLaunchCallback,
-                          base::Unretained(this), launch_result.instance_ids);
-  base::OnceClosure launch_callback =
-      base::BindOnce(std::move(callback), std::move(launch_result));
-  if (ready_to_run_callback.Run()) {
-    std::move(launch_callback).Run();
-  } else {
-    callback_list_.emplace_back(
-        std::make_pair(ready_to_run_callback, std::move(launch_callback)));
-  }
+                                    LaunchResult launch_result) {
+  std::move(callback).Run(launch_result);
 }
 
 bool AppServiceProxyAsh::ShouldExcludeBrowserTabApps(
@@ -801,41 +788,6 @@ void AppServiceProxyAsh::PerformPostLaunchTasks(
   }
 }
 
-void AppServiceProxyAsh::OnInstanceUpdate(const apps::InstanceUpdate& update) {
-  if (!update.IsCreation()) {
-    return;
-  }
-
-  callback_list_.remove_if([](std::pair<base::RepeatingCallback<bool(void)>,
-                                        base::OnceClosure>& callbacks) {
-    if (callbacks.first.Run()) {
-      std::move(callbacks.second).Run();
-      return true;
-    }
-    return false;
-  });
-}
-
-void AppServiceProxyAsh::OnInstanceRegistryWillBeDestroyed(
-    apps::InstanceRegistry* cache) {
-  instance_registry_observer_.Reset();
-}
-
-bool AppServiceProxyAsh::CanRunLaunchCallback(
-    const std::vector<base::UnguessableToken>& instance_ids) {
-  for (const base::UnguessableToken& instance_id : instance_ids) {
-    bool exists = false;
-    InstanceRegistry().ForOneInstance(
-        instance_id,
-        [&exists](const apps::InstanceUpdate& update) { exists = true; });
-    if (!exists) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
 void AppServiceProxyAsh::LaunchAppWithIntentIfAllowed(
     const std::string& app_id,
     int32_t event_flags,
@@ -845,7 +797,7 @@ void AppServiceProxyAsh::LaunchAppWithIntentIfAllowed(
     LaunchCallback callback,
     bool is_allowed) {
   if (!is_allowed) {
-    std::move(callback).Run(LaunchResult(State::kFailed));
+    std::move(callback).Run(LaunchResult::kFailed);
     return;
   }
   AppServiceProxyBase::LaunchAppWithIntent(

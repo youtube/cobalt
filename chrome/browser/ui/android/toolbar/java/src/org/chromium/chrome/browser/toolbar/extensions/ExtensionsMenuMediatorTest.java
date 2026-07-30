@@ -170,6 +170,8 @@ public class ExtensionsMenuMediatorTest {
         // onReady runnable is called.
         assertTrue(mActionModels.isEmpty());
         verify(mMenuPropertyModel).set(ExtensionsMenuProperties.IS_ZERO_STATE, true);
+        verify(mMenuPropertyModel)
+                .set(ExtensionsMenuProperties.SITE_SETTINGS_TOGGLE_VISIBLE, false);
         verify(mOnReadyRunnable).run();
     }
 
@@ -371,6 +373,8 @@ public class ExtensionsMenuMediatorTest {
         // Verify zero state is shown.
         assertEquals(0, mActionModels.size());
         verify(mMenuPropertyModel).set(ExtensionsMenuProperties.IS_ZERO_STATE, true);
+        verify(mMenuPropertyModel)
+                .set(ExtensionsMenuProperties.SITE_SETTINGS_TOGGLE_VISIBLE, false);
     }
 
     /**
@@ -539,6 +543,67 @@ public class ExtensionsMenuMediatorTest {
         captor.getValue().onCheckedChanged(null, true);
         verify(mExtensionsMenuBridgeJniMock)
                 .onSiteSettingsToggleChanged(EXTENSIONS_MENU_BRIDGE_POINTER, true);
+    }
+
+    @Test
+    public void testOnHostAccessRequestAdded_SectionVisible() {
+        when(mMenuPropertyModel.get(ExtensionsMenuProperties.OPTIONAL_SECTION_TYPE))
+                .thenReturn(ExtensionsMenuTypes.OptionalSectionType.HOST_ACCESS_REQUESTS);
+        List<ExtensionsMenuTypes.HostAccessRequest> requests = new ArrayList<>();
+        requests.add(new ExtensionsMenuTypes.HostAccessRequest("id1", "name1", null));
+        when(mExtensionsMenuBridgeJniMock.getHostAccessRequests(anyLong())).thenReturn(requests);
+
+        mMenuMediator.onHostAccessRequestAdded("id1");
+
+        verify(mMenuPropertyModel).set(ExtensionsMenuProperties.HOST_ACCESS_REQUESTS, requests);
+    }
+
+    @Test
+    public void testOnHostAccessRequestAdded_SectionNotVisible() {
+        when(mMenuPropertyModel.get(ExtensionsMenuProperties.OPTIONAL_SECTION_TYPE))
+                .thenReturn(ExtensionsMenuTypes.OptionalSectionType.NONE);
+
+        mMenuMediator.onHostAccessRequestAdded("id1");
+
+        verify(mMenuPropertyModel, org.mockito.Mockito.never())
+                .set(eq(ExtensionsMenuProperties.HOST_ACCESS_REQUESTS), any());
+    }
+
+    @Test
+    public void testOnHostAccessRequestUpdated_SectionVisible() {
+        when(mMenuPropertyModel.get(ExtensionsMenuProperties.OPTIONAL_SECTION_TYPE))
+                .thenReturn(ExtensionsMenuTypes.OptionalSectionType.HOST_ACCESS_REQUESTS);
+        List<ExtensionsMenuTypes.HostAccessRequest> requests = new ArrayList<>();
+        requests.add(new ExtensionsMenuTypes.HostAccessRequest("id1", "name1", null));
+        when(mExtensionsMenuBridgeJniMock.getHostAccessRequests(anyLong())).thenReturn(requests);
+
+        mMenuMediator.onHostAccessRequestUpdated("id1");
+
+        verify(mMenuPropertyModel).set(ExtensionsMenuProperties.HOST_ACCESS_REQUESTS, requests);
+    }
+
+    @Test
+    public void testOnHostAccessRequestRemoved_SectionVisible() {
+        when(mMenuPropertyModel.get(ExtensionsMenuProperties.OPTIONAL_SECTION_TYPE))
+                .thenReturn(ExtensionsMenuTypes.OptionalSectionType.HOST_ACCESS_REQUESTS);
+        List<ExtensionsMenuTypes.HostAccessRequest> requests = new ArrayList<>();
+        when(mExtensionsMenuBridgeJniMock.getHostAccessRequests(anyLong())).thenReturn(requests);
+
+        mMenuMediator.onHostAccessRequestRemoved("id1");
+
+        verify(mMenuPropertyModel).set(ExtensionsMenuProperties.HOST_ACCESS_REQUESTS, requests);
+    }
+
+    @Test
+    public void testOnHostAccessRequestsCleared_SectionVisible() {
+        when(mMenuPropertyModel.get(ExtensionsMenuProperties.OPTIONAL_SECTION_TYPE))
+                .thenReturn(ExtensionsMenuTypes.OptionalSectionType.HOST_ACCESS_REQUESTS);
+        List<ExtensionsMenuTypes.HostAccessRequest> requests = new ArrayList<>();
+        when(mExtensionsMenuBridgeJniMock.getHostAccessRequests(anyLong())).thenReturn(requests);
+
+        mMenuMediator.onHostAccessRequestsCleared();
+
+        verify(mMenuPropertyModel).set(ExtensionsMenuProperties.HOST_ACCESS_REQUESTS, requests);
     }
 
     /** Helper to assert that the item at the given index has the correct information. */

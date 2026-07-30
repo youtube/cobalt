@@ -15,7 +15,7 @@
 #include "ash/constants/ash_pref_names.h"
 #include "ash/constants/ash_switches.h"
 #include "ash/constants/geolocation_access_level.h"
-#include "ash/public/ash_interfaces.h"
+#include "ash/display/cros_display_config.h"
 #include "ash/public/cpp/ash_prefs.h"
 #include "ash/public/cpp/ime_controller.h"
 #include "ash/public/cpp/lobster/lobster_enums.h"
@@ -125,10 +125,7 @@ Preferences::Preferences(input_method::InputMethodManager* input_method_manager)
     : prefs_(nullptr),
       input_method_manager_(input_method_manager),
       user_(nullptr),
-      user_is_primary_(false) {
-  BindCrosDisplayConfigController(
-      cros_display_config_.BindNewPipeAndPassReceiver());
-}
+      user_is_primary_(false) {}
 
 Preferences::~Preferences() {
   prefs_->RemoveObserver(this);
@@ -440,106 +437,114 @@ void Preferences::RegisterProfilePrefs(
 
   registry->RegisterBooleanPref(ash::prefs::kLanguageImeMenuActivated, false);
 
-  registry->RegisterInt64Pref(::prefs::kHatsLastInteractionTimestamp, 0);
-
-  registry->RegisterTimePref(::prefs::kHatsPrioritizedLastInteractionTimestamp,
-                             base::Time());
-
-  registry->RegisterInt64Pref(::prefs::kHatsSurveyCycleEndTimestamp, 0);
-
-  registry->RegisterBooleanPref(::prefs::kHatsDeviceIsSelected, false);
-
-  registry->RegisterInt64Pref(::prefs::kHatsOnboardingSurveyCycleEndTs, 0);
-
-  registry->RegisterBooleanPref(::prefs::kHatsOnboardingDeviceIsSelected,
-                                false);
-
-  registry->RegisterInt64Pref(::prefs::kHatsArcGamesSurveyCycleEndTs, 0);
-
-  registry->RegisterBooleanPref(::prefs::kHatsArcGamesDeviceIsSelected, false);
-
-  registry->RegisterInt64Pref(::prefs::kHatsAudioSurveyCycleEndTs, 0);
-
-  registry->RegisterBooleanPref(::prefs::kHatsAudioDeviceIsSelected, false);
-
-  registry->RegisterInt64Pref(::prefs::kHatsAudioOutputProcSurveyCycleEndTs, 0);
-
-  registry->RegisterBooleanPref(::prefs::kHatsAudioOutputProcDeviceIsSelected,
-                                false);
-
-  registry->RegisterInt64Pref(::prefs::kHatsBluetoothAudioSurveyCycleEndTs, 0);
-
-  registry->RegisterBooleanPref(::prefs::kHatsBluetoothAudioDeviceIsSelected,
-                                false);
-
-  registry->RegisterInt64Pref(::prefs::kHatsEntSurveyCycleEndTs, 0);
-
-  registry->RegisterBooleanPref(::prefs::kHatsEntDeviceIsSelected, false);
-
-  registry->RegisterInt64Pref(::prefs::kHatsStabilitySurveyCycleEndTs, 0);
-
-  registry->RegisterBooleanPref(::prefs::kHatsStabilityDeviceIsSelected, false);
-
-  registry->RegisterInt64Pref(::prefs::kHatsPerformanceSurveyCycleEndTs, 0);
-
-  registry->RegisterBooleanPref(::prefs::kHatsPerformanceDeviceIsSelected,
-                                false);
-
-  registry->RegisterInt64Pref(::prefs::kHatsCameraAppSurveyCycleEndTs, 0);
-
-  registry->RegisterBooleanPref(::prefs::kHatsCameraAppDeviceIsSelected, false);
-
-  registry->RegisterInt64Pref(::prefs::kHatsGeneralCameraSurveyCycleEndTs, 0);
-
-  registry->RegisterBooleanPref(::prefs::kHatsGeneralCameraIsSelected, false);
-
-  registry->RegisterInt64Pref(
-      ::prefs::kHatsGeneralCameraPrioritizedSurveyCycleEndTs, 0);
-
-  registry->RegisterBooleanPref(
-      ::prefs::kHatsGeneralCameraPrioritizedIsSelected, false);
+  registry->RegisterInt64Pref(ash::prefs::kHatsLastInteractionTimestamp, 0);
 
   registry->RegisterTimePref(
-      ::prefs::kHatsGeneralCameraPrioritizedLastInteractionTimestamp,
+      ash::prefs::kHatsPrioritizedLastInteractionTimestamp, base::Time());
+
+  registry->RegisterInt64Pref(ash::prefs::kHatsSurveyCycleEndTimestamp, 0);
+
+  registry->RegisterBooleanPref(ash::prefs::kHatsDeviceIsSelected, false);
+
+  registry->RegisterInt64Pref(ash::prefs::kHatsOnboardingSurveyCycleEndTs, 0);
+
+  registry->RegisterBooleanPref(ash::prefs::kHatsOnboardingDeviceIsSelected,
+                                false);
+
+  registry->RegisterInt64Pref(ash::prefs::kHatsArcGamesSurveyCycleEndTs, 0);
+
+  registry->RegisterBooleanPref(ash::prefs::kHatsArcGamesDeviceIsSelected,
+                                false);
+
+  registry->RegisterInt64Pref(ash::prefs::kHatsAudioSurveyCycleEndTs, 0);
+
+  registry->RegisterBooleanPref(ash::prefs::kHatsAudioDeviceIsSelected, false);
+
+  registry->RegisterInt64Pref(ash::prefs::kHatsAudioOutputProcSurveyCycleEndTs,
+                              0);
+
+  registry->RegisterBooleanPref(
+      ash::prefs::kHatsAudioOutputProcDeviceIsSelected, false);
+
+  registry->RegisterInt64Pref(ash::prefs::kHatsBluetoothAudioSurveyCycleEndTs,
+                              0);
+
+  registry->RegisterBooleanPref(ash::prefs::kHatsBluetoothAudioDeviceIsSelected,
+                                false);
+
+  registry->RegisterInt64Pref(ash::prefs::kHatsEntSurveyCycleEndTs, 0);
+
+  registry->RegisterBooleanPref(ash::prefs::kHatsEntDeviceIsSelected, false);
+
+  registry->RegisterInt64Pref(ash::prefs::kHatsStabilitySurveyCycleEndTs, 0);
+
+  registry->RegisterBooleanPref(ash::prefs::kHatsStabilityDeviceIsSelected,
+                                false);
+
+  registry->RegisterInt64Pref(ash::prefs::kHatsPerformanceSurveyCycleEndTs, 0);
+
+  registry->RegisterBooleanPref(ash::prefs::kHatsPerformanceDeviceIsSelected,
+                                false);
+
+  registry->RegisterInt64Pref(ash::prefs::kHatsCameraAppSurveyCycleEndTs, 0);
+
+  registry->RegisterBooleanPref(ash::prefs::kHatsCameraAppDeviceIsSelected,
+                                false);
+
+  registry->RegisterInt64Pref(ash::prefs::kHatsGeneralCameraSurveyCycleEndTs,
+                              0);
+
+  registry->RegisterBooleanPref(ash::prefs::kHatsGeneralCameraIsSelected,
+                                false);
+
+  registry->RegisterInt64Pref(
+      ash::prefs::kHatsGeneralCameraPrioritizedSurveyCycleEndTs, 0);
+
+  registry->RegisterBooleanPref(
+      ash::prefs::kHatsGeneralCameraPrioritizedIsSelected, false);
+
+  registry->RegisterTimePref(
+      ash::prefs::kHatsGeneralCameraPrioritizedLastInteractionTimestamp,
       base::Time());
 
-  registry->RegisterInt64Pref(::prefs::kHatsBluetoothRevampCycleEndTs, 0);
+  registry->RegisterInt64Pref(ash::prefs::kHatsBluetoothRevampCycleEndTs, 0);
 
-  registry->RegisterBooleanPref(::prefs::kHatsBluetoothRevampIsSelected, false);
+  registry->RegisterBooleanPref(ash::prefs::kHatsBluetoothRevampIsSelected,
+                                false);
 
-  registry->RegisterInt64Pref(::prefs::kHatsBatteryLifeCycleEndTs, 0);
+  registry->RegisterInt64Pref(ash::prefs::kHatsBatteryLifeCycleEndTs, 0);
 
-  registry->RegisterBooleanPref(::prefs::kHatsBatteryLifeIsSelected, false);
+  registry->RegisterBooleanPref(ash::prefs::kHatsBatteryLifeIsSelected, false);
 
-  registry->RegisterInt64Pref(::prefs::kHatsPeripheralsCycleEndTs, 0);
+  registry->RegisterInt64Pref(ash::prefs::kHatsPeripheralsCycleEndTs, 0);
 
-  registry->RegisterBooleanPref(::prefs::kHatsPeripheralsIsSelected, false);
+  registry->RegisterBooleanPref(ash::prefs::kHatsPeripheralsIsSelected, false);
 
   // Personalization HaTS survey prefs for avatar, screensaver, and wallpaper
   // features.
   registry->RegisterInt64Pref(
-      ::prefs::kHatsPersonalizationAvatarSurveyCycleEndTs, 0);
+      ash::prefs::kHatsPersonalizationAvatarSurveyCycleEndTs, 0);
   registry->RegisterBooleanPref(
-      ::prefs::kHatsPersonalizationAvatarSurveyIsSelected, false);
+      ash::prefs::kHatsPersonalizationAvatarSurveyIsSelected, false);
   registry->RegisterInt64Pref(
-      ::prefs::kHatsPersonalizationScreensaverSurveyCycleEndTs, 0);
+      ash::prefs::kHatsPersonalizationScreensaverSurveyCycleEndTs, 0);
   registry->RegisterBooleanPref(
-      ::prefs::kHatsPersonalizationScreensaverSurveyIsSelected, false);
+      ash::prefs::kHatsPersonalizationScreensaverSurveyIsSelected, false);
   registry->RegisterInt64Pref(
-      ::prefs::kHatsPersonalizationWallpaperSurveyCycleEndTs, 0);
+      ash::prefs::kHatsPersonalizationWallpaperSurveyCycleEndTs, 0);
   registry->RegisterBooleanPref(
-      ::prefs::kHatsPersonalizationWallpaperSurveyIsSelected, false);
+      ash::prefs::kHatsPersonalizationWallpaperSurveyIsSelected, false);
 
   // MediaApp HaTS prefs for Pdf and Photos experiences.
-  registry->RegisterInt64Pref(::prefs::kHatsMediaAppPdfCycleEndTs, 0);
-  registry->RegisterBooleanPref(::prefs::kHatsMediaAppPdfIsSelected, false);
-  registry->RegisterInt64Pref(::prefs::kHatsPhotosExperienceCycleEndTs, 0);
-  registry->RegisterBooleanPref(::prefs::kHatsPhotosExperienceIsSelected,
+  registry->RegisterInt64Pref(ash::prefs::kHatsMediaAppPdfCycleEndTs, 0);
+  registry->RegisterBooleanPref(ash::prefs::kHatsMediaAppPdfIsSelected, false);
+  registry->RegisterInt64Pref(ash::prefs::kHatsPhotosExperienceCycleEndTs, 0);
+  registry->RegisterBooleanPref(ash::prefs::kHatsPhotosExperienceIsSelected,
                                 false);
 
   // Office HaTS prefs.
-  registry->RegisterInt64Pref(::prefs::kHatsOfficeSurveyCycleEndTs, 0);
-  registry->RegisterBooleanPref(::prefs::kHatsOfficeSurveyIsSelected, false);
+  registry->RegisterInt64Pref(ash::prefs::kHatsOfficeSurveyCycleEndTs, 0);
+  registry->RegisterBooleanPref(ash::prefs::kHatsOfficeSurveyIsSelected, false);
 
   registry->RegisterBooleanPref(::prefs::kPinUnlockFeatureNotificationShown,
                                 false);
@@ -636,21 +641,22 @@ void Preferences::RegisterProfilePrefs(
   registry->RegisterBooleanPref(prefs::kShowTouchpadScrollScreenEnabled, true);
 
   // Settings HaTS survey prefs for Settings and Settings Search features.
-  registry->RegisterInt64Pref(::prefs::kHatsOsSettingsSearchSurveyCycleEndTs,
+  registry->RegisterInt64Pref(ash::prefs::kHatsOsSettingsSearchSurveyCycleEndTs,
                               0);
-  registry->RegisterBooleanPref(::prefs::kHatsOsSettingsSearchSurveyIsSelected,
-                                false);
+  registry->RegisterBooleanPref(
+      ash::prefs::kHatsOsSettingsSearchSurveyIsSelected, false);
 
   // Borealis HaTS survey prefs for game satisfaction.
-  registry->RegisterInt64Pref(::prefs::kHatsBorealisGamesSurveyCycleEndTs, 0);
-  registry->RegisterBooleanPref(::prefs::kHatsBorealisGamesSurveyIsSelected,
+  registry->RegisterInt64Pref(ash::prefs::kHatsBorealisGamesSurveyCycleEndTs,
+                              0);
+  registry->RegisterBooleanPref(ash::prefs::kHatsBorealisGamesSurveyIsSelected,
                                 false);
   registry->RegisterTimePref(
-      ::prefs::kHatsBorealisGamesLastInteractionTimestamp, base::Time());
+      ash::prefs::kHatsBorealisGamesLastInteractionTimestamp, base::Time());
 
   // Launcher HaTS survey prefs.
-  registry->RegisterInt64Pref(::prefs::kHatsLauncherAppsSurveyCycleEndTs, 0);
-  registry->RegisterBooleanPref(::prefs::kHatsLauncherAppsSurveyIsSelected,
+  registry->RegisterInt64Pref(ash::prefs::kHatsLauncherAppsSurveyCycleEndTs, 0);
+  registry->RegisterBooleanPref(ash::prefs::kHatsLauncherAppsSurveyIsSelected,
                                 false);
 
   registry->RegisterBooleanPref(prefs::kShowDisplaySizeScreenEnabled, true);
@@ -767,7 +773,7 @@ void Preferences::InitUserPrefs(sync_preferences::PrefServiceSyncable* prefs) {
   pref_change_registrar_.Add(ash::prefs::kUserTimezone, callback);
   pref_change_registrar_.Add(ash::prefs::kResolveTimezoneByGeolocationMethod,
                              callback);
-  pref_change_registrar_.Add(::prefs::kParentAccessCodeConfig, callback);
+  pref_change_registrar_.Add(ash::prefs::kParentAccessCodeConfig, callback);
   for (auto* copy_pref : kCopyToKnownUserPrefs) {
     pref_change_registrar_.Add(copy_pref, callback);
   }
@@ -967,8 +973,8 @@ void Preferences::ApplyPreferences(ApplyReason reason,
       pref_name == ::prefs::kUnifiedDesktopEnabledByDefault) {
     // "Unified Desktop" is a per-user policy setting which will not be applied
     // until a user logs in.
-    if (cros_display_config_) {  // May be null in tests.
-      cros_display_config_->SetUnifiedDesktopEnabled(
+    if (ash::Shell::HasInstance()) {
+      ash::Shell::Get()->cros_display_config()->SetUnifiedDesktopEnabled(
           unified_desktop_enabled_by_default_.GetValue());
     }
   }
@@ -1330,12 +1336,12 @@ void Preferences::ApplyPreferences(ApplyReason reason,
     }
   }
 
-  if (pref_name == ::prefs::kParentAccessCodeConfig ||
+  if (pref_name == ash::prefs::kParentAccessCodeConfig ||
       reason != REASON_PREF_CHANGED) {
-    if (prefs_->IsManagedPreference(::prefs::kParentAccessCodeConfig) &&
+    if (prefs_->IsManagedPreference(ash::prefs::kParentAccessCodeConfig) &&
         user_->IsChild()) {
       const base::DictValue& value =
-          prefs_->GetDict(::prefs::kParentAccessCodeConfig);
+          prefs_->GetDict(ash::prefs::kParentAccessCodeConfig);
       parent_access::ParentAccessService::Get().UpdateConfigForUser(
           user_->GetAccountId(), value.Clone());
     } else {

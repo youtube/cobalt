@@ -189,8 +189,6 @@ GridItemData::GridItemData(
   if (node.IsGrid() && !node.ShouldApplyLayoutContainment() &&
       !node.ShouldApplyPaintContainment() &&
       !style.IsContainerForSizeContainerQueries()) {
-    // TODO(almaher): If the parent grid is a grid-lanes container, then we only
-    // consider subgrids in the grid axis.
     has_subgridded_columns =
         is_parallel_with_root_grid
             ? style.GridTemplateColumns().IsSubgriddedAxis()
@@ -198,6 +196,16 @@ GridItemData::GridItemData(
     has_subgridded_rows = is_parallel_with_root_grid
                               ? style.GridTemplateRows().IsSubgriddedAxis()
                               : style.GridTemplateColumns().IsSubgriddedAxis();
+
+    // If the parent grid is a grid-lanes container, then we only consider
+    // subgrids in the grid axis.
+    if (parent_grid_style.IsDisplayGridLanesBox()) {
+      if (parent_grid_style.GridLanesTrackSizingDirection() == kForColumns) {
+        has_subgridded_rows = false;
+      } else {
+        has_subgridded_columns = false;
+      }
+    }
   }
 
   const bool is_out_of_flow = node.IsOutOfFlowPositioned();
@@ -452,14 +460,6 @@ LayoutUnit GridItemData::CalculateAvailableSize(
   const auto available_size =
       track_collection.CalculateSetSpanSize(begin_set_index, end_set_index);
   return available_size.MightBeSaturated() ? LayoutUnit() : available_size;
-}
-
-GridItems::GridItems(const GridItems& other)
-    : first_subgridded_item_index_(other.first_subgridded_item_index_) {
-  item_data_.ReserveInitialCapacity(other.item_data_.size());
-  for (const auto& grid_item : other.item_data_) {
-    item_data_.emplace_back(MakeGarbageCollected<GridItemData>(*grid_item));
-  }
 }
 
 void GridItems::Append(GridItems* other) {

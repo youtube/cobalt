@@ -114,7 +114,7 @@ AtomicString GetInputModeAttribute(Element* element) {
 
   // TODO(dtapuska): We may wish to restrict this to a yet to be proposed
   // <contenteditable> or <richtext> element Mozilla discussed at TPAC 2016.
-  return element->FastGetAttribute(html_names::kInputmodeAttr).LowerASCII();
+  return element->FastGetAttribute(html_names::kInputmodeAttr).ToAsciiLower();
 }
 
 AtomicString GetEnterKeyHintAttribute(Element* element) {
@@ -135,7 +135,8 @@ AtomicString GetEnterKeyHintAttribute(Element* element) {
   if (!query_attribute)
     return AtomicString();
 
-  return element->FastGetAttribute(html_names::kEnterkeyhintAttr).LowerASCII();
+  return element->FastGetAttribute(html_names::kEnterkeyhintAttr)
+      .ToAsciiLower();
 }
 
 AtomicString GetVirtualKeyboardPolicyAttribute(Element* element) {
@@ -150,7 +151,7 @@ AtomicString GetVirtualKeyboardPolicyAttribute(Element* element) {
   if (virtual_keyboard_policy_value.IsNull())
     return AtomicString();
 
-  return virtual_keyboard_policy_value.LowerASCII();
+  return virtual_keyboard_policy_value.ToAsciiLower();
 }
 
 constexpr int kInvalidDeletionLength = -1;
@@ -320,6 +321,8 @@ SuggestionMarker::SuggestionType ConvertImeTextSpanType(
     case ImeTextSpan::Type::kComposition:
     case ImeTextSpan::Type::kSuggestion:
       return SuggestionMarker::SuggestionType::kNotMisspelling;
+    case ImeTextSpan::Type::kPreviewStylusGesture:
+      NOTREACHED();
   }
 }
 
@@ -546,6 +549,10 @@ void InputMethodController::ClearImeTextSpansByType(ImeTextSpan::Type type,
     case ImeTextSpan::Type::kComposition:
       GetDocument().Markers().RemoveMarkersInRange(
           range, DocumentMarker::MarkerTypes::Composition());
+      break;
+    case ImeTextSpan::Type::kPreviewStylusGesture:
+      GetDocument().Markers().RemoveMarkersInRange(
+          range, DocumentMarker::MarkerTypes::PreviewStylusGesture());
       break;
   }
 }
@@ -824,6 +831,11 @@ void InputMethodController::AddImeTextSpans(
             ephemeral_line_range, ime_text_span.UnderlineColor(),
             ime_text_span.Thickness(), underline_style,
             ime_text_span.TextColor(), ime_text_span.BackgroundColor());
+        break;
+      }
+      case ImeTextSpan::Type::kPreviewStylusGesture: {
+        GetDocument().Markers().AddPreviewStylusGestureMarker(
+            ephemeral_line_range, ime_text_span.BackgroundColor());
         break;
       }
       case ImeTextSpan::Type::kAutocorrect:
@@ -1336,7 +1348,8 @@ bool InputMethodController::SetSelectionOffsets(
   if (show_context_menu) {
     ContextMenuAllowedScope scope;
     GetFrame().GetEventHandler().ShowNonLocatedContextMenu(
-        /*override_target_element=*/nullptr, kMenuSourceTouch);
+        /*override_target_element=*/nullptr,
+        ui::mojom::blink::MenuSourceType::kTouch);
   }
   return true;
 }

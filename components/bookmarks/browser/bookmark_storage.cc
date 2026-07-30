@@ -26,6 +26,7 @@
 #include "components/bookmarks/browser/bookmark_node.h"
 #include "components/bookmarks/common/bookmark_features.h"
 #include "components/bookmarks/common/bookmark_metrics.h"
+#include "components/bookmarks/common/storage_file_encryption_type.h"
 #include "components/os_crypt/async/common/encryptor.h"
 
 namespace bookmarks {
@@ -38,14 +39,24 @@ constexpr char kBookmarkStorageHistogramSuffix[] = "BookmarkStorage";
 constexpr char kBookmarkStorageEncryptedHistogramSuffix[] =
     "BookmarkStorageEncrypted";
 
+std::string GetHistogramSuffix(StorageFileEncryptionType encryption_type) {
+  switch (encryption_type) {
+    case StorageFileEncryptionType::kClearText:
+      return kBookmarkStorageHistogramSuffix;
+    case StorageFileEncryptionType::kEncrypted:
+      return kBookmarkStorageEncryptedHistogramSuffix;
+  }
+  NOTREACHED();
+}
+
 void BackupCallback(const base::FilePath& path,
-                    const base::FilePath& encrypted_file_path) {
+                    const base::FilePath& secondary_file_path) {
   base::FilePath backup_path = path.ReplaceExtension(kBackupExtension);
   base::CopyFile(path, backup_path);
-  if (ShouldWriteEncryptedBookmarksToDisk()) {
-    base::FilePath encrypted_backup_path =
-        encrypted_file_path.ReplaceExtension(kBackupExtension);
-    base::CopyFile(encrypted_file_path, encrypted_backup_path);
+  if (ShouldWriteBookmarksToSecondaryFileOnDisk()) {
+    base::FilePath secondary_backup_path =
+        secondary_file_path.ReplaceExtension(kBackupExtension);
+    base::CopyFile(secondary_file_path, secondary_backup_path);
   }
 }
 
@@ -91,10 +102,11 @@ bool ShouldSaveBackupFile(
   NOTREACHED();
 }
 
-void SaveDictionaryToSecondaryFile(
+void SaveDictionaryToFile(
     base::DictValue value,
     scoped_refptr<base::RefCountedData<const os_crypt_async::Encryptor>>
         encryptor,
+    StorageFileEncryptionType encryption_type,
     const base::FilePath file_path) {
   // TODO(crbug.com/435317726): Add metrics to measure the success/failure and
   // impact on write duration of encrypting the bookmarks file.
@@ -104,16 +116,16 @@ void SaveDictionaryToSecondaryFile(
           value, base::JSONWriter::OPTIONS_PRETTY_PRINT, &json_content)) {
     return;
   }
-  std::string encrypted_json_content;
-  if (!encryptor->data.EncryptString(json_content, &encrypted_json_content)) {
-    return;
+  if (encryption_type == StorageFileEncryptionType::kEncrypted) {
+    std::string encrypted_json_content;
+    if (!encryptor->data.EncryptString(json_content, &encrypted_json_content)) {
+      return;
+    }
+    json_content = std::move(encrypted_json_content);
   }
 
-  if (!base::ImportantFileWriter::WriteFileAtomically(
-          file_path, std::move(encrypted_json_content),
-          kBookmarkStorageEncryptedHistogramSuffix)) {
-    return;
-  }
+  base::ImportantFileWriter::WriteFileAtomically(
+      file_path, std::move(json_content), GetHistogramSuffix(encryption_type));
 }
 
 }  // namespace
@@ -126,7 +138,7 @@ BookmarkStorage::BookmarkStorage(
     PermanentNodeSelection permanent_node_selection,
     const scoped_refptr<base::RefCountedData<const os_crypt_async::Encryptor>>
         encryptor,
-    const base::FilePath& file_path,
+    const base::FilePath& clear_text_file_path,
     const base::FilePath& encrypted_file_path)
     : model_(model),
       backend_task_runner_(base::ThreadPool::CreateSequencedTaskRunner(
@@ -134,13 +146,21 @@ BookmarkStorage::BookmarkStorage(
            base::TaskShutdownBehavior::BLOCK_SHUTDOWN})),
       permanent_node_selection_(permanent_node_selection),
       encryptor_(encryptor),
+      primary_file_encryption_type_(
+          ShouldUseEncryptedBookmarksAsPrimarySource()
+              ? StorageFileEncryptionType::kEncrypted
+              : StorageFileEncryptionType::kClearText),
+      clear_text_file_path_(clear_text_file_path),
       encrypted_file_path_(encrypted_file_path),
-      writer_(file_path,
-              backend_task_runner_,
-              kSaveDelay,
-              kBookmarkStorageHistogramSuffix),
+      writer_(
+          primary_file_encryption_type_ == StorageFileEncryptionType::kEncrypted
+              ? encrypted_file_path
+              : clear_text_file_path,
+          backend_task_runner_,
+          kSaveDelay,
+          GetHistogramSuffix(primary_file_encryption_type_)),
       last_scheduled_save_(base::TimeTicks::Now()) {
-  CHECK(!file_path.empty());
+  CHECK(!clear_text_file_path.empty());
   CHECK(!encrypted_file_path.empty());
 }
 
@@ -154,8 +174,8 @@ void BookmarkStorage::ScheduleSave() {
   if (!backup_triggered_ && ShouldSaveBackupFile(permanent_node_selection_)) {
     backup_triggered_ = true;
     backend_task_runner_->PostTask(
-        FROM_HERE,
-        base::BindOnce(&BackupCallback, writer_.path(), encrypted_file_path_));
+        FROM_HERE, base::BindOnce(&BackupCallback, writer_.path(),
+                                  GetSecondaryFilePath()));
   }
 
   writer_.ScheduleWriteWithBackgroundDataSerializer(this);
@@ -173,35 +193,65 @@ BookmarkStorage::GetSerializedDataProducerForBackgroundSequence() {
       [](base::DictValue value,
          scoped_refptr<base::RefCountedData<const os_crypt_async::Encryptor>>
              encryptor,
-         const base::FilePath encrypted_file_path)
+         StorageFileEncryptionType primary_file_encryption_type,
+         const base::FilePath secondary_file_path)
           -> std::optional<std::string> {
         // TODO(crbug.com/435317726): Add metrics to measure the success/failure
         // and impact on write duration of encrypting the bookmarks file.
-        std::string output;
+        std::string json_content;
         if (!base::JSONWriter::WriteWithOptions(
-                value, base::JSONWriter::OPTIONS_PRETTY_PRINT, &output)) {
+                value, base::JSONWriter::OPTIONS_PRETTY_PRINT, &json_content)) {
           return std::nullopt;
         }
 
-        if (ShouldWriteEncryptedBookmarksToDisk()) {
-          CHECK(encryptor);
-          std::string encrypted;
-          if (encryptor->data.EncryptString(output, &encrypted)) {
-            // Also write the encrypted data to disk. Make sure this second
-            // write is performed after the first one is completed.
-            base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-                FROM_HERE,
-                base::BindOnce(
-                    base::IgnoreResult(
-                        &base::ImportantFileWriter::WriteFileAtomically),
-                    encrypted_file_path, std::move(encrypted),
-                    kBookmarkStorageEncryptedHistogramSuffix));
+        switch (primary_file_encryption_type) {
+          case StorageFileEncryptionType::kEncrypted: {
+            CHECK(encryptor);
+            std::string encrypted_json_content;
+            if (!encryptor->data.EncryptString(json_content,
+                                               &encrypted_json_content)) {
+              return std::nullopt;
+            }
+
+            if (ShouldWriteBookmarksToSecondaryFileOnDisk()) {
+              // Also write the unencrypted data to disk. Make sure this second
+              // write is performed after the first one is completed.
+              base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+                  FROM_HERE,
+                  base::BindOnce(
+                      base::IgnoreResult(
+                          &base::ImportantFileWriter::WriteFileAtomically),
+                      secondary_file_path, std::move(json_content),
+                      kBookmarkStorageHistogramSuffix));
+            }
+
+            return encrypted_json_content;
+          }
+          case StorageFileEncryptionType::kClearText: {
+            if (ShouldWriteBookmarksToSecondaryFileOnDisk()) {
+              CHECK(encryptor);
+              std::string encrypted_json_content;
+              if (encryptor->data.EncryptString(json_content,
+                                                &encrypted_json_content)) {
+                // Also write the encrypted data to disk. Make sure this second
+                // write is performed after the first one is completed.
+                base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+                    FROM_HERE,
+                    base::BindOnce(
+                        base::IgnoreResult(
+                            &base::ImportantFileWriter::WriteFileAtomically),
+                        secondary_file_path, std::move(encrypted_json_content),
+                        kBookmarkStorageEncryptedHistogramSuffix));
+              }
+            }
+
+            return json_content;
           }
         }
-
-        return output;
+        NOTREACHED();
       },
-      std::move(value), encryptor_, encrypted_file_path_);
+      std::move(value), encryptor_, primary_file_encryption_type_,
+      GetSecondaryFilePath());
 }
 
 bool BookmarkStorage::HasScheduledSaveForTesting() const {
@@ -218,14 +268,32 @@ void BookmarkStorage::SaveNowIfScheduled() {
   }
 }
 
-void BookmarkStorage::SaveBookmarksToSecondaryFile() {
-  CHECK(ShouldWriteEncryptedBookmarksToDisk());
+void BookmarkStorage::SaveToSingleFileNow(
+    StorageFileEncryptionType encryption_type) {
   CHECK(encryptor_);
+  if (writer_.HasPendingWrite()) {
+    // There is a pending write, just wait for it to complete.
+    return;
+  }
+
   base::DictValue value = EncodeModelToDict(model_, permanent_node_selection_);
   backend_task_runner_->PostTask(
       FROM_HERE,
-      base::BindOnce(&SaveDictionaryToSecondaryFile, std::move(value),
-                     encryptor_, encrypted_file_path_));
+      base::BindOnce(&SaveDictionaryToFile, std::move(value), encryptor_,
+                     encryption_type,
+                     encryption_type == StorageFileEncryptionType::kEncrypted
+                         ? encrypted_file_path_
+                         : clear_text_file_path_));
+}
+
+base::FilePath BookmarkStorage::GetSecondaryFilePath() const {
+  switch (primary_file_encryption_type_) {
+    case StorageFileEncryptionType::kClearText:
+      return encrypted_file_path_;
+    case StorageFileEncryptionType::kEncrypted:
+      return clear_text_file_path_;
+  }
+  NOTREACHED();
 }
 
 }  // namespace bookmarks

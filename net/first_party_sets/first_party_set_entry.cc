@@ -4,7 +4,6 @@
 
 #include "net/first_party_sets/first_party_set_entry.h"
 
-#include <tuple>
 #include <utility>
 
 #include "base/notreached.h"
@@ -57,7 +56,7 @@ std::optional<net::SiteType> FirstPartySetEntry::DeserializeSiteType(
     case static_cast<int>(net::SiteType::kService):
       return net::SiteType::kService;
     default:
-      NOTREACHED() << "Unknown SiteType: " << value;
+      return std::nullopt;
   }
 }
 

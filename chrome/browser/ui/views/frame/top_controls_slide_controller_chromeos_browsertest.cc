@@ -11,8 +11,9 @@
 #include <vector>
 
 #include "ash/constants/ash_switches.h"
-#include "ash/public/ash_interfaces.h"
+#include "ash/display/cros_display_config.h"
 #include "ash/public/cpp/test/shell_test_api.h"
+#include "ash/shell.h"
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -947,30 +948,22 @@ IN_PROC_BROWSER_TEST_F(TopControlsSlideControllerTest, DisplayRotation) {
       crosapi::mojom::DisplayRotationOptions::kZeroDegrees,
   };
 
-  mojo::Remote<crosapi::mojom::CrosDisplayConfigController> cros_display_config;
-  ash::BindCrosDisplayConfigController(
-      cros_display_config.BindNewPipeAndPassReceiver());
-
-  base::test::TestFuture<std::vector<crosapi::mojom::DisplayUnitInfoPtr>>
-      info_list_future;
-  cros_display_config->GetDisplayUnitInfoList(false /* single_unified */,
-                                              info_list_future.GetCallback());
-  auto info_list = info_list_future.Take();
-  for (const crosapi::mojom::DisplayUnitInfoPtr& display_unit_info :
-       info_list) {
+  ash::CrosDisplayConfig* cros_display_config =
+      ash::Shell::Get()->cros_display_config();
+  std::vector<crosapi::mojom::DisplayUnitInfoPtr> info_list =
+      cros_display_config->GetDisplayUnitInfoList(/*single_unified=*/false);
+  for (const auto& display_unit_info : info_list) {
     const std::string display_id = display_unit_info->id;
     for (const auto& rotation : rotations_to_try) {
       BrowserViewLayoutWaiter browser_view_layout_waiter(browser_view());
       auto config_properties = crosapi::mojom::DisplayConfigProperties::New();
       config_properties->rotation =
           crosapi::mojom::DisplayRotation::New(rotation);
-      base::test::TestFuture<crosapi::mojom::DisplayConfigResult> result_future;
-      cros_display_config->SetDisplayProperties(
-          display_id, std::move(config_properties),
-          crosapi::mojom::DisplayConfigSource::kUser,
-          result_future.GetCallback());
-      EXPECT_EQ(result_future.Take(),
-                crosapi::mojom::DisplayConfigResult::kSuccess);
+      crosapi::mojom::DisplayConfigResult result =
+          cros_display_config->SetDisplayProperties(
+              display_id, std::move(config_properties),
+              crosapi::mojom::DisplayConfigSource::kUser);
+      EXPECT_EQ(result, crosapi::mojom::DisplayConfigResult::kSuccess);
 
       // Wait for the browser view to change its bounds as a result of display
       // rotation.

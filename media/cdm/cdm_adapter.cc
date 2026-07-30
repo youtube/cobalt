@@ -19,7 +19,6 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
-#include "base/not_fatal_until.h"
 #include "base/numerics/clamped_math.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
@@ -1155,6 +1154,18 @@ void CdmAdapter::ReportMetrics(cdm::MetricName metric_name, uint64_t value) {
     case cdm::kDecoderCheck1ErrorCount:
       cdm_metrics_data_.decoder_check1_error_count =
           cdm_metrics_data_.decoder_check1_error_count.value_or(0) + value;
+      return;
+    case cdm::kKeySystemDataTime1:
+      cdm_metrics_data_.key_system_data_time1 = value;
+      return;
+    case cdm::kKeySystemDataTime2:
+      cdm_metrics_data_.key_system_data_time2 = value;
+      return;
+    case cdm::kKeySystemDataTime3:
+      cdm_metrics_data_.key_system_data_time3 = value;
+      return;
+    case cdm::kKeySystemDataBool1:
+      cdm_metrics_data_.key_system_data_bool1 = value != 0;
       return;
   }
 }

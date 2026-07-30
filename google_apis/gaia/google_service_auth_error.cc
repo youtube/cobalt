@@ -182,9 +182,19 @@ GoogleServiceAuthError GoogleServiceAuthError::AuthErrorNone() {
 
 // static
 GoogleServiceAuthError GoogleServiceAuthError::FromDeviceManagementError(
-    std::unique_ptr<DeviceManagementErrorDetails> details) {
+    std::unique_ptr<gaia::DeviceManagementErrorDetails> details) {
   CHECK(details);
   return GoogleServiceAuthError(DeviceManagementError(std::move(details)));
+}
+
+// static
+GoogleServiceAuthError GoogleServiceAuthError::CreateAccountNotFound() {
+  return GoogleServiceAuthError(Details(AccountNotFound()));
+}
+
+// static
+GoogleServiceAuthError GoogleServiceAuthError::CreateRequestCanceled() {
+  return GoogleServiceAuthError(Details(RequestCanceled()));
 }
 
 // static
@@ -354,6 +364,13 @@ bool GoogleServiceAuthError::IsDeviceManagementErrorUserActionable() const {
   return dmerror->details->IsUserActionable();
 }
 
+const gaia::DeviceManagementErrorDetails&
+GoogleServiceAuthError::GetDeviceManagementErrorDetails() const {
+  const auto* dmerror = std::get_if<DeviceManagementError>(&details_);
+  CHECK(dmerror);
+  return *dmerror->details;
+}
+
 GoogleServiceAuthError::GoogleServiceAuthError(Details details)
     : details_(std::move(details)) {}
 
@@ -394,7 +411,7 @@ DEFINE_JNI(GoogleServiceAuthError)
 #endif
 
 GoogleServiceAuthError::DeviceManagementError::DeviceManagementError(
-    std::unique_ptr<DeviceManagementErrorDetails> detail)
+    std::unique_ptr<gaia::DeviceManagementErrorDetails> detail)
     : details(std::move(detail)) {
   CHECK(details);
 }

@@ -391,7 +391,10 @@ _CONFIG = [
         ],
     },
     {
-        'paths': ['third_party/blink/common/context_menu_data/'],
+        'paths': [
+            'third_party/blink/common/context_menu_data/',
+            'third_party/blink/common/input/',
+        ],
         'allowed': [
             'ui::mojom::MenuSourceType',
         ],
@@ -1080,6 +1083,14 @@ _CONFIG = [
         ],
     },
     {
+        'paths': [
+            'third_party/blink/renderer/controller/memory_usage_monitor_posix.cc',
+        ],
+        'allowed': [
+            'base::StringToUint64',
+        ],
+    },
+    {
         'paths': ['third_party/blink/renderer/core/animation'],
         'allowed': [
             '[a-z_]+_functions::.+',
@@ -1404,6 +1415,7 @@ _CONFIG = [
             # and must use the regular variants.
             'mojom::.+',
             'network::mojom::.+',
+            'ui::mojom::MenuSourceType',
             'ui::mojom::WindowShowState',
             'ui::mojom::WindowShowState::.+',
 
@@ -1544,6 +1556,16 @@ _CONFIG = [
             'third_party/blink/public/web/web_dom_activity_logger.h',
         ],
         'allowed': [
+            'v8::Local',
+            'v8::Value',
+        ],
+    },
+    {
+        'paths': [
+            'third_party/blink/public/web/web_serialized_script_value.h',
+        ],
+        'allowed': [
+            'v8::Isolate',
             'v8::Local',
             'v8::Value',
         ],
@@ -2261,6 +2283,15 @@ _CONFIG = [
     },
     {
         'paths': [
+            'third_party/blink/renderer/modules/storage/cached_storage_area.cc',
+            'third_party/blink/renderer/modules/storage/cached_storage_area.h',
+        ],
+        'allowed': [
+            'absl::flat_hash_map',
+        ],
+    },
+    {
+        'paths': [
             'third_party/blink/renderer/modules/animationworklet/',
         ],
         'allowed': [
@@ -2675,8 +2706,8 @@ _CONFIG = [
     },
     {
         'paths': [
-            'third_party/blink/renderer/core/frame/ad_tracker.cc',
-            'third_party/blink/renderer/core/frame/ad_tracker.h',
+            'third_party/blink/renderer/core/ad_tracker/ad_tracker.cc',
+            'third_party/blink/renderer/core/ad_tracker/ad_tracker.h',
         ],
         'allowed': [
             'subresource_filter::ScopedRule',
@@ -2770,6 +2801,15 @@ _CONFIG = [
             'webnn::.+',
             'gpu::SharedImageInterface',
             'viz::SinglePlaneFormat',
+        ]
+    },
+    {
+        'paths': [
+            "third_party/blink/renderer/modules/ml/webnn/webnn_introspection_impl.cc",
+        ],
+        'allowed': [
+            'base::BindOnce',
+            'base::Unretained',
         ]
     },
     {
@@ -2907,16 +2947,6 @@ _CONFIG = [
         ]
     },
     {
-        # TODO(crbug.com/418169222): Remove this entry once the device
-        # bound session credentials origin trial is complete.
-        'paths': [
-            'third_party/blink/common/loader/throttling_url_loader.cc',
-        ],
-        'allowed': [
-            'mojom::OriginTrialFeature',
-        ]
-    },
-    {
         'paths': [
             'third_party/blink/common/loader/code_cache_util.cc',
             'third_party/blink/public/common/loader/code_cache_util.h',
@@ -3004,6 +3034,12 @@ _CONFIG = [
             'third_party/blink/public/common/use_counter/webdx_feature_maps.h',
         ],
         'allowed': ['base::NoDestructor', 'base::flat_map']
+    },
+    {
+        'paths': [
+            'third_party/blink/common/scheduler/web_scheduler_tracked_feature.cc',
+        ],
+        'allowed': ['base::NoDestructor']
     },
 ]
 

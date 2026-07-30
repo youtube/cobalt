@@ -29,6 +29,7 @@ import androidx.annotation.VisibleForTesting;
 
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
 import org.chromium.base.MathUtils;
@@ -224,7 +225,7 @@ public class BluetoothScanningPermissionDialog {
     @CalledByNative
     private static BluetoothScanningPermissionDialog create(
             WindowAndroid windowAndroid,
-            String origin,
+            @JniType("std::u16string") String origin,
             int securityLevel,
             BluetoothScanningPromptAndroidDelegate delegate,
             long nativeBluetoothScanningPermissionDialogPtr) {
@@ -240,7 +241,8 @@ public class BluetoothScanningPermissionDialog {
 
     @VisibleForTesting
     @CalledByNative
-    public void addOrUpdateDevice(String deviceId, String deviceName) {
+    public void addOrUpdateDevice(
+            @JniType("std::string") String deviceId, @JniType("std::u16string") String deviceName) {
         if (TextUtils.isEmpty(deviceName)) {
             deviceName = mContext.getString(R.string.bluetooth_scanning_device_unknown, deviceId);
         }
@@ -317,6 +319,8 @@ public class BluetoothScanningPermissionDialog {
     @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
     @NativeMethods
     public interface Natives {
-        void onDialogFinished(long nativeBluetoothScanningPromptAndroid, int eventType);
+        void onDialogFinished(
+                long nativeBluetoothScanningPromptAndroid,
+                @JniType("content::BluetoothScanningPrompt::Event") int eventType);
     }
 }

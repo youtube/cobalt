@@ -10,6 +10,7 @@
 #include <variant>
 #include <vector>
 
+#include "base/check_deref.h"
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
@@ -18,11 +19,13 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/observer_list.h"
 #include "build/build_config.h"
+#include "components/metrics/profile_metrics_service.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/signin/internal/identity_manager/account_tracker_service.h"
 #include "components/signin/internal/identity_manager/profile_oauth2_token_service.h"
 #include "components/signin/public/base/account_consistency_method.h"
+#include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/base/signin_client.h"
 #include "components/signin/public/base/signin_metrics.h"
 #include "components/signin/public/base/signin_pref_names.h"
@@ -45,7 +48,9 @@ enum class InitializePrefState {
   kMaxValue = kEmptyPrimaryAccountId_ConsentedForSync,
 };
 
-void LogPrimaryAccountChangeMetrics(PrimaryAccountChangeEvent event_details) {
+void LogPrimaryAccountChangeMetrics(
+    PrimaryAccountChangeEvent event_details,
+    metrics::ProfileMetricsService* profile_metrics_service) {
   switch (event_details.GetEventTypeFor(signin::ConsentLevel::kSignin)) {
     case PrimaryAccountChangeEvent::Type::kNone:
       break;
@@ -59,14 +64,14 @@ void LogPrimaryAccountChangeMetrics(PrimaryAccountChangeEvent event_details) {
       }
 
       DCHECK(event_details.GetSetPrimaryAccountAccessPoint().has_value());
-      base::UmaHistogramEnumeration(
+      profile_metrics_service->UmaHistogramEnumeration(
           "Signin.SignIn.Completed",
           event_details.GetSetPrimaryAccountAccessPoint().value());
       break;
 
     case PrimaryAccountChangeEvent::Type::kCleared:
       DCHECK(event_details.GetClearPrimaryAccountSource().has_value());
-      base::UmaHistogramEnumeration(
+      profile_metrics_service->UmaHistogramEnumeration(
           "Signin.SignOut.Completed",
           event_details.GetClearPrimaryAccountSource().value());
       break;
@@ -78,14 +83,14 @@ void LogPrimaryAccountChangeMetrics(PrimaryAccountChangeEvent event_details) {
 
     case PrimaryAccountChangeEvent::Type::kSet:
       DCHECK(event_details.GetSetPrimaryAccountAccessPoint().has_value());
-      base::UmaHistogramEnumeration(
+      profile_metrics_service->UmaHistogramEnumeration(
           "Signin.SyncOptIn.Completed",
           event_details.GetSetPrimaryAccountAccessPoint().value());
       break;
 
     case PrimaryAccountChangeEvent::Type::kCleared:
       DCHECK(event_details.GetClearPrimaryAccountSource().has_value());
-      base::UmaHistogramEnumeration(
+      profile_metrics_service->UmaHistogramEnumeration(
           "Signin.SyncTurnOff.Completed",
           event_details.GetClearPrimaryAccountSource().value());
       break;
@@ -108,6 +113,59 @@ void LogPrimaryAccountPrefsOnInitialize(const std::string& pref_account_id,
             : InitializePrefState::kWithPrimaryAccountId_NotConsentedForSync);
   }
 }
+
+// Enabling bookmarks, reading lists and extensions of non-desktop platforms are
+// gated behind `syncer::kReplaceSyncPromosWithSignInPromos` and require no
+// changes to bookmarks/extensions explicit signin pref.
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+bool ShouldEnableExtensionsExplicitBrowserSigninPrefForSignedInUser() {
+  // Returns true if extensions should be enabled for existing signed-in users
+  // with `syncer::kReplaceSyncPromosWithSignInPromos` enabled.
+  //
+  // Background: Originally (when syncer::kExplicitSigninForExtensions is OFF),
+  // all data types were enabled in transport mode for existing sessions during
+  // sync-to-signin migration. In the new behavior (when
+  // syncer::kExplicitSigninForExtensions is ON), extensions are disabled for
+  // existing sessions (requiring a new sign-in to be enabled). This function
+  // identifies users from the original migration group to ensure they maintain
+  // their existing behavior.
+  return base::FeatureList::IsEnabled(
+             syncer::kReplaceSyncPromosWithSignInPromos) &&
+         !syncer::kExplicitSigninForExtensions.Get();
+}
+
+bool ShouldEnableBookmarksExplicitBrowserSigninPrefForSignedInUser() {
+  // Returns true if bookmarks should be enabled for existing signed-in users
+  // with `syncer::kReplaceSyncPromosWithSignInPromos` enabled.
+  //
+  // Background: Originally (when syncer::kExplicitSigninForBookmarks is OFF),
+  // all data types were enabled in transport mode for existing sessions during
+  // sync-to-signin migration. In the new behavior (when
+  // syncer::kExplicitSigninForBookmarks is ON), bookmarks are disabled for
+  // existing sessions (requiring a new sign-in to be enabled). This function
+  // identifies users from the original migration group to ensure they maintain
+  // their existing behavior.
+  return base::FeatureList::IsEnabled(
+             syncer::kReplaceSyncPromosWithSignInPromos) &&
+         !syncer::kExplicitSigninForBookmarks.Get();
+}
+
+bool ShouldEnableExtensionExplicitBrowserSigninPrefOnSignIn(
+    signin_metrics::AccessPoint access_point) {
+  // For all user groups, for new sign-in enable extensions.
+  return access_point == signin_metrics::AccessPoint::kExtensionInstallBubble ||
+         base::FeatureList::IsEnabled(
+             syncer::kReplaceSyncPromosWithSignInPromos);
+}
+
+bool ShouldEnableBookmarksExplicitBrowserSigninPrefOnSignIn(
+    signin_metrics::AccessPoint access_point) {
+  // For all user groups, for new sign-in enable bookmarks.
+  return access_point == signin_metrics::AccessPoint::kBookmarkBubble ||
+         base::FeatureList::IsEnabled(
+             syncer::kReplaceSyncPromosWithSignInPromos);
+}
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 }  // namespace
 
@@ -190,10 +248,12 @@ PrimaryAccountManager::PrimaryAccount::PrimaryAccount(
 PrimaryAccountManager::PrimaryAccountManager(
     SigninClient* client,
     ProfileOAuth2TokenService* token_service,
-    AccountTrackerService* account_tracker_service)
+    AccountTrackerService* account_tracker_service,
+    metrics::ProfileMetricsService* profile_metrics_service)
     : client_(client),
       token_service_(token_service),
-      account_tracker_service_(account_tracker_service) {
+      account_tracker_service_(account_tracker_service),
+      profile_metrics_service_(CHECK_DEREF(profile_metrics_service)) {
   DCHECK(client_);
   DCHECK(account_tracker_service_);
   ScopedPrefCommit scoped_pref_commit(client_->GetPrefs(),
@@ -266,23 +326,21 @@ PrimaryAccountManager::PrimaryAccountManager(
         prefs::kPrefsThemesSearchEnginesAccountStorageEnabled);
   }
 
-  std::vector<AccountInfo> accounts_in_tracker_service =
-      account_tracker_service_->GetAccounts();
-  SigninPrefs signin_prefs(*prefs);
-
-  for (const auto& account : accounts_in_tracker_service) {
-    // Clear the extensions explicit sign in pref if the feature flag is not
-    // enabled.
-    if (!switches::IsExtensionsExplicitBrowserSigninEnabled()) {
-      signin_prefs.SetExtensionsExplicitBrowserSignin(account.gaia, false);
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+  if (HasPrimaryAccount(signin::ConsentLevel::kSignin) &&
+      !HasPrimaryAccount(signin::ConsentLevel::kSync)) {
+    SigninPrefs signin_prefs(*prefs);
+    if (ShouldEnableExtensionsExplicitBrowserSigninPrefForSignedInUser()) {
+      signin_prefs.SetExtensionsExplicitBrowserSignin(
+          GetPrimaryAccount().account_info.gaia, true);
     }
-    // Clear the bookmarks explicit sign in pref if the feature flag is not
-    // enabled.
-    if (!base::FeatureList::IsEnabled(
-            switches::kSyncEnableBookmarksInTransportMode)) {
-      signin_prefs.SetBookmarksExplicitBrowserSignin(account.gaia, false);
+
+    if (ShouldEnableBookmarksExplicitBrowserSigninPrefForSignedInUser()) {
+      signin_prefs.SetBookmarksExplicitBrowserSignin(
+          GetPrimaryAccount().account_info.gaia, true);
     }
   }
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
   // It is important to only load credentials after starting to observe the
   // token service.
@@ -697,11 +755,6 @@ void PrimaryAccountManager::SetExplicitBrowserSigninPrefs(
       return;
     case PrimaryAccountChangeEvent::Type::kSet:
       CHECK(event_details.GetSetPrimaryAccountAccessPoint().has_value());
-      signin_metrics::AccessPoint access_point =
-          event_details.GetSetPrimaryAccountAccessPoint().value();
-      GaiaId current_gaia_id =
-          event_details.GetCurrentState().primary_account.gaia;
-
       if (base::FeatureList::IsEnabled(
               syncer::kReplaceSyncPromosWithSignInPromos)) {
         scoped_pref_commit.SetBoolean(
@@ -709,6 +762,11 @@ void PrimaryAccountManager::SetExplicitBrowserSigninPrefs(
       }
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
+      signin_metrics::AccessPoint access_point =
+          event_details.GetSetPrimaryAccountAccessPoint().value();
+      GaiaId current_gaia_id =
+          event_details.GetCurrentState().primary_account.gaia;
+
       if (access_point == signin_metrics::AccessPoint::kWebSignin) {
         // TODO(crbug.com/475822503): Delete this code once Dice migration is
         // complete.
@@ -731,7 +789,10 @@ void PrimaryAccountManager::SetExplicitBrowserSigninPrefs(
         scoped_pref_commit.SetBoolean(
             prefs::kPrefsThemesSearchEnginesAccountStorageEnabled, true);
       }
-      if (switches::IsExtensionsExplicitBrowserSigninEnabled()) {
+
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+      if (ShouldEnableExtensionExplicitBrowserSigninPrefOnSignIn(
+              access_point)) {
         // Record an opt in for the extensions explicit signin feature and use
         // the existing pref to determine if it's a new or existing opt in.
         bool is_new_opt_in =
@@ -743,23 +804,16 @@ void PrimaryAccountManager::SetExplicitBrowserSigninPrefs(
           base::UmaHistogramBoolean(
               "Signin.Extensions.ExplicitSigninFromExtensionInstallBubble",
               is_new_opt_in);
-
-          SigninPrefs(*client_->GetPrefs())
-              .SetExtensionsExplicitBrowserSignin(current_gaia_id, true);
         }
-        if (syncer::kExplicitSigninForExtensions.Get()) {
-          base::UmaHistogramBoolean(
-              "Signin.Extensions.ExplicitSigninFromAnyAccessPoint",
-              is_new_opt_in);
-
-          SigninPrefs(*client_->GetPrefs())
-              .SetExtensionsExplicitBrowserSignin(current_gaia_id, true);
-        }
+        base::UmaHistogramBoolean(
+            "Signin.Extensions.ExplicitSigninFromAnyAccessPoint",
+            is_new_opt_in);
+        SigninPrefs(*client_->GetPrefs())
+            .SetExtensionsExplicitBrowserSignin(current_gaia_id, true);
       }
-      if (base::FeatureList::IsEnabled(
-              switches::kSyncEnableBookmarksInTransportMode) &&
-          (access_point == signin_metrics::AccessPoint::kBookmarkBubble ||
-           syncer::kExplicitSigninForBookmarks.Get())) {
+
+      if (ShouldEnableBookmarksExplicitBrowserSigninPrefOnSignIn(
+              access_point)) {
         // Record an explicit signin for bookmarks for this account only. This
         // should happen for every new sign in if `kExplicitSigninForBookmarks`
         // is enabled, as this pref will be used to determine whether users are
@@ -767,6 +821,7 @@ void PrimaryAccountManager::SetExplicitBrowserSigninPrefs(
         SigninPrefs(*client_->GetPrefs())
             .SetBookmarksExplicitBrowserSignin(current_gaia_id, true);
       }
+#endif  //  BUILDFLAG(ENABLE_DICE_SUPPORT)
   }
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
@@ -805,7 +860,8 @@ void PrimaryAccountManager::FirePrimaryAccountChanged(
              PrimaryAccountChangeEvent::Type::kNone)
       << "PrimaryAccountChangeEvent with no change: " << event_details;
 
-  LogPrimaryAccountChangeMetrics(event_details);
+  LogPrimaryAccountChangeMetrics(event_details,
+                                 &profile_metrics_service_.get());
 
   SetExplicitBrowserSigninPrefs(event_details, scoped_pref_commit);
 

@@ -65,6 +65,7 @@
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_linked_hash_set.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/loader/fetch/ad_tagging_utils.h"
 #include "third_party/blink/renderer/platform/region_capture_crop_id.h"
 #include "third_party/blink/renderer/platform/restriction_target_id.h"
 #include "third_party/blink/renderer/platform/text/text_direction.h"
@@ -1033,7 +1034,7 @@ class CORE_EXPORT Element : public ContainerNode {
                                    const AtomicString& adopted_stylesheets,
                                    const AtomicString& reference_target,
                                    const bool waiting_for_scoped_registry,
-                                   const Vector<AtomicString>& markers);
+                                   const AtomicString& marker);
 
   ShadowRoot& CreateUserAgentShadowRoot(
       SlotAssignmentMode = SlotAssignmentMode::kNamed);
@@ -1044,7 +1045,7 @@ class CORE_EXPORT Element : public ContainerNode {
                                        bool serializable,
                                        bool clonable,
                                        const AtomicString& reference_target,
-                                       const Vector<AtomicString>& markers);
+                                       const AtomicString& marker);
   // This version is for testing only, and allows easy attachment of a shadow
   // root, specifying only the type and none of the other arguments.
   ShadowRoot& AttachShadowRootForTesting(ShadowRootMode type);
@@ -1652,11 +1653,12 @@ class CORE_EXPORT Element : public ContainerNode {
   // Returns the list of part names, creating it if it doesn't exist.
   DOMTokenList& part();
 
-  // Returns the list of marker names if it has ever been created.
-  DOMTokenList* GetMarker() const;
-  // IDL method.
-  // Returns the list of marker names, creating it if it doesn't exist.
-  DOMTokenList& marker();
+  const AtomicString& marker() const {
+    return FastGetAttribute(html_names::kMarkerAttr);
+  }
+  void setMarker(const AtomicString& marker) {
+    setAttribute(html_names::kMarkerAttr, marker);
+  }
 
   bool HasPartNamesMap() const;
   const NamesMap* PartNamesMap() const;
@@ -1762,7 +1764,7 @@ class CORE_EXPORT Element : public ContainerNode {
   // `SetIsAdRelated()` should not be called on it directly.
 
   // Marks this element as being ad-related.
-  void SetIsAdRelated();
+  void SetIsAdRelated(AdProvenance ad_provenance);
 
   // Returns true if the element is considered ad-related.
   virtual bool IsAdRelated() const;
@@ -2404,7 +2406,7 @@ class CORE_EXPORT Element : public ContainerNode {
   ShadowRoot& CreateAndAttachShadowRoot(
       ShadowRootMode,
       SlotAssignmentMode = SlotAssignmentMode::kNamed,
-      const Vector<AtomicString>& markers = Vector<AtomicString>());
+      const AtomicString& marker = g_null_atom);
 
   virtual void DidAddUserAgentShadowRoot(ShadowRoot&) {}
   virtual bool AlwaysCreateUserAgentShadowRoot() const { return false; }

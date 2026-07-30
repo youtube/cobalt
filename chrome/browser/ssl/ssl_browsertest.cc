@@ -67,6 +67,7 @@
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tab_ui_helper.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
@@ -646,14 +647,15 @@ class SSLUITestBase : public InProcessBrowserTest,
     Profile* profile = browser()->profile();
 
     size_t num_browsers = chrome::GetBrowserCount(profile);
-    EXPECT_EQ(app_browser, chrome::FindLastActive());
+    EXPECT_TRUE(ui_test_utils::IsBrowserActive(app_browser));
     int num_tabs = browser()->tab_strip_model()->count();
 
     ProceedThroughInterstitial(
         app_browser->tab_strip_model()->GetActiveWebContents());
+    ui_test_utils::WaitUntilBrowserBecomeActive(browser());
 
     EXPECT_EQ(--num_browsers, chrome::GetBrowserCount(profile));
-    EXPECT_EQ(browser(), chrome::FindLastActive());
+    EXPECT_TRUE(ui_test_utils::IsBrowserActive(browser()));
     EXPECT_EQ(++num_tabs, browser()->tab_strip_model()->count());
 
     WebContents* new_tab = browser()->tab_strip_model()->GetActiveWebContents();
@@ -1269,6 +1271,7 @@ class SSLUITestWithWebApps : public SSLUITest {
         web_app::test::InstallWebApp(profile, std::move(web_app_info));
 
     Browser* app_browser = web_app::LaunchWebAppBrowserAndWait(profile, app_id);
+    ui_test_utils::WaitUntilBrowserBecomeActive(app_browser);
     return app_browser;
   }
 
@@ -1276,10 +1279,9 @@ class SSLUITestWithWebApps : public SSLUITest {
   web_app::OsIntegrationTestOverrideBlockingRegistration faked_os_integration_;
 };
 
-// Visits a page in an app window with https error and proceed:
-// Disabled due to flaky failures; see https://crbug.com/1156046.
+// Visits a page in an app window with https error and proceed.
 IN_PROC_BROWSER_TEST_F(SSLUITestWithWebApps,
-                       DISABLED_InAppTestHTTPSExpiredCertAndProceed) {
+                       InAppTestHTTPSExpiredCertAndProceed) {
   ASSERT_TRUE(https_server_expired_.Start());
 
   const GURL app_url = https_server_expired_.GetURL("/ssl/google.html");
@@ -2635,8 +2637,10 @@ IN_PROC_BROWSER_TEST_F(SSLUITest, MAYBE_TestCloseTabWithUnsafePopup) {
   ASSERT_EQ(2u, chrome::GetBrowserCount(browser()->profile()));
 
   // Last activated browser should be the popup.
-  Browser* popup_browser = chrome::FindBrowserWithProfile(browser()->profile());
-  WebContents* popup = popup_browser->tab_strip_model()->GetActiveWebContents();
+  BrowserWindowInterface* popup_browser =
+      chrome::FindBrowserWithProfile(browser()->profile());
+  WebContents* popup =
+      popup_browser->GetTabStripModel()->GetActiveWebContents();
   EXPECT_NE(popup, tab1);
   nav_observer.Wait();
   ASSERT_TRUE(popup->GetController().GetVisibleEntry());

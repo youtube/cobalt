@@ -84,19 +84,18 @@ MockRenderProcessHost::MockRenderProcessHost(
       foreground_service_worker_count_(0) {
   // Child process security operations can't be unit tested unless we add
   // ourselves as an existing child process.
-  ChildProcessSecurityPolicyImpl::GetInstance()->Add(GetDeprecatedID(),
-                                                     browser_context);
+  ChildProcessSecurityPolicyImpl::GetInstance()->Add(GetID(), browser_context);
 
-  RenderProcessHostImpl::RegisterHost(GetDeprecatedID(), this);
+  RenderProcessHostImpl::RegisterHost(GetID(), this);
 }
 
 MockRenderProcessHost::~MockRenderProcessHost() {
-  ChildProcessSecurityPolicyImpl::GetInstance()->Remove(GetDeprecatedID());
+  ChildProcessSecurityPolicyImpl::GetInstance()->Remove(GetID());
   // In unit tests, Cleanup() might not have been called.
   if (!deletion_callback_called_) {
     for (auto& observer : observers_)
       observer.RenderProcessHostDestroyed(this);
-    RenderProcessHostImpl::UnregisterHost(GetDeprecatedID());
+    RenderProcessHostImpl::UnregisterHost(GetID());
   }
 }
 
@@ -342,7 +341,7 @@ void MockRenderProcessHost::Cleanup() {
 
     for (auto& observer : observers_)
       observer.RenderProcessHostDestroyed(this);
-    RenderProcessHostImpl::UnregisterHost(GetDeprecatedID());
+    RenderProcessHostImpl::UnregisterHost(GetID());
     has_connection_ = false;
     deletion_callback_called_ = true;
   }
@@ -435,6 +434,10 @@ MockRenderProcessHost::TakeMetricsAllocator() {
 const base::TimeTicks& MockRenderProcessHost::GetLastInitTime() {
   static base::TimeTicks dummy_time = base::TimeTicks::Now();
   return dummy_time;
+}
+
+base::TimeTicks MockRenderProcessHost::GetProcessLaunchedTime() const {
+  return process_launched_time_;
 }
 
 base::Process::Priority MockRenderProcessHost::GetPriority() const {
@@ -575,8 +578,7 @@ void MockRenderProcessHost::SetProcessLock(
 }
 
 ProcessLock MockRenderProcessHost::GetProcessLock() const {
-  return ChildProcessSecurityPolicyImpl::GetInstance()->GetProcessLock(
-      GetDeprecatedID());
+  return ChildProcessSecurityPolicyImpl::GetInstance()->GetProcessLock(GetID());
 }
 
 bool MockRenderProcessHost::IsProcessLockedToSiteForTesting() {
@@ -615,7 +617,7 @@ MockRenderProcessHost::GetInfoForBrowserContextDestructionCrashReporting() {
 
 void MockRenderProcessHost::WriteIntoTrace(
     perfetto::TracedProto<TraceProto> proto) const {
-  proto->set_id(GetDeprecatedID());
+  proto->set_id(GetID().value());
 }
 
 #if BUILDFLAG(IS_CHROMEOS)

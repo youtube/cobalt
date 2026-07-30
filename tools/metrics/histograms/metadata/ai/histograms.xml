@@ -204,7 +204,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="AI.Session.{SessionType}.PromptRequestSize" units="bytes"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>leimy@chromium.org</owner>
   <owner>fergal@chromium.org</owner>
   <owner>src/chrome/browser/ai/OWNERS</owner>
@@ -228,7 +228,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="AI.Session.{SessionType}.PromptResponseSize" units="bytes"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>leimy@chromium.org</owner>
   <owner>fergal@chromium.org</owner>
   <owner>src/chrome/browser/ai/OWNERS</owner>
@@ -240,7 +240,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="AI.Session.{SessionType}.PromptResponseStatus"
-    enum="AIModelStreamingResponseStatus" expires_after="2026-07-05">
+    enum="AIModelStreamingResponseStatus" expires_after="2026-09-06">
   <owner>leimy@chromium.org</owner>
   <owner>fergal@chromium.org</owner>
   <owner>src/chrome/browser/ai/OWNERS</owner>
@@ -288,9 +288,8 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="AI.Translation.LoadTranslateKitErrorCode"
-    enum="WinGetLastError" expires_after="2026-04-27">
-  <owner>mych@google.com</owner>
-  <owner>fergal@google.com</owner>
+    enum="WinGetLastError" expires_after="2027-03-16">
+  <owner>evliu@google.com</owner>
   <owner>src/chrome/browser/ai/OWNERS</owner>
   <summary>
     Records the error code of a failed attempt to load the TranslateKit binary
@@ -301,9 +300,8 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="AI.Translation.LoadTranslateKitResult"
-    enum="LoadTranslateKitResult" expires_after="2026-07-05">
-  <owner>mych@google.com</owner>
-  <owner>fergal@google.com</owner>
+    enum="LoadTranslateKitResult" expires_after="2027-03-16">
+  <owner>evliu@google.com</owner>
   <owner>src/chrome/browser/ai/OWNERS</owner>
   <summary>
     Records the result of an attempt to load the TranslateKit binary for
@@ -314,7 +312,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="AI.{SessionType}.AvailabilityV2" enum="Availability"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>leimy@chromium.org</owner>
   <owner>fergal@chromium.org</owner>
   <owner>src/chrome/browser/ai/OWNERS</owner>
@@ -357,7 +355,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="AI.{WritingAssistanceType}.APIUsage.{WritingAssistanceFunctionName}.CoreOptionTone"
-    enum="WritingAssistanceMetricsOptionTone" expires_after="2026-04-27">
+    enum="WritingAssistanceMetricsOptionTone" expires_after="2026-09-06">
   <owner>btriebw@chromium.org</owner>
   <owner>ayui@chromium.org</owner>
   <owner>src/chrome/browser/ai/OWNERS</owner>

@@ -4,6 +4,7 @@
 
 #include "chrome/browser/glic/widget/glic_window_event_observer.h"
 
+#include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/glic/widget/glic_view.h"
 #include "chrome/browser/glic/widget/glic_widget.h"
 #include "chrome/browser/glic/widget/glic_window_animator.h"
@@ -26,7 +27,7 @@ class GlicWindowEventObserver::WindowEventObserverImpl
     : public ui::EventObserver {
  public:
   WindowEventObserverImpl(GlicWindowEventObserver* observer, GlicView* view)
-      : observer_(observer), view_(view) {
+      : observer_(observer->GetWeakPtr()), view_(view->GetWeakPtr()) {
     event_monitor_ = views::EventMonitor::CreateWindowMonitor(
         this, view->GetWidget()->GetNativeWindow(),
         {
@@ -57,6 +58,9 @@ class GlicWindowEventObserver::WindowEventObserverImpl
   }
 
   void OnEvent(const ui::Event& event) override {
+    if (!view_ || !observer_) {
+      return;
+    }
 #if BUILDFLAG(IS_WIN)
     if (event.IsTouchEvent()) {
       // If we get a touch event, send the corresponding mouse event so that
@@ -69,7 +73,7 @@ class GlicWindowEventObserver::WindowEventObserverImpl
       const ui::TouchEvent* touch_event = event.AsTouchEvent();
       gfx::Point touch_location = touch_event->location();
       auto touch_screen_point =
-          views::View::ConvertPointToScreen(view_, touch_location);
+          views::View::ConvertPointToScreen(view_.get(), touch_location);
       auto* host = view_->GetWidget()->GetNativeWindow()->GetHost();
 
       host->ConvertDIPToPixels(&touch_screen_point);
@@ -101,7 +105,7 @@ class GlicWindowEventObserver::WindowEventObserverImpl
 #endif  // BUILDFLAG(IS_WIN)
 
     gfx::Point mouse_location = event_monitor_->GetLastMouseLocation();
-    views::View::ConvertPointFromScreen(view_, &mouse_location);
+    views::View::ConvertPointFromScreen(view_.get(), &mouse_location);
     if (event.type() == ui::EventType::kMousePressed) {
       mouse_down_in_draggable_area_ =
           view_->IsPointWithinDraggableRegion(mouse_location);
@@ -124,8 +128,8 @@ class GlicWindowEventObserver::WindowEventObserverImpl
   }
 
  private:
-  raw_ptr<GlicWindowEventObserver> observer_;
-  raw_ptr<GlicView> view_;
+  base::WeakPtr<GlicWindowEventObserver> observer_;
+  base::WeakPtr<GlicView> view_;
   std::unique_ptr<views::EventMonitor> event_monitor_;
 
   // Tracks whether the mouse is pressed and was initially within a draggable
@@ -166,7 +170,7 @@ void GlicWindowEventObserver::SetDraggingAreasAndWatchForMouseEvents() {
 
 void GlicWindowEventObserver::HandleWindowDragWithOffset(
     const gfx::Vector2d& mouse_offset) {
-  if (in_move_loop_) {
+  if (in_move_loop_ || !widget_) {
     return;
   }
   in_move_loop_ = true;
@@ -175,20 +179,43 @@ void GlicWindowEventObserver::HandleWindowDragWithOffset(
 #if BUILDFLAG(IS_MAC)
   widget_->SetCapture(nullptr);
 #endif
-  const views::Widget::MoveLoopSource move_loop_source =
-      views::Widget::MoveLoopSource::kMouse;
-  widget_->RunMoveLoop(mouse_offset, move_loop_source,
-                       views::Widget::MoveLoopEscapeBehavior::kDontHide);
+
+  // PostTaskAndReply is used to ensure that anything running on the stack
+  // (like OnEvent) is finished before the nested run loop in RunMoveLoop
+  // starts. It also ensures that the code in OnMoveLoopFinished doesn't run if
+  // this is destroyed while RunMoveLoop is running.
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTaskAndReply(
+      FROM_HERE,
+      base::BindOnce(
+          [](base::WeakPtr<GlicWidget> widget, const gfx::Vector2d& offset) {
+            if (widget) {
+              widget->RunMoveLoop(
+                  offset, views::Widget::MoveLoopSource::kMouse,
+                  views::Widget::MoveLoopEscapeBehavior::kDontHide);
+            }
+          },
+          widget_, mouse_offset),
+      base::BindOnce(&GlicWindowEventObserver::OnMoveLoopFinished,
+                     weak_ptr_factory_.GetWeakPtr()));
+}
+
+void GlicWindowEventObserver::OnMoveLoopFinished() {
   in_move_loop_ = false;
 
-  delegate_->window_animator()->MaybeAnimateToTargetSize();
+  if (widget_) {
+    widget_->SetIsDragging(false);
+  }
 
+  // The delegate owns this object, so it is guaranteed to be alive if we are.
+  delegate_->window_animator()->MaybeAnimateToTargetSize();
   AdjustPositionIfNeeded();
-  widget_->SetIsDragging(false);
   delegate_->OnDragComplete();
 }
 
 void GlicWindowEventObserver::AdjustPositionIfNeeded() {
+  if (!widget_) {
+    return;
+  }
   // Always have at least `kMinimumVisible` px visible from glic window in
   // both vertical and horizontal directions.
   constexpr int kMinimumVisible = 40;

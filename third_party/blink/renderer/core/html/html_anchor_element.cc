@@ -38,6 +38,7 @@
 #include "third_party/blink/public/mojom/input/focus_type.mojom-blink.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/web/web_link_preview_triggerer.h"
+#include "third_party/blink/renderer/core/ad_tracker/ad_tracker.h"
 #include "third_party/blink/renderer/core/css/scroll_target_group_scope.h"
 #include "third_party/blink/renderer/core/css/style_engine.h"
 #include "third_party/blink/renderer/core/dom/layout_tree_builder_traversal.h"
@@ -47,7 +48,6 @@
 #include "third_party/blink/renderer/core/events/mouse_event.h"
 #include "third_party/blink/renderer/core/events/pointer_event.h"
 #include "third_party/blink/renderer/core/events/web_input_event_conversion.h"
-#include "third_party/blink/renderer/core/frame/ad_tracker.h"
 #include "third_party/blink/renderer/core/frame/attribution_src_loader.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
@@ -443,7 +443,9 @@ void HTMLAnchorElementBase::NavigateToHyperlink(
     // Ensured by third_party/blink/renderer/core/loader/navigation_policy.cc.
     CHECK(base::FeatureList::IsEnabled(features::kLinkPreview));
 
-    DocumentSpeculationRules::From(GetDocument()).InitiatePreview(Url());
+    if (Url().ProtocolIsInHttpFamily()) {
+      DocumentSpeculationRules::From(GetDocument()).InitiatePreview(Url());
+    }
     return;
   }
 
@@ -547,6 +549,22 @@ bool HTMLAnchorElementBase::IsValidInterestInvoker(Element& target) const {
 
 void HTMLAnchorElementBase::HandleClick(MouseEvent& event) {
   event.SetDefaultHandled();
+
+  // It's unclear whether synthesized middle-button "click" events should be
+  // allowed to be dispatched and create a navigation. Measure how common this
+  // is to see if we can disallow it. Per Pointer Events: "The click event
+  // should only be fired for the primary pointer button (i.e., when button
+  // value is 0, buttons value is 1). Secondary buttons (like the middle or
+  // right button on a standard mouse) MUST NOT fire click events."
+  // (https://w3c.github.io/pointerevents/#dfn-click)
+  if (event.type() == event_type_names::kClick && !event.isTrusted() &&
+      event.button() ==
+          static_cast<int16_t>(WebPointerProperties::Button::kMiddle)) {
+    UseCounter::Count(GetDocument(),
+                      IsA<HTMLAreaElement>(this)
+                          ? WebFeature::kSynthesizedMiddleClickArea
+                          : WebFeature::kSynthesizedMiddleClickAnchor);
+  }
 
   LocalDOMWindow* window = GetDocument().domWindow();
   if (!window)

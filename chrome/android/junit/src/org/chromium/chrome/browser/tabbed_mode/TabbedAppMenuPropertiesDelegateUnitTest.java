@@ -81,6 +81,10 @@ import org.chromium.chrome.browser.feed.webfeed.WebFeedBridgeJni;
 import org.chromium.chrome.browser.feed.webfeed.WebFeedMainMenuItem;
 import org.chromium.chrome.browser.feed.webfeed.WebFeedSnackbarController;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.hub.HubManager;
+import org.chromium.chrome.browser.hub.Pane;
+import org.chromium.chrome.browser.hub.PaneId;
+import org.chromium.chrome.browser.hub.PaneManager;
 import org.chromium.chrome.browser.incognito.IncognitoUtils;
 import org.chromium.chrome.browser.incognito.IncognitoUtilsJni;
 import org.chromium.chrome.browser.incognito.reauth.IncognitoReauthController;
@@ -175,7 +179,8 @@ import java.util.List;
 })
 @EnableFeatures({
     ChromeFeatureList.SUBMENUS_IN_APP_MENU,
-    ChromeFeatureList.RECENTLY_CLOSED_TABS_AND_WINDOWS
+    ChromeFeatureList.RECENTLY_CLOSED_TABS_AND_WINDOWS,
+    ChromeFeatureList.ANDROID_PAGE_INFO_AS_APP_MENU_ITEM
 })
 public class TabbedAppMenuPropertiesDelegateUnitTest {
     // Constants defining flags that determines multi-window menu items visibility.
@@ -250,6 +255,9 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
     @Mock private FeedServiceBridge.Natives mFeedServiceBridgeJniMock;
     @Mock private PageZoomManager mPageZoomManagerMock;
     @Mock private DefaultBrowserPromoUtils mMockDefaultBrowserPromoUtils;
+    @Mock private HubManager mHubManager;
+    @Mock private PaneManager mPaneManager;
+    @Mock private Pane mPane;
 
     private ShadowPackageManager mShadowPackageManager;
 
@@ -258,6 +266,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
             new OneshotSupplierImpl<>();
     private final OneshotSupplierImpl<IncognitoReauthController>
             mIncognitoReauthControllerSupplier = new OneshotSupplierImpl<>();
+    private final OneshotSupplierImpl<HubManager> mHubManagerSupplier = new OneshotSupplierImpl<>();
     private final SettableMonotonicObservableSupplier<BookmarkModel> mBookmarkModelSupplier =
             ObservableSuppliers.createMonotonic();
     private final SettableMonotonicObservableSupplier<ReadAloudController>
@@ -345,6 +354,12 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         mUpdateAvailableMenuUiState.itemState.titleColorId = R.color.default_text_color_error;
         mUpdateAvailableMenuUiState.itemState.icon = R.drawable.menu_update;
 
+        mHubManagerSupplier.set(mHubManager);
+        when(mHubManager.getPaneManager()).thenReturn(mPaneManager);
+        when(mPaneManager.getFocusedPaneSupplier())
+                .thenReturn(ObservableSuppliers.createMonotonic(mPane));
+        when(mPane.getPaneId()).thenReturn(PaneId.TAB_SWITCHER);
+
         PowerBookmarkUtils.setPriceTrackingEligibleForTesting(false);
         PowerBookmarkUtils.setPowerBookmarkMetaForTesting(PowerBookmarkMeta.newBuilder().build());
         TabbedAppMenuPropertiesDelegate delegate =
@@ -364,6 +379,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                         mIncognitoReauthControllerSupplier,
                         mReadAloudControllerSupplier,
                         mPageZoomManagerMock,
+                        mHubManagerSupplier,
                         /* openInAppMenuItemProvider= */ null);
         RobolectricUtil.runAllBackgroundAndUi();
         mTabbedAppMenuPropertiesDelegate = Mockito.spy(delegate);
@@ -583,6 +599,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                                 R.id.new_incognito_tab_menu_id,
                                 R.id.add_to_group_menu_id,
                                 R.id.divider_line_id,
+                                R.id.info_menu_id,
                                 R.id.history_parent_menu_id,
                                 R.id.downloads_menu_id,
                                 R.id.all_bookmarks_menu_id,
@@ -632,6 +649,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                                 R.id.new_incognito_tab_menu_id,
                                 R.id.add_to_group_menu_id,
                                 R.id.divider_line_id,
+                                R.id.info_menu_id,
                                 R.id.history_parent_menu_id,
                                 R.id.downloads_menu_id,
                                 R.id.all_bookmarks_menu_id,
@@ -693,6 +711,8 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         expectedTitles.add(R.string.menu_add_tab_to_new_group);
         expectedItems.add(R.id.divider_line_id);
         expectedTitles.add(0);
+        expectedItems.add(R.id.info_menu_id);
+        expectedTitles.add(R.string.menu_page_info);
         expectedItems.add(R.id.history_parent_menu_id);
         expectedTitles.add(R.string.menu_history);
         historyExpectedItems.add(R.id.open_history_menu_id);
@@ -797,6 +817,8 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         expectedTitles.add(R.string.menu_add_tab_to_new_group);
         expectedItems.add(R.id.divider_line_id);
         expectedTitles.add(0);
+        expectedItems.add(R.id.info_menu_id);
+        expectedTitles.add(R.string.menu_page_info);
         if (!IncognitoUtils.shouldOpenIncognitoAsWindow()) {
             expectedItems.add(R.id.history_parent_menu_id);
             expectedTitles.add(R.string.menu_history);
@@ -887,6 +909,8 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         expectedTitles.add(R.string.menu_add_tab_to_new_group);
         expectedItems.add(R.id.divider_line_id);
         expectedTitles.add(0);
+        expectedItems.add(R.id.info_menu_id);
+        expectedTitles.add(R.string.menu_page_info);
         expectedItems.add(R.id.history_parent_menu_id);
         expectedTitles.add(R.string.menu_history);
         historyExpectedItems.add(R.id.open_history_menu_id);
@@ -975,6 +999,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                                 R.id.new_incognito_tab_menu_id,
                                 R.id.add_to_group_menu_id,
                                 R.id.divider_line_id,
+                                R.id.info_menu_id,
                                 R.id.history_parent_menu_id,
                                 R.id.downloads_menu_id,
                                 R.id.all_bookmarks_menu_id,
@@ -1047,6 +1072,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                                 R.id.new_tab_menu_id,
                                 R.id.new_incognito_tab_menu_id,
                                 R.id.add_to_group_menu_id,
+                                R.id.info_menu_id,
                                 R.id.history_parent_menu_id,
                                 R.id.downloads_menu_id,
                                 R.id.all_bookmarks_menu_id,
@@ -1250,6 +1276,30 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
         assertMenuItemsAreEqual(modelList, expectedItems);
     }
 
+    @Test
+    @Config(qualifiers = "sw320dp")
+    // Update this to work with the feature when launched.
+    @DisableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
+    public void testOverviewMenuItems_Phone_SelectTabs_NotTabSwitcherPane() {
+        setUpMocksForOverviewMenu();
+        when(mIncognitoTabModel.getCount()).thenReturn(0);
+        when(mPane.getPaneId()).thenReturn(PaneId.BOOKMARKS);
+        Assert.assertFalse(mTabbedAppMenuPropertiesDelegate.shouldShowPageMenu());
+        assertEquals(MenuGroup.OVERVIEW_MODE_MENU, mTabbedAppMenuPropertiesDelegate.getMenuGroup());
+
+        MVCListAdapter.ModelList modelList = mTabbedAppMenuPropertiesDelegate.getMenuItems();
+
+        Integer[] expectedItems = {
+            R.id.new_tab_menu_id,
+            R.id.new_incognito_tab_menu_id,
+            R.id.new_tab_group_menu_id,
+            R.id.close_all_tabs_menu_id,
+            R.id.quick_delete_menu_id,
+            R.id.preferences_id
+        };
+        assertMenuItemsAreEqual(modelList, expectedItems);
+    }
+
     private void checkOverviewMenuItems(boolean newIncognitoWindowEnabled) {
         setUpIncognitoMocks();
         when(mMultiWindowModeStateDispatcher.canEnterMultiWindowMode()).thenReturn(true);
@@ -1323,6 +1373,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                                 R.id.new_incognito_tab_menu_id,
                                 R.id.add_to_group_menu_id,
                                 R.id.divider_line_id,
+                                R.id.info_menu_id,
                                 R.id.history_parent_menu_id,
                                 R.id.downloads_menu_id,
                                 R.id.all_bookmarks_menu_id,
@@ -1413,6 +1464,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                                 R.id.new_incognito_tab_menu_id,
                                 R.id.add_to_group_menu_id,
                                 R.id.divider_line_id,
+                                R.id.info_menu_id,
                                 R.id.history_parent_menu_id,
                                 R.id.downloads_menu_id,
                                 R.id.all_bookmarks_menu_id,
@@ -1478,6 +1530,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                                 R.id.new_incognito_tab_menu_id,
                                 R.id.add_to_group_menu_id,
                                 R.id.divider_line_id,
+                                R.id.info_menu_id,
                                 R.id.history_parent_menu_id,
                                 R.id.downloads_menu_id,
                                 R.id.all_bookmarks_menu_id,
@@ -2483,14 +2536,29 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                 parentItem.model.get(AppMenuItemProperties.ICON));
 
         assertHasSubMenuItemIds(
-                parentItem, R.id.extensions_menu_id, R.id.extensions_webstore_menu_id);
+                parentItem,
+                R.id.extensions_menu_menu_id,
+                R.id.manage_extensions_menu_id,
+                R.id.extensions_webstore_menu_id);
 
         List<MVCListAdapter.ListItem> subItems =
                 parentItem.model.get(AppMenuItemWithSubmenuProperties.SUBMENU_ITEMS);
 
-        MVCListAdapter.ListItem manageItem = subItems.get(0);
+        MVCListAdapter.ListItem menuItem = subItems.get(0);
         assertEquals(
-                R.id.extensions_menu_id, manageItem.model.get(AppMenuItemProperties.MENU_ITEM_ID));
+                R.id.extensions_menu_menu_id,
+                menuItem.model.get(AppMenuItemProperties.MENU_ITEM_ID));
+        assertEquals(
+                ContextUtils.getApplicationContext().getString(R.string.menu_extensions_menu),
+                menuItem.model.get(AppMenuItemProperties.TITLE));
+        assertNotNull(
+                "Manage Extensions item should have an icon.",
+                menuItem.model.get(AppMenuItemProperties.ICON));
+
+        MVCListAdapter.ListItem manageItem = subItems.get(1);
+        assertEquals(
+                R.id.manage_extensions_menu_id,
+                manageItem.model.get(AppMenuItemProperties.MENU_ITEM_ID));
         assertEquals(
                 ContextUtils.getApplicationContext().getString(R.string.menu_manage_extensions),
                 manageItem.model.get(AppMenuItemProperties.TITLE));
@@ -2498,7 +2566,7 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                 "Manage Extensions item should have an icon.",
                 manageItem.model.get(AppMenuItemProperties.ICON));
 
-        MVCListAdapter.ListItem webstoreItem = subItems.get(1);
+        MVCListAdapter.ListItem webstoreItem = subItems.get(2);
         assertEquals(
                 R.id.extensions_webstore_menu_id,
                 webstoreItem.model.get(AppMenuItemProperties.MENU_ITEM_ID));
@@ -2528,14 +2596,15 @@ public class TabbedAppMenuPropertiesDelegateUnitTest {
                 findItemById(modelList, R.id.extensions_parent_menu_id);
         assertNull("Extensions parent menu item should NOT be present.", parentItem);
 
-        MVCListAdapter.ListItem originalItem = findItemById(modelList, R.id.extensions_menu_id);
+        MVCListAdapter.ListItem originalItem =
+                findItemById(modelList, R.id.extensions_menu_menu_id);
         assertNotNull("Original extensions menu item should be present.", originalItem);
 
         assertFalse(
                 "Original extensions item should not have submenu properties.",
                 originalItem.model.containsKey(AppMenuItemWithSubmenuProperties.SUBMENU_ITEMS));
         assertEquals(
-                ContextUtils.getApplicationContext().getString(R.string.menu_extensions),
+                ContextUtils.getApplicationContext().getString(R.string.menu_extensions_menu),
                 originalItem.model.get(AppMenuItemProperties.TITLE));
     }
 

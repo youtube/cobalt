@@ -197,6 +197,12 @@ BASE_FEATURE(kBackForwardTransitionsNativePageSharedImage,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 
+// If enabled, skips over ad-related entries that were silently inserted into
+// session history when navigating via back/forward buttons. This extends the
+// existing history manipulation intervention logic.
+// See https://crbug.com/375523824.
+BASE_FEATURE(kBackToAdIntervention, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // If enabled, makes battery saver request heavy align wake ups.
 BASE_FEATURE(kBatterySaverModeAlignWakeUps, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -377,14 +383,6 @@ BASE_FEATURE(kDrawCutoutEdgeToEdge, base::FEATURE_ENABLED_BY_DEFAULT);
 // Enables canvas 2d methods BeginLayer and EndLayer.
 BASE_FEATURE(kEnableCanvas2DLayers, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Enables service workers on chrome-untrusted:// urls.
-BASE_FEATURE(kEnableServiceWorkersForChromeUntrusted,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enables service workers on chrome:// urls.
-BASE_FEATURE(kEnableServiceWorkersForChromeScheme,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Ensures the renderer is not dead when getting the process host for a site
 // instance.
 BASE_FEATURE(kEnsureExistingRendererAlive, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -403,6 +401,9 @@ BASE_FEATURE(kFedCmEmbedderCheck, base::FEATURE_ENABLED_BY_DEFAULT);
 // Enables RPs to enhance autofill with federated accounts fetched by the FedCM
 // API.
 BASE_FEATURE(kFedCmAutofill, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables the FedCM ambient UI.
+BASE_FEATURE(kFedCmAmbientUI, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables usage of the FedCM Delegation API.
 BASE_FEATURE(kFedCmDelegation, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -710,6 +711,10 @@ BASE_FEATURE_PARAM(bool,
                    "reuse_search_host",
                    false);
 
+// If enabled, the feature allows user to see a preview of their handwriting
+// gestures (Select and Delete gestures).
+BASE_FEATURE(kPreviewHandwritingGesture, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables exposure of ads APIs in the renderer: Attribution Reporting,
 // FLEDGE, Topics, along with a number of other features actively in development
 // within these APIs.
@@ -808,17 +813,6 @@ BASE_FEATURE_PARAM(size_t,
                    42u);
 #endif  // BUILDFLAG(IS_ANDROID)
 
-// Enables retrying to obtain list of available cameras after restarting the
-// video capture service if a previous attempt failed, which could be caused
-// by a service crash.
-BASE_FEATURE(kRetryGetVideoCaptureDeviceInfos,
-#if BUILDFLAG(IS_MAC)
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else
-             base::FEATURE_DISABLED_BY_DEFAULT
-#endif
-);
-
 // When enabled, the IPC channel will not be paused when launching non-guest
 // renderer processes. This makes it possible for all kinds of mojo calls
 // to be sent to the renderer process before OnProcessLaunched fires. When the
@@ -894,7 +888,7 @@ BASE_FEATURE(kServiceWorkerAutoPreload, base::FEATURE_DISABLED_BY_DEFAULT);
 // prioritize the response processing for the network request over the
 // processing for the fetch handler.
 BASE_FEATURE(kServiceWorkerStaticRouterRaceNetworkRequestPerformanceImprovement,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 // Run video capture service in the Browser process as opposed to a dedicated
@@ -1220,22 +1214,17 @@ BASE_FEATURE(kWebUsb, "WebUSB", base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Apply `PrefetchPriority::kHighest` for Webview Prefetch API.
 BASE_FEATURE(kWebViewPrefetchHighestPrefetchPriority,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Set an additional `PrefetchScheduler` burst limit for
 // `PrefetchPriority::kHighest` prefetches.
 constexpr base::FeatureParam<size_t>
     kWebViewPrefetchHighestPrefetchPriorityBurstLimit{
         &kWebViewPrefetchHighestPrefetchPriority,
-        "WebViewPrefetchHighestPrefetchPriorityBurstLimit", 1};
+        "WebViewPrefetchHighestPrefetchPriorityBurstLimit", 10};
 
 // Controls whether the WebXR Device API is enabled.
 BASE_FEATURE(kWebXr, "WebXR", base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enable the navigator.permissions API.
-// Used for launch in WebView, but exposed in content to map to runtime-enabled
-// feature.
-BASE_FEATURE(kWebPermissionsApi, base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
 // When enabled, will unconditionally poll the C++ cache to check Java node
@@ -1335,6 +1324,12 @@ const base::FeatureParam<int> kAndroidDesktopZoomScalingFactor{
     &kAndroidDesktopZoomScaling, "desktop-zoom-scaling-factor", 100};
 const base::FeatureParam<int> kAndroidMonitorZoomScalingFactor{
     &kAndroidDesktopZoomScaling, "monitor-zoom-scaling-factor", 100};
+
+// Implementation of the DisplayCursor API in RenderWidgetHostViewInput on
+// Android.
+BASE_FEATURE(kAndroidDisplayCursor,
+             "AndroidDisplayCursor",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Allows the use of "Smart Zoom", an alternative form of page zoom, and
 // enables the associated UI.

@@ -19,10 +19,12 @@ import java.lang.annotation.Target;
  */
 @NullMarked
 public interface PersistentStoreMigrationManager {
+    // LINT.IfChange(StoreType)
     @IntDef({
         StoreType.INVALID,
         StoreType.LEGACY,
         StoreType.TAB_STATE_STORE,
+        StoreType.UNKNOWN,
     })
     @Target(ElementType.TYPE_USE)
     @Retention(RetentionPolicy.SOURCE)
@@ -33,7 +35,11 @@ public interface PersistentStoreMigrationManager {
         int LEGACY = 1;
         // An SQLITE-backed implementation of TabPersistentStore.
         int TAB_STATE_STORE = 2;
+        // Represents a window which needs to be cleaned or is of an unknown type.
+        int UNKNOWN = 3;
     }
+
+    // LINT.ThenChange(/tools/metrics/histograms/metadata/tab/enums.xml:PersistentStoreType)
 
     /** Returns the {@link StoreType} that is considered the authoritative source of truth. */
     @StoreType

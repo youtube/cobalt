@@ -6,6 +6,7 @@
 #define MEDIA_GPU_ANDROID_NDK_VIDEO_ENCODE_ACCELERATOR_SVC_API_H_
 
 #include <media/NdkMediaCodec.h>
+#include <stdint.h>
 
 #include "base/no_destructor.h"
 #include "media/gpu/media_gpu_export.h"
@@ -45,6 +46,14 @@ class MEDIA_GPU_EXPORT NdkVideoEncodeAcceleratorSvcApi {
       AMediaCodecInfo_getEncoderCapabilities = nullptr;
   ACodecEncoderCapabilities_getSupportedLayeringSchemas_Type
       ACodecEncoderCapabilities_getSupportedLayeringSchemas = nullptr;
+
+  static bool IsTemporalLayerIdSupported();
+  static bool IsBitrateLayeringSupported();
+
+  static constexpr const char* AMEDIAFORMAT_KEY_TEMPORAL_LAYER_ID =
+      "temporal-layer-id";
+  static constexpr const char* AMEDIAFORMAT_KEY_VIDEO_BITRATE_LAYERING =
+      "video-bitrate-layering";
 
  private:
   friend class base::NoDestructor<NdkVideoEncodeAcceleratorSvcApi>;

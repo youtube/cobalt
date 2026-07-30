@@ -21,6 +21,8 @@
 #include "chrome/browser/ui/tabs/alert/tab_alert_controller.h"
 #include "chrome/browser/ui/tabs/split_tab_metrics.h"
 #include "chrome/browser/ui/tabs/tab_network_state.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
 #include "chrome/browser/ui/views/tabs/tab/tab_close_button.h"
 #include "chrome/browser/ui/views/tabs/tab/tab_icon.h"
@@ -336,9 +338,7 @@ IN_PROC_BROWSER_TEST_F(VerticalTabViewTest, AlertIndicatorMute) {
   histogram_tester.ExpectBucketCount("Media.Audio.TabAudioMuted", false, 1);
 }
 
-IN_PROC_BROWSER_TEST_F(VerticalTabViewTest, CloseButtonDataChanged) {
-  // The initial tab is the first child of the unpinned collection which is the
-  // second child of the root node.
+IN_PROC_BROWSER_TEST_F(VerticalTabViewTest, CloseButtonVisibilityActiveTab) {
   TabCollectionNode* tab_node = unpinned_collection_node()->children()[0].get();
   VerticalTabView* tab_view =
       views::AsViewClass<VerticalTabView>(tab_node->view());
@@ -349,6 +349,18 @@ IN_PROC_BROWSER_TEST_F(VerticalTabViewTest, CloseButtonDataChanged) {
 
   // After adding a new tab, the old tab is no longer activated so the close
   // button should no longer be showing.
+  AppendTab();
+  ASSERT_TRUE(
+      base::test::RunUntil([&]() { return !close_button->GetVisible(); }));
+}
+
+IN_PROC_BROWSER_TEST_F(VerticalTabViewTest, CloseButtonVisibilityHover) {
+  TabCollectionNode* tab_node = unpinned_collection_node()->children()[0].get();
+  VerticalTabView* tab_view =
+      views::AsViewClass<VerticalTabView>(tab_node->view());
+  TabCloseButton* close_button = tab_view->close_button_for_testing();
+
+  // Deactivate the tab.
   AppendTab();
   ASSERT_TRUE(
       base::test::RunUntil([&]() { return !close_button->GetVisible(); }));
@@ -366,17 +378,66 @@ IN_PROC_BROWSER_TEST_F(VerticalTabViewTest, CloseButtonDataChanged) {
   event_generator.MoveMouseTo(gfx::Point());
   WaitForLayout(tab_view);
   EXPECT_FALSE(close_button->GetVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(VerticalTabViewTest, CloseButtonVisibilityCollapsed) {
+  TabCollectionNode* tab_node = unpinned_collection_node()->children()[0].get();
+  VerticalTabView* tab_view =
+      views::AsViewClass<VerticalTabView>(tab_node->view());
+  TabCloseButton* close_button = tab_view->close_button_for_testing();
+
+  // Deactivate the tab.
+  AppendTab();
+  ASSERT_TRUE(
+      base::test::RunUntil([&]() { return !close_button->GetVisible(); }));
 
   // Collapse the tab strip.
   tabs::VerticalTabStripStateController::From(browser())->SetCollapsed(true);
   ASSERT_TRUE(base::test::RunUntil(
       [&]() { return tab_view->collapsed_for_testing(); }));
 
+  // After collapsing the tab strip, the close button should be hidden because
+  // the tab is not hovered.
+  EXPECT_FALSE(close_button->GetVisible());
+
+  ui::test::EventGenerator event_generator(
+      views::GetRootWindow(browser()->GetBrowserView().GetWidget()),
+      browser()->GetBrowserView().GetNativeWindow());
+
   // After the mouse enters the tab, the close button should still be hidden
-  // since the tab is not active.
+  // because the tab is not active.
   event_generator.MoveMouseTo(tab_view->GetBoundsInScreen().CenterPoint());
   WaitForLayout(tab_view);
   EXPECT_FALSE(close_button->GetVisible());
+
+  // After the mouse exits the tab, the close button should be hidden.
+  event_generator.MoveMouseTo(gfx::Point());
+  WaitForLayout(tab_view);
+  EXPECT_FALSE(close_button->GetVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(VerticalTabViewTest,
+                       CloseButtonVisibilityActiveCollapsed) {
+  TabCollectionNode* tab_node = unpinned_collection_node()->children()[0].get();
+  VerticalTabView* tab_view =
+      views::AsViewClass<VerticalTabView>(tab_node->view());
+  TabCloseButton* close_button = tab_view->close_button_for_testing();
+
+  // Collapse the tab strip.
+  tabs::VerticalTabStripStateController::From(browser())->SetCollapsed(true);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return tab_view->collapsed_for_testing(); }));
+
+  // Now that the tab is collapsed the close button should be hidden.
+  ASSERT_TRUE(
+      base::test::RunUntil([&]() { return !close_button->GetVisible(); }));
+
+  // Hovering the active tab while collapsed should show the close button.
+  // TODO(crbug.com/492603554): Investigate why using EventGenerator here
+  // flakes.
+  tab_view->UpdateHovered(true);
+  WaitForLayout(tab_view);
+  EXPECT_TRUE(close_button->GetVisible());
 }
 
 IN_PROC_BROWSER_TEST_F(VerticalTabViewTest, CloseButtonPressed) {
@@ -695,4 +756,48 @@ IN_PROC_BROWSER_TEST_F(VerticalTabViewDataSharingEnabledTest,
   EXPECT_EQ(1, user_action_tester.GetActionCount(
                    "TabGroups.Shared.SwitchGroupedTab"));
   EXPECT_EQ(1, user_action_tester.GetActionCount("SwitchTab_Click"));
+}
+
+IN_PROC_BROWSER_TEST_F(VerticalTabViewTest, AlertIndicatorDecorateOnCollapse) {
+  tabs::VerticalTabStripStateController::From(browser())->SetCollapsed(true);
+
+  // Wait for the collapse animation to finish and ensure the width reaches
+  // kCollapsedWidth.
+  VerticalTabStripRegionView* const region_view =
+      browser()->GetBrowserView().vertical_tab_strip_region_view_for_testing();
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return !region_view->is_animating() &&
+           region_view->width() <= VerticalTabStripRegionView::kCollapsedWidth;
+  }));
+
+  TabCollectionNode* tab_node = unpinned_collection_node()->children()[0].get();
+  VerticalTabView* tab_view =
+      views::AsViewClass<VerticalTabView>(tab_node->view());
+
+  // Ensure the tab is active and hovered so that the close button is visible.
+  tab_strip_model()->ActivateTabAt(0);
+  ui::test::EventGenerator event_generator(
+      views::GetRootWindow(browser()->GetBrowserView().GetWidget()),
+      browser()->GetBrowserView().GetNativeWindow());
+  event_generator.MoveMouseTo(tab_view->GetBoundsInScreen().CenterPoint());
+
+  auto* alert_indicator =
+      tab_view->GetViewByElementId(kTabAlertIndicatorButtonElementId);
+
+  // Set alert state to audio playing.
+  content::WebContents* web_contents =
+      tab_strip_model()->GetActiveWebContents();
+  base::ScopedClosureRunner scoped_closure_runner = web_contents->MarkAudible();
+  tab_strip_model()->NotifyTabChanged(tab_strip_model()->GetTabAtIndex(0),
+                                      TabChangeType::kAll);
+  WaitForLayout(tab_view);
+
+  // In collapsed mode, the active and hovered tab shows the close button as the
+  // first visible child. The alert indicator is the second visible child, so it
+  // should be hidden from normal rendering and instead trigger the
+  // decorate_on_collapse logic.
+  const gfx::Rect tab_bounds = tab_view->GetLocalBounds();
+  const gfx::Rect expected_bounds(tab_bounds.width() / 2,
+                                  tab_bounds.height() / 2, 0, 0);
+  EXPECT_EQ(expected_bounds, alert_indicator->bounds());
 }

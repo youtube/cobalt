@@ -178,6 +178,17 @@ public class EntityDataManager implements Destroyable {
         return EntityDataManagerJni.get().isEligibleToAutofillAi(mNativeEntityDataManagerAndroid);
     }
 
+    /**
+     * When default availability is on, this checks whether the user is eligible for Autofill AI
+     * features, such as to opt-into identity docs, travel etc. It runs high level checks such as
+     * address pref state, policies etc.
+     */
+    public boolean canEnableOrDisableAutofillAi() {
+        ThreadUtils.assertOnUiThread();
+        return EntityDataManagerJni.get()
+                .canEnableOrDisableAutofillAi(mNativeEntityDataManagerAndroid);
+    }
+
     /** Returns the opt-in status for Autofill AI. */
     public boolean getAutofillAiOptInStatus() {
         ThreadUtils.assertOnUiThread();
@@ -211,6 +222,12 @@ public class EntityDataManager implements Destroyable {
                         mNativeEntityDataManagerAndroid);
     }
 
+    public boolean isWalletPublicPassStorageEnabled() {
+        ThreadUtils.assertOnUiThread();
+        return EntityDataManagerJni.get()
+                .isWalletPublicPassStorageEnabled(mNativeEntityDataManagerAndroid);
+    }
+
     @NativeMethods
     @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
     public interface Natives {
@@ -219,6 +236,8 @@ public class EntityDataManager implements Destroyable {
         void destroy(long nativeEntityDataManagerAndroid);
 
         boolean isEligibleToAutofillAi(long nativeEntityDataManagerAndroid);
+
+        boolean canEnableOrDisableAutofillAi(long nativeEntityDataManagerAndroid);
 
         boolean getAutofillAiOptInStatus(long nativeEntityDataManagerAndroid);
 
@@ -230,6 +249,8 @@ public class EntityDataManager implements Destroyable {
 
         boolean getIsAutofillAiEnabledByEnterprisePolicyWithoutLogging(
                 long nativeEntityDataManagerAndroid);
+
+        boolean isWalletPublicPassStorageEnabled(long nativeEntityDataManagerAndroid);
 
         void removeEntityInstance(
                 long nativeEntityDataManagerAndroid, @JniType("std::string") String guid);

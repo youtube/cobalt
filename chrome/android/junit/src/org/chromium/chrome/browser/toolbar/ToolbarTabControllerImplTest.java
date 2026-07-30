@@ -8,6 +8,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -27,7 +28,6 @@ import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.supplier.ObservableSuppliers;
-import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.homepage.HomepageManager;
@@ -42,6 +42,7 @@ import org.chromium.chrome.browser.toolbar.bottom.BottomControlsCoordinator;
 import org.chromium.chrome.browser.ui.native_page.NativePage;
 import org.chromium.chrome.browser.url_constants.UrlConstantResolver;
 import org.chromium.chrome.browser.url_constants.UrlConstantResolverFactory;
+import org.chromium.components.browser_ui.widget.gesture.BackPressHandler.BackPressResult;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.ui.base.PageTransition;
@@ -82,9 +83,8 @@ public class ToolbarTabControllerImplTest {
     @Mock private TabCreatorManager mTabCreatorManager;
     @Mock private TabCreator mTabCreator;
     @Mock private MultiInstanceManager mMultiInstanceManager;
+    @Mock private Supplier<Boolean> mIsOffTheRecordSupplier;
 
-    private final SettableMonotonicObservableSupplier<BottomControlsCoordinator>
-            mBottomControlsCoordinatorSupplier = ObservableSuppliers.createMonotonic();
     private final GURL mGURL = new GURL("https://example.com");
     private ToolbarTabControllerImpl mToolbarTabController;
 
@@ -96,6 +96,11 @@ public class ToolbarTabControllerImplTest {
         doReturn(mNativePage).when(mTab).getNativePage();
         doReturn(mTabCreator).when(mTabCreatorManager).getTabCreator(anyBoolean());
         doReturn(mGURL).when(mTab).getUrl();
+        doReturn(BackPressResult.FAILURE).when(mBottomControlsCoordinator).handleBackPress();
+        doReturn(ObservableSuppliers.alwaysFalse())
+                .when(mBottomControlsCoordinator)
+                .getHandleBackPressChangedSupplier();
+        doReturn(false).when(mIsOffTheRecordSupplier).get();
         TrackerFactory.setTrackerForTests(mTracker);
         initToolbarTabController();
     }
@@ -124,11 +129,10 @@ public class ToolbarTabControllerImplTest {
 
     @Test
     public void back_handledByBottomControls() {
-        mBottomControlsCoordinatorSupplier.set(mBottomControlsCoordinator);
-        doReturn(true).when(mBottomControlsCoordinator).onBackPressed();
-        Assert.assertTrue(mToolbarTabController.back());
+        doReturn(BackPressResult.SUCCESS).when(mBottomControlsCoordinator).handleBackPress();
+        assertTrue(mToolbarTabController.back());
 
-        verify(mBottomControlsCoordinator).onBackPressed();
+        verify(mBottomControlsCoordinator).handleBackPress();
         verify(mRunnable, never()).run();
         verify(mTab, never()).goBack();
     }
@@ -178,6 +182,38 @@ public class ToolbarTabControllerImplTest {
                                 new LoadUrlParamsMatcher(
                                         new LoadUrlParams(
                                                 homePageGurl, PageTransition.HOME_PAGE))));
+    }
+
+    @Test
+    public void openHomepageInForegroundTab() {
+        mToolbarTabController.openHomepageInNewTab(/* foregroundNewTab= */ true);
+        GURL homePageGurl = HomepageManager.getInstance().getHomepageGurl(/* isIncognito= */ false);
+        if (homePageGurl.isEmpty()) {
+            homePageGurl = UrlConstantResolverFactory.getOriginalResolver().getNtpGurl();
+        }
+        verify(mTabCreator)
+                .createNewTab(
+                        argThat(
+                                new LoadUrlParamsMatcher(
+                                        new LoadUrlParams(homePageGurl, PageTransition.HOME_PAGE))),
+                        eq(TabLaunchType.FROM_CHROME_UI),
+                        eq(mTab));
+    }
+
+    @Test
+    public void openHomepageInBackgroundTab() {
+        mToolbarTabController.openHomepageInNewTab(/* foregroundNewTab= */ false);
+        GURL homePageGurl = HomepageManager.getInstance().getHomepageGurl(/* isIncognito= */ false);
+        if (homePageGurl.isEmpty()) {
+            homePageGurl = UrlConstantResolverFactory.getOriginalResolver().getNtpGurl();
+        }
+        verify(mTabCreator)
+                .createNewTab(
+                        argThat(
+                                new LoadUrlParamsMatcher(
+                                        new LoadUrlParams(homePageGurl, PageTransition.HOME_PAGE))),
+                        eq(TabLaunchType.FROM_LONGPRESS_BACKGROUND),
+                        eq(mTab));
     }
 
     @Test
@@ -312,6 +348,48 @@ public class ToolbarTabControllerImplTest {
         inOrder.verifyNoMoreInteractions();
     }
 
+    @Test
+    public void openHomepage_NoTab_IncognitoSelected() {
+        doReturn(null).when(mTabSupplier).get();
+        doReturn(true).when(mIsOffTheRecordSupplier).get();
+
+        mToolbarTabController.openHomepage();
+
+        GURL homePageGurl = HomepageManager.getInstance().getHomepageGurl(/* isIncognito= */ true);
+        if (homePageGurl.isEmpty()) {
+            homePageGurl = UrlConstantResolverFactory.getOriginalResolver().getNtpGurl();
+        }
+        verify(mTabCreatorManager).getTabCreator(true);
+        verify(mTabCreator)
+                .createNewTab(
+                        argThat(
+                                new LoadUrlParamsMatcher(
+                                        new LoadUrlParams(homePageGurl, PageTransition.HOME_PAGE))),
+                        eq(TabLaunchType.FROM_CHROME_UI),
+                        eq(null));
+    }
+
+    @Test
+    public void openHomepageInNewTab_NoTab_IncognitoSelected() {
+        doReturn(null).when(mTabSupplier).get();
+        doReturn(true).when(mIsOffTheRecordSupplier).get();
+
+        mToolbarTabController.openHomepageInNewTab(/* foregroundNewTab= */ true);
+
+        GURL homePageGurl = HomepageManager.getInstance().getHomepageGurl(/* isIncognito= */ true);
+        if (homePageGurl.isEmpty()) {
+            homePageGurl = UrlConstantResolverFactory.getOriginalResolver().getNtpGurl();
+        }
+        verify(mTabCreatorManager).getTabCreator(true);
+        verify(mTabCreator)
+                .createNewTab(
+                        argThat(
+                                new LoadUrlParamsMatcher(
+                                        new LoadUrlParams(homePageGurl, PageTransition.HOME_PAGE))),
+                        eq(TabLaunchType.FROM_CHROME_UI),
+                        eq(null));
+    }
+
     private void initToolbarTabController() {
         UrlConstantResolver urlConstantResolver =
                 UrlConstantResolverFactory.getForProfile(/* profile= */ null);
@@ -319,12 +397,13 @@ public class ToolbarTabControllerImplTest {
                 new ToolbarTabControllerImpl(
                         mTabSupplier,
                         mTrackerSupplier,
-                        mBottomControlsCoordinatorSupplier,
+                        () -> mBottomControlsCoordinator,
                         urlConstantResolver::getNtpUrl,
                         mRunnable,
                         mActivityTabProvider,
                         mTabCreatorManager,
-                        mMultiInstanceManager);
+                        mMultiInstanceManager,
+                        mIsOffTheRecordSupplier);
     }
 
     private void setUpUsingCorrectTabSupplier() {

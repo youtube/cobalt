@@ -28,7 +28,6 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
-#include "chrome/browser/ui/chrome_select_file_policy.h"
 #include "chrome/browser/ui/contextual_search/searchbox_context_data.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
@@ -884,6 +883,10 @@ void OmniboxContextMenuController::ExecuteCommand(int id, int event_flags) {
         if (composebox_handler) {
           composebox_handler->SetActiveModelMode(it->second);
         }
+        if (is_aim_popup_open && omnibox_popup_ui &&
+            omnibox_popup_ui->popup_aim_handler()) {
+          omnibox_popup_ui->popup_aim_handler()->FocusInput();
+        }
         base::UmaHistogramEnumeration(sliced_prefix,
                                       CommandIdToEnum(it->first));
         GetEditModel()->OpenAiMode(/*via_keyboard=*/false,
@@ -1010,18 +1013,21 @@ bool OmniboxContextMenuController::IsCommandIdEnabled(int command_id) const {
     return false;
   }
 
-  const omnibox::ToolMode aim_tool_mode = omnibox_popup_ui->composebox_handler()
-                                              ->input_state_model()
-                                              ->GetInputState()
-                                              .active_tool;
+  const auto& input_state = omnibox_popup_ui->composebox_handler()
+                                ->input_state_model()
+                                ->GetInputState();
+  const omnibox::ToolMode aim_tool_mode = input_state.active_tool;
+  // If `allowed_models` is empty, the `input_state` is uninitialized and we
+  // fallback to a default limit of 10. Otherwise, we use the limit provided by
+  // the `input_state` even if it is 0.
+  const int max_num_files =
+      input_state.allowed_models.empty() ? 10 : input_state.max_total_inputs;
 
-  auto* session_handle = omnibox_popup_ui->GetOrCreateContextualSessionHandle();
   std::vector<contextual_search::FileInfo> file_infos;
-  if (session_handle) {
+  if (auto* session_handle =
+          omnibox_popup_ui->GetOrCreateContextualSessionHandle()) {
     file_infos = session_handle->GetUploadedContextFileInfos();
   }
-  auto max_num_files =
-      omnibox::FeatureConfig::Get().config.composebox().max_num_files();
 
   return IsCommandIdEnabledHelper(command_id, aim_tool_mode, file_infos,
                                   max_num_files, page_type);

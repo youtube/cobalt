@@ -121,6 +121,12 @@ export class ToolbarAppElement extends CrLitElement {
       this.trackedElementManager_.startTracking(
           splitTabs, 'kToolbarSplitTabsToolbarButtonElementId');
     }
+    const locationBar =
+        this.shadowRoot.querySelector<HTMLElement>('#location-bar');
+    if (locationBar) {
+      this.trackedElementManager_.startTracking(
+          locationBar, 'kLocationBarElementId');
+    }
   }
 
   /**
@@ -142,6 +148,15 @@ export class ToolbarAppElement extends CrLitElement {
 
   override firstUpdated(changedProperties: PropertyValues<this>) {
     super.firstUpdated(changedProperties);
+
+    const entry = performance.getEntriesByType('navigation')[0] as
+        PerformanceNavigationTiming;
+    if (entry) {
+      chrome.histograms.recordTime(
+          'InitialWebUI.Toolbar.ParseFinishedToFirstUpdate',
+          Math.round(performance.now() - entry.domInteractive));
+    }
+
     const promises = [];
     const reload = this.shadowRoot.querySelector<CrLitElement>('#reload');
     if (reload) {

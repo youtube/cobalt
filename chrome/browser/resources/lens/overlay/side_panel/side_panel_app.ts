@@ -617,7 +617,7 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
     // Setup a listener on the suggestions container to adjust the ghost loader
     // number of suggestions.
     this.searchboxBoundingClientRectObserver.observe(
-        this.$.searchbox.getSuggestionsElement());
+        this.$.searchbox.getDropdownElement());
   }
 
   private onSearchboxFocusOut_(event: FocusEvent) {
@@ -641,7 +641,7 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
 
   private onSearchboxBoundsChanged() {
     this.searchboxSuggestionCount =
-        this.$.searchbox.getSuggestionsElement().selectableMatchElements.length;
+        this.$.searchbox.getDropdownElement().selectableMatchElements.length;
   }
 
   private computeShowGhostLoader(): boolean {
@@ -700,12 +700,16 @@ export class LensSidePanelAppElement extends LensSidePanelAppElementBase {
 
     if (loadTimeData.getBoolean('updatedFeedbackEnabled')) {
       this.feedbackToastShowAfterDelayTimeoutId = setTimeout(() => {
-        if (this.isComposeboxFocused) {
+        if (this.$.composebox.isExpanded()) {
           return;
         }
         this.feedbackToastShown = true;
         this.$.feedbackToast.show();
       }, loadTimeData.getInteger('updatedFeedbackToastTimeoutMs'));
+      return;
+    }
+
+    if (this.$.composebox.isExpanded()) {
       return;
     }
 

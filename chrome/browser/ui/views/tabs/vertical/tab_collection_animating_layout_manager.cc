@@ -40,6 +40,10 @@ DEFINE_OWNED_UI_CLASS_PROPERTY_KEY(
 
 }  // namespace
 
+bool TabCollectionAnimatingLayoutManager::Delegate::IsDragging() const {
+  return false;
+}
+
 bool TabCollectionAnimatingLayoutManager::Delegate::IsViewDragging(
     const views::View& child_view) const {
   return false;
@@ -101,13 +105,15 @@ bool TabCollectionAnimatingLayoutManager::OnViewRemoved(views::View* host,
 
 gfx::Size TabCollectionAnimatingLayoutManager::GetPreferredSize(
     const views::View* host) const {
-  // Update to reflect current content height only in the case where it is less
-  // than the target height. Do so to avoid clipping fade-out animations that
-  // are not reflected in the target.
+  // While animating have preferred size reflect the actual computed height of
+  // the current layout. Do so to ensure animations are not clipped when
+  // animating-out a view at the bottom of the scroll view - and to ensure
+  // adjacent children in parent views sit flush with this view while animating
+  // if they do not employ their own animating layout manager.
   gfx::Size target_preferred_size =
       target_layout_manager_->GetPreferredSize(host);
   if (animate_host_size_ && animation_.is_animating() &&
-      (target_preferred_size.height() < current_layout_content_height_)) {
+      !delegate_->IsDragging()) {
     target_preferred_size.set_height(current_layout_content_height_);
   }
   return target_preferred_size;
@@ -116,13 +122,15 @@ gfx::Size TabCollectionAnimatingLayoutManager::GetPreferredSize(
 gfx::Size TabCollectionAnimatingLayoutManager::GetPreferredSize(
     const views::View* host,
     const views::SizeBounds& available_size) const {
-  // Update to reflect current content height only in the case where it is less
-  // than the target height. Do so to avoid clipping fade-out animations that
-  // are not reflected in the target.
+  // While animating have preferred size reflect the actual computed height of
+  // the current layout. Do so to ensure animations are not clipped when
+  // animating-out a view at the bottom of the scroll view - and to ensure
+  // adjacent children in parent views sit flush with this view while animating
+  // if they do not employ their own animating layout manager.
   gfx::Size target_preferred_size =
       target_layout_manager_->GetPreferredSize(host, available_size);
   if (animate_host_size_ && animation_.is_animating() &&
-      (target_preferred_size.height() < current_layout_content_height_)) {
+      !delegate_->IsDragging()) {
     target_preferred_size.set_height(current_layout_content_height_);
   }
   return target_preferred_size;
@@ -139,11 +147,28 @@ int TabCollectionAnimatingLayoutManager::GetPreferredHeightForWidth(
   return target_layout_manager_->GetPreferredHeightForWidth(host, width);
 }
 
+void TabCollectionAnimatingLayoutManager::OnLayoutChanged() {
+  // If a new layout target was computed ensure we recalculate and update the
+  // current layout to ensure layout metadata is available for preferred size
+  // calculations. Running this once to compute metadata is more efficient than
+  // having preferred size methods interpolating layout on each function call.
+  if (RecalculateTarget()) {
+    UpdateCurrentLayout();
+  }
+  LayoutManagerBase::OnLayoutChanged();
+}
+
 void TabCollectionAnimatingLayoutManager::AnimationProgressed(
     const gfx::Animation* animation) {
   if (current_offset_ == animation->GetCurrentValue()) {
     return;
   }
+
+  // Pre-calculate the interpolated `current_layout_` and content height for
+  // this frame so that `GetPreferredSize()` returns the correct bounds during
+  // animation when queried by the parent.
+  UpdateCurrentLayout();
+
   // Do not invalidate the target layout as the animation progresses, only the
   // animating layout manager requires invalidation.
   InvalidateHost(/*mark_layouts_changed=*/false);
@@ -180,14 +205,13 @@ TabCollectionAnimatingLayoutManager::CalculateProposedLayout(
 }
 
 void TabCollectionAnimatingLayoutManager::LayoutImpl() {
+  // TODO(crbug.com/490964477): It should not be necessary to call this here
+  // given it is called in `OnLayoutChange()`, however there is a tab-dragging
+  // dependency on this behavior. Once this has been resolved remove this call.
   RecalculateTarget();
 
   if (animation_.is_animating()) {
-    current_offset_ = animation_.GetCurrentValue();
-    double denominator = 1.0 - starting_offset_;
-    double percent = (current_offset_ - starting_offset_) / denominator;
-    percent = std::clamp(percent, 0.0, 1.0);
-    current_layout_ = InterpolateLayout(percent);
+    UpdateCurrentLayout();
     ApplyLayout(current_layout_);
   } else {
     // Ensure we are snapped to target.
@@ -245,9 +269,17 @@ void TabCollectionAnimatingLayoutManager::SetTargetLayout(
   target_layout_ = target_layout;
 }
 
-void TabCollectionAnimatingLayoutManager::RecalculateTarget() {
+void TabCollectionAnimatingLayoutManager::UpdateCurrentLayout() {
+  current_offset_ = animation_.GetCurrentValue();
+  double denominator = 1.0 - starting_offset_;
+  double percent = (current_offset_ - starting_offset_) / denominator;
+  percent = std::clamp(percent, 0.0, 1.0);
+  current_layout_ = InterpolateLayout(percent);
+}
+
+bool TabCollectionAnimatingLayoutManager::RecalculateTarget() {
   if (!host_view()) {
-    return;
+    return false;
   }
 
   // Calculate the target layout with unbounded height and the width given to
@@ -257,7 +289,7 @@ void TabCollectionAnimatingLayoutManager::RecalculateTarget() {
 
   // If the layout hasn't changed, we are done.
   if (new_target == target_layout_) {
-    return;
+    return false;
   }
 
   // Animating horizontal bounds is not supported and layout should immediately
@@ -269,7 +301,7 @@ void TabCollectionAnimatingLayoutManager::RecalculateTarget() {
     SetTargetLayout(new_target);
     starting_offset_ = 0.0;
     current_offset_ = 1.0;
-    return;
+    return true;
   }
 
   SetTargetLayout(new_target);
@@ -277,7 +309,7 @@ void TabCollectionAnimatingLayoutManager::RecalculateTarget() {
   // If we haven't actually rendered a frame yet keep the original
   // starting_layout.
   if (animation_.is_animating() && current_offset_ == starting_offset_) {
-    return;
+    return true;
   }
 
   constexpr double kResetAnimationThreshold = 0.8;
@@ -300,6 +332,7 @@ void TabCollectionAnimatingLayoutManager::RecalculateTarget() {
   if (!animation_.is_animating()) {
     animation_.Show();
   }
+  return true;
 }
 
 void TabCollectionAnimatingLayoutManager::ResetViewsToTargetLayout(
@@ -317,6 +350,9 @@ void TabCollectionAnimatingLayoutManager::ResetViewsToTargetLayout(
   }
   SetStartingLayout(starting_layout_);
   SetTargetLayout(target_layout_);
+  // Call `InterpolateLayout()` to ensure layout metadata is available for
+  // preferred size calculations
+  InterpolateLayout(0.0);
   InvalidateHost(/*mark_layouts_changed=*/true);
 }
 

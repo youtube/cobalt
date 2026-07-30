@@ -215,8 +215,9 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
      *     through the endInput() (valid -> valid). This is the case for tab switching.
      */
     public void beginInput(FuseboxSessionState session) {
+        var composeBox = session.getComposeboxQueryControllerBridge();
         // Abort early if there is no composebox.
-        if (session.getComposeboxQueryControllerBridge() == null) return;
+        if (composeBox == null) return;
 
         // We can't do inclusive check due to missing `isPhone()` case in `DeviceInfo`.
         // Additionally these values may change at runtime, e.g. if the user starts Chrome on phone
@@ -238,6 +239,7 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
         // This should ideally be an assert ensuring that we don't begin a new input while the old
         // one is still active; will turn to an assert separately in case this scenario happens.
         if (mMediator == null
+                || !composeBox.isFuseboxEligible()
                 || !isSupportedDeviceType
                 || !isSupportedPageClass
                 || !mDefaultSearchEngineIsGoogle) {
@@ -246,8 +248,11 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
         }
 
         // TODO(crbug.com/474616308): move to FuseboxSessionState.
-        AutocompleteController.getForProfile(assumeNonNull(session.getProfile()))
-                .setComposeboxQueryControllerBridge(session.getComposeboxQueryControllerBridge());
+        var controller = AutocompleteController.getForProfile(assumeNonNull(session.getProfile()));
+        if (controller != null) {
+            controller.setComposeboxQueryControllerBridge(
+                    session.getComposeboxQueryControllerBridge());
+        }
 
         mInput = session.getAutocompleteInput();
         mMediator.beginInput(session);

@@ -34,12 +34,14 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/side_panel/side_panel_content_proxy.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry_id.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry_key.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry_observer.h"
 #include "chrome/browser/ui/side_panel/side_panel_native_view.h"
 #include "chrome/browser/ui/side_panel/side_panel_registry.h"
+#include "chrome/browser/ui/side_panel/side_panel_util.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/split_tab_metrics.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
@@ -51,10 +53,8 @@
 #include "chrome/browser/ui/views/frame/layout/browser_view_layout.h"
 #include "chrome/browser/ui/views/frame/multi_contents_view.h"
 #include "chrome/browser/ui/views/side_panel/side_panel.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_content_proxy.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_header.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_util.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/grit/generated_resources.h"
@@ -106,10 +106,8 @@ class SidePanelCoordinatorTest : public InProcessBrowserTest {
     browser()->tab_strip_model()->ActivateTabAt(0);
 
     // Add some entries to the first tab.
-    auto* registry = browser()
-                         ->GetActiveTabInterface()
-                         ->GetTabFeatures()
-                         ->side_panel_registry();
+    auto* registry =
+        SidePanelRegistry::From(browser()->GetActiveTabInterface());
     registry->Register(std::make_unique<SidePanelEntry>(
         SidePanelEntry::Key(SidePanelEntry::Id::kShoppingInsights),
         base::BindRepeating([](SidePanelEntryScope&) {
@@ -120,20 +118,15 @@ class SidePanelCoordinatorTest : public InProcessBrowserTest {
 
     // Add some entries to the second tab.
     browser()->tab_strip_model()->ActivateTabAt(1);
-    registry = browser()
-                   ->GetActiveTabInterface()
-                   ->GetTabFeatures()
-                   ->side_panel_registry();
+    registry = SidePanelRegistry::From(browser()->GetActiveTabInterface());
     registry->Register(std::make_unique<SidePanelEntry>(
         SidePanelEntry::Key(SidePanelEntry::Id::kLens),
         base::BindRepeating([](SidePanelEntryScope&) {
           return SidePanelNativeView(std::make_unique<views::View>());
         }),
         /*default_content_width_callback=*/base::NullCallback()));
-    contextual_registries_.push_back(browser()
-                                         ->GetActiveTabInterface()
-                                         ->GetTabFeatures()
-                                         ->side_panel_registry());
+    contextual_registries_.push_back(
+        SidePanelRegistry::From(browser()->GetActiveTabInterface()));
 
     // Add a kLensOverlayResults entry to the contextual registry for the second
     // tab.
@@ -228,10 +221,7 @@ class SidePanelCoordinatorTest : public InProcessBrowserTest {
   }
 
   SidePanelRegistry* GetActiveTabRegistry() {
-    return browser()
-        ->GetActiveTabInterface()
-        ->GetTabFeatures()
-        ->side_panel_registry();
+    return SidePanelRegistry::From(browser()->GetActiveTabInterface());
   }
 
   // Calls chrome.sidePanel.setOptions() for the given `extension`, `path` and
@@ -966,7 +956,7 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest, ContextualEntryDeregistered) {
   tabs::TabInterface* tab =
       browser()->GetBrowserView().browser()->tab_strip_model()->GetTabAtIndex(
           0);
-  SidePanelRegistry* registry = tab->GetTabFeatures()->side_panel_registry();
+  SidePanelRegistry* registry = SidePanelRegistry::From(tab);
   SidePanelEntryKey key(SidePanelEntry::Id::kShoppingInsights);
 
   EXPECT_TRUE(registry->GetEntryForKey(key));
@@ -989,8 +979,7 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest,
   tabs::TabInterface* tab =
       browser()->GetBrowserView().browser()->tab_strip_model()->GetTabAtIndex(
           0);
-  SidePanelRegistry* tab_registry =
-      tab->GetTabFeatures()->side_panel_registry();
+  SidePanelRegistry* tab_registry = SidePanelRegistry::From(tab);
   SidePanelEntryKey key(SidePanelEntry::Id::kShoppingInsights);
   EXPECT_FALSE(
       tab_registry->GetActiveEntryFor(SidePanelEntry::PanelType::kContent)
@@ -1041,8 +1030,7 @@ IN_PROC_BROWSER_TEST_F(
   tabs::TabInterface* tab =
       browser()->GetBrowserView().browser()->tab_strip_model()->GetTabAtIndex(
           0);
-  SidePanelRegistry* tab_registry =
-      tab->GetTabFeatures()->side_panel_registry();
+  SidePanelRegistry* tab_registry = SidePanelRegistry::From(tab);
   SidePanelEntryKey key(SidePanelEntry::Id::kShoppingInsights);
   VerifyEntryExistenceAndValue(
       tab_registry->GetActiveEntryFor(SidePanelEntry::PanelType::kContent),
@@ -2283,10 +2271,7 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest, SidePanelTitleUpdates) {
 }
 
 IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest, HeaderlessSidePanel) {
-  auto* registry = browser()
-                       ->GetActiveTabInterface()
-                       ->GetTabFeatures()
-                       ->side_panel_registry();
+  auto* registry = SidePanelRegistry::From(browser()->GetActiveTabInterface());
   std::unique_ptr<SidePanelEntry> entry = std::make_unique<SidePanelEntry>(
       SidePanelEntry::Key(SidePanelEntry::Id::kAboutThisSite),
       base::BindRepeating([](SidePanelEntryScope&) {
@@ -2312,10 +2297,7 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest,
   AddTabToBrowser(GURL("http://foo2.com"));
   browser()->tab_strip_model()->ActivateTabAt(0);
 
-  auto* registry = browser()
-                       ->GetActiveTabInterface()
-                       ->GetTabFeatures()
-                       ->side_panel_registry();
+  auto* registry = SidePanelRegistry::From(browser()->GetActiveTabInterface());
   std::unique_ptr<SidePanelEntry> entry = std::make_unique<SidePanelEntry>(
       SidePanelEntry::Key(SidePanelEntry::Id::kAboutThisSite),
       base::BindRepeating([](SidePanelEntryScope&) {
@@ -2425,10 +2407,7 @@ IN_PROC_BROWSER_TEST_F(
   // PanelType.
   global_registry()->Deregister(
       SidePanelEntry::Key(SidePanelEntry::Id::kAboutThisSite));
-  auto* registry = browser()
-                       ->GetActiveTabInterface()
-                       ->GetTabFeatures()
-                       ->side_panel_registry();
+  auto* registry = SidePanelRegistry::From(browser()->GetActiveTabInterface());
   std::unique_ptr<SidePanelEntry> entry = std::make_unique<SidePanelEntry>(
       SidePanelEntry::PanelType::kToolbar,
       SidePanelEntry::Key(SidePanelEntry::Id::kAboutThisSite),
@@ -2463,10 +2442,7 @@ IN_PROC_BROWSER_TEST_F(
   // PanelType.
   global_registry()->Deregister(
       SidePanelEntry::Key(SidePanelEntry::Id::kAboutThisSite));
-  auto* registry = browser()
-                       ->GetActiveTabInterface()
-                       ->GetTabFeatures()
-                       ->side_panel_registry();
+  auto* registry = SidePanelRegistry::From(browser()->GetActiveTabInterface());
   std::unique_ptr<SidePanelEntry> entry = std::make_unique<SidePanelEntry>(
       SidePanelEntry::PanelType::kToolbar,
       SidePanelEntry::Key(SidePanelEntry::Id::kAboutThisSite),
@@ -2827,10 +2803,7 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest,
   // PanelType.
   global_registry()->Deregister(
       SidePanelEntry::Key(SidePanelEntryId::kAboutThisSite));
-  auto* registry = browser()
-                       ->GetActiveTabInterface()
-                       ->GetTabFeatures()
-                       ->side_panel_registry();
+  auto* registry = SidePanelRegistry::From(browser()->GetActiveTabInterface());
   std::unique_ptr<SidePanelEntry> entry = std::make_unique<SidePanelEntry>(
       SidePanelEntry::PanelType::kToolbar,
       SidePanelEntry::Key(SidePanelEntryId::kAboutThisSite),
@@ -2893,10 +2866,7 @@ IN_PROC_BROWSER_TEST_F(
   // PanelType.
   global_registry()->Deregister(
       SidePanelEntry::Key(SidePanelEntryId::kAboutThisSite));
-  auto* registry = browser()
-                       ->GetActiveTabInterface()
-                       ->GetTabFeatures()
-                       ->side_panel_registry();
+  auto* registry = SidePanelRegistry::From(browser()->GetActiveTabInterface());
   std::unique_ptr<SidePanelEntry> entry = std::make_unique<SidePanelEntry>(
       SidePanelEntry::PanelType::kToolbar,
       SidePanelEntry::Key(SidePanelEntryId::kAboutThisSite),
@@ -2971,10 +2941,7 @@ IN_PROC_BROWSER_TEST_F(
   // PanelType.
   global_registry()->Deregister(
       SidePanelEntry::Key(SidePanelEntryId::kAboutThisSite));
-  auto* registry = browser()
-                       ->GetActiveTabInterface()
-                       ->GetTabFeatures()
-                       ->side_panel_registry();
+  auto* registry = SidePanelRegistry::From(browser()->GetActiveTabInterface());
   std::unique_ptr<SidePanelEntry> entry = std::make_unique<SidePanelEntry>(
       SidePanelEntry::PanelType::kToolbar,
       SidePanelEntry::Key(SidePanelEntryId::kAboutThisSite),
@@ -3045,10 +3012,7 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest,
   // PanelType.
   global_registry()->Deregister(
       SidePanelEntry::Key(SidePanelEntryId::kAboutThisSite));
-  auto* registry = browser()
-                       ->GetActiveTabInterface()
-                       ->GetTabFeatures()
-                       ->side_panel_registry();
+  auto* registry = SidePanelRegistry::From(browser()->GetActiveTabInterface());
   std::unique_ptr<SidePanelEntry> entry = std::make_unique<SidePanelEntry>(
       SidePanelEntry::PanelType::kToolbar,
       SidePanelEntry::Key(SidePanelEntryId::kAboutThisSite),
@@ -3107,10 +3071,7 @@ IN_PROC_BROWSER_TEST_F(
   // PanelType.
   global_registry()->Deregister(
       SidePanelEntry::Key(SidePanelEntryId::kAboutThisSite));
-  auto* registry = browser()
-                       ->GetActiveTabInterface()
-                       ->GetTabFeatures()
-                       ->side_panel_registry();
+  auto* registry = SidePanelRegistry::From(browser()->GetActiveTabInterface());
   std::unique_ptr<SidePanelEntry> entry = std::make_unique<SidePanelEntry>(
       SidePanelEntry::PanelType::kToolbar,
       SidePanelEntry::Key(SidePanelEntryId::kAboutThisSite),
@@ -3181,10 +3142,7 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest,
   Init();
 
   // Register a toolbar-height side panel entry.
-  auto* registry = browser()
-                       ->GetActiveTabInterface()
-                       ->GetTabFeatures()
-                       ->side_panel_registry();
+  auto* registry = SidePanelRegistry::From(browser()->GetActiveTabInterface());
   registry->Deregister(
       SidePanelEntry::Key(SidePanelEntry::Id::kShoppingInsights));
   registry->Register(std::make_unique<SidePanelEntry>(

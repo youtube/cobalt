@@ -14,14 +14,15 @@ import {ContextUploadStatus, ToolMode as ComposeboxToolMode} from 'chrome://reso
 import {WindowProxy} from 'chrome://resources/cr_components/composebox/window_proxy.js';
 import {GlowAnimationState} from 'chrome://resources/cr_components/search/constants.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import {PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote, type PageRemote as SearchboxPageRemote} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import {PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import type {PageRemote as SearchboxPageRemote} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {assertEquals, assertFalse, assertNotEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {MockTimer} from 'chrome://webui-test/mock_timer.js';
 import {TestMock} from 'chrome://webui-test/test_mock.js';
 import {microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {TestContextualTasksBrowserProxy} from './test_contextual_tasks_browser_proxy.js';
-import {ADD_FILE_CONTEXT_FN, assertStyle, FAKE_TOKEN_STRING, getSubmitButton, getSubmitContainer, installMock, mockInputState, setupAutocompleteResults, simulateUserInput, uploadFileAndVerify} from './test_utils.js';
+import {ADD_FILE_CONTEXT_FN, assertStyle, FAKE_TOKEN_STRING, fixtureUrl, getSubmitButton, getSubmitContainer, installMock, mockInputState, setupAutocompleteResults, simulateUserInput, uploadFileAndVerify} from './test_utils.js';
 
 function disableAnimationsRecursively(element: Element) {
   const noAnimation = document.createElement('style');
@@ -91,9 +92,10 @@ suite('ContextualTasksComposeboxZeroStateTest', () => {
       composeboxShowZps: true,
       enableBasicModeZOrder: true,
       composeboxShowContextMenu: true,
+      forcedEmbeddedPageHost: '',
     });
 
-    testProxy = new TestContextualTasksBrowserProxy('https://google.com');
+    testProxy = new TestContextualTasksBrowserProxy(fixtureUrl);
     BrowserProxyImpl.setInstance(testProxy);
 
     mockComposeboxPageHandler = TestMock.fromClass(ComposeboxPageHandlerRemote);
@@ -460,7 +462,7 @@ suite('ContextualTasksComposeboxZeroStateTest', () => {
   test('TooltipImpressionTimerResetsOnHide', () => {
     mockTimer.install();
     const composeboxElement = contextualTasksApp.$.composebox;
-    const tooltip = composeboxElement.$.onboardingTooltip;
+    const tooltip = contextualTasksApp.$.onboardingTooltip;
 
     loadTimeData.overrideValues({
       showOnboardingTooltip: true,
@@ -468,8 +470,8 @@ suite('ContextualTasksComposeboxZeroStateTest', () => {
       composeboxShowOnboardingTooltipSessionImpressionCap: 10,
       composeboxShowOnboardingTooltipImpressionDelay: 3000,
     });
-    composeboxElement.numberOfTimesTooltipShownForTesting = 0;
-    composeboxElement.userDismissedTooltipForTesting = false;
+    contextualTasksApp.numberOfTimesTooltipShownForTesting = 0;
+    contextualTasksApp.userDismissedTooltipForTesting = false;
 
     const innerComposebox = composeboxElement.$.composebox;
     // Mock existence of chip.
@@ -478,22 +480,22 @@ suite('ContextualTasksComposeboxZeroStateTest', () => {
         document.createElement('div');
 
     // Show tooltip.
-    composeboxElement.updateTooltipVisibilityForTesting();
-    assertTrue(tooltip.shouldShow);
+    contextualTasksApp.updateTooltipVisibilityForTesting();
+    assertTrue(tooltip!.shouldShow);
 
     // Advance time partially.
     mockTimer.tick(1000);
-    assertEquals(0, composeboxElement.numberOfTimesTooltipShownForTesting);
+    assertEquals(0, contextualTasksApp.numberOfTimesTooltipShownForTesting);
 
     // Hide tooltip (e.g. chip disappears).
     innerComposebox.getHasAutomaticActiveTabChipToken = () => false;
-    composeboxElement.updateTooltipVisibilityForTesting();
-    assertFalse(tooltip.shouldShow);
+    contextualTasksApp.updateTooltipVisibilityForTesting();
+    assertFalse(tooltip!.shouldShow);
 
     // Advance past original deadline.
     mockTimer.tick(5000);
     // Should NOT have incremented because timer was cleared.
-    assertEquals(0, composeboxElement.numberOfTimesTooltipShownForTesting);
+    assertEquals(0, contextualTasksApp.numberOfTimesTooltipShownForTesting);
   });
 
   test(
@@ -720,80 +722,53 @@ suite('ContextualTasksComposeboxZeroStateTest', () => {
       });
 
 
-  test('deep search: thread change resets input', async () => {
-    composebox.onToolClickForTesting(ComposeboxToolMode.kDeepSearch);
 
-    await composebox.updateComplete;
-    await microtasksFinished();
+  interface ToolModeInfo {
+    toolMode: ComposeboxToolMode;
+    text: string;
+  }
 
-    let deepSearchChip = composebox.shadowRoot.querySelector('#deepSearchChip');
+  [{
+    toolMode: ComposeboxToolMode.kDeepSearch,
+    text: 'Deep Search',
+  },
+   {
+     toolMode: ComposeboxToolMode.kImageGen,
+     text: 'Create Images',
+   },
+   {
+     toolMode: ComposeboxToolMode.kCanvas,
+     text: 'Canvas',
+   }].forEach((toolModeInfo: ToolModeInfo) => {
+    test(toolModeInfo.text + ': thread change resets input', async () => {
+      composebox.onToolClickForTesting(toolModeInfo.toolMode);
+      searchboxCallbackRouterRemote.onInputStateChanged({
+        ...mockInputState,
+        activeTool: ComposeboxToolMode.kDeepSearch,
+      });
 
-    assertTrue(!!deepSearchChip, 'Deep search chip should be present');
+      await composebox.updateComplete;
+      await microtasksFinished();
 
-    testProxy.callbackRouterRemote.onZeroStateChange(/*isZeroState=*/ true);
-    await testProxy.callbackRouterRemote.$.flushForTesting();
+      let toolChip =
+          composebox.shadowRoot.querySelector('cr-composebox-tool-chip');
 
-    await composebox.updateComplete;
-    await microtasksFinished();
+      assertTrue(!!toolChip, toolModeInfo.text + ' chip should be present');
 
-    deepSearchChip = composebox.shadowRoot.querySelector('#deepSearchChip');
-    assertFalse(!!composebox.input_, 'Input value should be cleared');
-    assertTrue(
-        composebox.fileUploadsComplete, 'File uploads should be complete');
-    assertFalse(
-        !!composebox.getResultForTesting(),
-        'Autocomplete result should be cleared');
-  });
+      testProxy.callbackRouterRemote.onZeroStateChange(/*isZeroState=*/ true);
+      await testProxy.callbackRouterRemote.$.flushForTesting();
 
-  test('image gen: thread change resets input', async () => {
-    composebox.onToolClickForTesting(ComposeboxToolMode.kImageGen);
+      await composebox.updateComplete;
+      await microtasksFinished();
 
-    await composebox.updateComplete;
-    await microtasksFinished();
-
-    let imageGenChip = composebox.shadowRoot.querySelector('#nanoBananaChip');
-
-    assertTrue(!!imageGenChip, 'Image gen chip should be present');
-
-    testProxy.callbackRouterRemote.onZeroStateChange(/*isZeroState=*/ true);
-    await testProxy.callbackRouterRemote.$.flushForTesting();
-
-
-    await composebox.updateComplete;
-    await microtasksFinished();
-
-    imageGenChip = composebox.shadowRoot.querySelector('#nanoBananaChip');
-    assertFalse(!!composebox.input_, 'Input value should be cleared');
-    assertTrue(
-        composebox.fileUploadsComplete, 'File uploads should be complete');
-    assertFalse(
-        !!composebox.getResultForTesting(),
-        'Autocomplete result should be cleared');
-  });
-
-  test('canvas: thread change resets input', async () => {
-    composebox.onToolClickForTesting(ComposeboxToolMode.kCanvas);
-
-    await composebox.updateComplete;
-    await microtasksFinished();
-
-    let canvasChip = composebox.shadowRoot.querySelector('#canvasChip');
-
-    assertTrue(!!canvasChip, 'Canvas chip should be present');
-
-    testProxy.callbackRouterRemote.onZeroStateChange(/*isZeroState=*/ true);
-    await testProxy.callbackRouterRemote.$.flushForTesting();
-
-    await composebox.updateComplete;
-    await microtasksFinished();
-
-    canvasChip = composebox.shadowRoot.querySelector('#canvasChip');
-    assertFalse(!!composebox.input_, 'Input value should be cleared');
-    assertTrue(
-        composebox.fileUploadsComplete, 'File uploads should be complete');
-    assertFalse(
-        !!composebox.getResultForTesting(),
-        'Autocomplete result should be cleared');
+      toolChip = composebox.shadowRoot.querySelector('cr-composebox-tool-chip');
+      assertFalse(!!composebox.input_, 'Input value should be cleared');
+      assertTrue(
+          composebox.fileUploadsComplete, 'File uploads should be complete');
+      assertFalse(
+          !!composebox.getResultForTesting(),
+          'Autocomplete result should be cleared');
+    });
   });
 
   test('Multiple files updates zero state placeholder', async () => {

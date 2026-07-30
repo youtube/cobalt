@@ -64,7 +64,6 @@ import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.night_mode.ChromeNightModeTestUtils;
 import org.chromium.chrome.browser.preferences.Pref;
@@ -141,6 +140,7 @@ public class IdentityDiscControllerTest {
     private RegularNewTabPageStation mPage;
     private Tab mTab;
     private SettableMonotonicObservableSupplier<Profile> mProfileSupplier;
+    private String mFallbackAccountName;
 
     @Mock private IdentityServicesProvider mIdentityServicesProviderMock;
     @Mock private SigninManager mSigninManagerMock;
@@ -177,6 +177,8 @@ public class IdentityDiscControllerTest {
         mPage = mActivityTestRule.startOnNtp();
         mTab = mPage.getTab();
         NewTabPageTestUtils.waitForNtpLoaded(mTab);
+        mFallbackAccountName =
+                mActivityTestRule.getActivity().getString(R.string.default_google_account_username);
     }
 
     @After
@@ -194,7 +196,20 @@ public class IdentityDiscControllerTest {
     public void testIdentityDiscWithNavigation() {
         // User is signed in.
         mSigninTestRule.addAccountThenSignin(TestAccounts.ACCOUNT1);
-        ViewUtils.waitForVisibleView(allOf(withId(R.id.optional_toolbar_button), isDisplayed()));
+        String expectedContentDescription =
+                mActivityTestRule
+                        .getActivity()
+                        .getString(
+                                R.string
+                                        .accessibility_toolbar_btn_identity_disc_with_name_and_email,
+                                TestAccounts.ACCOUNT1.getFullName(),
+                                TestAccounts.ACCOUNT1.getEmail());
+
+        ViewUtils.waitForVisibleView(
+                allOf(
+                        withId(R.id.optional_toolbar_button),
+                        isDisplayed(),
+                        withContentDescription(expectedContentDescription)));
 
         // Identity Disc should be hidden on navigation away from NTP.
         leaveNtp();
@@ -203,10 +218,7 @@ public class IdentityDiscControllerTest {
                         matches(
                                 anyOf(
                                         withEffectiveVisibility(ViewMatchers.Visibility.GONE),
-                                        not(
-                                                withContentDescription(
-                                                        R.string
-                                                                .accessibility_toolbar_btn_identity_disc)))));
+                                        not(withContentDescription(expectedContentDescription)))));
     }
 
     @Test
@@ -330,6 +342,38 @@ public class IdentityDiscControllerTest {
     // is the min version that supports split stores UPM backend, to avoid
     // UserActionableError.NEEDS_UPM_BACKEND_UPGRADE.
     @Restriction(GmsCoreVersionRestriction.RESTRICTION_TYPE_VERSION_GE_24W15)
+    public void testIdentityDiscSignedIn_noName() {
+        // Identity Disc should be shown on sign-in state change with a NTP refresh.
+        mSigninTestRule.addAccountThenSignin(TestAccounts.TEST_ACCOUNT_NO_NAME);
+        String expectedContentDescription =
+                mActivityTestRule
+                        .getActivity()
+                        .getString(
+                                R.string
+                                        .accessibility_toolbar_btn_identity_disc_with_name_and_email,
+                                mFallbackAccountName,
+                                TestAccounts.TEST_ACCOUNT_NO_NAME.getEmail());
+        ViewUtils.waitForVisibleView(
+                allOf(
+                        withId(R.id.optional_toolbar_button),
+                        isDisplayed(),
+                        withContentDescription(expectedContentDescription)));
+
+        mSigninTestRule.signOut();
+        ViewUtils.waitForVisibleView(
+                allOf(
+                        withId(R.id.optional_toolbar_button),
+                        isDisplayed(),
+                        withContentDescription(
+                                R.string.accessibility_toolbar_btn_signed_out_identity_disc)));
+    }
+
+    @Test
+    @MediumTest
+    // Specifies the test to run only with the GMS Core version greater than or equal to 24w15 which
+    // is the min version that supports split stores UPM backend, to avoid
+    // UserActionableError.NEEDS_UPM_BACKEND_UPGRADE.
+    @Restriction(GmsCoreVersionRestriction.RESTRICTION_TYPE_VERSION_GE_24W15)
     public void testIdentityDiscSignedIn_nonDisplayableEmail() {
         // Identity Disc should be shown on sign-in state change with a NTP refresh.
         AccountInfo accountInfo = addAndSigninAccountWithNonDisplayableEmail();
@@ -356,7 +400,38 @@ public class IdentityDiscControllerTest {
 
     @Test
     @MediumTest
-    @EnableFeatures(ChromeFeatureList.UNO_PHASE_2_FOLLOW_UP)
+    // Specifies the test to run only with the GMS Core version greater than or equal to 24w15 which
+    // is the min version that supports split stores UPM backend, to avoid
+    // UserActionableError.NEEDS_UPM_BACKEND_UPGRADE.
+    @Restriction(GmsCoreVersionRestriction.RESTRICTION_TYPE_VERSION_GE_24W15)
+    public void testIdentityDiscSignedIn_nonDisplayableEmail_noName() {
+        // Identity Disc should be shown on sign-in state change with a NTP refresh.
+        mSigninTestRule.addAccount(TestAccounts.CHILD_ACCOUNT_NON_DISPLAYABLE_EMAIL_AND_NO_NAME);
+        mSigninTestRule.waitForSignin(TestAccounts.CHILD_ACCOUNT_NON_DISPLAYABLE_EMAIL_AND_NO_NAME);
+
+        String expectedContentDescription =
+                mActivityTestRule
+                        .getActivity()
+                        .getString(
+                                R.string.accessibility_toolbar_btn_identity_disc_with_name,
+                                mFallbackAccountName);
+        ViewUtils.waitForVisibleView(
+                allOf(
+                        withId(R.id.optional_toolbar_button),
+                        isDisplayed(),
+                        withContentDescription(expectedContentDescription)));
+
+        mSigninTestRule.forceSignOut();
+        ViewUtils.waitForVisibleView(
+                allOf(
+                        withId(R.id.optional_toolbar_button),
+                        isDisplayed(),
+                        withContentDescription(
+                                R.string.accessibility_toolbar_btn_signed_out_identity_disc)));
+    }
+
+    @Test
+    @MediumTest
     public void testIdentityDiscWithErrorBadgeSignedIn() {
         // Fake an identity error.
         ThreadUtils.runOnUiThreadBlocking(
@@ -393,7 +468,6 @@ public class IdentityDiscControllerTest {
 
     @Test
     @MediumTest
-    @EnableFeatures(ChromeFeatureList.UNO_PHASE_2_FOLLOW_UP)
     public void testIdentityDiscWithErrorBadgeSignedIn_nonDisplayableEmail() {
         // Fake an identity error.
         ThreadUtils.runOnUiThreadBlocking(
@@ -463,7 +537,6 @@ public class IdentityDiscControllerTest {
 
     @Test
     @SmallTest
-    @EnableFeatures(ChromeFeatureList.UNO_PHASE_2_FOLLOW_UP)
     @UiThreadTest
     public void testPreExistingErrorAtCreation() {
         // Fake an identity error.
@@ -555,13 +628,12 @@ public class IdentityDiscControllerTest {
     @MediumTest
     @Feature("RenderTest")
     @UseMethodParameter(NightModeTestUtils.NightModeParams.class)
-    @EnableFeatures(ChromeFeatureList.UNO_PHASE_2_FOLLOW_UP)
     // Specifies the test to run only with the GMS Core version greater than or equal to 24w15 which
     // is the min version that supports split stores UPM backend, to avoid
     // UserActionableError.NEEDS_UPM_BACKEND_UPGRADE.
     @Restriction(GmsCoreVersionRestriction.RESTRICTION_TYPE_VERSION_GE_24W15)
-    public void testIdentityDisc_signedIn_unoPhase2FollowUpEnabled_noIdentityError(
-            boolean nightModeEnabled) throws IOException {
+    public void testIdentityDisc_signedIn_noIdentityError(boolean nightModeEnabled)
+            throws IOException {
         // Sign-in and wait for the user profile image to appear.
         mSigninTestRule.addAccountThenSignin(TestAccounts.ACCOUNT1);
         String expectedContentDescription =
@@ -589,9 +661,8 @@ public class IdentityDiscControllerTest {
     @MediumTest
     @Feature("RenderTest")
     @UseMethodParameter(NightModeTestUtils.NightModeParams.class)
-    @EnableFeatures(ChromeFeatureList.UNO_PHASE_2_FOLLOW_UP)
-    public void testIdentityDisc_signedIn_unoPhase2FollowUpEnabled_identityErrorExist(
-            boolean nightModeEnabled) throws IOException {
+    public void testIdentityDisc_signedIn_identityErrorExist(boolean nightModeEnabled)
+            throws IOException {
         // Fake an identity error.
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {

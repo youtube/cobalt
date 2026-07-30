@@ -24,6 +24,7 @@ public interface WebViewNavigationListenerBoundaryInterface
 
     void onPageDOMContentLoadedEventFired(/* WebViewPage */ InvocationHandler page);
 
+    // TODO: crbug.com/492948743 Deprecate these features
     void onFirstContentfulPaint(/* WebViewPage */ InvocationHandler page, long loadTimeUs);
 
     void onFirstContentfulPaintMillis(

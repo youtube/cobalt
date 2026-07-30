@@ -20,8 +20,6 @@ source_set("app_service") {
     "browser_app_launcher.h",
     "intent_util.cc",
     "intent_util.h",
-    "launch_result_type.cc",
-    "launch_result_type.h",
     "launch_utils.cc",
     "launch_utils.h",
     "metrics/app_service_metrics.cc",
@@ -255,13 +253,6 @@ source_set("app_service") {
       "//chrome/browser/ui/webui/ash/add_supervision",
     ]
   }
-
-  if (!is_chromeos) {
-    sources += [
-      "app_service_proxy_desktop.cc",
-      "app_service_proxy_desktop.h",
-    ]
-  }
 }
 
 source_set("unit_tests") {
@@ -370,6 +361,7 @@ source_set("test_support") {
       "//chrome/browser/ash/login/users:test_support",
       "//chrome/browser/ash/profiles",
       "//chrome/browser/sync",
+      "//chrome/browser/trusted_vault",
       "//chrome/test:test_support",
       "//chromeos/dbus/power",
       "//components/services/app_service/public/cpp:instance_update",

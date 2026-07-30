@@ -11,10 +11,10 @@ namespace accessibility_annotator {
 
 enum class EntityType {
   kUnknown = 0,
-  kFlight,
+  kFlightReservation,
   kOrder,
   kShipment,
-  kDriverLicense,
+  kDriversLicense,
   kPassport,
   kNationalId,
   kVehicle,

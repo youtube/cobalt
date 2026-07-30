@@ -4,6 +4,7 @@
 
 source_set("ui") {
   sources = [
+    "assistant_container_animatable.h",
     "assistant_container_animator.h",
     "assistant_container_animator.mm",
     "assistant_container_delegate.h",
@@ -18,6 +19,9 @@ source_set("ui") {
   ]
   deps = [
     "//base",
+    "//ios/chrome/browser/fullscreen/ui_bundled",
+    "//ios/chrome/browser/fullscreen/ui_bundled:ui",
+    "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/browser/shared/ui/chrome_overlay_window",
     "//ios/chrome/browser/shared/ui/symbols",
     "//ios/chrome/common/ui/colors",
@@ -36,6 +40,7 @@ source_set("unit_tests") {
     ":ui",
     "//base",
     "//base/test:test_support",
+    "//ios/chrome/common/ui/util",
     "//ios/chrome/test/app:test_support",
     "//testing/gtest",
     "//third_party/ocmock",

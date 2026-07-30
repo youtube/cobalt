@@ -31,6 +31,7 @@
 #include "chrome/browser/sharing_hub/sharing_hub_features.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/actions/chrome_actions.h"
+#include "chrome/browser/ui/ai_overlay_dialog/ai_overlay_dialog_controller.h"
 #include "chrome/browser/ui/autofill/address_bubbles_icon_controller.h"
 #include "chrome/browser/ui/autofill/autofill_bubble_base.h"
 #include "chrome/browser/ui/autofill/payments/filled_card_information_bubble_controller_impl.h"
@@ -75,6 +76,7 @@
 #include "chrome/browser/ui/toolbar/cast/cast_toolbar_button_util.h"
 #include "chrome/browser/ui/toolbar/chrome_labs/chrome_labs_utils.h"
 #include "chrome/browser/ui/ui_features.h"
+#include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/browser/ui/views/bookmarks/bookmark_page_action_controller.h"
 #include "chrome/browser/ui/views/commerce/discounts_page_action_view_controller.h"
 #include "chrome/browser/ui/views/file_system_access/file_system_access_bubble_controller.h"
@@ -98,6 +100,7 @@
 #include "chrome/browser/ui/views/zoom/zoom_view_controller.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/web_applications/web_app_dialog_utils.h"
+#include "chrome/browser/ui/webid/account_selection_view.h"
 #include "chrome/browser/ui/webui/side_panel/customize_chrome/customize_chrome_section.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/record_replay/record_replay_features.h"
@@ -107,6 +110,7 @@
 #include "components/commerce/core/metrics/discounts_metric_collector.h"
 #include "components/content_settings/core/common/features.h"
 #include "components/contextual_tasks/public/features.h"
+#include "components/feature_engagement/public/feature_constants.h"
 #include "components/lens/lens_features.h"
 #include "components/media_router/browser/media_router_dialog_controller.h"
 #include "components/media_router/browser/media_router_metrics.h"
@@ -400,6 +404,25 @@ void BrowserActions::InitializeBrowserActions() {
           .SetEnabled(true)
           .Build());
 
+  root_action_item_->AddChild(
+      actions::ActionItem::Builder(
+          base::BindRepeating(
+              [](BrowserWindowInterface* bwi, actions::ActionItem* item,
+                 actions::ActionInvocationContext context) {
+                if (!bwi) {
+                  return;
+                }
+                if (auto* fedcm_view = AccountSelectionView::Get(
+                        bwi->GetActiveTabInterface()
+                            ->GetUnownedUserDataHost())) {
+                  fedcm_view->OnPageActionClicked();
+                }
+              },
+              bwi))
+          .SetActionId(kActionFederation)
+          .SetEnabled(true)
+          .Build());
+
   if (base::FeatureList::IsEnabled(
           content_settings::features::
               kBlockV8OptimizerOnUnfamiliarSitesSetting)) {
@@ -683,9 +706,26 @@ void BrowserActions::InitializeBrowserActions() {
                     controller->SetProjectsVisible(
                         !controller->IsProjectsPanelVisible());
                   }
+
+                  // Dismiss the IPH promo if it is currently showing, or abort
+                  // it if it is queued to show.
+                  if (auto* interface =
+                          BrowserUserEducationInterface::From(bwi)) {
+                    const base::Feature& iph_feature =
+                        feature_engagement::kIPHResumptionRailFeature;
+                    if (interface->IsFeaturePromoActive(iph_feature)) {
+                      interface->NotifyFeaturePromoFeatureUsed(
+                          iph_feature,
+                          FeaturePromoFeatureUsedAction::kClosePromoIfPresent);
+                    } else if (interface->IsFeaturePromoQueued(iph_feature)) {
+                      interface->AbortFeaturePromo(iph_feature);
+                    }
+                  }
                 },
                 bwi))
             .SetActionId(kActionToggleProjectsPanel)
+            .SetImage(ui::ImageModel::FromVectorIcon(
+                kSavedTabGroupBarEverythingIcon, ui::kColorIcon))
             .Build());
   }
 
@@ -702,7 +742,8 @@ void BrowserActions::InitializeBrowserActions() {
               l10n_util::GetStringUTF16(IDS_NEW_TAB)))
           .SetTooltipText(BrowserActions::GetCleanTitleAndTooltipText(
               l10n_util::GetStringUTF16(IDS_NEW_TAB)))
-          .SetImage(ui::ImageModel::FromVectorIcon(kAddIcon, ui::kColorIcon))
+          .SetImage(ui::ImageModel::FromVectorIcon(vector_icons::kAddIcon,
+                                                   ui::kColorIcon))
           .Build());
 
   root_action_item_->AddChild(
@@ -1418,6 +1459,31 @@ void BrowserActions::InitializeBrowserActions() {
                     IDS_TAB_GROUP_HEADER_CXMENU_UNFOCUS_GROUP)))
             .SetImage(ui::ImageModel::FromVectorIcon(
                 vector_icons::kArrowBackIcon, ui::kColorIcon))
+            .Build());
+  }
+
+  if (glic::GlicEnabling::IsProfileEligible(profile) &&
+      base::FeatureList::IsEnabled(features::kAiOverlayDialog)) {
+    root_action_item_->AddChild(
+        actions::ActionItem::Builder(
+            base::BindRepeating(
+                [](BrowserWindowInterface* bwi, actions::ActionItem* item,
+                   actions::ActionInvocationContext context) {
+                  if (auto* controller = AiOverlayDialogController::From(bwi)) {
+                    controller->ToggleOverlay();
+                  }
+                },
+                bwi))
+            .SetActionId(kActionShowAiOverlayDialog)
+            .SetText(l10n_util::GetStringUTF16(IDS_APPMENU_TOOLTIP))
+            .SetImage(ui::ImageModel::FromVectorIcon(
+                vector_icons::kExtensionIcon, ui::kColorIcon,
+                ui::SimpleMenuModel::kDefaultIconSize))
+            .SetProperty(
+                actions::kActionItemPinnableKey,
+                static_cast<
+                    std::underlying_type_t<actions::ActionPinnableState>>(
+                    actions::ActionPinnableState::kPinnable))
             .Build());
   }
 

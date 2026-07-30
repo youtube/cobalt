@@ -214,8 +214,8 @@ class WTF_EXPORT StringView {
   // This operator performs an out-of-bounds access if the specified
   // index is out of range.
   UChar operator[](size_type i) const {
-    SECURITY_DCHECK(i < length());
-    // SAFETY: safe when i < length().
+    CHECK(i < length());
+    // SAFETY: checked that i < length() on previous line.
     UNSAFE_BUFFERS({
       if (Is8Bit()) {
         return static_cast<const LChar*>(bytes_)[i];
@@ -228,13 +228,13 @@ class WTF_EXPORT StringView {
   // string. If the offset points an unpaired surrogate, this function returns
   // the surrogate code unit as is. If you'd like to check such surroagtes,
   // use U_IS_SURROGATE() defined in unicode/utf.h.
-  UChar32 CodepointAt(size_type i) const;
+  UChar32 CodePointAt(size_type i) const;
 
   // Returns i+2 if a pair of [i] and [i+1] is a valid surrogate pair.
   // Returns i+1 otherwise.
   size_type NextCodePointOffset(size_type i) const;
 
-  // Does `CodepointAt()`, and the specified `i` is updated by
+  // Does `CodePointAt()`, and the specified `i` is updated by
   // `NextCodePointOffset()`.
   UChar32 CodePointAtAndNext(size_type& i) const;
 
@@ -440,8 +440,8 @@ inline StringView::StringView(const StringView& view,
                               size_type offset,
                               size_type length)
     : impl_(view.impl_), length_(length) {
-  SECURITY_DCHECK(offset <= view.length());
-  SECURITY_DCHECK(length <= view.length() - offset);
+  CHECK(offset <= view.length());
+  CHECK(length <= view.length() - offset);
   // SAFETY: Invariants are checked last two line.
   UNSAFE_BUFFERS({
     if (Is8Bit()) {
@@ -491,8 +491,8 @@ inline void StringView::Clear() {
 inline void StringView::Set(const StringImpl& impl,
                             size_type offset,
                             size_type length) {
-  SECURITY_DCHECK(offset <= impl.length());
-  SECURITY_DCHECK(length <= impl.length() - offset);
+  CHECK(offset <= impl.length());
+  CHECK(length <= impl.length() - offset);
   length_ = length;
   impl_ = const_cast<StringImpl*>(&impl);
   // SAFETY: Invariants are checked at beginning of this method.
@@ -527,9 +527,10 @@ inline bool EqualIgnoringAsciiCase(const StringView& a,
                     : EqualIgnoringAsciiCase(a.Span16(), span);
 }
 
-WTF_EXPORT int CodeUnitCompareIgnoringAsciiCase(StringView a, StringView b);
-inline bool CodeUnitCompareIgnoringAsciiCaseLessThan(StringView a,
-                                                     StringView b) {
+WTF_EXPORT int CodeUnitCompareIgnoringAsciiCase(const StringView& a,
+                                                const StringView& b);
+inline bool CodeUnitCompareIgnoringAsciiCaseLessThan(const StringView& a,
+                                                     const StringView& b) {
   return CodeUnitCompareIgnoringAsciiCase(a, b) < 0;
 }
 

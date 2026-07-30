@@ -146,8 +146,11 @@ enum class ProfileSignout {
   // User tapped 'Undo' in a snackbar that is shown right after sign-in through
   // recent tabs promo. Android only.
   kUserTappedUndoRightAfterSignInFromRecentTabs = 44,
+  // A forced sign-out when the account capability CanSignInToChrome restricts
+  // signin.
+  kSignoutFromCanSignInToChromeCapability = 45,
   // Keep this as the last enum.
-  kMaxValue = kUserTappedUndoRightAfterSignInFromRecentTabs,
+  kMaxValue = kSignoutFromCanSignInToChromeCapability,
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/signin/enums.xml)
 
@@ -328,14 +331,13 @@ enum class AccessPoint : int {
   // Avatar pill button expands to show a sign in promo. Access point is
   // propagated to the Profile Menu sign in button.
   kAvatarPillExpandPromo = 97,
-  // Add values above this line with a corresponding label to the
-  // "SigninAccessPoint" enum in
-  // tools/metrics/histograms/metadata/signin/enums.xml.
   kSearchAIModeBubble = 98,
+  // Sign in from IOS app bar.
+  kIosAppBar = 99,
   // Add values above this line with a corresponding label to the
   // "SigninAccessPoint" enum in
   // tools/metrics/histograms/metadata/signin/enums.xml.
-  kMaxValue = kSearchAIModeBubble,  // This must be last.
+  kMaxValue = kIosAppBar,  // This must be last.
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/signin/enums.xml)
 

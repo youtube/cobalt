@@ -9,8 +9,10 @@ import static org.chromium.chrome.browser.magic_stack.HomeModulesUtils.getSettin
 import static org.chromium.chrome.browser.magic_stack.HomeModulesUtils.getTitleForModuleType;
 import static org.chromium.chrome.browser.magic_stack.HomeModulesUtils.updateBooleanUserPrefs;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationViewProperties.ALL_NTP_CARDS_SWITCH_ON_CHECKED_CHANGE_LISTENER;
-import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationViewProperties.ARE_CARD_SWITCHES_ENABLED;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationViewProperties.BACK_PRESS_HANDLER;
+import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationViewProperties.IS_ALL_NTP_CARDS_SWITCH_CHECKED;
+import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationViewProperties.IS_ALL_NTP_CARDS_SWITCH_VISIBLE;
+import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationViewProperties.IS_MODULE_LIST_EDITABLE;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationViewProperties.LIST_CONTAINER_VIEW_DELEGATE;
 
 import android.content.Context;
@@ -21,6 +23,7 @@ import androidx.annotation.VisibleForTesting;
 
 import org.jni_zero.internal.Nullable;
 
+import org.chromium.base.Log;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.magic_stack.HomeModulesConfigManager;
@@ -46,6 +49,8 @@ import java.util.function.Supplier;
 @NullMarked
 public class NtpCardsMediator {
 
+    private static final String TAG = "XplatSyncedSetup";
+
     // LINT.IfChange(HomeModuleTypes)
     public static final Map<Integer, String> MODULE_TYPE_TO_USER_PREFS_KEY =
             Map.of(
@@ -61,6 +66,7 @@ public class NtpCardsMediator {
     private final PropertyModel mNtpCardsPropertyModel;
     private final Supplier<@Nullable Profile> mProfileSupplier;
     private final @Nullable ModuleRegistry mModuleRegistry;
+    private final boolean mIsHomeModulePrefRefactorEnabled;
 
     public NtpCardsMediator(
             PropertyModel containerPropertyModel,
@@ -74,6 +80,8 @@ public class NtpCardsMediator {
         mNtpCardsPropertyModel = ntpCardsPropertyModel;
         mProfileSupplier = profileSupplier;
         mModuleRegistry = moduleRegistry;
+        mIsHomeModulePrefRefactorEnabled =
+                ChromeFeatureList.isEnabled(ChromeFeatureList.HOME_MODULE_PREF_REFACTOR);
 
         mContainerPropertyModel.set(LIST_CONTAINER_VIEW_DELEGATE, createListDelegate());
         // Hides the back button when the NTP Cards bottom sheet is displayed standalone.
@@ -88,9 +96,22 @@ public class NtpCardsMediator {
                     HomeModulesConfigManager.getInstance().setPrefAllCardsEnabled(isChecked);
                 });
 
+        boolean isAllCardsSwitchChecked =
+                HomeModulesConfigManager.getInstance().getPrefAllCardsSwitchChecked();
+        mNtpCardsPropertyModel.set(IS_ALL_NTP_CARDS_SWITCH_CHECKED, isAllCardsSwitchChecked);
         mNtpCardsPropertyModel.set(
-                ARE_CARD_SWITCHES_ENABLED,
-                HomeModulesConfigManager.getInstance().getPrefAllCardsEnabled());
+                IS_ALL_NTP_CARDS_SWITCH_VISIBLE, mIsHomeModulePrefRefactorEnabled);
+        updateModuleListEditability(isAllCardsSwitchChecked);
+    }
+
+    private void updateModuleListEditability(boolean isAllCardsSwitchChecked) {
+        // The module list are editable if:
+        // 1. The all cards switch is hidden (allowing individual control by default);
+        // 2. If all cards switch is visible, whether the module list can be editable is consistent
+        // with whether the all-card-switch is toggled on.
+        mNtpCardsPropertyModel.set(
+                IS_MODULE_LIST_EDITABLE,
+                !mIsHomeModulePrefRefactorEnabled || isAllCardsSwitchChecked);
     }
 
     /** Returns {@link ListContainerViewDelegate} that defines the content of each list item. */
@@ -148,10 +169,28 @@ public class NtpCardsMediator {
 
     @VisibleForTesting
     void updateUserPrefs() {
-        if (!ChromeFeatureList.isEnabled(ChromeFeatureList.HOME_MODULE_PREF_REFACTOR)) return;
+        if (!ChromeFeatureList.isEnabled(ChromeFeatureList.HOME_MODULE_PREF_REFACTOR)) {
+            if (ChromeFeatureList.isEnabled(
+                    ChromeFeatureList.CROSS_DEVICE_PREF_TRACKER_EXTRA_LOGS)) {
+                Log.i(
+                        TAG,
+                        "NtpCardsMediator:updateUserPrefs - HomeModulePrefRefactor was off, return"
+                                + " early");
+            }
+            return;
+        }
 
         @Nullable Profile profile = mProfileSupplier.get();
-        if (profile == null) return; // Return if profile not ready yet
+        if (profile == null) {
+            if (ChromeFeatureList.isEnabled(
+                    ChromeFeatureList.CROSS_DEVICE_PREF_TRACKER_EXTRA_LOGS)) {
+                Log.i(
+                        TAG,
+                        "NtpCardsMediatorupdateUserPrefs - profile supplier gave null profile,"
+                                + " return early");
+            }
+            return; // Return if profile not ready yet
+        }
 
         updateBooleanUserPrefs(
                 ChromePreferenceKeys.HOME_MODULE_CARDS_ENABLED,
@@ -167,7 +206,8 @@ public class NtpCardsMediator {
 
     /** Reacts to a configuration change of the "all NTP cards" toggle. */
     void onAllCardsConfigChanged(boolean isEnabled) {
-        mNtpCardsPropertyModel.set(ARE_CARD_SWITCHES_ENABLED, isEnabled);
+        mNtpCardsPropertyModel.set(IS_ALL_NTP_CARDS_SWITCH_CHECKED, isEnabled);
+        updateModuleListEditability(isEnabled);
     }
 
     /** Clears the back press handler and click listeners of NTP cards bottom sheet. */

@@ -9,8 +9,12 @@
 #include <vector>
 
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/scoped_feature_list.h"
+#include "components/omnibox/common/omnibox_feature_configs.h"
+#include "components/omnibox/common/omnibox_features.h"
 #include "components/search_engines/template_url.h"
 #include "components/search_engines/template_url_data.h"
+#include "components/search_engines/template_url_data_util.h"
 #include "components/search_engines/template_url_service.h"
 #include "components/search_engines/template_url_service_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -23,7 +27,8 @@ namespace {
 std::unique_ptr<TemplateURL> CreateTemplateURL(const std::u16string& short_name,
                                                const std::u16string& keyword,
                                                const std::string& url,
-                                               bool created_by_policy = false) {
+                                               bool created_by_policy = false,
+                                               int prepopulate_id = 0) {
   TemplateURLData data;
   data.SetShortName(short_name);
   data.SetKeyword(keyword);
@@ -32,6 +37,7 @@ std::unique_ptr<TemplateURL> CreateTemplateURL(const std::u16string& short_name,
   data.policy_origin = created_by_policy
                            ? TemplateURLData::PolicyOrigin::kSiteSearch
                            : TemplateURLData::PolicyOrigin::kNoPolicy;
+  data.prepopulate_id = prepopulate_id;
   return std::make_unique<TemplateURL>(data);
 }
 
@@ -182,7 +188,8 @@ TEST_F(OrderTemplateUrlsByManagedAndAlphabeticallyTest,
   EXPECT_NE(result1, result2);
 
   // Test that GetShortNameSortKey doesn't crash with very long strings
-  std::string sort_key = comparator_->GetShortNameSortKey(very_long_name);
+  std::string sort_key =
+      comparator_->GetShortNameSortKeyForTesting(very_long_name);
   EXPECT_FALSE(sort_key.empty());
 
   // The sort key should be truncated but still valid
@@ -193,19 +200,21 @@ TEST_F(OrderTemplateUrlsByManagedAndAlphabeticallyTest,
 TEST_F(OrderTemplateUrlsByManagedAndAlphabeticallyTest,
        GetShortNameSortKeyUnicode) {
   // Test with ASCII
-  std::string ascii_key = comparator_->GetShortNameSortKey(u"Google");
+  std::string ascii_key = comparator_->GetShortNameSortKeyForTesting(u"Google");
   EXPECT_FALSE(ascii_key.empty());
 
   // Test with Unicode
-  std::string unicode_key = comparator_->GetShortNameSortKey(u"Яндекс");
+  std::string unicode_key =
+      comparator_->GetShortNameSortKeyForTesting(u"Яндекс");
   EXPECT_FALSE(unicode_key.empty());
 
   // Test with accented characters
-  std::string accented_key = comparator_->GetShortNameSortKey(u"Écosía");
+  std::string accented_key =
+      comparator_->GetShortNameSortKeyForTesting(u"Écosía");
   EXPECT_FALSE(accented_key.empty());
 
   // Test with empty string
-  std::string empty_key = comparator_->GetShortNameSortKey(u"");
+  std::string empty_key = comparator_->GetShortNameSortKeyForTesting(u"");
   // Empty string should produce empty or very short key
   EXPECT_LE(empty_key.length(), 1u);
 }
@@ -259,7 +268,8 @@ TEST_F(OrderTemplateUrlsByManagedAndAlphabeticallyTest, ExtremelyLongUnicode) {
 
   // GetShortNameSortKey should handle this without crashing
   EXPECT_NO_FATAL_FAILURE({
-    std::string sort_key = comparator_->GetShortNameSortKey(extreme_string);
+    std::string sort_key =
+        comparator_->GetShortNameSortKeyForTesting(extreme_string);
     EXPECT_LE(sort_key.length(), 1000u);
   });
 }
@@ -284,9 +294,149 @@ TEST_F(OrderTemplateUrlsByManagedAndAlphabeticallyTest,
   // Should handle near-limit strings without issues
   EXPECT_NO_FATAL_FAILURE({
     bool result = (*comparator_)(near_limit_engine.get(), normal_engine.get());
-    std::string sort_key = comparator_->GetShortNameSortKey(near_limit_string);
+    std::string sort_key =
+        comparator_->GetShortNameSortKeyForTesting(near_limit_string);
     EXPECT_FALSE(sort_key.empty());
     EXPECT_LT(sort_key.length(), 1000u);
     (void)result;  // Suppress unused variable warning
   });
+}
+
+class OrderTemplateUrlsByPrepopulatedAndManagedAndAlphabetically
+    : public testing::Test {};
+
+// Test that regional prepopulated engines are added first, then non-regional
+// ones, then custom ones.
+TEST_F(OrderTemplateUrlsByPrepopulatedAndManagedAndAlphabetically,
+       PrepopulatedEnginesFirst) {
+  std::unique_ptr<TemplateURLData> bing_data =
+      TemplateURLDataFromPrepopulatedEngine(TemplateURLPrepopulateData::bing);
+
+  auto bing_engine = CreateTemplateURL(
+      u"Bing", u"bing.com", "https://bing.com/search?q={searchTerms}",
+      /*created_by_policy=*/false, bing_data->prepopulate_id);
+  auto prepopulated_engine = CreateTemplateURL(
+      u"CustomPrepop", u"customprepop.com",
+      "https://customprepop.com/search?q={searchTerms}",
+      /*created_by_policy=*/false, bing_data->prepopulate_id + 1);
+  auto custom_engine =
+      CreateTemplateURL(u"A-Engine", u"aengine.com",
+                        "https://aengine.com/search?q={searchTerms}");
+
+  std::vector<std::unique_ptr<TemplateURLData>> prepopulated_urls;
+  prepopulated_urls.push_back(std::move(bing_data));
+
+  auto comparator = std::make_unique<
+      internal::OrderTemplateUrlsByPrepopulatedAndManagedAndAlphabetically>(
+      std::move(prepopulated_urls));
+
+  // Even though the alphabetical order is different, the prepopulated engines
+  // are added first.
+  EXPECT_TRUE((*comparator)(bing_engine.get(), prepopulated_engine.get()));
+  EXPECT_FALSE((*comparator)(prepopulated_engine.get(), bing_engine.get()));
+
+  EXPECT_TRUE((*comparator)(bing_engine.get(), custom_engine.get()));
+  EXPECT_FALSE((*comparator)(custom_engine.get(), bing_engine.get()));
+
+  EXPECT_TRUE((*comparator)(prepopulated_engine.get(), custom_engine.get()));
+  EXPECT_FALSE((*comparator)(custom_engine.get(), prepopulated_engine.get()));
+}
+
+// Test that prepopulated engines are added in the order of
+// `prepopulated_engines`.
+TEST_F(OrderTemplateUrlsByPrepopulatedAndManagedAndAlphabetically,
+       PrepopulatedEnginesSorted) {
+  std::unique_ptr<TemplateURLData> yahoo_data =
+      TemplateURLDataFromPrepopulatedEngine(TemplateURLPrepopulateData::yahoo);
+  std::unique_ptr<TemplateURLData> bing_data =
+      TemplateURLDataFromPrepopulatedEngine(TemplateURLPrepopulateData::bing);
+  std::unique_ptr<TemplateURLData> google_data =
+      TemplateURLDataFromPrepopulatedEngine(TemplateURLPrepopulateData::google);
+
+  auto yahoo_engine = CreateTemplateURL(
+      u"Yahoo", u"yahoo.com", "https://yahoo.com/search?q={searchTerms}",
+      /*created_by_policy=*/false, yahoo_data->prepopulate_id);
+  auto bing_engine = CreateTemplateURL(
+      u"Bing", u"bing.com", "https://bing.com/search?q={searchTerms}",
+      /*created_by_policy=*/false, bing_data->prepopulate_id);
+  auto google_engine = CreateTemplateURL(
+      u"Google", u"google.com", "https://google.com/search?q={searchTerms}",
+      /*created_by_policy=*/false, google_data->prepopulate_id);
+
+  std::vector<std::unique_ptr<TemplateURLData>> prepopulated_urls;
+  prepopulated_urls.push_back(std::move(yahoo_data));
+  prepopulated_urls.push_back(std::move(bing_data));
+  prepopulated_urls.push_back(std::move(google_data));
+
+  auto comparator = std::make_unique<
+      internal::OrderTemplateUrlsByPrepopulatedAndManagedAndAlphabetically>(
+      std::move(prepopulated_urls));
+
+  // Even though the alphabetical order is different, the engines are added in
+  // the order of `prepopulated_urls`.
+  EXPECT_TRUE((*comparator)(yahoo_engine.get(), bing_engine.get()));
+  EXPECT_FALSE((*comparator)(bing_engine.get(), yahoo_engine.get()));
+
+  EXPECT_TRUE((*comparator)(yahoo_engine.get(), google_engine.get()));
+  EXPECT_FALSE((*comparator)(google_engine.get(), yahoo_engine.get()));
+
+  EXPECT_TRUE((*comparator)(bing_engine.get(), google_engine.get()));
+  EXPECT_FALSE((*comparator)(google_engine.get(), bing_engine.get()));
+}
+
+class GetDisabledStarterPackIdsTest : public testing::Test {};
+
+TEST_F(GetDisabledStarterPackIdsTest, AiMode) {
+  auto disabled_ids_with_ai =
+      internal::GetDisabledStarterPackIds(/*ai_mode_enabled*/ true);
+  EXPECT_FALSE(disabled_ids_with_ai.Has(
+      template_url_starter_pack_data::StarterPackId::kAiMode));
+
+  auto disabled_ids_without_ai =
+      internal::GetDisabledStarterPackIds(/*ai_mode_enabled*/ false);
+  EXPECT_TRUE(disabled_ids_without_ai.Has(
+      template_url_starter_pack_data::StarterPackId::kAiMode));
+}
+
+TEST_F(GetDisabledStarterPackIdsTest, GeminiWithStarterPackExpansion) {
+  base::test::ScopedFeatureList feature_list{omnibox::kStarterPackExpansion};
+
+  auto disabled_ids =
+      internal::GetDisabledStarterPackIds(/*ai_mode_enabled*/ true);
+  EXPECT_FALSE(
+      disabled_ids.Has(template_url_starter_pack_data::StarterPackId::kGemini));
+}
+
+TEST_F(GetDisabledStarterPackIdsTest, GeminiWithoutStarterPackExpansion) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(omnibox::kStarterPackExpansion);
+
+  auto disabled_ids =
+      internal::GetDisabledStarterPackIds(/*ai_mode_enabled*/ true);
+  EXPECT_TRUE(
+      disabled_ids.Has(template_url_starter_pack_data::StarterPackId::kGemini));
+}
+
+TEST_F(GetDisabledStarterPackIdsTest, PageWithStarterPackPage) {
+  omnibox_feature_configs::ScopedConfigForTesting<
+      omnibox_feature_configs::ContextualSearch>
+      scoped_config;
+  scoped_config.Get().starter_pack_page = true;
+
+  auto disabled_ids =
+      internal::GetDisabledStarterPackIds(/*ai_mode_enabled*/ true);
+  EXPECT_FALSE(
+      disabled_ids.Has(template_url_starter_pack_data::StarterPackId::kPage));
+}
+
+TEST_F(GetDisabledStarterPackIdsTest, PageWithoutStarterPackPage) {
+  omnibox_feature_configs::ScopedConfigForTesting<
+      omnibox_feature_configs::ContextualSearch>
+      scoped_config;
+  scoped_config.Get().starter_pack_page = false;
+
+  auto disabled_ids =
+      internal::GetDisabledStarterPackIds(/*ai_mode_enabled*/ true);
+  EXPECT_TRUE(
+      disabled_ids.Has(template_url_starter_pack_data::StarterPackId::kPage));
 }

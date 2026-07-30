@@ -77,8 +77,8 @@ static const char* kInterstitialDetails = "Details";
     config.features_enabled_and_params.push_back(
         {supervised_user::kLocalWebApprovals,
          {{{"LocalWebApprovalBottomSheetLoadTimeoutMs", "0"}}}});
-    config.features_enabled_and_params.push_back(
-        {supervised_user::kSupervisedUserBlockInterstitialV3, {}});
+    config.features_enabled.push_back(
+        supervised_user::kSupervisedUserBlockInterstitialV3);
   } else if (
       [self isRunningTest:@selector
             (testSupervisedUserShowInterstitialDetailsLinkForNarrowScreen)] ||
@@ -100,8 +100,8 @@ static const char* kInterstitialDetails = "Details";
     config.features_enabled_and_params.push_back(
         {supervised_user::kLocalWebApprovals,
          {{{"LocalWebApprovalBottomSheetLoadTimeoutMs", "5000"}}}});
-    config.features_enabled_and_params.push_back(
-        {supervised_user::kSupervisedUserBlockInterstitialV3, {}});
+    config.features_enabled.push_back(
+        supervised_user::kSupervisedUserBlockInterstitialV3);
   }
   return config;
 }
@@ -329,9 +329,7 @@ static const char* kInterstitialDetails = "Details";
 // Tests that the Encryption item is disabled for supervised users.
 - (void)testEncryptionItemDisabledForSupervisedUsers {
   [self signInSupervisedUser];
-  [ChromeEarlGreyUI openSettingsMenu];
-  [ChromeEarlGreyUI
-      tapSettingsMenuButton:chrome_test_util::SettingsAccountButton()];
+  [SigninEarlGreyUI openSyncSettings];
 
   [[[EarlGrey selectElementWithMatcher:
                   grey_allOf(chrome_test_util::ButtonWithAccessibilityLabelId(

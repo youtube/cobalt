@@ -6,6 +6,7 @@
 #define COMPONENTS_BOOKMARKS_COMMON_BOOKMARK_METRICS_H_
 
 #include "base/time/time.h"
+#include "components/bookmarks/common/storage_file_encryption_type.h"
 
 namespace bookmarks {
 
@@ -74,17 +75,6 @@ enum class StorageFileForUma {
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/bookmarks/enums.xml:StorageFileForUma)
 
-// LINT.IfChange(EncryptionType)
-
-// An enum class representing the encryption type of the bookmarks file.
-enum class EncryptionTypeForUma {
-  // Clear text, no encryption.
-  kClearText,
-  // Encryption is used.
-  kEncrypted,
-};
-// LINT.ThenChange(/tools/metrics/histograms/metadata/bookmarks/enums.xml:EncryptionType)
-
 // Records when a bookmark is added by the user.
 // `ancestor_user_folder_depth` is the count of user-generated folders which
 // are ancestors of this bookmark.
@@ -122,7 +112,7 @@ void RecordTimeSinceLastScheduledSave(base::TimeDelta delta);
 void RecordTimeToLoadAtStartup(base::TimeDelta delta);
 
 // Records size of the bookmark file at startup.
-void RecordFileSizeAtStartup(EncryptionTypeForUma encryption_type,
+void RecordFileSizeAtStartup(StorageFileEncryptionType encryption_type,
                              int64_t total_bytes);
 
 // Records a bookmark URL edit.
@@ -142,8 +132,12 @@ void RecordUserFolderLoadStatsOnProfileLoad(const UserFolderLoadStats& stats);
 // bookmarks that were selected.
 void RecordCloneBookmarkNode(int num_cloned);
 
-// Records the approximate average node size at startup.
-void RecordAverageNodeSizeAtStartup(size_t size_in_bytes);
+// Records the approximate average node size at startup if
+// sum_file_size_in_bytes and total_url_bookmark_count are not zero.
+void RecordAverageNodeSizeAtStartupIfNonZero(
+    StorageFileEncryptionType encryption_type,
+    int total_url_bookmark_count,
+    size_t sum_file_size_in_bytes);
 
 // Records whether or not node IDs were reassigned as a result of loading the
 // JSON file representing local-or-syncable bookmarks.
@@ -174,15 +168,18 @@ enum class BookmarksFileLoadResult {
 // LINT.ThenChange(/tools/metrics/histograms/metadata/bookmarks/enums.xml:BookmarksFileLoadResult)
 
 void RecordBookmarksFileLoadResult(StorageFileForUma storage_file,
-                                   EncryptionTypeForUma encryption_type,
+                                   StorageFileEncryptionType encryption_type,
                                    BookmarksFileLoadResult result);
 
 void RecordEncryptedBookmarksFileMatchesResult(StorageFileForUma storage_file,
                                                bool file_matches);
 
 void RecordTimeToReadFile(StorageFileForUma storage_file,
-                          EncryptionTypeForUma encryption_type,
+                          StorageFileEncryptionType encryption_type,
                           base::TimeDelta delta);
+
+void RecordFallbackToClearTextFileOnLoadResult(StorageFileForUma storage_file,
+                                               BookmarksFileLoadResult result);
 
 }  // namespace metrics
 

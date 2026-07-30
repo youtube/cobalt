@@ -45,17 +45,7 @@ class PodIntervalTree final : public PodRedBlackTree<PodInterval<T, UserData>> {
   // this tree.
   using IntervalType = PodInterval<T, UserData>;
 
-  explicit PodIntervalTree(UninitializedTreeEnum unitialized_tree)
-      : PodRedBlackTree<IntervalType>(unitialized_tree) {
-    Init();
-  }
-
-  PodIntervalTree() : PodRedBlackTree<IntervalType>() { Init(); }
-
-  explicit PodIntervalTree(scoped_refptr<PodArena> arena)
-      : PodRedBlackTree<IntervalType>(arena) {
-    Init();
-  }
+  PodIntervalTree() : PodRedBlackTree<IntervalType>() {}
 
   PodIntervalTree(const PodIntervalTree&) = delete;
   PodIntervalTree& operator=(const PodIntervalTree&) = delete;
@@ -93,13 +83,6 @@ class PodIntervalTree final : public PodRedBlackTree<PodInterval<T, UserData>> {
 
  private:
   using IntervalNode = typename PodRedBlackTree<IntervalType>::Node;
-
-  // Initializes the tree.
-  void Init() {
-    // Explicit dereference of "this" required because of
-    // inheritance rules in template classes.
-    this->SetNeedsFullOrderingComparisons(true);
-  }
 
   // Starting from the given node, adds all overlaps with the given
   // interval to the result vector. The intervals are sorted by

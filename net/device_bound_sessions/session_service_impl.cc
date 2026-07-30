@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "base/barrier_callback.h"
-#include "base/barrier_closure.h"
 #include "base/containers/to_vector.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
@@ -53,15 +52,6 @@ namespace {
 //    attempts to prevent identity linking for federated sessions.
 constexpr size_t kSigningQuota = 6;
 constexpr base::TimeDelta kSigningQuotaInterval = base::Minutes(9);
-
-// The delay between when the session service is loaded and the garbage
-// collection is started. This is delayed to not slow down the startup of the
-// browser.
-constexpr base::TimeDelta kGarbageCollectionDelay = base::Minutes(2);
-
-// Histogram name for the garbage collection of unexportable keys.
-constexpr std::string_view kGarbageCollectionHistogramPrefix =
-    "Crypto.UnexportableKeys.GarbageCollection.DeviceBoundSessions.";
 
 bool SessionMatchesFilter(
     const SchemefulSite& site,
@@ -207,17 +197,6 @@ void SessionServiceImpl::LoadSessionsAsync() {
   }
   session_store_->LoadSessions(base::BindOnce(
       &SessionServiceImpl::OnLoadSessionsComplete, weak_factory_.GetWeakPtr()));
-
-  // Schedule a task for original profiles to obtain all keys that were
-  // created for this profile in the past, including all OTR profiles.
-  if (base::FeatureList::IsEnabled(
-          unexportable_keys::kUnexportableKeyDeletion)) {
-    base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
-        FROM_HERE,
-        base::BindOnce(&SessionServiceImpl::StartGarbageCollection,
-                       weak_factory_.GetWeakPtr()),
-        kGarbageCollectionDelay);
-  }
 }
 
 void SessionServiceImpl::RegisterBoundSession(
@@ -438,116 +417,6 @@ void SessionServiceImpl::OnLoadSessionsComplete(
       requests_before_initialization_);
 }
 
-void SessionServiceImpl::StartGarbageCollection() {
-  key_service_->GetAllSigningKeysForGarbageCollectionSlowlyAsync(
-      unexportable_keys::BackgroundTaskPriority::kBestEffort,
-      base::BindOnce(&SessionServiceImpl::OnGetAllKeysForGarbageCollection,
-                     weak_factory_.GetWeakPtr()));
-}
-
-void SessionServiceImpl::OnGetAllKeysForGarbageCollection(
-    unexportable_keys::ServiceErrorOr<
-        std::vector<unexportable_keys::UnexportableKeyId>>
-        all_key_ids_or_error) {
-  if (!all_key_ids_or_error.has_value() || all_key_ids_or_error->empty()) {
-    return;
-  }
-
-  base::OnceClosure do_garbage_collection = base::BindOnce(
-      &SessionServiceImpl::DoGarbageCollection, weak_factory_.GetWeakPtr(),
-      std::move(*all_key_ids_or_error));
-
-  if (pending_initialization_) {
-    queued_operations_.push_back(std::move(do_garbage_collection));
-  } else {
-    std::move(do_garbage_collection).Run();
-  }
-}
-
-void SessionServiceImpl::DoGarbageCollection(
-    std::vector<unexportable_keys::UnexportableKeyId> all_key_ids) {
-  CHECK(session_store_);
-  std::vector<const SessionKey*> sessions_to_restore;
-  sessions_to_restore.reserve(unpartitioned_sessions_.size());
-
-  for (const auto& [session_key, session] : unpartitioned_sessions_) {
-    if (session->unexportable_key_id() ==
-        base::unexpected(unexportable_keys::ServiceError::kKeyNotReady)) {
-      sessions_to_restore.push_back(&session_key);
-    }
-  }
-
-  auto barrier_closure = base::BarrierClosure(
-      sessions_to_restore.size(),
-      base::BindOnce(&SessionServiceImpl::DoGarbageCollectionWithSessionsReady,
-                     weak_factory_.GetWeakPtr(), std::move(all_key_ids)));
-
-  for (const SessionKey* session_key : sessions_to_restore) {
-    session_store_->RestoreSessionBindingKey(
-        *session_key,
-        base::BindOnce(
-            &SessionServiceImpl::OnSessionKeyRestoredForGarbageCollection,
-            weak_factory_.GetWeakPtr(), *session_key, barrier_closure),
-        SessionStore::RestoreSessionBindingKeyCallbackPriority::kLow);
-  }
-}
-
-void SessionServiceImpl::OnSessionKeyRestoredForGarbageCollection(
-    const SessionKey& session_key,
-    base::OnceClosure done_closure,
-    unexportable_keys::ServiceErrorOr<unexportable_keys::UnexportableKeyId>
-        key_id_or_error) {
-  if (!key_id_or_error.has_value()) {
-    DeleteSessionAndNotify(DeletionReason::kFailedToUnwrapKey, session_key,
-                           base::NullCallback());
-  } else if (auto* session = GetSession(session_key)) {
-    session->set_unexportable_key_id(key_id_or_error);
-  }
-  std::move(done_closure).Run();
-}
-
-void SessionServiceImpl::DoGarbageCollectionWithSessionsReady(
-    std::vector<unexportable_keys::UnexportableKeyId> all_key_ids) {
-  const size_t key_count = all_key_ids.size();
-  base::UmaHistogramCounts100(
-      base::StrCat({kGarbageCollectionHistogramPrefix, "TotalKeyCount"}),
-      key_count);
-
-  absl::flat_hash_set<unexportable_keys::UnexportableKeyId> known_key_ids;
-  for (const auto& [_, session] : unpartitioned_sessions_) {
-    if (Session::KeyIdOrError key_id_or_error = session->unexportable_key_id();
-        key_id_or_error.has_value()) {
-      known_key_ids.insert(*key_id_or_error);
-    }
-  }
-
-  // Remove all keys that are still used, or were created after the process
-  // started.
-  std::erase_if(all_key_ids, [&](unexportable_keys::UnexportableKeyId key_id) {
-    return known_key_ids.contains(key_id) ||
-           key_service_->GetCreationTime(key_id).value_or(base::Time::Now()) >=
-               base::Process::Current().CreationTime();
-  });
-
-  base::UmaHistogramCounts100(
-      base::StrCat({kGarbageCollectionHistogramPrefix, "UsedKeyCount"}),
-      key_count - all_key_ids.size());
-
-  base::UmaHistogramCounts100(
-      base::StrCat({kGarbageCollectionHistogramPrefix, "ObsoleteKeyCount"}),
-      all_key_ids.size());
-
-  // Delete all remaining keys.
-  key_service_->DeleteKeysSlowlyAsync(
-      all_key_ids, unexportable_keys::BackgroundTaskPriority::kBestEffort,
-      base::BindOnce([](unexportable_keys::ServiceErrorOr<size_t> result) {
-        base::UmaHistogramCounts100(
-            base::StrCat({kGarbageCollectionHistogramPrefix,
-                          "ObsoleteKeyDeletionCount"}),
-            result.value_or(0));
-      }));
-}
-
 void SessionServiceImpl::OnRegistrationComplete(
     OnAccessCallback on_access_callback,
     bool is_google_subdomain_for_histograms,
@@ -604,6 +473,10 @@ std::optional<SessionService::DeferralParams> SessionServiceImpl::ShouldDefer(
     DbscRequest& request,
     HttpRequestHeaders* extra_headers,
     const FirstPartySetMetadata& first_party_set_metadata) {
+  if (!request.allows_device_bound_sessions()) {
+    return std::nullopt;
+  }
+
   if (pending_initialization_) {
     return DeferralParams();
   }
@@ -1332,11 +1205,9 @@ void SessionServiceImpl::RestoreSessionKey(
         void(std::optional<unexportable_keys::UnexportableKeyId>)> callback) {
   if (session_store_) {
     session_store_->RestoreSessionBindingKey(
-        session_key,
-        base::BindOnce(&SessionServiceImpl::OnSessionKeyRestored,
-                       weak_factory_.GetWeakPtr(), session_key,
-                       on_access_callback, std::move(callback)),
-        SessionStore::RestoreSessionBindingKeyCallbackPriority::kHigh);
+        session_key, base::BindOnce(&SessionServiceImpl::OnSessionKeyRestored,
+                                    weak_factory_.GetWeakPtr(), session_key,
+                                    on_access_callback, std::move(callback)));
   } else {
     OnSessionKeyRestored(
         session_key, on_access_callback, std::move(callback),
@@ -1581,27 +1452,29 @@ void SessionServiceImpl::HandleResponseHeaders(
     DbscRequest& request,
     HttpResponseHeaders* headers,
     const FirstPartySetMetadata& first_party_set_metadata) {
-  const auto& request_url = request.url();
-
-  // If response header Sec-Session-Registration is present and configured
-  // appropriately, trigger a registration request per header value to attempt
-  // to create a new session.
-  if (request.allows_device_bound_session_registration() ||
-      !features::kDeviceBoundSessionsRequireOriginTrialTokens.Get()) {
-    std::vector<device_bound_sessions::RegistrationFetcherParam> params =
-        device_bound_sessions::RegistrationFetcherParam::CreateIfValid(
-            request_url, headers, restricted_sites_);
-    for (auto& param : params) {
-      RegisterBoundSession(request.device_bound_session_access_callback(),
-                           std::move(param), request.isolation_info(),
-                           request.net_log(), request.initiator());
-    }
+  // Only process device bound session headers if the request allows device
+  // bound sessions.
+  if (!request.allows_device_bound_sessions()) {
+    return;
   }
 
-  // If response header Sec-Session-Challenge is present and configured
-  // appropriately, for each header value, store the challenge in advance for
-  // the next relevant refresh request that gets triggered. This is to help
-  // avoid a round-trip for when the next refresh request is required.
+  const auto& request_url = request.url();
+
+  // If response header Sec-Session-Registration is present, trigger a
+  // registration request per header value to attempt to create a new session.
+  std::vector<device_bound_sessions::RegistrationFetcherParam> params =
+      device_bound_sessions::RegistrationFetcherParam::CreateIfValid(
+          request_url, headers, restricted_sites_);
+  for (auto& param : params) {
+    RegisterBoundSession(request.device_bound_session_access_callback(),
+                         std::move(param), request.isolation_info(),
+                         request.net_log(), request.initiator());
+  }
+
+  // If response header Sec-Session-Challenge is present, for each header
+  // value, store the challenge in advance for the next relevant refresh
+  // request that gets triggered. This is to help avoid a round-trip for when
+  // the next refresh request is required.
   std::vector<device_bound_sessions::SessionChallengeParam> challenge_params =
       device_bound_sessions::SessionChallengeParam::CreateIfValid(request_url,
                                                                   headers);

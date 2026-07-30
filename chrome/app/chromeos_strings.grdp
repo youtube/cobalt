@@ -615,9 +615,6 @@
   <message name="IDS_COUNTRY_DROPDOWN_TITLE" desc="Title of country selection dropdown menu" meaning="Small title near country dropdown menu suggesting that this is a country selector.">
     Country
   </message>
-  <message name="IDS_OOBE_WELCOME_NEXT_BUTTON_TEXT" desc="Text on 'Start to use ChromeOS' button" meaning="This is the text label displayed on the 'Next' button for the first ChromeOS initial device setup screen ('Welcome screen').">
-    Let's go
-  </message>
   <message name="IDS_OOBE_OK_BUTTON_TEXT" desc="Text on 'OK' button" meaning="This is 'OK' text for all 'OK' buttons on ChromeOS initial device setup screens.">
     OK
   </message>
@@ -710,28 +707,6 @@
   </message>
   <message name="IDS_TIMEZONE_DROPDOWN_LABEL" desc="Navigation label attached to the 'List of timezones' dropdown menu on ChromeOS Timezone initial device setup screen" meaning="The menu itself displays only current timezone name. But for accessibility mode we need full description of this menu. So this label suggests that activating a menu will allow to change current timezone.">
     Select timezone
-  </message>
-  <message name="IDS_OOBE_EULA_SECTION_TITLE" desc="Title of Terms of Service screen">
-    Google terms of service
-  </message>
-  <if expr="reven">
-    <message name="IDS_OOBE_EULA_IFRAME_LABEL" desc="Accessibility label on an iframe with full ChromeOS Terms text">
-      Google ChromeOS Flex Terms contents
-    </message>
-    <message name="IDS_OOBE_EULA_ADDITIONAL_TERMS" desc="Text of the Link to Google Chrome and ChromeOS additional terms">
-      Google Chrome and ChromeOS Flex Additional Terms
-    </message>
-  </if>
-  <if expr="not reven">
-    <message name="IDS_OOBE_EULA_IFRAME_LABEL" desc="Accessibility label on an iframe with full ChromeOS Terms text">
-      Google ChromeOS Terms contents
-    </message>
-    <message name="IDS_OOBE_EULA_ADDITIONAL_TERMS" desc="Text of the Link to Google Chrome and ChromeOS additional terms">
-      Google Chrome and ChromeOS Additional Terms
-    </message>
-  </if>
-  <message name="IDS_OOBE_EULA_ACCEPT_AND_CONTINUE_BUTTON_TEXT" desc="Label on a button on the Title of Terms of Service OOBE screen to accept EULA and continue.">
-    Accept and continue
   </message>
   <message name="IDS_OOBE_ACCESSIBLE_SCREEN_NAME" desc="Text that is spoken when requesting OOBE screen name">
     Login Dialog
@@ -1266,6 +1241,18 @@
   <message name="IDS_FJORD_TOUCH_CONTROLLER_NEXT_BUTTON_TEXT" desc="Button shown to the user to go to the next step.">
     Next
   </message>
+  <message name="IDS_FJORD_IMAGE_SELECTION_TITLE" desc="Title of the OOBE screen for choosing the device enrollment type.">
+    Choose device enrollment type
+  </message>
+  <message name="IDS_FJORD_IMAGE_SELECTION_MEET_LABEL" desc="Label for the radio button option to enroll the device as Google Beam with Meet.">
+    Google Beam with Meet
+  </message>
+  <message name="IDS_FJORD_IMAGE_SELECTION_ZOOM_LABEL" desc="Label for the radio button option to enroll the device as Google Beam with Zoom.">
+    Google Beam with Zoom
+  </message>
+  <message name="IDS_FJORD_IMAGE_DOWNLOAD_TITLE" desc="Title of the OOBE screen shown while the device image download is in progress.">
+    Installing software
+  </message>
 
   <!-- Strings for parental handoff login screen -->
   <message name="IDS_LOGIN_PARENTAL_HANDOFF_SCREEN_TITLE" desc="Title of screen which tells user that the parent can handoff the device to supervised user.">
@@ -1687,21 +1674,6 @@
   <message name="IDS_DISCOVER_PIN_RESET_DONE_TITLE_CHILD" desc="A title of the dialog that is shown to the user's child when their PIN has been updated during recovery.">
     Your child’s PIN has been updated
   </message>
-  <message name="IDS_APP_START_PREPARING_PROFILE_MESSAGE" desc="Message displayed while preparing profile in which the app will be run.">
-    Preparing app profile...
-  </message>
-  <message name="IDS_APP_START_NETWORK_WAIT_MESSAGE" desc="Message displayed while installing and/or launching web application in kiosk mode.">
-    Waiting for network connection...
-  </message>
-  <message name="IDS_APP_START_APP_WAIT_MESSAGE" desc="Message displayed while installing and/or launching web application in kiosk mode.">
-    Initializing application...
-  </message>
-  <message name="IDS_APP_START_EXTENSION_WAIT_MESSAGE" desc="Message displayed while installing and/or launching extensions in kiosk mode.">
-    Initializing extensions...
-  </message>
-  <message name="IDS_APP_START_WAIT_FOR_APP_WINDOW_MESSAGE" desc="Message displayed while waiting for the application to create its window in kiosk mode.">
-    Waiting for application window...
-  </message>
   <message name="IDS_PASSWORD_SELECTION_TITLE" desc="Title displayed on the password selection screen.">
     Set a <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph> password to make it easier to sign in
   </message>
@@ -1713,16 +1685,6 @@
   </message>
   <message name="IDS_PASSWORD_SELECTION_GAIA_PASSWORD_LABEL" desc="Label for the online password option on the password selection screen.">
     Use Google Account password
-  </message>
-
-  <message name="IDS_APP_START_NETWORK_WAIT_TIMEOUT_MESSAGE" desc="Message displayed while the network wait is timed out during app launching.">
-    Internet disconnected. Please check your internet connection.
-  </message>
-  <message name="IDS_APP_START_SHOWING_NETWORK_CONFIGURE_UI_MESSAGE" desc="Message displayed while waiting for the requested network configure UI to show up in kiosk mode.">
-    Network configure UI requested, please wait...
-  </message>
-  <message name="IDS_APP_START_BAILOUT_SHORTCUT_FORMAT" desc="Message displayed at the bottom of app launch splash screen to show user the shortcut key to bailout the launch.">
-    Press Ctrl + Alt + S to switch to <ph name="IDS_SHORT_PRODUCT_OS_NAME">$1<ex>ChromeOS</ex></ph>
   </message>
   <message name="IDS_LOGIN_PASSWORD_CHANGED_OLD_PASSWORD_HINT" desc="Old password field hint on the password changed dialog.">
     Enter old password
@@ -1933,51 +1895,6 @@
   <message name="IDS_BROWSE_WITHOUT_SIGNING_IN_HTML" desc="Text shown on side of Google sign-in UI.">
     You may also skip signing in and <ph name="LINK_START">$1<ex>&gt;a&lt;</ex></ph>browse as Guest<ph name="LINK_END">$2<ex>&gt;/a&lt;</ex></ph>.
   </message>
-  <message name="IDS_WILCO_NOTIFICATION_BATTERY_AUTH_TITLE" desc="The title of the notification shown to inform the user that an unauthorized battery is connected to a Chromebook.">
-    Battery isn't charging
-  </message>
-  <message name="IDS_WILCO_NOTIFICATION_BATTERY_AUTH_MESSAGE" desc="The message of the notification shown to inform the user that an unauthorized battery is connected to a Chromebook.">
-    To charge this Chromebook, use a compatible Dell battery.
-  </message>
-  <message name="IDS_WILCO_NOTIFICATION_NON_WILCO_CHARGER_TITLE" desc="The title of the notification shown to inform the user that charger is unauthorized and battery will not charge.">
-    Power adapter issue
-  </message>
-  <message name="IDS_WILCO_NOTIFICATION_NON_WILCO_CHARGER_MESSAGE" desc="The message of the notification shown to inform the user that charger is unauthorized and battery will not charge.">
-    To avoid charging and performance issues, use a compatible Dell or USB Type-C power adapter.
-  </message>
-  <message name="IDS_WILCO_NOTIFICATION_INCOMPATIBLE_DOCK_TITLE" desc="The title of the notification shown to inform the user that attached dock is incompatible.">
-    Dock isn't fully compatible
-  </message>
-  <message name="IDS_WILCO_NOTIFICATION_INCOMPATIBLE_DOCK_MESSAGE" desc="The message of the notification shown to inform the user that attached dock is incompatible.">
-    To get additional features, use a Dell docking station designed to work with this Chromebook.
-  </message>
-  <message name="IDS_WILCO_NOTIFICATION_DOCK_ERROR_TITLE" desc="The title of the notification shown to inform the user that attached dock presents hardware failures.">
-    Dock fan needs service
-  </message>
-  <message name="IDS_WILCO_NOTIFICATION_DOCK_ERROR_MESSAGE" desc="The message of the notification shown to inform the user that attached dock presents hardware failures.">
-    Contact Dell for service. The dock will shut down if the fan isn't working.
-  </message>
-  <message name="IDS_WILCO_NOTIFICATION_DOCK_DISPLAY_TITLE" desc="The title of the notification shown to inform the user that HDMI and USB Type-C cannot be used for displays at the same time with the attached dock.">
-    Dock video-port issue
-  </message>
-  <message name="IDS_WILCO_NOTIFICATION_DOCK_DISPLAY_MESSAGE" desc="The message of the notification shown to inform the user that HDMI and USB Type-C cannot be used for displays at the same time with the attached dock.">
-    HDMI and USB Type-C ports can't be used for video at the same time. Use a different video port.
-  </message>
-  <message name="IDS_WILCO_NOTIFICATION_DOCK_THUNDERBOLT_TITLE" desc="The title of the notification shown to inform the user that attached dock will operate in USB Type-C compatible mode.">
-    Thunderbolt is not supported
-  </message>
-  <message name="IDS_WILCO_NOTIFICATION_DOCK_THUNDERBOLT_MESSAGE" desc="The message of the notification shown to inform the user that attached dock will operate in USB Type-C compatible mode.">
-    Your docking station will operate in USB Type-C compatible mode.
-  </message>
-  <message name="IDS_WILCO_LOW_POWER_CHARGER_TITLE" desc="The title of a notification indicating that a low-power USB charger has been connected.">
-    Low-power charger connected
-  </message>
-  <message name="IDS_WILCO_LOW_POWER_CHARGER_MESSAGE" desc="The message body of a notification indicating that a low-power USB charger has been connected, short version.">
-    Your Chromebook may not charge while it is turned on.
-  </message>
-  <message name="IDS_WILCO_NOTIFICATION_LEARN_MORE" desc="Label on button in various Wilco notification.">
-    Learn More
-  </message>
   <message name="IDS_LOCAL_STATE_ERROR_TEXT_0" desc="Text for notification that Local State file is corrupted and powerwash is required.">
     Unfortunately, <ph name="SHORT_PRODUCT_NAME">$1<ex>Chrome</ex></ph> is unable to recover your settings. To fix the error, <ph name="SHORT_PRODUCT_NAME">$1<ex>Chrome</ex></ph> must reset your device with Powerwash.
   </message>
@@ -2133,38 +2050,6 @@
   <message name="IDS_EULA_NEXT_BUTTON" desc="Next button shown on EULA/OOBE screens.">
     Next
   </message>
-  <message name="IDS_EULA_ACCEPT_AND_CONTINUE_BUTTON" desc="Accept button text below EULA terms of service">
-    Accept and continue
-  </message>
-  <message name="IDS_EULA_SYSTEM_SECURITY_SETTING" desc="Link from the EULA wizard screen and title of the TPM info dialog">
-    System security setting
-  </message>
-  <if expr="reven">
-    <message name="IDS_EULA_TPM_DESCRIPTION" desc="Dialog box text">
-      Your computer contains a Trusted Platform Module (TPM) security device, which is used to implement many critical security features in ChromeOS Flex. Visit the Chromebook Help Center to learn more: https://support.google.com/chromebook/?p=tpm
-    </message>
-  </if>
-  <if expr="not reven">
-    <message name="IDS_EULA_TPM_DESCRIPTION" desc="Dialog box text">
-      Your computer contains a Trusted Platform Module (TPM) security device, which is used to implement many critical security features in ChromeOS. Visit the Chromebook Help Center to learn more: https://support.google.com/chromebook/?p=tpm
-    </message>
-  </if>
-  <message name="IDS_EULA_RLZ_DESCRIPTION" desc="Dialog box text">
-    Your computer also comes with <ph name="SHORT_PRODUCT_NAME">$1<ex>Chrome</ex></ph>'s RLZ library built in. RLZ assigns a non-unique, non-personally identifiable tag to measure the searches and <ph name="SHORT_PRODUCT_NAME">$1<ex>Chrome</ex></ph> usage driven by a particular promotional campaign. These labels sometimes appear in Google Search queries in <ph name="PRODUCT_NAME">$2<ex>Google Chrome</ex></ph>.
-  </message>
-  <message name="IDS_EULA_RLZ_ENABLE" desc="Check box text for enabling RLZ tracking on TPM/RLZ info dialog.">
-    Enable RLZ tracking on <ph name="SHORT_PRODUCT_OS_NAME">$1<ex>ChromeOS</ex></ph>.
-  </message>
-  <if expr="reven">
-    <message name="IDS_EULA_SECURE_MODULE_DESCRIPTION" desc="Description of what a secure module does in the eula page.">
-      Your computer contains a secure module, which is used to implement many critical security features in ChromeOS Flex. Visit the Chromebook Help Center to learn more: https://support.google.com/chromebook/?p=sm
-    </message>
-  </if>
-  <if expr="not reven">
-    <message name="IDS_EULA_SECURE_MODULE_DESCRIPTION" desc="Description of what a secure module does in the eula page.">
-      Your computer contains a secure module, which is used to implement many critical security features in ChromeOS. Visit the Chromebook Help Center to learn more: https://support.google.com/chromebook/?p=sm
-    </message>
-  </if>
   <message name="IDS_ENABLE_DEBUGGING_SCREEN_TITLE" desc="Title of the enable debugging features screen">
     Enable debugging features
   </message>
@@ -2397,32 +2282,8 @@
   <message name="IDS_STATUSBAR_NETWORK_DEVICE_ETHERNET" desc="Label for an ethernet network device.">
     Ethernet
   </message>
-  <message name="IDS_STATUSBAR_NETWORK_DEVICE_WIFI" desc="Label for a wifi network device.">
-    Wi-Fi
-  </message>
-  <message name="IDS_STATUSBAR_NETWORK_DEVICE_CELLULAR" desc="Label for a cellular network device.">
-    Mobile data
-  </message>
 
   <!-- Status bar -->
-  <message name="IDS_STATUSBAR_NETWORK_DEVICE_ENABLE" desc="Enable the network device.">
-    Enable <ph name="NETWORKDEVICE">$1<ex>Wifi</ex></ph>
-  </message>
-  <message name="IDS_STATUSBAR_NETWORK_DEVICE_DISABLE" desc="Disable the network device.">
-    Disable <ph name="NETWORKDEVICE">$1<ex>Wifi</ex></ph>
-  </message>
-  <message name="IDS_STATUSBAR_NETWORK_DEVICE_STATUS" desc="The status of the network device.">
-    <ph name="NETWORKDEVICE">$1<ex>Wifi</ex></ph>: <ph name="STATUS">$2<ex>Connecting</ex></ph>
-  </message>
-  <message name="IDS_STATUSBAR_NETWORK_MENU_ITEM_INDENT" desc="A menu item label with an indentation. For left-to-right languages, we use 3 spaces on the left.">
-    '''   <ph name="LABEL">$1<ex>Wifi SSID</ex></ph>'''
-  </message>
-  <message name="IDS_STATUSBAR_NETWORK_OPEN_PROXY_SETTINGS_DIALOG" desc="The menu item in the network menu button at login screen for opening the options dialog">
-    Proxy settings...
-  </message>
-  <message name="IDS_STATUSBAR_NETWORK_MORE" desc="Message for last link in the network menu requesting more technical and less common stuff (proxy settings, IP and hardware addresses)">
-    More...
-  </message>
   <message name="IDS_STATUSBAR_NO_NETWORKS_MESSAGE" desc="No networks are available">
     No networks are available
   </message>
@@ -2797,69 +2658,6 @@
   <message name="IDS_IDLE_WARNING_LOGOUT_WARNING" desc="Content of the warning dialog shown when the user becomes idle and is about to get logged out.">
     For security, sign out when your computer isn't being used.
   </message>
-  <message name="IDS_KIOSK_APP_FAILED_TO_LAUNCH" desc="Generic error message used when a kiosk app fails to launch.">
-    The kiosk application could not be launched.
-  </message>
-  <message name="IDS_KIOSK_APP_ERROR_UNABLE_TO_MOUNT" desc="Error message used when a kiosk app fails to launch due to cryptohome error.">
-    The cryptohome for the kiosk application could not be mounted.
-  </message>
-  <message name="IDS_KIOSK_APP_ERROR_UNABLE_TO_INSTALL" desc="Error message used when a kiosk app fails to launch due to install failure.">
-    Kiosk application could not be installed.
-  </message>
-  <message name="IDS_KIOSK_APP_ERROR_UNABLE_TO_DOWNLOAD" desc="Error message used when a kiosk app fails to launch due to crx file download failure.">
-    Kiosk application could not be downloaded.
-  </message>
-  <message name="IDS_KIOSK_APP_ERROR_UNABLE_TO_LAUNCH" desc="Error message used when a kiosk app fails to launch due to app launching failure.">
-    Kiosk application could not be launched.
-  </message>
-  <message name="IDS_KIOSK_APP_ERROR_EXTENSIONS_LOAD_TIMEOUT" desc="Error message used when a kiosk app fails to load force-installed extensions within the time limit.">
-    Failed to load extensions within the time limit. Please contact your administrator.
-  </message>
-  <message name="IDS_KIOSK_APP_ERROR_EXTENSIONS_POLICY_INVALID" desc="Error message used when a kiosk app loads an invalid ExtensionInstallForcelist policy value.">
-    The policy value of ExtensionInstallForcelist is invalid. Please contact your administrator.
-  </message>
-  <message name="IDS_KIOSK_APP_ERROR_USER_CANCEL" desc="Error message used when a kiosk app launch is canceled by user.">
-    Kiosk application launch canceled.
-  </message>
-  <message name="IDS_KIOSK_APP_ERROR_UNABLE_TO_LAUNCH_CHROME_APP" desc="Error message used when a kiosk session fails to launch due to the app being launched is a deprecated Chrome App.">
-    Can't launch unsupported Chrome app. Notify your administrator about this issue.
-  </message>
-  <message name="IDS_KIOSK_APP_ERROR_IWA_UNSUPPORTED" desc="Error message used when a kiosk app fails to launch/install because of being unsupported (e.g., not allowlisted/blocklisted)">
-    Can't launch unsupported kiosk app. Notify your administrator about this issue.
-  </message>
-  <message name="IDS_KIOSK_EXTERNAL_UPDATE_IN_PROGRESS" desc="Message shown on screen when the system is updating kiosk apps from usb stick.">
-    Please wait....Kiosk app is in the process of being updated. Do not remove the USB stick.
-  </message>
-  <message name="IDS_KIOSK_EXTERNAL_UPDATE_NO_UPDATES" desc="Error message for no external extensions to update.">
-    No Kiosk apps with newer version found. Nothing to update. Please remove the USB stick.
-  </message>
-  <message name="IDS_KIOSK_EXTERNAL_UPDATE_INVALID_MANIFEST" desc="Error message for invalid external update manifest file from usb stick.">
-    Invalid Kiosk external update manifest file found. Failed to update Kiosk app. Please remove the USB stick.
-  </message>
-  <message name="IDS_KIOSK_EXTERNAL_UPDATE_COMPLETE" desc="Message shown on screen when the system completes updating kiosk apps from usb stick.">
-    Kiosk app has been updated. Please remove the USB stick.
-  </message>
-  <message name="IDS_KIOSK_EXTERNAL_UPDATE_SUCCESSFUL_UPDATED_APPS" desc="Message shown for successfully updated kiosk apps.">
-    The following kiosk apps "<ph name="updated_apps">$1<ex>PrintApp</ex></ph>" have been updated. Please reboot the device to complete the update process.
-  </message>
-  <message name="IDS_KIOSK_EXTERNAL_UPDATE_FAILED_UPDATED_APPS" desc="Message shown for failed updated kiosk apps.">
-    The following kiosk apps have been failed for updating:
-  </message>
-  <message name="IDS_KIOSK_EXTERNAL_UPDATE_BAD_CRX" desc="Error message for crx file unpacking failure.">
-    Bad crx file, unpacking failed.
-  </message>
-  <message name="IDS_KIOSK_EXTERNAL_UPDATE_SAME_OR_LOWER_APP_VERSION" desc="Error message for external extension is the same or lower version comparing to the existing one.">
-    External extension is at the same or lower version comparing to the existing one.
-  </message>
-  <message name="IDS_KIOSK_EXTERNAL_UPDATE_REQUIRE_HIGHER_BROWSER_VERSION" desc="Error message for external extension requires higher version of chrome to be installed.">
-    The external extension requires chrome version <ph name="MINIMUM_CHROME_VERSION">$1<ex>1.0.0</ex></ph> or greater to be installed.
-  </message>
-  <message name="IDS_KIOSK_EXTERNAL_UPDATE_CANNOT_INSTALL_IN_LOCAL_CACHE" desc="Error message for not being able to install kiosk external crx file in local cache.">
-    Can't install <ph name="EXTERNAL_CRX_FILE">$1<ex>/media/usb/app_v2.crx</ex></ph> in local cache.
-  </message>
-  <message name="IDS_KIOSK_EXTERNAL_UPDATE_FAILED_COPY_CRX_TO_TEMP" desc="Error message for not being able to copy external crx file to a temp file.">
-    Can't copy external crx file to <ph name="TEMP_CRX_FILE">$1<ex>/tmp/kiosk_update/app.crx</ex></ph>.
-  </message>
 
   <!-- About Chrome page -->
   <message name="IDS_UPGRADE_OFFLINE" desc="Status label: Currently offline">
@@ -2903,45 +2701,6 @@
     You'll still be able to use this <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph> after that time, but it will no longer get automatic software and security updates
   </message>
 
-  <!-- EOL Incentive Offer Notification Strings -->
-  <message name="IDS_EOL_INCENTIVE_NOTIFICATION_TITLE_OFFER" desc="Notification title shown to offer a dollar amount discount on a new chromebook, to incentivize the user to upgrade.">
-    Save &#36;50 or more on a new Chromebook, when you upgrade today
-  </message>
-  <message name="IDS_EOL_INCENTIVE_NOTIFICATION_TITLE_OFFER_WITH_WARNING_EXPIRING_SOON" desc="Notification title to inform user that updates end soon on this device, and to show an offer for buying a new Chromebook.">
-    Security updates end soon. Save &#36;50 or more on a new Chromebook.
-  </message>
-  <message name="IDS_EOL_INCENTIVE_NOTIFICATION_TITLE_OFFER_WITH_WARNING_EXPIRED" desc="Notification title to inform user that updates have ended on this device, and to show an offer for buying a new Chromebook.">
-    Security updates have ended. Save &#36;50 or more on a new Chromebook.
-  </message>
-
-  <message name="IDS_EOL_INCENTIVE_NOTIFICATION_MESSAGE_OFFER_EXPIRING_SOON" desc="Notification message shown to inform the user that this device will soon no longer receive the latest software updates, and that the user can upgrade to a new chromebook using an offer.">
-    You will stop getting security updates for this Chromebook in <ph name="MONTH_AND_YEAR">$1<ex>June 2023</ex></ph>. Time to upgrade for the latest security and software. Offer terms apply.
-  </message>
-  <message name="IDS_EOL_INCENTIVE_NOTIFICATION_MESSAGE_OFFER_EXPIRED" desc="Notification message shown to inform the user that this device will longer receive the latest software updates, and that the user can upgrade to get updates using an offer.">
-    Your Chromebook is no longer receiving security updates. Time to upgrade for the latest security and software. Offer terms apply.
-  </message>
-
-  <message name="IDS_EOL_INCENTIVE_NOTIFICATION_OFFER_SHOP_BUTTON" desc="The first button label shown in the end of life offer notification to open a link to shop for chromebooks.">
-    Shop Now
-  </message>
-  <message name="IDS_EOL_INCENTIVE_NOTIFICATION_OFFER_ABOUT_BUTTON" desc="The second button label shown in the end of life offer notification to learn more about device software updates.">
-    About Updates
-  </message>
-
-  <!-- EOL Incentive No Offer Notification Strings -->
-  <message name="IDS_EOL_INCENTIVE_NOTIFICATION_TITLE_NO_OFFER_EXPIRING_SOON" desc="Notification title to inform user that updates end soon and to get a new chromebook.">
-    Security updates end soon. Upgrade to a new Chromebook.
-  </message>
-  <message name="IDS_EOL_INCENTIVE_NOTIFICATION_TITLE_NO_OFFER_EXPIRED" desc="Notification title to inform user that updates have ended and to get a new chromebook.">
-    Security updates have ended. Upgrade to a new Chromebook.
-  </message>
-
-  <message name="IDS_EOL_INCENTIVE_NOTIFICATION_MESSAGE_NO_OFFER_EXPIRING_SOON" desc="Notification message shown to inform the user that this device will soon no longer receive the latest software updates, and that the user can upgrade their device to get updates.">
-    You will stop getting security and software updates for this Chromebook in <ph name="MONTH_AND_YEAR">$1<ex>June 2023</ex></ph>. Upgrade your Chromebook for the best experience.
-  </message>
-  <message name="IDS_EOL_INCENTIVE_NOTIFICATION_MESSAGE_NO_OFFER_EXPIRED" desc="Notification message shown to inform the user that this device is longer receiving the latest software updates, and that the user can upgrade their device to get updates.">
-    Your Chromebook is no longer receiving security and software updates. Upgrade your Chromebook for the best experience.
-  </message>
 
   <!-- TPM Firmware Update Notification Strings -->
   <message name="IDS_TPM_FIRMWARE_UPDATE_NOTIFICATION_TITLE" desc="Notification title shown to inform the user that there is a pending TPM firmware update for the device.">
@@ -3074,33 +2833,6 @@
   </message>
   <message name="IDS_NEW_PORTAL_DETECTION_NOTIFICATION_BUTTON" desc="The text to display on the button when the user needs to sign in to the captive portal">
     Sign in
-  </message>
-  <message name="IDS_PORTAL_DETECTION_NOTIFICATION_TITLE_WIRED" desc="Title for the system notification that current wired network is behind captive portal">
-    Connect to network
-  </message>
-  <message name="IDS_PORTAL_DETECTION_NOTIFICATION_TITLE_WIFI" desc="Title for the system notification that current Wi-Fi network is behind captive portal">
-    Connect to Wi-Fi network
-  </message>
-  <message name="IDS_PORTAL_DETECTION_NOTIFICATION_MESSAGE_WIRED" desc="Body of the system notification that current wired network is behind captive portal">
-    The network you are using (<ph name="NETWORK_ID">$1<ex>Public Network</ex></ph>) may require you to visit its login page.
-  </message>
-  <message name="IDS_PORTAL_DETECTION_NOTIFICATION_MESSAGE_WIFI" desc="Body of the system notification that current Wi-Fi network is behind captive portal">
-    The Wi-Fi network you are using (<ph name="NETWORK_ID">$1<ex>Public Network</ex></ph>) may require you to visit its login page.
-  </message>
-  <message name="IDS_PORTAL_DETECTION_NOTIFICATION_MESSAGE_ASK_WIFI" desc="Body of the system notification that asks a user whether to use an extension to authenticate to the network">
-    The Wi-Fi network you are using (<ph name="NETWORK_ID">$1<ex>Public Wifi</ex></ph>) may require authentication.
-  </message>
-  <message name="IDS_PORTAL_DETECTION_NOTIFICATION_MESSAGE_FAILED_WIFI" desc="Body of the system notification that authentication failed and current network is still behind captive portal">
-    Authentication failed. Click to visit the login page for the Wi-Fi network you are using (<ph name="NETWORK_ID">$1<ex>Public Wifi</ex></ph>).
-  </message>
-  <message name="IDS_PORTAL_DETECTION_NOTIFICATION_BUTTON_EXTENSION" desc="Button caption to connect using the authenticating extension">
-    Connect using <ph name="ExtensionName">$1<ex>WiFi Company Authenticator</ex></ph>
-  </message>
-  <message name="IDS_PORTAL_DETECTION_NOTIFICATION_BUTTON_EXTENSION_RETRY" desc="Button caption to connect using the authenticating extension">
-    Retry using <ph name="ExtensionName">$1<ex>WiFi Company Authenticator</ex></ph>
-  </message>
-  <message name="IDS_PORTAL_DETECTION_NOTIFICATION_BUTTON_PORTAL" desc="Button caption to open the captive portal login page.">
-    Visit captive portal login page
   </message>
 
   <!-- 3G data Notifications -->
@@ -3291,6 +3023,12 @@
   </message>
   <message name="IDS_ENTERPRISE_ENROLLMENT_MISSING_LICENSES_ERROR_MEETS" desc="Error message to show when the domain the device is trying to enroll into has expired or exhausted licenses.">
     You do not have enough available licenses to enroll this Google Meet hardware device. Please contact sales to purchase more. If you believe you're seeing this message in error, please contact support.
+  </message>
+  <message name="IDS_ENTERPRISE_ENROLLMENT_MISSING_LICENSES_ERROR_BEAM" desc="Error message to show when the domain the device is trying to enroll into has expired or exhausted licenses for a Google Beam device.">
+    You do not have enough available licenses to enroll this Google Beam device. Please contact your reseller to purchase more. If you believe you're seeing this message in error, please contact your reseller.
+  </message>
+  <message name="IDS_ENTERPRISE_ENROLLMENT_MISSING_LICENSES_ERROR_BEAM_MEET" desc="Error message to show when the domain the device is trying to enroll into has expired or exhausted licenses for a Google Beam Meet device.">
+    You do not have enough available licenses to enroll this Google Meet hardware device. Please contact your reseller to purchase more. If you believe you're seeing this message in error, please contact your reseller.
   </message>
   <message name="IDS_ENTERPRISE_ENROLLMENT_DEPROVISIONED_ERROR" desc="Error message to show when enrollment fails because the administrator has deprovisioned the device on the server side.">
     This device has been placed into a deprovisioned state by the administrator. To enable it for enrollment, please have your administrator place the device into a pending state.
@@ -4046,21 +3784,6 @@
   </message>
   <message name="IDS_ARC_ACCESSIBILITY_WINDOW_TITLE_IN_PIP" is_accessibility_with_no_ui="true" desc="A hint text that is read by screen readers appended to the window title, explaning that the window is in the picture-pi-picture mode.">
     Picture in picture
-  </message>
-  <message name="IDS_ASSISTANT_OPT_IN_LOADING" desc="Loading message of the Assistasnt opt-in flow dialog.">
-    Loading Google Assistant...
-  </message>
-  <message name="IDS_ASSISTANT_OPT_IN_LOAD_ERROR_TITLE" desc="Load error title of the Assistasnt opt-in flow dialog.">
-    Google Assistant
-  </message>
-  <message name="IDS_ASSISTANT_OPT_IN_LOAD_ERROR_MESSAGE" desc="Load error message of the Assistasnt opt-in flow dialog.">
-    Google Assistant was unable to load, please check your network connection and retry.
-  </message>
-  <message name="IDS_ASSISTANT_OPT_IN_SKIP_BUTTON" desc="Button label for skipping the Assistasnt opt-in flow upon error.">
-    Skip
-  </message>
-  <message name="IDS_ASSISTANT_OPT_IN_RETRY_BUTTON" desc="Button label for retry loading the Assistasnt opt-in flow.">
-    Retry
   </message>
   <message name="IDS_WAIT_FOR_CONTAINER_READY_INTRO_MESSAGE" desc="Introduction message for the wait for container ready OOBE screen">
     Ask it questions. Tell it to do things. It's your personal Google, always ready to help.
@@ -4852,113 +4575,6 @@
     Resize Linux disk
   </message>
 
-  <!-- Bruschetta -->
-  <message name="IDS_BRUSCHETTA_NAME" desc="The display name for Bruschetta (codename) when a specific VM name cannot be used.">
-    Managed Development Environment
-  </message>
-  <message name="IDS_BRUSCHETTA_INSTALLER_WINDOW_TITLE" desc="Title for the installer window while Bruschetta (codename) is installing.">
-    <ph name="VM_NAME">$1<ex>Managed VM</ex></ph> Installer
-  </message>
-  <message name="IDS_BRUSCHETTA_INSTALLER_INSTALL_BUTTON" desc="Label for the button in the Bruschetta (codename) installer dialog to begin installing.">
-    Install
-  </message>
-  <message name="IDS_BRUSCHETTA_INSTALLER_CONFIRMATION_TITLE" desc="In-window title for when the installer for Bruschetta (codename) first opens.">
-    Welcome
-  </message>
-  <message name="IDS_BRUSCHETTA_INSTALLER_CONFIRMATION_MESSAGE" desc="More detailed message for when the installer for Bruschetta (codename) first opens.">
-    Select which version of <ph name="VM_NAME">$1<ex>Managed VM</ex></ph> to install.
-  </message>
-  <message name="IDS_BRUSCHETTA_INSTALLER_ONGOING_TITLE" desc="Title for the installer while Bruschetta (codename) is installing.">
-    Installing
-  </message>
-  <message name="IDS_BRUSCHETTA_INSTALLER_ERROR_TITLE" desc="Title for the installer when Bruschetta (codename) fails to install.">
-    Sorry, an error occurred
-  </message>
-  <message name="IDS_BRUSCHETTA_INSTALLER_GENERIC_ERROR_MESSAGE" desc="Generic message for the installer when Bruschetta fails to install.">
-    Sorry, something went wrong. Please file feedback with #bruschetta in the description. Error code is <ph name="ERROR">$1<ex>kUnknown</ex></ph>, this may be fixed by rebooting and trying again.
-  </message>
-  <message name="IDS_BRUSCHETTA_INSTALLER_PROHIBITED_MESSAGE" desc="Message for the installer when Bruschetta is blocked from being installed.">
-    Installing <ph name="VM_NAME">$1<ex>Managed VM</ex></ph>, is blocked by enterprise policy. Please contact your system administrator for support. Error code is <ph name="ERROR">$1<ex>kUnknown</ex></ph>.
-  </message>
-  <message name="IDS_BRUSCHETTA_INSTALLER_DOWNLOAD_ERROR_MESSAGE" desc="More detailed message for the installer when Bruschetta fails to download needed files.">
-    Unable to download installer files. Please check your internet connection and that you have enough free disk space and try again. Error code is <ph name="ERROR">$1<ex>kUnknown</ex></ph>.
-  </message>
-  <message name="IDS_BRUSCHETTA_INSTALLER_DLC_NEED_UPDATE_ERROR_MESSAGE" desc="More detailed message for the installer when Bruschetta fails to install due to a pending OS update.">
-    Unable to install, OS update is pending. Please apply any pending OS updates, restart, and try again. Error code is <ph name="ERROR">$1<ex>kUnknown</ex></ph>.
-  </message>
-  <message name="IDS_BRUSCHETTA_INSTALLER_NEED_REBOOT_ERROR_MESSAGE" desc="More detailed message for the installer when Bruschetta fails to install due to a reboot being required.">
-    Unable to install, reboot is required. Please restart your computer and try again. Error code is <ph name="ERROR">$1<ex>kUnknown</ex></ph>.
-  </message>
-  <message name="IDS_BRUSCHETTA_INSTALLER_DISK_FULL_ERROR_MESSAGE" desc="More detailed message for the installer when Bruschetta fails to install due to insufficient disk space.">
-    Not enough disk space. Please free up some more disk space and try again. Error code is <ph name="ERROR">$1<ex>kUnknown</ex></ph>.
-  </message>
-  <message name="IDS_BRUSCHETTA_INSTALLER_GENERIC_DLC_ERROR_MESSAGE" desc="Generic message for the installer when Bruschetta fails to install.">
-    Sorry, something went wrong installing DLC dependencies. Please try rebooting and if the issue persists file feedback with #bruschetta in the description. Error code is <ph name="ERROR">$1<ex>kUnknown</ex></ph>.
-  </message>
-  <message name="IDS_BRUSCHETTA_INSTALLER_UNINSTALLABLE_ERROR_MESSAGE" desc="Generic message for the installer when Bruschetta fails to install.">
-    Unfortunately this machine does not meet requirements for installing Bruschetta. Error code is <ph name="ERROR">$1<ex>kUnknown</ex></ph>.
-  </message>
-  <message name="IDS_BRUSCHETTA_INSTALLER_ERROR_CLEANUP_MESSAGE" desc="More detailed message for the installer when Bruschetta fails to install and the cleaning up the incomplete install also failed.">
-    Sorry, something went wrong. Please file feedback with #bruschetta in the description. Error code is <ph name="ERROR">$1<ex>kUnknown</ex></ph>. Cleaning up failed, you may need to do so manually.
-  </message>
-  <message name="IDS_BRUSCHETTA_INSTALLER_INSTALLING_DLC_MESSAGE" desc="Message while DLC (DownLoadable Content - codename) to support Bruschetta is being installed.">
-    Configuring DLC.
-  </message>
-  <message name="IDS_BRUSCHETTA_INSTALLER_DOWNLOADING_MESSAGE" desc="Message while the installer is downloading files.">
-    This process may take a few minutes. Downloading files.
-  </message>
-  <message name="IDS_BRUSCHETTA_INSTALLER_STARTING_VM_MESSAGE" desc="Message while the installer is launching the Virtual Machine (VM).">
-    This process may take a few minutes. Starting the virtual machine.
-  </message>
-  <message name="IDS_BRUSCHETTA_INSTALLER_CLEANING_UP_MESSAGE" desc="Message while the installer is cleaning up a failed install.">
-    Install failed, cleaning up
-  </message>
-  <message name="IDS_BRUSCHETTA_RESULT_UNKNOWN" desc="Bruschetta (codename) unknown result.">
-    Unknown result.
-  </message>
-  <message name="IDS_BRUSCHETTA_RESULT_SUCCESS" desc="Bruschetta (codename) result for success.">
-    Success.
-  </message>
-  <message name="IDS_BRUSCHETTA_RESULT_DLC_INSTALL_ERROR" desc="Bruschetta (codename) result for error installing DLC.">
-    Error installing DLC (oftentimes a reboot is needed, check Settings\>\>About ChromeOS for more information).
-  </message>
-  <message name="IDS_BRUSCHETTA_RESULT_START_VM_FAILED" desc="Bruschetta (codename) result for when VM fails to start.">
-    Starting VM failed.
-  </message>
-  <message name="IDS_BRUSCHETTA_RESULT_TIMEOUT" desc="Bruschetta (codename) result for a timeout.">
-    Timeout when booting or reconnecting to VM.
-  </message>
-  <message name="IDS_BRUSCHETTA_RESULT_FORBIDDEN_BY_POLICY" desc="Bruschetta (codename) result for when Bruschetta (codename) is forbidden by policy.">
-    Forbidden by policy.
-  </message>
-  <message name="IDS_BRUSCHETTA_RESULT_CONCIERGE_UNAVAILABLE" desc="Bruschetta (codename) result for when concierge service is unavailable.">
-    Concierge service is unavailable.
-  </message>
-  <message name="IDS_BRUSCHETTA_UNINSTALLER_TITLE" desc="Title of the Bruschetta (codename) uninstaller, a dialog for uninstalling Bruschetta, the associated VM and files.">
-    Remove <ph name="VM_NAME">$1<ex>Bruschetta</ex></ph>
-  </message>
-  <message name="IDS_BRUSCHETTA_UNINSTALLER_BODY" desc="Description for the Bruschetta (codename) uninstaller, a dialog for uninstalling Bruschetta, the associated VM and files.">
-    Remove <ph name="VM_NAME">$1<ex>Bruschetta</ex></ph> from your <ph name="DEVICE_TYPE">$2<ex>Chromebook</ex></ph>? This will delete all apps and data in the virtual machine!
-  </message>
-  <message name="IDS_BRUSCHETTA_UNINSTALLER_UNINSTALL_BUTTON_ARIA_DESCRIPTION" desc="Accessible description for the 'remove' button of the the Bruschetta (codename) uninstaller e.g. read out by screenreaders.">
-    Removes <ph name="VM_NAME">$1<ex>Bruschetta</ex></ph> from your <ph name="DEVICE_TYPE">$2<ex>Chromebook</ex></ph>. This will delete all apps and data in the virtual machine!
-  </message>
-  <message name="IDS_BRUSCHETTA_UNINSTALLER_UNINSTALL_BUTTON" desc="Label for the button in the Bruschetta uninstaller dialog to uninstall the VM.">
-    Remove
-  </message>
-  <message name="IDS_BRUSCHETTA_UNINSTALLER_UNINSTALLING_MESSAGE" desc="Text shown in the Bruschetta uninstaller dialog when uninstallation is in progress.">
-    Removing...
-  </message>
-  <message name="IDS_BRUSCHETTA_UNINSTALLER_ERROR" desc="Text shown in the Bruschetta (codename) uninstaller dialog when uninstallation fails.">
-    Error removing <ph name="VM_NAME">$1<ex>Bruschetta</ex></ph>. Please try again.
-  </message>
-  <message name="IDS_BRUSCHETTA_INSTALLER_RETRY_BUTTON" desc="Button for Bruschetta (Codename) installer to retry after failing.">
-    Retry
-  </message>
-  <message name="IDS_BRUSCHETTA_SHUT_DOWN_LINUX_MENU_ITEM" desc="Text shown in the context menu for the Bruschetta terminal app, allowing users to shut down the Linux virtual machine.">
-    Shut down <ph name="VM_NAME">$1<ex>Bruschetta</ex></ph>
-  </message>
-
   <!-- Time limit notification -->
   <message name="IDS_SCREEN_TIME_NOTIFICATION_TITLE" desc="The title of the notification when screen usage limit reaches before locking the device.">
     Almost time for a break
@@ -5016,36 +4632,6 @@
 
   <!-- Strings for the Easy Unlock setup dialog -->
   <!-- Easy Unlock strings shown on the lock screen -->
-  <message name="IDS_EASY_UNLOCK_SCREENLOCK_TOOLTIP_NO_BLUETOOTH" desc="Tooltip for an icon on a user's lock screen pod shown by Easy Unlock when the Chromebook doesn't have Bluetooth enabled.">
-    Bluetooth is off on this <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>. Enter your password, and turn on Bluetooth.
-  </message>
-  <message name="IDS_EASY_UNLOCK_SCREENLOCK_TOOLTIP_NO_PHONE" desc="Tooltip for an icon on a user's lock screen pod shown by Easy Unlock when a phone eligible to unlock the Chromebook cannot be found.">
-    Can’t connect. Make sure your phone’s Bluetooth is turned on.
-  </message>
-  <message name="IDS_EASY_UNLOCK_SCREENLOCK_TOOLTIP_PHONE_NOT_AUTHENTICATED" desc="Tooltip for an icon on a user's lock screen pod shown by Easy Unlock when no phones eligible to unlock the Chromebook can be authenticated.">
-    Unable to unlock. Enter your password.
-  </message>
-  <message name="IDS_EASY_UNLOCK_SCREENLOCK_TOOLTIP_PHONE_LOCKED" desc="Tooltip for an icon on a user's lock screen pod shown by Easy Unlock when a phone eligible to unlock the Chromebook is detected, but it's locked and thus not allowed to unlock the Chromebook.">
-    Your phone is locked. Unlock it to enter.
-  </message>
-  <message name="IDS_EASY_UNLOCK_SCREENLOCK_TOOLTIP_PHONE_UNLOCKABLE" desc="Tooltip for an icon on a user's lock screen pod shown by Easy Unlock when a phone eligible to unlock the Chromebook is detected, but it does not have lock screen enabled, in which case it is not allowed to unlock Chromebooks.">
-    To keep your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph> safe, Smart Lock requires a screen lock on your phone.
-  </message>
-  <message name="IDS_EASY_UNLOCK_SCREENLOCK_TOOLTIP_RSSI_TOO_LOW" desc="Tooltip for an icon on a user's lock screen pod shown by Easy Unlock when a phone eligible to unlock the Chromebook is detected, but it's not in the Chromebook's proximity (> 30 feet away).">
-    Bring your phone closer to unlock your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>.
-  </message>
-  <message name="IDS_EASY_UNLOCK_SCREENLOCK_TOOLTIP_PHONE_LOCKED_AND_RSSI_TOO_LOW" desc="Tooltip for an icon on a user's lock screen pod shown by Easy Unlock when a phone eligible to unlock the Chromebook is detected, but it's both (a) locked and (b) not in the Chromebook's proximity (> 1 foot away).">
-    Unlock your phone and bring it closer to unlock your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph>.
-  </message>
-  <message name="IDS_EASY_UNLOCK_SCREENLOCK_TOOLTIP_LOGIN_FAILURE" desc="Tooltip text shown on a user's sign-in screen when Smart Lock sign-in attempt fails.">
-    Smart Lock couldn’t verify your account. Type your password to enter.
-  </message>
-  <message name="IDS_EASY_UNLOCK_SCREENLOCK_TOOLTIP_LOGIN_DISABLED" desc="Tooltip for an icon on user's sign-in screen pod shown by EasyUnlock when the feature is only enabled for unlock, not sign-in.">
-    To use Smart Lock to sign in to your Google Account, go to Settings &gt; Connected devices &gt; Your phone &gt; Smart Lock.
-  </message>
-  <message name="IDS_EASY_UNLOCK_SCREENLOCK_TOOLTIP_PRIMARY_USER_ABSENT" desc="Tooltip for the icon on user's lock screen pod shown by Easy Unlock when a phone set up to unlock the Chromebook is detected, but the primary user profile is in the background on the phone or the user is a secondary user profile. The user is asked to switch to the primary user.">
-    To use Smart Lock, switch to the primary user profile on your phone
-  </message>
   <message name="IDS_EASY_UNLOCK_SCREENLOCK_USER_POD_AUTH_VALUE" desc="Message on lock screen user pod shown in place of password field when Easy Unlock is enabled and a phone that can unlock the Chromebook is detected in proximity.">
     Select your photo
   </message>
@@ -5749,23 +5335,11 @@ Permissions you've already given to apps may apply to this account. You can cont
   <message name="IDS_EDU_LOGIN_NEXT" desc="The name of the button that goes to the next step in EDU login flow.">
     Next
   </message>
-  <message name="IDS_EDU_LOGIN_WELCOME_TITLE" desc="Title for the welcome screen in EDU account addition flow.">
-    Get started with a school account
-  </message>
   <message name="IDS_EDU_LOGIN_WELCOME_TITLE_2" desc="Title for the welcome screen in EDU account addition flow.">
     Ask a parent for permission
   </message>
-  <message name="IDS_EDU_LOGIN_WELCOME_BODY" desc="Text on the welcome screen in EDU account addition flow informing user to ask their parent for permission to add the account.">
-    To add an account for access to educational resources, ask a parent to give you permission
-  </message>
   <message name="IDS_EDU_LOGIN_WELCOME_BODY_2" desc="Text on the welcome screen in EDU account addition flow informing user to ask their parent for permission to add the account.">
     Select the parent who is granting permission to add a school account.
-  </message>
-  <message name="IDS_EDU_LOGIN_WELCOME_PARENT_ACCOUNT_LIST" desc="Text on the welcome screen in EDU account addition flow above the list of parent accounts.">
-    Parent account list
-  </message>
-  <message name="IDS_EDU_LOGIN_WELCOME_REAUTH_TITLE" desc="Title for the reauthentication screen in EDU account addition flow.">
-    Sign in again with a school account
   </message>
   <message name="IDS_EDU_LOGIN_WELCOME_REAUTH_BODY" desc="Text on the reauthentication screen in EDU account addition flow informing user to ask their parent for permission to reauthenticate the account.">
     To sign in again for access to educational resources, ask a parent to give you permission
@@ -5803,145 +5377,8 @@ Permissions you've already given to apps may apply to this account. You can cont
   -->
 
   <!-- Borealis strings -->
-  <!-- TODO(danielng): Add string descriptions and remove translateable tags
-       when strings are finalized. -->
-  <message name="IDS_BOREALIS_APP_NAME" desc="Name of app, noun, video game distribution service" translateable="false">
-    Steam
-  </message>
-  <message name="IDS_BOREALIS_CREDITS_PLACEHOLDER" desc="Shown to users who navigate to about://borealis-credits when the real credits file can't be shown (e.g. because borealis is not running)" translateable="false">
-    Steam is either not installed or not running. Please run Steam to view credits.
-  </message>
-  <message name="IDS_BOREALIS_DISALLOWED_TITLE" desc="Title of the dialog shown to users who are unable to install 'Steam for Chromebook' (Steam is a video game distribution service)">
-    Can't install Steam
-  </message>
-  <message name="IDS_BOREALIS_DISALLOWED_HARDWARE" desc="Message shown to the user when 'Steam for Chromebook' is disabled on their device">
-    Steam for Chromebook (beta) is not available on your Chromebook.
-  </message>
-  <message name="IDS_BOREALIS_DISALLOWED_FAILED" desc="Message shown to the user when 'Steam for Chromebook' failed to determine whether it should be allowed">
-    Restart your Chromebook and try again
-  </message>
-  <message name="IDS_BOREALIS_DISALLOWED_IRREGULAR" desc="Message shown to users when they try to install 'Steam for Chromebook' on an irregular (incognito, kiosk, etc) profile">
-    You need to be signed-in to a Google Account to use Steam for Chromebook (Beta). Sign in and try again.
-  </message>
-  <message name="IDS_BOREALIS_DISALLOWED_PRIMARY" desc="Message shown to users when they try to install 'Steam for Chromebook' on a secondary profile">
-    Steam for Chromebook (Beta) is only available for the account that signed in first on this Chromebook.
-  </message>
-  <message name="IDS_BOREALIS_DISALLOWED_CHILD" desc="Message shown to the users when they try to install 'Steam for Chromebook' on a child account">
-    Steam for Chromebook (Beta) is not available for child Google Accounts
-  </message>
-  <message name="IDS_BOREALIS_DISALLOWED_ADMIN" desc="Message shown to the user when 'Steam for Chromebook' is blocked by their admin. The placeholders are the names of policy settings.">
-    Steam for Chromebook (Beta) is blocked by your administrator. Your administrator needs to turn on these policies:
-  </message>
-  <message name="IDS_BOREALIS_DISALLOWED_FLAG" desc="Message shown to the user when 'Steam for Chromebook' doesn't have the correct chrome://flags setting enabled">
-    You need to turn on the “Borealis Enabled” flag
-  </message>
-  <message name="IDS_BOREALIS_DISALLOWED_FLAG_BUTTON" desc="Button label used to bring up the user's chrome://flags settings. Shown when users try to install borealis but are unable to due to their flags.">
-    ChromeOS flags
-  </message>
-  <message name="IDS_BOREALIS_INSTALLER_APP_NAME" desc="Name of a utility which is used to install the Steam application (Steam is a video game distribution service)">
-    Steam installer
-  </message>
-  <message name="IDS_BOREALIS_INSTALLER_CONFIRMATION_TITLE" desc="Title of the installer for 'Steam for Chromebook'. 'Steam for Chromebook' is the name of the piece of software used to run 'Steam' (a software distribution platform) on Chromebooks.">
-    Welcome to Steam for Chromebook
-  </message>
-  <message name="IDS_BOREALIS_INSTALLER_CONFIRMATION_MESSAGE" desc="Body text shown in the installer for 'Steam for Chromebook'.">
-    This is a beta program. You can now use Steam to play some games on your Chromebook.
-  </message>
   <message name="IDS_BOREALIS_INSTALLER_INSTALL_BUTTON" desc="Button on installer to install 'Steam for Chromebook'.">
     Install
-  </message>
-  <message name="IDS_BOREALIS_INSTALLER_ONGOING_TITLE" desc="Title for installer while 'Steam for Chromebook' is installing.">
-    Setting up Steam for Chromebook
-  </message>
-  <message name="IDS_BOREALIS_INSTALLER_ONGOING_MESSAGE" desc="Body text shown in the installer while 'Steam for Chromebook' is installing.">
-    This may take a few minutes
-  </message>
-  <message name="IDS_BOREALIS_INSTALLER_ONGOING_PERCENTAGE" desc="Message containing the progress percentage of the ongoing 'Steam for Chromebook' installation.">
-    <ph name="PERCENTAGE_COMPLETE">$1<ex>42</ex></ph>% completed
-  </message>
-  <message name="IDS_BOREALIS_INSTALLER_ONGOING_INITIAL" desc="Message shown while the 'Steam for Chromebook' installer is calculating how much longer it will need to complete.">
-    estimating time
-  </message>
-  <message name="IDS_BOREALIS_INSTALLER_FINISHED_TITLE" desc="Title for installer when installation for 'Steam for Chromebook' completes succesfully.">
-    Let’s get gaming
-  </message>
-  <message name="IDS_BOREALIS_INSTALLER_FINISHED_MESSAGE" desc="Body text shown in the installer when 'Steam for Chromebook' installation suceeded.">
-    You can now use Steam for Chromebook (Beta)
-  </message>
-  <message name="IDS_BOREALIS_INSTALLER_LAUNCH_BUTTON" desc="Button in the installer for 'Steam for Chromebook' to launch Steam.">
-    Open Steam
-  </message>
-  <message name="IDS_BOREALIS_INSTALLER_ERROR_TITLE" desc="Title for installer when Steam (noun, name of app) fails to install.">
-    Can’t set up Steam for Chromebook (Beta)
-  </message>
-  <message name="IDS_BOREALIS_INSTALLER_ERROR_DUPLICATE" desc="Body for Steam (noun, name of app) when installation fails due to another process already running.">
-    Steam is already being set up. Wait for setup to complete.
-  </message>
-  <message name="IDS_BOREALIS_INSTALLER_ERROR_UPDATE" desc="Body for Steam (noun, name of app) installer when installation fails due to device being out of date.">
-    Make sure your Chromebook is on the latest version. Then, restart your Chromebook and try again.
-  </message>
-  <message name="IDS_BOREALIS_INSTALLER_ERROR_BUSY" desc="Body for Steam (noun, name of app) installer when installation fails with suggestion to try again.">
-    Wait a few minutes and try again
-  </message>
-  <message name="IDS_BOREALIS_INSTALLER_ERROR_SPACE" desc="Body for Steam (noun, name of app) installer when installation fails due to low space.">
-    There is not enough device storage to complete setup. Free up space and try again.
-  </message>
-  <message name="IDS_BOREALIS_INSTALLER_ERROR_OFFLINE" desc="Body for Steam (noun, name of app) installer when installation fails due to being offline.">
-    Make sure you’re connected to the internet and try again
-  </message>
-  <message name="IDS_BOREALIS_INSTALLER_ERROR_STARTUP" desc="Body for Steam (noun, name of app) installer when installation fails trying to start up after installing">
-    Something went wrong. Try again.
-  </message>
-  <message name="IDS_BOREALIS_INSTALLER_ERROR_BUTTON_RETRY" desc="Button for Steam (noun, name of app) installer to retry after failing.">
-    Try again
-  </message>
-  <message name="IDS_BOREALIS_INSTALLER_ERROR_BUTTON_STORAGE" desc="Button for Steam (noun, name of app) installer to free disk-space if needed.">
-    Storage management
-  </message>
-  <message name="IDS_BOREALIS_INSTALLER_ERROR_LEARN_MORE" desc="Hyperlink to help page to learn more about the error encountered.">
-    Learn more
-  </message>
-  <message name="IDS_BOREALIS_LAUNCH_ERROR_TITLE" desc="Title of a dialog shown when Steam (noun, name of app, a gaming software distribution platform) fails to launch.">
-    Can’t open Steam for Chromebook (Beta)
-  </message>
-  <message name="IDS_BOREALIS_LAUNCH_ERROR_BODY" desc="Body of a dialog shown when Steam (noun, name of app, a gaming software distribution platform) fails to launch.">
-    Something went wrong. Try again.
-  </message>
-  <message name="IDS_BOREALIS_LAUNCH_ERROR_NEED_RESTART_BODY" desc="Body of a dialog shown when Steam (noun, name of app, a gaming software distribution platform) fails to launch, due to needing an update.">
-    Steam for Chromebook (Beta) needs to be updated. Restart your Chromebook and try again.
-  </message>
-  <message name="IDS_BOREALIS_LAUNCH_ERROR_NEED_SPACE_BODY" desc="Body of a dialog shown when Steam (noun, name of app, a gaming software distribution platform) fails to launch, due to needing more space.">
-    There is not enough device storage to open this app. Free up space and try again.
-  </message>
-  <message name="IDS_BOREALIS_LAUNCH_ERROR_SEND_FEEDBACK" desc="Label for a checkbox the user can tick to send feedback about the error.">
-    Send feedback
-  </message>
-  <message name="IDS_BOREALIS_LAUNCH_ERROR_BUTTON_RESTART" desc="Button of a dialog shown when Steam (noun, name of app) fails to launch to restart and a restart is suggested.">
-    Restart
-  </message>
-  <message name="IDS_BOREALIS_BETA_BADGE" desc="Badge text indicating that borealis (steam on chromeos) is a beta product, i.e. it is still under development.">
-    Beta
-  </message>
-  <message name="IDS_BOREALIS_CLIENT_UNINSTALL_CONFIRM_BODY" desc="Confirmation dialog for uninstalling Steam (name of app).">
-      Any apps and games installed using Steam for Chromebook (Beta) will be removed from this device. Data associated with these apps and games will also be removed. Make sure to back up saved apps and games before uninstalling.
-  </message>
-  <message name="IDS_BOREALIS_APPLICATION_UNINSTALL_CONFIRM_BODY" desc="Confirmation dialog for uninstalling a game.">
-      Data associated with this app may be removed from this device
-  </message>
-  <message name="IDS_BOREALIS_SPLASHSCREEN_TITLE" desc="Title on splashscreen when starting Steam on Chrome OS. 'Steam for Chromebook' is the name of the product.">
-    Steam for Chromebook
-  </message>
-  <message name="IDS_BOREALIS_SPLASHSCREEN_MESSAGE" desc="Message on splashscreen when starting Steam on Chrome OS.">
-    Loading...
-  </message>
-  <message name="IDS_BOREALIS_HATS_TITLE" desc="Title for HaTS notification requesting feedback. It will appear occasionally when a user closes a Steam game. Clicking it will show a satisfaction survey to the user.">
-    Help us improve Steam for Chromebook
-  </message>
-  <message name="IDS_BOREALIS_HATS_BODY" desc="Message on HaTS notification requesting feedback. It will appear occasionally when a user closes a Steam game. Clicking it will show a satisfaction survey to the user.">
-    Tell us about your recent gameplay
-  </message>
-  <message name="IDS_BOREALIS_FEEDBACK_PLACEHOLDER" desc="Placeholder text for the Borealis feedback dialog.">
-    Share your feedback or describe your issue. If possible, include steps to reproduce your issue.
   </message>
 
   <!-- TPM firmware auto-update notifications -->
@@ -6159,9 +5596,6 @@ You can manage this account’s settings by installing the Family Link app on yo
   </message>
   <message name="IDS_SETTINGS_PEOPLE_CONFIGURE_PIN_MISMATCHED" desc="Message shown below the title that tells the user they have entered two different PIN values.">
     PINs do not match
-  </message>
-  <message name="IDS_SETTINGS_PEOPLE_PIN_PROMPT_INVALID_PIN" desc="Text on a pin field that tells the user the PIN is incorrect.">
-    Invalid PIN
   </message>
   <message name="IDS_SETTINGS_ACCOUNT_MANAGER_ACCOUNT_REMOVED_MESSAGE" desc="Notification message after account removal.">
     <ph name="EMAIL">$1<ex>abcd@google.com</ex></ph> was removed from this device
@@ -6904,45 +6338,6 @@ Your <ph name="DEVICE_TYPE">{0}<ex>Chromebook</ex></ph> will be locked now.
   </message>
 
   <!-- Floating Workspace -->
-  <message name="IDS_FLOATING_WORKSPACE_NO_NETWORK_TITLE" desc="Title of Floating Workspace notification when there is no network connection.">
-    Can't resume session
-  </message>
-  <message name="IDS_FLOATING_WORKSPACE_NO_NETWORK_MESSAGE" desc="Message for Floating Workspace notification when is no network connection.">
-    ChromeOS can't resume your previous session due to a network problem. Connect to a stable network and retry.
-  </message>
-  <message name="IDS_FLOATING_WORKSPACE_NO_NETWORK_BUTTON" desc="Button to show network settings for Floating Workspace notification when is no network connection.">
-    Network settings
-  </message>
- <message name="IDS_FLOATING_WORKSPACE_SAFE_MODE_TITLE" desc="Title of Floating Workspace notification when ChromeOS is in safe mode.">
-    Can’t resume previous session
-  </message>
-  <message name="IDS_FLOATING_WORKSPACE_SAFE_MODE_MESSAGE" desc="Message for Floating Workspace notification when ChromeOS is in safe mode.">
-    Open a new Chrome browser session instead.
-  </message>
-  <message name="IDS_FLOATING_WORKSPACE_RESTORE_FROM_ERROR_TITLE" desc="Title of Floating Workspace notification asking user to restore or not when a new remote desk arrives after an earlier restoration error occurs.">
-    Resume previous session?
-  </message>
-  <message name="IDS_FLOATING_WORKSPACE_RESTORE_FROM_ERROR_MESSAGE" desc="Message of Floating Workspace notification asking user to restore or not when a new remote desk arrives after an earlier restoration error occurs.">
-    You can resume your previous session while your current session remains active.
-  </message>
-  <message name="IDS_FLOATING_WORKSPACE_RESTORE_FROM_ERROR_RESTORATION_BUTTON" desc="Button for restoration option of Floating Workspace notification asking user to restore or not when a new remote desk arrives after an earlier restoration error occurs.">
-    Resume
-  </message>
-  <message name="IDS_FLOATING_WORKSPACE_ERROR_TITLE" desc="Title for Floating Workspace notification when there is an sync service error or timeout.">
-    Can't resume previous session
-  </message>
-  <message name="IDS_FLOATING_WORKSPACE_ERROR_MESSAGE" desc="Message for Floating Workspace notification when there is an sync service error or timeout.">
-    Something went wrong. Open the windows manually instead.
-  </message>
-  <message name="IDS_FLOATING_WORKSPACE_DISPLAY_SOURCE" desc="This is the string shown as the display source of the notification to notify user about floating workspace status.">
-    ChromeOS
-  </message>
-  <message name="IDS_FLOATING_WORKSPACE_PROGRESS_BAR_TITLE" desc="Title of the floating workspace notification progress bar status.">
-    Resuming Session
-  </message>
-  <message name="IDS_FLOATING_WORKSPACE_PROGRESS_BAR_MESSAGE" desc="Message for floating workspace notification progress bar status.">
-    Opening windows from your previous device
-  </message>
   <message name="IDS_FLOATING_WORKSPACE_STARTUP_DIALOG_TITLE" desc="Title for floating workspace startup dialog.">
     Restoring windows from your previous session...
   </message>

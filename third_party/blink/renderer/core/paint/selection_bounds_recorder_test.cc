@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/test/scoped_feature_list.h"
+#include "cc/base/features.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/core/editing/selection_template.h"
@@ -300,6 +302,10 @@ TEST_F(SelectionBoundsRecorderTest, InvalidationForEmptyBounds) {
 }
 
 TEST_F(SelectionBoundsRecorderTest, BoundsHidden) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      ::features::kSelectionEdgeVisibilityUsesFullEdge);
+
   LocalFrame* local_frame = GetDocument().GetFrame();
   LoadAhem(*local_frame);
   SetBodyInnerHTML(R"HTML(
@@ -358,6 +364,10 @@ TEST_F(SelectionBoundsRecorderTest, BoundsHidden) {
 // selection handles should still be visible because part of the edge is within
 // the clip.
 TEST_F(SelectionBoundsRecorderTest, BoundsVisibleWithLineHeightOverflow) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      ::features::kSelectionEdgeVisibilityUsesFullEdge);
+
   LocalFrame* local_frame = GetDocument().GetFrame();
   LoadAhem(*local_frame);
   SetBodyInnerHTML(R"HTML(

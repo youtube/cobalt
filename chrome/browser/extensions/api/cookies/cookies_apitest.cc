@@ -12,11 +12,14 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_destroyer.h"
 #include "components/content_settings/core/common/content_settings.h"
+#include "content/public/browser/network_service_instance.h"
+#include "content/public/browser/network_service_util.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "extensions/browser/extension_registry_observer.h"
+#include "extensions/browser/process_manager.h"
 #include "extensions/buildflags/buildflags.h"
 #include "extensions/test/extension_test_message_listener.h"
 #include "extensions/test/test_extension_dir.h"
@@ -49,11 +52,11 @@ IN_PROC_BROWSER_TEST_F(ExtensionApiTest, ReadFromDocument) {
 }
 #endif
 
-class CookiesApiTest : public ExtensionApiTest,
-                       public testing::WithParamInterface<
-                           std::tuple<ContextType, SameSiteCookieSemantics>> {
+class CookiesApiTest
+    : public ExtensionApiTest,
+      public testing::WithParamInterface<SameSiteCookieSemantics> {
  public:
-  CookiesApiTest() : ExtensionApiTest(std::get<0>(GetParam())) {}
+  CookiesApiTest() = default;
   ~CookiesApiTest() override = default;
   CookiesApiTest(const CookiesApiTest&) = delete;
   CookiesApiTest& operator=(const CookiesApiTest&) = delete;
@@ -94,41 +97,18 @@ class CookiesApiTest : public ExtensionApiTest,
                             {.allow_in_incognito = allow_in_incognito});
   }
 
-  ContextType GetContextType() { return std::get<0>(GetParam()); }
-
   bool AreSameSiteCookieSemanticsModern() {
-    return std::get<1>(GetParam()) == SameSiteCookieSemantics::kModern;
+    return GetParam() == SameSiteCookieSemantics::kModern;
   }
 
  private:
   mojo::Remote<network::mojom::CookieManager> cookie_manager_remote_;
 };
 
-// Android extension API tests only support service worker.
-#if !BUILDFLAG(IS_ANDROID)
-INSTANTIATE_TEST_SUITE_P(
-    EventPage,
-    CookiesApiTest,
-    ::testing::Combine(::testing::Values(ContextType::kEventPage),
-                       ::testing::Values(SameSiteCookieSemantics::kLegacy,
-                                         SameSiteCookieSemantics::kModern)));
-#endif
-
-INSTANTIATE_TEST_SUITE_P(
-    ServiceWorker,
-    CookiesApiTest,
-    ::testing::Combine(::testing::Values(ContextType::kServiceWorker),
-                       ::testing::Values(SameSiteCookieSemantics::kLegacy,
-                                         SameSiteCookieSemantics::kModern)));
-
-// A test suite that only runs with MV3 extensions.
-using CookiesApiMV3Test = CookiesApiTest;
-INSTANTIATE_TEST_SUITE_P(
-    ServiceWorker,
-    CookiesApiMV3Test,
-    ::testing::Combine(::testing::Values(ContextType::kServiceWorker),
-                       ::testing::Values(SameSiteCookieSemantics::kLegacy,
-                                         SameSiteCookieSemantics::kModern)));
+INSTANTIATE_TEST_SUITE_P(All,
+                         CookiesApiTest,
+                         ::testing::Values(SameSiteCookieSemantics::kLegacy,
+                                           SameSiteCookieSemantics::kModern));
 
 // TODO(crbug.com/40839864): Flaky on Windows.
 // TODO(crbug.com/371423073): Flaky on desktop Android.
@@ -211,7 +191,7 @@ IN_PROC_BROWSER_TEST_P(CookiesApiTest, CookiesEventsSpanning) {
       << message_;
 }
 
-IN_PROC_BROWSER_TEST_P(CookiesApiMV3Test, TestGetPartitionKey) {
+IN_PROC_BROWSER_TEST_P(CookiesApiTest, TestGetPartitionKey) {
   // Before running test, set up a top-level site (a.com) that embeds a
   // cross-site (b.com). To test the cookies.getPartitionKey() api.
   content::WebContents* contents = GetActiveWebContents();
@@ -305,6 +285,121 @@ IN_PROC_BROWSER_TEST_F(ExtensionApiTest, OTRReceiverMojoConnectionError) {
   event_router->OnConnectionError(&otr_receiver);
   EXPECT_TRUE(otr_receiver.is_bound());
   EXPECT_TRUE(otr_profile_observation.IsObservingSource(otr_profile));
+}
+
+class CookiesCrashApiTest : public ExtensionApiTest {
+ public:
+  void RunCrashTest(const char* background_js_format) {
+    if (!content::IsOutOfProcessNetworkService()) {
+      GTEST_SKIP()
+          << "Can't crash the network service if it's running in-process!";
+    }
+
+    static constexpr char kManifest[] = R"({
+      "name": "Cookies API Test",
+      "version": "1.0",
+      "manifest_version": 3,
+      "permissions": ["cookies"],
+      "host_permissions": ["*://example.com/*"],
+      "background": {"service_worker": "background.js"}
+    })";
+
+    TestExtensionDir test_dir;
+    test_dir.WriteManifest(kManifest);
+    test_dir.WriteFile(FILE_PATH_LITERAL("background.js"),
+                       background_js_format);
+
+    ExtensionTestMessageListener ready_listener("ready",
+                                                ReplyBehavior::kWillReply);
+    ExtensionTestMessageListener api_called_listener("api_called");
+
+    const Extension* extension = LoadExtension(test_dir.UnpackedPath());
+    ASSERT_TRUE(extension);
+    ASSERT_TRUE(ready_listener.WaitUntilSatisfied());
+
+    ready_listener.Reply("go");
+    ASSERT_TRUE(api_called_listener.WaitUntilSatisfied());
+
+    // Ensure the service worker is running before the crash.
+    ASSERT_FALSE(ProcessManager::Get(profile())
+                     ->GetServiceWorkersForExtension(extension->id())
+                     .empty());
+
+    SimulateNetworkServiceCrash();
+    content::FlushNetworkServiceInstanceForTesting();
+
+    // The test passes if no DCHECK is triggered by the call above, resulting in
+    // ExtensionFunction destruction due to the mojo connection error. The
+    // service worker gets terminated after the crash for some reason, so no
+    // need to clean it up here.
+    ASSERT_TRUE(ProcessManager::Get(profile())
+                    ->GetServiceWorkersForExtension(extension->id())
+                    .empty());
+  }
+};
+
+// Test that crashing the network service while a cookies.get call is in
+// progress does not trigger a DCHECK failure in the ExtensionFunction
+// destructor. This is a regression test for crbug.com/391122178.
+IN_PROC_BROWSER_TEST_F(CookiesCrashApiTest, CookiesGetNetworkServiceCrash) {
+  RunCrashTest(R"(
+    chrome.test.sendMessage('ready', () => {
+      function callApi() {
+        chrome.cookies.get({url: 'http://example.com', name: 'foo'}, (c) => {});
+        setTimeout(callApi, 0);
+      }
+      callApi();
+      chrome.test.sendMessage('api_called');
+    });
+  )");
+}
+
+// Test that crashing the network service while a cookies.getAll call is in
+// progress does not trigger a DCHECK failure in the ExtensionFunction
+// destructor. This is a regression test for crbug.com/391122178.
+IN_PROC_BROWSER_TEST_F(CookiesCrashApiTest, CookiesGetAllNetworkServiceCrash) {
+  RunCrashTest(R"(
+    chrome.test.sendMessage('ready', () => {
+      function callApi() {
+        chrome.cookies.getAll({url: 'http://example.com'}, (c) => {});
+        setTimeout(callApi, 0);
+      }
+      callApi();
+      chrome.test.sendMessage('api_called');
+    });
+  )");
+}
+
+// Test that crashing the network service while a cookies.set call is in
+// progress does not trigger a DCHECK failure in the ExtensionFunction
+// destructor. This is a regression test for crbug.com/391122178.
+IN_PROC_BROWSER_TEST_F(CookiesCrashApiTest, CookiesSetNetworkServiceCrash) {
+  RunCrashTest(R"(
+    chrome.test.sendMessage('ready', () => {
+      function callApi() {
+        chrome.cookies.set({url: 'http://example.com', name: 'f', value: 'v'}, (c) => {});
+        setTimeout(callApi, 0);
+      }
+      callApi();
+      chrome.test.sendMessage('api_called');
+    });
+  )");
+}
+
+// Test that crashing the network service while a cookies.remove call is in
+// progress does not trigger a DCHECK failure in the ExtensionFunction
+// destructor. This is a regression test for crbug.com/391122178.
+IN_PROC_BROWSER_TEST_F(CookiesCrashApiTest, CookiesRemoveNetworkServiceCrash) {
+  RunCrashTest(R"(
+    chrome.test.sendMessage('ready', () => {
+      function callApi() {
+        chrome.cookies.remove({url: 'http://example.com', name: 'f'}, (c) => {});
+        setTimeout(callApi, 0);
+      }
+      callApi();
+      chrome.test.sendMessage('api_called');
+    });
+  )");
 }
 
 }  // namespace extensions

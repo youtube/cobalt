@@ -361,6 +361,8 @@ enum BadMessageReason {
   RFH_NEW_ISOLATED_WEB_APP_PERMISSION_POLICIES = 333,
   RFH_CREATE_NEW_WINDOW_INVALID_DISPOSITION = 334,
   RFH_CREATE_NEW_WINDOW_FROM_SANDBOXED_FRAME = 335,
+  RFH_MODAL_DIALOG_FROM_SANDBOXED_FRAME = 336,
+  RFH_OPEN_URL_INVALID_DISPOSITION = 337,
 
   // Please add new elements here. The naming convention is abbreviated class
   // name (e.g. RenderFrameHost becomes RFH) plus a unique description of the

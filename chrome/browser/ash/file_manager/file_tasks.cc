@@ -38,7 +38,6 @@
 #include "base/time/time.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
-#include "chrome/browser/apps/app_service/launch_result_type.h"
 #include "chrome/browser/apps/app_service/metrics/app_platform_metrics.h"
 #include "chrome/browser/apps/app_service/metrics/app_service_metrics.h"
 #include "chrome/browser/ash/drive/drive_integration_service.h"
@@ -56,6 +55,7 @@
 #include "chrome/browser/ash/file_manager/uma_enums.gen.h"
 #include "chrome/browser/ash/file_manager/url_util.h"
 #include "chrome/browser/ash/file_manager/virtual_file_tasks.h"
+#include "chrome/browser/ash/file_manager/virtual_tasks/id_constants.h"
 #include "chrome/browser/ash/file_system_provider/mount_path_util.h"
 #include "chrome/browser/ash/file_system_provider/provided_file_system_info.h"
 #include "chrome/browser/ash/file_system_provider/provided_file_system_interface.h"
@@ -87,6 +87,7 @@
 #include "components/services/app_service/public/cpp/app_update.h"
 #include "components/services/app_service/public/cpp/file_handler.h"
 #include "components/services/app_service/public/cpp/file_handler_info.h"
+#include "components/services/app_service/public/cpp/launch_result.h"
 #include "extensions/browser/api/file_handlers/mime_util.h"
 #include "extensions/browser/entry_info.h"
 #include "extensions/browser/extension_host.h"
@@ -296,11 +297,31 @@ void ExecuteTaskAfterMimeTypesCollected(
   ExecuteAppServiceTask(profile, task, file_urls, *mime_types, std::move(done));
 }
 
+// Adjusts the tasks for handling Isolated Web App (.swbn) files, ensuring
+// only the default installer task is set as default.
+void AdjustTasksForSwbnHandling(
+    Profile* profile,
+    const std::vector<extensions::EntryInfo>& entries,
+    std::vector<FullTaskDescriptor>* tasks) {
+  bool has_swbn_file = std::ranges::any_of(entries, [](const auto& entry) {
+    return entry.path.MatchesExtension(".swbn");
+  });
+  if (!has_swbn_file) {
+    return;
+  }
+
+  std::erase_if(*tasks, [&](const auto& task) {
+    return task.task_descriptor.action_id !=
+           ToSwaActionId(kActionIdInstallIsolatedWebApp);
+  });
+}
+
 void PostProcessFoundTasks(Profile* profile,
                            const std::vector<extensions::EntryInfo>& entries,
                            FindTasksCallback callback,
                            std::unique_ptr<ResultingTasks> resulting_tasks) {
   AdjustTasksForMediaApp(entries, &resulting_tasks->tasks);
+  AdjustTasksForSwbnHandling(profile, entries, &resulting_tasks->tasks);
 
   // Google documents can only be handled by internal handlers.
   if (ContainsGoogleDocument(entries)) {
@@ -354,15 +375,13 @@ void OpenFilesWithBrowser(Profile* profile,
                           const std::string& action_id,
                           FileTaskFinishedCallback done) {
   const auto track_opens = base::BarrierCallback<
-      std::optional<apps::LaunchResult::State>>(
+      std::optional<apps::LaunchResult>>(
       file_urls.size(),
       base::BindOnce(
           [](FileTaskFinishedCallback done,
-             const std::vector<std::optional<apps::LaunchResult::State>>&
-                 opens) {
+             const std::vector<std::optional<apps::LaunchResult>>& opens) {
             const int num_opened = std::ranges::count_if(opens, [](auto& o) {
-              return o.has_value() &&
-                     o.value() == apps::LaunchResult::State::kSuccess;
+              return o.has_value() && o.value() == apps::LaunchResult::kSuccess;
             });
 
             if (num_opened > 0) {
@@ -380,7 +399,7 @@ void OpenFilesWithBrowser(Profile* profile,
     if (ash::FileSystemBackend::CanHandleURL(file_url)) {
       util::OpenFileWithAppOrBrowser(profile, file_url, action_id, track_opens);
     } else {
-      track_opens.Run({apps::LaunchResult::State::kFailed});
+      track_opens.Run({apps::LaunchResult::kFailed});
     }
   }
 }

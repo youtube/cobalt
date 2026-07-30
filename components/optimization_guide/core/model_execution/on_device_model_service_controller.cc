@@ -306,6 +306,9 @@ void OnDeviceModelServiceController::UpdateSolutionProviders() {
 
 void OnDeviceModelServiceController::UpdateSolutionProvider(
     mojom::OnDeviceFeature feature) {
+  if (GetOnDeviceModelType(feature) != kModelType) {
+    return;
+  }
   // Note: This always constructs the Solution, even if the provider was not
   // constructed yet, to update supported_adaptation_ranks_ on the base model.
   model_broker_impl_->GetSolutionProvider(feature).Update(GetSolution(feature));
@@ -575,6 +578,7 @@ OnDeviceModelServiceController::Solution::MakeConfig() const {
   config->max_tokens = adapter_->GetTokenLimits().max_tokens;
   config->text_safety_config =
       mojo_base::ProtoWrapper(safety_checker_->safety_cfg().proto());
+  config->model_capabilities = controller_->GetCapabilities();
   return config;
 }
 

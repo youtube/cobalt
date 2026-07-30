@@ -10,6 +10,7 @@
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/browser/ui/views/tabs/tab_group_editor_bubble_tracker.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_types.h"
+#include "components/tab_groups/tab_group_visual_data.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/context_menu_controller.h"
 #include "ui/views/focus/focus_manager.h"
@@ -46,10 +47,13 @@ class VerticalTabGroupHeaderView : public views::FlexLayoutView,
         bool stop_context_menu_propagation) = 0;
     virtual std::u16string GetGroupContentString() const = 0;
 
-    virtual void InitHeaderDrag(const ui::MouseEvent& event) = 0;
-    virtual bool ContinueHeaderDrag(const ui::MouseEvent& event) = 0;
+    virtual void InitHeaderDrag(const ui::LocatedEvent& event) = 0;
+    virtual bool ContinueHeaderDrag(const ui::LocatedEvent& event) = 0;
     virtual void CancelHeaderDrag() = 0;
     virtual void HideHoverCard() const = 0;
+
+    virtual void ShiftGroupUp() = 0;
+    virtual void ShiftGroupDown() = 0;
   };
 
   VerticalTabGroupHeaderView(
@@ -89,8 +93,9 @@ class VerticalTabGroupHeaderView : public views::FlexLayoutView,
 
   void OnDataChanged(
       const tab_groups::TabGroupVisualData* tab_group_visual_data,
-      bool needs_attention,
       bool is_shared);
+
+  void OnAttentionStateChanged(bool needs_attention);
 
   views::LabelButton* editor_bubble_button() { return editor_bubble_button_; }
   views::ImageView* collapse_icon_for_testing() { return collapse_icon_; }
@@ -104,13 +109,15 @@ class VerticalTabGroupHeaderView : public views::FlexLayoutView,
   // Wayland/X11 due to asynchronous cursor updates during mouse exit events.
   void SetEditorBubbleButtonVisibilityOnHover(bool is_hovered);
   void ShowEditorBubble();
-  void UpdateAccessibleName(
-      const tab_groups::TabGroupVisualData* tab_group_visual_data,
-      bool needs_attention,
-      bool is_shared);
+  void UpdateAccessibleName();
   void UpdateTooltipText();
-  void UpdateIsCollapsed(
-      const tab_groups::TabGroupVisualData* tab_group_visual_data);
+  void UpdateIsCollapsed();
+
+  SkColor GetForegroundColor() const;
+
+  tab_groups::TabGroupVisualData tab_group_visual_data_;
+  bool needs_attention_ = false;
+  bool is_shared_ = false;
 
   // The sync icon that is displayed in the tab group header of saved groups in
   // the tabstrip.

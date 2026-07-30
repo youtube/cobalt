@@ -45,13 +45,18 @@ SidePanelRegistry::~SidePanelRegistry() = default;
 SidePanelRegistry* SidePanelRegistry::GetDeprecated(
     content::WebContents* web_contents) {
   tabs::TabInterface* tab = tabs::TabInterface::GetFromContents(web_contents);
-  return tab->GetTabFeatures()->side_panel_registry();
+  return Get(tab->GetUnownedUserDataHost());
 }
 
 // static
 SidePanelRegistry* SidePanelRegistry::From(
     BrowserWindowInterface* browser_window_interface) {
   return Get(browser_window_interface->GetUnownedUserDataHost());
+}
+
+// static
+SidePanelRegistry* SidePanelRegistry::From(tabs::TabInterface* tab_interface) {
+  return Get(tab_interface->GetUnownedUserDataHost());
 }
 
 SidePanelEntry* SidePanelRegistry::GetEntryForKey(
@@ -109,6 +114,8 @@ bool SidePanelRegistry::Deregister(const SidePanelEntry::Key& key) {
     active_entries_[panel_type].reset();
   }
 
+// TODO(crbug.com/489780669): Temporarily disabled until a coordinator is made.
+#if !BUILDFLAG(IS_ANDROID)
   // TODO(https://crbug.com/360163254): This is nullptr in
   // BrowserWithTestWindowTest. When the test suite goes away the nullptr check
   // can be removed.
@@ -123,6 +130,7 @@ bool SidePanelRegistry::Deregister(const SidePanelEntry::Key& key) {
                            /*suppress_animations=*/true);
     }
   }
+#endif
 
   auto it = std::find_if(entries_.begin(), entries_.end(),
                          base::MatchesUniquePtr(entry));
