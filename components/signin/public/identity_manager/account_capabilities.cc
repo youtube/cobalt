@@ -109,10 +109,12 @@ AccountCapabilities::can_make_chrome_search_engine_choice_screen_choice()
 }
 #endif
 
+#if !BUILDFLAG(IS_IOS)
 signin::Tribool AccountCapabilities::can_run_chrome_privacy_sandbox_trials()
     const {
   return GetCapabilityByName(kCanRunChromePrivacySandboxTrialsCapabilityName);
 }
+#endif
 
 signin::Tribool AccountCapabilities::
     can_show_history_sync_opt_ins_without_minor_mode_restrictions() const {
@@ -120,13 +122,11 @@ signin::Tribool AccountCapabilities::
       kCanShowHistorySyncOptInsWithoutMinorModeRestrictionsCapabilityName);
 }
 
+#if BUILDFLAG(IS_CHROMEOS)
 signin::Tribool AccountCapabilities::can_toggle_auto_updates() const {
   return GetCapabilityByName(kCanToggleAutoUpdatesName);
 }
-
-signin::Tribool AccountCapabilities::can_use_chrome_ip_protection() const {
-  return GetCapabilityByName(kCanUseChromeIpProtectionName);
-}
+#endif
 
 #if BUILDFLAG(IS_CHROMEOS)
 signin::Tribool AccountCapabilities::can_use_chromeos_generative_ai() const {
@@ -138,10 +138,12 @@ signin::Tribool AccountCapabilities::can_use_copyeditor_feature() const {
   return GetCapabilityByName(kCanUseCopyEditorFeatureName);
 }
 
+#if !BUILDFLAG(IS_IOS)
 signin::Tribool AccountCapabilities::can_use_devtools_generative_ai_features()
     const {
   return GetCapabilityByName(kCanUseDevToolsGenerativeAiFeaturesCapabilityName);
 }
+#endif
 
 signin::Tribool AccountCapabilities::can_use_edu_features() const {
   return GetCapabilityByName(kCanUseEduFeaturesCapabilityName);

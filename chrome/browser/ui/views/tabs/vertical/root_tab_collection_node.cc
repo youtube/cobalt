@@ -74,15 +74,22 @@ void RootTabCollectionNode::OnChildMoved(
     const tabs::TabCollectionObserver::NodeData& node_data) {
   const tabs::TabCollection::Position& from_position = node_data.position;
   const tabs::TabCollection::NodeHandle& moved_node_handle = node_data.handle;
-  TabCollectionNode* src_parent_node =
-      GetNodeForHandle(from_position.parent_handle);
-  TabCollectionNode* dst_parent_node =
-      GetNodeForHandle(to_position.parent_handle);
 
-  auto [view, node] =
-      src_parent_node->RemoveChild(GetPassKey(), moved_node_handle);
-  dst_parent_node->AddChild(std::move(view), std::move(node),
-                            to_position.index);
+  if (from_position.parent_handle == to_position.parent_handle) {
+    TabCollectionNode* parent_node =
+        GetNodeForHandle(to_position.parent_handle);
+    parent_node->MoveChild(GetPassKey(), moved_node_handle, to_position.index);
+  } else {
+    TabCollectionNode* src_parent_node =
+        GetNodeForHandle(from_position.parent_handle);
+    TabCollectionNode* dst_parent_node =
+        GetNodeForHandle(to_position.parent_handle);
+
+    auto [view, node] =
+        src_parent_node->RemoveChild(GetPassKey(), moved_node_handle);
+    dst_parent_node->AddChild(std::move(view), std::move(node),
+                              to_position.index);
+  }
 }
 
 void RootTabCollectionNode::OnTabStripModelChanged(
@@ -156,33 +163,28 @@ void RootTabCollectionNode::OnTabGroupChanged(const TabGroupChange& change) {
   }
 }
 
-void RootTabCollectionNode::TabChangedAt(content::WebContents* contents,
-                                         int model_index,
-                                         TabChangeType change_type) {
+void RootTabCollectionNode::OnTabChangedAt(tabs::TabInterface* tab,
+                                           int model_index,
+                                           TabChangeType change_type) {
   if (tab_strip_model_->closing_all()) {
     return;
   }
 
-  UpdateTabData(contents, model_index);
+  UpdateTabData(tab, model_index);
 }
 
-void RootTabCollectionNode::TabPinnedStateChanged(
-    TabStripModel* tab_strip_model,
-    content::WebContents* contents,
-    int model_index) {
-  CHECK_EQ(tab_strip_model, tab_strip_model_);
-  UpdateTabData(contents, model_index);
+void RootTabCollectionNode::OnTabPinnedStateChanged(tabs::TabInterface* tab,
+                                                    int model_index) {
+  UpdateTabData(tab, model_index);
 }
 
-void RootTabCollectionNode::TabBlockedStateChanged(
-    content::WebContents* contents,
-    int model_index) {
-  UpdateTabData(contents, model_index);
+void RootTabCollectionNode::OnTabBlockedStateChanged(tabs::TabInterface* tab,
+                                                     int model_index) {
+  UpdateTabData(tab, model_index);
 }
 
-void RootTabCollectionNode::UpdateTabData(content::WebContents* contents,
+void RootTabCollectionNode::UpdateTabData(tabs::TabInterface* tab,
                                           int model_index) {
-  tabs::TabInterface* tab = tabs::TabInterface::GetFromContents(contents);
   TabCollectionNode* tab_node = GetNodeForHandle(tab->GetHandle());
   if (tab_node) {
     tab_node->NotifyDataChanged();

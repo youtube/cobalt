@@ -233,12 +233,25 @@ export class ActionChipsElement extends CrLitElement {
     this.fire('action-chip-click', {searchboxText: query, contextFiles, mode});
   }
 
+  protected recentTabChipTitle_(chip: ActionChip) {
+    if (!chip.tab) {
+      return '';
+    }
+    const url = new URL(chip.tab.url.url);
+    const domain = url.hostname.replace(/^www\./, '');
+    return `${chip.title} - ${domain}`;
+  }
+
   protected isDeepDiveChip_(chip: ActionChip) {
     return chip.type === ChipType.kDeepDive;
   }
 
   protected isRecentTabChip_(chip: ActionChip) {
     return chip.type === ChipType.kRecentTab;
+  }
+
+  protected showDashSimplifiedUI_(chip: ActionChip) {
+    return chip.type !== ChipType.kDeepDive && this.showSimplifiedUI_;
   }
 }
 

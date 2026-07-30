@@ -57,7 +57,6 @@ import android.widget.ImageButton;
 import android.widget.LinearLayout;
 
 import androidx.annotation.DimenRes;
-import androidx.annotation.Nullable;
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.test.espresso.ViewInteraction;
 import androidx.test.espresso.matcher.RootMatchers;
@@ -83,6 +82,7 @@ import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.autofill.AutofillImageFetcher;
 import org.chromium.chrome.browser.autofill.AutofillImageFetcherFactory;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
@@ -1021,11 +1021,8 @@ public class KeyboardAccessoryViewTest {
         int horizontalOffset = 10;
         int verticalOffset = 20;
         KeyboardAccessoryStyle style =
-                new KeyboardAccessoryStyle(
-                        /* isDocked= */ false,
-                        horizontalOffset,
-                        verticalOffset,
-                        /* maxWidth= */ 100);
+                KeyboardAccessoryStyle.createUndockedKeyboardAccessoryStyle(
+                        horizontalOffset, verticalOffset, /* maxWidth= */ 100);
 
         ThreadUtils.runOnUiThreadBlocking(() -> view.setStyle(style));
 

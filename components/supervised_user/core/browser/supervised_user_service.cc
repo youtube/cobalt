@@ -88,6 +88,13 @@ void PrefChangeNotAllowed(const std::string& pref_name) {
   NOTREACHED(base::NotFatalUntil::M150)
       << "Preference change (" << pref_name << ") not allowed.";
 }
+
+#if BUILDFLAG(IS_ANDROID)
+void RecordSupervisionConflict() {
+  base::UmaHistogramEnumeration(kSupervisionConflictHistogramName,
+                                SupervisionHasConflict::kHasConflict);
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 }  // namespace
 
 Custodian::Custodian(std::string_view name,
@@ -124,7 +131,13 @@ bool SupervisedUserService::IsSupervisedLocally() const {
 
 bool SupervisedUserService::IsLocalBrowserFilteringEnabled() const {
 #if BUILDFLAG(IS_ANDROID)
-  return browser_content_filters_observer_->IsEnabled();
+  if (base::FeatureList::IsEnabled(
+          kSupervisedUserOverrideLocalSupervisionForFamilyLinkAccounts) &&
+      IsSubjectToParentalControls(user_prefs_.get())) {
+    return false;
+  }
+
+  return android_parental_controls_->IsBrowserContentFiltersEnabled();
 #else
   return false;
 #endif
@@ -132,7 +145,13 @@ bool SupervisedUserService::IsLocalBrowserFilteringEnabled() const {
 
 bool SupervisedUserService::IsLocalSearchFilteringEnabled() const {
 #if BUILDFLAG(IS_ANDROID)
-  return search_content_filters_observer_->IsEnabled();
+  if (base::FeatureList::IsEnabled(
+          kSupervisedUserOverrideLocalSupervisionForFamilyLinkAccounts) &&
+      IsSubjectToParentalControls(user_prefs_.get())) {
+    return false;
+  }
+
+  return android_parental_controls_->IsSearchContentFiltersEnabled();
 #else
   return false;
 #endif
@@ -186,10 +205,7 @@ SupervisedUserService::SupervisedUserService(
     std::unique_ptr<SupervisedUserService::PlatformDelegate> platform_delegate
 #if BUILDFLAG(IS_ANDROID)
     ,
-    std::unique_ptr<ContentFiltersObserverBridge>
-        browser_content_filters_observer,
-    std::unique_ptr<ContentFiltersObserverBridge>
-        search_content_filters_observer
+    const AndroidParentalControls& android_parental_controls
 #endif
     )
     : user_prefs_(user_prefs),
@@ -203,10 +219,7 @@ SupervisedUserService::SupervisedUserService(
 // From here, the callbacks and observers can be added.
 #if BUILDFLAG(IS_ANDROID)
       ,
-      browser_content_filters_observer_(
-          std::move(browser_content_filters_observer)),
-      search_content_filters_observer_(
-          std::move(search_content_filters_observer))
+      android_parental_controls_(android_parental_controls)
 #endif  // BUILDFLAG(IS_ANDROID)
 {
   CHECK(settings_service_->IsReady())
@@ -214,10 +227,16 @@ SupervisedUserService::SupervisedUserService(
          "a dependency of this service.";
 
 #if BUILDFLAG(IS_ANDROID)
-  browser_content_filters_observer_->AddObserver(this);
-  search_content_filters_observer_->AddObserver(this);
-  browser_content_filters_observer_->Init();
-  search_content_filters_observer_->Init();
+  android_parental_controls_observation_.Observe(
+      &android_parental_controls_.get());
+  // Notifications might have been missed, because the underlying bridges might
+  // have been created long before this service. Re-trigger them.
+  if (IsLocalBrowserFilteringEnabled()) {
+    OnBrowserContentFiltersEnabled();
+  }
+  if (IsLocalSearchFilteringEnabled()) {
+    OnSearchContentFiltersEnabled();
+  }
 #endif  // BUILDFLAG(IS_ANDROID)
 
   main_pref_change_registrar_.Init(&user_prefs_.get());
@@ -225,6 +244,11 @@ SupervisedUserService::SupervisedUserService(
       prefs::kSupervisedUserId,
       base::BindRepeating(&SupervisedUserService::OnSupervisedUserIdChanged,
                           base::Unretained(this)));
+  main_pref_change_registrar_.Add(
+      policy::policy_prefs::kIncognitoModeAvailability,
+      base::BindRepeating(
+          &SupervisedUserService::OnIncognitoModeAvailabilityChanged,
+          base::Unretained(this)));
 
   OnSupervisedUserIdChanged();
 }
@@ -265,17 +289,19 @@ void SupervisedUserService::OnFamilyLinkParentalControlsEnabled() {
   // are mutually exclusive and device controls are just being disabled.
 
 #if BUILDFLAG(IS_ANDROID)
+  bool any_local_parental_control_enabled =
+      android_parental_controls_->IsBrowserContentFiltersEnabled() ||
+      android_parental_controls_->IsSearchContentFiltersEnabled();
   if (base::FeatureList::IsEnabled(
           kSupervisedUserOverrideLocalSupervisionForFamilyLinkAccounts) &&
-      IsSupervisedLocally()) {
-    base::UmaHistogramEnumeration(kSupervisionConflictHistogramName,
-                                  SupervisionHasConflict::kHasConflict);
-    // This properly shuts down local supervision before enabling family link
-    // supervision.
-    browser_content_filters_observer_->OnChange(/*env=*/nullptr,
-                                                /*enabled=*/false);
-    search_content_filters_observer_->OnChange(/*env=*/nullptr,
-                                               /*enabled=*/false);
+      any_local_parental_control_enabled) {
+    RecordSupervisionConflict();
+
+    // Trigger disabling callbacks to cancel effects of local parental controls
+    // when family link is enabled, even though the filters are not actually
+    // disabled.
+    OnBrowserContentFiltersDisabled();
+    OnSearchContentFiltersDisabled();
   }
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -288,10 +314,6 @@ void SupervisedUserService::OnFamilyLinkParentalControlsEnabled() {
 
   // Also disables incognito mode.
   SetSettingsServiceActive(true);
-  // TODO(crbug.com/447414264): Check if tabs should be closed in the first
-  // place.
-  platform_delegate_->CloseIncognitoTabs();
-
   remote_web_approvals_manager_.AddApprovalRequestCreator(
       std::make_unique<PermissionRequestCreatorImpl>(identity_manager_,
                                                      url_loader_factory_));
@@ -352,6 +374,14 @@ void SupervisedUserService::RemoveCustodianPrefChangeHandlers() {
   custodian_pref_change_registrar_.RemoveAll();
 }
 
+void SupervisedUserService::OnIncognitoModeAvailabilityChanged() {
+  bool is_supervised =
+      IsSupervisedLocally() || IsSubjectToParentalControls(user_prefs_.get());
+  if (is_supervised && platform_delegate_->ShouldCloseIncognitoTabs()) {
+    platform_delegate_->CloseIncognitoTabs();
+  }
+}
+
 void SupervisedUserService::OnCustodianInfoChanged() {
   observer_list_.Notify(&SupervisedUserServiceObserver::OnCustodianInfoChanged);
 }
@@ -382,13 +412,6 @@ void SupervisedUserService::Shutdown() {
   DCHECK(!did_shutdown_);
   did_shutdown_ = true;
 
-#if BUILDFLAG(IS_ANDROID)
-  browser_content_filters_observer_->RemoveObserver(this);
-  browser_content_filters_observer_->Shutdown();
-  search_content_filters_observer_->RemoveObserver(this);
-  search_content_filters_observer_->Shutdown();
-#endif  // BUILDFLAG(IS_ANDROID)
-
   if (IsSubjectToParentalControls(user_prefs_.get())) {
     base::RecordAction(UserMetricsAction("ManagedUsers_QuitBrowser"));
   }
@@ -411,105 +434,71 @@ bool IsEligibleForContentFilters(const PrefService& user_prefs) {
 }
 }  // namespace
 
-void SupervisedUserService::OnContentFiltersObserverEnabled(
-    std::string_view setting_name) {
-  if (setting_name == kBrowserContentFiltersSettingName) {
-    EnableBrowserContentFilters();
-  } else if (setting_name == kSearchContentFiltersSettingName) {
-    EnableSearchContentFilters();
+void SupervisedUserService::
+    OnAndroidParentalControlsSearchContentFiltersChanged() {
+  if (android_parental_controls_->IsSearchContentFiltersEnabled()) {
+    OnSearchContentFiltersEnabled();
   } else {
-    NOTREACHED();
+    OnSearchContentFiltersDisabled();
   }
 }
 
-void SupervisedUserService::OnContentFiltersObserverDisabled(
-    std::string_view setting_name) {
-  if (setting_name == kBrowserContentFiltersSettingName) {
-    DisableBrowserContentFilters();
-  } else if (setting_name == kSearchContentFiltersSettingName) {
-    DisableSearchContentFilters();
-  } else {
-    NOTREACHED();
-  }
-}
-
-void SupervisedUserService::EnableSearchContentFilters() {
+void SupervisedUserService::OnSearchContentFiltersEnabled() {
   if (!IsEligibleForContentFilters(user_prefs_.get())) {
+    RecordSupervisionConflict();
     return;
   }
 
   settings_service_->SetSuspended(true);
   content_filters_service_->SetSearchFiltersEnabled(true);
-  if (platform_delegate_->ShouldCloseIncognitoTabs()) {
-    platform_delegate_->CloseIncognitoTabs();
-  }
 
-  // OnSearchContentFiltersChanged reattributes the synthetic field trial
-  // groups and then reloads search pages.
-  observer_list_.Notify(
-      &SupervisedUserServiceObserver::OnSearchContentFiltersChanged);
   // Required to emit WebFilterType metrics.
   UpdateURLFilter();
 }
-void SupervisedUserService::DisableSearchContentFilters() {
+void SupervisedUserService::OnSearchContentFiltersDisabled() {
   content_filters_service_->SetSearchFiltersEnabled(false);
   if (!IsSupervisedLocally()) {
     settings_service_->SetSuspended(false);
   }
-
-  // OnSearchContentFiltersChanged reattributes the synthetic field trial
-  // groups and then reloads search pages.
-  observer_list_.Notify(
-      &SupervisedUserServiceObserver::OnSearchContentFiltersChanged);
 }
-void SupervisedUserService::EnableBrowserContentFilters() {
+
+void SupervisedUserService::
+    OnAndroidParentalControlsBrowserContentFiltersChanged() {
+  if (android_parental_controls_->IsBrowserContentFiltersEnabled()) {
+    OnBrowserContentFiltersEnabled();
+  } else {
+    OnBrowserContentFiltersDisabled();
+  }
+}
+
+void SupervisedUserService::OnBrowserContentFiltersEnabled() {
   if (!IsEligibleForContentFilters(user_prefs_.get())) {
+    RecordSupervisionConflict();
     return;
   }
 
   RemoveURLFilterPrefChangeHandlers();
   settings_service_->SetSuspended(true);
   content_filters_service_->SetBrowserFiltersEnabled(true);
-  if (platform_delegate_->ShouldCloseIncognitoTabs()) {
-    platform_delegate_->CloseIncognitoTabs();
-  }
 
   // Add handlers that will prevent unsupported url filter changes.
   AddURLFilterPrefChangeSentinels();
 
-  // OnBrowserContentFiltersChanged reattributes the synthetic field trial
-  // groups
-  observer_list_.Notify(
-      &SupervisedUserServiceObserver::OnBrowserContentFiltersChanged);
   // Required to emit WebFilterType metrics and reclassifies the observed
   // navigations.
   UpdateURLFilter();
 }
 
-void SupervisedUserService::DisableBrowserContentFilters() {
+void SupervisedUserService::OnBrowserContentFiltersDisabled() {
   RemoveURLFilterPrefChangeHandlers();
   content_filters_service_->SetBrowserFiltersEnabled(false);
   if (!IsSupervisedLocally()) {
     settings_service_->SetSuspended(false);
   }
 
-  // OnBrowserContentFiltersChanged reattributes the synthetic field trial
-  // groups
-  observer_list_.Notify(
-      &SupervisedUserServiceObserver::OnBrowserContentFiltersChanged);
   // Required to emit WebFilterType metrics and reclassifies the observed
   // navigations.
   UpdateURLFilter();
-}
-
-base::WeakPtr<ContentFiltersObserverBridge>
-SupervisedUserService::GetBrowserContentFiltersObserverWeakPtrForTesting() {
-  return browser_content_filters_observer_->GetWeakPtr();
-}
-
-base::WeakPtr<ContentFiltersObserverBridge>
-SupervisedUserService::GetSearchContentFiltersObserverWeakPtrForTesting() {
-  return search_content_filters_observer_->GetWeakPtr();
 }
 
 #endif  // BUILDFLAG(IS_ANDROID)

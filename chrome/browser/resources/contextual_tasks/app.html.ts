@@ -16,6 +16,7 @@ export function getHtml(this: ContextualTasksAppElement) {
           .title="${this.threadTitle_}"
           .attachedTabs="${this.contextTabs_}"
           .darkMode="${this.darkMode_}"
+          .isAiPage="${this.isAiPage_}"
           @new-thread-click="${this.onNewThreadClick_}">
       </top-toolbar>
   `}
@@ -27,10 +28,19 @@ export function getHtml(this: ContextualTasksAppElement) {
       .isSidePanel="${!this.isShownInTab_}">
   </zero-state-overlay>
   <div class="flex-center">
+    <div id="relativeThreadHolder">
+      <h1 class="thread-header">
+          ${this.friendlyZeroStateTitle}
+          ${this.friendlyZeroStateSubtitle.length > 0 ?
+              html`<br>
+              ${this.friendlyZeroStateSubtitle}` : ''}
+      </h1>
+    </div>
     <contextual-tasks-composebox id="composebox"
           ?hidden="${!this.showComposebox_}"
           .isZeroState="${this.isZeroState_}"
-          .isSidePanel="${!this.isShownInTab_}">
+          .isSidePanel="${!this.isShownInTab_}"
+          .isLensOverlayShowing="${this.isLensOverlayShowing_}">
     </contextual-tasks-composebox>
   </div>
   <!--_html_template_end_-->`;

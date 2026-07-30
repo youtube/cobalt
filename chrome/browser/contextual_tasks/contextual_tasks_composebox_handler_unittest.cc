@@ -4,21 +4,26 @@
 
 #include "chrome/browser/contextual_tasks/contextual_tasks_composebox_handler.h"
 
+
 #include <memory>
 #include <utility>
+#include <vector>
 
+#include "base/containers/span.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
+#include "base/test/bind.h"
 #include "base/test/mock_callback.h"
+#include "base/test/scoped_feature_list.h"
 #include "chrome/browser/contextual_search/contextual_search_service_factory.h"
 #include "chrome/browser/contextual_search/contextual_search_web_contents_helper.h"
-#include "chrome/browser/contextual_tasks/contextual_tasks_context_controller_factory.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
-#include "chrome/browser/contextual_tasks/mock_contextual_tasks_context_controller.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/ui/contextual_search/tab_contextualization_controller.h"
+#include "chrome/browser/ui/lens/lens_search_controller.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/webui/searchbox/searchbox_test_utils.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
@@ -30,6 +35,9 @@
 #include "components/contextual_search/fake_variations_client.h"
 #include "components/contextual_search/mock_contextual_search_context_controller.h"
 #include "components/contextual_tasks/public/contextual_task.h"
+#include "components/contextual_tasks/public/contextual_tasks_service.h"
+#include "components/contextual_tasks/public/features.h"
+#include "components/contextual_tasks/public/mock_contextual_tasks_service.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/tabs/public/mock_tab_interface.h"
@@ -107,6 +115,8 @@ class MockContextualTasksUI : public ContextualTasksUI {
               (override));
   MOCK_METHOD(content::WebContents*, GetWebUIWebContents, (), (override));
   MOCK_METHOD(const std::optional<base::Uuid>&, GetTaskId, (), (override));
+  MOCK_METHOD(void, DisableActiveTabContextSuggestion, (), (override));
+  MOCK_METHOD(BrowserWindowInterface*, GetBrowser, (), (override));
 };
 
 class TestContextualTasksComposeboxHandler
@@ -123,20 +133,32 @@ class TestContextualTasksComposeboxHandler
               (override));
 
  protected:
-  contextual_tasks::ContextualTasksContextController* GetContextController()
+  contextual_tasks::ContextualTasksService* GetContextualTasksService()
       override {
-    return mock_controller_;
+    return mock_contextual_tasks_service_;
   }
 
  public:
-  void SetMockController(
-      contextual_tasks::ContextualTasksContextController* controller) {
-    mock_controller_ = controller;
+  void SetMockContextualTasksService(
+      contextual_tasks::ContextualTasksService* contextual_tasks_service) {
+    mock_contextual_tasks_service_ = contextual_tasks_service;
   }
 
  private:
-  raw_ptr<contextual_tasks::ContextualTasksContextController> mock_controller_ =
-      nullptr;
+  raw_ptr<contextual_tasks::ContextualTasksService>
+      mock_contextual_tasks_service_ = nullptr;
+};
+
+class MockLensSearchController : public LensSearchController {
+ public:
+  explicit MockLensSearchController(tabs::TabInterface* tab)
+      : LensSearchController(tab) {}
+  ~MockLensSearchController() override = default;
+
+  MOCK_METHOD(void,
+              OpenLensOverlay,
+              (lens::LensOverlayInvocationSource invocation_source),
+              (override));
 };
 
 class ContextualTasksComposeboxHandlerTest
@@ -146,6 +168,20 @@ class ContextualTasksComposeboxHandlerTest
   ~ContextualTasksComposeboxHandlerTest() override = default;
 
   void SetUp() override {
+    feature_list_.InitAndEnableFeature(contextual_tasks::kContextualTasks);
+
+    // Install override before AddTab is called in base SetUp.
+    lens_controller_override_ =
+        tabs::TabFeatures::GetUserDataFactoryForTesting().AddOverrideForTesting(
+            base::BindLambdaForTesting(
+                [this](tabs::TabInterface& tab)
+                    -> std::unique_ptr<LensSearchController> {
+                  auto mock = std::make_unique<
+                      testing::NiceMock<MockLensSearchController>>(&tab);
+                  this->mock_lens_controller_ = mock.get();
+                  return mock;
+                }));
+
     LocalContextualSearchboxHandlerTestHarness::SetUp();
     web_ui_.set_web_contents(web_contents());
     webui::SetTabInterface(web_contents(), nullptr);
@@ -169,7 +205,7 @@ class ContextualTasksComposeboxHandlerTest
     session_handle_ =
         service_->GetSession(contextual_session_handle->session_id());
     ContextualSearchWebContentsHelper::GetOrCreateForWebContents(web_contents())
-        ->set_session_handle(std::move(contextual_session_handle));
+        ->SetTaskSession(std::nullopt, std::move(contextual_session_handle));
 
     mock_ui_ =
         std::make_unique<testing::NiceMock<MockContextualTasksUI>>(&web_ui_);
@@ -177,21 +213,26 @@ class ContextualTasksComposeboxHandlerTest
         .WillByDefault(testing::Return(web_contents()));
     ON_CALL(*mock_ui_, GetTaskId())
         .WillByDefault(testing::ReturnRefOfCopy(std::optional<base::Uuid>()));
+    ON_CALL(*mock_ui_, GetBrowser()).WillByDefault(testing::Return(browser()));
 
     // Create mock controller directly.
-    mock_tasks_context_controller_owner_ = std::make_unique<testing::NiceMock<
-        contextual_tasks::MockContextualTasksContextController>>();
-    mock_tasks_controller_ptr_ = mock_tasks_context_controller_owner_.get();
+    mock_contextual_tasks_service_owner_ = std::make_unique<
+        testing::NiceMock<contextual_tasks::MockContextualTasksService>>();
+    mock_contextual_tasks_service_ptr_ =
+        mock_contextual_tasks_service_owner_.get();
+
+    mojo::PendingRemote<composebox::mojom::Page> page_remote;
+    page_receiver_ = page_remote.InitWithNewPipeAndPassReceiver();
 
     handler_ = std::make_unique<TestContextualTasksComposeboxHandler>(
         mock_ui_.get(), profile(), web_contents(),
         mojo::PendingReceiver<composebox::mojom::PageHandler>(),
-        mojo::PendingRemote<composebox::mojom::Page>(),
+        std::move(page_remote),
         mojo::PendingReceiver<searchbox::mojom::PageHandler>(),
         base::BindRepeating(
             &ContextualTasksUI::GetOrCreateContextualSessionHandle,
             base::Unretained(mock_ui_.get())));
-    handler_->SetMockController(mock_tasks_controller_ptr_);
+    handler_->SetMockContextualTasksService(mock_contextual_tasks_service_ptr_);
 
     // Setup MockTabContextualizationController
     tabs::TabInterface* active_tab =
@@ -205,16 +246,21 @@ class ContextualTasksComposeboxHandlerTest
     mock_tab_controller_ = mock_tab_controller.get();
     active_tab->GetTabFeatures()->SetTabContextualizationControllerForTesting(
         std::move(mock_tab_controller));
+
+    ASSERT_TRUE(mock_lens_controller_);
   }
 
-  std::unique_ptr<contextual_tasks::MockContextualTasksContextController>
-      mock_tasks_context_controller_owner_;
+  std::unique_ptr<contextual_tasks::MockContextualTasksService>
+      mock_contextual_tasks_service_owner_;
 
   void TearDown() override {
+    // Reset handler first to destroy the omnibox client which observes the
+    // lens controller.
     handler_.reset();
     mock_controller_ = nullptr;
-    mock_tasks_controller_ptr_ = nullptr;
+    mock_contextual_tasks_service_ptr_ = nullptr;
     mock_tab_controller_ = nullptr;
+    mock_lens_controller_ = nullptr;
     session_handle_.reset();
     service_.reset();
     mock_ui_.reset();
@@ -232,14 +278,20 @@ class ContextualTasksComposeboxHandlerTest
       session_handle_;
   raw_ptr<contextual_search::MockContextualSearchContextController>
       mock_controller_;
-  raw_ptr<contextual_tasks::MockContextualTasksContextController>
-      mock_tasks_controller_ptr_ = nullptr;
+  raw_ptr<contextual_tasks::MockContextualTasksService>
+      mock_contextual_tasks_service_ptr_ = nullptr;
 
   raw_ptr<MockTabContextualizationController> mock_tab_controller_ = nullptr;
+  raw_ptr<MockLensSearchController> mock_lens_controller_ = nullptr;
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+  ui::UserDataFactory::ScopedOverride lens_controller_override_;
+  mojo::PendingReceiver<composebox::mojom::Page> page_receiver_;
 };
 
 TEST_F(ContextualTasksComposeboxHandlerTest, SubmitQuery) {
-  ASSERT_NE(mock_tasks_controller_ptr_, nullptr)
+  ASSERT_NE(mock_contextual_tasks_service_ptr_, nullptr)
       << "Mock controller is NULL in SubmitQuery!";
   EXPECT_CALL(*mock_controller_, CreateClientToAimRequest(testing::_))
       .WillOnce(testing::Return(lens::ClientToAimMessage()));
@@ -266,7 +318,8 @@ TEST_F(ContextualTasksComposeboxHandlerTest, CreateAndSendQueryMessage) {
 
 TEST_F(ContextualTasksComposeboxHandlerTest,
        CreateAndSendQueryMessage_RecontextualizeExpiredTab) {
-  ASSERT_NE(mock_tasks_controller_ptr_, nullptr) << "Mock controller is NULL!";
+  ASSERT_NE(mock_contextual_tasks_service_ptr_, nullptr)
+      << "Mock controller is NULL!";
   std::string kQuery = "recontextualize query";
   base::Uuid task_id = base::Uuid::GenerateRandomV4();
   EXPECT_CALL(*mock_ui_, GetTaskId())
@@ -288,7 +341,7 @@ TEST_F(ContextualTasksComposeboxHandlerTest,
       std::make_unique<contextual_tasks::ContextualTaskContext>(task);
 
   EXPECT_CALL(
-      *mock_tasks_controller_ptr_,
+      *mock_contextual_tasks_service_ptr_,
       GetContextForTask(
           task_id,
           testing::Contains(contextual_tasks::ContextualTaskContextSource::
@@ -322,7 +375,6 @@ TEST_F(ContextualTasksComposeboxHandlerTest,
                         callback) {
         // Return some dummy content.
         auto data = std::make_unique<lens::ContextualInputData>();
-        data->context_input = std::vector<lens::ContextualInput>();
         data->tab_session_id = session_id;
         data->page_url = GURL("about:blank");
         data->page_title = "about:blank";
@@ -351,7 +403,8 @@ TEST_F(ContextualTasksComposeboxHandlerTest,
 
 TEST_F(ContextualTasksComposeboxHandlerTest,
        CreateAndSendQueryMessage_RecontextualizeContentChanged) {
-  ASSERT_NE(mock_tasks_controller_ptr_, nullptr) << "Mock controller is NULL!";
+  ASSERT_NE(mock_contextual_tasks_service_ptr_, nullptr)
+      << "Mock controller is NULL!";
   std::string kQuery = "recontextualize query";
   base::Uuid task_id = base::Uuid::GenerateRandomV4();
   EXPECT_CALL(*mock_ui_, GetTaskId())
@@ -372,7 +425,7 @@ TEST_F(ContextualTasksComposeboxHandlerTest,
       std::make_unique<contextual_tasks::ContextualTaskContext>(task);
 
   EXPECT_CALL(
-      *mock_tasks_controller_ptr_,
+      *mock_contextual_tasks_service_ptr_,
       GetContextForTask(
           task_id,
           testing::Contains(contextual_tasks::ContextualTaskContextSource::
@@ -408,11 +461,12 @@ TEST_F(ContextualTasksComposeboxHandlerTest,
                         callback) {
         auto data = std::make_unique<lens::ContextualInputData>();
         std::string new_content = "new content";
-        std::vector<uint8_t> new_bytes(new_content.begin(), new_content.end());
+        auto new_content_span = base::as_bytes(base::span(new_content));
+        std::vector<uint8_t> new_bytes(new_content_span.begin(),
+                                       new_content_span.end());
         lens::ContextualInput new_input(std::move(new_bytes),
                                         lens::MimeType::kPlainText);
-        data->context_input =
-            std::vector<lens::ContextualInput>{std::move(new_input)};
+        data->context_input.emplace().push_back(std::move(new_input));
         data->tab_session_id = session_id;
         data->page_url = GURL("about:blank");
         data->page_title = "about:blank";
@@ -440,8 +494,9 @@ TEST_F(ContextualTasksComposeboxHandlerTest,
 }
 
 TEST_F(ContextualTasksComposeboxHandlerTest,
-       CreateAndSendQueryMessage_AlwaysRecontextualizes) {
-  ASSERT_NE(mock_tasks_controller_ptr_, nullptr) << "Mock controller is NULL!";
+       CreateAndSendQueryMessage_NoRecontextualizationIfUnchanged) {
+  ASSERT_NE(mock_contextual_tasks_service_ptr_, nullptr)
+      << "Mock controller is NULL!";
   std::string kQuery = "valid tab query";
   base::Uuid task_id = base::Uuid::GenerateRandomV4();
   EXPECT_CALL(*mock_ui_, GetTaskId())
@@ -459,7 +514,7 @@ TEST_F(ContextualTasksComposeboxHandlerTest,
       std::make_unique<contextual_tasks::ContextualTaskContext>(task);
 
   EXPECT_CALL(
-      *mock_tasks_controller_ptr_,
+      *mock_contextual_tasks_service_ptr_,
       GetContextForTask(
           task_id,
           testing::Contains(contextual_tasks::ContextualTaskContextSource::
@@ -482,6 +537,17 @@ TEST_F(ContextualTasksComposeboxHandlerTest,
   file_info.upload_status =
       contextual_search::FileUploadStatus::kUploadSuccessful;
   file_info.request_id.set_context_id(12345);
+
+  // Populate input_data for comparison
+  auto input_data = std::make_unique<lens::ContextualInputData>();
+  std::string content = "same content";
+  auto content_span = base::as_bytes(base::span(content));
+  std::vector<uint8_t> bytes(content_span.begin(), content_span.end());
+  lens::ContextualInput input(std::move(bytes), lens::MimeType::kPlainText);
+  input_data->context_input.emplace().push_back(std::move(input));
+  input_data->primary_content_type = lens::MimeType::kPlainText;
+  file_info.input_data = std::move(input_data);
+
   file_info_list.push_back(&file_info);
 
   EXPECT_CALL(*mock_controller_, GetFileInfoList())
@@ -495,11 +561,12 @@ TEST_F(ContextualTasksComposeboxHandlerTest,
         auto data = std::make_unique<lens::ContextualInputData>();
         // Reconstruct same input.
         std::string content = "same content";
-        std::vector<uint8_t> bytes(content.begin(), content.end());
+        auto content_span = base::as_bytes(base::span(content));
+        std::vector<uint8_t> bytes(content_span.begin(), content_span.end());
         lens::ContextualInput new_input(std::move(bytes),
                                         lens::MimeType::kPlainText);
-        data->context_input =
-            std::vector<lens::ContextualInput>{std::move(new_input)};
+        data->context_input.emplace().push_back(std::move(new_input));
+        data->primary_content_type = lens::MimeType::kPlainText;
         // Set session ID to match
         data->tab_session_id = session_id;
         data->page_url = GURL("about:blank");
@@ -508,17 +575,10 @@ TEST_F(ContextualTasksComposeboxHandlerTest,
         std::move(callback).Run(std::move(data));
       });
 
-  // TODO(crbug.com/468431232): Expect UploadTabContextWithData call because
-  // content change detection is not yet implemented.
-  EXPECT_CALL(*handler_, UploadTabContextWithData(testing::_,
-                                                  std::optional<int64_t>(12345),
+  // Expect UploadTabContextWithData call to NOT be called.
+  EXPECT_CALL(*handler_, UploadTabContextWithData(testing::_, testing::_,
                                                   testing::_, testing::_))
-      .WillOnce(
-          [](int32_t tab_id, std::optional<int64_t> context_id,
-             std::unique_ptr<lens::ContextualInputData> data,
-             ContextualSearchboxHandler::RecontextualizeTabCallback callback) {
-            std::move(callback).Run(true);
-          });
+      .Times(0);
 
   EXPECT_CALL(*mock_controller_, CreateClientToAimRequest(testing::_))
       .WillOnce(testing::Return(lens::ClientToAimMessage()));
@@ -530,7 +590,8 @@ TEST_F(ContextualTasksComposeboxHandlerTest,
 
 TEST_F(ContextualTasksComposeboxHandlerTest,
        CreateAndSendQueryMessage_ActiveTabNotInContext) {
-  ASSERT_NE(mock_tasks_controller_ptr_, nullptr) << "Mock controller is NULL!";
+  ASSERT_NE(mock_contextual_tasks_service_ptr_, nullptr)
+      << "Mock controller is NULL!";
   std::string kQuery = "query with unrelated active tab";
   base::Uuid task_id = base::Uuid::GenerateRandomV4();
   EXPECT_CALL(*mock_ui_, GetTaskId())
@@ -547,7 +608,7 @@ TEST_F(ContextualTasksComposeboxHandlerTest,
       std::make_unique<contextual_tasks::ContextualTaskContext>(task);
 
   EXPECT_CALL(
-      *mock_tasks_controller_ptr_,
+      *mock_contextual_tasks_service_ptr_,
       GetContextForTask(
           task_id,
           testing::Contains(contextual_tasks::ContextualTaskContextSource::
@@ -579,7 +640,8 @@ TEST_F(ContextualTasksComposeboxHandlerTest,
 
 TEST_F(ContextualTasksComposeboxHandlerTest,
        CreateAndSendQueryMessage_ActiveTabUrlMismatch) {
-  ASSERT_NE(mock_tasks_controller_ptr_, nullptr) << "Mock controller is NULL!";
+  ASSERT_NE(mock_contextual_tasks_service_ptr_, nullptr)
+      << "Mock controller is NULL!";
   std::string kQuery = "query with url mismatch";
   base::Uuid task_id = base::Uuid::GenerateRandomV4();
   EXPECT_CALL(*mock_ui_, GetTaskId())
@@ -601,7 +663,7 @@ TEST_F(ContextualTasksComposeboxHandlerTest,
       std::make_unique<contextual_tasks::ContextualTaskContext>(task);
 
   EXPECT_CALL(
-      *mock_tasks_controller_ptr_,
+      *mock_contextual_tasks_service_ptr_,
       GetContextForTask(
           task_id,
           testing::Contains(contextual_tasks::ContextualTaskContextSource::
@@ -631,6 +693,189 @@ TEST_F(ContextualTasksComposeboxHandlerTest,
   base::RunLoop().RunUntilIdle();
 }
 
+TEST_F(ContextualTasksComposeboxHandlerTest,
+       CreateAndSendQueryMessage_RecontextualizeScreenshotChanged_SkBitmap) {
+  ASSERT_NE(mock_contextual_tasks_service_ptr_, nullptr)
+      << "Mock controller is NULL!";
+  std::string kQuery = "recontextualize query";
+  base::Uuid task_id = base::Uuid::GenerateRandomV4();
+  EXPECT_CALL(*mock_ui_, GetTaskId())
+      .WillOnce(testing::ReturnRefOfCopy(std::optional<base::Uuid>(task_id)));
+
+  // Setup context with uploaded tab.
+  contextual_tasks::ContextualTask task(task_id);
+  SessionID session_id = sessions::SessionTabHelper::IdForTab(web_contents());
+  GURL kUrl("about:blank");
+  std::string kTitle = "about:blank";
+
+  contextual_tasks::UrlResource resource(kUrl);
+  resource.title = kTitle;
+  resource.tab_id = session_id;
+  task.AddUrlResource(resource);
+
+  auto context =
+      std::make_unique<contextual_tasks::ContextualTaskContext>(task);
+
+  EXPECT_CALL(
+      *mock_contextual_tasks_service_ptr_,
+      GetContextForTask(
+          task_id,
+          testing::Contains(contextual_tasks::ContextualTaskContextSource::
+                                kPendingContextDecorator),
+          testing::NotNull(), testing::_))
+      .WillOnce(
+          [&context](
+              const base::Uuid& task_id,
+              const std::set<contextual_tasks::ContextualTaskContextSource>&
+                  sources,
+              std::unique_ptr<contextual_tasks::ContextDecorationParams> params,
+              base::OnceCallback<void(
+                  std::unique_ptr<contextual_tasks::ContextualTaskContext>)>
+                  callback) { std::move(callback).Run(std::move(context)); });
+
+  // Setup FileInfo with uploaded status and OLD bitmap.
+  std::vector<const contextual_search::FileInfo*> file_info_list;
+  contextual_search::FileInfo file_info;
+  file_info.tab_session_id = session_id;
+  file_info.upload_status =
+      contextual_search::FileUploadStatus::kUploadSuccessful;
+  file_info.request_id.set_context_id(12345);
+
+  auto input_data = std::make_unique<lens::ContextualInputData>();
+  SkBitmap old_bitmap;
+  old_bitmap.allocN32Pixels(10, 10);
+  old_bitmap.eraseColor(SK_ColorRED);
+  input_data->viewport_screenshot = old_bitmap;
+  file_info.input_data = std::move(input_data);
+
+  file_info_list.push_back(&file_info);
+
+  EXPECT_CALL(*mock_controller_, GetFileInfoList())
+      .WillRepeatedly(testing::Return(file_info_list));
+
+  // Expect GetPageContext call with NEW bitmap (different color).
+  EXPECT_CALL(*mock_tab_controller_, GetPageContext(testing::_))
+      .WillOnce([session_id](
+                    MockTabContextualizationController::GetPageContextCallback
+                        callback) {
+        auto data = std::make_unique<lens::ContextualInputData>();
+        SkBitmap new_bitmap;
+        new_bitmap.allocN32Pixels(10, 10);
+        new_bitmap.eraseColor(SK_ColorBLUE);
+        data->viewport_screenshot = new_bitmap;
+        data->tab_session_id = session_id;
+        data->page_url = GURL("about:blank");
+        data->page_title = "about:blank";
+        data->context_id = 12345;
+        std::move(callback).Run(std::move(data));
+      });
+
+  // Expect UploadTabContextWithData call because bitmap changed.
+  EXPECT_CALL(*handler_, UploadTabContextWithData(testing::_,
+                                                  std::optional<int64_t>(12345),
+                                                  testing::_, testing::_))
+      .WillOnce(
+          [](int32_t tab_id, std::optional<int64_t> context_id,
+             std::unique_ptr<lens::ContextualInputData> data,
+             ContextualSearchboxHandler::RecontextualizeTabCallback callback) {
+            std::move(callback).Run(true);
+          });
+
+  EXPECT_CALL(*mock_controller_, CreateClientToAimRequest(testing::_))
+      .WillOnce(testing::Return(lens::ClientToAimMessage()));
+  EXPECT_CALL(*mock_ui_, PostMessageToWebview(testing::_));
+
+  handler_->CreateAndSendQueryMessage(kQuery);
+  base::RunLoop().RunUntilIdle();
+}
+
+TEST_F(ContextualTasksComposeboxHandlerTest,
+       CreateAndSendQueryMessage_NoRecontextualizationIfScreenshotUnchanged_SkBitmap) {
+  ASSERT_NE(mock_contextual_tasks_service_ptr_, nullptr)
+      << "Mock controller is NULL!";
+  std::string kQuery = "valid tab query";
+  base::Uuid task_id = base::Uuid::GenerateRandomV4();
+  EXPECT_CALL(*mock_ui_, GetTaskId())
+      .WillOnce(testing::ReturnRefOfCopy(std::optional<base::Uuid>(task_id)));
+
+  // Setup context with uploaded tab
+  contextual_tasks::ContextualTask task(task_id);
+  SessionID session_id = sessions::SessionTabHelper::IdForTab(web_contents());
+  contextual_tasks::UrlResource resource(GURL("about:blank"));
+  resource.title = "about:blank";
+  resource.tab_id = session_id;
+  task.AddUrlResource(resource);
+
+  auto context =
+      std::make_unique<contextual_tasks::ContextualTaskContext>(task);
+
+  EXPECT_CALL(
+      *mock_contextual_tasks_service_ptr_,
+      GetContextForTask(
+          task_id,
+          testing::Contains(contextual_tasks::ContextualTaskContextSource::
+                                kPendingContextDecorator),
+          testing::NotNull(), testing::_))
+      .WillOnce(
+          [&context](
+              const base::Uuid& task_id,
+              const std::set<contextual_tasks::ContextualTaskContextSource>&
+                  sources,
+              std::unique_ptr<contextual_tasks::ContextDecorationParams> params,
+              base::OnceCallback<void(
+                  std::unique_ptr<contextual_tasks::ContextualTaskContext>)>
+                  callback) { std::move(callback).Run(std::move(context)); });
+
+  // Setup FileInfo with uploaded status and SAME bitmap.
+  std::vector<const contextual_search::FileInfo*> file_info_list;
+  contextual_search::FileInfo file_info;
+  file_info.tab_session_id = session_id;
+  file_info.upload_status =
+      contextual_search::FileUploadStatus::kUploadSuccessful;
+  file_info.request_id.set_context_id(12345);
+
+  auto input_data = std::make_unique<lens::ContextualInputData>();
+  SkBitmap old_bitmap;
+  old_bitmap.allocN32Pixels(10, 10);
+  old_bitmap.eraseColor(SK_ColorRED);
+  input_data->viewport_screenshot = old_bitmap;
+  file_info.input_data = std::move(input_data);
+
+  file_info_list.push_back(&file_info);
+
+  EXPECT_CALL(*mock_controller_, GetFileInfoList())
+      .WillRepeatedly(testing::Return(file_info_list));
+
+  // Expect GetPageContext call with SAME bitmap.
+  EXPECT_CALL(*mock_tab_controller_, GetPageContext(testing::_))
+      .WillOnce([session_id](
+                    MockTabContextualizationController::GetPageContextCallback
+                        callback) {
+        auto data = std::make_unique<lens::ContextualInputData>();
+        SkBitmap new_bitmap;
+        new_bitmap.allocN32Pixels(10, 10);
+        new_bitmap.eraseColor(SK_ColorRED);
+        data->viewport_screenshot = new_bitmap;
+        data->tab_session_id = session_id;
+        data->page_url = GURL("about:blank");
+        data->page_title = "about:blank";
+        data->context_id = 12345;
+        std::move(callback).Run(std::move(data));
+      });
+
+  // Expect UploadTabContextWithData call to NOT be called.
+  EXPECT_CALL(*handler_, UploadTabContextWithData(testing::_, testing::_,
+                                                  testing::_, testing::_))
+      .Times(0);
+
+  EXPECT_CALL(*mock_controller_, CreateClientToAimRequest(testing::_))
+      .WillOnce(testing::Return(lens::ClientToAimMessage()));
+  EXPECT_CALL(*mock_ui_, PostMessageToWebview(testing::_));
+
+  handler_->CreateAndSendQueryMessage(kQuery);
+  base::RunLoop().RunUntilIdle();
+}
+
 TEST_F(ContextualTasksComposeboxHandlerTest, OnAutocompleteAccept) {
   EXPECT_CALL(*mock_controller_, CreateClientToAimRequest(testing::_))
       .WillOnce(testing::Return(lens::ClientToAimMessage()));
@@ -645,7 +890,10 @@ TEST_F(ContextualTasksComposeboxHandlerTest, OnAutocompleteAccept) {
 }
 
 TEST_F(ContextualTasksComposeboxHandlerTest, HandleLensButtonClick) {
-  // Currently this method does nothing, but we verify it can be called safely.
+  EXPECT_CALL(
+      *mock_lens_controller_,
+      OpenLensOverlay(
+          lens::LensOverlayInvocationSource::kContextualTasksComposebox));
   handler_->HandleLensButtonClick();
 }
 
@@ -741,3 +989,148 @@ INSTANTIATE_TEST_SUITE_P(
         ToolModeTestParam{
             omnibox::ChromeAimToolsAndModels::TOOL_MODE_IMAGE_GEN_UPLOAD, false,
             true}));
+
+TEST_F(ContextualTasksComposeboxHandlerTest, AddTabContext_Delayed) {
+  ASSERT_NE(mock_contextual_tasks_service_ptr_, nullptr)
+      << "Mock controller is NULL!";
+  std::string kQuery = "delayed tab query";
+  base::Uuid task_id = base::Uuid::GenerateRandomV4();
+  EXPECT_CALL(*mock_ui_, GetTaskId())
+      .WillOnce(testing::ReturnRefOfCopy(std::optional<base::Uuid>(task_id)));
+
+  // Setup context.
+  contextual_tasks::ContextualTask task(task_id);
+  auto context =
+      std::make_unique<contextual_tasks::ContextualTaskContext>(task);
+
+  EXPECT_CALL(
+      *mock_contextual_tasks_service_ptr_,
+      GetContextForTask(
+          task_id,
+          testing::Contains(contextual_tasks::ContextualTaskContextSource::
+                                kPendingContextDecorator),
+          testing::NotNull(), testing::_))
+      .WillOnce(
+          [&context](
+              const base::Uuid& task_id,
+              const std::set<contextual_tasks::ContextualTaskContextSource>&
+                  sources,
+              std::unique_ptr<contextual_tasks::ContextDecorationParams> params,
+              base::OnceCallback<void(
+                  std::unique_ptr<contextual_tasks::ContextualTaskContext>)>
+                  callback) { std::move(callback).Run(std::move(context)); });
+
+  // 1. Add delayed tab context.
+  int32_t tab_id = 100;
+  std::optional<base::UnguessableToken> token_opt;
+  base::MockCallback<ContextualSearchboxHandler::AddTabContextCallback>
+      callback;
+  EXPECT_CALL(callback, Run(testing::_))
+      .WillOnce(testing::SaveArg<0>(&token_opt));
+
+  handler_->AddTabContext(tab_id, /*delay_upload=*/true, callback.Get());
+  ASSERT_TRUE(token_opt.has_value());
+  base::UnguessableToken token = token_opt.value();
+  ASSERT_FALSE(token.is_empty());
+
+  // 2. Verify tab is added to GetTabsToUpdate (via CreateAndSendQueryMessage).
+  // We need to mock the tab handle resolution. Since we can't easily mock
+  // TabHandle::Get() for arbitrary IDs in this test harness without more setup,
+  // we will use the active tab's ID which IS set up.
+  tabs::TabInterface* active_tab = browser()->tab_strip_model()->GetActiveTab();
+  int32_t active_tab_id = active_tab->GetHandle().raw_value();
+
+  // Reset and try again with active tab ID.
+  std::optional<base::UnguessableToken> active_token_opt;
+  EXPECT_CALL(callback, Run(testing::_))
+      .WillOnce(testing::SaveArg<0>(&active_token_opt));
+  handler_->AddTabContext(active_tab_id, /*delay_upload=*/true, callback.Get());
+  ASSERT_TRUE(active_token_opt.has_value());
+  base::UnguessableToken active_token = active_token_opt.value();
+  ASSERT_FALSE(active_token.is_empty());
+
+  // Expect GetPageContext call for the active tab.
+  EXPECT_CALL(*mock_tab_controller_, GetPageContext(testing::_))
+      .WillOnce([](MockTabContextualizationController::GetPageContextCallback
+                       callback) {
+        auto data = std::make_unique<lens::ContextualInputData>();
+        std::move(callback).Run(std::move(data));
+      });
+
+  // Expect UploadTabContextWithData call.
+  EXPECT_CALL(*handler_, UploadTabContextWithData(testing::_, testing::_,
+                                                  testing::_, testing::_))
+      .WillOnce(
+          [](int32_t tab_id, std::optional<int64_t> context_id,
+             std::unique_ptr<lens::ContextualInputData> data,
+             ContextualSearchboxHandler::RecontextualizeTabCallback callback) {
+            std::move(callback).Run(true);
+          });
+
+  EXPECT_CALL(*mock_controller_, CreateClientToAimRequest(testing::_))
+      .WillOnce(testing::Return(lens::ClientToAimMessage()));
+  EXPECT_CALL(*mock_ui_, PostMessageToWebview(testing::_));
+
+  handler_->CreateAndSendQueryMessage(kQuery);
+  base::RunLoop().RunUntilIdle();
+}
+
+TEST_F(ContextualTasksComposeboxHandlerTest, DeleteContext_Delayed) {
+  ASSERT_NE(mock_contextual_tasks_service_ptr_, nullptr)
+      << "Mock controller is NULL!";
+  std::string kQuery = "delete context query";
+  base::Uuid task_id = base::Uuid::GenerateRandomV4();
+  EXPECT_CALL(*mock_ui_, GetTaskId())
+      .WillOnce(testing::ReturnRefOfCopy(std::optional<base::Uuid>(task_id)));
+
+  // Setup context.
+  contextual_tasks::ContextualTask task(task_id);
+  auto context =
+      std::make_unique<contextual_tasks::ContextualTaskContext>(task);
+
+  EXPECT_CALL(
+      *mock_contextual_tasks_service_ptr_,
+      GetContextForTask(
+          task_id,
+          testing::Contains(contextual_tasks::ContextualTaskContextSource::
+                                kPendingContextDecorator),
+          testing::NotNull(), testing::_))
+      .WillOnce(
+          [&context](
+              const base::Uuid& task_id,
+              const std::set<contextual_tasks::ContextualTaskContextSource>&
+                  sources,
+              std::unique_ptr<contextual_tasks::ContextDecorationParams> params,
+              base::OnceCallback<void(
+                  std::unique_ptr<contextual_tasks::ContextualTaskContext>)>
+                  callback) { std::move(callback).Run(std::move(context)); });
+
+  // 1. Add delayed tab context.
+  tabs::TabInterface* active_tab = browser()->tab_strip_model()->GetActiveTab();
+  int32_t active_tab_id = active_tab->GetHandle().raw_value();
+  std::optional<base::UnguessableToken> token_opt;
+  base::MockCallback<ContextualSearchboxHandler::AddTabContextCallback>
+      callback;
+  EXPECT_CALL(callback, Run(testing::_))
+      .WillOnce(testing::SaveArg<0>(&token_opt));
+
+  handler_->AddTabContext(active_tab_id, /*delay_upload=*/true, callback.Get());
+  ASSERT_TRUE(token_opt.has_value());
+  base::UnguessableToken token = token_opt.value();
+  ASSERT_FALSE(token.is_empty());
+
+  // 2. Delete the context.
+  handler_->DeleteContext(token, /*from_automatic_chip=*/true);
+
+  // 3. Verify UploadTabContextWithData is NOT called.
+  EXPECT_CALL(*handler_, UploadTabContextWithData(testing::_, testing::_,
+                                                  testing::_, testing::_))
+      .Times(0);
+
+  EXPECT_CALL(*mock_controller_, CreateClientToAimRequest(testing::_))
+      .WillOnce(testing::Return(lens::ClientToAimMessage()));
+  EXPECT_CALL(*mock_ui_, PostMessageToWebview(testing::_));
+
+  handler_->CreateAndSendQueryMessage(kQuery);
+  base::RunLoop().RunUntilIdle();
+}

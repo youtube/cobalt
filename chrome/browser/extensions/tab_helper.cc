@@ -121,15 +121,14 @@ void TabHelper::SetReloadRequired(
     case PermissionsManager::UserSiteSetting::kBlockAllExtensions: {
       // A reload is required if any extension that had site access will lose
       // it.
-      content::WebContents* web_contents = GetVisibleWebContents();
       SitePermissionsHelper permissions_helper(profile_);
       const ExtensionSet& extensions =
           ExtensionRegistry::Get(profile_)->enabled_extensions();
       reload_required_ = std::ranges::any_of(
-          extensions, [&permissions_helper,
-                       web_contents](scoped_refptr<const Extension> extension) {
+          extensions, [&permissions_helper, contents = web_contents()](
+                          scoped_refptr<const Extension> extension) {
             return permissions_helper.GetSiteInteraction(*extension,
-                                                         web_contents) ==
+                                                         contents) ==
                    SitePermissionsHelper::SiteInteraction::kGranted;
           });
       break;
@@ -230,10 +229,6 @@ void TabHelper::WebContentsDestroyed() {
 
 WindowController* TabHelper::GetExtensionWindowController() {
   return ExtensionTabUtil::GetWindowControllerOfTab(web_contents());
-}
-
-WebContents* TabHelper::GetAssociatedWebContents() {
-  return web_contents();
 }
 
 void TabHelper::OnExtensionLoaded(content::BrowserContext* browser_context,

@@ -9735,6 +9735,7 @@ crbug.com/441912460 [ Mac ] external/wpt/webrtc/RTCDataChannel-send-close-blob.w
 crbug.com/441912460 [ Mac ] external/wpt/webrtc/RTCDataChannel-send-close-blob-negotiated.window.html [ Skip Timeout ]
 crbug.com/441912460 [ Mac ] external/wpt/webrtc/RTCDataChannel-send-close-string.window.html [ Skip Timeout ]
 crbug.com/441912460 [ Mac ] external/wpt/webrtc/RTCDataChannel-send-close-string-negotiated.window.html [ Skip Timeout ]
+crbug.com/441912460 [ Mac ] external/wpt/webrtc/RTCDataChannel-id.html [ Skip Timeout ]
 
 # Text drag and drop does not work on mac for test_driver.
 crbug.com/440374233 [ Mac ] external/wpt/html/editing/dnd/drop/002.xhtml [ Timeout ]
@@ -9985,3 +9986,7 @@ crbug.com/470189922 external/wpt/bluetooth/bidi/characteristic/notifications/cha
 
 # Ongoing digital credential flakiness
 crbug.com/457974554 external/wpt/digital-credentials/allow-attribute-with-get.https.html [ Timeout ]
+
+# Gardener 2025-12-23
+crbug.com/448800278 [ Mac ] external/wpt/notifications/registration-association.https.window.html [ Pass Failure ]
+crbug.com/40250618 [ Mac ] external/wpt/html/cross-origin-opener-policy/reporting/access-reporting/access-from-coop-page-to-opener_coop-ro_cross-origin.https.html [ Pass Failure ]

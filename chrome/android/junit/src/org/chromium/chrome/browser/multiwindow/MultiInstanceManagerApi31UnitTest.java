@@ -79,6 +79,7 @@ import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.IntentHandler;
 import org.chromium.chrome.browser.app.tabmodel.TabModelOrchestrator;
@@ -108,7 +109,6 @@ import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
 import org.chromium.chrome.browser.tabmodel.TabGroupMetadata;
 import org.chromium.chrome.browser.tabmodel.TabGroupMetadataExtractor;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
-import org.chromium.chrome.browser.tabmodel.TabGroupModelFilterProvider;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelObserver;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
@@ -172,6 +172,9 @@ public class MultiInstanceManagerApi31UnitTest {
     private static final GURL TAB_URL_1 = new GURL("http://amazon.com");
     private static final GURL TAB_URL_2 = new GURL("http://youtube.com");
     private static final GURL TAB_URL_3 = new GURL("http://facebook.com");
+    private static final Token TAB_GROUP_ID1 = new Token(2L, 2L);
+    private static final ArrayList<Map.Entry<Integer, String>> TAB_IDS_TO_URLS =
+            new ArrayList<>(List.of(Map.entry(TAB_ID_1, "https://www.youtube.com/")));
 
     private static final String TITLE1 = "title1";
     private static final String TITLE2 = "title2";
@@ -203,7 +206,6 @@ public class MultiInstanceManagerApi31UnitTest {
     @Mock ProfileProvider mProfileProvider;
     @Mock MismatchedIndicesHandler mMismatchedIndicesHandler;
     @Mock TabModelSelectorBase mTabModelSelector;
-    @Mock TabGroupModelFilterProvider mTabGroupModelFilterProvider;
     @Mock TabGroupModelFilter mTabGroupModelFilter;
     @Mock TabModel mNormalTabModel;
     @Mock TabModel mIncognitoTabModel;
@@ -392,6 +394,31 @@ public class MultiInstanceManagerApi31UnitTest {
         Intent getReparentingTabsIntent() {
             return mReparentingTabsIntent;
         }
+
+        @Override
+        public @Nullable Intent createNewWindowIntent(boolean isIncognito) {
+            Intent intent = new Intent(mActivity, ChromeTabbedActivity.class);
+            MultiWindowUtils.setOpenInOtherWindowIntentExtras(
+                    intent, mActivity, ChromeTabbedActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            intent.addFlags(Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
+            intent.putExtra(IntentHandler.EXTRA_PREFER_NEW, true);
+            intent.putExtra(IntentHandler.EXTRA_OPEN_NEW_INCOGNITO_WINDOW, isIncognito);
+            if (mMultiWindowModeStateDispatcher.canEnterMultiWindowMode()
+                    || mMultiWindowModeStateDispatcher.isInMultiWindowMode()
+                    || mMultiWindowModeStateDispatcher.isInMultiDisplayMode()) {
+                intent.addFlags(Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT);
+            }
+
+            // Remove LAUNCH_ADJACENT flag if shouldOpenInAdjacentWindow() is false and if the
+            // Activity is in a full screen window.
+            if (!mActivity.isInMultiWindowMode()
+                    && !MultiWindowUtils.shouldOpenInAdjacentWindow()) {
+                intent.setFlags(intent.getFlags() & ~Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT);
+            }
+
+            return intent;
+        }
     }
 
     @Before
@@ -511,9 +538,7 @@ public class MultiInstanceManagerApi31UnitTest {
         when(mDesktopWindowStateManagerSupplier.get()).thenReturn(mDesktopWindowStateManager);
         when(mDesktopWindowStateManager.getAppHeaderState()).thenReturn(mAppHeaderState);
         TabGroupSyncServiceFactory.setForTesting(mTabGroupSyncService);
-        when(mTabModelSelector.getTabGroupModelFilterProvider())
-                .thenReturn(mTabGroupModelFilterProvider);
-        when(mTabGroupModelFilterProvider.getTabGroupModelFilter(anyBoolean()))
+        when(mTabModelSelector.getTabGroupModelFilter(anyBoolean()))
                 .thenReturn(mTabGroupModelFilter);
         when(mTabGroupModelFilter.getTabModel()).thenReturn(mNormalTabModel);
         when(mNormalTabModel.getProfile()).thenReturn(mProfile);
@@ -1514,7 +1539,7 @@ public class MultiInstanceManagerApi31UnitTest {
 
         doNothing()
                 .when(mMultiInstanceManager)
-                .openNewWindow(eq("Android.WindowManager.NewWindow"), eq(false), anyInt());
+                .openNewWindow(eq("Android.WindowManager.NewWindow2"), eq(false), anyInt());
     }
 
     @Test
@@ -2798,6 +2823,96 @@ public class MultiInstanceManagerApi31UnitTest {
     }
 
     @Test
+    @DisableFeatures({ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW})
+    public void testMoveTabGroupToOtherWindow_dialogShown() {
+        MultiWindowUtils.setInstanceCountForTesting(2);
+
+        mMultiInstanceManager.moveTabGroupToOtherWindow(
+                getTabGroupMetadata(/* isIncognito= */ false), NewWindowAppSource.OTHER);
+
+        verify(mMultiInstanceManager, times(1))
+                .showTargetSelectorDialog(
+                        any(),
+                        eq(PersistedInstanceType.ANY),
+                        eq(R.string.menu_move_group_to_other_window));
+    }
+
+    @Test
+    @Config(qualifiers = "sw600dp")
+    @EnableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
+    public void testMoveTabGroupToOtherWindow_incognitoTabs_dialogShown() {
+        MultiWindowUtils.setInstanceCountForTesting(1);
+        MultiWindowUtils.setIncognitoInstanceCountForTesting(2);
+
+        mMultiInstanceManager.moveTabGroupToOtherWindow(
+                getTabGroupMetadata(/* isIncognito= */ true), NewWindowAppSource.OTHER);
+
+        verify(mMultiInstanceManager, times(1))
+                .showTargetSelectorDialog(
+                        any(),
+                        eq(PersistedInstanceType.ACTIVE | PersistedInstanceType.OFF_THE_RECORD),
+                        eq(R.string.menu_move_group_to_other_window));
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
+    public void testMoveTabGroupToOtherWindow_incognitoTabs_dialogHidden() {
+        MultiWindowUtils.setIncognitoInstanceCountForTesting(1);
+        List<Tab> tabs = List.of(mTab1);
+        when(mTab1.isIncognitoBranded()).thenReturn(true);
+        doNothing()
+                .when(mMultiInstanceManager)
+                .moveTabGroupToNewWindow(
+                        getTabGroupMetadata(/* isIncognito= */ true), NewWindowAppSource.OTHER);
+
+        mMultiInstanceManager.moveTabGroupToOtherWindow(
+                getTabGroupMetadata(/* isIncognito= */ true), NewWindowAppSource.OTHER);
+
+        verify(mMultiInstanceManager, Mockito.never())
+                .showTargetSelectorDialog(
+                        any(), anyInt(), eq(R.string.menu_move_group_to_other_window));
+        verify(mMultiInstanceManager, times(1))
+                .moveTabGroupToNewWindow(
+                        getTabGroupMetadata(/* isIncognito= */ true), NewWindowAppSource.OTHER);
+    }
+
+    @Test
+    @Config(qualifiers = "sw600dp")
+    @EnableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
+    public void testMoveTabGroupToOtherWindow_regularTabs_dialogShown() {
+        MultiWindowUtils.setInstanceCountForTesting(2);
+
+        mMultiInstanceManager.moveTabGroupToOtherWindow(
+                getTabGroupMetadata(/* isIncognito= */ false), NewWindowAppSource.OTHER);
+
+        verify(mMultiInstanceManager, times(1))
+                .showTargetSelectorDialog(
+                        any(),
+                        eq(PersistedInstanceType.ACTIVE | PersistedInstanceType.REGULAR),
+                        eq(R.string.menu_move_group_to_other_window));
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
+    public void testMoveTabGroupToOtherWindow_regularTabs_dialogHidden() {
+        MultiWindowUtils.setInstanceCountForTesting(1);
+        doNothing()
+                .when(mMultiInstanceManager)
+                .moveTabGroupToNewWindow(
+                        getTabGroupMetadata(/* isIncognito= */ false), NewWindowAppSource.OTHER);
+
+        mMultiInstanceManager.moveTabGroupToOtherWindow(
+                getTabGroupMetadata(/* isIncognito= */ false), NewWindowAppSource.OTHER);
+
+        verify(mMultiInstanceManager, Mockito.never())
+                .showTargetSelectorDialog(
+                        any(), anyInt(), eq(R.string.menu_move_group_to_other_window));
+        verify(mMultiInstanceManager, times(1))
+                .moveTabGroupToNewWindow(
+                        getTabGroupMetadata(/* isIncognito= */ false), NewWindowAppSource.OTHER);
+    }
+
+    @Test
     public void testGetInstanceInfo_sortsByLastAccessedTime() {
         mMultiInstanceManager.mTestBuildInstancesList = true;
         MultiWindowTestUtils.enableMultiInstance();
@@ -2843,5 +2958,19 @@ public class MultiInstanceManagerApi31UnitTest {
         long updatedTime = MultiInstancePersistentStore.readLastAccessedTime(0);
 
         assertTrue("Last accessed time should be updated.", updatedTime > initialTime);
+    }
+
+    private TabGroupMetadata getTabGroupMetadata(boolean isIncognito) {
+        return new TabGroupMetadata(
+                TAB_ID_1,
+                /* sourceWindowId= */ 1,
+                TAB_GROUP_ID1,
+                TAB_IDS_TO_URLS,
+                /* tabGroupColor= */ 0,
+                TITLE1,
+                /* mhtmlTabTitle= */ null,
+                /* tabGroupCollapsed= */ true,
+                /* isGroupShared= */ false,
+                isIncognito);
     }
 }

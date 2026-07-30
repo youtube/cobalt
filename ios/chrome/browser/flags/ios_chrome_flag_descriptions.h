@@ -172,6 +172,9 @@ extern const char kBreakpadNoDelayInitialUploadDescription[];
 extern const char kCacheIdentityListInChromeName[];
 extern const char kCacheIdentityListInChromeDescription[];
 
+extern const char kChromeNextIaName[];
+extern const char kChromeNextIaDescription[];
+
 extern const char kChromeStartupParametersAsyncName[];
 extern const char kChromeStartupParametersAsyncDescription[];
 
@@ -267,9 +270,6 @@ extern const char kDataSharingDescription[];
 extern const char kDataSharingSharedDataTypesEnabled[];
 extern const char kDataSharingSharedDataTypesEnabledWithUi[];
 
-extern const char kDefaultBrowserBannerPromoName[];
-extern const char kDefaultBrowserBannerPromoDescription[];
-
 extern const char kDataSharingVersioningStatesName[];
 extern const char kDataSharingVersioningStatesDescription[];
 
@@ -290,9 +290,6 @@ extern const char kDefaultBrowserPromoRefreshDescription[];
 
 extern const char kDetectMainThreadFreezeName[];
 extern const char kDetectMainThreadFreezeDescription[];
-
-extern const char kDiamondPrototypeName[];
-extern const char kDiamondPrototypeDescription[];
 
 extern const char kDisableAutofillStrikeSystemName[];
 extern const char kDisableAutofillStrikeSystemDescription[];
@@ -416,6 +413,9 @@ extern const char kGeminiDynamicSettingsDescription[];
 
 extern const char kGeminiFullChatHistoryName[];
 extern const char kGeminiFullChatHistoryDescription[];
+
+extern const char kGeminiImageRemixToolName[];
+extern const char kGeminiImageRemixToolDescription[];
 
 extern const char kGeminiImmediateOverlayName[];
 extern const char kGeminiImmediateOverlayDescription[];

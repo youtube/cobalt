@@ -30,12 +30,20 @@ TEST_F(UiEventDebugStringTest, StartTask) {
   EXPECT_EQ(DebugString(UiEvent(StartTask(TaskId(123)))), "StartTask[id=123]");
 }
 
+TEST_F(UiEventDebugStringTest, StopTask) {
+  EXPECT_EQ(
+      DebugString(SyncUiEvent(StopTask(
+          TaskId(123), ActorTask::State::kCancelled, /*title=*/"", Handle()))),
+      "StopTask[id=123, final_state=Cancelled, title="
+      ", last_acted_on_tab=5555]");
+}
+
 TEST_F(UiEventDebugStringTest, TaskStateChanged) {
-  EXPECT_EQ(DebugString(SyncUiEvent(TaskStateChanged(
-                TaskId(123), ActorTask::State::kActing, /*title=*/""))),
+  EXPECT_EQ(DebugString(SyncUiEvent(
+                TaskStateChanged(TaskId(123), ActorTask::State::kActing))),
             "TaskStateChanged[task_id=123, state=Acting]");
   EXPECT_EQ(DebugString(UiEvent(TaskStateChanged(
-                TaskId(8675), ActorTask::State::kPausedByActor, /*title=*/""))),
+                TaskId(8675), ActorTask::State::kPausedByActor))),
             "TaskStateChanged[task_id=8675, state=PausedByActor]");
 }
 

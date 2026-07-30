@@ -1217,8 +1217,6 @@ static_library("browser") {
     "privacy_sandbox/privacy_sandbox_utils.h",
     "privacy_sandbox/profile_bucket_metrics.cc",
     "privacy_sandbox/profile_bucket_metrics.h",
-    "privacy_sandbox/tracking_protection_onboarding_factory.cc",
-    "privacy_sandbox/tracking_protection_onboarding_factory.h",
     "process_resource_usage.cc",
     "process_resource_usage.h",
     "process_singleton.h",
@@ -1497,15 +1495,6 @@ static_library("browser") {
     "tab_group_sync/tab_group_sync_utils.h",
     "tab_group_sync/tab_group_trial.cc",
     "tab_group_sync/tab_group_trial.h",
-    "tpcd/experiment/eligibility_service.cc",
-    "tpcd/experiment/eligibility_service.h",
-    "tpcd/experiment/eligibility_service_factory.cc",
-    "tpcd/experiment/eligibility_service_factory.h",
-    "tpcd/experiment/experiment_manager.h",
-    "tpcd/experiment/experiment_manager_impl.cc",
-    "tpcd/experiment/experiment_manager_impl.h",
-    "tpcd/experiment/tpcd_experiment_features.cc",
-    "tpcd/experiment/tpcd_experiment_features.h",
     "tpcd/http_error_observer/http_error_tab_helper.cc",
     "tpcd/http_error_observer/http_error_tab_helper.h",
     "tpcd/metadata/devtools_observer.cc",
@@ -1584,6 +1573,10 @@ static_library("browser") {
   # "browser_public_dependencies".
   allow_circular_includes_from = [
     "//chrome/browser/preloading/search_preload:search_preload",
+
+    # TODO(crbug.com/426554250): This needs //chrome/browser/lookalikes which is
+    # not yet modularized.
+    "//chrome/browser/actor:impl",
     "//chrome/browser/ai:impl",
     "//chrome/browser/autofill",
     "//chrome/browser/commerce:impl",
@@ -2040,6 +2033,8 @@ static_library("browser") {
 
     # TODO(crbug.com/417228688): Remove this dependency when c/b/profiles/profile_manager.h gets
     # modularized.
+    "//chrome/browser/actor",
+    "//chrome/browser/actor:impl",
     "//chrome/browser/assist_ranker",
     "//chrome/browser/assist_ranker:impl",
     "//chrome/browser/infobars",
@@ -2313,9 +2308,6 @@ static_library("browser") {
     "//components/privacy_sandbox",
     "//components/privacy_sandbox:privacy_sandbox_prefs",
     "//components/privacy_sandbox:privacy_sandbox_survey_service",
-    "//components/privacy_sandbox:tpcd",
-    "//components/privacy_sandbox:tracking_protection_onboarding",
-    "//components/privacy_sandbox:tracking_protection_prefs",
     "//components/privacy_sandbox:tracking_protection_settings",
     "//components/privacy_sandbox/privacy_sandbox_attestations",
     "//components/profile_metrics",
@@ -3551,6 +3543,7 @@ static_library("browser") {
       "//components/subresource_filter/android",
       "//components/supervised_user/core/browser",
       "//components/supervised_user/core/browser:fetcher",
+      "//components/supervised_user/core/browser/android",
       "//components/sync_preferences/synced_set_up/android",
       "//components/sync_preferences/synced_set_up/android:jni_headers",
       "//components/tabs",
@@ -4271,8 +4264,6 @@ static_library("browser") {
       "//chrome/app/vector_icons",
       "//chrome/browser/accessibility/tree_fixing:prefs",
       "//chrome/browser/accessibility/tree_fixing:service",
-      "//chrome/browser/actor",
-      "//chrome/browser/actor:impl",
       "//chrome/browser/actor/ui",
       "//chrome/browser/actor/ui/task_list_bubble:controller",
       "//chrome/browser/actor/ui/task_list_bubble:controller_impl",
@@ -4527,10 +4518,6 @@ static_library("browser") {
     # Any circular includes must depend on the target
     # "browser_public_dependencies".
     allow_circular_includes_from += [
-      # TODO(crbug.com/426554250): This needs //chrome/browser/lookalikes which is
-      # not yet modularized.
-      "//chrome/browser/actor:impl",
-
       # TODO(crbug.com/40251079): Remove circular dependencies.
       "//chrome/browser/apps/app_service",
 
@@ -7062,6 +7049,7 @@ static_library("browser") {
       "//chrome/browser/ui/webui/app_settings",
       "//chrome/browser/ui/webui/app_settings:impl",
       "//chrome/browser/ui/webui/signin/history_sync_optin:mojo_bindings",
+      "//chrome/browser/ui/webui/updater:mojo_bindings",
       "//chrome/services/system_signals/public/cpp/browser",
       "//components/on_device_translation",
       "//components/supervised_user/core/common:features",
@@ -8603,7 +8591,6 @@ static_library("browser_generated_files") {
     "//chrome/browser/resource_coordinator:mojo_bindings",
     "//chrome/browser/sharing:buildflags",
     "//chrome/browser/ui/webui/app_service_internals:mojo_bindings",
-    "//chrome/browser/ui/webui/connectors_internals:mojo_bindings",
     "//chrome/browser/ui/webui/location_internals:mojo_bindings",
     "//chrome/browser/ui/webui/omnibox:mojo_bindings",
     "//chrome/browser/ui/webui/privacy_sandbox:mojo_bindings",
@@ -8617,6 +8604,7 @@ static_library("browser_generated_files") {
     "//chrome/common/request_header_integrity:buildflags",
     "//components/autofill/core/browser/ml_model/logging:mojo_bindings",
     "//components/data_sharing/data_sharing_internals/webui:mojo_bindings",
+    "//components/enterprise/connectors:mojom",
     "//components/webui/chrome_urls/mojom:mojo_bindings",
   ]
   if (is_android) {

@@ -610,8 +610,12 @@ class SettingsGlicSubPageWebActuationAllowedTierToggleTest
  public:
   SettingsGlicSubPageWebActuationAllowedTierToggleTest() {
     // Set the allowed tiers to "100" and "200"
-    scoped_feature_list_.InitAndEnableFeatureWithParameters(
-        features::kGlicWebActuationSetting, {{"allowed_tiers", "100,200"}});
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        {{features::kGlicWebActuationSetting, {}},
+         {features::kGlicWebActuationSettingsToggle, {}},
+         {features::kGlicActor,
+          {{features::kGlicActorEligibleTiers.name, "100,200"}}}},
+        {});
   }
 
   void SetUserTier(int32_t tier) {
@@ -1146,9 +1150,7 @@ class SettingsPrivacyGuideTest : public SettingsBrowserTest {
  protected:
   SettingsPrivacyGuideTest() {
     scoped_feature_list_.InitWithFeatures(
-        {features::kPrivacyGuideForceAvailable,
-         content_settings::features::kTrackingProtection3pcd},
-        {});
+        {features::kPrivacyGuideForceAvailable}, {});
   }
 
  private:

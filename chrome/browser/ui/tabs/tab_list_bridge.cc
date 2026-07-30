@@ -138,8 +138,7 @@ void TabListBridge::HighlightTabs(tabs::TabHandle tab_to_activate,
   CHECK(tabs.contains(tab_to_activate))
       << "Tab to activate is not included in tabs to highlight.";
 
-  ui::ListSelectionModel selected_tabs =
-      tab_strip_->selection_model().ToListSelectionModel();
+  ui::ListSelectionModel selected_tabs = tab_strip_->selection_model();
   for (const auto& tab_handle : tabs) {
     auto index = tab_strip_->GetIndexOfTab(tab_handle.Get());
     CHECK_NE(index, TabStripModel::kNoTab)
@@ -205,6 +204,26 @@ std::vector<tab_groups::TabGroupId> TabListBridge::ListTabGroups() {
     return {};
   }
   return tab_strip_->group_model()->ListTabGroups();
+}
+
+std::optional<tab_groups::TabGroupId> TabListBridge::CreateTabGroup(
+    const std::vector<tabs::TabHandle>& tabs) {
+  // Not all browsers support tab groups.
+  if (!tab_strip_->group_model()) {
+    return std::nullopt;
+  }
+
+  // TabStripModel::AddToNewGroup() operates on indices.
+  std::vector<int> tab_indices;
+  tab_indices.reserve(tabs.size());
+  for (const auto& tab_handle : tabs) {
+    int index = GetIndexOfTab(tab_handle);
+    if (index != TabStripModel::kNoTab) {
+      tab_indices.push_back(index);
+    }
+  }
+
+  return tab_strip_->AddToNewGroup(std::move(tab_indices));
 }
 
 std::optional<tab_groups::TabGroupId> TabListBridge::AddTabsToGroup(
