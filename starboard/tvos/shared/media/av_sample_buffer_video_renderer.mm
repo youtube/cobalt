@@ -292,6 +292,7 @@ void AVSBVideoRenderer::Seek(int64_t seek_to_time) {
   seeking_ = true;
   seek_to_time_ = seek_to_time;
   eos_written_ = false;
+  ended_cb_called_ = false;
   // Clear |video_sample_buffers_| to free memories before reset the builder.
   while (!video_sample_buffers_.empty()) {
     video_sample_buffers_.pop();
@@ -694,7 +695,10 @@ void AVSBVideoRenderer::CheckIfStreamEnded() {
   SB_DCHECK(eos_written_);
 
   if (GetCurrentMediaTime() >= pts_of_last_output_buffer_) {
-    Schedule(ended_cb_);
+    if (!ended_cb_called_) {
+      Schedule(ended_cb_);
+    }
+    ended_cb_called_ = true;
   } else {
     Schedule(std::bind(&AVSBVideoRenderer::CheckIfStreamEnded, this),
              kCheckPlaybackStatusIntervalUsec);
