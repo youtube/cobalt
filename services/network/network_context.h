@@ -847,6 +847,9 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
   std::unique_ptr<ResourceScheduler> resource_scheduler_;
 
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+  // The IpProtectionCore for this context, used to coordinate proxying
+  // protected requests. `url_request_context_owner_` indirectly holds
+  // a pointer to and must be defined after `ip_protection_core_`.
   std::unique_ptr<ip_protection::IpProtectionCore> ip_protection_core_;
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
 
