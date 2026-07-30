@@ -9,7 +9,10 @@ import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
 
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.profiles.Profile;
 
+import java.lang.ref.WeakReference;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -20,12 +23,14 @@ public class ActorTask {
     private long mNativeTask;
     private final int mId;
     private final String mTitle;
+    private final WeakReference<Profile> mProfile;
 
     @CalledByNative
-    private ActorTask(long nativeTask, int id, String title) {
+    private ActorTask(long nativeTask, int id, String title, Profile profile) {
         mNativeTask = nativeTask;
         mId = id;
         mTitle = title;
+        mProfile = new WeakReference<>(profile);
     }
 
     /**
@@ -99,6 +104,19 @@ public class ActorTask {
         return tabs;
     }
 
+    /** Get set of tabs it acted on by the last call to Act. */
+    public Set<Integer> getLastActedTabs() {
+        if (mNativeTask == 0) return new HashSet<>();
+        int[] tabIds = ActorTaskJni.get().getLastActedTabs(mNativeTask);
+        Set<Integer> tabs = new HashSet<>();
+        if (tabIds != null) {
+            for (int id : tabIds) {
+                tabs.add(id);
+            }
+        }
+        return tabs;
+    }
+
     /**
      * @param tabId The tab ID to check if the task is acting on.
      * @return true if the task is acting on the given tab, false otherwise.
@@ -107,6 +125,13 @@ public class ActorTask {
         // TODO(haileywang): This currently loops through all the tabs associated to the task. Look
         // into having native update the latest tabId when the actuated tab changes.
         return isUnderActorControl() && getTabs().contains(tabId);
+    }
+
+    /**
+     * @return The {@link Profile} associated with this task.
+     */
+    public @Nullable Profile getProfile() {
+        return mProfile.get();
     }
 
     @CalledByNative
@@ -129,5 +154,7 @@ public class ActorTask {
         void resume(long nativeActorTaskAndroid);
 
         int[] getTabs(long nativeActorTaskAndroid);
+
+        int[] getLastActedTabs(long nativeActorTaskAndroid);
     }
 }

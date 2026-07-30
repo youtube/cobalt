@@ -8,10 +8,11 @@
 #import "base/notreached.h"
 #import "base/time/time.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_animator.h"
-#import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_reason.h"
+#import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_metrics.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
 #import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
+#import "ios/chrome/browser/shared/public/commands/omnibox_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/util/animation_util.h"
@@ -554,9 +555,9 @@ const base::TimeDelta kProgressBarEndAnimationDuration =
   UIMenu* emptyMenu = [UIMenu menuWithChildren:@[]];
   button.menu = emptyMenu;
 
-  // Fix the order of the New Tab button menu to ensure the menu and child menus
-  // are displayed in the correct visual order.
-  if (buttonType == AdaptiveToolbarButtonTypeNewTab) {
+  // Fix the order of the Tab Grid button menu to ensure the menu and child
+  // menus are displayed in the correct visual order.
+  if (buttonType == AdaptiveToolbarButtonTypeTabGrid) {
     button.preferredMenuElementOrder =
         UIContextMenuConfigurationElementOrderFixed;
   }
@@ -591,7 +592,8 @@ const base::TimeDelta kProgressBarEndAnimationDuration =
 
 // Exits fullscreen.
 - (void)exitFullscreen {
-  [self.adaptiveDelegate exitFullscreen:FullscreenExitReason::kUserTapped];
+  [self.adaptiveDelegate
+      exitFullscreen:FullscreenModeTransitionTrigger::kUserTapped];
 }
 
 // Modifies the UI based on the UITraits that changed on the device.

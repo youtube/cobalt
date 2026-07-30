@@ -11,6 +11,7 @@
 #include "components/optimization_guide/core/delivery/optimization_guide_model_provider.h"
 #include "components/optimization_guide/core/model_execution/on_device_asset_manager.h"
 #include "components/optimization_guide/core/model_execution/on_device_capability.h"
+#include "components/optimization_guide/core/model_execution/on_device_model_classifier_controller.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_download_progress_manager.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_service_controller.h"
 #include "components/optimization_guide/core/model_execution/performance_class.h"
@@ -48,8 +49,8 @@ class ModelBrokerState final : public OnDeviceCapability {
     return component_state_manager_;
   }
 
-  OnDeviceModelServiceController& service_controller() {
-    return service_controller_;
+  OnDeviceModelServiceController& base_model_controller() {
+    return base_model_controller_;
   }
 
   // OnDeviceCapability
@@ -80,7 +81,8 @@ class ModelBrokerState final : public OnDeviceCapability {
 
  private:
   // Ensure any delayed initialization tasks are complete, then call `callback`.
-  void EnsureInitialization(base::OnceClosure callback);
+  void EnsureInitialization(ModelBrokerImpl::InitCallback callback);
+  void EnsureInitializationComplete(ModelBrokerImpl::InitCallback callback);
 
   void FinishGetOnDeviceModelEligibility(
       mojom::OnDeviceFeature feature,
@@ -94,10 +96,9 @@ class ModelBrokerState final : public OnDeviceCapability {
   ModelBrokerImpl model_broker_impl_;
   PerformanceClassifier performance_classifier_;
   OnDeviceModelComponentStateManager component_state_manager_;
-  OnDeviceModelServiceController service_controller_;
+  OnDeviceModelServiceController base_model_controller_;
+  std::optional<OnDeviceModelClassifierController> classifier_controller_;
   OnDeviceAssetManager asset_manager_;
-  std::unique_ptr<OnDeviceModelComponentStateManager::Delegate>
-      classifier_delegate_;
   base::WeakPtrFactory<ModelBrokerState> weak_ptr_factory_{this};
 };
 

@@ -18,6 +18,7 @@
 #include "chrome/browser/actor/ui/states/actor_task_nudge_state.h"
 #include "chrome/browser/actor/ui/task_list_bubble/actor_task_list_bubble_controller.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_features.h"
+#include "chrome/browser/glic/browser_ui/glic_nudge_controller.h"
 #include "chrome/browser/glic/fre/glic_fre.mojom.h"
 #include "chrome/browser/glic/fre/glic_fre_controller.h"
 #include "chrome/browser/glic/glic_pref_names.h"
@@ -36,7 +37,6 @@
 #include "chrome/browser/ui/tabs/glic_actor_nudge_controller.h"
 #include "chrome/browser/ui/tabs/glic_actor_task_icon_manager.h"
 #include "chrome/browser/ui/tabs/glic_actor_task_icon_manager_factory.h"
-#include "chrome/browser/ui/tabs/glic_nudge_controller.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/controls/rich_hover_button.h"
@@ -223,8 +223,8 @@ class TabStripActionContainerBrowserTest : public InProcessBrowserTest {
   }
 
   actor::TaskId CreateTask() {
-    actor::TaskId task_id =
-        actor_service()->CreateTask(actor::NoEnterprisePolicyChecker());
+    actor::TaskId task_id = actor_service()->CreateTask(
+        actor::TestTaskSourceInfo(), actor::NoEnterprisePolicyChecker());
     actor::ActorTask* task = actor_service()->GetTask(task_id);
     actor::ui::StartTask start_task_event(task_id);
     actor_service()->GetActorUiStateManager()->OnUiEvent(start_task_event);
@@ -504,8 +504,8 @@ IN_PROC_BROWSER_TEST_F(TabStripActionContainerBrowserTest,
   EXPECT_FALSE(GlicActorButtonContainer()->GetVisible());
 
   auto* actor_service = actor::ActorKeyedService::Get(browser()->GetProfile());
-  actor::TaskId task_id =
-      actor_service->CreateTask(actor::NoEnterprisePolicyChecker());
+  actor::TaskId task_id = actor_service->CreateTask(
+      actor::TestTaskSourceInfo(), actor::NoEnterprisePolicyChecker());
   actor::ui::StartTask start_task_event(task_id);
   actor_service->GetActorUiStateManager()->OnUiEvent(start_task_event);
   actor_service->StopTask(task_id,

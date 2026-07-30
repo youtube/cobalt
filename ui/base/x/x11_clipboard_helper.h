@@ -15,6 +15,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted_memory.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/memory/weak_ptr.h"
 #include "ui/base/clipboard/clipboard_buffer.h"
 #include "ui/base/clipboard/clipboard_format_type.h"
 #include "ui/base/x/selection_owner.h"
@@ -24,7 +25,7 @@
 
 namespace ui {
 
-class SelectionRequestor;
+class SelectionRequester;
 
 // Helper class that provides core X11 clipboard integration code. Shared by
 // both legacy and Ozone X11 backends.
@@ -55,29 +56,29 @@ class COMPONENT_EXPORT(UI_BASE_X) XClipboardHelper : public x11::EventObserver {
   // |buffer|.
   void TakeOwnershipOfSelection(ClipboardBuffer buffer);
 
-  // Returns the first of |types| offered by the current selection holder, or
-  // returns nullptr if none of those types are available. Blocks until the data
-  // is fetched from the X server, unless we are the selection owner.
-  SelectionData Read(ClipboardBuffer buffer,
-                     const std::vector<x11::Atom>& types);
+  // Runs `callback` with the first of `types` offered by the current
+  // selection holder, or an empty SelectionData if none of those types
+  // are available.
+  void ReadAsync(ClipboardBuffer buffer,
+                 const std::vector<x11::Atom>& types,
+                 base::OnceCallback<void(SelectionData)> callback);
 
-  // Retrieves the list of possible data types the current clipboard owner has,
-  // for a given |buffer|. Blocks until the data is fetched from the X server,
-  // unless we are the selection owner.
-  std::vector<std::string> GetAvailableTypes(ClipboardBuffer buffer);
+  // Runs `callback` with the list of possible data types the current clipboard
+  // owner has, for a given `buffer`.
+  void GetAvailableMimeTypesAsync(
+      ClipboardBuffer buffer,
+      base::OnceCallback<void(const std::vector<std::string>&)> callback);
 
-  // Retrieves the list of target atom names currently available for reading in
-  // the clipboard, for a given |buffer|. Blocks until the data is fetched from
-  // the X server.
-  std::vector<std::string> GetAvailableAtomNames(ClipboardBuffer buffer);
+  // Runs `callback` with true if the current clipboard owner for `buffer`
+  // offers `format` and false otherwise.
+  void IsFormatAvailableAsync(ClipboardBuffer buffer,
+                              const ClipboardFormatType& format,
+                              base::OnceCallback<void(bool)> callback);
 
-  // Tells if |format| is currently available for reading in clipboard |buffer|.
-  // Blocks until the data is fetched from the X server.
-  bool IsFormatAvailable(ClipboardBuffer buffer,
-                         const ClipboardFormatType& format);
-
-  // Tells if we currently own the selection for a given clipboard |buffer|.
-  bool IsSelectionOwner(ClipboardBuffer buffer) const;
+  // Runs `callback` with whether we currently own the selection for a given
+  // clipboard `buffer`.
+  void IsSelectionOwnerAsync(ClipboardBuffer buffer,
+                             base::OnceCallback<void(bool)> callback) const;
 
   // Returns a list of all text atoms that we handle.
   std::vector<x11::Atom> GetTextAtoms() const;
@@ -88,14 +89,12 @@ class COMPONENT_EXPORT(UI_BASE_X) XClipboardHelper : public x11::EventObserver {
   // Clears a certain clipboard buffer, whether we own it or not.
   void Clear(ClipboardBuffer buffer);
 
-  // If we own the CLIPBOARD selection, requests the clipboard manager to take
-  // ownership of it.
-  void StoreCopyPasteDataAndWait();
-
   // Returns true if the event was handled.
   bool DispatchEvent(const x11::Event& xev);
 
-  SelectionRequestor* GetSelectionRequestorForTest();
+  SelectionRequester* GetSelectionRequesterForTest();
+
+  base::WeakPtr<XClipboardHelper> GetWeakPtr();
 
  private:
   class TargetList;
@@ -103,7 +102,33 @@ class COMPONENT_EXPORT(UI_BASE_X) XClipboardHelper : public x11::EventObserver {
   // x11::EventObserver:
   void OnEvent(const x11::Event& xev) override;
 
-  TargetList GetTargetList(ClipboardBuffer buffer);
+  void GetTargetListAsync(ClipboardBuffer buffer,
+                          base::OnceCallback<void(TargetList)> callback);
+
+  void OnGetTargetList(ClipboardBuffer buffer,
+                       base::OnceCallback<void(TargetList)> callback,
+                       x11::Window owner);
+
+  void OnReadAsync(ClipboardBuffer buffer,
+                   const std::vector<x11::Atom>& types,
+                   base::OnceCallback<void(SelectionData)> callback,
+                   x11::Window owner);
+
+  void OnReadAsyncTargetList(x11::Atom selection_name,
+                             const std::vector<x11::Atom>& types,
+                             base::OnceCallback<void(SelectionData)> callback,
+                             TargetList targets);
+
+  void OnGetAvailableMimeTypesTargetList(
+      base::OnceCallback<void(const std::vector<std::string>&)> final_callback,
+      TargetList target_list);
+
+  void OnGetTargetListResponse(
+      x11::Atom selection_name,
+      base::OnceCallback<void(TargetList)> final_callback,
+      bool success,
+      std::vector<uint8_t> data,
+      x11::Atom out_type);
 
   // Returns the X11 selection atom that we pass to various XSelection functions
   // for the given buffer.
@@ -127,7 +152,7 @@ class COMPONENT_EXPORT(UI_BASE_X) XClipboardHelper : public x11::EventObserver {
   x11::ScopedEventSelector x_window_events_;
 
   // Object which requests and receives selection data.
-  const std::unique_ptr<SelectionRequestor> selection_requestor_;
+  const std::unique_ptr<SelectionRequester> selection_requester_;
 
   // Temporary target map that we write to during DispatchObects.
   SelectionFormatMap clipboard_data_;
@@ -135,6 +160,8 @@ class COMPONENT_EXPORT(UI_BASE_X) XClipboardHelper : public x11::EventObserver {
   // Objects which offer selection data to other windows.
   SelectionOwner clipboard_owner_;
   SelectionOwner primary_owner_;
+
+  base::WeakPtrFactory<XClipboardHelper> weak_ptr_factory_{this};
 };
 
 }  // namespace ui

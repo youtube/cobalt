@@ -76,19 +76,9 @@ typedef void (^ProceduralBlockWithBlockWithItemArray)(
   return l10n_util::GetNSString(IDS_IOS_EXPLAIN_GEMINI_EDIT_MENU);
 }
 
-// When shown after Search, the button is prepended with the Gemini icon to match
-// the style of the other items in the list.
+// When entry point is shown in the expanded menu, the button is prepended
+// with the Gemini icon to match the style of the other items in the list.
 - (UIImage*)imageSymbol {
-  if (ExplainGeminiEditMenuPosition() ==
-      PositionForExplainGeminiEditMenu::kAfterSearch) {
-    return [self askGeminiIcon];
-  } else {
-    return nil;
-  }
-}
-
-// Returns the symbol for the Ask Gemini button.
-- (UIImage*)askGeminiIcon {
 #if BUILDFLAG(IOS_USE_BRANDED_ASSETS)
   return CustomSymbolWithPointSize(kGeminiBrandedLogoSymbol,
                                    kSymbolActionPointSize);
@@ -169,6 +159,7 @@ typedef void (^ProceduralBlockWithBlockWithItemArray)(
   UIAction* action = [self actionWithHandler:^(UIAction* a) {
     [weakSelf triggerExplainWithGeminiForText:text webState:webState];
   }];
+  RecordGeminiEntryPointAvailable(gemini::EntryPoint::EditMenu);
   completion(@[ action ]);
 }
 
@@ -182,7 +173,7 @@ typedef void (^ProceduralBlockWithBlockWithItemArray)(
   }
 
   NSString* prepopulatedPrompt =
-      [NSString stringWithFormat:@"%@ : %@",
+      [NSString stringWithFormat:@"%@ %@",
                                  l10n_util::GetNSString(
                                      IDS_IOS_EXPLAIN_GEMINI_PROMPT_PREFIX),
                                  text];
@@ -222,6 +213,7 @@ typedef void (^ProceduralBlockWithBlockWithItemArray)(
   __weak __typeof(self) weakSelf = self;
   UIMenuElement* menuElement = nil;
   if (ShouldShowEditMenuItemsSynchronously()) {
+    RecordGeminiEntryPointAvailable(gemini::EntryPoint::EditMenu);
     menuElement = [self actionWithHandler:^(UIAction* a) {
       [weakSelf fetchSelectionForWebState:weakWebState];
     }];

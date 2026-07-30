@@ -10,6 +10,7 @@
 #include <string_view>
 #include <unordered_map>
 
+#include "ash/constants/ash_features.h"
 #include "ash/constants/web_app_id_constants.h"
 #include "ash/constants/webui_url_constants.h"
 #include "ash/webui/file_manager/url_constants.h"
@@ -36,7 +37,6 @@
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/apps/app_service/app_service_test.h"
 #include "chrome/browser/apps/app_service/chrome_app_deprecation/chrome_app_deprecation.h"
-#include "chrome/browser/apps/app_service/launch_result_type.h"
 #include "chrome/browser/apps/app_service/publishers/app_publisher.h"
 #include "chrome/browser/ash/arc/fileapi/arc_documents_provider_util.h"
 #include "chrome/browser/ash/drive/drive_integration_service_factory.h"
@@ -96,6 +96,7 @@
 #include "components/services/app_service/public/cpp/app_instance_waiter.h"
 #include "components/services/app_service/public/cpp/app_launch_params.h"
 #include "components/services/app_service/public/cpp/app_types.h"
+#include "components/services/app_service/public/cpp/launch_result.h"
 #include "content/public/browser/network_service_instance.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -1654,16 +1655,14 @@ class FakeWebAppPublisher : public apps::AppPublisher {
                            apps::WindowInfoPtr window_info,
                            apps::LaunchCallback callback) override {
     if (fail_launch_) {
-      std::move(callback).Run(
-          apps::LaunchResult(apps::LaunchResult::State::kFailed));
+      std::move(callback).Run(apps::LaunchResult(apps::LaunchResult::kFailed));
       return;
     }
     launches_.push_back({
         .app_id = app_id,
         .intent_url = (intent && intent->url) ? intent->url->spec() : "",
     });
-    std::move(callback).Run(
-        apps::LaunchResult(apps::LaunchResult::State::kSuccess));
+    std::move(callback).Run(apps::LaunchResult(apps::LaunchResult::kSuccess));
   }
 
   void LaunchAppWithParams(apps::AppLaunchParams&& params,
@@ -2959,7 +2958,7 @@ class OfficeDriveHatsSurvey : public DriveTest {
  public:
   OfficeDriveHatsSurvey() {
     feature_list_.InitWithFeatures({chromeos::features::kUploadOfficeToCloud,
-                                    ::features::kHappinessTrackingOffice},
+                                    ash::features::kHappinessTrackingOffice},
                                    {});
   }
 
@@ -3009,7 +3008,7 @@ class OfficeMS365HatsSurvey : public OneDriveTest {
  public:
   OfficeMS365HatsSurvey() {
     feature_list_.InitWithFeatures({chromeos::features::kUploadOfficeToCloud,
-                                    ::features::kHappinessTrackingOffice},
+                                    ash::features::kHappinessTrackingOffice},
                                    {});
   }
 
@@ -3083,7 +3082,7 @@ class OfficeQuickOfficeHatsSurveyClippyOn : public InProcessBrowserTest {
  public:
   OfficeQuickOfficeHatsSurveyClippyOn() {
     feature_list_.InitWithFeatures({chromeos::features::kUploadOfficeToCloud,
-                                    ::features::kHappinessTrackingOffice},
+                                    ash::features::kHappinessTrackingOffice},
                                    {});
   }
 
@@ -3112,7 +3111,7 @@ IN_PROC_BROWSER_TEST_F(OfficeQuickOfficeHatsSurveyClippyOn, OpenInQuickOffice) {
 class OfficeQuickOfficeHatsSurveyClippyOff : public InProcessBrowserTest {
  public:
   OfficeQuickOfficeHatsSurveyClippyOff() {
-    feature_list_.InitWithFeatures({::features::kHappinessTrackingOffice},
+    feature_list_.InitWithFeatures({ash::features::kHappinessTrackingOffice},
                                    {chromeos::features::kUploadOfficeToCloud});
   }
 

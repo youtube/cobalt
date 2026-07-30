@@ -3,11 +3,11 @@
 // found in the LICENSE file.
 
 import '//resources/cr_elements/cr_button/cr_button.js';
+import '//resources/cr_elements/cr_tabs/cr_tabs.js';
 
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
-import {BrowserProxyImpl} from '../browser_proxy.js';
-import {ActuationEligibility} from '../glic.mojom-webui.js';
+import {ActuationEligibility, AllowedInflightNavigation, InternalsPageHandlerFactory, InternalsPageHandlerRemote, InvocationSource} from '../glic.mojom-webui.js';
 import type {InternalsDataPayload} from '../glic.mojom-webui.js';
 
 import {getCss} from './glic_internals_app.css.js';
@@ -30,19 +30,33 @@ export class GlicInternalsAppElement extends CrLitElement {
   static override get properties() {
     return {
       data_: {type: Object},
+      invokePrompt_: {type: String},
+      invokeAutoSubmit_: {type: Boolean},
+      invokeLogs_: {type: Array},
+      selectedTabIndex_: {type: Number},
+      tabNames_: {type: Array},
     };
   }
 
   protected accessor data_: InternalsDataPayload|undefined;
+  protected accessor invokePrompt_: string = '';
+  protected accessor invokeAutoSubmit_: boolean = true;
+  protected accessor invokeLogs_: string[] = [];
+  protected accessor selectedTabIndex_: number = 0;
+  protected accessor tabNames_: string[] = ['General', 'Debug Controls'];
 
-  private browserProxy_ = new BrowserProxyImpl();
+
+
+  private pageHandler_ = new InternalsPageHandlerRemote();
 
   override connectedCallback() {
     super.connectedCallback();
-    this.browserProxy_.pageHandler.getInternalsDataPayload().then(
-        ({internalsData}) => {
-          this.data_ = internalsData;
-        });
+    InternalsPageHandlerFactory.getRemote().createInternalsPageHandler(
+        this.pageHandler_.$.bindNewPipeAndPassReceiver());
+
+    this.pageHandler_.getInternalsDataPayload().then(({internalsData}) => {
+      this.data_ = internalsData;
+    });
   }
 
   protected onAutopushInputChange(e: Event) {
@@ -78,9 +92,30 @@ export class GlicInternalsAppElement extends CrLitElement {
       return;
     }
     errorMsg!.classList.add('hiddenElement');
-    this.browserProxy_.pageHandler.setGuestUrlPresets(
+    this.pageHandler_.setGuestUrlPresets(
         this.data_!.config.autopushGuestUrl, this.data_!.config.stagingGuestUrl,
         this.data_!.config.preprodGuestUrl, this.data_!.config.prodGuestUrl);
+  }
+
+  protected onWebContinuityInputChange(e: Event) {
+    this.data_!.config.webContinuityOriginatingHostUrl =
+        (e.target as HTMLInputElement).value;
+  }
+
+  protected onSaveWebContinuityPresetClick_() {
+    const errorMsg = this.shadowRoot.querySelector<HTMLDivElement>(
+        '#webContinuityInputErrorMsg');
+    const url = this.data_!.config.webContinuityOriginatingHostUrl;
+
+    // Validate the URL. If we don't validate here, IPC will kill this
+    // renderer on invalid URLs.
+    if (url && URL.parse(url) === null) {
+      console.error('Invalid URL: no-op');
+      errorMsg!.classList.remove('hiddenElement');
+      return;
+    }
+    errorMsg!.classList.add('hiddenElement');
+    this.pageHandler_.setWebContinuityOriginatingHostUrlPreset(url);
   }
 
   protected getActuationEligibilityString_(eligibility: ActuationEligibility):
@@ -151,6 +186,48 @@ export class GlicInternalsAppElement extends CrLitElement {
         value: !this.data_.enablement.actuationNotConsented,
       },
     ];
+  }
+
+  protected onInvokePromptInput_(e: Event) {
+    this.invokePrompt_ = (e.target as HTMLInputElement).value;
+  }
+
+  protected onInvokeAutoSubmitChange_(e: Event) {
+    this.invokeAutoSubmit_ = (e.target as HTMLInputElement).checked;
+  }
+
+  protected onTriggerInvokeClick_() {
+    this.invokeLogs_ =
+        [`[${new Date().toLocaleTimeString()}] TRIGGERING INVOKE...`];
+    console.info(this.invokeLogs_[0]);
+
+    const options = {
+      invocationSource: InvocationSource.kOsButton,
+      prompts: this.invokePrompt_ ? [this.invokePrompt_] : [],
+      additionalContext: null,
+      conversation: {defaultConversation: {}},
+      featureMode: null,
+      disableZss: false,
+      skillId: null,
+      errorMessage: null,
+      timeout: null,
+      allowedInflightNavigation: AllowedInflightNavigation.kNone,
+      autoSubmit: this.invokeAutoSubmit_,
+    };
+
+    this.pageHandler_.triggerInvokeFromInternalsAction(options).then(
+        ({success, errorMessage}) => {
+          const timestamp = new Date().toLocaleTimeString();
+          const logEntry = `[${timestamp}] ${
+              success ? 'SUCCESS' : 'ERROR: ' + errorMessage}`;
+          this.invokeLogs_ = [...this.invokeLogs_, logEntry];
+          console.info(logEntry);
+        });
+  }
+
+  protected onSelectedTabIndexSelectedChanged_(
+      e: CustomEvent<{value: number}>) {
+    this.selectedTabIndex_ = e.detail.value;
   }
 }
 

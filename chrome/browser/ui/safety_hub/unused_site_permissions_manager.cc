@@ -10,6 +10,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/auto_reset.h"
 #include "base/check.h"
 #include "base/check_op.h"
 #include "base/feature_list.h"
@@ -35,6 +36,7 @@
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/content_settings/core/common/features.h"
 #include "components/permissions/constants.h"
+#include "components/permissions/features.h"
 #include "components/permissions/permission_uma_util.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/prefs/pref_service.h"
@@ -49,6 +51,7 @@ constexpr base::TimeDelta kRevocationThresholdWithDelayForTesting =
     base::Minutes(5);
 
 namespace {
+namespace permissions_features = ::permissions;
 
 constexpr char kUnknownContentSettingsType[] = "unknown";
 
@@ -162,8 +165,20 @@ base::DictValue ConvertChooserContentSettingsIntValuesToString(
 std::unique_ptr<SafetyHubResult>
 UnusedSitePermissionsManager::UpdateOnBackgroundThread(
     base::Clock* clock,
-    const scoped_refptr<HostContentSettingsMap> hcsm) {
+    const scoped_refptr<HostContentSettingsMap> hcsm,
+    bool revocation_backfill_completed) {
+  auto result = std::make_unique<RevokedPermissionsResult>();
+
+  const bool revocation_backfill_enabled = base::FeatureList::IsEnabled(
+      permissions::features::
+          kSafetyHubUnusedPermissionRevocationForAllSurfaces);
+  // Pass the flag to UI thread to maintain consistency throughout the session.
+  result->SetRevocationBackfillEnabled(revocation_backfill_enabled);
+
   UnusedSitePermissionsManager::UnusedPermissionMap recently_unused;
+  UnusedSitePermissionsManager::UntimestampedPermissionList
+      untimestamped_permissions;
+
   const base::Time threshold =
       clock->Now() - content_settings::GetCoarseVisitedTimePrecision();
   auto* website_setting_registry =
@@ -185,21 +200,34 @@ UnusedSitePermissionsManager::UpdateOnBackgroundThread(
       if (!setting.primary_pattern.MatchesSingleOrigin()) {
         continue;
       }
-      if (setting.metadata.last_visited() != base::Time() &&
-          setting.metadata.last_visited() < threshold) {
-        // Converting a primary pattern to an origin is normally an anti-pattern
-        // but here it is ok since the primary pattern belongs to a single
-        // origin. Therefore, it has a fully defined URL+scheme+port which makes
-        // converting primary pattern to origin successful.
-        url::Origin origin =
-            ConvertPrimaryPatternToOrigin(setting.primary_pattern);
-        recently_unused[origin.Serialize()].push_back(
-            {type, std::move(setting)});
+      if (setting.metadata.last_visited() != base::Time()) {
+        if (setting.metadata.last_visited() < threshold) {
+          // Converting a primary pattern to an origin is normally an
+          // anti-pattern but here it is ok since the primary pattern belongs to
+          // a single origin. Therefore, it has a fully defined URL+scheme+port
+          // which makes converting primary pattern to origin successful.
+          url::Origin origin =
+              ConvertPrimaryPatternToOrigin(setting.primary_pattern);
+          recently_unused[origin.Serialize()].push_back(
+              {type, std::move(setting)});
+        }
+        // TODO(crbug.com/40267370): Clean-up after the backfill is done.
+      } else {
+        // Track untimestamped permissions if the backfill was not completed
+        // yet.
+        if (revocation_backfill_enabled && !revocation_backfill_completed) {
+          untimestamped_permissions.push_back(
+              {type, setting.primary_pattern, setting.secondary_pattern});
+        }
       }
+    }
+
+    if (revocation_backfill_enabled && !revocation_backfill_completed &&
+        !untimestamped_permissions.empty()) {
+      result->SetUntimestampedPermissions(untimestamped_permissions);
     }
   }
 
-  auto result = std::make_unique<RevokedPermissionsResult>();
   result->SetRecentlyUnusedPermissions(recently_unused);
   return std::move(result);
 }
@@ -269,12 +297,17 @@ UnusedSitePermissionsManager::~UnusedSitePermissionsManager() = default;
 
 void UnusedSitePermissionsManager::RevokeUnusedPermissions(
     std::unique_ptr<SafetyHubResult> result) {
+  auto* interim_result = static_cast<RevokedPermissionsResult*>(result.get());
+
+  // TODO(crbug.com/40267370): Clean-up after the backfill is done.
+  MaybePerformLastVisitedBackfill(interim_result);
+
   // Set this to true to prevent
   // `UnusedSitePermissionsManager::OnContentSettingChanged` from removing
   // revoked setting values during auto-revocation.
-  is_unused_site_revocation_running_ = true;
+  base::AutoReset<bool> is_unused_site_revocation_running(
+      &is_unused_site_revocation_running_, true);
 
-  auto* interim_result = static_cast<RevokedPermissionsResult*>(result.get());
   recently_unused_permissions_ = interim_result->GetRecentlyUnusedPermissions();
 
   base::Time threshold = clock_->Now() - GetRevocationThreshold();
@@ -371,9 +404,6 @@ void UnusedSitePermissionsManager::RevokeUnusedPermissions(
       itr++;
     }
   }
-  // Set this back to false, so that `OnContentSettingChanged` can cleanup
-  // revoked settings if necessary.
-  is_unused_site_revocation_running_ = false;
 }
 
 bool UnusedSitePermissionsManager::IsRevocationRunning() {
@@ -393,9 +423,12 @@ void UnusedSitePermissionsManager::OnPageVisited(const url::Origin& origin) {
   auto& site_permissions = origin_entry->second;
   for (auto it = site_permissions.begin(); it != site_permissions.end();) {
     if (it->source.primary_pattern.Matches(origin.GetURL())) {
-      hcsm()->UpdateLastVisitedTime(it->source.primary_pattern,
-                                    it->source.secondary_pattern, it->type);
-      site_permissions.erase(it++);
+      // This should only be updated for settings that are already tracked.
+      if (it->source.metadata.last_visited() != base::Time()) {
+        hcsm()->UpdateLastVisitedTime(it->source.primary_pattern,
+                                      it->source.secondary_pattern, it->type);
+        site_permissions.erase(it++);
+      }
     } else {
       it++;
     }
@@ -422,7 +455,8 @@ void UnusedSitePermissionsManager::RegrantPermissionsForOrigin(
   CHECK(permission_type_list);
   // Set this to true to prevent `OnContentSettingChanged` from removing
   // revoked setting values, since this is set with specific values below.
-  is_unused_site_revocation_running_ = true;
+  base::AutoReset<bool> is_unused_site_revocation_running(
+      &is_unused_site_revocation_running_, true);
 
   for (auto& permission_type : *permission_type_list) {
     // Look up ContentSettingsRegistry to see if type is content setting
@@ -455,10 +489,6 @@ void UnusedSitePermissionsManager::RegrantPermissionsForOrigin(
     }
   }
 
-  // Set this back to false, so that `OnContentSettingChanged` can cleanup
-  // revoked settings if necessary.
-  is_unused_site_revocation_running_ = false;
-
   // Ignore origin from future auto-revocations.
   IgnoreOriginForAutoRevocation(origin);
 
@@ -490,7 +520,8 @@ void UnusedSitePermissionsManager::UndoRegrantPermissionsForOrigin(
 
   // Set this to true to prevent `OnContentSettingChanged` from removing
   // revoked setting values, since this is set with specific values below.
-  is_unused_site_revocation_running_ = true;
+  base::AutoReset<bool> is_unused_site_revocation_running(
+      &is_unused_site_revocation_running_, true);
   for (const auto& permission : unused_site_permission_types) {
     if (IsContentSetting(permission)) {
       hcsm()->SetContentSettingCustomScope(
@@ -506,9 +537,6 @@ void UnusedSitePermissionsManager::UndoRegrantPermissionsForOrigin(
                    << ConvertContentSettingsTypeToKey(permission);
     }
   }
-  // Set this back to false, so that `OnContentSettingChanged` can cleanup
-  // revoked settings if necessary.
-  is_unused_site_revocation_running_ = false;
 
   StorePermissionInUnusedSitePermissionSetting(
       unused_site_permission_types, permissions_data.chooser_permissions_data,
@@ -606,6 +634,15 @@ UnusedSitePermissionsManager::GetTrackedUnusedPermissionsForTesting() {
   return result;
 }
 
+UnusedSitePermissionsManager::UntimestampedPermissionList
+UnusedSitePermissionsManager::GetUntimestampedPermissionsForTesting() {
+  UntimestampedPermissionList result;
+  for (const auto& permission : untimestamped_permissions_) {
+    result.push_back(permission);
+  }
+  return result;
+}
+
 void UnusedSitePermissionsManager::IgnoreOriginForAutoRevocation(
     const url::Origin& origin) {
   auto* registry = content_settings::ContentSettingsRegistry::GetInstance();
@@ -676,4 +713,30 @@ void UnusedSitePermissionsManager::UpdateIntegerValuesToGroupName() {
         safety_hub_prefs::kUnusedSitePermissionsRevocationMigrationCompleted,
         true);
   }
+}
+
+void UnusedSitePermissionsManager::MaybePerformLastVisitedBackfill(
+    RevokedPermissionsResult* interim_result) {
+  if (!interim_result->GetRevocationBackfillEnabled()) {
+    return;
+  }
+
+  bool revocation_backfill_completed =
+      pref_change_registrar_->prefs()->GetBoolean(
+          safety_hub_prefs::kUnusedSitePermissionsRevocationBackfillCompleted);
+  if (revocation_backfill_completed) {
+    return;
+  }
+
+  // Backfill untimestamped permissions' `last_visited` with the (coarsed)
+  // current date.
+  untimestamped_permissions_ = interim_result->GetUntimestampedPermissions();
+  for (const auto& permission : untimestamped_permissions_) {
+    hcsm()->UpdateLastVisitedTime(permission.primary_pattern,
+                                  permission.secondary_pattern,
+                                  permission.type);
+  }
+  pref_change_registrar_->prefs()->SetBoolean(
+      safety_hub_prefs::kUnusedSitePermissionsRevocationBackfillCompleted,
+      true);
 }

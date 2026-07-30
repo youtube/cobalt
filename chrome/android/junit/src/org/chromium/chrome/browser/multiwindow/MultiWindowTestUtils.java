@@ -11,8 +11,8 @@ import org.chromium.base.lifetime.Destroyable;
 import org.chromium.base.shared_preferences.SharedPreferencesManager;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
-import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
-import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
+import org.chromium.chrome.browser.preferences.MultiInstancePreferenceKeys;
+import org.chromium.chrome.browser.preferences.MultiInstanceSharedPreferences;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileProvider;
 import org.chromium.chrome.browser.tabmodel.NextTabPolicy.NextTabPolicySupplier;
@@ -34,24 +34,25 @@ public class MultiWindowTestUtils {
      * @param taskId ID of the task the activity instance runs in.
      */
     public static void createInstance(int instanceId, String url, int tabCount, int taskId) {
-        MultiInstancePersistentStore.writeActiveTabUrl(instanceId, url);
-        MultiInstancePersistentStore.writeLastAccessedTime(instanceId);
-        MultiInstancePersistentStore.writeTabCount(
+        ChromeMultiInstancePersistentStore.writeActiveTabUrl(instanceId, url);
+        ChromeMultiInstancePersistentStore.writeLastAccessedTime(instanceId);
+        ChromeMultiInstancePersistentStore.writeTabCount(
                 instanceId, tabCount, /* incognitoTabCount= */ 0);
-        MultiInstancePersistentStore.writeTaskId(instanceId, taskId);
+        ChromeMultiInstancePersistentStore.writeTaskId(instanceId, taskId);
         if (taskId != -1) MultiWindowUtils.addAppTaskIdForTesting(taskId);
     }
 
     /** Clears instance information. */
     public static void resetInstanceInfo() {
-        SharedPreferencesManager prefs = ChromeSharedPreferences.getInstance();
-        prefs.removeKeysWithPrefix(ChromePreferenceKeys.MULTI_INSTANCE_URL);
-        prefs.removeKeysWithPrefix(ChromePreferenceKeys.MULTI_INSTANCE_LAST_ACCESSED_TIME);
-        prefs.removeKeysWithPrefix(ChromePreferenceKeys.MULTI_INSTANCE_CLOSURE_TIME);
-        prefs.removeKeysWithPrefix(ChromePreferenceKeys.MULTI_INSTANCE_TAB_COUNT);
-        prefs.removeKeysWithPrefix(ChromePreferenceKeys.MULTI_INSTANCE_TASK_MAP);
-        prefs.removeKey(ChromePreferenceKeys.MULTI_INSTANCE_INSTANCE_LIMIT_DOWNGRADE_TRIGGERED);
-        prefs.removeKey(ChromePreferenceKeys.MULTI_INSTANCE_MAX_INSTANCE_LIMIT);
+        SharedPreferencesManager prefs = MultiInstanceSharedPreferences.getInstance();
+        prefs.removeKeysWithPrefix(MultiInstancePreferenceKeys.MULTI_INSTANCE_URL);
+        prefs.removeKeysWithPrefix(MultiInstancePreferenceKeys.MULTI_INSTANCE_LAST_ACCESSED_TIME);
+        prefs.removeKeysWithPrefix(MultiInstancePreferenceKeys.MULTI_INSTANCE_CLOSURE_TIME);
+        prefs.removeKeysWithPrefix(MultiInstancePreferenceKeys.MULTI_INSTANCE_TAB_COUNT);
+        prefs.removeKeysWithPrefix(MultiInstancePreferenceKeys.MULTI_INSTANCE_TASK_MAP);
+        prefs.removeKey(
+                MultiInstancePreferenceKeys.MULTI_INSTANCE_INSTANCE_LIMIT_DOWNGRADE_TRIGGERED);
+        prefs.removeKey(MultiInstancePreferenceKeys.MULTI_INSTANCE_MAX_INSTANCE_LIMIT);
     }
 
     /** Enabled multi instance. */

@@ -33,6 +33,7 @@
 #include "ui/base/test/ui_controls.h"
 #include "ui/events/event.h"
 #include "ui/events/keycodes/keyboard_codes.h"
+#include "ui/views/interaction/interaction_test_util_mouse.h"
 #include "ui/views/interaction/interactive_views_test.h"
 #include "ui/views/test/views_test_utils.h"
 #include "ui/views/view.h"
@@ -111,6 +112,17 @@ base::RepeatingCallback<bool()> GetDragActive() {
 
 }  // namespace
 
+DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kSecondTab);
+DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kThirdTab);
+DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(ui::test::PollingStateObserver<size_t>,
+                                    kBrowserCountPoller);
+DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(ui::test::PollingStateObserver<bool>,
+                                    kDragStatePoller);
+DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(ui::test::PollingStateObserver<URLs>,
+                                    kTabOrderPoller);
+DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(ui::test::PollingStateObserver<PinnedURLs>,
+                                    kPinnedTabOrderPoller);
+
 class VerticalTabDragTest
     : public VerticalTabsInteractiveTestMixin<InteractiveBrowserTest> {
  public:
@@ -134,12 +146,17 @@ class VerticalTabDragTest
   auto StartDragBetweenTabs(int from_tab_index, int to_tab_index) {
     const char kTabToDragFrom[] = "Tab to drag";
     const char kTabToDragTo[] = "Tab to drag to";
-    return Steps(Log("Start drag from " + base::NumberToString(from_tab_index) +
-                     " to " + base::NumberToString(to_tab_index)),
-                 NameTabViewAt(kTabToDragFrom, from_tab_index),
-                 NameTabViewAt(kTabToDragTo, to_tab_index),
-                 MoveMouseTo(kTabToDragFrom),
-                 DragMouseTo(kTabToDragTo, CenterPoint(), /*release=*/false));
+    return Steps(
+        Log("Start drag from " + base::NumberToString(from_tab_index) + " to " +
+            base::NumberToString(to_tab_index)),
+        NameTabViewAt(kTabToDragFrom, from_tab_index),
+        NameTabViewAt(kTabToDragTo, to_tab_index), MoveMouseTo(kTabToDragFrom),
+        ClickMouse(ui_controls::LEFT, /*release=*/false),
+        // Poll state before moving mouse in touch mode to do a long press.
+        If([this]() { return mouse_util().GetTouchMode(); },
+           Then(Steps(PollState(kDragStatePoller, GetDragActive()),
+                      WaitForState(kDragStatePoller, true)))),
+        MoveMouseTo(kTabToDragTo));
   }
 
   auto StartDragFromGroupToTab(int from_group_index, int to_tab_index) {
@@ -204,6 +221,19 @@ class VerticalTabDragTest
     });
   }
 
+  auto CollapseGroup(int group_index) {
+    return Do([&, group_index]() {
+      TabStripModel* model = browser()->tab_strip_model();
+      std::vector<tab_groups::TabGroupId> groups =
+          model->group_model()->ListTabGroups();
+      ASSERT_LT(static_cast<size_t>(group_index), groups.size());
+      TabGroup* group = model->group_model()->GetTabGroup(groups[group_index]);
+      vertical_tab_strip_controller()->ToggleTabGroupCollapsedState(
+          group, ToggleTabGroupCollapsedStateOrigin::kMenuAction);
+      views::test::RunScheduledLayout(&GetBrowserView());
+    });
+  }
+
   BrowserView& GetBrowserView() {
     BrowserView* browser_view =
         BrowserView::GetBrowserViewForBrowser(browser());
@@ -228,17 +258,6 @@ class VerticalTabDragTest
           gfx::Animation::RichAnimationRenderMode::FORCE_DISABLED);
 };
 
-DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kSecondTab);
-DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kThirdTab);
-DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(ui::test::PollingStateObserver<size_t>,
-                                    kBrowserCountPoller);
-DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(ui::test::PollingStateObserver<bool>,
-                                    kDragStatePoller);
-DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(ui::test::PollingStateObserver<URLs>,
-                                    kTabOrderPoller);
-DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(ui::test::PollingStateObserver<PinnedURLs>,
-                                    kPinnedTabOrderPoller);
-
 IN_PROC_BROWSER_TEST_F(VerticalTabDragTest, DragWithinUnpinnedContainer) {
   TabStripModel* tab_strip_model = browser()->GetTabStripModel();
   ASSERT_NE(nullptr, tab_strip_model);
@@ -248,6 +267,51 @@ IN_PROC_BROWSER_TEST_F(VerticalTabDragTest, DragWithinUnpinnedContainer) {
 
       StartDragBetweenTabs(2, 1), PollState(kDragStatePoller, GetDragActive()),
       WaitForState(kDragStatePoller, true),
+      PollState(kTabOrderPoller, GetTabOrder(tab_strip_model)),
+      WaitForState(kTabOrderPoller,
+                   URLs({url::kAboutBlankURL, chrome::kChromeUISettingsURL,
+                         chrome::kChromeUIBookmarksURL})),
+
+      ContinueDragToTab(2),
+      WaitForState(kTabOrderPoller,
+                   URLs({url::kAboutBlankURL, chrome::kChromeUIBookmarksURL,
+                         chrome::kChromeUISettingsURL})),
+
+      ContinueDragToTab(0),
+      WaitForState(kTabOrderPoller,
+                   URLs({chrome::kChromeUISettingsURL, url::kAboutBlankURL,
+                         chrome::kChromeUIBookmarksURL})),
+
+      // Release the drag and ensure tab ordering remains.
+      ReleaseMouse(), WaitForState(kDragStatePoller, false), Do([&]() {
+        ASSERT_EQ(3, tab_strip_model->count());
+        EXPECT_EQ(GURL(chrome::kChromeUISettingsURL),
+                  tab_strip_model->GetWebContentsAt(0)->GetURL());
+        EXPECT_EQ(GURL(url::kAboutBlankURL),
+                  tab_strip_model->GetWebContentsAt(1)->GetURL());
+        EXPECT_EQ(GURL(chrome::kChromeUIBookmarksURL),
+                  tab_strip_model->GetWebContentsAt(2)->GetURL());
+      }));
+}
+
+// This test uses an experimental API to replace mouse events with touch events.
+// It is currently only supported on Ash Chrome.
+#if BUILDFLAG(IS_CHROMEOS)
+#define MAYBE_DragWithinUnpinnedContainerTouch DragWithinUnpinnedContainerTouch
+#else
+#define MAYBE_DragWithinUnpinnedContainerTouch \
+  DISABLED_DragWithinUnpinnedContainerTouch
+#endif
+IN_PROC_BROWSER_TEST_F(VerticalTabDragTest,
+                       MAYBE_DragWithinUnpinnedContainerTouch) {
+  TabStripModel* tab_strip_model = browser()->GetTabStripModel();
+  ASSERT_NE(nullptr, tab_strip_model);
+  RunTestSequence(
+      Check([this]() { return mouse_util().SetTouchMode(true); }),
+      AddInstrumentedTab(kSecondTab, GURL(chrome::kChromeUIBookmarksURL), 1),
+      AddInstrumentedTab(kThirdTab, GURL(chrome::kChromeUISettingsURL), 2),
+
+      StartDragBetweenTabs(2, 1),
       PollState(kTabOrderPoller, GetTabOrder(tab_strip_model)),
       WaitForState(kTabOrderPoller,
                    URLs({url::kAboutBlankURL, chrome::kChromeUISettingsURL,
@@ -716,6 +780,39 @@ IN_PROC_BROWSER_TEST_F(VerticalTabDragTest, DragGroupHeader) {
       ReleaseMouse());
 }
 
+IN_PROC_BROWSER_TEST_F(VerticalTabDragTest, DragCollapsedGroup) {
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kFourthTab);
+  TabStripModel* tab_strip_model = browser()->tab_strip_model();
+  ASSERT_NE(nullptr, tab_strip_model);
+  RunTestSequence(
+      AddInstrumentedTab(kSecondTab, GURL(chrome::kChromeUIBookmarksURL), 1),
+      AddInstrumentedTab(kThirdTab, GURL(chrome::kChromeUISettingsURL), 2),
+      AddInstrumentedTab(kFourthTab, GURL(chrome::kChromeUIVersionURL), 3),
+      AddTabsToNewGroup({0, 1}), CollapseGroup(0), Do([&]() {
+        std::vector<tab_groups::TabGroupId> groups =
+            tab_strip_model->group_model()->ListTabGroups();
+        ASSERT_EQ(1u, groups.size());
+        EXPECT_TRUE(tab_strip_model->group_model()
+                        ->GetTabGroup(groups[0])
+                        ->visual_data()
+                        ->is_collapsed());
+      }),
+      StartDragFromGroupToTab(0, 2),
+      PollState(kDragStatePoller, GetDragActive()),
+      WaitForState(kDragStatePoller, true),
+      // Dragging a collapsed group should keep it collapsed.
+      Do([&]() {
+        std::vector<tab_groups::TabGroupId> groups =
+            tab_strip_model->group_model()->ListTabGroups();
+        ASSERT_EQ(1u, groups.size());
+        EXPECT_TRUE(tab_strip_model->group_model()
+                        ->GetTabGroup(groups[0])
+                        ->visual_data()
+                        ->is_collapsed());
+      }),
+      ReleaseMouse());
+}
+
 // TODO(crbug.com/40249472): Widget DnD creates a blocking loop that isn't
 // compatible with out the testing framework generates mouse events. As a
 // workaround for Windows, we can send the input events asynchronously.
@@ -937,3 +1034,35 @@ IN_PROC_BROWSER_TEST_F(VerticalTabDragDetachTest, MAYBE_DetachPinnedTab) {
         EXPECT_EQ(2, browser()->GetTabStripModel()->count());
       }));
 }
+
+// TODO(crbug.com/40249472): Tab DnD tests not working on ChromeOS and Mac, and
+// flakes on Wayland
+#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_LINUX)
+#define MAYBE_DetachTabPreservesActiveTab DetachTabPreservesActiveTab
+#else
+#define MAYBE_DetachTabPreservesActiveTab DISABLED_DetachTabPreservesActiveTab
+#endif
+IN_PROC_BROWSER_TEST_F(VerticalTabDragDetachTest,
+                       MAYBE_DetachTabPreservesActiveTab) {
+  RunTestSequence(
+      AddInstrumentedTab(kSecondTab, GURL(chrome::kChromeUIBookmarksURL), 1),
+      AddInstrumentedTab(kThirdTab, GURL(chrome::kChromeUISettingsURL), 2),
+      Do([&]() {
+        browser()->tab_strip_model()->ActivateTabAt(
+            0, TabStripUserGestureDetails(
+                   TabStripUserGestureDetails::GestureType::kOther));
+      }),
+      CheckResult(
+          [this]() { return browser()->tab_strip_model()->active_index(); }, 0),
+      DragTabTo(2, GetBrowserView().GetBoundsInScreen().top_right() +
+                       gfx::Vector2d(50, 50)),
+      PollState(kBrowserCountPoller, GetBrowserCount()),
+      WaitForState(kBrowserCountPoller, 2), ReleaseMouseAsync(),
+      PollState(kDragStatePoller, GetDragActive()),
+      WaitForState(kDragStatePoller, false), Do([&]() {
+        EXPECT_EQ(0, browser()->tab_strip_model()->active_index());
+        EXPECT_EQ(2, browser()->tab_strip_model()->count());
+      }));
+}
+
+// TODO(crbug.com/490650365): Add regression test once detach tests are working.

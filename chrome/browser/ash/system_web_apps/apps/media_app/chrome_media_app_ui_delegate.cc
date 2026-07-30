@@ -15,7 +15,6 @@
 #include "base/notreached.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
-#include "chrome/browser/apps/app_service/launch_result_type.h"
 #include "chrome/browser/ash/app_list/arc/arc_app_utils.h"
 #include "chrome/browser/ash/browser_delegate/browser_controller.h"
 #include "chrome/browser/ash/browser_delegate/browser_delegate.h"
@@ -30,6 +29,7 @@
 #include "components/services/app_service/public/cpp/app_launch_util.h"
 #include "components/services/app_service/public/cpp/intent.h"
 #include "components/services/app_service/public/cpp/intent_util.h"
+#include "components/services/app_service/public/cpp/launch_result.h"
 #include "components/user_manager/user.h"
 #include "components/version_info/channel.h"
 #include "content/public/browser/web_contents.h"
@@ -179,8 +179,8 @@ void ChromeMediaAppUIDelegate::EditInPhotosImpl(
       base::BindOnce(
           [](base::OnceCallback<void()> callback,
              base::WeakPtr<content::WebContents> web_contents,
-             apps::LaunchResult&& result) {
-            if (result.state == apps::State::kSuccess && web_contents) {
+             apps::LaunchResult result) {
+            if (result == apps::LaunchResult::kSuccess && web_contents) {
               web_contents->Close();
             }
             std::move(callback).Run();

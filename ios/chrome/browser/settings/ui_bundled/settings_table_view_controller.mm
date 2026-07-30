@@ -1601,6 +1601,17 @@ struct EnhancedSafeBrowsingActivePromoData
     base::debug::DumpWithoutCrashing();
   }
 
+  AuthenticationService* authService =
+      AuthenticationServiceFactory::GetForProfile(_browser->GetProfile());
+  if (!authService->HasPrimaryIdentity(signin::ConsentLevel::kSignin) ||
+      !authService->SigninEnabled()) {
+    // Due to race condition, the user may be signed-out, or sign-in may be
+    // disabled between the time the user tap on the button and the execution of
+    // this method. In this case, do nothing, the button will disappear by
+    // itself. See crbug.com/488974911
+    return;
+  }
+
   // Stop the coordinator before restarting it, if it exists.
   [_manageSyncSettingsCoordinator stop];
 
@@ -1753,8 +1764,14 @@ struct EnhancedSafeBrowsingActivePromoData
   identityAccountItem.image =
       GetApplicationContext()->GetIdentityAvatarProvider()->GetIdentityAvatar(
           _identity, IdentityAvatarSize::TableViewIcon);
-  identityAccountItem.text = _identity.userFullName;
-  identityAccountItem.detailText = _identity.userEmail;
+  NSString* name = _identity.userFullName;
+  NSString* email = _identity.userEmail;
+  if (name) {
+    identityAccountItem.text = name;
+    identityAccountItem.detailText = email;
+  } else {
+    identityAccountItem.text = email;
+  }
 
   syncer::SyncService* syncService =
       SyncServiceFactory::GetForProfile(_profile);

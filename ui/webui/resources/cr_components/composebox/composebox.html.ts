@@ -9,7 +9,6 @@ import {html} from '//resources/lit/v3_0/lit.rollup.js';
 import type {ComposeboxElement} from './composebox.js';
 import {getHtml as getContextMenuHtml} from './composebox_context_menu.html.js';
 import {getHtml as getSubmitButtonHtml} from './composebox_submit_button.html.js';
-import {getHtml as getToolChipsHtml} from './composebox_tool_chips.html.js';
 
 export function getHtml(this: ComposeboxElement) {
   // clang-format off
@@ -109,7 +108,11 @@ export function getHtml(this: ComposeboxElement) {
                 ${this.searchboxLayoutMode === 'Compact' && this.inToolMode_ ? html`
                 <div class="context-menu-container" id="toolChipsContainer"
                     part="tool-chips-container">
-                  ${getToolChipsHtml.bind(this)()}
+                    <cr-composebox-tool-chip
+                      exportparts="tool-chip-label"
+                      .inputState="${this.inputState_}"
+                      @tool-click="${this.onToolClick_}">
+                    </cr-composebox-tool-chip>
                 </div>
                 ` : ''}
             </div>
@@ -170,14 +173,16 @@ export function getHtml(this: ComposeboxElement) {
        button enabled/disabled state. -->
     ${!this.searchboxNextEnabled ? getSubmitButtonHtml.bind(this)() : ''}
   </div>
-  <cr-composebox-voice-search id="voiceSearch"
-      @voice-search-cancel="${this.onVoiceSearchCancel_}"
-      @voice-search-final-result="${this.onVoiceSearchFinalResult_}"
-      @voice-search-error="${this.onVoiceSearchError_}"
-      @transcript-update="${this.onTranscriptUpdate_}"
-      @speech-received="${this.onSpeechReceived_}"
-      exportparts="voice-close-button">
-  </cr-composebox-voice-search>
+  ${this.shouldShowVoiceSearch_() ? html`
+    <cr-composebox-voice-search id="voiceSearch"
+        @voice-search-cancel="${this.onVoiceSearchCancel_}"
+        @voice-search-final-result="${this.onVoiceSearchFinalResult_}"
+        @voice-search-error="${this.onVoiceSearchError_}"
+        @transcript-update="${this.onTranscriptUpdate_}"
+        @speech-received="${this.onSpeechReceived_}"
+        exportparts="voice-close-button">
+    </cr-composebox-voice-search>
+  ` : ''}
   ${this.shouldShowSuggestionActivityLink_()
       && this.suggestionActivityEnabled ? html`
     <div id="suggestionActivity">

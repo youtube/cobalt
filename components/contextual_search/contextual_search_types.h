@@ -42,9 +42,11 @@ enum class ContextUploadStatus {
   kProcessingSuggestSignalsReady = 7,
   // File is being replaced.
   kUploadReplaced = 8,
-};
 
-using FileUploadStatus = ContextUploadStatus;
+  // Add new enumerators above this line.
+  // This must always be the last valid enum.
+  kMaxValue = kUploadReplaced,
+};
 
 // For upload error notifications and metrics.
 enum class ContextUploadErrorType {
@@ -62,9 +64,11 @@ enum class ContextUploadErrorType {
   kAborted = 5,
   // Image processing error.
   kImageProcessingError = 6,
-};
 
-using FileUploadErrorType = ContextUploadErrorType;
+  // Add new enumerators above this line.
+  // This must always be the last valid enum.
+  kMaxValue = kImageProcessingError,
+};
 
 // Struct containing file information for a file upload.
 struct FileInfo {
@@ -127,6 +131,10 @@ struct FileInfo {
   // Whether or not this file was superceded by a new file upload with the same
   // context id.
   bool is_superceded = false;
+
+  // Whether or not this file is an implicit upload.
+  // e.g. a viewport screenshot from the Lens overlay contextual searchbox.
+  bool is_implicit_upload = false;
 
   // The mime type string of the file, if known.
   std::optional<std::string> mime_type_string;

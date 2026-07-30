@@ -4,6 +4,8 @@
 
 #include "chrome/browser/ui/views/user_education/impl/browser_user_education_interface_impl.h"
 
+#include <optional>
+
 #include "base/check_is_test.h"
 #include "base/notreached.h"
 #include "base/task/single_thread_task_runner.h"
@@ -17,6 +19,7 @@
 #include "chrome/browser/user_education/user_education_service_factory.h"
 #include "components/user_education/common/feature_promo/feature_promo_controller.h"
 #include "components/user_education/common/feature_promo/feature_promo_result.h"
+#include "components/user_education/common/user_education_data.h"
 #include "components/user_education/common/user_education_storage_service.h"
 
 namespace {
@@ -140,7 +143,19 @@ BrowserUserEducationInterfaceImpl::CanShowFeaturePromo(
   return user_education::FeaturePromoResult::kBlockedByContext;
 }
 
-void BrowserUserEducationInterfaceImpl::MaybeShowFeaturePromo(
+bool BrowserUserEducationInterfaceImpl::HasFeaturePromoBeenDismissed(
+    const base::Feature& iph_feature) const {
+  auto* const service = GetUserEducationService();
+  CHECK(service);
+  const std::optional<user_education::FeaturePromoData> result =
+      service->user_education_storage_service().ReadPromoData(iph_feature);
+
+  // If there is no data on the promo yet, it has not been dismissed (because
+  // it has not been shown).
+  return result && result->is_dismissed;
+}
+
+bool BrowserUserEducationInterfaceImpl::MaybeShowFeaturePromo(
     user_education::FeaturePromoParams params) {
   // Trying to show a promo before the browser is initialized can result in a
   // failure to retrieve accelerators, which can cause issues for screen reader
@@ -164,24 +179,27 @@ void BrowserUserEducationInterfaceImpl::MaybeShowFeaturePromo(
                << state_desc << "; IPH will not be shown.";
     PostShowPromoFailure(std::move(params),
                          user_education::FeaturePromoResult::kError);
-    return;
+    return false;
   }
 
   if (auto* const controller = GetFeaturePromoController()) {
+    const auto& feature = *params.feature;
     controller->MaybeShowPromo(std::move(params), user_education_context_);
-    return;
+    return controller->IsPromoActive(
+        feature, user_education::FeaturePromoStatus::kQueued);
   }
 
   PostShowPromoFailure(std::move(params),
                        user_education::FeaturePromoResult::kBlockedByContext);
+  return false;
 }
 
-void BrowserUserEducationInterfaceImpl::MaybeShowStartupFeaturePromo(
+bool BrowserUserEducationInterfaceImpl::MaybeShowStartupFeaturePromo(
     user_education::FeaturePromoParams params) {
   if (state_ == State::kUninitialized ||
       state_ == State::kInitializationPending) {
     queued_params_.push_back(std::move(params));
-    return;
+    return true;
   }
 
   if (state_ == State::kTornDown) {
@@ -189,10 +207,10 @@ void BrowserUserEducationInterfaceImpl::MaybeShowStartupFeaturePromo(
                << " after browser shutdown; IPH will not be shown.";
     PostShowPromoFailure(std::move(params),
                          user_education::FeaturePromoResult::kError);
-    return;
+    return false;
   }
 
-  MaybeShowStartupFeaturePromoImpl(std::move(params));
+  return MaybeShowStartupFeaturePromoImpl(std::move(params));
 }
 
 bool BrowserUserEducationInterfaceImpl::AbortFeaturePromo(
@@ -271,14 +289,17 @@ BrowserUserEducationInterfaceImpl::GetUserEducationContextImpl() const {
   return user_education_context_;
 }
 
-void BrowserUserEducationInterfaceImpl::MaybeShowStartupFeaturePromoImpl(
+bool BrowserUserEducationInterfaceImpl::MaybeShowStartupFeaturePromoImpl(
     user_education::FeaturePromoParams params) {
   if (auto* const controller = GetFeaturePromoController()) {
+    const auto& feature = *params.feature;
     controller->MaybeShowStartupPromo(std::move(params),
                                       user_education_context_);
-    return;
+    return controller->IsPromoActive(
+        feature, user_education::FeaturePromoStatus::kQueued);
   }
 
   PostShowPromoFailure(std::move(params),
                        user_education::FeaturePromoResult::kBlockedByContext);
+  return false;
 }

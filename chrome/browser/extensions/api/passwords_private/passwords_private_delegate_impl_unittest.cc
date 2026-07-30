@@ -523,6 +523,59 @@ TEST_F(PasswordsPrivateDelegateImplTest, GetSavedPasswordsList) {
   delegate->GetSavedPasswordsList(callback.Get());
 }
 
+TEST_F(PasswordsPrivateDelegateImplTest, GetActionableErrorFromAccountStore) {
+  auto delegate = CreateDelegate();
+  EXPECT_EQ(password_manager::ActionableError::kNoError,
+            delegate->GetActionableError());
+
+  account_store_->SetError(
+      password_manager::ActionableError::kTrustedVaultKeyNeeded);
+
+  EXPECT_EQ(password_manager::ActionableError::kTrustedVaultKeyNeeded,
+            delegate->GetActionableError());
+}
+
+TEST_F(PasswordsPrivateDelegateImplTest,
+       GetActionableErrorPrioritizesAccountStore) {
+  auto delegate = CreateDelegate();
+  profile_store_->SetError(password_manager::ActionableError::kKeychainError);
+  account_store_->SetError(
+      password_manager::ActionableError::kTrustedVaultKeyNeeded);
+
+  EXPECT_EQ(password_manager::ActionableError::kTrustedVaultKeyNeeded,
+            delegate->GetActionableError());
+}
+
+TEST_F(PasswordsPrivateDelegateImplTest,
+       GetReturnProfileErrorIfNoAccountError) {
+  auto delegate = CreateDelegate();
+  profile_store_->SetError(password_manager::ActionableError::kKeychainError);
+  account_store_->SetError(password_manager::ActionableError::kNoError);
+
+  EXPECT_EQ(password_manager::ActionableError::kKeychainError,
+            delegate->GetActionableError());
+}
+
+TEST_F(PasswordsPrivateDelegateImplTest, ActionableErrorChanged) {
+  auto delegate = CreateDelegate();
+
+  PasswordEventObserver observer(
+      api::passwords_private::OnPasswordManagerActionableErrorChanged::
+          kEventName);
+  event_router_->AddEventObserver(&observer);
+
+  profile_store_->SetError(
+      password_manager::ActionableError::kTrustedVaultKeyNeeded);
+  profile_store_->NotifyAboutError();
+
+  base::Value args = observer.PassEventArgs();
+  ASSERT_TRUE(args.is_list());
+  ASSERT_EQ(1u, args.GetList().size());
+  EXPECT_EQ("TRUSTED_VAULT_KEY_NEEDED", args.GetList()[0].GetString());
+
+  event_router_->RemoveEventObserver(&observer);
+}
+
 TEST_F(PasswordsPrivateDelegateImplTest,
        PasswordsDuplicatedInStoresAreRepresentedAsSingleEntity) {
   auto delegate = CreateDelegate();

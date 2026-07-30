@@ -9,7 +9,10 @@
 #include <string_view>
 #include <utility>
 
+#include "ash/display/cros_display_config.h"
+#include "ash/shell.h"
 #include "base/base64url.h"
+#include "base/check_is_test.h"
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
@@ -252,16 +255,27 @@ RecommendAppsFetcherImpl::ScopedGpuInfoForTest::~ScopedGpuInfoForTest() {
 
 RecommendAppsFetcherImpl::RecommendAppsFetcherImpl(
     RecommendAppsFetcherDelegate* delegate,
-    mojo::PendingRemote<crosapi::mojom::CrosDisplayConfigController>
-        display_config,
+    ash::CrosDisplayConfig* cros_display_config,
     network::mojom::URLLoaderFactory* url_loader_factory)
     : delegate_(delegate),
       url_loader_factory_(url_loader_factory),
       arc_features_getter_(
           base::BindRepeating(&arc::ArcFeaturesParser::GetArcFeatures)),
-      cros_display_config_(std::move(display_config)) {}
+      cros_display_config_(cros_display_config) {
+  CHECK(cros_display_config_);
+  if (ash::Shell::HasInstance()) {
+    shell_observation_.Observe(ash::Shell::Get());
+  } else {
+    CHECK_IS_TEST();
+  }
+}
 
 RecommendAppsFetcherImpl::~RecommendAppsFetcherImpl() = default;
+
+void RecommendAppsFetcherImpl::OnShellDestroying() {
+  shell_observation_.Reset();
+  cros_display_config_ = nullptr;
+}
 
 void RecommendAppsFetcherImpl::PopulateDeviceConfig() {
   if (!HasTouchScreen()) {
@@ -307,40 +321,19 @@ void RecommendAppsFetcherImpl::PopulateDeviceConfig() {
       device_config_.add_gl_extension(std::string(gl_extension));
     }
   }
+
+  PopulateDisplaySettings();
+  MaybeStartCompressAndEncodeProtoMessage();
 }
 
-void RecommendAppsFetcherImpl::StartAshRequest() {
-  cros_display_config_->GetDisplayUnitInfoList(
-      false /* single_unified */,
-      base::BindOnce(&RecommendAppsFetcherImpl::OnAshResponse,
-                     weak_ptr_factory_.GetWeakPtr()));
-}
-
-void RecommendAppsFetcherImpl::MaybeStartCompressAndEncodeProtoMessage() {
-  if (!ash_ready_ || !arc_features_ready_ || has_started_proto_processing_) {
+void RecommendAppsFetcherImpl::PopulateDisplaySettings() {
+  if (!cros_display_config_) {
+    // TODO(neis): Do CHECK_IS_TEST() here and get rid of ShellObserver.
     return;
   }
 
-  base::ThreadPool::PostTaskAndReplyWithResult(
-      FROM_HERE, {base::MayBlock(), base::TaskPriority::BEST_EFFORT},
-      base::BindOnce(&CompressAndEncodeProtoMessageOnBlockingThread,
-                     std::move(device_config_)),
-      base::BindOnce(
-          &RecommendAppsFetcherImpl::OnProtoMessageCompressedAndEncoded,
-          weak_ptr_factory_.GetWeakPtr()));
-  has_started_proto_processing_ = true;
-}
-
-void RecommendAppsFetcherImpl::OnProtoMessageCompressedAndEncoded(
-    std::string encoded_device_configuration_proto) {
-  proto_compressed_and_encoded_ = true;
-  encoded_device_configuration_proto_ = encoded_device_configuration_proto;
-  StartDownload();
-}
-
-void RecommendAppsFetcherImpl::OnAshResponse(
-    std::vector<crosapi::mojom::DisplayUnitInfoPtr> all_displays_info) {
-  ash_ready_ = true;
+  std::vector<crosapi::mojom::DisplayUnitInfoPtr> all_displays_info =
+      cros_display_config_->GetDisplayUnitInfoList(/*single_unified=*/false);
 
   int screen_density = 0;
   for (const crosapi::mojom::DisplayUnitInfoPtr& display_info :
@@ -361,8 +354,28 @@ void RecommendAppsFetcherImpl::OnAshResponse(
   const int screen_layout =
       CalculateStableScreenLayout(screen_width, screen_height, screen_density);
   device_config_.set_screen_layout(GetScreenLayoutSizeId(screen_layout));
+}
 
-  MaybeStartCompressAndEncodeProtoMessage();
+void RecommendAppsFetcherImpl::MaybeStartCompressAndEncodeProtoMessage() {
+  if (!arc_features_ready_ || has_started_proto_processing_) {
+    return;
+  }
+
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::BEST_EFFORT},
+      base::BindOnce(&CompressAndEncodeProtoMessageOnBlockingThread,
+                     std::move(device_config_)),
+      base::BindOnce(
+          &RecommendAppsFetcherImpl::OnProtoMessageCompressedAndEncoded,
+          weak_ptr_factory_.GetWeakPtr()));
+  has_started_proto_processing_ = true;
+}
+
+void RecommendAppsFetcherImpl::OnProtoMessageCompressedAndEncoded(
+    std::string encoded_device_configuration_proto) {
+  proto_compressed_and_encoded_ = true;
+  encoded_device_configuration_proto_ = encoded_device_configuration_proto;
+  StartDownload();
 }
 
 void RecommendAppsFetcherImpl::OnArcFeaturesRead(
@@ -497,7 +510,6 @@ void RecommendAppsFetcherImpl::OnDownloaded(
 
 void RecommendAppsFetcherImpl::Start() {
   PopulateDeviceConfig();
-  StartAshRequest();
   arc_features_getter_.Run(
       base::BindOnce(&RecommendAppsFetcherImpl::OnArcFeaturesRead,
                      weak_ptr_factory_.GetWeakPtr()));

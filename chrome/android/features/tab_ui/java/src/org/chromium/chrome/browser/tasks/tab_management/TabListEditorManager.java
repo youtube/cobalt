@@ -15,7 +15,6 @@ import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.tab_ui.TabContentManager;
 import org.chromium.chrome.browser.tab_ui.TabSwitcher;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
@@ -26,7 +25,6 @@ import org.chromium.chrome.browser.tasks.tab_management.TabListEditorAction.Show
 import org.chromium.chrome.browser.tasks.tab_management.TabListEditorCoordinator.CreationMode;
 import org.chromium.chrome.browser.tasks.tab_management.TabListEditorCoordinator.TabListEditorController;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiMetricsHelper.TabListEditorOpenMetricGroups;
-import org.chromium.chrome.browser.tinker_tank.TinkerTankDelegate;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
@@ -189,28 +187,18 @@ public class TabListEditorManager {
                             ShowMode.MENU_ONLY,
                             ButtonType.ICON_AND_TEXT,
                             IconPosition.START));
-            if (TinkerTankDelegate.isEnabled()) {
-                mTabListEditorActions.add(
-                        TabListEditorTinkerTankAction.createAction(
-                                mActivity,
-                                ShowMode.MENU_ONLY,
-                                ButtonType.ICON_AND_TEXT,
-                                IconPosition.START));
-            }
             mTabListEditorActions.add(
                     TabListEditorShareAction.createAction(
                             mActivity,
                             ShowMode.MENU_ONLY,
                             ButtonType.ICON_AND_TEXT,
                             IconPosition.START));
-            if (ChromeFeatureList.sAndroidPinnedTabs.isEnabled()) {
-                mTabListEditorActions.add(
-                        TabListEditorPinAction.createAction(
-                                mActivity,
-                                ShowMode.MENU_ONLY,
-                                ButtonType.ICON_AND_TEXT,
-                                IconPosition.START));
-            }
+            mTabListEditorActions.add(
+                    TabListEditorPinAction.createAction(
+                            mActivity,
+                            ShowMode.MENU_ONLY,
+                            ButtonType.ICON_AND_TEXT,
+                            IconPosition.START));
         }
 
         var controller = mControllerSupplier.get();
@@ -218,7 +206,7 @@ public class TabListEditorManager {
         TabGroupModelFilter filter = mCurrentTabGroupModelFilterSupplier.get();
         assumeNonNull(filter);
         controller.show(
-                filter.getRepresentativeTabList(),
+                /* tabs= */ filter.getRepresentativeTabList(),
                 /* tabGroupSyncIds= */ Collections.emptyList(),
                 mTabListCoordinator.getRecyclerViewPosition());
         controller.configureToolbarWithMenuItems(mTabListEditorActions);

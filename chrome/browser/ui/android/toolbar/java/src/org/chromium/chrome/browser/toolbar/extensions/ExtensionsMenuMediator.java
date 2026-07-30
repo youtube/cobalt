@@ -123,7 +123,8 @@ class ExtensionsMenuMediator implements Destroyable, ExtensionsMenuBridge.Observ
         // to fetch and update the UI correctly, as their effects differ on the site permissions
         // page and they will need to have different JNI observers.
         if (isMainPageVisible()) {
-            updateSiteSettingsToggle();
+            int optionalSection = mMenuBridge.getOptionalSection();
+            mMenuPropertyModel.set(ExtensionsMenuProperties.OPTIONAL_SECTION_TYPE, optionalSection);
             updateMenuEntries();
             return;
         }
@@ -233,6 +234,19 @@ class ExtensionsMenuMediator implements Destroyable, ExtensionsMenuBridge.Observ
     }
 
     /**
+     * Updates the host access requests list in the PropertyModel only if the host access requests
+     * section is currently visible to the user.
+     */
+    private void updateHostAccessRequests() {
+        int currentSection = mMenuPropertyModel.get(ExtensionsMenuProperties.OPTIONAL_SECTION_TYPE);
+        if (currentSection == ExtensionsMenuTypes.OptionalSectionType.HOST_ACCESS_REQUESTS) {
+            mMenuPropertyModel.set(
+                    ExtensionsMenuProperties.HOST_ACCESS_REQUESTS,
+                    mMenuBridge.getHostAccessRequests());
+        }
+    }
+
+    /**
      * Pulls the list of menu entries from native and updates the action models list. Also updates
      * the zero state visibility.
      */
@@ -251,6 +265,36 @@ class ExtensionsMenuMediator implements Destroyable, ExtensionsMenuBridge.Observ
     private void updateZeroState() {
         boolean isZeroState = mActionModels.size() == 0;
         mMenuPropertyModel.set(ExtensionsMenuProperties.IS_ZERO_STATE, isZeroState);
+        // If we are in zero state, hide the site settings toggle to keep the empty state clean.
+        if (isZeroState) {
+            mMenuPropertyModel.set(ExtensionsMenuProperties.SITE_SETTINGS_TOGGLE_VISIBLE, false);
+        } else {
+            updateSiteSettingsToggle();
+        }
+    }
+
+    /** Called when a host access request has been added. */
+    @Override
+    public void onHostAccessRequestAdded(String extensionId) {
+        updateHostAccessRequests();
+    }
+
+    /** Called when a host access request has been updated. */
+    @Override
+    public void onHostAccessRequestUpdated(String extensionId) {
+        updateHostAccessRequests();
+    }
+
+    /** Called when a host access request has been removed. */
+    @Override
+    public void onHostAccessRequestRemoved(String extensionId) {
+        updateHostAccessRequests();
+    }
+
+    /** Called when all host access requests have been cleared. */
+    @Override
+    public void onHostAccessRequestsCleared() {
+        updateHostAccessRequests();
     }
 
     /** Updates the site settings toggle. */

@@ -298,7 +298,6 @@
 <translation id="2012723204723845092">טוב לראות אותך שוב!</translation>
 <translation id="2015722694326466240">רוצה להציג את הסיסמאות? תחילה עליך להגדיר קוד גישה במכשיר.</translation>
 <translation id="201759455285471444">הרחבה של קבוצת הכרטיסיות.</translation>
-<translation id="202070562065520783">אשמח לקבל הסבר</translation>
 <translation id="2044394949148788042">פתיחה של תצוגת הכרטיסיות</translation>
 <translation id="2044681667265133332">החשבון <ph name="USER_EMAIL" /> מנוהל על ידי <ph name="HOSTED_DOMAIN" />, שיכול להיות שיש לו גישה לחלק מהמידע. <ph name="BEGIN_LINK" />מידע נוסף<ph name="END_LINK" /></translation>
 <translation id="20485545164632846">פריט חדש</translation>
@@ -527,6 +526,7 @@
 <translation id="286382692684806520">{COUNT,plural, =1{אתר אחד (עוד במכשירים מסונכרנים)}one{‫# אתרים (עוד במכשירים מסונכרנים)}two{‫# אתרים (עוד במכשירים מסונכרנים)}other{‫# אתרים (עוד במכשירים מסונכרנים)}}</translation>
 <translation id="2870560284913253234">אתר</translation>
 <translation id="2876369937070532032">‏שולחת ל-Google כתובות URL של חלק מהדפים שאליהם נכנסת, אם מתגלה סיכון אבטחה</translation>
+<translation id="2877733045396505765">‏הפעולה הזו תמחק את המידע שנבחר ששמור במכשיר הזה ובחשבון Google שלך <ph name="USER_EMAIL" />.</translation>
 <translation id="2883151425485251736">הצגה ועריכה של נושאים שבחרת להסתיר מהחשבון</translation>
 <translation id="288655811176831528">סגירת הכרטיסייה</translation>
 <translation id="2888631381369839306">ההתראות על מעקב מחירים הופעלו</translation>
@@ -959,6 +959,7 @@
 <translation id="454217142158335225">אפשר לפתוח מחדש פריטים שנסגרו בקטעים "כרטיסיות אחרונות" או "קבוצות של כרטיסיות". הכרטיסיות המוצמדות לא ייסגרו.</translation>
 <translation id="4547181496285029457">חזרה לכרטיסייה הקודמת</translation>
 <translation id="4552042254369397518">מתבצעת העתקה…</translation>
+<translation id="4553044860350038560">עוד מפתחות גישה</translation>
 <translation id="4564893319561643483">הסתרה של '<ph name="TITLE" />'</translation>
 <translation id="4565377596337484307">הסתרת סיסמה</translation>
 <translation id="4568230126482344545">הסתרת הכרטיסיות האחרונות</translation>
@@ -1613,6 +1614,7 @@
 <translation id="672735642903863329">גישה לסימניות, לסיסמאות ולנתונים נוספים בכל המכשירים שלך</translation>
 <translation id="6729493062119577923">פעילות בקבוצת הכרטיסיות המשותפת</translation>
 <translation id="6732087373923685049">מצלמה</translation>
+<translation id="6736243959894955139">כתובת</translation>
 <translation id="6746338529702829275">בדיקה של נתוני החשבון</translation>
 <translation id="6750456911389438250">{count,plural, =1{יובא פריט אחד ({count}) בהיסטוריה}one{יובאו {count} פריטים בהיסטוריה}two{יובאו {count} פריטים בהיסטוריה}other{יובאו {count} פריטים בהיסטוריה}}</translation>
 <translation id="6755200887046212842">נהל חשבונות</translation>
@@ -1819,7 +1821,6 @@
 <translation id="7537586195939242955">‏מצטערים, לא ניתן להתקין את ה-Pass שלך ב-Passbook בשלב הזה.</translation>
 <translation id="754655535278952384">הבדיקה האחרונה: <ph name="TIME" /></translation>
 <translation id="7554645225856321710">סגירת הכול</translation>
-<translation id="7554791636758816595">כרטיסייה חדשה</translation>
 <translation id="7557508262441527045">החשבון לא מחובר</translation>
 <translation id="7561196759112975576">תמיד</translation>
 <translation id="7561982940498449837">סגירת התפריט</translation>
@@ -1878,6 +1879,7 @@
 <translation id="775755486779745798">מילוי אוטומטי של חודש התפוגה: <ph name="MONTH" /></translation>
 <translation id="7758789811447313947">עיצוב סגול</translation>
 <translation id="7759809451544302770">אופציונלי</translation>
+<translation id="7763878244904387570">הפעולה הזו תמחק את המידע שנבחר ששמור במכשיר הזה.</translation>
 <translation id="7765158879357617694">העברה</translation>
 <translation id="7772032839648071052">אישור משפט-סיסמה</translation>
 <translation id="7772948288262733182">ברוך שובך</translation>
@@ -2248,7 +2250,6 @@
 <translation id="8988107725234939347">‫<ph name="WEBSITE_TITLE" />, אתר מוצמד</translation>
 <translation id="8990960056509724223">אי אפשר לשמור את הקובץ בגלל המדיניות של הארגון שלך</translation>
 <translation id="8998289560386111590">לא זמין במכשיר שלך</translation>
-<translation id="9000532564152265066">כל הכרטיסיות</translation>
 <translation id="9003677638446136377">בדיקה נוספת</translation>
 <translation id="9006453925669499173">תפריט ← כרטיסייה פרטית חדשה</translation>
 <translation id="9008201768610948239">סגירה</translation>

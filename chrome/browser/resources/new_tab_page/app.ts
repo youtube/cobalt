@@ -16,8 +16,7 @@ import 'chrome://resources/cr_components/composebox/threads_rail.js';
 import type {CustomizeButtonsElement} from 'chrome://new-tab-page/shared/customize_buttons/customize_buttons.js';
 import {ColorChangeUpdater} from 'chrome://resources/cr_components/color_change_listener/colors_css_updater.js';
 import {GlifAnimationState} from 'chrome://resources/cr_components/composebox/common.js';
-import type {ContextualUpload} from 'chrome://resources/cr_components/composebox/common.js';
-import type {ComposeboxElement} from 'chrome://resources/cr_components/composebox/composebox.js';
+import type {ComposeboxElement, ComposeboxState} from 'chrome://resources/cr_components/composebox/composebox.js';
 import {VoiceSearchAction as ComposeVoiceSearchAction} from 'chrome://resources/cr_components/composebox/composebox.js';
 import {HelpBubbleMixinLit} from 'chrome://resources/cr_components/help_bubble/help_bubble_mixin_lit.js';
 import type {OpenComposeboxEventDetail, SearchboxElement} from 'chrome://resources/cr_components/searchbox/searchbox.js';
@@ -33,7 +32,6 @@ import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {getTrustedScriptURL} from 'chrome://resources/js/static_types.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from 'chrome://resources/lit/v3_0/lit.rollup.js';
-import {ModelMode, ToolMode} from 'chrome://resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import type {SkColor} from 'chrome://resources/mojo/skia/public/mojom/skcolor.mojom-webui.js';
 
 import {ActionChipsRetrievalState} from './action_chips/action_chips.js';
@@ -188,6 +186,10 @@ export class AppElement extends AppElementBase {
 
   static override get properties() {
     return {
+      // TODO(crbug.com/491126593): Reorder to ensure public properties precede
+      // private properties.
+      composeboxState_: {type: Object},
+
       oneGoogleBarIframeOrigin_: {type: String},
       oneGoogleBarIframePath_: {type: String},
       oneGoogleBarLoaded_: {type: Boolean},
@@ -325,8 +327,8 @@ export class AppElement extends AppElementBase {
       showScrim_: {type: Boolean, reflect: true},
 
       contextMenuGlifAnimationState_: {type: String},
-      undoAutoRemovalCallback_: {type: Object},
-      undoAutoRemovalMessage_: {type: Object},
+      undoToastCallback_: {type: Object},
+      undoToastMessage_: {type: Object},
 
       /**
        * Whether to show the AIM threads rail when composebox is open.
@@ -339,6 +341,7 @@ export class AppElement extends AppElementBase {
     };
   }
 
+  protected accessor composeboxState_: ComposeboxState|null = null;
   protected accessor oneGoogleBarIframeOrigin_: string = OGB_IFRAME_ORIGIN;
   protected accessor oneGoogleBarIframePath_: string|undefined;
   protected accessor oneGoogleBarLoaded_: boolean = false;
@@ -419,17 +422,13 @@ export class AppElement extends AppElementBase {
       loadTimeData.getInteger('maxTilesBeforeShowMore');
   protected accessor containerFocused_: boolean = false;
   protected accessor showScrim_: boolean = false;
-  private reducedMotionMediaQueryList_: MediaQueryList =
-      WindowProxy.getInstance().matchMedia('(prefers-reduced-motion: reduce)');
-  protected accessor reducedMotionPreferred_: boolean =
-      this.reducedMotionMediaQueryList_.matches;
+
   protected accessor contextMenuGlifAnimationState_: GlifAnimationState =
-      !this.reducedMotionPreferred_ && this.ntpNextFeaturesEnabled_ &&
-          this.isActionChipsVisible_ ?
+      this.ntpNextFeaturesEnabled_ && this.isActionChipsVisible_ ?
       GlifAnimationState.SPINNER_ONLY :
       GlifAnimationState.INELIGIBLE;
-  protected accessor undoAutoRemovalCallback_: (() => void)|null = null;
-  protected accessor undoAutoRemovalMessage_: string|null = null;
+  protected accessor undoToastCallback_: (() => void)|null = null;
+  protected accessor undoToastMessage_: string|null = null;
   protected ephemeralContextMenuDescriptionEnabled_: boolean =
       loadTimeData.getBoolean('enableEphemeralContextMenuDescription') ?? false;
   protected showContextMenuDescription_: boolean =
@@ -454,12 +453,7 @@ export class AppElement extends AppElementBase {
   private backgroundImageLoadStartEpoch_: number = 0;
   private backgroundImageLoadStart_: number = 0;
   private showWebstoreToastListenerId_: number|null = null;
-  private pendingComposeboxContextFiles_: ContextualUpload[] = [];
-  private pendingComposeboxText_: string = '';
-  private pendingComposeboxMode_: ToolMode = ToolMode.kUnspecified;
-  private pendingComposeboxModel_: ModelMode = ModelMode.kUnspecified;
-  private pendingAutoRemovalToasts_:
-      Array<{message: string, undo: () => void}> = [];
+  private pendingUndoToasts_: Array<{message: string, undo: () => void}> = [];
 
   constructor() {
     performance.mark('app-creation-start');
@@ -515,8 +509,6 @@ export class AppElement extends AppElementBase {
     super.connectedCallback();
     realboxCanShowSecondarySideMediaQueryList.addEventListener(
         'change', this.onRealboxCanShowSecondarySideChanged_);
-    this.reducedMotionMediaQueryList_.addEventListener(
-        'change', this.onReducedMotionChanged_);
 
     // Listen for chrome-untrusted://ntp-microsoft-auth iframe trying to
     // connect to the NTP.
@@ -599,6 +591,13 @@ export class AppElement extends AppElementBase {
     this.eventTracker_.add(document, 'scroll', () => {
       this.scrolledToTop_ = document.documentElement.scrollTop <= 0;
     });
+    this.eventTracker_.add(
+        WindowProxy.getInstance().matchMedia('(prefers-color-scheme: dark)'),
+        'change', (e: MediaQueryListEvent) => {
+          if (e.matches) {
+            this.updateOneGoogleBarAppearance_();
+          }
+        });
     if (loadTimeData.getString('backgroundImageUrl')) {
       this.backgroundManager_.getBackgroundImageLoadTime().then(
           time => {
@@ -629,8 +628,7 @@ export class AppElement extends AppElementBase {
     super.disconnectedCallback();
     realboxCanShowSecondarySideMediaQueryList.removeEventListener(
         'change', this.onRealboxCanShowSecondarySideChanged_);
-    this.reducedMotionMediaQueryList_.removeEventListener(
-        'change', this.onReducedMotionChanged_);
+
     this.callbackRouter_.removeListener(
         this.connectMicrosoftAuthToParentDocumentListenerId_!);
     this.callbackRouter_.removeListener(this.setThemeListenerId_!);
@@ -732,8 +730,8 @@ export class AppElement extends AppElementBase {
 
     if (this.ntpRealboxNextEnabled_ && this.realboxLayoutMode_ !== '') {
       this.registerHelpBubble(
-          CONTEXTUAL_ENTRYPOINT_ELEMENT_ID,
-          ['#searchbox', '#context'], {fixed: true});
+          CONTEXTUAL_ENTRYPOINT_ELEMENT_ID, ['#searchbox', '#context'],
+          {fixed: true});
     }
   }
 
@@ -791,13 +789,8 @@ export class AppElement extends AppElementBase {
   // Called to update the OGB of relevant NTP state changes.
   private updateOneGoogleBarAppearance_() {
     if (this.oneGoogleBarLoaded_) {
-      let isNtpDarkTheme;
-      if (this.showComposebox_) {
-        isNtpDarkTheme = this.theme_ && this.theme_.isDark;
-      } else {
-        isNtpDarkTheme = this.theme_ &&
-            (!!this.theme_.backgroundImage || this.theme_.isDark);
-      }
+      const isNtpDarkTheme =
+          this.theme_ && (!!this.theme_.backgroundImage || this.theme_.isDark);
       $$<IframeElement>(this, '#oneGoogleBar')!.postMessage({
         type: 'updateAppearance',
         // We should be using a light OGB for dark themes and vice versa.
@@ -842,10 +835,6 @@ export class AppElement extends AppElementBase {
     this.realboxCanShowSecondarySide = e.matches;
   };
 
-  private onReducedMotionChanged_ = (e: MediaQueryListEvent) => {
-    this.reducedMotionPreferred_ = e.matches;
-  };
-
   private onLazyRendered_() {
     // Integration tests use this attribute to determine when lazy load has
     // completed.
@@ -868,33 +857,18 @@ export class AppElement extends AppElementBase {
     return false;
   }
 
-  protected onComposeboxInitialized_(e: CustomEvent<{
-    initializeComposeboxState:
-        (text: string, files: ContextualUpload[], mode: ToolMode,
-         model: number) => void,
-  }>) {
-    e.detail.initializeComposeboxState(
-        this.pendingComposeboxText_, this.pendingComposeboxContextFiles_,
-        this.pendingComposeboxMode_, this.pendingComposeboxModel_);
-    this.pendingComposeboxContextFiles_ = [];
-    this.pendingComposeboxText_ = '';
-    this.pendingComposeboxMode_ = ToolMode.kUnspecified;
-    this.pendingComposeboxModel_ = ModelMode.kUnspecified;
-  }
-
   protected onActionChipClick_(e: CustomEvent<OpenComposeboxEventDetail>) {
     this.onOpenComposebox_(e);
   }
 
   protected onOpenComposebox_(e: CustomEvent<OpenComposeboxEventDetail>) {
-    if (e.detail.searchboxText) {
-      this.pendingComposeboxText_ = e.detail.searchboxText;
-    }
-    if (e.detail.contextFiles && e.detail.contextFiles.length > 0) {
-      this.pendingComposeboxContextFiles_ = e.detail.contextFiles;
-    }
-    this.pendingComposeboxMode_ = e.detail.mode;
-    this.pendingComposeboxModel_ = e.detail.model;
+    this.composeboxState_ = {
+      text: e.detail.searchboxText,
+      files: e.detail.contextFiles,
+      mode: e.detail.mode,
+      model: e.detail.model,
+    };
+
     this.toggleComposebox_();
   }
 
@@ -1455,10 +1429,6 @@ export class AppElement extends AppElementBase {
 
   protected onActionChipsRetrievalStateChanged_(
       e: CustomEvent<{state: ActionChipsRetrievalState}>) {
-    if (this.reducedMotionPreferred_) {
-      // The animation should not be started.
-      return;
-    }
     const state = e.detail.state;
     // Mapping of ActionChipsRetrievalState => GlifAnimationState:
     // REQUESTED => SPINNER_ONLY
@@ -1494,18 +1464,23 @@ export class AppElement extends AppElementBase {
    */
   protected onMostVisitedAutoRemoved_(
       undoToastContext: CustomEvent<{message: string, undo: () => void}>) {
-    this.showAutoRemovedToast_(undoToastContext);
+    this.showUndoToast_(undoToastContext);
   }
 
   protected onModulesAutoRemoved_(
       undoToastContext: CustomEvent<{message: string, undo: () => void}>) {
-    this.showAutoRemovedToast_(undoToastContext);
+    this.showUndoToast_(undoToastContext);
   }
 
-  protected showAutoRemovedToast_(
+  protected onActionChipsDisabled_(
       undoToastContext: CustomEvent<{message: string, undo: () => void}>) {
-    this.pendingAutoRemovalToasts_.push(undoToastContext.detail);
-    this.processPendingAutoRemovalToasts_();
+    this.showUndoToast_(undoToastContext);
+  }
+
+  protected showUndoToast_(
+      undoToastContext: CustomEvent<{message: string, undo: () => void}>) {
+    this.pendingUndoToasts_.push(undoToastContext.detail);
+    this.processPendingUndoToasts_();
   }
 
   /**
@@ -1517,8 +1492,8 @@ export class AppElement extends AppElementBase {
    * multiple toasts at the same time. Otherwise, the first pending toast is
    * popped and shown.
    */
-  private processPendingAutoRemovalToasts_() {
-    if (this.pendingAutoRemovalToasts_.length === 0) {
+  private processPendingUndoToasts_() {
+    if (this.pendingUndoToasts_.length === 0) {
       return;
     }
 
@@ -1526,9 +1501,9 @@ export class AppElement extends AppElementBase {
       return;
     }
 
-    const undoToastContext = this.pendingAutoRemovalToasts_.shift()!;
-    this.undoAutoRemovalCallback_ = undoToastContext.undo;
-    this.undoAutoRemovalMessage_ = undoToastContext.message;
+    const undoToastContext = this.pendingUndoToasts_.shift()!;
+    this.undoToastCallback_ = undoToastContext.undo;
+    this.undoToastMessage_ = undoToastContext.message;
     this.$.undoToast.show();
   }
 
@@ -1537,12 +1512,12 @@ export class AppElement extends AppElementBase {
    * undo callback, and call the processing function to handle the next queued
    * toast (if any).
    */
-  protected onAutoRemovalUndoClick_() {
+  protected onUndoButtonClick_() {
     this.$.undoToast.hide();
-    this.undoAutoRemovalCallback_?.();
-    this.undoAutoRemovalCallback_ = null;
-    this.undoAutoRemovalMessage_ = null;
-    this.processPendingAutoRemovalToasts_();
+    this.undoToastCallback_?.();
+    this.undoToastCallback_ = null;
+    this.undoToastMessage_ = null;
+    this.processPendingUndoToasts_();
   }
 }
 

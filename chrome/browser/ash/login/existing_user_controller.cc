@@ -84,7 +84,6 @@
 #include "chrome/browser/ui/webui/ash/login/tpm_error_screen_handler.h"
 #include "chrome/browser/ui/webui/ash/login/update_required_screen_handler.h"
 #include "chrome/common/chrome_switches.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/grit/generated_resources.h"
 #include "chromeos/ash/components/cryptohome/cryptohome_parameters.h"
 #include "chromeos/ash/components/dbus/session_manager/session_manager_client.h"
@@ -405,6 +404,7 @@ ExistingUserController::ExistingUserController(
     // for now because first session is very short and it will be a auto sign
     // out in 90s if idle.
     demo_login_controller_ = std::make_unique<ash::DemoLoginController>(
+        &local_state_.get(),
         base::BindRepeating(&ExistingUserController::ConfigureAutoLogin,
                             base::Unretained(this)));
   }

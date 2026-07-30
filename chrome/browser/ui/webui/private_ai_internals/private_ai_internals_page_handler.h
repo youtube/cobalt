@@ -33,6 +33,7 @@ class PrivateAiInternalsPageHandler
       phosphor::TokenManager* token_manager,
       network::mojom::NetworkContext* network_context,
       Client* private_ai_client,
+      PrivateAiLogger* private_ai_logger,
       mojo::PendingReceiver<
           private_ai_internals::mojom::PrivateAiInternalsPageHandler> receiver);
   ~PrivateAiInternalsPageHandler() override;
@@ -54,6 +55,8 @@ class PrivateAiInternalsPageHandler
   void SendRequest(const std::string& feature_name,
                    const std::string& request,
                    SendRequestCallback callback) override;
+  void SendZssRequest(const std::string& inner_text,
+                      SendZssRequestCallback callback) override;
 
   // PrivateAiLogger::Observer:
   void OnLogInfo(const base::Location& location,
@@ -71,8 +74,9 @@ class PrivateAiInternalsPageHandler
   raw_ptr<phosphor::TokenManager> token_manager_;
   // The global client, only used for observation.
   raw_ptr<Client> private_ai_client_;
+  raw_ptr<PrivateAiLogger> private_ai_logger_;
   // The client created by webui. Used for testing.
-  std::unique_ptr<PrivateAiLogger> webui_logger_;
+  PrivateAiLogger webui_logger_;
   std::unique_ptr<Client> webui_client_;
   raw_ptr<network::mojom::NetworkContext> network_context_;
   mojo::Receiver<private_ai_internals::mojom::PrivateAiInternalsPageHandler>

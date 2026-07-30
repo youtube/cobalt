@@ -9,25 +9,44 @@
 
 #import <memory>
 
-#import "ios/chrome/browser/cobrowse/ui/assistant_aim_mutator.h"
+#import "ios/chrome/browser/composebox/coordinator/composebox_url_loader.h"
 
 @protocol AssistantAIMConsumer;
+@protocol AssistantContainerCommands;
+@class CobrowseContext;
 
 namespace web {
 class WebState;
 }
 
-// Mediator for the Assistant AIM UI.
-@interface AssistantAIMMediator : NSObject <AssistantAIMMutator>
+@class AssistantAIMMediator;
+
+// Delegate for the Assistant AIM Mediator.
+@protocol AssistantAIMMediatorDelegate <NSObject>
+
+// Called after a query is loaded.
+- (void)assistantAIMMediatorDidLoadQuery:(AssistantAIMMediator*)mediator;
+
+@end
+
+// Mediator that manages the business logic and data for the AI mode Assistant.
+@interface AssistantAIMMediator : NSObject <ComposeboxURLLoader>
 
 // The consumer for this mediator.
 @property(nonatomic, weak) id<AssistantAIMConsumer> consumer;
 
-// Initializes the mediator with a WebState.
+// Initializes the mediator with a web state and a cobrowse context that defines
+// the AI mode assistant state, and a container handler.
 - (instancetype)initWithWebState:(std::unique_ptr<web::WebState>)webState
+                         context:(CobrowseContext*)context
+                containerHandler:
+                    (id<AssistantContainerCommands>)containerHandler
     NS_DESIGNATED_INITIALIZER;
 
 - (instancetype)init NS_UNAVAILABLE;
+
+// The delegate of the mediator.
+@property(nonatomic, weak) id<AssistantAIMMediatorDelegate> delegate;
 
 // Disconnects the mediator.
 - (void)disconnect;

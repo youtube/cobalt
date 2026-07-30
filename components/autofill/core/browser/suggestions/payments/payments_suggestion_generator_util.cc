@@ -1023,11 +1023,16 @@ Suggestion CreateManageCreditCardsSuggestion(bool with_gpay_logo) {
 Suggestion CreateBnplFootnoteSuggestion() {
   Suggestion bnpl_footnote = Suggestion(SuggestionType::kBnplFootnote);
   bnpl_footnote.acceptability = Suggestion::Acceptability::kUnacceptable;
+  bnpl_footnote.tab_index = kPayLaterSuggestionTabIndex;
+
   return bnpl_footnote;
 }
 
 Suggestion CreateSaveAndFillSuggestion(const AutofillClient& client,
                                        bool& display_gpay_logo) {
+#if BUILDFLAG(IS_IOS)
+  Suggestion save_and_fill(SuggestionType::kSaveAndFillCreditCardEntry);
+#else
   Suggestion save_and_fill(
       l10n_util::GetStringUTF16(IDS_AUTOFILL_SAVE_AND_FILL_SUGGESTION_TITLE),
       SuggestionType::kSaveAndFillCreditCardEntry);
@@ -1040,6 +1045,7 @@ Suggestion CreateSaveAndFillSuggestion(const AutofillClient& client,
         IDS_AUTOFILL_LOCAL_SAVE_AND_FILL_SUGGESTION_DESCRIPTION))}};
   }
   save_and_fill.icon = Suggestion::Icon::kSaveAndFill;
+#endif  // !BUILDFLAG(IS_IOS)
   return save_and_fill;
 }
 

@@ -117,21 +117,27 @@ class CORE_EXPORT HTMLSelectElement final
   void remove(int index);
 
   String Value() const;
-  void SetValue(const String&,
-                bool send_events = false,
-                WebAutofillState = WebAutofillState::kNotFilled);
+  void SelectOptionByValue(const String&,
+                           bool send_events = false,
+                           WebAutofillState = WebAutofillState::kNotFilled);
   String valueForBinding() const { return Value(); }
   void setValueForBinding(const String&);
+
+  void SelectOptionByElement(HTMLOptionElement* option,
+                             bool send_events,
+                             WebAutofillState autofill_state);
 
   // It is possible to pass WebAutofillState::kNotFilled here in case we need
   // to simulate a reset of a <select> element.
   void SetAutofillValue(const String& value, WebAutofillState);
+  void SetAutofillOption(HTMLOptionElement* option, WebAutofillState);
 
   String SuggestedValue() const;
   // Sets the suggested value and puts the element into
   // WebAutofillState::kPreviewed state if the value exists, or
   // WebAutofillState::kNotFilled otherwise.
   void SetSuggestedValue(const String&);
+  void SetSuggestedOption(HTMLOptionElement*);
 
   // |options| and |selectedOptions| are not safe to be used in in
   // HTMLOptionElement::removedFrom() and insertedInto() because their cache
@@ -448,7 +454,6 @@ class CORE_EXPORT HTMLSelectElement final
                                    wtf_size_t list_index_start,
                                    wtf_size_t list_index_end) const;
   void SetIndexToSelectOnCancel(int list_index);
-  void SetSuggestedOption(HTMLOptionElement*);
 
   // Returns nullptr if listIndex is out of bounds, or it doesn't point an
   // HTMLOptionElement.
@@ -481,7 +486,14 @@ class CORE_EXPORT HTMLSelectElement final
   // element to see which one is selected. When this element has the multiple
   // attribute, last_on_change_option_ is not used.
   Member<HTMLOptionElement> last_on_change_option_;
+
+  // Option to display in the select element without actually changing its
+  // `last_on_change_option_`. This is introduced to be able to display
+  // information on an element without leaking it to JavaScript. Reasons for
+  // that could be previewing a value to be filled before getting explicit user
+  // consent for going ahead and filling.
   Member<HTMLOptionElement> suggested_option_;
+
   Member<SelectType> select_type_;
   Member<SelectMutationObserver> descendants_observer_;
   TreeOrderedList<HTMLSelectedContentElement> descendant_selectedcontents_;

@@ -298,7 +298,6 @@
 <translation id="2012723204723845092">Sveicam atpakaļ!</translation>
 <translation id="2015722694326466240">Lai skatītu paroles, vispirms ierīcei ir jāiestata piekļuves kods.</translation>
 <translation id="201759455285471444">Izvērst ciļņu grupu.</translation>
-<translation id="202070562065520783">Paskaidro man</translation>
 <translation id="2044394949148788042">Atveriet ciļņu režģi.</translation>
 <translation id="2044681667265133332">Kontu <ph name="USER_EMAIL" /> pārvalda domēnam <ph name="HOSTED_DOMAIN" /> atbilstošā organizācija, kas, iespējams, var skatīt noteiktu informāciju. <ph name="BEGIN_LINK" />Uzzināt vairāk<ph name="END_LINK" /></translation>
 <translation id="20485545164632846">jauns vienums</translation>
@@ -527,6 +526,7 @@
 <translation id="286382692684806520">{COUNT,plural, =1{1 vietne (vairāk sinhronizētajās ierīcēs)}zero{# vietņu (vairāk sinhronizētajās ierīcēs)}one{# vietne (vairāk sinhronizētajās ierīcēs)}other{# vietnes (vairāk sinhronizētajās ierīcēs)}}</translation>
 <translation id="2870560284913253234">Vietne</translation>
 <translation id="2876369937070532032">Nosūta Google serveriem dažu apmeklēto lapu vietrāžus URL, ja jūsu drošība ir apdraudēta</translation>
+<translation id="2877733045396505765">Tiks dzēsta atlasītā informācija, kas saglabāta šajā ierīcē un jūsu Google kontā <ph name="USER_EMAIL" />.</translation>
 <translation id="2883151425485251736">Skatiet un rediģējiet no konta paslēptās tēmas</translation>
 <translation id="288655811176831528">Aizvērt cilni</translation>
 <translation id="2888631381369839306">Cenu izsekošanas paziņojumi ir ieslēgti</translation>
@@ -959,6 +959,7 @@
 <translation id="454217142158335225">Varat atkārtoti atvērt aizvērtos vienumus no nesen atvērto ciļņu vai ciļņu grupu sadaļām. Jūsu piespraustās cilnes netiks aizvērtas.</translation>
 <translation id="4547181496285029457">Atgriešanās uz cilni “Nesenās”</translation>
 <translation id="4552042254369397518">Notiek kopēšana…</translation>
+<translation id="4553044860350038560">Citas piekļuves atslēgas</translation>
 <translation id="4564893319561643483">Paslēpt moduli “<ph name="TITLE" />”</translation>
 <translation id="4565377596337484307">Slēpt paroli</translation>
 <translation id="4568230126482344545">Paslēpt vienumu “Nesen atvērtās cilnes”</translation>
@@ -1613,6 +1614,7 @@ Funkcija Handoff ir jāiespējo arī iestatījumu sadaļā General (Vispārīgi)
 <translation id="672735642903863329">Iegūstiet grāmatzīmes, paroles un citus datus visās savās ierīcēs.</translation>
 <translation id="6729493062119577923">Kopīgotās ciļņu grupas darbības</translation>
 <translation id="6732087373923685049">kamera</translation>
+<translation id="6736243959894955139">Adrese</translation>
 <translation id="6746338529702829275">Pārskatīt konta datus</translation>
 <translation id="6750456911389438250">{count,plural, =1{Importēts {count} vēstures vienums}zero{Importēti {count} vēstures vienumi}one{Importēts {count} vēstures vienums}other{Importēti {count} vēstures vienumi}}</translation>
 <translation id="6755200887046212842">Pārvaldīt kontus</translation>
@@ -1819,7 +1821,6 @@ Funkcija Handoff ir jāiespējo arī iestatījumu sadaļā General (Vispārīgi)
 <translation id="7537586195939242955">Diemžēl pašlaik jūsu atļauju nevar instalēt lietotnē Passbook.</translation>
 <translation id="754655535278952384">Pārbaudes laiks: <ph name="TIME" /></translation>
 <translation id="7554645225856321710">Aizvērt visas</translation>
-<translation id="7554791636758816595">Jauna cilne</translation>
 <translation id="7557508262441527045">Izrakstījies</translation>
 <translation id="7561196759112975576">Vienmēr</translation>
 <translation id="7561982940498449837">Aizvērt izvēlni</translation>
@@ -1878,6 +1879,7 @@ Funkcija Handoff ir jāiespējo arī iestatījumu sadaļā General (Vispārīgi)
 <translation id="775755486779745798">Automātiski aizpildīt derīguma termiņa mēnesi: <ph name="MONTH" /></translation>
 <translation id="7758789811447313947">Violets motīvs</translation>
 <translation id="7759809451544302770">Neobligātas</translation>
+<translation id="7763878244904387570">Tiks dzēsta atlasītā informācija, kas saglabāta šajā ierīcē.</translation>
 <translation id="7765158879357617694">Pārvietot</translation>
 <translation id="7772032839648071052">Apstipriniet ieejas frāzi</translation>
 <translation id="7772948288262733182">Laipni lūdzam atpakaļ!</translation>
@@ -2248,7 +2250,6 @@ Funkcija Handoff ir jāiespējo arī iestatījumu sadaļā General (Vispārīgi)
 <translation id="8988107725234939347"><ph name="WEBSITE_TITLE" />, piesprausta vietne</translation>
 <translation id="8990960056509724223">Failu nevarēja saglabāt jūsu organizācijas politiku dēļ.</translation>
 <translation id="8998289560386111590">Nav pieejams jūsu ierīcē</translation>
-<translation id="9000532564152265066">Visas cilnes</translation>
 <translation id="9003677638446136377">Pārbaudīt vēlreiz</translation>
 <translation id="9006453925669499173">Izvēlne → Jauna inkognito cilne</translation>
 <translation id="9008201768610948239">Ignorēt</translation>

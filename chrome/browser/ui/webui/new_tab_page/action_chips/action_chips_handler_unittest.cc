@@ -61,6 +61,7 @@ using ::action_chips::mojom::Page;
 using ::action_chips::mojom::SuggestTemplateInfo;
 using ::action_chips::mojom::TabInfo;
 using ::action_chips::mojom::TabInfoPtr;
+using ::action_chips::mojom::ToolMode;
 using ::base::Bucket;
 using ::base::BucketsAreArray;
 using ::testing::_;
@@ -81,6 +82,8 @@ class MockPage : public Page {
   mojo::PendingRemote<Page> BindAndGetRemote() {
     return receiver_.BindNewPipeAndPassRemote();
   }
+
+  void FlushForTesting() { receiver_.FlushForTesting(); }
 
   MOCK_METHOD(void,
               OnActionChipsChanged,
@@ -131,6 +134,7 @@ struct ActionChipFields {
   std::string primary_text;
   std::string secondary_text;
   std::optional<TabInfoFields> tab;
+  ToolMode preselected_tool = ToolMode::kUnspecified;
 };
 
 base::Time GetTimeAt(const size_t index) {
@@ -149,7 +153,8 @@ ActionChipPtr MakeActionChip(const ActionChipFields& fields) {
       fields.suggestion,
       SuggestTemplateInfo::New(fields.icon_type,
                                CreateFormattedString(fields.primary_text),
-                               CreateFormattedString(fields.secondary_text)),
+                               CreateFormattedString(fields.secondary_text),
+                               fields.preselected_tool),
       std::move(tab));
 }
 
@@ -494,13 +499,15 @@ TEST_F(
               "suggention1",
               SuggestTemplateInfo::New(IconType::kIconTypeUnspecified,
                                        CreateFormattedString("title1"),
-                                       CreateFormattedString("subtitle1")),
+                                       CreateFormattedString("subtitle1"),
+                                       ToolMode::kUnspecified),
               nullptr),
           ActionChip::New(
               "suggention2",
               SuggestTemplateInfo::New(IconType::kIconTypeUnspecified,
                                        CreateFormattedString("title2"),
-                                       CreateFormattedString("subtitle2")),
+                                       CreateFormattedString("subtitle2"),
+                                       ToolMode::kUnspecified),
               nullptr))));
 
   // Act
@@ -660,12 +667,38 @@ TEST_F(ActionChipsHandlerTest, ContextSharingDisabled) {
 }
 
 TEST_F(ActionChipsHandlerTest, ActionChipVisbilityChanged) {
-  // Set visibility to false.
-  profile_->GetPrefs()->SetBoolean(prefs::kNtpToolChipsVisible, false);
+  // Set visibility to false, and this causes no call to OnActionChipsChanged.
   EXPECT_CALL(page_, OnActionChipsChanged(_)).Times(0);
+  profile_->GetPrefs()->SetBoolean(prefs::kNtpToolChipsVisible, false);
+  page_.FlushForTesting();
+  testing::Mock::VerifyAndClearExpectations(&page_);
 
   // Ensure `OnActionChipsChanged` is called when visibility changes to true.
-  profile_->GetPrefs()->SetBoolean(prefs::kNtpToolChipsVisible, true);
   EXPECT_CALL(page_, OnActionChipsChanged(_)).Times(1);
+  profile_->GetPrefs()->SetBoolean(prefs::kNtpToolChipsVisible, true);
+  page_.FlushForTesting();
+  testing::Mock::VerifyAndClearExpectations(&page_);
+}
+
+TEST_F(ActionChipsHandlerTest, SetActionChipsVisibility) {
+  EXPECT_TRUE(profile_->GetPrefs()->GetBoolean(prefs::kNtpToolChipsVisible));
+  handler().SetActionChipsVisibility(false);
+  EXPECT_FALSE(profile_->GetPrefs()->GetBoolean(prefs::kNtpToolChipsVisible));
+  handler().SetActionChipsVisibility(true);
+  EXPECT_TRUE(profile_->GetPrefs()->GetBoolean(prefs::kNtpToolChipsVisible));
+}
+
+TEST_F(ActionChipsHandlerTest, NullBrowserWindowInterface) {
+  // Replace the real browser_window_interface with a null one.
+  webui::SetBrowserWindowInterface(web_contents(), nullptr);
+
+  auto mock_action_chips_generator =
+      std::make_unique<MockActionChipsGenerator>();
+  // Re-create the handler this time with no browser_window_interface.
+  // This should not crash.
+  auto handler_without_bwi = std::make_unique<FakeActionChipsHandler>(
+      mojo::PendingReceiver<action_chips::mojom::ActionChipsHandler>(),
+      mojo::PendingRemote<Page>(), profile_.get(), web_ui_.get(),
+      std::move(mock_action_chips_generator));
 }
 }  // namespace

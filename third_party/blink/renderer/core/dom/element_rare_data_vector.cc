@@ -370,13 +370,6 @@ DOMTokenList* ElementRareDataVector::GetPart() const {
   return static_cast<DOMTokenList*>(GetField(FieldId::kPart));
 }
 
-ElementRareDataVector* ElementRareDataVector::SetMarker(DOMTokenList* marker) {
-  return SetField(FieldId::kMarker, marker);
-}
-DOMTokenList* ElementRareDataVector::GetMarker() const {
-  return static_cast<DOMTokenList*>(GetField(FieldId::kMarker));
-}
-
 ElementRareDataVector* ElementRareDataVector::SetPartNamesMap(
     const AtomicString part_names) {
   auto [names_map, vec] = EnsureField<NamesMap>(FieldId::kPartNamesMap);
@@ -707,9 +700,11 @@ DisplayAdElementMonitor* ElementRareDataVector::GetDisplayAdElementMonitor()
 
 std::pair<std::reference_wrapper<DisplayAdElementMonitor>,
           ElementRareDataVector*>
-ElementRareDataVector::EnsureDisplayAdElementMonitor(Element* element) {
-  return EnsureField<DisplayAdElementMonitor>(FieldId::kDisplayAdElementMonitor,
-                                              element);
+ElementRareDataVector::EnsureDisplayAdElementMonitor(
+    Element* element,
+    AdProvenance ad_provenance) {
+  return EnsureField<DisplayAdElementMonitor>(
+      FieldId::kDisplayAdElementMonitor, element, std::move(ad_provenance));
 }
 
 ElementRareDataVector* ElementRareDataVector::SetFocusgroupLastFocused(

@@ -4,32 +4,48 @@
 
 #import "ios/chrome/browser/app_bar/coordinator/app_bar_coordinator.h"
 
+#import "ios/chrome/browser/app_bar/coordinator/app_bar_container_mediator.h"
 #import "ios/chrome/browser/app_bar/coordinator/app_bar_mediator.h"
 #import "ios/chrome/browser/app_bar/ui/app_bar_container_view_controller.h"
 #import "ios/chrome/browser/app_bar/ui/app_bar_view_controller.h"
+#import "ios/chrome/browser/authentication/account_menu/coordinator/account_menu_coordinator.h"
+#import "ios/chrome/browser/authentication/account_menu/coordinator/account_menu_coordinator_delegate.h"
+#import "ios/chrome/browser/authentication/account_menu/public/account_menu_constants.h"
+#import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
+#import "ios/chrome/browser/intelligence/bwg/model/bwg_service_factory.h"
 #import "ios/chrome/browser/menu/ui_bundled/browser_action_factory.h"
+#import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
 #import "ios/chrome/browser/shared/coordinator/layout_guide/layout_guide_util.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
 #import "ios/chrome/browser/shared/coordinator/scene/state/tab_grid_state.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
+#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/guided_tour_commands.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
+#import "ios/chrome/browser/shared/public/commands/settings_commands.h"
 #import "ios/chrome/browser/shared/public/commands/tab_grid_commands.h"
 #import "ios/chrome/browser/shared/public/commands/tab_groups_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/signin/model/authentication_service_factory.h"
+#import "ios/chrome/browser/signin/model/chrome_account_manager_service_factory.h"
+#import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
 
-@interface AppBarCoordinator () <GuidedTourCommands>
+@interface AppBarCoordinator () <AccountMenuCoordinatorDelegate,
+                                 GuidedTourCommands>
 @end
 
 @implementation AppBarCoordinator {
   AppBarContainerViewController* _containerViewController;
   AppBarViewController* _viewController;
   AppBarMediator* _mediator;
+  AppBarContainerMediator* _containerMediator;
   raw_ptr<Browser> _incognitoBrowser;
   raw_ptr<Browser> _regularBrowser;
+  // The account menu coordinator.
+  AccountMenuCoordinator* _accountMenuCoordinator;
 }
 
 - (instancetype)initWithRegularBrowser:(Browser*)regularBrowser
@@ -45,12 +61,16 @@
 - (void)start {
   CommandDispatcher* regularDispatcher =
       _regularBrowser->GetCommandDispatcher();
+  CommandDispatcher* incognitoDispatcher =
+      _incognitoBrowser->GetCommandDispatcher();
   // It is ok to use the regular browser here as the Scene commands are
   // handled by the same object for both modes.
   id<SceneCommands> sceneHandler =
       HandlerForProtocol(regularDispatcher, SceneCommands);
   id<TabGridCommands> tabGridHandler =
       HandlerForProtocol(regularDispatcher, TabGridCommands);
+  id<BWGCommands> geminiHandler =
+      HandlerForProtocol(regularDispatcher, BWGCommands);
 
   _viewController = [[AppBarViewController alloc] init];
   _viewController.sceneHandler = sceneHandler;
@@ -58,31 +78,60 @@
   _viewController.layoutGuideCenter = LayoutGuideCenterForBrowser(nil);
 
   SceneState* sceneState = _regularBrowser->GetSceneState();
+  ProfileIOS* profile = _regularBrowser->GetProfile();
+
+  FullscreenController* regularFullscreenController =
+      FullscreenController::FromBrowser(_regularBrowser);
+  FullscreenController* incognitoFullscreenController =
+      FullscreenController::FromBrowser(_incognitoBrowser);
 
   _mediator = [[AppBarMediator alloc]
-      initWithRegularWebStateList:_regularBrowser->GetWebStateList()
-            incognitoWebStateList:_incognitoBrowser->GetWebStateList()
-                      prefService:_regularBrowser->GetProfile()->GetPrefs()
-                        URLLoader:UrlLoadingBrowserAgent::FromBrowser(
-                                      _regularBrowser)
-                     tabGridState:sceneState.tabGridState
-                   incognitoState:sceneState.incognitoState];
+        initWithRegularWebStateList:_regularBrowser->GetWebStateList()
+              incognitoWebStateList:_incognitoBrowser->GetWebStateList()
+        regularFullscreenController:regularFullscreenController
+      incognitoFullscreenController:incognitoFullscreenController
+                        prefService:profile->GetPrefs()
+                 templateURLService:ios::TemplateURLServiceFactory::
+                                        GetForProfile(
+                                            _regularBrowser->GetProfile())
+              authenticationService:AuthenticationServiceFactory::GetForProfile(
+                                        profile)
+                      geminiService:BwgServiceFactory::GetForProfile(profile)
+              accountManagerService:ChromeAccountManagerServiceFactory::
+                                        GetForProfile(profile)
+                    identityManager:IdentityManagerFactory::GetForProfile(
+                                        profile)
+                          URLLoader:UrlLoadingBrowserAgent::FromBrowser(
+                                        _regularBrowser)
+                       tabGridState:sceneState.tabGridState
+                     incognitoState:sceneState.incognitoState];
   _mediator.regularActionFactory = [[BrowserActionFactory alloc]
-      initWithBrowser:_regularBrowser.get()
+      initWithBrowser:_regularBrowser
              scenario:kMenuScenarioHistogramToolbarMenu];
   _mediator.incognitoActionFactory = [[BrowserActionFactory alloc]
-      initWithBrowser:_incognitoBrowser.get()
+      initWithBrowser:_incognitoBrowser
              scenario:kMenuScenarioHistogramToolbarMenu];
   _mediator.sceneHandler = sceneHandler;
   _mediator.tabGridHandler = tabGridHandler;
+  _mediator.settingsHandler =
+      HandlerForProtocol(regularDispatcher, SettingsCommands);
+  _mediator.geminiHandler = geminiHandler;
+  _mediator.baseViewController = _viewController;
   _mediator.regularTabGroupsCommands =
       HandlerForProtocol(regularDispatcher, TabGroupsCommands);
+  _mediator.incognitoTabGroupsCommands =
+      HandlerForProtocol(incognitoDispatcher, TabGroupsCommands);
 
   _mediator.consumer = _viewController;
   _viewController.mutator = _mediator;
 
   _containerViewController = [[AppBarContainerViewController alloc] init];
   [_containerViewController setAppBar:_viewController];
+
+  _containerMediator = [[AppBarContainerMediator alloc]
+      initWithRegularFullscreenController:regularFullscreenController
+            incognitoFullscreenController:incognitoFullscreenController];
+  _containerMediator.consumer = _containerViewController;
 
   if (IsBestOfAppGuidedTourEnabled()) {
     [_regularBrowser->GetCommandDispatcher()
@@ -94,9 +143,27 @@
 - (void)stop {
   [_mediator disconnect];
   _mediator = nil;
+  [_containerMediator disconnect];
+  _containerMediator = nil;
   _viewController = nil;
   _regularBrowser = nullptr;
   _incognitoBrowser = nullptr;
+  [_accountMenuCoordinator stop];
+  _accountMenuCoordinator.delegate = nil;
+  _accountMenuCoordinator = nil;
+}
+
+#pragma mark AppBarMediatorDelegate
+
+- (void)showAccountMenu:(UIView*)anchorView {
+  _accountMenuCoordinator = [[AccountMenuCoordinator alloc]
+      initWithBaseViewController:self.baseViewController
+                         browser:_regularBrowser
+                      anchorView:anchorView
+                     accessPoint:AccountMenuAccessPoint::kNewTabPage
+                             URL:GURL()];
+  _accountMenuCoordinator.delegate = self;
+  [_accountMenuCoordinator start];
 }
 
 #pragma mark - Properties
@@ -110,6 +177,27 @@
   [_mediator setIncognitoWebStateList:incognitoBrowser
                                           ? incognitoBrowser->GetWebStateList()
                                           : nullptr];
+  [_mediator
+      setIncognitoFullscreenController:incognitoBrowser
+                                           ? FullscreenController::FromBrowser(
+                                                 incognitoBrowser)
+                                           : nullptr];
+  [_containerMediator
+      setIncognitoFullscreenController:incognitoBrowser
+                                           ? FullscreenController::FromBrowser(
+                                                 incognitoBrowser)
+                                           : nullptr];
+  _mediator.incognitoActionFactory =
+      incognitoBrowser ? [[BrowserActionFactory alloc]
+                             initWithBrowser:incognitoBrowser
+                                    scenario:kMenuScenarioHistogramToolbarMenu]
+                       : nil;
+  CommandDispatcher* incognitoDispatcher =
+      incognitoBrowser ? _incognitoBrowser->GetCommandDispatcher() : nil;
+  _mediator.incognitoTabGroupsCommands =
+      incognitoDispatcher
+          ? HandlerForProtocol(incognitoDispatcher, TabGroupsCommands)
+          : nil;
 }
 
 #pragma mark - GuidedTourCommands
@@ -124,6 +212,16 @@
   if (step == GuidedTourStep::kNTP) {
     [_viewController toggleSpotlightView:NO];
   }
+}
+
+#pragma mark - AccountMenuCoordinatorDelegate
+
+- (void)accountMenuCoordinatorWantsToBeStopped:
+    (AccountMenuCoordinator*)coordinator {
+  CHECK_EQ(_accountMenuCoordinator, coordinator, base::NotFatalUntil::M140);
+  [_accountMenuCoordinator stop];
+  _accountMenuCoordinator.delegate = nil;
+  _accountMenuCoordinator = nil;
 }
 
 @end

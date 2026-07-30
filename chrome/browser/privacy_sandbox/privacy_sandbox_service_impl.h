@@ -25,10 +25,6 @@
 #include "content/public/browser/interest_group_manager.h"
 #include "net/base/schemeful_site.h"
 
-#if !BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/privacy_sandbox/privacy_sandbox_queue_manager.h"
-#endif  // !BUILDFLAG(IS_ANDROID)
-
 class BrowserWindowInterface;
 class PrefService;
 
@@ -69,17 +65,6 @@ class PrivacySandboxServiceImpl : public PrivacySandboxService {
   void Shutdown() override;
 
   // PrivacySandboxService:
-  PromptType GetRequiredPromptType(SurfaceType surface_type) override;
-  void PromptActionOccurred(PromptAction action,
-                            SurfaceType surface_type) override;
-#if !BUILDFLAG(IS_ANDROID)
-  void PromptOpenedForBrowser(BrowserWindowInterface* browser,
-                              views::Widget* widget) override;
-  void PromptClosedForBrowser(BrowserWindowInterface* browser) override;
-  bool IsPromptOpenForBrowser(BrowserWindowInterface* browser) override;
-  privacy_sandbox::PrivacySandboxQueueManager&
-  GetPrivacySandboxNoticeQueueManager() override;
-#endif  // !BUILDFLAG(IS_ANDROID)
   void ForceChromeBuildForTests(bool force_chrome_build) override;
   bool IsPrivacySandboxRestricted() override;
   bool IsRestrictedNoticeEnabled() override;
@@ -137,8 +122,6 @@ class PrivacySandboxServiceImpl : public PrivacySandboxService {
   FRIEND_TEST_ALL_PREFIXES(PrivacySandboxServicePromptTest,
                            ManuallyControlledNoPrompt);
   FRIEND_TEST_ALL_PREFIXES(PrivacySandboxServicePromptTest, NoParamNoPrompt);
-  FRIEND_TEST_ALL_PREFIXES(PrivacySandboxServiceDeathTest,
-                           GetRequiredPromptType);
   FRIEND_TEST_ALL_PREFIXES(PrivacySandboxServiceTest,
                            PrivacySandboxPromptNoticeWaiting);
   FRIEND_TEST_ALL_PREFIXES(PrivacySandboxServiceTest,
@@ -309,12 +292,6 @@ class PrivacySandboxServiceImpl : public PrivacySandboxService {
       privacy_sandbox::TopicsConsentUpdateSource source,
       bool did_consent) const;
 
-#if !BUILDFLAG(IS_ANDROID)
-  // If appropriate based on feature state, closes all currently open Privacy
-  // Sandbox prompts.
-  void MaybeCloseOpenPrompts();
-#endif  // !BUILDFLAG(IS_ANDROID)
-
  private:
   // Determines whether Privacy Sandbox Ads consent is required.
   bool IsConsentRequired();
@@ -328,14 +305,8 @@ class PrivacySandboxServiceImpl : public PrivacySandboxService {
   // or newly set reason), false otherwise.
   bool UpdateAndGetSuppressionReason();
 
-  // Returns whether the prompt should be disabled.
-  bool ShouldDisablePrompt();
-
   // Helper function to set the prompt suppression reason.
   void SetPromptSuppressedReason(PromptSuppressedReason reason);
-
-  // Internal implementation for `GetRequiredPromptType`.
-  PromptType GetRequiredPromptTypeInternal(SurfaceType surface_type);
 
   raw_ptr<Profile> profile_;
   raw_ptr<privacy_sandbox::PrivacySandboxSettings> privacy_sandbox_settings_;
@@ -361,8 +332,6 @@ class PrivacySandboxServiceImpl : public PrivacySandboxService {
   // to the Widget for that prompt.
   std::map<BrowserWindowInterface*, raw_ptr<views::Widget, CtnExperimental>>
       browsers_to_open_prompts_;
-  // Instance of queue manager used to manage queue states.
-  std::unique_ptr<privacy_sandbox::PrivacySandboxQueueManager> queue_manager_;
 #endif
 
   // Fake implementation for current and blocked topics.
@@ -370,9 +339,6 @@ class PrivacySandboxServiceImpl : public PrivacySandboxService {
   // potential initialization order issues.
   std::set<privacy_sandbox::CanonicalTopic> fake_current_topics_;
   std::set<privacy_sandbox::CanonicalTopic> fake_blocked_topics_;
-
-  // Record user action metrics based on the |action|.
-  void RecordPromptActionMetrics(PrivacySandboxService::PromptAction action);
 
   // Record user startup state metrics based on the |state| on both client and
   // profile level.

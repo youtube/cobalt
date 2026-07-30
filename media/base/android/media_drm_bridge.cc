@@ -323,13 +323,6 @@ std::string GetSecurityLevelString(
   return "";
 }
 
-int GetFirstApiLevel() {
-  JNIEnv* env = AttachCurrentThread();
-  int first_api_level = Java_MediaDrmBridge_getFirstApiLevel(env);
-  base::UmaHistogramSparse("Media.EME.MediaDrm.FirstApiLevel", first_api_level);
-  return first_api_level;
-}
-
 CreateCdmTypedStatus ConvertMediaDrmCreateError(
     MediaDrmBridge::MediaDrmCreateError error,
     MediaDrmBridge::SecurityLevel security_level) {
@@ -361,6 +354,21 @@ CreateCdmTypedStatus ConvertMediaDrmCreateError(
   return CreateCdmTypedStatus::Codes::kUnknownError;
 }
 
+CdmSessionClosedReason ToCdmSessionClosedReason(
+    MediaDrmBridge::MediaDrmCdmSessionClosedReason reason) {
+  switch (reason) {
+    case MediaDrmBridge::MediaDrmCdmSessionClosedReason::CLOSE:
+      return CdmSessionClosedReason::kClose;
+    case MediaDrmBridge::MediaDrmCdmSessionClosedReason::SESSION_RECLAIMED:
+      return CdmSessionClosedReason::kResourceEvicted;
+    case MediaDrmBridge::MediaDrmCdmSessionClosedReason::SESSION_LOST:
+      return CdmSessionClosedReason::kHardwareContextReset;
+  }
+
+  // Default return a generic close.
+  return CdmSessionClosedReason::kClose;
+}
+
 }  // namespace
 
 // static
@@ -374,7 +382,9 @@ bool MediaDrmBridge::IsPerApplicationProvisioningSupported() {
   // If it is non-zero, then it is the API level.
   // Checking FirstApiLevel is known to be expensive (see crbug.com/1366106),
   // and thus is cached.
-  static int first_api_level = GetFirstApiLevel();
+  static int first_api_level;
+  base::StringToInt(base::SysInfo::GetAndroidFirstApiLevel(), &first_api_level);
+  base::UmaHistogramSparse("Media.EME.MediaDrm.FirstApiLevel", first_api_level);
   DVLOG(1) << "first_api_level = " << first_api_level;
   if (first_api_level >= base::android::android_info::SDK_VERSION_OREO) {
     return true;
@@ -913,14 +923,17 @@ void MediaDrmBridge::OnSessionMessage(JNIEnv* env,
 }
 
 void MediaDrmBridge::OnSessionClosed(JNIEnv* env,
-                                     const JavaRef<jbyteArray>& j_session_id) {
+                                     const JavaRef<jbyteArray>& j_session_id,
+                                     int32_t j_reason) {
   DVLOG(2) << __func__;
   std::string session_id;
   JavaByteArrayToString(env, j_session_id, &session_id);
-  // TODO(crbug.com/40181810): Support other closed reasons.
   task_runner_->PostTask(
-      FROM_HERE, base::BindOnce(session_closed_cb_, std::move(session_id),
-                                CdmSessionClosedReason::kClose));
+      FROM_HERE,
+      base::BindOnce(
+          session_closed_cb_, std::move(session_id),
+          ToCdmSessionClosedReason(
+              static_cast<MediaDrmCdmSessionClosedReason>(j_reason))));
 }
 
 void MediaDrmBridge::OnSessionKeysChange(

@@ -238,9 +238,7 @@ class WaylandClipboardTest : public WaylandClipboardTestBase {
     offered_data_[mime_type] = base::MakeRefCounted<base::RefCountedBytes>(
         base::ToVector(base::as_byte_span(data)));
 
-    base::MockCallback<PlatformClipboard::OfferDataClosure> offer_callback;
-    EXPECT_CALL(offer_callback, Run()).Times(1);
-    clipboard_->OfferClipboardData(buffer, offered_data_, offer_callback.Get());
+    clipboard_->OfferClipboardData(buffer, offered_data_);
   }
 
   PlatformClipboard::DataMap offered_data_;
@@ -420,7 +418,11 @@ TEST_P(WaylandClipboardTest, IsSelectionOwner) {
         ASSERT_TRUE(GetSelectionSource(server, buffer));
       });
 
-  ASSERT_TRUE(clipboard_->IsSelectionOwner(WhichBufferToUse()));
+  bool is_owner = false;
+  clipboard_->IsSelectionOwner(
+      WhichBufferToUse(), base::BindLambdaForTesting(
+                              [&is_owner](bool result) { is_owner = result; }));
+  ASSERT_TRUE(is_owner);
 
   // The compositor sends OnCancelled whenever another application on the system
   // sets a new selection. It means we are not the application that owns the
@@ -430,7 +432,10 @@ TEST_P(WaylandClipboardTest, IsSelectionOwner) {
         GetSelectionSource(server, buffer)->OnCancelled();
       });
 
-  ASSERT_FALSE(clipboard_->IsSelectionOwner(WhichBufferToUse()));
+  clipboard_->IsSelectionOwner(
+      WhichBufferToUse(), base::BindLambdaForTesting(
+                              [&is_owner](bool result) { is_owner = result; }));
+  ASSERT_FALSE(is_owner);
 
   connection_->serial_tracker().ResetSerial(wl::SerialType::kMousePress);
 }
@@ -492,7 +497,11 @@ TEST_P(WaylandClipboardTest, ClipboardChangeNotifications) {
                             ToClipboardData(kSampleClipboardText));
         GetSelectionDevice(server, buffer)->OnSelection(data_offer);
       });
-  EXPECT_FALSE(clipboard_->IsSelectionOwner(buffer));
+  bool is_owner = true;
+  clipboard_->IsSelectionOwner(
+      buffer, base::BindLambdaForTesting(
+                  [&is_owner](bool result) { is_owner = result; }));
+  EXPECT_FALSE(is_owner);
 
   // 2. For selection offered by Chromium.
   connection_->serial_tracker().UpdateSerial(wl::SerialType::kMousePress, 1);
@@ -502,7 +511,10 @@ TEST_P(WaylandClipboardTest, ClipboardChangeNotifications) {
       [buffer = WhichBufferToUse()](wl::TestWaylandServerThread* server) {
         ASSERT_TRUE(GetSelectionSource(server, buffer));
       });
-  EXPECT_TRUE(clipboard_->IsSelectionOwner(buffer));
+  clipboard_->IsSelectionOwner(
+      buffer, base::BindLambdaForTesting(
+                  [&is_owner](bool result) { is_owner = result; }));
+  EXPECT_TRUE(is_owner);
   connection_->serial_tracker().ResetSerial(wl::SerialType::kMousePress);
 }
 
@@ -511,10 +523,12 @@ TEST_P(WaylandClipboardTest, ClipboardChangeNotifications) {
 TEST_P(CopyPasteOnlyClipboardTest, PrimarySelectionRequestsNoop) {
   const auto buffer = ClipboardBuffer::kSelection;
 
-  base::MockCallback<PlatformClipboard::OfferDataClosure> offer_done;
-  EXPECT_CALL(offer_done, Run()).Times(1);
-  clipboard_->OfferClipboardData(buffer, {}, offer_done.Get());
-  EXPECT_FALSE(clipboard_->IsSelectionOwner(buffer));
+  clipboard_->OfferClipboardData(buffer, {});
+  bool is_owner = true;
+  clipboard_->IsSelectionOwner(
+      buffer, base::BindLambdaForTesting(
+                  [&is_owner](bool result) { is_owner = result; }));
+  EXPECT_FALSE(is_owner);
 
   base::MockCallback<PlatformClipboard::RequestDataClosure> got_data;
   EXPECT_CALL(got_data, Run(IsNull())).Times(1);

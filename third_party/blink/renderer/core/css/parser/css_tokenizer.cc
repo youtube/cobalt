@@ -117,7 +117,7 @@ CSSParserToken CSSTokenizer::Hash(UChar cc) {
 
 CSSParserToken CSSTokenizer::LetterU(UChar cc) {
   if (unicode_ranges_allowed_ && input_.PeekWithoutReplacement(0) == '+' &&
-      (IsASCIIHexDigit(input_.PeekWithoutReplacement(1)) ||
+      (IsAsciiHexDigit(input_.PeekWithoutReplacement(1)) ||
        input_.PeekWithoutReplacement(1) == '?')) {
     input_.Advance();
     return ConsumeUnicodeRange();
@@ -319,26 +319,26 @@ CSSParserToken CSSTokenizer::ConsumeNumber() {
     sign = kMinusSign;
   }
 
-  number_length = input_.SkipWhilePredicate<IsASCIIDigit>(number_length);
+  number_length = input_.SkipWhilePredicate<IsAsciiDigit>(number_length);
   next = input_.PeekWithoutReplacement(number_length);
   if (next == '.' &&
-      IsASCIIDigit(input_.PeekWithoutReplacement(number_length + 1))) {
+      IsAsciiDigit(input_.PeekWithoutReplacement(number_length + 1))) {
     type = kNumberValueType;
-    number_length = input_.SkipWhilePredicate<IsASCIIDigit>(number_length + 2);
+    number_length = input_.SkipWhilePredicate<IsAsciiDigit>(number_length + 2);
     next = input_.PeekWithoutReplacement(number_length);
   }
 
   if (next == 'E' || next == 'e') {
     next = input_.PeekWithoutReplacement(number_length + 1);
-    if (IsASCIIDigit(next)) {
+    if (IsAsciiDigit(next)) {
       type = kNumberValueType;
       number_length =
-          input_.SkipWhilePredicate<IsASCIIDigit>(number_length + 1);
+          input_.SkipWhilePredicate<IsAsciiDigit>(number_length + 1);
     } else if ((next == '+' || next == '-') &&
-               IsASCIIDigit(input_.PeekWithoutReplacement(number_length + 2))) {
+               IsAsciiDigit(input_.PeekWithoutReplacement(number_length + 2))) {
       type = kNumberValueType;
       number_length =
-          input_.SkipWhilePredicate<IsASCIIDigit>(number_length + 3);
+          input_.SkipWhilePredicate<IsAsciiDigit>(number_length + 3);
     }
   }
 
@@ -435,14 +435,14 @@ CSSParserToken CSSTokenizer::ConsumeStringTokenUntil(UChar ending_code_point) {
 }
 
 CSSParserToken CSSTokenizer::ConsumeUnicodeRange() {
-  DCHECK(IsASCIIHexDigit(input_.PeekWithoutReplacement(0)) ||
+  DCHECK(IsAsciiHexDigit(input_.PeekWithoutReplacement(0)) ||
          input_.PeekWithoutReplacement(0) == '?');
   int length_remaining = 6;
   UChar32 start = 0;
 
   while (length_remaining &&
-         IsASCIIHexDigit(input_.PeekWithoutReplacement(0))) {
-    start = start * 16 + ToASCIIHexValue(Consume());
+         IsAsciiHexDigit(input_.PeekWithoutReplacement(0))) {
+    start = start * 16 + ToAsciiHexValue(Consume());
     --length_remaining;
   }
 
@@ -454,15 +454,15 @@ CSSParserToken CSSTokenizer::ConsumeUnicodeRange() {
       --length_remaining;
     } while (length_remaining && ConsumeIfNext('?'));
   } else if (input_.PeekWithoutReplacement(0) == '-' &&
-             IsASCIIHexDigit(input_.PeekWithoutReplacement(1))) {
+             IsAsciiHexDigit(input_.PeekWithoutReplacement(1))) {
     input_.Advance();
     length_remaining = 6;
     end = 0;
     do {
-      end = end * 16 + ToASCIIHexValue(Consume());
+      end = end * 16 + ToAsciiHexValue(Consume());
       --length_remaining;
     } while (length_remaining &&
-             IsASCIIHexDigit(input_.PeekWithoutReplacement(0)));
+             IsAsciiHexDigit(input_.PeekWithoutReplacement(0)));
   }
 
   return CSSParserToken(kUnicodeRangeToken, start, end);
@@ -696,15 +696,15 @@ bool CSSTokenizer::NextTwoCharsAreValidEscape() {
 // http://www.w3.org/TR/css3-syntax/#starts-with-a-number
 bool CSSTokenizer::NextCharsAreNumber(UChar first) {
   UChar second = input_.PeekWithoutReplacement(0);
-  if (IsASCIIDigit(first)) {
+  if (IsAsciiDigit(first)) {
     return true;
   }
   if (first == '+' || first == '-') {
-    return ((IsASCIIDigit(second)) ||
-            (second == '.' && IsASCIIDigit(input_.PeekWithoutReplacement(1))));
+    return ((IsAsciiDigit(second)) ||
+            (second == '.' && IsAsciiDigit(input_.PeekWithoutReplacement(1))));
   }
   if (first == '.') {
-    return (IsASCIIDigit(second));
+    return (IsAsciiDigit(second));
   }
   return false;
 }
@@ -722,6 +722,9 @@ bool CSSTokenizer::NextCharsAreIdentifier(UChar first) {
 }
 
 bool CSSTokenizer::NextCharsAreIdentifier() {
+  if (input_.AtEnd()) {
+    return false;
+  }
   UChar first = Consume();
   bool are_identifier = NextCharsAreIdentifier(first);
   Reconsume(first);

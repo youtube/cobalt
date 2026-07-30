@@ -139,11 +139,15 @@ class OnDeviceExecution final
   // on_device_model::mojom::StreamingResponder:
   void OnResponse(on_device_model::mojom::ResponseChunkPtr chunk) override;
   void OnComplete(on_device_model::mojom::ResponseSummaryPtr summary) override;
+  void OnToolCalls(
+      std::vector<on_device_model::mojom::ToolCallPtr> tool_calls) override;
 
   // on_device_model::mojom::ContextClient:
   void OnComplete(uint32_t tokens_processed) override;
 
-  void OnResponderDisconnect();
+  // Called on StreamingResponder mojo pipe disconnect.
+  void OnResponderDisconnect(uint32_t custom_reason,
+                             const std::string& description);
 
   // Evaluates raw output safety (leads to OnRawOutputSafetyResult).
   void RunRawOutputSafetyCheck(ResponseCompleteness completeness);

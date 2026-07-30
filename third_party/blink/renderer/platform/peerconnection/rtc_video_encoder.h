@@ -45,7 +45,6 @@ namespace blink {
 
 namespace features {
 PLATFORM_EXPORT BASE_DECLARE_FEATURE(kWebRtcScreenshareSwEncoding);
-PLATFORM_EXPORT BASE_DECLARE_FEATURE(kForcingSoftwareIncludes360);
 PLATFORM_EXPORT BASE_DECLARE_FEATURE(kKeepEncoderInstanceOnRelease);
 }
 
@@ -62,7 +61,8 @@ class PLATFORM_EXPORT RTCVideoEncoder : public webrtc::VideoEncoder {
                   bool is_constrained_h264,
                   media::GpuVideoAcceleratorFactories* gpu_factories,
                   scoped_refptr<media::MojoVideoEncoderMetricsProviderFactory>
-                      encoder_metrics_provider_factory);
+                      encoder_metrics_provider_factory,
+                  bool is_software_fallback_available);
   RTCVideoEncoder(const RTCVideoEncoder&) = delete;
   RTCVideoEncoder& operator=(const RTCVideoEncoder&) = delete;
   ~RTCVideoEncoder() override;
@@ -115,6 +115,7 @@ class PLATFORM_EXPORT RTCVideoEncoder : public webrtc::VideoEncoder {
   const media::VideoCodecProfile profile_;
 
   const bool is_constrained_h264_;
+  const bool is_software_fallback_available_;
 
   webrtc::VideoCodec codec_settings_;
 

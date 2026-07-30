@@ -118,7 +118,6 @@ class FakePageContentAnnotationsService : public PageContentAnnotationsService {
                                       nullptr,
                                       nullptr,
                                       nullptr,
-                                      nullptr,
                                       nullptr) {}
   ~FakePageContentAnnotationsService() override = default;
 
@@ -229,7 +228,6 @@ class PageContentAnnotationsWebContentsObserverTest
   }
 
   void TearDown() override {
-    history_service()->Shutdown();
     task_environment()->RunUntilIdle();
 
     DeleteContents();

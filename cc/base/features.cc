@@ -244,23 +244,12 @@ BASE_FEATURE_PARAM(double,
                    "fling_continuity_threshold_pixels",
                    0.2);
 
-BASE_FEATURE(kHandleNonDamagingInputsInScrollJankV4Metric,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-constexpr const char kEmitForAllScrolls[] = "emit_for_all_scrolls";
-constexpr const char kEmitForDamagingScrolls[] = "emit_for_damaging_scrolls";
-const base::FeatureParam<std::string> kHistogramEmissionPolicy(
-    &kHandleNonDamagingInputsInScrollJankV4Metric,
-    "histogram_emission_policy",
-    kEmitForDamagingScrolls);
-
 BASE_FEATURE(kOrderScrollJankV4EventMetricsByArrivedInRendererCompositor,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kManualBeginFrame, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kUnlockDuringGpuImageOperations,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kUnlockDuringGpuImageOperations, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kMainIdleBypassScheduler, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -277,5 +266,8 @@ BASE_FEATURE(kWebviewSchedulerStateMachine, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kBrowserControlsScrollSnapAnimation,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kSelectionEdgeVisibilityUsesFullEdge,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 }  // namespace features

@@ -1402,6 +1402,8 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
             'common_range',
             'viewable_range',
             'constant_range',
+            # Range conversions
+            'to',
             # Views
             'subrange',
             'subrange_kind',
@@ -2240,7 +2242,7 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
     BanRule(
         pattern='WebContentsDestroyed',
         explanation=
-        ('Do not use this method. It is invoked half-way through the '
+        ('Do not use WebContentsDestroyed. It is invoked half-way through the '
          'destructor of WebContentsImpl and using it often results in crashes '
          'or surprising behavior. Conceptually, this is only necessary by '
          'objects that depend on, but outlive the WebContents. These objects '
@@ -8192,7 +8194,7 @@ def CheckSettingsChanges(input_api, output_api):
     )
     class_name_re = input_api.re.compile(r'class\s+(\w+)')
     provider_field_re = input_api.re.compile(
-        r'public\s+static\s+final\s+.*SearchIndexProvider\s+SEARCH_INDEX_DATA_PROVIDER'
+        r'public\s+static\s+final\s+.*IndexProvider\s+SEARCH_INDEX_DATA_PROVIDER'
     )
 
     # If a line in ChangedContents() matches a trigger, the provider block must
@@ -8341,4 +8343,3 @@ def CheckSettingsChanges(input_api, output_api):
             '  Detailed issues found in your changes:\n',
             problems)
     ]
-

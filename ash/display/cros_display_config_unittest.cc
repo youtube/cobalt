@@ -62,14 +62,14 @@ void InitExternalTouchDevices(int64_t display_id) {
       ->ConfigureTouchDevices(transforms);
 }
 
-class TestObserver : public crosapi::mojom::CrosDisplayConfigObserver {
+class TestObserver : public ash::CrosDisplayConfig::Observer {
  public:
   TestObserver() = default;
 
   TestObserver(const TestObserver&) = delete;
   TestObserver& operator=(const TestObserver&) = delete;
 
-  // crosapi::mojom::CrosDisplayConfigObserver:
+  // ash::CrosDisplayConfig::Observer:
   void OnDisplayConfigChanged() override { display_changes_++; }
 
   int display_changes() const { return display_changes_; }
@@ -106,71 +106,33 @@ class CrosDisplayConfigTest : public AshTestBase {
   }
 
   crosapi::mojom::DisplayLayoutInfoPtr GetDisplayLayoutInfo() {
-    crosapi::mojom::DisplayLayoutInfoPtr display_layout_info;
-    base::RunLoop run_loop;
-    cros_display_config_->GetDisplayLayoutInfo(base::BindOnce(
-        [](crosapi::mojom::DisplayLayoutInfoPtr* result_ptr,
-           base::OnceClosure callback,
-           crosapi::mojom::DisplayLayoutInfoPtr result) {
-          *result_ptr = std::move(result);
-          std::move(callback).Run();
-        },
-        &display_layout_info, run_loop.QuitClosure()));
-    run_loop.Run();
-    return display_layout_info;
+    return cros_display_config_->GetDisplayLayoutInfo();
   }
 
   crosapi::mojom::DisplayConfigResult SetDisplayLayoutInfo(
       crosapi::mojom::DisplayLayoutInfoPtr display_layout_info) {
-    crosapi::mojom::DisplayConfigResult result;
-    base::RunLoop run_loop;
-    cros_display_config_->SetDisplayLayoutInfo(
-        std::move(display_layout_info),
-        base::BindOnce(&SetResult, &result, run_loop.QuitClosure()));
-    run_loop.Run();
-    return result;
+    return cros_display_config_->SetDisplayLayoutInfo(
+        std::move(display_layout_info));
   }
 
   std::vector<crosapi::mojom::DisplayUnitInfoPtr> GetDisplayUnitInfoList(
       bool single_unified = false) {
-    std::vector<crosapi::mojom::DisplayUnitInfoPtr> display_info_list;
-    base::RunLoop run_loop;
-    cros_display_config_->GetDisplayUnitInfoList(
-        single_unified,
-        base::BindOnce(
-            [](std::vector<crosapi::mojom::DisplayUnitInfoPtr>* result_ptr,
-               base::OnceClosure callback,
-               std::vector<crosapi::mojom::DisplayUnitInfoPtr> result) {
-              *result_ptr = std::move(result);
-              std::move(callback).Run();
-            },
-            &display_info_list, run_loop.QuitClosure()));
-    run_loop.Run();
-    return display_info_list;
+    return cros_display_config_->GetDisplayUnitInfoList(single_unified);
   }
 
   crosapi::mojom::DisplayConfigResult SetDisplayProperties(
       const std::string& id,
       crosapi::mojom::DisplayConfigPropertiesPtr properties) {
-    crosapi::mojom::DisplayConfigResult result;
-    base::RunLoop run_loop;
-    cros_display_config_->SetDisplayProperties(
-        id, std::move(properties), crosapi::mojom::DisplayConfigSource::kUser,
-        base::BindOnce(&SetResult, &result, run_loop.QuitClosure()));
-    run_loop.Run();
-    return result;
+    return cros_display_config_->SetDisplayProperties(
+        id, std::move(properties), crosapi::mojom::DisplayConfigSource::kUser);
   }
 
   bool OverscanCalibration(int64_t id,
                            crosapi::mojom::DisplayConfigOperation op,
                            const std::optional<gfx::Insets>& delta) {
-    crosapi::mojom::DisplayConfigResult result;
-    base::RunLoop run_loop;
-    cros_display_config()->OverscanCalibration(
-        base::NumberToString(id), op, delta,
-        base::BindOnce(&SetResult, &result, run_loop.QuitClosure()));
-    run_loop.Run();
-    return result == crosapi::mojom::DisplayConfigResult::kSuccess;
+    return cros_display_config()->OverscanCalibration(base::NumberToString(id),
+                                                      op, delta) ==
+           crosapi::mojom::DisplayConfigResult::kSuccess;
   }
 
   bool DisplayExists(int64_t display_id) {
@@ -233,22 +195,16 @@ class CrosDisplayConfigTest : public AshTestBase {
                 .empty();
   }
 
-  CrosDisplayConfig* cros_display_config() { return cros_display_config_; }
+  CrosDisplayConfigImpl* cros_display_config() { return cros_display_config_; }
 
  private:
-  raw_ptr<CrosDisplayConfig> cros_display_config_ = nullptr;
-
+  raw_ptr<CrosDisplayConfigImpl> cros_display_config_ = nullptr;
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 TEST_F(CrosDisplayConfigTest, OnDisplayConfigChanged) {
   TestObserver observer;
-  mojo::AssociatedRemote<crosapi::mojom::CrosDisplayConfigObserver>
-      observer_remote;
-  mojo::AssociatedReceiver<crosapi::mojom::CrosDisplayConfigObserver> receiver(
-      &observer, observer_remote.BindNewEndpointAndPassDedicatedReceiver());
-  cros_display_config()->AddObserver(observer_remote.Unbind());
-  base::RunLoop().RunUntilIdle();
+  cros_display_config()->AddObserver(&observer);
 
   // Adding one display should trigger one notification.
   UpdateDisplay("500x400");
@@ -260,6 +216,8 @@ TEST_F(CrosDisplayConfigTest, OnDisplayConfigChanged) {
   UpdateDisplay("500x400,500x400");
   base::RunLoop().RunUntilIdle();
   EXPECT_EQ(1, observer.display_changes());
+
+  cros_display_config()->RemoveObserver(&observer);
 }
 
 TEST_F(CrosDisplayConfigTest, GetDisplayLayoutInfo) {
@@ -893,12 +851,7 @@ TEST_F(CrosDisplayConfigTest, TabletModeAutoRotationInternalOnly) {
 
 TEST_F(CrosDisplayConfigTest, TabletModeAutoRotation) {
   TestObserver observer;
-  mojo::AssociatedRemote<crosapi::mojom::CrosDisplayConfigObserver>
-      observer_remote;
-  mojo::AssociatedReceiver<crosapi::mojom::CrosDisplayConfigObserver> receiver(
-      &observer, observer_remote.BindNewEndpointAndPassDedicatedReceiver());
-  cros_display_config()->AddObserver(observer_remote.Unbind());
-  base::RunLoop().RunUntilIdle();
+  cros_display_config()->AddObserver(&observer);
 
   display::test::DisplayManagerTestApi(display_manager())
       .SetFirstDisplayAsInternalDisplay();
@@ -978,6 +931,8 @@ TEST_F(CrosDisplayConfigTest, TabletModeAutoRotation) {
   EXPECT_FALSE(screen_orientation_controller_test_api.IsAutoRotationAllowed());
   EXPECT_FALSE(display::Screen::Get()->InTabletMode());
   EXPECT_EQ(display::Display::ROTATE_0, display.rotation());
+
+  cros_display_config()->RemoveObserver(&observer);
 }
 
 TEST_F(CrosDisplayConfigTest, HighlightDisplayValid) {

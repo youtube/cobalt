@@ -6,6 +6,7 @@
 
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
+#include "chrome/browser/accessibility_annotator/accessibility_annotator_backend_factory.h"
 #include "chrome/browser/accessibility_annotator/content_annotator/content_annotator_service_factory.h"
 #include "chrome/browser/page_content_annotations/page_content_annotations_service_factory.h"
 #include "chrome/browser/page_content_annotations/page_content_extraction_service_factory.h"
@@ -18,12 +19,15 @@
 #include "chrome/test/base/testing_profile.h"
 #include "components/accessibility_annotator/content/content_annotator/content_annotator_service.h"
 #include "components/accessibility_annotator/content/content_annotator/content_classifier.h"
+#include "components/accessibility_annotator/core/accessibility_annotator_features.h"
+#include "components/accessibility_annotator/core/storage/accessibility_annotator_backend.h"
 #include "components/history/core/browser/history_service.h"
 #include "components/optimization_guide/core/delivery/test_optimization_guide_model_provider.h"
 #include "components/optimization_guide/core/model_execution/test/mock_remote_model_executor.h"
 #include "components/page_content_annotations/content/page_content_extraction_service.h"
 #include "components/page_content_annotations/content/page_embeddings_service.h"
 #include "components/page_content_annotations/core/test_page_content_annotations_service.h"
+#include "components/passage_embeddings/core/passage_embeddings_test_util.h"
 #include "components/tabs/public/mock_tab_interface.h"
 #include "components/translate/core/common/language_detection_details.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -41,11 +45,17 @@ class MockContentAnnotatorService : public ContentAnnotatorService {
       optimization_guide::RemoteModelExecutor&
           optimization_guide_remote_model_executor,
       page_content_annotations::PageEmbeddingsService& page_embeddings_service,
+      AccessibilityAnnotatorBackend& accessibility_annotator_backend,
+      passage_embeddings::Embedder* embedder,
+      passage_embeddings::EmbedderMetadataProvider* embedder_metadata_provider,
       std::unique_ptr<ContentClassifier> content_classifier)
       : ContentAnnotatorService(page_content_annotations_service,
                                 page_content_extraction_service,
                                 optimization_guide_remote_model_executor,
                                 page_embeddings_service,
+                                accessibility_annotator_backend,
+                                embedder,
+                                embedder_metadata_provider,
                                 std::move(content_classifier)) {}
   ~MockContentAnnotatorService() override = default;
 
@@ -59,6 +69,7 @@ class ContentAnnotatorTabHelperTest : public ChromeRenderViewHostTestHarness {
  public:
   void SetUp() override {
     std::vector<base::test::FeatureRef> enabled_features;
+    enabled_features.push_back(kContentAnnotator);
 #if BUILDFLAG(IS_CHROMEOS)
     enabled_features.push_back(
         chromeos::features::kFeatureManagementPassageEmbedder);
@@ -81,15 +92,22 @@ class ContentAnnotatorTabHelperTest : public ChromeRenderViewHostTestHarness {
             profile());
     ASSERT_TRUE(page_embeddings_service);
 
+    accessibility_annotator::AccessibilityAnnotatorBackend*
+        accessibility_annotator_backend =
+            AccessibilityAnnotatorBackendFactory::GetForProfile(profile());
+    ASSERT_TRUE(accessibility_annotator_backend);
+
     std::unique_ptr<ContentClassifier> content_classifier_ =
-        ContentClassifier::Create();
+        ContentClassifier::Create(mock_embedder_.get());
     ASSERT_TRUE(content_classifier_);
 
     mock_service_ =
         std::make_unique<testing::StrictMock<MockContentAnnotatorService>>(
             *page_content_annotations_service_,
             *page_content_extraction_service, mock_remote_model_executor_,
-            *page_embeddings_service, std::move(content_classifier_));
+            *page_embeddings_service, *accessibility_annotator_backend,
+            mock_embedder_.get(), mock_embedder_metadata_provider_.get(),
+            std::move(content_classifier_));
 
     tab_interface_ = std::make_unique<tabs::MockTabInterface>();
     EXPECT_CALL(*tab_interface_, GetContents())
@@ -102,6 +120,8 @@ class ContentAnnotatorTabHelperTest : public ChromeRenderViewHostTestHarness {
     helper_.reset();
     tab_interface_.reset();
     mock_service_.reset();
+    mock_embedder_.reset();
+    mock_embedder_metadata_provider_.reset();
     page_content_annotations_service_.reset();
     ChromeRenderViewHostTestHarness::TearDown();
   }
@@ -116,6 +136,9 @@ class ContentAnnotatorTabHelperTest : public ChromeRenderViewHostTestHarness {
   optimization_guide::TestOptimizationGuideModelProvider
       optimization_guide_model_provider_;
   optimization_guide::MockRemoteModelExecutor mock_remote_model_executor_;
+  std::unique_ptr<passage_embeddings::TestEmbedder> mock_embedder_;
+  std::unique_ptr<passage_embeddings::TestEmbedderMetadataProvider>
+      mock_embedder_metadata_provider_;
   std::unique_ptr<page_content_annotations::TestPageContentAnnotationsService>
       page_content_annotations_service_;
   std::unique_ptr<MockContentAnnotatorService> mock_service_;

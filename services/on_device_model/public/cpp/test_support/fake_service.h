@@ -12,6 +12,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/run_loop.h"
 #include "build/build_config.h"
+#include "components/optimization_guide/core/optimization_guide_constants.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/unique_receiver_set.h"
 #include "services/on_device_model/public/cpp/model_assets.h"
@@ -49,12 +50,20 @@ struct FakeOnDeviceServiceSettings final {
   mojom::PerformanceClass performance_class =
       mojom::PerformanceClass::kVeryHigh;
 
+  // Initialize VRAM high enough to support audio input capability.
+  uint64_t vram_mb = optimization_guide::kOnDeviceModelAudioVramMinMb;
+
   // If non-empty, used as the output from Execute().
   std::vector<std::string> model_execute_result;
+
+  // If non-empty, tool calls are simulated during Generate().
+  std::vector<mojom::ToolCallPtr> simulated_tool_calls;
 
   std::optional<ServiceDisconnectReason> service_disconnect_reason;
 
   std::optional<ModelDisconnectReason> drop_connection_request;
+
+  std::optional<on_device_model::mojom::GenerateError> execute_error;
 
   // If not-zero, used as the output from GetSizeInTokens().
   uint32_t size_in_tokens = 0;
@@ -74,6 +83,10 @@ struct FakeOnDeviceServiceSettings final {
   }
 
   void set_size_in_tokens(uint32_t size) { size_in_tokens = size; }
+
+  void set_execute_error(on_device_model::mojom::GenerateError error) {
+    execute_error = error;
+  }
 };
 
 class FakeOnDeviceSession final : public mojom::Session {

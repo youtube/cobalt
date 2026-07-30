@@ -107,7 +107,7 @@ std::string WebDXFeatureEnumToString(WebDXFeature feature) {
     if (i > 0 && IsASCIIUpper(c)) {
       result.push_back('-');
     }
-    result.push_back(ToASCIILower(c));
+    result.push_back(ToAsciiLower(c));
   }
   return result;
 }
@@ -142,14 +142,8 @@ void MaybeEmitWebDXFeatureTraceEvent(const UseCounterFeature& feature,
     column = source_location->ColumnNumber();
   }
 
-  // If the specific source location is unavailable we use the document's URL
-  // as a fallback.
-  if (url.empty() && source_frame && source_frame->DomWindow()) {
-    url = source_frame->DomWindow()->document()->Url().GetString();
-  }
-
   TRACE_EVENT_INSTANT("blink.webdx_feature_usage", "WebDXFeatureUsage",
-                      "feature", feature_name, "url", url, "scriptId",
+                      "feature", feature_name, "url", url.Utf8(), "scriptId",
                       script_id, "lineNumber", line, "columnNumber", column);
 }
 

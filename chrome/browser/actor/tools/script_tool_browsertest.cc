@@ -43,7 +43,7 @@ class ActorToolsTestScriptTool : public ActorToolsTest {
     actor_task().Act(ToRequestList(action), result.GetCallback());
     ExpectOkResult(result);
 
-    const auto& action_results = result.Get<2>();
+    const auto& action_results = result.Get();
     EXPECT_EQ(action_results.size(), 1u);
     EXPECT_TRUE(action_results.at(0).result);
     actor::mojom::ScriptToolResponsePtr response =
@@ -127,7 +127,8 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTestScriptTool, NavigateAfterResponse) {
   EXPECT_EQ(response->result, "This is an example sentence.");
 }
 
-IN_PROC_BROWSER_TEST_F(ActorToolsTestScriptTool, DeclarativeToolCrossDocument) {
+// TODO(crbug.com/492477322): Re-enable this test.
+IN_PROC_BROWSER_TEST_F(ActorToolsTestScriptTool, DISABLED_DeclarativeToolCrossDocument) {
   const GURL url = embedded_test_server()->GetURL(
       "/actor/declarative_script_tool_cross_document.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
@@ -198,7 +199,7 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTestScriptTool,
   ExpectOkResult(result);
   EXPECT_EQ(actor_task().GetState(), ActorTask::State::kReflecting);
 
-  const auto& action_results = result.Get<2>();
+  const auto& action_results = result.Get();
   ASSERT_EQ(action_results.size(), 1u);
   ASSERT_TRUE(action_results.at(0).result->script_tool_response);
   base::Value actual_json = base::test::ParseJson(

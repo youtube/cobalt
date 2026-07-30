@@ -10,6 +10,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/containers/span.h"
+#include "base/containers/to_vector.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/no_destructor.h"
@@ -77,10 +78,7 @@ class Request {
   const SkBitmap& bitmap() const { return bitmap_; }
 
  private:
-  void OnRequestDone(base::TimeDelta ignored_decoding_time,
-                     const SkBitmap& result_image) {
-    bitmap_ = result_image;
-  }
+  void OnRequestDone(const SkBitmap& result_image) { bitmap_ = result_image; }
 
   raw_ptr<ImageDecoderImpl> decoder_;
   SkBitmap bitmap_;
@@ -176,10 +174,7 @@ TEST_F(ImageDecoderImplTest, DecodeImageSizeLimit) {
 
 TEST_F(ImageDecoderImplTest, DecodeImageFailed) {
   // The "jpeg" is just some "random" data;
-  const char kRandomData[] = "u gycfy7xdjkhfgui bdui ";
-  std::vector<unsigned char> jpg(
-      kRandomData, UNSAFE_TODO(kRandomData + sizeof(kRandomData)));
-
+  auto jpg = base::ToVector<unsigned char>("u gycfy7xdjkhfgui bdui ");
   Request request(decoder());
   request.DecodeImage(jpg, false);
   EXPECT_TRUE(request.bitmap().isNull());

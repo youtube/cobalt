@@ -90,6 +90,8 @@ void OnDeviceModelValidator::ValidateNextPrompt() {
   generate_options->max_output_tokens = 64;
   active_session_->Generate(std::move(generate_options),
                             receiver_.BindNewPipeAndPassRemote());
+  receiver_.set_disconnect_with_reason_handler(base::BindOnce(
+      &OnDeviceModelValidator::OnResponderDisconnect, base::Unretained(this)));
 }
 
 void OnDeviceModelValidator::OnResponse(
@@ -109,6 +111,19 @@ void OnDeviceModelValidator::OnComplete(
 
   index_++;
   ValidateNextPrompt();
+}
+
+void OnDeviceModelValidator::OnToolCalls(
+    std::vector<on_device_model::mojom::ToolCallPtr> tool_calls) {
+  // Validation prompts are simple text queries without tool declarations.
+  // Tool calls during validation indicate unexpected model behavior.
+  FinishValidation(OnDeviceModelValidationResult::kNonMatchingOutput);
+}
+
+void OnDeviceModelValidator::OnResponderDisconnect(
+    uint32_t custom_reason,
+    const std::string& description) {
+  FinishValidation(OnDeviceModelValidationResult::kServiceCrash);
 }
 
 void OnDeviceModelValidator::FinishValidation(

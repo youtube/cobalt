@@ -37,12 +37,6 @@ class ThinWebView : public content::WebContentsObserver {
 
   void Destroy(JNIEnv* env);
 
-  void SetInsets(JNIEnv* env,
-                 int32_t top,
-                 int32_t left,
-                 int32_t bottom,
-                 int32_t right);
-
   void SetWebContents(
       JNIEnv* env,
       const base::android::JavaRef<jobject>& jweb_contents,
@@ -66,11 +60,10 @@ class ThinWebView : public content::WebContentsObserver {
   base::android::ScopedJavaGlobalRef<jobject> obj_;
   raw_ptr<CompositorView, DanglingUntriaged> compositor_view_;
   raw_ptr<ui::WindowAndroid> window_android_;
-  raw_ptr<content::WebContents> web_contents_;
   std::unique_ptr<web_contents_delegate_android::WebContentsDelegateAndroid>
       web_contents_delegate_;
   gfx::Size view_size_;
-  gfx::Insets insets_;
+  base::WeakPtr<content::WebContents> web_contents_;
 };
 
 }  // namespace android

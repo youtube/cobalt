@@ -10,6 +10,7 @@
 #include "base/path_service.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "build/build_config.h"
@@ -83,6 +84,13 @@ class TestPageContentAnnotationsObserver
       const PageContentAnnotationsResult& result) override {
     last_page_content_annotations_result_ = result;
   }
+
+  const std::optional<PageContentAnnotationsResult>&
+  last_page_content_annotations_result() const {
+    return last_page_content_annotations_result_;
+  }
+
+ private:
   std::optional<PageContentAnnotationsResult>
       last_page_content_annotations_result_;
 };
@@ -667,10 +675,10 @@ IN_PROC_BROWSER_TEST_F(PageContentAnnotationsServiceBrowserTest,
       &histogram_tester,
       "OptimizationGuide.PageContentAnnotationsService.ContentAnnotated", 1);
 
-  EXPECT_TRUE(observer.last_page_content_annotations_result_.has_value());
+  ASSERT_TRUE(observer.last_page_content_annotations_result().has_value());
   EXPECT_EQ(AnnotationType::kContentVisibility,
-            observer.last_page_content_annotations_result_->GetType());
-  EXPECT_NE(-1.0, observer.last_page_content_annotations_result_
+            observer.last_page_content_annotations_result()->GetType());
+  EXPECT_NE(-1.0, observer.last_page_content_annotations_result()
                       ->GetContentVisibilityScore());
   EXPECT_TRUE(
       PageContentAnnotationsWebContentsObserver::GetOrCreateForWebContents(
@@ -1269,26 +1277,28 @@ class PageContentAnnotationsServiceOnDeviceCategoryClassifierTest
     InProcessBrowserTest::TearDown();
   }
 
+  void SetUpOnMainThread() override {
+    host_resolver()->AddRule("*", "127.0.0.1");
+    InProcessBrowserTest::SetUpOnMainThread();
+
+    embedded_test_server()->ServeFilesFromSourceDirectory(
+        "chrome/test/data/optimization_guide");
+    ASSERT_TRUE(embedded_test_server()->Start());
+  }
+
   void SetUpBrowserContextKeyedServices(
       content::BrowserContext* browser_context) override {
     PageContentAnnotationsServiceFactory::GetInstance()
         ->SetTestingFactoryAndUse(
             browser_context,
-            base::BindRepeating(
-                [](passage_embeddings::EmbedderMetadataProvider*
-                       embedder_metadata_provider,
-                   passage_embeddings::Embedder* embedder,
-                   content::BrowserContext* context)
-                    -> std::unique_ptr<KeyedService> {
-                  Profile* profile = Profile::FromBrowserContext(context);
-                  return TestPageContentAnnotationsService::Create(
-                      OptimizationGuideKeyedServiceFactory::GetForProfile(
-                          profile),
-                      HistoryServiceFactory::GetForProfile(
-                          profile, ServiceAccessType::IMPLICIT_ACCESS),
-                      embedder_metadata_provider, embedder);
-                },
-                &embedder_metadata_provider_, &embedder_));
+            base::BindRepeating([](content::BrowserContext* context)
+                                    -> std::unique_ptr<KeyedService> {
+              Profile* profile = Profile::FromBrowserContext(context);
+              return TestPageContentAnnotationsService::Create(
+                  OptimizationGuideKeyedServiceFactory::GetForProfile(profile),
+                  HistoryServiceFactory::GetForProfile(
+                      profile, ServiceAccessType::IMPLICIT_ACCESS));
+            }));
   }
 
   PageContentAnnotationsService* service() {
@@ -1327,53 +1337,43 @@ class PageContentAnnotationsServiceOnDeviceCategoryClassifierTest
 
 IN_PROC_BROWSER_TEST_F(
     PageContentAnnotationsServiceOnDeviceCategoryClassifierTest,
-    EmbedderButNoRegression) {
-  NotifyEmbedderMetadata();
+    ObserverNotified) {
+  TestPageContentAnnotationsObserver observer;
+  service()->AddObserver(AnnotationType::kCategoryClassifier, &observer);
 
-  base::test::TestFuture<std::vector<Category>> future;
-  service()->ClassifyCategoriesForText("some text", future.GetCallback());
-  EXPECT_TRUE(future.Get().empty());
+  GURL url(embedded_test_server()->GetURL("/hello.html"));
+  // Navigate to a URL so that the service has a HistoryVisit associated with
+  // it in its internal cache.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
+
+  // Category classifier is triggered after navigation and once embeddings are
+  // available. Here we manually trigger the notification to the service to
+  // verify it correctly forwards it to its observers.
+  std::vector<Category> categories = {
+      {CategoryType::kEducation, 0.5},
+      {CategoryType::kShopping, 0.8},
+  };
+
+  service()->OnCategoriesClassified(url, /*source_id=*/0, categories);
+
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return observer.last_page_content_annotations_result().has_value();
+  }));
+
+  EXPECT_EQ(observer.last_page_content_annotations_result()->GetType(),
+            AnnotationType::kCategoryClassifier);
+  const std::vector<Category>& results =
+      observer.last_page_content_annotations_result()->GetCategoryResults();
+  EXPECT_EQ(results.size(), 2u);
+  EXPECT_EQ(results[0].category_type, CategoryType::kEducation);
+  EXPECT_EQ(results[0].score, 0.5f);
+  EXPECT_EQ(results[1].category_type, CategoryType::kShopping);
+  EXPECT_EQ(results[1].score, 0.8f);
+
+  service()->RemoveObserver(AnnotationType::kCategoryClassifier, &observer);
 }
 
-IN_PROC_BROWSER_TEST_F(
-    PageContentAnnotationsServiceOnDeviceCategoryClassifierTest,
-    RegressionButNoEmbedder) {
-  PushClassifierModel(
-      optimization_guide::proto::OPTIMIZATION_TARGET_EDU_CLASSIFIER);
-
-  base::test::TestFuture<std::vector<Category>> future;
-  service()->ClassifyCategoriesForText("some text", future.GetCallback());
-  EXPECT_TRUE(future.Get().empty());
-}
-
-IN_PROC_BROWSER_TEST_F(
-    PageContentAnnotationsServiceOnDeviceCategoryClassifierTest,
-    EmbedderFailed) {
-  NotifyEmbedderMetadata();
-  UpdateEmbedderStatus(
-      passage_embeddings::ComputeEmbeddingsStatus::kExecutionFailure);
-  PushClassifierModel(
-      optimization_guide::proto::OPTIMIZATION_TARGET_EDU_CLASSIFIER);
-
-  base::test::TestFuture<std::vector<Category>> future;
-  service()->ClassifyCategoriesForText("some text", future.GetCallback());
-  EXPECT_TRUE(future.Get().empty());
-}
-
-IN_PROC_BROWSER_TEST_F(
-    PageContentAnnotationsServiceOnDeviceCategoryClassifierTest,
-    Success) {
-  NotifyEmbedderMetadata();
-  PushClassifierModel(
-      optimization_guide::proto::OPTIMIZATION_TARGET_EDU_CLASSIFIER);
-
-  base::test::TestFuture<std::vector<Category>> future;
-  service()->ClassifyCategoriesForText("some text", future.GetCallback());
-  ASSERT_EQ(1u, future.Get().size());
-  EXPECT_EQ(CategoryType::kEducation, future.Get()[0].category_type);
-}
-
-#endif
+#endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 
 class PageContentAnnotationsServiceContentExtractionTest
     : public InProcessBrowserTest {

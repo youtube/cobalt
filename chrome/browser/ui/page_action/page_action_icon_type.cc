@@ -24,14 +24,10 @@ const base::FeatureParam<bool>* GetPageActionsMigrationParam(
       return &features::kPageActionsMigrationCookieControls;
     case PageActionIconType::kAutofillAddress:
       return &features::kPageActionsMigrationAutofillAddress;
-    case PageActionIconType::kFind:
-      return &features::kPageActionsMigrationFind;
     case PageActionIconType::kCollaborationMessaging:
       return &features::kPageActionsMigrationCollaborationMessaging;
     case PageActionIconType::kMandatoryReauth:
       return &features::kPageActionsMigrationAutofillMandatoryReauth;
-    case PageActionIconType::kClickToCall:
-      return &features::kPageActionsMigrationClickToCall;
     case PageActionIconType::kSharingHub:
       return &features::kPageActionsMigrationSharingHub;
     case PageActionIconType::kAiMode:
@@ -64,9 +60,11 @@ bool IsPageActionMigrated(PageActionIconType page_action) {
   // Page actions on the new framework that don't have an implementation on the legacy path
   // and don't have a feature param.
   switch (page_action) {
+    case PageActionIconType::kGlic:
     case PageActionIconType::kLensOverlay:
     case PageActionIconType::kMemorySaver:
     case PageActionIconType::kTranslate:
+    case PageActionIconType::kFind:
     case PageActionIconType::kPwaInstall:
     case PageActionIconType::kPaymentsOfferNotification:
     case PageActionIconType::kContextualSidePanel:
@@ -75,6 +73,7 @@ bool IsPageActionMigrated(PageActionIconType page_action) {
     case PageActionIconType::kRecordReplay:
     case PageActionIconType::kPriceInsights:
     case PageActionIconType::kDiscounts:
+    case PageActionIconType::kFederation:
       return true;
     default:
       break;

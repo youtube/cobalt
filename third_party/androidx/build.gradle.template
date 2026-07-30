@@ -88,10 +88,10 @@ dependencies {
     compileLatest 'androidx.navigation:navigation-runtime:+'
     compileLatest 'androidx.paging:paging-compose:+'
     compileLatest 'androidx.paging:paging-runtime:+'
-    compileLatest 'androidx.pdf:pdf-document-service:+'
-    compileLatest 'androidx.pdf:pdf-ink:+'
-    compileLatest 'androidx.pdf:pdf-viewer:+'
-    compileLatest 'androidx.pdf:pdf-viewer-fragment:+'
+    compile 'androidx.pdf:pdf-document-service:1.0.0-alpha13'
+    compile 'androidx.pdf:pdf-ink:1.0.0-alpha13'
+    compile 'androidx.pdf:pdf-viewer:1.0.0-alpha13'
+    compile 'androidx.pdf:pdf-viewer-fragment:1.0.0-alpha13'
     compileLatest 'androidx.preference:preference:+'
     // Privacy Sandbox is less stable than others. Use only release versions.
     compile 'androidx.privacysandbox.ads:ads-adservices:1.1.0-beta11'
@@ -114,10 +114,10 @@ dependencies {
 
     // ChromeXR dependencies should be left at a fixed version
     // to prevent breakages.
-    compile 'androidx.xr.arcore:arcore:1.0.0-alpha07'
-    compile 'androidx.xr.arcore:arcore-openxr:1.0.0-alpha07'
-    compile 'androidx.xr.runtime:runtime:1.0.0-alpha07'
-    compile('androidx.xr.scenecore:scenecore:1.0.0-alpha08') {
+    compile 'androidx.xr.arcore:arcore:1.0.0-alpha10'
+    compile 'androidx.xr.arcore:arcore-openxr:1.0.0-alpha10'
+    compile 'androidx.xr.runtime:runtime:1.0.0-alpha10'
+    compile('androidx.xr.scenecore:scenecore:1.0.0-alpha11') {
         // The target 'androidx_xr_scenecore_spatial_core_java' was
         // generating a dep on':androidx_test_rules_java' which causes
         // breakages.

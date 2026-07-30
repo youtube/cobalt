@@ -268,8 +268,8 @@ BrowserViewTabbedLayoutImpl::CalculateHorizontalLayout(
       layout.force_top_container_to_top =
           remainder < min_toolbar_height_side_panel_width;
 
-      // If still allowing toolbar height, clamp the sidepanel based on what the
-      // toolbar actually supports.
+      // If still allowing toolbar height, clamp the side panel based on what
+      // the toolbar actually supports.
       if (!layout.force_top_container_to_top) {
         preferred_toolbar_height_side_panel_width =
             std::min(preferred_toolbar_height_side_panel_width, remainder);
@@ -402,7 +402,8 @@ int BrowserViewTabbedLayoutImpl::GetMinimumGrabHandlePadding() const {
 gfx::Size BrowserViewTabbedLayoutImpl::GetMinimumMainAreaSize(
     const BrowserLayoutParams& params) const {
   gfx::Size toolbar_size = views().toolbar->GetMinimumSize();
-  if (GetTabStripType() == TabStripType::kVertical) {
+  const auto tab_strip_type = GetTabStripType();
+  if (tab_strip_type == TabStripType::kVertical) {
     toolbar_size.Enlarge(GetExclusionWidth(params), 0);
   }
   const gfx::Size bookmark_bar_size =
@@ -418,14 +419,15 @@ gfx::Size BrowserViewTabbedLayoutImpl::GetMinimumMainAreaSize(
           ? views().contents_height_side_panel->GetMinimumSize()
           : gfx::Size();
 
-  const int width = std::max({toolbar_size.width(), bookmark_bar_size.width(),
-                              infobar_container_size.width(),
-                              contents_height_side_panel_size.width() +
-                                  kContentsContainerMinimumWidth});
+  int width = std::max({toolbar_size.width(), bookmark_bar_size.width(),
+                        infobar_container_size.width(),
+                        contents_height_side_panel_size.width() +
+                            kContentsContainerMinimumWidth});
   const int height = toolbar_size.height() + bookmark_bar_size.height() +
                      infobar_container_size.height() +
                      std::max(contents_size.height(),
                               contents_height_side_panel_size.height());
+
   return gfx::Size(width, height);
 }
 
@@ -534,7 +536,7 @@ gfx::Size BrowserViewTabbedLayoutImpl::GetMinimumSize(
 
   // Maybe adjust for additional padding when toolbar height side panel is
   // visible.
-  if (!toolbar_height_side_panel_size.IsEmpty()) {
+  if (toolbar_height_side_panel_size.width() > 0) {
     const auto padding =
         GetLayoutConstant(LayoutConstant::kToolbarHeightSidePanelInset);
     min_height += 2 * padding;
@@ -768,8 +770,9 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
           ? views().toolbar_height_side_panel->GetAnimationValue()
           : 0.0;
   const bool pad_toolbar_height_side_panel_top =
-      tab_strip_type != TabStripType::kVertical ||
-      delegate().GetImmersiveModeController()->IsEnabled();
+      !base::FeatureList::IsEnabled(features::kDetachedTabs) &&
+      (tab_strip_type != TabStripType::kVertical ||
+       delegate().GetImmersiveModeController()->IsEnabled());
   bool adjust_for_shadow_box = false;
   if (horizontal_layout.has_toolbar_height_side_panel()) {
     const SidePanel* const toolbar_height_side_panel =

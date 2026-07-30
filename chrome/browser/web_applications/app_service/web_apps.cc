@@ -28,6 +28,7 @@
 #if BUILDFLAG(IS_CHROMEOS)
 #include "ash/constants/ash_features.h"
 #include "ash/public/cpp/app_menu_constants.h"
+#include "ash/strings/grit/ash_strings.h"
 #include "ash/webui/projector_app/public/cpp/projector_app_constants.h"  // nogncheck
 #include "base/functional/bind.h"
 #include "base/strings/utf_string_conversions.h"
@@ -137,16 +138,10 @@ void WebApps::LaunchAppWithIntent(const std::string& app_id,
 void WebApps::LaunchAppWithParams(apps::AppLaunchParams&& params,
                                   apps::LaunchCallback callback) {
   publisher_helper().LaunchAppWithParams(
-      std::move(params),
-      base::BindOnce(
-          [](apps::LaunchCallback callback,
-             content::WebContents* web_contents) {
-            apps::LaunchResult::State result =
-                web_contents ? apps::LaunchResult::State::kSuccess
-                             : apps::LaunchResult::State::kFailed;
-            std::move(callback).Run(apps::LaunchResult(result));
-          },
-          std::move(callback)));
+      std::move(params), base::BindOnce([](content::WebContents* web_contents) {
+                           return web_contents ? apps::LaunchResult::kSuccess
+                                               : apps::LaunchResult::kFailed;
+                         }).Then(std::move(callback)));
 }
 
 void WebApps::SetPermission(const std::string& app_id,

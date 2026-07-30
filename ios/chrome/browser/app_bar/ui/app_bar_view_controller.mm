@@ -8,6 +8,7 @@
 #import "base/metrics/user_metrics_action.h"
 #import "ios/chrome/browser/app_bar/ui/app_bar_constants.h"
 #import "ios/chrome/browser/app_bar/ui/app_bar_mutator.h"
+#import "ios/chrome/browser/cobrowse/model/cobrowse_context.h"
 #import "ios/chrome/browser/intents/model/intents_donation_helper.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/commands/tab_grid_commands.h"
@@ -19,6 +20,7 @@
 #import "ios/chrome/browser/shared/ui/util/util_swift.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
+#import "ios/chrome/common/ui/util/dynamic_type_util.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ui/base/l10n/l10n_util_mac.h"
 
@@ -41,6 +43,22 @@ const CGFloat kTabGridAnimationDuration = 0.25;
 // Spacing between tab grid button and the tab grid spotlight view anchor.
 const CGFloat kSpotlightViewHorizontalInset = 12;
 const CGFloat kSpotlightViewVerticalInset = 2;
+// Offset of the tab count label in the tab grid button tab group state.
+const CGFloat kTabGroupLabelOffset = 3;
+
+// The spacing inside the stack view.
+const CGFloat kStackViewSpacing = 4;
+// The horizontal margins of the stack view.
+const CGFloat kStackViewHorizontalMargin = 8;
+
+// The inner padding of the buttons.
+const CGFloat kButtonHorizontalPadding = 4;
+const CGFloat kButtonVerticalPadding = 12;
+
+// Returns the color to be used as foreground color for the buttons.
+UIColor* ButtonsForegroundColor() {
+  return UIColor.whiteColor;
+}
 
 // Returns the configuration for all the symbols.
 UIImageSymbolConfiguration* AppBarSymbolConfiguration() {
@@ -66,6 +84,13 @@ UIImage* CustomAppBarSymbol(NSString* symbol_name) {
 
 }  // namespace
 
+@interface AppBarViewController ()
+
+// The alpha for the titles of the buttons.
+@property(nonatomic, assign) CGFloat buttonsTitleAlpha;
+
+@end
+
 @implementation AppBarViewController {
   UIButton* _assistantButton;
   UIButton* _openNewTabButton;
@@ -79,11 +104,23 @@ UIImage* CustomAppBarSymbol(NSString* symbol_name) {
   BOOL _isTabGroupsPageVisible;
   // Whether a tab group is currently being shown in the tab grid.
   BOOL _isTabGroupVisible;
+  // Whether the current tab is in a tab group.
+  BOOL _inTabGroup;
   // Context menus for the App Bar buttons.
   UIMenu* _assistantButtonMenu;
   UIMenu* _openNewTabButtonMenu;
   UIMenu* _tabGridButtonMenu;
   UIView* _spotlightView;
+  // The positioning constraints for the tab count label in the normal tab grid
+  // button state.
+  NSArray<NSLayoutConstraint*>* _tabGridButtonNormalStateConstraints;
+  // The positioning constraints for the tab count label in the tab group tab
+  // grid button state.
+  NSArray<NSLayoutConstraint*>* _tabGridButtonTabGroupStateConstraints;
+  // Cached state for the assistant button.
+  AppBarAssistantButtonState _assistantButtonState;
+  // Cached avatar for the assistant button.
+  UIImage* _assistantButtonAvatar;
 }
 
 - (void)updateForAngle:(CGFloat)angle {
@@ -98,26 +135,34 @@ UIImage* CustomAppBarSymbol(NSString* symbol_name) {
 - (void)viewDidLoad {
   [super viewDidLoad];
 
+  self.buttonsTitleAlpha = 1;
+
   // TODO(crbug.com/483998773): Use a real design.
   self.view.backgroundColor = [UIColor.purpleColor colorWithAlphaComponent:0.5];
 
   _assistantButton = [self createAssistantButton];
   _openNewTabButton = [self createOpenNewTabButton];
   _tabGridButton = [self createTabGridButton];
+  [self updateTabGridButtonForTabGridVisibility];
 
   UIStackView* stackView = [[UIStackView alloc] initWithArrangedSubviews:@[
     _assistantButton, _openNewTabButton, _tabGridButton
   ]];
   stackView.translatesAutoresizingMaskIntoConstraints = NO;
   stackView.distribution = UIStackViewDistributionFillEqually;
+  stackView.spacing = kStackViewSpacing;
 
   UIView* view = self.view;
   [view addSubview:stackView];
 
   [NSLayoutConstraint activateConstraints:@[
-    [stackView.leadingAnchor constraintEqualToAnchor:view.leadingAnchor],
+    [stackView.leadingAnchor
+        constraintEqualToAnchor:view.leadingAnchor
+                       constant:kStackViewHorizontalMargin],
     [stackView.topAnchor constraintEqualToAnchor:view.topAnchor],
-    [stackView.trailingAnchor constraintEqualToAnchor:view.trailingAnchor],
+    [stackView.trailingAnchor
+        constraintEqualToAnchor:view.trailingAnchor
+                       constant:-kStackViewHorizontalMargin],
     [stackView.bottomAnchor
         constraintLessThanOrEqualToAnchor:view.bottomAnchor],
     [view.heightAnchor constraintEqualToConstant:kAppBarHeight],
@@ -141,7 +186,18 @@ UIImage* CustomAppBarSymbol(NSString* symbol_name) {
 }
 
 - (void)setTabGridVisible:(BOOL)tabGridVisible {
+  if (_isTabGridVisible == tabGridVisible) {
+    return;
+  }
   _isTabGridVisible = tabGridVisible;
+  [self updateTabGridButtonForTabGridVisibility];
+}
+
+- (void)setInTabGroup:(BOOL)inTabGroup {
+  if (_inTabGroup == inTabGroup) {
+    return;
+  }
+  _inTabGroup = inTabGroup;
   [self updateTabGridButtonForTabGridVisibility];
 }
 
@@ -177,6 +233,7 @@ UIImage* CustomAppBarSymbol(NSString* symbol_name) {
   }
   _isTabGroupVisible = tabGroupVisible;
   [self updateNewTabButtonForTabGroupsVisibility];
+  [self updateTabGridButtonForTabGridVisibility];
 }
 
 - (void)setButtonsEnabled:(BOOL)enabled {
@@ -185,29 +242,79 @@ UIImage* CustomAppBarSymbol(NSString* symbol_name) {
   _tabGridButton.enabled = enabled;
 }
 
+#pragma mark - FullscreenUIElement
+
+- (void)updateForFullscreenProgress:(CGFloat)progress {
+  self.buttonsTitleAlpha = progress;
+  [_assistantButton setNeedsUpdateConfiguration];
+  [_openNewTabButton setNeedsUpdateConfiguration];
+  [_tabGridButton setNeedsUpdateConfiguration];
+}
+
+- (void)setAssistantButtonState:(AppBarAssistantButtonState)state
+                         avatar:(UIImage*)avatar {
+  _assistantButtonState = state;
+  _assistantButtonAvatar = avatar;
+
+  [self updateAssistantButton];
+}
+
 #pragma mark - Private
+
+// Updates the assistant button configuration based on the current state.
+- (void)updateAssistantButton {
+  if (!_assistantButton) {
+    return;
+  }
+
+  NSString* title;
+  UIImage* image;
+  switch (_assistantButtonState) {
+    case AppBarAssistantButtonState::kSignedOut:
+      title =
+          l10n_util::GetNSString(IDS_IOS_NON_MODAL_SIGNIN_PROMO_SIGNIN_BUTTON);
+      image = DefaultAppBarSymbol(kPersonCropCircleSymbol);
+      break;
+    case AppBarAssistantButtonState::kAccount:
+      title = l10n_util::GetNSString(IDS_IOS_GOOGLE_ACCOUNT_SETTINGS_TITLE);
+      image = _assistantButtonAvatar;
+      break;
+    case AppBarAssistantButtonState::kAsk:
+      title = l10n_util::GetNSString(IDS_IOS_APP_BAR_ASK_GEMINI);
+#if BUILDFLAG(IOS_USE_BRANDED_ASSETS)
+      image = CustomAppBarSymbol(kGeminiBrandedLogoSymbol);
+#else
+      image = DefaultAppBarSymbol(kGeminiNonBrandedLogoSymbol);
+#endif
+      break;
+  }
+
+  UIButtonConfiguration* configuration = _assistantButton.configuration;
+  configuration.title = title;
+  configuration.image =
+      image ? image : DefaultAppBarSymbol(kPersonCropCircleSymbol);
+  _assistantButton.configuration = configuration;
+}
 
 // Returns a new "Assistant" button.
 - (UIButton*)createAssistantButton {
-  NSString* title =
-      l10n_util::GetNSString(IDS_IOS_DIAMOND_PROTOTYPE_ASK_GEMINI);
-#if BUILDFLAG(IOS_USE_BRANDED_ASSETS)
-  UIImage* image = CustomAppBarSymbol(kGeminiBrandedLogoSymbol);
-#else
-  UIImage* image = DefaultAppBarSymbol(kGeminiNonBrandedLogoSymbol);
-#endif
-  UIButton* button = [self buttonWithTitle:title image:image];
+  UIButton* button = [self buttonWithTitle:nil image:nil];
   button.menu = _assistantButtonMenu;
 
   [button addTarget:self
                 action:@selector(didTapAssistantButton)
       forControlEvents:UIControlEventTouchUpInside];
+  button.accessibilityIdentifier = kAppBarAssistantButtonId;
+
+  _assistantButton = button;
+  [self updateAssistantButton];
+
   return button;
 }
 
 // Returns a new "New Tab" button.
 - (UIButton*)createOpenNewTabButton {
-  NSString* title = l10n_util::GetNSString(IDS_IOS_DIAMOND_PROTOTYPE_NEW_TAB);
+  NSString* title = l10n_util::GetNSString(IDS_IOS_APP_BAR_NEW);
   UIImage* image = DefaultAppBarSymbol(kPlusInCircleSymbol);
   UIButton* button = [self buttonWithTitle:title image:image];
   button.menu = _openNewTabButtonMenu;
@@ -228,7 +335,7 @@ UIImage* CustomAppBarSymbol(NSString* symbol_name) {
   _tabGridSymbolView = tabGridSymbolView;
 
   // Set up button.
-  NSString* title = l10n_util::GetNSString(IDS_IOS_DIAMOND_PROTOTYPE_ALL_TABS);
+  NSString* title = l10n_util::GetNSString(IDS_IOS_APP_BAR_ALL_TABS);
   UIImage* image = DefaultAppBarSymbol(kAppSymbol);
   UIButton* button = [self buttonWithTitle:title image:image];
   button.menu = _tabGridButtonMenu;
@@ -253,10 +360,25 @@ UIImage* CustomAppBarSymbol(NSString* symbol_name) {
 
   _tabCountLabel = [[UILabel alloc] init];
   _tabCountLabel.translatesAutoresizingMaskIntoConstraints = NO;
-  _tabCountLabel.textColor = UIColor.whiteColor;
+  _tabCountLabel.textColor = ButtonsForegroundColor();
   [self updateTabCount:_tabCount];
   [button addSubview:_tabCountLabel];
-  AddSameCenterConstraints(_tabCountLabel, button.imageView);
+  _tabGridButtonNormalStateConstraints = @[
+    [_tabCountLabel.centerXAnchor
+        constraintEqualToAnchor:button.imageView.centerXAnchor],
+    [_tabCountLabel.centerYAnchor
+        constraintEqualToAnchor:button.imageView.centerYAnchor],
+  ];
+  _tabGridButtonTabGroupStateConstraints = @[
+    [_tabCountLabel.centerXAnchor
+        constraintEqualToAnchor:button.imageView.centerXAnchor
+                       constant:kTabGroupLabelOffset],
+    [_tabCountLabel.centerYAnchor
+        constraintEqualToAnchor:button.imageView.centerYAnchor
+                       constant:kTabGroupLabelOffset],
+  ];
+
+  [button bringSubviewToFront:_tabCountLabel];
 
   if (IsBestOfAppGuidedTourEnabled()) {
     _spotlightView = [[UIView alloc] init];
@@ -281,15 +403,47 @@ UIImage* CustomAppBarSymbol(NSString* symbol_name) {
 - (UIButton*)buttonWithTitle:(NSString*)title image:(UIImage*)image {
   UIButtonConfiguration* configuration =
       [UIButtonConfiguration plainButtonConfiguration];
-  configuration.imagePlacement = NSDirectionalRectEdgeTop;
-  configuration.imagePadding = kButtonImagePadding;
-  configuration.baseForegroundColor = UIColor.whiteColor;
-
-  configuration.image = image;
-  configuration.title = title;
-
   UIButton* button = [UIButton buttonWithConfiguration:configuration
                                          primaryAction:nil];
+  __weak UIButton* weakButton = button;
+
+  configuration = button.configuration;
+
+  configuration.imagePlacement = NSDirectionalRectEdgeTop;
+  configuration.imagePadding = kButtonImagePadding;
+  configuration.image = image;
+
+  configuration.baseForegroundColor = ButtonsForegroundColor();
+
+  configuration.contentInsets = NSDirectionalEdgeInsetsMake(
+      kButtonVerticalPadding, kButtonHorizontalPadding, kButtonVerticalPadding,
+      kButtonHorizontalPadding);
+
+  configuration.title = title;
+  configuration.titleLineBreakMode = NSLineBreakByTruncatingTail;
+
+  __weak __typeof(self) weakSelf = self;
+
+  configuration.titleTextAttributesTransformer =
+      ^NSDictionary<NSAttributedStringKey, id>*(
+          NSDictionary<NSAttributedStringKey, id>* textAttributes) {
+    NSMutableDictionary* mutableAttributes = [textAttributes mutableCopy];
+
+    mutableAttributes[NSFontAttributeName] =
+        PreferredFontForTextStyleWithMaxCategory(
+            UIFontTextStyleCaption2,
+            weakButton.traitCollection.preferredContentSizeCategory,
+            UIContentSizeCategoryExtraExtraExtraLarge);
+    mutableAttributes[NSForegroundColorAttributeName] =
+        [ButtonsForegroundColor()
+            colorWithAlphaComponent:weakSelf.buttonsTitleAlpha];
+    return mutableAttributes;
+  };
+
+  button.configuration = configuration;
+
+  button.titleLabel.adjustsFontSizeToFitWidth = YES;
+
   button.translatesAutoresizingMaskIntoConstraints = NO;
 
   button.layer.shadowColor = [UIColor blackColor].CGColor;
@@ -317,14 +471,30 @@ UIImage* CustomAppBarSymbol(NSString* symbol_name) {
 
 // Updates the Tab Grid button for the given Tab Grid showing state.
 - (void)updateTabGridButtonForTabGridVisibility {
-  NSString* symbolName = _isTabGridVisible ? kAppFillSymbol : kAppSymbol;
-  _tabGridButton.menu = _tabGridButtonMenu;
+  NSString* symbolName;
+  BOOL shouldShowTabGroupSymbol = _isTabGroupVisible || _inTabGroup;
+  if (shouldShowTabGroupSymbol) {
+    symbolName = _isTabGridVisible ? kSquareFilledOnSquareSymbol : kTabsSymbol;
+  } else {
+    symbolName = _isTabGridVisible ? kAppFillSymbol : kAppSymbol;
+  }
   [_tabGridSymbolView setSymbolImage:DefaultAppBarSymbol(symbolName)
                withContentTransition:[NSSymbolReplaceContentTransition
                                          replaceOffUpTransition]];
+  if (shouldShowTabGroupSymbol) {
+    [NSLayoutConstraint
+        deactivateConstraints:_tabGridButtonNormalStateConstraints];
+    [NSLayoutConstraint
+        activateConstraints:_tabGridButtonTabGroupStateConstraints];
+  } else {
+    [NSLayoutConstraint
+        deactivateConstraints:_tabGridButtonTabGroupStateConstraints];
+    [NSLayoutConstraint
+        activateConstraints:_tabGridButtonNormalStateConstraints];
+  }
   UILabel* label = _tabCountLabel;
   UIColor* labelColor =
-      _isTabGridVisible ? UIColor.blackColor : UIColor.whiteColor;
+      _isTabGridVisible ? UIColor.blackColor : ButtonsForegroundColor();
   [UIView transitionWithView:label
                     duration:kTabGridAnimationDuration
                      options:UIViewAnimationOptionTransitionCrossDissolve
@@ -337,7 +507,7 @@ UIImage* CustomAppBarSymbol(NSString* symbol_name) {
 // Called when the Assistant button is tapped.
 - (void)didTapAssistantButton {
   base::RecordAction(base::UserMetricsAction("MobileToolbarAssistant"));
-  [self.sceneHandler showAssistant];
+  [self.mutator assistantButtonTappedWithState:_assistantButtonState];
 }
 
 // Called when the New Tab button is tapped.

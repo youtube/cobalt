@@ -4,6 +4,11 @@
 
 #include "chrome/browser/ui/webui/signin/login_ui_test_utils.h"
 
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/notreached.h"
 #include "base/run_loop.h"
@@ -23,6 +28,7 @@
 #include "chrome/browser/signin/signin_promo.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/signin/signin_modal_dialog.h"
 #include "chrome/browser/ui/signin/signin_view_controller.h"
 #include "chrome/browser/ui/signin/signin_view_controller_delegate.h"
@@ -36,6 +42,7 @@
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/base/signin_switches.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
+#include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_navigation_observer.h"
@@ -308,7 +315,13 @@ class SigninViewControllerTestUtil {
         button_id = "rejectButton";
         break;
     }
-    return TryDismissModalDialog(browser, "history-sync-optin-app", button_id);
+    return TryDismissModalDialog(
+        browser,
+        /*app=*/
+        base::FeatureList::IsEnabled(switches::kFirstRunDesktopRefresh)
+            ? "history-sync-optin-app-refresh"
+            : "history-sync-optin-app",
+        button_id);
 #endif
   }
 
@@ -472,7 +485,7 @@ void ExecuteJsToSigninInSigninFrame(content::WebContents* web_contents,
   }
 }
 
-bool SignInWithUI(Browser* browser,
+bool SignInWithUI(BrowserWindowInterface* browser,
                   const std::string& username,
                   const std::string& password,
                   signin::ConsentLevel consent_level) {
@@ -484,7 +497,7 @@ bool SignInWithUI(Browser* browser,
                           signin::IdentityManager::Observer>
       scoped_signin_observation(&signin_observer);
   scoped_signin_observation.Observe(
-      IdentityManagerFactory::GetForProfile(browser->profile()));
+      IdentityManagerFactory::GetForProfile(browser->GetProfile()));
 
   const signin_metrics::AccessPoint access_point =
       signin_metrics::AccessPoint::kAvatarBubbleSignIn;
@@ -503,7 +516,7 @@ bool SignInWithUI(Browser* browser,
       break;
   }
   content::WebContents* active_contents =
-      browser->tab_strip_model()->GetActiveWebContents();
+      browser->GetActiveTabInterface()->GetContents();
   DCHECK(active_contents);
   content::TestNavigationObserver observer(
       active_contents, 1, content::MessageLoopRunner::QuitMode::DEFERRED);

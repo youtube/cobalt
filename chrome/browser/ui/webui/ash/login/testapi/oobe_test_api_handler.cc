@@ -8,10 +8,11 @@
 
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_switches.h"
-#include "ash/public/ash_interfaces.h"
+#include "ash/display/cros_display_config.h"
 #include "ash/public/cpp/input_device_settings_controller.h"
 #include "ash/public/cpp/tablet_mode.h"
 #include "ash/public/mojom/input_device_settings.mojom.h"
+#include "ash/shell.h"
 #include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
@@ -220,19 +221,10 @@ void OobeTestAPIHandler::ShowGaiaDialog() {
 
 void OobeTestAPIHandler::HandleGetPrimaryDisplayName(
     const std::string& callback_id) {
-  mojo::Remote<crosapi::mojom::CrosDisplayConfigController> cros_display_config;
-  BindCrosDisplayConfigController(
-      cros_display_config.BindNewPipeAndPassReceiver());
+  std::vector<crosapi::mojom::DisplayUnitInfoPtr> info_list =
+      ash::Shell::Get()->cros_display_config()->GetDisplayUnitInfoList(
+          /*single_unified=*/false);
 
-  cros_display_config->GetDisplayUnitInfoList(
-      false /* single_unified */,
-      base::BindOnce(&OobeTestAPIHandler::OnGetDisplayUnitInfoList,
-                     base::Unretained(this), callback_id));
-}
-
-void OobeTestAPIHandler::OnGetDisplayUnitInfoList(
-    const std::string& callback_id,
-    std::vector<crosapi::mojom::DisplayUnitInfoPtr> info_list) {
   std::string display_name;
   for (const crosapi::mojom::DisplayUnitInfoPtr& info : info_list) {
     if (info->is_primary) {
@@ -240,13 +232,14 @@ void OobeTestAPIHandler::OnGetDisplayUnitInfoList(
       break;
     }
   }
+
   if (display_name.empty()) {
     RejectJavascriptCallback(base::Value(callback_id),
                              base::Value(display_name));
-    return;
+  } else {
+    ResolveJavascriptCallback(base::Value(callback_id),
+                              base::Value(display_name));
   }
-  ResolveJavascriptCallback(base::Value(callback_id),
-                            base::Value(display_name));
 }
 
 void OobeTestAPIHandler::HandleGetShouldSkipChoobe(

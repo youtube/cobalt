@@ -247,9 +247,9 @@ class WTF_EXPORT AtomicString {
 
   // Returns a lowercase/uppercase version of the string.
   // These functions convert ASCII characters only.
-  static AtomicString LowerASCII(AtomicString source);
-  AtomicString LowerASCII() const;
-  AtomicString UpperASCII() const;
+  static AtomicString ToAsciiLower(AtomicString source);
+  AtomicString ToAsciiLower() const;
+  AtomicString ToAsciiUpper() const;
 
 #ifdef __OBJC__
   operator NSString*() const { return string_; }

@@ -829,22 +829,11 @@ void RenderThreadImpl::RegisterSchemes() {
       chrome_scheme);
   WebSecurityPolicy::RegisterURLSchemeAsWebUI(chrome_scheme);
 
-  // Service workers for chrome://
-  if (base::FeatureList::IsEnabled(
-          features::kEnableServiceWorkersForChromeScheme)) {
-    WebSecurityPolicy::RegisterURLSchemeAsAllowingServiceWorkers(chrome_scheme);
-  }
 
   WebString chrome_untrusted_scheme(
       WebString::FromASCII(kChromeUIUntrustedScheme));
 
   // chrome-untrusted:
-  // Service workers for chrome-untrusted://
-  if (base::FeatureList::IsEnabled(
-          features::kEnableServiceWorkersForChromeUntrusted)) {
-    WebSecurityPolicy::RegisterURLSchemeAsAllowingServiceWorkers(
-        chrome_untrusted_scheme);
-  }
   WebSecurityPolicy::RegisterURLSchemeAsNotAllowingJavascriptURLs(
       chrome_untrusted_scheme);
   WebSecurityPolicy::RegisterURLSchemeAsSupportingFetchAPI(

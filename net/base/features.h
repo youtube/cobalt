@@ -432,17 +432,6 @@ NET_EXPORT BASE_DECLARE_FEATURE(kDeviceBoundSessions);
 // across restarts. This feature is only valid if `kDeviceBoundSessions` is
 // enabled.
 NET_EXPORT BASE_DECLARE_FEATURE(kPersistDeviceBoundSessions);
-// This feature will enable the Device Bound Session Credentials
-// protocol on all pages, ignoring the requirements for Origin Trial
-// headers. This is required because we cannot properly add the origin
-// trial header due to the circumstances outlined in
-// https://crbug.com/40860522. An EmbeddedTestServer cannot reliably be
-// started on one origin due to port randomization, an Origin Trial
-// cannot be generated dynamically, and a URLLoaderInterceptor will mock
-// the exact code we need to test.
-NET_EXPORT BASE_DECLARE_FEATURE_PARAM(
-    bool,
-    kDeviceBoundSessionsRequireOriginTrialTokens);
 // This feature enables the Device Bound Session Credentials refresh quota.
 // This behavior is expected by default; disabling it should only be for
 // testing purposes.
@@ -806,6 +795,15 @@ NET_EXPORT BASE_DECLARE_FEATURE(kLogicalClearHttpCache);
 // transport socket is detected to be disconnected in GetRemoteEndpoint().
 NET_EXPORT BASE_DECLARE_FEATURE(
     kDrainSpdySessionSynchronouslyOnRemoteEndpointDisconnect);
+
+// When enabled, SQLitePersistentCookieStore is initialized upon creation,
+// rather than waiting for the first load request.
+NET_EXPORT BASE_DECLARE_FEATURE(kSQLitePersistentCookieStoreEarlyInit);
+NET_EXPORT extern const base::FeatureParam<bool>
+    kSQLitePersistentCookieStoreEarlyInitCheckDisk;
+
+// If enabled, the error code will be propagated for preconnect attempts.
+NET_EXPORT BASE_DECLARE_FEATURE(kEnableErrorCodePropagationForPreconnect);
 
 }  // namespace net::features
 

@@ -20,12 +20,13 @@ source_set("ui") {
     "//chrome/browser/actor",
     "//chrome/browser/actor/resources:grit_grit",
     "//chrome/browser/actor/ui",
+    "//chrome/browser/glic",
+    "//chrome/browser/glic/browser_ui",
     "//chrome/browser/ui",
     "//chrome/common",
     "//content/public/browser",
     "//ui/views",
   ]
-  deps += [ "//chrome/browser/glic" ]
 }
 
 source_set("controller") {
@@ -59,6 +60,7 @@ source_set("controller_impl") {
     "//chrome/browser/ui/tabs:glic",
     "//chrome/browser/ui/tabs:tab_strip",
     "//chrome/browser/ui/views/interaction",
+    "//chrome/browser/ui/views/toolbar",
     "//ui/base",
     "//ui/views",
   ]

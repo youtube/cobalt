@@ -271,7 +271,7 @@ void CommitLiteralToken(StringBuilder& literal_buffer,
                         StringBuilder& converted) {
   if (literal_buffer.length() <= 0)
     return;
-  DateTimeFormat::QuoteAndappend(literal_buffer.ToString(), converted);
+  DateTimeFormat::QuoteAndAppend(StringView(literal_buffer), converted);
   literal_buffer.Clear();
 }
 
@@ -578,7 +578,7 @@ void LocaleWin::InitializeLocaleData() {
   } else {
     DCHECK_GE(digits.length(), 10u);
     for (wtf_size_t i = 0; i < 10; ++i) {
-      symbols.push_back(digits.Substring(i, 1));
+      symbols.push_back(digits.substr(i, 1));
     }
   }
   DCHECK_EQ(symbols.size(), kDecimalSeparatorIndex);

@@ -49,18 +49,18 @@ class RangeOfRvaluesAdapter {
     return std::ranges::size(range_);
   }
 
-  auto begin() { return std::make_move_iterator(std::ranges::begin(range_)); }
-  auto end() { return std::make_move_iterator(std::ranges::end(range_)); }
+  auto begin() { return std::move_iterator(std::ranges::begin(range_)); }
+  auto end() { return std::move_iterator(std::ranges::end(range_)); }
 
   auto rbegin()
-    requires std::ranges::bidirectional_range<Range>
+    requires requires(Range& range) { std::ranges::rbegin(range); }
   {
-    return std::make_move_iterator(std::ranges::rbegin(range_));
+    return std::move_iterator(std::ranges::rbegin(range_));
   }
   auto rend()
-    requires std::ranges::bidirectional_range<Range>
+    requires requires(Range& range) { std::ranges::rend(range); }
   {
-    return std::make_move_iterator(std::ranges::rend(range_));
+    return std::move_iterator(std::ranges::rend(range_));
   }
 
  private:
@@ -72,8 +72,7 @@ class RangeOfRvaluesAdapter {
 
 // Internal adapter class for implementing base::Reversed.
 // TODO(crbug.com/378623811): Parts of this (e.g. the `size()` helper) should be
-// extracted to a base template that can be shared/reused. In addition, this
-// should be constrained to Ts that satisfy the std::ranges::range concept.
+// extracted to a base template that can be shared/reused.
 template <typename Range>
 class ReversedAdapter {
  public:
@@ -82,13 +81,13 @@ class ReversedAdapter {
   ReversedAdapter(const ReversedAdapter&) = default;
   ReversedAdapter& operator=(const ReversedAdapter&) = delete;
 
-  auto begin() { return std::rbegin(range_); }
-  auto begin() const { return std::rbegin(range_); }
-  auto cbegin() const { return std::crbegin(range_); }
+  auto begin() { return std::ranges::rbegin(range_); }
+  auto begin() const { return std::ranges::rbegin(range_); }
+  auto cbegin() const { return std::ranges::crbegin(range_); }
 
-  auto end() { return std::rend(range_); }
-  auto end() const { return std::rend(range_); }
-  auto cend() const { return std::crend(range_); }
+  auto end() { return std::ranges::rend(range_); }
+  auto end() const { return std::ranges::rend(range_); }
+  auto cend() const { return std::ranges::crend(range_); }
 
   auto size() const
     requires std::ranges::sized_range<Range>

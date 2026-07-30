@@ -60,60 +60,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Renderer.ContentProduction.CommitToUnhideDelay" units="ms"
-    expires_after="2026-03-08">
-  <owner>mustaq@chromium.org</owner>
-  <owner>blink-interactions-team@google.com</owner>
-  <summary>
-    Records the timespan between the widget host getting a navigation commit and
-    the renderer host becoming visible (unhidden) for the first time. Records a
-    zero if navigation commit is not tracked.
-  </summary>
-</histogram>
-
-<histogram name="Renderer.ContentProduction.DelayFromUnhide" units="ms"
-    expires_after="2026-03-08">
-  <owner>mustaq@chromium.org</owner>
-  <owner>blink-interactions-team@google.com</owner>
-  <summary>
-    Records the timespan between the renderer host becoming visible (unhidden)
-    for the first time and the host receiving the first metadata signal
-    indicating content push from the renderer. Records a zero if the first
-    metadata signal arrives before.
-  </summary>
-</histogram>
-
-<histogram name="Renderer.ContentProduction.LifespanFromCommit" units="ms"
-    expires_after="2026-07-12">
-  <owner>mustaq@chromium.org</owner>
-  <owner>blink-interactions-team@google.com</owner>
-  <summary>
-    Records the timespan between the widget host getting a navigation commit and
-    it getting destroyed. Records a zero if navigation commit is not tracked.
-  </summary>
-</histogram>
-
-<histogram name="Renderer.ContentProduction.LifespanFromUnhide" units="ms"
-    expires_after="2026-07-12">
-  <owner>mustaq@chromium.org</owner>
-  <owner>blink-interactions-team@google.com</owner>
-  <summary>
-    Records the timespan between the renderer host becoming visible (unhidden)
-    for the first time and the widget host getting destroyed.
-  </summary>
-</histogram>
-
-<histogram name="Renderer.ContentProduction.SignalReceived" enum="Boolean"
-    expires_after="2026-07-12">
-  <owner>mustaq@chromium.org</owner>
-  <owner>blink-interactions-team@google.com</owner>
-  <summary>
-    Records whether the renderer host has received the first metadata indicating
-    content push from the renderer at a correct time (i.e. after the host became
-    visible for the first time).
-  </summary>
-</histogram>
-
 <histogram
     name="Renderer.Core.Timing.Performance.SwapsPerPerformanceEntryInsertion"
     units="swaps" expires_after="2026-05-10">
@@ -129,7 +75,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Renderer.CriticalFonts.BlockingResourcesLoadTime" units="ms"
-    expires_after="2026-07-06">
+    expires_after="2026-09-06">
   <owner>iclelland@chromium.org</owner>
   <owner>sullivan@chromium.org</owner>
   <owner>speed-metrics-dev@chromium.org</owner>
@@ -142,7 +88,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Renderer.CriticalFonts.CriticalFontDelay" units="ms"
-    expires_after="2026-07-06">
+    expires_after="2026-09-06">
   <owner>iclelland@chromium.org</owner>
   <owner>sullivan@chromium.org</owner>
   <owner>speed-metrics-dev@chromium.org</owner>
@@ -156,7 +102,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Renderer.CriticalFonts.PreloadedFontsLoadTime" units="ms"
-    expires_after="2026-07-06">
+    expires_after="2026-09-06">
   <owner>iclelland@chromium.org</owner>
   <owner>sullivan@chromium.org</owner>
   <owner>speed-metrics-dev@chromium.org</owner>
@@ -292,7 +238,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Renderer.Font.PrimaryFont.DomContentLoaded.Style" units="ms"
-    expires_after="2026-07-12">
+    expires_after="2026-09-13">
   <owner>kojii@chromium.org</owner>
   <owner>tkent@chromium.org</owner>
   <owner>layout-dev@chromium.org</owner>
@@ -316,7 +262,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Renderer.Font.PrimaryFont.FCP.Style" units="ms"
-    expires_after="2026-07-12">
+    expires_after="2026-09-13">
   <owner>kojii@chromium.org</owner>
   <owner>tkent@chromium.org</owner>
   <owner>layout-dev@chromium.org</owner>
@@ -355,7 +301,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Renderer.HungRendererDialog.UserAction"
-    enum="HungRendererDialogUserAction" expires_after="2026-07-05">
+    enum="HungRendererDialogUserAction" expires_after="2026-09-06">
   <owner>kerenzhu@chromium.org</owner>
   <owner>chrome-views-alerts@google.com</owner>
   <summary>
@@ -647,7 +593,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="RendererScheduler.DiscreteInputResponseDuration" units="ms"
-    expires_after="2026-07-12">
+    expires_after="2026-09-13">
   <owner>shaseley@chromium.org</owner>
   <owner>speed-metrics-dev@chromium.org</owner>
   <summary>
@@ -684,7 +630,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="RendererScheduler.RendererMain.TaskOffCpuDuration" units="ms"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>anandrv@google.com</owner>
   <owner>clank-performance-team@google.com</owner>
   <summary>
@@ -695,7 +641,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="RendererScheduler.RendererMain.TaskOnCpuDuration" units="ms"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>anandrv@google.com</owner>
   <owner>clank-performance-team@google.com</owner>
   <summary>
@@ -706,7 +652,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="RendererScheduler.RendererMain.TaskOnCpuPercentage" units="%"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>anandrv@google.com</owner>
   <owner>clank-performance-team@google.com</owner>
   <summary>

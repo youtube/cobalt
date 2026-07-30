@@ -34,8 +34,8 @@ SkillsUI::SkillsUI(content::WebUI* web_ui) : ui::MojoWebUIController(web_ui) {
       profile, chrome::kChromeUISkillsHost);
   webui::SetupWebUIDataSource(source, kSkillsResources, IDR_SKILLS_SKILLS_HTML);
   source->AddResourcePath("dialog", IDR_SKILLS_SKILLS_DIALOG_HTML);
-  bool isGlicEnabled = glic::GlicEnabling::IsEnabledForProfile(profile);
-  source->AddBoolean("isGlicEnabled", isGlicEnabled);
+  source->AddBoolean("isGlicEnabled",
+                     glic::GlicEnabling::IsReadyForProfile(profile));
   source->AddInteger("MAX_NAME_CHAR_COUNT", kMaxNameCharCount);
   source->AddInteger("MAX_PROMPT_CHAR_COUNT", kMaxPromptCharCount);
   static constexpr webui::LocalizedString kStrings[] = {
@@ -95,10 +95,12 @@ SkillsUI::SkillsUI(content::WebUI* web_ui) : ui::MojoWebUIController(web_ui) {
 
 void SkillsUI::InitializeDialog(base::WeakPtr<SkillsDialogDelegate> delegate,
                                 Skill skill,
-                                SkillsDialogEntryPoint entrypoint) {
+                                SkillsDialogEntryPoint entrypoint,
+                                mojom::SkillsDialogType dialog_type) {
   delegate_ = delegate;
   initial_skill_ = std::move(skill);
   entrypoint_ = entrypoint;
+  dialog_type_ = dialog_type;
 }
 
 void SkillsUI::BindInterface(
@@ -120,7 +122,7 @@ void SkillsUI::CreateDialogHandler(
       std::move(receiver), web_ui()->GetWebContents(),
       OptimizationGuideKeyedServiceFactory::GetForProfile(
           Profile::FromWebUI(web_ui())),
-      initial_skill_, entrypoint_, delegate_);
+      initial_skill_, entrypoint_, dialog_type_, delegate_);
 }
 
 WEB_UI_CONTROLLER_TYPE_IMPL(SkillsUI)

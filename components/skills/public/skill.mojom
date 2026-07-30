@@ -17,7 +17,9 @@ enum SkillSource {
   kDerivedFromFirstParty = 3,
 };
 // clang-format off
-// LINT.ThenChange(//components/sync/protocol/skill_specifics.proto:SkillSource, //chrome/browser/glic/host/glic.mojom:SkillSource)
+// LINT.ThenChange(//components/sync/protocol/skill_specifics.proto:SkillSource,
+// chrome/browser/glic/host/glic.mojom:SkillSource,
+// chrome/test/data/webui/glic/test_client/index.html:SkillSource)
 // clang-format on
 
 // LINT.IfChange(Skill)
@@ -55,3 +57,11 @@ struct Skill {
 // clang-format off
 // LINT.ThenChange(//components/skills/public/skill.h:Skill, //chrome/browser/glic/host/glic.mojom:Skill)
 // clang-format on
+
+// The type of skills dialog to open.
+enum SkillsDialogType {
+  // Add dialog.
+  kAdd,
+  // Edit dialog.
+  kEdit,
+};

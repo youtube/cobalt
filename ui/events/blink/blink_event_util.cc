@@ -68,6 +68,8 @@ WebInputEvent::Type ToWebTouchEventType(MotionEvent::Action action) {
     case MotionEvent::Action::HOVER_MOVE:
     case MotionEvent::Action::BUTTON_PRESS:
     case MotionEvent::Action::BUTTON_RELEASE:
+    case MotionEvent::Action::OUTSIDE:
+    case MotionEvent::Action::SCROLL:
       break;
   }
   NOTREACHED() << "Invalid MotionEvent::Action = " << action;
@@ -101,6 +103,8 @@ WebTouchPoint::State ToWebTouchPointState(const MotionEvent& event,
     case MotionEvent::Action::HOVER_MOVE:
     case MotionEvent::Action::BUTTON_PRESS:
     case MotionEvent::Action::BUTTON_RELEASE:
+    case MotionEvent::Action::OUTSIDE:
+    case MotionEvent::Action::SCROLL:
       break;
   }
   NOTREACHED() << "Invalid MotionEvent::Action.";
@@ -419,6 +423,11 @@ WebGestureEvent CreateWebGestureEvent(const GestureEventDetails& details,
       break;
     case EventType::kGestureScrollEnd:
       gesture.SetType(WebInputEvent::Type::kGestureScrollEnd);
+      gesture.data.scroll_end.delta_x_compensated =
+          IfNanUseMaxFloat(details.scroll_x_compensated());
+      gesture.data.scroll_end.delta_y_compensated =
+          IfNanUseMaxFloat(details.scroll_y_compensated());
+      gesture.data.scroll_end.delta_units = details.scroll_end_units();
       gesture.data.scroll_end.inertial_phase =
           WebGestureEvent::InertialPhaseState::kNonMomentum;
       break;

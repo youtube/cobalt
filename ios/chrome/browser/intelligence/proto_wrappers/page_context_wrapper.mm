@@ -80,6 +80,9 @@ constexpr const char kChildrenFramesDictKey[] = "children";
 // The key for the PageInteractionInfo of the main frame.
 constexpr const char kPageInteractionInfoDictKey[] = "pageInteractionInfo";
 
+// The key for the ViewportGeometry of the main frame.
+constexpr const char kViewportGeometryDictKey[] = "viewportGeometry";
+
 // The key for the links of the frame in the JavaScript object. The value is
 // an array of objects.
 constexpr const char kFrameLinksDictKey[] = "links";
@@ -613,7 +616,9 @@ result.links = linksArray;
       extractor_feature->ExtractPageContext(
           mainFrame, _config->graft_cross_origin_frame_content(),
           _config->use_rich_extraction(),
-          _config->use_rich_extraction_with_actionable(), nonce, js_timeout,
+          _config->use_rich_extraction_with_actionable(),
+          _config->extract_paid_content(),
+          _config->attempt_paid_content_json_fixing(), nonce, js_timeout,
           base::BindOnce(
               callback, weakSelf, annotatedPageContentBarrier,
               /*isMainFrame=*/YES, mainFrame->GetSecurityOrigin(),
@@ -637,7 +642,9 @@ result.links = linksArray;
       extractor_feature->ExtractPageContext(
           webFrame, _config->graft_cross_origin_frame_content(),
           _config->use_rich_extraction(),
-          _config->use_rich_extraction_with_actionable(), nonce, js_timeout,
+          _config->use_rich_extraction_with_actionable(),
+          _config->extract_paid_content(),
+          _config->attempt_paid_content_json_fixing(), nonce, js_timeout,
           base::BindOnce(
               callback, weakSelf, annotatedPageContentBarrier,
               /*isMainFrame=*/NO, webFrame->GetSecurityOrigin(),
@@ -950,6 +957,12 @@ result.links = linksArray;
       PopulatePageInteractionInfoNode(
           *pageInteractionInfoValue,
           _rootAPCNode->mutable_page_interaction_info());
+    }
+
+    if (const base::DictValue* viewportGeometryValue =
+            value.FindDict(kViewportGeometryDictKey)) {
+      PopulateViewportGeometryNode(*viewportGeometryValue,
+                                   _rootAPCNode->mutable_viewport_geometry());
     }
   }
 }

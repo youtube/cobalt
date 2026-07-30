@@ -24,6 +24,7 @@
 #include "ash/wm/window_util.h"
 #include "base/base_paths.h"
 #include "base/check_deref.h"
+#include "base/check_is_test.h"
 #include "base/check_op.h"
 #include "base/command_line.h"
 #include "base/debug/alias.h"
@@ -429,7 +430,7 @@ void LogCustomFeatureFlags(const std::set<std::string>& feature_flags) {
 
 bool IsRunningTest() {
   return base::CommandLine::ForCurrentProcess()->HasSwitch(
-             ::switches::kTestName) ||
+             ash::switches::kTestName) ||
          base::CommandLine::ForCurrentProcess()->HasSwitch(
              ::switches::kTestType);
 }
@@ -750,6 +751,7 @@ scoped_refptr<Authenticator> UserSessionManager::CreateAuthenticator(
 
   if (authenticator_.get() == nullptr) {
     if (injected_authenticator_builder_) {
+      CHECK_IS_TEST();
       authenticator_ = injected_authenticator_builder_->Create(consumer);
     } else {
       auto* user_manager = user_manager::UserManager::Get();
@@ -1352,7 +1354,8 @@ void UserSessionManager::VoteForSavingLoginPassword(
 void UserSessionManager::InitDemoSessionIfNeeded(base::OnceClosure callback) {
   DemoSession* demo_session = DemoSession::StartIfInDemoMode(
       g_browser_process->local_state(),
-      g_browser_process->GetFeatures()->application_locale_storage());
+      g_browser_process->GetFeatures()->application_locale_storage(),
+      g_browser_process->platform_part()->component_manager_ash());
   if (!demo_session || !demo_session->started()) {
     std::move(callback).Run();
     return;
@@ -1505,9 +1508,8 @@ void UserSessionManager::InitProfilePreferences(
     // 3. Set it as the Primary Account.
 
     account_manager::AccountManager* account_manager =
-        g_browser_process->platform_part()
-            ->GetAccountManagerFactory()
-            ->GetAccountManager(profile->GetPath().value());
+        AccountManagerFactory::Get()->GetAccountManager(
+            profile->GetPath().value());
 
     DCHECK(account_manager->IsInitialized());
 
@@ -2082,14 +2084,14 @@ void UserSessionManager::ProcessAppModeSwitches() {
 
   // Are we in kiosk app mode?
   if (in_app_mode) {
-    if (command_line->HasSwitch(::switches::kAppModeOAuth2Token)) {
-      user_context_.SetRefreshToken(
-          command_line->GetSwitchValueASCII(::switches::kAppModeOAuth2Token));
+    if (command_line->HasSwitch(ash::switches::kAppModeOAuth2Token)) {
+      user_context_.SetRefreshToken(command_line->GetSwitchValueASCII(
+          ash::switches::kAppModeOAuth2Token));
     }
 
-    if (command_line->HasSwitch(::switches::kAppModeAuthCode)) {
+    if (command_line->HasSwitch(ash::switches::kAppModeAuthCode)) {
       user_context_.SetAuthCode(
-          command_line->GetSwitchValueASCII(::switches::kAppModeAuthCode));
+          command_line->GetSwitchValueASCII(ash::switches::kAppModeAuthCode));
     }
 
     DCHECK(!has_auth_cookies_);
@@ -2593,7 +2595,7 @@ void UserSessionManager::RemoveProfileForTesting(Profile* profile) {
   default_ime_states_.erase(profile);
 }
 
-void UserSessionManager::InjectAuthenticatorBuilder(
+void UserSessionManager::InjectAuthenticatorBuilderForTesting(
     std::unique_ptr<AuthenticatorBuilder> builder) {
   injected_authenticator_builder_ = std::move(builder);
   authenticator_.reset();

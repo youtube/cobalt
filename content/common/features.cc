@@ -110,13 +110,8 @@ BASE_FEATURE(kHoldbackDebugReasonStringRemoval,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_MAC)
-
-BASE_FEATURE(kBlockThirdPartyInProcessPlugins,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kCancelCompositionWhenWindowLosesFocus,
              base::FEATURE_ENABLED_BY_DEFAULT);
-
 #endif  // BUILDFLAG(IS_MAC)
 
 // When enabled, CDP method Page.captureScreenshot will increment
@@ -450,6 +445,12 @@ BASE_FEATURE(kLocalNetworkAccessForFencedFrameNavigations,
 BASE_FEATURE(kLocalNetworkAccessForFencedFrameNavigationsWarningOnly,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables enhanced security checks for direct sockets.
+// This includes checking local/loopback network policies and prompting
+// in unmanaged Isolated Web Apps (IWAs).
+BASE_FEATURE(kLocalNetworkAccessPromptDirectSockets,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // When enabled, allows the ReusePrerenderingProcessForMainFrames feature
 // and the ProcessPerSiteUpToMainFrameThreshold feature to reuse processes
 // even when DevTools was ever attached.
@@ -643,7 +644,7 @@ BASE_FEATURE(kServiceWorkerSrcdocSupport, base::FEATURE_ENABLED_BY_DEFAULT);
 //
 // crbug.com/340949948 for more details.
 BASE_FEATURE(kServiceWorkerStaticRouterRaceRequestFix2,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // (crbug.com/1371756): When enabled, the static routing API starts
 // ServiceWorker when the routing result of a main resource request was network
@@ -664,10 +665,8 @@ BASE_FEATURE(kServiceWorkerSuppressTimeoutWhenPaymentWindowOpen,
 BASE_FEATURE(kServiceWorkerClientUrlIsCreationUrl,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// (crbug.com/454162508): Enabled feature will have ServiceWorker
-// WindowClient.Navigate() calls set the right initiator.
 BASE_FEATURE(kServiceWorkerWindowClientInitiator,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables skipping the early call to CommitPending when navigating away from a
 // crashed frame.

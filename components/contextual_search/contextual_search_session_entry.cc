@@ -15,7 +15,7 @@ ContextualSearchSessionEntry::ContextualSearchSessionEntry(
       metrics_recorder_(std::move(other.metrics_recorder_)),
       ref_count_(other.ref_count_) {
   if (controller_) {
-    file_upload_status_observer_.Observe(controller_.get());
+    context_upload_status_observer_.Observe(controller_.get());
   }
 }
 
@@ -25,9 +25,9 @@ ContextualSearchSessionEntry& ContextualSearchSessionEntry::operator=(
     controller_ = std::move(other.controller_);
     metrics_recorder_ = std::move(other.metrics_recorder_);
     ref_count_ = other.ref_count_;
-    file_upload_status_observer_.Reset();
+    context_upload_status_observer_.Reset();
     if (controller_) {
-      file_upload_status_observer_.Observe(controller_.get());
+      context_upload_status_observer_.Observe(controller_.get());
     }
   }
   return *this;
@@ -39,21 +39,21 @@ ContextualSearchSessionEntry::ContextualSearchSessionEntry(
     : controller_(std::move(controller)),
       metrics_recorder_(std::move(metrics_recorder)) {
   if (controller_) {
-    file_upload_status_observer_.Observe(controller_.get());
+    context_upload_status_observer_.Observe(controller_.get());
   }
 }
 
 ContextualSearchSessionEntry::~ContextualSearchSessionEntry() = default;
 
-void ContextualSearchSessionEntry::OnFileUploadStatusChanged(
-    const base::UnguessableToken& file_token,
+void ContextualSearchSessionEntry::OnContextUploadStatusChanged(
+    const base::UnguessableToken& context_token,
     lens::MimeType mime_type,
-    contextual_search::ContextUploadStatus file_upload_status,
+    contextual_search::ContextUploadStatus context_upload_status,
     const std::optional<contextual_search::ContextUploadErrorType>&
         error_type) {
   if (metrics_recorder_) {
-    metrics_recorder_->OnFileUploadStatusChanged(mime_type, file_upload_status,
-                                                 error_type);
+    metrics_recorder_->OnContextUploadStatusChanged(
+        mime_type, context_upload_status, error_type);
   }
 }
 

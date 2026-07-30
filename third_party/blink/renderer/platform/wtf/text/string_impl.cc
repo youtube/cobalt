@@ -398,7 +398,7 @@ scoped_refptr<StringImpl> StringImpl::Substring(wtf_size_t start,
   return Create(Span16().subspan(start, length));
 }
 
-UChar32 StringImpl::CharacterStartingAt(wtf_size_t i) {
+UChar32 StringImpl::CodePointAtOrZero(wtf_size_t i) {
   if (Is8Bit()) {
     return Span8()[i];
   }
@@ -432,11 +432,11 @@ class StringImplAllocator {
   }
 };
 
-scoped_refptr<StringImpl> StringImpl::LowerASCII() {
+scoped_refptr<StringImpl> StringImpl::ToAsciiLower() {
   return ConvertAsciiCase(*this, LowerConverter(), StringImplAllocator());
 }
 
-scoped_refptr<StringImpl> StringImpl::UpperASCII() {
+scoped_refptr<StringImpl> StringImpl::ToAsciiUpper() {
   return ConvertAsciiCase(*this, UpperConverter(), StringImplAllocator());
 }
 
@@ -465,7 +465,7 @@ scoped_refptr<StringImpl> StringImpl::FoldCase() {
     const base::span<const LChar> source8 = Span8();
     for (size_t i = 0; i < source8.size(); ++i) {
       const LChar c = source8[i];
-      data8[i] = ToASCIILower(c);
+      data8[i] = ::blink::ToAsciiLower(c);
       ored |= c;
     }
 
@@ -488,7 +488,7 @@ scoped_refptr<StringImpl> StringImpl::FoldCase() {
   const base::span<const UChar> source16 = Span16();
   for (size_t i = 0; i < source16.size(); ++i) {
     const UChar c = source16[i];
-    data16[i] = ToASCIILower(c);
+    data16[i] = ::blink::ToAsciiLower(c);
     ored |= c;
   }
   if (!(ored & ~0x7F))
@@ -509,14 +509,6 @@ scoped_refptr<StringImpl> StringImpl::FoldCase() {
   if (error)
     return this;
   return new_impl;
-}
-
-scoped_refptr<StringImpl> StringImpl::Truncate(wtf_size_t length) {
-  if (length >= length_)
-    return this;
-  if (Is8Bit())
-    return Create(Span8().first(length));
-  return Create(Span16().first(length));
 }
 
 template <class UCharPredicate>
@@ -922,8 +914,8 @@ wtf_size_t StringImpl::FindIgnoringAsciiCase(const StringView& match_string,
 
 wtf_size_t StringImpl::ReverseFind(UChar c, wtf_size_t index) const {
   if (Is8Bit())
-    return blink::ReverseFind(Span8(), c, index);
-  return blink::ReverseFind(Span16(), c, index);
+    return internal::ReverseFind(Span8(), c, index);
+  return internal::ReverseFind(Span16(), c, index);
 }
 
 wtf_size_t StringImpl::ReverseFind(const StringView& match_string,
@@ -940,8 +932,8 @@ wtf_size_t StringImpl::ReverseFind(const StringView& match_string,
   // Optimization 1: fast case for strings of length 1.
   if (match_length == 1) {
     if (Is8Bit())
-      return blink::ReverseFind(Span8(), match_string[0], index);
-    return blink::ReverseFind(Span16(), match_string[0], index);
+      return internal::ReverseFind(Span8(), match_string[0], index);
+    return internal::ReverseFind(Span16(), match_string[0], index);
   }
 
   // Check index & matchLength are in range.
@@ -1353,36 +1345,6 @@ bool EqualIgnoringNullity(StringImpl* a, StringImpl* b) {
   if (!b && a && !a->length())
     return true;
   return Equal(a, b);
-}
-
-template <typename CharacterType>
-int CodeUnitCompareIgnoringASCIICase(const StringImpl* string1,
-                                     base::span<const CharacterType> string2) {
-  if (!string1) {
-    return !string2.empty() ? -1 : 0;
-  }
-  return VisitCharacters(*string1, [string2](auto string1_chars) {
-    return CodeUnitCompareIgnoringAsciiCase(string1_chars, string2);
-  });
-}
-
-int CodeUnitCompareIgnoringASCIICase(const StringImpl* string1,
-                                     const LChar* string2) {
-  if (!string2) {
-    return string1 && string1->length() ? 1 : 0;
-  }
-  std::string_view string2_view(reinterpret_cast<const char*>(string2));
-  return CodeUnitCompareIgnoringASCIICase(string1, base::span(string2_view));
-}
-
-int CodeUnitCompareIgnoringASCIICase(const StringImpl* string1,
-                                     const StringImpl* string2) {
-  if (!string2) {
-    return string1 && string1->length() ? 1 : 0;
-  }
-  return VisitCharacters(*string2, [string1](auto string2_chars) {
-    return CodeUnitCompareIgnoringASCIICase(string1, string2_chars);
-  });
 }
 
 }  // namespace blink

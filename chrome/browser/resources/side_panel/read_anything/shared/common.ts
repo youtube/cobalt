@@ -1,9 +1,9 @@
 // Copyright 2024 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-
 import type {CrActionMenuElement} from '//resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import {AnchorAlignment} from '//resources/cr_elements/cr_action_menu/cr_action_menu.js';
+import {isRTL} from '//resources/js/util.js';
 
 import type {ShowAtConfigPrefs} from '../content/read_anything_types.js';
 import {TextSegmenter} from '../read_aloud/text_segmenter.js';
@@ -26,7 +26,8 @@ export const MOSTLY_VISIBLE_PERCENT = 0.8;
 
 export function openMenu(
     menuToOpen: CrActionMenuElement, target: HTMLElement,
-    showAtConfig?: ShowAtConfigPrefs, onShow?: () => void) {
+    showAtConfig?: ShowAtConfigPrefs, onShow?: () => void,
+    isSubmenu: boolean = false) {
   // The button should stay active while the menu is open and deactivate when
   // the menu closes.
   menuToOpen.addEventListener('close', () => {
@@ -52,6 +53,25 @@ export function openMenu(
                 noOffset: true,
               },
               showAtConfig));
+
+      // We manually override submenu positions here because cr-action-menu's
+      // native side-collision aggressively flips the entire menu. We must do
+      // this after showAt() because <cr-lazy-render> keeps offsetWidth at 0
+      // until opened.
+      if (isSubmenu) {
+        const dialog = menuToOpen.getDialog();
+        const targetRect = target.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        const menuWidth = dialog.offsetWidth;
+        const idealLeft =
+            isRTL() ? targetRect.right : targetRect.left - menuWidth;
+        const maxLeftAllowed = viewportWidth - menuWidth;
+        const exactLeft = Math.max(0, Math.min(idealLeft, maxLeftAllowed));
+
+        dialog.style.left = `${exactLeft}px`;
+        dialog.style.right = 'auto';
+      }
+
       if (onShow) {
         onShow();
       }

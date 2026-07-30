@@ -755,21 +755,27 @@ ContextProperties GraphBuilderTflite::GetContextProperties() {
        // https://source.chromium.org/chromium/chromium/src/+/main:third_party/tflite/src/tensorflow/lite/kernels/internal/reference/gather.h;l=43;drc=49db932a0bdfca060c3e8b0d063a7e8c9f5d2fa5
        /*gather_input=*/
        {kFloat16To32AndInt8To64AndUint8, SupportedRanks::NonScalarUpTo(8)},
+       // Clamping indices to the input dimensions requires a broadcasting
+       // MIN/MAX op, which is limited to 5D.
        /*gather_indices=*/
        {DataTypeConstraint::kGatherScatterIndicesSupportedDataTypes,
-        SupportedRanks::UpTo(8)},
+        SupportedRanks::UpTo(5)},
        // Scalar is not supported:
        // https://source.chromium.org/chromium/chromium/src/+/main:third_party/tflite/src/tensorflow/lite/kernels/gather_nd.cc
        /*gather_elements_input=*/
        {kFloat16To32AndInt8To64AndUint8, SupportedRanks::NonScalarUpTo(8)},
+       // Clamping indices to the input dimensions requires a broadcasting
+       // MIN/MAX op, which is limited to 5D.
        /*gather_elements_indices=*/
        {DataTypeConstraint::kGatherScatterIndicesSupportedDataTypes,
-        SupportedRanks::NonScalarUpTo(8)},
+        SupportedRanks::NonScalarUpTo(5)},
        /*gather_nd_input=*/
        {kFloat16To32AndInt8To64AndUint8, SupportedRanks::NonScalarUpTo(8)},
+       // Clamping indices to the input dimensions requires a broadcasting
+       // MIN/MAX op, which is limited to 5D.
        /*gather_nd_indices=*/
        {DataTypeConstraint::kGatherScatterIndicesSupportedDataTypes,
-        SupportedRanks::NonScalarUpTo(8)},
+        SupportedRanks::NonScalarUpTo(5)},
        /*gelu_input=*/
        {DataTypeConstraint::kFloat16To32, SupportedRanks::UpTo(8)},
        /*gemm_a=*/
@@ -884,8 +890,10 @@ ContextProperties GraphBuilderTflite::GetContextProperties() {
        {kFloat16To32AndInt8To64AndUint32, SupportedRanks::NonScalarUpTo(8)},
        // The indices of tfl.scatter_nd only support int32.
        // https://www.tensorflow.org/mlir/tfl_ops#operands_117
+       // Clamping indices to the input dimensions requires a broadcasting
+       // MIN/MAX op, which is limited to 5D.
        /*scatter_nd_indices=*/
-       {{OperandDataType::kInt32}, SupportedRanks::NonScalarUpTo(8)},
+       {{OperandDataType::kInt32}, SupportedRanks::NonScalarUpTo(5)},
        /*scatter_nd_updates=*/
        {kFloat16To32AndInt8To64AndUint32, SupportedRanks::NonScalarUpTo(8)},
        // Polyfilled with linear.
@@ -4035,6 +4043,24 @@ auto GraphBuilderTflite::SerializeConv2d(const mojom::Conv2d& conv2d)
   const auto& filter_shape = filter_operand.descriptor.shape();
   const webnn::Size2d<uint32_t> filter_size2d = {.height = filter_shape[1],
                                                  .width = filter_shape[2]};
+
+  if (conv2d.kind == mojom::Conv2d::Kind::kDirect) {
+    // Calculate the im2col temp tensor size [batch_size * output_height *
+    // output_width * input_channels * filter_height, filter_width].
+    const base::CheckedNumeric<int32_t> im2col_elements =
+        base::CheckedNumeric<int32_t>(input_shape[0]) * output_shape[1] *
+        output_shape[2] * input_channels * filter_size2d.height *
+        filter_size2d.width;
+
+    // Check against the 32-bit signed integer limit to avoid overflow in
+    // TFLite.
+    if (!im2col_elements.IsValid()) {
+      return base::unexpected(
+          "Conv2d doesn't support configurations that require an internal "
+          "computation buffer exceeding INT32_MAX elements.");
+    }
+  }
+
   ASSIGN_OR_RETURN(
       TfLitePadding padding_mode,
       GetTfLitePaddingMode(*conv2d.padding, input_size2d, filter_size2d,

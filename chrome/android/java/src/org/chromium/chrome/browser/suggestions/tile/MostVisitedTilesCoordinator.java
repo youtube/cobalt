@@ -88,7 +88,7 @@ public class MostVisitedTilesCoordinator implements ConfigurationChangedObserver
                 new MostVisitedTilesMediator(
                         activity,
                         mUiConfig,
-                        tilesLayout,
+                        mvTilesContainerLayout,
                         mRenderer,
                         propertyModel,
                         isTablet,
@@ -173,10 +173,8 @@ public class MostVisitedTilesCoordinator implements ConfigurationChangedObserver
      *     search box.
      * @param isTablet Whether the device is a tablet.
      */
-    public void updateTilesLayoutMargins(
-            boolean shouldShowLogo, boolean isWhiteBackgroundOnSearchBoxApplied, boolean isTablet) {
-        mMediator.updateTilesLayoutMargins(
-                shouldShowLogo, isWhiteBackgroundOnSearchBoxApplied, isTablet);
+    public void updateTilesLayoutMargins(boolean shouldShowLogo, boolean isTablet) {
+        mMediator.updateTilesLayoutMargins(shouldShowLogo, isTablet);
     }
 
     /** Called when the TasksSurface is hidden or NewTabPageLayout is destroyed. */

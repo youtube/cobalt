@@ -29,9 +29,6 @@ interface SearchBoxProperties {
     WritableObjectPropertyKey<OnClickListener> VOICE_SEARCH_CLICK_CALLBACK =
             new WritableObjectPropertyKey<>();
 
-    WritableBooleanPropertyKey COMPOSEPLATE_BUTTON_VISIBILITY = new WritableBooleanPropertyKey();
-    WritableObjectPropertyKey<OnClickListener> COMPOSEPLATE_BUTTON_CLICK_CALLBACK =
-            new WritableObjectPropertyKey<>();
     WritableBooleanPropertyKey LENS_VISIBILITY = new WritableBooleanPropertyKey();
     WritableObjectPropertyKey<OnClickListener> LENS_CLICK_CALLBACK =
             new WritableObjectPropertyKey<>();
@@ -52,8 +49,8 @@ interface SearchBoxProperties {
     WritableObjectPropertyKey<String> SEARCH_BOX_HINT_TEXT = new WritableObjectPropertyKey<>();
     WritableBooleanPropertyKey APPLY_WHITE_BACKGROUND_WITH_SHADOW =
             new WritableBooleanPropertyKey();
-
-    WritableIntPropertyKey COMPOSEPLATE_BUTTON_ICON_RAW_RES_ID = new WritableIntPropertyKey();
+    WritableIntPropertyKey DSE_ICON_RESOURCE_ID = new WritableIntPropertyKey();
+    WritableObjectPropertyKey<Drawable> DSE_ICON_DRAWABLE = new WritableObjectPropertyKey<>();
 
     PropertyKey[] ALL_KEYS =
             new PropertyKey[] {
@@ -62,8 +59,6 @@ interface SearchBoxProperties {
                 VOICE_SEARCH_DRAWABLE,
                 VOICE_SEARCH_COLOR_STATE_LIST,
                 VOICE_SEARCH_CLICK_CALLBACK,
-                COMPOSEPLATE_BUTTON_VISIBILITY,
-                COMPOSEPLATE_BUTTON_CLICK_CALLBACK,
                 LENS_VISIBILITY,
                 LENS_CLICK_CALLBACK,
                 SEARCH_TEXT,
@@ -79,6 +74,7 @@ interface SearchBoxProperties {
                 ENABLE_SEARCH_BOX_EDIT_TEXT,
                 SEARCH_BOX_HINT_TEXT,
                 APPLY_WHITE_BACKGROUND_WITH_SHADOW,
-                COMPOSEPLATE_BUTTON_ICON_RAW_RES_ID,
+                DSE_ICON_RESOURCE_ID,
+                DSE_ICON_DRAWABLE,
             };
 }

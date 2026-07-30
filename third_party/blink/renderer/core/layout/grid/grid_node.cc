@@ -10,7 +10,7 @@
 
 namespace blink {
 
-GridItems GridNode::ConstructGridItems(
+GridItems* GridNode::ConstructGridItems(
     const GridLineResolver& line_resolver,
     bool* must_invalidate_placement_cache,
     HeapVector<Member<LayoutBox>>* opt_oof_children,
@@ -23,7 +23,7 @@ GridItems GridNode::ConstructGridItems(
                             opt_has_nested_subgrid);
 }
 
-GridItems GridNode::ConstructGridItems(
+GridItems* GridNode::ConstructGridItems(
     const GridLineResolver& line_resolver,
     const ComputedStyle& root_grid_style,
     const ComputedStyle& parent_grid_style,
@@ -38,7 +38,7 @@ GridItems GridNode::ConstructGridItems(
     *opt_has_nested_subgrid = false;
   }
 
-  GridItems grid_items;
+  GridItems* grid_items = MakeGarbageCollected<GridItems>();
   auto* layout_grid = To<LayoutGrid>(box_.Get());
   const GridPlacementData* cached_placement_data = nullptr;
 
@@ -47,7 +47,7 @@ GridItems GridNode::ConstructGridItems(
 
     // Even if the cached placement data is incorrect, as long as the grid is
     // not marked as dirty, the grid item count should be the same.
-    grid_items.ReserveInitialCapacity(
+    grid_items->ReserveInitialCapacity(
         cached_placement_data->grid_item_positions.size());
 
     if (*must_invalidate_placement_cache ||
@@ -90,11 +90,11 @@ GridItems GridNode::ConstructGridItems(
       if (opt_has_nested_subgrid) {
         *opt_has_nested_subgrid |= grid_item->IsSubgrid();
       }
-      grid_items.Append(grid_item);
+      grid_items->Append(grid_item);
     }
 
     if (should_sort_grid_items_by_order_property) {
-      grid_items.SortByOrderProperty();
+      grid_items->SortByOrderProperty();
     }
   }
 
@@ -102,85 +102,24 @@ GridItems GridNode::ConstructGridItems(
   if (cached_placement_data) {
     GridPlacement grid_placement(Style(), line_resolver);
     DCHECK(*cached_placement_data ==
-           grid_placement.RunAutoPlacementAlgorithm(grid_items));
+           grid_placement.RunAutoPlacementAlgorithm(*grid_items));
   }
 #endif
 
   if (!cached_placement_data) {
     GridPlacement grid_placement(Style(), line_resolver);
     layout_grid->SetCachedPlacementData(
-        grid_placement.RunAutoPlacementAlgorithm(grid_items));
+        grid_placement.RunAutoPlacementAlgorithm(*grid_items));
     cached_placement_data = &layout_grid->CachedPlacementData();
   }
 
   // Copy each resolved position to its respective grid item data.
   auto resolved_position =
       base::span(cached_placement_data->grid_item_positions).begin();
-  for (auto& grid_item : grid_items) {
+  for (auto& grid_item : *grid_items) {
     grid_item.resolved_position = *(resolved_position++);
   }
   return grid_items;
-}
-
-void GridNode::AppendSubgriddedItems(GridItems* grid_items) const {
-  DCHECK(grid_items);
-
-  const auto& root_grid_style = Style();
-  for (wtf_size_t i = 0; i < grid_items->Size(); ++i) {
-    auto& current_item = grid_items->At(i);
-
-    if (!current_item.must_consider_grid_items_for_column_sizing &&
-        !current_item.must_consider_grid_items_for_row_sizing) {
-      continue;
-    }
-
-    bool must_invalidate_placement_cache = false;
-    const auto subgrid = To<GridNode>(current_item.node);
-
-    auto subgridded_items = subgrid.ConstructGridItems(
-        subgrid.CachedLineResolver(), root_grid_style, subgrid.Style(),
-        current_item.must_consider_grid_items_for_column_sizing,
-        current_item.must_consider_grid_items_for_row_sizing,
-        &must_invalidate_placement_cache);
-
-    DCHECK(!must_invalidate_placement_cache)
-        << "We shouldn't need to invalidate the placement cache if we relied "
-           "on the cached line resolver; it must produce the same placement.";
-
-    auto TranslateSubgriddedItem =
-        [&current_item](GridSpan& subgridded_item_span,
-                        GridTrackSizingDirection track_direction) {
-          if (current_item.MustConsiderGridItemsForSizing(track_direction)) {
-            // If a subgrid is in an opposite writing direction to the root
-            // grid, we should "reverse" the subgridded item's span.
-            if (current_item.IsOppositeDirectionInRootGrid(track_direction)) {
-              const wtf_size_t subgrid_span_size =
-                  current_item.SpanSize(track_direction);
-
-              DCHECK_LE(subgridded_item_span.EndLine(), subgrid_span_size);
-
-              subgridded_item_span = GridSpan::TranslatedDefiniteGridSpan(
-                  subgrid_span_size - subgridded_item_span.EndLine(),
-                  subgrid_span_size - subgridded_item_span.StartLine());
-            }
-            subgridded_item_span.Translate(
-                current_item.StartLine(track_direction));
-          }
-        };
-
-    for (auto& subgridded_item : subgridded_items) {
-      subgridded_item.is_subgridded_to_parent_grid = true;
-      auto& item_position = subgridded_item.resolved_position;
-
-      if (!current_item.is_parallel_with_root_grid) {
-        std::swap(item_position.columns, item_position.rows);
-      }
-
-      TranslateSubgriddedItem(item_position.columns, kForColumns);
-      TranslateSubgriddedItem(item_position.rows, kForRows);
-    }
-    grid_items->Append(&subgridded_items);
-  }
 }
 
 MinMaxSizesResult GridNode::ComputeSubgridMinMaxSizes(

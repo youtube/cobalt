@@ -52,13 +52,7 @@
 #include "components/webapps/browser/android/webapps_jni_headers/AppBannerManager_jni.h"
 
 using base::android::AttachCurrentThread;
-using base::android::ConvertJavaStringToUTF16;
-using base::android::ConvertJavaStringToUTF8;
-using base::android::ConvertUTF16ToJavaString;
-using base::android::ConvertUTF8ToJavaString;
 using base::android::JavaRef;
-using base::android::ScopedJavaGlobalRef;
-using base::android::ScopedJavaLocalRef;
 
 namespace webapps {
 
@@ -103,14 +97,14 @@ AppBannerManagerAndroid::AppBannerManagerAndroid(
 
 AppBannerManagerAndroid::~AppBannerManagerAndroid() {
   JNIEnv* env = base::android::AttachCurrentThread();
-  Java_AppBannerManager_destroy(env, GetJavaBannerManager(env));
-  java_banner_manager_.reset();
+  Java_AppBannerManager_destroy(env, java_banner_manager_);
+  java_banner_manager_.Reset();
 }
 
 AppBannerManagerAndroid::QueryNativeAppConfig::QueryNativeAppConfig(
-    const base::android::ScopedJavaLocalRef<jstring>& url,
-    const base::android::ScopedJavaLocalRef<jstring>& package,
-    const base::android::ScopedJavaLocalRef<jstring>& referrer)
+    const std::string& url,
+    const std::string& package,
+    const std::string& referrer)
     : url(url), package(package), referrer(referrer) {}
 
 AppBannerManagerAndroid::QueryNativeAppConfig::QueryNativeAppConfig(
@@ -118,9 +112,9 @@ AppBannerManagerAndroid::QueryNativeAppConfig::QueryNativeAppConfig(
 AppBannerManagerAndroid::QueryNativeAppConfig::~QueryNativeAppConfig() =
     default;
 
-const ScopedJavaLocalRef<jobject>
+const base::android::ScopedJavaLocalRef<jobject>
 AppBannerManagerAndroid::GetJavaBannerManager() const {
-  return GetJavaBannerManager(base::android::AttachCurrentThread());
+  return base::android::ScopedJavaLocalRef<jobject>(java_banner_manager_);
 }
 
 bool AppBannerManagerAndroid::IsRunningForTesting(JNIEnv* env) {
@@ -135,16 +129,16 @@ int AppBannerManagerAndroid::GetBadgeStatusForTesting(JNIEnv* env) {
   if (!ambient_badge_manager_) {
     return 0;
   }
-  return static_cast<int>(ambient_badge_manager_->state());
+  return (int)ambient_badge_manager_->state();
 }
 
 void AppBannerManagerAndroid::OnAppDetailsRetrieved(
     JNIEnv* env,
     int request_id,
     const JavaRef<jobject>& japp_data,
-    const JavaRef<jstring>& japp_title,
-    const JavaRef<jstring>& japp_package,
-    const JavaRef<jstring>& jicon_url) {
+    std::u16string&& app_title,
+    std::string&& app_package,
+    std::string&& icon_url) {
   // If the state isn't fetching native data, that means the page must have
   // navigated or reset in some way.
   if (app_banner_manager_->state() !=
@@ -158,10 +152,8 @@ void AppBannerManagerAndroid::OnAppDetailsRetrieved(
     return;
   }
   current_native_request_id_ = std::nullopt;
-  native_java_app_data_ = JavaObjectWeakGlobalRef(env, japp_data);
-  std::string app_package = ConvertJavaStringToUTF8(env, japp_package);
-  std::u16string app_title = ConvertJavaStringToUTF16(env, japp_title);
-  GURL primary_icon_url = GURL(ConvertJavaStringToUTF8(env, jicon_url));
+  native_java_app_data_.Reset(japp_data);
+  GURL primary_icon_url = GURL(icon_url);
 
   if (app_package.empty()) {
     std::move(native_check_callback_storage_)
@@ -202,7 +194,7 @@ void AppBannerManagerAndroid::ShowBannerFromBadge(
 std::unique_ptr<AddToHomescreenParams>
 AppBannerManagerAndroid::CreateAddToHomescreenParams(
     const InstallBannerConfig& config,
-    const ScopedJavaGlobalRef<jobject>& native_java_app_data,
+    const base::android::ScopedJavaGlobalRef<jobject>& native_java_app_data,
     WebappInstallSource install_source) {
   if (native_java_app_data.is_null()) {
     CHECK(config.mode == AppBannerMode::kWebApp);
@@ -227,7 +219,7 @@ AppBannerManagerAndroid::CreateAddToHomescreenParams(
 }
 
 bool AppBannerManagerAndroid::CanRequestAppBanner() const {
-  JNIEnv* env = AttachCurrentThread();
+  JNIEnv* env = base::android::AttachCurrentThread();
   // Note: This check is actually for "A2HS" aka add shortcuts. It doesn't
   // really belongs here.
   if (!Java_AppBannerManager_isSupported(env) ||
@@ -251,8 +243,7 @@ AppBannerManagerAndroid::ParamsToPerformInstallableWebAppCheck() {
 
 bool AppBannerManagerAndroid::ShouldDoNativeAppCheck(
     const blink::mojom::Manifest& manifest) const {
-  if (!manifest.prefer_related_applications ||
-      java_banner_manager_.is_uninitialized()) {
+  if (!manifest.prefer_related_applications || java_banner_manager_.is_null()) {
     return false;
   }
   // Ensure there is at least one related app specified that is supported on
@@ -272,19 +263,19 @@ void AppBannerManagerAndroid::DoNativeAppInstallableCheck(
     const blink::mojom::Manifest& manifest,
     NativeCheckCallback callback) {
   CHECK(manifest.prefer_related_applications &&
-        !java_banner_manager_.is_uninitialized());
+        !java_banner_manager_.is_null());
 
   InstallableStatusCode code = InstallableStatusCode::NO_ERROR_DETECTED;
   for (const auto& application : manifest.related_applications) {
-    JNIEnv* env = AttachCurrentThread();
     base::expected<QueryNativeAppConfig, InstallableStatusCode> result =
-        GetNativeAppFetchRequestConfig(validated_url, env, application);
+        GetNativeAppFetchRequestConfig(validated_url, application);
 
     if (!result.has_value()) {
       code = result.error();
       continue;
     }
 
+    JNIEnv* env = AttachCurrentThread();
     TrackDisplayEvent(DISPLAY_EVENT_NATIVE_APP_BANNER_REQUESTED);
     // Send the info to the Java side to get info about the app.
     // This async call will run OnAppDetailsRetrieved() when completed.
@@ -292,7 +283,7 @@ void AppBannerManagerAndroid::DoNativeAppInstallableCheck(
     ++next_native_request_id_;
     native_check_callback_storage_ = std::move(callback);
     Java_AppBannerManager_fetchAppDetails(
-        env, GetJavaBannerManager(env), current_native_request_id_.value(),
+        env, java_banner_manager_, current_native_request_id_.value(),
         result.value().url, result.value().package, result.value().referrer,
         WebappsIconUtils::GetIdealHomescreenIconSizeInPx());
     return;
@@ -327,10 +318,8 @@ bool AppBannerManagerAndroid::IsRelatedNonWebAppInstalled(
     return false;
   }
 
-  JNIEnv* env = AttachCurrentThread();
-  base::android::ScopedJavaLocalRef<jstring> java_id(
-      ConvertUTF16ToJavaString(env, related_app.id.value()));
-  return Java_AppBannerManager_isRelatedNonWebAppInstalled(env, java_id);
+  return Java_AppBannerManager_isRelatedNonWebAppInstalled(
+      AttachCurrentThread(), related_app.id.value());
 }
 
 void AppBannerManagerAndroid::MaybeShowAmbientBadge(
@@ -350,14 +339,9 @@ void AppBannerManagerAndroid::MaybeShowAmbientBadge(
       GetWebContents(), delegate_->GetSegmentationPlatformService(),
       *delegate_->GetPrefService());
 
-  JNIEnv* env = AttachCurrentThread();
-  auto native_java_app_data = native_java_app_data_.get(env);
-  auto global_native_java_app_data =
-      ScopedJavaGlobalRef<jobject>(env, native_java_app_data);
-
   std::unique_ptr<AddToHomescreenParams> a2hs_params =
       AppBannerManagerAndroid::CreateAddToHomescreenParams(
-          install_config, global_native_java_app_data,
+          install_config, native_java_app_data_,
           InstallableMetrics::GetInstallSource(&GetWebContents(),
                                                InstallTrigger::AMBIENT_BADGE));
 
@@ -370,7 +354,7 @@ void AppBannerManagerAndroid::MaybeShowAmbientBadge(
                      GetAndroidWeakPtr(), install_config),
       // Create the params, then pass them to MaybeShow.
       base::BindOnce(&AppBannerManagerAndroid::CreateAddToHomescreenParams,
-                     install_config, global_native_java_app_data)
+                     install_config, native_java_app_data_)
           .Then(base::BindOnce(
               &PwaBottomSheetController::MaybeShow,
               app_banner_manager_->web_contents(), install_config.web_app_data,
@@ -385,16 +369,13 @@ void AppBannerManagerAndroid::ShowBannerUi(WebappInstallSource install_source,
   content::WebContents* contents = app_banner_manager_->web_contents();
   DCHECK(contents);
 
-  JNIEnv* env = AttachCurrentThread();
-  auto native_java_app_data = native_java_app_data_.get(env);
-  bool was_shown = native_java_app_data.is_null() &&
+  bool was_shown = native_java_app_data_.is_null() &&
                    MaybeShowPwaBottomSheetController(/* expand_sheet= */ true,
                                                      install_source, config);
 
   if (!was_shown) {
     auto a2hs_params = AppBannerManagerAndroid::CreateAddToHomescreenParams(
-        config, ScopedJavaGlobalRef<jobject>(env, native_java_app_data),
-        install_source);
+        config, native_java_app_data_, install_source);
     was_shown = AddToHomescreenCoordinator::ShowForAppBanner(
         app_banner_manager_->GetWeakPtr(), std::move(a2hs_params),
         base::BindRepeating(&AppBannerManagerAndroid::OnInstallEvent,
@@ -411,7 +392,7 @@ void AppBannerManagerAndroid::ShowBannerUi(WebappInstallSource install_source,
   }
 
   if (was_shown) {
-    if (native_java_app_data.is_null()) {
+    if (native_java_app_data_.is_null()) {
       app_banner_manager_->ReportStatus(
           InstallableStatusCode::SHOWING_WEB_APP_BANNER);
     } else {
@@ -428,16 +409,16 @@ void AppBannerManagerAndroid::ResetCurrentPageData() {
   current_native_request_id_ = std::nullopt;
   ambient_badge_manager_.reset();
   native_check_callback_storage_.Reset();
-  native_java_app_data_.reset();
+  native_java_app_data_.Reset();
 }
 
 void AppBannerManagerAndroid::InstallableWebAppStatusUpdate() {
-  if (java_banner_manager_.is_uninitialized()) {
+  if (java_banner_manager_.is_null()) {
     return;
   }
 
-  JNIEnv* env = AttachCurrentThread();
-  Java_AppBannerManager_onInstallabilityUpdated(env, GetJavaBannerManager(env));
+  JNIEnv* env = base::android::AttachCurrentThread();
+  Java_AppBannerManager_onInstallabilityUpdated(env, java_banner_manager_);
 }
 
 void AppBannerManagerAndroid::OnInstallEvent(
@@ -577,16 +558,15 @@ void AppBannerManagerAndroid::OnInstallEvent(
 
 void AppBannerManagerAndroid::CreateJavaBannerManager(
     content::WebContents* web_contents) {
-  JNIEnv* env = AttachCurrentThread();
-  java_banner_manager_ = JavaObjectWeakGlobalRef(
-      env, Java_AppBannerManager_create(env, reinterpret_cast<intptr_t>(this)));
+  JNIEnv* env = base::android::AttachCurrentThread();
+  java_banner_manager_.Reset(
+      Java_AppBannerManager_create(env, reinterpret_cast<intptr_t>(this)));
 }
 
 base::expected<AppBannerManagerAndroid::QueryNativeAppConfig,
                InstallableStatusCode>
 AppBannerManagerAndroid::GetNativeAppFetchRequestConfig(
     const GURL& validated_url,
-    JNIEnv* env,
     const blink::Manifest::RelatedApplication& related_application) const {
   if (!related_application.platform.has_value() ||
       !base::EqualsASCII(related_application.platform.value(), kPlatformPlay)) {
@@ -633,14 +613,7 @@ AppBannerManagerAndroid::GetNativeAppFetchRequestConfig(
   }
   referrer += "playinline=chrome_inline";
 
-  base::android::ScopedJavaLocalRef<jstring> jurl(
-      ConvertUTF8ToJavaString(env, validated_url.spec()));
-  base::android::ScopedJavaLocalRef<jstring> jpackage(
-      ConvertUTF8ToJavaString(env, id));
-  base::android::ScopedJavaLocalRef<jstring> jreferrer(
-      ConvertUTF8ToJavaString(env, referrer));
-
-  return QueryNativeAppConfig(jurl, jpackage, jreferrer);
+  return QueryNativeAppConfig(validated_url.spec(), id, referrer);
 }
 
 void AppBannerManagerAndroid::OnNativeAppIconFetched(std::string app_package,
@@ -687,11 +660,8 @@ bool AppBannerManagerAndroid::MaybeShowPwaBottomSheetController(
     return false;
   }
 
-  JNIEnv* env = AttachCurrentThread();
-  auto native_java_app_data = native_java_app_data_.get(env);
   auto a2hs_params = AppBannerManagerAndroid::CreateAddToHomescreenParams(
-      config, ScopedJavaGlobalRef<jobject>(env, native_java_app_data),
-      install_source);
+      config, native_java_app_data_, install_source);
 
   return PwaBottomSheetController::MaybeShow(
       app_banner_manager_->web_contents(), web_app_data, expand_sheet,
@@ -710,20 +680,8 @@ AppBannerManagerAndroid::GetAndroidWeakPtr() {
   return weak_factory_.GetWeakPtr();
 }
 
-ScopedJavaLocalRef<jobject>
-AppBannerManagerAndroid::GetNativeJavaAppDataForTesting() const {
-  return native_java_app_data_.get(AttachCurrentThread());
-}
-
 void AppBannerManagerAndroid::InvalidateWeakPtrsForThisNavigation() {
   weak_factory_.InvalidateWeakPtrs();
-}
-
-ScopedJavaLocalRef<jobject> AppBannerManagerAndroid::GetJavaBannerManager(
-    JNIEnv* env) const {
-  auto java_banner_manager = java_banner_manager_.get(env);
-  CHECK(!java_banner_manager.is_null());
-  return java_banner_manager;
 }
 
 WEB_CONTENTS_USER_DATA_KEY_IMPL(AppBannerManagerAndroid);
@@ -732,29 +690,24 @@ WEB_CONTENTS_USER_DATA_KEY_IMPL(AppBannerManagerAndroid);
 static base::android::ScopedJavaLocalRef<jobject>
 JNI_AppBannerManager_GetJavaBannerManagerForWebContents(
     JNIEnv* env,
-    const JavaRef<jobject>& java_web_contents) {
-  auto* manager = AppBannerManagerAndroid::FromWebContents(
-      content::WebContents::FromJavaWebContents(java_web_contents));
+    content::WebContents* web_contents) {
+  auto* manager = AppBannerManagerAndroid::FromWebContents(web_contents);
   return manager ? manager->GetJavaBannerManager()
                  : base::android::ScopedJavaLocalRef<jobject>();
 }
 
 // static
-static base::android::ScopedJavaLocalRef<jstring>
-JNI_AppBannerManager_GetInstallableWebAppManifestId(
+static std::string JNI_AppBannerManager_GetInstallableWebAppManifestId(
     JNIEnv* env,
-    const base::android::JavaRef<jobject>& java_web_contents) {
-  return base::android::ConvertUTF8ToJavaString(
-      env, AppBannerManager::GetInstallableWebAppManifestId(
-               content::WebContents::FromJavaWebContents(java_web_contents)));
+    content::WebContents* web_contents) {
+  return AppBannerManager::GetInstallableWebAppManifestId(web_contents);
 }
 
 // static
 static bool JNI_AppBannerManager_IsProbablyPromotable(
     JNIEnv* env,
-    const base::android::JavaRef<jobject>& java_web_contents) {
-  auto* manager = AppBannerManager::FromWebContents(
-      content::WebContents::FromJavaWebContents(java_web_contents));
+    content::WebContents* web_contents) {
+  auto* manager = AppBannerManager::FromWebContents(web_contents);
   if (!manager) {
     return false;
   }

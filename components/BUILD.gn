@@ -241,6 +241,7 @@ test("components_unittests") {
     "//components/favicon_base:unit_tests",
     "//components/feature_engagement:unit_tests",
     "//components/filename_generation:unit_tests",
+    "//components/gapis:unit_tests",
     "//components/gcm_driver:unit_tests",
     "//components/gcm_driver/crypto:unit_tests",
     "//components/google/core/common:unit_tests",
@@ -558,6 +559,7 @@ test("components_unittests") {
       "//components/url_rewrite:unit_tests",
       "//components/user_education/common:unit_tests",
       "//components/value_store:unit_tests",
+      "//components/visibility_timer:unit_tests",
       "//components/visited_url_ranking/public:unit_tests",
       "//components/visitedlink/test:unit_tests",
       "//components/wallet/content/browser:unit_tests",
@@ -629,6 +631,7 @@ test("components_unittests") {
       "//components/media_router/common/providers/cast/channel:unit_tests",
       "//components/one_time_tokens/core/browser:unit_tests",
       "//components/page_info:unit_tests",
+      "//components/password_manager/core/browser/actor_login:unit_tests",
       "//components/permissions/prediction_service:unit_tests",
       "//components/privacy_sandbox/privacy_sandbox_attestations:unit_tests",
       "//components/safety_check:unit_tests",
@@ -777,6 +780,9 @@ test("components_unittests") {
 
   if (enable_guest_view) {
     deps += [ "//components/guest_view/browser:unit_tests" ]
+    if (!enable_extensions_core) {
+      deps += [ "//components/guest_view/browser/slim_web_view:unit_tests" ]
+    }
   }
 
   if (!is_android) {
@@ -845,6 +851,7 @@ test("components_unittests") {
       "//components/services/print_compositor:unit_tests",
     ]
   }
+
   if (enable_print_preview) {
     deps += [ "//components/pwg_encoder:unit_tests" ]
   }
@@ -1002,6 +1009,7 @@ test("components_unittests") {
     "CurrencyFormatterFuzzTest.FormatDoesNotCrash",
     "FilterDataTest.Matches",
     "OsRegistrationTest.Parses",
+    "PaymentCurrencyAmountFuzzTest.FromValueDictDoesNotCrash",
     "PrivacyMathTest.GetKCombinationAtIndexDoesNotCrash",
     "PrivacyMathTest.GetNumStatesDoesNotCrash",
     "RegistrationInfoTest.Parses",
@@ -1462,6 +1470,7 @@ if (is_android) {
       "//components/media_router/browser/android:junit",
       "//components/messages/android:junit",
       "//components/messages/android/internal:junit",
+      "//components/omnibox/browser:junit",
       "//components/one_time_tokens/android/backend/common:junit",
       "//components/optimization_guide/content/browser/android:junit",
       "//components/payments/content/android:junit",

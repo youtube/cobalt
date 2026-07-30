@@ -122,13 +122,16 @@ class WizardController : public OobeUI::Observer {
     virtual void OnShutdown() = 0;
   };
 
-  // `local_state` and `application_locale_storage` must be non-null and must
-  // outlive `this`.
-  // `shared_url_loader_factory` must be non-null.
+  // `local_state` must be non-null and must be valid while the main RunLoop is
+  // running.
+  // `application_locale_storage` must be non-null and must outlive `this`.
+  // `shared_url_loader_factory` and `component_manager_ash` must be non-null.
   WizardController(
       PrefService* local_state,
       ApplicationLocaleStorage* application_locale_storage,
       scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory,
+      scoped_refptr<component_updater::ComponentManagerAsh>
+          component_manager_ash,
       WizardContext* wizard_context);
 
   WizardController(const WizardController&) = delete;
@@ -391,6 +394,8 @@ class WizardController : public OobeUI::Observer {
   void ShowSplitModifierKeyboardInfoScreen();
   void ShowAccountSelectionScreen();
   void ShowAppLaunchSplashScreen();
+  void ShowFjordImageSelectionScreen();
+  void ShowFjordImageDownloadScreen();
   void ShowFjordTouchControllerScreen();
   void ShowFjordStationSetupScreen();
   void ShowFjordFwUpdateScreen();
@@ -515,6 +520,8 @@ class WizardController : public OobeUI::Observer {
       PersonalizedRecommendAppsScreen::Result result);
   void OnPerksDiscoveryScreenExit(PerksDiscoveryScreen::Result result);
   void OnAppLaunchSplashScreenExit();
+  void OnFjordImageSelectionScreenExit();
+  void OnFjordImageDownloadScreenExit();
   void OnFjordTouchControllerScreenExit();
   void OnFjordStationSetupScreenExit();
   void OnFjordFwUpdateScreenExit();
@@ -631,6 +638,8 @@ class WizardController : public OobeUI::Observer {
   const raw_ref<ApplicationLocaleStorage> application_locale_storage_;
   // Shared factory for outgoing network requests.
   scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory_;
+  const scoped_refptr<component_updater::ComponentManagerAsh>
+      component_manager_ash_;
 
   std::unique_ptr<policy::AutoEnrollmentController> auto_enrollment_controller_;
   std::unique_ptr<ChoobeFlowController> choobe_flow_controller_;

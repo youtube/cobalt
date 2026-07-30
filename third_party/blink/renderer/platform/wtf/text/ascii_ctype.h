@@ -60,18 +60,19 @@ inline bool IsASCIIAlpha(CharType c) {
 }
 
 template <typename CharType>
-inline bool IsASCIIDigit(CharType c) {
+inline bool IsAsciiDigit(CharType c) {
   return c >= '0' && c <= '9';
 }
 
 template <typename CharType>
 inline bool IsASCIIAlphanumeric(CharType c) {
-  return IsASCIIDigit(c) || IsASCIIAlpha(c);
+  return IsAsciiDigit(c) || IsASCIIAlpha(c);
 }
 
+// Returns true if the character is an ASCII hex digit (0-9, a-f, or A-F).
 template <typename CharType>
-inline bool IsASCIIHexDigit(CharType c) {
-  return IsASCIIDigit(c) || ((c | 0x20) >= 'a' && (c | 0x20) <= 'f');
+inline bool IsAsciiHexDigit(CharType c) {
+  return IsAsciiDigit(c) || ((c | 0x20) >= 'a' && (c | 0x20) <= 'f');
 }
 
 template <typename CharType>
@@ -141,15 +142,15 @@ inline constexpr std::array<LChar, 256> kASCIICaseFoldTable = {
     0xfc, 0xfd, 0xfe, 0xff};
 
 template <typename CharType>
-inline CharType ToASCIILower(CharType c) {
+inline CharType ToAsciiLower(CharType c) {
   return c | ((c >= 'A' && c <= 'Z') << 5);
 }
 
-inline LChar ToASCIILower(LChar c) {
+inline LChar ToAsciiLower(LChar c) {
   return kASCIICaseFoldTable[c];
 }
 
-inline char ToASCIILower(char c) {
+inline char ToAsciiLower(char c) {
   return static_cast<char>(kASCIICaseFoldTable[static_cast<LChar>(c)]);
 }
 
@@ -158,26 +159,36 @@ constexpr inline CharType ToASCIIUpper(CharType c) {
   return c & ~((c >= 'a' && c <= 'z') << 5);
 }
 
+// Returns the value of an ASCII hex digit.
+// The return value is 0-15.
+// `c` must satisfy IsAsciiHexDigit(c).
 template <typename CharType>
-inline int ToASCIIHexValue(CharType c) {
-  DCHECK(IsASCIIHexDigit(c));
+inline int ToAsciiHexValue(CharType c) {
+  DCHECK(IsAsciiHexDigit(c));
   return c < 'A' ? c - '0' : (c - 'A' + 10) & 0xF;
 }
 
+// Returns the value of two ASCII hex digits combined into a single byte.
+// The return value is 0-255.
+// `upper_value` and `lower_value` must satisfy IsAsciiHexDigit().
 template <typename CharType>
-inline int ToASCIIHexValue(CharType upper_value, CharType lower_value) {
-  DCHECK(IsASCIIHexDigit(upper_value));
-  DCHECK(IsASCIIHexDigit(lower_value));
-  return ((ToASCIIHexValue(upper_value) << 4) & 0xF0) |
-         ToASCIIHexValue(lower_value);
+inline int ToAsciiHexValue(CharType upper_value, CharType lower_value) {
+  DCHECK(IsAsciiHexDigit(upper_value));
+  DCHECK(IsAsciiHexDigit(lower_value));
+  return ((ToAsciiHexValue(upper_value) << 4) & 0xF0) |
+         ToAsciiHexValue(lower_value);
 }
 
-inline char LowerNibbleToASCIIHexDigit(char c) {
+// Returns the ASCII hex digit for the lower 4 bits of the given character.
+// The return value is one of '0'-'9' and 'A'-'F'.
+inline char LowerNibbleToAsciiHexDigit(char c) {
   char nibble = c & 0xF;
   return nibble < 10 ? '0' + nibble : 'A' + nibble - 10;
 }
 
-inline char UpperNibbleToASCIIHexDigit(char c) {
+// Returns the ASCII hex digit for the upper 4 bits of the given character.
+// The return value is one of '0'-'9' and 'A'-'F'.
+inline char UpperNibbleToAsciiHexDigit(char c) {
   char nibble = (c >> 4) & 0xF;
   return nibble < 10 ? '0' + nibble : 'A' + nibble - 10;
 }

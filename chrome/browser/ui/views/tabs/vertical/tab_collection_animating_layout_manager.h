@@ -46,6 +46,7 @@ class TabCollectionAnimatingLayoutManager : public views::LayoutManagerBase,
 
   class Delegate {
    public:
+    virtual bool IsDragging() const;
     virtual bool IsViewDragging(const views::View& child_view) const;
     virtual bool ShouldSnapToTarget(const views::View& child_view) const;
     virtual bool ShouldAnimateOpacityForAddAndRemove(
@@ -77,6 +78,7 @@ class TabCollectionAnimatingLayoutManager : public views::LayoutManagerBase,
   gfx::Size GetMinimumSize(const views::View* host) const override;
   int GetPreferredHeightForWidth(const views::View* host,
                                  int width) const override;
+  void OnLayoutChanged() override;
 
   // gfx::AnimationDelegate:
   void AnimationProgressed(const gfx::Animation* animation) override;
@@ -119,12 +121,14 @@ class TabCollectionAnimatingLayoutManager : public views::LayoutManagerBase,
   void SetStartingLayout(const views::ProposedLayout& starting_layout);
   void SetTargetLayout(const views::ProposedLayout& target_layout);
 
+  // Updates `current_layout_` to reflect the current state of `animation_`.
+  void UpdateCurrentLayout();
+
   // Recalculates the target layout and starts/updates animation if necessary.
-  // Note: Layout change (e.g. child added/removed) requires recalculation.
-  // However we don't need to call `RecalculateTarget()`  in `OnLayoutChanged()`
-  // directly because `LayoutImpl()` will be called shortly after invalidation
-  // happens.
-  void RecalculateTarget();
+  // Returns true if a new target layout was computed.
+  // Note: This is called in `OnLayoutChanged()` to ensure preferred size
+  // calculations immediately reflect the new target layout state.
+  bool RecalculateTarget();
 
   // Interpolates between `starting_layout_` and `target_layout_` based on
   // current `animation_` value.

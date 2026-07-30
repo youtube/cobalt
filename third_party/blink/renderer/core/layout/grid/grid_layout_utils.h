@@ -183,19 +183,25 @@ void BuildGridSizingSubtree(
     HeapVector<Member<LayoutBox>>* opt_oof_children,
     const SubgriddedItemData& opt_subgrid_data = kNoSubgriddedItemData,
     const GridLineResolver* opt_parent_line_resolver = nullptr,
+    SizingConstraint sizing_constraint = SizingConstraint::kLayout,
     bool must_invalidate_placement_cache = false,
-    bool must_ignore_children = false);
+    bool must_ignore_children = false,
+    bool needs_intrinsic_track_size = false);
 
 template <typename LayoutAlgorithmType>
 GridSizingTree BuildGridSizingTree(
     const LayoutAlgorithmType& algorithm,
     const GridLineResolver& line_resolver,
-    HeapVector<Member<LayoutBox>>* opt_oof_children = nullptr);
+    HeapVector<Member<LayoutBox>>* opt_oof_children = nullptr,
+    SizingConstraint sizing_constraint = SizingConstraint::kLayout,
+    bool needs_intrinsic_track_size = false);
 
 template <typename LayoutAlgorithmType>
 GridSizingTree BuildGridSizingTreeIgnoringChildren(
     const LayoutAlgorithmType& algorithm,
-    const GridLineResolver& line_resolver);
+    const GridLineResolver& line_resolver,
+    SizingConstraint sizing_constraint = SizingConstraint::kLayout,
+    bool needs_intrinsic_track_size = false);
 
 // Calculate the initial fragment geometry for a subgrid item.
 FragmentGeometry CalculateInitialFragmentGeometryForSubgrid(
@@ -223,8 +229,11 @@ void ForEachSubgrid(const GridSizingSubtree& sizing_subtree,
       continue;
     }
 
+    const SubgriddedItemData subgridded_item(
+        grid_item, &layout_data,
+        algorithm.GetConstraintSpace().GetWritingMode());
     const auto space =
-        algorithm.CreateConstraintSpaceForLayout(grid_item, layout_data);
+        algorithm.CreateConstraintSpaceForLayout(subgridded_item);
     const auto fragment_geometry = CalculateInitialFragmentGeometryForSubgrid(
         grid_item, space,
         should_compute_min_max_sizes ? next_subgrid_subtree
@@ -236,16 +245,13 @@ void ForEachSubgrid(const GridSizingSubtree& sizing_subtree,
         {grid_item.node, fragment_geometry, space});
 
     DCHECK(next_subgrid_subtree);
-    callback_func(
-        subgrid_algorithm, next_subgrid_subtree,
-        SubgriddedItemData(grid_item, layout_data,
-                           algorithm.GetConstraintSpace().GetWritingMode()));
+    callback_func(subgrid_algorithm, next_subgrid_subtree, subgridded_item);
 
     next_subgrid_subtree = next_subgrid_subtree.NextSibling();
   }
 }
 
-std::unique_ptr<GridLayoutTrackCollection> CreateSubgridTrackCollection(
+GridLayoutTrackCollection* CreateSubgridTrackCollection(
     const SubgriddedItemData& subgrid_data,
     const ComputedStyle& style,
     const ConstraintSpace& space,
@@ -265,6 +271,18 @@ void InitializeTrackCollection(const SubgriddedItemData& opt_subgrid_data,
 // Checks if any of the items within `grid_items` have block-size dependent
 // sizing.
 bool HasBlockSizeDependentGridItem(const GridItems& grid_items);
+
+// Appends items from any subgridded children to `grid_items`, translating
+// their positions from the subgrid's coordinate space to the root grid's.
+CORE_EXPORT void AppendSubgriddedItems(const ComputedStyle& root_grid_style,
+                                       GridItems* grid_items);
+
+// Returns the synthesized logical baseline for a grid item. This is used when
+// computing min/max content contributions without a full layout result.
+LayoutUnit GetSynthesizedLogicalBaseline(
+    const GridItemData& grid_item,
+    LayoutUnit block_size,
+    GridTrackSizingDirection track_direction);
 
 }  // namespace blink
 

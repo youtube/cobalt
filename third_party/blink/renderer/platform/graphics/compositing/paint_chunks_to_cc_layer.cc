@@ -5,9 +5,11 @@
 #include "third_party/blink/renderer/platform/graphics/compositing/paint_chunks_to_cc_layer.h"
 
 #include "base/containers/adapters.h"
+#include "base/feature_list.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr_exclusion.h"
 #include "base/numerics/safe_conversions.h"
+#include "cc/base/features.h"
 #include "cc/input/layer_selection_bound.h"
 #include "cc/layers/layer.h"
 #include "cc/paint/display_item_list.h"
@@ -1576,7 +1578,8 @@ LayerPropertiesUpdater::PaintedSelectionBoundToLayerSelectionBound(
   layer_bound.type = bound.type;
 
   gfx::Rect sample;
-  if (RuntimeEnabledFeatures::SelectionEdgeVisibilityUsesFullEdgeEnabled()) {
+  if (base::FeatureList::IsEnabled(
+          ::features::kSelectionEdgeVisibilityUsesFullEdge)) {
     // Similar to ComputeViewportSelectionBound()
     // (cc/trees/layer_tree_impl.cc), this is a conservative pre-check: if the
     // mapped sample is empty, the bound must stay hidden. Use the full

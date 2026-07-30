@@ -101,8 +101,8 @@ void DisplayInfoProvider::SetDisplayProperties(
   NOTREACHED() << "SetDisplayProperties not implemented";
 }
 
-void DisplayInfoProvider::SetDisplayLayout(const DisplayLayoutList& layouts,
-                                           ErrorCallback callback) {
+base::expected<void, std::string> DisplayInfoProvider::SetDisplayLayout(
+    const DisplayLayoutList& layouts) {
   NOTREACHED() << "SetDisplayLayout not implemented";
 }
 
@@ -138,8 +138,7 @@ void DisplayInfoProvider::GetAllDisplaysInfo(
       std::move(callback));
 }
 
-void DisplayInfoProvider::GetDisplayLayout(
-    base::OnceCallback<void(DisplayLayoutList result)> callback) {
+DisplayInfoProvider::DisplayLayoutList DisplayInfoProvider::GetDisplayLayout() {
   NOTREACHED();  // Implemented on Chrome OS only in override.
 }
 

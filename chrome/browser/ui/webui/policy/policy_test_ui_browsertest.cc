@@ -6,8 +6,12 @@
 
 #include <string_view>
 
+#include "base/run_loop.h"
 #include "base/strings/string_util.h"
+#include "base/task/current_thread.h"
 #include "base/test/mock_callback.h"
+#include "base/test/test_future.h"
+#include "base/test/with_feature_override.h"
 #include "build/build_config.h"
 #include "chrome/browser/enterprise/browser_management/browser_management_service.h"
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
@@ -26,6 +30,7 @@
 #include "chrome/test/base/testing_browser_process.h"
 #include "components/policy/core/browser/browser_policy_connector.h"
 #include "components/policy/core/common/configuration_policy_provider.h"
+#include "components/policy/core/common/features.h"
 #include "components/policy/core/common/local_test_policy_provider.h"
 #include "components/policy/core/common/management/management_service.h"
 #include "components/policy/core/common/management/scoped_management_service_override_for_testing.h"
@@ -180,9 +185,13 @@ INSTANTIATE_TEST_SUITE_P(PolicyTestPageUITestInstance,
                                           testing::Bool(),
                                           testing::Bool()));
 
-class PolicyTestHandlerTest : public PlatformBrowserTest {
+class PolicyTestHandlerTest : public base::test::WithFeatureOverride,
+                              public PlatformBrowserTest,
+                              public policy::mojom::PolicyPageClient {
  public:
-  PolicyTestHandlerTest() {
+  PolicyTestHandlerTest()
+      : base::test::WithFeatureOverride(
+            policy::features::kPolicyPageMojoMigration) {
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
     if (policy::utils::IsPolicyTestingEnabled(/*pref_service=*/nullptr,
                                               chrome::GetChannel())) {
@@ -199,8 +208,20 @@ class PolicyTestHandlerTest : public PlatformBrowserTest {
     return chrome_test_utils::GetActiveWebContents(this);
   }
 
+  static bool IsMojoMigrationEnabled() {
+    return base::FeatureList::IsEnabled(
+        policy::features::kPolicyPageMojoMigration);
+  }
+
   std::unique_ptr<PolicyUIHandler> SetUpHandler() {
-    auto handler = std::make_unique<PolicyUIHandler>();
+    std::unique_ptr<PolicyUIHandler> handler;
+    if (IsMojoMigrationEnabled()) {
+      handler = std::make_unique<PolicyUIHandler>(
+          page_handler_.BindNewPipeAndPassReceiver(),
+          page_client_.BindNewPipeAndPassRemote(), GetProfile());
+    } else {
+      handler = std::make_unique<PolicyUIHandler>(GetProfile());
+    }
     web_ui()->set_web_contents(web_contents());
     handler->set_web_ui_for_test(web_ui());
     handler->RegisterMessages();
@@ -242,8 +263,48 @@ class PolicyTestHandlerTest : public PlatformBrowserTest {
  protected:
   content::TestWebUI* web_ui() { return &web_ui_; }
 
+  void SetLocalTestPolicies(const std::string& policies,
+                            const std::string& separation_response) {
+    if (IsMojoMigrationEnabled()) {
+      base::test::TestFuture<void> mojo_done;
+      page_handler_->SetLocalTestPolicies(policies, separation_response,
+                                          mojo_done.GetCallback());
+      ASSERT_TRUE(mojo_done.Wait());
+    } else {
+      base::ListValue list_args;
+      list_args.Append("setLocalTestPolicies");
+      list_args.Append(policies);
+      list_args.Append(separation_response);
+      web_ui()->HandleReceivedMessage("setLocalTestPolicies", list_args);
+    }
+  }
+
+  void RevertLocalTestPolicies() {
+    if (IsMojoMigrationEnabled()) {
+      page_handler_->RevertLocalTestPolicies();
+      page_handler_.FlushForTesting();
+    } else {
+      base::ListValue list_args;
+      web_ui()->HandleReceivedMessage("revertLocalTestPolicies", list_args);
+    }
+  }
+
+  void RestartBrowser(const std::string& policies) {
+    if (IsMojoMigrationEnabled()) {
+      page_handler_->RestartBrowser(policies);
+      page_handler_.FlushForTesting();
+    } else {
+      base::ListValue list_args;
+      list_args.Append(policies);
+      web_ui()->HandleReceivedMessage("restartBrowser", list_args);
+    }
+  }
+
  private:
   content::TestWebUI web_ui_;
+
+  mojo::Remote<policy::mojom::PolicyPageHandler> page_handler_;
+  mojo::Receiver<policy::mojom::PolicyPageClient> page_client_{this};
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
   std::unique_ptr<
@@ -254,7 +315,7 @@ class PolicyTestHandlerTest : public PlatformBrowserTest {
 #endif
 };
 
-IN_PROC_BROWSER_TEST_F(PolicyTestHandlerTest,
+IN_PROC_BROWSER_TEST_P(PolicyTestHandlerTest,
                        HandleSetLocalTestPoliciesNotSupported) {
   // Ensure chrome://policy/test not supported.
   policy::ScopedManagementServiceOverrideForTesting profile_management(
@@ -284,7 +345,7 @@ IN_PROC_BROWSER_TEST_F(PolicyTestHandlerTest,
   // Open chrome://policy
   ASSERT_TRUE(
       content::NavigateToURL(web_contents(), GURL(chrome::kChromeUIPolicyURL)));
-  web_ui()->HandleReceivedMessage("setLocalTestPolicies", list_args);
+  SetLocalTestPolicies(jsonString, "{}");
 
   base::RunLoop().RunUntilIdle();
 
@@ -305,7 +366,7 @@ IN_PROC_BROWSER_TEST_F(PolicyTestHandlerTest,
   }
 }
 
-IN_PROC_BROWSER_TEST_F(PolicyTestHandlerTest,
+IN_PROC_BROWSER_TEST_P(PolicyTestHandlerTest,
                        HandleSetAndRevertLocalTestPolicies) {
   if (!policy::utils::IsPolicyTestingEnabled(/*pref_service=*/nullptr,
                                              chrome::GetChannel())) {
@@ -326,12 +387,6 @@ IN_PROC_BROWSER_TEST_F(PolicyTestHandlerTest,
           .disabled;
       )";
 
-  base::ListValue list_args;
-
-  list_args.Append("setLocalTestPolicies");
-  list_args.Append(jsonString);
-  list_args.Append("{}");
-
   // Open chrome://policy/test for the first time
   ASSERT_TRUE(content::NavigateToURL(web_contents(),
                                      GURL(chrome::kChromeUIPolicyTestURL)));
@@ -340,16 +395,15 @@ IN_PROC_BROWSER_TEST_F(PolicyTestHandlerTest,
       content::EvalJs(web_contents(), revertAppliedPoliciesButtonDisabledJs),
       true);
 
-  web_ui()->HandleReceivedMessage("setLocalTestPolicies", list_args);
-
-  base::RunLoop().RunUntilIdle();
+  SetLocalTestPolicies(jsonString, "{}");
 
   // Navigate away and re-open chrome://policy/test for the first time
   ASSERT_TRUE(content::NavigateToURL(web_contents(),
                                      GURL(chrome::kChromeUIChromeURLsURL)));
   ASSERT_TRUE(content::NavigateToURL(web_contents(),
                                      GURL(chrome::kChromeUIPolicyTestURL)));
-  EXPECT_EQ(GetNumberOfRows(), 2);
+  base::test::RunUntil([&]() { return GetNumberOfRows() == 2; });
+
   EXPECT_EQ(
       content::EvalJs(web_contents(), revertAppliedPoliciesButtonDisabledJs),
       false);
@@ -394,10 +448,7 @@ IN_PROC_BROWSER_TEST_F(PolicyTestHandlerTest,
             "{}");
 #endif
 
-  list_args.clear();
-  list_args.Append("revertLocalTestPolicies");
-
-  web_ui()->HandleReceivedMessage("revertLocalTestPolicies", list_args);
+  RevertLocalTestPolicies();
 
   base::RunLoop().RunUntilIdle();
 
@@ -406,7 +457,6 @@ IN_PROC_BROWSER_TEST_F(PolicyTestHandlerTest,
                                      GURL(chrome::kChromeUIChromeURLsURL)));
   ASSERT_TRUE(content::NavigateToURL(web_contents(),
                                      GURL(chrome::kChromeUIPolicyTestURL)));
-  EXPECT_EQ(GetNumberOfRows(), 1);
   EXPECT_EQ(
       content::EvalJs(web_contents(), revertAppliedPoliciesButtonDisabledJs),
       true);
@@ -435,7 +485,7 @@ IN_PROC_BROWSER_TEST_F(PolicyTestHandlerTest,
   handler.reset();
 }
 
-IN_PROC_BROWSER_TEST_F(PolicyTestHandlerTest, FilterSensitivePolicies) {
+IN_PROC_BROWSER_TEST_P(PolicyTestHandlerTest, FilterSensitivePolicies) {
   if (!policy::utils::IsPolicyTestingEnabled(/*pref_service=*/nullptr,
                                              chrome::GetChannel())) {
     GTEST_SKIP() << "chrome://policy/test not allowed on this build.";
@@ -447,13 +497,7 @@ IN_PROC_BROWSER_TEST_F(PolicyTestHandlerTest, FilterSensitivePolicies) {
       "name": "DefaultSearchProviderEnabled","value": false}
       ])";
 
-  base::ListValue list_args;
-
-  list_args.Append("setLocalTestPolicies");
-  list_args.Append(jsonString);
-  list_args.Append("");
-
-  web_ui()->HandleReceivedMessage("setLocalTestPolicies", list_args);
+  SetLocalTestPolicies(jsonString, "");
 
   base::RunLoop().RunUntilIdle();
 
@@ -474,11 +518,13 @@ IN_PROC_BROWSER_TEST_F(PolicyTestHandlerTest, FilterSensitivePolicies) {
   handler.reset();
 }
 
+INSTANTIATE_FEATURE_OVERRIDE_TEST_SUITE(PolicyTestHandlerTest);
+
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
 // TODO(b:293632195) Implement test on android and chromeos
 // Test that test policies stored in the pref kLocalTestPoliciesForNextStartup
 // are applied after restart.
-IN_PROC_BROWSER_TEST_F(PolicyTestHandlerTest,
+IN_PROC_BROWSER_TEST_P(PolicyTestHandlerTest,
                        PRE_PRE_ApplyTestPoliciesAfterRestart) {
   if (!policy::utils::IsPolicyTestingEnabled(/*pref_service=*/nullptr,
                                              chrome::GetChannel())) {
@@ -493,18 +539,13 @@ IN_PROC_BROWSER_TEST_F(PolicyTestHandlerTest,
       "name": "AccessCodeCastDeviceDuration","value": 100}
       ])";
 
-  base::ListValue list_args;
-
-  list_args.Append("restartBrowser");
-  list_args.Append(jsonString);
-
   // Restart the browser.
-  web_ui()->HandleReceivedMessage("restartBrowser", list_args);
+  RestartBrowser(jsonString);
 
   handler.reset();
 }
 
-IN_PROC_BROWSER_TEST_F(PolicyTestHandlerTest,
+IN_PROC_BROWSER_TEST_P(PolicyTestHandlerTest,
                        PRE_ApplyTestPoliciesAfterRestart) {
   if (!policy::utils::IsPolicyTestingEnabled(/*pref_service=*/nullptr,
                                              chrome::GetChannel())) {
@@ -530,7 +571,7 @@ IN_PROC_BROWSER_TEST_F(PolicyTestHandlerTest,
   chrome::AttemptRestart();
 }
 
-IN_PROC_BROWSER_TEST_F(PolicyTestHandlerTest, ApplyTestPoliciesAfterRestart) {
+IN_PROC_BROWSER_TEST_P(PolicyTestHandlerTest, ApplyTestPoliciesAfterRestart) {
   const policy::PolicyNamespace chrome_namespace(policy::POLICY_DOMAIN_CHROME,
                                                  std::string());
   policy::PolicyService* policy_service =
@@ -587,7 +628,7 @@ class PolicyTestHandlerTestDisabledByPolicy : public PolicyTestHandlerTest {
   testing::NiceMock<policy::MockConfigurationPolicyProvider> provider_;
 };
 
-IN_PROC_BROWSER_TEST_F(PolicyTestHandlerTestDisabledByPolicy,
+IN_PROC_BROWSER_TEST_P(PolicyTestHandlerTestDisabledByPolicy,
                        PRE_PRE_ApplyTestPoliciesAfterRestart) {
   const policy::PolicyNamespace chrome_namespace(policy::POLICY_DOMAIN_CHROME,
                                                  std::string());
@@ -610,18 +651,13 @@ IN_PROC_BROWSER_TEST_F(PolicyTestHandlerTestDisabledByPolicy,
       "name": "AccessCodeCastDeviceDuration","value": 100}
       ])";
 
-  base::ListValue list_args;
-
-  list_args.Append("restartBrowser");
-  list_args.Append(jsonString);
-
   // Restart the browser.
-  web_ui()->HandleReceivedMessage("restartBrowser", list_args);
+  RestartBrowser(jsonString);
 
   handler.reset();
 }
 
-IN_PROC_BROWSER_TEST_F(PolicyTestHandlerTestDisabledByPolicy,
+IN_PROC_BROWSER_TEST_P(PolicyTestHandlerTestDisabledByPolicy,
                        PRE_ApplyTestPoliciesAfterRestart) {
   const policy::PolicyNamespace chrome_namespace(policy::POLICY_DOMAIN_CHROME,
                                                  std::string());
@@ -646,7 +682,7 @@ IN_PROC_BROWSER_TEST_F(PolicyTestHandlerTestDisabledByPolicy,
   chrome::AttemptRestart();
 }
 
-IN_PROC_BROWSER_TEST_F(PolicyTestHandlerTestDisabledByPolicy,
+IN_PROC_BROWSER_TEST_P(PolicyTestHandlerTestDisabledByPolicy,
                        ApplyTestPoliciesAfterRestart) {
   const policy::PolicyNamespace chrome_namespace(policy::POLICY_DOMAIN_CHROME,
                                                  std::string());
@@ -667,6 +703,9 @@ IN_PROC_BROWSER_TEST_F(PolicyTestHandlerTestDisabledByPolicy,
       policy_map.Get(policy::key::kAccessCodeCastDeviceDuration);
   EXPECT_FALSE(entry);
 }
+
+INSTANTIATE_FEATURE_OVERRIDE_TEST_SUITE(PolicyTestHandlerTestDisabledByPolicy);
+
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
 
 namespace {
@@ -688,9 +727,12 @@ const char kExtensionSchemaJson[] = R"({
   }
 })";
 
-class PolicyTestUITest : public PlatformBrowserTest {
+class PolicyTestUITest : public base::test::WithFeatureOverride,
+                         public PlatformBrowserTest {
  public:
-  PolicyTestUITest() = default;
+  PolicyTestUITest()
+      : base::test::WithFeatureOverride(
+            policy::features::kPolicyPageMojoMigration) {}
   PolicyTestUITest(const PolicyTestUITest&) = delete;
   PolicyTestUITest& operator=(const PolicyTestUITest&) = delete;
 
@@ -779,7 +821,9 @@ class PolicyTestUITest : public PlatformBrowserTest {
 };
 }  // namespace
 
-IN_PROC_BROWSER_TEST_F(PolicyTestUITest, TestRowAddedWhenAddPolicyClicked) {
+INSTANTIATE_FEATURE_OVERRIDE_TEST_SUITE(PolicyTestUITest);
+
+IN_PROC_BROWSER_TEST_P(PolicyTestUITest, TestRowAddedWhenAddPolicyClicked) {
   if (!policy::utils::IsPolicyTestingEnabled(/*pref_service=*/nullptr,
                                              chrome::GetChannel())) {
     GTEST_SKIP() << "chrome://policy/test not allowed on this build.";
@@ -791,7 +835,7 @@ IN_PROC_BROWSER_TEST_F(PolicyTestUITest, TestRowAddedWhenAddPolicyClicked) {
   EXPECT_EQ(GetNumberOfRows(), 2);
 }
 
-IN_PROC_BROWSER_TEST_F(PolicyTestUITest, TestRowDeletedWhenRemoveClicked) {
+IN_PROC_BROWSER_TEST_P(PolicyTestUITest, TestRowDeletedWhenRemoveClicked) {
   if (!policy::utils::IsPolicyTestingEnabled(/*pref_service=*/nullptr,
                                              chrome::GetChannel())) {
     GTEST_SKIP() << "chrome://policy/test not allowed on this build.";
@@ -813,7 +857,7 @@ IN_PROC_BROWSER_TEST_F(PolicyTestUITest, TestRowDeletedWhenRemoveClicked) {
   EXPECT_EQ(GetNumberOfRows(), 0);
 }
 
-IN_PROC_BROWSER_TEST_F(PolicyTestUITest, TestPresetAutofill) {
+IN_PROC_BROWSER_TEST_P(PolicyTestUITest, TestPresetAutofill) {
   if (!policy::utils::IsPolicyTestingEnabled(/*pref_service=*/nullptr,
                                              chrome::GetChannel())) {
     GTEST_SKIP() << "chrome://policy/test not allowed on this build.";
@@ -867,7 +911,7 @@ IN_PROC_BROWSER_TEST_F(PolicyTestUITest, TestPresetAutofill) {
   EXPECT_EQ(content::EvalJs(web_contents(), getSourceValueJs), "sourceCloud");
 }
 
-IN_PROC_BROWSER_TEST_F(PolicyTestUITest, GetSchema) {
+IN_PROC_BROWSER_TEST_P(PolicyTestUITest, GetSchema) {
   base::Value schema = PolicyUI::GetSchema(GetProfile());
   ASSERT_NE(nullptr, schema.GetDict().FindDict(kExtensionId));
   // The extension's schema should exclude "sensitive_number", because it's
@@ -878,7 +922,7 @@ IN_PROC_BROWSER_TEST_F(PolicyTestUITest, GetSchema) {
             *schema.GetDict().FindDict(kExtensionId));
 }
 
-IN_PROC_BROWSER_TEST_F(PolicyTestUITest, TestExtensionPoliciesIncluded) {
+IN_PROC_BROWSER_TEST_P(PolicyTestUITest, TestExtensionPoliciesIncluded) {
   if (!policy::utils::IsPolicyTestingEnabled(/*pref_service=*/nullptr,
                                              chrome::GetChannel())) {
     GTEST_SKIP() << "chrome://policy/test not allowed on this build.";
@@ -953,7 +997,7 @@ IN_PROC_BROWSER_TEST_F(PolicyTestUITest, TestExtensionPoliciesIncluded) {
   EXPECT_EQ(extension_policy_names, policy_names2);
 }
 
-IN_PROC_BROWSER_TEST_F(PolicyTestUITest, TestSchemaChangeReflected) {
+IN_PROC_BROWSER_TEST_P(PolicyTestUITest, TestSchemaChangeReflected) {
   if (!policy::utils::IsPolicyTestingEnabled(/*pref_service=*/nullptr,
                                              chrome::GetChannel())) {
     GTEST_SKIP() << "chrome://policy/test not allowed on this build.";
@@ -999,7 +1043,7 @@ IN_PROC_BROWSER_TEST_F(PolicyTestUITest, TestSchemaChangeReflected) {
             content::EvalJs(web_contents(), getNamespacesFromSelect));
 }
 
-IN_PROC_BROWSER_TEST_F(PolicyTestUITest, TestPolicyNameChangesInputType) {
+IN_PROC_BROWSER_TEST_P(PolicyTestUITest, TestPolicyNameChangesInputType) {
   if (!policy::utils::IsPolicyTestingEnabled(/*pref_service=*/nullptr,
                                              chrome::GetChannel())) {
     GTEST_SKIP() << "chrome://policy/test not allowed on this build.";
@@ -1036,7 +1080,7 @@ IN_PROC_BROWSER_TEST_F(PolicyTestUITest, TestPolicyNameChangesInputType) {
   EXPECT_EQ(content::EvalJs(web_contents(), getValueInputType), "number");
 }
 
-IN_PROC_BROWSER_TEST_F(PolicyTestUITest, TestErrorStateWhenNameNotSelected) {
+IN_PROC_BROWSER_TEST_P(PolicyTestUITest, TestErrorStateWhenNameNotSelected) {
   if (!policy::utils::IsPolicyTestingEnabled(/*pref_service=*/nullptr,
                                              chrome::GetChannel())) {
     GTEST_SKIP() << "chrome://policy/test not allowed on this build.";
@@ -1083,7 +1127,7 @@ IN_PROC_BROWSER_TEST_F(PolicyTestUITest, TestErrorStateWhenNameNotSelected) {
             false);
 }
 
-IN_PROC_BROWSER_TEST_F(PolicyTestUITest, TestIncorrectValueTypeRaisesError) {
+IN_PROC_BROWSER_TEST_P(PolicyTestUITest, TestIncorrectValueTypeRaisesError) {
   if (!policy::utils::IsPolicyTestingEnabled(/*pref_service=*/nullptr,
                                              chrome::GetChannel())) {
     GTEST_SKIP() << "chrome://policy/test not allowed on this build.";
@@ -1161,7 +1205,7 @@ IN_PROC_BROWSER_TEST_F(PolicyTestUITest, TestIncorrectValueTypeRaisesError) {
   EXPECT_EQ(content::EvalJs(web_contents(), getValueCellInErrorStateJs), false);
 }
 
-IN_PROC_BROWSER_TEST_F(PolicyTestUITest, TestClearPoliciesButton) {
+IN_PROC_BROWSER_TEST_P(PolicyTestUITest, TestClearPoliciesButton) {
   if (!policy::utils::IsPolicyTestingEnabled(/*pref_service=*/nullptr,
                                              chrome::GetChannel())) {
     GTEST_SKIP() << "chrome://policy/test not allowed on this build.";

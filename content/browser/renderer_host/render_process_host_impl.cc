@@ -1667,8 +1667,7 @@ RenderProcessHostImpl::RenderProcessHostImpl(
 
   widget_helper_ = new RenderWidgetHelper();
 
-  ChildProcessSecurityPolicyImpl::GetInstance()->Add(GetDeprecatedID(),
-                                                     browser_context);
+  ChildProcessSecurityPolicyImpl::GetInstance()->Add(GetID(), browser_context);
 
   CHECK(!BrowserMainRunner::ExitedMainMessageLoop());
   RegisterHost(GetID(), this);
@@ -1771,7 +1770,7 @@ RenderProcessHostImpl::~RenderProcessHostImpl() {
   in_process_renderer_.reset();
   g_in_process_thread = nullptr;
 
-  ChildProcessSecurityPolicyImpl::GetInstance()->Remove(GetDeprecatedID());
+  ChildProcessSecurityPolicyImpl::GetInstance()->Remove(GetID());
 
   is_dead_ = true;
 
@@ -2885,6 +2884,10 @@ int RenderProcessHostImpl::GetPendingReuseRefCountForTesting() const {
   return pending_reuse_ref_count_;
 }
 
+base::TimeTicks RenderProcessHostImpl::GetProcessLaunchedTime() const {
+  return process_launched_time_;
+}
+
 std::string RenderProcessHostImpl::GetKeepAliveDurations() const {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   std::stringstream result;
@@ -3040,8 +3043,7 @@ RenderProcessHostImpl::GetJavaScriptCallStackGeneratorInterface() {
 }
 
 ProcessLock RenderProcessHostImpl::GetProcessLock() const {
-  return ChildProcessSecurityPolicyImpl::GetInstance()->GetProcessLock(
-      GetDeprecatedID());
+  return ChildProcessSecurityPolicyImpl::GetInstance()->GetProcessLock(GetID());
 }
 
 bool RenderProcessHostImpl::MayReuseHost() {
@@ -3642,7 +3644,7 @@ void RenderProcessHostImpl::AppendRendererCommandLine(
   AppendCompositorCommandLineFlags(command_line);
 
   command_line->AppendSwitchASCII(switches::kRendererClientId,
-                                  base::NumberToString(GetDeprecatedID()));
+                                  base::NumberToString(GetID().value()));
 
   // Synchronize unix/monotonic clocks across consistent processes.
   if (base::TimeTicks::IsConsistentAcrossProcesses()) {
@@ -3787,7 +3789,9 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
       blink::switches::kEnablePreferCompositingToLCDText,
       blink::switches::kEnableRGBA4444Textures,
       blink::switches::kEnableRasterSideDarkModeForImages,
+#if BUILDFLAG(IS_CHROMEOS)
       blink::switches::kEnableWebGLImageChromium,
+#endif
       blink::switches::kForceGpuMemAvailableMb,
       blink::switches::
           kGpuMemoryBufferReadbackFromTextureForceDisabledForDebugging,
@@ -4684,7 +4688,7 @@ RenderProcessHost::FilterURLResult RenderProcessHostImpl::FilterURL(
     // navigation to the home page. This is often a privileged page
     // (chrome://newtab/) which is exactly what we don't want.
     TRACE_EVENT1("navigation", "RenderProcessHost::FilterURL - invalid URL",
-                 "process_id", rph->GetDeprecatedID());
+                 "process_id", rph->GetID().value());
     VLOG(1) << "Blocked invalid URL";
     base::UmaHistogramEnumeration("BrowserRenderProcessHost.BlockedByFilterURL",
                                   BlockedURLReason::kInvalidURL);
@@ -4701,7 +4705,7 @@ RenderProcessHost::FilterURLResult RenderProcessHostImpl::FilterURL(
     // confused later.
     TRACE_EVENT2("navigation",
                  "RenderProcessHost::FilterURL - failed CanRequestURL",
-                 "process_id", rph->GetDeprecatedID(), "url", url->spec());
+                 "process_id", rph->GetID().value(), "url", url->spec());
     VLOG(1) << "Blocked URL " << url->spec();
     base::UmaHistogramEnumeration("BrowserRenderProcessHost.BlockedByFilterURL",
                                   BlockedURLReason::kFailedCanRequestURLCheck);
@@ -4717,6 +4721,8 @@ bool RenderProcessHostImpl::IsSuitableHost(
     RenderProcessHost* host,
     const IsolationContext& isolation_context,
     const SiteInfo& site_info) {
+  TRACE_EVENT("navigation", "RenderProcessHostImpl::IsSuitableHost",
+              ChromeTrackEvent::kRenderProcessHost, *host);
   BrowserContext* browser_context = isolation_context.browser_context();
   DCHECK(browser_context);
   if (run_renderer_in_process()) {
@@ -4725,8 +4731,13 @@ bool RenderProcessHostImpl::IsSuitableHost(
     return true;
   }
 
-  if (host->GetBrowserContext() != browser_context)
+  if (host->GetBrowserContext() != browser_context) {
+    TRACE_EVENT_INSTANT(
+        "navigation", "NotSuitableHost: BrowserContext diff",
+        ChromeTrackEvent::kChromeBrowserContext, *host->GetBrowserContext(),
+        ChromeTrackEvent::kChromeBrowserContext, *browser_context);
     return false;
+  }
 
   // Do not allow sharing of guest and non-guest hosts.  Note that we also
   // enforce that `host` and `site_info` must belong to the same
@@ -4756,8 +4767,10 @@ bool RenderProcessHostImpl::IsSuitableHost(
   // single StoragePartition.  This is relevant for packaged apps.
   StoragePartition* dest_partition = browser_context->GetStoragePartition(
       site_info.GetStoragePartitionConfig());
-  if (!host->InSameStoragePartition(dest_partition))
+  if (!host->InSameStoragePartition(dest_partition)) {
+    TRACE_EVENT_INSTANT("navigation", "NotSuitableHost: StoragePartition diff");
     return false;
+  }
 
   // If this process has a different v8 feature flag override policy then it
   // can't be reused.
@@ -4795,8 +4808,12 @@ bool RenderProcessHostImpl::IsSuitableHost(
     bool url_is_for_web_ui =
         WebUIControllerFactoryRegistry::GetInstance()->UseWebUIForURL(
             browser_context, site_info.site_url());
-    if (host_has_web_ui_bindings && !url_is_for_web_ui)
+    if (host_has_web_ui_bindings && !url_is_for_web_ui) {
+      TRACE_EVENT_INSTANT(
+          "navigation",
+          "NotSuitableHost: has WebUI bindings, url is non-WebUI");
       return false;
+    }
     // A host with no bindings is not necessarily unsuitable for a WebUI, but we
     // incorrectly return false here. For example, some WebUIs, like
     // chrome://process-internals, don't have bindings, so this method would
@@ -4811,6 +4828,8 @@ bool RenderProcessHostImpl::IsSuitableHost(
     // see its implementation for more details.
     if (!host_has_web_ui_bindings && url_is_for_web_ui &&
         !IsUnusedAndTiedToBrowsingInstance(host, isolation_context)) {
+      TRACE_EVENT_INSTANT("navigation",
+                          "NotSuitableHost: no WebUI bindings, url is WebUI");
       return false;
     }
 
@@ -4819,19 +4838,26 @@ bool RenderProcessHostImpl::IsSuitableHost(
       // destination that doesn't require a dedicated process, even for the
       // same site. This can happen with dynamic isolated origins (see
       // https://crbug.com/950453).
-      if (!site_info.ShouldLockProcessToSite(isolation_context))
+      if (!site_info.ShouldLockProcessToSite(isolation_context)) {
+        TRACE_EVENT_INSTANT("navigation",
+                            "NotSuitableHost: locked, site should not lock");
         return false;
+      }
 
       // If the destination requires a different process lock, this process
       // cannot be used.
-      if (process_lock != ProcessLock::FromSiteInfo(site_info))
+      if (process_lock != ProcessLock::FromSiteInfo(site_info)) {
+        TRACE_EVENT_INSTANT("navigation", "NotSuitableHost: ProcessLock diff");
         return false;
+      }
     } else {
       // Even when this process is not locked to a site, it is still associated
       // with a particular isolation configuration.  Ensure that it cannot be
       // reused for destinations with incompatible isolation requirements.
       if (process_lock.AllowsAnySite() &&
           !process_lock.IsCompatibleWithWebExposedIsolation(site_info)) {
+        TRACE_EVENT_INSTANT("navigation",
+                            "NotSuitableHost: WebExposedIsolation diff");
         return false;
       }
 
@@ -4840,6 +4866,8 @@ bool RenderProcessHostImpl::IsSuitableHost(
         // If this process has been used to host any other content, it cannot
         // be reused if the destination site requires a dedicated process and
         // should use a process locked to just that site.
+        TRACE_EVENT_INSTANT("navigation",
+                            "NotSuitableHost: unused, site needs lock");
         return false;
       }
     }
@@ -4858,8 +4886,11 @@ bool RenderProcessHostImpl::IsSuitableHost(
         static_cast<SiteProcessCountTracker*>(
             browser_context->GetUserData(kPendingSiteProcessCountTrackerKey));
     if (pending_tracker &&
-        pending_tracker->ContainsNonReusableSiteForHost(host))
+        pending_tracker->ContainsNonReusableSiteForHost(host)) {
+      TRACE_EVENT_INSTANT("navigation",
+                          "NotSuitableHost: contains non-reusable site");
       return false;
+    }
   }
 
   // Finally, let the embedder decide if there are any last reasons to consider
@@ -4874,6 +4905,8 @@ bool RenderProcessHostImpl::MayReuseAndIsSuitable(
     RenderProcessHost* host,
     const IsolationContext& isolation_context,
     const SiteInfo& site_info) {
+  TRACE_EVENT("navigation", "RenderProcessHostImpl::MayReuseAndIsSuitable",
+              ChromeTrackEvent::kRenderProcessHost, *host);
   // Don't check for renderer responsiveness in single-process mode - even if
   // it's unresponsive we can't create another one and trying will crash us.
   return host->MayReuseHost() &&
@@ -5021,6 +5054,8 @@ bool RenderProcessHost::IsProcessLimitReached() {
 // static
 RenderProcessHost* RenderProcessHostImpl::GetExistingProcessHost(
     SiteInstanceImpl* site_instance) {
+  TRACE_EVENT("navigation", "RenderProcessHostImpl::GetExistingProcessHost",
+              ChromeTrackEvent::kSiteInstance, site_instance);
   // First figure out which existing renderers we can use.
   std::vector<RenderProcessHost*> suitable_renderers;
   suitable_renderers.reserve(RenderProcessHostImpl::GetCount());
@@ -5094,6 +5129,9 @@ void RenderProcessHostImpl::RegisterSoleProcessHostForSite(
 RenderProcessHost* RenderProcessHostImpl::GetProcessHostForSiteInstance(
     SiteInstanceImpl* site_instance,
     const ProcessAllocationContext& allocation_context) {
+  TRACE_EVENT("navigation",
+              "RenderProcessHostImpl::GetProcessHostForSiteInstance",
+              ChromeTrackEvent::kSiteInstance, site_instance);
   const SiteInfo& site_info = site_instance->GetSiteInfo();
   ProcessReusePolicy process_reuse_policy =
       site_instance->process_reuse_policy();
@@ -5281,8 +5319,7 @@ RenderProcessHost* RenderProcessHostImpl::GetProcessHostForSiteInstance(
         process_reuse_policy);
   }
   MAYBEVLOG(2) << __func__ << "(" << site_info << ") selected process host "
-               << render_process_host->GetDeprecatedID()
-               << " using assignment \""
+               << render_process_host->GetID().value() << " using assignment \""
                << site_instance->GetLastProcessAssignmentOutcome() << "\""
                << std::endl
                << GetCurrentHostMapDebugString(
@@ -5508,7 +5545,7 @@ size_t RenderProcessHost::GetActiveViewCount() {
       RenderWidgetHost::GetRenderWidgetHosts());
   while (RenderWidgetHost* widget = widgets->GetNextHost()) {
     // Count only RenderWidgetHosts in this process.
-    if (widget->GetProcess()->GetDeprecatedID() == GetDeprecatedID()) {
+    if (widget->GetProcess()->GetID() == GetID()) {
       num_active_views++;
     }
   }
@@ -5811,6 +5848,8 @@ void RenderProcessHostImpl::OnProcessLaunched() {
   // to properly cleanup.
   if (deleting_soon_)
     return;
+
+  process_launched_time_ = base::TimeTicks::Now();
 
   if (child_process_launcher_) {
     DCHECK(child_process_launcher_->GetProcess().IsValid());

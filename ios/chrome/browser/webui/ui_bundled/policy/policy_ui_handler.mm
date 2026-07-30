@@ -59,14 +59,26 @@
 #import "ui/base/l10n/l10n_util.h"
 #import "ui/base/webui/web_ui_util.h"
 
-PolicyUIHandler::PolicyUIHandler() = default;
+PolicyUIHandler::PolicyUIHandler(ProfileIOS* profile) : profile_(*profile) {}
+
+PolicyUIHandler::PolicyUIHandler(
+    mojo::PendingReceiver<policy::mojom::PolicyPageHandler> receiver,
+    mojo::PendingRemote<policy::mojom::PolicyPageClient> client,
+    ProfileIOS* profile)
+    : receiver_(this, std::move(receiver)),
+      client_(std::move(client)),
+      profile_(*profile) {}
 
 PolicyUIHandler::~PolicyUIHandler() {
-  GetPolicyService()->RemoveObserver(policy::POLICY_DOMAIN_CHROME, this);
-  policy::SchemaRegistry* registry = ProfileIOS::FromWebUIIOS(web_ui())
-                                         ->GetPolicyConnector()
-                                         ->GetSchemaRegistry();
-  registry->RemoveObserver(this);
+  // TODO: crbug.com/40897784 - Make this unconditional once mojo version also
+  // adds observers.
+  if (!receiver_.is_bound()) {
+    GetPolicyService()->RemoveObserver(policy::POLICY_DOMAIN_CHROME, this);
+    policy::SchemaRegistry* registry = ProfileIOS::FromWebUIIOS(web_ui())
+                                           ->GetPolicyConnector()
+                                           ->GetSchemaRegistry();
+    registry->RemoveObserver(this);
+  }
   policy::RecordPolicyUIButtonUsage(reload_policies_count_,
                                     /*export_to_json_count=*/0,
                                     copy_to_json_count_, upload_report_count_);
@@ -254,9 +266,20 @@ void PolicyUIHandler::HandleUploadReport(const base::ListValue& args) {
 
 void PolicyUIHandler::HandleSetLocalTestPolicies(const base::ListValue& args) {
   const std::string& json_policies_string = args[1].GetString();
+  SetLocalTestPoliciesImpl(json_policies_string);
+  web_ui()->ResolveJavascriptCallback(args[0], true);
+}
 
-  if (!PolicyUI::ShouldLoadTestPage(ProfileIOS::FromWebUIIOS(web_ui()))) {
-    web_ui()->ResolveJavascriptCallback(args[0], true);
+void PolicyUIHandler::SetLocalTestPolicies(
+    const std::string& policies,
+    const std::string& profile_separation_policy_response,
+    SetLocalTestPoliciesCallback callback) {
+  SetLocalTestPoliciesImpl(policies);
+  std::move(callback).Run();
+}
+
+void PolicyUIHandler::SetLocalTestPoliciesImpl(const std::string& policies) {
+  if (!PolicyUI::ShouldLoadTestPage(&*profile_)) {
     return;
   }
 
@@ -268,29 +291,31 @@ void PolicyUIHandler::HandleSetLocalTestPolicies(const base::ListValue& args) {
 
   CHECK(local_test_provider);
 
-  ProfileIOS::FromWebUIIOS(web_ui())
-      ->GetPolicyConnector()
-      ->UseLocalTestPolicyProvider();
+  profile_->GetPolicyConnector()->UseLocalTestPolicyProvider();
 
-  local_test_provider->LoadJsonPolicies(json_policies_string);
-  web_ui()->ResolveJavascriptCallback(args[0], true);
+  local_test_provider->LoadJsonPolicies(policies);
 }
 
 void PolicyUIHandler::HandleRevertLocalTestPolicies(
     const base::ListValue& args) {
-  if (!PolicyUI::ShouldLoadTestPage(ProfileIOS::FromWebUIIOS(web_ui()))) {
+  RevertLocalTestPolicies();
+}
+
+void PolicyUIHandler::RevertLocalTestPolicies() {
+  if (!PolicyUI::ShouldLoadTestPage(&*profile_)) {
     return;
   }
 
-  ProfileIOS::FromWebUIIOS(web_ui())
-      ->GetPolicyConnector()
-      ->RevertUseLocalTestPolicyProvider();
+  profile_->GetPolicyConnector()->RevertUseLocalTestPolicyProvider();
 }
 
 void PolicyUIHandler::HandleRestartBrowser(const base::ListValue& args) {
-  CHECK(args.size() == 2);
-  const std::string& policies = args[1].GetString();
+  CHECK_EQ(args.size(), 1u);
+  const std::string& policies = args[0].GetString();
+  RestartBrowser(policies);
+}
 
+void PolicyUIHandler::RestartBrowser(const std::string& policies) {
   // Set policies to preference
   PrefService* prefs = GetApplicationContext()->GetLocalState();
   prefs->SetString(policy::policy_prefs::kLocalTestPoliciesForNextStartup,
@@ -298,28 +323,43 @@ void PolicyUIHandler::HandleRestartBrowser(const base::ListValue& args) {
 }
 
 void PolicyUIHandler::HandleSetUserAffiliation(const base::ListValue& args) {
-  CHECK_EQ(static_cast<int>(args.size()), 2);
+  CHECK_EQ(args.size(), 2u);
   bool affiliated = args[1].GetBool();
+  SetUserAffiliatedImpl(affiliated);
+  web_ui()->ResolveJavascriptCallback(args[0], true);
+}
 
+void PolicyUIHandler::SetUserAffiliated(bool affiliated,
+                                        SetUserAffiliatedCallback callback) {
+  SetUserAffiliatedImpl(affiliated);
+  std::move(callback).Run();
+}
+
+void PolicyUIHandler::SetUserAffiliatedImpl(bool affiliated) {
   auto* local_test_provider = static_cast<policy::LocalTestPolicyProvider*>(
       GetApplicationContext()
           ->GetBrowserPolicyConnector()
           ->local_test_policy_provider());
   local_test_provider->SetUserAffiliated(affiliated);
-  web_ui()->ResolveJavascriptCallback(args[0], true);
 }
 
 void PolicyUIHandler::HandleGetAppliedTestPolicies(
     const base::ListValue& args) {
   CHECK_EQ(static_cast<int>(args.size()), 1);
+  web_ui()->ResolveJavascriptCallback(args[0], GetAppliedTestPoliciesImpl());
+}
 
+void PolicyUIHandler::GetAppliedTestPolicies(
+    GetAppliedTestPoliciesCallback callback) {
+  std::move(callback).Run(GetAppliedTestPoliciesImpl());
+}
+
+const std::string& PolicyUIHandler::GetAppliedTestPoliciesImpl() {
   auto* local_test_provider = static_cast<policy::LocalTestPolicyProvider*>(
       GetApplicationContext()
           ->GetBrowserPolicyConnector()
           ->local_test_policy_provider());
-
-  web_ui()->ResolveJavascriptCallback(args[0],
-                                      local_test_provider->GetPolicies());
+  return local_test_provider->GetPolicies();
 }
 
 void PolicyUIHandler::HandleGetPolicyLogs(const base::ListValue& args) {
@@ -474,4 +514,8 @@ void PolicyUIHandler::OnRefreshPoliciesDone() {
 policy::PolicyService* PolicyUIHandler::GetPolicyService() const {
   ProfileIOS* profile = ProfileIOS::FromWebUIIOS(web_ui());
   return profile->GetPolicyConnector()->GetPolicyService();
+}
+
+void PolicyUIHandler::GetDebugString(GetDebugStringCallback callback) {
+  std::move(callback).Run("Migrating chrome://policy to mojo (on iOS)!");
 }

@@ -47,7 +47,9 @@ class SkillsUiTabController : public SkillsUiTabControllerInterface,
   DECLARE_USER_DATA(SkillsUiTabController);
 
   // Opens the skills dialog.
-  void ShowDialog(Skill skill, SkillsDialogEntryPoint entrypoint) override;
+  void ShowDialog(Skill skill,
+                  SkillsDialogEntryPoint entrypoint,
+                  mojom::SkillsDialogType dialog_type) override;
 
   // Invokes the skill with skill_id in sidepanel.
   void InvokeSkill(std::string_view skill_id) override;
@@ -55,7 +57,7 @@ class SkillsUiTabController : public SkillsUiTabControllerInterface,
   // SkillsDialogDelegate override:
   void CloseDialog() override;
   void OnSkillSaved(const std::string& skill_id) override;
-  void OnSkillDeleted() override;
+  void OnSkillDeleted(const std::string& skill_id) override;
 
   // views::WidgetObserver override:
   void OnWidgetDestroyed(views::Widget* widget) override;

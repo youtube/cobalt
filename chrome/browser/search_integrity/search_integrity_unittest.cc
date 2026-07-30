@@ -31,7 +31,7 @@ class SearchIntegrityTest : public testing::Test {
     test_util_ = std::make_unique<TemplateURLServiceTestUtil>();
     test_util_->VerifyLoad();
     search_integrity_ = std::make_unique<SearchIntegrity>(
-        test_util_->model(), test_util_->profile()->GetPath());
+        test_util_->model(), test_util_->profile());
   }
 
   void TearDown() override {
@@ -227,6 +227,20 @@ TEST_F(SearchIntegrityTest, IsNameMatch_ValidWordsMatch) {
   TemplateURL* custom_engine =
       AddSearchEngine(u"My Alpha Search", "http://custom.example.com");
   AddSearchEngine(u"Your Alpha Engine", "http://policy.example.com",
+                  /*created_by_policy=*/true);
+  SetDefaultSearchProvider(custom_engine);
+
+  SearchIntegrityReport report = CheckSearchEnginesReport();
+
+  EXPECT_TRUE(report.is_default_custom);
+  EXPECT_TRUE(report.is_default_custom_with_matching_policy_engine);
+}
+
+TEST_F(SearchIntegrityTest, IsNameMatch_PunctuationIsIgnored) {
+  // "Yahoo!" and "Yahoo" should match because "!" is stripped.
+  TemplateURL* custom_engine =
+      AddSearchEngine(u"Goog", "http://custom.goog.com");
+  AddSearchEngine(u"Goog!", "http://policy.goog.com",
                   /*created_by_policy=*/true);
   SetDefaultSearchProvider(custom_engine);
 

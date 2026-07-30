@@ -22,6 +22,7 @@ import org.chromium.chrome.R;
 import org.chromium.chrome.browser.feed.FeedSurfaceScrollDelegate;
 import org.chromium.chrome.browser.lens.LensEntryPoint;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
+import org.chromium.chrome.browser.omnibox.status.StatusProperties;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -102,18 +103,6 @@ public class SearchBoxCoordinator {
         mMediator.addLensButtonClickListener(listener);
     }
 
-    public void setComposeplateButtonVisibility(boolean visible) {
-        mModel.set(SearchBoxProperties.COMPOSEPLATE_BUTTON_VISIBILITY, visible);
-    }
-
-    public void setComposeplateButtonClickListener(OnClickListener listener) {
-        mMediator.setComposeplateButtonClickListener(listener);
-    }
-
-    public void setComposeplateButtonIconRawResId(int iconRawResId) {
-        mMediator.setComposeplateButtonIconRawResId(iconRawResId);
-    }
-
     public boolean isLensEnabled(@LensEntryPoint int lensEntryPoint) {
         return mMediator.isLensEnabled(
                 lensEntryPoint, mIsIncognito, DeviceFormFactor.isWindowOnTablet(mWindowAndroid));
@@ -149,6 +138,10 @@ public class SearchBoxCoordinator {
 
     public void setSearchBoxHintText(@Nullable String hint) {
         mMediator.setSearchBoxHintText(hint);
+    }
+
+    public void setSearchEngineIcon(StatusProperties.@Nullable StatusIconResource icon) {
+        mMediator.setSearchEngineIcon(icon);
     }
 
     public void applyWhiteBackgroundWithShadow(boolean apply) {

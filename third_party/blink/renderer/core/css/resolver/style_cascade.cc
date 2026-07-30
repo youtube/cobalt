@@ -89,6 +89,14 @@ AtomicString ConsumeVariableName(CSSParserTokenStream& stream) {
   return ident_token.Value().ToAtomicString();
 }
 
+AtomicString ConsumeIfVariableName(CSSParserTokenStream& stream) {
+  stream.ConsumeWhitespace();
+  if (stream.Peek().GetType() != kIdentToken) {
+    return g_null_atom;
+  }
+  return stream.ConsumeIncludingWhitespace().Value().ToAtomicString();
+}
+
 AtomicString ConsumeAndComputeVariableName(CSSParserTokenStream& stream,
                                            const CSSParserContext& context,
                                            StyleResolverState& state) {
@@ -986,10 +994,9 @@ bool StyleCascade::IsRootElement() const {
 
 StyleCascade::TokenSequence::TokenSequence(const CSSVariableData* data)
     : is_animation_tainted_(data->IsAnimationTainted()),
-      has_font_units_(data->HasFontUnits()),
-      has_root_font_units_(data->HasRootFontUnits()),
-      has_line_height_units_(data->HasLineHeightUnits()),
-      has_dashed_functions_(data->HasDashedFunctions()) {}
+      features_(data->GetVariableDataFeatures() &
+                ~static_cast<VariableDataFeatures>(
+                    VariableDataFeature::kHasReferences)) {}
 
 bool StyleCascade::TokenSequence::AppendFallback(const TokenSequence& sequence,
                                                  bool is_attr_tainted,
@@ -1020,10 +1027,7 @@ bool StyleCascade::TokenSequence::AppendFallback(const TokenSequence& sequence,
       sequence.last_non_whitespace_token_;
 
   is_animation_tainted_ |= sequence.is_animation_tainted_;
-  has_font_units_ |= sequence.has_font_units_;
-  has_root_font_units_ |= sequence.has_root_font_units_;
-  has_line_height_units_ |= sequence.has_line_height_units_;
-  has_dashed_functions_ |= sequence.has_dashed_functions_;
+  features_ |= sequence.features_;
 
   size_t end = original_text_.length();
   if (is_attr_tainted) {
@@ -1048,9 +1052,7 @@ bool StyleCascade::TokenSequence::Append(StringView str,
   CSSTokenizer tokenizer(str);
   const CSSParserToken first_token = tokenizer.TokenizeSingleWithComments();
   if (first_token.GetType() != kEOFToken) {
-    CSSVariableData::ExtractFeatures(
-        first_token, has_font_units_, has_root_font_units_,
-        has_line_height_units_, has_dashed_functions_);
+    features_ |= CSSVariableData::ExtractFeatures(first_token);
     if (NeedsInsertedComment(last_token_, first_token)) {
       original_text_.Append("/**/");
     }
@@ -1063,9 +1065,7 @@ bool StyleCascade::TokenSequence::Append(StringView str,
       if (token.GetType() == kEOFToken) {
         break;
       } else {
-        CSSVariableData::ExtractFeatures(
-            token, has_font_units_, has_root_font_units_,
-            has_line_height_units_, has_dashed_functions_);
+        features_ |= CSSVariableData::ExtractFeatures(token);
         last_token_ = token.CopyWithoutValue();
         if (IsNonWhitespaceToken(token)) {
           last_non_whitespace_token_ = token;
@@ -1101,9 +1101,7 @@ bool StyleCascade::TokenSequence::Append(CSSVariableData* data,
 void StyleCascade::TokenSequence::Append(const CSSParserToken& token,
                                          bool is_attr_tainted,
                                          StringView original_text) {
-  CSSVariableData::ExtractFeatures(token, has_font_units_, has_root_font_units_,
-                                   has_line_height_units_,
-                                   has_dashed_functions_);
+  features_ |= CSSVariableData::ExtractFeatures(token);
   size_t start = original_text_.length();
   if (NeedsInsertedComment(last_token_, token)) {
     original_text_.Append("/**/");
@@ -1132,10 +1130,10 @@ bool StyleCascade::TokenSequence::Append(TokenSequence& sequence,
 }
 
 CSSVariableData* StyleCascade::TokenSequence::BuildVariableData() {
-  return CSSVariableData::Create(
-      original_text_, is_animation_tainted_, !attr_taint_ranges_.empty(),
-      /*needs_variable_resolution=*/false, has_font_units_,
-      has_root_font_units_, has_line_height_units_, has_dashed_functions_);
+  CHECK(!(features_ & static_cast<VariableDataFeatures>(
+                          VariableDataFeature::kHasReferences)));
+  return CSSVariableData::Create(original_text_, is_animation_tainted_,
+                                 !attr_taint_ranges_.empty(), features_);
 }
 
 const CSSValue* StyleCascade::Resolve(
@@ -1890,7 +1888,7 @@ bool StyleCascade::ResolveFunctionInto(StringView function_name,
       CSSVariableData* argument_data = CSSVariableData::Create(
           arguments[parameter_idx],
           /*is_animation_tainted=*/false, /*is_attr_tainted=*/false,
-          /*needs_variable_resolution=*/true);
+          CSSVariableData::HasReferences(true));
 
       ResolveFunctionParameter(parameter.name, argument_data,
                                parameter.default_value, parameter.type,
@@ -2287,9 +2285,8 @@ void StyleCascade::FlattenFunctionBody(
       }
     } else if (auto* navigation_rule =
                    DynamicTo<StyleRuleNavigation>(child.Get())) {
-      // TODO(crbug.com/431374376): Implement
+      // TODO(crbug.com/493044687): Implement
       (void)navigation_rule;
-      NOTREACHED() << "Not yet implemented.";
     }
   }
 }
@@ -2346,20 +2343,46 @@ bool StyleCascade::ResolveAttrInto(CSSParserTokenStream& stream,
                                    const CSSParserContext& context,
                                    FunctionContext* function_context,
                                    TokenSequence& out) {
-  AtomicString local_name = ConsumeVariableName(stream);
+  AtomicString local_name;
+  std::optional<CSSAttrType> attr_type;
+  bool missing_attr_type = false;
+  if (RuntimeEnabledFeatures::CSSArgumentGrammarEnabled()) {
+    TokenSequence first_arg_token_sequence;
+    if (!ResolveTokensInto(
+            stream, tree_scope, resolver, context, function_context,
+            /*stop_type=*/kCommaToken, first_arg_token_sequence)) {
+      return false;
+    }
+    CSSParserTokenStream first_arg_stream(
+        first_arg_token_sequence.OriginalText());
+
+    local_name = ConsumeIfVariableName(first_arg_stream);
+    attr_type = CSSAttrType::Consume(first_arg_stream);
+    if (!attr_type.has_value()) {
+      missing_attr_type = true;
+      attr_type = CSSAttrType::GetDefaultValue();
+    }
+
+    if (local_name.IsNull() || !first_arg_stream.AtEnd()) {
+      return false;
+    }
+  } else {
+    local_name = ConsumeVariableName(stream);
+    attr_type = CSSAttrType::Consume(stream);
+    if (!attr_type.has_value()) {
+      missing_attr_type = true;
+      attr_type = CSSAttrType::GetDefaultValue();
+    }
+  }
+
+  DCHECK(stream.AtEnd() || stream.Peek().GetType() == kCommaToken);
+
   CascadeResolver::CycleNode cycle_node = {
       .type = CascadeResolver::CycleNode::Type::kAttribute, .name = local_name};
   if (resolver.DetectCycle(cycle_node)) {
     return false;
   }
   CascadeResolver::AutoLock lock(cycle_node, resolver);
-  std::optional<CSSAttrType> attr_type = CSSAttrType::Consume(stream);
-  bool missing_attr_type = false;
-  if (!attr_type.has_value()) {
-    missing_attr_type = true;
-    attr_type = CSSAttrType::GetDefaultValue();
-  }
-  DCHECK(stream.AtEnd() || stream.Peek().GetType() == kCommaToken);
 
   Element& element = state_.GetUltimateOriginatingElementOrSelf();
   // TODO(crbug.com/387281256): Support namespaces.
@@ -2911,7 +2934,7 @@ const CSSParserContext* StyleCascade::GetParserContext(
 
 bool StyleCascade::HasFontSizeDependency(const CustomProperty& property,
                                          CSSVariableData* data) const {
-  if (!property.IsRegistered() || !data) {
+  if (!property.IsRegistered() || property.HasUniversalSyntax() || !data) {
     return false;
   }
   if (data->HasFontUnits() || data->HasLineHeightUnits()) {

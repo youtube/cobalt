@@ -81,9 +81,10 @@ constexpr int kDropIndicatorThicknessDips = 2;
 SavedTabGroupBar::SavedTabGroupBar(BrowserWindowInterface* browser,
                                    TabGroupSyncService* tab_group_service,
                                    bool animations_enabled)
-    : tab_group_service_(tab_group_service),
-      browser_(browser),
-      animations_enabled_(animations_enabled) {
+    : animations_enabled_(animations_enabled),
+      tab_group_service_(tab_group_service),
+      browser_(browser) {
+  CHECK(tab_group_service_);
   DCHECK(browser_);
   GetViewAccessibility().SetRole(ax::mojom::Role::kToolbar);
   GetViewAccessibility().SetName(
@@ -111,9 +112,7 @@ SavedTabGroupBar::SavedTabGroupBar(BrowserWindowInterface* browser,
                        animations_enabled) {}
 
 SavedTabGroupBar::~SavedTabGroupBar() {
-  if (tab_group_service_) {
-    tab_group_service_->RemoveObserver(this);
-  }
+  tab_group_service_->RemoveObserver(this);
   // Clear the pointer to the everything menu button to avoid dangling pointer
   // warnings during test teardowns if the view was destroyed early.
   everything_menu_button_ = nullptr;
@@ -282,6 +281,18 @@ void SavedTabGroupBar::OnInitialized() {
   RemoveAllChildViews();
   everything_menu_button_ = AddChildView(CreateOverflowButton());
 
+  // Determine if the legacy Everything menu button should be shown.
+  // It should be removed once the user has successfully interacted with the
+  // new Projects button and dismissed the attached IPH promo.
+  if (tab_groups::IsProjectsPanelFeatureEnabled() &&
+      base::FeatureList::IsEnabled(
+          feature_engagement::kIPHResumptionRailFeature)) {
+    if (auto* interface = BrowserUserEducationInterface::From(browser_)) {
+      resumption_iph_dismissed_ = interface->HasFeaturePromoBeenDismissed(
+          feature_engagement::kIPHResumptionRailFeature);
+    }
+  }
+
   LoadAllButtonsFromModel();
   InvalidateLayout();
 }
@@ -351,16 +362,20 @@ int SavedTabGroupBar::CalculatePreferredWidthRestrictedBy(int max_width) const {
   if (!everything_menu_button_) {
     return 0;
   }
+  if (IsOverflowButtonHidden() && GetNumberOfVisibleGroups() == 0) {
+    return 0;
+  }
   // For V2, the preferred width of Saved tab groups bar depends on the number
   // of pinned tab groups (pinned state is WIP) in bookmark bar (plus Everything
   // button);
   // TODO(crbug.com/329659664): Refactor this method once pinned state is done
   // and add tests.
 
-  // Everything button always shows for V2, unless hidden for the IPH promo or
-  // there are no saved tab groups (only when the Projects Panel is enabled).
-  int width = everything_menu_button_->GetPreferredSize().width() +
-              kBetweenElementSpacing;
+  int width = 0;
+  if (!IsOverflowButtonHidden()) {
+    width = everything_menu_button_->GetPreferredSize().width() +
+            kBetweenElementSpacing;
+  }
   max_width -= width;
   if (max_width < 0) {
     return 0;
@@ -381,6 +396,10 @@ bool SavedTabGroupBar::IsOverflowButtonVisible() const {
 
 void SavedTabGroupBar::AddTabGroupButton(const SavedTabGroup& group,
                                          int index) {
+  if (tab_groups::IsProjectsPanelFeatureEnabled()) {
+    return;
+  }
+
   // Do not add unpinned tab group for v2.
   if (!group.is_pinned()) {
     return;
@@ -409,6 +428,28 @@ void SavedTabGroupBar::ShowEverythingMenu() {
   base::RecordAction(base::UserMetricsAction(
       "TabGroups_SavedTabGroups_EverythingButtonPressed"));
 
+  // Try to show the IPH promo (or queue it) unconditionally when the
+  // legacy everything button is clicked.
+  if (tab_groups::IsProjectsPanelFeatureEnabled()) {
+    if (auto* interface = BrowserUserEducationInterface::From(browser_)) {
+      user_education::FeaturePromoParams params(
+          feature_engagement::kIPHResumptionRailFeature);
+      params.close_callback =
+          base::BindOnce(&SavedTabGroupBar::OnResumptionRailPromoClosed,
+                         weak_ptr_factory_.GetWeakPtr());
+      interface->MaybeShowFeaturePromo(std::move(params));
+    }
+  }
+
+  // if other feature overrides the everything menu do nothing.
+  if (tab_groups::IsProjectsPanelFeatureEnabled()) {
+    return;
+  }
+
+  ShowEverythingMenuInternal();
+}
+
+void SavedTabGroupBar::ShowEverythingMenuInternal() {
   if (everything_menu_ && everything_menu_->IsShowing()) {
     return;
   }
@@ -442,8 +483,9 @@ void SavedTabGroupBar::UpsertSavedTabGroupButton(const base::Uuid& guid) {
   SavedTabGroupButton* button =
       views::AsViewClass<SavedTabGroupButton>(GetButton(group->saved_guid()));
 
-  const bool should_show_button =
-      group->is_pinned() && !group->saved_tabs().empty();
+  const bool should_show_button = group->is_pinned() &&
+                                  !group->saved_tabs().empty() &&
+                                  !tab_groups::IsProjectsPanelFeatureEnabled();
 
   if (should_show_button) {
     if (button) {
@@ -487,6 +529,18 @@ void SavedTabGroupBar::SavedTabGroupReordered() {
   }
 
   InvalidateLayout();
+}
+
+void SavedTabGroupBar::OnResumptionRailPromoClosed() {
+  if (auto* interface = BrowserUserEducationInterface::From(browser_)) {
+    if (interface->HasFeaturePromoBeenDismissed(
+            feature_engagement::kIPHResumptionRailFeature)) {
+      resumption_iph_dismissed_ = true;
+      if (everything_menu_button_) {
+        everything_menu_button_->SetVisible(!IsOverflowButtonHidden());
+      }
+    }
+  }
 }
 
 void SavedTabGroupBar::LoadAllButtonsFromModel() {
@@ -606,7 +660,25 @@ void SavedTabGroupBar::UpdateButtonVisibilities(bool show_overflow,
   }
 }
 
+bool SavedTabGroupBar::IsOverflowButtonHidden() const {
+  if (tab_groups::IsProjectsPanelFeatureEnabled()) {
+    if (tab_group_service_->GetAllGroups().empty()) {
+      return true;
+    }
+    if (base::FeatureList::IsEnabled(
+            feature_engagement::kIPHResumptionRailFeature) &&
+        resumption_iph_dismissed_) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 bool SavedTabGroupBar::ShouldShowOverflowButtonForWidth(int max_width) const {
+  if (IsOverflowButtonHidden()) {
+    return false;
+  }
   return width() >= everything_menu_button_->GetPreferredSize().width() +
                         kBetweenElementSpacing;
 }

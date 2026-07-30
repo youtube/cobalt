@@ -21,7 +21,8 @@ import {loadTimeData} from '//resources/js/load_time_data.js';
 
 import {BrowserProxyImpl} from './browser_proxy.js';
 import type {BrowserProxy} from './browser_proxy.js';
-import {type CursorTooltipData, CursorTooltipType} from './cursor_tooltip.js';
+import {CursorTooltipType} from './cursor_tooltip.js';
+import type {CursorTooltipData} from './cursor_tooltip.js';
 import type {CenterRotatedBox} from './geometry.mojom-webui.js';
 import {UserAction} from './lens.mojom-webui.js';
 import {INVOCATION_SOURCE} from './lens_overlay_app.js';
@@ -31,7 +32,7 @@ import type {OverlayShimmerCanvasElement} from './overlay_shimmer_canvas.js';
 import type {PostSelectionRendererElement} from './post_selection_renderer.js';
 import type {RegionSelectionElement} from './region_selection.js';
 import {getTemplate} from './selection_overlay.html.js';
-import {CURSOR_IMG_URL, SelectionOverlayBaseElement} from './selection_overlay_base_element.js';
+import {CURSOR_IMG_URL, SelectionOverlayBaseElement} from './selection_overlay_base.js';
 import {DragFeature, GestureState} from './selection_utils.js';
 import type {SimplifiedTextLayerElement} from './simplified_text_layer.js';
 import type {TranslateState} from './translate_button.js';

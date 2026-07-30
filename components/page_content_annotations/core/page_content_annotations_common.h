@@ -104,6 +104,10 @@ class PageContentAnnotationsResult {
   static PageContentAnnotationsResult CreateContentVisibilityScoreResult(
       const ContentVisibilityScore& score);
 
+  // Creates a result for category classification.
+  static PageContentAnnotationsResult CreateCategoryResults(
+      std::vector<Category> categories);
+
   PageContentAnnotationsResult(const PageContentAnnotationsResult&);
   PageContentAnnotationsResult& operator=(const PageContentAnnotationsResult&);
   ~PageContentAnnotationsResult();
@@ -112,13 +116,19 @@ class PageContentAnnotationsResult {
   AnnotationType GetType() const;
 
   ContentVisibilityScore GetContentVisibilityScore() const;
+  const std::vector<Category>& GetCategoryResults() const;
 
  private:
   PageContentAnnotationsResult();
 
   // The page content annotation of this result.
-  std::variant<void* /*Unknown*/, ContentVisibilityScore> result_;
+  std::variant<void* /*Unknown*/, ContentVisibilityScore, std::vector<Category>>
+      result_;
 };
+
+// Calculates the RAPPOR-style noise for a given score. The input score must be
+// in the range [0, 1].
+int64_t GenerateRapporNoisedScore(double raw_score);
 
 }  // namespace page_content_annotations
 

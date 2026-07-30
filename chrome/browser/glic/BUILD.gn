@@ -37,6 +37,7 @@ source_set("glic") {
     "host/context/glic_tab_data.h",
     "host/glic_annotation_manager.h",
     "host/glic_cookie_synchronizer.h",
+    "host/glic_internals_page_handler.h",
     "host/glic_page_handler.h",
     "host/glic_skills_manager.h",
     "host/glic_ui.h",
@@ -65,12 +66,6 @@ source_set("glic") {
     # TODO(b/470059315): Make these work on Android, or move them to the
     # desktop-only section.
     sources += [
-      "browser_ui/glic_button_controller.h",
-      "browser_ui/glic_button_controller_delegate.h",
-      "browser_ui/glic_iph_controller.h",
-      "browser_ui/glic_tab_indicator_helper.h",
-      "browser_ui/glic_vector_icon_manager.h",
-      "browser_ui/scoped_glic_button_indicator.h",
       "fre/glic_fre_ui.h",
       "glic_tab_restore_data.h",
       "glic_tab_restore_helper.h",
@@ -122,6 +117,7 @@ source_set("glic") {
       "//chrome/browser/themes",
       "//chrome/browser/ui:browser_list",
       "//chrome/browser/ui/tabs:tab_strip_model_observer",
+      "//chrome/browser/ui/tabs:tabs_public",
       "//ui/views",
       "//ui/views/controls/webview",
     ]
@@ -129,6 +125,7 @@ source_set("glic") {
 
   deps = [
     "//chrome/common",
+    "//components/skills/public:mojo_bindings",
     "//components/tabs:public",
     "//components/user_education/common",
     "//ui/base/interaction",
@@ -236,6 +233,7 @@ source_set("impl") {
     "host/glic_annotation_manager.cc",
     "host/glic_cookie_synchronizer.cc",
     "host/glic_cookie_synchronizer.h",
+    "host/glic_internals_page_handler.cc",
     "host/glic_page_handler.cc",
     "host/glic_skills_manager_impl.cc",
     "host/glic_skills_manager_impl.h",
@@ -386,9 +384,12 @@ source_set("impl") {
     "//components/sessions",
     "//components/skills:features",
     "//components/skills/public",
+    "//components/skills/public:mojo_bindings",
+    "//components/startup_metric_utils",
     "//components/url_formatter",
     "//components/variations/service",
     "//components/webui/chrome_urls",
+    "//extensions/buildflags",
     "//third_party/metrics_proto",
     "//ui/base/interaction",
     "//ui/gfx",
@@ -408,6 +409,7 @@ source_set("impl") {
       "//chrome/browser/skills:ui",
       "//chrome/browser/themes",
       "//chrome/browser/ui/tabs:glic",
+      "//chrome/browser/ui/tabs:tabs_public",
       "//chrome/browser/ui/views/glic",
       "//chrome/browser/ui/views/tabs/glic",
       "//components/password_manager/core/browser/actor_login:common",
@@ -446,11 +448,18 @@ source_set("impl") {
     }
   }
 
+  if (!enable_extensions_core) {
+    deps += [ "//components/guest_view/browser/slim_web_view" ]
+  }
+
   if (is_mac) {
     deps += [ "//ui/accelerated_widget_mac" ]
   }
   if (is_chromeos) {
-    deps += [ "//ash" ]
+    deps += [
+      "//ash",
+      "//chromeos/ui/wm",
+    ]
   }
   if (use_ozone) {
     deps += [ "//ui/ozone" ]
@@ -514,18 +523,21 @@ mojom("mojo_bindings") {
 
 source_set("unit_tests") {
   testonly = true
-  sources = []
+  sources = [ "host/context/glic_sharing_utils_unittest.cc" ]
   if (!is_android) {
     sources += [
       "common/glic_panel_hotkey_delegate_unittest.cc",
       "common/local_hotkey_manager_unittest.cc",
+      "glic_metrics_provider_unittest.cc",
       "glic_metrics_unittest.cc",
       "glic_selection_observer_unittest.cc",
       "host/context/glic_pin_candidate_comparator_unittest.cc",
       "host/context/glic_screenshot_capturer_unittest.cc",
       "host/context/glic_tab_data_unittest.cc",
       "host/glic_cookie_synchronizer_unittest.cc",
+      "host/glic_web_contents_warming_pool_unittest.cc",
       "host/guest_util_unittest.cc",
+      "public/glic_enabling_metrics_unittest.cc",
       "public/glic_enabling_unittest.cc",
       "service/glic_instance_helper_unittest.cc",
       "service/metrics/glic_instance_coordinator_metrics_unittest.cc",
@@ -583,7 +595,10 @@ source_set("unit_tests") {
 source_set("browser_tests") {
   testonly = true
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
-  sources = [ "service/glic_instance_coordinator_browsertest.cc" ]
+  sources = [
+    "host/new_glic_api_browsertest.cc",
+    "service/glic_instance_coordinator_browsertest.cc",
+  ]
   if (!is_android) {
     sources += [
       "actor/glic_actor_policy_checker_browsertest.cc",
@@ -613,6 +628,7 @@ source_set("browser_tests") {
     "//chrome/app:command_ids",
     "//chrome/browser/background/glic",
     "//chrome/browser/glic/actor",
+    "//chrome/browser/glic/actor:test_support",
     "//chrome/browser/glic/common",
     "//chrome/browser/glic/common:browser_tests",
     "//chrome/browser/glic/fre",

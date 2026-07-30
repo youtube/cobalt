@@ -29,6 +29,7 @@
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/password_manager/core/browser/export/export_progress_status.h"
 #include "components/password_manager/core/browser/export/password_manager_exporter.h"
+#include "components/password_manager/core/browser/password_store/password_store_interface.h"
 #include "components/password_manager/core/browser/sharing/recipients_fetcher.h"
 #include "components/password_manager/core/browser/ui/credential_ui_entry.h"
 #include "components/password_manager/core/browser/ui/passwords_provider.h"
@@ -56,6 +57,7 @@ namespace extensions {
 class PasswordsPrivateDelegateImpl
     : public PasswordsPrivateDelegate,
       public password_manager::SavedPasswordsPresenter::Observer,
+      public password_manager::PasswordStoreInterface::Observer,
       public syncer::SyncServiceObserver,
       public web_app::WebAppInstallManagerObserver {
  public:
@@ -153,6 +155,7 @@ class PasswordsPrivateDelegateImpl
       base::OnceCallback<void(bool)> success_callback) override;
   bool IsConnectedToCloudAuthenticator(
       content::WebContents* web_contents) override;
+  password_manager::ActionableError GetActionableError() override;
   void DeleteAllPasswordManagerData(
       content::WebContents* web_contents,
       base::OnceCallback<void(bool)> success_callback) override;
@@ -199,6 +202,16 @@ class PasswordsPrivateDelegateImpl
   // password_manager::SavedPasswordsPresenter::Observer implementation.
   void OnSavedPasswordsChanged(
       const password_manager::PasswordStoreChangeList& changes) override;
+
+  // password_manager::PasswordStoreInterface::Observer implementation.
+  void OnLoginsChanged(
+      password_manager::PasswordStoreInterface* store,
+      const password_manager::PasswordStoreChangeList& changes) override;
+  void OnLoginsRetained(password_manager::PasswordStoreInterface* store,
+                        const std::vector<password_manager::PasswordForm>&
+                            retained_passwords) override;
+  void OnErrorStateChanged(password_manager::PasswordStoreInterface* store,
+                           password_manager::ActionableError error) override;
 
   // web_app::WebAppInstallManagerObserver implementation.
   void OnWebAppInstalledWithOsHooks(const webapps::AppId& app_id) override;
@@ -314,6 +327,13 @@ class PasswordsPrivateDelegateImpl
 
   base::ScopedObservation<syncer::SyncService, syncer::SyncServiceObserver>
       sync_service_observation_{this};
+
+  base::ScopedObservation<password_manager::PasswordStoreInterface,
+                          password_manager::PasswordStoreInterface::Observer>
+      profile_password_store_observation_{this};
+  base::ScopedObservation<password_manager::PasswordStoreInterface,
+                          password_manager::PasswordStoreInterface::Observer>
+      account_password_store_observation_{this};
 
   base::ScopedObservation<web_app::WebAppInstallManager,
                           web_app::WebAppInstallManagerObserver>

@@ -8,7 +8,7 @@ import type {CrInputElement} from 'chrome://resources/cr_elements/cr_input/cr_in
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {PromiseResolver} from 'chrome://resources/js/promise_resolver.js';
 import type {Skill} from 'chrome://skills/skill.mojom-webui.js';
-import {SkillSource} from 'chrome://skills/skill.mojom-webui.js';
+import {SkillsDialogType, SkillSource} from 'chrome://skills/skill.mojom-webui.js';
 import {DialogHandlerRemote} from 'chrome://skills/skills.mojom-webui.js';
 import {MAX_NAME_CHAR_COUNT, MAX_PROMPT_CHAR_COUNT, WindowProxyImpl} from 'chrome://skills/skills_dialog_app.js';
 import type {SkillsDialogAppElement, WindowProxy} from 'chrome://skills/skills_dialog_app.js';
@@ -56,6 +56,8 @@ suite('SkillsDialogAppPage', function() {
     dialogHandler.setResultFor(
         'refineSkill', Promise.resolve({refinedSkill: {}}));
     dialogHandler.setResultFor(
+        'generateNameAndEmoji', Promise.resolve({refinedSkill: {}}));
+    dialogHandler.setResultFor(
         'getSignedInEmail', Promise.resolve({email: ''}));
     const emptySkill: Skill = {
       id: '',
@@ -70,12 +72,15 @@ suite('SkillsDialogAppPage', function() {
     };
     testWindowProxy = new TestWindowProxy();
     WindowProxyImpl.setInstance(testWindowProxy);
-    await setupDialogWithSkill(emptySkill);
+    await setupDialogInitialState(emptySkill);
   });
 
-  async function setupDialogWithSkill(initialSkill: Skill) {
-    dialogHandler.setResultFor(
-        'getInitialSkill', Promise.resolve({skill: initialSkill}));
+  async function setupDialogInitialState(
+      initialSkill: Skill,
+      dialogType: SkillsDialogType = SkillsDialogType.kAdd) {
+    dialogHandler.setResultFor('getInitialState', Promise.resolve({
+      initialDialogState: {dialogType: dialogType, skill: initialSkill},
+    }));
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     skillsDialogApp = document.createElement('skills-dialog-app');
     document.body.appendChild(skillsDialogApp);
@@ -115,7 +120,7 @@ suite('SkillsDialogAppPage', function() {
       creationTime: {internalValue: 0n},
       lastUpdateTime: {internalValue: 0n},
     };
-    await setupDialogWithSkill(testSkill);
+    await setupDialogInitialState(testSkill);
 
     assertEquals(testSkill.name, skillsDialogApp.$.nameText.value);
     assertEquals(testSkill.prompt, skillsDialogApp.$.instructionsText.value);
@@ -133,7 +138,7 @@ suite('SkillsDialogAppPage', function() {
       creationTime: {internalValue: 0n},
       lastUpdateTime: {internalValue: 0n},
     };
-    await setupDialogWithSkill(testSkill);
+    await setupDialogInitialState(testSkill);
 
     assertEquals('Add skill', skillsDialogApp.$.header.textContent);
   });
@@ -150,7 +155,7 @@ suite('SkillsDialogAppPage', function() {
       creationTime: {internalValue: 0n},
       lastUpdateTime: {internalValue: 0n},
     };
-    await setupDialogWithSkill(testSkill);
+    await setupDialogInitialState(testSkill, SkillsDialogType.kEdit);
 
     assertEquals('Edit skill', skillsDialogApp.$.header.textContent);
   });
@@ -206,7 +211,7 @@ suite('SkillsDialogAppPage', function() {
       creationTime: {internalValue: 0n},
       lastUpdateTime: {internalValue: 0n},
     };
-    await setupDialogWithSkill(firstPartySkill);
+    await setupDialogInitialState(firstPartySkill);
 
     // Remix the fields.
     const remixedName = 'remixed skill';
@@ -236,7 +241,7 @@ suite('SkillsDialogAppPage', function() {
       creationTime: {internalValue: 0n},
       lastUpdateTime: {internalValue: 0n},
     };
-    await setupDialogWithSkill(userCreatedSkill);
+    await setupDialogInitialState(userCreatedSkill, SkillsDialogType.kEdit);
 
     // Edit the fields.
     const editedName = 'edited skill';
@@ -265,7 +270,8 @@ suite('SkillsDialogAppPage', function() {
       creationTime: {internalValue: 0n},
       lastUpdateTime: {internalValue: 0n},
     };
-    await setupDialogWithSkill(derivedFromFirstPartySkill);
+    await setupDialogInitialState(
+        derivedFromFirstPartySkill, SkillsDialogType.kEdit);
 
     // Edit the fields.
     const editedName = 'edited skill';
@@ -322,7 +328,7 @@ suite('SkillsDialogAppPage', function() {
       creationTime: {internalValue: 0n},
       lastUpdateTime: {internalValue: 0n},
     };
-    await setupDialogWithSkill(testSkill);
+    await setupDialogInitialState(testSkill, SkillsDialogType.kEdit);
 
     assertFalse(skillsDialogApp.$.deleteButton.hidden);
 
@@ -343,7 +349,7 @@ suite('SkillsDialogAppPage', function() {
       creationTime: {internalValue: 0n},
       lastUpdateTime: {internalValue: 0n},
     };
-    await setupDialogWithSkill(emptyIconSkill);
+    await setupDialogInitialState(emptyIconSkill, SkillsDialogType.kAdd);
 
     const zeroStateIcon = skillsDialogApp.$.emojiZeroStateIcon;
     const emojiTrigger = skillsDialogApp.$.emojiTrigger;
@@ -402,7 +408,7 @@ suite('SkillsDialogAppPage', function() {
       creationTime: {internalValue: 0n},
       lastUpdateTime: {internalValue: 0n},
     };
-    await setupDialogWithSkill(emptyIconSkill);
+    await setupDialogInitialState(emptyIconSkill, SkillsDialogType.kEdit);
 
     // Click the save button and verify the proxy call.
     skillsDialogApp.$.saveButton.click();
@@ -726,7 +732,7 @@ suite('SkillsDialogAppPage', function() {
     // 1. Setup the mock response for the auto-population call.
     const generatedName = 'Auto Generated Name';
     const generatedIcon = '🤖';
-    dialogHandler.setResultFor('refineSkill', Promise.resolve({
+    dialogHandler.setResultFor('generateNameAndEmoji', Promise.resolve({
       refinedSkill: {
         id: '',
         sourceSkillId: '',
@@ -745,7 +751,7 @@ suite('SkillsDialogAppPage', function() {
       id: '',
       sourceSkillId: '',
       name: '',
-      icon: '⚡',  // Default
+      icon: '',
       prompt: 'Instruction that triggers auto-gen',
       description: '',
       source: SkillSource.kUserCreated,
@@ -754,7 +760,7 @@ suite('SkillsDialogAppPage', function() {
     };
 
     // 3. Mount the component
-    await setupDialogWithSkill(newSkill);
+    await setupDialogInitialState(newSkill, SkillsDialogType.kAdd);
 
     // 4. Assert that values updated automatically
     assertEquals(generatedName, skillsDialogApp.$.nameText.value);
@@ -763,7 +769,7 @@ suite('SkillsDialogAppPage', function() {
 
   test('AutoPopulateDoesNotOverwriteExistingData', async function() {
     // 1. Setup mock response
-    dialogHandler.setResultFor('refineSkill', Promise.resolve({
+    dialogHandler.setResultFor('generateNameAndEmoji', Promise.resolve({
       refinedSkill: {
         name: 'Should Not Be Used',
         icon: '❌',
@@ -787,7 +793,7 @@ suite('SkillsDialogAppPage', function() {
     };
 
     // 3. Mount
-    await setupDialogWithSkill(customSkill);
+    await setupDialogInitialState(customSkill);
 
     // 4. Assert values were preserved
     assertEquals(existingName, skillsDialogApp.$.nameText.value);
@@ -797,7 +803,7 @@ suite('SkillsDialogAppPage', function() {
   test('AutoPopulateLoadingState', async function() {
     // 1. Control the promise to check loading state
     const resolver = new PromiseResolver<{refinedSkill: Skill}>();
-    dialogHandler.refineSkill = () => resolver.promise;
+    dialogHandler.generateNameAndEmoji = () => resolver.promise;
 
     const newSkill: Skill = {
       id: '',
@@ -812,7 +818,7 @@ suite('SkillsDialogAppPage', function() {
     };
 
     // 2. Mount - this triggers the call immediately in connectedCallback
-    await setupDialogWithSkill(newSkill);
+    await setupDialogInitialState(newSkill, SkillsDialogType.kAdd);
 
     // 3. Assert Loading State: Input should not be visible, Loader should be
     const nameInput = skillsDialogApp.shadowRoot.querySelector('#nameText');
@@ -851,9 +857,9 @@ suite('SkillsDialogAppPage', function() {
   });
 
   test('AutoPopulateTimesOut', async function() {
-    // 1. Setup a hanging promise for refineSkill
+    // 1. Setup a hanging promise for generateNameAndEmoji
     const resolver = new PromiseResolver<{refinedSkill: Skill}>();
-    dialogHandler.refineSkill = () => resolver.promise;
+    dialogHandler.generateNameAndEmoji = () => resolver.promise;
 
     const newSkill: Skill = {
       id: '',
@@ -868,7 +874,7 @@ suite('SkillsDialogAppPage', function() {
     };
 
     // 2. Mount
-    await setupDialogWithSkill(newSkill);
+    await setupDialogInitialState(newSkill, SkillsDialogType.kAdd);
 
     // 3. Assert Loading State
     const loader =
@@ -909,10 +915,10 @@ suite('SkillsDialogAppPage', function() {
     };
 
     // 2. Mount the component.
-    await setupDialogWithSkill(preNamedSkill);
+    await setupDialogInitialState(preNamedSkill, SkillsDialogType.kAdd);
 
-    // 3. Verify that refineSkill was NEVER called.
-    assertEquals(0, dialogHandler.getCallCount('refineSkill'));
+    // 3. Verify that generateNameAndEmoji was NEVER called.
+    assertEquals(0, dialogHandler.getCallCount('generateNameAndEmoji'));
 
     // 4. Verify no loading state is shown and name remains unchanged.
     const loader =

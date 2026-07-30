@@ -165,9 +165,8 @@ bool IsEmptyOrWhitespace(const std::string* input) {
     return true;
   }
 
-  auto trimmed_string =
-      base::TrimWhitespace(base::UTF8ToUTF16(*input), base::TRIM_ALL);
-  return trimmed_string.empty();
+  auto utf16_string = base::UTF8ToUTF16(*input);
+  return base::TrimWhitespace(utf16_string, base::TRIM_ALL).empty();
 }
 
 GURL ExtractUrl(const base::DictValue& response, const char* key) {
@@ -888,8 +887,8 @@ void OnTokenRequestParsed(
 
   if (redirect_to) {
     GURL url;
-    blink::mojom::FedCmRedirectMethod method =
-        blink::mojom::FedCmRedirectMethod::kGet;
+    blink::mojom::RedirectParams::Tag method =
+        blink::mojom::RedirectParams::Tag::kGet;
     std::string request_body;
 
     if (redirect_to->is_string()) {
@@ -903,7 +902,7 @@ void OnTokenRequestParsed(
       const std::string* method_string =
           redirect_dict.FindString(kRedirectMethodKey);
       if (method_string && *method_string == "POST") {
-        method = blink::mojom::FedCmRedirectMethod::kPost;
+        method = blink::mojom::RedirectParams::Tag::kPost;
       }
       const std::string* body_string =
           redirect_dict.FindString(kRedirectBodyKey);
@@ -911,6 +910,7 @@ void OnTokenRequestParsed(
         request_body = *body_string;
       }
     }
+
     if (url.is_valid()) {
       std::move(record_error_metrics_callback)
           .Run(token_response_type, /*error_dialog_type=*/std::nullopt,

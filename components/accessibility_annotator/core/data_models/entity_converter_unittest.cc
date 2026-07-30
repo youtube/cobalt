@@ -83,7 +83,7 @@ TEST(EntityConverterTest, ConvertShipment) {
   EXPECT_EQ(entity_shipment.estimated_delivery_date->day, 10);
 }
 
-TEST(EntityConverterTest, ConvertDriverLicense) {
+TEST(EntityConverterTest, ConvertDriversLicense) {
   sync_pb::AccessibilityAnnotationSpecifics specifics;
   specifics.set_id("dl_id");
   auto* dl = specifics.mutable_drivers_license();
@@ -102,9 +102,9 @@ TEST(EntityConverterTest, ConvertDriverLicense) {
   std::optional<Entity> result = CreateEntityFromSpecifics(specifics);
 
   ASSERT_TRUE(result.has_value());
-  ASSERT_TRUE(std::holds_alternative<DriverLicense>(result->specifics));
+  ASSERT_TRUE(std::holds_alternative<DriversLicense>(result->specifics));
 
-  const DriverLicense& entity_dl = std::get<DriverLicense>(result->specifics);
+  const DriversLicense& entity_dl = std::get<DriversLicense>(result->specifics);
   EXPECT_EQ(entity_dl.name, "John Doe");
   EXPECT_EQ(entity_dl.number, "DL123456");
   ASSERT_TRUE(entity_dl.expiration_date.has_value());
@@ -199,13 +199,15 @@ TEST(EntityConverterTest, ConvertFlight) {
   flight->set_departure_airport("SFO");
   flight->set_arrival_airport("JFK");
   flight->set_departure_date_unix_epoch_seconds(1750000000);
+  flight->set_arrival_date_unix_epoch_seconds(1750000060);
 
   std::optional<Entity> result = CreateEntityFromSpecifics(specifics);
 
   ASSERT_TRUE(result.has_value());
-  ASSERT_TRUE(std::holds_alternative<Flight>(result->specifics));
+  ASSERT_TRUE(std::holds_alternative<FlightReservation>(result->specifics));
 
-  const Flight& entity_flight = std::get<Flight>(result->specifics);
+  const FlightReservation& entity_flight =
+      std::get<FlightReservation>(result->specifics);
   EXPECT_EQ(entity_flight.flight_number, "UA100");
   EXPECT_EQ(entity_flight.ticket_number, "TKT123");
   EXPECT_EQ(entity_flight.confirmation_code, "CONF456");
@@ -214,6 +216,8 @@ TEST(EntityConverterTest, ConvertFlight) {
   EXPECT_EQ(entity_flight.arrival_airport, "JFK");
   EXPECT_EQ(entity_flight.departure_date,
             base::Time::FromSecondsSinceUnixEpoch(1750000000));
+  EXPECT_EQ(entity_flight.arrival_date,
+            base::Time::FromSecondsSinceUnixEpoch(1750000060));
 }
 
 TEST(EntityConverterTest, ConvertVehicle) {

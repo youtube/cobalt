@@ -144,6 +144,12 @@ void ServiceWorkerTaskQueue::RendererDidInitializeServiceWorkerContext(
   // active.
   CHECK(process_host);
 
+  // A stale IPC could arrive from the renderer process after the extension has
+  // been deactivated, reloaded and immediately reactivated.
+  if (!IsCurrentActivation(extension_id, activation_token)) {
+    return;
+  }
+
   util::InitializeFileSchemeAccessForExtension(
       render_process_id.GetUnsafeValue(), extension_id, browser_context_);
   ProcessManager::Get(browser_context_)
@@ -490,14 +496,17 @@ void ServiceWorkerTaskQueue::OnWorkerStartFail(
   pending_storage_registrations_.erase(context_id.extension_id);
 }
 
-void ServiceWorkerTaskQueue::OnWorkerStop(int64_t version_id,
-                                          const GURL& scope) {
+void ServiceWorkerTaskQueue::OnWorkerStop(
+    int64_t version_id,
+    const blink::ServiceWorkerToken& service_worker_token,
+    const GURL& scope) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
   // Stop tracking the worker for extension API purposes.
   const ExtensionId& extension_id = scope.GetHost();
   ProcessManager::Get(browser_context_)
-      ->StopTrackingServiceWorkerRunningInstance(extension_id, version_id);
+      ->StopTrackingServiceWorkerRunningInstance(extension_id, version_id,
+                                                 service_worker_token);
 
   if (g_test_observer) {
     g_test_observer->UntrackServiceWorkerState(scope);
@@ -1120,7 +1129,7 @@ void ServiceWorkerTaskQueue::OnRegistrationStoredSync(int64_t registration_id,
 }
 
 void ServiceWorkerTaskQueue::OnReportConsoleMessageSync(
-    int render_process_id,
+    content::ChildProcessId render_process_id,
     int64_t version_id,
     const GURL& scope,
     const content::ConsoleMessage& message) {
@@ -1129,6 +1138,7 @@ void ServiceWorkerTaskQueue::OnReportConsoleMessageSync(
     return;
   }
 
+  // TODO(crbug.com/379869738) Remove GetUnsafeValue.
   auto error_instance = std::make_unique<RuntimeError>(
       scope.GetHost(), browser_context_->IsOffTheRecord(),
       base::UTF8ToUTF16(content::MessageSourceToString(message.source)),
@@ -1141,7 +1151,7 @@ void ServiceWorkerTaskQueue::OnReportConsoleMessageSync(
       message.source_url,
       content::ConsoleMessageLevelToLogSeverity(message.message_level),
       -1 /* a service worker does not have a render_view_id */,
-      render_process_id,
+      render_process_id.GetUnsafeValue(),
       /*is_from_service_worker=*/true);
 
   ExtensionsBrowserClient::Get()->ReportError(browser_context_,

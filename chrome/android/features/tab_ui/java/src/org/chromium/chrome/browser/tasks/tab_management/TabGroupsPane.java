@@ -18,16 +18,17 @@ import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.data_sharing.DataSharingTabManager;
-import org.chromium.chrome.browser.hub.DelegateButtonData;
-import org.chromium.chrome.browser.hub.FullButtonData;
 import org.chromium.chrome.browser.hub.LoadHint;
 import org.chromium.chrome.browser.hub.Pane;
 import org.chromium.chrome.browser.hub.PaneBase;
 import org.chromium.chrome.browser.hub.PaneId;
 import org.chromium.chrome.browser.hub.PaneManager;
-import org.chromium.chrome.browser.hub.ResourceButtonData;
 import org.chromium.chrome.browser.profiles.ProfileProvider;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
+import org.chromium.chrome.browser.ui.actions.DelegateButtonData;
+import org.chromium.chrome.browser.ui.actions.FullButtonData;
+import org.chromium.chrome.browser.ui.actions.ResourceButtonData;
+import org.chromium.chrome.browser.ui.bottombar.BottomBarConfigUtils;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
 import org.chromium.chrome.tab_ui.R;
 import org.chromium.components.tab_group_sync.TabGroupUiActionHandler;
@@ -44,6 +45,8 @@ public class TabGroupsPane extends PaneBase {
     private final Supplier<PaneManager> mPaneManagerSupplier;
     private final Supplier<@Nullable TabGroupUiActionHandler> mTabGroupUiActionHandlerSupplier;
     private final Supplier<@Nullable ModalDialogManager> mModalDialogManagerSupplier;
+    private final MonotonicObservableSupplier<FullButtonData> mEmptyActionButtonDataSupplier =
+            ObservableSuppliers.alwaysNull();
     private final SettableMonotonicObservableSupplier<FullButtonData> mActionButtonSupplier =
             ObservableSuppliers.createMonotonic();
     private final SettableNonNullObservableSupplier<Boolean> mHairlineVisibilitySupplier =
@@ -135,6 +138,10 @@ public class TabGroupsPane extends PaneBase {
 
     @Override
     public MonotonicObservableSupplier<FullButtonData> getActionButtonDataSupplier() {
+        if (BottomBarConfigUtils.isBottomBarEnabled(mContext)
+                && BottomBarConfigUtils.shouldShowOnGts()) {
+            return mEmptyActionButtonDataSupplier;
+        }
         return mActionButtonSupplier;
     }
 

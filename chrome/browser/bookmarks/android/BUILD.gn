@@ -34,6 +34,7 @@ source_set("impl") {
     "//chrome/browser/profiles",
     "//chrome/browser/reading_list",
     "//chrome/browser/signin",
+    "//chrome/browser/undo",
     "//components/query_parser",
     "//components/undo",
   ]
@@ -131,6 +132,7 @@ android_library("java") {
     "//chrome/browser/signin/services/android:java",
     "//chrome/browser/sync/android:ui_java",
     "//chrome/browser/tab:java",
+    "//chrome/browser/ui/android/actions:java",
     "//chrome/browser/ui/android/favicon:java",
     "//chrome/browser/ui/android/layouts:java",
     "//chrome/browser/ui/android/native_page:java",

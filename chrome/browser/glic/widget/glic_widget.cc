@@ -58,8 +58,8 @@
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "ash/frame/frame_view_ash.h"
-#include "ash/wm/window_util.h"
 #include "chromeos/ui/base/window_properties.h"
+#include "chromeos/ui/wm/window_util.h"
 #endif
 
 namespace glic {
@@ -115,6 +115,8 @@ class GlicWidgetDelegate : public views::WidgetDelegate {
 
   ~GlicWidgetDelegate() override = default;
 
+#if BUILDFLAG(IS_CHROMEOS)
+
   // views::WidgetDelegate:
   bool ShouldDescendIntoChildForEventHandling(
       gfx::NativeView child,
@@ -125,48 +127,36 @@ class GlicWidgetDelegate : public views::WidgetDelegate {
 
     return true;
   }
-
- private:
-  GlicView* glic_view() {
-    return static_cast<GlicView*>(GetWidget()->GetClientContentsView());
-  }
-};
-
-#if BUILDFLAG(IS_CHROMEOS)
-
-class GlicFrameViewChromeOS : public ash::FrameViewAsh {
- public:
-  explicit GlicFrameViewChromeOS(views::Widget* widget)
-      : ash::FrameViewAsh(widget) {}
-
-  GlicFrameViewChromeOS(const GlicFrameViewChromeOS&) = delete;
-  GlicFrameViewChromeOS& operator=(const GlicFrameViewChromeOS&) = delete;
-
-  ~GlicFrameViewChromeOS() override = default;
-
-  // ash::FrameViewAsh:
-  int NonClientHitTest(const gfx::Point& point) override {
-    // As part of this hit testing, we check if the point is within the inside
-    // resizable region of the window.
-    int component = ash::FrameViewAsh::NonClientHitTest(point);
-
-    // If point falls into the client area (i.e web-contents), check if it
-    // within the draggable regions of web-contents.
-    if (component == HTCLIENT &&
-        glic_view()->IsPointWithinDraggableRegion(point)) {
-      return HTCAPTION;
+  void OnWidgetInitialized() override {
+    if (!base::FeatureList::IsEnabled(features::kGlicUseNonClient)) {
+      return;
     }
 
-    return component;
+    GetWidget()
+        ->non_client_view()
+        ->frame_view()
+        ->set_non_client_hit_test_callback(base::BindRepeating(
+            &GlicWidgetDelegate::NonClientHitTest, base::Unretained(this)));
   }
 
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
  private:
-  GlicView* glic_view() {
+  // Additional hit test handling to support draggable regions.
+  std::optional<int> NonClientHitTest(const gfx::Point& point) const {
+    if (base::FeatureList::IsEnabled(features::kGlicHandleDraggingNatively)) {
+      if (glic_view()->IsPointWithinDraggableRegion(point)) {
+        return HTCAPTION;
+      }
+    }
+
+    return std::nullopt;
+  }
+
+  GlicView* glic_view() const {
     return static_cast<GlicView*>(GetWidget()->GetClientContentsView());
   }
 };
-
-#endif  // #if BUILDFLAG(IS_CHROMEOS)
 
 bool ShouldCreateNonClientView() {
   return base::FeatureList::IsEnabled(features::kGlicUseNonClient);
@@ -310,13 +300,6 @@ std::unique_ptr<views::WidgetDelegate> GlicWidget::CreateWidgetDelegate(
       }));
 
 #if BUILDFLAG(IS_CHROMEOS)
-  if (base::FeatureList::IsEnabled(features::kGlicHandleDraggingNatively)) {
-    delegate->SetFrameViewFactory(base::BindRepeating(
-        [](views::Widget* widget) -> std::unique_ptr<views::FrameView> {
-          return std::make_unique<GlicFrameViewChromeOS>(widget);
-        }));
-  }
-
   // TODO(b:458115863): Move ChromeOS specific code to platform specific
   // implementation. (Like GlicWidgetChromeOS?)
   delegate->RegisterWidgetInitializedCallback(base::BindOnce(
@@ -330,7 +313,7 @@ std::unique_ptr<views::WidgetDelegate> GlicWidget::CreateWidgetDelegate(
             gfx::ScaleToFlooredInsets(mouse_insets, kResizeInsetScaleForTouch);
 
         auto* frame_window = delegate->GetWidget()->GetNativeWindow();
-        ash::window_util::InstallResizeHandleWindowTargeterForWindow(
+        chromeos::wm::InstallResizeHandleWindowTargeterForWindow(
             frame_window,
             chromeos::ResizeBorderInsets{.for_mouse = mouse_insets,
                                          .for_touch = touch_insets});

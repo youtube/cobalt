@@ -6,6 +6,7 @@ module on_device_model.mojom;
 
 import "mojo/public/mojom/base/file.mojom";
 import "mojo/public/mojom/base/file_path.mojom";
+import "mojo/public/mojom/base/values.mojom";
 import "skia/public/mojom/bitmap.mojom";
 
 // Opened file resources needed to define an adaptation.
@@ -66,21 +67,40 @@ struct ResponseSummary {
   uint32 output_token_count;
 };
 
+// Errors yielded by `Generate()`, a `Session` may provide these values as a
+// custom reason when disconnecting the `StreamingResponder` pipe.
+[Stable, Extensible]
+enum GenerateError {
+  [Default] kUnknown = 0,
+  // The constraint is invalid or incompatible with the given assistant prefix.
+  kInvalidConstraint = 1,
+};
+
 // Streams a response from a call to execute a model. Close this pipe to cancel
-// the call to |Generate()|.
+// the call to `Generate()`.
 [Stable]
 interface StreamingResponder {
   // This is called each time a new chunk of text is available.
   OnResponse@0(ResponseChunk chunk);
 
-  // This is called once when all text for the query has been returned. No other
-  // methods on this interface will be called after OnComplete(). `summary`
-  // conveys metadata about the response that was streamed.
+  // This is called once when all text and tool calls for the query have been
+  // returned. No other methods on this interface will be called after
+  // OnComplete(). `summary` conveys metadata about the response that was
+  // streamed.
   OnComplete@1(ResponseSummary summary);
+
+  // Called when the model emits tool calls during generation. The
+  // implementation that owns the Session should pass matching ToolResponse
+  // input pieces in a subsequent Append() call before calling Generate()
+  // again.
+  // TODO(crbug.com/422803232): Consider unifying with OnResponse using an
+  // OutputPiece union to align with the InputPiece pattern.
+  [MinVersion=1]
+  OnToolCalls@2(array<ToolCall> tool_calls);
 };
 
 // Notifies the caller when the model is done processing context. Close this
-// pipe to cancel the call to |AddContext()|.
+// pipe to cancel the call to `AddContext()`.
 [Stable]
 interface ContextClient {
   // Called when the context has finished processing with the number of tokens
@@ -141,7 +161,7 @@ enum Token {
   kUser,
   // End a system/model/user section.
   [Default] kEnd,
-  // Prefix for tool call (function invocation by the model).
+  // Prefix for tool call (model requesting tool execution).
   [MinVersion=1] kToolCall,
   // Prefix for tool response (results from tool execution).
   [MinVersion=1] kToolResponse,
@@ -168,6 +188,14 @@ union InputPiece {
   // Audio provided as input.
   [MinVersion=1]
   AudioData audio;
+
+  // Tool declaration provided as input.
+  [MinVersion=2]
+  ToolDeclaration tool_declaration;
+
+  // Tool response provided as input.
+  [MinVersion=2]
+  ToolResponse tool_response;
 };
 
 [Stable]
@@ -242,13 +270,13 @@ enum Priority {
 [Stable]
 interface Session {
   // Appends input to this session. Any input added here will build off of
-  // previous calls to |Append()|. To cancel, close the |client| pipe.
+  // previous calls to `Append()`. To cancel, close the `client` pipe.
   [MinVersion=1]
   Append@6(AppendOptions options, pending_remote<ContextClient>? client);
 
   // Generates output from the model on top of any input added from Append().
-  // The response will be streamed to |response|. To cancel the request, close
-  // the |response| pipe.
+  // The response will be streamed to `responder`. To cancel the request, close
+  // the `responder` pipe.
   [MinVersion=1]
   Generate@7(
       GenerateOptions options, pending_remote<StreamingResponder> responder);
@@ -357,6 +385,51 @@ enum LoadModelResult {
   kGpuBlocked,
   [Default] kFailedToLoadLibrary,
   [MinVersion=1, EnableIf=is_chromeos] kCrosNeedReboot,
+};
+
+// Represents a tool declaration (function signature) available to the model.
+[Stable]
+struct ToolDeclaration {
+  // Unique name identifying this tool.
+  string name;
+
+  // Human-readable description of what the tool does.
+  string description;
+
+  // JSON Schema defining the tool's input parameters as structured data.
+  mojo_base.mojom.DictionaryValue input_schema;
+};
+
+// Represents a tool call requested by the model during generation.
+[Stable]
+struct ToolCall {
+  // Unique identifier for this tool call within the session.
+  string call_id;
+
+  // Name of the tool to invoke.
+  string name;
+
+  // Arguments as structured data fitting the tool's input schema.
+  mojo_base.mojom.DictionaryValue arguments;
+};
+
+// Represents a tool response (result from tool execution).
+[Stable]
+struct ToolResponse {
+  // Matches the call_id from the corresponding tool call.
+  string call_id;
+
+  // Name of the tool that was executed.
+  string name;
+
+  // Result data as structured value (success case).
+  // Format: array of result values from tool execution.
+  // Mutually exclusive with error_message.
+  mojo_base.mojom.Value? result;
+
+  // Error message (error case).
+  // Mutually exclusive with result.
+  string? error_message;
 };
 
 [Stable]

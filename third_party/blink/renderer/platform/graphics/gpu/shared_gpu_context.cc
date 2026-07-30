@@ -33,7 +33,8 @@ namespace {
 
 std::optional<bool> g_use_mappable_shared_images_for_canvas_2d_for_testing;
 std::optional<bool> g_low_latency_usage_supported_for_canvas_2d_for_testing;
-std::optional<bool> g_webgl_image_chromium_enabled_for_testing;
+std::optional<bool> g_use_overlays_for_webgl_for_testing;
+std::optional<bool> g_low_latency_usage_supported_for_webgl_for_testing;
 
 #if BUILDFLAG(IS_APPLE)
 bool IsDelegatedCompositingEnabled() {
@@ -41,6 +42,12 @@ bool IsDelegatedCompositingEnabled() {
       base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kEnableGpuMemoryBufferCompositorResources);
   return backed_by_io_surface;
+}
+#endif
+
+#if BUILDFLAG(IS_ANDROID)
+bool IsSurfaceControlEnabled() {
+  return ::features::IsAndroidSurfaceControlEnabled();
 }
 #endif
 
@@ -323,7 +330,8 @@ void SharedGpuContext::Reset() {
   this_ptr->context_provider_factory_.Reset();
   g_use_mappable_shared_images_for_canvas_2d_for_testing.reset();
   g_low_latency_usage_supported_for_canvas_2d_for_testing.reset();
-  g_webgl_image_chromium_enabled_for_testing.reset();
+  g_use_overlays_for_webgl_for_testing.reset();
+  g_low_latency_usage_supported_for_webgl_for_testing.reset();
 }
 
 bool SharedGpuContext::IsValidWithoutRestoringForTesting() {
@@ -354,12 +362,6 @@ bool SharedGpuContext::AllowSoftwareToAcceleratedCanvasUpgrade() {
               .IsWorkaroundEnabled(
                   gpu::DISABLE_SOFTWARE_TO_ACCELERATED_CANVAS_UPGRADE);
 }
-
-#if BUILDFLAG(IS_ANDROID)
-bool SharedGpuContext::MaySupportWebGLImageChromium() {
-  return ::features::IsAndroidSurfaceControlEnabled();
-}
-#endif  // BUILDFLAG(IS_ANDROID)
 
 bool SharedGpuContext::UseMappableSharedImagesForCanvas2D() {
   if (g_use_mappable_shared_images_for_canvas_2d_for_testing) {
@@ -413,6 +415,7 @@ bool SharedGpuContext::LowLatencyUsageSupportedForCanvas2D(
     return false;
   }
 
+#if BUILDFLAG(IS_WIN)
   // Swapchain-backed SharedImages always support low-latency usages.
   bool can_use_swapchain = ContextProviderWrapper()
                                ->ContextProvider()
@@ -422,42 +425,84 @@ bool SharedGpuContext::LowLatencyUsageSupportedForCanvas2D(
   if (can_use_swapchain) {
     return true;
   }
+#endif
 
 #if BUILDFLAG(IS_ANDROID)
   // Low-latency usage on Android is possible only with SurfaceControl.
-  if (!::features::IsAndroidSurfaceControlEnabled()) {
-    return false;
-  }
-#endif
-
+  return IsSurfaceControlEnabled() &&
+         base::FeatureList::IsEnabled(
+             features::kLowLatencyUsageSupportedForCanvas2D);
+#elif BUILDFLAG(IS_CHROMEOS)
+  // Low-latency usage is always supported for Canvas2D on ChromeOS.
+  return true;
+#else
   // NOTE: crbug.com/41435781 would need to be resolved in order to support
   // low-latency usage on Mac (currently setting the desynchronized attribute
   // on a canvas is a no-op on Mac). If/once that bug is resolved, determine
   // whether this method can then return true on Apple if
   // IsDelegatedCompositingEnabled() holds.
-  return base::FeatureList::IsEnabled(
-      features::kLowLatencyCanvas2dImageChromium);
+  return false;
+#endif
 }
 
-bool SharedGpuContext::WebGLImageChromiumEnabled() {
-  if (g_webgl_image_chromium_enabled_for_testing) {
-    return g_webgl_image_chromium_enabled_for_testing.value();
+bool SharedGpuContext::LowLatencyUsageSupportedForWebGL() {
+  if (g_low_latency_usage_supported_for_webgl_for_testing) {
+    return g_low_latency_usage_supported_for_webgl_for_testing.value();
   }
 
-#if BUILDFLAG(IS_APPLE)
-  static const bool enable_web_gl_image_chromium =
-      base::CommandLine::ForCurrentProcess()->HasSwitch(
-          blink::switches::kEnableGpuMemoryBufferCompositorResources);
-#else
+#if BUILDFLAG(IS_ANDROID)
+  // Low-latency usage on Android is possible only with SurfaceControl.
+  return IsSurfaceControlEnabled() &&
+         base::FeatureList::IsEnabled(
+             features::kLowLatencyUsageSupportedForWebGL);
+#elif BUILDFLAG(IS_CHROMEOS)
+  // Whether WebGL canvases should be given low-latency usage is specified on a
+  // per-board basis by passing (or not) the relevant command-line flag.
   static const bool enable_web_gl_image_chromium =
       base::CommandLine::ForCurrentProcess()->HasSwitch(
           blink::switches::kEnableWebGLImageChromium);
-#endif
   return enable_web_gl_image_chromium;
+#else
+  // NOTE: crbug.com/41435781 would need to be resolved in order to support
+  // low-latency usage on Mac (currently setting the desynchronized attribute
+  // on a canvas is a no-op on Mac). If/once that bug is resolved, determine
+  // whether this method can then return true on Apple if
+  // IsDelegatedCompositingEnabled() holds.
+  return false;
+#endif
 }
 
-void SharedGpuContext::SetWebGLImageChromiumEnabledForTesting(bool enable) {
-  g_webgl_image_chromium_enabled_for_testing = enable;
+bool SharedGpuContext::UseOverlaysForWebGL() {
+  if (g_use_overlays_for_webgl_for_testing) {
+    return g_use_overlays_for_webgl_for_testing.value();
+  }
+
+#if BUILDFLAG(IS_APPLE)
+  // Delegated compositing on Apple platforms is all-or-nothing as there is no
+  // API for partial delegation. Hence, if delegated compositing is enabled, we
+  // want WebGL canvases to end up in overlays.
+  // We could consider extending this to other platforms that use delegated
+  // compositing (e.g., Windows).
+  return IsDelegatedCompositingEnabled();
+#elif BUILDFLAG(IS_CHROMEOS)
+  // Whether WebGL canvases should be placed in overlays is specified on a
+  // per-board basis by passing (or not) the relevant command-line flag.
+  static const bool enable_web_gl_image_chromium =
+      base::CommandLine::ForCurrentProcess()->HasSwitch(
+          blink::switches::kEnableWebGLImageChromium);
+  return enable_web_gl_image_chromium;
+#else
+  return false;
+#endif
+}
+
+void SharedGpuContext::SetUseOverlaysForWebGLForTesting(bool enable) {
+  g_use_overlays_for_webgl_for_testing = enable;
+}
+
+void SharedGpuContext::SetLowLatencyUsageSupportedForWebGLForTesting(
+    bool enable) {
+  g_low_latency_usage_supported_for_webgl_for_testing = enable;
 }
 
 }  // namespace blink

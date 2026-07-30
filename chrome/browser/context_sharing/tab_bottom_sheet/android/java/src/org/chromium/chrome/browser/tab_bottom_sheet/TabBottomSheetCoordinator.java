@@ -9,6 +9,7 @@ import android.view.View;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetController.SheetState;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController.StateChangeReason;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetObserver;
 import org.chromium.components.browser_ui.bottomsheet.EmptyBottomSheetObserver;
@@ -44,11 +45,13 @@ public class TabBottomSheetCoordinator {
 
         mModel = TabBottomSheetProperties.createDefaultModel(coBrowseViews);
 
-        mMediator = new TabBottomSheetMediator(mModel, coBrowseViews);
+        mMediator = new TabBottomSheetMediator();
+
+        coBrowseViews.setWebUiTouchHandler(mMediator.getWebUiTouchHandler());
     }
 
     /** Tries to show the bottom sheet. */
-    boolean tryToShowBottomSheet() {
+    boolean tryToShowBottomSheet(boolean startsExpanded) {
         if (mIsSheetCurrentlyManagedByController) {
             return false;
         }
@@ -61,6 +64,9 @@ public class TabBottomSheetCoordinator {
         mSheetContent = new TabBottomSheetContent(mContentView);
 
         if (mBottomSheetController.requestShowContent(mSheetContent, true)) {
+            if (startsExpanded) {
+                mBottomSheetController.expandSheet();
+            }
             mSheetObserver = buildBottomSheetObserver();
             mBottomSheetController.addObserver(mSheetObserver);
             mIsSheetCurrentlyManagedByController = true;
@@ -74,6 +80,15 @@ public class TabBottomSheetCoordinator {
             cleanupSheetResources();
             return false;
         }
+    }
+
+    /**
+     * Attaches the peek view to the bottom sheet.
+     *
+     * @param peekView The peek view to attach.
+     */
+    void attachPeekView(View peekView) {
+        mCoBrowseViews.attachPeekView(peekView);
     }
 
     void closeBottomSheet() {
@@ -118,10 +133,8 @@ public class TabBottomSheetCoordinator {
     private BottomSheetObserver buildBottomSheetObserver() {
         return new EmptyBottomSheetObserver() {
             @Override
-            public void onSheetOffsetChanged(float heightFraction, float offsetPx) {
-                if (!TabBottomSheetUtils.canResizeWebView()) return;
-
-                mMediator.onSheetOffsetChanged(offsetPx);
+            public void onSheetStateChanged(@SheetState int state, @StateChangeReason int reason) {
+                mMediator.onSheetStateChanged(state);
             }
         };
     }

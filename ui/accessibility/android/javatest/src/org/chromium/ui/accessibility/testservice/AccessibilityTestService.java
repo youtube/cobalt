@@ -9,7 +9,10 @@ import android.text.TextUtils;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
+
 import org.chromium.base.Log;
+import org.chromium.ui.accessibility.AccessibilityNodeInfoCompatDumper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -172,6 +175,81 @@ public class AccessibilityTestService extends AccessibilityService {
             }
         }
         return null;
+    }
+
+    public static String dumpWebContentsAccessibilityTree() {
+        synchronized (sLock) {
+            AccessibilityTestService instance = sInstance;
+            if (instance == null) {
+                Log.e(TAG, "AccessibilityTestService instance is null");
+                return "Error: AccessibilityTestService instance is null";
+            }
+
+            AccessibilityNodeInfo root = instance.getRootInActiveWindow();
+            if (root == null) {
+                Log.e(TAG, "Root node is null");
+                return "Error: Root node is null";
+            }
+
+            // Find the WebView node.
+            AccessibilityNodeInfo webViewNode =
+                    findNodeRecursive(root, "android.webkit.WebView", null);
+            if (webViewNode == null) {
+                Log.e(TAG, "WebView node not found");
+                return "Error: WebView node not found";
+            }
+
+            // Use the dumper utility to serialize the tree.
+            return dumpSubtreeRecursive(AccessibilityNodeInfoCompat.wrap(webViewNode), "");
+        }
+    }
+
+    private static String dumpSubtreeRecursive(AccessibilityNodeInfoCompat node, String indent) {
+        if (node == null) return "";
+
+        StringBuilder builder = new StringBuilder();
+        builder.append(indent);
+        builder.append(AccessibilityNodeInfoCompatDumper.toString(node));
+
+        // Append extended selection information if available by checking ancestors.
+        AccessibilityNodeInfoCompat ancestor = node;
+        while (ancestor != null) {
+            AccessibilityNodeInfoCompat.SelectionCompat selection = ancestor.getSelection();
+            if (selection != null) {
+                AccessibilityNodeInfoCompat.SelectionPositionCompat start = selection.getStart();
+                if (start != null) {
+                    if (node.equals(start.getNode())) {
+                        builder.append(" extendedSelectionStart:").append(start.getOffset());
+                    }
+                }
+
+                AccessibilityNodeInfoCompat.SelectionPositionCompat end = selection.getEnd();
+                if (end != null) {
+                    if (node.equals(end.getNode())) {
+                        builder.append(" extendedSelectionEnd:").append(end.getOffset());
+                    }
+                }
+
+                if (start != null || end != null) {
+                    break; // Found selection on this ancestor
+                }
+            }
+            AccessibilityNodeInfoCompat parent = ancestor.getParent();
+            if (!ancestor.equals(node)) {
+                ancestor.recycle();
+            }
+            ancestor = parent;
+        }
+
+        builder.append("\n");
+
+        String childIndent = indent + "  ";
+        for (int i = 0; i < node.getChildCount(); i++) {
+            AccessibilityNodeInfoCompat child = node.getChild(i);
+            builder.append(dumpSubtreeRecursive(child, childIndent));
+        }
+
+        return builder.toString();
     }
 
     static boolean eventMatches(AccessibilityEvent event, WaitForEventParams params) {

@@ -13,6 +13,7 @@
 #include "chrome/browser/actor/ui/actor_border_view_controller.h"
 #include "chrome/browser/actor/ui/actor_ui_window_controller.h"
 #include "chrome/browser/actor/ui/task_list_bubble/actor_task_list_bubble_controller.h"
+#include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/collaboration/collaboration_service_factory.h"
 #include "chrome/browser/commerce/shopping_service_factory.h"
@@ -27,14 +28,17 @@
 #include "chrome/browser/extensions/mv2_experiment_stage.h"
 #include "chrome/browser/glic/browser_ui/glic_button_controller.h"
 #include "chrome/browser/glic/browser_ui/glic_iph_controller.h"
+#include "chrome/browser/glic/browser_ui/glic_nudge_controller.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/lens/region_search/lens_region_search_controller.h"
 #include "chrome/browser/media/router/media_router_feature.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sessions/session_service_factory.h"
 #include "chrome/browser/skills/skills_ui_window_controller.h"
 #include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
+#include "chrome/browser/ui/ai_overlay_dialog/ai_overlay_dialog_controller.h"
 #include "chrome/browser/ui/bookmarks/bookmark_bar_controller.h"
 #include "chrome/browser/ui/breadcrumb_manager_browser_agent.h"
 #include "chrome/browser/ui/browser.h"
@@ -70,7 +74,6 @@
 #include "chrome/browser/ui/tab_search_feature.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/glic_actor_nudge_controller.h"
-#include "chrome/browser/ui/tabs/glic_nudge_controller.h"
 #include "chrome/browser/ui/tabs/projects/projects_panel_state_controller.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/most_recent_shared_tab_update_store.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
@@ -80,6 +83,7 @@
 #include "chrome/browser/ui/tabs/split_view_iph_controller.h"
 #include "chrome/browser/ui/tabs/tab_group_deletion_dialog_controller.h"
 #include "chrome/browser/ui/tabs/tab_list_bridge.h"
+#include "chrome/browser/ui/tabs/tab_strip_api/tab_strip_model_impl/tab_strip_model_injector.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/tab_strip_service_mojo_handler.h"
 #include "chrome/browser/ui/tabs/tab_strip_prefs.h"
 #include "chrome/browser/ui/tabs/vertical_tab_iph_controller.h"
@@ -300,7 +304,7 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
       glic_iph_controller_ = std::make_unique<glic::GlicIphController>(
           browser, *glic::GlicKeyedService::Get(profile));
       glic_nudge_controller_ =
-          std::make_unique<tabs::GlicNudgeController>(browser);
+          std::make_unique<glic::GlicNudgeController>(browser);
     }
 
     if (tabs::IsVerticalTabsFeatureEnabled()) {
@@ -322,9 +326,21 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
     }
 
     if (tab_groups::IsProjectsPanelFeatureEnabled()) {
+      glic::GlicKeyedService* glic_service =
+          glic::GlicKeyedServiceFactory::GetGlicKeyedService(
+              browser->GetProfile());
       projects_panel_state_controller_ =
           GetUserDataFactory().CreateInstance<ProjectsPanelStateController>(
-              *browser, browser, browser_actions_->root_action_item());
+              *browser, browser, browser_actions_->root_action_item(),
+              AimEligibilityServiceFactory::GetForProfile(
+                  browser->GetProfile()),
+              glic_service ? &glic_service->enabling() : nullptr);
+    }
+
+    if (base::FeatureList::IsEnabled(features::kAiOverlayDialog)) {
+      ai_overlay_dialog_controller_ =
+          GetUserDataFactory().CreateInstance<AiOverlayDialogController>(
+              *browser, browser);
     }
   }
 
@@ -338,8 +354,9 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
 
   tab_strip_model_ = browser->GetTabStripModel();
 
-  tab_strip_service_feature_ =
-      std::make_unique<TabStripServiceMojoHandler>(browser, tab_strip_model_);
+  tab_strip_service_feature_ = std::make_unique<TabStripServiceMojoHandler>(
+      std::make_unique<tabs_api::tab_strip_model::TabStripModelInjector>(
+          browser, tab_strip_model_));
 
   memory_saver_bubble_controller_ =
       std::make_unique<memory_saver::MemorySaverBubbleController>(browser);
@@ -389,7 +406,8 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
   if (base::FeatureList::IsEnabled(features::kPdfInfoBar)) {
     pdf_infobar_controller_ =
-        std::make_unique<pdf::infobar::PdfInfoBarController>(browser);
+        GetUserDataFactory().CreateInstance<pdf::infobar::PdfInfoBarController>(
+            *browser, browser);
   }
   if (base::FeatureList::IsEnabled(features::kOfferPinToTaskbarInfoBar)) {
     pin_infobar_controller_ =
@@ -550,10 +568,13 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
 
     if (browser_view && IsPageActionMigrated(PageActionIconType::kAiMode)) {
       LocationBarView* location_bar_view = browser_view->GetLocationBarView();
-      ai_mode_page_action_controller_ =
-          GetUserDataFactory()
-              .CreateInstance<omnibox::AiModePageActionController>(
-                  *browser, *browser, *profile, *location_bar_view);
+      // TODO(crbug.com/491707187): Make it work with any LocationBar
+      if (location_bar_view) {
+        ai_mode_page_action_controller_ =
+            GetUserDataFactory()
+                .CreateInstance<omnibox::AiModePageActionController>(
+                    *browser, *browser, *profile, *location_bar_view);
+      }
     }
 
     auto* experiment_manager =
@@ -794,7 +815,9 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
                 *browser_, browser_,
                 BrowserElementsViews::From(browser_view->browser())
                     ->GetViewAs<TabStripActionContainer>(
-                        kTabStripActionContainerElementId));
+                        kTabStripActionContainerElementId),
+                BrowserElementsViews::From(browser_view->browser())
+                    ->GetViewAs<ToolbarView>(ToolbarView::kToolbarElementId));
       }
     }
 
@@ -901,6 +924,7 @@ void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
   live_tab_context_.reset();
   upgrade_notification_controller_.reset();
   memory_saver_opt_in_iph_controller_.reset();
+  ai_overlay_dialog_controller_.reset();
   lens_overlay_entry_point_controller_.reset();
   initial_web_ui_manager_.reset();
   tab_search_toolbar_button_controller_.reset();

@@ -8,7 +8,7 @@ import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
 import static org.chromium.chrome.browser.app.tabmodel.ShadowTabStoreValidator.ARCHIVED_TAG;
 import static org.chromium.chrome.browser.app.tabmodel.TabPersistentStoreFactory.buildAuthoritativeStore;
-import static org.chromium.chrome.browser.app.tabmodel.TabPersistentStoreFactory.buildNonOtrShadowStore;
+import static org.chromium.chrome.browser.app.tabmodel.TabPersistentStoreFactory.buildShadowStore;
 import static org.chromium.chrome.browser.tabwindow.TabWindowManager.ARCHIVED_WINDOW_TAG;
 
 import android.content.Context;
@@ -51,6 +51,7 @@ import org.chromium.chrome.browser.tabmodel.ArchivedTabModelSelectorHolder;
 import org.chromium.chrome.browser.tabmodel.ArchivedTabModelSelectorImpl;
 import org.chromium.chrome.browser.tabmodel.AsyncTabParamsManager;
 import org.chromium.chrome.browser.tabmodel.NextTabPolicy;
+import org.chromium.chrome.browser.tabmodel.RecordingTabCreatorManager;
 import org.chromium.chrome.browser.tabmodel.TabCreator;
 import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
@@ -145,6 +146,7 @@ public class ArchivedTabModelOrchestrator extends TabModelOrchestrator implement
     // really be using this at a time and it makes things like undo messy if it is supported in
     // multiple places simultaneously.
     private final TabCreatorManager mArchivedTabCreatorManager;
+    private final RecordingTabCreatorManager mRecordingTabCreatorManager;
     private final AsyncTabParamsManager mAsyncTabParamsManager;
     private final ObserverList<Observer> mArchivedModelObservers = new ObserverList<>();
     private final TabWindowManager mTabWindowManager;
@@ -154,12 +156,14 @@ public class ArchivedTabModelOrchestrator extends TabModelOrchestrator implement
             new ArrayList<>();
 
     // Currently used to perform shadow operations for an alternative storage. Not always enabled.
-    private final AccumulatingTabCreator mShadowTabCreator = new AccumulatingTabCreator();
+    private final AccumulatingTabCreator mRegularShadowTabCreator = new AccumulatingTabCreator();
+    private final AccumulatingTabCreator mIncognitoShadowTabCreator = new AccumulatingTabCreator();
 
     private @MonotonicNonNull WindowAndroid mWindow;
     private @MonotonicNonNull TabArchiver mTabArchiver;
     private @MonotonicNonNull TabArchiveSettings mTabArchiveSettings;
     private @MonotonicNonNull TabCreator mArchivedTabCreator;
+    private @MonotonicNonNull CipherFactory mCipherFactory;
     private boolean mInitCalled;
     private boolean mNativeLibraryReadyCalled;
     private boolean mLoadStateCalled;
@@ -220,6 +224,7 @@ public class ArchivedTabModelOrchestrator extends TabModelOrchestrator implement
                         return mArchivedTabCreator;
                     }
                 };
+        mRecordingTabCreatorManager = new RecordingTabCreatorManager(mArchivedTabCreatorManager);
         mAsyncTabParamsManager = AsyncTabParamsManagerSingleton.getInstance();
         mTabWindowManager = TabWindowManagerSingleton.getInstance();
         // TODO(crbug.com/359875260): This is a temporary solution to get the
@@ -356,6 +361,7 @@ public class ArchivedTabModelOrchestrator extends TabModelOrchestrator implement
         "mTabPersistencePolicy",
         "mTabPersistentStore",
         "mWindow",
+        "mCipherFactory",
     })
     private void assertCreated() {
         assert mArchivedTabCreator != null;
@@ -363,6 +369,7 @@ public class ArchivedTabModelOrchestrator extends TabModelOrchestrator implement
         assert mTabPersistencePolicy != null;
         assert mTabPersistentStore != null;
         assert mWindow != null;
+        assert mCipherFactory != null;
     }
 
     @EnsuresNonNull({
@@ -390,6 +397,7 @@ public class ArchivedTabModelOrchestrator extends TabModelOrchestrator implement
         Context context = ContextUtils.getApplicationContext();
         mWindow = new WindowAndroid(context, /* trackOcclusion= */ false);
         mArchivedTabCreator = new ArchivedTabCreator(mWindow);
+        mCipherFactory = cipherFactory;
 
         mTabModelSelector =
                 new ArchivedTabModelSelectorImpl(
@@ -419,7 +427,7 @@ public class ArchivedTabModelOrchestrator extends TabModelOrchestrator implement
                         mMigrationManager,
                         mTabPersistencePolicy,
                         mTabModelSelector,
-                        mArchivedTabCreatorManager,
+                        mRecordingTabCreatorManager,
                         mTabWindowManager,
                         ARCHIVED_WINDOW_TAG,
                         cipherFactory,
@@ -566,14 +574,18 @@ public class ArchivedTabModelOrchestrator extends TabModelOrchestrator implement
         assertCreated();
         if (!mTabPersistentStoreDestroyedEarly) {
             mShadowTabPersistentStore =
-                    buildNonOtrShadowStore(
+                    buildShadowStore(
                             mMigrationManager,
-                            mShadowTabCreator,
+                            mRegularShadowTabCreator,
+                            mIncognitoShadowTabCreator,
                             mTabModelSelector,
+                            mRecordingTabCreatorManager,
                             mTabPersistencePolicy,
                             mTabPersistentStore,
                             ARCHIVED_WINDOW_TAG,
-                            ARCHIVED_TAG);
+                            mCipherFactory,
+                            ARCHIVED_TAG,
+                            /* isNonOtrOnly= */ true);
             if (mShadowTabPersistentStore != null) {
                 mShadowTabPersistentStore.onNativeLibraryReady();
             }

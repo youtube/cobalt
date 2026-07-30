@@ -70,6 +70,16 @@ void ChromeBrowserCloudManagementController::Delegate::DeferInitialization(
   NOTREACHED();
 }
 
+void ChromeBrowserCloudManagementController::Delegate::
+    StartExtensionInstallPolicyInvalidator() {
+  NOTREACHED();
+}
+
+bool ChromeBrowserCloudManagementController::Delegate::
+    CanStartExtensionInstallPolicyInvalidator() const {
+  NOTREACHED();
+}
+
 ChromeBrowserCloudManagementController::ChromeBrowserCloudManagementController(
     std::unique_ptr<ChromeBrowserCloudManagementController::Delegate> delegate)
     : delegate_(std::move(delegate)),
@@ -310,6 +320,13 @@ void ChromeBrowserCloudManagementController::MaybeInit(
   }
 }
 
+void ChromeBrowserCloudManagementController::
+    MaybeStartExtensionInstallPolicyInvalidator() {
+  if (delegate_->CanStartExtensionInstallPolicyInvalidator()) {
+    delegate_->StartExtensionInstallPolicyInvalidator();
+  }
+}
+
 bool ChromeBrowserCloudManagementController::
     WaitUntilPolicyEnrollmentFinished() {
   return delegate_->WaitUntilPolicyEnrollmentFinished();
@@ -546,7 +563,7 @@ void ChromeBrowserCloudManagementController::InitializeReporting() {
             delegate_->GetSaasUsageReportingDelegateFactory()) {
       saas_usage_report_scheduler_ =
           enterprise_reporting::SaasUsageReportScheduler::Create(
-              saas_usage_reporting_delegate_factory.get());
+              "browser", saas_usage_reporting_delegate_factory.get());
     }
   }
 

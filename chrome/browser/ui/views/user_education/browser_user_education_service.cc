@@ -21,9 +21,6 @@
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/performance_manager/public/user_tuning/user_performance_tuning_manager.h"
-#include "chrome/browser/privacy_sandbox/privacy_sandbox_queue_manager.h"
-#include "chrome/browser/privacy_sandbox/privacy_sandbox_service.h"
-#include "chrome/browser/privacy_sandbox/privacy_sandbox_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search/search.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
@@ -717,9 +714,8 @@ void MaybeRegisterChromeFeaturePromos(
                 }
                 if (auto* glic_service =
                         glic::GlicKeyedService::Get(browser->GetProfile())) {
-                  glic_service->ToggleUI(
-                      browser, /*prevent_close=*/true,
-                      glic::mojom::InvocationSource::kTopChromeButton);
+                  glic_service->ToggleUI(browser, /*prevent_close=*/true,
+                                         glic::mojom::InvocationSource::kIph);
                 }
               }))
           .SetBubbleTitleText(IDS_GLIC_TRYIT_TITLE)
@@ -1043,11 +1039,11 @@ void MaybeRegisterChromeFeaturePromos(
           feature_engagement::kIPHResumptionRailFeature,
           kVerticalTabStripProjectsButtonElementId,
           IDS_RESUMPTION_RAIL_IPH_BODY, IDS_RESUMPTION_RAIL_IPH_TITLE,
-          FeaturePromoSpecification::AcceleratorInfo(0))
+          FeaturePromoSpecification::AcceleratorInfo())
           .SetBubbleTitleText(IDS_RESUMPTION_RAIL_IPH_TITLE)
-          .SetBubbleArrow(HelpBubbleArrow::kLeftCenter)
+          .SetBubbleArrow(HelpBubbleArrow::kTopLeft)
           .SetBubbleIcon(&vector_icons::kLightbulbOutlineIcon)
-          .SetMetadata(146, "gqueen@chromium.org",
+          .SetMetadata(147, "gqueen@chromium.org",
                        "Triggered to educate users about the Resumption Rail "
                        "feature entrypoint.")));
 
@@ -2156,19 +2152,6 @@ void MaybeRegisterChromeNewBadges(user_education::NewBadgeRegistry& registry) {
                                "Shown in the three dot menu.")));
 
   registry.RegisterFeature(user_education::NewBadgeSpecification(
-      features::kSideBySide,
-      user_education::Metadata(
-          141, "emshack@chromium.org",
-          "Shown in the tab context menu when the user enters or exits split "
-          "view.")));
-
-  registry.RegisterFeature(user_education::NewBadgeSpecification(
-      features::kSideBySideLinkMenuNewBadge,
-      user_education::Metadata(141, "emshack@chromium.org",
-                               "Shown in the link context menu to open the "
-                               "link in a new split tab.")));
-
-  registry.RegisterFeature(user_education::NewBadgeSpecification(
       tabs::kVerticalTabsPreviewBadge,
       user_education::Metadata(146, "stluong@chromium.org",
                                "Show the preview badge in the system context "
@@ -2214,15 +2197,6 @@ CreateUserEducationResources(UserEducationService& user_education_service) {
       &user_education_service.product_messaging_controller());
   result->Init();
   return result;
-}
-
-void QueueLegalAndPrivacyNotices(Profile* profile) {
-  // Privacy Sandbox Notice
-  if (auto* privacy_sandbox_service =
-          PrivacySandboxServiceFactory::GetForProfile(profile)) {
-    privacy_sandbox_service->GetPrivacySandboxNoticeQueueManager()
-        .MaybeQueueNotice();
-  }
 }
 
 bool DoesEnterprisePolicyBlockPromotions() {

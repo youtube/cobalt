@@ -9,8 +9,8 @@
 #include "base/cancelable_callback.h"
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_content_proxy.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_util.h"
+#include "chrome/browser/ui/side_panel/side_panel_content_proxy.h"
+#include "chrome/browser/ui/side_panel/side_panel_util.h"
 
 SidePanelEntryWaiter::SidePanelEntryWaiter() = default;
 SidePanelEntryWaiter::~SidePanelEntryWaiter() = default;

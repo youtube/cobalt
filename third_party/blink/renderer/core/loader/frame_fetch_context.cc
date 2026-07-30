@@ -66,10 +66,10 @@
 #include "third_party/blink/public/web/web_local_frame_client.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_controller.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
+#include "third_party/blink/renderer/core/ad_tracker/ad_tracker.h"
 #include "third_party/blink/renderer/core/css/media_values.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/fileapi/public_url_manager.h"
-#include "third_party/blink/renderer/core/frame/ad_tracker.h"
 #include "third_party/blink/renderer/core/frame/attribution_src_loader.h"
 #include "third_party/blink/renderer/core/frame/csp/content_security_policy.h"
 #include "third_party/blink/renderer/core/frame/deprecation/deprecation.h"
@@ -461,12 +461,6 @@ void FrameFetchContext::PrepareRequest(
     document_loader_->GetServiceWorkerNetworkProvider()->WillSendRequest(
         webreq);
   }
-
-  request.SetAllowsDeviceBoundSessionRegistration(
-      RuntimeEnabledFeatures::DeviceBoundSessionCredentialsEnabled(
-          GetExecutionContext()) ||
-      RuntimeEnabledFeatures::DeviceBoundSessionCredentials2Enabled(
-          GetExecutionContext()));
 }
 
 // TODO(crbug.com/422626353): Consider consolidating the initiator info
@@ -820,9 +814,11 @@ void FrameFetchContext::AddClientHintsIfNecessary(
     }
   }
 
+  bool save_data_enabled = GetNetworkStateNotifier().SaveDataEnabled();
+  probe::ApplyDataSaverOverride(Probe(), save_data_enabled);
   if (ShouldSendClientHint(*policy, resource_origin, is_1p_origin,
                            WebClientHintsType::kSaveData, hints_preferences) &&
-      GetNetworkStateNotifier().SaveDataEnabled()) {
+      save_data_enabled) {
     request.SetHttpHeaderField(http_names::kSaveData, http_names::kOn);
   }
 

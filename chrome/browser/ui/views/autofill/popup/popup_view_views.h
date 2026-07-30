@@ -29,11 +29,13 @@
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/events/event.h"
+#include "ui/views/controls/tabbed_pane/tabbed_pane_listener.h"
 #include "ui/views/widget/widget.h"
 
 namespace views {
 class BoxLayoutView;
 class ScrollView;
+class TabbedPane;
 }  // namespace views
 
 namespace autofill {
@@ -66,7 +68,8 @@ class PopupViewViews : public PopupBaseView,
                        public AutofillPopupView,
                        public PopupRowView::SelectionDelegate,
                        public ExpandablePopupParentView,
-                       public PopupSearchBarView::Delegate {
+                       public PopupSearchBarView::Delegate,
+                       public views::TabbedPaneListener {
   METADATA_HEADER(PopupViewViews, PopupBaseView)
 
  public:
@@ -113,12 +116,17 @@ class PopupViewViews : public PopupBaseView,
                  base::WeakPtr<ExpandablePopupParentView> parent,
                  views::Widget* parent_widget);
 
-  // Constructor for creating root level popups. Providing `std::nullopt` to
-  // the `search_bar_config` results in creating a popup without a search bar.
+  // Constructor for creating root level popups.
+  // Providing `std::nullopt` to the `search_bar_config` results in creating a
+  // popup without a search bar.
+  // Providing `std::nullopt` to the `tabbed_pane_config` results in creating a
+  // popup without a tabbed pane.
   explicit PopupViewViews(
       base::WeakPtr<AutofillPopupController> controller,
       std::optional<const AutofillPopupView::SearchBarConfig>
-          search_bar_config = std::nullopt);
+          search_bar_config = std::nullopt,
+      std::optional<const AutofillPopupView::TabbedPaneConfig>
+          tabbed_pane_config = std::nullopt);
   PopupViewViews(const PopupViewViews&) = delete;
   PopupViewViews& operator=(const PopupViewViews&) = delete;
   ~PopupViewViews() override;
@@ -155,6 +163,9 @@ class PopupViewViews : public PopupBaseView,
   void SearchBarOnInputChanged(std::u16string_view text) override;
   void SearchBarOnFocusLost() override;
   bool SearchBarHandleKeyPressed(const ui::KeyEvent& event) override;
+
+  // TabbedPaneListener::
+  void TabSelectedAt(int index) override;
 
  private:
   friend class PopupViewViewsTestApi;
@@ -208,6 +219,9 @@ class PopupViewViews : public PopupBaseView,
   // This method expects that all non-footer suggestions precede footer
   // suggestions.
   void CreateSuggestionViews();
+
+  // Creates a tabbed pane view based on the `tabbed_pane_config_`.
+  void CreateTabbedPaneView();
 
   // Selects the first row prior to the currently selected one that is
   // selectable (e.g. not a separator). If no row is selected or no row prior to
@@ -313,7 +327,10 @@ class PopupViewViews : public PopupBaseView,
   std::vector<RowPointer> rows_;
   const std::optional<const AutofillPopupView::SearchBarConfig>
       search_bar_config_;
+  const std::optional<const AutofillPopupView::TabbedPaneConfig>
+      tabbed_pane_config_;
   raw_ptr<PopupSearchBarView> search_bar_ = nullptr;
+  raw_ptr<views::TabbedPane> tabbed_pane_ = nullptr;
   raw_ptr<views::BoxLayoutView> suggestions_container_ = nullptr;
   raw_ptr<views::ScrollView> scroll_view_ = nullptr;
   raw_ptr<views::BoxLayoutView> body_container_ = nullptr;

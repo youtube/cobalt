@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import {DriveSuggestionHandlerRemote} from 'chrome://new-tab-page/drive_suggestion.mojom-webui.js';
-import type {DisableModuleEvent, DismissModuleInstanceEvent, DriveModuleV2Element} from 'chrome://new-tab-page/lazy_load.js';
+import type {DisableModuleEvent, DismissModuleInstanceEvent, DriveModuleElement} from 'chrome://new-tab-page/lazy_load.js';
 import {driveModuleDescriptor, FileProxy} from 'chrome://new-tab-page/lazy_load.js';
 import {$$} from 'chrome://new-tab-page/new_tab_page.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
@@ -80,7 +80,7 @@ suite('DriveModuleV2', () => {
         handler.setPromiseResolveFor('getFiles', data);
 
         const module =
-            await driveModuleDescriptor.initialize(0) as DriveModuleV2Element;
+            await driveModuleDescriptor.initialize(0) as DriveModuleElement;
         assertTrue(!!module);
         document.body.append(module);
         await handler.whenCalled('getFiles');
@@ -115,15 +115,16 @@ suite('DriveModuleV2', () => {
     };
     handler.setPromiseResolveFor('getFiles', data);
     const driveModule =
-        await driveModuleDescriptor.initialize(0) as DriveModuleV2Element;
+        await driveModuleDescriptor.initialize(0) as DriveModuleElement;
     assertTrue(!!driveModule);
     document.body.append(driveModule);
     await microtasksFinished();
     assertFalse(!!$$(driveModule, 'ntp-info-dialog'));
 
     // Act.
-    const infoButton = driveModule.$.moduleHeaderElementV2.shadowRoot
-                           .querySelector<HTMLElement>('#info');
+    const infoButton =
+        driveModule.$.moduleHeader.shadowRoot.querySelector<HTMLElement>(
+            '#info');
     assertTrue(!!infoButton);
     infoButton.click();
     await microtasksFinished();
@@ -149,14 +150,15 @@ suite('DriveModuleV2', () => {
         };
         handler.setPromiseResolveFor('getFiles', data);
         const driveModule =
-            await driveModuleDescriptor.initialize(0) as DriveModuleV2Element;
+            await driveModuleDescriptor.initialize(0) as DriveModuleElement;
         document.body.append(driveModule);
         await microtasksFinished();
 
         // Act.
         const whenFired = eventToPromise('disable-module', driveModule);
-        const disableButton = driveModule.$.moduleHeaderElementV2.shadowRoot
-                                  .querySelector<HTMLElement>('#disable');
+        const disableButton =
+            driveModule.$.moduleHeader.shadowRoot.querySelector<HTMLElement>(
+                '#disable');
         assertTrue(!!disableButton);
         disableButton.click();
 
@@ -182,15 +184,16 @@ suite('DriveModuleV2', () => {
     };
     handler.setPromiseResolveFor('getFiles', data);
     const moduleElement =
-        await driveModuleDescriptor.initialize(0) as DriveModuleV2Element;
+        await driveModuleDescriptor.initialize(0) as DriveModuleElement;
     assertTrue(!!moduleElement);
     document.body.append(moduleElement);
     await microtasksFinished();
 
     // Act.
     const whenFired = eventToPromise('dismiss-module-instance', moduleElement);
-    const dismissButton = moduleElement.$.moduleHeaderElementV2.shadowRoot
-                              .querySelector<HTMLElement>('#dismiss');
+    const dismissButton =
+        moduleElement.$.moduleHeader.shadowRoot.querySelector<HTMLElement>(
+            '#dismiss');
     assertTrue(!!dismissButton);
     dismissButton.click();
 
@@ -224,7 +227,7 @@ suite('DriveModuleV2', () => {
     };
     handler.setPromiseResolveFor('getFiles', data);
     const driveModule =
-        await driveModuleDescriptor.initialize(0) as DriveModuleV2Element;
+        await driveModuleDescriptor.initialize(0) as DriveModuleElement;
     assertTrue(!!driveModule);
     document.body.append(driveModule);
     await microtasksFinished();

@@ -21,7 +21,7 @@
 #include "content/public/common/result_codes.h"
 
 #if BUILDFLAG(ENABLE_DOWNGRADE_PROCESSING)
-#include "chrome/browser/downgrade/downgrade_manager.h"
+#include "chrome/browser/downgrade/downgrade_manager.h"  // nogncheck
 #endif
 
 class BrowserProcessImpl;
@@ -48,6 +48,10 @@ class SyntheticTrialSyncer;
 namespace smart_restart {
 class SmartRestartMetricsObserver;
 }  // namespace smart_restart
+
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_WIN)
+class PlatformAuthPolicyObserver;
+#endif
 
 class ChromeBrowserMainParts : public content::BrowserMainParts {
  public:
@@ -225,6 +229,11 @@ class ChromeBrowserMainParts : public content::BrowserMainParts {
   // Observer that records metrics related to "Smart Restart" opportunities.
   std::unique_ptr<smart_restart::SmartRestartMetricsObserver>
       smart_restart_metrics_observer_;
+#endif
+
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_WIN)
+  // Applies enterprise policies for platform auth SSO.
+  std::unique_ptr<PlatformAuthPolicyObserver> platform_auth_policy_observer_;
 #endif
 };
 

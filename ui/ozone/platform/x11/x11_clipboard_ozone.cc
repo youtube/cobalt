@@ -32,9 +32,7 @@ X11ClipboardOzone::~X11ClipboardOzone() = default;
 
 void X11ClipboardOzone::OfferClipboardData(
     ClipboardBuffer buffer,
-    const PlatformClipboard::DataMap& data_map,
-    PlatformClipboard::OfferDataClosure callback) {
-  DCHECK(!callback.is_null());
+    const PlatformClipboard::DataMap& data_map) {
   helper_->CreateNewClipboardData();
   for (const auto& item : data_map)
     helper_->InsertMapping(item.first, item.second);
@@ -57,7 +55,6 @@ void X11ClipboardOzone::OfferClipboardData(
 #endif
 
   helper_->TakeOwnershipOfSelection(buffer);
-  std::move(callback).Run();
 }
 
 void X11ClipboardOzone::RequestClipboardData(
@@ -69,29 +66,25 @@ void X11ClipboardOzone::RequestClipboardData(
                    ? helper_->GetTextAtoms()
                    : helper_->GetAtomsForFormat(
                          ClipboardFormatType::CustomPlatformType(mime_type));
-  auto selection_data = helper_->Read(buffer, atoms);
-  std::move(callback).Run(selection_data.TakeBytes());
+  helper_->ReadAsync(buffer, atoms,
+                     base::BindOnce(
+                         [](PlatformClipboard::RequestDataClosure callback,
+                            SelectionData selection_data) {
+                           std::move(callback).Run(selection_data.TakeBytes());
+                         },
+                         std::move(callback)));
 }
 
 void X11ClipboardOzone::GetAvailableMimeTypes(
     ClipboardBuffer buffer,
     PlatformClipboard::GetMimeTypesClosure callback) {
   DCHECK(!callback.is_null());
-  // This is the only function clients may use to request available formats, so
-  // include both standard and platform-specific (atom names) values.
-  // TODO(crbug.com/40054419): Consider adding a way of filtering mime types and
-  // querying availability of specific formats, so implementations can optimize
-  // it, if possible. E.g: Avoid multiple roundtrips to check if a given format
-  // is available. See ClipboardX11::IsFormatAvailable for example.
-  auto types = helper_->GetAvailableTypes(buffer);
-  auto atoms = helper_->GetAvailableAtomNames(buffer);
-  std::set<std::string> uniq(types.begin(), types.end());
-  uniq.insert(atoms.begin(), atoms.end());
-  std::move(callback).Run({uniq.begin(), uniq.end()});
+  helper_->GetAvailableMimeTypesAsync(buffer, std::move(callback));
 }
 
-bool X11ClipboardOzone::IsSelectionOwner(ClipboardBuffer buffer) {
-  return helper_->IsSelectionOwner(buffer);
+void X11ClipboardOzone::IsSelectionOwner(ClipboardBuffer buffer,
+                                         IsSelectionOwnerClosure callback) {
+  helper_->IsSelectionOwnerAsync(buffer, std::move(callback));
 }
 
 void X11ClipboardOzone::SetClipboardDataChangedCallback(

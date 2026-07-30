@@ -32,30 +32,33 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//components/profile_metrics/counts.cc:ProfileActivityThreshold) -->
 
-<!-- LINT.IfChange(ProfileIndex) -->
+<!-- LINT.IfChange(ProfileIndexProfile) -->
 
-<variants name="ProfileIndex">
-  <variant name="" summary="aggregated across all Profiles"/>
-  <variant name=".Profile0" summary="Profile 0"/>
-  <variant name=".Profile1" summary="Profile 1"/>
-  <variant name=".Profile2" summary="Profile 2"/>
-  <variant name=".Profile3" summary="Profile 3"/>
-  <variant name=".Profile4" summary="Profile 4"/>
-  <variant name=".Profile5" summary="Profile 5"/>
-  <variant name=".Profile6" summary="Profile 6"/>
-  <variant name=".Profile7" summary="Profile 7"/>
-  <variant name=".Profile8" summary="Profile 8"/>
-  <variant name=".Profile9" summary="Profile 9"/>
-  <variant name=".Profile10" summary="Profile 10"/>
-  <variant name=".Profile11" summary="Profile 11"/>
-  <variant name=".Profile12" summary="Profile 12"/>
-  <variant name=".Profile13" summary="Profile 13"/>
-  <variant name=".Profile14" summary="Profile 14"/>
-  <variant name=".Profile15" summary="Profile 15"/>
-  <variant name=".Profile16" summary="Profile 16"/>
-  <variant name=".Profile17" summary="Profile 17"/>
-  <variant name=".Profile18" summary="Profile 18"/>
-  <variant name=".Profile19" summary="Profile 19"/>
+<variants name="ProfileIndexProfile">
+  <variant name="" summary="Metric aggregated across all Profiles"/>
+  <variant name=".Profile0" summary="Metric recorded for Profile 0"/>
+  <variant name=".Profile1" summary="Metric recorded for Profile 1"/>
+  <variant name=".Profile2" summary="Metric recorded for Profile 2"/>
+  <variant name=".Profile3" summary="Metric recorded for Profile 3"/>
+  <variant name=".Profile4" summary="Metric recorded for Profile 4"/>
+  <variant name=".Profile5" summary="Metric recorded for Profile 5"/>
+  <variant name=".Profile6" summary="Metric recorded for Profile 6"/>
+  <variant name=".Profile7" summary="Metric recorded for Profile 7"/>
+  <variant name=".Profile8" summary="Metric recorded for Profile 8"/>
+  <variant name=".Profile9" summary="Metric recorded for Profile 9"/>
+  <variant name=".Profile10" summary="Metric recorded for Profile 10"/>
+  <variant name=".Profile11" summary="Metric recorded for Profile 11"/>
+  <variant name=".Profile12" summary="Metric recorded for Profile 12"/>
+  <variant name=".Profile13" summary="Metric recorded for Profile 13"/>
+  <variant name=".Profile14" summary="Metric recorded for Profile 14"/>
+  <variant name=".Profile15" summary="Metric recorded for Profile 15"/>
+  <variant name=".Profile16" summary="Metric recorded for Profile 16"/>
+  <variant name=".Profile17" summary="Metric recorded for Profile 17"/>
+  <variant name=".Profile18" summary="Metric recorded for Profile 18"/>
+  <variant name=".Profile19" summary="Metric recorded for Profile 19"/>
+  <variant name=".Profile20Plus"
+      summary="Combined metric recorded for all Profiles with an index above
+               20"/>
 </variants>
 
 <!-- LINT.ThenChange(//components/metrics/profile_metrics_service.cc:histogram_suffix) -->
@@ -125,13 +128,13 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.Avatar" enum="ProfileAvatar"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>droger@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>The frequency of selection of each avatar.</summary>
 </histogram>
 
-<histogram name="Profile.BookmarksSize" units="MB" expires_after="2026-07-05">
+<histogram name="Profile.BookmarksSize" units="MB" expires_after="2026-09-06">
   <owner>etienneb@chromium.org</owner>
   <owner>gab@chromium.org</owner>
   <summary>Size of the bookmarks database.</summary>
@@ -187,7 +190,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.Destroyer.OffTheRecord" enum="ProfileDestructionType"
-    expires_after="2026-07-12">
+    expires_after="2026-09-13">
   <owner>arabm@google.com</owner>
   <owner>dullweber@chromium.org</owner>
   <owner>chrome-incognito@google.com</owner>
@@ -262,7 +265,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.Guest.OTR.Lifetime" units="minutes"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>arabm@google.com</owner>
   <owner>chrome-incognito@google.com</owner>
   <summary>
@@ -284,7 +287,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.Incognito.MainFrameNavigationsPerSession"
-    units="navigations" expires_after="2026-07-05">
+    units="navigations" expires_after="2026-09-06">
   <owner>rhalavati@chromium.org</owner>
   <owner>chrome-incognito@google.com</owner>
   <summary>
@@ -296,7 +299,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.Incognito.MovedToBackgroundAfterDuration"
-    units="minutes" expires_after="2026-07-05">
+    units="minutes" expires_after="2026-09-06">
   <owner>arabm@google.com</owner>
   <owner>chrome-incognito@google.com</owner>
   <summary>
@@ -375,7 +378,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.NetUserCount" enum="ProfileNetUserCount"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>rogerta@chromium.org</owner>
   <summary>
     Counts of users added and deleted. Percentages are not meaningful. Please
@@ -401,7 +404,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.NumberOfAccountsPerProfile" units="units"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>msarda@chromium.org</owner>
   <owner>droger@chromium.org</owner>
   <summary>
@@ -526,7 +529,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.NumberOfProfilesAtProfileInit" units="profiles"
-    expires_after="2026-07-12">
+    expires_after="2026-09-13">
   <owner>alexilin@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -540,7 +543,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.NumberOfProfilesAtProfileSwitch" units="profiles"
-    expires_after="2026-07-12">
+    expires_after="2026-09-13">
   <owner>droger@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -552,7 +555,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.NumberOfSignedInProfiles{ProfileActivityThreshold}"
-    units="profiles" expires_after="2026-07-05">
+    units="profiles" expires_after="2026-09-06">
   <owner>droger@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -703,7 +706,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.State.SyncEnabled{ProfileStateGroup}"
-    enum="BooleanEnabled" expires_after="2026-07-05">
+    enum="BooleanEnabled" expires_after="2026-09-06">
   <owner>droger@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -724,14 +727,14 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Profile.TotalSize" units="MB" expires_after="2026-05-24">
+<histogram name="Profile.TotalSize" units="MB" expires_after="2026-09-06">
   <owner>etienneb@chromium.org</owner>
   <owner>gab@chromium.org</owner>
   <summary>Total size of the profile data (excluding sub-folders).</summary>
 </histogram>
 
 <histogram name="Profile.TotalSizeRecursive" units="MB"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>anthonyvd@chromium.org</owner>
   <owner>chrome-catan@google.com</owner>
   <summary>
@@ -972,7 +975,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProfilePicker.Shown" enum="ProfilePickerEntryPoint"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>msalama@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -992,7 +995,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProfilePicker.StartupTime.BeforeCreation" units="ms"
-    expires_after="2026-05-24">
+    expires_after="2026-09-13">
   <owner>rsult@google.com</owner>
   <owner>dgn@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -1056,7 +1059,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProfilePicker.UserAction" enum="ProfilePickerAction"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>msalama@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>

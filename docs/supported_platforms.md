@@ -14,6 +14,10 @@ describing which products are officially supported on which platforms.
 **Note**: This document applies to Chromium. Some of Chromium's subcomponents like
 ANGLE or V8 currently support more platforms.
 
+**Note**: Any feedback/questions on this doc itself can go to the individuals
+listed as [per-file OWNERS of the
+doc](https://source.chromium.org/chromium/chromium/src/+/main:docs/OWNERS;l=1?q=docs%2FOWNERS&sq=&ss=chromium).
+
 Definitions of Terms
 --------------------
 
@@ -31,7 +35,7 @@ ships to users.
 engineers working in the Chromium codebase are accountable for regressions
 in that product.
 * **Officially supported platform**: A platform is officially supported if there
-are bots on [Chromium's waterfall](https://ci.chromium.org/p/chromium/g/main/console) and commit queue that build and run tests on that
+are bots on [Chromium's waterfall](https://build.chromium.org) and commit queue that build and run tests on that
 platform. Commit queue coverage means that no patches that land will break these
 platforms. Note that official platform support can and does vary by product,
 as detailed below.
@@ -152,15 +156,45 @@ OS version supported is listed [here](https://support.google.com/chrome/a/answer
 The `is_desktop_android` GN arg configures a build of Chrome for Android that
 is customized for a desktop form factor.
 
+Chrome also runs on Android Automotive, shipping Chrome Beta on Intel-based
+chips and both Chrome Beta and Chrome Stable on ARM. Chrome's minimum
+supported OS version for Android Automotive is Android R.
+
 ### ChromeOS
 
-Chrome follows the [ChromeOS auto-update
+Chrome for ChromeOS supports both x86-64 and ARM architectures. For
+development and testing, the linux-chromeos build serves as an emulator,
+providing a functional ChromeOS environment on Linux.
+
+Unlike its counterparts on other platforms, Chrome for ChromeOS is not merely
+a web browser; it is a monolithic binary responsible for the System UI, Window
+Management, and core system services. While //ash currently encapsulates the
+System UIs and Window Manager and //chromeos houses platform-specific
+components, the //chrome directory still retains significant legacy
+system-level logic. Active refactoring is underway to migrate these
+non-browser concerns into //ash and //chromeos to improve modular isolation
+and reduce technical debt.
+
+Chrome for ChromeOS follows the [ChromeOS auto-update
 policy](https://support.google.com/chrome/a/answer/6220366).
 
 ### Linux
 
 [This page](https://support.google.com/chrome/a/answer/7100626) details
 minimum operating system and hardware requirements.
+
+As of March 2026, official support on ARM is
+[upcoming](https://blog.chromium.org/2026/03/bringing-chrome-to-arm64-linux-devices.html).
+
+Many more platforms/distributions are community-supported (per the definition
+in the [definitions of terms](#definitions-of-terms)), including Flatpak
+(alternative packaging format), Arch Linux (via AUR), and downstream Chromium
+packages. For example, there are packagers distributing Chromium in different
+configurations (Debian distributes amd64, arm64, armhf, i386) and some use
+different build configs (gcc instead of clang).  We occasionally get patches
+for different architectures, or for the gcc build, and we typically accept
+those patches. We do not support downstream forks of Chromium and we typically
+won't entertain patches for those.
 
 ### macOS
 
@@ -192,6 +226,11 @@ Android WebView is an Android system component for displaying web content.
 The embedder code for Android WebView lives in //android_webview. Details are
 [here](https://chromium.googlesource.com/chromium/src/+/main/android_webview/README.md).
 
+Currently (and for all past versions), WebView supports exactly the same
+architectures and Android OS versions as the same version of Chrome on Android
+does. It's theoretically possible that this may change in the future, but not
+that likely.
+
 ### Chromecast
 
 The embedder code for Chromecast lives in //chromecast. This code is used to
@@ -209,6 +248,15 @@ Details are [here](https://chromium.googlesource.com/chromium/src/chromecast/REA
 Cronet is an Android library that packages Chromium's network stack. The
 embedder code for Cronet lives in //components/cronet. Details are [here](https://chromium.googlesource.com/chromium/src/+/main/components/cronet/README.md).
 
+One particularity of Cronet is that at any given time it may be supported on a
+broader range of Android versions than Chrome on Android due to aligning
+with [Google Play Services minSDK](https://android-developers.googleblog.com/search/label/Google%20Play%20services). For example, as of
+March 2026, Cronet is supported on Android M+ whereas Chrome on Android is
+supported on Android Q+. This has the implication that Chromium code that is
+used as part of Cronet must be able to build and run with the minimum Android
+version that Cronet supports rather than just the minimum Android version that
+Chrome on Android supports.
+
 ### Fuchsia WebEngine
 
 Fuchsia WebEngine is an application running on the Fuchsia operating system for
@@ -222,6 +270,11 @@ as a Cast Receiver). The embedder code for Fuchsia WebEngine lives in
 Headless Chromium allows running Chromium in a headless/server environment.
 The embedder code for Headless lives in //headless. Details are
 [here](https://chromium.googlesource.com/chromium/src/+/main/headless/README.md).
+Headless is supported on Linux, Windows, MacOS, ChromeOS and Fuchsia.
+On Linux, headless supports [numerous build settings for trimming down
+the dependencies and producing a binary capable of running in a minimal
+runtime environment](
+https://source.chromium.org/chromium/chromium/src/+/main:build/args/headless.gn).
 
 ### iOS WebView
 

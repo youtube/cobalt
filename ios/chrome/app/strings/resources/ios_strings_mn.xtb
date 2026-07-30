@@ -298,7 +298,6 @@
 <translation id="2012723204723845092">Эргээд тавтай морилно уу!</translation>
 <translation id="2015722694326466240">Нууц үгийг харахын тулд та эхлээд төхөөрөмждөө нууц код тохируулах шаардлагатай.</translation>
 <translation id="201759455285471444">Табын бүлгийг дэлгэнэ үү.</translation>
-<translation id="202070562065520783">Үүнийг надад тайлбарлана уу</translation>
 <translation id="2044394949148788042">Табын хүснэгтийг нээх</translation>
 <translation id="2044681667265133332"><ph name="USER_EMAIL" /> бүртгэлд <ph name="HOSTED_DOMAIN" />-с тохиргоо хийсэн бөгөөд зарим мэдээллийг үзэх боломжтой байж болзошгүй. <ph name="BEGIN_LINK" />Нэмэлт мэдээлэл авах<ph name="END_LINK" /></translation>
 <translation id="20485545164632846">шинэ зүйл</translation>
@@ -395,6 +394,7 @@
 <translation id="2360196772093551345">Мобайл сайтын хүсэлт тавих</translation>
 <translation id="2362083820973145409"><ph name="USER_NAME" />-р нэвтэрсэн. <ph name="USER_EMAIL" />. Тохиргоог нээнэ.</translation>
 <translation id="2371084566192454134">Таб, табын бүлэг</translation>
+<translation id="2371303771137626249">Шинэ</translation>
 <translation id="2381405137052800939">Үндэс</translation>
 <translation id="2384692388811649784">Нууцлалтай табыг нуух</translation>
 <translation id="2386793615875593361">1 сонгогдсон</translation>
@@ -637,6 +637,7 @@
 <translation id="3324193307694657476">Хаяг 2</translation>
 <translation id="3328801116991980348">Сайтын мэдээлэл</translation>
 <translation id="333229797575847124">Энэ онцлогийг хэрхэн идэвхжүүлэх вэ?</translation>
+<translation id="334004756946755423">Үүнийг надад тайлбарлаач:</translation>
 <translation id="3344233834747405775">Карт эзэмшигчийн нэр буруу байна</translation>
 <translation id="3344485292736684439">{count,plural, =1{Хавчуургыг таны {email} бүртгэлийн "{title}"-д хадгалсан}other{Хавчуургуудыг таны {email} бүртгэлийн "{title}"-д хадгалсан}}</translation>
 <translation id="334690320928261823">Саяхны табууд</translation>
@@ -690,6 +691,7 @@
 <translation id="3530206579861815432">Синк хийсэн төхөөрөмжүүд дээрээ нээлттэй бөгөөд саяхан хаасан табуудыг шуурхай олоорой.</translation>
 <translation id="3530767473765895035">Энэ төхөөрөмж дээрх бүртгэлүүдийг удирдах…</translation>
 <translation id="3533436815740441613">Шинэ таб</translation>
+<translation id="3534738261102690620">Gemini-с асуух</translation>
 <translation id="3540141921715814660">Хавчуургaд нэмэх</translation>
 <translation id="3546122170015471515">Google.com дээрх Газрын зургийг урьдчилан үзэх хувилбар</translation>
 <translation id="3547356470684043247">Шүүмжийн тусламжтайгаар мэдээлэлтэй шийдвэр гаргахдаа нэмэр болгох үүднээс харилцагчийн бүтээгдэхүүн, үйлчилгээ, хэрэглээнд өгсөн үнэлгээг уншаарай</translation>
@@ -960,6 +962,7 @@
 <translation id="454217142158335225">Та хаасан зүйлсийг саяхны таб эсвэл табын бүлэг хэсгээс дахин нээх боломжтой. Таны бэхэлсэн табуудыг хаахгүй.</translation>
 <translation id="4547181496285029457">Саяхны таб руу буцах</translation>
 <translation id="4552042254369397518">Хуулж байна…</translation>
+<translation id="4553044860350038560">Бусад нэвтрэх түлхүүр</translation>
 <translation id="4564893319561643483">"<ph name="TITLE" />"-г нуух</translation>
 <translation id="4565377596337484307">Нууц үгийг нуух</translation>
 <translation id="4568230126482344545">Саяхны табуудыг нуух</translation>
@@ -1088,6 +1091,7 @@
 <translation id="4944543191714094452">Хуудаснаас олох…</translation>
 <translation id="4945756290001680296">Нууц үгний тохиргооны хэсэгт хандах</translation>
 <translation id="4949302115427722371">Тохиргоог удирдах…</translation>
+<translation id="4952050521954075618">Камераар авсан цомгийн зургуудыг таны төхөөрөмжүүд дээр синк хийхгүй</translation>
 <translation id="4958444002117714549">Жагсаалтыг өргөжүүлэх</translation>
 <translation id="496392417432935267">Өөр газар нээсэн</translation>
 <translation id="4970724460420203313">Chrome-г удирдлагатай бүртгэлээрээ ашиглах нь байгууллагатайгаа холбоотой үзсэн зүйлсийг (таб, түүх, нууц үг гэх мэт) үзсэн бусад зүйлээсээ тусдаа байлгахад тусална</translation>
@@ -1287,6 +1291,7 @@ Handoff-ыг Тохиргооны ерөнхий хэсэгт идэвхижүү
 <translation id="5647702255748985085">Бүлгээс гарах уу?</translation>
 <translation id="5648166631817621825">Сүүлийн 7 хоног</translation>
 <translation id="5652623411397330904">Таны хянаж буй бүтээгдэхүүнүүдийг энд харуулна.</translation>
+<translation id="5653100054596780862">Бүх таб</translation>
 <translation id="5656431592348714536">Сайжруулсан Календарь</translation>
 <translation id="5659593005791499971">И-мэйл хаяг</translation>
 <translation id="5665739277590037307"><ph name="GOOGLE_TERMS" />, <ph name="GEMINI_APPS_PRIVACY" /> хэрэгжинэ. Gemini алдаа гаргаж болох тул дахин шалгана уу.</translation>
@@ -1614,6 +1619,7 @@ Handoff-ыг Тохиргооны ерөнхий хэсэгт идэвхижүү
 <translation id="672735642903863329">Хавчуурга, нууц үг болон бусад зүйлийг бүгдийг төхөөрөмжүүддээ аваарай.</translation>
 <translation id="6729493062119577923">Хуваалцсан табын бүлгийн үйл ажиллагаа</translation>
 <translation id="6732087373923685049">камер</translation>
+<translation id="6736243959894955139">Хаяг</translation>
 <translation id="6746338529702829275">Бүртгэлийн өгөгдлөө шалгах</translation>
 <translation id="6750456911389438250">{count,plural, =1{Түүхийн {count} зүйл импортолсон}other{Түүхийн {count} зүйл импортолсон}}</translation>
 <translation id="6755200887046212842">Акаунтуудыг удирдах</translation>
@@ -1751,6 +1757,7 @@ Handoff-ыг Тохиргооны ерөнхий хэсэгт идэвхижүү
 <translation id="7300448350764260141">Онлайн заналхийллүүдийн эсрэг хамгаалалтын нэмэлт давхаргыг нэмээрэй.</translation>
 <translation id="7311244614769792472">Илэрц олдсонгүй</translation>
 <translation id="7313347584264171202">Та нууцлалтай табуудаа эндээс олох болно</translation>
+<translation id="7322186060879266048">{count,plural, =1{Таны гарын дээр автоматаар бөглөх {count} сонголт боломжтой байна.}other{Таны гарын дээр автоматаар бөглөх {count} сонголт боломжтой байна.}}</translation>
 <translation id="7328162502911382168">(<ph name="COUNT" />)</translation>
 <translation id="7336264872878993241"><ph name="PERCENT" /> хувь татагдсан байна</translation>
 <translation id="7345061034321640811">Импортлохыг зөвшөөрдөггүй</translation>
@@ -1820,7 +1827,6 @@ Handoff-ыг Тохиргооны ерөнхий хэсэгт идэвхижүү
 <translation id="7537586195939242955">Уучлаарай, таны Pass-ыг одоогоор Passbook руу суулгаж болохгүй байна.</translation>
 <translation id="754655535278952384"><ph name="TIME" /> шалгасан</translation>
 <translation id="7554645225856321710">Бүгдийг хаах</translation>
-<translation id="7554791636758816595">Шинэ таб</translation>
 <translation id="7557508262441527045">Гарсан</translation>
 <translation id="7561196759112975576">Үргэлж</translation>
 <translation id="7561982940498449837">Цэсийг хаах</translation>
@@ -2250,7 +2256,6 @@ Handoff-ыг Тохиргооны ерөнхий хэсэгт идэвхижүү
 <translation id="8988107725234939347"><ph name="WEBSITE_TITLE" /> сайтыг бэхэлсэн</translation>
 <translation id="8990960056509724223">Танай байгууллагын бодлогын улмаас файлыг хадгалж чадсангүй</translation>
 <translation id="8998289560386111590">Таны төхөөрөмжид боломжгүй</translation>
-<translation id="9000532564152265066">Бүх таб</translation>
 <translation id="9003677638446136377">Дахин шалгах</translation>
 <translation id="9006453925669499173">Цэс → Шинэ нууцлалтай таб</translation>
 <translation id="9008201768610948239">Алгас</translation>

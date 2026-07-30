@@ -7,6 +7,7 @@
 #include "base/no_destructor.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/mock_callback.h"
+#include "chrome/browser/ui/views/tabs/projects/layout_constants.h"
 #include "chrome/browser/ui/views/tabs/projects/projects_panel_thread_item_view.h"
 #include "components/contextual_tasks/public/contextual_task.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -43,6 +44,18 @@ const contextual_tasks::Thread& GetThread3() {
   static const base::NoDestructor<contextual_tasks::Thread> thread(
       CreateThread("Thread 3", "id3"));
   return *thread;
+}
+
+const contextual_tasks::Thread& GetThread4() {
+  static const base::NoDestructor<contextual_tasks::Thread> thread(
+      CreateThread("Thread 4", "id4"));
+  return *thread;
+}
+
+const std::vector<contextual_tasks::Thread>& GetManyThreads() {
+  static const base::NoDestructor<std::vector<contextual_tasks::Thread>>
+      threads({GetThread1(), GetThread2(), GetThread3(), GetThread4()});
+  return *threads;
 }
 
 MATCHER_P(IsForThread, expected_thread, "") {
@@ -115,4 +128,57 @@ TEST_F(ProjectsPanelRecentThreadsViewTest, PropagatesCallbackToItems) {
                        base::TimeTicks(), ui::EF_LEFT_MOUSE_BUTTON,
                        ui::EF_LEFT_MOUSE_BUTTON);
   views::test::ButtonTestApi(thread_item_view).NotifyClick(event);
+}
+
+TEST_F(ProjectsPanelRecentThreadsViewTest, DisplaysUpToMaxNumberOfThreads) {
+  std::vector<contextual_tasks::Thread> threads;
+  for (size_t i = 0; i < projects_panel::kMaxNumberOfRecentThreads + 50; i++) {
+    threads.emplace_back(CreateThread("Thread"));
+  }
+
+  // Create the view with more than the max number of threads.
+  auto recent_threads_view = std::make_unique<ProjectsPanelRecentThreadsView>();
+  recent_threads_view->SetThreads(threads);
+
+  recent_threads_view->SetExpanded(true);
+
+  // Ensure only the max number of threads are shown.
+  EXPECT_EQ(projects_panel::kMaxNumberOfRecentThreads,
+            recent_threads_view->item_views_for_testing().size());
+}
+
+TEST_F(ProjectsPanelRecentThreadsViewTest, CollapsesThreadsInitially) {
+  auto recent_threads_view = std::make_unique<ProjectsPanelRecentThreadsView>();
+  recent_threads_view->SetThreads(GetManyThreads());
+
+  // Only 3 thread should be visible.
+  EXPECT_EQ(3u, recent_threads_view->children().size());
+  EXPECT_EQ(3u, recent_threads_view->item_views_for_testing().size());
+}
+
+TEST_F(ProjectsPanelRecentThreadsViewTest, ExpandList) {
+  auto recent_threads_view = std::make_unique<ProjectsPanelRecentThreadsView>();
+  recent_threads_view->SetThreads(GetManyThreads());
+
+  recent_threads_view->SetExpanded(true);
+
+  // All 4 threads should be visible after expanding.
+  EXPECT_EQ(4u, recent_threads_view->children().size());
+  EXPECT_EQ(4u, recent_threads_view->item_views_for_testing().size());
+  EXPECT_TRUE(recent_threads_view->expanded());
+}
+
+TEST_F(ProjectsPanelRecentThreadsViewTest, CollapseList) {
+  auto recent_threads_view = std::make_unique<ProjectsPanelRecentThreadsView>();
+  recent_threads_view->SetThreads(GetManyThreads());
+  recent_threads_view->SetExpanded(true);
+
+  EXPECT_EQ(4u, recent_threads_view->children().size());
+
+  recent_threads_view->SetExpanded(false);
+
+  // Only 3 threads should be visible after collapsing.
+  EXPECT_EQ(3u, recent_threads_view->children().size());
+  EXPECT_EQ(3u, recent_threads_view->item_views_for_testing().size());
+  EXPECT_FALSE(recent_threads_view->expanded());
 }

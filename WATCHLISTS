@@ -63,7 +63,8 @@
       'filepath': 'chrome/browser/actor/ui/'
     },
     'ad_tracker': {
-      'filepath': 'third_party/blink/renderer/core/frame/ad_tracker.*|' \
+      'filepath': 'third_party/blink/renderer/platform/loader/fetch/ad_tagging_utils.*|' \
+                  'third_party/blink/renderer/core/ad_tracker/|' \
                   'chrome/browser/page_load_metrics/observers/ad_metrics/',
     },
     'add_to_homescreen': {
@@ -251,23 +252,15 @@
     },
     'assistive': {
       'filepath': 'ash/ambient/'\
-                  '|ash/app_list/views/assistant/'\
-                  '|ash/assistant/'\
                   '|ash/public/cpp/ambient/'\
-                  '|ash/public/cpp/assistant/'\
                   '|ash/public/cpp/wallpaper/'\
                   '|ash/wallpaper/'\
                   '|ash/webui/personalization_app/'\
-                  '|chromeos/ash/components/assistant/'\
-                  '|chromeos/ash/services/assistant/'\
-                  '|chromeos/ash/services/libassistant/'\
-                  '|chromeos/services/assistant/'\
                   '|chrome/browser/ash/ambient/'\
                   '|chrome/browser/ash/wallpaper_handlers/'\
                   '|chrome/browser/ash/system_web_apps/apps/personalization_app/'\
                   '|chrome/browser/resources/ash/settings/ambient_mode_page/'\
                   '|chrome/browser/ui/ash/.*wallpaper.*/'\
-                  '|chrome/browser/ui/ash/assistant/'\
                   '|chrome/browser/ui/webui/settings/ash/ambient_mode_handler'\
     },
     'attribution_reporting': {
@@ -630,14 +623,6 @@
                   '|third_party/blink/renderer/core/svg/svg_script_element' \
                   '|third_party/blink/renderer/core/xml/parser/xml_document_parser'
     },
-    'blink_scroll': {
-      'filepath': 'third_party/blink/renderer/core/frame/.*view' \
-                  '|third_party/blink/renderer/core/input/.*scroll' \
-                  '|third_party/blink/renderer/core/input/event_handler' \
-                  '|third_party/blink/renderer/core/page/scrolling/' \
-                  '|third_party/blink/renderer/core/paint/.*scrollable_area' \
-                  '|third_party/blink/renderer/platform/scroll/'
-    },
     'blink_service_worker' : {
       'filepath': 'third_party/blink/renderer/modules/service_worker' \
                   '|third_party/blink/web_tests/http/tests/serviceworker' \
@@ -710,9 +695,6 @@
     },
     'borealis': {
       'filepath': 'borealis/',
-    },
-    'bottombar': {
-      'filepath': 'chrome/android/java/src/org/chromium/chrome/browser/compositor/bottombar/',
     },
     'bounce_tracking_mitigations': {
       'filepath': 'chrome/browser/btm/' \
@@ -2805,7 +2787,6 @@
     'blink_scheduling_api': ['web-scheduling-api-reviews@chromium.org'],
     'blink_script': ['kouhei+script@chromium.org',
                      'hiroshige+script@chromium.org', 'dom+watch@chromium.org'],
-    'blink_scroll': ['bokan@chromium.org'],
     'blink_service_worker': ['horo+watch@chromium.org',
                              'kinuko+serviceworker@chromium.org',
                              'nhiroki@chromium.org',
@@ -2826,8 +2807,7 @@
                     'glenn@chromium.org',
                     'silviapf@chromium.org',
                     'srirama.m@samsung.com'],
-    'blink_viewport_interaction': ['kenneth.christiansen@gmail.com',
-                                   'bokan@chromium.org'],
+    'blink_viewport_interaction': ['kenneth.christiansen@gmail.com'],
     'blink_w3ctests': ['blink-reviews-w3ctests@chromium.org'],
     'blink_webmcp': ['khushalsagar@chromium.org',
                      'mfoltz+watch-webmcp@chromium.org'],
@@ -2843,8 +2823,6 @@
     'blink_wtf': ['blink-reviews-wtf@chromium.org'],
     'blink_xml': ['dominicc+watchlist@chromium.org'],
     'borealis': ['borealis-reviews+watch@google.com'],
-    'bottombar': ['donnd+watch@chromium.org',
-                  'mdjones+watch@chromium.org'],
     'bounce_tracking_mitigations': ['amaliev+watch-btm@chromium.org',
                                     'jdh+watch-btm@chromium.org',
                                     'liu+watch-btm@chromium.org',

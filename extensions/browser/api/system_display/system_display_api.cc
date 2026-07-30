@@ -326,15 +326,8 @@ void SystemDisplayGetInfoFunction::Response(
 ExtensionFunction::ResponseAction SystemDisplayGetDisplayLayoutFunction::Run() {
   DisplayInfoProvider* provider = DisplayInfoProvider::Get();
   DCHECK(provider);
-  provider->GetDisplayLayout(
-      base::BindOnce(&SystemDisplayGetDisplayLayoutFunction::Response, this));
-  return RespondLater();
-}
-
-void SystemDisplayGetDisplayLayoutFunction::Response(
-    std::vector<api::system_display::DisplayLayout> display_layout) {
-  return Respond(
-      ArgumentList(display::GetDisplayLayout::Results::Create(display_layout)));
+  return RespondNow(ArgumentList(display::GetDisplayLayout::Results::Create(
+      provider->GetDisplayLayout())));
 }
 
 bool SystemDisplayGetDisplayLayoutFunction::ShouldRestrictToKioskAndWebUI() {
@@ -364,15 +357,9 @@ ExtensionFunction::ResponseAction SystemDisplaySetDisplayLayoutFunction::Run() {
       display::SetDisplayLayout::Params::Create(args());
   DisplayInfoProvider* provider = DisplayInfoProvider::Get();
   DCHECK(provider);
-  provider->SetDisplayLayout(
-      params->layouts,
-      base::BindOnce(&SystemDisplaySetDisplayLayoutFunction::Response, this));
-  return RespondLater();
-}
-
-void SystemDisplaySetDisplayLayoutFunction::Response(
-    std::optional<std::string> error) {
-  Respond(error ? Error(*error) : NoArguments());
+  base::expected<void, std::string> result =
+      provider->SetDisplayLayout(params->layouts);
+  return RespondNow(result.has_value() ? NoArguments() : Error(result.error()));
 }
 
 ExtensionFunction::ResponseAction

@@ -20,24 +20,29 @@
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "mojo/public/cpp/bindings/remote_set.h"
 
-class BrowserWindowInterface;
-class TabStripModel;
+namespace tabs_api {
+
+class PlatformAdaptersProvider;
+
+}  // namespace tabs_api
 
 // TODO (crbug.com/409086859). See bug for dd.
 // tabs_api::mojom::TabStripController is an experimental TabStrip Api between
 // any view and the TabStripModel.
+// The tab strip api spec requires that the client receives all events before
+// a method returns. To accomplish this, we must ensure that all observer events
+// are sent before returning the result. To accomplish this, the underlying tab
+// strip api uses a RAII session object which will replay events right before
+// a subroutine returns.
 class TabStripServiceMojoHandler
     : public tabs_api::observation::TabStripApiBatchedObserver,
       public tabs_api::mojom::TabStripService,
       public tabs_api::mojom::TabStripExperimentService,
-      public TabStripModelObserver,
       public TabStripServiceFeature {
  public:
-  TabStripServiceMojoHandler(BrowserWindowInterface* browser,
-                             TabStripModel* tab_strip_model);
-  TabStripServiceMojoHandler(
-      std::unique_ptr<tabs_api::TabStripService> service,
-      std::unique_ptr<tabs_api::TabStripModelAdapter> tab_strip_model_adapter);
+  // The provider must outlive the handler.
+  explicit TabStripServiceMojoHandler(
+      std::unique_ptr<tabs_api::PlatformAdaptersProvider> provider);
   TabStripServiceMojoHandler(const TabStripServiceMojoHandler&&) = delete;
   TabStripServiceMojoHandler& operator=(const TabStripServiceMojoHandler&) =
       delete;
@@ -78,6 +83,9 @@ class TabStripServiceMojoHandler
   void ShowTabContextMenu(const tabs_api::NodeId& tab_id,
                           const gfx::Point& location,
                           ShowTabContextMenuCallback callback) override;
+  void ReplaceTabInSplit(const tabs_api::NodeId& tab_to_replace,
+                         const tabs_api::NodeId& tab_to_insert,
+                         ReplaceTabInSplitCallback callback) override;
   void GetAllTabsForProfile(GetAllTabsForProfileCallback callback) override;
 
   // tabs_api::observation::TabStripApiBatchedObserver overrides

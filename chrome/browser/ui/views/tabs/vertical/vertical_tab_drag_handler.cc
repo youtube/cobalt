@@ -36,6 +36,7 @@
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/list_selection_model.h"
 #include "ui/compositor/layer.h"
+#include "ui/events/event.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/vector2d.h"
 #include "ui/views/view_utils.h"
@@ -110,8 +111,10 @@ VerticalTabDragHandlerImpl::VerticalTabDragHandlerImpl(
 
 VerticalTabDragHandlerImpl::~VerticalTabDragHandlerImpl() = default;
 
-void VerticalTabDragHandlerImpl::InitializeDrag(TabCollectionNode& node,
-                                                const ui::MouseEvent& event) {
+void VerticalTabDragHandlerImpl::InitializeDrag(
+    TabCollectionNode& node,
+    const ui::ListSelectionModel& original_selection_model,
+    const ui::LocatedEvent& event) {
   ResetDragState();
   drag_controller_ = std::make_unique<TabDragController>();
 
@@ -132,7 +135,7 @@ void VerticalTabDragHandlerImpl::InitializeDrag(TabCollectionNode& node,
   const gfx::Point offset_from_source = event.location();
   if (drag_controller_->Init(this, drag_init_data.source_dragged_view,
                              drag_init_data.dragged_views, offset_from_source,
-                             drag_init_data.list_selection_model,
+                             original_selection_model,
                              EventSourceFromEvent(event)) ==
       TabDragController::Liveness::kDeleted) {
     ResetDragState();
@@ -251,7 +254,7 @@ VerticalTabDragHandlerImpl::GetFullySelectedGroups(
 }
 
 bool VerticalTabDragHandlerImpl::ContinueDrag(views::View& event_source_view,
-                                              const ui::MouseEvent& event) {
+                                              const ui::LocatedEvent& event) {
   if (!drag_controller_) {
     return false;
   }
@@ -479,7 +482,12 @@ TabDragContext* VerticalTabDragHandlerImpl::GetDragContext() {
 }
 
 bool VerticalTabDragHandlerImpl::IsDragging() const {
-  return drag_controller_ && drag_controller_->started_drag() &&
+  // We check if the drag controller is attached to this context instead of
+  // `started_drag()` because `started_drag()` only becomes true after the
+  // initial selection reset that occurs when a drag truly begins. If we
+  // relied on `started_drag()`, the vertical tab strip might incorrectly
+  // expand a collapsed group during that initial selection change.
+  return drag_controller_ && drag_controller_->attached_context() == this &&
          drag_controller_->active();
 }
 
@@ -580,11 +588,79 @@ VerticalTabDragHandlerImpl::GetLinkDropIndexForNode(
   return link_drop_handler_->GetDropIndexForNode(node, position_hint);
 }
 
+void VerticalTabDragHandlerImpl::OnTabWillBeAdded() {
+  if (drag_controller_) {
+    drag_controller_->EndDrag(EndDragReason::kModelAddedTab);
+  }
+}
+
+void VerticalTabDragHandlerImpl::OnTabWillBeRemoved(
+    content::WebContents* contents) {
+  if (drag_controller_) {
+    drag_controller_->OnTabWillBeRemoved(contents);
+  }
+}
+
 bool VerticalTabDragHandlerImpl::CanAcceptEvent(const ui::Event& event) {
   // The drag context has to be able to process mouse events during the drag.
   // By default, this is predicated on visibility, but the handler should not
   // be visible. Instead, defer the check to the parent.
   return parent()->CanAcceptEvent(event);
+}
+
+void VerticalTabDragHandlerImpl::OnGestureEvent(ui::GestureEvent* event) {
+  if (!drag_controller_) {
+    return;
+  }
+
+  bool handler_alive = true;
+
+  switch (event->type()) {
+    case ui::EventType::kGestureScrollEnd:
+    case ui::EventType::kScrollFlingStart:
+    case ui::EventType::kGestureEnd:
+      EndDrag(EndDragReason::kComplete);
+      break;
+
+    case ui::EventType::kGestureLongTap: {
+      const auto& session_data = drag_controller_->GetSessionData();
+      TabCollectionNode* source_node = nullptr;
+      if (session_data.group_header_drag_data_) {
+        source_node =
+            GetNodeForTabGroup(session_data.group_header_drag_data_->group);
+      } else {
+        source_node =
+            GetNodeForContents(session_data.source_dragged_contents());
+      }
+
+      if (source_node && source_node->view()) {
+        views::View* source_view = source_node->view();
+        ui::GestureEvent converted_event(*event, static_cast<View*>(this),
+                                         source_view);
+        source_view->OnGestureEvent(&converted_event);
+      }
+
+      EndDrag(EndDragReason::kCancel);
+      break;
+    }
+
+    case ui::EventType::kGestureTapDown:
+      EndDrag(EndDragReason::kCancel);
+      break;
+
+    case ui::EventType::kGestureScrollUpdate:
+      handler_alive = ContinueDrag(*this, *event);
+      break;
+
+    default:
+      break;
+  }
+
+  event->SetHandled();
+
+  if (!handler_alive) {
+    return;
+  }
 }
 
 bool VerticalTabDragHandlerImpl::OnMouseDragged(const ui::MouseEvent& event) {

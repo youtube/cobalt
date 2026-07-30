@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 
+#include "ash/constants/ash_switches.h"
 #include "base/base64url.h"
 #include "base/command_line.h"
 #include "base/containers/span.h"
@@ -22,7 +23,6 @@
 #include "base/strings/string_view_util.h"
 #include "chrome/browser/nearby_sharing/certificates/common.h"
 #include "chrome/browser/nearby_sharing/certificates/constants.h"
-#include "chrome/browser/nearby_sharing/common/nearby_share_switches.h"
 #include "chromeos/ash/components/nearby/common/proto/timestamp.pb.h"
 #include "components/cross_device/logging/logging.h"
 #include "crypto/aead.h"
@@ -130,13 +130,13 @@ StringToSalts(const std::string& str) {
 base::TimeDelta GetCertificateValidityPeriod() {
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (!command_line->HasSwitch(
-          switches::kNearbyShareCertificateValidityPeriodHours)) {
+          ash::switches::kNearbyShareCertificateValidityPeriodHours)) {
     return kNearbyShareCertificateValidityPeriod;
   }
 
   std::string certificate_validity_period_hours_str =
       command_line->GetSwitchValueASCII(
-          switches::kNearbyShareCertificateValidityPeriodHours);
+          ash::switches::kNearbyShareCertificateValidityPeriodHours);
   int certificate_validity_period_hours = 0;
   if (!base::StringToInt(certificate_validity_period_hours_str,
                          &certificate_validity_period_hours) ||
@@ -448,21 +448,15 @@ NearbySharePrivateCertificate::GenerateUnusedSalt() {
 
 std::optional<std::vector<uint8_t>>
 NearbySharePrivateCertificate::EncryptMetadata() const {
-  // Init() keeps a reference to the input key, so that reference must outlive
-  // the lifetime of |aead|.
-  auto derived_key = DeriveNearbyShareKey<kNearbyShareNumBytesAesGcmKey>(
+  const auto key = DeriveNearbyShareKey<kNearbyShareNumBytesAesGcmKey>(
       metadata_encryption_key_);
-
-  crypto::Aead aead(crypto::Aead::AeadAlgorithm::AES_256_GCM);
-  aead.Init(derived_key);
+  const auto nonce =
+      DeriveNearbyShareKey<kNearbyShareNumBytesAesGcmIv>(secret_key_);
 
   std::vector<uint8_t> metadata_array(unencrypted_metadata_.ByteSizeLong());
   unencrypted_metadata_.SerializeToArray(metadata_array.data(),
                                          metadata_array.size());
 
-  return aead.Seal(
-      metadata_array,
-      /*nonce=*/
-      DeriveNearbyShareKey<kNearbyShareNumBytesAesGcmIv>(secret_key_),
-      /*additional_data=*/base::span<const uint8_t>());
+  return crypto::aead::Seal(crypto::aead::AES_256_GCM, key, metadata_array,
+                            nonce, /*associated_data=*/{});
 }

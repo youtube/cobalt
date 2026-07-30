@@ -5,6 +5,7 @@
 #include "components/multistep_filter/content/filter_navigation_observer.h"
 
 #include "base/functional/callback_helpers.h"
+#include "components/multistep_filter/content/filter_initiated_navigation_marker.h"
 #include "components/multistep_filter/core/multistep_filter_service.h"
 #include "content/public/test/mock_navigation_handle.h"
 #include "content/public/test/navigation_simulator.h"
@@ -19,7 +20,12 @@ namespace {
 
 class MockMultistepFilterService : public MultistepFilterService {
  public:
-  MockMultistepFilterService() : MultistepFilterService(nullptr, nullptr) {}
+  MockMultistepFilterService()
+      : MultistepFilterService(
+            /*annotation_index_client=*/nullptr,
+            /*filter_store=*/nullptr,
+            /*filter_suggestion_generator=*/nullptr,
+            /*identity_manager=*/nullptr) {}
   ~MockMultistepFilterService() override = default;
 
   void GenerateFilterSuggestions(
@@ -116,6 +122,9 @@ TEST_F(FilterNavigationObserverTest, SameDocumentNavigation) {
   EXPECT_CALL(mock_service(), GenerateFilterSuggestions(url));
   content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
                                                              url);
+  // Reset expectations to test the next navigation.
+  testing::Mock::VerifyAndClearExpectations(&delegate());
+  testing::Mock::VerifyAndClearExpectations(&mock_service());
 
   const GURL same_doc_url("https://www.example.com/#test");
   EXPECT_CALL(delegate(), ClearSuggestion()).Times(0);
@@ -178,21 +187,6 @@ TEST_F(FilterNavigationObserverTest, ReloadNavigation) {
   content::NavigationSimulator::Reload(web_contents());
 }
 
-TEST_F(FilterNavigationObserverTest, NullWebContentsNavigation) {
-  content::MockNavigationHandle handle;
-  handle.set_has_committed(true);
-  handle.set_is_in_primary_main_frame(true);
-  handle.set_is_same_document(false);
-  handle.set_reload_type(content::ReloadType::NONE);
-  handle.set_is_error_page(false);
-  handle.set_url(GURL("https://example.com"));
-
-  EXPECT_CALL(delegate(), ClearSuggestion());
-  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(testing::_)).Times(0);
-
-  observer()->DidFinishNavigation(&handle);
-}
-
 TEST_F(FilterNavigationObserverTest, NullService) {
   RecreateObserverWithNullService();
 
@@ -230,6 +224,42 @@ TEST_F(FilterNavigationObserverTest, ReferenceFragmentNavigation) {
   EXPECT_CALL(mock_service(), GenerateFilterSuggestions(url));
   content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
                                                              url);
+}
+
+TEST_F(FilterNavigationObserverTest, PageActivationNavigation) {
+  content::MockNavigationHandle handle;
+  handle.set_has_committed(true);
+  handle.set_is_in_primary_main_frame(true);
+  handle.set_is_same_document(false);
+  handle.set_is_served_from_bfcache(true);
+  handle.set_reload_type(content::ReloadType::NONE);
+  handle.set_is_error_page(false);
+  handle.set_url(GURL("https://example.com"));
+
+  EXPECT_CALL(delegate(), ClearSuggestion()).Times(1);
+  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(testing::_)).Times(0);
+
+  observer()->DidFinishNavigation(&handle);
+}
+
+TEST_F(FilterNavigationObserverTest, PrimaryMainFrameRenderProcessGone) {
+  EXPECT_CALL(delegate(), ClearSuggestion());
+  observer()->PrimaryMainFrameRenderProcessGone(
+      base::TERMINATION_STATUS_PROCESS_CRASHED);
+}
+
+TEST_F(FilterNavigationObserverTest,
+       DoesNotRequestSuggestionForFilterInitiatedNavigation) {
+  const GURL url("https://www.example.com");
+  EXPECT_CALL(delegate(), ClearSuggestion());
+  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(testing::_)).Times(0);
+
+  auto navigation =
+      content::NavigationSimulator::CreateBrowserInitiated(url, web_contents());
+  navigation->Start();
+  FilterInitiatedNavigationMarker::CreateForNavigationHandle(
+      *navigation->GetNavigationHandle());
+  navigation->Commit();
 }
 
 }  // namespace

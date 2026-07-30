@@ -4,10 +4,7 @@
 
 #include "services/network/first_party_sets/first_party_sets_manager.h"
 
-#include <initializer_list>
 #include <optional>
-#include <set>
-#include <string>
 
 #include "base/containers/flat_set.h"
 #include "base/functional/callback_helpers.h"
@@ -21,7 +18,6 @@
 #include "net/first_party_sets/first_party_set_metadata.h"
 #include "net/first_party_sets/first_party_sets_context_config.h"
 #include "net/first_party_sets/global_first_party_sets.h"
-#include "testing/gmock/include/gmock/gmock-matchers.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
@@ -58,8 +54,8 @@ class FirstPartySetsManagerTest : public ::testing::Test,
       const base::flat_map<net::SchemefulSite, net::FirstPartySetEntry>&
           content,
       const base::flat_map<net::SchemefulSite, net::SchemefulSite>& aliases) {
-    manager_.SetCompleteSets(
-        net::GlobalFirstPartySets(base::Version("1.2.3"), content, aliases));
+    manager_.SetCompleteSets(net::GlobalFirstPartySets::CreateForTesting(
+        base::Version("1.2.3"), content, aliases));
   }
 
   FirstPartySetsManager::EntriesResult FindEntriesAndWait(

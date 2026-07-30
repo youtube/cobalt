@@ -125,7 +125,6 @@
 <translation id="2228071138934252756"><ph name="APP_NAME" />-д камертаа хандахыг зөвшөөрөхийн тулд камерыг мөн <ph name="BEGIN_LINK" />Андройдын тохиргоо<ph name="END_LINK" />-нд асаана уу.</translation>
 <translation id="2231160360698766265">Сайтууд хамгаалагдсан контентыг тоглуулах боломжтой</translation>
 <translation id="2235344399760031203">Гуравдагч талын күүкиг блоклосон</translation>
-<translation id="2238944249568001759">Таны сүүлийн табд тулгуурласан санал болгосон хайлтууд</translation>
 <translation id="2241587408274973373">Шинэ табын хуудасны картууд</translation>
 <translation id="2241634353105152135">Ганц удаа</translation>
 <translation id="2253414712144136228"><ph name="NAME_OF_LIST_ITEM" />-г хасах</translation>
@@ -214,7 +213,6 @@
 <translation id="3069226013421428034">Тодорхой сайтын гуравдагч талын нэвтрэлтийг зөвшөөрнө үү.</translation>
 <translation id="310297983047869047">Өмнөх слайд</translation>
 <translation id="3108122610701115301">Өгөгдмөл болгох</translation>
-<translation id="3109724472072898302">Задарсан</translation>
 <translation id="310979712355504754">Бүгдийг устгах</translation>
 <translation id="311394601889664316">Сайтуудад таны төхөөрөмж дээрх файлууд эсвэл фолдеруудыг засахыг бүү зөвшөөр</translation>
 <translation id="3114012059975132928">Видео тоглуулагч</translation>
@@ -262,13 +260,13 @@
 <translation id="3602290021589620013">Мэдээллийг урьдчилж харах</translation>
 <translation id="3611658447322220736">Саяхан хаасан сайтууд өгөгдөл илгээх болон хүлээн авахаа дуусгах боломжтой</translation>
 <translation id="3619294456800709762">Сайтууд дэлгэц доторх дэлгэцэд автоматаар орох боломжтой</translation>
-<translation id="3628308229821498208">Санал болгосон хайлтууд</translation>
 <translation id="3632460243282703117">Захиалах</translation>
 <translation id="363748948745453283">Барагцаалсан байршлыг ашиглаж байна</translation>
 <translation id="3641456520301071208">Сайтууд таны байршлыг асуух боломжтой</translation>
 <translation id="3658847490588580244">Өгөгдмөл хөтчийн доод хүснэгт</translation>
 <translation id="3669841141196828854">{COUNT,plural, =1{Бүлэг дэх таны үйл ажиллагааг харах боломжтой <ph name="RWS_OWNER" />-н бүлэг сайтууд дахь <ph name="RWS_MEMBERS_COUNT" /> сайт}other{Бүлэг дэх таны үйл ажиллагааг харах боломжтой <ph name="RWS_OWNER" />-н бүлэг сайтууд дахь <ph name="RWS_MEMBERS_COUNT" /> сайт}}</translation>
 <translation id="3676777756440746804">Сайтыг танаас таны талаар хадгалсан мэдээллээ ашиглахыг хүсэхийг блоклосон</translation>
+<translation id="3677897809642449131">Сайтууд хөдөлгөөн мэдрэгч ашиглахыг хүсэж чадна</translation>
 <translation id="3678318839615834650">Шинэ таб хуудасны картын доод хүснэгтийг бүтэн өндрөөр нээсэн</translation>
 <translation id="3697164069658504920">Асаалттай үед сайтууд USB төхөөрөмжүүдийг ашиглахыг хүсэх боломжтой. Унтраалттай үед сайтууд USB төхөөрөмжүүдийг ашиглах боломжгүй.</translation>
 <translation id="3703430731944883733">Хангамжаа удирдах</translation>
@@ -444,7 +442,6 @@
 <translation id="5515432237048785579">Discover-н хангамжийн доод хүснэгтийг бүтэн өндрөөр нээсэн</translation>
 <translation id="5516455585884385570">Мэдэгдлийн тохиргоог нээх</translation>
 <translation id="5527111080432883924">Сайтад түр санах ойн текст болон зураг уншихыг зөвшөөрөхөөс өмнө асуух (санал болгосон)</translation>
-<translation id="5553374991681107062">Хамгийн сүүлийн үеийн</translation>
 <translation id="5555115555607204100">Chrome-н V8 хөдөлгүүрээр сайтын хурдыг нэмэгдүүлэхгүй ч Chrome-г халдлагад арай илүү тэсвэртэй болгох</translation>
 <translation id="5556459405103347317">Дахин ачаал</translation>
 <translation id="5591840828808741583"><ph name="SITE_NAME" />-г блоклосон</translation>
@@ -490,6 +487,7 @@
 <translation id="5922853908706496913">Таны дэлгэцийг хуваалцаж байна</translation>
 <translation id="5922967540311291836">Гуравдагч талын күүкиг блоклох:</translation>
 <translation id="5923512600150154850">Энэ нь сайтаас хадгалсан <ph name="DATASIZE" />-н өгөгдөл болон күүкиг устгана.</translation>
+<translation id="5930707844513754220">Бусад тохируулгын жагсаалтыг харах</translation>
 <translation id="5939518447894949180">Дахин сэргээх</translation>
 <translation id="5948139900367969951">Чухал зүйлсдээ шуурхай очоорой</translation>
 <translation id="5964247741333118902">Оруулсан контент</translation>
@@ -498,6 +496,7 @@
 <translation id="5976059395673079613"><ph name="PERMISSION" /> - <ph name="WARNING_MESSAGE" /></translation>
 <translation id="5998071268779572583">Discover-н хангамжийг асаах</translation>
 <translation id="6012967556075291653">Бэхэлсэн товчлол</translation>
+<translation id="6013003831291591200">Даалгаврыг дуусгасан</translation>
 <translation id="6015775454662021376">Таны төхөөрөмж рүү хандах энэ сайтын хандалтыг удирдах</translation>
 <translation id="6022659036123304283">Chrome-г хүссэнээрээ тохируулаарай</translation>
 <translation id="6040143037577758943">Хаах</translation>
@@ -522,7 +521,6 @@
 <translation id="6231752747840485235"><ph name="APP_NAME" />-г устгах уу?</translation>
 <translation id="6234351944623978659">Хөтчийн апп &gt; Chrome дээр товшино уу</translation>
 <translation id="6260830281887654268">Шинэ таб хуудасны харагдах байдлын загварын цуглуулгын доод хүснэгтийг тал өндрөөр нээсэн</translation>
-<translation id="6262191102408817757">Таны сүүлийн табд тулгуурласан</translation>
 <translation id="6262279340360821358"><ph name="PERMISSION_1" /> болон <ph name="PERMISSION_2" />-г блоклосон</translation>
 <translation id="6270391203985052864">Сайтууд нь танд мэдэгдэл илгээх зөвшөөрөл асуух боломжтой</translation>
 <translation id="6295158916970320988">Бүх сайт</translation>
@@ -602,7 +600,6 @@
 <translation id="7180611975245234373">Дахин сэргээх</translation>
 <translation id="7188508872042490670">Төхөөрөмж дээрх сайтын өгөгдөл</translation>
 <translation id="7201549776650881587">Энэ үйлдэл <ph name="ORIGIN" />-н доорх бүх сайтын эсвэл таны Үндсэн нүүрэн дээрх аппынх нь хадгалсан бүх өгөгдөл, күүкиг устгана</translation>
-<translation id="7203150201908454328">Өргөтгөсөн</translation>
 <translation id="7213166370492037743">Сайтад таны дотоод сүлжээн дээрх ямар нэг төхөөрөмжид холбогдохыг бүү зөвшөөр</translation>
 <translation id="7219254577985949841">Сайтын өгөгдлийг устгах уу?</translation>
 <translation id="723171743924126238">Зураг сонгох</translation>
@@ -676,7 +673,6 @@
 <translation id="8007176423574883786">Энэ төхөөрөмж дээр унтраастай байна</translation>
 <translation id="802154636333426148">Татаж чадсангүй</translation>
 <translation id="8033047164036749181">Энэ сайтын мэдэгдлийг авахын тулд захиалах</translation>
-<translation id="8042586301629853791">Дараахаар эрэмбэлэх:</translation>
 <translation id="8051193500142930381">Камер шаардлагатай онцлогууд ажиллахгүй</translation>
 <translation id="8056330801132235235">Chrome-н өгөгдмөл</translation>
 <translation id="8067883171444229417">Видео тоглуулах</translation>
@@ -748,6 +744,7 @@
 <translation id="8707904142362025782">Сайт таны камерыг ашиглахыг хүсэх боломжтой</translation>
 <translation id="8712637175834984815">Ойлголоо</translation>
 <translation id="8715862698998036666">Бүтэн дэлгэцээс гарахын тулд дээрээс чирээд, зүүн эсвэл баруун ирмэгээс шударна уу.</translation>
+<translation id="8716050156658570300">Сайтууд хөдөлгөөн, гэрэл мэдрэгчдийг ашиглахыг хүсэж чадна</translation>
 <translation id="8719283222052720129"><ph name="APP_NAME" />-н зөвшөөрлийг <ph name="BEGIN_LINK" />Андройдын тохиргоо<ph name="END_LINK" />-нд асаагаарай.</translation>
 <translation id="8721719390026067591">Асаалттай үед сайтууд Bluetooth төхөөрөмжүүдийг хайхыг хүсэх боломжтой. Унтраалттай үед сайтууд Bluetooth төхөөрөмжүүдийг хайх боломжгүй.</translation>
 <translation id="8725066075913043281">Дахин оролдож үзнэ үү.</translation>

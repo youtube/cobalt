@@ -1990,11 +1990,10 @@ even if they fit the naming pattern. -->
   <summary>
     This metric is related to the Preferred Content Size chosen by the user. It
     is only recorded once per session. This is hit if the chosen category is not
-    listed in the map defined in
-    /ios/chrome/browser/shared/ui/util/dynamic_type_util.mm. In that case, we
-    should update the code by adding an entry for the new category in that map.
-    This is logged when the helper to returning the multiplier associated with
-    the current preferred content size is called.
+    listed in the map defined in /ios/components/ui_util/dynamic_type_util.mm.
+    In that case, we should update the code by adding an entry for the new
+    category in that map. This is logged when the helper to returning the
+    multiplier associated with the current preferred content size is called.
   </summary>
 </histogram>
 
@@ -2292,6 +2291,28 @@ even if they fit the naming pattern. -->
   </token>
 </histogram>
 
+<histogram name="Accessibility.LiveTranslate.GetTranslation.SourceLanguage"
+    enum="LocaleCodeBCP47" expires_after="2026-08-02">
+  <owner>danft@google.com</owner>
+  <owner>evliu@google.com</owner>
+  <owner>chrome-media-ux@google.com</owner>
+  <summary>
+    Records the source language of a request to the
+    LiveTranslate.GetTranslation.
+  </summary>
+</histogram>
+
+<histogram name="Accessibility.LiveTranslate.GetTranslation.TargetLanguage"
+    enum="LocaleCodeBCP47" expires_after="2026-08-02">
+  <owner>danft@google.com</owner>
+  <owner>evliu@google.com</owner>
+  <owner>chrome-media-ux@google.com</owner>
+  <summary>
+    Records the target language of a request to the
+    LiveTranslate.GetTranslation.
+  </summary>
+</histogram>
+
 <histogram name="Accessibility.LiveTranslate.GoogleApiTranslation.Result"
     enum="Boolean" expires_after="2026-08-02">
   <owner>danft@google.com</owner>
@@ -2413,7 +2434,7 @@ even if they fit the naming pattern. -->
 </histogram>
 
 <histogram name="Accessibility.PDF.IsPDFTagged" enum="BooleanExists"
-    expires_after="2026-06-01">
+    expires_after="2026-09-13">
   <owner>dtseng@chromium.org</owner>
   <owner>kyungjunlee@google.com</owner>
   <owner>chrome-a11y-core@google.com</owner>

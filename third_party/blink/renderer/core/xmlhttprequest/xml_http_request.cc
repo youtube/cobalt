@@ -172,7 +172,7 @@ String ExtractCharsetFromMediaType(const String& media_type) {
   unsigned pos = 0;
   unsigned len = 0;
   FindCharsetInMediaType(media_type, pos, len);
-  return media_type.Substring(pos, len);
+  return media_type.substr(pos, len);
 }
 
 void ReplaceCharsetInMediaType(String& media_type,
@@ -394,7 +394,7 @@ Blob* XMLHttpRequest::ResponseBlob() {
 
   if (!response_blob_) {
     auto blob_data = std::make_unique<BlobData>();
-    blob_data->SetContentType(GetResponseMIMEType().LowerASCII());
+    blob_data->SetContentType(GetResponseMIMEType().ToAsciiLower());
     size_t size = 0;
     if (binary_response_builder_ && binary_response_builder_->size()) {
       for (const auto& span : *binary_response_builder_)
@@ -1502,7 +1502,7 @@ String XMLHttpRequest::getAllResponseHeaders() const {
       continue;
     }
 
-    headers.push_back(std::make_pair(it->key.UpperASCII(), it->value));
+    headers.push_back(std::make_pair(it->key.ToAsciiUpper(), it->value));
   }
   std::sort(headers.begin(), headers.end(),
             [](const std::pair<String, String>& x,
@@ -1510,7 +1510,7 @@ String XMLHttpRequest::getAllResponseHeaders() const {
               return CodeUnitCompareLessThan(x.first, y.first);
             });
   for (const auto& header : headers) {
-    string_builder.Append(header.first.LowerASCII());
+    string_builder.Append(header.first.ToAsciiLower());
     string_builder.Append(':');
     string_builder.Append(' ');
     string_builder.Append(header.second);
@@ -1984,7 +1984,7 @@ void XMLHttpRequest::DidDownloadToBlob(scoped_refptr<BlobDataHandle> blob) {
     // HandleNetworkError();
   } else {
     // Fix content type if overrides or fallbacks are in effect.
-    String mime_type = GetResponseMIMEType().LowerASCII();
+    String mime_type = GetResponseMIMEType().ToAsciiLower();
     if (blob->GetType() != mime_type) {
       auto blob_size = blob->size();
       auto blob_data = std::make_unique<BlobData>();

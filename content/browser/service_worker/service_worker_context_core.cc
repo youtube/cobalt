@@ -957,7 +957,8 @@ void ServiceWorkerContextCore::RemoveLiveVersion(int64_t id) {
     observer_list_->Notify(FROM_HERE,
                            &ServiceWorkerContextCoreObserver::OnStopped, id);
     for (auto& observer : sync_observer_list_->observers) {
-      observer.OnStoppedSync(id, version->scope());
+      observer.OnStoppedSync(id, version->scope(),
+                             *version->start_worker_token());
     }
   }
 
@@ -1029,7 +1030,8 @@ void ServiceWorkerContextCore::DeleteAndStartOver(StatusCallback callback) {
         blink::EmbeddedWorkerStatus::kStopped) {
       for (auto& observer : sync_observer_list_->observers) {
         observer.OnStoppedSync(live_version->version_id(),
-                               live_version->scope());
+                               live_version->scope(),
+                               *live_version->start_worker_token());
       }
     }
   }
@@ -1255,7 +1257,8 @@ void ServiceWorkerContextCore::OnRunningStateChanged(
                              &ServiceWorkerContextCoreObserver::OnStopped,
                              version->version_id());
       for (auto& observer : sync_observer_list_->observers) {
-        observer.OnStoppedSync(version->version_id(), version->scope());
+        observer.OnStoppedSync(version->version_id(), version->scope(),
+                               *version->start_worker_token());
       }
       break;
     case blink::EmbeddedWorkerStatus::kStarting:
@@ -1264,18 +1267,23 @@ void ServiceWorkerContextCore::OnRunningStateChanged(
                              version->version_id());
       break;
     case blink::EmbeddedWorkerStatus::kRunning:
-      observer_list_->Notify(
-          FROM_HERE, &ServiceWorkerContextCoreObserver::OnStarted,
-          version->version_id(), version->scope(),
-          version->embedded_worker()->process_id(), version->script_url(),
-          version->worker_host()->token(), version->key());
+      // TODO(crbug.com/379869738) Remove FromUnsafeValue.
+      observer_list_->Notify(FROM_HERE,
+                             &ServiceWorkerContextCoreObserver::OnStarted,
+                             version->version_id(), version->scope(),
+                             ChildProcessId::FromUnsafeValue(
+                                 version->embedded_worker()->process_id()),
+                             version->script_url(),
+                             version->worker_host()->token(), version->key());
       break;
     case blink::EmbeddedWorkerStatus::kStopping:
       observer_list_->Notify(FROM_HERE,
                              &ServiceWorkerContextCoreObserver::OnStopping,
                              version->version_id());
       for (auto& observer : sync_observer_list_->observers) {
-        observer.OnStoppingSync(version->version_id(), version->scope());
+        CHECK(version->start_worker_token());
+        observer.OnStoppingSync(version->version_id(), version->scope(),
+                                *version->start_worker_token());
       }
       break;
   }
@@ -1303,10 +1311,12 @@ void ServiceWorkerContextCore::OnDevToolsRoutingIdChanged(
   if (!version->embedded_worker()) {
     return;
   }
+  // TODO(crbug.com/379869738) Remove FromUnsafeValue.
   observer_list_->Notify(
       FROM_HERE,
       &ServiceWorkerContextCoreObserver::OnVersionDevToolsRoutingIdChanged,
-      version->version_id(), version->embedded_worker()->process_id(),
+      version->version_id(),
+      ChildProcessId::FromUnsafeValue(version->embedded_worker()->process_id()),
       version->embedded_worker()->worker_devtools_agent_route_id());
 }
 
@@ -1351,9 +1361,12 @@ void ServiceWorkerContextCore::OnReportConsoleMessage(
       version->version_id(), version->scope(), version->key(), console_message);
 
   for (auto& observer : sync_observer_list_->observers) {
+    // TODO(crbug.com/379869738) Remove FromUnsafeValue.
     observer.OnReportConsoleMessageSync(
-        version->embedded_worker() ? version->embedded_worker()->process_id()
-                                   : ChildProcessHost::kInvalidUniqueID,
+        version->embedded_worker()
+            ? ChildProcessId::FromUnsafeValue(
+                  version->embedded_worker()->process_id())
+            : ChildProcessId(),
         version->version_id(), version->scope(), console_message);
   }
 }

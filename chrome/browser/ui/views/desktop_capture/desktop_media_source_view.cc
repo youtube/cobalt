@@ -21,6 +21,7 @@
 #include "ui/views/controls/highlight_path_generator.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
+#include "ui/views/layout/layout_provider.h"
 #include "ui/views/property_effects.h"
 #include "ui/views/view_utils.h"
 
@@ -114,11 +115,13 @@ void DesktopMediaSourceView::SetSelected(bool selected) {
     SetBackground(views::CreateRoundedRectBackground(
         GetColorProvider()->GetColor(ui::kColorSysTonalContainer),
         kCornerRadius));
+    label_->SetEnabledColor(ui::kColorSysOnTonalContainer);
     label_->SetFontList(label_->font_list().Derive(0, gfx::Font::NORMAL,
                                                    gfx::Font::Weight::BOLD));
     parent_->OnSelectionChanged();
   } else {
     SetBackground(nullptr);
+    label_->SetEnabledColor(ui::kColorLabelForeground);
     label_->SetFontList(label_->font_list().Derive(0, gfx::Font::NORMAL,
                                                    gfx::Font::Weight::NORMAL));
   }

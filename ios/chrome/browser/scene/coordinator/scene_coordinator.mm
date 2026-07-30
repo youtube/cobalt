@@ -38,8 +38,10 @@
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_utils.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_notification_infobar_delegate.h"
 #import "ios/chrome/browser/cobrowse/coordinator/assistant_aim_coordinator.h"
+#import "ios/chrome/browser/cobrowse/model/cobrowse_context.h"
 #import "ios/chrome/browser/default_browser/model/utils.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
+#import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
 #import "ios/chrome/browser/history/ui_bundled/history_coordinator_factory.h"
 #import "ios/chrome/browser/incognito_interstitial/ui_bundled/incognito_interstitial_coordinator.h"
 #import "ios/chrome/browser/incognito_interstitial/ui_bundled/incognito_interstitial_coordinator_delegate.h"
@@ -54,6 +56,7 @@
 #import "ios/chrome/browser/safari_data_import/coordinator/safari_data_import_main_coordinator.h"
 #import "ios/chrome/browser/safari_data_import/model/features.h"
 #import "ios/chrome/browser/safari_data_import/public/safari_data_import_entry_point.h"
+#import "ios/chrome/browser/scene/coordinator/scene_mediator.h"
 #import "ios/chrome/browser/scene/ui/scene_view_controller.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/password_checkup/password_checkup_coordinator.h"
 #import "ios/chrome/browser/settings/ui_bundled/settings_navigation_controller.h"
@@ -165,6 +168,8 @@ void OnListFamilyMembersResponse(
   TabGridCoordinator* _tabGridCoordinator;
   // Coordinator for the AppBar.
   AppBarCoordinator* _appBarCoordinator;
+  // Mediator for the Scene coordinate.
+  SceneMediator* _sceneMediator;
   // Coordinator for the account menu.
   AccountMenuCoordinator* _accountMenuCoordinator;
   // Coordinator for the sign-in flow.
@@ -244,6 +249,13 @@ void OnListFamilyMembersResponse(
     tabGridViewController.view.frame = _viewController.appContainer.bounds;
     [tabGridViewController didMoveToParentViewController:_viewController];
     self.sceneState.window.rootViewController = _viewController;
+
+    _sceneMediator = [[SceneMediator alloc]
+        initWithRegularFullscreenController:FullscreenController::FromBrowser(
+                                                _regularBrowser.get())
+              incognitoFullscreenController:FullscreenController::FromBrowser(
+                                                _incognitoBrowser)];
+    _sceneMediator.consumer = _viewController;
   }
 
   if (IsChromeNextIaEnabled()) {
@@ -281,6 +293,8 @@ void OnListFamilyMembersResponse(
   _AIPrototypingCoordinator = nil;
   [self stopAssistantAIMCoordinator];
   [self stopAssistantContainerCoordinator];
+  [_sceneMediator disconnect];
+  _sceneMediator = nil;
   [_tabGridCoordinator stop];
   [_appBarCoordinator stop];
   self.UIHandler = nil;
@@ -592,15 +606,20 @@ void OnListFamilyMembersResponse(
   [_historyCoordinator start];
 }
 
-- (void)showAssistant {
+- (void)showAssistantWithContext:(CobrowseContext*)context {
   if (!IsAssistantContainerEnabled()) {
     return;
   }
   [_assistantAIMCoordinator stop];
   _assistantAIMCoordinator = [[AssistantAIMCoordinator alloc]
       initWithBaseViewController:self.activeViewController
-                         browser:self.currentBrowser];
+                         browser:self.currentBrowser
+                         context:context];
   [_assistantAIMCoordinator start];
+}
+
+- (void)hideAssistant {
+  [self stopAssistantAIMCoordinator];
 }
 
 - (void)closePresentedViewsAndOpenURL:(OpenNewTabCommand*)command {
@@ -1029,6 +1048,7 @@ void OnListFamilyMembersResponse(
 }
 
 // TODO(crbug.com/41352590) : Do not pass baseViewController through dispatcher.
+// The user must be signed-in and sign-in must be enabled.
 - (void)showSyncSettingsFromViewController:
     (UIViewController*)baseViewController {
   DCHECK(!self.isSigninInProgress);
@@ -1905,7 +1925,6 @@ void OnListFamilyMembersResponse(
   _passwordCheckupCoordinator = [[PasswordCheckupCoordinator alloc]
       initWithBaseNavigationController:_settingsNavigationController
                                browser:_regularBrowser.get()
-                          reauthModule:nil
                               referrer:referrer];
   _passwordCheckupCoordinator.delegate = self;
   [_passwordCheckupCoordinator start];

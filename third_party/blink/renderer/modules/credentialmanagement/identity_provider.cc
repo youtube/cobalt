@@ -244,9 +244,6 @@ ScriptPromise<IDLUndefined> IdentityProvider::resolve(
       MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(script_state);
   auto promise = resolver->Promise();
 
-  auto* request =
-      CredentialManagerProxy::From(script_state)->FederatedAuthRequest();
-
   std::unique_ptr<base::Value> token_base_value;
   if (RuntimeEnabledFeatures::FedCmNonStringTokenEnabled()) {
     std::unique_ptr<WebV8ValueConverter> converter =
@@ -272,10 +269,7 @@ ScriptPromise<IDLUndefined> IdentityProvider::resolve(
   }
 
   ExecutionContext* context = ExecutionContext::From(script_state);
-  mojom::blink::FedCmRedirectMethod method =
-      mojom::blink::FedCmRedirectMethod::kGet;
-  std::optional<KURL> redirect_to;
-  String request_body;
+  mojom::blink::ResolveTokenParamsPtr params;
   if (options->redirect()) {
     String url_string;
     if (!token_value.ToString(url_string)) {
@@ -284,38 +278,60 @@ ScriptPromise<IDLUndefined> IdentityProvider::resolve(
       return promise;
     }
 
-    method =
-        mojo::ConvertTo<mojom::blink::FedCmRedirectMethod>(options->method());
-
-    redirect_to = context->CompleteURL(url_string);
+    std::optional<KURL> redirect_to = context->CompleteURL(url_string);
     if (!redirect_to->IsValid()) {
       resolver->RejectWithDOMException(DOMExceptionCode::kDataError,
                                        "Invalid redirect URL.");
       return promise;
     }
 
-    request_body = options->body();
-
-    // GET must not have a body; POST must have a body.
-    if (method == mojom::blink::FedCmRedirectMethod::kGet &&
-        !request_body.empty()) {
-      resolver->RejectWithDOMException(DOMExceptionCode::kDataError,
-                                       "GET redirects must not have a body.");
-      return promise;
-    } else if (method == mojom::blink::FedCmRedirectMethod::kPost &&
-               request_body.empty()) {
-      resolver->RejectWithDOMException(DOMExceptionCode::kDataError,
-                                       "POST redirects must have a body.");
-      return promise;
+    String request_body = options->body();
+    if (request_body.IsNull()) {
+      request_body = g_empty_string;
     }
-  }
-  if (request_body.IsNull()) {
-    request_body = g_empty_string;
+
+    V8ResolveRedirectRequestMethod::Enum method = options->method().AsEnum();
+    if (method == blink::V8ResolveRedirectRequestMethod::Enum::kGET) {
+      if (!request_body.empty()) {
+        resolver->RejectWithDOMException(DOMExceptionCode::kDataError,
+                                         "GET redirects must not have a body.");
+        return promise;
+      }
+      auto get_params = mojom::blink::RedirectGetParams::New();
+      get_params->url = *redirect_to;
+      params = mojom::blink::ResolveTokenParams::NewRedirectTo(
+          mojom::blink::RedirectParams::NewGet(std::move(get_params)));
+    } else {
+      DCHECK_EQ(method, blink::V8ResolveRedirectRequestMethod::Enum::kPOST);
+      if (request_body.empty()) {
+        resolver->RejectWithDOMException(DOMExceptionCode::kDataError,
+                                         "POST redirects must have a body.");
+        return promise;
+      }
+      auto post_params = mojom::blink::RedirectPostParams::New();
+      post_params->url = *redirect_to;
+      post_params->request_body = request_body;
+      params = mojom::blink::ResolveTokenParams::NewRedirectTo(
+          mojom::blink::RedirectParams::NewPost(std::move(post_params)));
+    }
+  } else {
+    params = mojom::blink::ResolveTokenParams::NewToken(
+        std::move(*token_base_value));
   }
 
+  if (!script_state->ContextIsValid()) {
+    // This can happen if converting the `token` parameter had side effects
+    // that destroyed the document. With an invalid context, we also can't
+    // reject the promise.
+    return promise;
+  }
+
+  // There must not be JavaScript execution between getting the request pointer
+  // and using it.
+  auto* request =
+      CredentialManagerProxy::From(script_state)->FederatedAuthRequest();
   request->ResolveTokenRequest(
-      account_id, method, redirect_to, request_body,
-      std::move(*token_base_value),
+      account_id, std::move(params),
       BindOnce(&OnResolveTokenRequest, WrapPersistent(resolver)));
 
   return promise;

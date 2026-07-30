@@ -6,7 +6,6 @@
 
 #include <stddef.h>
 
-#include "base/memory/ptr_util.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/html/html_head_element.h"
 #include "third_party/blink/renderer/core/html/html_link_element.h"
@@ -164,7 +163,7 @@ bool BlinkAXTreeSource::GetTreeData(ui::AXTreeData* tree_data) const {
           continue;
         }
         // TODO(chrishtr): replace the below with elem->outerHTML().
-        String tag = elem->tagName().LowerASCII();
+        String tag = elem->tagName().ToAsciiLower();
         StringBuilder html;
         html << "<" << tag;
         for (unsigned i = 0; i < elem->Attributes().size(); i++) {

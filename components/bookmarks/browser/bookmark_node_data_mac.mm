@@ -13,30 +13,21 @@
 
 namespace bookmarks {
 
-#if defined(TOOLKIT_VIEWS)
-
 // static
-const ui::ClipboardFormatType& BookmarkNodeData::GetBookmarkFormatType() {
-  static const base::NoDestructor<ui::ClipboardFormatType> format(
-      ui::ClipboardFormatType::CustomPlatformType(
-          base::SysNSStringToUTF8(kUTTypeChromiumBookmarkDictionaryList)));
-
-  return *format;
-}
-
-#endif  // TOOLKIT_VIEWS
-
-// static
-bool BookmarkNodeData::ClipboardContainsBookmarks() {
+void BookmarkNodeData::ClipboardContainsBookmarks(
+    base::OnceCallback<void(bool)> callback) {
   NSPasteboard* pb =
       ui::clipboard_util::PasteboardFromBuffer(ui::ClipboardBuffer::kCopyPaste);
-  return PasteboardContainsBookmarks(pb);
+  std::move(callback).Run(PasteboardContainsBookmarks(pb));
 }
 
 void BookmarkNodeData::WriteToClipboard(bool is_off_the_record) {
   NSPasteboard* pb =
       ui::clipboard_util::PasteboardFromBuffer(ui::ClipboardBuffer::kCopyPaste);
-  WriteBookmarksToPasteboard(pb, elements, profile_path_, is_off_the_record);
+  // Copy/Cut/Paste operations do not require the profile path; writing an empty
+  // path ensures consistency with other platforms.
+  WriteBookmarksToPasteboard(pb, elements, /*profile_path=*/base::FilePath(),
+                             is_off_the_record);
 }
 
 // static
@@ -47,7 +38,9 @@ void BookmarkNodeData::ReadFromClipboard(
   auto data = std::make_unique<BookmarkNodeData>();
   base::FilePath file_path;
   if (ReadBookmarksFromPasteboard(pb, &data->elements, &file_path)) {
-    data->profile_path_ = file_path;
+    // Bookmark paste operations always use copy semantics instead of move
+    // semantics. Therefore, the paste logic does not depend on the profile path
+    // of the data source, so file_path can be ignored.
     std::move(callback).Run(std::move(data));
     return;
   }

@@ -128,14 +128,14 @@ String ReplaceAllCaseInsensitive(
     if (pos == kNotFound) {
       break;
     }
-    builder.Append(source.Substring(offset, pos - offset));
-    builder.Append(transform(source.Substring(pos, from.length())));
+    builder.Append(source.subview(offset, pos - offset));
+    builder.Append(transform(source.substr(pos, from.length())));
     offset = pos + from.length();
   }
   if (builder.empty()) {
     return source;
   }
-  builder.Append(source.Substring(offset));
+  builder.Append(source.subview(offset));
   return builder.ToString();
 }
 }  // namespace internal
@@ -1095,7 +1095,7 @@ function main(metadata) {
     return blink::internal::ReplaceAllCaseInsensitive(
         css_text.ToString(), "</style", [](const String& text) {
           // \3C = '<'.
-          return StrCat({"\\3C/", text.Substring(2)});
+          return StrCat({"\\3C/", text.subview(2)});
         });
   }
 
@@ -1143,7 +1143,7 @@ function main(metadata) {
       // that case.
       css_text.Append("@charset \"");
       css_text.Append(charset.IsValid()
-                          ? charset.GetName().GetString().LowerASCII()
+                          ? charset.GetName().GetString().ToAsciiLower()
                           : "utf-8");
       css_text.Append("\";\n\n");
 

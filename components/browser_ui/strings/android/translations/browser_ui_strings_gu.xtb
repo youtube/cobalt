@@ -125,7 +125,6 @@
 <translation id="2228071138934252756"><ph name="APP_NAME" /> તમારો કૅમેરા ઍક્સેસ કરી શકે તે માટે <ph name="BEGIN_LINK" />Android સેટિંગ<ph name="END_LINK" />માં પણ કૅમેરા ચાલુ કરો.</translation>
 <translation id="2231160360698766265">સાઇટ સંરક્ષિત કન્ટેન્ટ ચલાવી શકે છે</translation>
 <translation id="2235344399760031203">ત્રીજા પક્ષની કુકી બ્લૉક કરવામાં આવી છે</translation>
-<translation id="2238944249568001759">તમારા છેલ્લા ટૅબ પર આધારિત સૂચવેલી શોધ</translation>
 <translation id="2241587408274973373">નવા ટૅબ પેજ કાર્ડ</translation>
 <translation id="2241634353105152135">માત્ર એક વખત</translation>
 <translation id="2253414712144136228"><ph name="NAME_OF_LIST_ITEM" /> કાઢી નાખો</translation>
@@ -214,7 +213,6 @@
 <translation id="3069226013421428034">ચોક્કસ સાઇટ માટે ત્રીજા પક્ષ દ્વારા સાઇન-ઇનને મંજૂરી આપો.</translation>
 <translation id="310297983047869047">પાછલી સ્લાઇડ</translation>
 <translation id="3108122610701115301">ડિફૉલ્ટ સેટ કરો</translation>
-<translation id="3109724472072898302">સંકુચિત</translation>
 <translation id="310979712355504754">બધુ ડિલીટ કરો</translation>
 <translation id="311394601889664316">સાઇટને તમારા ડિવાઇસમાંની ફાઇલો કે ફોલ્ડરોમાં ફેરફાર કરવાની મંજૂરી આપશો નહીં</translation>
 <translation id="3114012059975132928">વીડિયો પ્લેયર</translation>
@@ -262,13 +260,13 @@
 <translation id="3602290021589620013">પ્રીવ્યૂ કરો</translation>
 <translation id="3611658447322220736">તાજેતરમાં બંધ કરેલી સાઇટ ડેટા મોકલવાનું અને મેળવવાનું પૂર્ણ કરી શકે છે</translation>
 <translation id="3619294456800709762">સાઇટ ચિત્ર-માં-ચિત્ર મોડમાં ઑટોમૅટિક રીતે દાખલ થઈ શકે છે</translation>
-<translation id="3628308229821498208">સૂચવેલી શોધ</translation>
 <translation id="3632460243282703117">સબ્સ્ક્રાઇબ કરો</translation>
 <translation id="363748948745453283">અંદાજિત લોકેશનનો ઉપયોગ કરું છું</translation>
 <translation id="3641456520301071208">સાઇટ તમારા સ્થાનની માહિતી પૂછી શકે છે</translation>
 <translation id="3658847490588580244">ડિફૉલ્ટ બ્રાઉઝરની બોટમ શીટ</translation>
 <translation id="3669841141196828854">{COUNT,plural, =1{<ph name="RWS_OWNER" />ના સાઇટના ગ્રૂપમાંની <ph name="RWS_MEMBERS_COUNT" /> સાઇટ, જે ગ્રૂપમાંની તમારી ઍક્ટિવિટી જોઈ શકે છે}one{<ph name="RWS_OWNER" />ના સાઇટના ગ્રૂપમાંની <ph name="RWS_MEMBERS_COUNT" /> સાઇટ, જે ગ્રૂપમાંની તમારી ઍક્ટિવિટી જોઈ શકે છે}other{<ph name="RWS_OWNER" />ના સાઇટના ગ્રૂપમાંની <ph name="RWS_MEMBERS_COUNT" /> સાઇટ, જે ગ્રૂપમાંની તમારી ઍક્ટિવિટી જોઈ શકે છે}}</translation>
 <translation id="3676777756440746804">આ સાઇટને, તેમણે તમારા વિશે સાચવેલી માહિતીનો ઉપયોગ કરવા માટે તમને પૂછવાથી બ્લૉક કરવામાં આવી છે</translation>
+<translation id="3677897809642449131">મોશન સેન્સરનો ઉપયોગ કરવાનું સાઇટ પૂછી શકે છે</translation>
 <translation id="3678318839615834650">નવા ટૅબ પેજ કાર્ડની બોટમ શીટ સંપૂર્ણ ઊંચાઈએ ખોલવામાં આવી</translation>
 <translation id="3697164069658504920">ચાલુ હોય ત્યારે, સાઇટ USB ડિવાઇસનો ઉપયોગ કરવાનું પૂછી શકે છે. બંધ હોય ત્યારે, સાઇટ USB ડિવાઇસનો ઉપયોગ કરી શકતી નથી.</translation>
 <translation id="3703430731944883733">તમારા ફીડને મેનેજ કરો</translation>
@@ -444,7 +442,6 @@
 <translation id="5515432237048785579">Discover ફીડની બોટમ શીટ સંપૂર્ણ ઊંચાઈએ ખોલવામાં આવી</translation>
 <translation id="5516455585884385570">નોટિફિકેશનના સેટિંગ ખોલો</translation>
 <translation id="5527111080432883924">સાઇટને ક્લિપબોર્ડ પરની ટેક્સ્ટ અને છબીઓને વાંચવાની મંજૂરી આપતાં પહેલાં પૂછો (સુઝાવ આપેલો છે)</translation>
-<translation id="5553374991681107062">નવીનતમ</translation>
 <translation id="5555115555607204100">Chromeના V8 એન્જિન વડે સાઇટની ગતિ ન વધારો, પણ Chromeને અટૅક પ્રતિ થોડું વધુ પ્રતિરોધક બનાવો</translation>
 <translation id="5556459405103347317">ફરીથી લોડ કરો</translation>
 <translation id="5591840828808741583"><ph name="SITE_NAME" /> બ્લૉક કરી</translation>
@@ -490,6 +487,7 @@
 <translation id="5922853908706496913">તમારી સ્ક્રીન શેર કરીએ છીએ</translation>
 <translation id="5922967540311291836">ત્રીજા પક્ષની કુકીને બ્લૉક કરો:</translation>
 <translation id="5923512600150154850">આમ કરવાથી સાઇટ દ્વારા સ્ટોર કરવામાં આવેલા <ph name="DATASIZE" /> ડેટા અને કુકીને ડિલીટ કરવામાં આવશે.</translation>
+<translation id="5930707844513754220">સેટઅપની વધુ સૂચિ જુઓ</translation>
 <translation id="5939518447894949180">રીસેટ કરો</translation>
 <translation id="5948139900367969951">તમારા માટે મહત્ત્વપૂર્ણ હોય તે ઝડપથી મેળવો</translation>
 <translation id="5964247741333118902">શામેલ કરેલું કન્ટેન્ટ</translation>
@@ -498,6 +496,7 @@
 <translation id="5976059395673079613"><ph name="PERMISSION" /> - <ph name="WARNING_MESSAGE" /></translation>
 <translation id="5998071268779572583">Discover ફીડ ચાલુ કરો</translation>
 <translation id="6012967556075291653">પિન કરેલો શૉર્ટકટ</translation>
+<translation id="6013003831291591200">કાર્ય પૂર્ણ થયું</translation>
 <translation id="6015775454662021376">આ સાઇટના તમારા ડિવાઇસના ઍક્સેસનું નિયંત્રણ કરો</translation>
 <translation id="6022659036123304283">Chromeને તમારી જરૂરિયાત અનુરૂપ બનાવો</translation>
 <translation id="6040143037577758943">બંધ કરો</translation>
@@ -522,7 +521,6 @@
 <translation id="6231752747840485235">'<ph name="APP_NAME" />' અનઇન્સ્ટૉલ કરીએ?</translation>
 <translation id="6234351944623978659">ઍપ બ્રાઉઝ કરો &gt; Chrome પર ટૅપ કરો</translation>
 <translation id="6260830281887654268">નવા ટૅબ પેજના દેખાવની થીમના સંગ્રહોની બોટમ શીટ અડધી ઊંચાઈએ ખૂલી ગઈ છે</translation>
-<translation id="6262191102408817757">તમારા છેલ્લા ટૅબના આધારે</translation>
 <translation id="6262279340360821358"><ph name="PERMISSION_1" /> અને <ph name="PERMISSION_2" />ને બ્લૉક કર્યા</translation>
 <translation id="6270391203985052864">સાઇટ તમને નોટિફિકેશન મોકલવા માટે પૂછી શકે છે</translation>
 <translation id="6295158916970320988">બધી સાઇટ</translation>
@@ -602,7 +600,6 @@
 <translation id="7180611975245234373">રિફ્રેશ કરો</translation>
 <translation id="7188508872042490670">ડિવાઇસ પર સાઇટનો ડેટા</translation>
 <translation id="7201549776650881587">આ ક્રિયાના પરિણામે <ph name="ORIGIN" /> હેઠળની બધી સાઇટ અથવા તેની ઍપ દ્વારા તમારી હોમ સ્ક્રીન પર સ્ટોર કરવામાં આવેલો બધો ડેટા અને કુકી ડિલીટ થઈ જશે</translation>
-<translation id="7203150201908454328">વિસ્તૃત કરેલ</translation>
 <translation id="7213166370492037743">તમારા સ્થાનિક નેટવર્ક પરના કોઈપણ ડિવાઇસ સાથે સાઇટને કનેક્ટ થવાની મંજૂરી આપશો નહીં</translation>
 <translation id="7219254577985949841">શું સાઇટનો ડેટા ડિલીટ કરીએ?</translation>
 <translation id="723171743924126238">છબીઓ પસંદ કરો</translation>
@@ -676,7 +673,6 @@
 <translation id="8007176423574883786">આ ઉપકરણ માટે બંધ કર્યું</translation>
 <translation id="802154636333426148">ડાઉનલોડ નિષ્ફળ થયું</translation>
 <translation id="8033047164036749181">આ સાઇટના નોટિફિકેશન માટે સબ્સ્ક્રાઇબ કરો</translation>
-<translation id="8042586301629853791">આ પ્રમાણે સૉર્ટ કરો:</translation>
 <translation id="8051193500142930381">કૅમેરાની આવશ્યકતા હોય તેવી સુવિધાઓ કાર્ય નહીં કરે</translation>
 <translation id="8056330801132235235">Chrome ડિફૉલ્ટ</translation>
 <translation id="8067883171444229417">વીડિયો ચલાવો</translation>
@@ -748,6 +744,7 @@
 <translation id="8707904142362025782">સાઇટ તમારા કૅમેરા માટે પૂછી શકે છે</translation>
 <translation id="8712637175834984815">સમજાઈ ગયું</translation>
 <translation id="8715862698998036666">સૌથી ઉપરની બાજુએથી ખેંચો અને પૂર્ણ સ્ક્રીનમાંથી બહાર નીકળવા માટે ડાબી અથવા જમણી કિનારીએથી સ્વાઇપ કરો.</translation>
+<translation id="8716050156658570300">મોશન અને લાઇટ સેન્સરનો ઉપયોગ કરવાનું સાઇટ પૂછી શકે છે</translation>
 <translation id="8719283222052720129"><ph name="BEGIN_LINK" />Android સેટિંગ<ph name="END_LINK" />માં <ph name="APP_NAME" /> માટે પરવાનગી ચાલુ કરો.</translation>
 <translation id="8721719390026067591">ચાલુ હોય ત્યારે, સાઇટ બ્લૂટૂથ ડિવાઇસ શોધવાનું પૂછી શકે છે. બંધ હોય ત્યારે, સાઇટ બ્લૂટૂથ ડિવાઇસ શોધી શકતી નથી.</translation>
 <translation id="8725066075913043281">ફરી પ્રયાસ કરો</translation>

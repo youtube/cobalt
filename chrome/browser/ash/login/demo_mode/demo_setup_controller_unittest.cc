@@ -9,6 +9,7 @@
 
 #include "ash/constants/ash_pref_names.h"
 #include "ash/constants/ash_switches.h"
+#include "base/check_deref.h"
 #include "base/files/file_path.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
@@ -18,7 +19,6 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_command_line.h"
 #include "base/test/scoped_feature_list.h"
-#include "base/test/task_environment.h"
 #include "chrome/browser/ash/login/demo_mode/demo_mode_test_utils.h"
 #include "chrome/browser/ash/login/demo_mode/demo_session.h"
 #include "chrome/browser/ash/login/enrollment/enrollment_launcher.h"
@@ -36,6 +36,7 @@
 #include "chromeos/constants/chromeos_features.h"
 #include "components/policy/core/common/cloud/mock_cloud_policy_store.h"
 #include "components/prefs/pref_service.h"
+#include "content/public/test/browser_task_environment.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -129,9 +130,23 @@ class DemoSetupControllerTest : public testing::Test {
     SessionManagerClient::InitializeFake();
     DeviceSettingsService::Initialize();
     policy::EnrollmentRequisitionManager::Initialize();
+
+    TestingBrowserProcess::GetGlobal()
+        ->platform_part()
+        ->InitializeComponentManager();
+    tested_controller_.emplace(
+        TestingBrowserProcess::GetGlobal()->local_state(),
+        TestingBrowserProcess::GetGlobal()
+            ->platform_part()
+            ->component_manager_ash());
   }
 
   void TearDown() override {
+    tested_controller_.reset();
+    TestingBrowserProcess::GetGlobal()
+        ->platform_part()
+        ->ShutdownComponentManager();
+
     SessionManagerClient::Shutdown();
     DBusThreadManager::Shutdown();
     SystemSaltGetter::Shutdown();
@@ -143,13 +158,13 @@ class DemoSetupControllerTest : public testing::Test {
   }
 
   // Must be created first.
-  base::test::TaskEnvironment task_environment_;
+  content::BrowserTaskEnvironment task_environment_;
 
   // Mocks and helpers must outlive `tested_controller_`.
   NiceMock<MockEnrollmentLauncher> mock_enrollment_launcher_;
   DemoSetupControllerTestHelper helper_;
 
-  DemoSetupController tested_controller_;
+  std::optional<DemoSetupController> tested_controller_;
   base::test::ScopedFeatureList feature_list_;
   base::HistogramTester histogram_tester_;
 
@@ -165,8 +180,8 @@ TEST_F(DemoSetupControllerTest, OnlineSuccess) {
       enrollment_launcher_factory_override(base::BindRepeating(
           FakeEnrollmentLauncher::Create, &mock_enrollment_launcher_));
 
-  tested_controller_.set_demo_config(DemoSession::DemoModeConfig::kOnline);
-  tested_controller_.Enroll(
+  tested_controller_->set_demo_config(DemoSession::DemoModeConfig::kOnline);
+  tested_controller_->Enroll(
       base::BindOnce(&DemoSetupControllerTestHelper::OnSetupSuccess,
                      base::Unretained(&helper_)),
       base::BindOnce(&DemoSetupControllerTestHelper::OnSetupError,
@@ -205,8 +220,8 @@ TEST_F(DemoSetupControllerTest, OnlineErrorDefault) {
       enrollment_launcher_factory_override(base::BindRepeating(
           FakeEnrollmentLauncher::Create, &mock_enrollment_launcher_));
 
-  tested_controller_.set_demo_config(DemoSession::DemoModeConfig::kOnline);
-  tested_controller_.Enroll(
+  tested_controller_->set_demo_config(DemoSession::DemoModeConfig::kOnline);
+  tested_controller_->Enroll(
       base::BindOnce(&DemoSetupControllerTestHelper::OnSetupSuccess,
                      base::Unretained(&helper_)),
       base::BindOnce(&DemoSetupControllerTestHelper::OnSetupError,
@@ -251,8 +266,8 @@ TEST_F(DemoSetupControllerTest, OnlineErrorPowerwashRequired) {
       enrollment_launcher_factory_override(base::BindRepeating(
           FakeEnrollmentLauncher::Create, &mock_enrollment_launcher_));
 
-  tested_controller_.set_demo_config(DemoSession::DemoModeConfig::kOnline);
-  tested_controller_.Enroll(
+  tested_controller_->set_demo_config(DemoSession::DemoModeConfig::kOnline);
+  tested_controller_->Enroll(
       base::BindOnce(&DemoSetupControllerTestHelper::OnSetupSuccess,
                      base::Unretained(&helper_)),
       base::BindOnce(&DemoSetupControllerTestHelper::OnSetupError,
@@ -297,11 +312,11 @@ TEST_F(DemoSetupControllerTest, OnlineComponentError) {
       enrollment_launcher_factory_override(base::BindRepeating(
           FakeEnrollmentLauncher::Create, &mock_enrollment_launcher_));
 
-  tested_controller_.set_demo_config(DemoSession::DemoModeConfig::kOnline);
-  tested_controller_.SetCrOSComponentLoadErrorForTest(
+  tested_controller_->set_demo_config(DemoSession::DemoModeConfig::kOnline);
+  tested_controller_->SetCrOSComponentLoadErrorForTest(
       component_updater::ComponentManagerAsh::Error::
           COMPATIBILITY_CHECK_FAILED);
-  tested_controller_.Enroll(
+  tested_controller_->Enroll(
       base::BindOnce(&DemoSetupControllerTestHelper::OnSetupSuccess,
                      base::Unretained(&helper_)),
       base::BindOnce(&DemoSetupControllerTestHelper::OnSetupError,
@@ -330,8 +345,8 @@ TEST_F(DemoSetupControllerTest, EnrollTwice) {
       enrollment_launcher_factory_override(base::BindRepeating(
           FakeEnrollmentLauncher::Create, &mock_enrollment_launcher_));
 
-  tested_controller_.set_demo_config(DemoSession::DemoModeConfig::kOnline);
-  tested_controller_.Enroll(
+  tested_controller_->set_demo_config(DemoSession::DemoModeConfig::kOnline);
+  tested_controller_->Enroll(
       base::BindOnce(&DemoSetupControllerTestHelper::OnSetupSuccess,
                      base::Unretained(&helper_)),
       base::BindOnce(&DemoSetupControllerTestHelper::OnSetupError,
@@ -373,8 +388,8 @@ TEST_F(DemoSetupControllerTest, EnrollTwice) {
   SetupDemoModeOnlineEnrollment(&mock_enrollment_launcher_,
                                 DemoModeSetupResult::SUCCESS);
 
-  tested_controller_.set_demo_config(DemoSession::DemoModeConfig::kOnline);
-  tested_controller_.Enroll(
+  tested_controller_->set_demo_config(DemoSession::DemoModeConfig::kOnline);
+  tested_controller_->Enroll(
       base::BindOnce(&DemoSetupControllerTestHelper::OnSetupSuccess,
                      base::Unretained(&helper_)),
       base::BindOnce(&DemoSetupControllerTestHelper::OnSetupError,
@@ -415,7 +430,8 @@ TEST_F(DemoSetupControllerTest, EnrollTwice) {
 }
 
 TEST_F(DemoSetupControllerTest, GetSubOrganizationEmail) {
-  std::string email = DemoSetupController::GetSubOrganizationEmail();
+  std::string email = DemoSetupController::GetSubOrganizationEmail(
+      CHECK_DEREF(TestingBrowserProcess::GetGlobal()->local_state()));
 
   // kDemoModeCountry defaults to "US".
   EXPECT_EQ(email, "admin-us@cros-demo-mode.com");
@@ -429,7 +445,8 @@ TEST_F(DemoSetupControllerTest, GetSubOrganizationEmail) {
   for (auto country : testing_supported_countries) {
     g_browser_process->local_state()->SetString(prefs::kDemoModeCountry,
                                                 country);
-    email = DemoSetupController::GetSubOrganizationEmail();
+    email = DemoSetupController::GetSubOrganizationEmail(
+        CHECK_DEREF(TestingBrowserProcess::GetGlobal()->local_state()));
 
     std::string country_lowercase = base::ToLowerASCII(country);
     EXPECT_EQ(email,
@@ -438,23 +455,27 @@ TEST_F(DemoSetupControllerTest, GetSubOrganizationEmail) {
 
   // Test unsupported country string.
   g_browser_process->local_state()->SetString(prefs::kDemoModeCountry, "KR");
-  email = DemoSetupController::GetSubOrganizationEmail();
+  email = DemoSetupController::GetSubOrganizationEmail(
+      CHECK_DEREF(TestingBrowserProcess::GetGlobal()->local_state()));
   EXPECT_EQ(email, "");
 
   // Test unsupported region string.
   g_browser_process->local_state()->SetString(prefs::kDemoModeCountry,
                                               "NORDIC");
-  email = DemoSetupController::GetSubOrganizationEmail();
+  email = DemoSetupController::GetSubOrganizationEmail(
+      CHECK_DEREF(TestingBrowserProcess::GetGlobal()->local_state()));
   EXPECT_EQ(email, "");
 
   // Test random string.
   g_browser_process->local_state()->SetString(prefs::kDemoModeCountry, "foo");
-  email = DemoSetupController::GetSubOrganizationEmail();
+  email = DemoSetupController::GetSubOrganizationEmail(
+      CHECK_DEREF(TestingBrowserProcess::GetGlobal()->local_state()));
   EXPECT_EQ(email, "");
 }
 
 TEST_F(DemoSetupControllerTest, GetSubOrganizationEmailWithLowercase) {
-  std::string email = DemoSetupController::GetSubOrganizationEmail();
+  std::string email = DemoSetupController::GetSubOrganizationEmail(
+      CHECK_DEREF(TestingBrowserProcess::GetGlobal()->local_state()));
 
   // kDemoModeCountry defaults to "US".
   EXPECT_EQ(email, "admin-us@cros-demo-mode.com");
@@ -467,14 +488,16 @@ TEST_F(DemoSetupControllerTest, GetSubOrganizationEmailWithLowercase) {
   for (auto country : testing_supported_countries) {
     g_browser_process->local_state()->SetString(prefs::kDemoModeCountry,
                                                 country);
-    email = DemoSetupController::GetSubOrganizationEmail();
+    email = DemoSetupController::GetSubOrganizationEmail(
+        CHECK_DEREF(TestingBrowserProcess::GetGlobal()->local_state()));
 
     EXPECT_EQ(email, "admin-" + country + "@" + policy::kDemoModeDomain);
   }
 
   // Test unsupported country string.
   g_browser_process->local_state()->SetString(prefs::kDemoModeCountry, "kr");
-  email = DemoSetupController::GetSubOrganizationEmail();
+  email = DemoSetupController::GetSubOrganizationEmail(
+      CHECK_DEREF(TestingBrowserProcess::GetGlobal()->local_state()));
   EXPECT_EQ(email, "");
 }
 
@@ -492,7 +515,8 @@ TEST_F(DemoSetupControllerTest, GetSubOrganizationEmailForBlazeyDevice) {
   for (auto country : testing_supported_countries) {
     g_browser_process->local_state()->SetString(prefs::kDemoModeCountry,
                                                 country);
-    email = DemoSetupController::GetSubOrganizationEmail();
+    email = DemoSetupController::GetSubOrganizationEmail(
+        CHECK_DEREF(TestingBrowserProcess::GetGlobal()->local_state()));
 
     std::string country_lowercase = base::ToLowerASCII(country);
     EXPECT_EQ(email, "admin-" + country_lowercase + "-blazey@" +
@@ -501,18 +525,21 @@ TEST_F(DemoSetupControllerTest, GetSubOrganizationEmailForBlazeyDevice) {
 
   // Test unsupported country string.
   g_browser_process->local_state()->SetString(prefs::kDemoModeCountry, "KR");
-  email = DemoSetupController::GetSubOrganizationEmail();
+  email = DemoSetupController::GetSubOrganizationEmail(
+      CHECK_DEREF(TestingBrowserProcess::GetGlobal()->local_state()));
   EXPECT_EQ(email, "");
 
   // Test unsupported region string.
   g_browser_process->local_state()->SetString(prefs::kDemoModeCountry,
                                               "NORDIC");
-  email = DemoSetupController::GetSubOrganizationEmail();
+  email = DemoSetupController::GetSubOrganizationEmail(
+      CHECK_DEREF(TestingBrowserProcess::GetGlobal()->local_state()));
   EXPECT_EQ(email, "");
 
   // Test random string.
   g_browser_process->local_state()->SetString(prefs::kDemoModeCountry, "foo");
-  email = DemoSetupController::GetSubOrganizationEmail();
+  email = DemoSetupController::GetSubOrganizationEmail(
+      CHECK_DEREF(TestingBrowserProcess::GetGlobal()->local_state()));
   EXPECT_EQ(email, "");
 }
 
@@ -521,7 +548,8 @@ TEST_F(DemoSetupControllerTest, GetSubOrganizationEmailForCustomOU) {
   command_line.GetProcessCommandLine()->AppendSwitchASCII(
       switches::kDemoModeEnrollingUsername, "test-user-name");
 
-  std::string email = DemoSetupController::GetSubOrganizationEmail();
+  std::string email = DemoSetupController::GetSubOrganizationEmail(
+      CHECK_DEREF(TestingBrowserProcess::GetGlobal()->local_state()));
   EXPECT_EQ(email, "test-user-name@cros-demo-mode.com");
 }
 
@@ -533,10 +561,10 @@ TEST_F(DemoSetupControllerTest, OnlineSuccessWithValidRetailerAndStore) {
       enrollment_launcher_factory_override(base::BindRepeating(
           FakeEnrollmentLauncher::Create, &mock_enrollment_launcher_));
 
-  tested_controller_.set_demo_config(DemoSession::DemoModeConfig::kOnline);
-  tested_controller_.SetAndCanonicalizeRetailerName("Retailer");
-  tested_controller_.set_store_number("1234");
-  tested_controller_.Enroll(
+  tested_controller_->set_demo_config(DemoSession::DemoModeConfig::kOnline);
+  tested_controller_->SetAndCanonicalizeRetailerName("Retailer");
+  tested_controller_->set_store_number("1234");
+  tested_controller_->Enroll(
       base::BindOnce(&DemoSetupControllerTestHelper::OnSetupSuccess,
                      base::Unretained(&helper_)),
       base::BindOnce(&DemoSetupControllerTestHelper::OnSetupError,
@@ -568,8 +596,8 @@ class RetailerNameCanonicalizationTest
 };
 
 TEST_P(RetailerNameCanonicalizationTest, SetAndCanonicalizeRetailerName) {
-  tested_controller_.SetAndCanonicalizeRetailerName(GetParam().retailer_name);
-  ASSERT_EQ(tested_controller_.get_retailer_name_for_testing(),
+  tested_controller_->SetAndCanonicalizeRetailerName(GetParam().retailer_name);
+  ASSERT_EQ(tested_controller_->get_retailer_name_for_testing(),
             GetParam().canonicalized_retailer_name);
 }
 

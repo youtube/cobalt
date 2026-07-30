@@ -1954,7 +1954,7 @@ TEST_F(LayerContextImplUpdateDisplayTreeTileDisplayLayerPropertiesTest,
   auto* tile_display_layer_impl =
       static_cast<cc::TileDisplayLayerImpl*>(layer_impl_base);
 
-  EXPECT_FALSE(tile_display_layer_impl->nearest_neighbor());
+  EXPECT_FALSE(tile_display_layer_impl->GetNearestNeighbor());
 
   // Second update: Set nearest_neighbor to true.
   auto update2 = CreateDefaultUpdate();
@@ -1969,7 +1969,7 @@ TEST_F(LayerContextImplUpdateDisplayTreeTileDisplayLayerPropertiesTest,
   EXPECT_TRUE(
       layer_context_impl_->DoUpdateDisplayTree(std::move(update2)).has_value());
 
-  EXPECT_TRUE(tile_display_layer_impl->nearest_neighbor());
+  EXPECT_TRUE(tile_display_layer_impl->GetNearestNeighbor());
 
   // Third update: Set nearest_neighbor to false.
   auto update3 = CreateDefaultUpdate();
@@ -1984,7 +1984,7 @@ TEST_F(LayerContextImplUpdateDisplayTreeTileDisplayLayerPropertiesTest,
   EXPECT_TRUE(
       layer_context_impl_->DoUpdateDisplayTree(std::move(update3)).has_value());
 
-  EXPECT_FALSE(tile_display_layer_impl->nearest_neighbor());
+  EXPECT_FALSE(tile_display_layer_impl->GetNearestNeighbor());
 }
 
 TEST_F(LayerContextImplUpdateDisplayTreeTileDisplayLayerPropertiesTest,
@@ -2168,8 +2168,8 @@ TEST_F(LayerContextImplUpdateDisplayTreeTilingTest, TilingAndTileLifecycle) {
   EXPECT_EQ(tiling_impl1->tile_size(), kTileSize1);
   EXPECT_EQ(tiling_impl1->tiling_rect(), kTilingRect1);
   ASSERT_NE(nullptr, tiling_impl1->TileAt(kTileIndex1));
-  EXPECT_TRUE(tiling_impl1->TileAt(kTileIndex1)->solid_color().has_value());
-  EXPECT_EQ(tiling_impl1->TileAt(kTileIndex1)->solid_color().value(),
+  EXPECT_TRUE(tiling_impl1->TileAt(kTileIndex1)->GetSolidColor().has_value());
+  EXPECT_EQ(tiling_impl1->TileAt(kTileIndex1)->GetSolidColor().value(),
             SkColors::kMagenta);
 
   // Test Case 2: Update existing Tiling (tile_size) and add a Resource Tile.
@@ -2294,7 +2294,7 @@ TEST_F(LayerContextImplUpdateDisplayTreeTilingTest, TilingAndTileLifecycle) {
   tiling_impl1 = tile_display_layer_impl->GetTilingForTesting(kScaleKey1);
   ASSERT_NE(nullptr, tiling_impl1);
   ASSERT_NE(nullptr, tiling_impl1->TileAt(kTileIndex1));
-  EXPECT_TRUE(tiling_impl1->TileAt(kTileIndex1)->solid_color().has_value());
+  EXPECT_TRUE(tiling_impl1->TileAt(kTileIndex1)->GetSolidColor().has_value());
 
   // Now, update that tile to be a resource tile.
   auto update_change_tile_type = CreateDefaultUpdate();
@@ -2319,7 +2319,7 @@ TEST_F(LayerContextImplUpdateDisplayTreeTilingTest, TilingAndTileLifecycle) {
                   ->DoUpdateDisplayTree(std::move(update_change_tile_type))
                   .has_value());
   ASSERT_NE(nullptr, tiling_impl1->TileAt(kTileIndex1));
-  EXPECT_FALSE(tiling_impl1->TileAt(kTileIndex1)->solid_color().has_value());
+  EXPECT_FALSE(tiling_impl1->TileAt(kTileIndex1)->GetSolidColor().has_value());
   EXPECT_TRUE(tiling_impl1->TileAt(kTileIndex1)->resource().has_value());
 
   // Test Case 7: Attempt to add a tile with an invalid resource ID.
@@ -4387,8 +4387,7 @@ INSTANTIATE_TEST_SUITE_P(
     LayerContextImplUpdateDisplayTreeInvalidBrowserControlsTest,
     ::testing::Values(std::numeric_limits<float>::infinity(),
                       -std::numeric_limits<float>::infinity(),
-                      std::numeric_limits<float>::quiet_NaN(),
-                      -1.0f),
+                      std::numeric_limits<float>::quiet_NaN()),
     [](const testing::TestParamInfo<
         LayerContextImplUpdateDisplayTreeInvalidBrowserControlsTest::ParamType>&
            info) {
@@ -4398,28 +4397,47 @@ INSTANTIATE_TEST_SUITE_P(
       if (std::isnan(info.param)) {
         return "NaN";
       }
-      if (info.param < 0.0f) {
-        return "Negative";
-      }
       return "Other";
     });
 
-TEST_F(LayerContextImplTest, InvalidMinMaxBrowserControlsHeight) {
+TEST_F(LayerContextImplTest, ClampedMinMaxBrowserControlsHeight) {
   auto update = CreateDefaultUpdate();
   update->browser_controls_params.top_controls_height = 10.f;
   update->browser_controls_params.top_controls_min_height = 20.f;
 
   auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
-  ASSERT_FALSE(result.has_value());
-  EXPECT_EQ(result.error(), "Invalid browser controls params");
+  ASSERT_TRUE(result.has_value());
+  const auto& params = layer_context_impl_->host_impl()
+                           ->active_tree()
+                           ->browser_controls_params();
+  EXPECT_EQ(params.top_controls_height, 10.f);
+  EXPECT_EQ(params.top_controls_min_height, 10.f);
 
   update = CreateDefaultUpdate();
   update->browser_controls_params.bottom_controls_height = 10.f;
   update->browser_controls_params.bottom_controls_min_height = 20.f;
 
   result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
-  ASSERT_FALSE(result.has_value());
-  EXPECT_EQ(result.error(), "Invalid browser controls params");
+  ASSERT_TRUE(result.has_value());
+  const auto& params2 = layer_context_impl_->host_impl()
+                            ->active_tree()
+                            ->browser_controls_params();
+  EXPECT_EQ(params2.bottom_controls_height, 10.f);
+  EXPECT_EQ(params2.bottom_controls_min_height, 10.f);
+}
+
+TEST_F(LayerContextImplTest, NegativeBrowserControlsHeight) {
+  auto update = CreateDefaultUpdate();
+  update->browser_controls_params.top_controls_height = -10.f;
+  update->browser_controls_params.top_controls_min_height = -5.f;
+
+  auto result = layer_context_impl_->DoUpdateDisplayTree(std::move(update));
+  ASSERT_TRUE(result.has_value());
+  const auto& params = layer_context_impl_->host_impl()
+                           ->active_tree()
+                           ->browser_controls_params();
+  EXPECT_EQ(params.top_controls_height, 0.f);
+  EXPECT_EQ(params.top_controls_min_height, 0.f);
 }
 
 class LayerContextImplUpdateDisplayTreeInvalidElasticOverscrollTest

@@ -111,7 +111,7 @@ class AutofillAiSuggestionGeneratorTest : public testing::Test {
             webdata_helper_.autofill_webdata_service(),
             /*history_service=*/nullptr,
             /*strike_database=*/nullptr,
-            /*accessibility_annotator_data_adapter=*/nullptr,
+            /*accessibility_annotator_service=*/nullptr,
             /*variation_country_code=*/GeoIpCountryCode("US")));
     autofill_client_.SetUpPrefsAndIdentityForAutofillAi();
     generator_ = std::make_unique<AutofillAiSuggestionGenerator>();
@@ -377,7 +377,7 @@ TEST_F(AutofillAiSuggestionGeneratorTest, GetFillingSuggestion_PassportEntity) {
   const Suggestion::AutofillAiPayload* payload =
       std::get_if<Suggestion::AutofillAiPayload>(&suggestions[0].payload);
   ASSERT_TRUE(payload);
-  EXPECT_THAT(suggestions[0], HasIcon(Suggestion::Icon::kIdCard));
+  EXPECT_THAT(suggestions[0], HasIcon(Suggestion::Icon::kPassport));
 
   // The triggering/first field is of Autofill AI type.
   EXPECT_EQ(GetFillValueForField(*payload, field(0)),

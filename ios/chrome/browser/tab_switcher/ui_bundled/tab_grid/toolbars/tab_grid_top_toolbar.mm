@@ -339,15 +339,18 @@ CGFloat HorizontalMargin() {
   NSArray<UITrait>* traits = TraitCollectionSetForTraits(
       @[ UITraitVerticalSizeClass.class, UITraitHorizontalSizeClass.class ]);
   __weak TabGridTopToolbar* weakSelf = self;
-  [weakSelf
-      registerForTraitChanges:traits
-                  withHandler:^(id<UITraitEnvironment> traitEnvironment,
-                                UITraitCollection* previousCollection) {
-                    [weakSelf
-                        setButtonsForTraitCollection:weakSelf.traitCollection];
-                  }];
+  [weakSelf registerForTraitChanges:traits
+                         withAction:@selector(setNeedsLayout)];
 
   [super didMoveToSuperview];
+}
+
+- (void)layoutSubviews {
+  [super layoutSubviews];
+  // Perform updates during the layout phase to avoid re-entrancy issues
+  // during trait collection changes.
+  __weak TabGridTopToolbar* weakSelf = self;
+  [weakSelf setButtonsForTraitCollection:weakSelf.traitCollection];
 }
 
 #pragma mark - Private

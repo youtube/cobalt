@@ -47,12 +47,11 @@ void PermissionDialogJavaDelegate::CreateJavaDelegate(
       permission_prompt_->GetContentSettingTypes(env),
       PermissionsClient::Get()->MapToJavaDrawableId(
           permission_prompt_->GetIconId()),
-      ConvertUTF16ToJavaString(
-          env, permission_prompt_->GetAnnotatedMessageText().text),
+      permission_prompt_->GetAnnotatedMessageText().text,
       permission_prompt_->GetBoldRanges(env),
-      permission_prompt_->GetPositiveButtonText(env, is_one_time),
-      permission_prompt_->GetNegativeButtonText(env, is_one_time),
-      permission_prompt_->GetPositiveEphemeralButtonText(env, is_one_time),
+      permission_prompt_->GetPositiveButtonText(is_one_time),
+      permission_prompt_->GetNegativeButtonText(is_one_time),
+      permission_prompt_->GetPositiveEphemeralButtonText(is_one_time),
       /*showPositiveNonEphemeralAsFirstButton=*/is_one_time,
       static_cast<int>(permission_prompt_->GetEmbeddedPromptVariant())));
 }
@@ -128,12 +127,11 @@ void PermissionDialogJavaDelegate::UpdateDialog() {
       env, j_delegate_, permission_prompt_->GetContentSettingTypes(env),
       PermissionsClient::Get()->MapToJavaDrawableId(
           permission_prompt_->GetIconId()),
-      ConvertUTF16ToJavaString(
-          env, permission_prompt_->GetAnnotatedMessageText().text),
+      permission_prompt_->GetAnnotatedMessageText().text,
       permission_prompt_->GetBoldRanges(env),
-      permission_prompt_->GetPositiveButtonText(env, is_one_time),
-      permission_prompt_->GetNegativeButtonText(env, is_one_time),
-      permission_prompt_->GetPositiveEphemeralButtonText(env, is_one_time),
+      permission_prompt_->GetPositiveButtonText(is_one_time),
+      permission_prompt_->GetNegativeButtonText(is_one_time),
+      permission_prompt_->GetPositiveEphemeralButtonText(is_one_time),
       /*showPositiveNonEphemeralAsFirstButton=*/is_one_time,
       static_cast<int>(permission_prompt_->GetEmbeddedPromptVariant()));
 }
@@ -306,6 +304,15 @@ int32_t PermissionDialogDelegate::GetInitialGeolocationAccuracySelection(
            ContentSettingsType::GEOLOCATION_WITH_OPTIONS);
   return static_cast<int>(
       permission_prompt_->GetInitialGeolocationAccuracySelection());
+}
+
+bool PermissionDialogDelegate::ShouldShowLocationPrecisionSelector(
+    JNIEnv* env) const {
+  CHECK(permission_prompt_);
+  CHECK_EQ(permission_prompt_->PermissionCount(), 1u);
+  return permission_prompt_->GetContentSettingType(0) ==
+             ContentSettingsType::GEOLOCATION_WITH_OPTIONS &&
+         permission_prompt_->ShouldShowLocationPrecisionSelector();
 }
 
 }  // namespace permissions

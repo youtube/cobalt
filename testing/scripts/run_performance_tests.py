@@ -100,6 +100,7 @@ else:
 
 SHARD_MAPS_DIR = CHROMIUM_SRC_DIR / 'tools/perf/core/shard_maps'
 CROSSBENCH_TOOL = CHROMIUM_SRC_DIR / 'third_party/crossbench/cb.py'
+ALUM_RUNNER = CHROMIUM_SRC_DIR / 'tools/perf/web_tests_cuj.py'
 ADB_TOOL = THIRD_PARTY_DIR / 'android_sdk/public/platform-tools/adb'
 BUNDLETOOL = THIRD_PARTY_DIR / 'android_build_tools/bundletool/cipd/bundletool.jar'  # pylint: disable=line-too-long
 GSUTIL_DIR = THIRD_PARTY_DIR / 'catapult/third_party/gsutil'
@@ -771,17 +772,21 @@ class CrossbenchTest(object):
     self.isolated_out_dir = isolated_out_dir
     self.is_chrome = (not self.cb_options.official_browser
                       or self.cb_options.official_browser.startswith('chrome'))
-    self.env = self._create_env_arg()
     if self.options.luci_chromium:
       # In luci.chromium the Chrome and driver are in the user path.
       self.browser = '--browser=%s' % get_abs_user_path('chrome')
       driver_path = get_abs_user_path('chromedriver')
       self.driver_path_arg = [f'--driver-path={driver_path}']
       self.is_android = False
+    elif self._is_alum():
+      self.is_android = True
+      # TODO(crbug.com/435031130): Experimenting.
+      self._find_browser('android-trichrome-chrome-google-64-32-bundle')
     else:
       browser_arg = _get_browser_arg(options.passthrough_args)
       self.is_android = _is_android(browser_arg)
       self._find_browser(browser_arg)
+    self.env = self._create_env_arg()
     self.network = self._get_network_arg(options.passthrough_args)
 
   def _parse_arguments(self):
@@ -808,6 +813,10 @@ class CrossbenchTest(object):
         action='extend',
         nargs=1,
         help='Additional arguments to pass to the browser when it starts')
+    parser.add_argument('--web-tests-cuj',
+                        action='store_true',
+                        default=False,
+                        help=f'Use {ALUM_RUNNER} to run web tests')
     self.cb_options, self.options.passthrough_args = parser.parse_known_args(
         self.options.passthrough_args)
 
@@ -835,6 +844,9 @@ class CrossbenchTest(object):
         and sys.platform == 'darwin'):
       # Set screen refresh rate to 60Hz on Mac due to crbug.com/415318275.
       return ['--env={screen_refresh_rate:60}']
+    if self.is_android:
+      # Set Android CPU governor due to crbug.com/487175106.
+      return ['--env={"cpu_power_mode":"performance"}']
     return []
 
   def _create_fileserver_network(self, arg):
@@ -1044,11 +1056,42 @@ class CrossbenchTest(object):
       return 0
     return return_code
 
+  def _is_alum(self):
+    return self.cb_options.web_tests_cuj
+
+  # TODO(crbug.com/435031130): Experimenting.
+  def execute_alum(self, display_name='SP3.1'):
+    env = os.environ.copy()
+    env['CHROME_HEADLESS'] = '1'
+    env['PATH'] = f"{GSUTIL_DIR}:{env['PATH']}"
+    output_paths = OutputFilePaths(self.isolated_out_dir, display_name).SetUp()
+    return_code = 1
+
+    command = ['vpython3', '-Xutf8'] + [ALUM_RUNNER]
+    try:
+      with open(output_paths.logs, 'w') as handle:
+        return_code = test_env.run_command_output_to_handle(command,
+                                                            handle,
+                                                            env=env)
+    except Exception:  # pylint: disable=broad-except
+      print('There was an infrastructure error encountered during the run. '
+            'Please check the logs above for details')
+      print(traceback.format_exc())
+      return 1
+
+    if return_code and self.options.ignore_benchmark_exit_code:
+      print(f'{ALUM_RUNNER} runner returned exit code {return_code}'
+            ' which indicates there were test failures in the run.')
+      return 0
+    return return_code
+
   def execute(self):
     if not self.options.benchmarks:
       raise Exception('Please use the --benchmarks to specify the benchmark.')
     if ',' in self.options.benchmarks:
       raise Exception('No support to run multiple benchmarks at this time.')
+    if self._is_alum():
+      return self.execute_alum()
     return self.execute_benchmark(
         self.options.benchmarks,
         (self.options.benchmark_display_name or self.options.benchmarks),

@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "base/base64url.h"
 #include "base/containers/span.h"
 #include "base/test/scoped_feature_list.h"
 #include "components/base32/base32.h"
@@ -372,6 +373,24 @@ TEST_F(LensOverlayRequestIdGeneratorTest,
 }
 
 TEST_F(LensOverlayRequestIdGeneratorTest,
+       SetIsImplicitUpload_SetsIsImplicitUploadOnNextRequest) {
+  lens::LensOverlayRequestIdGenerator request_id_generator;
+  request_id_generator.SetIsImplicitUpload(true);
+  std::unique_ptr<lens::LensOverlayRequestId> request_id =
+      request_id_generator.GetNextRequestId(
+          RequestIdUpdateMode::kInitialRequest,
+          lens::LensOverlayRequestId::MEDIA_TYPE_DEFAULT_IMAGE);
+  ASSERT_TRUE(request_id->is_implicit_upload());
+
+  request_id_generator.SetIsImplicitUpload(false);
+  std::unique_ptr<lens::LensOverlayRequestId> request_id2 =
+      request_id_generator.GetNextRequestId(
+          RequestIdUpdateMode::kPageContentRequest,
+          lens::LensOverlayRequestId::MEDIA_TYPE_DEFAULT_IMAGE);
+  ASSERT_FALSE(request_id2->is_implicit_upload());
+}
+
+TEST_F(LensOverlayRequestIdGeneratorTest,
        GetNextRequestIdWithMimeType_SetsMediaTypeAndMimeType) {
   lens::LensOverlayRequestIdGenerator request_id_generator;
   std::unique_ptr<lens::LensOverlayRequestId> request_id =
@@ -399,6 +418,46 @@ TEST_F(LensOverlayRequestIdGeneratorTest,
   ASSERT_EQ(second_id->media_type(),
             lens::LensOverlayRequestId::MEDIA_TYPE_DEFAULT_IMAGE);
   ASSERT_FALSE(second_id->has_mime_type());
+}
+
+TEST_F(LensOverlayRequestIdGeneratorTest, ParseRequestId_ValidRequestId) {
+  lens::LensOverlayRequestId original_request_id;
+  original_request_id.set_uuid(12345);
+  original_request_id.set_sequence_id(1);
+
+  std::string serialized_request_id;
+  ASSERT_TRUE(original_request_id.SerializeToString(&serialized_request_id));
+
+  std::string encoded_request_id;
+  base::Base64UrlEncode(serialized_request_id,
+                        base::Base64UrlEncodePolicy::OMIT_PADDING,
+                        &encoded_request_id);
+
+  std::unique_ptr<lens::LensOverlayRequestId> parsed_request_id =
+      lens::LensOverlayRequestIdGenerator::ParseRequestId(encoded_request_id);
+
+  ASSERT_NE(parsed_request_id, nullptr);
+  EXPECT_EQ(parsed_request_id->uuid(), 12345ULL);
+  EXPECT_EQ(parsed_request_id->sequence_id(), 1);
+}
+
+TEST_F(LensOverlayRequestIdGeneratorTest, ParseRequestId_InvalidBase64) {
+  std::unique_ptr<lens::LensOverlayRequestId> parsed_request_id =
+      lens::LensOverlayRequestIdGenerator::ParseRequestId("invalid base64 %$#");
+
+  EXPECT_EQ(parsed_request_id, nullptr);
+}
+
+TEST_F(LensOverlayRequestIdGeneratorTest, ParseRequestId_InvalidProto) {
+  std::string encoded_request_id;
+  base::Base64UrlEncode("not a proto",
+                        base::Base64UrlEncodePolicy::OMIT_PADDING,
+                        &encoded_request_id);
+
+  std::unique_ptr<lens::LensOverlayRequestId> parsed_request_id =
+      lens::LensOverlayRequestIdGenerator::ParseRequestId(encoded_request_id);
+
+  EXPECT_EQ(parsed_request_id, nullptr);
 }
 
 }  // namespace lens

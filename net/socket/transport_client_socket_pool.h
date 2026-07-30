@@ -210,7 +210,7 @@ class NET_EXPORT_PRIVATE TransportClientSocketPool
       scoped_refptr<SocketParams> params,
       const std::optional<NetworkTrafficAnnotationTag>& proxy_annotation_tag,
       size_t num_sockets,
-      CompletionOnceCallback callback,
+      PreconnectCompletionCallback callback,
       const NetLogWithSource& net_log) override;
   void SetPriority(const GroupId& group_id,
                    ClientSocketHandle* handle,
@@ -694,9 +694,10 @@ class NET_EXPORT_PRIVATE TransportClientSocketPool
   // reached the limit or the created connect job didn't finish synchronously.
   // In such a case, the Request with a ClientSocketHandle must be registered to
   // |group_map_| to receive the completion callback.
-  int RequestSocketInternal(const GroupId& group_id,
-                            const Request& request,
-                            base::OnceClosure preconnect_done_closure);
+  int RequestSocketInternal(
+      const GroupId& group_id,
+      const Request& request,
+      OnConnectJobCompleteCallback preconnect_done_closure);
 
   // Assigns an idle socket for the group to the request.
   // Returns |true| if an idle socket is available, false otherwise.
@@ -757,6 +758,15 @@ class NET_EXPORT_PRIVATE TransportClientSocketPool
   GroupMap::iterator RefreshGroup(GroupMap::iterator it,
                                   const base::TimeTicks& now,
                                   const char* net_log_reason_utf8);
+
+  // Called when a preconnect connect job completes.
+  void OnPreconnectConnectJobComplete(
+      PreconnectCompletionCallback callback,
+      const GroupId& group_id,
+      scoped_refptr<SocketParams> socket_params,
+      const std::optional<NetworkTrafficAnnotationTag>& proxy_annotation_tag,
+      const NetLogWithSource& net_log,
+      std::vector<int> results);
 
   GroupMap group_map_;
 

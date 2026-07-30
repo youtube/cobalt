@@ -449,7 +449,8 @@ IN_PROC_BROWSER_TEST_F(
   // Run the browser stop notification after the renderer stop notification, and
   // it should do nothing.
   worker_state->OnStoppedSync(previous_service_worker_id->version_id,
-                              sw_info.scope);
+                              sw_info.scope,
+                              *previous_service_worker_id->start_token);
 
   // Confirm after the browser stop notification that we are still no longer
   // tracking the worker.
@@ -638,7 +639,8 @@ IN_PROC_BROWSER_TEST_F(
 
   // Simulate browser stop notification after the render stop notification.
   worker_state->OnStoppedSync(stopped_service_worker_id->version_id,
-                              sw_info.scope);
+                              sw_info.scope,
+                              *stopped_service_worker_id->start_token);
 
   // Confirm the worker state still exists, and browser and renderer state
   // remain not ready.
@@ -1162,85 +1164,6 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerTrackingBrowserTest,
             ServiceWorkerState::RendererState::kNotActive);
   EXPECT_EQ(worker_state->browser_state(),
             ServiceWorkerState::BrowserState::kNotActive);
-}
-
-// Test that if a renderer start notification is received before the "renderer
-// initialized" notification, it correctly updates the worker's browser and
-// renderer active state to active. If the renderer initialize notification then
-// arrives late (and stale), everything works ok anyway.
-// Regression test for crbug.com/490089576 and crbug.com/490049530.
-IN_PROC_BROWSER_TEST_F(ServiceWorkerTrackingBrowserTest,
-                       StartArrivesBeforeInitialize) {
-  // Prevent both renderer initialize and start notifications from firing.
-  auto sw_host_factory_callback = base::BindRepeating(
-      [](content::RenderProcessHost* render_process_host,
-         mojo::PendingAssociatedReceiver<mojom::ServiceWorkerHost> receiver)
-          -> std::unique_ptr<ServiceWorkerHost> {
-        return std::make_unique<
-            ServiceWorkerHostNoInitializeAndStartNotification>(
-            render_process_host, std::move(receiver));
-      });
-  base::AutoReset<ServiceWorkerHost::FactoryCallback*> sw_host_factory =
-      ServiceWorkerHost::SetFactoryForTesting(&sw_host_factory_callback);
-
-  ServiceWorkerTaskQueue* task_queue = ServiceWorkerTaskQueue::Get(profile());
-  service_worker_test_utils::TestServiceWorkerContextObserver sw_observer(
-      profile());
-
-  // Load the extension.
-  auto test_dir = std::make_unique<TestExtensionDir>();
-  test_dir->WriteManifest(R"({
-      "name": "Test Extension",
-      "manifest_version": 3,
-      "version": "0.1",
-      "background": {
-        "service_worker" : "background.js"
-      }
-  })");
-  test_dir->WriteFile(FILE_PATH_LITERAL("background.js"), "");
-  const Extension* extension = LoadExtension(
-      test_dir->UnpackedPath(),
-      {.wait_for_renderers = false, .wait_for_registration_stored = true});
-  ASSERT_TRUE(extension);
-  extension_ = extension;
-
-  // Wait for the worker to start (via `OnVersionStartedRunning`).
-  int64_t version_id = sw_observer.WaitForWorkerStarted();
-
-  // The worker has started in the browser but renderer IPCs have not arrived.
-  ServiceWorkerState* worker_state = GetWorkerState();
-  ASSERT_TRUE(worker_state);
-  EXPECT_TRUE(worker_state->worker_id());
-  EXPECT_EQ(worker_state->worker_id()->version_id, version_id);
-  EXPECT_EQ(worker_state->browser_state(),
-            ServiceWorkerState::BrowserState::kActive);
-  EXPECT_EQ(worker_state->renderer_state(),
-            ServiceWorkerState::RendererState::kNotActive);
-
-  WorkerId worker_id = *worker_state->worker_id();
-  SequencedContextId context_id{
-      extension->id(), profile()->UniqueId(),
-      *task_queue->GetCurrentActivationToken(extension->id())};
-
-  // Simulate `RendererDidStartServiceWorkerContext` arriving first.
-  worker_state->RendererDidStartServiceWorkerContext(context_id, worker_id);
-
-  // Confirm state is active.
-  EXPECT_EQ(worker_state->renderer_state(),
-            ServiceWorkerState::RendererState::kActive);
-  EXPECT_EQ(worker_state->browser_state(),
-            ServiceWorkerState::BrowserState::kActive);
-
-  // Simulate a delayed `RendererDidInitializeServiceWorkerContext` IPC.
-  // It should be dropped, because the worker is already active.
-  worker_state->RendererDidInitializeServiceWorkerContext(context_id,
-                                                          worker_id);
-
-  // Confirm state remains active.
-  EXPECT_EQ(worker_state->renderer_state(),
-            ServiceWorkerState::RendererState::kActive);
-  EXPECT_EQ(worker_state->browser_state(),
-            ServiceWorkerState::BrowserState::kActive);
 }
 
 // Test that if the content layer restarts a stopping service worker (because it

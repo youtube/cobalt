@@ -84,6 +84,7 @@ class AutofillPopupControllerImpl : public AutofillPopupController,
   const std::vector<Suggestion>& GetSuggestions() const override;
   const Suggestion& GetSuggestionAt(int row) const override;
   FillingProduct GetMainFillingProduct() const override;
+  AutofillSuggestionTriggerSource GetSuggestionTriggerSource() const;
   void Hide(SuggestionHidingReason reason) override;
   void ViewDestroyed() override;
   void Show(UiSessionId ui_session_id,
@@ -112,6 +113,7 @@ class AutofillPopupControllerImpl : public AutofillPopupController,
       const override;
   void SetFilter(std::optional<SuggestionFilter> filter) override;
   bool HasFilteredOutSuggestions() const override;
+  bool ShouldShowNoSuggestionsMessage() const override;
   bool HandleKeyPressEvent(const input::NativeWebKeyboardEvent& event) override;
   void OnPopupPainted() override;
   base::WeakPtr<AutofillPopupController> GetWeakPtr() override;

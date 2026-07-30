@@ -132,7 +132,8 @@ struct SameSizeAsComputedStyleBase
 
  private:
   Member<void*> pointers[10];
-  unsigned bitfields[6];
+  // NOTE: Don't change the size of this without consulting style-dev@
+  unsigned bitfields[5];
 };
 
 struct SameSizeAsComputedStyle : public SameSizeAsComputedStyleBase {
@@ -325,8 +326,8 @@ bool ComputedStyle::NeedsReattachLayoutTree(const Element& element,
   if (!old_style->ScrollMarkerGroupEqual(*new_style)) {
     return true;
   }
-  if (old_style->IsInternalOverscrollAreaAuto() !=
-      new_style->IsInternalOverscrollAreaAuto()) {
+  if (old_style->IsInternalOverscrollArea() !=
+      new_style->IsInternalOverscrollArea()) {
     return true;
   }
   // We need to perform a reattach if a "display: layout(foo)" has changed to a
@@ -472,8 +473,8 @@ ComputedStyle::ComputeDifferenceIgnoringInheritedFirstLineStyle(
     }
     return Difference::kPseudoElementStyle;
   }
-  if (old_style.IsInternalOverscrollAreaAuto() !=
-      new_style.IsInternalOverscrollAreaAuto()) {
+  if (old_style.IsInternalOverscrollArea() !=
+      new_style.IsInternalOverscrollArea()) {
     // TODO(crbug.com/447642032): Should we return kDescendantAffecting since
     // descendants may move into or out of a newly declared or no longer
     // declared overscroll area?
@@ -1306,9 +1307,13 @@ bool ComputedStyle::HasCSSPaintImagesUsingCustomProperty(
 }
 
 static bool HasPropertyThatCreatesStackingContext(
-    const Vector<CSSPropertyID>& properties) {
-  for (CSSPropertyID property : properties) {
-    switch (ResolveCSSPropertyID(property)) {
+    const StyleWillChangeData* will_change,
+    bool allows_z_index) {
+  if (!will_change) {
+    return false;
+  }
+  for (CSSPropertyID id : will_change->resolved_longhand_ids) {
+    switch (id) {
       case CSSPropertyID::kOpacity:
       case CSSPropertyID::kTransform:
       case CSSPropertyID::kTransformStyle:
@@ -1318,89 +1323,28 @@ static bool HasPropertyThatCreatesStackingContext(
       case CSSPropertyID::kScale:
       case CSSPropertyID::kOffsetPath:
       case CSSPropertyID::kOffsetPosition:
-      case CSSPropertyID::kMask:  // Matches longhand.
       case CSSPropertyID::kMaskImage:
-      case CSSPropertyID::kWebkitMaskBoxImage:  // Matches longhand
       case CSSPropertyID::kWebkitMaskBoxImageSource:
       case CSSPropertyID::kClipPath:
       case CSSPropertyID::kWebkitBoxReflect:
       case CSSPropertyID::kFilter:
       case CSSPropertyID::kBackdropFilter:
-      case CSSPropertyID::kZIndex:
       case CSSPropertyID::kPosition:
       case CSSPropertyID::kMixBlendMode:
       case CSSPropertyID::kIsolation:
       case CSSPropertyID::kContain:
       case CSSPropertyID::kViewTransitionName:
         return true;
+      case CSSPropertyID::kZIndex:
+        if (allows_z_index) {
+          return true;
+        }
+        break;
       default:
         break;
     }
   }
   return false;
-}
-
-static bool IsWillChangeTransformHintProperty(CSSPropertyID property) {
-  switch (ResolveCSSPropertyID(property)) {
-    case CSSPropertyID::kTransform:
-    case CSSPropertyID::kPerspective:
-    case CSSPropertyID::kTransformStyle:
-      return true;
-    default:
-      break;
-  }
-  return false;
-}
-
-static bool IsWillChangeHintForAnyTransformProperty(CSSPropertyID property) {
-  switch (ResolveCSSPropertyID(property)) {
-    case CSSPropertyID::kTransform:
-    case CSSPropertyID::kPerspective:
-    case CSSPropertyID::kTranslate:
-    case CSSPropertyID::kScale:
-    case CSSPropertyID::kRotate:
-    case CSSPropertyID::kOffsetPath:
-    case CSSPropertyID::kOffsetPosition:
-    case CSSPropertyID::kTransformStyle:
-      return true;
-    default:
-      break;
-  }
-  return false;
-}
-
-static bool IsWillChangeCompositingHintProperty(CSSPropertyID property) {
-  if (IsWillChangeHintForAnyTransformProperty(property)) {
-    return true;
-  }
-  switch (ResolveCSSPropertyID(property)) {
-    case CSSPropertyID::kOpacity:
-    case CSSPropertyID::kFilter:
-    case CSSPropertyID::kBackdropFilter:
-    case CSSPropertyID::kTop:
-    case CSSPropertyID::kLeft:
-    case CSSPropertyID::kBottom:
-    case CSSPropertyID::kRight:
-      return true;
-    default:
-      break;
-  }
-  return false;
-}
-
-bool ComputedStyle::HasWillChangeCompositingHint() const {
-  return std::ranges::any_of(WillChangeProperties(),
-                             IsWillChangeCompositingHintProperty);
-}
-
-bool ComputedStyle::HasWillChangeTransformHint() const {
-  return std::ranges::any_of(WillChangeProperties(),
-                             IsWillChangeTransformHintProperty);
-}
-
-bool ComputedStyle::HasWillChangeHintForAnyTransformProperty() const {
-  return std::ranges::any_of(WillChangeProperties(),
-                             IsWillChangeHintForAnyTransformProperty);
 }
 
 bool ComputedStyle::RequireTransformOrigin(
@@ -3000,7 +2944,7 @@ bool ComputedStyle::CalculateIsStackingContextWithoutContainment() const {
   if (GetPosition() == EPosition::kSticky) {
     return true;
   }
-  if (HasPropertyThatCreatesStackingContext(WillChangeProperties())) {
+  if (HasPropertyThatCreatesStackingContext(WillChange(), AllowsZIndex())) {
     return true;
   }
   if (ShouldCompositeForCurrentAnimations()) {

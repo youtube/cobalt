@@ -8,6 +8,7 @@
 #include <set>
 #include <utility>
 
+#include "ash/constants/ash_features.h"
 #include "ash/constants/ash_switches.h"
 #include "base/command_line.h"
 #include "base/feature_list.h"
@@ -134,7 +135,7 @@ class UserCloudPolicyManagerAshNotifierFactory
 // Returns true only if SkyVault TT is enabled, but GA is not.
 bool IsSkyVaultTTEnabled() {
   return base::FeatureList::IsEnabled(features::kSkyVault) &&
-         !base::FeatureList::IsEnabled(features::kSkyVaultV2);
+         !base::FeatureList::IsEnabled(ash::features::kSkyVaultV2);
 }
 
 }  // namespace
@@ -294,8 +295,8 @@ void UserCloudPolicyManagerAsh::OnAccessTokenAvailable(
 
   if (service() && service()->IsInitializationComplete() && client()) {
     if (!client()->is_registered()) {
-      OnOAuth2PolicyTokenFetched(
-          access_token, GoogleServiceAuthError(GoogleServiceAuthError::NONE));
+      OnOAuth2PolicyTokenFetched(access_token,
+                                 GoogleServiceAuthError::AuthErrorNone());
     } else if (RequiresOAuthTokenForChildUser()) {
       client()->SetOAuthTokenAsAdditionalAuth(access_token);
       StartRefreshSchedulerIfReady();
@@ -420,8 +421,8 @@ void UserCloudPolicyManagerAsh::OnRegistrationStateChanged(
     RegistrationResultUMA(RegistrationResult::kReregistrationTriggered);
     is_in_reregistration_state_ = true;
     if (!access_token_.empty()) {
-      OnOAuth2PolicyTokenFetched(
-          access_token_, GoogleServiceAuthError(GoogleServiceAuthError::NONE));
+      OnOAuth2PolicyTokenFetched(access_token_,
+                                 GoogleServiceAuthError::AuthErrorNone());
     } else {
       FetchPolicyOAuthToken();
     }
@@ -583,9 +584,8 @@ void UserCloudPolicyManagerAsh::FetchPolicyOAuthToken() {
   // By-pass token fetching for test.
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           ash::switches::kDisableGaiaServices)) {
-    OnOAuth2PolicyTokenFetched(
-        "fake_policy_token",
-        GoogleServiceAuthError(GoogleServiceAuthError::NONE));
+    OnOAuth2PolicyTokenFetched("fake_policy_token",
+                               GoogleServiceAuthError::AuthErrorNone());
     return;
   }
 
@@ -617,7 +617,8 @@ void UserCloudPolicyManagerAsh::FetchPolicyOAuthToken() {
   LOG(ERROR) << "No refresh token for policy oauth token fetch!";
   OnOAuth2PolicyTokenFetched(
       std::string(),
-      GoogleServiceAuthError(GoogleServiceAuthError::INVALID_GAIA_CREDENTIALS));
+      GoogleServiceAuthError::FromInvalidGaiaCredentialsReason(
+          GoogleServiceAuthError::InvalidGaiaCredentialsReason::UNKNOWN));
 }
 
 void UserCloudPolicyManagerAsh::OnOAuth2PolicyTokenFetched(

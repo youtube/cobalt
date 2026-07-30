@@ -26,9 +26,9 @@ import type {SearchOptions} from './search.js';
 import {search} from './search.js';
 import type {SelectableLazyListElement} from './selectable_lazy_list.js';
 import {NO_SELECTION, selectorNavigationKeys} from './selectable_lazy_list.js';
-import {ariaLabel, getDisplayHostnameForUrl, getHostname, getTabGroupTitle, getTitle, type ItemData, normalizeURL, TabData, TabGroupData, TabItemType, tokenEquals, tokenToString} from './tab_data.js';
+import {ariaLabel, getDisplayHostnameForUrl, getHostname, getTabGroupTitle, getTitle, normalizeURL, TabData, TabGroupData, TabItemType, tokenEquals, tokenToString} from './tab_data.js';
+import type {ItemData} from './tab_data.js';
 import type {ProfileData, RecentlyClosedTab, Tab, TabGroup, TabsRemovedInfo, TabUpdateInfo} from './tab_search.mojom-webui.js';
-import {TabSearchSection} from './tab_search.mojom-webui.js';
 import type {TabSearchApiProxy} from './tab_search_api_proxy.js';
 import {TabSearchApiProxyImpl} from './tab_search_api_proxy.js';
 import type {TabSearchGroupItemElement} from './tab_search_group_item.js';
@@ -154,8 +154,6 @@ export class TabSearchPageElement extends TabSearchSearchFieldBase {
   private filteredOpenHeaderIndices_: number[] = [];
   private initiallySelectedIndex_: number = NO_SELECTION;
   private documentVisibilityChangedListener_: () => void;
-  private elementVisibilityChangedListener_: IntersectionObserver;
-  private wasInactive_: boolean = false;
 
   constructor() {
     super();
@@ -169,13 +167,6 @@ export class TabSearchPageElement extends TabSearchSearchFieldBase {
         this.onDocumentHidden_();
       }
     };
-
-    this.elementVisibilityChangedListener_ =
-        new IntersectionObserver((entries, _observer) => {
-          entries.forEach(entry => {
-            this.onElementVisibilityChanged_(entry.intersectionRatio > 0);
-          });
-        }, {root: document.documentElement});
 
     this.mediaTabsTitleItem_ =
         new TitleItem(loadTimeData.getString('mediaTabs'));
@@ -200,12 +191,6 @@ export class TabSearchPageElement extends TabSearchSearchFieldBase {
     document.addEventListener(
         'visibilitychange', this.documentVisibilityChangedListener_);
 
-    this.elementVisibilityChangedListener_.observe(this);
-
-    this.apiProxy_.getTabSearchSection().then(
-        ({section}) => this.wasInactive_ =
-            section !== TabSearchSection.kSearch);
-
     const callbackRouter = this.apiProxy_.getCallbackRouter();
     this.listenerIds_.push(
         callbackRouter.tabsChanged.addListener(this.tabsChanged_.bind(this)),
@@ -226,8 +211,6 @@ export class TabSearchPageElement extends TabSearchSearchFieldBase {
 
     document.removeEventListener(
         'visibilitychange', this.documentVisibilityChangedListener_);
-
-    this.elementVisibilityChangedListener_.disconnect();
   }
 
   override firstUpdated(changedProperties: PropertyValues<this>) {
@@ -293,14 +276,6 @@ export class TabSearchPageElement extends TabSearchSearchFieldBase {
 
     this.setValue('');
     this.$.searchInput.focus();
-  }
-
-  private onElementVisibilityChanged_(visible: boolean) {
-    if (visible && this.wasInactive_) {
-      this.$.tabsList.fillCurrentViewport();
-    } else if (!visible) {
-      this.wasInactive_ = true;
-    }
   }
 
   private updateTabs_() {

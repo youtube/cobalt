@@ -225,8 +225,7 @@ class PLATFORM_EXPORT ResourceRequestHead {
   }
   void SetHTTPOrigin(const SecurityOrigin*);
   void ClearHTTPOrigin();
-  void SetHttpOriginIfNeeded(const SecurityOrigin*);
-  void SetHTTPOriginToMatchReferrerIfNeeded();
+  void SetHTTPOriginToMatchReferrerPolicyIfNeeded(const SecurityOrigin*);
 
   void SetHTTPUserAgent(const AtomicString& http_user_agent) {
     SetHttpHeaderField(http_names::kUserAgent, http_user_agent);
@@ -698,14 +697,12 @@ class PLATFORM_EXPORT ResourceRequestHead {
 #endif
   }
 
-  bool AllowsDeviceBoundSessionRegistration() const {
-    return allows_device_bound_session_registration_;
+  bool AllowsDeviceBoundSessions() const {
+    return allows_device_bound_sessions_;
   }
 
-  void SetAllowsDeviceBoundSessionRegistration(
-      bool allows_device_bound_session_registration) {
-    allows_device_bound_session_registration_ =
-        allows_device_bound_session_registration;
+  void SetAllowsDeviceBoundSessions(bool allows_device_bound_sessions) {
+    allows_device_bound_sessions_ = allows_device_bound_sessions;
   }
 
  private:
@@ -866,10 +863,10 @@ class PLATFORM_EXPORT ResourceRequestHead {
   bool is_set_url_allowed_ = true;
 #endif
 
-  // Whether this request is allowed to register new device bound
-  // sessions or accept challenges on device bound sessions (e.g. due to
-  // an Origin Trial)
-  bool allows_device_bound_session_registration_ = false;
+  // Whether this request is allowed to belong to a device bound session. This
+  // includes registering a new session, accepting challenges, or deferring the
+  // request until a session is refreshed.
+  bool allows_device_bound_sessions_ = true;
 };
 
 class PLATFORM_EXPORT ResourceRequestBody {

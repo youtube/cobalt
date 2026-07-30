@@ -32,6 +32,7 @@ source_set("sync_integration_tests_impl") {
     "//chrome/browser/subscription_eligibility",
     "//chrome/browser/sync",
     "//chrome/browser/tab_group_sync:factories",
+    "//chrome/browser/trusted_vault",
     "//chrome/browser/ui:browser_navigator_params_headers",
     "//chrome/browser/ui:ui_features",
     "//chrome/test:browser_tests_runner",
@@ -47,6 +48,7 @@ source_set("sync_integration_tests_impl") {
     "//components/plus_addresses/core/browser/webdata",
     "//components/reading_list/core:test_support",
     "//components/saved_tab_groups/test_support",
+    "//components/skills:features",
     "//components/sync:test_support",
     "//components/sync_bookmarks",
     "//components/sync_device_info:test_support",
@@ -92,7 +94,9 @@ source_set("sync_integration_tests_impl") {
     # but android_sync_integration_tests do not.
   ]
   data = [
+    "//chrome/test/data/empty.html",
     "//chrome/test/data/autofill/",
+    "//chrome/test/data/send_tab_to_self/",
     "//chrome/test/data/sync/",
   ]
 
@@ -172,6 +176,7 @@ source_set("sync_integration_tests_impl") {
       "two_client_bookmarks_sync_test.cc",
       "two_client_contact_info_sync_test.cc",
       "two_client_custom_passphrase_sync_test.cc",
+      "two_client_device_info_sync_test.cc",
       "two_client_extension_apps_sync_test.cc",
       "two_client_extension_settings_sync_test.cc",
       "two_client_extensions_sync_test.cc",
@@ -257,6 +262,7 @@ source_set("sync_integration_tests_impl") {
       "//chrome/browser/themes",
       "//chrome/browser/ui:ui_features",
       "//chrome/browser/ui/tabs/saved_tab_groups",
+      "//chrome/browser/ui/views/send_tab_to_self",
       "//chrome/browser/ui/web_applications",
       "//chrome/browser/web_applications:features",
       "//chrome/browser/web_applications:web_applications_test_support",
@@ -276,7 +282,6 @@ source_set("sync_integration_tests_impl") {
       "//components/saved_tab_groups/internal:tab_group_sync_bridge",
       "//components/search_engines",
       "//components/send_tab_to_self",
-      "//components/skills:features",
       "//components/skills/public",
       "//components/spellcheck/common",
       "//components/sync",
@@ -484,6 +489,7 @@ source_set("sync_integration_test_support") {
     "//chrome/browser/send_tab_to_self",
     "//chrome/browser/sync",
     "//chrome/browser/ui/browser_window",
+    "//chrome/browser/undo",
     "//chrome/browser/webdata_services",
     "//components/autofill/core/common:credit_card_number_validation",
     "//components/bookmarks/browser",

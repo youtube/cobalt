@@ -4804,7 +4804,7 @@
       property_methods: ["CSSValueFromComputedStyleInternal"],
       field_group: "*",
       field_template: "keyword",
-      keywords: ["none", "auto"],
+      keywords: ["none", "auto", "overlay"],
       typedom_types: ["Keyword"],
       default_value: "none",
       runtime_flag: "OverscrollGestures",
@@ -5136,7 +5136,7 @@
       field_group: "*",
       field_size: 3,
       field_template: "primitive",
-      default_value: "InitialPositionVisibilityKeyword()",
+      default_value: "PositionVisibility::kAnchorsVisible",
       getter: "GetPositionVisibility",
       type_name: "PositionVisibility",
       converter: "ConvertPositionVisibility",
@@ -5406,6 +5406,7 @@
         resolver: "bottom",
       },
       valid_for_permission_element: true,
+      affected_by_zoom: true,
     },
     {
       name: "scroll-margin-inline-end",
@@ -5441,6 +5442,7 @@
         resolver: "left",
       },
       valid_for_permission_element: true,
+      affected_by_zoom: true,
     },
     {
       name: "scroll-margin-right",
@@ -5456,6 +5458,7 @@
         resolver: "right",
       },
       valid_for_permission_element: true,
+      affected_by_zoom: true,
     },
     {
       name: "scroll-margin-top",
@@ -5471,6 +5474,7 @@
         resolver: "top",
       },
       valid_for_permission_element: true,
+      affected_by_zoom: true,
     },
     {
       name: "scroll-padding-block-end",
@@ -5517,6 +5521,7 @@
       },
       valid_for_permission_element: true,
       percentages_depend_on_used_value: true,
+      affected_by_zoom: true,
     },
     {
       name: "scroll-padding-inline-end",
@@ -5563,6 +5568,7 @@
       },
       valid_for_permission_element: true,
       percentages_depend_on_used_value: true,
+      affected_by_zoom: true,
     },
     {
       name: "scroll-padding-right",
@@ -5579,6 +5585,7 @@
       },
       valid_for_permission_element: true,
       percentages_depend_on_used_value: true,
+      affected_by_zoom: true,
     },
     {
       name: "scroll-padding-top",
@@ -5595,6 +5602,7 @@
       },
       valid_for_permission_element: true,
       percentages_depend_on_used_value: true,
+      affected_by_zoom: true,
     },
     {
       name: "scroll-snap-align",
@@ -6134,7 +6142,6 @@
       valid_for_first_letter: true,
       valid_for_first_line: true,
       invalidate: ["layout"],
-      runtime_flag: "CssTextJustify",
     },
     {
       name: "text-overflow",
@@ -6223,6 +6230,7 @@
       property_methods: ["ParseSingleValue", "CSSValueFromComputedStyleInternal"],
       independent: true,
       inherited: true,
+      field_group: "inherited",
       field_template: "multi_keyword",
       keywords: ["none", "capitalize", "uppercase", "lowercase", "full-width", "full-size-kana", "math-auto"],
       type_name: "ETextTransform",
@@ -7617,6 +7625,7 @@
       affected_by_all: false,
       // Overlaps with transform-origin.
       legacy_overlapping: true,
+      percentages_depend_on_used_value: true,
     },
     {
       name: "-webkit-transform-origin-y",
@@ -7628,6 +7637,7 @@
       affected_by_all: false,
       // Overlaps with transform-origin.
       legacy_overlapping: true,
+      percentages_depend_on_used_value: true,
     },
     {
       name: "-webkit-transform-origin-z",
@@ -7639,6 +7649,7 @@
       affected_by_all: false,
       // Overlaps with transform-origin.
       legacy_overlapping: true,
+      percentages_depend_on_used_value: true,
     },
     {
       name: "-webkit-user-drag",
@@ -7777,8 +7788,15 @@
       name: "will-change",
       property_methods: ["ParseSingleValue", "CSSValueFromComputedStyleInternal"],
       style_builder_custom_functions: ["initial", "inherit", "value"],
+      type_name: "StyleWillChangeData",
+      field_template: "pointer",
+      field_group: "misc",
+      wrapper_pointer_name: "Member",
+      default_value: "nullptr",
+      include_paths: ["third_party/blink/renderer/core/style/style_will_change_data.h"],
       keywords: ["auto"],
       typedom_types: ["Keyword"],
+      invalidate: ["compositing"],
       valid_for_permission_element: true,
       is_animation_affecting: true,
     },

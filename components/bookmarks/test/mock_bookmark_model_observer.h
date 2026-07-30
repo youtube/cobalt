@@ -51,6 +51,8 @@ class MockBookmarkModelObserver : public BookmarkModelObserver {
 
   MOCK_METHOD(void, BookmarkNodeFaviconChanged, (const BookmarkNode*));
 
+  MOCK_METHOD(void, OnWillReorderBookmarkNode, (const BookmarkNode*));
+
   MOCK_METHOD(void, BookmarkNodeChildrenReordered, (const BookmarkNode*));
 
   MOCK_METHOD(void,
@@ -60,6 +62,12 @@ class MockBookmarkModelObserver : public BookmarkModelObserver {
   MOCK_METHOD(void,
               BookmarkAllUserNodesRemoved,
               (const std::set<GURL>&, const base::Location&));
+
+  MOCK_METHOD(void, OnWillRemoveAllUserBookmarks, (const base::Location&));
+
+  MOCK_METHOD(void, ExtensiveBookmarkChangesBeginning, ());
+
+  MOCK_METHOD(void, ExtensiveBookmarkChangesEnded, ());
 
   MOCK_METHOD(void, GroupedBookmarkChangesBeginning, ());
 

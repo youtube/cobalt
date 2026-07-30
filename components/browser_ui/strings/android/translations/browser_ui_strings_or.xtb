@@ -125,7 +125,6 @@
 <translation id="2228071138934252756"><ph name="APP_NAME" />କୁ ଆପଣଙ୍କ କ୍ୟାମେରା ଆକ୍ସେସ୍ ଦେବା ପାଇଁ, <ph name="BEGIN_LINK" />Android ସେଟିଂସ<ph name="END_LINK" />ରେ କ୍ୟାମେରା ମଧ୍ୟ ଚାଲୁ କରନ୍ତୁ।</translation>
 <translation id="2231160360698766265">ସାଇଟଗୁଡ଼ିକ ସୁରକ୍ଷିତ ବିଷୟବସ୍ତୁ ଚଲାଇପାରିବେ</translation>
 <translation id="2235344399760031203">ତୃତୀୟ-ପକ୍ଷ କୁକୀଗୁଡ଼ିକ ବ୍ଲକ୍ କରାଯାଇଛି</translation>
-<translation id="2238944249568001759">ଆପଣଙ୍କ ଶେଷ ଟାବ ଆଧାରରେ ପ୍ରସ୍ତାବିତ ସନ୍ଧାନଗୁଡ଼ିକ</translation>
 <translation id="2241587408274973373">ନୂଆ ଟାବ ପୃଷ୍ଠା କାର୍ଡଗୁଡ଼ିକ</translation>
 <translation id="2241634353105152135">ଥରେ ମାତ୍ର</translation>
 <translation id="2253414712144136228"><ph name="NAME_OF_LIST_ITEM" />କୁ କାଢ଼ି ଦିଅନ୍ତୁ</translation>
@@ -214,7 +213,6 @@
 <translation id="3069226013421428034">ଏକ ନିର୍ଦ୍ଦିଷ୍ଟ ସାଇଟ ପାଇଁ ତୃତୀୟ ପକ୍ଷ ସାଇନ-ଇନକୁ ଅନୁମତି ଦିଅନ୍ତୁ।</translation>
 <translation id="310297983047869047">ପୂର୍ବବର୍ତ୍ତୀ ସ୍ଲାଇଡ</translation>
 <translation id="3108122610701115301">ଡିଫଲ୍ଟ ଭାବେ ସେଟ କରନ୍ତୁ</translation>
-<translation id="3109724472072898302">ସଙ୍କୁଚିତ କରାଗଲା</translation>
 <translation id="310979712355504754">ସବୁ ଡିଲିଟ୍ କରନ୍ତୁ</translation>
 <translation id="311394601889664316">ଆପଣଙ୍କ ଡିଭାଇସରେ ଫାଇଲ୍ କିମ୍ଵା ଫୋଲ୍ଡରଗୁଡ଼ିକୁ ଏଡିଟ୍ କରିବା ପାଇଁ ସାଇଟଗୁଡ଼ିକୁ ଅନୁମତି ଦିଅନ୍ତୁ ନାହିଁ</translation>
 <translation id="3114012059975132928">ଭିଡିଓ ପ୍ଲେଆର୍</translation>
@@ -262,13 +260,13 @@
 <translation id="3602290021589620013">ପ୍ରିଭ୍ୟୁ</translation>
 <translation id="3611658447322220736">ଏବେ ବନ୍ଦ କରାଯାଇଥିବା ସାଇଟଗୁଡ଼ିକ ଡାଟା ପଠାଇବା କିମ୍ବା ଗ୍ରହଣ କରିବା ସମ୍ପୂର୍ଣ୍ଣ କରିପାରିବ</translation>
 <translation id="3619294456800709762">ସାଇଟଗୁଡ଼ିକ ସ୍ୱତଃ ପିକଚର-ଇନ-ପିକଚର ମୋଡରେ ପ୍ରବେଶ କରିପାରିବ</translation>
-<translation id="3628308229821498208">ପ୍ରସ୍ତାବିତ ସନ୍ଧାନଗୁଡ଼ିକ</translation>
 <translation id="3632460243282703117">ସଦସ୍ୟତା ନିଅନ୍ତୁ</translation>
 <translation id="363748948745453283">ଆନୁମାନିକ ଲୋକେସନ ବ୍ୟବହାର କରାଯାଉଛି</translation>
 <translation id="3641456520301071208">ସାଇଟଗୁଡ଼ିକ ଆପଣଙ୍କ ଲୋକେସନ୍ ବିଷୟରେ ପଚାରିପାରିବ</translation>
 <translation id="3658847490588580244">ଡିଫଲ୍ଟ ବ୍ରାଉଜରର ବଟମ ସିଟ</translation>
 <translation id="3669841141196828854">{COUNT,plural, =1{<ph name="RWS_OWNER" />ର ସାଇଟଗୁଡ଼ିକର ଗୋଷ୍ଠୀରେ ଥିବା <ph name="RWS_MEMBERS_COUNT" /> ସାଇଟ ଆପଣଙ୍କ କାର୍ଯ୍ୟକଳାପକୁ ଗୋଷ୍ଠୀରେ ଦେଖିପାରିବ}other{<ph name="RWS_OWNER" />ର ସାଇଟଗୁଡ଼ିକର ଗୋଷ୍ଠୀରେ ଥିବା <ph name="RWS_MEMBERS_COUNT" /> ସାଇଟ ଆପଣଙ୍କ କାର୍ଯ୍ୟକଳାପକୁ ଗୋଷ୍ଠୀରେ ଦେଖିପାରିବ}}</translation>
 <translation id="3676777756440746804">ଆପଣଙ୍କ ବିଷୟରେ ସାଇଟଗୁଡ଼ିକ ସେଭ କରିଥିବା ସୂଚନାକୁ ବ୍ୟବହାର କରିବା ପାଇଁ ଆପଣଙ୍କୁ ଅନୁମତି ମାଗିବାରୁ ସେଗୁଡ଼ିକୁ ବ୍ଲକ କରାଯାଇଛି</translation>
+<translation id="3677897809642449131">ମୋସନ ସେନ୍ସରଗୁଡ଼ିକୁ ବ୍ୟବହାର କରିବା ପାଇଁ ସାଇଟଗୁଡ଼ିକ ପଚାରିପାରେ</translation>
 <translation id="3678318839615834650">ସମ୍ପୂର୍ଣ୍ଣ ଭାବେ ଖୋଲାଯାଇଥିବା ନୂଆ ଟାବ ପୃଷ୍ଠା କାର୍ଡ ବଟମ ସିଟ</translation>
 <translation id="3697164069658504920">ଚାଲୁ ଥିବା ସମୟରେ, ସାଇଟଗୁଡ଼ିକ USB ଡିଭାଇସଗୁଡ଼ିକୁ ବ୍ୟବହାର କରିବା ପାଇଁ ପଚାରିପାରିବ। ବନ୍ଦ ଥିବା ସମୟରେ, ସାଇଟଗୁଡ଼ିକ USB ଡିଭାଇସଗୁଡ଼ିକୁ ବ୍ୟବହାର କରିପାରିବ ନାହିଁ।</translation>
 <translation id="3703430731944883733">ଆପଣଙ୍କ ଫିଡକୁ ପରିଚାଳନା କରନ୍ତୁ</translation>
@@ -444,7 +442,6 @@
 <translation id="5515432237048785579">ସମ୍ପୂର୍ଣ୍ଣ ଭାବେ ଖୋଲାଯାଇଥିବା ଫିଡ ବଟମ ସିଟକୁ ଡିସ୍କଭର କରନ୍ତୁ</translation>
 <translation id="5516455585884385570">ବିଜ୍ଞପ୍ତି ସେଟିଂସ୍ ଖୋଲନ୍ତୁ</translation>
 <translation id="5527111080432883924">କ୍ଲିପ୍‌ବୋର୍ଡ (ସୁପାରିସ୍‌ କରାଯାଇଥିବା)ରୁ ଟେକ୍ସଟ୍‍ ଏବଂ ଛବି ପଢ଼ିବାକୁ ସାଇଟ୍‌ଗୁଡ଼ିକୁ ଅନୁମତି ଦେବା ପୂର୍ବରୁ, ପଚାରନ୍ତୁ</translation>
-<translation id="5553374991681107062">ନବୀନତମ</translation>
 <translation id="5555115555607204100">Chromeର V8 ଇଞ୍ଜିନ ମାଧ୍ୟମରେ ସାଇଟଗୁଡ଼ିକର ସ୍ପିଡ ବଢ଼ାନ୍ତୁ ନାହିଁ କିନ୍ତୁ Chromeକୁ ଆକ୍ରମଣ ପ୍ରତି ସାମାନ୍ୟ ଅଧିକ ପ୍ରତିରୋଧୀ କରନ୍ତୁ</translation>
 <translation id="5556459405103347317">ପୁନଃ ଲୋଡ୍ କରନ୍ତୁ</translation>
 <translation id="5591840828808741583"><ph name="SITE_NAME" />କୁ ବ୍ଲକ କରାଯାଇଛି</translation>
@@ -490,6 +487,7 @@
 <translation id="5922853908706496913">ଆପଣଙ୍କ ସ୍କ୍ରିନ୍ ସେୟାର୍ କରାଯାଉଛି</translation>
 <translation id="5922967540311291836">ତୃତୀୟ-ପକ୍ଷ କୁକୀଗୁଡ଼ିକୁ ବ୍ଲକ କରନ୍ତୁ:</translation>
 <translation id="5923512600150154850">ଏହା ସାଇଟଗୁଡ଼ିକ ଦ୍ୱାରା ଷ୍ଟୋର କରାଯାଇଥିବା <ph name="DATASIZE" /> ଡାଟା ଏବଂ କୁକୀଗୁଡ଼ିକୁ ଡିଲିଟ କରିବ।</translation>
+<translation id="5930707844513754220">ଅଧିକ ସେଟଅପ ତାଲିକା ଦେଖନ୍ତୁ</translation>
 <translation id="5939518447894949180">ପୁନଃସେଟ୍</translation>
 <translation id="5948139900367969951">ଆପଣଙ୍କ ପାଇଁ ଗୁରୁତ୍ୱପୂର୍ଣ୍ଣକୁ ଶୀଘ୍ର ପାଆନ୍ତୁ</translation>
 <translation id="5964247741333118902">ଏମ୍ବେଡ କରାଯାଇଥିବା ବିଷୟବସ୍ତୁ</translation>
@@ -498,6 +496,7 @@
 <translation id="5976059395673079613"><ph name="PERMISSION" /> - <ph name="WARNING_MESSAGE" /></translation>
 <translation id="5998071268779572583">Discover ଫିଡକୁ ଚାଲୁ କରନ୍ତୁ</translation>
 <translation id="6012967556075291653">ପିନ କରାଯାଇଥିବା ସର୍ଟକଟ</translation>
+<translation id="6013003831291591200">ଟାସ୍କ ସମ୍ପୂର୍ଣ୍ଣ ହୋଇଛି</translation>
 <translation id="6015775454662021376">ଆପଣଙ୍କ ଡିଭାଇସକୁ ଏହି ସାଇଟର ଆକ୍ସେସ ନିୟନ୍ତ୍ରଣ କରନ୍ତୁ</translation>
 <translation id="6022659036123304283">Chromeକୁ ନିଜ ପସନ୍ଦରେ ତିଆରି କରନ୍ତୁ</translation>
 <translation id="6040143037577758943">ବନ୍ଦ</translation>
@@ -522,7 +521,6 @@
 <translation id="6231752747840485235">'<ph name="APP_NAME" />' କୁ ଅନଇନଷ୍ଟଲ୍ କରିବେ?</translation>
 <translation id="6234351944623978659">ବ୍ରାଉଜର ଆପ &gt; Chromeରେ ଟାପ କରନ୍ତୁ</translation>
 <translation id="6260830281887654268">ନୂଆ ଟାବ ପୃଷ୍ଠା ଏପିଏରେନ୍ସ ଥିମ ସଂଗ୍ରହ ବଟମ ସିଟକୁ ଅଧା ଖୋଲାଯାଇଛି</translation>
-<translation id="6262191102408817757">ଆପଣଙ୍କ ଶେଷ ଟାବ ଆଧାରରେ</translation>
 <translation id="6262279340360821358"><ph name="PERMISSION_1" /> ଏବଂ <ph name="PERMISSION_2" />କୁ ବ୍ଲକ୍ କରାଯାଇଛି</translation>
 <translation id="6270391203985052864">ବିଜ୍ଞପ୍ତିଗୁଡ଼ିକୁ ପଠାଇବାକୁ ସାଇଟ୍‌ଗୁଡ଼ିକ ପଚାରିପାରିବେ</translation>
 <translation id="6295158916970320988">ସମସ୍ତ ସାଇଟ୍‍ଗୁଡ଼ିକ</translation>
@@ -602,7 +600,6 @@
 <translation id="7180611975245234373">ରିଫ୍ରେଶ୍</translation>
 <translation id="7188508872042490670">ଅନ-ଡିଭାଇସ ସାଇଟ ଡାଟା</translation>
 <translation id="7201549776650881587">ଏହି କାର୍ଯ୍ୟ <ph name="ORIGIN" /> ଅଧୀନରେ ଥିବା ସବୁ ସାଇଟ କିମ୍ବା ଆପଣଙ୍କ ହୋମ ସ୍କ୍ରିନରେ ଏହାର ଆପ ଦ୍ୱାରା ଷ୍ଟୋର କରାଯାଇଥିବା ସମସ୍ତ ଡାଟା ଓ କୁକୀକୁ ଡିଲିଟ କରିବ</translation>
-<translation id="7203150201908454328">ପ୍ରସାରିତ ହୋଇଛି</translation>
 <translation id="7213166370492037743">ଆପଣଙ୍କ ସ୍ଥାନୀୟ ନେଟୱାର୍କରେ ଯେ କୌଣସି ଡିଭାଇସ ସହ କନେକ୍ଟ କରିବାକୁ ସାଇଟଗୁଡ଼ିକୁ ଅନୁମତି ଦିଅନ୍ତୁ ନାହିଁ</translation>
 <translation id="7219254577985949841">ସାଇଟ ଡାଟା ଡିଲିଟ କରିବେ?</translation>
 <translation id="723171743924126238">ଛବିଗୁଡ଼ିକ ଚୟନ କରନ୍ତୁ</translation>
@@ -676,7 +673,6 @@
 <translation id="8007176423574883786">ଏହି ଡିଭାଇସ୍‌ ପାଇଁ ବନ୍ଦ କରନ୍ତୁ</translation>
 <translation id="802154636333426148">ଡାଉନ୍‌ଲୋଡ୍ ବିଫଳ ହୋଇଛି</translation>
 <translation id="8033047164036749181">ଏହି ସାଇଟରୁ ବିଜ୍ଞପ୍ତିଗୁଡ଼ିକ ପାଇଁ ସଦସ୍ୟତା ନିଅନ୍ତୁ</translation>
-<translation id="8042586301629853791">ଏହି ଅନୁସାରେ ସର୍ଟ କରନ୍ତୁ:</translation>
 <translation id="8051193500142930381">କୌଣସି କ୍ୟାମେରା ଆବଶ୍ୟକ କରୁଥିବା ଫିଚରଗୁଡ଼ିକ କାମ କରିବ ନାହିଁ</translation>
 <translation id="8056330801132235235">Chrome ଡିଫଲ୍ଟ</translation>
 <translation id="8067883171444229417">ଭିଡିଓ ଚଲାନ୍ତୁ</translation>
@@ -748,6 +744,7 @@
 <translation id="8707904142362025782">ସାଇଟ ଆପଣଙ୍କ କେମେରା ମାଗିପାରେ</translation>
 <translation id="8712637175834984815">ବୁଝିଗଲି</translation>
 <translation id="8715862698998036666">ପୂର୍ଣ୍ଣ ସ୍କ୍ରିନରୁ ବାହାରିବା ପାଇଁ ଉପରୁ ଡ୍ରାଗ କରି ବାମ କିମ୍ବା ଡାହାଣ ପାର୍ଶ୍ୱରୁ ସ୍ୱାଇପ କରନ୍ତୁ।</translation>
+<translation id="8716050156658570300">ମୋସନ ଏବଂ ଲାଇଟ ସେନ୍ସରଗୁଡ଼ିକୁ ବ୍ୟବହାର କରିବା ପାଇଁ ସାଇଟଗୁଡ଼ିକ ପଚାରିପାରେ</translation>
 <translation id="8719283222052720129"><ph name="BEGIN_LINK" />Android ସେଟିଂସ<ph name="END_LINK" />ରେ <ph name="APP_NAME" /> ପାଇଁ ଅନୁମତି ଚାଲୁ କରନ୍ତୁ।</translation>
 <translation id="8721719390026067591">ଚାଲୁ ଥିବା ସମୟରେ, ସାଇଟଗୁଡ଼ିକ ବ୍ଲୁଟୁଥ ଡିଭାଇସଗୁଡ଼ିକୁ ଖୋଜିବା ପାଇଁ ପଚାରିପାରିବ। ବନ୍ଦ ଥିବା ସମୟରେ, ସାଇଟଗୁଡ଼ିକ ବ୍ଲୁଟୁଥ ଡିଭାଇସଗୁଡ଼ିକୁ ଖୋଜିପାରିବ ନାହିଁ।</translation>
 <translation id="8725066075913043281">ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ</translation>

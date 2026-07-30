@@ -53,6 +53,7 @@
 #include "third_party/blink/renderer/core/css/cssom/css_unparsed_value.h"
 #include "third_party/blink/renderer/core/css/cssom/css_unsupported_color.h"
 #include "third_party/blink/renderer/core/css/cssom_utils.h"
+#include "third_party/blink/renderer/core/css/parser/css_property_parser.h"
 #include "third_party/blink/renderer/core/css/properties/css_parsing_utils.h"
 #include "third_party/blink/renderer/core/css/properties/longhands.h"
 #include "third_party/blink/renderer/core/css/properties/shorthands.h"
@@ -2438,20 +2439,21 @@ CSSValue* ComputedStyleUtils::TouchActionFlagsToCSSValue(
 }
 
 CSSValue* ComputedStyleUtils::ValueForWillChange(
-    const Vector<CSSPropertyID>& will_change_properties,
-    bool will_change_contents,
-    bool will_change_scroll_position) {
+    const StyleWillChangeData* will_change) {
   CSSValueList* list = CSSValueList::CreateCommaSeparated();
-  if (will_change_contents) {
-    list->Append(*CSSIdentifierValue::Create(CSSValueID::kContents));
+  if (will_change) {
+    for (const AtomicString& value : will_change->values) {
+      const CSSValueID id = CssValueKeywordID(value);
+      if (id == CSSValueID::kContents) {
+        list->Append(*CSSIdentifierValue::Create(CSSValueID::kContents));
+      } else if (id == CSSValueID::kScrollPosition) {
+        list->Append(*CSSIdentifierValue::Create(CSSValueID::kScrollPosition));
+      } else {
+        list->Append(*MakeGarbageCollected<CSSCustomIdentValue>(value));
+      }
+    }
   }
-  if (will_change_scroll_position) {
-    list->Append(*CSSIdentifierValue::Create(CSSValueID::kScrollPosition));
-  }
-  for (wtf_size_t i = 0; i < will_change_properties.size(); ++i) {
-    list->Append(
-        *MakeGarbageCollected<CSSCustomIdentValue>(will_change_properties[i]));
-  }
+
   if (!list->length()) {
     list->Append(*CSSIdentifierValue::Create(CSSValueID::kAuto));
   }

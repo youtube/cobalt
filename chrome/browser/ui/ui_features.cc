@@ -35,7 +35,7 @@ BASE_FEATURE(kCreateNewTabGroupAppMenuTopLevel,
 
 BASE_FEATURE(kTabStripDeclutter, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kGlassToolbar, base::FEATURE_DISABLED_BY_DEFAULT);
-
+BASE_FEATURE(kToolbarGlowUp, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kDetachedTabs, base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
@@ -116,14 +116,22 @@ BASE_FEATURE(kPreloadTopChromeWebUILessNavigations,
 BASE_FEATURE(kPressAndHoldEscToExitBrowserFullscreen,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+#if BUILDFLAG(IS_WIN)
+// Enables the UI for Process Isolation in chrome://settings/system.
+BASE_FEATURE(kProcessIsolationSettings, base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_WIN)
+
 #if BUILDFLAG(IS_MAC)
 // Add tab group colours when viewing tab groups using the top mac OS menu bar.
 BASE_FEATURE(kShowTabGroupsMacSystemMenu, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_MAC)
 
-BASE_FEATURE(kSideBySide, base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kSideBySideLinkMenuNewBadge, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kSplitViewTabDraggingUpdates, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kShowDropTargetForTabDelay,
+                   &kSplitViewTabDraggingUpdates,
+                   "show_drop_target_for_tab_delay",
+                   base::Milliseconds(1000));
 
 BASE_FEATURE(kTabDuplicateMetrics, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -196,8 +204,6 @@ BASE_FEATURE_PARAM(bool,
                    &kTabOrganization,
                    "trigger_demo_mode",
                    false);
-
-BASE_FEATURE(kTabOrganizationAppMenuItem, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTabOrganizationModelStrategy, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -285,12 +291,6 @@ BASE_FEATURE(kPageSpecificDataDialogRelatedInstalledAppsSection,
 BASE_FEATURE(kEnableManagementPromotionBanner,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-#if BUILDFLAG(IS_CHROMEOS)
-BASE_FEATURE(kEnablePolicyPromotionBanner, base::FEATURE_ENABLED_BY_DEFAULT);
-#else
-BASE_FEATURE(kEnablePolicyPromotionBanner, base::FEATURE_ENABLED_BY_DEFAULT);
-#endif
-
 BASE_FEATURE(kInlineFullscreenPerfExperiment, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kPageActionsMigration, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -344,12 +344,6 @@ BASE_FEATURE_PARAM(bool,
                    true);
 
 BASE_FEATURE_PARAM(bool,
-                   kPageActionsMigrationFind,
-                   &kPageActionsMigration,
-                   "find",
-                   true);
-
-BASE_FEATURE_PARAM(bool,
                    kPageActionsMigrationCollaborationMessaging,
                    &kPageActionsMigration,
                    "collaboration_messaging",
@@ -360,12 +354,6 @@ BASE_FEATURE_PARAM(bool,
                    &kPageActionsMigration,
                    "mandatory_reauth",
                    false);
-
-BASE_FEATURE_PARAM(bool,
-                   kPageActionsMigrationClickToCall,
-                   &kPageActionsMigration,
-                   "click_to_call",
-                   true);
 
 BASE_FEATURE_PARAM(bool,
                    kPageActionsMigrationSharingHub,
@@ -492,7 +480,9 @@ bool IsAndroidAnimatedProgressBarInBrowserEnabled() {
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
-BASE_FEATURE(kWhatsNewDesktopRefresh, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kWhatsNewDesktopRefresh, base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kAiOverlayDialog, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTabGroupsFocusing, base::FEATURE_DISABLED_BY_DEFAULT);
 

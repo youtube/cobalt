@@ -13,6 +13,7 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/raw_span.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/notimplemented.h"
 #include "base/notreached.h"
@@ -84,18 +85,14 @@ namespace {
 const int kInputFrameFillY = 12;
 const int kInputFrameFillU = 23;
 const int kInputFrameFillV = 34;
-// 360p is a valid HW resolution (unless `kForcingSoftwareIncludes360` is
-// enabled).
 const uint16_t kInputFrameWidth = 480;
 const uint16_t kInputFrameHeight = 360;
 const uint16_t kStartBitrate = 100;
 
-#if !BUILDFLAG(IS_ANDROID)
 // Less than 360p should result in SW fallback.
-const uint16_t kSoftwareFallbackInputFrameWidth = 479;
-const uint16_t kSoftwareFallbackInputFrameHeight = 359;
-const uint16_t kSoftwareFallbackInputFrameHeightForAV1 = 269;
-#endif
+const uint16_t kSoftwareFallbackInputFrameWidth = 478;
+const uint16_t kSoftwareFallbackInputFrameHeight = 358;
+const uint16_t kSoftwareFallbackInputFrameHeightForAV1 = 268;
 
 constexpr size_t kDefaultEncodedPayloadSize = 100;
 
@@ -182,7 +179,8 @@ class RTCVideoEncoderWrapper : public webrtc::VideoEncoder {
       bool is_constrained_h264,
       media::GpuVideoAcceleratorFactories* gpu_factories,
       scoped_refptr<media::MojoVideoEncoderMetricsProviderFactory>
-          encoder_metrics_provider_factory) {
+          encoder_metrics_provider_factory,
+      bool is_software_fallback_available) {
     auto wrapper = base::WrapUnique(new RTCVideoEncoderWrapper);
     base::WaitableEvent waiter(base::WaitableEvent::ResetPolicy::MANUAL,
                                base::WaitableEvent::InitialState::NOT_SIGNALED);
@@ -194,15 +192,17 @@ class RTCVideoEncoderWrapper : public webrtc::VideoEncoder {
                media::GpuVideoAcceleratorFactories* gpu_factories,
                scoped_refptr<media::MojoVideoEncoderMetricsProviderFactory>
                    encoder_metrics_provider_factory,
+               bool is_software_fallback_available,
                base::WaitableEvent* waiter) {
               *rtc_video_encoder = std::make_unique<RTCVideoEncoder>(
                   profile, is_constrained_h264, gpu_factories,
-                  std::move(encoder_metrics_provider_factory));
+                  std::move(encoder_metrics_provider_factory),
+                  is_software_fallback_available);
               waiter->Signal();
             },
             &wrapper->rtc_video_encoder_, profile, is_constrained_h264,
             gpu_factories, std::move(encoder_metrics_provider_factory),
-            &waiter));
+            is_software_fallback_available, &waiter));
     waiter.Wait();
     return wrapper;
   }
@@ -514,35 +514,36 @@ class RTCVideoEncoderTest {
     encoder_thread_.FlushForTesting();
   }
 
-  void CreateEncoder(webrtc::VideoCodecType codec_type) {
-    DVLOG(3) << __func__;
-    media::VideoCodecProfile media_profile;
+  media::VideoCodecProfile WebRtcVideoCodecTypeToMediaProfile(
+      webrtc::VideoCodecType codec_type) {
     switch (codec_type) {
       case webrtc::kVideoCodecVP8:
-        media_profile = media::VP8PROFILE_ANY;
-        break;
+        return media::VP8PROFILE_ANY;
       case webrtc::kVideoCodecH264:
-        media_profile = media::H264PROFILE_BASELINE;
-        break;
+        return media::H264PROFILE_BASELINE;
       case webrtc::kVideoCodecVP9:
-        media_profile = media::VP9PROFILE_PROFILE0;
-        break;
+        return media::VP9PROFILE_PROFILE0;
 #if BUILDFLAG(RTC_USE_H265)
       case webrtc::kVideoCodecH265:
-        media_profile = media::HEVCPROFILE_MAIN;
-        break;
+        return media::HEVCPROFILE_MAIN;
 #endif
       case webrtc::kVideoCodecAV1:
-        media_profile = media::AV1PROFILE_PROFILE_MAIN;
-        break;
+        return media::AV1PROFILE_PROFILE_MAIN;
       default:
         ADD_FAILURE() << "Unexpected codec type: " << codec_type;
-        media_profile = media::VIDEO_CODEC_PROFILE_UNKNOWN;
+        return media::VIDEO_CODEC_PROFILE_UNKNOWN;
     }
+  }
+
+  void CreateEncoder(webrtc::VideoCodecType codec_type) {
+    DVLOG(3) << __func__;
+    media::VideoCodecProfile media_profile =
+        WebRtcVideoCodecTypeToMediaProfile(codec_type);
 
     rtc_encoder_ = RTCVideoEncoderWrapper::Create(
         media_profile, false, mock_gpu_factories_.get(),
-        mock_encoder_metrics_provider_factory_);
+        mock_encoder_metrics_provider_factory_,
+        /*is_software_fallback_available=*/false);
   }
 
   // media::VideoEncodeAccelerator implementation.
@@ -923,19 +924,48 @@ TEST_P(RTCVideoEncoderInitTest, RepeatedInitSucceeds) {
             rtc_encoder_->InitEncode(&codec, kVideoEncoderSettings));
 }
 
-// Software fallback for low resolution is not applicable on Android.
-#if !BUILDFLAG(IS_ANDROID)
-
 TEST_P(RTCVideoEncoderInitTest, SoftwareFallbackForLowResolution) {
   webrtc::VideoCodec codec = GetDefaultCodec(GetParam());
-  CreateEncoder(codec.codecType);
+  media::VideoCodecProfile media_profile =
+      WebRtcVideoCodecTypeToMediaProfile(codec.codecType);
+  if (!base::FeatureList::IsEnabled(
+          media::kForceSoftwareForRtcLowResolutions)) {
+    ExpectCreateInitAndDestroyVEA();
+  }
+  rtc_encoder_ = RTCVideoEncoderWrapper::Create(
+      media_profile, false, mock_gpu_factories_.get(),
+      mock_encoder_metrics_provider_factory_,
+      /*is_software_fallback_available=*/true);
   codec.width = kSoftwareFallbackInputFrameWidth;
   if (codec.codecType == webrtc::kVideoCodecAV1) {
     codec.height = kSoftwareFallbackInputFrameHeightForAV1;
   } else {
     codec.height = kSoftwareFallbackInputFrameHeight;
   }
-  EXPECT_EQ(WEBRTC_VIDEO_CODEC_FALLBACK_SOFTWARE,
+  EXPECT_EQ(
+      base::FeatureList::IsEnabled(media::kForceSoftwareForRtcLowResolutions)
+          ? WEBRTC_VIDEO_CODEC_FALLBACK_SOFTWARE
+          : WEBRTC_VIDEO_CODEC_OK,
+      rtc_encoder_->InitEncode(&codec, kVideoEncoderSettings));
+}
+
+TEST_P(RTCVideoEncoderInitTest,
+       NoSoftwareFallbackForLowResolutionWhenSoftwareEncoderUnavailable) {
+  webrtc::VideoCodec codec = GetDefaultCodec(GetParam());
+  media::VideoCodecProfile media_profile =
+      WebRtcVideoCodecTypeToMediaProfile(codec.codecType);
+  ExpectCreateInitAndDestroyVEA();
+  rtc_encoder_ = RTCVideoEncoderWrapper::Create(
+      media_profile, false, mock_gpu_factories_.get(),
+      mock_encoder_metrics_provider_factory_,
+      /*is_software_fallback_available=*/false);
+  codec.width = kSoftwareFallbackInputFrameWidth;
+  if (codec.codecType == webrtc::kVideoCodecAV1) {
+    codec.height = kSoftwareFallbackInputFrameHeightForAV1;
+  } else {
+    codec.height = kSoftwareFallbackInputFrameHeight;
+  }
+  EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK,
             rtc_encoder_->InitEncode(&codec, kVideoEncoderSettings));
 }
 
@@ -951,8 +981,6 @@ TEST_P(RTCVideoEncoderInitTest, AV1Supports270p) {
   EXPECT_EQ(WEBRTC_VIDEO_CODEC_OK,
             rtc_encoder_->InitEncode(&codec, kVideoEncoderSettings));
 }
-
-#endif
 
 TEST_P(RTCVideoEncoderInitTest, CreateAndInitSucceedsForTemporalLayer) {
   const webrtc::VideoCodecType codec_type = GetParam();
@@ -2914,14 +2942,14 @@ class FakeH265ParameterSetsTracker : public H265ParameterSetsTracker {
   explicit FakeH265ParameterSetsTracker(
       H265ParameterSetsTracker::PacketAction action)
       : action_(action) {}
-  explicit FakeH265ParameterSetsTracker(webrtc::ArrayView<const uint8_t> prefix)
+  explicit FakeH265ParameterSetsTracker(base::span<const uint8_t> prefix)
       : action_(H265ParameterSetsTracker::PacketAction::kInsert),
         prefix_(prefix) {
     EXPECT_GT(prefix.size(), 0u);
   }
 
   FixedBitstream MaybeFixBitstream(
-      webrtc::ArrayView<const uint8_t> bitstream) override {
+      base::span<const uint8_t> bitstream) override {
     FixedBitstream fixed;
     fixed.action = action_;
     if (prefix_.size() > 0) {
@@ -2937,13 +2965,13 @@ class FakeH265ParameterSetsTracker : public H265ParameterSetsTracker {
 
  private:
   H265ParameterSetsTracker::PacketAction action_;
-  webrtc::ArrayView<const uint8_t> prefix_;
+  base::raw_span<const uint8_t> prefix_;
 };
 
 TEST_F(RTCVideoEncoderEncodeTest, EncodeH265WithBitstreamFix) {
   class FixedBitstreamVerifier : public webrtc::EncodedImageCallback {
    public:
-    explicit FixedBitstreamVerifier(webrtc::ArrayView<const uint8_t> prefix,
+    explicit FixedBitstreamVerifier(base::span<const uint8_t> prefix,
                                     size_t encoded_image_size)
         : prefix_(prefix), encoded_image_size_(encoded_image_size) {}
 
@@ -2951,8 +2979,7 @@ TEST_F(RTCVideoEncoderEncodeTest, EncodeH265WithBitstreamFix) {
         const webrtc::EncodedImage& encoded_image,
         const webrtc::CodecSpecificInfo* codec_specific_info) override {
       EXPECT_EQ(encoded_image.size(), encoded_image_size_ + prefix_.size());
-      EXPECT_THAT(webrtc::ArrayView<const uint8_t>(encoded_image.data(),
-                                                   prefix_.size()),
+      EXPECT_THAT(base::span(encoded_image).first(prefix_.size()),
                   ::testing::ElementsAreArray(prefix_));
       waiter_.Signal();
       return Result(Result::OK);
@@ -2966,7 +2993,7 @@ TEST_F(RTCVideoEncoderEncodeTest, EncodeH265WithBitstreamFix) {
 
    private:
     base::WaitableEvent waiter_;
-    webrtc::ArrayView<const uint8_t> prefix_;
+    base::raw_span<const uint8_t> prefix_;
     size_t encoded_image_size_;
   };
 
@@ -2985,8 +3012,7 @@ TEST_F(RTCVideoEncoderEncodeTest, EncodeH265WithBitstreamFix) {
             rtc_encoder_->InitEncode(&codec, kVideoEncoderSettings));
 
   uint8_t prefix[] = {0x90, 0x91, 0x92, 0x93};
-  webrtc::ArrayView<uint8_t> prefix_view =
-      webrtc::ArrayView<uint8_t>(prefix, sizeof(prefix));
+  base::span<uint8_t> prefix_view(prefix);
   rtc_encoder_->SetH265ParameterSetsTracker(
       std::make_unique<FakeH265ParameterSetsTracker>(prefix_view));
   FixedBitstreamVerifier bitstream_verifier(prefix_view,

@@ -9,7 +9,6 @@
 #include <optional>
 #include <string>
 
-#include "base/android/jni_weak_ref.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
@@ -120,13 +119,12 @@ class AppBannerManagerAndroid
 
   // Called when the Java-side has retrieved information for the app.
   // Returns |false| if an icon fetch couldn't be kicked off.
-  void OnAppDetailsRetrieved(
-      JNIEnv* env,
-      int request_id,
-      const base::android::JavaRef<jobject>& japp_data,
-      const base::android::JavaRef<jstring>& japp_title,
-      const base::android::JavaRef<jstring>& japp_package,
-      const base::android::JavaRef<jstring>& jicon_url);
+  void OnAppDetailsRetrieved(JNIEnv* env,
+                             int request_id,
+                             const base::android::JavaRef<jobject>& japp_data,
+                             std::u16string&& app_title,
+                             std::string&& app_package,
+                             std::string&& icon_url);
 
   void ShowBannerFromBadge(const InstallBannerConfig& config);
 
@@ -194,23 +192,24 @@ class AppBannerManagerAndroid
   base::WeakPtr<AppBannerManagerAndroid> GetAndroidWeakPtr();
 
   // TODO(b/323192242): Remove.
-  base::android::ScopedJavaLocalRef<jobject> GetNativeJavaAppDataForTesting()
-      const;
+  const base::android::ScopedJavaGlobalRef<jobject>&
+  native_java_app_data_for_testing() const {
+    return native_java_app_data_;
+  }
 
  private:
   friend class content::WebContentsUserData<AppBannerManagerAndroid>;
 
   struct QueryNativeAppConfig {
-    QueryNativeAppConfig(
-        const base::android::ScopedJavaLocalRef<jstring>& url,
-        const base::android::ScopedJavaLocalRef<jstring>& package,
-        const base::android::ScopedJavaLocalRef<jstring>& referrer);
+    QueryNativeAppConfig(const std::string& url,
+                         const std::string& package,
+                         const std::string& referrer);
     QueryNativeAppConfig(const QueryNativeAppConfig& config);
     ~QueryNativeAppConfig();
 
-    base::android::ScopedJavaLocalRef<jstring> url;
-    base::android::ScopedJavaLocalRef<jstring> package;
-    base::android::ScopedJavaLocalRef<jstring> referrer;
+    std::string url;
+    std::string package;
+    std::string referrer;
   };
 
   // Creates the Java-side AppBannerManager.
@@ -225,7 +224,6 @@ class AppBannerManagerAndroid
   base::expected<QueryNativeAppConfig, InstallableStatusCode>
   GetNativeAppFetchRequestConfig(
       const GURL& validated_url,
-      JNIEnv* env,
       const blink::Manifest::RelatedApplication& related_application) const;
 
   // Called when the download of a native app's icon is complete, as native
@@ -236,25 +234,15 @@ class AppBannerManagerAndroid
                               GURL primary_icon_url,
                               const SkBitmap& bitmap);
 
-  base::android::ScopedJavaLocalRef<jobject> GetJavaBannerManager(
-      JNIEnv* env) const;
-
   std::unique_ptr<AppBannerManager> app_banner_manager_;
 
   const std::unique_ptr<ChromeDelegate> delegate_;
 
-  // A weak reference to the Java object. The Java object will be kept alive by
-  // a static map in the Java code. ScopedJavaGlobalRef would scale poorly with
-  // a large number of WebContents as each entry would consume a slot in the
-  // finite global ref table.
-  JavaObjectWeakGlobalRef java_banner_manager_;
+  // The Java-side AppBannerManager.
+  base::android::ScopedJavaGlobalRef<jobject> java_banner_manager_;
 
-  // A weak ref to the Java-side AppData. As a strong ref this is owned by the
-  // `java_banner_manager_` and points to the last acquired data. This is
-  // converted to a ScopedJavaGlobalRef when creating AddToHomescreenParams.
-  // A weak ref is used to prevent consuming an entry in the finite global ref
-  // table as much as possible.
-  JavaObjectWeakGlobalRef native_java_app_data_;
+  // Java-side object containing data about a native app.
+  base::android::ScopedJavaGlobalRef<jobject> native_java_app_data_;
 
   int next_native_request_id_ = 0;
   std::optional<int> current_native_request_id_;

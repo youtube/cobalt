@@ -12,6 +12,7 @@ found in the LICENSE file.
     android:id="@+id/upload_image_preview_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:clipChildren="false"
     tools:ignore="UnusedResources">
 
     <!--
@@ -55,9 +56,7 @@ found in the LICENSE file.
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:visibility="gone"
-        android:paddingVertical="@dimen/composeplate_view_button_padding_for_shadow_bottom"
-        android:paddingHorizontal="@dimen/composeplate_view_button_padding_for_shadow_lateral"
-        android:clipToPadding="false"
+        android:clipChildren="false"
         app:layout_goneMarginTop="@dimen/mvt_container_top_margin"
         app:layout_constraintTop_toBottomOf="@+id/default_search_engine_logo"
         app:layout_constraintStart_toStartOf="parent"

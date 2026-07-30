@@ -583,9 +583,6 @@ BASE_FEATURE_PARAM(int,
 BASE_FEATURE(kPopulatePermissionsPolicyOnRequest,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kProtectedAudienceCorsSafelistKVv2Signals,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kStorageAccessHeadersRespectPermissionsPolicy,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -660,6 +657,6 @@ BASE_FEATURE_PARAM(int,
                    kDurableMessagesGlobalBufferSize,
                    &kDurableMessages,
                    /*name=*/"max_global_buffer_size",
-                   /*default_value=*/0);
+                   /*default_value=*/base::MiB(350).InBytes());
 
 }  // namespace network::features

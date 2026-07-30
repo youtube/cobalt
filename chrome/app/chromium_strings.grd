@@ -951,6 +951,12 @@ Chromium is unable to recover your settings.
         <message name="IDS_EXTENSIONS_MV2_DEPRECATION_PANEL_REMOVE_BUTTON_ACC_LABEL" desc="The (accessible) label for the button to remove an extension.">
           Remove <ph name="EXTENSION_NAME">$1<ex>Google Translate</ex></ph> from Chromium
         </message>
+        <message name="IDS_EXTENSIONS_MENU_ZERO_STATE_DESC" desc="Description in the Extensions Menu when there are no extensions installed." formatter_data="android_java">
+          Extensions are add-ons that let you customize Chromium. From staying organized, to simplifying everyday tasks, extensions help you make Chromium your own.
+        </message>
+        <message name="IDS_OPEN_WEB_STORE_BUTTON_TEXT" desc="Text for the open Chrome Web Store button." formatter_data="android_java">
+          Open Chrome Web Store
+        </message>
       </if>
 
       <!-- Extension Safety Check Detail Page strings -->
@@ -1156,9 +1162,8 @@ Chromium is unable to recover your settings.
       </message>
 
       <!-- Signin Search AI Mode promo -->
-      <!-- TODO(crbug.com/486858498): Finalize and make transalteable. -->
-      <message name="IDS_AI_SIGNIN_PROMO_SUBTITLE" translateable="false">
-        Sign in to Chromium to ask AI mode about your tabs. You'll also get your passwords and more on all your devices.
+      <message name="IDS_AI_SIGNIN_PROMO_SUBTITLE" desc="The message shown in a sign-in promo bubble that is shown to users not signed-in to the browser when they click in an AI Mode Search result link.">
+        To ask AI Mode about your tab without leaving the page, sign in to Chromium. You'll also get your passwords and more on all your devices.
       </message>
       <message name="IDS_AI_SIGNIN_PROMO_AVATAR_PILL_TEXT" translateable="false" meaning="Text shown on the expanded avatar pill when the Signin Search AI Bubble promo is shown to the user">
         Sign in to Chromium?
@@ -2554,6 +2559,9 @@ Chromium is unable to recover your settings.
           desc="This string appears as a heading on a full-page screen that asks the user to sign in to Chromium with their Google Account. It appears when the user launches Chromium for the first time. When they sign in, they can personalize and customize Chromium and remember their settings in their Google Account. The tone should be inviting and alluring.">
           Sign in to Chromium
         </message>
+        <message name="IDS_FRE_GET_YOUR_BROWSER_READY_TITLE" meaning="Title" translateable="false" desc="">
+          Let's get your Chromium ready
+        </message>
 
         <!-- Default Browser Promo -->
         <message name="IDS_FRE_DEFAULT_BROWSER_TITLE" desc="Title for the page that prompts user to set Chromium as their default browser in the first run experience.">
@@ -3000,7 +3008,7 @@ Chromium is unable to recover your settings.
       <message name="IDS_GLIC_PROMO_TITLE" desc="Glic promo title." translateable="false">
         Try Gemini in Chromium
       </message>
-      <message name="IDS_GLIC_TAB_STRIP_BUTTON_TOOLTIP" translateable="false" desc="This is the tooltip shown when hovering over the glic entry button in the tab strip while the Glic window is closed.">
+      <message name="IDS_GLIC_TAB_STRIP_BUTTON_TOOLTIP" translateable="false" desc="This is the tooltip shown when hovering over the glic entry button in the tab strip while the Glic window is closed." formatter_data="android_java">
         Open Gemini in Chromium
       </message>
       <message name="IDS_GLIC_TAB_STRIP_BUTTON_TOOLTIP_CLOSE" translateable="false" desc="This is the tooltip shown when hovering over the glic entry button in the tab strip while the Glic window is open.">

@@ -125,25 +125,22 @@ String EmailInputType::ConvertEmailAddressToUnicode(
     return address;
   }
 
-  String unicode_host = Platform::Current()->ConvertIDNToUnicode(
-      address.Substring(at_position + 1));
-  StringBuilder builder;
-  builder.Append(address, 0, at_position + 1);
-  builder.Append(unicode_host);
-  return builder.ToString();
+  String unicode_host =
+      Platform::Current()->ConvertIDNToUnicode(address.substr(at_position + 1));
+  return StrCat({address.subview(0, at_position + 1), unicode_host});
 }
 
 static bool IsInvalidLocalPartCharacter(UChar ch) {
   if (!IsASCII(ch))
     return true;
   DEFINE_STATIC_LOCAL(const String, valid_characters, (kLocalPartCharacters));
-  return !valid_characters.contains(ToASCIILower(ch));
+  return !valid_characters.contains(ToAsciiLower(ch));
 }
 
 static bool IsInvalidDomainCharacter(UChar ch) {
   if (!IsASCII(ch))
     return true;
-  return !IsASCIILower(ch) && !IsASCIIUpper(ch) && !IsASCIIDigit(ch) &&
+  return !IsASCIILower(ch) && !IsASCIIUpper(ch) && !IsAsciiDigit(ch) &&
          ch != '.' && ch != '-';
 }
 
@@ -231,7 +228,7 @@ String EmailInputType::TypeMismatchText() const {
   // invalid characters. However we should show Unicode value.
   String unicode_address = ConvertEmailAddressToUnicode(invalid_address);
   String local_part = invalid_address.Left(at_index);
-  String domain = invalid_address.Substring(at_index + 1);
+  String domain = invalid_address.substr(at_index + 1);
   if (local_part.empty())
     return GetLocale().QueryString(
         IDS_FORM_VALIDATION_TYPE_MISMATCH_EMAIL_EMPTY_LOCAL, at_sign,
@@ -245,21 +242,21 @@ String EmailInputType::TypeMismatchText() const {
     unsigned char_length = U_IS_LEAD(local_part[invalid_char_index]) ? 2 : 1;
     return GetLocale().QueryString(
         IDS_FORM_VALIDATION_TYPE_MISMATCH_EMAIL_INVALID_LOCAL, at_sign,
-        local_part.Substring(invalid_char_index, char_length));
+        local_part.substr(invalid_char_index, char_length));
   }
   invalid_char_index = domain.Find(IsInvalidDomainCharacter);
   if (invalid_char_index != kNotFound) {
     unsigned char_length = U_IS_LEAD(domain[invalid_char_index]) ? 2 : 1;
     return GetLocale().QueryString(
         IDS_FORM_VALIDATION_TYPE_MISMATCH_EMAIL_INVALID_DOMAIN, at_sign,
-        domain.Substring(invalid_char_index, char_length));
+        domain.substr(invalid_char_index, char_length));
   }
   if (!CheckValidDotUsage(domain)) {
     wtf_size_t at_index_in_unicode = unicode_address.find('@');
     DCHECK_NE(at_index_in_unicode, kNotFound);
     return GetLocale().QueryString(
         IDS_FORM_VALIDATION_TYPE_MISMATCH_EMAIL_INVALID_DOTS, String("."),
-        unicode_address.Substring(at_index_in_unicode + 1));
+        unicode_address.substr(at_index_in_unicode + 1));
   }
   if (GetElement().Multiple()) {
     return GetLocale().QueryString(

@@ -30,6 +30,7 @@
 #include "chrome/browser/glic/host/context/glic_screenshot_capturer.h"
 #include "chrome/browser/glic/host/context/glic_sharing_manager_coordinator.h"
 #include "chrome/browser/glic/host/context/glic_sharing_manager_impl.h"
+#include "chrome/browser/glic/host/glic.mojom-shared.h"
 #include "chrome/browser/glic/host/host.h"
 #include "chrome/browser/glic/public/context/glic_sharing_manager.h"
 #include "chrome/browser/glic/public/features.h"
@@ -81,10 +82,8 @@ namespace glic {
 
 BASE_FEATURE(kGlicBindOnlyForDaisyChainingFromFloatingUi,
              base::FEATURE_ENABLED_BY_DEFAULT);
-#if !BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kGlicActorDaisyChainingFromFloatingUiDoesntClose,
              base::FEATURE_ENABLED_BY_DEFAULT);
-#endif
 BASE_FEATURE(kGlicBindOnPinFromFloatingUiDoesntShowSidePanel,
              base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kGlicRemoveBlankInstancesOnClose,
@@ -539,8 +538,19 @@ void GlicInstanceImpl::CreateTask(
         base::unexpected(mojom::CreateTaskErrorReason::kTaskSystemUnavailable));
     return;
   }
+
+  // Conversation ID must be available since a turn is required to create a task
+  // and an ID becomes available at first turn. If you hit this in a test you
+  // probably need to call RegisterConversation on your GlicInstance.
+  std::optional<std::string> id = conversation_id();
+  if (!id.has_value()) {
+    std::move(callback).Run(base::unexpected(
+        mojom::CreateTaskErrorReason::kConversationNotRegistered));
+    return;
+  }
+
   instance_metrics_.OnCreateTask();
-  actor_task_manager_->CreateTask(weak_ptr_factory_.GetWeakPtr(),
+  actor_task_manager_->CreateTask(weak_ptr_factory_.GetWeakPtr(), id.value(),
                                   std::move(options), std::move(callback));
 }
 
@@ -904,7 +914,7 @@ void GlicInstanceImpl::MaybeShowShortcutToastPromo() {
   }
 // TODO(b/483455896): implement hotkey promo for android
 #if !BUILDFLAG(IS_ANDROID)
-  Browser* browser = chrome::FindTabbedBrowser(profile_, false);
+  BrowserWindowInterface* browser = chrome::FindTabbedBrowser(profile_, false);
   if (!browser) {
     // If there is no browser window open for the profile, skip the promo.
     return;
@@ -931,7 +941,7 @@ void GlicInstanceImpl::MaybeShowShortcutSnoozePromo() {
 
   // TODO(b/483455896): implement hotkey promo for android.
 #if !BUILDFLAG(IS_ANDROID)
-  Browser* browser = chrome::FindTabbedBrowser(profile_, false);
+  BrowserWindowInterface* browser = chrome::FindTabbedBrowser(profile_, false);
   if (!browser) {
     // If there is no browser window open for the profile, skip the promo.
     return;
@@ -1350,20 +1360,27 @@ views::View* GlicInstanceImpl::GetActiveEmbedderGlicViewForTesting() {
   }
   return embedder->GetView().get();
 }
+
+GlicFloatingUi* GlicInstanceImpl::GetFloatingUiForTesting() {
+  if (!IsDetached()) {
+    return nullptr;
+  }
+  auto* embedder = GetActiveEmbedder();
+  if (!embedder) {
+    return nullptr;
+  }
+  return static_cast<GlicFloatingUi*>(embedder);
+}
 #endif
 
 void GlicInstanceImpl::OnTabAddedToTask(
     actor::TaskId task_id,
     const tabs::TabInterface::Handle& tab_handle) {
-#if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL: actor not yet ported
   tabs::TabInterface* tab = tab_handle.Get();
   if (!tab || !task_id) {
     instance_metrics_.OnDaisyChain(DaisyChainSource::kActorAddTab,
                                    /*success=*/false);
     return;
-  }
-  if (base::FeatureList::IsEnabled(features::kGlicGetTabByIdApi)) {
-    service_->OnTabAddedToTask(task_id, tab_handle);
   }
   SidePanelShowOptions side_panel_options{*tab};
   side_panel_options.suppress_opening_animation = true;
@@ -1378,7 +1395,6 @@ void GlicInstanceImpl::OnTabAddedToTask(
   }
   instance_metrics_.OnDaisyChain(DaisyChainSource::kActorAddTab,
                                  /*success=*/true, tab);
-#endif
 }
 
 void GlicInstanceImpl::RequestToShowCredentialSelectionDialog(

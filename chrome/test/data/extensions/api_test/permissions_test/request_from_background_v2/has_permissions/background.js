@@ -16,7 +16,7 @@ chrome.test.runTests([
   function checkGeolocation() {
     navigator.permissions.query({name: 'geolocation'})
         .then(function(permission) {
-          if (permission.state === 'prompt') {
+          if (permission.state === 'granted') {
             chrome.test.succeed();
           } else {
             chrome.test.fail();
@@ -30,11 +30,10 @@ chrome.test.runTests([
   function geolocation_watchPosition() {
     navigator.geolocation.watchPosition(chrome.test.succeed, chrome.test.fail);
   },
-  // Geolocation state is always `prompt`.
   function checkGeolocationAfterGranted() {
     navigator.permissions.query({name: 'geolocation'})
         .then(function(permission) {
-          if (permission.state === 'prompt') {
+          if (permission.state === 'granted') {
             chrome.test.succeed();
           } else {
             chrome.test.fail();
@@ -51,7 +50,7 @@ chrome.test.runTests([
     })
   },
   function requestCamera() {
-    var constraints = {video: true};
+    const constraints = {video: true};
     navigator.mediaDevices.getUserMedia(constraints)
         .then(function(stream) {
           chrome.test.fail();
@@ -71,7 +70,7 @@ chrome.test.runTests([
         })
   },
   function requestMicrophone() {
-    var constraints = {audio: true};
+    const constraints = {audio: true};
     navigator.mediaDevices.getUserMedia(constraints)
         .then(function(stream) {
           chrome.test.fail();

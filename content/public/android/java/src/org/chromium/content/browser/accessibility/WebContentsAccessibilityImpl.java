@@ -311,7 +311,7 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
 
         WebContents webContents = mDelegate.getWebContents();
         if (webContents != null) {
-            mCaptioningController = new CaptioningController(webContents);
+            mCaptioningController = CaptioningController.fromWebContents(webContents);
             WindowEventObserverManager.from(webContents).addObserver(this);
             assumeNonNull(webContents.getViewAndroidDelegate()).addObserver(this);
         }
@@ -489,8 +489,8 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
     }
 
     /**
-     * Called after the native a11y part is initialized. Overridable by subclasses
-     * to do initialization that is not required until the native is set up.
+     * Called after the native a11y part is initialized. Overridable by subclasses to do
+     * initialization that is not required until the native is set up.
      */
     protected void onNativeInit() {
         TraceEvent.begin("WebContentsAccessibilityImpl.onNativeInit");
@@ -499,6 +499,7 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
         mLastAccessibilityFocusId = View.NO_ID;
         mIsHovering = false;
         mCurrentRootId = View.NO_ID;
+        mDidSendAnyEvent = false;
 
         mSupportedHtmlElementTypes =
                 WebContentsAccessibilityImplJni.get().getSupportedHtmlElementTypes(mNativeObj);
@@ -532,6 +533,9 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
 
         // Send state values set by embedders to native-side objects.
         refreshNativeState();
+
+        // Finally, also see if we need to fire a load complete event.
+        handleInitialLoadComplete(mPendingLoadCompleteId);
 
         TraceEvent.end("WebContentsAccessibilityImpl.onNativeInit");
     }
@@ -689,6 +693,22 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
 
     public boolean hasFinishedLatestAccessibilitySnapshotForTesting() {
         return mHasFinishedLatestAccessibilitySnapshot;
+    }
+
+    public Object @Nullable [] getExtendedSelection(int virtualViewId) {
+        if (!isNativeInitialized()) return null;
+        int[] selection =
+                WebContentsAccessibilityImplJni.get()
+                        .getExtendedSelection(mNativeObj, virtualViewId);
+
+        if (selection == null) return null;
+
+        AccessibilityNodeInfoCompat startNode = createAccessibilityNodeInfo(selection[0]);
+        int startOffset = selection[1];
+        AccessibilityNodeInfoCompat endNode = createAccessibilityNodeInfo(selection[2]);
+        int endOffset = selection[3];
+
+        return new Object[] {startNode, startOffset, endNode, endOffset};
     }
 
     public boolean setExtendedSelectionForTesting( // IN-TEST
@@ -1535,9 +1555,11 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
                 return true;
             }
             return false;
-        } else if (action == ACTION_COLLAPSE.getId() || action == ACTION_EXPAND.getId()) {
-            // If something is collapsible or expandable, just activate it to toggle.
-            performClick(virtualViewId);
+        } else if (action == ACTION_EXPAND.getId()) {
+            WebContentsAccessibilityImplJni.get().expand(mNativeObj, virtualViewId);
+            return true;
+        } else if (action == ACTION_COLLAPSE.getId()) {
+            WebContentsAccessibilityImplJni.get().collapse(mNativeObj, virtualViewId);
             return true;
         } else if (action == ACTION_SHOW_ON_SCREEN.getId()) {
             scrollToMakeNodeVisible(virtualViewId);
@@ -1741,16 +1763,14 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
         // ready and listed as the child of the container view.
         sendWindowContentChangedEvent(View.NO_ID, /* setSubtreeChanged= */ true);
 
+        // Also, notify the web contents possibly on load.
+        handleInitialLoadComplete(mPendingLoadCompleteId);
+
         // (Re-) focus focused element, since we weren't able to create an
         // AccessibilityNodeInfoCompat for this element before.
         if (!mShouldFocusOnPageLoad) return;
         if (mAccessibilityFocusId != View.NO_ID) {
             moveAccessibilityFocusToId(mAccessibilityFocusId);
-        }
-
-        if (mPendingLoadCompleteId != View.NO_ID) {
-            handleInitialLoadComplete(mPendingLoadCompleteId);
-            mPendingLoadCompleteId = View.NO_ID;
         }
     }
 
@@ -2255,15 +2275,17 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
 
     @CalledByNative
     private void handleInitialLoadComplete(int rootId) {
-        if (mDidSendAnyEvent || sSuppressLoadCompleteEventForTesting) return;
+        if (mDidSendAnyEvent || sSuppressLoadCompleteEventForTesting || rootId == View.NO_ID) {
+            return;
+        }
 
         if (!isNativeInitialized() || !mNotifyFrameInfoInitializedCalled) {
             mPendingLoadCompleteId = rootId;
+            return;
         }
 
-        if (rootId != View.NO_ID) {
-            handleContentChanged(rootId, true);
-        }
+        handleContentChanged(rootId, true);
+        mPendingLoadCompleteId = View.NO_ID;
     }
 
     @CalledByNative
@@ -2877,6 +2899,10 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
 
         String getSupportedHtmlElementTypes(long nativeWebContentsAccessibilityAndroid);
 
+        void expand(long nativeWebContentsAccessibilityAndroid, int id);
+
+        void collapse(long nativeWebContentsAccessibilityAndroid, int id);
+
         void showContextMenu(long nativeWebContentsAccessibilityAndroid, int id);
 
         boolean isRootManagerConnected(long nativeWebContentsAccessibilityAndroid);
@@ -2891,6 +2917,9 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
         int[] getChildIdsForTesting(long nativeWebContentsAccessibilityAndroid, int virtualViewId);
 
         int[] getChildIdsForExperiment(
+                long nativeWebContentsAccessibilityAndroid, int virtualViewId);
+
+        int @Nullable [] getExtendedSelection(
                 long nativeWebContentsAccessibilityAndroid, int virtualViewId);
 
         int[] getLabeledByNodeIdsForTesting( // IN-TEST

@@ -30,6 +30,7 @@
 #include "components/tabs/public/tab_group_tab_collection.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/models/list_selection_model.h"
 #include "ui/color/color_provider.h"
 #include "ui/gfx/color_utils.h"
 #include "ui/gfx/geometry/rect.h"
@@ -111,6 +112,15 @@ VerticalTabGroupView::~VerticalTabGroupView() = default;
 void VerticalTabGroupView::OnThemeChanged() {
   views::View::OnThemeChanged();
   OnDataChanged();
+}
+
+void VerticalTabGroupView::OnGestureEvent(ui::GestureEvent* event) {
+  if (event->type() == ui::EventType::kGestureLongTap) {
+    ui::GestureEvent converted_event(*event, static_cast<views::View*>(this),
+                                     static_cast<views::View*>(group_header_));
+    group_header_->OnGestureEvent(&converted_event);
+    event->SetHandled();
+  }
 }
 
 views::ProposedLayout VerticalTabGroupView::CalculateProposedLayout(
@@ -203,7 +213,15 @@ views::ProposedLayout VerticalTabGroupView::CalculateProposedLayout(
 }
 
 void VerticalTabGroupView::OnAttentionStateChanged() {
-  OnDataChanged();
+  if (!collection_node_) {
+    return;
+  }
+
+  const TabGroup* group = GetTabGroupFromNode(collection_node_);
+  const bool has_attention =
+      SupportsDataSharing() &&
+      group->GetTabGroupFeatures()->attention_indicator()->GetHasAttention();
+  group_header_->OnAttentionStateChanged(has_attention);
 }
 
 void VerticalTabGroupView::ToggleCollapsedState(
@@ -215,6 +233,7 @@ void VerticalTabGroupView::ToggleCollapsedState(
 
   collection_node_->GetController()->ToggleTabGroupCollapsedState(
       GetTabGroupFromNode(collection_node_), origin);
+  InvalidateLayout();
 }
 
 views::Widget* VerticalTabGroupView::ShowGroupEditorBubble(
@@ -234,6 +253,13 @@ views::Widget* VerticalTabGroupView::ShowGroupEditorBubble(
   return collection_node_->GetController()->ShowGroupEditorBubble(
       GetTabGroupFromNode(collection_node_)->id(), anchor_view,
       stop_context_menu_propagation);
+}
+
+bool VerticalTabGroupView::IsDragging() const {
+  if (!collection_node_ || !collection_node_->GetController()) {
+    return false;
+  }
+  return GetDragHandler().IsDragging();
 }
 
 bool VerticalTabGroupView::IsViewDragging(const views::View& child_view) const {
@@ -307,11 +333,7 @@ void VerticalTabGroupView::OnDataChanged() {
 
   const TabGroup* group = GetTabGroupFromNode(collection_node_);
   tab_group_visual_data_ = *group->visual_data();
-  const bool has_attention =
-      SupportsDataSharing() &&
-      group->GetTabGroupFeatures()->attention_indicator()->GetHasAttention();
-  group_header_->OnDataChanged(&tab_group_visual_data_, has_attention,
-                               GetIsShared());
+  group_header_->OnDataChanged(&tab_group_visual_data_, GetIsShared());
 
   // If the tab group is not collapsed update child visibility immediately. This
   // allows tabs to be visible as they are animated in.
@@ -476,12 +498,15 @@ VerticalTabGroupView::GetLinkDropIndex(const gfx::Point& loc_in_group) {
                                                   DragPositionHint::kAfter);
 }
 
-void VerticalTabGroupView::InitHeaderDrag(const ui::MouseEvent& event) {
+void VerticalTabGroupView::InitHeaderDrag(const ui::LocatedEvent& event) {
   CHECK(collection_node_);
-  GetDragHandler().InitializeDrag(*collection_node_, event);
+  const ui::ListSelectionModel original_selection_model =
+      collection_node_->GetController()->GetSelectionModel();
+  GetDragHandler().InitializeDrag(*collection_node_, original_selection_model,
+                                  event);
 }
 
-bool VerticalTabGroupView::ContinueHeaderDrag(const ui::MouseEvent& event) {
+bool VerticalTabGroupView::ContinueHeaderDrag(const ui::LocatedEvent& event) {
   return GetDragHandler().ContinueDrag(*group_header_, event);
 }
 
@@ -499,6 +524,22 @@ void VerticalTabGroupView::HideHoverCard() const {
     hover_card_controller->UpdateHoverCard(
         nullptr, TabSlotController::HoverCardUpdateType::kEvent);
   }
+}
+
+void VerticalTabGroupView::ShiftGroupUp() {
+  if (!collection_node_) {
+    return;
+  }
+  const TabGroup* group = GetTabGroupFromNode(collection_node_);
+  collection_node_->GetController()->ShiftGroupUp(group->id());
+}
+
+void VerticalTabGroupView::ShiftGroupDown() {
+  if (!collection_node_) {
+    return;
+  }
+  const TabGroup* group = GetTabGroupFromNode(collection_node_);
+  collection_node_->GetController()->ShiftGroupDown(group->id());
 }
 
 BEGIN_METADATA(VerticalTabGroupView)

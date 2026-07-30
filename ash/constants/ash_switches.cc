@@ -1081,6 +1081,52 @@ const char kAllowDefaultShelfPinLayoutIgnoringSync[] =
 // behavior to be active regardless of system state.
 const char kForceRefreshRateThrottle[] = "force-refresh-rate-throttle";
 
+// Value of GAIA auth code for --force-app-mode.
+const char kAppModeAuthCode[] = "app-mode-auth-code";
+
+// Value of OAuth2 refresh token for --force-app-mode.
+const char kAppModeOAuth2Token[] = "app-mode-oauth-token";
+
+// Allows setting a different destination ID for connection-monitoring GCM
+// messages. Useful when running against a non-prod management server.
+const char kMonitoringDestinationID[] = "monitoring-destination-id";
+
+// Frequency in Milliseconds for system log uploads. Should only be used for
+// testing purposes.
+const char kSystemLogUploadFrequency[] = "system-log-upload-frequency";
+
+// When specified with a url string as parameter, the given url overrides the
+// Android Messages for Web PWA installation and app urls using a base of the
+// given domain with approrpiate suffixes.
+const char kCustomAndroidMessagesDomain[] = "custom-android-messages-domain";
+
+// Enables verbose logging level for Nearby Share.
+const char kNearbyShareVerboseLogging[] = "nearby-share-verbose-logging";
+
+// Custom crosh command.
+const char kCroshCommand[] = "crosh-command";
+
+// Passes the name of the current running automated test to Chrome.
+const char kTestName[] = "test-name";
+
+// Overrides the default validity period for Nearby Share certificates. Value
+// must be larger than 0.
+const char kNearbyShareCertificateValidityPeriodHours[] =
+    "nearby-share-certificate-validity-period-hours";
+
+// Overrides the default device ID to provide a stable ID in test environments.
+// By default we generate a random 10-character string.
+const char kNearbyShareDeviceID[] = "nearby-share-device-id";
+
+// Overrides the default URL for Google APIs (https://www.googleapis.com) used
+// by Nearby Share
+const char kNearbyShareHTTPHost[] = "nearbysharing-http-host";
+
+// Overrides the default number of private certificates generated. Value must be
+// larger than 0.
+const char kNearbyShareNumPrivateCertificates[] =
+    "nearby-share-num-private-certificates";
+
 bool IsAuthSessionCryptohomeEnabled() {
   return base::CommandLine::ForCurrentProcess()->HasSwitch(
       kCryptohomeUseAuthSession);

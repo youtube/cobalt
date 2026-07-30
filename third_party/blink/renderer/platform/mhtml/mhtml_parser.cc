@@ -76,8 +76,8 @@ void QuotedPrintableDecode(base::span<const char> data, Vector<uint8_t>& out) {
     if (upper_character == '\r' && lower_character == '\n')
       continue;
 
-    if (!IsASCIIHexDigit(upper_character) ||
-        !IsASCIIHexDigit(lower_character)) {
+    if (!IsAsciiHexDigit(upper_character) ||
+        !IsAsciiHexDigit(lower_character)) {
       // Invalid sequence, = followed by non hex digits, just insert the
       // characters as is.
       out.push_back('=');
@@ -86,7 +86,7 @@ void QuotedPrintableDecode(base::span<const char> data, Vector<uint8_t>& out) {
       continue;
     }
     out.push_back(
-        static_cast<char>(ToASCIIHexValue(upper_character, lower_character)));
+        static_cast<char>(ToAsciiHexValue(upper_character, lower_character)));
   }
 }
 
@@ -156,7 +156,7 @@ static KeyValueMap RetrieveKeyValuePairs(SharedBufferChunkReader* buffer) {
     // RFC822 continuation: A line that starts with LWSP is a continuation of
     // the prior line.
     if ((line[0] == '\t') || (line[0] == ' ')) {
-      value.Append(line.Substring(1));
+      value.Append(line.subview(1));
       continue;
     }
     // New key/value, store the previous one if any.
@@ -174,9 +174,8 @@ static KeyValueMap RetrieveKeyValuePairs(SharedBufferChunkReader* buffer) {
       // This is not a key value pair, ignore.
       continue;
     }
-    key =
-        line.Substring(0, semi_colon_index).DeprecatedLower().StripWhiteSpace();
-    value.Append(line.Substring(semi_colon_index + 1));
+    key = line.substr(0, semi_colon_index).DeprecatedLower().StripWhiteSpace();
+    value.Append(line.subview(semi_colon_index + 1));
   }
   // Store the last property if there is one.
   if (!key.empty())
@@ -240,7 +239,7 @@ MIMEHeader* MIMEHeader::ParseHeader(SharedBufferChunkReader* buffer) {
 
 MIMEHeader::Encoding MIMEHeader::ParseContentTransferEncoding(
     const String& text) {
-  String encoding = text.StripWhiteSpace().LowerASCII();
+  String encoding = text.StripWhiteSpace().ToAsciiLower();
   if (encoding == "base64")
     return Encoding::kBase64;
   if (encoding == "quoted-printable")

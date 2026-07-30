@@ -159,7 +159,6 @@ LayerTreeImpl::LayerTreeImpl(
       created_begin_frame_args_(begin_frame_args),
       source_frame_number_(-1),
       hud_layer_(nullptr),
-      property_trees_(host_impl),
       background_color_(SkColors::kTransparent),
       page_scale_factor_(page_scale_factor),
       min_page_scale_factor_(0),
@@ -667,6 +666,9 @@ void LayerTreeImpl::SetPropertyTrees(const PropertyTrees& property_trees,
                                     change_state.changed_transform_nodes);
   }
 
+  // TODO(crbug.com/492151880): This could use std::move semantics when
+  // populating the pending tree, but the assignment operator for PropertyTrees
+  // is full of non-standard behaviors.
   property_trees_ = property_trees;
 
   property_trees_.ApplyChangedNodes(change_state.changed_effect_nodes,
@@ -746,7 +748,7 @@ void LayerTreeImpl::PullPropertiesFrom(
     // Layer::PushPropertiesTo).
     // TODO(pdr): Enforce this comment with DCHECKS and a lifecycle state.
     property_trees()->scroll_tree_mutable().PushScrollUpdatesFromMainThread(
-        unsafe_state.property_trees, this,
+        commit_state.property_trees, this,
         settings().commit_fractional_scroll_deltas);
 
     // The scope should end (when the DiscardableImageMapUpdater will update
@@ -772,7 +774,7 @@ void LayerTreeImpl::PullPropertiesFrom(
   TRACE_EVENT0("cc", "LayerTreeHost::AnimationHost::PushProperties");
   DCHECK(mutator_host());
   unsafe_state.mutator_host->PushPropertiesTo(mutator_host(),
-                                              unsafe_state.property_trees);
+                                              commit_state.property_trees);
 
   // Make sure that property tree based changes are moved to layers
   // and draw properties are invalidated.
@@ -791,7 +793,7 @@ void LayerTreeImpl::PullPropertyTreesFrom(
   // thread property trees or by moving it onto the layers.
   bool preserve_change_tracking = false;
   if (unsafe_state.root_layer && IsActiveTree() && property_trees_.changed()) {
-    if (unsafe_state.property_trees.sequence_number() ==
+    if (commit_state.property_trees.sequence_number() ==
         property_trees_.sequence_number()) {
       preserve_change_tracking = true;
     } else {
@@ -799,7 +801,7 @@ void LayerTreeImpl::PullPropertyTreesFrom(
     }
   }
 
-  SetPropertyTrees(unsafe_state.property_trees,
+  SetPropertyTrees(commit_state.property_trees,
                    commit_state.property_trees_change_state,
                    preserve_change_tracking);
 }
@@ -3001,22 +3003,48 @@ static gfx::SelectionBound ComputeViewportSelectionBound(
   if (layer_bound.hidden) {
     viewport_bound.set_visible(false);
   } else {
-    // The bottom edge point is used for visibility testing as it is the logical
-    // focal point for bound selection handles (this may change in the future).
-    // Shifting the visibility point fractionally inward ensures that
-    // neighboring or logically coincident layers aligned to integral DPI
-    // coordinates will not spuriously occlude the bound.
-    gfx::Vector2dF visibility_offset = layer_start - layer_end;
-    visibility_offset.Scale(device_scale_factor / visibility_offset.Length());
-    gfx::PointF visibility_point = layer_end + visibility_offset;
-    if (visibility_point.x() < 0)
-      visibility_point.set_x(visibility_point.x() + device_scale_factor);
-    visibility_point =
-        MathUtil::MapPoint(screen_space_transform, visibility_point, &clipped);
+    const bool selection_edge_visibility_uses_full_edge =
+        base::FeatureList::IsEnabled(
+            features::kSelectionEdgeVisibilityUsesFullEdge);
+    auto is_visible = [&](const gfx::PointF& point) {
+      bool point_clipped = false;
+      gfx::PointF test_point =
+          MathUtil::MapPoint(screen_space_transform, point, &point_clipped);
+      return PointHitsLayer(layer, test_point, nullptr);
+    };
 
-    float intersect_distance = 0.f;
-    viewport_bound.set_visible(
-        PointHitsLayer(layer, visibility_point, &intersect_distance));
+    bool visible = false;
+    if (selection_edge_visibility_uses_full_edge) {
+      // Check whether start/end points of the edge are hit-test visible.
+      visible = is_visible(layer_end) || is_visible(layer_start);
+      if (!visible) {
+        // Both endpoints missed the layer. Check whether any part of the edge
+        // intersects the layer bounds, then sample the overlap center. This
+        // catches cases where both endpoints overflow but the middle passes
+        // through the layer (e.g. will-change:transform input with
+        // line-height > height, crbug.com/451833352).
+        gfx::RectF edge_rect = gfx::BoundingRect(layer_start, layer_end);
+        gfx::RectF layer_rect(gfx::SizeF(layer->bounds()));
+        if (edge_rect.InclusiveIntersect(layer_rect)) {
+          visible = is_visible(edge_rect.CenterPoint());
+        }
+      }
+    } else {
+      // The bottom edge point is used for visibility testing as it is the
+      // logical focal point for bound selection handles (this may change in
+      // the future). Shifting the visibility point fractionally inward ensures
+      // that neighboring or logically coincident layers aligned to integral
+      // DPI coordinates will not spuriously occlude the bound.
+      gfx::Vector2dF visibility_offset = layer_start - layer_end;
+      visibility_offset.Scale(device_scale_factor / visibility_offset.Length());
+      gfx::PointF visibility_point = layer_end + visibility_offset;
+      if (visibility_point.x() < 0) {
+        visibility_point.set_x(visibility_point.x() + device_scale_factor);
+      }
+      visible = is_visible(visibility_point);
+    }
+
+    viewport_bound.set_visible(visible);
   }
 
   if (viewport_bound.visible()) {

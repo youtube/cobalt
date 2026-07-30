@@ -76,26 +76,10 @@ BASE_FEATURE(kDumpWithoutCrashingForMissingSecurityState,
 
 namespace content {
 
-namespace {
-
 // When enabled, replaces certain ChildProcessSecurityPolicy functionality with
 // an experimental Rust implementation. See https://crbug.com/482216433.
 BASE_FEATURE(kChildProcessSecurityPolicyRust,
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Determines how the experimental Rust ChildProcessSecurityPolicy
-// implementation should be enabled.
-enum class RustPolicy {
-  // The Rust ChildProcessSecurityPolicy implementation is not used, and only
-  // the legacy C++ implementation is used.
-  kCppOnly,
-  // The Rust ChildProcessSecurityPolicy implementation is used, and the legacy
-  // C++ implementation is not used.
-  kRustOnly,
-  // Both Rust and C++ ChildProcessSecurityPolicy implementations run in
-  // parallel, and runtime checks ensure that they match.
-  kRustAndCpp,
-};
 
 // Defines a FeatureParam to control `RustPolicy` in field trials or from
 // command line. Note that the `kCppOnly` policy is achieved by turning off
@@ -110,6 +94,8 @@ constexpr base::FeatureParam<RustPolicy>::Option rust_policy_options[] = {
 const base::FeatureParam<RustPolicy> kRustPolicyParam{
     &kChildProcessSecurityPolicyRust, "policy", RustPolicy::kRustOnly,
     &rust_policy_options};
+
+namespace {
 
 // Helpers to determine whether the experimental Rust ChildProcessSecurityPolicy
 // implementation is enabled, and whether both Rust and the legacy C++
@@ -1119,6 +1105,12 @@ ChildProcessSecurityPolicyImpl::ChildProcessSecurityPolicyImpl()
     : browsing_instance_cleanup_delay_(
           RenderProcessHostImpl::kKeepAliveHandleFactoryTimeout +
           base::Seconds(2)) {
+  RegisterDefaultSchemes();
+}
+
+ChildProcessSecurityPolicyImpl::~ChildProcessSecurityPolicyImpl() = default;
+
+void ChildProcessSecurityPolicyImpl::RegisterDefaultSchemes() {
   // We know about these schemes and believe them to be safe.
   RegisterWebSafeScheme(url::kHttpScheme);
   RegisterWebSafeScheme(url::kHttpsScheme);
@@ -1141,7 +1133,21 @@ ChildProcessSecurityPolicyImpl::ChildProcessSecurityPolicyImpl()
   RegisterPseudoScheme(kGoogleChromeScheme);
 }
 
-ChildProcessSecurityPolicyImpl::~ChildProcessSecurityPolicyImpl() = default;
+void ChildProcessSecurityPolicyImpl::ResetRegisteredSchemesForTesting() {
+  // TODO(crbug.com/493156320): Consider a more comprehensive way to do
+  // ChildProcessSecurityPolicy state reset in unit tests.
+  {
+    base::AutoLock lock(schemes_lock_);
+    schemes_okay_to_request_in_any_process_.clear();
+    schemes_okay_to_commit_in_any_process_.clear();
+    pseudo_schemes_.clear();
+  }
+
+  rust::child_process_security_policy::
+      clear_all_registered_schemes_for_testing();
+
+  RegisterDefaultSchemes();
+}
 
 // static
 ChildProcessSecurityPolicy* ChildProcessSecurityPolicy::GetInstance() {
@@ -1262,7 +1268,15 @@ bool ChildProcessSecurityPolicyImpl::IsWebSafeScheme_Cpp(
   base::AutoLock lock(schemes_lock_);
   return schemes_okay_to_request_in_any_process_.contains(scheme);
 }
+
 void ChildProcessSecurityPolicyImpl::RegisterPseudoScheme(
+    const std::string& scheme) {
+  RUST_CPP_VOID_FUNCTION(
+      rust::child_process_security_policy::register_pseudo_scheme(scheme),
+      RegisterPseudoScheme_Cpp(scheme));
+}
+
+void ChildProcessSecurityPolicyImpl::RegisterPseudoScheme_Cpp(
     const std::string& scheme) {
   base::AutoLock lock(schemes_lock_);
   DCHECK_EQ(0U, pseudo_schemes_.count(scheme)) << "Add schemes at most once.";
@@ -1275,6 +1289,13 @@ void ChildProcessSecurityPolicyImpl::RegisterPseudoScheme(
 }
 
 bool ChildProcessSecurityPolicyImpl::IsPseudoScheme(const std::string& scheme) {
+  RUST_CPP_RETURN_FUNCTION(
+      rust::child_process_security_policy::is_pseudo_scheme(scheme),
+      IsPseudoScheme_Cpp(scheme), bool);
+}
+
+bool ChildProcessSecurityPolicyImpl::IsPseudoScheme_Cpp(
+    const std::string& scheme) {
   base::AutoLock lock(schemes_lock_);
 
   return pseudo_schemes_.contains(scheme);
@@ -1283,16 +1304,9 @@ bool ChildProcessSecurityPolicyImpl::IsPseudoScheme(const std::string& scheme) {
 void ChildProcessSecurityPolicyImpl::ClearRegisteredSchemeForTesting(
     const std::string& scheme) {
   RUST_CPP_VOID_FUNCTION(
-      rust::child_process_security_policy::clear_web_safe_scheme_for_testing(
+      rust::child_process_security_policy::clear_registered_scheme_for_testing(
           scheme),                                   // IN-TEST
       ClearRegisteredSchemeForTesting_Cpp(scheme));  // IN-TEST
-
-  // TODO(crbug.com/482216433): Remove when pseudo_schemes_ is handled in Rust.
-  // For now, this C++ set still gets populated in RustOnly mode.
-  if (GetRustPolicy() == RustPolicy::kRustOnly) {
-    base::AutoLock lock(schemes_lock_);
-    pseudo_schemes_.erase(scheme);
-  }
 }
 
 void ChildProcessSecurityPolicyImpl::ClearRegisteredSchemeForTesting_Cpp(

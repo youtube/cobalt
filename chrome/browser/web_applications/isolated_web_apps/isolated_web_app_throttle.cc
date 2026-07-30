@@ -20,14 +20,60 @@
 #include "components/webapps/isolated_web_apps/url_loading/url_loader_factory.h"
 #include "content/public/browser/isolated_web_apps_policy.h"
 #include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/navigation_handle_user_data.h"
 #include "content/public/browser/navigation_throttle.h"
 #include "content/public/browser/site_isolation_mode.h"
 #include "content/public/browser/site_isolation_policy.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/browser/web_contents_observer.h"
+#include "third_party/blink/public/mojom/devtools/console_message.mojom-shared.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
 namespace web_app {
+
+namespace {
+
+// The purpose of this is to defer logging violations to after the navigation
+// (so that post-navigation console cleaning won't hide the message).
+class DeferredEntitlementViolationLogger
+    : public content::NavigationHandleUserData<
+          DeferredEntitlementViolationLogger>,
+      public content::WebContentsObserver {
+ public:
+  ~DeferredEntitlementViolationLogger() override = default;
+
+  void DidFinishNavigation(content::NavigationHandle* handle) override {
+    if (GetForNavigationHandle(*handle) != this) {
+      return;
+    }
+    if (handle->HasCommitted() && !handle->IsErrorPage()) {
+      for (const auto& feature : violations_) {
+        handle->GetRenderFrameHost()->AddMessageToConsole(
+            blink::mojom::ConsoleMessageLevel::kWarning,
+            "IWA entitlement violation: feature '" + feature +
+                "' is not granted to " + handle->GetURL().spec() + ".");
+      }
+    }
+  }
+
+ private:
+  friend class content::NavigationHandleUserData<
+      DeferredEntitlementViolationLogger>;
+
+  DeferredEntitlementViolationLogger(content::NavigationHandle& handle,
+                                     std::vector<std::string> violations)
+      : content::WebContentsObserver(handle.GetWebContents()),
+        violations_(std::move(violations)) {}
+
+  const std::vector<std::string> violations_;
+
+  NAVIGATION_HANDLE_USER_DATA_KEY_DECL();
+};
+
+NAVIGATION_HANDLE_USER_DATA_KEY_IMPL(DeferredEntitlementViolationLogger);
+
+}  // namespace
 
 // static
 void IsolatedWebAppThrottle::MaybeCreateAndAdd(
@@ -59,10 +105,11 @@ IsolatedWebAppThrottle::WillStartRequest() {
   if (provider.is_registry_ready() &&
       key_distribution_info_provider.OnBestEffortRuntimeDataReady()
           .is_signaled()) {
-    if (NeedsManifestFetch()) {
-      const auto iwa_origin = IwaOrigin::Create(navigation_handle()->GetURL());
-      // This is checked already in NeedsManifestFetch.
-      CHECK(iwa_origin.has_value());
+    const auto iwa_origin = IwaOrigin::Create(navigation_handle()->GetURL());
+    if (!iwa_origin.has_value()) {
+      return PROCEED;
+    }
+    if (NeedsManifestFetch(*iwa_origin)) {
       IwaPermissionsPolicyCacheFactory::GetForProfile(profile())
           ->ObtainManifestAndCache(
               *iwa_origin,
@@ -82,11 +129,26 @@ IsolatedWebAppThrottle::WillStartRequest() {
   return DEFER;
 }
 
+content::NavigationThrottle::ThrottleCheckResult
+IsolatedWebAppThrottle::WillProcessResponse() {
+  const auto iwa_origin = IwaOrigin::Create(navigation_handle()->GetURL());
+  if (iwa_origin.has_value()) {
+    LogEntitlementViolations(*iwa_origin);
+  }
+  return PROCEED;
+}
+
 void IsolatedWebAppThrottle::OnComponentsReady() {
-  if (NeedsManifestFetch()) {
+  const auto iwa_origin = IwaOrigin::Create(navigation_handle()->GetURL());
+  if (!iwa_origin.has_value()) {
+    Resume();
+    return;
+  }
+
+  if (NeedsManifestFetch(*iwa_origin)) {
     IwaPermissionsPolicyCacheFactory::GetForProfile(profile())
         ->ObtainManifestAndCache(
-            *IwaOrigin::Create(navigation_handle()->GetURL()),
+            *iwa_origin,
             base::BindOnce(&IsolatedWebAppThrottle::OnCachePopulated,
                            weak_ptr_factory_.GetWeakPtr()));
   } else {
@@ -94,17 +156,29 @@ void IsolatedWebAppThrottle::OnComponentsReady() {
   }
 }
 
-bool IsolatedWebAppThrottle::NeedsManifestFetch() const {
-  const auto iwa_origin = IwaOrigin::Create(navigation_handle()->GetURL());
+bool IsolatedWebAppThrottle::NeedsManifestFetch(
+    const IwaOrigin& iwa_origin) const {
   // There are navigations involved in processing the bundle data for
   // installations/updates/metadata reading, and caching the manifest then
   // would not be a good idea. In particular, this is not a good place for
   // catching manifest-related issues during the installation.
-  return iwa_origin.has_value() &&
-         !NonInstalledBundleInspectionContext::FromWebContents(
+  return !NonInstalledBundleInspectionContext::FromWebContents(
              navigation_handle()->GetWebContents()) &&
          !IwaPermissionsPolicyCacheFactory::GetForProfile(profile())->GetPolicy(
-             *iwa_origin);
+             iwa_origin);
+}
+
+void IsolatedWebAppThrottle::LogEntitlementViolations(
+    const IwaOrigin& iwa_origin) {
+  std::vector<std::string> violations =
+      IwaPermissionsPolicyCacheFactory::GetForProfile(profile())->GetViolations(
+          iwa_origin);
+  if (violations.empty() || !navigation_handle()->IsInPrimaryMainFrame()) {
+    return;
+  }
+
+  DeferredEntitlementViolationLogger::CreateForNavigationHandle(
+      *navigation_handle(), std::move(violations));
 }
 
 void IsolatedWebAppThrottle::OnCachePopulated(bool success) {

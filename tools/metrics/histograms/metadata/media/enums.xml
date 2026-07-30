@@ -242,6 +242,18 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="Recovered"/>
 </enum>
 
+<enum name="AutoplayPolicyStatus">
+  <int value="0" label="AllowedByEnterprisePolicy"/>
+  <int value="1" label="AllowedByDelegatedEnterprisePolicy"/>
+  <int value="2" label="AllowedByUserPreference"/>
+  <int value="3" label="BlockedByUserPreference"/>
+  <int value="4" label="AllowedByTWA"/>
+  <int value="5" label="AllowedByMicCameraPermission"/>
+  <int value="6" label="DefaultPolicyApplied"/>
+  <int value="7" label="AllowedByMediaEngagement"/>
+  <int value="8" label="WouldBeAllowedByMediaEngagement"/>
+</enum>
+
 <enum name="AutoplaySource">
   <int value="0" label="autoplay attribute"/>
   <int value="1" label="play() method"/>
@@ -1154,13 +1166,6 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="kFailedToOpenWindowProcessHandle"/>
   <int value="3" label="kFailedToFindUWPAppCoreWindow"/>
   <int value="4" label="kFailedToGetUWPAppCoreWindowProcessId"/>
-</enum>
-
-<enum name="GetDeviceInfosResult">
-  <int value="0" label="SuccessNoRetry"/>
-  <int value="1" label="FailureNoRetry"/>
-  <int value="2" label="SucessAfterRetry"/>
-  <int value="3" label="FailureAfterRetry"/>
 </enum>
 
 <enum name="GetDisplayMediaAudioToggleStatus">

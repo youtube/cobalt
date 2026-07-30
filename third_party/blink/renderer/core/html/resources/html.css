@@ -563,15 +563,16 @@ input[type="search" i]::-webkit-search-cancel-button {
     opacity: 0;
     pointer-events: none;
     user-select: none !important;
+
+    @supports blink-feature(AppearanceBase) {
+        /** This pseudo element doesn't exist in the standard layout. */
+        display: -internal-auto-base(revert-rule, none) !important;
+    }
 }
 
 input[type="search" i]:enabled:read-write:-webkit-any(:focus,:hover)::-webkit-search-cancel-button {
     opacity: 1;
     pointer-events: auto;
-}
-
-input[type="search" i]::-webkit-search-results-decoration {
-  margin: auto 3px auto 2px;
 }
 
 /* Specifying all of the type attributes in the selector below does not seem
@@ -611,6 +612,11 @@ input::-webkit-inner-spin-button {
     -webkit-user-modify: read-only !important;
     opacity: 0;
     pointer-events: none;
+
+    @supports blink-feature(AppearanceBase) {
+        /** This pseudo element doesn't exist in the standard layout. */
+        display: -internal-auto-base(revert-rule, none) !important;
+    }
 }
 
 input:enabled:read-write:-webkit-any(:focus,:hover)::-webkit-inner-spin-button {
@@ -2521,7 +2527,9 @@ select:-internal-select-has-slotted-button::-internal-select-button-slot {
 [overscrollcontainer] {
   -internal-overscroll-area: auto;
 }
-
+[overscrollcontainer="overlay"] {
+  -internal-overscroll-area: overlay;
+}
 :-internal-overscroll-target {
   -internal-overscroll-position: auto;
 }
@@ -2598,18 +2606,20 @@ select:-internal-select-has-slotted-button::-internal-select-button-slot {
     padding-block-end: -internal-auto-base(1px, 0);
   }
 
+  /* These are redundant with the style rules in the FilterableSelect block.
+   * They should be removed when the FilterableSelect flag is removed. */
   datalist option:active-option {
     outline: black auto 1px;
   }
-
-  /* This is redundant with the option:filtered rule in the FilterableSelect
-   * block. It should be removed when either of the flags are removed. */
   option:filtered {
     display: none;
   }
 }
 
 @supports blink-feature(FilterableSelect) {
+  option:active-option {
+    outline: black auto 1px;
+  }
   option:filtered {
     display: none;
   }

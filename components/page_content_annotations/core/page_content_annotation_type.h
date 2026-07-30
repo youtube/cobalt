@@ -31,15 +31,19 @@ enum class AnnotationType {
   //
   // This is deprecated and should not be used.
   kDeprecatedTextEmbedding,
+
+  // The input will be annotated for category classification.
+  kCategoryClassifier,
 };
 
 std::string AnnotationTypeToString(AnnotationType type);
 
 enum class CategoryType {
   kEducation = 0,
+  kShopping = 1,
 
   // Add new types above this line.
-  kMaxValue = kEducation,
+  kMaxValue = kShopping,
 };
 
 struct Category {

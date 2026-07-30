@@ -298,7 +298,6 @@
 <translation id="2012723204723845092">आपका फिर से स्वागत है!</translation>
 <translation id="2015722694326466240">पासवर्ड देखने के लिए, आपको सबसे पहले अपने डिवाइस पर एक पासवर्ड सेट करना होगा.</translation>
 <translation id="201759455285471444">टैब ग्रुप को बड़ा करें.</translation>
-<translation id="202070562065520783">मुझे इसके बारे में पूरी जानकारी दो</translation>
 <translation id="2044394949148788042">टैब ग्रिड खोलें</translation>
 <translation id="2044681667265133332"><ph name="USER_EMAIL" /> खाते को <ph name="HOSTED_DOMAIN" /> मैनेज करता है. यह कुछ जानकारी देख सकता है. <ph name="BEGIN_LINK" />ज़्यादा जानें<ph name="END_LINK" /></translation>
 <translation id="20485545164632846">नया आइटम</translation>
@@ -395,6 +394,7 @@
 <translation id="2360196772093551345">मोबाइल साइट का अनुरोध करें</translation>
 <translation id="2362083820973145409"><ph name="USER_NAME" /> के तौर पर साइन इन किया गया. <ph name="USER_EMAIL" />. इस बटन से सेटिंग खुलती है.</translation>
 <translation id="2371084566192454134">टैब और टैब ग्रुप</translation>
+<translation id="2371303771137626249">नया</translation>
 <translation id="2381405137052800939">मूलभूत बातें</translation>
 <translation id="2384692388811649784">गुप्त टैब छिपाएं</translation>
 <translation id="2386793615875593361">1 चयनित</translation>
@@ -527,6 +527,7 @@
 <translation id="286382692684806520">{COUNT,plural, =1{1 साइट (सिंक किए गए डिवाइसों पर और भी साइटों का डेटा है)}one{# साइट (सिंक किए गए डिवाइसों पर और भी साइटों का डेटा है)}other{# साइटें (सिंक किए गए डिवाइसों पर और भी साइटों का डेटा है)}}</translation>
 <translation id="2870560284913253234">साइट</translation>
 <translation id="2876369937070532032">आपकी सुरक्षा को खतरा होने पर उन पेज के यूआरएल भेजे जाते हैं जिन पर आप Google के ज़रिए जाते हैं.</translation>
+<translation id="2877733045396505765">ऐसा करने पर, इस डिवाइस और आपके Google खाते <ph name="USER_EMAIL" /> में सेव की गई जानकारी में से, चुनी गई जानकारी मिट जाएगी.</translation>
 <translation id="2883151425485251736">अपने खाते से छिपाए गए विषयों को देखें और उनमें बदलाव करें</translation>
 <translation id="288655811176831528">टैब बंद करें</translation>
 <translation id="2888631381369839306">कीमत ट्रैक करने से जुड़ी सूचनाएं पाने की सुविधा चालू की गई</translation>
@@ -636,6 +637,7 @@
 <translation id="3324193307694657476">पता 2</translation>
 <translation id="3328801116991980348">साइट जानकारी</translation>
 <translation id="333229797575847124">इस सुविधा को चालू करने का तरीका</translation>
+<translation id="334004756946755423">मुझे इसके बारे में पूरी जानकारी दो:</translation>
 <translation id="3344233834747405775">कार्ड के मालिक का नाम अमान्य है</translation>
 <translation id="3344485292736684439">{count,plural, =1{आपके खाते, {email} में मौजूद "{title}" में बुकमार्क सेव किया गया}one{आपके खाते, {email} में मौजूद "{title}" में बुकमार्क सेव किया गया}other{आपके खाते, {email} में मौजूद "{title}" में बुकमार्क सेव किए गए}}</translation>
 <translation id="334690320928261823">हाल ही के टैब</translation>
@@ -689,6 +691,7 @@
 <translation id="3530206579861815432">अपने सिंक किए हुए डिवाइसों में, खुले हुए टैब और हाल ही में बंद किए गए टैब फटाफट ढूंढें.</translation>
 <translation id="3530767473765895035">इस डिवाइस पर खाते मैनेज करें…</translation>
 <translation id="3533436815740441613">नया टैब</translation>
+<translation id="3534738261102690620">Gemini से पूछें</translation>
 <translation id="3540141921715814660">बुकमार्क में जोड़ें</translation>
 <translation id="3546122170015471515">Google.com पर Maps Preview देखें</translation>
 <translation id="3547356470684043247">प्रॉडक्ट, सेवाओं या अनुभव से जुड़ी खरीदारों की समीक्षाएं पढ़ें, ताकि आप समीक्षाओं के हिसाब से फ़ैसले ले सकें</translation>
@@ -959,6 +962,7 @@
 <translation id="454217142158335225">बंद किए गए टैब को 'हाल ही के टैब' या 'टैब ग्रुप' सेक्शन में जाकर फिर से खोला जा सकता है. पिन किए गए टैब बंद नहीं किए जाएंगे.</translation>
 <translation id="4547181496285029457">हाल ही में खोले गए टैब पर वापस जाएं</translation>
 <translation id="4552042254369397518">कॉपी किया जा रहा है…</translation>
+<translation id="4553044860350038560">और पासकी</translation>
 <translation id="4564893319561643483">"<ph name="TITLE" />" छिपाएं</translation>
 <translation id="4565377596337484307">पासवर्ड छिपाएं</translation>
 <translation id="4568230126482344545">हाल ही के टैब छिपाएं</translation>
@@ -1087,6 +1091,7 @@
 <translation id="4944543191714094452">पेज में ढूंढें…</translation>
 <translation id="4945756290001680296">पासवर्ड की सेटिंग ऐक्सेस करें</translation>
 <translation id="4949302115427722371">सेटिंग मैनेज करें…</translation>
+<translation id="4952050521954075618">कैमरा रोल में मौजूद फ़ोटो, आपके सभी डिवाइसों पर सिंक नहीं होंगी</translation>
 <translation id="4958444002117714549">पूरी सूची दिखाएं</translation>
 <translation id="496392417432935267">यह सेटिंग दूसरी विंडो में खुली है</translation>
 <translation id="4970724460420203313">मैनेज किए जा रहे खाते से Chrome का इस्तेमाल करने पर, आपको अपने संगठन से जुड़े ब्राउज़िंग डेटा को अपने अन्य ब्राउज़िंग डेटा से अलग करने में मदद मिलती है. इस डेटा में टैब, इतिहास, और पासवर्ड शामिल हैं</translation>
@@ -1286,6 +1291,7 @@ Handoff को Settings के General अनुभाग में भी स�
 <translation id="5647702255748985085">क्या आपको टैब ग्रुप छोड़ना है?</translation>
 <translation id="5648166631817621825">पिछले 7 दिन</translation>
 <translation id="5652623411397330904">ट्रैक किए जा रहे प्रॉडक्ट, यहां दिखेंगे.</translation>
+<translation id="5653100054596780862">सभी टैब</translation>
 <translation id="5656431592348714536">बेहतर कैलेंडर इवेंट</translation>
 <translation id="5659593005791499971">ईमेल</translation>
 <translation id="5665739277590037307"><ph name="GOOGLE_TERMS" /> और <ph name="GEMINI_APPS_PRIVACY" /> लागू होता है. Gemini से गलतियां हो सकती हैं. इसलिए, जवाब की दोबारा जांच कर लें.</translation>
@@ -1613,6 +1619,7 @@ Handoff को Settings के General अनुभाग में भी स�
 <translation id="672735642903863329">अपने सभी डिवाइसों पर बुकमार्क, पासवर्ड वगैरह का ऐक्सेस पाएं.</translation>
 <translation id="6729493062119577923">शेयर किए गए टैब ग्रुप की गतिविधि</translation>
 <translation id="6732087373923685049">कैमरा</translation>
+<translation id="6736243959894955139">पता</translation>
 <translation id="6746338529702829275">अपने खाते का डेटा देखें</translation>
 <translation id="6750456911389438250">{count,plural, =1{इतिहास में मौजूद {count} आइटम इंपोर्ट किया गया}one{इतिहास में मौजूद {count} आइटम इंपोर्ट किया गया}other{इतिहास में मौजूद {count} आइटम इंपोर्ट किए गए}}</translation>
 <translation id="6755200887046212842">खाते प्रबंधित करें</translation>
@@ -1750,6 +1757,7 @@ Handoff को Settings के General अनुभाग में भी स�
 <translation id="7300448350764260141">ऑनलाइन खतरों से बचने के लिए सुरक्षा को और बेहतर बनाएं.</translation>
 <translation id="7311244614769792472">कोई नतीजा नहीं मिला</translation>
 <translation id="7313347584264171202">आपको अपने गुप्त टैब यहां मिलेंगे</translation>
+<translation id="7322186060879266048">{count,plural, =1{ऑटोमैटिक तरीके से भरने की सुविधा का {count} विकल्प, आपके कीबोर्ड के ऊपर उपलब्ध है.}one{ऑटोमैटिक तरीके से भरने की सुविधा का {count} विकल्प, आपके कीबोर्ड के ऊपर उपलब्ध है.}other{ऑटोमैटिक तरीके से भरने की सुविधा के {count} विकल्प, आपके कीबोर्ड के ऊपर उपलब्ध हैं.}}</translation>
 <translation id="7328162502911382168">(<ph name="COUNT" />)</translation>
 <translation id="7336264872878993241"><ph name="PERCENT" /> प्रतिशत डाउनलोड हो गई</translation>
 <translation id="7345061034321640811">इस डेटा को इंपोर्ट नहीं किया जा सकता</translation>
@@ -1819,7 +1827,6 @@ Handoff को Settings के General अनुभाग में भी स�
 <translation id="7537586195939242955">क्षमा करें, इस समय पासबुक में पास इंस्टॉल नहीं किया जा सकता.</translation>
 <translation id="754655535278952384"><ph name="TIME" /> जांच की गई</translation>
 <translation id="7554645225856321710">सभी टैब बंद करें</translation>
-<translation id="7554791636758816595">नया टैब</translation>
 <translation id="7557508262441527045">साइन आउट किया जा चुका है</translation>
 <translation id="7561196759112975576">हमेशा</translation>
 <translation id="7561982940498449837">मेन्यू बंद करें</translation>
@@ -1878,6 +1885,7 @@ Handoff को Settings के General अनुभाग में भी स�
 <translation id="775755486779745798">समयसीमा खत्म होने के महीने का नाम <ph name="MONTH" /> ऑटोमैटिक भरने का विकल्प चुनें</translation>
 <translation id="7758789811447313947">बैंगनी रंग वाली थीम</translation>
 <translation id="7759809451544302770">वैकल्पिक</translation>
+<translation id="7763878244904387570">ऐसा करने पर, इस डिवाइस में सेव की गई जानकारी में से, चुनी गई जानकारी मिट जाएगी.</translation>
 <translation id="7765158879357617694">ले जाएं</translation>
 <translation id="7772032839648071052">'पासफ़्रेज' की पुष्टि करें</translation>
 <translation id="7772948288262733182">आपका फिर से स्वागत है</translation>
@@ -2248,7 +2256,6 @@ Handoff को Settings के General अनुभाग में भी स�
 <translation id="8988107725234939347"><ph name="WEBSITE_TITLE" />, पिन की गई साइट</translation>
 <translation id="8990960056509724223">आपके संगठन की नीतियों की वजह से, फ़ाइल सेव नहीं की जा सकी</translation>
 <translation id="8998289560386111590">यह मोड आपके डिवाइस पर उपलब्ध नहीं है</translation>
-<translation id="9000532564152265066">सभी टैब</translation>
 <translation id="9003677638446136377">फिर से जाँचें</translation>
 <translation id="9006453925669499173">मेन्यू → नया गुप्त टैब</translation>
 <translation id="9008201768610948239">ध्यान न दें</translation>

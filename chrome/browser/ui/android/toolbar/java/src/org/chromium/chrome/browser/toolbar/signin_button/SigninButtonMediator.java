@@ -4,55 +4,155 @@
 
 package org.chromium.chrome.browser.toolbar.signin_button;
 
+import static org.chromium.build.NullUtil.assertNonNull;
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
-import android.graphics.drawable.Drawable;
+import android.content.Intent;
+import android.view.View;
 
 import androidx.appcompat.content.res.AppCompatResources;
 
 import org.chromium.base.Callback;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
+import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
+import org.chromium.chrome.browser.signin.services.BadgeConfig;
 import org.chromium.chrome.browser.signin.services.DisplayableProfileData;
+import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.browser.signin.services.ProfileDataCache;
+import org.chromium.chrome.browser.sync.SyncServiceFactory;
 import org.chromium.chrome.browser.toolbar.R;
+import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
+import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncConfig;
+import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncConfig.NoAccountSigninMode;
+import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncConfig.WithAccountSigninMode;
+import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncCoordinator;
+import org.chromium.chrome.browser.ui.signin.SigninAndHistorySyncActivityLauncher;
+import org.chromium.chrome.browser.ui.signin.SigninSurveyController;
+import org.chromium.chrome.browser.ui.signin.SigninUtils;
+import org.chromium.chrome.browser.ui.signin.account_picker.AccountPickerBottomSheetStrings;
+import org.chromium.chrome.browser.ui.signin.history_sync.HistorySyncConfig;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
+import org.chromium.components.browser_ui.device_lock.DeviceLockActivityLauncher;
+import org.chromium.components.browser_ui.settings.SettingsNavigation;
+import org.chromium.components.signin.SigninFeatureMap;
+import org.chromium.components.signin.SigninFeatures;
+import org.chromium.components.signin.base.CoreAccountInfo;
+import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.signin.identitymanager.IdentityManager;
+import org.chromium.components.signin.identitymanager.PrimaryAccountChangeEvent;
+import org.chromium.components.signin.metrics.SigninAccessPoint;
 import org.chromium.components.sync.SyncService;
+import org.chromium.components.sync.UserActionableError;
+import org.chromium.ui.base.ActivityResultTracker;
+import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modelutil.PropertyModel;
 
 /**
  * The mediator for a signin button on the NTP toolbar. Listens for sign in state changes and drives
  * corresponding changes to the property model values which back the SigninButton view
- * TODO(crbug.com/475816843): Implement empty methods and add remaining functionality.
  */
 @NullMarked
 final class SigninButtonMediator
         implements ProfileDataCache.Observer,
                 IdentityManager.Observer,
-                SyncService.SyncStateChangedListener {
+                SyncService.SyncStateChangedListener,
+                BottomSheetSigninAndHistorySyncCoordinator.Delegate {
     private final Context mContext;
     private final PropertyModel mModel;
     private final MonotonicObservableSupplier<Profile> mProfileSupplier;
     private final Callback<Profile> mProfileSupplierObserver = this::setProfile;
+    private final WindowAndroid mWindowAndroid;
+    private final ActivityResultTracker mActivityResultTracker;
+    private final DeviceLockActivityLauncher mDeviceLockActivityLauncher;
+    private final BottomSheetController mBottomSheetController;
+    private final ModalDialogManager mModalDialogManager;
+    private final SnackbarManager mSnackbarManager;
+    private @Nullable Profile mProfile;
+    private @Nullable BottomSheetSigninAndHistorySyncCoordinator mSigninCoordinator;
 
+    // We observe IdentityManager to receive primary account state change notifications.
+    private @Nullable IdentityManager mIdentityManager;
+
+    // ProfileDataCache facilitates retrieving the profile picture.
+    private @Nullable ProfileDataCache mProfileDataCache;
+
+    // SyncService is observed to update mIdentityError.
+    private @Nullable SyncService mSyncService;
+
+    private @UserActionableError int mIdentityError = UserActionableError.NONE;
+
+    private final SigninAndHistorySyncActivityLauncher mSigninAndHistorySyncActivityLauncher;
+
+    /**
+     * @param context The {@link Context} to retrieve resources.
+     * @param windowAndroid The {@link WindowAndroid} for the current window.
+     * @param model The {@link PropertyModel} for the sign-in button.
+     * @param profileSupplier The supplier of the current profile.
+     * @param signinAndHistorySyncActivityLauncher The {@link SigninAndHistorySyncActivityLauncher}
+     *     to launch sign-in and history sync activity.
+     * @param activityResultTracker The {@link ActivityResultTracker} for launching new activities
+     *     and watching for their result.
+     * @param deviceLockActivityLauncher The launcher for the device lock challenge.
+     * @param bottomSheetController The {@link BottomSheetController} to show the sign-in bottom
+     *     sheet.
+     * @param modalDialogManager The {@link ModalDialogManager} to manage the dialog.
+     * @param snackbarManager The {@link SnackbarManager} to show sign-in/sign-out snackbars.
+     */
     public SigninButtonMediator(
             Context context,
+            WindowAndroid windowAndroid,
             PropertyModel model,
-            MonotonicObservableSupplier<Profile> profileSupplier) {
+            MonotonicObservableSupplier<Profile> profileSupplier,
+            SigninAndHistorySyncActivityLauncher signinAndHistorySyncActivityLauncher,
+            ActivityResultTracker activityResultTracker,
+            DeviceLockActivityLauncher deviceLockActivityLauncher,
+            BottomSheetController bottomSheetController,
+            ModalDialogManager modalDialogManager,
+            SnackbarManager snackbarManager) {
         mContext = context;
         mModel = model;
         mProfileSupplier = profileSupplier;
         mProfileSupplier.addSyncObserverAndPostIfNonNull(mProfileSupplierObserver);
-        setButtonState();
+        mWindowAndroid = windowAndroid;
+        mActivityResultTracker = activityResultTracker;
+        mDeviceLockActivityLauncher = deviceLockActivityLauncher;
+        mModalDialogManager = modalDialogManager;
+        mSnackbarManager = snackbarManager;
+        mBottomSheetController = bottomSheetController;
+        mSigninAndHistorySyncActivityLauncher = signinAndHistorySyncActivityLauncher;
     }
 
     /**
-     * {@link SyncService.SyncStateChangedListener} implementation which updates identity error and
-     * profile badge if needed.
+     * {@link SyncService.SyncStateChangedListener} implementation which updates the signin button
+     * in case a profile badge is needed due to an identity error.
      */
     @Override
     public void syncStateChanged() {
-        // TODO(crbug.com/475816843): Add implementation for necessary override.
+        updateButtonState();
+    }
+
+    /**
+     * {@link IdentityManager.Observer} implementation which updates the signin button when primary
+     * account changes.
+     */
+    @Override
+    public void onPrimaryAccountChanged(PrimaryAccountChangeEvent eventDetails) {
+        switch (eventDetails.getEventTypeFor(ConsentLevel.SIGNIN)) {
+            case PrimaryAccountChangeEvent.Type.SET:
+                updateButtonState();
+                break;
+            case PrimaryAccountChangeEvent.Type.CLEARED:
+                updateButtonState();
+                break;
+            case PrimaryAccountChangeEvent.Type.NONE:
+                break;
+        }
     }
 
     /**
@@ -61,29 +161,188 @@ final class SigninButtonMediator
      */
     @Override
     public void onProfileDataUpdated(DisplayableProfileData profileData) {
-        // TODO(crbug.com/475816843): Add implementation for necessary override.
+        String primaryEmail =
+                CoreAccountInfo.getEmailFrom(
+                        assumeNonNull(mIdentityManager).getPrimaryAccountInfo(ConsentLevel.SIGNIN));
+        if (profileData.getAccountEmail().equals(primaryEmail)) {
+            updateButtonState();
+        }
     }
 
     void updateButtonVisibility(Boolean showButton) {
         mModel.set(SigninButtonProperties.SHOW_BUTTON, showButton);
     }
 
-    private void setButtonState() {
-        Drawable buttonAvatar = AppCompatResources.getDrawable(mContext, R.drawable.account_circle);
-        mModel.set(SigninButtonProperties.BUTTON_AVATAR, buttonAvatar);
+    private void updateButtonState() {
+        if (mProfile == null || mProfile.isOffTheRecord()) {
+            assert !mModel.get(SigninButtonProperties.SHOW_BUTTON);
+            return;
+        }
+        mIdentityError = assumeNonNull(mSyncService).getUserActionableError();
+
+        CoreAccountInfo coreAccountInfo =
+                assumeNonNull(mIdentityManager).getPrimaryAccountInfo(ConsentLevel.SIGNIN);
+        if (coreAccountInfo != null) {
+            assumeNonNull(mProfileDataCache)
+                    .setBadge(
+                            coreAccountInfo.getId(),
+                            mIdentityError == UserActionableError.NONE
+                                    ? null
+                                    : BadgeConfig.create(R.drawable.ic_error_badge_16dp)
+                                            .withToolbarIdentityDiscConfig()
+                                            .build(mContext));
+        }
+
+        @Nullable String email = CoreAccountInfo.getEmailFrom(coreAccountInfo);
+        DisplayableProfileData profileData =
+                email == null
+                        ? null
+                        : assumeNonNull(mProfileDataCache).getProfileDataOrDefault(email);
+        mModel.set(
+                SigninButtonProperties.CONTENT_DESCRIPTION,
+                SigninUtils.getContentDescriptionForIdentityDisc(
+                        mContext, profileData, mIdentityError));
+        setAvatarImage(profileData);
+    }
+
+    private void setAvatarImage(@Nullable DisplayableProfileData profileData) {
+        if (profileData == null) {
+            mModel.set(
+                    SigninButtonProperties.BUTTON_AVATAR,
+                    AppCompatResources.getDrawable(mContext, R.drawable.account_circle));
+            mModel.set(
+                    SigninButtonProperties.AVATAR_TINT,
+                    AppCompatResources.getColorStateList(
+                            mContext, R.color.default_icon_color_tint_list));
+        } else {
+            mModel.set(SigninButtonProperties.BUTTON_AVATAR, profileData.getImage());
+            mModel.set(SigninButtonProperties.AVATAR_TINT, null);
+        }
         mModel.set(SigninButtonProperties.SHOW_AVATAR, true);
+        mModel.set(SigninButtonProperties.ON_CLICK, this::onClick);
     }
 
     /**
      * Triggered by mProfileSupplierObserver when profile is changed in mProfileSupplier.
      * mIdentityManager is updated with the profile, or set to null if profile is off-the-record.
      */
-    private void setProfile(Profile profile) {
-        // TODO(crbug.com/475816843): Add implementation for method.
+    private void setProfile(@Nullable Profile profile) {
+        mProfile = profile;
+        resetProfileDataCache();
+        if (mIdentityManager != null) {
+            mIdentityManager.removeObserver(this);
+            mIdentityManager = null;
+        }
+        if (mSyncService != null) {
+            mSyncService.removeSyncStateChangedListener(this);
+            mSyncService = null;
+        }
+        if (mSigninCoordinator != null) {
+            mSigninCoordinator.destroy();
+            mSigninCoordinator = null;
+        }
+        if (profile == null || profile.isOffTheRecord()) {
+            return;
+        }
+        mIdentityManager = IdentityServicesProvider.get().getIdentityManager(profile);
+        assumeNonNull(mIdentityManager).addObserver(this);
+        mProfileDataCache =
+                ProfileDataCache.createWithoutBadge(
+                        mContext, mIdentityManager, R.dimen.toolbar_identity_disc_size);
+        mProfileDataCache.addObserver(this);
+        mSyncService = SyncServiceFactory.getForProfile(profile);
+        if (mSyncService != null) {
+            mSyncService.addSyncStateChangedListener(this);
+        }
+        if (SigninFeatureMap.isEnabled(SigninFeatures.ENABLE_SEAMLESS_SIGNIN)) {
+            initializeSigninCoordinator();
+        }
+        updateButtonState();
+    }
+
+    private void onClick(View view) {
+        if (mProfile == null) {
+            return;
+        }
+
+        Profile originalProfile = mProfile.getOriginalProfile();
+        if (assumeNonNull(IdentityServicesProvider.get().getSigninManager(mProfile))
+                .isSigninAllowed()) {
+            AccountPickerBottomSheetStrings bottomSheetStrings =
+                    new AccountPickerBottomSheetStrings.Builder(
+                                    mContext.getString(
+                                            R.string.signin_account_picker_bottom_sheet_title))
+                            .setSubtitleString(
+                                    mContext.getString(
+                                            R.string
+                                                    .signin_account_picker_bottom_sheet_benefits_subtitle))
+                            .build();
+            BottomSheetSigninAndHistorySyncConfig config =
+                    new BottomSheetSigninAndHistorySyncConfig.Builder(
+                                    bottomSheetStrings,
+                                    NoAccountSigninMode.BOTTOM_SHEET,
+                                    WithAccountSigninMode.DEFAULT_ACCOUNT_BOTTOM_SHEET,
+                                    HistorySyncConfig.OptInMode.OPTIONAL,
+                                    mContext.getString(R.string.history_sync_title),
+                                    mContext.getString(R.string.history_sync_subtitle))
+                            .signinSurveyType(
+                                    SigninSurveyController.SigninSurveyType.NTP_SIGNIN_BUTTON)
+                            .build();
+            if (SigninFeatureMap.isEnabled(SigninFeatures.ENABLE_SEAMLESS_SIGNIN)) {
+                assumeNonNull(mSigninCoordinator).startSigninFlow(config);
+            } else {
+                @Nullable Intent intent =
+                        mSigninAndHistorySyncActivityLauncher
+                                .createBottomSheetSigninIntentOrShowError(
+                                        mContext,
+                                        originalProfile,
+                                        config,
+                                        SigninAccessPoint.NTP_SIGNED_OUT_ICON);
+                if (intent != null) {
+                    mContext.startActivity(intent);
+                }
+            }
+        } else {
+            SettingsNavigation settingsNavigation =
+                    SettingsNavigationFactory.createSettingsNavigation();
+            settingsNavigation.startSettings(mContext);
+            SigninSurveyController.registerTrigger(
+                    originalProfile,
+                    SigninSurveyController.SigninSurveyType.NTP_ACCOUNT_AVATAR_TAP);
+        }
+    }
+
+    private void initializeSigninCoordinator() {
+        if (mSigninCoordinator == null) {
+            OneshotSupplierImpl<Profile> profileSupplier = new OneshotSupplierImpl<>();
+            profileSupplier.set(assumeNonNull(mProfile));
+
+            mSigninCoordinator =
+                    mSigninAndHistorySyncActivityLauncher
+                            .createBottomSheetSigninCoordinatorAndObserveAddAccountResult(
+                                    mWindowAndroid,
+                                    assertNonNull(mWindowAndroid.getActivity().get()),
+                                    mActivityResultTracker,
+                                    this,
+                                    mDeviceLockActivityLauncher,
+                                    profileSupplier,
+                                    () -> mBottomSheetController,
+                                    mModalDialogManager,
+                                    mSnackbarManager,
+                                    SigninAccessPoint.NTP_SIGNED_OUT_ICON);
+        }
+    }
+
+    private void resetProfileDataCache() {
+        if (mProfileDataCache != null) {
+            mProfileDataCache.removeObserver(this);
+            mProfileDataCache = null;
+        }
     }
 
     /** Call to tear down dependencies. */
     public void destroy() {
+        setProfile(null);
         mProfileSupplier.removeObserver(mProfileSupplierObserver);
     }
 }

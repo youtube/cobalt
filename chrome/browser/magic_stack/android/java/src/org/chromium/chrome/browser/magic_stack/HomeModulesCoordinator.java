@@ -406,11 +406,6 @@ public class HomeModulesCoordinator implements ModuleDelegate, OnViewCreatedCall
     }
 
     @Override
-    public void maybeMoveModuleToTheEnd(@ModuleType int moduleType) {
-        mMediator.maybeMoveModuleToTheEnd(moduleType);
-    }
-
-    @Override
     public void refreshModules() {
         mMediator.refreshModules();
     }

@@ -16,7 +16,7 @@ import com.google.errorprone.annotations.MustBeClosed;
 import org.chromium.base.ObserverList;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.chrome.browser.omnibox.fusebox.ComposeboxQueryControllerBridge.FileUploadObserver;
+import org.chromium.chrome.browser.omnibox.fusebox.ComposeboxQueryControllerBridge.ContextUploadObserver;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxAttachmentRecyclerViewAdapter.FuseboxAttachmentType;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.components.contextual_search.ContextUploadStatus;
@@ -38,7 +38,8 @@ import java.util.function.Predicate;
  * consistent state.
  */
 @NullMarked
-public class FuseboxAttachmentModelList implements FileUploadObserver, Iterable<FuseboxAttachment> {
+public class FuseboxAttachmentModelList
+        implements ContextUploadObserver, Iterable<FuseboxAttachment> {
     private final ModelList mModelList = new ModelList();
     private final SimpleRecyclerViewAdapter mAdapter =
             new FuseboxAttachmentRecyclerViewAdapter(mModelList);
@@ -141,11 +142,11 @@ public class FuseboxAttachmentModelList implements FileUploadObserver, Iterable<
         if (mComposeboxQueryControllerBridge == composeboxQueryControllerBridge) return;
         clear();
         if (mComposeboxQueryControllerBridge != null) {
-            mComposeboxQueryControllerBridge.setFileUploadObserver(null);
+            mComposeboxQueryControllerBridge.setContextUploadObserver(null);
         }
         mComposeboxQueryControllerBridge = composeboxQueryControllerBridge;
         if (mComposeboxQueryControllerBridge != null) {
-            mComposeboxQueryControllerBridge.setFileUploadObserver(this);
+            mComposeboxQueryControllerBridge.setContextUploadObserver(this);
         }
     }
 
@@ -364,7 +365,7 @@ public class FuseboxAttachmentModelList implements FileUploadObserver, Iterable<
     }
 
     @Override
-    public void onFileUploadStatusChanged(String token, @ContextUploadStatus int status) {
+    public void onContextUploadStatusChanged(String token, @ContextUploadStatus int status) {
         if (TextUtils.isEmpty(token)) return;
         FuseboxAttachment pendingAttachment = findAttachmentWithToken(token);
         if (pendingAttachment == null) return;

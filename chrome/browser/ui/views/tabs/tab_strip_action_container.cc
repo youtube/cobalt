@@ -254,7 +254,7 @@ void TabStripActionContainer::TabStripNudgeAnimationSession::Show() {
 
 TabStripActionContainer::TabStripActionContainer(
     BrowserWindowInterface* browser_window_interface,
-    tabs::GlicNudgeController* glic_nudge_controller)
+    glic::GlicNudgeController* glic_nudge_controller)
     : AnimationDelegateViews(this),
       locked_expansion_view_(this),
       glic_nudge_controller_(glic_nudge_controller),
@@ -268,7 +268,7 @@ TabStripActionContainer::TabStripActionContainer(
 
   // `glic_nudge_controller_` will be null if feature is not enabled.
   if (glic_nudge_controller_) {
-    glic_nudge_controller_->SetDelegate(this);
+    glic_nudge_controller_->SetTabStripDelegate(this);
   }
 
   if (glic::GlicEnabling::IsProfileEligible(
@@ -320,7 +320,7 @@ TabStripActionContainer::~TabStripActionContainer() {
     scoped_tab_strip_modal_ui_.reset();
   }
   if (glic_nudge_controller_) {
-    glic_nudge_controller_->SetDelegate(nullptr);
+    glic_nudge_controller_->SetTabStripDelegate(nullptr);
   }
 }
 
@@ -392,7 +392,8 @@ void TabStripActionContainer::ShowGlicActorTaskIcon() {
     HideTabStripNudge(glic_actor_task_icon_);
     return;
   }
-  glic_button_ = glic_actor_button_container_->InsertGlicButton(glic_button_);
+  glic_button_ =
+      glic_actor_button_container_->InsertGlicButton(glic_button_.get());
   glic_actor_task_icon_->SetVisible(true);
   glic_actor_button_container_->SetVisible(true);
   glic_button_->Collapse();
@@ -407,6 +408,7 @@ void TabStripActionContainer::ShowGlicActorTaskIcon() {
     if (browser_window_interface_->GetTabStripModel()->CanShowModalUI()) {
       scoped_tab_strip_modal_ui_ =
           browser_window_interface_->GetTabStripModel()->ShowModalUI();
+
       animation_session_ = std::make_unique<TabStripNudgeAnimationSession>(
           glic_actor_task_icon_, this,
           TabStripNudgeAnimationSession::AnimationSessionType::kShow,
@@ -450,6 +452,10 @@ void TabStripActionContainer::HideGlicActorTaskIcon() {
 
 bool TabStripActionContainer::GetIsShowingGlicActorTaskIconNudge() {
   return glic_actor_task_icon_ && glic_actor_task_icon_->GetIsShowingNudge();
+}
+
+bool TabStripActionContainer::IsGlicAdded() {
+  return glic_button_ && glic_actor_task_icon_;
 }
 
 views::FlexLayoutView* TabStripActionContainer::glic_actor_button_container() {
@@ -585,7 +591,7 @@ void TabStripActionContainer::OnGlicButtonClicked() {
 
   if (glic_button_->GetIsShowingNudge()) {
     glic_nudge_controller_->OnNudgeActivity(
-        tabs::GlicNudgeActivity::kNudgeClicked);
+        glic::GlicNudgeActivity::kNudgeClicked);
   }
 
   ExecuteHideTabStripNudge(glic_button_);
@@ -596,7 +602,7 @@ void TabStripActionContainer::OnGlicButtonClicked() {
 
 void TabStripActionContainer::OnGlicButtonDismissed() {
   glic_nudge_controller_->OnNudgeActivity(
-      tabs::GlicNudgeActivity::kNudgeDismissed);
+      glic::GlicNudgeActivity::kNudgeDismissed);
 
   // Force hide the button when pressed, bypassing locked expansion mode.
   ExecuteHideTabStripNudge(glic_button_);

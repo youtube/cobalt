@@ -125,7 +125,6 @@
 <translation id="2228071138934252756">Da bi aplikacija <ph name="APP_NAME" /> mogla pristupiti vašoj kameri, uključite kameru i u <ph name="BEGIN_LINK" />Androidovim postavkama<ph name="END_LINK" />.</translation>
 <translation id="2231160360698766265">Web-lokacije mogu reproducirati zaštićeni sadržaj</translation>
 <translation id="2235344399760031203">Blokirani su kolačići treće strane</translation>
-<translation id="2238944249568001759">Predložena pretraživanja na temelju vaše posljednje kartice</translation>
 <translation id="2241587408274973373">Kartice na novoj kartici preglednika</translation>
 <translation id="2241634353105152135">Samo jednom</translation>
 <translation id="2253414712144136228">Ukloni <ph name="NAME_OF_LIST_ITEM" /></translation>
@@ -214,7 +213,6 @@ Napredna zaštita kontrolira sljedeće postavke Chromea:
 <translation id="3069226013421428034">Dopusti prijavu treće strane za određenu web-lokaciju.</translation>
 <translation id="310297983047869047">Prethodni slajd</translation>
 <translation id="3108122610701115301">Postavi kao zadano</translation>
-<translation id="3109724472072898302">Sažeto</translation>
 <translation id="310979712355504754">Izbriši sve</translation>
 <translation id="311394601889664316">Ne dopuštaj web-lokacijama uređivanje datoteka ili mapa na uređaju</translation>
 <translation id="3114012059975132928">Player videozapisa</translation>
@@ -262,13 +260,13 @@ Napredna zaštita kontrolira sljedeće postavke Chromea:
 <translation id="3602290021589620013">Pregled</translation>
 <translation id="3611658447322220736">Nedavno zatvorene web-lokacije mogu dovršiti slanje i primanje podataka</translation>
 <translation id="3619294456800709762">Web-lokacije mogu automatski pristupiti slici u slici</translation>
-<translation id="3628308229821498208">Predložena pretraživanja</translation>
 <translation id="3632460243282703117">Pretplatite se</translation>
 <translation id="363748948745453283">Upotreba približne lokacije</translation>
 <translation id="3641456520301071208">Web-lokacije mogu zatražiti vašu lokaciju</translation>
 <translation id="3658847490588580244">Donja tablica zadanog preglednika</translation>
 <translation id="3669841141196828854">{COUNT,plural, =1{<ph name="RWS_MEMBERS_COUNT" /> web-lokacija u grupi web-lokacija vlasnika <ph name="RWS_OWNER" /> koja može vidjeti vaše aktivnosti u grupi}one{<ph name="RWS_MEMBERS_COUNT" /> web-lokacija u grupi web-lokacija vlasnika <ph name="RWS_OWNER" /> koja može vidjeti vaše aktivnosti u grupi}few{<ph name="RWS_MEMBERS_COUNT" /> web-lokacije u grupi web-lokacija vlasnika <ph name="RWS_OWNER" /> koje mogu vidjeti vaše aktivnosti u grupi}other{<ph name="RWS_MEMBERS_COUNT" /> web-lokacija u grupi web-lokacija vlasnika <ph name="RWS_OWNER" /> koje mogu vidjeti vaše aktivnosti u grupi}}</translation>
 <translation id="3676777756440746804">Web-lokacije od vas ne smiju tražiti da odobrite korištenje podataka koje su spremile o vama</translation>
+<translation id="3677897809642449131">Web-lokacije mogu tražiti dopuštenje za upotrebu senzora kretanja</translation>
 <translation id="3678318839615834650">Donja tablica kartica na stranici nove kartice otvorena u punoj visini</translation>
 <translation id="3697164069658504920">Kad je ta postavka uključena, web-lokacije mogu tražiti dopuštenje za upotrebu USB uređaja. Kad je ta postavka isključena, web-lokacije ne mogu upotrebljavati USB uređaje.</translation>
 <translation id="3703430731944883733">Upravljajte svojim feedom</translation>
@@ -444,7 +442,6 @@ Napredna zaštita kontrolira sljedeće postavke Chromea:
 <translation id="5515432237048785579">Donja tablica feeda Discovera otvorena u punoj visini</translation>
 <translation id="5516455585884385570">Otvori postavke obavijesti</translation>
 <translation id="5527111080432883924">Traži dopuštenje prije nego što se web-lokacijama dopusti čitanje teksta i slika iz međuspremnika (preporučeno)</translation>
-<translation id="5553374991681107062">Najnovije</translation>
 <translation id="5555115555607204100">Nemoj ubrzavati web-lokacije pomoću Chromeovog programa V8, ali učini Chrome malo otpornijim na napade</translation>
 <translation id="5556459405103347317">Ponovno učitaj</translation>
 <translation id="5591840828808741583"><ph name="SITE_NAME" /> je blokiran</translation>
@@ -490,6 +487,7 @@ Napredna zaštita kontrolira sljedeće postavke Chromea:
 <translation id="5922853908706496913">Dijeljenje zaslona</translation>
 <translation id="5922967540311291836">Blokiraj kolačiće trećih strana:</translation>
 <translation id="5923512600150154850">Izbrisat će se <ph name="DATASIZE" /> podataka i kolačića koje su spremile web-lokacije.</translation>
+<translation id="5930707844513754220">Prikaži više na popisu za postavljanje</translation>
 <translation id="5939518447894949180">Ponovno postavi</translation>
 <translation id="5948139900367969951">Brzo pristupite onome što vam je važno</translation>
 <translation id="5964247741333118902">Ugrađeni sadržaj</translation>
@@ -498,6 +496,7 @@ Napredna zaštita kontrolira sljedeće postavke Chromea:
 <translation id="5976059395673079613"><ph name="PERMISSION" /> – <ph name="WARNING_MESSAGE" /></translation>
 <translation id="5998071268779572583">Uključite feed Discovera</translation>
 <translation id="6012967556075291653">Prikvačeni prečac</translation>
+<translation id="6013003831291591200">Zadatak je dovršen</translation>
 <translation id="6015775454662021376">Kontrolirajte pristup ove web-lokacije vašem uređaju</translation>
 <translation id="6022659036123304283">Prilagodite Chrome sebi</translation>
 <translation id="6040143037577758943">Zatvori</translation>
@@ -522,7 +521,6 @@ Napredna zaštita kontrolira sljedeće postavke Chromea:
 <translation id="6231752747840485235">Želite li deinstalirati aplikaciju <ph name="APP_NAME" />?</translation>
 <translation id="6234351944623978659">Dodirnite Aplikacija preglednika &gt; Chrome</translation>
 <translation id="6260830281887654268">Donja tablica zbirki tema izgleda stranice Nova kartica otvorena je na pola visine</translation>
-<translation id="6262191102408817757">Na temelju vaše posljednje kartice</translation>
 <translation id="6262279340360821358">Blokirana su dopuštenja <ph name="PERMISSION_1" /> i <ph name="PERMISSION_2" /></translation>
 <translation id="6270391203985052864">Web-lokacije mogu postavljati pitanja o slanju obavijesti</translation>
 <translation id="6295158916970320988">Sve web-lokacije</translation>
@@ -602,7 +600,6 @@ Napredna zaštita kontrolira sljedeće postavke Chromea:
 <translation id="7180611975245234373">Osvježi</translation>
 <translation id="7188508872042490670">Podaci web-lokacije na uređaju</translation>
 <translation id="7201549776650881587">Tom ćete radnjom izbrisati sve podatke i kolačiće koje su spremile sve web-lokacije podređene web-lokaciji <ph name="ORIGIN" /> ili koje je spremila povezana aplikacija na vašem početnom zaslonu</translation>
-<translation id="7203150201908454328">Proširen</translation>
 <translation id="7213166370492037743">Ne dopuštaj web-lokacijama povezivanje s bilo kojim uređajem na lokalnoj mreži</translation>
 <translation id="7219254577985949841">Želite li izbrisati podatke web-lokacije?</translation>
 <translation id="723171743924126238">Odaberite slike</translation>
@@ -676,7 +673,6 @@ Napredna zaštita kontrolira sljedeće postavke Chromea:
 <translation id="8007176423574883786">Isključeno za ovaj uređaj</translation>
 <translation id="802154636333426148">Preuzimanje nije uspjelo</translation>
 <translation id="8033047164036749181">Pretplatite se na obavijesti s ove web-lokacije</translation>
-<translation id="8042586301629853791">Kriterij razvrstavanja:</translation>
 <translation id="8051193500142930381">Značajke kojima je potrebna kamera neće raditi</translation>
 <translation id="8056330801132235235">Chrome – zadano</translation>
 <translation id="8067883171444229417">Reproduciraj videozapis</translation>
@@ -748,6 +744,7 @@ Napredna zaštita kontrolira sljedeće postavke Chromea:
 <translation id="8707904142362025782">Web-lokacija može zatražiti vašu kameru</translation>
 <translation id="8712637175834984815">Shvaćam</translation>
 <translation id="8715862698998036666">Povucite od vrha i prijeđite prstom od lijevog ili desnog ruba da biste zatvorili prikaz na cijelom zaslonu.</translation>
+<translation id="8716050156658570300">Web-lokacije mogu tražiti dopuštenje za upotrebu senzora kretanja i svjetlosnih senzora</translation>
 <translation id="8719283222052720129">Uključite dopuštenje za aplikaciju <ph name="APP_NAME" /> u <ph name="BEGIN_LINK" />Androidovim postavkama<ph name="END_LINK" />.</translation>
 <translation id="8721719390026067591">Kad je ta postavka uključena, web-lokacije mogu tražiti dopuštenje za traženje Bluetooth uređaja. Kad je ta postavka isključena, web-lokacije ne mogu tražiti Bluetooth uređaje.</translation>
 <translation id="8725066075913043281">Pokušajte ponovno</translation>

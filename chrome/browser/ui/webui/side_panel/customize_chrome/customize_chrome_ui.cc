@@ -308,19 +308,12 @@ CustomizeChromeUI::CustomizeChromeUI(content::WebUI* web_ui)
       AimEligibilityServiceFactory::GetForProfile(profile_);
   bool action_chips_eligible =
       aim_eligibility_service && aim_eligibility_service->IsAimEligible() &&
-      (ntp_features::kNtpNextShowSimplificationUIParam.Get()
-           ? (aim_eligibility_service->IsDeepSearchEligible() ||
-              aim_eligibility_service->IsCreateImagesEligible())
-           : (aim_eligibility_service->IsDeepSearchEligible() &&
-              aim_eligibility_service->IsCreateImagesEligible()));
+      (aim_eligibility_service->IsDeepSearchEligible() ||
+       aim_eligibility_service->IsCreateImagesEligible());
   source->AddBoolean("aimPolicyEnabled", action_chips_eligible);
 
   source->AddBoolean("footerEnabled",
                      base::FeatureList::IsEnabled(ntp_features::kNtpFooter));
-  source->AddBoolean(
-      "ntpEnterpriseShortcutsMixingAllowed",
-      base::FeatureList::IsEnabled(ntp_tiles::kNtpEnterpriseShortcuts) &&
-          ntp_tiles::kNtpEnterpriseShortcutsAllowMixingParam.Get());
 
   webui::SetupWebUIDataSource(
       source, kSidePanelCustomizeChromeResources,

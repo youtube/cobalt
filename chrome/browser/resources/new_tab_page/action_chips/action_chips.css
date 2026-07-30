@@ -77,36 +77,24 @@
   overflow: hidden;
 }
 
-.icon-type-banana {
-  background-image: url(chrome://new-tab-page/icons/banana.svg);
-  background-size: 24px;
-}
-
-:host([show-simplified-ui_]) .icon-type-banana {
-  background-size: 16px;
-  mask-size: 16px;
+.action-chip-icon-container:not(.icon-type-favicon):not(.icon-type-banana) {
+  background-color: var(--color-new-tab-page-action-chip-text-body);
 }
 
 .icon-type-sub-arrow-right {
-  background-color: var(--color-new-tab-page-action-chip-text-body);
-  background-size: 24px;
   -webkit-mask-image: url(chrome://new-tab-page/icons/suggestion.svg);
 }
 
-:host([show-simplified-ui_]) .icon-type-sub-arrow-right {
-  background-size: 16px;
-  mask-size: 16px;
-}
-
 .icon-type-globe-with-search-loop {
-  background-color: var(--color-new-tab-page-action-chip-text-body);
-  background-size: 24px;
   -webkit-mask-image: url(chrome://new-tab-page/icons/deep_search.svg);
 }
 
-:host([show-simplified-ui_]) .icon-type-globe-with-search-loop {
-  background-size: 16px;
-  mask-size: 16px;
+.icon-type-draft-spark {
+  -webkit-mask-image: url(chrome://new-tab-page/icons/canvas.svg);
+}
+
+.icon-type-banana {
+  background-image: url(chrome://new-tab-page/icons/banana.svg);
 }
 
 .action-chip {
@@ -202,8 +190,17 @@
 }
 
 .action-chip-icon-container {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100%;
   border-radius: 100%;
   height: 24px;
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: 100%;
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: 100%;
   width: 24px;
 }
 
@@ -243,7 +240,7 @@
   padding-top: 2px;
 }
 
-:host(:not([show-simplified-ui_])) .deep-dive-chip .action-chip-text-container {
+:host(:not([show-simplified-ui_])) .action-chip:has(.icon-type-sub-arrow-right) .action-chip-text-container {
   padding: 2px 0;
 }
 
@@ -311,7 +308,7 @@
   -webkit-line-clamp: 1;
 }
 
-:host(:not([show-simplified-ui_])) .deep-dive-chip .chip-body {
+:host(:not([show-simplified-ui_])) .action-chip:has(.icon-type-sub-arrow-right) .chip-body {
   -webkit-line-clamp: 2;
 }
 
@@ -323,8 +320,8 @@
   -webkit-line-clamp: 2;
 }
 
-:host(:not([show-simplified-ui_])) .deep-dive-chip:hover .chip-body,
-:host(:not([show-simplified-ui_])) .deep-dive-chip:focus .chip-body {
+:host(:not([show-simplified-ui_])) .action-chip:has(.icon-type-sub-arrow-right):hover .chip-body,
+:host(:not([show-simplified-ui_])) .action-chip:has(.icon-type-sub-arrow-right):focus .chip-body {
   word-break: break-word;
   white-space: normal;
   -webkit-box-orient: vertical;
@@ -367,9 +364,13 @@ cr-button>span {
   display: block;
 }
 
-:host([reduced-motion-preferred]) .action-chips-container,
-:host([reduced-motion-preferred]) .action-chip {
-  animation: none;
-  opacity: 1;
-  transform: none;
+@container style(--cr-animations-disabled: 1) {
+  :host([show-simplified-ui_]) .action-chips-container,
+  :host(:not([show-simplified-ui_])) .action-chips-container,
+  :host([show-simplified-ui_]) .action-chip,
+  :host(:not([show-simplified-ui_])) .action-chip {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }

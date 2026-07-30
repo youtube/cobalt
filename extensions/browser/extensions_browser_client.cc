@@ -94,6 +94,11 @@ bool ExtensionsBrowserClient::IsActivityLoggingEnabled(
   return false;
 }
 
+bool ExtensionsBrowserClient::IsTelemetryLoggingEnabled(
+    content::BrowserContext* context) {
+  return false;
+}
+
 void ExtensionsBrowserClient::GetTabAndWindowIdForWebContents(
     content::WebContents* web_contents,
     int* tab_id,
@@ -224,7 +229,8 @@ void ExtensionsBrowserClient::GetWebViewStoragePartitionConfig(
   auto partition_config = content::StoragePartitionConfig::Create(
       browser_context, owner_site_url.GetHost(), partition_name, in_memory);
 
-  if (owner_site_url.SchemeIs(extensions::kExtensionScheme)) {
+  if (owner_site_instance->GetSecurityPrincipal().SchemeIs(
+          extensions::kExtensionScheme)) {
     const auto& owner_config =
         owner_site_instance->GetSecurityPrincipal().GetStoragePartitionConfig();
 #if DCHECK_IS_ON()
@@ -332,5 +338,13 @@ InstallTracker* ExtensionsBrowserClient::GetInstallTracker(
     content::BrowserContext* context) {
   return nullptr;
 }
+
+SharedModuleService* ExtensionsBrowserClient::GetSharedModuleService(
+    content::BrowserContext* context) {
+  return nullptr;
+}
+
+void ExtensionsBrowserClient::UpdateCheckIfEnabled(
+    content::BrowserContext* context) {}
 
 }  // namespace extensions

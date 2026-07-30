@@ -9,7 +9,8 @@
 
 #include <memory>
 
-#import "components/omnibox/composebox/ios/composebox_file_upload_observer_bridge.h"
+#import "components/omnibox/composebox/ios/composebox_context_upload_observer_bridge.h"
+#import "ios/chrome/browser/composebox/coordinator/composebox_entrypoint.h"
 #import "ios/chrome/browser/composebox/coordinator/composebox_mode_holder.h"
 #import "ios/chrome/browser/composebox/coordinator/composebox_omnibox_client_delegate.h"
 #import "ios/chrome/browser/composebox/coordinator/composebox_tab_picker_coordinator.h"
@@ -18,9 +19,12 @@
 #import "ios/chrome/browser/omnibox/ui/text_field_view_containing.h"
 #import "ios/public/provider/chrome/browser/voice_search/voice_search_controller.h"
 
+@protocol BrowserCoordinatorCommands;
+@class CobrowseContext;
 @protocol ComposeboxDebuggerLogger;
 @class ComposeboxMetricsRecorder;
 @protocol ComposeboxURLLoader;
+@protocol SceneCommands;
 class AimEligibilityService;
 class FaviconLoader;
 class PersistTabContextBrowserAgent;
@@ -32,7 +36,6 @@ namespace contextual_search {
 class ContextualSearchSessionHandle;
 }  // namespace contextual_search
 
-// Delegate for the ComposeboxInputPlateMediator.
 @protocol ComposeboxInputPlateMediatorDelegate
 // Reloads the composebox autocomplete suggestions.
 - (void)reloadAutocompleteSuggestionsRestarting:(BOOL)restart;
@@ -48,13 +51,15 @@ class ContextualSearchSessionHandle;
 @interface ComposeboxInputPlateMediator
     : NSObject <ComposeboxOmniboxClientDelegate,
                 ComposeboxInputPlateMutator,
-                ComposeboxFileUploadObserver,
+                ComposeboxContextUploadObserver,
                 ComposeboxModeObserver,
                 ComposeboxTabPickerSelectionDelegate,
                 TextFieldViewContainingHeightDelegate,
                 VoiceSearchDelegate>
 
+// The composebox input plate consumer.
 @property(nonatomic, weak) id<ComposeboxInputPlateConsumer> consumer;
+// The composebox URL loader.
 @property(nonatomic, weak) id<ComposeboxURLLoader> URLLoader;
 // The delegate for this mediator.
 @property(nonatomic, weak) id<ComposeboxInputPlateMediatorDelegate> delegate;
@@ -76,7 +81,11 @@ class ContextualSearchSessionHandle;
                  templateURLService:(TemplateURLService*)templateURLService
               aimEligibilityService:
                   (AimEligibilityService*)aimEligibilityService
-                        prefService:(PrefService*)prefService;
+                        prefService:(PrefService*)prefService
+          browserCoordinatorHandler:
+              (id<BrowserCoordinatorCommands>)browserCoordinatorHandler
+                       sceneHandler:(id<SceneCommands>)sceneHandler
+                         entrypoint:(ComposeboxEntrypoint)entrypoint;
 
 - (void)disconnect;
 

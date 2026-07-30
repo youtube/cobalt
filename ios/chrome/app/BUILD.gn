@@ -19,10 +19,6 @@ import("//ios/public/provider/chrome/browser/build_config.gni")
 import("//rlz/buildflags/buildflags.gni")
 
 declare_args() {
-  # Controls whether fast_app_terminate_buildflags is enabled
-  # (see crbug.com/1328891 for details).
-  fast_app_terminate_enabled = -1
-
   # Path to a PrivacyInfo.xcprivacy file to be included in the application.
   ios_chrome_privacy_manifest = ""
 
@@ -30,21 +26,9 @@ declare_args() {
   ios_chrome_orderfile = ""
 }
 
-# If fast_app_terminate_enabled is not enabled, default to true,
-# except in debug mode (as this makes it difficult to debug the
-# app termination crashes).
-if (fast_app_terminate_enabled == -1) {
-  fast_app_terminate_enabled = !is_debug
-}
-
 buildflag_header("background_mode_buildflags") {
   header = "background_mode_buildflags.h"
   flags = [ "IOS_BACKGROUND_MODE_ENABLED=$ios_enable_background_mode" ]
-}
-
-buildflag_header("fast_app_terminate_buildflags") {
-  header = "fast_app_terminate_buildflags.h"
-  flags = [ "FAST_APP_TERMINATE_ENABLED=$fast_app_terminate_enabled" ]
 }
 
 buildflag_header("ios_force_build_chrome_framework_buildflags") {
@@ -117,6 +101,7 @@ source_set("tasks_handling") {
     "//ios/chrome/app/strings",
     "//ios/chrome/browser/intents/model:constants",
     "//ios/chrome/browser/intents/model:user_activity_browser_agent",
+    "//ios/chrome/browser/intents/model:user_activity_compatibility_util",
     "//ios/chrome/browser/policy/model:policy_util",
     "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
     "//ios/chrome/browser/shared/model/application_context",
@@ -174,6 +159,7 @@ source_set("unit_tests") {
     "safe_mode_app_state_agent_unittest.mm",
     "tab_opener_unittest.mm",
     "task_orchestrator_unittest.mm",
+    "task_request_shortcut_item_unittest.mm",
     "variations_app_state_agent_unittest.mm",
   ]
   deps = [
@@ -181,6 +167,7 @@ source_set("unit_tests") {
     ":app_internal",
     ":app_metrics_app_state_agent",
     ":change_profile_animator",
+    ":mode",
     ":safe_mode_app_state_agent",
     ":tasks_handling",
     ":variations_app_state_agent",
@@ -190,6 +177,7 @@ source_set("unit_tests") {
     "//components/metrics",
     "//components/open_from_clipboard",
     "//components/open_from_clipboard:test_support",
+    "//components/policy/core/common",
     "//components/prefs",
     "//components/prefs:test_support",
     "//components/sync_preferences",
@@ -207,12 +195,15 @@ source_set("unit_tests") {
     "//ios/chrome/app/application_delegate:url_opener_params",
     "//ios/chrome/app/profile",
     "//ios/chrome/app/profile:test_utils",
+    "//ios/chrome/app/startup:startup_basic",
     "//ios/chrome/browser/bookmarks/model",
     "//ios/chrome/browser/bookmarks/model:test_support",
     "//ios/chrome/browser/browsing_data/model",
     "//ios/chrome/browser/first_run/public:constants",
+    "//ios/chrome/browser/intents/model:constants",
     "//ios/chrome/browser/main/ui_bundled",
     "//ios/chrome/browser/metrics/model",
+    "//ios/chrome/browser/policy/model:policy_util",
     "//ios/chrome/browser/promos_manager/model",
     "//ios/chrome/browser/promos_manager/model:constants",
     "//ios/chrome/browser/promos_manager/model:test_support",
@@ -230,9 +221,11 @@ source_set("unit_tests") {
     "//ios/chrome/browser/shared/model/prefs:browser_prefs",
     "//ios/chrome/browser/shared/model/prefs:pref_names",
     "//ios/chrome/browser/shared/model/profile/test",
+    "//ios/chrome/browser/shared/model/url:constants",
     "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/browser/signin/model:test_support",
     "//ios/chrome/browser/tabs/model",
+    "//ios/chrome/browser/url_loading/model:url_loading_params_header",
     "//ios/chrome/browser/variations/model:fetcher",
     "//ios/chrome/browser/web_state_list/model/web_usage_enabler",
     "//ios/chrome/common/app_group",
@@ -516,7 +509,6 @@ source_set("app_internal") {
     ":change_profile_commands",
     ":change_profile_continuation",
     ":enterprise_app_agent",
-    ":fast_app_terminate_buildflags",
     ":launch_screen_ui",
     ":mode",
     ":safe_mode_app_state_agent",

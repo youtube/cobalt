@@ -41,6 +41,8 @@ void RecordNotificationThrottled();
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
 //
+// GENERATED_JAVA_ENUM_PACKAGE: (
+//   org.chromium.chrome.browser.share.send_tab_to_self)
 // LINT.IfChange(ScrollPositionGenerationOutcome)
 enum class ScrollPositionGenerationOutcome {
   kSuccess = 0,
@@ -71,6 +73,10 @@ void RecordHasScrollPositionOnOpened(bool has_scroll_position);
 // Records the size of the PageContext proto when sending a tab, before
 // truncation.
 void RecordPageContextSize(size_t size);
+
+// Records the volume of scroll interaction after an STTS tab is opened.
+// `with_restoration` is true if scroll restoration was attempted.
+void RecordScrollVolume(float volume, bool with_restoration);
 
 }  // namespace send_tab_to_self
 

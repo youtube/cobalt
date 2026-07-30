@@ -60,6 +60,13 @@ chrome_internal_verifier(
 )
 
 chrome_internal_verifier(
+    builder = "android-internal-desktop-x64-rel",
+    tryjob = try_.job(
+        experiment_percentage = 5,
+    ),
+)
+
+chrome_internal_verifier(
     builder = "linux-chromeos-compile-chrome",
     tryjob = try_.job(),
 )
@@ -144,6 +151,22 @@ chrome_internal_verifier(
 
 chrome_internal_verifier(
     builder = "chromeos-betty-chrome",
+)
+
+chrome_internal_verifier(
+    builder = "chromeos-betty-compile-chrome",
+)
+
+chrome_internal_verifier(
+    builder = "chromeos-betty-chrome-gtest",
+)
+
+chrome_internal_verifier(
+    builder = "chromeos-betty-chrome-gtest-and-cqtast",
+)
+
+chrome_internal_verifier(
+    builder = "chromeos-betty-chrome-gtest-and-tast",
 )
 
 chrome_internal_verifier(

@@ -14,6 +14,7 @@
 #include "build/build_config.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_keyed_service_factory.h"
+#include "chrome/browser/affiliations/affiliation_service_factory.h"
 #include "chrome/browser/background/glic/glic_launcher_configuration.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/glic/common/local_hotkey_manager.h"
@@ -21,8 +22,16 @@
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
+#include "chrome/browser/password_manager/account_password_store_factory.h"
+#include "chrome/browser/password_manager/actor_login/actor_login_permission_service_factory.h"
+#include "chrome/browser/password_manager/profile_password_store_factory.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/user_education/user_education_service.h"
 #include "chrome/common/chrome_features.h"
+#include "components/keyed_service/core/service_access_type.h"
+#include "components/password_manager/core/browser/actor_login/actor_login_permissions_manager_impl.h"
+#include "components/password_manager/core/browser/password_store/password_store_interface.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
@@ -30,6 +39,26 @@
 #include "ui/base/accelerators/global_accelerator_listener/global_accelerator_listener.h"
 
 namespace settings {
+
+namespace {
+
+base::ListValue ConvertActorLoginPermissionsToList(
+    base::flat_set<password_manager::ActorLoginPermission> all_permissions) {
+  base::ListValue permissions_list;
+  for (const password_manager::ActorLoginPermission& permission :
+       all_permissions) {
+    auto permission_dict =
+        base::DictValue()
+            .Set("signonRealm", permission.domain_info.signon_realm)
+            .Set("username", permission.username)
+            .Set("displayName", permission.domain_info.name)
+            .Set("faviconUrl", permission.favicon_url.spec());
+    permissions_list.Append(std::move(permission_dict));
+  }
+  return permissions_list;
+}
+
+}  // namespace
 
 GlicHandler::GlicHandler() = default;
 GlicHandler::~GlicHandler() = default;
@@ -63,6 +92,23 @@ void GlicHandler::RegisterMessages() {
       "getGlicDisallowedByAdmin",
       base::BindRepeating(&GlicHandler::HandleGetGlicDisallowedByAdmin,
                           base::Unretained(this)));
+
+  web_ui()->RegisterMessageCallback(
+      "getActorLoginPermissions",
+      base::BindRepeating(&GlicHandler::HandleGetActorLoginPermissions,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "revokeActorLoginPermission",
+      base::BindRepeating(&GlicHandler::HandleRevokeActorLoginPermission,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "getGlicSelectionShortcut",
+      base::BindRepeating(&GlicHandler::HandleGetGlicSelectionShortcut,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "setGlicSelectionShortcut",
+      base::BindRepeating(&GlicHandler::HandleSetGlicSelectionShortcut,
+                          base::Unretained(this)));
 }
 
 void GlicHandler::OnJavascriptAllowed() {
@@ -79,11 +125,34 @@ void GlicHandler::OnJavascriptAllowed() {
         base::BindRepeating(&GlicHandler::OnWebActuationCapabilityChanged,
                             base::Unretained(this)));
   }
+
+  actor_login_permissions_manager_ =
+      std::make_unique<actor_login::ActorLoginPermissionsManagerImpl>(
+          AffiliationServiceFactory::GetForProfile(profile),
+          actor_login::ActorLoginPermissionServiceFactory::GetForProfile(
+              profile),
+          ProfilePasswordStoreFactory::GetForProfile(
+              profile, ServiceAccessType::EXPLICIT_ACCESS),
+          AccountPasswordStoreFactory::GetForProfile(
+              profile, ServiceAccessType::EXPLICIT_ACCESS));
+  observation_.Observe(actor_login_permissions_manager_.get());
 }
 
 void GlicHandler::OnJavascriptDisallowed() {
   glic_enabling_subscription_ = {};
   web_actuation_subscription_ = {};
+  observation_.Reset();
+}
+
+void GlicHandler::OnPermissionsChanged() {
+  RequestPermissionsList(base::BindOnce(&GlicHandler::NotifyPermissionsChanged,
+                                        weak_ptr_factory_.GetWeakPtr()));
+}
+
+void GlicHandler::NotifyPermissionsChanged(base::ListValue permissions_list) {
+  if (IsJavascriptAllowed()) {
+    FireWebUIListener("actor-login-permissions-changed", permissions_list);
+  }
 }
 
 void GlicHandler::SetWebUIForTesting(content::WebUI* web_ui) {
@@ -170,6 +239,29 @@ void GlicHandler::HandleGetGlicDisallowedByAdmin(const base::ListValue& args) {
   ResolveJavascriptCallback(callback_id, base::Value(disallowed));
 }
 
+void GlicHandler::HandleGetGlicSelectionShortcut(const base::ListValue& args) {
+  CHECK_EQ(1U, args.size());
+  const base::Value& callback_id = args[0];
+
+  AllowJavascript();
+  ResolveJavascriptCallback(
+      callback_id,
+      base::UTF16ToUTF8(
+          glic::GlicLauncherConfiguration::GetSelectionGlobalHotkey()
+              .GetShortcutText()));
+}
+
+void GlicHandler::HandleSetGlicSelectionShortcut(const base::ListValue& args) {
+  CHECK_EQ(2U, args.size());
+  const base::Value& callback_id = args[0];
+  const std::string accelerator_string = args[1].GetString();
+  g_browser_process->local_state()->SetString(glic::prefs::kGlicSelectionHotkey,
+                                              accelerator_string);
+
+  AllowJavascript();
+  ResolveJavascriptCallback(callback_id, base::Value());
+}
+
 void GlicHandler::FireOnGlicDisallowedByAdminChanged() {
   Profile* profile = Profile::FromWebUI(web_ui());
   const bool disallowed =
@@ -181,6 +273,40 @@ void GlicHandler::FireOnGlicDisallowedByAdminChanged() {
 void GlicHandler::OnWebActuationCapabilityChanged(bool can_act_on_web) {
   FireWebUIListener("glic-web-actuation-capability-changed",
                     base::Value(can_act_on_web));
+}
+
+void GlicHandler::HandleGetActorLoginPermissions(const base::ListValue& args) {
+  CHECK_EQ(1U, args.size());
+  AllowJavascript();
+  const base::Value& callback_id = args[0];
+  RequestPermissionsList(
+      base::BindOnce(&GlicHandler::OnGetActorLoginPermissions,
+                     weak_ptr_factory_.GetWeakPtr(), callback_id.GetString()));
+}
+
+void GlicHandler::OnGetActorLoginPermissions(std::string callback_id_str,
+                                             base::ListValue permissions_list) {
+  if (IsJavascriptAllowed()) {
+    ResolveJavascriptCallback(base::Value(callback_id_str), permissions_list);
+  }
+}
+
+void GlicHandler::HandleRevokeActorLoginPermission(
+    const base::ListValue& args) {
+  CHECK_EQ(1U, args.size());
+  const std::string* signon_realm = args[0].GetIfString();
+  if (signon_realm) {
+    actor_login_permissions_manager_->RevokePermission(*signon_realm);
+  }
+}
+
+void GlicHandler::RequestPermissionsList(
+    base::OnceCallback<void(base::ListValue)> callback) {
+  Profile* profile = Profile::FromWebUI(web_ui());
+  actor_login_permissions_manager_->GetAllPermissions(
+      SyncServiceFactory::GetForProfile(profile),
+      base::BindOnce(&ConvertActorLoginPermissionsToList)
+          .Then(std::move(callback)));
 }
 
 }  // namespace settings

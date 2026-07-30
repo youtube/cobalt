@@ -7,6 +7,8 @@
 
 #include "base/containers/flat_map.h"
 #include "base/memory/weak_ptr.h"
+#include "base/observer_list.h"
+#include "base/observer_list_types.h"
 #include "base/unguessable_token.h"
 #include "chrome/browser/glic/host/context/glic_page_context_fetcher.h"
 #include "chrome/browser/glic/host/glic.mojom-forward.h"
@@ -25,6 +27,11 @@ class SelectionOverlayController
     : public OverlayBaseController,
       public selection::SelectionOverlayPageHandler {
  public:
+  class Observer : public base::CheckedObserver {
+   public:
+    virtual void OnOverlayClosed() = 0;
+  };
+
   SelectionOverlayController(tabs::TabInterface* tab,
                              PrefService* pref_service);
   ~SelectionOverlayController() override;
@@ -55,12 +62,23 @@ class SelectionOverlayController
   void Show();
   void Close();
 
+  void AddListener(Observer* observer);
+  void RemoveListener(Observer* observer);
+
   std::optional<std::vector<uint8_t>>& GetEncodedData() { return encoded_; }
 
  private:
+  void WillDiscardContents(tabs::TabInterface* tab,
+                           content::WebContents* old_contents,
+                           content::WebContents* new_contents);
+  void WillDetach(tabs::TabInterface* tab,
+                  tabs::TabInterface::DetachReason reason);
+  void TabDeactivated(tabs::TabInterface* tab);
+
   void InitializeOverlay();
 
   // OverlayBaseController overrides:
+  void CloseUI() override;
   void RequestSyncClose(DismissalSource dismissal_source) override;
   void StartScreenshotFlow() override;
   void NotifyOverlayClosing() override;
@@ -123,6 +141,11 @@ class SelectionOverlayController
 
   ui::ScopedUnownedUserData<SelectionOverlayController>
       scoped_unowned_user_data_;
+
+  base::ObserverList<Observer> observers_;
+
+  // Holds subscriptions for TabInterface callbacks.
+  std::vector<base::CallbackListSubscription> tab_subscriptions_;
 
   // Must be the last member.
   base::WeakPtrFactory<SelectionOverlayController> weak_factory_{this};

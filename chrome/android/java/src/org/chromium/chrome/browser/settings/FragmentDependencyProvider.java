@@ -4,8 +4,6 @@
 
 package org.chromium.chrome.browser.settings;
 
-import static org.chromium.build.NullUtil.assumeNonNull;
-
 import android.app.Activity;
 import android.content.Context;
 import android.os.Bundle;
@@ -71,7 +69,7 @@ public class FragmentDependencyProvider extends FragmentManager.FragmentLifecycl
     // refactored.
     private final Activity mActivity;
     private final Profile mProfile;
-    private final MonotonicObservableSupplier<WindowAndroid> mWindowAndroidSupplier;
+    private final OneshotSupplier<WindowAndroid> mWindowAndroidSupplier;
     private final ActivityResultTracker mActivityResultTracker;
 
     // Here are UI dependencies, i.e. objects referencing UI objects (e.g. Views). They are
@@ -86,7 +84,7 @@ public class FragmentDependencyProvider extends FragmentManager.FragmentLifecycl
     public FragmentDependencyProvider(
             Activity activity,
             Profile profile,
-            MonotonicObservableSupplier<WindowAndroid> windowAndroidSupplier,
+            OneshotSupplier<WindowAndroid> windowAndroidSupplier,
             ActivityResultTracker activityResultTracker,
             OneshotSupplier<SnackbarManager> snackbarManagerSupplier,
             OneshotSupplier<BottomSheetController> bottomSheetControllerSupplier,
@@ -131,7 +129,13 @@ public class FragmentDependencyProvider extends FragmentManager.FragmentLifecycl
 
         // Settings screen specific attachments.
         if (fragment instanceof MainSettings) {
-            ((MainSettings) fragment).setModalDialogManagerSupplier(mModalDialogManagerSupplier);
+            MainSettings mainSettings = (MainSettings) fragment;
+            mainSettings.setDependencies(
+                    mModalDialogManagerSupplier,
+                    mWindowAndroidSupplier,
+                    mActivityResultTracker,
+                    mBottomSheetControllerSupplier,
+                    mSnackbarManagerSupplier);
         }
         if (fragment instanceof BaseSiteSettingsFragment) {
             BaseSiteSettingsFragment baseSiteSettingsFragment =
@@ -219,14 +223,14 @@ public class FragmentDependencyProvider extends FragmentManager.FragmentLifecycl
         if (fragment instanceof SafetyHubFragment safetyHubFragment) {
             safetyHubFragment.setDelegate(
                     new SafetyHubModuleDelegateImpl(
-                            assumeNonNull(mWindowAndroidSupplier.get()),
+                            mWindowAndroidSupplier,
                             mActivity,
                             mActivityResultTracker,
                             DeviceLockActivityLauncherImpl.get(),
                             mProfile,
-                            assumeNonNull(mSnackbarManagerSupplier.get()),
+                            mSnackbarManagerSupplier,
                             mBottomSheetControllerSupplier,
-                            mModalDialogManagerSupplier.asNonNull(),
+                            mModalDialogManagerSupplier,
                             SigninAndHistorySyncActivityLauncherImpl.get(),
                             new SettingsCustomTabLauncherImpl()));
         }

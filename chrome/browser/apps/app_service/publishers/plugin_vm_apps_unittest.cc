@@ -11,10 +11,9 @@
 #include "base/files/file_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/escape.h"
-#include "base/test/bind.h"
+#include "base/test/test_future.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
-#include "chrome/browser/apps/app_service/launch_result_type.h"
 #include "chrome/browser/ash/file_manager/path_util.h"
 #include "chrome/browser/ash/plugin_vm/mock_plugin_vm_manager.h"
 #include "chrome/browser/ash/plugin_vm/plugin_vm_manager_factory.h"
@@ -28,6 +27,7 @@
 #include "chromeos/ash/components/dbus/seneschal/seneschal_client.h"
 #include "components/services/app_service/public/cpp/app_registry_cache.h"
 #include "components/services/app_service/public/cpp/intent_util.h"
+#include "components/services/app_service/public/cpp/launch_result.h"
 #include "content/public/test/browser_task_environment.h"
 #include "storage/browser/file_system/external_mount_points.h"
 #include "storage/browser/file_system/file_system_url.h"
@@ -225,17 +225,13 @@ TEST_F(PluginVmAppsTest, LaunchAppWithIntent_FailedDirectoryNotShared) {
       GetMyFilesFileSystemURL("Downloads/file").ToGURL()));
   intent->files = {std::move(files)};
 
-  std::optional<State> result_state;
+  base::test::TestFuture<apps::LaunchResult> result;
   app_service_proxy()->LaunchAppWithIntent(
       app_id, /*event_flags=*/0, std::move(intent), LaunchSource::kUnknown,
-      std::unique_ptr<WindowInfo>(),
-      base::BindLambdaForTesting(
-          [&result_state](apps::LaunchResult&& callback_result) {
-            result_state = callback_result.state;
-          }));
+      std::unique_ptr<WindowInfo>(), result.GetCallback());
 
-  ASSERT_EQ(result_state.value_or(apps::State::kSuccess),
-            apps::State::kFailedDirectoryNotShared);
+  ASSERT_TRUE(result.IsReady());
+  ASSERT_EQ(apps::LaunchResult::kFailedDirectoryNotShared, result.Get());
 }
 
 }  // namespace apps

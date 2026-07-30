@@ -27,6 +27,7 @@
 #include "chrome/common/actor/task_id.h"
 #include "chrome/common/chrome_features.h"
 #include "components/prefs/pref_service.h"
+#include "components/startup_metric_utils/browser/startup_metric_utils.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
@@ -318,6 +319,10 @@ GlicMetrics::GlicMetrics(Profile* profile, GlicEnabling* enabling)
       enabling_->RegisterAllowedChanged(base::BindRepeating(
           &GlicMetrics::OnMaybeEnabledAndConsentForProfileChanged,
           base::Unretained(this))));
+
+  if (enabling_->IsAllowed()) {
+    RecordStartupEnablement();
+  }
 
   is_enabled_ = enabling_->IsEnabledAndConsentForProfile(profile_);
   is_pinned_ = profile_->GetPrefs()->GetBoolean(prefs::kGlicPinnedToTabstrip);
@@ -963,6 +968,10 @@ void GlicMetrics::OnGlicWindowSizeTimerFired() {
 }
 
 void GlicMetrics::OnMaybeEnabledAndConsentForProfileChanged() {
+  if (!recorded_startup_enablement_ && enabling_->IsAllowed()) {
+    RecordStartupEnablement();
+  }
+
   bool is_enabled = enabling_->IsEnabledAndConsentForProfile(profile_);
   if (is_enabled == is_enabled_) {
     // No change, early exit.
@@ -1005,6 +1014,19 @@ void GlicMetrics::OnTabContextEnabledPrefChanged() {
         "OnTabContextPermissionGranted",
         delegate_->GetActiveTabSharingState());
   }
+}
+
+void GlicMetrics::RecordStartupEnablement() {
+  base::TimeTicks startup_time =
+      startup_metric_utils::GetBrowser().GetApplicationStartTicksForStartup();
+  if (startup_time.is_null()) {
+    return;
+  }
+
+  base::TimeDelta delta = base::TimeTicks::Now() - startup_time;
+  base::UmaHistogramLongTimes("Glic.ProfileEnablement.TimeToEnabledFromStartup",
+                              delta);
+  recorded_startup_enablement_ = true;
 }
 
 DisplayPosition GlicMetrics::GetDisplayPositionOfPoint(
@@ -1105,7 +1127,8 @@ PercentOverlap GlicMetrics::GetPercentOverlapWithBrowser(
   int browser_glic_intersect_area = browser_glic_intersect_bounds.width() *
                                     browser_glic_intersect_bounds.height();
   // Calculate overlap percentage and round to the nearest 10.
-  int percentOverlap = round(10 * browser_glic_intersect_area / glic_area) * 10;
+  int percentOverlap =
+      round(10.0 * browser_glic_intersect_area / glic_area) * 10;
   switch (percentOverlap) {
     case 100:
       return PercentOverlap::k100;
@@ -1132,7 +1155,7 @@ PercentOverlap GlicMetrics::GetPercentOverlapWithBrowser(
       return PercentOverlap::k0;
   }
 }
-#endif
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 void GlicMetrics::OnAttachedToBrowser(AttachChangeReason reason) {
   base::UmaHistogramEnumeration("Glic.AttachedToBrowser", reason);

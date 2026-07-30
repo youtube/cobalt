@@ -29,6 +29,7 @@
 #include "chrome/browser/search_engine_choice/search_engine_choice_dialog_service.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/startup/first_run_service.h"
 #include "chrome/browser/ui/startup/startup_types.h"
@@ -264,7 +265,8 @@ IN_PROC_BROWSER_TEST_P(SigninUtilWinBrowserTestWithParams, Run) {
   Profile* profile = profile_manager->GetLastUsedProfile();
   ASSERT_EQ(ProfileManager::GetInitialProfileDir(), profile->GetBaseName());
 
-  Browser* browser = chrome::FindLastActiveWithProfile(profile);
+  BrowserWindowInterface* const browser =
+      chrome::FindLastActiveWithProfile(profile);
   ASSERT_NE(nullptr, browser);
 
   AssertSigninStarted(GetParam().expect_is_started, profile);
@@ -508,7 +510,8 @@ IN_PROC_BROWSER_TEST_F(SigninUtilWinNoStartingWindowBrowserTest,
   profiles::FindOrCreateNewWindowForProfile(
       profile, chrome::startup::IsProcessStartup::kYes,
       chrome::startup::IsFirstRun::kYes, /*always_create=*/true);
-  Browser* first_browser = chrome::FindLastActiveWithProfile(profile);
+  BrowserWindowInterface* const first_browser =
+      chrome::FindLastActiveWithProfile(profile);
   EXPECT_TRUE(first_browser);
 
   // FRE should be marked as completed because it was bypassed by the already
@@ -687,9 +690,22 @@ class ExistingWinBrowserProfilesSigninUtilTest
   ExistingWinBrowserProfilesSigninUtilTest()
       : BrowserTestHelper(L"gaia_id_for_foo_gmail.com",
                           L"foo@gmail.com",
-                          "lst-123456") {}
+                          "lst-123456"),
+        // Prevent the browser from shutting down when no windows are open.
+        keep_alive_(std::make_unique<ScopedKeepAlive>(
+            KeepAliveOrigin::APP_CONTROLLER,
+            KeepAliveRestartOption::DISABLED)) {}
 
  protected:
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    // Inherit base behavior (which may include other feature flags).
+    InProcessBrowserTest::SetUpCommandLine(command_line);
+
+    // Add this switch to prevent the initial window (and toolbar WebUI)
+    // from interfering with profile setup.
+    command_line->AppendSwitch(switches::kNoStartupWindow);
+  }
+
   bool SetUpUserDataDirectory() override {
     registry_override_.OverrideRegistry(HKEY_CURRENT_USER);
 
@@ -711,6 +727,10 @@ class ExistingWinBrowserProfilesSigninUtilTest
   base::test::ScopedFeatureList feature_list_{
       syncer::kReplaceSyncPromosWithSignInPromos};
   registry_util::RegistryOverrideManager registry_override_;
+
+  // Held throughout the test to prevent premature shutdown with
+  // kNoStartupWindow.
+  std::unique_ptr<ScopedKeepAlive> keep_alive_;
 };
 
 // In PRE_PRE_Run, browser starts for the first time with the initial profile
@@ -744,7 +764,14 @@ IN_PROC_BROWSER_TEST_P(ExistingWinBrowserProfilesSigninUtilTest, PRE_PRE_Run) {
         identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin));
   }
 
-  CreateAndSwitchToProfile(base::WideToUTF8(GetParam().current_profile));
+  base::FilePath path = profile_manager->user_data_dir().AppendASCII(
+      base::WideToUTF8(GetParam().current_profile));
+  profiles::testing::CreateProfileSync(profile_manager, path);
+
+  // Set the preference manually so the next run starts with this profile
+  // without opening a window now.
+  g_browser_process->local_state()->SetString(prefs::kProfileLastUsed,
+                                              path.BaseName().MaybeAsASCII());
 }
 
 // Browser starts with the |current_profile| profile created in the previous

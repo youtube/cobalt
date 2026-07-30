@@ -23,6 +23,7 @@
 #import "components/prefs/pref_service.h"
 #import "components/signin/public/base/signin_metrics.h"
 #import "components/signin/public/base/signin_pref_names.h"
+#import "components/signin/public/base/signin_switches.h"
 #import "components/signin/public/identity_manager/account_info.h"
 #import "components/signin/public/identity_manager/identity_manager.h"
 #import "components/url_formatter/url_formatter.h"
@@ -64,9 +65,9 @@
 #import "ios/chrome/browser/first_run/model/first_run.h"
 #import "ios/chrome/browser/geolocation/model/geolocation_manager.h"
 #import "ios/chrome/browser/incognito_reauth/ui_bundled/incognito_reauth_scene_agent.h"
-#import "ios/chrome/browser/intelligence/bwg/coordinator/gemini_promo_scene_agent.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/intents/model/user_activity_browser_agent.h"
+#import "ios/chrome/browser/intents/model/user_activity_compatibility_util.h"
 #import "ios/chrome/browser/lens/ui_bundled/lens_entrypoint.h"
 #import "ios/chrome/browser/lens_overlay/model/lens_overlay_tab_helper.h"
 #import "ios/chrome/browser/main/ui_bundled/browser_lifecycle_manager.h"
@@ -129,6 +130,7 @@
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/public/snackbar/snackbar_message.h"
 #import "ios/chrome/browser/shared/public/snackbar/snackbar_message_action.h"
+#import "ios/chrome/browser/signin/coordinator/signin_account_capabilities_scene_agent.h"
 #import "ios/chrome/browser/signin/model/authentication_service.h"
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/model/authentication_service_observer_bridge.h"
@@ -657,7 +659,7 @@ void InjectNTP(Browser* browser) {
   UserActivityBrowserAgent* userActivityBrowserAgent =
       UserActivityBrowserAgent::FromBrowser(self.currentInterface.browser);
   if (IsIncognitoPolicyApplied(prefs) &&
-      !userActivityBrowserAgent->ProceedWithUserActivity(userActivity)) {
+      !ProceedWithUserActivity(userActivity, prefs)) {
     // If users request opening url in a unavailable mode, don't open the url
     // but show a toast.
     userActivityBrowserAgent->ShowToastWhenOpenExternalIntentInUnexpectedMode();
@@ -1472,10 +1474,6 @@ void InjectNTP(Browser* browser) {
                           prefService:prefService]];
   }
 
-  if (IsPageActionMenuEnabled()) {
-    [sceneState addAgent:[[GeminiPromoSceneAgent alloc]
-                             initWithPromosManager:promosManager]];
-  }
 }
 
 // Adds agents that may depend on profileState. Called after a profileState has
@@ -1490,6 +1488,12 @@ void InjectNTP(Browser* browser) {
   [_sceneState
       addAgent:[[IncognitoReauthSceneAgent alloc]
                    initWithReauthModule:[[ReauthenticationModule alloc] init]]];
+
+  if (base::FeatureList::IsEnabled(switches::kBuildExternalPrivacyContext)) {
+    [_sceneState addAgent:[[SigninAccountCapabilitiesSceneAgent alloc]
+                              initWithSceneUIProvider:self]];
+  }
+
   [_sceneState addAgent:[[StartSurfaceSceneAgent alloc] init]];
   [_sceneState addAgent:[[SessionSavingSceneAgent alloc] init]];
   [_sceneState addAgent:[[LayoutGuideSceneAgent alloc] init]];
@@ -1592,14 +1596,13 @@ void InjectNTP(Browser* browser) {
     (TabOpeningPostOpeningAction)action {
   __weak __typeof(self) weakSelf = self;
   switch (action) {
-    case START_VOICE_SEARCH: {
-      __weak id<BrowserCoordinatorCommands> weakHandler = HandlerForProtocol(
-          self.currentInterface.browser->GetCommandDispatcher(),
-          BrowserCoordinatorCommands);
+    case START_VOICE_SEARCH:
       return ^{
-        [weakHandler startVoiceSearch];
+        id<BrowserCoordinatorCommands> handler = HandlerForProtocol(
+            weakSelf.currentInterface.browser->GetCommandDispatcher(),
+            BrowserCoordinatorCommands);
+        [handler startVoiceSearch];
       };
-    }
     case START_QR_CODE_SCANNER:
       return ^{
         [weakSelf startQRCodeScanner];

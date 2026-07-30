@@ -145,13 +145,18 @@ Node::InsertionNotificationRequest HTMLVideoElement::InsertedInto(
     // that proxy the call from the main content.
     if (LocalFrame* frame = GetDocument().GetFrame()) {
       if (AdTracker* ad_tracker = frame->GetAdTracker()) {
+        AdTracker::AdScriptAncestry ad_script_ancestry;
         if (!IsAdRelated() &&
             ad_tracker->IsAdScriptInStack(
                 AdTracker::StackType::kTopOnly,
                 /*ignore_monkey_patch=*/
                 AdTracker::MonkeyPatchableApi::kNodeAppendChild,
-                /*out_ad_script_ancestry=*/nullptr)) {
-          SetIsAdRelated();
+                &ad_script_ancestry)) {
+          AdProvenance ad_provenance =
+              !ad_script_ancestry.ancestry_chain.empty()
+                  ? AdProvenance(ad_script_ancestry.ancestry_chain[0].id)
+                  : NoProvenance{};
+          SetIsAdRelated(std::move(ad_provenance));
         }
       }
     }
@@ -981,8 +986,22 @@ void HTMLVideoElement::RecordVideoOcclusionState(
 void HTMLVideoElement::AttributeChanged(
     const AttributeModificationParams& params) {
   HTMLElement::AttributeChanged(params);
-  if (params.name == html_names::kDisablepictureinpictureAttr)
-    UpdatePictureInPictureAvailability();
+
+  if (params.name != html_names::kDisablepictureinpictureAttr) {
+    return;
+  }
+
+  UpdatePictureInPictureAvailability();
+
+  if (params.new_value.IsNull()) {
+    return;
+  }
+
+  PictureInPictureController& controller =
+      PictureInPictureController::From(GetDocument());
+  if (controller.PictureInPictureElement(GetTreeScope()) == *this) {
+    controller.ExitPictureInPicture(this, nullptr);
+  }
 }
 
 void HTMLVideoElement::OnRequestVideoFrameCallback() {

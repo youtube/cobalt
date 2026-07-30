@@ -34,6 +34,8 @@ constexpr char kImageInfoKey[] = "imageInfo";
 constexpr char kImageCaptionKey[] = "imageCaption";
 constexpr char kAnnotatedRolesKey[] = "annotatedRoles";
 constexpr char kIframeDataKey[] = "iframeData";
+constexpr char kTableDataKey[] = "tableData";
+constexpr char kTableNameKey[] = "tableName";
 constexpr char kTableRowDataKey[] = "tableRowData";
 constexpr char kRowTypeKey[] = "rowType";
 constexpr char kCanvasDataKey[] = "canvasData";
@@ -47,6 +49,7 @@ constexpr char kContentKey[] = "content";
 constexpr char kLocalFrameDataKey[] = "localFrameData";
 constexpr char kSourceURLKey[] = "sourceUrl";
 constexpr char kTitleKey[] = "title";
+constexpr char kContainsPaidContentKey[] = "containsPaidContent";
 constexpr char kChildrenNodesKey[] = "childrenNodes";
 constexpr char kDomNodeIdKey[] = "domNodeId";
 constexpr char kFrameInteractionInfoKey[] = "frameInteractionInfo";
@@ -269,6 +272,13 @@ void PopulateFrameData(
     destination_frame_data->set_title(*title_ptr);
   }
 
+  std::optional<bool> contains_paid_content =
+      local_frame_data.FindBool(kContainsPaidContentKey);
+  if (contains_paid_content && *contains_paid_content) {
+    destination_frame_data->mutable_paid_content_metadata()
+        ->set_contains_paid_content(true);
+  }
+
   const base::DictValue* interaction_info_dict =
       local_frame_data.FindDict(kFrameInteractionInfoKey);
   if (interaction_info_dict) {
@@ -334,6 +344,18 @@ void PopulateIframeData(
               ->mutable_frame_data();
       PopulateFrameData(*local_frame_data, node_frame_data, origin);
     }
+  }
+}
+
+// Populates the table data of the `destination_node` from the
+// `table_data` content.
+void PopulateTableData(
+    const base::DictValue& table_data,
+    optimization_guide::proto::ContentNode* destination_node) {
+  if (const std::string* table_name = table_data.FindString(kTableNameKey)) {
+    destination_node->mutable_content_attributes()
+        ->mutable_table_data()
+        ->set_table_name(*table_name);
   }
 }
 
@@ -638,6 +660,14 @@ void PopulateAPCNodeFromContentTree(
       }
       break;
     }
+    case optimization_guide::proto::CONTENT_ATTRIBUTE_TABLE: {
+      const base::DictValue* table_data =
+          content_attributes->FindDict(kTableDataKey);
+      if (table_data) {
+        PopulateTableData(*table_data, destination_node);
+      }
+      break;
+    }
     case optimization_guide::proto::CONTENT_ATTRIBUTE_TABLE_ROW: {
       const base::DictValue* table_row_data =
           content_attributes->FindDict(kTableRowDataKey);
@@ -719,5 +749,28 @@ void PopulatePageInteractionInfoNode(
           ReadJsNumber(page_interaction_info_content, kFocusedDomNodeIdKey)) {
     destination_page_interaction_info_node->set_focused_node_id(
         *focused_node_id);
+  }
+}
+
+void PopulateViewportGeometryNode(
+    const base::DictValue& viewport_geometry_content,
+    optimization_guide::proto::BoundingRect*
+        destination_viewport_geometry_node) {
+  // Check that the destination node is only populated once.
+  CHECK_EQ(destination_viewport_geometry_node->ByteSizeLong(), 0u);
+
+  if (std::optional<int> x = ReadJsNumber(viewport_geometry_content, kXKey)) {
+    destination_viewport_geometry_node->set_x(*x);
+  }
+  if (std::optional<int> y = ReadJsNumber(viewport_geometry_content, kYKey)) {
+    destination_viewport_geometry_node->set_y(*y);
+  }
+  if (std::optional<int> width =
+          ReadJsNumber(viewport_geometry_content, kWidthKey)) {
+    destination_viewport_geometry_node->set_width(*width);
+  }
+  if (std::optional<int> height =
+          ReadJsNumber(viewport_geometry_content, kHeightKey)) {
+    destination_viewport_geometry_node->set_height(*height);
   }
 }

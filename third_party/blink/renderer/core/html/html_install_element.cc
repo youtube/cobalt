@@ -49,11 +49,6 @@ void HTMLInstallElement::Trace(Visitor* visitor) const {
 }
 
 void HTMLInstallElement::UpdateAppearance() {
-  if (!WebInstallService().is_bound()) {
-    // Do nothing if the document's execution context is gone.
-    return;
-  }
-
   // If no attributes provided, check if current document is already installed.
   if (InstallUrl().empty() && ManifestId().empty()) {
     // TODO(crbug.com/485281836): For now, always return false while we discuss
@@ -117,7 +112,7 @@ void HTMLInstallElement::UpdateAppearanceTask(bool is_installed) {
   uint16_t message_id =
       GetTranslatedMessageID(is_installed ? IDS_PERMISSION_REQUEST_LAUNCH
                                           : IDS_PERMISSION_REQUEST_INSTALL,
-                             ComputeInheritedLanguage().LowerASCII());
+                             ComputeInheritedLanguage().ToAsciiLower());
   String inner_text = GetLocale().QueryString(message_id);
   CHECK(message_id);
   permission_text_span()->setInnerText(inner_text);

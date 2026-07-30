@@ -7,22 +7,25 @@
 
 #include <memory>
 
+#include "ash/display/cros_display_config.h"
+#include "ash/shell_observer.h"
 #include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
 #include "chromeos/crosapi/mojom/cros_display_config.mojom.h"
 #include "extensions/browser/display_info_provider_base.h"
 #include "mojo/public/cpp/bindings/associated_receiver.h"
-#include "mojo/public/cpp/bindings/pending_remote.h"
-#include "mojo/public/cpp/bindings/remote.h"
+
+namespace ash {
+class Shell;
+}  // namespace ash
 
 namespace extensions {
 
-class DisplayInfoProviderChromeOS
-    : public DisplayInfoProviderBase,
-      public crosapi::mojom::CrosDisplayConfigObserver {
+class DisplayInfoProviderChromeOS : public DisplayInfoProviderBase,
+                                    public ash::ShellObserver,
+                                    public ash::CrosDisplayConfig::Observer {
  public:
-  explicit DisplayInfoProviderChromeOS(
-      mojo::PendingRemote<crosapi::mojom::CrosDisplayConfigController>
-          display_config);
+  DisplayInfoProviderChromeOS();
 
   DisplayInfoProviderChromeOS(const DisplayInfoProviderChromeOS&) = delete;
   DisplayInfoProviderChromeOS& operator=(const DisplayInfoProviderChromeOS&) =
@@ -35,14 +38,13 @@ class DisplayInfoProviderChromeOS
       const std::string& display_id,
       const api::system_display::DisplayProperties& properties,
       ErrorCallback callback) override;
-  void SetDisplayLayout(const DisplayLayoutList& layouts,
-                        ErrorCallback callback) override;
+  base::expected<void, std::string> SetDisplayLayout(
+      const DisplayLayoutList& layouts) override;
   void EnableUnifiedDesktop(bool enable) override;
   void GetAllDisplaysInfo(
       bool single_unified,
       base::OnceCallback<void(DisplayUnitInfoList result)> callback) override;
-  void GetDisplayLayout(
-      base::OnceCallback<void(DisplayLayoutList result)> callback) override;
+  DisplayLayoutList GetDisplayLayout() override;
   bool OverscanCalibrationStart(const std::string& id) override;
   bool OverscanCalibrationAdjust(
       const std::string& id,
@@ -61,31 +63,24 @@ class DisplayInfoProviderChromeOS
   void StartObserving() override;
   void StopObserving() override;
 
-  // crosapi::mojom::CrosDisplayConfigObserver
+  // ash::ShellObserver:
+  void OnShellDestroying() override;
+
+  // ash::CrosDisplayConfig::Observer
   void OnDisplayConfigChanged() override;
 
  private:
-  void CallSetDisplayLayoutInfo(
-      crosapi::mojom::DisplayLayoutInfoPtr layout_info,
-      ErrorCallback callback,
-      crosapi::mojom::DisplayLayoutInfoPtr cur_info);
-  void CallGetDisplayUnitInfoList(
-      bool single_unified,
-      base::OnceCallback<void(DisplayUnitInfoList result)> callback,
-      crosapi::mojom::DisplayLayoutInfoPtr layout);
-  void OnGetDisplayUnitInfoList(
-      crosapi::mojom::DisplayLayoutInfoPtr layout,
-      base::OnceCallback<void(DisplayUnitInfoList)> callback,
-      std::vector<crosapi::mojom::DisplayUnitInfoPtr> info_list);
   void CallTouchCalibration(const std::string& id,
                             crosapi::mojom::DisplayConfigOperation op,
                             crosapi::mojom::TouchCalibrationPtr calibration,
                             ErrorCallback callback);
 
-  mojo::Remote<crosapi::mojom::CrosDisplayConfigController>
-      cros_display_config_;
-  mojo::AssociatedReceiver<crosapi::mojom::CrosDisplayConfigObserver>
-      cros_display_config_observer_receiver_{this};
+  raw_ptr<ash::CrosDisplayConfig> cros_display_config_;
+  base::ScopedObservation<ash::Shell, ash::ShellObserver> shell_observation_{
+      this};
+  base::ScopedObservation<ash::CrosDisplayConfig,
+                          ash::CrosDisplayConfig::Observer>
+      cros_display_config_observation_{this};
   std::string touch_calibration_target_id_;
   base::WeakPtrFactory<DisplayInfoProviderChromeOS> weak_ptr_factory_{this};
 };

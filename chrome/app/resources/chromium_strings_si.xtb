@@ -10,6 +10,7 @@
 
 ඇතැම් විශේෂාංගයන් නොපැවතිය හැකි අතර තේරීම් වල සිදුකරන වෙනස්ක්ම් නොසුරැකෙනු ඇත.</translation>
 <translation id="1083934481477628225">ඔබේ මාපියන් Chromium සඳහා "වෙබ් අඩවි, යෙදුම්, සහ දිගු සඳහා වන අවසර" අක්‍රිය කර ඇත</translation>
+<translation id="1090946077924227754">නිශ්චිත Chromium විශේෂාංගයක් හෝ දිගුවක් සෙවීමට, ලිපින තීරුවේ එහි කෙටිමඟ ටයිප් කරන්න, ඉන්පසු ඔබ තෝරා ගත් යතුරුපුවරු යතුර</translation>
 <translation id="1104942323762546749">Chromium හට ඔබගේ මුරපද නිර්යාත කිරීමට අවශ්‍යය. මේ සඳහා අවසර දීමට ඔබගේ Windows මුරපදය ටයිප් කරන්න.</translation>
 <translation id="112640046208448578">දේවල් හෝ ස්ථාන හඳුනාගෙන පෙළ පිටපත් කරන්න හෝ පරිවර්තනය කරන්න. ඔබ රූප සෙවීම භාවිත කරන විට, පිටුවේ තිර රුවක් සේවාදායකයට යවනු ලැබේ. <ph name="LEARN_MORE" /></translation>
 <translation id="113122355610423240">Chromium ඔබේ පෙරනිමි බ්‍රව්සරය වේ</translation>
@@ -27,6 +28,7 @@
 <translation id="1262876892872089030">මෙම පටිත්ත අක්‍රියව තිබෙන අතරේ, Chromium වේගවත්ව තබා ගැනීම සඳහා මතකය නිදහස් කරන ලදි. ඔබට මෙම අඩවිය අක්‍රිය වීමෙන් සැම විට බැහැර කිරීමට තෝරා ගත හැක.</translation>
 <translation id="1265577313130862557">ගොනුව භයානක නිසා Chromium මෙම බාගැනීම අවහිර කර ඇත</translation>
 <translation id="126567311906253476"><ph name="USER_EMAIL" /> සමග Gmail හෝ YouTube වැනි Google සේවාවලට පුරන විට, ඔබට එම ගිණුමෙන්ම Chromium වෙත ස්වයංක්‍රීයව පුරනය විය හැක</translation>
+<translation id="1287534462498555020">ඔබේ දුරකථනයෙන් Chromium ලබා ගන්න</translation>
 <translation id="1290883685122687410">පිහිටුවීමේ දෝෂයකි: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" /></translation>
 <translation id="1315551408014407711">ඔබගේ නව Chromium පැතිකඩ පිහිටුවන්න</translation>
 <translation id="132092532143527429">Chromium හි Gemini සමග උත්සාහ කරන්න</translation>
@@ -381,6 +383,7 @@
 <translation id="5231355151045086930">Chromium වෙතින් වරන්න</translation>
 <translation id="5234764350956374838">ඉවත් කරන්න</translation>
 <translation id="5254739261293693943">මේ වීඩියෝ එක ගැන අහන්න</translation>
+<translation id="5276305953263010518">යන ගමන් මුරපද සුරැකීමට Chromium යෙදුම ලබා ගන්න</translation>
 <translation id="5277894862589591112">ඔබේ වෙනස්කම් යෙදීමට, Chromium නැවත දියත් කරන්න</translation>
 <translation id="5286907366254680517">අනාවරණය විය</translation>
 <translation id="5289287148052354622">Chromium යෙදුම ලබා ගන්න</translation>
@@ -587,6 +590,7 @@ Chromium හට ඔබගේ සැකසුම් ප්‍රතිසාධ�
 <translation id="7352651011704765696">යමක් වැරදිනි</translation>
 <translation id="7368826207863345663">අනාගත Chromium යාවත්කාලීන ලබා ගැනීමට, ඔබට macOS 13 හෝ පසු අනුවාද අවශ්‍ය වෙයි. මෙම පරිගණකය macOS 12 භාවිත කරයි.</translation>
 <translation id="7376384068949534168">ඔබ මෑත පැමිණ නැත. Chromium <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> ඉවත් කළා.</translation>
+<translation id="73786666777299047">Chrome Web Store විවෘත කරන්න</translation>
 <translation id="7384121030444253939">මෙම දිගුව තවදුරටත් සහාය නොදක්වයි. ඒ වෙනුවට එය ඉවත් කරන ලෙස Chromium නිර්දේශ කරයි.</translation>
 <translation id="7413153308467572558">ඔබ නතර කළ තැනින් ඉදිරියට යන්න: ඔබ යළි අරඹන සෑම අවස්ථාවකම Chromium ඔබේ පටිති ප්‍රතිසාධනය කරයි. මෙය ක්‍රියාවිරහිත කිරීම සඳහා, වෙත යන්න</translation>
 <translation id="7427879960656355200">Chromium වෙත මුරපද ආයාත කරන්න</translation>
@@ -693,6 +697,7 @@ Chromium හට ඔබගේ සැකසුම් ප්‍රතිසාධ�
 <translation id="8522801943730206384">Chromium හට ඔබ ඔබේ මුරපද සුරකින විට ඒවා පරීක්ෂා කළ හැක</translation>
 <translation id="8548787790260785208">Chromium ඔබේ මුරපදයක් පොදු දත්ත කඩ කිරීමක දී සොයා ගන්නේ නම් අනතුරු ඇඟවීමක් ලබා ගන්න</translation>
 <translation id="8555465886620020932">සේවා දෝෂය: <ph name="SERVICE_ERROR" />.</translation>
+<translation id="8556055872671007529">සමහර Chromium විශේෂාංග සහ දිගු කෙටිමං සමග පැමිණේ. ඔබට ඒවා නැවත ක්‍රියාත්මක කිරීමට තෝරා ගත හැක.</translation>
 <translation id="8556420416730706394">පහසු ප්‍රවේශය සඳහා ඔබට රූප සෙවීම ඇමිණිය හැක; පැති පැනලයේ ඉහළින් ඇති අමුණන්න බොත්තම ක්ලික් කරන්න</translation>
 <translation id="856656450041460113">භාෂා ලැයිස්තුව සොයන්න</translation>
 <translation id="8568283329061645092">ඔබ ඔබේ Google ගිණුම මඟින් පුරන විට Chromium ඔබේ මුරපද පරීක්‍ෂා කළ හැක</translation>
@@ -728,6 +733,7 @@ Chromium හට ඔබගේ සැකසුම් ප්‍රතිසාධ�
 <translation id="8988036198400390003">Chromium පැතිකඩවල් කළමනා කරන්න</translation>
 <translation id="9019929317751753759">Chromium වඩාත් ආරක්ෂිත කිරීම සඳහා, අප විසින් <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> ලැයිස්තුගත කර නොමැති හා ඔබේ දැනුමෙන් තොරව එක් කර ඇති ඇතැම් දිගු අබල කර ඇත.</translation>
 <translation id="904366664621834601">ලේඛනාරක්ෂිත ගොනුවේ අනිෂ්ට මෘදුකාංග සැඟවිය හැකි වෙනත් ගොනු ඇතුළත් නිසා Chromium මෙම බාගැනීම අවහිර කර ඇත</translation>
+<translation id="9053882453960391422">ඔබේ මුරපද, පිටුසන් සහ ඉතිහාසය උපාංග හරහා පරිපූර්ණව සමමුහුර්තව තබා ගන්න. ඔබේ පෙරනිමි බ්‍රව්සරය Chromium වෙත යාවත්කාලීන කිරීමෙන් ඔබ දන්නා සහ ආදරය කරන විශේෂාංග වෙත පහසුවෙන් ප්‍රවේශ වන්න. ඉක්මන් ප්‍රවේශය සඳහා Chromium ඔබේ කාර්ය තීරුවට අමුණනු ලැබේ.</translation>
 <translation id="9062666675513499497">ඔබ වෙනත් Google සේවාවලට පුරන විට Chromium වෙත පුරන්න</translation>
 <translation id="9078733879136747090">Chromium ස්වයංක්‍රීයව වසන ලදි</translation>
 <translation id="9089354809943900324">Chromium යල්පැනගොස් ඇත</translation>

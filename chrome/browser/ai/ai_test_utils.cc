@@ -9,6 +9,8 @@
 
 #include "chrome/browser/ai/ai_manager.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
+#include "content/public/test/navigation_simulator.h"
+#include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom.h"
 
 AITestUtils::TestStreamingResponder::TestStreamingResponder() = default;
 AITestUtils::TestStreamingResponder::~TestStreamingResponder() = default;
@@ -21,6 +23,11 @@ AITestUtils::TestStreamingResponder::BindRemote() {
 bool AITestUtils::TestStreamingResponder::WaitForCompletion() {
   run_loop_.Run();
   return !error_status_.has_value();
+}
+
+bool AITestUtils::TestStreamingResponder::WaitForToolCalls() {
+  tool_calls_run_loop_.Run();
+  return !tool_calls_.empty();
 }
 
 void AITestUtils::TestStreamingResponder::WaitForContextOverflow() {
@@ -47,13 +54,14 @@ void AITestUtils::TestStreamingResponder::OnCompletion(
   run_loop_.Quit();
 }
 
-void AITestUtils::TestStreamingResponder::OnContextOverflow() {
-  context_overflow_run_loop_.Quit();
-}
-
 void AITestUtils::TestStreamingResponder::OnToolCalls(
     std::vector<blink::mojom::ToolCallPtr> tool_calls) {
-  NOTREACHED() << "OnToolCalls not implemented in browser-side test helper yet";
+  tool_calls_ = std::move(tool_calls);
+  tool_calls_run_loop_.Quit();
+}
+
+void AITestUtils::TestStreamingResponder::OnContextOverflow() {
+  context_overflow_run_loop_.Quit();
 }
 
 AITestUtils::AITestBase::AITestBase()
@@ -98,12 +106,6 @@ void AITestUtils::AITestBase::SetupMockOptimizationGuideKeyedService() {
                     return std::make_unique<
                         testing::NiceMock<MockOptimizationGuideKeyedService>>();
                   })));
-  ON_CALL(*mock_optimization_guide_keyed_service_,
-          GetOnDeviceModelEligibilityAsync(testing::_, testing::_, testing::_))
-      .WillByDefault([](auto feature, auto capabilities, auto callback) {
-        std::move(callback).Run(
-            optimization_guide::OnDeviceModelEligibilityReason::kSuccess);
-      });
   ON_CALL(*mock_optimization_guide_keyed_service_, CreateModelBrokerClient())
       .WillByDefault([&]() {
         return std::make_unique<optimization_guide::ModelBrokerClient>(
@@ -136,6 +138,21 @@ AITestUtils::AITestBase::GetAIManagerRemote() {
 
 size_t AITestUtils::AITestBase::GetAIManagerContextBoundObjectSetSize() {
   return ai_manager_->GetContextBoundObjectSetSizeForTesting();
+}
+
+void AITestUtils::AITestBase::DisablePolicy(
+    network::mojom::PermissionsPolicyFeature feature) {
+  auto navigation = content::NavigationSimulator::CreateRendererInitiated(
+      GURL("https://example.com"), main_rfh());
+  navigation->SetPermissionsPolicyHeader(
+      {{feature, /*allowed_origins=*/{}, /*self_if_matches=*/std::nullopt,
+        /*matches_all_origins=*/false, /*matches_opaque_src=*/false}});
+  navigation->Commit();
+
+  // Re-create AIManager as it's bound to the RFH.
+  ai_manager_ = std::make_unique<AIManager>(
+      navigation->GetFinalRenderFrameHost()->GetBrowserContext(),
+      navigation->GetFinalRenderFrameHost());
 }
 
 // static

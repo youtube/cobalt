@@ -291,6 +291,7 @@ public class AutofillProfilesFragmentTest {
     @Test
     @MediumTest
     @Feature({"Preferences"})
+    @DisableFeatures(ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA)
     public void testAddProfile() throws Exception {
         AutofillProfilesFragment autofillProfileFragment = sSettingsActivityTestRule.getFragment();
 
@@ -328,6 +329,7 @@ public class AutofillProfilesFragmentTest {
     @Test
     @MediumTest
     @Feature({"Preferences"})
+    @DisableFeatures(ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA)
     public void testPlusAddressEntry() throws Exception {
         AutofillProfilesFragment autofillProfileFragment = sSettingsActivityTestRule.getFragment();
 
@@ -425,6 +427,7 @@ public class AutofillProfilesFragmentTest {
     @Test
     @MediumTest
     @Feature({"Preferences"})
+    @DisableFeatures(ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA)
     public void testAddIncompletedProfile() throws Exception {
         AutofillProfilesFragment autofillProfileFragment = sSettingsActivityTestRule.getFragment();
 
@@ -452,6 +455,7 @@ public class AutofillProfilesFragmentTest {
     @Test
     @MediumTest
     @Feature({"Preferences"})
+    @DisableFeatures(ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA)
     public void testAddProfileWithInvalidPhone() throws Exception {
         AutofillProfilesFragment autofillProfileFragment = sSettingsActivityTestRule.getFragment();
 
@@ -555,6 +559,7 @@ public class AutofillProfilesFragmentTest {
     @Test
     @MediumTest
     @Feature({"Preferences"})
+    @DisableFeatures(ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA)
     public void testDeleteLocalProfile() throws Exception {
         Context context = sSettingsActivityTestRule.getFragment().getContext();
         setUpMockSyncService(new HashSet());
@@ -567,6 +572,7 @@ public class AutofillProfilesFragmentTest {
     @Test
     @MediumTest
     @Feature({"Preferences"})
+    @DisableFeatures(ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA)
     public void testDeleteSyncableProfile() throws Exception {
         Context context = sSettingsActivityTestRule.getFragment().getContext();
         setUpMockSyncService(Collections.singleton(UserSelectableType.AUTOFILL));
@@ -579,6 +585,7 @@ public class AutofillProfilesFragmentTest {
     @Test
     @MediumTest
     @Feature({"Preferences"})
+    @DisableFeatures(ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA)
     public void testDeleteAccountProfile() throws Exception {
         // Setup specific to this test case.
         setUpMockPrimaryAccount(TestAccounts.ACCOUNT1);
@@ -600,6 +607,7 @@ public class AutofillProfilesFragmentTest {
     @Test
     @MediumTest
     @Feature({"Preferences"})
+    @DisableFeatures(ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA)
     public void testEditProfile() throws Exception {
         AutofillProfilesFragment autofillProfileFragment = sSettingsActivityTestRule.getFragment();
 
@@ -647,6 +655,7 @@ public class AutofillProfilesFragmentTest {
     @Test
     @MediumTest
     @Feature({"Preferences"})
+    @DisableFeatures(ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA)
     public void testEditAccountProfile() throws Exception {
         setUpMockPrimaryAccount(TestAccounts.ACCOUNT1);
 
@@ -725,6 +734,7 @@ public class AutofillProfilesFragmentTest {
     @Test
     @MediumTest
     @Feature({"Preferences"})
+    @DisableFeatures(ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA)
     public void testEditInvalidAccountProfile() throws Exception {
         mHelper.setProfile(
                 AutofillProfile.builder()
@@ -776,6 +786,7 @@ public class AutofillProfilesFragmentTest {
     @Test
     @MediumTest
     @Feature({"Preferences"})
+    @DisableFeatures(ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA)
     public void testOpenProfileWithCompleteState() throws Exception {
         // Check the preferences on the initial screen.
         checkPreferenceCount(
@@ -798,6 +809,7 @@ public class AutofillProfilesFragmentTest {
     @Test
     @MediumTest
     @Feature({"Preferences"})
+    @DisableFeatures(ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA)
     public void testOpenProfileWithInvalidState() throws Exception {
         // Check the preferences on the initial screen.
         checkPreferenceCount(
@@ -1033,6 +1045,7 @@ public class AutofillProfilesFragmentTest {
     @Test
     @MediumTest
     @Feature({"Preferences"})
+    @DisableFeatures(ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA)
     public void testAutofillAiEntities_renderedCorrectly() throws Exception {
         EntityType vehicleType = TestUtils.getVehicleEntityType();
         EntityType passportType = TestUtils.getPassportEntityType();
@@ -1061,6 +1074,8 @@ public class AutofillProfilesFragmentTest {
         instancesMap.put(nationalIdType, Collections.emptyList());
 
         when(sEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
+        when(sEntityDataManager.isEligibleToAutofillAi()).thenReturn(true);
+        when(sEntityDataManager.getAutofillAiOptInStatus()).thenReturn(true);
         EntityDataManagerFactory.setInstanceForTesting(sEntityDataManager);
 
         // Trigger a rebuild of the profile list to pick up the new mock entities.
@@ -1149,6 +1164,8 @@ public class AutofillProfilesFragmentTest {
         instancesMap.put(disabledType, Collections.emptyList());
 
         when(sEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
+        when(sEntityDataManager.isEligibleToAutofillAi()).thenReturn(true);
+        when(sEntityDataManager.getAutofillAiOptInStatus()).thenReturn(true);
         EntityDataManagerFactory.setInstanceForTesting(sEntityDataManager);
 
         ThreadUtils.runOnUiThreadBlocking(
@@ -1178,6 +1195,8 @@ public class AutofillProfilesFragmentTest {
         instancesMap.put(readOnlyType, Collections.emptyList());
 
         when(sEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
+        when(sEntityDataManager.isEligibleToAutofillAi()).thenReturn(true);
+        when(sEntityDataManager.getAutofillAiOptInStatus()).thenReturn(true);
         EntityDataManagerFactory.setInstanceForTesting(sEntityDataManager);
 
         ThreadUtils.runOnUiThreadBlocking(
@@ -1211,6 +1230,8 @@ public class AutofillProfilesFragmentTest {
         instancesMap.put(disabledType, Arrays.asList(entity));
 
         when(sEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
+        when(sEntityDataManager.isEligibleToAutofillAi()).thenReturn(true);
+        when(sEntityDataManager.getAutofillAiOptInStatus()).thenReturn(true);
         EntityDataManagerFactory.setInstanceForTesting(sEntityDataManager);
 
         ThreadUtils.runOnUiThreadBlocking(
@@ -1267,6 +1288,8 @@ public class AutofillProfilesFragmentTest {
         instancesMap.put(vehicleType, Arrays.asList(entity2, entity3, entity1));
 
         when(sEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
+        when(sEntityDataManager.isEligibleToAutofillAi()).thenReturn(true);
+        when(sEntityDataManager.getAutofillAiOptInStatus()).thenReturn(true);
         EntityDataManagerFactory.setInstanceForTesting(sEntityDataManager);
 
         // Trigger a rebuild of the profile list to pick up the new mock entities.
@@ -1309,6 +1332,8 @@ public class AutofillProfilesFragmentTest {
         instancesMap.put(vehicleType, Collections.emptyList());
 
         when(sEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
+        when(sEntityDataManager.isEligibleToAutofillAi()).thenReturn(true);
+        when(sEntityDataManager.getAutofillAiOptInStatus()).thenReturn(true);
         EntityDataManagerFactory.setInstanceForTesting(sEntityDataManager);
 
         // Trigger a rebuild of the profile list to pick up the new mock entities.
@@ -1478,9 +1503,34 @@ public class AutofillProfilesFragmentTest {
 
     @Test
     @MediumTest
-    @DisableFeatures({
-        ChromeFeatureList.YOUR_SAVED_INFO_SETTINGS_PAGE_ANDROID
-    })
+    @EnableFeatures(ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA)
+    public void testAddressSectionTitle_featureEnabled_showsTitle() throws Exception {
+        sSettingsActivityTestRule.startSettingsActivity();
+
+        AutofillProfilesFragment fragment = sSettingsActivityTestRule.getFragment();
+        Preference category = fragment.findPreference("autofill_section_title");
+        assertNotNull(category);
+        assertEquals(
+                sSettingsActivityTestRule
+                        .getActivity()
+                        .getString(R.string.autofill_addresses_section_title),
+                category.getTitle());
+    }
+
+    @Test
+    @MediumTest
+    @DisableFeatures(ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA)
+    public void testAddressSectionTitle_featureDisabled_noTitle() throws Exception {
+        sSettingsActivityTestRule.startSettingsActivity();
+
+        AutofillProfilesFragment fragment = sSettingsActivityTestRule.getFragment();
+        Preference category = fragment.findPreference("autofill_section_title");
+        assertNull(category);
+    }
+
+    @Test
+    @MediumTest
+    @DisableFeatures({ChromeFeatureList.YOUR_SAVED_INFO_SETTINGS_PAGE_ANDROID})
     public void testTitle_HoTDisabled_showsAddresses() throws Exception {
         sSettingsActivityTestRule.startSettingsActivity();
 
@@ -1669,5 +1719,151 @@ public class AutofillProfilesFragmentTest {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> SyncServiceFactory.setInstanceForTesting(mSyncService));
         when(mSyncService.getSelectedTypes()).thenReturn(selectedTypes);
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"Preferences"})
+    @EnableFeatures(ChromeFeatureList.AUTOFILL_AI_AVAILABLE_BY_DEFAULT)
+    public void testAddEntityButton_defaultAvailabilityOn_enabledIfCanEnable() throws Exception {
+        EntityType vehicleType = TestUtils.getVehicleEntityType();
+        LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap =
+                new LinkedHashMap<>();
+        instancesMap.put(vehicleType, Collections.emptyList());
+
+        when(sEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
+        when(sEntityDataManager.canEnableOrDisableAutofillAi()).thenReturn(true);
+        EntityDataManagerFactory.setInstanceForTesting(sEntityDataManager);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> sSettingsActivityTestRule.getFragment().onPersonalDataChanged());
+
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    AutofillProfilesFragment fragment = sSettingsActivityTestRule.getFragment();
+                    PreferenceCategory category = fragment.findPreference("Vehicle");
+                    Criteria.checkThat(category, Matchers.notNullValue());
+                    Preference addVehicle = category.findPreference("Vehicle" + " Add");
+                    Criteria.checkThat(addVehicle, Matchers.notNullValue());
+                    Criteria.checkThat(addVehicle.isEnabled(), Matchers.is(true));
+                });
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"Preferences"})
+    @EnableFeatures(ChromeFeatureList.AUTOFILL_AI_AVAILABLE_BY_DEFAULT)
+    public void testAddEntityButton_defaultAvailabilityOn_disabledIfCannotEnable()
+            throws Exception {
+        EntityType vehicleType = TestUtils.getVehicleEntityType();
+        LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap =
+                new LinkedHashMap<>();
+        instancesMap.put(vehicleType, Collections.emptyList());
+
+        when(sEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
+        when(sEntityDataManager.canEnableOrDisableAutofillAi()).thenReturn(false);
+        EntityDataManagerFactory.setInstanceForTesting(sEntityDataManager);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> sSettingsActivityTestRule.getFragment().onPersonalDataChanged());
+
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    AutofillProfilesFragment fragment = sSettingsActivityTestRule.getFragment();
+                    PreferenceCategory category = fragment.findPreference("Vehicle");
+                    Criteria.checkThat(category, Matchers.notNullValue());
+                    Preference addVehicle = category.findPreference("Vehicle" + " Add");
+                    Criteria.checkThat(addVehicle, Matchers.notNullValue());
+                    Criteria.checkThat(addVehicle.isEnabled(), Matchers.is(false));
+                });
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"Preferences"})
+    @DisableFeatures(ChromeFeatureList.AUTOFILL_AI_AVAILABLE_BY_DEFAULT)
+    public void testAddEntityButton_defaultAvailabilityOff_enabledIfEligibleAndOptedIn()
+            throws Exception {
+        EntityType vehicleType = TestUtils.getVehicleEntityType();
+        LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap =
+                new LinkedHashMap<>();
+        instancesMap.put(vehicleType, Collections.emptyList());
+
+        when(sEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
+        when(sEntityDataManager.isEligibleToAutofillAi()).thenReturn(true);
+        when(sEntityDataManager.getAutofillAiOptInStatus()).thenReturn(true);
+        EntityDataManagerFactory.setInstanceForTesting(sEntityDataManager);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> sSettingsActivityTestRule.getFragment().onPersonalDataChanged());
+
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    AutofillProfilesFragment fragment = sSettingsActivityTestRule.getFragment();
+                    PreferenceCategory category = fragment.findPreference("Vehicle");
+                    Criteria.checkThat(category, Matchers.notNullValue());
+                    Preference addVehicle = category.findPreference("Vehicle" + " Add");
+                    Criteria.checkThat(addVehicle, Matchers.notNullValue());
+                    Criteria.checkThat(addVehicle.isEnabled(), Matchers.is(true));
+                });
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"Preferences"})
+    @DisableFeatures(ChromeFeatureList.AUTOFILL_AI_AVAILABLE_BY_DEFAULT)
+    public void testAddEntityButton_defaultAvailabilityOff_disabledIfNotEligible()
+            throws Exception {
+        EntityType vehicleType = TestUtils.getVehicleEntityType();
+        LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap =
+                new LinkedHashMap<>();
+        instancesMap.put(vehicleType, Collections.emptyList());
+
+        when(sEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
+        when(sEntityDataManager.isEligibleToAutofillAi()).thenReturn(false);
+        when(sEntityDataManager.getAutofillAiOptInStatus()).thenReturn(true);
+        EntityDataManagerFactory.setInstanceForTesting(sEntityDataManager);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> sSettingsActivityTestRule.getFragment().onPersonalDataChanged());
+
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    AutofillProfilesFragment fragment = sSettingsActivityTestRule.getFragment();
+                    PreferenceCategory category = fragment.findPreference("Vehicle");
+                    Criteria.checkThat(category, Matchers.notNullValue());
+                    Preference addVehicle = category.findPreference("Vehicle" + " Add");
+                    Criteria.checkThat(addVehicle, Matchers.notNullValue());
+                    Criteria.checkThat(addVehicle.isEnabled(), Matchers.is(false));
+                });
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"Preferences"})
+    @DisableFeatures(ChromeFeatureList.AUTOFILL_AI_AVAILABLE_BY_DEFAULT)
+    public void testAddEntityButton_defaultAvailabilityOff_disabledIfNotOptedIn() throws Exception {
+        EntityType vehicleType = TestUtils.getVehicleEntityType();
+        LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap =
+                new LinkedHashMap<>();
+        instancesMap.put(vehicleType, Collections.emptyList());
+
+        when(sEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
+        when(sEntityDataManager.isEligibleToAutofillAi()).thenReturn(true);
+        when(sEntityDataManager.getAutofillAiOptInStatus()).thenReturn(false);
+        EntityDataManagerFactory.setInstanceForTesting(sEntityDataManager);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> sSettingsActivityTestRule.getFragment().onPersonalDataChanged());
+
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    AutofillProfilesFragment fragment = sSettingsActivityTestRule.getFragment();
+                    PreferenceCategory category = fragment.findPreference("Vehicle");
+                    Criteria.checkThat(category, Matchers.notNullValue());
+                    Preference addVehicle = category.findPreference("Vehicle" + " Add");
+                    Criteria.checkThat(addVehicle, Matchers.notNullValue());
+                    Criteria.checkThat(addVehicle.isEnabled(), Matchers.is(false));
+                });
     }
 }

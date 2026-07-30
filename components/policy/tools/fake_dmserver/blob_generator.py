@@ -18,10 +18,21 @@ import sys
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
-# For ChromeOS, The ebuild installs _pb2.py files to
-# /usr/local/share/policy-test-tool. They are imported in main().
+# The ebuild installs _pb2.py files to /usr/local/share/policy-test-tool.
 POLICY_TEST_TOOL_PATH = "/usr/local/share/policy-test-tool"
 sys.path.insert(0, POLICY_TEST_TOOL_PATH)
+
+# Attempt to import protobufs from the standard DUT location.
+# These are needed by functions like apply_user_policies, which are imported
+# by orchestrator.py. These variables will be None if import fails.
+try:
+  import chrome_device_policy_pb2
+  import chrome_settings_pb2
+  import policy_common_definitions_pb2
+  import device_management_backend_pb2
+except ImportError as e:
+  logging.warning(
+      f"Could not import core protobufs from {POLICY_TEST_TOOL_PATH}: {e}")
 
 
 def generate_device_policy_schema(manual_map_path):
@@ -203,48 +214,7 @@ please refer to the README.md in this directory.""",
       help="Path to the manual_device_policy_proto_map.yaml file.",
   )
 
-  parser.add_argument("--build-path",
-                      required=False,
-                      help="Path to the build directory.")
-
   args = parser.parse_args()
-
-  if args.build_path:
-    # Running from a Chromium checkout. Import protobufs from the build path.
-    #
-    # For chrome_device_policy_pb2, policy_common_definitions_pb2, and
-    # device_management_backend_pb2:
-    sys.path.insert(
-        0, os.path.join(args.build_path, "pyproto/components/policy/proto"))
-    # For chrome_settings_pb2:
-    sys.path.insert(
-        0, os.path.join(args.build_path, "pyproto/chrome/browser/privacy"))
-    # For device_management_backend_pb2 dependencies:
-    sys.path.insert(
-        0,
-        os.path.join(args.build_path,
-                     "pyproto/third_party/private_membership/src"))
-    sys.path.insert(
-        0,
-        os.path.join(args.build_path,
-                     "pyproto/third_party/shell-encryption/src"))
-
-  try:
-    import chrome_device_policy_pb2
-    import chrome_settings_pb2
-    global policy_common_definitions_pb2
-    import policy_common_definitions_pb2
-    if args.build_path:
-      # Only used for the desktop (Chromium checkout) config.
-      global device_management_backend_pb2
-      import device_management_backend_pb2
-  except ImportError as e:
-    logging.error(f"Failed to import Chrome policy protobuf modules: {e}")
-    if args.build_path:
-      logging.error(
-          f"Make sure you build `chrome` in {args.build_path} before running "
-          "this tool.")
-    sys.exit(1)
 
   try:
     with open(args.input_policies, "r", encoding="utf-8") as f:

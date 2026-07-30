@@ -12,7 +12,6 @@
 #include <utility>
 #include <vector>
 
-#include "base/strings/utf_string_conversions.h"
 #include "ui/accessibility/ax_clipping_behavior.h"
 #include "ui/accessibility/ax_node.h"
 #include "ui/accessibility/ax_node_position.h"
@@ -292,6 +291,97 @@ class AXRange final {
     return Iterator(nullptr, std::move(forward_range.focus_));
   }
 
+  // Similar to Iterator class, but moves in the reverse direction.
+  class ReverseIterator {
+   public:
+    using iterator_category = std::input_iterator_tag;
+    using value_type = AXRange;
+    using difference_type = std::ptrdiff_t;
+    using pointer = AXRange*;
+    using reference = AXRange&;
+
+    ReverseIterator()
+        : anchor_(AXPositionType::CreateNullPosition()),
+          focus_(AXPositionType::CreateNullPosition()) {}
+
+    ReverseIterator(AXPositionInstance start, AXPositionInstance end) {
+      if (start && !start->IsNullPosition()) {
+        anchor_ = start->AsLeafTextPosition();
+        focus_ = !end ? AXPositionType::CreateNullPosition()
+                      : end->AsLeafTextPosition();
+      } else {
+        anchor_ = AXPositionType::CreateNullPosition();
+        focus_ = AXPositionType::CreateNullPosition();
+      }
+    }
+
+    ReverseIterator(const ReverseIterator& other) = delete;
+
+    ReverseIterator(ReverseIterator&& other)
+        : anchor_(std::move(other.anchor_)), focus_(std::move(other.focus_)) {}
+
+    ~ReverseIterator() = default;
+
+    bool operator==(const ReverseIterator& other) const {
+      return anchor_->GetAnchor() == other.anchor_->GetAnchor() &&
+             focus_->GetAnchor() == other.focus_->GetAnchor() &&
+             *anchor_ == *other.anchor_ && *focus_ == *other.focus_;
+    }
+
+    bool operator!=(const ReverseIterator& other) const {
+      return !(*this == other);
+    }
+
+    ReverseIterator& operator--() {
+      DCHECK(!focus_->IsNullPosition());
+      if (anchor_->GetAnchor() == focus_->GetAnchor()) {
+        focus_ = AXPositionType::CreateNullPosition();
+      } else {
+        focus_ = focus_->CreatePreviousLeafTreePosition()
+                     ->CreatePositionAtEndOfAnchor();
+        DCHECK_LE(*anchor_, *focus_);
+      }
+      return *this;
+    }
+
+    AXRange operator*() const {
+      DCHECK(!focus_->IsNullPosition());
+      AXPositionInstance current_anchor =
+          (anchor_->GetAnchor() != focus_->GetAnchor())
+              ? focus_->CreatePositionAtStartOfAnchor()
+              : anchor_->Clone();
+      DCHECK_LE(*anchor_, *current_anchor);
+
+      AXRange current_leaf_text_range(current_anchor->AsTextPosition(),
+                                      focus_->AsTextPosition());
+      DCHECK(current_leaf_text_range.IsLeafTextRange());
+      return std::move(current_leaf_text_range);
+    }
+
+   private:
+    AXPositionInstance anchor_;
+    AXPositionInstance focus_;
+  };
+
+  ReverseIterator rbegin() const {
+    if (IsNull()) {
+      return ReverseIterator(nullptr, nullptr);
+    }
+    AXRange forward_range = AsForwardRange();
+    return ReverseIterator(std::move(forward_range.anchor_),
+                           std::move(forward_range.focus_));
+  }
+
+  ReverseIterator rend() const {
+    if (IsNull()) {
+      return ReverseIterator(AXPositionType::CreateNullPosition(),
+                             AXPositionType::CreateNullPosition());
+    }
+    AXRange forward_range = AsForwardRange();
+    return ReverseIterator(std::move(forward_range.anchor_),
+                           AXPositionType::CreateNullPosition());
+  }
+
   // Returns the concatenation of the accessible names of all text nodes
   // contained between this AXRange's endpoints.
   // Pass a |max_count| of -1 to retrieve all text in the AXRange.
@@ -325,6 +415,31 @@ class AXRange final {
     bool crossed_paragraph_boundary = false;
     bool is_first_included_leaf = true;
     bool found_trailing_newline = false;
+    // Tracks whether `found_trailing_newline` was set by an actual <br>
+    // element (as opposed to a preserved-whitespace newline). Only <br>
+    // elements can produce the "br between block containers" scenario.
+    bool found_trailing_newline_from_br = false;
+
+    const AXNode* prev_paragraph_container = nullptr;
+    // The paragraph container of the <br> element that set
+    // `found_trailing_newline_from_br`. Used to determine whether the <br>
+    // sits between two different block containers (br_container != prev)
+    // vs. inside the same block as the previous text (br_container == prev).
+    const AXNode* br_paragraph_container = nullptr;
+    // Tracks the atomic text field ancestor of the previous leaf position.
+    // Used to suppress generated paragraph newlines when both the current
+    // and previous positions are inside the same atomic text field, where
+    // line breaks are internal, not paragraph boundaries.
+    // Note: We intentionally only consider *atomic* text fields (e.g.
+    // <textarea>, <input>) here. Non-atomic text fields (contenteditables)
+    // contain block-level structure and their paragraph boundaries should
+    // be preserved.
+    auto get_atomic_text_field_ancestor = [](const AXNode* node) {
+      const AXNode* text_field = node->GetTextFieldAncestor();
+      return (text_field && text_field->data().IsAtomicTextField()) ? text_field
+                                                                    : nullptr;
+    };
+    const AXNode* prev_text_field_ancestor = nullptr;
 
     while (!start->IsNullPosition()) {
       DCHECK(start->IsLeafTextPosition());
@@ -351,8 +466,58 @@ class AXRange final {
           }
 
           // When preserving layout line breaks, don't append `\n` next if the
-          // previous leaf position was a <br> (already ending with a newline).
-          if (crossed_paragraph_boundary && !found_trailing_newline) {
+          // previous leaf position was a line break (already ending with a
+          // newline). However, if the trailing newline came from a <br>
+          // element AND the paragraph container actually changed (e.g.
+          // <div>A</div><br><div>B</div>), the <br> represents a standalone
+          // line break between block elements, so the paragraph boundary
+          // newline should still be inserted.
+          bool should_insert_paragraph_newline = false;
+          if (crossed_paragraph_boundary) {
+            // Suppress paragraph newlines when both the current and previous
+            // non-whitespace positions are inside the same atomic text field.
+            // Line breaks within text fields are internal, not paragraph
+            // boundaries.
+            const AXNode* current_text_field =
+                get_atomic_text_field_ancestor(start->GetAnchor());
+            const bool same_text_field =
+                current_text_field &&
+                current_text_field == prev_text_field_ancestor;
+            if (same_text_field) {
+              // Inside the same text field: no generated paragraph newline.
+            } else if (!found_trailing_newline) {
+              should_insert_paragraph_newline = true;
+            } else if (found_trailing_newline_from_br) {
+              // The trailing newline came from a <br> element. Only insert
+              // the paragraph newline if the <br> is truly BETWEEN two
+              // different block containers — i.e. the <br>'s own paragraph
+              // container is an ancestor of BOTH the previous text's
+              // container AND the current text's container. This handles:
+              //   <div>A</div><br><div>B</div> → br in body, A in div1,
+              //     B in div2 → body is ancestor of both → \n\n
+              //   <div>A</div><div><br>B</div> → br in div2, A in div1,
+              //     B in div2 → div2 == div2 → \n (br is inside div2)
+              //   <body>A<br>B</body> → br in body, A in body → \n
+              //   <p>A</p><div><br></div><p>B</p> → br in div_br, A in p1,
+              //     B in p2 → div_br not ancestor of p1 → \n
+              const AXNode* current_para_container =
+                  start->GetAnchor()->GetParagraphContainerAncestor();
+              should_insert_paragraph_newline =
+                  (br_paragraph_container != nullptr &&
+                   prev_paragraph_container != nullptr &&
+                   current_para_container != nullptr &&
+                   br_paragraph_container != prev_paragraph_container &&
+                   br_paragraph_container != current_para_container &&
+                   prev_paragraph_container->IsDescendantOf(
+                       br_paragraph_container) &&
+                   current_para_container->IsDescendantOf(
+                       br_paragraph_container));
+            }
+            // If `found_trailing_newline` but NOT from a <br> (e.g., preserved
+            // whitespace \n), don't insert — the preserved newline already
+            // serves as the separator.
+          }
+          if (should_insert_paragraph_newline) {
             range_text += u"\n";
             if (appended_newlines_indices) {
               appended_newlines_indices->push_back(range_text.length() - 1);
@@ -360,20 +525,21 @@ class AXRange final {
           }
 
           is_first_non_whitespace_leaf = false;
+          prev_paragraph_container =
+              start->GetAnchor()->GetParagraphContainerAncestor();
           crossed_paragraph_boundary = false;
         }
 
-        int current_end_offset =
-            (start->GetAnchor() != end->GetAnchor())
-                ? start->MaxTextOffset(embedded_object_behavior)
-                : end->text_offset();
+        int focus_offset = (start->GetAnchor() != end->GetAnchor())
+                               ? start->MaxTextOffset(embedded_object_behavior)
+                               : end->text_offset();
 
-        if (current_end_offset > start->text_offset()) {
+        if (focus_offset > start->text_offset()) {
           int characters_to_append =
               (max_count > 0)
                   ? std::min(max_count - static_cast<int>(range_text.length()),
-                             current_end_offset - start->text_offset())
-                  : current_end_offset - start->text_offset();
+                             focus_offset - start->text_offset())
+                  : focus_offset - start->text_offset();
 
           std::u16string position_text =
               start->GetText(embedded_object_behavior);
@@ -386,14 +552,45 @@ class AXRange final {
           // line break unless it is a hard line break (<br> or a text node with
           // a single '\n' character), or an empty object such as an empty text
           // field.
-          found_trailing_newline =
-              start->GetAnchor()->IsLineBreak() ||
-              (found_trailing_newline && start_is_in_white_space);
+          if (start->GetAnchor()->IsLineBreak()) {
+            // Check if this is an actual <br> element (`Role::kLineBreak`) or
+            // its `kInlineTextBox` child, vs a preserved-whitespace newline.
+            bool is_br_element =
+                start->GetAnchor()->GetRole() == ax::mojom::Role::kLineBreak ||
+                (start->GetAnchor()->GetParent() &&
+                 start->GetAnchor()->GetParent()->GetRole() ==
+                     ax::mojom::Role::kLineBreak);
+            found_trailing_newline = true;
+            if (is_br_element) {
+              found_trailing_newline_from_br = true;
+              br_paragraph_container =
+                  start->GetAnchor()->GetParagraphContainerAncestor();
+            } else {
+              // Non-`<br>` line break (e.g., preserved whitespace in `<pre>`).
+              // Reset `<br>` tracking to avoid stale container comparisons.
+              found_trailing_newline_from_br = false;
+              br_paragraph_container = nullptr;
+            }
+          } else if (found_trailing_newline && start_is_in_white_space) {
+            // Whitespace after a line break preserves the trailing newline
+            // state.
+          } else {
+            found_trailing_newline = false;
+            found_trailing_newline_from_br = false;
+            br_paragraph_container = nullptr;
+          }
         }
 
         DCHECK(max_count < 0 ||
                static_cast<int>(range_text.length()) <= max_count);
         is_first_included_leaf = false;
+
+        // Track the text field ancestor for every included leaf so that
+        // paragraph boundaries within the same text field can be suppressed
+        // even when the first leaf in the range is a zero-character line
+        // break (which skips the non-whitespace block above).
+        prev_text_field_ancestor =
+            get_atomic_text_field_ancestor(start->GetAnchor());
       }
 
       if (start->GetAnchor() == end->GetAnchor() ||
@@ -411,6 +608,32 @@ class AXRange final {
           !crossed_paragraph_boundary && !is_first_non_whitespace_leaf &&
           prev_role != ax::mojom::Role::kListMarker) {
         crossed_paragraph_boundary = start->AtStartOfParagraph();
+        // Suppress paragraph boundaries within the same atomic text field.
+        if (crossed_paragraph_boundary) {
+          const AXNode* current_text_field =
+              get_atomic_text_field_ancestor(start->GetAnchor());
+          if (current_text_field &&
+              current_text_field == prev_text_field_ancestor) {
+            crossed_paragraph_boundary = false;
+          }
+        }
+      }
+    }
+
+    // When the range ends exactly at a paragraph boundary—before any
+    // non-whitespace leaf in the next paragraph could consume the
+    // `crossed_paragraph_boundary` flag—the generated paragraph-break newline
+    // was never inserted.  This happens for ranges that represent a single
+    // generated newline character, e.g. the range [ab:2, LineBreak:0] for
+    // <div>ab</div><br><div>cd</div>.  Insert the newline now so that
+    // character-by-character navigation sees it.
+    if (concatenation_behavior ==
+            AXTextConcatenationBehavior::kWithParagraphBreaks &&
+        crossed_paragraph_boundary && !is_first_non_whitespace_leaf &&
+        range_text.empty()) {
+      range_text += u"\n";
+      if (appended_newlines_indices) {
+        appended_newlines_indices->push_back(range_text.length() - 1);
       }
     }
 

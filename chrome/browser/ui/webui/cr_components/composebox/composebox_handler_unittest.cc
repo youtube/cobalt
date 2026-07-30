@@ -14,13 +14,16 @@
 #include "base/run_loop.h"
 #include "base/test/bind.h"
 #include "base/test/gmock_move_support.h"
+#include "base/test/test_future.h"
 #include "base/time/time.h"
 #include "base/unguessable_token.h"
 #include "base/version_info/channel.h"
 #include "chrome/browser/contextual_search/contextual_search_service_factory.h"
+#include "chrome/browser/contextual_search/contextual_search_web_contents_helper.h"
 #include "chrome/browser/ui/webui/searchbox/contextual_searchbox_test_utils.h"
 #include "chrome/browser/ui/webui/searchbox/searchbox_test_utils.h"
 #include "components/contextual_search/contextual_search_service.h"
+#include "components/contextual_search/mock_contextual_search_context_controller.h"
 #include "components/omnibox/browser/searchbox.mojom.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/web_contents.h"
@@ -98,7 +101,8 @@ class ComposeboxHandlerTest : public ContextualSearchboxHandlerTestHarness {
         mojo::PendingReceiver<searchbox::mojom::PageHandler>(), profile(),
         web_contents(), base::BindLambdaForTesting([&]() {
           return contextual_session_handle_.get();
-        }));
+        }),
+        base::DoNothing());
 
     handler_->SetPage(mock_searchbox_page_.BindAndGetRemote());
   }
@@ -191,6 +195,30 @@ TEST_F(ComposeboxHandlerTest, DeleteFileAndSubmitQuery) {
       kComposeboxFileDeleted + file_type + file_status + ".NewTabPage", 1);
 }
 
+// Verifies that TakeSessionHandle transfers ownership out of the helper.
+TEST_F(ComposeboxHandlerTest, TakeSessionHandle_TransfersOwnership) {
+  auto mock_controller = std::make_unique<testing::NiceMock<
+      contextual_search::MockContextualSearchContextController>>();
+  ON_CALL(*mock_controller, AsWeakPtr())
+      .WillByDefault(testing::Return(
+          base::WeakPtr<
+              contextual_search::ContextualSearchContextController>()));
+
+  auto* service = ContextualSearchServiceFactory::GetForProfile(profile());
+  auto handle = service->CreateSessionForTesting(std::move(mock_controller),
+                                                 /*metrics_recorder=*/nullptr);
+
+  auto* helper = ContextualSearchWebContentsHelper::GetOrCreateForWebContents(
+      web_contents());
+  helper->SetTaskSession(/*task_id=*/std::nullopt, std::move(handle),
+                         /*input_state_model=*/nullptr);
+  EXPECT_NE(helper->session_handle(), nullptr);
+
+  auto taken_handle = helper->TakeSessionHandle();
+  EXPECT_NE(taken_handle, nullptr);
+  EXPECT_EQ(helper->session_handle(), nullptr);
+}
+
 TEST_F(ComposeboxHandlerTest, SubmitQueryWithToolMetric) {
   // Submit with no tools enabled.
   SubmitQueryAndWaitForNavigation();
@@ -203,7 +231,11 @@ TEST_F(ComposeboxHandlerTest, SubmitQueryWithToolMetric) {
 
   // Submitting with deep search and Gemini regular model enabled.
   handler().SetActiveToolMode(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
+  handler().SetActiveToolMode(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
+  handler().RecordToolSelectionAction(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
   handler().SetActiveModelMode(omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR);
+  handler().RecordModelSelectionAction(
+      omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR);
   SubmitQueryAndWaitForNavigation();
   histogram_tester().ExpectBucketCount(
       "ContextualSearch.Tools.ModeOnSubmission.NewTabPage",
@@ -214,7 +246,10 @@ TEST_F(ComposeboxHandlerTest, SubmitQueryWithToolMetric) {
 
   // Submitting with create image and Gemini Pro model enabled.
   handler().SetActiveToolMode(omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
+  handler().RecordToolSelectionAction(omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
   handler().SetActiveModelMode(omnibox::ModelMode::MODEL_MODE_GEMINI_PRO);
+  handler().RecordModelSelectionAction(
+      omnibox::ModelMode::MODEL_MODE_GEMINI_PRO);
   SubmitQueryAndWaitForNavigation();
   histogram_tester().ExpectBucketCount(
       "ContextualSearch.Tools.ModeOnSubmission.NewTabPage",

@@ -1305,19 +1305,7 @@ scoped_refptr<DrawingBuffer> WebGLRenderingContextBase::CreateDrawingBuffer(
                                                       ? DrawingBuffer::kPreserve
                                                       : DrawingBuffer::kDiscard;
 
-  // On Mac OS, DrawingBuffer is using an IOSurface as its backing storage, this
-  // allows WebGL-rendered canvases to be composited by the OS rather than
-  // Chrome.
-  // IOSurfaces are only compatible with the GL_TEXTURE_RECTANGLE_ARB binding
-  // target. So to avoid the knowledge of GL_TEXTURE_RECTANGLE_ARB type textures
-  // being introduced into more areas of the code, we use the code path of
-  // non-WebGLImageChromium for OffscreenCanvas.
-  // See detailed discussion in crbug.com/649668.
-  DrawingBuffer::ChromiumImageUsage chromium_image_usage =
-      SharedGpuContext::MaySupportWebGLImageChromium() &&
-              !Host()->IsOffscreenCanvas()
-          ? DrawingBuffer::kAllowChromiumImage
-          : DrawingBuffer::kDisallowChromiumImage;
+  const bool is_offscreen_canvas = Host()->IsOffscreenCanvas();
 
   gl::GpuPreference gpu_preference =
       PowerPreferenceToGpuPreference(attrs.power_preference);
@@ -1327,7 +1315,7 @@ scoped_refptr<DrawingBuffer> WebGLRenderingContextBase::CreateDrawingBuffer(
       std::move(context_provider), context_info, this, ClampedCanvasSize(),
       premultiplied_alpha, want_alpha_channel, want_depth_buffer,
       want_stencil_buffer, want_antialiasing, desynchronized, preserve,
-      context_type_, chromium_image_usage, drawing_buffer_color_space_,
+      context_type_, is_offscreen_canvas, drawing_buffer_color_space_,
       gpu_preference);
 }
 
@@ -1989,8 +1977,7 @@ WebGLRenderingContextBase::GetSharedImageResourceProvider() {
     gpu::SharedImageUsageSet shared_image_usage_flags =
         gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
 
-    if (SharedGpuContext::MaySupportWebGLImageChromium() &&
-        SharedGpuContext::WebGLImageChromiumEnabled()) {
+    if (SharedGpuContext::UseOverlaysForWebGL()) {
       shared_image_usage_flags |= gpu::SHARED_IMAGE_USAGE_SCANOUT;
     }
     resource_provider_ = CanvasNon2DResourceProviderSharedImage::Create(

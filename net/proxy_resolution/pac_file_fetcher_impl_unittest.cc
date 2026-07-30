@@ -101,6 +101,7 @@ class BasicNetworkDelegate : public NetworkDelegateImpl {
                          CompletionOnceCallback callback,
                          GURL* new_url) override {
     EXPECT_TRUE(request->load_flags() & LOAD_DISABLE_CERT_NETWORK_FETCHES);
+    EXPECT_FALSE(request->allows_device_bound_sessions());
     return OK;
   }
 };
@@ -500,7 +501,7 @@ TEST_F(PacFileFetcherImplTest, DataURLs) {
 TEST_F(PacFileFetcherImplTest, IgnoresLimits) {
   // Enough requests to exceed the per-group limit.
   int num_requests = 2 + ClientSocketPoolManager::max_sockets_per_group(
-                             HttpNetworkSession::NORMAL_SOCKET_POOL);
+                             HttpNetworkSession::SocketPoolType::kNormal);
 
   net::test_server::SimpleConnectionListener connection_listener(
       num_requests, net::test_server::SimpleConnectionListener::

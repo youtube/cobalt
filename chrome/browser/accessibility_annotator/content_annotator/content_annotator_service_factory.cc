@@ -5,11 +5,14 @@
 #include "chrome/browser/accessibility_annotator/content_annotator/content_annotator_service_factory.h"
 
 #include "base/feature_list.h"
+#include "chrome/browser/accessibility_annotator/accessibility_annotator_backend_factory.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/page_content_annotations/page_content_annotations_service_factory.h"
 #include "chrome/browser/page_content_annotations/page_content_extraction_service_factory.h"
 #include "chrome/browser/page_content_annotations/page_embeddings_service_factory.h"
+#include "chrome/browser/passage_embeddings/chrome_passage_embeddings_service_controller.h"
+#include "chrome/browser/passage_embeddings/passage_embedder_model_observer_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/accessibility_annotator/content/content_annotator/content_annotator_service.h"
 #include "components/accessibility_annotator/core/accessibility_annotator_features.h"
@@ -42,6 +45,9 @@ ContentAnnotatorServiceFactory::ContentAnnotatorServiceFactory()
   DependsOn(OptimizationGuideKeyedServiceFactory::GetInstance());
   DependsOn(
       page_content_annotations::PageEmbeddingsServiceFactory::GetInstance());
+  DependsOn(AccessibilityAnnotatorBackendFactory::GetInstance());
+  DependsOn(
+      passage_embeddings::PassageEmbedderModelObserverFactory::GetInstance());
 }
 
 ContentAnnotatorServiceFactory::~ContentAnnotatorServiceFactory() = default;
@@ -59,30 +65,42 @@ ContentAnnotatorServiceFactory::BuildServiceInstanceForBrowserContext(
   if (!page_content_annotations_service) {
     return nullptr;
   }
+
   page_content_annotations::PageContentExtractionService*
       page_content_extraction_service = page_content_annotations::
           PageContentExtractionServiceFactory::GetForProfile(profile);
-
   if (!page_content_extraction_service) {
     return nullptr;
   }
+
   OptimizationGuideKeyedService* optimization_guide_service =
       OptimizationGuideKeyedServiceFactory::GetForProfile(profile);
-
   if (!optimization_guide_service) {
     return nullptr;
   }
+
   page_content_annotations::PageEmbeddingsService* page_embeddings_service =
       page_content_annotations::PageEmbeddingsServiceFactory::GetForProfile(
           profile);
-
   if (!page_embeddings_service) {
     return nullptr;
   }
 
+  AccessibilityAnnotatorBackend* accessibility_annotator_backend =
+      AccessibilityAnnotatorBackendFactory::GetForProfile(profile);
+  if (!accessibility_annotator_backend) {
+    return nullptr;
+  }
+
+  auto* passage_embeddings_service_controller =
+      passage_embeddings::ChromePassageEmbeddingsServiceController::Get();
+
   return ContentAnnotatorService::Create(
       *page_content_annotations_service, *page_content_extraction_service,
-      *optimization_guide_service, *page_embeddings_service);
+      *optimization_guide_service, *page_embeddings_service,
+      *accessibility_annotator_backend,
+      passage_embeddings_service_controller->GetEmbedder(),
+      passage_embeddings_service_controller);
 }
 
 bool ContentAnnotatorServiceFactory::ServiceIsCreatedWithBrowserContext()

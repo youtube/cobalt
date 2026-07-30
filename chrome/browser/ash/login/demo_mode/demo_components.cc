@@ -7,16 +7,17 @@
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
 #include "ash/constants/ash_switches.h"
+#include "base/check_deref.h"
 #include "base/check_op.h"
 #include "base/command_line.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/version.h"
-#include "chrome/browser/browser_process.h"
-#include "chrome/browser/browser_process_platform_part.h"
 #include "chromeos/ash/components/dbus/dbus_thread_manager.h"
+#include "components/component_updater/ash/component_manager_ash.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/browser_thread.h"
 
@@ -31,32 +32,17 @@ constexpr base::FilePath::CharType kDemoAndroidAppsPath[] =
 constexpr base::FilePath::CharType kExternalExtensionsPrefsPath[] =
     FILE_PATH_LITERAL("demo_extensions.json");
 
-PrefService* LocalState() {
-  if (!g_browser_process) {
-    return nullptr;
-  }
-
-  return g_browser_process->local_state();
+void RecordAppVersion(PrefService* local_state, const base::Version& version) {
+  local_state->SetString(prefs::kDemoModeAppVersion, version.IsValid()
+                                                         ? version.GetString()
+                                                         : std::string());
 }
 
-void RecordAppVersion(const base::Version& version) {
-  auto* local_state = LocalState();
-  // In some unittests `local_state` may be null.
-  if (local_state) {
-    local_state->SetString(prefs::kDemoModeAppVersion, version.IsValid()
-                                                           ? version.GetString()
-                                                           : std::string());
-  }
-}
-
-void RecordResourcesVersion(const base::Version& version) {
-  auto* local_state = LocalState();
-  // In some unittests `local_state` may be null.
-  if (local_state) {
-    local_state->SetString(
-        prefs::kDemoModeResourcesVersion,
-        version.IsValid() ? version.GetString() : std::string());
-  }
+void RecordResourcesVersion(PrefService* local_state,
+                            const base::Version& version) {
+  local_state->SetString(
+      prefs::kDemoModeResourcesVersion,
+      version.IsValid() ? version.GetString() : std::string());
 }
 
 }  // namespace
@@ -67,8 +53,14 @@ const char DemoComponents::kDemoModeResourcesComponentName[] =
 
 const char DemoComponents::kDemoModeAppComponentName[] = "demo-mode-app";
 
-DemoComponents::DemoComponents(DemoSession::DemoModeConfig config)
-    : config_(config) {
+DemoComponents::DemoComponents(
+    PrefService* local_state,
+    scoped_refptr<component_updater::ComponentManagerAsh> component_manager_ash,
+    DemoSession::DemoModeConfig config)
+    : local_state_(CHECK_DEREF(local_state)),
+      component_manager_ash_(std::move(component_manager_ash)),
+      config_(config) {
+  CHECK(component_manager_ash_);
   DCHECK_NE(config_, DemoSession::DemoModeConfig::kNone);
 }
 
@@ -105,7 +97,7 @@ void DemoComponents::LoadAppComponent(base::OnceClosure load_callback) {
     return;
   }
 
-  g_browser_process->platform_part()->component_manager_ash()->Load(
+  component_manager_ash_->Load(
       kDemoModeAppComponentName,
       component_updater::ComponentManagerAsh::MountPolicy::kMount,
       component_updater::ComponentManagerAsh::UpdatePolicy::kDontForce,
@@ -122,19 +114,10 @@ void DemoComponents::OnAppComponentLoaded(
   app_component_error_ = error;
   default_app_component_path_ = app_component_path;
 
-  auto component_manager_ash =
-      g_browser_process->platform_part()->component_manager_ash();
-
-  // component_manager_ash may be null in unit tests.
-  if (component_manager_ash) {
-    component_manager_ash->GetVersion(
-        kDemoModeAppComponentName,
-        base::BindOnce(&DemoComponents::OnAppVersionReady,
-                       weak_ptr_factory_.GetWeakPtr(),
-                       std::move(load_callback)));
-  } else {
-    std::move(load_callback).Run();
-  }
+  component_manager_ash_->GetVersion(
+      kDemoModeAppComponentName,
+      base::BindOnce(&DemoComponents::OnAppVersionReady,
+                     weak_ptr_factory_.GetWeakPtr(), std::move(load_callback)));
 }
 
 void DemoComponents::LoadResourcesComponent(base::OnceClosure load_callback) {
@@ -162,13 +145,7 @@ void DemoComponents::LoadResourcesComponent(base::OnceClosure load_callback) {
     return;
   }
 
-  auto component_manager_ash =
-      g_browser_process->platform_part()->component_manager_ash();
-  // In unit tests, DemoModeTestHelper should set up a fake
-  // ComponentManagerAsh.
-  DCHECK(component_manager_ash);
-
-  component_manager_ash->Load(
+  component_manager_ash_->Load(
       kDemoModeResourcesComponentName,
       component_updater::ComponentManagerAsh::MountPolicy::kMount,
       component_updater::ComponentManagerAsh::UpdatePolicy::kDontForce,
@@ -181,7 +158,8 @@ void DemoComponents::OnAppVersionReady(base::OnceClosure callback,
   app_component_version_ = version;
 
   content::GetUIThreadTaskRunner({})->PostTask(
-      FROM_HERE, base::BindOnce(&RecordAppVersion, version));
+      FROM_HERE,
+      base::BindOnce(&RecordAppVersion, &local_state_.get(), version));
 
   std::move(callback).Run();
 }
@@ -190,7 +168,8 @@ void DemoComponents::OnResourcesVersionReady(const base::FilePath& path,
                                              const base::Version& version) {
   resources_component_version_ = version;
   content::GetUIThreadTaskRunner({})->PostTask(
-      FROM_HERE, base::BindOnce(&RecordResourcesVersion, version));
+      FROM_HERE,
+      base::BindOnce(&RecordResourcesVersion, &local_state_.get(), version));
 
   OnDemoResourcesLoaded(std::make_optional(path));
 }
@@ -212,18 +191,10 @@ void DemoComponents::InstalledComponentLoaded(
     const base::FilePath& path) {
   resources_component_error_ = error;
 
-  auto component_manager_ash =
-      g_browser_process->platform_part()->component_manager_ash();
-
-  // component_manager_ash may be null in unit tests.
-  if (component_manager_ash) {
-    component_manager_ash->GetVersion(
-        kDemoModeResourcesComponentName,
-        base::BindOnce(&DemoComponents::OnResourcesVersionReady,
-                       weak_ptr_factory_.GetWeakPtr(), path));
-  } else {
-    OnDemoResourcesLoaded(std::make_optional(path));
-  }
+  component_manager_ash_->GetVersion(
+      kDemoModeResourcesComponentName,
+      base::BindOnce(&DemoComponents::OnResourcesVersionReady,
+                     weak_ptr_factory_.GetWeakPtr(), path));
 }
 
 void DemoComponents::OnDemoResourcesLoaded(

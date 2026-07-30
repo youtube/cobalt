@@ -104,12 +104,6 @@ class CAPTURE_EXPORT VideoCaptureDeviceAndroid : public VideoCaptureDevice {
       int32_t rotation,
       int64_t timestamp);
 
-  // Implement org.chromium.media.VideoCapture.Natives.OnFrameAvailable.
-  void OnFrameAvailable(JNIEnv* env,
-                        const base::android::JavaRef<jbyteArray>& data,
-                        int32_t length,
-                        int32_t rotation);
-
   // Implement org.chromium.media.VideoCapture.Natives.OnI420FrameAvailable.
   void OnI420FrameAvailable(JNIEnv* env,
                             const base::android::JavaRef<jobject>& y_buffer,
@@ -184,7 +178,7 @@ class CAPTURE_EXPORT VideoCaptureDeviceAndroid : public VideoCaptureDevice {
     kError        // Hit error. User needs to recover by destroying the object.
   };
 
-  VideoPixelFormat GetColorspace();
+  VideoPixelFormat GetPixelFormat();
   void SetErrorState(media::VideoCaptureError error,
                      const base::Location& from_here,
                      const std::string& reason);

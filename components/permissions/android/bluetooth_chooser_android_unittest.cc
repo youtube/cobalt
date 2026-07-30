@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "base/android/jni_string.h"
 #include "base/test/bind.h"
 #include "base/test/mock_callback.h"
 #include "components/permissions/android/bluetooth_chooser_android_delegate.h"
@@ -43,22 +44,14 @@ TEST_F(BluetoothChooserAndroidTest, FrameTree) {
           content::RenderFrameHostTester::For(main_rfh())
               ->AppendChild("subframe"));
 
-  content::WebContents* web_contents =
-      content::WebContents::FromRenderFrameHost(main_rfh());
   std::unique_ptr<ui::WindowAndroid::ScopedWindowAndroidForTesting> window =
       ui::WindowAndroid::CreateForTesting();
-  window.get()->get()->AddChild(web_contents->GetNativeView());
+  window->get()->AddChild(web_contents()->GetNativeView());
 
   base::MockCallback<BluetoothChooserAndroid::CreateJavaDialogCallback>
       mock_callback;
-  auto origin_predicate =
-      [&](const base::android::JavaRef<jstring>& java_string) {
-        return base::android::ConvertJavaStringToUTF16(
-                   base::android::AttachCurrentThread(), java_string) ==
-               u"https://main-frame.com";
-      };
   EXPECT_CALL(mock_callback, Run(/*env=*/_, /*window_android=*/_,
-                                 testing::Truly(origin_predicate),
+                                 std::u16string(u"https://main-frame.com"),
                                  /*security_level=*/_, /*delegate=*/_,
                                  /*native_bluetooth_chooser_dialog_ptr=*/_));
 

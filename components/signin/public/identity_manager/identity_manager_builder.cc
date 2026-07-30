@@ -20,7 +20,6 @@
 #include "components/signin/internal/identity_manager/primary_account_mutator_impl.h"
 #include "components/signin/internal/identity_manager/profile_oauth2_token_service.h"
 #include "components/signin/internal/identity_manager/profile_oauth2_token_service_builder.h"
-#include "components/signin/public/base/account_consistency_method.h"
 #include "components/signin/public/base/signin_client.h"
 #include "components/signin/public/identity_manager/accounts_mutator.h"
 #include "components/signin/public/identity_manager/device_accounts_synchronizer.h"
@@ -59,9 +58,10 @@ std::unique_ptr<AccountTrackerService> BuildAccountTrackerService(
 std::unique_ptr<PrimaryAccountManager> BuildPrimaryAccountManager(
     SigninClient* client,
     AccountTrackerService* account_tracker_service,
-    ProfileOAuth2TokenService* token_service) {
-  return std::make_unique<PrimaryAccountManager>(client, token_service,
-                                                 account_tracker_service);
+    ProfileOAuth2TokenService* token_service,
+    metrics::ProfileMetricsService* profile_metrics_service) {
+  return std::make_unique<PrimaryAccountManager>(
+      client, token_service, account_tracker_service, profile_metrics_service);
 }
 
 std::unique_ptr<AccountsMutator> BuildAccountsMutator(
@@ -110,7 +110,7 @@ IdentityManager::InitParameters BuildIdentityManagerInitParameters(
   if (!token_service) {
     token_service = BuildProfileOAuth2TokenService(
         params->pref_service, account_tracker_service.get(),
-        params->network_connection_tracker, params->account_consistency,
+        params->network_connection_tracker,
 #if BUILDFLAG(IS_CHROMEOS)
         params->account_manager_facade, params->is_regular_profile,
 #endif  // BUILDFLAG(IS_CHROMEOS)
@@ -131,10 +131,11 @@ IdentityManager::InitParameters BuildIdentityManagerInitParameters(
       account_tracker_service.get(), token_service.get(),
       params->signin_client);
 
+  CHECK(params->profile_metrics_service);
   std::unique_ptr<PrimaryAccountManager> primary_account_manager =
-      BuildPrimaryAccountManager(params->signin_client,
-                                 account_tracker_service.get(),
-                                 token_service.get());
+      BuildPrimaryAccountManager(
+          params->signin_client, account_tracker_service.get(),
+          token_service.get(), params->profile_metrics_service);
 
   IdentityManager::InitParameters init_params;
 
@@ -184,7 +185,6 @@ IdentityManager::InitParameters BuildIdentityManagerInitParameters(
       std::move(gaia_cookie_manager_service);
   init_params.primary_account_manager = std::move(primary_account_manager);
   init_params.token_service = std::move(token_service);
-  init_params.account_consistency = params->account_consistency;
   init_params.signin_client = params->signin_client;
 #if BUILDFLAG(IS_CHROMEOS)
   init_params.account_manager_facade = params->account_manager_facade;

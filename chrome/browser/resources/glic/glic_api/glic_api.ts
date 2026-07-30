@@ -1069,6 +1069,8 @@ export declare interface ConversationInfo {
    * lookup or opaque serialized data.
    */
   clientData?: string;
+  /** Optional turn ID to open this conversation at. */
+  turnId?: string;
 }
 
 /** Fields of interest from the system settings page. */
@@ -1138,6 +1140,14 @@ export declare interface CreateActorTabOptions {
 export declare interface GlicBrowserHostMetrics {
   /** Called when the user has submitted input via the web client. */
   onUserInputSubmitted?(mode: WebClientMode): void;
+
+  /**
+   * Called when the web client sends a browser actuation result over the
+   * network. This is used to track metrics for model responses. For a single
+   * actuation, this may be called multiple times if retries occur.
+   * @param isRetry Whether this request is a retry of a previous attempt.
+   */
+  onPerformActionResultSubmitted?(isRetry?: boolean): void;
 
   /**
    * Called after user input is submitted, but before a response starts,
@@ -2448,6 +2458,9 @@ export enum CreateTaskErrorReason {
   EXISTING_ACTIVE_TASK = 2,
   // The user's browser policy or account settings prevent creating actor tasks.
   BLOCKED_BY_POLICY = 3,
+  // CreateTask was called on a Glic instance which does not have a registered
+  // conversation.
+  CONVERSATION_NOT_REGISTERED = 4,
 }
 
 ///////////////////////////////////////////////
@@ -2758,6 +2771,10 @@ export enum InvocationSource {
   AUTO_OPENED_FOR_PDF = 19,
   // Selection hotkey.
   CAPTURE_REGION_HOTKEY = 20,
+  // From the in-product-help (IPH) entrypoint.
+  IPH = 21,
+  // User clicked an anchored contextual cue chip.
+  ANCHORED_CONTEXTUAL_CUE = 22,
 }
 
 ///////////////////////////////////////////////

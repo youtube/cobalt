@@ -2197,58 +2197,6 @@ TEST_P(CaptureModeTest, MultiDisplayWindowRecording) {
   EXPECT_EQ(shield_layer->bounds(), roots[1]->bounds());
 }
 
-// Flaky especially on MSan: https://crbug.com/1293188
-TEST_P(CaptureModeTest, DISABLED_WindowResizing) {
-  UpdateDisplay("700x600");
-  auto window = CreateTestWindow(gfx::Rect(200, 200));
-  auto* controller =
-      StartCaptureSession(CaptureModeSource::kWindow, CaptureModeType::kVideo);
-
-  auto* event_generator = GetEventGenerator();
-  event_generator->MoveMouseToCenterOf(window.get());
-  StartVideoRecordingImmediately();
-  EXPECT_TRUE(controller->is_recording_in_progress());
-  auto* test_delegate =
-      static_cast<TestCaptureModeDelegate*>(controller->delegate_for_testing());
-
-  CaptureModeTestApi test_api;
-  test_api.FlushRecordingServiceForTesting();
-  EXPECT_EQ(gfx::Size(200, 200), test_delegate->GetCurrentVideoSize());
-  EXPECT_EQ(gfx::Size(700, 600),
-            test_delegate->GetCurrentFrameSinkSizeInPixels());
-
-  // Multiple resize events should be throttled.
-  window->SetBounds(gfx::Rect(250, 250));
-  test_api.FlushRecordingServiceForTesting();
-  EXPECT_EQ(gfx::Size(200, 200), test_delegate->GetCurrentVideoSize());
-
-  window->SetBounds(gfx::Rect(250, 300));
-  test_api.FlushRecordingServiceForTesting();
-  EXPECT_EQ(gfx::Size(200, 200), test_delegate->GetCurrentVideoSize());
-
-  window->SetBounds(gfx::Rect(300, 300));
-  test_api.FlushRecordingServiceForTesting();
-  EXPECT_EQ(gfx::Size(200, 200), test_delegate->GetCurrentVideoSize());
-
-  // Once throttling ends, the current size is pushed.
-  auto* recording_watcher = controller->video_recording_watcher_for_testing();
-  recording_watcher->SendThrottledWindowSizeChangedNowForTesting();
-  test_api.FlushRecordingServiceForTesting();
-  EXPECT_EQ(gfx::Size(300, 300), test_delegate->GetCurrentVideoSize());
-  EXPECT_EQ(gfx::Size(700, 600),
-            test_delegate->GetCurrentFrameSinkSizeInPixels());
-
-  // Maximizing a window changes its size, and is pushed to the service with
-  // throttling.
-  WindowState::Get(window.get())->Maximize();
-  test_api.FlushRecordingServiceForTesting();
-  EXPECT_EQ(gfx::Size(300, 300), test_delegate->GetCurrentVideoSize());
-
-  recording_watcher->SendThrottledWindowSizeChangedNowForTesting();
-  test_api.FlushRecordingServiceForTesting();
-  EXPECT_NE(gfx::Size(300, 300), test_delegate->GetCurrentVideoSize());
-  EXPECT_EQ(window->bounds().size(), test_delegate->GetCurrentVideoSize());
-}
 
 TEST_P(CaptureModeTest, RotateDisplayWhileRecording) {
   UpdateDisplay("600x800");
@@ -2992,13 +2940,7 @@ INSTANTIATE_TEST_SUITE_P(
       return SunfishScannerTestName(sunfish_enabled, scanner_enabled);
     });
 
-// TODO(crbug.com/1291073): Flaky on ChromeOS.
-#if BUILDFLAG(IS_CHROMEOS)
-#define MAYBE_CaptureAtPixelsFullscreen DISABLED_CaptureAtPixelsFullscreen
-#else
-#define MAYBE_CaptureAtPixelsFullscreen CaptureAtPixelsFullscreen
-#endif
-TEST_P(CaptureModeRecordingSizeTest, MAYBE_CaptureAtPixelsFullscreen) {
+TEST_P(CaptureModeRecordingSizeTest, CaptureAtPixelsFullscreen) {
   float dsf = 1.6f;
   SetDeviceScaleFactor(dsf);
   EXPECT_EQ(dsf, window_->GetHost()->device_scale_factor());
@@ -3056,8 +2998,7 @@ TEST_P(CaptureModeRecordingSizeTest, MAYBE_CaptureAtPixelsFullscreen) {
                    ->GetNumberOfVideoEncoderReconfigures());
 }
 
-// The test is flaky. https://crbug.com/1287724.
-TEST_P(CaptureModeRecordingSizeTest, DISABLED_CaptureAtPixelsRegion) {
+TEST_P(CaptureModeRecordingSizeTest, CaptureAtPixelsRegion) {
   float dsf = 1.6f;
   SetDeviceScaleFactor(dsf);
   EXPECT_EQ(dsf, window_->GetHost()->device_scale_factor());
@@ -3104,8 +3045,7 @@ TEST_P(CaptureModeRecordingSizeTest, DISABLED_CaptureAtPixelsRegion) {
                    ->GetNumberOfVideoEncoderReconfigures());
 }
 
-// The test is flaky. https://crbug.com/1287724.
-TEST_P(CaptureModeRecordingSizeTest, DISABLED_CaptureAtPixelsWindow) {
+TEST_P(CaptureModeRecordingSizeTest, CaptureAtPixelsWindow) {
   float dsf = 1.6f;
   SetDeviceScaleFactor(dsf);
   EXPECT_EQ(dsf, window_->GetHost()->device_scale_factor());
@@ -4557,6 +4497,58 @@ INSTANTIATE_TEST_SUITE_P(
       bool scanner_enabled = std::get<1>(info.param);
       return SunfishScannerTestName(sunfish_enabled, scanner_enabled);
     });
+
+TEST_P(CaptureModeMockTimeTest, WindowResizing) {
+  UpdateDisplay("700x600");
+  auto window = CreateTestWindow(gfx::Rect(200, 200));
+  auto* controller =
+      StartCaptureSession(CaptureModeSource::kWindow, CaptureModeType::kVideo);
+
+  auto* event_generator = GetEventGenerator();
+  event_generator->MoveMouseToCenterOf(window.get());
+  StartVideoRecordingImmediately();
+  EXPECT_TRUE(controller->is_recording_in_progress());
+  auto* test_delegate =
+      static_cast<TestCaptureModeDelegate*>(controller->delegate_for_testing());
+
+  CaptureModeTestApi test_api;
+  test_api.FlushRecordingServiceForTesting();
+  EXPECT_EQ(gfx::Size(200, 200), test_delegate->GetCurrentVideoSize());
+  EXPECT_EQ(gfx::Size(700, 600),
+            test_delegate->GetCurrentFrameSinkSizeInPixels());
+
+  // Multiple resize events should be throttled.
+  window->SetBounds(gfx::Rect(250, 250));
+  test_api.FlushRecordingServiceForTesting();
+  EXPECT_EQ(gfx::Size(200, 200), test_delegate->GetCurrentVideoSize());
+
+  window->SetBounds(gfx::Rect(250, 300));
+  test_api.FlushRecordingServiceForTesting();
+  EXPECT_EQ(gfx::Size(200, 200), test_delegate->GetCurrentVideoSize());
+
+  window->SetBounds(gfx::Rect(300, 300));
+  test_api.FlushRecordingServiceForTesting();
+  EXPECT_EQ(gfx::Size(200, 200), test_delegate->GetCurrentVideoSize());
+
+  // Once throttling ends, the current size is pushed.
+  auto* recording_watcher = controller->video_recording_watcher_for_testing();
+  recording_watcher->SendThrottledWindowSizeChangedNowForTesting();
+  test_api.FlushRecordingServiceForTesting();
+  EXPECT_EQ(gfx::Size(300, 300), test_delegate->GetCurrentVideoSize());
+  EXPECT_EQ(gfx::Size(700, 600),
+            test_delegate->GetCurrentFrameSinkSizeInPixels());
+
+  // Maximizing a window changes its size, and is pushed to the service with
+  // throttling.
+  WindowState::Get(window.get())->Maximize();
+  test_api.FlushRecordingServiceForTesting();
+  EXPECT_EQ(gfx::Size(300, 300), test_delegate->GetCurrentVideoSize());
+
+  recording_watcher->SendThrottledWindowSizeChangedNowForTesting();
+  test_api.FlushRecordingServiceForTesting();
+  EXPECT_NE(gfx::Size(300, 300), test_delegate->GetCurrentVideoSize());
+  EXPECT_EQ(window->bounds().size(), test_delegate->GetCurrentVideoSize());
+}
 
 // Tests that the consecutive screenshots histogram is recorded properly.
 TEST_P(CaptureModeMockTimeTest, ConsecutiveScreenshotsHistograms) {

@@ -27,7 +27,7 @@ using SearchUrlType =
 // A router for queries that Lens should perform.
 class LensQueryFlowRouter
     : public contextual_search::ContextualSearchContextController::
-          FileUploadStatusObserver {
+          ContextUploadStatusObserver {
  public:
   explicit LensQueryFlowRouter(LensSearchController* lens_search_controller);
   ~LensQueryFlowRouter() override;
@@ -118,11 +118,11 @@ class LensQueryFlowRouter
       std::optional<SkBitmap> region_bytes,
       lens::LensOverlayInvocationSource invocation_source);
 
-  // Testing method to trigger the file upload status changed callback.
-  void OnFileUploadStatusChangedForTesting(
-      const base::UnguessableToken& file_token,
+  // Testing method to trigger the context upload status changed callback.
+  void OnContextUploadStatusChangedForTesting(
+      const base::UnguessableToken& context_token,
       lens::MimeType mime_type,
-      contextual_search::ContextUploadStatus file_upload_status,
+      contextual_search::ContextUploadStatus context_upload_status,
       const std::optional<contextual_search::ContextUploadErrorType>&
           error_type);
 
@@ -134,8 +134,8 @@ class LensQueryFlowRouter
   // Removes the contextual search context if no region selection was made.
   void RemoveContextualSearchContextIfNecessary(bool has_region_selection);
 
-  void reset_file_upload_status_observation() {
-    file_upload_status_observation_.Reset();
+  void reset_context_upload_status_observation() {
+    context_upload_status_observation_.Reset();
   }
 
  protected:
@@ -158,11 +158,11 @@ class LensQueryFlowRouter
  private:
   friend class LensQueryFlowRouterTestApi;
 
-  // contextual_search::ContextualSearchContextController::FileUploadStatusObserver:
-  void OnFileUploadStatusChanged(
-      const base::UnguessableToken& file_token,
+  // contextual_search::ContextualSearchContextController::ContextUploadStatusObserver:
+  void OnContextUploadStatusChanged(
+      const base::UnguessableToken& context_token,
       lens::MimeType mime_type,
-      contextual_search::ContextUploadStatus file_upload_status,
+      contextual_search::ContextUploadStatus context_upload_status,
       const std::optional<contextual_search::ContextUploadErrorType>&
           error_type) override;
 
@@ -284,8 +284,8 @@ class LensQueryFlowRouter
 
   base::ScopedObservation<contextual_search::ContextualSearchContextController,
                           contextual_search::ContextualSearchContextController::
-                              FileUploadStatusObserver>
-      file_upload_status_observation_{this};
+                              ContextUploadStatusObserver>
+      context_upload_status_observation_{this};
 
   base::WeakPtrFactory<LensQueryFlowRouter> weak_factory_{this};
 };

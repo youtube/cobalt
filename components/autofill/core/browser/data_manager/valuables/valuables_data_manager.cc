@@ -31,9 +31,7 @@ ValuablesDataManager::ValuablesDataManager(
     return;
   }
   webdata_service_observer_.Observe(webdata_service_.get());
-  if (base::FeatureList::IsEnabled(syncer::kSyncAutofillLoyaltyCard)) {
-    LoadLoyaltyCards();
-  }
+  LoadLoyaltyCards();
 }
 
 ValuablesDataManager::~ValuablesDataManager() = default;
@@ -170,7 +168,8 @@ bool ValuablesDataManager::HasPendingQueries() const {
 }
 
 void ValuablesDataManager::OnAutofillChangedBySync(syncer::DataType data_type) {
-  if (data_type == syncer::DataType::AUTOFILL_VALUABLE) {
+  if (data_type == syncer::DataType::AUTOFILL_VALUABLE ||
+      data_type == syncer::DataType::AUTOFILL_VALUABLE_METADATA) {
     LoadLoyaltyCards();
   }
 }

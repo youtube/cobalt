@@ -28,8 +28,7 @@ namespace {
 template <typename EventMetricsPtr>
 ScrollJankV4FrameStage::List CalculateStagesImpl(
     std::vector<EventMetricsPtr>& events_metrics,
-    uint64_t result_id,
-    bool skip_non_damaging_events) {
+    uint64_t result_id) {
   ScrollJankV4FrameStage::List stages;
 
   const bool orderByArrivedInRendererCompositor = base::FeatureList::IsEnabled(
@@ -184,11 +183,6 @@ ScrollJankV4FrameStage::List CalculateStagesImpl(
       scroll_end_ordering_ts = ordering_ts;
       continue;
     }
-    if (skip_non_damaging_events && !event->caused_frame_update()) {
-      // TODO(crbug.com/444183591): Handle non-damaging inputs in the scroll
-      // jank metrics.
-      continue;
-    }
     auto* scroll_update = event->AsScrollUpdate();
     if (!scroll_update) {
       continue;
@@ -216,8 +210,6 @@ ScrollJankV4FrameStage::List CalculateStagesImpl(
       }
     }
 
-    // We check the type first, as if `is_scroll_start` is true, we need to
-    // include `scroll_update` even if `scroll_update->did_scroll()` is false.
     switch (event_type) {
       case EventMetrics::EventType::kFirstGestureScrollUpdate:
         if (scroll_start_ordering_ts) {
@@ -244,13 +236,10 @@ ScrollJankV4FrameStage::List CalculateStagesImpl(
         NOTREACHED();
     }
 
-    if (!skip_non_damaging_events || scroll_update->did_scroll() ||
-        scroll_start_ordering_ts) {
-      if (is_synthetic) {
-        had_synthetic_input = true;
-      } else {
-        had_real_input = true;
-      }
+    if (is_synthetic) {
+      had_synthetic_input = true;
+    } else {
+      had_real_input = true;
     }
     last_input_ordering_ts =
         std::max(last_input_ordering_ts, scroll_update->last_timestamp());
@@ -367,19 +356,15 @@ ScrollJankV4FrameStage::~ScrollJankV4FrameStage() = default;
 // static
 ScrollJankV4FrameStage::List ScrollJankV4FrameStage::CalculateStages(
     EventMetrics::List& events_metrics,
-    uint64_t result_id,
-    bool skip_non_damaging_events) {
-  return CalculateStagesImpl(events_metrics, result_id,
-                             skip_non_damaging_events);
+    uint64_t result_id) {
+  return CalculateStagesImpl(events_metrics, result_id);
 }
 
 // static
 ScrollJankV4FrameStage::List ScrollJankV4FrameStage::CalculateStages(
     std::vector<ScrollEventMetrics*>& events_metrics,
-    uint64_t result_id,
-    bool skip_non_damaging_events) {
-  return CalculateStagesImpl(events_metrics, result_id,
-                             skip_non_damaging_events);
+    uint64_t result_id) {
+  return CalculateStagesImpl(events_metrics, result_id);
 }
 
 }  // namespace cc

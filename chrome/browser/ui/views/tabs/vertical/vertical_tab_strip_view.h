@@ -6,10 +6,12 @@
 #define CHROME_BROWSER_UI_VIEWS_TABS_VERTICAL_VERTICAL_TAB_STRIP_VIEW_H_
 
 #include "base/memory/raw_ptr.h"
+#include "base/scoped_observation.h"
 #include "components/tabs/public/tab_interface.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/layout/delegating_layout_manager.h"
 #include "ui/views/view.h"
+#include "ui/views/widget/widget_observer.h"
 
 class TabCollectionNode;
 class VerticalPinnedTabContainerView;
@@ -19,14 +21,14 @@ namespace views {
 class ScrollView;
 class Separator;
 class View;
-class ViewTracker;
 }  // namespace views
 
 // The view class for vertical tab strip which holds the pinned and unpinned
 // regions and associates them to their scroll views. It also is responsible for
 // scrolling to the active tab view when the active tab changes.
 class VerticalTabStripView final : public views::View,
-                                   public views::LayoutDelegate {
+                                   public views::LayoutDelegate,
+                                   public views::WidgetObserver {
   METADATA_HEADER(VerticalTabStripView, views::View)
 
  public:
@@ -58,20 +60,30 @@ class VerticalTabStripView final : public views::View,
   void OnMouseEntered(const ui::MouseEvent& event) override;
   void OnMouseExited(const ui::MouseEvent& event) override;
 
+  // views::WidgetObserver:
+  void OnWidgetVisibilityChanged(views::Widget* widget, bool visible) override;
+
   void OnActiveTabChanged(const tabs::TabInterface* active_tab);
   void RecordMousePressedInTab();
 
  private:
+  class ActivatedViewTracker;
+
   views::View* AddScrollViewContents(std::unique_ptr<views::View> view);
   void RemoveScrollViewContents(views::View* view);
   void SetScrollViewProperties(views::ScrollView* scroll_view);
   void ResetCollectionNode();
 
-  // Called when the compositor has successfully presented the next frame
-  // after an activation of `tracked_view` in `scroll_view`.
-  void DidPresentFramePostActivation(
-      views::ScrollView* scroll_view,
-      std::unique_ptr<views::ViewTracker> tracked_view);
+  // Invoked after layout has been invoked for the activated view's associated
+  // ScrollView. Ensures that the activated view is visible in the viewport.
+  void EnsureVisibleInViewportPostActivationAndLayout(
+      views::ScrollView* scroll_view);
+
+  // Enables and disables overflow visuals on `scroll_view` respectively. Used
+  // in combination to avoid visual artifacts caused by repeatedly scrolling-in
+  // animating views.
+  void EnableOverflowVisuals(views::ScrollView* scroll_view);
+  void DisableOverflowVisuals(views::ScrollView* scroll_view);
 
   void UpdateColors();
 
@@ -93,9 +105,16 @@ class VerticalTabStripView final : public views::View,
   // Used to track if the time from mouse entered to tab switch been reported.
   bool has_reported_time_mouse_entered_to_switch_ = false;
 
+  // Tracks the most recently activated view as reported by
+  // `OnActiveTabChanged()`.
+  std::unique_ptr<ActivatedViewTracker> activated_view_tracker_;
+
   base::CallbackListSubscription node_destroyed_subscription_;
   base::CallbackListSubscription paint_as_active_subscription_;
   std::vector<base::CallbackListSubscription> callback_subscriptions_;
+
+  base::ScopedObservation<views::Widget, views::WidgetObserver>
+      widget_observation_{this};
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_TABS_VERTICAL_VERTICAL_TAB_STRIP_VIEW_H_

@@ -16,7 +16,6 @@ constexpr char kSyncName[] = "sync";
 constexpr char kWallpaperGooglePhotosFetcherName[] =
     "wallpaper_google_photos_fetcher";
 constexpr char kWallpaperFetcherDelegateName[] = "wallpaper_fetcher_delegate";
-constexpr char kIpProtectionServiceName[] = "ip_protection_service";
 constexpr char kSanitizedImageSourceName[] = "sanitized_image_source";
 constexpr char kOptimizationGuideGetHintsName[] =
     "optimization_guide_get_hints";
@@ -123,6 +122,7 @@ constexpr char kSyncDeviceStatisticsMetricsName[] =
 constexpr char kPrivateAiServiceName[] = "private_ai_service";
 constexpr char kWalletPassesName[] = "wallet_passes";
 constexpr char kAimEligibilityServiceName[] = "aim_eligibility_service";
+constexpr char kAccessibilityAnnotatorName[] = "accessibility_annotator";
 
 }  // namespace
 
@@ -159,10 +159,6 @@ OAuthConsumer OAuthConsumerRegistry::GetOAuthConsumerFromId(
       return OAuthConsumer(
           /*name=*/kWallpaperFetcherDelegateName,
           /*scopes=*/{GaiaConstants::kPhotosModuleImageOAuth2Scope});
-    case OAuthConsumerId::kIpProtectionService:
-      return OAuthConsumer(
-          /*name=*/kIpProtectionServiceName,
-          /*scopes=*/{GaiaConstants::kIpProtectionAuthScope});
     case OAuthConsumerId::kSanitizedImageSource:
       return OAuthConsumer(
           /*name=*/kSanitizedImageSourceName,
@@ -556,6 +552,11 @@ OAuthConsumer OAuthConsumerRegistry::GetOAuthConsumerFromId(
       return OAuthConsumer(
           /*name=*/kDevtoolsAiCodeName,
           /*scopes=*/{GaiaConstants::kAiCodeOAuth2Scope});
+    case OAuthConsumerId::kAccessibilityAnnotator:
+      // TODO(b/493530228): Use narrow scope for the accessibility annotator.
+      return OAuthConsumer(
+          /*name=*/kAccessibilityAnnotatorName,
+          /*scopes=*/{GaiaConstants::kChromeSyncOAuth2Scope});
   }
 }
 

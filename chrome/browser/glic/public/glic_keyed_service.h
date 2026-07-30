@@ -73,7 +73,6 @@ class GlicWebContentsWarmingPool;
 
 enum class GlicPrewarmingChecksResult;
 
-
 #if !BUILDFLAG(IS_ANDROID)  // Single instance only
 class GlicActorTaskManager;
 #endif
@@ -124,8 +123,6 @@ class GlicKeyedService : public KeyedService,
   // Show, summon or activate the panel, or close it if it's already active and
   // prevent_close is false. If `bwi` is non-null, attach the panel to its
   // Browser.
-  // If `auto_send` is true and `prompt_suggestion` is provided, the prompt will
-  // be automatically submitted after the panel opens.
   // TODO(b:448888544): remove `prevent_close` in favor of a Show method.
   virtual void ToggleUI(BrowserWindowInterface* bwi,
                         bool prevent_close,
@@ -141,15 +138,7 @@ class GlicKeyedService : public KeyedService,
                             tabs::TabInterface* tab,
                             GlicInvokeOptions options);
 
-  void Invoke(tabs::TabInterface* tab, GlicInvokeOptions options);
-
-  // Show the panel with the given conversation id. Used only by web continuity.
-  // Deprecated: See go/gic:invoke for full solution, this existing version will
-  // be removed in the future.
-  [[deprecated]] virtual void ShowUiWithConversationID(
-      BrowserWindowInterface* bwi,
-      mojom::InvocationSource source,
-      std::string conversation_id);
+  virtual void Invoke(tabs::TabInterface* tab, GlicInvokeOptions options);
 
   virtual void OpenFreDialogInNewTab(BrowserWindowInterface* bwi,
                                      mojom::InvocationSource source);
@@ -454,8 +443,6 @@ class GlicKeyedService : public KeyedService,
 
   // Never null - GlicActorTaskManager and GlicInstanceCoordinatorImpl hold a
   // reference to this so it must be destroyed after them.
-  // NEEDS_ANDROID_IMPL: This is temporarily null on Android until
-  // ActorKeyedService stops crashing at runtime.
   std::unique_ptr<GlicActorPolicyChecker> actor_policy_checker_;
 
   std::unique_ptr<GlicEnabling> enabling_;

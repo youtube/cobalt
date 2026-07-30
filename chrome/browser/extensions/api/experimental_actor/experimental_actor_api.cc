@@ -32,6 +32,7 @@
 #include "chrome/common/actor/task_id.h"
 #include "chrome/common/extensions/api/experimental_actor.h"
 #include "chrome/common/extensions/api/tabs.h"
+#include "components/actor/task_source_info.h"
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
 #include "components/optimization_guide/proto/features/model_prototyping.pb.h"
 #include "components/sessions/content/session_tab_helper.h"
@@ -171,7 +172,10 @@ ExperimentalActorCreateTaskFunction::~ExperimentalActorCreateTaskFunction() =
 
 ExtensionFunction::ResponseAction ExperimentalActorCreateTaskFunction::Run() {
   auto* actor_service = actor::ActorKeyedService::Get(browser_context());
-  actor::TaskId task_id = actor_service->CreateTask(&GetNullPolicyChecker());
+  actor::TaskId task_id = actor_service->CreateTask(
+      actor::TaskSourceInfo(actor::TaskSourceInfo::Client::kExperimentalActor,
+                            /*id=*/std::nullopt),
+      &GetNullPolicyChecker());
 
   return RespondNow(ArgumentList(
       api::experimental_actor::CreateTask::Results::Create(task_id.value())));
@@ -282,14 +286,18 @@ ExperimentalActorPerformActionsFunction::Run() {
       actions.has_skip_async_observation_collection() &&
       actions.skip_async_observation_collection();
   if (!requests.has_value()) {
-    std::vector<actor::ActionResultWithLatencyInfo> empty_results;
+    std::vector<actor::ActionResultWithLatencyInfo> action_results;
+    action_results.emplace_back(
+        base::TimeTicks::Now(), base::TimeTicks::Now(),
+        actor::MakeResult(actor::mojom::ActionResultCode::kArgumentsInvalid,
+                          /*requires_page_stabilization=*/false,
+                          base::ToString(requests.error())));
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
         base::BindOnce(
             &ExperimentalActorPerformActionsFunction::OnActionsFinished, this,
             task_id, start_time, skip_async_observation_information,
-            std::nullopt, actor::mojom::ActionResultCode::kArgumentsInvalid,
-            requests.error(), std::move(empty_results)));
+            std::nullopt, std::move(action_results)));
     return RespondLater();
   }
 
@@ -310,8 +318,6 @@ void ExperimentalActorPerformActionsFunction::OnActionsFinished(
     std::optional<page_content_annotations::ScreenshotOptions::
                       ScreenshotCollectionOptions>
         screenshot_collection_options,
-    actor::mojom::ActionResultCode result_code,
-    std::optional<size_t> index_of_failed_action,
     std::vector<actor::ActionResultWithLatencyInfo> action_results) {
   auto* actor_service = actor::ActorKeyedService::Get(browser_context());
   actor::ActorTask* task = actor_service->GetTask(task_id);
@@ -325,17 +331,24 @@ void ExperimentalActorPerformActionsFunction::OnActionsFinished(
 
     // Note: the arguments in this function are mostly unused other than the
     // response proto.
-    OnObservationResult(
-        start_time, actor::mojom::ActionResultCode::kTaskWentAway,
-        index_of_failed_action, action_results, task_id,
-        skip_async_observation_information,
-        std::move(screenshot_collection_options), std::move(response),
-        /*journal_entry=*/nullptr);
+    OnObservationResult(start_time, std::move(action_results), task_id,
+                        skip_async_observation_information,
+                        std::move(screenshot_collection_options),
+                        std::move(response),
+                        /*journal_entry=*/nullptr);
     return;
   }
 
-  // If the task went away it must have been handled in the !task branch above.
-  DCHECK_NE(result_code, actor::mojom::ActionResultCode::kTaskWentAway);
+  actor::mojom::ActionResultCode result_code =
+      actor::mojom::ActionResultCode::kOk;
+  std::optional<size_t> index_of_failed_action = std::nullopt;
+  for (size_t i = 0; i < action_results.size(); ++i) {
+    if (!actor::IsOk(action_results[i].result->code)) {
+      result_code = action_results[i].result->code;
+      index_of_failed_action = i;
+      break;
+    }
+  }
 
   if (result_code == actor::mojom::ActionResultCode::kTaskPaused) {
     auto response = std::make_unique<optimization_guide::proto::ActionsResult>(
@@ -344,18 +357,17 @@ void ExperimentalActorPerformActionsFunction::OnActionsFinished(
 
     // Note: the arguments in this function are mostly unused other than the
     // response proto.
-    OnObservationResult(
-        start_time, actor::mojom::ActionResultCode::kTaskWentAway,
-        index_of_failed_action, action_results, task_id,
-        skip_async_observation_information,
-        std::move(screenshot_collection_options), std::move(response),
-        /*journal_entry=*/nullptr);
+    OnObservationResult(start_time, std::move(action_results), task_id,
+                        skip_async_observation_information,
+                        std::move(screenshot_collection_options),
+                        std::move(response),
+                        /*journal_entry=*/nullptr);
     return;
   }
 
   actor::BuildActionsResultWithObservations(
-      *browser_context(), start_time, result_code, index_of_failed_action,
-      std::move(action_results), *task, skip_async_observation_information,
+      *browser_context(), start_time, std::move(action_results), *task,
+      skip_async_observation_information,
       std::move(screenshot_collection_options),
       base::BindOnce(
           &ExperimentalActorPerformActionsFunction::OnObservationResult, this));
@@ -363,8 +375,6 @@ void ExperimentalActorPerformActionsFunction::OnActionsFinished(
 
 void ExperimentalActorPerformActionsFunction::OnObservationResult(
     base::TimeTicks start_time,
-    actor::mojom::ActionResultCode result_code,
-    std::optional<size_t> index_of_failed_action,
     std::vector<actor::ActionResultWithLatencyInfo> action_results,
     actor::TaskId task_id,
     bool skip_async_observation_information,

@@ -125,7 +125,6 @@
 <translation id="2228071138934252756">To let <ph name="APP_NAME" /> access your camera, also turn on camera in <ph name="BEGIN_LINK" />Android settings<ph name="END_LINK" />.</translation>
 <translation id="2231160360698766265">Sites can play protected content</translation>
 <translation id="2235344399760031203">Third-party cookies are blocked</translation>
-<translation id="2238944249568001759">Suggested searches based on your last tab</translation>
 <translation id="2241587408274973373">New tab page cards</translation>
 <translation id="2241634353105152135">Just once</translation>
 <translation id="2253414712144136228"><ph name="NAME_OF_LIST_ITEM" /> Remove</translation>
@@ -214,7 +213,6 @@ Advanced Protection controls these Chrome settings:
 <translation id="3069226013421428034">Allow third-party sign-in for a specific site.</translation>
 <translation id="310297983047869047">Previous slide</translation>
 <translation id="3108122610701115301">Set default</translation>
-<translation id="3109724472072898302">Collapsed</translation>
 <translation id="310979712355504754">Delete all</translation>
 <translation id="311394601889664316">Don't allow sites to edit files or folders on your device</translation>
 <translation id="3114012059975132928">Video player</translation>
@@ -262,13 +260,13 @@ Advanced Protection controls these Chrome settings:
 <translation id="3602290021589620013">Preview</translation>
 <translation id="3611658447322220736">Recently closed sites can finish sending and receiving data</translation>
 <translation id="3619294456800709762">Sites can enter picture-in-picture automatically</translation>
-<translation id="3628308229821498208">Suggested searches</translation>
 <translation id="3632460243282703117">Subscribe</translation>
 <translation id="363748948745453283">Using approximate location</translation>
 <translation id="3641456520301071208">Sites can ask for your location</translation>
 <translation id="3658847490588580244">Default browser bottom sheet</translation>
 <translation id="3669841141196828854">{COUNT,plural, =1{<ph name="RWS_MEMBERS_COUNT" /> site in <ph name="RWS_OWNER" />’s group of sites that can see your activity in the group}other{<ph name="RWS_MEMBERS_COUNT" /> sites in <ph name="RWS_OWNER" />’s group of sites that can see your activity in the group}}</translation>
 <translation id="3676777756440746804">Sites are blocked from asking you to use information that they've saved about you</translation>
+<translation id="3677897809642449131">Sites can ask to use motion sensors</translation>
 <translation id="3678318839615834650">New tab page cards bottom sheet opened at full height</translation>
 <translation id="3697164069658504920">When on, sites can ask to use USB devices. When off, sites can't use USB devices.</translation>
 <translation id="3703430731944883733">Manage your feed</translation>
@@ -444,7 +442,6 @@ Advanced Protection controls these Chrome settings:
 <translation id="5515432237048785579">Discover feed bottom sheet opened at full height</translation>
 <translation id="5516455585884385570">Open notification settings</translation>
 <translation id="5527111080432883924">Ask before allowing sites to read text and images from the clipboard (recommended)</translation>
-<translation id="5553374991681107062">Latest</translation>
 <translation id="5555115555607204100">Do not speed up sites with Chrome's V8 engine but make Chrome slightly more resistant to attacks</translation>
 <translation id="5556459405103347317">Reload</translation>
 <translation id="5591840828808741583"><ph name="SITE_NAME" /> blocked</translation>
@@ -490,6 +487,7 @@ Advanced Protection controls these Chrome settings:
 <translation id="5922853908706496913">Sharing your screen</translation>
 <translation id="5922967540311291836">Block third-party cookies:</translation>
 <translation id="5923512600150154850">This will clear <ph name="DATASIZE" /> of data and cookies stored by sites.</translation>
+<translation id="5930707844513754220">See more setup list</translation>
 <translation id="5939518447894949180">Reset</translation>
 <translation id="5948139900367969951">Quickly get to what matters to you</translation>
 <translation id="5964247741333118902">Embedded content</translation>
@@ -498,6 +496,7 @@ Advanced Protection controls these Chrome settings:
 <translation id="5976059395673079613"><ph name="PERMISSION" /> – <ph name="WARNING_MESSAGE" /></translation>
 <translation id="5998071268779572583">Turn on Discover feed</translation>
 <translation id="6012967556075291653">Pinned shortcut</translation>
+<translation id="6013003831291591200">Task completed</translation>
 <translation id="6015775454662021376">Control this site's access to your device</translation>
 <translation id="6022659036123304283">Make Chrome your own</translation>
 <translation id="6040143037577758943">Close</translation>
@@ -522,7 +521,6 @@ Advanced Protection controls these Chrome settings:
 <translation id="6231752747840485235">Uninstall '<ph name="APP_NAME" />'?</translation>
 <translation id="6234351944623978659">Tap Browser app &gt; Chrome</translation>
 <translation id="6260830281887654268">New tab page appearance theme collections bottom sheet opened at half height</translation>
-<translation id="6262191102408817757">Based on your last tab</translation>
 <translation id="6262279340360821358"><ph name="PERMISSION_1" /> and <ph name="PERMISSION_2" /> blocked</translation>
 <translation id="6270391203985052864">Sites can ask to send notifications</translation>
 <translation id="6295158916970320988">All sites</translation>
@@ -602,7 +600,6 @@ Advanced Protection controls these Chrome settings:
 <translation id="7180611975245234373">Refresh</translation>
 <translation id="7188508872042490670">On-device site data</translation>
 <translation id="7201549776650881587">This action will clear all data and cookies stored by all sites under <ph name="ORIGIN" /> or by its app on your Home screen</translation>
-<translation id="7203150201908454328">Expanded</translation>
 <translation id="7213166370492037743">Don't allow sites to connect to any device on your local network</translation>
 <translation id="7219254577985949841">Delete site data?</translation>
 <translation id="723171743924126238">Select images</translation>
@@ -676,7 +673,6 @@ Advanced Protection controls these Chrome settings:
 <translation id="8007176423574883786">Turned off for this device</translation>
 <translation id="802154636333426148">Download failed</translation>
 <translation id="8033047164036749181">Subscribe for notifications from this site</translation>
-<translation id="8042586301629853791">Sort by:</translation>
 <translation id="8051193500142930381">Features that need a camera won't work</translation>
 <translation id="8056330801132235235">Chrome default</translation>
 <translation id="8067883171444229417">Play video</translation>
@@ -748,6 +744,7 @@ Advanced Protection controls these Chrome settings:
 <translation id="8707904142362025782">Site can ask for your camera</translation>
 <translation id="8712637175834984815">Got it</translation>
 <translation id="8715862698998036666">Drag from the top and swipe from the left or right edge to exit full screen.</translation>
+<translation id="8716050156658570300">Sites can ask to use motion and light sensors</translation>
 <translation id="8719283222052720129">Turn on permission for <ph name="APP_NAME" /> in <ph name="BEGIN_LINK" />Android settings<ph name="END_LINK" />.</translation>
 <translation id="8721719390026067591">When on, sites can ask to look for Bluetooth devices. When off, sites can't look for Bluetooth devices.</translation>
 <translation id="8725066075913043281">Try again</translation>

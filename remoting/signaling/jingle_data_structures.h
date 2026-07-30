@@ -15,6 +15,7 @@
 
 #include "remoting/base/authentication_method.h"
 #include "remoting/base/errors.h"
+#include "remoting/proto/ftl/v1/xmpp.pb.h"
 #include "remoting/signaling/signaling_address.h"
 #include "third_party/webrtc/api/candidate.h"
 
@@ -340,7 +341,8 @@ class JingleMessage {
 
   void SetPayload(Payload payload);
 
-  std::string ToSerializedXml();
+  std::string ToSerializedXml() const;
+  ftl::IqStanza ToFtlIqStanza() const;
 
   // Unique identifier for the message.
   std::string message_id;
@@ -406,7 +408,8 @@ struct JingleMessageReply {
   JingleMessageReply& operator=(JingleMessageReply&&);
   ~JingleMessageReply();
 
-  std::string ToSerializedXml();
+  std::string ToSerializedXml() const;
+  ftl::IqStanza ToFtlIqStanza() const;
 
   // Defines the role of this reply in the IQ request/response pattern.
   ReplyType reply_type = REPLY_RESULT;

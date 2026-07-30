@@ -19,6 +19,7 @@
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_icon_manager.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
+#include "components/webapps/browser/image_visual_diff.h"
 #include "components/webapps/common/web_app_id.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/skia/include/core/SkBitmap.h"
@@ -145,8 +146,27 @@ void AppMigrationDataReadCommand::OnIconsProcessedCreateIdentity() {
   update_.old_start_url = old_web_app->start_url();
   update_.new_start_url = new_web_app->start_url();
 
-  // TODO(japhet): Figure out how to handle the case where the icon hasn't
-  // changed.
+  if (update_.new_icon.has_value()) {
+    SkBitmap old_bitmap = update_.old_icon.AsBitmap();
+    SkBitmap new_bitmap = update_.new_icon->AsBitmap();
+    CheckImageDiffMoreThanTenPercent(
+        std::move(old_bitmap), std::move(new_bitmap),
+        base::BindOnce(
+            &AppMigrationDataReadCommand::OnImageDiffComputedUpdateIdentity,
+            weak_factory_.GetWeakPtr()));
+    return;
+  }
+
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          &AppMigrationDataReadCommand::OnImageDiffComputedUpdateIdentity,
+          weak_factory_.GetWeakPtr(), /*more_than_ten_percent_diff=*/true));
+}
+
+void AppMigrationDataReadCommand::OnImageDiffComputedUpdateIdentity(
+    bool more_than_ten_percent_diff) {
+  update_.icon_diff_is_insignificant = !more_than_ten_percent_diff;
   CompleteAndSelfDestruct(CommandResult::kSuccess, std::make_optional(update_));
 }
 

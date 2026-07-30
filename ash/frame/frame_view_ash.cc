@@ -12,8 +12,6 @@
 #include "ash/wm/tablet_mode/tablet_mode_controller.h"
 #include "ash/wm/window_state.h"
 #include "ash/wm/window_state_observer.h"
-#include "ash/wm/window_util.h"
-#include "ash/wm/wm_highlight_border_overlay_delegate.h"
 #include "base/check_op.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
@@ -21,10 +19,12 @@
 #include "chromeos/ui/base/chromeos_ui_constants.h"
 #include "chromeos/ui/base/window_properties.h"
 #include "chromeos/ui/frame/caption_buttons/frame_caption_button_container_view.h"
+#include "chromeos/ui/frame/default_highlight_border_overlay_delegate.h"
 #include "chromeos/ui/frame/frame_utils.h"
 #include "chromeos/ui/frame/frame_view_chromeos.h"
 #include "chromeos/ui/frame/header_view.h"
 #include "chromeos/ui/frame/immersive/immersive_fullscreen_controller.h"
+#include "chromeos/ui/wm/window_util.h"
 #include "ui/aura/client/aura_constants.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_observer.h"
@@ -153,7 +153,8 @@ class FrameViewAshImmersiveHelper : public WindowStateObserver,
 FrameViewAsh::FrameViewAsh(views::Widget* widget)
     : chromeos::FrameViewChromeOS(widget),
       frame_context_menu_controller_(
-          std::make_unique<FrameContextMenuController>(widget, this)) {
+          std::make_unique<chromeos::FrameContextMenuController>(widget,
+                                                                 this)) {
   header_view_->set_immersive_mode_changed_callback(base::BindRepeating(
       &FrameViewAsh::InvalidateLayout, weak_factory_.GetWeakPtr(),
       // This will always be on a fresh call stack, never mid-layout so the
@@ -161,7 +162,7 @@ FrameViewAsh::FrameViewAsh(views::Widget* widget)
       /*avoid_propagate_during_layout=*/false));
 
   aura::Window* frame_window = widget->GetNativeWindow();
-  window_util::InstallResizeHandleWindowTargeterForWindow(frame_window);
+  chromeos::wm::InstallResizeHandleWindowTargeterForWindow(frame_window);
 
   // A delegate may be set which takes over the responsibilities of the
   // FrameViewAshImmersiveHelper. This is the case for container apps
@@ -396,7 +397,8 @@ void FrameViewAsh::AddedToWidget() {
   }
 
   highlight_border_overlay_ = std::make_unique<HighlightBorderOverlay>(
-      GetWidget(), std::make_unique<ash::WmHighlightBorderOverlayDelegate>());
+      GetWidget(),
+      std::make_unique<chromeos::DefaultHighlightBorderOverlayDelegate>());
 }
 
 chromeos::FrameCaptionButtonContainerView*

@@ -8,7 +8,8 @@
 
 #include <algorithm>
 
-#include "ash/public/ash_interfaces.h"
+#include "ash/display/cros_display_config.h"
+#include "base/check_deref.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/strings/string_number_conversions.h"
@@ -39,10 +40,9 @@ bool IsAllowListedVendorId(uint16_t vendor_id) {
 
 }  // namespace
 
-OobeDisplayChooser::OobeDisplayChooser() {
-  BindCrosDisplayConfigController(
-      cros_display_config_.BindNewPipeAndPassReceiver());
-}
+OobeDisplayChooser::OobeDisplayChooser(
+    ash::CrosDisplayConfig* cros_display_config)
+    : cros_display_config_(CHECK_DEREF(cros_display_config)) {}
 
 OobeDisplayChooser::~OobeDisplayChooser() = default;
 
@@ -94,7 +94,7 @@ void OobeDisplayChooser::MoveToTouchDisplay() {
       cros_display_config_->SetDisplayProperties(
           base::NumberToString(device.target_display_id),
           std::move(config_properties),
-          crosapi::mojom::DisplayConfigSource::kUser, base::DoNothing());
+          crosapi::mojom::DisplayConfigSource::kUser);
       break;
     }
   }

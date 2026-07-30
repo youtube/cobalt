@@ -13,9 +13,9 @@ import androidx.core.util.Supplier;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
+import org.chromium.build.annotations.EnsuresNonNullIf;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.tab.ScopedStorageBatch;
 import org.chromium.chrome.browser.tab.StorageLoadedData;
 import org.chromium.chrome.browser.tab.StorageLoadedData.LoadedTabState;
@@ -23,6 +23,7 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabId;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabState;
+import org.chromium.chrome.browser.tab.TabStateStorageFlagHelper;
 import org.chromium.chrome.browser.tab.WebContentsState;
 import org.chromium.chrome.browser.tabmodel.TabCreator;
 import org.chromium.chrome.browser.tabmodel.TabGroupVisualDataStore;
@@ -30,6 +31,7 @@ import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
 import org.chromium.content_public.browser.LoadUrlParams;
+import org.chromium.url.GURL;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -132,7 +134,7 @@ class TabRestorer {
     private @State int mState = State.EMPTY;
     private @Nullable StorageLoadedData mData;
     private boolean mRestoreActiveTabImmediately;
-    private boolean mActiveTabRestoredFromCache;
+    private @Nullable @TabId Integer mCachedRestoredActiveTabId;
     private int mRestoreFilteredTabCount;
 
     /**
@@ -186,7 +188,7 @@ class TabRestorer {
         Tab tab = resolveTab(tabState, loadedTabState.tabId, tabCount, /* isActiveTab= */ true);
 
         if (tab == null) destroyLoadedTabState(loadedTabState);
-        mActiveTabRestoredFromCache = true;
+        mCachedRestoredActiveTabId = loadedTabState.tabId;
     }
 
     /**
@@ -253,7 +255,7 @@ class TabRestorer {
 
         // Synchronously restore the active tab if requested as there is no other tab already open
         // and doing this in a posted task would block user interaction with the app until finished.
-        if (restoreActiveTabImmediately && !mActiveTabRestoredFromCache) {
+        if (restoreActiveTabImmediately && !wasActiveTabRestoredFromCache()) {
             restoreActiveTabFromData();
         } else {
             // Post this task as there is an assumption that another tab is already open and this
@@ -340,7 +342,7 @@ class TabRestorer {
     /** Cleans up the {@link StorageLoadedData}. */
     private void cleanupStorageLoadedData() {
         assumeNonNull(mData);
-        if (ChromeFeatureList.sTabStorageSqlitePrototypeAuthoritativeReadSource.getValue()) {
+        if (TabStateStorageFlagHelper.isStorageAuthoritative()) {
             TabGroupVisualDataStore.removeCachedGroups(mData.getGroupsData());
         }
         mData.destroy();
@@ -410,11 +412,12 @@ class TabRestorer {
         assert mState == State.RESTORING;
         @TabId int tabId = loadedTabState.tabId;
 
-        assert mData != null;
-        boolean isActiveTab = mData.getActiveTabIndex() == index;
-        assert !isActiveTab || !mActiveTabRestoredFromCache;
+        if (mTabIdsToIgnore.contains(loadedTabState.tabId)) return;
 
-        Tab tab = resolveTab(loadedTabState.tabState, tabId, index, isActiveTab);
+        assert mData != null;
+        assert mCachedRestoredActiveTabId == null || tabId != mCachedRestoredActiveTabId;
+
+        Tab tab = resolveTab(loadedTabState.tabState, tabId, index, isActive);
         if (tab == null) {
             destroyLoadedTabState(loadedTabState);
             return;
@@ -471,16 +474,17 @@ class TabRestorer {
             return null;
         }
 
-        @Nullable Tab tab = null;
-        if (isActiveTab && tabState.contentsState == null && tabState.url != null) {
+        Tab tab = null;
+        GURL url = tabState.url;
+        if (isActiveTab && tabState.contentsState == null && url != null) {
             // Use fallback url if no contents state is available.
             tab =
                     mTabCreator.createNewTab(
-                            new LoadUrlParams(tabState.url),
-                            TabLaunchType.FROM_RESTORE,
-                            null,
-                            index);
-        } else {
+                            new LoadUrlParams(url), TabLaunchType.FROM_RESTORE, null, index);
+        } else if (tabState.contentsState != null) {
+            if (url != null) {
+                tabState.contentsState.setFallbackUrlForRestorationFailure(url.getSpec());
+            }
             tab = mTabCreator.createFrozenTab(tabState, tabId, index);
         }
 
@@ -495,7 +499,7 @@ class TabRestorer {
     private void maybeDestroyActiveTabState() {
         assert mData != null;
 
-        if (!mActiveTabRestoredFromCache) return;
+        if (!wasActiveTabRestoredFromCache()) return;
 
         LoadedTabState[] loadedTabStates = mData.getLoadedTabStates();
         if (loadedTabStates.length == 0) return;
@@ -503,12 +507,20 @@ class TabRestorer {
         int activeTabIndex = mData.getActiveTabIndex();
         if (activeTabIndex < 0 || activeTabIndex >= loadedTabStates.length) return;
 
-        LoadedTabState activeTabState = loadedTabStates[activeTabIndex];
-        destroyLoadedTabState(activeTabState);
+        for (LoadedTabState loadedTabState : loadedTabStates) {
+            if (loadedTabState.tabId != mCachedRestoredActiveTabId) continue;
+            destroyLoadedTabState(loadedTabState);
+            break;
+        }
     }
 
     private void destroyLoadedTabState(LoadedTabState loadedTabState) {
         WebContentsState state = loadedTabState.tabState.contentsState;
         if (state != null) state.destroy();
+    }
+
+    @EnsuresNonNullIf({"mCachedRestoredActiveTabId"})
+    private boolean wasActiveTabRestoredFromCache() {
+        return mCachedRestoredActiveTabId != null;
     }
 }

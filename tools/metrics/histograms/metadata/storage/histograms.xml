@@ -27,14 +27,23 @@ chromium-metrics-reviews@google.com.
   <variant name="OnDisk" summary="on-disk database"/>
 </variants>
 
+<variants name="DomStorageRecoveryReason">
+  <variant name="CommitErrorThresholdExceeded"/>
+  <variant name="MetadataReadFailure"/>
+  <variant name="OpenFailure"/>
+</variants>
+
 <variants name="DomStorageType">
   <variant name="LocalStorage" summary="local storage"/>
   <variant name="SessionStorage" summary="session storage"/>
 </variants>
 
 <variants name="IndexedDBBackingStoreType">
-  <variant name="InMemory"/>
-  <variant name="OnDisk"/>
+  <variant name="Experimental"
+      summary="experimental (belongs to the treatment or control group of an
+               experiment targeting on-disk backing stores)"/>
+  <variant name="InMemory" summary="in-memory"/>
+  <variant name="OnDisk" summary="on-disk"/>
 </variants>
 
 <variants name="IndexedDBTransactionCount">
@@ -301,6 +310,7 @@ chromium-metrics-reviews@google.com.
     <variant name="BeginTransaction"/>
     <variant name="ChangeDatabaseVersion"/>
     <variant name="ClearObjectStore"/>
+    <variant name="CloseBackingStore"/>
     <variant name="CommitTransaction"/>
     <variant name="ContinueCursor"/>
     <variant name="CountRecords"/>
@@ -460,6 +470,35 @@ chromium-metrics-reviews@google.com.
   <token key="Mode" variants="IndexedDBTransactionMode"/>
 </histogram>
 
+<histogram
+    name="IndexedDB.DatabaseConnectionOpenResult.{IndexedDBBackingStoreType}"
+    enum="DatabaseConnectionOpenResult" expires_after="2027-03-01">
+  <owner>leimy@chromium.org</owner>
+  <owner>evanstade@microsoft.com</owner>
+  <owner>abhishek.shanthkumar@microsoft.com</owner>
+  <owner>chrome-owp-storage@google.com</owner>
+  <summary>
+    The outcome of an IDBFactory::Open request from the browser process's
+    perspective for an {IndexedDBBackingStoreType} backing store. Logged once on
+    receipt of the request and once at the terminal outcome, which is the point
+    after which subsequent results of the request depend on the client's
+    response or on external factors such as the bucket being force-closed.
+  </summary>
+</histogram>
+
+<histogram name="IndexedDB.DeleteBucketDataSuccess.{IndexedDBBackingStoreType}"
+    enum="BooleanSuccess" expires_after="2026-10-01">
+  <owner>leimy@chromium.org</owner>
+  <owner>evanstade@microsoft.com</owner>
+  <owner>abhishek.shanthkumar@microsoft.com</owner>
+  <owner>chrome-owp-storage@google.com</owner>
+  <summary>
+    Whether deleting the on-disk data of a bucket with an
+    {IndexedDBBackingStoreType} backing store succeeded. Logged after the
+    attempt to delete on-disk files by a doomed bucket context instance.
+  </summary>
+</histogram>
+
 <histogram name="IndexedDB.FilePathLengthOverflow.{Engine}" units="characters"
     expires_after="2026-08-09">
   <owner>leimy@chromium.org</owner>
@@ -531,7 +570,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IndexedDB.LargeValueReadResult" enum="FileErrorCode"
-    expires_after="2026-05-24">
+    expires_after="2026-09-06">
   <owner>leimy@chromium.org</owner>
   <owner>evanstade@microsoft.com</owner>
   <owner>chrome-owp-storage@google.com</owner>
@@ -978,7 +1017,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IndexedDB.WrappedBlobLoadTime" units="ms"
-    expires_after="2026-07-12">
+    expires_after="2026-09-13">
   <owner>estade@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
@@ -1321,7 +1360,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Storage.ClearSiteDataHeader.Parameters"
-    enum="ClearSiteDataParameters" expires_after="2026-07-12">
+    enum="ClearSiteDataParameters" expires_after="2026-09-13">
   <owner>estade@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
@@ -2515,7 +2554,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Storage.SharedStorage.Run.DataDeserialization.Time" units="ms"
-    expires_after="2026-07-12">
+    expires_after="2026-09-13">
   <owner>cammie@chromium.org</owner>
   <owner>yaoxia@chromium.org</owner>
   <owner>chrome-ads-histograms@google.com</owner>
@@ -2908,6 +2947,37 @@ chromium-metrics-reviews@google.com.
     How did the user interact with the StoragePressure Bubble? Ignored means the
     user did not click on the positive button before the bubble is closed
     (either manually closed or when the browser closes).
+  </summary>
+</histogram>
+
+<histogram name="Storage.{DomStorageType}.Recovery.{DomStorageRecoveryReason}"
+    enum="DomStorageDatabaseRecoveryOutcome" expires_after="2027-02-24">
+  <owner>fergal@chromium.org</owner>
+  <owner>leimy@chromium.org</owner>
+  <owner>rahsin@microsoft.com</owner>
+  <owner>chrome-owp-storage@google.com</owner>
+  <summary>
+    Records the outcome of a database recovery attempt for {DomStorageType}.
+    Emitted once per recovery cycle when reaching a terminal state (successful
+    reconnection or gave up). Also emitted each time the commit-error threshold
+    is exceeded after a prior recovery attempt, to track ongoing instability.
+    The {DomStorageRecoveryReason} suffix indicates what initiated the recovery.
+  </summary>
+</histogram>
+
+<histogram
+    name="Storage.{DomStorageType}.Recovery.{DomStorageRecoveryReason}.InMemory"
+    enum="BooleanSuccess" expires_after="2027-02-24">
+  <owner>fergal@chromium.org</owner>
+  <owner>leimy@chromium.org</owner>
+  <owner>rahsin@microsoft.com</owner>
+  <owner>chrome-owp-storage@google.com</owner>
+  <summary>
+    Records whether the database recovery attempt for {DomStorageType} succeeded
+    when the database was originally in-memory. True means recovery succeeded
+    (re-opened successfully), false means we gave up after attempting and
+    failing to reopen. {DomStorageRecoveryReason} indicates what initiated the
+    recovery.
   </summary>
 </histogram>
 

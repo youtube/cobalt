@@ -721,7 +721,10 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
       appContentView);
 
   if (animationEnabled) {
-    if (UIAccessibilityIsReduceMotionEnabled()) {
+    // Use reduced animation on TabGroup panel to avoid weird animation where
+    // the tab comes from the side.
+    BOOL isOnTabGroup = _viewController.currentPage == TabGridPageTabGroups;
+    if (isOnTabGroup || UIAccessibilityIsReduceMotionEnabled()) {
       self.transitionHandler = [[TabGridTransitionHandler alloc]
           initWithReducedMotionCommonParams:std::move(params)];
     } else {
@@ -1573,7 +1576,6 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
 
 - (void)closeTabsExceptIdentifier:(web::WebStateID)identifier
                         incognito:(BOOL)incognito {
-  CHECK(IsCloseOtherTabsEnabled());
   if (incognito) {
     [self.incognitoTabsMediator closeTabsExceptID:identifier];
     return;
@@ -1768,6 +1770,12 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
 }
 
 - (void)exitTabGrid {
+  // Prevent exiting if a transition is currently in progress.
+  // `self.transitionHandler` is set to nil at the end of a transition.
+  if (self.transitionHandler) {
+    return;
+  }
+
   [_viewController updateActivePageToCurrent];
   TabGridPage targetPage = _viewController.activePage;
 

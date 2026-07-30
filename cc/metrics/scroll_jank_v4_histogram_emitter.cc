@@ -5,18 +5,14 @@
 #include "cc/metrics/scroll_jank_v4_histogram_emitter.h"
 
 #include <algorithm>
-#include <string>
 #include <variant>
 
 #include "base/check_op.h"
-#include "base/feature_list.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
 #include "base/trace_event/trace_event.h"
-#include "cc/base/features.h"
 #include "cc/metrics/histogram_macros.h"
 #include "cc/metrics/scroll_jank_v4_result.h"
-#include "third_party/abseil-cpp/absl/functional/overload.h"
 
 namespace cc {
 
@@ -89,8 +85,7 @@ bool ScrollJankV4HistogramEmitter::SingleFrameData::HasJankReasons() const {
   return !jank_reasons.empty();
 }
 
-ScrollJankV4HistogramEmitter::ScrollJankV4HistogramEmitter()
-    : inner_emitter_(CreateInnerEmitter()) {}
+ScrollJankV4HistogramEmitter::ScrollJankV4HistogramEmitter() = default;
 
 ScrollJankV4HistogramEmitter::~ScrollJankV4HistogramEmitter() {
   // In case ScrollJankV4HistogramEmitter wasn't informed about the end of the
@@ -102,11 +97,22 @@ void ScrollJankV4HistogramEmitter::OnFrameWithScrollUpdates(
     const JankReasonArray<int>& missed_vsyncs_per_reason,
     bool is_damaging) {
   SingleFrameData frame_data = SingleFrameData::From(missed_vsyncs_per_reason);
-  std::visit(
-      [&](auto& inner_emitter) {
-        inner_emitter.AddFrame(frame_data, is_damaging);
-      },
-      inner_emitter_);
+
+  if (std::holds_alternative<NoDamagingFrameEncounteredYet>(state_)) {
+    if (!is_damaging) {
+      StashPendingFrame(frame_data);
+      return;
+    }
+    FlushPendingFrames();
+  }
+
+  DCHECK(std::holds_alternative<DamagingFrameAlreadyEncountered>(state_));
+
+  DCHECK_LT(fixed_window_.presented_frames, kHistogramEmitFrequency);
+  fixed_window_.AddFrame(frame_data);
+  per_scroll_.AddFrame(frame_data);
+  MaybeEmitPerWindowHistogramsAndResetCounters();
+  DCHECK_LT(fixed_window_.presented_frames, kHistogramEmitFrequency);
 }
 
 void ScrollJankV4HistogramEmitter::OnScrollStarted() {
@@ -184,21 +190,7 @@ void ScrollJankV4HistogramEmitter::JankDataPerScroll::MergeWith(
   delayed_frames += other.delayed_frames;
 }
 
-void ScrollJankV4HistogramEmitter::EmitForAllScrolls::AddFrame(
-    const SingleFrameData& frame_data,
-    bool is_damaging) {
-  DCHECK_LT(fixed_window_.presented_frames, kHistogramEmitFrequency);
-  fixed_window_.AddFrame(frame_data);
-  per_scroll_.AddFrame(frame_data);
-  MaybeEmitPerWindowHistogramsAndResetCounters();
-  DCHECK_LT(fixed_window_.presented_frames, kHistogramEmitFrequency);
-}
-
-void ScrollJankV4HistogramEmitter::EmitForAllScrolls::FinishScroll() {
-  MaybeEmitPerScrollHistogramsAndResetCounters();
-}
-
-void ScrollJankV4HistogramEmitter::EmitForAllScrolls::
+void ScrollJankV4HistogramEmitter::
     MaybeEmitPerWindowHistogramsAndResetCounters() {
   DCHECK_LE(fixed_window_.presented_frames, kHistogramEmitFrequency);
   DCHECK_LE(fixed_window_.delayed_frames, fixed_window_.presented_frames);
@@ -237,7 +229,7 @@ void ScrollJankV4HistogramEmitter::EmitForAllScrolls::
   fixed_window_ = JankDataFixedWindow();
 }
 
-void ScrollJankV4HistogramEmitter::EmitForAllScrolls::
+void ScrollJankV4HistogramEmitter::
     MaybeEmitPerScrollHistogramsAndResetCounters() {
   DCHECK_GE(per_scroll_.presented_frames, per_scroll_.delayed_frames);
 
@@ -252,32 +244,9 @@ void ScrollJankV4HistogramEmitter::EmitForAllScrolls::
   per_scroll_ = JankDataPerScroll();
 }
 
-ScrollJankV4HistogramEmitter::EmitForDamagingScrolls::EmitForDamagingScrolls() =
-    default;
+void ScrollJankV4HistogramEmitter::FinishScroll() {
+  MaybeEmitPerScrollHistogramsAndResetCounters();
 
-ScrollJankV4HistogramEmitter::EmitForDamagingScrolls::EmitForDamagingScrolls(
-    const EmitForDamagingScrolls&) = default;
-
-ScrollJankV4HistogramEmitter::EmitForDamagingScrolls::
-    ~EmitForDamagingScrolls() = default;
-
-void ScrollJankV4HistogramEmitter::EmitForDamagingScrolls::AddFrame(
-    const SingleFrameData& frame_data,
-    bool is_damaging) {
-  if (std::holds_alternative<NoDamagingFrameEncounteredYet>(state_)) {
-    if (!is_damaging) {
-      StashPendingFrame(frame_data);
-      return;
-    }
-    FlushPendingFrames();
-  }
-
-  DCHECK(std::holds_alternative<DamagingFrameAlreadyEncountered>(state_));
-  wrapped_emitter_.AddFrame(frame_data, is_damaging);
-}
-
-void ScrollJankV4HistogramEmitter::EmitForDamagingScrolls::FinishScroll() {
-  wrapped_emitter_.FinishScroll();
   if (const auto* state = std::get_if<NoDamagingFrameEncounteredYet>(&state_);
       state != nullptr && state->pending_per_scroll.delayed_frames > 0) {
     TRACE_EVENT("input",
@@ -287,17 +256,17 @@ void ScrollJankV4HistogramEmitter::EmitForDamagingScrolls::FinishScroll() {
   state_ = NoDamagingFrameEncounteredYet();
 }
 
-ScrollJankV4HistogramEmitter::EmitForDamagingScrolls::
-    NoDamagingFrameEncounteredYet::NoDamagingFrameEncounteredYet() = default;
+ScrollJankV4HistogramEmitter::NoDamagingFrameEncounteredYet::
+    NoDamagingFrameEncounteredYet() = default;
 
-ScrollJankV4HistogramEmitter::EmitForDamagingScrolls::
-    NoDamagingFrameEncounteredYet::NoDamagingFrameEncounteredYet(
-        const NoDamagingFrameEncounteredYet&) = default;
+ScrollJankV4HistogramEmitter::NoDamagingFrameEncounteredYet::
+    NoDamagingFrameEncounteredYet(const NoDamagingFrameEncounteredYet&) =
+        default;
 
-ScrollJankV4HistogramEmitter::EmitForDamagingScrolls::
-    NoDamagingFrameEncounteredYet::~NoDamagingFrameEncounteredYet() = default;
+ScrollJankV4HistogramEmitter::NoDamagingFrameEncounteredYet::
+    ~NoDamagingFrameEncounteredYet() = default;
 
-void ScrollJankV4HistogramEmitter::EmitForDamagingScrolls::StashPendingFrame(
+void ScrollJankV4HistogramEmitter::StashPendingFrame(
     const SingleFrameData& frame_data) {
   DCHECK(std::holds_alternative<NoDamagingFrameEncounteredYet>(state_));
   auto& state = std::get<NoDamagingFrameEncounteredYet>(state_);
@@ -310,10 +279,10 @@ void ScrollJankV4HistogramEmitter::EmitForDamagingScrolls::StashPendingFrame(
         return true;
       case 1:
         // The first item in `state.pending_fixed_windows` will likely be merged
-        // into `wrapped_emitter_.fixed_window_`, so we need to combine their
+        // into `fixed_window_`, so we need to combine their
         // sizes.
         return state.pending_fixed_windows.front().presented_frames +
-                   wrapped_emitter_.fixed_window_.presented_frames ==
+                   fixed_window_.presented_frames ==
                kHistogramEmitFrequency;
       default:
         return state.pending_fixed_windows.back().presented_frames ==
@@ -339,48 +308,19 @@ void ScrollJankV4HistogramEmitter::EmitForDamagingScrolls::StashPendingFrame(
   state.pending_per_scroll.AddFrame(frame_data);
 }
 
-void ScrollJankV4HistogramEmitter::EmitForDamagingScrolls::
-    FlushPendingFrames() {
+void ScrollJankV4HistogramEmitter::FlushPendingFrames() {
   DCHECK(std::holds_alternative<NoDamagingFrameEncounteredYet>(state_));
 
   {
     const auto& state = std::get<NoDamagingFrameEncounteredYet>(state_);
     for (const auto& pending_fixed_window : state.pending_fixed_windows) {
-      wrapped_emitter_.fixed_window_.MergeWith(pending_fixed_window);
-      wrapped_emitter_.MaybeEmitPerWindowHistogramsAndResetCounters();
+      fixed_window_.MergeWith(pending_fixed_window);
+      MaybeEmitPerWindowHistogramsAndResetCounters();
     }
-    wrapped_emitter_.per_scroll_.MergeWith(state.pending_per_scroll);
+    per_scroll_.MergeWith(state.pending_per_scroll);
   }
 
   state_ = DamagingFrameAlreadyEncountered();
-}
-
-// static
-ScrollJankV4HistogramEmitter::InnerEmitter
-ScrollJankV4HistogramEmitter::CreateInnerEmitter() {
-  // If the scroll jank v4 metric doesn't handle non-damaging scroll updates at
-  // all, then all frames are considered damaging, so emit for all frames.
-  if (!base::FeatureList::IsEnabled(
-          features::kHandleNonDamagingInputsInScrollJankV4Metric)) {
-    return EmitForAllScrolls();
-  }
-
-  const std::string histogram_emission_policy =
-      features::kHistogramEmissionPolicy.Get();
-  if (histogram_emission_policy == features::kEmitForAllScrolls) {
-    return EmitForAllScrolls();
-  } else if (histogram_emission_policy == features::kEmitForDamagingScrolls) {
-    return EmitForDamagingScrolls();
-  }
-
-  // If `features::kHistogramEmissionPolicy` is invalid, default to emitting for
-  // damaging scrolls.
-  return EmitForDamagingScrolls();
-}
-
-void ScrollJankV4HistogramEmitter::FinishScroll() {
-  std::visit([](auto& inner_emitter) { inner_emitter.FinishScroll(); },
-             inner_emitter_);
 }
 
 }  // namespace cc

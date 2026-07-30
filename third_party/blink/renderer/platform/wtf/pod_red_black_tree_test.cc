@@ -28,29 +28,13 @@
 #include "third_party/blink/renderer/platform/wtf/pod_red_black_tree.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/blink/renderer/platform/wtf/pod_arena_test_helpers.h"
 #include "third_party/blink/renderer/platform/wtf/pod_tree_test_helpers.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {
 
-using arena_test_helpers::TrackedAllocator;
 using tree_test_helpers::InitRandom;
 using tree_test_helpers::NextRandom;
-
-TEST(PodRedBlackTreeTest, TestTreeAllocatesFromArena) {
-  scoped_refptr<TrackedAllocator> allocator = TrackedAllocator::Create();
-  {
-    using PodIntegerArena = PodFreeListArena<PodRedBlackTree<int>::Node>;
-    scoped_refptr<PodIntegerArena> arena = PodIntegerArena::Create(allocator);
-    PodRedBlackTree<int> tree(arena);
-    int num_additions = 2 * PodArena::kDefaultChunkSize / sizeof(int);
-    for (int i = 0; i < num_additions; ++i)
-      tree.Add(i);
-    EXPECT_GT(allocator->NumRegions(), 1);
-  }
-  EXPECT_EQ(allocator->NumRegions(), 0);
-}
 
 TEST(PodRedBlackTreeTest, TestSingleElementInsertion) {
   PodRedBlackTree<int> tree;
@@ -82,7 +66,6 @@ TEST(PodRedBlackTreeTest, TestDuplicateElementInsertion) {
   ASSERT_TRUE(tree.CheckInvariants());
   tree.Add(3);
   ASSERT_TRUE(tree.CheckInvariants());
-  EXPECT_EQ(3, tree.size());
   EXPECT_TRUE(tree.Contains(3));
 }
 
@@ -119,7 +102,6 @@ TEST(PodRedBlackTreeTest, TestMultipleElementInsertionAndDeletion) {
   EXPECT_TRUE(tree.Contains(3));
   EXPECT_FALSE(tree.Contains(4));
   EXPECT_FALSE(tree.Contains(5));
-  EXPECT_EQ(1, tree.size());
 }
 
 TEST(PodRedBlackTreeTest, TestDuplicateElementInsertionAndDeletion) {
@@ -130,17 +112,14 @@ TEST(PodRedBlackTreeTest, TestDuplicateElementInsertionAndDeletion) {
   ASSERT_TRUE(tree.CheckInvariants());
   tree.Add(3);
   ASSERT_TRUE(tree.CheckInvariants());
-  EXPECT_EQ(3, tree.size());
   EXPECT_TRUE(tree.Contains(3));
   tree.Remove(3);
   ASSERT_TRUE(tree.CheckInvariants());
   tree.Remove(3);
   ASSERT_TRUE(tree.CheckInvariants());
-  EXPECT_EQ(1, tree.size());
   EXPECT_TRUE(tree.Contains(3));
   tree.Remove(3);
   ASSERT_TRUE(tree.CheckInvariants());
-  EXPECT_EQ(0, tree.size());
   EXPECT_FALSE(tree.Contains(3));
 }
 

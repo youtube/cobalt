@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/views/contextual_tasks/contextual_tasks_close_tab_button.h"
 
 #include "base/functional/bind.h"
+#include "base/metrics/user_metrics.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/views/contextual_tasks/contextual_tasks_close_button_controller.h"
 #include "chrome/grit/generated_resources.h"
@@ -15,6 +16,10 @@
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/view_class_properties.h"
+
+namespace {
+constexpr int kCloseButtonCornerRadius = 6;
+}
 
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(ContextualTasksCloseTabButton,
                                       kContextualTasksCloseTabButton);
@@ -33,6 +38,7 @@ ContextualTasksCloseTabButton::ContextualTasksCloseTabButton(
   GetViewAccessibility().SetName(button_tooltip);
   SetTooltipText(button_tooltip);
   SetVectorIcon(vector_icons::kCloseIcon);
+  SetDefaultBackgroundColorId(kColorToolbarCloseButtonBackgroundDefault);
 
   ContextualTasksCloseButtonController* const controller =
       ContextualTasksCloseButtonController::From(browser_window_interface_);
@@ -46,11 +52,18 @@ ContextualTasksCloseTabButton::ContextualTasksCloseTabButton(
 
 ContextualTasksCloseTabButton::~ContextualTasksCloseTabButton() = default;
 
+int ContextualTasksCloseTabButton::GetRoundedCornerRadius() const {
+  return kCloseButtonCornerRadius;
+}
+
 void ContextualTasksCloseTabButton::OnButtonPress() {
   ContextualTasksCloseButtonController* const controller =
       ContextualTasksCloseButtonController::From(browser_window_interface_);
   CHECK(controller);
   controller->MaybeCloseTabExpandSidePanel();
+  base::RecordAction(
+      base::UserMetricsAction("ContextualTasks.ToolbarCloseTabButton."
+                              "UserAction.CloseTabAndExpandSidePanel"));
 }
 
 void ContextualTasksCloseTabButton::OnShouldUpdateVisibility(bool should_show) {

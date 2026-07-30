@@ -121,15 +121,15 @@ class ActorKeyedServiceBrowserTest : public PlatformBrowserTest {
 };
 
 IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest, StartStopTask) {
-  TaskId first_task_id =
-      actor_keyed_service()->CreateTask(NoEnterprisePolicyChecker());
+  TaskId first_task_id = actor_keyed_service()->CreateTask(
+      TestTaskSourceInfo(), NoEnterprisePolicyChecker());
   EXPECT_FALSE(first_task_id.is_null());
 
   actor_keyed_service()->StopTask(first_task_id,
                                   ActorTask::StoppedReason::kTaskComplete);
 
-  TaskId second_task_id =
-      actor_keyed_service()->CreateTask(NoEnterprisePolicyChecker());
+  TaskId second_task_id = actor_keyed_service()->CreateTask(
+      TestTaskSourceInfo(), NoEnterprisePolicyChecker());
   EXPECT_FALSE(first_task_id.is_null());
   EXPECT_NE(first_task_id, second_task_id);
 }
@@ -142,8 +142,8 @@ IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest, StartStopTask) {
 #endif
 IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest,
                        MAYBE_StartNavigateStopTask) {
-  TaskId first_task_id =
-      actor_keyed_service()->CreateTask(NoEnterprisePolicyChecker());
+  TaskId first_task_id = actor_keyed_service()->CreateTask(
+      TestTaskSourceInfo(), NoEnterprisePolicyChecker());
   EXPECT_FALSE(first_task_id.is_null());
 
   PerformActionsFuture result_future;
@@ -154,15 +154,14 @@ IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest,
       first_task_id, ToRequestList(action_request), ActorTaskMetadata(),
       result_future.GetCallback());
   ExpectOkResult(result_future);
-  EXPECT_FALSE(result_future.Get<1>().has_value());
-  EXPECT_EQ(result_future.Get<2>().size(), 1u);
+  EXPECT_EQ(result_future.Get().size(), 1u);
   EXPECT_EQ(web_contents()->GetURL(), url);
 
   actor_keyed_service()->StopTask(first_task_id,
                                   ActorTask::StoppedReason::kTaskComplete);
 
-  TaskId second_task_id =
-      actor_keyed_service()->CreateTask(NoEnterprisePolicyChecker());
+  TaskId second_task_id = actor_keyed_service()->CreateTask(
+      TestTaskSourceInfo(), NoEnterprisePolicyChecker());
   EXPECT_FALSE(first_task_id.is_null());
   EXPECT_NE(first_task_id, second_task_id);
 }
@@ -177,8 +176,8 @@ IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest,
       "</head><body>Hello</body></html>");
   ASSERT_TRUE(chrome_test_utils::NavigateToURL(web_contents(), url));
 
-  TaskId task_id =
-      actor_keyed_service()->CreateTask(NoEnterprisePolicyChecker());
+  TaskId task_id = actor_keyed_service()->CreateTask(
+      TestTaskSourceInfo(), NoEnterprisePolicyChecker());
 
   TestFuture<ActorKeyedService::TabObservationResult> future;
   actor_keyed_service()->RequestTabObservation(
@@ -209,8 +208,8 @@ IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest,
                        RequestTabObservationSkipCrashedMainFrame) {
-  TaskId task_id =
-      actor_keyed_service()->CreateTask(NoEnterprisePolicyChecker());
+  TaskId task_id = actor_keyed_service()->CreateTask(
+      TestTaskSourceInfo(), NoEnterprisePolicyChecker());
 
   // Crash the main frame.
   {
@@ -234,8 +233,8 @@ IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest,
                        CreateActorTabInBackground) {
-  TaskId task_id =
-      actor_keyed_service()->CreateTask(NoEnterprisePolicyChecker());
+  TaskId task_id = actor_keyed_service()->CreateTask(
+      TestTaskSourceInfo(), NoEnterprisePolicyChecker());
   ASSERT_TRUE(chrome_test_utils::NavigateToURL(
       web_contents(),
       embedded_https_test_server().GetURL("/actor/blank.html")));
@@ -272,8 +271,8 @@ IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest,
                        RequestTabObservationSkipAsyncObservationInformation) {
-  TaskId task_id =
-      actor_keyed_service()->CreateTask(NoEnterprisePolicyChecker());
+  TaskId task_id = actor_keyed_service()->CreateTask(
+      TestTaskSourceInfo(), NoEnterprisePolicyChecker());
   // Navigate the active tab to a new page.
   ASSERT_TRUE(chrome_test_utils::NavigateToURL(
       web_contents(),
@@ -282,8 +281,7 @@ IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest,
   actor::ActorTask* task = actor_keyed_service()->GetTask(task_id);
   AddTabToTask(active_tab()->GetHandle(), task);
 
-  TestFuture<base::TimeTicks /*start_time*/, mojom::ActionResultCode,
-             std::optional<size_t> /*index_of_failed_actions*/,
+  TestFuture<base::TimeTicks /*start_time*/,
              std::vector<actor::ActionResultWithLatencyInfo>, actor::TaskId,
              bool /*skip_async_observation_information*/,
              std::optional<page_content_annotations::ScreenshotOptions::
@@ -292,11 +290,11 @@ IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest,
              std::unique_ptr<actor::AggregatedJournal::PendingAsyncEntry>>
       future;
   actor::BuildActionsResultWithObservations(
-      *GetProfile(), base::TimeTicks::Now(), mojom::ActionResultCode::kOk,
-      std::nullopt, std::vector<actor::ActionResultWithLatencyInfo>(), *task,
-      true, std::nullopt, future.GetCallback());
+      *GetProfile(), base::TimeTicks::Now(),
+      std::vector<actor::ActionResultWithLatencyInfo>(), *task, true,
+      std::nullopt, future.GetCallback());
   const std::unique_ptr<optimization_guide::proto::ActionsResult>&
-      actions_result = future.Get<7>();
+      actions_result = future.Get<5>();
   ASSERT_TRUE(actions_result);
   EXPECT_EQ(actions_result->action_result(),
             static_cast<int32_t>(mojom::ActionResultCode::kOk));
@@ -306,8 +304,8 @@ IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(ActorKeyedServiceBrowserTest, StopPausedTask) {
-  TaskId task_id =
-      actor_keyed_service()->CreateTask(NoEnterprisePolicyChecker());
+  TaskId task_id = actor_keyed_service()->CreateTask(
+      TestTaskSourceInfo(), NoEnterprisePolicyChecker());
   // Navigate the active tab to a new page.
   ASSERT_TRUE(chrome_test_utils::NavigateToURL(
       web_contents(),

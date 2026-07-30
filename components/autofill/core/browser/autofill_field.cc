@@ -546,14 +546,6 @@ void AutofillField::MaybeAddServerPrediction(FieldPrediction prediction) {
       ToSafeFieldType(prediction.type(), NO_SERVER_DATA);
   prediction.set_type(field_type);
 
-  // LOYALTY_MEMBERSHIP_ID server predictions are only available for clients
-  // with the flag `kAutofillEnableLoyaltyCardsFilling` enabled.
-  if (field_type == LOYALTY_MEMBERSHIP_ID &&
-      !base::FeatureList::IsEnabled(
-          features::kAutofillEnableLoyaltyCardsFilling)) {
-    return;
-  }
-
   if (!prediction.has_source()) {
     // TODO(crbug.com/40243028): captured tests store old autofill api
     // response recordings without `source` field. We need to maintain the old
@@ -679,9 +671,7 @@ AutofillField::PredictionResult AutofillField::GetComputedPredictionResult()
 
     // TODO(crbug.com/416664590): Convert to PredictionPrecedenceException and
     // add it to `kPreferredHeuristicTypesOverHtmlTypes` after launch.
-    if (base::FeatureList::IsEnabled(
-            features::kAutofillEnableEmailOrLoyaltyCardsFilling) &&
-        heuristic_type_local == EMAIL_OR_LOYALTY_MEMBERSHIP_ID &&
+    if (heuristic_type_local == EMAIL_OR_LOYALTY_MEMBERSHIP_ID &&
         html_type_local == HtmlFieldType::kEmail) {
       return {MakeAutofillType(EMAIL_OR_LOYALTY_MEMBERSHIP_ID),
               AutofillPredictionSource::kHeuristics};
@@ -734,9 +724,7 @@ AutofillField::PredictionResult AutofillField::GetComputedPredictionResult()
 
   // TODO(crbug.com/416664590): Convert to PredictionPrecedenceException after
   // launch.
-  if (base::FeatureList::IsEnabled(
-          features::kAutofillEnableEmailOrLoyaltyCardsFilling) &&
-      heuristic_type_local == EMAIL_OR_LOYALTY_MEMBERSHIP_ID &&
+  if (heuristic_type_local == EMAIL_OR_LOYALTY_MEMBERSHIP_ID &&
       server_type_local == EMAIL_ADDRESS) {
     return {MakeAutofillType(EMAIL_OR_LOYALTY_MEMBERSHIP_ID),
             AutofillPredictionSource::kHeuristics};
@@ -772,8 +760,9 @@ const std::u16string& AutofillField::value_for_import() const {
   if (!should_consider_value_for_import) {
     return base::EmptyString16();
   }
-  if (base::optional_ref<const SelectOption> o = selected_option()) {
-    return o->text;
+
+  if (const std::optional<std::u16string>& text = selected_option_text()) {
+    return *text;
   }
   return value();
 }

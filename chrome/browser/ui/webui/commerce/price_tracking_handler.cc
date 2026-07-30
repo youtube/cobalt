@@ -13,6 +13,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "components/bookmarks/browser/bookmark_node.h"
 #include "components/bookmarks/browser/bookmark_utils.h"
 #include "components/commerce/core/account_checker.h"
@@ -207,7 +208,8 @@ void PriceTrackingHandler::ShowBookmarkEditorForCurrentUrl() {
   }
 
   auto* profile = Profile::FromWebUI(web_ui_);
-  auto* browser = chrome::FindLastActiveWithProfile(profile);
+  BrowserWindowInterface* const browser =
+      chrome::FindLastActiveWithProfile(profile);
   if (!browser) {
     return;
   }
@@ -218,7 +220,7 @@ void PriceTrackingHandler::ShowBookmarkEditorForCurrentUrl() {
     return;
   }
 
-  BookmarkEditor::Show(browser->window()->GetNativeWindow(), profile,
+  BookmarkEditor::Show(browser->GetWindow()->GetNativeWindow(), profile,
                        BookmarkEditor::EditDetails::EditNode(existing_node),
                        BookmarkEditor::SHOW_TREE);
 }
@@ -310,13 +312,13 @@ void PriceTrackingHandler::HandleSubscriptionChange(
 
 std::optional<GURL> PriceTrackingHandler::GetCurrentTabUrl() {
   auto* profile = Profile::FromWebUI(web_ui_);
-  auto* browser = chrome::FindTabbedBrowser(profile, false);
+  BrowserWindowInterface* browser = chrome::FindTabbedBrowser(profile, false);
   if (!browser) {
     return std::nullopt;
   }
 
   content::WebContents* web_contents =
-      browser->tab_strip_model()->GetActiveWebContents();
+      browser->GetTabStripModel()->GetActiveWebContents();
   if (!web_contents) {
     return std::nullopt;
   }
@@ -325,12 +327,13 @@ std::optional<GURL> PriceTrackingHandler::GetCurrentTabUrl() {
 }
 
 ukm::SourceId PriceTrackingHandler::GetCurrentTabUkmSourceId() {
-  auto* browser = chrome::FindTabbedBrowser(Profile::FromWebUI(web_ui_), false);
+  BrowserWindowInterface* browser =
+      chrome::FindTabbedBrowser(Profile::FromWebUI(web_ui_), false);
   if (!browser) {
     return ukm::kInvalidSourceId;
   }
   content::WebContents* web_contents =
-      browser->tab_strip_model()->GetActiveWebContents();
+      browser->GetTabStripModel()->GetActiveWebContents();
   if (!web_contents) {
     return ukm::kInvalidSourceId;
   }
@@ -339,13 +342,13 @@ ukm::SourceId PriceTrackingHandler::GetCurrentTabUkmSourceId() {
 
 const bookmarks::BookmarkNode*
 PriceTrackingHandler::GetOrAddBookmarkForCurrentUrl() {
-  auto* browser =
+  BrowserWindowInterface* const browser =
       chrome::FindLastActiveWithProfile(Profile::FromWebUI(web_ui_));
   if (!browser) {
     return nullptr;
   }
   content::WebContents* web_contents =
-      browser->tab_strip_model()->GetActiveWebContents();
+      browser->GetTabStripModel()->GetActiveWebContents();
   if (!web_contents) {
     return nullptr;
   }

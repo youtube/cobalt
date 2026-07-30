@@ -28,10 +28,10 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.build.annotations.RequiresNonNull;
 import org.chromium.chrome.browser.compositor.overlays.strip.TabGroupContextMenuCoordinator;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.incognito.IncognitoUtils;
 import org.chromium.chrome.browser.multiwindow.InstanceInfo;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType;
-import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.tab_ui.R;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
@@ -452,18 +452,22 @@ public abstract class TabOverflowMenuCoordinator<T>
     protected ListItem createMoveToWindowItem(
             T id, boolean isIncognito, @PluralsRes int pluralsRes, @IdRes int menuId) {
         // TODO(crbug.com/437418051): Clean up move_tab_to_another_window strings.
-        List<InstanceInfo> activeInstances =
-                mMultiInstanceManager.getInstanceInfo(PersistedInstanceType.ACTIVE);
+        int instanceType = PersistedInstanceType.ACTIVE;
+        if (IncognitoUtils.shouldOpenIncognitoAsWindow()) {
+            if (isIncognito) {
+                instanceType |= PersistedInstanceType.OFF_THE_RECORD;
+            } else {
+                instanceType |= PersistedInstanceType.REGULAR;
+            }
+        }
+        List<InstanceInfo> activeInstances = mMultiInstanceManager.getInstanceInfo(instanceType);
         if (!ChromeFeatureList.isEnabled(ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP)
                 || activeInstances.size() <= 1) {
             return new ListItemBuilder()
                     .withTitle(
                             mActivity
                                     .getResources()
-                                    .getQuantityString(
-                                            pluralsRes,
-                                            MultiWindowUtils.getInstanceCountWithFallback(
-                                                    PersistedInstanceType.ACTIVE)))
+                                    .getQuantityString(pluralsRes, activeInstances.size()))
                     .withMenuId(menuId)
                     .withIsIncognito(isIncognito)
                     .build();
@@ -475,19 +479,17 @@ public abstract class TabOverflowMenuCoordinator<T>
                         .withIsIncognito(isIncognito)
                         .withClickListener(v -> moveToNewWindow(id))
                         .build());
-        if (activeInstances.size() > 1) {
-            for (InstanceInfo instanceInfo : activeInstances) {
-                if (mMultiInstanceManager.getCurrentInstanceId() == instanceInfo.instanceId) {
-                    continue;
-                }
-                String windowDisplayName = getItemTitle(mActivity, instanceInfo);
-                submenuItems.add(
-                        new ListItemBuilder()
-                                .withTitle(windowDisplayName)
-                                .withIsIncognito(isIncognito)
-                                .withClickListener((v) -> moveToWindow(instanceInfo, id))
-                                .build());
+        for (InstanceInfo instanceInfo : activeInstances) {
+            if (mMultiInstanceManager.getCurrentInstanceId() == instanceInfo.instanceId) {
+                continue;
             }
+            String windowDisplayName = getItemTitle(mActivity, instanceInfo);
+            submenuItems.add(
+                    new ListItemBuilder()
+                            .withTitle(windowDisplayName)
+                            .withIsIncognito(isIncognito)
+                            .withClickListener((v) -> moveToWindow(instanceInfo, id))
+                            .build());
         }
         return new ListItemBuilder()
                 .withTitle(
@@ -496,6 +498,18 @@ public abstract class TabOverflowMenuCoordinator<T>
                 .withIsIncognito(isIncognito)
                 .withSubmenuItems(submenuItems)
                 .build();
+    }
+
+    /**
+     * Runs a move action and cleans up the source window if it becomes empty.
+     *
+     * @param multiInstanceManager The {@link MultiInstanceManager}.
+     * @param moveAction The action to perform the move.
+     */
+    protected static void moveAndCleanupSource(
+            MultiInstanceManager multiInstanceManager, Runnable moveAction) {
+        moveAction.run();
+        multiInstanceManager.closeChromeWindowIfEmpty(multiInstanceManager.getCurrentInstanceId());
     }
 
     /** Creates a new window and moves item with ID {@param id} to it. */

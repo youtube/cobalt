@@ -95,6 +95,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_local_compile_hints_producer.h"
 #include "third_party/blink/renderer/bindings/core/v8/window_proxy_manager.h"
+#include "third_party/blink/renderer/core/ad_tracker/ad_tracker.h"
 #include "third_party/blink/renderer/core/clipboard/system_clipboard.h"
 #include "third_party/blink/renderer/core/content_capture/content_capture_manager.h"
 #include "third_party/blink/renderer/core/core_export.h"
@@ -139,7 +140,6 @@
 #include "third_party/blink/renderer/core/exported/web_plugin_container_impl.h"
 #include "third_party/blink/renderer/core/fileapi/public_url_manager.h"
 #include "third_party/blink/renderer/core/fragment_directive/text_fragment_handler.h"
-#include "third_party/blink/renderer/core/frame/ad_tracker.h"
 #include "third_party/blink/renderer/core/frame/attribution_src_loader.h"
 #include "third_party/blink/renderer/core/frame/csp/content_security_policy.h"
 #include "third_party/blink/renderer/core/frame/event_handler_registry.h"
@@ -266,28 +266,6 @@
 namespace blink {
 
 namespace {
-
-#if BUILDFLAG(IS_ANDROID)
-blink::DocumentMarkerVector ExtractSpellingMarkersFromDocumentMarkerVector(
-    const blink::DocumentMarkerVector& markers) {
-  blink::DocumentMarkerVector spelling_markers;
-  for (auto& marker : markers) {
-    if (marker->GetType() == DocumentMarker::MarkerType::kSpelling ||
-        marker->GetType() == DocumentMarker::MarkerType::kGrammar) {
-      spelling_markers.push_back(marker);
-    }
-
-    if (const auto* suggestion_marker =
-            DynamicTo<SuggestionMarker>(marker.Get())) {
-      if (suggestion_marker->IsMisspelling() ||
-          suggestion_marker->IsGrammarError()) {
-        spelling_markers.push_back(marker);
-      }
-    }
-  }
-  return spelling_markers;
-}
-#endif  // BUILDFLAG(IS_ANDROID)
 
 // Max size in bytes of the Vector used in ForceSynchronousDocumentInstall to
 // buffer data before sending it to the HTML parser.
@@ -2964,10 +2942,6 @@ void LocalFrame::SetHadUserInteraction(bool had_user_interaction) {
   GetFrameScheduler()->SetHadUserActivation(had_user_interaction);
 }
 
-void LocalFrame::SetStorageAccessApiStatus(net::StorageAccessApiStatus status) {
-  GetLocalFrameHostRemote().SetStorageAccessApiStatus(status);
-}
-
 namespace {
 
 class FrameColorOverlay final : public FrameOverlay::Delegate {
@@ -4297,10 +4271,7 @@ void LocalFrame::PerformFullContentSpellCheck() {
                              Position::LastPositionInNode(*container_node));
 
   GetSpellChecker().GetSpellCheckRequester().RequestCheckingFor(
-      range,
-      ExtractSpellingMarkersFromDocumentMarkerVector(
-          GetDocument()->Markers().Markers()),
-      /*request_num=*/0, /*should_force_refresh=*/false);
+      range, /*request_num=*/0, /*should_force_refresh=*/false);
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 

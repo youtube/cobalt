@@ -19,7 +19,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
-#include "chrome/browser/apps/app_service/launch_result_type.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/services/app_service/public/cpp/app_capability_access_cache.h"
 #include "components/services/app_service/public/cpp/app_launch_params.h"
@@ -33,6 +32,7 @@
 #include "components/services/app_service/public/cpp/icon_types.h"
 #include "components/services/app_service/public/cpp/intent.h"
 #include "components/services/app_service/public/cpp/intent_filter.h"
+#include "components/services/app_service/public/cpp/launch_result.h"
 #include "components/services/app_service/public/cpp/menu.h"
 #include "components/services/app_service/public/cpp/permission.h"
 #include "components/services/app_service/public/cpp/preferred_app.h"
@@ -52,6 +52,7 @@ class AppUpdate;
 class BrowserAppLauncher;
 class PreferredAppsListHandle;
 class PublisherHostFactory;
+class PublisherHost;
 
 struct IntentLaunchInfo {
   IntentLaunchInfo();
@@ -394,8 +395,14 @@ class AppServiceProxyBase : public KeyedService,
   // Returns true if the app cannot be launched and a launch prevention dialog
   // is shown to the user (e.g. the app is paused or blocked). Returns false
   // otherwise (and the app can be launched).
-  virtual bool MaybeShowLaunchPreventionDialog(
-      const apps::AppUpdate& update) = 0;
+  // TODO(crbug.com/477191550): Conditional pure virtual declaration depending
+  // on platform is a short term workaround. This should be cleaned on
+  // extracting an interface.
+  virtual bool MaybeShowLaunchPreventionDialog(const apps::AppUpdate& update)
+#if BUILDFLAG(IS_CHROMEOS)
+      = 0
+#endif
+      ;
 
   IntentFilterPtr FindBestMatchingFilter(const IntentPtr& intent);
 
@@ -410,8 +417,7 @@ class AppServiceProxyBase : public KeyedService,
                                          const std::string& app_id,
                                          UninstallSource uninstall_source);
 
-  virtual void OnLaunched(LaunchCallback callback,
-                          LaunchResult&& launch_result);
+  virtual void OnLaunched(LaunchCallback callback, LaunchResult launch_result);
 
   virtual bool ShouldExcludeBrowserTabApps(bool exclude_browser_tab_apps,
                                            WindowMode window_mode);
@@ -436,6 +442,7 @@ class AppServiceProxyBase : public KeyedService,
       const apps::AppUpdate& update);
 
   const raw_ref<PublisherHostFactory> publisher_host_factory_;
+  std::unique_ptr<PublisherHost> publisher_host_;
   base::flat_map<AppType, raw_ptr<Publisher, CtnExperimental>> publishers_;
 
   apps::AppRegistryCache app_registry_cache_;

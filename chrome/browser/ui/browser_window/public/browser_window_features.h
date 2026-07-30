@@ -15,6 +15,7 @@
 namespace glic {
 class GlicButtonController;
 class GlicIphController;
+class GlicNudgeController;
 }  // namespace glic
 
 namespace tabs {
@@ -86,6 +87,7 @@ class TabSearchToolbarButtonController;
 class TabListBridge;
 class TabStripModel;
 class TabStripServiceFeature;
+class AiOverlayDialogController;
 class ToastController;
 class ToastService;
 class TranslateBubbleController;
@@ -155,10 +157,6 @@ class ActiveTaskContextProvider;
 class ContextualTasksSidePanelCoordinator;
 class EntryPointEligibilityManager;
 }  // namespace contextual_tasks
-
-namespace tabs {
-class GlicNudgeController;
-}  // namespace tabs
 
 namespace enterprise_data_protection {
 class DataProtectionUIController;
@@ -299,9 +297,6 @@ class BrowserWindowFeatures {
   }
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
-  pdf::infobar::PdfInfoBarController* pdf_infobar_controller() {
-    return pdf_infobar_controller_.get();
-  }
   default_browser::PinInfoBarController* pin_infobar_controller() {
     return pin_infobar_controller_.get();
   }
@@ -323,7 +318,7 @@ class BrowserWindowFeatures {
     return lens_region_search_controller_.get();
   }
 
-  tabs::GlicNudgeController* glic_nudge_controller() {
+  glic::GlicNudgeController* glic_nudge_controller() {
     return glic_nudge_controller_.get();
   }
 
@@ -485,10 +480,6 @@ class BrowserWindowFeatures {
     return history_clusters_side_panel_coordinator_.get();
   }
 
-  UpgradeNotificationController* upgrade_notification_controller() {
-    return upgrade_notification_controller_.get();
-  }
-
   BrowserContentSettingBubbleModelDelegate*
   content_setting_bubble_model_delegate() {
     return content_setting_bubble_model_delegate_.get();
@@ -610,6 +601,9 @@ class BrowserWindowFeatures {
       session_service_tab_group_sync_observer_;
 
   raw_ptr<TabStripModel> tab_strip_model_;
+
+  std::unique_ptr<AiOverlayDialogController> ai_overlay_dialog_controller_;
+
   std::unique_ptr<ToastService> toast_service_;
 
   // The window-scoped extension side-panel manager. There is a separate
@@ -656,7 +650,7 @@ class BrowserWindowFeatures {
   std::unique_ptr<ContextualTasksCloseButtonController>
       contextual_tasks_close_button_controller_;
 
-  std::unique_ptr<tabs::GlicNudgeController> glic_nudge_controller_;
+  std::unique_ptr<glic::GlicNudgeController> glic_nudge_controller_;
 
   std::unique_ptr<tabs::GlicActorNudgeController> glic_actor_nudge_controller_;
   std::unique_ptr<ActorTaskListBubbleController>

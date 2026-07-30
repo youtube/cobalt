@@ -26,6 +26,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_navigator.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/extensions/app_launch_params.h"
 #include "chrome/browser/ui/extensions/application_launch.h"
@@ -189,7 +190,7 @@ content::WebContents* ExtensionAppsBase::LaunchAppWithIntentImpl(
     LaunchCallback callback) {
   const auto* extension = MaybeGetExtension(app_id);
   if (!extension || !extensions::util::IsAppLaunchable(app_id, profile_)) {
-    std::move(callback).Run(ConvertBoolToLaunchResult(/*success=*/false));
+    std::move(callback).Run(LaunchResult::kFailed);
     return nullptr;
   }
 
@@ -208,7 +209,7 @@ content::WebContents* ExtensionAppsBase::LaunchAppWithIntentImpl(
       extensions::GetLaunchContainer(extensions::ExtensionPrefs::Get(profile_),
                                      extension),
       std::move(intent), profile_);
-  std::move(callback).Run(ConvertBoolToLaunchResult(/*success=*/true));
+  std::move(callback).Run(LaunchResult::kSuccess);
   return LaunchImpl(std::move(params));
 }
 
@@ -221,7 +222,7 @@ void ExtensionAppsBase::LaunchAppWithParamsImpl(AppLaunchParams&& params,
   LaunchImpl(std::move(params));
 
   // TODO(crbug.com/40787924): Add launch return value.
-  std::move(callback).Run(LaunchResult());
+  std::move(callback).Run(LaunchResult::kFailed);
 }
 
 const extensions::Extension* ExtensionAppsBase::MaybeGetExtension(
@@ -466,12 +467,14 @@ void ExtensionAppsBase::OpenNativeSettings(const std::string& app_id) {
 
   } else if (extensions::ui_util::ShouldDisplayInExtensionSettings(
                  *extension)) {
-    Browser* browser = chrome::FindTabbedBrowser(profile_, false);
+    BrowserWindowInterface* browser =
+        chrome::FindTabbedBrowser(profile_, false);
     if (!browser) {
       browser = Browser::Create(Browser::CreateParams(profile_, true));
     }
 
-    chrome::ShowExtensions(browser, extension->id());
+    chrome::ShowExtensions(browser->GetBrowserForMigrationOnly(),
+                           extension->id());
   }
 }
 

@@ -4,8 +4,12 @@
 
 package org.chromium.chrome.browser.toolbar.bottom;
 
+import androidx.annotation.ColorInt;
+import androidx.annotation.Nullable;
+
 import org.chromium.base.Callback;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.chrome.browser.browser_controls.BottomControlsStacker.LayerScrollBehavior;
 import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
 
 /**
@@ -15,13 +19,6 @@ import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
  */
 @NullMarked
 public interface BottomControlsContentDelegate extends BackPressHandler {
-    /**
-     * Called by the ToolbarManager when the system back button is pressed.
-     *
-     * @return Whether or not the TabGroupUi consumed the event.
-     */
-    boolean onBackPressed();
-
     /**
      * Initialize the delegate on native initialization.
      *
@@ -34,4 +31,15 @@ public interface BottomControlsContentDelegate extends BackPressHandler {
 
     /** Destroy the delegate. */
     void destroy();
+
+    /** See {@link BottomControlsLayer} for the behavior of the following methods. */
+
+    /** Returns the {@link LayerScrollBehavior} for the bottom controls. */
+    @LayerScrollBehavior
+    int getScrollBehavior();
+
+    /** Return The background color for the bottom controls. */
+    @Nullable
+    @ColorInt
+    Integer getBackgroundColor();
 }

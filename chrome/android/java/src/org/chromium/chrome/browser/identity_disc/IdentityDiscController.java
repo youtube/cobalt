@@ -25,7 +25,6 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.ntp.NewTabPage;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -61,7 +60,6 @@ import org.chromium.components.feature_engagement.EventConstants;
 import org.chromium.components.feature_engagement.FeatureConstants;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.signin.SigninFeatureMap;
-import org.chromium.components.signin.SigninFeatures;
 import org.chromium.components.signin.base.CoreAccountInfo;
 import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.signin.identitymanager.IdentityManager;
@@ -156,7 +154,8 @@ public class IdentityDiscController
                         /* canShow= */ false,
                         /* drawable= */ null,
                         /* onClickListener= */ view -> onClick(),
-                        mContext.getString(R.string.accessibility_toolbar_btn_identity_disc),
+                        /* contentDescription= */ SigninUtils.getContentDescriptionForIdentityDisc(
+                                mContext, null, UserActionableError.NONE),
                         /* supportsTinting= */ false,
                         new IphCommandBuilder(
                                 mContext.getResources(),
@@ -359,8 +358,7 @@ public class IdentityDiscController
         }
 
         @UserActionableError int error = SyncSettingsUtils.getSyncError(mProfile);
-        if (error == mIdentityError
-                || !ChromeFeatureList.isEnabled(ChromeFeatureList.UNO_PHASE_2_FOLLOW_UP)) {
+        if (error == mIdentityError) {
             // Nothing changed.
             return;
         }
@@ -475,8 +473,8 @@ public class IdentityDiscController
                             .signinSurveyType(
                                     SigninSurveyController.SigninSurveyType.NTP_SIGNIN_BUTTON)
                             .build();
-            if (mSigninCoordinator != null) {
-                mSigninCoordinator.startSigninFlow(config);
+            if (SigninFeatureMap.getInstance().isActivitylessSigninAllEntryPointEnabled()) {
+                assumeNonNull(mSigninCoordinator).startSigninFlow(config);
             } else {
                 @Nullable Intent intent =
                         SigninAndHistorySyncActivityLauncherImpl.get()
@@ -509,9 +507,7 @@ public class IdentityDiscController
         assert !mProfile.isOffTheRecord();
 
         if (mSigninCoordinator == null
-                && SigninFeatureMap.isEnabled(SigninFeatures.ENABLE_SEAMLESS_SIGNIN)
-                && SigninFeatureMap.isEnabled(
-                        SigninFeatures.ENABLE_ACTIVITYLESS_SIGNIN_ALL_ENTRY_POINT)) {
+                && SigninFeatureMap.getInstance().isActivitylessSigninAllEntryPointEnabled()) {
             OneshotSupplierImpl<Profile> profileSupplier = new OneshotSupplierImpl<>();
             profileSupplier.set(mProfile);
 

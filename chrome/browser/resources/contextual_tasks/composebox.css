@@ -120,14 +120,19 @@
   border-radius: var(--composebox-border-radius);
   box-sizing: border-box;
   pointer-events: none;
+  transition: opacity 2s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 2;
+}
+
+:host([in-voice-search-mode_]) #composebox::after {
+  opacity: 0;
 }
 
 #composebox {
   --cr-composebox-font-size: 16px;
   --expanded-border-radius: var(--composebox-border-radius);
   --input-bottom-spacing: 16px;
-  --text-input-left-spacing: 24px;
+  --text-input-inline-start-spacing: 20px;
   --text-input-top-spacing: 16px;
   --composebox-context-menu-entrypoint-button-color:
       var(--color-composebox-voice-lens-button);
@@ -178,10 +183,6 @@
   font-family: var(--google-sans-font);
 }
 
-#onboardingTooltip {
-  pointer-events: all;
-}
-
 #composebox::part(input-container) {
   --input-bottom-spacing: 12px;
   transition: padding-top var(--emphasized-curve);
@@ -228,7 +229,12 @@
 
 #composebox::part(input),
 #composebox::part(smart-compose) {
+  min-height: 48px;
   padding-inline-start: var(--g-input-left-spacing);
+}
+
+#composebox::part(context-menu-and-tools) {
+  min-height: var(--cr-icon-button-size);
 }
 
 #composebox::part(input)::placeholder {
@@ -238,6 +244,7 @@
 #composebox::part(context-menu-entrypoint-icon) {
   --cr-icon-button-fill-color: var(--composebox-context-menu-entrypoint-button-color);
   --cr-icon-button-icon-size: var(--icon-menu-icon-size);
+  --cr-icon-button-margin-start: 4px;
   --cr-icon-button-size: var(--icon-menu-button-size);
 }
 
@@ -590,6 +597,6 @@
 }
 
 /* Needed for space between header and composebox. */
-:host([is-side-panel]) #composebox:not([show-dropdown_]) #composebox {
+:host([is-side-panel]) #composebox:not([show-dropdown_]) {
   margin-top: 24px;
 }

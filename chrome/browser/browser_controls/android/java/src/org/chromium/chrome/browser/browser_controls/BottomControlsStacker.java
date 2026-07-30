@@ -21,8 +21,10 @@ import org.chromium.ui.OffsetTagConstraints;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.display.DisplayUtil;
 
+import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
  * Coordinator class for UI layers in the bottom browser controls. This class manages the relative
@@ -41,6 +43,7 @@ public class BottomControlsStacker implements BrowserControlsStateProvider.Obser
     private int mNumberOfVisibleLayers;
 
     /** Enums that defines the type and position for each bottom controls. */
+    @Target(ElementType.TYPE_USE)
     @Retention(RetentionPolicy.SOURCE)
     @IntDef({
         LayerType.PROGRESS_BAR,
@@ -49,6 +52,7 @@ public class BottomControlsStacker implements BrowserControlsStateProvider.Obser
         LayerType.BOTTOM_TOOLBAR,
         LayerType.BOTTOM_CHIN,
         LayerType.BOTTOM_SHEET,
+        LayerType.BOTTOM_APP_BAR,
         LayerType.TEST_BOTTOM_LAYER
     })
     public @interface LayerType {
@@ -63,12 +67,14 @@ public class BottomControlsStacker implements BrowserControlsStateProvider.Obser
         // respect to other bottom controls, and/or specialized bottom sheets that can push web
         // content up in PEEK state.
         int BOTTOM_SHEET = 6;
+        int BOTTOM_APP_BAR = 7;
 
         // Layer that's used for testing.
         int TEST_BOTTOM_LAYER = 100;
     }
 
     /** Enums that defines the scroll behavior for different controls. */
+    @Target(ElementType.TYPE_USE)
     @Retention(RetentionPolicy.SOURCE)
     @IntDef({
         LayerScrollBehavior.ALWAYS_SCROLL_OFF,
@@ -87,6 +93,7 @@ public class BottomControlsStacker implements BrowserControlsStateProvider.Obser
     }
 
     /** Enums that defines the type and position for each bottom controls. */
+    @Target(ElementType.TYPE_USE)
     @Retention(RetentionPolicy.SOURCE)
     @IntDef({
         LayerVisibility.VISIBLE,
@@ -124,6 +131,7 @@ public class BottomControlsStacker implements BrowserControlsStateProvider.Obser
                 LayerType.READ_ALOUD_PLAYER,
                 LayerType.TABSTRIP_TOOLBAR,
                 LayerType.BOTTOM_TOOLBAR,
+                LayerType.BOTTOM_APP_BAR,
                 LayerType.BOTTOM_CHIN,
                 LayerType.TEST_BOTTOM_LAYER
             };

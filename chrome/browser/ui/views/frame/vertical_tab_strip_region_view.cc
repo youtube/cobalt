@@ -11,6 +11,8 @@
 #include "base/callback_list.h"
 #include "base/containers/adapters.h"
 #include "base/functional/bind.h"
+#include "base/i18n/number_formatting.h"
+#include "base/i18n/rtl.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
@@ -43,10 +45,13 @@
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_view.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_unpinned_tab_container_view.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
+#include "chrome/grit/generated_resources.h"
 #include "components/tabs/public/tab_group.h"
 #include "components/tabs/public/tab_interface.h"
 #include "ui/base/clipboard/clipboard_constants.h"
 #include "ui/base/dragdrop/os_exchange_data.h"
+#include "ui/base/interaction/element_tracker.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_id.h"
 #include "ui/compositor/layer.h"
@@ -54,9 +59,12 @@
 #include "ui/gfx/animation/animation.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/views/background.h"
+#include "ui/views/controls/button/label_button.h"
+#include "ui/views/controls/focus_ring.h"
 #include "ui/views/controls/resize_area.h"
 #include "ui/views/controls/scroll_view.h"
 #include "ui/views/controls/separator.h"
+#include "ui/views/interaction/element_tracker_views.h"
 #include "ui/views/layout/flex_layout.h"
 #include "ui/views/layout/flex_layout_types.h"
 #include "ui/views/layout/layout_types.h"
@@ -68,7 +76,11 @@ namespace {
 constexpr int kRegionVerticalPadding = 5;
 constexpr int kResizeAreaWidth = 5;
 constexpr int kCollapsedResizeAreaWidth = 2;
+constexpr int kKeyboardResizeWidth = 50;
 }  // namespace
+
+DEFINE_CLASS_CUSTOM_ELEMENT_EVENT_TYPE(VerticalTabStripRegionView,
+                                       kAnimationCompletedEvent);
 
 VerticalTabStripRegionView::VerticalTabStripRegionView(
     tabs::VerticalTabStripStateController* state_controller,
@@ -120,6 +132,11 @@ VerticalTabStripRegionView::VerticalTabStripRegionView(
 
   resize_area_ = AddChildView(std::make_unique<views::ResizeArea>(this));
   resize_area_->SetProperty(views::kViewIgnoredByLayoutKey, true);
+  resize_area_->SetFocusBehavior(views::View::FocusBehavior::ACCESSIBLE_ONLY);
+  views::FocusRing::Install(resize_area_);
+  resize_area_->GetViewAccessibility().SetName(
+      l10n_util::GetStringUTF16(IDS_VERTICAL_RESIZE_AREA));
+  resize_area_->GetViewAccessibility().SetRole(ax::mojom::Role::kSlider);
 
   resize_animation_.SetSlideDuration(gfx::Animation::RichAnimationDuration(
       features::UseSidePanelFlyoverAnimation() ? base::Milliseconds(350)
@@ -290,6 +307,39 @@ gfx::Size VerticalTabStripRegionView::CalculatePreferredSize(
                        : target_collapse_state_.uncollapsed_width);
   }
   return size;
+}
+
+bool VerticalTabStripRegionView::OnKeyPressed(const ui::KeyEvent& event) {
+  if (resize_area_->HasFocus()) {
+    int resize_amount = 0;
+
+    if (event.key_code() == ui::VKEY_LEFT) {
+      resize_amount =
+          base::i18n::IsRTL() ? kKeyboardResizeWidth : -kKeyboardResizeWidth;
+    } else if (event.key_code() == ui::VKEY_RIGHT) {
+      resize_amount =
+          base::i18n::IsRTL() ? -kKeyboardResizeWidth : kKeyboardResizeWidth;
+    }
+
+    if (resize_amount != 0) {
+      OnResize(resize_amount, /*done_resizing=*/true);
+
+      float tab_strip_width = width();
+      float total_width = GetWidget()->GetRootView()->width();
+
+      int tab_strip_percentage = (tab_strip_width / total_width) * 100;
+      int content_percentage = 100 - tab_strip_percentage;
+
+      resize_area_->GetViewAccessibility().AnnounceText(
+          l10n_util::GetStringFUTF16(IDS_VERTICAL_TAB_RESIZE_ACCESSIBLE_ALERT,
+                                     base::FormatPercent(tab_strip_percentage),
+                                     base::FormatPercent(content_percentage)));
+
+      return true;
+    }
+  }
+
+  return TabStripRegionView::OnKeyPressed(event);
 }
 
 bool VerticalTabStripRegionView::IsTabStripEditable() const {
@@ -540,7 +590,10 @@ void VerticalTabStripRegionView::AnimationEnded(
   if (tab_strip_view_) {
     tab_strip_view_->SetIsAnimatingSize(false);
   }
+  views::ElementTrackerViews::GetInstance()->NotifyCustomEvent(
+      kAnimationCompletedEvent, this);
 }
+
 void VerticalTabStripRegionView::AnimationCanceled(
     const gfx::Animation* animation) {
   DCHECK_EQ(animation, &resize_animation_);
@@ -668,10 +721,11 @@ void VerticalTabStripRegionView::OnCollapsedStateChanged(
                                      gfx::Insets::VH(0, separator_padding));
   if (state_controller->IsCollapsed()) {
     // If the VT Strip is collapsed, then we need exactly |padding| on the top,
-    // left, and right.
+    // left, and right. The top padding is applied inside of the top container
+    // class to avoid animation issues on non-Mac platforms.
     top_button_container_->SetProperty(
         views::kMarginsKey,
-        gfx::Insets::TLBR(padding, padding, kRegionVerticalPadding, padding));
+        gfx::Insets::TLBR(0, padding, kRegionVerticalPadding, padding));
   } else {
     // If the VT Strip is not collapsed, then we want to align the heights of
     // the TopContainer w/ the the height of the toolbar. Both of these
@@ -867,22 +921,19 @@ gfx::Rect VerticalTabStripRegionView::GetLinkDropBounds(
 
   // If the rect doesn't fit on the monitor, push the arrow to the other side.
   display::Screen* screen = display::Screen::Get();
-  display::Display display =
-      screen->GetDisplayNearestView(GetWidget()->GetNativeView());
+  gfx::Rect display_bounds =
+      screen->GetDisplayNearestView(GetWidget()->GetNativeView()).bounds();
 
-  if (!display.bounds().Contains(drop_bounds)) {
-    // Only left/right arrows should be outside the display bounds.
-    CHECK_NE(*direction, DropArrow::Direction::kDown);
+  DropArrow::MaybeAdjustDisplayBounds(display_bounds);
 
-    const gfx::Size drop_arrow_size = DropArrow::GetSize();
-    if (base::i18n::IsRTL()) {
+  if (!display_bounds.Contains(drop_bounds)) {
+    if (base::i18n::IsRTL() && *direction == DropArrow::Direction::kLeft) {
       *direction = DropArrow::Direction::kRight;
-      drop_bounds.Offset(
-          -GetBoundsInScreen().width() - drop_arrow_size.height(), 0);
-    } else {
+      drop_bounds.Offset(-GetBoundsInScreen().width() - DropArrow::kSize, 0);
+    } else if (base::i18n::IsRTL() &&
+               *direction == DropArrow::Direction::kRight) {
       *direction = DropArrow::Direction::kLeft;
-      drop_bounds.Offset(GetBoundsInScreen().width() + drop_arrow_size.height(),
-                         0);
+      drop_bounds.Offset(GetBoundsInScreen().width() + DropArrow::kSize, 0);
     }
   }
 
@@ -964,18 +1015,15 @@ gfx::Point VerticalTabStripRegionView::GetLinkDropArrowPosition(
 gfx::Rect VerticalTabStripRegionView::GetLinkDropBoundsFromPosition(
     gfx::Point position,
     DropArrow::Direction direction) {
-  gfx::Size drop_arrow_size = DropArrow::GetSize();
   if (direction == DropArrow::Direction::kRight) {
-    drop_arrow_size.Transpose();
-    position.Offset(-drop_arrow_size.width(), -drop_arrow_size.height() / 2);
+    position.Offset(-DropArrow::kSize, -DropArrow::kSize / 2);
   } else if (direction == DropArrow::Direction::kLeft) {
-    drop_arrow_size.Transpose();
-    position.Offset(drop_arrow_size.width(), -drop_arrow_size.height() / 2);
+    position.Offset(DropArrow::kSize, -DropArrow::kSize / 2);
   } else {
-    position.Offset(-drop_arrow_size.width() / 2, -drop_arrow_size.height());
+    position.Offset(-DropArrow::kSize / 2, -DropArrow::kSize);
   }
 
-  return gfx::Rect(position, drop_arrow_size);
+  return gfx::Rect(position, gfx::Size(DropArrow::kSize, DropArrow::kSize));
 }
 
 BEGIN_METADATA(VerticalTabStripRegionView)

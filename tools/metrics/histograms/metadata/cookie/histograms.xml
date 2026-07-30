@@ -181,12 +181,23 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Cookie.Count2" units="units" expires_after="2026-07-05">
+<histogram name="Cookie.Count2" units="units" expires_after="2026-09-06">
   <owner>morlovich@chromium.org</owner>
   <owner>src/net/cookies/OWNERS</owner>
   <summary>
     Number of cookies in the store (recorded every 10 minutes of active browsing
     time), with a wider range than Cookie.Count.
+  </summary>
+</histogram>
+
+<histogram name="Cookie.CreateDatabaseEarly" enum="BooleanCreated"
+    expires_after="2026-07-26">
+  <owner>yoichio@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <summary>
+    Records whether MaybeInitializeDatabaseEarly actually attempted to create
+    the database early, regardless of success or failure. Logged on every call
+    to SQLitePersistentCookieStore::Backend::MaybeInitializeDatabaseEarly
   </summary>
 </histogram>
 
@@ -306,7 +317,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cookie.ErrorInitializeDB" enum="SqliteLoggedResultCode"
-    expires_after="2026-07-05">
+    expires_after="2026-09-06">
   <owner>wfh@chromium.org</owner>
   <owner>src/net/cookies/OWNERS</owner>
   <summary>
@@ -383,7 +394,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cookie.FirstPartySets.ComponentSetsParsedSuccessfully"
-    units="sets" expires_after="2026-06-08">
+    units="sets" expires_after="2026-09-06">
   <owner>cfredric@chromium.org</owner>
   <owner>chrome-first-party-sets@chromium.org</owner>
   <summary>
@@ -418,28 +429,6 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
-<histogram name="Cookie.FirstPartySets.InitializationDuration.{Landmark}2"
-    units="ms" expires_after="2026-04-20">
-  <owner>cfredric@chromium.org</owner>
-  <owner>kaustubhag@chromium.org</owner>
-  <summary>
-    The amount of time taken until {Landmark} during First-Party Sets
-    initialization. Each sample is measured starting from the moment the
-    FirstPartySets instance is constructed.
-
-    Each metric is recorded once when the First-Party Sets objects are
-    initialized in the Network Service. (Note that this may happen multiple
-    times during a single Chrome session, if the Network Service crashes and
-    restarts.) Recorded for all clients, even those with low-resolution clocks.
-  </summary>
-  <token key="Landmark">
-    <variant name="ContextReadyToServeQueries"/>
-    <variant name="ReadCommandLineSet"/>
-    <variant name="ReadComponentSets"/>
-    <variant name="ReadyToServeQueries"/>
-  </token>
-</histogram>
-
 <histogram name="Cookie.FirstPartySets.ProcessedEntireComponent"
     enum="BooleanSuccess" expires_after="2026-06-08">
   <owner>cfredric@chromium.org</owner>
@@ -454,7 +443,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cookie.FirstPartySets.{Context}.DelayedQueriesCount"
-    units="queries" expires_after="2026-07-05">
+    units="queries" expires_after="2026-09-06">
   <owner>cfredric@chromium.org</owner>
   <owner>kaustubhag@chromium.org</owner>
   <summary>
@@ -522,7 +511,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cookie.GetCookieListWithOptions.Duration.Subsampled"
-    units="microseconds" expires_after="2026-07-12">
+    units="microseconds" expires_after="2026-09-13">
   <owner>anthonyvd@chromium.org</owner>
   <owner>chrome-catan@google.com</owner>
   <summary>
@@ -672,7 +661,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cookie.OnCookiesAccessed.BatchSize.CookieAccessObserver"
-    units="accesses" expires_after="2026-07-05">
+    units="accesses" expires_after="2026-09-06">
   <owner>kawasin@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -1157,19 +1146,8 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Cookie.TimeDatabaseMigrationToV23" units="ms"
-    expires_after="2026-04-10">
-  <owner>arichiv@chromium.org</owner>
-  <owner>selya@chromium.org</owner>
-  <owner>src/net/cookies/OWNERS</owner>
-  <summary>
-    The amount of time (ms) to migrate a v22 cookie database to v23. Migration
-    occurs upon first startup of a browser version with v22 database code.
-  </summary>
-</histogram>
-
 <histogram name="Cookie.TimeDatabaseMigrationToV24" units="ms"
-    expires_after="2026-08-15">
+    expires_after="2027-03-10">
   <owner>arichiv@chromium.org</owner>
   <owner>wfh@chromium.org</owner>
   <owner>src/net/cookies/OWNERS</owner>

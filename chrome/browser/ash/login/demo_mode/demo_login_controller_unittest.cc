@@ -4,6 +4,8 @@
 
 #include "chrome/browser/ash/login/demo_mode/demo_login_controller.h"
 
+#include <utility>
+
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
 #include "ash/metrics/demo_session_metrics_recorder.h"
@@ -146,7 +148,7 @@ class DemoLoginControllerTest : public testing::Test {
     chromeos::PowerManagerClient::InitializeFake();
     chromeos::PowerPolicyController::Initialize(
         chromeos::FakePowerManagerClient::Get());
-    policy_controller_ = chromeos::PowerPolicyController::Get();
+    std::ignore = chromeos::PowerPolicyController::Get();
 
     base::DictValue account;
     account.Set(kAccountsPrefDeviceLocalAccountsKeyId, kPublicAccountUserId);
@@ -287,11 +289,6 @@ class DemoLoginControllerTest : public testing::Test {
  private:
   base::test::ScopedFeatureList features_;
   content::BrowserTaskEnvironment task_environment_;
-
-  // We don't own the destruction of `PowerPolicyController` which causes it
-  // dangling.
-  raw_ptr<chromeos::PowerPolicyController, DisableDanglingPtrDetection>
-      policy_controller_;
 
   testing::NiceMock<ash::MockLoginDisplayHost> mock_login_display_host_;
   system::FakeStatisticsProvider statistics_provider_;
@@ -794,10 +791,11 @@ class DemoLoginControllerCloudPolicyConnectionTest : public testing::Test {
     features_.InitAndEnableFeature(features::kDemoModeSignIn);
     DBusThreadManager::Initialize();
     DeviceSettingsService::Initialize();
-    demo_login_controller_ = std::make_unique<
-        DemoLoginController>(base::BindRepeating(
-        &DemoLoginControllerCloudPolicyConnectionTest::MockConfigureAutoLogin,
-        base::Unretained(this)));
+    demo_login_controller_ = std::make_unique<DemoLoginController>(
+        TestingBrowserProcess::GetGlobal()->local_state(),
+        base::BindRepeating(&DemoLoginControllerCloudPolicyConnectionTest::
+                                MockConfigureAutoLogin,
+                            base::Unretained(this)));
   }
 
   void TearDown() override {

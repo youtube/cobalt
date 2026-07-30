@@ -1012,14 +1012,20 @@ class TemplateURL {
   // Returns whether this search engine was created by the Default Search
   // Provider Enterprise policy.
   bool CreatedByDefaultSearchProviderPolicy() const;
-  // Returns whether this search engine was created by an Enterprise policy that
-  // doesn't define the Default Search Provider.
+  // Returns whether this search engine was created by an Enterprise policy,
+  // but not by the Default Search Provider policy (e.g., created by the
+  // SiteSearchSettings or EnterpriseSearchAggregatorSettings policies).
   bool CreatedByNonDefaultSearchProviderPolicy() const;
   // Returns whether this search engine was created by the
   // EnterpriseSearchAggregatorSettings policy.
   bool CreatedByEnterpriseSearchAggregatorPolicy() const;
   // Returns whether this search engine was created by a regulatory program.
   bool CreatedByRegulatoryProgram() const;
+
+  // Returns true if the user should be asked to confirm before removing this
+  // engine. Currently, only built-in search engines and non default search
+  // engines created by policy require confirmation before removal.
+  bool RequiresRemovalConfirmation() const;
 
   void SetURL(const std::string& url);
   void SetPrepopulateId(int id);

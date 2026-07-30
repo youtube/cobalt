@@ -8,8 +8,6 @@
 
 #include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
-#include "base/metrics/histogram_functions.h"
-#include "base/time/time.h"
 #include "base/types/optional_ref.h"
 #include "net/base/features.h"
 #include "net/base/schemeful_site.h"
@@ -207,11 +205,6 @@ void FirstPartySetsAccessDelegate::InvokePendingQueries() {
   CHECK(ready_event_.has_value());
   // !wait_for_init_ implies (pending_queries == nullptr).
   CHECK(wait_for_init_ || pending_queries_ == nullptr);
-
-  UmaHistogramTimes(
-      "Cookie.FirstPartySets.InitializationDuration."
-      "ContextReadyToServeQueries2",
-      construction_timer_.Elapsed());
 
   if (!pending_queries_) {
     return;

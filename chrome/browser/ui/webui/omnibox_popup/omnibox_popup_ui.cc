@@ -104,18 +104,8 @@ OmniboxPopupUI::OmniboxPopupUI(content::WebUI* web_ui)
   const std::string attachment_mime_types =
       composebox_config.attachment_upload().mime_types_allowed();
   source->AddString("composeboxAttachmentFileTypes", attachment_mime_types);
-  source->AddInteger("composeboxFileMaxCount",
-                     composebox_config.max_num_files());
   source->AddInteger("composeboxFileMaxSize",
                      composebox_config.attachment_upload().max_size_bytes());
-  source->AddString(
-      "composeboxDragAndDropHint",
-      l10n_util::GetPluralStringFUTF16(IDS_NTP_COMPOSE_DRAG_AND_DROP_HINT,
-                                       composebox_config.max_num_files()));
-  source->AddString(
-      "maxFilesReachedError",
-      l10n_util::GetPluralStringFUTF16(IDS_NTP_COMPOSE_MAX_FILES_REACHED_ERROR,
-                                       composebox_config.max_num_files()));
   const std::string image_mime_types =
       composebox_config.image_upload().mime_types_allowed();
   source->AddString("composeboxImageFileTypes", image_mime_types);
@@ -282,6 +272,8 @@ void OmniboxPopupUI::CreatePageHandler(
       std::move(pending_searchbox_handler), profile_,
       web_ui()->GetWebContents(),
       base::BindRepeating(&OmniboxPopupUI::GetOrCreateContextualSessionHandle,
+                          base::Unretained(this)),
+      base::BindRepeating(&OmniboxPopupUI::ClearContextualSessionHandle,
                           base::Unretained(this)));
 
   // TODO(crbug.com/435288212): Move searchbox mojom to use factory pattern.
@@ -298,7 +290,13 @@ OmniboxPopupUI::GetOrCreateContextualSessionHandle() {
           omnibox::CreateQueryControllerConfigParams(),
           contextual_search::ContextualSearchSource::kOmnibox,
           lens::LensOverlayInvocationSource::kOmniboxContextualQuery);
+      shared_session_handle_->CheckSearchContentSharingSettings(
+          Profile::FromWebUI(web_ui())->GetPrefs());
     }
   }
   return shared_session_handle_.get();
+}
+
+void OmniboxPopupUI::ClearContextualSessionHandle() {
+  shared_session_handle_.reset();
 }

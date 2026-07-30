@@ -15,7 +15,7 @@
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_tab_helper.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_browser_agent.h"
-#import "ios/chrome/browser/intelligence/bwg/ui/bwg_fre_wrapper_view_controller.h"
+#import "ios/chrome/browser/intelligence/bwg/ui/gemini_fre_wrapper_view_controller.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
@@ -40,12 +40,12 @@
   GeminiFirstRunMediator* _mediator;
 
   // Wrapper view controller for the First Run Experience (FRE) UI.
-  BWGFREWrapperViewController* _viewController;
+  GeminiFREWrapperViewController* _viewController;
 
   // Handler for sending Gemini commands.
   id<BWGCommands> _geminiCommandsHandler;
 
-  // Returns the `_entryPoint` the coordinator was initialized from.
+  // The `gemini::EntryPoint` the coordinator was initialized from.
   gemini::EntryPoint _entryPoint;
 
   // Handler for sending IPH commands.
@@ -107,7 +107,7 @@
 
   [self prepareAIHubIPH];
 
-  _viewController = [[BWGFREWrapperViewController alloc]
+  _viewController = [[GeminiFREWrapperViewController alloc]
          initWithPromo:_mediator.shouldShowPromo
       isAccountManaged:[self isManagedAccount]];
   _viewController.sheetPresentationController.delegate = self;
@@ -200,7 +200,7 @@
   return BwgTabHelper::FromWebState(activeWebState);
 }
 
-// Attemps to present the entry point IPH the user hasn't used the AI Hub entry
+// Attempts to present the entry point IPH the user hasn't used the AI Hub entry
 // point yet.
 - (void)presentPageActionMenuIPH {
   if (_entryPoint != gemini::EntryPoint::AIHub) {

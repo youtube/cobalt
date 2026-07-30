@@ -20,6 +20,7 @@
 #include "base/timer/timer.h"
 #include "base/types/expected.h"
 #include "net/base/host_port_pair.h"
+#include "net/base/ip_endpoint.h"
 #include "net/base/net_export.h"
 #include "net/base/network_anonymization_key.h"
 #include "net/dns/host_resolver.h"
@@ -165,7 +166,13 @@ class NET_EXPORT_PRIVATE TcpConnectJob
   // Method that can be posted to asynchronously call
   // DoTryAdvanceWaitingConnectors() and will complete the TcpConnectJob if that
   // returns something other than ERR_IO_PENDING.
-  void TryAdvanceWaitingConnectorsAsync();
+  //
+  // `decrement_waiting_on_possible_async_deletion_count` must be true if the
+  // caller incremented `waiting_on_possible_async_deletion_count_`, which
+  // indicated the task was posted due to the host resolution callback returning
+  // `OnHostResolutionCallbackResult::kMayBeDeletedAsync`.
+  void TryAdvanceWaitingConnectorsAsync(
+      bool decrement_waiting_on_possible_async_deletion_count);
 
   // One of the three principal methods running the the TcpConnectJob's state
   // machine.
@@ -265,6 +272,15 @@ class NET_EXPORT_PRIVATE TcpConnectJob
 
   const scoped_refptr<TransportSocketParams> params_;
 
+  // The number of tasks posted as a result of the`host_resolution_callback`
+  // returning OnHostResolutionCallbackResult::kMayBeDeletedAsync that we're
+  // waiting to be run. If non-zero, DoTryAdvanceWaitingConnectors() and
+  // GetNextIPEndPoint() will return ERR_IO_PENDING.
+  //
+  // Incremented by DoServiceEndpointsUpdated() and decremented by
+  // TryAdvanceWaitingConnectorsAsync().
+  size_t waiting_on_possible_async_deletion_count_ = 0;
+
   // If populated, will be used instead of making a new ServiceEndpointRequest,
   // and `dns_request_` will be nullptr.
   const std::optional<ServiceEndpointOverride> endpoint_override_;
@@ -310,9 +326,13 @@ class NET_EXPORT_PRIVATE TcpConnectJob
   base::OneShotTimer slow_timer_;
 
   // This includes addresses that Connectors are currently attempting to connect
-  // to. No address will ever br tried twice, even if it appears in multiple
+  // to. No address will ever be tried twice, even if it appears in multiple
   // ServiceEndpoints.
-  std::set<IPEndPoint> attempted_addresses_;
+  //
+  // `base::flat_set` is here instead of `absl::flash_hash_map` because this
+  // list is expected to be typically be very short (< 20 entries), though that
+  // also means the performance here doesn't matter much, anyways.
+  base::flat_set<IPEndPoint> attempted_addresses_;
 
   // IPs are only added to this list once connecting to them fails, so this is a
   // strict superset of `attempted_addresses_`, except when there are no usable

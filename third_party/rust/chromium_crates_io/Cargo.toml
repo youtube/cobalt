@@ -28,7 +28,7 @@ font-types = "0.11"
 hex = "0.4"
 hmac-sha256 = "1.1.12"
 indexmap = "2.12.1"
-itertools = "0.11.0"
+itertools = "0.14.0"
 lazy_static = "1"
 libc = "0.2"
 minijinja = "2.14.0"
@@ -46,7 +46,8 @@ serde_json = "1.0.149"
 skrifa = "0.40.0"
 small_ctor = "0.1"
 static_assertions = "1"
-strum = "0.27.2"
+strum = "0.28.0"
+strum_macros = "0.28.0"
 xml = "1.2.0"
 
 [dependencies.bytemuck]
@@ -155,6 +156,6 @@ default-features = false
 features = ["float64_representable_durations"]
 
 [dependencies.zip]
-version = "7.1.0"
+version = "8.2.0"
 default-features = false
 features = ["deflate-flate2"]

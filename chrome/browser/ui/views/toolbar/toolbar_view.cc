@@ -25,6 +25,7 @@
 #include "chrome/browser/actor/ui/actor_ui_metrics.h"
 #include "chrome/browser/actor/ui/task_list_bubble/actor_task_list_bubble_controller.h"
 #include "chrome/browser/command_updater.h"
+#include "chrome/browser/glic/browser_ui/glic_nudge_controller.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
@@ -34,7 +35,9 @@
 #include "chrome/browser/profiles/profiles_state.h"
 #include "chrome/browser/themes/theme_properties.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
+#include "chrome/browser/ui/ai_overlay_dialog/ai_overlay_dialog_controller.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_content_setting_bubble_model_delegate.h"
@@ -51,7 +54,6 @@
 #include "chrome/browser/ui/tab_search_feature.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/glic_actor_task_icon_manager_factory.h"
-#include "chrome/browser/ui/tabs/glic_nudge_controller.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/tab_strip_prefs.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
@@ -70,6 +72,7 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/custom_corners_background.h"
 #include "chrome/browser/ui/views/frame/top_container_view.h"
+#include "chrome/browser/ui/views/glic/glic_button_interface.h"
 #include "chrome/browser/ui/views/global_media_controls/media_toolbar_button_contextual_menu.h"
 #include "chrome/browser/ui/views/global_media_controls/media_toolbar_button_view.h"
 #include "chrome/browser/ui/views/location_bar/intent_chip_button.h"
@@ -120,6 +123,7 @@
 #include "components/send_tab_to_self/features.h"
 #include "components/signin/public/base/signin_buildflags.h"
 #include "components/strings/grit/components_strings.h"
+#include "components/vector_icons/vector_icons.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/skia/include/core/SkPath.h"
@@ -136,17 +140,22 @@
 #include "ui/color/color_provider.h"
 #include "ui/compositor/layer.h"
 #include "ui/gfx/canvas.h"
+#include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/image/canvas_image_source.h"
 #include "ui/gfx/paint_vector_icon.h"
 #include "ui/gfx/scoped_canvas.h"
 #include "ui/views/accessibility/view_accessibility.h"
+#include "ui/views/actions/action_view_controller.h"
 #include "ui/views/background.h"
 #include "ui/views/cascading_property.h"
+#include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/separator.h"
 #include "ui/views/layout/fill_layout.h"
 #include "ui/views/layout/flex_layout.h"
 #include "ui/views/layout/flex_layout_view.h"
 #include "ui/views/layout/proposed_layout.h"
+#include "ui/views/mouse_watcher.h"
+#include "ui/views/mouse_watcher_view_host.h"
 #include "ui/views/view.h"
 #include "ui/views/view_class_properties.h"
 #include "ui/views/view_utils.h"
@@ -287,12 +296,9 @@ auto& GetViewCommandMap() {
 
 constexpr int kBrowserAppMenuRefreshExpandedMargin = 5;
 constexpr int kBrowserAppMenuRefreshCollapsedMargin = 2;
-
-bool IsMigratedClickToCallBubble(
-    IntentPickerBubbleView::BubbleType bubble_type) {
-  return bubble_type == IntentPickerBubbleView::BubbleType::kClickToCall &&
-         IsPageActionMigrated(PageActionIconType::kClickToCall);
-}
+constexpr int kLargeSpaceBetweenButtons = 6;
+constexpr int kInsideBorderAroundGlicButtons = 2;
+constexpr int kOutsideBorderAroundGlicButtons = 11;
 
 }  // namespace
 
@@ -325,6 +331,17 @@ ToolbarView::ToolbarView(Browser* browser, BrowserView* browser_view)
   }
   views::SetCascadingColorProviderColor(this, views::kCascadingBackgroundColor,
                                         kColorToolbar);
+
+  mouse_watcher_ = std::make_unique<views::MouseWatcher>(
+      std::make_unique<views::MouseWatcherViewHost>(this, gfx::Insets()), this);
+
+  glic::GlicNudgeController* glic_nudge_controller =
+      browser_->browser_window_features()->glic_nudge_controller();
+
+  // `glic_nudge_controller` will be null if feature is not enabled.
+  if (glic_nudge_controller) {
+    glic_nudge_controller->SetToolbarDelegate(this);
+  }
 }
 
 ToolbarView::~ToolbarView() {
@@ -336,6 +353,12 @@ ToolbarView::~ToolbarView() {
 
   for (const auto& view_and_command : GetViewCommandMap()) {
     chrome::RemoveCommandObserver(browser_, view_and_command.second, this);
+  }
+
+  glic::GlicNudgeController* glic_nudge_controller =
+      browser_->browser_window_features()->glic_nudge_controller();
+  if (glic_nudge_controller) {
+    glic_nudge_controller->SetToolbarDelegate(/*delegate=*/nullptr);
   }
 }
 
@@ -486,6 +509,37 @@ void ToolbarView::Init() {
     location_bar_ = toolbar_webview_->GetLocationBar();
   }
 
+  if (glic::GlicEnabling::IsProfileEligible(browser_view_->GetProfile())) {
+    auto* vertical_tab_strip_state_controller =
+        tabs::VerticalTabStripStateController::From(browser_view_->browser());
+    if (base::FeatureList::IsEnabled(features::kGlicActorUi) &&
+        features::kGlicActorUiTaskIcon.Get()) {
+      glic_actor_button_container_ =
+          AddChildView(CreateGlicActorButtonContainer());
+      glic_actor_task_icon_ =
+          glic_actor_button_container_->AddChildView(CreateGlicActorTaskIcon());
+      glic_actor_button_container_->SetVisible(false);
+    }
+
+    glic_button_ = AddChildView(CreateGlicButton());
+    std::unique_ptr<ToolbarDivider> glic_button_divider =
+        std::make_unique<ToolbarDivider>();
+    glic_button_divider_ = AddChildView(std::move(glic_button_divider));
+    glic_button_divider_->SetProperty(
+        views::kMarginsKey,
+        gfx::Insets::VH(
+            0, GetLayoutConstant(LayoutConstant::kToolbarDividerSpacing)));
+    if (vertical_tab_strip_state_controller) {
+      vertical_tab_subscription_ =
+          vertical_tab_strip_state_controller->RegisterOnModeChanged(
+              base::BindRepeating(&ToolbarView::OnVerticalTabStripModeChanged,
+                                  base::Unretained(this)));
+      should_display_vertical_tabs_ =
+          vertical_tab_strip_state_controller->ShouldDisplayVerticalTabs();
+    }
+    UpdateGlicButtonVisibility();
+  }
+
   if (extensions_container) {
     extensions_container_ = AddChildView(std::move(extensions_container));
     extensions_toolbar_coordinator_ =
@@ -543,27 +597,20 @@ void ToolbarView::Init() {
   }
 
   if (glic::GlicEnabling::IsProfileEligible(browser_view_->GetProfile())) {
-    auto* vertical_tab_strip_state_controller =
-        tabs::VerticalTabStripStateController::From(browser_view_->browser());
-    if (base::FeatureList::IsEnabled(features::kGlicActorUi) &&
-        features::kGlicActorUiTaskIcon.Get()) {
-      glic_actor_button_container_ =
-          AddChildView(CreateGlicActorButtonContainer());
-      glic_actor_task_icon_ =
-          glic_actor_button_container_->AddChildView(CreateGlicActorTaskIcon());
-      glic_actor_button_container_->SetVisible(false);
+    if (base::FeatureList::IsEnabled(features::kAiOverlayDialog) &&
+        AiOverlayDialogController::From(browser_)) {
+      actions::ActionItem* action_item =
+          actions::ActionManager::Get().FindAction(
+              kActionShowAiOverlayDialog, browser_->browser_window_features()
+                                              ->browser_actions()
+                                              ->root_action_item());
+      if (action_item) {
+        action_item->SetVisible(true);
+        action_item->SetEnabled(true);
+        PinnedToolbarActionsModel::Get(browser_->profile())
+            ->UpdatePinnedState(kActionShowAiOverlayDialog, true);
+      }
     }
-
-    glic_button_ = AddChildView(CreateGlicButton());
-    if (vertical_tab_strip_state_controller) {
-      vertical_tab_subscription_ =
-          vertical_tab_strip_state_controller->RegisterOnModeChanged(
-              base::BindRepeating(&ToolbarView::OnVerticalTabStripModeChanged,
-                                  base::Unretained(this)));
-      should_display_vertical_tabs_ =
-          vertical_tab_strip_state_controller->ShouldDisplayVerticalTabs();
-    }
-    UpdateGlicButtonVisibility();
   }
 
   avatar_ = AddChildView(std::make_unique<AvatarToolbarButton>(browser_view_));
@@ -660,6 +707,7 @@ void ToolbarView::OnVerticalTabStripModeChanged(
     tabs::VerticalTabStripStateController* controller) {
   should_display_vertical_tabs_ = controller->ShouldDisplayVerticalTabs();
   UpdateGlicButtonVisibility();
+  UpdateGlicActorVisibility();
 }
 
 std::unique_ptr<GlicAndActorButtonsContainer>
@@ -735,7 +783,7 @@ void ToolbarView::OnGlicButtonClicked() {
       FeaturePromoFeatureUsedAction::kClosePromoIfPresent);
 
   std::optional<std::string> prompt_suggestion;
-  tabs::GlicNudgeController* glic_nudge_controller =
+  glic::GlicNudgeController* glic_nudge_controller =
       browser_->browser_window_features()->glic_nudge_controller();
   if (glic_nudge_controller) {
     prompt_suggestion = glic_nudge_controller->GetPromptSuggestion();
@@ -753,7 +801,7 @@ void ToolbarView::OnGlicButtonClicked() {
 
   if (glic_button_->GetIsShowingNudge()) {
     glic_nudge_controller->OnNudgeActivity(
-        tabs::GlicNudgeActivity::kNudgeClicked);
+        glic::GlicNudgeActivity::kNudgeClicked);
   }
 
   ExecuteHideToolbarNudge(glic_button_);
@@ -764,7 +812,7 @@ void ToolbarView::OnGlicButtonClicked() {
 
 void ToolbarView::OnGlicButtonDismissed() {
   browser_->browser_window_features()->glic_nudge_controller()->OnNudgeActivity(
-      tabs::GlicNudgeActivity::kNudgeDismissed);
+      glic::GlicNudgeActivity::kNudgeDismissed);
 
   // Force hide the button when pressed, bypassing locked expansion mode.
   ExecuteHideToolbarNudge(glic_button_);
@@ -807,7 +855,200 @@ void ToolbarView::OnGlicButtonAnimationEnded() {
   return;
 }
 
-void ToolbarView::ExecuteHideToolbarNudge(glic::ToolbarGlicButton* button) {
+void ToolbarView::ShowToolbarNudge(glic::GlicButtonInterface* button) {
+  if (IsMouseHovered()) {
+    SetLockedExpansionMode(ExpansionMode::kWillShow, button);
+    return;
+  }
+  if (locked_expansion_mode_ == ExpansionMode::kNone) {
+    ExecuteShowToolbarNudge(button);
+  }
+}
+
+void ToolbarView::HideToolbarNudge(glic::GlicButtonInterface* button) {
+  if (this->IsMouseHovered()) {
+    SetLockedExpansionMode(ExpansionMode::kWillHide, button);
+    return;
+  }
+  if (locked_expansion_mode_ == ExpansionMode::kNone) {
+    ExecuteHideToolbarNudge(button);
+  }
+}
+
+bool ToolbarView::GetIsShowingGlicNudge() {
+  return glic_button_ && glic_button_->GetIsShowingNudge();
+}
+
+bool ToolbarView::GetIsShowingGlicActorTaskIconNudge() {
+  return glic_actor_task_icon_ && glic_actor_task_icon_->GetIsShowingNudge();
+}
+
+void ToolbarView::OnTriggerGlicNudgeUI(std::string label) {
+  if (GetIsShowingGlicActorTaskIconNudge()) {
+    return;
+  }
+
+  CHECK(glic_button_);
+  if (!label.empty()) {
+    glic_button_->SetNudgeLabel(label);
+    ShowToolbarNudge(glic_button_);
+  }
+}
+
+void ToolbarView::OnHideGlicNudgeUI() {
+  if (glic_button_) {
+    HideToolbarNudge(glic_button_);
+  }
+}
+
+void ToolbarView::TriggerGlicActorNudge(const std::u16string nudge_text) {
+  CHECK(glic_actor_task_icon_);
+  if (GetIsShowingGlicNudge()) {
+    // If the glic button is showing, start the hide animation in parallel to
+    // the show actor nudge animation.
+    HideToolbarNudge(glic_button_);
+    OnGlicButtonAnimationEnded();
+  }
+  ShowGlicActorNudge(nudge_text);
+}
+
+bool ToolbarView::IsGlicAdded() {
+  return glic_button_ && glic_actor_task_icon_;
+}
+
+void ToolbarView::ShowGlicActorNudge(const std::u16string nudge_text) {
+  CHECK(glic_actor_task_icon_);
+  // Start animation for minimizing the glic button.
+  glic_button_->Collapse();
+  ShowGlicActorTaskIcon();
+  glic_actor_task_icon_->ShowNudgeLabel(nudge_text);
+  ShowToolbarNudge(glic_actor_task_icon_);
+}
+
+void ToolbarView::ShowGlicActorTaskIcon() {
+  CHECK(glic_actor_button_container_);
+  CHECK(glic_button_);
+  // If the nudge is showing (ex: previous state was CheckTasks), hide the
+  // nudge.
+  if (glic_actor_task_icon_->GetIsShowingNudge()) {
+    HideToolbarNudge(glic_actor_task_icon_);
+    return;
+  }
+  glic_button_ =
+      glic_actor_button_container_->InsertGlicButton(glic_button_.get());
+  SetGlicActorShowState(true);
+  SetGlicShowState(true);
+  glic_button_->Collapse();
+  glic_button_->SetSplitButtonCornerStyling();
+  UpdateGlicActorButtonContainerBorders();
+
+  if (glic_actor_task_icon_->GetAnimationMode() ==
+      glic::AnimationMode::kEntry) {
+    // TODO(crbug.com/484389669): Create animation session to being animation of
+    // nudge.
+    glic_actor_task_icon_->SetAnimationMode(glic::AnimationMode::kNudge);
+    glic_actor_task_icon_->SetWidthFactor(1.0);
+  }
+}
+
+void ToolbarView::HideGlicActorTaskIcon() {
+  CHECK(glic_actor_task_icon_);
+
+  // If it's already hidden, do nothing.
+  if (!glic_actor_task_icon_->GetVisible() &&
+      !glic_actor_task_icon_->GetIsShowingNudge()) {
+    return;
+  }
+  glic_actor_task_icon_->SetIsShowingNudge(false);
+
+  // TODO(crbug.com/484389669): Toolbar glic actor animations
+  if (glic_actor_task_icon_->GetAnimationMode() ==
+      glic::AnimationMode::kNudge) {
+    // TODO(crbug.com/484389669): Create animation session to being animation of
+    // nudge.
+    glic_actor_task_icon_->SetAnimationMode(glic::AnimationMode::kEntry);
+    glic_actor_task_icon_->SetWidthFactor(0.0);
+  }
+
+  FinalizeHideGlicActorTaskIcon();
+}
+
+void ToolbarView::FinalizeHideGlicActorTaskIcon() {
+  CHECK(glic_actor_button_container_);
+  CHECK(glic_button_);
+  // Reset Nudge State
+  if (glic_actor_task_icon_->GetIsShowingNudge()) {
+    // TODO(crbug.com/): Glic actor nudge animation
+    glic_actor_task_icon_->SetIsShowingNudge(false);
+  }
+  glic_actor_task_icon_->SetVisible(false);
+  glic_actor_task_icon_->SetTaskIconToDefault();
+  const size_t insertion_index = GetIndexOf(glic_button_divider_).value();
+  glic_button_ = AddChildViewAt(std::move(glic_button_.get()), insertion_index);
+  glic_actor_button_container_->SetVisible(false);
+  glic_button_->Expand();
+  glic_button_->ResetSplitButtonCornerStyling();
+  // Reset the animation mode for the next time the icon is shown.
+  glic_actor_task_icon_->SetAnimationMode(glic::AnimationMode::kEntry);
+  UpdateGlicActorButtonContainerBorders();
+}
+
+void ToolbarView::UpdateGlicActorButtonContainerBorders() {
+  CHECK(glic_button_);
+  gfx::Insets glic_border;
+
+  // Ensure buttons look vertically centered by making the top and bottom insets
+  // match.
+  gfx::Insets border_insets = gfx::Insets();
+  int min_vertical_inset =
+      std::min(border_insets.top(), border_insets.bottom());
+  border_insets.set_top_bottom(min_vertical_inset, min_vertical_inset);
+
+  // GlicActorTaskIcon will only ever be shown alongside the GlicButton.
+  if (glic_actor_task_icon_ && glic_actor_task_icon_->IsDrawn()) {
+    gfx::Insets task_icon_border;
+    const gfx::Insets right_icon_border =
+        gfx::Insets().set_left_right(0, kOutsideBorderAroundGlicButtons);
+    const gfx::Insets left_icon_border = gfx::Insets().set_left_right(
+        kOutsideBorderAroundGlicButtons, kInsideBorderAroundGlicButtons);
+    task_icon_border = right_icon_border + border_insets;
+    glic_border = left_icon_border + border_insets;
+    glic_actor_task_icon_->SetBorder(
+        views::CreateEmptyBorder(task_icon_border));
+    // Force a background repaint to account for the new border insets.
+    glic_actor_task_icon_->RefreshBackground();
+  } else {
+    // Reset GlicButton border if Task Icon is hidden.
+    glic_border = gfx::Insets().set_left_right(border_insets.top(),
+                                               border_insets.bottom()) +
+                  border_insets;
+  }
+  glic_button_->SetBorder(views::CreateEmptyBorder(glic_border));
+  // Force a background repaint to account for the new border insets.
+  glic_button_->RefreshBackground();
+}
+
+void ToolbarView::ExecuteShowToolbarNudge(glic::GlicButtonInterface* button) {
+  // TODO(crbug.com/): Fix cases where we can't show modal ui during animation
+  // session.
+  button->SetIsShowingNudge(true);
+
+  // Only change the margins between the GlicButton and nudges that are NOT
+  // coming from the GlicActorTaskIcon.
+  if (glic_button_ && glic_button_->GetVisible() && button != glic_button_ &&
+      button != glic_actor_task_icon_) {
+    const int space_between_buttons = kLargeSpaceBetweenButtons;
+    gfx::Insets margin;
+    margin.set_right(space_between_buttons);
+    button->GetPropertyHandler()->SetProperty(views::kMarginsKey, margin);
+  } else {
+    // Reset the margins.
+    button->GetPropertyHandler()->SetProperty(views::kMarginsKey,
+                                              gfx::Insets());
+  }
+}
+
+void ToolbarView::ExecuteHideToolbarNudge(glic::GlicButtonInterface* button) {
   if (!button->GetVisible()) {
     return;
   }
@@ -822,13 +1063,38 @@ void ToolbarView::ExecuteHideToolbarNudge(glic::ToolbarGlicButton* button) {
   button->SetIsShowingNudge(false);
 }
 
+void ToolbarView::UpdateGlicActorVisibility() {
+  if (!glic_actor_task_icon_) {
+    return;
+  }
+
+  bool is_glic_actor_visible =
+      should_show_glic_actor_ && should_display_vertical_tabs_;
+
+  glic_actor_task_icon_->SetVisible(is_glic_actor_visible);
+}
+
 void ToolbarView::UpdateGlicButtonVisibility() {
   if (!glic_button_) {
     return;
   }
 
-  glic_button_->SetVisible(should_show_glic_button_ &&
-                           should_display_vertical_tabs_);
+  bool is_glic_visible =
+      should_show_glic_button_ && should_display_vertical_tabs_;
+
+  glic_button_->SetVisible(is_glic_visible);
+  glic_button_divider_->SetVisible(is_glic_visible);
+
+  if (glic_actor_button_container_) {
+    // glic_actor_button_container_ should only be visible at the same time as
+    // glic_button_.
+    glic_actor_button_container_->SetVisible(is_glic_visible);
+  }
+}
+
+void ToolbarView::SetGlicActorShowState(bool show) {
+  should_show_glic_actor_ = show;
+  UpdateGlicActorVisibility();
 }
 
 void ToolbarView::SetGlicShowState(bool show) {
@@ -842,6 +1108,26 @@ void ToolbarView::SetGlicPanelIsOpen(bool open) {
   }
 
   glic_button_->SetGlicPanelIsOpen(open);
+}
+
+void ToolbarView::MouseMovedOutOfHost() {
+  SetLockedExpansionMode(ExpansionMode::kNone, /*button=*/nullptr);
+}
+
+void ToolbarView::SetLockedExpansionMode(ExpansionMode mode,
+                                         glic::GlicButtonInterface* button) {
+  if (mode == ExpansionMode::kNone) {
+    if (locked_expansion_mode_ == ExpansionMode::kWillShow) {
+      ExecuteShowToolbarNudge(locked_expansion_button_);
+    } else if (locked_expansion_mode_ == ExpansionMode::kWillHide) {
+      ExecuteHideToolbarNudge(locked_expansion_button_);
+    }
+    locked_expansion_button_ = nullptr;
+  } else {
+    locked_expansion_button_ = button;
+    mouse_watcher_->Start(GetWidget()->GetNativeWindow());
+  }
+  locked_expansion_mode_ = mode;
 }
 
 void ToolbarView::AnimationEnded(const gfx::Animation* animation) {
@@ -954,22 +1240,22 @@ void ToolbarView::ShowIntentPickerBubble(
     const std::optional<url::Origin>& initiating_origin,
     IntentPickerResponse callback) {
   views::Button* highlighted_button = nullptr;
-  if (bubble_type == IntentPickerBubbleView::BubbleType::kClickToCall) {
-    highlighted_button =
-        GetPageActionIconView(PageActionIconType::kClickToCall);
-  } else if (highlighted_button = GetIntentChipButton(); !highlighted_button) {
-    highlighted_button = GetPageActionView(kActionShowIntentPicker);
+  if (bubble_type != IntentPickerBubbleView::BubbleType::kClickToCall) {
+    if (highlighted_button = GetIntentChipButton(); !highlighted_button) {
+      highlighted_button = GetPageActionView(kActionShowIntentPicker);
+    }
+
+    if (!highlighted_button) {
+      return;
+    }
   }
 
-  // Post migration, highlighted_button is a nullptr for ClickToCall
-  // BubbleType but the bubble still gets shown without a page action being
-  // shown/highlighted.
-  if (highlighted_button || IsMigratedClickToCallBubble(bubble_type)) {
-    IntentPickerBubbleView::ShowBubble(
-        location_bar_view(), highlighted_button, bubble_type, GetWebContents(),
-        std::move(app_info), show_stay_in_chrome, show_remember_selection,
-        initiating_origin, std::move(callback));
-  }
+  // At this point, we either have a highlighted_button or it's a ClickToCall
+  // bubble which doesn't have a corresponding page action button to highlight.
+  IntentPickerBubbleView::ShowBubble(
+      location_bar_view(), highlighted_button, bubble_type, GetWebContents(),
+      std::move(app_info), show_stay_in_chrome, show_remember_selection,
+      initiating_origin, std::move(callback));
 }
 
 void ToolbarView::ShowBookmarkBubble(const GURL& url, bool already_bookmarked) {
@@ -1477,10 +1763,11 @@ void ToolbarView::ZoomChangedForActiveTab(bool can_show_bubble) {
     return;
   }
 
-  CHECK(location_bar_view_)
-      << "Alternate location bar impls need to handle this.";
-  location_bar_view_->page_action_icon_controller()->ZoomChangedForActiveTab(
-      can_show_bubble);
+  // Other impls are expected to only launch after page action migration.
+  if (location_bar_view_) {
+    location_bar_view_->page_action_icon_controller()->ZoomChangedForActiveTab(
+        can_show_bubble);
+  }
 }
 
 AvatarToolbarButton* ToolbarView::GetAvatarToolbarButton() {
@@ -1503,7 +1790,7 @@ ReloadControl* ToolbarView::GetReloadButton() {
 }
 
 IntentChipButton* ToolbarView::GetIntentChipButton() {
-  return location_bar_view()->intent_chip();
+  return location_bar_view() ? location_bar_view()->intent_chip() : nullptr;
 }
 
 ToolbarButton* ToolbarView::GetDownloadButton() {

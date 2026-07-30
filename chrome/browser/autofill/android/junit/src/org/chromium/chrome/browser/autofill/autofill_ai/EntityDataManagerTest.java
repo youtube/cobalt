@@ -177,6 +177,12 @@ public class EntityDataManagerTest {
     }
 
     @Test
+    public void testCanEnableOrDisableAutofillAi() {
+        when(mEntityDataManagerJniMock.canEnableOrDisableAutofillAi(NATIVE_PTR)).thenReturn(true);
+        assertTrue(mEntityDataManager.canEnableOrDisableAutofillAi());
+    }
+
+    @Test
     public void testGetAutofillAiOptInStatus() {
         when(mEntityDataManagerJniMock.getAutofillAiOptInStatus(NATIVE_PTR)).thenReturn(true);
         assertTrue(mEntityDataManager.getAutofillAiOptInStatus());
@@ -204,6 +210,13 @@ public class EntityDataManagerTest {
                         NATIVE_PTR))
                 .thenReturn(true);
         assertTrue(mEntityDataManager.getIsAutofillAiEnabledByEnterprisePolicyWithoutLogging());
+    }
+
+    @Test
+    public void testIsWalletPublicPassStorageEnabled() {
+        when(mEntityDataManagerJniMock.isWalletPublicPassStorageEnabled(NATIVE_PTR))
+                .thenReturn(true);
+        assertTrue(mEntityDataManager.isWalletPublicPassStorageEnabled());
     }
 
     @Test

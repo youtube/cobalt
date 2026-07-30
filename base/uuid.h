@@ -15,6 +15,13 @@
 #include "base/base_export.h"
 #include "base/compiler_specific.h"
 #include "base/containers/span.h"
+#include "build/robolectric_buildflags.h"
+#include "third_party/abseil-cpp/absl/numeric/int128.h"
+
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_ROBOLECTRIC)
+#include "base/android/jni_string.h"
+#include "third_party/jni_zero/jni_zero.h"
+#endif
 
 namespace base {
 
@@ -63,6 +70,12 @@ class BASE_EXPORT Uuid {
   // more context.
   const std::string& AsLowercaseString() const LIFETIME_BOUND;
 
+  // Returns the Uuid as a 128-bit integer, or 0 if the Uuid is invalid.
+  // Note: The memory layout is platform-dependent. On little-endian systems, it
+  // matches neither the RFC 4122 byte sequence nor the Microsoft GUID layout.
+  // Do not interpret or store the returned integer as a byte array.
+  absl::uint128 AsInteger() const;
+
   // Invalid Uuids are equal.
   friend bool operator==(const Uuid&, const Uuid&) = default;
   // Uuids are 128bit chunks of data so must be indistinguishable if equivalent.
@@ -91,5 +104,27 @@ struct BASE_EXPORT UuidHash {
 BASE_EXPORT std::ostream& operator<<(std::ostream& out, const Uuid& uuid);
 
 }  // namespace base
+
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_ROBOLECTRIC)
+namespace jni_zero {
+
+// TODO(agrieve): We map base::Uuid to String. Might be nicer to map it to
+// android.util.UUID instead.
+template <>
+inline base::Uuid FromJniType<base::Uuid>(
+    JNIEnv* env,
+    const jni_zero::JavaRef<jobject>& obj) {
+  return base::Uuid::ParseLowercase(FromJniType<std::string>(env, obj));
+}
+
+template <>
+inline ScopedJavaLocalRef<jobject> ToJniType<base::Uuid>(
+    JNIEnv* env,
+    const base::Uuid& uuid) {
+  return ToJniType(env, uuid.AsLowercaseString());
+}
+
+}  // namespace jni_zero
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_ROBOLECTRIC)
 
 #endif  // BASE_UUID_H_

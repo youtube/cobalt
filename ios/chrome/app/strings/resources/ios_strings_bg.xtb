@@ -298,7 +298,6 @@
 <translation id="2012723204723845092">Добре дошли отново!</translation>
 <translation id="2015722694326466240">За да видите паролите, трябва първо да зададете код за достъп на устройството си.</translation>
 <translation id="201759455285471444">Разгъване на групата раздели.</translation>
-<translation id="202070562065520783">Обясни ми това</translation>
 <translation id="2044394949148788042">Отворете мрежата с раздели.</translation>
 <translation id="2044681667265133332">Профилът <ph name="USER_EMAIL" /> се управлява от организацията <ph name="HOSTED_DOMAIN" />, която може да преглежда определена информация. <ph name="BEGIN_LINK" />Научете повече<ph name="END_LINK" /></translation>
 <translation id="20485545164632846">нов елемент</translation>
@@ -395,6 +394,7 @@
 <translation id="2360196772093551345">Заявка за мобилния сайт</translation>
 <translation id="2362083820973145409">Влезли сте като <ph name="USER_NAME" />. <ph name="USER_EMAIL" />. Отваря настройките.</translation>
 <translation id="2371084566192454134">Раздели и групи раздели</translation>
+<translation id="2371303771137626249">Ново</translation>
 <translation id="2381405137052800939">Основни положения</translation>
 <translation id="2384692388811649784">Скриване на разделите в режим „инкогнито“</translation>
 <translation id="2386793615875593361">1 избрана</translation>
@@ -637,6 +637,7 @@
 <translation id="3324193307694657476">Адрес 2</translation>
 <translation id="3328801116991980348">Информация за сайта</translation>
 <translation id="333229797575847124">Как да активирате тази функция</translation>
+<translation id="334004756946755423">Обясни ми това:</translation>
 <translation id="3344233834747405775">Невалидно име на картодържателя</translation>
 <translation id="3344485292736684439">{count,plural, =1{Отметката бе запазена в(ъв) „{title}“ в профила ви {email}}other{Отметките бяха запазени в(ъв) „{title}“ в профила ви {email}}}</translation>
 <translation id="334690320928261823">Скорошни раздели</translation>
@@ -690,6 +691,7 @@
 <translation id="3530206579861815432">Можете бързо да намирате отворените и наскоро затворените раздели на синхронизираните си устройства.</translation>
 <translation id="3530767473765895035">Управление на профилите на това устройство…</translation>
 <translation id="3533436815740441613">Нов раздел</translation>
+<translation id="3534738261102690620">Попитайте Gemini</translation>
 <translation id="3540141921715814660">Добавяне към отметките</translation>
 <translation id="3546122170015471515">Предварителен преглед на Карти в Google.com</translation>
 <translation id="3547356470684043247">Четете оценки за продуктите и услугите или отзиви за практическата работа на клиентите, така че да вземате информирани решения</translation>
@@ -960,6 +962,7 @@
 <translation id="454217142158335225">Можете да отворите отново затворените елементи от секциите „Скорошни раздели“ или „Групи раздели“. Фиксираните ви раздели няма да бъдат затворени.</translation>
 <translation id="4547181496285029457">Назад към най-скорошния раздел</translation>
 <translation id="4552042254369397518">Копира се…</translation>
+<translation id="4553044860350038560">Още ключове за достъп</translation>
 <translation id="4564893319561643483">Скриване на „<ph name="TITLE" />“</translation>
 <translation id="4565377596337484307">Скриване на паролата</translation>
 <translation id="4568230126482344545">Скриване на „Скорошни раздели“</translation>
@@ -1088,6 +1091,7 @@
 <translation id="4944543191714094452">Търсене в страницата…</translation>
 <translation id="4945756290001680296">Достъп до настройките за паролите</translation>
 <translation id="4949302115427722371">Управление на настройките…</translation>
+<translation id="4952050521954075618">Снимките от филмовата ролка няма да се синхронизират на устройствата ви</translation>
 <translation id="4958444002117714549">Разгъване на списъка</translation>
 <translation id="496392417432935267">Отворено другаде</translation>
 <translation id="4970724460420203313">Използването на Chrome с управлявания ви профил помага да отделите данните за сърфирането (включително разделите, историята и паролите), свързани с организацията ви, от другите данни за сърфиране</translation>
@@ -1287,6 +1291,7 @@
 <translation id="5647702255748985085">Искате ли да напуснете групата?</translation>
 <translation id="5648166631817621825">Последните 7 дни</translation>
 <translation id="5652623411397330904">Продуктите, които следите, ще се показват тук.</translation>
+<translation id="5653100054596780862">Всички раздели</translation>
 <translation id="5656431592348714536">Подобрен календар</translation>
 <translation id="5659593005791499971">Имейл</translation>
 <translation id="5665739277590037307">В сила са <ph name="GOOGLE_TERMS" /> и <ph name="GEMINI_APPS_PRIVACY" />. Gemini може да прави грешки, затова проверявайте повторно отговорите.</translation>
@@ -1614,6 +1619,7 @@
 <translation id="672735642903863329">Получавайте своите отметки, пароли и др. на всичките си устройства.</translation>
 <translation id="6729493062119577923">Активност в споделената група раздели</translation>
 <translation id="6732087373923685049">камера</translation>
+<translation id="6736243959894955139">Адрес</translation>
 <translation id="6746338529702829275">Преглед на данните за профила ви</translation>
 <translation id="6750456911389438250">{count,plural, =1{Импортиран е {count} елемент от историята}other{Импортирани са {count} елемента от историята}}</translation>
 <translation id="6755200887046212842">Управление на профилите</translation>
@@ -1751,6 +1757,7 @@
 <translation id="7300448350764260141">Добавете допълнителна защита срещу онлайн заплахи.</translation>
 <translation id="7311244614769792472">Няма намерени резултати</translation>
 <translation id="7313347584264171202">Тук ще се показват разделите ви в режим „инкогнито“</translation>
+<translation id="7322186060879266048">{count,plural, =1{{count} опция за автоматично попълване е налице над клавиатурата ви.}other{{count} опции за автоматично попълване са налице над клавиатурата ви.}}</translation>
 <translation id="7328162502911382168">(<ph name="COUNT" />)</translation>
 <translation id="7336264872878993241">Изтеглено: <ph name="PERCENT" />%</translation>
 <translation id="7345061034321640811">Импортирането не е разрешено</translation>
@@ -1820,7 +1827,6 @@
 <translation id="7537586195939242955">Понастоящем пропускът не може да се инсталира в Passbook.</translation>
 <translation id="754655535278952384">Проверихте <ph name="TIME" /></translation>
 <translation id="7554645225856321710">Затваряне на всички</translation>
-<translation id="7554791636758816595">Нов раздел</translation>
 <translation id="7557508262441527045">Излязохте от профила си</translation>
 <translation id="7561196759112975576">Винаги</translation>
 <translation id="7561982940498449837">Затваряне на менюто</translation>
@@ -2250,7 +2256,6 @@
 <translation id="8988107725234939347"><ph name="WEBSITE_TITLE" /> – фиксиран сайт</translation>
 <translation id="8990960056509724223">Файлът не бе запазен поради правилата на организацията ви</translation>
 <translation id="8998289560386111590">Не е налице на устройството ви</translation>
-<translation id="9000532564152265066">Всички раздели</translation>
 <translation id="9003677638446136377">Повторна проверка</translation>
 <translation id="9006453925669499173">Меню → Нов раздел в режим „инкогнито“</translation>
 <translation id="9008201768610948239">Пренебрегване</translation>

@@ -72,6 +72,24 @@ function shouldHandlePasskeyRequests(isConditional: boolean): boolean {
                          shouldHandleModalPasskeyRequests();
 }
 
+// Helper to generate the standard abort error.
+function getAbortError(): DOMException {
+  return new DOMException('The request has been aborted.', 'AbortError');
+}
+
+// Helper to handle the AbortSignal event listener.
+function setupAbortSignalHandler(signal: AbortSignal, promiseId: string): void {
+  signal.addEventListener('abort', () => {
+    DeferredPublicKeyCredentialPromise.reject(promiseId, getAbortError());
+
+    sendWebKitMessage(HANDLER_NAME, {
+      'event': 'cancelRequest',
+      'frameId': gCrWeb.getFrameId(),
+      'requestId': promiseId,
+    });
+  }, {once: true});
+}
+
 // Partial interface for overriding getClientCapabilities properties.
 interface PublicKeyCredentialClientCapabilities {
   // Whether conditional passkey requests are supported.
@@ -614,8 +632,12 @@ class DeferredPublicKeyCredentialPromise {
   // eslint-disable-next-line @typescript-eslint/explicit-member-accessibility
   public promise: Promise<PublicKeyCredential>;
   // Resolve function of the deferred promise.
+  // TODO(crbug.com/493624186): Fix members asserted as non-null .
+  /* eslint-disable-next-line no-restricted-syntax */
   private resolve!: ResolveFunction<PublicKeyCredential>;
   // Reject function of the deferred promise.
+  // TODO(crbug.com/493624186): Fix members asserted as non-null .
+  /* eslint-disable-next-line no-restricted-syntax */
   private reject!: RejectFunction;
   // Unique ID for this deferred promise.
   // eslint-disable-next-line @typescript-eslint/explicit-member-accessibility
@@ -656,8 +678,8 @@ class DeferredPublicKeyCredentialPromise {
   }
 
   // Rejects a deferred promise.
-  static reject(id: string): void {
-    DeferredPublicKeyCredentialPromise.ongoingPromises.get(id)?.reject();
+  static reject(id: string, reason?: DOMException|string): void {
+    DeferredPublicKeyCredentialPromise.ongoingPromises.get(id)?.reject(reason);
   }
 }
 
@@ -713,9 +735,17 @@ function createPassthroughAssertionRequest(
 // Creates a registration request from the provided parameters.
 function createRegistrationRequest(
     publicKeyOptions: PublicKeyCredentialCreationOptions,
-    isConditional: boolean): Promise<Credential|null> {
+    isConditional: boolean, signal?: AbortSignal): Promise<Credential|null> {
+  if (signal?.aborted) {
+    return Promise.reject(getAbortError());
+  }
+
   const deferredPromise =
       new DeferredPublicKeyCredentialPromise(publicKeyOptions.timeout);
+
+  if (signal) {
+    setupAbortSignalHandler(signal, deferredPromise.id);
+  }
 
   sendWebKitMessage(HANDLER_NAME, {
     'event': 'handleCreateRequest',
@@ -734,10 +764,18 @@ function createRegistrationRequest(
 
 // Creates an assertion request from the provided parameters.
 function createAssertionRequest(
-    publicKeyOptions: PublicKeyCredentialRequestOptions,
-    isConditional: boolean): Promise<Credential|null> {
+    publicKeyOptions: PublicKeyCredentialRequestOptions, isConditional: boolean,
+    signal?: AbortSignal): Promise<Credential|null> {
+  if (signal?.aborted) {
+    return Promise.reject(getAbortError());
+  }
+
   const deferredPromise =
       new DeferredPublicKeyCredentialPromise(publicKeyOptions.timeout);
+
+  if (signal) {
+    setupAbortSignalHandler(signal, deferredPromise.id);
+  }
 
   sendWebKitMessage(HANDLER_NAME, {
     'event': 'handleGetRequest',
@@ -766,7 +804,8 @@ const credentialsContainer: CredentialsContainer = {
     const isConditional: boolean = isConditionalMediation(options);
     if (shouldHandlePasskeyRequests(isConditional) &&
         options.publicKey.challenge) {
-      return createAssertionRequest(options.publicKey, isConditional)
+      return createAssertionRequest(
+                 options.publicKey, isConditional, options.signal)
           .then(result => {
             if (isValidCredential(result)) {
               // TODO(crbug.com/460485333): Notification message of success
@@ -791,7 +830,8 @@ const credentialsContainer: CredentialsContainer = {
     if (shouldHandlePasskeyRequests(isConditional) &&
         options.publicKey.challenge && options.publicKey.user &&
         options.publicKey.user.id) {
-      return createRegistrationRequest(options.publicKey, isConditional)
+      return createRegistrationRequest(
+                 options.publicKey, isConditional, options.signal)
           .then(result => {
             if (isValidCredential(result)) {
               // TODO(crbug.com/460485333): Notification message of success

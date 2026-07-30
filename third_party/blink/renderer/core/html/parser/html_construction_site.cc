@@ -70,6 +70,7 @@
 #include "third_party/blink/renderer/core/html/parser/html_parser_reentry_permit.h"
 #include "third_party/blink/renderer/core/html/parser/html_stack_item.h"
 #include "third_party/blink/renderer/core/html/parser/html_token.h"
+#include "third_party/blink/renderer/core/html/parser/patch.h"
 #include "third_party/blink/renderer/core/html_element_factory.h"
 #include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/loader/frame_loader.h"
@@ -215,8 +216,11 @@ static inline void Insert(HTMLConstructionSiteTask& task) {
   // instead be inside the template element's template contents, after its last
   // child (if any).
   if (auto* template_element = DynamicTo<HTMLTemplateElement>(*task.parent)) {
-    task.parent = template_element->InsertionTarget();
-    task.next_child = template_element->InsertionNextChild();
+    if (auto* patch = template_element->GetPatch()) {
+      patch->Apply(task);
+    } else {
+      task.parent = template_element->InsertionTarget();
+    }
     // If the Document was detached in the middle of parsing, The template
     // element won't be able to initialize its contents, so bail out.
     if (!task.parent)
@@ -443,7 +447,7 @@ bool HTMLConstructionSite::SanitizeIfNeeded(HTMLConstructionSiteTask& task) {
   // TODO(nrosenthal): sanitize also reparenting etc?
   CHECK(task.operation == HTMLConstructionSiteTask::Operation::kInsert ||
         task.operation == HTMLConstructionSiteTask::Operation::kInsertText);
-  if (!RuntimeEnabledFeatures::DocumentPatchingEnabled() || !task.child ||
+  if (!RuntimeEnabledFeatures::NewHTMLSettingMethodsEnabled() || !task.child ||
       !sanitizer_) {
     return true;
   }
@@ -558,7 +562,9 @@ HTMLConstructionSite::HTMLConstructionSite(
   if (fragment_target) {
     DCHECK_EQ(document_, &fragment_target->GetDocument());
     DCHECK_EQ(in_quirks_mode_, fragment_target->GetDocument().InQuirksMode());
-    if (!context_element->GetDocument().IsTemplateDocument()) {
+    if (!context_element->GetDocument().IsTemplateDocument() &&
+        (!RuntimeEnabledFeatures::CorrectTemplateFormParsingEnabled() ||
+         !IsA<HTMLTemplateElement>(context_element))) {
       form_ = Traversal<HTMLFormElement>::FirstAncestorOrSelf(*context_element);
     }
   }
@@ -913,12 +919,15 @@ void HTMLConstructionSite::InsertHTMLBodyElement(AtomicHTMLToken* token) {
     document_->WillInsertBody();
 }
 
-void HTMLConstructionSite::InsertHTMLFormElement(AtomicHTMLToken* token,
-                                                 bool is_demoted) {
+void HTMLConstructionSite::InsertHTMLFormElement(
+    AtomicHTMLToken* token,
+    bool is_demoted,
+    bool is_parsing_template_contents) {
   auto* form_element =
       To<HTMLFormElement>(CreateElement(token, html_names::xhtmlNamespaceURI));
-  if (!OpenElements()->HasTemplateInHTMLScope())
+  if (!is_parsing_template_contents) {
     form_ = form_element;
+  }
   if (is_demoted) {
     UseCounter::Count(OwnerDocumentForCurrentNode(),
                       WebFeature::kDemotedFormElement);
@@ -975,20 +984,11 @@ void HTMLConstructionSite::InsertHTMLTemplateElement(
         template_stack_item->GetAttributeItem(
             html_names::kShadowrootcustomelementregistryAttr);
 
-    Vector<AtomicString> marker_list;
-    if (auto* marker = template_element->GetMarker()) {
-      CHECK(RuntimeEnabledFeatures::DocumentPatchingEnabled());
-      const auto& token_set = marker->TokenSet();
-      marker_list.reserve(token_set.size());
-      for (const auto& marker_token : token_set) {
-        marker_list.push_back(marker_token);
-      }
-    }
-
     bool success = host->AttachDeclarativeShadowRoot(
         *template_element, declarative_shadow_root_mode, focus_delegation,
         slot_assignment_mode, serializable, clonable, adopted_stylesheets,
-        reference_target, waiting_for_scoped_registry, marker_list);
+        reference_target, waiting_for_scoped_registry,
+        template_element->marker());
     // If the shadow root attachment fails, e.g. if the host element isn't a
     // valid shadow host, then we leave should_attach_template true, so that
     // a "normal" template element gets attached to the DOM tree.
@@ -1001,10 +1001,14 @@ void HTMLConstructionSite::InsertHTMLTemplateElement(
     }
   }
 
-  if (should_attach_template &&
-      template_element->BeginPatch(*open_elements_.TopStackItem()->GetNode())) {
-    CHECK(RuntimeEnabledFeatures::DocumentPatchingEnabled());
-    should_attach_template = false;
+  if (should_attach_template) {
+    if (auto* patch = Patch::Prepare(
+            open_elements_.TopStackItem()->GetNode(),
+            template_element->FastGetAttribute(html_names::kForAttr))) {
+      CHECK(RuntimeEnabledFeatures::DocumentPatchingEnabled());
+      template_element->SetPatch(patch);
+      should_attach_template = false;
+    }
   }
 
   if (should_attach_template) {
@@ -1054,7 +1058,9 @@ void HTMLConstructionSite::InsertScriptElement(AtomicHTMLToken* token) {
       // elements since scripts can never see those flags or effects thereof.
       .SetCreatedByParser(should_be_parser_inserted,
                           should_be_parser_inserted ? document_ : nullptr)
-      .SetAlreadyStarted(is_parsing_fragment_ && flags.IsCreatedByParser());
+      .SetAlreadyStarted(is_parsing_fragment_ && flags.IsCreatedByParser() &&
+                         parser_content_policy_ !=
+                             kAllowScriptingContentAndMarkAsParserInserted);
   HTMLScriptElement* element = nullptr;
   if (const auto* is_attribute = token->GetAttributeItem(html_names::kIsAttr)) {
     element = To<HTMLScriptElement>(OwnerDocumentForCurrentNode().CreateElement(
@@ -1098,9 +1104,15 @@ void HTMLConstructionSite::InsertTextNode(const StringView& string,
           DynamicTo<HTMLTemplateElement>(*dummy_task.parent)) {
     // If the Document was detached in the middle of parsing, the template
     // element won't be able to initialize its contents.
-    if (auto* insertion_target = template_element->InsertionTarget()) {
-      dummy_task.parent = insertion_target;
-      dummy_task.next_child = template_element->InsertionNextChild();
+    if (auto* patch = template_element->GetPatch()) {
+      patch->Apply(dummy_task);
+    } else {
+      dummy_task.parent = template_element->InsertionTarget();
+    }
+    // If the Document was detached in the middle of parsing, the template
+    // element won't be able to initialize its contents, so bail out.
+    if (!dummy_task.parent) {
+      return;
     }
   }
 

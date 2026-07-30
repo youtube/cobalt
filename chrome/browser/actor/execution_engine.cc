@@ -27,6 +27,7 @@
 #include "base/types/id_type.h"
 #include "base/types/optional_ref.h"
 #include "base/types/pass_key.h"
+#include "chrome/browser/actor/action_tracker_for_metrics.h"
 #include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_metrics.h"
@@ -96,14 +97,10 @@ const RenderFrameHost* GetPrimaryMainFrame(
 
 void PostTaskForActCallback(
     ActorTask::ActCallback callback,
-    mojom::ActionResultPtr result,
-    std::optional<size_t> index_of_failed_action,
     std::vector<ActionResultWithLatencyInfo> action_results) {
-  RecordActionResultCode(result->code);
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
-      base::BindOnce(std::move(callback), std::move(result),
-                     index_of_failed_action, std::move(action_results)));
+      base::BindOnce(std::move(callback), std::move(action_results)));
 }
 
 // When operating on an opaque site, we choose to use the precursor's origin
@@ -357,18 +354,18 @@ ExecutionEngine::GatingDecision ExecutionEngine::DetermineGatingDecision(
   const SafetyListManager& safety_list_manager =
       *SafetyListManager::GetInstance();
 
+  auto manager_decision = safety_list_manager.Find(source_url, destination_url);
   if (url::IsSameOriginWith(source_url, destination_url)) {
-    // The static blocklist should never need to block same-origin navigations.
-    // This is because SafetyChecksForNextAction prevents action on an origin if
-    // it is already on the blocklist, and navigation gating prevents the actor
-    // from navigating to a blocked origin after. We apply a CHECK to enforce
-    // this invariant.
-    CHECK(safety_list_manager.Find(source_url, destination_url) !=
-          SafetyListManager::Decision::kBlock);
-    return GatingDecision::kAllowSameOrigin;
+    // Same-origin navigations are generally allowed unless the origin is on the
+    // static blocklist. Normally, the actor cannot interact with pages on this
+    // list, but we need to account for page-initiated navigations on blocked
+    // pages while the actor is deliberating the task.
+    return manager_decision == SafetyListManager::Decision::kBlock
+               ? GatingDecision::kBlockByStaticList
+               : GatingDecision::kAllowSameOrigin;
   }
 
-  switch (safety_list_manager.Find(source_url, destination_url)) {
+  switch (manager_decision) {
     case SafetyListManager::Decision::kNone:
       return GatingDecision::kNeedsAsyncCheck;
     case SafetyListManager::Decision::kAllow:
@@ -679,8 +676,8 @@ void ExecutionEngine::Act(std::vector<std::unique_ptr<ToolRequest>>&& actions,
             .Build());
     PostTaskForActCallback(
         std::move(callback),
-        MakeResult(mojom::ActionResultCode::kExecutionEngineExistingAction),
-        std::nullopt, {});
+        MakeResultVector(
+            mojom::ActionResultCode::kExecutionEngineExistingAction));
     return;
   }
 
@@ -998,7 +995,19 @@ void ExecutionEngine::CompleteActions(mojom::ActionResultPtr result,
 
   // If we have not yet appended the action_results for the failed index,
   // append it now.
-  if (action_index && action_results_.size() == *action_index) {
+  if (action_index) {
+    if (action_results_.size() == *action_index) {
+      action_results_.emplace_back(action_start_time_, base::TimeTicks::Now(),
+                                   result->Clone());
+    } else if (action_results_.size() > *action_index && !IsOk(*result)) {
+      // If we already have a result for this action, and the new result is an
+      // error, overwrite it. This can happen if a tool invocation succeeds
+      // but a subsequent UI post-invoke stage fails.
+      action_results_[*action_index].result = result->Clone();
+      action_results_[*action_index].end_time = base::TimeTicks::Now();
+    }
+  } else if (!IsOk(*result)) {
+    // If it's a general error, we still want it in action_results.
     action_results_.emplace_back(action_start_time_, base::TimeTicks::Now(),
                                  result->Clone());
   }
@@ -1015,8 +1024,8 @@ void ExecutionEngine::CompleteActions(mojom::ActionResultPtr result,
         JournalDetailsBuilder().AddError(ToDebugString(*result)).Build());
   }
 
-  PostTaskForActCallback(std::move(act_callback_), std::move(result),
-                         action_index, std::move(action_results_));
+  RecordActionResultCode(result->code);
+  PostTaskForActCallback(std::move(act_callback_), std::move(action_results_));
 
   action_sequence_.clear();
   next_action_index_ = 0;
@@ -1171,6 +1180,7 @@ void ExecutionEngine::RequestToShowAutofillSuggestions(
   task_->delegate()->RequestToShowAutofillSuggestionsDialog(
       task_->id(), std::move(requests), std::move(event_handler),
       std::move(callback));
+  task_->action_tracker_for_metrics().OnAutofillAttentionDialogPresented();
 }
 
 void ExecutionEngine::InterruptFromTool() {

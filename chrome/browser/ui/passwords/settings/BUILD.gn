@@ -2,6 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+assert(!is_android, "Password import/export file selection are desktop-only.")
+
 source_set("settings") {
   sources = [
     "password_manager_porter.h",
@@ -24,6 +26,7 @@ source_set("impl") {
     ":settings",
     "//chrome/app:generated_resources",
     "//chrome/browser/profiles:profile",
+    "//chrome/browser/ui/select_file_policy",
     "//chrome/common:constants",
     "//components/password_manager/core/browser/export",
     "//components/password_manager/core/browser/import:csv",
@@ -43,6 +46,7 @@ source_set("unit_tests") {
     "//base/test:test_support",
     "//chrome/browser/password_manager/factories:password_factory_headers",
     "//chrome/browser/ui",
+    "//chrome/browser/ui/select_file_policy",
     "//chrome/test:test_support",
     "//components/affiliations/core/browser:test_support",
     "//components/password_manager/core/browser:test_support",

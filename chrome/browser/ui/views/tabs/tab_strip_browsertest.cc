@@ -45,6 +45,7 @@
 #include "ui/events/base_event_utils.h"
 #include "ui/events/event_constants.h"
 #include "ui/gfx/scoped_animation_duration_scale_mode.h"
+#include "ui/views/controls/image_view.h"
 #include "ui/views/test/ax_event_counter.h"
 #include "url/gurl.h"
 
@@ -1005,7 +1006,7 @@ IN_PROC_BROWSER_TEST_F(TabStripBrowsertest, AccessibleName) {
   // AccessibleName should update with crashedstatus
   tabs::TabData tab_data = tab_strip()->tab_at(1)->data();
   tab_data.is_crashed = true;
-  tab_strip()->tab_at(1)->SetData(tab_data);
+  tab_strip()->tab_at(1)->SetDataForTesting(tab_data);
   data = ui::AXNodeData();
   tab_strip()->tab_at(1)->GetViewAccessibility().GetAccessibleNodeData(&data);
   EXPECT_EQ(l10n_util::GetStringFUTF16(IDS_TAB_AX_LABEL_CRASHED_FORMAT, title),
@@ -1016,7 +1017,7 @@ IN_PROC_BROWSER_TEST_F(TabStripBrowsertest, AccessibleName) {
   title = l10n_util::GetStringFUTF16(IDS_TAB_AX_LABEL_PINNED_FORMAT, tab_title);
   tab_data = tab_strip()->tab_at(new_index)->data();
   tab_data.network_state = TabNetworkState::kError;
-  tab_strip()->tab_at(new_index)->SetData(tab_data);
+  tab_strip()->tab_at(new_index)->SetDataForTesting(tab_data);
   data = ui::AXNodeData();
   tab_strip()->tab_at(new_index)->GetViewAccessibility().GetAccessibleNodeData(
       &data);
@@ -1030,7 +1031,7 @@ IN_PROC_BROWSER_TEST_F(TabStripBrowsertest, AccessibleName) {
   RecentlyAudibleHelper::FromWebContents(
       tab_strip_model()->GetWebContentsAt(new_index))
       ->SetCurrentlyAudibleForTesting();
-  tab_strip()->tab_at(new_index)->SetData(tab_data);
+  tab_strip()->tab_at(new_index)->SetDataForTesting(tab_data);
   data = ui::AXNodeData();
   tab_strip()->tab_at(new_index)->GetViewAccessibility().GetAccessibleNodeData(
       &data);
@@ -1043,7 +1044,7 @@ IN_PROC_BROWSER_TEST_F(TabStripBrowsertest, AccessibleName) {
   auto tab_resource_usage = base::MakeRefCounted<TabResourceUsage>();
   tab_resource_usage->SetMemoryUsage(base::ByteSize(100));
   tab_data.tab_resource_usage = std::move(tab_resource_usage);
-  tab_strip()->tab_at(new_index)->SetData(tab_data);
+  tab_strip()->tab_at(new_index)->SetDataForTesting(tab_data);
   data = ui::AXNodeData();
   tab_strip()->tab_at(new_index)->GetViewAccessibility().GetAccessibleNodeData(
       &data);

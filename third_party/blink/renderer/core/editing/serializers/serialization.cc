@@ -778,18 +778,22 @@ FragmentParserConfig GetFragmentParserConfig(Sanitizer::Mode mode,
                                              const AtomicString& property_name,
                                              ContainerNode* context) {
   CHECK(context->IsElementNode() || context->IsShadowRoot());
-  return {.sanitizer_mode = mode,
-          .parse_declarative_shadows =
-              FragmentParserConfig::ParseDeclarativeShadowRoots::kParse,
-          .force_html = FragmentParserConfig::ForceHtml::kForce,
-          .interface_name = interface_name,
-          .property_name = property_name,
-          .context_element = context->IsElementNode()
-                                 ? To<Element>(context)
-                                 : &To<ShadowRoot>(context)->host(),
-          .registry = context->IsElementNode()
-                          ? To<Element>(context)->customElementRegistry()
-                          : To<ShadowRoot>(context)->customElementRegistry()};
+  return {
+      .sanitizer_mode = mode,
+      .parse_declarative_shadows =
+          FragmentParserConfig::ParseDeclarativeShadowRoots::kParse,
+      .force_html = FragmentParserConfig::ForceHtml::kForce,
+      .interface_name = interface_name,
+      .property_name = property_name,
+      .context_element = context->IsElementNode()
+                             ? To<Element>(context)
+                             : &To<ShadowRoot>(context)->host(),
+      .registry =
+          context->IsElementNode()
+              ? (RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled()
+                     ? To<Element>(context)->customElementRegistry()
+                     : nullptr)
+              : To<ShadowRoot>(context)->customElementRegistry()};
 }
 
 DocumentFragment* ParseHTMLFragment(const String& markup,
@@ -812,8 +816,7 @@ DocumentFragment* ParseHTMLFragment(const String& markup,
   }
 
   const ParserContentPolicy content_policy =
-      (RuntimeEnabledFeatures::SetHTMLCanRunScriptsEnabled() &&
-       options.run_scripts() == FragmentParserOptions::RunScripts::kRunScripts)
+      options.run_scripts() == FragmentParserOptions::RunScripts::kRunScripts
           ? kAllowScriptingContentAndDoNotMarkAlreadyStarted
           : kAllowScriptingContent;
 
@@ -1000,16 +1003,22 @@ DocumentFragment* CreateContextualFragment(const String& html,
     return nullptr;
   }
 
+  // Use null registry to create fragment if the context element is a
+  // template element as the container of the document fragment will be a
+  // document fragment without browsing context.
+  CustomElementRegistry* registry =
+      (RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled() &&
+       IsA<HTMLTemplateElement>(element))
+          ? nullptr
+          : element->customElementRegistry();
+
   DocumentFragment* fragment = blink::ParseHTMLFragment(
       html,
       {
           .interface_name = trusted_types_names::kRange,
           .property_name = trusted_types_names::kCreateContextualFragment,
           .context_element = element,
-          .registry =
-              RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled()
-                  ? element->customElementRegistry()
-                  : element->GetDocument().customElementRegistry(),
+          .registry = registry,
       },
       FragmentParserOptions(FragmentParserOptions::RunScripts::kRunScripts),
       exception_state);

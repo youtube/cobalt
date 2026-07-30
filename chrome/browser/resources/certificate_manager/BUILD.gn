@@ -23,21 +23,24 @@ build_webui("build") {
     "favicon.svg",
   ]
   web_component_files = [
-    "certificate_entry.ts",
-    "certificate_list.ts",
     "certificate_manager.ts",
     "certificate_subpage.ts",
     "crs_section.ts",
-    "local_certs_section.ts",
   ]
   ts_files = [
     "certificate_confirmation_dialog.html.ts",
     "certificate_confirmation_dialog.ts",
+    "certificate_entry.html.ts",
+    "certificate_entry.ts",
     "certificate_info_dialog.html.ts",
     "certificate_info_dialog.ts",
+    "certificate_list.html.ts",
+    "certificate_list.ts",
     "certificate_password_dialog.html.ts",
     "certificate_password_dialog.ts",
     "certificates_browser_proxy.ts",
+    "local_certs_section.html.ts",
+    "local_certs_section.ts",
     "navigation.ts",
   ]
 
@@ -45,7 +48,13 @@ build_webui("build") {
   mojo_files = [ "$target_gen_dir/certificate_manager.mojom-webui.ts" ]
 
   icons_html_files = [ "certificate_manager_icons.html" ]
-  css_files = [ "certificate_manager_style.css" ]
+  css_files = [
+    "certificate_entry.css",
+    "certificate_list.css",
+    "certificate_manager_style.css",
+    "certificate_manager_style_lit.css",
+    "local_certs_section.css",
+  ]
 
   if (is_chromeos) {
     web_component_files += [

@@ -9,8 +9,10 @@
 #include <utility>
 
 #include "base/i18n/rtl.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
 #include "base/task/single_thread_task_runner.h"
+#include "build/build_config.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
@@ -20,6 +22,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/layout_constants.h"
@@ -29,10 +32,12 @@
 #include "chrome/browser/ui/views/tabs/projects/layout_constants.h"
 #include "chrome/browser/ui/views/tabs/projects/projects_panel_controller.h"
 #include "chrome/browser/ui/views/tabs/projects/projects_panel_controls_view.h"
+#include "chrome/browser/ui/views/tabs/projects/projects_panel_recent_threads_expand_button.h"
 #include "chrome/browser/ui/views/tabs/projects/projects_panel_recent_threads_view.h"
 #include "chrome/browser/ui/views/tabs/projects/projects_panel_tab_groups_view.h"
 #include "chrome/browser/ui/views/tabs/projects/projects_panel_utils.h"
 #include "chrome/browser/ui/views/tabs/projects/projects_panel_view_layout.h"
+#include "chrome/browser/ui/views/tabs/shared/rounded_scroll_bar.h"
 #include "chrome/browser/ui/views/tabs/vertical/top_container_button.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_ink_drop_util.h"
 #include "chrome/common/url_constants.h"
@@ -50,6 +55,7 @@
 #include "ui/gfx/text_constants.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/actions/action_view_controller.h"
+#include "ui/views/animation/ink_drop.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/button/image_button_factory.h"
@@ -78,11 +84,32 @@ enum ThreadsActivityMenuCommandId {
 constexpr int kClipRectMarginForShadow = 32;
 constexpr int kProjectPanelRightCornerRadius = 16;
 constexpr int kShadowElevation = 2;
-constexpr gfx::Insets kListHeaderMargins = gfx::Insets::VH(8, 8);
+constexpr gfx::Insets kListHeaderMargins = gfx::Insets::TLBR(
+    8,
+    8 + projects_panel::kProjectsPanelRegionInteriorMargins.left(),
+    8,
+    8 + projects_panel::kProjectsPanelRegionInteriorMargins.right());
 constexpr int kListHeaderHeight = 28;
 constexpr int kCreateNewTabGroupIconSize = 20;
 constexpr gfx::Insets kCreateNewTabGroupIconMargins =
-    gfx::Insets::TLBR(0, 4, 0, 0);
+    gfx::Insets::TLBR(0, 2, 0, 2);
+
+// Border insets applied to the tab groups and threads list to reserve space for
+// their scroll bar.
+constexpr gfx::Insets kListsInsideBorderInsets = gfx::Insets::TLBR(
+    0,
+    0,
+    0,
+    projects_panel::kProjectsPanelRegionInteriorMargins.right());
+
+// Insets containing only the horizontal margins of the panel region. Used by
+// the ProjectsPanelNewTabGroupButton and ProjectsPanelRecentThreadsExpandButton
+// to account for their containers taking the full width of the panel.
+constexpr gfx::Insets kProjectsPanelRegionHorizontalMargins = gfx::Insets::TLBR(
+    0,
+    projects_panel::kProjectsPanelRegionInteriorMargins.left(),
+    0,
+    projects_panel::kProjectsPanelRegionInteriorMargins.right());
 
 constexpr base::TimeDelta kPanelShowAnimationDuration = base::Milliseconds(250);
 constexpr base::TimeDelta kPanelHideAnimationDuration = base::Milliseconds(200);
@@ -110,6 +137,7 @@ class ProjectsPanelNewTabGroupButton : public views::Button {
         .SetCrossAxisAlignment(views::LayoutAlignment::kCenter);
 
     auto* icon = AddChildView(std::make_unique<views::ImageView>());
+    icon->SetCanProcessEventsWithinSubtree(false);
     icon->SetProperty(views::kMarginsKey, kCreateNewTabGroupIconMargins);
     icon->SetImage(ui::ImageModel::FromVectorIcon(kCreateNewTabGroupIcon,
                                                   kColorProjectsPanelButtonIcon,
@@ -127,6 +155,11 @@ class ProjectsPanelNewTabGroupButton : public views::Button {
         views::FlexSpecification(views::LayoutOrientation::kHorizontal,
                                  views::MinimumFlexSizeRule::kScaleToMinimum,
                                  views::MaximumFlexSizeRule::kUnbounded));
+
+    // This view is inside the tab groups container view, which is given the
+    // full width of the panel to account for its scroll bar. These margins are
+    // applied to properly distance it from the edges of the panel.
+    SetProperty(views::kMarginsKey, kProjectsPanelRegionHorizontalMargins);
 
     projects_panel::ConfigureInkDropForButton(this);
     GetViewAccessibility().SetName(
@@ -158,10 +191,19 @@ void SetScrollViewProperties(views::ScrollView& scroll_view) {
   scroll_view.SetHorizontalScrollBarMode(
       views::ScrollView::ScrollBarMode::kDisabled);
   scroll_view.SetVerticalScrollBarMode(
-      views::ScrollView::ScrollBarMode::kHiddenButEnabled);
+      views::ScrollView::ScrollBarMode::kEnabled);
+  scroll_view.SetVerticalScrollBar(std::make_unique<tabs::RoundedScrollBar>());
   scroll_view.SetOverflowGradientMask(
       views::ScrollView::GradientDirection::kVertical);
   scroll_view.SetUseContentsPreferredSize(true);
+  // The tab groups and threads containers are given the full width of the panel
+  // to account for their scroll bars. The left panel margin is applied here
+  // while the right margin is applied to the contents view, so the scroll bar
+  // appears beside the content instead of overlapping.
+  scroll_view.SetProperty(
+      views::kMarginsKey,
+      gfx::Insets::TLBR(
+          0, projects_panel::kProjectsPanelRegionInteriorMargins.left(), 0, 0));
   scroll_view.SetProperty(
       views::kFlexBehaviorKey,
       views::FlexSpecification(views::MinimumFlexSizeRule::kScaleToZero,
@@ -227,8 +269,7 @@ ProjectsPanelView::ProjectsPanelView(BrowserWindowInterface* browser,
   panel_controller_observer_.Observe(panel_controller_.get());
 
   controls_view_ = content_container_->AddChildView(
-      std::make_unique<ProjectsPanelControlsView>(
-          root_action_item_.get(), action_view_controller_.get()));
+      std::make_unique<ProjectsPanelControlsView>(root_action_item_.get()));
 
   auto* tab_groups_container = content_container_->AddChildView(
       std::make_unique<views::FlexLayoutView>());
@@ -266,6 +307,7 @@ ProjectsPanelView::ProjectsPanelView(BrowserWindowInterface* browser,
                               base::Unretained(this)),
           base::BindRepeating(&ProjectsPanelView::OnTabGroupDragExited,
                               base::Unretained(this))));
+  tab_groups_view_->SetInsideBorderInsets(kListsInsideBorderInsets);
   SetScrollViewProperties(*tab_groups_scroll_view_);
   if (disable_animations_for_testing_) {
     tab_groups_view_->disable_animations_for_testing();  // IN-TEST
@@ -328,7 +370,18 @@ ProjectsPanelView::ProjectsPanelView(BrowserWindowInterface* browser,
         std::make_unique<ProjectsPanelRecentThreadsView>(base::BindRepeating(
             &ProjectsPanelView::OnThreadButtonPressed, base::Unretained(this)));
     threads_view_ = threads_scroll_view->SetContents(std::move(threads_view));
+    threads_view_->SetInsideBorderInsets(kListsInsideBorderInsets);
     SetScrollViewProperties(*threads_scroll_view);
+    if (disable_animations_for_testing_) {
+      threads_view_->disable_animations_for_testing();  // IN-TEST
+    }
+
+    threads_expand_button_ = threads_container_->AddChildView(
+        std::make_unique<ProjectsPanelRecentThreadsExpandButton>(
+            base::BindRepeating(&ProjectsPanelView::OnThreadExpandButtonPressed,
+                                base::Unretained(this))));
+    threads_expand_button_->SetProperty(views::kMarginsKey,
+                                        kProjectsPanelRegionHorizontalMargins);
 
     threads_activity_menu_model_ = std::make_unique<ui::SimpleMenuModel>(this);
     threads_activity_menu_model_->AddItemWithIcon(
@@ -397,6 +450,7 @@ bool ProjectsPanelView::IsPositionInWindowCaption(const gfx::Point& point) {
 void ProjectsPanelView::OnProjectsPanelStateChanged(
     ProjectsPanelStateController* state_controller) {
   TooltipTextChanged();
+  controls_view_->UpdateTooltipText();
 
   const bool visible = state_controller->IsProjectsPanelVisible();
 
@@ -415,22 +469,51 @@ void ProjectsPanelView::OnProjectsPanelStateChanged(
 
     // TODO(crbug.com/477602874): Have the panel view observe the controller and
     // pipe updates to the list.
-    tab_groups_view_->SetTabGroups(panel_controller_->GetTabGroups());
+    auto tab_groups = panel_controller_->GetTabGroups();
+    tab_groups_view_->SetTabGroups(tab_groups);
+    int num_threads_visible = 0;
     if (threads_view_) {
       const auto threads = panel_controller_->GetThreads();
+      num_threads_visible =
+          std::min(threads.size(), projects_panel::kMaxNumberOfRecentThreads);
       threads_view_->SetThreads(threads);
 
       // Hide the threads section when empty.
       const bool show_threads = show_threads_for_testing_ || threads.size() > 0;
       threads_container_->SetVisible(show_threads);
       separator_->SetVisible(show_threads);
+
+      if (show_threads) {
+        threads_expand_button_->SetExpanded(threads_view_->expanded());
+        threads_expand_button_->SetVisible(
+            threads.size() > projects_panel::kNumThreadsVisibleWhenCollapsed);
+      }
     }
+
+    base::UmaHistogramCounts100(
+        "Projects.ProjectsPanel.TabGroups.CountOnPanelOpen", tab_groups.size());
+    if (threads_view_) {
+      base::UmaHistogramCustomCounts(
+          "Projects.ProjectsPanel.Threads.CountOnPanelOpen",
+          num_threads_visible, 1, projects_panel::kMaxNumberOfRecentThreads,
+          50);
+    }
+
+    base::UmaHistogramBoolean("Projects.ProjectsPanel.OpenedToEmptyState",
+                              tab_groups.empty() && num_threads_visible == 0);
+
+    last_opened_time_ = base::TimeTicks::Now();
   } else {
     if (observing_focus_manager_ && GetFocusManager()) {
       GetFocusManager()->RemoveFocusChangeListener(this);
       observing_focus_manager_ = false;
     }
     event_monitor_.reset();
+
+    base::TimeDelta open_duration = base::TimeTicks::Now() - last_opened_time_;
+    base::UmaHistogramCustomCounts("Projects.ProjectsPanel.TimeOpen",
+                                   open_duration.InSeconds(), 1,
+                                   base::Minutes(5).InSeconds(), 50);
   }
 
   if (disable_animations_for_testing_) {
@@ -545,6 +628,15 @@ views::View* ProjectsPanelView::GetFocusTraversableParentView() {
 }
 
 void ProjectsPanelView::AnimationProgressed(const gfx::Animation* animation) {
+#if BUILDFLAG(IS_MAC)
+  // On Mac, start fading in the close button when the panel has completed half
+  // of its opening animation. Similarly when closing, fade out the button until
+  // the panel has completed half of its closing animation.
+  if (controls_view_) {
+    const double value = animation->GetCurrentValue();
+    controls_view_->SetButtonOpacity(std::max(0.0, (value - 0.5) * 2.0));
+  }
+#endif
   InvalidateLayout();
 }
 
@@ -555,6 +647,13 @@ void ProjectsPanelView::AnimationEnded(const gfx::Animation* animation) {
       std::move(on_close_animation_ended_callback_).Run();
     }
   }
+}
+
+// We must also call AnimationEnded when an animation is canceled (which happens
+// when the view is destroyed or a new animation is started mid-flight) to
+// guarantee that the state is properly set to hidden.
+void ProjectsPanelView::AnimationCanceled(const gfx::Animation* animation) {
+  AnimationEnded(animation);
 }
 
 void ProjectsPanelView::OnTabGroupsInitialized(
@@ -661,12 +760,14 @@ void ProjectsPanelView::OnCreateNewTabGroupButtonPressed() {
           ? "ProjectsPanel.TabGroups.CreateNewGroup.WithExistingGroups"
           : "ProjectsPanel.TabGroups.CreateNewGroup.WithoutExistingGroups"));
   on_close_animation_ended_callback_ = base::BindOnce(
+      // We must wait for the panel to fully close before executing the command
+      // so we don't interfere with the panel's animation and UI state.
       [](base::WeakPtr<ProjectsPanelView> panel) {
         if (!panel) {
           return;
         }
-        panel->browser_->GetBrowserForMigrationOnly()
-            ->command_controller()
+        panel->browser_->GetFeatures()
+            .browser_command_controller()
             ->ExecuteCommand(IDC_CREATE_NEW_TAB_GROUP);
       },
       weak_ptr_factory_.GetWeakPtr());
@@ -692,6 +793,12 @@ void ProjectsPanelView::OnThreadButtonPressed(
   }
   panel_controller_->OpenThread(thread_server_id);
   ClosePanel();
+}
+
+void ProjectsPanelView::OnThreadExpandButtonPressed() {
+  const bool expanded = !threads_view_->expanded();
+  threads_view_->SetExpanded(expanded);
+  threads_expand_button_->SetExpanded(expanded);
 }
 
 void ProjectsPanelView::OnThreadsActivityMenuButtonPressed() {

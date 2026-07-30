@@ -71,10 +71,26 @@ suite('TopToolbarTest', () => {
     });
 
     test('handles thread history button click', async () => {
+      topToolbar.isAiPage = true;
+      await microtasksFinished();
+
       const historyButton = topToolbar.$.threadHistoryButton;
       assertTrue(!!historyButton);
       historyButton.click();
       await proxy.handler.whenCalled('showThreadHistory');
+    });
+
+    test('hides thread history button on SRP', async () => {
+      const historyButton = topToolbar.$.threadHistoryButton;
+      assertTrue(!!historyButton);
+
+      topToolbar.isAiPage = false;
+      await microtasksFinished();
+      assertTrue(historyButton.hidden);
+
+      topToolbar.isAiPage = true;
+      await microtasksFinished();
+      assertFalse(historyButton.hidden);
     });
 
     test('handles close button click', async () => {
@@ -220,7 +236,7 @@ suite('TopToolbarTest', () => {
     });
 
     test('handles open in new tab click', async () => {
-      topToolbar.isAiPage = true;
+      topToolbar.enableOpenInNewTabButton = true;
       await microtasksFinished();
 
       const moreButton =
@@ -236,7 +252,7 @@ suite('TopToolbarTest', () => {
       openInNewTabButton.click();
       await proxy.handler.whenCalled('moveTaskUiToNewTab');
 
-      topToolbar.isAiPage = false;
+      topToolbar.enableOpenInNewTabButton = false;
       await microtasksFinished();
       assertTrue(openInNewTabButton.disabled);
       proxy.handler.reset();
@@ -458,5 +474,62 @@ suite('TopToolbarTest', () => {
         sourcesButton.shadowRoot.querySelector<HTMLElement>('#more-items');
     assertTrue(!!moreItems);
     assertEquals(moreItems.innerText, '+1');
+  });
+
+  suite('Reopen Tabs', () => {
+    setup(() => {
+      document.body.innerHTML = window.trustedTypes!.emptyHTML;
+      topToolbar = document.createElement('top-toolbar');
+      document.body.appendChild(topToolbar);
+    });
+
+    test('shows reopen tabs section', async () => {
+      // Initially not in the DOM.
+      let reopenTabs =
+          topToolbar.shadowRoot.querySelector<HTMLElement>('reopen-tabs');
+      assertFalse(!!reopenTabs);
+
+      // Show via mojo.
+      proxy.callbackRouterRemote.setShowReopenTabs(true);
+      await microtasksFinished();
+      reopenTabs =
+          topToolbar.shadowRoot.querySelector<HTMLElement>('reopen-tabs');
+      assertHTMLElement(reopenTabs);
+    });
+
+    test('handles reopen tabs click', async () => {
+      proxy.callbackRouterRemote.setShowReopenTabs(true);
+      await microtasksFinished();
+
+      const reopenTabs =
+          topToolbar.shadowRoot.querySelector<HTMLElement>('reopen-tabs');
+      assertHTMLElement(reopenTabs);
+
+      const reopenButton =
+          reopenTabs.shadowRoot!.querySelector<HTMLElement>('cr-button');
+      assertHTMLElement(reopenButton);
+      reopenButton.click();
+
+      await proxy.handler.whenCalled('reopenTabs');
+    });
+
+    test('handles reopen tabs dismiss click', async () => {
+      proxy.callbackRouterRemote.setShowReopenTabs(true);
+      await microtasksFinished();
+
+      let reopenTabs =
+          topToolbar.shadowRoot.querySelector<HTMLElement>('reopen-tabs');
+      assertHTMLElement(reopenTabs);
+
+      const dismissButton =
+          reopenTabs.shadowRoot!.querySelector<HTMLElement>('#reopenDismiss');
+      assertHTMLElement(dismissButton);
+      dismissButton.click();
+
+      await microtasksFinished();
+      reopenTabs =
+          topToolbar.shadowRoot.querySelector<HTMLElement>('reopen-tabs');
+      assertFalse(!!reopenTabs);
+    });
   });
 });

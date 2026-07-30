@@ -63,6 +63,11 @@ class LensOverlayRequestIdGenerator {
   LensOverlayRequestIdGenerator();
   ~LensOverlayRequestIdGenerator();
 
+  // Decodes a base64 encoded request id and returns the proto as a unique_ptr.
+  // Returns nullptr if the decoding or parsing fails.
+  static std::unique_ptr<lens::LensOverlayRequestId> ParseRequestId(
+      const std::string& encoded_request_id);
+
   // Resets the request id generator, creating a new uuid and resetting the
   // sequence.
   void ResetRequestId();
@@ -100,6 +105,11 @@ class LensOverlayRequestIdGenerator {
   // Updates the has_chrome_tab_data field in future request ids.
   void SetHasChromeTabData(bool has_chrome_tab_data) {
     has_chrome_tab_data_ = has_chrome_tab_data;
+  }
+
+  // Updates the is_implicit_upload field in future request ids.
+  void SetIsImplicitUpload(bool is_implicit_upload) {
+    is_implicit_upload_ = is_implicit_upload;
   }
 
   // Sets the routing info to be included in the request id and returns the new
@@ -150,6 +160,10 @@ class LensOverlayRequestIdGenerator {
 
   // Whether the request id has Chrome tab data.
   bool has_chrome_tab_data_;
+
+  // Whether the request id is for an implicit upload.
+  // e.g. a viewport screenshot from the Lens overlay contextual searchbox.
+  bool is_implicit_upload_;
 
   // The mime type string.
   std::optional<std::string> mime_type_;

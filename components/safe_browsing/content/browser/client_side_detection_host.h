@@ -58,6 +58,26 @@ class VerdictCacheManager;
 
 using HostInnerTextCallback = base::OnceCallback<void(std::string)>;
 
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+enum class ClientSideDetectionEvent {
+  kTriggerStartsPreClassification = 0,
+  kPreClassificationCheckComplete = 1,
+  kImageClassificationBegin = 2,
+  kImageClassificationComplete = 3,
+  kVerdictProtoParseComplete = 4,
+  kLocalModelResultComplete = 5,
+  kImageEmbeddingBegin = 6,
+  kImageEmbeddingComplete = 7,
+  kIntelligentScanBegin = 8,
+  kIntelligentScanComplete = 9,
+  kMiscellaneousFieldsAdded = 10,
+  kNetworkRequestSent = 11,
+  kNetworkResponseReceived = 12,
+  kWarningShown = 13,
+  kMaxValue = kWarningShown,
+};
+
 // This class is used to receive the IPC from the renderer which
 // notifies the browser that a URL was classified as phishing.  This
 // class relays this information to the client-side detection service
@@ -90,6 +110,10 @@ class ClientSideDetectionHost
   // A callback via which the client of this component indicates whether the
   // primary account is signed in.
   using PrimaryAccountSignedIn = base::RepeatingCallback<bool()>;
+
+  // Callback for when preclassification is started.
+  using PreclassificationStarted =
+      base::RepeatingCallback<void(ClientSideDetectionType)>;
 
   // Delegate which allows to provide embedder specific implementations.
   class Delegate {
@@ -195,6 +219,12 @@ class ClientSideDetectionHost
   // User requests to report a site as unsafe. The screenshot values come from
   // the report dialog view.
   void ReportUnsafeSite(SkBitmap screenshot);
+
+  // Sets a callback to be notified when preclassification is started.
+  void set_preclassification_started_callback_for_testing(
+      const PreclassificationStarted& callback) {
+    preclassification_started_cb_for_testing_ = callback;
+  }
 
  protected:
   explicit ClientSideDetectionHost(
@@ -410,6 +440,10 @@ class ClientSideDetectionHost
       std::optional<net::HttpStatusCode> response_code,
       std::optional<IntelligentScanVerdict> intelligent_scan_verdict);
 
+  // Logs the ClientSideDetectionEvent event.
+  void LogClientSideDetectionEvent(ClientSideDetectionEvent event,
+                                   ClientSideDetectionType request_type);
+
   // Whether request is forced for |current_url_|. This function also checks
   // whether enhanced protection is enabled.
   bool HasForceRequestFromRtUrlLookup();
@@ -456,17 +490,9 @@ class ClientSideDetectionHost
   void set_history_service_for_testing(
       history::HistoryService* history_service);
 
-  // Callbacks for when preclassification is started/done.
-  using PreclassificationStarted =
-      base::RepeatingCallback<void(ClientSideDetectionType)>;
+  // Callback for when preclassification is done.
   using PreclassificationDone =
       base::RepeatingCallback<void(ClientSideDetectionType)>;
-
-  // Sets a callback to be notified when preclassification is started.
-  void set_preclassification_started_callback_for_testing(
-      const PreclassificationStarted& callback) {
-    preclassification_started_cb_for_testing_ = callback;
-  }
 
   // Sets a callback to be notified when preclassification is done.
   void set_preclassification_done_callback_for_testing(
@@ -653,6 +679,13 @@ class ClientSideDetectionHost
   // The high resolution screenshot of the current tab. Should only be populated
   // when a user reports a site as unsafe.
   std::optional<SkBitmap> screenshot_;
+
+  // Tracks the state of the process running and the currently running
+  // ClientSideDetectionType. This begins at the CLASSIFY bucket in
+  // PreClassificationCheck until just prior to the network request being sent.
+  bool is_csd_running_ = false;
+  ClientSideDetectionType last_request_type_ =
+      ClientSideDetectionType::CLIENT_SIDE_DETECTION_TYPE_UNSPECIFIED;
 
   base::CancelableTaskTracker task_tracker_;
 

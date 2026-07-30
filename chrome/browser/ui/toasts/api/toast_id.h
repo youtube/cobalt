@@ -46,12 +46,13 @@ enum class ToastId {
   kEnhancedBundledSecuritySettings = 23,
   kSkillSaved = 24,
   kSkillDeleted = 25,
-  // kSavedAutofillAiEntityToWallet = 26,
+  kAutofillAiFetchFromWalletErrorMessage = 26,
   kTranslate = 27,
-  kAutofillAiWalletErrorMessage = 28,
+  kAutofillAiSaveToWalletErrorMessage = 28,
   kRecordReplay = 29,
   kAutoSignIn = 30,
-  kMaxValue = kAutoSignIn,
+  kMultistepFilterSuggestion = 31,
+  kMaxValue = kMultistepFilterSuggestion,
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/toasts/enums.xml:ToastId)
 

@@ -1708,7 +1708,7 @@ SharedStorageWorkletHost::GetAndConnectToSharedStorageWorkletService() {
     if (!blink::features::IsPersistentCacheForCodeCacheEnabled()) {
       mojo::PendingRemote<blink::mojom::CodeCacheHost> actual_code_cache_host;
       code_cache_host_receivers_->Add(
-          rfh.GetProcess()->GetDeprecatedID(), rfh.GetNetworkIsolationKey(),
+          rfh.GetProcess()->GetID(), rfh.GetNetworkIsolationKey(),
           rfh.GetStorageKey(),
           actual_code_cache_host.InitWithNewPipeAndPassReceiver());
 
@@ -1874,10 +1874,10 @@ void SharedStorageWorkletHost::OnJsonParsed(
     return;
   }
 
-  bool script_origin_match = false;
-  bool context_origin_match = false;
   url::Origin worklet_script_origin = url::Origin::Create(script_source_url_);
   for (const base::Value& item_value : result.value()) {
+    bool script_origin_match = false;
+    bool context_origin_match = false;
     if (!item_value.is_dict()) {
       SetDataOriginOptInResultAndMaybeFinish(
           /*opted_in=*/false, /*data_origin_opt_in_error_message=*/base::StrCat(

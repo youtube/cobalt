@@ -54,25 +54,12 @@ class PLATFORM_EXPORT SharedGpuContext {
   static WebGraphicsSharedImageInterfaceProvider*
   SharedImageInterfaceProvider();
 
-  // "ImageChromium" refers to putting a canvas into a hardware layer which is
-  // directly scanned out of display, bypassing chromium's own GPU composite.
-  // It is the same "ImageChromium" referenced by
-  // `WebGLImageChromiumEnabled` for example.
-  // The name is out of date and refers to the system that morphed into
-  // SharedImage.
-  // This method performs context-specific check that's not available when
-  // RuntimeEnabledFeatures is set.
-#if BUILDFLAG(IS_ANDROID)
-  static bool MaySupportWebGLImageChromium();
-#else
-  static bool MaySupportWebGLImageChromium() { return true; }
-#endif
+  // Whether WebGL content should be placed into overlays.
+  static bool UseOverlaysForWebGL();
 
-  static bool WebGLImageChromiumEnabled();
-
-  // Forces WebGLImageChromiumEnabled() to return the passed-in value.
+  // Forces UseOverlaysForWebGL() to return the passed-in value.
   // Cleared on the next invocation of Reset() of the global context.
-  static void SetWebGLImageChromiumEnabledForTesting(bool enable);
+  static void SetUseOverlaysForWebGLForTesting(bool enable);
 
   // Whether mappable SharedImages should be used for canvas2d content with CPU
   // raster.
@@ -90,6 +77,14 @@ class PLATFORM_EXPORT SharedGpuContext {
   // to `raster_mode` may be given usage optimized for low-latency (SCANOUT and
   // CONCURRENT_READ_WRITE).
   static bool LowLatencyUsageSupportedForCanvas2D(RasterMode raster_mode);
+
+  // Whether SharedImages used for WebGL content may be given usage optimized
+  // for low-latency (SCANOUT and CONCURRENT_READ_WRITE).
+  static bool LowLatencyUsageSupportedForWebGL();
+
+  // Forces LowLatencyUsageSupportedForWebGL() to return the passed-in value.
+  // Cleared on the next invocation of Reset() of the global context.
+  static void SetLowLatencyUsageSupportedForWebGLForTesting(bool enable);
 
   // Forces LowLatencyUsageSupportedForCanvas2D() to return the
   // passed-in value. Cleared on the next invocation of Reset() of the global

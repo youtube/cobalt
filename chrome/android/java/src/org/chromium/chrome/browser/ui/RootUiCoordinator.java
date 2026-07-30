@@ -68,9 +68,9 @@ import org.chromium.chrome.browser.browser_controls.TopControlsStacker;
 import org.chromium.chrome.browser.browserservices.intents.WebappConstants;
 import org.chromium.chrome.browser.commerce.ShoppingServiceFactory;
 import org.chromium.chrome.browser.compositor.CompositorViewHolder;
-import org.chromium.chrome.browser.compositor.bottombar.OverlayPanel;
-import org.chromium.chrome.browser.compositor.bottombar.OverlayPanelManager;
 import org.chromium.chrome.browser.compositor.layouts.LayoutManagerImpl;
+import org.chromium.chrome.browser.compositor.overlay_panel.OverlayPanel;
+import org.chromium.chrome.browser.compositor.overlay_panel.OverlayPanelManager;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutHelperManager;
 import org.chromium.chrome.browser.contextmenu.ChromeContextMenuPopulator;
 import org.chromium.chrome.browser.contextmenu.ChromeContextMenuPopulatorFactory;
@@ -180,6 +180,7 @@ import org.chromium.chrome.browser.ui.appmenu.AppMenuCoordinatorFactory;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuDelegate;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuHandler;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuObserver;
+import org.chromium.chrome.browser.ui.bottombar.BottomBarHostManager;
 import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
 import org.chromium.chrome.browser.ui.desktop_windowing.AppHeaderUtils;
 import org.chromium.chrome.browser.ui.desktop_windowing.TopControlsLockCoordinator;
@@ -427,6 +428,7 @@ public class RootUiCoordinator
             mReaderModeIphControllerSupplier = ObservableSuppliers.createMonotonic();
     protected @Nullable OpenInAppEntryPoint mOpenInAppEntryPoint;
     protected @Nullable OmniboxChipManager mOmniboxChipManager;
+    protected @Nullable BottomBarHostManager mBottomBarHostManager;
 
     /**
      * Create a new {@link RootUiCoordinator} for the given activity.
@@ -523,7 +525,8 @@ public class RootUiCoordinator
             NonNullObservableSupplier<Integer> overviewColorSupplier,
             EdgeToEdgeManager edgeToEdgeManager,
             NonNullObservableSupplier<Boolean> xrSpaceModeObservableSupplier,
-            @Nullable DesktopWindowStateManager desktopWindowStateManager) {
+            @Nullable DesktopWindowStateManager desktopWindowStateManager,
+            @Nullable BottomBarHostManager bottomBarHostManager) {
         mCallbackController = new CallbackController();
         mActivity = activity;
         mWindowAndroid = windowAndroid;
@@ -566,6 +569,7 @@ public class RootUiCoordinator
         mEdgeToEdgeManager = edgeToEdgeManager;
         mXrSpaceModeObservableSupplier = xrSpaceModeObservableSupplier;
         mDesktopWindowStateManager = desktopWindowStateManager;
+        mBottomBarHostManager = bottomBarHostManager;
         mAppMenuSupplier = new OneshotSupplierImpl<>();
         mIsTablet = DeviceFormFactor.isNonMultiDisplayContextOnTablet(activity);
         mActionModeControllerCallback = new ToolbarActionModeCallback();
@@ -1476,7 +1480,10 @@ public class RootUiCoordinator
                                 mWindowAndroid,
                                 mActivity,
                                 mActivityResultTracker,
-                                new WebSigninAccountPickerDelegate(new WebSigninBridge.Factory()),
+                                new WebSigninAccountPickerDelegate(
+                                        profile,
+                                        mTabModelSelectorSupplier.get(),
+                                        new WebSigninBridge.Factory()),
                                 mDeviceLockActivityLauncherSupplier.get(),
                                 profileSupplier,
                                 this::getBottomSheetController,
@@ -1901,6 +1908,8 @@ public class RootUiCoordinator
                             mOmniboxFocusStateSupplier,
                             mPromoShownOneshotSupplier,
                             mWindowAndroid,
+                            mActivityResultTracker,
+                            mDeviceLockActivityLauncherSupplier.get(),
                             mChromeAndroidTaskSupplier,
                             mIsInOverviewModeSupplier,
                             mModalDialogManagerSupplier,
@@ -1929,7 +1938,8 @@ public class RootUiCoordinator
                             mXrSpaceModeObservableSupplier,
                             mPageZoomManager,
                             assertNonNull(mSnackbarManagerSupplier.get()),
-                            mOmniboxChipManager);
+                            mOmniboxChipManager,
+                            mBottomBarHostManager);
             if (!mSupportsAppMenuSupplier.getAsBoolean()) {
                 mToolbarManager.getToolbar().disableMenuButton();
             }

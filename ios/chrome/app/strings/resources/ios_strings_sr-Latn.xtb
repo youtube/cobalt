@@ -298,7 +298,6 @@
 <translation id="2012723204723845092">Dobro nam došli ponovo.</translation>
 <translation id="2015722694326466240">Da biste videli lozinke, prvo morate da podesite šifru na uređaju.</translation>
 <translation id="201759455285471444">Proširite grupu kartica.</translation>
-<translation id="202070562065520783">Objasni mi ovo</translation>
 <translation id="2044394949148788042">Otvorite mrežu za kartice</translation>
 <translation id="2044681667265133332">Nalogom <ph name="USER_EMAIL" /> upravlja <ph name="HOSTED_DOMAIN" />, koji može da pregleda određene informacije. <ph name="BEGIN_LINK" />Saznajte više<ph name="END_LINK" /></translation>
 <translation id="20485545164632846">nova stavka</translation>
@@ -395,6 +394,7 @@
 <translation id="2360196772093551345">Zahtevaj mobilni sajt</translation>
 <translation id="2362083820973145409">Prijavljeni ste kao <ph name="USER_NAME" />. <ph name="USER_EMAIL" />. Otvara podešavanja.</translation>
 <translation id="2371084566192454134">Kartice i grupe kartica</translation>
+<translation id="2371303771137626249">Novo</translation>
 <translation id="2381405137052800939">Osnove</translation>
 <translation id="2384692388811649784">Sakrij kartice bez arhiviranja</translation>
 <translation id="2386793615875593361">Izabrana je 1 slika</translation>
@@ -690,6 +690,7 @@
 <translation id="3530206579861815432">Brzo pronađite otvorene i nedavno zatvorene kartice na sinhronizovanim uređajima.</translation>
 <translation id="3530767473765895035">Upravljaj nalozima na ovom uređaju…</translation>
 <translation id="3533436815740441613">Nova kartica</translation>
+<translation id="3534738261102690620">Upitajte Gemini</translation>
 <translation id="3540141921715814660">Dodaj u obeleživače</translation>
 <translation id="3546122170015471515">Pregledi Mapa na Google.com</translation>
 <translation id="3547356470684043247">Pročitajte procene proizvoda, usluga ili doživljaja od strane klijenata da biste doneli utemeljenije odluke u vezi sa recenzijama</translation>
@@ -960,6 +961,7 @@
 <translation id="454217142158335225">Zatvorene stavke možete ponovo da otvorite u odeljcima Nedavne kartice ili Grupe kartica. Prikačene kartice se neće zatvoriti.</translation>
 <translation id="4547181496285029457">Vratite se na nedavnu karticu</translation>
 <translation id="4552042254369397518">Kopira se…</translation>
+<translation id="4553044860350038560">Još pristupnih ključeva</translation>
 <translation id="4564893319561643483">Sakrijte „<ph name="TITLE" />“</translation>
 <translation id="4565377596337484307">Sakrij lozinku</translation>
 <translation id="4568230126482344545">Sakrij Nedavne kartice</translation>
@@ -1088,6 +1090,7 @@
 <translation id="4944543191714094452">Pronađi na stranici…</translation>
 <translation id="4945756290001680296">Pristupite podešavanjima lozinki</translation>
 <translation id="4949302115427722371">Upravljaj podešavanjima</translation>
+<translation id="4952050521954075618">Slike sa uređaja neće se sinhronizovati na svim uređajima</translation>
 <translation id="4958444002117714549">Proširi listu</translation>
 <translation id="496392417432935267">Otvoreno negde drugde</translation>
 <translation id="4970724460420203313">Korišćenje Chrome-a pomoću upravljanog naloga pomaže vam da odvojite pregledanje povezano sa organizacijom (uključujući kartice, istoriju i lozinke) od ostalog pregledanja</translation>
@@ -1287,6 +1290,7 @@ Handoff treba da se omogući u odeljku General (Opšte) u meniju Settings (Pode
 <translation id="5647702255748985085">Želite da napustite grupu?</translation>
 <translation id="5648166631817621825">Poslednjih 7 dana</translation>
 <translation id="5652623411397330904">Proizvodi koje pratite će se prikazivati ovde.</translation>
+<translation id="5653100054596780862">Sve kartice</translation>
 <translation id="5656431592348714536">Poboljšani kalendar</translation>
 <translation id="5659593005791499971">Imejl</translation>
 <translation id="5665739277590037307">Primenjuju se <ph name="GOOGLE_TERMS" /> i <ph name="GEMINI_APPS_PRIVACY" />. Gemini može da pogreši, zato proverite odgovore.</translation>
@@ -1614,6 +1618,7 @@ Handoff treba da se omogući u odeljku General (Opšte) u meniju Settings (Pode
 <translation id="672735642903863329">Pristupajte obeleživačima, lozinkama i drugom sadržaju na svim uređajima.</translation>
 <translation id="6729493062119577923">Aktivnosti deljene grupe kartica</translation>
 <translation id="6732087373923685049">kamera</translation>
+<translation id="6736243959894955139">Adresa</translation>
 <translation id="6746338529702829275">Pregledajte podatke o nalogu</translation>
 <translation id="6750456911389438250">{count,plural, =1{Uvezena je {count} stavka istorije}one{Uvezena je {count} stavka istorije}few{Uvezene su {count} stavke istorije}other{Uvezeno je {count} stavki istorije}}</translation>
 <translation id="6755200887046212842">Upravljajte nalozima</translation>
@@ -1751,6 +1756,7 @@ Handoff treba da se omogući u odeljku General (Opšte) u meniju Settings (Pode
 <translation id="7300448350764260141">Dodajte još jedan nivo zaštite od onlajn pretnji.</translation>
 <translation id="7311244614769792472">Nije pronađen nijedan rezultat</translation>
 <translation id="7313347584264171202">Ovde ćete pronaći kartice bez arhiviranja</translation>
+<translation id="7322186060879266048">{count,plural, =1{{count} opcija automatskog popunjavanja dostupna je iznad tastature.}one{{count} opcija automatskog popunjavanja dostupna je iznad tastature.}few{{count} opcije automatskog popunjavanja dostupne su iznad tastature.}other{{count} opcija automatskog popunjavanja dostupno je iznad tastature.}}</translation>
 <translation id="7328162502911382168">(<ph name="COUNT" />)</translation>
 <translation id="7336264872878993241">Procenat preuzimanja: <ph name="PERCENT" /></translation>
 <translation id="7345061034321640811">Uvoz nije dozvoljen</translation>
@@ -1820,7 +1826,6 @@ Handoff treba da se omogući u odeljku General (Opšte) u meniju Settings (Pode
 <translation id="7537586195939242955">Žao nam je, pristupna reč sada ne može da se instalira u Passbook.</translation>
 <translation id="754655535278952384">Provereno je <ph name="TIME" /></translation>
 <translation id="7554645225856321710">Zatvori sve</translation>
-<translation id="7554791636758816595">Nova kartica</translation>
 <translation id="7557508262441527045">Odjavljeni ste</translation>
 <translation id="7561196759112975576">Uvek</translation>
 <translation id="7561982940498449837">Zatvori meni</translation>
@@ -2250,7 +2255,6 @@ Handoff treba da se omogući u odeljku General (Opšte) u meniju Settings (Pode
 <translation id="8988107725234939347"><ph name="WEBSITE_TITLE" />, zakačen sajt</translation>
 <translation id="8990960056509724223">Čuvanje fajla nije moguće zbog smernica organizacije</translation>
 <translation id="8998289560386111590">Nije dostupno na vašem uređaju</translation>
-<translation id="9000532564152265066">Sve kartice</translation>
 <translation id="9003677638446136377">Proverite ponovo</translation>
 <translation id="9006453925669499173">Meni → Nova kartica bez arhiviranja</translation>
 <translation id="9008201768610948239">Ignoriši</translation>

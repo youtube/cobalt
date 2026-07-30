@@ -9,7 +9,7 @@
 #include <utility>
 
 #include "base/auto_reset.h"
-#include "base/barrier_closure.h"
+#include "base/barrier_callback.h"
 #include "base/check_op.h"
 #include "base/compiler_specific.h"
 #include "base/format_macros.h"
@@ -20,6 +20,7 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
 #include "base/strings/string_util.h"
+#include "base/task/bind_post_task.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "base/values.h"
@@ -270,9 +271,9 @@ int TransportClientSocketPool::RequestSocket(
 
   request->net_log().BeginEvent(NetLogEventType::SOCKET_POOL);
 
-  int rv =
-      RequestSocketInternal(group_id, *request,
-                            /*preconnect_done_closure=*/base::OnceClosure());
+  int rv = RequestSocketInternal(
+      group_id, *request,
+      /*preconnect_done_closure=*/OnConnectJobCompleteCallback());
   if (rv != ERR_IO_PENDING) {
     if (rv == OK) {
       request->handle()->socket()->ApplySocketTag(request->socket_tag());
@@ -304,7 +305,7 @@ int TransportClientSocketPool::RequestSockets(
     scoped_refptr<SocketParams> params,
     const std::optional<NetworkTrafficAnnotationTag>& proxy_annotation_tag,
     size_t num_sockets,
-    CompletionOnceCallback callback,
+    PreconnectCompletionCallback callback,
     const NetLogWithSource& net_log) {
   // TODO(eroman): Split out the host and port parameters.
   net_log.AddEvent(NetLogEventType::TCP_CLIENT_SOCKET_POOL_REQUESTED_SOCKETS,
@@ -312,7 +313,7 @@ int TransportClientSocketPool::RequestSockets(
 
   Request request(nullptr /* no handle */, CompletionOnceCallback(),
                   ProxyAuthCallback(), IDLE, SocketTag(),
-                  RespectLimits::ENABLED, NO_IDLE_SOCKETS, std::move(params),
+                  RespectLimits::ENABLED, NO_IDLE_SOCKETS, params,
                   proxy_annotation_tag, net_log);
 
   // Cleanup any timed-out idle sockets.
@@ -333,14 +334,22 @@ int TransportClientSocketPool::RequestSockets(
 
   int rv = OK;
 
-  base::RepeatingClosure preconnect_done_closure = base::BarrierClosure(
-      num_sockets,
-      base::BindOnce(
-          [](CompletionOnceCallback callback) {
-            base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-                FROM_HERE, base::BindOnce(std::move(callback), OK));
-          },
-          std::move(callback)));
+  base::RepeatingCallback<void(int)> preconnect_done_closure =
+      base::BarrierCallback<int>(
+          num_sockets,
+          // The `preconnect_done_closure` is called when the connect job
+          // is complete and destructed. Generally, `TransportClientSocketPool`
+          // outlives the `ConnectJob`. One exception for this is when
+          // `TransportClientSocketPool` is destroyed and we are cancelling the
+          // existing `ConnectJob`. In this case, `preconnect_done_closure` will
+          // be post tasked after the last `ConnectJob` is destroyed, meaning
+          // that the closure may be called after the
+          // `TransportClientSocketPool` is destroyed. Therefore, we need to
+          // pass the closure to the task runner asynchronously.
+          base::BindPostTaskToCurrentDefault(base::BindOnce(
+              &TransportClientSocketPool::OnPreconnectConnectJobComplete,
+              weak_factory_.GetWeakPtr(), std::move(callback), group_id, params,
+              proxy_annotation_tag, net_log)));
   int pending_connect_job_count = 0;
   for (int num_iterations_left = num_sockets;
        group->NumActiveSocketSlots() < num_sockets && num_iterations_left > 0;
@@ -376,7 +385,7 @@ int TransportClientSocketPool::RequestSockets(
   if (pending_connect_job_count == 0)
     return OK;
   for (size_t i = 0; i < num_sockets - pending_connect_job_count; ++i) {
-    preconnect_done_closure.Run();
+    preconnect_done_closure.Run(rv);
   }
 
   return ERR_IO_PENDING;
@@ -385,7 +394,7 @@ int TransportClientSocketPool::RequestSockets(
 int TransportClientSocketPool::RequestSocketInternal(
     const GroupId& group_id,
     const Request& request,
-    base::OnceClosure preconnect_done_closure) {
+    OnConnectJobCompleteCallback preconnect_done_closure) {
 #if DCHECK_IS_ON()
   DCHECK(!request_in_process_);
   base::AutoReset<bool> auto_reset(&request_in_process_, true);
@@ -1188,9 +1197,9 @@ void TransportClientSocketPool::ProcessPendingRequest(const GroupId& group_id,
     return;
   }
 
-  int rv =
-      RequestSocketInternal(group_id, *next_request,
-                            /*preconnect_done_closure=*/base::OnceClosure());
+  int rv = RequestSocketInternal(
+      group_id, *next_request,
+      /*preconnect_done_closure=*/OnConnectJobCompleteCallback());
   if (rv != ERR_IO_PENDING) {
     std::unique_ptr<Request> request = group->PopNextUnboundRequest();
     DCHECK(request);
@@ -1487,6 +1496,68 @@ TransportClientSocketPool::RefreshGroup(GroupMap::iterator it,
     return RemoveGroup(it);
   }
   return ++it;
+}
+
+void TransportClientSocketPool::OnPreconnectConnectJobComplete(
+    PreconnectCompletionCallback callback,
+    const GroupId& group_id,
+    scoped_refptr<SocketParams> socket_params,
+    const std::optional<NetworkTrafficAnnotationTag>& proxy_annotation_tag,
+    const NetLogWithSource& net_log,
+    std::vector<int> results) {
+  int result = OK;
+  std::unique_ptr<ClientSocketHandle> handle;
+  if (base::FeatureList::IsEnabled(
+          net::features::kEnableErrorCodePropagationForPreconnect)) {
+    CHECK(!results.empty());
+    // TODO(crbug.com/453308537): Consider more sophisticated
+    // error code propagation logic.
+    result = *std::max_element(results.begin(), results.end());
+    if (result == OK) {
+      // We check if we still have an idle socket in the group, since the
+      // actual request may have retrieved the socket before this callback is
+      // invoked, resulting in no idle sockets in the group.
+      if (HasActiveSocket(group_id) && IdleSocketCountInGroup(group_id) > 0) {
+        handle = std::make_unique<ClientSocketHandle>();
+        int rv = handle->Init(
+            group_id, std::move(socket_params), proxy_annotation_tag, IDLE,
+            SocketTag(), ClientSocketPool::RespectLimits::ENABLED,
+            base::DoNothing(), ProxyAuthCallback(), this, net_log);
+
+        // There are couple of cases where rv can be ERR_IO_PENDING:
+        // 1. Within TransportClientSocketPool::RequestSocket, it
+        // immediately calls CleanupIdleSockets(false) to prune any sockets that
+        // have become stale based on wall time. If enough time has passed since
+        // the socket was added to the pool (which is common in asynchronous
+        // callbacks), the very socket that passed the check at line 1520 may be
+        // closed and removed during this internal cleanup.
+        // 2. Even if the socket is not timed out, Init performs a usability
+        // check. If the socket has been closed by the peer or has received
+        // unexpected data while idle, the pool will discard it as unusable.
+        // Once the idle socket is discarded, the pool initiates a new
+        // connection attempt to satisfy the Init request. Since starting a new
+        // connection is an asynchronous process, Init returns ERR_IO_PENDING.
+        if (rv == ERR_IO_PENDING) {
+          rv = ERR_FAILED;
+        }
+
+        // There is a slight chance that the socket is not usable (e.g.
+        // the socket is being closed due to network connection failures or
+        // flakiness), thus handle->Init might return an error. If that
+        // happens, we cannot hand out the socket to the callback, and we
+        // should reset the handle to indicate that no socket is available. We
+        // should also consider this case as a failure for the preconnect,
+        // since no socket can be reused.
+        if (rv != OK) {
+          handle.reset();
+          result = rv;
+        }
+      }
+    }
+  }
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE,
+      base::BindOnce(std::move(callback), result == OK, std::move(handle)));
 }
 
 TransportClientSocketPool::Group::Group(

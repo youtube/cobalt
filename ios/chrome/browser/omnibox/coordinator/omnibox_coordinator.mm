@@ -94,6 +94,7 @@
 
   /// Controller for the omnibox autocomplete.
   OmniboxAutocompleteController* _omniboxAutocompleteController;
+
   /// Controller for the omnibox text.
   OmniboxTextController* _omniboxTextController;
 
@@ -256,8 +257,13 @@
       autocompleteResultWrapper;
   autocompleteResultWrapper.delegate = _omniboxAutocompleteController;
 
-  self.popupCoordinator = [self createPopupCoordinator:self.presenterDelegate];
-  [self.popupCoordinator start];
+  // NOTE: Suggestions are currently disabled for Cobrowse. If they are
+  // requested in the future, remove this conditional branch.
+  if (_presentationContext != OmniboxPresentationContext::kCobrowse) {
+    self.popupCoordinator =
+        [self createPopupCoordinator:self.presenterDelegate];
+    [self.popupCoordinator start];
+  }
 }
 
 - (void)stop {
@@ -268,6 +274,7 @@
   _client.reset();
 
   self.viewController = nil;
+  [self.mediator disconnect];
   self.mediator.templateURLService = nullptr;  // Unregister the observer.
   if (self.keyboardAccessoryView) {
     // Unregister the observer.
@@ -410,7 +417,9 @@
   if (self.searchOnlyUI) {
     showKeyboardAccessory = NO;
   }
-  if (_presentationContext == OmniboxPresentationContext::kComposebox) {
+
+  if (_presentationContext == OmniboxPresentationContext::kComposebox ||
+      _presentationContext == OmniboxPresentationContext::kCobrowse) {
     showKeyboardAccessory =
         base::FeatureList::IsEnabled(kEnableFuseboxKeyboardAccessory);
   }
