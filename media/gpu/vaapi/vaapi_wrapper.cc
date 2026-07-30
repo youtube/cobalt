@@ -50,6 +50,7 @@
 #include "base/types/pass_key.h"
 #include "base/version.h"
 #include "build/build_config.h"
+#include "gpu/config/gpu_info.h"
 #include "media/base/limits.h"
 #include "media/base/media_switches.h"
 #include "media/base/platform_features.h"
@@ -131,7 +132,7 @@ std::pair<base::ScopedFD, bool> LoadDrmFD(const base::FilePath& dev_path) {
 
 // These values are logged to UMA. Entries should not be renumbered and numeric
 // values should never be reused. Please keep in sync with
-// "VaapiFunctions" in src/tools/metrics/histograms/enums.xml.
+// "VaapiFunctions" in src/tools/metrics/histograms/metadata/media/enums.xml.
 enum class VaapiFunctions {
   kVABeginPicture = 0,
   kVACreateBuffer = 1,
@@ -165,9 +166,11 @@ enum class VaapiFunctions {
   kVADetachProtectedSession = 28,
   kVAProtectedSessionHwUpdate_Deprecated = 29,
   kVAProtectedSessionExecute = 30,
-  // Anything else is captured in this last entry.
+  // Anything else is captured in this entry. It used to be last, but more
+  // library calls have since been added, and we can't change the number.
   kOtherVAFunction = 31,
-  kMaxValue = kOtherVAFunction,
+  kVADeriveImage = 32,
+  kMaxValue = kVADeriveImage,
 };
 
 void ReportVaapiErrorToUMA(const std::string& histogram_name,
@@ -209,7 +212,8 @@ constexpr std::array<const char*,
         "vaDetachProtectedSession",
         "vaProtectedSessionHwUpdate (Deprecated)",
         "vaProtectedSessionExecute",
-        "Other VA function"};
+        "Other VA function",
+        "vaDeriveImage"};
 
 // Translates |function| into a human readable string for logging.
 const char* VaapiFunctionName(VaapiFunctions function) {
@@ -245,7 +249,8 @@ class VADisplayStateSingleton {
   // This method must be called exactly once before trying to acquire a
   // VADisplayStateHandle.
   static void PreSandboxInitialization(
-      const gpu::GpuDriverBugWorkarounds* workarounds);
+      const gpu::GpuDriverBugWorkarounds* workarounds,
+      const gpu::GPUInfo* gpu_info);
 
   // If an initialized VADisplayStateSingleton exists, this method returns a
   // VADisplayStateHandle to it. Otherwise, it attempts to initialize a
@@ -1538,7 +1543,8 @@ VADisplayStateSingleton& VADisplayStateSingleton::GetInstance() {
 
 // static
 void VADisplayStateSingleton::PreSandboxInitialization(
-    const gpu::GpuDriverBugWorkarounds* workarounds) {
+    const gpu::GpuDriverBugWorkarounds* workarounds,
+    const gpu::GPUInfo* gpu_info) {
   VADisplayStateSingleton& va_display_state = GetInstance();
   base::AutoLock lock(va_display_state.lock_);
 
@@ -1571,21 +1577,52 @@ void VADisplayStateSingleton::PreSandboxInitialization(
     return;
   }
 
-  constexpr char kRenderNodeFilePattern[] = "/dev/dri/renderD%d";
-  // This loop ends on either the first card that does not exist or the first
-  // render node that is not vgem.
-  for (int i = 128;; i++) {
-    base::FilePath dev_path(FILE_PATH_LITERAL(
-        base::StringPrintf(kRenderNodeFilePattern, i).c_str()));
-    auto [drm_fd, should_skip] = LoadDrmFD(dev_path);
-    if (!drm_fd.is_valid()) {
-      return;
+  int max_devices = drmGetDevices2(0, nullptr, 0);
+  if (max_devices <= 0) {
+    LOG(WARNING) << "drmGetDevices2() has not found any devices";
+    return;
+  }
+  std::vector<drmDevicePtr> devices{static_cast<size_t>(max_devices), nullptr};
+  int ret = drmGetDevices2(0, devices.data(), max_devices);
+  if (ret < 0) {
+    LOG(WARNING) << "drmGetDevices2() returned an error: " << -ret;
+    return;
+  }
+
+  for (const drmDevicePtr& device : devices) {
+    if (!device) {
+      continue;
     }
-    if (!should_skip) {
+    // Skip non-PCI devices.
+    if (device->bustype != DRM_BUS_PCI) {
+      continue;
+    }
+    // Skip devices without a render node
+    if (!(device->available_nodes & (1u << DRM_NODE_RENDER))) {
+      continue;
+    }
+    // If active gpu is specified, only check that device.
+    if (gpu_info) {
+      if (device->deviceinfo.pci->vendor_id !=
+              gpu_info->active_gpu().vendor_id ||
+          device->deviceinfo.pci->device_id !=
+              gpu_info->active_gpu().device_id) {
+        continue;
+      }
+    }
+
+    // SAFETY: libdrm ensures that device->nodes is of size=DRM_NODE_MAX and
+    // DRM_NODE_RENDER<DRM_NODE_MAX.
+    base::FilePath dev_path(UNSAFE_BUFFERS(device->nodes[DRM_NODE_RENDER]));
+    auto [drm_fd, should_skip] = LoadDrmFD(dev_path);
+    if (drm_fd.is_valid() && !should_skip) {
       va_display_state.drm_fd_ = std::move(drm_fd);
-      return;
+      break;
     }
   }
+
+  drmFreeDevices(devices.data(), ret);
+  return;
 }
 
 // static
@@ -2846,7 +2883,7 @@ bool VaapiWrapper::UploadVideoFrameToSurface(const VideoFrame& frame,
 
   const gfx::Size visible_size = frame.visible_rect().size();
   bool needs_va_put_image = false;
-  VAImage image;
+  VAImage image = {};
   VAStatus va_res = vaDeriveImage(va_display_, va_surface_id, &image);
   if (va_res == VA_STATUS_ERROR_OPERATION_FAILED) {
     DVLOG(4) << "vaDeriveImage failed and fallback to Create_PutImage";
@@ -2859,6 +2896,8 @@ bool VaapiWrapper::UploadVideoFrameToSurface(const VideoFrame& frame,
                            va_surface_size.height(), &image);
     VA_SUCCESS_OR_RETURN(va_res, VaapiFunctions::kVACreateImage, false);
     needs_va_put_image = true;
+  } else {
+    VA_SUCCESS_OR_RETURN(va_res, VaapiFunctions::kVADeriveImage, false);
   }
   absl::Cleanup vaimage_deleter =
       [this, &image]() EXCLUSIVE_LOCKS_REQUIRED(va_lock_.get()) {
@@ -3214,10 +3253,11 @@ bool VaapiWrapper::allow_disabling_global_lock_ = false;
 // static
 void VaapiWrapper::PreSandboxInitialization(
     bool allow_disabling_global_lock,
-    const gpu::GpuDriverBugWorkarounds* workarounds) {
+    const gpu::GpuDriverBugWorkarounds* workarounds,
+    const gpu::GPUInfo* gpu_info) {
   allow_disabling_global_lock_ = allow_disabling_global_lock;
 
-  VADisplayStateSingleton::PreSandboxInitialization(workarounds);
+  VADisplayStateSingleton::PreSandboxInitialization(workarounds, gpu_info);
 
   const std::string va_suffix(base::NumberToString(VA_MAJOR_VERSION + 1));
   StubPathMap paths;

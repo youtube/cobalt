@@ -12,6 +12,7 @@
 #include "base/base64.h"
 #include "base/feature_list.h"
 #include "base/no_destructor.h"
+#include "base/numerics/ranges.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/time/time.h"
@@ -713,7 +714,8 @@ void NativeWidgetMacNSWindowHost::UpdateCompositorProperties() {
           content_bounds_in_screen_.size(), display_.device_scale_factor()));
   compositor_->UpdateSurface(content_bounds_in_pixels,
                              display_.device_scale_factor(),
-                             display_.GetColorSpaces(), display_.id());
+                             display_.GetColorSpaces(), display_.id(),
+                             /*refresh_rate_changed_on_same_display=*/false);
 }
 
 void NativeWidgetMacNSWindowHost::DestroyCompositor() {
@@ -886,7 +888,7 @@ bool NativeWidgetMacNSWindowHost::IsWindowKey() const {
 }
 
 void NativeWidgetMacNSWindowHost::SetVisibilityState(
-    remote_cocoa::mojom::WindowVisibilityState new_state) {
+    WindowVisibilityState new_state) {
   // On macOS 14 an application can't generally activate themselves. If we're
   // trying to activate a window in a remote application host, this yield
   // should make sure this works as long as chrome is the currently active
@@ -897,6 +899,22 @@ void NativeWidgetMacNSWindowHost::SetVisibilityState(
       [NSApp yieldActivationToApplicationWithBundleIdentifier:
                  base::SysUTF8ToNSString(application_host_->bundle_id())];
     }
+  }
+
+  // If we are going to be making the window visible, make the compositor
+  // visible pre-emptively, rather than waiting until the visibilty
+  // notification makes its way back via OnVisibilityChanged.
+  bool preemptively_make_visible =
+      new_state == WindowVisibilityState::kShowInactive ||
+      new_state == WindowVisibilityState::kShowAndActivateWindow;
+  if (!compositor_) {
+    preemptively_make_visible = false;
+  }
+  if (parent_ && !parent_->is_visible_) {
+    preemptively_make_visible = false;
+  }
+  if (preemptively_make_visible) {
+    OnVisibilityChanged(true);
   }
 
   GetNSWindowMojo()->SetVisibilityState(new_state);
@@ -1096,6 +1114,9 @@ void NativeWidgetMacNSWindowHost::OnApplicationHostDestroying(
 // remote_cocoa::mojom::NativeWidgetNSWindowHost:
 
 void NativeWidgetMacNSWindowHost::OnVisibilityChanged(bool window_visible) {
+  if (is_visible_ == window_visible) {
+    return;
+  }
   const bool was_visible_on_screen = IsVisibleOnScreen();
   is_visible_ = window_visible;
   if (compositor_) {
@@ -1122,11 +1143,17 @@ void NativeWidgetMacNSWindowHost::OnVisibilityChanged(bool window_visible) {
 
 void NativeWidgetMacNSWindowHost::OnSpaceActivationChanged(
     bool is_on_active_space) {
+  if (is_on_active_space_ == is_on_active_space) {
+    return;
+  }
   const bool was_visible_on_screen = IsVisibleOnScreen();
   is_on_active_space_ = is_on_active_space;
+  const bool is_visible_on_screen = IsVisibleOnScreen();
 
-  if (was_visible_on_screen != IsVisibleOnScreen() && GetWidget()) {
-    GetWidget()->OnNativeWidgetVisibilityOnScreenChanged(IsVisibleOnScreen());
+  if (Widget* widget = GetWidget()) {
+    if (was_visible_on_screen != is_visible_on_screen) {
+      widget->OnNativeWidgetVisibilityOnScreenChanged(is_visible_on_screen);
+    }
   }
 }
 
@@ -1443,6 +1470,9 @@ void NativeWidgetMacNSWindowHost::OnWindowFullscreenTransitionComplete(
 
 void NativeWidgetMacNSWindowHost::OnWindowMiniaturizedChanged(
     bool miniaturized) {
+  if (is_miniaturized_ == miniaturized) {
+    return;
+  }
   is_miniaturized_ = miniaturized;
   if (Widget* widget = GetWidget()) {
     widget->OnNativeWidgetWindowShowStateChanged();
@@ -1450,6 +1480,9 @@ void NativeWidgetMacNSWindowHost::OnWindowMiniaturizedChanged(
 }
 
 void NativeWidgetMacNSWindowHost::OnWindowZoomedChanged(bool zoomed) {
+  if (is_zoomed_ == zoomed) {
+    return;
+  }
   is_zoomed_ = zoomed;
   if (Widget* widget = GetWidget()) {
     widget->OnNativeWidgetWindowShowStateChanged();
@@ -1469,6 +1502,17 @@ void NativeWidgetMacNSWindowHost::OnVisibleOnAllWorkspacesChanged(
 
 void NativeWidgetMacNSWindowHost::OnWindowDisplayChanged(
     const display::Display& new_display) {
+  // Refresh rate change caused by display change is not handled here. It will
+  // be handled in compositor_->SetVSyncDisplayID().
+  bool refresh_rate_changed_on_same_display = false;
+  bool same_frequency = base::IsApproximatelyEqual(
+      display_.display_frequency(), new_display.display_frequency(),
+      display::Display::kRefreshRateEpsilon);
+  if (display_.display_frequency() != 0 && display_.id() == new_display.id() &&
+      !same_frequency) {
+    refresh_rate_changed_on_same_display = true;
+  }
+
   display_ = new_display;
   if (!compositor_) {
     return;
@@ -1480,7 +1524,8 @@ void NativeWidgetMacNSWindowHost::OnWindowDisplayChanged(
           content_bounds_in_screen_.size(), display_.device_scale_factor()));
   compositor_->UpdateSurface(content_bounds_in_pixels,
                              display_.device_scale_factor(),
-                             display_.GetColorSpaces(), display_.id());
+                             display_.GetColorSpaces(), display_.id(),
+                             refresh_rate_changed_on_same_display);
 }
 
 void NativeWidgetMacNSWindowHost::OnWindowWillClose() {
@@ -1966,10 +2011,9 @@ void NativeWidgetMacNSWindowHost::UpdateVisualState() {
 ////////////////////////////////////////////////////////////////////////////////
 // NativeWidgetMacNSWindowHost, AcceleratedWidgetMac:
 
-void NativeWidgetMacNSWindowHost::AcceleratedWidgetCALayerParamsUpdated() {
-  if (const auto* ca_layer_params = compositor_->widget()->GetCALayerParams()) {
-    GetNSWindowMojo()->SetCALayerParams(*ca_layer_params);
-  }
+void NativeWidgetMacNSWindowHost::AcceleratedWidgetCALayerParamsUpdated(
+    gfx::CALayerParams ca_layer_params) {
+  GetNSWindowMojo()->SetCALayerParams(std::move(ca_layer_params));
 }
 
 ////////////////////////////////////////////////////////////////////////////////

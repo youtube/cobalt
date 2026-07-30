@@ -80,7 +80,6 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kDisableAutoResizeOutputSurface);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kDocumentIsolationPolicyWithoutSiteIsolation);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kDocumentPolicyNegotiation);
-CONTENT_EXPORT BASE_DECLARE_FEATURE(kDumpOnInvalidNavigationHeaders);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kDumpOnOriginHeaderMismatch);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kDumpOnUnexpectedOriginHeader);
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
@@ -155,6 +154,7 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kInterestGroupUpdateIfOlderThan);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kIOSurfaceCapturer);
 #endif
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kKeepChildProcessAfterIPCReset);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kKillOnInvalidNavigationHeaders);
 
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kLocalNetworkAccessForWorkers);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kLocalNetworkAccessForWorkersWarningOnly);
@@ -247,9 +247,6 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kStrictHighRankProcessLRU);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kTextInputClient);
 CONTENT_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
                                           kTextInputClientIPCTimeout);
-CONTENT_EXPORT BASE_DECLARE_FEATURE(kTextInputClientUseNestedLoop);
-CONTENT_EXPORT BASE_DECLARE_FEATURE_PARAM(bool,
-                                          kTextInputClientNestedLoopEventMask);
 #endif
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kTouchpadOverscrollHistoryNavigation);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kTrustedTypesFromLiteral);

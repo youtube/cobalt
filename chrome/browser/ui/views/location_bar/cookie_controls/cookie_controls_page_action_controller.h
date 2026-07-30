@@ -8,11 +8,11 @@
 #include "base/callback_list.h"
 #include "base/memory/raw_ref.h"
 #include "base/scoped_observation.h"
+#include "chrome/browser/ui/page_actions/page_action_controller.h"
+#include "chrome/browser/ui/page_actions/page_action_observer.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
 #include "chrome/browser/ui/views/location_bar/cookie_controls/cookie_controls_bubble_coordinator.h"
-#include "chrome/browser/ui/views/page_action/page_action_controller.h"
-#include "chrome/browser/ui/views/page_action/page_action_observer.h"
 #include "components/content_settings/browser/ui/cookie_controls_view.h"
 #include "components/tabs/public/tab_interface.h"
 #include "components/user_education/common/feature_promo/feature_promo_result.h"
@@ -43,12 +43,11 @@ class CookieControlsPageActionController
    public:
     virtual ~BubbleDelegate() = default;
     virtual bool HasBubble() = 0;
-    virtual void ShowBubble(
-        ToolbarButtonProvider* toolbar_button_provider,
-        content::WebContents* web_contents,
-        content_settings::CookieControlsController* controller) = 0;
+    virtual void ShowBubble(ToolbarButtonProvider* toolbar_button_provider,
+                            content::WebContents* web_contents) = 0;
     virtual base::CallbackListSubscription RegisterBubbleClosingCallback(
         base::RepeatingClosure callback) = 0;
+    virtual content_settings::CookieControlsController* GetController() = 0;
   };
 
   CookieControlsPageActionController(
@@ -103,10 +102,14 @@ class CookieControlsPageActionController
   void OnBubbleClosed();
   void MaybeShowIPH(BrowserUserEducationInterface& user_education);
 
+  void OnDidActivate(tabs::TabInterface* tab);
+  void OnWillDeactivate(tabs::TabInterface* tab);
+  void OnWillDiscardContents(tabs::TabInterface* tab,
+                             content::WebContents* old_contents,
+                             content::WebContents* new_contents);
+
   const raw_ref<tabs::TabInterface> tab_;
   const raw_ref<page_actions::PageActionController> page_action_controller_;
-  std::unique_ptr<content_settings::CookieControlsController>
-      cookie_controls_controller_;
   std::unique_ptr<BubbleDelegate> bubble_delegate_;
 
   // Tracks when an IPH is showing, ensuring the icon is highlighted.
@@ -115,8 +118,9 @@ class CookieControlsPageActionController
 
   CookieControlsIconStatus icon_status_;
 
+  base::CallbackListSubscription did_activate_subscription_;
+  base::CallbackListSubscription will_deactivate_subscription_;
   base::CallbackListSubscription will_discard_contents_subscription_;
-  base::CallbackListSubscription tab_deactivation_subscription_;
   base::CallbackListSubscription tab_will_detach_subscription_;
   base::CallbackListSubscription bubble_will_close_subscription_;
 

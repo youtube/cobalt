@@ -56,8 +56,12 @@ loadScript.then(async function() {
     //  Window2: b,a,(newtab)
     function setupLetterPages() {
       const pages = [
-        CHROME_UI_NEW_TAB_URL, pageUrl('a'), pageUrl('b'), pageUrl('c'),
-        pageUrl('d'), pageUrl('e')
+        CHROME_UI_NEW_TAB_URL,
+        pageUrl('a'),
+        pageUrl('b'),
+        pageUrl('c'),
+        pageUrl('d'),
+        pageUrl('e'),
       ];
       createWindow(
           pages, {}, pass(function(winId, tabIds) {
@@ -224,7 +228,7 @@ loadScript.then(async function() {
     function moveToCurrentWindow() {
       chrome.windows.getCurrent(pass(function(win) {
         const targetWin =
-            win.id == firstWindowId ? secondWindowId : firstWindowId;
+            win.id === firstWindowId ? secondWindowId : firstWindowId;
         chrome.tabs.query(
             {windowId: targetWin}, pass(function(tabs) {
               chrome.tabs.move(

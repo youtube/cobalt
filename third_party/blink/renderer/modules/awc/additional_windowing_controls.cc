@@ -58,6 +58,11 @@ bool CanUseWindowingControls(LocalDOMWindow* window,
         "API is only supported in primary top-level browsing contexts.");
     return false;
   }
+  if (!window->document()->IsInWebAppScope()) {
+    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
+                                      "API is only supported in web apps.");
+    return false;
+  }
   return true;
 }
 
@@ -139,7 +144,7 @@ base::OnceCallback<void(bool)> GetSetResizableCallback(
     ScriptPromiseResolver<IDLUndefined>* resolver) {
   return GetWindowEventCallback(
       resolver, resizable ? "Could not set the window to be resizable."
-                          : "Coult not set the window to be non-resizable.");
+                          : "Could not set the window to be non-resizable.");
 }
 
 void OnMaximizePermissionRequestComplete(

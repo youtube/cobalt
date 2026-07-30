@@ -160,6 +160,20 @@ id NSObjectFromValueResult(const base::Value* value_result) {
   return ::NSObjectFromValueResult(value_result, kMaximumParsingRecursionDepth);
 }
 
+id NSDictionaryFromValue(const base::DictValue& dict) {
+  NSMutableDictionary* dictionary = [[NSMutableDictionary alloc] init];
+
+  for (const auto pair : dict) {
+    NSString* key = base::SysUTF8ToNSString(pair.first);
+    id wk_result =
+        ::NSObjectFromValueResult(&pair.second, kMaximumParsingRecursionDepth);
+    if (wk_result) {
+      [dictionary setValue:wk_result forKey:key];
+    }
+  }
+  return dictionary;
+}
+
 void ExecuteJavaScript(WKWebView* web_view,
                        NSString* script,
                        void (^completion_handler)(id, NSError*)) {
@@ -194,6 +208,32 @@ void ExecuteJavaScript(WKWebView* web_view,
                        inFrame:frame_info
                 inContentWorld:content_world
              completionHandler:completion_handler];
+}
+
+void ExecuteAsyncJavaScript(WKWebView* web_view,
+                            WKContentWorld* content_world,
+                            WKFrameInfo* frame_info,
+                            NSString* script,
+                            NSDictionary<NSString*, id>* arguments,
+                            void (^completion_handler)(id, NSError*)) {
+  DCHECK(content_world);
+  // `frame_info` is required to ensure `script` is executed on the correct
+  // webpage. This works because a `frame_info` instance is associated with a
+  // particular loaded webpage/navigation and the script execution will only
+  // happen in the web view if the current frame_info matches.
+  DCHECK(frame_info);
+
+  DCHECK([script length] > 0);
+  if (!web_view && completion_handler) {
+    NotifyCompletionHandlerNullWebView(completion_handler);
+    return;
+  }
+
+  [web_view callAsyncJavaScript:script
+                      arguments:arguments
+                        inFrame:frame_info
+                 inContentWorld:content_world
+              completionHandler:completion_handler];
 }
 
 void RegisterExistingFrames(WKWebView* web_view,

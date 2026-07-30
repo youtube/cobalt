@@ -26,14 +26,13 @@ export function getCounters() {
 }
 
 export async function getIframeResults(id, url=undefined) {
-  if (url != undefined) {
-    document.getElementById(id).setAttribute('src', url);
-  }
   return await new Promise(resolve => {
     window.addEventListener('message', (e) => {
       resolve(e.data);
     }, {once: true});
-    if (url == undefined) {
+    if (url != undefined) {
+      document.getElementById(id).setAttribute('src', url);
+    } else {
       document.getElementById(id).contentWindow.postMessage({}, '*');
     }
   });
@@ -57,6 +56,7 @@ export async function waitForLoad() {
 }
 
 export async function waitForRender() {
+  await new Promise(requestAnimationFrame);
   await new Promise(requestAnimationFrame);
   await new Promise(setTimeout);
 }

@@ -367,11 +367,11 @@ BASE_FEATURE(kEnableOAuthMultiloginStandardCookiesBinding,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
-// Kill switch for enabling binding the OAuthMultilogin cookies to a device with
-// DBSC standard for the Glic partition.
+// Enables binding the OAuthMultilogin cookies to a device with DBSC standard
+// for secondary partitions.
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
-BASE_FEATURE(kEnableOAuthMultiloginStandardCookiesBindingForGlicPartition,
-             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kEnableOAuthMultiloginStandardCookiesBindingForSecondaryPartitions,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 BASE_FEATURE(kEnablePreferencesAccountStorage,
@@ -509,9 +509,6 @@ BASE_FEATURE(kGlicEligibilitySeparateAccountCapability,
 BASE_FEATURE(kHandleMdmErrorsForDasherAccounts,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-#if BUILDFLAG(IS_IOS)
-BASE_FEATURE(kIdentityInAuthErrorFollowUps, base::FEATURE_ENABLED_BY_DEFAULT);
-#endif
 
 #if BUILDFLAG(IS_IOS)
 BASE_FEATURE(kIgnoreChromeManageAccountsInSubframes,
@@ -541,28 +538,10 @@ BASE_FEATURE(kNoAccountWebSignin, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kNonDefaultGaiaOriginCheck, base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-BASE_FEATURE(kOpenAllProfilesFromProfilePickerExperiment,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-const base::FeatureParam<int>
-    kMaxProfilesCountToShowOpenAllButtonInProfilePicker{
-        &kOpenAllProfilesFromProfilePickerExperiment,
-        "max_profiles_count_to_show_open_all_button_in_profile_picker", 5};
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 BASE_FEATURE(kPasswordUploadUiUpdate, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kProfileCreationDeclineSigninCTAExperiment,
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kProfileCreationFrictionReductionExperimentPrefillNameRequirement,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kProfileCreationFrictionReductionExperimentRemoveSigninStep,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kProfileCreationFrictionReductionExperimentSkipCustomizeProfile,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 #if BUILDFLAG(IS_ANDROID)
@@ -720,7 +699,7 @@ BASE_FEATURE(kBookmarksMigrateUiChanges,
 );
 
 BASE_FEATURE(kUsePrimaryAndTonalButtonsForPromos,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // keep-sorted end
 

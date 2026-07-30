@@ -9,6 +9,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/events/base_event_utils.h"
 #include "ui/views/controls/button/image_button.h"
+#include "ui/views/controls/button/md_text_button.h"
 #include "ui/views/test/button_test_api.h"
 #include "ui/views/view_utils.h"
 
@@ -24,25 +25,43 @@ TEST_F(GlicSelectionWidgetTest, ButtonsTriggerCallbacks) {
   bool ask_gemini_called = false;
   bool copy_called = false;
   bool copy_link_called = false;
+  bool pin_toggled_called = false;
+  bool pin_toggled_val = false;
 
   gfx::Rect anchor_rect(10, 10, 100, 100);
   std::u16string selected_text = u"selected text";
 
+  bool dismiss_called = false;
+
   GlicSelectionWidgetDelegate* delegate = new GlicSelectionWidgetDelegate(
-      anchor_rect, selected_text,
+      anchor_rect, gfx::Rect(), selected_text, /*is_pinned=*/false,
       base::BindLambdaForTesting([&]() { ask_gemini_called = true; }),
       base::BindLambdaForTesting([&]() { copy_called = true; }),
-      base::BindLambdaForTesting([&]() { copy_link_called = true; }));
+      base::BindLambdaForTesting([&]() { copy_link_called = true; }),
+      base::BindLambdaForTesting([&](bool val) {
+        pin_toggled_called = true;
+        pin_toggled_val = val;
+      }),
+      base::BindLambdaForTesting([&]() { dismiss_called = true; }));
 
   views::View* contents_view = delegate->GetContentsView();
   ASSERT_TRUE(contents_view);
 
   auto children = contents_view->children();
-  ASSERT_EQ(children.size(), 3u);
+  ASSERT_EQ(children.size(), 2u);
 
-  auto* ask_gemini_btn = views::AsViewClass<views::ImageButton>(children[0]);
-  auto* copy_btn = views::AsViewClass<views::ImageButton>(children[1]);
-  auto* copy_link_btn = views::AsViewClass<views::ImageButton>(children[2]);
+  auto pill1_children = children[0]->children();
+  ASSERT_EQ(pill1_children.size(), 3u);
+
+  auto* ask_gemini_btn =
+      views::AsViewClass<views::MdTextButton>(pill1_children[0]);
+  auto* copy_btn = views::AsViewClass<views::ImageButton>(pill1_children[1]);
+  auto* copy_link_btn =
+      views::AsViewClass<views::ImageButton>(pill1_children[2]);
+
+  auto pill2_children = children[1]->children();
+  ASSERT_EQ(pill2_children.size(), 1u);
+  auto* dismiss_btn = views::AsViewClass<views::ImageButton>(pill2_children[0]);
 
   ASSERT_TRUE(ask_gemini_btn);
   ASSERT_TRUE(copy_btn);
@@ -75,6 +94,13 @@ TEST_F(GlicSelectionWidgetTest, ButtonsTriggerCallbacks) {
                                   ui::EF_LEFT_MOUSE_BUTTON,
                                   ui::EF_LEFT_MOUSE_BUTTON));
   EXPECT_TRUE(copy_link_called);
+
+  views::test::ButtonTestApi(dismiss_btn)
+      .NotifyClick(ui::MouseEvent(ui::EventType::kMousePressed, gfx::Point(),
+                                  gfx::Point(), ui::EventTimeForNow(),
+                                  ui::EF_LEFT_MOUSE_BUTTON,
+                                  ui::EF_LEFT_MOUSE_BUTTON));
+  EXPECT_TRUE(dismiss_called);
 
   delete delegate;
 }

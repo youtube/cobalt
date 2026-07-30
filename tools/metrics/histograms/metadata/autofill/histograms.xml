@@ -3346,6 +3346,69 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   <token key="SaveType" variants="AutofillCreditCardSaveType"/>
 </histogram>
 
+<histogram name="Autofill.CreditCardScanner.CandidatesCount" units="count"
+    expires_after="2027-04-01">
+  <owner>yiwenqian@google.com</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    Records how many unique potential card numbers were detected during the
+    scan. A high number suggests &quot;noisy&quot; detection or a difficult
+    environment, which helps evaluate if the minimum confidence count is
+    filtering effectively. Recorded when a credit card is successfully
+    recognized by the scanner.
+  </summary>
+</histogram>
+
+<histogram name="Autofill.CreditCardScanner.FramesToSuccess" units="count"
+    expires_after="2027-04-01">
+  <owner>yiwenqian@google.com</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    Records the number of frames processed before a credit card is successfully
+    recognized. This helps distinguish between slow devices (low FPS) and
+    recognition difficulty. Recorded when a credit card is successfully
+    recognized by the scanner.
+  </summary>
+</histogram>
+
+<histogram name="Autofill.CreditCardScanner.MaxFrameLatency" units="ms"
+    expires_after="2027-04-01">
+  <owner>yiwenqian@google.com</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    Records the maximum latency observed for processing a single frame during a
+    credit card scan. Recorded when a credit card is successfully recognized by
+    the scanner.
+  </summary>
+</histogram>
+
+<histogram name="Autofill.CreditCardScanner.SlowFramesCount" units="count"
+    expires_after="2027-04-01">
+  <owner>yiwenqian@google.com</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    Records the number of frames that took longer than 33ms to process during a
+    credit card scan. Recorded when a credit card is successfully recognized by
+    the scanner.
+  </summary>
+</histogram>
+
+<histogram name="Autofill.CreditCardScanner.TimeToSuccess" units="ms"
+    expires_after="2027-04-01">
+  <owner>yiwenqian@google.com</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    Records the time elapsed from the first frame processed until a credit card
+    is successfully recognized. Recorded when a credit card is successfully
+    recognized by the scanner.
+  </summary>
+</histogram>
+
 <histogram name="Autofill.CreditCardsDeletedForDisuse" units="units"
     expires_after="2026-12-12">
   <owner>battre@chromium.org</owner>
@@ -5631,6 +5694,28 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   </summary>
 </histogram>
 
+<histogram name="Autofill.OneTimeTokens.Backend.Gmail.AuthLatency" units="ms"
+    expires_after="2027-05-01">
+  <owner>koerber@google.com</owner>
+  <owner>src/components/one_time_tokens/OWNERS</owner>
+  <summary>
+    Records the duration of the OAuth token fetch for the Gmail OTP backend.
+    Recorded when the access token fetch completes.
+  </summary>
+</histogram>
+
+<histogram name="Autofill.OneTimeTokens.Backend.Gmail.HasActiveSubscription"
+    enum="Boolean" expires_after="2027-05-01">
+  <owner>koerber@google.com</owner>
+  <owner>src/components/one_time_tokens/OWNERS</owner>
+  <summary>
+    Records whether a subscription was already active when a Gmail OTP
+    notification arrived. Recorded when an incoming Gmail OTP backend
+    notification is received. True if a subscription was active (immediate hit),
+    false if the notification had to wait for a subscription.
+  </summary>
+</histogram>
+
 <histogram name="Autofill.OneTimeTokens.Backend.Gmail.NetworkLatency"
     units="ms" expires_after="2027-05-01">
   <owner>koerber@google.com</owner>
@@ -5638,6 +5723,27 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   <summary>
     Records the duration of the network request to the OneTimeTokenService to
     fetch a Gmail one time token. Recorded when the response is received.
+  </summary>
+</histogram>
+
+<histogram name="Autofill.OneTimeTokens.Backend.Gmail.QueueLatency" units="ms"
+    expires_after="2027-05-01">
+  <owner>koerber@google.com</owner>
+  <owner>src/components/one_time_tokens/OWNERS</owner>
+  <summary>
+    Records the duration a Gmail OTP notification spent in the pending queue
+    before being processed. Recorded when a notification is popped from the
+    pending queue to be processed.
+  </summary>
+</histogram>
+
+<histogram name="Autofill.OneTimeTokens.Backend.Gmail.QueueSize" units="count"
+    expires_after="2027-05-01">
+  <owner>koerber@google.com</owner>
+  <owner>src/components/one_time_tokens/OWNERS</owner>
+  <summary>
+    Recorded when a notification enters the coordinator; monitors the depth of
+    the pending queue.
   </summary>
 </histogram>
 

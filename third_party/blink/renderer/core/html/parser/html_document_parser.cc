@@ -346,6 +346,7 @@ class HTMLDocumentParser::PendingPreloads
 HTMLDocumentParser::HTMLDocumentParser(HTMLDocument& document,
                                        ParserSynchronizationPolicy sync_policy,
                                        CustomElementRegistry* registry,
+                                       StreamingSanitizer* sanitizer,
                                        ParserPrefetchPolicy prefetch_policy)
     : HTMLDocumentParser(document,
                          kAllowScriptingContent,
@@ -360,7 +361,7 @@ HTMLDocumentParser::HTMLDocumentParser(HTMLDocument& document,
                               Document::DeclarativeShadowRootAllowState::kDeny;
   tree_builder_ = MakeGarbageCollected<HTMLTreeBuilder>(
       this, document, kAllowScriptingContent, options_, include_shadow_roots,
-      registry);
+      registry, sanitizer);
 }
 
 HTMLDocumentParser::HTMLDocumentParser(
@@ -1424,7 +1425,7 @@ void HTMLDocumentParser::DocumentElementAvailable() {
               perfetto::Flow::FromPointer(this));
   Document* document = GetDocument();
   DCHECK(document);
-  DCHECK(document->documentElement());
+  DCHECK(document->documentElement() || tree_builder_);
   Element* documentElement = GetDocument()->documentElement();
   if (documentElement->hasAttribute(AtomicString(u"\u26A1")) ||
       documentElement->hasAttribute(AtomicString("amp")) ||
@@ -1844,8 +1845,14 @@ bool HTMLDocumentParser::AllowPreloading() {
     }
 
     // Only allows preloads if all seen meta tags have been processed.
-    return static_cast<int>(csp->GetParsedPolicies().size()) ==
-           seen_csp_meta_tags_;
+    int processed_meta_policies = 0;
+    for (const auto& policy : csp->GetParsedPolicies()) {
+      if (policy->header->source ==
+          network::mojom::blink::ContentSecurityPolicySource::kMeta) {
+        ++processed_meta_policies;
+      }
+    }
+    return processed_meta_policies == seen_csp_meta_tags_;
   } else {
     return false;
   }

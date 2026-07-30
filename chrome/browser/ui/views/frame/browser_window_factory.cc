@@ -6,6 +6,7 @@
 
 #include "build/build_config.h"
 #include "chrome/browser/ui/browser_window_deleter.h"
+#include "chrome/browser/ui/fullscreen/browser_window_fullscreen_controller.h"
 #include "chrome/browser/ui/views/frame/browser_native_widget_factory.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/browser_widget.h"
@@ -41,7 +42,7 @@ BrowserWindow::CreateBrowserWindow(Browser* browser,
   // Avoid generating too many occlusion tracking calculation events before this
   // function returns. The occlusion status will be computed only once once this
   // function returns.
-  // See crbug.com/40171404#c4
+  // See crbug.com/40171404#comment5
   aura::WindowOcclusionTracker::ScopedPause pause_occlusion;
 #endif
   // Create the view and the frame. The frame will attach itself via the view
@@ -75,7 +76,7 @@ BrowserWindow::CreateBrowserWindow(Browser* browser,
 #endif
 #if BUILDFLAG(IS_CHROMEOS)
   if (chromeos::IsKioskSession()) {
-    view->SetForceFullscreen(true);
+    BrowserWindowFullscreenController::From(browser)->SetForceFullscreen(true);
   }
 #endif
 

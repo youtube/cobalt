@@ -55,6 +55,7 @@ android_library("java") {
     "//chrome/browser/context_sharing/tab_bottom_sheet/android:manager_public_java",
     "//chrome/browser/flags:java",
     "//chrome/browser/glic:public_java",
+    "//chrome/browser/glic/android:helper_java",
     "//chrome/browser/glic/android:java_resources",
     "//chrome/browser/notifications:java",
     "//chrome/browser/profiles/android:java",
@@ -135,6 +136,7 @@ android_resources("java_resources") {
     "java/res/layout/actor_overlay.xml",
     "java/res/layout/actor_picture_in_picture_overlay.xml",
     "java/res/values/dimens.xml",
+    "java/res/values/colors.xml",
   ]
   deps = [
     "//chrome/app:java_strings_grd",
@@ -164,6 +166,7 @@ robolectric_library("junit") {
     "//chrome/browser/context_sharing/tab_bottom_sheet/android:manager_public_java",
     "//chrome/browser/flags:java",
     "//chrome/browser/glic:public_java",
+    "//chrome/browser/glic/android:helper_java",
     "//chrome/browser/glic/android:java_resources",
     "//chrome/browser/notifications:java",
     "//chrome/browser/profiles/android:java",

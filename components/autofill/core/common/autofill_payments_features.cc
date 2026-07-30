@@ -176,7 +176,7 @@ BASE_FEATURE(kAutofillEnableFlatRateCardBenefitsFromCurinos,
 // instead of jumping straight to CVC or biometric auth.
 BASE_FEATURE(kAutofillEnableFpanRiskBasedAuthentication,
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID) || \
-    BUILDFLAG(IS_IOS)
+    BUILDFLAG(IS_IOS) || BUILDFLAG(IS_CHROMEOS)
              base::FEATURE_ENABLED_BY_DEFAULT);
 #else
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -216,7 +216,7 @@ BASE_FEATURE(kAutofillEnablePayNowPayLaterTabs,
 // authentication to autofill payment methods, we will trigger a device
 // authentication on ChromeOS.
 BASE_FEATURE(kAutofillEnablePaymentsMandatoryReauthChromeOs,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 // When enabled, risk data is prefetched during payments autofill flows to
@@ -241,6 +241,11 @@ BASE_FEATURE(kAutofillEnableSeparatePixPreferenceItem,
 BASE_FEATURE(kAutofillEnableTouchToFillReshowForBnpl,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
+
+// When enabled, travel category and merchant benefits sourced from Curinos will
+// be shown in Autofill.
+BASE_FEATURE(kAutofillEnableTravelCategoryAndMerchantBenefitsFromCurinos,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, Chrome will trigger 3DS authentication during a virtual card
 // retrieval if a challenge is required, 3DS authentication is available for

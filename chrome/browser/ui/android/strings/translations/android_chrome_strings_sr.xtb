@@ -283,7 +283,6 @@
 <translation id="2251809247798634662">Нови прозор без архивирања</translation>
 <translation id="2253927598983295051">Одаберите шта ћете делити са апликацијом <ph name="APP_NAME" /></translation>
 <translation id="2261570557291037252">Још информација о апликацији</translation>
-<translation id="2270544918551255912">Превуците од ивице да бисте се вратили</translation>
 <translation id="2276696007612801991">Пријавите се на Google налог да бисте проверили лозинке</translation>
 <translation id="2281243904606300427"><ph name="TAB_TITLE" />, изабрана картица без архивирањa</translation>
 <translation id="2286841657746966508">Адреса за наплату</translation>
@@ -555,7 +554,6 @@
 <translation id="3439276997620616816">Овде ћете пронаћи недавне картице</translation>
 <translation id="3443221991560634068">Поновно учитавање актуелне странице</translation>
 <translation id="3444179773590444986">Желите да делите повратне информације о тамној теми за сајтове?</translation>
-<translation id="3448874648066942074">Резимирај страницу помоћу AI-ја</translation>
 <translation id="3452832259067974318">Ради заштите приватности Chrome неће аутоматски уносити вашу лозинку у ово поље.</translation>
 <translation id="3474624961160222204">Настави као <ph name="NAME" /></translation>
 <translation id="3478363558367712427">Можете да одаберете претраживач</translation>
@@ -855,7 +853,6 @@ Google налог можда има друге облике историје п�
 <translation id="4698757800236023795">Активне (<ph name="ITEM_COUNT" />)</translation>
 <translation id="4699172675775169585">Кеширане слике и фајлови</translation>
 <translation id="4710167854527459075">Сортирај по најновијем</translation>
-<translation id="4718044610319080485">Позива AI помоћник</translation>
 <translation id="4719927025381752090">Понуди превод</translation>
 <translation id="4720556299488643018">Откажи пријаву</translation>
 <translation id="4732120983431207637">Stack Unwinder</translation>
@@ -1661,7 +1658,6 @@ Google налог можда има друге облике историје п�
 <translation id="7914399737746719723">Апликација је инсталирана</translation>
 <translation id="7917574899775263813">Прелазак на последњу картицу</translation>
 <translation id="7919123827536834358">Аутоматски преводи ове језике</translation>
-<translation id="7921782882718083488">Резимирај ову страницу</translation>
 <translation id="7926975587469166629">Надимак картице</translation>
 <translation id="7927073875790626822">Проширена стварност</translation>
 <translation id="7929587383660661825">Chrome аутоматски уклања дозволе са сајтова који злоупотребљавају обавештења или које нисте недавно посећивали</translation>
@@ -1825,7 +1821,6 @@ Google налог можда има друге облике историје п�
 <translation id="8538291624121505885"><ph name="TAB_TITLE" />, вишеструко изабрана закачена картица у режиму слике у слици</translation>
 <translation id="8540136935098276800">Унесите исправно форматиран URL</translation>
 <translation id="854522910157234410">Отвори ову страницу</translation>
-<translation id="8547466829003330976">Прегледајте PDF помоћу AI-ja</translation>
 <translation id="8551513938758868521">Закључај картице без архивирања после затварања Chrome-а</translation>
 <translation id="8559961053328923750">Chrome ограничава укупну количину података коју сајтови могу да деле преко прегледача да би мерили учинак огласа</translation>
 <translation id="8559990750235505898">Понуди превод страница на друге језике</translation>

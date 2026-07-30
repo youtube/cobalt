@@ -172,7 +172,8 @@ ExecutionEngine::ExecutionEngine(
       actor_login_service_(
           std::make_unique<actor_login::ActorLoginServiceImpl>()),
       actor_form_filling_service_(
-          std::make_unique<autofill::ActorFormFillingServiceImpl>()),
+          std::make_unique<autofill::ActorFormFillingServiceImpl>(journal_,
+                                                                  task_->id())),
       ui_event_dispatcher_(std::move(ui_event_dispatcher)) {
   TRACE_EVENT0("actor", "ExecutionEngine::ExecutionEngine");
 }
@@ -514,14 +515,19 @@ void ExecutionEngine::MaybeRecordNavigationConfirmationMetrics(
   }
   task_->delegate()->RequestToConfirmNavigation(
       task_->id(), destination,
-      base::BindOnce(
-          [](webui::mojom::NavigationConfirmationResponsePtr response) {
-            if (response->result->is_permission_granted()) {
-              base::UmaHistogramBoolean(
-                  kActionNavigationsApprovedByServerHistogram,
-                  response->result->get_permission_granted());
-            }
-          }));
+      base::BindOnce([](webui::mojom::NavigationConfirmationResponsePtr
+                            response) {
+        switch (response->result->which()) {
+          case webui::mojom::ConfirmationRequestResult::Tag::kPermissionGranted:
+            base::UmaHistogramBoolean(
+                kActionNavigationsApprovedByServerHistogram,
+                response->result->get_permission_granted());
+            return;
+          case webui::mojom::ConfirmationRequestResult::Tag::kErrorReason:
+            return;
+        }
+        NOTREACHED();
+      }));
 }
 
 void ExecutionEngine::OnNavigationConfirmationDecision(
@@ -530,31 +536,37 @@ void ExecutionEngine::OnNavigationConfirmationDecision(
     base::ScopedUmaHistogramTimer timer,
     ExecutionEngine::NavigationDecisionCallback callback,
     webui::mojom::NavigationConfirmationResponsePtr response) {
-  if (response->result->is_permission_granted()) {
-    bool permission_granted = response->result->get_permission_granted();
-    // TODO(dylancutler): Separate Actor.NavigationGating.PermissionGranted into
-    // separate histograms for different confirmation types.
-    base::UmaHistogramBoolean(kPermissionGrantedHistogram, permission_granted);
-    ukm::builders::Actor_OriginGating builder(ukm_source_id);
-    builder
-        .SetServerConfirmationResult(static_cast<int64_t>(
-            permission_granted
-                ? ExecutionEngine::ActorServerConfirmationResult::kAccepted
-                : ExecutionEngine::ActorServerConfirmationResult::kRejected))
-        .SetEngineState(static_cast<int64_t>(state_));
-    builder.Record(ukm::UkmRecorder::Get());
-    permission_granted = permission_granted ||
-                         kGlicConfirmNavigationToNewOriginsDarkLaunch.Get();
-    if (permission_granted) {
-      origin_checker_.AllowNavigationTo(destination,
-                                        /*is_user_confirmed=*/false);
+  switch (response->result->which()) {
+    case webui::mojom::ConfirmationRequestResult::Tag::kPermissionGranted: {
+      bool permission_granted = response->result->get_permission_granted();
+      // TODO(dylancutler): Separate Actor.NavigationGating.PermissionGranted
+      // into separate histograms for different confirmation types.
+      base::UmaHistogramBoolean(kPermissionGrantedHistogram,
+                                permission_granted);
+      ukm::builders::Actor_OriginGating builder(ukm_source_id);
+      builder
+          .SetServerConfirmationResult(static_cast<int64_t>(
+              permission_granted
+                  ? ExecutionEngine::ActorServerConfirmationResult::kAccepted
+                  : ExecutionEngine::ActorServerConfirmationResult::kRejected))
+          .SetEngineState(static_cast<int64_t>(state_));
+      builder.Record(ukm::UkmRecorder::Get());
+      permission_granted = permission_granted ||
+                           kGlicConfirmNavigationToNewOriginsDarkLaunch.Get();
+      if (permission_granted) {
+        origin_checker_.AllowNavigationTo(destination,
+                                          /*is_user_confirmed=*/false);
+      }
+      std::move(callback).Run(permission_granted);
+      return;
     }
-    std::move(callback).Run(permission_granted);
-    return;
+    case webui::mojom::ConfirmationRequestResult::Tag::kErrorReason:
+      // TODO(crbug.com/450302860): Add UMA metrics for logging frequency of
+      // different failure modes.
+      std::move(callback).Run(/*may_continue=*/false);
+      return;
   }
-  // TODO(crbug.com/450302860): Add UMA metrics for logging frequency of
-  // different failure modes.
-  std::move(callback).Run(/*may_continue=*/false);
+  NOTREACHED();
 }
 
 void ExecutionEngine::SendUserConfirmationDialogRequest(
@@ -580,21 +592,28 @@ void ExecutionEngine::OnPromptUserToConfirmNavigationDecision(
     const url::Origin& destination,
     ExecutionEngine::NavigationDecisionCallback callback,
     webui::mojom::UserConfirmationDialogResponsePtr response) {
-  if (response->result->is_permission_granted()) {
-    bool permission_granted = response->result->get_permission_granted();
-    base::UmaHistogramBoolean(kPermissionGrantedHistogram, permission_granted);
-    if (permission_granted) {
-      // See the comment on `OriginOrPrecursorIfOpaque` for why we do not store
-      // `destination` directly here.
-      origin_checker_.AllowNavigationTo(OriginOrPrecursorIfOpaque(destination),
-                                        /*is_user_confirmed=*/true);
+  switch (response->result->which()) {
+    case webui::mojom::ConfirmationRequestResult::Tag::kPermissionGranted: {
+      bool permission_granted = response->result->get_permission_granted();
+      base::UmaHistogramBoolean(kPermissionGrantedHistogram,
+                                permission_granted);
+      if (permission_granted) {
+        // See the comment on `OriginOrPrecursorIfOpaque` for why we do not
+        // store `destination` directly here.
+        origin_checker_.AllowNavigationTo(
+            OriginOrPrecursorIfOpaque(destination),
+            /*is_user_confirmed=*/true);
+      }
+      std::move(callback).Run(permission_granted);
+      return;
     }
-    std::move(callback).Run(permission_granted);
-    return;
+    case webui::mojom::ConfirmationRequestResult::Tag::kErrorReason:
+      // TODO(crbug.com/450302860): Add UMA metrics for logging frequency of
+      // different failure modes.
+      std::move(callback).Run(/*may_continue=*/false);
+      return;
   }
-  // TODO(crbug.com/450302860): Add UMA metrics for logging frequency of
-  // different failure modes.
-  std::move(callback).Run(/*may_continue=*/false);
+  NOTREACHED();
 }
 
 void ExecutionEngine::UserTakeover(
@@ -647,6 +666,13 @@ void ExecutionEngine::CancelOngoingActions(mojom::ActionResultCode reason) {
   }
   if (!action_sequence_.empty()) {
     CompleteActions(MakeResult(reason), /*action_index=*/std::nullopt);
+  }
+}
+
+void ExecutionEngine::PauseOngoingActions() {
+  TRACE_EVENT0("actor", "ExecutionEngine::PauseOngoingActions");
+  if (tool_controller_) {
+    tool_controller_->Pause();
   }
 }
 

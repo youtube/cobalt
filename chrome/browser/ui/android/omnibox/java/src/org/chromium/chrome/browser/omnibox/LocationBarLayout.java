@@ -46,7 +46,6 @@ public class LocationBarLayout extends ConstraintLayout {
     protected ImageButton mLensButton;
     protected ImageButton mZoomButton;
     protected ImageButton mInstallButton;
-    protected @Nullable ImageButton mBackButton;
     protected final @Nullable View mNavigateButton;
     protected UrlBar mUrlBar;
 
@@ -95,7 +94,6 @@ public class LocationBarLayout extends ConstraintLayout {
         mLensButton = findViewById(R.id.lens_camera_button);
         mZoomButton = findViewById(R.id.zoom_button);
         mInstallButton = findViewById(R.id.install_button);
-        mBackButton = findViewById(R.id.omnibox_back_button);
         mNavigateButton = findViewById(R.id.navigate_button);
         mMarginSpacer = findViewById(R.id.margin_spacer);
         mUrlActionContainerEndMargin =
@@ -266,25 +264,21 @@ public class LocationBarLayout extends ConstraintLayout {
         setButtonVisibility(mDeleteButton, shouldShow);
     }
 
-    /* package */ void setBackButtonVisibility(boolean shouldShow) {
-        if (mBackButton != null) {
-            mBackButton.setVisibility(shouldShow ? VISIBLE : GONE);
-            updateStartPadding();
-        }
+    protected boolean isBackButtonVisible() {
+        return false;
     }
 
-    /* package */ void setBackButtonEnabled(boolean enabled) {
-        if (mBackButton != null) {
-            mBackButton.setEnabled(enabled);
-        }
-    }
+    /* package */ void setBackButtonVisibility(boolean shouldShow) {}
 
-    private void updateStartPadding() {
+    /* package */ void setBackButtonEnabled(boolean enabled) {}
+
+    /* package */ void setBackButtonTint(ColorStateList colorStateList) {}
+
+    /* package */ void updateStartPadding() {
         View statusView = findViewById(R.id.location_bar_status);
         boolean statusVisible = statusView != null && statusView.getVisibility() == VISIBLE;
-        boolean backButtonVisible = mBackButton != null && mBackButton.getVisibility() == VISIBLE;
         setLocationBarStartPadding(
-                (statusVisible || backButtonVisible) ? 0 : mLocationBarIconStartingPadding);
+                (statusVisible || isBackButtonVisible()) ? 0 : mLocationBarIconStartingPadding);
     }
 
     /** Sets the visibility of the Navigate. */
@@ -500,6 +494,14 @@ public class LocationBarLayout extends ConstraintLayout {
      * assumed to start in the DISABLED state.
      */
     /* package */ void onFuseboxStateChanged(@FuseboxState int state) {}
+
+    /**
+     * Returns the view to which the omnibox suggestions list should be aligned to horizontally and
+     * vertically.
+     */
+    /* package */ View getAlignmentView() {
+        return this;
+    }
 
     /**
      * This should be called when the autocomplete request type for the active omnibox session

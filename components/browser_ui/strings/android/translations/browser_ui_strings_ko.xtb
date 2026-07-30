@@ -37,6 +37,7 @@
 <translation id="1384959399684842514">다운로드 일시중지됨</translation>
 <translation id="1396327438254055134">사이트에서 V8 옵티마이저를 사용하도록 허용합니다.</translation>
 <translation id="1409338233051621926">앱을 탭한 다음 기본 앱을 탭합니다</translation>
+<translation id="1414315029670184034">사이트에서 카메라를 사용하도록 허용하지 않음</translation>
 <translation id="1415402041810619267">URL 잘림</translation>
 <translation id="1415855080660575082">Chrome에서 내 기기와 최근 탭을 공유하도록 허용하면 기기의 앱 목록과 검색 결과에서 최근 탭을 볼 수 있습니다. 이 기능은 Chrome 설정에서 사용 또는 사용 중지할 수 있습니다.</translation>
 <translation id="1420688843103859429">터치패드에서 두 손가락으로 스와이프하여 앞뒤로 이동</translation>
@@ -80,7 +81,6 @@
 <translation id="1781533683087883868">읽기 모드 링크 끄기</translation>
 <translation id="1785415724048343560">최적의 경험을 위해 권장됨</translation>
 <translation id="1796588414813960292">소리가 필요한 기능이 작동하지 않습니다</translation>
-<translation id="1799920918471566157">Chrome 사용 팁</translation>
 <translation id="1816835383954230954">사용 설정하면 Chrome이 더 빠르게 실행되며 JavaScript를 사용하는 기능이 의도한 대로 작동합니다. 사용 중지하면 성능은 저하되지만 V8의 공격에 대한 저항력이 강화됩니다.</translation>
 <translation id="1818308510395330587"><ph name="APP_NAME" />에서 AR을 사용하려면 <ph name="BEGIN_LINK" />Android 설정<ph name="END_LINK" />에서도 카메라를 사용 설정하세요.</translation>
 <translation id="1822318649925991542">위치를 전환하여 탐색 환경을 맞춤설정하세요.</translation>
@@ -99,6 +99,7 @@
 <translation id="1985247341569771101">사용 설정하면 사이트에서 기기의 움직임 감지 센서를 사용할 수 있습니다. 사용 중지하면 사이트에서 움직임 감지 센서를 사용할 수 없습니다.</translation>
 <translation id="1985716030964443178">목록에 있는 모든 사이트가 기본 확대/축소로 재설정됩니다</translation>
 <translation id="1989112275319619282">찾아보기</translation>
+<translation id="1991370806334788445">서드 파티 쿠키를 허용해 보세요. 브라우징 보호 수준은 낮아지지만, 사이트 기능이 예상대로 작동할 가능성은 높아집니다.</translation>
 <translation id="1994173015038366702">사이트 URL</translation>
 <translation id="1994558116414798016">Lexend 글꼴</translation>
 <translation id="2004697686368036666">일부 사이트에서 기능이 작동하지 않을 수 있음</translation>
@@ -164,6 +165,7 @@
 <translation id="257931822824936280">펼쳐짐 - 접으려면 클릭</translation>
 <translation id="2586657967955657006">클립보드</translation>
 <translation id="2588271083332682494">탭 그룹으로 깔끔하게 정리하기</translation>
+<translation id="2592917252160773942">사이트에서 카메라를 요청할 수 있음</translation>
 <translation id="2597457036804169544">사이트에 어두운 테마를 적용하지 마세요.</translation>
 <translation id="2606760465469169465">자동 인증</translation>
 <translation id="2621115761605608342">특정 사이트에서 자바스크립트를 허용합니다.</translation>
@@ -360,6 +362,7 @@
 <translation id="4635969503923889910">사이트에서 NFC 기기를 사용할 수 없음</translation>
 <translation id="4644713492825682049">삭제 및 재설정</translation>
 <translation id="4645575059429386691">부모님이 관리합니다.</translation>
+<translation id="4651224148644053314">색상 및 옵션 더보기</translation>
 <translation id="4652266463001779298">허용되지 않음</translation>
 <translation id="4655846733459137112">다음에 로그인할 때 이 비밀번호를 쉽게 사용하려면 '예'를 탭합니다.</translation>
 <translation id="4663373278480897665">카메라 허용됨</translation>
@@ -742,7 +745,6 @@
 <translation id="8676374126336081632">입력내용 지우기</translation>
 <translation id="8681886425883659911">방해가 되거나 사용자를 현혹하는 광고를 표시하는 것으로 알려진 사이트에서 광고가 차단됩니다.</translation>
 <translation id="868929229000858085">연락처 검색</translation>
-<translation id="8707904142362025782">사이트에서 카메라를 요청할 수 있음</translation>
 <translation id="8712637175834984815">확인</translation>
 <translation id="8715862698998036666">전체 화면을 종료하려면 위에서 드래그하고 왼쪽 또는 오른쪽 가장자리에서 스와이프하세요.</translation>
 <translation id="8716050156658570300">사이트에서 움직임 감지 센서 및 조도 센서를 사용하도록 요청할 수 있음</translation>

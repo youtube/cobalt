@@ -593,14 +593,6 @@
       status: "stable",
     },
     {
-      // Enables the new behavior for this spec change:
-      // https://github.com/whatwg/html/pull/11457
-      // https://issues.chromium.org/issues/433545121
-      // https://chromestatus.com/feature/5179013869993984
-      name: "AncestorRevealingNewSpec",
-      status: "stable",
-    },
-    {
       // This is a bug fix for rendering a missing focus ring on <a> elements.
       // Shipping in M147, safe to remove in M150.
       name: "AnchorFocusRingFix",
@@ -778,10 +770,6 @@
       status: "experimental",
     },
     {
-      name: "AvoidForcedLayoutOnInvisibleDocumentClose",
-      status: "stable",
-    },
-    {
       // Fix for https://crbug.com/471876082
       name: "AvoidMergingStyledSpanWithSiblings",
       status: "stable",
@@ -852,6 +840,12 @@
         "Mac": "stable",
         "default": "test",
       },
+    },
+    {
+      // Removes special layout code from customizable select which was
+      // preventing it from growing in the inline direction.
+      name: "BaseAppearanceInlineSizing",
+      status: "stable",
     },
     {
       name: "BidiCaretAffinity",
@@ -1206,13 +1200,6 @@
     {
       name: "ColorSpaceRec2100Linear",
       status: "experimental",
-    },
-    {
-      // Makes the command event not composed. Launched in M141.
-      // https://github.com/whatwg/html/pull/11255
-      // https://issues.chromium.org/issues/414826954
-      name: "CommandEventNotComposed",
-      status: "stable",
     },
     {
       // @container allowing multiple comma separated container queries.
@@ -1614,7 +1601,7 @@
     {
       // https://chromestatus.com/feature/5157805733183488
       name: "CSSGapDecoration",
-      status: "experimental",
+      status: "stable",
       depends_on: ["CSSGridGapSuppression"],
     },
     {
@@ -1916,12 +1903,16 @@
       status: "experimental",
     },
     {
+      name: "CSSShapeEllipseCirclePositionSerialization",
+      status: "stable",
+    },
+    {
       // path() and shape() basic shapes for shape-outside.
       // https://drafts.csswg.org/css-shapes-1/#basic-shape-functions
       // https://drafts.csswg.org/css-shapes/#shape-outside-property
       // ChromeStatus: https://chromestatus.com/feature/5080980370096128
       name: "CSSShapeOutsidePathAndShapeSupport",
-      status: "experimental",
+      status: "stable",
     },
     {
       // rect() and xywh() basic shapes for shape-outside.
@@ -1929,7 +1920,7 @@
       // https://drafts.csswg.org/css-shapes/#shape-outside-property
       // ChromeStatus: https://chromestatus.com/feature/6323071520735232
       name: "CSSShapeOutsideRectAndXywhSupport",
-      status: "experimental",
+      status: "stable",
     },
     {
       // https://drafts.csswg.org/cssom-1/#dom-cssstylesheetinit-baseurl
@@ -2093,6 +2084,11 @@
       name: "Database",
     },
     {
+      // https://crbug.com/473454959
+      name: "DateTimeInputTypeEarlyAdvanceFix",
+      status: "stable",
+    },
+    {
       // crbug.com/40153320
       name: "DateTimeLocalArabicCommaWorkaround",
       status: "stable",
@@ -2151,6 +2147,10 @@
     {
       name: "DesktopPWAsAdditionalWindowingControls",
       status: "test",
+    },
+    {
+      name: "DesktopPWAsAdditionalWindowingControlsOnMove",
+      status: "experimental",
     },
     {
       name: "DeviceAttributes",
@@ -2466,6 +2466,10 @@
       // https://github.com/MicrosoftEdge/MSEdgeExplainers/blob/main/PlatformProvidedBehaviors/explainer.md
       name: "ElementInternalsBehaviors",
       status: "experimental",
+    },
+    {
+      name: "ElementMatchContainer",
+      status: "test",
     },
     {
       // When enabled, the readonly attribute will prevent constraint validation
@@ -3083,6 +3087,7 @@
     {
       name: "GamepadRawInputChangeEvent",
       status: "experimental",
+      origin_trial_feature_name: "GamepadRawInputChangeEvent",
     },
     {
       name: "GamepadWindowEventHandlers",
@@ -3290,20 +3295,12 @@
       name: "HTMLInputElementDropWebkitClearButton",
       status: "stable"
     },
-    // Adds support for the `interestfor` attribute. See crbug.com/326681249.
-    // https://open-ui.org/components/interest-invokers.explainer/
-    // This shipped in M142 and the flag can be removed in M144.
-    {
-      name: "HTMLInterestForAttribute",
-      status: "stable",
-    },
     // Adds support for the `::interest-button` pseudo element, which is a sub-
-    // feature of the HTMLInterestForAttribute feature.
+    // feature of the interest invokers feature.
     // https://open-ui.org/components/interest-invokers.explainer/
     {
       name: "HTMLInterestForInterestButtonPseudo",
       status: "experimental",
-      depends_on: ["HTMLInterestForAttribute"],
     },
     {
       // Prevents the HTMLLinkElement processing model from being invoked when
@@ -3366,14 +3363,6 @@
       settable_from_internals: true,
       status: {"Android": "stable"},
       base_feature: "none",
-    },
-    {
-      // Improved retargeting behavior of ToggleEvent.source and
-      // CommandEvent.source to match Event.relatedTarget.
-      // crbug.com/420639769
-      // Enabled in M142, can be removed in M144.
-      name: "ImprovedSourceRetargeting",
-      status: "stable",
     },
     {
       name: "IncomingCallNotifications",
@@ -3473,6 +3462,13 @@
       status: "stable",
       base_feature: "none",
       public: true,
+    },
+    {
+      // Fixes a bug in the implementation of `interest` and `loseinterest`
+      // events - they should not be composed events.
+      // This shipped in M149 and can be removed in M151.
+      name: "InterestEventsNonComposed",
+      status: "stable",
     },
     {
       name: "InterestGroupsInSharedStorageWorklet",
@@ -3593,15 +3589,6 @@
       // https://issues.chromium.org/issues/408010435
       name: "LightDismissFromClick",
       status: "experimental",
-    },
-    {
-      // Improves the logic for removing focus from a currently focused <a>
-      // element when its href attribute is removed by considering other ways
-      // that an <a> may be focusable. Shipped in M142, should be safe to
-      // remove in M144.
-      // https://issues.chromium.org/issues/443585794
-      name: "LinkBlurImprovement",
-      status: "stable",
     },
     {
       name: "ListOwnerMustHaveCSSBox",
@@ -4112,6 +4099,14 @@
       // This will be shipped in M142, and it can be removed in M144.
       // See https://issues.chromium.org/issues/443031270.
       name: "OpenPopoverInvokerRestrictToSameTreeScope",
+      status: "stable",
+    },
+    {
+      // Makes option elements match :enabled or :disabled based on whether
+      // their ancestor select element is disabled.
+      // https://github.com/w3c/csswg-drafts/issues/13383
+      // https://issues.chromium.org/issues/490082172
+      name: "OptionDisablednessCheckAncestors",
       status: "stable",
     },
     {
@@ -5514,6 +5509,10 @@
       status: "experimental",
     },
     {
+      name: "SpellCheckChunking",
+      status: {"Android": "experimental"},
+    },
+    {
       // API for accessing the Custom Dictionary for spell checking purpose.
       // https://chromestatus.com/feature/6185007701557248
       name: "SpellCheckCustomDictionaryAPI",
@@ -5523,6 +5522,11 @@
     {
       name: "SplitTextNotCleanupDummySpans",
       status: "stable",
+    },
+    {
+      // Mirrors ui::features::kSplitViewLinkOpen.
+      name: "SplitViewLinkOpen",
+      base_feature: "none",
     },
     // Kill switch for change to unify image-set and srcset selection logic.
     {
@@ -5555,6 +5559,11 @@
       origin_trial_type: "deprecation",
       origin_trial_allows_insecure: true,
       origin_trial_allows_third_party: true,
+    },
+    {
+      // Killswitch M149.
+      name: "StickyPositionHasOverflowPerAxis",
+      status: "stable",
     },
     {
       // Preserves the sticky user activation state after a page navigates to
@@ -5819,6 +5828,10 @@
     // For unit tests.
     {
       name: "TestFeatureStable",
+      status: "stable",
+    },
+    {
+      name: "TextAreaScrollTopPreview",
       status: "stable",
     },
     {
@@ -6358,13 +6371,6 @@
       base_feature: "WebAppEnableTranslations",
     },
     {
-      // https://chromestatus.com/feature/6024844719947776
-      name: "WebAssemblyCustomDescriptors",
-      origin_trial_feature_name: "WebAssemblyCustomDescriptors",
-      status: "experimental",
-      base_feature: "none",
-    },
-    {
       // https://chromestatus.com/feature/6024844719947776, take 2
       name: "WebAssemblyCustomDescriptorsV2",
       origin_trial_feature_name: "WebAssemblyCustomDescriptorsV2",
@@ -6599,6 +6605,9 @@
     {
       name: "WebMCP",
       origin_trial_feature_name: "WebMCP",
+      public: true,
+      base_feature_status: "enabled",
+      copied_from_base_feature_if: "overridden",
       // Note that `depends_on` isn't supported by origin trials.
       implied_by: [
         "WebMCPDeclarativeFileInput",

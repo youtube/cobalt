@@ -19,7 +19,7 @@ error: expected `name` or `constructor`
 error: num_enum attribute must have at most one error_type
   --> tests/try_build/compile_fail/custom_error_type_parsing.rs:29:76
    |
-29 | #[num_enum(error_type(name = CustomError, constructor = CustomError::new), error_type(name = CustomError, constructor = CustomError::new))]
+29 | #[num_enum(error_type(name = CustomError, constructor = CustomError::new), error_type(name = CustomError, constructor = CustomError:...
    |                                                                            ^^^^^^^^^^
 
 error: num_enum attribute must have at most one error_type

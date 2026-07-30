@@ -10,8 +10,8 @@
 
 #include "base/functional/callback_helpers.h"
 #include "base/test/scoped_run_loop_timeout.h"
+#include "chrome/browser/ui/page_actions/test_support/mock_page_action_model.h"
 #include "chrome/browser/ui/views/page_action/test_support/mock_anchored_message_delegate.h"
-#include "chrome/browser/ui/views/page_action/test_support/mock_page_action_model.h"
 #include "chrome/test/views/chrome_views_test_base.h"
 #include "components/vector_icons/vector_icons.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -94,7 +94,8 @@ TEST_F(AnchoredMessageBubbleViewTest, VisibilityReflectsModelOnCreation) {
       .WillByDefault(Return(AnchoredMessageActionIconType::kClose));
 
   auto view = CreateView();
-  auto* widget = views::BubbleDialogDelegate::CreateBubble(std::move(view));
+  auto* widget = views::BubbleDialogDelegate::CreateBubbleDeprecated(
+      std::move(view), views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET);
   widget->Show();
 
   RunTestSequence(
@@ -120,7 +121,8 @@ TEST_F(AnchoredMessageBubbleViewTest,
       .WillByDefault(Return(AnchoredMessageActionIconType::kClose));
 
   auto view = CreateView();
-  auto* widget = views::BubbleDialogDelegate::CreateBubble(std::move(view));
+  auto* widget = views::BubbleDialogDelegate::CreateBubbleDeprecated(
+      std::move(view), views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET);
   widget->Show();
 
   RunTestSequence(
@@ -149,7 +151,8 @@ TEST_F(AnchoredMessageBubbleViewTest,
       .WillByDefault(Return(&menu_model));
 
   auto view = CreateView();
-  auto* widget = views::BubbleDialogDelegate::CreateBubble(std::move(view));
+  auto* widget = views::BubbleDialogDelegate::CreateBubbleDeprecated(
+      std::move(view), views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET);
   widget->Show();
 
   RunTestSequence(
@@ -170,7 +173,8 @@ TEST_F(AnchoredMessageBubbleViewTest,
       .WillByDefault(Return(AnchoredMessageActionIconType::kMenu));
 
   auto view = CreateView();
-  auto* widget = views::BubbleDialogDelegate::CreateBubble(std::move(view));
+  auto* widget = views::BubbleDialogDelegate::CreateBubbleDeprecated(
+      std::move(view), views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET);
   widget->Show();
 
   RunTestSequence(
@@ -190,7 +194,8 @@ TEST_F(AnchoredMessageBubbleViewTest, UpdateContentChangesVisibility_ChipOnly) {
   ON_CALL(model_, GetImage()).WillByDefault(ReturnRef(test_image_));
 
   auto view = CreateView();
-  auto* widget = views::BubbleDialogDelegate::CreateBubble(std::move(view));
+  auto* widget = views::BubbleDialogDelegate::CreateBubbleDeprecated(
+      std::move(view), views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET);
   widget->Show();
 
   RunTestSequence(

@@ -621,6 +621,29 @@ be describing additional metrics about the same event.
       Records whether the page is in one of the target language(s).
     </summary>
   </metric>
+  <metric name="SemanticClassificationResult"
+      enum="ContentClassifierRelevanceValue">
+    <summary>
+      Indicates the level of confidence that the web page content is relevant to
+      the accessibility annotator based on the results of the semantic value
+      classifier.
+    </summary>
+  </metric>
+  <metric name="SemanticClassificationValueScore">
+    <summary>
+      Records a low entropy representation of the cosine similarity score output
+      by the semantic classification classifier. The low entropy value is
+      calculated using a RAPPOR-style calculation to enable analysis only on
+      aggregated results. The raw score is between 0 and 1. The score is then
+      placed into one of 16 linearly spaced buckets by dividing the score by the
+      bucket size and taking the floor. The resulting bucket value has noise
+      added with a probability of .5 where the noise is applied to each
+      individual bit. The noise is generated deterministically based on a
+      rotating user secret and the URL's host and path, ensuring the same URL
+      reports the same noisy value for a given user within the 28-day secret
+      rotation window.
+    </summary>
+  </metric>
   <metric name="TitleKeywordResult" enum="ContentClassifierRelevanceValue">
     <summary>
       Records the level of interest in the web page content based on the results
@@ -3309,6 +3332,71 @@ be describing additional metrics about the same event.
   </metric>
 </event>
 
+<event name="Autofill.PayLaterTabSelected" singular="true">
+  <owner>yishuil@google.com</owner>
+  <owner>wilsonlow@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    Recorded when a user selects the Pay Later tab from the payments autofill
+    dropdown.
+  </summary>
+  <metric name="Selected" enum="Boolean">
+    <summary>
+      Only ever set to true, thus serving as a counter.
+    </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <enumeration/>
+        </statistics>
+      </history>
+    </aggregation>
+  </metric>
+</event>
+
+<event name="Autofill.PayLaterTabShown" singular="true">
+  <owner>yishuil@google.com</owner>
+  <owner>wilsonlow@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    Recorded when the Pay Later tab was shown in the payments autofill dropdown.
+  </summary>
+  <metric name="Shown" enum="Boolean">
+    <summary>
+      Only ever set to true, thus serving as a counter.
+    </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <enumeration/>
+        </statistics>
+      </history>
+    </aggregation>
+  </metric>
+</event>
+
+<event name="Autofill.PayLaterTabSuggestionAccepted" singular="true">
+  <owner>yishuil@google.com</owner>
+  <owner>wilsonlow@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    Recorded when a BNPL suggestion from the Pay Later tab was accepted by
+    users.
+  </summary>
+  <metric name="Accepted" enum="Boolean">
+    <summary>
+      Only ever set to true, thus serving as a counter.
+    </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <enumeration/>
+        </statistics>
+      </history>
+    </aggregation>
+  </metric>
+</event>
+
 <event name="Autofill.SuggestionFilled">
   <owner>osaul@google.com</owner>
   <summary>
@@ -4533,6 +4621,22 @@ be describing additional metrics about the same event.
       Records the number of requests sent to the accounts endpoint per API call.
       Records at the time the API call is completed. This is in units of
       requests.
+    </summary>
+  </metric>
+  <metric name="AccountsSize.Raw">
+    <summary>
+      Records the size of the accounts received from the IdP before applying any
+      filters. Records one sample per accounts fetch if there's at least one
+      account returned. The units is number of accounts (using exponential
+      bucketing).
+    </summary>
+  </metric>
+  <metric name="AccountsSize.ReadyToShow">
+    <summary>
+      Records the size of the accounts received from the IdP after applying the
+      filters. Records one sample per accounts fetch if there's at least one
+      account left after filtering. The units is number of accounts (using
+      exponential bucketing).
     </summary>
   </metric>
   <metric name="AutoReauthn.BlockedByContentSettings" enum="Boolean">
@@ -23659,26 +23763,6 @@ be describing additional metrics about the same event.
   </metric>
 </event>
 
-<event name="ThirdPartyCookies.TopLevelDeprecationTrial">
-  <owner>3pcd-core@google.com</owner>
-  <owner>jdh@chromium.org</owner>
-  <summary>
-    Recorded when there is a change in the status of the TopLevelTpcd
-    deprecation trial.
-  </summary>
-  <metric name="Enabled" enum="Boolean">
-    <summary>
-      True if the trial was enabled. False if the trial was disabled.
-    </summary>
-  </metric>
-  <metric name="MatchSubdomains" enum="Boolean">
-    <summary>
-      True iff the token used to enable the trial is/was valid for subdomains of
-      the origin store in the token.
-    </summary>
-  </metric>
-</event>
-
 <event name="TopToolbar.Share">
   <owner>nyquist@chromium.org</owner>
   <owner>ssid@chromium.org</owner>
@@ -23738,27 +23822,6 @@ be describing additional metrics about the same event.
       is not reported). Used to compare the times when automated submission is
       enabled and disabled. Thus, we measure the time saved for a user. Recorded
       when the password manager detects that the login was successful.
-    </summary>
-  </metric>
-</event>
-
-<event name="Tpcd.Mitigations.Dt.FirstParty.Deployment2">
-  <owner>njeunje@google.com</owner>
-  <owner>tpcd-mitigations-team@google.com</owner>
-  <summary>
-    Recorded on a page load cadance for every third party cookie accessed.
-  </summary>
-  <metric name="Deployed" enum="Boolean">
-    <summary>
-      Indicates when an origin deployed its 1P (AKA First Party, top-level) DT
-      Token and thus was granted cookie access.
-    </summary>
-  </metric>
-  <metric name="Source" enum="FirstPartyMetadataSource">
-    <summary>
-      The source of the metadata rule that grants this cookie access. This is
-      logged for every page load with third-party cookies allowed due to a
-      global metadata or heuristics rule.
     </summary>
   </metric>
 </event>

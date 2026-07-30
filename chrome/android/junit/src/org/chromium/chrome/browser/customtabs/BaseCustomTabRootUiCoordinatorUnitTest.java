@@ -135,8 +135,8 @@ public final class BaseCustomTabRootUiCoordinatorUnitTest {
             ObservableSuppliers.alwaysNull();
     @Mock private FullscreenManager mFullscreenManager;
     @Mock private Supplier<TabContentManager> mTabContentManagerSupplier;
-    private final MonotonicObservableSupplier<SnackbarManager> mSnackbarManagerSupplier =
-            ObservableSuppliers.alwaysNull();
+    private final SettableMonotonicObservableSupplier<SnackbarManager> mSnackbarManagerSupplier =
+            ObservableSuppliers.createMonotonic();
     @Mock private Supplier<Boolean> mIsInOverviewModeSupplier;
     @Mock private AppMenuDelegate mAppMenuDelegate;
     @Mock private StatusBarColorProvider mStatusBarColorProvider;
@@ -159,6 +159,7 @@ public final class BaseCustomTabRootUiCoordinatorUnitTest {
     @Mock private ModalDialogManager mModalDialogManager;
     @Mock private IdentityManager mIdentityManager;
     @Mock private Supplier<BrowserServicesThemeColorProvider> mBrowserServicesColorProviderSupplier;
+    @Mock private SnackbarManager mSnackbarManager;
 
     private final SettableMonotonicObservableSupplier<EphemeralTabCoordinator>
             mEphemeralTabCoordinatorSupplier = ObservableSuppliers.createMonotonic();
@@ -210,6 +211,7 @@ public final class BaseCustomTabRootUiCoordinatorUnitTest {
                 .thenReturn(ObservableSuppliers.alwaysFalse());
 
         mProfileSupplier = ObservableSuppliers.createMonotonic();
+        mSnackbarManagerSupplier.set(mSnackbarManager);
 
         mBaseCustomTabRootUiCoordinator =
                 new BaseCustomTabRootUiCoordinator(
@@ -261,6 +263,7 @@ public final class BaseCustomTabRootUiCoordinatorUnitTest {
                         return mGoogleBottomBarCoordinator;
                     }
                 };
+        mBaseCustomTabRootUiCoordinator.onPreInflationStartup();
     }
 
     @After
@@ -331,7 +334,6 @@ public final class BaseCustomTabRootUiCoordinatorUnitTest {
                 .thenReturn(coordinatorMock);
         SigninAndHistorySyncActivityLauncherImpl.setLauncherForTest(launcherMock);
 
-        mBaseCustomTabRootUiCoordinator.onPreInflationStartup();
         mBaseCustomTabRootUiCoordinator.initProfileDependentFeatures(mProfile);
 
         Assert.assertEquals(

@@ -19,6 +19,7 @@ build_webui_tests("build") {
     "ai_page_index_test.ts",
     "ai_page_test.ts",
     "ai_policy_indicator_test.ts",
+    "ai_suggestions_page_test.ts",
     "all_sites_test.ts",
     "anti_abuse_page_test.ts",
     "appearance_fonts_page_test.ts",
@@ -52,6 +53,7 @@ build_webui_tests("build") {
     "downloads_page_test.ts",
     "dropdown_menu_test.ts",
     "extension_controlled_indicator_test.ts",
+    "extension_controlled_message_test.ts",
     "feature_shortcuts_page_test.ts",
     "file_system_site_details_test.ts",
     "file_system_site_entry_item_test.ts",
@@ -266,15 +268,6 @@ build_webui_tests("build") {
     # that tests work both in optimize_webui=true/false modes.
     "chrome://settings/privacy_sandbox/*|" + rebase_path(
             "$root_gen_dir/chrome/browser/resources/settings/tsc/privacy_sandbox/*",
-            target_gen_dir),
-    "chrome://settings/search_page/site_shortcuts_page.js|" + rebase_path(
-            "$root_gen_dir/chrome/browser/resources/settings/tsc/search_page/site_shortcuts_page.d.ts",
-            target_gen_dir),
-    "chrome://settings/search_page/feature_shortcuts_page.js|" + rebase_path(
-            "$root_gen_dir/chrome/browser/resources/settings/tsc/search_page/feature_shortcuts_page.d.ts",
-            target_gen_dir),
-    "chrome://settings/search_page/keyboard_shortcut_page.js|" + rebase_path(
-            "$root_gen_dir/chrome/browser/resources/settings/tsc/search_page/keyboard_shortcut_page.d.ts",
             target_gen_dir),
     "chrome://settings/settings.js|" +
         rebase_path(

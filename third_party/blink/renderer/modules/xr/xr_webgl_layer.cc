@@ -319,8 +319,11 @@ HTMLCanvasElement* XRWebGLLayer::output_canvas() const {
   return nullptr;
 }
 
-const XRSharedImageData& XRWebGLLayer::CameraSharedImage() const {
-  return session()->LayerSharedImageManager().CameraSharedImage();
+void XRWebGLLayer::DoneWithSharedBuffer() {
+  if (is_direct_draw_frame) {
+    drawing_buffer_->DoneWithSharedBuffer();
+    is_direct_draw_frame = false;
+  }
 }
 
 void XRWebGLLayer::OnFrameStart() {
@@ -347,20 +350,12 @@ void XRWebGLLayer::OnFrameEnd() {
   // main work of OnFrameEnd if it's still valid. Otherwise, simply ensure the
   // shared image access is properly ended.
   if (session()->ended()) {
-    if (is_direct_draw_frame) {
-      drawing_buffer_->DoneWithSharedBuffer();
-      is_direct_draw_frame = false;
-    }
-
+    DoneWithSharedBuffer();
     return;
   }
 
   if (framebuffer_) {
     framebuffer_->MarkOpaqueBufferComplete(false);
-    if (is_direct_draw_frame) {
-      drawing_buffer_->DoneWithSharedBuffer();
-      is_direct_draw_frame = false;
-    }
 
     // Submit the frame to the XR compositor.
     if (session()->immersive()) {

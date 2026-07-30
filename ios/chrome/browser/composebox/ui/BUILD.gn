@@ -25,17 +25,11 @@ source_set("ui") {
     "composebox_navigation_consumer.h",
     "composebox_present_animator.h",
     "composebox_present_animator.mm",
-    "composebox_snackbar_presenter.h",
-    "composebox_snackbar_presenter.mm",
-    "composebox_strings.h",
-    "composebox_strings.mm",
-    "composebox_ui_input_state.h",
-    "composebox_ui_input_state.mm",
     "composebox_view_controller.h",
     "composebox_view_controller.mm",
   ]
   deps = [
-    ":ui_constants",
+    ":state",
     ":ui_util",
     "//base",
     "//base:i18n",
@@ -49,6 +43,7 @@ source_set("ui") {
     "//ios/chrome/browser/composebox/public:input_plate_controls",
     "//ios/chrome/browser/composebox/public:model_options",
     "//ios/chrome/browser/composebox/public:theme",
+    "//ios/chrome/browser/composebox/shared/ui",
     "//ios/chrome/browser/drag_and_drop/model",
     "//ios/chrome/browser/keyboard/ui_bundled",
     "//ios/chrome/browser/ntp/ui_bundled/incognito",
@@ -58,7 +53,6 @@ source_set("ui") {
     "//ios/chrome/browser/shared/model/browser",
     "//ios/chrome/browser/shared/public/commands",
     "//ios/chrome/browser/shared/public/features",
-    "//ios/chrome/browser/shared/public/snackbar",
     "//ios/chrome/browser/shared/ui/elements",
     "//ios/chrome/browser/shared/ui/symbols",
     "//ios/chrome/browser/shared/ui/util",
@@ -70,14 +64,7 @@ source_set("ui") {
     "//ios/web/public",
     "//ui/base",
   ]
-}
-
-source_set("ui_constants") {
-  sources = [
-    "composebox_ui_constants.h",
-    "composebox_ui_constants.mm",
-  ]
-  deps = [ "//base" ]
+  public_deps = [ "//ios/chrome/browser/composebox/shared/ui" ]
 }
 
 source_set("ui_util") {
@@ -89,6 +76,23 @@ source_set("ui_util") {
   frameworks = [ "UIKit.framework" ]
 }
 
+source_set("state") {
+  sources = [
+    "composebox_strings.h",
+    "composebox_strings.mm",
+    "composebox_ui_input_state.h",
+    "composebox_ui_input_state.mm",
+  ]
+  deps = [
+    "//base",
+    "//ios/chrome/app/strings",
+    "//ios/chrome/browser/composebox/coordinator:constants",
+    "//ios/chrome/browser/composebox/public:attachment_options",
+    "//ios/chrome/browser/composebox/public:model_options",
+    "//ui/base",
+  ]
+}
+
 source_set("unit_tests") {
   testonly = true
   sources = [
@@ -96,6 +100,7 @@ source_set("unit_tests") {
     "composebox_strings_unittest.mm",
   ]
   deps = [
+    ":state",
     ":ui",
     "//base/test:test_support",
     "//ios/chrome/app/strings",

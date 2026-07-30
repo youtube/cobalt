@@ -31,9 +31,7 @@ class FeedSurfaceRendererBridge : public ::feed::SurfaceRenderer {
       const base::android::JavaRef<jobject>& j_this,
       Profile* profile,
       int32_t stream_kind,
-      std::string web_feed_id,
-      FeedReliabilityLoggingBridge* reliability_logging_bridge,
-      int32_t feed_entry_point);
+      FeedReliabilityLoggingBridge* reliability_logging_bridge);
   FeedSurfaceRendererBridge(const FeedSurfaceRendererBridge&) = delete;
   FeedSurfaceRendererBridge& operator=(const FeedSurfaceRendererBridge&) =
       delete;

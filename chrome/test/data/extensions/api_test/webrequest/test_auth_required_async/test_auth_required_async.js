@@ -95,9 +95,13 @@ const availableTests = [
         [
           // event order
           [
-            'onBeforeRequest', 'onBeforeSendHeaders', 'onSendHeaders',
-            'onHeadersReceived', 'onAuthRequired', 'onResponseStarted',
-            'onCompleted'
+            'onBeforeRequest',
+            'onBeforeSendHeaders',
+            'onSendHeaders',
+            'onHeadersReceived',
+            'onAuthRequired',
+            'onResponseStarted',
+            'onCompleted',
           ],
         ],
         {urls: ['<all_urls>']}, ['asyncBlocking', 'responseHeaders']);
@@ -189,9 +193,13 @@ const availableTests = [
         [
           // event order
           [
-            'onBeforeRequest', 'onBeforeSendHeaders', 'onSendHeaders',
-            'onHeadersReceived', 'onAuthRequired', 'onResponseStarted',
-            'onCompleted'
+            'onBeforeRequest',
+            'onBeforeSendHeaders',
+            'onSendHeaders',
+            'onHeadersReceived',
+            'onAuthRequired',
+            'onResponseStarted',
+            'onCompleted',
           ],
         ],
         {urls: ['<all_urls>']}, ['responseHeaders', 'asyncBlocking']);
@@ -283,9 +291,13 @@ const availableTests = [
         [
           // event order
           [
-            'onBeforeRequest', 'onBeforeSendHeaders', 'onSendHeaders',
-            'onHeadersReceived', 'onAuthRequired', 'onResponseStarted',
-            'onCompleted'
+            'onBeforeRequest',
+            'onBeforeSendHeaders',
+            'onSendHeaders',
+            'onHeadersReceived',
+            'onAuthRequired',
+            'onResponseStarted',
+            'onCompleted',
           ],
         ],
         {urls: ['<all_urls>']}, ['responseHeaders', 'asyncBlocking']);
@@ -300,7 +312,7 @@ loadScript.then(async function() {
   chrome.test.getConfig(function(config) {
     const args = JSON.parse(config.customArg);
     const tests = availableTests.filter(function(op) {
-      return args.testName == op.name;
+      return args.testName === op.name;
     });
     if (tests.length !== 1) {
       chrome.test.notifyFail(`Test not found: ${args.testName}`);

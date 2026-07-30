@@ -18,7 +18,7 @@ export function getHtml(this: ComposeboxElement) {
     <cr-composebox-contextual-entrypoint-and-menu
         id="contextEntrypoint"
         part="composebox-entrypoint"
-        exportparts="context-menu-entrypoint-icon"
+        exportparts="context-menu-entrypoint-icon, entrypoint-button"
         class="upload-button no-overlap"
         @add-tab-context="${this.onAddTabContext}"
         @delete-tab-context="${this.onDeleteTabContext}"
@@ -29,6 +29,7 @@ export function getHtml(this: ComposeboxElement) {
         @context-menu-opened="${this.onContextMenuOpened}"
         @open-image-upload="${this.onOpenImageUpload}"
         @open-file-upload="${this.onOpenFileUpload}"
+        @open-drive-upload="${this.onOpenDriveUpload}"
         @smart-tab-sharing-active-changed="${
             this.onSmartTabSharingActiveChanged}"
         .inputState="${this.inputState}"
@@ -45,7 +46,7 @@ export function getHtml(this: ComposeboxElement) {
     <cr-composebox-contextual-entrypoint-button
         id="contextEntrypoint"
         part="composebox-entrypoint"
-        exportparts="context-menu-entrypoint-icon"
+        exportparts="context-menu-entrypoint-icon, entrypoint-button"
         class="upload-button no-overlap"
         .inputState="${this.inputState}"
         ?upload-button-disabled="${this.uploadButtonDisabled}"

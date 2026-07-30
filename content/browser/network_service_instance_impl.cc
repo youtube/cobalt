@@ -132,29 +132,25 @@ network::NetworkConnectionTracker* g_network_connection_tracker;
 bool g_network_service_is_responding = false;
 
 // When enabled, sets the in-process network service thread to
-// base::ThreadType::kPresentation
-BASE_FEATURE(kNetworkServiceIncreasedPriorityAlways,
+// base::ThreadType::kPresentation during startup.
+BASE_FEATURE(kNetworkServiceIncreasedPriorityDuringStartup,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, sets the in-process network service thread to
+// base::ThreadType::kPresentation when the scenario indicates that the user is
+// actively loading the focused page and not scrolling.
 BASE_FEATURE(kNetworkServiceIncreasedPriorityWhileLoading,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Boosts the priority of the network service thread depending on the feature
-// that is enabled. If `kNetworkServiceIncreasedPriorityAlways` is enabled, the
-// network service thread will always be boosted. If
-// `kNetworkServiceIncreasedPriorityWhileLoading` is enabled, the network
-// service thread will be boosted when the scenario indicates that the user is
-// actively loading a page.
+// that is enabled. If `kNetworkServiceIncreasedPriorityDuringStartup` is
+// enabled, the network service thread will be boosted until the startup is
+// completed. If `kNetworkServiceIncreasedPriorityWhileLoading` is enabled, the
+// network service thread will be boosted when the scenario indicates that the
+// user is actively loading a page.
 class BoostNetworkThreadPriority
     : public performance_scenarios::MatchingScenarioObserver {
  public:
-  BoostNetworkThreadPriority(base::ThreadType boosted_thread_type,
-                             performance_scenarios::ScenarioPattern pattern)
-      : performance_scenarios::MatchingScenarioObserver(pattern),
-        boosted_thread_type_(boosted_thread_type) {}
-
-  ~BoostNetworkThreadPriority() override = default;
-
   static BoostNetworkThreadPriority& GetInstance() {
     static base::NoDestructor<BoostNetworkThreadPriority> instance{
         base::ThreadType::kPresentation, kBoostScenarioPattern};
@@ -173,21 +169,28 @@ class BoostNetworkThreadPriority
       return;
     }
 
-    // The two features that boost network thread priority interact and
-    // therefore enforce that at most one of them is enabled.
-    CHECK(
-        !base::FeatureList::IsEnabled(kNetworkServiceIncreasedPriorityAlways) ||
-        !base::FeatureList::IsEnabled(
-            kNetworkServiceIncreasedPriorityWhileLoading));
+    if (base::FeatureList::IsEnabled(
+            kNetworkServiceIncreasedPriorityDuringStartup)) {
+      startup_boost_.emplace(boosted_thread_type_);
 
-    if (base::FeatureList::IsEnabled(kNetworkServiceIncreasedPriorityAlways)) {
-      scoped_boost_priority_.emplace(base::ThreadType::kPresentation);
-    } else if (base::FeatureList::IsEnabled(
-                   kNetworkServiceIncreasedPriorityWhileLoading)) {
+      // Unretained is safe here because this object is a singleton.
+      GetContentClient()->browser()->PostAfterStartupTask(
+          FROM_HERE, base::SequencedTaskRunner::GetCurrentDefault(),
+          base::BindOnce(&BoostNetworkThreadPriority::OnStartupComplete,
+                         base::Unretained(this)));
+    }
+
+    if (base::FeatureList::IsEnabled(
+            kNetworkServiceIncreasedPriorityWhileLoading)) {
       // Add to the global scope since the goal is to boost the network thread
       // while any page is loading.
       observer_list->AddMatchingObserver(this);
     }
+  }
+
+  void OnStartupComplete() {
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+    startup_boost_.reset();
   }
 
   // performance_scenarios::MatchingScenarioObserver::OnScenarioMatchChanged
@@ -197,23 +200,39 @@ class BoostNetworkThreadPriority
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
     if (matches_pattern) {
-      scoped_boost_priority_.emplace(boosted_thread_type_);
+      performance_scenario_boost_.emplace(boosted_thread_type_);
     } else {
-      scoped_boost_priority_.reset();
+      performance_scenario_boost_.reset();
     }
   }
 
  private:
+  friend class base::NoDestructor<BoostNetworkThreadPriority>;
+
+  // Boost the network service thread when loading the focused page and not
+  // scrolling, since the higher thread priority of the network service thread
+  // can take cycles away from threads that are critical to smooth scrolling.
   static constexpr performance_scenarios::ScenarioPattern
       kBoostScenarioPattern = {
           .loading =
               {performance_scenarios::LoadingScenario::kFocusedPageLoading},
-          .input = performance_scenarios::InputScenarios::All()};
+          .input = {performance_scenarios::InputScenario::kNoInput,
+                    performance_scenarios::InputScenario::kTyping,
+                    performance_scenarios::InputScenario::kTap}};
+
+  BoostNetworkThreadPriority(base::ThreadType boosted_thread_type,
+                             performance_scenarios::ScenarioPattern pattern)
+      : performance_scenarios::MatchingScenarioObserver(pattern),
+        boosted_thread_type_(boosted_thread_type) {}
+
+  ~BoostNetworkThreadPriority() override = default;
 
   THREAD_CHECKER(thread_checker_);
 
   const base::ThreadType boosted_thread_type_;
-  std::optional<base::ScopedBoostPriority> scoped_boost_priority_;
+  std::optional<base::PlatformThreadBase::RaiseThreadTypeLease> startup_boost_;
+  std::optional<base::PlatformThreadBase::RaiseThreadTypeLease>
+      performance_scenario_boost_;
 };
 
 std::unique_ptr<network::NetworkService>& GetLocalNetworkService() {

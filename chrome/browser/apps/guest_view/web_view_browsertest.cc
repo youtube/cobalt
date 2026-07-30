@@ -66,6 +66,7 @@
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
+#include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/dialogs/browser_dialogs.h"
 #include "chrome/browser/ui/hid/hid_chooser_controller.h"
 #include "chrome/browser/ui/login/login_handler.h"
@@ -116,6 +117,7 @@
 #include "content/public/browser/site_isolation_policy.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_delegate.h"
+#include "content/public/common/child_process_id.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
@@ -2686,7 +2688,7 @@ IN_PROC_BROWSER_TEST_P(WebViewTest, CannotNavigateGuestToChromeURL) {
   GURL original_url = guest_main_frame->GetLastCommittedURL();
 
   // Try to navigate <webview> to a chrome: URL directly.
-  GURL chrome_url(chrome::kChromeUINewTabURL);
+  GURL chrome_url = chrome::ChromeUINewTabURLAsGURL();
   content::TestFrameNavigationObserver observer(guest_main_frame);
   guest->GetController().LoadURL(chrome_url, content::Referrer(),
                                  ui::PAGE_TRANSITION_AUTO_TOPLEVEL,
@@ -5190,9 +5192,8 @@ IN_PROC_BROWSER_TEST_P(WebViewTest, NavigateGuestToWebviewAccessibleResource) {
 
   auto* process_map = extensions::ProcessMap::Get(guest->GetBrowserContext());
   auto* guest_process = guest->GetProcess();
-  EXPECT_FALSE(process_map->Contains(guest_process->GetDeprecatedID()));
-  EXPECT_FALSE(
-      process_map->GetExtensionIdForProcess(guest_process->GetDeprecatedID()));
+  EXPECT_FALSE(process_map->Contains(guest_process->GetID()));
+  EXPECT_FALSE(process_map->GetExtensionIdForProcess(guest_process->GetID()));
 
   extensions::ExtensionRegistry* registry =
       extensions::ExtensionRegistry::Get(browser()->profile());
@@ -5200,7 +5201,7 @@ IN_PROC_BROWSER_TEST_P(WebViewTest, NavigateGuestToWebviewAccessibleResource) {
       registry->enabled_extensions().GetByID(guest_url.GetHost());
   EXPECT_EQ(extensions::mojom::ContextType::kUnprivilegedExtension,
             process_map->GetMostLikelyContextType(
-                extension, guest_process->GetDeprecatedID(), &guest_url));
+                extension, guest_process->GetID(), &guest_url));
 }
 
 // Tests that a WebView can reload a WebView accessible resource. See
@@ -6704,9 +6705,9 @@ IN_PROC_BROWSER_TEST_P(WebstoreWebViewTest, NoRendererKillWithChromeWebStore) {
   // considered an extension process and does not have the privileged webstore
   // API.
   auto* process_map = extensions::ProcessMap::Get(guest->GetBrowserContext());
-  EXPECT_FALSE(process_map->Contains(guest->GetProcess()->GetDeprecatedID()));
-  EXPECT_FALSE(process_map->GetExtensionIdForProcess(
-      guest->GetProcess()->GetDeprecatedID()));
+  EXPECT_FALSE(process_map->Contains(guest->GetProcess()->GetID()));
+  EXPECT_FALSE(
+      process_map->GetExtensionIdForProcess(guest->GetProcess()->GetID()));
   EXPECT_EQ(false, content::EvalJs(guest, "!!chrome.webstorePrivate"));
 }
 
@@ -8192,12 +8193,16 @@ IN_PROC_BROWSER_TEST_P(ContextualTasksWebViewTest, OpenLinkInNewTab) {
   // Click on open link in new window menu item and verify a new window is
   // created.
   {
-    int browser_count = chrome::GetBrowserCount(browser()->profile());
+    int browser_count =
+        ProfileBrowserCollection::GetForProfile(browser()->profile())
+            ->GetSize();
     ContextMenuWaiter waiter(IDC_CONTENT_CONTEXT_OPENLINKNEWWINDOW);
     OpenContextMenu(guest_view2->GetGuestMainFrame());
     waiter.WaitForMenuOpenAndClose();
     EXPECT_TRUE(waiter.IsCommandExecuted().value());
-    EXPECT_EQ(browser_count + 1, chrome::GetBrowserCount(browser()->profile()));
+    EXPECT_EQ(browser_count + 1,
+              ProfileBrowserCollection::GetForProfile(browser()->profile())
+                  ->GetSize());
   }
 
   // Click on open link in incognito windown and verify a new incognito window

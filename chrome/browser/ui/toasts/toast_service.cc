@@ -506,4 +506,20 @@ void ToastService::RegisterToasts(
                   base::Unretained(browser_window_interface)))
           .AddGlobalScoped()
           .Build());
+
+  // TODO(crbug.com/492072882): Update design and strings, they are temporary.
+  toast_registry_->RegisterToast(
+      ToastId::kSendTabToSelfSuccess,
+      ToastSpecification::Builder(vector_icons::kDevicesIcon,
+                                  IDS_SEND_TAB_TO_SELF_POST_SEND_SUCCESS_TOAST)
+          .AddGlobalScoped()
+          .AddCloseButton()
+          .Build());
+
+  // Report a scam confirmation toast.
+  toast_registry_->RegisterToast(
+      ToastId::kReportUnsafeSiteConfirmation,
+      ToastSpecification::Builder(kCheckIcon,
+                                  IDS_REPORT_UNSAFE_SITE_CONFIRMATION_TOAST)
+          .Build());
 }  // RegisterToasts() end.

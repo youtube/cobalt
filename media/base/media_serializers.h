@@ -297,10 +297,10 @@ template <>
 struct MediaSerializer<VideoColorSpace> {
   static inline base::Value Serialize(const VideoColorSpace& value) {
     base::DictValue result;
-    FIELD_SERIALIZE("primaries", value.primaries);
-    FIELD_SERIALIZE("transfer", value.transfer);
-    FIELD_SERIALIZE("matrix", value.matrix);
-    FIELD_SERIALIZE("range", value.range);
+    FIELD_SERIALIZE("primaries", value.primaries());
+    FIELD_SERIALIZE("transfer", value.transfer());
+    FIELD_SERIALIZE("matrix", value.matrix());
+    FIELD_SERIALIZE("range", value.range());
     return base::Value(std::move(result));
   }
 };
@@ -445,8 +445,11 @@ struct MediaSerializerDebug<TypedStatus<T>> {
   static base::Value Serialize(const TypedStatus<T>& status) {
     // TODO: replace this with some kind of static "description"
     // of the default type, instead of "Ok".
-    if (status.is_ok())
-      return base::Value("Ok");
+    if constexpr (requires(TypedStatus<T>& t) { t.is_ok(); }) {
+      if (status.is_ok()) {
+        return base::Value("Ok");
+      }
+    }
     return MediaSerialize(status.data_);
   }
 };

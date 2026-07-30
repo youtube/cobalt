@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/logging.h"
+#include "base/metrics/histogram_functions.h"
 
 namespace one_time_tokens {
 
@@ -29,7 +30,7 @@ void EmailOneTimeTokenFetchCoordinator::SignalNetworkRequestNeeded(
   }
 
   auto it = std::ranges::find_if(pending_queue_, [&](const auto& pending) {
-    return pending.encrypted_message_reference ==
+    return pending.notification.encrypted_message_reference ==
            notification.encrypted_message_reference;
   });
   if (it != pending_queue_.end()) {
@@ -38,7 +39,9 @@ void EmailOneTimeTokenFetchCoordinator::SignalNetworkRequestNeeded(
     return;
   }
 
-  pending_queue_.push_back(notification);
+  pending_queue_.push_back({notification, base::TimeTicks::Now()});
+  base::UmaHistogramCounts100("Autofill.OneTimeTokens.Backend.Gmail.QueueSize",
+                              pending_queue_.size());
   ProcessQueue();
 }
 
@@ -59,14 +62,17 @@ void EmailOneTimeTokenFetchCoordinator::ProcessQueue() {
 
   while (active_requests_.size() < kMaxConcurrentRequests &&
          !pending_queue_.empty()) {
-    OneTimeTokenBackendNotification notification =
-        std::move(pending_queue_.front());
+    QueuedNotification queued_item = std::move(pending_queue_.front());
     pending_queue_.pop_front();
 
+    base::UmaHistogramTimes("Autofill.OneTimeTokens.Backend.Gmail.QueueLatency",
+                            base::TimeTicks::Now() - queued_item.entry_time);
+
     auto [it, inserted] = active_requests_.insert(
-        {notification.encrypted_message_reference, std::move(notification)});
+        {queued_item.notification.encrypted_message_reference,
+         std::move(queued_item.notification)});
     if (inserted) {
-      delegate_->OnCanSendNetworkRequest(it->second);
+      delegate_->OnCanSendNetworkRequest(it->second, queued_item.entry_time);
     }
 
     // Check if the delegate callback destroyed this object.

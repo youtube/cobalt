@@ -127,11 +127,9 @@ class SystemIdentityManager {
   using FetchCapabilitiesCallback =
       base::OnceCallback<void(std::map<std::string, CapabilityResult>)>;
 
-  // Callback invoked when the `BuildExternalPrivacyContext()` operation
-  // completes.
-  // TODO(crbug.com/502142565): Make private.
-  using BuildExternalPrivacyContextCallback =
-      base::OnceCallback<void(NSError*)>;
+  // Callback invoked when the `CanSigninToChrome()` capability is fetched.
+  using FetchCanSigninToChromeCallback =
+      base::OnceCallback<void(CapabilityResult)>;
 
   // Callback invoked when `HandleMDMNotification` completes. Is is invoked
   // with a boolean indicating whether the device is blocked or not.
@@ -245,6 +243,15 @@ class SystemIdentityManager {
                               const std::set<std::string>& scopes,
                               AccessTokenRequestCallback callback) {}
 
+  // Asynchronously retrieves access tokens for `identity` with `scopes`. The
+  // callback is invoked on the calling sequence when the operation completes.
+  // Uses the default client id and client secret.
+  // TODO(crbug.com/502440730): make this method pure virtual after updating the
+  // internal implementation.
+  virtual void GetAccessToken(id<SystemIdentity> identity,
+                              const std::set<std::string>& scopes,
+                              AccessTokenRequestCallback callback) {}
+
   // Asynchronously fetches the avatar for `identity` from the network and
   // store it in the cache. The image can be large to avoid pixelation on
   // high resolution devices. Observers will be notified when the avatar is
@@ -272,17 +279,10 @@ class SystemIdentityManager {
                                  const std::vector<std::string>& names,
                                  FetchCapabilitiesCallback callback) = 0;
 
-  // Builds the external privacy context for `identity`.
-  // * `view_controller` is the view controller over which an iOS system UI may
-  //                     be presented to gather user consent.
-  // * `callback` is executed after the privacy context is built and any
-  //              associated system UI is dismissed.
-  // TODO(crbug.com/502142565): Remove; use
-  // RegisterExternalPrivacyContextProvider instead.
-  virtual void BuildExternalPrivacyContext(
-      id<SystemIdentity> identity,
-      UIViewController* view_controller,
-      BuildExternalPrivacyContextCallback callback) {}
+  // Asynchronously returns the `CanSigninToChrome` capability for `identity`.
+  // TODO(crbug.com/507833087): Remove and use account capabilities instead.
+  virtual void FetchCanSigninToChrome(id<SystemIdentity> identity,
+                                      FetchCanSigninToChromeCallback callback);
 
   // Registers the provider for building external privacy context.
   virtual void RegisterExternalPrivacyContextProvider(

@@ -13,6 +13,7 @@
 #include "base/callback_list.h"
 #include "base/containers/flat_set.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "build/build_config.h"
 #include "chrome/browser/glic/common/local_hotkey_manager.h"
 #include "chrome/browser/glic/glic_metrics.h"
@@ -59,6 +60,10 @@ class GlicTabDataObserver;
 class GlicTabFaviconObserver;
 class GlicInstanceCoordinator;
 
+#if !BUILDFLAG(IS_ANDROID)
+class GlicExperimentalOptInController;
+#endif
+
 enum class GlicPrewarmingChecksResult;
 
 // The GlicKeyedService is created for each eligible (i.e. non-incognito,
@@ -67,8 +72,7 @@ enum class GlicPrewarmingChecksResult;
 // possible via enterprise policy). This is required on disabled profiles
 // since pieces of this service are the ones that monitor this runtime
 // preference for changes and cause the UI to respond to it.
-class GlicKeyedService : public KeyedService,
-                         public base::SupportsUserData {
+class GlicKeyedService : public KeyedService, public base::SupportsUserData {
  public:
   explicit GlicKeyedService(
       Profile* profile,
@@ -98,22 +102,28 @@ class GlicKeyedService : public KeyedService,
   // prevent_close is false. If `bwi` is non-null, attach the panel to its
   // Browser.
   // TODO(b:448888544): remove `prevent_close` in favor of a Show method.
+
   virtual void ToggleUI(BrowserWindowInterface* bwi,
                         bool prevent_close,
                         mojom::InvocationSource source,
                         std::optional<std::string> prompt_suggestion);
-  void ToggleUI(BrowserWindowInterface* bwi,
-                bool prevent_close,
-                mojom::InvocationSource source);
+  virtual void ToggleUI(BrowserWindowInterface* bwi,
+                        bool prevent_close,
+                        mojom::InvocationSource source);
 
   // Invokes Glic with the given options and automatically submits the prompt.
   // Access is restricted to authorized callers via InvokeWithAutoSubmitPasskey.
   // Virtual for testing.
-  virtual void InvokeWithAutoSubmit(
+  virtual base::WeakPtr<GlicInstance> InvokeWithAutoSubmit(
       InvokeWithAutoSubmitPasskey auto_submit_passkey,
       GlicInvokeOptions options);
 
-  virtual void Invoke(GlicInvokeOptions options);
+  virtual base::WeakPtr<GlicInstance> InvokeWithAutoSubmit(
+      InvokeWithAutoSubmitPasskey auto_submit_passkey,
+      GlicInvokeOptions options,
+      GlicInvokeWithAutoSubmitOptions auto_submit_options);
+
+  virtual base::WeakPtr<GlicInstance> Invoke(GlicInvokeOptions options);
 
   virtual void OpenFreDialogInNewTab(BrowserWindowInterface* bwi,
                                      mojom::InvocationSource source);
@@ -132,6 +142,9 @@ class GlicKeyedService : public KeyedService,
 
   GlicMetrics* metrics() { return metrics_.get(); }
   virtual GlicFreController& fre_controller();
+#if !BUILDFLAG(IS_ANDROID)
+  virtual GlicExperimentalOptInController& opt_in_controller();
+#endif
   virtual GlicInstanceCoordinator& instance_coordinator() const;
 
   // Return a `GlicActiveInstanceSharingManager` which tracks the sharing state
@@ -139,12 +152,6 @@ class GlicKeyedService : public KeyedService,
   // on the `GlicInstance` if you don't need one that automatically tracks the
   // active instance.
   GlicSharingManager& active_instance_sharing_manager();
-
-  bool IsTabPinnedToAnyInstance(const tabs::TabHandle& tab_handle) const;
-
-  // Unpins the specified tabs from all instances.
-  void UnpinTabsFromAllInstances(base::span<const tabs::TabHandle> tab_handles,
-                                 GlicUnpinTrigger trigger);
 
   // Virtual for testing.
   virtual bool IsWindowShowing() const;
@@ -202,9 +209,9 @@ class GlicKeyedService : public KeyedService,
       base::RepeatingClosure callback);
 
 #if !BUILDFLAG(IS_ANDROID)  // Single instance only
-  void CaptureRegion(
-      tabs::TabInterface* tab,
-      mojo::PendingRemote<mojom::CaptureRegionObserver> observer);
+  void CaptureRegion(tabs::TabInterface* tab,
+                     mojo::PendingRemote<mojom::CaptureRegionObserver> observer,
+                     mojom::GetTabContextOptionsPtr options = nullptr);
   void DeleteCapturedRegion(tabs::TabInterface* tab,
                             const base::UnguessableToken& id);
 #endif
@@ -244,9 +251,6 @@ class GlicKeyedService : public KeyedService,
   // null if there is none. `bwi` can be null if preloaded with no browser open.
   GlicInstance* GetInstanceForActiveTab(BrowserWindowInterface* bwi);
 
-  // Returns true if the media request ID belongs to any Glic instance.
-  bool IsMediaRequestFromGlic(const std::string& request_id) const;
-
   // Get the GlicInstance for a provided tab, or null if there is none.
   virtual GlicInstance* GetInstanceForTab(tabs::TabInterface* tab);
 
@@ -266,9 +270,8 @@ class GlicKeyedService : public KeyedService,
   base::CallbackListSubscription AddActOnWebCapabilityChangedCallback(
       ActOnWebCapabilityChangedCallback callback);
 
-  GlicActorPolicyChecker& actor_policy_checker() {
-    return *actor_policy_checker_;
-  }
+  // Virtual for testing.
+  virtual GlicActorPolicyChecker& actor_policy_checker();
 
  private:
   // A helper function to route GetZeroStateSuggestionsForFocusedTabCallback
@@ -279,12 +282,11 @@ class GlicKeyedService : public KeyedService,
           GetZeroStateSuggestionsForFocusedTabCallback callback,
       std::vector<std::string> returned_suggestions);
 
-  // Shared implementation for ToggleUI and ShowUIWithAutoSend.
+  // Shared implementation for ToggleUI.
   void ToggleUIInternal(BrowserWindowInterface* bwi,
                         bool prevent_close,
                         mojom::InvocationSource source,
                         std::optional<std::string> prompt_suggestion,
-                        bool auto_send,
                         std::optional<std::string> conversation_id);
 
   bool MaybeInvoke(BrowserWindowInterface* bwi,
@@ -314,6 +316,9 @@ class GlicKeyedService : public KeyedService,
   std::unique_ptr<GlicEnabling> enabling_;
   std::unique_ptr<GlicMetrics> metrics_;
   std::unique_ptr<GlicFreController> fre_controller_;
+#if !BUILDFLAG(IS_ANDROID)
+  std::unique_ptr<GlicExperimentalOptInController> opt_in_controller_;
+#endif
   // Is a GlicInstanceCoordinatorImpl.
   std::unique_ptr<GlicInstanceCoordinator> instance_coordinator_;
   std::unique_ptr<GlicSharingManager> sharing_manager_;

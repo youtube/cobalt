@@ -11,6 +11,8 @@ import static androidx.test.espresso.matcher.RootMatchers.isDialog;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
 
+import static org.mockito.Mockito.when;
+
 import androidx.test.filters.LargeTest;
 
 import org.junit.After;
@@ -25,11 +27,14 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.ThreadUtils;
+import org.chromium.base.supplier.NonNullObservableSupplier;
+import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features.EnableFeatures;
+import org.chromium.chrome.R;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.password_manager.PasswordManagerUtilBridge;
@@ -37,13 +42,13 @@ import org.chromium.chrome.browser.password_manager.PasswordManagerUtilBridgeJni
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.price_tracking.PriceTrackingFeatures;
 import org.chromium.chrome.browser.price_tracking.PriceTrackingUtilities;
+import org.chromium.chrome.browser.privacy.settings.PrivacyPreferencesManagerImpl;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.browser.settings.SettingsActivityTestRule;
 import org.chromium.chrome.browser.ui.messages.snackbar.Snackbar;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.R;
 import org.chromium.chrome.test.transit.ChromeTransitTestRules;
 import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
 import org.chromium.chrome.test.transit.page.WebPageStation;
@@ -75,11 +80,17 @@ public class GoogleServicesSettingsTest {
             RuleChain.outerRule(mActivityTestRule).around(mSettingsActivityTestRule);
 
     @Mock private PasswordManagerUtilBridge.Natives mMockPasswordManagerUtilBridgeJni;
+    @Mock private PrivacyPreferencesManagerImpl mMockPrivacyPreferencesManager;
     private WebPageStation mPage;
 
     @Before
     public void setUp() {
+        NonNullObservableSupplier<Boolean> supplier =
+                ThreadUtils.runOnUiThreadBlocking(() -> ObservableSuppliers.createNonNull(false));
+        when(mMockPrivacyPreferencesManager.getUsageAndCrashReportingPermittedObservableSupplier())
+                .thenReturn(supplier);
         PasswordManagerUtilBridgeJni.setInstanceForTesting(mMockPasswordManagerUtilBridgeJni);
+        PrivacyPreferencesManagerImpl.setInstanceForTesting(mMockPrivacyPreferencesManager);
         mPage = mActivityTestRule.startOnBlankPage();
         ThreadUtils.runOnUiThreadBlocking(
                 () ->
@@ -267,6 +278,46 @@ public class GoogleServicesSettingsTest {
                             "Usage stats should not exist when the pref is not set.",
                             googleServicesSettings.findPreference(
                                     GoogleServicesSettings.PREF_USAGE_STATS_REPORTING));
+                });
+    }
+
+    @Test
+    @LargeTest
+    public void testUsageAndCrashReportingHidden_MetricsConsentRestructureTrue() {
+        when(mMockPrivacyPreferencesManager.shouldUseMetricsConsentRestructure()).thenReturn(true);
+
+        final GoogleServicesSettings googleServicesSettings = startGoogleServicesSettings();
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    ChromeSwitchPreference usageAndCrashReporting =
+                            (ChromeSwitchPreference)
+                                    googleServicesSettings.findPreference(
+                                            GoogleServicesSettings.PREF_USAGE_AND_CRASH_REPORTING);
+                    Assert.assertFalse(
+                            "Usage and crash reporting should not be visible when"
+                                    + " MetricsConsentRestructure is enabled.",
+                            usageAndCrashReporting.isVisible());
+                });
+    }
+
+    @Test
+    @LargeTest
+    public void testUsageAndCrashReportingShown_MetricsConsentRestructureFalse() {
+        when(mMockPrivacyPreferencesManager.shouldUseMetricsConsentRestructure()).thenReturn(false);
+
+        final GoogleServicesSettings googleServicesSettings = startGoogleServicesSettings();
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    ChromeSwitchPreference usageAndCrashReporting =
+                            (ChromeSwitchPreference)
+                                    googleServicesSettings.findPreference(
+                                            GoogleServicesSettings.PREF_USAGE_AND_CRASH_REPORTING);
+                    Assert.assertTrue(
+                            "Usage and crash reporting should be visible when"
+                                    + " MetricsConsentRestructure is disabled.",
+                            usageAndCrashReporting.isVisible());
                 });
     }
 

@@ -10,11 +10,14 @@
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/web/web_script_tool_types.h"
 #include "third_party/blink/renderer/bindings/core/v8/capture_source_location.h"
+#include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_model_context_register_tool_options.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_model_context_tool.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_registered_tool.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_script_runner.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_tool_annotations.h"
 #include "third_party/blink/renderer/core/dom/abort_signal.h"
+#include "third_party/blink/renderer/core/dom/events/event.h"
 #include "third_party/blink/renderer/core/dom/scoped_abort_state.h"
 #include "third_party/blink/renderer/core/event_type_names.h"
 #include "third_party/blink/renderer/core/events/web_mcp_event.h"
@@ -31,7 +34,9 @@
 #include "third_party/blink/renderer/platform/json/json_parser.h"
 #include "third_party/blink/renderer/platform/json/json_values.h"
 #include "third_party/blink/renderer/platform/scheduler/public/task_attribution_tracker.h"
+#include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
@@ -49,6 +54,9 @@ STATIC_ASSERT_ENUM(ScriptToolErrorCode::kToolCancelled,
                    WebScriptToolErrorCode::kToolCancelled);
 
 namespace {
+
+const char kPermissionPolicyNotEnabledError[] =
+    "Access to the feature \"tools\" is disallowed by permissions policy.";
 
 String ValidateAndStringifyObject(ScriptState* script_state,
                                   ExceptionState& exception_state,
@@ -222,7 +230,14 @@ ModelContext::ModelContext(
     scoped_refptr<base::SingleThreadTaskRunner> task_runner)
     : document_(document),
       task_runner_(std::move(task_runner)),
-      script_tool_host_remote_(document.GetExecutionContext()) {}
+      script_tool_host_remote_(document.GetExecutionContext()),
+      model_context_host_remote_(document.GetExecutionContext()),
+      model_context_receiver_(this, document.GetExecutionContext()) {
+  document.GetExecutionContext()->GetBrowserInterfaceBroker().GetInterface(
+      model_context_host_remote_.BindNewPipeAndPassReceiver(task_runner_));
+  model_context_host_remote_->BindModelContext(
+      model_context_receiver_.BindNewPipeAndPassRemote(task_runner_));
+}
 
 void ModelContext::ForEachScriptTool(
     base::FunctionRef<void(const mojom::blink::ScriptTool&)> func) const {
@@ -238,6 +253,13 @@ void ModelContext::registerTool(ScriptState* script_state,
   if (!document_->IsActive()) {
     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
                                       "The document is detached.");
+    return;
+  }
+
+  if (!ExecutionContext::From(script_state)
+           ->IsFeatureEnabled(
+               network::mojom::PermissionsPolicyFeature::kTools)) {
+    exception_state.ThrowSecurityError(kPermissionPolicyNotEnabledError);
     return;
   }
 
@@ -294,6 +316,21 @@ void ModelContext::registerTool(ScriptState* script_state,
   script_tool->description = tool->description();
   script_tool->input_schema = input_schema;
 
+  Vector<scoped_refptr<const SecurityOrigin>> exposed_origins;
+  if (options && options->hasExposedTo()) {
+    for (const String& origin_str : options->exposedTo()) {
+      scoped_refptr<const SecurityOrigin> origin =
+          SecurityOrigin::CreateFromString(origin_str);
+      if (origin->Protocol() != "https") {
+        exception_state.ThrowSecurityError(
+            "Only HTTPS origins are allowed in exposedTo list.");
+        return;
+      }
+      exposed_origins.push_back(origin);
+    }
+  }
+  script_tool->exposed_origins = std::move(exposed_origins);
+
   if (tool->hasAnnotations()) {
     script_tool->annotations = mojom::blink::ScriptToolAnnotations::New();
     CHECK(tool->annotations()->hasReadOnlyHint());
@@ -310,6 +347,8 @@ void ModelContext::registerTool(ScriptState* script_state,
       abort_handle);
 
   tool_map_.insert(tool->name(), tool_data);
+  model_context_host_remote_->RegisterScriptTool(
+      tool_data->ScriptTool().Clone());
   probe::WebMCPToolAdded(document_, *tool_data);
   MaybeRecordToolCount();
   OnToolChange(/*force=*/true);
@@ -323,6 +362,7 @@ void ModelContext::UnregisterTool(const String& name) {
 
   probe::WebMCPToolRemoved(document_, *it->value);
   tool_map_.erase(it);
+  model_context_host_remote_->UnregisterScriptTool(name);
   OnToolChange(/*force=*/true);
 }
 
@@ -579,6 +619,13 @@ void ModelContext::RegisterDeclarativeTool(
     String name,
     String description,
     DeclarativeWebMCPTool* declarative_tool) {
+  if (!document_->GetExecutionContext()->IsFeatureEnabled(
+          network::mojom::PermissionsPolicyFeature::kTools)) {
+    // TODO(crbug.com/507724727) Surface an error if the `tools` permission
+    // policy is not enabled
+    return;
+  }
+
   UseCounter::Count(document_,
                     WebFeature::kModelContextRegisterDeclarativeTool);
 
@@ -590,6 +637,8 @@ void ModelContext::RegisterDeclarativeTool(
   auto* tool_data = MakeGarbageCollected<ToolData>(
       base::PassKey<ModelContext>(), std::move(script_tool), declarative_tool);
   tool_map_.insert(name, tool_data);
+  model_context_host_remote_->RegisterScriptTool(
+      tool_data->ScriptTool().Clone());
   probe::WebMCPToolAdded(document_, *tool_data);
   MaybeRecordToolCount();
   OnToolChange(/*force=*/true);
@@ -644,6 +693,10 @@ void ModelContext::InvokeToolChangeClosure(bool force) {
   if (should_fire && tool_change_closure_) {
     (*tool_change_closure_).Run();
   }
+  // The above closure can run script (it fires the `toolchange` on the
+  // `ModelContextTesting` interface while it exists. But even if it detaches
+  // the document, it is still safe to dispatch the event on `this` as well.
+  DispatchEvent(*Event::Create(event_type_names::kToolchange));
 }
 
 void ModelContext::MaybeRecordToolCount() {
@@ -672,6 +725,10 @@ void ModelContext::PauseExecution() {
   script_tool_host_remote_->PauseExecution();
 }
 
+void ModelContext::NotifyToolChange() {
+  OnToolChange(/*force=*/true);
+}
+
 HeapVector<Member<const ToolData>> ModelContext::ListTools() const {
   HeapVector<Member<const ToolData>> tools;
   tools.ReserveInitialCapacity(tool_map_.size());
@@ -697,11 +754,66 @@ ExecutionContext* ModelContext::GetExecutionContext() const {
   return document_ ? document_->GetExecutionContext() : nullptr;
 }
 
+const AtomicString& ModelContext::InterfaceName() const {
+  DEFINE_STATIC_LOCAL(AtomicString, name, ("ModelContext"));
+  return name;
+}
+
+ScriptPromise<IDLSequence<RegisteredTool>> ModelContext::getTools(
+    ScriptState* script_state) {
+  if (!document_->IsActive()) {
+    return ScriptPromise<IDLSequence<RegisteredTool>>::RejectWithDOMException(
+        script_state,
+        MakeGarbageCollected<DOMException>(DOMExceptionCode::kInvalidStateError,
+                                           "The document is not active."));
+  }
+
+  auto* resolver =
+      MakeGarbageCollected<ScriptPromiseResolver<IDLSequence<RegisteredTool>>>(
+          script_state);
+  ScriptPromise promise = resolver->Promise();
+
+  if (!ExecutionContext::From(script_state)
+           ->IsFeatureEnabled(
+               network::mojom::PermissionsPolicyFeature::kTools)) {
+    resolver->RejectWithSecurityError(kPermissionPolicyNotEnabledError,
+                                      kPermissionPolicyNotEnabledError);
+    return promise;
+  }
+
+  model_context_host_remote_->GetScriptTools(
+      blink::BindOnce(&ModelContext::OnGetScriptToolsCompleted,
+                      WrapWeakPersistent(this), WrapPersistent(resolver)));
+
+  return promise;
+}
+
+void ModelContext::OnGetScriptToolsCompleted(
+    ScriptPromiseResolver<IDLSequence<RegisteredTool>>* resolver,
+    Vector<mojom::blink::ScriptToolPtr> tools) {
+  HeapVector<Member<RegisteredTool>> registered_tools;
+  registered_tools.ReserveInitialCapacity(tools.size());
+
+  for (const auto& t : tools) {
+    auto* result = RegisteredTool::Create();
+    result->setName(t->name);
+    result->setDescription(t->description);
+    if (!t->input_schema.IsNull()) {
+      result->setInputSchema(t->input_schema);
+    }
+    registered_tools.push_back(result);
+  }
+
+  resolver->Resolve(registered_tools);
+}
+
 void ModelContext::Trace(Visitor* visitor) const {
-  ScriptWrappable::Trace(visitor);
+  EventTarget::Trace(visitor);
   visitor->Trace(tool_map_);
   visitor->Trace(document_);
   visitor->Trace(script_tool_host_remote_);
+  visitor->Trace(model_context_host_remote_);
+  visitor->Trace(model_context_receiver_);
 }
 
 const String& ToolData::Name() const {

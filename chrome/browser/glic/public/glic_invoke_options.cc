@@ -45,6 +45,15 @@ Target::Target(
         conversation)
     : conversation(std::move(conversation)) {}
 
+TabSharingOptions::TabSharingOptions()
+    : pin_trigger(GlicPinTrigger::kUnknown) {}
+TabSharingOptions::TabSharingOptions(std::vector<tabs::TabHandle> tabs_to_pin,
+                                     GlicPinTrigger pin_trigger)
+    : tabs_to_pin(std::move(tabs_to_pin)), pin_trigger(pin_trigger) {}
+TabSharingOptions::TabSharingOptions(TabSharingOptions&&) = default;
+TabSharingOptions& TabSharingOptions::operator=(TabSharingOptions&&) = default;
+TabSharingOptions::~TabSharingOptions() = default;
+
 GlicInvokeOptions::GlicInvokeOptions(
     glic::mojom::InvocationSource invocation_source)
     : invocation_source(invocation_source),
@@ -62,5 +71,12 @@ GlicInvokeOptions::~GlicInvokeOptions() = default;
 GlicInvokeOptions::GlicInvokeOptions(GlicInvokeOptions&&) = default;
 
 GlicInvokeOptions& GlicInvokeOptions::operator=(GlicInvokeOptions&&) = default;
+
+GlicInvokeWithAutoSubmitOptions::GlicInvokeWithAutoSubmitOptions() = default;
+GlicInvokeWithAutoSubmitOptions::~GlicInvokeWithAutoSubmitOptions() = default;
+GlicInvokeWithAutoSubmitOptions::GlicInvokeWithAutoSubmitOptions(
+    GlicInvokeWithAutoSubmitOptions&&) = default;
+GlicInvokeWithAutoSubmitOptions& GlicInvokeWithAutoSubmitOptions::operator=(
+    GlicInvokeWithAutoSubmitOptions&&) = default;
 
 }  // namespace glic

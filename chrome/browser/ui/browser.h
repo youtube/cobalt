@@ -27,10 +27,9 @@
 #include "chrome/browser/ui/bookmarks/bookmark_bar.h"
 #include "chrome/browser/ui/bookmarks/bookmark_bar_controller.h"
 #include "chrome/browser/ui/bookmarks/bookmark_tab_helper_observer.h"
-#include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
-#include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities_delegate.h"
 #include "chrome/browser/ui/browser_window_deleter.h"
+#include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/tabs/tab_change_type.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
@@ -120,8 +119,7 @@ class Browser : public TabStripModelObserver,
                 public WebContentsCollection::Observer,
                 public content::WebContentsDelegate,
                 public BookmarkTabHelperObserver,
-                public BrowserWindowInterface,
-                public DesktopBrowserWindowCapabilitiesDelegate {
+                public BrowserWindowInterface {
  public:
   // Possible elements of the Browser window.
   enum class WindowFeature {
@@ -490,9 +488,9 @@ class Browser : public TabStripModelObserver,
   std::u16string GetWindowTitleForCurrentTab(bool include_app_name) const;
 
   // Gets the window title of the tab at |index|.
-  std::u16string GetWindowTitleForTab(int index) const;
+  std::u16string GetWindowTitleForTab(const tabs::TabHandle& tab) const;
 
-  std::u16string GetTitleForTab(int index) const;
+  std::u16string GetTitleForTab(const tabs::TabHandle& tab) const;
   // Gets the window title for the current tab, to display in a menu. If the
   // title is too long to fit in the required space, the tab title will be
   // elided. The result title might still be a larger width than specified, as
@@ -588,7 +586,7 @@ class Browser : public TabStripModelObserver,
   // but that is done before any of these steps.
   // TODO(crbug.com/40064092): See about unifying IsAttemptingToCloseBrowser()
   // and is_delete_scheduled().
-  bool IsAttemptingToCloseBrowser() const override;
+  bool IsAttemptingToCloseBrowser() const;
   bool is_delete_scheduled() const { return is_delete_scheduled_; }
 
   // Invoked when the window containing us is closing. Performs the necessary
@@ -756,7 +754,7 @@ class Browser : public TabStripModelObserver,
 
   std::vector<StatusBubble*> GetStatusBubblesForTesting();
   UnloadController* GetUnloadControllerForTesting() {
-    return &unload_controller_;
+    return UnloadController::From(this);
   }
 
   // BrowserWindowInterface overrides:
@@ -772,7 +770,6 @@ class Browser : public TabStripModelObserver,
   TabStripModel* GetTabStripModel() override;
   const TabStripModel* GetTabStripModel() const override;
   bool IsTabStripVisible() override;
-  bool ShouldHideUIForFullscreen() const override;
   base::CallbackListSubscription RegisterBrowserDidClose(
       BrowserDidCloseCallback callback) override;
   base::CallbackListSubscription RegisterBrowserCloseCancelled(
@@ -1019,10 +1016,6 @@ class Browser : public TabStripModelObserver,
       const base::UnguessableToken& guid,
       content::RenderFrameHost* render_frame_host) override;
 #endif
-
-  // Overridden from DesktopBrowserWindowCapabilitiesDelegate:
-  void SetWebContentsBlocked(content::WebContents* web_contents,
-                             bool blocked) override;
 
   // Overridden from BookmarkTabHelperObserver:
   void URLStarredChanged(content::WebContents* web_contents,
@@ -1293,8 +1286,6 @@ class Browser : public TabStripModelObserver,
   bool initial_visible_on_all_workspaces_state_;
 
   CreationSource creation_source_ = CreationSource::kUnknown;
-
-  UnloadController unload_controller_;
 
   // True if the browser window has been shown at least once.
   bool window_has_shown_;

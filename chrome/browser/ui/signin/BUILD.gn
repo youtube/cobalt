@@ -64,13 +64,14 @@ source_set("impl") {
     "//chrome/app:branded_strings",
     "//chrome/app:generated_resources",
     "//chrome/browser:browser_process",
+    "//chrome/browser/profiles:misc",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/search",
     "//chrome/browser/search_engines",
     "//chrome/browser/sync",
-    "//chrome/browser/ui:browser_navigator_params_headers",
     "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/dialogs",
+    "//chrome/browser/ui/navigator",
     "//chrome/browser/ui/profiles",
 
     # TODO(crubug.com/430804948): This dependency is needed because

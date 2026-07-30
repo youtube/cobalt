@@ -67,14 +67,14 @@
 #include "chrome/browser/ui/bookmarks/bookmark_utils_desktop.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_command_controller.h"
+#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_live_tab_context.h"
-#include "chrome/browser/ui/browser_navigator.h"
-#include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/create_browser_window.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/dialogs/browser_dialogs.h"
 #include "chrome/browser/ui/dialogs/outdated_upgrade_bubble.h"
@@ -85,6 +85,8 @@
 #include "chrome/browser/ui/intent_picker_tab_helper.h"
 #include "chrome/browser/ui/lens/lens_search_controller.h"
 #include "chrome/browser/ui/location_bar/location_bar.h"
+#include "chrome/browser/ui/navigator/browser_navigator.h"
+#include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/passwords/manage_passwords_ui_controller.h"
 #include "chrome/browser/ui/qrcode_generator/qrcode_generator_bubble_controller.h"
 #include "chrome/browser/ui/scoped_tabbed_browser_displayer.h"
@@ -461,11 +463,6 @@ void MoveTabsToWindowImpl(BrowserWindowInterface* source,
 
 Browser* CreateNewBrowser(Browser* browser, bool user_gesture) {
   auto params = Browser::CreateParams(browser->profile(), user_gesture);
-  if (auto* controller = tabs::VerticalTabStripStateController::From(browser)) {
-    params.vertical_tab_strip_collapsed = controller->IsCollapsed();
-    params.vertical_tab_strip_uncollapsed_width =
-        controller->GetUncollapsedWidth();
-  }
   return Browser::Create(params);
 }
 
@@ -762,19 +759,6 @@ BrowserWindowInterface* OpenEmptyWindow(Profile* profile,
       Browser::CreateParams(Browser::TYPE_NORMAL, profile, true);
   params.should_trigger_session_restore = should_trigger_session_restore;
 
-  if (tabs::IsVerticalTabsFeatureEnabled()) {
-    BrowserWindowInterface* const last_active_browser =
-        chrome::FindLastActiveWithProfile(profile);
-    if (last_active_browser) {
-      if (auto* controller = tabs::VerticalTabStripStateController::From(
-              last_active_browser)) {
-        params.vertical_tab_strip_collapsed = controller->IsCollapsed();
-        params.vertical_tab_strip_uncollapsed_width =
-            controller->GetUncollapsedWidth();
-      }
-    }
-  }
-
   base::TimeTicks now = base::TimeTicks::Now();
   Browser* browser = Browser::Create(params);
   if (auto* manager = InitialWebUIWindowMetricsManager::From(browser)) {
@@ -894,7 +878,9 @@ void GoBack(content::WebContents* web_contents) {
   // Try regular back navigation first.
   if (web_contents->GetController().CanGoBack()) {
     web_contents->GetController().GoBack();
-    BrowserWindowInterface* browser = chrome::FindBrowserWithTab(web_contents);
+    BrowserWindowInterface* browser =
+        GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
+            web_contents);
     if (browser) {
       MaybeShowFeatureBackNavigationMenuPromo(browser, web_contents);
     }

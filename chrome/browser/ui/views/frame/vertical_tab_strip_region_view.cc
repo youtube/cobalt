@@ -60,7 +60,6 @@
 #include "ui/base/interaction/element_tracker.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
-#include "ui/base/ui_base_features.h"
 #include "ui/color/color_id.h"
 #include "ui/compositor/compositor.h"
 #include "ui/compositor/compositor_observer.h"
@@ -274,15 +273,10 @@ VerticalTabStripRegionView::VerticalTabStripRegionView(
 
   GetViewAccessibility().SetRole(ax::mojom::Role::kTabList);
 
-  std::unique_ptr<CustomCornersBackground> background =
-      std::make_unique<CustomCornersBackground>(
-          *this, *browser_view,
-          /*primary_color=*/CustomCornersBackground::FrameTheme(),
-          /*corner_color=*/CustomCornersBackground::ToolbarTheme());
-  if (features::IsGlassFrameEnabled()) {
-    background->SetVisible(false);
-  }
-  SetBackground(std::move(background));
+  SetBackground(std::make_unique<CustomCornersBackground>(
+      *this, *browser_view,
+      /*primary_color=*/CustomCornersBackground::FrameTheme(),
+      /*corner_color=*/CustomCornersBackground::ToolbarTheme()));
 
   shadow_frame_ = AddChildView(std::make_unique<ShadowFrameView>(
       kExpandOnHoverShadowElevation, kExpandOnHoverShadowAlpha));
@@ -746,12 +740,9 @@ std::optional<int> VerticalTabStripRegionView::GetFocusedTabIndex() const {
   return std::nullopt;
 }
 
-const tabs::TabData& VerticalTabStripRegionView::GetTabData(int tab_index) {
-  tabs::TabInterface* tab = tab_strip_model_->GetTabAtIndex(tab_index);
-  CHECK(tab);
-
-  const TabCollectionNode* node =
-      root_node_->GetNodeForHandle(tab->GetHandle());
+const tabs::TabData& VerticalTabStripRegionView::GetTabData(
+    const tabs::TabHandle& tab) {
+  const TabCollectionNode* node = root_node_->GetNodeForHandle(tab);
   CHECK(node);
 
   VerticalTabView* tab_view = views::AsViewClass<VerticalTabView>(node->view());
@@ -918,7 +909,7 @@ void VerticalTabStripRegionView::HandleDragUpdate(
   UpdateExpandOnHoverState(true);
   if (is_expanded_on_hover_ && !link_drag_lock_) {
     link_drag_lock_ =
-        GetExpandOnHoverLock(ExpandOnHoverLockType::kKeepExpanded);
+        GetExpandOnHoverLock(ExpandOnHoverLockType::kKeepCurrentState);
   }
 }
 
@@ -1188,8 +1179,7 @@ void VerticalTabStripRegionView::UpdateExpandOnHoverState(
     is_expanded_on_hover_ = false;
     return;
   }
-  // If expand on hover is locked (e.g. omnibox popup is open), then we
-  // should not enter the expand on hover state or exit it if already expanded.
+  // If the force collapse lock is held, collapse the tab strip.
   if (force_collapse_lock_count_ > 0) {
     if (is_expanded_on_hover_) {
       AnimateExpandOnHover(/*expand=*/false);
@@ -1197,10 +1187,17 @@ void VerticalTabStripRegionView::UpdateExpandOnHoverState(
     return;
   }
 
-  // If a bubble or menu is open, then we don't want to change the state. If
-  // expanded, stay expanded. If collapsed, stay collapsed.
-  if (keep_expanded_lock_count_ > 0) {
+  // If the current state lock is held, reset the timers and wait.
+  if (keep_current_state_lock_count_ > 0) {
     ResetExpandOnHoverTimers();
+    return;
+  }
+
+  // If the keep expanded lock is held, expand the tab strip.
+  if (keep_expanded_lock_count_ > 0) {
+    if (!is_expanded_on_hover_) {
+      AnimateExpandOnHover(/*expand=*/true);
+    }
     return;
   }
 
@@ -1221,7 +1218,7 @@ void VerticalTabStripRegionView::UpdateExpandOnHoverState(
        (GetFocusManager() && Contains(GetFocusManager()->GetFocusedView())));
 
   if (!should_expand) {
-    if (is_expanded_on_hover_ && keep_expanded_lock_count_ == 0) {
+    if (is_expanded_on_hover_ && keep_current_state_lock_count_ == 0) {
       AnimateExpandOnHover(/*expand=*/false);
     } else {
       ResetExpandOnHoverTimers();
@@ -1384,10 +1381,19 @@ void VerticalTabStripRegionView::RegisterExpandOnHoverLock(
     VerticalTabStripExpandOnHoverLock* lock) {
   hover_locks_.insert(lock);
   ExpandOnHoverLockType lock_type = lock->lock_type();
-  if (lock_type == ExpandOnHoverLockType::kForceCollapse) {
-    force_collapse_lock_count_++;
-  } else {
-    keep_expanded_lock_count_++;
+  switch (lock_type) {
+    case ExpandOnHoverLockType::kForceCollapse: {
+      force_collapse_lock_count_++;
+      break;
+    }
+    case ExpandOnHoverLockType::kKeepCurrentState: {
+      keep_current_state_lock_count_++;
+      break;
+    }
+    case ExpandOnHoverLockType::kKeepExpanded: {
+      keep_expanded_lock_count_++;
+      break;
+    }
   }
   UpdateExpandOnHoverState();
 }
@@ -1396,17 +1402,30 @@ void VerticalTabStripRegionView::UnregisterExpandOnHoverLock(
     VerticalTabStripExpandOnHoverLock* lock) {
   hover_locks_.erase(lock);
   ExpandOnHoverLockType lock_type = lock->lock_type();
-  if (lock_type == ExpandOnHoverLockType::kForceCollapse) {
-    CHECK_GT(force_collapse_lock_count_, 0);
-    force_collapse_lock_count_--;
-    if (force_collapse_lock_count_ == 0) {
-      UpdateExpandOnHoverState();
+  switch (lock_type) {
+    case ExpandOnHoverLockType::kForceCollapse: {
+      CHECK_GT(force_collapse_lock_count_, 0);
+      force_collapse_lock_count_--;
+      if (force_collapse_lock_count_ == 0) {
+        UpdateExpandOnHoverState();
+      }
+      break;
     }
-  } else {
-    CHECK_GT(keep_expanded_lock_count_, 0);
-    keep_expanded_lock_count_--;
-    if (keep_expanded_lock_count_ == 0) {
-      UpdateExpandOnHoverState();
+    case ExpandOnHoverLockType::kKeepCurrentState: {
+      CHECK_GT(keep_current_state_lock_count_, 0);
+      keep_current_state_lock_count_--;
+      if (keep_current_state_lock_count_ == 0) {
+        UpdateExpandOnHoverState();
+      }
+      break;
+    }
+    case ExpandOnHoverLockType::kKeepExpanded: {
+      CHECK_GT(keep_expanded_lock_count_, 0);
+      keep_expanded_lock_count_--;
+      if (keep_expanded_lock_count_ == 0) {
+        UpdateExpandOnHoverState();
+      }
+      break;
     }
   }
 }

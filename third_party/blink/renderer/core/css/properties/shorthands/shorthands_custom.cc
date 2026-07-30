@@ -129,7 +129,7 @@ bool ParseAnimationShorthand(const StylePropertyShorthand& shorthand,
 
 namespace {
 
-enum class AnimationNameConflcit {
+enum class AnimationNameConflict {
   kNoConflict,
   kTimingFunctionConflict,
   kFillModeConflict,
@@ -137,21 +137,21 @@ enum class AnimationNameConflcit {
   kPlayStateConflict,
 };
 
-static AnimationNameConflcit CheckAnimationNameConflicts(
+static AnimationNameConflict CheckAnimationNameConflicts(
     const AtomicString& name) {
   if (ComputedStyleUtils::AnimationNameIsTimingFunction(name)) {
-    return AnimationNameConflcit::kTimingFunctionConflict;
+    return AnimationNameConflict::kTimingFunctionConflict;
   }
   if (ComputedStyleUtils::AnimationNameIsFillMode(name)) {
-    return AnimationNameConflcit::kFillModeConflict;
+    return AnimationNameConflict::kFillModeConflict;
   }
   if (ComputedStyleUtils::AnimationNameIsDirection(name)) {
-    return AnimationNameConflcit::kDirectionConflict;
+    return AnimationNameConflict::kDirectionConflict;
   }
   if (ComputedStyleUtils::AnimationNameIsPlayState(name)) {
-    return AnimationNameConflcit::kPlayStateConflict;
+    return AnimationNameConflict::kPlayStateConflict;
   }
-  return AnimationNameConflcit::kNoConflict;
+  return AnimationNameConflict::kNoConflict;
 }
 
 }  // namespace
@@ -177,7 +177,7 @@ const CSSValue* CSSValueFromComputedAnimation(
       const AtomicString& name = scoped_name
                                      ? scoped_name->GetName()
                                      : CSSAnimationData::InitialNameString();
-      AnimationNameConflcit conflict = CheckAnimationNameConflicts(name);
+      AnimationNameConflict conflict = CheckAnimationNameConflicts(name);
       auto duration =
           CSSTimingData::GetRepeated(animation_data->DurationList(), i);
       if (duration != CSSAnimationData::InitialDuration()) {
@@ -188,7 +188,7 @@ const CSSValue* CSSValueFromComputedAnimation(
       if (auto timing_function = CSSTimingData::GetRepeated(
               animation_data->TimingFunctionList(), i);
           timing_function != CSSAnimationData::InitialTimingFunction() ||
-          conflict == AnimationNameConflcit::kTimingFunctionConflict) {
+          conflict == AnimationNameConflict::kTimingFunctionConflict) {
         list->Append(*ComputedStyleUtils::ValueForAnimationTimingFunction(
             timing_function));
       }
@@ -213,20 +213,20 @@ const CSSValue* CSSValueFromComputedAnimation(
       if (auto direction =
               CSSTimingData::GetRepeated(animation_data->DirectionList(), i);
           direction != CSSAnimationData::InitialDirection() ||
-          conflict == AnimationNameConflcit::kDirectionConflict) {
+          conflict == AnimationNameConflict::kDirectionConflict) {
         list->Append(
             *ComputedStyleUtils::ValueForAnimationDirection(direction));
       }
       if (auto fill_mode =
               CSSTimingData::GetRepeated(animation_data->FillModeList(), i);
           fill_mode != CSSAnimationData::InitialFillMode() ||
-          conflict == AnimationNameConflcit::kFillModeConflict) {
+          conflict == AnimationNameConflict::kFillModeConflict) {
         list->Append(*ComputedStyleUtils::ValueForAnimationFillMode(fill_mode));
       }
       if (auto play_state =
               CSSTimingData::GetRepeated(animation_data->PlayStateList(), i);
           play_state != CSSAnimationData::InitialPlayState() ||
-          conflict == AnimationNameConflcit::kPlayStateConflict) {
+          conflict == AnimationNameConflict::kPlayStateConflict) {
         list->Append(
             *ComputedStyleUtils::ValueForAnimationPlayState(play_state));
       }
@@ -4597,24 +4597,27 @@ static CSSValue* CSSValueForTimelineShorthand(
     const ComputedStyle& style) {
   CSSValueList* list = CSSValueList::CreateCommaSeparated();
 
-  if (name_vector.size() != axis_vector.size()) {
-    return list;
-  }
-  if (inset_vector && name_vector.size() != inset_vector->size()) {
-    return list;
-  }
   if (name_vector.empty()) {
     list->Append(*ComputedStyleUtils::SingleValueForTimelineShorthand(
         /*name=*/g_null_atom, TimelineAxis::kBlock, /*inset=*/std::nullopt,
         style));
     return list;
   }
+
+  // Per https://drafts.csswg.org/css-values-4/#linked-properties,
+  // the *-name property is the coordinating list base property, which
+  // determines the length of the coordinated value list. Other properties
+  // cycle if shorter or are truncated if longer.
   for (wtf_size_t i = 0; i < name_vector.size(); ++i) {
+    TimelineAxis axis = axis_vector.empty()
+                            ? TimelineAxis::kBlock
+                            : axis_vector[i % axis_vector.size()];
+    std::optional<TimelineInset> inset = std::nullopt;
+    if (inset_vector && !inset_vector->empty()) {
+      inset = (*inset_vector)[i % inset_vector->size()];
+    }
     list->Append(*ComputedStyleUtils::SingleValueForTimelineShorthand(
-        name_vector[i], axis_vector[i],
-        inset_vector ? std::optional<TimelineInset>((*inset_vector)[i])
-                     : std::optional<TimelineInset>(),
-        style));
+        name_vector[i], axis, inset, style));
   }
 
   return list;
@@ -5200,7 +5203,7 @@ bool LineClamp::ParseShorthand(
   if (stream.Peek().Id() == CSSValueID::kNone) {
     max_lines = css_parsing_utils::ConsumeIdent(stream);
     block_ellipsis = CSSIdentifierValue::Create(CSSValueID::kNoEllipsis);
-    continue_value = CSSIdentifierValue::Create(CSSValueID::kAuto);
+    continue_value = CSSIdentifierValue::Create(CSSValueID::kNormal);
   } else {
     do {
       if (stream.Peek().Id() == CSSValueID::kWebkitLegacy) {
@@ -5208,9 +5211,15 @@ bool LineClamp::ParseShorthand(
         break;
       }
 
+      if (!max_lines && stream.Peek().Id() == CSSValueID::kAuto) {
+        css_parsing_utils::ConsumeIdent(stream);
+        max_lines = CSSIdentifierValue::Create(CSSValueID::kNone);
+        continue;
+      }
+
       if (!block_ellipsis) {
         block_ellipsis =
-            css_parsing_utils::ConsumeIdent<CSSValueID::kAuto,
+            css_parsing_utils::ConsumeIdent<CSSValueID::kEllipsis,
                                             CSSValueID::kNoEllipsis>(stream);
         if (block_ellipsis) {
           continue;
@@ -5225,7 +5234,7 @@ bool LineClamp::ParseShorthand(
         }
       }
 
-      return false;
+      break;
     } while (!stream.AtEnd());
 
     if (!max_lines && !block_ellipsis) {
@@ -5236,7 +5245,7 @@ bool LineClamp::ParseShorthand(
       max_lines = CSSIdentifierValue::Create(CSSValueID::kNone);
     }
     if (!block_ellipsis) {
-      block_ellipsis = CSSIdentifierValue::Create(CSSValueID::kAuto);
+      block_ellipsis = CSSIdentifierValue::Create(CSSValueID::kEllipsis);
     }
     if (!continue_value) {
       continue_value = CSSIdentifierValue::Create(CSSValueID::kCollapse);
@@ -5260,7 +5269,7 @@ const CSSValue* LineClamp::CSSValueFromComputedStyleInternal(
     const LayoutObject* layout_object,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
-  if (style.Continue() == EContinue::kAuto) {
+  if (style.Continue() == EContinue::kNormal) {
     if (style.MaxLines() == 0 &&
         style.BlockEllipsis() == EBlockEllipsis::kNoEllipsis) {
       return CSSIdentifierValue::Create(CSSValueID::kNone);
@@ -5273,9 +5282,11 @@ const CSSValue* LineClamp::CSSValueFromComputedStyleInternal(
   if (style.MaxLines() != 0) {
     list->Append(*GetCSSPropertyMaxLines().CSSValueFromComputedStyle(
         style, layout_object, allow_visited_style, value_phase));
+  } else if (style.BlockEllipsis() == EBlockEllipsis::kEllipsis) {
+    list->Append(*CSSIdentifierValue::Create(CSSValueID::kAuto));
   }
 
-  if (!list->length() || style.BlockEllipsis() != EBlockEllipsis::kAuto) {
+  if (style.BlockEllipsis() != EBlockEllipsis::kEllipsis) {
     list->Append(*GetCSSPropertyBlockEllipsis().CSSValueFromComputedStyle(
         style, layout_object, allow_visited_style, value_phase));
   }
@@ -5304,14 +5315,14 @@ bool AlternativeWebkitLineClamp::ParseShorthand(
   if (stream.Peek().Id() == CSSValueID::kNone) {
     max_lines = css_parsing_utils::ConsumeIdent(stream);
     block_ellipsis = CSSIdentifierValue::Create(CSSValueID::kNoEllipsis);
-    continue_value = CSSIdentifierValue::Create(CSSValueID::kAuto);
+    continue_value = CSSIdentifierValue::Create(CSSValueID::kNormal);
   } else {
     max_lines = css_parsing_utils::ConsumePositiveInteger(stream, context,
                                                           local_context);
     if (!max_lines) {
       return false;
     }
-    block_ellipsis = CSSIdentifierValue::Create(CSSValueID::kAuto);
+    block_ellipsis = CSSIdentifierValue::Create(CSSValueID::kEllipsis);
     continue_value = CSSIdentifierValue::Create(CSSValueID::kWebkitLegacy);
   }
 
@@ -5334,13 +5345,14 @@ const CSSValue* AlternativeWebkitLineClamp::CSSValueFromComputedStyleInternal(
     const LayoutObject* layout_object,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
-  if (style.Continue() == EContinue::kAuto &&
+  if (style.Continue() == EContinue::kNormal &&
       style.BlockEllipsis() == EBlockEllipsis::kNoEllipsis &&
       style.MaxLines() == 0) {
     return CSSIdentifierValue::Create(CSSValueID::kNone);
   }
   if (style.Continue() == EContinue::kWebkitLegacy &&
-      style.BlockEllipsis() == EBlockEllipsis::kAuto && style.MaxLines() != 0) {
+      style.BlockEllipsis() == EBlockEllipsis::kEllipsis &&
+      style.MaxLines() != 0) {
     return GetCSSPropertyMaxLines().CSSValueFromComputedStyle(
         style, layout_object, allow_visited_style, value_phase);
   }

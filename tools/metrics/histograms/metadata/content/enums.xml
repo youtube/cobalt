@@ -124,12 +124,6 @@ chromium-metrics-reviews@google.com.
   </int>
 </enum>
 
-<enum name="FeedContentOrder">
-  <int value="0" label="Unspecified"/>
-  <int value="1" label="Grouped"/>
-  <int value="2" label="Reverse Chronological"/>
-</enum>
-
 <!-- LINT.IfChange(FeedEngagementType) -->
 
 <enum name="FeedEngagementType">
@@ -518,14 +512,6 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//content/browser/worker_host/shared_worker_host.cc:SharedWorkerHostDestructionSource) -->
-
-<enum name="SingleWebFeedEntryPoint">
-  <int value="0" label="Menu"/>
-  <int value="1" label="Attribtuion"/>
-  <int value="2" label="Recommendation"/>
-  <int value="3" label="Group Header"/>
-  <int value="4" label="Other"/>
-</enum>
 
 <enum name="StrongPopupBlockerAction">
   <int value="0" label="Navigation commit"/>

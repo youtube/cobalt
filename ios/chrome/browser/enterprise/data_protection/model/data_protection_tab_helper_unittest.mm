@@ -9,6 +9,7 @@
 #import "base/memory/raw_ptr.h"
 #import "base/strings/stringprintf.h"
 #import "base/test/bind.h"
+#import "base/test/metrics/histogram_tester.h"
 #import "base/test/test_future.h"
 #import "components/enterprise/browser/controller/fake_browser_dm_token_storage.h"
 #import "components/enterprise/connectors/core/connectors_prefs.h"
@@ -18,6 +19,7 @@
 #import "components/enterprise/data_protection/data_protection_url_lookup_service.h"
 #import "components/prefs/pref_registry_simple.h"
 #import "components/prefs/testing_pref_service.h"
+#import "components/safe_browsing/core/browser/realtime/chrome_enterprise_url_lookup_service.h"
 #import "components/safe_browsing/core/browser/realtime/fake_url_lookup_service.h"
 #import "components/safe_browsing/core/browser/realtime/url_lookup_service.h"
 #import "components/safe_browsing/core/browser/realtime/url_lookup_service_base.h"
@@ -26,8 +28,9 @@
 #import "ios/chrome/browser/enterprise/data_controls/model/ios_rules_service_factory.h"
 #import "ios/chrome/browser/enterprise/data_protection/model/data_protection_tab_helper_observer.h"
 #import "ios/chrome/browser/enterprise/data_protection/model/data_protection_url_lookup_service_factory.h"
-#import "ios/chrome/browser/safe_browsing/model/real_time_url_lookup_service_factory.h"
+#import "ios/chrome/browser/safe_browsing/model/chrome_enterprise_url_lookup_service_factory.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
+#import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
 #import "ios/web/public/test/fakes/fake_navigation_context.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
 #import "ios/web/public/test/web_task_environment.h"
@@ -37,6 +40,7 @@
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/platform_test.h"
 
+using safe_browsing::ChromeEnterpriseRealTimeUrlLookupServiceFactory;
 using ::testing::_;
 
 namespace {
@@ -45,6 +49,8 @@ const char kProtectedUrl[] = "https://protected.com";
 const char kUnprotectedUrl[] = "https://unprotected.com";
 const char kFakeDmToken[] = "fake-dm-token";
 const char kFakeClientId[] = "fake-client-id";
+
+using ScreenshotBlockSource = DataProtectionTabHelper::ScreenshotBlockSource;
 
 // Fake for RealTimeUrlLookupService.
 class FakeRealTimeUrlLookupService
@@ -143,7 +149,7 @@ class DataProtectionTabHelperTest : public PlatformTest {
 
     TestProfileIOS::Builder builder;
     builder.AddTestingFactory(
-        RealTimeUrlLookupServiceFactory::GetInstance(),
+        ChromeEnterpriseRealTimeUrlLookupServiceFactory::GetInstance(),
         base::BindRepeating(
             &DataProtectionTabHelperTest::CreateFakeRealTimeUrlLookupService,
             base::Unretained(this)));
@@ -173,7 +179,8 @@ class DataProtectionTabHelperTest : public PlatformTest {
 
     fake_rt_lookup_service_ = static_cast<FakeRealTimeUrlLookupService*>(
         static_cast<safe_browsing::RealTimeUrlLookupServiceBase*>(
-            RealTimeUrlLookupServiceFactory::GetForProfile(profile_.get())));
+            ChromeEnterpriseRealTimeUrlLookupServiceFactory::GetForProfile(
+                profile_.get())));
   }
 
   ~DataProtectionTabHelperTest() override {
@@ -236,6 +243,7 @@ class DataProtectionTabHelperTest : public PlatformTest {
 // screenshots. Real-time lookup should be skipped because protection is already
 // latched.
 TEST_F(DataProtectionTabHelperTest, DataControlsBlock) {
+  base::HistogramTester histogram_tester;
   GURL protected_url(kProtectedUrl);
   SetScreenshotBlockRule(kProtectedUrl);
 
@@ -251,6 +259,10 @@ TEST_F(DataProtectionTabHelperTest, DataControlsBlock) {
   EXPECT_TRUE(observer_.Wait());
   EXPECT_TRUE(tab_helper()->IsScreenshotProtectionEnabled());
   EXPECT_EQ(fake_rt_lookup_service_->start_lookup_count(), 0u);
+
+  histogram_tester.ExpectUniqueSample(
+      DataProtectionTabHelper::kScreenshotBlockSourceHistogram,
+      ScreenshotBlockSource::kDataControls, 1);
 }
 
 // Tests that the initial URL is checked when the helper is created.
@@ -273,6 +285,7 @@ TEST_F(DataProtectionTabHelperTest, NoOpWhenNoPolicy) {
 
 // Tests that screenshot protection is enabled by real-time lookup.
 TEST_F(DataProtectionTabHelperTest, RealTimeLookupBlock) {
+  base::HistogramTester histogram_tester;
   GURL protected_url(kProtectedUrl);
 
   auto context = CreateNavigationContext(protected_url);
@@ -297,10 +310,17 @@ TEST_F(DataProtectionTabHelperTest, RealTimeLookupBlock) {
 
   EXPECT_TRUE(tab_helper()->IsScreenshotProtectionEnabled());
   EXPECT_EQ(fake_rt_lookup_service_->start_lookup_count(), 1u);
+
+  histogram_tester.ExpectUniqueSample(
+      DataProtectionTabHelper::kScreenshotBlockLookupSuccessHistogram, true, 1);
+  histogram_tester.ExpectUniqueSample(
+      DataProtectionTabHelper::kScreenshotBlockSourceHistogram,
+      ScreenshotBlockSource::kRealtimeLookup, 1);
 }
 
 // Tests that screenshot protection stays enabled when real-time lookup fails.
 TEST_F(DataProtectionTabHelperTest, RealTimeLookupFailed) {
+  base::HistogramTester histogram_tester;
   GURL protected_url(kProtectedUrl);
 
   auto context = CreateNavigationContext(protected_url);
@@ -323,6 +343,12 @@ TEST_F(DataProtectionTabHelperTest, RealTimeLookupFailed) {
   // Stays enabled because it's fail-closed.
   EXPECT_TRUE(tab_helper()->IsScreenshotProtectionEnabled());
   EXPECT_EQ(fake_rt_lookup_service_->start_lookup_count(), 1u);
+
+  histogram_tester.ExpectUniqueSample(
+      DataProtectionTabHelper::kScreenshotBlockLookupSuccessHistogram, false,
+      1);
+  histogram_tester.ExpectTotalCount(
+      DataProtectionTabHelper::kScreenshotBlockSourceHistogram, 0);
 }
 
 // Tests that real-time lookup is skipped when no DM token is present.
@@ -338,6 +364,14 @@ TEST_F(DataProtectionTabHelperTest, NoDmTokenSkipsRealTimeLookup) {
   tab_helper()->DidFinishNavigation(web_state_.get(), context.get());
 
   EXPECT_FALSE(tab_helper()->IsScreenshotProtectionEnabled());
+  EXPECT_EQ(fake_rt_lookup_service_->start_lookup_count(), 0u);
+}
+
+// Tests that NTP URLs are skipped.
+TEST_F(DataProtectionTabHelperTest, NTPUrlSkipped) {
+  SetScreenshotBlockRule("*");
+
+  VerifyInitialProtection(GURL(kChromeUINewTabURL), /*expected_enabled=*/false);
   EXPECT_EQ(fake_rt_lookup_service_->start_lookup_count(), 0u);
 }
 
@@ -408,7 +442,8 @@ TEST_F(DataProtectionTabHelperTest, IncognitoSkipsRealTimeLookup) {
                                             context.get());
 
   EXPECT_TRUE(incognito_tab_helper->IsScreenshotProtectionEnabled());
-  EXPECT_EQ(RealTimeUrlLookupServiceFactory::GetForProfile(incognito_profile),
+  EXPECT_EQ(ChromeEnterpriseRealTimeUrlLookupServiceFactory::GetForProfile(
+                incognito_profile),
             nullptr);
 }
 

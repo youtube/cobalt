@@ -79,8 +79,6 @@ FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHFocusHelpBubbleScreenReaderPromoFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHGlicPromoFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(
     kIPHGlicTrustFirstOnboardingShortcutSnoozePromoFeature);
-FEATURE_CONSTANTS_DECLARE_FEATURE(
-    kIPHGlicTrustFirstOnboardingShortcutToastPromoFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHGlicTryItFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHGMCCastStartStopFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHGMCLocalMediaCastingFeature);
@@ -254,6 +252,7 @@ FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHSharingHubLinkToggleFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHSharingHubWebnotesStylizeFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHShoppingListMenuItemFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHShoppingListSaveFlowFeature);
+FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHSiteControlsFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHTabGroupCreationDialogSyncTextFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHTabGroupsDragAndDropFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHTabGroupShareNoticeFeature);
@@ -372,6 +371,7 @@ FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHiOSHomepageCustomizationNewBadge);
 FEATURE_CONSTANTS_DECLARE_FEATURE(
     kIPHiOSOneTimeDefaultBrowserNotificationFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHiOSGeminiImageRemixFeature);
+FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHiOSNewIAPromoFeature);
 
 // FET feature flag that enables AI Hub "New" badge.
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHiOSAIHubNewBadge);
@@ -447,13 +447,14 @@ FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHResumptionRailFeature);
 #endif  // !BUILDFLAG(IS_IOS)
 
 #if BUILDFLAG(IS_WIN)
-FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHSearchExtensionSideloadFeature);
+FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHSearchPromotionFeature);
 COMPONENT_EXPORT(FEATURE_ENGAGEMENT_FEATURE_CONSTANTS)
-extern const base::FeatureParam<std::string> kSideloadExtensionArm;
+BASE_DECLARE_FEATURE_PARAM(std::string, kSearchPromotionArm);
 COMPONENT_EXPORT(FEATURE_ENGAGEMENT_FEATURE_CONSTANTS)
-extern const base::FeatureParam<std::string> kSideloadExtensionEdgeStoreUrl;
+BASE_DECLARE_FEATURE_PARAM(std::string, kSearchPromotionStoreUrl);
 COMPONENT_EXPORT(FEATURE_ENGAGEMENT_FEATURE_CONSTANTS)
-extern const base::FeatureParam<std::string> kSideloadExtensionInstructionsUrl;
+BASE_DECLARE_FEATURE_PARAM(std::string, kSearchPromotionInstructionsUrl);
+
 #endif  // BUILDFLAG(IS_WIN)
 
 }  // namespace feature_engagement

@@ -107,6 +107,8 @@ export declare interface InvokeOptions {
   autoSubmit: boolean;
   /** Feature mode to switch to. */
   featureMode: FeatureMode;
+  /** Target for actuation. */
+  actuationTarget?: ActuationTarget;
   /** Whether to suppress Zero State Suggestions. */
   disableZeroStateSuggestions: boolean;
   /** Skill ID to trigger. */
@@ -518,6 +520,8 @@ export declare interface GlicBrowserHost {
    * Starts a user-interactive process to select content from a tab. The user
    * can select multiple regions.
    *
+   * Uses the optional `params` to control the capture behavior and target tab.
+   *
    * The returned observable will emit a value for each region captured. The
    * client can cancel this operation by unsubscribing from the observable,
    * which will cause the observable to be completed.
@@ -534,7 +538,8 @@ export declare interface GlicBrowserHost {
    * the same or a different client instance), the existing capture session will
    * be terminated and a new one will begin.
    */
-  captureRegion?(): ObservableValue<CaptureRegionResult>;
+  captureRegion?
+      (params?: CaptureRegionParams): ObservableValue<CaptureRegionResult>;
 
   /**
    * Deletes a captured region.
@@ -698,6 +703,13 @@ export declare interface GlicBrowserHost {
    * returned observable will be updated when the global setting changes.
    */
   getDefaultTabContextPermissionState?(): ObservableValue<boolean>;
+
+  /**
+   * Returns the zoom level of the Glic webview.
+   * The client should subscribe to this to be notified of zoom level changes.
+   * The value is a float representing the zoom factor (e.g., 1.5 for 150%).
+   */
+  getZoomLevel?(): ObservableValue<number>;
 
   /**
    * Set the state of the microphone permission in settings. Returns a promise
@@ -1351,6 +1363,11 @@ export declare interface CaptureRegionResult {
    * polygons in the future.
    */
   region?: CapturedRegion;
+}
+
+export declare interface CaptureRegionParams {
+  tabId: string;
+  options: TabContextOptions;
 }
 
 /** An encoded journal. */
@@ -2164,7 +2181,7 @@ export declare interface Observer<T> {
   /** Called when the Observable emits a value. */
   next?(value: T): void;
   /** Called if the Observable emits an error. */
-  error?(err: any): void;
+  error?(err: unknown): void;
   /** Called when the Observable completes. */
   complete?(): void;
 }
@@ -2989,6 +3006,20 @@ export enum FeatureMode {
 
 ///////////////////////////////////////////////
 // WARNING - GENERATED FROM MOJOM, DO NOT EDIT.
+// Target for actuation.
+export enum ActuationTarget {
+  // Will default to the agent if the target is unknown.
+  UNKNOWN = 0,
+  // Agent infers the best location based on the prompt.
+  AGENT_DECIDES = 1,
+  // Forces actuation on the initiating tab.
+  CURRENT_TAB = 2,
+  // Forces actuation in a new tab.
+  NEW_TAB = 3,
+}
+
+///////////////////////////////////////////////
+// WARNING - GENERATED FROM MOJOM, DO NOT EDIT.
 // Web client's operation modes.
 export enum WebClientMode {
   // Text operation mode.
@@ -3025,6 +3056,8 @@ export enum WebUseCounter {
   SUBMIT_PROMPT_WITH_AUTO_MODE = 1,
   TASK_INTERRUPTED_FOR_USER_CONFIRMATION = 2,
   TASK_INTERRUPTED_FOR_USER_CLARIFICATION = 3,
+  SELECTION_TOGGLED_VIA_SHARED_MENU = 4,
+  SELECTION_TOGGLED_VIA_HOT_KEY = 5,
 }
 
 ///////////////////////////////////////////////
@@ -3124,6 +3157,10 @@ export enum HostCapability {
   // Indicates that the host supports auto browse attempting login using Sign in
   // with Google.
   AUTO_LOGIN_SIGN_IN_WITH_GOOGLE = 10,
+  // Indicates that the host supports sharing images via the invoke mechanism.
+  SHARE_IMAGE_VIA_INVOKE = 11,
+  // Indicates that the host supports image drag and drop from the web
+  IMG_WEB_DRAG_DROP = 12,
 }
 
 ///////////////////////////////////////////////

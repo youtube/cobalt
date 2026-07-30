@@ -10,6 +10,7 @@
 <translation id="19426210786412737">Chrome-ren oraingo ezarpenak eguneratu egin dira webguneei hirugarrenen cookieak erabiltzeko baimena emateko. Nahi duzunean alda dezakezu ezarpena.</translation>
 <translation id="1954777269544683286">Datuak webguneetan zure jarraipena egiteko erabiliko ez dituztela publikoki adierazteko eskatzen die Google-k enpresei. Datuak nola erabiltzen dituzten jakinarazteko erantzukizuna dute enpresek. <ph name="BEGIN_LINK" />Lortu informazio gehiago gure Pribatutasun-gidalerroetan<ph name="END_LINK" />.</translation>
 <translation id="2004697686368036666">Baliteke webgune batzuetako eginbideek ez funtzionatzea</translation>
+<translation id="2183376768278472507">Webguneak espero bezala funtzionatzen ez badu, hirugarrenen cookieak onar ditzakezu webgune jakin horretan</translation>
 <translation id="2235344399760031203">Hirugarrenen cookieak blokeatuta daude</translation>
 <translation id="235832722106476745">Chrome-k automatikoki ezabatzen ditu 4 aste baino gehiago dituzten iragarkien gaiak.</translation>
 <translation id="2496115946829713659">Webguneek hirugarrenen cookieak erabil ditzakete edukia eta iragarkiak pertsonalizatzeko, baita beste webgune batzuetan egiten dituzun jarduerei buruzko informazioa lortzeko ere</translation>
@@ -39,7 +40,6 @@
 <translation id="4616029578858572059">Azkenaldiko arakatze-historian oinarrituta, interesatzen zaizkizun gaiak erregistratzen ditu Chromium-ek. Adibidez, kirolak, moda eta beste gauza batzuk.</translation>
 <translation id="4692439979815346597">Iragarkien gaiak Chrome-ren ezarpenetan ikus ditzakezu, eta webguneekin partekatu nahi ez dituzunak blokeatu</translation>
 <translation id="4711259472133554310">Salbuespenak sor ditzakezu Ezarpenak atalean webgune jakin batzuei hirugarrenen cookieak beti erabiltzeko baimena emateko</translation>
-<translation id="4894490899128180322">Webguneak espero bezala funtzionatzen ez badu, hirugarrenen cookieak aldi baterako onar ditzakezu webgune jakin horretan</translation>
 <translation id="5055880590417889642">Webgune batek iragarkiak iradokitzeko erabil ditzakeen gauzetako bat zure jarduerak dira. Webguneek iradokitako iragarkiak desaktibatuta daudenean, baliteke webguneetan agertzen diren iragarkiak hain pertsonalizatuak ez izatea. Lortu informazio gehiago</translation>
 <translation id="5117284457376555514">Webguneek ezin dute erabili hirugarrenen cookierik edukia eta iragarkiak pertsonalizatzeko edo beste webgune batzuetan egiten dituzun jarduerei buruzko informazio lortzeko, erlazionatutako webguneei haiek atzitzeko baimena ematen ez badiezu. Baliteke webgune batzuek espero bezala ez funtzionatzea.</translation>
 <translation id="544199055391706031">Webgune batek iragarkiak iradokitzeko erabil ditzakeen gauzetako bat zure jarduerak dira. Webguneek iradokitako iragarkiak desaktibatuta daudenean, baliteke webguneetan agertzen diren iragarkiak hain pertsonalizatuak ez izatea. Lortu <ph name="BEGIN_LINK" />webguneek iradokitako iragarkiei<ph name="END_LINK" /> buruzko informazio gehiago.</translation>

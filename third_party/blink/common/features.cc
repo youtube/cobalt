@@ -68,7 +68,11 @@ BASE_FEATURE(kAndroidDesktopUAPlatform, base::FEATURE_DISABLED_BY_DEFAULT);
 // Avoids copying ResourceRequest::TrustedParams when possible.
 BASE_FEATURE(kAvoidTrustedParamsCopies, base::FEATURE_ENABLED_BY_DEFAULT);
 
+#if BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kUnthrottleAsyncTouchMoves, base::FEATURE_ENABLED_BY_DEFAULT);
+#else
 BASE_FEATURE(kUnthrottleAsyncTouchMoves, base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
 
 const base::FeatureParam<AsyncTouchMoveThrottlingPolicy>::Option
     async_touch_move_throttling_policies[] = {
@@ -76,13 +80,12 @@ const base::FeatureParam<AsyncTouchMoveThrottlingPolicy>::Option
          "unthrottled_when_gsu_unconsumed"},
         {AsyncTouchMoveThrottlingPolicy::kUnthrottledAlways,
          "unthrottled_always"}};
-BASE_FEATURE_ENUM_PARAM(
-    AsyncTouchMoveThrottlingPolicy,
-    kAsyncTouchMoveThrottlingPolicyParam,
-    &kUnthrottleAsyncTouchMoves,
-    "policy",
-    AsyncTouchMoveThrottlingPolicy::kUnthrottledWhenGsuUnconsumed,
-    &async_touch_move_throttling_policies);
+BASE_FEATURE_ENUM_PARAM(AsyncTouchMoveThrottlingPolicy,
+                        kAsyncTouchMoveThrottlingPolicyParam,
+                        &kUnthrottleAsyncTouchMoves,
+                        "policy",
+                        AsyncTouchMoveThrottlingPolicy::kUnthrottledAlways,
+                        &async_touch_move_throttling_policies);
 
 // Block all MIDI access with the MIDI_SYSEX permission
 BASE_FEATURE(kBlockMidiByDefault, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -789,11 +792,6 @@ BASE_FEATURE(kFencedFramesReportEventHeaderChanges,
 BASE_FEATURE(kFencedFramesSrcPermissionsPolicy,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Controls access to an API to exempt certain URLs from fenced frame
-// network revocation to facilitate testing.
-BASE_FEATURE(kExemptUrlFromNetworkRevocationForTesting,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Use "style" and "json" destinations for CSS and JSON modules.
 // https://crbug.com/1491336
 BASE_FEATURE(kFetchDestinationJsonCssModules,
@@ -1082,6 +1080,11 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    &kInlineScriptCache,
                    "timeout",
                    base::Milliseconds(100));
+BASE_FEATURE_PARAM(bool,
+                   kInlineScriptCacheEnabledForDefaultHint,
+                   &kInlineScriptCache,
+                   "enable_for_default_hint",
+                   true);
 
 BASE_FEATURE(kInputPredictorTypeChoice, base::FEATURE_DISABLED_BY_DEFAULT);
 

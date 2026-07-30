@@ -7,6 +7,7 @@ package org.chromium.chrome.browser.tab_bottom_sheet;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -28,10 +29,10 @@ import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.chrome.browser.tab_bottom_sheet.TabBottomSheetProperties.ResizingState;
+import org.chromium.chrome.browser.context_sharing.R;
+import org.chromium.chrome.browser.tab_bottom_sheet.WebViewResizingHelper.ResizeLock;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController.SheetState;
-import org.chromium.components.browser_ui.widget.R;
 import org.chromium.ui.display.DisplayAndroid;
 import org.chromium.ui.modelutil.PropertyModel;
 
@@ -52,6 +53,8 @@ public class TabBottomSheetMediatorTest {
     @Mock private CoBrowseViews mCoBrowseViews;
     @Mock private TabBottomSheetWebUiContainer mView;
     @Mock private ViewParent mParent;
+    @Mock private WebViewResizingHelper mWebViewResizingHelper;
+    @Mock private ResizeLock mResizeLock;
 
     @Before
     public void setUp() {
@@ -60,6 +63,8 @@ public class TabBottomSheetMediatorTest {
         when(mCoBrowseViews.getView()).thenReturn(mView);
         when(mView.getContext()).thenReturn(mContext);
         when(mView.getParent()).thenReturn(mParent);
+        when(mCoBrowseViews.getWebViewResizingHelper()).thenReturn(mWebViewResizingHelper);
+        when(mWebViewResizingHelper.requestResize()).thenReturn(mResizeLock);
 
         mModel = TabBottomSheetProperties.createDefaultModel(mCoBrowseViews);
         mMediator = new TabBottomSheetMediator(mContext, mModel, mCoBrowseViews, 0.7f, 0.9f);
@@ -71,6 +76,7 @@ public class TabBottomSheetMediatorTest {
         mMediator.onSheetStateChanged(BottomSheetController.SheetState.FULL);
         assertEquals(BottomSheetController.SheetState.FULL, mMediator.getSheetStateForTesting());
         assertEquals(0.0f, mModel.get(TabBottomSheetProperties.PEEK_STATE_ALPHA), EPSILON);
+        assertEquals(1.0f, mModel.get(TabBottomSheetProperties.EXPANDED_STATE_ALPHA), EPSILON);
     }
 
     @Test
@@ -79,6 +85,7 @@ public class TabBottomSheetMediatorTest {
         mMediator.onSheetStateChanged(BottomSheetController.SheetState.PEEK);
         assertEquals(BottomSheetController.SheetState.PEEK, mMediator.getSheetStateForTesting());
         assertEquals(1.0f, mModel.get(TabBottomSheetProperties.PEEK_STATE_ALPHA), EPSILON);
+        assertEquals(0.0f, mModel.get(TabBottomSheetProperties.EXPANDED_STATE_ALPHA), EPSILON);
     }
 
     @Test
@@ -87,6 +94,7 @@ public class TabBottomSheetMediatorTest {
         mMediator.onSheetStateChanged(BottomSheetController.SheetState.HALF);
         assertEquals(BottomSheetController.SheetState.HALF, mMediator.getSheetStateForTesting());
         assertEquals(0.0f, mModel.get(TabBottomSheetProperties.PEEK_STATE_ALPHA), EPSILON);
+        assertEquals(1.0f, mModel.get(TabBottomSheetProperties.EXPANDED_STATE_ALPHA), EPSILON);
     }
 
     @Test
@@ -98,18 +106,46 @@ public class TabBottomSheetMediatorTest {
         mMediator.updateCrossFadeAlpha(peekHeight);
 
         assertEquals(1.0f, mModel.get(TabBottomSheetProperties.PEEK_STATE_ALPHA), EPSILON);
+        assertEquals(0.0f, mModel.get(TabBottomSheetProperties.EXPANDED_STATE_ALPHA), EPSILON);
     }
 
     @Test
     @SmallTest
-    public void testUpdateCrossFadeAlpha_Transition() {
+    public void testUpdateCrossFadeAlpha_Transition_FirstHalf() {
         int peekHeight = 100;
-        float offsetPx = 150f;
+        float offsetPx = 125f; // Quarter way
 
         mMediator.setPeekHeight(peekHeight);
         mMediator.updateCrossFadeAlpha(offsetPx);
 
         assertEquals(0.5f, mModel.get(TabBottomSheetProperties.PEEK_STATE_ALPHA), EPSILON);
+        assertEquals(0.0f, mModel.get(TabBottomSheetProperties.EXPANDED_STATE_ALPHA), EPSILON);
+    }
+
+    @Test
+    @SmallTest
+    public void testUpdateCrossFadeAlpha_Transition_Midpoint() {
+        int peekHeight = 100;
+        float offsetPx = 150f; // Midpoint
+
+        mMediator.setPeekHeight(peekHeight);
+        mMediator.updateCrossFadeAlpha(offsetPx);
+
+        assertEquals(0.0f, mModel.get(TabBottomSheetProperties.PEEK_STATE_ALPHA), EPSILON);
+        assertEquals(0.0f, mModel.get(TabBottomSheetProperties.EXPANDED_STATE_ALPHA), EPSILON);
+    }
+
+    @Test
+    @SmallTest
+    public void testUpdateCrossFadeAlpha_Transition_SecondHalf() {
+        int peekHeight = 100;
+        float offsetPx = 175f; // Three-quarters way
+
+        mMediator.setPeekHeight(peekHeight);
+        mMediator.updateCrossFadeAlpha(offsetPx);
+
+        assertEquals(0.0f, mModel.get(TabBottomSheetProperties.PEEK_STATE_ALPHA), EPSILON);
+        assertEquals(0.5f, mModel.get(TabBottomSheetProperties.EXPANDED_STATE_ALPHA), EPSILON);
     }
 
     @Test
@@ -122,6 +158,7 @@ public class TabBottomSheetMediatorTest {
         mMediator.updateCrossFadeAlpha(offsetPx);
 
         assertEquals(0.0f, mModel.get(TabBottomSheetProperties.PEEK_STATE_ALPHA), EPSILON);
+        assertEquals(1.0f, mModel.get(TabBottomSheetProperties.EXPANDED_STATE_ALPHA), EPSILON);
     }
 
     @Test
@@ -131,6 +168,7 @@ public class TabBottomSheetMediatorTest {
         mMediator.updateCrossFadeAlpha(100);
 
         assertEquals(0.0f, mModel.get(TabBottomSheetProperties.PEEK_STATE_ALPHA), EPSILON);
+        assertEquals(1.0f, mModel.get(TabBottomSheetProperties.EXPANDED_STATE_ALPHA), EPSILON);
     }
 
     @Test
@@ -143,6 +181,7 @@ public class TabBottomSheetMediatorTest {
         mMediator.updateCrossFadeAlpha(offsetPx);
 
         assertEquals(1.0f, mModel.get(TabBottomSheetProperties.PEEK_STATE_ALPHA), EPSILON);
+        assertEquals(0.0f, mModel.get(TabBottomSheetProperties.EXPANDED_STATE_ALPHA), EPSILON);
     }
 
     @Test
@@ -155,6 +194,7 @@ public class TabBottomSheetMediatorTest {
         mMediator.updateCrossFadeAlpha(offsetPx);
 
         assertEquals(0.0f, mModel.get(TabBottomSheetProperties.PEEK_STATE_ALPHA), EPSILON);
+        assertEquals(1.0f, mModel.get(TabBottomSheetProperties.EXPANDED_STATE_ALPHA), EPSILON);
     }
 
     @Test
@@ -263,29 +303,28 @@ public class TabBottomSheetMediatorTest {
     @SmallTest
     public void testSetToFlexibleHeight() {
         mMediator.setToFlexibleHeight();
-
-        ResizingState state = mModel.get(TabBottomSheetProperties.RESIZING_STATE);
-        Assert.assertFalse(state.atFixedHeight);
-        assertEquals(-1, state.webUiContainerHeight);
+        verify(mWebViewResizingHelper).setToFlexibleHeight();
     }
 
     @Test
     @SmallTest
     public void testSetToFixedHeight() {
         mMediator.setToFixedHeight(MAX_OFFSET);
-
-        ResizingState state = mModel.get(TabBottomSheetProperties.RESIZING_STATE);
-        Assert.assertTrue(state.atFixedHeight);
-        assertEquals(MAX_OFFSET, state.webUiContainerHeight);
+        verify(mWebViewResizingHelper).setToFixedHeight(MAX_OFFSET);
     }
 
     @Test
     @SmallTest
     public void testOnSheetResizingStatusChanged() {
         mMediator.onSheetResizingStatusChanged(true);
-        Assert.assertTrue(mModel.get(TabBottomSheetProperties.IS_RESIZING));
+        verify(mWebViewResizingHelper).requestResize();
+        verify(mResizeLock, never()).unlock();
+
+        mMediator.onSheetResizingStatusChanged(true);
+        verify(mWebViewResizingHelper).requestResize();
+        verify(mResizeLock, never()).unlock();
 
         mMediator.onSheetResizingStatusChanged(false);
-        Assert.assertFalse(mModel.get(TabBottomSheetProperties.IS_RESIZING));
+        verify(mResizeLock).unlock();
     }
 }

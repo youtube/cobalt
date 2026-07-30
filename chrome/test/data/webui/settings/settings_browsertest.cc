@@ -255,6 +255,10 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, AiModeSearchPage) {
   RunTest("settings/ai_mode_search_page_test.js", "mocha.run()");
 }
 
+IN_PROC_BROWSER_TEST_F(SettingsTest, AiSuggestionsPage) {
+  RunTest("settings/ai_suggestions_page_test.js", "mocha.run()");
+}
+
 IN_PROC_BROWSER_TEST_F(SettingsTest, LoggingInfoBullet) {
   RunTest("settings/ai_logging_info_bullet_test.js", "mocha.run()");
 }
@@ -265,6 +269,10 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, PolicyIndicator) {
 
 IN_PROC_BROWSER_TEST_F(SettingsTest, ExtensionControlledIndicator) {
   RunTest("settings/extension_controlled_indicator_test.js", "mocha.run()");
+}
+
+IN_PROC_BROWSER_TEST_F(SettingsTest, ExtensionControlledMessage) {
+  RunTest("settings/extension_controlled_message_test.js", "mocha.run()");
 }
 
 IN_PROC_BROWSER_TEST_F(SettingsTest, FileSystemSettingsSiteDetails) {
@@ -325,7 +333,13 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, MAYBE_SettingsMain) {
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING) && !BUILDFLAG(IS_CHROMEOS)
 IN_PROC_BROWSER_TEST_F(SettingsTest, MetricsReporting) {
-  RunTest("settings/metrics_reporting_test.js", "mocha.run()");
+  RunTest("settings/metrics_reporting_test.js",
+          "runMochaSuite('MetricsReporting')");
+}
+
+IN_PROC_BROWSER_TEST_F(SettingsTest, MetricsConsentRestructureDisabled) {
+  RunTest("settings/metrics_reporting_test.js",
+          "runMochaSuite('MetricsConsentRestructureDisabled')");
 }
 #endif
 

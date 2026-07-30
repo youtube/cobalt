@@ -34,7 +34,7 @@ function logBigImageUrl() {
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = 'rgb(200, 0, 0)';
   ctx.fillRect(10, 20, 30, 40);
-  console.log(canvas.toDataURL());
+  console.info(canvas.toDataURL());
 }
 
 const basicNotificationOptions = {
@@ -118,7 +118,7 @@ function succeedTest(testName) {
           chrome.test.succeed(testName);
         },
         function(error) {
-          console.log(
+          console.info(
               'Unknown error in clearAll: ' + JSON.stringify(arguments));
         });
   };
@@ -131,7 +131,7 @@ function failTest(testName) {
           chrome.test.fail(testName);
         },
         function(error) {
-          console.log(
+          console.info(
               'Unknown error in clearAll: ' + JSON.stringify(error.message));
         });
   };
@@ -139,7 +139,7 @@ function failTest(testName) {
 
 function testIdUsage() {
   const testName = 'testIdUsage';
-  console.log('Starting testIdUsage.');
+  console.info('Starting testIdUsage.');
   const succeed = succeedTest(testName);
   const fail = failTest(testName);
 
@@ -185,7 +185,7 @@ function testIdUsage() {
 
 function testIdLimit() {
   const testName = 'testIdLimit';
-  console.log(`Starting ${testName}`);
+  console.info(`Starting ${testName}`);
   const succeed = succeedTest(testName);
   const fail = failTest(testName);
 
@@ -202,7 +202,7 @@ function testIdLimit() {
 
 function testBaseFormat() {
   const testName = 'testBaseFormat';
-  console.log(`Starting ${testName}`);
+  console.info(`Starting ${testName}`);
   const succeed = succeedTest(testName);
   const fail = failTest(testName);
 
@@ -277,7 +277,7 @@ function testBaseFormat() {
 
 function testListItem() {
   const testName = 'testListItem';
-  console.log(`Starting ${testName}`);
+  console.info(`Starting ${testName}`);
   const succeed = succeedTest(testName);
   const fail = failTest(testName);
 
@@ -296,23 +296,27 @@ function testListItem() {
 }
 
 function arrayEquals(a, b) {
-  if (a === b)
+  if (a === b) {
     return true;
-  if (a == null || b == null)
+  }
+  if (a == null || b == null) {
     return false;
-  if (a.length !== b.length)
+  }
+  if (a.length !== b.length) {
     return false;
+  }
 
   for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i])
+    if (a[i] !== b[i]) {
       return false;
+    }
   }
   return true;
 }
 
 function testGetAll() {
   const testName = 'testGetAll';
-  console.log(`Starting ${testName}`);
+  console.info(`Starting ${testName}`);
   const succeed = succeedTest(testName);
   const fail = failTest(testName);
   const in_ids = ['a', 'b', 'c', 'd'];
@@ -343,7 +347,7 @@ function testGetAll() {
 
 function testProgress() {
   const testName = 'testProgress';
-  console.log(`Starting ${testName}`);
+  console.info(`Starting ${testName}`);
   const succeed = succeedTest(testName);
   const fail = failTest(testName);
   const progressOptions = {
@@ -389,7 +393,7 @@ function testProgress() {
 
 function testLargeImage() {
   const testName = 'testLargeImage';
-  console.log(`Starting ${testName}`);
+  console.info(`Starting ${testName}`);
   const succeed = succeedTest(testName);
   const fail = failTest(testName);
   const options = {

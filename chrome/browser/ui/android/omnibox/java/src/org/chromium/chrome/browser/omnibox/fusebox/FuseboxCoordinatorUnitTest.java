@@ -8,6 +8,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -31,7 +32,6 @@ import android.view.View;
 import androidx.constraintlayout.widget.ConstraintLayout;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -71,6 +71,7 @@ import org.chromium.ui.shadows.ShadowAsyncLayoutInflater;
 
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
 
@@ -98,6 +99,8 @@ public class FuseboxCoordinatorUnitTest {
 
     private final SettableNonNullObservableSupplier<TabModelSelector> mTabModelSelectorSupplier =
             ObservableSuppliers.createNonNull(mTabModelSelector);
+    private final SettableNonNullObservableSupplier<List<SuggestedTabInfo>> mSuggestedTabsSupplier =
+            ObservableSuppliers.createNonNull(List.of());
     private final OneshotSupplierImpl<TemplateUrlService> mTemplateUrlServiceSupplier =
             new OneshotSupplierImpl<>();
     private final Function<Tab, Bitmap> mTabFaviconFunction = (tab) -> mBitmap;
@@ -118,6 +121,7 @@ public class FuseboxCoordinatorUnitTest {
         lenient().doReturn(mTabModel).when(mTabModelSelector).getCurrentModel();
         lenient().doReturn(Collections.emptyIterator()).when(mTabModel).iterator();
         doReturn(true).when(mComposebox).isFuseboxEligible();
+        doReturn(mSuggestedTabsSupplier).when(mComposebox).getSuggestedTabsSupplier();
 
         mAutocompleteInput =
                 new AutocompleteInput()
@@ -323,9 +327,6 @@ public class FuseboxCoordinatorUnitTest {
         mCoordinator.setMediatorForTesting(mMediator);
         mCoordinator.getViewHolderForTesting().addButton.setVisibility(View.VISIBLE);
         mCoordinator.onContextPopupDismissed();
-        Assert.assertTrue(mCoordinator.getViewHolderForTesting().addButton.isFocused());
-        assertEquals(
-                (int) FuseboxProperties.PopupState.HIDDEN,
-                (int) mCoordinator.getModelForTesting().get(FuseboxProperties.POPUP_STATE));
+        assertTrue(mCoordinator.getViewHolderForTesting().addButton.isFocused());
     }
 }

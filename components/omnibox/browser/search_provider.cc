@@ -277,6 +277,16 @@ void SearchProvider::Start(const AutocompleteInput& input,
     return;
   }
 
+  // Ablate composebox warmup requests if the flag is enabled. Composebox does
+  // not show any personalized requests and therefore warmup requests don't
+  // add benefit.
+  if (omnibox::IsComposebox(input.current_page_classification()) &&
+      input.IsZeroSuggest() &&
+      base::FeatureList::IsEnabled(omnibox::kDisableComposeboxWarmupRequests)) {
+    Stop(AutocompleteStopReason::kClobbered);
+    return;
+  }
+
   keyword_input_ = input;
   const TemplateURL* keyword_provider =
       AutocompleteInput::GetSubstitutingTemplateURLForInput(model,
@@ -1227,7 +1237,8 @@ void SearchProvider::AddTransformedHistoryResultsToMap(
     AddMatchToMap(result, GetInput(result.from_keyword()),
                   GetTemplateURL(result.from_keyword()),
                   client()->GetTemplateURLService()->search_terms_data(),
-                  did_not_accept_suggestion, true,
+                  did_not_accept_suggestion,
+                  client()->AllowDeletingBrowserHistory(),
                   providers_.GetKeywordProviderURL() != nullptr, map);
   }
 }

@@ -7,6 +7,7 @@
 #include "third_party/blink/renderer/core/layout/block_node.h"
 #include "third_party/blink/renderer/core/layout/box_fragment_builder.h"
 #include "third_party/blink/renderer/core/layout/constraint_space.h"
+#include "third_party/blink/renderer/core/layout/disable_layout_side_effects_scope.h"
 #include "third_party/blink/renderer/core/layout/geometry/box_strut.h"
 #include "third_party/blink/renderer/core/layout/geometry/logical_size.h"
 #include "third_party/blink/renderer/core/layout/geometry/static_position.h"
@@ -46,6 +47,24 @@ LayoutUnit GetLogicalBaseline(const LogicalBoxFragment& baseline_fragment,
              : baseline_fragment.FirstBaselineOrSynthesize(font_baseline);
 }
 
+void SetTrackBaseline(const GridItemData& grid_item,
+                      GridTrackSizingDirection track_direction,
+                      LayoutUnit baseline,
+                      GridLayoutData& layout_data) {
+  // "If a box spans multiple shared alignment contexts, then it participates
+  //  in first/last baseline alignment within its start-most/end-most shared
+  //  alignment context along that axis"
+  // https://www.w3.org/TR/css-align-3/#baseline-sharing-group
+  const auto& [begin_set_index, end_set_index] =
+      grid_item.SetIndices(track_direction);
+
+  if (grid_item.BaselineGroup(track_direction) == BaselineGroup::kMajor) {
+    layout_data.SetMajorBaseline(track_direction, begin_set_index, baseline);
+  } else {
+    layout_data.SetMinorBaseline(track_direction, end_set_index - 1, baseline);
+  }
+}
+
 void StoreItemBaseline(const LogicalBoxFragment& baseline_fragment,
                        GridTrackSizingDirection track_direction,
                        FontBaseline font_baseline,
@@ -61,20 +80,7 @@ void StoreItemBaseline(const LogicalBoxFragment& baseline_fragment,
                          item.IsLastBaselineSpecified(track_direction));
   const LayoutUnit total_baseline = extra_margin + item_baseline;
 
-  // "If a box spans multiple shared alignment contexts, then it participates
-  //  in first/last baseline alignment within its start-most/end-most shared
-  //  alignment context along that axis"
-  // https://www.w3.org/TR/css-align-3/#baseline-sharing-group
-  const auto& [begin_set_index, end_set_index] =
-      item.SetIndices(track_direction);
-
-  if (item.BaselineGroup(track_direction) == BaselineGroup::kMajor) {
-    layout_data.SetMajorBaseline(track_direction, begin_set_index,
-                                 total_baseline);
-  } else {
-    layout_data.SetMinorBaseline(track_direction, end_set_index - 1,
-                                 total_baseline);
-  }
+  SetTrackBaseline(item, track_direction, total_baseline, layout_data);
 }
 
 LayoutUnit ComputeBaselineOffset(const GridItemData& grid_item,
@@ -104,6 +110,28 @@ LayoutUnit ComputeBaselineOffset(const GridItemData& grid_item,
                                    ? fragment.InlineSize()
                                    : fragment.BlockSize();
   return available_size - baseline_delta - item_size;
+}
+
+const LayoutResult* LayoutGridItemForMeasure(
+    const GridItemData& grid_item,
+    const ConstraintSpace& constraint_space,
+    SizingConstraint sizing_constraint) {
+  const auto& node = grid_item.node;
+
+  // Disable side effects during MinMax computation to avoid potential "MinMax
+  // after layout" crashes. This is not necessary during the layout pass, and
+  // would have a negative impact on performance if used there.
+  //
+  // TODO(ikilpatrick): For subgrid, ideally we don't want to disable side
+  // effects as it may impact performance significantly; this issue can be
+  // avoided by introducing additional cache slots (see crbug.com/1272533).
+  std::optional<DisableLayoutSideEffectsScope> disable_side_effects;
+  if (!node.GetLayoutBox()->NeedsLayout() &&
+      (sizing_constraint != SizingConstraint::kLayout ||
+       grid_item.is_subgridded_to_parent_grid)) {
+    disable_side_effects.emplace();
+  }
+  return node.Layout(constraint_space);
 }
 
 void ComputeAvailableSizes(const BoxStrut& border_scrollbar_padding,

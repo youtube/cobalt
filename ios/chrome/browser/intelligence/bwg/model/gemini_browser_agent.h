@@ -89,21 +89,12 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
 
   // GeminiTabHelperObserver:
   void OnPageContextUpdated(web::WebState* web_state) override;
-  void OnGeminiTabHelperDestroyed(BwgTabHelper* tab_helper) override;
+  void OnGeminiTabHelperDestroyed(GeminiTabHelper* tab_helper) override;
 
   // Checks if the FRE needs to be shown and start the Gemini flow
   // accordingly.
   void StartGeminiFlow(UIViewController* base_view_controller,
                        GeminiStartupState* startup_state);
-
-  // Presents the floaty on a given view controller in a pending state
-  // with a partial PageContext.
-  // TODO(crbug.com/465535924): Deprecated, new callers should use
-  // `StartGeminiFlow` instead.
-  void PresentFloatyWithPendingContext(
-      UIViewController* base_view_controller,
-      std::unique_ptr<optimization_guide::proto::PageContext> page_context,
-      GeminiStartupState* startup_state);
 
   // Updates the page context for the floaty.
   // TODO(crbug.com/465535924): Deprecated, new callers should use
@@ -189,9 +180,9 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   // at that time.
   void SetSessionCommandHandlers();
 
-  // Helper to get the BwgTabHelper for the active web state if it matches the
-  // provided web state.
-  BwgTabHelper* GetActiveTabHelper(web::WebState* web_state);
+  // Helper to get the GeminiTabHelper for the active web state if it matches
+  // the provided web state.
+  GeminiTabHelper* GetActiveTabHelper(web::WebState* web_state);
 
   // Callback for scroll events.
   void OnScrollEvent();
@@ -217,6 +208,9 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
 
   // Returns true if the user has completed the FRE.
   bool HasCompletedFirstRun();
+
+  // Shows a snackbar message informing the user that sign-in is required.
+  void ShowSignInRequiredSnackbar(gemini::EntryPoint entry_point);
 
   // Returns the floaty offset based on current fullscreen progress.
   CGFloat GetFloatyOffset();
@@ -366,6 +360,11 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
 
   // Scoped fullscreen disabler.
   std::unique_ptr<ScopedFullscreenDisabler> fullscreen_disabler_;
+
+  // Scoped fullscreen observervation.
+  base::ScopedObservation<FullscreenBrowserAgent,
+                          FullscreenBrowserAgentObserver>
+      fullscreen_observation_{this};
 
   // Timer to reset the fullscreen disabler. Re-enabling fullscreen should be
   // handled in floaty interaction logic such as the floaty being collapsed or

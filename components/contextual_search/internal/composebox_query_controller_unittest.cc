@@ -19,6 +19,7 @@
 #include "base/unguessable_token.h"
 #include "base/version_info/channel.h"
 #include "components/contextual_search/internal/test_composebox_query_controller.h"
+#include "components/contextual_tasks/public/features.h"
 #include "components/lens/contextual_input.h"
 #include "components/lens/lens_bitmap_processing.h"
 #include "components/lens/lens_features.h"
@@ -153,6 +154,10 @@ class ComposeboxQueryControllerTest
     } else {
       disabled_features.push_back(lens::features::kLensSendRawFileMediaTypes);
     }
+    // TODO(crbug.com/503732217): Fix tests to support lazy fetching of cluster
+    // info and enable this feature by default in tests.
+    disabled_features.push_back(
+        contextual_tasks::kContextualTasksLazyFetchClusterInfo);
     scoped_feature_list_.InitWithFeatures(enabled_features, disabled_features);
 
     // Create the config params.
@@ -576,7 +581,27 @@ class ComposeboxQueryControllerTest
 };
 
 TEST_F(ComposeboxQueryControllerTest,
-       InitializeIfNeededIssuesClusterInfoRequest) {
+       InitializeIfNeededDoesNotIssueClusterInfoRequest) {
+  // Arrange: Enable the lazy fetch feature.
+  base::test::ScopedFeatureList local_feature_list;
+  local_feature_list.InitAndEnableFeature(
+      contextual_tasks::kContextualTasksLazyFetchClusterInfo);
+
+  // Act: Start the session.
+  controller().InitializeIfNeeded();
+
+  // Assert: No cluster info request is made.
+  EXPECT_TRUE(controller_state_future_.IsEmpty());
+  EXPECT_EQ(QueryControllerState::kOff, controller().query_controller_state());
+}
+
+TEST_F(ComposeboxQueryControllerTest,
+       InitializeIfNeededIssuesClusterInfoRequestWhenLazyFetchDisabled) {
+  // Arrange: Disable the lazy fetch feature.
+  base::test::ScopedFeatureList local_feature_list;
+  local_feature_list.InitAndDisableFeature(
+      contextual_tasks::kContextualTasksLazyFetchClusterInfo);
+
   // Act: Start the session.
   controller().InitializeIfNeeded();
 
@@ -584,18 +609,19 @@ TEST_F(ComposeboxQueryControllerTest,
   WaitForClusterInfo();
 }
 
-TEST_F(ComposeboxQueryControllerTest, InitializeIfNeededSecondTimeDoesNothing) {
-  // Act: Start the session.
-  controller().InitializeIfNeeded();
+TEST_F(ComposeboxQueryControllerTest,
+       StartFileUploadFlowIssuesClusterInfoRequestIfOff) {
+  // Arrange: Enable the lazy fetch feature.
+  base::test::ScopedFeatureList local_feature_list;
+  local_feature_list.InitAndEnableFeature(
+      contextual_tasks::kContextualTasksLazyFetchClusterInfo);
+
+  // Act: Start file upload flow without calling InitializeIfNeeded.
+  const base::UnguessableToken file_token = base::UnguessableToken::Create();
+  StartPdfFileUploadFlow(file_token, /*file_data=*/std::vector<uint8_t>());
 
   // Assert: Validate cluster info request and state changes.
   WaitForClusterInfo();
-
-  // Act: Start the session again.
-  controller().InitializeIfNeeded();
-
-  // Assert: No cluster info request is made.
-  EXPECT_TRUE(controller_state_future_.IsEmpty());
 }
 
 TEST_F(ComposeboxQueryControllerTest,
@@ -1570,7 +1596,8 @@ TEST_F(ComposeboxQueryControllerTest,
             ContextUploadStatus::kUploadExpired);
 }
 
-TEST_F(ComposeboxQueryControllerTest, UploadPdfFileRequestSuccessWithImplicitUpload_SetsIsImplicitUpload) {
+TEST_F(ComposeboxQueryControllerTest,
+       UploadPdfFileRequestSuccessWithImplicitUpload_SetsIsImplicitUpload) {
   // Act: Start the session.
   controller().InitializeIfNeeded();
 
@@ -1595,9 +1622,9 @@ TEST_F(ComposeboxQueryControllerTest, UploadPdfFileRequestSuccessWithImplicitUpl
 
   // Assert: Check that is_implicit_upload is set correctly.
   EXPECT_TRUE(controller()
-                .GetFileInfoForTesting(file_token)
-                ->GetRequestIdForTesting()
-                ->is_implicit_upload());
+                  .GetFileInfoForTesting(file_token)
+                  ->GetRequestIdForTesting()
+                  ->is_implicit_upload());
 }
 
 TEST_F(ComposeboxQueryControllerTest, UploadPdfFileRequest_SetsContextId) {
@@ -3897,8 +3924,8 @@ TEST_F(ComposeboxQueryControllerTest,
 TEST_F(ComposeboxQueryControllerTest,
        MultiContextPdfAndImageUploadQueryHasCinptsAndQueryParam) {
   CreateController(
-    /*send_lns_surface=*/false,
-    /*suppress_lns_surface_param_if_no_image=*/true);
+      /*send_lns_surface=*/false,
+      /*suppress_lns_surface_param_if_no_image=*/true);
 
   // Act: Start the session.
   controller().InitializeIfNeeded();
@@ -3949,7 +3976,7 @@ TEST_F(ComposeboxQueryControllerTest,
 
   // Assert: cinpts parameter is present with both file request IDs.
   lens::LensOverlayContextualInputs contextual_inputs =
-    GetContextualInputsFromUrl(aim_url.spec());
+      GetContextualInputsFromUrl(aim_url.spec());
   EXPECT_EQ(contextual_inputs.inputs_size(), 2);
 
   // The files may be in any order, so find which is PDF and which is image.
@@ -4189,6 +4216,59 @@ TEST_F(ComposeboxQueryControllerTest, ClearFiles) {
 
   // Check that file is no longer in cache.
   EXPECT_FALSE(controller().GetFileInfoForTesting(file_token));
+}
+
+TEST_F(ComposeboxQueryControllerTest,
+       QuerySubmittedWithLnsSurfaceAndNoImageSuppressedForSvg) {
+  CreateController(
+      /*send_lns_surface=*/true,
+      /*suppress_lns_surface_param_if_no_image=*/true,
+      /*enable_viewport_images=*/false,
+      /*use_separate_request_ids_for_viewport_images=*/false,
+      /*enable_cluster_info_ttl=*/false,
+      /*prioritize_suggestions_for_the_first_attached_document=*/false,
+      /*attach_page_title_and_url_to_suggest_requests=*/false,
+      /*enable_send_vit_for_single_context_next_queries=*/true,
+      /*enable_send_raw_file_media_types=*/true);
+
+  // Act: Start the session.
+  controller().InitializeIfNeeded();
+
+  // Assert: Validate cluster info request and state changes.
+  WaitForClusterInfo();
+
+  // Act: Start the file upload flow.
+  const base::UnguessableToken file_token = base::UnguessableToken::Create();
+  std::unique_ptr<lens::ContextualInputData> input_data =
+      std::make_unique<lens::ContextualInputData>();
+  input_data->primary_content_type = lens::MimeType::kUnknown;
+  input_data->mime_type_string = "image/svg+xml";
+  input_data->context_input = std::vector<lens::ContextualInput>();
+  input_data->context_input->push_back(
+      lens::ContextualInput(std::vector<uint8_t>(), lens::MimeType::kUnknown));
+
+  controller().StartFileUploadFlow(file_token, std::move(input_data),
+                                   /*image_options=*/std::nullopt);
+
+  // Assert: Validate file upload request and status changes.
+  WaitForFileUpload(file_token, lens::MimeType::kUnknown);
+
+  // Act: Create the destination URL for the query.
+  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
+      std::make_unique<CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = "hello";
+  search_url_request_info->query_start_time = kTestQueryStartTime;
+  search_url_request_info->file_tokens.push_back(file_token);
+  base::test::TestFuture<GURL> url_future;
+  controller().CreateSearchUrl(std::move(search_url_request_info),
+                               url_future.GetCallback());
+  GURL aim_url = url_future.Take();
+
+  // Assert: Lns surface is empty since it was suppressed due to no image.
+  std::string lns_surface_value;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(aim_url, kLnsSurfaceParameterKey,
+                                         &lns_surface_value));
+  EXPECT_EQ(lns_surface_value, "");
 }
 
 TEST_F(ComposeboxQueryControllerTest,
@@ -5725,8 +5805,6 @@ TEST_F(ComposeboxQueryControllerTest, UploadModalityChipSuccess) {
   ASSERT_TRUE(file_info->input_data);
   ASSERT_TRUE(file_info->input_data->modality_chip_props.has_value());
   EXPECT_EQ(file_info->input_data->modality_chip_props->id(), "test_chip_id");
-  EXPECT_EQ(controller().FindTokenForInjectedInput("test_chip_id").value(),
-            file_token);
 
   // Verify that no network requests were sent for the chip upload.
   EXPECT_EQ(controller().num_file_upload_requests_sent(), 0);

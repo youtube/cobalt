@@ -6,6 +6,7 @@
 
 #include <vector>
 
+#include "base/check.h"
 #include "base/feature_list.h"
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
@@ -228,28 +229,6 @@ base::expected<paint_preview::RedactionParams, std::string> GetRedactionParams(
   NOTREACHED();
 }
 
-SkBitmap RedactScreenshotOnWorkerThread(
-    const SkBitmap& bitmap,
-    std::vector<gfx::Rect> visible_bounding_boxes_for_redaction,
-    SkColor4f redaction_color) {
-  if (visible_bounding_boxes_for_redaction.empty()) {
-    return bitmap;
-  }
-
-  SkBitmap redacted_bitmap;
-  redacted_bitmap.setInfo(bitmap.info());
-  redacted_bitmap.allocPixels();
-
-  SkCanvas canvas(redacted_bitmap);
-  SkPaint color;
-  color.setColor(redaction_color);
-  for (const auto& rect : visible_bounding_boxes_for_redaction) {
-    canvas.drawRect(RectToSkRect(rect), color);
-  }
-
-  return redacted_bitmap;
-}
-
 std::string_view ToString(content::CopyFromSurfaceError error) {
   switch (error) {
     case content::CopyFromSurfaceError::kUnknown:
@@ -296,6 +275,39 @@ void RecordPdfRequestState(bool is_pdf_document, bool pdf_found) {
 #endif  // BUILDFLAG(ENABLE_PDF)
 
 }  // namespace
+
+// static
+base::expected<SkBitmap, std::string>
+PageContextFetcher::RedactScreenshotOnWorkerThread(
+    const SkBitmap& bitmap,
+    const std::vector<gfx::Rect>& visible_bounding_boxes_for_redaction,
+    SkColor4f redaction_color) {
+  if (visible_bounding_boxes_for_redaction.empty()) {
+    return bitmap;
+  }
+
+  SkBitmap redacted_bitmap;
+  if (!redacted_bitmap.setInfo(bitmap.info())) {
+    return base::unexpected("Failed to set info for redacted bitmap");
+  }
+
+  if (!redacted_bitmap.tryAllocPixels()) {
+    return base::unexpected("Failed to allocate pixels for redacted bitmap");
+  }
+
+  if (!redacted_bitmap.writePixels(bitmap.pixmap())) {
+    return base::unexpected("Failed to copy pixels for screenshot redaction");
+  }
+
+  SkCanvas canvas(redacted_bitmap);
+  SkPaint paint;
+  paint.setColor(redaction_color);
+  for (const auto& rect : visible_bounding_boxes_for_redaction) {
+    canvas.drawRect(RectToSkRect(rect), paint);
+  }
+
+  return redacted_bitmap;
+}
 
 // static
 std::optional<std::vector<uint8_t>> EncodeScreenshot(
@@ -596,9 +608,14 @@ void PageContextFetcher::RedactAndEncodeScreenshot(
              std::vector<gfx::Rect> visible_bounding_boxes_for_redaction,
              SkColor4f redaction_color,
              std::optional<ScreenshotOptions::ScreenshotCollectionOptions>
-                 screenshot_collection_options) {
-            SkBitmap redacted_bitmap = RedactScreenshotOnWorkerThread(
-                bitmap, visible_bounding_boxes_for_redaction, redaction_color);
+                 screenshot_collection_options)
+              -> base::expected<std::pair<std::vector<uint8_t>, SkBitmap>,
+                                std::string> {
+            ASSIGN_OR_RETURN(SkBitmap redacted_bitmap,
+                             PageContextFetcher::RedactScreenshotOnWorkerThread(
+                                 bitmap, visible_bounding_boxes_for_redaction,
+                                 redaction_color));
+
             std::optional<std::vector<uint8_t>> encoded =
                 EncodeScreenshot(redacted_bitmap, screenshot_collection_options);
             base::expected<std::pair<std::vector<uint8_t>, SkBitmap>,
@@ -851,18 +868,32 @@ FetchPageContextResult::FetchPageContextResult()
     : screenshot_result(base::unexpected("Uninitialized")),
       annotated_page_content_result(base::unexpected("Uninitialized")) {}
 
+FetchPageContextResult::FetchPageContextResult(FetchPageContextResult&&) =
+    default;
+FetchPageContextResult& FetchPageContextResult::operator=(
+    FetchPageContextResult&&) = default;
+
 FetchPageContextResult::~FetchPageContextResult() = default;
 
 PdfResult::PdfResult(url::Origin origin, std::vector<uint8_t> bytes)
-    : origin(std::move(origin)), bytes(std::move(bytes)) {}
+    : origin(std::move(origin)), data(std::move(bytes)) {}
+
+PdfResult::PdfResult(url::Origin origin, std::string text)
+    : origin(std::move(origin)), data(std::move(text)) {}
 
 PdfResult::PdfResult(url::Origin origin)
     : origin(std::move(origin)), size_exceeded(true) {}
+
+PdfResult::PdfResult(PdfResult&&) = default;
+PdfResult& PdfResult::operator=(PdfResult&&) = default;
 
 PdfResult::~PdfResult() = default;
 
 ScreenshotResult::ScreenshotResult(gfx::Size dimensions)
     : dimensions(std::move(dimensions)) {}
+
+ScreenshotResult::ScreenshotResult(ScreenshotResult&&) = default;
+ScreenshotResult& ScreenshotResult::operator=(ScreenshotResult&&) = default;
 
 ScreenshotResult::~ScreenshotResult() = default;
 

@@ -4,9 +4,7 @@
 
 function executeCodeInTab(tabId, callback) {
   chrome.tabs.executeScript(
-      tabId,
-      {code: `document.title = \`hi, I'm on \${location};\``},
-      callback);
+      tabId, {code: `document.title = \`hi, I'm on \${location};\``}, callback);
 }
 
 chrome.test.getConfig(function(config) {
@@ -16,7 +14,7 @@ chrome.test.getConfig(function(config) {
   let testTabId;
 
   function onTabUpdated(tabId, changeInfo, tab) {
-    if (testTabId == tab.id && tab.status == 'complete') {
+    if (testTabId === tab.id && tab.status === 'complete') {
       chrome.tabs.onUpdated.removeListener(onTabUpdated);
       chrome.tabs.update(tabId, {url: urlB});
       executeCodeInTab(testTabId, function() {
@@ -34,7 +32,7 @@ chrome.test.getConfig(function(config) {
           // have run on on b.com (where we do have permission).
           chrome.tabs.get(tabId, function(tab) {
             chrome.test.assertTrue(
-                tab.title.indexOf(`hi, I'm on http://b.com:`) == 0);
+                tab.title.indexOf(`hi, I'm on http://b.com:`) === 0);
             chrome.test.notifyPass();
           });
         }

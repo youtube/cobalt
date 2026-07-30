@@ -8,6 +8,7 @@
 #include <dispatch/dispatch.h>
 #include <stddef.h>
 
+#include <algorithm>
 #include <memory>
 #include <vector>
 
@@ -186,10 +187,13 @@ void BeginHandlingWebAuthenticationSessionRequestWithProfile(
 // not possible. If the last active browser is minimized (in particular, if
 // there are only minimized windows), it will unminimize it.
 Browser* ActivateBrowser(Profile* profile) {
-  BrowserWindowInterface* current_browser = chrome::FindLastActiveWithProfile(
-      profile->IsGuestSession()
-          ? profile->GetPrimaryOTRProfile(/*create_if_needed=*/true)
-          : profile);
+  ProfileBrowserCollection* collection =
+      ProfileBrowserCollection::GetForProfile(
+          profile->IsGuestSession()
+              ? profile->GetPrimaryOTRProfile(/*create_if_needed=*/true)
+              : profile);
+  BrowserWindowInterface* current_browser =
+      collection ? collection->GetLastActiveBrowser() : nullptr;
   Browser* browser =
       current_browser ? current_browser->GetBrowserForMigrationOnly() : nullptr;
 
@@ -455,7 +459,7 @@ void OpenUrlsInBrowser(std::vector<GURL> urls) {
                   continue;
                 }
                 bool is_shortcut_url_valid =
-                    startup::ValidateUrl(shortcut->target_url());
+                    startup::ValidateLaunchUrl(shortcut->target_url());
         // Do not allow chrome sensitive urls to be launched from a .crwebloc
         // file.
 #if BUILDFLAG(ENABLE_EXTENSIONS)
@@ -1061,8 +1065,10 @@ class AppControllerProfileObserver : public ProfileAttributesStorage::Observer,
     // loaded when main message loop ends and we cannot load it from disk now.
     return;
   }
-  DCHECK_EQ(0u, chrome::GetBrowserCount(_lastProfile));
-  if (!chrome::GetBrowserCount(_lastProfile)) {
+  auto* browser_collection =
+      ProfileBrowserCollection::GetForProfile(_lastProfile);
+  DCHECK_EQ(0u, browser_collection ? browser_collection->GetSize() : 0u);
+  if (!browser_collection || !browser_collection->GetSize()) {
     // As we're shutting down, we need to nuke the TabRestoreService, which
     // will start the shutdown of the NavigationControllers and allow for
     // proper shutdown. If we don't do this, Chrome won't shut down cleanly,
@@ -1372,54 +1378,85 @@ class AppControllerProfileObserver : public ProfileAttributesStorage::Observer,
 // user to see if we should continue to exit (and thus cancel the downloads), or
 // if we should wait.
 - (BOOL)shouldQuitWithInProgressDownloads {
-  ProfileManager* profile_manager = g_browser_process->profile_manager();
-  if (!profile_manager)
+  ProfileManager* profileManager = g_browser_process->profile_manager();
+  if (!profileManager) {
     return YES;
-
-  std::vector<Profile*> profiles(profile_manager->GetLoadedProfiles());
-
-  std::vector<Profile*> added_profiles;
-  for (Profile* profile : profiles) {
-    for (Profile* otr : profile->GetAllOffTheRecordProfiles())
-      added_profiles.push_back(otr);
   }
-  profiles.insert(profiles.end(), added_profiles.begin(), added_profiles.end());
 
-  for (Profile* profile : profiles) {
-    DownloadCoreService* download_core_service =
-        DownloadCoreServiceFactory::GetForBrowserContext(profile);
-    // `DownloadCoreService` can be nullptr for some irregular profiles, e.g.
-    // the System Profile.
-    content::DownloadManager* download_manager =
-        download_core_service &&
-                download_core_service->HasCreatedDownloadManager()
-            ? profile->GetDownloadManager()
-            : nullptr;
-    if (download_manager && download_manager->BlockingShutdownCount() > 0) {
-      int downloadCount = download_manager->BlockingShutdownCount();
-      if ([self userWillWaitForInProgressDownloads:downloadCount]) {
-        // Create a new browser window (if necessary) and navigate to the
-        // downloads page if the user chooses to wait.
-        BrowserWindowInterface* browser =
-            ProfileBrowserCollection::GetForProfile(profile)
-                ->GetLastActiveBrowser();
-        if (!browser) {
-          browser = Browser::Create(Browser::CreateParams(profile, true));
-          browser->GetWindow()->Show();
+  std::vector<Profile*> profiles = profileManager->GetLoadedProfiles();
+
+  // Also consider related OTR profiles.
+  std::vector<Profile*> otrProfiles;
+  for (const auto& profile : profiles) {
+    std::ranges::copy(profile->GetAllOffTheRecordProfiles(),
+                      std::back_inserter(otrProfiles));
+  }
+  std::ranges::copy(otrProfiles, std::back_inserter(profiles));
+
+  // Remove all profiles for which there are no ongoing downloads.
+  int totalBlockingDownloadCount = 0;
+  auto removed = std::ranges::remove_if(
+      profiles, [&totalBlockingDownloadCount](Profile* profile) {
+        // `DownloadCoreService` can be nullptr for some irregular profiles,
+        // e.g. the System Profile.
+        DownloadCoreService* downloadCoreService =
+            DownloadCoreServiceFactory::GetForBrowserContext(profile);
+        if (!downloadCoreService) {
+          return true;
         }
-        [[ConfirmQuitPanelController sharedController] cancel];
-        DCHECK(browser);
-        chrome::ShowDownloads(browser->GetBrowserForMigrationOnly());
-        return NO;
-      }
 
-      // User wants to exit.
-      return YES;
-    }
+        // Avoid creating a new download manager if one doesn't already exist.
+        if (!downloadCoreService->HasCreatedDownloadManager()) {
+          return true;
+        }
+
+        int blockingDownloads =
+            profile->GetDownloadManager()->BlockingShutdownCount();
+        totalBlockingDownloadCount += blockingDownloads;
+        return blockingDownloads == 0;
+      });
+  profiles.erase(removed.begin(), removed.end());
+
+  if (profiles.empty()) {
+    // No profiles with active downloads were found, so it is okay to exit.
+    return YES;
   }
 
-  // No profiles or active downloads found, okay to exit.
-  return YES;
+  // A dialog is about to be shown to the user, and that involves running a
+  // nested run loop, during which it is possible that Profiles may disappear.
+  // Therefore, from this point forward, be sure to refer to Profile objects via
+  // weak pointers. See https://crbug.com/507386203.
+  std::vector<base::WeakPtr<Profile>> weakProfiles;
+  weakProfiles.reserve(profiles.size());
+  std::ranges::transform(
+      profiles, std::back_inserter(weakProfiles),
+      [](Profile* profile) { return profile->GetWeakPtr(); });
+
+  // Pop the question, and return if the user chooses to quit.
+  if (![self userWillWaitForInProgressDownloads:totalBlockingDownloadCount]) {
+    return YES;
+  }
+
+  // Display the active downloads, creating new browser windows if necessary.
+  for (auto& profile : weakProfiles) {
+    if (!profile.get()) {
+      continue;
+    }
+
+    BrowserWindowInterface* browser =
+        ProfileBrowserCollection::GetForProfile(profile.get())
+            ->GetLastActiveBrowser();
+    if (!browser) {
+      browser = Browser::Create(
+          Browser::CreateParams(profile.get(), /*user_gesture=*/true));
+      browser->GetWindow()->Show();
+    }
+
+    chrome::ShowDownloads(browser);
+  }
+
+  [ConfirmQuitPanelController.sharedController cancel];
+  return NO;
 }
 
 // Called to determine if we should enable the "restore tab" menu item.
@@ -1962,7 +1999,7 @@ class AppControllerProfileObserver : public ProfileAttributesStorage::Observer,
     base::FilePath::StringViewType urlStringView = urlString;
     if (startup::StripGoogleChromeScheme(urlStringView)) {
       GURL gurl(urlStringView);
-      if (startup::ValidateUrl(gurl)) {
+      if (startup::ValidateLaunchUrl(gurl)) {
         gurlVector.push_back(gurl);
       }
     } else {
@@ -2461,11 +2498,12 @@ class AppControllerProfileObserver : public ProfileAttributesStorage::Observer,
 
 - (void)setLastProfileForTesting:(Profile*)profile {
   _lastProfile = profile;
-  BrowserWindowInterface* current_browser =
-      chrome::FindLastActiveWithProfile(profile);
-  Browser* browser =
-      current_browser ? current_browser->GetBrowserForMigrationOnly() : nullptr;
-  _lastActiveBrowser = browser->GetWeakPtr();
+  ProfileBrowserCollection* collection =
+      ProfileBrowserCollection::GetForProfile(profile);
+  if (!collection) {
+    return;
+  }
+  _lastActiveBrowser = collection->GetLastActiveBrowser()->GetWeakPtr();
 }
 
 @end  // @implementation AppController

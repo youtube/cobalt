@@ -14,16 +14,16 @@
 #include "base/time/time.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/layout_constants.h"
+#include "chrome/browser/ui/page_actions/page_action_controller.h"
+#include "chrome/browser/ui/page_actions/page_action_model.h"
+#include "chrome/browser/ui/page_actions/page_action_model_observer.h"
+#include "chrome/browser/ui/page_actions/page_action_triggers.h"
+#include "chrome/browser/ui/page_actions/test_support/fake_tab_interface.h"
+#include "chrome/browser/ui/page_actions/test_support/mock_page_action_model.h"
+#include "chrome/browser/ui/page_actions/test_support/test_page_action_properties_provider.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
 #include "chrome/browser/ui/views/location_bar/icon_label_bubble_view.h"
-#include "chrome/browser/ui/views/page_action/page_action_controller.h"
-#include "chrome/browser/ui/views/page_action/page_action_model.h"
-#include "chrome/browser/ui/views/page_action/page_action_model_observer.h"
-#include "chrome/browser/ui/views/page_action/page_action_triggers.h"
 #include "chrome/browser/ui/views/page_action/page_action_view_params.h"
-#include "chrome/browser/ui/views/page_action/test_support/fake_tab_interface.h"
-#include "chrome/browser/ui/views/page_action/test_support/mock_page_action_model.h"
-#include "chrome/browser/ui/views/page_action/test_support/test_page_action_properties_provider.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/views/chrome_views_test_base.h"
 #include "components/tabs/public/mock_tab_interface.h"
@@ -363,12 +363,14 @@ TEST_F(PageActionViewTest, ChipStateUpdatesForegroundColor) {
 }
 
 TEST_F(PageActionViewTest, SuggestionText) {
+  EXPECT_CALL(*model(), GetVisible()).WillRepeatedly(Return(true));
   EXPECT_CALL(*model(), GetText()).WillRepeatedly(ReturnRef(kTestText));
   page_action_view()->OnPageActionModelChanged(*model());
   EXPECT_EQ(page_action_view()->GetText(), kTestText);
 }
 
 TEST_F(PageActionViewTest, TooltipText) {
+  EXPECT_CALL(*model(), GetVisible()).WillRepeatedly(Return(true));
   EXPECT_CALL(*model(), GetTooltipText()).WillRepeatedly(ReturnRef(kTestText));
   page_action_view()->OnPageActionModelChanged(*model());
   EXPECT_EQ(page_action_view()->GetTooltipText(), kTestText);
@@ -419,6 +421,7 @@ TEST_F(PageActionViewTest, OnThemeChangedUpdatesIconImage) {
       vector_icons::kBackArrowIcon, ui::kColorSysPrimary, kOriginalIconSize);
   EXPECT_CALL(*model(), GetImage()).WillRepeatedly(ReturnRef(icon_image));
 
+  EXPECT_CALL(*model(), GetVisible()).WillRepeatedly(Return(true));
   page_action_view()->OnPageActionModelChanged(*model());
   EXPECT_EQ(page_action_view()
                 ->GetImageModel(views::Button::STATE_NORMAL)
@@ -446,6 +449,7 @@ TEST_F(PageActionViewTest, UpdateIconImageHandlesDifferentImageTypes) {
   EXPECT_CALL(*model(), GetImage()).WillRepeatedly(ReturnRef(bitmap_image));
 
   // Trigger the icon update.
+  EXPECT_CALL(*model(), GetVisible()).WillRepeatedly(Return(true));
   page_action_view()->OnPageActionModelChanged(*model());
 
   // Check that the image model in the PageActionView is correctly set and is

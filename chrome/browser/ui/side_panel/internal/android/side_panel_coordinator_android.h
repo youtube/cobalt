@@ -53,12 +53,12 @@ class SidePanelCoordinatorAndroid : public SidePanelUIBase {
   void Destroy(JNIEnv* env);
   void NotifyCloseAnimationFinished(JNIEnv* env, SidePanelType panel_type);
   void NotifyOpenAnimationFinished(JNIEnv* env, SidePanelType panel_type);
+  void OnWindowResized(JNIEnv* env, bool should_show_side_panel);
 
   // Implements `SidePanelUI`:
   void ShowFrom(SidePanelEntryKey entry_key,
                 gfx::Rect starting_bounds_in_browser_coordinates) override;
-  void Close(SidePanelType panel_type,
-             SidePanelEntryHideReason hide_reason,
+  void Close(SidePanelEntryHideReason hide_reason,
              bool suppress_animations) override;
   void Toggle(SidePanelEntryKey key,
               SidePanelOpenTrigger open_trigger) override;
@@ -66,9 +66,7 @@ class SidePanelCoordinatorAndroid : public SidePanelUIBase {
   void DisableAnimationsForTesting() override;
   void SetNoDelaysForTesting(bool no_delays_for_testing) override;
 
-  SidePanelEntryWaiter* GetWaiterForTesting(SidePanelType type) {
-    return waiter(type);
-  }
+  SidePanelEntryWaiter* GetWaiterForTesting() { return waiter(); }
 
   bool IsClosing() const { return state_ == SidePanelState::kClosing; }
   bool ShouldClose() const {
@@ -95,13 +93,15 @@ class SidePanelCoordinatorAndroid : public SidePanelUIBase {
   // Delegates to `SidePanelRegistry::ClearCachedEntryViews` in all
   // `SidePanelRegistry` instances accessible from this class, including
   // the window-scoped registry and all contextual (tab-scoped) registries.
-  void ClearCachedEntryViews(SidePanelType type);
+  void ClearCachedEntryViews();
 
   base::android::ScopedJavaLocalRef<jobject> java_coordinator() const;
 
   // Handles the JNI call to Java to populate the side panel UI.
   void PopulateJavaSidePanel(const base::android::JavaRef<jobject>& view,
                              bool suppress_animations);
+
+  bool CanShowEntryForKey(const UniqueKey& key) const;
 
   // The current state of the Side Panel.
   //
@@ -123,6 +123,13 @@ class SidePanelCoordinatorAndroid : public SidePanelUIBase {
   // Tracks the previous entry that is being replaced, which we keep in state
   // until animations have completed and it is fully replaced.
   raw_ptr<SidePanelEntry> pending_replaced_entry_ = nullptr;
+
+  // Whether the window is too small to show a side panel.
+  bool is_window_too_small_ = false;
+
+  // Key of the entry that was hidden when the window became too small.
+  // We'll re-show this entry if the window becomes large enough again.
+  std::optional<UniqueKey> key_to_restore_after_window_resize_;
 
   std::optional<gfx::Rect> last_starting_bounds_;
 

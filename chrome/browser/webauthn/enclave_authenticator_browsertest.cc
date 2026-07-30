@@ -95,6 +95,7 @@
 #include "device/fido/public/features.h"
 #include "device/fido/public/fido_transport_protocol.h"
 #include "device/fido/public/fido_types.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "net/http/http_status_code.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -1685,6 +1686,70 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_EQ(script_result, "\"webauthn: OK\"");
 }
 
+// Regression test for crbug.com/389093329.
+// Tests that Chrome doesn't crash when recovering from another source during a
+// WebAuthn request if GPMEnclaveController advances a step after keys have been
+// stored but before the enclave is ready.
+IN_PROC_BROWSER_TEST_F(OpportunisticKeyRetrievalEnclaveAuthenticatorBrowserTest,
+                       MakeCredentialStoreKeysFromAnotherSource) {
+  // First, make sure we can recover from a PIN.
+  const std::string pin = "123456";
+  base::test::TestFuture<bool> setup_future;
+  enclave_manager().SetupWithPIN(pin, setup_future.GetCallback());
+  ASSERT_TRUE(setup_future.Wait());
+  ASSERT_TRUE(setup_future.Get());
+
+  // Throw away the registration so the UI wants to recover.
+  enclave_manager().ClearRegistrationForTesting();
+
+  // Start a passkey make credential and get to the "trust this device" screen.
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  content::DOMMessageQueue message_queue(web_contents);
+  content::ExecuteScriptAsync(web_contents, kMakeCredentialUvDiscouraged);
+  delegate_observer()->WaitForUI();
+  model_observer()->SetStepToObserve(
+      AuthenticatorRequestDialogModel::Step::kGPMTrustThisComputerCreation);
+  model_observer()->WaitForStep();
+
+  // Simulate key retrieval from another source. This must not yet finish
+  // enrollment (or we are not testing the conditions that cause the crash).
+  SimulateTrustedVaultKeyRetrieval(/*with_store_keys_lock=*/true);
+  ASSERT_FALSE(enclave_manager().IsReady());
+
+  // Accepting the dialog should trigger the "trust this computer" screen again,
+  // since the dialog is reset after key retrieval made the state stale.
+  model_observer()->SetStepToObserve(
+      AuthenticatorRequestDialogModel::Step::kGPMTrustThisComputerCreation);
+  dialog_model()->OnGPMTrustThisComputer();
+  model_observer()->WaitForStep();
+
+  // Now finish enrolling with the enclave.
+  base::test::TestFuture<bool> enroll_enclave_future;
+  enclave_manager().AddDeviceAndPINToAccount(
+      pin, security_domain_service_->GetPinMemberPublicKey(),
+      enroll_enclave_future.GetCallback());
+  ASSERT_TRUE(enroll_enclave_future.Wait());
+  ASSERT_TRUE(enroll_enclave_future.Get());
+  ASSERT_TRUE(enclave_manager().IsReady());
+
+  // Finally, go through recovery. This used to make Chrome crash.
+  model_observer()->SetStepToObserve(
+      AuthenticatorRequestDialogModel::Step::kGPMRecoverSecurityDomain);
+  dialog_model()->OnGPMTrustThisComputer();
+  model_observer()->WaitForStep();
+
+  model_observer()->SetStepToObserve(
+      AuthenticatorRequestDialogModel::Step::kGPMCreatePasskey);
+  SimulateTrustedVaultKeyRetrieval(/*with_store_keys_lock=*/true);
+  model_observer()->WaitForStep();
+  dialog_model()->OnGPMCreationConfirmed();
+
+  std::string script_result;
+  ASSERT_TRUE(message_queue.WaitForMessage(&script_result));
+  EXPECT_EQ(script_result, "\"webauthn: OK\"");
+}
+
 // Regression test for https://crbug.com/445161563 ("Chrome on Linux crashes
 // after removing passkey access in GPM settings").
 // TODO(http://crbug.com/467196933) Fix this test on Mac.
@@ -3034,16 +3099,12 @@ IN_PROC_BROWSER_TEST_F(EnclaveAuthenticatorBrowserTest,
   delegate_observer()->WaitForUI();
 
   model_observer()->SetStepToObserve(
-      AuthenticatorRequestDialogModel::Step::kGPMConfirmOffTheRecordCreate);
+      AuthenticatorRequestDialogModel::Step::kGPMTrustThisComputerCreation);
   model_observer()->WaitForStep();
   EXPECT_EQ(request_delegate()
                 ->enclave_controller_for_testing()
                 ->account_state_for_testing(),
             GPMEnclaveController::AccountState::kRecoverable);
-  model_observer()->SetStepToObserve(
-      AuthenticatorRequestDialogModel::Step::kGPMTrustThisComputerCreation);
-  dialog_model()->OnGPMConfirmOffTheRecordCreate();
-  model_observer()->WaitForStep();
 
   model_observer()->SetStepToObserve(
       AuthenticatorRequestDialogModel::Step::kGPMRecoverSecurityDomain);
@@ -3067,11 +3128,7 @@ IN_PROC_BROWSER_TEST_F(EnclaveAuthenticatorBrowserTest,
   delegate_observer()->WaitForUI();
 
   model_observer()->SetStepToObserve(
-      AuthenticatorRequestDialogModel::Step::kGPMConfirmOffTheRecordCreate);
-  model_observer()->WaitForStep();
-  model_observer()->SetStepToObserve(
       AuthenticatorRequestDialogModel::Step::kGPMCreatePasskey);
-  dialog_model()->OnGPMConfirmOffTheRecordCreate();
   model_observer()->WaitForStep();
 
   model_observer()->SetStepToObserve(
@@ -3647,12 +3704,6 @@ IN_PROC_BROWSER_TEST_P(EnclaveAuthenticatorIncognitoBrowserTest,
   // Finally, if the user manually chooses the enclave, it should be the default
   // again. Attempting to bootstrap should be enough.
   dialog_model()->OnGPMCreationSelected();
-  if (GetParam()) {
-    EXPECT_EQ(
-        dialog_model()->step(),
-        AuthenticatorRequestDialogModel::Step::kGPMConfirmOffTheRecordCreate);
-    dialog_model()->OnGPMConfirmOffTheRecordCreate();
-  }
   EXPECT_EQ(
       dialog_model()->step(),
       AuthenticatorRequestDialogModel::Step::kGPMTrustThisComputerCreation);

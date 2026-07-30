@@ -32,7 +32,7 @@ Refer to README.md for content description and update process.
  <item id="cablev2_websocket_from_authenticator" added_in_milestone="87" content_hash_code="0724f93c" os_list="linux,windows,chromeos,android" file_path="device/fido/cable/v2_authenticator.cc" />
  <item id="cablev2_websocket_from_client" added_in_milestone="86" content_hash_code="06f37377" os_list="windows,linux,chromeos" file_path="device/fido/cable/fido_tunnel_device.cc" />
  <item id="captive_portal_service" added_in_milestone="62" content_hash_code="04375eac" os_list="linux,windows,chromeos" file_path="components/captive_portal/content/captive_portal_service.cc" />
- <item id="cast_socket" added_in_milestone="66" content_hash_code="002c6452" os_list="linux,windows,chromeos,android" file_path="components/media_router/common/providers/cast/channel/cast_socket.cc" />
+ <item id="cast_socket" added_in_milestone="66" content_hash_code="01cbc995" os_list="linux,windows,chromeos,android" file_path="components/media_router/common/providers/cast/channel/cast_socket.cc" />
  <item id="certificate_verifier_url_loader" added_in_milestone="80" content_hash_code="05856cc0" os_list="linux,windows,chromeos,android" file_path="services/cert_verifier/cert_net_url_loader/cert_net_fetcher_url_loader.cc" />
  <item id="certificate_verifier_url_request" added_in_milestone="80" content_hash_code="03884604" os_list="linux,windows,chromeos,android" file_path="net/cert_net/cert_net_fetcher_url_request.cc" />
  <item id="chrome_apps_socket_api" added_in_milestone="65" content_hash_code="07ca7795" os_list="linux,windows,chromeos" file_path="extensions/browser/api/socket/socket.cc" />
@@ -44,7 +44,7 @@ Refer to README.md for content description and update process.
  <item id="credenential_avatar" added_in_milestone="62" content_hash_code="06bcc86b" os_list="linux,windows,chromeos,android" file_path="chrome/browser/ui/passwords/account_avatar_fetcher.cc" />
  <item id="cros_recovery_image_download" added_in_milestone="62" content_hash_code="00a7d792" os_list="linux,windows,chromeos" file_path="chrome/browser/extensions/api/image_writer_private/write_from_url_operation.cc" />
  <item id="desktop_screenshot_save" added_in_milestone="94" content_hash_code="0431b7d2" os_list="linux,windows,chromeos" file_path="chrome/browser/ui/views/sharing_hub/screenshot/screenshot_captured_bubble.cc" />
- <item id="device_management_service" added_in_milestone="62" content_hash_code="05c7768f" os_list="linux,windows,chromeos,android" file_path="components/policy/core/common/cloud/device_management_service.cc" />
+ <item id="device_management_service" added_in_milestone="62" content_hash_code="00e7e7ff" os_list="linux,windows,chromeos,android" file_path="components/policy/core/common/cloud/device_management_service.cc" />
  <item id="devtools_cdp_network_resource" added_in_milestone="87" content_hash_code="051db8c6" os_list="linux,windows,chromeos,android" file_path="content/browser/devtools/protocol/devtools_network_resource_loader.cc" />
  <item id="devtools_free_data_source" added_in_milestone="62" content_hash_code="01a26b6a" os_list="linux,windows,chromeos,android" file_path="chrome/browser/ui/webui/devtools/devtools_ui_data_source.cc" />
  <item id="devtools_handle_front_end_messages" added_in_milestone="62" content_hash_code="04940191" os_list="linux,windows,chromeos,android" file_path="content/shell/browser/shell_devtools_bindings.cc" />
@@ -203,7 +203,6 @@ Refer to README.md for content description and update process.
  <item id="speech_recognition_upstream" added_in_milestone="123" content_hash_code="0798290a" os_list="linux,windows,chromeos" file_path="content/browser/speech/network_speech_recognition_engine_impl.cc" />
  <item id="spellcheck_hunspell_dictionary" added_in_milestone="62" content_hash_code="02b8bb18" os_list="linux,windows,chromeos,android" file_path="chrome/browser/spellchecker/spellcheck_hunspell_dictionary.cc" />
  <item id="spellcheck_lookup" added_in_milestone="62" content_hash_code="072d1525" os_list="linux,windows,chromeos" file_path="components/spellcheck/browser/spelling_service_client.cc" />
- <item id="ssl_hmac_channel_authenticator" added_in_milestone="66" content_hash_code="0695685d" os_list="linux,windows,chromeos,android" file_path="remoting/protocol/ssl_hmac_channel_authenticator.cc" />
  <item id="ssl_name_mismatch_lookup" added_in_milestone="62" content_hash_code="05d18c86" os_list="linux,windows,chromeos,android" file_path="components/security_interstitials/content/common_name_mismatch_handler.cc" />
  <item id="stream_packet_socket" added_in_milestone="84" content_hash_code="034904c2" os_list="linux,windows,chromeos,android" file_path="remoting/protocol/stream_packet_socket.cc" />
  <item id="sync_file_system" added_in_milestone="62" content_hash_code="031bce6a" os_list="linux,windows,chromeos" file_path="chrome/browser/sync_file_system/drive_backend/sync_engine.cc" />
@@ -522,12 +521,13 @@ Refer to README.md for content description and update process.
  <item id="skills_service_loader" added_in_milestone="146" content_hash_code="028725ca" os_list="linux,windows,android,chromeos" file_path="components/skills/internal/skills_downloader.cc" />
  <item id="skills_model_execution" added_in_milestone="146" content_hash_code="02f1c115" os_list="linux,windows,android,chromeos" file_path="components/optimization_guide/core/model_execution/model_execution_fetcher_impl.cc" />
  <item id="settings_overridden_dialog_icon_fetcher" added_in_milestone="147" content_hash_code="040080cc" os_list="windows,linux,chromeos" file_path="chrome/browser/ui/extensions/settings_overridden_params_providers.cc" />
- <item id="indigo_alpha_generate" added_in_milestone="147" content_hash_code="045833be" os_list="windows,linux,chromeos" file_path="chrome/browser/indigo/indigo_alpha_rpc.cc" />
- <item id="indigo_alpha_status" added_in_milestone="147" content_hash_code="05424773" os_list="windows,linux,chromeos" file_path="chrome/browser/indigo/indigo_alpha_rpc.cc" />
  <item id="devtools_gca_service" added_in_milestone="147" content_hash_code="06699f6b" os_list="linux,windows,android,chromeos" file_path="chrome/browser/devtools/gca_service_handler.cc" />
  <item id="actor_login_permission_service" added_in_milestone="148" content_hash_code="004d2614" os_list="linux,windows,android,chromeos" file_path="components/password_manager/core/browser/actor_login/internal/actor_login_permission_service_impl.cc" />
- <item id="fetch_email_one_time_token" added_in_milestone="148" content_hash_code="069305a9" os_list="linux,windows,android,chromeos" file_path="components/one_time_tokens/core/browser/email_one_time_token_fetcher.cc" />
+ <item id="fetch_email_one_time_token" added_in_milestone="148" content_hash_code="02856672" os_list="linux,windows,android,chromeos" file_path="components/one_time_tokens/core/browser/email_one_time_token_fetcher.cc" />
  <item id="multistep_filter_server_requests" added_in_milestone="148" content_hash_code="054b2094" os_list="linux,windows,android,chromeos" file_path="components/multistep_filter/core/annotation_index/annotation_index_client_impl.cc" />
  <item id="glic_private_api_prompt_fetcher" added_in_milestone="149" content_hash_code="0290976d" os_list="linux,windows,chromeos" file_path="chrome/browser/extensions/api/glic_private/glic_private_api.cc" />
  <item id="finds_model_execution" added_in_milestone="148" content_hash_code="05f6c664" os_list="linux,windows,android,chromeos" file_path="components/optimization_guide/core/model_execution/model_execution_fetcher_impl.cc" />
+ <item id="device_management_enrollment" added_in_milestone="149" content_hash_code="0446a753" os_list="linux,windows,android,chromeos" file_path="components/policy/core/common/cloud/device_management_service.cc" />
+ <item id="device_management_reporting" added_in_milestone="149" content_hash_code="07f8910c" os_list="linux,windows,android,chromeos" file_path="components/policy/core/common/cloud/device_management_service.cc" />
+ <item id="device_management_remote_commands" added_in_milestone="149" content_hash_code="02f9a08a" os_list="linux,windows,android,chromeos" file_path="components/policy/core/common/cloud/device_management_service.cc" />
 </annotations>

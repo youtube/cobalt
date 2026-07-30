@@ -54,7 +54,6 @@
 <translation id="1594928384848033697">Chromium dorește să șteargă datele din Managerul de parole. Introdu parola Windows pentru a permite acest lucru.</translation>
 <translation id="1607715478322902680">{COUNT,plural, =0{Administratorul solicită să relansezi Chromium pentru a aplica o actualizare}=1{Administratorul solicită să relansezi Chromium pentru a aplica o actualizare. Fereastra incognito nu se va mai deschide.}few{Administratorul solicită să relansezi Chromium pentru a aplica o actualizare. Cele # ferestre incognito nu se vor mai deschide.}other{Administratorul solicită să relansezi Chromium pentru a aplica o actualizare. Cele # de ferestre incognito nu se vor mai deschide.}}</translation>
 <translation id="1625909126243026060">Examinează cele mai importante opțiuni de confidențialitate și de securitate din Chromium</translation>
-<translation id="1639380494700489405">Pentru a întreba Modul AI despre filă fără să părăsești pagina, conectează-te la Chromium. În plus, vei putea accesa parolele și multe altele pe toate dispozitivele.</translation>
 <translation id="1640672724030957280">Se descarcă…</translation>
 <translation id="1680687534629375545">Întreabă Căutarea de imagini despre această pagină</translation>
 <translation id="1708414395296835197">Poți folosi Chromium oricând dai clic pe linkuri în mesaje, documente și alte aplicații. Va fi fixat și în bara de activități.</translation>
@@ -217,6 +216,7 @@
 
 <ph name="EXTENSION_NAME" /></translation>
 <translation id="3185330573522821672">Personalizează noul profil Chromium</translation>
+<translation id="3189205223539394158">Poți să conversezi în continuare prin chat cu Modul AI fără să schimbi filele. Pentru a începe, conectează-te la Chromium. În plus, vei putea accesa parolele și multe altele pe toate dispozitivele.</translation>
 <translation id="3224847870593914902">Pentru a elimina Contul Google din Chromium, deconectează-te de la Chromium din pagina Setări</translation>
 <translation id="3234316605225071811">Ulterior, Chromium te poate întreba dacă vrei să folosești informațiile salvate pentru a completa automat formulare</translation>
 <translation id="3258596308407688501">Chromium nu poate citi și scrie în directorul propriu de date:

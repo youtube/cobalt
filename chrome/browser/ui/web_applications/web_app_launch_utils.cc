@@ -43,13 +43,13 @@
 #include "chrome/browser/sessions/session_service_lookup.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
-#include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/browser_navigator.h"
-#include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/intent_picker_tab_helper.h"
+#include "chrome/browser/ui/navigator/browser_navigator.h"
+#include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/omnibox/omnibox_tab_helper.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
@@ -129,7 +129,7 @@ BrowserWindowInterface* ReparentWebContentsIntoAppBrowser(
     bool insert_as_pinned_home_tab) {
   DCHECK(target_browser->GetType() == BrowserWindowInterface::TYPE_APP);
   BrowserWindowInterface* source_browser =
-      chrome::FindBrowserWithTab(contents);
+      GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(contents);
   CHECK(contents);
 
   if (!insert_as_pinned_home_tab) {
@@ -472,7 +472,7 @@ bool MaybeHandleIntentPickerFocusExistingOrNavigateExisting(
   // launch params. But first we ensure that the contents (for which the Intent
   // Picker was clicked) goes away without its containing browser closing.
   BrowserWindowInterface* foreground_browser =
-      chrome::FindBrowserWithTab(contents);
+      GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(contents);
   if (foreground_browser->GetTabStripModel()->count() == 1) {
     chrome::NewTab(foreground_browser->GetBrowserForMigrationOnly(),
                    NewTabTypes::kNewTabCommand);
@@ -549,10 +549,6 @@ BrowserWindowInterface* ReparentWebContentsIntoAppBrowser(
       << tab_helper->window_app_id().value_or("<none>");
 
   auto launch_url = contents->GetLastCommittedURL();
-  UpdateLaunchStats(contents, app_id, launch_url);
-  RecordLaunchMetrics(app_id, apps::LaunchContainer::kLaunchContainerWindow,
-                      apps::LaunchSource::kFromReparenting, launch_url,
-                      contents);
   blink::mojom::DisplayMode display_mode =
       registrar.GetAppEffectiveDisplayMode(app_id);
 
@@ -576,7 +572,7 @@ BrowserWindowInterface* ReparentWebContentsIntoAppBrowser(
         app_id, launch_url,
         base::BindOnce(
             [](base::WeakPtr<content::WebContents> old_contents,
-               base::WeakPtr<Browser> browser,
+               base::WeakPtr<BrowserWindowInterface> browser,
                base::WeakPtr<content::WebContents> web_contents,
                apps::LaunchContainer container) {
               if (old_contents) {
@@ -607,7 +603,8 @@ BrowserWindowInterface* ReparentWebContentsIntoAppBrowser(
               *profile, registrar, provider->os_integration_manager(), params);
       contents->Close();
       std::move(completion_callback).Run(new_web_contents);
-      return chrome::FindBrowserWithTab(new_web_contents);
+      return GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
+          new_web_contents);
     }
   }
 
@@ -635,6 +632,12 @@ BrowserWindowInterface* ReparentWebContentsIntoAppBrowser(
   BrowserWindowInterface* reparented_browser =
       ReparentWebContentsIntoAppBrowser(contents, browser, app_id,
                                         as_pinned_home_tab);
+
+  UpdateLaunchStats(contents, app_id, launch_url);
+  RecordLaunchMetrics(app_id, apps::LaunchContainer::kLaunchContainerWindow,
+                      apps::LaunchSource::kFromReparenting, launch_url,
+                      contents);
+
   std::move(completion_callback).Run(contents);
   return reparented_browser;
 }
@@ -932,7 +935,7 @@ void LaunchWebApp(apps::AppLaunchParams params,
   DCHECK_NE(params.container, apps::LaunchContainer::kLaunchContainerNone);
 
   apps::LaunchContainer container;
-  Browser* browser = nullptr;
+  BrowserWindowInterface* browser = nullptr;
   content::WebContents* web_contents = nullptr;
   // Do not launch anything if the profile is being deleted.
   if (Browser::GetCreationStatusForProfile(&profile) ==
@@ -950,7 +953,8 @@ void LaunchWebApp(apps::AppLaunchParams params,
             profile, lock.registrar(), lock.os_integration_manager(), params);
       }
       if (web_contents) {
-        browser = chrome::FindBrowserWithTab(web_contents);
+        browser = GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
+            web_contents);
       }
     } else {
       debug_value.Set("error", "Unknown app id.");
@@ -974,7 +978,7 @@ void LaunchWebApp(apps::AppLaunchParams params,
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(std::move(callback),
-                     browser ? browser->AsWeakPtr() : nullptr,
+                     browser ? browser->GetWeakPtr() : nullptr,
                      web_contents ? web_contents->GetWeakPtr() : nullptr,
                      container, base::Value(std::move(debug_value))));
 }

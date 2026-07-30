@@ -40,8 +40,8 @@ GlicSidePanelCoordinatorImpl::GlicSidePanelCoordinatorImpl(
     : GlicSidePanelCoordinator(tab),
       tab_(tab),
       side_panel_registry_(side_panel_registry) {
-  auto* glic_service = GlicKeyedServiceFactory::GetGlicKeyedService(
-      tab->GetBrowserWindowInterface()->GetProfile());
+  auto* glic_service =
+      GlicKeyedServiceFactory::GetGlicKeyedService(tab->GetProfile());
   on_glic_enabled_changed_subscription_ =
       glic_service->enabling().RegisterAllowedChanged(base::BindRepeating(
           &GlicSidePanelCoordinatorImpl::OnGlicEnabledChanged,
@@ -73,14 +73,13 @@ void GlicSidePanelCoordinatorImpl::CreateAndRegisterEntry() {
       base::BindRepeating(&GlicSidePanelCoordinatorImpl::GetPreferredWidth,
                           base::Unretained(this)));
   entry->set_should_show_header(false);
-  entry->set_should_show_outline(false);
   entry->set_should_show_ephemerally_in_toolbar(false);
   entry->AddObserver(this);
   entry_ = entry->GetWeakPtr();
   side_panel_registry_->Register(std::move(entry));
 }
 
-void GlicSidePanelCoordinatorImpl::Show(bool suppress_animations) {
+void GlicSidePanelCoordinatorImpl::Show(const ShowOptions& options) {
   auto* window_side_panel_coordinator = GetWindowSidePanelCoordinator();
   if (!window_side_panel_coordinator || !entry_) {
     return;
@@ -99,7 +98,7 @@ void GlicSidePanelCoordinatorImpl::Show(bool suppress_animations) {
       .tab_handle = tab_->GetHandle(),
       .key = SidePanelEntry::Key(SidePanelEntry::Id::kGlic)};
   window_side_panel_coordinator->Show(unique_key, std::nullopt,
-                                      suppress_animations);
+                                      options.suppress_animations);
 }
 
 void GlicSidePanelCoordinatorImpl::Close(const CloseOptions& options) {
@@ -109,13 +108,13 @@ void GlicSidePanelCoordinatorImpl::Close(const CloseOptions& options) {
   }
   if (state_ == State::kShown) {
     window_side_panel_coordinator->Close(
-        entry_->type(), SidePanelEntryHideReason::kSidePanelClosed,
+        SidePanelEntryHideReason::kSidePanelClosed,
         options.suppress_animations);
     return;
   }
   if (state_ == State::kBackgrounded) {
     CHECK(IsGlicSidePanelActive());
-    side_panel_registry_->ResetActiveEntryFor(entry_->type());
+    side_panel_registry_->ResetActiveEntry();
     SetState(State::kClosed);
   }
 }
@@ -126,6 +125,10 @@ bool GlicSidePanelCoordinatorImpl::IsShowing() const {
 
 GlicSidePanelCoordinator::State GlicSidePanelCoordinatorImpl::state() {
   return state_;
+}
+
+bool GlicSidePanelCoordinatorImpl::SupportsPeek() const {
+  return false;
 }
 
 void GlicSidePanelCoordinatorImpl::OnEntryWillHide(
@@ -157,16 +160,15 @@ void GlicSidePanelCoordinatorImpl::OnEntryShown(SidePanelEntry* entry) {
 
 void GlicSidePanelCoordinatorImpl::OnGlicEnabledChanged() {
   // Maybe register side panel entry if not yet registered.
-  if (glic::GlicEnabling::IsEnabledForProfile(
-          tab_->GetBrowserWindowInterface()->GetProfile())) {
+  if (glic::GlicEnabling::IsEnabledForProfile(tab_->GetProfile())) {
     CreateAndRegisterEntry();
   }
 }
 
 std::unique_ptr<views::View> GlicSidePanelCoordinatorImpl::CreateView(
     SidePanelEntryScope& scope) {
-  auto* glic_service = GlicKeyedServiceFactory::GetGlicKeyedService(
-      tab_->GetBrowserWindowInterface()->GetProfile());
+  auto* glic_service =
+      GlicKeyedServiceFactory::GetGlicKeyedService(tab_->GetProfile());
   if (!glic_service) {
     return nullptr;
   }
@@ -216,8 +218,7 @@ bool GlicSidePanelCoordinatorImpl::IsGlicSidePanelActive() {
   if (!glic_side_panel_entry) {
     return false;
   }
-  const auto& active_entry =
-      side_panel_registry_->GetActiveEntryFor(glic_side_panel_entry->type());
+  const auto& active_entry = side_panel_registry_->GetActiveEntry();
   if (!active_entry.has_value() ||
       active_entry.value() != glic_side_panel_entry) {
     return false;

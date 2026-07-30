@@ -11,8 +11,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import static org.chromium.chrome.browser.url_constants.UrlConstantResolver.getOriginalNonNativeNtpGurl;
-
 import android.content.Context;
 
 import androidx.test.filters.MediumTest;
@@ -36,6 +34,7 @@ import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.UrlUtils;
+import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider.ControlsPosition;
 import org.chromium.chrome.browser.dom_distiller.DomDistillerTabUtils;
@@ -49,8 +48,8 @@ import org.chromium.chrome.browser.tab.MockTab;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.toolbar.top.ToolbarLayout;
+import org.chromium.chrome.browser.url_constants.UrlConstantResolver;
 import org.chromium.chrome.test.ChromeJUnit4RunnerDelegate;
-import org.chromium.chrome.test.R;
 import org.chromium.chrome.test.transit.ChromeTransitTestRules;
 import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
 import org.chromium.chrome.test.transit.page.WebPageStation;
@@ -115,7 +114,7 @@ public class LocationBarModelTest {
                 () -> {
                     TestLocationBarModel model =
                             new TestLocationBarModel(mActivityTestRule.getActivity());
-                    model.setVisibleGurl(getOriginalNonNativeNtpGurl());
+                    model.setVisibleGurl(UrlConstantResolver.getOriginalNonNativeNtpGurl());
                     assertDisplayAndEditText(model, "", null);
 
                     model.setVisibleGurl(JUnitTestGURLs.CHROME_ABOUT);

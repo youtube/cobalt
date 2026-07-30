@@ -481,8 +481,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
     kFencedFramesLocalUnpartitionedDataAccess);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kFencedFramesReportEventHeaderChanges);
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(
-    kExemptUrlFromNetworkRevocationForTesting);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kFencedFramesSrcPermissionsPolicy);
 
@@ -766,6 +764,11 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
 // crash.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
                                                kInlineScriptCacheTimeout);
+// Defines if inline script cache is enabled for inline scripts with
+// `cachehint=default` attribute (See kInlineScriptCacheHint).
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    bool,
+    kInlineScriptCacheEnabledForDefaultHint);
 
 // This flag is used to set field parameters to choose predictor we use when
 // kResamplingInputEvents is disabled. It's used for gathering accuracy metrics

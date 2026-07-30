@@ -847,6 +847,8 @@ bool TemplateURLRef::ParseParameter(size_t start,
   } else if (parameter == "google:suggestAPIKeyParameter") {
     url->insert(start,
                 base::EscapeQueryParamValue(google_apis::GetAPIKey(), false));
+  } else if (parameter == "google:suggestPath") {
+    replacements->push_back(Replacement(GOOGLE_SUGGEST_PATH, start));
   } else if (parameter == "google:suggestClient") {
     replacements->push_back(Replacement(GOOGLE_SUGGEST_CLIENT, start));
   } else if (parameter == "google:suggestRid") {
@@ -1025,6 +1027,13 @@ void TemplateURLRef::ParseHostAndSearchTermKey(
   base::ReplaceSubstringsAfterOffset(
       &url_string, 0, "{google:baseSuggestURL}",
       search_terms_data.GoogleBaseSuggestURLValue());
+  // TODO(crbug.com/509448052): ParseHostAndSearchTermKey manually replaces a
+  // subset of structural placeholders. This logic should ideally be unified
+  // with HandleReplacements to avoid duplication.
+  base::ReplaceSubstringsAfterOffset(
+      &url_string, 0, "{google:suggestPath}",
+      base::FeatureList::IsEnabled(omnibox::kUseShortSuggestPathV1) ? "s"
+                                                                    : "search");
   base::ReplaceSubstringsAfterOffset(&url_string, 0, "{yandex:searchPath}",
                                      YandexSearchPathFromDeviceFormFactor());
 
@@ -1494,6 +1503,17 @@ std::string TemplateURLRef::HandleReplacements(
             break;
         }
         break;
+
+      case GOOGLE_SUGGEST_PATH: {
+        bool use_short_path =
+            base::FeatureList::IsEnabled(omnibox::kUseShortSuggestPathV1);
+        const std::string path = use_short_path ? "s" : "search";
+        HandleReplacement(std::string(), path, replacement, &url);
+        base::UmaHistogramBoolean(
+            "Omnibox.SuggestionShown.SuggestionResultType",
+            use_short_path);
+        break;
+      }
 
       case GOOGLE_SUGGEST_REQUEST_ID:
         switch (search_terms_args.request_source) {

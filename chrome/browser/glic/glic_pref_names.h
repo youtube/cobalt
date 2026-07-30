@@ -125,6 +125,11 @@ inline constexpr char kGlicPreviousPositionY[] = "glic.previous_bounds.y";
 inline constexpr char kGlicClosedCaptioningEnabled[] =
     "glic.closed_captioning_enabled";
 
+// Integer pref that tracks the total number of times the user dismissed the
+// selection widget.
+inline constexpr char kGlicSelectionWidgetDismissCount[] =
+    "glic.selection_widget_dismiss_count";
+
 // Bool pref that determines if errors are allowed to be shown.
 inline constexpr char kGlicShowErrorAllowed[] = "glic.show_error_allowed";
 
@@ -142,6 +147,10 @@ inline constexpr char kGlicActuationOnWebAllowedForURLs[] =
     "glic.actuation_on_web_allowed_for_urls";
 inline constexpr char kGlicActuationOnWebBlockedForURLs[] =
     "glic.actuation_on_web_blocked_for_urls";
+
+// Boolean pref that tracks if the Glic partition needs a cookie sync.
+inline constexpr char kGlicPartitionNeedsCookieSync[] =
+    "glic.partition_needs_cookie_sync";
 
 void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry);
 void RegisterLocalStatePrefs(PrefRegistrySimple* registry);

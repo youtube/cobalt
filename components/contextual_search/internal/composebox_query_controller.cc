@@ -294,7 +294,8 @@ bool IsValidContextUploadStatusForMultimodalRequest(
 bool RequestIdHasImage(const lens::LensOverlayRequestId& request_id) {
   lens::LensOverlayRequestId::MediaType media_type = request_id.media_type();
   if (media_type == lens::LensOverlayRequestId::MEDIA_TYPE_RAW_FILE) {
-    return request_id.mime_type().starts_with("image/");
+    return request_id.mime_type().starts_with("image/") &&
+           request_id.mime_type() != "image/svg+xml";
   }
   return media_type == lens::LensOverlayRequestId::MEDIA_TYPE_DEFAULT_IMAGE ||
          media_type ==
@@ -469,10 +470,20 @@ void ComposeboxQueryController::SetIsBackgrounded(bool backgrounded) {
 }
 
 void ComposeboxQueryController::InitializeIfNeeded() {
-  if (query_controller_state_ == QueryControllerState::kOff) {
-    // The query controller state starts at kOff. If it is set to any other
-    // state by the call to FetchClusterInfo(), this indicates that the
-    // handshake has already been initialized.
+  if (!contextual_tasks::GetIsContextualTasksLazyFetchClusterInfoEnabled()) {
+    if (query_controller_state_ == QueryControllerState::kOff) {
+      // The query controller state starts at kOff. If it is set to any other
+      // state by the call to FetchClusterInfo(), this indicates that the
+      // handshake has already been initialized.
+      FetchClusterInfo();
+    }
+    return;
+  }
+}
+
+void ComposeboxQueryController::TriggerFetchClusterInfo() {
+  if (query_controller_state_ == QueryControllerState::kOff ||
+      query_controller_state_ == QueryControllerState::kClusterInfoInvalid) {
     FetchClusterInfo();
   }
 }
@@ -892,6 +903,12 @@ void ComposeboxQueryController::StartFileUploadFlow(
     const base::UnguessableToken& file_token,
     std::unique_ptr<lens::ContextualInputData> contextual_input_data,
     std::optional<lens::ImageEncodingOptions> image_options) {
+  // When the lazy fetch feature is enabled, the cluster info is fetched when a
+  // file upload is needed rather than on initialization.
+  if (contextual_tasks::GetIsContextualTasksLazyFetchClusterInfoEnabled() &&
+      query_controller_state_ == QueryControllerState::kOff) {
+    FetchClusterInfo();
+  }
   if (pending_search_url_request_) {
     // If there is a pending search url creation request, fail it immediately,
     // as the new file upload should take priority and the pending url creation
@@ -2223,19 +2240,6 @@ ComposeboxQueryController::GetFileInfoList() {
     file_infos.push_back(file_info.get());
   }
   return file_infos;
-}
-
-std::optional<base::UnguessableToken>
-ComposeboxQueryController::FindTokenForInjectedInput(const std::string& id) {
-  for (const auto& [token, info] : active_files_) {
-    if (info) {
-      auto injected_input_id = info->GetInjectedInputId();
-      if (injected_input_id.has_value() && injected_input_id.value() == id) {
-        return token;
-      }
-    }
-  }
-  return std::nullopt;
 }
 
 base::WeakPtr<contextual_search::ContextualSearchContextController>

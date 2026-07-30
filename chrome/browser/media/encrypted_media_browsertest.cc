@@ -7,43 +7,32 @@
 #include <utility>
 
 #include "base/command_line.h"
-#include "base/compiler_specific.h"
-#include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
-#include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_feature_list.h"
-#include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
 #include "chrome/browser/media/clear_key_cdm_test_helper.h"
 #include "chrome/browser/media/media_browsertest.h"
-#include "chrome/browser/media/test_license_server.h"
-#include "chrome/browser/media/wv_test_license_server_config.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/pref_names.h"
-#include "chrome/test/base/test_launcher_utils.h"
 #include "components/prefs/pref_service.h"
 #include "components/ukm/test_ukm_recorder.h"
-#include "components/variations/variations_switches.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "media/base/key_system_names.h"
-#include "media/base/key_systems.h"
 #include "media/base/media_switches.h"
 #include "media/base/test_data_util.h"
 #include "media/cdm/clear_key_cdm_common.h"
 #include "media/cdm/supported_cdm_versions.h"
 #include "media/media_buildflags.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
-#include "testing/gtest/include/gtest/gtest-spi.h"
 #include "third_party/widevine/cdm/buildflags.h"
 #include "third_party/widevine/cdm/widevine_cdm_common.h"
-#include "ui/gl/gl_switches.h"
 
 #if BUILDFLAG(IS_WIN)
 #include <mfapi.h>
@@ -124,18 +113,12 @@ enum class PlayCount { ZERO = 0, ONCE = 1, TWICE = 2 };
 
 using testing::Bool;
 using testing::Combine;
-using testing::Eq;
-using testing::Not;
 using testing::Pair;
 using testing::UnitTest;
 using testing::UnorderedElementsAre;
 using testing::Values;
 using testing::WithParamInterface;
-using ukm::builders::Media_EME_ApiPromiseRejection;
 using ukm::builders::Media_EME_CdmMetrics;
-using ukm::builders::Media_EME_CreateMediaKeys;
-using ukm::builders::Media_EME_RequestMediaKeySystemAccess;
-using ukm::builders::Media_EME_Usage;
 using ukm::builders::Media_WebMediaPlayerState;
 
 // Base class for encrypted media tests.
@@ -196,9 +179,7 @@ class EncryptedMediaTestBase : public MediaBrowserTest {
                                  const std::string& key_system,
                                  const base::StringPairs& query_params,
                                  const std::string& expected_title) {
-    base::StringPairs new_query_params = query_params;
-    StartLicenseServerIfNeeded(key_system, &new_query_params);
-    RunMediaTestPage(html_page, new_query_params, expected_title, true);
+    RunMediaTestPage(html_page, query_params, expected_title, true);
   }
 
   // Tests |html_page| using |media_file| and |key_system|.
@@ -281,50 +262,16 @@ class EncryptedMediaTestBase : public MediaBrowserTest {
                               query_params, expected_title);
   }
 
-  // Starts a license server if available for the |key_system| and adds a
-  // 'licenseServerURL' query parameter to |query_params|.
-  void StartLicenseServerIfNeeded(const std::string& key_system,
-                                  base::StringPairs* query_params) {
-    std::unique_ptr<TestLicenseServerConfig> config =
-        GetServerConfig(key_system);
-    if (!config) {
-      return;
-    }
-    license_server_ = std::make_unique<TestLicenseServer>(std::move(config));
-    {
-      base::ScopedAllowBlockingForTesting allow_blocking;
-      EXPECT_TRUE(license_server_->Start());
-    }
-    query_params->push_back(
-        std::make_pair("licenseServerURL", license_server_->GetServerURL()));
-  }
-
   bool IsPlayBackPossible(const std::string& key_system) {
 #if BUILDFLAG(ENABLE_WIDEVINE)
-    if (IsWidevine(key_system) && !GetServerConfig(key_system)) {
+    if (IsWidevine(key_system)) {
       return false;
     }
 #endif  // BUILDFLAG(ENABLE_WIDEVINE)
     return true;
   }
 
-  std::unique_ptr<TestLicenseServerConfig> GetServerConfig(
-      const std::string& key_system) {
-#if BUILDFLAG(ENABLE_WIDEVINE)
-    if (IsWidevine(key_system)) {
-      std::unique_ptr<TestLicenseServerConfig> config(
-          new WVTestLicenseServerConfig);
-      if (config->IsPlatformSupported()) {
-        return config;
-      }
-    }
-#endif  // BUILDFLAG(ENABLE_WIDEVINE)
-    return nullptr;
-  }
-
  protected:
-  std::unique_ptr<TestLicenseServer> license_server_;
-
   // We want to fail quickly when a test fails because an error is encountered.
   void AddWaitForTitles(content::TitleWatcher* title_watcher) override {
     MediaBrowserTest::AddWaitForTitles(title_watcher);
@@ -364,13 +311,6 @@ class EncryptedMediaTestBase : public MediaBrowserTest {
       base::CommandLine* command_line,
       const std::vector<base::test::FeatureRefAndParams>&
           enable_additional_features = {}) {
-    if (GetServerConfig(key_system)) {
-      // Since the web and license servers listen on different ports, we need to
-      // disable web-security to send license requests to the license server.
-      // TODO(shadi): Add port forwarding to the test web server configuration.
-      command_line->AppendSwitch(switches::kDisableWebSecurity);
-    }
-
     // TODO(crbug.com/40787541): WhatsNewUI might be causing timeouts.
     command_line->AppendSwitch(switches::kNoFirstRun);
 
@@ -776,6 +716,7 @@ class ParameterizedEncryptedMediaTestBase : public EncryptedMediaTestBase {
     }
     query_params.emplace_back("keySystem", CurrentKeySystem());
     query_params.emplace_back("policyCheck", "1");
+
     RunEncryptedMediaTestPage(kDefaultEmePlayer, CurrentKeySystem(),
                               query_params, kUnitTestSuccess);
   }
@@ -1050,149 +991,6 @@ IN_PROC_BROWSER_TEST_P(MseEncryptedMediaTest, EncryptedMediaDisabled) {
                         CurrentKeySystem(), CurrentSourceType(),
                         kNoSessionToLoad, false, PlayCount::ONCE,
                         expected_title);
-}
-
-IN_PROC_BROWSER_TEST_P(MseEncryptedMediaTest, Playback_Check_Ukm) {
-  bool is_widevine =
-#if BUILDFLAG(ENABLE_WIDEVINE)
-      IsWidevine(CurrentKeySystem());
-#else
-      false;
-#endif  // BUILDFLAG(ENABLE_WIDEVINE)
-
-  ukm::TestAutoSetUkmRecorder ukm_recorder;
-  TestSimplePlayback("bear-320x240-av_enc-a.webm");
-
-  // Check Media_EME_RequestMediaKeySystemAccess UKM. It is only recorded for
-  // Widevine.
-  auto request_entries = ukm_recorder.GetEntries(
-      Media_EME_RequestMediaKeySystemAccess::kEntryName,
-      {Media_EME_RequestMediaKeySystemAccess::kIsAdFrameName,
-       Media_EME_RequestMediaKeySystemAccess::kIsCrossOriginName,
-       Media_EME_RequestMediaKeySystemAccess::kIsFromMediaCapabilitiesName,
-       Media_EME_RequestMediaKeySystemAccess::kIsTopFrameName,
-       Media_EME_RequestMediaKeySystemAccess::kKeySystemName,
-       Media_EME_RequestMediaKeySystemAccess::kVideoCapabilitiesName,
-       Media_EME_RequestMediaKeySystemAccess::
-           kVideoCapabilities_HasEmptyRobustnessName,
-       Media_EME_RequestMediaKeySystemAccess::
-           kVideoCapabilities_HasHwSecureAllRobustnessName});
-  if (is_widevine) {
-    EXPECT_EQ(request_entries.size(), 1u);
-    EXPECT_THAT(
-        request_entries[0].metrics,
-        UnorderedElementsAre(
-            Pair(Media_EME_RequestMediaKeySystemAccess::kIsAdFrameName,
-                 /*false=*/0),
-            Pair(Media_EME_RequestMediaKeySystemAccess::kIsCrossOriginName,
-                 /*false=*/0),
-            Pair(Media_EME_RequestMediaKeySystemAccess::
-                     kIsFromMediaCapabilitiesName,
-                 /*false=*/0),
-            Pair(Media_EME_RequestMediaKeySystemAccess::kIsTopFrameName,
-                 /*true=*/1),
-            Pair(Media_EME_RequestMediaKeySystemAccess::kKeySystemName,
-                 /*blink::KeySystemForUkmLegacy::kWidevine=*/1),
-            Pair(Media_EME_RequestMediaKeySystemAccess::kVideoCapabilitiesName,
-                 /*true=*/1),
-            Pair(Media_EME_RequestMediaKeySystemAccess::
-                     kVideoCapabilities_HasEmptyRobustnessName,
-                 /*true=*/1),
-            Pair(Media_EME_RequestMediaKeySystemAccess::
-                     kVideoCapabilities_HasHwSecureAllRobustnessName,
-                 /*false=*/0)));
-  } else {
-    // Not Widevine, so nothing should be recorded.
-    EXPECT_EQ(request_entries.size(), 0u);
-  }
-
-  // Check Media_EME_CreateMediaKeys UKM. It is also only recorded for Widevine.
-  auto create_entries =
-      ukm_recorder.GetEntries(Media_EME_CreateMediaKeys::kEntryName,
-                              {Media_EME_CreateMediaKeys::kIsAdFrameName,
-                               Media_EME_CreateMediaKeys::kIsCrossOriginName,
-                               Media_EME_CreateMediaKeys::kIsTopFrameName,
-                               Media_EME_CreateMediaKeys::kKeySystemName});
-  if (is_widevine) {
-    EXPECT_EQ(create_entries.size(), 1u);
-    EXPECT_THAT(create_entries[0].metrics,
-                UnorderedElementsAre(
-                    Pair(Media_EME_CreateMediaKeys::kIsAdFrameName,
-                         /*false=*/0),
-                    Pair(Media_EME_CreateMediaKeys::kIsCrossOriginName,
-                         /*false=*/0),
-                    Pair(Media_EME_CreateMediaKeys::kIsTopFrameName,
-                         /*true=*/1),
-                    Pair(Media_EME_CreateMediaKeys::kKeySystemName,
-                         /*blink::KeySystemForUkmLegacy::kWidevine=*/1)));
-  } else {
-    // Not Widevine, so nothing should be recorded.
-    EXPECT_EQ(create_entries.size(), 0u);
-  }
-
-  // Check Media_EME_Usage UKM. It is recorded for all key systems. Currently
-  // only setServerCertificate(), generateRequest() and update() will be called
-  // during playback.
-  auto usage_entries = ukm_recorder.GetEntries(
-      Media_EME_Usage::kEntryName,
-      {Media_EME_Usage::kApiName, Media_EME_Usage::kIsPersistentSessionName,
-       Media_EME_Usage::kKeySystemName,
-       Media_EME_Usage::kUseHardwareSecureCodecsName});
-  EXPECT_EQ(usage_entries.size(), 3u);
-  EXPECT_THAT(usage_entries[0].metrics,
-              UnorderedElementsAre(
-                  Pair(Media_EME_Usage::kApiName,
-                       /*blink::EmeApiType::kSetServerCertificate=*/2),
-                  Pair(Media_EME_Usage::kIsPersistentSessionName, 0),
-                  Pair(Media_EME_Usage::kKeySystemName,
-                       media::GetKeySystemIntForUKM(CurrentKeySystem())),
-                  Pair(Media_EME_Usage::kUseHardwareSecureCodecsName, 0)));
-  EXPECT_THAT(
-      usage_entries[1].metrics,
-      UnorderedElementsAre(
-          Pair(Media_EME_Usage::kApiName,
-               /*blink::EmeApiType::kGenerateRequest=*/4),
-          Pair(Media_EME_Usage::kIsPersistentSessionName, /*false=*/0),
-          Pair(Media_EME_Usage::kKeySystemName,
-               media::GetKeySystemIntForUKM(CurrentKeySystem())),
-          Pair(Media_EME_Usage::kUseHardwareSecureCodecsName, /*false=*/0)));
-  EXPECT_THAT(
-      usage_entries[2].metrics,
-      UnorderedElementsAre(
-          Pair(Media_EME_Usage::kApiName, /*blink::EmeApiType::kUpdate=*/6),
-          Pair(Media_EME_Usage::kIsPersistentSessionName, /*false=*/0),
-          Pair(Media_EME_Usage::kKeySystemName,
-               media::GetKeySystemIntForUKM(CurrentKeySystem())),
-          Pair(Media_EME_Usage::kUseHardwareSecureCodecsName, /*false=*/0)));
-
-  // Check Media_EME_ApiPromiseRejection. With Widevine if there is no license
-  // server Update() will fail. With ClearKey a valid response is provided, so
-  // there is no failure.
-  auto promise_entries = ukm_recorder.GetEntries(
-      Media_EME_ApiPromiseRejection::kEntryName,
-      {Media_EME_ApiPromiseRejection::kApiName,
-       Media_EME_ApiPromiseRejection::kKeySystemName,
-       Media_EME_ApiPromiseRejection::kSystemCodeName,
-       Media_EME_ApiPromiseRejection::kUseHardwareSecureCodecsName});
-  if (is_widevine && !license_server_) {
-    // Update() should have failed due to invalid license response.
-    EXPECT_EQ(promise_entries.size(), 1u);
-    // Media_EME_ApiPromiseRejection::kSystemCodeName is key system
-    // implementation specific, so exact value may change.
-    EXPECT_THAT(
-        promise_entries[0].metrics,
-        UnorderedElementsAre(
-            Pair(Media_EME_ApiPromiseRejection::kApiName,
-                 /*blink::EmeApiType::kUpdate=*/6),
-            Pair(Media_EME_ApiPromiseRejection::kKeySystemName,
-                 media::GetKeySystemIntForUKM(CurrentKeySystem())),
-            Pair(Media_EME_ApiPromiseRejection::kSystemCodeName, Not(Eq(0))),
-            Pair(Media_EME_ApiPromiseRejection::kUseHardwareSecureCodecsName,
-                 /*false=*/0)));
-  } else {
-    // No error with ClearKey or with Widevine if a license server is available.
-    EXPECT_EQ(promise_entries.size(), 0u);
-  }
 }
 
 #if BUILDFLAG(USE_PROPRIETARY_CODECS)

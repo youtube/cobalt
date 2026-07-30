@@ -415,6 +415,8 @@ struct DocumentProvider : Config<DocumentProvider> {
   bool enabled;
   // The minimum input length required before requesting document suggestions.
   size_t min_query_length;
+  // The delay in milliseconds to debounce requests by.
+  int debounce_delay_ms;
   // Whether to scope backoff state to the profile instead of the current
   // window.
   bool scope_backoff_to_profile;
@@ -427,6 +429,8 @@ struct DocumentProvider : Config<DocumentProvider> {
   // the string representation expected by `base::TimeDeltaFromString()` (e.g.
   // "10m" or "12h"). Has no effect when `scope_backoff_to_profile` is false.
   base::TimeDelta backoff_duration;
+  // Whether to trigger backoff when the response code is HTTP 429.
+  bool backoff_on_429;
 };
 
 // If enabled, pretends all matches are allowed to be default. This is very

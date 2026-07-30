@@ -43,6 +43,7 @@
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_MAC)
+#include "media/webrtc/application_audio_capture_id_mac.h"
 #include "third_party/webrtc/modules/desktop_capture/mac/window_list_utils.h"
 #endif  // BUILDFLAG(IS_MAC)
 
@@ -52,6 +53,27 @@
 #endif  // BUILDFLAG(IS_ANDROID)
 
 namespace {
+
+content::WebContents* GetWebContentsFromWebContentsId(
+    const content::DesktopMediaID& media_id) {
+  content::RenderFrameHost* const original_rfh =
+      content::RenderFrameHost::FromID(
+          media_id.web_contents_id.render_process_id,
+          media_id.web_contents_id.main_render_frame_id);
+
+  if (!original_rfh || !original_rfh->IsActive()) {
+    return nullptr;
+  }
+
+  content::WebContents* const web_contents =
+      content::WebContents::FromRenderFrameHost(original_rfh);
+
+  if (!web_contents) {
+    return nullptr;
+  }
+
+  return web_contents;
+}
 
 // TODO(crbug.com/40181897): Eliminate code duplication with
 // capture_handle_manager.cc.
@@ -63,22 +85,17 @@ media::mojom::CaptureHandlePtr CreateCaptureHandle(
     return nullptr;
   }
 
-  content::RenderFrameHost* const captured_rfh =
-      content::RenderFrameHost::FromID(
-          captured_id.web_contents_id.render_process_id,
-          captured_id.web_contents_id.main_render_frame_id);
-  if (!captured_rfh || !captured_rfh->IsActive()) {
+  content::WebContents* const captured_wc =
+      GetWebContentsFromWebContentsId(captured_id);
+  if (!captured_wc) {
     return nullptr;
   }
 
-  content::WebContents* const captured =
-      content::WebContents::FromRenderFrameHost(captured_rfh);
-  if (!captured) {
-    return nullptr;
-  }
+  content::RenderFrameHost* const captured_rfh =
+      &captured_wc->GetPrimaryPage().GetMainDocument();
 
   const auto& captured_config =
-      captured_rfh->GetPage().GetCaptureHandleConfig();
+      captured_wc->GetPrimaryPage().GetCaptureHandleConfig();
   if (!captured_config.all_origins_permitted &&
       std::ranges::none_of(
           captured_config.permitted_origins,
@@ -90,9 +107,9 @@ media::mojom::CaptureHandlePtr CreateCaptureHandle(
 
   // Observing CaptureHandle when either the capturing or the captured party
   // is incognito is disallowed, except for self-capture.
-  if (capturer->GetPrimaryMainFrame() != captured->GetPrimaryMainFrame()) {
+  if (&capturer->GetPrimaryPage().GetMainDocument() != captured_rfh) {
     if (capturer->GetBrowserContext()->IsOffTheRecord() ||
-        captured->GetBrowserContext()->IsOffTheRecord()) {
+        captured_rfh->GetBrowserContext()->IsOffTheRecord()) {
       return nullptr;
     }
   }
@@ -104,7 +121,7 @@ media::mojom::CaptureHandlePtr CreateCaptureHandle(
 
   auto result = media::mojom::CaptureHandle::New();
   if (captured_config.expose_origin) {
-    result->origin = captured->GetPrimaryMainFrame()->GetLastCommittedOrigin();
+    result->origin = captured_rfh->GetLastCommittedOrigin();
   }
   result->capture_handle = captured_config.capture_handle;
 
@@ -113,16 +130,8 @@ media::mojom::CaptureHandlePtr CreateCaptureHandle(
 
 std::optional<int> GetZoomLevel(content::WebContents* capturer,
                                 const content::DesktopMediaID& captured_id) {
-  content::RenderFrameHost* const captured_rfh =
-      content::RenderFrameHost::FromID(
-          captured_id.web_contents_id.render_process_id,
-          captured_id.web_contents_id.main_render_frame_id);
-  if (!captured_rfh || !captured_rfh->IsActive()) {
-    return std::nullopt;
-  }
-
   content::WebContents* const captured_wc =
-      content::WebContents::FromRenderFrameHost(captured_rfh);
+      GetWebContentsFromWebContentsId(captured_id);
   if (!captured_wc) {
     return std::nullopt;
   }
@@ -381,10 +390,25 @@ std::optional<std::string> ProcessIdToApplicationLoopbackDeviceId(
   if (process_id == base::kNullProcessId) {
     return std::nullopt;
   }
+#if BUILDFLAG(IS_MAC)
+  std::optional<media::ApplicationAudioCaptureId> capture_identifier =
+      media::GetApplicationAudioCaptureIdForProcess(process_id);
+  if (!capture_identifier) {
+    return std::nullopt;
+  }
+  if (restrict_own_audio &&
+      capture_identifier->pid == base::GetCurrentProcId()) {
+    return media::CreateRestrictOwnAudioBrowserLoopbackDeviceId(
+        capture_identifier->bundle_id, *capture_identifier->pid);
+  }
+  return media::CreateApplicationLoopbackDeviceId(capture_identifier->bundle_id,
+                                                  capture_identifier->pid);
+#else
   if (restrict_own_audio && base::GetCurrentProcId() == process_id) {
     return media::CreateRestrictOwnAudioBrowserLoopbackDeviceId();
   }
   return media::CreateApplicationLoopbackDeviceId(process_id);
+#endif  // BUILDFLAG(IS_MAC)
 }
 }  // namespace
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)

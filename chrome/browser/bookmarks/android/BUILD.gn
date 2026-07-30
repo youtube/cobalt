@@ -209,6 +209,7 @@ robolectric_library("junit") {
     "junit/src/org/chromium/chrome/browser/bookmarks/BookmarkManagerOpenerTest.java",
     "junit/src/org/chromium/chrome/browser/bookmarks/BookmarkManagerViewBinderTest.java",
     "junit/src/org/chromium/chrome/browser/bookmarks/BookmarkModelListTestUtil.java",
+    "junit/src/org/chromium/chrome/browser/bookmarks/BookmarkOpenerUnitTest.java",
     "junit/src/org/chromium/chrome/browser/bookmarks/BookmarkPaneUnitTest.java",
     "junit/src/org/chromium/chrome/browser/bookmarks/BookmarkSaveFlowMediatorUnitTest.java",
     "junit/src/org/chromium/chrome/browser/bookmarks/BookmarkTextInputLayoutTest.java",
@@ -246,7 +247,7 @@ robolectric_library("junit") {
 
 android_library("javatests") {
   testonly = true
-  resources_package = "org.chromium.chrome.test"
+  resources_package = "org.chromium.chrome"
 
   sources = [
     "//chrome/browser/bookmarks/android/junit/src/org/chromium/chrome/browser/bookmarks/FakeBookmarkModel.java",

@@ -26,7 +26,6 @@
         <structure type="lottie" name="IDR_WEBAUTHN_GPM_PIN_DARK" file="resources/webauthn/gpm_pin_dark.json" compress="brotli" />
         <structure type="lottie" name="IDR_WEBAUTHN_LAPTOP_LIGHT" file="resources/webauthn/laptop_light.json" compress="brotli" />
         <structure type="lottie" name="IDR_WEBAUTHN_LAPTOP_DARK" file="resources/webauthn/laptop_dark.json" compress="brotli" />
-        <structure type="lottie" name="IDR_WEBAUTHN_GPM_INCOGNITO" file="resources/webauthn/gpm_incognito.json" compress="brotli" />
         <structure type="lottie" name="IDR_WEBAUTHN_GPM_PIN_LOCKED_LIGHT" file="resources/webauthn/gpm_pin_locked_light.json" compress="brotli" />
         <structure type="lottie" name="IDR_WEBAUTHN_GPM_PIN_LOCKED_DARK" file="resources/webauthn/gpm_pin_locked_dark.json" compress="brotli" />
 
@@ -70,6 +69,9 @@
 
         <!-- Search AI Mode Lottie resources -->
         <structure type="lottie" name="IDR_SEARCH_AI_MODE_SIGNIN_PROMO_LOTTIE" file="resources/search_ai_mode/search_ai_mode_signin_promo.json" compress="brotli" />
+
+        <!-- Web App Internals resources -->
+        <structure type="lottie" name="IDR_WEB_APP_INTERNALS_CROS_LAUNCHER" file="resources/webapps/cros_launcher.json" compress="brotli" />
         </if>
         </structures>
     <includes>
@@ -81,26 +83,15 @@
         <include name="IDR_ABOUT_CONFLICTS_JS" file="${root_gen_dir}\chrome\browser\resources\conflicts\tsc\about_conflicts.js" use_base_dir="false" type="BINDATA" />
         <include name="IDR_ABOUT_CONFLICTS_WARNING_SVG" file="resources\conflicts\warning.svg" type="BINDATA" />
       </if>
+      <include name="IDR_SEARCH_ENGINE_PREPOPULATED_ENGINES_JSON" file="../../third_party/search_engines_data/resources/definitions/prepopulated_engines.json" type="BINDATA" />
       <include name="IDR_AD_NETWORK_HASHES" file="resources\ad_networks.dat" type="BINDATA" />
       <if expr="is_chromeos">
         <include name="IDR_CHROME_APP_MANIFEST" file="resources\chrome_app\manifest.json" type="BINDATA" />
         <include name="IDR_URL_MOJOM_LITE_JS" file="${root_gen_dir}\url\mojom\url.mojom-lite.js" use_base_dir="false" type="BINDATA" />
 
         <!-- ChromeOS Account Manager resources -->
-        <include name="IDR_ACCOUNT_MANAGER_COMPONENTS_ERROR_SCREEN_JS" file="resources\chromeos\account_manager\components\error_screen.js" type ="BINDATA"/>
-        <include name="IDR_ACCOUNT_MANAGER_COMPONENTS_ERROR_SCREEN_HTML_JS" file="${root_gen_dir}\chrome\browser\resources\chromeos\account_manager\components\error_screen.html.js" use_base_dir="false" type ="BINDATA"/>
-        <include name="IDR_ACCOUNT_MANAGER_SHARED_CSS_JS" file="${root_gen_dir}\chrome\browser\resources\chromeos\account_manager\account_manager_shared.css.js" use_base_dir="false" type ="BINDATA" />
-        <include name="IDR_ACCOUNT_MIGRATION_WELCOME_HTML" file="resources\chromeos\account_manager\account_migration_welcome.html" type="BINDATA" />
-        <include name="IDR_ACCOUNT_MIGRATION_WELCOME_APP_JS"  file="resources\chromeos\account_manager\account_migration_welcome_app.js" type="BINDATA" />
-        <include name="IDR_ACCOUNT_MIGRATION_WELCOME_APP_HTML_JS"  file="${root_gen_dir}\chrome\browser\resources\chromeos\account_manager\account_migration_welcome_app.html.js" use_base_dir="false" preprocess="true" type="BINDATA" />
-        <include name="IDR_ACCOUNT_MANAGER_BROWSER_PROXY_JS" file="resources\chromeos\account_manager\account_manager_browser_proxy.js" type="BINDATA" />
-        <include name="IDR_ACCOUNT_MANAGER_ERROR_HTML" file="resources\chromeos\account_manager\account_manager_error.html" allowexternalscript="true" type="BINDATA" preprocess="true"/>
-        <include name="IDR_ACCOUNT_MANAGER_ERROR_APP_JS" file="resources\chromeos\account_manager\account_manager_error_app.js" type="BINDATA" />
-        <include name="IDR_ACCOUNT_MANAGER_ERROR_APP_HTML_JS" file="${root_gen_dir}\chrome\browser\resources\chromeos\account_manager\account_manager_error_app.html.js" use_base_dir="false" preprocess="true" type="BINDATA" />
         <include name="IDS_ACCOUNT_MANAGER_SIGNIN_BLOCKED_BY_POLICY_SVG" file="resources\chromeos\login\images\error.svg" type="BINDATA" />
         <if expr="_google_chrome">
-          <include name="IDR_ACCOUNT_MANAGER_WELCOME_1X_PNG" file="resources\chromeos\account_manager\account_manager_welcome_1x.png" type="BINDATA" />
-          <include name="IDR_ACCOUNT_MANAGER_WELCOME_2X_PNG" file="resources\chromeos\account_manager\account_manager_welcome_2x.png" type="BINDATA" />
           <include name="IDR_ACCOUNT_MANAGER_WELCOME_GOOGLE_LOGO_SVG" file="resources\chromeos\googleg.svg" type="BINDATA" />
         </if>
 
@@ -132,18 +123,7 @@
           <else>
           </else>
         </if>
-        <include name="IDR_ABOUT_POWER_HTML" file="resources\chromeos\power.html" type="BINDATA" />
-        <include name="IDR_ABOUT_POWER_JS" file="resources\chromeos\power.js" type="BINDATA" />
-        <include name="IDR_ABOUT_POWER_CSS" file="resources\chromeos\power.css" type="BINDATA" />
-        <include name="IDR_DEVICE_EMULATOR_HTML" file="resources\chromeos\emulator\device_emulator.html" type="BINDATA" />
-        <include name="IDR_DEVICE_EMULATOR_CSS" file="resources\chromeos\emulator\device_emulator.css" type="BINDATA" />
-        <include name="IDR_DEVICE_EMULATOR_AUDIO_SETTINGS_JS" file="${root_gen_dir}\chrome\browser\resources\chromeos\emulator\audio_settings.js" use_base_dir="false" type="BINDATA" />
-        <include name="IDR_DEVICE_EMULATOR_BATTERY_SETTINGS_JS" file="${root_gen_dir}\chrome\browser\resources\chromeos\emulator\battery_settings.js" use_base_dir="false" type="BINDATA" />
-        <include name="IDR_DEVICE_EMULATOR_BLUETOOTH_SETTINGS_JS" file="${root_gen_dir}\chrome\browser\resources\chromeos\emulator\bluetooth_settings.js" use_base_dir="false" type="BINDATA" />
-        <include name="IDR_DEVICE_EMULATOR_ICONS_JS" file="${root_gen_dir}\chrome\browser\resources\chromeos\emulator\icons.js" use_base_dir="false"  type="BINDATA" />
-        <include name="IDR_DEVICE_EMULATOR_INPUT_DEVICE_SETTINGS_JS" file="${root_gen_dir}\chrome\browser\resources\chromeos\emulator\input_device_settings.js" use_base_dir="false"  type="BINDATA" />
-        <include name="IDR_DEVICE_EMULATOR_PAGES_JS" file="${root_gen_dir}\chrome\browser\resources\chromeos\emulator\device_emulator_pages.js" use_base_dir="false"  type="BINDATA" />
-        <include name="IDR_DEVICE_EMULATOR_SHARED_STYLES_JS" file="${root_gen_dir}\chrome\browser\resources\chromeos\emulator\shared_styles.js" use_base_dir="false"  type="BINDATA" />
+
         <if expr="_google_chrome">
           <then>
             <include name="IDR_GOOGLE_XKB_MANIFEST" file="resources\chromeos\input_method\google_xkb_manifest.json" type="BINDATA" />

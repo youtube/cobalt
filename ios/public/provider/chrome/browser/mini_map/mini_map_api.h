@@ -27,6 +27,11 @@ using MiniMapControllerCompletionWithString = void (^)(NSString*);
 - (void)presentDirectionsWithPresentingViewController:
     (UIViewController*)viewController;
 
+// Presents the MiniMapController in native preview mode on top of
+// viewController.
+- (void)presentMapsNativePreviewWithPresentingViewController:
+    (UIViewController*)viewController;
+
 // Configure the footer view of the minimap controller.
 // All the fields are required.
 // If this is not called before the presentation, no footer view is presented.
@@ -64,6 +69,9 @@ using MiniMapControllerCompletionWithString = void (^)(NSString*);
 // Note: exactly one of `completion` or `completionWithQuery` will be called.
 - (void)configureCompletionWithSearchQuery:
     (MiniMapControllerCompletionWithString)completionWithQuery;
+
+// `failureCompletion` is called when Mini Map fails to load.
+- (void)configureFailureCompletion:(void (^)(void))failureCompletion;
 
 @end
 

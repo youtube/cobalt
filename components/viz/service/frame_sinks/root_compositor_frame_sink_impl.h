@@ -84,6 +84,7 @@ class VIZ_SERVICE_EXPORT RootCompositorFrameSinkImpl
       const gfx::DisplayColorSpaces& display_color_spaces) override;
 #if BUILDFLAG(IS_MAC)
   void SetVSyncDisplayID(int64_t display_id) override;
+  void RefreshRateChangedOnSameDisplay() override;
 #endif
   void SetOutputIsSecure(bool secure) override;
   void SetDisplayVSyncParameters(base::TimeTicks timebase,
@@ -166,7 +167,7 @@ class VIZ_SERVICE_EXPORT RootCompositorFrameSinkImpl
                               AggregatedRenderPassList* render_passes) override;
   void DisplayDidDrawAndSwap() override;
   void DisplayDidReceiveCALayerParams(
-      const gfx::CALayerParams& ca_layer_params) override;
+      gfx::CALayerParams ca_layer_params) override;
   void DisplayDidCompleteSwapWithSize(const gfx::Size& pixel_size) override;
   void DisplayAddChildWindowToBrowser(gpu::SurfaceHandle child_window) override;
   void SetWideColorEnabled(bool enabled) override;

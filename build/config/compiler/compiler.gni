@@ -40,16 +40,35 @@ if (!defined(experimental_linker_path) || !is_a_target_toolchain) {
   experimental_linker_path = ""
 }
 
+if (!is_win && !is_mac && !is_ios) {
+  declare_args() {
+    # Link using mold instead of lld.
+    use_mold =
+        host_os == "linux" && !is_official_build &&
+        experimental_linker_path == "" && is_a_target_toolchain &&
+        current_cpu == "x64" && is_android
+    # This should be !use_thin_lto, but there's a circular dependency
+    # between use_thin_lto and use_mold.
+    # is_a_target_toolchain restriction due to https://github.com/rui314/mold/issues/1571
+  }
+}
+
+if (!defined(use_mold)) {
+  use_mold = false
+  linker_path = ""
+} else if (use_mold) {
+  linker_path = "//buildtools/third_party/mold/cipd/bin/mold"
+} else {
+  linker_path = experimental_linker_path
+}
+
 declare_args() {
   # Set to true to use lld, the LLVM linker.
   # In late bring-up on macOS (see docs/mac_lld.md).
   # Tentatively used on iOS, except in arm64e mode (not yet supported by lld).
   # The default linker everywhere else.
-  use_lld = is_clang && current_os != "zos" && experimental_linker_path == "" &&
-            !(is_ios && current_cpu == "arm64e")
-
-  # If false, build using C++20; otherwise, build using C++23.
-  use_cxx23 = true
+  use_lld = is_clang && current_os != "zos" && linker_path == "" &&
+            !(is_ios && current_cpu == "arm64e") && !use_mold
 
   # If true, optimize for size.
   # Default to favoring speed over size for platforms not listed below.
@@ -185,8 +204,9 @@ declare_args() {
   # .eh_frame section. To maintain debuggability, Soong appends compressed
   # unwind sections at a later stage, ensuring stack traces can still
   # be unwound offline.
-  exclude_unwind_tables =
-      (is_official_build && !is_android) || is_cronet_for_aosp_build
+  exclude_unwind_tables = (is_official_build &&
+                           (!is_android || current_cpu == "arm64" ||
+                            current_cpu == "x64")) || is_cronet_for_aosp_build
 
   # Where to redirect clang crash diagnoses
   clang_diagnostic_dir = rebase_path("//out/clang-crashreports", root_build_dir)
@@ -277,16 +297,15 @@ if (is_chromeos || (enable_cast_receiver && is_linux)) {
     enable_frame_pointers = true
   }
 } else if (is_android) {
-  enable_frame_pointers =
-      enable_profiling ||
-      # Ensure that stacks from arm64 crash dumps are usable (crbug.com/391706).
-      current_cpu == "arm64" ||
-      # For x86 Android, unwind tables are huge without frame pointers
-      # (crbug.com/762629). Enabling frame pointers grows the code size slightly
-      # but overall shrinks binaries considerably by avoiding huge unwind
-      # tables.
-      (current_cpu == "x86" && !exclude_unwind_tables && optimize_for_size) ||
-      using_sanitizer
+  enable_frame_pointers = enable_profiling ||
+                          # Ensure that stacks from arm64 and x64 crash dumps are usable (crbug.com/391706).
+                          current_cpu == "arm64" || current_cpu == "x64" ||
+                          # For x86 Android, unwind tables are huge without frame pointers
+                          # (crbug.com/762629). Enabling frame pointers grows the code size slightly
+                          # but overall shrinks binaries considerably by avoiding huge unwind
+                          # tables.
+                          (current_cpu == "x86" && !exclude_unwind_tables &&
+                           optimize_for_size) || using_sanitizer
 } else if (is_fuchsia) {
   # Fuchsia on arm64 could use shadow call stack for unwinding.
   enable_frame_pointers = current_cpu != "arm64"

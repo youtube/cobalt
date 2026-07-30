@@ -54,6 +54,7 @@
 #include "pdf/pdf_accessibility_constants.h"
 #include "pdf/pdf_caret.h"
 #include "pdf/pdf_features.h"
+#include "pdf/pdf_ink_constants.h"
 #include "pdf/pdf_transform.h"
 #include "pdf/pdf_utils/text_util.h"
 #include "pdf/pdfium/pdfium_api_string_buffer_adapter.h"
@@ -156,6 +157,37 @@ constexpr int32_t kFormHighlightAlpha = 100;
 constexpr int kMaxPasswordTries = 3;
 
 constexpr base::TimeDelta kTouchLongPressTimeout = base::Milliseconds(300);
+
+// Saves the provided `attributes` as parameters on the `mark` of the
+// `text_object`. Used to reload text objects in future PDF sessions.
+void AddMetadataToTextObject(FPDF_DOCUMENT doc,
+                             FPDF_PAGEOBJECT text_object,
+                             FPDF_PAGEOBJECTMARK mark,
+                             const InkTextBoxAttributes& attributes) {
+  CHECK(FPDFPageObjMark_SetIntParam(doc, text_object, mark, "Version",
+                                    kInkTextAnnotationVersion));
+
+  CHECK(FPDFPageObjMark_SetFloatParam(doc, text_object, mark, "BoundsX",
+                                      attributes.rect.x()));
+  CHECK(FPDFPageObjMark_SetFloatParam(doc, text_object, mark, "BoundsY",
+                                      attributes.rect.y()));
+  CHECK(FPDFPageObjMark_SetFloatParam(doc, text_object, mark, "BoundsWidth",
+                                      attributes.rect.width()));
+  CHECK(FPDFPageObjMark_SetFloatParam(doc, text_object, mark, "BoundsHeight",
+                                      attributes.rect.height()));
+
+  CHECK(FPDFPageObjMark_SetIntParam(doc, text_object, mark, "Typeface",
+                                    static_cast<int>(attributes.typeface)));
+  CHECK(FPDFPageObjMark_SetIntParam(doc, text_object, mark, "Alignment",
+                                    static_cast<int>(attributes.alignment)));
+  CHECK(FPDFPageObjMark_SetIntParam(doc, text_object, mark, "Orientation",
+                                    attributes.orientation));
+
+  CHECK(FPDFPageObjMark_SetIntParam(doc, text_object, mark, "IsBold",
+                                    attributes.is_bold));
+  CHECK(FPDFPageObjMark_SetIntParam(doc, text_object, mark, "IsItalic",
+                                    attributes.is_italic));
+}
 
 // Windows has native panning capabilities. No need to use our own.
 #if BUILDFLAG(IS_WIN)
@@ -737,7 +769,7 @@ PDFiumEngine::~PDFiumEngine() {
   selection_.clear();
 #if BUILDFLAG(ENABLE_PDF_INK2)
   ink_stroke_data_.clear();
-  stroked_pages_unload_preventers_.clear();
+  edited_pages_unload_preventers_.clear();
 #endif
 
   for (auto& page : pages_) {
@@ -5083,15 +5115,17 @@ FPDF_FONT PDFiumEngine::GetAddedFont(FontId font_id) {
 }
 
 void PDFiumEngine::DrawText(int page_index,
+                            InkTextId id,
                             base::span<const InkTextInfo> text_info,
-                            SkColor color,
-                            float css_font_size,
                             double pdf_zoom,
-                            const gfx::RectF& textbox) {
+                            const InkTextBoxAttributes& attributes) {
   CHECK(PageIndexInBounds(page_index));
   FPDF_PAGE page = GetPage(page_index)->GetPage();
   const gfx::Transform transform = GetCanonicalToPdfTransformForPage(page);
-  const float pdf_font_size = CSSFontSizeToPdfFontSize(css_font_size);
+  const SkColor color = attributes.color;
+  const float pdf_font_size =
+      CSSFontSizeToPdfFontSize(attributes.css_font_size);
+  const int textbox_id = next_textbox_id_++;
 
   for (const InkTextInfo& item : text_info) {
     FPDF_FONT font = GetAddedFont(item.font_id);
@@ -5101,12 +5135,12 @@ void PDFiumEngine::DrawText(int page_index,
     // Blink actually uses the primary font ascent for alignment. Also Blink
     // uses a special platform-specific rounded number.
     float ascent;
-    CHECK(FPDFFont_GetAscent(font, css_font_size, &ascent));
+    CHECK(FPDFFont_GetAscent(font, attributes.css_font_size, &ascent));
 
     gfx::RectF run_rect = item.location;
     run_rect.Scale(1.0 / pdf_zoom);
     run_rect.set_height(ascent);
-    run_rect = transform.MapRect(run_rect + textbox.OffsetFromOrigin());
+    run_rect = transform.MapRect(run_rect + attributes.rect.OffsetFromOrigin());
 
     ScopedFPDFPageObject text_object(
         FPDFPageObj_CreateTextObj(doc(), font, pdf_font_size));
@@ -5119,6 +5153,19 @@ void PDFiumEngine::DrawText(int page_index,
                                 item.glyphs.size()));
     FS_MATRIX matrix{1, 0, 0, 1, run_rect.x(), run_rect.y()};
     CHECK(FPDFPageObj_TransformF(text_object.get(), &matrix));
+
+    FPDF_PAGEOBJECTMARK mark =
+        FPDFPageObj_AddMark(text_object.get(), kInkTextAnnotationIdentifierKey);
+    CHECK(mark);
+    CHECK(FPDFPageObjMark_SetIntParam(doc(), text_object.get(), mark,
+                                      "TextboxId", textbox_id));
+
+    if (&item == &text_info.front()) {
+      // Only apply metadata to the first text object in the textbox. Other
+      // text objects in the textbox can be identified by the TextboxId.
+      AddMetadataToTextObject(doc(), text_object.get(), mark, attributes);
+    }
+
     CHECK(FPDFPage_InsertObject(page, text_object.release()));
   }
 
@@ -5157,8 +5204,8 @@ void PDFiumEngine::ApplyStroke(int page_index,
   // Since there are now page references in `ink_stroke_data_`, ensure that this
   // page has a ScopedUnloadPreventer so that the references do not become stale
   // if PDFiumPage::Unload() gets called.
-  if (!stroked_pages_unload_preventers_.contains(page_index)) {
-    stroked_pages_unload_preventers_.insert(
+  if (!edited_pages_unload_preventers_.contains(page_index)) {
+    edited_pages_unload_preventers_.insert(
         {page_index, PDFiumPage::ScopedUnloadPreventer(pdfium_page)});
   }
 }
@@ -5197,7 +5244,7 @@ void PDFiumEngine::DiscardStroke(int page_index, InkStrokeId id) {
         return it.second.page_index == page_index;
       });
   if (!page_still_has_shapes_or_strokes) {
-    stroked_pages_unload_preventers_.erase(page_index);
+    edited_pages_unload_preventers_.erase(page_index);
   }
 }
 
@@ -5239,16 +5286,16 @@ PDFiumEngine::LoadV2InkPathsForPage(int page_index) {
 
   // Should be unique due to the caller's responsibility to call
   // `LoadV2InkPathsForPage()` at most once per page.
-  CHECK(!stroked_pages_unload_preventers_.contains(page_index));
+  CHECK(!edited_pages_unload_preventers_.contains(page_index));
 
   // Prevent pages with existing Ink paths from unloading. Otherwise, if the
   // page unloads and reloads, then the loaded V2 Ink path will no longer match
   // the PDF object, and any updates to the Ink path will not be visible in the
   // PDF.
   // Also remember the associated page has loaded shapes, so DiscardStroke()
-  // will know not to erase the `stroked_pages_unload_preventers_` entry.
+  // will know not to erase the `edited_pages_unload_preventers_` entry.
   if (!page_shape_map.empty()) {
-    stroked_pages_unload_preventers_.insert(
+    edited_pages_unload_preventers_.insert(
         {page_index, PDFiumPage::ScopedUnloadPreventer(page)});
     pages_with_loaded_v2_ink_shapes_.insert(page_index);
   }

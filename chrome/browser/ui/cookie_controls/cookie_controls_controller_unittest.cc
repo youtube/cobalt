@@ -36,6 +36,10 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/l10n/l10n_util.h"
 
+#if BUILDFLAG(IS_MAC)
+#include "base/mac/mac_util.h"
+#endif
+
 namespace {
 
 using StorageType =
@@ -265,10 +269,10 @@ TEST_F(CookieControlsUserBypassTest, SiteCounts) {
       /*blocked=*/true);
 
   // Enabling third-party cookies records metrics.
-  EXPECT_CALL(
-      *mock(),
-      OnStatusChanged(CookieControlsState::kAllowed3pc,
-                      CookieControlsEnforcement::kNoEnforcement, expiration()));
+  EXPECT_CALL(*mock(),
+              OnStatusChanged(CookieControlsState::kAllowed3pc,
+                              CookieControlsEnforcement::kNoEnforcement,
+                              zero_expiration()));
   EXPECT_CALL(*mock(),
               OnCookieControlsIconStatusChanged(
                   /*icon_visible=*/true, CookieControlsState::kAllowed3pc,
@@ -337,10 +341,10 @@ TEST_F(CookieControlsUserBypassTest, AllCookiesBlocked) {
   testing::Mock::VerifyAndClearExpectations(mock());
 
   // Disable cookie blocking for example.com.
-  EXPECT_CALL(
-      *mock(),
-      OnStatusChanged(CookieControlsState::kAllowed3pc,
-                      CookieControlsEnforcement::kNoEnforcement, expiration()));
+  EXPECT_CALL(*mock(),
+              OnStatusChanged(CookieControlsState::kAllowed3pc,
+                              CookieControlsEnforcement::kNoEnforcement,
+                              zero_expiration()));
   EXPECT_CALL(*mock(),
               OnCookieControlsIconStatusChanged(
                   /*icon_visible=*/true, CookieControlsState::kAllowed3pc,
@@ -368,10 +372,10 @@ TEST_F(CookieControlsUserBypassTest, DisableForSite) {
   testing::Mock::VerifyAndClearExpectations(mock());
 
   // Disabling cookie blocking for example.com should update the ui.
-  EXPECT_CALL(
-      *mock(),
-      OnStatusChanged(CookieControlsState::kAllowed3pc,
-                      CookieControlsEnforcement::kNoEnforcement, expiration()));
+  EXPECT_CALL(*mock(),
+              OnStatusChanged(CookieControlsState::kAllowed3pc,
+                              CookieControlsEnforcement::kNoEnforcement,
+                              zero_expiration()));
   EXPECT_CALL(*mock(),
               OnCookieControlsIconStatusChanged(
                   /*icon_visible=*/true, CookieControlsState::kAllowed3pc,
@@ -395,10 +399,10 @@ TEST_F(CookieControlsUserBypassTest, DisableForSite) {
 
   // Visiting example.com should turn protections off.
   NavigateAndCommit(GURL(kUrl));
-  EXPECT_CALL(
-      *mock(),
-      OnStatusChanged(CookieControlsState::kAllowed3pc,
-                      CookieControlsEnforcement::kNoEnforcement, expiration()));
+  EXPECT_CALL(*mock(),
+              OnStatusChanged(CookieControlsState::kAllowed3pc,
+                              CookieControlsEnforcement::kNoEnforcement,
+                              zero_expiration()));
   EXPECT_CALL(*mock(),
               OnCookieControlsIconStatusChanged(
                   /*icon_visible=*/true, CookieControlsState::kAllowed3pc,
@@ -468,10 +472,10 @@ TEST_F(CookieControlsUserBypassTest, Incognito) {
 
   // Allow cookies in regular mode should also allow in incognito but enforced
   // through regular mode.
-  EXPECT_CALL(
-      *mock(),
-      OnStatusChanged(CookieControlsState::kAllowed3pc,
-                      CookieControlsEnforcement::kNoEnforcement, expiration()));
+  EXPECT_CALL(*mock(),
+              OnStatusChanged(CookieControlsState::kAllowed3pc,
+                              CookieControlsEnforcement::kNoEnforcement,
+                              zero_expiration()));
   EXPECT_CALL(*mock(),
               OnCookieControlsIconStatusChanged(
                   /*icon_visible=*/true, CookieControlsState::kAllowed3pc,
@@ -481,7 +485,7 @@ TEST_F(CookieControlsUserBypassTest, Incognito) {
       incognito_mock,
       OnStatusChanged(CookieControlsState::kAllowed3pc,
                       CookieControlsEnforcement::kEnforcedByCookieSetting,
-                      expiration()));
+                      zero_expiration()));
   EXPECT_CALL(incognito_mock,
               OnCookieControlsIconStatusChanged(
                   /*icon_visible=*/true, CookieControlsState::kAllowed3pc,
@@ -510,7 +514,7 @@ TEST_F(CookieControlsUserBypassTest, Incognito) {
       incognito_mock,
       OnStatusChanged(CookieControlsState::kAllowed3pc,
                       CookieControlsEnforcement::kEnforcedByCookieSetting,
-                      expiration()));
+                      zero_expiration()));
   EXPECT_CALL(incognito_mock,
               OnCookieControlsIconStatusChanged(
                   /*icon_visible=*/true, CookieControlsState::kAllowed3pc,
@@ -620,49 +624,6 @@ TEST_F(CookieControlsUserBypassTest, FrequentPageReloads) {
 }
 
 TEST_F(CookieControlsUserBypassTest,
-       HittingPageReloadThresholdTriggersOnReloadThresholdExceeded) {
-  // Update initial web contents to ensure the tab observer is set up.
-  cookie_controls()->Update(web_contents());
-
-  // Don't call observer when reload count = 0.
-  EXPECT_CALL(*mock(), OnReloadThresholdExceeded()).Times(0);
-
-  EXPECT_CALL(*mock(),
-              OnStatusChanged(CookieControlsState::kBlocked3pc,
-                              CookieControlsEnforcement::kNoEnforcement,
-                              zero_expiration()));
-  EXPECT_CALL(*mock(),
-              OnCookieControlsIconStatusChanged(
-                  /*icon_visible=*/false, CookieControlsState::kBlocked3pc,
-                  /*should_highlight=*/false));
-  NavigateAndCommit(GURL(kUrl));
-  cookie_controls()->Update(web_contents());
-  testing::Mock::VerifyAndClearExpectations(mock());
-
-  // Don't call observer when reload count = 1.
-  EXPECT_CALL(*mock(), OnReloadThresholdExceeded()).Times(0);
-
-  EXPECT_CALL(*mock(),
-              OnCookieControlsIconStatusChanged(
-                  /*icon_visible=*/false, CookieControlsState::kBlocked3pc,
-                  /*should_highlight=*/false));
-  NavigateAndCommit(GURL(kUrl));
-  cookie_controls()->Update(web_contents());
-  testing::Mock::VerifyAndClearExpectations(mock());
-
-  // Expect observer call when reload count hits threshold of 2.
-  EXPECT_CALL(*mock(), OnReloadThresholdExceeded());
-  // Expect that we attempt to highlight the user bypass icon.
-  EXPECT_CALL(*mock(),
-              OnCookieControlsIconStatusChanged(
-                  /*icon_visible=*/false, CookieControlsState::kBlocked3pc,
-                  /*should_highlight=*/true));
-  NavigateAndCommit(GURL(kUrl));
-  cookie_controls()->Update(web_contents());
-  testing::Mock::VerifyAndClearExpectations(mock());
-}
-
-TEST_F(CookieControlsUserBypassTest,
        UserBypassDoesNotHighlightIfCookiesAreAllowed) {
   // Set cookie blocking pref to allow all cookies.
   profile()->GetPrefs()->SetInteger(
@@ -751,10 +712,10 @@ TEST_F(CookieControlsUserBypassTest, FrequentPageReloadsMetrics) {
   testing::Mock::VerifyAndClearExpectations(mock());
 
   // Enabling third-party cookies records metrics.
-  EXPECT_CALL(
-      *mock(),
-      OnStatusChanged(CookieControlsState::kAllowed3pc,
-                      CookieControlsEnforcement::kNoEnforcement, expiration()));
+  EXPECT_CALL(*mock(),
+              OnStatusChanged(CookieControlsState::kAllowed3pc,
+                              CookieControlsEnforcement::kNoEnforcement,
+                              zero_expiration()));
   EXPECT_CALL(*mock(),
               OnCookieControlsIconStatusChanged(
                   /*icon_visible=*/true, CookieControlsState::kAllowed3pc,
@@ -828,10 +789,10 @@ TEST_F(CookieControlsUserBypassTest, InfrequentPageReloads) {
   testing::Mock::VerifyAndClearExpectations(mock());
 
   // Enabling third-party cookies records metrics.
-  EXPECT_CALL(
-      *mock(),
-      OnStatusChanged(CookieControlsState::kAllowed3pc,
-                      CookieControlsEnforcement::kNoEnforcement, expiration()));
+  EXPECT_CALL(*mock(),
+              OnStatusChanged(CookieControlsState::kAllowed3pc,
+                              CookieControlsEnforcement::kNoEnforcement,
+                              zero_expiration()));
   EXPECT_CALL(*mock(),
               OnCookieControlsIconStatusChanged(
                   /*icon_visible=*/true, CookieControlsState::kAllowed3pc,
@@ -978,10 +939,10 @@ TEST_F(CookieControlsUserBypassTest, StorageAccessApiHighSiteEngagement) {
   testing::Mock::VerifyAndClearExpectations(mock());
 
   // Enabling third-party cookies records metrics.
-  EXPECT_CALL(
-      *mock(),
-      OnStatusChanged(CookieControlsState::kAllowed3pc,
-                      CookieControlsEnforcement::kNoEnforcement, expiration()));
+  EXPECT_CALL(*mock(),
+              OnStatusChanged(CookieControlsState::kAllowed3pc,
+                              CookieControlsEnforcement::kNoEnforcement,
+                              zero_expiration()));
   EXPECT_CALL(*mock(),
               OnCookieControlsIconStatusChanged(
                   /*icon_visible=*/true, CookieControlsState::kAllowed3pc,
@@ -1158,56 +1119,6 @@ TEST_F(CookieControlsUserBypassTest, CustomExceptionsDotComWildcard) {
   testing::Mock::VerifyAndClearExpectations(mock());
 }
 
-TEST_F(CookieControlsUserBypassTest, FinishedPageReloadWithChangedSettings) {
-  // Check that when the page is reloaded after settings have changed, that
-  // the appropriate observer method is fired. Reloading the page without a
-  // change, should not fire the observer.
-  EXPECT_CALL(*mock(), OnFinishedPageReloadWithChangedSettings()).Times(0);
-  cookie_controls()->Update(web_contents());
-  NavigateAndCommit(GURL(kUrl));
-
-  // Loading the same page after not making an effective change should not fire.
-  cookie_controls()->OnCookieBlockingEnabledForSite(false);
-  ValidateCookieControlsActivatedUKM(
-      /*fed_cm_initiated=*/false,
-      /*storage_access_api_requested=*/false,
-      /*page_refresh_count=*/0, /*repeated_activation=*/false,
-      blink::mojom::EngagementLevel::NONE,
-      ThirdPartySiteDataAccessType::kNoThirdPartySiteAccesses);
-
-  cookie_controls()->OnCookieBlockingEnabledForSite(true);
-  NavigateAndCommit(GURL(kUrl));
-
-  // Loading a different page after making an effective change should not fire.
-  cookie_controls()->SetStateChangedViaBypass(true);
-  cookie_controls()->OnCookieBlockingEnabledForSite(false);
-  ValidateCookieControlsActivatedUKM(
-      /*fed_cm_initiated=*/false,
-      /*storage_access_api_requested=*/false,
-      /*page_refresh_count=*/1, /*repeated_activation=*/true,
-      blink::mojom::EngagementLevel::NONE,
-      ThirdPartySiteDataAccessType::kNoThirdPartySiteAccesses);
-
-  NavigateAndCommit(GURL("https://example2.com"));
-  testing::Mock::VerifyAndClearExpectations(mock());
-
-  // Observer should fire when reloaded after change.
-  EXPECT_CALL(*mock(), OnFinishedPageReloadWithChangedSettings()).Times(2);
-  cookie_controls()->SetStateChangedViaBypass(true);
-  cookie_controls()->OnCookieBlockingEnabledForSite(false);
-  ValidateCookieControlsActivatedUKM(
-      /*fed_cm_initiated=*/false,
-      /*storage_access_api_requested=*/false,
-      /*page_refresh_count=*/0, /*repeated_activation=*/false,
-      blink::mojom::EngagementLevel::NONE,
-      ThirdPartySiteDataAccessType::kNoThirdPartySiteAccesses);
-
-  NavigateAndCommit(GURL("https://example2.com"));
-  cookie_controls()->SetStateChangedViaBypass(true);
-  cookie_controls()->OnCookieBlockingEnabledForSite(true);
-  NavigateAndCommit(GURL("https://example2.com"));
-}
-
 TEST_F(CookieControlsUserBypassTest,
        DoesNotHighlightLabelWhenSettingNotChangedInContext) {
   auto* hcsm = HostContentSettingsMapFactory::GetForProfile(profile());
@@ -1238,84 +1149,6 @@ TEST_F(CookieControlsUserBypassTest,
       ContentSettingsPattern::FromString("[*.]example.com"),
       ContentSettingsType::COOKIES, CONTENT_SETTING_ALLOW);
   NavigateAndCommit(GURL(kUrl));
-  testing::Mock::VerifyAndClearExpectations(mock());
-}
-
-TEST_F(CookieControlsUserBypassTest, IconHighlightedAfterExceptionExpires) {
-  NavigateAndCommit(GURL(kUrl));
-  page_specific_content_settings()->OnBrowsingDataAccessed(
-      CreateUnpartitionedStorageKey(GURL("https://thirdparty.com")),
-      BrowsingDataModel::StorageType::kQuotaStorage,
-      /*blocked=*/true);
-
-  EXPECT_CALL(*mock(),
-              OnStatusChanged(CookieControlsState::kBlocked3pc,
-                              CookieControlsEnforcement::kNoEnforcement,
-                              zero_expiration()));
-  EXPECT_CALL(*mock(),
-              OnCookieControlsIconStatusChanged(
-                  /*icon_visible=*/true, CookieControlsState::kBlocked3pc,
-                  /*should_highlight=*/false));
-  cookie_controls()->Update(web_contents());
-  testing::Mock::VerifyAndClearExpectations(mock());
-
-  // Enable third-party cookies.
-  EXPECT_CALL(
-      *mock(),
-      OnStatusChanged(CookieControlsState::kAllowed3pc,
-                      CookieControlsEnforcement::kNoEnforcement, expiration()));
-  EXPECT_CALL(*mock(),
-              OnCookieControlsIconStatusChanged(
-                  /*icon_visible=*/true, CookieControlsState::kAllowed3pc,
-                  /*should_highlight=*/false))
-      .Times(2);
-  cookie_controls()->OnCookieBlockingEnabledForSite(false);
-  ValidateCookieControlsActivatedUKM(
-      /*fed_cm_initiated=*/false,
-      /*storage_access_api_requested=*/false,
-      /*page_refresh_count=*/0, /*repeated_activation=*/false,
-      blink::mojom::EngagementLevel::NONE,
-      ThirdPartySiteDataAccessType::kAnyBlockedThirdPartySiteAccesses);
-
-  NavigateAndCommit(GURL(kUrl));
-  testing::Mock::VerifyAndClearExpectations(mock());
-
-  // Wait for exception to expire.
-  FastForwardTo(expiration() + base::Days(1));
-
-  // Visiting the site after exception expires highlights UB.
-  NavigateAndCommit(GURL(kUrl));
-  page_specific_content_settings()->OnBrowsingDataAccessed(
-      CreateUnpartitionedStorageKey(GURL("https://thirdparty.com")),
-      BrowsingDataModel::StorageType::kQuotaStorage,
-      /*blocked=*/true);
-  EXPECT_CALL(*mock(),
-              OnStatusChanged(CookieControlsState::kBlocked3pc,
-                              CookieControlsEnforcement::kNoEnforcement,
-                              zero_expiration()));
-  EXPECT_CALL(*mock(),
-              OnCookieControlsIconStatusChanged(
-                  /*icon_visible=*/true, CookieControlsState::kBlocked3pc,
-                  /*should_highlight=*/true));
-  cookie_controls()->Update(web_contents());
-  testing::Mock::VerifyAndClearExpectations(mock());
-
-  // Revisiting the site again after 30 seconds shouldn't highlight UB.
-  FastForwardBy(base::Seconds(30));
-  NavigateAndCommit(GURL(kUrl));
-  page_specific_content_settings()->OnBrowsingDataAccessed(
-      CreateUnpartitionedStorageKey(GURL("https://thirdparty.com")),
-      BrowsingDataModel::StorageType::kQuotaStorage,
-      /*blocked=*/true);
-  EXPECT_CALL(*mock(),
-              OnStatusChanged(CookieControlsState::kBlocked3pc,
-                              CookieControlsEnforcement::kNoEnforcement,
-                              zero_expiration()));
-  EXPECT_CALL(*mock(),
-              OnCookieControlsIconStatusChanged(
-                  /*icon_visible=*/true, CookieControlsState::kBlocked3pc,
-                  /*should_highlight=*/false));
-  cookie_controls()->Update(web_contents());
   testing::Mock::VerifyAndClearExpectations(mock());
 }
 

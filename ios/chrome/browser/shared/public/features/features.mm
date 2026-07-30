@@ -33,6 +33,22 @@ BASE_FEATURE(kSafetyCheckAutorunByManagerKillswitch,
 BASE_FEATURE(kSafetyCheckModuleHiddenIfNoIssuesKillswitch,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kTabGridSetupMode, base::FEATURE_DISABLED_BY_DEFAULT);
+
+const char kTabGridSetupModeParamName[] = "mode";
+
+const base::FeatureParam<int> kTabGridSetupModeParam(
+    &kTabGridSetupMode,
+    kTabGridSetupModeParamName,
+    static_cast<int>(TabGridSetupMode::kImmediate));
+
+TabGridSetupMode GetTabGridSetupMode() {
+  if (!base::FeatureList::IsEnabled(kTabGridSetupMode)) {
+    return TabGridSetupMode::kImmediate;
+  }
+  return static_cast<TabGridSetupMode>(kTabGridSetupModeParam.Get());
+}
+
 BASE_FEATURE(kOmahaServiceRefactor, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kHideToolbarsInOverflowMenu, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -99,7 +115,7 @@ bool IsNewTabGridTransitionsEnabled() {
 
 BASE_FEATURE(kTabGroupInOverflowMenu, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kTabSwitcherOverflowMenu, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kTabSwitcherOverflowMenu, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kContextualPanelForceShowEntrypoint,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -139,8 +155,6 @@ BASE_FEATURE(kIOSDateToCalendarSignedOut, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kIOSDownloadNoUIUpdateInBackground,
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kIOSSaveToDriveClientFolder, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kIOSSaveToDriveSignedOut, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -399,6 +413,9 @@ BASE_FEATURE(kEnableTraitCollectionRegistration,
 BASE_FEATURE(kSeparateProfilesForManagedAccounts,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kAuthenticationFlowReauthFirstKillswitch,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Feature parameter for kSeparateProfilesForManagedAccountsForceMigration.
 constexpr base::FeatureParam<base::TimeDelta> kMultiProfileMigrationGracePeriod{
     &kSeparateProfilesForManagedAccountsForceMigration,
@@ -622,6 +639,9 @@ constexpr base::FeatureParam<double>
 
 BASE_FEATURE(kIOSMiniMapUniversalLink, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kIOSMiniMapUniversalLinkCounterfactual,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 bool IsNotificationCollisionManagementEnabled() {
   return base::FeatureList::IsEnabled(kNotificationCollisionManagement);
 }
@@ -812,6 +832,12 @@ const char kDisableKeyboardAccessoryCompletely[] =
 
 BASE_FEATURE(kEnableFuseboxKeyboardAccessory,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kAIOmniboxAskPlaceholder, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsAIOmniboxAskPlaceholderEnabled() {
+  return base::FeatureList::IsEnabled(kAIOmniboxAskPlaceholder);
+}
 
 const char kEnableFuseboxKeyboardAccessoryParam[] =
     "kEnableFuseboxKeyboardAccessoryParam";
@@ -1233,3 +1259,6 @@ BASE_FEATURE(kAssistantAimMinimizedState, base::FEATURE_DISABLED_BY_DEFAULT);
 bool IsAssistantAimMinimizedStateEnabled() {
   return base::FeatureList::IsEnabled(kAssistantAimMinimizedState);
 }
+
+BASE_FEATURE(kUseUIGraphicsImageRendererForFallbackIcons,
+             base::FEATURE_DISABLED_BY_DEFAULT);

@@ -6,10 +6,12 @@ package org.chromium.chrome.browser.omnibox;
 
 import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
+import static androidx.test.espresso.matcher.ViewMatchers.isDescendantOfA;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withEffectiveVisibility;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
@@ -19,6 +21,8 @@ import static org.chromium.base.test.transit.ViewFinder.waitForNoView;
 import static org.chromium.chrome.browser.url_constants.UrlConstantResolver.getOriginalNativeNtpUrl;
 
 import android.content.res.Configuration;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.view.View;
 import android.view.ViewGroup;
 
@@ -44,8 +48,10 @@ import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.base.test.util.Features.DisableFeatures;
+import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.base.ui.KeyboardUtils;
+import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.app.ChromeActivity;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
@@ -55,8 +61,9 @@ import org.chromium.chrome.browser.locale.LocaleManager;
 import org.chromium.chrome.browser.locale.LocaleManagerDelegate;
 import org.chromium.chrome.browser.omnibox.voice.VoiceRecognitionHandler;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
+import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant;
+import org.chromium.chrome.browser.toolbar.optional_button.ButtonData;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.R;
 import org.chromium.chrome.test.transit.ChromeTransitTestRules;
 import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
 import org.chromium.chrome.test.transit.page.WebPageStation;
@@ -67,6 +74,7 @@ import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.components.omnibox.OmniboxFocusReason;
 import org.chromium.components.search_engines.TemplateUrl;
 import org.chromium.components.search_engines.TemplateUrlService;
+import org.chromium.components.signin.SigninFeatures;
 import org.chromium.content_public.common.ContentSwitches;
 import org.chromium.ui.base.ActivityKeyboardVisibilityDelegate;
 import org.chromium.ui.base.DeviceFormFactor;
@@ -244,6 +252,9 @@ public class LocationBarTest {
     @Test
     @MediumTest
     public void testOnConfigurationChanged() {
+        // Start activity in Desktop mode. Expect UrlBar to focus.
+        // The DesktopMode check verifies connected peripherals, not just the Configuration change.
+        OmniboxFeatures.setHasDesktopExperienceForTesting(true);
         startActivityNormally();
         // We expect the UrlBar to be focused iff a Hardware keyboard handler does not automatically
         // call up Software keyboard (IME).
@@ -258,8 +269,7 @@ public class LocationBarTest {
                 });
 
         Configuration configuration = mActivity.getSavedConfigurationForTesting();
-        configuration.keyboard = Configuration.KEYBOARD_12KEY;
-
+        OmniboxFeatures.setHasDesktopExperienceForTesting(false);
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     mLocationBarMediator.onConfigurationChanged(configuration);
@@ -289,21 +299,21 @@ public class LocationBarTest {
     @Test
     @MediumTest
     public void testEditingText() {
-        OmniboxFeatures.setIsDesktopModeForTesting(true);
+        OmniboxFeatures.setHasDesktopExperienceForTesting(true);
         testEditingText(/* expectDesktopMode= */ true);
     }
 
     @Test
     @MediumTest
     public void testEditingText_withDesktopModeDisabled() {
-        OmniboxFeatures.setIsDesktopModeForTesting(false);
+        OmniboxFeatures.setHasDesktopExperienceForTesting(false);
         testEditingText(/* expectDesktopMode= */ false);
     }
 
     @Test
     @MediumTest
     public void testEditingText_withDesktopModeEnabled() {
-        OmniboxFeatures.setIsDesktopModeForTesting(true);
+        OmniboxFeatures.setHasDesktopExperienceForTesting(true);
         testEditingText(/* expectDesktopMode= */ true);
     }
 
@@ -593,22 +603,14 @@ public class LocationBarTest {
     @CommandLineFlags.Add({
         "disable-features=" + ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_V2
     })
+    @DisableFeatures(SigninFeatures.PROFILE_DISC_ON_ALL_PAGES)
     @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
-    public void testFocusLogic_buttonVisibilityTablet() {
-        testFocusLogic_buttonVisibilityTablet(/* expectDesktopMode= */ true);
-    }
-
-    @Test
-    @MediumTest
-    @CommandLineFlags.Add({
-        "disable-features=" + ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_V2
-    })
-    @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
-    public void testFocusLogic_buttonVisibilityTabletWithDesktopModeDisabled() {
-        OmniboxFeatures.setIsDesktopModeForTesting(false);
+    public void testFocusLogic_buttonVisibilityTablet_ProfileDiscDisabled_DesktopDisabled() {
+        OmniboxFeatures.setHasDesktopExperienceForTesting(false);
         DeviceInput.setSupportsAlphabeticKeyboardForTesting(false);
         DeviceInput.setSupportsPrecisionPointerForTesting(false);
-        testFocusLogic_buttonVisibilityTablet(/* expectDesktopMode= */ false);
+        testFocusLogic_buttonVisibilityTablet(
+                /* expectDesktopMode= */ false, /* profileDiscEnabled= */ false);
     }
 
     @Test
@@ -616,16 +618,55 @@ public class LocationBarTest {
     @CommandLineFlags.Add({
         "disable-features=" + ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_V2
     })
+    @EnableFeatures({
+        SigninFeatures.PROFILE_DISC_ON_ALL_PAGES,
+        SigninFeatures.SIGNIN_LEVEL_UP_BUTTON
+    })
     @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
-    public void testFocusLogic_buttonVisibilityTabletWithDesktopModeEnabled() {
-        OmniboxFeatures.setIsDesktopModeForTesting(true);
-        DeviceInput.setSupportsAlphabeticKeyboardForTesting(true);
-        DeviceInput.setSupportsPrecisionPointerForTesting(true);
-        testFocusLogic_buttonVisibilityTablet(/* expectDesktopMode= */ true);
+    public void testFocusLogic_buttonVisibilityTablet_ProfileDiscEnabled_DesktopDisabled() {
+        OmniboxFeatures.setHasDesktopExperienceForTesting(false);
+        DeviceInput.setSupportsAlphabeticKeyboardForTesting(false);
+        DeviceInput.setSupportsPrecisionPointerForTesting(false);
+        testFocusLogic_buttonVisibilityTablet(
+                /* expectDesktopMode= */ false, /* profileDiscEnabled= */ true);
     }
 
-    private void testFocusLogic_buttonVisibilityTablet(boolean expectDesktopMode) {
-        OmniboxFeatures.setIsDesktopModeForTesting(expectDesktopMode);
+    @Test
+    @MediumTest
+    @CommandLineFlags.Add({
+        "disable-features=" + ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_V2
+    })
+    @DisableFeatures(SigninFeatures.PROFILE_DISC_ON_ALL_PAGES)
+    @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
+    public void testFocusLogic_buttonVisibilityTablet_ProfileDiscDisabled_DesktopEnabled() {
+        OmniboxFeatures.setHasDesktopExperienceForTesting(true);
+        DeviceInput.setSupportsAlphabeticKeyboardForTesting(true);
+        DeviceInput.setSupportsPrecisionPointerForTesting(true);
+        testFocusLogic_buttonVisibilityTablet(
+                /* expectDesktopMode= */ true, /* profileDiscEnabled= */ false);
+    }
+
+    @Test
+    @MediumTest
+    @CommandLineFlags.Add({
+        "disable-features=" + ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_V2
+    })
+    @EnableFeatures({
+        SigninFeatures.PROFILE_DISC_ON_ALL_PAGES,
+        SigninFeatures.SIGNIN_LEVEL_UP_BUTTON
+    })
+    @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
+    public void testFocusLogic_buttonVisibilityTablet_ProfileDiscEnabled_DesktopEnabled() {
+        OmniboxFeatures.setHasDesktopExperienceForTesting(true);
+        DeviceInput.setSupportsAlphabeticKeyboardForTesting(true);
+        DeviceInput.setSupportsPrecisionPointerForTesting(true);
+        testFocusLogic_buttonVisibilityTablet(
+                /* expectDesktopMode= */ true, /* profileDiscEnabled= */ true);
+    }
+
+    private void testFocusLogic_buttonVisibilityTablet(
+            boolean expectDesktopMode, boolean profileDiscEnabled) {
+        OmniboxFeatures.setHasDesktopExperienceForTesting(expectDesktopMode);
         startActivityNormally();
 
         doReturn(true).when(mVoiceRecognitionHandler).isVoiceSearchEnabled();
@@ -660,7 +701,8 @@ public class LocationBarTest {
         } else {
             onView(withId(R.id.mic_button))
                     .check(matches(withEffectiveVisibility(ViewMatchers.Visibility.VISIBLE)));
-            onView(withId(R.id.lens_camera_button))
+            // With profileDiscEnabled a Signin button appears with priority over the lens button.
+            onView(withId(profileDiscEnabled ? R.id.signin_button : R.id.lens_camera_button))
                     .check(matches(withEffectiveVisibility(ViewMatchers.Visibility.VISIBLE)));
             onView(withId(R.id.delete_button))
                     .check(matches(withEffectiveVisibility(ViewMatchers.Visibility.GONE)));
@@ -774,5 +816,93 @@ public class LocationBarTest {
 
         mActivityTestRule.loadUrl(UrlConstants.VERSION_URL);
         onView(withId(R.id.location_bar_status_icon)).check(matches(isDisplayed()));
+    }
+
+    private void showOptionalButton() {
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    ButtonData.ButtonSpec spec =
+                            new ButtonData.ButtonSpec.Builder(
+                                            new ColorDrawable(Color.RED), "test", true)
+                                    .setButtonVariant(AdaptiveToolbarButtonVariant.SHARE)
+                                    .build();
+                    ButtonData buttonData =
+                            new ButtonData() {
+                                @Override
+                                public boolean canShow() {
+                                    return true;
+                                }
+
+                                @Override
+                                public boolean isEnabled() {
+                                    return true;
+                                }
+
+                                @Override
+                                public boolean shouldShowTextBubble() {
+                                    return false;
+                                }
+
+                                @Override
+                                public ButtonSpec getButtonSpec() {
+                                    return spec;
+                                }
+                            };
+                    mLocationBarCoordinator.updateOptionalButton(buttonData);
+                });
+
+        ViewUtils.waitForVisibleView(
+                allOf(withId(R.id.optional_button), isDescendantOfA(withId(R.id.location_bar))));
+    }
+
+    @Test
+    @SmallTest
+    @Restriction(DeviceFormFactor.PHONE)
+    @EnableFeatures(ChromeFeatureList.ANDROID_BOTTOM_BAR)
+    public void testOptionalButton() {
+        startActivityNormally();
+
+        showOptionalButton();
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mLocationBarCoordinator.hideOptionalButton();
+                });
+
+        waitForNoView(
+                allOf(withId(R.id.optional_button), isDescendantOfA(withId(R.id.location_bar))));
+    }
+
+    @Test
+    @SmallTest
+    @Restriction(DeviceFormFactor.PHONE)
+    @EnableFeatures(ChromeFeatureList.ANDROID_BOTTOM_BAR)
+    public void testOptionalButton_HiddenWhenUrlFocused() {
+        startActivityNormally();
+
+        showOptionalButton();
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mUrlBar.requestFocus();
+                });
+
+        waitForNoView(
+                allOf(withId(R.id.optional_button), isDescendantOfA(withId(R.id.location_bar))));
+    }
+
+    @Test
+    @SmallTest
+    @Restriction(DeviceFormFactor.PHONE)
+    @EnableFeatures(ChromeFeatureList.ANDROID_BOTTOM_BAR)
+    public void testOptionalButton_HiddenOnNtp() {
+        startActivityNormally();
+
+        showOptionalButton();
+
+        mActivityTestRule.loadUrl(getOriginalNativeNtpUrl());
+
+        waitForNoView(
+                allOf(withId(R.id.optional_button), isDescendantOfA(withId(R.id.location_bar))));
     }
 }

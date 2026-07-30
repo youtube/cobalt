@@ -216,7 +216,7 @@ declare_args() {
   # Set to true to use icf, Identical Code Folding.
   use_icf = (is_posix || is_fuchsia) && !is_debug && !using_sanitizer &&
             !use_clang_coverage && !(is_android && use_order_profiling) &&
-            use_lld && !is_wasm
+            (use_lld || use_mold) && !is_wasm
 }
 
 if (is_android) {
@@ -1054,10 +1054,20 @@ config("linker") {
   ldflags = []
 
   if (!is_win) {
-    if (experimental_linker_path != "") {
-      inputs = [ experimental_linker_path ]
-      ldflags += [ "--ld-path=" +
-                   rebase_path(experimental_linker_path, root_build_dir) ]
+    if (linker_path != "") {
+      inputs = [ linker_path ]
+
+      if (use_mold) {
+        # Wrapper needed to strip unsupported: --use-android-relr-tags
+        # https://github.com/rui314/mold/issues/1544
+        _wrapper = "//buildtools/third_party/mold/mold_wrapper.py"
+        inputs += [ _wrapper ]
+        ldflags +=
+            [ "-Wl,--linker-path=" + rebase_path(linker_path, root_build_dir) ]
+        linker_path = _wrapper
+      }
+
+      ldflags += [ "--ld-path=" + rebase_path(linker_path, root_build_dir) ]
     } else if (use_lld) {
       ldflags += [ "-fuse-ld=lld" ]
       if (lld_path != "") {
@@ -1124,11 +1134,14 @@ config("linker") {
     # Flags added automatically by ChromeOS's custom toolchain that are
     # not already added elsewhere in the configuration. Add these here,
     # so that we also get them when not building with ChromeOS's toolchain.
-    ldflags += [
-      "-Wl,--pack-dyn-relocs=relr",
-      "-Wl,--no-rosegment",
-      "-Wl,-z,nostart-stop-gc",
-    ]
+    ldflags += [ "-Wl,--pack-dyn-relocs=relr" ]
+
+    if (use_lld) {
+      ldflags += [
+        "-Wl,--no-rosegment",
+        "-Wl,-z,nostart-stop-gc",
+      ]
+    }
   }
 
   if (use_lld) {
@@ -1158,8 +1171,8 @@ config("linker") {
 
   # TODO(crbug.com/40242425): Cleanup undefined symbol errors caught by
   # --no-undefined-version.
-  if ((use_lld || experimental_linker_path != "") && !is_win && !is_mac &&
-      !is_ios && !is_wasm) {
+  if ((use_lld || linker_path != "") && !is_win && !is_mac && !is_ios &&
+      !is_wasm) {
     ldflags += [ "-Wl,--undefined-version" ]
   }
 
@@ -1645,7 +1658,7 @@ config("compiler_cpu_abi") {
         "-mcmodel=medium",
       ]
     } else if (current_cpu == "s390x") {
-      if (is_clang) {
+      if (is_clang && current_os != "zos") {
         cflags += [ "--target=s390x-unknown-linux-gnu" ]
         ldflags += [ "--target=s390x-unknown-linux-gnu" ]
       }
@@ -2617,7 +2630,8 @@ config("export_dynamic") {
 # 2. Remove the thin_archive config, so that the .a file actually contains all
 #    .o files, instead of just references to .o files in the build directoy
 config("thin_archive") {
-  if ((is_apple && use_lld) || (is_linux && !is_clang) || current_os == "aix") {
+  if ((is_apple && use_lld) || (is_linux && !is_clang) || current_os == "aix" ||
+      current_os == "zos") {
     # The macOS and iOS linker ld64.ldd doesn't support thin archive without
     # symbol table, gcc on linux also throws the error `archive has no index`.
     # AIX does support -s option, not -S option.
@@ -2625,7 +2639,7 @@ config("thin_archive") {
       "-T",
       "-s",
     ]
-  } else if ((is_posix && (!is_apple || use_lld)) || is_fuchsia) {
+  } else if ((is_posix && (!is_apple || (use_lld || use_mold))) || is_fuchsia) {
     # The macOS and iOS default linker ld64 does not support reading thin
     # archives.
     arflags = [
@@ -2791,7 +2805,7 @@ if (is_win) {
         "-Wl,-no_function_starts",
       ]
     }
-  } else if (current_os != "aix" && current_os != "zos") {
+  } else if (current_os != "aix") {
     # Non-Mac Posix flags.
     # Aix does not support these.
 
@@ -3213,7 +3227,7 @@ config("symbols") {
       cflags += [ "-g2" ]
     }
 
-    if (is_clang && !is_tsan && !is_asan) {
+    if (is_clang && !is_tsan && !is_asan && !use_dwarf5) {
       # gcc generates dwarf-aranges by default on -g1 and -g2. On clang it has
       # to be manually enabled.
       #
@@ -3233,8 +3247,8 @@ config("symbols") {
     # Disable debugger index for Android, which uses lldb. lldb can create (and
     # cache) its own index in about 20 seconds, so there's no need to pay the
     # price of an index on every link.
-    _add_symbol_index =
-        symbol_level == 2 && !is_apple && use_lld && !is_wasm && !is_android
+    _add_symbol_index = symbol_level == 2 && !is_apple &&
+                        (use_lld || use_mold) && !is_wasm && !is_android
     if (_add_symbol_index) {
       if (use_dwarf5) {
         cflags += [ "-gpubnames" ]
@@ -3352,7 +3366,8 @@ config("minimal_symbols") {
 
     cflags += [ "-g1" ]
 
-    if (is_clang && !is_tsan && !is_asan && current_os != "zos") {
+    if (is_clang && !is_tsan && !is_asan && current_os != "zos" &&
+        !use_dwarf5) {
       # See comment for -gdwarf-aranges in config("symbols").
       cflags += [ "-gdwarf-aranges" ]
     }

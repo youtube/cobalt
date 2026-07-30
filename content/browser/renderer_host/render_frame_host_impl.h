@@ -48,13 +48,13 @@
 #include "base/unguessable_token.h"
 #include "base/uuid.h"
 #include "build/build_config.h"
+#include "content/browser/back_forward_cache/back_forward_cache_impl.h"
+#include "content/browser/back_forward_cache/back_forward_cache_metrics.h"
 #include "content/browser/bad_message.h"
 #include "content/browser/browser_interface_broker_impl.h"
 #include "content/browser/buckets/bucket_context.h"
 #include "content/browser/can_commit_status.h"
 #include "content/browser/locks/lock_manager.h"
-#include "content/browser/renderer_host/back_forward_cache_impl.h"
-#include "content/browser/renderer_host/back_forward_cache_metrics.h"
 #include "content/browser/renderer_host/browsing_context_state.h"
 #include "content/browser/renderer_host/code_cache_host_impl.h"
 #include "content/browser/renderer_host/cookie_access_observers.h"
@@ -148,6 +148,7 @@
 #include "third_party/blink/public/mojom/blob/file_backed_blob_factory.mojom-forward.h"
 #include "third_party/blink/public/mojom/broadcastchannel/broadcast_channel.mojom.h"
 #include "third_party/blink/public/mojom/buckets/bucket_manager_host.mojom.h"
+#include "third_party/blink/public/mojom/content_extraction/script_tools.mojom-forward.h"
 #include "third_party/blink/public/mojom/dom_storage/storage_area.mojom.h"
 #include "third_party/blink/public/mojom/feature_observer/feature_observer.mojom-forward.h"
 #include "third_party/blink/public/mojom/file_system_access/file_system_access_manager.mojom-forward.h"
@@ -461,15 +462,6 @@ class CONTENT_EXPORT RenderFrameHostImpl
       int initiator_process_id,
       StoragePartitionImpl* storage_partition);
 
-  // Get the IsUntrustedNetworkDisabled() result associated with `frame_token`.
-  // See RenderFrameHost::IsUntrustedNetworkDisabled() for more info. Returns
-  // nullopt if unable to find information on the associated frame, the boolean
-  // untrusted network status otherwise.
-  static std::optional<bool> GetIsUntrustedNetworkDisabled(
-      const blink::LocalFrameToken* frame_token,
-      int initiator_process_id,
-      StoragePartitionImpl* storage_partition);
-
   RenderFrameHostImpl(const RenderFrameHostImpl&) = delete;
   RenderFrameHostImpl& operator=(const RenderFrameHostImpl&) = delete;
 
@@ -629,7 +621,6 @@ class CONTENT_EXPORT RenderFrameHostImpl
   bool ShouldChangeRenderFrameHostOnSameSiteNavigation() const override;
   void IsClipboardOwner(ui::ClipboardSequenceNumberToken seqno,
                         base::OnceCallback<void(bool)> callback) const override;
-  bool IsUntrustedNetworkDisabled() const override;
   bool HasPolicyContainerHost() const override;
   const network::CrossOriginEmbedderPolicy& GetCrossOriginEmbedderPolicy()
       const override;
@@ -2119,6 +2110,8 @@ class CONTENT_EXPORT RenderFrameHostImpl
 
   void BindSerialService(
       mojo::PendingReceiver<blink::mojom::SerialService> receiver);
+  void BindModelContextHost(
+      mojo::PendingReceiver<blink::mojom::ModelContextHost> receiver);
 
 #if BUILDFLAG(IS_CHROMEOS)
   void GetSmartCardService(
@@ -2631,11 +2624,6 @@ class CONTENT_EXPORT RenderFrameHostImpl
       const std::vector<blink::FencedFrame::ReportingDestination>& destinations,
       bool once,
       bool cross_origin_exposed) override;
-  void DisableUntrustedNetworkInFencedFrame(
-      DisableUntrustedNetworkInFencedFrameCallback callback) override;
-  void ExemptUrlFromNetworkRevocationForTesting(
-      const GURL& exempted_url,
-      ExemptUrlFromNetworkRevocationForTestingCallback callback) override;
   void SendLegacyTechEvent(
       const std::string& type,
       blink::mojom::LegacyTechEventCodeLocationPtr code_location) override;
@@ -2648,8 +2636,6 @@ class CONTENT_EXPORT RenderFrameHostImpl
           remote_frame_interfaces,
       const blink::RemoteFrameToken& frame_token,
       const base::UnguessableToken& devtools_frame_token) override;
-  void ForwardFencedFrameEventAndUserActivationToEmbedder(
-      const std::string& event_type) override;
   void OnViewTransitionOptInChanged(blink::mojom::ViewTransitionSameOriginOptIn
                                         view_transition_opt_in) override;
   void StartDragging(blink::mojom::DragDataPtr drag_data,
@@ -3262,13 +3248,6 @@ class CONTENT_EXPORT RenderFrameHostImpl
   // `RunDeferredSharedStorageHeaderCallbacks()` after commit.
   void AddDeferredSharedStorageHeaderCallback(
       base::OnceCallback<void(NavigationOrDocumentHandle*)> callback);
-
-  // Determine what frames in the frame tree have their network revoked. If this
-  // function determines the network has been revoked for a frame, it will mark
-  // the relevant FencedFrameProperties as having its network cut off. Network
-  // revocation can only happen when network access has been disabled for this
-  // fenced frame tree as well as for all of its descendant fenced frame trees.
-  void CalculateUntrustedNetworkStatus();
 
   // Find the frame that triggered the beforeunload handler to run in this
   // frame, which might be the frame itself or its ancestor.  This will
@@ -4463,13 +4442,6 @@ class CONTENT_EXPORT RenderFrameHostImpl
   // media stream. Called when this render frame is deleted or when the process
   // is gone.
   void CleanUpMediaStreams();
-
-  // Mark network as having been disabled for `nonce` in the active fenced frame
-  // properties once it was disabled in the network service, and resolve the
-  // `callback` which came from the window.fence.disableUntrustedNetwork call.
-  void RevokeNetworkForNonceCallback(
-      base::UnguessableToken nonce,
-      DisableUntrustedNetworkInFencedFrameCallback callback);
 
   // Notifies the RenderProcessHost instance that this frame started to commit
   // navigation. This signal is used to increase the priority of the renderer

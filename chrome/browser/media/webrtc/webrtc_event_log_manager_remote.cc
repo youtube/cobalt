@@ -429,6 +429,7 @@ bool WebRtcRemoteEventLogManager::StartRemoteLogging(
     size_t max_file_size_bytes,
     int output_period_ms,
     size_t web_app_id,
+    std::optional<std::string> diagnostic_uuid,
     std::string* log_id,
     std::string* error_message) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
@@ -494,8 +495,20 @@ bool WebRtcRemoteEventLogManager::StartRemoteLogging(
     return false;
   }
 
-  return StartWritingLog(key, browser_context_dir, max_file_size_bytes,
-                         output_period_ms, web_app_id, log_id, error_message);
+  if (diagnostic_uuid.has_value() && !diagnostic_uuid->empty()) {
+    *log_id = *diagnostic_uuid + "_" + session_id;
+  } else {
+    *log_id = CreateWebRtcEventLogId();
+  }
+
+  const bool result =
+      StartWritingLog(key, browser_context_dir, max_file_size_bytes,
+                      output_period_ms, web_app_id, *log_id, error_message);
+  if (!result) {
+    log_id->clear();
+  }
+
+  return result;
 }
 
 bool WebRtcRemoteEventLogManager::EventLogWrite(const PeerConnectionKey& key,
@@ -618,12 +631,15 @@ void WebRtcRemoteEventLogManager::RemovePendingLogsForNotEnabledBrowserContext(
 void WebRtcRemoteEventLogManager::RenderProcessHostExitedDestroyed(
     int render_process_id) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
-  StopLogging(render_process_id, StopLoggingAction::kStore, base::DoNothing());
+  StopLogging(render_process_id, StopLoggingAction::kStore,
+              /*diagnostic_uuid=*/std::nullopt, base::DoNothing());
 }
 
-void WebRtcRemoteEventLogManager::StopLogging(int render_process_id,
-                                              StopLoggingAction action,
-                                              base::OnceClosure callback) {
+void WebRtcRemoteEventLogManager::StopLogging(
+    int render_process_id,
+    StopLoggingAction action,
+    std::optional<std::string> diagnostic_uuid,
+    base::OnceClosure callback) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   // Remove all of the peer connections associated with this render process.
@@ -637,6 +653,23 @@ void WebRtcRemoteEventLogManager::StopLogging(int render_process_id,
   }
 
   const bool make_pending = (action == StopLoggingAction::kStore);
+
+  // Delete pending logs for this session if requested.
+  if (action == StopLoggingAction::kDelete && diagnostic_uuid.has_value() &&
+      !diagnostic_uuid->empty()) {
+    const std::string& uuid = *diagnostic_uuid;
+    for (auto it = pending_logs_.begin(); it != pending_logs_.end();) {
+      const std::string filename = it->path.BaseName().MaybeAsASCII();
+      if (filename.find(uuid) != std::string::npos) {
+        if (!base::DeleteFile(it->path)) {
+          DVLOG(1) << "Failed to delete " << it->path << ".";
+        }
+        it = pending_logs_.erase(it);
+      } else {
+        ++it;
+      }
+    }
+  }
 
   // Close all of the files that were associated with peer connections which
   // belonged to this render process.
@@ -764,7 +797,7 @@ WebRtcRemoteEventLogManager::CloseLogFile(LogFilesMap::iterator it,
     } else {
       const base::FilePath log_file_path = it->second->path();
       if (!base::DeleteFile(log_file_path)) {
-        LOG(ERROR) << "Failed to delete " << log_file_path << ".";
+        DVLOG(1) << "Failed to delete " << log_file_path << ".";
       }
     }
   } else {  // !valid_file
@@ -1003,12 +1036,9 @@ bool WebRtcRemoteEventLogManager::StartWritingLog(
     size_t max_file_size_bytes,
     int output_period_ms,
     size_t web_app_id,
-    std::string* log_id_out,
+    const std::string& log_id,
     std::string* error_message_out) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
-
-  // The log is assigned a universally unique ID (with high probability).
-  const std::string log_id = CreateWebRtcEventLogId();
 
   // Use the log ID as part of the filename. In the highly unlikely event that
   // this filename is already taken, or that an earlier log with the same name
@@ -1058,7 +1088,6 @@ bool WebRtcRemoteEventLogManager::StartWritingLog(
 
   UmaRecordWebRtcEventLoggingApi(WebRtcEventLoggingApiUma::kSuccess);
 
-  *log_id_out = log_id;
   return true;
 }
 

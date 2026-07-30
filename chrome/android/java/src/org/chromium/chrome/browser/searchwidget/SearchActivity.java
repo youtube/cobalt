@@ -391,7 +391,8 @@ public class SearchActivity extends AsyncInitializationActivity
                         mSnackbarManager,
                         findViewById(R.id.bottom_container),
                         /* omniboxChipManager= */ null,
-                        /* scrimHandler= */ null);
+                        /* scrimHandler= */ null,
+                        /* userEducationHelper= */ null);
         mLocationBarCoordinator.setUrlBarFocusable(true);
         mLocationBarCoordinator.setShouldShowMicButtonWhenUnfocused(true);
         assumeNonNull(mLocationBarCoordinator.getOmniboxStub()).addUrlFocusChangeListener(this);
@@ -757,9 +758,18 @@ public class SearchActivity extends AsyncInitializationActivity
             searchBoxColorRes = R.color.toolbar_text_box_background_incognito;
         }
 
-        GradientDrawable anchorViewBackground = (GradientDrawable) mAnchorView.getBackground();
-        anchorViewBackground.setColor(getColor(anchorViewBackgroundColorRes));
         searchBoxBackground.setBackgroundColor(getColor(searchBoxColorRes));
+
+        int anchorViewColor = getColor(anchorViewBackgroundColorRes);
+        GradientDrawable anchorViewBackground = (GradientDrawable) mAnchorView.getBackground();
+        anchorViewBackground.setColor(anchorViewColor);
+
+        // SearchActivity is full screen, and omnibox dropdown leaves a bottom margin to avoid
+        // covered by system nav bar. Keep same color for both SearchActivity and omnibox dropdown
+        // to fix a bottom color margin.
+        View controlContainer = findViewById(R.id.control_container);
+        controlContainer.setBackgroundColor(anchorViewColor);
+
         setStatusAndNavBarColors();
     }
 

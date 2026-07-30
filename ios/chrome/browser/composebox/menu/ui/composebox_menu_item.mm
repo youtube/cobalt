@@ -8,14 +8,29 @@
 
 - (instancetype)initWithTitle:(NSString*)title
                         image:(UIImage*)image
-                         type:(ComposeboxMenuItemType)type {
+                         type:(ComposeboxMenuItemType)type
+                     disabled:(BOOL)disabled {
   self = [super init];
   if (self) {
     _title = [title copy];
     _image = image;
     _type = type;
+    _disabled = disabled;
   }
   return self;
+}
+
+- (instancetype)initWithTitle:(NSString*)title
+                        image:(UIImage*)image
+                         type:(ComposeboxMenuItemType)type {
+  return [self initWithTitle:title image:image type:type disabled:NO];
+}
+
+- (BOOL)isAttachmentType {
+  return self.type == ComposeboxMenuItemType::kAttachmentTabs ||
+         self.type == ComposeboxMenuItemType::kAttachmentCamera ||
+         self.type == ComposeboxMenuItemType::kAttachmentGallery ||
+         self.type == ComposeboxMenuItemType::kAttachmentFiles;
 }
 
 @end

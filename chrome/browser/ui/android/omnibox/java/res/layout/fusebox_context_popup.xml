@@ -6,8 +6,6 @@ found in the LICENSE file.
 -->
 <ScrollView
     xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:accessibilityPaneTitle="@string/accessibility_omnibox_context_popup_title">
@@ -33,32 +31,7 @@ found in the LICENSE file.
 
         <TextView
             style="@style/Fusebox.PopupMenu.Header"
-            android:id="@+id/fusebox_tools_header"
-            android:text="@string/fusebox_tools_header"/>
-
-        <include
-            layout="@layout/fusebox_list_item"
-            android:id="@+id/fusebox_ai_mode_button"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"/>
-
-        <include
-            layout="@layout/fusebox_list_item"
-            android:id="@+id/fusebox_create_image_button"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"/>
-
-        <include
-            layout="@layout/fusebox_list_item"
-            android:id="@+id/fusebox_deep_search_button"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"/>
-
-        <include
-            layout="@layout/fusebox_list_item"
-            android:id="@+id/fusebox_canvas_button"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"/>
+            android:id="@+id/fusebox_tools_header"/>
 
         <View
             style="@style/Fusebox.PopupMenu.Divider"
@@ -66,8 +39,7 @@ found in the LICENSE file.
 
         <TextView
             style="@style/Fusebox.PopupMenu.Header"
-            android:id="@+id/fusebox_models_header"
-            android:text="@string/fusebox_models_header"/>
+            android:id="@+id/fusebox_models_header"/>
 
     </LinearLayout>
 

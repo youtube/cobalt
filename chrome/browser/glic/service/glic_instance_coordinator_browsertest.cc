@@ -35,10 +35,12 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+#include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/common/chrome_features.h"
+#include "components/enterprise/browser/reporting/common_pref_names.h"
+#include "components/enterprise/browser/reporting/reporting_features.h"
 #include "components/keep_alive_registry/keep_alive_types.h"
 #include "components/keep_alive_registry/scoped_keep_alive.h"
 #include "components/prefs/pref_service.h"
@@ -159,18 +161,6 @@ void SimulateLinkClick(tabs::TabInterface* tab, bool ctrl_key, bool shift_key) {
 #endif
 }
 
-TestResult<> WaitForSidePanelState(
-    tabs::TabInterface* tab,
-    GlicSidePanelCoordinator::State expected_state) {
-  auto* side_panel_coordinator = GlicSidePanelCoordinator::GetForTab(tab);
-  if (!side_panel_coordinator) {
-    return base::unexpected("GlicSidePanelCoordinator not found for tab");
-  }
-  return RunUntilEqual([&]() { return side_panel_coordinator->state(); },
-                       expected_state,
-                       "Timeout waiting for side panel state to match");
-}
-
 void ActivateTab(tabs::TabInterface* tab) {
   CHECK(tab);
   tab->GetContents()->GetDelegate()->ActivateContents(tab->GetContents());
@@ -183,6 +173,26 @@ TestResult<> WaitForActiveEmbedderToMatchTab(GlicInstanceImpl* instance,
   return RunUntilEqual(
       [&]() { return instance->GetActiveEmbedderTabForTesting(); }, tab,
       "Timeout waiting for active embedder to match tab");
+}
+
+TestResult<> WaitForEmbedderActivationOrPeek(GlicInstanceImpl* instance,
+                                             tabs::TabInterface* tab) {
+  CHECK(tab);
+  CHECK(instance);
+
+  auto* coordinator = GlicSidePanelCoordinator::GetForTab(tab);
+  bool supports_peek = coordinator && coordinator->SupportsPeek();
+
+  if (supports_peek) {
+    RETURN_IF_ERROR(RunUntilEqual(
+        [&]() { return instance->GetEmbedderForTab(tab) != nullptr; }, true,
+        "Timeout waiting for embedder to bind"));
+    return WaitForSidePanelState(tab, GlicSidePanelCoordinator::State::kPeek);
+  } else {
+    return RunUntilEqual(
+        [&]() { return instance->GetActiveEmbedderTabForTesting(); }, tab,
+        "Timeout waiting for active embedder to match tab");
+  }
 }
 
 }  // namespace
@@ -201,6 +211,7 @@ class GlicInstanceCoordinatorBrowserTest
                  {features::kGlicWebContentsWarmingDelay.name, "2s"},
              }},
             {features::kGlicTabRestoration, {}},
+            {enterprise_reporting::kGeminiInChromeUsageReporting, {}},
         },
         /*disabled_features=*/{features::kGlicDefaultToLastActiveConversation});
   }
@@ -431,7 +442,7 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
   auto* tab2_instance = coordinator().GetInstanceImplForTab(tab2);
   EXPECT_TRUE(tab2_instance);
   EXPECT_NE(coordinator().GetInstanceForTab(tab1), tab2_instance);
-  EXPECT_OK(WaitForActiveEmbedderToMatchTab(tab2_instance, tab2));
+  EXPECT_OK(WaitForEmbedderActivationOrPeek(tab2_instance, tab2));
 
   GetProfile()->GetPrefs()->SetBoolean(
       glic::prefs::kGlicKeepSidepanelOpenOnNewTabsEnabled, false);
@@ -481,9 +492,9 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
     EXPECT_OK(WaitForSidePanelState(
         tab2, GlicSidePanelCoordinator::State::kBackgrounded));
 
-    // Activate the background tab and verify state becomes kShown.
+    // Activate the background tab and verify it is shown.
     tab2->GetContents()->GetDelegate()->ActivateContents(tab2->GetContents());
-    ASSERT_OK(WaitForActiveEmbedderToMatchTab(instance, tab2));
+    ASSERT_OK(WaitForEmbedderActivationOrPeek(instance, tab2));
     // Verify focus stays on the page contents, not the side panel.
     EXPECT_FALSE(instance->HasFocus());
   }
@@ -500,7 +511,7 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
 
     EXPECT_EQ(instance, coordinator().GetInstanceForTab(tab3));
     EXPECT_EQ(TabListInterface::From(new_window)->GetActiveTab(), tab3);
-    ASSERT_OK(WaitForActiveEmbedderToMatchTab(instance, tab3));
+    ASSERT_OK(WaitForEmbedderActivationOrPeek(instance, tab3));
     // Focus should be on the new window's page contents.
     EXPECT_FALSE(instance->HasFocus());
   }
@@ -515,7 +526,7 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
 
     EXPECT_EQ(instance, coordinator().GetInstanceForTab(tab4));
     EXPECT_EQ(GetTabListInterface()->GetActiveTab(), tab4);
-    ASSERT_OK(WaitForActiveEmbedderToMatchTab(instance, tab4));
+    ASSERT_OK(WaitForEmbedderActivationOrPeek(instance, tab4));
     // Focus should be on the new foreground tab's page contents.
     EXPECT_FALSE(instance->HasFocus());
   }
@@ -529,7 +540,6 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
   coordinator().Toggle(/*browser=*/nullptr, /*prevent_close=*/true,
                        mojom::InvocationSource::kTopChromeButton,
                        /*deprecated_prompt_suggestion=*/std::nullopt,
-                       /*deprecated_auto_send=*/false,
                        /*deprecated_conversation_id=*/std::nullopt);
   GlicInstanceImpl* floaty_instance =
       static_cast<GlicInstanceImpl*>(coordinator().GetActiveInstance());
@@ -550,10 +560,10 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
                        /*prevent_close=*/true,
                        mojom::InvocationSource::kTopChromeButton,
                        /*deprecated_prompt_suggestion=*/std::nullopt,
-                       /*deprecated_auto_send=*/false,
                        /*deprecated_conversation_id=*/std::nullopt);
   ASSERT_OK_AND_ASSIGN(auto side_panel_instance, WaitForGlicOpen(tab2));
-  ASSERT_TRUE(side_panel_instance->IsAttached());
+  ASSERT_EQ(side_panel_instance->GetPanelState().kind,
+            mojom::PanelStateKind::kAttached);
 
   // Manually activate the side panel
   side_panel_instance->OnEmbedderWindowActivationChanged(true);
@@ -601,7 +611,7 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
     tabs::TabInterface* tab2 = waiter.Wait();
 
     EXPECT_EQ(instance, coordinator().GetInstanceForTab(tab2));
-    EXPECT_TRUE(coordinator().GetInstanceForTab(tab2)->IsShowing());
+    EXPECT_OK(WaitForEmbedderActivationOrPeek(instance, tab2));
     EXPECT_EQ(GetTabListInterface()->GetActiveTab(), tab2);
     // The glic embedder should not have focus when daisy chaining
     EXPECT_FALSE(instance->HasFocus());
@@ -616,7 +626,6 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
     tabs::TabInterface* tab3 = waiter.Wait();
 
     EXPECT_EQ(instance, coordinator().GetInstanceForTab(tab3));
-    EXPECT_TRUE(coordinator().GetInstanceForTab(tab3)->IsShowing());
     // Active tab should still be previously active tab (tab2)
     EXPECT_NE(GetTabListInterface()->GetActiveTab(), tab3);
 
@@ -624,8 +633,7 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
         tab3, GlicSidePanelCoordinator::State::kBackgrounded));
 
     ActivateTab(tab3);
-    EXPECT_OK(
-        WaitForSidePanelState(tab3, GlicSidePanelCoordinator::State::kShown));
+    EXPECT_OK(WaitForEmbedderActivationOrPeek(instance, tab3));
   }
 }
 
@@ -691,16 +699,15 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
 
   // Switch back to tab 1.
   ActivateTab(tab1);
-  EXPECT_OK(WaitForActiveEmbedderToMatchTab(instance, tab1));
+  EXPECT_OK(WaitForEmbedderActivationOrPeek(instance, tab1));
 
   // Switch to tab 2.
   ActivateTab(tab2);
-  EXPECT_OK(WaitForActiveEmbedderToMatchTab(instance, tab2));
+  EXPECT_OK(WaitForEmbedderActivationOrPeek(instance, tab2));
 
-  // Close tab 2 and verify tab 1 becomes the active embedder.
-  // Note: Closing the active tab usually activates the nearest tab (tab 1).
+  // Tab 1 shows peek or becomes active if tab2 is closed
   tab2->Close();
-  EXPECT_OK(WaitForActiveEmbedderToMatchTab(instance, tab1));
+  EXPECT_OK(WaitForEmbedderActivationOrPeek(instance, tab1));
 }
 
 IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
@@ -721,7 +728,7 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
   // Activate Tab 3 (Bound).
   ActivateTab(tab3);
 
-  EXPECT_OK(WaitForActiveEmbedderToMatchTab(instance, tab3));
+  EXPECT_OK(WaitForEmbedderActivationOrPeek(instance, tab3));
 
   base::test::TestFuture<GlicInstance*> future;
   auto subscription =
@@ -782,8 +789,8 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest, TabRestoration) {
     return restored_instance != nullptr;
   }));
 
-  EXPECT_TRUE(restored_instance->IsShowing());
   EXPECT_EQ(restored_instance->id(), instance_id);
+  EXPECT_TRUE(restored_instance->IsShowing());
 }
 
 IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
@@ -846,8 +853,7 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
   // Should be pinned to Instance 1.
   ASSERT_TRUE(
       instance1->sharing_manager().IsTabPinned(restored_tab->GetHandle()));
-  EXPECT_OK(WaitForSidePanelState(restored_tab,
-                                  GlicSidePanelCoordinator::State::kShown));
+  EXPECT_OK(WaitForEmbedderActivationOrPeek(restored_instance2, restored_tab));
 }
 
 IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
@@ -882,8 +888,7 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
 
   // Should have reused the existing instance.
   EXPECT_EQ(bound_instance, instance);
-  EXPECT_OK(WaitForSidePanelState(restored_tab,
-                                  GlicSidePanelCoordinator::State::kShown));
+  EXPECT_OK(WaitForEmbedderActivationOrPeek(instance, restored_tab));
 }
 
 IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
@@ -1081,8 +1086,7 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorToggleWithConversationTest,
   coordinator().Toggle(tab1->GetBrowserWindowInterface(),
                        /*prevent_close=*/false,
                        mojom::InvocationSource::kTopChromeButton,
-                       /*deprecated_prompt_suggestion=*/std::nullopt,
-                       /*deprecated_auto_send=*/false, cid1);
+                       /*deprecated_prompt_suggestion=*/std::nullopt, cid1);
 
   ASSERT_OK_AND_ASSIGN(auto instance1, WaitForGlicOpen(tab1));
   EXPECT_EQ(instance1->conversation_id(), cid1);
@@ -1093,8 +1097,7 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorToggleWithConversationTest,
   coordinator().Toggle(tab2->GetBrowserWindowInterface(),
                        /*prevent_close=*/false,
                        mojom::InvocationSource::kTopChromeButton,
-                       /*deprecated_prompt_suggestion=*/std::nullopt,
-                       /*deprecated_auto_send=*/false, cid1);
+                       /*deprecated_prompt_suggestion=*/std::nullopt, cid1);
 
   ASSERT_OK(WaitForActiveEmbedderToMatchTab(instance1, tab2));
   EXPECT_EQ(coordinator().GetInstances().size(), 1u);
@@ -1104,8 +1107,7 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorToggleWithConversationTest,
   coordinator().Toggle(tab3->GetBrowserWindowInterface(),
                        /*prevent_close=*/false,
                        mojom::InvocationSource::kTopChromeButton,
-                       /*deprecated_prompt_suggestion=*/std::nullopt,
-                       /*deprecated_auto_send=*/false, cid2);
+                       /*deprecated_prompt_suggestion=*/std::nullopt, cid2);
 
   ASSERT_OK_AND_ASSIGN(auto instance2, WaitForGlicInstanceBoundToTab(tab3));
   EXPECT_EQ(instance2->conversation_id(), cid2);
@@ -1185,7 +1187,7 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
                        InvokeCallsOnClientConnected) {
   tabs::TabInterface* tab = GetTabListInterface()->GetActiveTab();
   base::test::TestFuture<void> success_future;
-  base::test::TestFuture<GlicInstance*> connected_future;
+  base::test::TestFuture<base::WeakPtr<GlicInstance>> connected_future;
 
   GlicInvokeOptions options(glic::Target(tab),
                             mojom::InvocationSource::kOsButton);
@@ -1204,12 +1206,46 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
   EXPECT_TRUE(connected_future.Wait());
 
   // Verify that there is a connected web client when our callback fires.
-  GlicInstance* instance = connected_future.Get();
+  base::WeakPtr<GlicInstance> instance = connected_future.Get();
   ASSERT_TRUE(instance);
   EXPECT_TRUE(instance->host().IsWebClientConnected());
 
   // Verify that the passed instance is the correct one.
-  EXPECT_EQ(instance, coordinator().GetInstanceForTab(tab));
+  EXPECT_EQ(instance.get(), coordinator().GetInstanceForTab(tab));
+
+  // The success callback should be called after full completion.
+  EXPECT_TRUE(success_future.Wait());
+}
+
+IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
+                       InvokeCallsOnConversationIdReady) {
+  tabs::TabInterface* tab = GetTabListInterface()->GetActiveTab();
+  base::test::TestFuture<void> success_future;
+  base::test::TestFuture<std::string> conversation_id_future;
+
+  GlicInvokeOptions options(glic::Target(tab),
+                            mojom::InvocationSource::kOsButton);
+  options.on_success = success_future.GetCallback();
+
+  GlicInvokeWithAutoSubmitOptions auto_submit_options;
+  auto_submit_options.on_conversation_id_ready =
+      conversation_id_future.GetCallback();
+
+  // Call invoke with auto-submit.
+  coordinator().InvokeWithAutoSubmit(GetPassKey(), std::move(options),
+                                     std::move(auto_submit_options));
+
+  // Simulate the client registering a conversation.
+  GlicInstanceImpl* instance = coordinator().GetInstanceImplForTab(tab);
+  ASSERT_TRUE(instance);
+
+  const std::string expected_conversation_id = "test_conversation_id";
+  auto info = mojom::ConversationInfo::New();
+  info->conversation_id = expected_conversation_id;
+  instance->RegisterConversation(std::move(info), base::DoNothing());
+
+  // The callback should be called with the correct conversation ID.
+  EXPECT_EQ(conversation_id_future.Get(), expected_conversation_id);
 
   // The success callback should be called after full completion.
   EXPECT_TRUE(success_future.Wait());
@@ -1332,7 +1368,7 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
 
   // The error should be either kInstanceDestroyed or kTabClosed, depending on
   // the order of destruction. The user expects it to cause instance deletion.
-  EXPECT_EQ(error_future.Get(), GlicInvokeError::kInstanceDestroyed);
+  EXPECT_EQ(error_future.Get(), GlicInvokeError::kTabClosed);
 }
 
 class GlicInstanceCoordinatorNonConnectingBrowserTest
@@ -1400,7 +1436,9 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
       browser()->profile()->GetPrimaryOTRProfile(/*create_if_needed=*/true);
 
   // Initially there should be no browsers for incognito profile.
-  EXPECT_EQ(chrome::FindLastActiveWithProfile(incognito_profile), nullptr);
+  EXPECT_EQ(ProfileBrowserCollection::GetForProfile(incognito_profile)
+                ->GetLastActiveBrowser(),
+            nullptr);
 
   BrowserWindowInterface* new_browser = nullptr;
   {
@@ -1412,7 +1450,8 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
     ASSERT_TRUE(resolved.tab);
 
     // Verify it created an incognito browser.
-    new_browser = chrome::FindLastActiveWithProfile(incognito_profile);
+    new_browser = ProfileBrowserCollection::GetForProfile(incognito_profile)
+                      ->GetLastActiveBrowser();
     ASSERT_TRUE(new_browser);
     EXPECT_TRUE(new_browser->GetProfile()->IsOffTheRecord());
   }
@@ -1462,6 +1501,46 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
 
   // Verify instance exists for the new tab.
   EXPECT_TRUE(coordinator().GetInstanceForTab(active_tab));
+}
+
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_InvokeWithNewTabBackground DISABLED_InvokeWithNewTabBackground
+#else
+#define MAYBE_InvokeWithNewTabBackground InvokeWithNewTabBackground
+#endif
+IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
+                       MAYBE_InvokeWithNewTabBackground) {
+  BrowserWindowInterface* browser_window =
+      GetTabListInterface()->GetActiveTab()->GetBrowserWindowInterface();
+  int tab_count_before = GetTabListInterface()->GetTabCount();
+  tabs::TabInterface* active_tab_before = GetTabListInterface()->GetActiveTab();
+
+  base::test::TestFuture<void> success_future;
+  GlicInvokeOptions options(
+      glic::Target(glic::NewTab{browser_window, /*open_in_foreground=*/false}),
+      mojom::InvocationSource::kOsButton);
+  options.on_success = success_future.GetCallback();
+
+  GlicTestTabAddedWaiter waiter(GetProfile());
+
+  coordinator().Invoke(std::move(options));
+
+  tabs::TabInterface* new_tab = waiter.Wait();
+  ASSERT_TRUE(new_tab);
+
+  EXPECT_TRUE(success_future.Wait());
+
+  // Verify a new tab was added.
+  EXPECT_EQ(GetTabListInterface()->GetTabCount(), tab_count_before + 1);
+
+  // Verify the active tab is STILL the old one.
+  tabs::TabInterface* active_tab_after = GetTabListInterface()->GetActiveTab();
+  ASSERT_TRUE(active_tab_after);
+  EXPECT_EQ(active_tab_after, active_tab_before);
+  EXPECT_NE(active_tab_after, new_tab);
+
+  // Verify instance exists for the new tab.
+  EXPECT_TRUE(coordinator().GetInstanceForTab(new_tab));
 }
 
 // This test is disabled on Android because creating a new window behavior
@@ -1778,7 +1857,7 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorActuationBrowserTest,
   base::test::TestFuture<void> handler_completion_future;
   auto handler = std::make_unique<GlicInvokeHandler>(
       *instance, GlicInvokeHandler::ResolvedTarget{active_tab, false},
-      std::move(options), std::nullopt,
+      std::move(options), GlicInvokeWithAutoSubmitOptions(), std::nullopt,
       base::BindLambdaForTesting([&](GlicInstance*, GlicInvokeHandler*) {
         handler_completion_future.SetValue();
       }));
@@ -1820,5 +1899,45 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorActuationBrowserTest,
   EXPECT_TRUE(handler_completion_future.Wait());
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
+                       SaasUsageReportingOnOpen) {
+  // Set the policy to include the GiC virtual domain.
+  base::ListValue urls_list;
+  urls_list.Append("gemini-in-chrome");
+  GetProfile()->GetPrefs()->SetList(
+      enterprise_reporting::kSaasUsageDomainUrlsForProfile,
+      std::move(urls_list));
+
+  // Opening Glic should trigger the reporting.
+  ASSERT_OK(OpenGlicForActiveTab());
+
+  const base::DictValue& report =
+      GetProfile()->GetPrefs()->GetDict(enterprise_reporting::kSaasUsageReport);
+  EXPECT_TRUE(report.contains("gemini-in-chrome"));
+  EXPECT_EQ(report.FindDict("gemini-in-chrome")->FindInt("navigation_count"),
+            1);
+}
+
+IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
+                       SaasUsageReportingOnOpenAndDetach) {
+  // Set the policy to include the GiC virtual domain.
+  base::ListValue urls_list;
+  urls_list.Append("gemini-in-chrome");
+  GetProfile()->GetPrefs()->SetList(
+      enterprise_reporting::kSaasUsageDomainUrlsForProfile,
+      std::move(urls_list));
+
+  // Opening Glic and detaching should trigger the reporting once.
+  ASSERT_OK(OpenGlicForActiveTabAndDetach());
+
+  const base::DictValue& report =
+      GetProfile()->GetPrefs()->GetDict(enterprise_reporting::kSaasUsageReport);
+  EXPECT_TRUE(report.contains("gemini-in-chrome"));
+  EXPECT_EQ(report.FindDict("gemini-in-chrome")->FindInt("navigation_count"),
+            1);
+}
+#endif
 
 }  // namespace glic

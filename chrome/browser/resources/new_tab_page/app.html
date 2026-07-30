@@ -55,6 +55,7 @@ import {SubmitButtonIconType} from '//resources/cr_components/composebox/compose
         ?compose-button-enabled="${this.composeButtonEnabled}"
         ?composebox-enabled="${this.composeboxEnabled}"
         searchbox-layout-mode="${this.ntpRealboxNextEnabled_ ? 'Compact' : ''}"
+        .inVoiceSearchMode="${this.showVoiceSearchOverlay_}"
         ?ntp-realbox-next-enabled="${this.ntpRealboxNextEnabled_}"
         ?cycling-placeholders="${this.searchboxCyclingPlaceholders_}"
         context-menu-glif-animation-state="${this.contextMenuGlifAnimationState_}"
@@ -72,6 +73,8 @@ import {SubmitButtonIconType} from '//resources/cr_components/composebox/compose
             .state="${this.composeboxState_}"
             @close-composebox="${this.onCloseComposebox_}"
             .closeOnEscape="${false}"
+            .clearAllInputsWhenSubmittingQuery="${true}"
+            .showVoiceSearch="${true}"
             @voice-search-action="${this.onComposeVoiceSearchAction_}"
             searchbox-layout-mode="${this.ntpRealboxNextEnabled_ ? 'Compact' : ''}">
         </cr-composebox>

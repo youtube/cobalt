@@ -41,6 +41,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+#include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/common/chrome_constants.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/pref_names.h"
@@ -52,6 +53,7 @@
 #include "components/keep_alive_registry/scoped_keep_alive.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
 #include "components/password_manager/core/browser/password_form.h"
+#include "components/password_manager/core/browser/password_store/password_form_converters.h"
 #include "components/password_manager/core/browser/password_store/password_store_consumer.h"
 #include "components/password_manager/core/browser/password_store/password_store_interface.h"
 #include "components/policy/core/common/policy_map.h"
@@ -77,7 +79,7 @@ void ProfileCreationComplete(base::OnceClosure completion_callback,
                              Profile* profile) {
   ASSERT_TRUE(profile);
   // No browser should have been created for this profile yet.
-  EXPECT_EQ(chrome::GetBrowserCount(profile), 0U);
+  EXPECT_EQ(ProfileBrowserCollection::GetForProfile(profile)->GetSize(), 0U);
   EXPECT_EQ(GlobalBrowserCollection::GetInstance()->GetSize(), 1U);
   std::move(completion_callback).Run();
 }
@@ -197,10 +199,18 @@ class ProfileRemovalObserver : public ProfileAttributesStorage::Observer {
 class PasswordStoreConsumerVerifier
     : public password_manager::PasswordStoreConsumer {
  public:
-  void OnGetPasswordStoreResults(
-      std::vector<std::unique_ptr<password_manager::PasswordForm>> results)
-      override {
-    password_entries_.swap(results);
+  void OnGetPasswordStoreResultsOrErrorFrom(
+      password_manager::PasswordStoreInterface* store,
+      password_manager::LoginsResultOrError results_or_error) override {
+    if (std::holds_alternative<password_manager::PasswordStoreBackendError>(
+            results_or_error)) {
+      ADD_FAILURE() << "Error from password store";
+      password_entries_ = std::vector<password_manager::PasswordForm>();
+    } else {
+      password_entries_ = password_manager::ToPasswordForms(
+          std::get<password_manager::LoginsResult>(
+              std::move(results_or_error)));
+    }
     run_loop_.Quit();
   }
 
@@ -208,8 +218,7 @@ class PasswordStoreConsumerVerifier
     run_loop_.Run();
   }
 
-  const std::vector<std::unique_ptr<password_manager::PasswordForm>>&
-  GetPasswords() const {
+  const std::vector<password_manager::PasswordForm>& GetPasswords() const {
     return password_entries_;
   }
 
@@ -219,8 +228,7 @@ class PasswordStoreConsumerVerifier
 
  private:
   base::RunLoop run_loop_;
-  std::vector<std::unique_ptr<password_manager::PasswordForm>>
-      password_entries_;
+  std::vector<password_manager::PasswordForm> password_entries_;
   base::WeakPtrFactory<PasswordStoreConsumerVerifier> weak_ptr_factory_{this};
 };
 
@@ -637,14 +645,7 @@ IN_PROC_BROWSER_TEST_F(ProfileManagerBrowserTestBase,
   EXPECT_EQ(profile->GetPath(), profile_path);
 }
 
-// Test is flaky on macOS. <https://crbug.com/397731710>
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_EphemeralProfile DISABLED_EphemeralProfile
-#else
-#define MAYBE_EphemeralProfile EphemeralProfile
-#endif
-
-IN_PROC_BROWSER_TEST_P(ProfileManagerBrowserTest, MAYBE_EphemeralProfile) {
+IN_PROC_BROWSER_TEST_P(ProfileManagerBrowserTest, EphemeralProfile) {
   // If multiprofile mode is not enabled, you can't switch between profiles.
   if (!profiles::IsMultipleProfilesEnabled())
     return;
@@ -700,22 +701,13 @@ IN_PROC_BROWSER_TEST_P(ProfileManagerBrowserTest, MAYBE_EphemeralProfile) {
 
   // The second should though.
   ProfileDeletionObserver observer;
-  CloseBrowserSynchronously(browser_profile2);
-  observer.Wait();
+  bool watch_started = false;
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  base::FilePathWatcher watcher;
+  base::RunLoop run_loop;
 
-  EXPECT_EQ(1U, GlobalBrowserCollection::GetInstance()->GetSize());
-  EXPECT_EQ(initial_profile_count, storage.GetNumberOfProfiles());
-
-// The following check is flaky on Windows.
-// TODO(crbug.com/40756611): re-enable this check when the profile
-// directory deletion works more reliably on Windows.
-#if !BUILDFLAG(IS_WIN)
   if (base::FeatureList::IsEnabled(features::kDestroyProfileOnBrowserClose)) {
-    // Check that NukeProfileFromDisk() works correctly.
-    base::ScopedAllowBlockingForTesting allow_blocking;
-    base::FilePathWatcher watcher;
-    base::RunLoop run_loop;
-    ASSERT_TRUE(watcher.Watch(
+    watch_started = watcher.Watch(
         path_profile2, base::FilePathWatcher::Type::kNonRecursive,
         base::BindLambdaForTesting([&run_loop, &path_profile2](
                                        const base::FilePath& path, bool error) {
@@ -724,11 +716,24 @@ IN_PROC_BROWSER_TEST_P(ProfileManagerBrowserTest, MAYBE_EphemeralProfile) {
           EXPECT_FALSE(error);
           if (!base::PathExists(path))
             run_loop.Quit();
-        })));
-    run_loop.Run();
-    EXPECT_FALSE(base::PathExists(path_profile2));
+        }));
+    ASSERT_TRUE(watch_started);
   }
-#endif  // !BUILDFLAG(IS_WIN)
+
+  CloseBrowserSynchronously(browser_profile2);
+  observer.Wait();
+
+  EXPECT_EQ(1U, GlobalBrowserCollection::GetInstance()->GetSize());
+  EXPECT_EQ(initial_profile_count, storage.GetNumberOfProfiles());
+
+  if (watch_started) {
+    if (base::PathExists(path_profile2)) {
+      run_loop.Run();
+    }
+    // It is not possible to check the non-existence of the file here, as it may
+    // have been recreated by pending file tasks after being deleted.
+    // See crbug.com/40756611.
+  }
 }
 
 // The test makes sense on those platforms where the keychain exists.

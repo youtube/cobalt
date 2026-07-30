@@ -12,14 +12,14 @@
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
+#include "chrome/browser/ui/page_actions/page_action_controller.h"
+#include "chrome/browser/ui/page_actions/page_action_enums.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/test/test_browser_ui.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_view_views.h"
 #include "chrome/browser/ui/views/page_action/anchored_message_view.h"
 #include "chrome/browser/ui/views/page_action/page_action_container_view.h"
-#include "chrome/browser/ui/views/page_action/page_action_controller.h"
-#include "chrome/browser/ui/views/page_action/page_action_enums.h"
 #include "chrome/browser/ui/views/page_action/page_action_view.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -126,6 +126,9 @@ class PageActionUiTestBase {
     // TODO(crbug.com/424806660): These tests should not be reliant on
     // kLensOverlayOmniboxEntryPoint being enabled, but disabling it causes them
     // to fail.
+    // TODO(crbug.com/482339938): SuggestionChipReordersMultipleActions is
+    // failing when kPageActionsPrioritySelector is enabled, since those 2 chips
+    // are no longer allowed to show at the same time.
     feature_list_.InitWithFeaturesAndParameters(
         /*enabled_features=*/
         {
@@ -139,6 +142,7 @@ class PageActionUiTestBase {
         },
         /*disabled_features=*/{
             lens::features::kLensOverlay,
+            features::kPageActionsPrioritySelector,
         });
   }
 

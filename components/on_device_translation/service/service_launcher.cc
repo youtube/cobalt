@@ -43,13 +43,12 @@ std::string ToString(const base::FilePath& path) {
 }
 
 std::vector<base::FilePath> GetLanguagePackInfo(
+    OnDeviceTranslationInstaller* installer,
     std::vector<mojom::OnDeviceTranslationLanguagePackagePtr>& packages) {
   CHECK(packages.empty());
   std::vector<base::FilePath> package_paths;
   for (const auto& it : kLanguagePackComponentConfigMap) {
-    auto file_path =
-        OnDeviceTranslationInstaller::GetInstance()->GetLanguagePackPath(
-            it.first);
+    auto file_path = installer->GetLanguagePackPath(it.first);
     if (!file_path.empty()) {
       packages.push_back(mojom::OnDeviceTranslationLanguagePackage::New(
           std::string(ToLanguageCode(it.second->language1)),
@@ -74,12 +73,13 @@ class OnDeviceTranslationServiceLauncherImpl
       const OnDeviceTranslationServiceLauncherImpl&) = delete;
 
   mojo::PendingRemote<mojom::OnDeviceTranslationService> Launch(
-      std::string_view service_display_name_suffix) override {
+      std::string_view service_display_name_suffix,
+      OnDeviceTranslationInstaller* installer) override {
     mojo::PendingRemote<mojom::OnDeviceTranslationService> remote;
     auto receiver = remote.InitWithNewPipeAndPassReceiver();
 
-    const base::FilePath binary_path =
-        OnDeviceTranslationInstaller::GetInstance()->GetLibraryPath();
+    CHECK(installer);
+    const base::FilePath binary_path = installer->GetLibraryPath();
     CHECK(!binary_path.empty())
         << "Got an empty path to TranslateKit binary on the device.";
 
@@ -107,7 +107,7 @@ class OnDeviceTranslationServiceLauncherImpl
     mojo::Remote<mojom::OnDeviceTranslationService> service_remote(
         std::move(remote));
     std::vector<base::FilePath> package_paths =
-        GetLanguagePackInfo(config->packages);
+        GetLanguagePackInfo(installer, config->packages);
     service_remote->SetServiceConfig(std::move(config));
 
     scoped_refptr<base::SequencedTaskRunner> task_runner =
