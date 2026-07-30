@@ -65,6 +65,7 @@ class StarboardBridge {
   double GetScreenDiagonal(JNIEnv* env);
 
   void CloseApp(JNIEnv* env);
+  void RequestStop(JNIEnv* env, jint error_level);
 
   std::string GetTimeZoneId(JNIEnv* env);
 
