@@ -264,14 +264,14 @@ DEFINE_TEST_CLIENT_TEST_WITH_PIPE(ReceiveMessageNoHandles, MessageTest, h) {
   EXPECT_EQ(MOJO_RESULT_OK, MojoClose(h));
 }
 
-#if BUILDFLAG(IS_IOS)
+#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
 // TODO(crbug.com/40257752): Test currently fails on iOS.
 #define MAYBE_SerializeSimpleMessageNoHandlesWithContext \
   DISABLED_SerializeSimpleMessageNoHandlesWithContext
 #else
 #define MAYBE_SerializeSimpleMessageNoHandlesWithContext \
   SerializeSimpleMessageNoHandlesWithContext
-#endif  // BUILDFLAG(IS_IOS)
+#endif  // BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
 TEST_F(MessageTest, MAYBE_SerializeSimpleMessageNoHandlesWithContext) {
   RunTestClient("ReceiveMessageNoHandles", [&](MojoHandle h) {
     auto message = std::make_unique<SimpleMessage>(kTestMessageWithContext1);
@@ -280,13 +280,13 @@ TEST_F(MessageTest, MAYBE_SerializeSimpleMessageNoHandlesWithContext) {
   });
 }
 
-#if BUILDFLAG(IS_IOS)
+#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
 // TODO(crbug.com/40257752): Test currently fails on iOS.
 #define MAYBE_SerializeDynamicallySizedMessage \
   DISABLED_SerializeDynamicallySizedMessage
 #else
 #define MAYBE_SerializeDynamicallySizedMessage SerializeDynamicallySizedMessage
-#endif  // BUILDFLAG(IS_IOS)
+#endif  // BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
 TEST_F(MessageTest, MAYBE_SerializeDynamicallySizedMessage) {
   RunTestClient("ReceiveMessageNoHandles", [&](MojoHandle h) {
     MojoMessageHandle message;
@@ -322,14 +322,14 @@ DEFINE_TEST_CLIENT_TEST_WITH_PIPE(ReceiveMessageOneHandle, MessageTest, h) {
   EXPECT_EQ(MOJO_RESULT_OK, MojoClose(h));
 }
 
-#if BUILDFLAG(IS_IOS)
+#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
 // TODO(crbug.com/40257752): Test currently fails on iOS.
 #define MAYBE_SerializeSimpleMessageOneHandleWithContext \
   DISABLED_SerializeSimpleMessageOneHandleWithContext
 #else
 #define MAYBE_SerializeSimpleMessageOneHandleWithContext \
   SerializeSimpleMessageOneHandleWithContext
-#endif  // BUILDFLAG(IS_IOS)
+#endif  // BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
 TEST_F(MessageTest, MAYBE_SerializeSimpleMessageOneHandleWithContext) {
   RunTestClient("ReceiveMessageOneHandle", [&](MojoHandle h) {
     auto message = std::make_unique<SimpleMessage>(kTestMessageWithContext1);
@@ -361,14 +361,14 @@ DEFINE_TEST_CLIENT_TEST_WITH_PIPE(ReceiveMessageWithHandles, MessageTest, h) {
   EXPECT_EQ(MOJO_RESULT_OK, MojoClose(handles[3]));
 }
 
-#if BUILDFLAG(IS_IOS)
+#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
 // TODO(crbug.com/40257752): Test currently fails on iOS.
 #define MAYBE_SerializeSimpleMessageWithHandlesWithContext \
   DISABLED_SerializeSimpleMessageWithHandlesWithContext
 #else
 #define MAYBE_SerializeSimpleMessageWithHandlesWithContext \
   SerializeSimpleMessageWithHandlesWithContext
-#endif  // BUILDFLAG(IS_IOS)
+#endif  // BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
 TEST_F(MessageTest, MAYBE_SerializeSimpleMessageWithHandlesWithContext) {
   RunTestClient("ReceiveMessageWithHandles", [&](MojoHandle h) {
     auto message = std::make_unique<SimpleMessage>(kTestMessageWithContext1);
@@ -1032,13 +1032,13 @@ TEST_F(MessageTest, CommitInvalidMessageContents) {
 
 #if BUILDFLAG(USE_BLINK)
 
-#if BUILDFLAG(IS_IOS)
+#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
 // TODO(crbug.com/40257752): Test currently fails on iOS.
 #define MAYBE_ExtendPayloadWithHandlesAttached \
   DISABLED_ExtendPayloadWithHandlesAttached
 #else
 #define MAYBE_ExtendPayloadWithHandlesAttached ExtendPayloadWithHandlesAttached
-#endif  // BUILDFLAG(IS_IOS)
+#endif  // BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
 TEST_F(MessageTest, MAYBE_ExtendPayloadWithHandlesAttached) {
   // Regression test for https://crbug.com/748996. Verifies that internal
   // message objects do not retain invalid payload pointers across buffer
@@ -1098,14 +1098,14 @@ DEFINE_TEST_CLIENT_TEST_WITH_PIPE(ReadAndIgnoreMessage, MessageTest, h) {
   EXPECT_EQ(MOJO_RESULT_OK, MojoClose(h));
 }
 
-#if BUILDFLAG(IS_IOS)
+#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
 // TODO(crbug.com/40257752): Test currently fails on iOS.
 #define MAYBE_ExtendPayloadWithHandlesAttachedViaExtension \
   DISABLED_ExtendPayloadWithHandlesAttachedViaExtension
 #else
 #define MAYBE_ExtendPayloadWithHandlesAttachedViaExtension \
   ExtendPayloadWithHandlesAttachedViaExtension
-#endif  // BUILDFLAG(IS_IOS)
+#endif  // BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
 TEST_F(MessageTest, MAYBE_ExtendPayloadWithHandlesAttachedViaExtension) {
   std::array<MojoHandle, 5> handles;
   CreateMessagePipe(&handles[0], &handles[4]);

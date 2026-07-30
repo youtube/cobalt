@@ -1,0 +1,39 @@
+name: Prepare Test Filters
+description: Downloads previous test results and prepares the filter directory.
+inputs:
+  test_results_key:
+    description: "Artifact key used to store test results."
+    required: true
+  platform:
+    description: "The platform being tested."
+    required: true
+  retry_all:
+    description: "Whether to retry all tests instead of analyzing previous results."
+    required: false
+    default: "false"
+
+outputs:
+  filter_dir:
+    description: "Directory containing the prepared test filters."
+    value: ${{ steps.prepare-filters.outputs.filter_dir }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Prepare Base Filters
+      id: prepare-filters
+      shell: bash
+      env:
+        PLATFORM: ${{ inputs.platform }}
+      run: |
+        RESOLVED_FILTER_DIR="${GITHUB_WORKSPACE}/resolved_filters"
+        mkdir -p "${RESOLVED_FILTER_DIR}"
+        cp -r "${GITHUB_WORKSPACE}/cobalt/testing/filters/${PLATFORM}"/* "${RESOLVED_FILTER_DIR}/" || true
+        echo "filter_dir=${RESOLVED_FILTER_DIR}" >> "${GITHUB_OUTPUT}"
+    - name: Download Retry Filters
+      if: ${{ inputs.retry_all != 'true' && inputs.retry_all != true && github.run_attempt > 1 }}
+      uses: ./.github/actions/download_test_results
+      continue-on-error: true
+      with:
+        pattern: ${{ inputs.test_results_key }}*_retry_filter_*
+        path: ${{ steps.prepare-filters.outputs.filter_dir }}

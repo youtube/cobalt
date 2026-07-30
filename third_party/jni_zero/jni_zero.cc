@@ -62,6 +62,35 @@ jclass DefaultClassResolver(JNIEnv* env, const char* class_name) {
   return g_class_loader->loadClass(env, j_class_name).Release();
 }
 
+<<<<<<< HEAD
+=======
+/* Cobalt specific hack to move Java classes to a custom namespace.
+   For every class org.chromium.foo moves them to cobalt.org.chromium.foo
+   This works around link-time conflicts when building the final
+   package against other Chromium release artifacts. */
+jclass GetClassInternal(JNIEnv* env, const char* class_name) {
+  if (g_class_resolver != nullptr) {
+    return g_class_resolver(env, class_name);
+  }
+
+  // This code should be hit only before (or during) InitVM().
+  size_t bufsize = strlen(class_name) + 1;
+  if (bufsize > kMaxClassNameLen) {
+    JNI_ZERO_FLOG("Class name too long: %s", class_name);
+  }
+
+  char slash_name[kMaxClassNameLen];
+  for (size_t i = 0; i < bufsize; ++i) {
+    char c = class_name[i];
+    if (c == '.') {
+      c = '/';
+    }
+    slash_name[i] = c;
+  }
+  return env->FindClass(slash_name);
+}
+
+>>>>>>> parent of 3b746983e69 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 jclass GetClassGlobalRef(JNIEnv* env, jobject obj) {
   return static_cast<jclass>(env->NewGlobalRef(env->GetObjectClass(obj)));
 }

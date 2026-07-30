@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include "net/base/net_export.h"
+#include "net/net_buildflags.h"
 #include "net/socket/datagram_client_socket.h"
 #include "net/socket/socket_descriptor.h"
 #include "net/socket/udp_socket.h"
@@ -59,12 +60,20 @@ class NET_EXPORT_PRIVATE UDPClientSocket final : public DatagramClientSocket {
   int Read(IOBuffer* buf,
            int buf_len,
            CompletionOnceCallback callback) override;
+<<<<<<< HEAD
   base::expected<DatagramsMetadata, Error> ReadMultiple(
       IOBuffer* buf,
       size_t buf_len,
       size_t maximum_packet_size,
       base::OnceCallback<void(base::expected<DatagramsMetadata, Error>)>
           callback) override;
+=======
+#if BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
+  int ReadMultiplePackets(ReadPacketResults* results,
+                          int read_buffer_size,
+                          CompletionOnceCallback callback) override;
+#endif  // BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
+>>>>>>> parent of 3b746983e69 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   int Write(IOBuffer* buf,
             int buf_len,
             CompletionOnceCallback callback,

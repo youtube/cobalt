@@ -95,12 +95,14 @@ class CONTENT_EXPORT ServiceWorkerHost : public BucketContext,
   void BindCacheStorage(
       mojo::PendingReceiver<blink::mojom::CacheStorage> receiver);
 
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
   void BindHidService(mojo::PendingReceiver<blink::mojom::HidService> receiver);
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif
 
+#if !BUILDFLAG(IS_COBALT)
   void BindUsbService(
       mojo::PendingReceiver<blink::mojom::WebUsbService> receiver);
+#endif
 
   ServiceWorkerContainerHostForServiceWorker* container_host() {
     return container_host_.get();

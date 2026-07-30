@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/notimplemented.h"
+#include "build/build_config.h"
 #include "ui/gfx/font_render_params.h"
 
 namespace gfx {
@@ -31,6 +32,13 @@ FontRenderParams LoadDefaults() {
 float device_scale_factor_ = 1.0f;
 
 }  // namespace
+
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+bool GetFontRenderParamsSubpixelRenderingEnabled() {
+  // Mimic what LoadDefaults() does.
+  return false;
+}
+#endif  // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 FontRenderParams GetFontRenderParams(const FontRenderParamsQuery& query,
                                      std::string* family_out) {

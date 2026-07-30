@@ -309,7 +309,71 @@ void SetBuildInfoAnnotations(std::map<std::string, std::string>* annotations) {
       base::android::apk_info::package_version_name() + ")";
 }
 
+<<<<<<< HEAD
 
+=======
+// Constructs paths to a handler trampoline executable and a library exporting
+// the symbol `CrashpadHandlerMain()`. This requires this function to be built
+// into the same object exporting this symbol and the handler trampoline is
+// adjacent to it.
+bool GetHandlerTrampoline(std::string* handler_trampoline,
+                          std::string* handler_library) {
+  // The linker doesn't support loading executables passed on its command
+  // line until Q.
+  if (base::android::android_info::sdk_int() <
+      base::android::android_info::SDK_VERSION_Q) {
+#if BUILDFLAG(IS_COBALT)
+    LOG(INFO) << "SDK version below Q: No linker support.";
+#endif
+    return false;
+  }
+
+  Dl_info info;
+#if BUILDFLAG(IS_COBALT)
+  // Cobalt on Android TV uses a standalone ELF executable instead of a
+  // library-based trampoline. We only need dladdr to succeed so we can
+  // identify the APK mount point from info.dli_fname.
+  if (dladdr(reinterpret_cast<void*>(&GetHandlerTrampoline), &info) == 0) {
+    return false;
+  }
+#else
+  if (dladdr(reinterpret_cast<void*>(&GetHandlerTrampoline), &info) == 0 ||
+      dlsym(dlopen(info.dli_fname, RTLD_NOLOAD | RTLD_LAZY),
+            "CrashpadHandlerMain") == nullptr) {
+    return false;
+  }
+#endif
+
+  std::string local_handler_library(info.dli_fname);
+
+  size_t libdir_end = local_handler_library.rfind('/');
+  if (libdir_end == std::string::npos) {
+    return false;
+  }
+
+  std::string local_handler_trampoline(local_handler_library, 0,
+                                       libdir_end + 1);
+
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROIDTV)
+  // Cobalt on Android TV uses a standalone executable that is launched
+  // directly by the linker from within the APK.
+  // TODO: b/494661759 - Cobalt: Refactor to address 'trampoline' naming
+  // misnomer for standalone executables and facilitate upstreaming.
+  local_handler_trampoline += "libchrome_crashpad_handler.so";
+  local_handler_library = "";
+#else
+  local_handler_trampoline += "libcrashpad_handler_trampoline.so";
+#endif
+
+#if BUILDFLAG(IS_COBALT)
+  LOG(INFO) << "trampoline = " << local_handler_trampoline;
+#endif
+
+  handler_trampoline->swap(local_handler_trampoline);
+  handler_library->swap(local_handler_library);
+  return true;
+}
+>>>>>>> parent of 3b746983e69 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 #if defined(__arm__) && defined(__ARM_ARCH_7A__)
 #define CURRENT_ABI "armeabi-v7a"
@@ -347,6 +411,54 @@ void MakePackagePaths(std::string* classpath, std::string* libpath) {
 }
 
 
+<<<<<<< HEAD
+=======
+  std::string classpath;
+  std::string library_path;
+  MakePackagePaths(&classpath, &library_path);
+
+  std::unique_ptr<base::Environment> env(base::Environment::Create());
+  static constexpr char kClasspathVar[] = "CLASSPATH";
+  std::optional<std::string> current_classpath = env->GetVar(kClasspathVar);
+  if (current_classpath.has_value()) {
+    classpath += ":" + current_classpath.value();
+  }
+
+  static constexpr char kLdLibraryPathVar[] = "LD_LIBRARY_PATH";
+  std::optional<std::string> current_library_path =
+      env->GetVar(kLdLibraryPathVar);
+  if (current_library_path.has_value()) {
+    library_path += ":" + current_library_path.value();
+  }
+
+  static constexpr char kRuntimeRootVar[] = "ANDROID_RUNTIME_ROOT";
+  std::optional<std::string> runtime_root = env->GetVar(kRuntimeRootVar);
+  if (runtime_root.has_value()) {
+    library_path +=
+        ":" + runtime_root.value() + (use_64_bit ? "/lib64" : "/lib");
+  }
+
+  result->push_back("CLASSPATH=" + classpath);
+  result->push_back("LD_LIBRARY_PATH=" + library_path);
+  for (char** envp = environ; *envp != nullptr; UNSAFE_TODO(++envp)) {
+    if ((UNSAFE_TODO(strncmp(*envp, kClasspathVar, strlen(kClasspathVar))) ==
+             0 &&
+         UNSAFE_TODO((*envp)[strlen(kClasspathVar)]) == '=') ||
+        (UNSAFE_TODO(strncmp(*envp, kLdLibraryPathVar,
+                             strlen(kLdLibraryPathVar))) == 0 &&
+         UNSAFE_TODO((*envp)[strlen(kLdLibraryPathVar)]) == '=')) {
+      continue;
+    }
+    result->push_back(*envp);
+  }
+
+  return true;
+}
+
+const char kCrashpadJavaMain[] =
+    "org.chromium.components.crash.browser.CrashpadMain";
+const char kCrashReportUrl[] = "https://clients2.google.com/cr/report";
+>>>>>>> parent of 3b746983e69 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 void BuildHandlerArgs(CrashReporterClient* crash_reporter_client,
                       base::FilePath* database_path,
@@ -357,8 +469,10 @@ void BuildHandlerArgs(CrashReporterClient* crash_reporter_client,
   crash_reporter_client->GetCrashDumpLocation(database_path);
   crash_reporter_client->GetCrashMetricsLocation(metrics_path);
 
-  // TODO(jperaza): Set URL for Android when Crashpad takes over report upload.
-  *url = std::string();
+  *url = crash_reporter_client->GetUploadUrl();
+  if (url->empty()) {
+    *url = kCrashReportUrl;
+  }
 
   ProductInfo product_info;
   crash_reporter_client->GetProductInfo(&product_info);
@@ -390,6 +504,43 @@ bool ShouldHandleCrashAndUpdateArguments(bool write_minidump_to_database,
   return write_minidump_to_database || write_minidump_to_log;
 }
 
+<<<<<<< HEAD
+=======
+bool GetHandlerPath(base::FilePath* exe_dir, base::FilePath* handler_path) {
+  // There is not any normal way to package native executables in an Android
+  // APK. The Crashpad handler is packaged like a loadable module, which
+  // Android's APK installer expects to be named like a shared library, but it
+  // is in fact a standalone executable.
+  if (!base::PathService::Get(base::DIR_MODULE, exe_dir)) {
+    return false;
+  }
+  *handler_path = exe_dir->Append("libchrome_crashpad_handler.so");
+#if BUILDFLAG(IS_COBALT)
+  LOG(INFO) << "GetHandlerPath: " << *handler_path;
+#endif
+  return true;
+}
+
+bool SetLdLibraryPath(const base::FilePath& lib_path) {
+#if defined(COMPONENT_BUILD)
+  std::string library_path(lib_path.value());
+
+  static constexpr char kLibraryPathVar[] = "LD_LIBRARY_PATH";
+  std::unique_ptr<base::Environment> env(base::Environment::Create());
+  std::optional<std::string> old_path = env->GetVar(kLibraryPathVar);
+  if (old_path.has_value()) {
+    library_path += ":" + old_path.value();
+  }
+
+  if (!env->SetVar(kLibraryPathVar, library_path)) {
+    return false;
+  }
+#endif
+
+  return true;
+}
+
+>>>>>>> parent of 3b746983e69 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 class HandlerStarter {
   // TODO(jperaza): Currently only launching a same-bitness handler is
   // supported. The logic to build package paths, locate a handler executable,
@@ -420,6 +571,23 @@ class HandlerStarter {
     BuildHandlerArgs(GetCrashReporterClient(), &database_path, &metrics_path,
                      &url, &process_annotations, &arguments);
 
+<<<<<<< HEAD
+=======
+    base::FilePath exe_dir;
+    base::FilePath handler_path;
+    if (!GetHandlerPath(&exe_dir, &handler_path)) {
+      return database_path;
+    }
+
+#if BUILDFLAG(IS_COBALT)
+    // Disable periodic tasks. In the Android "at-crash" execution model, this
+    // flag prevents an unnecessary file system scan for pending reports,
+    // reducing thread contention during the critical crash dumping window.
+    // Database pruning is handled synchronously via PruneNow() in the upload
+    // thread observation callback upon report completion.
+    arguments.push_back("--no-periodic-tasks");
+#endif
+>>>>>>> parent of 3b746983e69 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     if (crashpad::SetSanitizationInfo(GetCrashReporterClient(),
                                       &browser_sanitization_info_)) {
       arguments.push_back(base::StringPrintf("--sanitization-information=%p",
@@ -434,7 +602,17 @@ class HandlerStarter {
     // Don't handle SIGQUIT in the browser process on Android; the system masks
     // this and uses it for generating ART stack traces, and if it gets unmasked
     // (e.g. by a WebView app) we don't want to treat this as a crash.
+
+
+    #if BUILDFLAG(IS_COBALT)
+    // Prevent Crashpad from handling standard crash signals. Only hangs are handled.
+    GetCrashpadClient().SetUnhandledSignals({
+        SIGABRT, SIGBUS, SIGFPE, SIGILL, SIGQUIT, SIGSEGV, SIGSYS, SIGTRAP,
+    });
+    #else
     GetCrashpadClient().SetUnhandledSignals({SIGQUIT});
+    #endif
+
 
     internal::GetHandlerTrampoline(&handler_trampoline_, &handler_library_);
 
@@ -444,7 +622,19 @@ class HandlerStarter {
       return database_path;
     }
 
+<<<<<<< HEAD
     if (!handler_trampoline_.empty()) {
+=======
+    if (use_java_handler_ || !handler_trampoline_.empty()) {
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROIDTV)
+      // Cobalt on Android TV skips the Java fallback handler for API 24-28.
+      // Reporting is not supported on these versions due to engineering cost
+      // and low traffic.
+      if (use_java_handler_) {
+        return database_path;
+      }
+#endif
+>>>>>>> parent of 3b746983e69 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       std::vector<std::string> env;
       if (!internal::BuildEnvironmentWithApk(kUse64Bit, &env)) {
         return database_path;
@@ -477,18 +667,61 @@ class HandlerStarter {
       return true;
     }
 
+<<<<<<< HEAD
     if (!handler_trampoline_.empty()) {
+=======
+    if (use_java_handler_ || !handler_trampoline_.empty()) {
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROIDTV)
+      // Cobalt on Android TV skips the Java fallback handler for API 24-28.
+      // Reporting is not supported on these versions due to engineering cost
+      // and low traffic.
+      if (use_java_handler_) {
+        LOG(INFO) << "Skipping Java handler for client on Cobalt ATV.";
+        return false;
+      }
+#endif
+>>>>>>> parent of 3b746983e69 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
       std::vector<std::string> env;
       if (!internal::BuildEnvironmentWithApk(kUse64Bit, &env)) {
         return false;
       }
 
+<<<<<<< HEAD
       return GetCrashpadClient().StartHandlerWithLinkerForClient(
           handler_trampoline_, handler_library_, kUse64Bit, &env, database_path,
           metrics_path, url, process_annotations, arguments, fd);
     }
 
     return false;
+=======
+#if BUILDFLAG(IS_COBALT)
+      LOG(INFO) << "Launching handler "
+                << (use_java_handler_ ? "with Java" : "with Linker")
+                << " for client.";
+#endif
+      bool result =
+          use_java_handler_
+              ? GetCrashpadClient().StartJavaHandlerForClient(
+                    kCrashpadJavaMain, &env, database_path, metrics_path, url,
+                    process_annotations, arguments, fd)
+              : GetCrashpadClient().StartHandlerWithLinkerForClient(
+                    handler_trampoline_, handler_library_, kUse64Bit, &env,
+                    database_path, metrics_path, url, process_annotations,
+                    arguments, fd);
+      return result;
+    }
+
+    if (!SetLdLibraryPath(exe_dir)) {
+      return false;
+    }
+
+#if BUILDFLAG(IS_COBALT)
+    LOG(INFO) << "Launching standard handler for client.";
+#endif
+    return GetCrashpadClient().StartHandlerForClient(
+        handler_path, database_path, metrics_path, url, process_annotations,
+        arguments, fd);
+>>>>>>> parent of 3b746983e69 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   }
 
  private:

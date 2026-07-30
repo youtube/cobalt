@@ -1569,6 +1569,12 @@ source_set("platform_browser_tests") {
     ]
   }
 
+  # Upstream gets these dependencies from the enable_devtools_frontend block
+  # below, which Cobalt disables, but
+  # known_interception_disclosure_infobar_browsertest.cc needs them too.
+  if (is_cobalt) {
+    deps += [ "//components/infobars/content" ]
+  }
   if (enable_pdf) {
     deps += [
       "//chrome/browser/pdf:pdf_extension_test_utils",
@@ -5801,6 +5807,7 @@ if (!is_android) {
   }
 }
 
+if (!is_starboard) {
 if (!is_android) {
   performance_test_suite_template("performance_test_suite") {
   }
@@ -5813,8 +5820,11 @@ if (!is_android) {
     }
   }
 }
+} else {
+  group("performance_test_suite") {}
+}
 
-if (!is_android) {
+if (!is_android && !is_starboard) {
   script_test("crossbench_smoketests") {
     script = "//testing/scripts/run_performance_tests.py"
 
