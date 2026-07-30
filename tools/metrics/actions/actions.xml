@@ -894,7 +894,7 @@ should be able to be added at any place in this file.
   <variant name=".SidePanelPinning" summary="Side Panel Pinning"/>
   <variant name=".SyncAccountSettings"
       summary="Wallet integration in Autofill"/>
-  <variant name=".TabGroupsSync" summary="Tab Groups Sync"/>
+  <variant name=".TabGroupsSync" summary="Tab Groups Sync (obsolete)"/>
   <variant name=".TabOrganizer" summary="Tab Organizer"/>
   <variant name=".TestDefaultModule" summary="Test default module"/>
   <variant name=".TestModule" summary="Test module"/>
@@ -3524,6 +3524,23 @@ should be able to be added at any place in this file.
     <variant name="NeedsAttention"
         summary="Task Nudge text shown when one or more tasks need attention."/>
   </token>
+</action>
+
+<action name="ActorTaskTabConfirmation.StopActorTask.Abort">
+  <owner>haileywang@google.com</owner>
+  <owner>clank-tab-dev@google.com</owner>
+  <description>
+    Recorded when a user aborts leaving a website that's actuating.
+  </description>
+</action>
+
+<action name="ActorTaskTabConfirmation.StopActorTask.Proceed">
+  <owner>haileywang@google.com</owner>
+  <owner>clank-tab-dev@google.com</owner>
+  <description>
+    Recorded when a user leaves a website that's actuating as part of an actor
+    task.
+  </description>
 </action>
 
 <action name="AddAddressManually_AddressSaved">
@@ -16373,6 +16390,20 @@ should be able to be added at any place in this file.
   <description>Please enter the description of this user action.</description>
 </action>
 
+<action name="Indigo.PageAction.Click">
+  <owner>jbroman@chromium.org</owner>
+  <owner>adithyas@chromium.org</owner>
+  <owner>baranerf@google.com</owner>
+  <description>User clicked the Indigo page action.</description>
+</action>
+
+<action name="Indigo.PageAction.Show" not_user_triggered="true">
+  <owner>jbroman@chromium.org</owner>
+  <owner>adithyas@chromium.org</owner>
+  <owner>baranerf@google.com</owner>
+  <description>The indigo page action was displayed.</description>
+</action>
+
 <action name="InfobarModalCancelButtonTap">
   <owner>thegreenfrog@chromium.org</owner>
   <description>Reported when the inforbar modal is cancelled.</description>
@@ -27260,6 +27291,13 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="MobileGeminiFloatyExpandedToDismissed">
+  <owner>joemerramos@google.com</owner>
+  <description>
+    The user dismissed the Gemini floaty from an expanded state. iOS only.
+  </description>
+</action>
+
 <action name="MobileGeminiFREConsentAccept">
   <owner>kanouche@google.com</owner>
   <owner>bling-alchemy@google.com</owner>
@@ -28354,7 +28392,7 @@ should be able to be added at any place in this file.
 <action name="MobileMenuNewIncognitoWindow">
   <obsolete>
     Deprecated as of 01/2026 in favor of the enumerated histogram
-    Android.MultiWindowMode.NewWindow.AppSource2 that tracks various new window
+    Android.MultiWindowMode.NewWindow.AppSource* that tracks various new window
     creation sources.
   </obsolete>
   <owner>shuyng@google.com</owner>
@@ -28403,7 +28441,7 @@ should be able to be added at any place in this file.
 <action name="MobileMenuNewWindow">
   <obsolete>
     Deprecated as of 01/2026 in favor of the enumerated histogram
-    Android.MultiWindowMode.NewWindow.AppSource2 that tracks various new window
+    Android.MultiWindowMode.NewWindow.AppSource* that tracks various new window
     creation sources.
   </obsolete>
   <owner>jinsukkim@chromium.org</owner>
@@ -28861,6 +28899,26 @@ should be able to be added at any place in this file.
 <action name="MobileNTP.Interests.OpenDialog">
   <owner>peconn@chromium.org</owner>
   <description>User opened the interests dialog.</description>
+</action>
+
+<action name="MobileNTP.SetupList.Click">
+  <owner>agazal@google.com</owner>
+  <owner>hanxi@chromium.org</owner>
+  <owner>xinyiji@chromium.org</owner>
+  <description>
+    Android: The user clicked on an active item within the Setup List feature on
+    the NTP or Start Surface.
+  </description>
+</action>
+
+<action name="MobileNTP.SetupList.Impression">
+  <owner>agazal@google.com</owner>
+  <owner>hanxi@chromium.org</owner>
+  <owner>xinyiji@chromium.org</owner>
+  <description>
+    Android: Any part of the Setup List feature (Single-Cell, Two-Cell, or
+    Celebration) was rendered on the NTP or Start Surface.
+  </description>
 </action>
 
 <action name="MobileNTP.Snippets.Click">
@@ -31881,6 +31939,9 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="MobileToolbarCloseAllTabs">
+  <obsolete>
+    Deprecated in favor of MobileToolbarTabMenu.CloseAll*Tabs.
+  </obsolete>
   <owner>clank-app-team@google.com</owner>
   <owner>twellington@chromium.org</owner>
   <description>
@@ -32352,6 +32413,12 @@ should be able to be added at any place in this file.
     <variant name=".AddToTabGroup.MultiTab"
         summary="User opened the bottom sheet to add multiple tabs to a new
                  or existing tab group, via the tab context menu on tab strip
+                 on Android."/>
+    <variant name=".CloseAllIncognitoTabs"
+        summary="User closed all incognito tabs via the tab context menu on
+                 tab strip on Android."/>
+    <variant name=".CloseAllTabs"
+        summary="User closed all tabs via the tab context menu on tab strip
                  on Android."/>
     <variant name=".CloseTab"
         summary="User closed a tab via the tab context menu on tab strip on

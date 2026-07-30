@@ -52,6 +52,7 @@ inline constexpr char kChromeUIBorealisInstallerURL[] =
 inline constexpr char kChromeUIBorealisMOTDHost[] = "borealis-motd";
 inline constexpr char kChromeUIBorealisMOTDURL[] = "chrome://borealis-motd";
 
+inline constexpr char kChromeUIChromeOSAssetHost[] = "chromeos-asset";
 inline constexpr char kChromeUICloudUploadHost[] = "cloud-upload";
 inline constexpr char kChromeUICloudUploadURL[] = "chrome://cloud-upload/";
 inline constexpr char kChromeUIConfirmPasswordChangeHost[] =
@@ -131,6 +132,14 @@ inline constexpr char kChromeUIOobeURL[] = "chrome://oobe/";
 inline constexpr char kChromeUIOSCreditsHost[] = "os-credits";
 inline constexpr char kChromeUIOSCreditsURL[] = "chrome://os-credits/";
 inline constexpr char16_t kChromeUIOSCreditsURL16[] = u"chrome://os-credits/";
+
+// Chrome OS tablet gestures education help link for Chrome.
+// TODO(carpenterr): Have a solution for plink mapping in Help App.
+// The magic numbers in this url are the topic and article ids currently
+// required to navigate directly to a help article in the Help App.
+inline constexpr char kChromeUIOSGestureEducationHelpURL[] =
+    "chrome://help-app/help/sub/3399710/id/9739838";
+
 inline constexpr char kChromeUIOSSettingsHost[] = "os-settings";
 inline constexpr char kChromeUIOSSettingsURL[] = "chrome://os-settings/";
 inline constexpr char kChromeUIParentAccessHost[] = "parent-access";

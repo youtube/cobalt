@@ -31,6 +31,7 @@ group("api_implementations") {
   # TODO(https://crbug.com/356905053): Continue moving more APIs here.
   public_deps = [
     "//extensions/browser/api/alarms",
+    "//extensions/browser/api/content_settings",
     "//extensions/browser/api/declarative_net_request",
     "//extensions/browser/api/dns",
     "//extensions/browser/api/file_handlers",
@@ -64,14 +65,12 @@ group("api_implementations") {
       "//extensions/browser/api/bluetooth",
       "//extensions/browser/api/bluetooth_low_energy",
       "//extensions/browser/api/bluetooth_socket",
-      "//extensions/browser/api/content_settings",
       "//extensions/browser/api/feedback_private",
       "//extensions/browser/api/file_system",
       "//extensions/browser/api/mime_handler_private",
       "//extensions/browser/api/networking_private",
       "//extensions/browser/api/printer_provider",
       "//extensions/browser/api/protocol_handlers",
-      "//extensions/browser/api/serial",
       "//extensions/browser/api/socket",
       "//extensions/browser/api/sockets_tcp",
       "//extensions/browser/api/sockets_tcp_server",
@@ -87,6 +86,7 @@ group("api_implementations") {
         "//extensions/browser/api/clipboard",
         "//extensions/browser/api/diagnostics",
         "//extensions/browser/api/media_perception_private",
+        "//extensions/browser/api/serial",
         "//extensions/browser/api/virtual_keyboard",
         "//extensions/browser/api/webcam_private",
       ]

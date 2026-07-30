@@ -10,7 +10,6 @@
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
-#include "base/memory/memory_pressure_monitor.h"
 #include "base/memory/weak_ptr.h"
 #include "base/power_monitor/battery_state_sampler.h"
 #include "base/power_monitor/power_monitor_buildflags.h"
@@ -37,6 +36,7 @@
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/sessions/session_restore.h"
 #include "chrome/common/chrome_features.h"
+#include "components/memory_pressure/multi_source_memory_pressure_monitor.h"
 #include "components/performance_manager/decorators/page_aggregator.h"
 #include "components/performance_manager/embedder/graph_features.h"
 #include "components/performance_manager/embedder/performance_manager_lifetime.h"
@@ -66,10 +66,6 @@
 #include "chromeos/dbus/power/power_manager_client.h"
 #include "components/performance_manager/power/battery_level_provider_chromeos.h"
 #include "components/performance_manager/power/dbus_power_manager_sampling_event_source.h"
-
-#if defined(ARCH_CPU_X86_64)
-#include "chrome/browser/performance_manager/policies/userspace_swap_policy_chromeos.h"
-#endif  // defined(ARCH_CPU_X86_64)
 
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
@@ -176,13 +172,6 @@ void ChromeBrowserMainExtraPartsPerformanceManager::CreatePoliciesAndDecorators(
   }
 
 #if BUILDFLAG(IS_CHROMEOS)
-#if defined(ARCH_CPU_X86_64)
-  if (performance_manager::policies::UserspaceSwapPolicy::
-          UserspaceSwapSupportedAndEnabled()) {
-    graph->PassToGraph(
-        std::make_unique<performance_manager::policies::UserspaceSwapPolicy>());
-  }
-#endif  // defined(ARCH_CPU_X86_64)
 
   graph->PassToGraph(std::make_unique<
                      performance_manager::policies::OomScorePolicyChromeOS>());
@@ -445,7 +434,7 @@ void ChromeBrowserMainExtraPartsPerformanceManager::PostCreateThreads() {
 
 void ChromeBrowserMainExtraPartsPerformanceManager::PostBrowserStart() {
   // The MemoryPressureMonitor might not be available in some tests.
-  if (base::MemoryPressureMonitor::Get()) {
+  if (memory_pressure::MultiSourceMemoryPressureMonitor::Get()) {
     if (memory::EnterpriseMemoryLimitPrefObserver::PlatformIsSupported()) {
       memory_limit_pref_observer_ =
           std::make_unique<memory::EnterpriseMemoryLimitPrefObserver>(

@@ -612,6 +612,7 @@ static_library("test_support") {
     "//components/startup_metric_utils",
     "//components/ukm:test_support",
     "//components/variations",
+    "//components/variations:test_support",
     "//components/viz/client",
     "//components/viz/host",
     "//components/web_package/test_support",
@@ -1791,6 +1792,7 @@ test("content_browsertests") {
     "../browser/web_package/signed_exchange_subresource_prefetch_browsertest.cc",
     "../browser/webid/delegation/jwt_signer_browsertest.cc",
     "../browser/webid/document_metadata_browsertest.cc",
+    "../browser/webid/navigation_interceptor_browsertest.cc",
     "../browser/webid/test/mock_digital_identity_provider.cc",
     "../browser/webid/test/mock_digital_identity_provider.h",
     "../browser/webid/test/mock_identity_request_dialog_controller.cc",
@@ -3527,7 +3529,7 @@ test("content_unittests") {
   }
 
   # Platforms with FontDataManager enabled
-  if (is_win || is_linux) {
+  if (is_win || is_linux || is_chromeos) {
     sources += [ "../child/font_data/font_data_manager_unittest.cc" ]
     deps += [ "//components/services/font_data/public/mojom" ]
   }
@@ -3647,6 +3649,7 @@ test("content_unittests") {
       "//device/fido",
       "//device/fido:cablev2_authenticator",
       "//device/fido:cablev2_test_util",
+      "//device/fido:mocks",
       "//media/mojo/mojom:web_speech_recognition",
     ]
 

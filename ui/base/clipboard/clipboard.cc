@@ -420,47 +420,4 @@ bool Clipboard::IsMarkedByOriginatorAsConfidential() const {
   return false;
 }
 
-void Clipboard::ReadAvailableTypes(
-    ClipboardBuffer buffer,
-    const std::optional<DataTransferEndpoint>& data_dst,
-    ReadAvailableTypesCallback callback) const {
-  std::vector<std::u16string> types;
-  ReadAvailableTypes(buffer, base::OptionalToPtr(data_dst), &types);
-  std::move(callback).Run(std::move(types));
-}
-
-void Clipboard::ReadText(ClipboardBuffer buffer,
-                         const std::optional<DataTransferEndpoint>& data_dst,
-                         ReadTextCallback callback) const {
-  std::u16string result;
-  ReadText(buffer, base::OptionalToPtr(data_dst), &result);
-  std::move(callback).Run(std::move(result));
-}
-
-void Clipboard::ReadAsciiText(
-    ClipboardBuffer buffer,
-    const std::optional<DataTransferEndpoint>& data_dst,
-    ReadAsciiTextCallback callback) const {
-  std::string result;
-  ReadAsciiText(buffer, base::OptionalToPtr(data_dst), &result);
-  std::move(callback).Run(std::move(result));
-}
-
-void Clipboard::ReadBookmark(
-    const std::optional<DataTransferEndpoint>& data_dst,
-    ReadBookmarkCallback callback) const {
-  std::u16string title;
-  std::string url;
-  ReadBookmark(base::OptionalToPtr(data_dst), &title, &url);
-  std::move(callback).Run(std::move(title), GURL(url));
-}
-
-void Clipboard::ReadData(const ClipboardFormatType& format,
-                         const std::optional<DataTransferEndpoint>& data_dst,
-                         ReadDataCallback callback) const {
-  std::string result;
-  ReadData(format, base::OptionalToPtr(data_dst), &result);
-  std::move(callback).Run(std::move(result));
-}
-
 }  // namespace ui

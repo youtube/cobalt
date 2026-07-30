@@ -2329,6 +2329,19 @@ Called by update_net_error_codes.py.-->
   <int value="4" label="The network is validated"/>
 </enum>
 
+<!-- LINT.IfChange(ContentClassifierRelevanceValue) -->
+
+<enum name="ContentClassifierRelevanceValue">
+  <summary>
+    Possible outcomes for the level of interest in the web page.
+  </summary>
+  <int value="1" label="LowContentRelevance"/>
+  <int value="2" label="MediumContentRelevance"/>
+  <int value="3" label="HighContentRelevance"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/accessibility_annotator/content/content_annotator/content_annotator_classifier_rules_parser.h:ContentClassifierRelevance) -->
+
 <enum name="ContentIndexCategory">
   <summary>
     The type of a Content Index entry. Corresponds to
@@ -5479,6 +5492,7 @@ shown properly on the user-facing crash UI.
   <int value="-2147023174" label="RPC_S_SERVER_UNAVAILABLE"/>
   <int value="-2147023170" label="RPC_S_CALL_FAILED"/>
   <int value="-2147023156" label="RPC_S_DUPLICATE_ENDPOINT"/>
+  <int value="-2147023113" label="RPC_X_BAD_STUB_DATA"/>
   <int value="-2147019873" label="E_NOT_VALID_STATE (0x8007139F)"/>
   <int value="-2147012894" label="WININET_E_TIMEOUT"/>
   <int value="-2147012889" label="WININET_E_NAME_NOT_RESOLVED"/>
@@ -5495,13 +5509,17 @@ shown properly on the user-facing crash UI.
   <int value="-2146893001" label="SEC_E_CRYPTO_SYSTEM_INVALID"/>
   <int value="-2146762496" label="TRUST_E_NOSIGNATURE"/>
   <int value="-2146435043" label="SCARD_E_NO_SERVICE"/>
+  <int value="-2145844946" label="HTTP_E_STATUS_REDIRECT"/>
   <int value="-2145844845" label="HTTP_E_STATUS_FORBIDDEN"/>
   <int value="-2145844844" label="HTTP_E_STATUS_NOT_FOUND"/>
   <int value="-2145844843" label="HTTP_E_STATUS_BAD_METHOD"/>
+  <int value="-2145844841" label="HTTP_E_STATUS_PROXY_AUTH_REQ"/>
+  <int value="-2145844749" label="ERROR_NOT_SUPPORTED_WITH_AUDITING"/>
   <int value="-2145844746" label="HTTP_E_STATUS_BAD_GATEWAY"/>
   <int value="-2145844745" label="HTTP_E_STATUS_SERVICE_UNAVAIL"/>
   <int value="-2145844744" label="HTTP_E_STATUS_GATEWAY_TIMEOUT"/>
   <int value="-2143309801" label="INSTALL_AGENT_E_PROXY_CONNECTION_FAILED"/>
+  <int value="-2143309552" label="INSTALL_AGENT_E_NOT_CONNECTED"/>
   <int value="-2140733418" label="APPMODEL_ERROR_PACKAGE_NOT_FOUND"/>
   <int value="-2140143615" label="MF_INDEX_SIZE_ERR"/>
   <int value="-2140143608" label="MF_NOT_FOUND_ERR"/>
@@ -7760,262 +7778,262 @@ shown properly on the user-facing crash UI.
     base::HashMetricName(locale_string_id) to base::HistogramBase::Sample. JS
     users should use metricsPrivate.recordSparseValueWithHashMetricName().
   </summary>
-  <int value="-2132740958" label="gl"/>
-  <int value="-2112894028" label="haw"/>
-  <int value="-2092490813" label="fa"/>
-  <int value="-2084324285" label="iw"/>
-  <int value="-2070680532" label="hi"/>
-  <int value="-2070250592" label="zu"/>
-  <int value="-2061822420" label="gv"/>
-  <int value="-2042178987" label="si"/>
-  <int value="-2041104386" label="mi"/>
-  <int value="-2014954614" label="so"/>
-  <int value="-2007848210" label="ay"/>
-  <int value="-2005166181" label="ja-Latn"/>
-  <int value="-2001789870" label="sg"/>
-  <int value="-1999171202" label="lv"/>
-  <int value="-1998337622" label="es-CL"/>
-  <int value="-1994870905" label="lt"/>
-  <int value="-1993564971" label="tzm"/>
-  <int value="-1986814580" label="om"/>
-  <int value="-1920649864" label="an"/>
-  <int value="-1898669966" label="zh-CN"/>
+  <int value="-2132740958" label="gl">Galician</int>
+  <int value="-2112894028" label="haw">Hawaiian</int>
+  <int value="-2092490813" label="fa">Persian</int>
+  <int value="-2084324285" label="iw">Hebrew (deprecated)</int>
+  <int value="-2070680532" label="hi">Hindi</int>
+  <int value="-2070250592" label="zu">Zulu</int>
+  <int value="-2061822420" label="gv">Manx</int>
+  <int value="-2042178987" label="si">Sinhala</int>
+  <int value="-2041104386" label="mi">Maori</int>
+  <int value="-2014954614" label="so">Somali</int>
+  <int value="-2007848210" label="ay">Aymara</int>
+  <int value="-2005166181" label="ja-Latn">Japanese (Latn)</int>
+  <int value="-2001789870" label="sg">Sango</int>
+  <int value="-1999171202" label="lv">Latvian</int>
+  <int value="-1998337622" label="es-CL">Spanish (Chile)</int>
+  <int value="-1994870905" label="lt">Lithuanian</int>
+  <int value="-1993564971" label="tzm">Central Atlas Tamazight</int>
+  <int value="-1986814580" label="om">Oromo</int>
+  <int value="-1920649864" label="an">Aragonese</int>
+  <int value="-1898669966" label="zh-CN">Simplified Chinese (China)</int>
   <int value="-1895779836" label="empty string">
     Reported as page source language when language detection code was not run
     (i.e. page closed or navigated away before running).
   </int>
-  <int value="-1872667487" label="rm"/>
-  <int value="-1855113037" label="vi"/>
-  <int value="-1835493637" label="ce"/>
-  <int value="-1828586117" label="de"/>
-  <int value="-1823968882" label="zh"/>
-  <int value="-1797669833" label="it-IT"/>
-  <int value="-1791051166" label="ha"/>
-  <int value="-1787999070" label="wa"/>
-  <int value="-1776903256" label="es-ES"/>
-  <int value="-1767491741" label="es-HN"/>
-  <int value="-1760672594" label="mr"/>
-  <int value="-1741747229" label="es-419"/>
-  <int value="-1735828230" label="zh-TW"/>
-  <int value="-1734070684" label="en-NZ"/>
-  <int value="-1731398502" label="wo"/>
-  <int value="-1696927720" label="la"/>
-  <int value="-1690250140" label="ja"/>
-  <int value="-1683177340" label="qu"/>
-  <int value="-1679839472" label="bem"/>
-  <int value="-1662603770" label="es-VE"/>
-  <int value="-1655091207" label="ee"/>
-  <int value="-1639240777" label="hi-IN"/>
-  <int value="-1625830957" label="ln"/>
-  <int value="-1621588434" label="bho"/>
-  <int value="-1612285087" label="en-ZA"/>
-  <int value="-1609141189" label="ja-JP"/>
-  <int value="-1589643944" label="sa"/>
-  <int value="-1578396049" label="ki"/>
-  <int value="-1566592213" label="hi-Latn"/>
-  <int value="-1558307126" label="es-CO"/>
-  <int value="-1553574832" label="saq"/>
-  <int value="-1532548885" label="pa"/>
-  <int value="-1515310228" label="ps"/>
-  <int value="-1481549061" label="dv"/>
-  <int value="-1453785110" label="rw"/>
-  <int value="-1452189651" label="es-CR"/>
-  <int value="-1403061996" label="mgo"/>
-  <int value="-1346992143" label="nn"/>
-  <int value="-1344048927" label="naq"/>
-  <int value="-1301970539" label="dsb"/>
-  <int value="-1284862637" label="ru"/>
-  <int value="-1283061184" label="bo"/>
-  <int value="-1273588087" label="kn"/>
-  <int value="-1242903543" label="es-UY"/>
-  <int value="-1230368678" label="kok"/>
-  <int value="-1211529228" label="gd"/>
-  <int value="-1159958698" label="tl"/>
-  <int value="-1136256351" label="zh-HK"/>
-  <int value="-1117024738" label="zh-Latn"/>
-  <int value="-1100371650" label="sn"/>
-  <int value="-1086322569" label="es-AR"/>
-  <int value="-1069161714" label="yue"/>
-  <int value="-1052948093" label="jw"/>
-  <int value="-1051941586" label="ff"/>
-  <int value="-1048980531" label="ur"/>
-  <int value="-1042449480" label="cy"/>
-  <int value="-1033645590" label="fil"/>
-  <int value="-1025520269" label="az"/>
-  <int value="-1022428397" label="kln"/>
-  <int value="-1010619188" label="ru-Latn"/>
-  <int value="-1007452579" label="mni"/>
-  <int value="-1000295094" label="no"/>
-  <int value="-950444864" label="tk"/>
-  <int value="-926982267" label="de-AT"/>
-  <int value="-912744476" label="lus"/>
-  <int value="-901764938" label="doi"/>
-  <int value="-887258309" label="hu"/>
-  <int value="-873154203" label="en-CA"/>
-  <int value="-862298602" label="st"/>
-  <int value="-851607677" label="sm"/>
-  <int value="-846401046" label="chr"/>
-  <int value="-838275151" label="xh"/>
-  <int value="-812926878" label="ug"/>
-  <int value="-796128841" label="agq"/>
-  <int value="-780984386" label="fr-CA"/>
-  <int value="-764225367" label="kri"/>
-  <int value="-750267977" label="bg"/>
-  <int value="-742603342" label="ca"/>
-  <int value="-740941224" label="ku"/>
-  <int value="-739605699" label="de-LI"/>
-  <int value="-736352432" label="guz"/>
-  <int value="-735144849" label="bas"/>
-  <int value="-734032818" label="km"/>
-  <int value="-717751759" label="lb"/>
-  <int value="-678521183" label="teo"/>
-  <int value="-659007214" label="el"/>
-  <int value="-647197922" label="ceb"/>
-  <int value="-645438410" label="my"/>
-  <int value="-645318977" label="smn"/>
-  <int value="-644560085" label="su"/>
-  <int value="-598481752" label="et"/>
-  <int value="-548175087" label="tt"/>
-  <int value="-545951624" label="ar-Latn"/>
-  <int value="-450972170" label="oc"/>
-  <int value="-442590807" label="sd"/>
-  <int value="-441493751" label="el-Latn"/>
-  <int value="-439564761" label="he"/>
-  <int value="-433923634" label="en-US"/>
-  <int value="-429718906" label="sh"/>
-  <int value="-426630965" label="ga"/>
-  <int value="-415677801" label="it"/>
-  <int value="-403118581" label="sw"/>
-  <int value="-371077109" label="fr-FR"/>
-  <int value="-349113427" label="am"/>
-  <int value="-342591258" label="sq"/>
-  <int value="-302282167" label="ti"/>
-  <int value="-288195501" label="ts"/>
-  <int value="-259045309" label="lu"/>
-  <int value="-226066958" label="bg-Latn"/>
-  <int value="-219674420" label="ta"/>
-  <int value="-183664425" label="pt-PT"/>
-  <int value="-181870943" label="bn"/>
-  <int value="-119774173" label="dav"/>
-  <int value="-110306666" label="sr"/>
-  <int value="-96372035" label="bn-BD"/>
-  <int value="-91748674" label="tn"/>
-  <int value="-91654905" label="luo"/>
-  <int value="-78164291" label="kk"/>
-  <int value="-74147910" label="en"/>
-  <int value="-35182995" label="fi"/>
-  <int value="-27733173" label="mfe"/>
-  <int value="-5034744" label="ny"/>
-  <int value="42532257" label="id"/>
-  <int value="64053359" label="eu"/>
-  <int value="114573335" label="es"/>
-  <int value="121688617" label="eo"/>
-  <int value="124739394" label="lo"/>
-  <int value="132594104" label="be"/>
-  <int value="134866094" label="ka"/>
-  <int value="142304335" label="gn"/>
-  <int value="142313505" label="ro"/>
-  <int value="145030010" label="gu"/>
-  <int value="158276939" label="gsw"/>
-  <int value="162326141" label="sl"/>
-  <int value="183952636" label="mg"/>
-  <int value="191168946" label="mk"/>
-  <int value="264824286" label="ksh"/>
-  <int value="350748440" label="und"/>
-  <int value="357286655" label="af"/>
-  <int value="389407533" label="zh-Hant"/>
-  <int value="443574411" label="dz"/>
-  <int value="461111861" label="mt"/>
-  <int value="462869158" label="hy"/>
-  <int value="469297921" label="khq"/>
-  <int value="470982931" label="sv"/>
-  <int value="522435458" label="hr"/>
-  <int value="526531379" label="ml"/>
-  <int value="538270200" label="uk"/>
-  <int value="549800655" label="de-CH"/>
-  <int value="563029930" label="pcm"/>
-  <int value="584710092" label="nb"/>
-  <int value="596295208" label="bs"/>
-  <int value="622642106" label="ilo"/>
-  <int value="632444664" label="yue-HK"/>
-  <int value="652001481" label="fur"/>
-  <int value="673577439" label="cs"/>
-  <int value="720107264" label="es-PE"/>
-  <int value="729519028" label="or"/>
-  <int value="729888861" label="hsb"/>
-  <int value="769713961" label="he-IL"/>
-  <int value="796588925" label="yo"/>
-  <int value="804120371" label="jv"/>
-  <int value="806431033" label="mgh"/>
-  <int value="842939712" label="se"/>
-  <int value="844238123" label="kl"/>
-  <int value="861252498" label="seh"/>
-  <int value="873647701" label="th"/>
-  <int value="910795716" label="ne"/>
-  <int value="911100675" label="de-DE"/>
-  <int value="911759580" label="kab"/>
-  <int value="919128771" label="dua"/>
-  <int value="925733725" label="ms"/>
-  <int value="1062172280" label="en-IN"/>
-  <int value="1084091282" label="sah"/>
-  <int value="1092864716" label="ht"/>
-  <int value="1110169461" label="hmn"/>
-  <int value="1117613525" label="ewo"/>
-  <int value="1119752109" label="te"/>
-  <int value="1129132659" label="kea"/>
-  <int value="1140816756" label="ar"/>
-  <int value="1152813109" label="to"/>
-  <int value="1166708194" label="is"/>
-  <int value="1196096274" label="es-US"/>
-  <int value="1199169847" label="en-AU"/>
-  <int value="1214473765" label="unknown"/>
-  <int value="1222328168" label="rn"/>
-  <int value="1225967405" label="lg"/>
-  <int value="1227107723" label="nyn"/>
-  <int value="1228519432" label="fo"/>
-  <int value="1282439493" label="es-MX"/>
-  <int value="1308353869" label="sv-SE"/>
-  <int value="1311313702" label="pt"/>
-  <int value="1312638242" label="pl"/>
-  <int value="1327296767" label="gom"/>
-  <int value="1437205305" label="uz"/>
-  <int value="1478556106" label="bm"/>
-  <int value="1482920614" label="yi"/>
-  <int value="1483760478" label="tg"/>
-  <int value="1552733612" label="da"/>
-  <int value="1587354509" label="mzn"/>
-  <int value="1628170778" label="pt-BR"/>
-  <int value="1632012012" label="zgh"/>
-  <int value="1638257274" label="sk"/>
-  <int value="1650591828" label="kw"/>
-  <int value="1670494558" label="ko"/>
-  <int value="1704087523" label="ky"/>
-  <int value="1704315002" label="fr"/>
-  <int value="1708437566" label="it-CH"/>
-  <int value="1717583602" label="co"/>
-  <int value="1724977738" label="ia"/>
-  <int value="1747828010" label="os"/>
-  <int value="1754979806" label="fy"/>
-  <int value="1837633193" label="mai"/>
-  <int value="1853848431" label="tr"/>
-  <int value="1865219403" label="nd"/>
-  <int value="1866346468" label="in"/>
-  <int value="1883413742" label="kam"/>
-  <int value="1884922344" label="ckb"/>
-  <int value="1921155040" label="br"/>
-  <int value="1958157353" label="nso"/>
-  <int value="1988450082" label="tw"/>
-  <int value="1995581006" label="kde"/>
-  <int value="2039992295" label="ig"/>
-  <int value="2072277196" label="ak"/>
-  <int value="2077417554" label="fr-CH"/>
-  <int value="2078974161" label="ast"/>
-  <int value="2081074480" label="ii"/>
-  <int value="2087142539" label="mn"/>
-  <int value="2094171128" label="mo"/>
-  <int value="2098003573" label="as"/>
-  <int value="2119087611" label="nl"/>
-  <int value="2147270293" label="en-GB"/>
+  <int value="-1872667487" label="rm">Romansh</int>
+  <int value="-1855113037" label="vi">Vietnamese</int>
+  <int value="-1835493637" label="ce">Chechen</int>
+  <int value="-1828586117" label="de">German</int>
+  <int value="-1823968882" label="zh">Chinese</int>
+  <int value="-1797669833" label="it-IT">Italian (Italy)</int>
+  <int value="-1791051166" label="ha">Hausa</int>
+  <int value="-1787999070" label="wa">Walloon</int>
+  <int value="-1776903256" label="es-ES">European Spanish</int>
+  <int value="-1767491741" label="es-HN">Spanish (Honduras)</int>
+  <int value="-1760672594" label="mr">Marathi</int>
+  <int value="-1741747229" label="es-419">Latin American Spanish</int>
+  <int value="-1735828230" label="zh-TW">Traditional Chinese (Taiwan)</int>
+  <int value="-1734070684" label="en-NZ">English (New Zeland)</int>
+  <int value="-1731398502" label="wo">Wolof</int>
+  <int value="-1696927720" label="la">Latin</int>
+  <int value="-1690250140" label="ja">Japanese</int>
+  <int value="-1683177340" label="qu">Quechua</int>
+  <int value="-1679839472" label="bem">Bemba</int>
+  <int value="-1662603770" label="es-VE">Spanish (Venezuela)</int>
+  <int value="-1655091207" label="ee">Ewe</int>
+  <int value="-1639240777" label="hi-IN">Hindi (India)</int>
+  <int value="-1625830957" label="ln">Lingala</int>
+  <int value="-1621588434" label="bho">Bhojpuri</int>
+  <int value="-1612285087" label="en-ZA">English (South Africa)</int>
+  <int value="-1609141189" label="ja-JP">Japanese (Japan)</int>
+  <int value="-1589643944" label="sa">Sanskrit</int>
+  <int value="-1578396049" label="ki">Kikuyu</int>
+  <int value="-1566592213" label="hi-Latn">Hindi (Latin)</int>
+  <int value="-1558307126" label="es-CO">Spanish (Colombia)</int>
+  <int value="-1553574832" label="saq">Samburu</int>
+  <int value="-1532548885" label="pa">Punjabi</int>
+  <int value="-1515310228" label="ps">Pashto</int>
+  <int value="-1481549061" label="dv">Divehi</int>
+  <int value="-1453785110" label="rw">Kinyarwanda</int>
+  <int value="-1452189651" label="es-CR">Spanish (Costa Rica)</int>
+  <int value="-1403061996" label="mgo">Meta</int>
+  <int value="-1346992143" label="nn">Norwegian Nynorsk</int>
+  <int value="-1344048927" label="naq">Nama</int>
+  <int value="-1301970539" label="dsb">Lower Sorbian</int>
+  <int value="-1284862637" label="ru">Russian</int>
+  <int value="-1283061184" label="bo">Tibetan</int>
+  <int value="-1273588087" label="kn">Kannada</int>
+  <int value="-1242903543" label="es-UY">Spanish (Uruguay)</int>
+  <int value="-1230368678" label="kok">Konkani</int>
+  <int value="-1211529228" label="gd">Gaelic</int>
+  <int value="-1159958698" label="tl">Tagalog</int>
+  <int value="-1136256351" label="zh-HK">Traditional Chinese (Hong Kong)</int>
+  <int value="-1117024738" label="zh-Latn">Chinese Latin (Pinyin)</int>
+  <int value="-1100371650" label="sn">Shona</int>
+  <int value="-1086322569" label="es-AR">Spanish (Argentina)</int>
+  <int value="-1069161714" label="yue">Cantonese</int>
+  <int value="-1052948093" label="jw">Javanese</int>
+  <int value="-1051941586" label="ff">Fulah</int>
+  <int value="-1048980531" label="ur">Urdu</int>
+  <int value="-1042449480" label="cy">Welsh</int>
+  <int value="-1033645590" label="fil">Filipino</int>
+  <int value="-1025520269" label="az">Azerbaijani</int>
+  <int value="-1022428397" label="kln">Kalenjin</int>
+  <int value="-1010619188" label="ru-Latn">Russian (Latin)</int>
+  <int value="-1007452579" label="mni">Manipuri</int>
+  <int value="-1000295094" label="no">Norwegian</int>
+  <int value="-950444864" label="tk">Turkmen</int>
+  <int value="-926982267" label="de-AT">German (Austria)</int>
+  <int value="-912744476" label="lus">Mizo</int>
+  <int value="-901764938" label="doi">Dogri</int>
+  <int value="-887258309" label="hu">Hungarian</int>
+  <int value="-873154203" label="en-CA">English (Canada)</int>
+  <int value="-862298602" label="st">Southern Sotho</int>
+  <int value="-851607677" label="sm">Samoan</int>
+  <int value="-846401046" label="chr">Cherokee</int>
+  <int value="-838275151" label="xh">Xhosa</int>
+  <int value="-812926878" label="ug">Uyghur</int>
+  <int value="-796128841" label="agq">Aghem</int>
+  <int value="-780984386" label="fr-CA">French (Canada)</int>
+  <int value="-764225367" label="kri">Krio</int>
+  <int value="-750267977" label="bg">Bulgarian</int>
+  <int value="-742603342" label="ca">Catalan</int>
+  <int value="-740941224" label="ku">Kurdish</int>
+  <int value="-739605699" label="de-LI">German (Liechtenstein)</int>
+  <int value="-736352432" label="guz">Gusii</int>
+  <int value="-735144849" label="bas">Basaa</int>
+  <int value="-734032818" label="km">Khmer</int>
+  <int value="-717751759" label="lb">Luxembourgish</int>
+  <int value="-678521183" label="teo">Teso</int>
+  <int value="-659007214" label="el">Greek</int>
+  <int value="-647197922" label="ceb">Cebuano</int>
+  <int value="-645438410" label="my">Burmese</int>
+  <int value="-645318977" label="smn">Inari Sami</int>
+  <int value="-644560085" label="su">Sundanese</int>
+  <int value="-598481752" label="et">Estonian</int>
+  <int value="-548175087" label="tt">Tatar</int>
+  <int value="-545951624" label="ar-Latn">Arabic (Latin)</int>
+  <int value="-450972170" label="oc">Occitan</int>
+  <int value="-442590807" label="sd">Sindhi</int>
+  <int value="-441493751" label="el-Latn">Greek (Latin)</int>
+  <int value="-439564761" label="he">Hebrew</int>
+  <int value="-433923634" label="en-US">English (United States)</int>
+  <int value="-429718906" label="sh">Serbo-Croatian</int>
+  <int value="-426630965" label="ga">Irish</int>
+  <int value="-415677801" label="it">Italian</int>
+  <int value="-403118581" label="sw">Swahili</int>
+  <int value="-371077109" label="fr-FR">French (France)</int>
+  <int value="-349113427" label="am">Amharic</int>
+  <int value="-342591258" label="sq">Albanian</int>
+  <int value="-302282167" label="ti">Tigrinya</int>
+  <int value="-288195501" label="ts">Tsonga</int>
+  <int value="-259045309" label="lu">Luba-Katanga</int>
+  <int value="-226066958" label="bg-Latn">Bulgarian (Latin)</int>
+  <int value="-219674420" label="ta">Tamil</int>
+  <int value="-183664425" label="pt-PT">European Portuguese</int>
+  <int value="-181870943" label="bn">Bengali</int>
+  <int value="-119774173" label="dav">Taita</int>
+  <int value="-110306666" label="sr">Serbian</int>
+  <int value="-96372035" label="bn-BD">Bengali (Bangladesh)</int>
+  <int value="-91748674" label="tn">Tswana</int>
+  <int value="-91654905" label="luo">Luo</int>
+  <int value="-78164291" label="kk">Kazakh</int>
+  <int value="-74147910" label="en">English</int>
+  <int value="-35182995" label="fi">Finnish</int>
+  <int value="-27733173" label="mfe">Morisyen</int>
+  <int value="-5034744" label="ny">Nyanja</int>
+  <int value="42532257" label="id">Indonesian</int>
+  <int value="64053359" label="eu">Basque</int>
+  <int value="114573335" label="es">Spanish</int>
+  <int value="121688617" label="eo">Esperanto</int>
+  <int value="124739394" label="lo">Lao</int>
+  <int value="132594104" label="be">Belarusian</int>
+  <int value="134866094" label="ka">Georgian</int>
+  <int value="142304335" label="gn">Guarani</int>
+  <int value="142313505" label="ro">Romanian</int>
+  <int value="145030010" label="gu">Gujarati</int>
+  <int value="158276939" label="gsw">Swiss German</int>
+  <int value="162326141" label="sl">Slovenian</int>
+  <int value="183952636" label="mg">Malagasy</int>
+  <int value="191168946" label="mk">Macedonian</int>
+  <int value="264824286" label="ksh">Colognian</int>
+  <int value="350748440" label="und">Undetermined</int>
+  <int value="357286655" label="af">Afrikaans</int>
+  <int value="389407533" label="zh-Hant">Traditional Chinese</int>
+  <int value="443574411" label="dz">Dzongkha</int>
+  <int value="461111861" label="mt">Maltese</int>
+  <int value="462869158" label="hy">Armenian</int>
+  <int value="469297921" label="khq">Koyra Chiini</int>
+  <int value="470982931" label="sv">Swedish</int>
+  <int value="522435458" label="hr">Croatian</int>
+  <int value="526531379" label="ml">Malayalam</int>
+  <int value="538270200" label="uk">Ukrainian</int>
+  <int value="549800655" label="de-CH">Swiss High German</int>
+  <int value="563029930" label="pcm">Nigerian Pidgin</int>
+  <int value="584710092" label="nb">Norwegian Bokmål</int>
+  <int value="596295208" label="bs">Bosnian</int>
+  <int value="622642106" label="ilo">Iloko</int>
+  <int value="632444664" label="yue-HK">Cantonese (Hong Kong)</int>
+  <int value="652001481" label="fur">Friulian</int>
+  <int value="673577439" label="cs">Czech</int>
+  <int value="720107264" label="es-PE">Spanish (Peru)</int>
+  <int value="729519028" label="or">Odia</int>
+  <int value="729888861" label="hsb">Upper Sorbian</int>
+  <int value="769713961" label="he-IL">Hebrew (Israel)</int>
+  <int value="796588925" label="yo">Yoruba</int>
+  <int value="804120371" label="jv">Javanese</int>
+  <int value="806431033" label="mgh">Makhuwa-Meetto</int>
+  <int value="842939712" label="se">Northern Sami</int>
+  <int value="844238123" label="kl">Kalaallisut</int>
+  <int value="861252498" label="seh">Sena</int>
+  <int value="873647701" label="th">Thai</int>
+  <int value="910795716" label="ne">Nepali</int>
+  <int value="911100675" label="de-DE">German (Germany)</int>
+  <int value="911759580" label="kab">Kabyle</int>
+  <int value="919128771" label="dua">Duala</int>
+  <int value="925733725" label="ms">Malay</int>
+  <int value="1062172280" label="en-IN">English (India)</int>
+  <int value="1084091282" label="sah">Sakha</int>
+  <int value="1092864716" label="ht">Haitian</int>
+  <int value="1110169461" label="hmn">Hmong</int>
+  <int value="1117613525" label="ewo">Ewondo</int>
+  <int value="1119752109" label="te">Telugu</int>
+  <int value="1129132659" label="kea">Kabuverdianu</int>
+  <int value="1140816756" label="ar">Arabic</int>
+  <int value="1152813109" label="to">Tongan</int>
+  <int value="1166708194" label="is">Icelandic</int>
+  <int value="1196096274" label="es-US">Spanish (United States)</int>
+  <int value="1199169847" label="en-AU">English (Australia)</int>
+  <int value="1214473765" label="unknown">Unknown</int>
+  <int value="1222328168" label="rn">Rundi</int>
+  <int value="1225967405" label="lg">Ganda</int>
+  <int value="1227107723" label="nyn">Nyankole</int>
+  <int value="1228519432" label="fo">Faroese</int>
+  <int value="1282439493" label="es-MX">Spanish (Mexico)</int>
+  <int value="1308353869" label="sv-SE">Swedish (Sweden)</int>
+  <int value="1311313702" label="pt">Portuguese</int>
+  <int value="1312638242" label="pl">Polish</int>
+  <int value="1327296767" label="gom">Goan Konkani</int>
+  <int value="1437205305" label="uz">Uzbek</int>
+  <int value="1478556106" label="bm">Bambara</int>
+  <int value="1482920614" label="yi">Yiddish</int>
+  <int value="1483760478" label="tg">Tajik</int>
+  <int value="1552733612" label="da">Danish</int>
+  <int value="1587354509" label="mzn">Mazanderani</int>
+  <int value="1628170778" label="pt-BR">Portuguese (Brazil)</int>
+  <int value="1632012012" label="zgh">Standard Moroccan Tamazight</int>
+  <int value="1638257274" label="sk">Slovak</int>
+  <int value="1650591828" label="kw">Cornish</int>
+  <int value="1670494558" label="ko">Korean</int>
+  <int value="1704087523" label="ky">Kyrgyz</int>
+  <int value="1704315002" label="fr">French</int>
+  <int value="1708437566" label="it-CH">Italian (Switzerland)</int>
+  <int value="1717583602" label="co">Corsican</int>
+  <int value="1724977738" label="ia">Interlingua</int>
+  <int value="1747828010" label="os">Ossetic</int>
+  <int value="1754979806" label="fy">Western Frisian</int>
+  <int value="1837633193" label="mai">Maithili</int>
+  <int value="1853848431" label="tr">Turkish</int>
+  <int value="1865219403" label="nd">North Ndebele</int>
+  <int value="1866346468" label="in">Indonesian</int>
+  <int value="1883413742" label="kam">Kamba</int>
+  <int value="1884922344" label="ckb">Central Kurdish</int>
+  <int value="1921155040" label="br">Breton</int>
+  <int value="1958157353" label="nso">Northern Sotho</int>
+  <int value="1988450082" label="tw">Twi</int>
+  <int value="1995581006" label="kde">Makonde</int>
+  <int value="2039992295" label="ig">Igbo</int>
+  <int value="2072277196" label="ak">Akan</int>
+  <int value="2077417554" label="fr-CH">French (Switzerland)</int>
+  <int value="2078974161" label="ast">Asturian</int>
+  <int value="2081074480" label="ii">Sichuan Yi</int>
+  <int value="2087142539" label="mn">Mongolian</int>
+  <int value="2094171128" label="mo">Moldavian</int>
+  <int value="2098003573" label="as">Assamese</int>
+  <int value="2119087611" label="nl">Dutch</int>
+  <int value="2147270293" label="en-GB">English (United Kingdom)</int>
 </enum>
 
 <enum name="LocalSearchServiceBackend">
@@ -8081,6 +8099,7 @@ from previous Chrome versions.
   <int value="-2139379065" label="StoragePressureUI:enabled"/>
   <int value="-2139096597" label="HubBackButton:enabled"/>
   <int value="-2138883960" label="AutofillRejectCompanyBirthyearName:disabled"/>
+  <int value="-2138762434" label="SearchSettingsUpdate:disabled"/>
   <int value="-2138128164" label="FeedbackOnContinueSectionRemove:enabled"/>
   <int value="-2137491678" label="TabGroupsSaveV2:disabled"/>
   <int value="-2136173537" label="QuickAnswers:enabled"/>
@@ -8282,6 +8301,7 @@ from previous Chrome versions.
   <int value="-2077268643" label="disable-device-enumeration"/>
   <int value="-2076848010" label="NtpComposebox:disabled"/>
   <int value="-2076313806" label="TrustTokens:disabled"/>
+  <int value="-2076121369" label="NtpMvcRefactor:disabled"/>
   <int value="-2075870708" label="MediaRemotingEncrypted:disabled"/>
   <int value="-2075807193" label="enable-webusb-on-any-origin"/>
   <int value="-2075725205" label="disable-new-zip-unpacker"/>
@@ -8479,6 +8499,7 @@ from previous Chrome versions.
   <int value="-2020886334"
       label="MediaAppImageMantisExpandBackground:disabled"/>
   <int value="-2020721975" label="smart-virtual-keyboard"/>
+  <int value="-2020193528" label="NtpSimplification:enabled"/>
   <int value="-2020024440" label="scroll-end-effect"/>
   <int value="-2019050827" label="AIPromptAPIMultimodalInput:enabled"/>
   <int value="-2018579114" label="ImprovedKeyboardShortcuts:enabled"/>
@@ -8944,6 +8965,7 @@ from previous Chrome versions.
   <int value="-1863079830" label="DeviceBoundSessionsDevTools:enabled"/>
   <int value="-1863066403" label="MoveThemePrefsToSpecifics:disabled"/>
   <int value="-1863020461" label="PasswordChangeInSettings:enabled"/>
+  <int value="-1862402195" label="SearchSettingsUpdate:enabled"/>
   <int value="-1862309711" label="ChromeNativeUrlOverriding:disabled"/>
   <int value="-1861814223" label="MidiManagerDynamicInstantiation:enabled"/>
   <int value="-1861712507" label="MediaAppImageMantisMakeASticker:disabled"/>
@@ -9005,6 +9027,7 @@ from previous Chrome versions.
   <int value="-1844445413"
       label="NotificationsIgnoreRequireInteraction:disabled"/>
   <int value="-1843677118" label="TwoPanesStartSurfaceAndroid:disabled"/>
+  <int value="-1843451369" label="NewTabPageCustomizationThemeSync:disabled"/>
   <int value="-1842511843" label="DiceWebSigninInterception:enabled"/>
   <int value="-1842145650" label="WaylandLinuxDrmSyncobj:enabled"/>
   <int value="-1841624903" label="FilesMaterializedViews:disabled"/>
@@ -9696,6 +9719,7 @@ from previous Chrome versions.
   <int value="-1606890766"
       label="ExperimentalAccessibilitySelectToSpeakVoiceSwitching:disabled"/>
   <int value="-1606215707" label="WebAppWindowControlsOverlay:enabled"/>
+  <int value="-1606029246" label="NtpSimplification:disabled"/>
   <int value="-1605920602" label="AVFoundationCaptureV2:disabled"/>
   <int value="-1605567628" label="disable-overlay-scrollbar"/>
   <int value="-1605385621" label="PrivacySandboxAdsApiUxEnhancements:disabled"/>
@@ -10224,6 +10248,7 @@ from previous Chrome versions.
   <int value="-1430090822" label="EnableSharedImageForWebview:disabled"/>
   <int value="-1429211493" label="FeedSignedOutViewDemotion:enabled"/>
   <int value="-1428822216" label="TabSelectionEditorV2:disabled"/>
+  <int value="-1427130356" label="DetachedTabs:enabled"/>
   <int value="-1426911497" label="CCTIncognitoAvailableToThirdParty:enabled"/>
   <int value="-1426817842" label="BlockTabUnders:enabled"/>
   <int value="-1426150007" label="ignore-previews-blacklist"/>
@@ -11300,6 +11325,7 @@ from previous Chrome versions.
       label="PolicyBlocklistThrottleRequiresPoliciesLoaded:disabled"/>
   <int value="-1060541241" label="ForcePreferredIntervalForVideo:enabled"/>
   <int value="-1060395248" label="PasswordSearchMobile:enabled"/>
+  <int value="-1059844654" label="CompositorViewRemeasureFix:enabled"/>
   <int value="-1059478136" label="PreinstalledWebAppDuplicationFixer:enabled"/>
   <int value="-1057056167" label="VirtualKeyboardMultipaste:enabled"/>
   <int value="-1056947847" label="OfflineItemsInNotifications:disabled"/>
@@ -11653,6 +11679,7 @@ from previous Chrome versions.
   <int value="-949137285" label="EnableRootNsDnsProxy:enabled"/>
   <int value="-948930847" label="EnableOopPrintDrivers:enabled"/>
   <int value="-948684341" label="OmniboxBlurWithEscape:enabled"/>
+  <int value="-948678625" label="NtpMvcRefactor:enabled"/>
   <int value="-948256052" label="EnableInputInDiagnosticsApp:enabled"/>
   <int value="-948067160" label="AXTreeFixing:disabled"/>
   <int value="-947643308" label="EnableTouchscreensInDiagnosticsApp:disabled"/>
@@ -11969,6 +11996,7 @@ from previous Chrome versions.
   <int value="-832058463" label="LaunchWindowsNativeHostsDirectly:disabled"/>
   <int value="-831855839"
       label="DeprecateOldKeyboardShortcutsAccelerator:enabled"/>
+  <int value="-831789349" label="NewTabPageCustomizationThemeSync:enabled"/>
   <int value="-831303896" label="TabStripGroupIndicatorsAndroid:enabled"/>
   <int value="-831066457" label="IncognitoBrandConsistencyForDesktop:disabled"/>
   <int value="-829665817" label="AltClickAndSixPackCustomization:enabled"/>
@@ -13825,6 +13853,8 @@ from previous Chrome versions.
   <int value="-190449995" label="CommerceLocalPDPDetection:enabled"/>
   <int value="-189740492"
       label="PolicyIndicationForManagedDefaultSearch:disabled"/>
+  <int value="-189735598"
+      label="SourceSpecificMulticastInDirectSockets:enabled"/>
   <int value="-189543840" label="PageActionsMigration:disabled"/>
   <int value="-188923198"
       label="BlockV8OptimizerOnUnfamiliarSitesSetting:disabled"/>
@@ -13987,6 +14017,7 @@ from previous Chrome versions.
       label="EnableServiceWorkersForChromeUntrusted:disabled"/>
   <int value="-140665765" label="MultiCaptureReworkedUsageIndicators:enabled"/>
   <int value="-138983372" label="DesktopPWAWindowing:disabled"/>
+  <int value="-138951938" label="GlassToolbar:disabled"/>
   <int value="-138820512" label="DesktopPWAsTabStrip:enabled"/>
   <int value="-138773929" label="PassiveDocumentEventListeners:enabled"/>
   <int value="-138760381" label="AutofillManualFallbackAndroid:enabled"/>
@@ -13994,6 +14025,7 @@ from previous Chrome versions.
   <int value="-137716319" label="ExtensionManifestV2Unsupported:enabled"/>
   <int value="-137394236" label="TabStripContextMenuAndroid:disabled"/>
   <int value="-137303226" label="enable-chromevox-developer-option"/>
+  <int value="-136974597" label="DefaultBrowserPromptSurfaces:disabled"/>
   <int value="-136663703" label="Compose:enabled"/>
   <int value="-136485076" label="NtpModules:disabled"/>
   <int value="-135584721"
@@ -14789,6 +14821,7 @@ from previous Chrome versions.
   <int value="130059719" label="ThreadedPreloadScanner:disabled"/>
   <int value="130939792" label="FilesJsModules:disabled"/>
   <int value="131042807" label="IsolatedWebAppManagedAllowlist:enabled"/>
+  <int value="131188289" label="GlicActorUiMagicCursor:enabled"/>
   <int value="131881947" label="D3DVsync:enabled"/>
   <int value="132560299"
       label="OmniboxUIExperimentHideSteadyStateUrlScheme:disabled"/>
@@ -15156,6 +15189,8 @@ from previous Chrome versions.
   <int value="266322815" label="ChromeModernDesign:disabled"/>
   <int value="266702296" label="disable-plugin-power-saver"/>
   <int value="266787297" label="CreateShortcutIgnoresManifest:disabled"/>
+  <int value="266793022"
+      label="SourceSpecificMulticastInDirectSockets:disabled"/>
   <int value="267252476" label="WebXRDepthPerformance:disabled"/>
   <int value="267313220" label="ScreenSaverPreview:disabled"/>
   <int value="267332914" label="AvoidUnnecessaryBeforeUnloadCheck:disabled"/>
@@ -16340,6 +16375,7 @@ from previous Chrome versions.
   <int value="665320858" label="WebViewHitTestInBlinkOnTouchStart:disabled"/>
   <int value="665409384"
       label="AutofillToolkitViewsCreditCardDialogsMac:enabled"/>
+  <int value="665421480" label="GlicChromeStatusIcon:enabled"/>
   <int value="665647051" label="DiscountConsentV2:enabled"/>
   <int value="666163273" label="WebMachineLearningNeuralNetwork:enabled"/>
   <int value="666428855" label="MediaRemotingWithoutFullscreen:enabled"/>
@@ -16657,6 +16693,7 @@ from previous Chrome versions.
   <int value="763629028" label="AutofillSkipAndroidBottomSheetForIban:enabled"/>
   <int value="763667542"
       label="AutofillFillCreditCardAsPerFormatString:enabled"/>
+  <int value="763904037" label="GlassToolbar:enabled"/>
   <int value="763947368" label="HomepageLocationPolicy:disabled"/>
   <int value="764508124" label="NavigationNetworkResponseQueue:disabled"/>
   <int value="764797356" label="SmartCard:enabled"/>
@@ -16759,6 +16796,7 @@ from previous Chrome versions.
   <int value="793816915" label="MessagesForAndroidPopupBlocked:disabled"/>
   <int value="794018820" label="LensOverlayStraightToSrp:disabled"/>
   <int value="794100639" label="CameraAppAutoQRDetection:enabled"/>
+  <int value="795030823" label="WebUIOmniboxPopupSelectionControl:enabled"/>
   <int value="797344274" label="OmniboxTriggerForPrerender2:disabled"/>
   <int value="797924041" label="DeferredShaping:enabled"/>
   <int value="798093827"
@@ -17076,6 +17114,7 @@ from previous Chrome versions.
   <int value="910725730" label="WebRtcHWVP9Encoding:disabled"/>
   <int value="910964036" label="ChangeUnfocusedPriority:disabled"/>
   <int value="911256399" label="GlobalMediaControlsModernUI:enabled"/>
+  <int value="911991932" label="OnDeviceModelLitertLmBackend:enabled"/>
   <int value="912119426" label="InfiniteSessionRestore:disabled"/>
   <int value="913138924" label="RecurrentInterstitialFeature:disabled"/>
   <int value="913855453" label="VirtualKeyboardFloatingResizable:disabled"/>
@@ -17470,6 +17509,7 @@ from previous Chrome versions.
   <int value="1053743655" label="NewOverviewAnimations:enabled"/>
   <int value="1054363360"
       label="PrivateNetworkAccessForNavigationsWarningOnly:enabled"/>
+  <int value="1054377531" label="WebUIOmniboxPopupSelectionControl:disabled"/>
   <int value="1054910800" label="enable-timezone-tracking-option"/>
   <int value="1055116004" label="AllowTouchpadHapticClickSettings:enabled"/>
   <int value="1055690028"
@@ -17694,12 +17734,14 @@ from previous Chrome versions.
   <int value="1124100808"
       label="FilterWebsitesForSupervisedUsersOnDesktopAndIOS:enabled"/>
   <int value="1126061778" label="CaptureThumbnailOnLoadFinished:enabled"/>
+  <int value="1126825017" label="WebAppInstallDialog:enabled"/>
   <int value="1126956909" label="UseXpsForPrintingFromPdf:disabled"/>
   <int value="1127085005" label="TreatUnsafeDownloadsAsActive:enabled"/>
   <int value="1127183523" label="PassiveEventListenersDueToFling:enabled"/>
   <int value="1127402319" label="WebAssemblyCodeProtection:enabled"/>
   <int value="1127408853" label="AutofillAlwaysParsePlaceholders:disabled"/>
   <int value="1127427821" label="OmniboxEntitySuggestions:disabled"/>
+  <int value="1127578890" label="WebAppInstallDialog:disabled"/>
   <int value="1127954225" label="EnableDnsProxy:enabled"/>
   <int value="1128245405" label="DarkLightModeKMeansColor:disabled"/>
   <int value="1128840602" label="DisconnectWiFiOnEthernetConnected:disabled"/>
@@ -17913,6 +17955,7 @@ from previous Chrome versions.
   <int value="1203821857" label="Vulkan:disabled"/>
   <int value="1204035326" label="DownloadsMigrateToJobsAPI:enabled"/>
   <int value="1204828623" label="DelayTempStripRemoval:disabled"/>
+  <int value="1205156390" label="DetachedTabs:disabled"/>
   <int value="1205315214"
       label="BlockRootWindowAccessibleNameChangeEvent:disabled"/>
   <int value="1205596770"
@@ -18830,6 +18873,7 @@ from previous Chrome versions.
   <int value="1506384737" label="ArcExtendInputAnrTimeout:disabled"/>
   <int value="1506877591" label="NavBarColorAnimation:disabled"/>
   <int value="1507233295" label="FilesTrash:disabled"/>
+  <int value="1507965665" label="CompositorViewRemeasureFix:disabled"/>
   <int value="1508761653" label="disable-site-isolation-trials"/>
   <int value="1509300278"
       label="UserDisplayModeSyncBrowserMitigation:disabled"/>
@@ -18913,6 +18957,7 @@ from previous Chrome versions.
   <int value="1530177325" label="LanguagesPreference:disabled"/>
   <int value="1530182188" label="PdfHonorJsContentSettings:enabled"/>
   <int value="1531164533" label="SyncPseudoUSSFavicons:disabled"/>
+  <int value="1531608861" label="OnDeviceModelLitertLmBackend:disabled"/>
   <int value="1531741496" label="DragFromShelfToHomeOrOverview:disabled"/>
   <int value="1532006216" label="CommerceHintAndroid:disabled"/>
   <int value="1532505461" label="HelpAppLauncherSearch:disabled"/>
@@ -19289,6 +19334,7 @@ from previous Chrome versions.
   <int value="1664401033" label="ColorCorrectRendering:enabled"/>
   <int value="1664463407" label="FirstPartySets:enabled"/>
   <int value="1664710107" label="BorealisScaleClientByDPI:enabled"/>
+  <int value="1665076479" label="GlicChromeStatusIcon:disabled"/>
   <int value="1665349789" label="spurious-power-button-window"/>
   <int value="1665400247" label="OsSettingsDeepLinking:enabled"/>
   <int value="1665430464" label="force-control-face-ae"/>
@@ -19668,6 +19714,7 @@ from previous Chrome versions.
   <int value="1787171971" label="UserEducationExperienceVersion2:enabled"/>
   <int value="1787279386" label="VirtualKeyboardMultitouch:enabled"/>
   <int value="1787572807" label="PrefixWebAppWindowsWithAppName:enabled"/>
+  <int value="1788097134" label="DefaultBrowserPromptSurfaces:enabled"/>
   <int value="1788323093" label="AuxiliaryNavigationStaysInPWA:disabled"/>
   <int value="1789517771" label="MacV2Sandbox:enabled"/>
   <int value="1789793147" label="HTTPSServerPreviewsUsingURLLoader:disabled"/>
@@ -20339,6 +20386,7 @@ from previous Chrome versions.
   <int value="2005344314" label="AutofillEnableServerIban:disabled"/>
   <int value="2005475213" label="CrostiniContainerless:enabled"/>
   <int value="2005614493" label="tab-management-experiment-type-dill"/>
+  <int value="2006364154" label="GlicActorUiMagicCursor:disabled"/>
   <int value="2006374447" label="EnableAIRewriterAPI:enabled"/>
   <int value="2006413281"
       label="ContextualSuggestionsAlternateCardLayout:enabled"/>
@@ -21270,7 +21318,7 @@ from previous Chrome versions.
   <int value="17" label="SHOULD_WAIT"/>
 </enum>
 
-<!-- LINT.ThenChange(//mojo/public/cpp/system/result_for_metrics.h) -->
+<!-- LINT.ThenChange(//mojo/public/c/system/types.h:MojoResult) -->
 
 <enum name="Month">
   <int value="1" label="January"/>
@@ -21398,6 +21446,13 @@ from previous Chrome versions.
   <int value="16" label="view-source"/>
   <int value="17" label="externalfile"/>
   <int value="18" label="isolated-app"/>
+</enum>
+
+<enum name="NavigationTypeForNavigationApi">
+  <int value="0" label="push"/>
+  <int value="1" label="traverse"/>
+  <int value="2" label="reload"/>
+  <int value="3" label="replace"/>
 </enum>
 
 <enum name="NetErrorCodes">
@@ -23722,7 +23777,7 @@ Called by update_net_error_codes.py.-->
   <int value="4" label="Request successful, prefech served after completion"/>
   <int value="5" label="Request successful, prefech served before completion"/>
   <int value="6" label="Prefetch was a decoy"/>
-  <int value="7" label="Request failed, invalid head"/>
+  <int value="7" label="DEPRECATED Request failed, invalid head"/>
   <int value="8" label="Request failed, invalid headers"/>
   <int value="9" label="Request failed, non-2XX response code"/>
   <int value="10" label="Request failed, MIME type not supported"/>
@@ -23937,9 +23992,27 @@ Called by update_net_error_codes.py.-->
   <int value="0" label="FEATURE_NAME_UNSPECIFIED"/>
   <int value="3" label="FEATURE_NAME_DEMO_GEMINI_GENERATE_CONTENT"/>
   <int value="700" label="FEATURE_NAME_CHROME_ZERO_STATE_SUGGESTION"/>
+  <int value="701" label="FEATURE_NAME_CHROME_FORMS_AI"/>
 </enum>
 
-<!-- LINT.ThenChange(//components/private_ai/proto/legion.proto:FeatureName) -->
+<!-- LINT.ThenChange(//components/private_ai/proto/private_ai.proto:FeatureName) -->
+
+<!-- LINT.IfChange(PrivateAiPhosphorGetAuthnTokensResult) -->
+
+<enum name="PrivateAiPhosphorGetAuthnTokensResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="Failed: No Account"/>
+  <int value="2" label="Failed: Not Eligible"/>
+  <int value="3" label="Failed: OAuth Token (Deprecated)"/>
+  <int value="4" label="Failed: BSA 400"/>
+  <int value="5" label="Failed: BSA 401"/>
+  <int value="6" label="Failed: BSA 403"/>
+  <int value="7" label="Failed: BSA Other"/>
+  <int value="8" label="Failed: OAuth Token Transient"/>
+  <int value="9" label="Failed: OAuth Token Persistent"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/private_ai/phosphor/data_types.h:GetAuthnTokensResult) -->
 
 <enum name="ProbeResult">
   <int value="0" label="No internet"/>
@@ -25486,6 +25559,8 @@ Called by update_net_error_codes.py.-->
   <int value="23"
       label="Opened Customize Chrome from the New Tab Page automatically"/>
   <int value="24" label="Opened from Read Anything omnibox chip"/>
+  <int value="25"
+      label="Opened from Immersive Reading Mode toggle presentation button"/>
 </enum>
 
 <enum name="SignedExchangeLoadResult">

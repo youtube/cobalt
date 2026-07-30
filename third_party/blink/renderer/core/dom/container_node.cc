@@ -24,6 +24,7 @@
 #include "third_party/blink/renderer/core/dom/container_node.h"
 
 #include "third_party/blink/renderer/bindings/core/v8/v8_get_html_options.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_union_sethtmlunsafeoptions_trustedparseroptions.h"
 #include "third_party/blink/renderer/core/accessibility/ax_object_cache.h"
 #include "third_party/blink/renderer/core/css/resolver/style_resolver.h"
 #include "third_party/blink/renderer/core/css/selector_filter.h"
@@ -67,6 +68,7 @@
 #include "third_party/blink/renderer/core/html/html_stream.h"
 #include "third_party/blink/renderer/core/html/html_tag_collection.h"
 #include "third_party/blink/renderer/core/html/html_template_element.h"
+#include "third_party/blink/renderer/core/html/parser/fragment_parser_options.h"
 #include "third_party/blink/renderer/core/inspector/console_message.h"
 #include "third_party/blink/renderer/core/layout/layout_block_flow.h"
 #include "third_party/blink/renderer/core/layout/layout_box.h"
@@ -74,7 +76,10 @@
 #include "third_party/blink/renderer/core/layout/layout_text.h"
 #include "third_party/blink/renderer/core/layout/layout_text_combine.h"
 #include "third_party/blink/renderer/core/probe/core_probes.h"
+#include "third_party/blink/renderer/core/sanitizer/sanitizer.h"
 #include "third_party/blink/renderer/core/timing/soft_navigation_heuristics.h"
+#include "third_party/blink/renderer/core/trustedtypes/trusted_types_names.h"
+#include "third_party/blink/renderer/core/trustedtypes/trusted_types_util.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/runtime_call_stats.h"
 #include "third_party/blink/renderer/platform/bindings/script_forbidden_scope.h"
@@ -958,9 +963,7 @@ Node* ContainerNode::RemoveChild(Node* old_child,
 
   Node* child = old_child;
 
-  if (!GetDocument().StatePreservingAtomicMoveInProgress()) {
-    GetDocument().RemoveFocusedElementOfSubtree(*child);
-  }
+  GetDocument().RemoveFocusedElementOfSubtree(*child);
 
   // Events fired when blurring currently focused node might have moved this
   // child into a different parent.
@@ -1920,8 +1923,20 @@ WritableStream* ContainerNode::streamAppendHTMLUnsafe(
     ExceptionState& exception_state) {
   DEFINE_STATIC_LOCAL(AtomicString, kInterfaceName, ("streamAppendHTMLUnsafe"));
 
-  return HTMLStream::Create(script_state, this, options, kInterfaceName,
-                            exception_state);
+  return HTMLStream::Create(script_state, this,
+                            FragmentParserOptions::From(options),
+                            kInterfaceName, exception_state);
+}
+
+WritableStream* ContainerNode::streamAppendHTML(
+    ScriptState* script_state,
+    V8UnionSetHTMLOptionsOrTrustedParserOptions* options,
+    ExceptionState& exception_state) {
+  DEFINE_STATIC_LOCAL(AtomicString, kPropertyName, ("streamAppendHTML"));
+  WritableStream* stream = HTMLStream::Create(
+      script_state, this, FragmentParserOptions::From(options), kPropertyName,
+      exception_state);
+  return stream;
 }
 
 WritableStream* ContainerNode::streamHTMLUnsafe(
@@ -1929,12 +1944,118 @@ WritableStream* ContainerNode::streamHTMLUnsafe(
     V8UnionSetHTMLUnsafeOptionsOrTrustedParserOptions* options,
     ExceptionState& exception_state) {
   DEFINE_STATIC_LOCAL(AtomicString, kPropertyName, ("streamHTMLUnsafe"));
-  WritableStream* stream = HTMLStream::Create(script_state, this, options,
-                                              kPropertyName, exception_state);
+  WritableStream* stream = HTMLStream::Create(
+      script_state, this, FragmentParserOptions::From(options), kPropertyName,
+      exception_state);
   if (!exception_state.HadException()) {
     RemoveChildren();
   }
   return stream;
+}
+
+WritableStream* ContainerNode::streamHTML(
+    ScriptState* script_state,
+    V8UnionSetHTMLOptionsOrTrustedParserOptions* options,
+    ExceptionState& exception_state) {
+  DEFINE_STATIC_LOCAL(AtomicString, kPropertyName, ("streamHTML"));
+  WritableStream* stream = HTMLStream::Create(
+      script_state, this, FragmentParserOptions::From(options), kPropertyName,
+      exception_state);
+  if (!exception_state.HadException()) {
+    RemoveChildren();
+  }
+  return stream;
+}
+
+void ContainerNode::appendHTML(
+    const String& html,
+    V8UnionSetHTMLOptionsOrTrustedParserOptions* options,
+    ExceptionState& exception_state) {
+  CHECK(IsElementNode() || IsShadowRoot());
+  InsertHTMLBefore(nullptr, html,
+                   blink::GetFragmentParserConfig(
+                       Sanitizer::Mode::kSafe,
+                       IsElementNode() ? trusted_types_names::kElement
+                                       : trusted_types_names::kShadowRoot,
+                       trusted_types_names::kAppendHTML, this),
+                   FragmentParserOptions::From(options), exception_state);
+}
+
+void ContainerNode::appendHTMLUnsafe(
+    const V8UnionStringOrTrustedHTML* html,
+    V8UnionSetHTMLUnsafeOptionsOrTrustedParserOptions* options,
+    ExceptionState& exception_state) {
+  CHECK(IsElementNode() || IsShadowRoot());
+
+  const FragmentParserConfig config = blink::GetFragmentParserConfig(
+      Sanitizer::Mode::kUnsafe,
+      IsElementNode() ? trusted_types_names::kElement
+                      : trusted_types_names::kShadowRoot,
+      trusted_types_names::kAppendHTMLUnsafe, this);
+  InsertHTMLBefore(nullptr,
+                   TrustedTypesCheckForHTML(
+                       html, GetExecutionContext(), config.interface_name,
+                       config.property_name, exception_state),
+                   config, FragmentParserOptions::From(options),
+                   exception_state);
+}
+
+void ContainerNode::prependHTML(
+    const String& html,
+    V8UnionSetHTMLOptionsOrTrustedParserOptions* options,
+    ExceptionState& exception_state) {
+  CHECK(IsElementNode() || IsShadowRoot());
+  InsertHTMLBefore(firstChild(), html,
+                   blink::GetFragmentParserConfig(
+                       Sanitizer::Mode::kSafe,
+                       IsElementNode() ? trusted_types_names::kElement
+                                       : trusted_types_names::kShadowRoot,
+                       trusted_types_names::kPrependHTML, this),
+                   FragmentParserOptions::From(options), exception_state);
+}
+
+void ContainerNode::prependHTMLUnsafe(
+    const V8UnionStringOrTrustedHTML* html,
+    V8UnionSetHTMLUnsafeOptionsOrTrustedParserOptions* options,
+    ExceptionState& exception_state) {
+  const FragmentParserConfig config = blink::GetFragmentParserConfig(
+      Sanitizer::Mode::kUnsafe,
+      IsElementNode() ? trusted_types_names::kElement
+                      : trusted_types_names::kShadowRoot,
+      trusted_types_names::kPrependHTMLUnsafe, this);
+  InsertHTMLBefore(firstChild(),
+                   TrustedTypesCheckForHTML(
+                       html, GetExecutionContext(), config.interface_name,
+                       config.property_name, exception_state),
+                   config, FragmentParserOptions::From(options),
+                   exception_state);
+}
+
+void ContainerNode::InsertHTMLBefore(Node* ref_child,
+                                     const String& html,
+                                     const FragmentParserConfig& config,
+                                     const FragmentParserOptions& options,
+                                     ExceptionState& exception_state) {
+  if (exception_state.HadException()) {
+    return;
+  }
+  if (DocumentFragment* fragment =
+          ParseHTMLFragment(html, config, options, exception_state)) {
+    InsertBefore(fragment, ref_child);
+  }
+}
+void ContainerNode::ReplaceChildWithHTML(Node* ref_child,
+                                         const String& html,
+                                         const FragmentParserConfig& config,
+                                         const FragmentParserOptions& options,
+                                         ExceptionState& exception_state) {
+  if (exception_state.HadException()) {
+    return;
+  }
+  if (DocumentFragment* fragment =
+          ParseHTMLFragment(html, config, options, exception_state)) {
+    ReplaceChild(fragment, ref_child);
+  }
 }
 
 }  // namespace blink

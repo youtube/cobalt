@@ -4,6 +4,7 @@
 
 #include "services/webnn/ort/context_impl_ort.h"
 
+#include "base/feature_list.h"
 #include "services/webnn/ort/graph_impl_ort.h"
 #include "services/webnn/ort/ort_data_type.h"
 #include "services/webnn/ort/ort_status.h"
@@ -97,6 +98,7 @@ ContextImplOrt::ContextImplOrt(
     : WebNNContextImpl(
           std::move(receiver),
           std::move(context_provider),
+          ContextBackendUma::kONNXRuntime,
           GetContextProperties(ep_workarounds.resample2d_limit_to_nchw),
           std::move(options),
           std::move(write_tensor_consumer),
@@ -443,7 +445,7 @@ ContextImplOrt::CreateTensorImpl(
   CHECK(base::IsValueInRangeForNumericType<int>(size));
 
   return base::MakeRefCounted<TensorImplOrt>(
-      std::move(receiver), AsWeakPtr(), std::move(tensor_info), size,
+      std::move(receiver), *this, std::move(tensor_info), size,
       std::move(tensor), can_access_on_cpu, device_allocator_);
 }
 
@@ -518,7 +520,7 @@ ContextImplOrt::CreateTensorFromSharedImageImpl(
   CHECK(tensor.get());
 
   return base::MakeRefCounted<TensorImplOrt>(
-      std::move(receiver), AsWeakPtr(), std::move(tensor_info),
+      std::move(receiver), *this, std::move(tensor_info),
       std::move(representation), buffer_size, std::move(tensor));
 }
 

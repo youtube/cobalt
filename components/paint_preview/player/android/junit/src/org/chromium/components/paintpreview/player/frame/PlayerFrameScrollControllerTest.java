@@ -22,10 +22,10 @@ import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.robolectric.annotation.Config;
-import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.RobolectricUtil;
 import org.chromium.components.paintpreview.player.OverscrollHandler;
 
 /** Tests for the {@link PlayerFrameScrollController} class. */
@@ -49,15 +49,15 @@ public class PlayerFrameScrollControllerTest {
         MockitoAnnotations.initMocks(this);
         mScroller = new OverScroller(ContextUtils.getApplicationContext());
         mDidScroll = false;
-        Runnable mOnScrollListener = () -> mDidScroll = true;
-        Runnable mOnFlingListener = () -> mDidFling = true;
+        Runnable onScrollListener = () -> mDidScroll = true;
+        Runnable onFlingListener = () -> mDidFling = true;
         mViewport = new PlayerFrameViewport();
         when(mMediatorDelegateMock.getViewport()).thenReturn(mViewport);
         when(mMediatorDelegateMock.getContentSize())
                 .thenReturn(new Size(CONTENT_WIDTH, CONTENT_HEIGHT));
         mScrollController =
                 new PlayerFrameScrollController(
-                        mScroller, mMediatorDelegateMock, mOnScrollListener, mOnFlingListener);
+                        mScroller, mMediatorDelegateMock, onScrollListener, onFlingListener);
     }
 
     /** Test that scrolling updates the viewport correctly and triggers expected callbacks. */
@@ -132,37 +132,37 @@ public class PlayerFrameScrollControllerTest {
 
         Assert.assertTrue(mScrollController.onFling(100, 0));
         Assert.assertTrue(mDidFling);
-        ShadowLooper.runUiThreadTasks();
+        RobolectricUtil.runAllBackgroundAndUi();
         Assert.assertTrue(mScroller.isFinished());
         Assert.assertEquals(mScroller.getFinalX(), mViewport.getTransX(), TOLERANCE);
         Assert.assertEquals(mScroller.getFinalY(), mViewport.getTransY(), TOLERANCE);
 
         Assert.assertTrue(mScrollController.onFling(-100, 0));
-        ShadowLooper.runUiThreadTasks();
+        RobolectricUtil.runAllBackgroundAndUi();
         Assert.assertTrue(mScroller.isFinished());
         Assert.assertEquals(mScroller.getFinalX(), mViewport.getTransX(), TOLERANCE);
         Assert.assertEquals(mScroller.getFinalY(), mViewport.getTransY(), TOLERANCE);
 
         Assert.assertTrue(mScrollController.onFling(0, 100));
-        ShadowLooper.runUiThreadTasks();
+        RobolectricUtil.runAllBackgroundAndUi();
         Assert.assertTrue(mScroller.isFinished());
         Assert.assertEquals(mScroller.getFinalX(), mViewport.getTransX(), TOLERANCE);
         Assert.assertEquals(mScroller.getFinalY(), mViewport.getTransY(), TOLERANCE);
 
         Assert.assertTrue(mScrollController.onFling(0, -100));
-        ShadowLooper.runUiThreadTasks();
+        RobolectricUtil.runAllBackgroundAndUi();
         Assert.assertTrue(mScroller.isFinished());
         Assert.assertEquals(mScroller.getFinalX(), mViewport.getTransX(), TOLERANCE);
         Assert.assertEquals(mScroller.getFinalY(), mViewport.getTransY(), TOLERANCE);
 
         Assert.assertTrue(mScrollController.onFling(100, 100));
-        ShadowLooper.runUiThreadTasks();
+        RobolectricUtil.runAllBackgroundAndUi();
         Assert.assertTrue(mScroller.isFinished());
         Assert.assertEquals(mScroller.getFinalX(), mViewport.getTransX(), TOLERANCE);
         Assert.assertEquals(mScroller.getFinalY(), mViewport.getTransY(), TOLERANCE);
 
         Assert.assertTrue(mScrollController.onFling(-100, -100));
-        ShadowLooper.runUiThreadTasks();
+        RobolectricUtil.runAllBackgroundAndUi();
         Assert.assertTrue(mScroller.isFinished());
         Assert.assertEquals(mScroller.getFinalX(), mViewport.getTransX(), TOLERANCE);
         Assert.assertEquals(mScroller.getFinalY(), mViewport.getTransY(), TOLERANCE);

@@ -4,11 +4,13 @@
 
 #include "third_party/blink/renderer/core/css/cssom/css_unparsed_value.h"
 
+#include "css_style_value.h"
 #include "third_party/blink/renderer/core/css/css_unparsed_declaration_value.h"
 #include "third_party/blink/renderer/core/css/css_variable_data.h"
 #include "third_party/blink/renderer/core/css/cssom/css_style_variable_reference_value.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser_token_stream.h"
 #include "third_party/blink/renderer/core/css/parser/css_tokenizer.h"
+#include "third_party/blink/renderer/core/css/parser/css_variable_parser.h"
 #include "third_party/blink/renderer/core/css_value_keywords.h"
 #include "third_party/blink/renderer/platform/bindings/exception_messages.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
@@ -28,12 +30,12 @@ String FindVariableName(CSSParserTokenStream& stream) {
 
 V8CSSUnparsedSegment* VariableReferenceValue(
     const StringView& variable_name,
-    const HeapVector<Member<V8CSSUnparsedSegment>>& tokens) {
+    const HeapVector<Member<V8CSSUnparsedSegment>>& segments) {
   CSSUnparsedValue* unparsed_value;
-  if (tokens.size() == 0) {
+  if (segments.size() == 0) {
     unparsed_value = nullptr;
   } else {
-    unparsed_value = CSSUnparsedValue::Create(tokens);
+    unparsed_value = CSSUnparsedValue::Create(segments);
   }
 
   CSSStyleVariableReferenceValue* variable_reference =
@@ -50,13 +52,13 @@ V8CSSUnparsedSegment* VariableReferenceValue(
 HeapVector<Member<V8CSSUnparsedSegment>> ParserTokenStreamToTokens(
     CSSParserTokenStream& stream) {
   int nesting_level = 0;
-  HeapVector<Member<V8CSSUnparsedSegment>> tokens;
+  HeapVector<Member<V8CSSUnparsedSegment>> segments;
   StringBuilder builder;
   while (stream.Peek().GetType() != kEOFToken) {
     if (stream.Peek().FunctionId() == CSSValueID::kVar ||
         stream.Peek().FunctionId() == CSSValueID::kEnv) {
       if (!builder.empty()) {
-        tokens.push_back(MakeGarbageCollected<V8CSSUnparsedSegment>(
+        segments.push_back(MakeGarbageCollected<V8CSSUnparsedSegment>(
             builder.ReleaseString()));
       }
 
@@ -71,7 +73,7 @@ HeapVector<Member<V8CSSUnparsedSegment>> ParserTokenStreamToTokens(
       if (!ref) {
         break;
       }
-      tokens.push_back(ref);
+      segments.push_back(ref);
     } else {
       if (stream.Peek().GetBlockType() == CSSParserToken::kBlockStart) {
         ++nesting_level;
@@ -86,10 +88,10 @@ HeapVector<Member<V8CSSUnparsedSegment>> ParserTokenStreamToTokens(
     }
   }
   if (!builder.empty()) {
-    tokens.push_back(
+    segments.push_back(
         MakeGarbageCollected<V8CSSUnparsedSegment>(builder.ReleaseString()));
   }
-  return tokens;
+  return segments;
 }
 
 }  // namespace
@@ -109,8 +111,8 @@ CSSUnparsedValue* CSSUnparsedValue::FromCSSVariableData(
 V8CSSUnparsedSegment* CSSUnparsedValue::AnonymousIndexedGetter(
     uint32_t index,
     ExceptionState& exception_state) const {
-  if (index < tokens_.size()) {
-    return tokens_[index].Get();
+  if (index < segments_.size()) {
+    return segments_[index].Get();
   }
   return nullptr;
 }
@@ -119,34 +121,76 @@ IndexedPropertySetterResult CSSUnparsedValue::AnonymousIndexedSetter(
     uint32_t index,
     V8CSSUnparsedSegment* segment,
     ExceptionState& exception_state) {
-  if (index < tokens_.size()) {
-    tokens_[index] = segment;
+  if (index < segments_.size()) {
+    segments_[index] = segment;
     return IndexedPropertySetterResult::kIntercepted;
   }
 
-  if (index == tokens_.size()) {
-    tokens_.push_back(segment);
+  if (index == segments_.size()) {
+    segments_.push_back(segment);
     return IndexedPropertySetterResult::kIntercepted;
   }
 
   exception_state.ThrowRangeError(
       ExceptionMessages::IndexOutsideRange<unsigned>(
-          "index", index, 0, ExceptionMessages::kInclusiveBound, tokens_.size(),
-          ExceptionMessages::kInclusiveBound));
+          "index", index, 0, ExceptionMessages::kInclusiveBound,
+          segments_.size(), ExceptionMessages::kInclusiveBound));
   return IndexedPropertySetterResult::kIntercepted;
 }
 
-const CSSValue* CSSUnparsedValue::ToCSSValue() const {
-  String unparsed_string = ToUnparsedString();
-  CSSParserTokenStream stream(unparsed_string);
+bool CSSUnparsedValue::IsValidDeclarationValue() const {
+  return IsValidDeclarationValue(ToStringInternal());
+}
 
-  if (stream.AtEnd()) {
+const CSSValue* CSSUnparsedValue::ToCSSValue() const {
+  String unparsed_string = ToStringInternal();
+
+  if (unparsed_string.IsNull()) {
     return MakeGarbageCollected<CSSUnparsedDeclarationValue>(
         MakeGarbageCollected<CSSVariableData>());
   }
 
-  // The string we just parsed has /**/ inserted between every token
-  // to make sure we get back the correct sequence of tokens.
+  CHECK(IsValidDeclarationValue(unparsed_string));
+  // The call to IsValidDeclarationValue() above also creates a CSSVariableData
+  // to carry out its check. It would be nice to use that here, but WPTs
+  // expect leading whitespace to be preserved, even though it's not possible
+  // to create such declaration values normally.
+  CSSVariableData* variable_data =
+      CSSVariableData::Create(unparsed_string,
+                              /*is_animation_tainted=*/false,
+                              /*is_attr_tainted=*/false,
+                              /*needs_variable_resolution=*/false);
+
+  // TODO(crbug.com/985028): We should probably propagate the CSSParserContext
+  // to here.
+  return MakeGarbageCollected<CSSUnparsedDeclarationValue>(variable_data);
+}
+
+bool CSSUnparsedValue::IsValidDeclarationValue(const String& string) {
+  CSSParserTokenStream stream(string);
+  bool important_unused;
+  // This checks that the value does not violate the "argument grammar" [1]
+  // of any substitution functions, and that it is a valid <declaration-value>
+  // otherwise.
+  //
+  // [1] https://drafts.csswg.org/css-values-5/#argument-grammar
+  //
+  // TODO(andruud): 'restricted_value' depends on the destination property.
+  return CSSVariableParser::ConsumeUnparsedDeclaration(
+      stream,
+      /*allow_important_annotation=*/false,
+      /*is_animation_tainted=*/false,
+      /*must_contain_variable_reference=*/false,
+      /*restricted_value=*/false,
+      /*comma_ends_declaration=*/false, important_unused,
+      *StrictCSSParserContext(SecureContextMode::kInsecureContext));
+}
+
+String CSSUnparsedValue::ToStringInternal() const {
+  String serialized = SerializeSegments();
+
+  // The serialization above defensively inserted /**/ between segments
+  // to make sure that e.g. ['foo', 'bar'] does not collapse into 'foobar'.
   // The spec mentions nothing of the sort:
   // https://drafts.css-houdini.org/css-typed-om-1/#unparsedvalue-serialization
   //
@@ -160,6 +204,10 @@ const CSSValue* CSSUnparsedValue::ToCSSValue() const {
   // the original contents of any comments will be lost, but Typed OM does
   // not have anywhere to store that kind of data, so it is expected.
   StringBuilder builder;
+  CSSParserTokenStream stream(serialized);
+  if (stream.AtEnd()) {
+    return g_null_atom;
+  }
   CSSParserToken token = stream.ConsumeRaw();
   token.Serialize(builder);
   while (!stream.Peek().IsEOF()) {
@@ -169,17 +217,10 @@ const CSSValue* CSSUnparsedValue::ToCSSValue() const {
     token = stream.ConsumeRaw();
     token.Serialize(builder);
   }
-  String original_text = builder.ReleaseString();
-
-  // TODO(crbug.com/985028): We should probably propagate the CSSParserContext
-  // to here.
-  return MakeGarbageCollected<CSSUnparsedDeclarationValue>(
-      CSSVariableData::Create(original_text, false /* is_animation_tainted */,
-                              false /* is_attr_tainted */,
-                              false /* needs_variable_resolution */));
+  return builder.ReleaseString();
 }
 
-String CSSUnparsedValue::ToUnparsedString() const {
+String CSSUnparsedValue::SerializeSegments() const {
   StringBuilder builder;
   HeapHashSet<Member<const CSSUnparsedValue>> values_on_stack;
   if (AppendUnparsedString(builder, values_on_stack)) {
@@ -195,14 +236,14 @@ bool CSSUnparsedValue::AppendUnparsedString(
     return false;  // Cycle.
   }
   values_on_stack.insert(this);
-  for (unsigned i = 0; i < tokens_.size(); i++) {
+  for (unsigned i = 0; i < segments_.size(); i++) {
     if (i) {
       builder.Append("/**/");
     }
-    switch (tokens_[i]->GetContentType()) {
+    switch (segments_[i]->GetContentType()) {
       case V8CSSUnparsedSegment::ContentType::kCSSVariableReferenceValue: {
         const auto* reference_value =
-            tokens_[i]->GetAsCSSVariableReferenceValue();
+            segments_[i]->GetAsCSSVariableReferenceValue();
         builder.Append("var(");
         builder.Append(reference_value->variable());
         if (reference_value->fallback()) {
@@ -216,7 +257,7 @@ bool CSSUnparsedValue::AppendUnparsedString(
         break;
       }
       case V8CSSUnparsedSegment::ContentType::kString:
-        builder.Append(tokens_[i]->GetAsString());
+        builder.Append(segments_[i]->GetAsString());
         break;
     }
   }

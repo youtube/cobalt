@@ -34,7 +34,7 @@
 #include "chrome/browser/ui/waap/initial_web_ui_manager.h"
 #include "chrome/browser/ui/waap/initial_webui_window_metrics_manager.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
-#include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar_ui.h"
+#include "chrome/browser/ui/webui/webui_toolbar/adapters/navigation_controls_state_fetcher_impl.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
@@ -119,15 +119,6 @@ class WebUIToolbarInternalWebView : public views::WebView {
 BEGIN_METADATA(WebUIToolbarInternalWebView)
 END_METADATA
 
-browser_controls_api::mojom::LayoutConstantsPtr GetLayoutConstantsStruct() {
-  return browser_controls_api::mojom::LayoutConstants::New(
-      GetLayoutConstant(LayoutConstant::kToolbarButtonHeight),
-      GetLayoutConstant(LayoutConstant::kToolbarButtonIconSize),
-      GetLayoutConstant(LayoutConstant::kToolbarIconDefaultMargin),
-      GetLayoutConstant(LayoutConstant::kLocationBarHeight),
-      GetLayoutConstant(LayoutConstant::kLocationBarMargin));
-}
-
 }  // namespace
 
 WebUIToolbarWebView::WebUIToolbarWebView(
@@ -145,10 +136,10 @@ WebUIToolbarWebView::WebUIToolbarWebView(
                               base::Unretained(this)))) {
   base::trace_event::EmitNamedTrigger("webui-toolbar-constructor");
   last_queued_state_.split_tabs_control_state =
-      browser_controls_api::mojom::SplitTabsControlState::New();
+      toolbar_ui_api::mojom::SplitTabsControlState::New();
   last_queued_state_.reload_control_state =
-      browser_controls_api::mojom::ReloadControlState::New();
-  last_queued_state_.layout_constants = GetLayoutConstantsStruct();
+      toolbar_ui_api::mojom::ReloadControlState::New();
+  last_queued_state_.layout_constants_version = 0;
   if (auto* manager = InitialWebUIWindowMetricsManager::From(browser_)) {
     manager->OnReloadButtonCreated();
   }
@@ -227,7 +218,7 @@ gfx::Size WebUIToolbarWebView::CalculatePreferredSize(
 }
 
 void WebUIToolbarWebView::HandleContextMenu(
-    browser_controls_api::mojom::ContextMenuType menu_type,
+    toolbar_ui_api::mojom::ContextMenuType menu_type,
     gfx::Point viewport_coordinate_css_pixels,
     ui::mojom::MenuSourceType source) {
   CHECK(web_view_);
@@ -243,14 +234,14 @@ void WebUIToolbarWebView::HandleContextMenu(
           .OffsetFromOrigin();
 
   switch (menu_type) {
-    case browser_controls_api::mojom::ContextMenuType::kReload:
+    case toolbar_ui_api::mojom::ContextMenuType::kReload:
       reload_control_.HandleContextMenu(GetWidget(), screen_location, source);
       break;
-    case browser_controls_api::mojom::ContextMenuType::kSplitTabsAction:
-    case browser_controls_api::mojom::ContextMenuType::kSplitTabsContext:
+    case toolbar_ui_api::mojom::ContextMenuType::kSplitTabsAction:
+    case toolbar_ui_api::mojom::ContextMenuType::kSplitTabsContext:
       split_tabs_control_.HandleContextMenu(menu_type, screen_location, source);
       break;
-    case browser_controls_api::mojom::ContextMenuType::kUnspecified:
+    case toolbar_ui_api::mojom::ContextMenuType::kUnspecified:
       NOTREACHED() << "Unexpected ClickDispositionFlag::kUnspecified.";
   }
 }
@@ -266,13 +257,30 @@ void WebUIToolbarWebView::OnPageInitialized() {
   InitialWebUIManager::From(browser_)->OnWebUIToolbarLoaded();
 }
 
-browser_controls_api::mojom::NavigationControlsStatePtr
-WebUIToolbarWebView::GetNavigationControlsState() {
-  return last_queued_state_.Clone();
-}
-
 ReloadControl* WebUIToolbarWebView::GetReloadControl() {
   return &reload_control_;
+}
+
+browser_controls_api::BrowserControlsService::BrowserControlsServiceDelegate*
+WebUIToolbarWebView::GetBrowserControlsDelegate() {
+  return this;
+}
+
+toolbar_ui_api::ToolbarUIService::ToolbarUIServiceDelegate*
+WebUIToolbarWebView::GetToolbarUIServiceDelegate() {
+  return this;
+}
+
+std::unique_ptr<toolbar_ui_api::NavigationControlsStateFetcher>
+WebUIToolbarWebView::GetNavigationControlsStateFetcher() {
+  return std::make_unique<toolbar_ui_api::NavigationControlsStateFetcherImpl>(
+      base::BindRepeating(&WebUIToolbarWebView::GetNavigationControlsState,
+                          base::Unretained(this)));
+}
+
+toolbar_ui_api::mojom::NavigationControlsStatePtr
+WebUIToolbarWebView::GetNavigationControlsState() {
+  return last_queued_state_.Clone();
 }
 
 void WebUIToolbarWebView::DidStartNavigation(
@@ -292,9 +300,9 @@ void WebUIToolbarWebView::DidFinishNavigation(
       !navigation_handle->HasCommitted()) {
     return;
   }
-  if (auto* ui = GetWebUIToolbarUI()) {
-    ui->SetDelegate(this);
-  }
+  auto* ui = GetWebUIToolbarUI();
+  CHECK(ui) << "Could not find the web ui for the toolbar";
+  ui->Init(this);
 }
 
 void WebUIToolbarWebView::DidFirstVisuallyNonEmptyPaint() {
@@ -414,7 +422,7 @@ void WebUIToolbarWebView::PermitLaunchUrl() {
 }
 
 void WebUIToolbarWebView::OnReloadControlStateChanged(
-    browser_controls_api::mojom::ReloadControlStatePtr state) {
+    toolbar_ui_api::mojom::ReloadControlStatePtr state) {
   if (*state != *last_queued_state_.reload_control_state) {
     last_queued_state_.reload_control_state = std::move(state);
     PostPushNavigationState();
@@ -422,7 +430,7 @@ void WebUIToolbarWebView::OnReloadControlStateChanged(
 }
 
 void WebUIToolbarWebView::OnSplitTabsControlStateChanged(
-    browser_controls_api::mojom::SplitTabsControlStatePtr state) {
+    toolbar_ui_api::mojom::SplitTabsControlStatePtr state) {
   if (*state != *last_queued_state_.split_tabs_control_state) {
     last_queued_state_.split_tabs_control_state = std::move(state);
     PostPushNavigationState();
@@ -430,11 +438,8 @@ void WebUIToolbarWebView::OnSplitTabsControlStateChanged(
 }
 
 void WebUIToolbarWebView::OnTouchUiChanged() {
-  auto state = GetLayoutConstantsStruct();
-  if (*state != *last_queued_state_.layout_constants) {
-    last_queued_state_.layout_constants = std::move(state);
-    PostPushNavigationState();
-  }
+  ++last_queued_state_.layout_constants_version;
+  PostPushNavigationState();
 }
 
 void WebUIToolbarWebView::PostPushNavigationState() {

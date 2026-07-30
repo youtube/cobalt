@@ -39,8 +39,9 @@ namespace {
 const char kStanzaId[] = "123";
 const char kTo[] = "user@domain.com";
 
-MATCHER_P(XmlEq, expected, "") {
-  return arg->Str() == expected->Str();
+MATCHER_P(ReplyEq, expected, "") {
+  return arg.reply_type == expected.reply_type &&
+         arg.error_type == expected.error_type && arg.text == expected.text;
 }
 
 }  // namespace
@@ -65,11 +66,11 @@ class IqSenderTest : public testing::Test {
 
     EXPECT_CALL(signal_strategy_, SendMessage(SignalingAddress(kTo), _))
         .WillOnce([&](const SignalingAddress&, SignalingMessage&& message_arg) {
-          auto* sent_stanza_ptr =
-              std::get_if<std::unique_ptr<XmlElement>>(&message_arg);
-          EXPECT_TRUE(sent_stanza_ptr);
-          if (sent_stanza_ptr) {
-            XmlElement* sent_stanza = sent_stanza_ptr->get();
+          auto* sent_jingle_message = std::get_if<JingleMessage>(&message_arg);
+          EXPECT_TRUE(sent_jingle_message);
+          if (sent_jingle_message) {
+            std::unique_ptr<XmlElement> sent_stanza =
+                JingleMessageToXml(*sent_jingle_message);
             std::unique_ptr<XmlElement> expected_stanza =
                 JingleMessageToXml(message);
             EXPECT_EQ(expected_stanza->Str(), sent_stanza->Str());
@@ -90,15 +91,18 @@ class IqSenderTest : public testing::Test {
         new XmlElement(QName("test:namespace", "response-body"));
     response->AddElement(response_body);
 
-    ftl::ChromotingMessage message;
-    message.mutable_xmpp()->set_stanza(response->Str());
+    JingleMessageReply reply;
+    bool parse_result = JingleMessageReplyFromXml(response.get(), &reply);
+    DCHECK(parse_result);
+    reply.message_id = kStanzaId;
+    reply.from = SignalingAddress(from);
+
     bool result = sender_->OnSignalStrategyIncomingMessage(
-        SignalingAddress(from), SignalingMessage(message));
+        SignalingAddress(from), SignalingMessage(reply));
 
     if (response_out) {
       *response_out = std::move(response);
     }
-
     return result;
   }
 
@@ -112,10 +116,13 @@ class IqSenderTest : public testing::Test {
 TEST_F(IqSenderTest, SendIq) {
   ASSERT_NO_FATAL_FAILURE({ SendTestMessage(); });
 
-  std::unique_ptr<XmlElement> response;
-  EXPECT_TRUE(FormatAndDeliverResponse(kTo, &response));
+  std::unique_ptr<XmlElement> response_xml;
+  EXPECT_TRUE(FormatAndDeliverResponse(kTo, &response_xml));
 
-  EXPECT_CALL(callback_, Run(request_.get(), XmlEq(response.get())));
+  JingleMessageReply expected_reply;
+  ASSERT_TRUE(JingleMessageReplyFromXml(response_xml.get(), &expected_reply));
+
+  EXPECT_CALL(callback_, Run(request_.get(), ReplyEq(expected_reply)));
   base::RunLoop().RunUntilIdle();
 }
 
@@ -124,8 +131,13 @@ TEST_F(IqSenderTest, Timeout) {
 
   request_->SetTimeout(base::Milliseconds(2));
 
+  JingleMessageReply expected_reply;
+  expected_reply.reply_type = JingleMessageReply::REPLY_ERROR;
+  expected_reply.error_type = JingleMessageReply::UNEXPECTED_REQUEST;
+  expected_reply.text = "timeout";
+
   base::RunLoop run_loop;
-  EXPECT_CALL(callback_, Run(request_.get(), nullptr))
+  EXPECT_CALL(callback_, Run(request_.get(), ReplyEq(expected_reply)))
       .WillOnce(InvokeWithoutArgs(&run_loop, &base::RunLoop::QuitWhenIdle));
   run_loop.Run();
 }
@@ -135,10 +147,13 @@ TEST_F(IqSenderTest, NotNormalizedJid) {
 
   // Set upper-case from value, which is equivalent to kTo in the original
   // message.
-  std::unique_ptr<XmlElement> response;
-  EXPECT_TRUE(FormatAndDeliverResponse("USER@domain.com", &response));
+  std::unique_ptr<XmlElement> response_xml;
+  EXPECT_TRUE(FormatAndDeliverResponse("USER@domain.com", &response_xml));
 
-  EXPECT_CALL(callback_, Run(request_.get(), XmlEq(response.get())));
+  JingleMessageReply expected_reply;
+  ASSERT_TRUE(JingleMessageReplyFromXml(response_xml.get(), &expected_reply));
+
+  EXPECT_CALL(callback_, Run(request_.get(), ReplyEq(expected_reply)));
   base::RunLoop().RunUntilIdle();
 }
 

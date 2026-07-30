@@ -17,6 +17,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/script_value.h"
 #include "third_party/blink/renderer/bindings/core/v8/to_v8_traits.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_microtasks_scope.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_navigate_event_init.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_navigation_current_entry_change_event_init.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_navigation_defer_page_swap_restore_callback.h"
@@ -43,9 +44,9 @@
 #include "third_party/blink/renderer/core/navigation_api/navigation_destination.h"
 #include "third_party/blink/renderer/core/navigation_api/navigation_history_entry.h"
 #include "third_party/blink/renderer/core/navigation_api/navigation_transition.h"
+#include "third_party/blink/renderer/core/navigation_api/navigation_type_util.h"
 #include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/core/route_matching/route_map.h"
-#include "third_party/blink/renderer/core/timing/soft_navigation_heuristics.h"
 #include "third_party/blink/renderer/platform/bindings/exception_context.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
@@ -94,22 +95,6 @@ NavigationResult* EarlySuccessResult(ScriptState* script_state,
   return result;
 }
 
-V8NavigationType::Enum DetermineNavigationType(WebFrameLoadType type) {
-  switch (type) {
-    case WebFrameLoadType::kStandard:
-      return V8NavigationType::Enum::kPush;
-    case WebFrameLoadType::kBackForward:
-    case WebFrameLoadType::kRestore:
-      return V8NavigationType::Enum::kTraverse;
-    case WebFrameLoadType::kReload:
-    case WebFrameLoadType::kReloadBypassingCache:
-      return V8NavigationType::Enum::kReload;
-    case WebFrameLoadType::kReplaceCurrentItem:
-      return V8NavigationType::Enum::kReplace;
-  }
-  NOTREACHED();
-}
-
 NavigationApi::NavigationApi(LocalDOMWindow* window)
     : window_(window),
       activation_(MakeGarbageCollected<NavigationActivation>()) {}
@@ -144,7 +129,7 @@ void NavigationApi::UpdateActivation(HistoryItem* previous_item,
   V8NavigationType::Enum navigation_type =
       window_->GetFrame()->GetPage()->IsPrerendering()
           ? V8NavigationType::Enum::kPush
-          : DetermineNavigationType(load_type);
+          : ToV8NavigationType(load_type);
   activation_->Update(currentEntry(), previous_history_entry, navigation_type);
 }
 
@@ -182,8 +167,8 @@ void NavigationApi::InitializeForNewWindow(
   // previous window and use the same update algorithm as same-document
   // navigations.
   if (commit_reason != CommitReason::kRegular ||
-      (current.Url() == BlankURL() && !IsBackForwardLoadType(load_type)) ||
-      (current.Url().IsAboutSrcdocURL() && !IsBackForwardLoadType(load_type))) {
+      (current.Url() == BlankUrl() && !IsBackForwardLoadType(load_type)) ||
+      (current.Url().IsAboutSrcdocUrl() && !IsBackForwardLoadType(load_type))) {
     if (previous && !previous->entries_.empty() &&
         window_->GetSecurityOrigin()->IsSameOriginWith(
             previous->window_->GetSecurityOrigin())) {
@@ -292,11 +277,10 @@ void NavigationApi::UpdateForNavigation(HistoryItem& item,
   // Without the microtasks scope deferring promise continuations, the order
   // inverts when committing a browser-initiated same-document navigation and
   // an event listener is present for either currententrychange or dispose.
-  v8::MicrotasksScope scope(window_->GetIsolate(), ToMicrotaskQueue(window_),
-                            v8::MicrotasksScope::kRunMicrotasks);
+  V8RunMicrotasksScope scope(window_.Get());
 
   auto* init = NavigationCurrentEntryChangeEventInit::Create();
-  init->setNavigationType(DetermineNavigationType(type));
+  init->setNavigationType(ToV8NavigationType(type));
   init->setFrom(old_current);
   DispatchEvent(*NavigationCurrentEntryChangeEvent::Create(
       event_type_names::kCurrententrychange, init));
@@ -787,7 +771,7 @@ NavigationApi::DispatchResult NavigationApi::DispatchNavigateEvent(
 
   auto* init = NavigateEventInit::Create();
   V8NavigationType::Enum navigation_type =
-      DetermineNavigationType(params->frame_load_type);
+      ToV8NavigationType(params->frame_load_type);
   init->setNavigationType(navigation_type);
 
   SerializedScriptValue* destination_state = nullptr;
@@ -852,18 +836,6 @@ NavigationApi::DispatchResult NavigationApi::DispatchNavigateEvent(
   auto* navigate_event = NavigateEvent::Create(
       window_, event_type_names::kNavigate, init, controller);
   navigate_event->SetDispatchParams(params);
-
-  std::optional<SoftNavigationHeuristics::EventScope> soft_navigation_scope;
-  if (params->frame_load_type != WebFrameLoadType::kReplaceCurrentItem &&
-      init->userInitiated() && !init->downloadRequest() &&
-      init->canIntercept()) {
-    if (auto* heuristics = window_->GetSoftNavigationHeuristics()) {
-      // If these conditions are met, create a SoftNavigationEventScope to
-      // consider this a "user initiated click", and the dispatched event
-      // handlers as potential soft navigation tasks.
-      soft_navigation_scope = heuristics->CreateNavigationEventScope();
-    }
-  }
 
   CHECK(!ongoing_navigate_event_);
   ongoing_navigate_event_ = navigate_event;

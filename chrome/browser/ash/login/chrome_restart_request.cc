@@ -11,7 +11,7 @@
 
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_switches.h"
-#include "ash/constants/chrome_url_constants.h"
+#include "ash/constants/chrome_webui_url_constants.h"
 #include "base/base_switches.h"
 #include "base/command_line.h"
 #include "base/feature_list.h"
@@ -101,7 +101,6 @@ void DeriveCommandLine(const GURL& start_url,
       sandbox::policy::switches::kGpuSandboxAllowSysVShm,
       sandbox::policy::switches::kGpuSandboxFailuresFatal,
       sandbox::policy::switches::kNoSandbox,
-      ::switches::kDisable2dCanvasImageChromium,
       ::switches::kDisableAccelerated2dCanvas,
       ::switches::kDisableAcceleratedMjpegDecode,
       ::switches::kDisableAcceleratedVideoDecode,

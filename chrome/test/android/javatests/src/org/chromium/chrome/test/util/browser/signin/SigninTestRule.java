@@ -55,15 +55,16 @@ public class SigninTestRule implements TestRule {
 
     private final FakeAccountManagerFacade mFakeAccountManagerFacade;
 
-    private final boolean mSerializeToPrefs;
-
     public SigninTestRule() {
-        this(false);
+        this(new FakeAccountManagerFacade(false));
     }
 
     public SigninTestRule(boolean serializeToPrefs) {
-        mSerializeToPrefs = serializeToPrefs;
-        mFakeAccountManagerFacade = new FakeAccountManagerFacade(mSerializeToPrefs);
+        this(new FakeAccountManagerFacade(serializeToPrefs));
+    }
+
+    public SigninTestRule(FakeAccountManagerFacade fakeAccountManagerFacade) {
+        mFakeAccountManagerFacade = fakeAccountManagerFacade;
     }
 
     @Override
@@ -119,25 +120,15 @@ public class SigninTestRule implements TestRule {
         mFakeAccountManagerFacade.setAccountFetchFailed();
     }
 
-    /**
-     * @deprecated Please use {@link #blockGetAccountsUpdate()} or {@link
-     *     #blockGetAccountsUpdateAndPopulateCache()} below.
-     */
-    @Deprecated
-    public FakeAccountManagerFacade.UpdateBlocker blockGetAccountsUpdate(boolean populateCache) {
-        // TODO(crbug.com/484956351): Remove this method when all callers have been updated to use
-        // blockGetAccountsUpdate/blockGetAccountsUpdateAndPopulateCache.
-        return mFakeAccountManagerFacade.blockGetAccounts(populateCache);
-    }
-
     /** See {@link FakeAccountManagerFacade#blockGetAccounts}. */
     public FakeAccountManagerFacade.UpdateBlocker blockGetAccountsUpdate() {
-        return mFakeAccountManagerFacade.blockGetAccounts();
+        return mFakeAccountManagerFacade.blockGetAccounts(/* postUnblockCallback= */ null);
     }
 
     /** See {@link FakeAccountManagerFacade#blockGetAccountsAndPopulateCache}. */
     public FakeAccountManagerFacade.UpdateBlocker blockGetAccountsUpdateAndPopulateCache() {
-        return mFakeAccountManagerFacade.blockGetAccountsAndPopulateCache();
+        return mFakeAccountManagerFacade.blockGetAccountsAndPopulateCache(
+                /* postUnblockCallback= */ null);
     }
 
     /**

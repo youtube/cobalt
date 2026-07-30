@@ -308,8 +308,14 @@
   <message name="IDS_SETTINGS_UI_FEATURE_ALIGN_SIDE" desc="Label for the button that configures a feature to appear on the side of the browser.">
     Side
   </message>
+  <message name="IDS_SETTINGS_UI_FEATURE_ALIGN_SIDE_SEARCH_HINT" desc="Search hint for an option that configures a feature to appear vertically on the side of the browser." is_accessibility_with_no_ui="true">
+    Vertical
+  </message>
   <message name="IDS_SETTINGS_UI_FEATURE_ALIGN_TOP" desc="Label for the button that configures a feature to appear on the top of the browser.">
     Top
+  </message>
+  <message name="IDS_SETTINGS_UI_FEATURE_ALIGN_TOP_SEARCH_HINT" desc="Search hint for an option that configures a feature to appear horizontally on the top of the browser." is_accessibility_with_no_ui="true">
+    Horizontal
   </message>
   <message name="IDS_SETTINGS_HOME_PAGE_NTP" desc="Description of the New Tab Page when set as the home page.">
     New Tab page
@@ -2902,6 +2908,24 @@
   </message>
   <message name="IDS_SETTINGS_SITE_SETTINGS_MIDI_BLOCKED_EXCEPTIONS" desc="Label for the blocked exceptions site list of the MIDI devices content setting.">
     Not allowed to control and reprogram your MIDI devices
+  </message>
+  <message name="IDS_SETTINGS_SITE_SETTINGS_MOTION_AND_LIGHT_SENSORS_DESCRIPTION" desc="Description of the motion sensors content setting.">
+    Sites usually use your device's motion and light sensors for features like virtual reality or fitness tracking
+  </message>
+  <message name="IDS_SETTINGS_SITE_SETTINGS_MOTION_AND_LIGHT_SENSORS_ALLOWED" desc="Label for the enabled option of the motion and light sensors content setting.">
+    Sites can use motion and light sensors
+  </message>
+  <message name="IDS_SETTINGS_SITE_SETTINGS_MOTION_AND_LIGHT_SENSORS_BLOCKED" desc="Label for the disabled option of the motion and light sensors content setting.">
+    Don't allow sites to use motion or light sensors
+  </message>
+  <message name="IDS_SETTINGS_SITE_SETTINGS_MOTION_AND_LIGHT_SENSORS_BLOCKED_SUB_LABEL" desc="Sub label for the disabled option of the motion and light sensors content setting.">
+    Features that need motion or light sensors won't work
+  </message>
+  <message name="IDS_SETTINGS_SITE_SETTINGS_MOTION_AND_LIGHT_SENSORS_ALLOWED_EXCEPTIONS" desc="Label for the allowed exceptions site list of the motion and light sensors content setting.">
+    Allowed to use motion and light sensors
+  </message>
+  <message name="IDS_SETTINGS_SITE_SETTINGS_MOTION_AND_LIGHT_SENSORS_BLOCKED_EXCEPTIONS" desc="Label for the blocked exceptions site list of the motion sensors content setting.">
+    Not allowed to use motion or light sensors
   </message>
   <message name="IDS_SETTINGS_SITE_SETTINGS_MOTION_SENSORS_DESCRIPTION" desc="Description of the motion sensors content setting.">
     Sites usually use your device's motion sensors for features like virtual reality or fitness tracking

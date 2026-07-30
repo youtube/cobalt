@@ -249,8 +249,7 @@ class ToolbarView : public views::AccessiblePaneView,
   gfx::Rect GetFindBarBoundingBox(int contents_bottom) override;
   void FocusToolbar() override;
   views::AccessiblePaneView* GetAsAccessiblePaneView() override;
-  views::View* GetAnchorView(
-      std::optional<actions::ActionId> action_id) override;
+  views::View* GetAnchorView(std::optional<actions::ActionId> action_id);
   views::BubbleAnchor GetBubbleAnchor(
       std::optional<actions::ActionId> action_id) override;
   void ZoomChangedForActiveTab(bool can_show_bubble) override;
@@ -289,7 +288,6 @@ class ToolbarView : public views::AccessiblePaneView,
   void OnVerticalTabStripModeChanged(
       tabs::VerticalTabStripStateController* controller);
 
-#if BUILDFLAG(ENABLE_GLIC)
   std::unique_ptr<glic::ToolbarGlicButton> CreateGlicButton();
   void OnGlicButtonClicked();
   void OnGlicButtonDismissed();
@@ -298,7 +296,6 @@ class ToolbarView : public views::AccessiblePaneView,
   void OnGlicButtonAnimationEnded();
   void ExecuteHideToolbarNudge(glic::ToolbarGlicButton* button);
   void UpdateGlicButtonVisibility();
-#endif
 
   gfx::SlideAnimation size_animation_{this};
 

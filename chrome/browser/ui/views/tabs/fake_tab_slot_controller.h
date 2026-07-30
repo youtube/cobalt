@@ -28,6 +28,7 @@ class FakeTabSlotController : public TabSlotController {
     tab_container_ = tab_container;
   }
   void set_active_tab(Tab* tab) { active_tab_ = tab; }
+  void set_tab_count(int tab_count) { tab_count_ = tab_count; }
   void set_paint_throbber_to_layer(bool value) {
     paint_throbber_to_layer_ = value;
   }
@@ -54,6 +55,7 @@ class FakeTabSlotController : public TabSlotController {
                              const gfx::Point& p,
                              ui::mojom::MenuSourceType source_type) override {}
   void TabKeyboardFocusChangedTo(const tabs::TabInterface* tab) override {}
+  int GetTabCount() const override;
   bool IsActiveTab(const TabSlotView* tab) const override;
   bool IsTabSelected(const TabSlotView* tab) const override;
   bool IsFocusInTabs() const override;
@@ -100,6 +102,7 @@ class FakeTabSlotController : public TabSlotController {
   raw_ptr<TabContainer, DanglingUntriaged> tab_container_;
   ui::ListSelectionModel selection_model_;
   raw_ptr<Tab, DanglingUntriaged> active_tab_ = nullptr;
+  std::optional<int> tab_count_;
   bool paint_throbber_to_layer_ = true;
 };
 

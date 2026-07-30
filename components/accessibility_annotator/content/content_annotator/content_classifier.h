@@ -8,6 +8,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
@@ -26,6 +27,18 @@ enum class ContentClassifierRelevance;
 // to be extensible with multiple individual classifiers.
 class ContentClassifier {
  public:
+  enum class ClassifierResultStatus {
+    kInconclusiveNoMatch,
+    kDidNotRunMissingClassifier,
+    kDidNotRunEmptyPageTitle,
+    kDidNotRunInvalidUrl,
+    kDidNotRunMissingClassifierEmptyPageTitle,
+    kDidNotRunMissingClassifierInvalidUrl,
+  };
+
+  static std::string_view ClassifierResultStatusToString(
+      ClassifierResultStatus status);
+
   using PassKey = base::PassKey<ContentClassifier>;
 
   // Creates a ContentClassifier, fully initialized with all sub-classifiers.
@@ -59,6 +72,9 @@ class ContentClassifier {
   ContentClassifier();
 
  private:
+  // Resolves the relevance classifier value for UKM logging.
+  int64_t GetRelevanceAsInt(std::optional<std::string_view> category) const;
+
   // The classifier for matching keywords in the page title.
   std::unique_ptr<ContentAnnotatorRuleBasedClassifier>
       title_keyword_classifier_;

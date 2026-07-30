@@ -12,6 +12,7 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/contextual_tasks/ai_mode_context_library_converter.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_utils.h"
 #include "chrome/browser/feedback/public/feedback_source.h"
 #include "chrome/browser/feedback/show_feedback_page.h"
 #include "chrome/browser/global_features.h"
@@ -23,6 +24,7 @@
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/application_locale_storage/application_locale_storage.h"
+#include "components/contextual_search/contextual_search_metrics_recorder.h"
 #include "components/contextual_tasks/public/context_decoration_params.h"
 #include "components/contextual_tasks/public/contextual_task.h"
 #include "components/contextual_tasks/public/contextual_task_context.h"
@@ -63,7 +65,7 @@ PopulateContextualResources(contextual_tasks::ContextualTaskContext* context) {
     return {};
   }
   std::vector<contextual_tasks::mojom::ContextInfoPtr> context_items;
-  for (const auto& attachment : context->GetUrlAttachments()) {
+  for (const auto& attachment : context->GetUniqueUrlAttachments()) {
     const GURL url = attachment.GetURL();
     const std::string title = base::UTF16ToUTF8(attachment.GetTitle());
 
@@ -223,6 +225,12 @@ void ContextualTasksPageHandler::IsAiPage(const GURL& url,
   std::move(callback).Run(ui_service_->IsAiUrl(url));
 }
 
+void ContextualTasksPageHandler::IsPendingErrorPage(
+    const base::Uuid& task_id,
+    IsPendingErrorPageCallback callback) {
+  std::move(callback).Run(ui_service_->IsPendingErrorPage(task_id));
+}
+
 void ContextualTasksPageHandler::CloseSidePanel() {
   web_ui_controller_->CloseSidePanel();
 }
@@ -278,15 +286,7 @@ void ContextualTasksPageHandler::OpenUrl(const GURL& url,
 }
 
 void ContextualTasksPageHandler::MoveTaskUiToNewTab() {
-  auto* browser = web_ui_controller_->GetBrowser();
-  const auto& task_id = web_ui_controller_->GetTaskId();
-  if (!task_id.has_value()) {
-    LOG(ERROR) << "Attempted to open in new tab with no valid task ID.";
-    return;
-  }
-
-  ui_service_->MoveTaskUiToNewTab(task_id.value(), browser,
-                                  web_ui_controller_->GetInnerFrameUrl());
+  web_ui_controller_->MoveTaskUiToNewTab();
 }
 
 void ContextualTasksPageHandler::OnTabClickedFromSourcesMenu(int32_t tab_id,
@@ -425,6 +425,16 @@ void ContextualTasksPageHandler::PostMessageToWebview(
   }
 
   web_ui_controller_->GetPageRemote()->PostMessageToWebview(serialized_message);
+}
+
+void ContextualTasksPageHandler::OnTaskAdded(
+    const contextual_tasks::ContextualTask& task,
+    contextual_tasks::ContextualTasksService::TriggerSource source) {
+  if (!web_ui_controller_->GetPageRemote()) {
+    return;
+  }
+
+  UpdateContextForTask(task.GetTaskId());
 }
 
 void ContextualTasksPageHandler::OnTaskUpdated(

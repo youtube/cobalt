@@ -390,16 +390,6 @@ inline constexpr char kContextualSearchWasFullyPrivacyEnabled[] =
     "search.contextual_search_fully_opted_in";
 #endif  // BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(IS_CHROMEOS)
-// Boolean pref recording whether cookie and data would be used only for
-// essential purposes.
-inline constexpr char kEssentialSearchEnabled[] = "essential_search_enabled";
-// Boolean pref recording the last applied value for kEssentialSearchEnabled
-// prefs.
-inline constexpr char kLastEssentialSearchValue[] =
-    "last_essential_search_value";
-#endif  // BUILDFLAG(IS_CHROMEOS)
-
 #if BUILDFLAG(IS_MAC)
 // Boolean that indicates whether the browser should put up a confirmation
 // window when the user is attempting to quit. Only on Mac.
@@ -515,55 +505,6 @@ inline constexpr char kResolveTimezoneByGeolocationMethod[] =
 // has been migrated to kResolveTimezoneByGeolocationMethod.
 inline constexpr char kResolveTimezoneByGeolocationMigratedToMethod[] =
     "settings.resolve_timezone_by_geolocation_migrated_to_method";
-
-// A string pref set to the current input method.
-// TODO: b/308389509 - Remove this constant to complete migration.
-inline constexpr char kLanguageCurrentInputMethod[] =
-    "settings.language.current_input_method";
-
-// A string pref set to the previous input method.
-inline constexpr char kLanguagePreviousInputMethod[] =
-    "settings.language.previous_input_method";
-
-// A list pref set to the allowed input methods (see policy
-// "AllowedInputMethods").
-inline constexpr char kLanguageAllowedInputMethods[] =
-    "settings.language.allowed_input_methods";
-
-// A boolean pref that enforces allowed input methods to be enabled (see policy
-// "AllowedInputMethodsForceEnabled").
-inline constexpr char kLanguageAllowedInputMethodsForceEnabled[] =
-    "settings.language.allowed_input_methods_force_enabled";
-
-// A string pref (comma-separated list) set to the preloaded (active) input
-// method IDs (ex. "pinyin,mozc").
-// TODO: b/308389509 - Remove this constant to complete migration.
-inline constexpr char kLanguagePreloadEngines[] =
-    "settings.language.preload_engines";
-inline constexpr char kLanguagePreloadEnginesSyncable[] =
-    "settings.language.preload_engines_syncable";
-
-// A string pref (comma-separated list) set to the extension and ARC IMEs to be
-// enabled.
-inline constexpr char kLanguageEnabledImes[] =
-    "settings.language.enabled_extension_imes";
-inline constexpr char kLanguageEnabledImesSyncable[] =
-    "settings.language.enabled_extension_imes_syncable";
-
-// A boolean pref set to true if the IME menu is activated.
-inline constexpr char kLanguageImeMenuActivated[] =
-    "settings.language.ime_menu_activated";
-
-// A dictionary of input method IDs and their settings. Each value is itself a
-// dictionary of key / value string pairs, with each pair representing a setting
-// and its value.
-inline constexpr char kLanguageInputMethodSpecificSettings[] =
-    "settings.language.input_method_specific_settings";
-
-// A boolean pref to indicate whether we still need to add the globally synced
-// input methods. False after the initial post-OOBE sync.
-inline constexpr char kLanguageShouldMergeInputMethods[] =
-    "settings.language.merge_input_methods";
 
 // A boolean pref which turns on Advanced Filesystem
 // (USB support, SD card, etc).
@@ -3356,11 +3297,6 @@ inline constexpr char
 inline constexpr char kDeviceAllowEnterpriseRemoteAccessConnections[] =
     "device_allow_enterprise_remote_access_connections";
 
-// A dictionary containing weekly time intervals to automatically sleep and wake
-// up the device.
-inline constexpr char kDeviceWeeklyScheduledSuspend[] =
-    "device_weekly_scheduled_suspend";
-
 // A boolean pref which determines whether Chrome Apps are allowed in Kiosk
 // sessions.
 inline constexpr char kKioskChromeAppsForceAllowed[] =
@@ -3507,9 +3443,6 @@ inline constexpr char kShortcutMigrationVersion[] =
 inline constexpr char kRLZBrand[] = "rlz.brand";
 // Whether RLZ pings are disabled.
 inline constexpr char kRLZDisabled[] = "rlz.disabled";
-// Keeps local state of app list while sync service is not available.
-inline constexpr char kAppListLocalState[] = "app_list.local_state";
-inline constexpr char kAppListPreferredOrder[] = "app_list.preferred_order";
 #endif
 
 // An integer that is incremented whenever changes are made to app shortcuts.
@@ -4378,10 +4311,12 @@ inline constexpr char kAndroidTipNotificationShownPasswordAutofill[] =
     "android.tips.notifications.password_autofill_shown";
 inline constexpr char kAndroidTipNotificationShownSignin[] =
     "android.tips.notifications.signin_shown";
-inline constexpr char kAndroidTipNotificationShownCreateTabGroup[] =
+inline constexpr char kAndroidTipNotificationShownCreateTabGroups[] =
     "android.tips.notifications.create_tab_group_shown";
 inline constexpr char kAndroidTipNotificationShownCustomizeMVT[] =
     "android.tips.notifications.customize_mvt_shown";
+inline constexpr char kAndroidTipNotificationShownRecentTabs[] =
+    "android.tips.notifications.recent_tabs_shown";
 // LINT.ThenChange(//chrome/android/java/src/org/chromium/chrome/browser/notifications/tips/TipsUtils.java:TipsShownPrefs)
 #endif  // BUILDFLAG(IS_ANDROID)
 

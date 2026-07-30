@@ -11,14 +11,20 @@ import 'chrome://resources/cr_elements/cr_menu_selector/cr_menu_selector.js';
 import 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 import 'chrome://resources/cr_elements/cr_toolbar/cr_toolbar.js';
 import 'chrome://resources/cr_elements/cr_toolbar/cr_toolbar_search_field.js';
+import '//resources/cr_elements/cr_input/cr_input.js';
 import '//resources/cr_elements/icons.html.js';
 import './user_education_internals_card.js';
 import './user_education_whats_new_internals_card.js';
+
+// <if expr="not is_chromeos">
+import type {CrInputElement} from '//resources/cr_elements/cr_input/cr_input.js';
+// </if>
 
 import {ColorChangeUpdater} from 'chrome://resources/cr_components/color_change_listener/colors_css_updater.js';
 import {HelpBubbleMixinLit} from 'chrome://resources/cr_components/help_bubble/help_bubble_mixin_lit.js';
 import type {CrMenuSelectorElement} from 'chrome://resources/cr_elements/cr_menu_selector/cr_menu_selector.js';
 import type {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
@@ -32,6 +38,9 @@ export interface UserEducationInternalsElement {
     content: HTMLElement,
     errorMessageToast: CrToastElement,
     menu: CrMenuSelectorElement,
+    // <if expr="not is_chromeos">
+    whatsNewVersionOverride: CrInputElement,
+    // </if>
   };
 }
 
@@ -81,6 +90,13 @@ export class UserEducationInternalsElement extends
         type: Boolean,
         value: false,
       },
+
+      /**
+       * The current version used to request the What's New page.
+       */
+      whatsNewVersionToRequest_: {
+        type: Number,
+      },
     };
   }
 
@@ -97,6 +113,10 @@ export class UserEducationInternalsElement extends
   protected accessor narrow_: boolean = false;
   protected accessor sessionExpanded_: boolean = false;
   protected sessionData_: FeaturePromoDemoPageData[] = [];
+  protected accessor whatsNewVersionToRequest_: number =
+      loadTimeData.getInteger('whatsNewVersionToRequest');
+  protected currentChromeVersion_: number =
+      loadTimeData.getInteger('currentChromeVersion');
 
   private handler_: UserEducationInternalsPageHandlerInterface;
 
@@ -164,7 +184,7 @@ export class UserEducationInternalsElement extends
     this.filter = e.detail.toLowerCase();
   }
 
-  protected startTutorial_(e: CustomEvent) {
+  protected onTutorialPromoLaunch_(e: CustomEvent) {
     const id = e.detail;
     this.featurePromoErrorMessage_ = '';
 
@@ -176,7 +196,7 @@ export class UserEducationInternalsElement extends
     });
   }
 
-  protected showFeaturePromo_(e: CustomEvent) {
+  protected onFeaturePromoPromoLaunch_(e: CustomEvent) {
     const id = e.detail;
     this.featurePromoErrorMessage_ = '';
 
@@ -194,7 +214,7 @@ export class UserEducationInternalsElement extends
     });
   }
 
-  protected clearPromoData_(e: CustomEvent) {
+  protected onFeaturePromoClearPromoData_(e: CustomEvent) {
     const id = e.detail;
     this.featurePromoErrorMessage_ = '';
 
@@ -211,7 +231,7 @@ export class UserEducationInternalsElement extends
     });
   }
 
-  protected clearSessionData_() {
+  protected onClearSessionDataClick_() {
     if (!confirm(
             'This will reset the browser to a "fresh profile" state,' +
             ' which may trigger multiple grace periods. Proceed?')) {
@@ -230,7 +250,7 @@ export class UserEducationInternalsElement extends
     });
   }
 
-  protected forceNewSession_() {
+  protected onForceNewSessionClick_() {
     this.handler_.forceNewSession().then(({errorMessage}) => {
       this.featurePromoErrorMessage_ = errorMessage;
       if (errorMessage !== '') {
@@ -244,7 +264,7 @@ export class UserEducationInternalsElement extends
     });
   }
 
-  protected removeGracePeriods_() {
+  protected onRemoveGracePeriodsClick_() {
     this.handler_.removeGracePeriods().then(({errorMessage}) => {
       this.featurePromoErrorMessage_ = errorMessage;
       if (errorMessage !== '') {
@@ -258,7 +278,7 @@ export class UserEducationInternalsElement extends
     });
   }
 
-  protected clearNewBadgeData_(e: CustomEvent) {
+  protected onNewBadgeClearPromoData_(e: CustomEvent) {
     const id = e.detail;
     this.featurePromoErrorMessage_ = '';
 
@@ -275,7 +295,7 @@ export class UserEducationInternalsElement extends
     });
   }
 
-  protected clearWhatsNewData_() {
+  protected onClearWhatsNewData_() {
     this.featurePromoErrorMessage_ = '';
 
     this.handler_.clearWhatsNewData().then(({errorMessage}) => {
@@ -295,7 +315,7 @@ export class UserEducationInternalsElement extends
     });
   }
 
-  protected clearNtpPromoData_(e: CustomEvent) {
+  protected onNtpPromoClearPromoData_(e: CustomEvent) {
     const id = e.detail;
     this.featurePromoErrorMessage_ = '';
     this.handler_.clearNtpPromoData(id).then(({errorMessage}) => {
@@ -311,7 +331,7 @@ export class UserEducationInternalsElement extends
     });
   }
 
-  protected clearNtpPromoPreferences_() {
+  protected onClearNtpPromoPreferencesClick_() {
     this.handler_.clearNtpPromoPreferences().then(({errorMessage}) => {
       this.featurePromoErrorMessage_ = errorMessage;
       if (errorMessage !== '') {
@@ -349,7 +369,7 @@ export class UserEducationInternalsElement extends
     event.preventDefault();
   }
 
-  protected onSelectorActivate_(event: CustomEvent<{selected: string}>) {
+  protected onSelectorIronActivate_(event: CustomEvent<{selected: string}>) {
     const url = event.detail.selected;
     this.$.menu.selected = url;
     const idx = url.lastIndexOf('#');
@@ -370,9 +390,24 @@ export class UserEducationInternalsElement extends
     this.ntpPromoPreferencesExpanded_ = e.detail.value;
   }
 
-  protected launchWhatsNewStaging_() {
+  // <if expr="not is_chromeos">
+  protected onLaunchWhatsNewStagingClick_() {
     this.handler_.launchWhatsNewStaging();
   }
+
+  protected onWhatsNewVersionOverrideClick_() {
+    if (!this.$.whatsNewVersionOverride.validate()) {
+      return;
+    }
+    const versionOverride: number =
+        Number.parseInt(this.$.whatsNewVersionOverride.value);
+    if (Number.isNaN(versionOverride)) {
+      return;
+    }
+    this.handler_.updateWhatsNewVersionOverride(versionOverride);
+    this.whatsNewVersionToRequest_ = versionOverride;
+  }
+  // </if>
 }
 
 declare global {

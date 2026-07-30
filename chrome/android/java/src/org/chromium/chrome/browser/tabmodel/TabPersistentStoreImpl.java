@@ -48,6 +48,7 @@ import org.chromium.chrome.browser.tab.TabStateAttributes;
 import org.chromium.chrome.browser.tab.TabStateAttributes.DirtinessState;
 import org.chromium.chrome.browser.tab.TabStateExtractor;
 import org.chromium.chrome.browser.tab.state.PersistedTabData;
+import org.chromium.chrome.browser.tabmodel.PersistentStoreMigrationManager.StoreType;
 import org.chromium.chrome.browser.tabmodel.TabPersistenceFileInfo.TabStateFileInfo;
 import org.chromium.chrome.browser.tabpersistence.TabMetadataFileManager;
 import org.chromium.chrome.browser.tabpersistence.TabMetadataFileManager.OnTabStateReadCallback;
@@ -876,33 +877,7 @@ public class TabPersistentStoreImpl implements TabPersistentStore {
 
     @Override
     public void clearState() {
-        mPersistencePolicy.cancelCleanupInProgress();
-
-        mSequencedTaskRunner.execute(
-                () -> {
-                    File[] baseStateFiles =
-                            TabStateDirectory.getOrCreateBaseStateDirectory().listFiles();
-                    if (baseStateFiles == null) return;
-                    for (File baseStateFile : baseStateFiles) {
-                        // In legacy scenarios (prior to migration, state files could reside in
-                        // the root state directory. So, handle deleting direct child files as
-                        // well as those that reside in sub directories.
-                        if (!baseStateFile.isDirectory()) {
-                            if (!baseStateFile.delete()) {
-                                Log.e(TAG, "Failed to delete file: " + baseStateFile);
-                            }
-                        } else {
-                            File[] files = baseStateFile.listFiles();
-                            if (files == null) continue;
-                            for (File file : files) {
-                                if (!file.delete()) {
-                                    Log.e(TAG, "Failed to delete file: " + file);
-                                }
-                            }
-                        }
-                    }
-                });
-
+        new TabPersistentStoreImplCleaner().clearState(mPersistencePolicy, mSequencedTaskRunner);
         onStateLoaded();
     }
 
@@ -1383,7 +1358,11 @@ public class TabPersistentStoreImpl implements TabPersistentStore {
 
     @VisibleForTesting
     File getStateDirectory() {
-        return mPersistencePolicy.getOrCreateStateDirectory();
+        return getStateDirectory(mPersistencePolicy);
+    }
+
+    static File getStateDirectory(TabPersistencePolicy policy) {
+        return policy.getOrCreateStateDirectory();
     }
 
     /**
@@ -1668,26 +1647,13 @@ public class TabPersistentStoreImpl implements TabPersistentStore {
     }
 
     @Override
-    public void cleanupStateFile(int windowId) {
-        mPersistencePolicy.cleanupInstanceState(
-                windowId,
-                (TabPersistenceFileInfo result) -> {
-                    // Delete the instance state file (tab_stateX) as well.
-                    deleteFileAsync(
-                            TabbedModeTabPersistencePolicy.getMetadataFileNameForIndex(windowId));
-
-                    // |result| can be null if the task gets cancelled.
-                    if (result == null) return;
-                    for (String metadataFile : result.getMetadataFiles()) {
-                        deleteFileAsync(metadataFile);
-                    }
-                    for (TabStateFileInfo tabStateFileInfo : result.getTabStateFileInfos()) {
-                        TabStateFileManager.deleteAsync(
-                                mPersistencePolicy.getOrCreateStateDirectory(),
-                                tabStateFileInfo.tabId,
-                                tabStateFileInfo.isEncrypted);
-                    }
-                });
+    public void cleanupStateFile(int windowIdToClean) {
+        new TabPersistentStoreImplCleaner()
+                .cleanupStateFile(
+                        windowIdToClean,
+                        mPersistencePolicy,
+                        mSequencedTaskRunner,
+                        mMergedFileNames);
     }
 
     /**
@@ -1697,28 +1663,8 @@ public class TabPersistentStoreImpl implements TabPersistentStore {
      * @param file Name of file under the state directory to be deleted.
      */
     private void deleteFileAsync(final String file) {
-        new BackgroundOnlyAsyncTask<>() {
-            @Override
-            protected Void doInBackground() {
-                deleteStateFile(file);
-                return null;
-            }
-        }.executeOnTaskRunner(mSequencedTaskRunner);
-    }
-
-    private void deleteStateFile(String file) {
-        ThreadUtils.assertOnBackgroundThread();
-        File stateFile = new File(getStateDirectory(), file);
-        if (stateFile.exists()) {
-            if (!stateFile.delete()) Log.e(TAG, "Failed to delete file: " + stateFile);
-
-            // The merge isn't completely finished until the other TabPersistentStores'
-            // metadata files are deleted.
-            boolean wasMergeFile = mMergedFileNames.remove(file);
-            if (wasMergeFile && mMergedFileNames.isEmpty()) {
-                mPersistencePolicy.setMergeInProgress(false);
-            }
-        }
+        TabPersistentStoreImplCleaner.deleteFileAsync(
+                mPersistencePolicy, file, mSequencedTaskRunner, mMergedFileNames);
     }
 
     private class LoadTabsTask extends AsyncTask<@Nullable List<@Nullable TabState>> {
@@ -1870,6 +1816,11 @@ public class TabPersistentStoreImpl implements TabPersistentStore {
     @Override
     public void removeObserver(TabPersistentStoreObserver observer) {
         mObservers.removeObserver(observer);
+    }
+
+    @Override
+    public @StoreType int getStoreType() {
+        return StoreType.LEGACY;
     }
 
     // Static functions:
@@ -2055,5 +2006,120 @@ public class TabPersistentStoreImpl implements TabPersistentStore {
 
     public void setSequencedTaskRunnerForTesting(SequencedTaskRunner sequencedTaskRunner) {
         mSequencedTaskRunner = sequencedTaskRunner;
+    }
+
+    /**
+     * Helper class to manage cleaning up the TabPersistentStore. This is meant to be used to clean
+     * up state when a {@link TabPersistentStore} instance does not exist for the calling window.
+     */
+    public static class TabPersistentStoreImplCleaner {
+        /**
+         * Fully clears the persisted state for all windows.
+         *
+         * @param persistencePolicy The policy used to manage persistence.
+         * @param sequencedTaskRunner The task runner to execute file operations on.
+         */
+        public void clearState(
+                TabPersistencePolicy persistencePolicy, SequencedTaskRunner sequencedTaskRunner) {
+            persistencePolicy.cancelCleanupInProgress();
+
+            sequencedTaskRunner.execute(
+                    () -> {
+                        File[] baseStateFiles =
+                                TabStateDirectory.getOrCreateBaseStateDirectory().listFiles();
+                        if (baseStateFiles == null) return;
+                        for (File baseStateFile : baseStateFiles) {
+                            // In legacy scenarios (prior to migration, state files could reside in
+                            // the root state directory. So, handle deleting direct child files as
+                            // well as those that reside in sub directories.
+                            if (!baseStateFile.isDirectory()) {
+                                if (!baseStateFile.delete()) {
+                                    Log.e(TAG, "Failed to delete file: " + baseStateFile);
+                                }
+                            } else {
+                                File[] files = baseStateFile.listFiles();
+                                if (files == null) continue;
+                                for (File file : files) {
+                                    if (!file.delete()) {
+                                        Log.e(TAG, "Failed to delete file: " + file);
+                                    }
+                                }
+                            }
+                        }
+                    });
+        }
+
+        /**
+         * Cleans up the persistent state for a given window. May only be called when a {@link
+         * TabPersistentStoreImpl} instance for the calling window does not exist.
+         *
+         * @param windowIdToClean The ID of the window to clean up.
+         * @param persistencePolicy The policy used to manage persistence.
+         * @param sequencedTaskRunner The task runner to execute file operations on.
+         * @param mergedFileNames A set of file names that are tracked for merging.
+         */
+        public void cleanupStateFile(
+                int windowIdToClean,
+                TabPersistencePolicy persistencePolicy,
+                SequencedTaskRunner sequencedTaskRunner,
+                Set<String> mergedFileNames) {
+            persistencePolicy.cleanupInstanceState(
+                    windowIdToClean,
+                    (TabPersistenceFileInfo result) -> {
+                        // Delete the instance state file (tab_stateX) as well.
+                        deleteFileAsync(
+                                persistencePolicy,
+                                TabbedModeTabPersistencePolicy.getMetadataFileNameForIndex(
+                                        windowIdToClean),
+                                sequencedTaskRunner,
+                                mergedFileNames);
+
+                        // |result| can be null if the task gets cancelled.
+                        if (result == null) return;
+                        for (String metadataFile : result.getMetadataFiles()) {
+                            deleteFileAsync(
+                                    persistencePolicy,
+                                    metadataFile,
+                                    sequencedTaskRunner,
+                                    mergedFileNames);
+                        }
+                        for (TabStateFileInfo tabStateFileInfo : result.getTabStateFileInfos()) {
+                            TabStateFileManager.deleteAsync(
+                                    persistencePolicy.getOrCreateStateDirectory(),
+                                    tabStateFileInfo.tabId,
+                                    tabStateFileInfo.isEncrypted);
+                        }
+                    });
+        }
+
+        /* package */ static void deleteFileAsync(
+                TabPersistencePolicy persistencePolicy,
+                final String file,
+                SequencedTaskRunner sequencedTaskRunner,
+                Set<String> mergedFileNames) {
+            new BackgroundOnlyAsyncTask<>() {
+                @Override
+                protected Void doInBackground() {
+                    deleteStateFile(persistencePolicy, file, mergedFileNames);
+                    return null;
+                }
+            }.executeOnTaskRunner(sequencedTaskRunner);
+        }
+
+        /* package */ static void deleteStateFile(
+                TabPersistencePolicy persistencePolicy, String file, Set<String> mergedFileNames) {
+            ThreadUtils.assertOnBackgroundThread();
+            File stateFile = new File(getStateDirectory(persistencePolicy), file);
+            if (stateFile.exists()) {
+                if (!stateFile.delete()) Log.e(TAG, "Failed to delete file: " + stateFile);
+
+                // The merge isn't completely finished until the other TabPersistentStores'
+                // metadata files are deleted.
+                boolean wasMergeFile = mergedFileNames.remove(file);
+                if (wasMergeFile && mergedFileNames.isEmpty()) {
+                    persistencePolicy.setMergeInProgress(false);
+                }
+            }
+        }
     }
 }

@@ -137,7 +137,7 @@ IsolatedSVGDocumentHost::IsolatedSVGDocumentHost(
     frame->Init(/*opener=*/nullptr, DocumentToken(),
                 /*policy_container=*/nullptr, StorageKey(),
                 /*document_ukm_source_id=*/ukm::kInvalidSourceId,
-                /*creator_base_url=*/KURL());
+                /*creator_base_url=*/NullUrl());
   }
 
   // SVG Images will always synthesize a viewBox, if it's not available, and
@@ -196,6 +196,8 @@ void IsolatedSVGDocumentHost::CopySettingsFrom(
   settings.SetPreferredColorScheme(
       inherited_settings.GetPreferredColorScheme());
   settings.SetInForcedColors(inherited_settings.GetInForcedColors());
+
+  settings.SetAcceptLanguages(inherited_settings.GetAcceptLanguages());
 }
 
 LocalFrame* IsolatedSVGDocumentHost::GetFrame() {

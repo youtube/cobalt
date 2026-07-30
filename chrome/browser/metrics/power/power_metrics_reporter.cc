@@ -68,6 +68,18 @@ const char* GetMetricSuffixFromProcessType(MonitoredProcessType type) {
   }
 }
 
+std::string GetMetricSuffixFromProcessInfoKey(ProcessInfo::Key key) {
+  if (!key.subtype) {
+    return GetMetricSuffixFromProcessType(key.type);
+  }
+
+  // Only utility processes have subtypes
+  DCHECK(key.type == MonitoredProcessType::kUtility);
+  auto subtype_suffix = *key.subtype == "" ? "Unknown" : *key.subtype;
+  return base::StrCat(
+      {GetMetricSuffixFromProcessType(key.type), ".", subtype_suffix});
+}
+
 }  // namespace
 
 PowerMetricsReporter::PowerMetricsReporter(
@@ -133,9 +145,9 @@ void PowerMetricsReporter::OnLongIntervalEnd() {
 }
 
 void PowerMetricsReporter::OnMetricsSampled(
-    MonitoredProcessType type,
+    ProcessInfo::Key key,
     const ProcessMonitor::Metrics& metrics) {
-  RecordProcessHistograms(GetMetricSuffixFromProcessType(type), metrics);
+  RecordProcessHistograms(GetMetricSuffixFromProcessInfoKey(key), metrics);
 }
 
 void PowerMetricsReporter::OnAggregatedMetricsSampled(

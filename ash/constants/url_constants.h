@@ -65,6 +65,10 @@ inline constexpr char kCellularCarrierLockLearnMoreURL[] =
 inline constexpr char kChromebookHotspotLearnMoreURL[] =
     "https://support.google.com/chromebook?p=chromebook_hotspot";
 
+// The URL for the Chromebook Perks page for YouTube.
+inline constexpr char kChromebookPerksYouTubePage[] =
+    "https://www.google.com/chromebook/perks/?id=youtube.2020";
+
 // The URL for the "Learn more" link for scrolling acceleration on ChromeOS.
 // TODO(zhangwenyu): Update link once confirmed.
 inline constexpr char kControlledScrollingHelpURL[] =
@@ -104,6 +108,10 @@ inline constexpr char kFaceGazeLearnMoreURL[] =
 // The URL for the help center article about fingerprint on Chrome OS devices.
 inline constexpr char kFingerprintLearnMoreURL[] =
     "https://support.google.com/chromebook?p=chromebook_fingerprint";
+
+// URL of the Google account language selection page.
+inline constexpr char kGoogleAccountLanguagesURL[] =
+    "https://myaccount.google.com/language";
 
 // The URL for the "Learn more" page when the user tries to clean up their
 // Google Drive offline storage in the OS settings page.
@@ -174,6 +182,10 @@ inline constexpr char kNaturalScrollHelpURL[] =
 // The URL for the "Learn more" link in the connected devices.
 inline constexpr char kMultiDeviceLearnMoreURL[] =
     "https://support.google.com/chromebook/?p=multi_device";
+
+// Palette help link for Chrome.
+inline constexpr char kPaletteHelpURL[] =
+    "https://support.google.com/chromebook?p=stylus_help";
 
 // The URL for the "Learn more" link in the peripheral data access protection
 // settings.
@@ -263,6 +275,10 @@ inline constexpr char kWifiPasspointURL[] =
 // The URL for the help center article about Wi-Fi sync.
 inline constexpr char kWifiSyncLearnMoreURL[] =
     "https://support.google.com/chromebook?p=wifisync";
+
+// The URL for the YoutTube Music Premium signup page.
+inline constexpr char kYoutubeMusicPremiumURL[] =
+    "https://music.youtube.com/music_premium";
 
 }  // namespace ash::external_urls
 

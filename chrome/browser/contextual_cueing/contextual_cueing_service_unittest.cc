@@ -11,11 +11,13 @@
 #include "chrome/browser/contextual_cueing/contextual_cueing_features.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_prefs.h"
 #include "chrome/browser/contextual_cueing/zero_state_suggestions_page_data.h"
+#include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/optimization_guide/mock_optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/predictors/loading_predictor.h"
 #include "chrome/browser/predictors/loading_predictor_config.h"
 #include "chrome/common/buildflags.h"
+#include "chrome/common/chrome_features.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "content/public/browser/web_contents.h"
@@ -25,10 +27,6 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
-
-#if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/glic/glic_pref_names.h"
-#endif
 
 namespace contextual_cueing {
 
@@ -50,6 +48,7 @@ class ContextualCueingServiceTest : public testing::Test {
                                          /*tracker=*/nullptr) {}
   virtual void InitializeFeatureList() {
     scoped_feature_list_.InitWithFeaturesAndParameters(
+        /*enabled_features=*/
         {{contextual_cueing::kContextualCueing,
           {{"BackoffTime", "24h"},
            {"BackoffMultiplierBase", "2.0"},
@@ -57,7 +56,9 @@ class ContextualCueingServiceTest : public testing::Test {
            {"NudgeCapCount", "3"},
            {"MinPageCountBetweenNudges", "0"},
            {"MinTimeBetweenNudges", "30s"}}}},
-        {contextual_cueing::kGlicZeroStateSuggestions});
+        /*disabled_features=*/
+        {contextual_cueing::kGlicZeroStateSuggestions,
+         features::kGlicDefaultTabContextSetting});
   }
 
   void SetUp() override {
@@ -85,7 +86,6 @@ class ContextualCueingServiceTest : public testing::Test {
     task_environment_.FastForwardBy(time_delta);
   }
 
- protected:
   base::test::ScopedFeatureList scoped_feature_list_;
 
  private:
@@ -367,11 +367,11 @@ class MockLoadingPredictor : public predictors::LoadingPredictor {
               (override));
 };
 
-#if BUILDFLAG(ENABLE_GLIC)
 class ContextualCueingServiceTestZeroStateSuggestions : public testing::Test {
  public:
   ContextualCueingServiceTestZeroStateSuggestions() {
-    scoped_feature_list_.InitAndEnableFeature(kGlicZeroStateSuggestions);
+    scoped_feature_list_.InitWithFeatures(
+        {kGlicZeroStateSuggestions}, {features::kGlicDefaultTabContextSetting});
   }
 
   void SetUp() override {
@@ -585,6 +585,5 @@ TEST_F(ContextualCueingServiceTestZeroStateSuggestions,
   EXPECT_EQ(pending_request->supported_tools_size(), 1);
   EXPECT_EQ("tool", pending_request->supported_tools(0));
 }
-#endif
 
 }  // namespace contextual_cueing

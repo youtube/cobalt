@@ -26,8 +26,8 @@ class CORE_EXPORT CSSUnparsedValue final : public CSSStyleValue {
 
  public:
   static CSSUnparsedValue* Create(
-      const HeapVector<Member<V8CSSUnparsedSegment>>& tokens) {
-    return MakeGarbageCollected<CSSUnparsedValue>(tokens);
+      const HeapVector<Member<V8CSSUnparsedSegment>>& segments) {
+    return MakeGarbageCollected<CSSUnparsedValue>(segments);
   }
 
   // Blink-internal constructor
@@ -37,17 +37,25 @@ class CORE_EXPORT CSSUnparsedValue final : public CSSStyleValue {
   static CSSUnparsedValue* FromCSSValue(const CSSUnparsedDeclarationValue&);
   static CSSUnparsedValue* FromCSSVariableData(const CSSVariableData&);
   static CSSUnparsedValue* FromString(const String& string) {
-    HeapVector<Member<V8CSSUnparsedSegment>> tokens;
-    tokens.push_back(MakeGarbageCollected<V8CSSUnparsedSegment>(string));
-    return Create(tokens);
+    HeapVector<Member<V8CSSUnparsedSegment>> segments;
+    segments.push_back(MakeGarbageCollected<V8CSSUnparsedSegment>(string));
+    return Create(segments);
   }
 
   explicit CSSUnparsedValue(
-      const HeapVector<Member<V8CSSUnparsedSegment>>& tokens)
-      : tokens_(tokens) {}
+      const HeapVector<Member<V8CSSUnparsedSegment>>& segments)
+      : segments_(segments) {}
   CSSUnparsedValue(const CSSUnparsedValue&) = delete;
   CSSUnparsedValue& operator=(const CSSUnparsedValue&) = delete;
 
+  // True if this CSSUnparsedValue can be converted into
+  // a CSSUnparsedDeclarationValue.
+  //
+  // We may want to ban some invalid values earlier, see:
+  // https://github.com/w3c/csswg-drafts/issues/13547
+  bool IsValidDeclarationValue() const;
+
+  // Requires IsValidDeclarationValue()==true.
   const CSSValue* ToCSSValue() const override;
 
   StyleValueType GetType() const override { return kUnparsedType; }
@@ -60,28 +68,23 @@ class CORE_EXPORT CSSUnparsedValue final : public CSSStyleValue {
       V8CSSUnparsedSegment* segment,
       ExceptionState& exception_state);
 
-  wtf_size_t length() const { return tokens_.size(); }
+  wtf_size_t length() const { return segments_.size(); }
 
   void Trace(Visitor* visitor) const override {
-    visitor->Trace(tokens_);
+    visitor->Trace(segments_);
     CSSStyleValue::Trace(visitor);
   }
 
-  // Unlike CSSStyleValue::toString(), this returns tokens without
-  // substituting variables. There are extra /**/ inserted between
-  // every token to ensure there are no ambiguities, which is fine
-  // because this value is never presented directly to the user
-  // (ToCSSValue() will parse to a token range and then re-serialize
-  // using extra /**/ only where needed).
-  String ToUnparsedString() const;
-
  private:
+  static bool IsValidDeclarationValue(const String&);
+  String ToStringInternal() const;
+  String SerializeSegments() const;
   // Return 'false' if there is a cycle in the serialization.
   bool AppendUnparsedString(
       StringBuilder&,
       HeapHashSet<Member<const CSSUnparsedValue>>& values_on_stack) const;
 
-  HeapVector<Member<V8CSSUnparsedSegment>> tokens_;
+  HeapVector<Member<V8CSSUnparsedSegment>> segments_;
 
   FRIEND_TEST_ALL_PREFIXES(CSSUnparsedDeclarationValueTest, MixedList);
 };

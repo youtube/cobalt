@@ -24,22 +24,24 @@ ${this.showContextEntrypoint_ ? html`
       ?can-show-secondary-side="${this.canShowSecondarySide}"
       ?has-secondary-side="${this.hasSecondarySide}"
       @has-secondary-side-changed="${this.onHasSecondarySideChanged_}"
-      @dom-change="${this.onResultRepaint_}"
+      @dom-change="${this.onDropdownDomChange_}"
       ?hidden="${!this.hasVisibleMatches_}">
   </cr-searchbox-dropdown>
   ${this.searchboxLayoutMode_ !== 'TallTopContext' ?
     getContextualEntrypointHtml.call(this) : nothing}
 </div>` : html`
 <!-- WebUI Omnibox popup w/o "Add Context" button -->
+<div class="dropdownContainer">
   <cr-searchbox-dropdown part="searchbox-dropdown"
       exportparts="dropdown-content"
       role="listbox" .result="${this.result_}"
       ?can-show-secondary-side="${this.canShowSecondarySide}"
       ?has-secondary-side="${this.hasSecondarySide}"
       @has-secondary-side-changed="${this.onHasSecondarySideChanged_}"
-      @dom-change="${this.onResultRepaint_}"
+      @dom-change="${this.onDropdownDomChange_}"
       ?hidden="${!this.hasVisibleMatches_}">
   </cr-searchbox-dropdown>
+</div>
 `}
 <!--_html_template_end_-->`;
   // clang-format on

@@ -38,6 +38,7 @@
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/passwords/ui_utils.h"
 #include "chrome/browser/ui/views/autofill/popup/popup_base_view.h"
+#include "chrome/browser/ui/views/autofill/popup/popup_loading_view.h"
 #include "chrome/browser/ui/views/autofill/popup/popup_no_suggestions_view.h"
 #include "chrome/browser/ui/views/autofill/popup/popup_row_factory_utils.h"
 #include "chrome/browser/ui/views/autofill/popup/popup_row_view.h"
@@ -106,8 +107,6 @@ namespace {
 // (see crbug.com/1434330).
 constexpr int kAutofillPopupMinWidth = 156;
 static_assert(kAutofillPopupMinWidth > 128);
-// TODO(crbug.com/41382463): move handling the max width to the base class.
-constexpr int kAutofillPopupMaxWidth = 456;
 
 constexpr int kMaxPopupWithSearchBarHeight = 400;
 
@@ -276,7 +275,7 @@ bool PopupViewViews::Show(
     search_bar_->Focus();
   }
 
-  if (autoselect_first_suggestion) {
+  if (autoselect_first_suggestion && controller_->GetLineCount() > 0) {
     // Selecting first selectable row.
     // TODO(crbug.com/327931044): Remove the if condition and make the else as
     // the default as part of cleanup.
@@ -388,6 +387,10 @@ bool PopupViewViews::HandleKeyPressEvent(
 
   if (controller_->GetMainFillingProduct() == FillingProduct::kCompose) {
     return HandleKeyPressEventForCompose(event);
+  }
+
+  if (controller_->GetMainFillingProduct() == FillingProduct::kAtMemory) {
+    return HandleKeyPressEventForAtMemory(event);
   }
 
   const bool kHasShiftModifier =
@@ -566,6 +569,48 @@ bool PopupViewViews::HandleKeyPressEventForCompose(
       }
       return false;
     }
+    default:
+      return false;
+  }
+}
+
+bool PopupViewViews::HandleKeyPressEventForAtMemory(
+    const input::NativeWebKeyboardEvent& event) {
+  CHECK_EQ(controller_->GetMainFillingProduct(), FillingProduct::kAtMemory);
+
+  switch (event.windows_key_code) {
+    case ui::VKEY_ESCAPE:
+      controller_->Hide(SuggestionHidingReason::kUserAborted);
+      return true;
+    case ui::VKEY_RETURN: {
+      if (GetSelectedCell()) {
+        return AcceptSelectedContentOrCreditCardCell(
+            AutofillMetrics::SuggestionAcceptedMethod::kKeyboard);
+      }
+      if (search_bar_) {
+        controller_->SetFilter(
+            AutofillPopupController::SuggestionFilter(search_bar_->GetText()));
+        return true;
+      }
+      return false;
+    }
+    case ui::VKEY_UP:
+      if (GetSelectedCell()) {
+        SelectPreviousRow();
+        return true;
+      }
+      return false;
+    case ui::VKEY_DOWN:
+      if (GetSelectedCell()) {
+        SelectNextRow(PopupCellSelectionSource::kKeyboard);
+        return true;
+      }
+      if (HasSelectablePopupRowViewAt(0)) {
+        SetSelectedCell(CellIndex(0, PopupRowView::CellType::kContent),
+                        PopupCellSelectionSource::kKeyboard);
+        return true;
+      }
+      return false;
     default:
       return false;
   }
@@ -1008,6 +1053,13 @@ void PopupViewViews::CreateSuggestionViews() {
               body_container->AddChildView(std::make_unique<PopupWarningView>(
                   suggestions[current_line_number])));
           break;
+        case SuggestionType::kLoadingThrobber: {
+          rows_.push_back(
+              body_container->AddChildView(std::make_unique<PopupLoadingView>(
+                  suggestions[current_line_number]
+                      .expected_number_of_suggestions.value_or(1))));
+          break;
+        }
         // The default section contains all selectable rows and includes
         // autocomplete, address, credit cards and passwords.
         default:
@@ -1178,6 +1230,11 @@ gfx::Size PopupViewViews::CalculatePreferredSize(
     size.set_width(kAutofillPopupMaxWidth);
   }
 
+  if (controller_ &&
+      controller_->GetMainFillingProduct() == FillingProduct::kAtMemory) {
+    size.set_width(std::max(size.width(), kAutofillPopupMaxWidth));
+  }
+
   // This popup height limiting for popups with a search bar addresses a minor
   // UX concern when a potentially long list makes the search bar appear far
   // away from the field and thus less obvious what the search bar belongs to.
@@ -1234,7 +1291,8 @@ bool PopupViewViews::DoUpdateBoundsAndRedrawPopup(bool prefer_prev_arrow_side) {
       gfx::Insets::VH(/*vertical=*/-kElementBorderPadding, /*horizontal=*/0));
 
   if ((!body_container_ || body_container_->children().empty()) &&
-      (!footer_container_ || footer_container_->children().empty())) {
+      (!footer_container_ || footer_container_->children().empty()) &&
+      !search_bar_) {
     controller_->Hide(SuggestionHidingReason::kNoSuggestions);
     return false;
   }

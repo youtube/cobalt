@@ -47,7 +47,7 @@ class ReportUnsafeSiteDialogView : public WebUIBubbleDialogView {
     set_parent_window(
         platform_util::GetViewForWindow(browser->window()->GetNativeWindow()));
     set_close_on_deactivate(false);
-    SetShowCloseButton(true);
+    SetShowCloseButton(false);
     SetProperty(views::kElementIdentifierKey,
                 ReportUnsafeSiteDialogViews::kReportUnsafeSiteDialogId);
     web_view()->SetProperty(views::kElementIdentifierKey,
@@ -116,6 +116,8 @@ void ReportUnsafeSiteDialog::Show(Browser* browser) {
   auto contents_wrapper = std::make_unique<WebUIContentsWrapperT<FeedbackUI>>(
       GURL(chrome::kChromeUIFeedbackReportUnsafeSiteURL), profile,
       IDS_REPORT_UNSAFE_SITE_DIALOG_TITLE);
+  contents_wrapper->GetWebUIController()->set_triggering_web_contents(
+      web_contents);
   auto bubble_dialog = std::make_unique<ReportUnsafeSiteDialogView>(
       std::move(contents_wrapper), browser);
   views::Widget* widget =

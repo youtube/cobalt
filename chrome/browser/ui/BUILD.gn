@@ -280,6 +280,7 @@ static_library("ui") {
     "//chrome/browser:font_pref",
     "//chrome/browser:global_features",
     "//chrome/browser/affiliations",
+    "//chrome/browser/ai",
     "//chrome/browser/autocomplete",
     "//chrome/browser/autocomplete:aim_eligibility_service",
     "//chrome/browser/autofill",
@@ -296,12 +297,17 @@ static_library("ui") {
     "//chrome/browser/content_settings:content_settings_util",
     "//chrome/browser/content_settings:content_settings_util_impl",
     "//chrome/browser/crash_upload_list",
+    "//chrome/browser/data_sharing",
     "//chrome/browser/devtools",
     "//chrome/browser/enterprise/browser_management:management_identity",
     "//chrome/browser/favicon",
     "//chrome/browser/feedback:feedback_impl",
     "//chrome/browser/file_system_access",
     "//chrome/browser/gcm",
+    "//chrome/browser/glic",
+    "//chrome/browser/glic/actor",
+    "//chrome/browser/glic/fre",
+    "//chrome/browser/glic/public:features",
     "//chrome/browser/google",
     "//chrome/browser/gpu",
     "//chrome/browser/hang_monitor",
@@ -322,6 +328,7 @@ static_library("ui") {
     "//chrome/browser/picture_in_picture",
     "//chrome/browser/picture_in_picture:impl",
     "//chrome/browser/plus_addresses",
+    "//chrome/browser/predictors",
     "//chrome/browser/prefs",
     "//chrome/browser/prefs:impl",
     "//chrome/browser/preloading",
@@ -720,6 +727,7 @@ static_library("ui") {
     "//chrome/browser/devtools",
     "//chrome/browser/favicon",
     "//chrome/browser/feedback",
+    "//chrome/browser/glic/fre",
     "//chrome/browser/safe_browsing",
     "//chrome/browser/profiling_host",
 
@@ -806,6 +814,10 @@ static_library("ui") {
       "android/accelerator_utils_android.cc",
       "android/android_about_app_info.cc",
       "android/android_about_app_info.h",
+      "android/android_profile_browser_collection_service.cc",
+      "android/android_profile_browser_collection_service.h",
+      "android/android_profile_browser_collection_service_factory.cc",
+      "android/android_profile_browser_collection_service_factory.h",
       "android/autofill/authenticator_selection_dialog_view_android.cc",
       "android/autofill/authenticator_selection_dialog_view_android.h",
       "android/autofill/autofill_ai_save_update_entity_flow_manager.cc",
@@ -1177,6 +1189,8 @@ static_library("ui") {
       "webui/history/navigation_handler.h",
       "webui/history_clusters/history_clusters_handler.cc",
       "webui/history_clusters/history_clusters_handler.h",
+      "webui/image/image_navigation_throttle.cc",
+      "webui/image/image_navigation_throttle.h",
       "webui/inspect/inspect_ui.cc",
       "webui/inspect/inspect_ui.h",
       "webui/management/management_ui.cc",
@@ -1220,6 +1234,8 @@ static_library("ui") {
       "webui/ntp_microsoft_auth/ntp_microsoft_auth_untrusted_ui.h",
       "webui/omnibox_popup/omnibox_popup_aim_handler.cc",
       "webui/omnibox_popup/omnibox_popup_aim_handler.h",
+      "webui/omnibox_popup/omnibox_popup_handler.cc",
+      "webui/omnibox_popup/omnibox_popup_handler.h",
       "webui/omnibox_popup/omnibox_popup_ui.cc",
       "webui/omnibox_popup/omnibox_popup_ui.h",
       "webui/omnibox_popup/omnibox_popup_web_contents_helper.cc",
@@ -1264,6 +1280,8 @@ static_library("ui") {
       "webui/settings/downloads_handler.h",
       "webui/settings/font_handler.cc",
       "webui/settings/font_handler.h",
+      "webui/settings/glic_handler.cc",
+      "webui/settings/glic_handler.h",
       "webui/settings/hats_handler.cc",
       "webui/settings/hats_handler.h",
       "webui/settings/import_data_handler.cc",
@@ -1428,12 +1446,15 @@ static_library("ui") {
       "//chrome/browser:shell_integration",
       "//chrome/browser/actor/ui",
       "//chrome/browser/actor/ui:actor_overlay",
+      "//chrome/browser/actor/ui:actor_overlay_web_view",
+      "//chrome/browser/actor/ui/task_list_bubble:controller",
       "//chrome/browser/app_mode",
       "//chrome/browser/apps/app_service",
       "//chrome/browser/apps/app_service/app_icon",
       "//chrome/browser/apps/app_service/app_icon:util",
       "//chrome/browser/apps/link_capturing",
       "//chrome/browser/background",
+      "//chrome/browser/background/glic",
       "//chrome/browser/bluetooth",
       "//chrome/browser/browsing_data:constants",
       "//chrome/browser/contextual_cueing",
@@ -1441,6 +1462,12 @@ static_library("ui") {
       "//chrome/browser/custom_handlers",
       "//chrome/browser/device_api",
       "//chrome/browser/first_party_sets",
+      "//chrome/browser/glic/browser_ui",
+      "//chrome/browser/glic/browser_ui:glow",
+      "//chrome/browser/glic/browser_ui:glow_controller",
+      "//chrome/browser/glic/browser_ui:glow_controller_impl",
+      "//chrome/browser/glic/browser_ui:glow_impl",
+      "//chrome/browser/glic/selection",
       "//chrome/browser/indigo",
       "//chrome/browser/lifetime:termination_notification",
       "//chrome/browser/password_manager/factories",
@@ -1454,6 +1481,7 @@ static_library("ui") {
       "//chrome/browser/subscription_eligibility",
       "//chrome/browser/ui/browser_window:create_browser_window",
       "//chrome/browser/ui/contextual_search",
+      "//chrome/browser/ui/desktop_to_mobile_promos:controller",
       "//chrome/browser/ui/interaction",
       "//chrome/browser/ui/location_bar",
       "//chrome/browser/ui/passwords/bubble_controllers",
@@ -1461,7 +1489,6 @@ static_library("ui") {
       "//chrome/browser/ui/passwords/bubble_controllers/password_change",
       "//chrome/browser/ui/performance_controls",
       "//chrome/browser/ui/performance_controls:impl",
-      "//chrome/browser/ui/promos:controller",
       "//chrome/browser/ui/search",
       "//chrome/browser/ui/search:impl",
       "//chrome/browser/ui/search_engine_choice",
@@ -1478,12 +1505,16 @@ static_library("ui") {
       "//chrome/browser/ui/task_manager",
       "//chrome/browser/ui/thumbnails",
       "//chrome/browser/ui/translate:impl",
+      "//chrome/browser/ui/views/glic",
+      "//chrome/browser/ui/views/tabs/glic",
+      "//chrome/browser/ui/views/tabs/glic:impl",
       "//chrome/browser/ui/waap:window_metrics_manager",
       "//chrome/browser/ui/web_applications",
       "//chrome/browser/ui/web_applications:impl",
       "//chrome/browser/ui/web_applications:launch_utils",
       "//chrome/browser/ui/webui/access_code_cast",
       "//chrome/browser/ui/webui/access_code_cast:impl",
+      "//chrome/browser/ui/webui/feedback/report_unsafe_site:mojo_bindings",
       "//chrome/browser/ui/webui/omnibox_popup/mojom",
       "//chrome/browser/usb",
       "//chrome/browser/webauthn:local_credential_management",
@@ -1537,6 +1568,7 @@ static_library("ui") {
       "//chrome/browser/ui/media_router",
       "//chrome/browser/ui/media_router:impl",
       "//chrome/browser/ui/permission_bubble",
+      "//chrome/browser/ui/side_panel:side_panel_views_dependent",
       "//chrome/browser/ui/signin",
       "//chrome/browser/ui/signin:impl",
       "//chrome/browser/ui/startup:startup_tab",
@@ -1570,7 +1602,6 @@ static_library("ui") {
       "//chrome/browser/ui/views/js_optimization",
       "//chrome/browser/ui/views/location_bar",
       "//chrome/browser/ui/views/new_tab_footer",
-      "//chrome/browser/ui/views/side_panel:side_panel_enums",
       "//chrome/browser/ui/views/toolbar",
       "//chrome/browser/ui/views/toolbar:impl",
       "//chrome/browser/ui/views/zoom",
@@ -1610,6 +1641,7 @@ static_library("ui") {
       "//chrome/browser/ui/webui/util",
       "//chrome/browser/ui/webui/webui_toolbar",
       "//chrome/browser/ui/webui/webui_toolbar:impl",
+      "//chrome/browser/ui/webui/webui_toolbar/adapters:impl",
       "//chrome/browser/ui/webui/whats_new",
       "//chrome/browser/ui/webui/whats_new:impl",
       "//chrome/browser/ui/webui_browser",
@@ -1726,6 +1758,7 @@ static_library("ui") {
       "//chrome/browser/ui/tabs:tab_enums",
       "//chrome/browser/ui/views/side_panel",
       "//chrome/browser/ui/waap",
+      "//chrome/browser/ui/webui/feedback/report_unsafe_site",
       "//chrome/browser/ui/webui/on_device_internals",
     ]
     if (use_aura) {
@@ -1791,7 +1824,15 @@ static_library("ui") {
       "//chrome/browser/ui/webui/signin:signin_impl",
       "//chrome/browser/ui/webui/signin:signin_utils_impl",
       "//chrome/browser/ui/webui/webui_toolbar:impl",
+      "//chrome/browser/ui/webui/webui_toolbar/adapters:impl",
       "//chrome/browser/ui/webui/whats_new:impl",
+
+      "//chrome/browser/glic/browser_ui",
+      "//chrome/browser/glic/browser_ui:glow_impl",
+      "//chrome/browser/glic/browser_ui:glow_controller_impl",
+      "//chrome/browser/ui/views/glic",
+      "//chrome/browser/ui/views/tabs/glic",
+      "//chrome/browser/ui/views/tabs/glic:impl",
 
       "//chrome/browser/ui:browser_list_impl",
       "//chrome/browser/ui/media_router:impl",
@@ -1808,7 +1849,7 @@ static_library("ui") {
       "//chrome/browser/ui/toolbar/pinned_toolbar:impl",
       "//chrome/browser/ui/bookmarks:impl",
       "//chrome/browser/ui/feature_first_run:impl",
-      "//chrome/browser/ui/promos:controller",
+      "//chrome/browser/ui/desktop_to_mobile_promos:controller",
 
       # TODO(crbug.com/364667551): It includes quite a few files from //c/b/ui's
       # subdirectories such as views and webui which are not modularized yet.
@@ -1848,6 +1889,9 @@ static_library("ui") {
       # TODO(crbug.com/438226511): Remove this circular dependency when c/b/ui/browser.h gets
       # componentized.
       "//chrome/browser/ui/web_applications:launch_utils",
+
+      #TODO(crbug.com/486967014): Remove once views dep is removed for side panel.
+      "//chrome/browser/ui/side_panel:side_panel_views_dependent",
     ]
 
     if (is_win || is_chromeos) {
@@ -3214,10 +3258,6 @@ static_library("ui") {
       "cocoa/tab_group_menu_bridge.mm",
       "cocoa/tab_menu_bridge.h",
       "cocoa/tab_menu_bridge.mm",
-      "cocoa/task_manager_mac.h",
-      "cocoa/task_manager_mac.mm",
-      "cocoa/task_manager_mac_table_view.h",
-      "cocoa/task_manager_mac_table_view.mm",
       "cocoa/touchbar/browser_window_default_touch_bar.h",
       "cocoa/touchbar/browser_window_default_touch_bar.mm",
       "cocoa/touchbar/browser_window_touch_bar_controller.h",
@@ -3571,9 +3611,6 @@ static_library("ui") {
       "views/autofill/payments/mandatory_reauth_opt_in_bubble_view.cc",
       "views/autofill/payments/mandatory_reauth_opt_in_bubble_view.h",
       "views/autofill/payments/offer_notification_bubble_views.cc",
-      "views/autofill/payments/offer_notification_bubble_views.h",
-      "views/autofill/payments/offer_notification_icon_view.cc",
-      "views/autofill/payments/offer_notification_icon_view.h",
       "views/autofill/payments/payments_view_util.cc",
       "views/autofill/payments/payments_view_util.h",
       "views/autofill/payments/payments_window_user_consent_dialog_view.cc",
@@ -3612,6 +3649,8 @@ static_library("ui") {
       "views/autofill/popup/popup_base_view.h",
       "views/autofill/popup/popup_cell_utils.cc",
       "views/autofill/popup/popup_cell_utils.h",
+      "views/autofill/popup/popup_loading_view.cc",
+      "views/autofill/popup/popup_loading_view.h",
       "views/autofill/popup/popup_no_suggestions_view.cc",
       "views/autofill/popup/popup_no_suggestions_view.h",
       "views/autofill/popup/popup_row_content_view.cc",
@@ -3974,11 +4013,8 @@ static_library("ui") {
       "views/global_media_controls/media_dialog_view_observer.h",
       "views/global_media_controls/media_item_ui_cast_footer_view.cc",
       "views/global_media_controls/media_item_ui_cast_footer_view.h",
-      "views/global_media_controls/media_item_ui_device_selector_observer.h",
       "views/global_media_controls/media_item_ui_device_selector_view.cc",
       "views/global_media_controls/media_item_ui_device_selector_view.h",
-      "views/global_media_controls/media_item_ui_footer_view.cc",
-      "views/global_media_controls/media_item_ui_footer_view.h",
       "views/global_media_controls/media_item_ui_helper.cc",
       "views/global_media_controls/media_item_ui_helper.h",
       "views/global_media_controls/media_item_ui_legacy_cast_footer_view.cc",
@@ -4595,6 +4631,8 @@ static_library("ui") {
       "views/web_apps/sub_apps_install_dialog_controller.h",
       "views/web_apps/view_visible_in_active_widget_notifier.cc",
       "views/web_apps/view_visible_in_active_widget_notifier.h",
+      "views/web_apps/web_app_blocked_migration_infobar_delegate.cc",
+      "views/web_apps/web_app_blocked_migration_infobar_delegate.h",
       "views/web_apps/web_app_detailed_install_dialog.cc",
       "views/web_apps/web_app_diy_install_dialog.cc",
       "views/web_apps/web_app_icon_name_and_origin_view.cc",
@@ -4729,19 +4767,21 @@ static_library("ui") {
       "//chrome/browser/actor/resources:browser_resources",
       "//chrome/browser/actor/ui/task_list_bubble:controller",
       "//chrome/browser/apps:icon_standardizer",
+      "//chrome/browser/collaboration",
+      "//chrome/browser/collaboration/messaging",
+      "//chrome/browser/desktop_to_mobile_promos:utils",
       "//chrome/browser/infobars",
       "//chrome/browser/profiles/keep_alive",
-      "//chrome/browser/promos:utils",
       "//chrome/browser/ui/actions",
       "//chrome/browser/ui/actions:actions_headers",
       "//chrome/browser/ui/autofill/payments",
       "//chrome/browser/ui/commerce",
       "//chrome/browser/ui/commerce:impl",
+      "//chrome/browser/ui/desktop_to_mobile_promos:utils",
       "//chrome/browser/ui/dialogs",
       "//chrome/browser/ui/dialogs:impl",
       "//chrome/browser/ui/plus_addresses",
       "//chrome/browser/ui/plus_addresses:impl",
-      "//chrome/browser/ui/promos:utils",
       "//chrome/browser/ui/qrcode_generator",
       "//chrome/browser/ui/qrcode_generator:impl",
       "//chrome/browser/ui/send_tab_to_self",
@@ -5457,43 +5497,6 @@ static_library("ui") {
     ]
   }
 
-  if (enable_glic) {
-    deps += [
-      "//chrome/browser/ai",
-      "//chrome/browser/glic",
-      "//chrome/browser/glic/actor",
-      "//chrome/browser/glic/fre",
-      "//chrome/browser/glic/public:features",
-    ]
-    allow_circular_includes_from += [ "//chrome/browser/glic/fre" ]
-    if (!is_android) {
-      sources += [
-        "webui/settings/glic_handler.cc",
-        "webui/settings/glic_handler.h",
-      ]
-      deps += [
-        "//chrome/browser/actor/ui/task_list_bubble:controller",
-        "//chrome/browser/background/glic",
-        "//chrome/browser/glic/browser_ui",
-        "//chrome/browser/glic/browser_ui:glow",
-        "//chrome/browser/glic/browser_ui:glow_controller",
-        "//chrome/browser/glic/browser_ui:glow_controller_impl",
-        "//chrome/browser/glic/browser_ui:glow_impl",
-        "//chrome/browser/ui/views/glic",
-        "//chrome/browser/ui/views/tabs/glic",
-        "//chrome/browser/ui/views/tabs/glic:impl",
-      ]
-      allow_circular_includes_from += [
-        "//chrome/browser/ui/views/glic",
-        "//chrome/browser/ui/views/tabs/glic",
-        "//chrome/browser/ui/views/tabs/glic:impl",
-        "//chrome/browser/glic/browser_ui",
-        "//chrome/browser/glic/browser_ui:glow_impl",
-        "//chrome/browser/glic/browser_ui:glow_controller_impl",
-      ]
-    }
-  }
-
   if (enable_webui_generate_code_cache) {
     deps += [
       "//chrome/browser/resources:code_cache_resources",
@@ -5649,12 +5652,10 @@ source_set("tab_search_feature") {
   deps = [
     "//base",
     "//chrome/browser:browser_process",
+    "//chrome/browser/glic",
     "//chrome/common:buildflags",
     "//components/variations/service",
   ]
-  if (enable_glic) {
-    deps += [ "//chrome/browser/glic" ]
-  }
 }
 
 source_set("browser_navigator_params_headers") {
@@ -5684,17 +5685,13 @@ if (!is_android) {
   source_set("browser_list") {
     sources = [
       "browser_list.h",
-      "browser_list_enumerator.h",
       "browser_list_observer.h",
     ]
     public_deps = [ "//base" ]
   }
 
   source_set("browser_list_impl") {
-    sources = [
-      "browser_list.cc",
-      "browser_list_enumerator.cc",
-    ]
+    sources = [ "browser_list.cc" ]
     public_deps = [ "//chrome/browser:browser_public_dependencies" ]
     deps = [
       "//base",

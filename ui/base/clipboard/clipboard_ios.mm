@@ -133,55 +133,59 @@ void ClipboardIOS::Clear(ClipboardBuffer buffer) {
 // platforms.
 void ClipboardIOS::ReadAvailableTypes(
     ClipboardBuffer buffer,
-    const DataTransferEndpoint* data_dst,
-    std::vector<std::u16string>* types) const {
+    const std::optional<DataTransferEndpoint>& data_dst,
+    ReadAvailableTypesCallback callback) const {
   DCHECK(CalledOnValidThread());
-  DCHECK(types);
-
-  types->clear();
-  *types = GetStandardFormats(buffer, data_dst);
+  std::vector<std::u16string> types =
+      GetStandardFormats(buffer, base::OptionalToPtr(data_dst));
 
   NSData* data = GetDataWithTypeFromPasteboard(
       GetPasteboard(), (NSString*)kUTTypeChromiumDataTransferCustomData);
   if (data) {
-    ReadCustomDataTypes(base::apple::NSDataToSpan(data), types);
+    ReadCustomDataTypes(base::apple::NSDataToSpan(data), &types);
   }
+  std::move(callback).Run(std::move(types));
 }
 
 // |data_dst| is not used. It's only passed to be consistent with other
 // platforms.
 void ClipboardIOS::ReadText(ClipboardBuffer buffer,
-                            const DataTransferEndpoint* data_dst,
-                            std::u16string* result) const {
+                            const std::optional<DataTransferEndpoint>& data_dst,
+                            ReadTextCallback callback) const {
   DCHECK(CalledOnValidThread());
   DCHECK_EQ(buffer, ClipboardBuffer::kCopyPaste);
   RecordRead(ClipboardFormatMetric::kText);
 
+  std::u16string result;
   NSData* data = GetDataWithTypeFromPasteboard(
       GetPasteboard(), ClipboardFormatType::PlainTextType().ToNSString());
   if (data) {
     NSString* contents = [[NSString alloc] initWithData:data
                                                encoding:NSUTF8StringEncoding];
-    result->assign(base::SysNSStringToUTF16(contents));
+    result.assign(base::SysNSStringToUTF16(contents));
   }
+  std::move(callback).Run(std::move(result));
 }
 
 // |data_dst| is not used. It's only passed to be consistent with other
 // platforms.
-void ClipboardIOS::ReadAsciiText(ClipboardBuffer buffer,
-                                 const DataTransferEndpoint* data_dst,
-                                 std::string* result) const {
+void ClipboardIOS::ReadAsciiText(
+    ClipboardBuffer buffer,
+    const std::optional<DataTransferEndpoint>& data_dst,
+    ReadAsciiTextCallback callback) const {
   DCHECK(CalledOnValidThread());
   DCHECK_EQ(buffer, ClipboardBuffer::kCopyPaste);
   RecordRead(ClipboardFormatMetric::kText);
 
+  std::string result;
   NSData* data = GetDataWithTypeFromPasteboard(
       GetPasteboard(), ClipboardFormatType::PlainTextType().ToNSString());
   if (data) {
     NSString* contents = [[NSString alloc] initWithData:data
                                                encoding:NSUTF8StringEncoding];
-    result->assign(base::SysNSStringToUTF8(contents));
+    result.assign(base::SysNSStringToUTF8(contents));
   }
+  std::move(callback).Run(std::move(result));
 }
 
 // |data_dst| is not used. It's only passed to be consistent with other
@@ -251,10 +255,7 @@ void ClipboardIOS::ReadRTF(ClipboardBuffer buffer,
   DCHECK_EQ(buffer, ClipboardBuffer::kCopyPaste);
   RecordRead(ClipboardFormatMetric::kRtf);
 
-  std::string result;
-  ReadData(ClipboardFormatType::RtfType(), base::OptionalToPtr(data_dst),
-           &result);
-  std::move(callback).Run(std::move(result));
+  ReadData(ClipboardFormatType::RtfType(), data_dst, std::move(callback));
 }
 
 // |data_dst| is not used. It's only passed to be consistent with other
@@ -327,42 +328,47 @@ void ClipboardIOS::ReadFilenames(
 
 // |data_dst| is not used. It's only passed to be consistent with other
 // platforms.
-void ClipboardIOS::ReadBookmark(const DataTransferEndpoint* data_dst,
-                                std::u16string* title,
-                                std::string* url) const {
+void ClipboardIOS::ReadBookmark(
+    const std::optional<DataTransferEndpoint>& data_dst,
+    ReadBookmarkCallback callback) const {
   DCHECK(CalledOnValidThread());
   RecordRead(ClipboardFormatMetric::kBookmark);
 
+  std::string url;
   NSData* url_data = GetDataWithTypeFromPasteboard(
       GetPasteboard(), ClipboardFormatType::UrlType().ToNSString());
   if (url_data) {
     NSString* contents = [[NSString alloc] initWithData:url_data
                                                encoding:NSUTF8StringEncoding];
-    url->assign(base::SysNSStringToUTF8(contents));
+    url.assign(base::SysNSStringToUTF8(contents));
   }
 
+  std::u16string title;
   NSData* title_data =
       GetDataWithTypeFromPasteboard(GetPasteboard(), kUTTypeUrlName);
   if (title_data) {
     NSString* contents = [[NSString alloc] initWithData:title_data
                                                encoding:NSUTF8StringEncoding];
-    title->assign(base::SysNSStringToUTF16(contents));
+    title.assign(base::SysNSStringToUTF16(contents));
   }
+  std::move(callback).Run(std::move(title), GURL(url));
 }
 
 // |data_dst| is not used. It's only passed to be consistent with other
 // platforms.
 void ClipboardIOS::ReadData(const ClipboardFormatType& format,
-                            const DataTransferEndpoint* data_dst,
-                            std::string* result) const {
+                            const std::optional<DataTransferEndpoint>& data_dst,
+                            ReadDataCallback callback) const {
   DCHECK(CalledOnValidThread());
   RecordRead(ClipboardFormatMetric::kData);
 
+  std::string result;
   NSData* data =
       GetDataWithTypeFromPasteboard(GetPasteboard(), format.ToNSString());
   if (data) {
-    result->assign(base::as_string_view(base::apple::NSDataToSpan(data)));
+    result.assign(base::as_string_view(base::apple::NSDataToSpan(data)));
   }
+  std::move(callback).Run(std::move(result));
 }
 
 // |data_src| is not used. It's only passed to be consistent with other

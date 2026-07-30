@@ -116,8 +116,8 @@ class SessionsRestoreFunction : public ExtensionFunction {
   ResponseValue GetRestoredTabResult(content::WebContents* contents);
   ResponseValue GetRestoredWindowResult(int window_id);
   ResponseAction RestoreMostRecentlyClosed(BrowserWindowInterface* browser);
-  ResponseValue RestoreLocalSession(const SessionId& session_id,
-                                    BrowserWindowInterface* browser);
+  ResponseAction RestoreLocalSession(const SessionId& session_id,
+                                     BrowserWindowInterface* browser);
   ResponseAction RestoreForeignSession(const SessionId& session_id,
                                        BrowserWindowInterface* browser);
   void OnRestoreForeignSessionWindows(
@@ -125,8 +125,9 @@ class SessionsRestoreFunction : public ExtensionFunction {
 
 #if BUILDFLAG(IS_ANDROID)
   // Uses JNI to query Java `RecentlyClosedEntitiesManager` for recently closed
-  // windows.
-  ResponseAction QueryRecentlyClosedEntitiesManager();
+  // windows. If instance_id is kInvalidWindowId it returns the most closed.
+  // Otherwise it only returns a window with a matching instance id.
+  ResponseAction QueryRecentlyClosedEntitiesManager(int instance_id);
 
   // Callback for `QueryRecentlyClosedEntitiesManager()`.
   void OnGetRecentlyClosedWindow(
@@ -160,6 +161,14 @@ class SessionsEventRouter : public sessions::TabRestoreServiceObserver {
       sessions::TabRestoreService* service) override;
 
  private:
+#if BUILDFLAG(IS_ANDROID)
+  // Callback for when the recently closed list is updated on the Java side.
+  void OnRecentlyClosedUpdated(int64_t j_browser_context);
+#endif  // BUILDFLAG(IS_ANDROID)
+
+  // Broadcasts the API OnChanged event to JS.
+  static void BroadcastOnChangedEvent(Profile* profile);
+
   raw_ptr<Profile> profile_;
 
   // TabRestoreService that we are observing.

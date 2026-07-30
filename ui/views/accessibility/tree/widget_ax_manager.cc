@@ -14,6 +14,7 @@
 #include "ui/accessibility/platform/browser_accessibility_manager.h"
 #include "ui/views/accessibility/tree/widget_view_ax_cache.h"
 #include "ui/views/accessibility/view_accessibility.h"
+#include "ui/views/widget/widget.h"
 
 #if BUILDFLAG(IS_WIN)
 #include <oleacc.h>
@@ -37,6 +38,9 @@ bool ShouldSerializeEvent(Event event_type) {
     // TODO(crbug.com/40672441): kFocus is only needed here for tests while
     // are migrating to ViewsAX.
     case Event::kFocus:
+    case Event::kWindowActivated:
+    case Event::kWindowDeactivated:
+    case Event::kWindowVisibilityChanged:
       return true;
     default:
       break;
@@ -90,9 +94,6 @@ bool ShouldSerializeEvent(Event event_type) {
     case Event::kTooltipClosed:
     case Event::kTooltipOpened:
     case Event::kValueChanged:
-    case Event::kWindowActivated:
-    case Event::kWindowDeactivated:
-    case Event::kWindowVisibilityChanged:
       return false;
     default:
       break;

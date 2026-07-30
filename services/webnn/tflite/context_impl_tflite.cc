@@ -58,6 +58,7 @@ ContextImplTflite::ContextImplTflite(
     bool is_incognito)
     : WebNNContextImpl(std::move(receiver),
                        std::move(context_provider),
+                       ContextBackendUma::kTFLite,
                        GraphBuilderTflite::GetContextProperties(),
                        std::move(options),
                        std::move(write_tensor_consumer),
@@ -134,7 +135,7 @@ ContextImplTflite::CreateTensorImpl(
         mojom::Error::New(mojom::Error::Code::kNotSupportedError,
                           "Creation of constant tensors is not supported."));
   }
-  return TensorImplTflite::Create(std::move(receiver), AsWeakPtr(),
+  return TensorImplTflite::Create(std::move(receiver), *this,
                                   std::move(tensor_info));
 }
 

@@ -112,7 +112,8 @@ class ComposeboxQueryController
 
   // Creates the AddedInputs proto for the given file tokens.
   lens::AddedInputs CreateAddedInputs(
-      const std::vector<base::UnguessableToken>& file_tokens);
+      const std::vector<base::UnguessableToken>& file_tokens,
+      bool include_files_without_lens_usage_intent);
 
   // Returns the string representation of the mime type, for use in calculating
   // the AddedInputs proto.
@@ -206,14 +207,16 @@ class ComposeboxQueryController
       lens::LensOverlayClientContext client_context,
       scoped_refptr<lens::RefCountedLensOverlayClientLogs> client_logs,
       RequestBodyProtoCreatedCallback callback,
+      std::optional<std::string> file_name,
       lens::ImageData image_data);
 
   // Creates the request body proto for an image and calls the callback with the
   // request.
   virtual void CreateImageUploadRequest(
       lens::LensOverlayRequestId request_id,
-      const std::vector<uint8_t>& image_data,
+      std::vector<uint8_t> image_data,
       std::optional<lens::ImageEncodingOptions> options,
+      std::optional<std::string> file_name,
       RequestBodyProtoCreatedCallback callback);
 
   // Returns the EndpointFetcher to use with the given params. Protected to
@@ -365,6 +368,7 @@ class ComposeboxQueryController
   void ProcessDecodedImageAndContinue(lens::LensOverlayRequestId request_id,
                                       const lens::ImageEncodingOptions& options,
                                       RequestBodyProtoCreatedCallback callback,
+                                      std::optional<std::string> file_name,
                                       const SkBitmap& bitmap);
 
   // Creates the request body protos for the file and viewport upload requests

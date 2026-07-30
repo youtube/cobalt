@@ -88,6 +88,11 @@ chromium-metrics-reviews@google.com.
       summary="the navigation opened in an incognito mode"/>
 </variants>
 
+<variants name="InitiatorOfNavigation">
+  <variant name=".BrowserInitiated" summary="browser-initiated navigation"/>
+  <variant name=".RendererInitiated" summary="renderer-initiated navigation"/>
+</variants>
+
 <variants name="LoadedIdleVisibility">
   <variant name="" summary="all pages"/>
   <variant name=".Background"
@@ -385,7 +390,6 @@ chromium-metrics-reviews@google.com.
   <variant name=".intro"/>
   <variant name=".kerberos-in-browser"/>
   <variant name=".launcher-internals"/>
-  <variant name=".legion-internals"/>
   <variant name=".lens"/>
   <variant name=".lens-overlay"/>
   <variant name=".linux-proxy-config"/>
@@ -438,6 +442,7 @@ chromium-metrics-reviews@google.com.
   <variant name=".privacy-sandbox-dialog"/>
   <variant name=".privacy-sandbox-internals"/>
   <variant name=".private-aggregation-internals"/>
+  <variant name=".private-ai-internals"/>
   <variant name=".process-internals"/>
   <variant name=".profile-customization"/>
   <variant name=".profile-picker"/>
@@ -1639,6 +1644,19 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
+<histogram
+    name="PageLoad.Clients.GoogleSearch.HadPriorPrewarmCommitStatus{InitiatorOfNavigation}"
+    enum="PriorPrewarmCommitStatus" expires_after="2026-06-28">
+  <owner>suzukikeita@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <summary>
+    The status of whether the DSEPrewarm feature was ever triggered on the same
+    renderer process host. This is recorded once, when a Google search page is
+    committed for {InitiatorOfNavigation}.
+  </summary>
+  <token key="InitiatorOfNavigation" variants="InitiatorOfNavigation"/>
+</histogram>
+
 <histogram name="PageLoad.Clients.GoogleSearch.HttpNetworkSessionQuicEnabled"
     enum="Boolean" expires_after="2026-08-02">
   <owner>bashi@chromium.org</owner>
@@ -2168,15 +2186,16 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
-    name="PageLoad.Clients.GoogleSearch.Prerender.PrewarmNavigationStatus"
+    name="PageLoad.Clients.GoogleSearch.Prerender.PrewarmNavigationStatus{InitiatorOfNavigation}"
     enum="PrerenderPrewarmNavigationStatus" expires_after="2026-06-28">
   <owner>suzukikeita@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
     The status of whether the DSEPrewarm feature was triggered before the
     prerender host reuse happened. This is recorded once, when a prerendered
-    page is activated for Google search page loads.
+    page is activated for Google search page loads for {InitiatorOfNavigation}.
   </summary>
+  <token key="InitiatorOfNavigation" variants="InitiatorOfNavigation"/>
 </histogram>
 
 <histogram
@@ -2191,6 +2210,18 @@ chromium-metrics-reviews@google.com.
     this is only recorded for HTTP/2 and HTTP/3.
   </summary>
   <token key="ConnectionProtocolType" variants="ConnectionProtocolType"/>
+</histogram>
+
+<histogram
+    name="PageLoad.Clients.GoogleSearch.SiteInstanceProcessAssignment{InitiatorOfNavigation}"
+    enum="SiteInstanceProcessAssignment" expires_after="2026-06-28">
+  <owner>suzukikeita@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <summary>
+    Records how the main frame's SiteInstance was assigned a renderer process.
+    This is recorded once, when a Google search page is committed.
+  </summary>
+  <token key="InitiatorOfNavigation" variants="InitiatorOfNavigation"/>
 </histogram>
 
 <histogram name="PageLoad.Clients.GoogleSearch.WarmUpType" enum="GwsWarmUpType"
@@ -2727,58 +2758,8 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
-    name="PageLoad.Clients.PerformanceManager.LCPToLoadedIdle{LoadedIdleVisibility}"
-    units="ms" expires_after="2026-08-09">
-  <owner>joenotcharles@google.com</owner>
-  <owner>catan-team@chromium.org</owner>
-  <summary>
-    Recorded for each navigation when the LargestContentfulPaint (LCP) is
-    available and the navigation reaches quiescence, as tracked by the
-    Performance Manager PageNode::LoadingState::kLoadedIdle state. The value is
-    the time between LCP and quiescence, or 0 if quiescence came first. This
-    version of the metric is recorded for navigations in {LoadedIdleVisibility}.
-  </summary>
-  <token key="LoadedIdleVisibility" variants="LoadedIdleVisibility"/>
-</histogram>
-
-<histogram
-    name="PageLoad.Clients.PerformanceManager.LCPWithoutLoadedIdle{LoadedIdleVisibility}"
-    units="ms" expires_after="2026-04-05">
-  <owner>joenotcharles@google.com</owner>
-  <owner>catan-team@chromium.org</owner>
-  <summary>
-    Recorded for each navigation when the LargestConentfulPaint (LCP) is
-    available and the navigation finishes without reaching quiescence (as
-    tracked by the Performance Manager PageNode::LoadingState::kLoadedIdle
-    state), such as by the page closing or a new navigation starting. The value
-    is the time from navigation start to LCP. If the navigation reaches
-    quiescense, PageLoad.Clients.PerformanceManager.LCPToLoadedIdle is recorded
-    instead. This version of the metric is recorded for navigations in
-    {LoadedIdleVisibility}.
-  </summary>
-  <token key="LoadedIdleVisibility" variants="LoadedIdleVisibility"/>
-</histogram>
-
-<histogram
-    name="PageLoad.Clients.PerformanceManager.LoadedIdleWithoutLCP{LoadedIdleVisibility}"
-    units="ms" expires_after="2026-02-01">
-  <owner>joenotcharles@google.com</owner>
-  <owner>catan-team@chromium.org</owner>
-  <summary>
-    Recorded for each navigation when it reaches quiescence, as tracked by the
-    Performance Manager PageNode::LoadingState::kLoadedIdle state, without the
-    LargestContentfulPaint (LCP) being available. The value is the time from
-    navigation start to quiescence. If the navigation gets an LCP before
-    reaching quiescense, PageLoad.Clients.PerformanceManager.LCPToLoadedIdle is
-    recorded instead. This version of the metric is recorded for navigations in
-    {LoadedIdleVisibility}.
-  </summary>
-  <token key="LoadedIdleVisibility" variants="LoadedIdleVisibility"/>
-</histogram>
-
-<histogram
     name="PageLoad.Clients.PerformanceManager.NavigationToLoadedIdle{LoadedIdleVisibility}"
-    units="ms" expires_after="2026-04-05">
+    units="ms" expires_after="2027-04-05">
   <owner>joenotcharles@google.com</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -2794,7 +2775,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.PerformanceManager.NavigationWithoutLoadedIdle{LoadedIdleVisibility}"
-    units="ms" expires_after="2026-04-05">
+    units="ms" expires_after="2027-04-05">
   <owner>joenotcharles@google.com</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>

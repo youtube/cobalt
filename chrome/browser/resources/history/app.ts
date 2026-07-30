@@ -15,7 +15,7 @@ import './history_sync_promo.js';
 // </if>
 import './history_list.js';
 import './history_toolbar.js';
-import './filter_chips.js';
+import './history_filter_chips.js';
 import './query_manager.js';
 import './router.js';
 import './side_bar.js';
@@ -183,8 +183,7 @@ export class HistoryAppElement extends HistoryAppElementBase {
   accessor footerInfo: FooterInfo = {
     managed: loadTimeData.getBoolean('isManaged'),
     otherFormsOfHistory: false,
-    geminiAppsActivity: loadTimeData.getBoolean('isGlicEnabled') &&
-        loadTimeData.getBoolean('enableBrowsingHistoryActorIntegrationM1'),
+    geminiAppsActivity: loadTimeData.getBoolean('isGlicEnabled'),
   };
   protected accessor enableHistoryEmbeddings_: boolean =
       loadTimeData.getBoolean('enableHistoryEmbeddings');
@@ -659,7 +658,15 @@ export class HistoryAppElement extends HistoryAppElementBase {
     }
   }
 
-  protected updateScrollTarget_() {
+  protected onContentIronSelect_() {
+    this.updateScrollTarget_();
+  }
+
+  protected onTabsContentIronSelect_() {
+    this.updateScrollTarget_();
+  }
+
+  private updateScrollTarget_() {
     const topLevelIronPages = this.$.content;
     const topLevelHistoryPage = this.$.tabsContainer;
     if (topLevelIronPages.selectedItem &&
@@ -806,6 +813,10 @@ export class HistoryAppElement extends HistoryAppElementBase {
     });
   }
 
+  protected onHistoryEmbeddingsDisclaimerLinkAuxclick_() {
+    this.onHistoryEmbeddingsDisclaimerLinkClick_();
+  }
+
   protected onHistoryEmbeddingsDisclaimerLinkClick_() {
     this.historyEmbeddingsDisclaimerLinkClicked_ = true;
   }
@@ -818,7 +829,7 @@ export class HistoryAppElement extends HistoryAppElementBase {
         {search: 'host:' + new URL(historyEmbeddingsItem.url).hostname});
   }
 
-  protected onHistoryEmbeddingsItemRemoveClick_(
+  protected onHistoryEmbeddingsItemRemoveItemClick_(
       e: HistoryEmbeddingsMoreActionsClickEvent) {
     const historyEmbeddingsItem = e.detail;
     this.pageHandler_.removeVisits([{
@@ -853,7 +864,7 @@ export class HistoryAppElement extends HistoryAppElementBase {
     this.selectedPage_ = e.detail.value;
   }
 
-  protected onToolbarSearchInputNativeBeforeInput_(
+  protected onToolbarSearchTermNativeBeforeInput_(
       e: CustomEvent<{e: InputEvent}>) {
     // TODO(crbug.com/40673976): This needs to be cached on the `beforeinput`
     //   event since there is a bug where this data is not available in the
@@ -861,7 +872,7 @@ export class HistoryAppElement extends HistoryAppElementBase {
     this.dataFromNativeBeforeInput_ = e.detail.e.data;
   }
 
-  protected onToolbarSearchInputNativeInput_(
+  protected onToolbarSearchTermNativeInput_(
       e: CustomEvent<{e: InputEvent, inputValue: string}>) {
     const insertedText = this.dataFromNativeBeforeInput_;
     this.dataFromNativeBeforeInput_ = null;
@@ -879,12 +890,16 @@ export class HistoryAppElement extends HistoryAppElementBase {
     }
   }
 
-  protected onToolbarSearchCleared_() {
+  protected onToolbarSearchTermCleared_() {
     this.numCharsTypedInSearch_ = 0;
   }
 
   protected onListPendingDeleteChanged_(e: CustomEvent<{value: boolean}>) {
     this.pendingDelete_ = e.detail.value;
+  }
+
+  protected onTabsSelectedChanged_(e: CustomEvent<{value: number}>) {
+    this.onSelectedTabChanged_(e);
   }
 
   protected onSelectedTabChanged_(e: CustomEvent<{value: number}>) {
@@ -895,7 +910,7 @@ export class HistoryAppElement extends HistoryAppElementBase {
     this.historyClustersVisible_ = e.detail.value;
   }
 
-  protected onFilterChipsChanged_(
+  protected onFilterChanged_(
       e: CustomEvent<{userVisits: boolean, actorVisits: boolean}>) {
     this.includeUserVisits_ = e.detail.userVisits;
     this.includeActorVisits_ = e.detail.actorVisits;

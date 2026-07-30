@@ -70,6 +70,7 @@ include_rules = [
   "+components/breadcrumbs/core",
   "+components/browser_apis/browser_controls",
   "+components/browser_apis/tab_strip",
+  "+components/browser_apis/ui_controllers",
   "+components/browser_sync",
   "+components/browser_ui/accessibility",
   "+components/browser_ui/desktop_windowing/android",
@@ -590,9 +591,6 @@ specific_include_rules = {
     "+services/network/cookie_manager.h",
     "+services/network/network_context.h",
     "+services/network/network_service.h",
-  ],
-  r"chrome_content_browser_client_receiver_bindings\.cc" : [
-    "+chrome/browser/performance_manager/mechanisms/userspace_swap_chromeos.h",
   ],
   r"chrome_content_browser_client\.cc" : [
     "+ash/shell.h",

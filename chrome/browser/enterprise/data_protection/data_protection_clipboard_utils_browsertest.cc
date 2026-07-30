@@ -77,7 +77,7 @@ class DataControlsClipboardUtilsBrowserTest
  public:
   DataControlsClipboardUtilsBrowserTest() {
     std::vector<base::test::FeatureRef> enabled_features = {
-        enterprise_connectors::kEnterpriseActiveUserDetection,
+        data_controls::kDataControlsDragEnforcement,
     };
     std::vector<base::test::FeatureRef> disabled_features = {};
 
@@ -85,8 +85,6 @@ class DataControlsClipboardUtilsBrowserTest
                              policy::kUploadRealtimeReportingEventsUsingProto)
                        : disabled_features.push_back(
                              policy::kUploadRealtimeReportingEventsUsingProto);
-
-    enabled_features.push_back(data_controls::kDataControlsDragEnforcement);
 
     scoped_feature_list_.InitWithFeatures(enabled_features, disabled_features);
     active_user_test_mixin_ =
@@ -2164,8 +2162,9 @@ IN_PROC_BROWSER_TEST_P(DataControlsClipboardUtilsBrowserTest,
 IN_PROC_BROWSER_TEST_P(DataControlsClipboardUtilsBrowserTest, FindBar_Paste) {
   // Without any restriction, text pasted in the find bar will be replaced if
   // necessary.
-  auto paste_replacement = ReplacePasteToFindBar(contents());
-  EXPECT_FALSE(paste_replacement);
+  base::test::TestFuture<std::optional<std::u16string>> replace_future;
+  ReplacePasteToFindBar(contents(), replace_future.GetCallback());
+  EXPECT_FALSE(replace_future.Get());
 
   {
     ui::ScopedClipboardWriter writer(ui::ClipboardBuffer::kCopyPaste,
@@ -2181,7 +2180,9 @@ IN_PROC_BROWSER_TEST_P(DataControlsClipboardUtilsBrowserTest, FindBar_Paste) {
       ->AddDataToNextSeqno(data);
   ui::ClipboardMonitor::GetInstance()->NotifyClipboardDataChanged();
 
-  paste_replacement = ReplacePasteToFindBar(contents());
+  base::test::TestFuture<std::optional<std::u16string>> replace_future2;
+  ReplacePasteToFindBar(contents(), replace_future2.GetCallback());
+  auto paste_replacement = replace_future2.Get();
   EXPECT_TRUE(paste_replacement);
   EXPECT_EQ(*paste_replacement, u"replaced");
 
@@ -2198,8 +2199,9 @@ IN_PROC_BROWSER_TEST_P(DataControlsClipboardUtilsBrowserTest, FindBar_Paste) {
                                  })"},
                                  machine_scope());
 
-  paste_replacement = ReplacePasteToFindBar(contents());
-  EXPECT_FALSE(paste_replacement);
+  base::test::TestFuture<std::optional<std::u16string>> replace_future3;
+  ReplacePasteToFindBar(contents(), replace_future3.GetCallback());
+  EXPECT_FALSE(replace_future3.Get());
 }
 
 IN_PROC_BROWSER_TEST_P(DataControlsClipboardUtilsBrowserTest, DragAllowed) {

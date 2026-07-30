@@ -184,11 +184,14 @@ try_.builder(
             "components/cast/.+",
             "components/cast_receiver/.+",
             "components/cast_streaming/.+",
+            r"components/viz/common/display/overlay_strategy\.h",
+            r"components/viz/service/display/overlay_strategy_underlay\.h",
             "third_party/cast_core/.+",
             "third_party/openscreen/.+",
             r"ui/events/platform/platform_event_dispatcher\.h",
             r"ui/gfx/client_native_pixmap\.h",
             r"ui/gfx/client_native_pixmap_factory\.h",
+            r"ui/gfx/native_pixmap\.h",
             r"ui/gl/gl_surface_egl\.h",
             r"ui/ozone/common/gl_ozone_egl\.h",
             "ui/ozone/platform/cast/.+",
@@ -978,6 +981,21 @@ try_.builder(
             cq.location_filter(path_regexp = "media/gpu/v4l2/.+"),
         ],
     ),
+)
+
+try_.builder(
+    name = "linux-webium-product-rel",
+    mirrors = [
+        "ci/linux-webium-product-rel",
+    ],
+    gn_args = gn_args.config(
+        configs = [
+            "ci/Linux Builder",
+            "release_try_builder",
+        ],
+    ),
+    contact_team_email = "chrome-webium-product-eng@google.com",
+    siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
 )
 
 try_.builder(

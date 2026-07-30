@@ -255,6 +255,10 @@ source_set("web_applications") {
     "model/display_override.h",
     "model/localized_text.cc",
     "model/localized_text.h",
+    "model/migration_behavior.cc",
+    "model/migration_behavior.h",
+    "model/pending_migration_info.cc",
+    "model/pending_migration_info.h",
     "model/web_app_comparison.cc",
     "model/web_app_comparison.h",
     "navigation_capturing_log.cc",
@@ -329,6 +333,8 @@ source_set("web_applications") {
     "scheduler/install_migrate_to_app_result.h",
     "scheduler/manifest_silent_update_result.cc",
     "scheduler/manifest_silent_update_result.h",
+    "scheduler/navigate_and_trigger_install_dialog_result.cc",
+    "scheduler/navigate_and_trigger_install_dialog_result.h",
     "scheduler/web_app_install_from_migrate_from_field_result.cc",
     "scheduler/web_app_install_from_migrate_from_field_result.h",
     "scope_extension_info.cc",
@@ -1264,7 +1270,6 @@ source_set("web_applications_browser_tests") {
     "web_app_automation_browsertest.cc",
     "web_app_browser_controller_browsertest.cc",
     "web_app_icon_manager_browsertest.cc",
-    "web_app_internals_browsertest.cc",
     "web_app_link_capturing_parameterized_browsertest.cc",
     "web_app_navigation_capturing_browsertest_base.cc",
     "web_app_navigation_capturing_browsertest_base.h",
@@ -1272,6 +1277,10 @@ source_set("web_applications_browser_tests") {
     "web_app_scope_extensions_browsertest.cc",
     "web_install_browsertest.cc",
   ]
+
+  if (!is_win) {
+    sources += [ "web_app_internals_browsertest.cc" ]
+  }
 
   if (!is_chromeos) {
     sources += [

@@ -2185,6 +2185,18 @@ TEST_F(
                    .IsAutofillHasSeenBnplPrefEnabled());
 }
 
+TEST_F(BnplManagerTest, OnSuggestionsShown_CreditCardFormEventLoggerNotified) {
+  base::test::ScopedFeatureList scoped_feature_list{
+      features::kAutofillEnableAiBasedAmountExtraction};
+
+  std::vector<Suggestion> suggestions = {
+      Suggestion(SuggestionType::kCreditCardEntry),
+      Suggestion(SuggestionType::kBnplEntry)};
+
+  EXPECT_CALL(*credit_card_form_event_logger_, OnBnplSuggestionShown());
+  bnpl_manager_->OnSuggestionsShown(suggestions, base::DoNothing());
+}
+
 TEST_F(
     BnplManagerTest,
     OnSuggestionsShown_BnplPrefNotUpdatedWhenAiBasedAmountExtractionDisabled) {
@@ -2890,6 +2902,20 @@ TEST_F(BnplManagerTest, LogAiAmountExtractedInIssuerRange_LogsOnlyOnce) {
           kEntryName);
   ASSERT_EQ(1u, entries.size());
 }
+
+TEST_F(BnplManagerTest,
+       OnAmountExtractionReturnedFromAi_RemoveSelectBnplIssuerOrProgressUi) {
+  bnpl_manager_->OnDidAcceptBnplSuggestion(
+      /*final_checkout_amount=*/std::nullopt,
+      /*on_bnpl_vcn_fetched_callback=*/base::DoNothing());
+
+  EXPECT_CALL(GetBnplUiDelegate(), RemoveSelectBnplIssuerOrProgressUi)
+      .Times(ShouldCloseViewBeforeSwitching() ? 1 : 0);
+
+  bnpl_manager_->OnAmountExtractionReturnedFromAi(
+      base::unexpected(AiAmountExtractionResult::Error::kTimeout));
+}
+
 #endif  // !BUILDFLAG(IS_IOS)
 
 }  // namespace autofill::payments

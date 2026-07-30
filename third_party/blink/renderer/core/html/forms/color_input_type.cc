@@ -67,11 +67,9 @@ static const char kBlackColorValue[] = "#000000";
 static const char kFallbackColorValue[] = "#000000";
 
 static bool IsValidColorString(const String& value) {
-  if (value.empty())
+  if (!value.starts_with('#')) {
     return false;
-  if (value[0] != '#')
-    return false;
-
+  }
   // We don't accept #rgb and #aarrggbb formats.
   if (value.length() != 7)
     return false;
@@ -231,12 +229,13 @@ bool ColorInputType::TypeMismatchFor(const String& value) const {
 }
 
 void ColorInputType::WarnIfValueIsInvalid(const String& value) const {
-  if (!EqualIgnoringASCIICase(value, GetElement().SanitizeValue(value)))
+  if (!EqualIgnoringAsciiCase(value, GetElement().SanitizeValue(value))) {
     AddWarningToConsole(
         "The specified value %s does not conform to the required format.  The "
         "format is \"#rrggbb\" where rr, gg, bb are two-digit hexadecimal "
         "numbers.",
         value);
+  }
 }
 
 void ColorInputType::ValueAttributeChanged() {

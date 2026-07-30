@@ -47,6 +47,7 @@ enum SkiaBackendType {
   kGraphiteDawnMetal,
   kGraphiteDawnD3D11,
   kGraphiteDawnD3D12,
+  kGraphiteDawnOpenGLES,
 };
 
 // LINT.IfChange(VideoCodecProfile)
@@ -115,28 +116,6 @@ struct VideoEncodeAcceleratorSupportedProfile {
   gfx.mojom.Size max_resolution;
   uint32 max_framerate_numerator;
   uint32 max_framerate_denominator;
-};
-
-// gpu::ImageDecodeAcceleratorType
-enum ImageDecodeAcceleratorType {
-  kJpeg,
-  kWebP,
-  kUnknown,
-};
-
-// gpu::ImageDecodeAcceleratorSubsampling
-enum ImageDecodeAcceleratorSubsampling {
-  k420,
-  k422,
-  k444,
-};
-
-// gpu::ImageDecodeAcceleratorSupportedProfile
-struct ImageDecodeAcceleratorSupportedProfile {
-  ImageDecodeAcceleratorType image_type;
-  gfx.mojom.Size min_encoded_dimensions;
-  gfx.mojom.Size max_encoded_dimensions;
-  array<ImageDecodeAcceleratorSubsampling> subsamplings;
 };
 
 // gpu::OverlaySupport

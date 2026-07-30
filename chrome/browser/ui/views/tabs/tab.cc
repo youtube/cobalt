@@ -25,6 +25,8 @@
 #include "cc/paint/paint_flags.h"
 #include "cc/paint/paint_recorder.h"
 #include "cc/paint/paint_shader.h"
+#include "chrome/browser/glic/browser_ui/tab_underline_view.h"
+#include "chrome/browser/glic/browser_ui/tab_underline_view_controller_impl.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/themes/theme_properties.h"
 #include "chrome/browser/ui/browser.h"
@@ -99,6 +101,7 @@
 #include "ui/views/view.h"
 #include "ui/views/view_class_properties.h"
 #include "ui/views/view_targeter.h"
+#include "ui/views/view_utils.h"
 #include "ui/views/widget/tooltip_manager.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/window/frame_view.h"
@@ -109,11 +112,6 @@
 
 #if defined(USE_AURA)
 #include "ui/aura/env.h"
-#endif
-
-#if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/glic/browser_ui/tab_underline_view.h"
-#include "chrome/browser/glic/browser_ui/tab_underline_view_controller_impl.h"
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -207,6 +205,9 @@ class Tab::TabCloseButtonObserver : public views::ViewObserver {
   void OnViewFocused(views::View* observed_view) override {
     controller_->UpdateHoverCard(
         tab_, TabSlotController::HoverCardUpdateType::kFocus);
+    if (base::FeatureList::IsEnabled(features::kDesktopGlowUp)) {
+      tab_->InvalidateLayout();
+    }
   }
 
   void OnViewBlurred(views::View* observed_view) override {
@@ -214,6 +215,9 @@ class Tab::TabCloseButtonObserver : public views::ViewObserver {
     if (!controller_->IsFocusInTabs()) {
       controller_->UpdateHoverCard(
           nullptr, TabSlotController::HoverCardUpdateType::kFocus);
+    }
+    if (base::FeatureList::IsEnabled(features::kDesktopGlowUp)) {
+      tab_->InvalidateLayout();
     }
   }
 
@@ -271,7 +275,6 @@ Tab::Tab(tabs::TabHandle handle, TabSlotController* controller)
   alert_indicator_button_ =
       AddChildView(std::make_unique<AlertIndicatorButton>(this));
 
-#if BUILDFLAG(ENABLE_GLIC)
   BrowserWindowInterface* const browser_window_interface =
       controller_->GetBrowserWindowInterface();
   if (browser_window_interface &&
@@ -286,7 +289,6 @@ Tab::Tab(tabs::TabHandle handle, TabSlotController* controller)
                 browser_window_interface, tab_handle_))
             .Build());
   }
-#endif
 
   // Unretained is safe here because this class outlives its close button, and
   // the controller outlives this Tab.
@@ -373,7 +375,6 @@ void Tab::Layout(PassKey) {
 
   const int start = contents_rect.x();
 
-#if BUILDFLAG(ENABLE_GLIC)
   // Position the underline under the tab contents.
   constexpr int kGlicUnderlineYOffset = 8;
   if (glic_tab_underline_view_) {
@@ -385,7 +386,6 @@ void Tab::Layout(PassKey) {
     glic_bounds.set_width(size().width());
     glic_tab_underline_view_->SetBoundsRect(glic_bounds);
   }
-#endif
 
   // The bounds for the favicon will include extra width for the attention
   // indicator, but visually it will be smaller at kFaviconSize wide.
@@ -586,7 +586,8 @@ bool Tab::OnMousePressed(const ui::MouseEvent& event) {
     // the location of the event may no longer be valid. Create a copy of the
     // event in the parents coordinate, which won't change, and recreate an
     // event after changing so the coordinates are correct.
-    ui::MouseEvent event_in_parent(event, static_cast<View*>(this), parent());
+    ui::MouseEvent event_in_parent(event, views::AsViewClass<View>(this),
+                                   parent());
     if (event.IsShiftDown() && IsSelectionModifierDown(event)) {
       controller_->AddSelectionFromAnchorTo(this);
     } else if (event.IsShiftDown()) {
@@ -602,7 +603,7 @@ bool Tab::OnMousePressed(const ui::MouseEvent& event) {
       base::RecordAction(UserMetricsAction("SwitchTab_Click"));
     }
     ui::MouseEvent cloned_event(event_in_parent, parent(),
-                                static_cast<View*>(this));
+                                views::AsViewClass<View>(this));
 
     if (!closing()) {
       controller_->MaybeStartDrag(this, cloned_event, original_selection);
@@ -732,7 +733,7 @@ void Tab::OnGestureEvent(ui::GestureEvent* event) {
       DCHECK_EQ(1, event->details().touch_points());
 
       // See comment in OnMousePressed() as to why we copy the event.
-      ui::GestureEvent event_in_parent(*event, static_cast<View*>(this),
+      ui::GestureEvent event_in_parent(*event, views::AsViewClass<View>(this),
                                        parent());
       ui::ListSelectionModel original_selection =
           controller_->GetSelectionModel();
@@ -742,7 +743,7 @@ void Tab::OnGestureEvent(ui::GestureEvent* event) {
       gfx::Point loc(event->location());
       views::View::ConvertPointToScreen(this, &loc);
       ui::GestureEvent cloned_event(event_in_parent, parent(),
-                                    static_cast<View*>(this));
+                                    views::AsViewClass<View>(this));
 
       if (!closing()) {
 #if BUILDFLAG(IS_WIN)
@@ -857,6 +858,9 @@ void Tab::OnFocus() {
   controller_->TabKeyboardFocusChangedTo(tab_handle_.Get());
   controller_->UpdateHoverCard(this,
                                TabSlotController::HoverCardUpdateType::kFocus);
+  if (base::FeatureList::IsEnabled(features::kDesktopGlowUp)) {
+    InvalidateLayout();
+  }
 }
 
 void Tab::OnBlur() {
@@ -867,6 +871,9 @@ void Tab::OnBlur() {
   if (!controller_->IsFocusInTabs()) {
     controller_->UpdateHoverCard(
         nullptr, TabSlotController::HoverCardUpdateType::kFocus);
+  }
+  if (base::FeatureList::IsEnabled(features::kDesktopGlowUp)) {
+    InvalidateLayout();
   }
 }
 
@@ -1126,7 +1133,6 @@ void Tab::UpdateIconVisibility() {
            ? alert_indicator_button_->showing_alert_state()
            : tabs::TabAlertController::GetAlertStateToShow(data().alert_state))
           .has_value();
-#if BUILDFLAG(ENABLE_GLIC)
   std::optional<tabs::TabAlert> current_alert_state =
       alert_indicator_button_->showing_alert_state();
   if (glic_tab_underline_view_ &&
@@ -1137,7 +1143,6 @@ void Tab::UpdateIconVisibility() {
     // hidden.
     has_alert_icon = false;
   }
-#endif
 
   is_animating_from_pinned_ &= animating();
 
@@ -1208,11 +1213,16 @@ void Tab::UpdateIconVisibility() {
       available_width -= favicon_width;
     }
 
+    const bool is_decluttered =
+        base::FeatureList::IsEnabled(features::kDesktopGlowUp) &&
+        controller_->GetTabCount() >= TabStyle::kTabStripDeclutterMinTabs;
     showing_close_button_ =
 #if BUILDFLAG(IS_CHROMEOS)
         should_show_close_button &&
 #endif
-        large_enough_for_close_button;
+        large_enough_for_close_button &&
+        (!is_decluttered || mouse_hovered_ || HasFocus() ||
+         (close_button_ && close_button_->HasFocus()));
     if (showing_close_button_) {
       available_width -= close_button_width;
     }

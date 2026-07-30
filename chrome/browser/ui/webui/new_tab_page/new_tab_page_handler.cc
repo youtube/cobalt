@@ -35,6 +35,8 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/desktop_to_mobile_promos/promos_pref_names.h"
+#include "chrome/browser/desktop_to_mobile_promos/promos_utils.h"
 #include "chrome/browser/enterprise/util/managed_browser_utils.h"
 #include "chrome/browser/new_tab_page/feature_promo_helper/new_tab_page_feature_promo_helper.h"
 #include "chrome/browser/new_tab_page/microsoft_auth/microsoft_auth_service.h"
@@ -46,8 +48,6 @@
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/promos/promos_pref_names.h"
-#include "chrome/browser/promos/promos_utils.h"
 #include "chrome/browser/search/background/ntp_custom_background_service.h"
 #include "chrome/browser/search/background/ntp_custom_background_service_factory.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
@@ -1199,13 +1199,6 @@ void NewTabPageHandler::OnLogoAvailable(
     }
     image_doodle->share_url = logo->metadata.short_link;
     doodle->image = std::move(image_doodle);
-  } else if (logo->metadata.type ==
-             search_provider_logos::LogoType::INTERACTIVE) {
-    auto interactive_doodle = new_tab_page::mojom::InteractiveDoodle::New();
-    interactive_doodle->url = logo->metadata.full_page_url;
-    interactive_doodle->width = logo->metadata.iframe_width_px;
-    interactive_doodle->height = logo->metadata.iframe_height_px;
-    doodle->interactive = std::move(interactive_doodle);
   } else {
     std::move(callback).Run(nullptr);
     return;

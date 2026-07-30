@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.dragdrop;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
+import static org.chromium.chrome.browser.tabwindow.TabWindowManager.INVALID_WINDOW_ID;
 
 import android.app.Activity;
 import android.content.Context;
@@ -12,6 +13,7 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.SystemClock;
+import android.provider.Browser;
 
 import androidx.annotation.VisibleForTesting;
 
@@ -39,14 +41,11 @@ import org.chromium.ui.dragdrop.DragDropMetricUtils.UrlIntentSource;
 import java.util.List;
 
 /** A helper activity for routing Chrome tab, tab group and link drag & drop launcher intents. */
-// TODO (crbug/331865433): Consider removing use of this trampoline activity.
 @NullMarked
 public class DragAndDropLauncherActivity extends Activity {
     static final String ACTION_DRAG_DROP_VIEW = "org.chromium.chrome.browser.dragdrop.action.VIEW";
     static final String LAUNCHED_FROM_LINK_USER_ACTION = "MobileNewInstanceLaunchedFromDraggedLink";
     static final String LAUNCHED_FROM_TAB_USER_ACTION = "MobileNewInstanceLaunchedFromDraggedTab";
-    static final String LAUNCHED_FROM_MULTI_TAB_USER_ACTION =
-            "MobileNewInstanceLaunchedFromDraggedMultiTab";
     static final String LAUNCHED_FROM_TAB_GROUP_USER_ACTION =
             "MobileNewInstanceLaunchedFromDraggedTabGroup";
 
@@ -196,17 +195,21 @@ public class DragAndDropLauncherActivity extends Activity {
     }
 
     private static Intent setupIntent(Context context, int destWindowId) {
-        Intent intent =
-                MultiWindowUtils.createNewWindowIntent(
-                        context.getApplicationContext(),
-                        destWindowId,
-                        /* preferNew= */ true,
-                        /* openAdjacently= */ false,
-                        /* addTrustedIntentExtras= */ false,
-                        NewWindowAppSource.OTHER);
-        intent.setClass(context, DragAndDropLauncherActivity.class);
+        Intent intent = new Intent(context, DragAndDropLauncherActivity.class);
         intent.setAction(DragAndDropLauncherActivity.ACTION_DRAG_DROP_VIEW);
         intent.addCategory(Intent.CATEGORY_BROWSABLE);
+
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        intent.addFlags(Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
+
+        if (destWindowId != INVALID_WINDOW_ID) {
+            intent.putExtra(IntentHandler.EXTRA_WINDOW_ID, destWindowId);
+        }
+        intent.putExtra(IntentHandler.EXTRA_PREFER_NEW, true);
+        intent.putExtra(Browser.EXTRA_APPLICATION_ID, context.getPackageName());
+        intent.putExtra(Browser.EXTRA_CREATE_NEW_TAB, true);
+        intent.putExtra(
+                IntentHandler.EXTRA_NEW_WINDOW_APP_SOURCE, NewWindowAppSource.DRAG_DROP_LAUNCHER);
         return intent;
     }
 

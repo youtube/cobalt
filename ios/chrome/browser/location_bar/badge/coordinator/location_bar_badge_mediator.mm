@@ -21,7 +21,7 @@
 #import "ios/chrome/browser/infobars/model/infobar_badge_tab_helper_observer_bridge.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_tab_helper.h"
-#import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
+#import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/location_bar/badge/coordinator/location_bar_badge_mediator_delegate.h"
 #import "ios/chrome/browser/location_bar/badge/metrics/location_bar_badge_metrics.h"
@@ -319,20 +319,25 @@ const int kStartCollapseTransitionTimeInSeconds = 5;
   [self resetTimersAndUIStateAnimated:YES];
 
   switch (badgeConfig.badgeType) {
-    case LocationBarBadgeType::kGeminiContextualCueChip:
+    case LocationBarBadgeType::kGeminiContextualCueChip: {
+      NSString* prompt = nil;
       if (IsAskGeminiChipPrepopulateFloatyEnabled()) {
-        BwgTabHelper* BWGTabHelper =
-            BwgTabHelper::FromWebState(_activeWebState);
-        if (BWGTabHelper) {
-          BWGTabHelper->SetContextualCueLabel(
-              l10n_util::GetNSString(IDS_IOS_ASK_GEMINI_CHIP_PREFILL_PROMPT));
-        }
+        prompt = l10n_util::GetNSString(IDS_IOS_ASK_GEMINI_CHIP_PREFILL_PROMPT);
       }
-      [self.BWGCommandHandler
-          startGeminiFlowWithEntryPoint:gemini::EntryPoint::OmniboxChip];
+
+      GeminiStartupState* state = [[GeminiStartupState alloc]
+          initWithEntryPoint:gemini::EntryPoint::OmniboxChip];
+      state.prepopulatedPrompt = prompt;
+      [self.BWGCommandHandler startGeminiFlowWithStartupState:state];
       _tracker->NotifyEvent(
           feature_engagement::events::kIOSGeminiContextualCueChipUsed);
+
+      // Ensure badge is hidden after the user interacts with it.
+      if ([self.consumer isBadgeVisible]) {
+        [self.consumer hideBadge];
+      }
       break;
+    }
     case LocationBarBadgeType::kContextualPanelEntryPointSample:
     case LocationBarBadgeType::kPriceInsights:
     case LocationBarBadgeType::kReaderMode:

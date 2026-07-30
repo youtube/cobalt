@@ -40,6 +40,7 @@ using size_type = SessionCommand::size_type;
 namespace {
 
 using SessionCommands = std::vector<std::unique_ptr<SessionCommand>>;
+using SessionType = CommandStorageManager::SessionType;
 
 struct TestData {
   SessionCommand::id_type command_id;
@@ -136,7 +137,11 @@ class CommandStorageBackendTest : public testing::Test {
                          .AppendASCII("data")
                          .AppendASCII("sessions");
     test_file_path = test_file_path.AppendASCII(test_data_filename);
-    return base::CopyFile(test_file_path, file_path());
+    return base::CopyFile(test_file_path,
+                          file_path()
+                              .InsertBeforeExtension(kTimestampSeparator)
+                              // 1234 is a dummy timestamp.
+                              .InsertBeforeExtensionUTF8("1234"));
   }
 
   const base::FilePath& file_path() const { return file_path_; }
@@ -150,45 +155,6 @@ class CommandStorageBackendTest : public testing::Test {
   base::FilePath restore_path_;
   base::ScopedTempDir temp_dir_;
 };
-
-TEST_F(CommandStorageBackendTest, MigrateOther) {
-  scoped_refptr<CommandStorageBackend> backend = CreateBackend();
-  struct TestData data = {1, "a"};
-  SessionCommands commands;
-  commands.push_back(CreateCommandFromData(data));
-  backend->AppendCommands(std::move(commands), true, base::DoNothing());
-  const auto path = backend->current_path_for_testing();
-  EXPECT_EQ(file_path().DirName(), path.DirName());
-  auto base_name = file_path().BaseName().value();
-  EXPECT_EQ(base_name, path.BaseName().value().substr(0, base_name.length()));
-  backend = nullptr;
-
-  // Move the file to the original path. This gives the logic before kOther
-  // started using timestamps.
-  ASSERT_TRUE(base::PathExists(path));
-  ASSERT_TRUE(base::Move(path, file_path()));
-
-  // Create the backend, should get back the data written.
-  backend = CreateBackend();
-  commands = backend->ReadLastSessionCommands().commands;
-  ASSERT_EQ(1U, commands.size());
-  AssertCommandEqualsData(data, commands[0].get());
-
-  // Write some more data.
-  struct TestData data2 = {1, "b"};
-  commands.clear();
-  commands.push_back(CreateCommandFromData(data2));
-  backend->AppendCommands(std::move(commands), true, base::DoNothing());
-
-  // Recreate, verify updated data read back and the original file has been
-  // removed.
-  backend = nullptr;
-  backend = CreateBackend();
-  commands = backend->ReadLastSessionCommands().commands;
-  EXPECT_FALSE(base::PathExists(file_path()));
-  ASSERT_EQ(1U, commands.size());
-  AssertCommandEqualsData(data2, commands[0].get());
-}
 
 TEST_F(CommandStorageBackendTest, SimpleReadWrite) {
   scoped_refptr<CommandStorageBackend> backend = CreateBackend();
@@ -627,8 +593,8 @@ TEST_F(CommandStorageBackendTest,
 }
 
 TEST_F(CommandStorageBackendTest, GetSessionFiles) {
-  EXPECT_TRUE(CommandStorageBackend::GetSessionFilePaths(
-                  file_path(), CommandStorageManager::kOther)
+  EXPECT_TRUE(CommandStorageBackend::GetSessionFilePaths(file_path(),
+                                                         SessionType::kOther)
                   .empty());
   ASSERT_TRUE(base::WriteFile(file_path(), ""));
   // Not a valid name, as doesn't contain timestamp separator.
@@ -640,8 +606,8 @@ TEST_F(CommandStorageBackendTest, GetSessionFiles) {
   // Valid name, but should not be returned as beginning doesn't match.
   ASSERT_TRUE(
       base::WriteFile(file_path().DirName().AppendASCII("Foo_125"), ""));
-  auto paths = CommandStorageBackend::GetSessionFilePaths(
-      file_path(), CommandStorageManager::kOther);
+  auto paths = CommandStorageBackend::GetSessionFilePaths(file_path(),
+                                                          SessionType::kOther);
   ASSERT_EQ(1u, paths.size());
   EXPECT_EQ("Session_124", paths.begin()->BaseName().MaybeAsASCII());
 }

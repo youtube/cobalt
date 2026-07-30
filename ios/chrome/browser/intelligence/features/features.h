@@ -234,6 +234,9 @@ bool IsGeminiLatencyImprovementEnabled();
 // Acts as a killswitch where the feature is enabled by default.
 BASE_DECLARE_FEATURE(kPageContextExtractorRefactored);
 
+// Returns true if the refactored page context extractor is enabled.
+bool IsPageContextExtractorRefactoredEnabled();
+
 // Feature flag to enable the refactored FRE flow (Gemini architecture).
 BASE_DECLARE_FEATURE(kGeminiRefactoredFRE);
 
@@ -287,6 +290,10 @@ double GetGeminiCopresenceResponseReadyInterval();
 // Returns true if the zero state with chat history is enabled.
 bool IsGeminiCopresenceZeroStateWithChatHistoryEnabled();
 extern const char kGeminiCopresenceZeroStateWithChatHistory[];
+
+// Returns true if the fullscreen disabler is enabled with Gemini Copresence.
+bool IsGeminiCopresenceWithFullscreenDisablerEnabled();
+extern const char kGeminiCopresenceWithFullscreenDisabler[];
 
 // Feature flag for Gemini Dynamic Resizing.
 BASE_DECLARE_FEATURE(kGeminiResponseViewDynamicResizing);
@@ -343,5 +350,9 @@ bool IsGeminiActorEnabled();
 // Feature flag for enabling rich APC (v2) extraction for Gemini.
 BASE_DECLARE_FEATURE(kGeminiRichAPCExtraction);
 bool IsGeminiRichAPCExtractionEnabled();
+
+// Feature flag to enable Gemini Floaty on all pages.
+BASE_DECLARE_FEATURE(kGeminiFloatyAllPages);
+bool IsGeminiFloatyAllPagesEnabled();
 
 #endif  // IOS_CHROME_BROWSER_INTELLIGENCE_FEATURES_FEATURES_H_

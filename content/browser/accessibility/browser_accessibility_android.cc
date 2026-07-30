@@ -19,6 +19,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "content/browser/accessibility/ax_style_data.h"
 #include "content/browser/accessibility/browser_accessibility_manager_android.h"
+#include "content/common/features.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_features.h"
 #include "skia/ext/skia_utils_base.h"
@@ -522,23 +523,6 @@ bool BrowserAccessibilityAndroid::IsInterestingOnAndroid() const {
   // children of a link as not interesting to prevent double utterances.
   const BrowserAccessibility* parent = PlatformGetParent();
 
-  // When SelectMobileDesktopParity is enabled, ListBox selects are supported on
-  // android in addition to combobox/MenuList selects, in which case ListBox
-  // options should be interesting or else they can't be selected or toggled.
-  if (!base::FeatureList::IsEnabled(
-          blink::features::kSelectMobileDesktopParity)) {
-    // Should not read options in a multiselect combobox as it is invisible.
-    // Adding IsFocusable() to handle an edge case in crbug.com/395134019 to
-    // allow select options in aria list box. This is also able to handle edge
-    // case in crbug.com/358195473 to not allow TalkBack to read out collapsed
-    // multi-selectable options.
-    if (parent && parent->GetRole() == ax::mojom::Role::kListBox &&
-        parent->HasState(ax::mojom::State::kMultiselectable) &&
-        GetRole() == ax::mojom::Role::kListBoxOption && IsFocusable()) {
-      return false;
-    }
-  }
-
   while (parent) {
     // Generally, if a parent is a control (like a combobox) and the child isn't
     // focusable, the child is hidden to reduce clutter.
@@ -774,6 +758,16 @@ bool BrowserAccessibilityAndroid::IsLeaf() const {
     return GetLeafMap()[this];
   }
 
+  // Non-atomic text fields (e.g. contenteditable) should not be leaves when
+  // this flag is enabled, allowing their internal structure to be exposed.
+  // Atomic text fields like <textarea> remain leaves to maintain existing
+  // behavior.
+  if (base::FeatureList::IsEnabled(
+          features::kAccessibilityExposeNonAtomicTextFieldChildren) &&
+      GetData().IsNonAtomicTextField()) {
+    return false;
+  }
+
   if (BrowserAccessibility::IsLeaf()) {
     return true;
   }
@@ -820,7 +814,8 @@ bool BrowserAccessibilityAndroid::IsLeaf() const {
       GetNameFrom() == ax::mojom::NameFrom::kAttribute) {
     // We exclude menuItems and comboBoxMenuButtons to prevent double utterance.
     if (GetRole() != ax::mojom::Role::kMenuItem &&
-        GetRole() != ax::mojom::Role::kComboBoxMenuButton) {
+        GetRole() != ax::mojom::Role::kComboBoxMenuButton &&
+        GetRole() != ax::mojom::Role::kComboBoxSelect) {
       return false;
     }
   }
@@ -2763,6 +2758,12 @@ const std::vector<int> BrowserAccessibilityAndroid::GetLabelledByAndroidIds()
 }
 
 bool BrowserAccessibilityAndroid::ShouldExposeEditableValue() const {
+  if (base::FeatureList::IsEnabled(
+          features::kAccessibilityExposeNonAtomicTextFieldChildren) &&
+      HasState(ax::mojom::State::kEditable)) {
+    return true;
+  }
+
   // For now, only expose editable value for text field since talkback
   // only uses the editable value for `EditText`.
   return IsTextField();

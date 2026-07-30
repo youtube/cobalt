@@ -75,7 +75,7 @@
 #import "ios/chrome/browser/main/ui_bundled/ui_blocker_scene_agent.h"
 #import "ios/chrome/browser/main/ui_bundled/wrangled_browser.h"
 #import "ios/chrome/browser/metrics/model/tab_usage_recorder_browser_agent.h"
-#import "ios/chrome/browser/ntp/model/new_tab_page_util.h"
+#import "ios/chrome/browser/ntp/model/new_tab_page_tab_helper.h"
 #import "ios/chrome/browser/picture_in_picture/model/picture_in_picture_scene_agent.h"
 #import "ios/chrome/browser/policy/model/policy_util.h"
 #import "ios/chrome/browser/policy/model/policy_watcher_browser_agent.h"
@@ -198,6 +198,46 @@ bool IsSigninForcedByPolicy() {
       GetApplicationContext()->GetLocalState()->GetInteger(
           prefs::kBrowserSigninPolicy));
   return policy_mode == BrowserSigninMode::kForced;
+}
+
+// TODO(crbug.com/429353384): Can InjectNTP be factored into another file?
+void InjectNTP(Browser* browser) {
+  // Don't inject an NTP for an empty web state list.
+  if (!browser->GetWebStateList()->count()) {
+    return;
+  }
+
+  // Don't inject an NTP on an NTP.
+  web::WebState* webState = browser->GetWebStateList()->GetActiveWebState();
+  if (IsUrlNtp(webState->GetVisibleURL())) {
+    return;
+  }
+
+  // Queue up start surface with active tab.
+  StartSurfaceRecentTabBrowserAgent* browser_agent =
+      StartSurfaceRecentTabBrowserAgent::FromBrowser(browser);
+  // This may be nil for an incognito browser.
+  if (browser_agent) {
+    browser_agent->SaveMostRecentTab();
+  }
+
+  // Inject a live NTP.
+  web::WebState::CreateParams create_params(browser->GetProfile());
+  std::unique_ptr<web::WebState> web_state =
+      web::WebState::Create(create_params);
+  std::vector<std::unique_ptr<web::NavigationItem>> items;
+  std::unique_ptr<web::NavigationItem> item(web::NavigationItem::Create());
+  item->SetURL(GURL(kChromeUINewTabURL));
+  items.push_back(std::move(item));
+  web_state->GetNavigationManager()->Restore(0, std::move(items));
+  if (!browser->GetProfile()->IsOffTheRecord()) {
+    NewTabPageTabHelper::CreateForWebState(web_state.get());
+    NewTabPageTabHelper::FromWebState(web_state.get())
+        ->SetShowStartSurface(true);
+  }
+  browser->GetWebStateList()->InsertWebState(
+      std::move(web_state),
+      WebStateList::InsertionParams::Automatic().Activate());
 }
 
 }  // namespace
@@ -838,14 +878,6 @@ bool IsSigninForcedByPolicy() {
   return nil;
 }
 
-
-
-// Shows the Password Checkup page for `referrer`.
-- (void)showPasswordCheckupPageForReferrer:
-    (password_manager::PasswordCheckReferrer)referrer {
-  [self.mainCoordinator showPasswordCheckupPageForReferrer:referrer];
-}
-
 // A sink for profileState:didTransitionFromInitStage: and
 // sceneState:transitionedToActivationLevel: events.
 //
@@ -954,9 +986,7 @@ bool IsSigninForcedByPolicy() {
   SceneState* sceneState = self.sceneState;
   ProfileIOS* profile = self.profile;
 
-  _mainCoordinator =
-      [[SceneCoordinator alloc] initWithSceneCommandsEndpoint:self
-                                                    tabOpener:self];
+  _mainCoordinator = [[SceneCoordinator alloc] initWithTabOpener:self];
   _mainCoordinator.UIHandler = self;
   _mainCoordinator.tabGridDelegate = self;
   _mainCoordinator.sceneURLLoadingService = _sceneURLLoadingService.get();
@@ -964,7 +994,7 @@ bool IsSigninForcedByPolicy() {
   self.browserLifecycleManager =
       [[BrowserLifecycleManager alloc] initWithProfile:profile
                                             sceneState:sceneState
-                                   applicationEndpoint:self
+                                         sceneEndpoint:_mainCoordinator
                                       settingsEndpoint:_mainCoordinator];
 
   // Create and start the BVC.
@@ -1065,11 +1095,6 @@ bool IsSigninForcedByPolicy() {
   // the current webState.
   if (self.sceneState.profileState.appState.postCrashAction ==
       PostCrashAction::kShowNTPWithReturnToTab) {
-    StartSurfaceRecentTabBrowserAgent* browserAgent =
-        StartSurfaceRecentTabBrowserAgent::FromBrowser(browser);
-    if (browserAgent) {
-      browserAgent->SaveMostRecentTab();
-    }
     InjectNTP(browser);
   }
 
@@ -1104,11 +1129,6 @@ bool IsSigninForcedByPolicy() {
 
 - (void)teardownUI {
   // The UI should be stopped before the models they observe are stopped.
-  // Force close the settings if open. This gives Settings the opportunity to
-  // unregister observers and destroy C++ objects before the application is
-  // shut down without depending on non-deterministic call to -dealloc.
-  [self.mainCoordinator stopSettingsAnimated:NO completion:nil];
-
   [_mainCoordinator stop];
   _mainCoordinator = nil;
 
@@ -1216,7 +1236,7 @@ bool IsSigninForcedByPolicy() {
 
 // Returns YES if the fullscreen sign-in promo should be presented.
 - (BOOL)shouldPresentFullscreenSigninPromo {
-  if (![self isTabAvailableToPresentViewController]) {
+  if (![self.mainCoordinator isTabAvailableToPresentViewController]) {
     return NO;
   }
   if (!signin::ShouldPresentUserSigninUpgrade(self.profile,
@@ -1253,7 +1273,9 @@ bool IsSigninForcedByPolicy() {
   }
   self.sceneState.profileState.appState.fullscreenSigninPromoPresentedOnce =
       YES;
-  [self showFullscreenSigninPromoWithCompletion:nil];
+  id<SceneCommands> sceneHandler = HandlerForProtocol(
+      self.mainInterface.browser->GetCommandDispatcher(), SceneCommands);
+  [sceneHandler showFullscreenSigninPromoWithCompletion:nil];
 }
 
 - (BOOL)canHandleIntents {
@@ -1468,7 +1490,7 @@ bool IsSigninForcedByPolicy() {
   [_sceneState
       addAgent:[[IncognitoReauthSceneAgent alloc]
                    initWithReauthModule:[[ReauthenticationModule alloc] init]
-                           sceneHandler:self]];
+                           sceneHandler:_mainCoordinator]];
   [_sceneState addAgent:[[StartSurfaceSceneAgent alloc] init]];
   [_sceneState addAgent:[[SessionSavingSceneAgent alloc] init]];
   [_sceneState addAgent:[[LayoutGuideSceneAgent alloc] init]];
@@ -1479,176 +1501,15 @@ bool IsSigninForcedByPolicy() {
   }
 }
 
-#pragma mark - SceneCommands
-
-- (void)showFullscreenSigninPromoWithCompletion:
-    (SigninCoordinatorCompletionCallback)dismissalCompletion {
-  [self.mainCoordinator
-      showFullscreenSigninPromoWithCompletion:dismissalCompletion];
-}
-
-- (void)dismissModalDialogsWithCompletion:(ProceduralBlock)completion {
-  [self.mainCoordinator dismissModalDialogsWithCompletion:completion];
-}
-
-- (void)dismissModalsAndShowPasswordCheckupPageForReferrer:
-    (password_manager::PasswordCheckReferrer)referrer {
-  [self.mainCoordinator
-      dismissModalsAndShowPasswordCheckupPageForReferrer:referrer];
-}
-
-- (void)
-    showPasswordIssuesWithWarningType:(password_manager::WarningType)warningType
-                             referrer:(password_manager::PasswordCheckReferrer)
-                                          referrer {
-  [self.mainCoordinator showPasswordIssuesWithWarningType:warningType
-                                                 referrer:referrer];
-}
-
-- (void)showSafeBrowsingSettingsFromViewController:
-    (UIViewController*)baseViewController {
-  [self.mainCoordinator
-      showSafeBrowsingSettingsFromViewController:baseViewController];
-}
-
-- (void)showHistory {
-  [self.mainCoordinator showHistory];
-}
-
-- (void)closePresentedViewsAndOpenURL:(OpenNewTabCommand*)command {
-  [self.mainCoordinator closePresentedViewsAndOpenURL:command];
-}
-
-- (void)closePresentedViews {
-  [self.mainCoordinator closePresentedViews];
-}
-
-- (void)prepareTabSwitcher {
-  [self.mainCoordinator prepareTabSwitcher];
-}
-
-- (void)displayTabGridInMode:(TabGridOpeningMode)mode {
-  [self.mainCoordinator displayTabGridInMode:mode];
-}
-
-- (void)showPrivacySettingsFromViewController:
-    (UIViewController*)baseViewController {
-  [self.mainCoordinator
-      showPrivacySettingsFromViewController:baseViewController];
-}
-
-- (void)showReportAnIssueFromViewController:
-            (UIViewController*)baseViewController
-                                     sender:(UserFeedbackSender)sender {
-  [self.mainCoordinator showReportAnIssueFromViewController:baseViewController
-                                                     sender:sender];
-}
-
-- (void)
-    showReportAnIssueFromViewController:(UIViewController*)baseViewController
-                                 sender:(UserFeedbackSender)sender
-                    specificProductData:(NSDictionary<NSString*, NSString*>*)
-                                            specificProductData {
-  [self.mainCoordinator
-      showReportAnIssueFromViewController:baseViewController
-                                   sender:sender
-                      specificProductData:specificProductData];
-}
-
-- (void)openURLInNewTab:(OpenNewTabCommand*)command {
-  [self.mainCoordinator openURLInNewTab:command];
-}
-
-// TODO(crbug.com/41352590) : Do not pass `baseViewController` through
-// dispatcher.
-- (void)showSignin:(ShowSigninCommand*)command
-    baseViewController:(UIViewController*)baseViewController {
-  [self.mainCoordinator showSignin:command
-                baseViewController:baseViewController];
-}
-
-- (void)showAccountMenuFromWebWithURL:(const GURL&)url {
-  [self.mainCoordinator showAccountMenuFromWebWithURL:url];
-}
-
-- (void)showWebSigninPromoFromViewController:
-            (UIViewController*)baseViewController
-                                         URL:(const GURL&)URL {
-  [self.mainCoordinator showWebSigninPromoFromViewController:baseViewController
-                                                         URL:URL];
-}
-
-- (void)showSigninAccountNotificationFromViewController:
-    (UIViewController*)baseViewController {
-  [self.mainCoordinator
-      showSigninAccountNotificationFromViewController:baseViewController];
-}
-
-- (void)setIncognitoContentVisible:(BOOL)incognitoContentVisible {
-  [self.mainCoordinator setIncognitoContentVisible:incognitoContentVisible];
-}
-
-- (void)stopAllVoiceSearch {
-  [self.mainCoordinator stopAllVoiceSearch];
-}
-
-- (void)maybeShowSettingsFromViewController {
-  [self.mainCoordinator maybeShowSettingsFromViewController];
-}
-
-- (void)showSettingsFromViewController:(UIViewController*)baseViewController {
-  [self.mainCoordinator showSettingsFromViewController:baseViewController];
-}
-
-- (void)showSettingsFromViewController:(UIViewController*)baseViewController
-              hasDefaultBrowserBlueDot:(BOOL)hasDefaultBrowserBlueDot {
-  [self.mainCoordinator
-      showSettingsFromViewController:baseViewController
-            hasDefaultBrowserBlueDot:hasDefaultBrowserBlueDot];
-}
-
-- (void)showPriceTrackingNotificationsSettings {
-  [self.mainCoordinator showPriceTrackingNotificationsSettings];
-}
-
-- (void)openPriceTrackingNotificationsSettings {
-  [self.mainCoordinator openPriceTrackingNotificationsSettings];
-}
-
-- (void)openNewWindowWithActivity:(NSUserActivity*)userActivity {
-  [self.mainCoordinator openNewWindowWithActivity:userActivity];
-}
-
-- (void)prepareToPresentModalWithSnackbarDismissal:(BOOL)dismissSnackbars
-                                        completion:(ProceduralBlock)completion {
-  [self.mainCoordinator
-      prepareToPresentModalWithSnackbarDismissal:dismissSnackbars
-                                      completion:completion];
-}
-
-// Returns YES if the current Tab is available to present a view controller.
-- (BOOL)isTabAvailableToPresentViewController {
-  return [self.mainCoordinator isTabAvailableToPresentViewController];
-}
-
-- (void)openAIMenu {
-  [self.mainCoordinator openAIMenu];
-}
-
-- (void)showAssistant {
-  [self.mainCoordinator showAssistant];
-}
-
-- (void)displaySafariDataImportFromEntryPoint:
-            (SafariDataImportEntryPoint)entryPoint
-                                withUIHandler:
-                                    (id<SafariDataImportUIHandler>)UIHandler {
-  [self.mainCoordinator displaySafariDataImportFromEntryPoint:entryPoint
-                                                withUIHandler:UIHandler];
-}
-
-- (void)showAppStorePage {
-  [self.mainCoordinator showAppStorePage];
+// Dismisses modal dialogs via the scene handler and optionally dismisses the
+// omnibox.
+- (void)dismissModalDialogsWithCompletion:(ProceduralBlock)completion
+                           dismissOmnibox:(BOOL)dismissOmnibox {
+  id<SceneCommands> sceneHandler = HandlerForProtocol(
+      self.currentBrowserForURLLoading->GetCommandDispatcher(), SceneCommands);
+  [sceneHandler dismissModalDialogsWithCompletion:completion
+                                   dismissOmnibox:dismissOmnibox
+                                 dismissSnackbars:YES];
 }
 
 #pragma mark - TabGridCoordinatorDelegate
@@ -1794,10 +1655,13 @@ bool IsSigninForcedByPolicy() {
         [weakSelf showDefaultBrowserSettingsWithSourceForUMA:
                       DefaultBrowserSettingsPageSource::kExternalIntent];
       };
-    case VIEW_HISTORY:
+    case VIEW_HISTORY: {
+      __weak id<SceneCommands> weakSceneHandler = HandlerForProtocol(
+          self.currentInterface.browser->GetCommandDispatcher(), SceneCommands);
       return ^{
-        [weakSelf showHistory];
+        [weakSceneHandler showHistory];
       };
+    }
     case OPEN_PAYMENT_METHODS:
       return ^{
         [weakSelf openPaymentMethods];
@@ -1820,11 +1684,15 @@ bool IsSigninForcedByPolicy() {
         [weakSettingsHandler showPasswordSearchPage];
       };
     }
-    case MANAGE_SETTINGS:
+    case MANAGE_SETTINGS: {
+      __weak id<SceneCommands> weakSceneHandler = HandlerForProtocol(
+          self.currentInterface.browser->GetCommandDispatcher(), SceneCommands);
       return ^{
-        [weakSelf showSettingsFromViewController:weakSelf.currentInterface
-                                                     .viewController];
+        [weakSceneHandler
+            showSettingsFromViewController:weakSelf.currentInterface
+                                               .viewController];
       };
+    }
     case OPEN_LATEST_TAB:
       return ^{
         [weakSelf openLatestTab];
@@ -2258,22 +2126,6 @@ bool IsSigninForcedByPolicy() {
   [self activateBVCAndMakeCurrentBVCPrimary];
 }
 
-// Helper method to call `-dismissModalDialogsWithCompletion:` with default
-// snackbar dismissal behavior.
-- (void)dismissModalDialogsWithCompletion:(ProceduralBlock)completion
-                           dismissOmnibox:(BOOL)dismissOmnibox {
-  [self.mainCoordinator dismissModalDialogsWithCompletion:completion
-                                           dismissOmnibox:dismissOmnibox];
-}
-
-- (void)dismissModalDialogsWithCompletion:(ProceduralBlock)completion
-                           dismissOmnibox:(BOOL)dismissOmnibox
-                         dismissSnackbars:(BOOL)dismissSnackbars {
-  [self.mainCoordinator dismissModalDialogsWithCompletion:completion
-                                           dismissOmnibox:dismissOmnibox
-                                         dismissSnackbars:dismissSnackbars];
-}
-
 - (void)openMultipleTabsWithURLs:(const std::vector<GURL>&)URLs
                  inIncognitoMode:(BOOL)openInIncognito
                       completion:(ProceduralBlock)completion {
@@ -2603,14 +2455,6 @@ bool IsSigninForcedByPolicy() {
   if (tabOpenedCompletion) {
     tabOpenedCompletion();
   }
-}
-
-#pragma mark - Sign In UI presentation
-
-// Close Settings, or Signin or the 3rd-party intents Incognito interstitial.
-- (void)closePresentedViews:(BOOL)animated
-                 completion:(ProceduralBlock)completion {
-  [self.mainCoordinator closePresentedViews:animated completion:completion];
 }
 
 #pragma mark - WebStateListObserving

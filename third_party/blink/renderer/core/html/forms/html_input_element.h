@@ -289,6 +289,9 @@ class CORE_EXPORT HTMLInputElement
   // Associated <datalist> options which match to the current INPUT value.
   HeapVector<Member<HTMLOptionElement>> FilteredDataListOptions() const;
 
+  // Returns the select element associated via the filter attribute, if any.
+  HTMLSelectElement* FilterTarget() const;
+
   // Functions for InputType classes.
   void SetNonAttributeValue(const String&);
   void SetNonAttributeValueByUserEdit(const String&);
@@ -336,9 +339,9 @@ class CORE_EXPORT HTMLInputElement
                     const V8SelectionMode& selection_mode,
                     ExceptionState&) final;
 
-  OpaqueRange* getValueRange(unsigned start_offset,
-                             unsigned end_offset,
-                             ExceptionState&) final;
+  OpaqueRange* createValueRange(unsigned start_offset,
+                                unsigned end_offset,
+                                ExceptionState&) final;
 
   HTMLImageLoader* ImageLoader() const { return image_loader_.Get(); }
   HTMLImageLoader& EnsureImageLoader();

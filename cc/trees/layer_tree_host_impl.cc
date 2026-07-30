@@ -1428,8 +1428,12 @@ DrawResult LayerTreeHostImpl::CalculateRenderPasses(FrameData* frame,
 
   if (expects_to_draw) {
     if (active_tree_->RootRenderSurface()) {
-      const gfx::Rect& viz_damage_rect =
+      gfx::Rect viz_damage_rect =
           active_tree_->RootRenderSurface()->GetDamageRect();
+      // Add a 1px margin to the viz damage rect to filter out precision issues
+      // with transforms.  This will be re-added once the larger damage
+      // discrepancies are fixed.
+      viz_damage_rect.Outset(1);
       // If Viz has MORE damage than the client expected, it's safe for
       // rendering (just potentially wasteful). If Viz has LESS damage, we might
       // miss redrawing some areas.
@@ -1449,7 +1453,8 @@ DrawResult LayerTreeHostImpl::CalculateRenderPasses(FrameData* frame,
 
     // Force drawing, but assert in DCHECK builds.
     DUMP_WILL_BE_CHECK(has_damage)
-        << "crbug.com/454680865: Has no damage while expects_to_draw is set";
+        << "crbug.com/454680865: Has no damage while expects_to_draw is set."
+        << " Client damage: " << root_layer_damage_rect_.ToString();
     has_damage = true;
   }
 
@@ -5423,7 +5428,7 @@ bool LayerTreeHostImpl::AnimateLayers(base::TimeTicks monotonic_time,
       is_active_tree ? active_tree_->property_trees()->scroll_tree()
                      : pending_tree_->property_trees()->scroll_tree();
   const bool animated = mutator_host_->TickAnimations(
-      monotonic_time, scroll_tree, is_active_tree);
+      monotonic_time, scroll_tree, is_active_tree, mutator_events_.get());
 
   // TODO(crbug.com/40443202): Only do this if the animations are on the active
   // tree, or if they are on the pending tree waiting for some future time to

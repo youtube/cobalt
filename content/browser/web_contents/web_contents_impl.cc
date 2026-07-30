@@ -5729,6 +5729,16 @@ void WebContentsImpl::ShowCreatedWidget(int process_id,
     return;
   }
 
+  RenderWidgetHostImpl* rwh = GetPrimaryMainFrame()->GetRenderWidgetHost();
+  if (base::FeatureList::IsEnabled(
+          blink::features::kBlockSelectPopupUnfocusedWindow) &&
+      !rwh->is_active()) {
+    // If the OS window isn't focused, then don't open select element popups for
+    // it: https://issues.chromium.org/issues/365089001
+    widget_host_view->host()->ShutdownAndDestroyWidget(true);
+    return;
+  }
+
   // GetOutermostWebContents() returns |this| if there are no outer WebContents.
   auto* outer_web_contents = GetOuterWebContents();
   auto* outermost_web_contents = GetOutermostWebContents();
@@ -12133,9 +12143,9 @@ void WebContentsImpl::OnInputIgnored(const blink::WebInputEvent& event) {
 }
 
 #if BUILDFLAG(IS_ANDROID)
-float WebContentsImpl::GetCurrentTouchSequenceYOffset() {
+gfx::PointF WebContentsImpl::GetCurrentTouchSequenceOffset() {
   ui::ViewAndroid* view_android = GetNativeView();
-  return view_android->event_forwarder()->GetCurrentTouchSequenceYOffset();
+  return view_android->event_forwarder()->GetCurrentTouchSequenceOffset();
 }
 #endif
 
@@ -12297,15 +12307,9 @@ bool WebContentsImpl::CancelPrerendering(FrameTreeNode* frame_tree_node,
     return frame_tree_node->GetParentOrOuterDocumentOrEmbedder()
         ->CancelPrerendering(PrerenderCancellationReason(final_status));
   }
-  PrerenderHostId prerender_host_id =
-      frame_tree_node->frame_tree().delegate()->GetPrerenderHostId();
-  PrerenderHost* prerender_host =
-      GetPrerenderHostRegistry()->FindNonReservedHostById(prerender_host_id);
-  if (!prerender_host) {
-    return false;
-  }
   return GetPrerenderHostRegistry()->CancelHost(
-      prerender_host->prerender_host_id(), final_status);
+            frame_tree_node->frame_tree().delegate()->GetPrerenderHostId(),
+            final_status);
 }
 
 ui::mojom::VirtualKeyboardMode WebContentsImpl::GetVirtualKeyboardMode() const {

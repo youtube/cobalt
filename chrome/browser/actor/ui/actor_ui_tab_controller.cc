@@ -114,7 +114,6 @@ void ActorUiTabController::SetActorTabIndicatorVisibility(
   // When GLIC isn't enabled, we never set the tab indicator.
   // TODO(crbug.com/461457730) remove GLIC dependency once the ACTOR_ACCESSING
   // alert migrates away from the GLIC_ACCESSING resources.
-#if BUILDFLAG(ENABLE_GLIC)
   if (tab_indicator_ != tab_indicator_status) {
     tab_indicator_ = tab_indicator_status;
     if (on_actor_tab_indicator_changed_callback_) {
@@ -124,7 +123,6 @@ void ActorUiTabController::SetActorTabIndicatorVisibility(
           base::to_address(tab_), TabChangeType::kAll);
     }
   }
-#endif
   std::move(callback).Run();
   return;
 }
@@ -232,26 +230,18 @@ bool ActorUiTabController::ComputeHandoffButtonVisibility() {
 }
 
 void ActorUiTabController::SetActorTaskPaused() {
-  TaskId task_id = actor_keyed_service_->GetTaskFromTab(*tab_);
-  if (!task_id) {
-    VLOG(1) << "There is no active task acting on this tab.";
-    return;
-  }
-
-  if (auto* task = actor_keyed_service_->GetTask(task_id)) {
+  if (auto* task = actor_keyed_service_->GetTaskFromTab(*tab_)) {
     task->Pause(/*from_actor=*/false);
+  } else {
+    VLOG(1) << "There is no active task acting on this tab.";
   }
 }
 
 void ActorUiTabController::SetActorTaskResume() {
-  TaskId task_id = actor_keyed_service_->GetTaskFromTab(*tab_);
-  if (!task_id) {
-    VLOG(1) << "There is no active task acting on this tab.";
-    return;
-  }
-
-  if (auto* task = actor_keyed_service_->GetTask(task_id)) {
+  if (auto* task = actor_keyed_service_->GetTaskFromTab(*tab_)) {
     task->Resume();
+  } else {
+    VLOG(1) << "There is no active task acting on this tab.";
   }
 }
 
