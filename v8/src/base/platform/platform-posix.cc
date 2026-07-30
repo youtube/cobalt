@@ -47,6 +47,8 @@
 #include "src/base/platform/time.h"
 #include "src/base/utils/random-number-generator.h"
 
+#include "build/build_config.h"
+
 #ifdef V8_FAST_TLS_SUPPORTED
 #include <atomic>
 #endif
@@ -724,9 +726,14 @@ void OS::FreeAddressSpaceReservation(AddressSpaceReservation reservation) {
 // static
 // Need to disable CFI_ICALL due to the indirect call to memfd_create.
 DISABLE_CFI_ICALL
+<<<<<<< HEAD
 std::optional<SharedMemoryHandle> OS::CreateSharedMemoryHandleForTesting(
     size_t size) {
 #if V8_OS_LINUX && !V8_OS_ANDROID
+=======
+PlatformSharedMemoryHandle OS::CreateSharedMemoryHandleForTesting(size_t size) {
+#if V8_OS_LINUX && !V8_OS_ANDROID && !BUILDFLAG(IS_STARBOARD)
+>>>>>>> parent of 0a38d493b4c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   // Use memfd_create if available, otherwise mkstemp.
   using memfd_create_t = int (*)(const char*, unsigned int);
   memfd_create_t memfd_create =

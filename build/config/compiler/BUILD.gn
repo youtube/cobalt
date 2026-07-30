@@ -24,6 +24,10 @@ import("//build/toolchain/rbe.gni")
 import("//build/toolchain/toolchain.gni")
 import("//build_overrides/build.gni")
 
+if (is_cobalt) {
+  import("//starboard/build/config/toolchain_variables.gni")
+}
+
 if (current_cpu == "arm" || current_cpu == "arm64") {
   import("//build/config/arm.gni")
 }
@@ -33,6 +37,7 @@ if (current_cpu == "mipsel" || current_cpu == "mips64el" ||
 }
 if (is_mac) {
   import("//build/config/apple/symbols.gni")
+  import("//build/config/mac/mac_sdk.gni")
 }
 if (is_ios) {
   import("//build/config/ios/ios_sdk.gni")
@@ -300,10 +305,19 @@ use_clang_warning_suppression_file =
 # source root and might have conflicting versions of some headers) can remove
 # this and specify their own include paths.
 config("default_include_dirs") {
+  if (is_cobalt && is_partner_toolchain) {
+    include_dirs = [
+      "//copied_base",
+      "//",
+      "$root_gen_dir/copied_base",
+      root_gen_dir
+    ]
+  } else {
   include_dirs = [
     "//",
     root_gen_dir,
   ]
+  }
 }
 
 # Compiler instrumentation can introduce dependencies in DSOs to symbols in
@@ -477,12 +491,15 @@ config("compiler") {
     }
 
     # Linker warnings.
-    if (fatal_linker_warnings && !is_apple && current_os != "aix" &&
-        current_os != "zos") {
-      ldflags += [ "-Wl,--fatal-warnings" ]
-    }
-    if (fatal_linker_warnings && is_apple) {
-      ldflags += [ "-Wl,-fatal_warnings" ]
+    if (fatal_linker_warnings) {
+      if (is_apple && use_lld) {
+        # The Apple linker issues duplicate `-rpath` warnings which become fatal
+        # errors. We only apply fatal warnings when using lld.
+        ldflags += [ "-Wl,-fatal_warnings" ]
+      }
+      if (!is_apple && current_os != "aix" && current_os != "zos") {
+        ldflags += [ "-Wl,--fatal-warnings" ]
+      }
     }
   }
 
@@ -562,6 +579,18 @@ config("compiler") {
     # linker_driver.py script runs dsymutil itself, which is set to be the
     # linker for Rust targets as well.
     rustflags += [ "-Csplit-debuginfo=unpacked" ]
+
+    if (xcode_version_int >= 2700) {
+      # Xcode 27+'s no longer define INFINITY and NAN unconditionally, and this
+      # requires at least LLVM 22.1.0 to work correctly.
+      defines += [
+        "INFINITY=__builtin_inff()",
+        "NAN=__builtin_nanf(\"\")",
+      ]
+      # Xcode 27+'s <os/trace_base.h> has the stack_protector_ignore attribute
+      # on a local variable, which depends on LLVM 23.1.0.
+      cflags += [ "-Wno-unknown-attributes" ]
+    }
   }
 
   # Linux/Android/Fuchsia common flags setup.
@@ -592,6 +621,15 @@ config("compiler") {
   # ------------------------------------
   if (use_icf && (!is_apple || use_lld)) {
     ldflags += [ "-Wl,--icf=all" ]
+  }
+
+  # Note: `use_lld=false` on Apple platforms is experimental and may not
+  # run properly on bots due to toolchain limitations. It is mainly
+  # intended to unblock local builds for debugging.
+  if (is_apple && !use_lld) {
+    if (!use_icf) {
+      ldflags += [ "-Wl,-no_deduplicate" ]
+    }
   }
 
   if (is_linux || is_chromeos) {
@@ -753,10 +791,30 @@ config("compiler") {
     }
 
     cflags_c += [ "-std=${standard_prefix}11" ]
+<<<<<<< HEAD
     if (use_cxx23) {
       cflags_cc += [ "-std=${standard_prefix}++23" ]
     } else {
       cflags_cc += [ "-std=${standard_prefix}++20" ]
+=======
+    if (is_clang) {
+      if (is_cobalt && use_cxx17) {
+        assert(!use_cxx23)
+        cflags_cc += [ "-std=${standard_prefix}++17" ]
+      } else if (use_cxx23) {
+        cflags_cc += [ "-std=${standard_prefix}++23" ]
+      } else {
+        cflags_cc += [ "-std=${standard_prefix}++20" ]
+      }
+    } else {
+      if (use_cxx17 && is_cobalt) {
+        cflags_cc += [ "-std=${standard_prefix}++17" ]
+      } else {
+      # The gcc bots are currently using GCC 9, which is not new enough to
+      # support "c++20"/"gnu++20".
+      cflags_cc += [ "-std=${standard_prefix}++2a" ]
+      }
+>>>>>>> parent of 0a38d493b4c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     }
   } else if (is_win) {
     cflags_c += [ "/std:c11" ]
@@ -1131,6 +1189,9 @@ config("compiler") {
     # to compile dylibs on Android, such as for constructing unit test APKs.
     "-Cdefault-linker-libraries",
   ]
+  if (is_cobalt && current_toolchain == default_toolchain) {
+    rustflags += ["-Ztls-model=emulated"]
+  }
 
   rustflags += [
     # To make Rust .d files compatible with ninja
@@ -2869,6 +2930,10 @@ config("no_optimize") {
   } else {
     cflags = [ "-O0" ]
     ldflags = []
+    if (is_cobalt && cobalt_debugging_enabled) {
+      # Strip unused symbols to avoid linker errors.
+      ldflags += common_optimize_on_ldflags
+    }
   }
 }
 
@@ -2908,7 +2973,11 @@ config("optimize_speed") {
   } else if (optimize_for_fuzzing) {
     cflags = [ "-O1" ] + common_optimize_on_cflags
   } else {
-    cflags = [ "-O3" ] + common_optimize_on_cflags
+    if (is_starboard) {
+      cflags = [ "-O2" ] + common_optimize_on_cflags
+    } else {
+      cflags = [ "-O3" ] + common_optimize_on_cflags
+    }
   }
   rustflags = [ "-Copt-level=3" ]
 }
@@ -2923,7 +2992,7 @@ config("optimize_fuzzing") {
 # The default optimization applied to all targets. This will be equivalent to
 # either "optimize" or "no_optimize", depending on the build flags.
 config("default_optimization") {
-  if (is_debug) {
+  if (is_debug || is_cobalt && cobalt_debugging_enabled) {
     configs = [ ":no_optimize" ]
   } else if (optimize_for_fuzzing) {
     assert(!is_win, "Fuzzing optimize level not supported on Windows")

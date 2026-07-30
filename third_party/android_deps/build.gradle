@@ -12,6 +12,14 @@ repositories {
 dependencies {
     // Note about the configuration names: they are defined in buildSrc/ChromiumPlugin
 
+<<<<<<< HEAD
+=======
+    compile 'com.google.android.gms:play-services-ads-identifier:18.1.0'
+
+    // Needed by androidx.room, but by default it selects a lower version that
+    // does not exist in CIPD.
+    compile 'org.jetbrains.kotlinx:atomicfu-jvm:0.23.2'
+>>>>>>> parent of 0a38d493b4c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     // Needed by androidx and by doubledown targets.
     // Note: These have version overrides set in ChromiumDepGraph.groovy.
     compile "org.jetbrains.kotlinx:kotlinx-coroutines-guava:1.8.1"

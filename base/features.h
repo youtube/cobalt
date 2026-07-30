@@ -17,6 +17,65 @@ namespace base::features {
 // Alphabetical:
 BASE_EXPORT BASE_DECLARE_FEATURE(kBoostCompositorThreadsPriorityWhenIdle);
 
+#if BUILDFLAG(IS_COBALT)
+// When enabled, Cobalt will handle TRIM_MEMORY_RUNNING_LOW and
+// TRIM_MEMORY_RUNNING_MODERATE signals as moderate memory pressure on Android.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltEnableModerateMemoryPressure);
+
+// When enabled, image transfer cache entries bypass serialization and transfer
+// images directly to the GPU service thread in-process.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltInProcessImageTransferCache);
+
+// When enabled, overrides the memory pressure throttling cooldown (60s default)
+// with the configured cooldown_seconds parameter on Android.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltMemoryPressureCooldown);
+
+// The throttling cooldown in seconds between memory pressure notifications when
+// kCobaltMemoryPressureCooldown is enabled.
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
+                                       kCobaltMemoryPressureCooldownSeconds);
+
+// When enabled, gates the CC image decode cache items limit via Finch feature
+// and parameter.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltCCImageCacheLimitItems);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltCCImageCacheLimitItemsCount);
+
+// When enabled, gates the GPU memory budget via Finch feature and parameter.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltForceGpuMemAvailable);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltForceGpuMemAvailableMb);
+
+// When enabled, gates the V8 max old space size via Finch feature and
+// parameter.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltV8MaxOldSpaceSize);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltV8MaxOldSpaceSizeMb);
+
+// When enabled, gates the V8 initial old space size via Finch feature and
+// parameter.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltV8InitialOldSpaceSize);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltV8InitialOldSpaceSizeMb);
+
+// When enabled, overrides the compositor skewport target times, which control
+// speculative pre-rastering of offscreen tiles. When disabled, the upstream
+// Chromium defaults apply (1.0 software raster / 0.2 GPU raster). Both params
+// default to 0, which disables pre-rastering to reduce GPU texture memory.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltSkewportTargetTime);
+// Applies to software raster. Upstream Chromium default is 1.0.
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(double,
+                                       kCobaltSkewportTargetTimeInSeconds);
+// Applies to GPU raster. Upstream Chromium default is 0.2.
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    double,
+    kCobaltGpuRasterizationSkewportTargetTimeInSeconds);
+
+// When enabled, gates the compositor's prepaint memory budget via Finch feature
+// and parameter. Applies to all Cobalt platforms (Android TV and 3P/Starboard).
+// The parameter is the percentage of the tile memory budget that may be spent
+// on prepaint (non-visible) tiles; 0 disables prepaint raster entirely.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltMaxMemoryForPrepaint);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
+                                       kCobaltMaxMemoryForPrepaintPercentage);
+#endif  // BUILDFLAG(IS_COBALT)
+
 BASE_EXPORT BASE_DECLARE_FEATURE(kFeatureParamWithCache);
 
 BASE_EXPORT BASE_DECLARE_FEATURE(kFastFilePathIsParent);

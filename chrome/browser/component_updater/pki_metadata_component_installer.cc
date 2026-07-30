@@ -40,8 +40,11 @@
 #include "content/public/browser/network_service_instance.h"
 #include "net/base/features.h"
 #include "net/base/hash_value.h"
+<<<<<<< HEAD
 #include "net/cert/root_store_proto_lite/root_store.pb.h"
 #include "net/cert/x509_util.h"
+=======
+>>>>>>> parent of 0a38d493b4c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "net/net_buildflags.h"
 #include "services/cert_verifier/public/mojom/cert_verifier_service_factory.mojom.h"
 #include "services/network/public/cpp/network_service_buildflags.h"
@@ -62,6 +65,7 @@
 #include "mojo/public/cpp/base/proto_wrapper.h"
 #include "mojo/public/cpp/base/proto_wrapper_passkeys.h"
 #include "net/cert/internal/trust_store_chrome.h"
+#include "net/cert/root_store_proto_lite/root_store.pb.h"  // nogncheck
 #endif
 
 #if BUILDFLAG(INCLUDE_TRANSPORT_SECURITY_STATE_PRELOAD_LIST)
