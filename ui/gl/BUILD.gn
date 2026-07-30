@@ -197,7 +197,7 @@ component("gl") {
   }
 
   if (use_ozone) {
-    if (!is_fuchsia && !is_cobalt_hermetic_build) {
+    if (!is_fuchsia) {
       if (!use_static_angle) {
         data_deps += [
           "//third_party/angle:libEGL",
@@ -383,7 +383,7 @@ component("gl") {
     ]
   }
 
-  if (is_android || is_chromeos || is_linux && !is_starboard) {
+  if (is_android || is_chromeos || is_linux) {
     # Windows doesn't support base::FileDescriptor.
     # libsync isn't supported or needed on MacOSX.
     # Fuchsia is excluded due to a libsync dependency and because it's

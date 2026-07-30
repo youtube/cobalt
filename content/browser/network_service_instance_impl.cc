@@ -85,12 +85,12 @@
 #include "content/browser/network/network_service_process_tracker_win.h"
 #endif
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #include "content/browser/system_dns_resolution/system_dns_resolver.h"
 #include "services/network/public/mojom/system_dns_resolution.mojom-forward.h"
 #endif
 
-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_LINUX)
 #include "net/base/address_map_linux.h"
 #include "net/base/address_tracker_linux.h"
 #include "services/network/public/mojom/network_interface_change_listener.mojom.h"
@@ -135,6 +135,13 @@ std::unique_ptr<network::NetworkService>& GetLocalNetworkService() {
       service;
   return service.GetOrCreateValue();
 }
+
+// If this feature is enabled, the Network Service will run on its own thread
+// when running in-process; otherwise it will run on the IO thread.
+BASE_FEATURE(kNetworkServiceDedicatedThread,
+             "NetworkServiceDedicatedThread",
+             base::FEATURE_ENABLED_BY_DEFAULT
+);
 
 base::Thread& GetNetworkServiceDedicatedThread() {
   static base::NoDestructor<base::Thread> thread{"NetworkService"};
@@ -328,7 +335,6 @@ void CreateInProcessNetworkService(
                                 std::move(receiver)));
 }
 
-#if !BUILDFLAG(IS_STARBOARD)
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
 // Runs a self-owned SystemDnsResolverMojoImpl. This is meant to run on a
 // high-priority thread pool.
@@ -339,7 +345,6 @@ void RunSystemDnsResolverOnThreadPool(
       std::move(dns_receiver));
 }
 #endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
-#endif //!BUILDFLAG(IS_STARBOARD)
 
 network::mojom::NetworkServiceParamsPtr CreateNetworkServiceParams() {
   network::mojom::NetworkServiceParamsPtr network_service_params =
@@ -355,7 +360,7 @@ network::mojom::NetworkServiceParamsPtr CreateNetworkServiceParams() {
   network_service_params->first_party_sets_enabled =
       GetContentClient()->browser()->IsFirstPartySetsEnabled();
 
-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_LINUX)
   if (base::FeatureList::IsEnabled(
           net::features::kAddressTrackerLinuxIsProxied) &&
       IsOutOfProcessNetworkService()) {
@@ -367,7 +372,7 @@ network::mojom::NetworkServiceParamsPtr CreateNetworkServiceParams() {
         network::mojom::InitialAddressMap::New(std::move(address_map),
                                                std::move(online_links));
   }
-#endif  // BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
+#endif  // BUILDFLAG(IS_LINUX)
 
 #if BUILDFLAG(IS_CHROMEOS)
   // On ChromeOS, the network service is always out of process (unless
@@ -397,7 +402,7 @@ network::mojom::NetworkServiceParamsPtr CreateNetworkServiceParams() {
   }
 #endif  // BUILDFLAG(IS_POSIX)
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
   if (GetContentClient()
           ->browser()
           ->ShouldRunOutOfProcessSystemDnsResolution() &&
@@ -539,13 +544,6 @@ base::StrictNumeric<uint64_t> GetNetLogMaximumFileSizeFromCommandLine(
 }
 
 }  // namespace
-
-// If this feature is enabled, the Network Service will run on its own thread
-// when running in-process; otherwise it will run on the IO thread.
-BASE_FEATURE(kNetworkServiceDedicatedThread,
-             "NetworkServiceDedicatedThread",
-             base::FEATURE_ENABLED_BY_DEFAULT
-);
 
 uint64_t GetNetLogMaximumFileSizeFromCommandLineForTesting(  // IN-TEST
     const base::CommandLine& command_line) {
@@ -724,7 +722,7 @@ base::CallbackListSubscription RegisterNetworkServiceProcessGoneHandler(
   return GetProcessGoneHandlersList().Add(std::move(handler));
 }
 
-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_CHROMEOS)
 net::NetworkChangeNotifier* GetNetworkChangeNotifier() {
   return BrowserMainLoop::GetInstance()->network_change_notifier();
 }

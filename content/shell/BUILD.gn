@@ -10,7 +10,6 @@ import("//build/config/sanitizers/sanitizers.gni")
 import("//build/config/ui.gni")
 import("//build/config/win/console_app.gni")
 import("//build/config/win/manifest.gni")
-import("//content/browser/devtools/features.gni")
 import("//device/vr/buildflags/buildflags.gni")
 import("//gpu/vulkan/features.gni")
 import("//media/media_options.gni")
@@ -37,10 +36,6 @@ if (is_android) {
   import("//build/config/apple/mobile_config.gni")
   import("//build/config/apple/swift_source_set.gni")
   import("//content/shell/app/ios/extensions.gni")
-}
-if (is_cobalt) {
-  import("//cobalt/build/modular_executable.gni")
-  import("//starboard/build/buildflags.gni")
 }
 
 # TODO(crbug.com/1336055, spang): Investigate using shell_views with cast builds as
@@ -486,17 +481,6 @@ static_library("content_shell_lib") {
   if (use_ozone) {
     deps += [ "//ui/ozone" ]
   }
-
-  if (is_cobalt && use_starboard_media) {
-    deps += [
-      "//starboard:starboard_group",
-    ]
-    if (is_android) {
-      deps += [
-        "//starboard/android/shared:starboard_platform",
-      ]
-    }
-  }
 }
 
 grit("content_shell_resources_grit") {
@@ -610,7 +594,7 @@ repack("pak") {
     sources +=
         [ "$root_gen_dir/ui/views/resources/views_resources_100_percent.pak" ]
   }
-  if (enable_devtools_frontend) {
+  if (!is_android && !is_fuchsia && !is_ios) {
     sources +=
         [ "$root_gen_dir/content/browser/devtools/devtools_resources.pak" ]
     deps += [ "//content/browser/devtools:devtools_resources" ]
@@ -744,12 +728,7 @@ if (is_android) {
     bundle_identifier = ios_content_process_bundle_identifier
   }
 } else {
-  if (is_cobalt && is_cobalt_hermetic_build) {
-    _target_type = "modular_executable"
-  } else {
-    _target_type = "executable"
-  }
-  target(_target_type, "content_shell") {
+  executable("content_shell") {
     testonly = true
 
     sources = [ "app/shell_main.cc" ]

@@ -12,6 +12,9 @@
 [submodule "third_party/compiler-rt/src"]
 	path = third_party/compiler-rt/src
 	url = https://chromium.googlesource.com/external/github.com/llvm/llvm-project/compiler-rt
+[submodule "third_party/libc++/src"]
+	path = third_party/libc++/src
+	url = https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxx
 [submodule "third_party/libc++abi/src"]
 	path = third_party/libc++abi/src
 	url = https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxxabi
@@ -42,14 +45,6 @@
 	path = clank
 	url = https://chrome-internal.googlesource.com/clank/internal/apps
 	gclient-condition = checkout_android and checkout_src_internal
-[submodule "cobalt/internal"]
-	path = cobalt/internal
-	url = https://lbshell-internal.googlesource.com/cobalt/internal
-	gclient-condition = checkout_cobalt_internal
-[submodule "third_party/internal"]
-	path = third_party/internal
-	url = https://lbshell-internal.googlesource.com/third_party/internal
-	gclient-condition = checkout_cobalt_internal
 [submodule "docs/website"]
 	path = docs/website
 	url = https://chromium.googlesource.com/website
@@ -120,6 +115,9 @@
 	path = native_client
 	url = https://chromium.googlesource.com/native_client/src/native_client
 	gclient-condition = checkout_nacl
+[submodule "net/third_party/quiche/src"]
+	path = net/third_party/quiche/src
+	url = https://quiche.googlesource.com/quiche
 [submodule "testing/libfuzzer/fuzzers/wasm_corpus"]
 	path = testing/libfuzzer/fuzzers/wasm_corpus
 	url = https://chromium.googlesource.com/v8/fuzzer_wasm_corpus
@@ -130,6 +128,9 @@
 	path = third_party/androidx_javascriptengine/src
 	url = https://chromium.googlesource.com/aosp/platform/frameworks/support/javascriptengine/javascriptengine/src
 	gclient-condition = checkout_android
+[submodule "third_party/angle"]
+	path = third_party/angle
+	url = https://chromium.googlesource.com/angle/angle
 [submodule "third_party/anonymous_tokens/src"]
 	path = third_party/anonymous_tokens/src
 	url = https://chromium.googlesource.com/external/github.com/google/anonymous-tokens
@@ -156,6 +157,9 @@
 [submodule "third_party/google_benchmark/src"]
 	path = third_party/google_benchmark/src
 	url = https://chromium.googlesource.com/external/github.com/google/benchmark
+[submodule "third_party/boringssl/src"]
+	path = third_party/boringssl/src
+	url = https://boringssl.googlesource.com/boringssl
 [submodule "third_party/breakpad/breakpad"]
 	path = third_party/breakpad/breakpad
 	url = https://chromium.googlesource.com/breakpad/breakpad
@@ -185,6 +189,9 @@
 [submodule "third_party/cpu_features/src"]
 	path = third_party/cpu_features/src
 	url = https://chromium.googlesource.com/external/github.com/google/cpu_features
+[submodule "third_party/cpuinfo/src"]
+	path = third_party/cpuinfo/src
+	url = https://chromium.googlesource.com/external/github.com/pytorch/cpuinfo
 [submodule "third_party/crc32c/src"]
 	path = third_party/crc32c/src
 	url = https://chromium.googlesource.com/external/github.com/google/crc32c
@@ -290,6 +297,9 @@
 	path = third_party/google-truth/src
 	url = https://chromium.googlesource.com/external/github.com/google/truth
 	gclient-condition = checkout_android
+[submodule "third_party/googletest/src"]
+	path = third_party/googletest/src
+	url = https://chromium.googlesource.com/external/github.com/google/googletest
 [submodule "third_party/gperf"]
 	path = third_party/gperf
 	url = https://chromium.googlesource.com/chromium/deps/gperf
@@ -305,6 +315,9 @@
 [submodule "third_party/hunspell_dictionaries"]
 	path = third_party/hunspell_dictionaries
 	url = https://chromium.googlesource.com/chromium/deps/hunspell_dictionaries
+[submodule "third_party/icu"]
+	path = third_party/icu
+	url = https://chromium.googlesource.com/chromium/deps/icu
 [submodule "third_party/javalang/src"]
 	path = third_party/javalang/src
 	url = https://chromium.googlesource.com/external/github.com/c2nes/javalang
@@ -493,6 +506,9 @@
 [submodule "third_party/pdfium"]
 	path = third_party/pdfium
 	url = https://pdfium.googlesource.com/pdfium
+[submodule "third_party/perfetto"]
+	path = third_party/perfetto
+	url = https://chromium.googlesource.com/external/github.com/google/perfetto
 [submodule "third_party/perl"]
 	path = third_party/perl
 	url = https://chromium.googlesource.com/chromium/deps/perl
@@ -530,6 +546,9 @@
 	path = third_party/search_engines_data/resources_internal
 	url = https://chrome-internal.googlesource.com/external/search_engines_data_internal
 	gclient-condition = checkout_src_internal
+[submodule "third_party/skia"]
+	path = third_party/skia
+	url = https://skia.googlesource.com/skia
 [submodule "third_party/smhasher/src"]
 	path = third_party/smhasher/src
 	url = https://chromium.googlesource.com/external/smhasher
@@ -612,6 +631,9 @@
 [submodule "third_party/webpagereplay"]
 	path = third_party/webpagereplay
 	url = https://chromium.googlesource.com/webpagereplay
+[submodule "third_party/webrtc"]
+	path = third_party/webrtc
+	url = https://webrtc.googlesource.com/src
 [submodule "third_party/wuffs/src"]
 	path = third_party/wuffs/src
 	url = https://skia.googlesource.com/external/github.com/google/wuffs-mirror-release-c
@@ -629,6 +651,9 @@
 [submodule "third_party/zstd/src"]
 	path = third_party/zstd/src
 	url = https://chromium.googlesource.com/external/github.com/facebook/zstd
+[submodule "v8"]
+	path = v8
+	url = https://chromium.googlesource.com/v8/v8
 [submodule "internal"]
 	path = internal
 	url = https://chrome-internal.googlesource.com/chrome/src-internal
@@ -901,179 +926,3 @@
 	path = webkit/data/test_shell/plugins
 	url = https://chrome-internal.googlesource.com/chrome/data/webkit_plugin_tests
 	gclient-condition = checkout_src_internal
-[submodule "third_party/angle/third_party/EGL-Registry/src"]
-    path = "third_party/angle/third_party/EGL-Registry/src"
-[submodule "third_party/angle/testing"]
-	path = third_party/angle/testing
-[submodule "third_party/angle/build"]
-	path = third_party/angle/build
-[submodule "third_party/angle/buildtools"]
-	path = third_party/angle/buildtools
-[submodule "third_party/angle/third_party/OpenCL-CTS/src"]
-    path = third_party/angle/third_party/OpenCL-CTS/src
-[submodule "third_party/angle/third_party/OpenCL-Docs/src"]
-    path = third_party/angle/third_party/OpenCL-Docs/src
-[submodule "third_party/angle/third_party/OpenCL-ICD-Loader/src"]
-    path = third_party/angle/third_party/OpenCL-ICD-Loader/src
-[submodule "third_party/angle/third_party/OpenGL-Registry/src"]
-    path = third_party/angle/third_party/OpenGL-Registry/src
-[submodule "third_party/angle/third_party/Python-Markdown"]
-    path = third_party/angle/third_party/Python-Markdown
-[submodule "third_party/angle/third_party/SwiftShader"]
-    path = third_party/angle/third_party/SwiftShader
-[submodule "third_party/angle/third_party/VK-GL-CTS/src"]
-    path = third_party/angle/third_party/VK-GL-CTS/src
-[submodule "third_party/angle/third_party/abseil-cpp"]
-    path = third_party/angle/third_party/abseil-cpp
-[submodule "third_party/angle/third_party/android_build_tools"]
-    path = third_party/angle/third_party/android_build_tools
-[submodule "third_party/angle/third_party/android_deps"]
-    path = third_party/angle/third_party/android_deps
-[submodule "third_party/angle/third_party/android_platform"]
-    path = third_party/angle/third_party/android_platform
-[submodule "third_party/angle/third_party/android_sdk"]
-    path = third_party/angle/third_party/android_sdk
-[submodule "third_party/angle/third_party/astc-encoder/src"]
-    path = third_party/angle/third_party/astc-encoder/src
-[submodule "third_party/angle/third_party/catapult"]
-    path = third_party/angle/third_party/catapult
-[submodule "third_party/angle/third_party/cherry"]
-    path = third_party/angle/third_party/cherry
-[submodule "third_party/angle/third_party/clang-format/script"]
-    path = third_party/angle/third_party/clang-format/script
-[submodule "third_party/angle/third_party/clspv/src"]
-    path = third_party/angle/third_party/clspv/src
-[submodule "third_party/angle/third_party/colorama/src"]
-    path = third_party/angle/third_party/colorama/src
-[submodule "third_party/angle/third_party/cpu_features/src"]
-    path = third_party/angle/third_party/cpu_features/src
-[submodule "third_party/angle/third_party/dawn"]
-    path = third_party/angle/third_party/dawn
-[submodule "third_party/angle/third_party/depot_tools"]
-    path = third_party/angle/third_party/depot_tools
-[submodule "third_party/angle/third_party/flatbuffers/src"]
-    path = third_party/angle/third_party/flatbuffers/src
-[submodule "third_party/angle/third_party/gles1_conform"]
-    path = third_party/angle/third_party/gles1_conform
-[submodule "third_party/angle/third_party/glmark2/src"]
-    path = third_party/angle/third_party/glmark2/src
-[submodule "third_party/angle/third_party/glslang/src"]
-    path = third_party/angle/third_party/glslang/src
-[submodule "third_party/angle/third_party/googletest/src"]
-    path = third_party/angle/third_party/googletest/src
-[submodule "third_party/angle/third_party/khronos-cts/src"]
-    path = third_party/angle/third_party/khronos-cts/src
-[submodule "third_party/angle/third_party/libXNVCtrl/src"]
-    path = third_party/angle/third_party/libXNVCtrl/src
-[submodule "third_party/angle/third_party/libxcb/src"]
-    path = third_party/angle/third_party/libxcb/src
-[submodule "third_party/angle/third_party/nasm/src"]
-    path = third_party/angle/third_party/nasm/src
-[submodule "third_party/angle/third_party/perfetto/src"]
-    path = third_party/angle/third_party/perfetto/src
-[submodule "third_party/angle/third_party/shaderc/src"]
-    path = third_party/angle/third_party/shaderc/src
-[submodule "third_party/angle/third_party/spirv-cross/src"]
-    path = third_party/angle/third_party/spirv-cross/src
-[submodule "third_party/angle/third_party/spirv-headers/src"]
-    path = third_party/angle/third_party/spirv-headers/src
-[submodule "third_party/angle/third_party/spirv-tools/src"]
-    path = third_party/angle/third_party/spirv-tools/src
-[submodule "third_party/angle/third_party/trace-processor-shell/src"]
-    path = third_party/angle/third_party/trace-processor-shell/src
-[submodule "third_party/angle/third_party/vulkan-deps/glslang/src"]
-    path = third_party/angle/third_party/vulkan-deps/glslang/src
-[submodule "third_party/angle/third_party/vulkan-deps/spirv-cross/src"]
-    path = third_party/angle/third_party/vulkan-deps/spirv-cross/src
-[submodule "third_party/angle/third_party/vulkan-deps/spirv-headers/src"]
-    path = third_party/angle/third_party/vulkan-deps/spirv-headers/src
-[submodule "third_party/angle/third_party/vulkan-deps/spirv-tools/src"]
-    path = third_party/angle/third_party/vulkan-deps/spirv-tools/src
-[submodule "third_party/angle/third_party/vulkan-headers/src"]
-    path = third_party/angle/third_party/vulkan-headers/src
-[submodule "third_party/angle/third_party/vulkan-loader/src"]
-    path = third_party/angle/third_party/vulkan-loader/src
-[submodule "third_party/angle/third_party/vulkan-utility-libraries/src"]
-    path = third_party/angle/third_party/vulkan-utility-libraries/src
-[submodule "third_party/angle/third_party/vulkan-validation-layers/src"]
-    path = third_party/angle/third_party/vulkan-validation-layers/src
-[submodule "third_party/angle/tools"]
-    path = third_party/angle/tools
-[submodule "third_party/angle/util"]
-    path = third_party/angle/util
-[submodule "third_party/angle/third_party/googletest"]
-    path = third_party/angle/third_party/googletest
-[submodule "third_party/angle/third_party/ijar"]
-    path = third_party/angle/third_party/ijar
-[submodule "third_party/angle/third_party/jinja2"]
-    path = third_party/angle/third_party/jinja2
-[submodule "third_party/angle/third_party/jsoncpp"]
-    path = third_party/angle/third_party/jsoncpp
-[submodule "third_party/angle/third_party/libc++/src"]
-    path = third_party/angle/third_party/libc++/src
-[submodule "third_party/angle/third_party/libc++abi/src"]
-    path = third_party/angle/third_party/libc++abi/src
-[submodule "third_party/angle/third_party/libdrm/src"]
-    path = third_party/angle/third_party/libdrm/src
-[submodule "third_party/angle/third_party/libjpeg_turbo"]
-    path = third_party/angle/third_party/libjpeg_turbo
-[submodule "third_party/angle/third_party/libpng/src"]
-    path = third_party/angle/third_party/libpng/src
-[submodule "third_party/angle/third_party/libunwind/src"]
-    path = third_party/angle/third_party/libunwind/src
-[submodule "third_party/angle/third_party/llvm-libc/src"]
-    path = third_party/angle/third_party/llvm-libc/src
-[submodule "third_party/angle/third_party/llvm/src"]
-    path = third_party/angle/third_party/llvm/src
-[submodule "third_party/angle/third_party/lunarg-vulkantools/src"]
-    path = third_party/angle/third_party/lunarg-vulkantools/src
-[submodule "third_party/angle/third_party/markupsafe"]
-    path = third_party/angle/third_party/markupsafe
-[submodule "third_party/angle/third_party/mesa/src"]
-    path = third_party/angle/third_party/mesa/src
-[submodule "third_party/angle/third_party/meson"]
-    path = third_party/angle/third_party/meson
-[submodule "third_party/angle/third_party/nasm"]
-    path = third_party/angle/third_party/nasm
-[submodule "third_party/angle/third_party/perfetto"]
-    path = third_party/angle/third_party/perfetto
-[submodule "third_party/angle/third_party/protobuf"]
-    path = third_party/angle/third_party/protobuf
-[submodule "third_party/angle/third_party/rapidjson/src"]
-    path = third_party/angle/third_party/rapidjson/src
-[submodule "third_party/angle/third_party/requests/src"]
-    path = third_party/angle/third_party/requests/src
-[submodule "third_party/angle/third_party/rust"]
-    path = third_party/angle/third_party/rust
-[submodule "third_party/angle/third_party/six"]
-    path = third_party/angle/third_party/six
-[submodule "third_party/angle/third_party/vulkan-deps"]
-    path = third_party/angle/third_party/vulkan-deps
-[submodule "third_party/angle/third_party/vulkan-tools/src"]
-    path = third_party/angle/third_party/vulkan-tools/src
-[submodule "third_party/angle/third_party/zlib"]
-    path = third_party/angle/third_party/zlib
-[submodule "third_party/angle/third_party/vulkan_memory_allocator"]
-    path = third_party/angle/third_party/vulkan_memory_allocator
-[submodule "third_party/angle/third_party/wayland"]
-    path = third_party/angle/third_party/wayland
-[submodule "third_party/angle/tools/android"]
-    path = third_party/angle/tools/android
-[submodule "third_party/angle/tools/clang"]
-    path = third_party/angle/tools/clang
-[submodule "third_party/angle/tools/mb"]
-    path = third_party/angle/tools/mb
-[submodule "third_party/angle/tools/md_browser"]
-    path = third_party/angle/tools/md_browser
-[submodule "third_party/angle/tools/memory"]
-    path = third_party/angle/tools/memory
-[submodule "third_party/angle/tools/perf"]
-    path = third_party/angle/tools/perf
-[submodule "third_party/angle/tools/protoc_wrapper"]
-    path = third_party/angle/tools/protoc_wrapper
-[submodule "third_party/angle/tools/python"]
-    path = third_party/angle/tools/python
-[submodule "third_party/angle/tools/rust"]
-    path = third_party/angle/tools/rust
-[submodule "third_party/angle/tools/valgrind"]
-    path = third_party/angle/tools/valgrind

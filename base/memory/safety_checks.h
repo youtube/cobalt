@@ -5,7 +5,6 @@
 #ifndef BASE_MEMORY_SAFETY_CHECKS_H_
 #define BASE_MEMORY_SAFETY_CHECKS_H_
 
-#include <cstdint>
 #include <new>
 #include <type_traits>
 

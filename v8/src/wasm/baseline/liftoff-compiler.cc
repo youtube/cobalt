@@ -8510,7 +8510,8 @@ class LiftoffCompiler {
     MaybeEmitNullCheck(decoder, string_reg.gp(), pinned, str.type);
     LiftoffRegister value = __ GetUnusedRegister(kGpReg, pinned);
     LoadObjectField(decoder, value, string_reg.gp(), no_reg,
-                    wasm::ObjectAccess::ToTagged(offsetof(String, length_)),
+                    wasm::ObjectAccess::ToTagged(
+                        compiler::AccessBuilder::ForStringLength().offset),
                     ValueKind::kI32, false /* is_signed */,
                     false /* trapping */, pinned);
     __ PushRegister(kI32, value);
@@ -9767,7 +9768,6 @@ class LiftoffCompiler {
     if (v8_flags.experimental_wasm_skip_null_checks || !type.is_nullable()) {
       return;
     }
-    SCOPED_CODE_COMMENT("null check");
     LiftoffRegister null = __ GetUnusedRegister(kGpReg, pinned);
     LoadNullValueForCompare(null.gp(), pinned, type);
     OolTrapLabel trap =
@@ -9780,7 +9780,6 @@ class LiftoffCompiler {
                         LiftoffRegister array, LiftoffRegister index,
                         LiftoffRegList pinned) {
     if (V8_UNLIKELY(v8_flags.experimental_wasm_skip_bounds_checks)) return;
-    SCOPED_CODE_COMMENT("array bounds check");
     LiftoffRegister length = __ GetUnusedRegister(kGpReg, pinned);
     constexpr int kLengthOffset =
         wasm::ObjectAccess::ToTagged(WasmArray::kLengthOffset);
