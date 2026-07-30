@@ -350,7 +350,12 @@ void TerminateOnThread() {
 }
 
 size_t GetDefaultThreadStackSize(const pthread_attr_t& attributes) {
-#if !defined(ADDRESS_SANITIZER)
+#if BUILDFLAG(IS_COBALT)
+  // Reduces default helper thread stacks from 1MB to 256KB to save virtual
+  // memory on low-memory Android TV devices (b/527182602). See also
+  // starboard/android/shared/thread_platform_android.cc.
+  return 256 * 1024;
+#elif !defined(ADDRESS_SANITIZER)
   return 0;
 #else
   // AddressSanitizer bloats the stack approximately 2x. Default stack size of

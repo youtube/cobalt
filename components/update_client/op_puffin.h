@@ -15,6 +15,10 @@
 #include "components/update_client/patcher.h"
 #include "components/update_client/update_client.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "components/update_client/pipeline.h"
+#endif
+
 namespace base {
 class FilePath;
 }
@@ -26,7 +30,11 @@ struct CategorizedError;
 // Apply a puffin patch. `callback` is posted to the sequence PuffOperation was
 // called on, with a file path containing the result of the patch, if
 // successful. If unsuccessful, `callback` is posted with an error. In either
+#if BUILDFLAG(IS_STARBOARD)
+// case, `patch_operation_result.response` is deleted. Returns a cancellation callback.
+#else
 // case, `patch_file` is deleted. Returns a cancellation callback.
+#endif
 base::OnceClosure PuffOperation(
     scoped_refptr<CrxCache> crx_cache,
     scoped_refptr<Patcher> patcher,
@@ -34,8 +42,13 @@ base::OnceClosure PuffOperation(
     base::RepeatingCallback<void(ComponentState)> state_tracker,
     const std::string& old_hash,
     const std::string& output_hash,
+#if BUILDFLAG(IS_STARBOARD)
+    const OperationResult& patch_operation_result,
+    base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
+#else
     const base::FilePath& patch_file,
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
+#endif
         callback);
 
 }  // namespace update_client

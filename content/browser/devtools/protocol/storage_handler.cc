@@ -48,7 +48,8 @@
 #include "components/services/storage/privileged/mojom/indexed_db_control.mojom.h"
 #include "components/services/storage/public/cpp/buckets/bucket_locator.h"
 #include "components/services/storage/public/mojom/cache_storage_control.mojom.h"
-#include "content/browser/attribution_reporting/aggregatable_result.mojom.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#include "content/browser/attribution_reporting/aggregatable_result.mojom.h"  // nogncheck
 #include "content/browser/attribution_reporting/attribution_debug_report.h"
 #include "content/browser/attribution_reporting/attribution_manager.h"
 #include "content/browser/attribution_reporting/attribution_observer.h"
@@ -56,10 +57,11 @@
 #include "content/browser/attribution_reporting/attribution_trigger.h"
 #include "content/browser/attribution_reporting/common_source_info.h"
 #include "content/browser/attribution_reporting/create_report_result.h"
-#include "content/browser/attribution_reporting/event_level_result.mojom.h"
+#include "content/browser/attribution_reporting/event_level_result.mojom.h"  // nogncheck
 #include "content/browser/attribution_reporting/send_result.h"
 #include "content/browser/attribution_reporting/storable_source.h"
-#include "content/browser/attribution_reporting/store_source_result.mojom.h"
+#include "content/browser/attribution_reporting/store_source_result.mojom.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/devtools/dedicated_worker_devtools_agent_host.h"
 #include "content/browser/devtools/devtools_agent_host_impl.h"
 #include "content/browser/devtools/protocol/browser_handler.h"
@@ -69,7 +71,9 @@
 #include "content/browser/devtools/protocol/storage.h"
 #include "content/browser/devtools/service_worker_devtools_agent_host.h"
 #include "content/browser/devtools/shared_worker_devtools_agent_host.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/interest_group/interest_group_manager_impl.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/public/browser/browser_context.h"
@@ -449,12 +453,14 @@ void StorageHandler::SetRenderer(int process_host_id,
   RenderProcessHost* process = RenderProcessHost::FromID(process_host_id);
   StoragePartition* new_storage_partition =
       process ? process->GetStoragePartition() : nullptr;
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   if (interest_group_tracking_enabled_) {
     // Transfer observer registration from old frame's StoragePartition to new;
     // SetInterestGroupTrackingInternal() will handle any nulls.
     SetInterestGroupTrackingInternal(storage_partition_, false);
     SetInterestGroupTrackingInternal(new_storage_partition, true);
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   storage_partition_ = new_storage_partition;
   frame_host_ = frame_host;
 }
@@ -463,10 +469,14 @@ Response StorageHandler::Disable() {
   cache_storage_observer_.reset();
   indexed_db_observer_.reset();
   quota_override_handle_.reset();
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   SetInterestGroupTracking(false);
   SetSharedStorageTracking(false);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   quota_manager_observer_.reset();
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   ResetAttributionReporting();
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   return Response::Success();
 }
 
@@ -924,6 +934,7 @@ StorageHandler::IndexedDBObserver* StorageHandler::GetIndexedDBObserver() {
   return indexed_db_observer_.get();
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 SharedStorageRuntimeManager* StorageHandler::GetSharedStorageRuntimeManager() {
   if (!storage_partition_) {
     return nullptr;
@@ -944,6 +955,7 @@ StorageHandler::GetSharedStorageManager() {
   }
   return Response::ServerError("Shared storage is disabled");
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
 storage::QuotaManagerProxy* StorageHandler::GetQuotaManagerProxy() {
   DCHECK(storage_partition_);
@@ -1078,6 +1090,7 @@ void StorageHandler::ClearTrustTokens(
       base::BindOnce(&SendClearTrustTokensStatus, std::move(callback)));
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 void StorageHandler::OnInterestGroupAccessed(
     base::optional_ref<const std::string> auction_id,
     base::Time access_time,
@@ -1186,12 +1199,26 @@ void StorageHandler::GetInterestGroupDetails(
       owner_origin, name,
       base::BindOnce(&SendGetInterestGroup, std::move(callback)));
 }
+#else
+void StorageHandler::GetInterestGroupDetails(
+    const std::string& owner_origin_string,
+    const std::string& name,
+    std::unique_ptr<GetInterestGroupDetailsCallback> callback) {
+  callback->sendFailure(
+      Response::ServerError("Interest group storage is disabled."));
+}
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
 Response StorageHandler::SetInterestGroupTracking(bool enable) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   interest_group_tracking_enabled_ = enable;
   return SetInterestGroupTrackingInternal(storage_partition_, enable);
+#else
+  return Response::ServerError("Interest group storage is disabled.");
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 Response StorageHandler::SetInterestGroupTrackingInternal(
     StoragePartition* storage_partition,
     bool enable) {
@@ -1218,12 +1245,18 @@ Response StorageHandler::SetInterestGroupTrackingInternal(
   }
   return Response::Success();
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
 Response StorageHandler::SetInterestGroupAuctionTracking(bool enable) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   interest_group_auction_tracking_enabled_ = enable;
   return Response::Success();
+#else
+  return Response::ServerError("Interest group storage is disabled.");
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 namespace {
 
 void SendSharedStorageMetadata(
@@ -1351,7 +1384,20 @@ void StorageHandler::GetSharedStorageEntries(
       owner_origin,
       base::BindOnce(&RetrieveSharedStorageEntries, std::move(callback)));
 }
+#else
+void StorageHandler::GetSharedStorageMetadata(
+    const std::string& owner_origin_string,
+    std::unique_ptr<GetSharedStorageMetadataCallback> callback) {
+  callback->sendFailure(Response::ServerError("Shared storage is disabled."));
+}
+void StorageHandler::GetSharedStorageEntries(
+    const std::string& owner_origin_string,
+    std::unique_ptr<GetSharedStorageEntriesCallback> callback) {
+  callback->sendFailure(Response::ServerError("Shared storage is disabled."));
+}
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 namespace {
 
 void DispatchSharedStorageSetCallback(
@@ -1447,7 +1493,24 @@ void StorageHandler::DeleteSharedStorageEntry(
           &DispatchSharedStorageCallback<DeleteSharedStorageEntryCallback>,
           std::move(callback)));
 }
+#else
+void StorageHandler::SetSharedStorageEntry(
+    const std::string& owner_origin_string,
+    const std::string& key,
+    const std::string& value,
+    std::optional<bool> ignore_if_present,
+    std::unique_ptr<SetSharedStorageEntryCallback> callback) {
+  callback->sendFailure(Response::ServerError("Shared storage is disabled."));
+}
+void StorageHandler::DeleteSharedStorageEntry(
+    const std::string& owner_origin_string,
+    const std::string& key,
+    std::unique_ptr<DeleteSharedStorageEntryCallback> callback) {
+  callback->sendFailure(Response::ServerError("Shared storage is disabled."));
+}
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 void StorageHandler::ClearSharedStorageEntries(
     const std::string& owner_origin_string,
     std::unique_ptr<ClearSharedStorageEntriesCallback> callback) {
@@ -1475,8 +1538,16 @@ void StorageHandler::ClearSharedStorageEntries(
           &DispatchSharedStorageCallback<ClearSharedStorageEntriesCallback>,
           std::move(callback)));
 }
+#else
+void StorageHandler::ClearSharedStorageEntries(
+    const std::string& owner_origin_string,
+    std::unique_ptr<ClearSharedStorageEntriesCallback> callback) {
+  callback->sendFailure(Response::ServerError("Shared storage is disabled."));
+}
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
 Response StorageHandler::SetSharedStorageTracking(bool enable) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   // FIXME: this should remember the state and restore it
   // once the StorageRunTimeManager or the storage partition is available.
   if (enable) {
@@ -1494,8 +1565,12 @@ Response StorageHandler::SetSharedStorageTracking(bool enable) {
     shared_storage_observation_.Reset();
   }
   return Response::Success();
+#else
+  return Response::ServerError("Shared storage is disabled.");
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 void StorageHandler::ResetSharedStorageBudget(
     const std::string& owner_origin_string,
     std::unique_ptr<ResetSharedStorageBudgetCallback> callback) {
@@ -1523,7 +1598,15 @@ void StorageHandler::ResetSharedStorageBudget(
           &DispatchSharedStorageCallback<ResetSharedStorageBudgetCallback>,
           std::move(callback)));
 }
+#else
+void StorageHandler::ResetSharedStorageBudget(
+    const std::string& owner_origin_string,
+    std::unique_ptr<ResetSharedStorageBudgetCallback> callback) {
+  callback->sendFailure(Response::ServerError("Shared storage is disabled."));
+}
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 GlobalRenderFrameHostId StorageHandler::AssociatedFrameHostId() const {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   return frame_host_ ? frame_host_->GetGlobalId() : GlobalRenderFrameHostId();
@@ -1747,6 +1830,7 @@ void StorageHandler::OnSharedStorageWorkletOperationExecutionFinished(
       base::NumberToString(operation_id), worklet_devtools_token.ToString(),
       GetFrameTokenFromGlobalRenderFrameHostId(main_frame_id), owner_origin);
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
 DispatchResponse StorageHandler::SetStorageBucketTracking(
     const std::string& serialized_storage_key,
@@ -1801,6 +1885,7 @@ void StorageHandler::NotifyDeleteBucket(
       base::NumberToString(bucket_locator.id.value()));
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 AttributionManager* StorageHandler::GetAttributionManager() {
   if (!storage_partition_) {
     return nullptr;
@@ -1808,7 +1893,9 @@ AttributionManager* StorageHandler::GetAttributionManager() {
   return static_cast<StoragePartitionImpl*>(storage_partition_)
       ->GetAttributionManager();
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 void StorageHandler::SetAttributionReportingLocalTestingMode(
     bool enabled,
     std::unique_ptr<SetAttributionReportingLocalTestingModeCallback> callback) {
@@ -1824,7 +1911,16 @@ void StorageHandler::SetAttributionReportingLocalTestingMode(
           &SetAttributionReportingLocalTestingModeCallback::sendSuccess,
           std::move(callback)));
 }
+#else
+void StorageHandler::SetAttributionReportingLocalTestingMode(
+    bool enabled,
+    std::unique_ptr<SetAttributionReportingLocalTestingModeCallback> callback) {
+  callback->sendFailure(
+      Response::ServerError("Attribution Reporting is disabled."));
+}
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 void StorageHandler::SendPendingAttributionReports(
     std::unique_ptr<SendPendingAttributionReportsCallback> callback) {
   auto* manager = GetAttributionManager();
@@ -1858,7 +1954,15 @@ void StorageHandler::SendPendingAttributionReports(
           },
           weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
 }
+#else
+void StorageHandler::SendPendingAttributionReports(
+    std::unique_ptr<SendPendingAttributionReportsCallback> callback) {
+  callback->sendFailure(
+      Response::ServerError("Attribution Reporting is disabled."));
+}
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 void StorageHandler::ResetAttributionReporting() {
   attribution_observation_.Reset();
 
@@ -2517,8 +2621,10 @@ void StorageHandler::OnDebugReportSent(const AttributionDebugReport& report,
       report.ReportUrl().spec(), std::move(body), net_error,
       std::move(net_error_name), http_status_code);
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
 Response StorageHandler::SetAttributionReportingTracking(bool enable) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   if (enable) {
     auto* manager = GetAttributionManager();
     if (!manager) {
@@ -2533,8 +2639,12 @@ Response StorageHandler::SetAttributionReportingTracking(bool enable) {
     attribution_observation_.Reset();
   }
   return Response::Success();
+#else
+  return Response::ServerError("Attribution Reporting is disabled.");
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 void StorageHandler::NotifyInterestGroupAuctionEventOccurred(
     base::Time event_time,
     content::InterestGroupAuctionEventType type,
@@ -2590,11 +2700,13 @@ void StorageHandler::NotifyInterestGroupAuctionNetworkRequestCreated(
       type_enum, request_id,
       std::make_unique<std::vector<std::string>>(devtools_auction_ids));
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
 Response StorageHandler::SetProtectedAudienceKAnonymity(
     const std::string& in_owner_origin,
     const std::string& in_group_name,
     std::unique_ptr<std::vector<Binary>> in_hashes) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   url::Origin owner_origin = url::Origin::Create(GURL(in_owner_origin));
 
   // Ensure we are in "test" mode.
@@ -2619,6 +2731,9 @@ Response StorageHandler::SetProtectedAudienceKAnonymity(
       /*update_time=*/base::Time::Now(),
       /*replace_existing_values=*/true);
   return Response::Success();
+#else
+  return Response::ServerError("Protected Audience not enabled");
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 }
 
 }  // namespace protocol

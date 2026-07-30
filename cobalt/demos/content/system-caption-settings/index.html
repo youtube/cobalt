@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+    #captionWindow {
+      position: absolute;
+      bottom: 10px;
+      text-align: center;
+      padding: 25px;
+    }
+    </style>
+  </head>
+  <body>
+    <div id="captionWindow">
+      <span id="caption">Captions will look like this</span>
+      <span id="captionsDisabled" style="visibility:hidden;color:white">Captions are disabled</span>
+    </div>
+  </body>
+  <script>
+    // Ignore characterEdgeStyle attribute because it is currently unsupported by Cobalt.
+    //
+    // Ignore fontFamily, backgroundOpacity, fontOpacity, and windowOpacity attributes because
+    // they require lengthy conversion (and will likely be provided if the other attributes are).
+
+    let settings = navigator.systemCaptionSettings;
+    console.log(settings);
+
+    let setCaptionStyle = (elementId, cssProperty, state, captionStyle) => {
+      if (state == "set" || state == "override") {
+        document.getElementById(elementId).style[cssProperty] = captionStyle;
+      }
+    }
+
+    if (settings.isEnabled) {
+      setCaptionStyle("caption", "backgroundColor", settings.backgroundColorState, settings.backgroundColor);
+      setCaptionStyle("caption", "color", settings.fontColorState, settings.fontColor);
+      setCaptionStyle("caption", "fontSize", settings.fontSizeState, `${settings.fontSize}px`);
+      setCaptionStyle("captionWindow", "backgroundColor", settings.windowColorState, settings.windowColor);
+    } else {
+      document.getElementById("captionsDisabled").style.visibility = "visible";
+      document.getElementById("caption").style.visibility = "hidden";
+    }
+  </script>
+</html>
