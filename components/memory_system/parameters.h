@@ -8,10 +8,19 @@
 #include <string>
 #include <string_view>
 
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "components/sampling_profiler/process_type.h"
 #include "components/version_info/channel.h"
 
 namespace memory_system {
+
+#if BUILDFLAG(IS_COBALT)
+enum class CobaltMemoryAttributionInclusion {
+  kInclude,
+  kDoNotInclude,
+};
+#endif
 
 // Configuration objects for all memory subsystem components. The parameters are
 // divided by component. The type of the data corresponds to the type used by
@@ -70,11 +79,22 @@ struct DispatcherParameters {
   explicit DispatcherParameters(
       PoissonAllocationSamplerInclusion poisson_allocation_sampler_inclusion,
       AllocationTraceRecorderInclusion allocation_trace_recorder_inclusion,
-      std::string_view process_type);
+      std::string_view process_type
+#if BUILDFLAG(IS_COBALT)
+      // Cobalt memory attribution can introduce performance overhead, so it is
+      // excluded by default unless explicitly requested.
+      , CobaltMemoryAttributionInclusion cobalt_memory_attribution_inclusion =
+            CobaltMemoryAttributionInclusion::kDoNotInclude
+#endif
+  );
 
   PoissonAllocationSamplerInclusion poisson_allocation_sampler_inclusion;
   AllocationTraceRecorderInclusion allocation_trace_recorder_inclusion;
   std::string process_type;
+#if BUILDFLAG(IS_COBALT)
+  CobaltMemoryAttributionInclusion cobalt_memory_attribution_inclusion =
+      CobaltMemoryAttributionInclusion::kDoNotInclude;
+#endif
 };
 
 }  // namespace memory_system

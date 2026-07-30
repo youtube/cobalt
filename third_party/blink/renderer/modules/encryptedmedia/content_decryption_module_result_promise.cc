@@ -79,6 +79,16 @@ void ContentDecryptionModuleResultPromise::CompleteWithKeyStatus(
   resolver_.Clear();
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+void ContentDecryptionModuleResultPromise::CompleteWithString(
+    const WebString&) {
+  if (!IsValidToFulfillPromise())
+    return;
+  resolver_->RejectWithDOMException(DOMExceptionCode::kInvalidStateError,
+                                    "Unexpected completion.");
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 void ContentDecryptionModuleResultPromise::CompleteWithError(
     WebContentDecryptionModuleException exception_code,
     uint32_t system_code,

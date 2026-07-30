@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<localizationbundle locale="en">
+  <messages>
+    <msg name="AGE_RESTRICTED" desc="This message is shown to users who are under 13 years of age.">YouTube is not intended for use by children under 13.</msg>
+    <msg name="UNABLE_TO_CONTACT_YOUTUBE" desc="This error message is shown to the user when the software detects that YouTube's servers are repeatedly returning error messages. The message is shown in the center of the TV screen in white text over a dark background.">Unable to contact YouTube.</msg>
+  </messages>
+</localizationbundle>

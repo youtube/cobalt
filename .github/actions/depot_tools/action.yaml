@@ -1,0 +1,226 @@
+name: Set Up Depot Tools
+description: Sets up Depot Tools and initializes gclient. Optionally performs checkout and uses git cache.
+
+inputs:
+  run_sync:
+    description: Whether or not to run gclient sync.
+    default: 'true'
+  rbe_instance:
+    description: The RBE instance to use.
+    default: projects/cobalt-actions-prod/instances/default_instance
+  reapi_backend_config_path:
+    description: The path to the REAPI backend star configuration file.
+    default: cobalt.star
+  use_cache:
+    description: Whether or not to use runner cache.
+    default: 'true'
+  use_gcloud:
+    description: "Whether to run gcloud config set account."
+    default: 'false'
+  platform:
+    description: "The platform for which to publish the golden snapshot."
+    default: ''
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set Cache Path
+      id: cache-path
+      shell: bash
+      env:
+        USE_CACHE: ${{ inputs.use_cache }}
+      run: |
+        if [[ "${USE_CACHE}" == "true" ]] && [[ -w "/runner-cache" ]]; then
+          echo "path=/runner-cache" >> ${GITHUB_OUTPUT}
+        else
+          echo "path=" >> ${GITHUB_OUTPUT}
+        fi
+
+    - name: Authenticate with GoB
+      uses: ./.github/actions/gob_auth
+      with:
+        use_gcloud: ${{ inputs.use_gcloud }}
+
+    - name: Clone Depot Tools
+      uses: ./.github/actions/checkout
+      with:
+        repository: https://chromium.googlesource.com/chromium/tools/depot_tools.git
+        # TODO(b/562551706): Pinned before upstream 20aff01e (2026-09-16), which added
+        # `--end-of-options` to `git checkout`. Need to update git on runners.
+        ref: 4a978d8f1f3567d5bd729aec018bfc345a14e1cd
+        fetch_depth: 0
+        path: cobalt/depot_tools
+        use_cache: ${{ inputs.use_cache }}
+
+    - name: Add Depot Tools to PATH
+      run: |
+        echo "DEPOT_TOOLS_UPDATE=0" >> "${GITHUB_ENV}"
+        echo "${GITHUB_WORKSPACE}/cobalt/depot_tools" >> "${GITHUB_PATH}"
+      shell: bash
+
+    - name: Set CIPD and VPython Cache Directories
+      if: steps.cache-path.outputs.path != ''
+      env:
+        CACHE_PATH: ${{ steps.cache-path.outputs.path }}
+      run: |
+        mkdir -p "${CACHE_PATH}/cipd-cache" "${CACHE_PATH}/vpython"
+        echo "CIPD_CACHE_DIR=${CACHE_PATH}/cipd-cache" >> "${GITHUB_ENV}"
+        echo "VPYTHON_VIRTUALENV_ROOT=${CACHE_PATH}/vpython" >> "${GITHUB_ENV}"
+      shell: bash
+
+    - name: Bootstrap Bundled python3
+      run: |
+        # Must be run manually as ${DEPOT_TOOLS_UPDATE} is 0 in CI, skipping the bootstrap.
+        source "${GITHUB_WORKSPACE}/cobalt/depot_tools/bootstrap_python3" && bootstrap_python3
+      shell: bash
+
+    - name: Disable Chromium client side build telemetry
+      run: build_telemetry opt-out
+      shell: bash
+
+    - name: Run gclient config
+      env:
+        RBE_INSTANCE: ${{ inputs.rbe_instance }}
+        REAPI_BACKEND_CONFIG_PATH: ${{ inputs.reapi_backend_config_path }}
+        REPOSITORY: ${{ github.server_url }}/${{ github.repository }}
+      run: |
+        set -x
+        cd cobalt
+
+        if [ ! -f .gclient ]; then
+          gclient config \
+            --name=src \
+            --custom-var="rbe_instance=\"${RBE_INSTANCE}\"" \
+            --custom-var="reapi_backend_config_path=\"${REAPI_BACKEND_CONFIG_PATH}\"" \
+            "${REPOSITORY}"
+        else
+          echo ".gclient already exists. Skipping gclient config."
+        fi
+      shell: bash
+
+    - name: Set target OS
+      shell: bash
+      working-directory: cobalt
+      env:
+        PLATFORM: ${{ matrix.platform }}
+      run: |
+        if ! grep -q "target_os" .gclient; then
+          if [[ "${PLATFORM}" == *"android"* || "${PLATFORM}" == *"aosp"* ]]; then
+            echo "target_os=['android']" >> .gclient
+          elif [[ "${PLATFORM}" == *"tvos"* ]]; then
+            echo "target_os=['ios']" >> .gclient
+          fi
+        fi
+        gclient validate
+
+    - name: Set target CPU
+      shell: bash
+      working-directory: cobalt
+      env:
+        PLATFORM: ${{ matrix.platform }}
+      run: |
+        if ! grep -q "target_cpu" .gclient; then
+          if [[ "${PLATFORM}" == *"evergreen-arm64"* ]]; then
+            echo "target_cpu=['x64', 'arm64']" >> .gclient
+          elif [[ "${PLATFORM}" == *"evergreen-arm"* ]] || [[ "${PLATFORM}" == *"aosp-arm"* ]]; then
+            echo "target_cpu=['x64', 'arm']" >> .gclient
+          fi
+        fi
+        gclient validate
+
+    - name: Check Golden Workspace DEPS Match
+      id: check-deps
+      if: inputs.run_sync == 'true'
+      shell: bash
+      working-directory: cobalt
+      env:
+        PLATFORM: ${{ inputs.platform || matrix.platform }}
+      run: |
+        set -euo pipefail
+        deps_match=false
+        LOWER_DIR="/runner-cache/golden-workspace/${PLATFORM}"
+
+        if cmp -s "${LOWER_DIR}/src/DEPS" src/DEPS && cmp -s "${LOWER_DIR}/.gclient" .gclient; then
+          echo "Golden workspace DEPS and .gclient match. Skipping gclient sync."
+          deps_match=true
+        fi
+        echo "deps_match=${deps_match}" >> "${GITHUB_OUTPUT}"
+
+    - name: Clean dirty sub-repositories
+      shell: bash
+      if: inputs.run_sync == 'true' && steps.check-deps.outputs.deps_match != 'true'
+      working-directory: cobalt/src
+      run: |
+        # Identify and delete dirty sub-repositories
+        git -c core.quotepath=false status --porcelain -unormal | while IFS= read -r line; do
+          path="${line:3}"
+          clean_path="${path%/}"
+          if [[ -d "${clean_path}" && -d "${clean_path}/.git" ]]; then
+            echo "Deleting conflicting sub-repo: ${clean_path}"
+            rm -rf "${clean_path}"
+          fi
+        done
+
+    - name: Run gclient sync
+      shell: bash
+      if: inputs.run_sync == 'true' && steps.check-deps.outputs.deps_match != 'true'
+      working-directory: cobalt
+      env:
+        REF: ${{ github.sha }}
+      run: |
+        # Synchronize sub-repositories with minimal disk footprint and network transfer:
+        # --shallow / --no-history: fetch only latest commits without full commit history
+        # --nohooks: defer hooks so they run as an explicit, separately timed workflow step
+        # --force / --delete_unversioned_trees: clean up untracked or mismatched trees left by prior builds
+        # --revision: pin checkout to the exact triggering commit SHA
+        gclient sync \
+          --verbose \
+          --shallow \
+          --no-history \
+          --nohooks \
+          --force \
+          --delete_unversioned_trees \
+          --revision "${REF}"
+
+    - name: Publish Golden Workspace Snapshot
+      # Publish only when a sync actually happened (DEPS or .gclient changed, or
+      # no usable snapshot existed), and only from one config per platform: the
+      # snapshot is taken before the build, so its content is config-independent.
+      id: publish-snapshot
+      if: inputs.run_sync == 'true' && steps.check-deps.outputs.deps_match != 'true' && matrix.config == 'devel' && github.event_name == 'push' && (github.repository == 'youtube/cobalt' || github.repository == 'youtube/cobalt_sandbox')
+      shell: bash
+      working-directory: cobalt
+      env:
+        PLATFORM: ${{ inputs.platform || matrix.platform }}
+      run: |
+        BUCKET="$(gcloud config get-value project)-test-artifacts/golden-workspace"
+        ARCHIVE="/runner-cache/golden-${PLATFORM}.${$}.tar.zst"
+        TARGET_URI="gs://${BUCKET}/${PLATFORM}"
+        trap 'rm -f "${ARCHIVE}"' EXIT
+
+        DIGEST=$(tar --sort=name --mtime='1970-01-01 00:00:00Z' --owner=0 --group=0 --numeric-owner \
+          -cf - src depot_tools .gclient | zstd -T0 -3 -q | tee "${ARCHIVE}" | sha256sum | awk '{print $1}')
+
+        SNAPSHOT_GCS="${TARGET_URI}/${DIGEST}.tar.zst"
+        if ! gcloud storage ls "${SNAPSHOT_GCS}" >/dev/null 2>&1; then
+          gcloud storage cp --no-clobber "${ARCHIVE}" "${SNAPSHOT_GCS}"
+        fi
+
+        mkdir -p "${RUNNER_TEMP}/golden" && echo "${DIGEST}" > "${RUNNER_TEMP}/golden/${PLATFORM}"
+        echo "published=true" >> "${GITHUB_OUTPUT}"
+
+    - name: Upload Golden Workspace Metadata
+      if: steps.publish-snapshot.outputs.published == 'true'
+      uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+      with:
+        name: golden-digest-${{ inputs.platform || matrix.platform }}
+        path: ${{ runner.temp }}/golden/${{ inputs.platform || matrix.platform }}
+        retention-days: 1
+        overwrite: true
+
+    - name: Run gclient runhooks
+      if: inputs.run_sync == 'true'
+      working-directory: cobalt
+      run: |
+        gclient runhooks --verbose
+      shell: bash

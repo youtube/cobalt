@@ -13,6 +13,7 @@
 #include "src/core/SkDescriptor.h"
 #include "src/core/SkStrikeSpec.h"
 #include "src/core/SkTHash.h"
+#include "src/gpu/AtlasTypes.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -33,14 +34,36 @@ namespace sktext::gpu {
 
 class StrikeCache;
 
+<<<<<<< HEAD
 /**
  * Abstract base class for backend-specific text strike caches. This allows a
  * shared StrikeCache implementation.
  */
 class TextStrikeBase : public SkRefCnt {
+=======
+struct GlyphKey {
+    GlyphKey(SkPackedGlyphID id, skgpu::MaskFormat format) : fID(id), fFormat(format) {}
+    SkPackedGlyphID fID;
+    skgpu::MaskFormat fFormat;
+
+    bool operator==(const GlyphKey& that) const {
+        return fID == that.fID && fFormat == that.fFormat;
+    }
+};
+
+// The TextStrike manages an SkArenaAlloc for Glyphs. The SkStrike is what actually creates
+// the mask. The TextStrike may outlive the generating SkStrike. However, it retains a copy
+// of it's SkDescriptor as a key to access (or regenerate) the SkStrike. TextStrikes are
+// created by and owned by a StrikeCache.
+class TextStrike : public SkNVRefCnt<TextStrike> {
+>>>>>>> parent of 9f74401d172 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 public:
     ~TextStrikeBase() override = default;
 
+<<<<<<< HEAD
+=======
+    Glyph* getGlyph(SkPackedGlyphID, skgpu::MaskFormat);
+>>>>>>> parent of 9f74401d172 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     const SkStrikeSpec& strikeSpec() const { return fStrikeSpec; }
     const SkDescriptor& getDescriptor() const { return fStrikeSpec.descriptor(); }
 
@@ -59,7 +82,18 @@ protected:
     StrikeCache* const fStrikeCache;
     const SkStrikeSpec fStrikeSpec;
 
+<<<<<<< HEAD
     // Store for the glyph information (backend-specific glyphs allocated here)
+=======
+    struct HashTraits {
+        static const GlyphKey GetKey(const Glyph* glyph);
+        static uint32_t Hash(GlyphKey key);
+    };
+    
+    skia_private::THashTable<Glyph*, GlyphKey, HashTraits> fCache;
+
+    // Store for the glyph information.
+>>>>>>> parent of 9f74401d172 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     SkArenaAlloc fAlloc{512};
 
     // Linked list for LRU cache management

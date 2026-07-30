@@ -280,8 +280,18 @@ TEST(WaitableEventTest, TimedWaitDoesNotBlockIfAlreadySignaled) {
 TEST(WaitableEventTest, TimedWaitRespectsRestrictionsEvenIfSignaled) {
   WaitableEvent event(WaitableEvent::ResetPolicy::MANUAL,
                       WaitableEvent::InitialState::SIGNALED);
+#if BUILDFLAG(IS_COBALT)
+  // Cobalt runs tests with --single-process-tests, so disallowing sync
+  // primitives on the main thread would leak into the following tests. Only
+  // disallow them inside the death test child.
+  EXPECT_DCHECK_DEATH({
+    DisallowBaseSyncPrimitives();
+    event.TimedWait(Milliseconds(10));
+  });
+#else
   DisallowBaseSyncPrimitives();
   EXPECT_DCHECK_DEATH({ event.TimedWait(Milliseconds(10)); });
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 // Same as ZeroTimeout for negative timeouts.

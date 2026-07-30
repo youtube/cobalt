@@ -206,8 +206,12 @@ DrawAtlas::ErrorCode TextAtlasManager::addGlyphToAtlas(const SkGlyph& skGlyph,
     }
     SkASSERT(glyph != nullptr);
 
+<<<<<<< HEAD
     MaskFormat glyphFormat = sktext::gpu::FormatFromSkGlyph(skGlyph.maskFormat());
     MaskFormat expectedMaskFormat = this->resolveMaskFormat(glyphFormat);
+=======
+    MaskFormat expectedMaskFormat = this->resolveMaskFormat(glyph->fMaskFormat);
+>>>>>>> parent of 9f74401d172 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     int bytesPerPixel = MaskFormatBytesPerPixel(expectedMaskFormat);
 
     int padding;
@@ -331,3 +335,85 @@ void TextAtlasManager::compact() {
 }
 
 }  // namespace skgpu::graphite
+<<<<<<< HEAD
+=======
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace sktext::gpu {
+
+using DrawAtlas = skgpu::graphite::DrawAtlas;
+
+std::tuple<bool, int> GlyphVector::regenerateAtlasForGraphite(int begin,
+                                                              int end,
+                                                              skgpu::MaskFormat maskFormat,
+                                                              int srcPadding,
+                                                              skgpu::graphite::Recorder* recorder) {
+    auto atlasManager = recorder->priv().atlasProvider()->textAtlasManager();
+    auto tokenTracker = recorder->priv().tokenTracker();
+
+    // TODO: this is not a great place for this -- need a better way to init atlases when needed
+    unsigned int numActiveProxies;
+    const sk_sp<skgpu::graphite::TextureProxy>* proxies =
+            atlasManager->getProxies(maskFormat, &numActiveProxies);
+    if (!proxies) {
+        SkDebugf("Could not allocate backing texture for atlas\n");
+        return {false, 0};
+    }
+
+    uint64_t currentAtlasGen = atlasManager->atlasGeneration(maskFormat);
+
+    this->packedGlyphIDToGlyph(recorder->priv().strikeCache(), maskFormat);
+
+    if (fAtlasGeneration != currentAtlasGen) {
+        // Calculate the texture coordinates for the vertexes during first use (fAtlasGeneration
+        // is set to kInvalidAtlasGeneration) or the atlas has changed in subsequent calls..
+        fBulkUseUpdater.reset();
+
+        SkBulkGlyphMetricsAndImages metricsAndImages{fTextStrike->strikeSpec()};
+
+        // Update the atlas information in the GrStrike.
+        auto glyphs = fGlyphs.subspan(begin, end - begin);
+        int glyphsPlacedInAtlas = 0;
+        bool success = true;
+        for (const Variant& variant : glyphs) {
+            Glyph* gpuGlyph = variant.glyph;
+            SkASSERT(gpuGlyph != nullptr);
+
+            if (!atlasManager->hasGlyph(maskFormat, gpuGlyph)) {
+                const SkGlyph& skGlyph = *metricsAndImages.glyph(gpuGlyph->fPackedID);
+                auto code = atlasManager->addGlyphToAtlas(skGlyph, gpuGlyph, srcPadding);
+                if (code != DrawAtlas::ErrorCode::kSucceeded) {
+                    success = code != DrawAtlas::ErrorCode::kError;
+                    break;
+                }
+            }
+            atlasManager->addGlyphToBulkAndSetUseToken(
+                    &fBulkUseUpdater, maskFormat, gpuGlyph,
+                    tokenTracker->nextFlushToken());
+            glyphsPlacedInAtlas++;
+        }
+
+        // Update atlas generation if there are no more glyphs to put in the atlas.
+        if (success && begin + glyphsPlacedInAtlas == SkCount(fGlyphs)) {
+            // Need to get the freshest value of the atlas' generation because
+            // updateTextureCoordinates may have changed it.
+            fAtlasGeneration = atlasManager->atlasGeneration(maskFormat);
+        }
+
+        return {success, glyphsPlacedInAtlas};
+    } else {
+        // The atlas hasn't changed, so our texture coordinates are still valid.
+        if (end == SkCount(fGlyphs)) {
+            // The atlas hasn't changed and the texture coordinates are all still valid. Update
+            // all the plots used to the new use token.
+            atlasManager->setUseTokenBulk(fBulkUseUpdater,
+                                          tokenTracker->nextFlushToken(),
+                                          maskFormat);
+        }
+        return {true, end - begin};
+    }
+}
+
+}  // namespace sktext::gpu
+>>>>>>> parent of 9f74401d172 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)

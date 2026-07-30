@@ -4117,6 +4117,10 @@ Extensions Context::generateSupportedExtensions() const
         }
     }
 
+#if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+    supportedExtensions.EGLImageExternalOES = true;
+#endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+
     return supportedExtensions;
 }
 
@@ -4167,6 +4171,10 @@ void Context::initCaps()
 
     Extensions *extensions = mState.getMutableExtensions();
     *extensions            = mSupportedExtensions;
+#if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+    extensions->EGLImageExternalOES = true;
+#endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+
 
     // GLES1 emulation: Initialize caps (Table 6.20 / 6.22 in the ES 1.1 spec)
     if (getClientVersion() < Version(2, 0))
@@ -4349,6 +4357,10 @@ void Context::initCaps()
             extensions->*(extensionInfo.second.ExtensionsMember) = false;
         }
     }
+
+#if defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
+    extensions->EGLImageExternalOES = true;
+#endif  // defined(ENABLE_BUILDFLAG_IS_COBALT) && defined(__ANDROID__)
 
     // Hide emulated ETC1 extension from WebGL contexts.
     if (mWebGLContext && limitations.emulatedEtc1)
