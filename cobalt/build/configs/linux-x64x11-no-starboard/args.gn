@@ -1,0 +1,17 @@
+import("//cobalt/build/configs/chromium_linux-x64x11/args.gn")
+
+# This combination of build flags is intended to be used to build content_shell
+# with cobalt's custom web APIs in order to test these web APIs with
+# run_web_tests.py. The behavior of other targets, like cobalt, is undefined.
+is_cobalt = true
+is_starboard = false
+use_starboard_media = false
+
+# Force the chrome root store for linux/3P platforms.
+chrome_root_store_optional = false
+chrome_root_store_only = true
+trial_comparison_cert_verifier_supported = false
+
+# Disable Mozilla/NSS cert store access
+# We use Chromium root store
+use_nss_certs = false

@@ -1,0 +1,9 @@
+{
+  "comment": "Disable long-running hardware decoder tests on Android. Enable fast unit tests first.",
+  "failing_tests": [
+    "*PlayerComponentsTest*",
+    "*AdaptiveAudioDecoderTest*",
+    "*AudioDecoderTest*",
+    "*VideoDecoderTest*"
+  ]
+}

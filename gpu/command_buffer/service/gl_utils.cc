@@ -457,7 +457,12 @@ void InitializeGLDebugLogging(bool log_non_errors,
                              GL_FALSE);
   }
 
+<<<<<<< HEAD
   glDebugMessageCallbackKHR(callback, user_param);
+=======
+  glDebugMessageCallback(callback, user_param);
+
+>>>>>>> parent of 635d5d99b6e (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 bool ValidContextLostReason(GLenum reason) {
