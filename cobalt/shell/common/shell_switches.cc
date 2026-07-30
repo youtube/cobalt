@@ -61,6 +61,12 @@ const char kSplashScreenShutdownDelayMs[] = "splash-screen-shutdown-delay-ms";
 const char kTestRegisterStandardScheme[] = "test-register-standard-scheme";
 
 bool ShouldCreateSplashScreen() {
+  // If the FeatureList isn't available yet, fall back to the feature's default
+  // state. This may happen during early startup.
+  if (!base::FeatureList::GetInstance()) {
+    return cobalt::features::kDisableSplashScreen.default_state ==
+           base::FEATURE_DISABLED_BY_DEFAULT;
+  }
   return !base::FeatureList::IsEnabled(cobalt::features::kDisableSplashScreen);
 }
 
