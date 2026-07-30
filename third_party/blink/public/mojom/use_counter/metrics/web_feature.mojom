@@ -4319,7 +4319,7 @@ enum WebFeature {
   kV8FileSystemObserver_Observe_Method = 5021,
   kV8FileSystemObserver_Disconnect_Method = 5022,
   kV8ML_CreateContext_Method = 5023,
-  kV8MLContext_Compute_Method = 5024,
+  kOBSOLETE_V8MLContext_Compute_Method = 5024,
   kV8MLContext_Dispatch_Method = 5025,
   kCSSMixins = 5026,
   kDurationFormat = 5027,
@@ -5095,6 +5095,11 @@ enum WebFeature {
   kAudioContextAsyncStateTransitions = 5779,
   kAudioContextAsyncTransitionToRunningStateRead = 5780,
   kAudioContextAsyncTransitionToSuspendedStateRead = 5781,
+  kGetComputedStylePseudoElementWithoutColon = 5782,
+  kGeolocationRequestPositionWithPotentiallyUpToDateWatchedCachedPosition = 5783,
+  kAnchorCaseSensitiveMatch = 5784,
+  kAnchorCaseInsensitiveMatch = 5785,
+  kPrerenderActivationByFormSubmission = 5786,
 
   // Add new features immediately above this line. Don't change assigned
   // numbers of any item, and don't reuse removed slots. Also don't add extra

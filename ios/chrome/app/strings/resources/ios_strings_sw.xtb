@@ -580,6 +580,7 @@
 <translation id="3143515551205905069">Ghairi usawazishaji</translation>
 <translation id="3144126448740580210">IMEKAMILIKA</translation>
 <translation id="3148052723910099040">Gridi ya Kichupo cha Kawaida</translation>
+<translation id="3148237711805373460">Nipeleke hapo</translation>
 <translation id="3157387275655328056">Ongeza kwenye Orodha ya Kusoma</translation>
 <translation id="315778507796115851">Historia</translation>
 <translation id="31652791196570636">Ondoa</translation>
@@ -1523,6 +1524,7 @@ Lazima Handoff iwashwe pia katika sehemu ya Jumla ya Mipangilio, na lazima vifaa
 <translation id="6556866813142980365">Rudia</translation>
 <translation id="6559301491397835130">{count,plural, =1{Alamisho imehifadhiwa kwenye "{title}". Inahifadhiwa katika kifaa hiki pekee.}other{Alamisho zimehifadhiwa kwenye "{title}". Zinahifadhiwa katika kifaa hiki pekee.}}</translation>
 <translation id="656065428026159829">Angalia zaidi</translation>
+<translation id="6565899972286925956">Tayarisha chochote</translation>
 <translation id="6571070086367343653">Hariri kadi ya mkopo</translation>
 <translation id="6574092468346088891">Washa arifa za kipengele cha Ukaguzi wa Usalama</translation>
 <translation id="6579867704846662339">Unaweza kuchagua kufungua URL zinazoingia kutoka kwenye programu zingine katika Hali Fiche.</translation>
@@ -1633,6 +1635,7 @@ Lazima Handoff iwashwe pia katika sehemu ya Jumla ya Mipangilio, na lazima vifaa
 <translation id="6930799952781667037">Gusa ili utumie lugha hii.</translation>
 <translation id="693761253105515415">Weka namba ya siri</translation>
 <translation id="6945221475159498467">Chagua</translation>
+<translation id="6946722113367118030">Kutafakari</translation>
 <translation id="6950522403736391608">Zilizofichwa</translation>
 <translation id="6962809930976936328">Pata maarifa ukitumia Gemini</translation>
 <translation id="6964300328304469089">Kwa sasa umechagua <ph name="NAME" />, <ph name="EMAIL" />. Chagua akaunti.</translation>
@@ -1975,6 +1978,7 @@ Lazima Handoff iwashwe pia katika sehemu ya Jumla ya Mipangilio, na lazima vifaa
 <translation id="8205564605687841303">Ghairi</translation>
 <translation id="8206354486702514201">Mpangilio huu umetekelezwa na msimamizi wako.</translation>
 <translation id="8209050860603202033">Fungua picha</translation>
+<translation id="8209237163365258530">Mifumo ya Gemini <ph name="VERSION_NUMBER" /></translation>
 <translation id="8211030355252954494">Umepokea manenosiri ya <ph name="WEBSITE" /></translation>
 <translation id="8211406090763984747">Muunganisho ni salama</translation>
 <translation id="8214293972734702249">Umebandika, <ph name="TAB_TITLE" /></translation>

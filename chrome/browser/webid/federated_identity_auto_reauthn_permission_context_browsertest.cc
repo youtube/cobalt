@@ -7,6 +7,8 @@
 #include "base/test/bind.h"
 #include "chrome/browser/actor/actor_keyed_service_factory.h"
 #include "chrome/browser/actor/actor_task.h"
+#include "chrome/browser/actor/actor_task_metadata.h"
+#include "chrome/browser/actor/actor_test_util.h"
 #include "chrome/browser/actor/execution_engine.h"
 #include "chrome/browser/actor/ui/test_support/mock_event_dispatcher.h"
 #include "chrome/browser/password_manager/password_manager_settings_service_factory.h"
@@ -22,13 +24,23 @@ namespace {
 class FederatedIdentityAutoReauthnPermissionContextTest
     : public InProcessBrowserTest {
  public:
-  FederatedIdentityAutoReauthnPermissionContextTest() = default;
+  FederatedIdentityAutoReauthnPermissionContextTest() {
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        /*enabled_features=*/{{features::kGlicActor,
+                               {{features::kGlicActorPolicyControlExemption
+                                     .name,
+                                 "true"}}}},
+        /*disabled_features=*/{});
+  }
   FederatedIdentityAutoReauthnPermissionContextTest(
       const FederatedIdentityAutoReauthnPermissionContextTest&) = delete;
   FederatedIdentityAutoReauthnPermissionContextTest& operator=(
       const FederatedIdentityAutoReauthnPermissionContextTest&) = delete;
 
   ~FederatedIdentityAutoReauthnPermissionContextTest() override = default;
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 // Tests PasswordManagerSettingsService correctly hooks itself as a cyclic
@@ -53,26 +65,19 @@ IN_PROC_BROWSER_TEST_F(FederatedIdentityAutoReauthnPermissionContextTest,
 
   // Create actor task and attach it to the current tab.
   auto* actor_service = actor::ActorKeyedService::Get(browser()->profile());
-  std::unique_ptr<actor::ExecutionEngine> execution_engine =
-      std::make_unique<actor::ExecutionEngine>(browser()->profile());
+  actor::TaskId task_id = actor_service->CreateTask();
 
-  std::unique_ptr<actor::ActorTask> actor_task =
-      std::make_unique<actor::ActorTask>(
-          browser()->profile(), std::move(execution_engine),
-          actor::ui::NewUiEventDispatcher(
-              actor_service->GetActorUiStateManager()),
-          /*options=*/nullptr);
-  actor_task->SetState(actor::ActorTask::State::kActing);
 
-  base::RunLoop loop;
-  actor_task->AddTab(
-      browser()->GetActiveTabInterface()->GetHandle(),
-      base::BindLambdaForTesting([&](actor::mojom::ActionResultPtr result) {
-        EXPECT_TRUE(actor::IsOk(*result));
-        loop.Quit();
-      }));
-  loop.Run();
-  actor_service->AddActiveTask(std::move(actor_task));
+  // Perform an arbitrary action in a tab to put the task into
+  // UnderActorControl state and add the tab to the task.
+  tabs::TabInterface* tab = browser()->GetActiveTabInterface();
+  CHECK(tab);
+  auto click = actor::MakeClickRequest(*tab, gfx::Point(1, 1));
+  actor::PerformActionsFuture future;
+  actor_service->PerformActions(task_id, ToRequestList(std::move(click)),
+                                actor::ActorTaskMetadata(),
+                                future.GetCallback());
+  EXPECT_TRUE(future.Wait());
 
   EXPECT_TRUE(
       FederatedIdentityAutoReauthnPermissionContextFactory::GetForProfile(

@@ -13,6 +13,7 @@
 #include "chrome/browser/ui/webui/webui_toolbar/browser_controls_service.h"
 #include "chrome/common/webui_url_constants.h"
 #include "content/public/browser/web_contents_delegate.h"
+#include "content/public/browser/web_contents_observer.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/view.h"
 
@@ -47,8 +48,12 @@ class WebUIToolbarWebView
 
   // views::View:
   void AddedToWidget() override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
 
   // content::WebContentsObserver:
+  void DidFinishNavigation(
+      content::NavigationHandle* navigation_handle) override;
   void DidFirstVisuallyNonEmptyPaint() override;
   void PrimaryMainFrameRenderProcessGone(
       base::TerminationStatus status) override;
@@ -62,7 +67,7 @@ class WebUIToolbarWebView
 
   void InitializeWebView();
 
-  // Reloads the WebUI toolbar to from crashes or unresponsiveness.
+  // Reloads the WebUI toolbar to recover from crashes or unresponsiveness.
   void RecoverFromRendererCrashOrUnresponsiveness();
 
   chrome::BrowserCommandController* controller() { return controller_; }
@@ -77,7 +82,6 @@ class WebUIToolbarWebView
   bool has_finished_first_non_empty_paint_ = false;
   uint32_t crash_count_ = 0;
   base::TimeTicks last_crash_time_;
-  bool did_recover_from_previous_termination_ = false;
 
   base::WeakPtrFactory<WebUIToolbarWebView> weak_ptr_factory_{this};
 };

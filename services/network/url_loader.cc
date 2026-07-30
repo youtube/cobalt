@@ -91,6 +91,7 @@
 #include "services/network/devtools_durable_msg_writer.h"
 #include "services/network/file_opener_for_upload.h"
 #include "services/network/orb/orb_impl.h"
+#include "services/network/pervasive_resources/shared_resource_checker.h"
 #include "services/network/public/cpp/client_hints.h"
 #include "services/network/public/cpp/constants.h"
 #include "services/network/public/cpp/cors/cors.h"
@@ -123,7 +124,6 @@
 #include "services/network/shared_dictionary/shared_dictionary_access_checker.h"
 #include "services/network/shared_dictionary/shared_dictionary_manager.h"
 #include "services/network/shared_dictionary/shared_dictionary_storage.h"
-#include "services/network/shared_resource_checker.h"
 #include "services/network/shared_storage/shared_storage_request_helper.h"
 #include "services/network/slop_bucket.h"
 #include "services/network/ssl_private_key_proxy.h"
@@ -468,8 +468,8 @@ URLLoader::URLLoader(
   const mojom::ClientSecurityState* client_security_state =
       GetClientSecurityState();
   if (client_security_state &&
-      client_security_state->private_network_request_policy ==
-          mojom::PrivateNetworkRequestPolicy::kPermissionBlock &&
+      client_security_state->local_network_access_request_policy ==
+          mojom::LocalNetworkAccessRequestPolicy::kPermissionBlock &&
       url_loader_network_observer_) {
     std::optional<mojom::IPAddressSpace> url_address_space =
         GetAddressSpaceFromUrl(request.url);
@@ -2238,15 +2238,6 @@ void URLLoader::DispatchOnRawRequest(
 
 void URLLoader::DispatchOnRawResponse() {
   if (!emitted_devtools_raw_request_) {
-    // TODO(ortuno): not sure why emitting of metrics is gated upon request not
-    // having been dispatched to DevTools, but this has been so since it raw
-    // header size metrics have been introduced by https://crrev.com/c/5824030.
-    if (url_request_->response_headers()) {
-      // Record request metrics here instead of in NotifyCompleted to account
-      // for redirects.
-      url_loader_util::RecordURLLoaderRequestMetrics(
-          *url_request_, raw_request_line_size_, raw_request_headers_size_);
-    }
     // If there were no raw request headers, we assume no raw response headers
     // either, to make client logic simpler.
     // TODO(caseq): ensure this is actually an invariant?

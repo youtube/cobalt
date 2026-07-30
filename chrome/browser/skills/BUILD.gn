@@ -2,6 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//chrome/common/features.gni")
+
 assert(is_win || is_mac || is_linux || is_chromeos)
 
 source_set("skills") {
@@ -42,10 +44,12 @@ source_set("public") {
 
 source_set("ui") {
   sources = [
-    "skills_ui_controller.cc",
-    "skills_ui_controller.h",
     "skills_ui_tab_controller.cc",
     "skills_ui_tab_controller.h",
+    "skills_ui_window_controller.cc",
+    "skills_ui_window_controller.h",
+    "skills_update_observer.cc",
+    "skills_update_observer.h",
   ]
 
   public_deps = [
@@ -55,27 +59,37 @@ source_set("ui") {
 
   deps = [
     ":skills",
-    "//chrome/browser/glic",
-    "//chrome/browser/glic:mojo_bindings",
+    "//chrome/browser/optimization_guide",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/toasts",
     "//chrome/browser/ui/toasts/api:toasts",
     "//chrome/browser/ui/webui",
     "//chrome/browser/ui/webui/skills",
+    "//components/keyed_service/core",
+    "//components/optimization_guide/core",
     "//components/skills:features",
+    "//components/skills/proto",
     "//components/skills/public",
     "//components/web_modal",
+    "//services/service_manager/public/cpp",
     "//ui/base/unowned_user_data",
   ]
+
+  if (enable_glic) {
+    deps += [
+      "//chrome/browser/glic",
+      "//chrome/browser/glic:mojo_bindings",
+    ]
+  }
 }
 
 source_set("browser_tests") {
   testonly = true
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
   sources = [
-    "skills_ui_controller_browsertest.cc",
     "skills_ui_tab_controller_browsertest.cc",
+    "skills_ui_window_controller_browsertest.cc",
   ]
   deps = [
     ":public",
@@ -84,32 +98,46 @@ source_set("browser_tests") {
     "//chrome/browser/ui",
     "//chrome/browser/ui/toasts",
     "//chrome/browser/ui/toasts/api:toasts",
+    "//chrome/browser/ui/webui",
+    "//chrome/browser/ui/webui/skills",
     "//chrome/test:test_support",
     "//components/skills:features",
     "//components/skills/public",
   ]
+  if (enable_glic) {
+    deps += [ "//chrome/browser/glic" ]
+  }
 }
 
-source_set("unit_tests") {
-  testonly = true
-  sources = [ "skills_ui_tab_controller_unittest.cc" ]
+if (enable_glic) {
+  source_set("unit_tests") {
+    testonly = true
+    sources = [
+      "skills_ui_tab_controller_unittest.cc",
+      "skills_update_observer_unittest.cc",
+    ]
 
-  deps = [
-    ":skills",
-    ":ui",
-    "//base",
-    "//base/test:test_support",
-    "//chrome/browser/glic",
-    "//chrome/browser/glic:mojo_bindings",
-    "//chrome/browser/glic/test_support",
-    "//chrome/browser/profiles:profile",
-    "//chrome/test:test_support",
-    "//components/keyed_service/core",
-    "//components/skills/public",
-    "//components/tabs:test_support",
-    "//content/public/browser",
-    "//testing/gmock",
-    "//testing/gtest",
-    "//ui/base/unowned_user_data",
-  ]
+    deps = [
+      ":skills",
+      ":ui",
+      "//base",
+      "//base/test:test_support",
+      "//chrome/browser/glic",
+      "//chrome/browser/glic:mojo_bindings",
+      "//chrome/browser/glic/test_support",
+      "//chrome/browser/optimization_guide:test_support",
+      "//chrome/browser/profiles:profile",
+      "//chrome/test:test_support",
+      "//components/keyed_service/core",
+      "//components/skills:features",
+      "//components/skills/proto",
+      "//components/skills/public",
+      "//components/tabs:test_support",
+      "//content/public/browser",
+      "//content/test:test_support",
+      "//testing/gmock",
+      "//testing/gtest",
+      "//ui/base/unowned_user_data",
+    ]
+  }
 }

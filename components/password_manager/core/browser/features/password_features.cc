@@ -10,9 +10,9 @@
 
 namespace password_manager::features {
 #if !BUILDFLAG(IS_IOS)  // Desktop
-BASE_FEATURE(kActorActiveDisablesFillingOnPageLoad,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kActorLogin, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kActorLoginFederatedLoginSupport,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kActorLoginFieldVisibilityCheck, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kActorLoginGetCredentialsNoLoginForm,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -108,8 +108,6 @@ BASE_FEATURE(kImprovedPasswordChangeService, base::FEATURE_ENABLED_BY_DEFAULT);
 #if BUILDFLAG(IS_IOS)
 BASE_FEATURE(kIosCleanupHangingPasswordFormExtractionRequests,
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kIOSFillRecoveryPassword, base::FEATURE_ENABLED_BY_DEFAULT);
 
 const base::FeatureParam<int> kIosPasswordFormExtractionRequestsTimeoutMs = {
     &kIosCleanupHangingPasswordFormExtractionRequests,

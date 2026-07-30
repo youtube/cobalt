@@ -149,16 +149,6 @@ class TestPrefetchServiceForInterceptor final : public PrefetchService {
     test_origin_prober_ = std::move(test_origin_prober);
   }
 
-  void AddOnStartCookieCopyClosure(const GURL& prefetch_url,
-                                   const GURL& redirect_url,
-                                   base::OnceClosure closure) {
-    auto key = std::make_pair(prefetch_url, redirect_url);
-    EXPECT_TRUE(on_start_cookie_copy_closure_.find(key) ==
-                on_start_cookie_copy_closure_.end());
-
-    on_start_cookie_copy_closure_[key] = std::move(closure);
-  }
-
   int num_probes() const { return test_origin_prober_->num_probes(); }
 
   TestPrefetchOriginProber* test_origin_prober() {
@@ -170,24 +160,8 @@ class TestPrefetchServiceForInterceptor final : public PrefetchService {
     return test_origin_prober_.get();
   }
 
-  void CopyIsolatedCookies(
-      const PrefetchServingHandle& serving_handle) override {
-    if (!serving_handle.IsIsolatedNetworkContextRequiredToServe()) {
-      return;
-    }
-
-    serving_handle.OnIsolatedCookieCopyStart();
-
-    auto itr = on_start_cookie_copy_closure_.find(
-        std::make_pair(serving_handle.GetPrefetchContainer()->GetURL(),
-                       serving_handle.GetCurrentURLToServe()));
-    EXPECT_TRUE(itr != on_start_cookie_copy_closure_.end());
-    EXPECT_TRUE(itr->second);
-    std::move(itr->second).Run();
-  }
-
   void OnPrefetchCompletedOrFailed(
-      PrefetchContainer& prefetch_container,
+      const PrefetchContainer& prefetch_container,
       const network::URLLoaderCompletionStatus& completion_status,
       const std::optional<int>& response_code) override {
     // Skip `active_prefetch_` check and related prefetch queue processing in
@@ -196,9 +170,6 @@ class TestPrefetchServiceForInterceptor final : public PrefetchService {
   }
 
   std::unique_ptr<TestPrefetchOriginProber> test_origin_prober_;
-
-  std::map<std::pair<GURL, GURL>, base::OnceClosure>
-      on_start_cookie_copy_closure_;
 };
 
 }  //  namespace
@@ -226,10 +197,17 @@ class PrefetchURLLoaderInterceptorTestBase : public PrefetchingMetricsTestBase {
     auto navigation_simulator = NavigationSimulator::CreateBrowserInitiated(
         GURL("https://test.com"), web_contents());
     navigation_simulator->Start();
+
+    PrefetchServingHandle::SetOnIsolatedCookieCopyStartCallbackForTesting(
+        base::BindRepeating(&PrefetchURLLoaderInterceptorTestBase::
+                                OnIsolatedCookieCopyStartForTesting,
+                            base::Unretained(this)));
   }
 
   void TearDown() override {
     interceptor_.release();
+
+    PrefetchServingHandle::SetOnIsolatedCookieCopyStartCallbackForTesting({});
 
     PrefetchingMetricsTestBase::TearDown();
   }
@@ -346,6 +324,28 @@ class PrefetchURLLoaderInterceptorTestBase : public PrefetchingMetricsTestBase {
     return result;
   }
 
+  void SetOnIsolatedCookieCopyStartForTesting(const GURL& prefetch_url,
+                                              const GURL& redirect_url,
+                                              base::OnceClosure closure) {
+    auto key = std::make_pair(prefetch_url, redirect_url);
+    EXPECT_TRUE(on_isolated_cookie_copy_start_closure_.find(key) ==
+                on_isolated_cookie_copy_start_closure_.end());
+
+    on_isolated_cookie_copy_start_closure_[key] = std::move(closure);
+  }
+
+  void OnIsolatedCookieCopyStartForTesting(
+      const PrefetchServingHandle& serving_handle) {
+    auto itr = on_isolated_cookie_copy_start_closure_.find(
+        std::make_pair(serving_handle.GetPrefetchContainer()->GetURL(),
+                       serving_handle.GetCurrentURLToServe()));
+    if (itr == on_isolated_cookie_copy_start_closure_.end()) {
+      return;
+    }
+    ASSERT_TRUE(itr->second);
+    std::move(itr->second).Run();
+  }
+
   const base::HistogramTester& histogram_tester() { return histogram_tester_; }
 
   ScopedMockContentBrowserClient* test_content_browser_client() {
@@ -448,6 +448,9 @@ class PrefetchURLLoaderInterceptorTestBase : public PrefetchingMetricsTestBase {
 
   std::map<GURL, bool> was_intercepted_;
   std::map<GURL, base::OnceClosure> on_loader_callback_closure_;
+
+  std::map<std::pair<GURL, GURL>, base::OnceClosure>
+      on_isolated_cookie_copy_start_closure_;
 
   std::unique_ptr<ScopedMockContentBrowserClient> test_content_browser_client_;
 
@@ -815,7 +818,8 @@ TEST_F(PrefetchURLLoaderInterceptorTest,
       "PrefetchProxy.AfterClick.Mainframe.CookieWaitTime", 0);
 
   EXPECT_EQ(GetPrefetchService()->num_probes(), 0);
-  ExpectCorrectUkmLogs({.outcome = PreloadingTriggeringOutcome::kUnspecified});
+  ExpectCorrectUkmLogs({.holdback = PreloadingHoldbackStatus::kUnspecified,
+                        .outcome = PreloadingTriggeringOutcome::kUnspecified});
 }
 
 TEST_F(PrefetchURLLoaderInterceptorTest,
@@ -1217,7 +1221,7 @@ TEST_F(PrefetchURLLoaderInterceptorTest, DISABLE_ASAN(HandleRedirects)) {
   EXPECT_FALSE(was_intercepted(kRedirectUrl).has_value());
 
   base::RunLoop on_start_cookie_copy_run_loop;
-  GetPrefetchService()->AddOnStartCookieCopyClosure(
+  SetOnIsolatedCookieCopyStartForTesting(
       kTestUrl, kRedirectUrl, on_start_cookie_copy_run_loop.QuitClosure());
 
   MaybeCreateLoader(kRedirectUrl);
@@ -1292,7 +1296,7 @@ TEST_F(PrefetchURLLoaderInterceptorTest,
   EXPECT_FALSE(was_intercepted(kRedirectUrl).has_value());
 
   base::RunLoop on_start_cookie_copy_run_loop;
-  GetPrefetchService()->AddOnStartCookieCopyClosure(
+  SetOnIsolatedCookieCopyStartForTesting(
       kTestUrl, kRedirectUrl, on_start_cookie_copy_run_loop.QuitClosure());
 
   MaybeCreateLoader(kRedirectUrl);
@@ -1410,8 +1414,9 @@ TEST_F(PrefetchURLLoaderInterceptorTest,
 
   SimulateCookieCopyProcess(*prefetch_container);
 
-  ASSERT_EQ(prefetch_container->GetServableState(base::TimeDelta::Max()),
-            PrefetchServableState::kServable);
+  ASSERT_EQ(
+      prefetch_container->GetServableStateForTesting(base::TimeDelta::Max()),
+      PrefetchServableState::kServable);
 
   CreateInterceptor(MainDocumentToken());
   MaybeCreateLoader(kTestUrl);
@@ -1479,8 +1484,9 @@ TEST_F(PrefetchURLLoaderInterceptorTest,
 
   SimulateCookieCopyProcess(*prefetch_container);
 
-  ASSERT_EQ(prefetch_container->GetServableState(base::TimeDelta::Max()),
-            PrefetchServableState::kServable);
+  ASSERT_EQ(
+      prefetch_container->GetServableStateForTesting(base::TimeDelta::Max()),
+      PrefetchServableState::kServable);
 
   CreateInterceptor(MainDocumentToken());
   MaybeCreateLoader(kTestUrl);

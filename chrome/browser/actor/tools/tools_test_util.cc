@@ -27,7 +27,7 @@
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/test/base/chrome_test_utils.h"
-#include "chrome/test/base/test_browser_window.h"
+#include "chrome/test/base/platform_browser_test.h"
 #include "components/optimization_guide/core/filters/optimization_hints_component_update_listener.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/navigation_controller.h"
@@ -119,17 +119,21 @@ ActorToolsTest::ActorToolsTest() {
 ActorToolsTest::~ActorToolsTest() = default;
 
 void ActorToolsTest::SetUpOnMainThread() {
-  InProcessBrowserTest::SetUpOnMainThread();
+  PlatformBrowserTest::SetUpOnMainThread();
   host_resolver()->AddRule("*", "127.0.0.1");
 
-  task_id_ = CreateNewTask();
+  task_id_ = ActorKeyedService::Get(GetProfile())->CreateTask();
 
   // Optimization guide uses this histogram to signal initialization in tests.
-  optimization_guide::RetryForHistogramUntilCountReached(
-      &histogram_tester_for_init_,
-      "OptimizationGuide.HintsManager.HintCacheInitialized", 1);
+  auto* optimization_guide_init_histogram =
+      "OptimizationGuide.HintsManager.HintCacheInitialized";
+  if (histogram_tester_for_init_.GetTotalSum(
+          optimization_guide_init_histogram) == 0) {
+    optimization_guide::RetryForHistogramUntilCountReached(
+        &histogram_tester_for_init_, optimization_guide_init_histogram, 1);
+  }
 
-  InitActionBlocklist(browser()->profile());
+  InitActionBlocklist(GetProfile());
 
   // Simulate the component loading, as the implementation checks it, but the
   // actual list is set via the command line.
@@ -141,7 +145,7 @@ void ActorToolsTest::SetUpOnMainThread() {
 }
 
 void ActorToolsTest::SetUpCommandLine(base::CommandLine* command_line) {
-  InProcessBrowserTest::SetUpCommandLine(command_line);
+  PlatformBrowserTest::SetUpCommandLine(command_line);
   SetUpBlocklist(command_line, "blocked.example.com");
   command_line->AppendSwitchASCII(switches::kForceDeviceScaleFactor, "1");
 }
@@ -150,7 +154,7 @@ void ActorToolsTest::TearDownOnMainThread() {
   // The ActorTask owned ExecutionEngine has a pointer to the profile, which
   // must be released before the browser is torn down to avoid a dangling
   // pointer.
-  ActorKeyedService::Get(browser()->profile())->ResetForTesting();
+  ActorKeyedService::Get(GetProfile())->ResetForTesting();
 }
 
 void ActorToolsTest::GoBack() {
@@ -179,29 +183,12 @@ content::RenderFrameHost* ActorToolsTest::main_frame() {
 }
 
 ExecutionEngine& ActorToolsTest::execution_engine() {
-  return *actor_task().GetExecutionEngine();
+  return actor_task().GetExecutionEngine();
 }
 
 ActorTask& ActorToolsTest::actor_task() const {
   CHECK(task_id_);
-  return *ActorKeyedService::Get(browser()->profile())->GetTask(task_id_);
-}
-
-std::unique_ptr<ExecutionEngine> ActorToolsTest::CreateExecutionEngine(
-    Profile* profile) {
-  return std::make_unique<ExecutionEngine>(profile);
-}
-
-TaskId ActorToolsTest::CreateNewTask() {
-  auto execution_engine = CreateExecutionEngine(browser()->profile());
-  auto event_dispatcher = ui::NewUiEventDispatcher(
-      ActorKeyedService::Get(browser()->profile())->GetActorUiStateManager());
-  auto actor_task = std::make_unique<ActorTask>(browser()->profile(),
-                                                std::move(execution_engine),
-                                                std::move(event_dispatcher),
-                                                /*options=*/nullptr);
-  return ActorKeyedService::Get(browser()->profile())
-      ->AddActiveTask(std::move(actor_task));
+  return *ActorKeyedService::Get(GetProfile())->GetTask(task_id_);
 }
 
 void ActorToolsTest::SetPageContent(

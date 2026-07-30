@@ -893,7 +893,8 @@ component("platform") {
     "graphics/canvas_deferred_paint_record.h",
     "graphics/canvas_hibernation_handler.cc",
     "graphics/canvas_hibernation_handler.h",
-    "graphics/canvas_high_entropy_op_type.h",
+    "graphics/canvas_non2d_snapshot_provider_bitmap.cc",
+    "graphics/canvas_non2d_snapshot_provider_bitmap.h",
     "graphics/canvas_resource.cc",
     "graphics/canvas_resource.h",
     "graphics/canvas_resource_dispatcher.cc",
@@ -901,8 +902,6 @@ component("platform") {
     "graphics/canvas_resource_provider.cc",
     "graphics/canvas_resource_provider.h",
     "graphics/canvas_snapshot_provider.h",
-    "graphics/canvas_snapshot_provider_external_bitmap.cc",
-    "graphics/canvas_snapshot_provider_external_bitmap.h",
     "graphics/color.cc",
     "graphics/color.h",
     "graphics/color_behavior.h",
@@ -1085,6 +1084,7 @@ component("platform") {
     "graphics/image_decoding_store.h",
     "graphics/image_frame_generator.cc",
     "graphics/image_frame_generator.h",
+    "graphics/image_node_animation_info.h",
     "graphics/image_observer.cc",
     "graphics/image_observer.h",
     "graphics/image_orientation.cc",
@@ -1181,7 +1181,6 @@ component("platform") {
     "graphics/paint/raster_invalidator.h",
     "graphics/paint/region_capture_data.cc",
     "graphics/paint/region_capture_data.h",
-    "graphics/paint/scoped_canvas_subtree_id.h",
     "graphics/paint/scoped_display_item_fragment.h",
     "graphics/paint/scoped_effectively_invisible.h",
     "graphics/paint/scoped_paint_chunk_properties.h",
@@ -2843,7 +2842,13 @@ fuzzer_test("blink_avif_decoder_fuzzer") {
     ":platform",
   ]
   seed_corpuses = [ "//third_party/blink/web_tests/images/resources/avif" ]
-  libfuzzer_options = [ "rss_limit_mb=8192" ]
+  libfuzzer_options = [
+    "rss_limit_mb=8192",
+
+    # Large AVIF images can take a while to decode under ASAN (especially when
+    # they are fuzzer generated). The default timeout is 25 seconds.
+    "timeout_per_input=50",
+  ]
   centipede_options = libfuzzer_options
   additional_configs = [ "//third_party/blink/renderer:inside_blink" ]
 }

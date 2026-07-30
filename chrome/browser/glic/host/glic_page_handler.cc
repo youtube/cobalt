@@ -82,6 +82,7 @@
 #include "chrome/common/actor_webui.mojom.h"
 #include "chrome/common/channel_info.h"
 #include "chrome/common/chrome_features.h"
+#include "chrome/common/webui_url_constants.h"
 #include "components/autofill/core/browser/integrators/glic/actor_form_filling_types.h"
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/feature_engagement/public/event_constants.h"
@@ -645,9 +646,13 @@ mojom::ProfileEnablementPtr BuildProfileEnablement(
         result->actuation_eligibility =
             mojom::ActuationEligibility::kMissingChromeBenefits;
         break;
-      case CannotActReason::kManagedOrDataProtected:
+      case CannotActReason::kDisabledByPolicy:
         result->actuation_eligibility =
-            mojom::ActuationEligibility::kManagedOrDataProtected;
+            mojom::ActuationEligibility::kDisabledByPolicy;
+        break;
+      case CannotActReason::kEnterpriseWithoutManagement:
+        result->actuation_eligibility =
+            mojom::ActuationEligibility::kEnterpriseWithoutManagement;
         break;
       case CannotActReason::kNone:
         NOTREACHED();
@@ -851,8 +856,6 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
                 base::Unretained(this)));
         // CallbackListSubscription prevents these callbacks from being invoked
         // when this object is destructed.
-        // TODO(crbug.com/445224605): Right now this code assumes that
-        //   ActorKeyedService only owns a single Execution engine instance.
         act_on_web_capability_changed_subscription_ =
             actor_service->AddActOnWebCapabilityChangedCallback(
                 base::BindRepeating(
@@ -945,7 +948,7 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     if (GlicEnabling::IsMultiInstanceEnabled()) {
       state->host_capabilities.push_back(mojom::HostCapability::kMultiInstance);
     }
-    if (GlicEnabling::IsTrustFirstOnboardingEnabled()) {
+    if (GlicEnabling::IsTrustFirstOnboardingEnabledForProfile(profile_)) {
       int arm = features::kGlicTrustFirstOnboardingArmParam.Get();
       if (arm == 1) {
         state->host_capabilities.push_back(
@@ -987,7 +990,7 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
         base::FeatureList::IsEnabled(
             features::kGlicOpenPasswordManagerSettingsPageApi);
     state->enable_trust_first_onboarding =
-        GlicEnabling::IsTrustFirstOnboardingEnabled();
+        GlicEnabling::IsTrustFirstOnboardingEnabledForProfile(profile_);
     state->onboarding_completed =
         GlicEnabling::HasConsentedForProfile(profile_);
 // NEEDS_ANDROID_IMPL: (crbug.com/477622144) Remove desktop-only restrictions
@@ -1336,7 +1339,7 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
       return;
     }
     const auto& ftd = sharing_manager().GetFocusedTabData();
-    tabs::TabInterface* tab = ftd.focus();
+    tabs::TabInterface* tab = ftd.focus() ? ftd.focus() : ftd.unfocused_tab();
     if (!tab) {
       return;
     }
@@ -1368,6 +1371,25 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     std::move(callback).Run(true);
 #else
     receiver_.ReportBadMessage("UpdateSkill isn't supported on Android.");
+#endif  //  !BUILDFLAG(IS_ANDROID)
+  }
+
+  void ShowManageSkillsUi() override {
+// NEEDS_ANDROID_IMPL: (crbug.com/477622144) Remove desktop-only restrictions
+// from Skills backend.
+#if !BUILDFLAG(IS_ANDROID)
+    if (!base::FeatureList::IsEnabled(features::kSkillsEnabled)) {
+      receiver_.ReportBadMessage(
+          "ShowManageSkillsUi cannot be called without Skills enabled.");
+      return;
+    }
+    NavigateParams params(profile_, GURL(chrome::kChromeUISkillsURL),
+                          ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
+    params.disposition = WindowOpenDisposition::SINGLETON_TAB;
+    Navigate(&params);
+#else
+    receiver_.ReportBadMessage(
+        "ShowManageSkillsUi isn't supported on Android.");
 #endif  //  !BUILDFLAG(IS_ANDROID)
   }
 
@@ -2002,6 +2024,12 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
       ::mojo::PendingRemote<mojom::TabDataHandler> receiver) override {
     glic_service_->tab_data_observer().SubscribeToTabData(tab_id,
                                                           std::move(receiver));
+  }
+
+  void NotifyContextualSkillPreviewsChanged(
+      std::vector<mojom::SkillPreviewPtr> contextual_skill_previews) override {
+    web_client_->NotifyContextualSkillPreviewsChanged(
+        std::move(contextual_skill_previews));
   }
 
 // NEEDS_ANDROID_IMPL: (crbug.com/477622144) Remove desktop-only restrictions

@@ -6,9 +6,12 @@
 
 #include "base/strings/stringprintf.h"
 #include "base/test/bind.h"
+#include "base/test/metrics/histogram_tester.h"
+#include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "chrome/browser/metrics/chrome_metrics_service_accessor.h"
+#include "chrome/browser/metrics/testing/metrics_consent_override.h"
 #include "chrome/browser/sync/device_info_sync_service_factory.h"
 #include "chrome/browser/sync/test/integration/bookmarks_helper.h"
 #include "chrome/browser/sync/test/integration/device_info_helper.h"
@@ -103,9 +106,12 @@ sync_pb::DeviceInfoSpecifics CreateSpecifics(
   sync_pb::DeviceInfoSpecifics specifics;
   specifics.set_cache_guid(CacheGuidForSuffix(suffix));
   specifics.set_client_name(ClientNameForSuffix(suffix));
-  specifics.set_device_type(sync_pb::SyncEnums_DeviceType_TYPE_LINUX);
+  specifics.set_os_type(sync_pb::SyncEnums_OsType_OS_TYPE_LINUX);
+  specifics.set_device_form_factor(
+      sync_pb::SyncEnums_DeviceFormFactor_DEVICE_FORM_FACTOR_DESKTOP);
   specifics.set_sync_user_agent(SyncUserAgentForSuffix(suffix));
-  specifics.set_chrome_version(ChromeVersionForSuffix(suffix));
+  specifics.mutable_chrome_version_info()->set_version_number(
+      ChromeVersionForSuffix(suffix));
   specifics.set_signin_scoped_device_id(SigninScopedDeviceIdForSuffix(suffix));
   specifics.set_last_updated_timestamp(
       syncer::TimeToProtoTime(base::Time::Now()));
@@ -164,11 +170,18 @@ class SingleClientDeviceInfoSyncTest
     : public SyncTest,
       public testing::WithParamInterface<SyncTest::SetupSyncMode> {
  public:
-  SingleClientDeviceInfoSyncTest() : SyncTest(SINGLE_CLIENT) {
-    if (GetSetupSyncMode() == SetupSyncMode::kSyncTransportOnly) {
-      scoped_feature_list_.InitAndEnableFeature(
-          syncer::kReplaceSyncPromosWithSignInPromos);
+  explicit SingleClientDeviceInfoSyncTest(
+      bool enable_device_statistics_metrics = false)
+      : SyncTest(SINGLE_CLIENT) {
+    std::vector<base::test::FeatureRef> enabled_features;
+    if (enable_device_statistics_metrics) {
+      enabled_features.push_back(syncer::kSyncRecordDeviceStatisticsMetrics);
     }
+    if (GetSetupSyncMode() == SetupSyncMode::kSyncTransportOnly) {
+      enabled_features.push_back(syncer::kReplaceSyncPromosWithSignInPromos);
+    }
+    scoped_feature_list_.InitWithFeatures(enabled_features,
+                                          /*disabled_features=*/{});
   }
 
   SingleClientDeviceInfoSyncTest(const SingleClientDeviceInfoSyncTest&) =
@@ -299,17 +312,36 @@ IN_PROC_BROWSER_TEST_P(SingleClientDeviceInfoSyncTest,
   sync_pb::DeviceInfoSpecifics device_info_specifics =
       CreateSpecifics(/*suffix=*/1);
   device_info_specifics.clear_chrome_version();
+  device_info_specifics.clear_chrome_version_info();
   InjectDeviceInfoSpecificsToServer(device_info_specifics);
 
   ASSERT_TRUE(SetupSync());
 
-  // Devices without a chrome_version correspond to non-Chromium-based clients
-  // and should be excluded.
+  // Devices without a chrome_version/chrome_version_info correspond to
+  // non-Chromium-based clients and should be excluded.
   EXPECT_THAT(
       GetDeviceInfoTracker()->GetAllChromeDeviceInfo(),
       UnorderedElementsAre(ModelEntryHasCacheGuid(GetLocalCacheGuid())));
   EXPECT_THAT(
       GetDeviceInfoTracker()->GetAllDeviceInfo(),
+      UnorderedElementsAre(ModelEntryHasCacheGuid(GetLocalCacheGuid()),
+                           ModelEntryHasCacheGuid(CacheGuidForSuffix(1))));
+}
+
+IN_PROC_BROWSER_TEST_P(SingleClientDeviceInfoSyncTest,
+                       DownloadRemoteDeviceWithOldVersionFieldOnly) {
+  sync_pb::DeviceInfoSpecifics device_info_specifics =
+      CreateSpecifics(/*suffix=*/1);
+  device_info_specifics.clear_chrome_version_info();
+  device_info_specifics.set_chrome_version("someversion");
+  InjectDeviceInfoSpecificsToServer(device_info_specifics);
+
+  ASSERT_TRUE(SetupSync());
+
+  // Devices with only the deprecated `chrome_version` should still be
+  // recognized as Chrome devices.
+  EXPECT_THAT(
+      GetDeviceInfoTracker()->GetAllChromeDeviceInfo(),
       UnorderedElementsAre(ModelEntryHasCacheGuid(GetLocalCacheGuid()),
                            ModelEntryHasCacheGuid(CacheGuidForSuffix(1))));
 }
@@ -325,10 +357,10 @@ IN_PROC_BROWSER_TEST_P(SingleClientDeviceInfoSyncTest,
 
   ASSERT_TRUE(SetupSync());
 
-  // Devices without a chrome_version correspond to non-Chromium-based clients
-  // and should be excluded.
+  // Devices with only the new `chrome_version_info` should be recognized as
+  // Chrome devices.
   EXPECT_THAT(
-      GetDeviceInfoTracker()->GetAllDeviceInfo(),
+      GetDeviceInfoTracker()->GetAllChromeDeviceInfo(),
       UnorderedElementsAre(ModelEntryHasCacheGuid(GetLocalCacheGuid()),
                            ModelEntryHasCacheGuid(CacheGuidForSuffix(1))));
 }
@@ -674,5 +706,76 @@ IN_PROC_BROWSER_TEST_P(SingleClientDeviceInfoSyncTest,
   EXPECT_EQ(entities_before.front().mtime(), entities_after.front().mtime());
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
+
+class SingleClientDeviceInfoWithDeviceStatisticsSyncTest
+    : public SingleClientDeviceInfoSyncTest {
+ public:
+  SingleClientDeviceInfoWithDeviceStatisticsSyncTest()
+      : SingleClientDeviceInfoSyncTest(
+            /*enable_device_statistics_metrics=*/true) {}
+};
+
+INSTANTIATE_TEST_SUITE_P(,
+                         SingleClientDeviceInfoWithDeviceStatisticsSyncTest,
+                         GetSyncTestModes(),
+                         testing::PrintToStringParamName());
+
+IN_PROC_BROWSER_TEST_P(
+    SingleClientDeviceInfoWithDeviceStatisticsSyncTest,
+    ShouldNotRecordDeviceStatisticsMetricsWithoutMetricsConsent) {
+  metrics::test::MetricsConsentOverride metrics_consent(false);
+
+  base::HistogramTester histograms;
+
+  // Simulate that the primary account has two other devices.
+  InjectDeviceInfoEntityToServer(1);
+  InjectDeviceInfoEntityToServer(2);
+
+  ASSERT_TRUE(SetupSync());
+
+  histograms.ExpectTotalCount("Sync.DeviceStatistics.RequestsStartedCount", 0,
+                              FROM_HERE);
+}
+
+IN_PROC_BROWSER_TEST_P(SingleClientDeviceInfoWithDeviceStatisticsSyncTest,
+                       ShouldRecordDeviceStatisticsMetrics) {
+  metrics::test::MetricsConsentOverride metrics_consent(true);
+
+  base::HistogramTester histograms;
+
+  // Simulate that the primary account has two other devices.
+  InjectDeviceInfoEntityToServer(1);
+  InjectDeviceInfoEntityToServer(2);
+
+  ASSERT_TRUE(SetupSync());
+
+  histograms.ExpectUniqueSample("Sync.DeviceStatistics.RequestsStartedCount",
+                                /*sample=*/1, /*expected_bucket_count=*/1,
+                                FROM_HERE);
+
+  // Wait for the statistics requests to finish and metrics be recorded. (This
+  // is not tied to a sync cycle.)
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return !histograms
+                .GetAllSamples("Sync.DeviceStatistics.RequestsCompletedSuccess")
+                .empty();
+  }));
+
+  histograms.ExpectUniqueSample(
+      "Sync.DeviceStatistics.RequestsCompletedSuccess",
+      syncer::DeviceStatisticsTracker::RequestsCompletedSuccess::kAllSucceeded,
+      /*expected_bucket_count=*/1, FROM_HERE);
+
+  histograms.ExpectUniqueSample(
+      "Sync.DeviceStatistics.Outcome.Overall",
+      syncer::DeviceStatisticsTracker::AccountsHaveOtherDevicesSummary::
+          kPrimaryYesNonPrimaryNA,
+      /*expected_bucket_count=*/1, FROM_HERE);
+
+  histograms.ExpectUniqueSample(
+      "Sync.DeviceStatistics.Outcome.PrimaryAccount.NumberOfAdditionalClients",
+      /*sample=*/2,
+      /*expected_bucket_count=*/1, FROM_HERE);
+}
 
 }  // namespace

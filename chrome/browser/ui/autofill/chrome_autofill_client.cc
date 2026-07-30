@@ -788,6 +788,18 @@ void ChromeAutofillClient::ShowAutofillSettings(
           chrome::ShowSettingsSubPage(browser, chrome::kAutofillAiSubPage);
         }
         return;
+      case SuggestionType::kManageAutofillAiIdentityDocs:
+        base::UmaHistogramEnumeration(
+            "Autofill.YourSavedInfoSettingsPage.VisitReferrer",
+            autofill_metrics::AutofillSettingsReferrer::kFillingFlowDropdown);
+        chrome::ShowSettingsSubPage(browser, chrome::kIdentityDocsSubPage);
+        return;
+      case SuggestionType::kManageAutofillAiTravel:
+        base::UmaHistogramEnumeration(
+            "Autofill.YourSavedInfoSettingsPage.VisitReferrer",
+            autofill_metrics::AutofillSettingsReferrer::kFillingFlowDropdown);
+        chrome::ShowSettingsSubPage(browser, chrome::kTravelSubPage);
+        return;
       case SuggestionType::kManagePlusAddress:
         CHECK(base::FeatureList::IsEnabled(
             plus_addresses::features::kPlusAddressesEnabled));
@@ -914,7 +926,8 @@ ChromeAutofillClient::GetSessionIdForCurrentAutofillSuggestions() const {
 void ChromeAutofillClient::UpdateAutofillSuggestions(
     const std::vector<Suggestion>& suggestions,
     FillingProduct main_filling_product,
-    AutofillSuggestionTriggerSource trigger_source) {
+    AutofillSuggestionTriggerSource trigger_source,
+    AutofillSuggestionsIgnoreFocusLoss ignore_focus_loss) {
   const std::optional<SuggestionUiSessionId> session_id =
       GetSessionIdForCurrentAutofillSuggestions();
   if (!session_id) {
@@ -933,7 +946,8 @@ void ChromeAutofillClient::UpdateAutofillSuggestions(
   // Calling show will reuse the existing view automatically.
   suggestion_controller_->Show(
       *session_id, suggestions, trigger_source,
-      ShouldAutofillPopupAutoselectFirstSuggestion(trigger_source));
+      ShouldAutofillPopupAutoselectFirstSuggestion(trigger_source),
+      ignore_focus_loss);
 }
 
 void ChromeAutofillClient::HideAutofillSuggestions(
@@ -1148,7 +1162,8 @@ ChromeAutofillClient::GetDeviceAuthenticator(std::string histogram) {
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || \
     BUILDFLAG(IS_CHROMEOS)
   device_reauth::DeviceAuthParams params(
-      base::Seconds(60), device_reauth::DeviceAuthSource::kAutofill, std::move(histogram));
+      base::Seconds(60), device_reauth::DeviceAuthSource::kAutofill,
+      std::move(histogram));
 
   return ChromeDeviceAuthenticatorFactory::GetForProfile(
       Profile::FromBrowserContext(web_contents()->GetBrowserContext()),
@@ -1304,7 +1319,8 @@ void ChromeAutofillClient::ShowAutofillSuggestionsImpl(
 
   suggestion_controller_->Show(
       session_id, open_args.suggestions, open_args.trigger_source,
-      ShouldAutofillPopupAutoselectFirstSuggestion(open_args.trigger_source));
+      ShouldAutofillPopupAutoselectFirstSuggestion(open_args.trigger_source),
+      AutofillSuggestionsIgnoreFocusLoss(false));
 
   // When testing, try to keep popup open when the reason to hide is one of:
   // - An external browser frame resize that is extraneous to our testing goals.
@@ -1407,6 +1423,7 @@ ChromeAutofillClient::GetMqlsUploadService() {
 void ChromeAutofillClient::ShowEntityImportBubble(
     EntityInstance new_entity,
     std::optional<EntityInstance> old_entity,
+    bool save_is_synchronous,
     EntityImportPromptResultCallback prompt_result_callback) {
 #if BUILDFLAG(IS_ANDROID)
   autofill_ai_save_update_entity_flow_manager_->OfferSave(
@@ -1415,6 +1432,7 @@ void ChromeAutofillClient::ShowEntityImportBubble(
   if (auto* controller = AutofillAiImportDataController::GetOrCreate(
           web_contents(), GetAppLocale())) {
     controller->ShowPrompt(std::move(new_entity), std::move(old_entity),
+                           /*close_on_accept=*/save_is_synchronous,
                            std::move(prompt_result_callback));
   } else {
     std::move(prompt_result_callback)
@@ -1426,6 +1444,15 @@ void ChromeAutofillClient::ShowEntityImportBubble(
 void ChromeAutofillClient::CloseEntityImportBubble() {
 #if !BUILDFLAG(IS_ANDROID)
   AutofillAiImportDataController::Hide(CHECK_DEREF(web_contents()));
+#endif  // !BUILDFLAG(IS_ANDROID)
+}
+
+void ChromeAutofillClient::ShowAutofillAiLocalSaveNotification() {
+#if !BUILDFLAG(IS_ANDROID)
+  if (auto* controller = AutofillAiImportDataController::GetOrCreate(
+          web_contents(), GetAppLocale())) {
+    controller->ShowLocalSaveNotification();
+  }
 #endif  // !BUILDFLAG(IS_ANDROID)
 }
 

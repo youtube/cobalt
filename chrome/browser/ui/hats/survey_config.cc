@@ -100,6 +100,8 @@ constexpr char kHatsSurveyTriggerIdentityDiceWebSigninDeclined[] =
     "identity-dice-web-signin-declined";
 constexpr char kHatsSurveyTriggerIdentityFirstRunSignin[] =
     "identity-first-run-signin";
+constexpr char kHatsSurveyTriggerIdentityFirstRunCompleted[] =
+    "identity-first-run-completed";
 constexpr char kHatsSurveyTriggerIdentityPasswordBubbleSignin[] =
     "identity-password-bubble-signin";
 constexpr char kHatsSurveyTriggerIdentityProfileMenuDismissed[] =
@@ -173,7 +175,10 @@ constexpr char kHatsSurveyTriggerWallpaperSearch[] = "wallpaper-search";
 constexpr char kHatsSurveyTriggerAndroidStartupSurvey[] = "startup_survey";
 constexpr char kHatsSurveyTriggerSigninFirstRun[] = "signin-first-run";
 constexpr char kHatsSurveyTriggerSigninWeb[] = "signin-web";
-constexpr char kHatsSurveyTriggerSigninNtpAvatar[] = "signin-ntp-avatar";
+constexpr char kHatsSurveyTriggerSigninNtpSigninButton[] =
+    "signin-ntp-signin-button";
+constexpr char kHatsSurveyTriggerSigninNtpAccountAvatarTap[] =
+    "signin-ntp-account-avatar-tap";
 constexpr char kHatsSurveyTriggerSigninNtpPromo[] = "signin-ntp-promo";
 constexpr char kHatsSurveyTriggerSigninBookmarkPromo[] =
     "signin-bookmark-promo";
@@ -650,6 +655,17 @@ std::vector<hats::SurveyConfig> GetAllSurveyConfigs() {
       "b5zoUGRaf0ugnJ3q1cK0RaxK8yrp", std::vector<std::string>{},
       identity_string_psd_fields);
 
+  survey_configs.emplace_back(
+      &switches::kBeforeFirstRunDesktopRefreshSurvey,
+      kHatsSurveyTriggerIdentityFirstRunCompleted,
+      "XhHJ3uboj0ugnJ3q1cK0S6RQC7u7",
+      /*product_specific_bits_data_fields=*/std::vector<std::string>{},
+      /*product_specific_string_data_fields=*/
+      std::vector<std::string>{"Channel"},
+      /*log_responses_to_uma=*/true,
+      /*log_responses_to_ukm=*/false,
+      hats::SurveyConfig::ProfileAgeRequirement::kAnyAge);
+
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 #if BUILDFLAG(ENABLE_COMPOSE)
@@ -842,10 +858,14 @@ std::vector<hats::SurveyConfig> GetAllSurveyConfigs() {
   survey_configs.emplace_back(
       &switches::kChromeAndroidIdentitySurveyWeb, kHatsSurveyTriggerSigninWeb,
       std::nullopt, std::vector<std::string>{}, signin_string_psd_fields);
-  survey_configs.emplace_back(&switches::kChromeAndroidIdentitySurveyNtpAvatar,
-                              kHatsSurveyTriggerSigninNtpAvatar, std::nullopt,
-                              std::vector<std::string>{},
-                              signin_string_psd_fields);
+  survey_configs.emplace_back(
+      &switches::kChromeAndroidIdentitySurveyNtpSigninButton,
+      kHatsSurveyTriggerSigninNtpSigninButton, std::nullopt,
+      std::vector<std::string>{}, signin_string_psd_fields);
+  survey_configs.emplace_back(
+      &switches::kChromeAndroidIdentitySurveyNtpAccountAvatarTap,
+      kHatsSurveyTriggerSigninNtpAccountAvatarTap, std::nullopt,
+      std::vector<std::string>{}, signin_string_psd_fields);
   survey_configs.emplace_back(&switches::kChromeAndroidIdentitySurveyNtpPromo,
                               kHatsSurveyTriggerSigninNtpPromo, std::nullopt,
                               std::vector<std::string>{},

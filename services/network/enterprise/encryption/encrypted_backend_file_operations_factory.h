@@ -19,7 +19,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) EncryptedBackendFileOperationsFactory
  public:
   explicit EncryptedBackendFileOperationsFactory(
       scoped_refptr<disk_cache::BackendFileOperationsFactory> decorated_factory,
-      crypto::ProcessBoundString primary_key);
+      const crypto::ProcessBoundString& primary_key);
 
   EncryptedBackendFileOperationsFactory(
       const EncryptedBackendFileOperationsFactory&) = delete;

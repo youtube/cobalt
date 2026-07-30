@@ -83,6 +83,7 @@ inline constexpr char kChromeUIComponentsUrl[] = "chrome://components";
 inline constexpr char kChromeUIConflictsHost[] = "conflicts";
 inline constexpr char kChromeUIConnectorsInternalsHost[] =
     "connectors-internals";
+inline constexpr char kChromeUIConstrainedHTMLTestHost[] = "constrained-test";
 inline constexpr char kChromeUIConstrainedHTMLTestURL[] =
     "chrome://constrained-test/";
 inline constexpr char kChromeUIContactInfoPath[] = "/contactInfo";
@@ -288,6 +289,7 @@ inline constexpr char kChromeUISignoutConfirmationURL[] =
 #endif
 inline constexpr char kChromeUISiteEngagementHost[] = "site-engagement";
 inline constexpr char kChromeUISkillsHost[] = "skills";
+inline constexpr char kChromeUISkillsURL[] = "chrome://skills/";
 inline constexpr char kChromeUISplitViewNewTabPageURL[] =
     "chrome://tab-search.top-chrome/split_new_tab_page.html";
 inline constexpr char kChromeUISuggestInternalsHost[] = "suggest-internals";

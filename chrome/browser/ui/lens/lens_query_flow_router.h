@@ -70,6 +70,12 @@ class LensQueryFlowRouter
   // Returns the current gen204 id.
   uint64_t gen204_id() const { return gen204_id_; }
 
+  // Returns the file token for the tab and full image viewport uploaded when
+  // the overlay first opens.
+  std::optional<base::UnguessableToken> overlay_tab_context_file_token() const {
+    return overlay_tab_context_file_token_;
+  }
+
   // Sets the callback for when the suggest inputs are ready.
   void SetSuggestInputsReadyCallback(base::RepeatingClosure callback);
 
@@ -135,6 +141,11 @@ class LensQueryFlowRouter
 
   // Returns the viewport screenshot. Virtual for testing.
   virtual const SkBitmap& GetViewportScreenshot() const;
+
+  // Returns the contextual search session handle for the query router if it
+  // exists. Virtual for testing.
+  virtual contextual_search::ContextualSearchSessionHandle*
+  GetContextualSearchSessionHandle() const;
 
  private:
   // contextual_search::ContextualSearchContextController::FileUploadStatusObserver:
@@ -225,11 +236,6 @@ class LensQueryFlowRouter
       std::map<std::string, std::string> additional_search_query_params,
       base::Time query_start_time,
       lens::LensOverlayInvocationSource invocation_source);
-
-  // Returns the contextual search session handle for the query router if it
-  // exists.
-  contextual_search::ContextualSearchSessionHandle*
-  GetContextualSearchSessionHandle() const;
 
   // Stores a pending search request to be sent to contextual tasks after the
   // tab context is ready.

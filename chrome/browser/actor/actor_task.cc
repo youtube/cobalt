@@ -20,6 +20,7 @@
 #include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_metrics.h"
+#include "chrome/browser/actor/enterprise_policy_checker.h"
 #include "chrome/browser/actor/execution_engine.h"
 #include "chrome/browser/actor/ui/event_dispatcher.h"
 #include "chrome/browser/profiles/profile.h"
@@ -116,21 +117,29 @@ void ActorTask::ActorControlledTabState::OnVisibilityChanged(
   task->RecomputeHasVisibleTab();
 }
 
-ActorTask::ActorTask(Profile* profile,
-                     std::unique_ptr<ExecutionEngine> execution_engine,
+ActorTask::ActorTask(base::PassKey<ActorKeyedService, ActorTask>,
+                     Profile* profile,
+                     TaskId id,
                      std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher,
                      webui::mojom::TaskOptionsPtr options,
+                     const EnterprisePolicyChecker* policy_checker,
                      base::WeakPtr<ActorTaskDelegate> delegate)
     : profile_(profile),
+      id_(id),
       create_time_(base::TimeTicks::Now()),
       action_tracker_for_metrics_(std::make_unique<ActionTrackerForMetrics>()),
-      execution_engine_(std::move(execution_engine)),
       ui_event_dispatcher_(std::move(ui_event_dispatcher)),
       journal_(ActorKeyedService::Get(profile)->GetJournal().GetSafeRef()),
       title_(options && options->title.has_value() ? options->title.value()
                                                    : ""),
+      policy_checker_(*policy_checker),
       delegate_(std::move(delegate)),
-      ui_weak_ptr_factory_(ui_event_dispatcher_.get()) {}
+      ui_weak_ptr_factory_(ui_event_dispatcher_.get()) {
+  CHECK(policy_checker);
+  CHECK(profile_);
+  CHECK(!id_.is_null());
+  execution_engine_ = ExecutionEngine::Create(*this);
+}
 
 ActorTask::~ActorTask() {
   // The owner of the ActorTasks (ActorKeyedService) should have stopped all
@@ -138,16 +147,22 @@ ActorTask::~ActorTask() {
   CHECK(IsCompleted());
 }
 
-void ActorTask::SetId(base::PassKey<ActorKeyedService>, TaskId id) {
-  id_ = id;
+// static
+std::unique_ptr<ActorTask> ActorTask::CreateForTesting(
+    Profile* profile,
+    TaskId id,
+    std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher,
+    webui::mojom::TaskOptionsPtr options,
+    const EnterprisePolicyChecker* policy_checker,
+    base::WeakPtr<ActorTaskDelegate> delegate) {
+  return std::make_unique<ActorTask>(
+      base::PassKey<ActorTask>(), profile, id, std::move(ui_event_dispatcher),
+      std::move(options), policy_checker, std::move(delegate));
 }
 
-void ActorTask::SetIdForTesting(int id) {
-  id_ = TaskId(id);
-}
-
-ExecutionEngine* ActorTask::GetExecutionEngine() const {
-  return execution_engine_.get();
+ExecutionEngine& ActorTask::GetExecutionEngine() const {
+  CHECK(execution_engine_);
+  return *execution_engine_;
 }
 
 ActorTask::State ActorTask::GetState() const {
@@ -458,16 +473,11 @@ void ActorTask::Uninterrupt(State resumed_state) {
     return;
   }
   SetState(resumed_state);
-
-  // TODO(bokan): execution_engine_ is always passed in constructor and never
-  // reset so we should be able to CHECK and assume it's non-null.
-  if (execution_engine_) {
-    execution_engine_->DidUninterruptTask();
-  }
+  execution_engine_->DidUninterruptTask();
 }
 
 bool ActorTask::CancelOngoingActions(mojom::ActionResultCode reason) {
-  if (!execution_engine_ || IsCompleted()) {
+  if (IsCompleted()) {
     return false;
   }
   did_add_tabs_callback_.Cancel();
@@ -853,12 +863,6 @@ std::string ToString(const ActorTask::State& state) {
 
 std::ostream& operator<<(std::ostream& os, const ActorTask::State& state) {
   return os << ToString(state);
-}
-
-void ActorTask::SetExecutionEngineForTesting(
-    std::unique_ptr<ExecutionEngine> engine) {
-  execution_engine_.reset(std::move(engine.release()));
-  execution_engine_->SetOwner(this);
 }
 
 // static

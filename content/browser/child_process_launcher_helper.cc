@@ -25,13 +25,14 @@
 #include "components/tracing/common/tracing_switches.h"
 #include "components/variations/active_field_trials.h"
 #include "content/browser/child_process_launcher.h"
+#include "content/common/pseudonymization_salt.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/child_process_launcher_utils.h"
+#include "content/public/browser/sandboxed_process_launcher_delegate.h"
 #include "content/public/browser/tracing_support.h"
 #include "content/public/common/content_descriptors.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
-#include "content/public/common/sandboxed_process_launcher_delegate.h"
 #include "mojo/core/configuration.h"
 #include "mojo/public/cpp/platform/platform_channel.h"
 #include "services/tracing/public/cpp/trace_startup.h"
@@ -244,6 +245,46 @@ void PassStartupOutputSharedMemoryHandle(
 #endif  // BUILDFLAG(USE_BLINK)
 }
 
+// Passes the pseudonymization salt to child processes via shared memory,
+// ensuring it's available before any Mojo IPCs. See https://crbug.com/40850085.
+#if BUILDFLAG(USE_BLINK)
+void PassPseudonymizationSaltSharedMemoryHandle(
+    base::CommandLine& command_line,
+#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_APPLE)
+    FileMappedForLaunch& files_to_register) {
+#else
+    base::LaunchOptions& launch_options) {
+#endif
+  // Salt must be initialized in PreCreateThreads() before any child process
+  // launches. See BrowserMainLoop::PreCreateThreads().
+  CHECK(IsSaltInitialized());
+
+  const base::ReadOnlySharedMemoryRegion& salt_region =
+      GetPseudonymizationSaltSharedMemoryRegion();
+  CHECK(salt_region.IsValid());
+
+#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_APPLE)
+  base::ScopedFD descriptor_to_transfer;
+  base::shared_memory::AddToLaunchParameters(
+      switches::kPseudonymizationSaltHandle, salt_region,
+      kPseudonymizationSaltDescriptor, descriptor_to_transfer, &command_line,
+      /*launch_options=*/nullptr);
+  if (descriptor_to_transfer.is_valid()) {
+    files_to_register.Transfer(kPseudonymizationSaltDescriptor,
+                               std::move(descriptor_to_transfer));
+  }
+#elif BUILDFLAG(IS_APPLE)
+  base::shared_memory::AddToLaunchParameters(
+      switches::kPseudonymizationSaltHandle, salt_region, 'salt', &command_line,
+      &launch_options);
+#else
+  base::shared_memory::AddToLaunchParameters(
+      switches::kPseudonymizationSaltHandle, salt_region, &command_line,
+      &launch_options);
+#endif
+}
+#endif  // BUILDFLAG(USE_BLINK)
+
 }  // namespace
 
 ChildProcessLauncherHelper::Process::Process() = default;
@@ -375,6 +416,18 @@ void ChildProcessLauncherHelper::LaunchOnLauncherThread() {
 #endif
   }
 
+  // Propagate the kWaitForDebugger switch to child process if the
+  // kWaitForDebuggerChildren is specified and matches the child process type.
+  const base::CommandLine& current_command_line =
+      *base::CommandLine::ForCurrentProcess();
+  if (current_command_line.HasSwitch(switches::kWaitForDebuggerChildren)) {
+    std::string value = current_command_line.GetSwitchValueASCII(
+        switches::kWaitForDebuggerChildren);
+    if (value.empty() || value == GetProcessType()) {
+      command_line()->AppendSwitch(switches::kWaitForDebugger);
+    }
+  }
+
   // Update the command line and launch options to pass the histogram and
   // field trial shared memory region handles.
   PassHistogramSharedMemoryHandle(
@@ -390,6 +443,12 @@ void ChildProcessLauncherHelper::LaunchOnLauncherThread() {
       tracing_output_memory_region_ ? &tracing_output_memory_region_->data
                                     : nullptr,
       command_line(), options_ptr, files_to_register.get());
+#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_APPLE)
+  PassPseudonymizationSaltSharedMemoryHandle(*command_line(),
+                                             *files_to_register);
+#else
+  PassPseudonymizationSaltSharedMemoryHandle(*command_line(), *options_ptr);
+#endif
 
   auto track = GetChildProcessTracingTrack(child_process_id());
   command_line_->AppendSwitchASCII(switches::kTraceProcessTrackUuid,

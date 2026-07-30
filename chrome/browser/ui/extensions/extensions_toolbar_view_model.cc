@@ -28,7 +28,13 @@ ExtensionsToolbarViewModel::ExtensionsToolbarViewModel(
     : browser_(browser), delegate_(delegate), actions_model_(actions_model) {
   WebContentsObserver::Observe(GetCurrentWebContents());
   actions_model_observation_.Observe(actions_model_);
-  tab_list_observation_.Observe(TabListInterface::From(browser_));
+  auto* tab_list = TabListInterface::From(browser_);
+  if (tab_list) {
+    tab_list_observation_.Observe(tab_list);
+  }
+
+  permissions_manager_observation_.Observe(
+      extensions::PermissionsManager::Get(browser_->GetProfile()));
 
   if (actions_model_->actions_initialized()) {
     OnToolbarModelInitialized();
@@ -107,10 +113,9 @@ bool ExtensionsToolbarViewModel::AreActionsInitialized() {
 
 ExtensionsToolbarViewModel::ExtensionsToolbarButtonState
 ExtensionsToolbarViewModel::GetButtonState(
-    content::WebContents* web_contents) const {
-  CHECK(web_contents);
+    content::WebContents& web_contents) const {
   Profile* profile = browser_->GetProfile();
-  const GURL& url = web_contents->GetLastCommittedURL();
+  const GURL& url = web_contents.GetLastCommittedURL();
 
   if (actions_model_->IsRestrictedUrl(url)) {
     return ExtensionsToolbarButtonState::kAllExtensionsBlocked;
@@ -147,7 +152,10 @@ ExtensionsToolbarViewModel::RequestAccessButtonParams
 ExtensionsToolbarViewModel::GetRequestAccessButtonParams(
     content::WebContents* web_contents) const {
   RequestAccessButtonParams params;
-  CHECK(web_contents);
+  if (!web_contents) {
+    return params;
+  }
+
   Profile* profile = browser_->GetProfile();
   extensions::PermissionsManager* permissions_manager =
       extensions::PermissionsManager::Get(profile);
@@ -296,7 +304,7 @@ void ExtensionsToolbarViewModel::DidFinishNavigation(
 }
 
 void ExtensionsToolbarViewModel::OnActiveTabChanged(tabs::TabInterface* tab) {
-  WebContentsObserver::Observe(tab->GetContents());
+  WebContentsObserver::Observe(tab ? tab->GetContents() : nullptr);
   for (Observer& obs : observers_) {
     obs.OnActiveWebContentsChanged();
   }
@@ -308,9 +316,9 @@ void ExtensionsToolbarViewModel::OnTabListDestroyed(
 }
 
 bool ExtensionsToolbarViewModel::AnyActionHasCurrentSiteAccess(
-    content::WebContents* web_contents) const {
+    content::WebContents& web_contents) const {
   for (const auto& [action_id, model] : actions_) {
-    if (model->GetSiteInteraction(web_contents) ==
+    if (model->GetSiteInteraction(&web_contents) ==
         extensions::SitePermissionsHelper::SiteInteraction::kGranted) {
       return true;
     }
@@ -331,4 +339,82 @@ content::WebContents* ExtensionsToolbarViewModel::GetCurrentWebContents()
     return nullptr;
   }
   return tab->GetContents();
+}
+
+void ExtensionsToolbarViewModel::OnHostAccessRequestAdded(
+    const extensions::ExtensionId& extension_id,
+    int tab_id) {
+  content::WebContents* web_contents = GetCurrentWebContents();
+  int current_tab_id = extensions::ExtensionTabUtil::GetTabId(web_contents);
+  if (tab_id != current_tab_id) {
+    return;
+  }
+  for (Observer& obs : observers_) {
+    obs.OnRequestAccessButtonParamsChanged(web_contents);
+  }
+}
+
+void ExtensionsToolbarViewModel::OnHostAccessRequestUpdated(
+    const extensions::ExtensionId& extension_id,
+    int tab_id) {
+  content::WebContents* web_contents = GetCurrentWebContents();
+  int current_tab_id = extensions::ExtensionTabUtil::GetTabId(web_contents);
+  if (tab_id != current_tab_id) {
+    return;
+  }
+  for (Observer& obs : observers_) {
+    obs.OnRequestAccessButtonParamsChanged(web_contents);
+  }
+}
+
+void ExtensionsToolbarViewModel::OnHostAccessRequestRemoved(
+    const extensions::ExtensionId& extension_id,
+    int tab_id) {
+  content::WebContents* web_contents = GetCurrentWebContents();
+  int current_tab_id = extensions::ExtensionTabUtil::GetTabId(web_contents);
+  if (tab_id != current_tab_id) {
+    return;
+  }
+  for (Observer& obs : observers_) {
+    obs.OnRequestAccessButtonParamsChanged(web_contents);
+  }
+}
+
+void ExtensionsToolbarViewModel::OnHostAccessRequestsCleared(int tab_id) {
+  content::WebContents* web_contents = GetCurrentWebContents();
+  int current_tab_id = extensions::ExtensionTabUtil::GetTabId(web_contents);
+  if (tab_id != current_tab_id) {
+    return;
+  }
+  for (Observer& obs : observers_) {
+    obs.OnRequestAccessButtonParamsChanged(web_contents);
+  }
+}
+
+void ExtensionsToolbarViewModel::OnHostAccessRequestDismissedByUser(
+    const extensions::ExtensionId& extension_id,
+    const url::Origin& origin) {
+  content::WebContents* web_contents = GetCurrentWebContents();
+  for (Observer& obs : observers_) {
+    obs.OnRequestAccessButtonParamsChanged(web_contents);
+  }
+}
+
+void ExtensionsToolbarViewModel::OnUserPermissionsSettingsChanged(
+    const extensions::PermissionsManager::UserPermissionsSettings& settings) {
+  for (Observer& obs : observers_) {
+    obs.OnToolbarControlStateUpdated();
+  }
+  // TODO(crbug.com/40857356): Update request access button hover card. This
+  // will be slightly different than 'OnToolbarActionUpdated' since site
+  // settings update are not tied to a specific action.
+}
+
+void ExtensionsToolbarViewModel::OnShowAccessRequestsInToolbarChanged(
+    const extensions::ExtensionId& extension_id,
+    bool can_show_requests) {
+  content::WebContents* web_contents = GetCurrentWebContents();
+  for (Observer& obs : observers_) {
+    obs.OnRequestAccessButtonParamsChanged(web_contents);
+  }
 }

@@ -89,12 +89,15 @@ void LensQueryFlowRouter::StartQueryFlow(
     // remove the observer before creating a new session handle.
     file_upload_status_observation_.Reset();
 
-    pending_session_handle_ = CreateContextualSearchSessionHandle();
-    pending_session_handle_->NotifySessionStarted();
-
-    // Add observer to listen for file upload status changes.
-    file_upload_status_observation_.Observe(
-        pending_session_handle_->GetController());
+    if (!GetContextualSearchSessionHandle()) {
+      pending_session_handle_ = CreateContextualSearchSessionHandle();
+      pending_session_handle_->NotifySessionStarted();
+      // Add observer to listen for file upload status changes. This is only
+      // needed when a new session handle is created as part of this flow as
+      // the response is not used by the overlay otherwise.
+      file_upload_status_observation_.Observe(
+          GetContextualSearchSessionHandle()->GetController());
+    }
 
     // If permissions have been granted, start uploading the current viewport
     // and page content. If not, store as a callback to be run later.
@@ -402,11 +405,7 @@ void LensQueryFlowRouter::SendInteractionToContextualTasks(
     pending_session_handle_->NotifySessionStarted();
   }
 
-  bool needs_overlay_tab_context =
-      lens_search_controller_->invocation_source() !=
-      lens::LensOverlayInvocationSource::kContextualTasksComposebox;
-  if (needs_overlay_tab_context &&
-      !overlay_tab_context_file_token_.has_value()) {
+  if (!overlay_tab_context_file_token_.has_value()) {
     pending_search_url_request_ = std::move(request_info);
     // Upload the page context when creating a session handle.
     if (auto* controller =

@@ -12,6 +12,9 @@ source_set("contextual_tasks") {
     "active_task_context_provider_impl.h",
     "ai_mode_context_library_converter.h",
     "contextual_tasks_service_factory.h",
+    "contextual_tasks_ui_interface.h",
+    "contextual_tasks_utils.h",
+    "task_info_delegate.h",
   ]
 
   if (!is_android) {
@@ -25,18 +28,20 @@ source_set("contextual_tasks") {
 
   deps = [
     "//base",
+    "//chrome/browser/ui/browser_window",
     "//components/tabs:public",
   ]
 
   public_deps = [
+    ":mojo_bindings",
     "//chrome/browser/profiles:profile",
     "//components/contextual_tasks/public",
     "//components/keyed_service/core",
     "//content/public/browser",
   ]
+
   if (!is_android) {
     public_deps += [
-      ":mojo_bindings",
       "//chrome/browser/passage_embeddings",
       "//components/passage_embeddings/core:passage_embeddings_types",
     ]
@@ -54,6 +59,7 @@ source_set("impl") {
     "ai_mode_context_library_converter.cc",
     "contextual_tasks_service_factory.cc",
   ]
+
   if (!is_android) {
     sources += [
       "active_task_context_provider_impl.cc",
@@ -63,6 +69,7 @@ source_set("impl") {
       "contextual_tasks_context_service_factory.cc",
       "contextual_tasks_context_signal_utils.cc",
       "contextual_tasks_context_signal_utils.h",
+      "contextual_tasks_utils.cc",
       "tab_strip_context_decorator.cc",
       "tab_strip_context_decorator.h",
     ]
@@ -92,6 +99,7 @@ source_set("impl") {
     "//content/public/browser",
     "//third_party/lens_server_proto:lens_overlay_proto",
   ]
+
   if (!is_android) {
     deps += [
       ":ui",
@@ -114,25 +122,31 @@ source_set("impl") {
   }
 }
 
-if (!is_android) {
-  source_set("ui") {
-    sources = [
+source_set("ui") {
+  sources = [ "contextual_tasks_page_handler.h" ]
+
+  if (!is_android) {
+    sources += [
       "contextual_tasks_composebox_handler.h",
       "contextual_tasks_internals_page_handler.h",
       "contextual_tasks_navigation_throttle.h",
-      "contextual_tasks_page_handler.h",
       "contextual_tasks_side_panel_coordinator.h",
       "contextual_tasks_ui.h",
       "contextual_tasks_ui_service.h",
       "contextual_tasks_ui_service_factory.h",
       "entry_point_eligibility_manager.h",
-      "task_info_delegate.h",
     ]
+  }
 
-    public_deps = [
-      ":contextual_tasks",
-      ":mojo_bindings",
-      "//base",
+  public_deps = [
+    ":contextual_tasks",
+    ":mojo_bindings",
+    "//base",
+    "//third_party/lens_server_proto:lens_overlay_proto",
+  ]
+
+  if (!is_android) {
+    public_deps += [
       "//chrome/browser/autocomplete:aim_eligibility_service",
       "//chrome/browser/contextual_search",
       "//chrome/browser/ui/browser_window",
@@ -145,15 +159,19 @@ if (!is_android) {
       "//components/contextual_tasks/public:feature_list",
       "//content/public/browser",
       "//content/public/common",
-      "//third_party/lens_server_proto:lens_overlay_proto",
+      "//third_party/omnibox_proto",
       "//ui/webui",
       "//ui/webui/resources/cr_components/composebox:mojo_bindings",
       "//url",
     ]
   }
+}
 
-  source_set("ui_impl") {
-    sources = [
+source_set("ui_impl") {
+  sources = []
+
+  if (!is_android) {
+    sources += [
       "contextual_search_session_finder.cc",
       "contextual_search_session_finder.h",
       "contextual_tasks_composebox_handler.cc",
@@ -168,8 +186,12 @@ if (!is_android) {
       "contextual_tasks_url_loader_factory_interceptor.h",
       "entry_point_eligibility_manager.cc",
     ]
+  }
 
-    deps = [
+  deps = []
+
+  if (!is_android) {
+    deps += [
       ":ui",
       "//base",
       "//chrome/browser:global_features",
@@ -201,20 +223,20 @@ if (!is_android) {
       "//url",
     ]
   }
+}
 
-  mojom("mojo_bindings") {
-    sources = [
-      "contextual_tasks.mojom",
-      "contextual_tasks_internals.mojom",
-      "contextual_tasks_types.mojom",
-    ]
-    webui_module_path = "/"
-    public_deps = [
-      "//mojo/public/mojom/base",
-      "//ui/webui/resources/cr_components/composebox:mojo_bindings",
-      "//url/mojom:url_mojom_gurl",
-    ]
-  }
+mojom("mojo_bindings") {
+  sources = [
+    "contextual_tasks.mojom",
+    "contextual_tasks_internals.mojom",
+    "contextual_tasks_types.mojom",
+  ]
+  webui_module_path = "/"
+  public_deps = [
+    "//mojo/public/mojom/base",
+    "//ui/base/mojom",
+    "//url/mojom:url_mojom_gurl",
+  ]
 }
 
 if (!is_android) {

@@ -137,7 +137,7 @@
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/signin/model/authentication_service.h"
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
-#import "ios/chrome/browser/signin/model/avatar_provider.h"
+#import "ios/chrome/browser/signin/model/avatar/avatar_provider.h"
 #import "ios/chrome/browser/signin/model/chrome_account_manager_service.h"
 #import "ios/chrome/browser/signin/model/chrome_account_manager_service_factory.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
@@ -1041,10 +1041,8 @@ struct EnhancedSafeBrowsingActivePromoData
 }
 
 - (TableViewItem*)tabsSettingsDetailItem {
-  NSString* title = l10n_util::GetNSString(
-      IsAutoOpenRemoteTabGroupsSettingsFeatureEnabled()
-          ? IDS_IOS_TABS_AND_TAB_GROUPS_MANAGEMENT_SETTINGS
-          : IDS_IOS_TABS_MANAGEMENT_SETTINGS);
+  NSString* title =
+      l10n_util::GetNSString(IDS_IOS_TABS_AND_TAB_GROUPS_MANAGEMENT_SETTINGS);
   return [self detailItemWithType:SettingsItemTypeTabs
                              text:title
                        detailText:nil

@@ -46,17 +46,22 @@ class CONTENT_EXPORT PrefetchServingHandle final {
 
   ~PrefetchServingHandle();
 
-  PrefetchContainer* GetPrefetchContainer() const {
+  const PrefetchContainer* GetPrefetchContainer() const {
     return prefetch_container_.get();
   }
-  PrefetchServingHandle Clone() const;
+  PrefetchContainer* GetPrefetchContainer() {
+    return prefetch_container_.get();
+  }
+  PrefetchServingHandle Clone();
 
   // Returns true if `this` is valid.
   // Do not call methods below if false.
   explicit operator bool() const { return GetPrefetchContainer(); }
 
   // Methods redirecting to `GetPrefetchContainer()`.
-  PrefetchServableState GetServableState(
+  PrefetchServableState GetServableState() const;
+  // Allows to pass `cacheable_duration` for testing.
+  PrefetchServableState GetServableStateForTesting(
       base::TimeDelta cacheable_duration) const;
   bool HasPrefetchStatus() const;
   PrefetchStatus GetPrefetchStatus() const;
@@ -78,16 +83,16 @@ class CONTENT_EXPORT PrefetchServingHandle final {
   // well as record metrics about how long this process takes.
   bool HasIsolatedCookieCopyStarted() const;
   bool IsIsolatedCookieCopyInProgress() const;
-  void OnIsolatedCookieCopyStart() const;
-  void OnIsolatedCookiesReadCompleteAndWriteStart() const;
-  void OnIsolatedCookieCopyComplete() const;
-  void OnInterceptorCheckCookieCopy() const;
-  void SetOnCookieCopyCompleteCallback(base::OnceClosure callback) const;
+  void OnIsolatedCookieCopyStart();
+  void OnIsolatedCookiesReadCompleteAndWriteStart();
+  void OnIsolatedCookieCopyComplete();
+  void OnInterceptorCheckCookieCopy();
+  void SetOnCookieCopyCompleteCallback(base::OnceClosure callback);
 
   // Called with the result of the probe. If the probing feature is enabled,
   // then a probe must complete successfully before the prefetch can be
   // served.
-  void OnPrefetchProbeResult(PrefetchProbeResult probe_result) const;
+  void OnPrefetchProbeResult(PrefetchProbeResult probe_result);
 
   // Checks if the given URL matches the the URL that can be served next.
   bool DoesCurrentURLToServeMatch(const GURL& url) const;
@@ -113,6 +118,12 @@ class CONTENT_EXPORT PrefetchServingHandle final {
   bool VariesOnCookieIndices() const;
   bool MatchesCookieIndices(
       base::span<const std::pair<std::string, std::string>> cookies) const;
+
+  using OnIsolatedCookieCopyStartCallbackForTesting =
+      base::RepeatingCallback<void(const PrefetchServingHandle&)>;
+  static void SetOnIsolatedCookieCopyStartCallbackForTesting(
+      PrefetchServingHandle::OnIsolatedCookieCopyStartCallbackForTesting
+          on_isolated_cookie_copy_start_callback_for_testing);
 
  private:
   const std::vector<std::unique_ptr<PrefetchSingleRedirectHop>>&

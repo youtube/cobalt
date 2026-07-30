@@ -566,6 +566,7 @@ in release mode with dcheck_always_on.\
     dcheck_always_on = True,
     gn_extra_configs = [
         "high_end_fuzzer_targets",
+        "sanitizer_coverage_skip_stdlib_and_absl",
     ],
 )
 
@@ -869,7 +870,6 @@ libfuzzer_builder(
         "asan",
         "no_dsyms",
         "no_remoting",
-        "disable_be_deferred_context_menu",
     ],
     use_component_build = False,
     xcode = xcode.xcode_default,

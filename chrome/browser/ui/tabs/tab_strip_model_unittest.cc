@@ -291,11 +291,11 @@ class MockTabStripModelObserver : public TabStripModelObserver {
       case TabStripModelChange::kRemoved: {
         for (const auto& contents : change.GetRemove()->contents) {
           switch (contents.remove_reason) {
-            case TabStripModelChange::RemoveReason::kDeleted:
-            case TabStripModelChange::RemoveReason::kInsertedIntoSidePanel:
+            case TabRemovedReason::kDeleted:
+            case TabRemovedReason::kInsertedIntoSidePanel:
               PushCloseState(contents.contents, contents.index);
               break;
-            case TabStripModelChange::RemoveReason::kInsertedIntoOtherTabStrip:
+            case TabRemovedReason::kInsertedIntoOtherTabStrip:
               break;
           }
           PushDetachState(contents.contents, contents.index,
@@ -2478,9 +2478,13 @@ TEST_P(TabStripModelTest, UnsplitOperation) {
       split_tabs::SplitTabCreatedSource::kToolbarButton);
 
   EXPECT_EQ("0ps 3ps 1p 2 4", GetTabStripStateString(tabstrip()));
+  EXPECT_EQ("active=0 anchor=0 selection=0 1",
+            tabstrip()->selection_model().GetListSelectionModel().ToString());
 
   tabstrip()->RemoveSplit(split_tab_id);
   EXPECT_EQ("0p 3p 1p 2 4", GetTabStripStateString(tabstrip()));
+  EXPECT_EQ("active=0 anchor=0 selection=0",
+            tabstrip()->selection_model().GetListSelectionModel().ToString());
 
   tabstrip()->CloseAllTabs();
   EXPECT_TRUE(tabstrip()->empty());
@@ -4892,8 +4896,20 @@ TEST_P(TabStripModelTest, AddTabToNewGroup) {
   ASSERT_TRUE(tabstrip()->SupportsTabGroups());
 
   tabstrip()->AppendWebContents(CreateWebContents(), false);
+  tabstrip()->AppendWebContents(CreateWebContents(), false);
+  tabstrip()->AppendWebContents(CreateWebContents(), false);
 
-  tabstrip()->AddToNewGroup({0});
+  tabstrip()->ActivateTabAt(
+      2, TabStripUserGestureDetails(
+             TabStripUserGestureDetails::GestureType::kOther));
+
+  EXPECT_EQ("active=2 anchor=2 selection=2",
+            tabstrip()->selection_model().GetListSelectionModel().ToString());
+
+  tabstrip()->AddToNewGroup({0, 2});
+
+  EXPECT_EQ("active=1 anchor=1 selection=1",
+            tabstrip()->selection_model().GetListSelectionModel().ToString());
 
   EXPECT_TRUE(tabstrip()->GetTabGroupForTab(0).has_value());
 
@@ -4967,6 +4983,28 @@ TEST_P(TabStripModelTest, AddTabToNewGroupMiddleOfExistingGroup) {
 
   tabstrip()->AddToNewGroup({1, 2});
   EXPECT_EQ("0g0 3g0 1g1 2g1", GetTabStripStateString(tabstrip(), true));
+
+  tabstrip()->CloseAllTabs();
+}
+
+TEST_P(TabStripModelTest,
+       AddActiveTabToExistingGroupVerifyListSelectionModelUpdate) {
+  ASSERT_TRUE(tabstrip()->SupportsTabGroups());
+
+  PrepareTabs(tabstrip(), 7);
+  tabstrip()->ActivateTabAt(0);
+  tabstrip()->AddToNewGroup({3, 4, 5, 6});
+
+  EXPECT_EQ("active=0 anchor=0 selection=0",
+            tabstrip()->selection_model().GetListSelectionModel().ToString());
+
+  std::optional<tab_groups::TabGroupId> group =
+      tabstrip()->GetTabGroupForTab(3);
+
+  tabstrip()->AddToExistingGroup({0}, group.value());
+
+  EXPECT_EQ("active=2 anchor=2 selection=2",
+            tabstrip()->selection_model().GetListSelectionModel().ToString());
 
   tabstrip()->CloseAllTabs();
 }
@@ -7050,4 +7088,56 @@ TEST_P(TabStripModelTest, TabStripUIWasSetResetOnObserverRemoval) {
   MockTabStripModelObserver observer2;
   tabstrip()->SetTabStripUI(&observer2);
   tabstrip()->RemoveObserver(&observer2);
+}
+
+TEST_P(TabStripModelTest, ReinsertSplitCollectionVerifyListSelectionModel) {
+  PrepareTabstripForSelectionTest(tabstrip(), /*tab_count*/ 5,
+                                  /*pinned_count*/ 0,
+                                  /*selected_tabs*/ {0, 2, 3, 4});
+
+  // Make a split and then remove it.
+  split_tabs::SplitTabId split_id = tabstrip()->AddToNewSplit(
+      {1}, split_tabs::SplitTabVisualData(),
+      split_tabs::SplitTabCreatedSource::kToolbarButton);
+  tabstrip()->ForgetAllOpeners();
+
+  std::unique_ptr<DetachedTabCollection> detached_split =
+      tabstrip()->DetachSplitTabForInsertion(split_id);
+
+  EXPECT_EQ(tabstrip()->active_index(), 0);
+
+  EXPECT_EQ("active=0 anchor=0 selection=0 1 2",
+            tabstrip()->selection_model().GetListSelectionModel().ToString());
+
+  // Reinsert the split collection and make sure our list selection model
+  // got updated.
+  tabstrip()->InsertDetachedSplitTabAt(std::move(detached_split), 0, false);
+
+  // Active tab became the split tab
+  EXPECT_EQ("active=0 anchor=0 selection=0 1",
+            tabstrip()->selection_model().GetListSelectionModel().ToString());
+}
+
+TEST_P(TabStripModelTest, ReinsertTabGroupCollectionVerifyListSelectionModel) {
+  PrepareTabstripForSelectionTest(tabstrip(), /*tab_count*/ 5,
+                                  /*pinned_count*/ 0,
+                                  /*selected_tabs*/ {0, 2, 4});
+
+  // Make a group and then remove it.
+  tab_groups::TabGroupId group_id =
+      tabstrip()->AddToNewGroup(std::vector<int>{1, 2});
+  std::unique_ptr<DetachedTabCollection> detached_group =
+      tabstrip()->DetachTabGroupForInsertion(group_id);
+
+  EXPECT_EQ(tabstrip()->active_index(), 0);
+
+  EXPECT_EQ("active=0 anchor=0 selection=0 2",
+            tabstrip()->selection_model().GetListSelectionModel().ToString());
+
+  // Reinsert the tab group collection and make sure our list selection model
+  // got updated.
+  tabstrip()->InsertDetachedTabGroupAt(std::move(detached_group), 0);
+  // Note the active and anchor did not change.
+  EXPECT_EQ("active=2 anchor=2 selection=2 4",
+            tabstrip()->selection_model().GetListSelectionModel().ToString());
 }

@@ -10,6 +10,7 @@
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/ui/autofill/autofill_ai/autofill_ai_import_data_controller.h"
 #include "chrome/browser/ui/autofill/autofill_ai/mock_autofill_ai_import_data_controller.h"
+#include "chrome/browser/ui/views/autofill/payments/dialog_view_ids.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/views/chrome_views_test_base.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
@@ -32,6 +33,10 @@ namespace autofill {
 
 namespace {
 
+using ::testing::Mock;
+using ::testing::NiceMock;
+using ::testing::Return;
+
 class AutofillAiImportDataBubbleViewTest : public ChromeViewsTestBase {
  public:
   AutofillAiImportDataBubbleViewTest() = default;
@@ -47,22 +52,18 @@ class AutofillAiImportDataBubbleViewTest : public ChromeViewsTestBase {
   void CreateViewAndShow();
 
   void TearDown() override {
-    view_ = nullptr;
+    ResetViewPointer();
     anchor_widget_.reset();
     ChromeViewsTestBase::TearDown();
   }
 
-  AutofillAiImportDataBubbleView& view() { return *view_; }
+  AutofillAiImportDataBubbleView* view() { return view_.get(); }
   MockAutofillAiImportDataController& mock_controller() {
     return mock_controller_;
   }
 
-  void ClickButton(views::ImageButton* button) {
-    CHECK(button);
-    ui::MouseEvent e(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
-                     ui::EventTimeForNow(), 0, 0);
-    views::test::ButtonTestApi test_api(button);
-    test_api.NotifyClick(e);
+  void ResetViewPointer() {
+    view_ = nullptr;
   }
 
  private:
@@ -71,7 +72,7 @@ class AutofillAiImportDataBubbleViewTest : public ChromeViewsTestBase {
   std::unique_ptr<content::WebContents> web_contents_;
   std::unique_ptr<views::Widget> anchor_widget_;
   raw_ptr<AutofillAiImportDataBubbleView> view_ = nullptr;
-  testing::NiceMock<MockAutofillAiImportDataController> mock_controller_;
+  NiceMock<MockAutofillAiImportDataController> mock_controller_;
 };
 
 void AutofillAiImportDataBubbleViewTest::CreateViewAndShow() {
@@ -107,7 +108,8 @@ void AutofillAiImportDataBubbleViewTest::CreateViewAndShow() {
           /*old_attribute_value=*/std::nullopt,
           EntityAttributeUpdateType::kNewEntityAttributeUnchanged)};
   ON_CALL(mock_controller(), GetUpdatedAttributesDetails())
-      .WillByDefault(testing::Return(details));
+      .WillByDefault(Return(details));
+  ON_CALL(mock_controller(), CloseOnAccept()).WillByDefault(Return(true));
 
   auto view_unique = std::make_unique<AutofillAiImportDataBubbleView>(
       anchor_widget_->GetContentsView(), web_contents_.get(),
@@ -118,19 +120,65 @@ void AutofillAiImportDataBubbleViewTest::CreateViewAndShow() {
 
 TEST_F(AutofillAiImportDataBubbleViewTest, HasCloseButton) {
   CreateViewAndShow();
-  EXPECT_TRUE(view().ShouldShowCloseButton());
+  EXPECT_TRUE(view()->ShouldShowCloseButton());
 }
 
 TEST_F(AutofillAiImportDataBubbleViewTest, AcceptInvokesTheController) {
   CreateViewAndShow();
+
+  base::RunLoop run_loop;
   EXPECT_CALL(mock_controller(), OnSaveButtonClicked);
-  view().AcceptDialog();
+  EXPECT_CALL(mock_controller(), OnBubbleClosed).WillOnce([this, &run_loop]() {
+    ResetViewPointer();
+    run_loop.Quit();
+  });
+
+  view()->AcceptDialog();
+  run_loop.Run();
+}
+
+// Tests that the bubble is not closed when the controller does not want to
+// close it on accept.
+TEST_F(AutofillAiImportDataBubbleViewTest, AcceptDoesNotCloseTheBubble) {
+  CreateViewAndShow();
+  EXPECT_CALL(mock_controller(), CloseOnAccept()).WillOnce(Return(false));
+  EXPECT_CALL(mock_controller(), OnSaveButtonClicked);
+  EXPECT_CALL(mock_controller(), OnBubbleClosed).Times(0);
+  view()->AcceptDialog();
+
+  task_environment()->RunUntilIdle();
+  // Clear expectations explicitly since the widget is destroyed during tear
+  // down.
+  Mock::VerifyAndClearExpectations(&mock_controller());
+}
+
+TEST_F(AutofillAiImportDataBubbleViewTest, AcceptShowsThrobber) {
+  CreateViewAndShow();
+  EXPECT_CALL(mock_controller(), CloseOnAccept()).WillOnce(Return(false));
+  EXPECT_CALL(mock_controller(), OnSaveButtonClicked);
+
+  views::View* throbber = view()->GetViewByID(DialogViewId::LOADING_THROBBER);
+  ASSERT_TRUE(throbber);
+  EXPECT_FALSE(throbber->parent()->GetVisible());
+
+  view()->AcceptDialog();
+
+  EXPECT_TRUE(throbber->parent()->GetVisible());
+  EXPECT_EQ(view()->buttons(),
+            static_cast<int>(ui::mojom::DialogButton::kNone));
 }
 
 TEST_F(AutofillAiImportDataBubbleViewTest, CancelInvokesTheController) {
   CreateViewAndShow();
-  EXPECT_CALL(mock_controller(), OnBubbleClosed);
-  view().CancelDialog();
+
+  base::RunLoop run_loop;
+  EXPECT_CALL(mock_controller(), OnBubbleClosed).WillOnce([this, &run_loop]() {
+    ResetViewPointer();
+    run_loop.Quit();
+  });
+
+  view()->CancelDialog();
+  run_loop.Run();
 }
 
 }  // namespace

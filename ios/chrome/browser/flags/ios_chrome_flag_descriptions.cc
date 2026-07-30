@@ -317,6 +317,10 @@ const char kComposeboxCompactModeDescription[] =
     "Enables the compact composebox, adding attachment or enabling AIM will "
     "expand it to the regular size.";
 
+const char kComposeboxDeepSearchName[] = "Enable Composebox Deep Search";
+extern const char kComposeboxDeepSearchDescription[] =
+    "Enables the deep search advanced tool in Composebox";
+
 const char kComposeboxDevToolsName[] = "Enable Composebox Dev Tools";
 const char kComposeboxDevToolsDescription[] =
     "Enables development tools for the composebox, allowing simulation of "
@@ -435,6 +439,12 @@ const char kDefaultBrowserOffCyclePromoName[] =
 const char kDefaultBrowserOffCyclePromoDescription[] =
     "When enabled, an off-cycle default browser promo will be shown.";
 
+const char kDefaultBrowserPictureInPictureName[] =
+    "Default Browser Promo Picture in Picture";
+const char kDefaultBrowserPictureInPictureDescription[] =
+    "When enabled, default browser instructions will be displayed in "
+    "picture-in-picture format over the iOS settings.";
+
 const char kDefaultBrowserPromoIpadInstructionsName[] =
     "Default Browser Promo iPad Instructions";
 const char kDefaultBrowserPromoIpadInstructionsDescription[] =
@@ -446,10 +456,6 @@ const char kDefaultBrowserPromoPropensityModelName[] =
 const char kDefaultBrowserPromoPropensityModelDescription[] =
     "When enabled, a propensity model will help make the determination of "
     "whether to show a default browser promo";
-
-const char kDefaultBrowserPromoRefreshName[] = "Default Browser Promo Refresh";
-const char kDefaultBrowserPromoRefreshDescription[] =
-    "When enabled, the default browser promo will be updated.";
 
 const char kDetectMainThreadFreezeName[] = "Detect freeze in the main thread.";
 const char kDetectMainThreadFreezeDescription[] =
@@ -472,6 +478,10 @@ const char kDisableLensCameraDescription[] =
     "When enabled, the option use Lens to search for images from your device "
     "camera menu when Google is the selected search engine, accessible from "
     "the home screen widget, new tab page, and keyboard, is disabled.";
+
+const char kDisableShareButtonName[] = "Disable Share Button in Toolbar";
+const char kDisableShareButtonDescription[] =
+    "Hides the share button in toolbar.";
 
 const char kDownloadAutoDeletionClearFilesOnEveryStartupName[] =
     "Enable Download Auto-Deletion Testing Mode";
@@ -521,12 +531,6 @@ const char kEnableCompromisedPasswordsMutingDescription[] =
     "Enable the compromised password alert mutings in Password Manager to be "
     "respected in the app.";
 
-const char kEnableCrossDevicePrefTrackerName[] =
-    "Enable Cross-Device Pref Tracker";
-const char kEnableCrossDevicePrefTrackerDescription[] =
-    "Enables the tracking and sharing of select non-syncing preference values "
-    "across a user's signed-in devices.";
-
 const char kEnableFamilyLinkControlsName[] = "Family Link parental controls";
 const char kEnableFamilyLinkControlsDescription[] =
     "Enables parental controls from Family Link on supervised accounts "
@@ -553,9 +557,6 @@ const char kEnableLensInOmniboxCopiedImageDescription[] =
     "When enabled, use Lens to search images from your device clipboard "
     "when Google is the selected search engine, accessible from the omnibox or "
     "popup menu.";
-
-const char kEnableLensOverlayName[] = "Enable Lens Overlay";
-const char kEnableLensOverlayDescription[] = "Enables lens overlay UI";
 
 const char kEnableNewStartupFlowName[] = "EnableNewStartupFlow";
 const char kEnableNewStartupFlowDescription[] =
@@ -675,6 +676,10 @@ const char kGeminiRefactoredFREName[] = "Gemini Refactored FRE";
 const char kGeminiRefactoredFREDescription[] =
     "Enables the refactored Gemini First Run Experience (FRE).";
 
+const char kGeminiUpdatedEligibilityName[] = "Gemini Updated Eligibility";
+const char kGeminiUpdatedEligibilityDescription[] =
+    "Enables the updated eligibility checks for Gemini users.";
+
 const char kHandleMdmErrorsForDasherAccountsName[] =
     "Mdm error handling for dasher accounts";
 const char kHandleMdmErrorsForDasherAccountsDescription[] =
@@ -700,12 +705,6 @@ const char kIOSAppBundlePromoEphemeralCardName[] =
 const char kIOSAppBundlePromoEphemeralCardDescription[] =
     "Enables showing a promotional card for the Best of Google app "
     "bundle in the Magic Stack.";
-
-const char kIOSAutoOpenRemoteTabGroupsSettingsName[] =
-    "Enable Automatically open tab groups from other devices settings";
-const char kIOSAutoOpenRemoteTabGroupsSettingsDescription[] =
-    "When enabled, provides settings controls to auto open remote devices tab "
-    "groups.";
 
 const char kIOSBrowserEditMenuMetricsName[] = "Browser edit menu metrics";
 const char kIOSBrowserEditMenuMetricsDescription[] =
@@ -742,6 +741,11 @@ const char kIOSEnableRealtimeEventReportingDescription[] =
     "When enabled, realtime events will be reported to the user's "
     "organization.";
 
+const char kIOSEnhancedAutofillName[] = "Enhanced Autofill";
+const char kIOSEnhancedAutofillDescription[] =
+    "Saving, updating, editing, and filling entities (Passports, IBANs, "
+    "Loyalty Cards) via LLM-based classification";
+
 const char kIOSExpandedSetupListName[] = "Expanded Setup List";
 const char kIOSExpandedSetupListDescription[] =
     "Enables a feature that adds new items in the Setup List.";
@@ -750,12 +754,6 @@ const char kIOSExpandedTipsName[] = "Expanded Tips Notifications";
 const char kIOSExpandedTipsDescription[] =
     "Enables a feature that adds several new Tips Notifications that can be "
     "sent.";
-
-const char kIOSFillRecoveryPasswordName[] =
-    "Enable autofilling with a recovery password";
-const char kIOSFillRecoveryPasswordDescription[] =
-    "When enabled, users will be able to attempt to log in using a recovery "
-    "password if the main one didn't work.";
 
 const char kIOSKeyboardAccessoryDefaultViewName[] =
     "Default Input Accessory View";
@@ -921,12 +919,6 @@ const char kLensOverlayCustomBottomSheetName[] =
 const char kLensOverlayCustomBottomSheetDescription[] =
     "When enabled the system bottom sheet for the Lens result page is "
     "replaced by a custom bottom sheet presentation";
-
-const char kLensOverlayDisableIPHPanGestureName[] =
-    "Disable Lens Overlay IPH Pan Dismissal";
-const char kLensOverlayDisableIPHPanGestureDescription[] =
-    "Disable the pan gesture that dismisses Lens Overlay IPH. The IPH can "
-    "still be dismissed with a tap.";
 
 const char kLensOverlayEnableLandscapeCompatibilityName[] =
     "Allow Lens overlay to also run in landscape if the feature is enabled";
@@ -1102,6 +1094,10 @@ const char kNtpComposeboxUsesChromeComposeClientName[] =
 const char kNtpComposeboxUsesChromeComposeClientDescription[] =
     "When enabled, the composebox will use the suggest chrome compose client "
     "when AIM is enabled";
+
+const char kOmniboxCrashFixKillSwitchName[] = "OmniboxCrashFixKillSwitch";
+const char kOmniboxCrashFixKillSwitchDescription[] =
+    "Enables the OmniboxCrashFixKillSwitch feature.";
 
 const char kOmniboxDRSPrototypeName[] = "Enable the Omnibox DRS prototype";
 const char kOmniboxDRSPrototypeDescription[] =
@@ -1327,6 +1323,12 @@ const char kRcapsDynamicProfileCountryDescription[] =
     "When enabled, Chrome updates the country associated with "
     "the profile on open";
 
+const char kReaderModeContentSettingsForLinksName[] =
+    "Enables Content Settings options for Reading Mode";
+const char kReaderModeContentSettingsForLinksDescription[] =
+    "Enables Content Settings options for disabling/enabling links in Reading "
+    "Mode.";
+
 const char kReaderModeOmniboxEntrypointInUSName[] =
     "Reader Mode Omnibox Entrypoint In US";
 const char kReaderModeOmniboxEntrypointInUSDescription[] =
@@ -1419,6 +1421,18 @@ const char kSendTabToSelfIOSPushNotificationsName[] =
 const char kSendTabToSelfIOSPushNotificationsDescription[] =
     "Feature to allow users to send tabs to their iOS device through a system "
     "push notitification.";
+
+const char kShareInOmniboxLongPressName[] = "Share in Omnibox Long Press";
+const char kShareInOmniboxLongPressDescription[] =
+    "Displays an option to share current page in the omnibox long press menu";
+
+const char kShareInOverflowMenuName[] = "Share in Overflow Menu";
+const char kShareInOverflowMenuDescription[] =
+    "Displays share menu item in overflow menu";
+
+const char kShareInVerbatimMatchName[] = "Share in Verbatim Match";
+const char kShareInVerbatimMatchDescription[] =
+    "Displays share button in the omnibox verbatim match";
 
 const char kSharedHighlightingIOSName[] = "Enable Shared Highlighting features";
 const char kSharedHighlightingIOSDescription[] =

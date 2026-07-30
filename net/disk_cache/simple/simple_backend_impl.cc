@@ -213,8 +213,7 @@ SimpleBackendImpl::SimpleBackendImpl(
     SimpleFileTracker* file_tracker,
     int64_t max_bytes,
     net::CacheType cache_type,
-    net::NetLog* net_log,
-    net::CacheEncryptionDelegate* cache_encryption_delegate)
+    net::NetLog* net_log)
     : Backend(cache_type),
       file_operations_factory_(
           file_operations_factory
@@ -229,8 +228,7 @@ SimpleBackendImpl::SimpleBackendImpl(
           base::MakeRefCounted<SimplePostOperationWaiterTable>()),
       post_open_by_hash_waiting_(
           base::MakeRefCounted<SimplePostOperationWaiterTable>()),
-      net_log_(net_log),
-      cache_encryption_delegate_(cache_encryption_delegate) {
+      net_log_(net_log) {
   // Treat negative passed-in sizes same as in other backends, as default.
   if (orig_max_size_ < 0)
     orig_max_size_ = 0;
@@ -275,7 +273,7 @@ void SimpleBackendImpl::Init(CompletionOnceCallback completion_callback) {
                      std::move(file_operations), path_, orig_max_size_,
                      GetCacheType()),
       base::BindOnce(&SimpleBackendImpl::InitializeIndex,
-                     weak_ptr_factory_.GetWeakPtr(), file_operations_factory_,
+                     weak_ptr_factory_.GetWeakPtr(),
                      std::move(completion_callback)));
 }
 
@@ -357,8 +355,7 @@ void SimpleBackendImpl::DoomEntries(std::vector<uint64_t>* entry_hashes,
                      file_operations_factory_->CreateUnbound()),
       base::BindOnce(&SimpleBackendImpl::DoomEntriesComplete,
                      weak_ptr_factory_.GetWeakPtr(),
-                     std::move(mass_doom_entry_hashes),
-                     file_operations_factory_, barrier_callback));
+                     std::move(mass_doom_entry_hashes), barrier_callback));
 }
 
 base::expected<int32_t, net::Error> SimpleBackendImpl::GetEntryCount(
@@ -658,10 +655,8 @@ uint8_t SimpleBackendImpl::GetEntryInMemoryData(const std::string& key) {
   return index_->GetEntryInMemoryData(entry_hash);
 }
 
-void SimpleBackendImpl::InitializeIndex(
-    scoped_refptr<BackendFileOperationsFactory> file_operations_factory,
-    CompletionOnceCallback callback,
-    const DiskStatResult& result) {
+void SimpleBackendImpl::InitializeIndex(CompletionOnceCallback callback,
+                                        const DiskStatResult& result) {
   if (result.net_error == net::OK) {
     index_->SetMaxSize(result.max_size);
 #if BUILDFLAG(IS_ANDROID)
@@ -913,7 +908,6 @@ void SimpleBackendImpl::OnEntryOpenedFromHash(uint64_t hash,
 
 void SimpleBackendImpl::DoomEntriesComplete(
     std::unique_ptr<std::vector<uint64_t>> entry_hashes,
-    scoped_refptr<BackendFileOperationsFactory> file_operations_factory,
     CompletionOnceCallback callback,
     int result) {
   for (const uint64_t& entry_hash : *entry_hashes)

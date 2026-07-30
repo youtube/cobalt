@@ -4,19 +4,24 @@
 
 #include "chrome/browser/skills/skills_ui_tab_controller.h"
 
-#include "chrome/browser/glic/host/glic.mojom.h"
-#include "chrome/browser/glic/public/glic_keyed_service.h"
-#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/skills/skills_ui_controller.h"
+#include "chrome/browser/skills/skills_ui_window_controller.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/webui/constrained_web_dialog_ui.h"
 #include "chrome/browser/ui/webui/skills/skills_dialog.h"
+#include "chrome/browser/ui/webui/skills/skills_dialog_delegate.h"
+#include "chrome/browser/ui/webui/skills/skills_ui.h"
 #include "components/skills/public/skill.h"
 #include "components/skills/public/skills_service.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/views/widget/widget.h"
+
+#if BUILDFLAG(ENABLE_GLIC)
+#include "chrome/browser/glic/host/glic.mojom.h"
+#include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
+#endif  // BUILDFLAG(ENABLE_GLIC)
 
 DEFINE_USER_DATA(skills::SkillsUiTabController);
 
@@ -27,6 +32,7 @@ constexpr base::TimeDelta kNotifyTimeoutSeconds = base::Seconds(60);
 constexpr base::TimeDelta kGlicPanelPollIntervalMilliseconds =
     base::Milliseconds(60);
 
+#if BUILDFLAG(ENABLE_GLIC)
 glic::mojom::SkillPreviewPtr GetPreviewFromSkill(const skills::Skill& skill) {
   auto skill_preview = glic::mojom::SkillPreview::New();
   skill_preview->id = skill.id;
@@ -45,6 +51,7 @@ glic::mojom::SkillPreviewPtr GetPreviewFromSkill(const skills::Skill& skill) {
   }
   return skill_preview;
 }
+#endif  // BUILDFLAG(ENABLE_GLIC)
 
 }  // namespace
 
@@ -65,7 +72,7 @@ void SkillsUiTabController::ShowDialog(const skills::Skill& skill) {
   CHECK(contents);
   Profile* profile = Profile::FromBrowserContext(contents->GetBrowserContext());
 
-  // TODO(crbug.com/476145843): Pass in the skill and a weak pointer to the tab
+  // TODO(crbug.com/476145843): Pass in the skill to the tab
   // controller in the dialog.
   auto delegate = std::make_unique<SkillsDialog>(profile);
   delegate->RegisterOnDialogClosedCallback(base::BindOnce(
@@ -73,17 +80,29 @@ void SkillsUiTabController::ShowDialog(const skills::Skill& skill) {
 
   dialog_delegate_ =
       ShowConstrainedWebDialog(profile, std::move(delegate), contents);
+
+  if (dialog_delegate_) {
+    content::WebContents* dialog_contents = dialog_delegate_->GetWebContents();
+    if (dialog_contents && dialog_contents->GetWebUI()) {
+      auto* controller = dialog_contents->GetWebUI()->GetController();
+      if (auto* skills_ui = controller->GetAs<skills::SkillsUI>()) {
+        skills_ui->SetSkillsDialogDelegate(weak_ptr_factory_.GetWeakPtr());
+      }
+    }
+  }
 }
 
 void SkillsUiTabController::CloseDialog() {
-  if (dialog_delegate_) {
-    views::Widget* widget = views::Widget::GetWidgetForNativeWindow(
-        dialog_delegate_->GetNativeDialog());
-    if (widget && !widget->IsClosed()) {
-      widget->CloseWithReason(views::Widget::ClosedReason::kUnspecified);
-    }
+  if (!dialog_delegate_) {
     return;
   }
+  // Capture pointer and clear member to prevent re-entrancy during teardown.
+  auto* temp_delegate = dialog_delegate_.get();
+  // Manually fire the callback to ensure the result is processed even if the
+  // widget teardown suppresses the signal.
+  OnDialogClosed(std::string());
+  // Triggers the standard close sequence defined by the delegate.
+  temp_delegate->OnDialogCloseFromWebUI();
 }
 
 void SkillsUiTabController::OnDialogClosed(const std::string& json_retval) {
@@ -96,7 +115,7 @@ void SkillsUiTabController::OnDialogClosed(const std::string& json_retval) {
 void SkillsUiTabController::OnSkillSaved(const std::string& skill_id) {
   if (auto* window_interface = tab_->GetBrowserWindowInterface()) {
     // Delegate the global toast action to the Window Controller.
-    auto* window_controller = SkillsUiController::From(window_interface);
+    auto* window_controller = SkillsUiWindowController::From(window_interface);
     if (window_controller) {
       window_controller->OnSkillSaved(skill_id);
     }
@@ -116,20 +135,26 @@ void SkillsUiTabController::InvokeSkill(std::string_view skill_id) {
 }
 
 glic::GlicKeyedService* SkillsUiTabController::GetGlicService() {
+#if BUILDFLAG(ENABLE_GLIC)
   content::WebContents* contents = tab_->GetContents();
   if (!contents) {
     return nullptr;
   }
   return glic::GlicKeyedServiceFactory::GetGlicKeyedService(
       contents->GetBrowserContext());
+#else
+  return nullptr;
+#endif  // BUILDFLAG(ENABLE_GLIC)
 }
 
 void SkillsUiTabController::ShowGlicPanel() {
+#if BUILDFLAG(ENABLE_GLIC)
   if (auto* service = GetGlicService()) {
     service->ToggleUI(tab_->GetBrowserWindowInterface(),
                       /*prevent_close=*/true,
                       glic::mojom::InvocationSource::kSkills);
   }
+#endif  // BUILDFLAG(ENABLE_GLIC)
 }
 
 void SkillsUiTabController::NotifySkillToInvokeChangedWhenReady() {
@@ -178,6 +203,7 @@ void SkillsUiTabController::NotifySkillToInvokeChanged() {
     return;
   }
 
+#if BUILDFLAG(ENABLE_GLIC)
   auto mojo_skill = glic::mojom::Skill::New();
   mojo_skill->prompt = skill->prompt;
   mojo_skill->preview = GetPreviewFromSkill(*skill);
@@ -187,6 +213,7 @@ void SkillsUiTabController::NotifySkillToInvokeChanged() {
       instance->host().NotifySkillToInvokeChanged(std::move(mojo_skill));
     }
   }
+#endif  // BUILDFLAG(ENABLE_GLIC)
 }
 
 void SkillsUiTabController::Reset() {
@@ -196,12 +223,16 @@ void SkillsUiTabController::Reset() {
 }
 
 bool SkillsUiTabController::IsClientReady() {
+#if BUILDFLAG(ENABLE_GLIC)
   if (auto* service = GetGlicService()) {
     if (auto* instance = service->GetInstanceForTab(&tab_.get())) {
       return instance->host().IsReady();
     }
   }
   return false;
+#else
+  return false;
+#endif  // BUILDFLAG(ENABLE_GLIC)
 }
 
 }  // namespace skills

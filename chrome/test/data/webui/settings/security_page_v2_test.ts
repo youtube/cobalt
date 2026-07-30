@@ -444,10 +444,13 @@ suite('Main', function() {
   });
 
   test('SecureDnsV2HiddenWhenFlagDisabled', function() {
-    // Secure DNS V2 is hidden.
+    // Secure DNS V2 row is hidden.
     assertFalse(
         loadTimeData.getBoolean('enableBundledSecuritySettingsSecureDnsV2'));
     assertFalse(isChildVisible(page, '#secureDnsV2Row'));
+
+    // Old Secure DNS row is visible.
+    assertTrue(isChildVisible(page, '#secureDnsRow'));
   });
 
   test('SecureDnsV2VisibleWhenFlagEnabled', async function() {
@@ -457,10 +460,13 @@ suite('Main', function() {
     resetRouterForTesting();
 
     await setUpPage();
-    // Secure DNS V2 is visible.
+    // Secure DNS V2 row is visible.
     assertTrue(
         loadTimeData.getBoolean('enableBundledSecuritySettingsSecureDnsV2'));
     assertTrue(isChildVisible(page, '#secureDnsV2Row'));
+
+    // Old Secure DNS row is hidden.
+    assertFalse(isChildVisible(page, '#secureDnsRow'));
   });
 });
 
@@ -783,5 +789,72 @@ suite('SecurityPageV2HappinessTrackingSurveys', function() {
     ];
 
     assertInteractionsEqual(expectedInteractions, interactions);
+  });
+});
+
+suite('SecurityPageV2HappinessTrackingSurveys_SecureDnsLegacy', function() {
+  let testHatsBrowserProxy: TestHatsBrowserProxy;
+  let settingsPrefs: SettingsPrefsElement;
+  let page: SettingsSecurityPageV2Element;
+
+  suiteSetup(function() {
+    loadTimeData.overrideValues({
+      enableBundledSecuritySettingsSecureDnsV2: false,
+    });
+  });
+
+  setup(async function() {
+    testHatsBrowserProxy = new TestHatsBrowserProxy();
+    HatsBrowserProxyImpl.setInstance(testHatsBrowserProxy);
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    settingsPrefs = document.createElement('settings-prefs');
+    document.body.appendChild(settingsPrefs);
+    await CrSettingsPrefs.initialized;
+
+    page = document.createElement('settings-security-page-v2');
+    page.prefs = settingsPrefs.prefs;
+    document.body.appendChild(page);
+    // Set initial pref values for test predictability.
+    page.setPrefValue(
+        'generated.security_settings_bundle',
+        SecuritySettingsBundleSetting.STANDARD);
+    page.setPrefValue('generated.safe_browsing', SafeBrowsingSetting.ENHANCED);
+    page.setPrefValue(
+        'generated.https_first_mode_enabled',
+        HttpsFirstModeSetting.ENABLED_BALANCED);
+
+    Router.getInstance().navigateTo(routes.SECURITY);
+    return flushTasks();
+  });
+
+  teardown(function() {
+    page.remove();
+    Router.getInstance().navigateTo(routes.BASIC);
+  });
+
+  test('SecureDnsInteractions', async function() {
+    assertFalse(
+        loadTimeData.getBoolean('enableBundledSecuritySettingsSecureDnsV2'));
+    const secureDnsRow = page.shadowRoot!.querySelector('settings-secure-dns');
+    assertTrue(!!secureDnsRow);
+
+    // Toggle Secure DNS.
+    const toggleButton =
+        secureDnsRow.shadowRoot!.querySelector<SettingsToggleButtonElement>(
+            '#secureDnsToggle');
+    assertTrue(!!toggleButton);
+    toggleButton.click();
+    await flushTasks();
+
+    // Fire the beforeunload event to simulate closing the page.
+    window.dispatchEvent(new Event('beforeunload'));
+
+    const args =
+        await testHatsBrowserProxy.whenCalled('securityPageHatsRequest');
+
+    const interactions = args[0] as SecurityPageV2Interaction[];
+
+    assertDeepEquals(
+        [SecurityPageV2Interaction.SECURE_DNS_TOGGLE_CLICK], interactions);
   });
 });

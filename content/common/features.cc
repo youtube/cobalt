@@ -171,6 +171,11 @@ BASE_FEATURE(kDeviceBoundSessionsDevTools, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kDisableAutoResizeOutputSurface, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
+// Enable DocumentIsolationPolicy even if the platform does not support full
+// SiteIsolation.
+BASE_FEATURE(kDocumentIsolationPolicyWithoutSiteIsolation,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enable document policy negotiation mechanism.
 BASE_FEATURE(kDocumentPolicyNegotiation, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -655,6 +660,11 @@ BASE_FEATURE(kServiceWorkerStaticRouterRaceRequestFix2,
 // ServiceWorker when the routing result of a main resource request was network
 // fallback.
 BASE_FEATURE(kServiceWorkerStaticRouterStartServiceWorker,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// When enabled, suppresses the service worker timeout when a payment handler
+// window is open.
+BASE_FEATURE(kServiceWorkerSuppressTimeoutWhenPaymentWindowOpen,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // (crbug.com/41337436): Enabled feature will have the ServiceWorker Client.url

@@ -134,10 +134,6 @@ BASE_DECLARE_FEATURE(kEnableLensInNTP);
 // Feature flag to enable the Lens "Search copied image" omnibox entrypoint.
 BASE_DECLARE_FEATURE(kEnableLensInOmniboxCopiedImage);
 
-// Feature flag to enable the Lens "Search copied image" omnibox entrypoint.
-BASE_DECLARE_FEATURE(kEnableLensOverlay);
-extern const base::NotFatalUntil kLensOverlayNotFatalUntil;
-
 // Whether to enable loading AIM in the lens result page.
 BASE_DECLARE_FEATURE(kLensLoadAIMInLensResultPage);
 
@@ -436,6 +432,9 @@ bool IsContentPushNotificationsSetUpListRegistrationOnly();
 // false otherwise.
 bool IsLiquidGlassEffectEnabled();
 
+// Feature flag to enable Enhanced Autofill.
+BASE_DECLARE_FEATURE(kIOSEnhancedAutofill);
+
 // Feature flag to enable the default input accessory view.
 BASE_DECLARE_FEATURE(kIOSKeyboardAccessoryDefaultView);
 
@@ -448,6 +447,15 @@ bool IsIOSKeyboardAccessoryDefaultViewEnabled();
 // Returns true if the two-bubble design for the keyboard accessory view is
 // enabled.
 bool IsIOSKeyboardAccessoryTwoBubbleEnabled();
+
+// Name of the parameter for kIOSKeyboardAccessoryTwoBubble to use a keyboard
+// icon.
+inline constexpr char kIOSKeyboardAccessoryTwoBubbleKeyboardIconParamName[] =
+    "use_keyboard_icon";
+
+// Feature param for kIOSKeyboardAccessoryTwoBubble to use a keyboard icon.
+BASE_DECLARE_FEATURE_PARAM(bool,
+                           kIOSKeyboardAccessoryTwoBubbleKeyboardIconParam);
 
 // Kill switch for disabling the navigations when the application is in
 // foreground inactive state after opening an external app.
@@ -610,9 +618,6 @@ bool IsRefactorToolbarsSize();
 
 // Feature that disables all IPH messages.
 BASE_DECLARE_FEATURE(kIPHAblation);
-
-// Feature that disables IPH dismissal pan gesture for lens overlay promos.
-BASE_DECLARE_FEATURE(kLensOverlayDisableIPHPanGesture);
 
 // Returns true if IPH ablation is enabled.
 bool IsIPHAblationEnabled();
@@ -806,12 +811,6 @@ BASE_DECLARE_FEATURE(kMultilineBrowserOmnibox);
 // Returns true if the MultilineBrowserOmnibox feature is enabled.
 bool IsMultilineBrowserOmniboxEnabled();
 
-// Feature flag for settings controls auto open remote tab groups.
-BASE_DECLARE_FEATURE(kIOSAutoOpenRemoteTabGroupsSettings);
-
-// Whether the kIOSAutoOpenRemoteTabGroupsSettings feature is enabled.
-bool IsAutoOpenRemoteTabGroupsSettingsFeatureEnabled();
-
 // Enables the DisableKeyboardAccessory feature.
 BASE_DECLARE_FEATURE(kDisableKeyboardAccessory);
 
@@ -847,6 +846,12 @@ BASE_DECLARE_FEATURE(kTabGroupColorOnSurface);
 
 // Returns true if the TabGroupColorOnSurface feature is enabled.
 bool IsTabGroupColorOnSurfaceEnabled();
+
+// Enables the OmniboxCrashFixKillSwitch feature.
+BASE_DECLARE_FEATURE(kOmniboxCrashFixKillSwitch);
+
+// Returns true if the OmniboxCrashFixKillSwitch feature is enabled.
+bool IsOmniboxCrashFixKillSwitchEnabled();
 
 // Enables the AIMEligibilityServiceStartWithProfile feature.
 BASE_DECLARE_FEATURE(kAIMEligibilityServiceStartWithProfile);
@@ -907,5 +912,14 @@ BASE_DECLARE_FEATURE(kEnableNewStartupFlow);
 
 // Returns true if the EnableNewStartupFlow feature is enabled.
 bool IsEnableNewStartupFlowEnabled();
+
+// Updates EnableNewStartupFlow NSUserDefaults key if the value was changed.
+void SaveEnableNewStartupFlowForNextStart();
+
+// Flags for Share Ablation study.
+BASE_DECLARE_FEATURE(kDisableShareButton);
+BASE_DECLARE_FEATURE(kShareInOmniboxLongPress);
+BASE_DECLARE_FEATURE(kShareInOverflowMenu);
+BASE_DECLARE_FEATURE(kShareInVerbatimMatch);
 
 #endif  // IOS_CHROME_BROWSER_SHARED_PUBLIC_FEATURES_FEATURES_H_

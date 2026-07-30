@@ -369,6 +369,12 @@ bool IsGeminiRefactoredFREEnabled() {
   return base::FeatureList::IsEnabled(kGeminiRefactoredFRE);
 }
 
+BASE_FEATURE(kGeminiUpdatedEligibility, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsGeminiUpdatedEligibilityEnabled() {
+  return base::FeatureList::IsEnabled(kGeminiUpdatedEligibility);
+}
+
 BASE_FEATURE(kWebPageReportedImagesSheet, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsWebPageReportedImagesSheetEnabled() {
@@ -389,6 +395,26 @@ bool IsGeminiImageRemixToolShowFRERowEnabled() {
   }
   return base::GetFieldTrialParamByFeatureAsBool(
       kGeminiImageRemixTool, kGeminiImageRemixToolShowFRERow, false);
+}
+
+const char kGeminiImageRemixToolShowAboveSearchImage[] = "ShowAboveSearchImage";
+
+bool IsGeminiImageRemixToolShowAboveSearchImageEnabled() {
+  if (!IsGeminiImageRemixToolEnabled()) {
+    return false;
+  }
+  return base::GetFieldTrialParamByFeatureAsBool(
+      kGeminiImageRemixTool, kGeminiImageRemixToolShowAboveSearchImage, true);
+}
+
+const char kGeminiImageRemixToolShowBelowSearchImage[] = "ShowBelowSearchImage";
+
+bool IsGeminiImageRemixToolShowBelowSearchImageEnabled() {
+  if (!IsGeminiImageRemixToolEnabled()) {
+    return false;
+  }
+  return base::GetFieldTrialParamByFeatureAsBool(
+      kGeminiImageRemixTool, kGeminiImageRemixToolShowBelowSearchImage, false);
 }
 
 BASE_FEATURE(kGeminiEligibilityAblation, base::FEATURE_DISABLED_BY_DEFAULT);

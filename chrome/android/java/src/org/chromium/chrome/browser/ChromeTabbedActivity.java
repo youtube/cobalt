@@ -2206,12 +2206,18 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                     hadCipherData =
                             CipherLazyHolder.sCipherInstance.restoreFromPersistableBundle(
                                     persistentState);
+                    if (ChromeFeatureList.sPersistAcrossRebootsDebugLogs.isEnabled()) {
+                        Log.i(TAG_PERSIST_ACROSS_REBOOTS, "Restored persistent incognito cipher.");
+                    }
                 } else {
                     // TODO(crbug.com/474346053): Refactor where the keys are declared and which
                     //  classes handle cleaning up incognito state.
                     CipherLazyHolder.sCipherInstance.clearPersistentIncognitoState(persistentState);
                     persistentState.remove(KEY_IS_INCOGNITO_REAUTH_PENDING);
                     persistentState.remove(IS_INCOGNITO_SELECTED);
+                    if (ChromeFeatureList.sPersistAcrossRebootsDebugLogs.isEnabled()) {
+                        Log.i(TAG_PERSIST_ACROSS_REBOOTS, "Cleared persistent incognito cipher.");
+                    }
                 }
             }
             if (!hadCipherData) {
@@ -2733,7 +2739,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                         // for both the widget and the launcher shortcut here.
                         Toast.makeText(
                                         ChromeTabbedActivity.this,
-                                        R.string.quick_action_search_widget_message_no_incognito,
+                                        R.string.incognito_not_available_message,
                                         Toast.LENGTH_LONG)
                                 .show();
                     } else {
@@ -3647,6 +3653,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
         int windowId = getExtraWindowIdFromIntent(intent);
         if (persistentState != null && persistentState.containsKey(WINDOW_INDEX)) {
             mWindowId = persistentState.getInt(WINDOW_INDEX, INVALID_WINDOW_ID);
+            Log.i(TAG_MULTI_INSTANCE, "Retrieved windowId from persistent state.");
             assert mWindowId != INVALID_WINDOW_ID;
             if (mWindowId == INVALID_WINDOW_ID) mWindowId = 0;
             mSupportedProfileType = MultiWindowUtils.readProfileType(mWindowId);
@@ -3995,12 +4002,6 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
             }
 
             getQuickDeleteController().showDialog();
-        } else if (id == R.id.switch_to_incognito_menu_id) {
-            mTabModelSelector.selectModel(true);
-            RecordUserAction.record("MobileMenuSwitchToIncognito");
-        } else if (id == R.id.switch_out_of_incognito_menu_id) {
-            mTabModelSelector.selectModel(false);
-            RecordUserAction.record("MobileMenuSwitchOutOfIncognito");
         } else if (id == R.id.ntp_customization_id) {
             Supplier<@Nullable Profile> profileSupplier =
                     () -> {
@@ -4041,7 +4042,11 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
 
         } else if (id == R.id.default_browser_promo_menu_id) {
             // This menu item is not visible if Chrome is already set as default.
-            DefaultBrowserPromoUtils.getInstance().onMenuItemClick(this, getWindowAndroid());
+            DefaultBrowserPromoUtils.getInstance()
+                    .onMenuItemClick(
+                            this,
+                            getWindowAndroid(),
+                            DefaultBrowserPromoUtils.DefaultBrowserPromoEntryPoint.APP_MENU);
             RecordUserAction.record("MobileMenuDefaultBrowserPromo");
         } else {
             return super.onMenuOrKeyboardAction(id, fromMenu, triggeringMotion);
@@ -4420,6 +4425,9 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
 
     @Override
     public void onSaveInstanceState(Bundle outState, PersistableBundle outPersistentState) {
+        if (ChromeFeatureList.sPersistAcrossRebootsDebugLogs.isEnabled()) {
+            Log.i(TAG_PERSIST_ACROSS_REBOOTS, "onSaveInstanceState()");
+        }
         super.onSaveInstanceState(outState, outPersistentState);
         if (shouldPersistAcrossReboots()) {
             saveToBaseBundle(outPersistentState);
@@ -4540,12 +4548,14 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
             mGroupSuggestionsPromotionCoordinator = null;
         }
 
-        var xrSceneCoreSessionManager = mXrSceneCoreSessionManagerSupplier.get();
-        if (xrSceneCoreSessionManager != null) {
-            xrSceneCoreSessionManager
-                    .getXrSpaceModeObservableSupplier()
-                    .removeObserver(mOnXrSpaceModeChanged);
-            xrSceneCoreSessionManager.destroy();
+        if (mXrSceneCoreSessionManagerSupplier.hasValue()) {
+            var xrSceneCoreSessionManager = mXrSceneCoreSessionManagerSupplier.get();
+            if (xrSceneCoreSessionManager != null) {
+                xrSceneCoreSessionManager
+                        .getXrSpaceModeObservableSupplier()
+                        .removeObserver(mOnXrSpaceModeChanged);
+                xrSceneCoreSessionManager.destroy();
+            }
         }
 
         if (mXrSceneCoreSessionInitializer != null) {
@@ -4963,13 +4973,14 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
         return xrSceneCoreSessionManager;
     }
 
-    private @Nullable MonotonicObservableSupplier<Boolean> getXrSpaceModeObservableSupplier() {
+    private NonNullObservableSupplier<Boolean> getXrSpaceModeObservableSupplier() {
         var xrSceneCoreSessionManager = mXrSceneCoreSessionManagerSupplier.get();
         return xrSceneCoreSessionManager != null
                 ? xrSceneCoreSessionManager.getXrSpaceModeObservableSupplier()
-                : null;
+                : ObservableSuppliers.alwaysFalse();
     }
 
+    @Override
     public @SupportedProfileType int getSupportedProfileType() {
         return mSupportedProfileType;
     }

@@ -44,7 +44,7 @@ constexpr int kLoadingBarOffset =
     kLoadingBarHeight - views::Separator::kThickness;
 
 // Minimum area next to caption buttons to use as a grab handle.
-constexpr int kVerticalTabsGrabHandleSize = 54;
+constexpr int kVerticalTabsGrabHandleSize = 40;
 
 // Maximum portion of the window a "size-restricted" contents-height side panel
 // can take up. This is not the only limit on side panel size.
@@ -190,6 +190,10 @@ BrowserViewTabbedLayoutImpl::CalculateHorizontalLayout(
         VerticalTabStripCollapsedState::kCollapsed) {
       // Collapsed tab strip always gets its preferred size.
       min_vertical_tab_strip_width = preferred_vertical_tab_strip_width;
+
+      // Account for grab handle.
+      IncreasePaddingToMinimum(params, GetMinimumGrabHandlePadding());
+
     } else {
       // Minimum size is bounded from below by size of leading exclusion area.
       if (layout.vertical_tab_strip_collapsed_state ==
@@ -199,6 +203,10 @@ BrowserViewTabbedLayoutImpl::CalculateHorizontalLayout(
             base::ClampCeil(
                 params.leading_exclusion.ContentWithPadding().width()));
       }
+
+      // Account for grab handle. This has to be done after the minimum size
+      // calculation.
+      IncreasePaddingToMinimum(params, GetMinimumGrabHandlePadding());
 
       // Figure out the maximum size of the vertical tabstrip that can still
       // accommodate the toolbar.
@@ -213,9 +221,6 @@ BrowserViewTabbedLayoutImpl::CalculateHorizontalLayout(
           std::max(min_vertical_tab_strip_width,
                    std::min(remainder, preferred_vertical_tab_strip_width));
     }
-
-    // Account for grab handle.
-    IncreasePaddingToMinimum(params, kVerticalTabsGrabHandleSize);
   }
 
   // Get information about the toolbar-height side panel, if present.
@@ -342,6 +347,11 @@ BrowserViewTabbedLayoutImpl::CalculateVerticalTabStripAnimation(
   return animation;
 }
 
+int BrowserViewTabbedLayoutImpl::GetMinimumGrabHandlePadding() const {
+  return kVerticalTabsGrabHandleSize -
+         GetLayoutInsets(LayoutInset::TOOLBAR_INTERIOR_MARGIN).right();
+}
+
 gfx::Size BrowserViewTabbedLayoutImpl::GetMinimumMainAreaSize(
     const BrowserLayoutParams& params) const {
   gfx::Size toolbar_size = views().toolbar->GetMinimumSize();
@@ -443,7 +453,7 @@ gfx::Size BrowserViewTabbedLayoutImpl::GetMinimumSize(
   const auto [vertical_tabstrip_size, horizontal_tabstrip_size] =
       GetMinimumTabStripSize(params);
   if (!vertical_tabstrip_size.IsEmpty()) {
-    IncreasePaddingToMinimum(params, kVerticalTabsGrabHandleSize);
+    IncreasePaddingToMinimum(params, GetMinimumGrabHandlePadding());
   }
   params.InsetHorizontal(vertical_tabstrip_size.width(), /*leading=*/true);
   const gfx::Size toolbar_height_side_panel_size =
@@ -563,7 +573,7 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
       // In vertical tabs mode, extra space is allocated next to the top element
       // to serve as a grab handle, on whatever side the caption buttons are.
       if (delegate().GetBrowserWindowState() != WindowState::kFullscreen) {
-        IncreasePaddingToMinimum(params, kVerticalTabsGrabHandleSize);
+        IncreasePaddingToMinimum(params, GetMinimumGrabHandlePadding());
       }
       params.InsetHorizontal(horizontal_layout.vertical_tab_strip_width,
                              /*leading=*/true);
@@ -871,27 +881,26 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
         views().vertical_tab_strip_region_view, views().browser_view);
     CHECK(tabstrip_bounds);
 
-    // Calculate the toolbar height adjacent to the tabstrip. This will be zero
-    // if the toolbar is in e.g. an immersive mode overlay, or is not aligned
-    // with the tabstrip (which can happen in collapsed mode with leading
-    // caption buttons).
-    const int toolbar_height =
-        toolbar_bounds
-            ? std::max(0, toolbar_bounds->bottom() - tabstrip_bounds->y())
-            : 0;
-    views().vertical_tab_strip_region_view->SetToolbarHeightForLayout(
-        toolbar_height);
+    int toolbar_height = 0;
+    int caption_button_width = 0;
 
     // If the toolbar is not in the browser, then the exclusion isn't either.
-    const int exclusion_width =
-        toolbar_bounds
-            ? std::max(0, base::ClampCeil(browser_params.leading_exclusion
-                                              .ContentWithPadding()
-                                              .width()) -
-                              tabstrip_bounds->x())
-            : 0;
-    views().vertical_tab_strip_region_view->SetExclusionWidthForLayout(
-        exclusion_width);
+    if (toolbar_bounds) {
+      // Calculate the toolbar height adjacent to the tabstrip. This will be
+      // zero if the toolbar is in e.g. an immersive mode overlay, or is not
+      // aligned with the tabstrip (which can happen in collapsed mode with
+      // leading caption buttons).
+      toolbar_height = toolbar_bounds->bottom() - tabstrip_bounds->y();
+
+      caption_button_width =
+          base::ClampCeil(browser_params.leading_exclusion.content.width()) -
+          tabstrip_bounds->x();
+    }
+
+    views().vertical_tab_strip_region_view->SetToolbarHeightForLayout(
+        std::max(0, toolbar_height));
+    views().vertical_tab_strip_region_view->SetCaptionButtonWidthForLayout(
+        std::max(0, caption_button_width));
   }
 
   return layout;
