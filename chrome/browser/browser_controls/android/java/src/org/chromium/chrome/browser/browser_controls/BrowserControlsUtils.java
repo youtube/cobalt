@@ -6,13 +6,17 @@ package org.chromium.chrome.browser.browser_controls;
 
 import android.content.Context;
 
+import org.chromium.base.ResettersForTesting;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.ui.base.DeviceFormFactor;
 
 /** Static utilities related to browser controls interfaces. */
 @NullMarked
 public class BrowserControlsUtils {
+
+    private static @Nullable Boolean sSyncMinHeightWithTotalHeightForTesting;
 
     // Disallow top browser controls from scrolling off on large tablets by setting min height
     // equal to overall height.
@@ -26,15 +30,30 @@ public class BrowserControlsUtils {
      * Disallow top browser controls from scrolling off by setting min height equal to overall
      * height. This feature does not check form factors.
      */
-    public static boolean doSyncMinHeightWithTotalHeightV2() {
+    public static boolean doSyncMinHeightWithTotalHeightV2(Context context) {
+        if (sSyncMinHeightWithTotalHeightForTesting != null) {
+            return sSyncMinHeightWithTotalHeightForTesting;
+        }
         return ChromeFeatureList.sLockTopControlsOnLargeTabletsV2.isEnabled()
-                && ChromeFeatureList.sTopControlsRefactor.isEnabled();
+                && ChromeFeatureList.sTopControlsRefactor.isEnabled()
+                && DeviceFormFactor.isNonMultiDisplayContextOnLargeTablet(context);
     }
 
     /** Whether use TopControlsStacker to drive the y offset for top control layers. */
     public static boolean isTopControlsRefactorOffsetEnabled() {
         return ChromeFeatureList.sTopControlsRefactor.isEnabled()
                 && ChromeFeatureList.sTopControlsRefactorV2.isEnabled();
+    }
+
+    /** Whether force adjusting top chrome height is allowed based on feature flags. */
+    public static boolean isForceTopChromeHeightAdjustmentOnStartupEnabled(Context context) {
+        // Note: the check for feature doSyncMinHeightWithTotalHeightV2 is not necessary once the
+        // feature flag is launched. Once we are ready to cleanup the param
+        // sLockTopControlsForceAdjustHeightOnStartup it's safe to assume this method to return
+        // true always.
+        return isTopControlsRefactorOffsetEnabled()
+                && doSyncMinHeightWithTotalHeightV2(context)
+                && ChromeFeatureList.sLockTopControlsForceAdjustHeightOnStartup.getValue();
     }
 
     /**
@@ -89,5 +108,10 @@ public class BrowserControlsUtils {
                                 == provider.getBottomControlsMinHeight()
                         || BrowserControlsUtils.getBottomContentOffset(provider)
                                 == provider.getBottomControlsHeight());
+    }
+
+    public static void setsSyncMinHeightWithTotalHeightForTesting(boolean override) {
+        sSyncMinHeightWithTotalHeightForTesting = override;
+        ResettersForTesting.register(() -> sSyncMinHeightWithTotalHeightForTesting = null);
     }
 }

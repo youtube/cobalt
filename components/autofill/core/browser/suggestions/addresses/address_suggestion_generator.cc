@@ -631,9 +631,7 @@ std::vector<Suggestion> CreateSuggestionsFromProfiles(
       GroupTypeOfFieldType(trigger_field_type) == FieldTypeGroup::kName &&
               !IsAlternativeNameType(trigger_field_type) &&
               suggestion_type != SuggestionType::kAddressFieldByFieldFilling &&
-              base::FeatureList::IsEnabled(features::kAutofillImprovedLabels) &&
-              !features::kAutofillImprovedLabelsParamWithoutMainTextChangesParam
-                   .Get()
+              base::FeatureList::IsEnabled(features::kAutofillImprovedLabels)
           ? NAME_FULL
           : trigger_field_type;
   for (size_t i = 0; i < profiles.size(); ++i) {
@@ -700,7 +698,7 @@ std::vector<Suggestion> CreateSuggestionsFromProfiles(
     // IPH should only be shown for non-H/W profiles.
     if (profile.record_type() == AutofillProfile::RecordType::kAccount &&
         profile.initial_creator_id() !=
-            AutofillProfile::kInitialCreatorOrModifierChrome) {
+            AutofillProfile::kInitialCreatorChrome) {
       suggestion.iph_metadata = Suggestion::IPHMetadata(
           &feature_engagement::
               kIPHAutofillExternalAccountProfileSuggestionFeature);
@@ -1112,7 +1110,8 @@ AddressSuggestionGenerator::MaybeFetchRegularAddressSuggestionData(
     return {};
   }
   if (SuppressSuggestionsForAutocompleteUnrecognizedField(
-          *trigger_autofill_field)) {
+          *trigger_autofill_field,
+          /*suppress_if_ac_unrecognized=*/!client.IsTabInActorMode())) {
     return {};
   }
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)

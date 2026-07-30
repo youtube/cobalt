@@ -4,6 +4,7 @@
 
 #include "chrome/renderer/accessibility/read_anything/read_anything_app_controller.h"
 
+#include <algorithm>
 #include <climits>
 #include <memory>
 #include <optional>
@@ -526,6 +527,9 @@ void ReadAnythingAppController::OnTreeDataChanged(
     ui::AXTree* tree,
     const ui::AXTreeData& old_data,
     const ui::AXTreeData& new_data) {
+  if (features::IsReadAnythingWithReadabilityEnabled()) {
+    return;
+  }
   VLOG(1) << "Tree data changed for tree ID: " << tree->GetAXTreeID()
           << "\n---- OLD DATA: " << old_data.tree_id << ": "
           << old_data.ToString() << "\n---- NEW DATA: " << new_data.tree_id
@@ -587,6 +591,9 @@ void ReadAnythingAppController::AccessibilityEventReceived(
 
 void ReadAnythingAppController::SendEventUpdates() {
   if (model_.requires_distillation()) {
+    if (features::IsReadAnythingWithReadabilityEnabled()) {
+      return;
+    }
     Distill();
   }
 
@@ -694,6 +701,12 @@ void ReadAnythingAppController::OnActiveAXTreeIDChanged(
   model_.ClearPendingUpdates();
   model_.set_requires_distillation(false);
   model_.set_page_finished_loading(false);
+
+  // TODO(crbug.com/459144990): Handle showLoading scenario for readability
+  // path.
+  if (features::IsReadAnythingWithReadabilityEnabled()) {
+    return;
+  }
 
   ExecuteJavaScript("chrome.readingMode.showLoading();");
 
@@ -927,7 +940,18 @@ void ReadAnythingAppController::OnAXTreeDistilled(
     // loading. Therefore, to avoid displaying an empty side panel, wait for
     // Google Docs to finish loading.
     if (!IsGoogleDocs() || model_.page_finished_loading()) {
+      if (features::IsImmersiveReadAnythingEnabled()) {
+        page_handler_->OnDistillationStateChanged(
+            read_anything::mojom::ReadAnythingDistillationState::
+                kDistillationEmpty);
+      }
       DrawEmptyState();
+    }
+  } else {
+    if (features::IsImmersiveReadAnythingEnabled()) {
+      page_handler_->OnDistillationStateChanged(
+          read_anything::mojom::ReadAnythingDistillationState::
+              kDistillationWithContent);
     }
   }
 
@@ -945,6 +969,9 @@ void ReadAnythingAppController::OnAXTreeDistilled(
   // `requires_distillation()` state below).
   model_.UnserializePendingUpdates(tree_id);
   if (model_.requires_distillation()) {
+    if (features::IsReadAnythingWithReadabilityEnabled()) {
+      return;
+    }
     Distill();
   }
 }
@@ -1148,12 +1175,18 @@ gin::ObjectTemplateBuilder ReadAnythingAppController::GetObjectTemplateBuilder(
           "unexpectedUpdateContentStopSource",
           &ReadAnythingAppController::UnexpectedUpdateContentStopSource)
       .SetProperty("lineFocusOff", &ReadAnythingAppController::LineFocusOff)
-      .SetProperty("lineFocusOneLineWindow",
-                   &ReadAnythingAppController::LineFocusOneLineWindow)
-      .SetProperty("lineFocusThreeLineWindow",
-                   &ReadAnythingAppController::LineFocusThreeLineWindow)
-      .SetProperty("lineFocusFiveLineWindow",
-                   &ReadAnythingAppController::LineFocusFiveLineWindow)
+      .SetProperty("lineFocusSmallStaticWindow",
+                   &ReadAnythingAppController::LineFocusSmallStaticWindow)
+      .SetProperty("lineFocusMediumStaticWindow",
+                   &ReadAnythingAppController::LineFocusMediumStaticWindow)
+      .SetProperty("lineFocusLargeStaticWindow",
+                   &ReadAnythingAppController::LineFocusLargeStaticWindow)
+      .SetProperty("lineFocusSmallCursorWindow",
+                   &ReadAnythingAppController::LineFocusSmallCursorWindow)
+      .SetProperty("lineFocusMediumCursorWindow",
+                   &ReadAnythingAppController::LineFocusMediumCursorWindow)
+      .SetProperty("lineFocusLargeCursorWindow",
+                   &ReadAnythingAppController::LineFocusLargeCursorWindow)
       .SetProperty("lineFocusStaticLine",
                    &ReadAnythingAppController::LineFocusStaticLine)
       .SetProperty("lineFocusCursorLine",
@@ -1185,6 +1218,10 @@ gin::ObjectTemplateBuilder ReadAnythingAppController::GetObjectTemplateBuilder(
                    &ReadAnythingAppController::GetDefaultLanguageCodeForSpeech)
       .SetProperty("isPhraseHighlightingEnabled",
                    &ReadAnythingAppController::IsPhraseHighlightingEnabled)
+      .SetProperty("htmlTitle",
+                   &ReadAnythingAppController::GetDomDistillerTitle)
+      .SetProperty("htmlContent",
+                   &ReadAnythingAppController::GetDomDistillerContentHtml)
       .SetMethod("isHighlightOn", &ReadAnythingAppController::IsHighlightOn)
       .SetMethod("getChildren", &ReadAnythingAppController::GetChildren)
       .SetMethod("getTextDirection",
@@ -1529,16 +1566,34 @@ int ReadAnythingAppController::LineFocusOff() const {
   return std::to_underlying(read_anything::mojom::LineFocus::kOff);
 }
 
-int ReadAnythingAppController::LineFocusOneLineWindow() const {
-  return std::to_underlying(read_anything::mojom::LineFocus::kWindow1);
+int ReadAnythingAppController::LineFocusSmallStaticWindow() const {
+  return std::to_underlying(
+      read_anything::mojom::LineFocus::kSmallStaticWindow);
 }
 
-int ReadAnythingAppController::LineFocusThreeLineWindow() const {
-  return std::to_underlying(read_anything::mojom::LineFocus::kWindow3);
+int ReadAnythingAppController::LineFocusMediumStaticWindow() const {
+  return std::to_underlying(
+      read_anything::mojom::LineFocus::kMediumStaticWindow);
 }
 
-int ReadAnythingAppController::LineFocusFiveLineWindow() const {
-  return std::to_underlying(read_anything::mojom::LineFocus::kWindow5);
+int ReadAnythingAppController::LineFocusLargeStaticWindow() const {
+  return std::to_underlying(
+      read_anything::mojom::LineFocus::kLargeStaticWindow);
+}
+
+int ReadAnythingAppController::LineFocusSmallCursorWindow() const {
+  return std::to_underlying(
+      read_anything::mojom::LineFocus::kSmallCursorWindow);
+}
+
+int ReadAnythingAppController::LineFocusMediumCursorWindow() const {
+  return std::to_underlying(
+      read_anything::mojom::LineFocus::kMediumCursorWindow);
+}
+
+int ReadAnythingAppController::LineFocusLargeCursorWindow() const {
+  return std::to_underlying(
+      read_anything::mojom::LineFocus::kLargeCursorWindow);
 }
 
 int ReadAnythingAppController::LineFocusStaticLine() const {
@@ -1775,7 +1830,7 @@ std::vector<std::string> ReadAnythingAppController::GetSupportedFonts() {
 
 std::string ReadAnythingAppController::GetValidatedFontName(
     const std::string& font) const {
-  if (!base::Contains(GetAllFonts(), font)) {
+  if (!std::ranges::contains(GetAllFonts(), font)) {
     return GetAllFonts().front();
   }
   if (font == "Serif" || font == "Sans-serif") {
@@ -1905,6 +1960,10 @@ const std::string& ReadAnythingAppController::GetLanguageCodeForSpeech() const {
 }
 
 bool ReadAnythingAppController::RequiresDistillation() {
+  // DOM distiller distillation doesn't queue distillations so return false.
+  if (features::IsReadAnythingWithReadabilityEnabled()) {
+    return false;
+  }
   return model_.requires_distillation();
 }
 
@@ -1936,6 +1995,8 @@ void ReadAnythingAppController::OnConnected() {
   page_handler_->GetDependencyParserModel(
       base::BindOnce(&ReadAnythingAppController::UpdateDependencyParserModel,
                      weak_ptr_factory_.GetWeakPtr()));
+  page_handler_->OnDistillationStateChanged(
+      read_anything::mojom::ReadAnythingDistillationState::kNotAttempted);
 }
 
 void ReadAnythingAppController::OnCopy() const {
@@ -1943,6 +2004,9 @@ void ReadAnythingAppController::OnCopy() const {
 }
 
 void ReadAnythingAppController::OnNoTextContent() {
+  if (features::IsReadAnythingWithReadabilityEnabled()) {
+    return;
+  }
   Distill();
 }
 
@@ -2561,4 +2625,28 @@ void ReadAnythingAppController::OnTreeRemoved(ui::AXTree* tree) {
   if (it != tree_observers_.end()) {
     tree_observers_.erase(it);
   }
+}
+
+std::string ReadAnythingAppController::GetDomDistillerTitle() const {
+  return dom_distiller_title_;
+}
+
+std::string ReadAnythingAppController::GetDomDistillerContentHtml() const {
+  return dom_distiller_content_html_;
+}
+
+void ReadAnythingAppController::UpdateContent(const std::string& title,
+                                              const std::string& content) {
+  if (!features::IsReadAnythingWithReadabilityEnabled()) {
+    return;
+  }
+  dom_distiller_title_ = title;
+  dom_distiller_content_html_ = content;
+
+  // For Google Docs, do not show any text before the doc finishing loading.
+  if (IsGoogleDocs() && !model_.page_finished_loading()) {
+    return;
+  }
+
+  ExecuteJavaScript("chrome.readingMode.updateContent();");
 }

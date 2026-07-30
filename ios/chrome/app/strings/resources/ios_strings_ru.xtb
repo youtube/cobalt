@@ -104,6 +104,7 @@
 <translation id="1366297852155605523">Доступные мне</translation>
 <translation id="1369286077209859800">Показать все вкладки в группе</translation>
 <translation id="136942498637440594">Выполняйте поиск по изображениям и ищите то, что видите.</translation>
+<translation id="1373120905936431262">Загрузите изображение, чтобы создать ремикс с помощью Nano Banana</translation>
 <translation id="1377508275003315939">Пароли</translation>
 <translation id="1381022135873211423">{count,plural, =1{Адрес {position} из {count}}one{Адрес {position} из {count}}few{Адрес {position} из {count}}many{Адрес {position} из {count}}other{Адрес {position} из {count}}}</translation>
 <translation id="1383876407941801731">Поиск</translation>
@@ -161,6 +162,7 @@
 <translation id="1554477036522844996">Новое окно</translation>
 <translation id="1558391695376153246">Закрыть вкладки инкогнито</translation>
 <translation id="1565371473877914088">Новая вкладка инкогнито</translation>
+<translation id="1567960978791353852">Перейти в Режим чтения</translation>
 <translation id="1571780780926010134">Вкладки инкогнито</translation>
 <translation id="1580715474678097352">Защищает от опасных сайтов</translation>
 <translation id="1580783302095112590">Сообщение отправлено.</translation>
@@ -235,6 +237,7 @@
 <translation id="1836891464494477513">{count,plural, =1{Закладка сохранена в аккаунте Google ({email}).}one{Закладки сохранены в аккаунте Google ({email}).}few{Закладки сохранены в аккаунте Google ({email}).}many{Закладки сохранены в аккаунте Google ({email}).}other{Закладки сохранены в аккаунте Google ({email}).}}</translation>
 <translation id="1838089197478136166">Открыть в Кошельке?</translation>
 <translation id="183878838231635348">Здесь будут перечислены проблемы с конфиденциальностью и безопасностью, обнаруженные в ходе автоматической проверки.</translation>
+<translation id="1840320537320704887">Настройки страницы быстрого доступа сброшены.</translation>
 <translation id="1845230888742614096">Оставить</translation>
 <translation id="1853692000353488670">Новая вкладка инкогнито</translation>
 <translation id="1854463785401910334">Поиск по открытым вкладкам</translation>
@@ -253,6 +256,7 @@
 <translation id="1901366738768303267">Как использовать функцию</translation>
 <translation id="1901600657316773839">Сохранить выбор</translation>
 <translation id="1902277226107477495">Обнаружение адресов выключено. Снова включить его можно в настройках.</translation>
+<translation id="1909201414196501151">Сайт добавлен и закреплен.</translation>
 <translation id="1911619930368729126">Загрузить на Google Диск</translation>
 <translation id="1925706052394657380">Откройте <ph name="BEGIN_BOLD" />Приложения по умолчанию<ph name="END_BOLD" /> в настройках iOS.</translation>
 <translation id="1941314575388338491">Чтобы копировать, нажмите дважды.</translation>
@@ -288,6 +292,7 @@
 <translation id="2015722694326466240">Чтобы просматривать пароли, настройте на устройстве код доступа.</translation>
 <translation id="201759455285471444">Развернуть группу вкладок.</translation>
 <translation id="202070562065520783">Объясни мне</translation>
+<translation id="2023713324775943812">Включать режим чтения в адресной строке, когда он доступен</translation>
 <translation id="2044394949148788042">Откройте сетку таблицы.</translation>
 <translation id="2044681667265133332">Аккаунтом <ph name="USER_EMAIL" /> управляет <ph name="HOSTED_DOMAIN" />. Некоторая ваша информация может быть видна этой организации. <ph name="BEGIN_LINK" />Подробнее…<ph name="END_LINK" /></translation>
 <translation id="20485545164632846">новый продукт</translation>
@@ -310,6 +315,7 @@
 <translation id="21133533946938348">Закрепить вкладку</translation>
 <translation id="2117650889962717098">Переключитесь в режим инкогнито, чтобы сохранять конфиденциальность при посещении сайтов.</translation>
 <translation id="2119636449201577317">Открыть в сервисе…</translation>
+<translation id="2119962645034852864">Некоторые сервисы недоступны для вашего аккаунта</translation>
 <translation id="2120553909046681540">В вашей организации режим инкогнито отключен.</translation>
 <translation id="2122754583996902531">Этот браузер управляется администратором. <ph name="BEGIN_LINK" />Подробнее…<ph name="END_LINK" /></translation>
 <translation id="21243612977487926">Чаты вашей организации не используются для улучшения наших моделей. Gemini может показывать неточную информацию, в том числе о людях. Рекомендуем проверять ее. <ph name="YOUR_PRIVACY_GEMINI" /></translation>
@@ -357,6 +363,7 @@
 <translation id="2271452184061378400">Здесь находятся группы вкладок</translation>
 <translation id="2273327106802955778">Меню "Ещё"</translation>
 <translation id="2287614783861766820">{count,plural, =1{Адрес будет удален с устройства.}one{Адреса будут удалены с устройства.}few{Адреса будут удалены с устройства.}many{Адреса будут удалены с устройства.}other{Адреса будут удалены с устройства.}}</translation>
+<translation id="2295236662082735391">Чтобы отредактировать изображение из интернета с помощью Gemini, нажмите и удерживайте его.</translation>
 <translation id="2297989278479054870">Если вы выйдете, закладки, пароли и другие данные, сохраненные в аккаунте Google, будут удалены с этого устройства.</translation>
 <translation id="2299218006564889602">Ваши пароли шифруются на устройстве и только потом сохраняются в Google Менеджере паролей.</translation>
 <translation id="2306265833370324042">Показать сведения: <ph name="SEARCH_ENGINE_NAME" /></translation>
@@ -478,6 +485,7 @@
 <translation id="2761788987260570878">Сфотографируйте то, что вы ищете.</translation>
 <translation id="2761898608071930085">Использовать другой аккаунт</translation>
 <translation id="2762000892062317888">только что</translation>
+<translation id="2766178952536179189">{COUNT,plural, =1{Добавьте не более 1 изображения.}one{Добавьте не более {COUNT} изображения.}few{Добавьте не более {COUNT} изображений.}many{Добавьте не более {COUNT} изображений.}other{Добавьте не более {COUNT} изображения.}}</translation>
 <translation id="2772667768515195373">Сохраненные адреса можно использовать в разных продуктах Google. Этот адрес сохранен в вашем аккаунте Google, <ph name="USER_EMAIL" />.</translation>
 <translation id="2773344962924806829">Уведомления по электронной почте</translation>
 <translation id="2781331604911854368">Включено</translation>
@@ -598,6 +606,7 @@
 <translation id="3245744387817103524">Не удалось сохранить изменения.</translation>
 <translation id="3254806613790954367">Последняя открытая вкладка с любого из ваших устройств</translation>
 <translation id="325717987950204592">Нажмите "Конфиденциальность и безопасность".</translation>
+<translation id="3265736395246760288">Входите в аккаунты быстрее на синхронизированных устройствах.</translation>
 <translation id="3272527697863656322">Отмена</translation>
 <translation id="3273510436356991673">Настройка главного экрана</translation>
 <translation id="3277021493514034324">Адрес сайта скопирован</translation>
@@ -615,10 +624,12 @@
 <translation id="3344485292736684439">{count,plural, =1{Закладка сохранена в папке "{title}" в вашем аккаунте ({email}).}one{Закладки сохранены в папке "{title}" в вашем аккаунте ({email}).}few{Закладки сохранены в папке "{title}" в вашем аккаунте ({email}).}many{Закладки сохранены в папке "{title}" в вашем аккаунте ({email}).}other{Закладки сохранены в папке "{title}" в вашем аккаунте ({email}).}}</translation>
 <translation id="334690320928261823">Недавние вкладки</translation>
 <translation id="3349031117032695619">Блокировать всплывающие окна</translation>
+<translation id="3350976670663926380">Изменения сохранены.</translation>
 <translation id="3353037916374303415"><ph name="EMAIL" />. Это управляемый аккаунт.</translation>
 <translation id="3365529507898144230">Сохранить в Фото</translation>
 <translation id="3371831930909698441">Доступен перевод. Параметры указаны в нижней части экрана.</translation>
 <translation id="3377063233124932127">Теперь ваши сохраненные закладки, пароли и другие данные будут отображаться наверху.</translation>
+<translation id="3378214228000661758">Создайте ключ доступа для сайта</translation>
 <translation id="3380352560400387991">Этот сайт пытается открыть приложение. Это приведет к выходу из режима инкогнито.</translation>
 <translation id="3385742921291399323">Получите доступ к сохраненным паролям, вкладкам, закладкам и не только.</translation>
 <translation id="3392923070107623576">Упорядочивайте вкладки.</translation>
@@ -668,6 +679,7 @@
 <translation id="355765753469272474">Отменить</translation>
 <translation id="3565012355885596568">Не удалось загрузить изображения</translation>
 <translation id="3565930036634619844">Номер вкладки: <ph name="TAB_INDEX" /> из <ph name="NUMBER_OF_TABS" />.</translation>
+<translation id="3567168891086460374">Другой способ</translation>
 <translation id="3572607909481582402">В аккаунте Google</translation>
 <translation id="3575234738189584619">Искать с помощью Объектива</translation>
 <translation id="3575426792457739946">В списке указаны все загруженные профили.</translation>
@@ -680,6 +692,7 @@
 <translation id="3602260545951981695">Выберите параметр "Улучшенная защита".</translation>
 <translation id="3610041351087301930">Скрыть режим чтения</translation>
 <translation id="3610866916973186448">Удалить</translation>
+<translation id="3616161326314492065">Делайте снимки и делитесь ими с Gemini, чтобы создавать и изменять изображения.</translation>
 <translation id="3622175633937495219">Поиск в истории (совпадений: <ph name="COUNT" />)</translation>
 <translation id="3625008969091706597">Чтобы перейти назад, проведите пальцем по краю экрана.</translation>
 <translation id="362709345066740529">Настройте карточки, ленту и многое другое</translation>
@@ -696,6 +709,7 @@
 <translation id="368329460027487650">Выполнен выход. Открывает окно с вариантами входа.</translation>
 <translation id="3695446226812920698">Подробнее</translation>
 <translation id="3700134753671613714">Войдите в свой аккаунт, и закладки будут доступны на всех ваших устройствах.</translation>
+<translation id="3701167022068948696">Исправить</translation>
 <translation id="3708944822379815019">{COUNT,plural, =1{{COUNT} пароль сохранен только на этом устройстве. Чтобы он синхронизировался с другими устройствами, добавьте его в аккаунт Google ({EMAIL}).}one{{COUNT} пароль сохранен только на этом устройстве. Чтобы они синхронизировались с другими устройствами, добавьте пароли в аккаунт Google ({EMAIL}).}few{{COUNT} пароля сохранены только на этом устройстве. Чтобы они синхронизировались с другими устройствами, добавьте пароли в аккаунт Google ({EMAIL}).}many{{COUNT} паролей сохранены только на этом устройстве. Чтобы они синхронизировались с другими устройствами, добавьте пароли в аккаунт Google ({EMAIL}).}other{{COUNT} пароля сохранено только на этом устройстве. Чтобы они синхронизировались с другими устройствами, добавьте пароли в аккаунт Google ({EMAIL}).}}</translation>
 <translation id="3709621342136814217">Здесь можно выбрать шрифт, размер текста и многое другое</translation>
 <translation id="371230970611282515">Предсказывает опасные события и предупреждает вас до того, как они происходят.</translation>
@@ -742,6 +756,7 @@
 <translation id="3888863481921783344">Эти данные будут использоваться для показа пользователей, которых можно пригласить на мероприятие.</translation>
 <translation id="3891414008432200754">Цена</translation>
 <translation id="3892144330757387737">Здесь вы найдете свою историю</translation>
+<translation id="3893858854379998374">Чтобы сохранить новые закладки в аккаунте, удалите неиспользуемые.</translation>
 <translation id="3897092660631435901">Меню</translation>
 <translation id="3904270275864974753">Изменить карусель</translation>
 <translation id="3909222758573607742">Сохраняйте пароли и другие данные в аккаунте</translation>
@@ -859,6 +874,7 @@
 <translation id="4302061870579014542">Выбрать</translation>
 <translation id="4304713468139749426">Менеджер паролей</translation>
 <translation id="4309403553630140242">Чтобы узнать больше, нажмите дважды</translation>
+<translation id="4310738531374808763">Настройте главную страницу</translation>
 <translation id="4320848494125124980">Недавние</translation>
 <translation id="4322394346347055525">Закрыть другие вкладки</translation>
 <translation id="4324735664183300693">Включить уведомления</translation>
@@ -871,6 +887,7 @@
 <translation id="4338650699862464074">Отправлять URL посещаемых страниц в Google</translation>
 <translation id="4342946437867096381">Для этого сайта уже сохранен пароль в аккаунте. Google может выбрать последний использованный пароль.</translation>
 <translation id="4365121137632832185">Группа вкладок. Развернута.</translation>
+<translation id="4365685757967464989">Разрешите Gemini использовать камеру для съемки фото.</translation>
 <translation id="4367971618859387374">Отображаемое имя</translation>
 <translation id="4375772272517383391">Закрыть все вкладки</translation>
 <translation id="4378154925671717803">Телефон</translation>
@@ -954,6 +971,7 @@
 
        Выберите, что делать с уже имеющимися на устройстве данными о работе в браузере.</translation>
 <translation id="4675298276894277358">Этот сайт больше не будет показываться.</translation>
+<translation id="4676647168422678078">Применить настройки страницы быстрого доступа?</translation>
 <translation id="4682496302933121474">Перевести эту страницу?</translation>
 <translation id="4682686630151240767">1. Откройте настройки устройства iPhone.</translation>
 <translation id="4691892551491778176">При работе с этой функцией URL и данные страницы передаются в Google, но не используются для улучшения моделей генеративного ИИ. Отключить их отправку всегда можно в настройках.</translation>
@@ -1002,6 +1020,7 @@
 <translation id="4840495572919996524">Ваши закладки, пароли, история и другие данные больше не будут синхронизироваться с аккаунтом Google.</translation>
 <translation id="484280513275854557">Вы вышли из аккаунта, а данные о работе в браузере были удалены.</translation>
 <translation id="4850886885716139402">Смотреть</translation>
+<translation id="4854068532375923088">Разрешите Gemini использовать камеру</translation>
 <translation id="4860895144060829044">Позвонить</translation>
 <translation id="4861953997778766866">Любой может изменять ваши группы вкладок с общим доступом</translation>
 <translation id="4865063548323785458">Сохраняйте пароли, чтобы они автоматически вводились при входе в аккаунты на сайтах и в приложениях.</translation>
@@ -1076,6 +1095,7 @@
 <translation id="508645147179720015">Примечание не должно быть длиннее 1000 символов</translation>
 <translation id="5087098519049306025">Отслеживание цен</translation>
 <translation id="5090832849094901128">Это действие не приведет к удалению вашего аккаунта на сайте <ph name="WEBSITE" />.</translation>
+<translation id="5096619236864235">Ключи доступа сохранены в Google Менеджере паролей для аккаунта</translation>
 <translation id="510580293474170715">Ничего не импортировано</translation>
 <translation id="5113960131843706315">Загрузка данных…</translation>
 <translation id="5118462200606189584">Добавить аккаунт…</translation>
@@ -1205,6 +1225,7 @@
 <translation id="5579012242779565775">Скрыть раздел "Список для чтения"</translation>
 <translation id="5581786858144165447">Спросите в режиме ИИ</translation>
 <translation id="5585019845078534178">Карточки</translation>
+<translation id="5591526871732898147">Прикрепленное изображение {index}</translation>
 <translation id="5595485650161345191">Изменить адрес</translation>
 <translation id="559567008082979829">Удалять файлы, скачанные более одного месяца назад</translation>
 <translation id="5596627076506792578">Ещё</translation>
@@ -1340,6 +1361,7 @@
 <translation id="605721222689873409">ГГ</translation>
 <translation id="6058415747854995776">Записать видео</translation>
 <translation id="6059830886158432458">Управление рекомендациями</translation>
+<translation id="6063802271331271857">Создать ремикс изображения</translation>
 <translation id="6066301408025741299">Нажмите, чтобы отменить загрузку</translation>
 <translation id="6074656473835429958">Уведомления</translation>
 <translation id="607620096698446287">Не удалось загрузить файл "<ph name="FILENAME" />" (<ph name="FILESIZE" />).</translation>
@@ -1691,6 +1713,7 @@
 <translation id="7328162502911382168">(<ph name="COUNT" />)</translation>
 <translation id="7336264872878993241">Скачивается: <ph name="PERCENT" />%</translation>
 <translation id="7345061034321640811">Импорт запрещен</translation>
+<translation id="7347998088283246662">Импортируйте пароли, историю, закладки и другие данные.</translation>
 <translation id="7352651011704765696">Ошибка</translation>
 <translation id="7364796246159120393">Выберите файл</translation>
 <translation id="736564850024123010">Переместите адресную строку в удобное место.</translation>
@@ -1750,6 +1773,7 @@
 <translation id="7522587739845660862">Информация о вашем местоположении</translation>
 <translation id="7522948500476882302">Скачанные файлы будут автоматически удаляться через 1 месяц.</translation>
 <translation id="7524055474074101597">Получайте доступ к паролям и другим данным в приложениях.</translation>
+<translation id="7525067979554623046">Создать</translation>
 <translation id="75362970626182391">Новая группа вкладок</translation>
 <translation id="7537586195939242955">Не удалось внести данные в Passbook.</translation>
 <translation id="754655535278952384">Проверено <ph name="TIME" /></translation>
@@ -1841,6 +1865,7 @@
 <translation id="7853202427316060426">История действий</translation>
 <translation id="7854006015462979438">Нажмите "Основные".</translation>
 <translation id="7855678267851972597">Аудиофайлы</translation>
+<translation id="7857520352710212030">Сайт закреплен.</translation>
 <translation id="7859988229622350291">Никогда не переводить</translation>
 <translation id="7863211248337747225">Установить</translation>
 <translation id="7865127013871431856">Параметры перевода</translation>
@@ -1856,6 +1881,7 @@
 <translation id="7899199123054742721">Отметить все как непрочитанные</translation>
 <translation id="7911190106180361398">Синхронизация всех данных запрещена организацией</translation>
 <translation id="7918999344502274923">Скрыть сведения: <ph name="SEARCH_ENGINE_NAME" /></translation>
+<translation id="7921559948846049514">Выберите тему, цвет и другие параметры фона</translation>
 <translation id="792357691529995513">Проблем не найдено</translation>
 <translation id="7925108652071887026">Данные автозаполнения</translation>
 <translation id="7926975587469166629">Название карты</translation>
@@ -1904,6 +1930,7 @@
 <translation id="8059312861912872211">{count,plural, =1{{count} закладка}one{{count} закладка}few{{count} закладки}many{{count} закладок}other{{count} закладки}}</translation>
 <translation id="8059533439631660104">Сворачивает раздел.</translation>
 <translation id="8061584726507121204">История</translation>
+<translation id="8064946459644399612">Настройки страницы быстрого доступа применены.</translation>
 <translation id="8069168488983557089">Извлекайте важную информацию по разным темам.</translation>
 <translation id="8069394452933076548">Выберите, когда неиспользуемые вкладки перемещаются в список неактивных.</translation>
 <translation id="8073670137947914548">Скачивание завершено</translation>
@@ -1934,6 +1961,7 @@
 <translation id="8161614462829037225">Разблокировать с помощью: <ph name="BIOMETRIC_AUTHENITCATION_TYPE" /></translation>
 <translation id="8173034266693057059">Длина</translation>
 <translation id="8182037667962849780">{count,plural, =1{Для {website_1}}=2{Для {website_1} и {website_2}}=3{Для {website_1}, {website_2} и ещё 1}one{Для {website_1}, {website_2} и ещё {more_count}}few{Для {website_1}, {website_2} и ещё {more_count}}many{Для {website_1}, {website_2} и ещё {more_count}}other{Для {website_1}, {website_2} и ещё {more_count}}}</translation>
+<translation id="8184895727539791845">Для этого включите ее в настройках iOS.</translation>
 <translation id="8185076488803799132">Импортировать</translation>
 <translation id="8189615296021678665">Нажмите "Сохранить", чтобы быстро получить доступ к этому паролю при следующем входе.</translation>
 <translation id="8193953846147532858"><ph name="BEGIN_LINK" />Ваши устройства<ph name="END_LINK" /> · <ph name="EMAIL" /></translation>
@@ -2002,6 +2030,7 @@
 <translation id="8428045167754449968">Город</translation>
 <translation id="8428213095426709021">Настройки</translation>
 <translation id="8428634594422941299">ОК</translation>
+<translation id="8429455911440977338">Включите камеру</translation>
 <translation id="8434837876193928924">Сведения о группе вкладок</translation>
 <translation id="8438566539970814960">Помогать улучшать просмотр страниц и поиск</translation>
 <translation id="8439758443371991593">Скрыть действие "Добавить в список для чтения"</translation>
@@ -2210,6 +2239,7 @@
 <translation id="914781932147356857">Отметить все…</translation>
 <translation id="9148126808321036104">Войти снова</translation>
 <translation id="9149866541089851383">Изменить...</translation>
+<translation id="9152637745605628097">Выберите тему, цвет или загрузите фоновое изображение.</translation>
 <translation id="9159628751968616911">Отправка веб-страницы</translation>
 <translation id="9162432979321511934">Включите параметр "Автозаполнение паролей".</translation>
 <translation id="9165320910061267720">Чтобы получать оповещения о скидках, включите уведомления в настройках iOS.</translation>
@@ -2243,6 +2273,7 @@
 <translation id="956218893102219091">Используйте точное местоположение вместо приблизительного на основе IP-адреса, чтобы получать более подходящие результаты от Gemini. <ph name="BEGIN_LINK" />Подробнее…<ph name="END_LINK" /></translation>
 <translation id="961856697154696964">Удалить данные браузера</translation>
 <translation id="963102227019621224">История приложений и веб-поиска</translation>
+<translation id="965259330007686240">Создайте изображение с помощью Gemini</translation>
 <translation id="965879457362663186">Прикрепить</translation>
 <translation id="966593914872420832">Голосовой поиск</translation>
 <translation id="972084300091883657">{COUNT,plural, =0{Присоединитесь к группе, в которой состоит <ph name="OWNER_NAME" />}=1{Присоединитесь к группе, в которой состоят <ph name="OWNER_NAME" /> и ещё {COUNT} пользователь}one{Присоединитесь к группе, в которой состоят <ph name="OWNER_NAME" /> и ещё {COUNT} пользователь}few{Присоединитесь к группе, в которой состоят <ph name="OWNER_NAME" /> и ещё {COUNT} пользователя}many{Присоединитесь к группе, в которой состоят <ph name="OWNER_NAME" /> и ещё {COUNT} пользователей}other{Присоединитесь к группе, в которой состоят <ph name="OWNER_NAME" /> и ещё {COUNT} пользователя}}</translation>

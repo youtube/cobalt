@@ -355,6 +355,7 @@
 <translation id="4814736265800133385">Выкарыстоўваць Chromium без уліковага запісу</translation>
 <translation id="4888717733111232871">Уваходнае правіла для Chromium, якое дазваляе трафік mDNS.</translation>
 <translation id="4893347770495441059">Перазапусціць, каб абнавіць &amp;Chromium</translation>
+<translation id="4918086044614829423">Прыняць</translation>
 <translation id="4918844574251943176">Відарыс скапіраваны</translation>
 <translation id="4943838377383847465">Chromium працуе ў фонавым рэжыме.</translation>
 <translation id="494490797786467921">Націсніце, каб закрыць дыялогавае акно ўваходу ў Chromium</translation>
@@ -532,6 +533,9 @@
 <translation id="6901631050894301805">Усталюйце Chromium у якасці стандартнага браўзера і замацуйце яго на панэлі задач</translation>
 <translation id="6909503629704372277">&amp;Кіраваць профілямі Chromium</translation>
 <translation id="6934579572334859869">Спытаць пра гэты відарыс з дапамогай функцыі "Пошук відарысаў"</translation>
+<translation id="6948031725951063910">Вы дасягнулі ліміту закладак у Chromium (<ph name="BOOKMARK_LIMIT" />), таму некаторыя з вашых закладак яшчэ не захаваны ва Уліковым запісе Google.
+
+Новыя закладкі нельга захаваць у вашым уліковым запісе, пакуль вы не выдаліце некаторыя з існуючых. Калі вы выйдзеце зараз, незахаваныя закладкі будуць выдалены.</translation>
 <translation id="6964305034639999644">Адкрыць спасылку ў акне інко&amp;гніта ў Chromium</translation>
 <translation id="6965382102122355670">ОК</translation>
 <translation id="6978145336957848883">Ненадзейныя паролі лёгка адгадаць. Дазвольце Chromium <ph name="BEGIN_LINK" />ствараць для вас надзейныя паролі і запамінаць іх<ph name="END_LINK" />.</translation>
@@ -633,6 +637,7 @@
 <translation id="8118331347066725040">Адправіць водгук на пошук з дапамогай Аб’ектыва</translation>
 <translation id="8133124826068723441">Сістэме Chromium OS не ўдалося сінхранізаваць вашы даныя: для вашага дамена сінхранізацыя недаступная.</translation>
 <translation id="813913629614996137">Ідзе ініцыялізацыя...</translation>
+<translation id="8164014945047474187">Дадатковыя ўмовы выкарыстання Chromium</translation>
 <translation id="81770708095080097">Файл небяспечны, таму Chromium заблакіраваў яго.</translation>
 <translation id="8177472873527554730">Не ўдаецца знайсці змесціва на старонцы</translation>
 <translation id="8200109504272824693">Каб выкарыстоўваць і захоўваць даныя Chromium ва ўліковым запісе <ph name="USER_EMAIL" />, увядзіце фразу-пароль</translation>
@@ -700,6 +705,7 @@
 <translation id="8880203542552872219">Калі так, змяніце пароль, захаваны ў Chromium, каб ён супадаў з новым.</translation>
 <translation id="8891709362986793894">Палітыка вашай арганізацыі патрабуе, каб вы ўвайшлі ў Chromium</translation>
 <translation id="8907580949721785412">Chromium спрабуе паказаць паролі. Каб дазволіць гэта, увядзіце пароль Windows.</translation>
+<translation id="8932992523185907506">Chromium больш не з’яўляецца стандартным браўзерам. Зрабіць Chromium стандартным браўзерам?</translation>
 <translation id="8941642502866065432">Не ўдаецца абнавіць Chromium</translation>
 <translation id="897581876605952338">Лагатып Chromium Enterprise</translation>
 <translation id="8981150672034878610">Не ўдалося запусціць Chromium: падчас адкрыцця профілю адбылася памылка. Паспрабуйце перазапусціць Chromium.</translation>

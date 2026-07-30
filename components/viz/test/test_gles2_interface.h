@@ -15,7 +15,6 @@
 #include <vector>
 
 #include "base/compiler_specific.h"
-#include "base/containers/contains.h"
 #include "base/containers/flat_map.h"
 #include "base/containers/heap_array.h"
 #include "base/functional/callback.h"
@@ -108,7 +107,7 @@ class TestGLES2Interface : public gpu::gles2::GLES2InterfaceStub {
 
   size_t NumUsedTextures() const { return used_textures_.size(); }
   bool UsedTexture(int texture) const {
-    return base::Contains(used_textures_, texture);
+    return used_textures_.contains(texture);
   }
   void ResetUsedTextures() { used_textures_.clear(); }
 

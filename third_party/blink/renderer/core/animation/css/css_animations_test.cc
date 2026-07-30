@@ -108,13 +108,14 @@ class CSSAnimationsTest : public RenderingTest, public PaintTestConfigurations {
     DCHECK(!IsUseCounted(feature));
   }
 
-  wtf_size_t DeferredTimelinesCount(Element* element) const {
+  bool HasDeferredTimeline(Element* element, const char* name) const {
     ElementAnimations* element_animations = element->GetElementAnimations();
     if (!element_animations) {
-      return 0;
+      return false;
     }
     CSSAnimations& css_animations = element_animations->CssAnimations();
-    return css_animations.timeline_data_.GetDeferredTimelines().size();
+    return css_animations.timeline_data_.GetDeferredTimelineMap().Find(
+               element->GetDocument(), AtomicString(name)) != nullptr;
   }
 
  private:
@@ -1162,19 +1163,23 @@ TEST_P(CSSAnimationsTest, DeferredTimelineUpdate) {
   Element* target = GetElementById("target");
   ASSERT_TRUE(target);
 
-  EXPECT_EQ(0u, DeferredTimelinesCount(target));
+  EXPECT_FALSE(HasDeferredTimeline(target, "--t1"));
+  EXPECT_FALSE(HasDeferredTimeline(target, "--t2"));
 
   target->SetInlineStyleProperty(CSSPropertyID::kTimelineScope, "--t1");
   UpdateAllLifecyclePhasesForTest();
-  EXPECT_EQ(1u, DeferredTimelinesCount(target));
+  EXPECT_TRUE(HasDeferredTimeline(target, "--t1"));
+  EXPECT_FALSE(HasDeferredTimeline(target, "--t2"));
 
   target->SetInlineStyleProperty(CSSPropertyID::kTimelineScope, "--t1, --t2");
   UpdateAllLifecyclePhasesForTest();
-  EXPECT_EQ(2u, DeferredTimelinesCount(target));
+  EXPECT_TRUE(HasDeferredTimeline(target, "--t1"));
+  EXPECT_TRUE(HasDeferredTimeline(target, "--t2"));
 
   target->SetInlineStyleProperty(CSSPropertyID::kTimelineScope, "none");
   UpdateAllLifecyclePhasesForTest();
-  EXPECT_EQ(0u, DeferredTimelinesCount(target));
+  EXPECT_FALSE(HasDeferredTimeline(target, "--t1"));
+  EXPECT_FALSE(HasDeferredTimeline(target, "--t2"));
 }
 
 TEST_P(CSSAnimationsTest, OpacityUnchangedWhileDeferred) {
@@ -1231,13 +1236,6 @@ TEST_P(CSSAnimationsTest, AnimationTriggerNames) {
       .single {
         animation-trigger: --trigger play;
       }
-      .double {
-        animation-trigger: --trigger1 play --trigger2 pause;
-      }
-      .multiple_double {
-        animation-trigger: --trigger3 play --trigger4 pause,
-                           --trigger1 play --trigger2 pause;
-      }
     </style>
     <div id="target"></div>
   )HTML");
@@ -1273,30 +1271,6 @@ TEST_P(CSSAnimationsTest, AnimationTriggerNames) {
   EXPECT_EQ(trigger_attachments->at(0)->TriggerName()->GetName(),
             AtomicString("--trigger"));
   EXPECT_EQ(trigger_attachments2, nullptr);
-
-  target->setAttribute(html_names::kClassAttr, AtomicString("double"));
-  UpdateAllLifecyclePhasesForTest();
-  EXPECT_EQ(trigger_attachments->size(), 2);
-  EXPECT_EQ(trigger_attachments->at(0)->TriggerName()->GetName(),
-            AtomicString("--trigger1"));
-  EXPECT_EQ(trigger_attachments->at(1)->TriggerName()->GetName(),
-            AtomicString("--trigger2"));
-  EXPECT_EQ(trigger_attachments2, nullptr);
-
-  target->setAttribute(html_names::kClassAttr, AtomicString("multiple_double"));
-  UpdateAllLifecyclePhasesForTest();
-
-  EXPECT_EQ(trigger_attachments->size(), 2);
-  EXPECT_EQ(trigger_attachments2->size(), 2);
-
-  EXPECT_EQ(trigger_attachments->at(0)->TriggerName()->GetName(),
-            AtomicString("--trigger3"));
-  EXPECT_EQ(trigger_attachments->at(1)->TriggerName()->GetName(),
-            AtomicString("--trigger4"));
-  EXPECT_EQ(trigger_attachments2->at(0)->TriggerName()->GetName(),
-            AtomicString("--trigger1"));
-  EXPECT_EQ(trigger_attachments2->at(1)->TriggerName()->GetName(),
-            AtomicString("--trigger2"));
 }
 
 void VerifyTriggerRangeBoundary(
@@ -1432,18 +1406,19 @@ void CSSAnimationsTriggerTest::TestTimelineTrigger(
     EXPECT_TRUE(timeline->IsViewTimeline());
   }
 
-  const TimelineTrigger::RangeBoundary* range_start = trigger->RangeStart();
+  const TimelineTrigger::RangeBoundary* range_start =
+      trigger->EntryRangeStart();
   VerifyTriggerRangeBoundary(range_start, expected_start);
 
-  const TimelineTrigger::RangeBoundary* range_end = trigger->RangeEnd();
+  const TimelineTrigger::RangeBoundary* range_end = trigger->EntryRangeEnd();
   VerifyTriggerRangeBoundary(range_end, expected_end);
 
   const TimelineTrigger::RangeBoundary* exit_range_start =
-      trigger->ExitRangeStart();
+      trigger->ActiveRangeStart();
   VerifyTriggerRangeBoundary(exit_range_start, expected_exit_start);
 
   const TimelineTrigger::RangeBoundary* exit_range_end =
-      trigger->ExitRangeEnd();
+      trigger->ActiveRangeEnd();
   VerifyTriggerRangeBoundary(exit_range_end, expected_exit_end);
 }
 
@@ -1832,7 +1807,7 @@ void CSSAnimationsTriggerTest::TestRangeStartChange(
   } else {
     EXPECT_NE(old_trigger, new_trigger);
   }
-  VerifyTriggerRangeBoundary(new_trigger->RangeStart(), expected_boundary);
+  VerifyTriggerRangeBoundary(new_trigger->EntryRangeStart(), expected_boundary);
 }
 
 TEST_P(CSSAnimationsTriggerTest, TimelineTriggerChangeRangeStart) {
@@ -2040,8 +2015,8 @@ TEST_P(CSSAnimationsTriggerTest, DeviceScaleFactor) {
   Element* target = GetDocument().getElementById(AtomicString("target"));
 
   TimelineTrigger* trigger = DynamicTo<TimelineTrigger>(GetTrigger(*target));
-  const RangeBoundary* range_start = trigger->RangeStart();
-  const RangeBoundary* range_end = trigger->RangeEnd();
+  const RangeBoundary* range_start = trigger->EntryRangeStart();
+  const RangeBoundary* range_end = trigger->EntryRangeEnd();
 
   EXPECT_TRUE(range_start->IsTimelineRangeOffset());
   EXPECT_TRUE(range_end->IsTimelineRangeOffset());
@@ -2378,9 +2353,9 @@ TEST_P(CSSAnimationsTriggerTest, UnequalAnimationAttachments) {
                               const CSSProperty& triggered_property) {
     for (auto& animation : animations) {
       if (animation->Affects(*target, triggered_property)) {
-        EXPECT_EQ(animation->GetTriggersForTest().size(), 1);
+        EXPECT_EQ(animation->GetTriggers().size(), 1);
       } else {
-        EXPECT_EQ(animation->GetTriggersForTest().size(), 0);
+        EXPECT_EQ(animation->GetTriggers().size(), 0);
       }
     }
   };

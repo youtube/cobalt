@@ -2998,6 +2998,41 @@ std::optional<FeatureConfig> GetClientSideFeatureConfig(
     return config;
   }
 
+  if (kIPHiOSGeminiImageRemixFeature.name == feature->name) {
+    // Show the entry point once a year, but block it for 3 days if the user has
+    // seen another Gemini-related IPH.
+    FeatureConfig config;
+    config.valid = true;
+    config.availability = Comparator(ANY, 0);
+    config.session_rate = Comparator(EQUAL, 0);
+    config.storage_type = StorageType::DEVICE;
+    config.trigger = EventConfig(events::kIOSGeminiImageRemixIPHTrigger,
+                                 Comparator(LESS_THAN, 1), 365, 365);
+    config.event_configs.insert(EventConfig(
+        events::kIOSPageActionMenuIPHTrigger, Comparator(EQUAL, 0), 3, 365));
+    config.event_configs.insert(
+        EventConfig(events::kIOSGeminiFullscreenPromoTriggered,
+                    Comparator(EQUAL, 0), 3, 365));
+    return config;
+  }
+
+  if (kIPHiOSPinMostVisitedSiteFeature.name == feature->name) {
+    // Show the in-product help if 1) it has never been triggered, and 2) user
+    // has not pinned any site to the most visited tile.
+    FeatureConfig config;
+    config.valid = true;
+    config.availability = Comparator(ANY, 0);
+    config.session_rate = Comparator(EQUAL, 0);
+    config.trigger =
+        EventConfig("ios_pin_mvt_site_triggered", Comparator(EQUAL, 0),
+                    feature_engagement::kMaxStoragePeriod,
+                    feature_engagement::kMaxStoragePeriod);
+    config.used = EventConfig(events::kIOSPinMVTSiteUsed, Comparator(EQUAL, 0),
+                              feature_engagement::kMaxStoragePeriod,
+                              feature_engagement::kMaxStoragePeriod);
+    return config;
+  }
+
 #endif  // BUILDFLAG(IS_IOS)
 
 #if BUILDFLAG(IS_CHROMEOS)

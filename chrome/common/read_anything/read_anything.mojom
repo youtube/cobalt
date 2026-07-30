@@ -47,6 +47,23 @@ enum ReadAnythingPresentationState {
                              // in the overlay.
 };
 
+// Represents the content returned by the distiller. Doesn't include a state for
+// pending distillation. During distillation, the ReadAnythingController will
+// keep the distillation_state_ in the previous state, and
+// OnDistillationStateChanged will update the state once the distillaion has
+// finished.
+// TODO(crbug.com/475910793): Rename ReadAnythingDistillationState to prevent
+// confusion with the DistillationStatus enum.
+enum ReadAnythingDistillationState {
+  kUndefined = 0, // The distillation state has not been initialized.
+  kNotAttempted = 1, // The distillation state has been initialized, but
+                     // distillation has not been attempted.
+  kDistillationEmpty = 2, // The distiller failed to process the content in the
+                          // page (returned no content).
+  kDistillationWithContent = 3, // The distiller successfully processed the
+                                // content in the page.
+};
+
 union VoicePackInstallationState {
   InstallationState installation_state;
   ErrorCode error_code;
@@ -131,13 +148,23 @@ enum HighlightGranularity {
 // numeric values should never be reused.
 enum LineFocus {
   [Default]kOff = 0,
-  // Line focus window modes of different line heights. i.e. a window of size
-  // one line, three lines, or 5 lines.
-  kWindow1 = 1,
-  kWindow3 = 2,
-  kWindow5 = 3,
+  // These values are removed and replaced with the static and cursor window
+  // options below.
+  // kWindow1 = 1,
+  // kWindow3 = 2,
+  // kWindow5 = 3,
   kLineStatic = 4,
   kLineCursor = 5,
+  // Line focus window modes of different line heights that stay static in the
+  // center of the page.
+  [MinVersion=3] kSmallStaticWindow = 6,
+  [MinVersion=3] kMediumStaticWindow = 7,
+  [MinVersion=3] kLargeStaticWindow = 8,
+  // Line focus window modes of different line heights that move with the
+  // cursor.
+  [MinVersion=3] kSmallCursorWindow = 9,
+  [MinVersion=3] kMediumCursorWindow = 10,
+  [MinVersion=3] kLargeCursorWindow = 11,
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/accessibility/enums.xml:ReadAnythingLineFocus)
 
@@ -275,6 +302,9 @@ interface UntrustedPageHandler {
   OnDistillationStatus(read_anything.mojom.DistillationStatus status,
                        int32 word_count);
 
+  // Informs the browser of the content returned by the distiller.
+  OnDistillationStateChanged(read_anything.mojom.ReadAnythingDistillationState state);
+
   // Informs the browser controller that the side page was scrolled to the end.
   // The browser controller responds by scrolling the main page to show the
   // last line of text on the side page. target_node_id should be the last
@@ -403,4 +433,9 @@ interface UntrustedPage {
 
   // Lets the renderer process know that the browser has sent a new pin state.
   OnPinStatusReceived(bool new_pin_state);
+
+  // Sets the distilled title and content from DOM distiller to be available in
+  // the WebUI and notifies the WebUI that DOM distiller has processed a
+  // distillation request.
+  UpdateContent(string title, string content);
 };

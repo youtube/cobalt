@@ -17,7 +17,6 @@ import("//components/safe_browsing/buildflags.gni")
 import("//components/supervised_user/buildflags.gni")
 import("//extensions/buildflags/buildflags.gni")
 import("//media/media_options.gni")
-import("//net/features.gni")
 import("//pdf/features.gni")
 import("//printing/buildflags/buildflags.gni")
 import("//rlz/buildflags/buildflags.gni")
@@ -245,7 +244,6 @@ test("components_unittests") {
     "//components/gcm_driver:unit_tests",
     "//components/gcm_driver/crypto:unit_tests",
     "//components/google/core/common:unit_tests",
-    "//components/grpc_support/test:unit_tests",
     "//components/heap_profiling/in_process:unit_tests",
     "//components/history/core/browser:unit_tests",
     "//components/history/metrics:unit_tests",
@@ -363,6 +361,7 @@ test("components_unittests") {
     "//components/skills:unit_tests",
     "//components/speech:unit_tests",
     "//components/sqlite_proto:unit_tests",
+    "//components/sqlite_vfs:unit_tests",
     "//components/ssl_errors:unit_tests",
     "//components/strike_database:unit_tests",
     "//components/subresource_filter/core/browser:unit_tests",
@@ -919,10 +918,6 @@ test("components_unittests") {
     ]
   }
 
-  if (enable_reporting) {
-    deps += [ "//components/tpcd/enterprise_reporting:unit_tests" ]
-  }
-
   if (enable_on_device_translation) {
     deps += [
       "//components/on_device_translation:unit_tests",
@@ -1410,6 +1405,7 @@ if (is_android) {
   robolectric_binary("components_junit_tests") {
     deps = [
       "//components/android_autofill/browser/junit:components_autofill_junit_tests",
+      "//components/autofill/android:main_autofill_junit_tests",
       "//components/autofill/android:payments_autofill_junit_tests",
       "//components/background_task_scheduler:components_background_task_scheduler_junit_tests",
       "//components/browser_ui/bottomsheet/android/internal:junit_tests",

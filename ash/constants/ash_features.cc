@@ -895,6 +895,11 @@ BASE_FEATURE(kGraduationUseEmbeddedTransferEndpoint,
 // nudge to conditionally disable the G1 file banner for CBX boards via finch.
 BASE_FEATURE(kGoogleOneOfferFilesBanner, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables the Google Services Connectivity diagnostic routine for testing
+// connectivity to essential Google services.
+BASE_FEATURE(kGoogleServicesConnectivityRoutine,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables targeting for feature-aware devices, as controlled by the feature
 // management module.
 BASE_FEATURE(kFeatureManagementGrowthFramework,
@@ -1825,11 +1830,11 @@ BASE_FEATURE(kShimlessRMADynamicDeviceInfoInputs,
 
 // Enables or disables the option to allow customized Serial Number namings.
 BASE_FEATURE(kShimlessRMAFlexibleSerialNumberName,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables or disables the option to hide Google SKU on the device information
 // page.
-BASE_FEATURE(kShimlessRMAHideGoogleSKU, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kShimlessRMAHideGoogleSKU, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, system shortcuts will utilize state machiens instead of
 // keeping track of entire history of keys pressed.

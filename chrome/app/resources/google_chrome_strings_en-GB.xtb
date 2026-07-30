@@ -360,6 +360,7 @@ Some features may be unavailable and changes to preferences won't be saved.</tra
 <translation id="4885446229353981848">Always show Google Lens shortcut</translation>
 <translation id="4891791193823137474">Let Google Chrome run in the background</translation>
 <translation id="4895437082222824641">Open link in new Chrome &amp;tab</translation>
+<translation id="4918086044614829423">Accept</translation>
 <translation id="4918844574251943176">Image copied</translation>
 <translation id="4926882258455737990">To use a different Google Account with Gemini in Chrome, <ph name="BEGIN_LINK" />create a new profile<ph name="END_LINK" /> and sign in with the account that you want</translation>
 <translation id="492720062778050435">Chrome recommends you review this extension</translation>
@@ -432,6 +433,7 @@ Google Chrome is unable to recover your settings.</translation>
 <translation id="5690427481109656848">Google LLC</translation>
 <translation id="569897634095159764">Unable to connect to the Internet. Proxy server requires authentication.</translation>
 <translation id="5709557627224531708">Set Chrome as your default browser</translation>
+<translation id="5719246646468301581">Google Chrome and ChromeOS additional terms of service</translation>
 <translation id="5719324992913248873">This action will:
         <ph name="LINE_BREAKS" />
           • Reset some Chrome settings and Chrome shortcuts
@@ -512,6 +514,7 @@ Google Chrome is unable to recover your settings.</translation>
 <translation id="6326175484149238433">Remove from Chrome</translation>
 <translation id="6327105987658262776">No update is available.</translation>
 <translation id="6334815226785304306">Make Google Chrome the default browser and pin to the taskbar</translation>
+<translation id="63540178978900677">Chrome is no longer your default browser. Make Chrome the default browser?</translation>
 <translation id="6360449101159168105">While this tab was inactive, memory was freed up to keep Chrome fast. You can choose to always exclude this site from being inactive.</translation>
 <translation id="6388799252195623474">help me with this</translation>
 <translation id="6412673304250309937">Checks URLs with a list of unsafe sites stored in Chrome. If a site tries to steal your password, or when you download a harmful file, Chrome may also send URLs, including bits of page content, to Safe Browsing.</translation>
@@ -713,6 +716,9 @@ Google Chrome is unable to recover your settings.</translation>
 <translation id="8418845734693287262">Chrome OS could not sync your data because your account sign-in details are out of date.</translation>
 <translation id="842386925677997438">Chrome’s safety tools</translation>
 <translation id="8425765582779547329">To stay safer online with your parent's choices, sign in to Chrome</translation>
+<translation id="842852285618875960">You reached Google Chrome's limit of <ph name="BOOKMARK_LIMIT" /> bookmarks, so some of your bookmarks haven't been saved in your Google Account yet.
+
+New bookmarks can't be saved in your account until you delete some. If you sign out now, unsaved bookmarks will be deleted.</translation>
 <translation id="8433638294851456451">To send a number from here to your Android phone, sign in to Chrome on both devices.</translation>
 <translation id="8496177819998570653">Google P&amp;assword Manager</translation>
 <translation id="8498858610309223613">A special security update for Google Chrome was just applied. Restart now and we'll restore your tabs.</translation>

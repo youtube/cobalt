@@ -4,10 +4,10 @@
 
 #include "net/reporting/reporting_cache.h"
 
+#include <algorithm>
 #include <string>
 #include <utility>
 
-#include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/string_number_conversions.h"
@@ -134,7 +134,7 @@ class ReportingCacheTest : public ReportingTestBase,
 
     for (const ReportingReport* report : after) {
       // If report isn't in before, we've found the new instance.
-      if (!base::Contains(before, report)) {
+      if (!std::ranges::contains(before, report)) {
         EXPECT_EQ(network_anonymization_key, report->network_anonymization_key);
         EXPECT_EQ(url, report->url);
         EXPECT_EQ(user_agent, report->user_agent);
@@ -656,133 +656,6 @@ TEST_P(ReportingCacheTest, Endpoints) {
   EXPECT_TRUE(ClientExistsInCacheForOrigin(kOrigin2_));
   origins_in_cache = cache()->GetAllOrigins();
   EXPECT_EQ(2u, origins_in_cache.size());
-}
-
-TEST_P(ReportingCacheTest, SetEnterpriseReportingEndpointsWithFeatureEnabled) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(
-      net::features::kReportingApiEnableEnterpriseCookieIssues);
-  EXPECT_EQ(0u, cache()->GetEnterpriseEndpointsForTesting().size());
-  base::flat_map<std::string, GURL> test_enterprise_endpoints{
-      {"endpoint-1", GURL("https://example.com/reports")},
-      {"endpoint-2", GURL("https://reporting.example/cookie-issues")},
-      {"endpoint-3", GURL("https://report-collector.example")},
-  };
-
-  std::vector<ReportingEndpoint> expected_enterprise_endpoints = {
-      {ReportingEndpointGroupKey(
-           NetworkAnonymizationKey(), /*reporting_source=*/std::nullopt,
-           /*origin=*/std::nullopt, "endpoint-1",
-           ReportingTargetType::kEnterprise),
-       {.url = GURL("https://example.com/reports")}},
-      {ReportingEndpointGroupKey(
-           NetworkAnonymizationKey(), /*reporting_source=*/std::nullopt,
-           /*origin=*/std::nullopt, "endpoint-2",
-           ReportingTargetType::kEnterprise),
-       {.url = GURL("https://reporting.example/cookie-issues")}},
-      {ReportingEndpointGroupKey(
-           NetworkAnonymizationKey(), /*reporting_source=*/std::nullopt,
-           /*origin=*/std::nullopt, "endpoint-3",
-           ReportingTargetType::kEnterprise),
-       {.url = GURL("https://report-collector.example")}}};
-
-  cache()->SetEnterpriseReportingEndpoints(test_enterprise_endpoints);
-  EXPECT_EQ(expected_enterprise_endpoints,
-            cache()->GetEnterpriseEndpointsForTesting());
-}
-
-TEST_P(ReportingCacheTest, SetEnterpriseReportingEndpointsWithFeatureDisabled) {
-  EXPECT_EQ(0u, cache()->GetEnterpriseEndpointsForTesting().size());
-  base::flat_map<std::string, GURL> test_enterprise_endpoints{
-      {"endpoint-1", GURL("https://example.com/reports")},
-      {"endpoint-2", GURL("https://reporting.example/cookie-issues")},
-      {"endpoint-3", GURL("https://report-collector.example")},
-  };
-
-  std::vector<ReportingEndpoint> expected_enterprise_endpoints = {
-      {ReportingEndpointGroupKey(
-           NetworkAnonymizationKey(), /*reporting_source=*/std::nullopt,
-           /*origin=*/std::nullopt, "endpoint-1",
-           ReportingTargetType::kEnterprise),
-       {.url = GURL("https://example.com/reports")}},
-      {ReportingEndpointGroupKey(
-           NetworkAnonymizationKey(), /*reporting_source=*/std::nullopt,
-           /*origin=*/std::nullopt, "endpoint-2",
-           ReportingTargetType::kEnterprise),
-       {.url = GURL("https://reporting.example/cookie-issues")}},
-      {ReportingEndpointGroupKey(
-           NetworkAnonymizationKey(), /*reporting_source=*/std::nullopt,
-           /*origin=*/std::nullopt, "endpoint-3",
-           ReportingTargetType::kEnterprise),
-       {.url = GURL("https://report-collector.example")}}};
-
-  cache()->SetEnterpriseReportingEndpoints(test_enterprise_endpoints);
-  EXPECT_EQ(0u, cache()->GetEnterpriseEndpointsForTesting().size());
-}
-
-TEST_P(ReportingCacheTest, ReportingCacheImplConstructionWithFeatureEnabled) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(
-      net::features::kReportingApiEnableEnterpriseCookieIssues);
-  EXPECT_EQ(0u, cache()->GetEnterpriseEndpointsForTesting().size());
-  base::flat_map<std::string, GURL> test_enterprise_endpoints{
-      {"endpoint-1", GURL("https://example.com/reports")},
-      {"endpoint-2", GURL("https://reporting.example/cookie-issues")},
-      {"endpoint-3", GURL("https://report-collector.example")},
-  };
-  std::unique_ptr<ReportingCache> reporting_cache_impl =
-      ReportingCache::Create(context(), test_enterprise_endpoints);
-
-  std::vector<ReportingEndpoint> expected_enterprise_endpoints = {
-      {ReportingEndpointGroupKey(
-           NetworkAnonymizationKey(), /*reporting_source=*/std::nullopt,
-           /*origin=*/std::nullopt, "endpoint-1",
-           ReportingTargetType::kEnterprise),
-       {.url = GURL("https://example.com/reports")}},
-      {ReportingEndpointGroupKey(
-           NetworkAnonymizationKey(), /*reporting_source=*/std::nullopt,
-           /*origin=*/std::nullopt, "endpoint-2",
-           ReportingTargetType::kEnterprise),
-       {.url = GURL("https://reporting.example/cookie-issues")}},
-      {ReportingEndpointGroupKey(
-           NetworkAnonymizationKey(), /*reporting_source=*/std::nullopt,
-           /*origin=*/std::nullopt, "endpoint-3",
-           ReportingTargetType::kEnterprise),
-       {.url = GURL("https://report-collector.example")}}};
-
-  EXPECT_EQ(expected_enterprise_endpoints,
-            reporting_cache_impl->GetEnterpriseEndpointsForTesting());
-}
-
-TEST_P(ReportingCacheTest, ReportingCacheImplConstructionWithFeatureDisabled) {
-  EXPECT_EQ(0u, cache()->GetEnterpriseEndpointsForTesting().size());
-  base::flat_map<std::string, GURL> test_enterprise_endpoints{
-      {"endpoint-1", GURL("https://example.com/reports")},
-      {"endpoint-2", GURL("https://reporting.example/cookie-issues")},
-      {"endpoint-3", GURL("https://report-collector.example")},
-  };
-  std::unique_ptr<ReportingCache> reporting_cache_impl =
-      ReportingCache::Create(context(), test_enterprise_endpoints);
-
-  std::vector<ReportingEndpoint> expected_enterprise_endpoints = {
-      {ReportingEndpointGroupKey(
-           NetworkAnonymizationKey(), /*reporting_source=*/std::nullopt,
-           /*origin=*/std::nullopt, "endpoint-1",
-           ReportingTargetType::kEnterprise),
-       {.url = GURL("https://example.com/reports")}},
-      {ReportingEndpointGroupKey(
-           NetworkAnonymizationKey(), /*reporting_source=*/std::nullopt,
-           /*origin=*/std::nullopt, "endpoint-2",
-           ReportingTargetType::kEnterprise),
-       {.url = GURL("https://reporting.example/cookie-issues")}},
-      {ReportingEndpointGroupKey(
-           NetworkAnonymizationKey(), /*reporting_source=*/std::nullopt,
-           /*origin=*/std::nullopt, "endpoint-3",
-           ReportingTargetType::kEnterprise),
-       {.url = GURL("https://report-collector.example")}}};
-
-  EXPECT_EQ(0u,
-            reporting_cache_impl->GetEnterpriseEndpointsForTesting().size());
 }
 
 TEST_P(ReportingCacheTest, ClientsKeyedByEndpointGroupKey) {

@@ -356,6 +356,7 @@
 <translation id="4814736265800133385">ໃຊ້ Chromium ໂດຍບໍ່ມີບັນຊີ</translation>
 <translation id="4888717733111232871">ກົດລະບຽບຂາເຂົ້າສໍາລັບ Chromium ເພື່ອອະນຸຍາດການຈາລະຈອນ mDNS.</translation>
 <translation id="4893347770495441059">ເລີ່ມເປີດໃຊ້ໃໝ່ເພື່ອອັບເດດ &amp;Chromium</translation>
+<translation id="4918086044614829423">ຍອມ​ຮັບ</translation>
 <translation id="4918844574251943176">ສຳເນົາຮູບແລ້ວ</translation>
 <translation id="4943838377383847465">Chromium ຢູ່ໃນໂໝດພື້ນຫຼັງ.</translation>
 <translation id="494490797786467921">ຄລິກເພື່ອປິດກ່ອງໂຕ້ຕອບການເຂົ້າສູ່ລະບົບ Chromium</translation>
@@ -533,6 +534,9 @@
 <translation id="6901631050894301805">ຕັ້ງ Chromium ເປັນໂປຣແກຣມທ່ອງເວັບເລີ່ມຕົ້ນຂອງທ່ານ ແລະ ປັກໝຸດມັນໃສ່ແຖບໜ້າວຽກຂອງທ່ານ</translation>
 <translation id="6909503629704372277">&amp;ຈັດການໂປຣໄຟລ໌ Chromium</translation>
 <translation id="6934579572334859869">ຖາມຄຸນສົມບັດຊອກຫາຮູບກ່ຽວກັບຮູບນີ້</translation>
+<translation id="6948031725951063910">ທ່ານບັນທຶກບຸກມາກຂອງ Chromium ຮອດຂີດຈຳກັດ <ph name="BOOKMARK_LIMIT" /> ລາຍການແລ້ວ, ດັ່ງນັ້ນລະບົບຈຶ່ງຍັງບໍ່ໄດ້ບັນທຶກບຸກມາກບາງລາຍການຂອງທ່ານໃສ່ໃນບັນຊີ Google ຂອງທ່ານເທື່ອ.
+
+ທ່ານຈະບໍ່ສາມາດບັນທຶກບຸກມາກໃໝ່ໃສ່ໃນບັນຊີຂອງທ່ານໄດ້ຈົນກວ່າທ່ານຈະລຶບບຸກມາກບາງລາຍການອອກ. ຫາກທ່ານອອກຈາກລະບົບຕອນນີ້, ລະບົບຈະລຶບບຸກມາກທີ່ຍັງບໍ່ໄດ້ບັນທຶກໄວ້ອອກ.</translation>
 <translation id="6964305034639999644">ເປີດລິ້ງໃນໜ້າຈໍທີ່ບໍ່ເຜີຍຕົວຕົນຂອງ Chromium</translation>
 <translation id="6965382102122355670">ຕົກລົງ</translation>
 <translation id="6978145336957848883">ລະຫັດຜ່ານງ່າຍແມ່ນລະຫັດຜ່ານທີ່ເດົາໄດ້ງ່າຍ. ອະນຸຍາດໃຫ້ Chromium <ph name="BEGIN_LINK" />ສ້າງ ແລະ ຈື່ລະຫັດຜ່ານຍາກສຳລັບທ່ານ<ph name="END_LINK" />.</translation>
@@ -634,6 +638,7 @@ Chromium ບໍ່ສາມາດກູ້ການຕັ້ງຄ່າຂອ�
 <translation id="8118331347066725040">ສົ່ງຄຳຕິຊົມສຳລັບການຊອກຫາດ້ວຍ Lens</translation>
 <translation id="8133124826068723441">ChromiumOS ບໍ່ສາມາດຊິ້ງຂໍ້ມູນຂອງທ່ານໄດ້ເນື່ອງຈາກການຊິ້ງຂໍ້ມູນບໍ່ສາມາດໃຊ້ໄດ້ສຳລັບໂດເມນຂອງທ່ານ.</translation>
 <translation id="813913629614996137">ກຳລັງລິເລີ່ມ...</translation>
+<translation id="8164014945047474187">ຂໍ້ກຳນົດບໍລິການເພີ່ມເຕີມຂອງ Chromium</translation>
 <translation id="81770708095080097">ໄຟລ໌ນີ້ເປັນອັນຕະລາຍ, ສະນັ້ນ Chromium ໄດ້ບລັອກມັນໄວ້ແລ້ວ.</translation>
 <translation id="8177472873527554730">ບໍ່ພົບເນື້ອຫາໃນໜ້າ</translation>
 <translation id="8200109504272824693">ໃສ່ລະຫັດຜ່ານຂອງທ່ານເພື່ອໃຊ້ ແລະ ບັນທຶກຂໍ້ມູນ Chromium ໃນບັນຊີຂອງທ່ານ, <ph name="USER_EMAIL" /></translation>
@@ -701,6 +706,7 @@ Chromium ບໍ່ສາມາດກູ້ການຕັ້ງຄ່າຂອ�
 <translation id="8880203542552872219">ຖ້າເປັນເຊັ່ນນັ້ນ, ກະລຸນາແກ້ໄຂລະຫັດຜ່ານທີ່ບັນທຶກໄວ້ຂອງທ່ານໃນ Chromium ເພື່ອໃຫ້ມັນກົງກັບລະຫັດຜ່ານໃໝ່ຂອງທ່ານ.</translation>
 <translation id="8891709362986793894">ອົງກອນຂອງທ່ານກຳນົດໃຫ້ທ່ານເຂົ້າສູ່ລະບົບ Chromium</translation>
 <translation id="8907580949721785412">Chromium ກໍາລັງພະຍາຍາມສະແດງລະຫັດຜ່ານ. ພິມລະຫັດຜ່ານ Windows ຂອງທ່ານ ເພື່ອອະນຸຍາດອັນນີ້.</translation>
+<translation id="8932992523185907506">Chromium ບໍ່ແມ່ນໂປຣແກຣມທ່ອງເວັບເລີ່ມຕົ້ນຂອງທ່ານອີກຕໍ່ໄປ. ຕັ້ງຄ່າ Chromium ເປັນໂປຣແກຣມທ່ອງເວັບເລີ່ມຕົ້ນບໍ?</translation>
 <translation id="8941642502866065432">ບໍ່ສາມາດອັບເດດ Chromium ໄດ້</translation>
 <translation id="897581876605952338">ໂລໂກ້ Chromium Enterprise</translation>
 <translation id="8981150672034878610">ບໍ່ສາມາດເລີ່ມ Chromium ໄດ້ເນື່ອງຈາກມີບາງຢ່າງຜິດພາດເກີດຂຶ້ນເມື່ອເປີດໂປຣໄຟລ໌ຂອງທ່ານ. ລອງຣີສະຕາດ Chromium.</translation>

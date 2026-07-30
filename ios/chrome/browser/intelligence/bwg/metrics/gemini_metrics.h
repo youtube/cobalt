@@ -61,6 +61,25 @@ extern const char kStartupTimeWithFREHistogram[];
 // UMA histogram key for IOS.Gemini.StartupTime.NotFirstRun.
 extern const char kStartupTimeNoFREHistogram[];
 
+// Enum for tracking session cancellation reasons.
+// LINT.IfChange(IOSGeminiSessionCancellationReason)
+enum class IOSGeminiSessionCancellationReason {
+  kUnknown = 0,
+  kStopButtonTapped = 1,
+  kOutsideTapped = 2,
+  kExpandedStateCloseButtonTapped = 3,
+  kCollapsedStateCloseButtonTapped = 4,
+  kLoadingStateCloseButtonTapped = 5,
+  kMaxValue = kLoadingStateCloseButtonTapped,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:IOSGeminiSessionCancellationReason)
+
+// Records the reason for a gemini session cancellation.
+void RecordGeminiSessionCancellation(IOSGeminiSessionCancellationReason reason);
+
+// UMA histogram key for IOS.Gemini.Session.CancellationReason.
+extern const char kGeminiSessionCancellationHistogram[];
+
 // UMA histogram key for IOS.Gemini.Session.Time.
 extern const char kGeminiSessionTimeHistogram[];
 
@@ -113,6 +132,20 @@ enum class IOSGeminiSessionType {
   kMaxValue = kAbandoned,
 };
 
+// Enum for the IOS.Gemini.Feedback histogram.
+// LINT.IfChange(IOSGeminiFeedback)
+enum class IOSGeminiFeedback {
+  kThumbsUp = 0,
+  kThumbsDown = 1,
+  kMaxValue = kThumbsDown,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:IOSGeminiFeedback)
+
+// UMA histogram key for IOS.Gemini.Feedback.
+extern const char kFeedbackHistogram[];
+
+// Records user feedback on a Gemini response.
+void RecordGeminiFeedback(IOSGeminiFeedback feedback);
 // Records the duration of a Gemini session.
 void RecordGeminiSessionTime(base::TimeDelta session_duration);
 

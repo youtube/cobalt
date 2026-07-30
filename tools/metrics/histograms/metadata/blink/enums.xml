@@ -2733,8 +2733,8 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="2399" label="ReadableStreamConstructor"/>
   <int value="2400" label="WritableStreamConstructor"/>
   <int value="2401" label="TransformStreamConstructor"/>
-  <int value="2402" label="NegativeBackgroundSize"/>
-  <int value="2403" label="NegativeMaskSize"/>
+  <int value="2402" label="OBSOLETE_NegativeBackgroundSize"/>
+  <int value="2403" label="OBSOLETE_NegativeMaskSize"/>
   <int value="2404" label="ClientHintsRtt_DEPRECATED"/>
   <int value="2405" label="ClientHintsDownlink_DEPRECATED"/>
   <int value="2406" label="ClientHintsEct_DEPRECATED"/>
@@ -8124,7 +8124,7 @@ Called by update_use_counter_css.py.-->
   <int value="805" label="text-wrap-mode"/>
   <int value="806" label="text-wrap-style"/>
   <int value="807" label="masonry-track (obsolete)"/>
-  <int value="808" label="item-tolerance"/>
+  <int value="808" label="flow-tolerance"/>
   <int value="809" label="caret-animation"/>
   <int value="810" label="view-transition-capture-mode (obsolete)"/>
   <int value="811" label="interactivity"/>
@@ -8654,7 +8654,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="278" label="Profiler"/>
   <int value="279" label="AsyncIterableStreams"/>
   <int value="280" label="ContainerScrollStateQueries"/>
-  <int value="281" label="DRAFT_ScopedViewTransitions"/>
+  <int value="281" label="ViewTransitionsElementScoped"/>
   <int value="282" label="AttributionReporting"/>
   <int value="283" label="CookieStore"/>
   <int value="284" label="Fencedframe"/>
@@ -8792,6 +8792,11 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="416" label="TranslationApi"/>
   <int value="417" label="DRAFT_MetaTextScale"/>
   <int value="418" label="Jpegxl"/>
+  <int value="419" label="PartitionedCookies"/>
+  <int value="420" label="Prompt"/>
+  <int value="421" label="Proofreader"/>
+  <int value="422" label="Rewriter"/>
+  <int value="423" label="Writer"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/webdx_feature.mojom:WebDXFeature) -->

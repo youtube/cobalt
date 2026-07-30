@@ -237,8 +237,7 @@ class GpuMemoryBufferHandleHolder : public BufferHandleHolder,
     if (!shared_image_) {
       return;
     }
-    shared_image_interface->DestroySharedImage(release_sync_token_,
-                                               std::move(shared_image_));
+    shared_image_->UpdateDestructionSyncToken(release_sync_token_);
   }
 
   // BufferHandleHolder:
@@ -306,12 +305,10 @@ class GpuMemoryBufferHandleHolder : public BufferHandleHolder,
     }
 #endif
 
-    // A flag that describes which APIs the shared images created
-    // for the video frames will be used with. They will be read via the raster
-    // interface (which will be going over GLES2 if OOP-R is not enabled), sent
-    // to the display compositor, and may be used as overlays.
+    // A flag that describes which APIs the shared images created for the video
+    // frames will be used with. They will be read via the raster interface,
+    // sent to the display compositor, and may be used as overlays.
     gpu::SharedImageUsageSet shared_image_usage =
-        gpu::SHARED_IMAGE_USAGE_GLES2_READ |
         gpu::SHARED_IMAGE_USAGE_RASTER_READ |
         gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
 

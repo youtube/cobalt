@@ -354,6 +354,7 @@
 <translation id="4814736265800133385">কোনও অ্যাকাউন্ট ছাড়াই Chromium ব্যবহার করুন</translation>
 <translation id="4888717733111232871">mDNS ট্রাফিকের অনুমতি দিতে Chromium এর জন্য ইনবাউন্ড নিয়ম।</translation>
 <translation id="4893347770495441059">&amp;Chromium আপডেট করতে আবার লঞ্চ করুন</translation>
+<translation id="4918086044614829423">স্বীকার</translation>
 <translation id="4918844574251943176">ছবি কপি করা হয়েছে</translation>
 <translation id="4943838377383847465">Chromium পটভূমিতে চলছে৷</translation>
 <translation id="494490797786467921">Chromium-এ সাইন-ইন করার জন্য ডায়ালগ বন্ধ করতে, ক্লিক করুন</translation>
@@ -529,6 +530,9 @@
 <translation id="6901631050894301805">আপনার ডিফল্ট ব্রাউজার হিসেবে Chromium সেট করুন এবং আপনার টাস্কবারে এটি পিন করুন</translation>
 <translation id="6909503629704372277">Chromium প্রোফাইল ম্যানেজ করুন</translation>
 <translation id="6934579572334859869">'ছবি সার্চ করা' ফিচারকে এই ছবির ব্যাপারে জিজ্ঞাসা করুন</translation>
+<translation id="6948031725951063910">আপনি Chromium-এর সর্বাধিক <ph name="BOOKMARK_LIMIT" />টি বুকমার্কের সীমায় পৌঁছে গেছেন, তাই আপনার কিছু বুকমার্ক এখনও Google অ্যাকাউন্টে সেভ করা হয়নি।
+
+আপনি কিছু বুকমার্ক না মোছা পর্যন্ত আপনার অ্যাকাউন্টে নতুন বুকমার্ক সেভ করা যাবে না। আপনি এখন সাইন-আউট করলে, সেভ না করা বুকমার্ক মুছে যাবে।</translation>
 <translation id="6964305034639999644">Chromium ছদ্মবেশী উইন্ডোতে লিঙ্কটি খুলুন</translation>
 <translation id="6965382102122355670">ঠিক আছে</translation>
 <translation id="6978145336957848883">দুর্বল পাসওয়ার্ড সহজেই অনুমান করা যায়। Chromium-কে <ph name="BEGIN_LINK" />আপনার জন্য শক্তিশালী পাসওয়ার্ড তৈরি করার ও সেটি মনে রাখার<ph name="END_LINK" /> অনুমতি দিন।</translation>
@@ -567,6 +571,7 @@ Chromium আপনার সেটিংস পুনরুদ্ধার ক�
 <translation id="7347827960336370838">এমন কোনও ব্যক্তি যার কাছে আপনার পাসফ্রেজ রয়েছে, শুধুমাত্র তিনিই আপনার এনক্রিপটেড ডেটা পড়তে পারবেন। পাসফ্রেজ Google-এ পাঠানো বা তার মাধ্যমে সেভ করা হয় না। আপনি নিজের পাসফ্রেজ ভুলে গেলে অথবা এই সেটিং পরিবর্তন করতে চাইলে, আপনাকে <ph name="BEGIN_LINK" />নিজের অ্যাকাউন্ট থেকে Chromium ডেটা মুছে দিতে হবে<ph name="END_LINK" />।</translation>
 <translation id="7349591376906416160"><ph name="TARGET_URL_HOSTNAME" /> অ্যাক্সেস করতে <ph name="ALTERNATIVE_BROWSER_NAME" /> ব্যবহার করার জন্য আপনার সিস্টেম অ্যাডমিনিস্ট্রেটর Chromium কনফিগার করেছে।</translation>
 <translation id="7352651011704765696">কিছু সমস্যা হয়েছে</translation>
+<translation id="7368826207863345663">ভবিষ্যতে Chromium আপডেট পেতে আপনার macOS 13 বা তার পরের ভার্সন দরকার হবে। এই কম্পিউটার macOS 12 ব্যবহার করছে।</translation>
 <translation id="7376384068949534168">আপনি সম্প্রতি ভিজিট করেননি। Chromium <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> সম্পর্কিত অনুমতি সরিয়ে দিয়েছে।</translation>
 <translation id="7384121030444253939">এই এক্সটেনশন আর কাজ করবে না। পরিবর্তে, Chromium আপনাকে এটি সরিয়ে দেওয়ার সাজেশন দেয়।</translation>
 <translation id="7413153308467572558">আপনি যেখান থেকে শেষ করেছিলেন সেখান থেকেই চালিয়ে যান: আপনি প্রত্যেকবার রিস্টার্ট করার সময় Chromium আপনার ট্যাব ফিরিয়ে আনে। এটি বন্ধ করতে, এখানে যান</translation>
@@ -629,6 +634,7 @@ Chromium আপনার সেটিংস পুনরুদ্ধার ক�
 <translation id="8118331347066725040">Lens ব্যবহার করে সার্চ করা সংক্রান্ত মতামত পাঠান</translation>
 <translation id="8133124826068723441">আপনার ডোমেনে সিঙ্ক করার সুবিধা উপলভ্য না থাকার জন্য ChromiumOS আপনার ডেটা সিঙ্ক পারেনি।</translation>
 <translation id="813913629614996137">আরম্ভ হচ্ছে…</translation>
+<translation id="8164014945047474187">Chromium-এর অতিরিক্ত পরিষেবার শর্তাবলী</translation>
 <translation id="81770708095080097">এই ফাইলটি বিপজ্জনক, তাই Chromium এটিকে অবরুদ্ধ করেছে।</translation>
 <translation id="8177472873527554730">পৃষ্ঠায় কন্টেন্ট খুঁজে পাওয়া যাচ্ছে না</translation>
 <translation id="8200109504272824693">আপনার অ্যাকাউন্ট, <ph name="USER_EMAIL" />-এ Chromium ডেটা ব্যবহার এবং সেভ করার জন্য পাসফ্রেজ লিখুন</translation>
@@ -696,6 +702,7 @@ Chromium আপনার সেটিংস পুনরুদ্ধার ক�
 <translation id="8880203542552872219">যদি তাই হয়, তাহলে Chromium-এ আপনার সেভ করা পাসওয়ার্ড এডিট করুন যাতে এটি আপনার নতুন পাসওয়ার্ডের সাথে ম্যাচ করে।</translation>
 <translation id="8891709362986793894">আপনার সংস্থার প্রয়োজন অনুযায়ী আপনাকে Chromium-এ সাইন-ইন করতে হবে</translation>
 <translation id="8907580949721785412">Chromium পাসওয়ার্ডগুলি দেখানোর চেষ্টা করছে। এটির অনুমতি দিতে আপনার Windows পাসওয়ার্ড টাইপ করুন।</translation>
+<translation id="8932992523185907506">Chromium আর আপনার ডিফল্ট ব্রাউজার নেই। Chromium-কে ডিফল্ট ব্রাউজার করবেন?</translation>
 <translation id="8941642502866065432">Chromium আপডেট করা যাচ্ছে না</translation>
 <translation id="897581876605952338">Chromium Enterprise লোগো</translation>
 <translation id="8981150672034878610">Chromium চালু করা যাচ্ছে না কারণ আপনার প্রোফাইল খোলার সময় কোনও সমস্যা হয়েছে। Chromium রিস্টার্ট করার চেষ্টা করুন।</translation>

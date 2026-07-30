@@ -21,10 +21,12 @@ class VerticalTabDragHandler;
 class VerticalTabGroupHeaderView;
 
 // Container for a tab group in the vertical tabstrip.
-class VerticalTabGroupView : public views::View,
-                             public views::LayoutDelegate,
-                             public VerticalTabGroupHeaderView::Delegate,
-                             public VerticalDraggedTabsContainer {
+class VerticalTabGroupView
+    : public views::View,
+      public views::LayoutDelegate,
+      public VerticalTabGroupHeaderView::Delegate,
+      public VerticalDraggedTabsContainer,
+      public TabCollectionAnimatingLayoutManager::Delegate {
   METADATA_HEADER(VerticalTabGroupView, views::View)
 
  public:
@@ -45,7 +47,9 @@ class VerticalTabGroupView : public views::View,
   views::Widget* ShowGroupEditorBubble(
       bool stop_context_menu_propagation) override;
 
-  void OnDataChanged();
+  // TabCollectionAnimatingLayoutManager::Delegate:
+  bool IsViewDragging(const views::View& child_view) const override;
+  void OnAnimationEnded() override;
 
   bool IsCollapsed() const;
 
@@ -59,10 +63,13 @@ class VerticalTabGroupView : public views::View,
  private:
   // VerticalDraggedTabsContainer:
   VerticalTabDragHandler& GetDragHandler() override;
+  const VerticalTabDragHandler& GetDragHandler() const override;
+  views::ScrollView* GetScrollViewForContainer() const override;
   void UpdateLayoutForDrag() override;
   void HandleTabDragInContainer(const gfx::Point point_in_container) override;
 
   void ResetCollectionNode();
+  void OnDataChanged();
   void UpdateChildVisibilityForCollapseState(bool collapsed);
 
   raw_ptr<TabCollectionNode> collection_node_ = nullptr;

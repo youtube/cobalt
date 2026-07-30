@@ -2044,6 +2044,40 @@ ci.thin_tester(
         mixins = [
             "mac_arm64_apple_m1_gpu_stable",
         ],
+        per_test_modifications = {
+            "webgl_conformance_metal_passthrough_graphite_tests": targets.per_test_modification(
+                mixins = targets.mixin(
+                    args = [
+                        # TODO(crbug.com/414723481): Remove this once Graphite +
+                        # Metal no longer has issues when used in parallel.
+                        "--jobs=1",
+                    ],
+                ),
+                replacements = targets.replacements(
+                    args = {
+                        # Magic substitution happens after regular replacement, so remove it
+                        # now since we are manually applying the number of jobs above.
+                        targets.magic_args.GPU_PARALLEL_JOBS: None,
+                    },
+                ),
+            ),
+            "webgl2_conformance_metal_passthrough_graphite_tests": targets.per_test_modification(
+                mixins = targets.mixin(
+                    args = [
+                        # TODO(crbug.com/414723481): Remove this once Graphite +
+                        # Metal no longer has issues when used in parallel.
+                        "--jobs=1",
+                    ],
+                ),
+                replacements = targets.replacements(
+                    args = {
+                        # Magic substitution happens after regular replacement, so remove it
+                        # now since we are manually applying the number of jobs above.
+                        targets.magic_args.GPU_PARALLEL_JOBS: None,
+                    },
+                ),
+            ),
+        },
     ),
     targets_settings = targets.settings(
         browser_config = targets.browser_config.RELEASE,
@@ -2933,7 +2967,7 @@ ci.thin_tester(
             ),
             "media_foundation_browser_tests": targets.remove(
                 reason = [
-                    "TODO(crbug.com/40912267): Enable Media Foundation browser tests on NVIDIA",
+                    "TODO(crbug.com/40912267): Enable Media Foundation browser tests on AMD",
                     "gpu bots once the Windows OS supports HW secure decryption.",
                 ],
             ),
@@ -3203,22 +3237,30 @@ ci.thin_tester(
         # should have the same test suites as "Win10 FYI x64 Release (AMD
         # RX 5500XT)".
         targets = [
-            "gpu_noop_sleep_telemetry_test",
+            "gpu_fyi_win_gtests",
+            "gpu_fyi_win_amd_release_telemetry_tests",
         ],
         mixins = [
             "limited_capacity_bot",
             "win11_amd_rx_5500_xt_experimental",
         ],
+        per_test_modifications = {
+            "gl_unittests": targets.mixin(
+                args = [
+                    "--test-launcher-filter-file=../../testing/buildbot/filters/win.amd.5500xt.gl_unittests.filter",
+                ],
+            ),
+        },
     ),
     targets_settings = targets.settings(
         browser_config = targets.browser_config.RELEASE_X64,
         os_type = targets.os_type.WINDOWS,
     ),
     # Uncomment this entry when this experimental tester is actually in use.
-    # console_view_entry = consoles.console_view_entry(
-    #     category = "Windows|11|x64|AMD",
-    #     short_name = "rel",
-    # ),
+    console_view_entry = consoles.console_view_entry(
+        category = "Windows|11|x64|AMD",
+        short_name = "rel",
+    ),
     list_view = "chromium.gpu.experimental",
 )
 

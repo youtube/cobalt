@@ -35,6 +35,8 @@ namespace sync_preferences {
 
 namespace {
 
+using ServiceStatus = ::sync_preferences::CrossDevicePrefTracker::ServiceStatus;
+
 // Define constants used in the implementation for validation.
 constexpr char kValueKey[] = "value";
 constexpr char kUpdateTimeKey[] = "update_time";
@@ -138,6 +140,7 @@ class MockObserver : public CrossDevicePrefTracker::Observer {
                const TimestampedPrefValue& value,
                const syncer::DeviceInfo& device_info),
               (override));
+  MOCK_METHOD(void, OnServiceStatusChanged, (ServiceStatus status), (override));
 };
 
 class CrossDevicePrefTrackerTest : public testing::Test {
@@ -1639,16 +1642,14 @@ TEST_F(CrossDevicePrefTrackerTest, RecordsTrackerAvailabilityMetricAvailable) {
 
   tracker_->GetValues(kTrackedProfilePref, {});
 
-  histogram_tester.ExpectUniqueSample(
-      kAvailabilityAtQueryHistogram,
-      CrossDevicePrefTrackerAvailabilityAtQuery::kAvailable, 1);
+  histogram_tester.ExpectUniqueSample(kAvailabilityAtQueryHistogram,
+                                      ServiceStatus::kAvailable, 1);
 
   tracker_->GetMostRecentValue(kTrackedProfilePref, {});
 
   histogram_tester.ExpectTotalCount(kAvailabilityAtQueryHistogram, 2);
-  histogram_tester.ExpectBucketCount(
-      kAvailabilityAtQueryHistogram,
-      CrossDevicePrefTrackerAvailabilityAtQuery::kAvailable, 2);
+  histogram_tester.ExpectBucketCount(kAvailabilityAtQueryHistogram,
+                                     ServiceStatus::kAvailable, 2);
 }
 
 // Verifies that the metric records `kSyncNotConfigured` when `DeviceInfo` is
@@ -1662,9 +1663,8 @@ TEST_F(CrossDevicePrefTrackerTest,
 
   tracker_->GetValues(kTrackedProfilePref, {});
 
-  histogram_tester.ExpectUniqueSample(
-      kAvailabilityAtQueryHistogram,
-      CrossDevicePrefTrackerAvailabilityAtQuery::kSyncNotConfigured, 1);
+  histogram_tester.ExpectUniqueSample(kAvailabilityAtQueryHistogram,
+                                      ServiceStatus::kSyncNotConfigured, 1);
 }
 
 // Verifies that the metric records `kLocalDeviceInfoMissing` when Sync is
@@ -1679,8 +1679,7 @@ TEST_F(CrossDevicePrefTrackerTest,
   tracker_->GetValues(kTrackedProfilePref, {});
 
   histogram_tester.ExpectUniqueSample(
-      kAvailabilityAtQueryHistogram,
-      CrossDevicePrefTrackerAvailabilityAtQuery::kLocalDeviceInfoMissing, 1);
+      kAvailabilityAtQueryHistogram, ServiceStatus::kLocalDeviceInfoMissing, 1);
 }
 
 // Verifies that the metric records the combined state when both `DeviceInfo` is
@@ -1698,9 +1697,7 @@ TEST_F(
 
   histogram_tester.ExpectUniqueSample(
       kAvailabilityAtQueryHistogram,
-      CrossDevicePrefTrackerAvailabilityAtQuery::
-          kSyncNotConfiguredAndLocalDeviceInfoMissing,
-      1);
+      ServiceStatus::kSyncNotConfiguredAndLocalDeviceInfoMissing, 1);
 }
 
 // Verifies that the `AvailabilityAtQuery` histogram correctly reflects the
@@ -1713,16 +1710,14 @@ TEST_F(CrossDevicePrefTrackerTest,
   base::HistogramTester histogram_tester;
 
   tracker_->GetValues(kTrackedProfilePref, {});
-  histogram_tester.ExpectBucketCount(
-      kAvailabilityAtQueryHistogram,
-      CrossDevicePrefTrackerAvailabilityAtQuery::kLocalDeviceInfoMissing, 1);
+  histogram_tester.ExpectBucketCount(kAvailabilityAtQueryHistogram,
+                                     ServiceStatus::kLocalDeviceInfoMissing, 1);
 
   InitializeLocalDeviceInfo();
 
   tracker_->GetValues(kTrackedProfilePref, {});
-  histogram_tester.ExpectBucketCount(
-      kAvailabilityAtQueryHistogram,
-      CrossDevicePrefTrackerAvailabilityAtQuery::kAvailable, 1);
+  histogram_tester.ExpectBucketCount(kAvailabilityAtQueryHistogram,
+                                     ServiceStatus::kAvailable, 1);
 
   histogram_tester.ExpectTotalCount(kAvailabilityAtQueryHistogram, 2);
 }
@@ -1878,6 +1873,153 @@ TEST_F(CrossDevicePrefTrackerTest, CloningTimestampedValueReturnsDeepCopy) {
             &cloned_value.last_observed_change_time);
   EXPECT_NE(&original_value.device_sync_cache_guid,
             &cloned_value.device_sync_cache_guid);
+}
+
+// Verifies that `GetServiceStatus` returns `kAvailable` when properly
+// configured.
+TEST_F(CrossDevicePrefTrackerTest, GetServiceStatusReturnsAvailable) {
+  CreateTracker();
+  EXPECT_EQ(tracker_->GetServiceStatus(), ServiceStatus::kAvailable);
+}
+
+// Verifies that `GetServiceStatus` returns `kSyncNotConfigured` when Sync is
+// disabled.
+TEST_F(CrossDevicePrefTrackerTest, GetServiceStatusReturnsSyncNotConfigured) {
+  SetSyncEnabled(false);
+  CreateTracker();
+  EXPECT_EQ(tracker_->GetServiceStatus(), ServiceStatus::kSyncNotConfigured);
+}
+
+// Verifies that `GetServiceStatus` returns `kLocalDeviceInfoMissing` when
+// `DeviceInfo` is not ready.
+TEST_F(CrossDevicePrefTrackerTest,
+       GetServiceStatusReturnsLocalDeviceInfoMissing) {
+  ResetLocalDeviceInfo();
+  CreateTracker();
+  EXPECT_EQ(tracker_->GetServiceStatus(),
+            ServiceStatus::kLocalDeviceInfoMissing);
+}
+
+// Verifies that `GetServiceStatus` returns the combined status when both
+// Sync is disabled and `DeviceInfo` is missing.
+TEST_F(CrossDevicePrefTrackerTest,
+       GetServiceStatusReturnsSyncNotConfiguredAndLocalDeviceInfoMissing) {
+  ResetLocalDeviceInfo();
+  SetSyncEnabled(false);
+  CreateTracker();
+  EXPECT_EQ(tracker_->GetServiceStatus(),
+            ServiceStatus::kSyncNotConfiguredAndLocalDeviceInfoMissing);
+}
+
+// Verifies that `GetServiceStatus` updates dynamically when `DeviceInfo`
+// becomes ready.
+TEST_F(CrossDevicePrefTrackerTest, GetServiceStatusUpdatesOnStateChange) {
+  ResetLocalDeviceInfo();
+  CreateTracker();
+
+  // Initially missing.
+  EXPECT_EQ(tracker_->GetServiceStatus(),
+            ServiceStatus::kLocalDeviceInfoMissing);
+
+  InitializeLocalDeviceInfo();
+
+  // Should now be available.
+  EXPECT_EQ(tracker_->GetServiceStatus(), ServiceStatus::kAvailable);
+}
+
+// Verifies that `GetServiceStatus` works correctly when the tracker is
+// initialized with a null `SyncService`.
+TEST_F(CrossDevicePrefTrackerTest, GetServiceStatusWithNullSyncService) {
+  InitializeLocalDeviceInfo();
+  CreateTracker(/*pass_sync_service=*/false);
+  // If `SyncService` is null, it is technically "Not Configured".
+  EXPECT_EQ(tracker_->GetServiceStatus(), ServiceStatus::kSyncNotConfigured);
+}
+
+// Verifies that observers are notified when the service status changes from
+// `kLocalDeviceInfoMissing` to `kAvailable`.
+TEST_F(CrossDevicePrefTrackerTest,
+       NotifiesObserverOnServiceStatusChangeWhenDeviceInfoBecomesReady) {
+  ResetLocalDeviceInfo();
+  CreateTracker();
+  ASSERT_EQ(tracker_->GetServiceStatus(),
+            ServiceStatus::kLocalDeviceInfoMissing);
+
+  MockObserver mock_observer;
+  tracker_->AddObserver(&mock_observer);
+
+  EXPECT_CALL(mock_observer, OnServiceStatusChanged(ServiceStatus::kAvailable));
+
+  InitializeLocalDeviceInfo();
+
+  tracker_->RemoveObserver(&mock_observer);
+}
+
+// Verifies that observers are notified when the service status changes due to
+// Sync configuration changes (enabling and disabling).
+TEST_F(CrossDevicePrefTrackerTest,
+       NotifiesObserverOnServiceStatusChangeWhenSyncConfigChanges) {
+  SetSyncEnabled(false);
+  CreateTracker();
+  ASSERT_EQ(tracker_->GetServiceStatus(), ServiceStatus::kSyncNotConfigured);
+
+  MockObserver mock_observer;
+  tracker_->AddObserver(&mock_observer);
+
+  // Enabling Sync: Status should transition to `kAvailable`.
+  EXPECT_CALL(mock_observer, OnServiceStatusChanged(ServiceStatus::kAvailable));
+  ChangeSyncState(true);
+
+  testing::Mock::VerifyAndClearExpectations(&mock_observer);
+
+  // Disabling Sync: Status should transition back to `kSyncNotConfigured`.
+  EXPECT_CALL(mock_observer,
+              OnServiceStatusChanged(ServiceStatus::kSyncNotConfigured));
+  ChangeSyncState(false);
+
+  tracker_->RemoveObserver(&mock_observer);
+}
+
+// Verifies that observers are notified when the service status changes to
+// `kSyncNotConfiguredAndLocalDeviceInfoMissing`.
+TEST_F(CrossDevicePrefTrackerTest,
+       NotifiesObserverWhenServiceStatusChangesToTotallyUnavailable) {
+  // Start with just local device info missing.
+  ResetLocalDeviceInfo();
+  CreateTracker();
+  ASSERT_EQ(tracker_->GetServiceStatus(),
+            ServiceStatus::kLocalDeviceInfoMissing);
+
+  MockObserver mock_observer;
+  tracker_->AddObserver(&mock_observer);
+
+  // Disable Sync. Now both are missing.
+  EXPECT_CALL(mock_observer,
+              OnServiceStatusChanged(
+                  ServiceStatus::kSyncNotConfiguredAndLocalDeviceInfoMissing));
+  ChangeSyncState(false);
+
+  tracker_->RemoveObserver(&mock_observer);
+}
+
+// Verifies that observers are NOT notified if an event occurs (like a Sync
+// state change) but the calculated `ServiceStatus` remains unchanged.
+TEST_F(CrossDevicePrefTrackerTest,
+       DoesNotNotifyObserverIfServiceStatusRemainsUnchanged) {
+  CreateTracker();
+  ASSERT_EQ(tracker_->GetServiceStatus(), ServiceStatus::kAvailable);
+
+  MockObserver mock_observer;
+  tracker_->AddObserver(&mock_observer);
+
+  // We expect 0 calls because the status remains `kAvailable`.
+  EXPECT_CALL(mock_observer, OnServiceStatusChanged).Times(0);
+
+  // Trigger a state change notification without actually changing the
+  // configuration (Sync remains active).
+  ChangeSyncState(true);
+
+  tracker_->RemoveObserver(&mock_observer);
 }
 
 }  // namespace

@@ -65,15 +65,21 @@ export class FakeReadingMode {
 
   // Enum values for line focus modes.
   lineFocusOff: number = 50;
-  lineFocusOneLineWindow: number = 51;
-  lineFocusThreeLineWindow: number = 52;
-  lineFocusFiveLineWindow: number = 53;
-  lineFocusStaticLine: number = 54;
-  lineFocusCursorLine: number = 55;
-
+  lineFocusSmallStaticWindow: number = 51;
+  lineFocusMediumStaticWindow: number = 52;
+  lineFocusLargeStaticWindow: number = 53;
+  lineFocusSmallCursorWindow: number = 54;
+  lineFocusMediumCursorWindow: number = 55;
+  lineFocusLargeCursorWindow: number = 56;
+  lineFocusStaticLine: number = 57;
+  lineFocusCursorLine: number = 58;
   // Enum values for presentation states.
   inSidePanelPresentationState: number = 2;
   inImmersiveOverlayPresentationState: number = 3;
+
+  // Current Read Anything distilled values.
+  htmlContent: string = '';
+  title: string = '';
 
   // Whether the Read Aloud feature flag is enabled.
   isReadAloudEnabled: boolean = true;
@@ -84,6 +90,12 @@ export class FakeReadingMode {
 
   // Whether the line focus feature flag is enabled.
   isLineFocusEnabled: boolean = false;
+
+  // Whether the text segmentation  feature flag is enabled.
+  isTsTextSegmentationEnabled: boolean = false;
+
+  // Whether the readability feature flag is enabled.
+  isReadabilityEnabled: boolean = false;
 
   // Returns true if the webpage corresponds to a Google Doc.
   isGoogleDocs: boolean = false;

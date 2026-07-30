@@ -497,6 +497,8 @@ bool CSSPropertyEquality::PropertiesEqual(const PropertyHandle& property,
       return a.ForcedColorAdjust() == b.ForcedColorAdjust();
     case CSSPropertyID::kFieldSizing:
       return a.FieldSizing() == b.FieldSizing();
+    case CSSPropertyID::kFlowTolerance:
+      return a.GetFlowTolerance() == b.GetFlowTolerance();
     case CSSPropertyID::kGridAutoColumns:
       return a.GridAutoColumns() == b.GridAutoColumns();
     case CSSPropertyID::kGridAutoFlow:
@@ -590,8 +592,6 @@ bool CSSPropertyEquality::PropertiesEqual(const PropertyHandle& property,
       return a.MaskType() == b.MaskType();
     case CSSPropertyID::kMaxLines:
       return a.MaxLines() == b.MaxLines();
-    case CSSPropertyID::kItemTolerance:
-      return a.GetItemTolerance() == b.GetItemTolerance();
     case CSSPropertyID::kMathShift:
       return a.MathShift() == b.MathShift();
     case CSSPropertyID::kMathStyle:
@@ -796,7 +796,8 @@ bool CSSPropertyEquality::PropertiesEqual(const PropertyHandle& property,
     case CSSPropertyID::kTextGrow:
       return a.TextGrow() == b.TextGrow();
     case CSSPropertyID::kTextIndent:
-      return a.TextIndent() == b.TextIndent();
+      return a.TextIndent() == b.TextIndent() &&
+             a.GetTextIndentFlags() == b.GetTextIndentFlags();
     case CSSPropertyID::kTextJustify:
       return a.GetTextJustify() == b.GetTextJustify();
     case CSSPropertyID::kTextOverflow:

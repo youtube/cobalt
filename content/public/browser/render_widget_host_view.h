@@ -45,8 +45,24 @@ struct CopyOutputBitmapWithMetadata;
 
 namespace content {
 
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+//
+// LINT.IfChange(CopyFromSurfaceError)
+enum class CopyFromSurfaceError {
+  kUnknown = 0,
+  kNotImplemented = 1,
+  kFrameGone = 2,
+  kTimeout = 3,
+  kEmbeddingTokenChanged = 4,
+  kVizSentEmptyBitmap = 5,
+  kUnknownVizError = 6,
+  kMaxValue = kUnknownVizError,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:CopyFromSurfaceError)
+
 using CopyFromSurfaceResult =
-    base::expected<viz::CopyOutputBitmapWithMetadata, std::string>;
+    base::expected<viz::CopyOutputBitmapWithMetadata, CopyFromSurfaceError>;
 
 class RenderWidgetHost;
 class TouchSelectionControllerClientManager;
@@ -229,6 +245,10 @@ class CONTENT_EXPORT RenderWidgetHostView {
   // bitmap's size may not be the same as `src_rect.size()` due to the pixel
   // scale used by the underlying device.
   //
+  // `timeout` is the maximum amount of time once viz has received the message
+  // for a result to be produced. This will result in a timeout error being
+  // produced as the result.
+  //
   // `callback` is guaranteed to be run, either synchronously or at some point
   // in the future (depending on the platform implementation and the current
   // state of the Surface). If the copy failed, the bitmap's `drawsNothing()`
@@ -240,6 +260,7 @@ class CONTENT_EXPORT RenderWidgetHostView {
   virtual void CopyFromSurface(
       const gfx::Rect& src_rect,
       const gfx::Size& output_size,
+      base::TimeDelta timeout,
       base::OnceCallback<void(const CopyFromSurfaceResult&)> callback) = 0;
 
   // Ensures that all surfaces are synchronized for the next call to

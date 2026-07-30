@@ -37,7 +37,7 @@ class WebUIReloadControl : public ReloadControl {
 
   bool HandleContextMenu(views::Widget* widget,
                          gfx::Point screen_location,
-                         const content::ContextMenuParams& params);
+                         ui::mojom::MenuSourceType source);
 
   // ui::SimpleMenuModel::Delegate:
   bool IsCommandIdChecked(int command_id) const override;
@@ -47,6 +47,8 @@ class WebUIReloadControl : public ReloadControl {
                                   ui::Accelerator* accelerator) const override;
   void ExecuteCommand(int command_id, int event_flags) override;
 
+  bool is_initialized() const { return is_initialized_; }
+
  private:
   void SetReloadButtonUIState();
 
@@ -55,6 +57,7 @@ class WebUIReloadControl : public ReloadControl {
   std::unique_ptr<views::MenuRunner> menu_runner_;
   bool is_menu_enabled_ = false;
   ReloadControl::Mode mode_ = ReloadControl::Mode::kReload;
+  bool is_initialized_ = false;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_TOOLBAR_WEBUI_RELOAD_CONTROL_H_

@@ -425,6 +425,11 @@ class ComputedStyle final : public ComputedStyleBase {
                                       const ComputedStyle* old_style,
                                       const ComputedStyle* new_style);
 
+  // Returns true if the ComputedStyle change requires the LayoutObject to be
+  // reinserted into the layout-tree.
+  static bool NeedsReinsertLayoutTree(const ComputedStyle& old_style,
+                                      const ComputedStyle& new_style);
+
   StyleSelfAlignmentData ResolvedAlignSelf(
       const StyleSelfAlignmentData& normal_value_behavior,
       const ComputedStyle* parent_style = nullptr) const;
@@ -2558,9 +2563,6 @@ class ComputedStyle final : public ComputedStyleBase {
   // when the overlay property computes to 'auto', or when the element is a
   // ::backdrop pseudo.
   bool IsRenderedInTopLayer(const Element& element) const;
-
-  // Load the images of CSS properties that were deferred by LazyLoad.
-  void LoadDeferredImages(Document&) const;
 
   static mojom::blink::ColorScheme UsedColorScheme(bool is_dark_color_scheme) {
     return is_dark_color_scheme ? mojom::blink::ColorScheme::kDark

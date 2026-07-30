@@ -9,8 +9,8 @@ import android.app.Activity;
 import androidx.annotation.Nullable;
 
 import org.chromium.base.lifetime.Destroyable;
+import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.NonNullObservableSupplier;
-import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.OneShotCallback;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
@@ -40,7 +40,7 @@ public class ReadingListBackPressHandler implements BackPressHandler, Destroyabl
     private final Activity mActivity;
     private final ActivityTabProvider mActivityTabProvider;
     private final ActivityTabTabObserver mActivityTabTabObserver;
-    private final ObservableSupplier<BookmarkManagerOpener> mBookmarkManagerOpenerSupplier;
+    private final MonotonicObservableSupplier<BookmarkManagerOpener> mBookmarkManagerOpenerSupplier;
 
     private @Nullable BookmarkId mLastUsedParent;
 
@@ -55,14 +55,14 @@ public class ReadingListBackPressHandler implements BackPressHandler, Destroyabl
     public ReadingListBackPressHandler(
             Activity activity,
             ActivityTabProvider activityTabProvider,
-            ObservableSupplier<BookmarkModel> bookmarkModelSupplier,
-            ObservableSupplier<BookmarkManagerOpener> bookmarkManagerOpenerSupplier) {
+            MonotonicObservableSupplier<BookmarkModel> bookmarkModelSupplier,
+            MonotonicObservableSupplier<BookmarkManagerOpener> bookmarkManagerOpenerSupplier) {
         mActivity = activity;
         mActivityTabProvider = activityTabProvider;
         mActivityTabTabObserver =
                 new ActivityTabTabObserver(mActivityTabProvider, true) {
                     @Override
-                    protected void onObservingDifferentTab(@Nullable Tab tab, boolean hint) {
+                    protected void onObservingDifferentTab(@Nullable Tab tab) {
                         onBackPressStateChanged();
 
                         // If this tab should intercept back press, start the process of tracking

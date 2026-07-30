@@ -15,6 +15,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/scoped_observation.h"
+#include "build/build_config.h"
 #include "chrome/browser/glic/common/glic_tab_observer.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_web_client_access.h"
@@ -25,8 +26,6 @@
 #include "chrome/browser/glic/service/metrics/glic_instance_coordinator_metrics.h"
 #include "chrome/browser/glic/widget/glic_window_controller.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser_list.h"
-#include "chrome/browser/ui/browser_list_observer.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/views/widget/widget.h"
@@ -169,11 +168,13 @@ class GlicInstanceCoordinatorImpl
   }
   std::string DescribeForTesting();
 
+  // Testing support. These methods should not be added to the public interface.
+  GlicInstanceImpl* GetInstanceImplFor(const InstanceId& id) const;
+  GlicInstanceImpl* GetInstanceImplForTab(const tabs::TabInterface* tab) const;
+
  private:
   void OnTabEvent(const GlicTabEvent& event);
   GlicInstanceImpl* GetOrCreateGlicInstanceImplForTab(tabs::TabInterface* tab);
-  GlicInstanceImpl* GetInstanceImplFor(const InstanceId& id) const;
-  GlicInstanceImpl* GetInstanceImplForTab(const tabs::TabInterface* tab) const;
   GlicInstanceImpl* GetOrCreateInstanceImplForFloaty();
   GlicInstanceImpl* CreateGlicInstance();
   std::unique_ptr<GlicInstanceImpl> CreateInstanceImpl();

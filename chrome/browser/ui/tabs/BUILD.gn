@@ -150,6 +150,7 @@ if (!is_android) {
   source_set("tab_group") {
     sources = [
       "shared_tab_group_version_upgrade_modal.h",
+      "tab_group_attention_indicator.h",
       "tab_group_deletion_dialog_controller.h",
       "tab_group_desktop.h",
       "tab_group_features.h",
@@ -173,6 +174,7 @@ if (!is_android) {
 
     sources = [
       "shared_tab_group_version_upgrade_modal.cc",
+      "tab_group_attention_indicator.cc",
       "tab_group_deletion_dialog_controller.cc",
       "tab_group_desktop.cc",
       "tab_group_features.cc",
@@ -523,6 +525,7 @@ if (!is_android) {
       "//chrome/browser/commerce",
       "//chrome/browser/content_settings:content_settings_factory",
       "//chrome/browser/contextual_cueing",
+      "//chrome/browser/contextual_tasks",
       "//chrome/browser/favicon",
       "//chrome/browser/image_fetcher",
       "//chrome/browser/media/webrtc",
@@ -549,6 +552,8 @@ if (!is_android) {
       "//chrome/browser/ui/performance_controls",
       "//chrome/browser/ui/read_anything",
       "//chrome/browser/ui/tabs/alert:tab_alert",
+      "//chrome/browser/ui/tabs/back_to_opener",
+      "//chrome/browser/ui/tabs/back_to_opener:impl",
       "//chrome/browser/ui/tabs/projects",
       "//chrome/browser/ui/tabs/saved_tab_groups",
       "//chrome/browser/ui/thumbnails",

@@ -6,6 +6,7 @@
 #define CHROMEOS_ASH_EXPERIENCES_CAMERA_CAMERA_SAVE_HANDLER_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/functional/callback.h"
@@ -14,6 +15,10 @@
 #include "base/sequence_checker.h"
 #include "base/supports_user_data.h"
 #include "ui/gfx/image/image.h"
+
+namespace ash {
+class CameraSaveHandlerTest;
+}
 
 namespace base {
 class FilePath;
@@ -68,13 +73,15 @@ class CameraSaveHandler : public base::SupportsUserData::Data {
     // `progress_callback` is called periodically during upload with the number
     // of bytes uploaded.
     // `done_callback` is called when the upload is finished with a boolean
-    // indicating success or failure.
+    // indicating success or failure and optionally the uploaded file path.
     virtual void PerformUpload(
         const base::FilePath& upload_from_path,
         int64_t file_size,
         const gfx::Image& thumbnail,
         base::RepeatingCallback<void(int64_t)> progress_callback,
-        base::OnceCallback<void(bool)> done_callback) = 0;
+        base::OnceCallback<void(bool,
+                                std::optional<base::FilePath> uploaded_path)>
+            done_callback) = 0;
 
     // Cancels all ongoing uploads.
     virtual void CancelUploads() = 0;
@@ -118,6 +125,8 @@ class CameraSaveHandler : public base::SupportsUserData::Data {
                   base::OnceCallback<void(bool)> callback);
 
  private:
+  friend class ash::CameraSaveHandlerTest;
+
   // Data to track upload progress per file.
   struct Upload {
     Upload(base::OnceCallback<void(bool)> done_callback, int64_t file_size);
@@ -151,7 +160,6 @@ class CameraSaveHandler : public base::SupportsUserData::Data {
   // Creates, modifies or resets the progress notification based on current
   // upload progress.
   void UpdateProgressNotification() VALID_CONTEXT_REQUIRED(sequence_checker_);
-  // TODO(crbug.com/454152412): Add unit tests for cancel upload dialog.
   // Shows a dialog to confirm cancellation of ongoing uploads.
   void ShowCancelDialog();
   // Handles user action on the cancel upload confirmation dialog.
@@ -165,14 +173,14 @@ class CameraSaveHandler : public base::SupportsUserData::Data {
   // Gets called for each file when it is no longer being uploaded.
   void OnUploadDone(const base::FilePath& upload_from_path,
                     const gfx::Image& thumbnail,
-                    bool success) VALID_CONTEXT_REQUIRED(sequence_checker_);
+                    bool success,
+                    std::optional<base::FilePath> uploaded_path)
+      VALID_CONTEXT_REQUIRED(sequence_checker_);
   void OpenFileInImageEditor(const base::FilePath& file_path);
   void DeleteFileAfterUpload(const base::FilePath& file_path);
   void OnUploadErrorRetake();
 
   std::unique_ptr<Delegate> delegate_;
-  // TODO(crbug.com/454152412) Add unit tests for progress notification and
-  // upload tracking.
   std::unique_ptr<CameraUploadNotification> progress_notification_;
   // Map from file base name to its upload tracking data.
   std::map<base::FilePath, std::unique_ptr<Upload>> uploads_

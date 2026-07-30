@@ -8,7 +8,10 @@ import static org.chromium.chrome.browser.logo.LogoUtils.getGoogleLogoDrawable;
 
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.graphics.Rect;
 import android.util.AttributeSet;
+import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ImageView;
 
 import androidx.constraintlayout.widget.ConstraintLayout;
@@ -23,10 +26,9 @@ import org.chromium.chrome.browser.ntp_customization.R;
 @NullMarked
 public class UploadImagePreviewLayout extends ConstraintLayout {
     private ImageView mLogoView;
+    private View mSearchBoxView;
     private Guideline mGuidelineTop;
-    private Guideline mGuidelineBottom;
     private int mDefaultLogoTopMarginPx;
-    private int mDefaultBottomPaddingPx;
 
     public UploadImagePreviewLayout(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -37,10 +39,7 @@ public class UploadImagePreviewLayout extends ConstraintLayout {
         super.onFinishInflate();
         mLogoView = findViewById(R.id.default_search_engine_logo);
         mGuidelineTop = findViewById(R.id.guideline_top);
-        mGuidelineBottom = findViewById(R.id.guideline_bottom);
-        mDefaultBottomPaddingPx =
-                getResources()
-                        .getDimensionPixelSize(R.dimen.ntp_customization_back_button_margin_start);
+        mSearchBoxView = findViewById(R.id.search_box);
     }
 
     void setLogo(@Nullable Bitmap logoBitmap) {
@@ -69,12 +68,31 @@ public class UploadImagePreviewLayout extends ConstraintLayout {
         mGuidelineTop.setLayoutParams(params);
     }
 
-    void setBottomInsets(int bottomInsetHeight) {
-        int totalBottomPadding = bottomInsetHeight + mDefaultBottomPaddingPx;
+    /**
+     * Applies padding to the sides and bottom of the layout. The top padding is preserved as it is
+     * managed via the top guideline.
+     *
+     * @param insets A Rect where left, right, and bottom represent the required padding.
+     */
+    void setSideAndBottomInsets(Rect insets) {
+        setPadding(insets.left, getPaddingTop(), insets.right, insets.bottom);
+    }
 
-        ConstraintLayout.LayoutParams params =
-                (ConstraintLayout.LayoutParams) mGuidelineBottom.getLayoutParams();
-        params.guideEnd = totalBottomPadding;
-        mGuidelineBottom.setLayoutParams(params);
+    void setSearchBoxWidth(int width) {
+        if (mSearchBoxView == null) return;
+
+        mSearchBoxView.setVisibility(View.VISIBLE);
+        ViewGroup.LayoutParams params = mSearchBoxView.getLayoutParams();
+        params.width = width;
+        mSearchBoxView.setLayoutParams(params);
+    }
+
+    void setSearchBoxHeight(int height) {
+        if (mSearchBoxView == null) return;
+
+        mSearchBoxView.setVisibility(View.VISIBLE);
+        ViewGroup.LayoutParams params = mSearchBoxView.getLayoutParams();
+        params.height = height;
+        mSearchBoxView.setLayoutParams(params);
     }
 }

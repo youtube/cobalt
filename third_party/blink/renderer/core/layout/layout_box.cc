@@ -235,15 +235,24 @@ LayoutUnit TextAreaIntrinsicBlockSize(const HTMLTextAreaElement& textarea,
   }
 
   const auto* inner_editor = textarea.InnerEditorElement();
-  const auto* reference_box =
+  const LayoutBox* editor_box =
       inner_editor ? inner_editor->GetLayoutBox() : nullptr;
-  if (reference_box && reference_box->FirstChildBox()) {
-    reference_box = reference_box->FirstChildBox();
-  }
-  const LayoutUnit line_height =
-      reference_box ? reference_box->FirstLineHeight() : box.FirstLineHeight();
+  const LayoutBox* inner_box =
+      editor_box ? DynamicTo<LayoutBox>(editor_box->SlowFirstChild()) : nullptr;
 
-  return line_height * textarea.rows() + scrollbar_thickness;
+  const LayoutBox& target_box = ([&]() -> const LayoutBox& {
+    if (inner_box) {
+      return *inner_box;
+    }
+    if (editor_box) {
+      return *editor_box;
+    }
+    return box;
+  })();
+
+  return target_box.FirstLineStyleRef().ComputedLineHeightAsFixed() *
+             textarea.rows() +
+         scrollbar_thickness;
 }
 
 LayoutUnit TextFieldIntrinsicBlockSize(const HTMLInputElement& input,
@@ -254,7 +263,7 @@ LayoutUnit TextFieldIntrinsicBlockSize(const HTMLInputElement& input,
   const LayoutBox& target_box = (inner_editor && inner_editor->GetLayoutBox())
                                     ? *inner_editor->GetLayoutBox()
                                     : box;
-  return target_box.FirstLineHeight();
+  return target_box.FirstLineStyleRef().ComputedLineHeightAsFixed();
 }
 
 LayoutUnit FileUploadControlIntrinsicInlineSize(const HTMLInputElement& input,
@@ -528,9 +537,12 @@ void LayoutBox::WillBeDestroyed() {
     DisassociatePhysicalFragments();
   }
 
-  if (Style() && StyleRef().HasOutOfFlowPosition()) {
-    if (auto* display_locks = DisplayLocksAffectedByAnchors()) {
-      NotifyContainingDisplayLocksForAnchorPositioning(display_locks, nullptr);
+  if (!RuntimeEnabledFeatures::LayoutReinsertOnInFlowStateChangeEnabled()) {
+    if (Style() && StyleRef().HasOutOfFlowPosition()) {
+      if (auto* display_locks = DisplayLocksAffectedByAnchors()) {
+        NotifyContainingDisplayLocksForAnchorPositioning(display_locks,
+                                                         nullptr);
+      }
     }
   }
 
@@ -560,6 +572,15 @@ void LayoutBox::InsertedIntoTree() {
 void LayoutBox::WillBeRemovedFromTree() {
   NOT_DESTROYED();
   ClearCustomLayoutChild();
+
+  if (RuntimeEnabledFeatures::LayoutReinsertOnInFlowStateChangeEnabled()) {
+    // Notify the display-locks that anchors within a sub-tree may disappear.
+    if (Style() && StyleRef().HasOutOfFlowPosition()) {
+      NotifyContainingDisplayLocksForAnchorPositioning(
+          DisplayLocksAffectedByAnchors(), nullptr);
+    }
+  }
+
   LayoutBoxModelObject::WillBeRemovedFromTree();
 }
 
@@ -584,7 +605,9 @@ void LayoutBox::StyleWillChange(StyleDifference diff,
     if (diff.NeedsFullLayout() && Parent()) {
       bool will_move_out_of_ifc = false;
       if (old_style->GetPosition() != new_style.GetPosition()) {
-        if (!old_style->HasOutOfFlowPosition() &&
+        if (!RuntimeEnabledFeatures::
+                LayoutReinsertOnInFlowStateChangeEnabled() &&
+            !old_style->HasOutOfFlowPosition() &&
             new_style.HasOutOfFlowPosition()) {
           // We're about to go out of flow. Before that takes place, we need to
           // mark the current containing block chain for preferred widths
@@ -617,12 +640,14 @@ void LayoutBox::StyleWillChange(StyleDifference diff,
       }
 
       bool will_become_inflow = false;
-      if ((old_style->IsFloating() || old_style->HasOutOfFlowPosition()) &&
-          !new_style.IsFloating() && !new_style.HasOutOfFlowPosition()) {
-        // As a float or OOF, this object may have been part of an inline
-        // formatting context, but that's definitely no longer the case.
-        will_become_inflow = true;
-        will_move_out_of_ifc = true;
+      if (!RuntimeEnabledFeatures::LayoutReinsertOnInFlowStateChangeEnabled()) {
+        if ((old_style->IsFloating() || old_style->HasOutOfFlowPosition()) &&
+            !new_style.IsFloating() && !new_style.HasOutOfFlowPosition()) {
+          // As a float or OOF, this object may have been part of an inline
+          // formatting context, but that's definitely no longer the case.
+          will_become_inflow = true;
+          will_move_out_of_ifc = true;
+        }
       }
 
       if (will_move_out_of_ifc && FirstInlineFragmentItemIndex()) {
@@ -657,11 +682,14 @@ void LayoutBox::StyleDidChange(StyleDifference diff,
   if (HasReflection() && !HasLayer())
     SetHasReflection(false);
 
-  if (auto* parent_flow_block = DynamicTo<LayoutBlockFlow>(Parent())) {
-    if (IsFloatingOrOutOfFlowPositioned() && old_style &&
-        !old_style->IsFloating() && !old_style->HasOutOfFlowPosition()) {
-      // Note that |parent_flow_block| may have been destroyed after this call.
-      parent_flow_block->ChildBecameFloatingOrOutOfFlow(this);
+  if (!RuntimeEnabledFeatures::LayoutReinsertOnInFlowStateChangeEnabled()) {
+    if (auto* parent_flow_block = DynamicTo<LayoutBlockFlow>(Parent())) {
+      if (IsFloatingOrOutOfFlowPositioned() && old_style &&
+          !old_style->IsFloating() && !old_style->HasOutOfFlowPosition()) {
+        // Note that |parent_flow_block| may have been destroyed after this
+        // call.
+        parent_flow_block->ChildBecameFloatingOrOutOfFlow(this);
+      }
     }
   }
 
@@ -2015,92 +2043,6 @@ bool LayoutBox::HitTestOverflowControl(
              NodeForHitTest(), hit_test_location) == kStopHitTesting;
 }
 
-bool LayoutBox::NodeAtPoint(HitTestResult& result,
-                            const HitTestLocation& hit_test_location,
-                            const PhysicalOffset& accumulated_offset,
-                            HitTestPhase phase) {
-  NOT_DESTROYED();
-  if (!MayIntersect(result, hit_test_location, accumulated_offset))
-    return false;
-
-  if (phase == HitTestPhase::kForeground && !HasSelfPaintingLayer() &&
-      HitTestOverflowControl(result, hit_test_location, accumulated_offset))
-    return true;
-
-  bool skip_children = (result.GetHitTestRequest().GetStopNode() == this) ||
-                       ChildPaintBlockedByDisplayLock();
-  if (!skip_children && ShouldClipOverflowAlongEitherAxis()) {
-    // PaintLayer::HitTestFragmentsWithPhase() checked the fragments'
-    // foreground rect for intersection if a layer is self painting,
-    // so only do the overflow clip check here for non-self-painting layers.
-    if (!HasSelfPaintingLayer() &&
-        !hit_test_location.Intersects(OverflowClipRect(
-            accumulated_offset, kExcludeOverlayScrollbarSizeForHitTesting))) {
-      skip_children = true;
-    }
-    if (!skip_children && StyleRef().HasBorderRadius()) {
-      PhysicalRect bounds_rect(accumulated_offset, StitchedSize());
-      skip_children = !hit_test_location.Intersects(
-          ContouredBorderGeometry::PixelSnappedContouredInnerBorder(
-              StyleRef(), bounds_rect));
-    }
-  }
-
-  if (!skip_children &&
-      HitTestChildren(result, hit_test_location, accumulated_offset, phase)) {
-    return true;
-  }
-
-  if (StyleRef().HasBorderRadius() &&
-      HitTestClippedOutByBorder(hit_test_location, accumulated_offset))
-    return false;
-
-  // Now hit test ourselves.
-  if (IsInSelfHitTestingPhase(phase) &&
-      VisibleToHitTestRequest(result.GetHitTestRequest())) {
-    PhysicalRect bounds_rect;
-    if (result.GetHitTestRequest().IsHitTestVisualOverflow()) [[unlikely]] {
-      bounds_rect = VisualOverflowRectIncludingFilters();
-    } else {
-      bounds_rect = PhysicalBorderBoxRect();
-    }
-    bounds_rect.Move(accumulated_offset);
-    if (hit_test_location.Intersects(bounds_rect)) {
-      UpdateHitTestResult(result,
-                          hit_test_location.Point() - accumulated_offset);
-      if (result.AddNodeToListBasedTestResult(NodeForHitTest(),
-                                              hit_test_location,
-                                              bounds_rect) == kStopHitTesting)
-        return true;
-    }
-  }
-
-  return false;
-}
-
-bool LayoutBox::HitTestChildren(HitTestResult& result,
-                                const HitTestLocation& hit_test_location,
-                                const PhysicalOffset& accumulated_offset,
-                                HitTestPhase phase) {
-  NOT_DESTROYED();
-  for (LayoutObject* child = SlowLastChild(); child;
-       child = child->PreviousSibling()) {
-    if (child->HasLayer() &&
-        To<LayoutBoxModelObject>(child)->Layer()->IsSelfPaintingLayer())
-      continue;
-
-    PhysicalOffset child_accumulated_offset = accumulated_offset;
-    if (auto* box = DynamicTo<LayoutBox>(child))
-      child_accumulated_offset += box->PhysicalLocation();
-
-    if (child->NodeAtPoint(result, hit_test_location, child_accumulated_offset,
-                           phase))
-      return true;
-  }
-
-  return false;
-}
-
 bool LayoutBox::HitTestClippedOutByBorder(
     const HitTestLocation& hit_test_location,
     const PhysicalOffset& border_box_location) const {
@@ -2261,12 +2203,10 @@ void LayoutBox::ImageChanged(WrappedImagePtr image,
       if (layer->GetImage() && image == layer->GetImage()->Data()) {
         SetShouldDoFullPaintInvalidationWithoutLayoutChange(
             PaintInvalidationReason::kImage);
-        if (layer->GetImage()->IsMaskSource()) {
-          // Since an invalid <mask> reference does not yield a paint property
-          // (see CSSMaskPainter), we need to update paint properties when such
-          // a reference changes.
-          SetNeedsPaintPropertyUpdate();
-        }
+        // Since an invalid <mask> reference does not yield a paint property
+        // (see CSSMaskPainter), we need to update paint properties when such a
+        // reference changes.
+        SetNeedsPaintPropertyUpdate();
         break;
       }
     }
@@ -2575,7 +2515,7 @@ LayoutUnit LayoutBox::ContainingBlockLogicalWidthForContent() const {
   LayoutBlock* cb = ContainingBlock();
   if (IsOutOfFlowPositioned())
     return cb->ClientLogicalWidth();
-  return cb->AvailableLogicalWidth();
+  return cb->ContentLogicalWidth();
 }
 
 PhysicalOffset LayoutBox::OffsetFromContainerInternal(
@@ -3823,17 +3763,6 @@ bool LayoutBox::IsMonolithic() const {
   }
 
   return false;
-}
-
-LayoutUnit LayoutBox::FirstLineHeight() const {
-  NOT_DESTROYED();
-  if (IsAtomicInlineLevel()) {
-    PhysicalSize size = StitchedSize();
-    return FirstLineStyle()->IsHorizontalWritingMode()
-               ? MarginHeight() + size.height
-               : MarginWidth() + size.width;
-  }
-  return LayoutUnit();
 }
 
 PhysicalBoxStrut LayoutBox::BorderOutsetsForClipping() const {

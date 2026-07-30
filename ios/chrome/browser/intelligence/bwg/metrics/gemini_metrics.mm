@@ -25,6 +25,8 @@ const char kEligibilityHistogram[] = "IOS.Gemini.Eligibility";
 
 const char kEntryPointHistogram[] = "IOS.Gemini.EntryPoint";
 
+const char kFeedbackHistogram[] = "IOS.Gemini.Feedback";
+
 const char kFREEntryPointHistogram[] = "IOS.Gemini.FRE.EntryPoint";
 
 const char kPromoActionHistogram[] = "IOS.Gemini.FRE.PromoAction";
@@ -34,6 +36,9 @@ const char kConsentActionHistogram[] = "IOS.Gemini.FRE.ConsentAction";
 const char kStartupTimeWithFREHistogram[] = "IOS.Gemini.StartupTime.FirstRun";
 
 const char kStartupTimeNoFREHistogram[] = "IOS.Gemini.StartupTime.NotFirstRun";
+
+const char kGeminiSessionCancellationHistogram[] =
+    "IOS.Gemini.Session.CancellationReason";
 
 const char kGeminiSessionLengthWithPromptHistogram[] =
     "IOS.Gemini.SessionLength.WithPrompt";
@@ -94,6 +99,11 @@ void RecordFREConsentAction(IOSGeminiFREAction action) {
       break;
   }
   base::UmaHistogramEnumeration(kConsentActionHistogram, action);
+}
+
+void RecordGeminiSessionCancellation(
+    IOSGeminiSessionCancellationReason reason) {
+  base::UmaHistogramEnumeration(kGeminiSessionCancellationHistogram, reason);
 }
 
 void RecordGeminiSessionTime(base::TimeDelta session_duration) {
@@ -240,4 +250,19 @@ void RecordAIHubIconTapped() {
 
 void RecordGeminiPromptSent() {
   base::RecordAction(base::UserMetricsAction("MobileGeminiPromptSent"));
+}
+
+void RecordGeminiFeedback(IOSGeminiFeedback feedback) {
+  base::UmaHistogramEnumeration(kFeedbackHistogram, feedback);
+
+  switch (feedback) {
+    case IOSGeminiFeedback::kThumbsUp:
+      base::RecordAction(
+          base::UserMetricsAction("MobileGeminiFeedbackThumbsUp"));
+      break;
+    case IOSGeminiFeedback::kThumbsDown:
+      base::RecordAction(
+          base::UserMetricsAction("MobileGeminiFeedbackThumbsDown"));
+      break;
+  }
 }

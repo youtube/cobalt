@@ -273,6 +273,7 @@ declare global {
         attributeInstances: AttributeInstance[];
         guid: string;
         nickname: string;
+        shouldAuthenticateToView?: boolean;
       }
 
       export interface EntityInstanceWithLabels {
@@ -312,6 +313,8 @@ declare global {
       export function getPayOverTimeIssuerList():
           Promise<PayOverTimeIssuerEntry[]>;
       export function authenticateUserAndFlipMandatoryAuthToggle(): void;
+      export function authenticateUserBeforeViewingEntityData():
+          Promise<boolean>;
       export function getLocalCard(guid: string): Promise<CreditCardEntry|null>;
       export function checkIfDeviceAuthAvailable(): Promise<boolean>;
       export function bulkDeleteAllCvcs(): void;

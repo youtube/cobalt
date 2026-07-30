@@ -11,6 +11,8 @@ source_set("common") {
 
   deps = [
     "//base",
+    "//chrome/browser/ui",
+    "//chrome/browser/ui:browser_navigator_params_headers",
     "//components/tabs:public",
   ]
 
@@ -19,15 +21,19 @@ source_set("common") {
       "glic_tab_observer_android.cc",
       "glic_tab_observer_android.h",
     ]
-    deps +=
-        [ "//chrome/browser/ui/browser_window/public/android:java_enum_srcjar" ]
+    deps += [
+      "//chrome/browser/tab",
+      "//chrome/browser/ui/android/tab_model",
+      "//chrome/browser/ui/browser_window/public/android:java_enum_srcjar",
+      "//chrome/browser/ui/tabs:tabs_public",
+      "//content/public/browser",
+    ]
   } else {
     sources += [
       "glic_tab_observer_impl.cc",
       "glic_tab_observer_impl.h",
     ]
     deps += [
-      "//chrome/browser/ui",
       "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/tabs",
       "//chrome/browser/ui/tabs:tab_strip",

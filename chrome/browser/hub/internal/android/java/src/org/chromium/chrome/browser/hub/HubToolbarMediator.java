@@ -6,9 +6,6 @@ package org.chromium.chrome.browser.hub;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
 import static org.chromium.chrome.browser.hub.HubToolbarProperties.APPLY_DELAY_FOR_SEARCH_BOX_ANIMATION;
-import static org.chromium.chrome.browser.hub.HubToolbarProperties.BACK_BUTTON_ENABLED;
-import static org.chromium.chrome.browser.hub.HubToolbarProperties.BACK_BUTTON_LISTENER;
-import static org.chromium.chrome.browser.hub.HubToolbarProperties.BACK_BUTTON_VISIBLE;
 import static org.chromium.chrome.browser.hub.HubToolbarProperties.HAIRLINE_VISIBILITY;
 import static org.chromium.chrome.browser.hub.HubToolbarProperties.HUB_SEARCH_ENABLED_STATE;
 import static org.chromium.chrome.browser.hub.HubToolbarProperties.IS_INCOGNITO;
@@ -31,12 +28,11 @@ import androidx.core.util.Pair;
 
 import org.chromium.base.Callback;
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.NullableObservableSupplier;
-import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.hub.HubToolbarProperties.PaneButtonLookup;
-import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityClient;
 import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityExtras.ResolutionType;
 import org.chromium.components.feature_engagement.Tracker;
@@ -85,7 +81,6 @@ public class HubToolbarMediator {
                 public void onConfigurationChanged(Configuration configuration) {
                     int screenWidthDp = configuration.screenWidthDp;
                     boolean isTablet = HubUtils.isScreenWidthTablet(screenWidthDp);
-                    mPropertyModel.set(BACK_BUTTON_VISIBLE, isTablet);
 
                     Pane pane = mPaneManager.getFocusedPaneSupplier().get();
                     if (pane == null) return;
@@ -114,7 +109,6 @@ public class HubToolbarMediator {
     private final PaneManager mPaneManager;
     private final Tracker mTracker;
     private final SearchActivityClient mSearchActivityClient;
-    private final NullableObservableSupplier<Tab> mCurrentTabSupplier;
     // The order of entries in this map are the order the buttons should appear to the user. A null
     // value should not be shown to the user.
     private final ArrayList<Pair<Integer, @Nullable DisplayButtonData>>
@@ -128,10 +122,9 @@ public class HubToolbarMediator {
             this::onHubSearchEnabledStateChange;
     private final Callback<Boolean> mOnSearchBoxVisibilityChange =
             this::onSearchBoxVisibilityChange;
-    private final ObservableSupplier<Boolean> mHairlineVisibilitySupplier;
+    private final MonotonicObservableSupplier<Boolean> mHairlineVisibilitySupplier;
 
     private final Callback<Boolean> mOnHairlineVisibilityChange = this::onHairlineVisibilityChange;
-    private final Callback<@Nullable Tab> mOnCurrentTabChange = this::onCurrentTabChange;
 
     private @Nullable PaneButtonLookup mPaneButtonLookup;
     private boolean mIgnoreTabLayoutSelection;
@@ -143,14 +136,12 @@ public class HubToolbarMediator {
             PaneManager paneManager,
             Tracker tracker,
             SearchActivityClient searchActivityClient,
-            NullableObservableSupplier<Tab> currentTabSupplier,
             Runnable exitHubRunnable) {
         mContext = context;
         mPropertyModel = propertyModel;
         mPaneManager = paneManager;
         mTracker = tracker;
         mSearchActivityClient = searchActivityClient;
-        mCurrentTabSupplier = currentTabSupplier;
 
         for (@PaneId int paneId : paneManager.getPaneOrderController().getPaneOrder()) {
             Pane pane = paneManager.getPaneForId(paneId);
@@ -178,16 +169,14 @@ public class HubToolbarMediator {
                         .getFocusedPaneSupplier()
                         .createTransitiveNonNull(false, Pane::getHairlineVisibilitySupplier);
         mHairlineVisibilitySupplier.addObserver(mOnHairlineVisibilityChange);
-        ObservableSupplier<Pane> focusedPaneSupplier = paneManager.getFocusedPaneSupplier();
+        MonotonicObservableSupplier<Pane> focusedPaneSupplier =
+                paneManager.getFocusedPaneSupplier();
         focusedPaneSupplier.addObserver(mOnFocusedPaneChange);
         rebuildPaneSwitcherButtonData();
 
         mPropertyModel.set(PANE_BUTTON_LOOKUP_CALLBACK, this::consumeButtonLookup);
 
         mPropertyModel.set(SEARCH_LISTENER, this::onSearchClicked);
-        mPropertyModel.set(BACK_BUTTON_LISTENER, exitHubRunnable);
-        mPropertyModel.set(BACK_BUTTON_ENABLED, mCurrentTabSupplier.get() != null);
-        mCurrentTabSupplier.addObserver(mOnCurrentTabChange);
 
         // Fire an event for the original setup.
         mComponentCallbacks.onConfigurationChanged(mContext.getResources().getConfiguration());
@@ -200,7 +189,6 @@ public class HubToolbarMediator {
         mRemoveReferenceButtonObservers.clear();
         mPaneManager.getFocusedPaneSupplier().removeObserver(mOnFocusedPaneChange);
         mContext.unregisterComponentCallbacks(mComponentCallbacks);
-        mCurrentTabSupplier.removeObserver(mOnCurrentTabChange);
 
         for (@PaneId int paneId : mPaneManager.getPaneOrderController().getPaneOrder()) {
             @Nullable Pane pane = mPaneManager.getPaneForId(paneId);
@@ -370,10 +358,6 @@ public class HubToolbarMediator {
                         .setResolutionType(ResolutionType.OPEN_IN_CHROME)
                         .build());
         recordHubSearchEntrypointHistogram(mPropertyModel.get(SEARCH_BOX_VISIBLE));
-    }
-
-    private void onCurrentTabChange(@Nullable Tab tab) {
-        mPropertyModel.set(BACK_BUTTON_ENABLED, tab != null);
     }
 
     private void recordHubSearchEntrypointHistogram(boolean isSearchBox) {

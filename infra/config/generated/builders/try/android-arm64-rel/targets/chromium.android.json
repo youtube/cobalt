@@ -6,7 +6,6 @@
           "--gs-results-bucket=chromium-result-details",
           "--recover-devices"
         ],
-        "ci_only": true,
         "isolate_profile_data": true,
         "merge": {
           "args": [
@@ -33,7 +32,7 @@
             "os": "Android"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
-          "shards": 4
+          "shards": 7
         },
         "test": "android_browsertests",
         "test_id_prefix": "ninja://chrome/test:android_browsertests/"

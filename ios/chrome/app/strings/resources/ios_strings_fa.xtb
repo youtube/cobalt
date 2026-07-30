@@ -253,6 +253,7 @@
 <translation id="1901366738768303267">چگونه از این ویژگی استفاده کنم؟</translation>
 <translation id="1901600657316773839">نگه داشتن انتخاب</translation>
 <translation id="1902277226107477495">تشخیص نشانی غیرفعال شد. برای فعال کردن دوباره آن به «تنظیمات» بروید.</translation>
+<translation id="1909201414196501151">سایت اضافه و سنجاق شد</translation>
 <translation id="1911619930368729126">‏بارگذاری در Google Drive</translation>
 <translation id="1925706052394657380">‏تنظیمات <ph name="BEGIN_BOLD" />Default Apps (برنامه‌های پیش‌فرض)<ph name="END_BOLD" /> را در iOS باز کنید</translation>
 <translation id="1941314575388338491">برای کپی کردن دو ضربه سریع بزنید.</translation>
@@ -615,10 +616,12 @@
 <translation id="3344485292736684439">{count,plural, =1{نشانک در «{title}» در حساب شما ({email}) ذخیره شد}one{نشانک در «{title}» در حساب شما ({email}) ذخیره شد}other{نشانک‌ها در «{title}» در حساب شما ({email}) ذخیره شد}}</translation>
 <translation id="334690320928261823">زبانه‌های اخیر</translation>
 <translation id="3349031117032695619">مسدود کردن بالاپرها</translation>
+<translation id="3350976670663926380">ویرایش‌ها ذخیره شد</translation>
 <translation id="3353037916374303415">‫<ph name="EMAIL" />. این حساب تحت‌مدیریت است.</translation>
 <translation id="3365529507898144230">‏ذخیره در Photos</translation>
 <translation id="3371831930909698441">‏«ترجمه Google» دردسترس است. گزینه‌ها در نزدیک پایین صفحه نمایش در دسترس هستند.</translation>
 <translation id="3377063233124932127">اکنون نشانک‌ها، گذرواژه‌ها، و دیگر موارد ذخیره‌شده در بالا نمایش داده می‌شوند.</translation>
+<translation id="3378214228000661758">ایجاد گذرکلید برای</translation>
 <translation id="3380352560400387991">این سایت تلاش می‌کند برنامه‌ای را باز کند. با این کار، از حالت «ناشناس» خارج خواهید شد.</translation>
 <translation id="3385742921291399323">گذرواژه‌ها، زبانه‌ها، نشانک‌ها، و دیگر موارد ذخیره‌شده را دریافت کنید.</translation>
 <translation id="3392923070107623576">با ایجاد گروه زبانه، منظم بمانید</translation>
@@ -668,6 +671,7 @@
 <translation id="355765753469272474">واگرداندن</translation>
 <translation id="3565012355885596568">بار کردن تصاویر ممکن نبود</translation>
 <translation id="3565930036634619844">زبانه. ‫<ph name="TAB_INDEX" /> از <ph name="NUMBER_OF_TABS" />.</translation>
+<translation id="3567168891086460374">ذخیره به روشی دیگر</translation>
 <translation id="3572607909481582402">‏در «حساب Google» شما</translation>
 <translation id="3575234738189584619">جستجو با «لنز»</translation>
 <translation id="3575426792457739946">این فهرست حاوی همه نمایه‌های بارشده است.</translation>
@@ -680,6 +684,7 @@
 <translation id="3602260545951981695">«محافظت بهبودیافته» را انتخاب کنید</translation>
 <translation id="3610041351087301930">پنهان کردن خواننده</translation>
 <translation id="3610866916973186448">بله، حذف شود</translation>
+<translation id="3616161326314492065">‏برای ایجاد و بازآمیزی تصاویر، عکس بگیرید و با Gemini هم‌رسانی کنید.</translation>
 <translation id="3622175633937495219">سابقه «جستجو» (<ph name="COUNT" /> مورد پیدا شد)</translation>
 <translation id="3625008969091706597">برای رفتن به عقب، می‌توانید از لبه تند بکشید.</translation>
 <translation id="362709345066740529">کارت‌ها، فید، و موارد دیگر را اینجا سفارشی‌سازی کنید</translation>
@@ -696,6 +701,7 @@
 <translation id="368329460027487650">از سیستم خارج شده‌اید. گزینه‌هایی را برای ورود به سیستم باز می‌کند.</translation>
 <translation id="3695446226812920698">با نحوه انجام کار آشنا شوید</translation>
 <translation id="3700134753671613714">برای دریافت نشانک‌ها در تمام دستگاه‌هایتان، به سیستم وارد شوید.</translation>
+<translation id="3701167022068948696">اکنون درست کردن</translation>
 <translation id="3708944822379815019">{COUNT,plural, =1{‏{COUNT} گذرواژه فقط در این دستگاه ذخیره شده است. برای استفاده از آن در دستگاه‌های دیگرتان، آن را در «حساب Google» خود ({EMAIL}) ذخیره کنید.}one{‏{COUNT} گذرواژه فقط در این دستگاه ذخیره شده است. برای استفاده از آن در دستگاه‌های دیگرتان، آن را در «حساب Google» خود ({EMAIL}) ذخیره کنید.}other{‏{COUNT} گذرواژه فقط در این دستگاه ذخیره شده است. برای استفاده از آن‌ها در دستگاه‌های دیگرتان، آن‌ها را در «حساب Google» خود ({EMAIL}) ذخیره کنید.}}</translation>
 <translation id="3709621342136814217">قلم، اندازه نوشتار، و گزینه‌های دیگر را در اینجا تغییر دهید</translation>
 <translation id="371230970611282515">رویدادهای خطرناک را پیش از اینکه اتفاق بیفتند پیش‌بینی می‌کند و درباره آن‌ها به شما هشدار می‌دهد.</translation>
@@ -742,6 +748,7 @@
 <translation id="3888863481921783344">از این دسترسی برای نمایش دعوت‌شوندگان بالقوه به رویدادتان استفاده می‌شود.</translation>
 <translation id="3891414008432200754">قیمت</translation>
 <translation id="3892144330757387737">سابقه را اینجا خواهید دید</translation>
+<translation id="3893858854379998374">برای ذخیره کردن نشانک‌ها در حسابتان، نشانک‌های استفاده‌نشده را حذف کنید</translation>
 <translation id="3897092660631435901">منو</translation>
 <translation id="3904270275864974753">ویرایش گردونه</translation>
 <translation id="3909222758573607742">ذخیره گذرواژه‌ها و موارد دیگر در حساب</translation>
@@ -1076,6 +1083,7 @@
 <translation id="508645147179720015">یادداشت بیش‌از ۱۰۰۰ نویسه دارد</translation>
 <translation id="5087098519049306025">پیگیری قیمت</translation>
 <translation id="5090832849094901128">حذف این گذرواژه باعث حذف شدن حساب شما در <ph name="WEBSITE" /> نمی‌شود.</translation>
+<translation id="5096619236864235">‏گذرکلیدها در «مدیر گذرواژه Google» ذخیره می‌شوند برای</translation>
 <translation id="510580293474170715">چیزی وارد نشد</translation>
 <translation id="5113960131843706315">درحال دریافت داده‌های شما…</translation>
 <translation id="5118462200606189584">افزودن حساب…</translation>
@@ -1209,7 +1217,7 @@ Handoff باید در بخش عمومی تنظیمات نیز فعال شود و
 <translation id="559567008082979829">درصورت فعال شدن، بارگیری‌ها پس‌از یک ماه حذف می‌شوند.</translation>
 <translation id="5596627076506792578">گزینه‌های بیشتر</translation>
 <translation id="560322036295180549">سازمانتان آن را خاموش کرده است.</translation>
-<translation id="5611398002774823980">ذخیره در حساب</translation>
+<translation id="5611398002774823980">ذخیره کردن در حساب</translation>
 <translation id="561269594905823128">روی <ph name="BEGIN_BOLD" />انتخاب فایل<ph name="END_BOLD" /> تک‌ضرب بزنید.</translation>
 <translation id="5613297089029360427">مرتب کردن براساس جدیدترین</translation>
 <translation id="5614553682702429503">گذرواژه ذخیره شود؟</translation>
@@ -1750,6 +1758,7 @@ Handoff باید در بخش عمومی تنظیمات نیز فعال شود و
 <translation id="7522587739845660862">اطلاعات مربوط به مکان شما</translation>
 <translation id="7522948500476882302">وقتی فایلی را بارگیری می‌کنید، می‌توانید انتخاب کنید که به‌صورت خودکار بعداز ۱ ماه حذف شود</translation>
 <translation id="7524055474074101597">به گذرواژه‌ها و موارد دیگر در برنامه‌ها دسترسی داشته باشید.</translation>
+<translation id="7525067979554623046">ایجاد کردن</translation>
 <translation id="75362970626182391">گروه زبانه جدید</translation>
 <translation id="7537586195939242955">‏متأسفانه نصب «جواز» در Passbook فعلاً امکان‌پذیر نیست.</translation>
 <translation id="754655535278952384">آخرین بررسی: <ph name="TIME" /></translation>
@@ -1841,6 +1850,7 @@ Handoff باید در بخش عمومی تنظیمات نیز فعال شود و
 <translation id="7853202427316060426">فعالیت</translation>
 <translation id="7854006015462979438">‏باز کردن General (موارد کلی)</translation>
 <translation id="7855678267851972597">صداها</translation>
+<translation id="7857520352710212030">سایت سنجاق شد</translation>
 <translation id="7859988229622350291">هرگز ترجمه نشود</translation>
 <translation id="7863211248337747225">دریافت کردن برنامه</translation>
 <translation id="7865127013871431856">گزینه‌های ترجمه</translation>

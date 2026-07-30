@@ -943,6 +943,9 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
       const ClipboardPasteData& data,
       IsClipboardCopyAllowedCallback callback) override;
 
+  bool IsDragAllowedByPolicy(const content::ClipboardEndpoint& source,
+                             const content::DropData& drop_data) override;
+
 #if BUILDFLAG(ENABLE_VR)
   content::XrIntegrationClient* GetXrIntegrationClient() override;
 #endif
@@ -1044,10 +1047,6 @@ class ChromeContentBrowserClient : public content::ContentBrowserClient {
 
   bool AreIsolatedWebAppsEnabled(
       content::BrowserContext* browser_context) override;
-
-  bool IsThirdPartyStoragePartitioningAllowed(
-      content::BrowserContext* browser_context,
-      const url::Origin& top_level_origin) override;
 
   bool AreDeprecatedAutomaticBeaconCredentialsAllowed(
       content::BrowserContext* browser_context,

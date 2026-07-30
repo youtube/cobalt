@@ -15,9 +15,11 @@
 #include "build/build_config.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/views/bookmarks/bookmark_bar_view.h"
+#include "chrome/browser/ui/views/frame/custom_corners_background.h"
 #include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "chrome/browser/ui/views/frame/layout/browser_view_layout_delegate.h"
+#include "chrome/browser/ui/views/frame/layout/browser_view_layout_impl.h"
 #include "chrome/browser/ui/views/frame/main_background_region_view.h"
 #include "chrome/browser/ui/views/frame/multi_contents_view.h"
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
@@ -35,9 +37,56 @@ namespace {
 
 // Loading bar is thicker than a separator, but instead of moving the bottom
 // of the top container down, it starts above where the separator would go.
-static constexpr int kLoadingBarHeight = 3;
-static constexpr int kLoadingBarOffset =
+constexpr int kLoadingBarHeight = 3;
+constexpr int kLoadingBarOffset =
     kLoadingBarHeight - views::Separator::kThickness;
+
+// Minimum area next to caption buttons to use as a grab handle.
+constexpr int kVerticalTabsGrabHandleSize = 54;
+
+// Increases the leading or trailing exclusion area of `top_container_params` in
+// order to make room for a grab handle in Vertical Tabstrip mode.
+//
+// The `browser_params` are the unmodified layout parameters with the original
+// visual area and exclusions; `current_params` represents the params after the
+// vertical tabstrip is laid out (if it is to be laid out after the top
+// container).
+void MaybeAddGrabHandleToTopContainer(
+    BrowserLayoutParams& top_container_params,
+    const BrowserLayoutParams& browser_params,
+    const BrowserLayoutParams& current_params) {
+  if (!top_container_params.trailing_exclusion.IsEmpty()) {
+    // When caption buttons are on the trailing edge, the extra grab handle
+    // area is between the toolbar app menu button and the caption buttons.
+    top_container_params.trailing_exclusion.horizontal_padding =
+        std::max(top_container_params.trailing_exclusion.horizontal_padding,
+                 float{kVerticalTabsGrabHandleSize});
+  } else if (!browser_params.leading_exclusion.IsEmpty()) {
+    // When caption buttons are leading, even if the vertical tabstrip provides
+    // some grab handle, additional space may be required to hit the minimum
+    // size; allocate any remaining space to a gap between the tabstrip and
+    // toolbar (or caption buttons and toolbar, if the tabstrip is below the
+    // caption buttons).
+
+    // Calculate the furthest left the trailing edge of the toolbar should be.
+    const int min_left =
+        browser_params.visual_client_area.x() +
+        browser_params.leading_exclusion.content.width() +
+        std::max(base::ClampCeil(
+                     browser_params.leading_exclusion.horizontal_padding),
+                 kVerticalTabsGrabHandleSize);
+
+    // Calculate how much space remains to be allocated after the caption
+    // buttons and vertical tabstrip.
+    const int new_padding =
+        min_left - (current_params.visual_client_area.x() +
+                    current_params.leading_exclusion.content.width());
+
+    // Update the exclusion area to include the required padding.
+    top_container_params.leading_exclusion.horizontal_padding =
+        std::max(0, new_padding);
+  }
+}
 
 }  // namespace
 
@@ -62,7 +111,7 @@ BrowserViewTabbedLayoutImpl::GetTopSeparatorType() const {
   // In immersive mode, when the top container is visually separate, the
   // separator goes with the container to the overlay.
   bool top_container_is_visually_separate =
-      delegate().GetImmersiveModeController()->IsEnabled();
+      delegate().GetBrowserWindowState() == WindowState::kFullscreen;
 #if BUILDFLAG(IS_MAC)
   // On Mac, when in full browser fullscreen (but not content fullscreen), the
   // entire top container is always visible and does not look like an
@@ -83,7 +132,7 @@ BrowserViewTabbedLayoutImpl::GetTopSeparatorType() const {
   }
 
   // If the infobar is visible, the separator has to go in the top container.
-  if (IsInfobarVisible()) {
+  if (delegate().IsInfobarVisible()) {
     return TopSeparatorType::kTopContainer;
   }
 
@@ -288,6 +337,7 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
 
   // Lay out vertical tab strip if visible.
   int collapsed_vertical_tab_strip_adjustment = 0;
+  bool vertical_tabstrip_collapsed = false;
   if (IsParentedTo(views().vertical_tab_strip_region_view,
                    views().browser_view)) {
     gfx::Rect vertical_tab_strip_bounds;
@@ -295,7 +345,8 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
       int vertical_tab_strip_relative_top = 0;
       int vertical_tab_strip_width =
           views().vertical_tab_strip_region_view->GetPreferredSize().width();
-      if (delegate().IsVerticalTabStripCollapsed()) {
+      vertical_tabstrip_collapsed = delegate().IsVerticalTabStripCollapsed();
+      if (vertical_tabstrip_collapsed) {
         // Collapsed tabstrip sits underneath caption buttons when present.
         vertical_tab_strip_relative_top =
             GetCollapsedVerticalTabStripRelativeTop(params);
@@ -318,6 +369,22 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
     }
     layout.AddChild(views().vertical_tab_strip_region_view,
                     vertical_tab_strip_bounds,
+                    tab_strip_type == TabStripType::kVertical);
+  }
+
+  // Position the vertical tabstrip bottom corner.
+  if (IsParentedTo(views().vertical_tab_strip_bottom_corner,
+                   views().browser_view)) {
+    gfx::Rect corner_bounds;
+    if (tab_strip_type == TabStripType::kVertical) {
+      const auto preferred =
+          views().vertical_tab_strip_bottom_corner->GetPreferredSize();
+      corner_bounds =
+          gfx::Rect(params.visual_client_area.x(),
+                    params.visual_client_area.bottom() - preferred.height(),
+                    preferred.width(), preferred.height());
+    }
+    layout.AddChild(views().vertical_tab_strip_bottom_corner, corner_bounds,
                     tab_strip_type == TabStripType::kVertical);
   }
 
@@ -349,9 +416,19 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
       IsParentedTo(views().top_container, views().browser_view)) {
     auto& top_container_layout =
         layout.AddChild(views().top_container, gfx::Rect());
+
+    // Calculate the params for laying out the top container.
+    auto top_container_params =
+        params.InLocalCoordinates(params.visual_client_area);
+
+    // In vertical tabs mode, extra space is allocated next to the top element
+    // to serve as a grab handle, on whatever side the caption buttons are.
+    if (tab_strip_type == TabStripType::kVertical) {
+      MaybeAddGrabHandleToTopContainer(top_container_params, browser_params,
+                                       params);
+    }
     const gfx::Rect top_container_local_bounds = CalculateTopContainerLayout(
-        top_container_layout,
-        params.InLocalCoordinates(params.visual_client_area), needs_exclusion);
+        top_container_layout, top_container_params, needs_exclusion);
     top_container_layout.bounds =
         GetTopContainerBoundsInParent(top_container_local_bounds, params);
     params.SetTop(top_container_layout.bounds.bottom());
@@ -380,19 +457,6 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
   if (IsParentedTo(views().main_background_region, views().browser_view)) {
     layout.AddChild(views().main_background_region, params.visual_client_area,
                     has_toolbar_height_side_panel);
-    if (has_toolbar_height_side_panel) {
-      if (auto* const main_background =
-              views::AsViewClass<MainBackgroundRegionView>(
-                  views().main_background_region)) {
-        const bool supports_top_corners =
-            !layout_top_container_before_side_panels &&
-            !delegate().GetImmersiveModeController()->IsEnabled();
-        main_background->SetTrailingCornerVisible(supports_top_corners);
-        main_background->SetLeadingCornerVisible(
-            supports_top_corners &&
-            !delegate().IsActiveTabAtLeadingWindowEdge());
-      }
-    }
   }
 
   // The insets for main region and its containing views when the
@@ -768,4 +832,160 @@ gfx::Rect BrowserViewTabbedLayoutImpl::CalculateTopContainerLayout(
   return gfx::Rect(params.visual_client_area.x(), original_top,
                    params.visual_client_area.width(),
                    params.visual_client_area.y() - original_top);
+}
+
+void BrowserViewTabbedLayoutImpl::ConfigureTopContainerBackground(
+    const BrowserLayoutParams& params,
+    CustomCornersBackground* background) {
+  // Fall back to default implementation when vertical tabstrip not present.
+  if (!delegate().ShouldDrawVerticalTabStrip()) {
+    BrowserViewLayoutImpl::ConfigureTopContainerBackground(params, background);
+    return;
+  }
+
+  // The top container always draws an opaque background when in vertical
+  // tabstrip mode.
+  background->SetVisible(true);
+  background->SetPrimaryColor(CustomCornersBackground::TopContainerTheme());
+
+  // Rounded corners are drawn when not maximized or fullscreen.
+  CustomCornersBackground::Corners corners;
+  if (delegate().GetBrowserWindowState() == WindowState::kNormal) {
+    corners.upper_trailing = background->GetWindowCorner(/*upper=*/true);
+    const bool vertical_tab_strip_reaches_top =
+        !delegate().IsVerticalTabStripCollapsed() ||
+        params.leading_exclusion.IsEmpty();
+    if (!vertical_tab_strip_reaches_top) {
+      corners.upper_leading = background->GetWindowCorner(/*upper=*/true);
+    }
+  }
+  background->SetCorners(corners);
+}
+
+void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
+    const BrowserLayoutParams& params) {
+  const auto tab_strip_type = GetTabStripType();
+  const auto window_state = delegate().GetBrowserWindowState();
+  bool vertical_tab_strip_reaches_top = false;
+
+  // Set vertical tabstrip corners.
+  if (tab_strip_type == TabStripType::kVertical) {
+    // Vertical tabstrip goes all the way to the top of the window if it is not
+    // collapsed or there are no caption buttons on the leading edge.
+    vertical_tab_strip_reaches_top =
+        !delegate().IsVerticalTabStripCollapsed() ||
+        params.leading_exclusion.IsEmpty();
+    auto* const vertical_tabs_background =
+        static_cast<CustomCornersBackground*>(
+            views().vertical_tab_strip_region_view->background());
+    CustomCornersBackground::Corners vertical_tabs_corners;
+    // Ensure that corners of the window remain rounded.
+    if (window_state == WindowState::kNormal) {
+      if (vertical_tab_strip_reaches_top) {
+        vertical_tabs_corners.upper_leading =
+            vertical_tabs_background->GetWindowCorner(/*upper=*/true);
+      }
+      vertical_tabs_corners.lower_leading =
+          vertical_tabs_background->GetWindowCorner(/*upper=*/false);
+    }
+    // When the vertical tabs are below the toolbar but next to the bookmarks
+    // bar, draw a curved corner.
+    if (!vertical_tab_strip_reaches_top &&
+        window_state != WindowState::kFullscreen) {
+      const auto* const toolbar_height_side_panel =
+          views().toolbar_height_side_panel.get();
+      const bool has_leading_side_panel =
+          toolbar_height_side_panel &&
+          toolbar_height_side_panel->GetVisible() &&
+          toolbar_height_side_panel->IsRightAligned() == base::i18n::IsRTL();
+      if (delegate().IsBookmarkBarVisible() || has_leading_side_panel) {
+        vertical_tabs_corners.upper_trailing.type =
+            CustomCornersBackground::CornerType::kRoundedWithBackground;
+      }
+    }
+    vertical_tabs_background->SetCorners(vertical_tabs_corners);
+  }
+
+  // Set toolbar corners.
+  auto* const toolbar_background =
+      static_cast<CustomCornersBackground*>(views().toolbar->background());
+  CustomCornersBackground::Corners toolbar_corners;
+  switch (tab_strip_type) {
+    case TabStripType::kHorizontal: {
+      // Trailing curve is always shown for normal horizontal tabstrip.
+      toolbar_corners.upper_trailing.type =
+          CustomCornersBackground::CornerType::kRoundedWithBackground;
+
+      // If there is anything on the leading side or the first tab is not
+      // selected, then the corner radius is shown, otherwise we hide the
+      // corner radius.
+      if (!delegate().IsActiveTabAtLeadingWindowEdge()) {
+        toolbar_corners.upper_leading.type =
+            CustomCornersBackground::CornerType::kRoundedWithBackground;
+      }
+      break;
+    }
+    case TabStripType::kVertical: {
+      if (window_state != WindowState::kFullscreen) {
+        // Draw leading corner if vertical tabstrip is directly adjacent to
+        // toolbar. This happens when the vertical tabstrip goes all the way to
+        // the top of the window.
+        if (vertical_tab_strip_reaches_top) {
+          toolbar_corners.upper_leading.type =
+              CustomCornersBackground::CornerType::kRoundedWithBackground;
+        }
+        // Curve trailing corner when it goes all the way to the edge of the
+        // browser.
+        if (params.trailing_exclusion.IsEmpty()) {
+          toolbar_corners.upper_trailing =
+              toolbar_background->GetWindowCorner(/*upper=*/true);
+        }
+      }
+      break;
+    }
+    case TabStripType::kWebUi:
+      // In WebUI tabstrip mode, there's a titlebar at the top of the window
+      // directly above the toolbar, so no corners are needed.
+      break;
+    default:
+      // Ideally this should not be reached.
+      break;
+  }
+  toolbar_background->SetCorners(toolbar_corners);
+
+  if (views().main_background_region &&
+      views().main_background_region->GetVisible()) {
+    auto* const background = static_cast<CustomCornersBackground*>(
+        views().main_background_region->background());
+    CustomCornersBackground::Corners main_background_corners;
+
+    // Frame-colored corners are shown at the top in horizontal tabstrip mode.
+    // This doesn't apply in fullscreen, as the tabstrip is not in the window.
+    if (tab_strip_type == TabStripType::kHorizontal &&
+        window_state != WindowState::kFullscreen) {
+      // If (due to narrow width) the top container is not laid out in the main
+      // area, it also doesn't get rounded corners.
+      if (views().main_background_region->y() <= views().top_container->y()) {
+        if (!delegate().IsActiveTabAtLeadingWindowEdge()) {
+          main_background_corners.upper_leading.type =
+              CustomCornersBackground::CornerType::kRoundedWithBackground;
+        }
+        main_background_corners.upper_trailing.type =
+            CustomCornersBackground::CornerType::kRoundedWithBackground;
+      }
+    }
+
+    // Need to ensure the bottom of the window is properly rounded for normal
+    // windows.
+    if (window_state == WindowState::kNormal) {
+      if (tab_strip_type != TabStripType::kVertical) {
+        main_background_corners.lower_leading =
+            background->GetWindowCorner(/*upper=*/false);
+      }
+      main_background_corners.lower_trailing =
+          background->GetWindowCorner(/*upper=*/false);
+    }
+
+    background->SetCorners(main_background_corners);
+  }
 }

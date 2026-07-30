@@ -354,6 +354,7 @@ Chromium потрібен доступ до Bluetooth. <ph name="IDS_SERIAL_DEVI
 <translation id="4814736265800133385">Використовувати Chromium, не входячи в обліковий запис</translation>
 <translation id="4888717733111232871">Вхідне правило для Chromium дозволяє трафік mDNS.</translation>
 <translation id="4893347770495441059">Перезапустити, щоб оновити &amp;Chromium</translation>
+<translation id="4918086044614829423">Прийняти</translation>
 <translation id="4918844574251943176">Зображення скопійовано</translation>
 <translation id="4943838377383847465">Chromium у фоновому режимі.</translation>
 <translation id="494490797786467921">Натисніть, щоб закрити вікно входу в Chromium</translation>
@@ -531,6 +532,9 @@ Chromium потрібен доступ до Bluetooth. <ph name="IDS_SERIAL_DEVI
 <translation id="6901631050894301805">Зробіть Chromium вебпереглядачем за умовчанням і закріпіть його на панелі завдань</translation>
 <translation id="6909503629704372277">&amp;Керувати профілями Chromium</translation>
 <translation id="6934579572334859869">Запитати про це зображення в сервісі "Пошук за зображенням"</translation>
+<translation id="6948031725951063910">Ви додали максимальну кількість закладок у Chromium (<ph name="BOOKMARK_LIMIT" />), тому деякі з них іще не збережено у вашому обліковому записі Google.
+
+Щоб зберегти нові закладки в обліковому записі, видаліть деякі з наявних. Якщо вийти зараз, незбережені закладки буде видалено.</translation>
 <translation id="6964305034639999644">Відкрити посилання в аноні&amp;мному вікні Chromium</translation>
 <translation id="6965382102122355670">OK</translation>
 <translation id="6978145336957848883">Ненадійні паролі можна легко вгадати. Тому радимо <ph name="BEGIN_LINK" />створювати й зберігати безпечні паролі<ph name="END_LINK" /> в Chromium.</translation>
@@ -632,6 +636,7 @@ Chromium не може відновити ваші налаштування.</tr
 <translation id="8118331347066725040">Залиште відгук про пошук через Об’єктив</translation>
 <translation id="8133124826068723441">Chromium OS не вдалося синхронізувати ваші дані, оскільки синхронізація для вашого домену недоступна.</translation>
 <translation id="813913629614996137">Ініціалізація...</translation>
+<translation id="8164014945047474187">Додаткові умови використання Chromium</translation>
 <translation id="81770708095080097">Цей файл небезпечний, тому Chromium заблокував його.</translation>
 <translation id="8177472873527554730">Не вдалося знайти контент на сторінці</translation>
 <translation id="8200109504272824693">Щоб використовувати й зберігати дані Chromium в обліковому записі <ph name="USER_EMAIL" />, введіть парольну фразу</translation>
@@ -699,6 +704,7 @@ Chromium не може відновити ваші налаштування.</tr
 <translation id="8880203542552872219">Якщо так, змініть збережений пароль у Chromium, щоб він збігався з новим.</translation>
 <translation id="8891709362986793894">За вимогами вашої організації, ви повинні ввійти в обліковий запис Chromium</translation>
 <translation id="8907580949721785412">Chromium намагається показати паролі. Щоб дозволити, введіть свій пароль Windows.</translation>
+<translation id="8932992523185907506">Chromium більше не є вебпереглядачем за умовчанням. Зробити Chromium вебпереглядачем за умовчанням?</translation>
 <translation id="8941642502866065432">Не вдається оновити Chromium</translation>
 <translation id="897581876605952338">Логотип Chromium Enterprise</translation>
 <translation id="8981150672034878610">Не вдалося запустити Chromium через помилку під час відкриття профілю. Перезапустіть Chromium.</translation>

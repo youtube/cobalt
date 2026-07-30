@@ -149,7 +149,7 @@ class CONTENT_EXPORT IdpNetworkRequestManager : public NetworkRequestManager {
     AccountsResponse& operator=(const AccountsResponse&);
 
     std::vector<IdentityRequestAccountPtr> PotentialAccountsForOrigin(
-        const url::Origin& origin);
+        const url::Origin& origin) const;
 
     std::vector<IdentityRequestAccountPtr> accounts;
     std::string origin_salt;
@@ -268,7 +268,6 @@ class CONTENT_EXPORT IdpNetworkRequestManager : public NetworkRequestManager {
 
   // Attempt to fetch the IDP's FedCM parameters from the config file.
   virtual void FetchConfig(const GURL& provider,
-                           blink::mojom::RpMode rp_mode,
                            int idp_brand_icon_ideal_size,
                            int idp_brand_icon_minimum_size,
                            FetchConfigCallback);

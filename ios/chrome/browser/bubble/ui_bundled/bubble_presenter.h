@@ -16,6 +16,7 @@ class FullscreenController;
 class HostContentSettingsMap;
 @class LayoutGuideCenter;
 class OverlayPresenter;
+@protocol BWGCommands;
 @protocol PageActionMenuEntryPointCommands;
 @protocol PopupMenuCommands;
 @protocol TabStripCommands;
@@ -112,6 +113,10 @@ class DeviceSwitcherResultDispatcher;
 // identity disc on the New Tab page to switch accounts.
 - (void)presentSwitchAccountsWithNTPAccountParticleDiscBubble;
 
+// Optionally presents a bubble informing the user that they can pin a custom
+// site to the most visited tiles.
+- (void)presentPinSiteToMostVisitedTilesBubble;
+
 // Optionally presents a gesture IPH associated with the pull-to-refresh
 // feature. The eligibility can depend on the UI hierarchy at the moment, the
 // configuration and the display history of the bubble, etc.
@@ -149,6 +154,13 @@ class DeviceSwitcherResultDispatcher;
 
 // Optionally presents a bubble associated with the reader mode options.
 - (void)presentReaderModeOptionsBubble;
+
+// Optionally presents a bubble associated with the Gemini image remix feature
+// (Page Action Menu entry point).
+- (void)presentGeminiImageRemixBubbleWithBWGHandler:(id<BWGCommands>)BWGHandler
+                    pageActionMenuEntryPointHandler:
+                        (id<PageActionMenuEntryPointCommands>)
+                            pageActionMenuEntryPointHandler;
 
 // Delegate method to be invoked when the user has performed a swipe on the
 // toolbar to switch tabs. Remove `toolbarSwipeGestureIPH` if visible.

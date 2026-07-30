@@ -24,10 +24,9 @@
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/extensions/blocklist_factory.h"
-#include "chrome/browser/extensions/extension_assets_manager.h"
 #include "chrome/browser/extensions/extension_management.h"
 #include "chrome/browser/extensions/extension_util.h"
-#include "chrome/browser/extensions/forced_extensions/install_stage_tracker.h"
+#include "chrome/browser/extensions/forced_extensions/install_stage_tracker_factory.h"
 #include "chrome/browser/extensions/install_tracker_factory.h"
 #include "chrome/browser/lifetime/termination_notification.h"
 #include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
@@ -46,12 +45,15 @@
 #include "extensions/browser/blocklist_check.h"
 #include "extensions/browser/content_verifier/content_verifier.h"
 #include "extensions/browser/convert_user_script.h"
+#include "extensions/browser/extension_assets_manager.h"
 #include "extensions/browser/extension_file_task_runner.h"
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/extension_registrar.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_system.h"
 #include "extensions/browser/extension_util.h"
+#include "extensions/browser/extensions_browser_client.h"
+#include "extensions/browser/forced_extensions/install_stage_tracker.h"
 #include "extensions/browser/install/crx_install_error.h"
 #include "extensions/browser/install_approval.h"
 #include "extensions/browser/install_flag.h"
@@ -149,7 +151,8 @@ CrxInstaller::CrxInstaller(content::BrowserContext* context,
   if (!approval)
     return;
 
-  CHECK(profile()->IsSameOrParent(approval->profile));
+  CHECK(profile()->IsSameOrParent(
+      Profile::FromBrowserContext(approval->browser_context)));
   if (client_) {
     client_->install_ui()->SetUseAppInstalledBubble(
         approval->use_app_installed_bubble);
@@ -924,7 +927,7 @@ void CrxInstaller::CompleteInstall(
   }
 
   ExtensionAssetsManager* assets_manager =
-      ExtensionAssetsManager::GetInstance();
+      ExtensionsBrowserClient::Get()->GetAssetsManager();
   assets_manager->InstallExtension(
       extension(), unpacked_extension_root_, install_directory_, profile(),
       base::BindOnce(&CrxInstaller::ReloadExtensionAfterInstall, this),
@@ -1077,7 +1080,7 @@ void CrxInstaller::ReportInstallationStage(InstallationStage stage) {
   if (expected_id_.empty())
     return;
   InstallStageTracker* install_stage_tracker =
-      InstallStageTracker::Get(profile_);
+      InstallStageTrackerFactory::GetForBrowserContext(profile_);
   install_stage_tracker->ReportCRXInstallationStage(expected_id_, stage);
 }
 
@@ -1110,7 +1113,7 @@ void CrxInstaller::NotifyCrxInstallComplete(
   const ExtensionId extension_id =
       expected_id_.empty() && extension() ? extension()->id() : expected_id_;
   InstallStageTracker* install_stage_tracker =
-      InstallStageTracker::Get(profile_);
+      InstallStageTrackerFactory::GetForBrowserContext(profile_);
   install_stage_tracker->ReportInstallationStage(
       extension_id, InstallStageTracker::Stage::COMPLETE);
   const bool success = !error.has_value();

@@ -17,6 +17,7 @@ import {CrLitElement, type PropertyValues} from '//resources/lit/v3_0/lit.rollup
 import type {SettingsPrefs} from '../content/read_anything_types.js';
 import {DEFAULT_SETTINGS, SettingsOption, ToolbarEvent} from '../content/read_anything_types.js';
 import {openMenu} from '../shared/common.js';
+import {isActivationKey, isBackwardArrow, isForwardArrow, isVerticalArrow} from '../shared/keyboard_util.js';
 
 import {getCss} from './settings_menu.css.js';
 import {getHtml} from './settings_menu.html.js';
@@ -24,6 +25,10 @@ import {getHtml} from './settings_menu.html.js';
 // Delay, in ms, between when menus are selected or moused over and the menu
 // appears. It mirrors the value in ui/views/controls/menu/menu_config.h
 export const MENU_SHOW_DELAY_MS = 400;
+// Delay, in ms, between when a submenu is shown and when hovering should
+// trigger opening another submenu. This is used to prevent accidental
+// opens of submenus.
+export const SUBMENU_SHOW_DELAY_MS = 800;
 
 export enum SettingsItemType {
   MENU = 1,
@@ -112,6 +117,8 @@ const MENU_ITEM_DATA: Record<SettingsOption, SettingsItem> = {
   },
 };
 
+export const KEYBOARD_NAV_CLASS = 'keyboard-nav';
+
 export interface SettingsMenuElement {
   $: {
     lazyMenu: CrLazyRenderLitElement<CrActionMenuElement>,
@@ -147,11 +154,16 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
       ['click', 'pointerdown', 'pointermove'];
   private openTimer_: number|null = null;
   private closeTimer_: number|null = null;
+  // Used to prevent accidental triggers of other submenus after a submenu
+  // has recently been opened.
+  private lastMenuOpenTime_: number = 0;
   private pointerEventCallback_: (e: Event) => void = () => {};
+  private keyDownCallback_: (e: KeyboardEvent) => void = () => {};
 
   override connectedCallback() {
     super.connectedCallback();
     this.pointerEventCallback_ = this.onPointerEvent_.bind(this);
+    this.keyDownCallback_ = this.onKeyDown_.bind(this);
   }
 
   override willUpdate(changedProperties: PropertyValues<this>) {
@@ -239,10 +251,7 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
       return;
     }
 
-    this.clearCloseTimer_();
-    if (this.openTimer_) {
-      clearTimeout(this.openTimer_);
-    }
+    this.clearTimers_();
 
     const newMenuId = item.id;
     if (this.currentOpenId_ === newMenuId) {
@@ -255,6 +264,7 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
       target: currentTarget,
     });
     this.currentOpenId_ = newMenuId;
+    this.lastMenuOpenTime_ = Date.now();
   }
 
   private onToggleMenuItemClick_(item: SettingsItem) {
@@ -278,10 +288,7 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
   }
 
   protected onMenuItemHover_(e: PointerEvent) {
-    this.clearCloseTimer_();
-    if (this.openTimer_) {
-      clearTimeout(this.openTimer_);
-    }
+    this.clearTimers_();
 
     const currentTarget = e.currentTarget as HTMLElement;
     if (!currentTarget) {
@@ -299,6 +306,12 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
       return;
     }
 
+    // If the menu was just opened, add a delay to prevent accidental switching.
+    const timeSinceLastOpen = Date.now() - this.lastMenuOpenTime_;
+    const delay = timeSinceLastOpen < SUBMENU_SHOW_DELAY_MS ?
+        SUBMENU_SHOW_DELAY_MS :
+        MENU_SHOW_DELAY_MS;
+
     this.openTimer_ = window.setTimeout(() => {
       this.fire(ToolbarEvent.OPEN_SETTINGS_SUBMENU, {
         id: newMenuId,
@@ -306,12 +319,21 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
         target: currentTarget,
       });
       this.currentOpenId_ = newMenuId;
-    }, MENU_SHOW_DELAY_MS);
+      this.lastMenuOpenTime_ = Date.now();
+    }, delay);
   }
 
-  protected onMenuItemLeave_() {
+  protected onMenuItemLeave_(e: PointerEvent) {
+    // Clear the open timer so that submenus aren't opened after the cursor
+    // stops hovering.
+    this.clearOpenTimer_();
+
+    const currentTarget = e.currentTarget as HTMLElement;
+    if (currentTarget) {
+      currentTarget.classList.remove('active');
     this.startCloseTimer_();
   }
+}
 
   private startCloseTimer_() {
     if (this.closeTimer_) {
@@ -327,6 +349,18 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
     }, MENU_SHOW_DELAY_MS);
   }
 
+  private clearTimers_() {
+    this.clearOpenTimer_();
+    this.clearCloseTimer_();
+  }
+
+  private clearOpenTimer_() {
+    if (this.openTimer_) {
+      clearTimeout(this.openTimer_);
+      this.openTimer_ = null;
+    }
+  }
+
   private clearCloseTimer_() {
     if (this.closeTimer_) {
       clearTimeout(this.closeTimer_);
@@ -337,6 +371,7 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
   open(anchor: HTMLElement) {
     // TODO (crbug.com/470379596): Add keyboard navigation to settings menu
     openMenu(this.$.lazyMenu.get(), anchor);
+    window.addEventListener('keydown', this.keyDownCallback_, {capture: true});
     this.interceptedEvents_.forEach(eventType => {
       window.addEventListener(
           eventType, this.pointerEventCallback_, {capture: true});
@@ -344,8 +379,11 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
   }
 
   close() {
+    this.clearTimers_();
     this.$.lazyMenu.get().close();
     document.body.classList.remove('read-anything-menu-open');
+    window.removeEventListener(
+        'keydown', this.keyDownCallback_, {capture: true});
     this.interceptedEvents_.forEach(eventType => {
       window.removeEventListener(
           eventType, this.pointerEventCallback_, {capture: true});
@@ -359,6 +397,13 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
   // 1. Prevent interactions with elements outside the menu.
   // 2. Close the menu when clicking outside (simulating modal behavior).
   private onPointerEvent_(e: Event) {
+    if (e.type === 'pointermove') {
+      const menu = this.$.lazyMenu.get();
+      if (menu.classList.contains(KEYBOARD_NAV_CLASS)) {
+        menu.classList.remove(KEYBOARD_NAV_CLASS);
+      }
+    }
+
     // TODO (crbug.com/470381025): Fix cursor style when settings menu is open
     let isInsideSubmenu = false;
     let isInsideMain = false;
@@ -402,6 +447,49 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
     if (e.type === 'click') {
       this.fire(
           ToolbarEvent.CLOSE_ALL_MENUS, {previousId: this.currentOpenId_});
+    }
+  }
+
+  private onKeyDown_(e: KeyboardEvent) {
+    const key = e.key;
+    if (isVerticalArrow(key) || isForwardArrow(key) || isActivationKey(key)) {
+      this.clearOpenTimer_();
+
+      const menu = this.$.lazyMenu.get();
+      if (!menu.classList.contains(KEYBOARD_NAV_CLASS)) {
+        menu.classList.add(KEYBOARD_NAV_CLASS);
+      }
+    }
+
+    // Handle Escape or horizontal backward navigation to close the currently
+    // open submenu. We consume the event to stop further propagation.
+    if (this.currentOpenId_ &&
+        (key === 'Escape' || (isBackwardArrow(key) && !isVerticalArrow(key)))) {
+      e.stopPropagation();
+      e.preventDefault();
+      this.fire(
+          ToolbarEvent.CLOSE_SUBMENU_REQUESTED,
+          {previousId: this.currentOpenId_});
+      this.currentOpenId_ = null;
+      return;
+    }
+
+    if (isForwardArrow(key) && !isVerticalArrow(key)) {
+      e.stopPropagation();
+      e.preventDefault();
+
+      const focused = this.shadowRoot.activeElement as HTMLElement;
+      if (!focused || !focused.classList.contains('menu-row')) {
+        return;
+      }
+
+      const index = Number.parseInt(focused.dataset['index']!);
+      const item = this.options_[index];
+      if (!item || item.itemType === SettingsItemType.TOGGLE) {
+        return;
+      }
+
+      focused.click();
     }
   }
 }

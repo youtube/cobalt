@@ -13,22 +13,13 @@ namespace supervised_user {
 DeviceParentalControls::DeviceParentalControls() = default;
 DeviceParentalControls::~DeviceParentalControls() = default;
 
-void DeviceParentalControls::AddObserver(Observer* observer) const {
-  observer_list_.AddObserver(observer);
+base::CallbackListSubscription DeviceParentalControls::Subscribe(
+    Callback callback) {
+  callback.Run(*this);
+  return subscriber_list_.Add(std::move(callback));
 }
 
-void DeviceParentalControls::RemoveObserver(Observer* observer) const {
-  observer_list_.RemoveObserver(observer);
+void DeviceParentalControls::NotifySubscribers() {
+  subscriber_list_.Notify(*this);
 }
-
-void DeviceParentalControls::NotifyBrowserContentFiltersChanged() const {
-  observer_list_.Notify(
-      &Observer::OnAndroidParentalControlsBrowserContentFiltersChanged);
-}
-
-void DeviceParentalControls::NotifySearchContentFiltersChanged() const {
-  observer_list_.Notify(
-      &Observer::OnAndroidParentalControlsSearchContentFiltersChanged);
-}
-
 }  // namespace supervised_user

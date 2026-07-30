@@ -21,7 +21,6 @@
 #include "ash/webui/projector_app/public/cpp/projector_app_constants.h"
 #include "base/check.h"
 #include "base/check_op.h"
-#include "base/containers/contains.h"
 #include "base/containers/extend.h"
 #include "base/containers/span.h"
 #include "base/feature_list.h"
@@ -371,7 +370,7 @@ void PinAfterChromeIfNotPresent(app_list::AppListSyncableService* syncable_servi
     PositionItemId next =
         GetNextPositionItemIdAfter(syncable_service, current_position);
     if (!next.position.IsValid() ||
-        !base::Contains(skip_app_ids, next.item_id)) {
+        !std::ranges::contains(skip_app_ids, next.item_id)) {
       next_position = next.position;
       break;
     }
@@ -394,19 +393,7 @@ void AddNotebookLmAppPinIfNeeded(
     Profile* profile,
     app_list::AppListSyncableService* syncable_service) {
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-  // Allow manual testers to reset the sync state easily.
-  if (base::FeatureList::IsEnabled(
-          chromeos::features::kNotebookLmAppShelfPinReset)) {
-    ScopedListPrefUpdate update(profile->GetPrefs(),
-                                prefs::kShelfNotebookLmAppPinRolls);
-
-    update->clear();
-    return;
-  }
-
-  if (!base::FeatureList::IsEnabled(
-          chromeos::features::kNotebookLmAppShelfPin) ||
-      !ShelfControllerHelper::IsAppDefaultInstalled(profile,
+  if (!ShelfControllerHelper::IsAppDefaultInstalled(profile,
                                                     ash::kNotebookLmAppId) ||
       !profile->GetPrefs()
            ->GetList(prefs::kShelfNotebookLmAppPinRolls)
@@ -418,7 +405,7 @@ void AddNotebookLmAppPinIfNeeded(
   update->Append("v1");
 
   PinAfterChromeIfNotPresent(syncable_service, {ash::kGeminiAppId},
-                      ash::kNotebookLmAppId);
+                             ash::kNotebookLmAppId);
 #endif  // GOOGLE_CHROME_BRANDING
 }
 
@@ -442,12 +429,10 @@ void AddMallPinIfNeeded(Profile* profile,
                               prefs::kShelfMallAppPinRolls);
   update->Append("v1");
 
-  std::vector<std::string> skip_app_ids = {ash::kGeminiAppId};
-  if (base::FeatureList::IsEnabled(
-          chromeos::features::kNotebookLmAppShelfPin)) {
-    skip_app_ids.push_back(ash::kNotebookLmAppId);
-  }
-  PinAfterChromeIfNotPresent(syncable_service, skip_app_ids, ash::kMallSystemAppId);
+  std::vector<std::string> skip_app_ids = {ash::kGeminiAppId,
+                                           ash::kNotebookLmAppId};
+  PinAfterChromeIfNotPresent(syncable_service, skip_app_ids,
+                             ash::kMallSystemAppId);
 }
 
 void SetPreloadPinComplete(Profile* profile) {

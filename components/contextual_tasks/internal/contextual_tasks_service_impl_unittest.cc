@@ -4,6 +4,7 @@
 
 #include "components/contextual_tasks/internal/contextual_tasks_service_impl.h"
 
+#include <algorithm>
 #include <memory>
 #include <optional>
 #include <set>
@@ -1051,16 +1052,18 @@ TEST_F(ContextualTasksServiceImplTest, SetUrlResourcesFromServer) {
   in1.title = "New Title 1";  // Changed
 
   // 2. Update res2 (Match by Context ID)
-  UrlResource in2(GURL("https://example.com/2"));  // No ID
+  UrlResource in2(GURL("https://example.com/2"),
+                  ResourceType::kWebpage);  // No ID
   in2.context_id = 12345;
   // Missing title, should copy "Old Title 2"
 
   // 3. Update res3 (Match by URL)
-  UrlResource in3(GURL("https://example.com/3"));  // No ID, No Context ID
+  UrlResource in3(GURL("https://example.com/3"),
+                  ResourceType::kWebpage);  // No ID, No Context ID
   // Missing title, should copy "Old Title 3"
 
   // 4. New resource (Added)
-  UrlResource in5(GURL("https://example.com/5"));
+  UrlResource in5(GURL("https://example.com/5"), ResourceType::kWebpage);
   in5.title = "New Title 5";
 
   std::vector<UrlResource> incoming_resources = {in1, in2, in3, in5};
@@ -1746,13 +1749,13 @@ TEST_F(ContextualTasksServiceImplTest, GetTabsAssociatedWithTask) {
   std::vector<SessionID> tabs_for_task1 =
       service_->GetTabsAssociatedWithTask(task1.GetTaskId());
   ASSERT_EQ(2u, tabs_for_task1.size());
-  EXPECT_TRUE(base::Contains(tabs_for_task1, tab_id1));
-  EXPECT_TRUE(base::Contains(tabs_for_task1, tab_id2));
+  EXPECT_TRUE(std::ranges::contains(tabs_for_task1, tab_id1));
+  EXPECT_TRUE(std::ranges::contains(tabs_for_task1, tab_id2));
 
   std::vector<SessionID> tabs_for_task2 =
       service_->GetTabsAssociatedWithTask(task2.GetTaskId());
   ASSERT_EQ(1u, tabs_for_task2.size());
-  EXPECT_TRUE(base::Contains(tabs_for_task2, tab_id3));
+  EXPECT_TRUE(std::ranges::contains(tabs_for_task2, tab_id3));
 
   // Test with a task that has no associated tabs.
   ContextualTask task3 = service_->CreateTask();
@@ -1779,9 +1782,9 @@ TEST_F(ContextualTasksServiceImplTest,
       service_->GetContextualTaskForTab(tab_id);
   ASSERT_TRUE(current_task.has_value());
   EXPECT_EQ(task1.GetTaskId(), current_task->GetTaskId());
-  EXPECT_TRUE(base::Contains(
+  EXPECT_TRUE(std::ranges::contains(
       service_->GetTabsAssociatedWithTask(task1.GetTaskId()), tab_id));
-  EXPECT_FALSE(base::Contains(
+  EXPECT_FALSE(std::ranges::contains(
       service_->GetTabsAssociatedWithTask(task2.GetTaskId()), tab_id));
 
   // Associate same tab with task2.
@@ -1789,9 +1792,9 @@ TEST_F(ContextualTasksServiceImplTest,
   current_task = service_->GetContextualTaskForTab(tab_id);
   ASSERT_TRUE(current_task.has_value());
   EXPECT_EQ(task2.GetTaskId(), current_task->GetTaskId());
-  EXPECT_TRUE(base::Contains(
+  EXPECT_TRUE(std::ranges::contains(
       service_->GetTabsAssociatedWithTask(task2.GetTaskId()), tab_id));
-  EXPECT_FALSE(base::Contains(
+  EXPECT_FALSE(std::ranges::contains(
       service_->GetTabsAssociatedWithTask(task1.GetTaskId()), tab_id));
 }
 

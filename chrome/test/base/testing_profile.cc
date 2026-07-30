@@ -50,7 +50,6 @@
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/ssl/stateful_ssl_host_state_delegate_factory.h"
-#include "chrome/browser/supervised_user/supervised_user_content_filters_service_factory.h"
 #include "chrome/browser/supervised_user/supervised_user_settings_service_factory.h"
 #include "chrome/browser/transition_manager/full_browser_transition_manager.h"
 #include "chrome/browser/ui/zoom/chrome_zoom_level_prefs.h"
@@ -555,6 +554,12 @@ TestingProfile::~TestingProfile() {
   if (user_cloud_policy_manager_)
     user_cloud_policy_manager_->Shutdown();
 
+#if !BUILDFLAG(IS_CHROMEOS)
+  if (profile_cloud_policy_manager_) {
+    profile_cloud_policy_manager_->Shutdown();
+  }
+#endif  // !BUILDFLAG(IS_CHROMEOS)
+
   if (host_content_settings_map_.get())
     host_content_settings_map_->ShutdownOnUIThread();
 
@@ -733,7 +738,7 @@ void TestingProfile::CreateTestingPrefService() {
       /*supervised_user_prefs=*/
       supervised_user::CreateTestingPrefStore(
           SupervisedUserSettingsServiceFactory::GetForKey(key_.get()),
-          SupervisedUserContentFiltersServiceFactory::GetForKey(key_.get())),
+          g_browser_process->device_parental_controls()),
       /*extension_prefs=*/base::MakeRefCounted<TestingPrefStore>(),
       /*user_prefs=*/base::MakeRefCounted<TestingPrefStore>(),
       /*recommended_prefs=*/base::MakeRefCounted<TestingPrefStore>(),

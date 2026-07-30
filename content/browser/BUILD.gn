@@ -42,9 +42,9 @@ if (is_android) {
       "//content/test:*",
     ]
     deps = [
-      "//third_party/rust/font_types/v0_10:lib",
-      "//third_party/rust/read_fonts/v0_36:lib",
-      "//third_party/rust/skrifa/v0_39:lib",
+      "//third_party/rust/font_types/v0_11:lib",
+      "//third_party/rust/read_fonts/v0_37:lib",
+      "//third_party/rust/skrifa/v0_40:lib",
     ]
   }
 }
@@ -149,6 +149,7 @@ source_set("browser") {
     "//components/ukm/debug:util",
     "//components/url_formatter",
     "//components/url_matcher",
+    "//components/url_pattern",
     "//components/variations",
     "//components/variations/net",
     "//components/version_info",
@@ -2091,7 +2092,6 @@ source_set("browser") {
     "screenlock_monitor/screenlock_monitor_device_source.h",
     "screenlock_monitor/screenlock_monitor_source.cc",
     "screenlock_monitor/screenlock_monitor_source.h",
-    "security/coop/cross_origin_isolation_mode.h",
     "security/coop/cross_origin_opener_policy_access_report_manager.cc",
     "security/coop/cross_origin_opener_policy_access_report_manager.h",
     "security/coop/cross_origin_opener_policy_reporter.cc",
@@ -2435,6 +2435,8 @@ source_set("browser") {
     "webid/fake_identity_request_dialog_controller.h",
     "webid/flags.cc",
     "webid/flags.h",
+    "webid/identity_credential_source_impl.cc",
+    "webid/identity_credential_source_impl.h",
     "webid/identity_provider_info.cc",
     "webid/identity_provider_info.h",
     "webid/identity_registry.cc",

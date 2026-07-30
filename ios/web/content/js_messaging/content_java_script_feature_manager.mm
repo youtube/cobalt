@@ -4,7 +4,6 @@
 
 #import "ios/web/content/js_messaging/content_java_script_feature_manager.h"
 
-#import "base/containers/contains.h"
 #import "base/feature_list.h"
 #import "base/ios/ios_util.h"
 #import "base/strings/string_util.h"
@@ -59,7 +58,7 @@ void ContentJavaScriptFeatureManager::InjectDocumentEndScripts(
 
 bool ContentJavaScriptFeatureManager::HasFeature(
     const JavaScriptFeature* feature) const {
-  return base::Contains(features_, feature);
+  return features_.contains(feature);
 }
 
 void ContentJavaScriptFeatureManager::AddFeature(

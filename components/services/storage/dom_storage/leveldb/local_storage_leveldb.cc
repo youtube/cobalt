@@ -4,8 +4,9 @@
 
 #include "components/services/storage/dom_storage/leveldb/local_storage_leveldb.h"
 
+#include <algorithm>
+
 #include "base/check.h"
-#include "base/containers/contains.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_view_util.h"
@@ -165,15 +166,14 @@ LocalStorageLevelDB::~LocalStorageLevelDB() = default;
 DbStatus LocalStorageLevelDB::Open(
     PassKey,
     const base::FilePath& directory,
-    const std::string& name,
     const std::optional<base::trace_event::MemoryAllocatorDumpGuid>&
         memory_dump_id) {
-  ASSIGN_OR_RETURN(
-      leveldb_,
-      DomStorageDatabaseLevelDB::Open(
-          directory, name, memory_dump_id, kLocalStorageLevelDBVersionKey,
-          /*min_supported_version=*/kLocalStorageLevelDBVersion,
-          /*max_supported_version=*/kLocalStorageLevelDBVersion));
+  ASSIGN_OR_RETURN(leveldb_,
+                   DomStorageDatabaseLevelDB::Open(
+                       StorageType::kLocalStorage, directory, memory_dump_id,
+                       kLocalStorageLevelDBVersionKey,
+                       /*min_supported_version=*/kLocalStorageLevelDBVersion,
+                       /*max_supported_version=*/kLocalStorageLevelDBVersion));
   return DbStatus::OK();
 }
 
@@ -329,7 +329,7 @@ DbStatus LocalStorageLevelDB::DeleteStorageKeysFromSession(
     // A valid `map` must be in `storage_keys` and `kLocalStorageSessionId`.
     CHECK_EQ(map.session_ids().size(), 1u);
     CHECK_EQ(map.session_ids()[0], kLocalStorageSessionId);
-    DCHECK(base::Contains(metadata_to_delete, map.storage_key()));
+    DCHECK(std::ranges::contains(metadata_to_delete, map.storage_key()));
 
     DB_RETURN_IF_ERROR(batch->DeletePrefixed(GetMapPrefix(map.storage_key())));
   }

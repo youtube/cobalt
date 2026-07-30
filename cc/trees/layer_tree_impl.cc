@@ -16,7 +16,6 @@
 #include <utility>
 
 #include "base/containers/adapters.h"
-#include "base/containers/contains.h"
 #include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/json/json_writer.h"
@@ -496,16 +495,16 @@ void LayerTreeImpl::UpdateViewportContainerSizes() {
       std::max(0.0f, max_safe_area_inset_bottom() - bottom_content_offset);
   const float blink_saib = std::max(
       0.0f, max_safe_area_inset_bottom() - blink_bottom_content_offset);
-  const float transform_delta_by_safe_area_inset_bottom =
-      -(real_saib - blink_saib);
+  float transform_delta_by_safe_area_inset_bottom = -(real_saib - blink_saib);
 
-  const float scaled_transform_delta_by_safe_area_inset_bottom =
-      transform_delta_by_safe_area_inset_bottom / min_page_scale_factor();
+  if (min_page_scale_factor() > 0.f) {
+    transform_delta_by_safe_area_inset_bottom /= min_page_scale_factor();
+  }
 
   if (property_trees->transform_delta_by_safe_area_inset_bottom() !=
-      scaled_transform_delta_by_safe_area_inset_bottom) {
+      transform_delta_by_safe_area_inset_bottom) {
     property_trees->SetTransformDeltaBySafeAreaInsetBottom(
-        scaled_transform_delta_by_safe_area_inset_bottom);
+        transform_delta_by_safe_area_inset_bottom);
   }
 
   // Adjust the viewport layers by shrinking/expanding the container to account
@@ -1969,7 +1968,7 @@ void LayerTreeImpl::UnregisterLayer(LayerImpl* layer) {
 
 void LayerTreeImpl::AddLayer(std::unique_ptr<LayerImpl> layer) {
   DCHECK(layer);
-  DCHECK(!base::Contains(layer_list_, layer));
+  DCHECK(!std::ranges::contains(layer_list_, layer));
   layer_list_.push_back(std::move(layer));
   set_needs_update_draw_properties();
 }
@@ -2320,7 +2319,7 @@ void LayerTreeImpl::ProcessUIResourceRequestQueue() {
 }
 
 void LayerTreeImpl::RegisterPictureLayerImpl(PictureLayerImpl* layer) {
-  DCHECK(!base::Contains(picture_layers_, layer));
+  DCHECK(!std::ranges::contains(picture_layers_, layer));
   picture_layers_.push_back(layer);
 }
 

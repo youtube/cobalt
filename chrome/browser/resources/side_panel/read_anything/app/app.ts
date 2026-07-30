@@ -19,7 +19,7 @@ import {ContentController, ContentType} from '../content/content_controller.js';
 import type {ContentListener, ContentState} from '../content/content_controller.js';
 import {LineFocusController, type LineFocusListener} from '../content/line_focus_controller.js';
 import {NodeStore} from '../content/node_store.js';
-import {DEFAULT_SETTINGS, LineFocusType, type SettingsPrefs} from '../content/read_anything_types.js';
+import {DEFAULT_SETTINGS, type LineFocusMovement, type LineFocusStyle, LineFocusType, type SettingsPrefs} from '../content/read_anything_types.js';
 import {SelectionController} from '../content/selection_controller.js';
 import type {LanguageToastElement} from '../read_aloud/language_toast.js';
 import {SpeechController} from '../read_aloud/speech_controller.js';
@@ -157,6 +157,9 @@ export class AppElement extends AppElementBase implements SpeechListener,
     TextSegmenter.getInstance().updateLanguage(
         chrome.readingMode.baseLanguageForSpeech);
     this.contentState_ = this.contentController_.getState();
+    if (chrome.readingMode.isReadabilityEnabled) {
+      this.contentController_.configureTrustedTypes();
+    }
   }
 
   override disconnectedCallback() {
@@ -362,14 +365,13 @@ export class AppElement extends AppElementBase implements SpeechListener,
     if (newRoot) {
       this.$.container.appendChild(newRoot);
     }
+    const wordCountContainer =
+        chrome.readingMode.isReadabilityEnabled ? this.$.container : newRoot;
     if (!this.willDrawAgainSoon_) {
-      const wordCount = (newRoot && newRoot.textContent) ?
-          getWordCount(newRoot.textContent) :
+      const wordCount = (wordCountContainer && wordCountContainer.textContent) ?
+          getWordCount(wordCountContainer.textContent) :
           0;
       chrome.readingMode.onDistilled(wordCount);
-      requestAnimationFrame(() => {
-        this.onTextLocationsChange_();
-      });
     }
   }
 
@@ -458,6 +460,12 @@ export class AppElement extends AppElementBase implements SpeechListener,
     this.$.containerScroller.scrollTop = 0;
   }
 
+  onContentChange(): void {
+    requestAnimationFrame(() => {
+      this.onTextLocationsChange_();
+    });
+  }
+
   onPlayingFromSelection(): void {
     // Clear the selection so we don't keep trying to play from the same
     // selection every time they press play.
@@ -466,8 +474,10 @@ export class AppElement extends AppElementBase implements SpeechListener,
 
   onIsSpeechActiveChange(): void {
     this.isSpeechActive_ = this.speechController_.isSpeechActive();
+    // TODO (crbug.com/475223538): Implement updateLinks for Readability flag.
     if (chrome.readingMode.linksEnabled &&
-        !this.speechController_.isTemporaryPause()) {
+        !this.speechController_.isTemporaryPause() &&
+        !chrome.readingMode.isReadabilityEnabled) {
       this.updateLinks_();
     }
   }
@@ -542,7 +552,10 @@ export class AppElement extends AppElementBase implements SpeechListener,
     };
     this.styleUpdater_.setAllTextStyles();
     if (chrome.readingMode.isLineFocusEnabled) {
-      this.setLineFocus_(this.settingsPrefs_.lineFocus);
+      this.lineFocusController_.restoreFromPrefs(
+          this.settingsPrefs_.lineFocus, this.$.container,
+          this.$.containerParent.clientHeight);
+      this.setLineFocus_();
     }
     // TODO: crbug.com/40927698 - Remove this call. Using this.settingsPrefs_
     // should replace this direct call to the toolbar.
@@ -600,14 +613,28 @@ export class AppElement extends AppElementBase implements SpeechListener,
     }
   }
 
-  protected onLineFocusChange_(event: CustomEvent<{data: number}>) {
-    this.setLineFocus_(event.detail.data);
+  protected onLineFocusStyleChange_(
+      event: CustomEvent<{data: LineFocusStyle}>) {
+    if (chrome.readingMode.isLineFocusEnabled) {
+      this.lineFocusController_.onStyleChange(
+          event.detail.data, this.$.container,
+          this.$.containerParent.clientHeight);
+      this.setLineFocus_();
+    }
   }
 
-  private setLineFocus_(lineFocus: number) {
+  protected onLineFocusMovementChange_(
+      event: CustomEvent<{data: LineFocusMovement}>) {
     if (chrome.readingMode.isLineFocusEnabled) {
-      this.lineFocusController_.onLineFocusChange(
-          lineFocus, this.$.container, this.$.containerParent.clientHeight);
+      this.lineFocusController_.onMovementChange(
+          event.detail.data, this.$.container,
+          this.$.containerParent.clientHeight);
+      this.setLineFocus_();
+    }
+  }
+
+  private setLineFocus_() {
+    if (chrome.readingMode.isLineFocusEnabled) {
       this.styleUpdater_.setLineFocusStyle(
           this.lineFocusController_.getCurrentLineFocusType());
     }

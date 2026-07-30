@@ -113,7 +113,7 @@ base::expected<std::vector<int32_t>, std::string> ToSignedDimensions(
   std::vector<int32_t> output_dimensions;
   output_dimensions.reserve(input_dimensions.size());
   for (auto dimension : input_dimensions) {
-    auto checked_dimension = base::MakeCheckedNum<int32_t>(dimension);
+    base::CheckedNumeric<int32_t> checked_dimension = dimension;
     if (!checked_dimension.IsValid()) {
       return base::unexpected("The dimension is too large.");
     }
@@ -213,9 +213,9 @@ std::optional<PaddingSizes> CalculateExplicitPaddingForSamePaddingMode(
     uint32_t stride,
     uint32_t dilation,
     bool is_transposed_conv2d) {
-  auto checked_dilated_filter_size =
-      (base::MakeCheckedNum<uint32_t>(filter_size) - 1) * dilation + 1;
-  auto checked_input_size = base::MakeCheckedNum<uint32_t>(input_size);
+  base::CheckedNumeric<uint32_t> checked_dilated_filter_size =
+      (base::CheckedNumeric(filter_size) - 1) * dilation + 1;
+  base::CheckedNumeric<uint32_t> checked_input_size = input_size;
   base::CheckedNumeric<uint32_t> checked_total_padding;
   if (is_transposed_conv2d) {
     // The checked_total_padding (beginningPadding + endingPadding) can be
@@ -235,7 +235,7 @@ std::optional<PaddingSizes> CalculateExplicitPaddingForSamePaddingMode(
     }
     checked_total_padding = checked_needed_input_size.ValueOrDie() > input_size
                                 ? checked_needed_input_size - input_size
-                                : base::MakeCheckedNum<uint32_t>(0);
+                                : base::CheckedNumeric<uint32_t>(0);
   }
 
   // Same upper padding.
@@ -255,7 +255,38 @@ struct TfLitePadding {
   std::optional<std::array<uint32_t, 4>> paddings;
 };
 
-// Helper to get tflite padding mode for convolution 2d or pooling 2d.
+// Calculate explicit padding end to ensure TFLite's VALID padding produces the
+// expected WebNN output shape for ceil rounding type.
+base::expected<uint32_t, std::string> CalculatePaddingEndForCeilRoundingType(
+    uint32_t input_size,
+    uint32_t filter_size,
+    uint32_t stride,
+    uint32_t dilation,
+    uint32_t output_size,
+    uint32_t padding_begin) {
+  // Calculate the dilated filter sizes that are validated in graph validation.
+  base::CheckedNumeric<uint32_t> checked_effective_filter_size = filter_size;
+  checked_effective_filter_size -= 1;
+  checked_effective_filter_size *= dilation;
+  checked_effective_filter_size += 1;
+  CHECK(checked_effective_filter_size.IsValid());
+
+  // Adjust ending padding to match the specified output.
+  base::CheckedNumeric<uint32_t> checked_padding_end = output_size;
+  checked_padding_end -= 1;
+  checked_padding_end *= stride;
+  checked_padding_end += checked_effective_filter_size;
+  checked_padding_end -= input_size;
+  checked_padding_end -= padding_begin;
+  // Check if the value is valid for rounding to uint32_t type.
+  if (!checked_padding_end.IsValid()) {
+    return base::unexpected("The padding end is too large.");
+  }
+  return checked_padding_end.ValueOrDie();
+}
+
+// Helper to get tflite padding mode for convolution 2d or pooling 2d floor
+// rounding type, not ceil.
 base::expected<TfLitePadding, std::string> GetTfLitePaddingMode(
     const mojom::Padding2d& padding2d,
     const webnn::Size2d<uint32_t>& input,
@@ -295,6 +326,84 @@ base::expected<TfLitePadding, std::string> GetTfLitePaddingMode(
   // The explicit padding are used to insert a TfLite PAD operator.
   return TfLitePadding{.mode = ::tflite::Padding_VALID,
                        .paddings = explicit_padding};
+}
+
+// Helper to get tflite padding mode for pooling 2d.
+base::expected<TfLitePadding, std::string> GetPool2dTfLitePaddingMode(
+    const mojom::Padding2d& padding2d,
+    const webnn::Size2d<uint32_t>& input,
+    const webnn::Size2d<uint32_t>& filter,
+    const mojom::Size2d& stride,
+    const mojom::Size2d& dilation,
+    const webnn::Size2d<uint32_t>& output) {
+  // WebNN explicit padding is in [beginning_height, ending_height,
+  // beginning_width, ending_width] sequence.
+  std::array<uint32_t, 4> explicit_padding = {
+      padding2d.beginning->height, padding2d.ending->height,
+      padding2d.beginning->width, padding2d.ending->width};
+  std::array<uint32_t, 4> no_padding = {0, 0, 0, 0};
+  if (explicit_padding == no_padding) {
+    return TfLitePadding{.mode = ::tflite::Padding_VALID};
+  }
+
+  // TFLite always performs a floor operation in VALID mode. If WebNN's
+  // RoundingType is ceil, the `actual_output_height` might be 1 greater than
+  // what TFLite's VALID padding formula (floor based) would produce. In this
+  // case, the ending_padding must be increased to ensure the TFLite internal
+  // division result is large enough that its floor matches WebNN's ceil.
+  //
+  // Calculate double output sizes to get the type of rounding.
+  webnn::Padding2d webnn_padding2d = {
+      .beginning =
+          webnn::Size2d<uint32_t>{.height = padding2d.beginning->height,
+                                  .width = padding2d.beginning->width},
+      .ending = webnn::Size2d<uint32_t>{.height = padding2d.ending->height,
+                                        .width = padding2d.ending->width}};
+  webnn::Size2d<uint32_t> webnn_strides = {.height = stride.height,
+                                           .width = stride.width};
+  webnn::Size2d<uint32_t> webnn_dilations = {.height = dilation.height,
+                                             .width = dilation.width};
+  ASSIGN_OR_RETURN(
+      const webnn::Size2d<double> calculated_output_sizes,
+      ValidateAndCalculateConv2dOutputSizes(
+          input.height, input.width, filter.height, filter.width,
+          webnn_padding2d, webnn_strides, webnn_dilations, "Pool2d"));
+
+  // Get the actual integer output size from the output operand and compare to
+  // determine rounding type.
+  const uint32_t actual_output_height = output.height;
+  const uint32_t actual_output_width = output.width;
+  if (actual_output_height ==
+          base::ClampFloor<uint32_t>(calculated_output_sizes.height) &&
+      actual_output_width ==
+          base::ClampFloor<uint32_t>(calculated_output_sizes.width)) {
+    // Use TFLite's SAME padding mode if it matches WebNN explicit padding.
+    // Otherwise, a TFLite PAD operator will be inserted later using VALID
+    // padding.
+    return GetTfLitePaddingMode(padding2d, input, filter, stride, dilation,
+                                /*is_transposed_conv2d*/ false);
+  } else if (actual_output_height ==
+                 base::ClampCeil<uint32_t>(calculated_output_sizes.height) &&
+             actual_output_width ==
+                 base::ClampCeil<uint32_t>(calculated_output_sizes.width)) {
+    ASSIGN_OR_RETURN(
+        const uint32_t padding_height_end,
+        CalculatePaddingEndForCeilRoundingType(
+            input.height, filter.height, stride.height, dilation.height,
+            output.height, padding2d.beginning->height));
+    ASSIGN_OR_RETURN(
+        const uint32_t padding_width_end,
+        CalculatePaddingEndForCeilRoundingType(
+            input.width, filter.width, stride.width, dilation.width,
+            output.width, padding2d.beginning->width));
+    explicit_padding = {padding2d.beginning->height, padding_height_end,
+                        padding2d.beginning->width, padding_width_end};
+    // The explicit padding are used to insert a TfLite PAD operator.
+    return TfLitePadding{.mode = ::tflite::Padding_VALID,
+                         .paddings = explicit_padding};
+  }
+
+  return base::unexpected("Output size does not match floor or ceil rounding.");
 }
 
 // Sort the indexes of the elements in the axes array based on their values and
@@ -368,7 +477,7 @@ GetCoordinatesNDFromIndex(size_t flat_index,
     size_t coordinate = flat_index / strides[i];
     flat_index -= coordinate * strides[i];
 
-    auto checked_coordinate = base::MakeCheckedNum<DataType>(coordinate);
+    base::CheckedNumeric<DataType> checked_coordinate = coordinate;
     if (!checked_coordinate.IsValid()) {
       return base::unexpected("The coordinate is too large.");
     }
@@ -709,7 +818,8 @@ ContextProperties GraphBuilderTflite::GetContextProperties() {
        // https://source.chromium.org/chromium/chromium/src/+/main:third_party/tflite/src/tensorflow/lite/kernels/internal/reference/pooling.h
        /*average_pool2d_input=*/
        {DataTypeConstraint::kFloat16To32, SupportedRanks::Exactly(4)},
-       /*l2_pool2d_input=*/{},
+       /*l2_pool2d_input=*/
+       {DataTypeConstraint::kFloat16To32, SupportedRanks::Exactly(4)},
        /*max_pool2d_input=*/
        {DataTypeConstraint::kFloat16To32, SupportedRanks::Exactly(4)},
        // https://source.chromium.org/chromium/chromium/src/+/main:third_party/tflite/src/tensorflow/lite/kernels/internal/reference/prelu.h
@@ -1639,7 +1749,7 @@ GraphBuilderTflite::CanFuseQuantizeAndGetOutput(
   const double input_scale = static_cast<double>(input_scale_values[0]);
   const double output_scale = static_cast<double>(output_scale_values[0]);
   const bool scalar_filter_scale = filter_scale_values.size() == 1;
-  auto input_product_scalar_filter = base::MakeCheckedNum<double>(input_scale);
+  base::CheckedNumeric<double> input_product_scalar_filter = input_scale;
   if (scalar_filter_scale) {
     input_product_scalar_filter *= filter_scale_values[0];
   }
@@ -1781,16 +1891,15 @@ GraphBuilderTflite::CanFuseQuantizeAndGetOutput(
     const float scale_min = 1.0f / 1024.0f;
     const float scale_max = 256.0f;
 
-    auto checked_lhs_output_scale =
-        base::MakeCheckedNum<float>(lhs_scale_value);
+    base::CheckedNumeric<float> checked_lhs_output_scale = lhs_scale_value;
     checked_lhs_output_scale /= output_scale_value;
     if (!checked_lhs_output_scale.IsValid() ||
         checked_lhs_output_scale.ValueOrDie() < scale_min ||
         checked_lhs_output_scale.ValueOrDie() >= scale_max) {
       return std::nullopt;
     }
-    auto checked_rhs_output_scale =
-        base::MakeCheckedNum<float>(rhs_scale_value) / output_scale_value;
+    base::CheckedNumeric<float> checked_rhs_output_scale =
+        base::CheckedNumeric(rhs_scale_value) / output_scale_value;
     if (!checked_rhs_output_scale.IsValid() ||
         checked_rhs_output_scale.ValueOrDie() < scale_min ||
         checked_rhs_output_scale.ValueOrDie() >= scale_max) {
@@ -1801,8 +1910,8 @@ GraphBuilderTflite::CanFuseQuantizeAndGetOutput(
     // https://source.chromium.org/chromium/chromium/src/+/main:third_party/tflite/src/tensorflow/lite/delegates/xnnpack/xnnpack_delegate.cc;l=3985;drc=f667feb8a5c6f227b49328ce78a062acc4f81187
     const float scale_min = 1.0f / 65536.0f;
     const float scale_max = 256.0f;
-    auto checked_product_output_scale =
-        (lhs_scale_value * base::MakeCheckedNum<float>(rhs_scale_value)) /
+    base::CheckedNumeric<float> checked_product_output_scale =
+        (base::CheckedNumeric(lhs_scale_value) * rhs_scale_value) /
         output_scale_value;
     if (!checked_product_output_scale.IsValid() ||
         checked_product_output_scale.ValueOrDie() < scale_min ||
@@ -1984,8 +2093,8 @@ GraphBuilderTflite::CanFuseQuantizeAndGetOutput(const mojom::Gemm& gemm) {
         GetQuantizeScaleValue(output_quantize.scale_operand_id);
     const double a_scale = static_cast<double>(a_scale_values[0]);
     const double output_scale = static_cast<double>(output_scale_values[0]);
-    auto a_product_b =
-        base::MakeCheckedNum<double>(a_scale) * b_scale_values[0];
+    base::CheckedNumeric<double> a_product_b =
+        base::CheckedNumeric(a_scale) * b_scale_values[0];
     auto scale_diff = a_product_b - static_cast<double>(c_scale_values[0]);
     scale_diff = scale_diff.Abs() / output_scale;
     if (!scale_diff.IsValid() || scale_diff.ValueOrDie() > 0.02) {
@@ -2075,8 +2184,7 @@ GraphBuilderTflite::CanFuseQuantizeAndGetOutput(const mojom::Pool2d& pool2d) {
   base::FixedArray<float> output_scale_values =
       GetQuantizeScaleValue(output_quantize.scale_operand_id);
   base::CheckedNumeric<float> checked_sub_scale =
-      base::MakeCheckedNum<float>(input_scale_values[0]) -
-      output_scale_values[0];
+      base::CheckedNumeric(input_scale_values[0]) - output_scale_values[0];
   if (!checked_sub_scale.IsValid() ||
       checked_sub_scale.Abs().ValueOrDie() > 1.0e-6) {
     return std::nullopt;
@@ -2290,8 +2398,7 @@ GraphBuilderTflite::CanFuseQuantizeAndGetOutput(const mojom::Softmax& softmax) {
     base::FixedArray<float> output_scale_values =
         GetQuantizeScaleValue(output_quantize.scale_operand_id);
     base::CheckedNumeric<float> checked_scale =
-        base::MakeCheckedNum<float>(output_scale_values[0]) -
-        expected_scale_value;
+        base::CheckedNumeric(output_scale_values[0]) - expected_scale_value;
     if (!checked_scale.IsValid() ||
         checked_scale.Abs().ValueOrDie() > 0.001f * expected_scale_value) {
       return std::nullopt;
@@ -2432,8 +2539,7 @@ GraphBuilderTflite::CanFuseQuantizeAndGetOutput(
   // The `input scale / output scale` must be in the range.
   // https://source.chromium.org/chromium/chromium/src/+/main:third_party/tflite/src/tensorflow/lite/delegates/xnnpack/xnnpack_delegate.cc;l=4162;drc=f667feb8a5c6f227b49328ce78a062acc4f81187
   base::CheckedNumeric<float> checked_positive_scale =
-      base::MakeCheckedNum<float>(input_scale_values[0]) /
-      output_scale_values[0];
+      base::CheckedNumeric(input_scale_values[0]) / output_scale_values[0];
   if (!checked_positive_scale.IsValid() ||
       checked_positive_scale.ValueOrDie() < scale_positive_min ||
       checked_positive_scale.ValueOrDie() > scale_positive_max) {
@@ -3296,7 +3402,7 @@ auto GraphBuilderTflite::SerializeSliceOperation(
     -> base::expected<OperatorOffset, std::string> {
   CHECK_EQ(slice_starts.size(), slice_sizes.size());
   // Serialize the starting index of each input dimension.
-  auto checked_number = base::MakeCheckedNum<int32_t>(slice_starts.size());
+  base::CheckedNumeric<int32_t> checked_number = slice_starts.size();
   if (!checked_number.IsValid()) {
     return base::unexpected("The number of starts and sizes is too large.");
   }
@@ -3428,16 +3534,14 @@ auto GraphBuilderTflite::InsertPadOperation(const TensorInfo& input_tensor_info,
   CHECK_EQ(input_tensor_info.dimensions.size(), 4u);
   base::FixedArray<int32_t> output_shape(padding_rank);
   for (size_t i = 0; i < padding_rank; ++i) {
-    auto checked_dimension =
-        base::MakeCheckedNum<int32_t>(input_tensor_info.dimensions[i]);
+    base::CheckedNumeric<int32_t> checked_dimension =
+        input_tensor_info.dimensions[i];
     // Calculate output height with padding beginning and ending height.
     if (i == 1) {
-      checked_dimension +=
-          base::MakeCheckedNum<int32_t>(paddings[0]) + paddings[1];
+      checked_dimension += base::CheckedNumeric(paddings[0]) + paddings[1];
     } else if (i == 2) {
       // Calculate output width with padding beginning and ending width.
-      checked_dimension +=
-          base::MakeCheckedNum<int32_t>(paddings[2]) + paddings[3];
+      checked_dimension += base::CheckedNumeric(paddings[2]) + paddings[3];
     }
     if (!checked_dimension.IsValid()) {
       return base::unexpected("The input dimension or padding is too large.");
@@ -3548,7 +3652,7 @@ auto GraphBuilderTflite::SerializeArgMinMax(const mojom::ArgMinMax& arg_min_max)
 
   // The WebNN axis option is uint32 data type, but TFLite axis needs int32
   // type, so the axis need to be validated here to not overflow.
-  auto checked_axis = base::MakeCheckedNum<int32_t>(arg_min_max.axis);
+  base::CheckedNumeric<int32_t> checked_axis = arg_min_max.axis;
   if (!checked_axis.IsValid()) {
     return base::unexpected("The axis in arg_min_max operation is too large.");
   }
@@ -4578,7 +4682,7 @@ auto GraphBuilderTflite::SerializeGather(const mojom::Gather& gather)
 
   // The WebNN axis option is uint32 data type, but TFLite axis needs int32
   // type, so the axis need to be validated here to not overflow.
-  auto checked_axis = base::MakeCheckedNum<int32_t>(gather.axis);
+  base::CheckedNumeric<int32_t> checked_axis = gather.axis;
   if (!checked_axis.IsValid()) {
     return base::unexpected("The axis in gather operation is too large.");
   }
@@ -5283,8 +5387,7 @@ auto GraphBuilderTflite::SerializeGruCell(const mojom::GruCell& gru_cell)
   const TensorIndex output_tensor_index =
       SerializeOutputTensorInfo(gru_cell.output_operand_id).index;
 
-  const auto checked_hidden_size =
-      base::MakeCheckedNum<int32_t>(gru_cell.hidden_size);
+  base::CheckedNumeric<int32_t> checked_hidden_size = gru_cell.hidden_size;
   if (!checked_hidden_size.IsValid()) {
     return base::unexpected("The hidden size is too large.");
   }
@@ -5640,13 +5743,12 @@ auto GraphBuilderTflite::SerializeRecurrentNetwork(
       const TensorInfo& input_tensor_info,
       SerializeInputTensorInfo(recurrent_network.input_operand_id));
   const ::tflite::TensorType input_tensor_type = input_tensor_info.data_type;
-  const auto checked_hidden_size =
-      base::MakeCheckedNum<int32_t>(recurrent_network.hidden_size);
+  const base::CheckedNumeric<int32_t> checked_hidden_size =
+      recurrent_network.hidden_size;
   if (!checked_hidden_size.IsValid()) {
     return base::unexpected("The hidden size is too large.");
   }
-  const auto checked_steps =
-      base::MakeCheckedNum<int32_t>(recurrent_network.steps);
+  const base::CheckedNumeric<int32_t> checked_steps = recurrent_network.steps;
   if (!checked_steps.IsValid()) {
     return base::unexpected("The steps size is too large.");
   }
@@ -6394,8 +6496,8 @@ auto GraphBuilderTflite::SerializeLstmCell(const mojom::LstmCell& lstm_cell)
         SerializeOutputTensorInfo(lstm_cell.output_operand_ids[i]).index;
   }
 
-  const auto checked_hidden_size =
-      base::MakeCheckedNum<int32_t>(lstm_cell.hidden_size);
+  const base::CheckedNumeric<int32_t> checked_hidden_size =
+      lstm_cell.hidden_size;
   if (!checked_hidden_size.IsValid()) {
     return base::unexpected("The hidden size is too large.");
   }
@@ -6486,10 +6588,9 @@ auto GraphBuilderTflite::SerializePad(const mojom::Pad& pad)
   std::vector<int32_t> paddings;
   paddings.resize(pad.beginning_padding.size() * 2);
   for (size_t i = 0; i < pad.beginning_padding.size(); ++i) {
-    auto checked_pre_padding =
-        base::MakeCheckedNum<int32_t>(pad.beginning_padding[i]);
-    auto checked_post_padding =
-        base::MakeCheckedNum<int32_t>(pad.ending_padding[i]);
+    base::CheckedNumeric<int32_t> checked_pre_padding =
+        pad.beginning_padding[i];
+    base::CheckedNumeric<int32_t> checked_post_padding = pad.ending_padding[i];
     if (!checked_pre_padding.IsValid() || !checked_post_padding.IsValid()) {
       return base::unexpected("The padding is too large.");
     }
@@ -6654,23 +6755,31 @@ auto GraphBuilderTflite::SerializePool2d(const mojom::Pool2d& pool2d)
       operator_code = ::tflite::BuiltinOperator_MAX_POOL_2D;
       quantized_output = CanFuseQuantizeAndGetOutput(pool2d);
       break;
-    case mojom::Pool2d::Kind::kL2Pool2d:
-      // TODO(crbug.com/361717758): Support L2Pool2d.
-      return base::unexpected("L2Pool2d is not supported in tflite.");
+    case mojom::Pool2d::Kind::kL2Pool2d: {
+      CHECK(context_properties_.data_type_limits.l2_pool2d_input.Supports(
+          input_operand.descriptor));
+      // L2Pool will be emulated as sqrt(AveragePool(x^2) * window_size).
+      operator_code = ::tflite::BuiltinOperator_AVERAGE_POOL_2D;
+      break;
+    }
   }
 
   const auto& input_shape = input_operand.descriptor.shape();
   CHECK_EQ(input_shape.size(), 4u);
+  const mojom::Operand& output_operand = GetOperand(pool2d.output_operand_id);
+  const auto& output_shape = output_operand.descriptor.shape();
   const webnn::Size2d<uint32_t> input_size2d = {.height = input_shape[1],
                                                 .width = input_shape[2]};
+  const webnn::Size2d<uint32_t> output_size2d = {.height = output_shape[1],
+                                                 .width = output_shape[2]};
   webnn::Size2d<uint32_t> filter_size2d = {
       .height = pool2d.window_dimensions->height,
       .width = pool2d.window_dimensions->width};
-  ASSIGN_OR_RETURN(
-      TfLitePadding padding_mode,
-      GetTfLitePaddingMode(*pool2d.padding, input_size2d, filter_size2d,
-                           *pool2d.strides, *pool2d.dilations,
-                           /*is_transposed_conv2d=*/false));
+  ASSIGN_OR_RETURN(TfLitePadding padding_mode,
+                   GetPool2dTfLitePaddingMode(
+                       *pool2d.padding, input_size2d, filter_size2d,
+                       *pool2d.strides, *pool2d.dilations, output_size2d));
+
   ASSIGN_OR_RETURN(
       const TensorInfo& input_tensor_info,
       SerializeInputTensorInfo(
@@ -6678,13 +6787,6 @@ auto GraphBuilderTflite::SerializePool2d(const mojom::Pool2d& pool2d)
           /*quantize_params=*/0,
           /*operation_supports_float16=*/false,
           /*fuse_dequantize_quantize=*/quantized_output.has_value()));
-  // Insert a Pad operator before TfLite Pool2d if needed for explicit padding.
-  std::optional<TensorIndex> explicit_pad_index;
-  if (padding_mode.paddings) {
-    ASSIGN_OR_RETURN(
-        explicit_pad_index,
-        InsertPadOperation(input_tensor_info, padding_mode.paddings.value()));
-  }
 
   const auto pool_2d_options = ::tflite::CreatePool2DOptions(
       builder_, padding_mode.mode, pool2d.strides->width,
@@ -6694,12 +6796,73 @@ auto GraphBuilderTflite::SerializePool2d(const mojom::Pool2d& pool2d)
   // Create `tflite::Operator` with the tensor index of inputs and outputs
   // operand. The type of operation is determined by the index of the operator
   // code.
+  const TensorInfo output_tensor_info =
+      SerializeOutputTensorInfo(pool2d.output_operand_id);
   TensorIndex output_tensor_index =
-      quantized_output
-          ? quantized_output->index
-          : SerializeOutputTensorInfo(pool2d.output_operand_id).index;
+      quantized_output ? quantized_output->index : output_tensor_info.index;
   const OperatorCodeIndex operator_code_index =
       GetOperatorCodeIndex(operator_code);
+  if (pool2d.kind == mojom::Pool2d::Kind::kL2Pool2d) {
+    // Square the original input first (x^2).
+    const TensorIndex squared_input_index = SerializeTemporaryTensor(
+        input_tensor_info.dimensions, input_tensor_info.data_type);
+    operators_.emplace_back(SerializeSquareOperation(
+        input_tensor_info.index, input_tensor_info.data_type,
+        squared_input_index));
+
+    // Apply explicit padding to the squared input if needed.
+    TensorIndex input_to_average_pool = squared_input_index;
+    if (padding_mode.paddings) {
+      ASSIGN_OR_RETURN(
+          input_to_average_pool,
+          InsertPadOperation(
+              TensorInfo(squared_input_index, input_tensor_info.data_type,
+                         input_tensor_info.dimensions),
+              padding_mode.paddings.value()));
+    }
+
+    // Average Pool the (potentially padded) squared input: AveragePool(x^2).
+    // TFLite's AVERAGE_POOL_2D with VALID padding always divides by (h * w).
+    const TensorIndex average_pooled_index = SerializeTemporaryTensor(
+        output_tensor_info.dimensions, input_tensor_info.data_type);
+    operators_.emplace_back(::tflite::CreateOperator(
+        builder_, operator_code_index,
+        builder_.CreateVector<TensorIndex>({input_to_average_pool}),
+        builder_.CreateVector<TensorIndex>({average_pooled_index}),
+        ::tflite::BuiltinOptions_Pool2DOptions, pool_2d_options.Union()));
+
+    // Multiply by window size to get the sum of squares: SumPool(x^2) =
+    // AveragePool(x^2) * (h * w).
+    base::CheckedNumeric<float> checked_window_size =
+        base::CheckedNumeric(pool2d.window_dimensions->height) *
+        pool2d.window_dimensions->width;
+    if (!checked_window_size.IsValid()) {
+      return base::unexpected("The window size is too large.");
+    }
+    ASSIGN_OR_RETURN(
+        const TensorIndex window_size_index,
+        SerializeTensorWithBuffer<float>(
+            std::array<float, 1>{checked_window_size.ValueOrDie()}, {}));
+    const TensorIndex sum_pooled_index = SerializeTemporaryTensor(
+        output_tensor_info.dimensions, input_tensor_info.data_type);
+    operators_.emplace_back(SerializeBinaryOperation(
+        ::tflite::BuiltinOperator_MUL, average_pooled_index, window_size_index,
+        sum_pooled_index));
+
+    // Square root: sqrt(SumPool(x^2)).
+    return SerializeSquareRootOperation(
+        sum_pooled_index, input_tensor_info.data_type, output_tensor_index);
+  }
+
+  // TODO(crbug.com/475285740): Support explicit padding for average and max
+  // pool. Currently, inserting a PAD operator before the TFLite Pool2d operator
+  // is used as a workaround.
+  std::optional<TensorIndex> explicit_pad_index;
+  if (padding_mode.paddings) {
+    ASSIGN_OR_RETURN(
+        explicit_pad_index,
+        InsertPadOperation(input_tensor_info, padding_mode.paddings.value()));
+  }
   const std::array<TensorIndex, 1> op_inputs = {explicit_pad_index
                                                     ? explicit_pad_index.value()
                                                     : input_tensor_info.index};
@@ -6857,7 +7020,7 @@ auto GraphBuilderTflite::SerializeQuantizeParams(
 
   QuantizateParametersOffset quantize_params;
   if (axis) {
-    auto checked_axis = base::MakeCheckedNum<int32_t>(*axis);
+    base::CheckedNumeric<int32_t> checked_axis = *axis;
     if (!checked_axis.IsValid()) {
       return std::nullopt;
     }
@@ -7739,10 +7902,9 @@ auto GraphBuilderTflite::SerializeSlice(const mojom::Slice& slice)
   base::FixedArray<int32_t> slice_strides(slice.ranges.size());
   for (size_t i = 0; i < slice.ranges.size(); ++i) {
     const auto& range = slice.ranges[i];
-    auto checked_start = base::MakeCheckedNum<int32_t>(range.start);
-    auto checked_end =
-        base::MakeCheckedNum<int32_t>(range.size) + checked_start;
-    auto checked_stride = base::MakeCheckedNum<int32_t>(range.stride);
+    base::CheckedNumeric<int32_t> checked_start = range.start;
+    base::CheckedNumeric<int32_t> checked_end = range.size + checked_start;
+    base::CheckedNumeric<int32_t> checked_stride = range.stride;
     if (!checked_start.IsValid() || !checked_end.IsValid() ||
         !checked_stride.IsValid()) {
       return base::unexpected(
@@ -7766,7 +7928,7 @@ auto GraphBuilderTflite::SerializeSlice(const mojom::Slice& slice)
           ? quantized_output->index
           : SerializeOutputTensorInfo(slice.output_operand_id).index;
 
-  auto checked_number = base::MakeCheckedNum<int32_t>(slice.ranges.size());
+  base::CheckedNumeric<int32_t> checked_number = slice.ranges.size();
   if (!checked_number.IsValid()) {
     return base::unexpected("The input rank is too large.");
   }
@@ -7945,7 +8107,7 @@ auto GraphBuilderTflite::SerializeSplit(const mojom::Split& split)
       GetOperand(split.input_operand_id).descriptor));
 
   // Serialize the axis tensor to split input tensor along it.
-  const auto checked_axis = base::MakeCheckedNum<int32_t>(split.axis);
+  const base::CheckedNumeric<int32_t> checked_axis = split.axis;
   if (!checked_axis.IsValid()) {
     return base::unexpected("The axis is too large.");
   }
@@ -7981,8 +8143,7 @@ auto GraphBuilderTflite::SerializeSplit(const mojom::Split& split)
       op_outputs[i] = output_tensor_info.index;
     }
   }
-  const auto checked_split_size =
-      base::MakeCheckedNum<int32_t>(split_sizes.size());
+  const base::CheckedNumeric<int32_t> checked_split_size = split_sizes.size();
   if (!checked_split_size.IsValid()) {
     return base::unexpected("The split size is too large.");
   }
@@ -8095,13 +8256,14 @@ auto GraphBuilderTflite::SerializeTriangular(
   CHECK_GE(input_rank, 2u);
   const int32_t height = input_tensor_info.dimensions[input_rank - 2];
   const int32_t width = input_tensor_info.dimensions[input_rank - 1];
-  auto checked_size = base::MakeCheckedNum<int32_t>(height) * width;
+  base::CheckedNumeric<int32_t> checked_size =
+      base::CheckedNumeric(height) * width;
   if (!checked_size.IsValid()) {
     return base::unexpected("Triangular mask is too large.");
   }
   const std::array<int32_t, 2> mask_dimensions = {height, width};
-  auto checked_diagonal = base::MakeCheckedNum<int32_t>(triangular.diagonal) +
-                          std::max(height, width);
+  base::CheckedNumeric<int32_t> checked_diagonal =
+      base::CheckedNumeric(triangular.diagonal) + std::max(height, width);
   if (!checked_diagonal.IsValid()) {
     return base::unexpected("The diagonal is too large.");
   }

@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/platform/peerconnection/rtc_video_encoder.h"
 
+#include <algorithm>
 #include <array>
 #include <memory>
 #include <numeric>
@@ -11,7 +12,6 @@
 
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
-#include "base/containers/contains.h"
 #include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
@@ -610,22 +610,7 @@ void RecordEncoderStatusUMA(const media::EncoderStatus& status,
 
 bool IsZeroCopyEnabled(webrtc::VideoContentType content_type) {
   if (content_type == webrtc::VideoContentType::SCREENSHARE) {
-    // Zero copy screen capture.
-#if BUILDFLAG(IS_CHROMEOS)
-    // The zero-copy capture is available for all sources in ChromeOS
-    // Ash-chrome.
-    return base::FeatureList::IsEnabled(blink::features::kZeroCopyTabCapture);
-#else
-    // Currently, zero copy capture screenshare is available only for tabs.
-    // Since it is impossible to determine the content source, tab, window or
-    // monitor, we don't configure VideoEncodeAccelerator with NV12
-    // GpuMemoryBuffer instead we configure I420 SHMEM as if it is not zero
-    // copy, and we convert the NV12 GpuMemoryBuffer to I420 SHMEM in
-    // RtcVideoEncoder::Impl::Encode().
-    // TODO(b/267995715): Solve this problem by calling Initialize() in the
-    // first frame.
     return false;
-#endif
   }
   // Zero copy video capture from other sources (e.g. camera).
   return !base::CommandLine::ForCurrentProcess()->HasSwitch(
@@ -2004,7 +1989,7 @@ bool RTCVideoEncoder::Impl::NeedConvertToMemoryFrame(
       STORAGE_OWNED_MEMORY,
       STORAGE_SHMEM,
   };
-  if (!base::Contains(kStorageTypeSupportedByMojo, storage_type)) {
+  if (!std::ranges::contains(kStorageTypeSupportedByMojo, storage_type)) {
     // We need to convert to I420 memory frame if mojo doesn't support it.
     return true;
   }
@@ -2271,8 +2256,8 @@ void RTCVideoEncoder::Impl::EncodeOneFrame(FrameChunk frame_chunk) {
   frame->set_timestamp(timestamp);
 
   if (!failed_timestamp_match_) {
-    DCHECK(!base::Contains(submitted_frames_, timestamp,
-                           &FrameInfo::media_timestamp_));
+    DCHECK(!std::ranges::contains(submitted_frames_, timestamp,
+                                  &FrameInfo::media_timestamp_));
     submitted_frames_.emplace_back(timestamp, frame_chunk.timestamp,
                                    frame_chunk.render_time_ms,
                                    GetActiveSpatialLayers());
@@ -2402,8 +2387,8 @@ void RTCVideoEncoder::Impl::DoNativeEncodeWithNativeInput(
   frame->set_timestamp(base::Microseconds(frame_chunk.timestamp_us));
 
   if (!failed_timestamp_match_) {
-    DCHECK(!base::Contains(submitted_frames_, frame->timestamp(),
-                           &FrameInfo::media_timestamp_));
+    DCHECK(!std::ranges::contains(submitted_frames_, frame->timestamp(),
+                                  &FrameInfo::media_timestamp_));
     submitted_frames_.emplace_back(frame->timestamp(), frame_chunk.timestamp,
                                    frame_chunk.render_time_ms,
                                    GetActiveSpatialLayers());
@@ -2436,7 +2421,6 @@ bool RTCVideoEncoder::Impl::CreateBlackMappableSIFrame(
   auto mapping = shared_image->Map();
   if (!mapping) {
     LOG(ERROR) << "Mapping shared image failed.";
-    sii->DestroySharedImage(gpu::SyncToken(), std::move(shared_image));
     return false;
   }
   // Fills the NV12 frame with YUV black (0x00, 0x80, 0x80).

@@ -22,7 +22,6 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
-#include "base/containers/contains.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/supports_user_data.h"
@@ -256,7 +255,7 @@ void AwSettings::UpdateUserAgentLocked(JNIEnv* env,
           FromJavaAwUserAgentMetadata(env, java_ua_metadata);
       LogUserAgentMetadataAvailableType(
           UserAgentMetadataAvailableType::kUserOverrides);
-    } else if (base::Contains(ua_string_override, ua_default)) {
+    } else if (ua_string_override.contains(ua_default)) {
       override_ua_with_metadata.ua_metadata_override =
           AwClientHintsControllerDelegate::GetUserAgentMetadataOverrideBrand();
       LogUserAgentMetadataAvailableType(
@@ -516,7 +515,7 @@ void AwSettings::UpdateBackForwardCacheEnabledLocked(
 void AwSettings::UpdateBackForwardCacheSettingsTimeoutLocked(
     JNIEnv* env,
     const JavaRef<jobject>& obj) {
-  int timeout_in_seconds =
+  int64_t timeout_in_seconds =
       Java_AwSettings_getBackForwardCacheSettingsTimeout(env, obj);
   if (web_contents()) {
     if (timeout_in_seconds != back_forward_cache_timeout_in_seconds_) {

@@ -13,6 +13,7 @@
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/browser/logging/log_manager.h"
+#include "components/autofill/core/browser/metrics/form_events/credit_card_form_event_logger.h"
 #include "components/autofill/core/browser/metrics/payments/card_metadata_metrics.h"
 #include "components/autofill/core/browser/metrics/suggestions_list_metrics.h"
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
@@ -36,12 +37,10 @@ class CreditCardSuggestionGenerator : public SuggestionGenerator {
  public:
   explicit CreditCardSuggestionGenerator(
       const std::vector<std::string>& four_digit_combinations_in_dom,
-      const std::u16string& autofilled_last_four_digits_in_form_for_filtering,
-      bool should_show_scan_credit_card,
-      CreditCardSuggestionSummary& summary,
-      bool is_card_number_field_empty,
-      bool is_complete_form,
-      const payments::AmountExtractionStatus& amount_extraction_status);
+      const payments::AmountExtractionStatus& amount_extraction_status,
+      autofill_metrics::CreditCardFormEventLogger&
+          credit_card_form_event_logger,
+      const AutofillMetrics::PaymentsSigninState signin_state_for_metrics);
   ~CreditCardSuggestionGenerator() override;
 
   void FetchSuggestionData(
@@ -92,13 +91,11 @@ class CreditCardSuggestionGenerator : public SuggestionGenerator {
 
  private:
   raw_ref<const std::vector<std::string>> four_digit_combinations_in_dom_;
-  raw_ref<const std::u16string>
-      autofilled_last_four_digits_in_form_for_filtering_;
-  bool should_show_scan_credit_card_;
-  raw_ref<CreditCardSuggestionSummary> summary_;
-  bool is_card_number_field_empty_;
-  bool is_complete_form_;
+  CreditCardSuggestionSummary summary_;
   raw_ref<const payments::AmountExtractionStatus> amount_extraction_status_;
+  raw_ref<autofill_metrics::CreditCardFormEventLogger>
+      credit_card_form_event_logger_;
+  AutofillMetrics::PaymentsSigninState signin_state_for_metrics_;
   base::WeakPtrFactory<CreditCardSuggestionGenerator> weak_ptr_factory_{this};
 };
 

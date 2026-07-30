@@ -26,6 +26,7 @@ import {hasKeyModifiers} from '//resources/js/util.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {AutocompleteMatch, AutocompleteResult, PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote, SearchContext, SelectedFileInfo, TabInfo} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import type {InputState} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import type {BigBuffer} from '//resources/mojo/mojo/public/mojom/base/big_buffer.mojom-webui.js';
 import type {UnguessableToken} from '//resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
 import type {Url} from '//resources/mojo/url/mojom/url.mojom-webui.js';
@@ -201,14 +202,13 @@ export class ComposeboxElement extends I18nMixinLit
       },
       disableComposeboxAnimation: {type: Boolean},
       fileUploadsComplete: {type: Boolean},
-      inComposebox: {type: Boolean},
       canSubmitFilesAndInput_: {type: Boolean},
+      inputState_: {type: Object},
     };
   }
 
   accessor disableCaretColorAnimation: boolean = false;
   accessor disableComposeboxAnimation: boolean = false;
-  accessor inComposebox: boolean = false;
   accessor lensButtonTriggersOverlay: boolean = false;
   accessor fileUploadsComplete: boolean = true;
   accessor maxSuggestions: number|null = null;
@@ -256,6 +256,7 @@ export class ComposeboxElement extends I18nMixinLit
   protected accessor transcript_: string = '';
   protected accessor receivedSpeech_: boolean = false;
   protected accessor canSubmitFilesAndInput_: boolean = true;
+  protected accessor inputState_: InputState|null = null;
   protected lastQueriedInput_: string = '';
   protected showVoiceSearchInSteadyComposebox_: boolean =
       loadTimeData.getBoolean('steadyComposeboxShowVoiceSearch');
@@ -324,6 +325,8 @@ export class ComposeboxElement extends I18nMixinLit
           this.addFileContextFromBrowser_.bind(this)),
       this.searchboxCallbackRouter_.updateAutoSuggestedTabContext.addListener(
           this.updateAutoSuggestedTabContext_.bind(this)),
+      this.searchboxCallbackRouter_.onInputStateChanged.addListener(
+          this.onInputStateChanged_.bind(this)),
     ];
 
     this.eventTracker_.add(this.$.input, 'input', () => {
@@ -469,6 +472,10 @@ export class ComposeboxElement extends I18nMixinLit
 
   getText() {
     return this.input_;
+  }
+
+  get isVoiceInput(): boolean {
+    return this.isVoiceInput_;
   }
 
   playGlowAnimation() {
@@ -700,6 +707,10 @@ export class ComposeboxElement extends I18nMixinLit
     this.$.context.updateAutoActiveTabContext(tab);
   }
 
+  private onInputStateChanged_(inputState: InputState) {
+    this.inputState_ = inputState;
+  }
+
   protected async addTabContext_(e: CustomEvent<{
     id: number,
     title: string,
@@ -774,6 +785,8 @@ export class ComposeboxElement extends I18nMixinLit
   protected async onVoiceSearchFinalResult_(e: CustomEvent<string>) {
     e.stopPropagation();
     this.voiceSearchEndCleanup_();
+    // For contextual tasks composebox voice metrics.
+    this.fire('composebox-voice-search-transcription-success');
     if (this.autoSubmitVoiceSearch) {
       this.fire(
           'voice-search-action', {value: VoiceSearchAction.QUERY_SUBMITTED});
@@ -797,12 +810,30 @@ export class ComposeboxElement extends I18nMixinLit
     this.inVoiceSearchMode_ = true;
     this.animationState = GlowAnimationState.LISTENING;
     this.fire('voice-search-action', {value: VoiceSearchAction.ACTIVATE});
+    // For contextual tasks composebox voice metrics.
+    this.fire('composebox-voice-search-start');
     this.$.voiceSearch.start();
   }
 
-  protected onVoiceSearchClose_() {
+  protected onVoiceSearchClose_(e: CustomEvent<boolean>) {
+    // If closing was the user canceling voice search:
+    if (e.detail) {
+      // For contextual tasks composebox voice metrics.
+      this.fire('composebox-voice-search-user-canceled');
+    }
     this.voiceSearchEndCleanup_();
     this.receivedSpeech_ = false;
+  }
+
+  protected onVoiceSearchError_(e: CustomEvent<boolean>) {
+    // For contextual tasks composebox voice metrics:
+    if (e.detail) {
+      // An error that canceled voice search.
+      this.fire('composebox-voice-search-error-and-canceled');
+    } else {
+      // An error that did not cancel voice search.
+      this.fire('composebox-voice-search-error');
+    }
   }
 
   protected onCancelClick_() {

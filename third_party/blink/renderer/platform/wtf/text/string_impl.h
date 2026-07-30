@@ -30,6 +30,7 @@
 #include <array>
 #include <atomic>
 #include <functional>
+#include <new>
 
 #include "base/check_op.h"
 #include "base/compiler_specific.h"
@@ -93,8 +94,7 @@ class WTF_EXPORT StringImpl {
   // StringImpls are allocated out of the WTF buffer partition.
   void* operator new(size_t);
   void* operator new(size_t, void* ptr) { return ptr; }
-  void operator delete(void*);
-  void operator delete(void*, size_t);
+  void operator delete(StringImpl* impl, std::destroying_delete_t);
 
   // Used to construct static strings, which have a special ref_count_ that can
   // never hit zero. This means that the static string will never be destroyed.
@@ -217,10 +217,6 @@ class WTF_EXPORT StringImpl {
   // The character content is always copied.
   std::u16string ToU16String() const;
 
-  // Use Span instead.
-  template <typename CharType>
-  UNSAFE_BUFFER_USAGE ALWAYS_INLINE const CharType* GetCharacters() const;
-
   template <typename CharType>
   ALWAYS_INLINE base::span<CharType> Span() const;
 
@@ -315,7 +311,7 @@ class WTF_EXPORT StringImpl {
   //    Table Add and Removal operations (including the fetch_sub to 0) are
   //    done under a lock.
 
-  ALWAYS_INLINE void Release() const {
+  ALWAYS_INLINE void Release() {
     if (!IsStatic()) {
       // This can be a relaxed load as long as the subtraction is performed
       // with acq_rel order. Any modification to `ref_count_` reordered after
@@ -623,7 +619,7 @@ class WTF_EXPORT StringImpl {
       StripBehavior);
   NOINLINE wtf_size_t HashSlowCase() const;
 
-  void DestroyIfNeeded() const;
+  void DestroyIfNeeded();
 
   // Calculates the kContainsOnlyAscii and kIsLowerAscii flags. Returns
   // a bitfield with those 2 values.
@@ -652,16 +648,6 @@ class WTF_EXPORT StringImpl {
   const unsigned length_;
   mutable std::atomic<uint32_t> hash_and_flags_;
 };
-
-template <>
-ALWAYS_INLINE const LChar* StringImpl::GetCharacters<LChar>() const {
-  return Characters8();
-}
-
-template <>
-ALWAYS_INLINE const UChar* StringImpl::GetCharacters<UChar>() const {
-  return Characters16();
-}
 
 template <>
 ALWAYS_INLINE base::span<LChar> StringImpl::Span<LChar>() const {

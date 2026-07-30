@@ -19,7 +19,6 @@
 #include "base/check_deref.h"
 #include "base/check_op.h"
 #include "base/command_line.h"
-#include "base/containers/contains.h"
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
 #include "base/containers/span.h"
@@ -1442,15 +1441,17 @@ FormFieldData* SearchForFormControlByName(
   if (it == end ||
       std::ranges::find(it + 1, end, field_name, get_field_name) != end) {
     auto ShadowHostHasTargetName = [&](const auto& p) {
-      return base::Contains(p.second.shadow_host_name_attributes, field_name) ||
-             base::Contains(p.second.shadow_host_id_attributes, field_name);
+      return std::ranges::contains(p.second.shadow_host_name_attributes,
+                                   field_name) ||
+             std::ranges::contains(p.second.shadow_host_id_attributes,
+                                   field_name);
     };
     it = std::ranges::find_if(fields, ShadowHostHasTargetName);
     if (it != end) {
-      label_source =
-          base::Contains(it->second.shadow_host_name_attributes, field_name)
-              ? LabelSource::kForShadowHostName
-              : LabelSource::kForShadowHostId;
+      label_source = std::ranges::contains(
+                         it->second.shadow_host_name_attributes, field_name)
+                         ? LabelSource::kForShadowHostName
+                         : LabelSource::kForShadowHostId;
     }
   } else {
     label_source = LabelSource::kForName;
@@ -2178,10 +2179,6 @@ std::optional<FormData> ExtractFormDataWithFieldsAndFrames(
     }
   }
 
-  base::UmaHistogramCounts1000(!form_element
-                                   ? "Autofill.ExtractFormUnowned.FieldCount2"
-                                   : "Autofill.ExtractFormOwned.FieldCount2",
-                               fields.size());
   FormData form;
   if (!form_element) {
     DCHECK(form.renderer_id().is_null());
@@ -2465,8 +2462,8 @@ FindFormAndFieldForFormControlElement(
 
   // This is not reachable if the following holds:
   // ```
-  // base::Contains(GetOwnedFormControls(element.GetOwningFormForAutofill()),
-  //                element)
+  // std::ranges::contains(
+  //   GetOwnedFormControls(element.GetOwningFormForAutofill()), element)
   // ```
   // It's not clear if that condition is true. See crbug.com/347059988 for the
   // ongoing debugging.
@@ -2509,7 +2506,7 @@ FindFormAndFieldForFormControlElement(
   WebFormElement assoc_form_element = element.Form();  // nocheck
 
   // clang-format off
-  SCOPED_CRASH_KEY_BOOL("Autofill", "invariant", base::Contains(GetOwnedFormControls(element.GetDocument(), element.GetOwningFormForAutofill()), element));
+  SCOPED_CRASH_KEY_BOOL("Autofill", "invariant", std::ranges::contains(GetOwnedFormControls(element.GetDocument(), element.GetOwningFormForAutofill()), element));
   SCOPED_CRASH_KEY_STRING256("Autofill", "url", url.spec());
   SCOPED_CRASH_KEY_BOOL("Autofill", "ExtractFormData_succeeded", extract_form_data_succeeded);
   SCOPED_CRASH_KEY_NUMBER("Autofill", "extracted_form_size", form->fields().size());
@@ -2527,7 +2524,7 @@ FindFormAndFieldForFormControlElement(
 #define SCOPED_CRASH_KEYS_FOR_FORM(prefix, f)                                                                                  \
   SCOPED_CRASH_KEY_BOOL("Autofill", #prefix "_form_non_null", !!f);                                                            \
   SCOPED_CRASH_KEY_BOOL("Autofill", #prefix "_form_connected", f && is_connected(f));                                          \
-  SCOPED_CRASH_KEY_BOOL("Autofill", #prefix "_form_owns_element", f && base::Contains(get_form_control_elements(f), element)); \
+  SCOPED_CRASH_KEY_BOOL("Autofill", #prefix "_form_owns_element", f && std::ranges::contains(get_form_control_elements(f), element)); \
   SCOPED_CRASH_KEY_BOOL("Autofill", #prefix "_form_in_shadow_dom", f && !!f.OwnerShadowHost());                                \
   SCOPED_CRASH_KEY_BOOL("Autofill", #prefix "_form_in_same_dom", f && element.OwnerShadowHost() == f.OwnerShadowHost());       \
   SCOPED_CRASH_KEY_BOOL("Autofill", #prefix "_form_is_top_level", is_top_level(f));                                            \
@@ -2707,6 +2704,35 @@ std::vector<std::pair<FieldRendererId, WebAutofillState>> ApplyFieldsAction(
   }
 
   return filled_fields;
+}
+
+void DispatchAutofillEvent(blink::WebDocument document,
+                           base::span<const FormFieldData::FillData> fields,
+                           const FillId& fill_id,
+                           bool supports_refill) {
+  if (fields.empty()) {
+    return;
+  }
+
+  std::vector<std::pair<WebFormControlElement, WebString>> autofill_values;
+  for (const FormFieldData::FillData& field : fields) {
+    WebFormControlElement control_element =
+        GetFormControlByRendererId(field.renderer_id);
+
+    if (control_element.IsNull()) {
+      continue;
+    }
+
+    autofill_values.emplace_back(control_element,
+                                 WebString::FromUTF16(field.value));
+  }
+
+  if (autofill_values.empty()) {
+    return;
+  }
+
+  document.DispatchAutofillEvent(std::move(autofill_values), *fill_id,
+                                 supports_refill);
 }
 
 void ClearPreviewedElements(

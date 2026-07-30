@@ -32,6 +32,7 @@ import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.lifecycle.PauseResumeWithNativeObserver;
 import org.chromium.chrome.browser.lifecycle.TopResumedActivityChangedObserver;
 import org.chromium.chrome.browser.omnibox.DeferredIMEWindowInsetApplicationCallback;
+import org.chromium.chrome.browser.omnibox.FuseboxSessionState;
 import org.chromium.chrome.browser.omnibox.LocationBarDataProvider;
 import org.chromium.chrome.browser.omnibox.OmniboxMetrics;
 import org.chromium.chrome.browser.omnibox.OmniboxMetrics.RefineActionUsage;
@@ -47,6 +48,7 @@ import org.chromium.chrome.browser.omnibox.suggestions.action.OmniboxActionFacto
 import org.chromium.chrome.browser.omnibox.suggestions.action.OmniboxActionInSuggest;
 import org.chromium.chrome.browser.omnibox.suggestions.basic.BasicSuggestionProcessor.BookmarkState;
 import org.chromium.chrome.browser.omnibox.voice.VoiceRecognitionHandler;
+import org.chromium.chrome.browser.preloading.PreloadingFeatureMap;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.share.ShareDelegate;
 import org.chromium.chrome.browser.tab.Tab;
@@ -75,6 +77,7 @@ import org.chromium.ui.mojom.WindowOpenDisposition;
 import org.chromium.url.GURL;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Supplier;
 
 /** Handles updating the model state for the currently visible omnibox suggestions. */
@@ -129,8 +132,8 @@ class AutocompleteMediator
 
     private boolean mNativeInitialized;
     private long mUrlFocusTime;
-    // When set, indicates if the omnibox is focused.
-    private boolean mOmniboxFocused;
+    // When set, indicates if the omnibox session is active.
+    private @Nullable FuseboxSessionState mSessionState;
     // Tracks whether the activity window is currently focused.
     // This flag is updated via the onTopResumedActivityChanged(boolean) callback:
     // https://developer.android.com/reference/android/app/Activity#onTopResumedActivityChanged(boolean)
@@ -428,12 +431,13 @@ class AutocompleteMediator
      * Take necessary action to update the autocomplete system state and record metrics when the
      * omnibox session state changes.
      *
-     * @param activated Whether the autocomplete session should be activated when the omnibox
-     *     session state changes, {@code true} if this will be activated, {@code false} otherwise.
+     * @param state The current Session state object (if session is activated), or {@code null} if
+     *     session is terminated.
      */
-    void onOmniboxSessionStateChange(boolean activated) {
-        if (mOmniboxFocused == activated) return;
-        mOmniboxFocused = activated;
+    void setSessionState(@Nullable FuseboxSessionState state) {
+        if (Objects.equals(mSessionState, state)) return;
+        mSessionState = state;
+        boolean activated = state != null;
 
         // Propagate the information about omnibox session state change to all the processors first.
         // Processors need this for accounting purposes.
@@ -950,7 +954,14 @@ class AutocompleteMediator
         }
 
         // Reject results if the current session is inactive.
-        if (!isActive()) return;
+        if (!isInSession()) return;
+
+        if (mAutocomplete != null
+                && PreloadingFeatureMap.getInstance().shouldPrewarmOnAutocomplete()) {
+            Tab tab = mDataProvider.getTab();
+            WebContents webContents = tab != null ? tab.getWebContents() : null;
+            mAutocomplete.startPrewarm(webContents);
+        }
 
         @Nullable AutocompleteMatch defaultMatch = autocompleteResult.getDefaultMatch();
         String inlineAutocompleteText =
@@ -973,7 +984,7 @@ class AutocompleteMediator
     }
 
     public void onAutocompleteRequestTypeChanged(@AutocompleteRequestType int type) {
-        if (mOmniboxFocused) {
+        if (mSessionState != null) {
             mAutocompleteInput.setRequestType(type);
             mAutocompleteInput.setPageClassification(mDataProvider.getPageClassification(false));
             onTextChanged(
@@ -1528,7 +1539,7 @@ class AutocompleteMediator
 
     private void onToolbarPositionChanged(@ControlsPosition Integer newPosition) {
         mListPropertyModel.set(SuggestionListProperties.TOOLBAR_POSITION, newPosition);
-        if (isActive()) {
+        if (isInSession()) {
             // Hacky solution: rebuild the list if we're active when the position changes,
             // triggering recalculation of refine arrow icon. TODO(http://crbug.com/446058347):
             // refactor to enable updates to the icon property of the model once the list is already
@@ -1546,7 +1557,7 @@ class AutocompleteMediator
 
     /** Returns whether Omnibox session is active (the user is interacting with the Omnibox). */
     boolean isOmniboxSessionActiveForTesting() {
-        return mOmniboxFocused;
+        return isInSession();
     }
 
     /** Returns the current Animation Driver instance. */
@@ -1559,7 +1570,7 @@ class AutocompleteMediator
      */
     @Override
     public void onAttachmentListChanged() {
-        if (!isActive()) return;
+        if (!isInSession()) return;
 
         mAutocompleteInput.setHasAttachments(mFuseboxCoordinator.getAttachmentsCount() > 0);
         // Re-request ZPS in the event of attachments being removed/replaced.
@@ -1573,7 +1584,7 @@ class AutocompleteMediator
      */
     @Override
     public void onAttachmentUploadStatusChanged() {
-        if (!isActive()) return;
+        if (!isInSession()) return;
 
         // Re-request ZPS in the event of new attachments being uploaded.
         onTextChanged(
@@ -1593,15 +1604,15 @@ class AutocompleteMediator
                 mAutocompleteInput.getPageClassification() == PageClassification.ANDROID_HUB_VALUE
                         ? true
                         : isTopResumedActivity);
-        if (isActive()) {
+        if (isInSession()) {
             onTextChanged(
                     mUrlBarEditingTextProvider.getTextWithoutAutocomplete(),
                     /* isOnFocusContext= */ false);
         }
     }
 
-    private boolean isActive() {
-        return mOmniboxFocused && mActivityWindowFocused;
+    private boolean isInSession() {
+        return (mSessionState != null) && mActivityWindowFocused;
     }
 
     @Override

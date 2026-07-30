@@ -59,6 +59,8 @@ BASE_DECLARE_FEATURE(kWebViewReducedSeedExpiration);
 BASE_DECLARE_FEATURE(kWebViewReducedSeedRequestPeriod);
 BASE_DECLARE_FEATURE(kWebViewEarlyStartupTracing);
 BASE_DECLARE_FEATURE(kWebViewEarlyPerfettoInit);
+BASE_DECLARE_FEATURE(kWebViewBackgroundPerfettoInit);
+BASE_DECLARE_FEATURE(kWebViewDisablePerfettoInit);
 BASE_DECLARE_FEATURE(kWebViewCacheBoundaryInterfaceMethods);
 BASE_DECLARE_FEATURE(kWebViewOptInToGmsBindServiceOptimization);
 BASE_DECLARE_FEATURE(kWebViewMoveWorkToProviderInit);
@@ -66,7 +68,7 @@ BASE_DECLARE_FEATURE(kWebViewBypassProvisionalCookieManager);
 BASE_DECLARE_FEATURE(kWebViewPersistentMetricsInNoBackupDir);
 BASE_DECLARE_FEATURE(kPrerender2WarmUpCompositorForWebView);
 BASE_DECLARE_FEATURE(kWebViewFetchOriginTrialsComponent);
-
+BASE_DECLARE_FEATURE(kWebViewEnableApiCallUserActions);
 }  // namespace android_webview::features
 
 #endif  // ANDROID_WEBVIEW_COMMON_AW_FEATURES_H_

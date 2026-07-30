@@ -45,6 +45,7 @@
 #include "ui/views/border.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/focus_ring.h"
+#include "ui/views/controls/highlight_path_generator.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/layout/delegating_layout_manager.h"
 #include "ui/views/layout/proposed_layout.h"
@@ -63,6 +64,7 @@ constexpr int kIconDesignWidth = 16;
 constexpr int kTitleMinWidth = 10;
 constexpr int kHorizontalInset = 7;
 constexpr int kDefaultPadding = 4;
+constexpr int kFocusRingInset = 4;
 
 class VerticalTabTitle : public views::Label {
   METADATA_HEADER(VerticalTabTitle, views::Label)
@@ -161,8 +163,14 @@ VerticalTabView::VerticalTabView(TabCollectionNode* collection_node)
   // hover.
   SetNotifyEnterExitOnChild(true);
 
+  // TODO(crbug.com/476156783): Change to ACCESSIBLE_ONLY.
   SetFocusBehavior(FocusBehavior::ALWAYS);
   views::FocusRing::Install(this);
+
+  views::HighlightPathGenerator::Install(
+      this, std::make_unique<views::RoundRectHighlightPathGenerator>(
+                gfx::Insets(kFocusRingInset),
+                GetLayoutConstant(LayoutConstant::kVerticalTabCornerRadius)));
 
   GetViewAccessibility().SetRole(ax::mojom::Role::kTab);
   GetViewAccessibility().SetName(
@@ -174,8 +182,6 @@ VerticalTabView::VerticalTabView(TabCollectionNode* collection_node)
   data_changed_subscription_ =
       collection_node_->RegisterDataChangedCallback(base::BindRepeating(
           &VerticalTabView::OnDataChanged, base::Unretained(this)));
-
-  OnDataChanged();
 
   set_context_menu_controller(this);
 }
@@ -203,6 +209,7 @@ void VerticalTabView::UpdateHovered(bool hovered) {
       hover_controller_->Hide(TabStyle::HideHoverStyle::kGradual);
     }
   }
+
   UpdateColors();
   UpdateCloseButtonVisibility();
 }
@@ -258,6 +265,9 @@ bool VerticalTabView::OnMousePressed(const ui::MouseEvent& event) {
 }
 
 void VerticalTabView::OnMouseReleased(const ui::MouseEvent& event) {
+  if (!collection_node_) {
+    return;
+  }
   auto* controller = collection_node_->GetController();
   base::WeakPtr<VerticalTabView> self = weak_ptr_factory_.GetWeakPtr();
   if (event.IsOnlyMiddleMouseButton()) {
@@ -336,6 +346,7 @@ void VerticalTabView::AddedToWidget() {
       GetWidget()->RegisterPaintAsActiveChangedCallback(base::BindRepeating(
           &VerticalTabView::UpdateColors, base::Unretained(this)));
 
+  OnDataChanged();
   // Recompute the hovered state as mouse events are not processed if a view
   // removed from the widget and added.
   if (!split_) {
@@ -345,6 +356,7 @@ void VerticalTabView::AddedToWidget() {
 
 void VerticalTabView::RemovedFromWidget() {
   paint_as_active_subscription_ = {};
+  UpdateHovered(false);
 }
 
 void VerticalTabView::OnBoundsChanged(const gfx::Rect& previous_bounds) {
@@ -491,13 +503,14 @@ void VerticalTabView::OnDataChanged() {
   selected_ = tab->IsSelected();
   split_ = tab->IsSplit();
   pinned_ = tab->IsPinned();
-
   tab_data_ = TabRendererData::FromTabInModel(tab_strip_model, index);
 
   icon_->SetData(tab_data_);
   icon_->SetActiveState(tab->IsActivated());
   icon_->SetAttention(TabIcon::AttentionType::kBlockedWebContents,
-                      tab->IsActivated() && tab->IsBlocked());
+                      !tab->IsActivated() && tab->IsBlocked());
+  icon_->SetAttention(TabIcon::AttentionType::kTabWantsAttentionStatus,
+                      tab_data_.needs_attention);
 
   title_->SetText(tab_data_.title);
   title_->SetVisible(!pinned_);
@@ -576,7 +589,9 @@ void VerticalTabView::UpdateContrastRatioValues() {
 
 void VerticalTabView::CloseButtonPressed(const ui::Event& event) {
   // TODO(crbug.com/467735166): Log tab closing UMAs.
-  collection_node_->GetController()->CloseTab(GetTabInterface());
+  if (collection_node_) {
+    collection_node_->GetController()->CloseTab(GetTabInterface());
+  }
 }
 
 bool VerticalTabView::IsHoverAnimationActive() const {

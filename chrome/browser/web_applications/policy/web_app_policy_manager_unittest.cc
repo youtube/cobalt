@@ -40,6 +40,7 @@
 #include "chrome/browser/web_applications/test/web_app_test_utils.h"
 #include "chrome/browser/web_applications/web_app.h"
 #include "chrome/browser/web_applications/web_app_command_manager.h"
+#include "chrome/browser/web_applications/web_app_filter.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_install_utils.h"
 #include "chrome/browser/web_applications/web_app_management_type.h"
@@ -581,9 +582,9 @@ TEST_F(WebAppPolicyManagerTest, ForceInstallAppWithCreateDesktopShortcut) {
   WaitForAppsToSynchronize();
 
   EXPECT_NE(GetPolicyInstalledNoContainerApp(), nullptr);
-  EXPECT_EQ(proto::INSTALLED_WITH_OS_INTEGRATION,
-            app_registrar().GetInstallState(
-                GetPolicyInstalledNoContainerApp()->app_id()));
+  EXPECT_TRUE(app_registrar().AppMatches(
+      GetPolicyInstalledNoContainerApp()->app_id(),
+      WebAppFilter::InstalledInOperatingSystemForTesting()));
 }
 
 TEST_F(WebAppPolicyManagerTest, ForceInstallAppWithFallbackAppName) {
@@ -1235,9 +1236,7 @@ TEST_F(WebAppPolicyManagerWithBocaTest, BocaDisabledWhenDisabledFromPolicy) {
 
 class WebAppPolicyManagerPreventCloseTest
     : public WebAppPolicyManagerTestBase,
-      public testing::WithParamInterface<
-          std::tuple<bool /*prevent_close_enabled*/,
-                     bool /*run_on_os_login_enabled*/>> {
+      public testing::WithParamInterface<bool /*prevent_close_enabled*/> {
  public:
   WebAppPolicyManagerPreventCloseTest() = default;
   WebAppPolicyManagerPreventCloseTest(
@@ -1251,9 +1250,7 @@ class WebAppPolicyManagerPreventCloseTest
     WebAppPolicyManagerTestBase::SetUp();
   }
 
-  bool prevent_close_enabled() const { return std::get<0>(GetParam()); }
-
-  bool run_on_os_login_enabled() const { return std::get<1>(GetParam()); }
+  bool prevent_close_enabled() const { return GetParam(); }
 
  private:
   void BuildAndInitFeatureList() {
@@ -1264,12 +1261,6 @@ class WebAppPolicyManagerPreventCloseTest
       enabled_features.push_back(features::kDesktopPWAsPreventClose);
     } else {
       disabled_features.push_back(features::kDesktopPWAsPreventClose);
-    }
-
-    if (run_on_os_login_enabled()) {
-      enabled_features.push_back(features::kDesktopPWAsRunOnOsLogin);
-    } else {
-      disabled_features.push_back(features::kDesktopPWAsRunOnOsLogin);
     }
 
     scoped_feature_list_.InitWithFeatures(enabled_features, disabled_features);
@@ -1392,7 +1383,7 @@ TEST_P(WebAppPolicyManagerPreventCloseTest, WebAppSettingsPreventClose) {
 
   bool expected_windowed_url_status = false;
 #if BUILDFLAG(IS_CHROMEOS)
-  if (prevent_close_enabled() && run_on_os_login_enabled()) {
+  if (prevent_close_enabled()) {
     expected_windowed_url_status = true;
   }
 #endif  // BUILDFLAG(IS_CHROMEOS)
@@ -1405,22 +1396,14 @@ TEST_P(WebAppPolicyManagerPreventCloseTest, WebAppSettingsPreventClose) {
 INSTANTIATE_TEST_SUITE_P(
     WebAppPolicyManagerPreventCloseTestWithParams,
     WebAppPolicyManagerPreventCloseTest,
-    testing::Combine(testing::Bool(), testing::Bool()),
-    [](const ::testing::TestParamInfo<
-        std::tuple<bool /*prevent_close_enabled*/,
-                   bool /*run_on_os_login_enabled*/>>& info) {
+    testing::Bool(),
+    [](const ::testing::TestParamInfo<bool /*prevent_close_enabled*/>& info) {
       std::string test_name = "Test_";
 
-      if (std::get<0>(info.param)) {
-        test_name.append("PreventCloseEnabled_");
+      if (info.param) {
+        test_name.append("PreventCloseEnabled");
       } else {
-        test_name.append("PreventCloseDisabled_");
-      }
-
-      if (std::get<1>(info.param)) {
-        test_name.append("RunOnOsLoginEnabled");
-      } else {
-        test_name.append("RunOnOsLoginDisabled");
+        test_name.append("PreventCloseDisabled");
       }
 
       return test_name;

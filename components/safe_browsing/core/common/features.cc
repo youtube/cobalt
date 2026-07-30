@@ -96,6 +96,9 @@ const base::FeatureParam<bool> kCsdCreditCardFormEnableReferringAppFilter{
     &kClientSideDetectionCreditCardForm, "EnableReferringAppFilter",
     /*default_value=*/false};
 
+BASE_FEATURE(kClientSideDetectionDeprecateDOMModel,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kClientSideDetectionForcedLlamaRedirectChainKillswitch,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -282,6 +285,9 @@ constexpr base::FeatureParam<std::string>
 #endif
 
 BASE_FEATURE(kMigrateEnhancedSbUserToEnhancedBundle,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kMigrateToBlockV8OptimizerOnUnfamiliarSites,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kModifiedESBFetchErrorHandling, base::FEATURE_ENABLED_BY_DEFAULT);

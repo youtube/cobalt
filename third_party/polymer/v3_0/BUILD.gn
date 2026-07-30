@@ -121,7 +121,6 @@ ts_library("library") {
 
     "//chrome/browser/resources/access_code_cast:build_ts",
     "//chrome/browser/resources/certificate_manager:build_ts",
-    "//chrome/browser/resources/commerce/product_specifications:build_ts",
     "//chrome/browser/resources/compose:build_ts",
     "//chrome/browser/resources/inline_login:build_ts",
     "//chrome/browser/resources/lens/overlay:build_ts",
@@ -133,7 +132,6 @@ ts_library("library") {
     "//chrome/browser/resources/side_panel/bookmarks:build_ts",
     "//chrome/browser/resources/side_panel/commerce:build_ts",
     "//chrome/browser/resources/side_panel/shared:build_ts",
-    "//chrome/browser/resources/support_tool:build_ts",
     "//chrome/test/data/webui:build_ts",
     "//chrome/test/data/webui/certificate_manager:build_ts",
     "//chrome/test/data/webui/cr_components:build_ts",

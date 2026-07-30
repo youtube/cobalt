@@ -35,6 +35,8 @@ class ContextualSearchSessionHandle;
 @protocol ComposeboxInputPlateMediatorDelegate
 // Reloads the composebox autocomplete suggestions.
 - (void)reloadAutocompleteSuggestionsRestarting:(BOOL)restart;
+// Refines the query with the given `text`.
+- (void)refineWithText:(NSString*)text;
 // Informs the delegate that adding an attachment failed due to limit.
 - (void)showAttachmentLimitError;
 // Informs the delegate that item upload has failed.
@@ -74,10 +76,6 @@ class ContextualSearchSessionHandle;
                         prefService:(PrefService*)prefService;
 
 - (void)disconnect;
-
-// Processes the given `itemProvider` for an image.
-- (void)processImageItemProvider:(NSItemProvider*)itemProvider
-                         assetID:(NSString*)assetID;
 
 // Returns whether more attachments can be added.
 - (BOOL)canAddMoreAttachments;

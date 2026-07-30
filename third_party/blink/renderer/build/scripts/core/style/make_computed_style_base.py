@@ -36,7 +36,7 @@ ALIGNMENT_ORDER = [
     'double',
     'StyleViewTransitionGroup',
     'Superellipse',
-    'ItemTolerance',
+    'FlowTolerance',
     # Aligns like a pointer (can be 32 or 64 bits)
     'NamedGridLinesMap',
     'NamedGridAreaMap',
@@ -67,6 +67,7 @@ ALIGNMENT_ORDER = [
     'StyleNameScope',
     'StyleNonInheritedVariables',
     'StylePositionAnchor',
+    'StyleTimelineScope',
     'StyleTriggerScope',
     'std::optional<StyleOverflowClipMargin>',
     'std::optional<blink::PositionAreaOffsets>',

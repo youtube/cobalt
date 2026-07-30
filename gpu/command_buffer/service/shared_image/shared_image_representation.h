@@ -934,6 +934,8 @@ class GPU_GLES2_EXPORT WebNNTensorRepresentation
 #endif
   };
 
+  bool is_thread_safe() const;
+
   std::unique_ptr<ScopedAccess> BeginScopedAccess();
 
 #if BUILDFLAG(IS_WIN)
@@ -1251,6 +1253,8 @@ class GPU_GLES2_EXPORT VideoImageRepresentation
   virtual std::unique_ptr<ScopedReadAccess> BeginScopedReadAccess();
 
  protected:
+  friend class WrappedVideoCompoundImageRepresentation;
+
 #if BUILDFLAG(IS_WIN)
   virtual D3D11TextureAndArrayIndex GetD3D11Texture() const = 0;
 #endif  // BUILDFLAG(IS_WIN)

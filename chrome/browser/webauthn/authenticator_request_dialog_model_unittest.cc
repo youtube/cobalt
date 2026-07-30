@@ -17,7 +17,6 @@
 
 #include "base/check.h"
 #include "base/check_op.h"
-#include "base/containers/contains.h"
 #include "base/containers/flat_set.h"
 #include "base/containers/to_vector.h"
 #include "base/functional/bind.h"
@@ -507,22 +506,22 @@ TEST_F(AuthenticatorRequestDialogControllerTest, Mechanisms) {
   const auto mss = Step::kMechanismSelection;
   const auto plat_ui = Step::kPlatformAuthenticator;
   const auto cable_ui = Step::kCableActivate;
-  [[maybe_unused]] const auto create_pk = Step::kCreatePasskey;
+  [[maybe_unused]] const auto create_pk = Step::kChromeProfileCreatePasskey;
   const auto create_pk_or_mss =
 #if BUILDFLAG(IS_MAC)
-      Step::kCreatePasskey;
+      Step::kChromeProfileCreatePasskey;
 #else
       Step::kMechanismSelection;
 #endif
   const auto create_pk_or_plat_ui =
 #if BUILDFLAG(IS_MAC)
-      Step::kCreatePasskey;
+      Step::kChromeProfileCreatePasskey;
 #else
       Step::kPlatformAuthenticator;
 #endif
   const auto create_pk_or_qr =
 #if BUILDFLAG(IS_MAC)
-      Step::kCreatePasskey;
+      Step::kChromeProfileCreatePasskey;
 #else
       Step::kCableV2QRCode;
 #endif
@@ -1024,8 +1023,8 @@ TEST_F(AuthenticatorRequestDialogControllerTest, Mechanisms) {
     SCOPED_TRACE(testing::Message() << "At line number: " << test.line_num);
 
 #if BUILDFLAG(IS_WIN)
-    bool has_win_hybrid = base::Contains(
-        test.params, TransportAvailabilityParam::kWindowsHandlesHybrid);
+    bool has_win_hybrid =
+        test.params.contains(TransportAvailabilityParam::kWindowsHandlesHybrid);
     fake_win_webauthn_api.set_version(has_win_hybrid ? 7 : 4);
 #endif
 
@@ -1160,7 +1159,7 @@ TEST_F(AuthenticatorRequestDialogControllerTest, Mechanisms) {
       has_v2_cable_extension = false;
     }
     if (test.params.contains(TransportAvailabilityParam::kEnclaveCred)) {
-      model->EnclaveEnabledStatusChanged(EnclaveEnabledStatus::kEnabled);
+      model->OnGPMEnclaveEnabledStatusChanged(EnclaveEnabledStatus::kEnabled);
     }
 
     if (test.params.contains(
@@ -1176,7 +1175,7 @@ TEST_F(AuthenticatorRequestDialogControllerTest, Mechanisms) {
     }
 #if BUILDFLAG(IS_MAC)
     transports_info.platform_has_biometrics =
-        !base::Contains(test.params, TransportAvailabilityParam::kNoTouchId);
+        !test.params.contains(TransportAvailabilityParam::kNoTouchId);
 #endif
 
     std::optional<device::FidoTransportProtocol> hint_transport;
@@ -1200,7 +1199,7 @@ TEST_F(AuthenticatorRequestDialogControllerTest, Mechanisms) {
     }
 
     if (test.params.contains(TransportAvailabilityParam::kEnclaveNeedsSignIn)) {
-      controller.EnclaveEnabledStatusChanged(
+      controller.OnGPMEnclaveEnabledStatusChanged(
           EnclaveEnabledStatus::kEnabledAndReauthNeeded);
     }
 
@@ -1585,7 +1584,7 @@ TEST_F(AuthenticatorRequestDialogControllerTest, AwaitingAcknowledgement) {
                                /*is_off_the_record=*/false);
     controller.StartFlow(std::move(transports_info), {});
 #if BUILDFLAG(IS_MAC)
-    EXPECT_EQ(Step::kCreatePasskey, model->step());
+    EXPECT_EQ(Step::kChromeProfileCreatePasskey, model->step());
 #else
     EXPECT_EQ(Step::kMechanismSelection, model->step());
 #endif
@@ -2394,7 +2393,7 @@ TEST_F(AuthenticatorRequestDialogControllerTest, Dispatch) {
       if (should_create_in_icloud_keychain) {
         EXPECT_EQ(request_callback.WaitForResult(), kICloudKeychainId);
       } else {
-        EXPECT_EQ(model->step(), Step::kCreatePasskey);
+        EXPECT_EQ(model->step(), Step::kChromeProfileCreatePasskey);
         controller.HideDialogAndDispatchToPlatformAuthenticator();
         EXPECT_EQ(request_callback.WaitForResult(), kProfileAuthenticatorId);
       }

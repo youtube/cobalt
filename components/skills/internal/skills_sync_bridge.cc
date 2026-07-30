@@ -12,11 +12,13 @@
 #include "components/skills/proto/skill_local_data.pb.h"
 #include "components/skills/public/skill.h"
 #include "components/skills/public/skills_service.h"
+#include "components/sync/base/deletion_origin.h"
 #include "components/sync/model/data_type_local_change_processor.h"
 #include "components/sync/model/in_memory_metadata_change_list.h"
 #include "components/sync/model/metadata_batch.h"
 #include "components/sync/model/metadata_change_list.h"
 #include "components/sync/model/model_error.h"
+#include "components/sync/model/mutable_data_batch.h"
 #include "components/sync/protocol/entity_data.h"
 #include "components/sync/protocol/entity_specifics.pb.h"
 #include "components/sync/protocol/skill_specifics.pb.h"
@@ -54,6 +56,13 @@ syncer::EntityData SpecificsToEntityData(
   *entity_data.specifics.mutable_skill() = specifics;
   entity_data.name = specifics.guid();
   return entity_data;
+}
+
+void StoreSkill(const Skill& skill,
+                syncer::DataTypeStore::WriteBatch& write_batch) {
+  proto::SkillLocalData local_data;
+  *local_data.mutable_specifics() = SkillToSpecifics(skill);
+  write_batch.WriteData(skill.id, local_data.SerializeAsString());
 }
 
 }  // namespace
@@ -94,21 +103,84 @@ std::optional<syncer::ModelError> SkillsSyncBridge::ApplyIncrementalSyncChanges(
     std::unique_ptr<syncer::MetadataChangeList> metadata_change_list,
     syncer::EntityChangeList entity_changes) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  NOTIMPLEMENTED();
+
+  std::unique_ptr<syncer::DataTypeStore::WriteBatch> write_batch =
+      store_->CreateWriteBatch();
+  write_batch->TakeMetadataChangesFrom(std::move(metadata_change_list));
+
+  for (const std::unique_ptr<syncer::EntityChange>& entity_change :
+       entity_changes) {
+    switch (entity_change->type()) {
+      case syncer::EntityChange::ACTION_ADD:
+      case syncer::EntityChange::ACTION_UPDATE: {
+        const sync_pb::SkillSpecifics& skill_specifics =
+            entity_change->data().specifics.skill();
+        const Skill* skill =
+            skills_service_->GetSkillById(entity_change->storage_key());
+        if (skill) {
+          // Skill already exists locally.
+          skill = skills_service_->UpdateSkill(
+              skill_specifics.guid(), skill_specifics.name(),
+              skill_specifics.icon(), skill_specifics.simple_skill().prompt(),
+              SkillsService::UpdateSource::kSync);
+        } else {
+          skill = skills_service_->AddSkillFromSync(
+              skill_specifics.guid(), skill_specifics.name(),
+              skill_specifics.icon(), skill_specifics.simple_skill().prompt());
+        }
+        CHECK(skill);
+
+        StoreSkill(*skill, *write_batch);
+        break;
+      }
+
+      case syncer::EntityChange::ACTION_DELETE: {
+        const std::string& skill_id = entity_change->storage_key();
+        skills_service_->DeleteSkill(skill_id,
+                                     SkillsService::UpdateSource::kSync);
+        write_batch->DeleteData(skill_id);
+        break;
+      }
+    }
+  }
+
+  store_->CommitWriteBatch(std::move(write_batch),
+                           base::BindOnce(&SkillsSyncBridge::OnDatabaseSave,
+                                          weak_ptr_factory_.GetWeakPtr()));
+
   return {};
 }
 
 std::unique_ptr<syncer::DataBatch> SkillsSyncBridge::GetDataForCommit(
     StorageKeyList storage_keys) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  NOTIMPLEMENTED();
-  return nullptr;
+  auto batch = std::make_unique<syncer::MutableDataBatch>();
+
+  for (const std::string& storage_key : storage_keys) {
+    const Skill* skill = skills_service_->GetSkillById(storage_key);
+    if (!skill) {
+      // Skill was deleted locally.
+      continue;
+    }
+
+    batch->Put(storage_key,
+               std::make_unique<syncer::EntityData>(
+                   SpecificsToEntityData(SkillToSpecifics(*skill))));
+  }
+
+  return batch;
 }
 
 std::unique_ptr<syncer::DataBatch> SkillsSyncBridge::GetAllDataForDebugging() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  NOTIMPLEMENTED();
-  return nullptr;
+  auto batch = std::make_unique<syncer::MutableDataBatch>();
+
+  for (const std::unique_ptr<Skill>& skill : skills_service_->GetSkills()) {
+    batch->Put(skill->id, std::make_unique<syncer::EntityData>(
+                              SpecificsToEntityData(SkillToSpecifics(*skill))));
+  }
+
+  return batch;
 }
 
 std::string SkillsSyncBridge::GetClientTag(
@@ -133,8 +205,31 @@ sync_pb::EntitySpecifics
 SkillsSyncBridge::TrimAllSupportedFieldsFromRemoteSpecifics(
     const sync_pb::EntitySpecifics& entity_specifics) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  NOTIMPLEMENTED();
-  return {};
+
+  // LINT.IfChange(TrimAllSupportedFieldsFromRemoteSpecifics)
+  sync_pb::SkillSpecifics trimmed_specifics = entity_specifics.skill();
+  trimmed_specifics.clear_guid();
+  trimmed_specifics.clear_name();
+  trimmed_specifics.clear_icon();
+  trimmed_specifics.clear_creation_time_windows_epoch_micros();
+  trimmed_specifics.clear_last_update_time_windows_epoch_micros();
+  trimmed_specifics.clear_schema_version();
+
+  if (trimmed_specifics.has_simple_skill()) {
+    trimmed_specifics.mutable_simple_skill()->clear_prompt();
+
+    if (trimmed_specifics.simple_skill().ByteSizeLong() == 0) {
+      trimmed_specifics.clear_simple_skill();
+    }
+  }
+  // LINT.ThenChange(//components/sync/protocol/skill_specifics.proto:SkillSpecifics)
+
+  sync_pb::EntitySpecifics trimmed_entity_specifics;
+  if (trimmed_specifics.ByteSizeLong() > 0) {
+    *trimmed_entity_specifics.mutable_skill() = std::move(trimmed_specifics);
+  }
+
+  return trimmed_entity_specifics;
 }
 
 bool SkillsSyncBridge::IsEntityDataValid(
@@ -157,12 +252,20 @@ bool SkillsSyncBridge::IsEntityDataValid(
   return true;
 }
 
-void SkillsSyncBridge::OnSkillUpdated(const std::string& skill_id) {
+void SkillsSyncBridge::OnSkillUpdated(
+    const std::string& skill_id,
+    SkillsService::UpdateSource update_source) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  // TODO(crbug.com/471795213): verify that the changes are not coming from
-  // sync.
   CHECK(store_);
+  // TODO(crbug.com/471795213): consider using CHECK for tracking metadata.
+
+  if (update_source == SkillsService::UpdateSource::kSync) {
+    // This change was made by the remote sync service and it should not be sent
+    // back to the sync service.
+    return;
+  }
+
   std::unique_ptr<syncer::DataTypeStore::WriteBatch> batch =
       store_->CreateWriteBatch();
 
@@ -170,11 +273,16 @@ void SkillsSyncBridge::OnSkillUpdated(const std::string& skill_id) {
   if (!skill) {
     // Skill was deleted locally.
     batch->DeleteData(skill_id);
+    change_processor()->Delete(skill_id, syncer::DeletionOrigin::Unspecified(),
+                               batch->GetMetadataChangeList());
   } else {
     // Skill was created or updated locally.
-    proto::SkillLocalData local_data;
-    *local_data.mutable_specifics() = SkillToSpecifics(*skill);
-    batch->WriteData(skill_id, local_data.SerializeAsString());
+    StoreSkill(*skill, *batch);
+    change_processor()->Put(
+        skill->id,
+        std::make_unique<syncer::EntityData>(
+            SpecificsToEntityData(SkillToSpecifics(*skill))),
+        batch->GetMetadataChangeList());
   }
 
   store_->CommitWriteBatch(std::move(batch),

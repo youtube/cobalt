@@ -22,6 +22,7 @@
 #include "components/lens/lens_url_utils.h"
 #include "components/metrics/metrics_provider.h"
 #include "components/omnibox/browser/autocomplete_match_type.h"
+#include "components/omnibox/browser/vector_icons.h"
 #include "content/public/browser/page_navigator.h"
 #include "net/base/url_util.h"
 #include "third_party/metrics_proto/omnibox_event.pb.h"
@@ -158,7 +159,7 @@ ComposeboxHandler::ComposeboxHandler(
 
 ComposeboxHandler::~ComposeboxHandler() = default;
 
-omnibox::ChromeAimToolsAndModels ComposeboxHandler::GetAimToolMode() const {
+omnibox::ToolMode ComposeboxHandler::GetAimToolMode() const {
   return aim_tool_mode_;
 }
 
@@ -166,9 +167,9 @@ omnibox::ChromeAimToolsAndModels ComposeboxHandler::GetAimToolMode() const {
 // on the WebUI side that can set this.
 void ComposeboxHandler::SetDeepSearchMode(bool enabled) {
   if (enabled) {
-    aim_tool_mode_ = omnibox::ChromeAimToolsAndModels::TOOL_MODE_DEEP_SEARCH;
+    aim_tool_mode_ = omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH;
   } else {
-    aim_tool_mode_ = omnibox::ChromeAimToolsAndModels::TOOL_MODE_UNSPECIFIED;
+    aim_tool_mode_ = omnibox::ToolMode::TOOL_MODE_UNSPECIFIED;
   }
 
   if (auto* metrics_recorder = GetMetricsRecorder()) {
@@ -184,20 +185,18 @@ void ComposeboxHandler::SetCreateImageMode(bool enabled, bool image_present) {
   if (enabled) {
     // Only log if not already in some form of create image mode so this metric
     // does not get double counted.
-    if (aim_tool_mode_ ==
-        omnibox::ChromeAimToolsAndModels::TOOL_MODE_UNSPECIFIED) {
+    if (aim_tool_mode_ == omnibox::ToolMode::TOOL_MODE_UNSPECIFIED) {
       tool_state = contextual_search::AimToolState::kEnabled;
     }
     // Server uses different `azm` param to make IMAGE_GEN requests when an
     // image is present.
     if (image_present) {
-      aim_tool_mode_ =
-          omnibox::ChromeAimToolsAndModels::TOOL_MODE_IMAGE_GEN_UPLOAD;
+      aim_tool_mode_ = omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD;
     } else {
-      aim_tool_mode_ = omnibox::ChromeAimToolsAndModels::TOOL_MODE_IMAGE_GEN;
+      aim_tool_mode_ = omnibox::ToolMode::TOOL_MODE_IMAGE_GEN;
     }
   } else {
-    aim_tool_mode_ = omnibox::ChromeAimToolsAndModels::TOOL_MODE_UNSPECIFIED;
+    aim_tool_mode_ = omnibox::ToolMode::TOOL_MODE_UNSPECIFIED;
     tool_state = contextual_search::AimToolState::kDisabled;
   }
 
@@ -262,9 +261,8 @@ void ComposeboxHandler::OnThumbnailRemoved() {
 void ComposeboxHandler::ClearFiles() {
   ContextualSearchboxHandler::ClearFiles();
   // Reset the AIM tool mode to not include file upload if it currently does.
-  if (aim_tool_mode_ ==
-      omnibox::ChromeAimToolsAndModels::TOOL_MODE_IMAGE_GEN_UPLOAD) {
-    aim_tool_mode_ = omnibox::ChromeAimToolsAndModels::TOOL_MODE_IMAGE_GEN;
+  if (aim_tool_mode_ == omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD) {
+    aim_tool_mode_ = omnibox::ToolMode::TOOL_MODE_IMAGE_GEN;
   }
 }
 
@@ -298,12 +296,12 @@ void ComposeboxHandler::SubmitQuery(
     std::map<std::string, std::string> additional_params) {
   contextual_search::SubmissionType submission_type;
   switch (aim_tool_mode_) {
-    case omnibox::ChromeAimToolsAndModels::TOOL_MODE_DEEP_SEARCH:
+    case omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH:
       additional_params["dr"] = "1";
       submission_type = contextual_search::SubmissionType::kDeepSearch;
       break;
-    case omnibox::ChromeAimToolsAndModels::TOOL_MODE_IMAGE_GEN:
-    case omnibox::ChromeAimToolsAndModels::TOOL_MODE_IMAGE_GEN_UPLOAD:
+    case omnibox::ToolMode::TOOL_MODE_IMAGE_GEN:
+    case omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD:
       additional_params["imgn"] = "1";
       submission_type = contextual_search::SubmissionType::kCreateImages;
       break;
@@ -326,7 +324,16 @@ void ComposeboxHandler::UpdateSuggestedTabContext(
   SearchboxHandler::page_->UpdateAutoSuggestedTabContext(std::move(tab_info));
 }
 
-std::optional<lens::LensOverlayInvocationSource>
-ComposeboxHandler::GetInvocationSource() const {
-  return lens::LensOverlayInvocationSource::kNtpContextualQuery;
+std::string ComposeboxHandler::AutocompleteIconToResourceName(
+    const gfx::VectorIcon& icon) const {
+  // TODO(crbug.com/476137316): Update vector icons returned by server.
+  // The default icon for contextual suggestions is the subdirectory arrow right
+  // icon. For the Lens composebox and realbox, we want to stay consistent with
+  // the search loupe instead.
+  if (icon.name == omnibox::kSubdirectoryArrowRightIcon.name) {
+    return searchbox_internal::kSearchIconResourceName;
+  }
+
+  return SearchboxHandler::AutocompleteIconToResourceName(icon);
 }
+

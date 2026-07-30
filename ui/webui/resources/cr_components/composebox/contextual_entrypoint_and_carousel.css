@@ -35,13 +35,17 @@
   flex-wrap: nowrap;
 }
 
+:host([is-omnibox-in-compact-mode_]) .context-menu-container {
+  min-height: 0;
+}
+
 .context-menu-container > * {
   flex-shrink: 0;
 }
 
 #contextEntrypoint {
   color: var(--color-searchbox-results-foreground);
-  padding-inline: 8px;
+  padding-inline: var(--contextual-entrypoint-and-carousel-context-entrypoint-padding-inline, 8px);
 }
 
 #toolChipsContainer {

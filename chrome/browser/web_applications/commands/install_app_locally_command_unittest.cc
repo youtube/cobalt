@@ -82,6 +82,11 @@ class InstallAppLocallyCommandTest : public WebAppTest {
     info->title = u"Test App";
     info->user_display_mode = mojom::UserDisplayMode::kStandalone;
     info->icon_bitmaps.any = std::move(icon_map);
+    if (install_state == proto::InstallState::SUGGESTED_FROM_MIGRATION) {
+      web_app::proto::WebAppMigrationSource source;
+      source.set_manifest_id("https://migration.example.com/start.html");
+      info->migration_sources.push_back(std::move(source));
+    }
     base::test::TestFuture<const webapps::AppId&, webapps::InstallResultCode>
         result;
 
@@ -228,7 +233,8 @@ TEST_F(InstallAppLocallyCommandTest, AppNotInRegistrar) {
   fake_provider().scheduler().InstallAppLocally(app_id,
                                                 test_future.GetCallback());
   EXPECT_TRUE(test_future.Wait());
-  EXPECT_FALSE(fake_provider().registrar_unsafe().IsInRegistrar(app_id));
+  EXPECT_FALSE(
+      fake_provider().registrar_unsafe().GetInstallState(app_id).has_value());
 }
 
 TEST_F(InstallAppLocallyCommandTest, MigrationPWAsNotAllowed) {

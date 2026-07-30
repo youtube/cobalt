@@ -371,6 +371,7 @@ FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHiOSHomepageLensNewBadge);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHiOSHomepageCustomizationNewBadge);
 FEATURE_CONSTANTS_DECLARE_FEATURE(
     kIPHiOSOneTimeDefaultBrowserNotificationFeature);
+FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHiOSGeminiImageRemixFeature);
 
 // A feature flag to enable and parametrize the sliding window of time for a
 // user's eligibility to be shown a default browser promo. This is not an FET
@@ -392,6 +393,9 @@ FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHiOSGeminiFullscreenPromoFeature);
 
 // FET feature flag that enables omnibox Gemini contextual cue chip.
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHiOSGeminiContextualCueChip);
+
+// FET feature flag that enables customized sites in the most visited tile.
+FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHiOSPinMostVisitedSiteFeature);
 
 #endif  // BUILDFLAG(IS_IOS)
 

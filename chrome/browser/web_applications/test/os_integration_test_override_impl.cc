@@ -4,6 +4,7 @@
 
 #include "chrome/browser/web_applications/test/os_integration_test_override_impl.h"
 
+#include <algorithm>
 #include <map>
 #include <memory>
 #include <optional>
@@ -14,7 +15,6 @@
 
 #include "base/base_paths.h"
 #include "base/check_is_test.h"
-#include "base/containers/contains.h"
 #include "base/containers/span.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
@@ -69,7 +69,6 @@
 #include <shellapi.h>
 
 #include "base/command_line.h"
-#include "base/containers/contains.h"
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
 #include "base/strings/strcat.h"
@@ -412,7 +411,7 @@ bool OsIntegrationTestOverrideImpl::IsFileExtensionHandled(
   for (const auto& file_handler_prog_id : file_handler_prog_ids) {
     const std::vector<std::wstring> supported_file_extensions =
         GetFileExtensionsForProgId(file_handler_prog_id);
-    if (base::Contains(supported_file_extensions, extension)) {
+    if (std::ranges::contains(supported_file_extensions, extension)) {
       const std::wstring reg_key = std::wstring(ShellUtil::kRegClasses) +
                                    base::FilePath::kSeparators[0] + extension +
                                    base::FilePath::kSeparators[0] +
@@ -609,7 +608,7 @@ int OsIntegrationTestOverrideImpl::GetCountOfShortcutIconsCreated(
 
 bool OsIntegrationTestOverrideImpl::IsShortcutsMenuRegisteredForApp(
     const std::wstring& app_user_model_id) {
-  return base::Contains(jump_list_entry_map_, app_user_model_id);
+  return jump_list_entry_map_.contains(app_user_model_id);
 }
 
 #endif  // BUILDFLAG(IS_WIN)
@@ -702,7 +701,7 @@ OsIntegrationTestOverrideImpl::IsUninstallRegisteredWithOs(
   }
   std::wstring expected_uninstall_substr =
       base::StrCat({L"--uninstall-app-id=", base::UTF8ToWide(app_id)});
-  if (!base::Contains(uninstall_string, expected_uninstall_substr)) {
+  if (!uninstall_string.contains(expected_uninstall_substr)) {
     return base::unexpected(base::StrCat({"Could not find uninstall flag: ",
                                           base::WideToUTF8(uninstall_string)}));
   }

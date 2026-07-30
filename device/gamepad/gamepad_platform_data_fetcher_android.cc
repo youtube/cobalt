@@ -115,7 +115,7 @@ void GamepadPlatformDataFetcherAndroid::OnAddedToProvider() {
 
 void GamepadPlatformDataFetcherAndroid::SetDualRumbleVibrationActuator(
     int source_id) {
-  DCHECK(!base::Contains(vibration_actuators_, source_id));
+  DCHECK(!vibration_actuators_.contains(source_id));
   vibration_actuators_.emplace(
       source_id, std::make_unique<HapticGamepadAndroid>(source_id));
 }
@@ -198,16 +198,16 @@ void GamepadPlatformDataFetcherAndroid::ResetVibration(
 
 static void JNI_GamepadList_SetGamepadData(JNIEnv* env,
                                            jlong data_fetcher,
-                                           jint index,
+                                           int32_t index,
                                            bool mapping,
                                            bool connected,
                                            const JavaRef<jstring>& devicename,
-                                           jint vendor_id,
-                                           jint product_id,
+                                           int32_t vendor_id,
+                                           int32_t product_id,
                                            jlong timestamp,
                                            const JavaRef<jfloatArray>& jaxes,
                                            const JavaRef<jfloatArray>& jbuttons,
-                                           jint buttons_length,
+                                           int32_t buttons_length,
                                            bool supports_dual_rumble) {
   DCHECK(data_fetcher);
   GamepadPlatformDataFetcherAndroid* fetcher =

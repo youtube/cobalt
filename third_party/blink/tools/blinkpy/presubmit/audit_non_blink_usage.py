@@ -77,7 +77,6 @@ _CONFIG = [
             'base::byte_span(_with_nul)?_from_cstring',
             'base::CheckedContiguousIterator',
             'base::ConditionVariable',
-            'base::Contains',
             'base::CPU',
             'base::Days',
             'base::DefaultTickClock',
@@ -299,7 +298,6 @@ _CONFIG = [
             'base::CheckSub',
             'base::CheckXor',
             'base::IsValidForType',
-            'base::MakeCheckedNum',
             'base::ValueOrDefaultForType',
             'base::ValueOrDieForType',
 
@@ -490,6 +488,15 @@ _CONFIG = [
         ],
         'allowed': [
             'net::SiteForCookies',
+        ],
+    },
+    {
+        'paths': [
+            'third_party/blink/common/navigation/navigation_params.cc',
+        ],
+        'allowed': [
+            # To initialize the AgentClusterKey in CommitNavigationParams.
+            'GURL',
         ],
     },
     {
@@ -750,6 +757,9 @@ _CONFIG = [
             # Common display structs across display <-> Blink.
             'display::ScreenInfo',
             'display::ScreenInfos',
+
+            # html-in-canvas
+            'cc::AllCanvasDrawElementIds',
 
             # Terminal value for display id's used across display <-> Blink.
             'display::kInvalidDisplayId',
@@ -1534,6 +1544,15 @@ _CONFIG = [
         ],
     },
     {
+        'paths': [
+            'third_party/blink/renderer/core/paint/timing/paint_timing.cc',
+        ],
+        'allowed': [
+            'base::subtle::DelayPolicy',
+            'base::subtle::PostDelayedTaskPassKey',
+        ],
+    },
+    {
         'paths': ['third_party/blink/renderer/core/style/computed_style.h'],
         'allowed': [
             'css_longhand::.+',
@@ -1712,7 +1731,6 @@ _CONFIG = [
             'gpu::ContextSupport',
             'gpu::gles2::GLES2Interface',
             'gpu::Mailbox',
-            'gpu::MailboxHolder',
             'gpu::raster::RasterInterface',
             'gpu::RasterScopedAccess',
             'gpu::SHARED_IMAGE_USAGE_.+',
@@ -1887,7 +1905,6 @@ _CONFIG = [
             'third_party/blink/renderer/modules/mediacapturefromelement/',
         ],
         'allowed': [
-            'gpu::MailboxHolder',
             'media::.+',
             'libyuv::.+',
             'viz::SkColorTypeToSinglePlaneSharedImageFormat',
@@ -2005,7 +2022,6 @@ _CONFIG = [
             'gfx::ContentColorUsage',
             'gpu::kNullSurfaceHandle',
             'gpu::Mailbox',
-            'gpu::MailboxHolder',
             'gpu::raster::RasterInterface',
             'gpu::SHARED_IMAGE_.+',
             'gpu::SharedImageInterface',
@@ -2900,6 +2916,13 @@ _CONFIG = [
             'base::raw_span',
         ],
     },
+    {
+        'paths': [
+            'third_party/blink/renderer/core/html/html_permission_element_test_helper.cc'
+        ],
+        'allowed':
+        ['base::test::RunUntil', 'base::test::ScopedRunLoopTimeout'],
+    }
 ]
 
 

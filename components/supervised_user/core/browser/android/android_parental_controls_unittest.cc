@@ -4,6 +4,7 @@
 
 #include "components/supervised_user/core/browser/android/android_parental_controls.h"
 
+#include "base/callback_list.h"
 #include "components/supervised_user/core/browser/device_parental_controls.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -11,30 +12,27 @@
 namespace supervised_user {
 namespace {
 
-class AndroidParentalControlsTest : public testing::Test {};
+using ::testing::_;
 
-class MockObserver : public DeviceParentalControls::Observer {
+class MockSubscriber {
  public:
   MOCK_METHOD(void,
-              OnAndroidParentalControlsBrowserContentFiltersChanged,
-              (),
-              (override));
-  MOCK_METHOD(void,
-              OnAndroidParentalControlsSearchContentFiltersChanged,
-              (),
-              (override));
+              OnDeviceParentalChanged,
+              (const DeviceParentalControls& state));
 };
 
 TEST(AndroidParentalControlsTest, CheckNotificationsAreSent) {
   AndroidParentalControls android_parental_controls;
-  MockObserver observer;
+  MockSubscriber subscriber;
 
-  EXPECT_CALL(observer, OnAndroidParentalControlsBrowserContentFiltersChanged())
-      .Times(2);
-  EXPECT_CALL(observer, OnAndroidParentalControlsSearchContentFiltersChanged())
-      .Times(2);
+  // Once for subscription, and once for each time the state changes.
+  EXPECT_CALL(subscriber, OnDeviceParentalChanged(_)).Times(5);
 
-  android_parental_controls.AddObserver(&observer);
+  base::CallbackListSubscription subscription =
+      android_parental_controls.Subscribe(
+          base::BindRepeating(&MockSubscriber::OnDeviceParentalChanged,
+                              base::Unretained(&subscriber)));
+
   android_parental_controls.SetBrowserContentFiltersEnabledForTesting(true);
   android_parental_controls.SetSearchContentFiltersEnabledForTesting(true);
   android_parental_controls.SetBrowserContentFiltersEnabledForTesting(false);

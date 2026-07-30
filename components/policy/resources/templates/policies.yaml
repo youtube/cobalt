@@ -1285,7 +1285,7 @@ policies:
   1284: SystemShortcutBehavior
   1285: DeletingUndecryptablePasswordsEnabled
   1286: StandardizedBrowserZoomEnabled
-  1287: ReportingEndpoints
+  1287: ''
   1288: PrintingLPACSandboxEnabled
   1289: ShowGeminiIntroScreenEnabled
   1290: DeviceRestrictionSchedule
@@ -1416,8 +1416,8 @@ policies:
   1415: DeviceLoginScreenPreferSlowCiphers
   1416: SearchContentSharingSettings
   1417: StaticStorageQuotaEnabled
-  1418: SaaSReportDomainUrlsForBrowser
-  1419: SaaSReportDomainUrlsForProfile
+  1418: SaasUsageReportingDomainUrlsForBrowsers
+  1419: SaasUsageReportingDomainUrlsForProfiles
   1420: GeminiActOnWebAllowedForURLs
   1421: GeminiActOnWebBlockedForURLs
   1422: WebAppInstallByUserEnabled
@@ -1476,7 +1476,7 @@ atomic_groups:
   51: WebPrintingSettings
   52: DirectSocketsSettings
   53: SkyVaultSettings
-  54: BrowserEventReporting
+  54: ''
   55: SmartCardConnectSettings
   56: WebRtc
   57: ControlledFrameSettings

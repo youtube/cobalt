@@ -138,6 +138,10 @@ bool HasSingleNewTabPage(Browser* browser) {
 // Pointers to SessionRestoreImpls which are currently restoring the session.
 std::set<SessionRestoreImpl*>* active_session_restorers = nullptr;
 
+// Tracks whether any session has been restored during the current process
+// lifetime.
+static bool g_is_any_session_restored = false;
+
 #if BUILDFLAG(IS_CHROMEOS)
 // Helper to pause occlusion tracking while it is alive and updates occlusion
 // states of restored tabs when it goes out of scope.
@@ -541,7 +545,14 @@ class SessionRestoreImpl : public BrowserListObserver {
     // Copy windows into windows_ so that we can combine both app and browser
     // windows together before doing a one-pass restore.
     std::ranges::move(windows, std::back_inserter(windows_));
-    SessionRestore::OnGotSession(profile(), for_apps, windows.size());
+
+    // Build a read-only view of the windows for the observers.
+    std::vector<const sessions::SessionWindow*> windows_view;
+    windows_view.reserve(windows_.size());
+    for (const auto& w : windows_) {
+      windows_view.push_back(w.get());
+    }
+    SessionRestore::OnGotSession(profile(), for_apps, windows_view);
     windows.clear();
 
     // Since we could now be possibly waiting for two |GetSession|s, we need
@@ -1177,6 +1188,7 @@ class SessionRestoreImpl : public BrowserListObserver {
     }
 
     Browser* browser = Browser::Create(params);
+    g_is_any_session_restored = true;
     return browser;
   }
 
@@ -1485,6 +1497,11 @@ bool SessionRestore::IsRestoring(const Profile* profile) {
 }
 
 // static
+bool SessionRestore::IsAnySessionRestored() {
+  return g_is_any_session_restored;
+}
+
+// static
 bool SessionRestore::IsRestoringSynchronously() {
   if (!active_session_restorers) {
     return false;
@@ -1540,11 +1557,12 @@ void SessionRestore::NotifySessionRestoreStartedLoadingTabs() {
 }
 
 // static
-void SessionRestore::OnGotSession(Profile* profile,
-                                  bool for_apps,
-                                  int window_count) {
+void SessionRestore::OnGotSession(
+    Profile* profile,
+    bool for_apps,
+    const std::vector<const sessions::SessionWindow*>& windows) {
   for (auto& observer : *observers()) {
-    observer.OnGotSession(profile, for_apps, window_count);
+    observer.OnGotSession(profile, for_apps, windows);
   }
 }
 

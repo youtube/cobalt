@@ -7,11 +7,13 @@
 #include <vector>
 
 #include "base/android/jni_android.h"
+#include "base/android/token_android.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/android/tab_android.h"
 #include "chrome/browser/ui/android/tab_model/tab_model.h"
 #include "chrome/browser/ui/android/tab_model/tab_model_jni_bridge.h"
 #include "chrome/browser/ui/android/tab_model/tab_model_observer.h"
+#include "components/tab_groups/tab_group_id.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "chrome/android/chrome_jni_headers/TabModelObserverJniBridge_jni.h"
@@ -105,6 +107,9 @@ void TabModelObserverJniBridge::DidMoveTab(JNIEnv* env,
   for (auto& observer : model_observers_) {
     observer.DidMoveTab(tab, new_index, cur_index);
   }
+  for (auto& observer : interface_observers_) {
+    observer.OnTabMoved(tab, cur_index, new_index);
+  }
 }
 
 void TabModelObserverJniBridge::OnTabClosePending(
@@ -151,6 +156,37 @@ void TabModelObserverJniBridge::TabRemoved(JNIEnv* env, TabAndroid* tab) {
   for (auto& observer : model_observers_) {
     observer.TabRemoved(tab);
   }
+  for (auto& observer : interface_observers_) {
+    observer.OnTabRemoved(tab);
+  }
+}
+
+void TabModelObserverJniBridge::OnTabGroupCreated(JNIEnv* env,
+                                                  base::Token group_id) {
+  auto tab_group_id = tab_groups::TabGroupId::FromRawToken(group_id);
+  CHECK(!tab_group_id.is_empty());
+  for (auto& observer : model_observers_) {
+    observer.OnTabGroupCreated(tab_group_id);
+  }
+}
+
+void TabModelObserverJniBridge::OnTabGroupRemoving(JNIEnv* env,
+                                                   base::Token group_id) {
+  auto tab_group_id = tab_groups::TabGroupId::FromRawToken(group_id);
+  CHECK(!tab_group_id.is_empty());
+  for (auto& observer : model_observers_) {
+    observer.OnTabGroupRemoving(tab_group_id);
+  }
+}
+
+void TabModelObserverJniBridge::OnTabGroupMoved(JNIEnv* env,
+                                                base::Token group_id,
+                                                int old_index) {
+  auto tab_group_id = tab_groups::TabGroupId::FromRawToken(group_id);
+  CHECK(!tab_group_id.is_empty());
+  for (auto& observer : model_observers_) {
+    observer.OnTabGroupMoved(tab_group_id, old_index);
+  }
 }
 
 void TabModelObserverJniBridge::AddObserver(TabModelObserver* observer) {
@@ -169,6 +205,12 @@ void TabModelObserverJniBridge::RemoveObserver(TabModelObserver* observer) {
 void TabModelObserverJniBridge::RemoveTabListInterfaceObserver(
     TabListInterfaceObserver* observer) {
   interface_observers_.RemoveObserver(observer);
+}
+
+void TabModelObserverJniBridge::NotifyShutdown() {
+  for (auto& observer : interface_observers_) {
+    observer.OnTabListDestroyed(*tab_model_);
+  }
 }
 
 DEFINE_JNI(TabModelObserverJniBridge)

@@ -147,6 +147,7 @@
 #include "services/tracing/public/cpp/perfetto/track_name_recorder.h"
 #include "services/viz/public/cpp/gpu/context_provider_command_buffer.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 #include "third_party/blink/public/common/chrome_debug_urls.h"
 #include "third_party/blink/public/common/context_menu_data/context_menu_data.h"
@@ -243,6 +244,7 @@
 #include "third_party/blink/public/web/web_widget.h"
 #include "third_party/blink/public/web/web_window_features.h"
 #include "third_party/perfetto/include/perfetto/tracing/track.h"
+#include "third_party/perfetto/include/perfetto/tracing/track_event_args.h"
 #include "ui/accessibility/ax_tree_update.h"
 #include "ui/events/base_event_utils.h"
 #include "url/origin.h"
@@ -1003,9 +1005,27 @@ void FillMiscNavigationParams(
         blink::mojom::FetchCacheMode::kDefault;
   }
 
-  navigation_params->origin_agent_cluster = commit_params.origin_agent_cluster;
-  navigation_params->origin_agent_cluster_left_as_default =
-      commit_params.origin_agent_cluster_left_as_default;
+  // Pass the AgentClusterKey for the navigation.
+  if (commit_params.agent_cluster_key->is_site_key()) {
+    navigation_params->agent_cluster_key = blink::WebAgentClusterKey(
+        WebURL(commit_params.agent_cluster_key->get_site_key()));
+  } else {
+    CHECK(commit_params.agent_cluster_key->is_origin_key());
+    std::optional<blink::WebCrossOriginIsolationKey> cross_origin_isolation_key;
+    if (commit_params.agent_cluster_key->get_origin_key()->isolation_key) {
+      cross_origin_isolation_key = blink::WebCrossOriginIsolationKey(
+          blink::WebSecurityOrigin(
+              commit_params.agent_cluster_key->get_origin_key()
+                  ->isolation_key->common_origin),
+          commit_params.agent_cluster_key->get_origin_key()
+              ->isolation_key->mode);
+    }
+    navigation_params->agent_cluster_key =
+        blink::WebAgentClusterKey(blink::WebOriginKeyedAgentClusterKey(
+            blink::WebSecurityOrigin(
+                commit_params.agent_cluster_key->get_origin_key()->origin),
+            cross_origin_isolation_key));
+  }
 
   navigation_params->reduced_accept_language =
       WebString::FromASCII(commit_params.reduced_accept_language);
@@ -1330,7 +1350,7 @@ class MHTMLPartsGenerationDelegateImpl final
     return params_->mhtml_popup_overlay_removal;
   }
 
-  std::unordered_set<std::string> TakeSerializedResourcesUriDigests() {
+  absl::flat_hash_set<std::string> TakeSerializedResourcesUriDigests() {
     return std::move(serialized_resources_uri_digests_);
   }
   mojom::SerializeAsMHTMLParamsPtr TakeParams() { return std::move(params_); }
@@ -1338,7 +1358,7 @@ class MHTMLPartsGenerationDelegateImpl final
  private:
   std::vector<std::string> digests_of_uris_to_skip_;
   mojom::SerializeAsMHTMLParamsPtr params_;
-  std::unordered_set<std::string> serialized_resources_uri_digests_;
+  absl::flat_hash_set<std::string> serialized_resources_uri_digests_;
 };
 
 RenderFrameImpl::AssertNavigationCommits::AssertNavigationCommits(
@@ -1929,8 +1949,8 @@ RenderFrameImpl::RenderFrameImpl(CreateParams params)
           base::BindRepeating(&RenderFrameImpl::RequestOverlayRoutingToken,
                               base::Unretained(this))),
       devtools_frame_token_(params.devtools_frame_token) {
-  TRACE_EVENT_WITH_FLOW0("navigation", "RenderFrameImpl::RenderFrameImpl",
-                         TRACE_ID_LOCAL(this), TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("navigation", "RenderFrameImpl::RenderFrameImpl",
+              perfetto::Flow::FromPointer(this));
   DCHECK(RenderThread::IsMainThread());
   blink_interface_registry_ = std::make_unique<BlinkInterfaceRegistryImpl>(
       registry_.GetWeakPtr(), associated_interfaces_.GetWeakPtr());
@@ -1958,8 +1978,8 @@ mojom::FrameHost* RenderFrameImpl::GetFrameHost() {
 }
 
 RenderFrameImpl::~RenderFrameImpl() {
-  TRACE_EVENT_WITH_FLOW0("navigation", "RenderFrameImpl::~RenderFrameImpl",
-                         TRACE_ID_LOCAL(this), TRACE_EVENT_FLAG_FLOW_IN);
+  TRACE_EVENT("navigation", "RenderFrameImpl::~RenderFrameImpl",
+              perfetto::TerminatingFlow::FromPointer(this));
   for (auto& observer : observers_)
     observer.OnDestruct();
   for (auto& observer : observers_)
@@ -2049,10 +2069,9 @@ void RenderFrameImpl::OnAssociatedInterfaceRequest(
 
 void RenderFrameImpl::SetUpSharedMemoryForDroppedFrames(
     base::ReadOnlySharedMemoryRegion dropped_frames_memory) {
-  TRACE_EVENT_WITH_FLOW0("navigation",
-                         "RenderFrameImpl::SetUpSharedMemoryForDroppedFrames",
-                         TRACE_ID_LOCAL(this),
-                         TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("navigation",
+              "RenderFrameImpl::SetUpSharedMemoryForDroppedFrames",
+              perfetto::Flow::FromPointer(this));
   DCHECK(dropped_frames_memory.IsValid());
   for (auto& observer : observers_) {
     DCHECK(dropped_frames_memory.IsValid());
@@ -2623,9 +2642,8 @@ void RenderFrameImpl::CommitNavigation(
   base::ScopedUmaHistogramTimer histogram_timer(kCommitRenderFrame);
   base::ScopedUmaHistogramTimer histogram_timer_frame(base::StrCat(
       {kCommitRenderFrame, IsMainFrame() ? ".MainFrame" : ".Subframe"}));
-  TRACE_EVENT_WITH_FLOW0("navigation", "RenderFrameImpl::CommitNavigation",
-                         TRACE_ID_LOCAL(this),
-                         TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("navigation", "RenderFrameImpl::CommitNavigation",
+              perfetto::Flow::FromPointer(this));
   DCHECK(navigation_client_impl_);
   DCHECK(!blink::IsRendererDebugURL(common_params->url));
   DCHECK(!NavigationTypeUtils::IsSameDocument(common_params->navigation_type));
@@ -2863,10 +2881,8 @@ void RenderFrameImpl::CommitNavigationWithParams(
     mojom::StorageInfoPtr storage_info,
     std::unique_ptr<DocumentState> document_state,
     std::unique_ptr<WebNavigationParams> navigation_params) {
-  TRACE_EVENT_WITH_FLOW0("navigation",
-                         "RenderFrameImpl::CommitNavigationWithParams",
-                         TRACE_ID_LOCAL(this),
-                         TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("navigation", "RenderFrameImpl::CommitNavigationWithParams",
+              perfetto::Flow::FromPointer(this));
   base::ElapsedTimer timer;
   if (common_params->url.IsAboutSrcdoc()) {
     WebNavigationParams::FillStaticResponse(navigation_params.get(),
@@ -3855,9 +3871,8 @@ void RenderFrameImpl::DidCommitNavigation(
     bool should_reset_browser_interface_broker,
     const network::ParsedPermissionsPolicy& permissions_policy_header,
     const blink::DocumentPolicyFeatureState& document_policy_header) {
-  TRACE_EVENT_WITH_FLOW0("navigation", "RenderFrameImpl::DidCommitNavigation",
-                         TRACE_ID_LOCAL(this),
-                         TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("navigation", "RenderFrameImpl::DidCommitNavigation",
+              perfetto::Flow::FromPointer(this));
   CHECK_EQ(NavigationCommitState::kWillCommit, navigation_commit_state_);
   navigation_commit_state_ = NavigationCommitState::kDidCommit;
 
@@ -4035,11 +4050,11 @@ void RenderFrameImpl::DidCommitDocumentReplacementNavigation(
 }
 
 void RenderFrameImpl::DidClearWindowObject() {
-  TRACE_EVENT_WITH_FLOW0("navigation", "RenderFrameImpl::DidClearWindowObject",
-                         TRACE_ID_LOCAL(this),
-                         TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
-  if (enabled_bindings_.Has(BindingsPolicyValue::kWebUi)) {
-    WebUIExtension::Install(frame_);
+  TRACE_EVENT("navigation", "RenderFrameImpl::DidClearWindowObject",
+              perfetto::Flow::FromPointer(this));
+  if (enabled_bindings_.Has(BindingsPolicyValue::kWebUi) ||
+      enabled_bindings_.Has(BindingsPolicyValue::kWebUiHistograms)) {
+    WebUIExtension::Install(frame_, enabled_bindings_);
   }
 
   const base::CommandLine& command_line =
@@ -4668,10 +4683,8 @@ void RenderFrameImpl::SetDidCancelResponseCallback(
 
 void RenderFrameImpl::DidObserveNewFeatureUsage(
     const blink::UseCounterFeature& feature) {
-  TRACE_EVENT_WITH_FLOW0("navigation",
-                         "RenderFrameImpl::DidObserveNewFeatureUsage",
-                         TRACE_ID_LOCAL(this),
-                         TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("navigation", "RenderFrameImpl::DidObserveNewFeatureUsage",
+              perfetto::Flow::FromPointer(this));
   if (new_feature_usage_callback_) {
     new_feature_usage_callback_.Run(feature);
   } else {
@@ -4703,10 +4716,8 @@ void RenderFrameImpl::DidObserveLayoutShift(double score,
 
 void RenderFrameImpl::DidCreateScriptContext(v8::Local<v8::Context> context,
                                              int world_id) {
-  TRACE_EVENT_WITH_FLOW0("navigation",
-                         "RenderFrameImpl::DidCreateScriptContext",
-                         TRACE_ID_LOCAL(this),
-                         TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("navigation", "RenderFrameImpl::DidCreateScriptContext",
+              perfetto::Flow::FromPointer(this));
   v8::MicrotasksScope microtasks(GetAgentGroupScheduler().Isolate(),
                                  context->GetMicrotaskQueue(),
                                  v8::MicrotasksScope::kDoNotRunMicrotasks);
@@ -5145,10 +5156,9 @@ void RenderFrameImpl::UpdateNavigationHistory(
 
 void RenderFrameImpl::NotifyObserversOfNavigationCommit(
     ui::PageTransition transition) {
-  TRACE_EVENT_WITH_FLOW0("navigation",
-                         "RenderFrameImpl::NotifyObserversOfNavigationCommit",
-                         TRACE_ID_LOCAL(this),
-                         TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+  TRACE_EVENT("navigation",
+              "RenderFrameImpl::NotifyObserversOfNavigationCommit",
+              perfetto::Flow::FromPointer(this));
   for (auto& observer : observers_)
     observer.DidCommitProvisionalLoad(transition);
 }
@@ -5815,7 +5825,7 @@ void RenderFrameImpl::OnSerializeMHTMLComplete(
 
 void RenderFrameImpl::OnWriteMHTMLComplete(
     SerializeAsMHTMLCallback callback,
-    std::unordered_set<std::string> serialized_resources_uri_digests,
+    absl::flat_hash_set<std::string> serialized_resources_uri_digests,
     mojom::MhtmlSaveStatus save_status) {
   TRACE_EVENT1("page-serialization", "RenderFrameImpl::OnWriteMHTMLComplete",
                "frame save status", save_status);

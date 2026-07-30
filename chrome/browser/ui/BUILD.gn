@@ -931,8 +931,8 @@ static_library("ui") {
       "//chrome/browser/ui/android/tab_model",
       "//chrome/browser/ui/android/tab_model:impl",
       "//chrome/browser/ui/android/toolbar:jni_headers",
-      "//chrome/browser/ui/autofill:autofill_ai_string_utils",
-      "//chrome/browser/ui/autofill:autofill_ai_string_utils_impl",
+      "//chrome/browser/ui/autofill:autofill_ai_ui_utils",
+      "//chrome/browser/ui/autofill:autofill_ai_ui_utils_impl",
       "//chrome/browser/ui/exclusive_access",
       "//chrome/browser/ui/fast_checkout",
       "//chrome/browser/ui/fast_checkout:impl",
@@ -1425,6 +1425,7 @@ static_library("ui") {
       "//chrome/browser/actor",
       "//chrome/browser/actor:impl",
       "//chrome/browser/actor/ui",
+      "//chrome/browser/actor/ui:actor_overlay",
       "//chrome/browser/app_mode",
       "//chrome/browser/apps/app_service",
       "//chrome/browser/apps/app_service/app_icon",
@@ -2983,6 +2984,8 @@ static_library("ui") {
       "webui/on_device_translation_internals/on_device_translation_internals_ui.h",
       "webui/profile_helper.cc",
       "webui/profile_helper.h",
+      "webui/settings/on_device_ai_settings_handler.cc",
+      "webui/settings/on_device_ai_settings_handler.h",
       "webui/settings/settings_default_browser_handler.cc",
       "webui/settings/settings_default_browser_handler.h",
       "webui/settings/settings_manage_profile_handler.cc",
@@ -3380,6 +3383,8 @@ static_library("ui") {
   if (is_linux) {
     sources += [
       "views/apps/chrome_app_window_client_views_aura.cc",
+      "views/eula_dialog_linux.cc",
+      "views/eula_dialog_linux.h",
       "views/frame/browser_desktop_window_tree_host.h",
       "views/frame/browser_desktop_window_tree_host_linux.cc",
       "views/frame/browser_desktop_window_tree_host_linux.h",
@@ -3780,8 +3785,6 @@ static_library("ui") {
       "views/extensions/extension_keybinding_registry_views.h",
       "views/extensions/extension_permissions_view.cc",
       "views/extensions/extension_permissions_view.h",
-      "views/extensions/extension_post_install_dialog_view_utils.cc",
-      "views/extensions/extension_post_install_dialog_view_utils.h",
       "views/extensions/extension_view_utils.cc",
       "views/extensions/extension_view_utils.h",
       "views/extensions/extensions_container_views.h",
@@ -3808,12 +3811,12 @@ static_library("ui") {
       "views/extensions/extensions_request_access_hover_card_coordinator.h",
       "views/extensions/extensions_toolbar_button.cc",
       "views/extensions/extensions_toolbar_button.h",
-      "views/extensions/extensions_toolbar_container.cc",
-      "views/extensions/extensions_toolbar_container.h",
-      "views/extensions/extensions_toolbar_container_view_controller.cc",
-      "views/extensions/extensions_toolbar_container_view_controller.h",
       "views/extensions/extensions_toolbar_coordinator.cc",
       "views/extensions/extensions_toolbar_coordinator.h",
+      "views/extensions/extensions_toolbar_desktop.cc",
+      "views/extensions/extensions_toolbar_desktop.h",
+      "views/extensions/extensions_toolbar_desktop_view_controller.cc",
+      "views/extensions/extensions_toolbar_desktop_view_controller.h",
       "views/extensions/security_dialog_tracker.cc",
       "views/extensions/security_dialog_tracker.h",
       "views/extensions/windows_utils_views.cc",
@@ -3866,6 +3869,12 @@ static_library("ui") {
       "views/frame/contents_separator.h",
       "views/frame/contents_web_view.cc",
       "views/frame/contents_web_view.h",
+      "views/frame/custom_corners.cc",
+      "views/frame/custom_corners.h",
+      "views/frame/custom_corners_background.cc",
+      "views/frame/custom_corners_background.h",
+      "views/frame/custom_floating_corner.cc",
+      "views/frame/custom_floating_corner.h",
       "views/frame/find_bar_owner_views.cc",
       "views/frame/find_bar_owner_views.h",
       "views/frame/horizontal_tab_strip_region_view.cc",
@@ -3883,8 +3892,6 @@ static_library("ui") {
       "views/frame/layout/browser_view_layout_delegate_impl.h",
       "views/frame/layout/browser_view_layout_impl.cc",
       "views/frame/layout/browser_view_layout_impl.h",
-      "views/frame/layout/browser_view_layout_impl_old.cc",
-      "views/frame/layout/browser_view_layout_impl_old.h",
       "views/frame/layout/browser_view_layout_params.cc",
       "views/frame/layout/browser_view_layout_params.h",
       "views/frame/layout/browser_view_popup_layout_impl.cc",
@@ -4420,8 +4427,6 @@ static_library("ui") {
       "views/tabs/groups/manage_sharing_row.h",
       "views/tabs/new_tab_button.cc",
       "views/tabs/new_tab_button.h",
-      "views/tabs/overflow_view.cc",
-      "views/tabs/overflow_view.h",
       "views/tabs/recent_activity_bubble_dialog_view.cc",
       "views/tabs/recent_activity_bubble_dialog_view.h",
       "views/tabs/tab.cc",
@@ -4480,8 +4485,6 @@ static_library("ui") {
       "views/tabs/tab_strip_layout_helper.cc",
       "views/tabs/tab_strip_layout_helper.h",
       "views/tabs/tab_strip_layout_types.h",
-      "views/tabs/tab_strip_like_background.cc",
-      "views/tabs/tab_strip_like_background.h",
       "views/tabs/tab_strip_nudge_button.cc",
       "views/tabs/tab_strip_nudge_button.h",
       "views/tabs/tab_style_views.cc",
@@ -4775,6 +4778,7 @@ static_library("ui") {
       # componentized:
       # c/b/ui/browser.h, browser_finder.h, browser_window.h.
       # c/b/ui/passwords/passwords_model_delegate.h, passwords_client_ui_delegate.h.
+      "//chrome/browser/actor/ui",
       "//chrome/browser/ui/views/zoom",
       "//chrome/browser/ui/waap:waap_utils",
       "//chrome/browser/ui/webauthn:impl",
@@ -5440,17 +5444,6 @@ static_library("ui") {
   }
 
   if (enable_glic) {
-    sources += [
-      "views/tabs/glic_actor_constants.h",
-      "views/tabs/glic_actor_task_icon.cc",
-      "views/tabs/glic_actor_task_icon.h",
-      "views/tabs/glic_and_actor_buttons_container.cc",
-      "views/tabs/glic_and_actor_buttons_container.h",
-      "views/tabs/glic_button.cc",
-      "views/tabs/glic_button.h",
-      "webui/settings/glic_handler.cc",
-      "webui/settings/glic_handler.h",
-    ]
     deps += [
       "//chrome/browser/ai",
       "//chrome/browser/glic",
@@ -5458,6 +5451,10 @@ static_library("ui") {
     ]
     allow_circular_includes_from += [ "//chrome/browser/glic/fre" ]
     if (!is_android) {
+      sources += [
+        "webui/settings/glic_handler.cc",
+        "webui/settings/glic_handler.h",
+      ]
       deps += [
         "//chrome/browser/actor/ui/task_list_bubble:controller",
         "//chrome/browser/background/glic",
@@ -5466,17 +5463,17 @@ static_library("ui") {
         "//chrome/browser/glic/browser_ui:glow_controller",
         "//chrome/browser/glic/browser_ui:glow_controller_impl",
         "//chrome/browser/glic/browser_ui:glow_impl",
+        "//chrome/browser/ui/views/tabs/glic",
+        "//chrome/browser/ui/views/tabs/glic:impl",
       ]
       allow_circular_includes_from += [
+        "//chrome/browser/ui/views/tabs/glic",
+        "//chrome/browser/ui/views/tabs/glic:impl",
         "//chrome/browser/glic/browser_ui",
         "//chrome/browser/glic/browser_ui:glow_impl",
         "//chrome/browser/glic/browser_ui:glow_controller_impl",
       ]
     }
-  }
-
-  if (enable_reporting) {
-    deps += [ "//components/tpcd/enterprise_reporting" ]
   }
 
   if (enable_webui_generate_code_cache) {
@@ -5708,7 +5705,10 @@ if (!is_android) {
 static_library("test_support") {
   testonly = true
 
-  sources = []
+  sources = [
+    "browser_window/test/mock_browser_window_interface.cc",
+    "browser_window/test/mock_browser_window_interface.h",
+  ]
   public_deps = [ ":ui" ]
 
   deps = [
@@ -5717,6 +5717,7 @@ static_library("test_support") {
     "//chrome/browser/devtools",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/ui/autofill/payments:test_support",
+    "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/toolbar:test_support",
     "//components/omnibox/browser",
     "//components/password_manager/core/browser",
@@ -5794,8 +5795,6 @@ static_library("test_support") {
     ]
   } else {
     sources += [
-      "browser_window/test/mock_browser_window_interface.cc",
-      "browser_window/test/mock_browser_window_interface.h",
       "test/popup_test_base.cc",
       "test/popup_test_base.h",
       "test/test_confirm_bubble_model.cc",
@@ -5805,7 +5804,6 @@ static_library("test_support") {
       "webui/settings/saved_info_handler_test_api.h",
     ]
     deps += [
-      "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/content_settings:test_support",
       "//chrome/browser/ui/passwords:test_support_ui",
       "//chrome/browser/ui/views/toolbar",

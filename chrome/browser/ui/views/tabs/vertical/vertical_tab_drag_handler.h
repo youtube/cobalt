@@ -40,6 +40,10 @@ class VerticalTabDragHandler {
   // Returns the drag context for this handler.
   virtual TabDragContext* GetDragContext() = 0;
 
+  // Returns true if `view` belongs to a TabCollectionNode currently being
+  // dragged.
+  virtual bool IsViewDragging(const views::View& view) const = 0;
+
   // For vertical tabs, `TabSlotView` doesn't represent the actual tab
   // view. This method converts `view` to its actual tab view, or nullptr
   // if this handler doesn't manage it.
@@ -71,6 +75,7 @@ class VerticalTabDragHandlerImpl : public VerticalTabDragHandler,
   void EndDrag(EndDragReason reason) override;
   void DraggedTabsOverNode(const TabCollectionNode& node) override;
   TabDragContext* GetDragContext() override;
+  bool IsViewDragging(const views::View& view) const override;
 
   // TabDragContext
   bool CanAcceptEvent(const ui::Event& event) override;
@@ -83,9 +88,7 @@ class VerticalTabDragHandlerImpl : public VerticalTabDragHandler,
   content::WebContents* GetContentsForTab(TabSlotView* tab) override;
   bool IsTabDetachable(const TabSlotView* view) const override;
   bool IsTabPinned(const TabSlotView* tab) const override;
-  int GetTabCount() const override;
-  int GetPinnedTabCount() const override;
-  TabGroupHeader* GetTabGroupHeader(
+  TabSlotView* GetTabGroupHeader(
       const tab_groups::TabGroupId& group) const override;
   TabStripModel* GetTabStripModel() override;
   TabDragController* GetDragController() override;

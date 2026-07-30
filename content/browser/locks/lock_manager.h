@@ -15,7 +15,6 @@
 #include <utility>
 #include <vector>
 
-#include "base/containers/contains.h"
 #include "base/containers/flat_map.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -455,7 +454,7 @@ void LockManager<LockGroupIdType>::RequestLock(
     return;
   }
 
-  if (!base::Contains(lock_groups_, context.lock_group_id)) {
+  if (!lock_groups_.contains(context.lock_group_id)) {
     lock_groups_.emplace(context.lock_group_id, this);
   }
 

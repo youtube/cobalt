@@ -303,8 +303,12 @@ class SessionRestoreTest : public InProcessBrowserTest {
     std::vector<std::unique_ptr<content::DOMMessageQueue>> queues;
     auto subscription = content::RegisterWebContentsCreationCallback(
         base::BindLambdaForTesting([&](content::WebContents* contents) {
-          queues.emplace_back(
-              std::make_unique<content::DOMMessageQueue>(contents));
+          if (!contents->GetPrimaryMainFrame()
+                   ->GetProcess()
+                   ->IsForInitialWebUI()) {
+            queues.emplace_back(
+                std::make_unique<content::DOMMessageQueue>(contents));
+          }
         }));
 
     Browser* restored = QuitBrowserAndRestore(browser);
@@ -2409,9 +2413,8 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreTest, RestoreAllBrowsers) {
   // Close all profiles associated with the second profile.
   MultiBrowserObserver removed_observer(2,
                                         MultiBrowserObserver::Event::kRemoved);
-  BrowserList::GetInstance()->CloseAllBrowsersWithProfile(
-      second_profile, BrowserList::CloseCallback(),
-      BrowserList::CloseCallback(), false);
+  chrome::CloseAllBrowsersWithProfile(second_profile,
+                                      /*skip_beforeunload=*/false);
   removed_observer.Wait();
 
   // The second profile should have no browsers anymore at this point.

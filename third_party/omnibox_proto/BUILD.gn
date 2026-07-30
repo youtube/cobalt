@@ -10,7 +10,9 @@ if (is_android) {
 
 _proto_files = [
   "aim_eligibility_response.proto",
-  "aim_tools_and_models.proto",
+  "aim_input_types.proto",
+  "aim_models.proto",
+  "aim_tools.proto",
   "answer_data.proto",
   "answer_type.proto",
   "chrome_aim_entry_point.proto",
@@ -23,16 +25,11 @@ _proto_files = [
   "rich_answer_template.proto",
   "rich_suggest_template.proto",
   "search_context.proto",
+  "searchbox_config.proto",
+  "searchbox_config_constraints.proto",
   "suggest_template_info.proto",
   "types.proto",
 ]
-
-if (!is_android) {
-  _proto_files += [
-    "aim_input_type.proto",
-    "aim_models.proto",
-  ]
-}
 
 proto_library("omnibox_proto") {
   sources = _proto_files

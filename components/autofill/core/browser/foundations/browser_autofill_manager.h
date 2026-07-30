@@ -139,7 +139,7 @@ class BrowserAutofillManager : public AutofillManager {
     base::TimeTicks form_submitted_timestamp;
   };
 
-  // Triggered when `GenerateSuggestionsAndMaybeShowUIPhase2` is complete.
+  // Triggered when `GenerateFooter` is complete.
   // `show_suggestions` indicates whether or not the list of `suggestions`
   // should be displayed (via the `external_delegate_`).
   using OnGenerateSuggestionsCallback =
@@ -425,17 +425,6 @@ class BrowserAutofillManager : public AutofillManager {
       const AutofillField& trigger_autofill_field,
       std::optional<std::string> plus_address_email_override);
 
-  // Returns a list of values from the stored credit cards that match
-  // the type and value of `trigger_field` and returns the labels of the
-  // matching credit cards.
-  // TODO(crbug.com/40227496): Keep only one of `form` or `form_structure` and
-  // `trigger_field` or `autofill_trigger_field`.
-  std::vector<Suggestion> GetCreditCardSuggestions(
-      const FormData& form,
-      const FormStructure& form_structure,
-      const FormFieldData& trigger_field,
-      const AutofillField& autofill_trigger_field);
-
   // Returns a list of suggestions from the stored loyalty cards for the given
   // last committed primary main frame URL obtained from `client()` and the
   // value of the trigger `field`.
@@ -463,10 +452,6 @@ class BrowserAutofillManager : public AutofillManager {
   // time than `interaction_timestamp`, updates the cached timestamp.  The
   // latter check is needed because IPC messages can arrive out of order.
   void UpdateInitialInteractionTimestamp(base::TimeTicks interaction_timestamp);
-
-  // Whether the `trigger_field` should show an entry to scan a credit card.
-  bool ShouldShowScanCreditCard(const FormStructure& form,
-                                const AutofillField& trigger_field);
 
   // Checks whether JavaScript cleared an autofilled value within
   // kLimitBeforeRefill after the filling and records metrics for this. This
@@ -530,19 +515,20 @@ class BrowserAutofillManager : public AutofillManager {
   // Suggestion flows that handle their own UI flow (e.g. FastCheckout, TTF,
   // SingleFieldFiller) are triggered from within these functions.
   //
-  // This process is split into phrases 1, 2 and 3 to support asynchronous
-  // operations (fetching affiliated plus addresses during phase 1, and
-  // OTP values fetching) in the middle.
+  // This process is split into phases 1, 2, 3 to support asynchronous
+  // operations:
+  // - Between Phase 1 and 2, BAM may fetch plus addresses.
+  // - Between Phase 2 and 3, BAM may fetch OTPs.
   //
   // Phase 3 requires the list of `plus_addresses` as these can influence how
   // address profile suggestions are shown. If `plus_addresses` is std::nullopt
   // it means that plus addresses are irrelevant for the current suggestion
   // context.
   //
-  // Other flows that rely on the
-  // `external_delegate_` to show their suggestions, pass the suggestions list
-  // to the delegate via `OnGenerateSuggestionsComplete` and request them to be
-  // shown (via `show_suggestions`).
+  // Other flows that rely on the `external_delegate_` to show their
+  // suggestions, pass the suggestions list to the delegate via `GenerateFooter`
+  // and `OnGenerateSuggestionsComplete` and request them to be shown (via
+  // `show_suggestions`).
   void GenerateSuggestionsAndMaybeShowUIPhase1(
       const FormData& form,
       const FormFieldData& field,
@@ -563,6 +549,13 @@ class BrowserAutofillManager : public AutofillManager {
       base::TimeTicks suggestion_generator_start_time,
       std::vector<std::string> plus_addresses,
       std::vector<std::string> one_time_passwords);
+  void GenerateFooter(const FormData& form,
+                      const FormFieldData& field,
+                      AutofillSuggestionTriggerSource trigger_source,
+                      const SuggestionsContext& context,
+                      base::TimeTicks suggestion_generation_start_time,
+                      bool show_suggestions,
+                      std::vector<Suggestion> suggestions);
 
   // Receives the lists of plus address and single field form fill suggestions
   // and combines them. It gives priority to the plus address suggestions,
@@ -583,10 +576,9 @@ class BrowserAutofillManager : public AutofillManager {
                              const FieldGlobalId& field_id);
 
   // The function receives a the list of `suggestions` from
-  // `GenerateSuggestionsAndMaybeShowUIPhase2` and displays them if
-  // `show_suggestions` is true (via the `external_delegate_`). It also logs
-  // whether there is a suggestion for the user and whether the suggestion is
-  // shown.
+  // `GenerateFooter` and displays them if `show_suggestions` is true (via the
+  // `external_delegate_`). It also logs whether there is a suggestion for the
+  // user and whether the suggestion is shown.
   void OnGenerateSuggestionsComplete(
       const FormGlobalId& form_id,
       const FieldGlobalId& field_id,
@@ -646,6 +638,11 @@ class BrowserAutofillManager : public AutofillManager {
   void HandleLoadedServerPredictionsForAutofillAi(
       base::span<const raw_ref<FormStructure>> forms);
 
+  // Retrieves the Autofill AI predictions for `form` in `cache` and adds them
+  // to `form`'s fields, then runs rationalization and sectioning.
+  void AddCachedAutofillAiPredictions(const AutofillAiModelCache& cache,
+                                      FormStructure& form);
+
   // Calls `OnDidIdentifyForms()` on all appropriate form event loggers,
   // depending on the form types of the `form_structure`.
   void OnDidIdentifyFormForMetrics(
@@ -654,7 +651,7 @@ class BrowserAutofillManager : public AutofillManager {
           identification_time);
 
   // Populates `suggestion_generators_` with those capable of producing
-  // suggestions for field with `field_id` given `trigger_source`.
+  // suggestions for field.
   void InitializeSuggestionGenerators(
       AutofillSuggestionTriggerSource trigger_source,
       FormGlobalId form_id,

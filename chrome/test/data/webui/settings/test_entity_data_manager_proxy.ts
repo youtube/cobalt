@@ -23,27 +23,34 @@ export class TestEntityDataManagerProxy extends TestBrowserProxy implements
   private setOptInStatusResponse_: boolean = true;
   private walletOptInStatus_: boolean = false;
   private setWalletablePassDetectionOptInStatusResponse_: boolean = true;
+  private authenticateUserBeforeViewingEntityDataResponse_: boolean = true;
 
   constructor() {
     super([
       'addEntityInstancesChangedListener',
       'addOrUpdateEntityInstance',
+      'authenticateUserBeforeViewingEntityData',
       'getAllAttributeTypesForEntityTypeName',
-      'getWritableEntityTypes',
       'getEntityInstanceByGuid',
+      'getOptInStatus',
+      'getWalletablePassDetectionOptInStatus',
+      'getWritableEntityTypes',
       'loadEntityInstances',
       'removeEntityInstance',
       'removeEntityInstancesChangedListener',
       'setOptInStatus',
-      'getOptInStatus',
-      'getWalletablePassDetectionOptInStatus',
       'setWalletablePassDetectionOptInStatus',
+      'authenticateUserBeforeViewingEntityData',
     ]);
   }
 
   setLoadEntityInstancesResponse(
       entityInstancesWithLabels: EntityInstanceWithLabels[]): void {
     this.entityInstancesWithLabels_ = entityInstancesWithLabels;
+  }
+
+  setAuthenticateUserBeforeViewingEntityDataResponse(success: boolean): void {
+    this.authenticateUserBeforeViewingEntityDataResponse_ = success;
   }
 
   setGetEntityInstanceByGuidResponse(entityInstance: EntityInstance): void {
@@ -138,5 +145,11 @@ export class TestEntityDataManagerProxy extends TestBrowserProxy implements
   setWalletablePassDetectionOptInStatus(optedIn: boolean): Promise<boolean> {
     this.methodCalled('setWalletablePassDetectionOptInStatus', optedIn);
     return Promise.resolve(this.setWalletablePassDetectionOptInStatusResponse_);
+  }
+
+  authenticateUserBeforeViewingEntityData(): Promise<boolean> {
+    this.methodCalled('authenticateUserBeforeViewingEntityData');
+    return Promise.resolve(
+        this.authenticateUserBeforeViewingEntityDataResponse_);
   }
 }

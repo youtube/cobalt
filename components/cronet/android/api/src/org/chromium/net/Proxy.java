@@ -7,6 +7,7 @@ package org.chromium.net;
 import android.util.Pair;
 
 import androidx.annotation.IntDef;
+import androidx.annotation.IntRange;
 import androidx.annotation.NonNull;
 
 import java.lang.annotation.Retention;
@@ -189,64 +190,33 @@ public final class Proxy {
     public static @NonNull Proxy createHttpProxy(
             @Scheme int scheme,
             @NonNull String host,
-            int port,
+            @IntRange(from = 0, to = 65535) int port,
             @NonNull Executor executor,
             @NonNull HttpConnectCallback callback) {
         return new Proxy(scheme, host, port, executor, callback);
     }
 
-    /**
-     * Returns the {@link Scheme} of this proxy.
-     *
-     * @deprecated This will be made package private before Cronet proxy APIs are made
-     *     non-experimental.
-     */
-    @Deprecated
-    public @Scheme int getScheme() {
+    @Scheme
+    int getScheme() {
         return mScheme;
     }
 
-    /**
-     * Returns the hostname of this proxy.
-     *
-     * @deprecated This will be made package private before Cronet proxy APIs are made
-     *     non-experimental.
-     */
-    @Deprecated
-    public @NonNull String getHost() {
+    @NonNull
+    String getHost() {
         return mHost;
     }
 
-    /**
-     * Returns the port of this proxy.
-     *
-     * @deprecated This will be made package private before Cronet proxy APIs are made
-     *     non-experimental.
-     */
-    @Deprecated
-    public int getPort() {
+    int getPort() {
         return mPort;
     }
 
-    /**
-     * Returns the {@link Executor} of this proxy.
-     *
-     * @deprecated This will be made package private before Cronet proxy APIs are made
-     *     non-experimental.
-     */
-    @Deprecated
-    public @NonNull Executor getExecutor() {
+    @NonNull
+    Executor getExecutor() {
         return mExecutor;
     }
 
-    /**
-     * Returns the {@link HttpConnectCallback} of this proxy.
-     *
-     * @deprecated This will be made package private before Cronet proxy APIs are made
-     *     non-experimental.
-     */
-    @Deprecated
-    public @NonNull HttpConnectCallback getCallback() {
+    @NonNull
+    HttpConnectCallback getCallback() {
         return mCallback;
     }
 

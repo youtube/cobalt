@@ -18,15 +18,11 @@
 #import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
 #import "ios/chrome/browser/shared/model/browser/browser_user_data.h"
 #import "ios/chrome/browser/tabs/model/tabs_dependency_installer.h"
+#import "ios/public/provider/chrome/browser/bwg/bwg_api.h"
 
 class Browser;
 
 enum class PageContextWrapperError;
-
-namespace ios::provider {
-enum class BWGPageContextComputationState;
-enum class BWGPageContextAttachmentState;
-}  // namespace ios::provider
 
 namespace optimization_guide::proto {
 class PageContext;
@@ -35,6 +31,7 @@ class PageContext;
 @class BWGLinkOpeningHandler;
 @class BWGPageStateChangeHandler;
 @class BWGSessionHandler;
+@class GeminiCameraHandler;
 @class GeminiPageContext;
 @class GeminiViewStateChangeHandler;
 @class GeminiSuggestionHandler;
@@ -77,7 +74,8 @@ class BwgBrowserAgent : public BrowserUserData<BwgBrowserAgent>,
   void PresentFloatyWithPageContext(
       UIViewController* base_view_controller,
       base::expected<std::unique_ptr<optimization_guide::proto::PageContext>,
-                     PageContextWrapperError> expected_page_context);
+                     PageContextWrapperError> expected_page_context,
+      gemini::EntryPoint entry_point);
 
   // Presents the floaty on a given view controller in a pending state
   // with a partial PageContext.
@@ -85,7 +83,8 @@ class BwgBrowserAgent : public BrowserUserData<BwgBrowserAgent>,
   // `StartGeminiFlow` instead.
   void PresentFloatyWithPendingContext(
       UIViewController* base_view_controller,
-      std::unique_ptr<optimization_guide::proto::PageContext> page_context);
+      std::unique_ptr<optimization_guide::proto::PageContext> page_context,
+      gemini::EntryPoint entry_point);
 
   // Updates the page context for the floaty.
   // TODO(crbug.com/465535924): Deprecated, new callers should use
@@ -101,6 +100,14 @@ class BwgBrowserAgent : public BrowserUserData<BwgBrowserAgent>,
   // Dismisses the floaty and resets the Gemini flow.
   void DismissFloaty();
 
+  // Hide Gemini floaty. When in a hidden state, the floaty view is dismissed
+  // but still persists in memory and needs to be properly cleaned up. Properly
+  // cleaning up the floaty can be done by resetting the Gemini instance.
+  void HideFloatyIfInvoked();
+
+  // Show Gemini floaty. Used to re-show an invoked Gemini floaty.
+  void ShowFloatyIfInvoked();
+
  private:
   explicit BwgBrowserAgent(Browser* browser);
   friend class BrowserUserData<BwgBrowserAgent>;
@@ -114,6 +121,7 @@ class BwgBrowserAgent : public BrowserUserData<BwgBrowserAgent>,
   // Presents the floaty on a given view controller in a pending state
   // with partial PageContext and optional image attachment.
   void PresentFloatyWithPendingContext(UIViewController* base_view_controller,
+                                       gemini::EntryPoint entry_point,
                                        UIImage* image_attachment);
 
   // Presents the floaty on a given view controller with page context,
@@ -124,6 +132,7 @@ class BwgBrowserAgent : public BrowserUserData<BwgBrowserAgent>,
       std::unique_ptr<optimization_guide::proto::PageContext>
           page_context_proto,
       ios::provider::BWGPageContextComputationState computation_state,
+      gemini::EntryPoint entry_point,
       UIImage* image_attachment = nil);
 
   // Fetches the favicon for the page or a default favicon if not available.
@@ -160,6 +169,9 @@ class BwgBrowserAgent : public BrowserUserData<BwgBrowserAgent>,
   void FullscreenControllerWillShutDown(
       FullscreenController* controller) override;
 
+  // Returns true if the user has completed the FRE.
+  bool HasCompletedFirstRun();
+
   // The gateway for bridging internal protocols.
   __strong id<BWGGatewayProtocol> bwg_gateway_ = nullptr;
 
@@ -172,18 +184,30 @@ class BwgBrowserAgent : public BrowserUserData<BwgBrowserAgent>,
   // Handler for the BWG sessions.
   __strong BWGSessionHandler* bwg_session_handler_ = nullptr;
 
-  // Delegate implementation for BWGSessionHandler.
-  __strong GeminiViewStateChangeHandler* gemini_view_state_handler_ = nullptr;
+  // Handler for Gemini camera.
+  __strong GeminiCameraHandler* gemini_camera_handler_ = nullptr;
 
   // Handler for Gemini suggestion chips.
   __strong GeminiSuggestionHandler* gemini_suggestion_handler_ = nullptr;
+
+  // Delegate implementation for BWGSessionHandler.
+  __strong GeminiViewStateChangeHandler* gemini_view_state_handler_ = nullptr;
 
   // Reference to fullscreen controller. Used to observe fullscreen progress
   // updates related to the Gemini overlay.
   raw_ptr<FullscreenController> fullscreen_controller_ = nullptr;
 
-  // Returns true if the user has completed the FRE.
-  bool HasCompletedFirstRun();
+  // Used to track the last view state of an invoked floaty. Used to show a
+  // hidden floaty with the previous view state.
+  ios::provider::GeminiViewState last_view_state_ =
+      ios::provider::GeminiViewState::kUnknown;
+
+  // Whether the floaty is currently invoked.
+  bool is_floaty_invoked_ = false;
+
+  // Whether the floaty is temporarily hidden. Used to hide the floaty without
+  // triggering logic related to ending floaty persistence.
+  bool is_floaty_temporarily_hidden_ = false;
 
   // Weak pointer factory.
   base::WeakPtrFactory<BwgBrowserAgent> weak_factory_{this};

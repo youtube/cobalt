@@ -137,7 +137,7 @@ class PendingApprovals : public ProfileObserver {
   // Remove pending approvals if the Profile is being destroyed.
   void OnProfileWillBeDestroyed(Profile* profile) override {
     std::erase_if(approvals_, [profile](const auto& approval) {
-      return approval->profile == profile;
+      return Profile::FromBrowserContext(approval->browser_context) == profile;
     });
     observation_.RemoveObservation(profile);
   }
@@ -152,7 +152,7 @@ class PendingApprovals : public ProfileObserver {
   // for the Profile.
   void MaybeRemoveObservation(Profile* profile) {
     for (const auto& entry : approvals_) {
-      if (entry->profile == profile) {
+      if (Profile::FromBrowserContext(entry->browser_context) == profile) {
         return;
       }
     }
@@ -167,7 +167,7 @@ class PendingApprovals : public ProfileObserver {
 };
 
 void PendingApprovals::PushApproval(std::unique_ptr<InstallApproval> approval) {
-  MaybeAddObservation(approval->profile);
+  MaybeAddObservation(Profile::FromBrowserContext(approval->browser_context));
   approvals_.push_back(std::move(approval));
 }
 
@@ -176,10 +176,12 @@ std::unique_ptr<InstallApproval> PendingApprovals::PopApproval(
     const std::string& id) {
   for (auto iter = approvals_.begin(); iter != approvals_.end(); ++iter) {
     if (iter->get()->extension_id == id &&
-        profile->IsSameOrParent(iter->get()->profile)) {
+        profile->IsSameOrParent(
+            Profile::FromBrowserContext(iter->get()->browser_context))) {
       std::unique_ptr<InstallApproval> approval = std::move(*iter);
       approvals_.erase(iter);
-      MaybeRemoveObservation(approval->profile);
+      MaybeRemoveObservation(
+          Profile::FromBrowserContext(approval->browser_context));
       return approval;
     }
   }
@@ -544,10 +546,19 @@ void WebstorePrivateBeginInstallWithManifest3Function::OnWebstoreParseSuccess(
   }
 
   // Check the management policy before the installation process begins.
-  ExtensionInstallStatus install_status = GetWebstoreExtensionInstallStatus(
-      id, profile_, dummy_extension_->manifest()->type(),
+  GetWebstoreExtensionInstallStatus(
+      id, profile_, dummy_extension_->version(),
+      dummy_extension_->manifest()->type(),
       PermissionsParser::GetRequiredPermissions(dummy_extension_.get()),
-      dummy_extension_->manifest_version());
+      dummy_extension_->manifest_version(),
+      base::BindOnce(&WebstorePrivateBeginInstallWithManifest3Function::
+                         OnInstallStatusCheckDone,
+                     this));
+}
+
+void WebstorePrivateBeginInstallWithManifest3Function::OnInstallStatusCheckDone(
+    ExtensionInstallStatus install_status) {
+  content::WebContents* web_contents = GetSenderWebContents();
   if (install_status == kBlockedByPolicy) {
     ShowBlockedByPolicyDialog(
         dummy_extension_.get(), icon_, web_contents,
@@ -1360,10 +1371,18 @@ void WebstorePrivateGetExtensionStatusFunction::OnManifestParsed(
     return;
   }
 
-  ExtensionInstallStatus status = GetWebstoreExtensionInstallStatus(
-      extension_id, profile, dummy_extension->GetType(),
+  GetWebstoreExtensionInstallStatus(
+      extension_id, profile, dummy_extension->version(),
+      dummy_extension->GetType(),
       PermissionsParser::GetRequiredPermissions(dummy_extension.get()),
-      dummy_extension->manifest_version());
+      dummy_extension->manifest_version(),
+      base::BindOnce(
+          &WebstorePrivateGetExtensionStatusFunction::OnInstallStatusCheckDone,
+          this));
+}
+
+void WebstorePrivateGetExtensionStatusFunction::OnInstallStatusCheckDone(
+    ExtensionInstallStatus status) {
   api::webstore_private::ExtensionInstallStatus api_status =
       ConvertExtensionInstallStatusForAPI(status);
   Respond(ArgumentList(GetExtensionStatus::Results::Create(api_status)));

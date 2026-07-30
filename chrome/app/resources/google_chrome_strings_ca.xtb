@@ -356,6 +356,7 @@
 <translation id="4885446229353981848">Mostra sempre la drecera de Google Lens</translation>
 <translation id="4891791193823137474">Permet que Google Chrome s'executi en procés de fons</translation>
 <translation id="4895437082222824641">Obre l'enllaç en una pes&amp;tanya nova a Chrome</translation>
+<translation id="4918086044614829423">Accepta</translation>
 <translation id="4918844574251943176">La imatge s'ha copiat</translation>
 <translation id="4926882258455737990">Per utilitzar un altre Compte de Google amb Gemini a Chrome, <ph name="BEGIN_LINK" />crea un perfil nou<ph name="END_LINK" /> i inicia la sessió amb el compte que vulguis</translation>
 <translation id="492720062778050435">Chrome et recomana que revisis aquesta extensió</translation>
@@ -369,6 +370,7 @@
 <translation id="5003967926796347400">Fes clic a Gestor de contrasenyes de Google</translation>
 <translation id="5043786843026425788">Més informació sobre la cerca amb Google Lens a Chrome</translation>
 <translation id="504867494566807945">Obre enllaços a Chrome des de qualsevol aplicació. A més, perquè sigui més fàcil accedir-hi, es fixa a la barra de tasques.</translation>
+<translation id="5105120510934353742">Per obtenir actualitzacions de Google Chrome en un futur, necessitaràs macOS 13 o una versió posterior. Aquest ordinador utilitza macOS 12.</translation>
 <translation id="5114340746415930644">Introdueix la frase de contrasenya per utilitzar i desar les dades de Chrome al teu compte, <ph name="USER_EMAIL" /></translation>
 <translation id="5120334927898581447">Inicia la sessió a Chrome quan iniciïs la sessió en altres serveis de Google</translation>
 <translation id="5126049312684316860">Chrome precarrega encara més pàgines que és probable que visitis perquè es carreguin més ràpidament quan ho facis</translation>
@@ -423,6 +425,7 @@
 <translation id="5690427481109656848">Google LLC</translation>
 <translation id="569897634095159764">No es pot connectar a Internet. El servidor intermediari necessita autenticació.</translation>
 <translation id="5709557627224531708">Defineix Chrome com a navegador predeterminat</translation>
+<translation id="5719246646468301581">Condicions del servei addicionals de Google Chrome i ChromeOS</translation>
 <translation id="5719324992913248873">Amb aquesta acció:
           <ph name="LINE_BREAKS" />
            • Es restabliran algunes opcions de configuració i dreceres de Chrome.
@@ -503,6 +506,7 @@
 <translation id="6326175484149238433">Suprimeix de Chrome</translation>
 <translation id="6327105987658262776">No hi ha cap actualització disponible.</translation>
 <translation id="6334815226785304306">Fes que Google Chrome sigui el navegador predeterminat i fixa'l a la barra de tasques</translation>
+<translation id="63540178978900677">Chrome ja no és el teu navegador predeterminat. Vols establir Chrome com a navegador predeterminat?</translation>
 <translation id="6360449101159168105">Mentre aquesta pestanya estava inactiva, s'ha alliberat memòria perquè Chrome funcioni sempre de pressa. Pots optar per excloure sempre aquest lloc web d'estar inactiu.</translation>
 <translation id="6388799252195623474">ajuda'm amb això</translation>
 <translation id="6412673304250309937">Compara els URL amb una llista de llocs web no segurs emmagatzemada a Chrome. Si un lloc web prova de robar-te la contrasenya o si baixes un fitxer maliciós, és possible que Chrome també n'enviï els URL, inclosos fragments de contingut de les pàgines, a Navegació segura.</translation>
@@ -704,6 +708,9 @@
 <translation id="8418845734693287262">Chrome OS no ha pogut sincronitzar les teves dades perquè les dades d'inici de sessió del compte no estan actualitzades.</translation>
 <translation id="842386925677997438">Eines de seguretat de Chrome</translation>
 <translation id="8425765582779547329">Per protegir-te més en línia amb les eleccions del teu pare o mare, inicia la sessió a Chrome</translation>
+<translation id="842852285618875960">Has arribat al límit de <ph name="BOOKMARK_LIMIT" /> adreces d'interès de Google Chrome, de manera que algunes encara no s'han desat al teu Compte de Google.
+
+No es poden desar adreces d'interès noves al teu compte fins que no en suprimeixis algunes. Si tanques la sessió ara, se suprimiran les adreces d'interès no desades.</translation>
 <translation id="8433638294851456451">Per enviar un número d'aquí al teu telèfon Android, inicia la sessió a Chrome en tots dos dispositius.</translation>
 <translation id="8496177819998570653">G&amp;estor de contrasenyes de Google</translation>
 <translation id="8498858610309223613">S'acaba d'aplicar una actualització de seguretat especial per a Google Chrome. Reinicia el navegador i restaurarem les pestanyes.</translation>

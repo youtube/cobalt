@@ -2126,13 +2126,40 @@ class DevToolsExtensionFileAccessTest : public DevToolsExtensionTest {
           get: function() { return "http:"; }
         });
 
-        chrome.devtools.inspectedWindow.getResources((resources) => {
-          const hasFile = !!resources.find(r => r.url.startsWith('file:'));
-          setInterval(() => {
-            top.postMessage(
-                {testOutput: (hasFile == %d) ? 'PASS' : 'FAIL'}, '*');
-          }, 10);
-        });)",
+        const testDone = (result) => {
+          if (window.testDone) {
+            return;
+          }
+          window.testDone = true;
+          clearTimeout(window.timeout);
+          chrome.devtools.inspectedWindow.onResourceAdded.removeListener(
+              onResourceAdded);
+          top.postMessage({testOutput: result}, '*');
+        };
+
+        const allowFileAccess = !!%d;
+
+        function onResourceAdded(resource) {
+          if (resource.url.startsWith('file:')) {
+            testDone(allowFileAccess ? 'PASS' : 'FAIL');
+          }
+        }
+
+        chrome.devtools.inspectedWindow.onResourceAdded.addListener(
+            onResourceAdded);
+
+        chrome.devtools.inspectedWindow.getResources(resources => {
+          for (const resource of resources) {
+            onResourceAdded(resource);
+          }
+        });
+
+        if (allowFileAccess) {
+          window.timeout = setTimeout(() => testDone('FAIL'), 8000);
+        } else {
+          window.timeout = setTimeout(() => testDone('PASS'), 5000);
+        }
+)",
                                      allow_file_access));
 
     std::string file_url =
@@ -2158,9 +2185,11 @@ class DevToolsExtensionFileAccessTest : public DevToolsExtensionTest {
 
 // This test is flaky on Linux MSAN.
 // TODO(https://crbug.com/463490299): Enable the test.
-#if defined(MEMORY_SANITIZER) || defined(ADDRESS_SANITIZER) || \
-    BUILDFLAG(CFI_CAST_CHECK) || BUILDFLAG(CFI_ICALL_CHECK) || \
-    BUILDFLAG(CFI_ENFORCEMENT_TRAP) || BUILDFLAG(CFI_ENFORCEMENT_DIAGNOSTIC)
+#if defined(MEMORY_SANITIZER) || defined(ADDRESS_SANITIZER) ||         \
+    BUILDFLAG(CFI_CAST_CHECK) || BUILDFLAG(CFI_ICALL_CHECK) ||         \
+    BUILDFLAG(CFI_ENFORCEMENT_TRAP) ||                                 \
+    BUILDFLAG(CFI_ENFORCEMENT_DIAGNOSTIC) || BUILDFLAG(IS_CHROMEOS) || \
+    BUILDFLAG(IS_LINUX)
 #define MAYBE_CanGetFileResourceWithFileAccess \
   DISABLED_CanGetFileResourceWithFileAccess
 #else

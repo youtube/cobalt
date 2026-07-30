@@ -4,7 +4,6 @@
 
 #include "components/background_sync/background_sync_controller_impl.h"
 
-#include "base/containers/contains.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
@@ -195,7 +194,7 @@ void BackgroundSyncControllerImpl::GetParameterOverrides(
   // Check if the delegate explicitly disabled this feature.
   if (delegate_->ShouldDisableAndroidNetworkDetection()) {
     parameters->rely_on_android_network_detection = false;
-  } else if (base::Contains(field_params, kRelyOnAndroidNetworkDetection)) {
+  } else if (field_params.contains(kRelyOnAndroidNetworkDetection)) {
     if (base::EqualsCaseInsensitiveASCII(
             field_params[kRelyOnAndroidNetworkDetection], "true")) {
       parameters->rely_on_android_network_detection = true;

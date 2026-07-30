@@ -26,6 +26,7 @@
 #include "chrome/browser/web_applications/test/web_app_test_utils.h"
 #include "chrome/browser/web_applications/web_app.h"
 #include "chrome/browser/web_applications/web_app_command_manager.h"
+#include "chrome/browser/web_applications/web_app_filter.h"
 #include "chrome/browser/web_applications/web_app_icon_manager.h"
 #include "chrome/browser/web_applications/web_app_management_type.h"
 #include "chrome/browser/web_applications/web_app_registry_update.h"
@@ -105,8 +106,8 @@ TEST_F(UninstallAllUserInstalledWebAppsCommandTest, NoUserInstalledWebApps) {
           *profile(), future.GetCallback()));
   EXPECT_EQ(future.Get(), std::nullopt);
 
-  EXPECT_EQ(proto::InstallState::INSTALLED_WITH_OS_INTEGRATION,
-            registrar_unsafe().GetInstallState(app_id));
+  EXPECT_TRUE(provider().registrar_unsafe().AppMatches(
+      app_id, WebAppFilter::InstalledInOperatingSystemForTesting()));
 }
 
 TEST_F(UninstallAllUserInstalledWebAppsCommandTest, RemovesUserInstallSources) {
@@ -137,8 +138,8 @@ TEST_F(UninstallAllUserInstalledWebAppsCommandTest, RemovesUserInstallSources) {
           *profile(), future.GetCallback()));
   EXPECT_EQ(future.Get(), std::nullopt);
 
-  EXPECT_EQ(proto::InstallState::INSTALLED_WITH_OS_INTEGRATION,
-            registrar_unsafe().GetInstallState(app_id));
+  EXPECT_TRUE(provider().registrar_unsafe().AppMatches(
+      app_id, WebAppFilter::InstalledInOperatingSystemForTesting()));
   EXPECT_TRUE(web_app->GetSources().Has(WebAppManagement::kPolicy));
   EXPECT_FALSE(web_app->GetSources().Has(WebAppManagement::kSync));
 }
@@ -190,11 +191,11 @@ TEST_F(UninstallAllUserInstalledWebAppsCommandTest,
           *profile(), future.GetCallback()));
   EXPECT_EQ(future.Get(), std::nullopt);
 
-  EXPECT_FALSE(registrar_unsafe().IsInRegistrar(app_id1));
-  EXPECT_FALSE(registrar_unsafe().IsInRegistrar(app_id2));
-  EXPECT_FALSE(registrar_unsafe().IsInRegistrar(app_id3));
-  EXPECT_FALSE(registrar_unsafe().IsInRegistrar(app_id4));
-  EXPECT_FALSE(registrar_unsafe().IsInRegistrar(app_id5));
+  EXPECT_FALSE(registrar_unsafe().GetInstallState(app_id1).has_value());
+  EXPECT_FALSE(registrar_unsafe().GetInstallState(app_id2).has_value());
+  EXPECT_FALSE(registrar_unsafe().GetInstallState(app_id3).has_value());
+  EXPECT_FALSE(registrar_unsafe().GetInstallState(app_id4).has_value());
+  EXPECT_FALSE(registrar_unsafe().GetInstallState(app_id5).has_value());
 
   // TODO(crbug.com/40277668): As a temporary fix to avoid race conditions with
   // `ScopedProfileKeepAlive`s, manually shutdown `KeyedService`s holding them.
@@ -243,7 +244,7 @@ TEST_F(UninstallAllUserInstalledWebAppsCommandWithIconManagerTest,
           *profile(), future.GetCallback()));
   EXPECT_EQ(future.Get(), app_id + "[Sync]: kError");
 
-  EXPECT_FALSE(registrar_unsafe().IsInRegistrar(app_id));
+  EXPECT_FALSE(registrar_unsafe().GetInstallState(app_id).has_value());
 }
 
 }  // namespace web_app

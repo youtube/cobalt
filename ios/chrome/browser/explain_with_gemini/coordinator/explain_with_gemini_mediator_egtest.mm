@@ -107,7 +107,6 @@ std::unique_ptr<net::test_server::HttpResponse> StandardResponse(
   config.features_enabled_and_params.push_back(
       {kBWGPromoConsent, {{{kBWGPromoConsentParams, "3"}}}});
   if ([self isRunningTest:@selector(testExplainWithGeminiInReadingMode)]) {
-    config.features_enabled_and_params.push_back({kEnableReaderMode, {}});
     config.features_enabled_and_params.push_back({kEnableReaderModeInUS, {}});
   }
   return config;
@@ -162,8 +161,6 @@ std::unique_ptr<net::test_server::HttpResponse> StandardResponse(
     GREYAssert(WaitUntilConditionOrTimeout(kWaitForUIElementTimeout, condition),
                @"Does not redirect to Gemini URL");
 
-    // TODO(crbug.com/409525576): Add waitForWebStateContainingText for `Explain
-    // this to me` once rollout is done by Gemini team.
     GREYAssertEqual(2UL, [ChromeEarlGrey mainTabCount],
                     @"Search Should be in new tab");
     [ChromeEarlGrey closeCurrentTab];

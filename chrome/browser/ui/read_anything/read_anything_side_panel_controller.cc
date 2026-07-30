@@ -45,6 +45,7 @@
 #include "components/language/core/browser/language_model_manager.h"
 #include "components/language/core/common/locale_util.h"
 #include "content/public/browser/render_frame_host.h"
+#include "content/public/common/url_constants.h"
 #include "read_anything_entry_point_controller.h"
 #include "read_anything_side_panel_controller.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
@@ -330,9 +331,6 @@ void ReadAnythingSidePanelController::TabBackgrounded(tabs::TabInterface* tab) {
     iph_response_timer_->Stop();
     RecordOpenedAfterPromo();
   }
-  if (page_dwell_timer_ && page_dwell_timer_->IsRunning()) {
-    page_dwell_timer_->Stop();
-  }
 }
 
 void ReadAnythingSidePanelController::TabWillDetach(
@@ -395,12 +393,18 @@ void ReadAnythingSidePanelController::CheckIfGoodCandidateForReadingMode() {
     return;
   }
 
+  // Don't show the omnibox entrypoint for non-HTTP(S) URLs. These URLs are not
+  // supported by Readability, which is used to check whether the current page is a
+  // good candidate for distillation.
+  const GURL& url = tab_->GetContents()->GetLastCommittedURL();
+  if (!url.SchemeIsHTTPOrHTTPS()) {
+    UpdateOmniboxEntryPoint(false);
+    return;
+  }
+
   // Readability will callback with whether or not the current contents are a
   // good candidate for distillation.
   candidate_check_triggered_time_ms_ = base::TimeTicks::Now();
-  if (page_dwell_timer_) {
-    page_dwell_timer_->Stop();
-  }
   RunReadabilityHeuristicsOnWebContents(
       tab_->GetContents(),
       base::BindOnce(&ReadAnythingSidePanelController::OnReadabilityResult,
@@ -413,37 +417,17 @@ void ReadAnythingSidePanelController::OnReadabilityResult(bool should_show) {
   // as "ignored".
   was_last_checked_page_distillable_ = should_show;
 
-  if (!features::IsReadAnythingOmniboxChipEnabled() ||
-      (!tab_->IsActivated() && should_show)) {
+  if (!features::IsReadAnythingOmniboxChipEnabled() || !tab_->IsActivated()) {
     return;
   }
 
-  base::TimeDelta time_since_page_shown_ =
-      base::TimeTicks::Now() - candidate_check_triggered_time_ms_;
-  // Always hide the omnibox immediately when it should be hidden. Use a delay
-  // to show the omnibox to ensure the user intends to consume this page.
-  if (!should_show ||
-      time_since_page_shown_.InMilliseconds() >= kShowPageActionDelayMs) {
-    UpdateOmniboxEntryPoint(should_show);
-  } else if (should_show) {
-    auto timer_length =
-        base::Milliseconds(kShowPageActionDelayMs) - time_since_page_shown_;
-    if (!page_dwell_timer_) {
-      page_dwell_timer_ = std::make_unique<base::RetainingOneShotTimer>();
-    }
-    page_dwell_timer_->Start(
-        FROM_HERE, timer_length,
-        base::BindRepeating(
-            &ReadAnythingSidePanelController::UpdateOmniboxEntryPoint,
-            base::Unretained(this), should_show));
-  }
+  UpdateOmniboxEntryPoint(should_show);
 }
 
 void ReadAnythingSidePanelController::UpdateOmniboxEntryPoint(
     bool should_show) {
   // Don't show the entrypoint if the tab is no longer active.
-  if (!features::IsReadAnythingOmniboxChipEnabled() ||
-      (!tab_->IsActivated() && should_show)) {
+  if (!features::IsReadAnythingOmniboxChipEnabled() || !tab_->IsActivated()) {
     return;
   }
 
@@ -505,8 +489,8 @@ void ReadAnythingSidePanelController::UpdateOmniboxEntryPointIgnored(
       candidate_check_triggered_time_ms_.is_null()
           ? base::Milliseconds(0)
           : base::TimeTicks::Now() - candidate_check_triggered_time_ms_;
-  if (is_showing &&
-      time_on_previous_page.InMilliseconds() > kShowPageActionDelayMs) {
+  if (is_showing && time_on_previous_page.InMilliseconds() >
+                        kTimeOnPreviousPageBeforeOmniboxIgnored) {
     if (auto* browser_window_interface = tab_->GetBrowserWindowInterface()) {
       read_anything::ReadAnythingEntryPointController::OnPageActionIgnored(
           browser_window_interface);

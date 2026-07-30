@@ -4,13 +4,13 @@
 
 #include "components/page_info/android/page_info_controller_android.h"
 
+#include <algorithm>
 #include <string>
 
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/command_line.h"
-#include "base/containers/contains.h"
 #include "base/feature_list.h"
 #include "base/notimplemented.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
@@ -92,7 +92,8 @@ void PageInfoControllerAndroid::Destroy(JNIEnv* env) {
   delete this;
 }
 
-void PageInfoControllerAndroid::RecordPageInfoAction(JNIEnv* env, jint action) {
+void PageInfoControllerAndroid::RecordPageInfoAction(JNIEnv* env,
+                                                     int32_t action) {
   presenter_->RecordPageInfoAction(
       static_cast<page_info::PageInfoAction>(action));
 }
@@ -223,7 +224,7 @@ void PageInfoControllerAndroid::SetPermissionInfo(
   bool requested_notifications = false;
 
   for (const auto& permission : permission_info_list) {
-    if (base::Contains(permissions_to_display, permission.type)) {
+    if (std::ranges::contains(permissions_to_display, permission.type)) {
       std::optional<PermissionSetting> setting_to_display =
           GetSettingToDisplay(permission);
       if (setting_to_display) {
@@ -247,7 +248,7 @@ void PageInfoControllerAndroid::SetPermissionInfo(
   }
 
   for (const auto& permission : permissions_to_display) {
-    if (base::Contains(user_specified_settings_to_display, permission)) {
+    if (user_specified_settings_to_display.contains(permission)) {
       std::u16string setting_title =
           PageInfoUI::PermissionTypeToUIString(permission);
       std::u16string setting_title_mid_sentence =
@@ -257,7 +258,7 @@ void PageInfoControllerAndroid::SetPermissionInfo(
           env, controller_jobject_,
           ConvertUTF16ToJavaString(env, setting_title),
           ConvertUTF16ToJavaString(env, setting_title_mid_sentence),
-          static_cast<jint>(permission),
+          static_cast<int32_t>(permission),
           user_specified_settings_to_display[permission],
           requested_notifications);
     }
@@ -271,8 +272,8 @@ void PageInfoControllerAndroid::SetPermissionInfo(
     Java_PageInfoController_addPermissionSection(
         env, controller_jobject_, ConvertUTF16ToJavaString(env, object_title),
         ConvertUTF16ToJavaString(env, object_title),
-        static_cast<jint>(chosen_object->ui_info->content_settings_type),
-        static_cast<jint>(CONTENT_SETTING_ALLOW), requested_notifications);
+        static_cast<int32_t>(chosen_object->ui_info->content_settings_type),
+        static_cast<int32_t>(CONTENT_SETTING_ALLOW), requested_notifications);
   }
 
   Java_PageInfoController_updatePermissionDisplay(env, controller_jobject_);

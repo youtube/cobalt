@@ -1759,6 +1759,26 @@ The following C++23 language features are allowed in the Chromium codebase.
 **Notes:**
 *** promo
 [Discussion thread](https://groups.google.com/a/chromium.org/g/cxx/c/V6YD6hOjnE8)
+
+### if consteval <sup>[allowed]</sup>
+
+```c++
+if consteval {
+  ...
+}
+```
+
+**Description:** consteval if statement. This removes some gotchas with
+[std::is_constant_evaluated()](https://en.cppreference.com/w/cpp/types/is_constant_evaluated.html#Notes),
+which needs to be used with a runtime if (rather than constexpr if) to be
+meaningful.
+
+**Documentation:**
+[if statement](https://en.cppreference.com/w/cpp/language/if)
+
+**Notes:**
+*** promo
+[Discussion thread](https://groups.google.com/a/chromium.org/g/cxx/c/1e90vNHYVFc)
 ***
 
 ## C++23 Allowed Library Features {#library-allowlist-23}
@@ -1795,6 +1815,34 @@ auto x = std::byteswap(y);
 **Notes:**
 *** promo
 [Discussion thread](https://groups.google.com/a/chromium.org/g/cxx/c/U2zUF-xOj6A/m/ZiRRZdr7AwAJ)
+
+### Various new ranges algorithms <sup>[allowed]</sup>
+
+```c++
+std::ranges::contains, std::ranges::contains_subrange
+std::ranges::starts_with
+std::ranges::ends_with
+std::ranges::find_last, std::ranges::find_last_if, std::ranges::find_last_if_not
+std::ranges::iota
+std::ranges::fold_left
+std::ranges::fold_left_with_iter
+// The ones below are pending libc++ implementation as of 01/2026.
+std::ranges::shift_left, std::ranges::shift_right
+std::ranges::fold_left_first
+std::ranges::fold_right
+std::ranges::fold_right_last
+std::ranges::fold_left_first_with_iter
+```
+
+**Description:** Various new ranges algorithms
+
+**Documentation:**
+[`<algorithm>`](https://en.cppreference.com/w/cpp/header/algorithm.html)
+
+**Notes:**
+*** promo
+[Discussion thread](https://groups.google.com/a/chromium.org/g/cxx/c/wZg3s5m6rOE).
+Migration of base::Contains() tracked [here](https://crbug.com/470391351).
 ***
 
 ### std::to_underlying <sup>[allowed]</sup>
@@ -1818,24 +1866,6 @@ Migration from `base::to_underlying` is tracked in https://crbug.com/470039537.
 The following C++23 language features are not allowed in the Chromium codebase.
 See the top of this page on how to propose moving a feature from this list into
 the allowed or banned sections.
-
-### if consteval <sup>[tbd]</sup>
-
-```c++
-if consteval {
-  ...
-}
-```
-
-**Description:** consteval if statement.
-
-**Documentation:**
-[if statement](https://en.cppreference.com/w/cpp/language/if)
-
-**Notes:**
-*** promo
-None
-***
 
 ### Static operators () and [] <sup>[tbd]</sup>
 
@@ -1983,36 +2013,6 @@ None
 The following C++23 library features are not allowed in the Chromium codebase.
 See the top of this page on how to propose moving a feature from this list into
 the allowed or banned sections.
-
-### Various new ranges algorithms <sup>[tbd]</sup>
-
-```c++
-std::ranges::contains, std::ranges::contains_subrange
-std::ranges::starts_with
-std::ranges::ends_with
-std::ranges::find_last, std::ranges::find_last_if, std::ranges::find_last_if_not
-std::ranges::iota
-std::ranges::fold_left
-std::ranges::fold_left_with_iter
-// The ones below are pending libc++ implementation as of 01/2026.
-std::ranges::shift_left, std::ranges::shift_right
-std::ranges::fold_left_first
-std::ranges::fold_right
-std::ranges::fold_right_last
-std::ranges::fold_left_first_with_iter
-```
-
-**Description:** Various new ranges algorithms
-
-**Documentation:**
-[`<algorithm>`](https://en.cppreference.com/w/cpp/header/algorithm.html)
-
-**Notes:**
-*** promo
-The majority of uses of base::Contains() can now be converted to .contains() or
-std::ranges::contains(), so we might want to migrate away from it
-([thread](https://groups.google.com/a/chromium.org/g/cxx/c/yiaBrakhcrQ)).
-***
 
 ### Constructing containers with std::from_range <sup>[tbd]</sup>
 

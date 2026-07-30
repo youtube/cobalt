@@ -55,7 +55,7 @@ JNI_AutoPictureInPictureTabHelperTestUtils_SetHasHighMediaEngagement(
   tab_helper->set_has_high_engagement_for_testing(has_high_engagement);
 }
 
-static jint
+static int32_t
 JNI_AutoPictureInPictureTabHelperTestUtils_GetDismissCountForTesting(
     JNIEnv* env,
     content::WebContents* web_contents,
@@ -76,6 +76,12 @@ JNI_AutoPictureInPictureTabHelperTestUtils_SetIsUsingCameraOrMicrophone(
   CHECK(tab_helper);
   tab_helper->set_is_using_camera_or_microphone_for_testing(
       is_using_camera_or_microphone);
+}
+
+static bool JNI_AutoPictureInPictureTabHelperTestUtils_IsCurrentlyAudible(
+    JNIEnv* env,
+    content::WebContents* web_contents) {
+  return web_contents->IsCurrentlyAudible();
 }
 
 }  // namespace picture_in_picture

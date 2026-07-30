@@ -34,6 +34,32 @@ typedef NS_ENUM(NSInteger, BWGInputType) {
   BWGInputTypeDiscoveryCard = 9,
 };
 
+// The feedback type for Gemini queries.
+// LINT.IfChange(GeminiFeedbackType)
+enum class GeminiFeedbackType {
+  // Thumbs up feedback type.
+  kThumbsUp,
+  // Thumbs down feedback type.
+  kThumbsDown,
+};
+// LINT.ThenChange(/ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h:IOSGeminiFeedback)
+
+// Cancellation types for a Gemini session.
+typedef NS_ENUM(NSInteger, GeminiCancelType) {
+  // Unknown cancellation reason.
+  GeminiCancelTypeUnknown = 0,
+  // Stop button was tapped.
+  GeminiCancelTypeStopButtonTapped = 1,
+  // User tapped outside of floaty.
+  GeminiCancelTypeOutsideTapped = 2,
+  // Close button was tapped in the expanded state.
+  GeminiCancelTypeExpandedStateCloseButtonTapped = 3,
+  // Close button was tapped in the collapsed state.
+  GeminiCancelTypeCollapsedStateCloseButtonTapped = 4,
+  // Close button was tapped in the loading state.
+  GeminiCancelTypeLoadingStateCloseButtonTapped = 5,
+};
+
 // Delegate for Gemini session events. Keep up to date with GCR's
 // SessionDelegate.
 @protocol GeminiSessionDelegate
@@ -68,11 +94,20 @@ typedef NS_ENUM(NSInteger, BWGInputType) {
 - (void)didTapNewChatButtonWithSessionID:(NSString*)sessionID
                           conversationID:(NSString*)conversationID;
 
+// Called when a feedback button is tapped in the Gemini UI.
+- (void)didTapFeedbackButton:(GeminiFeedbackType)feedbackType
+                   sessionID:(NSString*)sessionID
+              conversationID:(NSString*)conversationID;
+
 // Called when the Gemini view state changes.
 - (void)didSwitchToViewState:(ios::provider::GeminiViewState)viewState
                    sessionID:(NSString*)sessionID
               conversationID:(NSString*)conversationID;
 
+// Called when gemini response is cancelled.
+- (void)responseCancelledWithReason:(GeminiCancelType)reason
+                          sessionID:(NSString*)sessionID
+                     conversationID:(NSString*)conversationID;
 @end
 
 #endif  // IOS_CHROME_BROWSER_INTELLIGENCE_BWG_MODEL_GEMINI_SESSION_DELEGATE_H_

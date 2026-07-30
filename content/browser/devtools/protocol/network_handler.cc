@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <algorithm>
 #include <memory>
 #include <string_view>
 #include <utility>
@@ -15,7 +16,6 @@
 #include "base/barrier_closure.h"
 #include "base/base64.h"
 #include "base/command_line.h"
-#include "base/containers/contains.h"
 #include "base/containers/queue.h"
 #include "base/containers/span.h"
 #include "base/feature_list.h"
@@ -212,7 +212,6 @@ std::unique_ptr<Network::Cookie> BuildCookie(
           .SetSecure(cookie.SecureAttribute())
           .SetSession(!cookie.IsPersistent())
           .SetPriority(BuildCookiePriority(cookie.Priority()))
-          .SetSameParty(false)
           .SetSourceScheme(BuildCookieSourceScheme(cookie.SourceScheme()))
           .SetSourcePort(cookie.SourcePort())
           .Build();
@@ -1564,7 +1563,7 @@ NetworkHandler::BuildProtocolReport(const net::ReportingReport& report) {
     return nullptr;
   }
   std::vector<GURL> reporting_filter_urls = ComputeReportingURLs(host_);
-  if (base::Contains(reporting_filter_urls, report.url)) {
+  if (std::ranges::contains(reporting_filter_urls, report.url)) {
     return protocol::Network::ReportingApiReport::Create()
         .SetId(report.id.ToString())
         .SetInitiatorUrl(report.url.spec())
@@ -2362,7 +2361,6 @@ void NetworkHandler::SetCookie(
     std::optional<std::string> same_site,
     std::optional<double> expires,
     std::optional<std::string> priority,
-    std::optional<bool> same_party,
     std::optional<std::string> source_scheme,
     std::optional<int> source_port,
     std::unique_ptr<Network::CookiePartitionKey> partition_key,

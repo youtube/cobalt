@@ -352,6 +352,11 @@ interface AudioWorkletNode : AudioNode
     getter port
     method constructor
     setter onprocessorerror
+interface AutofillEvent : Event
+    attribute @@toStringTag
+    getter refill
+    method autofillValues
+    method constructor
 interface BackForwardCacheRestoration : PerformanceEntry
     attribute @@toStringTag
     getter pageshowEventEnd
@@ -2345,6 +2350,7 @@ interface EditContext : EventTarget
 interface Element : Node
     attribute @@toStringTag
     attribute @@unscopables
+    getter activeViewTransition
     getter anchorElement
     getter ariaActiveDescendantElement
     getter ariaAtomic
@@ -9765,10 +9771,10 @@ interface TimelineTrigger : AnimationTrigger
     method constructor
 interface TimelineTriggerRange
     attribute @@toStringTag
-    getter exitRangeEnd
-    getter exitRangeStart
-    getter rangeEnd
-    getter rangeStart
+    getter activeRangeEnd
+    getter activeRangeStart
+    getter entryRangeEnd
+    getter entryRangeStart
     getter timeline
     method constructor
 interface TimelineTriggerRangeList

@@ -2069,7 +2069,9 @@ void LayoutObject::InvalidateVisualOverflow() {
       text->InvalidateVisualOverflow();
     }
   }
-  PaintingLayer()->SetNeedsVisualOverflowRecalc();
+  if (auto* painting_layer = PaintingLayer()) {
+    painting_layer->SetNeedsVisualOverflowRecalc();
+  }
   // TODO(crbug.com/40246969): This looks like an over-invalidation.
   // visual overflow change should not require checking for layout change.
   SetShouldCheckForPaintInvalidation();
@@ -2707,6 +2709,7 @@ const ComputedStyle& LayoutObject::SlowEffectiveStyle(
 // object again. We have to make sure the layout tree updates as needed to
 // accommodate the new normal flow object.
 static inline void HandleDynamicFloatPositionChange(LayoutObject* object) {
+  DCHECK(!RuntimeEnabledFeatures::LayoutReinsertOnInFlowStateChangeEnabled());
   // We have gone from not affecting the inline status of the parent flow to
   // suddenly having an impact.  See if there is a mismatch between the parent
   // flow's childrenInline() state and our state.
@@ -3260,6 +3263,18 @@ bool LayoutObject::BelongsToElementChangingOverflowBehaviour() const {
          IsA<HTMLImageElement>(element);
 }
 
+void LayoutObject::UpdateAfterReinsert(const ComputedStyle& old_style) {
+  NOT_DESTROYED();
+  DCHECK(RuntimeEnabledFeatures::LayoutReinsertOnInFlowStateChangeEnabled());
+
+  // Now that we are in the layout-tree, disable scroll-anchoring on our scroll
+  // container as per:
+  // https://drafts.csswg.org/css-scroll-anchoring-1/#suppression-triggers
+  if (old_style.HasOutOfFlowPosition() != StyleRef().HasOutOfFlowPosition()) {
+    SetScrollAnchorDisablingStyleChangedOnAncestor();
+  }
+}
+
 void LayoutObject::StyleDidChange(
     StyleDifference diff,
     const ComputedStyle* old_style,
@@ -3337,7 +3352,8 @@ void LayoutObject::StyleDidChange(
   // it's not affected.
   SetOutlineMayBeAffectedByDescendants(style_->HasOutline());
 
-  if (style_change_context.became_normal_flow) {
+  if (!RuntimeEnabledFeatures::LayoutReinsertOnInFlowStateChangeEnabled() &&
+      style_change_context.became_normal_flow) {
     HandleDynamicFloatPositionChange(this);
   }
 
@@ -3347,18 +3363,22 @@ void LayoutObject::StyleDidChange(
     //
     // TODO(layout-dev): Move this code down to LayoutBox. Only those can become
     // out-of-flow or spanners.
-    if (old_style->HasOutOfFlowPosition() != style_->HasOutOfFlowPosition()) {
-      SetScrollAnchorDisablingStyleChangedOnAncestor();
-      MarkParentForSpannerOrOutOfFlowPositionedChange();
-      if (old_style->HasOutOfFlowPosition()) {
-        if (auto* box = DynamicTo<LayoutBox>(this)) {
-          box->NotifyContainingDisplayLocksForAnchorPositioning(
-              box->DisplayLocksAffectedByAnchors(), nullptr);
+    if (!RuntimeEnabledFeatures::LayoutReinsertOnInFlowStateChangeEnabled()) {
+      if (old_style->HasOutOfFlowPosition() != style_->HasOutOfFlowPosition()) {
+        SetScrollAnchorDisablingStyleChangedOnAncestor();
+        MarkParentForSpannerOrOutOfFlowPositionedChange();
+        if (old_style->HasOutOfFlowPosition()) {
+          if (auto* box = DynamicTo<LayoutBox>(this)) {
+            box->NotifyContainingDisplayLocksForAnchorPositioning(
+                box->DisplayLocksAffectedByAnchors(), nullptr);
+          }
         }
       }
-    } else if (IsBox() &&
-               To<LayoutBox>(this)->IsValidColumnSpannerInTree(*old_style) !=
-                   To<LayoutBox>(this)->IsValidColumnSpannerInTree(*style_)) {
+    }
+
+    if (IsBox() &&
+        To<LayoutBox>(this)->IsValidColumnSpannerInTree(*old_style) !=
+            To<LayoutBox>(this)->IsValidColumnSpannerInTree(*style_)) {
       MarkParentForSpannerOrOutOfFlowPositionedChange();
     }
 
@@ -4061,6 +4081,38 @@ void LayoutObject::SetNeedsPaintPropertyUpdate() {
   if (bitfields_.NeedsPaintPropertyUpdate())
     return;
 
+  // If we're an overscroll container or an ::-internal-overscroll-area-parent,
+  // then under a paint property update, we have to make sure that all of our
+  // ::-internal-overscroll-area-parent siblings/children and the container
+  // itself are also updated. This is due to the fact that we do some
+  // reparenting in PaintPropertyTreeBuilder. Without this, we can end up with
+  // cycles if only *some* of the related objects are dirtied.
+  if (IsOverscrollContainer()) {
+    auto* container = IsPseudo(kPseudoIdOverscrollAreaParent) ? Parent() : this;
+    CHECK(container);
+    CHECK(container->StyleRef().IsInternalOverscrollAreaAuto());
+    CHECK(container->GetNode());
+
+    if (auto* overscroll_area_parent_vector =
+            To<Element>(*container->GetNode())
+                .GetOverscrollAreaParentPseudoElements()) {
+      for (const auto& overscroll_area_parent :
+           *overscroll_area_parent_vector) {
+        if (auto* object = overscroll_area_parent->GetLayoutObject()) {
+          object->bitfields_.SetNeedsPaintPropertyUpdate(true);
+        }
+      }
+
+      container->bitfields_.SetNeedsPaintPropertyUpdate(true);
+      // Note that we mark descendants needing property update starting from
+      // container, as opposed to container's parent, since we invalidated the
+      // direct children of the container
+      // (::-internal-overscroll-area-parent).
+      container->SetDescendantNeedsPaintPropertyUpdate();
+      return;
+    }
+  }
+
   bitfields_.SetNeedsPaintPropertyUpdate(true);
   if (Parent())
     Parent()->SetDescendantNeedsPaintPropertyUpdate();
@@ -4314,16 +4366,19 @@ const ComputedStyle* LayoutObject::FirstLineStyleWithoutFallback() const {
         RuntimeEnabledFeatures::QuoteFirstLineStyleEnabled() && IsQuote()
             ? Parent()
             : this;
-    if (const ComputedStyle* parent_first_line_style =
-            layout_object->Parent()->FirstLineStyleWithoutFallback()) {
-      // A first-line style is in effect. Get uncached first line style based on
-      // parent_first_line_style and cache the result in this object's style.
-      if (const ComputedStyle* first_line_style =
-              layout_object->GetUncachedPseudoElementStyle(StyleRequest(
-                  kPseudoIdFirstLineInherited, parent_first_line_style))) {
-        return StyleRef().AddCachedPseudoElementStyle(
-            std::move(first_line_style), kPseudoIdFirstLineInherited,
-            g_null_atom);
+    if (layout_object->Parent()) {
+      if (const ComputedStyle* parent_first_line_style =
+              layout_object->Parent()->FirstLineStyleWithoutFallback()) {
+        // A first-line style is in effect. Get the uncached first-line style
+        // based on parent_first_line_style and cache the result in this
+        // object's style.
+        if (const ComputedStyle* first_line_style =
+                layout_object->GetUncachedPseudoElementStyle(StyleRequest(
+                    kPseudoIdFirstLineInherited, parent_first_line_style))) {
+          return StyleRef().AddCachedPseudoElementStyle(
+              std::move(first_line_style), kPseudoIdFirstLineInherited,
+              g_null_atom);
+        }
       }
     }
   }

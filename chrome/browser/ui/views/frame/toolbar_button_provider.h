@@ -14,12 +14,11 @@
 class AppMenuButton;
 class AvatarToolbarButton;
 class PinnedToolbarActionsContainer;
-class ExtensionsToolbarContainer;
+class ExtensionsToolbarDesktop;
 class IconLabelBubbleView;
 class IntentChipButton;
 class PageActionIconView;
 class ReloadButton;
-class ReloadButtonWebView;
 class ReloadControl;
 class ToolbarButton;
 class WebUIToolbarWebView;
@@ -38,8 +37,8 @@ class View;
 // buttons in a BrowserView.
 class ToolbarButtonProvider {
  public:
-  // Gets the ExtensionsToolbarContainer.
-  virtual ExtensionsToolbarContainer* GetExtensionsToolbarContainer() = 0;
+  // Gets the ExtensionsToolbarDesktop.
+  virtual ExtensionsToolbarDesktop* GetExtensionsToolbarDesktop() = 0;
 
   // Gets the PinnedToolbarActionsContainer.
   virtual PinnedToolbarActionsContainer* GetPinnedToolbarActionsContainer() = 0;
@@ -100,7 +99,7 @@ class ToolbarButtonProvider {
   virtual ToolbarButton* GetBackButton() = 0;
 
   // Returns the reload button delegate, it can be either `ReloadButton` or
-  // `ReloadButtonWebView` depending on the enabled features.
+  // `WebUIToolbarWebView` depending on the enabled features.
   virtual ReloadControl* GetReloadButton() = 0;
 
   // Returns the intent chip button, if present.

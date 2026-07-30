@@ -786,6 +786,18 @@ int ExtensionTabUtil::GetSplitId(const split_tabs::SplitTabId& id) {
 }
 
 // static
+bool ExtensionTabUtil::SupportsTabGroups(BrowserWindowInterface* browser) {
+  CHECK(browser);
+#if BUILDFLAG(IS_ANDROID)
+  // Android only supports tab groups for normal browser windows.
+  return browser->GetType() == BrowserWindowInterface::TYPE_NORMAL;
+#else
+  // Other platforms have more complex logic (i.e. more browser types).
+  return browser->GetTabStripModel()->SupportsTabGroups();
+#endif
+}
+
+// static
 bool ExtensionTabUtil::GetGroupById(
     int group_id,
     content::BrowserContext* browser_context,
@@ -821,14 +833,9 @@ bool ExtensionTabUtil::GetGroupById(
     if (!target_browser) {
       continue;
     }
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-    // TODO(crbug.com/405219902): Android does not have SupportsTabGroups() yet.
-    TabStripModel* target_tab_strip =
-        target_browser->GetBrowserForMigrationOnly()->tab_strip_model();
-    if (!target_tab_strip->SupportsTabGroups()) {
+    if (!SupportsTabGroups(target_browser)) {
       continue;
     }
-#endif
     TabListInterface* tab_list = TabListInterface::From(target_browser);
     if (!tab_list) {
       continue;
@@ -914,13 +921,7 @@ std::optional<api::tab_groups::TabGroup> ExtensionTabUtil::CreateTabGroupObject(
   if (!browser) {
     return std::nullopt;
   }
-
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-  // TODO(crbug.com/405219902): Android does not have SupportsTabGroups() yet.
-  CHECK(browser->GetBrowserForMigrationOnly()
-            ->tab_strip_model()
-            ->SupportsTabGroups());
-#endif
+  CHECK(SupportsTabGroups(browser));
   TabListInterface* tab_list = TabListInterface::From(browser);
   if (!tab_list) {
     return std::nullopt;
@@ -1320,12 +1321,23 @@ bool ExtensionTabUtil::OpenOptionsPage(const Extension* extension,
                                                                open_in_tab);
 }
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
 // static
 bool ExtensionTabUtil::BrowserSupportsTabs(BrowserWindowInterface* browser) {
-  return browser && browser->GetType() != BrowserWindowInterface::TYPE_DEVTOOLS;
+  if (!browser) {
+    return false;
+  }
+
+  // On non-android platforms, devtools windows are backed by a Browser
+  // instance.
+#if !BUILDFLAG(IS_ANDROID)
+  // TODO(devlin): Should we be checking for other types, too? Like PiP?
+  if (browser->GetType() == BrowserWindowInterface::TYPE_DEVTOOLS) {
+    return false;
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
+
+  return true;
 }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 // static
 api::tabs::TabStatus ExtensionTabUtil::GetLoadingStatus(WebContents* contents) {

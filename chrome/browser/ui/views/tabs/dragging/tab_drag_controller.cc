@@ -13,7 +13,6 @@
 
 #include "base/auto_reset.h"
 #include "base/containers/adapters.h"
-#include "base/containers/contains.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -371,12 +370,11 @@ TabDragController::Liveness TabDragController::Init(
     TabDragContext* source_context,
     TabSlotView* source_view,
     const std::vector<TabSlotView*>& dragging_views,
-    const gfx::Point& offset_from_first_dragged_view,
     const gfx::Point& offset_from_source_view,
     ui::ListSelectionModel initial_selection_model,
     ui::mojom::DragEventSource event_source) {
   DCHECK(!dragging_views.empty());
-  DCHECK(base::Contains(dragging_views, source_view));
+  DCHECK(std::ranges::contains(dragging_views, source_view));
 
   // There's some rare condition on Windows where we are destroying ourselves
   // during Init() at some point. It's unclear how this happens, so we'll take
@@ -405,10 +403,8 @@ TabDragController::Liveness TabDragController::Init(
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   ref->can_release_capture_ = false;
 #endif
-  ref->start_point_in_screen_ = gfx::Point(offset_from_source_view.x(),
-                                           offset_from_first_dragged_view.y());
-  views::View::ConvertPointToScreen(source_view,
-                                    &(ref->start_point_in_screen_));
+  ref->start_point_in_screen_ =
+      views::View::ConvertPointToScreen(source_view, offset_from_source_view);
   ref->event_source_ = event_source;
   ref->last_point_in_screen_ = start_point_in_screen_;
   // Detachable tabs are not supported on Mac if the window is an out-of-process
@@ -1083,7 +1079,7 @@ void TabDragController::RequestTabThumbnail() {
     // empty target size means no scaling (as we don't know the surface
     // size, it's easier to scale the bitmap to the correct size later).
     rwhv->CopyFromSurface(
-        gfx::Rect(), gfx::Size(),
+        gfx::Rect(), gfx::Size(), base::TimeDelta(),
         base::BindOnce(&TabDragController::OnTabThumbnailAvailable,
                        weak_factory_.GetWeakPtr(), scale));
   }
@@ -1321,7 +1317,8 @@ void TabDragController::AttachToNewContext(
   // Insert at any valid index in the tabstrip. We'll fix up the insertion
   // index in MoveAttached() later, if we're transitioning to kDraggingTabs;
   // if we're transitioning to kDraggingWindow this is the correct index, 0.
-  size_t index = attached_context_->GetPinnedTabCount();
+  size_t index =
+      attached_context_->GetTabStripModel()->IndexOfFirstNonPinnedTab();
 
   base::AutoReset<bool> setter(&is_mutating_, true);
 
@@ -1740,10 +1737,10 @@ std::vector<TabSlotView*> TabDragController::GetViewsMatchingDraggedContents(
         return {};
       }
 
-      TabGroupHeader* header =
+      TabSlotView* header_view =
           context->GetTabGroupHeader(tab_drag_datum.tab_group_data->group_id);
-      CHECK(header);
-      views.push_back(header);
+      CHECK(header_view);
+      views.push_back(header_view);
     }
   }
   return views;

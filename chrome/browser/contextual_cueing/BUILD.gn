@@ -44,7 +44,6 @@ source_set("impl") {
     "//chrome/browser/page_content_annotations:extraction_service",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/ui",
-    "//chrome/browser/ui/browser_window",
     "//components/content_extraction/content/browser",
     "//components/keyed_service/core",
     "//components/optimization_guide/content/browser",
@@ -59,14 +58,17 @@ source_set("impl") {
     "//services/metrics/public/cpp:ukm_builders",
     "//url",
   ]
-  if (enable_glic) {
+  if (enable_glic || enable_glic_android) {
     deps += [
       "//chrome/browser/actor",
       "//chrome/browser/glic",
     ]
   }
   if (!is_android) {
-    deps += [ "//chrome/browser/contextual_tasks:ui" ]
+    deps += [
+      "//chrome/browser/contextual_tasks:ui",
+      "//chrome/browser/ui/browser_window",
+    ]
   }
   if (enable_pdf) {
     deps += [ "//components/pdf/browser" ]
@@ -111,7 +113,7 @@ source_set("unit_tests") {
     "//testing/gmock",
     "//testing/gtest",
   ]
-  if (enable_glic) {
+  if (enable_glic || enable_glic_android) {
     deps += [
       "//chrome/browser/glic",
       "//chrome/browser/glic/test_support",

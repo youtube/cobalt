@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ai/ai_data_keyed_service.h"
 
+#include <algorithm>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -11,7 +12,6 @@
 #include "base/barrier_callback.h"
 #include "base/base64.h"
 #include "base/command_line.h"
-#include "base/containers/contains.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -553,6 +553,7 @@ void GetTabScreenshotForModelPrototyping(
   view->CopyFromSurface(
       gfx::Rect(),  // Copy entire surface area.
       gfx::Size(),  // Result contains device-level detail.
+      base::TimeDelta(),
       mojo::WrapCallbackWithDefaultInvokeIfNotRun(
           base::BindOnce(&OnGetTabScreenshotForModelPrototyping,
                          std::move(continue_callback)),
@@ -766,7 +767,7 @@ bool AiDataKeyedService::IsExtensionAllowlistedForData(
   std::vector<std::string> blocklisted_extensions =
       base::SplitString(kBlocklistedExtensionsForData.Get(), ",",
                         base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-  if (base::Contains(blocklisted_extensions, extension_id)) {
+  if (std::ranges::contains(blocklisted_extensions, extension_id)) {
     return false;
   }
 
@@ -785,14 +786,14 @@ bool AiDataKeyedService::IsExtensionAllowlistedForData(
                                        "fiamdfnbelfkjlacoaeiclobkdmckaoa",
                                        // https://issues.chromium.org/427296150
                                        "mofldjifenhadohlkkngamgbifiofbnd"});
-  if (base::Contains(*kHardcodedAllowlistedExtensions, extension_id)) {
+  if (std::ranges::contains(*kHardcodedAllowlistedExtensions, extension_id)) {
     return true;
   }
 
   std::vector<std::string> allowlisted_extensions =
       base::SplitString(kAllowlistedExtensionsForData.Get(), ",",
                         base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-  if (base::Contains(allowlisted_extensions, extension_id)) {
+  if (std::ranges::contains(allowlisted_extensions, extension_id)) {
     return true;
   }
 
@@ -804,7 +805,7 @@ bool AiDataKeyedService::IsExtensionAllowlistedForActions(
   std::vector<std::string> blocklisted_extensions =
       base::SplitString(kBlocklistedExtensionsForActions.Get(), ",",
                         base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-  if (base::Contains(blocklisted_extensions, extension_id)) {
+  if (std::ranges::contains(blocklisted_extensions, extension_id)) {
     return false;
   }
 
@@ -814,14 +815,14 @@ bool AiDataKeyedService::IsExtensionAllowlistedForActions(
           // api_test/experimental_actor/manifest.json
           "kbanhggbnnaciicfpdkheonkpkeakfal",
       });
-  if (base::Contains(*kHardcodedAllowlistedExtensions, extension_id)) {
+  if (std::ranges::contains(*kHardcodedAllowlistedExtensions, extension_id)) {
     return true;
   }
 
   std::vector<std::string> allowlisted_extensions =
       base::SplitString(kAllowlistedExtensionsForActions.Get(), ",",
                         base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-  if (base::Contains(allowlisted_extensions, extension_id)) {
+  if (std::ranges::contains(allowlisted_extensions, extension_id)) {
     return true;
   }
 
@@ -840,5 +841,5 @@ bool AiDataKeyedService::IsExtensionAllowlistedForStable(
   static const base::NoDestructor<std::vector<std::string>>
       kStableChannelAllowlistedIds({// https://issues.chromium.org/427296150
                                     "mofldjifenhadohlkkngamgbifiofbnd"});
-  return base::Contains(*kStableChannelAllowlistedIds, extension_id);
+  return std::ranges::contains(*kStableChannelAllowlistedIds, extension_id);
 }

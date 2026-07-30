@@ -30,7 +30,7 @@
 #include "chrome/browser/extensions/extension_management_constants.h"
 #include "chrome/browser/extensions/extension_management_test_util.h"
 #include "chrome/browser/extensions/extension_service_test_with_install.h"
-#include "chrome/browser/extensions/forced_extensions/install_stage_tracker.h"
+#include "chrome/browser/extensions/forced_extensions/install_stage_tracker_factory.h"
 #include "chrome/browser/extensions/load_error_waiter.h"
 #include "chrome/browser/extensions/shared_module_service.h"
 #include "chrome/browser/extensions/sync/extension_sync_data.h"
@@ -70,6 +70,7 @@
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_system.h"
 #include "extensions/browser/extensions_browser_client.h"
+#include "extensions/browser/forced_extensions/install_stage_tracker.h"
 #include "extensions/browser/install_verifier.h"
 #include "extensions/browser/scoped_ignore_content_verifier_for_test.h"
 #include "extensions/browser/test_extension_registry_observer.h"
@@ -648,7 +649,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionPolicyTest, ExtensionInstallAllowlist) {
   EXPECT_FALSE(InstallExtension(kSimpleWithIconCrxName));
   EXPECT_FALSE(registry->GetExtensionById(
       kSimpleWithIconCrxId, extensions::ExtensionRegistry::EVERYTHING));
-  // "good.crx" has a allowlist exception.
+  // "good.crx" has an allowlist exception.
   const extensions::Extension* good = InstallExtension(kGoodCrxName);
   ASSERT_TRUE(good);
   EXPECT_EQ(kGoodCrxId, good->id());
@@ -1035,7 +1036,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionPolicyTest, ExtensionInstallForcelist) {
       .InSequence(sequence);
 
   extensions::InstallStageTracker* install_stage_tracker =
-      extensions::InstallStageTracker::Get(profile());
+      extensions::InstallStageTrackerFactory::GetForBrowserContext(profile());
   install_stage_tracker->AddObserver(&collector_observer);
   UpdateProviderPolicy(policies);
   registry_observer.WaitForExtensionWillBeInstalled();
@@ -1246,7 +1247,8 @@ class ExtensionPinningTest : public extensions::ExtensionBrowserTest {
       base::RunLoop run_loop;
       MockedInstallationCollectorObserver collector_observer(profile());
       extensions::InstallStageTracker* install_stage_tracker =
-          extensions::InstallStageTracker::Get(profile());
+          extensions::InstallStageTrackerFactory::GetForBrowserContext(
+              profile());
       install_stage_tracker->AddObserver(&collector_observer);
 
       // We expect install failure only due to no update for the extension.
@@ -1880,11 +1882,10 @@ IN_PROC_BROWSER_TEST_F(ExtensionPolicyTest,
   // should be no crash.
 }
 
+// Verifies that extensions that are recommended-installed by policies are
+// installed, can be disabled but not uninstalled.
 IN_PROC_BROWSER_TEST_F(ExtensionPolicyTest,
                        ExtensionRecommendedInstallationMode) {
-  // Verifies that extensions that are recommended-installed by policies are
-  // installed, can be disabled but not uninstalled.
-
   // Recommended-installed extensions should auto-enable on install without a
   // user prompt.
   extensions::FeatureSwitch::ScopedOverride external_prompt_override(
@@ -1961,7 +1962,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionPolicyTest, ExtensionAllowedTypes) {
   EXPECT_FALSE(registry->GetExtensionById(
       kGoodCrxId, extensions::ExtensionRegistry::EVERYTHING));
 
-  // "hosted_app.crx" is of a allowlisted type.
+  // "hosted_app.crx" is of an allowlisted type.
   const extensions::Extension* hosted_app = InstallExtension(kHostedAppCrxName);
   ASSERT_TRUE(hosted_app);
   EXPECT_EQ(kHostedAppCrxId, hosted_app->id());

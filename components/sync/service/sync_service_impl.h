@@ -177,7 +177,8 @@ class SyncServiceImpl : public SyncService,
   void SelectTypeAndMigrateLocalDataItemsWhenActive(
       DataType data_type,
       std::vector<LocalDataItemModel::DataId> items) override;
-  void AcknowledgeBookmarksLimitExceededError() override;
+  void AcknowledgeBookmarksLimitExceededError(
+      BookmarksLimitExceededHelpClickedSource source) override;
 
   // SyncEngineHost implementation.
   void OnEngineInitialized(bool success,
@@ -409,6 +410,7 @@ class SyncServiceImpl : public SyncService,
       base::OnceCallback<void(std::map<DataType, LocalDataDescription>)>
           callback);
 
+  void MaybeStartDeviceStatisticsTracker();
   void DeviceStatisticsTrackerDone();
 
   // This profile's SyncClient.

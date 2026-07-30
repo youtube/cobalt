@@ -356,7 +356,6 @@ class TestIdpNetworkRequestManager : public MockIdpNetworkRequestManager {
   }
 
   void FetchConfig(const GURL& provider,
-                   blink::mojom::RpMode rp_mode,
                    int idp_brand_icon_ideal_size,
                    int idp_brand_icon_minimum_size,
                    FetchConfigCallback callback) override {
@@ -3766,6 +3765,8 @@ TEST_P(RequestServiceTestCancelConsistency, AccountNotSelected) {
                                    /*standalone_console_message=*/std::nullopt,
                                    /*selected_idp_config_url=*/std::nullopt};
   CheckAuthExpectations(configuration, expectations);
+  ExpectStatusMetrics(fedcm_disabled ? TokenStatus::kDisabledInFlags
+                                     : TokenStatus::kAborted);
 }
 
 namespace {
@@ -4274,7 +4275,6 @@ class ParseStatusOverrideIdpNetworkRequestManager
       const ParseStatusOverrideIdpNetworkRequestManager&) = delete;
 
   void FetchConfig(const GURL& provider,
-                   blink::mojom::RpMode rp_mode,
                    int idp_brand_icon_ideal_size,
                    int idp_brand_icon_minimum_size,
                    FetchConfigCallback callback) override {
@@ -4289,8 +4289,8 @@ class ParseStatusOverrideIdpNetworkRequestManager
       return;
     }
     TestIdpNetworkRequestManager::FetchConfig(
-        provider, rp_mode, idp_brand_icon_ideal_size,
-        idp_brand_icon_minimum_size, std::move(callback));
+        provider, idp_brand_icon_ideal_size, idp_brand_icon_minimum_size,
+        std::move(callback));
   }
 
   bool SendAccountsRequest(const url::Origin& idp_origin,
@@ -6829,6 +6829,7 @@ TEST_F(RequestServiceTest, AbortedAccountsDialogShownDurationMetric) {
 
   ExpectUKMPresence("Timing.AccountsDialogShownDuration");
   ExpectNoUKMPresence("Timing.MismatchDialogShownDuration");
+  ExpectStatusMetrics(TokenStatus::kAborted);
 }
 
 // Tests that when a mismatch dialog is aborted, the appropriate duration
@@ -6873,6 +6874,7 @@ TEST_F(RequestServiceTest, AbortedMismatchDialogShownDurationMetric) {
 
   ExpectNoUKMPresence("Timing.AccountsDialogShownDuration");
   ExpectUKMPresence("Timing.MismatchDialogShownDuration");
+  ExpectStatusMetrics(TokenStatus::kAborted);
 }
 
 // Tests that when requests are made to FedCM in succession, the appropriate

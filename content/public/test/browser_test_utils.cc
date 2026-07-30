@@ -14,7 +14,6 @@
 #include <utility>
 
 #include "base/command_line.h"
-#include "base/containers/contains.h"
 #include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -2605,7 +2604,7 @@ void TitleWatcher::TitleWasSet(NavigationEntry* entry) {
 
 void TitleWatcher::TestTitle() {
   const std::u16string& current_title = web_contents()->GetTitle();
-  if (base::Contains(expected_titles_, current_title)) {
+  if (std::ranges::contains(expected_titles_, current_title)) {
     observed_title_ = current_title;
     run_loop_.Quit();
   }
@@ -4488,7 +4487,7 @@ bool CompareWebContentsOutputToReference(
   {
     base::RunLoop run_loop;
     rwh->GetView()->CopyFromSurface(
-        gfx::Rect(), gfx::Size(),
+        gfx::Rect(), gfx::Size(), base::TimeDelta(),
         base::BindLambdaForTesting([&](const content::CopyFromSurfaceResult&
                                            result) {
           ASSERT_TRUE(result.has_value());

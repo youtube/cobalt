@@ -414,7 +414,7 @@ BASE_FEATURE(kSimdutfBase64Support,
 BASE_FEATURE(kFurtherOptimizeParsingDataUrls, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kDataUrlMimeTypeParameterPreservation,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kNoVarySearchIgnoreUnrecognizedKeys,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -701,6 +701,8 @@ BASE_FEATURE(kUseQuicProxiesWithoutWaitingForConnectResponse,
 
 BASE_FEATURE(kEnableBootstrapIPRandomizationForDoh,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kUseLockFreeX509Verification, base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_APPLE)
 BASE_FEATURE(kUseNSURLDataForGURLConversion, base::FEATURE_ENABLED_BY_DEFAULT);

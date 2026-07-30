@@ -106,6 +106,10 @@ class SessionRestore {
   // Returns true if we're in the process of restoring |profile|.
   static bool IsRestoring(const Profile* profile);
 
+  // Returns true if any session has been restored during the current process
+  // lifetime.
+  static bool IsAnySessionRestored();
+
   // Returns true if synchronously restoring a session.
   static bool IsRestoringSynchronously();
 
@@ -125,7 +129,10 @@ class SessionRestore {
   static void OnTabLoaderFinishedLoadingTabs();
 
   // Is called when windows are read from the last session restore file.
-  static void OnGotSession(Profile* profile, bool for_apps, int window_count);
+  static void OnGotSession(
+      Profile* profile,
+      bool for_apps,
+      const std::vector<const sessions::SessionWindow*>& windows);
 
  private:
   friend class SessionRestoreImpl;

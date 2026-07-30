@@ -107,8 +107,6 @@ class CORE_EXPORT TextPaintTimingDetector final
     return recording_largest_text_paint_;
   }
 
-  std::pair<TextRecord*, bool> UpdateMetricsCandidate();
-
   void ReportLargestIgnoredText();
   void Trace(Visitor*) const;
 
@@ -132,6 +130,7 @@ class CORE_EXPORT TextPaintTimingDetector final
 
   inline void QueueToMeasurePaintTime(const LayoutObject& object,
                                       TextRecord* record) {
+    record->SetFrameIndex(frame_index_);
     texts_queued_for_paint_time_.insert(&object, record);
     added_entry_in_latest_frame_ = true;
   }

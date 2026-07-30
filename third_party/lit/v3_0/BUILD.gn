@@ -25,6 +25,7 @@ ts_library("build_ts") {
     # and reduce the maintenance burden for the Desktop WebUI team).
 
     "//chrome/browser/resources/about_sys:build_ts",
+    "//chrome/browser/resources/access_code_cast:build_ts",
     "//chrome/browser/resources/actor_overlay:build_ts",
     "//chrome/browser/resources/app_home:build_ts",
     "//chrome/browser/resources/app_service_internals:build_ts",
@@ -35,7 +36,6 @@ ts_library("build_ts") {
     "//chrome/browser/resources/certificate_manager:build_ts",
     "//chrome/browser/resources/certificate_viewer:build_ts",
     "//chrome/browser/resources/color_pipeline_internals:build_ts",
-    "//chrome/browser/resources/commerce/product_specifications:build_ts",
     "//chrome/browser/resources/components:build_ts",
     "//chrome/browser/resources/contextual_tasks:build_ts",
     "//chrome/browser/resources/device_log:build_ts",
@@ -81,6 +81,7 @@ ts_library("build_ts") {
     "//chrome/browser/resources/signin/history_sync_optin:build_ts",
     "//chrome/browser/resources/signin/profile_picker:build_ts",
     "//chrome/browser/resources/signin/signout_confirmation:build_ts",
+    "//chrome/browser/resources/skills:build_ts",
     "//chrome/browser/resources/suggest_internals:build_ts",
     "//chrome/browser/resources/support_tool:build_ts",
     "//chrome/browser/resources/tab_group_home:build_ts",
@@ -99,7 +100,6 @@ ts_library("build_ts") {
     "//chrome/test/data/webui/app_home:build_ts",
     "//chrome/test/data/webui/app_settings:build_ts",
     "//chrome/test/data/webui/bookmarks:build_ts",
-    "//chrome/test/data/webui/commerce/product_specifications:build_ts",
     "//chrome/test/data/webui/cr_components:build_ts",
     "//chrome/test/data/webui/cr_components/cr_shortcut_input:build_ts",
     "//chrome/test/data/webui/cr_components/custom_help_bubble:build_ts",

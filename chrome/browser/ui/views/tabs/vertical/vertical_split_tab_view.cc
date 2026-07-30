@@ -61,18 +61,113 @@ void VerticalSplitTabView::RemovedFromWidget() {
   paint_as_active_subscription_ = {};
 }
 
-void VerticalSplitTabView::OnMouseMoved(const ui::MouseEvent& event) {
-  // Linux enter/leave events are sometimes flaky, so we don't want to "miss"
-  // an enter event and fail to hover the tab.
-  UpdateHovered(true);
-}
-
 void VerticalSplitTabView::OnMouseEntered(const ui::MouseEvent& event) {
   UpdateHovered(true);
 }
 
 void VerticalSplitTabView::OnMouseExited(const ui::MouseEvent& event) {
   UpdateHovered(false);
+}
+
+void VerticalSplitTabView::OnMouseMoved(const ui::MouseEvent& event) {
+  // Linux enter/leave events are sometimes flaky, so we don't want to "miss"
+  // an enter event and fail to hover the tab.
+  UpdateHovered(true);
+}
+
+views::ProposedLayout VerticalSplitTabView::CalculateProposedLayout(
+    const views::SizeBounds& size_bounds) const {
+  views::ProposedLayout layouts;
+  int width = 0;
+  int height = 0;
+
+  const std::vector<views::View*> children =
+      collection_node_ ? collection_node_->GetDirectChildren()
+                       : std::vector<views::View*>();
+  if (children.size() != 2) {
+    layouts.host_size = gfx::Size(0, 0);
+    return layouts;
+  }
+
+  const int border_thickness =
+      pinned_
+          ? GetLayoutConstant(LayoutConstant::kVerticalTabPinnedBorderThickness)
+          : 0;
+
+  // Layout children in order. Children will have their preferred height and
+  // fill available width. If unbounded or both children fit on one row they
+  // will share it, otherwise they will be stacked vertically.
+  if (!size_bounds.width().is_bounded() ||
+      size_bounds.width().value() >=
+          static_cast<int>(
+              GetLayoutConstant(LayoutConstant::kVerticalTabMinWidth) *
+              children.size())) {
+    int x = 0;
+    for (auto* child : children) {
+      gfx::Rect bounds = gfx::Rect(child->GetPreferredSize());
+      bounds.set_x(x);
+      // Fill available width if bounded.
+      if (size_bounds.width().is_bounded()) {
+        bounds.set_width(x == 0 ? (std::floor(size_bounds.width().value() +
+                                              2 * border_thickness) /
+                                   2)
+                                : size_bounds.width().value() - x);
+      }
+      x += bounds.width() - 2 * border_thickness;
+      height = std::max(height, bounds.height());
+      layouts.child_layouts.emplace_back(child, child->GetVisible(), bounds);
+    }
+    width = x;
+  } else {
+    int y = 0;
+    for (auto* child : children) {
+      gfx::Rect bounds = gfx::Rect(child->GetPreferredSize());
+      bounds.set_y(y);
+      bounds.set_width(size_bounds.width().value());
+      bounds.set_height(bounds.height());
+      y += bounds.height() - 2 * border_thickness;
+      layouts.child_layouts.emplace_back(child, child->GetVisible(), bounds);
+    }
+    width = size_bounds.width().value();
+    height = y + 2 * border_thickness;
+  }
+  layouts.host_size = gfx::Size(width, height);
+  return layouts;
+}
+
+double VerticalSplitTabView::GetHoverAnimationValue() const {
+  if (!hover_controller_) {
+    return hovered_ ? 1.0 : 0.0;
+  }
+  return hover_controller_->GetAnimationValue();
+}
+
+void VerticalSplitTabView::ResetCollectionNode() {
+  collection_node_ = nullptr;
+}
+
+void VerticalSplitTabView::OnDataChanged() {
+  const tabs::TabCollection* tab_collection =
+      std::get<const tabs::TabCollection*>(collection_node_->GetNodeData());
+  const std::vector<tabs::TabInterface*> tabs =
+      tab_collection->GetTabsRecursive();
+  pinned_ = tabs[0]->IsPinned();
+
+  UpdateBorder();
+}
+
+void VerticalSplitTabView::UpdateBorder() {
+  if (pinned_) {
+    const bool is_frame_active =
+        GetWidget() ? GetWidget()->ShouldPaintAsActive() : true;
+    SetBorder(views::CreateRoundedRectBorder(
+        GetLayoutConstant(LayoutConstant::kVerticalTabPinnedBorderThickness),
+        GetLayoutConstant(LayoutConstant::kVerticalTabCornerRadius),
+        is_frame_active ? kColorTabDividerFrameActive
+                        : kColorTabDividerFrameInactive));
+  } else {
+    SetBorder(nullptr);
+  }
 }
 
 void VerticalSplitTabView::UpdateHovered(bool hovered) {
@@ -100,90 +195,6 @@ void VerticalSplitTabView::UpdateHovered(bool hovered) {
   }
 
   SchedulePaint();
-}
-
-double VerticalSplitTabView::GetHoverAnimationValue() const {
-  if (!hover_controller_) {
-    return hovered_ ? 1.0 : 0.0;
-  }
-  return hover_controller_->GetAnimationValue();
-}
-
-views::ProposedLayout VerticalSplitTabView::CalculateProposedLayout(
-    const views::SizeBounds& size_bounds) const {
-  views::ProposedLayout layouts;
-  int width = 0;
-  int height = 0;
-
-  const std::vector<views::View*> children =
-      collection_node_ ? collection_node_->GetDirectChildren()
-                       : std::vector<views::View*>();
-  if (children.size() != 2) {
-    layouts.host_size = gfx::Size(0, 0);
-    return layouts;
-  }
-
-  // Layout children in order. Children will have their preferred height and
-  // fill available width. If unbounded or both children fit on one row they
-  // will share it, otherwise they will be stacked vertically.
-  if (!size_bounds.width().is_bounded() ||
-      size_bounds.width().value() >=
-          static_cast<int>(
-              GetLayoutConstant(LayoutConstant::kVerticalTabMinWidth) *
-              children.size())) {
-    int x = 0;
-    for (auto* child : children) {
-      gfx::Rect bounds = gfx::Rect(child->GetPreferredSize());
-      bounds.set_x(x);
-      // Fill available width if bounded.
-      if (size_bounds.width().is_bounded()) {
-        bounds.set_width(std::floor(size_bounds.width().value() / 2));
-      }
-      height = std::max(height, bounds.height());
-      x += bounds.width();
-      layouts.child_layouts.emplace_back(child, child->GetVisible(), bounds);
-    }
-    width = x;
-  } else {
-    int y = 0;
-    for (auto* child : children) {
-      gfx::Rect bounds = gfx::Rect(child->GetPreferredSize());
-      bounds.set_y(y);
-      bounds.set_width(size_bounds.width().value());
-      y += bounds.height();
-      layouts.child_layouts.emplace_back(child, child->GetVisible(), bounds);
-    }
-    width = size_bounds.width().value();
-    height = y;
-  }
-  layouts.host_size = gfx::Size(width, height);
-  return layouts;
-}
-
-void VerticalSplitTabView::ResetCollectionNode() {
-  collection_node_ = nullptr;
-}
-
-void VerticalSplitTabView::OnDataChanged() {
-  UpdateBorder();
-}
-
-void VerticalSplitTabView::UpdateBorder() {
-  const tabs::TabCollection* tab_collection =
-      std::get<const tabs::TabCollection*>(collection_node_->GetNodeData());
-  const std::vector<tabs::TabInterface*> tabs =
-      tab_collection->GetTabsRecursive();
-  if (tabs[0]->IsPinned()) {
-    const bool is_frame_active =
-        GetWidget() ? GetWidget()->ShouldPaintAsActive() : true;
-    SetBorder(views::CreateRoundedRectBorder(
-        GetLayoutConstant(LayoutConstant::kVerticalTabPinnedBorderThickness),
-        GetLayoutConstant(LayoutConstant::kVerticalTabCornerRadius),
-        is_frame_active ? kColorTabDividerFrameActive
-                        : kColorTabDividerFrameInactive));
-  } else {
-    SetBorder(nullptr);
-  }
 }
 
 BEGIN_METADATA(VerticalSplitTabView)

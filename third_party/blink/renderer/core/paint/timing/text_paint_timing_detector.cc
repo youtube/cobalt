@@ -21,25 +21,12 @@
 
 namespace blink {
 
-namespace {
-BASE_FEATURE(kTextPaintTimingFrameIndexInitializationFix,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-}  // namespace
-
 TextPaintTimingDetector::TextPaintTimingDetector(
     LocalFrameView* frame_view,
     PaintTimingDetector* paint_timing_detector)
     : frame_view_(frame_view),
       paint_timing_detector_(paint_timing_detector),
       ltp_manager_(frame_view) {}
-
-std::pair<TextRecord*, bool> TextPaintTimingDetector::UpdateMetricsCandidate() {
-  CHECK(paint_timing_detector_);
-  LargestContentfulPaintCalculator* lcp_calculator =
-      paint_timing_detector_->GetLargestContentfulPaintCalculator();
-  CHECK(lcp_calculator);
-  return lcp_calculator->NotifyMetricsIfLargestTextPaintChanged();
-}
 
 OptionalPaintTimingCallback TextPaintTimingDetector::TakePaintTimingCallback() {
   if (!added_entry_in_latest_frame_)
@@ -197,7 +184,7 @@ void TextPaintTimingDetector::RecordAggregatedText(
   if (context && record) {
     context->AddPaintedArea(record);
   }
-  if (std::optional<PaintTimingVisualizer>& visualizer =
+  if (PaintTimingVisualizer* visualizer =
           frame_view_->GetPaintTimingDetector().Visualizer()) {
     visualizer->DumpTextDebuggingRect(aggregator, mapped_visual_rect);
   }
@@ -221,9 +208,6 @@ void TextPaintTimingDetector::ReportLargestIgnoredText() {
 
   recorded_set_.insert(record->GetNode()->GetLayoutObject(),
                        TextPaintStatus::kPainted);
-  // TODO(crbug.com/455791378): Move this to `QueueToMeasurePaintTime` once
-  // `kTextPaintTimingFrameIndexInitializationFix` is removed.
-  record->SetFrameIndex(frame_index_);
   QueueToMeasurePaintTime(*record->GetNode()->GetLayoutObject(), record);
 }
 
@@ -366,12 +350,6 @@ TextRecord* TextPaintTimingDetector::MaybeRecordTextRecord(
         context);
   }
 
-  if (base::FeatureList::IsEnabled(
-          kTextPaintTimingFrameIndexInitializationFix)) {
-    // TODO(crbug.com/455791378): Move this to `QueueToMeasurePaintTime` once
-    // `kTextPaintTimingFrameIndexInitializationFix` is removed.
-    record->SetFrameIndex(frame_index_);
-  }
   QueueToMeasurePaintTime(object, record);
   return record;
 }

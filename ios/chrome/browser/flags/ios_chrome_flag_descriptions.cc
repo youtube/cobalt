@@ -421,11 +421,6 @@ const char kCredentialProviderPerformanceImprovementsDescription[] =
     "Enables a series of performance improvements for the Credential Provider "
     "Extension.";
 
-const char kCredentialProviderSignalAPIName[] =
-    "Credential Provider Signal API";
-const char kCredentialProviderSignalAPIDescription[] =
-    "Enables signal API for Passkeys in the Credential Provider Extension.";
-
 const char kDataSharingDebugLogsName[] = "Enable data sharing debug logs";
 const char kDataSharingDebugLogsDescription[] =
     "Enables the data sharing infrastructure to log and save debug messages "
@@ -585,6 +580,10 @@ const char kEnableLensInOmniboxCopiedImageDescription[] =
 const char kEnableLensOverlayName[] = "Enable Lens Overlay";
 const char kEnableLensOverlayDescription[] = "Enables lens overlay UI";
 
+const char kEnableNewStartupFlowName[] = "EnableNewStartupFlow";
+const char kEnableNewStartupFlowDescription[] =
+    "Enables the EnableNewStartupFlow feature.";
+
 const char kEnableReadingListAccountStorageName[] =
     "Enable Reading List Account Storage";
 const char kEnableReadingListAccountStorageDescription[] =
@@ -619,10 +618,6 @@ const char kFeedBackgroundRefreshDescription[] =
 const char kFeedSwipeInProductHelpName[] = "Enable Feed Swipe IPH";
 const char kFeedSwipeInProductHelpDescription[] =
     "Presents an in-product help on the NTP to promote swiping on the Feed";
-
-const char kFeedbackIncludeVariationsName[] = "Feedback include variations";
-const char kFeedbackIncludeVariationsDescription[] =
-    "In Chrome feedback report, include commandline variations.";
 
 const char kForceStartupSigninPromoName[] = "Display the startup sign-in promo";
 const char kForceStartupSigninPromoDescription[] =
@@ -770,6 +765,10 @@ const char kIOSEnableRealtimeEventReportingDescription[] =
     "When enabled, realtime events will be reported to the user's "
     "organization.";
 
+const char kIOSExpandedSetupListName[] = "Expanded Setup List";
+const char kIOSExpandedSetupListDescription[] =
+    "Enables a feature that adds new items in the Setup List.";
+
 const char kIOSExpandedTipsName[] = "Expanded Tips Notifications";
 const char kIOSExpandedTipsDescription[] =
     "Enables a feature that adds several new Tips Notifications that can be "
@@ -806,11 +805,6 @@ const char kIOSOmniboxAimShortcutName[] = "Enable the omnibox aim shortcut";
 const char kIOSOmniboxAimShortcutDescription[] =
     "When enabled, an aim shortcut entrypoint will be displayed when the "
     "omnibox is on edit mode.";
-
-const char kIOSOneTapMiniMapRemoveSectionBreaksName[] =
-    "Remove section break for address detection.";
-const char kIOSOneTapMiniMapRemoveSectionBreaksDescription[] =
-    "Replace section break by spaces when detecting addresses.";
 
 const char kIOSOneTapMiniMapRestrictionsName[] =
     "Revalidate detected addresses for one tap Mini Map.";
@@ -1365,23 +1359,10 @@ const char kRcapsDynamicProfileCountryDescription[] =
     "When enabled, Chrome updates the country associated with "
     "the profile on open";
 
-const char kReaderModeName[] = "Enables Reader Mode";
-const char kReaderModeDescription[] =
-    "Enables Reader Mode UI and entry points.";
-
-const char kReaderModeNewCssName[] = "Reader mode new CSS on iOS";
-const char kReaderModeNewCssDescription[] =
-    "Enables the new CSS for Reader mode on iOS.";
-
 const char kReaderModeOmniboxEntrypointInUSName[] =
     "Reader Mode Omnibox Entrypoint In US";
 const char kReaderModeOmniboxEntrypointInUSDescription[] =
     "Enables the omnibox entrypoint for Reader Mode for users in the US.";
-
-const char kReaderModeOmniboxEntrypointName[] =
-    "Reader Mode Omnibox Entrypoint";
-const char kReaderModeOmniboxEntrypointDescription[] =
-    "Enables an entrypoint in the Omnibox for Reader Mode.";
 
 const char kReaderModeOptimizationGuideEligibilityName[] =
     "Enables Reader Mode Optimization Guide Eligibility";
@@ -1401,10 +1382,6 @@ const char kReaderModeReadabilityHeuristicDescription[] =
 const char kReaderModeSupportNewFontsName[] = "Reader Mode support new fonts";
 const char kReaderModeSupportNewFontsDescription[] =
     "Enables new accessible font options in Reader Mode.";
-
-const char kReaderModeTranslationName[] = "Enables Reader Mode Translation";
-const char kReaderModeTranslationDescription[] =
-    "Enables translation of web pages in Reader Mode.";
 
 const char kReaderModeTranslationWithInfobarName[] =
     "Enables Reader Mode Translation Settings";

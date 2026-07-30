@@ -886,6 +886,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser.notifications") {
   sources = [
     "src/org/chromium/chrome/browser/notifications/NotificationPlatformBridgeIntentTest.java",
     "src/org/chromium/chrome/browser/notifications/NotificationPlatformBridgeTest.java",
+    "src/org/chromium/chrome/browser/notifications/TipsNotificationsFeaturePromoTest.java",
     "src/org/chromium/chrome/browser/notifications/channels/SiteChannelsManagerTest.java",
   ]
 
@@ -1101,6 +1102,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser.permissions") {
     "src/org/chromium/chrome/browser/permissions/MIDITest.java",
     "src/org/chromium/chrome/browser/permissions/MediaTest.java",
     "src/org/chromium/chrome/browser/permissions/NotificationTest.java",
+    "src/org/chromium/chrome/browser/permissions/PermissionClapperQuietTest.java",
     "src/org/chromium/chrome/browser/permissions/PermissionNavigationTest.java",
     "src/org/chromium/chrome/browser/permissions/PermissionPromptRenderTest.java",
     "src/org/chromium/chrome/browser/permissions/PermissionUpdateMessageTest.java",
@@ -1225,6 +1227,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser.signin") {
     "src/org/chromium/chrome/browser/signin/SigninHeaderTest.java",
     "src/org/chromium/chrome/browser/signin/SigninManagerIntegrationTest.java",
     "src/org/chromium/chrome/browser/signin/SigninSignoutIntegrationTest.java",
+    "src/org/chromium/chrome/browser/signin/SigninSurveyControllerTest.java",
   ]
 
   deps = [ ":chrome_test_java_helper" ]

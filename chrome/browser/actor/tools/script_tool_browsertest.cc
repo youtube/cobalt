@@ -52,8 +52,11 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTestScriptTool, Basic) {
   const auto& action_results = result.Get<2>();
   ASSERT_EQ(action_results.size(), 1u);
   ASSERT_TRUE(action_results.at(0).result->script_tool_response);
-  EXPECT_EQ(*action_results.at(0).result->script_tool_response,
+  EXPECT_EQ(action_results.at(0).result->script_tool_response->result,
             "This is an example sentence.");
+  EXPECT_EQ(action_results.at(0).result->script_tool_response->name, "echo");
+  EXPECT_EQ(action_results.at(0).result->script_tool_response->input_arguments,
+            input_arguments);
 }
 
 IN_PROC_BROWSER_TEST_F(ActorToolsTestScriptTool, BadToolName) {
@@ -88,8 +91,13 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTestScriptTool, ProvideContext) {
   const auto& echo_action_results = echo_result.Get<2>();
   ASSERT_EQ(echo_action_results.size(), 1u);
   ASSERT_TRUE(echo_action_results.at(0).result->script_tool_response);
-  EXPECT_EQ(*echo_action_results.at(0).result->script_tool_response,
+  EXPECT_EQ(echo_action_results.at(0).result->script_tool_response->result,
             "Hello World");
+  EXPECT_EQ(echo_action_results.at(0).result->script_tool_response->name,
+            "echo");
+  EXPECT_EQ(
+      echo_action_results.at(0).result->script_tool_response->input_arguments,
+      echo_input);
 
   const std::string reverse_input =
       R"JSON(
@@ -104,8 +112,13 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTestScriptTool, ProvideContext) {
   const auto& reverse_action_results = reverse_result.Get<2>();
   ASSERT_EQ(reverse_action_results.size(), 1u);
   ASSERT_TRUE(reverse_action_results.at(0).result->script_tool_response);
-  EXPECT_EQ(*reverse_action_results.at(0).result->script_tool_response,
+  EXPECT_EQ(reverse_action_results.at(0).result->script_tool_response->result,
             "321cba");
+  EXPECT_EQ(reverse_action_results.at(0).result->script_tool_response->name,
+            "reverse");
+  EXPECT_EQ(reverse_action_results.at(0)
+                .result->script_tool_response->input_arguments,
+            reverse_input);
 }
 
 IN_PROC_BROWSER_TEST_F(ActorToolsTestScriptTool, ClearContext) {
@@ -132,6 +145,47 @@ IN_PROC_BROWSER_TEST_F(ActorToolsTestScriptTool, ClearContext) {
                    echo_result_after_clear.GetCallback());
   ExpectErrorResult(echo_result_after_clear,
                     mojom::ActionResultCode::kScriptToolInvalidName);
+}
+
+IN_PROC_BROWSER_TEST_F(ActorToolsTestScriptTool, DeclarativeTool) {
+  const GURL url =
+      embedded_test_server()->GetURL("/actor/declarative_script_tool.html");
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
+
+  const std::string declarative_input =
+      R"JSON(
+        {
+          "text": "text #1",
+          "text2": "text #2",
+          "select": "Option 2"
+        }
+      )JSON";
+  auto action = MakeScriptToolRequest(*main_frame(), "declarative_tool",
+                                      declarative_input);
+  ActResultFuture result;
+  actor_task().Act(ToRequestList(action), result.GetCallback());
+  ExpectOkResult(result);
+
+  // These should eventually pass, once form filling takes place:
+  EXPECT_EQ("text #1",
+            EvalJs(web_contents(), "document.getElementById('text1').value"));
+  EXPECT_EQ("text #2",
+            EvalJs(web_contents(), "document.getElementById('text2').value"));
+  EXPECT_EQ("This is option 2",
+            EvalJs(web_contents(),
+                   "document.getElementById('select').options[document."
+                   "getElementById('select').selectedIndex].textContent"));
+
+  const auto& action_results = result.Get<2>();
+  ASSERT_EQ(action_results.size(), 1u);
+  ASSERT_TRUE(action_results.at(0).result->script_tool_response);
+  EXPECT_EQ(action_results.at(0).result->script_tool_response->name,
+            "declarative_tool");
+  EXPECT_EQ(action_results.at(0).result->script_tool_response->input_arguments,
+            declarative_input);
+  // This response is a placeholder until values are retrieved from the site.
+  EXPECT_EQ(action_results.at(0).result->script_tool_response->result,
+            "The form was filled. The user now needs to submit it.");
 }
 
 }  // namespace

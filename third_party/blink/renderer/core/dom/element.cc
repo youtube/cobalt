@@ -224,6 +224,7 @@
 #include "third_party/blink/renderer/core/keywords.h"
 #include "third_party/blink/renderer/core/layout/adjust_for_absolute_zoom.h"
 #include "third_party/blink/renderer/core/layout/forms/layout_fieldset.h"
+#include "third_party/blink/renderer/core/layout/layout_inline.h"
 #include "third_party/blink/renderer/core/layout/layout_text_combine.h"
 #include "third_party/blink/renderer/core/layout/layout_text_fragment.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
@@ -634,9 +635,7 @@ const AtomicString& V8ShadowRootModeToString(V8ShadowRootMode::Enum mode) {
 Element::Element(const QualifiedName& tag_name,
                  Document* document,
                  ConstructionType type)
-    : ContainerNode(document, type),
-      tag_name_(tag_name),
-      computed_style_(nullptr) {}
+    : ContainerNode(document, type), tag_name_(tag_name) {}
 
 Element* Element::GetAnimationTarget() {
   return this;
@@ -4508,7 +4507,7 @@ void Element::RemovedFrom(ContainerNode& insertion_point) {
   // We do this outside of the OverscrollCommandTargets check since we could,
   // for instance, remove the element's id first and then remove it from the
   // DOM.
-  if (auto* container = OverscrollContainer()) {
+  if (auto* container = GetOverscrollContainer()) {
     container->GetOverscrollAreaTracker()->RemoveOverscroll(this);
   }
 
@@ -4537,6 +4536,38 @@ void Element::DetachColumnPseudoElements(bool performing_reattach) {
 void Element::AttachLayoutTree(AttachContext& context) {
   DCHECK(GetDocument().InStyleRecalc() ||
          GetDocument().GetStyleEngine().InScrollMarkersAttachment());
+
+  // Elements that are the targets of toggle-overscroll buttons are added
+  // as direct children of the ::-internal-overscroll-area-parent
+  // pseudo-element generated for them. E.g.
+  // <div id=container overscrollcontainer>
+  //   <div id=menu></div>
+  //   <button id=button command=toggle-overscroll commandfor=menu></button>
+  // </div>
+  // Generates the following layout structure:
+  // - #container
+  //   - ::-internal-overscroll-area-parent
+  //     - #menu
+  //   - #button
+  if (Element* container = GetOverscrollContainer()) {
+    if (!context.parent->IsPseudo(kPseudoIdOverscrollAreaParent)) {
+      AttachContext overscroll_area_context(context);
+      wtf_size_t index =
+          container->GetOverscrollAreaTracker()->DOMSortedElements().Find(this);
+      PseudoElement* pseudo_element =
+          container->GetOverscrollAreaParentPseudoElements()->at(index);
+      CHECK(pseudo_element->GetPseudoId() == kPseudoIdOverscrollAreaParent);
+      overscroll_area_context.parent = pseudo_element->GetLayoutObject();
+      overscroll_area_context.previous_in_flow = nullptr;
+      overscroll_area_context.next_sibling = nullptr;
+      overscroll_area_context.next_sibling_valid = true;
+      AttachLayoutTree(overscroll_area_context);
+      return;
+    } else {
+      CHECK(To<PseudoElement>(context.parent->GetNode())
+                ->UltimateOriginatingElement() == container);
+    }
+  }
 
   StyleEngine& style_engine = GetDocument().GetStyleEngine();
 
@@ -5451,19 +5482,19 @@ StyleRecalcChange Element::RecalcOwnStyle(
 
   // If we have an overscroll container, but it's the wrong one or we shouldn't
   // have one, remove this element from the overscroll container (which should
-  // also clear OverscrollContainer() on `this`).
-  if (OverscrollContainer() &&
+  // also clear GetOverscrollContainer() on `this`).
+  if (GetOverscrollContainer() &&
       (!new_style || !new_style->IsInternalOverscrollPositionAuto() ||
-       OverscrollContainer() != style_recalc_context.overscroll_container)) {
-    auto* tracker = OverscrollContainer()->GetOverscrollAreaTracker();
-    // We should've created a tracker when we set the OverscrollContainer on
+       GetOverscrollContainer() != style_recalc_context.overscroll_container)) {
+    auto* tracker = GetOverscrollContainer()->GetOverscrollAreaTracker();
+    // We should've created a tracker when we set the GetOverscrollContainer on
     // `this`.
     CHECK(tracker);
     tracker->RemoveOverscroll(this);
   }
   // If we no longer an overscroll container, but need one, add this element to
   // the context overscroll container.
-  if (!OverscrollContainer() && new_style &&
+  if (!GetOverscrollContainer() && new_style &&
       new_style->IsInternalOverscrollPositionAuto()) {
     // Note that we don't do anything special if there is no overscroll
     // container.
@@ -5748,7 +5779,20 @@ StyleRecalcChange Element::RecalcOwnStyle(
       // was available.
       apply_changes = LayoutObject::ApplyStyleChanges::kYes;
     }
+
+    const bool needs_reinsert =
+        RuntimeEnabledFeatures::LayoutReinsertOnInFlowStateChangeEnabled() &&
+        ComputedStyle::NeedsReinsertLayoutTree(*old_style, *layout_style);
+    if (needs_reinsert) {
+      layout_object->Remove();
+    }
     layout_object->SetStyle(layout_style, apply_changes);
+    if (needs_reinsert) {
+      LayoutTreeBuilderTraversal::ParentLayoutObject(*this)->AddChild(
+          layout_object,
+          LayoutTreeBuilderTraversal::NextSiblingLayoutObject(*this));
+      layout_object->UpdateAfterReinsert(*old_style);
+    }
   }
 
   return child_change;
@@ -6959,9 +7003,10 @@ void Element::SetNeedsCompositingUpdate() {
     return;
   }
 
-  auto* painting_layer = layout_object->PaintingLayer();
   // Repaint because the foreign layer may have changed.
-  painting_layer->SetNeedsRepaint();
+  if (auto* painting_layer = layout_object->PaintingLayer()) {
+    painting_layer->SetNeedsRepaint();
+  }
 
   // Changes to AdditionalCompositingReasons can change direct compositing
   // reasons which affect paint properties.
@@ -6991,6 +7036,46 @@ const RegionCaptureCropId* Element::GetRegionCaptureCropId() const {
     return data->GetRegionCaptureCropId();
   }
   return nullptr;
+}
+
+void Element::SetTrackedElementRect(std::unique_ptr<TrackedElementRect> rect) {
+  ElementRareDataVector& rare_data = EnsureElementRareData();
+  CHECK(!rare_data.GetTrackedElementRect());
+
+  rare_data.SetTrackedElementRect(std::move(rect));
+
+  // If a LayoutObject does not yet exist, this full paint invalidation
+  // will occur automatically after it is created.
+  if (LayoutObject* layout_object = GetLayoutObject()) {
+    // The highlight data needs to be propagated to the paint system.
+    layout_object->SetShouldDoFullPaintInvalidation();
+    if (auto* layout_inline = DynamicTo<LayoutInline>(layout_object)) {
+      layout_inline->UpdateShouldCreateBoxFragment();
+    }
+  }
+}
+
+const TrackedElementRect* Element::GetTrackedElementRect() const {
+  if (const ElementRareDataVector* data = GetElementRareData()) {
+    return data->GetTrackedElementRect();
+  }
+  return nullptr;
+}
+
+void Element::ClearTrackedElementRect() {
+  if (ElementRareDataVector* data = GetElementRareData()) {
+    data->ClearTrackedElementRect();
+  }
+
+  // If a LayoutObject does not yet exist, this full paint invalidation
+  // will occur automatically after it is created.
+  if (LayoutObject* layout_object = GetLayoutObject()) {
+    // The lack of highlight data needs to be propagated to the paint system.
+    layout_object->SetShouldDoFullPaintInvalidation();
+    if (auto* layout_inline = DynamicTo<LayoutInline>(layout_object)) {
+      layout_inline->UpdateShouldCreateBoxFragment();
+    }
+  }
 }
 
 void Element::SetRestrictionTargetId(std::unique_ptr<RestrictionTargetId> id) {
@@ -13393,7 +13478,7 @@ OverscrollAreaTracker* Element::GetOverscrollAreaTracker() const {
   return nullptr;
 }
 
-Element* Element::OverscrollContainer() const {
+Element* Element::GetOverscrollContainer() const {
   if (const ElementRareDataVector* data = GetElementRareData()) {
     return data->GetOverscrollContainer();
   }

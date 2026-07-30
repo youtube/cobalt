@@ -282,36 +282,16 @@ BrowserLayoutParams BrowserFrameViewChromeOS::GetBrowserLayoutParams() const {
   }
   if (GetShowCaptionButtonsWhenNotInOverview()) {
     const auto caption_bounds = caption_button_container_->bounds();
-    // When the tabstrip is present, the caption button container is cut down to
-    // the preferred height of the tabstrip.
-    const int tabstrip_height = GetBrowserView()->GetTabStripHeight();
-    const int height =
-        tabstrip_height ? tabstrip_height : caption_bounds.height();
+    // Cut the caption buttons down to the maximum height of the tabstrip if
+    // present.
+    const auto elements = GetClientFrameElementInfo();
+    const int height = elements.tabstrip_preferred_height
+                           ? elements.tabstrip_preferred_height
+                           : caption_bounds.height();
     params.trailing_exclusion.content =
         gfx::SizeF(width() - caption_bounds.x(), height);
   }
   return params;
-}
-
-gfx::Rect BrowserFrameViewChromeOS::GetBoundsForTabStripRegion(
-    const gfx::Size& tabstrip_minimum_size) const {
-  const int left_inset = GetTabStripLeftInset();
-  const bool restored =
-      !browser_widget()->IsMaximized() && !browser_widget()->IsFullscreen();
-  return gfx::Rect(left_inset, GetTopInset(restored),
-                   std::max(0, width() - left_inset - GetTabStripRightInset()),
-                   tabstrip_minimum_size.height());
-}
-
-gfx::Rect BrowserFrameViewChromeOS::GetBoundsForWebAppFrameToolbar(
-    const gfx::Size& toolbar_preferred_size) const {
-  const int x = GetToolbarLeftInset();
-  const int available_width = caption_button_container_->x() - x;
-  int painted_height = GetTopInset(false);
-  if (GetBrowserView()->GetTabStripVisible()) {
-    painted_height += GetBrowserView()->GetTabStripHeight();
-  }
-  return gfx::Rect(x, 0, std::max(0, available_width), painted_height);
 }
 
 bool BrowserFrameViewChromeOS::ShouldShowWebAppFrameToolbar() const {
@@ -338,7 +318,7 @@ int BrowserFrameViewChromeOS::GetTopInset(bool restored) const {
         ImmersiveModeController::From(GetBrowserView()->browser());
     if (immersive_controller->IsEnabled() &&
         !immersive_controller->IsRevealed()) {
-      return (-1) * GetBrowserView()->GetTabStripHeight();
+      return (-1) * GetClientFrameElementInfo().top_area_height();
     }
 
     // The header isn't painted for restored popup/app windows in overview mode,
@@ -461,10 +441,7 @@ int BrowserFrameViewChromeOS::NonClientHitTest(const gfx::Point& point) {
     View::ConvertPointToTarget(this, browser_widget()->client_view(),
                                &client_point);
     gfx::Rect tabstrip_shadow_bounds(
-        GetBrowserView()
-            ->tab_strip_view()
-            ->GetViewByElementId(kTabStripElementId)
-            ->bounds());
+        GetBrowserView()->tab_strip_view()->GetTabStripView()->bounds());
     constexpr int kTabShadowHeight = 4;
     tabstrip_shadow_bounds.set_height(kTabShadowHeight);
     if (tabstrip_shadow_bounds.Contains(client_point)) {
@@ -534,10 +511,9 @@ void BrowserFrameViewChromeOS::Layout(PassKey) {
     frame_header_->LayoutHeader();
   }
 
-  int painted_height = GetTopInset(false);
-  if (GetBrowserView()->GetTabStripVisible()) {
-    painted_height += GetBrowserView()->GetTabStripHeight();
-  }
+  const int painted_height =
+      GetTopInset(false) +
+      GetClientFrameElementInfo().tabstrip_preferred_height;
 
   if (frame_header_) {
     frame_header_->SetHeaderHeightForPainting(painted_height);
@@ -1174,7 +1150,7 @@ void BrowserFrameViewChromeOS::UpdateWindowRoundedCorners() {
 void BrowserFrameViewChromeOS::LayoutProfileIndicator() {
   DCHECK(profile_indicator_icon_);
   const int frame_height =
-      GetTopInset(false) + GetBrowserView()->GetTabStripHeight();
+      GetTopInset(false) + GetClientFrameElementInfo().top_area_height();
   profile_indicator_icon_->SetPosition(
       gfx::Point(kProfileIndicatorPadding,
                  (frame_height - profile_indicator_icon_->height()) / 2));

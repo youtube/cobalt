@@ -5,10 +5,11 @@
 #include "chrome/browser/ui/omnibox/omnibox_context_menu_controller.h"
 
 #include "chrome/app/chrome_command_ids.h"
+#include "chrome/browser/ui/omnibox/omnibox_popup_state_manager.h"
 #include "components/contextual_search/contextual_search_types.h"
 #include "components/lens/lens_overlay_mime_type.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/omnibox_proto/aim_tools_and_models.pb.h"
+#include "third_party/omnibox_proto/aim_tools.pb.h"
 
 TEST(OmniboxContextMenuControllerTest, IsCommandIdEnabledHelper_InitialState) {
   std::vector<contextual_search::FileInfo> file_infos;
@@ -16,20 +17,20 @@ TEST(OmniboxContextMenuControllerTest, IsCommandIdEnabledHelper_InitialState) {
 
   EXPECT_TRUE(OmniboxContextMenuController::IsCommandIdEnabledHelper(
       IDC_OMNIBOX_CONTEXT_ADD_IMAGE,
-      omnibox::ChromeAimToolsAndModels::TOOL_MODE_UNSPECIFIED, file_infos,
-      max_num_files));
+      omnibox::ToolMode::TOOL_MODE_UNSPECIFIED, file_infos,
+      max_num_files, OmniboxPopupState::kNone));
   EXPECT_TRUE(OmniboxContextMenuController::IsCommandIdEnabledHelper(
       IDC_OMNIBOX_CONTEXT_ADD_FILE,
-      omnibox::ChromeAimToolsAndModels::TOOL_MODE_UNSPECIFIED, file_infos,
-      max_num_files));
+      omnibox::ToolMode::TOOL_MODE_UNSPECIFIED, file_infos,
+      max_num_files, OmniboxPopupState::kNone));
   EXPECT_TRUE(OmniboxContextMenuController::IsCommandIdEnabledHelper(
       IDC_OMNIBOX_CONTEXT_DEEP_RESEARCH,
-      omnibox::ChromeAimToolsAndModels::TOOL_MODE_UNSPECIFIED, file_infos,
-      max_num_files));
+      omnibox::ToolMode::TOOL_MODE_UNSPECIFIED, file_infos,
+      max_num_files, OmniboxPopupState::kNone));
   EXPECT_TRUE(OmniboxContextMenuController::IsCommandIdEnabledHelper(
       IDC_OMNIBOX_CONTEXT_CREATE_IMAGES,
-      omnibox::ChromeAimToolsAndModels::TOOL_MODE_UNSPECIFIED, file_infos,
-      max_num_files));
+      omnibox::ToolMode::TOOL_MODE_UNSPECIFIED, file_infos,
+      max_num_files, OmniboxPopupState::kNone));
 }
 
 TEST(OmniboxContextMenuControllerTest, IsCommandIdEnabledHelper_ImageGenMode) {
@@ -38,12 +39,12 @@ TEST(OmniboxContextMenuControllerTest, IsCommandIdEnabledHelper_ImageGenMode) {
 
   EXPECT_TRUE(OmniboxContextMenuController::IsCommandIdEnabledHelper(
       IDC_OMNIBOX_CONTEXT_ADD_IMAGE,
-      omnibox::ChromeAimToolsAndModels::TOOL_MODE_IMAGE_GEN, file_infos,
-      max_num_files));
+      omnibox::ToolMode::TOOL_MODE_IMAGE_GEN, file_infos,
+      max_num_files, OmniboxPopupState::kNone));
   EXPECT_FALSE(OmniboxContextMenuController::IsCommandIdEnabledHelper(
       IDC_OMNIBOX_CONTEXT_ADD_FILE,
-      omnibox::ChromeAimToolsAndModels::TOOL_MODE_IMAGE_GEN, file_infos,
-      max_num_files));
+      omnibox::ToolMode::TOOL_MODE_IMAGE_GEN, file_infos,
+      max_num_files, OmniboxPopupState::kNone));
 }
 
 TEST(OmniboxContextMenuControllerTest, IsCommandIdEnabledHelper_WithImageFile) {
@@ -56,16 +57,16 @@ TEST(OmniboxContextMenuControllerTest, IsCommandIdEnabledHelper_WithImageFile) {
 
   EXPECT_FALSE(OmniboxContextMenuController::IsCommandIdEnabledHelper(
       IDC_OMNIBOX_CONTEXT_DEEP_RESEARCH,
-      omnibox::ChromeAimToolsAndModels::TOOL_MODE_UNSPECIFIED, file_infos,
-      max_num_files));
+      omnibox::ToolMode::TOOL_MODE_UNSPECIFIED, file_infos,
+      max_num_files, OmniboxPopupState::kNone));
   EXPECT_TRUE(OmniboxContextMenuController::IsCommandIdEnabledHelper(
       IDC_OMNIBOX_CONTEXT_CREATE_IMAGES,
-      omnibox::ChromeAimToolsAndModels::TOOL_MODE_UNSPECIFIED, file_infos,
-      max_num_files));
+      omnibox::ToolMode::TOOL_MODE_UNSPECIFIED, file_infos,
+      max_num_files, OmniboxPopupState::kNone));
   EXPECT_TRUE(OmniboxContextMenuController::IsCommandIdEnabledHelper(
       IDC_OMNIBOX_CONTEXT_ADD_IMAGE,
-      omnibox::ChromeAimToolsAndModels::TOOL_MODE_UNSPECIFIED, file_infos,
-      max_num_files));
+      omnibox::ToolMode::TOOL_MODE_UNSPECIFIED, file_infos,
+      max_num_files, OmniboxPopupState::kNone));
 }
 
 TEST(OmniboxContextMenuControllerTest,
@@ -79,12 +80,12 @@ TEST(OmniboxContextMenuControllerTest,
 
   EXPECT_FALSE(OmniboxContextMenuController::IsCommandIdEnabledHelper(
       IDC_OMNIBOX_CONTEXT_CREATE_IMAGES,
-      omnibox::ChromeAimToolsAndModels::TOOL_MODE_UNSPECIFIED, file_infos,
-      max_num_files));
+      omnibox::ToolMode::TOOL_MODE_UNSPECIFIED, file_infos,
+      max_num_files, OmniboxPopupState::kNone));
   EXPECT_TRUE(OmniboxContextMenuController::IsCommandIdEnabledHelper(
       IDC_OMNIBOX_CONTEXT_ADD_IMAGE,
-      omnibox::ChromeAimToolsAndModels::TOOL_MODE_UNSPECIFIED, file_infos,
-      max_num_files));
+      omnibox::ToolMode::TOOL_MODE_UNSPECIFIED, file_infos,
+      max_num_files, OmniboxPopupState::kNone));
 }
 
 TEST(OmniboxContextMenuControllerTest, IsCommandIdEnabledHelper_MaxFiles) {
@@ -98,10 +99,10 @@ TEST(OmniboxContextMenuControllerTest, IsCommandIdEnabledHelper_MaxFiles) {
   }
   EXPECT_FALSE(OmniboxContextMenuController::IsCommandIdEnabledHelper(
       IDC_OMNIBOX_CONTEXT_ADD_IMAGE,
-      omnibox::ChromeAimToolsAndModels::TOOL_MODE_UNSPECIFIED, file_infos,
-      max_num_files));
+      omnibox::ToolMode::TOOL_MODE_UNSPECIFIED, file_infos,
+      max_num_files, OmniboxPopupState::kNone));
   EXPECT_FALSE(OmniboxContextMenuController::IsCommandIdEnabledHelper(
       IDC_OMNIBOX_CONTEXT_ADD_FILE,
-      omnibox::ChromeAimToolsAndModels::TOOL_MODE_UNSPECIFIED, file_infos,
-      max_num_files));
+      omnibox::ToolMode::TOOL_MODE_UNSPECIFIED, file_infos,
+      max_num_files, OmniboxPopupState::kNone));
 }

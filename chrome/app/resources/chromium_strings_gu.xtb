@@ -356,6 +356,7 @@
 <translation id="4814736265800133385">એકાઉન્ટ વગર Chromiumનો ઉપયોગ કરો</translation>
 <translation id="4888717733111232871">mDNS ટ્રાફિકને મંજૂરી આપવા Chromium માટે ઇનબાઉન્ડ નિયમ.</translation>
 <translation id="4893347770495441059">&amp;Chromium અપડેટ કરવા માટે, ફરીથી લૉન્ચ કરો</translation>
+<translation id="4918086044614829423">સ્વીકારો</translation>
 <translation id="4918844574251943176">છબી કૉપિ કરી</translation>
 <translation id="4943838377383847465">Chromium બૅકગ્રાઉન્ડ મોડમાં છે.</translation>
 <translation id="494490797786467921">Chromiumમાં સાઇન ઇન કરવાનો સંવાદ બંધ કરવા માટે ક્લિક કરો</translation>
@@ -533,6 +534,9 @@
 <translation id="6901631050894301805">Chromiumને તમારા ડિફૉલ્ટ બ્રાઉઝર તરીકે સેટ કરો અને તેને તમારા ટાસ્કબાર પર પિન કરો</translation>
 <translation id="6909503629704372277">Chromium પ્રોફાઇલ મેનેજ કરો</translation>
 <translation id="6934579572334859869">'છબી વડે શોધ' સુવિધા વડે આ છબી વિશે પૂછો</translation>
+<translation id="6948031725951063910">તમે Chromiumની <ph name="BOOKMARK_LIMIT" /> બુકમાર્કની મર્યાદાએ પહોંચી ગયા છો, તેથી તમારા અમુક બુકમાર્ક હજી સુધી તમારા Google એકાઉન્ટમાં સાચવવામાં આવ્યા નથી.
+
+જ્યાં સુધી તમે અમુક બુકમાર્ક ડિલીટ ન કરો, ત્યાં સુધી નવા બુકમાર્ક તમારા એકાઉન્ટમાં સાચવી શકાશે નહીં. જો તમે હમણાં જ સાઇન આઉટ કરશો, તો ન સચવાયેલા બુકમાર્ક ડિલીટ કરવામાં આવશે.</translation>
 <translation id="6964305034639999644">Chromium છુ&amp;પી વિંડોમાં લિંક ખોલો</translation>
 <translation id="6965382102122355670">બરાબર, સમજાઇ ગયું</translation>
 <translation id="6978145336957848883">નબળા પાસવર્ડનું અનુમાન કરવું સરળ હોય છે. Chromiumને <ph name="BEGIN_LINK" />તમારા માટે સશક્ત પાસવર્ડ બનાવવા અને યાદ રાખવા<ph name="END_LINK" />ની મંજૂરી આપો.</translation>
@@ -634,6 +638,7 @@ Chromium તમારા સેટિંગને રિકવર શકતુ�
 <translation id="8118331347066725040">'Lens વડે શોધો' માટે પ્રતિસાદ મોકલો</translation>
 <translation id="8133124826068723441">તમારા ડોમેન પર સિંકની સુવિધા ઉપલબ્ધ ન હોવાને કારણે ChromiumOS તમારા ડેટાને સિંક કરી શક્યું નથી.</translation>
 <translation id="813913629614996137">પ્રારંભ કરી રહ્યું છે...</translation>
+<translation id="8164014945047474187">Chromiumની વધારાની સેવાની શરતો</translation>
 <translation id="81770708095080097">આ ફાઇલ જોખમી છે, તેથી Chromium એ તેને અવરોધિત કરેલ છે.</translation>
 <translation id="8177472873527554730">પેજમાં કન્ટેન્ટ શોધી શકાતું નથી</translation>
 <translation id="8200109504272824693">તમારા <ph name="USER_EMAIL" /> એકાઉન્ટમાં Chromium ડેટાનો ઉપયોગ કરવા અને તેને સાચવવા માટે તમારો પાસફ્રેઝ દાખલ કરો</translation>
@@ -701,6 +706,7 @@ Chromium તમારા સેટિંગને રિકવર શકતુ�
 <translation id="8880203542552872219">જો એવું હોય, તો કૃપા કરીને Chromiumમાં તમારા સાચવેલા પાસવર્ડમાં ફેરફાર કરો જેથી તે તમારા નવા પાસવર્ડ સાથે મેળ ખાય.</translation>
 <translation id="8891709362986793894">તમારી સંસ્થા માટે જરૂરી છે કે તમે Chromiumમાં સાઇન ઇન કરો</translation>
 <translation id="8907580949721785412">Chromium પાસવર્ડ્સ બતાવવાનો પ્રયાસ કરી રહ્યું છે. આની મંજૂરી આપવા માટે તમારો Windows પાસવર્ડ લખો.</translation>
+<translation id="8932992523185907506">Chromium હવેથી તમારું ડિફૉલ્ટ બ્રાઉઝર નથી. Chromiumને ડિફૉલ્ટ બ્રાઉઝર બનાવીએ?</translation>
 <translation id="8941642502866065432">Chromium અપડેટ કરી શકતાં નથી</translation>
 <translation id="897581876605952338">Chromium Enterpriseનો લોગો</translation>
 <translation id="8981150672034878610">તમારી પ્રોફાઇલ ખોલતી વખતે કંઈક ખોટું થયું હોવાને કારણે Chromium શરૂ કરી શકાતું નથી. Chromium ફરી શરૂ કરવાનો પ્રયાસ કરો.</translation>

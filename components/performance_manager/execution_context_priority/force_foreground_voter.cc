@@ -6,7 +6,6 @@
 
 #include <utility>
 
-#include "base/containers/contains.h"
 #include "base/not_fatal_until.h"
 #include "components/performance_manager/public/execution_context/execution_context.h"
 #include "components/performance_manager/public/graph/graph.h"
@@ -67,7 +66,7 @@ void ForceForegroundVoter::AddVoteForExecutionContext(
     const execution_context::ExecutionContext* execution_context) {
   voting_channel_.SubmitVote(
       execution_context,
-      Vote(base::TaskPriority::USER_BLOCKING, kForceForegroundReason));
+      Vote(base::Process::Priority::kUserBlocking, kForceForegroundReason));
 }
 
 void ForceForegroundVoter::RemoveVoteForExecutionContext(

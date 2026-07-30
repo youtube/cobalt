@@ -7,7 +7,6 @@
 #include <string>
 #include <vector>
 
-#include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/task/sequenced_task_runner.h"
@@ -50,8 +49,7 @@ void UsbServiceAndroid::DeviceAttached(JNIEnv* env,
   NotifyDeviceAdded(device);
 }
 
-void UsbServiceAndroid::DeviceDetached(JNIEnv* env,
-                                       jint device_id) {
+void UsbServiceAndroid::DeviceDetached(JNIEnv* env, int32_t device_id) {
   auto it = devices_by_id_.find(device_id);
   if (it == devices_by_id_.end())
     return;
@@ -68,7 +66,7 @@ void UsbServiceAndroid::DeviceDetached(JNIEnv* env,
 }
 
 void UsbServiceAndroid::DevicePermissionRequestComplete(JNIEnv* env,
-                                                        jint device_id,
+                                                        int32_t device_id,
                                                         bool granted) {
   const auto it = devices_by_id_.find(device_id);
   if (it == devices_by_id_.end()) {
@@ -95,8 +93,8 @@ void UsbServiceAndroid::RequestDevicePermission(
 }
 
 void UsbServiceAndroid::AddDevice(scoped_refptr<UsbDeviceAndroid> device) {
-  DCHECK(!base::Contains(devices_by_id_, device->device_id()));
-  DCHECK(!base::Contains(devices(), device->guid()));
+  DCHECK(!devices_by_id_.contains(device->device_id()));
+  DCHECK(!devices().contains(device->guid()));
   devices_by_id_[device->device_id()] = device;
   devices()[device->guid()] = device;
 

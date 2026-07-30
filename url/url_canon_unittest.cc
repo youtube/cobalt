@@ -1371,11 +1371,14 @@ DualComponentCase kCommonPathCases[] = {
     // we should not be able to go above the root
     {"/foo/../../..", L"/foo/../../..", "/", Component(0, 1), true},
     {"/foo/../../../ton", L"/foo/../../../ton", "/ton", Component(0, 4), true},
-    // escaped dots should be unescaped and treated the same as dots
+    // %2E in navigation (/./ and /../) is decoded; otherwise preserved with
+    // original case.
     {"/foo/%2e", L"/foo/%2e", "/foo/", Component(0, 5), true},
-    {"/foo/%2e%2", L"/foo/%2e%2", "/foo/.%2", Component(0, 8), true},
+    {"/foo/%2e%2", L"/foo/%2e%2", "/foo/%2e%2", Component(0, 10), true},
     {"/foo/%2e./%2e%2e/.%2e/%2e.bar", L"/foo/%2e./%2e%2e/.%2e/%2e.bar",
-     "/..bar", Component(0, 6), true},
+     "/%2e.bar", Component(0, 8), true},
+    {"/foo%2Ebar", L"/foo%2Ebar", "/foo%2Ebar", Component(0, 10), true},
+    {"/foo%2ehtml", L"/foo%2ehtml", "/foo%2ehtml", Component(0, 11), true},
     // Multiple slashes in a row should be preserved and treated like empty
     // directory names.
     {"////../..", L"////../..", "//", Component(0, 2), true},
@@ -1546,6 +1549,62 @@ TEST_F(URLCanonTest, PartialPath) {
              CanonicalizePartialPath);
   DoPathTest(partial_path_cases, CanonicalizePartialPath,
              CanonicalizePartialPath);
+}
+
+// Test that when kPreservePercentEncodedDotInPath is disabled, %2E is decoded
+// to a literal dot (the old, non-WHATWG-compliant behavior). This ensures the
+// kill switch works correctly.
+class URLCanonPathPreservePercentEncodedDotDisabledTest
+    : public ::testing::Test {
+ public:
+  URLCanonPathPreservePercentEncodedDotDisabledTest() {
+    scoped_feature_list_.InitAndDisableFeature(
+        kPreservePercentEncodedDotInPath);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+TEST_F(URLCanonPathPreservePercentEncodedDotDisabledTest, DecodesPercentDot) {
+  // When the feature is disabled, %2E should be decoded to a literal dot.
+  DualComponentCase path_cases[] = {
+      // %2E not in navigation context should be decoded to a literal dot.
+      {"/foo%2Ebar", L"/foo%2Ebar", "/foo.bar", Component(0, 8), true},
+      {"/foo%2ehtml", L"/foo%2ehtml", "/foo.html", Component(0, 9), true},
+      // %2E followed by incomplete escape sequence should decode %2E to dot.
+      {"/foo/%2e%2", L"/foo/%2e%2", "/foo/.%2", Component(0, 8), true},
+      // Multiple %2E in navigation context.
+      {"/foo/%2e./%2e%2e/.%2e/%2e.bar", L"/foo/%2e./%2e%2e/.%2e/%2e.bar",
+       "/..bar", Component(0, 6), true},
+  };
+
+  for (const auto& path_case : path_cases) {
+    SCOPED_TRACE(path_case.input8);
+
+    if (path_case.input8) {
+      std::string out_str;
+      StdStringCanonOutput output(&out_str);
+      Component out_comp;
+      bool success =
+          CanonicalizeSpecialPath(path_case.input8, &output, &out_comp);
+      output.Complete();
+      EXPECT_EQ(path_case.expected_success, success);
+      EXPECT_EQ(path_case.expected, out_str);
+    }
+
+    if (path_case.input16) {
+      std::u16string input16(
+          test_utils::TruncateWStringToUTF16(path_case.input16));
+      std::string out_str;
+      StdStringCanonOutput output(&out_str);
+      Component out_comp;
+      bool success = CanonicalizeSpecialPath(input16, &output, &out_comp);
+      output.Complete();
+      EXPECT_EQ(path_case.expected_success, success);
+      EXPECT_EQ(path_case.expected, out_str);
+    }
+  }
 }
 
 TEST_F(URLCanonTest, Query) {
@@ -2375,14 +2434,13 @@ TEST_F(URLCanonTest, CanonicalizePathUrl) {
   };
 
   for (const auto& path_case : path_cases) {
-    int url_len = static_cast<int>(strlen(path_case.input));
+    std::string_view input_view(path_case.input);
 
     Parsed out_parsed;
     std::string out_str;
     StdStringCanonOutput output(&out_str);
-    bool success = CanonicalizePathUrl(path_case.input,
-                                       ParsePathUrl(path_case.input, true),
-                                       &output, &out_parsed);
+    bool success = CanonicalizePathUrl(
+        path_case.input, ParsePathUrl(input_view, true), &output, &out_parsed);
     output.Complete();
 
     EXPECT_TRUE(success);
@@ -2392,7 +2450,7 @@ TEST_F(URLCanonTest, CanonicalizePathUrl) {
     EXPECT_EQ(-1, out_parsed.host.len);
 
     // When we end with a colon at the end, there should be no path.
-    if (UNSAFE_TODO(path_case.input[url_len - 1]) == ':') {
+    if (input_view.ends_with(':')) {
       EXPECT_EQ(0, out_parsed.GetContent().begin);
       EXPECT_EQ(-1, out_parsed.GetContent().len);
     }
@@ -2528,35 +2586,35 @@ TEST_F(URLCanonTest, _itoa_s) {
   // null-terminated. We also allocate one byte more than what we tell
   // _itoa_s about, and ensure that the extra byte is untouched.
   char buf[6];
-  UNSAFE_TODO(memset(buf, 0xff, sizeof(buf)));
+  std::ranges::fill(buf, 0xff);
   EXPECT_EQ(0, _itoa_s(12, buf, sizeof(buf) - 1, 10));
   EXPECT_STREQ("12", buf);
   EXPECT_EQ('\xFF', buf[3]);
 
   // Test the edge cases - exactly the buffer size and one over
-  UNSAFE_TODO(memset(buf, 0xff, sizeof(buf)));
+  std::ranges::fill(buf, 0xff);
   EXPECT_EQ(0, _itoa_s(1234, buf, sizeof(buf) - 1, 10));
   EXPECT_STREQ("1234", buf);
   EXPECT_EQ('\xFF', buf[5]);
 
-  UNSAFE_TODO(memset(buf, 0xff, sizeof(buf)));
+  std::ranges::fill(buf, 0xff);
   EXPECT_EQ(EINVAL, _itoa_s(12345, buf, sizeof(buf) - 1, 10));
   EXPECT_EQ('\xFF', buf[5]);  // should never write to this location
 
   // Test the template overload (note that this will see the full buffer)
-  UNSAFE_TODO(memset(buf, 0xff, sizeof(buf)));
+  std::ranges::fill(buf, 0xff);
   EXPECT_EQ(0, _itoa_s(12, buf, 10));
   EXPECT_STREQ("12", buf);
   EXPECT_EQ('\xFF', buf[3]);
 
-  UNSAFE_TODO(memset(buf, 0xff, sizeof(buf)));
+  std::ranges::fill(buf, 0xff);
   EXPECT_EQ(0, _itoa_s(12345, buf, 10));
   EXPECT_STREQ("12345", buf);
 
   EXPECT_EQ(EINVAL, _itoa_s(123456, buf, 10));
 
   // Test that radix 16 is supported.
-  UNSAFE_TODO(memset(buf, 0xff, sizeof(buf)));
+  std::ranges::fill(buf, 0xff);
   EXPECT_EQ(0, _itoa_s(1234, buf, sizeof(buf) - 1, 16));
   EXPECT_STREQ("4d2", buf);
   EXPECT_EQ('\xFF', buf[5]);

@@ -29,6 +29,7 @@
 #include "chrome/browser/web_applications/web_app_command_scheduler.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
+#include "chrome/browser/web_applications/web_app_icon_manager.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
@@ -224,7 +225,7 @@ TEST_F(ManifestSilentUpdateCommandTest, StartUrlUpdatedSilently) {
             "https://www.foo.bar/web_apps/basic.html");
 
   auto& new_manifest = GetPageManifest();
-  const GURL new_start_url("https://www.foo.bar/new_scope/new_basic.html");
+  const GURL new_start_url("https://www.foo.bar/web_apps/new_basic.html");
   new_manifest->start_url = new_start_url;
 
   EXPECT_EQ(RunManifestUpdateAndGetResult(),
@@ -348,7 +349,9 @@ TEST_F(ManifestSilentUpdateCommandTest, ScopeUpdatedSilently) {
 
   auto& new_manifest = GetPageManifest();
   const GURL new_scope("https://www.foo.bar/new_scope/");
+  const GURL new_start_url("https://www.foo.bar/new_scope/new_basic.html");
   new_manifest->scope = new_scope;
+  new_manifest->start_url = new_start_url;
 
   EXPECT_EQ(RunManifestUpdateAndGetResult(),
             ManifestSilentUpdateCheckResult::kAppSilentlyUpdated);
@@ -739,7 +742,7 @@ TEST_F(ManifestSilentUpdateCommandTest,
 
   auto& new_manifest = GetPageManifest();
   new_manifest->name = u"New Name";
-  const GURL new_start_url("https://www.foo.bar/new_scope/new_basic.html");
+  const GURL new_start_url("https://www.foo.bar/web_apps/new_basic.html");
   new_manifest->start_url = new_start_url;
 
   EXPECT_EQ(

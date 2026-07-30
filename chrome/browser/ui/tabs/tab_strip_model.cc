@@ -55,6 +55,7 @@
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/commerce/ui_utils.h"
 #include "chrome/browser/ui/send_tab_to_self/send_tab_to_self_bubble.h"
+#include "chrome/browser/ui/tab_ui_helper.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/organization/metrics.h"
 #include "chrome/browser/ui/tabs/organization/tab_organization_service.h"
@@ -1224,20 +1225,11 @@ void TabStripModel::UpdateWebContentsStateAt(int index,
 }
 
 void TabStripModel::SetTabNeedsAttentionAt(int index, bool attention) {
-  CHECK(ContainsIndex(index));
+  tabs::TabInterface* tab = GetTabAtIndex(index);
+  TabUIHelper::From(tab)->set_needs_attention(attention);
 
   for (auto& observer : observers_) {
-    observer.OnTabNeedsAttentionChanged(index, attention);
-  }
-}
-
-void TabStripModel::SetTabGroupNeedsAttention(
-    const tab_groups::TabGroupId& group,
-    bool attention) {
-  CHECK(group_model_->ContainsTabGroup(group));
-
-  for (auto& observer : observers_) {
-    observer.OnTabGroupNeedsAttentionChanged(group, attention);
+    observer.OnTabChangedAt(tab, index, TabChangeType::kAttentionOnly);
   }
 }
 
@@ -2999,9 +2991,16 @@ void TabStripModel::ExecuteContextMenuCommand(int context_index,
     case CommandGlicSwitchToRecentConversation:
       // These are handled by GlicTabSubMenuModel.
       break;
-    case CommandGlicUnshare:
-      // TODO (crbug.com/469768350): Implement unsharing.
+    case CommandGlicUnshare: {
+      std::vector<int> indices = GetIndicesForCommand(context_index);
+      std::vector<tabs::TabHandle> tab_handles;
+      tab_handles.reserve(indices.size());
+      std::transform(
+          indices.begin(), indices.end(), std::back_inserter(tab_handles),
+          [this](int index) { return GetTabAtIndex(index)->GetHandle(); });
+      delegate_->GlicUnpinTabsFromAllConversations(tab_handles);
       break;
+    }
 #endif
 
     case CommandAddToNewComparisonTable: {

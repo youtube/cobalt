@@ -246,4 +246,23 @@ TEST_F(GlicInstanceMetricsTest, Response_InputStopStop_LogsError) {
       GlicInstanceMetricsError::kResponseStopWithoutInput, 1);
 }
 
+TEST_F(GlicInstanceMetricsTest, RecordTabPinningStatusEventLogs) {
+  base::TimeTicks now = base::TimeTicks::Now();
+  GlicPinEvent pin_event(GlicPinTrigger::kContextMenu, now);
+  metrics_.RecordTabPinningStatusEvent(&mock_tab_, pin_event);
+  histogram_tester_.ExpectUniqueSample("Glic.Instance.TabPinTrigger",
+                                       GlicPinTrigger::kContextMenu, 1);
+}
+
+TEST_F(GlicInstanceMetricsTest,
+       RecordTabPinningStatusEvent_LogsUnpinHistogram) {
+  base::TimeTicks now = base::TimeTicks::Now();
+  GlicPinnedTabUsage usage(GlicPinTrigger::kContextMenu, now);
+  GlicUnpinEvent unpin_event(GlicUnpinTrigger::kContextMenu, std::move(usage),
+                             now);
+  metrics_.RecordTabPinningStatusEvent(&mock_tab_, unpin_event);
+  histogram_tester_.ExpectUniqueSample("Glic.Instance.TabUnpinTrigger",
+                                       GlicUnpinTrigger::kContextMenu, 1);
+}
+
 }  // namespace glic

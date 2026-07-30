@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "base/compiler_specific.h"
-#include "base/containers/contains.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
@@ -144,7 +143,7 @@ AssertionResult CmpHelperSTRC(const char* str_expression,
                               const char* substr_expression,
                               const char* str,
                               const char* substr) {
-  if (base::Contains(std::string_view(str), substr)) {
+  if ((std::string_view(str)).contains(substr)) {
     return AssertionSuccess();
   }
 
@@ -157,7 +156,7 @@ AssertionResult CmpHelperSTRNC(const char* str_expression,
                                const char* substr_expression,
                                const char* str,
                                const char* substr) {
-  if (!base::Contains(std::string_view(str), substr)) {
+  if (!(std::string_view(str)).contains(substr)) {
     return AssertionSuccess();
   }
 

@@ -282,7 +282,7 @@ IdentityRequestAccountPtr ParseAccount(const base::Value::Dict& account,
   }
 
   std::vector<std::string> potentially_approved_origin_hashes_vector;
-  if (IsNavigationCancellationEnabled() && potentially_approved_origin_hashes) {
+  if (IsEmbedderInitiatedLoginEnabled() && potentially_approved_origin_hashes) {
     for (const base::Value& entry : *potentially_approved_origin_hashes) {
       if (entry.is_string()) {
         potentially_approved_origin_hashes_vector.push_back(entry.GetString());
@@ -481,7 +481,6 @@ void OnWellKnownParsed(
 }
 
 void OnConfigParsed(const GURL& provider,
-                    blink::mojom::RpMode rp_mode,
                     int idp_brand_icon_ideal_size,
                     int idp_brand_icon_minimum_size,
                     IdpNetworkRequestManager::FetchConfigCallback callback,
@@ -647,7 +646,7 @@ void OnAccountsRequestParsed(
   }
 
   const std::string* origin_salt = response_dict.FindString(kOriginSaltKey);
-  if (IsNavigationCancellationEnabled() && origin_salt) {
+  if (IsEmbedderInitiatedLoginEnabled() && origin_salt) {
     response.origin_salt = *origin_salt;
   }
 
@@ -965,20 +964,19 @@ IdpNetworkRequestManager::AccountsResponse::operator=(
 
 std::vector<IdentityRequestAccountPtr>
 IdpNetworkRequestManager::AccountsResponse::PotentialAccountsForOrigin(
-    const url::Origin& origin) {
+    const url::Origin& origin) const {
   std::string salted_origin(origin_salt + origin.Serialize());
   auto hash = crypto::hash::Sha256(salted_origin);
   std::string hashed_origin = base::HexEncode(hash);
 
   std::vector<IdentityRequestAccountPtr> result;
   for (const auto& account : accounts) {
-    auto it = std::find_if(account->potentially_approved_origin_hashes.begin(),
-                           account->potentially_approved_origin_hashes.end(),
-                           [&hashed_origin](const auto& a) -> bool {
-                             return base::ToUpperASCII(hashed_origin) ==
-                                    base::ToUpperASCII(a);
-                           });
-    if (it != account->potentially_approved_origin_hashes.end()) {
+    bool found = std::ranges::any_of(
+        account->potentially_approved_origin_hashes,
+        [&hashed_origin](const auto& a) -> bool {
+          return base::ToUpperASCII(hashed_origin) == base::ToUpperASCII(a);
+        });
+    if (found) {
       result.push_back(account);
     }
   }
@@ -1089,7 +1087,6 @@ void IdpNetworkRequestManager::FetchWellKnown(const GURL& provider,
 }
 
 void IdpNetworkRequestManager::FetchConfig(const GURL& provider,
-                                           blink::mojom::RpMode rp_mode,
                                            int idp_brand_icon_ideal_size,
                                            int idp_brand_icon_minimum_size,
                                            FetchConfigCallback callback) {
@@ -1099,9 +1096,8 @@ void IdpNetworkRequestManager::FetchConfig(const GURL& provider,
   DownloadJsonAndParse(
       std::move(resource_request),
       /*url_encoded_post_data=*/std::nullopt,
-      base::BindOnce(&OnConfigParsed, provider, rp_mode,
-                     idp_brand_icon_ideal_size, idp_brand_icon_minimum_size,
-                     std::move(callback)));
+      base::BindOnce(&OnConfigParsed, provider, idp_brand_icon_ideal_size,
+                     idp_brand_icon_minimum_size, std::move(callback)));
 }
 
 bool IdpNetworkRequestManager::SendAccountsRequest(

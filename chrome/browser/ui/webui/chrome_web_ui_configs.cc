@@ -204,8 +204,11 @@
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 #if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/glic/fre/glic_fre_ui.h"
 #include "chrome/browser/glic/host/glic_ui.h"
+#endif
+
+#if BUILDFLAG(ENABLE_GLIC) && !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/glic/fre/glic_fre_ui.h"
 #endif
 
 #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
@@ -219,6 +222,12 @@
 #if BUILDFLAG(IS_MAC)
 #include "chrome/browser/ui/webui/unexportable_keys_internals/unexportable_keys_internals_ui.h"
 #endif  // BUILDFLAG(IS_MAC)
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/ui/webui/skills/skills_ui.h"
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+        // BUILDFLAG(IS_CHROMEOS)
 
 void RegisterChromeWebUIConfigs() {
   // Don't add calls to `AddWebUIConfig()` for Ash-specific WebUIs here. Add
@@ -438,6 +447,8 @@ void RegisterChromeWebUIConfigs() {
 #endif  //  !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID)
 #if BUILDFLAG(ENABLE_GLIC)
   map.AddWebUIConfig(std::make_unique<glic::GlicUIConfig>());
+#endif
+#if BUILDFLAG(ENABLE_GLIC) && !BUILDFLAG(IS_ANDROID)
   map.AddWebUIConfig(std::make_unique<glic::GlicFreUIConfig>());
 #endif
 
@@ -453,4 +464,10 @@ void RegisterChromeWebUIConfigs() {
 #if BUILDFLAG(IS_MAC)
   map.AddWebUIConfig(std::make_unique<UnexportableKeysInternalsUIConfig>());
 #endif  // BUILDFLAG(IS_MAC)
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
+  map.AddWebUIConfig(std::make_unique<skills::SkillsUIConfig>());
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+        // BUILDFLAG(IS_CHROMEOS)
 }

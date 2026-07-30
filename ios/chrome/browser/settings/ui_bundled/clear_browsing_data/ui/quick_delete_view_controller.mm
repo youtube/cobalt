@@ -103,6 +103,8 @@ CGFloat TrashIconSize() {
 
   browsing_data::TimePeriod _timeRange;
   NSString* _browsingDataSummary;
+  // TODO(crbug.com/463402932): Remove once
+  // `kPasswordRemovalFromDeleteBrowsingData` is enabled by default.
   BOOL _shouldShowFooter;
 
   BOOL _historySelected;
@@ -146,7 +148,10 @@ CGFloat TrashIconSize() {
       l10n_util::GetNSString(IDS_IOS_DELETE_BROWSING_DATA_BUTTON);
   self.configuration.secondaryActionString =
       l10n_util::GetNSString(IDS_IOS_DELETE_BROWSING_DATA_CANCEL);
-  self.configuration.primaryButtonStyle = ChromeButtonStylePrimaryDestructive;
+  self.configuration.primaryButtonStyle =
+      IsPasswordRemovalFromDeleteBrowsingDataEnabled()
+          ? ChromeButtonStylePrimary
+          : ChromeButtonStylePrimaryDestructive;
 
   self.underTitleView = _tableView;
 
@@ -312,7 +317,8 @@ CGFloat TrashIconSize() {
   if (_shouldShowFooter == shouldShowFooter) {
     return;
   }
-  _shouldShowFooter = shouldShowFooter;
+  _shouldShowFooter =
+      shouldShowFooter && !IsPasswordRemovalFromDeleteBrowsingDataEnabled();
   // Reload the footer section.
   __weak __typeof(self) weakSelf = self;
   NSDiffableDataSourceSnapshot<NSNumber*, NSNumber*>* snapshot =

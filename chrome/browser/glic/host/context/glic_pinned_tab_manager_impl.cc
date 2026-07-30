@@ -24,17 +24,19 @@
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/service/glic_instance_helper.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_tab_strip_tracker.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
-#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "components/prefs/pref_service.h"
+#include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/page.h"
 #include "content/public/browser/web_contents.h"
 #include "glic_pinned_tab_manager.h"
 #include "url/origin.h"
+
+#if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
+#endif
 
 namespace glic {
 
@@ -90,7 +92,7 @@ class GlicPinnedTabManagerImpl::PinnedTabObserver
     is_audible_ = audible;
     if (was_observable != IsObservable()) {
       UpdateTabDataAndSend(
-          {{TabDataChangeCause::kAudioState}, CreateTabData(web_contents())});
+          {{TabDataChangeCause::kAudioState}, CreateTabData(tab_)});
     }
   }
 
@@ -99,7 +101,7 @@ class GlicPinnedTabManagerImpl::PinnedTabObserver
     is_foreground_ = IsForeground(visibility);
     if (was_observable != IsObservable()) {
       UpdateTabDataAndSend(
-          {{TabDataChangeCause::kVisibility}, CreateTabData(web_contents())});
+          {{TabDataChangeCause::kVisibility}, CreateTabData(tab_)});
     }
   }
 
@@ -504,7 +506,8 @@ void GlicPinnedTabManagerImpl::SendPinCandidatesUpdate() {
                candidates.size());
   std::vector<mojom::PinCandidatePtr> results;
   for (size_t i = 0; i < limit; ++i) {
-    results.push_back(mojom::PinCandidate::New(CreateTabData(candidates[i])));
+    results.push_back(mojom::PinCandidate::New(
+        CreateTabData(tabs::TabInterface::GetFromContents(candidates[i]))));
   }
   pin_candidates_observer_->OnPinCandidatesChanged(std::move(results));
 }
@@ -512,6 +515,9 @@ void GlicPinnedTabManagerImpl::SendPinCandidatesUpdate() {
 std::vector<content::WebContents*>
 GlicPinnedTabManagerImpl::GetUnsortedPinCandidates() {
   std::vector<content::WebContents*> candidates;
+#if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL: This can be done one
+                            // BrowserWindowInterface::GetAllTabs is available
+                            // on Android.
   ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
       [this, &candidates](BrowserWindowInterface* browser_window_interface) {
         if (browser_window_interface->GetProfile() != profile_ ||
@@ -540,6 +546,7 @@ GlicPinnedTabManagerImpl::GetUnsortedPinCandidates() {
         }
         return true;
       });
+#endif
   return candidates;
 }
 

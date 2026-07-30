@@ -55,7 +55,6 @@ import org.chromium.android_webview.common.CommandLineUtil;
 import org.chromium.android_webview.common.DeveloperModeUtils;
 import org.chromium.android_webview.common.FlagOverrideHelper;
 import org.chromium.android_webview.common.Lifetime;
-import org.chromium.android_webview.common.PlatformServiceBridge;
 import org.chromium.android_webview.common.ProductionSupportedFlagList;
 import org.chromium.android_webview.common.SafeModeController;
 import org.chromium.android_webview.common.WebViewCachedFlags;
@@ -601,12 +600,23 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
                             dataDirectoryBasePath, cacheDirectoryBasePath, dataDirectorySuffix);
                 }
 
+                boolean enableSystemTracing =
+                        WebViewCachedFlags.get()
+                                .isCachedFeatureEnabled(
+                                        TracingServiceFeatures.ENABLE_PERFETTO_SYSTEM_TRACING);
                 if (WebViewCachedFlags.get()
+                        .isCachedFeatureEnabled(AwFeatures.WEBVIEW_DISABLE_PERFETTO_INIT)) {
+                    AwBrowserProcess.disablePerfettoInitDuringBrowserMain();
+                } else if (WebViewCachedFlags.get()
                         .isCachedFeatureEnabled(AwFeatures.WEBVIEW_EARLY_PERFETTO_INIT)) {
-                    AwBrowserProcess.initPerfetto(
-                            WebViewCachedFlags.get()
-                                    .isCachedFeatureEnabled(
-                                            TracingServiceFeatures.ENABLE_PERFETTO_SYSTEM_TRACING));
+                    AwBrowserProcess.disablePerfettoInitDuringBrowserMain();
+                    AwBrowserProcess.initPerfetto(enableSystemTracing);
+                } else if (WebViewCachedFlags.get()
+                        .isCachedFeatureEnabled(AwFeatures.WEBVIEW_BACKGROUND_PERFETTO_INIT)) {
+                    AwBrowserProcess.disablePerfettoInitDuringBrowserMain();
+                    PostTask.postTask(
+                            TaskTraits.BEST_EFFORT,
+                            () -> AwBrowserProcess.initPerfetto(enableSystemTracing));
                 }
 
                 try (DualTraceEvent e2 =
@@ -667,11 +677,6 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
 
             if (WebViewCachedFlags.get()
                     .isCachedFeatureEnabled(AwFeatures.WEBVIEW_MOVE_WORK_TO_PROVIDER_INIT)) {
-                PostTask.postTask(
-                        TaskTraits.USER_VISIBLE,
-                        () -> {
-                            PlatformServiceBridge.getInstance();
-                        });
                 mAwInit.runNonUiThreadCapableStartupTasks();
             }
 

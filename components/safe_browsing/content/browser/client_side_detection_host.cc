@@ -4,6 +4,7 @@
 
 #include "components/safe_browsing/content/browser/client_side_detection_host.h"
 
+#include <algorithm>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -43,7 +44,6 @@
 #include "components/safe_browsing/content/browser/content_unsafe_resource_util.h"
 #include "components/safe_browsing/content/browser/credit_card_form_event.h"
 #include "components/safe_browsing/content/common/safe_browsing.mojom.h"
-#include "components/safe_browsing/content/common/visual_utils.h"
 #include "components/safe_browsing/core/browser/db/allowlist_checker_client.h"
 #include "components/safe_browsing/core/browser/db/database_manager.h"
 #include "components/safe_browsing/core/browser/intelligent_scan_delegate.h"
@@ -933,9 +933,9 @@ void ClientSideDetectionHost::OnPromptAdded() {
       permissions::PermissionRequestManager::FromWebContents(web_contents());
   CHECK(permission_request_manager);
 
-  if (base::Contains(permission_request_manager->Requests(),
-                     permissions::RequestType::kNotifications,
-                     &permissions::PermissionRequest::request_type)) {
+  if (std::ranges::contains(permission_request_manager->Requests(),
+                            permissions::RequestType::kNotifications,
+                            &permissions::PermissionRequest::request_type)) {
     MaybeStartPreClassification(
         ClientSideDetectionType::NOTIFICATION_PERMISSION_PROMPT);
   }
@@ -1343,29 +1343,23 @@ void ClientSideDetectionHost::PhishingDetectionDone(
   }
 }
 
-// To keep the flow consistent, we want to append additional information to the
-// ClientPhishingRequest message based on feature availability in the following
-// order: image embedding, intelligent scan, then token fetch. If one
-// feature is not available, we will move on to the next in the order until we
-// ultimately send the request.
-void ClientSideDetectionHost::MaybeSendClientPhishingRequest(
-    std::unique_ptr<ClientPhishingRequest> verdict,
-    std::optional<bool> did_match_high_confidence_allowlist) {
-  csd_service_->ClassifyPhishingThroughThresholds(verdict.get());
+void ClientSideDetectionHost::ClassifyPhishingThroughThresholds(
+    ClientPhishingRequest* verdict) {
+  csd_service_->ClassifyPhishingThroughThresholds(verdict);
   VLOG(2) << "Phishing classification score: " << verdict->client_score();
   VLOG(2) << "Visual model scores:";
   for (const ClientPhishingRequest::CategoryScore& label_and_value :
        verdict->tflite_model_scores()) {
     VLOG(2) << label_and_value.label() << ": " << label_and_value.value();
   }
+}
 
-  if (HasDebugFeatureDirectory()) {
-    base::ThreadPool::PostTask(FROM_HERE, {base::MayBlock()},
-                               base::BindOnce(&WriteFeaturesToDisk, *verdict,
-                                              GetDebugFeatureDirectory()));
-  }
+visual_utils::CanExtractVisualFeaturesResult
+ClientSideDetectionHost::DetermineVisualFeaturesExtraction() {
   int viewport_width = -1;
   int viewport_height = -1;
+  visual_utils::CanExtractVisualFeaturesResult
+      can_extract_visual_features_result;
 #if BUILDFLAG(IS_ANDROID)
   gfx::Size size;
   content::RenderWidgetHostView* view =
@@ -1377,11 +1371,9 @@ void ClientSideDetectionHost::MaybeSendClientPhishingRequest(
     viewport_height = static_cast<int>(viewport.height());
     size = gfx::Size(viewport_width, viewport_height);
   }
-  visual_utils::CanExtractVisualFeaturesResult
-      can_extract_visual_features_result =
-          visual_utils::CanExtractVisualFeatures(
-              IsEnhancedProtectionEnabled(*delegate_->GetPrefs()),
-              web_contents()->GetBrowserContext()->IsOffTheRecord(), size);
+  can_extract_visual_features_result = visual_utils::CanExtractVisualFeatures(
+      IsEnhancedProtectionEnabled(*delegate_->GetPrefs()),
+      web_contents()->GetBrowserContext()->IsOffTheRecord(), size);
 #else
   gfx::Size size;
   content::RenderWidgetHostView* view =
@@ -1391,12 +1383,10 @@ void ClientSideDetectionHost::MaybeSendClientPhishingRequest(
     viewport_width = size.width();
     viewport_height = size.height();
   }
-  visual_utils::CanExtractVisualFeaturesResult
-      can_extract_visual_features_result =
-          visual_utils::CanExtractVisualFeatures(
-              IsEnhancedProtectionEnabled(*delegate_->GetPrefs()),
-              web_contents()->GetBrowserContext()->IsOffTheRecord(), size,
-              zoom::ZoomController::GetZoomLevelForWebContents(web_contents()));
+  can_extract_visual_features_result = visual_utils::CanExtractVisualFeatures(
+      IsEnhancedProtectionEnabled(*delegate_->GetPrefs()),
+      web_contents()->GetBrowserContext()->IsOffTheRecord(), size,
+      zoom::ZoomController::GetZoomLevelForWebContents(web_contents()));
 #endif
   base::UmaHistogramSparse("SBClientPhishing.Viewport.Width", viewport_width);
   base::UmaHistogramSparse("SBClientPhishing.Viewport.Height", viewport_height);
@@ -1407,35 +1397,67 @@ void ClientSideDetectionHost::MaybeSendClientPhishingRequest(
                              encoded_resolution);
   }
 
-  base::UmaHistogramEnumeration("SBClientPhishing.VisualFeaturesClearReason",
+  base::UmaHistogramEnumeration("SBClientPhishing.VisualFeaturesClearReason2",
                                 can_extract_visual_features_result);
-  if (can_extract_visual_features_result !=
-      visual_utils::CanExtractVisualFeaturesResult::kCanExtractVisualFeatures) {
-    verdict->clear_visual_features();
-  } else {
-    base::UmaHistogramBoolean("SBClientPhishing.HasVisualFeaturesImage",
-                              verdict->has_visual_features() &&
-                                  verdict->visual_features().has_image());
-  }
+  return can_extract_visual_features_result;
+}
 
-  if (verdict->client_side_detection_type() ==
-      ClientSideDetectionType::CLIPBOARD_COPY_API) {
-    if (base::FeatureList::IsEnabled(kClientSideDetectionClipboardCopyApi) &&
-        kCSDClipboardCopyApiProcessPayload.Get()) {
-      *verdict->mutable_clipboard_extracted_data() =
-          ExtractClipboardData(last_copied_text_);
+void ClientSideDetectionHost::CheckRedirectChainForLlamaForcedTriggerInfo(
+    ClientPhishingRequest* verdict) {
+  raw_ptr<VerdictCacheManager> cache_manager = delegate_->GetCacheManager();
+
+  if (cache_manager && current_url_.is_valid()) {
+    safe_browsing::LlamaForcedTriggerInfo llama_forced_trigger_info;
+    if (cache_manager->GetCachedRealTimeLlamaForcedTriggerInfo(
+            current_url_, &llama_forced_trigger_info)) {
+      verdict->mutable_llama_forced_trigger_info()->Swap(
+          &llama_forced_trigger_info);
+    } else if (!base::FeatureList::IsEnabled(
+                   kClientSideDetectionForcedLlamaRedirectChainKillswitch)) {
+      std::vector<GURL> redirect_chain = web_contents()
+                                             ->GetController()
+                                             .GetLastCommittedEntry()
+                                             ->GetRedirectChain();
+
+      // We pop the last element because if the redirect chain is not empty,
+      // the last element will be the current URL.
+      if (!redirect_chain.empty()) {
+        redirect_chain.pop_back();
+      }
+
+      bool redirect_chain_contains_forced_trigger_info = false;
+      for (GURL url : redirect_chain) {
+        if (cache_manager->GetCachedRealTimeLlamaForcedTriggerInfo(
+                url, &llama_forced_trigger_info)) {
+          redirect_chain_contains_forced_trigger_info = true;
+          verdict->mutable_llama_forced_trigger_info()->Swap(
+              &llama_forced_trigger_info);
+          break;
+        }
+      }
+
+      if (!redirect_chain.empty()) {
+        base::UmaHistogramBoolean(
+            "SBClientPhishing.RedirectChainContainsForcedTriggerInfo",
+            redirect_chain_contains_forced_trigger_info);
+      }
     }
   }
+}
 
-  if (IsEnhancedProtectionEnabled(*delegate_->GetPrefs())) {
-    delegate_->AddReferrerChain(verdict.get(), current_url_,
-                                current_outermost_main_frame_id_);
-  }
-
-  base::UmaHistogramBoolean("SBClientPhishing.LocalModelDetectsPhishing",
-                            verdict->is_phishing());
+// To keep the flow consistent, we want to append additional information to the
+// ClientPhishingRequest message based on feature availability in the following
+// order: image embedding, intelligent scan, then token fetch. If one
+// feature is not available, we will move on to the next in the order until we
+// ultimately send the request.
+void ClientSideDetectionHost::MaybeSendClientPhishingRequest(
+    std::unique_ptr<ClientPhishingRequest> verdict,
+    std::optional<bool> did_match_high_confidence_allowlist) {
   std::string request_type_name =
       GetRequestTypeName(verdict->client_side_detection_type());
+  ClassifyPhishingThroughThresholds(verdict.get());
+  base::UmaHistogramBoolean("SBClientPhishing.LocalModelDetectsPhishing",
+                            verdict->is_phishing());
   base::UmaHistogramBoolean(
       "SBClientPhishing.LocalModelDetectsPhishing." + request_type_name,
       verdict->is_phishing());
@@ -1449,6 +1471,7 @@ void ClientSideDetectionHost::MaybeSendClientPhishingRequest(
     verdict->set_client_side_detection_type(
         ClientSideDetectionType::TRIGGER_MODELS);
   }
+
   bool force_request_from_rt_url_lookup =
       verdict->client_side_detection_type() ==
       safe_browsing::ClientSideDetectionType::FORCE_REQUEST;
@@ -1459,64 +1482,16 @@ void ClientSideDetectionHost::MaybeSendClientPhishingRequest(
     verdict->set_client_side_detection_type(
         safe_browsing::ClientSideDetectionType::FORCE_REQUEST);
     force_request_from_rt_url_lookup = true;
-
-    if (base::FeatureList::IsEnabled(
-            kClientSideDetectionSendLlamaForcedTriggerInfo)) {
-      raw_ptr<VerdictCacheManager> cache_manager = delegate_->GetCacheManager();
-
-      if (cache_manager && current_url_.is_valid()) {
-        safe_browsing::LlamaForcedTriggerInfo llama_forced_trigger_info;
-        if (cache_manager->GetCachedRealTimeLlamaForcedTriggerInfo(
-                current_url_, &llama_forced_trigger_info)) {
-          verdict->mutable_llama_forced_trigger_info()->Swap(
-              &llama_forced_trigger_info);
-        } else if (
-            !base::FeatureList::IsEnabled(
-                kClientSideDetectionForcedLlamaRedirectChainKillswitch)) {
-          std::vector<GURL> redirect_chain = web_contents()
-                                                 ->GetController()
-                                                 .GetLastCommittedEntry()
-                                                 ->GetRedirectChain();
-
-          // We pop the last element because if the redirect chain is not empty,
-          // the last element will be the current URL.
-          if (!redirect_chain.empty()) {
-            redirect_chain.pop_back();
-          }
-
-          bool redirect_chain_contains_forced_trigger_info = false;
-          for (GURL url : redirect_chain) {
-            if (cache_manager->GetCachedRealTimeLlamaForcedTriggerInfo(
-                    url, &llama_forced_trigger_info)) {
-              redirect_chain_contains_forced_trigger_info = true;
-              verdict->mutable_llama_forced_trigger_info()->Swap(
-                  &llama_forced_trigger_info);
-              break;
-            }
-          }
-
-          if (!redirect_chain.empty()) {
-            base::UmaHistogramBoolean(
-                "SBClientPhishing.RedirectChainContainsForcedTriggerInfo",
-                redirect_chain_contains_forced_trigger_info);
-          }
-        }
-      }
-    }
   }
 
   base::UmaHistogramBoolean("SBClientPhishing.RTLookupForceRequest",
                             force_request_from_rt_url_lookup);
-  if (force_request_from_rt_url_lookup) {
-    base::UmaHistogramBoolean(
-        "SBClientPhishing.RTLookupForceRequest.HasLlamaForcedTriggerInfo",
-        verdict->has_llama_forced_trigger_info());
-  }
-
   base::UmaHistogramExactLinear(
       "SBClientPhishing.ClientSideDetectionTypeRequest",
       verdict->client_side_detection_type(), ClientSideDetectionType_MAX + 1);
 
+  // We add the debugging metadata relevant for PhishGuard before returning
+  // whether we should proceed with sending the ping for CSD.
   if (IsEnhancedProtectionEnabled(*delegate_->GetPrefs())) {
     ClientSideDetectionFeatureCache::CreateForWebContents(web_contents());
     ClientSideDetectionFeatureCache* feature_cache_map =
@@ -1546,25 +1521,16 @@ void ClientSideDetectionHost::MaybeSendClientPhishingRequest(
     return;
   }
 
-  // Fill in metadata about which model we used.
-  *verdict->mutable_population() = delegate_->GetUserPopulation();
-  verdict->mutable_population()->add_finch_active_groups(
-      base::FeatureList::IsEnabled(kConditionalImageResize)
-          ? "ConditionalImageResize.Enabled"
-          : "ConditionalImageResize.Control");
+  visual_utils::CanExtractVisualFeaturesResult
+      can_extract_visual_features_result = DetermineVisualFeaturesExtraction();
 
-  raw_ptr<VerdictCacheManager> cache_manager = delegate_->GetCacheManager();
-  if (cache_manager) {
-    ChromeUserPopulation::PageLoadToken token =
-        cache_manager->GetPageLoadToken(current_url_);
-    // It's possible that the token is not found because real time URL check
-    // is not performed for this navigation. Create a new page load token in
-    // this case.
-    if (!token.has_token_value()) {
-      token = cache_manager->CreatePageLoadToken(current_url_);
-    }
-    verdict->mutable_population()->mutable_page_load_tokens()->Add()->Swap(
-        &token);
+  if (can_extract_visual_features_result !=
+      visual_utils::CanExtractVisualFeaturesResult::kCanExtractVisualFeatures) {
+    verdict->clear_visual_features();
+  } else {
+    base::UmaHistogramBoolean("SBClientPhishing.HasVisualFeaturesImage2",
+                              verdict->has_visual_features() &&
+                                  verdict->visual_features().has_image());
   }
 
   if (IsEnhancedProtectionEnabled(*delegate_->GetPrefs()) &&
@@ -1619,6 +1585,10 @@ void ClientSideDetectionHost::PhishingImageEmbeddingDone(
       embedding = image_feature_embedding->As<ImageFeatureEmbedding>();
     }
     if (embedding.has_value()) {
+      if (base::FeatureList::IsEnabled(kClientSideDetectionDeprecateDOMModel)) {
+        embedding->set_embedding_model_version(
+            csd_service_->GetImageEmbeddingModelVersion());
+      }
       *verdict->mutable_image_feature_embedding() =
           std::move(embedding.value());
     } else {
@@ -1637,6 +1607,17 @@ void ClientSideDetectionHost::MaybeStartIntelligentScanForScamDetection(
   TRACE_EVENT_BEGIN(/*category=*/"safe_browsing",
                     /*name=*/"IntelligentScanScamDetection",
                     perfetto::Track::FromPointer(verdict.get()));
+
+  if (verdict->client_side_detection_type() ==
+          ClientSideDetectionType::FORCE_REQUEST &&
+      base::FeatureList::IsEnabled(
+          kClientSideDetectionSendLlamaForcedTriggerInfo)) {
+    CheckRedirectChainForLlamaForcedTriggerInfo(verdict.get());
+    base::UmaHistogramBoolean(
+        "SBClientPhishing.RTLookupForceRequest.HasLlamaForcedTriggerInfo",
+        verdict->has_llama_forced_trigger_info());
+  }
+
   if (verdict->has_llama_forced_trigger_info()) {
     LogLlamaForcedTriggerInfoFields(verdict->llama_forced_trigger_info());
   }
@@ -2049,10 +2030,58 @@ bool ClientSideDetectionHost::CanGetAccessToken() {
          account_signed_in_callback_.Run();
 }
 
+void ClientSideDetectionHost::AddMiscellaneousMetadataToClientPhishingRequest(
+    ClientPhishingRequest* verdict) {
+  // Fill in metadata about which model we used.
+  *verdict->mutable_population() = delegate_->GetUserPopulation();
+  verdict->mutable_population()->add_finch_active_groups(
+      base::FeatureList::IsEnabled(kConditionalImageResize)
+          ? "ConditionalImageResize.Enabled"
+          : "ConditionalImageResize.Control");
+
+  raw_ptr<VerdictCacheManager> cache_manager = delegate_->GetCacheManager();
+  if (cache_manager) {
+    ChromeUserPopulation::PageLoadToken token =
+        cache_manager->GetPageLoadToken(current_url_);
+    // It's possible that the token is not found because real time URL check
+    // is not performed for this navigation. Create a new page load token in
+    // this case.
+    if (!token.has_token_value()) {
+      token = cache_manager->CreatePageLoadToken(current_url_);
+    }
+    verdict->mutable_population()->mutable_page_load_tokens()->Add()->Swap(
+        &token);
+  }
+
+  if (verdict->client_side_detection_type() ==
+      ClientSideDetectionType::CLIPBOARD_COPY_API) {
+    if (base::FeatureList::IsEnabled(kClientSideDetectionClipboardCopyApi) &&
+        kCSDClipboardCopyApiProcessPayload.Get()) {
+      *verdict->mutable_clipboard_extracted_data() =
+          ExtractClipboardData(last_copied_text_);
+    }
+  }
+
+  if (IsEnhancedProtectionEnabled(*delegate_->GetPrefs())) {
+    delegate_->AddReferrerChain(verdict, current_url_,
+                                current_outermost_main_frame_id_);
+  }
+
+  if (HasDebugFeatureDirectory()) {
+    base::ThreadPool::PostTask(FROM_HERE, {base::MayBlock()},
+                               base::BindOnce(&WriteFeaturesToDisk, *verdict,
+                                              GetDebugFeatureDirectory()));
+  }
+}
+
 void ClientSideDetectionHost::SendRequest(
     std::unique_ptr<ClientPhishingRequest> verdict,
     const std::string& access_token,
     std::optional<bool> did_match_high_confidence_allowlist) {
+  // Add any final miscellaneous metadata information to the ping before sending
+  // it.
+  AddMiscellaneousMetadataToClientPhishingRequest(verdict.get());
+
   ClientSideDetectionService::ClientReportPhishingRequestCallback callback =
       base::BindOnce(&ClientSideDetectionHost::MaybeShowPhishingWarning,
                      weak_factory_.GetWeakPtr(),

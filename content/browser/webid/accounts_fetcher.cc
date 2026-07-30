@@ -4,9 +4,9 @@
 
 #include "content/browser/webid/accounts_fetcher.h"
 
+#include <algorithm>
 #include <set>
 
-#include "base/containers/contains.h"
 #include "content/browser/webid/config_fetcher.h"
 #include "content/browser/webid/flags.h"
 #include "content/browser/webid/idp_network_request_manager.h"
@@ -123,7 +123,7 @@ void AccountsFetcher::FetchEndpointsForIdps(
   config_fetcher_ =
       std::make_unique<ConfigFetcher>(*render_frame_host_, network_manager_);
   config_fetcher_->Start(
-      idps, params_.rp_mode, params_.icon_ideal_size, params_.icon_minimum_size,
+      idps, params_.icon_ideal_size, params_.icon_minimum_size,
       base::BindOnce(&AccountsFetcher::OnAllConfigAndWellKnownFetched,
                      weak_ptr_factory_.GetWeakPtr()));
 }
@@ -242,8 +242,9 @@ void AccountsFetcher::OnAllConfigAndWellKnownFetched(
 
     if (IsIdPRegistrationEnabled()) {
       if (get_info_it->second.provider->config->type) {
-        if (!base::Contains(fetch_result.metadata->types,
-                            get_info_it->second.provider->config->type)) {
+        if (!std::ranges::contains(
+                fetch_result.metadata->types,
+                get_info_it->second.provider->config->type)) {
           result.idp_info = std::move(idp_info);
           result.error = FederatedAuthRequestResult::kTypeNotMatching;
           result.token_status = TokenStatus::kConfigNotMatchingType;
@@ -258,7 +259,7 @@ void AccountsFetcher::OnAllConfigAndWellKnownFetched(
       // If a token format was specified, make sure that the configURL
       // supports it as well as the feature is enabled.
       if (!IsDelegationEnabled() ||
-          !base::Contains(fetch_result.metadata->formats, kVcSdJwt)) {
+          !std::ranges::contains(fetch_result.metadata->formats, kVcSdJwt)) {
         result.idp_info = std::move(idp_info);
         result.error = FederatedAuthRequestResult::kConfigInvalidResponse;
         result.token_status = TokenStatus::kConfigInvalidResponse;
@@ -275,8 +276,7 @@ void AccountsFetcher::OnAllConfigAndWellKnownFetched(
     // the login URL.
     idp_info->has_failing_idp_signin_status =
         webid::ShouldFailAccountsEndpointRequestBecauseNotSignedInWithIdp(
-            *render_frame_host_, identity_provider_config_url,
-            permission_delegate_);
+            identity_provider_config_url, permission_delegate_);
     if (idp_info->has_failing_idp_signin_status) {
       // If the user is logged out and we are in a active-mode, allow the
       // user to sign-in to the IdP and return early.
@@ -328,8 +328,8 @@ void AccountsFetcher::OnAccountsResponseReceived(
       permission_delegate_->GetIdpSigninStatus(
           url::Origin::Create(idp_config_url));
   webid::UpdateIdpSigninStatusForAccountsEndpointResponse(
-      *render_frame_host_, idp_config_url, status,
-      idp_info->has_failing_idp_signin_status, permission_delegate_);
+      idp_config_url, status, idp_info->has_failing_idp_signin_status,
+      permission_delegate_);
 
   if (status.parse_status != ParseStatus::kSuccess) {
     std::pair<FederatedAuthRequestResult, TokenStatus> resultAndTokenStatus =
@@ -492,7 +492,7 @@ void AccountsFetcher::FilterAccountsWithLabel(
   // would be shown.
   size_t accounts_remaining = 0u;
   for (auto& account : accounts) {
-    if (!base::Contains(account->labels, label)) {
+    if (!std::ranges::contains(account->labels, label)) {
       account->is_filtered_out = true;
     } else {
       ++accounts_remaining;
@@ -517,7 +517,7 @@ void AccountsFetcher::FilterAccountsWithLoginHint(
     if (account->is_filtered_out) {
       continue;
     }
-    if (!base::Contains(account->login_hints, login_hint)) {
+    if (!std::ranges::contains(account->login_hints, login_hint)) {
       account->is_filtered_out = true;
     } else {
       ++accounts_remaining;
@@ -543,7 +543,7 @@ void AccountsFetcher::FilterAccountsWithDomainHint(
         account->is_filtered_out = true;
         continue;
       }
-    } else if (!base::Contains(account->domain_hints, domain_hint)) {
+    } else if (!std::ranges::contains(account->domain_hints, domain_hint)) {
       account->is_filtered_out = true;
       continue;
     }

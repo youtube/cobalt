@@ -83,6 +83,9 @@ extern const base::FeatureParam<bool> kCsdCreditCardFormEnableHeuristicFilter;
 extern const base::FeatureParam<bool>
     kCsdCreditCardFormEnableReferringAppFilter;
 
+// Deprecate the DOM model and do not onboard to renderer.
+BASE_DECLARE_FEATURE(kClientSideDetectionDeprecateDOMModel);
+
 // Killswitch for Llama forced trigger info redirect chain check.
 BASE_DECLARE_FEATURE(kClientSideDetectionForcedLlamaRedirectChainKillswitch);
 
@@ -296,6 +299,14 @@ BASE_DECLARE_FEATURE_PARAM(bool, kMaliciousApkDownloadCheckTelemetryOnly);
 // Enables one-time migration of enhanced-safe-browsing users to the enhanced
 // bundle.
 BASE_DECLARE_FEATURE(kMigrateEnhancedSbUserToEnhancedBundle);
+
+// When enabled, performs a one-time migration that selects the JavaScript
+// optimizer content setting that automatically blocks the browser from using
+// JavaScript optimizers on unfamiliar sites. Only profiles that have Safe
+// Browsing enabled, have the JavaScript optimizer set to allowed for all sites,
+// and have the kBlockV8OptimizerOnUnfamiliarSitesSetting feature enabled will
+// be eligible for the migration.
+BASE_DECLARE_FEATURE(kMigrateToBlockV8OptimizerOnUnfamiliarSites);
 
 // TODO(crbug.com/449960661): Remove this flag once the MigrateAccountPrefs
 // feature is launched and the regression of users with ESB enhanced protection

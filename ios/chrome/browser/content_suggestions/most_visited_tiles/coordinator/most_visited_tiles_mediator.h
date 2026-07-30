@@ -17,6 +17,10 @@ namespace favicon {
 class LargeIconService;
 }  // namespace favicon
 
+namespace feature_engagement {
+class Tracker;
+}  // namespace feature_engagement
+
 namespace ntp_tiles {
 class MostVisitedSites;
 }  // namespace ntp_tiles
@@ -28,7 +32,9 @@ class ChromeAccountManagerService;
 @protocol ContentSuggestionsDelegate;
 enum class ContentSuggestionsModuleType;
 @class ContentSuggestionsMetricsRecorder;
+@protocol HelpCommands;
 class LargeIconCache;
+@class LayoutGuideCenter;
 @class MostVisitedTilesConfig;
 @protocol NewTabPageActionsDelegate;
 class PrefService;
@@ -67,6 +73,9 @@ class UrlLoadingBrowserAgent;
 // Handler for snackbar commands.
 @property(nonatomic, weak) id<SnackbarCommands> snackbarHandler;
 
+// Handler for in-product help commands.
+@property(nonatomic, weak) id<HelpCommands> helpHandler;
+
 // Delegate for reporting content suggestions actions to the NTP.
 @property(nonatomic, weak) id<NewTabPageActionsDelegate> NTPActionsDelegate;
 
@@ -82,6 +91,8 @@ class UrlLoadingBrowserAgent;
              largeIconCache:(LargeIconCache*)largeIconCache
      URLLoadingBrowserAgent:(UrlLoadingBrowserAgent*)URLLoadingBrowserAgent
       accountManagerService:(ChromeAccountManagerService*)accountManagerService
+          engagementTracker:(feature_engagement::Tracker*)engagementTracker
+          layoutGuideCenter:(LayoutGuideCenter*)layoutGuideCenter
     NS_DESIGNATED_INITIALIZER;
 
 - (instancetype)init NS_UNAVAILABLE;

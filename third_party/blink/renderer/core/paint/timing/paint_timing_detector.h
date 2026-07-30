@@ -89,6 +89,7 @@ class CORE_EXPORT PaintTimingDetector
                                const AtomicString& id,
                                const String& url,
                                Element* element) override;
+  void OnLcpMetricsForReportingChanged() override;
   bool IsHardNavigation() const override { return true; }
   void Trace(Visitor* visitor) const override;
 
@@ -136,7 +137,7 @@ class CORE_EXPORT PaintTimingDetector
   // opacity layer.
   void ReportIgnoredContent();
 
-  std::optional<PaintTimingVisualizer>& Visualizer() { return visualizer_; }
+  PaintTimingVisualizer* Visualizer() { return visualizer_.get(); }
 
  private:
   FRIEND_TEST_ALL_PREFIXES(ImagePaintTimingDetectorTest,
@@ -144,8 +145,6 @@ class CORE_EXPORT PaintTimingDetector
 
   // Method called to stop recording the Largest Contentful Paint.
   void OnInputOrScroll();
-
-  void UpdateMetricsLcp();
 
   LocalDOMWindow* DomWindow() const;
 
@@ -166,7 +165,10 @@ class CORE_EXPORT PaintTimingDetector
   // nullptr.
   base::TimeTicks first_input_or_scroll_notified_timestamp_;
 
-  std::optional<PaintTimingVisualizer> visualizer_;
+  // Because PaintTimingVisualizer is a TraceSessionObserver, unique_ptr is
+  // needed to avoid having a reference back into GCed memory, which is
+  // forbidden by oilpan.
+  std::unique_ptr<PaintTimingVisualizer> visualizer_;
 
   // The LCP details reported to metrics (UKM).
   LargestContentfulPaintDetails lcp_details_for_metrics_;

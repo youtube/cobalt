@@ -434,6 +434,16 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Glic.Fre.TotalTime.Accepted.Onboarding" units="ms"
+    expires_after="2026-08-03">
+  <owner>tommasin@chromium.org</owner>
+  <owner>zalmashni@google.com</owner>
+  <summary>
+    Records the time elapsed from when the Trust-First Onboarding flow (side
+    panel) is first shown until the user accepts it (starts chat).
+  </summary>
+</histogram>
+
 <histogram name="Glic.Fre.TotalTime.Dismissed" units="ms"
     expires_after="2026-08-03">
   <owner>birnie@google.com</owner>
@@ -441,6 +451,17 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records the time elapsed from when the FRE is first opened until it is
     dismissed by the user (e.g. closing the tab).
+  </summary>
+</histogram>
+
+<histogram name="Glic.Fre.TotalTime.Dismissed.Onboarding" units="ms"
+    expires_after="2026-08-03">
+  <owner>tommasin@chromium.org</owner>
+  <owner>zalmashni@google.com</owner>
+  <summary>
+    Records the time elapsed from when the Trust-First Onboarding flow (side
+    panel) is first shown until it is dismissed by the user (e.g. closing the
+    side panel).
   </summary>
 </histogram>
 
@@ -1055,6 +1076,26 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Glic.Instance.TabPinTrigger" enum="GlicPinTrigger"
+    expires_after="2026-07-15">
+  <owner>sanaakbani@google.com</owner>
+  <owner>birnie@google.com</owner>
+  <summary>
+    Records the trigger responsible for pinning a tab to a Glic Instance.
+    Recorded each time a tab is pinned.
+  </summary>
+</histogram>
+
+<histogram name="Glic.Instance.TabUnpinTrigger" enum="GlicUnpinTrigger"
+    expires_after="2026-07-15">
+  <owner>sanaakbani@google.com</owner>
+  <owner>birnie@google.com</owner>
+  <summary>
+    Records the trigger responsible for unpinning a tab from a Glic Instance.
+    Recorded each time a tab is unpinned.
+  </summary>
+</histogram>
+
 <histogram name="Glic.Instance.TimeBetweenSessions.{Range}" units="ms"
     expires_after="2026-10-27">
   <owner>birnie@google.com</owner>
@@ -1242,8 +1283,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Glic.MaybeReplaceNavigation.Result" enum="Boolean"
-    expires_after="2026-05-24">
+    expires_after="2026-07-10">
   <owner>liberato@chromium.org</owner>
+  <owner>chrome-bluefin@google.com</owner>
   <summary>
     Records the boolean result of calling MaybeReplaceNavigation. This is used
     to determine if a navigation was replaced with a media viewer.
@@ -1251,9 +1293,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Glic.Media.ContextLength" units="bytes"
-    expires_after="2026-01-15">
+    expires_after="2026-07-10">
   <owner>liberato@chromium.org</owner>
-  <owner>muyaoxu@google.com</owner>
+  <owner>chrome-bluefin@google.com</owner>
   <summary>
     Recorded when media context is collected by glic. Represents the total media
     context length for the page at the time it was requested, including any that
@@ -1262,9 +1304,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Glic.Media.TimestampRangeCount" units="count"
-    expires_after="2026-01-15">
+    expires_after="2026-07-10">
   <owner>liberato@chromium.org</owner>
-  <owner>chrome-media-ux@google.com</owner>
+  <owner>chrome-bluefin@google.com</owner>
   <summary>
     Recorded when a speech recognition result is received. Records the number of
     media timestamp ranges in the result. This can be greater than one, for
@@ -1416,6 +1458,14 @@ chromium-metrics-reviews@google.com.
     scaling) regardless of whether the timeout has already fired. Measure the
     time from start.
   </summary>
+</histogram>
+
+<histogram name="Glic.PageContextFetcher.GetScreenshotError"
+    enum="CopyFromSurfaceError" expires_after="2026-09-15">
+  <owner>bokan@google.com</owner>
+  <owner>dtapuska@google.com</owner>
+  <owner>chrome-synapse-team@google.com</owner>
+  <summary>Recorded when a page gets screenshot error from Viz.</summary>
 </histogram>
 
 <histogram name="Glic.PageContextFetcher.Total" units="ms"
@@ -1976,7 +2026,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Glic.Tab.InstanceBindCount" units="count"
-    expires_after="2026-03-22">
+    expires_after="2026-07-12">
   <owner>birnie@google.com</owner>
   <owner>carlosk@chromium.org</owner>
   <summary>
@@ -1987,7 +2037,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Glic.Tab.InstancePinCount" units="count"
-    expires_after="2026-03-22">
+    expires_after="2026-07-12">
   <owner>birnie@google.com</owner>
   <owner>carlosk@chromium.org</owner>
   <summary>

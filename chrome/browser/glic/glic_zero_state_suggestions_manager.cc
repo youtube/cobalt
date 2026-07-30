@@ -21,11 +21,6 @@
 #include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "ui/base/page_transition_types.h"
 
-#if !BUILDFLAG(IS_ANDROID)
-// This include will be available on Android shortly.
-#include "chrome/browser/glic/widget/glic_window_controller.h"
-#endif
-
 namespace glic {
 namespace {
 
@@ -37,7 +32,6 @@ mojom::ZeroStateSuggestionsV2Ptr MakeEmptySuggestionsPtr() {
 }
 
 }  // namespace
-#if !BUILDFLAG(IS_ANDROID)
 
 namespace {
 
@@ -176,7 +170,7 @@ void GlicZeroStateSuggestionsManager::
                                : nullptr;
   std::vector<content::WebContents*> contents_for_request = pinned_tab_data;
   if (active_web_contents &&
-      !Contains(contents_for_request, active_web_contents)) {
+      !std::ranges::contains(contents_for_request, active_web_contents)) {
     contents_for_request.push_back(active_web_contents);
   }
   FilterTabs(contents_for_request);
@@ -420,14 +414,4 @@ void GlicZeroStateSuggestionsManager::FilterTabs(
           }),
       tabs.end());
 }
-#else
-void GlicZeroStateSuggestionsManager::ObserveZeroStateSuggestions(
-    bool is_notifying,
-    bool is_first_run,
-    const std::vector<std::string>& supported_tools,
-    glic::mojom::WebClientHandler::GetZeroStateSuggestionsAndSubscribeCallback
-        callback) {
-  std::move(callback).Run(MakeEmptySuggestionsPtr());
-}
-#endif
 }  // namespace glic

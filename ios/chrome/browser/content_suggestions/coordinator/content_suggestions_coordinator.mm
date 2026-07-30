@@ -8,7 +8,6 @@
 #import <vector>
 
 #import "base/apple/foundation_util.h"
-#import "base/containers/contains.h"
 #import "base/feature_list.h"
 #import "base/ios/block_types.h"
 #import "base/ios/ios_util.h"
@@ -146,6 +145,7 @@
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/credential_provider_promo_commands.h"
 #import "ios/chrome/browser/shared/public/commands/docking_promo_commands.h"
+#import "ios/chrome/browser/shared/public/commands/help_commands.h"
 #import "ios/chrome/browser/shared/public/commands/lens_commands.h"
 #import "ios/chrome/browser/shared/public/commands/omnibox_commands.h"
 #import "ios/chrome/browser/shared/public/commands/open_lens_input_selection_command.h"
@@ -324,6 +324,9 @@ using segmentation_platform::TipIdentifier;
   ChromeAccountManagerService* accountManagerService =
       ChromeAccountManagerServiceFactory::GetForProfile(profile);
 
+  feature_engagement::Tracker* engagementTracker =
+      feature_engagement::TrackerFactory::GetForProfile(profile);
+
   NSMutableArray* moduleMediators = [NSMutableArray array];
 
   _mostVisitedTilesMediator = [[MostVisitedTilesMediator alloc]
@@ -332,7 +335,9 @@ using segmentation_platform::TipIdentifier;
              largeIconService:largeIconService
                largeIconCache:cache
        URLLoadingBrowserAgent:UrlLoadingBrowserAgent::FromBrowser(self.browser)
-        accountManagerService:accountManagerService];
+        accountManagerService:accountManagerService
+            engagementTracker:engagementTracker
+            layoutGuideCenter:LayoutGuideCenterForBrowser(self.browser)];
   _mostVisitedTilesMediator.contentSuggestionsDelegate = self.delegate;
   _mostVisitedTilesMediator.contentSuggestionsMetricsRecorder =
       self.contentSuggestionsMetricsRecorder;
@@ -341,6 +346,8 @@ using segmentation_platform::TipIdentifier;
              scenario:kMenuScenarioHistogramMostVisitedEntry];
   _mostVisitedTilesMediator.snackbarHandler =
       static_cast<id<SnackbarCommands>>(self.browser->GetCommandDispatcher());
+  _mostVisitedTilesMediator.helpHandler =
+      HandlerForProtocol(self.browser->GetCommandDispatcher(), HelpCommands);
   _mostVisitedTilesMediator.NTPActionsDelegate = self.NTPActionsDelegate;
   [moduleMediators addObject:_mostVisitedTilesMediator];
   self.contentSuggestionsMediator.mostVisitedTilesMediator =
@@ -1244,6 +1251,11 @@ using segmentation_platform::TipIdentifier;
       break;
     case SetUpListItemType::kAllSet:
       NOTREACHED();
+    case SetUpListItemType::kSafariImport:
+      [self.delegate openSafariDataImport];
+      break;
+    case SetUpListItemType::kBackgroundCustomization:
+      [self.delegate openMainCustomizationMenu];
   }
 }
 

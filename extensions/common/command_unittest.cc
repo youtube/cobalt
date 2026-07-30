@@ -6,11 +6,11 @@
 
 #include <stddef.h>
 
+#include <algorithm>
 #include <array>
 #include <memory>
 #include <utility>
 
-#include "base/containers/contains.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -67,7 +67,7 @@ void CheckParse(const ConstCommandsTestData& data,
   if (data.key[0] != '\0') {
     std::string current_platform = extensions::Command::CommandPlatform();
     if (platform_specific_only &&
-        !base::Contains(platforms, current_platform)) {
+        !std::ranges::contains(platforms, current_platform)) {
       // Given a |current_platform| without a |suggested_key|, |default| is
       // used. However, some keys, such as Search on Chrome OS, are only valid
       // for platform specific entries. Skip the test in this case.
@@ -459,10 +459,10 @@ TEST(CommandTest, ExtensionCommandParsingNormalizedError) {
   EXPECT_FALSE(command.Parse(input, command_name, 0, &error));
 
   // The error message should contain the original, un-normalized string.
-  EXPECT_TRUE(base::Contains(error, base::ASCIIToUTF16(invalid_shortcut)))
+  EXPECT_TRUE(error.contains(base::ASCIIToUTF16(invalid_shortcut)))
       << " expected error to contain '" << invalid_shortcut << "', but was '"
       << base::UTF16ToASCII(error) << "'";
-  EXPECT_FALSE(base::Contains(error, u"Command+Alt+Z"));
+  EXPECT_FALSE(error.contains(u"Command+Alt+Z"));
 }
 #endif  // BUILDFLAG(IS_MAC)
 

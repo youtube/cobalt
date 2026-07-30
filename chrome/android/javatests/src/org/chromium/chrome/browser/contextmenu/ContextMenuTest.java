@@ -46,7 +46,7 @@ import org.mockito.stubbing.Answer;
 import org.chromium.base.Callback;
 import org.chromium.base.DeviceInfo;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.supplier.SettableObservableSupplier;
+import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.CloseableOnMainThread;
@@ -72,7 +72,6 @@ import org.chromium.chrome.browser.ephemeraltab.EphemeralTabCoordinator;
 import org.chromium.chrome.browser.firstrun.FirstRunStatus;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
-import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.SupportedProfileType;
 import org.chromium.chrome.browser.share.ChromeShareExtras;
 import org.chromium.chrome.browser.share.LensUtils;
 import org.chromium.chrome.browser.share.ShareDelegate;
@@ -81,6 +80,7 @@ import org.chromium.chrome.browser.share.ShareDelegateSupplier;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabContextMenuItemDelegate;
 import org.chromium.chrome.browser.tab.TabCreationState;
+import org.chromium.chrome.browser.tabmodel.SupportedProfileType;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorObserver;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
@@ -1222,7 +1222,7 @@ public class ContextMenuTest {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     var supplier =
-                            (SettableObservableSupplier<ShareDelegate>)
+                            (SettableMonotonicObservableSupplier<ShareDelegate>)
                                     ShareDelegateSupplier.from(
                                             mActivityTestRule.getActivity().getWindowAndroid());
                     Mockito.doReturn(true).when(mShareDelegate).isSharingHubEnabled();
@@ -1268,7 +1268,7 @@ public class ContextMenuTest {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     var supplier =
-                            (SettableObservableSupplier<ShareDelegate>)
+                            (SettableMonotonicObservableSupplier<ShareDelegate>)
                                     ShareDelegateSupplier.from(
                                             mActivityTestRule.getActivity().getWindowAndroid());
                     supplier.set(mShareDelegate);
@@ -1312,7 +1312,7 @@ public class ContextMenuTest {
                     // Set share delegate before triggering context menu, so the mocked share
                     // delegate is used.
                     var supplier =
-                            (SettableObservableSupplier<ShareDelegate>)
+                            (SettableMonotonicObservableSupplier<ShareDelegate>)
                                     ShareDelegateSupplier.from(
                                             mActivityTestRule.getActivity().getWindowAndroid());
                     supplier.set(mShareDelegate);
@@ -1359,7 +1359,7 @@ public class ContextMenuTest {
                     // Set share delegate before triggering context menu, so the mocked share
                     // delegate is used.
                     var supplier =
-                            (SettableObservableSupplier<ShareDelegate>)
+                            (SettableMonotonicObservableSupplier<ShareDelegate>)
                                     ShareDelegateSupplier.from(
                                             mActivityTestRule.getActivity().getWindowAndroid());
                     supplier.set(mShareDelegate);

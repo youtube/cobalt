@@ -483,6 +483,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Sync.BookmarksLimitExceededHelpClickedSource"
+    enum="BookmarksLimitExceededHelpClickedSource" expires_after="2026-06-21">
+  <owner>mtatarski@google.com</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    Recorded when the user clicks on the &quot;Learn more&quot; link regarding
+    the bookmarks limit exceeded error. Recorded by the UI surface that
+    triggered the click.
+  </summary>
+</histogram>
+
 <histogram name="Sync.BookmarksModelMetadataCorruptionReason"
     enum="SyncBookmarkModelMetadataCorruptionReason" expires_after="2026-07-05">
   <owner>rushans@google.com</owner>
@@ -557,7 +568,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.CommitLatency{SyncDataType}" units="ms"
-    expires_after="2026-05-10">
+    expires_after="2026-07-12">
   <owner>rushans@google.com</owner>
   <owner>treib@chromium.org</owner>
   <summary>
@@ -1141,7 +1152,8 @@ chromium-metrics-reviews@google.com.
   <summary>
     Device statistics: Records the number of additional syncing clients (i.e.
     not counting this client) of a non-primary account. Recorded at most once
-    per day for every non-primary account.
+    per day (30 seconds after profile initialization) for every non-primary
+    account.
   </summary>
 </histogram>
 
@@ -1154,7 +1166,8 @@ chromium-metrics-reviews@google.com.
     Device statistics: Records the platform of each additional syncing client
     (i.e. not counting this client) of each non-primary account. Multiple
     clients with the same platform are recorded individually. Recorded at most
-    once per day (but with one sample per other client).
+    once per day (30 seconds after profile initialization), but with one sample
+    per other client.
   </summary>
 </histogram>
 
@@ -1165,7 +1178,7 @@ chromium-metrics-reviews@google.com.
   <summary>
     Device statistics: Records the overall outcome, i.e. whether primary and/or
     non-primary accounts have other syncing devices. Recorded at most once per
-    day.
+    day (30 seconds after profile initialization).
   </summary>
 </histogram>
 
@@ -1177,7 +1190,7 @@ chromium-metrics-reviews@google.com.
   <summary>
     Device statistics: Records the number of additional syncing clients (i.e.
     not counting this client) of the primary account. Recorded at most once per
-    day.
+    day (30 seconds after profile initialization).
   </summary>
 </histogram>
 
@@ -1190,7 +1203,8 @@ chromium-metrics-reviews@google.com.
     Device statistics: Records the platform of each additional syncing client
     (i.e. not counting this client) of the primary account. Multiple clients
     with the same platform are recorded individually. Recorded at most once per
-    day (but with one sample per other client).
+    day (30 seconds after profile initialization), but with one sample per other
+    client.
   </summary>
 </histogram>
 
@@ -1212,8 +1226,8 @@ chromium-metrics-reviews@google.com.
   <summary>
     Device statistics: Whenever GetUpdates requests are started for the purpose
     of device statistics metrics, records the number of requests (= the number
-    of accounts in the profile). This happens on Sync startup, at most once per
-    day.
+    of accounts in the profile). This happens at most once per day, 30 seconds
+    after profile initialization.
   </summary>
 </histogram>
 
@@ -1373,7 +1387,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.IncomingInvalidationStatus"
-    enum="SyncIncomingInvalidationStatus" expires_after="2026-05-10">
+    enum="SyncIncomingInvalidationStatus" expires_after="2026-07-12">
   <owner>rushans@google.com</owner>
   <owner>treib@chromium.org</owner>
   <summary>
@@ -1471,7 +1485,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.Local.ReadPlatformFileError" enum="PlatformFileError"
-    expires_after="2026-05-10">
+    expires_after="2026-07-12">
   <owner>igorruvinov@chromium.org</owner>
   <owner>pastarmovj@chromium.org</owner>
   <summary>
@@ -1889,7 +1903,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.SearchEngine.AddedKeywordHasAccountData" enum="Boolean"
-    expires_after="2026-05-10">
+    expires_after="2026-07-12">
   <owner>ankushkush@google.com</owner>
   <owner>mahmadi@chromium.org</owner>
   <summary>
@@ -1900,7 +1914,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Sync.SearchEngine.ChangesCommittedUpon{UpdateType}_{Operation}"
-    units="changes" expires_after="2026-05-10">
+    units="changes" expires_after="2026-07-12">
   <owner>ankushkush@google.com</owner>
   <owner>mahmadi@chromium.org</owner>
   <summary>
@@ -1920,7 +1934,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.SearchEngine.DuplicateIsDefaultSearchProvider"
-    enum="Boolean" expires_after="2026-05-10">
+    enum="Boolean" expires_after="2026-07-12">
   <owner>ankushkush@google.com</owner>
   <owner>mahmadi@chromium.org</owner>
   <summary>
@@ -1954,7 +1968,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Sync.SearchEngine.LocalUntouchedAutogenerated.IsPrepopulatedEntry"
-    enum="Boolean" expires_after="2026-05-10">
+    enum="Boolean" expires_after="2026-07-12">
   <owner>ankushkush@google.com</owner>
   <owner>mahmadi@chromium.org</owner>
   <summary>
@@ -1967,7 +1981,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Sync.SearchEngine.LocalUntouchedAutogenerated.IsStarterPackEntry"
-    enum="Boolean" expires_after="2026-05-10">
+    enum="Boolean" expires_after="2026-07-12">
   <owner>ankushkush@google.com</owner>
   <owner>mahmadi@chromium.org</owner>
   <summary>
@@ -2013,7 +2027,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.SearchEngine.UntouchedAutogenerated{Operation}"
-    enum="Boolean" expires_after="2026-05-10">
+    enum="Boolean" expires_after="2026-07-12">
   <owner>ankushkush@google.com</owner>
   <owner>mahmadi@chromium.org</owner>
   <summary>
@@ -2045,7 +2059,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Sync.SearchEngine.UntouchedAutogenerated{Operation}.IsStarterPackEntry"
-    enum="Boolean" expires_after="2026-05-10">
+    enum="Boolean" expires_after="2026-07-12">
   <owner>ankushkush@google.com</owner>
   <owner>mahmadi@chromium.org</owner>
   <summary>
@@ -2165,7 +2179,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.SyncErrorCard{SyncErrorReason}" enum="SyncErrorUiAction"
-    expires_after="2026-02-28">
+    expires_after="2026-07-12">
   <owner>ankushkush@google.com</owner>
   <owner>src/components/sync/OWNERS</owner>
   <summary>
@@ -2590,7 +2604,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.UnsyncedDataOnAccountSwitching" enum="SyncDataTypes"
-    expires_after="2026-01-20">
+    expires_after="2027-01-12">
   <owner>ankushkush@google.com</owner>
   <owner>src/components/sync/OWNERS</owner>
   <summary>
@@ -2605,7 +2619,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.UnsyncedDataOnProfileSwitching" enum="SyncDataTypes"
-    expires_after="2026-01-20">
+    expires_after="2027-01-12">
   <owner>ankushkush@google.com</owner>
   <owner>src/components/sync/OWNERS</owner>
   <summary>
@@ -2618,7 +2632,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.UnsyncedDataOnSignout2" enum="SyncDataTypes"
-    expires_after="2026-01-20">
+    expires_after="2027-01-12">
   <owner>ankushkush@google.com</owner>
   <owner>src/components/sync/OWNERS</owner>
   <summary>

@@ -11,7 +11,6 @@
 #include <variant>
 #include <vector>
 
-#include "base/containers/contains.h"
 #include "base/files/file_path.h"
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
@@ -279,9 +278,8 @@ TEST_F(FetchManifestAndInstallCommandTest, SuccessWithManifest) {
                            CreateDialogCallback(
                                true, mojom::UserDisplayMode::kStandalone)),
             webapps::InstallResultCode::kSuccessNewInstall);
-  auto& registrar = provider()->registrar_unsafe();
-  EXPECT_EQ(proto::INSTALLED_WITH_OS_INTEGRATION,
-            registrar.GetInstallState(kWebAppId));
+  EXPECT_TRUE(provider()->registrar_unsafe().AppMatches(
+      kWebAppId, WebAppFilter::InstalledInOperatingSystemForTesting()));
   EXPECT_EQ(1, fake_ui_manager().num_reparent_tab_calls());
 }
 
@@ -368,8 +366,8 @@ TEST_F(FetchManifestAndInstallCommandTest,
                 CreateDialogCallback(true, mojom::UserDisplayMode::kStandalone),
                 FallbackBehavior::kAllowFallbackDataAlways),
             webapps::InstallResultCode::kSuccessNewInstall);
-  EXPECT_EQ(proto::INSTALLED_WITH_OS_INTEGRATION,
-            provider()->registrar_unsafe().GetInstallState(kWebAppId));
+  EXPECT_TRUE(provider()->registrar_unsafe().AppMatches(
+      kWebAppId, WebAppFilter::InstalledInOperatingSystemForTesting()));
   EXPECT_EQ(provider()->registrar_unsafe().GetAppShortName(kWebAppId), "foo");
   EXPECT_EQ(1, fake_ui_manager().num_reparent_tab_calls());
 }
@@ -387,8 +385,8 @@ TEST_F(FetchManifestAndInstallCommandTest,
                 CreateDialogCallback(true, mojom::UserDisplayMode::kStandalone),
                 FallbackBehavior::kAllowFallbackDataAlways),
             webapps::InstallResultCode::kSuccessNewInstall);
-  EXPECT_EQ(proto::INSTALLED_WITH_OS_INTEGRATION,
-            provider()->registrar_unsafe().GetInstallState(kWebAppId));
+  EXPECT_TRUE(provider()->registrar_unsafe().AppMatches(
+      kWebAppId, WebAppFilter::InstalledInOperatingSystemForTesting()));
   EXPECT_EQ(provider()->registrar_unsafe().GetAppShortName(kWebAppId),
             "test app");
   EXPECT_EQ(1, fake_ui_manager().num_reparent_tab_calls());
@@ -403,7 +401,8 @@ TEST_F(FetchManifestAndInstallCommandTest,
                 CreateDialogCallback(true, mojom::UserDisplayMode::kStandalone),
                 FallbackBehavior::kAllowFallbackDataAlways),
             webapps::InstallResultCode::kGetWebAppInstallInfoFailed);
-  EXPECT_FALSE(provider()->registrar_unsafe().IsInRegistrar(kWebAppId));
+  EXPECT_FALSE(
+      provider()->registrar_unsafe().GetInstallState(kWebAppId).has_value());
   EXPECT_EQ(0, fake_ui_manager().num_reparent_tab_calls());
 }
 
@@ -422,7 +421,8 @@ TEST_F(FetchManifestAndInstallCommandTest, UserInstallDeclined) {
                            CreateDialogCallback(
                                false, mojom::UserDisplayMode::kStandalone)),
             webapps::InstallResultCode::kUserInstallDeclined);
-  EXPECT_FALSE(provider()->registrar_unsafe().IsInRegistrar(kWebAppId));
+  EXPECT_FALSE(
+      provider()->registrar_unsafe().GetInstallState(kWebAppId).has_value());
   EXPECT_EQ(0, fake_ui_manager().num_reparent_tab_calls());
 }
 
@@ -840,7 +840,8 @@ TEST_F(FetchManifestAndInstallCommandTest, WebContentsNavigates) {
   ASSERT_TRUE(install_future.Wait());
   EXPECT_EQ(install_future.Get<webapps::InstallResultCode>(),
             webapps::InstallResultCode::kCancelledDueToMainFrameNavigation);
-  EXPECT_FALSE(provider()->registrar_unsafe().IsInRegistrar(kWebAppId));
+  EXPECT_FALSE(
+      provider()->registrar_unsafe().GetInstallState(kWebAppId).has_value());
 }
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -1101,8 +1102,8 @@ class UniversalInstallComboTest
 #if BUILDFLAG(IS_MAC)
     if (IsDiyApp()) {
       if (GetIcon().has_value() &&
-          !base::Contains(GetIcon()->src.spec(), "not_found") &&
-          !base::Contains(GetIcon()->src.spec(), "Absent")) {
+          !GetIcon()->src.spec().contains("not_found") &&
+          !GetIcon()->src.spec().contains("Absent")) {
         gfx::Image test_icon = web_app::test::LoadTestImageFromDisk(
             base::FilePath(FILE_PATH_LITERAL(
                 "chrome/test/data/web_apps/diyapp_icon_image.png")));
@@ -1110,7 +1111,7 @@ class UniversalInstallComboTest
         return test_bitmap;
       }
       auto favicon_path = GetFaviconFilePath();
-      if (favicon_path && base::Contains(*favicon_path, "pattern3")) {
+      if (favicon_path && favicon_path->contains("pattern3")) {
         gfx::Image test_icon = web_app::test::LoadTestImageFromDisk(
             base::FilePath(FILE_PATH_LITERAL(
                 "chrome/test/data/web_apps/masked_pattern3-256.png")));
@@ -1173,10 +1174,10 @@ TEST_P(UniversalInstallComboTest, InstallStateValid) {
 
   webapps::AppId app_id = install_future.Get<webapps::AppId>();
 
-  ASSERT_EQ(proto::InstallState::INSTALLED_WITH_OS_INTEGRATION,
-            provider()->registrar_unsafe().GetInstallState(app_id));
-
   auto& registrar = provider()->registrar_unsafe();
+
+  ASSERT_TRUE(registrar.AppMatches(
+      app_id, WebAppFilter::InstalledInOperatingSystemForTesting()));
 
   std::string name = base::UTF16ToUTF8(GetAppName().value_or(kPageTitle));
   EXPECT_EQ(registrar.GetAppShortName(app_id), name);

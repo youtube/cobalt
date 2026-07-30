@@ -44,6 +44,7 @@
 #include "net/base/net_errors.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/omnibox_proto/aim_tools.pb.h"
 #include "third_party/omnibox_proto/groups.pb.h"
 #include "url/gurl.h"
 namespace {
@@ -56,10 +57,13 @@ using ::action_chips::mojom::TabInfoPtr;
 using ::sync_preferences::TestingPrefServiceSyncable;
 using ::tabs::TabInterface;
 using ::testing::_;
+using ::testing::AllOf;
 using ::testing::AnyNumber;
 using ::testing::DoAll;
 using ::testing::ElementsAre;
+using ::testing::ElementsAreArray;
 using ::testing::Eq;
+using ::testing::Field;
 using ::testing::Matcher;
 using ::testing::Pointee;
 using ::testing::Return;
@@ -93,6 +97,28 @@ SearchSuggestionParser::SuggestResult MakeResult(
   return result;
 }
 
+SearchSuggestionParser::SuggestResult CreateSuggestion(
+    std::optional<omnibox::GroupId> group_id,
+    const std::vector<int>& subtypes,
+    std::string_view match_contents,
+    std::string_view annotation,
+    std::u16string_view suggestion = u"") {
+  SearchSuggestionParser::SuggestResult result(
+      std::u16string(suggestion), AutocompleteMatchType::SEARCH_SUGGEST,
+      omnibox::SuggestType::TYPE_FUSEBOX_ACTION, subtypes,
+      base::UTF8ToUTF16(match_contents),
+      /*match_contents_prefix=*/u"", base::UTF8ToUTF16(annotation),
+      omnibox::EntityInfo::default_instance(), /*deletion_url=*/"",
+      /*from_keyword=*/false, omnibox::NavigationalIntent::NAV_INTENT_NONE,
+      /*relevance=*/100, /*relevance_from_server=*/true,
+      /*should_prefetch=*/false,
+      /*should_prerender=*/false, /*input_text=*/u"");
+  if (group_id.has_value()) {
+    result.set_suggestion_group_id(group_id);
+  }
+  return result;
+}
+
 class MockRemoteSuggestionsServiceSimple
     : public RemoteSuggestionsServiceSimple {
  public:
@@ -105,6 +131,17 @@ class MockRemoteSuggestionsServiceSimple
                const GURL& url,
                base::OnceCallback<void(ActionChipSuggestionsResult&&)>),
               (override));
+  MOCK_METHOD(
+      std::unique_ptr<network::SimpleURLLoader>,
+      GetActionChipSuggestions,
+      (base::optional_ref<const std::u16string> title,
+       base::optional_ref<const GURL> url,
+       base::span<const omnibox::ToolMode> allowed_tools,
+       base::optional_ref<const omnibox::PageVertical> page_vertical,
+       base::OnceCallback<
+           void(RemoteSuggestionsServiceSimple::ActionChipSuggestionsResult&&)>
+           callback),
+      (override));
 };
 
 int32_t GetTabHandleId(const tabs::TabInterface* tab) {
@@ -123,14 +160,15 @@ TabInfoPtr CreateTabInfo(const tabs::TabInterface* tab) {
 
 ActionChipPtr CreateStaticRecentTabChip(TabInfoPtr tab) {
   const std::string title = "Ask about previous tab";
-  return ActionChip::New(title, tab->title, ChipType::kRecentTab,
+  return ActionChip::New(title, tab->title, "", ChipType::kRecentTab,
                          std::move(tab));
 }
 
 const ActionChipPtr& GetStaticDeepSearchChip() {
   static const base::NoDestructor<ActionChipPtr> kInstance(ActionChip::New(
       /*title=*/"Deep Search",
-      /*suggestion=*/"Dive deep into something new",
+      /*subtitle=*/"Dive deep into something new",
+      /*suggestion=*/"",
       /*type=*/ChipType::kDeepSearch, /*tab=*/nullptr));
   return *kInstance;
 }
@@ -138,7 +176,8 @@ const ActionChipPtr& GetStaticDeepSearchChip() {
 const ActionChipPtr& GetStaticImageGenerationChip() {
   static const base::NoDestructor<ActionChipPtr> kInstance(ActionChip::New(
       /*title=*/"Create images",
-      /*suggestion=*/"Add an image and reimagine it",
+      /*subtitle=*/"Add an image and reimagine it",
+      /*suggestion=*/"",
       /*type=*/ChipType::kImage, /*tab=*/nullptr));
   return *kInstance;
 }
@@ -146,7 +185,8 @@ const ActionChipPtr& GetStaticImageGenerationChip() {
 ActionChipPtr CreateStaticDeepDiveChip(TabInfoPtr tab,
                                        std::string_view suggestion) {
   return ActionChip::New(/*title=*/"", std::string(suggestion),
-                         ChipType::kDeepDive, std::move(tab));
+                         std::string(suggestion), ChipType::kDeepDive,
+                         std::move(tab));
 }
 
 // A container to store WebContents and its dependency.
@@ -314,10 +354,10 @@ TEST(ActionChipGeneratorTest,
   generator_fixture.GenerateActionChips(&tab_fixture.mock_tab(), run_loop,
                                         actual);
   run_loop.Run();
-  ActionChipPtr most_resent_tab_chip =
+  ActionChipPtr most_recent_tab_chip =
       CreateStaticRecentTabChip(CreateTabInfo(&tab_fixture.mock_tab()));
   EXPECT_THAT(actual,
-              ElementsAre(Eq(std::cref(most_resent_tab_chip)),
+              ElementsAre(Eq(std::cref(most_recent_tab_chip)),
                           Eq(std::cref(GetStaticDeepSearchChip())),
                           Eq(std::cref(GetStaticImageGenerationChip()))));
 }
@@ -398,10 +438,10 @@ TEST_P(ActionChipGeneratorStaticChipsGenerationWithAimEligibilityTest,
   run_loop.Run();
 
   std::vector<Matcher<ActionChipPtr>> expected;
-  ActionChipPtr most_resent_tab_chip;
+  ActionChipPtr most_recent_tab_chip;
   if (tab != nullptr) {
-    most_resent_tab_chip = CreateStaticRecentTabChip(CreateTabInfo(tab));
-    expected.push_back(Eq(std::cref(most_resent_tab_chip)));
+    most_recent_tab_chip = CreateStaticRecentTabChip(CreateTabInfo(tab));
+    expected.push_back(Eq(std::cref(most_recent_tab_chip)));
   }
   if (GetParam().is_deepsearch_eligible) {
     expected.push_back(Eq(std::cref(GetStaticDeepSearchChip())));
@@ -433,10 +473,10 @@ TEST(ActionChipGeneratorWithNoRecentTabTest,
   generator_fixture.GenerateActionChips(&tab_fixture.mock_tab(), run_loop,
                                         actual);
   run_loop.Run();
-  ActionChipPtr most_resent_tab_chip =
+  ActionChipPtr most_recent_tab_chip =
       CreateStaticRecentTabChip(CreateTabInfo(&tab_fixture.mock_tab()));
   EXPECT_THAT(actual,
-              ElementsAre(Eq(std::cref(most_resent_tab_chip)),
+              ElementsAre(Eq(std::cref(most_recent_tab_chip)),
                           Eq(std::cref(GetStaticDeepSearchChip())),
                           Eq(std::cref(GetStaticImageGenerationChip()))));
 }
@@ -611,10 +651,10 @@ TEST(ActionChipGeneratorTest,
                                         actual);
   run_loop.Run();
 
-  ActionChipPtr most_resent_tab_chip =
+  ActionChipPtr most_recent_tab_chip =
       CreateStaticRecentTabChip(CreateTabInfo(&tab_fixture.mock_tab()));
   EXPECT_THAT(actual,
-              ElementsAre(Eq(std::cref(most_resent_tab_chip)),
+              ElementsAre(Eq(std::cref(most_recent_tab_chip)),
                           Eq(std::cref(GetStaticDeepSearchChip())),
                           Eq(std::cref(GetStaticImageGenerationChip()))));
 }
@@ -650,16 +690,16 @@ TEST(ActionChipGeneratorTest,
                                         actual);
   run_loop.Run();
 
-  ActionChipPtr most_resent_tab_chip =
+  ActionChipPtr most_recent_tab_chip =
       CreateStaticRecentTabChip(CreateTabInfo(&tab_fixture.mock_tab()));
   EXPECT_THAT(actual,
-              ElementsAre(Eq(std::cref(most_resent_tab_chip)),
+              ElementsAre(Eq(std::cref(most_recent_tab_chip)),
                           Eq(std::cref(GetStaticDeepSearchChip())),
                           Eq(std::cref(GetStaticImageGenerationChip()))));
 }
 
 TEST(ActionChipGeneratorTest,
-     StaticChipsAreGeneratedWhenUseOfNewEndpointIsRequestedForDeepDiveChips) {
+     DeepDiveChipGenerationFallsBackToStaticChipsWhenRemoteCallIsOne) {
   EnvironmentFixture env;
   const GURL page_url("https://en.wikipedia.org/wiki/Mathematics");
   const std::u16string page_title(u"Mathematics - Wikipedia");
@@ -669,7 +709,81 @@ TEST(ActionChipGeneratorTest,
 
   EXPECT_CALL(generator_fixture.mock_service(),
               GetDeepdiveChipSuggestionsForTab(Eq(page_title), Eq(page_url), _))
-      .Times(0);
+      .WillOnce(WithArg<2>(
+          [](base::OnceCallback<void(
+                 RemoteSuggestionsServiceSimple::ActionChipSuggestionsResult&&)>
+                 callback) {
+            std::move(callback).Run(SearchSuggestionParser::SuggestResults{
+                MakeResult({.suggestion = u"Test suggestion 1"})});
+            return nullptr;
+          }));
+
+  base::test::ScopedFeatureList list;
+  list.InitAndEnableFeatureWithParameters(
+      ntp_features::kNtpNextFeatures,
+      {{ntp_features::kNtpNextShowStaticTextParam.name, "false"},
+       {ntp_features::kNtpNextShowDeepDiveSuggestionsParam.name, "true"}});
+
+  base::RunLoop run_loop;
+  std::vector<ActionChipPtr> actual;
+  generator_fixture.GenerateActionChips(&tab_fixture.mock_tab(), run_loop,
+                                        actual);
+  run_loop.Run();
+
+  ActionChipPtr most_recent_tab_chip =
+      CreateStaticRecentTabChip(CreateTabInfo(&tab_fixture.mock_tab()));
+  EXPECT_THAT(actual,
+              ElementsAre(Eq(std::cref(most_recent_tab_chip)),
+                          Eq(std::cref(GetStaticDeepSearchChip())),
+                          Eq(std::cref(GetStaticImageGenerationChip()))));
+}
+
+TEST(ActionChipGeneratorTest, DeepDiveWithNewEndpoint) {
+  EnvironmentFixture env;
+  const GURL page_url("https://en.wikipedia.org/wiki/Mathematics");
+  const std::u16string page_title(u"Mathematics - Wikipedia");
+  TabFixture tab_fixture(page_url, page_title);
+  GeneratorFixture generator_fixture;
+  generator_fixture.MakeOptimizationGuidePermissive();
+
+  const std::string recent_tab_title = "Ask about previous tab";
+  const std::string recent_tab_subtitle = "Subtitle for recent tab";
+  const std::u16string recent_tab_suggestion = u"Suggestion for recent tab";
+  const std::string deep_dive_title_1 = "Solve the equations";
+  const std::string deep_dive_subtitle_1 = "Subtitle for deep dive 1";
+  const std::u16string deep_dive_suggestion_1 = u"Suggestion for deep dive 1";
+  const std::string deep_dive_title_2 = "Explain the steps involved";
+  const std::string deep_dive_subtitle_2 = "Subtitle for deep dive 2";
+  const std::u16string deep_dive_suggestion_2 = u"Suggestion for deep dive 2";
+
+  EXPECT_CALL(generator_fixture.mock_service(),
+              GetActionChipSuggestions(
+                  Eq(page_title), Eq(page_url),
+                  ElementsAre(omnibox::TOOL_MODE_DEEP_SEARCH,
+                              omnibox::TOOL_MODE_IMAGE_GEN),
+                  TypedEq<base::optional_ref<const omnibox::PageVertical>>(
+                      omnibox::PageVertical::PAGE_VERTICAL_EDU),
+                  _))
+      .WillOnce(WithArg<4>([&](base::OnceCallback<void(
+                                   RemoteSuggestionsServiceSimple::
+                                       ActionChipSuggestionsResult&&)>
+                                   callback) {
+        std::move(callback).Run(SearchSuggestionParser::SuggestResults{
+            CreateSuggestion(omnibox::GROUP_AI_MODE_CONTEXTUAL_SEARCH_ACTION,
+                             {}, recent_tab_title, recent_tab_subtitle,
+                             recent_tab_suggestion),
+            CreateSuggestion(omnibox::GROUP_AI_MODE_CONTEXTUAL_SEARCH_ACTION,
+                             {omnibox::SUBTYPE_AI_TOOL_ACTION,
+                              omnibox::SUBTYPE_CONTEXTUAL_SEARCH},
+                             deep_dive_title_1, deep_dive_subtitle_1,
+                             deep_dive_suggestion_1),
+            CreateSuggestion(omnibox::GROUP_AI_MODE_CONTEXTUAL_SEARCH_ACTION,
+                             {omnibox::SUBTYPE_AI_TOOL_ACTION,
+                              omnibox::SUBTYPE_CONTEXTUAL_SEARCH},
+                             deep_dive_title_2, deep_dive_subtitle_2,
+                             deep_dive_suggestion_2)});
+        return nullptr;
+      }));
 
   base::test::ScopedFeatureList list;
   list.InitAndEnableFeatureWithParameters(
@@ -686,10 +800,394 @@ TEST(ActionChipGeneratorTest,
                                         actual);
   run_loop.Run();
 
-  ActionChipPtr most_resent_tab_chip =
+  TabInfoPtr tab_info = CreateTabInfo(&tab_fixture.mock_tab());
+  ActionChipPtr chip0 =
+      ActionChip::New(recent_tab_title, recent_tab_subtitle,
+                      base::UTF16ToUTF8(recent_tab_suggestion),
+                      ChipType::kRecentTab, tab_info->Clone());
+  ActionChipPtr chip1 =
+      ActionChip::New(deep_dive_title_1, deep_dive_subtitle_1,
+                      base::UTF16ToUTF8(deep_dive_suggestion_1),
+                      ChipType::kDeepDive, tab_info->Clone());
+  ActionChipPtr chip2 =
+      ActionChip::New(deep_dive_title_2, deep_dive_subtitle_2,
+                      base::UTF16ToUTF8(deep_dive_suggestion_2),
+                      ChipType::kDeepDive, tab_info->Clone());
+
+  EXPECT_THAT(actual, ElementsAre(Eq(std::cref(chip0)), Eq(std::cref(chip1)),
+                                  Eq(std::cref(chip2))));
+}
+
+TEST(ActionChipGeneratorTest, SteadyStateWithNewEndpoint) {
+  EnvironmentFixture env;
+  const GURL page_url("https://www.google.com/");
+  const std::u16string page_title(u"Google");
+  TabFixture tab_fixture(page_url, page_title);
+  GeneratorFixture generator_fixture;
+
+  const std::string recent_tab_title = "Ask about previous tab";
+  const std::string recent_tab_subtitle = "Subtitle for steady recent tab";
+  const std::u16string recent_tab_suggestion =
+      u"Suggestion for steady recent tab";
+  const std::string deep_search_title = "Research a topic";
+  const std::string deep_search_subtitle = "Subtitle for steady deep search";
+  const std::u16string deep_search_suggestion =
+      u"Suggestion for steady deep search";
+  const std::string image_gen_title = "Create image";
+  const std::string image_gen_subtitle = "Subtitle for steady image gen";
+  const std::u16string image_gen_suggestion =
+      u"Suggestion for steady image gen";
+
+  EXPECT_CALL(
+      generator_fixture.mock_service(),
+      GetActionChipSuggestions(Eq(page_title), Eq(page_url),
+                               ElementsAre(omnibox::TOOL_MODE_DEEP_SEARCH,
+                                           omnibox::TOOL_MODE_IMAGE_GEN),
+                               Eq(std::nullopt), _))
+      .WillOnce(WithArg<4>(
+          [&](base::OnceCallback<void(RemoteSuggestionsServiceSimple::
+                                          ActionChipSuggestionsResult&&)>
+                  callback) {
+            std::move(callback).Run(SearchSuggestionParser::SuggestResults{
+                CreateSuggestion(
+                    omnibox::GROUP_AI_MODE_CONTEXTUAL_SEARCH_ACTION, {},
+                    recent_tab_title, recent_tab_subtitle,
+                    recent_tab_suggestion),
+                CreateSuggestion(omnibox::GROUP_AI_MODE_DEEP_SEARCH_ACTION, {},
+                                 deep_search_title, deep_search_subtitle,
+                                 deep_search_suggestion),
+                CreateSuggestion(omnibox::GROUP_AI_MODE_CREATE_IMAGE_ACTION, {},
+                                 image_gen_title, image_gen_subtitle,
+                                 image_gen_suggestion)});
+            return nullptr;
+          }));
+
+  base::test::ScopedFeatureList list;
+  list.InitAndEnableFeatureWithParameters(
+      ntp_features::kNtpNextFeatures,
+      {{ntp_features::kNtpNextShowStaticTextParam.name, "false"},
+       {ntp_features::kNtpNextSuggestionsFromNewSearchSuggestionsEndpointParam
+            .name,
+        "true"}});
+
+  base::RunLoop run_loop;
+  std::vector<ActionChipPtr> actual;
+  generator_fixture.GenerateActionChips(&tab_fixture.mock_tab(), run_loop,
+                                        actual);
+  run_loop.Run();
+
+  TabInfoPtr tab_info = CreateTabInfo(&tab_fixture.mock_tab());
+  ActionChipPtr chip0 =
+      ActionChip::New(recent_tab_title, recent_tab_subtitle,
+                      base::UTF16ToUTF8(recent_tab_suggestion),
+                      ChipType::kRecentTab, tab_info->Clone());
+  ActionChipPtr chip1 =
+      ActionChip::New(deep_search_title, deep_search_subtitle,
+                      base::UTF16ToUTF8(deep_search_suggestion),
+                      ChipType::kDeepSearch, nullptr);
+  ActionChipPtr chip2 = ActionChip::New(image_gen_title, image_gen_subtitle,
+                                        base::UTF16ToUTF8(image_gen_suggestion),
+                                        ChipType::kImage, nullptr);
+
+  EXPECT_THAT(actual, ElementsAre(Eq(std::cref(chip0)), Eq(std::cref(chip1)),
+                                  Eq(std::cref(chip2))));
+}
+
+TEST(ActionChipGeneratorTest, SteadyStateWithNewEndpointAndNoTab) {
+  EnvironmentFixture env;
+  GeneratorFixture generator_fixture;
+
+  const std::string deep_search_title = "Research a topic";
+  const std::string deep_search_subtitle = "Subtitle for deep search";
+  const std::string deep_search_suggestion = "Interior design courses";
+  const std::string image_gen_title = "Create image";
+  const std::string image_gen_subtitle = "Subtitle for image gen";
+  const std::string image_gen_suggestion = "Show me a city skyline";
+
+  EXPECT_CALL(
+      generator_fixture.mock_service(),
+      GetActionChipSuggestions(Eq(std::nullopt), Eq(std::nullopt),
+                               ElementsAre(omnibox::TOOL_MODE_DEEP_SEARCH,
+                                           omnibox::TOOL_MODE_IMAGE_GEN),
+                               Eq(std::nullopt), _))
+      .WillOnce(WithArg<4>(
+          [&](base::OnceCallback<void(RemoteSuggestionsServiceSimple::
+                                          ActionChipSuggestionsResult&&)>
+                  callback) {
+            std::move(callback).Run(SearchSuggestionParser::SuggestResults{
+                CreateSuggestion(omnibox::GROUP_AI_MODE_DEEP_SEARCH_ACTION, {},
+                                 deep_search_title, deep_search_subtitle,
+                                 base::UTF8ToUTF16(deep_search_suggestion)),
+                CreateSuggestion(omnibox::GROUP_AI_MODE_CREATE_IMAGE_ACTION, {},
+                                 image_gen_title, image_gen_subtitle,
+                                 base::UTF8ToUTF16(image_gen_suggestion))});
+            return nullptr;
+          }));
+
+  base::test::ScopedFeatureList list;
+  list.InitAndEnableFeatureWithParameters(
+      ntp_features::kNtpNextFeatures,
+      {{ntp_features::kNtpNextShowStaticTextParam.name, "false"},
+       {ntp_features::kNtpNextSuggestionsFromNewSearchSuggestionsEndpointParam
+            .name,
+        "true"}});
+
+  base::RunLoop run_loop;
+  std::vector<ActionChipPtr> actual;
+  generator_fixture.GenerateActionChips(std::nullopt, run_loop, actual);
+  run_loop.Run();
+
+  ActionChipPtr chip0 =
+      ActionChip::New(deep_search_title, deep_search_subtitle,
+                      deep_search_suggestion, ChipType::kDeepSearch, nullptr);
+  ActionChipPtr chip1 =
+      ActionChip::New(image_gen_title, image_gen_subtitle, image_gen_suggestion,
+                      ChipType::kImage, nullptr);
+
+  std::vector<Matcher<const ActionChipPtr&>> expected;
+  expected.push_back(Eq(std::cref(chip0)));
+  expected.push_back(Eq(std::cref(chip1)));
+
+  EXPECT_THAT(actual, ElementsAreArray(expected));
+}
+
+TEST(ActionChipGeneratorTest, NewEndpointFailureFallsBackToStaticChips) {
+  EnvironmentFixture env;
+  const GURL page_url("https://www.google.com/");
+  const std::u16string page_title(u"Google");
+  TabFixture tab_fixture(page_url, page_title);
+  GeneratorFixture generator_fixture;
+
+  EXPECT_CALL(generator_fixture.mock_service(),
+              GetActionChipSuggestions(Eq(page_title), Eq(page_url), _, _, _))
+      .WillOnce(WithArg<4>(
+          [](base::OnceCallback<void(
+                 RemoteSuggestionsServiceSimple::ActionChipSuggestionsResult&&)>
+                 callback) {
+            std::move(callback).Run(
+                base::unexpected(RemoteSuggestionsServiceSimple::NetworkError{
+                    .net_error = net::ERR_TIMED_OUT}));
+            return nullptr;
+          }));
+
+  base::test::ScopedFeatureList list;
+  list.InitAndEnableFeatureWithParameters(
+      ntp_features::kNtpNextFeatures,
+      {{ntp_features::kNtpNextShowStaticTextParam.name, "false"},
+       {ntp_features::kNtpNextSuggestionsFromNewSearchSuggestionsEndpointParam
+            .name,
+        "true"}});
+
+  base::RunLoop run_loop;
+  std::vector<ActionChipPtr> actual;
+  generator_fixture.GenerateActionChips(&tab_fixture.mock_tab(), run_loop,
+                                        actual);
+  run_loop.Run();
+
+  ActionChipPtr most_recent_tab_chip =
       CreateStaticRecentTabChip(CreateTabInfo(&tab_fixture.mock_tab()));
   EXPECT_THAT(actual,
-              ElementsAre(Eq(std::cref(most_resent_tab_chip)),
+              ElementsAre(Eq(std::cref(most_recent_tab_chip)),
+                          Eq(std::cref(GetStaticDeepSearchChip())),
+                          Eq(std::cref(GetStaticImageGenerationChip()))));
+}
+
+TEST(ActionChipGeneratorTest, NewEndpointOptOutReturnsStaticChips) {
+  EnvironmentFixture env;
+  const GURL page_url("https://www.google.com/");
+  const std::u16string page_title(u"Google");
+  TabFixture tab_fixture(page_url, page_title);
+  GeneratorFixture generator_fixture;
+
+  EXPECT_CALL(generator_fixture.fake_client(),
+              IsPersonalizedUrlDataCollectionActive())
+      .WillOnce(Return(false));
+
+  // Should NOT call remote service.
+  EXPECT_CALL(generator_fixture.mock_service(), GetActionChipSuggestions)
+      .Times(0);
+
+  base::test::ScopedFeatureList list;
+  list.InitAndEnableFeatureWithParameters(
+      ntp_features::kNtpNextFeatures,
+      {{ntp_features::kNtpNextShowStaticTextParam.name, "false"},
+       {ntp_features::kNtpNextSuggestionsFromNewSearchSuggestionsEndpointParam
+            .name,
+        "true"}});
+
+  base::RunLoop run_loop;
+  std::vector<ActionChipPtr> actual;
+  generator_fixture.GenerateActionChips(&tab_fixture.mock_tab(), run_loop,
+                                        actual);
+  run_loop.Run();
+
+  // Expect static chips.
+  ActionChipPtr most_recent_tab_chip =
+      CreateStaticRecentTabChip(CreateTabInfo(&tab_fixture.mock_tab()));
+  EXPECT_THAT(actual,
+              ElementsAre(Eq(std::cref(most_recent_tab_chip)),
+                          Eq(std::cref(GetStaticDeepSearchChip())),
+                          Eq(std::cref(GetStaticImageGenerationChip()))));
+}
+
+TEST(ActionChipGeneratorTest, NewEndpointEmptyResponseReturnsEmptyChips) {
+  EnvironmentFixture env;
+  const GURL page_url("https://www.google.com/");
+  const std::u16string page_title(u"Google");
+  TabFixture tab_fixture(page_url, page_title);
+  GeneratorFixture generator_fixture;
+
+  EXPECT_CALL(generator_fixture.mock_service(),
+              GetActionChipSuggestions(Eq(page_title), Eq(page_url), _, _, _))
+      .WillOnce(WithArg<4>(
+          [](base::OnceCallback<void(
+                 RemoteSuggestionsServiceSimple::ActionChipSuggestionsResult&&)>
+                 callback) {
+            std::move(callback).Run(SearchSuggestionParser::SuggestResults{});
+            return nullptr;
+          }));
+
+  base::test::ScopedFeatureList list;
+  list.InitAndEnableFeatureWithParameters(
+      ntp_features::kNtpNextFeatures,
+      {{ntp_features::kNtpNextShowStaticTextParam.name, "false"},
+       {ntp_features::kNtpNextSuggestionsFromNewSearchSuggestionsEndpointParam
+            .name,
+        "true"}});
+
+  base::RunLoop run_loop;
+  std::vector<ActionChipPtr> actual;
+  generator_fixture.GenerateActionChips(&tab_fixture.mock_tab(), run_loop,
+                                        actual);
+  run_loop.Run();
+
+  EXPECT_TRUE(actual.empty());
+}
+
+TEST(ActionChipGeneratorTest, NewEndpointPartialEligibilityPassesCorrectTools) {
+  EnvironmentFixture env;
+  const GURL page_url("https://www.google.com/");
+  const std::u16string page_title(u"Google");
+  TabFixture tab_fixture(page_url, page_title);
+  GeneratorFixture generator_fixture;
+
+  // Only Deep Search is eligible.
+  EXPECT_CALL(generator_fixture.mock_aim_eligibility_service(),
+              IsDeepSearchEligible())
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(generator_fixture.mock_aim_eligibility_service(),
+              IsCreateImagesEligible())
+      .WillRepeatedly(Return(false));
+
+  EXPECT_CALL(
+      generator_fixture.mock_service(),
+      GetActionChipSuggestions(Eq(page_title), Eq(page_url),
+                               // Expect ONLY Deep Search tool mode.
+                               ElementsAre(omnibox::TOOL_MODE_DEEP_SEARCH),
+                               Eq(std::nullopt), _))
+      .WillOnce(WithArg<4>(
+          [](base::OnceCallback<void(
+                 RemoteSuggestionsServiceSimple::ActionChipSuggestionsResult&&)>
+                 callback) {
+            std::move(callback).Run(SearchSuggestionParser::SuggestResults{});
+            return nullptr;
+          }));
+
+  base::test::ScopedFeatureList list;
+  list.InitAndEnableFeatureWithParameters(
+      ntp_features::kNtpNextFeatures,
+      {{ntp_features::kNtpNextShowStaticTextParam.name, "false"},
+       {ntp_features::kNtpNextSuggestionsFromNewSearchSuggestionsEndpointParam
+            .name,
+        "true"}});
+
+  base::RunLoop run_loop;
+  std::vector<ActionChipPtr> actual;
+  generator_fixture.GenerateActionChips(&tab_fixture.mock_tab(), run_loop,
+                                        actual);
+  run_loop.Run();
+}
+
+TEST(ActionChipGeneratorTest, NewEndpointFiltersInvalidSuggestions) {
+  EnvironmentFixture env;
+  const GURL page_url("https://www.google.com/");
+  const std::u16string page_title(u"Google");
+  TabFixture tab_fixture(page_url, page_title);
+  GeneratorFixture generator_fixture;
+
+  EXPECT_CALL(generator_fixture.mock_service(),
+              GetActionChipSuggestions(Eq(page_title), Eq(page_url), _, _, _))
+      .WillOnce(WithArg<4>(
+          [&](base::OnceCallback<void(RemoteSuggestionsServiceSimple::
+                                          ActionChipSuggestionsResult&&)>
+                  callback) {
+            SearchSuggestionParser::SuggestResults results;
+
+            // Valid suggestion.
+            results.push_back(
+                CreateSuggestion(omnibox::GROUP_AI_MODE_DEEP_SEARCH_ACTION, {},
+                                 "Valid Title", "Valid Annotation"));
+
+            // Invalid suggestion: No Group ID.
+            results.push_back(CreateSuggestion(
+                /*group_id=*/std::nullopt, /*subtypes=*/{}, "Title",
+                "Annotation"));
+
+            std::move(callback).Run(std::move(results));
+            return nullptr;
+          }));
+
+  base::test::ScopedFeatureList list;
+  list.InitAndEnableFeatureWithParameters(
+      ntp_features::kNtpNextFeatures,
+      {{ntp_features::kNtpNextShowStaticTextParam.name, "false"},
+       {ntp_features::kNtpNextSuggestionsFromNewSearchSuggestionsEndpointParam
+            .name,
+        "true"}});
+
+  base::RunLoop run_loop;
+  std::vector<ActionChipPtr> actual;
+  generator_fixture.GenerateActionChips(&tab_fixture.mock_tab(), run_loop,
+                                        actual);
+  run_loop.Run();
+
+  // Expect only the valid chip.
+  EXPECT_THAT(
+      actual,
+      ElementsAre(Pointee(AllOf(Field(&ActionChip::type, ChipType::kDeepSearch),
+                                Field(&ActionChip::title, "Valid Title")))));
+}
+
+TEST(ActionChipGeneratorTest, StaticChipsParamTakesPrecedenceOverNewEndpoint) {
+  EnvironmentFixture env;
+  const GURL page_url("https://www.google.com/");
+  const std::u16string page_title(u"Google");
+  TabFixture tab_fixture(page_url, page_title);
+  GeneratorFixture generator_fixture;
+
+  // Even though new endpoint is enabled, we should NOT call the service.
+  EXPECT_CALL(generator_fixture.mock_service(), GetActionChipSuggestions)
+      .Times(0);
+
+  base::test::ScopedFeatureList list;
+  list.InitAndEnableFeatureWithParameters(
+      ntp_features::kNtpNextFeatures,
+      {{ntp_features::kNtpNextShowStaticTextParam.name, "true"},
+       {ntp_features::kNtpNextSuggestionsFromNewSearchSuggestionsEndpointParam
+            .name,
+        "true"}});
+
+  base::RunLoop run_loop;
+  std::vector<ActionChipPtr> actual;
+  generator_fixture.GenerateActionChips(&tab_fixture.mock_tab(), run_loop,
+                                        actual);
+  run_loop.Run();
+
+  // Expect static chips.
+  ActionChipPtr most_recent_tab_chip =
+      CreateStaticRecentTabChip(CreateTabInfo(&tab_fixture.mock_tab()));
+  EXPECT_THAT(actual,
+              ElementsAre(Eq(std::cref(most_recent_tab_chip)),
                           Eq(std::cref(GetStaticDeepSearchChip())),
                           Eq(std::cref(GetStaticImageGenerationChip()))));
 }
@@ -717,7 +1215,8 @@ TEST(ActionChipGeneratorTest,
   TabInfoPtr tab_info = CreateTabInfo(&tab_fixture.mock_tab());
   ActionChipPtr expected_recent_tab_chip =
       ActionChip::New(/*title=*/"Ask about previous tab",
-                      /*suggestion=*/"Some Title",
+                      /*subtitle=*/"Some Title",
+                      /*suggestion=*/"",
                       /*type=*/ChipType::kRecentTab, /*tab=*/tab_info->Clone());
 
   EXPECT_THAT(actual,

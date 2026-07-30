@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "base/check_op.h"
-#include "base/containers/contains.h"
 #include "base/memory/ptr_util.h"
 #include "base/notreached.h"
 #include "components/android_autofill/browser/android_form_event_logger.h"
@@ -156,7 +155,8 @@ void AndroidAutofillManager::OnHidePopupImpl() {
 void AndroidAutofillManager::OnFormProcessed(
     const FormData& form,
     const FormStructure& form_structure) {
-  DenseSet<FormType> form_types = form_structure.GetFormTypes();
+  DenseSet<FormType> form_types = form_structure.GetFormTypes(
+      /*suppress_if_ac_unrecognized=*/!client().IsTabInActorMode());
   for (FormType form_type : form_types) {
     if (auto* logger = GetEventFormLogger(form_type)) {
       logger->OnDidParseForm();

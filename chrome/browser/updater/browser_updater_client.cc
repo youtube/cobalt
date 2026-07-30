@@ -159,6 +159,22 @@ void BrowserUpdaterClient::IsBrowserRegistered(
                      std::move(callback))));
 }
 
+void BrowserUpdaterClient::GetUpdaterState(
+    base::OnceCallback<void(const UpdateService::UpdaterState&)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  update_service_->GetUpdaterState(
+      base::BindOnce(&BrowserUpdaterClient::GetUpdaterStateCompleted, this,
+                     std::move(callback)));
+}
+
+void BrowserUpdaterClient::GetPoliciesJson(
+    base::OnceCallback<void(const std::string&)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  update_service_->GetPoliciesJson(
+      base::BindOnce(&BrowserUpdaterClient::GetPoliciesJsonCompleted, this,
+                     std::move(callback)));
+}
+
 void BrowserUpdaterClient::IsBrowserRegisteredCompleted(
     base::OnceCallback<void(bool)> callback,
     const std::vector<UpdateService::AppState>& apps) {
@@ -176,6 +192,18 @@ void BrowserUpdaterClient::IsBrowserRegisteredCompleted(
     GetLastKnownBrowserRegistrationStorage() = *app;
   }
   std::move(callback).Run(app != apps.end());
+}
+
+void BrowserUpdaterClient::GetUpdaterStateCompleted(
+    base::OnceCallback<void(const UpdateService::UpdaterState&)> callback,
+    const UpdateService::UpdaterState& updater_state) {
+  std::move(callback).Run(updater_state);
+}
+
+void BrowserUpdaterClient::GetPoliciesJsonCompleted(
+    base::OnceCallback<void(const std::string&)> callback,
+    const std::string& policies) {
+  std::move(callback).Run(policies);
 }
 
 // User and System BrowserUpdaterClients must be kept separate - the template
@@ -207,9 +235,14 @@ scoped_refptr<BrowserUpdaterClient> BrowserUpdaterClient::GetClient(
 
 scoped_refptr<BrowserUpdaterClient> BrowserUpdaterClient::Create(
     UpdaterScope scope) {
-  return Create(
-      base::BindRepeating(&CreateUpdateServiceProxy, scope, base::Seconds(15)),
-      scope);
+  return Create(base::BindRepeating(
+#if BUILDFLAG(IS_WIN)
+                    &CreateUpdateServiceProxyMojo,
+#else   // BUILDFLAG(IS_WIN)
+                    &CreateUpdateServiceProxy,
+#endif  // BUILDFLAG(IS_WIN)
+                    scope, base::Seconds(15)),
+                scope);
 }
 
 scoped_refptr<BrowserUpdaterClient> BrowserUpdaterClient::Create(

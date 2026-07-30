@@ -4,8 +4,10 @@
 
 #include "chrome/browser/glic/host/context/glic_sharing_manager_impl.h"
 
+#include "chrome/browser/glic/common/future_browser_features.h"
 #include "chrome/browser/glic/glic_metrics.h"
 #include "chrome/browser/glic/glic_pref_names.h"
+#include "chrome/browser/glic/host/context/glic_focused_browser_manager_impl.h"
 #include "chrome/browser/glic/host/context/glic_page_context_fetcher.h"
 #include "chrome/browser/glic/host/context/glic_pinned_tab_manager_impl.h"
 #include "chrome/browser/glic/host/context/glic_sharing_utils.h"
@@ -21,6 +23,7 @@
 #include "third_party/abseil-cpp/absl/functional/overload.h"
 
 #if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/glic/host/context/glic_focused_browser_manager.h"
 #include "chrome/browser/glic/host/context/glic_focused_tab_manager.h"
 #endif
 
@@ -66,11 +69,10 @@ GlicSharingManagerImpl::GlicSharingManagerImpl(
     GlicWindowControllerInterface* window_controller,
     GlicMetrics* metrics)
     : focused_browser_manager_(
-          std::make_unique<GlicFocusedBrowserManager>(window_controller,
-                                                      profile)),
+          std::make_unique<GlicFocusedBrowserManagerImpl>(window_controller,
+                                                          profile)),
       focused_tab_manager_(std::make_unique<GlicFocusedTabManager>(
-          static_cast<GlicFocusedBrowserManager*>(
-              focused_browser_manager_.get()))),
+          focused_browser_manager_.get())),
       pinned_tab_manager_(
           std::make_unique<GlicPinnedTabManagerImpl>(profile,
                                                      window_controller,
@@ -81,7 +83,7 @@ GlicSharingManagerImpl::GlicSharingManagerImpl(
 
 GlicSharingManagerImpl::GlicSharingManagerImpl(
     std::unique_ptr<GlicFocusedTabManagerInterface> focused_tab_manager,
-    std::unique_ptr<GlicFocusedBrowserManagerInterface> focused_browser_manager,
+    std::unique_ptr<GlicFocusedBrowserManager> focused_browser_manager,
     GlicPinnedTabManager* pinned_tab_manager,
     Profile* profile,
     GlicMetrics* metrics)
@@ -177,8 +179,8 @@ class FocusedBrowserChangedWatcher {
   explicit FocusedBrowserChangedWatcher(
       BrowserWindowInterface* focused_browser,
       GlicSharingManagerImpl::FocusedBrowserChangedCallback callback)
-      : last_focused_browser_(focused_browser ? focused_browser->GetWeakPtr()
-                                              : nullptr),
+      : last_focused_browser_(
+            GetBrowserWindowInterfaceWeakPtr(focused_browser)),
         callback_(std::move(callback)) {}
 
   void OnFocusedBrowserChanged(BrowserWindowInterface* candidate_browser,
@@ -187,8 +189,7 @@ class FocusedBrowserChangedWatcher {
         last_focused_browser_.WasInvalidated()) {
       callback_.Run(focused_browser);
     }
-    last_focused_browser_ =
-        focused_browser ? focused_browser->GetWeakPtr() : nullptr;
+    last_focused_browser_ = GetBrowserWindowInterfaceWeakPtr(focused_browser);
   }
 
  private:
@@ -215,8 +216,7 @@ BrowserWindowInterface* GlicSharingManagerImpl::GetFocusedBrowser() const {
   return focused_browser_manager_->GetFocusedBrowser();
 }
 
-GlicFocusedBrowserManagerInterface&
-GlicSharingManagerImpl::focused_browser_manager() {
+GlicFocusedBrowserManager& GlicSharingManagerImpl::focused_browser_manager() {
   return *focused_browser_manager_;
 }
 

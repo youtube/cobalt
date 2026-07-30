@@ -19,6 +19,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import static org.chromium.base.test.transit.ViewFinder.waitForNoView;
+
 import android.app.Activity;
 
 import androidx.annotation.StringRes;
@@ -43,7 +45,7 @@ import org.mockito.junit.MockitoRule;
 import org.mockito.quality.Strictness;
 
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.supplier.ObservableSupplier;
+import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.test.params.ParameterAnnotations.UseMethodParameter;
 import org.chromium.base.test.params.ParameterAnnotations.UseMethodParameterBefore;
@@ -130,7 +132,7 @@ public class IdentityDiscControllerTest {
     @Mock private IdentityServicesProvider mIdentityServicesProviderMock;
     @Mock private SigninManager mSigninManagerMock;
     @Mock private IdentityManager mIdentityManagerMock;
-    @Mock private ObservableSupplier<Profile> mProfileSupplier;
+    @Mock private MonotonicObservableSupplier<Profile> mProfileSupplier;
     @Mock private ButtonDataProvider.ButtonDataObserver mButtonDataObserver;
     @Mock private Tracker mTracker;
 
@@ -391,8 +393,7 @@ public class IdentityDiscControllerTest {
             Assert.assertNull(chromeTabbedActivity.findViewById(R.id.optional_toolbar_button));
         } else {
             // For an incognito tab, Identity Disc is inflated, but shouldn't be visible.
-            ViewUtils.waitForViewCheckingState(
-                    withId(R.id.optional_toolbar_button), ViewUtils.VIEW_GONE);
+            waitForNoView(withId(R.id.optional_toolbar_button));
         }
     }
 

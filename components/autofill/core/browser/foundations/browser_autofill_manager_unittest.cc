@@ -1966,6 +1966,52 @@ TEST_F(BrowserAutofillManagerTest, WebauthnSignInWithAnotherDeviceSuggestion) {
 }
 
 TEST_F(BrowserAutofillManagerTest,
+       WebauthnSignInWithAnotherDeviceSuggestionInAutocomplete) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures(
+      /*enabled_features=*/
+      {
+          autofill::features::kAutofillAndPasswordsInSameSurface,
+          password_manager::features::
+              kAutofillReintroduceHybridPasskeyDropdownItem,
+      },
+      /*disabled_features=*/{});
+
+  FormData form = CreateTestAddressFormData();
+  form.set_fields({CreateTestFormField(
+      "Some Field", "somefield", "", FormControlType::kInputText, "webauthn")});
+  FormsSeen({form});
+
+  ON_CALL(password_delegate(), GetWebauthnSignInWithAnotherDeviceSuggestion)
+      .WillByDefault(
+          Return(Suggestion(SuggestionType::kWebauthnSignInWithAnotherDevice)));
+  std::vector<Suggestion> suggestions = {
+      Suggestion(u"one", SuggestionType::kAutocompleteEntry),
+      Suggestion(u"two", SuggestionType::kAutocompleteEntry)};
+
+  // Mock returning some single field fill `suggestions`.
+  EXPECT_CALL(merchant_promo_code_manager(), OnGetSingleFieldSuggestions)
+      .WillRepeatedly([&](const FormStructure& form, const FormFieldData& field,
+                          const AutofillField& autofill_field,
+                          const AutofillClient& client,
+                          SingleFieldFillRouter::OnSuggestionsReturnedCallback&
+                              on_suggestions_returned) {
+        std::move(on_suggestions_returned).Run(field.global_id(), suggestions);
+        return true;
+      });
+  OnAskForValuesToFill(
+      form, form.fields()[0],
+      AutofillSuggestionTriggerSource::kFormControlElementClicked);
+
+  EXPECT_EQ(external_delegate()->trigger_source(),
+            AutofillSuggestionTriggerSource::kFormControlElementClicked);
+  external_delegate()->CheckSuggestions(
+      form.fields()[0].global_id(),
+      {suggestions[0], suggestions[1], Suggestion(SuggestionType::kSeparator),
+       Suggestion(SuggestionType::kWebauthnSignInWithAnotherDevice)});
+}
+
+TEST_F(BrowserAutofillManagerTest,
        WebauthnSignInWithAnotherDeviceSuggestion_FlagDisabled) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitWithFeatures(
@@ -4832,7 +4878,8 @@ TEST_F(BrowserAutofillManagerWithLogEventsTest,
   // Query autofill server for the field type prediction.
   test_api(autofill_manager())
       .OnLoadedServerPredictions(base::Base64Encode(response_string),
-                                 test::GetEncodedSignatures(*form_structure));
+                                 test::GetEncodedSignatures(*form_structure),
+                                 {form});
   std::vector<FieldType> types{NAME_FIRST, ADDRESS_HOME_LINE1,
                                ADDRESS_HOME_CITY, ADDRESS_HOME_STATE,
                                ADDRESS_HOME_ZIP};
@@ -4935,7 +4982,8 @@ TEST_F(BrowserAutofillManagerWithLogEventsTest,
   // Query autofill server for the field type prediction.
   test_api(autofill_manager())
       .OnLoadedServerPredictions(base::Base64Encode(response_string),
-                                 test::GetEncodedSignatures(*form_structure));
+                                 test::GetEncodedSignatures(*form_structure),
+                                 {form});
   std::vector<FieldType> overall_types{NAME_FULL, ADDRESS_HOME_LINE1,
                                        ADDRESS_HOME_LINE2, ADDRESS_HOME_CITY};
   for (size_t i = 0; i < server_types.size(); ++i) {
@@ -5338,7 +5386,7 @@ TEST_F(BrowserAutofillManagerTest, OnLoadedServerPredictionsFromApi) {
   base::HistogramTester histogram_tester;
   test_api(autofill_manager())
       .OnLoadedServerPredictions(base::Base64Encode(response_string),
-                                 signatures);
+                                 signatures, {form, form2});
 
   // Verify whether the relevant histograms were updated.
   histogram_tester.ExpectBucketCount("Autofill.ServerQueryResponse",
@@ -5403,7 +5451,7 @@ TEST_F(BrowserAutofillManagerTest, OnLoadedServerPredictions_ResetManager) {
   base::HistogramTester histogram_tester;
   test_api(autofill_manager())
       .OnLoadedServerPredictions(base::Base64Encode(response_string),
-                                 signatures);
+                                 signatures, {form});
 
   // Verify that FormStructure::ParseQueryResponse was NOT called.
   histogram_tester.ExpectTotalCount("Autofill.ServerQueryResponse", 0);
@@ -5460,7 +5508,8 @@ TEST_F(BrowserAutofillManagerTest, DetermineHeuristicsWithOverallPrediction) {
   base::HistogramTester histogram_tester;
   test_api(autofill_manager())
       .OnLoadedServerPredictions(base::Base64Encode(response_string),
-                                 test::GetEncodedSignatures(*form_structure));
+                                 test::GetEncodedSignatures(*form_structure),
+                                 {form});
   // Verify that FormStructure::ParseQueryResponse was called (here and below).
   histogram_tester.ExpectBucketCount("Autofill.ServerQueryResponse",
                                      AutofillMetrics::QUERY_RESPONSE_RECEIVED,
@@ -7412,117 +7461,6 @@ TEST_F(BrowserAutofillManagerTest, ShowNothingIfTouchToFillAlreadyShown) {
   EXPECT_FALSE(external_delegate()->on_suggestions_returned_seen());
 }
 
-// Test that 'Scan New Card' suggestion is shown based on whether autofill
-// credit card is enabled or disabled.
-TEST_F(BrowserAutofillManagerTest, ScanCreditCardBasedOnAutofillPreference) {
-  ON_CALL(payments_autofill_client(), HasCreditCardScanFeature())
-      .WillByDefault(Return(true));
-
-  FormData form =
-      CreateTestCreditCardFormData(/*is_https=*/true, /*use_month_type=*/false);
-  FormsSeen({form});
-  const FormStructure& form_structure =
-      *autofill_manager().FindCachedFormById(form.global_id());
-
-  const AutofillField& card_number_field = *form_structure.field(1);
-  ASSERT_EQ(card_number_field.name(), u"cardnumber");
-
-  // Test case where autofill is enabled.
-  payments_autofill_client().SetAutofillPaymentMethodsEnabled(true);
-  EXPECT_TRUE(test_api(autofill_manager())
-                  .ShouldShowScanCreditCard(form_structure, card_number_field));
-
-  // Test case where autofill is disabled.
-  payments_autofill_client().SetAutofillPaymentMethodsEnabled(false);
-  EXPECT_FALSE(
-      test_api(autofill_manager())
-          .ShouldShowScanCreditCard(form_structure, card_number_field));
-}
-
-// Test that 'Scan New Card' suggestion is shown based on whether platform
-// supports card scanning.
-TEST_F(BrowserAutofillManagerTest, ScanCreditCardBasedOnPlatformSupport) {
-  FormData form =
-      CreateTestCreditCardFormData(/*is_https=*/true, /*use_month_type=*/false);
-  FormsSeen({form});
-  const FormStructure& form_structure =
-      *autofill_manager().FindCachedFormById(form.global_id());
-
-  const AutofillField& card_number_field = *form_structure.field(1);
-  ASSERT_EQ(card_number_field.name(), u"cardnumber");
-
-  // Test case where device and platform support scanning credit cards.
-  ON_CALL(payments_autofill_client(), HasCreditCardScanFeature())
-      .WillByDefault(Return(true));
-  EXPECT_TRUE(test_api(autofill_manager())
-                  .ShouldShowScanCreditCard(form_structure, card_number_field));
-
-  // Test case where device and platform do not support scanning credit cards.
-  ON_CALL(payments_autofill_client(), HasCreditCardScanFeature())
-      .WillByDefault(Return(false));
-  EXPECT_FALSE(
-      test_api(autofill_manager())
-          .ShouldShowScanCreditCard(form_structure, card_number_field));
-}
-
-// Test that 'Scan New Card' suggestion is shown based on whether form field
-// chosen is a credit card number field.
-TEST_F(BrowserAutofillManagerTest, ScanCreditCardBasedOnCreditCardNumberField) {
-  ON_CALL(payments_autofill_client(), HasCreditCardScanFeature())
-      .WillByDefault(Return(true));
-
-  FormData form =
-      CreateTestCreditCardFormData(/*is_https=*/true, /*use_month_type=*/false);
-  FormsSeen({form});
-  const FormStructure& form_structure =
-      *autofill_manager().FindCachedFormById(form.global_id());
-
-  // Test case for credit-card-number field.
-  const AutofillField& card_number_field = *form_structure.field(1);
-  ASSERT_EQ(card_number_field.name(), u"cardnumber");
-  EXPECT_TRUE(test_api(autofill_manager())
-                  .ShouldShowScanCreditCard(form_structure, card_number_field));
-
-  // Test case for non-credit-card-number field.
-  const AutofillField& cvc_field = *form_structure.field(4);
-  ASSERT_EQ(cvc_field.name(), u"cvc");
-  EXPECT_FALSE(test_api(autofill_manager())
-                   .ShouldShowScanCreditCard(form_structure, cvc_field));
-}
-
-// Test that 'Scan New Card' suggestion is shown based on whether the form is
-// secure.
-TEST_F(BrowserAutofillManagerTest, ScanCreditCardBasedOnIsFormSecure) {
-  ON_CALL(payments_autofill_client(), HasCreditCardScanFeature())
-      .WillByDefault(Return(true));
-
-  // Test case for HTTP form.
-  FormData form_http = CreateTestCreditCardFormData(/*is_https=*/false,
-                                                    /*use_month_type=*/false);
-  FormsSeen({form_http});
-  const FormStructure& form_structure_http =
-      *autofill_manager().FindCachedFormById(form_http.global_id());
-
-  const AutofillField& card_number_field_http = *form_structure_http.field(1);
-  ASSERT_EQ(card_number_field_http.name(), u"cardnumber");
-  EXPECT_FALSE(test_api(autofill_manager())
-                   .ShouldShowScanCreditCard(form_structure_http,
-                                             card_number_field_http));
-
-  // Test case for HTTPS form.
-  FormData form_https =
-      CreateTestCreditCardFormData(/*is_https=*/true, /*use_month_type=*/false);
-  FormsSeen({form_https});
-  const FormStructure& form_structure_https =
-      *autofill_manager().FindCachedFormById(form_https.global_id());
-
-  const AutofillField& card_number_field_https = *form_structure_https.field(1);
-  ASSERT_EQ(card_number_field_https.name(), u"cardnumber");
-  EXPECT_TRUE(test_api(autofill_manager())
-                  .ShouldShowScanCreditCard(form_structure_https,
-                                            card_number_field_https));
-}
-
 // Tests that compose suggestions are not queried if Autofill has suggestions
 // itself.
 TEST_F(BrowserAutofillManagerTest, NoComposeSuggestionsByDefault) {
@@ -7780,7 +7718,8 @@ class BrowserAutofillManagerTest_MockAutofillAi
 
     test_api(autofill_manager())
         .OnLoadedServerPredictions(base::Base64Encode(server_response),
-                                   test::GetEncodedSignatures(*form_structure));
+                                   test::GetEncodedSignatures(*form_structure),
+                                   {form});
     return form.global_id();
   }
 
