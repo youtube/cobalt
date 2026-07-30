@@ -13,8 +13,11 @@
 #include <jni.h>
 
 #include <cstdint>
+#include <type_traits>
 #include <utility>  // for std::forward
 
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "third_party/jni_zero/default_conversions.h"
 #include "third_party/jni_zero/jni_export.h"
 #include "third_party/jni_zero/jni_zero.h"
@@ -101,6 +104,33 @@ class JNI_ZERO_COMPONENT_BUILD_EXPORT JniJavaCallContext {
   jmethodID method_id_;
 };
 
+<<<<<<< HEAD
+=======
+// Check whether a JNI function with the leading JNIEnv* parameter exists.
+// If so, call that JNI function. If not, call the JNI function without the
+// leading JNIEnv* parameter.
+template <typename Func, typename... Args>
+decltype(auto) DispatchJniFunc(Func&& func, JNIEnv* env, Args&&... args) {
+  // Check if calling with env is valid
+#if BUILDFLAG(IS_COBALT)
+#if defined(__cpp_concepts) && __cpp_concepts >= 201907L
+  if constexpr (requires { func(env, std::forward<Args>(args)...); }) {
+#else   // defined(__cpp_concepts) && __cpp_concepts >= 201907L
+  // C++17 has no requires expression. This trait tests the same call.
+  if constexpr (std::is_invocable_v<Func&, JNIEnv*&, Args&&...>) {
+#endif  // defined(__cpp_concepts) && __cpp_concepts >= 201907L
+#else   // BUILDFLAG(IS_COBALT)
+  if constexpr (requires { func(env, std::forward<Args>(args)...); }) {
+#endif  // BUILDFLAG(IS_COBALT)
+    // Case 1: Function accepts (env, args...)
+    return func(env, std::forward<Args>(args)...);
+  } else {
+    // Case 2: Function accepts only (args...)
+    return func(std::forward<Args>(args)...);
+  }
+}
+
+>>>>>>> parent of ff7f0f0e23c (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }  // namespace jni_zero::internal
 
 #endif  // JNI_ZERO_JNI_ZERO_INTERNAL_H

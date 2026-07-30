@@ -5,11 +5,15 @@
 #include "content/browser/devtools/frame_auto_attacher.h"
 
 #include "base/time/time.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/devtools/auction_worklet_devtools_agent_host.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/devtools/devtools_renderer_channel.h"
 #include "content/browser/devtools/render_frame_devtools_agent_host.h"
 #include "content/browser/devtools/service_worker_devtools_agent_host.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/devtools/shared_storage_worklet_devtools_agent_host.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/renderer_host/frame_tree.h"
 #include "content/browser/renderer_host/navigation_request.h"
 #include "content/browser/web_contents/web_contents_impl.h"
@@ -189,6 +193,7 @@ void FrameAutoAttacher::UpdateAutoAttach(base::OnceClosure callback) {
       // This is similar to frames and pages above.
       ReattachServiceWorkers();
     }
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
     if (render_frame_host_ &&
         !debuggable_auction_worklet_worklet_devtools_manager_observation_
              .IsObserving()) {
@@ -200,10 +205,13 @@ void FrameAutoAttacher::UpdateAutoAttach(base::OnceClosure callback) {
       shared_storage_worklet_devtools_manager_observation_.Observe(
           SharedStorageWorkletDevToolsManager::GetInstance());
     }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   } else {
     service_worker_devtools_manager_observation_.Reset();
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
     debuggable_auction_worklet_worklet_devtools_manager_observation_.Reset();
     shared_storage_worklet_devtools_manager_observation_.Reset();
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   }
   RendererAutoAttacherBase::UpdateAutoAttach(std::move(callback));
 }
@@ -228,6 +236,7 @@ void FrameAutoAttacher::WorkerDestroyed(ServiceWorkerDevToolsAgentHost* host) {
   ReattachServiceWorkers();
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 void FrameAutoAttacher::AuctionWorkletCreated(DebuggableAuctionWorklet* worklet,
                                               bool& should_pause_on_start) {
   if (!render_frame_host_)
@@ -266,6 +275,7 @@ void FrameAutoAttacher::SharedStorageWorkletDestroyed(
 
   DispatchAutoDetach(host);
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
 void FrameAutoAttacher::ReattachServiceWorkers() {
   if (!service_worker_devtools_manager_observation_.IsObserving() ||
@@ -287,8 +297,10 @@ void FrameAutoAttacher::UpdateFrames() {
   DCHECK(auto_attach());
 
   Hosts new_hosts;
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   DevToolsAgentHost::List new_auction_worklet_hosts;
   DevToolsAgentHost::List new_shared_storage_worklet_hosts;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   if (render_frame_host_) {
     render_frame_host_->ForEachRenderFrameHostImplWithAction(
         [root = render_frame_host_, &new_hosts](RenderFrameHostImpl* rfh) {
@@ -314,14 +326,17 @@ void FrameAutoAttacher::UpdateFrames() {
           return RenderFrameHost::FrameIterationAction::kSkipChildren;
         });
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
     AuctionWorkletDevToolsAgentHostManager::GetInstance().GetAllForFrame(
         render_frame_host_, &new_auction_worklet_hosts);
 
     SharedStorageWorkletDevToolsManager::GetInstance()->GetAllForFrame(
         render_frame_host_, &new_shared_storage_worklet_hosts);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   }
 
   DispatchSetAttachedTargetsOfType(new_hosts, DevToolsAgentHost::kTypeFrame);
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   DispatchSetAttachedTargetsOfType(
       TargetAutoAttacher::Hosts(new_auction_worklet_hosts.begin(),
                                 new_auction_worklet_hosts.end()),
@@ -330,6 +345,7 @@ void FrameAutoAttacher::UpdateFrames() {
       TargetAutoAttacher::Hosts(new_shared_storage_worklet_hosts.begin(),
                                 new_shared_storage_worklet_hosts.end()),
       DevToolsAgentHost::kTypeSharedStorageWorklet);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 }
 
 }  // namespace content
