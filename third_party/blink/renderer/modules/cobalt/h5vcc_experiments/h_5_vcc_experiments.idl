@@ -1,0 +1,66 @@
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+enum OverrideState {
+  "DEFAULT",
+  "DISABLED",
+  "ENABLED",
+};
+
+dictionary ExperimentConfiguration {
+  record<DOMString, boolean> features;
+  record<DOMString, (DOMString or long or double or boolean)> featureParams;
+  DOMString activeExperimentConfigData;
+  DOMString latestExperimentConfigHashData;
+};
+
+[
+    Exposed=Window,
+    SecureContext
+]
+interface H5vccExperiments {
+  [CallWith=ScriptState, RaisesException]
+  Promise<undefined> setExperimentState(ExperimentConfiguration experiment_configuration);
+
+  // Instructs Cobalt to delete its current cached experiment configuration.
+  // Returns a promise that resolves/rejects in the event of success/failure.
+  [CallWith=ScriptState, RaisesException]
+  Promise<undefined> resetExperimentState();
+
+  // The following APIs fetch Cobalt's current value for the given feature name
+  // or feature param.
+  [CallWith=ScriptState, RaisesException]
+  Promise<OverrideState> getFeature(DOMString feature_name);
+
+  DOMString getFeatureParam(DOMString feature_param_name);
+
+  // Returns Finch opaque blob associated with the active Finch config. For use
+  // by the server that generates Finch experiment state.
+  [CallWith=ScriptState, RaisesException]
+  Promise<DOMString> getActiveExperimentConfigData();
+
+  // by the server that generates Finch experiment state.
+  [CallWith=ScriptState, RaisesException]
+  Promise<DOMString> getLatestExperimentConfigHashData();
+
+  // Separate setter for the case when the server returns a new opaque hash data
+  // but the Finch experiment state is unchanged. Used for server-side
+  // processing.
+  [CallWith=ScriptState, RaisesException]
+  Promise<undefined> setLatestExperimentConfigHashData(DOMString hashData);
+
+  // Sets Finch parameters.
+  [CallWith=ScriptState, RaisesException]
+  Promise<undefined> setFinchParameters(record<DOMString, (DOMString or long or double or boolean)> settings);
+};

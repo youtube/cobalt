@@ -319,6 +319,15 @@ void Signals::RestoreHandlerAndReraiseSignalOnReturn(
   // kill() and asynchronous hardware faults such as SEGV_MTEAERR, which would
   // otherwise be lost when re-raising the signal via raise().
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
+
+  // TODO: b/406511608 - Cobalt: Re-enable if we decide to install Crashpad
+  // signal handlers from the Cobalt layer in hermetic builds. For now in
+  // hermetic builds, we properly re-raise signals with siginfo in Starboard
+  // toolchain-built loader app, from which the Crashpad signal handlers are
+  // actually installed, and bypass the syscall in the Cobalt layer where it
+  // 1) is not needed and 2) introduces compiler errors.
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS) || \
+    BUILDFLAG(IS_STARBOARD_TOOLCHAIN)
   int retval = syscall(SYS_rt_tgsigqueueinfo,
                        getpid(),
                        syscall(SYS_gettid),
@@ -336,6 +345,9 @@ void Signals::RestoreHandlerAndReraiseSignalOnReturn(
   if (errno != EPERM) {
     _exit(kFailureExitCode);
   }
+#endif  // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS) || \
+        // BUILDFLAG(IS_STARBOARD_TOOLCHAIN)
+
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID) ||
         // BUILDFLAG(IS_CHROMEOS)
 

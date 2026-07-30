@@ -26,6 +26,7 @@ angle_spirv_tools_dir = "//third_party/spirv-tools/src"
 angle_vulkan_memory_allocator_dir = "//third_party/vulkan_memory_allocator"
 angle_wayland_dir = "//third_party/wayland/src"
 angle_dawn_dir = "//third_party/dawn"
+<<<<<<< HEAD
 
 # In static ANGLE builds on desktop, Chromium still generates EGL/GLESv2 stubs
 # (libEGL.so/libGLESv2.so) for official build infra. To allow ANGLE standalone
@@ -34,3 +35,6 @@ angle_dawn_dir = "//third_party/dawn"
 if (angle_use_static_angle && !is_android) {
   angle_libs_suffix = "_test"
 }
+=======
+angle_enable_vulkan_validation_layers = !is_starboard
+>>>>>>> parent of cc313013015 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)

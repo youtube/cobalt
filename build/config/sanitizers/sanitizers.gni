@@ -10,7 +10,7 @@ import("//build/toolchain/toolchain.gni")
 
 declare_args() {
   # Compile for Address Sanitizer to find memory bugs.
-  is_asan = false
+  is_asan = is_cobalt && use_asan
 
   # Compile for Hardware-Assisted Address Sanitizer to find memory bugs
   # (android/arm64 only).
@@ -24,7 +24,7 @@ declare_args() {
   is_msan = false
 
   # Compile for Thread Sanitizer to find threading bugs.
-  is_tsan = false
+  is_tsan = is_cobalt && use_tsan
 
   # Compile for Undefined Behaviour Sanitizer to find various types of
   # undefined behaviour (excludes vptr checks).
