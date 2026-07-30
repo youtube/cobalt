@@ -624,4 +624,31 @@ BASE_FEATURE(kNetworkServicePerPriorityTaskQueues,
 BASE_FEATURE(kUseUnexportableKeyServiceInBrowserProcess,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+#if BUILDFLAG(IS_COBALT)
+BASE_FEATURE(kCobaltDynamicMojoPipeSizing,
+             "CobaltDynamicMojoPipeSizing",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltDynamicMojoPipeSizingSubresourceSize,
+                   &kCobaltDynamicMojoPipeSizing,
+                   "subresource_size",
+                   512 * 1024);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltDynamicMojoPipeSizingMediaSize,
+                   &kCobaltDynamicMojoPipeSizing,
+                   "media_size",
+                   512 * 1024);
+
+// Disabled by default on Android, enabled by default on other platforms.
+BASE_FEATURE(kCobaltContentLengthAwareMojoPipeSizing,
+             "CobaltContentLengthAwareMojoPipeSizing",
+#if BUILDFLAG(IS_ANDROID)
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#else   // BUILDFLAG(IS_ANDROID)
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_COBALT)
+
 }  // namespace network::features

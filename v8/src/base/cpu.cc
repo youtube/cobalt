@@ -4,14 +4,12 @@
 
 #include "src/base/cpu.h"
 
-#if defined(V8_OS_STARBOARD)
-#include "starboard/cpu_features.h"
-#endif
+#include "build/build_config.h"
 
 #if V8_LIBC_MSVCRT
 #include <intrin.h>  // __cpuid()
 #endif
-#if V8_OS_LINUX
+#if V8_OS_LINUX && !BUILDFLAG(IS_STARBOARD)
 #include <linux/auxvec.h>  // AT_HWCAP
 #endif
 #if V8_OS_LINUX
@@ -20,7 +18,7 @@
 #if V8_OS_QNX
 #include <sys/syspage.h>  // cpuinfo
 #endif
-#if V8_OS_LINUX && V8_HOST_ARCH_PPC64
+#if V8_OS_LINUX && (V8_HOST_ARCH_PPC64 || BUILDFLAG(IS_STARBOARD))
 #include <elf.h>
 #endif
 #if V8_OS_AIX
@@ -363,6 +361,7 @@ static bool HasListItem(const char* list, const char* item) {
 #endif  // V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64 ||
         // V8_HOST_ARCH_MIPS64 || V8_HOST_ARCH_RISCV64
 
+<<<<<<< HEAD
 #if defined(V8_OS_STARBOARD)
 
 bool CPU::StarboardDetectCPU() {
@@ -411,6 +410,8 @@ bool CPU::StarboardDetectCPU() {
 
 #endif
 
+=======
+>>>>>>> parent of 1de60f93abc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 CPU::CPU()
     : stepping_(0),
       model_(0),
@@ -476,12 +477,6 @@ CPU::CPU()
       has_zbb_(false),
       has_zbs_(false) {
   memcpy(vendor_, "Unknown", 8);
-
-#if defined(V8_OS_STARBOARD)
-  if (StarboardDetectCPU()) {
-    return;
-  }
-#endif
 
 #if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
   int cpu_info[4];

@@ -58,7 +58,7 @@
 #include "third_party/skia/include/ports/SkFontConfigInterface.h"
 #endif
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
 #include "content/child/sandboxed_process_thread_type_handler.h"
 #endif
 
@@ -150,7 +150,7 @@ void GpuChildThread::Init(
 
   viz_main_.gpu_service()->set_start_time(process_start_time);
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
   SandboxedProcessThreadTypeHandler::NotifyMainChildThreadCreated();
 #endif
 
@@ -216,8 +216,13 @@ void GpuChildThread::OnGpuServiceConnection(viz::GpuServiceImpl* gpu_service) {
     BindServiceInterface(std::move(receiver));
   pending_service_receivers_.clear();
 
-  if (GetContentClient()->gpu())  // Null in tests.
+  if (GetContentClient()->gpu()) {  // Null in tests.
     GetContentClient()->gpu()->GpuServiceInitialized();
+#if BUILDFLAG(IS_COBALT)
+    GetContentClient()->gpu()->GpuServiceInitialized(
+        gpu_service->gpu_channel_manager());
+#endif  // BUILDFLAG(IS_COBALT)
+  }
 
   // Start allowing browser-exposed interfaces to be bound.
   //

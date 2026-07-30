@@ -13,13 +13,27 @@ namespace base {
 class FilePath;
 }
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "components/update_client/pipeline.h"
+#endif
+
 namespace update_client {
 
 // Convenience function to make a simple event for an operation
 // from the error contained by a base::expected, if one exists.
+<<<<<<< HEAD
 base::DictValue MakeSimpleOperationEvent(
+=======
+#if BUILDFLAG(IS_STARBOARD)
+base::Value::Dict MakeSimpleOperationEvent(
+    base::expected<OperationResult, CategorizedError> result,
+    const int operation_type);
+#else
+base::Value::Dict MakeSimpleOperationEvent(
+>>>>>>> parent of 1de60f93abc (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     base::expected<base::FilePath, CategorizedError> result,
     const int operation_type);
+#endif
 
 // Make a simple event for an operation from a CategorizedError.
 base::DictValue MakeSimpleOperationEvent(const CategorizedError& error,
