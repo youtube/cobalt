@@ -498,6 +498,9 @@ void TestHelper::SetupFeatureInfoInitExpectationsWithGLVersion(
     EXPECT_CALL(*gl, GetString(GL_EXTENSIONS))
         .WillOnce(Return(reinterpret_cast<const uint8_t*>(extensions)))
         .RetiresOnSaturation();
+    EXPECT_CALL(*gl, GetError())
+        .WillOnce(Return(GL_NO_ERROR))
+        .RetiresOnSaturation();
   }
 #else // !BUILDFLAG(IS_COBALT)
   EXPECT_CALL(*gl, GetString(GL_EXTENSIONS))
