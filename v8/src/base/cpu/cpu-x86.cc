@@ -3,15 +3,15 @@
 // found in the LICENSE file.
 #include "src/base/cpu/cpu.h"
 
-#if defined(V8_OS_STARBOARD)
-#include "starboard/cpu_features.h"
-#endif
+#include "build/build_config.h"
 
 #if V8_LIBC_MSVCRT
 #include <intrin.h>  // __cpuid()
 #endif
 #if V8_OS_LINUX
+#if !BUILDFLAG(IS_STARBOARD)
 #include <linux/auxvec.h>  // AT_HWCAP
+#endif
 #include <sys/auxv.h>      // getauxval()
 #endif
 

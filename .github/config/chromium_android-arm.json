@@ -1,0 +1,17 @@
+{
+  "docker_service": "linux",
+  "platforms": [
+    "chromium_android-arm"
+  ],
+  "targets": [
+    "content_shell",
+    "system_webview_apk",
+    "system_webview_shell_apk"
+  ],
+  "includes": [
+    {
+      "name": "arm",
+      "platform": "chromium_android-arm"
+    }
+  ]
+}

@@ -32,9 +32,12 @@
 
 #include "base/numerics/safe_conversions.h"
 #include "build/build_config.h"
+#include "build/buildflag.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/wtf/text/text_encoding.h"
-#include "third_party/ced/src/compact_enc_det/compact_enc_det.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "third_party/ced/src/compact_enc_det/compact_enc_det.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 
 // third_party/ced/src/util/encodings/encodings.h, which is included
 // by the include above, undefs UNICODE because that is a macro used
@@ -53,6 +56,7 @@ bool DetectTextEncoding(base::span<const uint8_t> bytes,
                         const KURL& hint_url,
                         const char* hint_user_language,
                         TextEncoding* detected_encoding) {
+#if !BUILDFLAG(IS_COBALT)
   *detected_encoding = TextEncoding();
   // In general, do not use language hint. This helps get more
   // deterministic encoding detection results across devices. Note that local
@@ -85,6 +89,10 @@ bool DetectTextEncoding(base::span<const uint8_t> bytes,
   // determined from system locale or TLD.
   return !(encoding == UNKNOWN_ENCODING ||
            (hint_url.Protocol() != "file" && encoding == UTF8));
+#else
+  *detected_encoding = TextEncoding();
+  return false;
+#endif  // !BUILDFLAG(IS_COBALT)
 }
 
 }  // namespace blink

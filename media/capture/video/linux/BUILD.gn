@@ -13,29 +13,33 @@ source_set("linux") {
     "//media/capture:capture_lib",
   ]
   defines = [ "CAPTURE_IMPLEMENTATION" ]
-  sources = [
-    "scoped_v4l2_device_fd.cc",
-    "scoped_v4l2_device_fd.h",
-    "v4l2_capture_delegate.cc",
-    "v4l2_capture_delegate.h",
-    "v4l2_capture_device.h",
-    "v4l2_capture_device_impl.cc",
-    "v4l2_capture_device_impl.h",
-    "video_capture_device_factory_linux.cc",
-    "video_capture_device_factory_linux.h",
-    "video_capture_device_factory_v4l2.cc",
-    "video_capture_device_factory_v4l2.h",
-    "video_capture_device_linux.cc",
-    "video_capture_device_linux.h",
-  ]
-
-  if (rtc_use_pipewire) {
-    sources += [
-      "video_capture_device_factory_webrtc.cc",
-      "video_capture_device_factory_webrtc.h",
-      "video_capture_device_webrtc.cc",
-      "video_capture_device_webrtc.h",
+  if (is_cobalt) {
+    sources = []
+  } else {
+    sources = [
+      "scoped_v4l2_device_fd.cc",
+      "scoped_v4l2_device_fd.h",
+      "v4l2_capture_delegate.cc",
+      "v4l2_capture_delegate.h",
+      "v4l2_capture_device.h",
+      "v4l2_capture_device_impl.cc",
+      "v4l2_capture_device_impl.h",
+      "video_capture_device_factory_linux.cc",
+      "video_capture_device_factory_linux.h",
+      "video_capture_device_factory_v4l2.cc",
+      "video_capture_device_factory_v4l2.h",
+      "video_capture_device_linux.cc",
+      "video_capture_device_linux.h",
     ]
+
+    if (rtc_use_pipewire) {
+      sources += [
+        "video_capture_device_factory_webrtc.cc",
+        "video_capture_device_factory_webrtc.h",
+        "video_capture_device_webrtc.cc",
+        "video_capture_device_webrtc.h",
+      ]
+    }
   }
 
   if (is_linux) {
@@ -108,6 +112,13 @@ source_set("unit_tests") {
     "video_capture_device_factory_v4l2_unittest.cc",
   ]
 
+  if (is_cobalt) {
+    sources -= [
+      "v4l2_capture_delegate_unittest.cc",
+      "video_capture_device_factory_v4l2_unittest.cc",
+    ]
+  }
+
   deps = [
     ":linux",
     ":test_support",
@@ -127,4 +138,8 @@ source_set("unit_tests") {
     "//third_party/libyuv",
     "//ui/gfx:test_support",
   ]
+
+  if (is_cobalt_hermetic_build) {
+    deps -= [ ":test_support" ]
+  }
 }

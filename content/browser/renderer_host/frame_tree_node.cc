@@ -1027,6 +1027,7 @@ bool FrameTreeNode::IsInFencedFrameTree() const {
   return fenced_frame_status_ != FencedFrameStatus::kNotNestedInFencedFrame;
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 FrameTreeNode* FrameTreeNode::GetClosestAncestorWithFencedFrameProperties() {
   FrameTreeNode* node = this;
   while (node) {
@@ -1084,8 +1085,10 @@ size_t FrameTreeNode::GetFencedFrameDepth(
 
   return depth;
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 std::optional<base::UnguessableToken> FrameTreeNode::GetFencedFrameNonce() {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   // For partition nonce, all nested frame inside a fenced frame tree should
   // operate on the partition nonce of the frame tree root.
   auto& root_fenced_frame_properties = GetFencedFrameProperties(
@@ -1102,8 +1105,12 @@ std::optional<base::UnguessableToken> FrameTreeNode::GetFencedFrameNonce() {
   CHECK(blink::features::IsAllowURNsInIframeEnabled());
   CHECK(!IsInFencedFrameTree());
   return std::nullopt;
+#else
+  return std::nullopt;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 void FrameTreeNode::SetFencedFramePropertiesIfNeeded() {
   if (!IsFencedFrameRoot()) {
     return;
@@ -1113,9 +1120,11 @@ void FrameTreeNode::SetFencedFramePropertiesIfNeeded() {
   // In the future, they will be set on the FrameTree instead.
   fenced_frame_properties_ = FencedFrameProperties();
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 blink::FencedFrame::DeprecatedFencedFrameMode
 FrameTreeNode::GetDeprecatedFencedFrameMode() {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (!IsInFencedFrameTree()) {
     return blink::FencedFrame::DeprecatedFencedFrameMode::kDefault;
   }
@@ -1135,6 +1144,9 @@ FrameTreeNode::GetDeprecatedFencedFrameMode() {
   }
 
   return root_fenced_frame_properties->mode();
+#else
+  return blink::FencedFrame::DeprecatedFencedFrameMode::kDefault;
+#endif
 }
 
 bool FrameTreeNode::IsErrorPageIsolationEnabled() const {
@@ -1146,6 +1158,7 @@ void FrameTreeNode::SetSrcdocValue(const std::string& srcdoc_value) {
   srcdoc_value_ = srcdoc_value;
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 std::vector<const SharedStorageBudgetMetadata*>
 FrameTreeNode::FindSharedStorageBudgetMetadata() {
   std::vector<const SharedStorageBudgetMetadata*> result;
@@ -1181,6 +1194,7 @@ FrameTreeNode::GetEmbedderSharedStorageContextIfAllowed() {
   }
   return properties->embedder_shared_storage_context();
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 const scoped_refptr<BrowsingContextState>&
 FrameTreeNode::GetBrowsingContextStateForSubframe() const {

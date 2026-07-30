@@ -182,6 +182,11 @@ template("pkg_config") {
     cflags_cc = []
 
     foreach(_path, pkgresult[0]) {
+      supports_isystem = true
+      if (defined(invoker.supports_isystem)) {
+        supports_isystem = invoker.supports_isystem
+      }
+      if (supports_isystem) {
       if (_pkg_config_requires_abs_path && (use_sysroot || use_remoteexec)) {
         _path = rebase_path(_path, root_build_dir)
       }
@@ -192,6 +197,9 @@ template("pkg_config") {
       # take priority over them in the include paths.
       cflags_c += [ "-isystem$_path" ]
       cflags_cc += [ "-isystem$_path" ]
+    } else {
+      cflags += [ "-I$_path" ]
+    }
     }
 
     if (!defined(invoker.ignore_libs) || !invoker.ignore_libs) {

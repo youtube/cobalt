@@ -1,0 +1,40 @@
+name: Download Test Results
+description: Downloads artifacts across attempts and merges them sequentially so later attempts overwrite earlier ones.
+inputs:
+  pattern:
+    description: "Artifact name pattern to download."
+    required: true
+  path:
+    description: "Destination directory for merged files."
+    required: false
+    default: "results"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Download Artifacts
+      uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+      continue-on-error: true
+      with:
+        pattern: ${{ inputs.pattern }}
+        path: raw_artifacts
+    - name: Merge Artifacts Across Attempts
+      env:
+        DEST_PATH: ${{ inputs.path }}
+      run: |
+        set -euxo pipefail
+        shopt -s globstar nullglob
+        mkdir -p "${DEST_PATH}"
+        if [ -d raw_artifacts ]; then
+          for (( attempt=1; attempt<=GITHUB_RUN_ATTEMPT; attempt++ )); do
+            for dir in raw_artifacts/*_"${attempt}"; do
+              for xml in "${dir}"/**/*.xml; do
+                rel_xml="${xml#"${dir}/"}"
+                rm -f "${DEST_PATH}/${rel_xml%.xml}.crash"
+              done
+              cp -r "${dir}/." "${DEST_PATH}/"
+            done
+          done
+          rm -rf raw_artifacts
+        fi
+      shell: bash
