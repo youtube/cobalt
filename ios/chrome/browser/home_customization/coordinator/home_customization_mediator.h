@@ -33,6 +33,9 @@ class ShoppingService;
 
 - (instancetype)init NS_UNAVAILABLE;
 
+// Disconnects the mediator and clears its dependencies.
+- (void)disconnect;
+
 // A consumer representing the main page's view controller.
 @property(nonatomic, weak) id<HomeCustomizationMainConsumer> mainPageConsumer;
 

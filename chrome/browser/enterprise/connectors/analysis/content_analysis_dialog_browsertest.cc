@@ -813,10 +813,11 @@ IN_PROC_BROWSER_TEST_P(ContentAnalysisDialogAppearanceBrowserTest, Test) {
 
   // Use a file path or text to validate the appearance of the dialog for both
   // types of scans.
-  if (file_scan())
+  if (file_scan() && access_point() != DeepScanAccessPoint::PRINT) {
     CreateFilesForTest({"foo.doc"}, {"content"}, &data);
-  else
+  } else {
     data.text.emplace_back(text());
+  }
   ASSERT_TRUE(ContentAnalysisDelegate::IsEnabled(
       browser()->profile(), GURL(kTestUrl), &data,
       enterprise_connectors::AnalysisConnector::FILE_ATTACHED));
@@ -873,7 +874,7 @@ IN_PROC_BROWSER_TEST_P(ContentAnalysisDialogCustomMessageBrowserTest, Test) {
 
   // Use a file path or text to validate the appearance of the dialog for both
   // types of scans.
-  if (file_scan()) {
+  if (file_scan() && access_point() != DeepScanAccessPoint::PRINT) {
     CreateFilesForTest({"foo.doc"}, {"content"}, &data);
   } else {
     data.text.emplace_back(text());

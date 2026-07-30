@@ -10,12 +10,18 @@
 #include <vector>
 
 #include "base/memory/weak_ptr.h"
+#include "base/types/expected.h"
 #include "chrome/browser/actor/tools/tool.h"
 #include "chrome/browser/actor/tools/tool_delegate.h"
 #include "chrome/common/actor.mojom-forward.h"
 #include "components/actor/core/shared_types.h"
 #include "components/actor/core/task_id.h"
 #include "components/autofill/core/common/unique_ids.h"
+#include "components/one_time_tokens/core/browser/one_time_token_retrieval_error.h"
+
+namespace affiliations {
+class DomainRelationChecker;
+}  // namespace affiliations
 
 namespace actor {
 
@@ -49,13 +55,22 @@ class AttemptOtpFillingTool : public Tool {
   tabs::TabHandle GetTargetTab() const override;
 
  private:
-  void OnOtpRetrieved(ToolCallback callback, std::string otp);
+  void OnOtpRetrieved(
+      ToolCallback callback,
+      base::expected<std::string, one_time_tokens::OneTimeTokenRetrievalError>
+          result);
   void OnOtpFilled(ToolCallback callback, bool success);
+  void OnActorLoginFlowChecked(ToolCallback callback, bool is_actor_login);
 
   tabs::TabHandle tab_handle_;
   std::vector<PageTarget> trigger_fields_;
   std::vector<autofill::FieldGlobalId> trigger_field_ids_;
   bool for_signin_;
+
+  // `DomainRelationChecker` finds relationship between origins (exactly the
+  // same, affiliated, ePSL match, weak match, no match). used to determine if
+  // an OTP form is related to the last actor login flow.
+  std::unique_ptr<affiliations::DomainRelationChecker> domain_relation_checker_;
 
   base::WeakPtrFactory<AttemptOtpFillingTool> weak_factory_{this};
 };

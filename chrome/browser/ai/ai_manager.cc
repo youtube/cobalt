@@ -33,6 +33,8 @@
 #include "chrome/browser/ai/ai_language_model.h"
 #include "chrome/browser/ai/ai_proofreader.h"
 #include "chrome/browser/ai/ai_rewriter.h"
+#include "chrome/browser/ai/ai_semantic_embedder.h"
+#include "chrome/browser/ai/ai_semantic_embedder_service_launcher.h"
 #include "chrome/browser/ai/ai_summarizer.h"
 #include "chrome/browser/ai/ai_writer.h"
 #include "chrome/browser/ai/features.h"
@@ -47,6 +49,7 @@
 #include "components/on_device_ai/ai_utils.h"
 #include "components/optimization_guide/core/delivery/model_util.h"
 #include "components/optimization_guide/core/model_execution/feature_keys.h"
+#include "components/optimization_guide/core/model_execution/model_execution_prefs.h"
 #include "components/optimization_guide/core/model_execution/model_execution_util.h"
 #include "components/optimization_guide/core/model_execution/on_device_capability.h"
 #include "components/optimization_guide/core/model_execution/on_device_features.h"
@@ -1851,17 +1854,79 @@ void AIManager::StartModelPathValidationIfOverrideSet() {
 
 void AIManager::CanCreateSemanticEmbedder(
     CanCreateSemanticEmbedderCallback callback) {
-  // To be implemented in a subsequent CL.
-  receivers_.ReportBadMessage(
-      "AIManager::CanCreateSemanticEmbedder is not implemented yet.");
+  if (!base::FeatureList::IsEnabled(blink::features::kAIEmbeddingsAPI)) {
+    std::move(callback).Run(blink::mojom::ModelAvailabilityCheckResult::
+                                kUnavailableFeatureNotEnabled);
+    return;
+  }
+
+  // TODO(crbug.com/428233906): Implement a dedicated Permissions Policy for the
+  // Embedding API.
+  if (IsPermissionsPolicyBlocked(
+          network::mojom::PermissionsPolicyFeature::kLanguageModel)) {
+    receivers_.ReportBadMessage("Permissions policy disabled");
+    return;
+  }
+
+  if (auto pref_blocked_result = GetPrefBlockedResult()) {
+    std::move(callback).Run(*pref_blocked_result);
+    return;
+  }
+
+  auto* service_launcher = AISemanticEmbedderServiceLauncher::Get();
+
+  if (!service_launcher->controller()->IsModelAvailable()) {
+    std::move(callback).Run(
+        blink::mojom::ModelAvailabilityCheckResult::kDownloadable);
+    return;
+  }
+
+  // Reject if the crash limit is reached
+  if (!service_launcher->AllowedToLaunch()) {
+    std::move(callback).Run(blink::mojom::ModelAvailabilityCheckResult::
+                                kUnavailableTooManyRecentCrashes);
+    return;
+  }
+
+  std::move(callback).Run(
+      blink::mojom::ModelAvailabilityCheckResult::kAvailable);
 }
 
 void AIManager::CreateSemanticEmbedder(
     mojo::PendingRemote<blink::mojom::AIManagerCreateSemanticEmbedderClient>
         client) {
-  // To be implemented in a subsequent CL.
-  receivers_.ReportBadMessage(
-      "AIManager::CreateSemanticEmbedder is not implemented yet.");
+  mojo::Remote<blink::mojom::AIManagerCreateSemanticEmbedderClient>
+      client_remote(std::move(client));
+
+  if (!base::FeatureList::IsEnabled(blink::features::kAIEmbeddingsAPI)) {
+    receivers_.ReportBadMessage("Feature not enabled");
+    return;
+  }
+
+  if (IsBlocked(network::mojom::PermissionsPolicyFeature::kLanguageModel)) {
+    receivers_.ReportBadMessage("Policy or user setting disabled");
+    return;
+  }
+
+  auto* service_launcher = AISemanticEmbedderServiceLauncher::Get();
+  if (!service_launcher->controller()->IsModelAvailable()) {
+    client_remote->OnError(
+        blink::mojom::AIManagerCreateClientError::kUnableToCreateSession);
+    return;
+  }
+
+  if (!service_launcher->AllowedToLaunch()) {
+    client_remote->OnError(
+        blink::mojom::AIManagerCreateClientError::kUnableToCreateSession);
+    return;
+  }
+
+  mojo::PendingRemote<blink::mojom::AISemanticEmbedder> pending_remote;
+  context_bound_object_set_.AddContextBoundObject(
+      std::make_unique<AISemanticEmbedder>(
+          context_bound_object_set_,
+          pending_remote.InitWithNewPipeAndPassReceiver()));
+  client_remote->OnResult(std::move(pending_remote));
 }
 
 void AIManager::RenderWidgetHostVisibilityChanged(

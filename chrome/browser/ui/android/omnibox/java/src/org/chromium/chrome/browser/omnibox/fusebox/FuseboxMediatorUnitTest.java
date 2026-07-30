@@ -82,6 +82,7 @@ import org.chromium.chrome.browser.omnibox.fusebox.FuseboxProperties.BackgroundS
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxProperties.PopupButtonData;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
 import org.chromium.chrome.browser.omnibox.suggestions.AutocompleteController;
+import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileResolver;
 import org.chromium.chrome.browser.profiles.ProfileResolverJni;
@@ -113,6 +114,10 @@ import org.chromium.components.omnibox.OmniboxFocusReason;
 import org.chromium.components.omnibox.SectionConfigProto.SectionConfig;
 import org.chromium.components.omnibox.ToolConfigProto.ToolConfig;
 import org.chromium.components.omnibox.ToolModeProto.ToolMode;
+import org.chromium.components.prefs.PrefChangeRegistrar;
+import org.chromium.components.prefs.PrefChangeRegistrarJni;
+import org.chromium.components.prefs.PrefService;
+import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.content_public.browser.RenderWidgetHostView;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.KeyboardVisibilityDelegate;
@@ -160,6 +165,8 @@ public class FuseboxMediatorUnitTest {
     @Mock private KeyboardVisibilityDelegate mKeyboardVisibilityDelegate;
     @Mock private BackPressManager mBackPressManager;
     @Mock private Runnable mOnFirstPickerInteractionCanceledCallback;
+    @Mock private PrefService mPrefService;
+    @Mock private PrefChangeRegistrar.Natives mPrefChangeRegistrarJni;
     @Mock private Runnable mOnActivationChipClickedWithQuery;
     @Mock private Runnable mClearUrlBarTextCallback;
 
@@ -195,6 +202,10 @@ public class FuseboxMediatorUnitTest {
 
     @Before
     public void setUp() {
+        UserPrefs.setPrefServiceForTesting(mPrefService);
+        lenient().doReturn(true).when(mPrefService).getBoolean(Pref.SHOW_AI_MODE_OMNIBOX_BUTTON);
+        PrefChangeRegistrarJni.setInstanceForTesting(mPrefChangeRegistrarJni);
+        lenient().doReturn(1L).when(mPrefChangeRegistrarJni).init(any(), any());
         OmniboxFeatures.sMultiattachmentFusebox.setForTesting(true);
         mTabModelSelectorSupplier = ObservableSuppliers.createNonNull(mTabModelSelector);
         mActivityController = Robolectric.buildActivity(TestActivity.class).setup();
@@ -587,6 +598,14 @@ public class FuseboxMediatorUnitTest {
         recreateMediator();
 
         assertEquals(FuseboxState.EXPANDED, mModel.get(FuseboxProperties.FUSEBOX_STATE).intValue());
+    }
+
+    @Test
+    public void updateFuseboxState_standby_isDisabled() {
+        mInput.setAutocompleteState(AutocompleteState.STANDBY);
+        recreateMediator();
+
+        assertEquals(FuseboxState.DISABLED, mModel.get(FuseboxProperties.FUSEBOX_STATE).intValue());
     }
 
     @Test
@@ -2639,5 +2658,29 @@ public class FuseboxMediatorUnitTest {
         assertEquals(1, tools.size());
         assertEquals("Deep Search", tools.get(0).text);
         assertFalse(isToolVisible(ToolMode.TOOL_MODE_UNSPECIFIED_VALUE));
+    }
+
+    @Test
+    public void testAlwaysShowAiModePrefChangesActivationChipVisibility() {
+        mModel.set(FuseboxProperties.FUSEBOX_LAYOUT_MODE, FuseboxLayoutMode.SUGGESTIONS_POPOVER);
+        mInput.setRequestType(AutocompleteRequestType.SEARCH);
+        mExactMatchUrlSupplier.set(null);
+        recreateMediator();
+
+        // Verify registrar is initialized
+        assertNotNull(mMediator.mPrefChangeRegistrar);
+
+        // Activation chip should be visible when the pref is true by default
+        assertTrue(mModel.get(FuseboxProperties.ACTIVATION_CHIP_VISIBLE));
+
+        // When the pref is turned off (set to false), activation chip becomes invisible
+        doReturn(false).when(mPrefService).getBoolean(Pref.SHOW_AI_MODE_OMNIBOX_BUTTON);
+        mMediator.updateActivationChip();
+
+        assertFalse(mModel.get(FuseboxProperties.ACTIVATION_CHIP_VISIBLE));
+
+        // Verify registrar is destroyed when ending input
+        mMediator.endInput();
+        assertNull(mMediator.mPrefChangeRegistrar);
     }
 }

@@ -15,6 +15,7 @@ static_library("renderer") {
     "internal_plugin_renderer_helpers.h",
     "pdf_accessibility_tree.h",
     "pdf_ax_action_target.h",
+    "pdf_view_web_plugin_client.h",
   ]
 
   sources = [
@@ -28,7 +29,6 @@ static_library("renderer") {
     "pdf_accessibility_tree_builder_structure.h",
     "pdf_ax_action_target.cc",
     "pdf_view_web_plugin_client.cc",
-    "pdf_view_web_plugin_client.h",
   ]
 
   deps = [

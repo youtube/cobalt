@@ -115,9 +115,8 @@ SkillsFunctionalBrowserTestBase::ToMojoSkill(const base::Value& value) {
                    GetStringValue(*preview_dict, "name", "SkillPreview"));
   ASSIGN_OR_RETURN(preview->icon,
                    GetStringValue(*preview_dict, "icon", "SkillPreview"));
-  ASSIGN_OR_RETURN(
-      preview->description,
-      GetStringValue(*preview_dict, "description", "SkillPreview"));
+  const std::string* description = preview_dict->FindString("description");
+  preview->description = description ? *description : "";
 
   ASSIGN_OR_RETURN(int source,
                    GetIntValue(*preview_dict, "source", "SkillPreview"));

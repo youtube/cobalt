@@ -469,6 +469,21 @@ public class AutocompleteInputUnitTest {
     }
 
     @Test
+    public void isStandby_returnsTrueForStandbyAndStandbyNoFocus() {
+        mInput.setAutocompleteState(AutocompleteState.STANDBY);
+        assertTrue(mInput.isStandby());
+
+        mInput.setAutocompleteState(AutocompleteState.STANDBY_NO_FOCUS);
+        assertTrue(mInput.isStandby());
+
+        mInput.setAutocompleteState(AutocompleteState.ENABLED);
+        assertFalse(mInput.isStandby());
+
+        mInput.setAutocompleteState(AutocompleteState.DISABLED);
+        assertFalse(mInput.isStandby());
+    }
+
+    @Test
     public void testCopyFrom() {
         long urlFocusTime = 12345L;
         GURL pageUrl = GURL.emptyGURL();
@@ -541,11 +556,11 @@ public class AutocompleteInputUnitTest {
     public void getCursorPositionForAutocomplete() {
         mInput.setUserText("user query");
 
-        // Without Site Search data, should return the given cursor position unmodified.
         assertEquals(0, mInput.getCursorPositionForAutocomplete(0));
         assertEquals(5, mInput.getCursorPositionForAutocomplete(5));
         assertEquals(10, mInput.getCursorPositionForAutocomplete(10));
-        assertEquals(15, mInput.getCursorPositionForAutocomplete(15));
+        // Should be capped to user text length.
+        assertEquals(10, mInput.getCursorPositionForAutocomplete(15));
         assertEquals(-1, mInput.getCursorPositionForAutocomplete(-1));
 
         // With Site Search data, should offset by keyword length + 1 (for space).

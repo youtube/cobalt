@@ -29,7 +29,7 @@ perfetto::NamedTrack CreateTracingTrackUnderChildProcess(
                               GetChildProcessTracingTrack(process_id));
 }
 
-perfetto::NamedTrack GetLocalFrameTracingTrack(
+perfetto::StateTrack GetLocalFrameTracingTrack(
     const blink::LocalFrameToken& frame_token,
     bool is_main_frame,
     ChildProcessId process_id) {
@@ -37,18 +37,16 @@ perfetto::NamedTrack GetLocalFrameTracingTrack(
       frame_token, is_main_frame, GetChildProcessTracingTrack(process_id));
 }
 
-perfetto::NamedTrack GetWebContentsTracingTrack(
+perfetto::StateTrack GetWebContentsTracingTrack(
     const WebContents::UniqueToken& web_contents_token,
     perfetto::StaticString name) {
   static const base::NoDestructor<
       base::trace_event::TrackRegistration<perfetto::NamedTrack>>
       page_group_track(perfetto::NamedTrack::Global("WebContentsList", 0));
 
-  auto track =
-      perfetto::NamedTrack(
-          name, base::UnguessableTokenHash()(web_contents_token.value()),
-          page_group_track->track())
-          .disable_sibling_merge();
+  auto track = perfetto::StateTrack(
+      name, base::UnguessableTokenHash()(web_contents_token.value()),
+      page_group_track->track());
   return track;
 }
 

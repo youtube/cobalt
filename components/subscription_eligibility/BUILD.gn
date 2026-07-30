@@ -20,3 +20,16 @@ source_set("subscription_eligibility") {
     "//components/prefs",
   ]
 }
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "subscription_eligibility_service_unittest.cc" ]
+  deps = [
+    ":subscription_eligibility",
+    "//base",
+    "//base/test:test_support",
+    "//components/pref_registry",
+    "//components/prefs:test_support",
+    "//testing/gtest",
+  ]
+}

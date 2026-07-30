@@ -612,41 +612,6 @@ public class PermissionClapperQuietTest {
     @Test
     @MediumTest
     @Feature({"Permissions"})
-    public void testQuietClapperCookiesControlsInteraction() throws Exception {
-        // This test simulates a Cookie Controls icon event (e.g., highlighting) while the Quiet
-        // Icon is shown. This high-priority icon update should preempt the quiet icon, causing it
-        // to be removed and the request to be Ignored.
-        HistogramWatcher histogramWatcher = expectAction(PermissionTestRule.PromptAction.IGNORED);
-
-        triggerQuietClapper();
-        waitForQuietIcon();
-
-        // Trigger the Cookie Controls icon animation via the StatusMediator.
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    LocationBarCoordinator locationBarCoordinator =
-                            (LocationBarCoordinator)
-                                    mPermissionRule
-                                            .getActivity()
-                                            .getToolbarManager()
-                                            .getLocationBar();
-                    locationBarCoordinator
-                            .getStatusCoordinator()
-                            .getMediatorForTesting()
-                            .onHighlightCookieControl(true);
-                });
-
-        // The quiet icon should be replaced/removed.
-        waitForQuietIconGone();
-
-        histogramWatcher.assertExpected();
-        mPermissionRule.checkPermissionSettingForOrigin(
-                ContentSettingsType.NOTIFICATIONS, ContentSetting.ASK, PAGE_URL);
-    }
-
-    @Test
-    @MediumTest
-    @Feature({"Permissions"})
     public void testQuietClapperTabDestroyed() throws Exception {
         HistogramWatcher histogramWatcher = expectAction(PermissionTestRule.PromptAction.IGNORED);
 

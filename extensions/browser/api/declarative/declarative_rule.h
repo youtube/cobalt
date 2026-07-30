@@ -16,8 +16,10 @@
 #include <utility>
 #include <vector>
 
+#include "base/containers/to_vector.h"
 #include "base/functional/callback.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "components/url_matcher/url_matcher.h"
@@ -109,7 +111,7 @@ class DeclarativeConditionSet {
 
   const URLMatcherIdToCondition match_id_to_condition_;
   const Conditions conditions_;
-  const std::vector<const ConditionT*> conditions_without_urls_;
+  const std::vector<raw_ptr<const ConditionT>> conditions_without_urls_;
 };
 
 // Immutable container for multiple actions.
@@ -344,7 +346,8 @@ DeclarativeConditionSet<ConditionT>::DeclarativeConditionSet(
     const std::vector<const ConditionT*>& conditions_without_urls)
     : match_id_to_condition_(match_id_to_condition),
       conditions_(std::move(conditions)),
-      conditions_without_urls_(conditions_without_urls) {}
+      conditions_without_urls_(
+          base::ToVector<raw_ptr<const ConditionT>>(conditions_without_urls)) {}
 
 //
 // DeclarativeActionSet

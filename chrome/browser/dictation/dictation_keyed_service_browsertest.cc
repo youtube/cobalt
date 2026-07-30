@@ -23,7 +23,6 @@
 #include "chrome/common/extensions/api/dictation_private.h"
 #include "chrome/test/base/chrome_test_utils.h"
 #include "chrome/test/base/platform_browser_test.h"
-#include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -36,6 +35,9 @@
 namespace dictation {
 
 namespace {
+
+#define EXPECT_EDITABLE_TEXT_EQ(selector, expected_text) \
+  EXPECT_EQ(expected_text, GetEditableExpectedText(selector, expected_text));
 
 using ExtensionStreamState = extensions::api::dictation_private::StreamState;
 using ExtensionTranscriptionType =
@@ -72,6 +74,25 @@ class DictationKeyedServiceBrowserTest : public DictationBrowserTestBase {
     ExtensionSendTranscriptUpdate(profile(), provider->stream_id_for_testing(),
                                   type, text);
   }
+
+  // There's no great way to wait on the dictation target to have fully
+  // committed text (i.e. visible to the page) so this method will poll until
+  // the editable shows the expected text. Return the string for ergonomics so
+  // that a failure can show up as a failing EXPECT_EQ.
+  std::string GetEditableExpectedText(std::string_view selector,
+                                      std::string_view expected) {
+    std::string last_seen_string;
+    EXPECT_TRUE(base::test::RunUntil([&]() {
+      last_seen_string =
+          content::EvalJs(
+              web_contents(),
+              content::JsReplace("document.querySelector($1).value;", selector))
+              .ExtractString();
+      return last_seen_string == expected;
+    }));
+
+    return last_seen_string;
+  }
 };
 
 IN_PROC_BROWSER_TEST_F(DictationKeyedServiceBrowserTest,
@@ -107,7 +128,7 @@ IN_PROC_BROWSER_TEST_F(DictationKeyedServiceBrowserTest,
                        ShouldShowContextMenuItem) {
   EXPECT_TRUE(dictation_service().ShouldShowContextMenuItem());
 
-  dictation_service().StartSession(*GetBrowserWindowInterface(), nullptr);
+  StartSession();
 
   EXPECT_FALSE(dictation_service().ShouldShowContextMenuItem());
 
@@ -129,34 +150,10 @@ IN_PROC_BROWSER_TEST_F(DictationKeyedServiceBrowserTest,
 
   menu.ExecuteCommand(IDC_CONTENT_CONTEXT_DICTATION, 0);
 
-  ASSERT_NE(dictation_service().session_controller(), nullptr);
-  StreamProvider* provider =
-      dictation_service().session_controller()->attached_stream_provider();
+  ASSERT_NE(session_controller(), nullptr);
+  StreamProvider* provider = session_controller()->attached_stream_provider();
   ASSERT_NE(provider, nullptr);
   ASSERT_NE(provider->GetTarget(), nullptr);
-  EXPECT_EQ(provider->GetTarget()->GetSelectedText(), "");
-}
-
-IN_PROC_BROWSER_TEST_F(DictationKeyedServiceBrowserTest,
-                       ExecuteContextMenuCommandWithSelectedText) {
-  content::ContextMenuParams params;
-  params.is_editable = true;
-  params.selection_text = u"selected text";
-  TestRenderViewContextMenu menu(*web_contents()->GetPrimaryMainFrame(),
-                                 params);
-  menu.Init();
-
-  ASSERT_TRUE(menu.IsItemPresent(IDC_CONTENT_CONTEXT_DICTATION));
-  ASSERT_TRUE(menu.IsItemEnabled(IDC_CONTENT_CONTEXT_DICTATION));
-
-  menu.ExecuteCommand(IDC_CONTENT_CONTEXT_DICTATION, 0);
-
-  ASSERT_NE(dictation_service().session_controller(), nullptr);
-  StreamProvider* provider =
-      dictation_service().session_controller()->attached_stream_provider();
-  ASSERT_NE(provider, nullptr);
-  ASSERT_NE(provider->GetTarget(), nullptr);
-  EXPECT_EQ(provider->GetTarget()->GetSelectedText(), "selected text");
 }
 
 // TODO(crbug.com/502587072): Add tests which have the test extension simulate
@@ -164,12 +161,9 @@ IN_PROC_BROWSER_TEST_F(DictationKeyedServiceBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DictationKeyedServiceBrowserTest,
                        StartSessionAndReceiveTranscription) {
+  StartSession();
 
-  dictation_service().StartSession(
-      *GetBrowserWindowInterface(),
-      std::make_unique<Target>(web_contents()->GetPrimaryMainFrame(), ""));
-
-  SessionController* controller = dictation_service().session_controller();
+  SessionController* controller = session_controller();
   ASSERT_NE(controller, nullptr);
 
   ListenerStreamProvider* provider = static_cast<ListenerStreamProvider*>(
@@ -205,12 +199,9 @@ IN_PROC_BROWSER_TEST_F(DictationKeyedServiceBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DictationKeyedServiceBrowserTest,
                        EndActiveStreamEntersFinalizingState) {
+  StartSession();
 
-  dictation_service().StartSession(
-      *GetBrowserWindowInterface(),
-      std::make_unique<Target>(web_contents()->GetPrimaryMainFrame(), ""));
-
-  SessionController* controller = dictation_service().session_controller();
+  SessionController* controller = session_controller();
   ASSERT_NE(controller, nullptr);
 
   ListenerStreamProvider* provider = static_cast<ListenerStreamProvider*>(
@@ -250,12 +241,9 @@ IN_PROC_BROWSER_TEST_F(DictationKeyedServiceBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DictationKeyedServiceBrowserTest,
                        StartNewStreamWhileFinalizing) {
+  StartSession();
 
-  dictation_service().StartSession(
-      *GetBrowserWindowInterface(),
-      std::make_unique<Target>(web_contents()->GetPrimaryMainFrame(), ""));
-
-  SessionController* controller = dictation_service().session_controller();
+  SessionController* controller = session_controller();
   ASSERT_NE(controller, nullptr);
 
   ListenerStreamProvider* provider1 = static_cast<ListenerStreamProvider*>(
@@ -282,8 +270,8 @@ IN_PROC_BROWSER_TEST_F(DictationKeyedServiceBrowserTest,
 
   // Start a second stream while the first is finalizing. The controller should
   // immediately enter kStreamInitializing.
-  controller->StartDictationStream(
-      std::make_unique<Target>(web_contents()->GetPrimaryMainFrame(), ""));
+  controller->StartDictationStream(DefaultInPageTargetId(web_contents()),
+                                   DictationStreamStartTrigger::kSessionStart);
   EXPECT_EQ(controller->GetState(), SessionState::kStreamInitializing);
 
   // Wait for the stream to enter transcribing state.
@@ -302,12 +290,9 @@ IN_PROC_BROWSER_TEST_F(DictationKeyedServiceBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DictationKeyedServiceBrowserTest,
                        ProviderDestroyedAfterComplete) {
+  StartSession();
 
-  dictation_service().StartSession(
-      *GetBrowserWindowInterface(),
-      std::make_unique<Target>(web_contents()->GetPrimaryMainFrame(), ""));
-
-  SessionController* controller = dictation_service().session_controller();
+  SessionController* controller = session_controller();
   ASSERT_NE(controller, nullptr);
 
   ListenerStreamProvider* provider = static_cast<ListenerStreamProvider*>(
@@ -334,12 +319,9 @@ IN_PROC_BROWSER_TEST_F(DictationKeyedServiceBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DictationKeyedServiceBrowserTest,
                        ProviderDestroyedAfterFailed) {
+  StartSession();
 
-  dictation_service().StartSession(
-      *GetBrowserWindowInterface(),
-      std::make_unique<Target>(web_contents()->GetPrimaryMainFrame(), ""));
-
-  SessionController* controller = dictation_service().session_controller();
+  SessionController* controller = session_controller();
   ASSERT_NE(controller, nullptr);
 
   ListenerStreamProvider* provider = static_cast<ListenerStreamProvider*>(
@@ -365,10 +347,6 @@ IN_PROC_BROWSER_TEST_F(DictationKeyedServiceBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(DictationKeyedServiceBrowserTest,
                        TranscriptionCommittedToElement) {
-  ASSERT_TRUE(embedded_test_server()->Start());
-
-  LoadTestExtensionInManualMode(profile());
-
   const GURL url =
       embedded_test_server()->GetURL("/textinput/simple_textarea.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
@@ -388,11 +366,9 @@ IN_PROC_BROWSER_TEST_F(DictationKeyedServiceBrowserTest,
                     "until crbug.com/525856380 is fixed.";
   }
 
-  dictation_service().StartSession(
-      *GetBrowserWindowInterface(),
-      std::make_unique<Target>(web_contents()->GetPrimaryMainFrame(), ""));
+  StartSession();
 
-  SessionController* controller = dictation_service().session_controller();
+  SessionController* controller = session_controller();
   ListenerStreamProvider* provider = static_cast<ListenerStreamProvider*>(
       controller->attached_stream_provider());
 
@@ -418,9 +394,77 @@ IN_PROC_BROWSER_TEST_F(DictationKeyedServiceBrowserTest,
   }
 
   // Verify the transcription reached the document.
-  EXPECT_EQ("Hello World",
-            content::EvalJs(web_contents(),
-                            "document.getElementById('text_id').value;"));
+  EXPECT_EDITABLE_TEXT_EQ("#text_id", "Hello World");
+}
+
+IN_PROC_BROWSER_TEST_F(DictationKeyedServiceBrowserTest,
+                       ToggleStreamAndCommit) {
+  const GURL url =
+      embedded_test_server()->GetURL("/textinput/simple_textarea.html");
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
+  content::SimulateEndOfPaintHoldingOnPrimaryMainFrame(web_contents());
+  content::MainThreadFrameObserver frame_observer(
+      web_contents()->GetPrimaryMainFrame()->GetRenderWidgetHost());
+  frame_observer.Wait();
+
+  FocusLossObserver focus_loss_observer(web_contents());
+
+  // Focus the textarea so that dictation targets it.
+  content::SimulateMouseClickOrTapElementWithId(web_contents(), "text_id");
+
+  if (!content::IsRenderWidgetHostFocused(
+          web_contents()->GetPrimaryMainFrame()->GetRenderWidgetHost())) {
+    GTEST_SKIP() << "Test is sensitive to focus loss from test environment "
+                    "until crbug.com/525856380 is fixed.";
+  }
+
+  // Start a new session and stream, commit some text, and stop.
+  {
+    StartSession();
+
+    ASSERT_TRUE(attached_stream());
+    auto stream_id = attached_stream()->stream_id_for_testing();
+
+    ExtensionWaitForStreamStart(profile(), stream_id);
+    ExtensionSendStreamStateUpdate(profile(), stream_id,
+                                   ExtensionStreamState::kTranscribing);
+
+    SimulateSpeechRecognition(attached_stream(),
+                              ExtensionTranscriptionType::kFinal, "Hello");
+
+    session_controller()->UiRequestEndActiveStream();
+    ExtensionSendStreamStateUpdate(profile(), stream_id,
+                                   ExtensionStreamState::kComplete);
+  }
+
+  EXPECT_EDITABLE_TEXT_EQ("#text_id", "Hello");
+  ASSERT_FALSE(attached_stream());
+
+  // Start a second stream simulating a click on the "Start" button.
+  {
+    session_controller()->UiRequestStartStream();
+    ASSERT_TRUE(attached_stream());
+
+    auto stream_id = attached_stream()->stream_id_for_testing();
+
+    ExtensionWaitForStreamStart(profile(), stream_id);
+    ExtensionSendStreamStateUpdate(profile(), stream_id,
+                                   ExtensionStreamState::kTranscribing);
+
+    SimulateSpeechRecognition(attached_stream(),
+                              ExtensionTranscriptionType::kFinal, " World");
+
+    session_controller()->UiRequestEndActiveStream();
+    ExtensionSendStreamStateUpdate(profile(), stream_id,
+                                   ExtensionStreamState::kComplete);
+  }
+
+  if (focus_loss_observer.lost_focus_called()) {
+    GTEST_SKIP() << "Test is sensitive to focus loss from test environment "
+                    "until crbug.com/525856380 is fixed.";
+  }
+
+  EXPECT_EDITABLE_TEXT_EQ("#text_id", "Hello World");
 }
 
 }  // namespace

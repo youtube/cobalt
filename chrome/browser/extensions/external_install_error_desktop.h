@@ -58,7 +58,7 @@ class ExternalInstallErrorDesktop : public ExternalInstallError,
   const Extension* GetExtension() const override;
   const ExtensionId& extension_id() const override;
   ExternalInstallError::AlertType alert_type() const override;
-  ExtensionInstallPrompt::Prompt* GetPromptForTesting() const override;
+  InstallPromptData* GetPromptForTesting() const override;
 
   // Show the associated dialog. This should only be called once the dialog is
   // ready.
@@ -81,7 +81,7 @@ class ExternalInstallErrorDesktop : public ExternalInstallError,
   void OnDialogReady(
       std::unique_ptr<ExtensionInstallPromptShowParams> show_params,
       ExtensionInstallPrompt::DoneCallback done_callback,
-      std::unique_ptr<ExtensionInstallPrompt::Prompt> prompt);
+      std::unique_ptr<InstallPromptData> prompt);
 
   // Removes the error.
   void RemoveError();
@@ -103,7 +103,7 @@ class ExternalInstallErrorDesktop : public ExternalInstallError,
 
   // The UI for showing the error.
   std::unique_ptr<ExtensionInstallPrompt> install_ui_;
-  std::unique_ptr<ExtensionInstallPrompt::Prompt> prompt_;
+  std::unique_ptr<InstallPromptData> prompt_;
 
   // The UI for the given error, which will take the form of either a menu
   // alert or a bubble alert (depending on the `alert_type_`.

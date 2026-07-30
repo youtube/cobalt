@@ -25,6 +25,7 @@
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
 #include "url/gurl.h"
 
+// TODO(crbug.com/362791941): replace all |comments| with `comments` for v5.
 namespace net {
 class HttpRequestHeaders;
 }  // namespace net
@@ -262,6 +263,52 @@ class ListIdentifier {
 
 std::ostream& operator<<(std::ostream& os, const ListIdentifier& id);
 
+// Associates metadata for a list with its ListIdentifier.
+class ListInfo {
+ public:
+  ListInfo(const bool fetch_updates,
+           const std::string& name,
+           const ListIdentifier& list_id,
+           const SBThreatType sb_threat_type);
+  ~ListInfo();
+  ListInfo(const ListInfo&);
+  ListInfo(ListInfo&&) noexcept;
+  ListInfo& operator=(const ListInfo&);
+  ListInfo& operator=(ListInfo&&) noexcept;
+  ListInfo() = delete;
+
+  const ListIdentifier& list_id() const { return list_id_; }
+  const std::string& filename() const { return filename_; }
+  const std::string& v4_filename() const { return v4_filename_; }
+  SBThreatType sb_threat_type() const { return sb_threat_type_; }
+  bool fetch_updates() const { return fetch_updates_; }
+  std::optional<PrefixSize> v5_prefix_size() const { return v5_prefix_size_; }
+
+ private:
+  // Whether to fetch and store updates for this list.
+  bool fetch_updates_;
+
+  // The ASCII name of the file on disk. This file is created inside the
+  // user-data directory.
+  std::string filename_;
+
+  // The ASCII name of the V4 file on disk. This file is created inside the
+  // user-data directory.
+  std::string v4_filename_;
+
+  // The list being read from/written to the disk.
+  ListIdentifier list_id_;
+
+  // The threat type enum value for this store.
+  SBThreatType sb_threat_type_;
+
+  // The expected prefix size for the hash prefixes in V5 store. Not populated
+  // when not fetching updates for this list.
+  std::optional<PrefixSize> v5_prefix_size_;
+};
+
+using ListInfos = std::vector<ListInfo>;
+
 PlatformType GetCurrentPlatformType();
 ListIdentifier GetChromeExtMalwareId();
 ListIdentifier GetChromeUrlApiId();
@@ -281,6 +328,9 @@ std::string GetUmaSuffixForStore(const base::FilePath& file_path);
 
 // Get the prefix size of a v5 list.
 PrefixSize GetV5ListPrefixSize(const ListIdentifier& list_identifier);
+
+// Get the prefix size of a v5 list based on SBThreatType.
+PrefixSize GetV5PrefixSizeForThreatType(SBThreatType threat_type);
 
 // Get the name of a v5 list.
 std::string GetV5ListName(const ListIdentifier& list_identifier);

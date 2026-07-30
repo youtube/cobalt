@@ -378,7 +378,7 @@ export class SlimWebviewElement extends CrLitElement {
 
   override updated(changedProperties: PropertyValues<this>) {
     super.updated(changedProperties);
-    if (changedProperties.has('src')) {
+    if (changedProperties.has('src') && this.src) {
       if (this.guestInstanceId === null) {
         this.guestInstanceId = GUEST_INSTANCE_ID_PENDING;
         this.createGuest();

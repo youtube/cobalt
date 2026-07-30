@@ -5,6 +5,7 @@
 #ifndef COMPONENTS_ACCESSIBILITY_ANNOTATOR_CORE_ANNOTATION_REDUCER_MEMORY_SEARCH_RESULT_H_
 #define COMPONENTS_ACCESSIBILITY_ANNOTATOR_CORE_ANNOTATION_REDUCER_MEMORY_SEARCH_RESULT_H_
 
+#include <iosfwd>
 #include <memory>
 #include <optional>
 #include <string>
@@ -26,7 +27,7 @@ struct EntryMetadata {
   EntryMetadata(EntryMetadata&&);
   EntryMetadata& operator=(EntryMetadata&&);
   ~EntryMetadata();
-  bool operator==(const EntryMetadata& other) const = default;
+  friend bool operator==(const EntryMetadata&, const EntryMetadata&) = default;
 
   // Type of metadata (a key). One of the known types or kUnknown.
   MemoryDataType type;
@@ -36,6 +37,8 @@ struct EntryMetadata {
   // Value of the metadata (eg: New York).
   std::u16string value;
 };
+
+std::ostream& operator<<(std::ostream& os, const EntryMetadata& metadata);
 
 // Type of the data source.
 // LINT.IfChange(MemoryEntrySourceType)
@@ -61,11 +64,14 @@ struct MemoryEntrySource {
   MemoryEntrySource(MemoryEntrySource&&);
   MemoryEntrySource& operator=(MemoryEntrySource&&);
   ~MemoryEntrySource();
-  bool operator==(const MemoryEntrySource& other) const = default;
+  friend bool operator==(const MemoryEntrySource&,
+                         const MemoryEntrySource&) = default;
 
   MemoryEntrySourceType type;
   std::optional<std::string> deeplink_url;
 };
+
+std::ostream& operator<<(std::ostream& os, const MemoryEntrySource& source);
 
 // An individual entry in the returned suggested search results list.
 struct MemorySearchResult {
@@ -78,6 +84,8 @@ struct MemorySearchResult {
   MemorySearchResult(MemorySearchResult&&);
   MemorySearchResult& operator=(MemorySearchResult&&);
   ~MemorySearchResult();
+  friend bool operator==(const MemorySearchResult&,
+                         const MemorySearchResult&) = default;
 
   // Type of value to be filled. One of the known types or kUnknown.
   MemoryDataType type;
@@ -107,7 +115,13 @@ struct MemorySearchResult {
   // `MemoryDataType` does not support identifiers, it will be unset
   // (monostate).
   std::variant<std::monostate, std::string, int64_t> identifier;
+
+  // The index of the entry in the remote response. If the entry is not a remote
+  // result, it will be unset (nullopt).
+  std::optional<int32_t> remote_response_index;
 };
+
+std::ostream& operator<<(std::ostream& os, const MemorySearchResult& result);
 
 enum class MemorySearchStatus {
   // Final response with all data-sources.

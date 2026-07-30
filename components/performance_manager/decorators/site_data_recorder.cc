@@ -247,7 +247,7 @@ void SiteDataRecorder::OnFaviconUpdated(
     blink::mojom::FaviconUpdateReason reason) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   SiteDataNodeData& data = GetSiteDataNodeDataFromPageNode(page_node);
-  data.OnFaviconUpdated();
+  data.OnFaviconUpdated(reason);
 }
 
 // static

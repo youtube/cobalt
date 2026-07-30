@@ -6,6 +6,7 @@
 #include <optional>
 #include <string>
 
+#include "base/byte_size.h"
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
@@ -275,8 +276,9 @@ class IsolatedWebAppURLLoaderFactoryTest
       response_info_ = loader->ResponseInfo()->Clone();
       response_body_ = *helper.response_body();
 
-      int64_t body_length = response_body_.size();
-      EXPECT_THAT(completion_status_.decoded_body_length, Eq(body_length));
+      size_t body_length = response_body_.size();
+      EXPECT_THAT(completion_status_.decoded_body_length.InBytes(),
+                  Eq(body_length));
     }
     return loader->NetError();
   }
@@ -1044,14 +1046,16 @@ TEST_P(IsolatedWebAppURLLoaderFactorySignedWebBundleTest,
   ASSERT_THAT(ResponseInfo(), NotNull());
   EXPECT_THAT(ResponseInfo()->headers->response_code(), Eq(200));
 
-  int64_t body_length = ResponseBody().size();
-  int64_t header_length =
-      static_cast<int64_t>(ResponseInfo()->headers->raw_headers().size());
-  EXPECT_THAT(CompletionStatus().encoded_data_length,
+  size_t body_length = ResponseBody().size();
+  size_t header_length = ResponseInfo()->headers->raw_headers().size();
+  EXPECT_THAT(CompletionStatus().encoded_data_length.InBytes(),
               Eq(body_length + header_length));
-  EXPECT_THAT(CompletionStatus().encoded_body_length, Eq(body_length));
-  EXPECT_THAT(CompletionStatus().decoded_body_length, Eq(body_length));
-  EXPECT_THAT(ResponseInfo()->content_length, Eq(body_length));
+  EXPECT_THAT(CompletionStatus().encoded_body_length.InBytes(),
+              Eq(body_length));
+  EXPECT_THAT(CompletionStatus().decoded_body_length.InBytes(),
+              Eq(body_length));
+  EXPECT_THAT(ResponseInfo()->content_length,
+              Eq(static_cast<int64_t>(body_length)));
 }
 
 TEST_P(IsolatedWebAppURLLoaderFactorySignedWebBundleTest,
@@ -1066,13 +1070,14 @@ TEST_P(IsolatedWebAppURLLoaderFactorySignedWebBundleTest,
   EXPECT_THAT(ResponseInfo()->headers->response_code(),
               IsHttpStatusCode(net::HTTP_NOT_FOUND));
 
-  int64_t body_length = ResponseBody().size();
-  int64_t header_length =
-      static_cast<int64_t>(ResponseInfo()->headers->raw_headers().size());
-  EXPECT_THAT(CompletionStatus().encoded_data_length,
+  size_t body_length = ResponseBody().size();
+  size_t header_length = ResponseInfo()->headers->raw_headers().size();
+  EXPECT_THAT(CompletionStatus().encoded_data_length.InBytes(),
               Eq(body_length + header_length));
-  EXPECT_THAT(CompletionStatus().encoded_body_length, Eq(body_length));
-  EXPECT_THAT(CompletionStatus().decoded_body_length, Eq(body_length));
+  EXPECT_THAT(CompletionStatus().encoded_body_length.InBytes(),
+              Eq(body_length));
+  EXPECT_THAT(CompletionStatus().decoded_body_length.InBytes(),
+              Eq(body_length));
 }
 
 TEST_P(IsolatedWebAppURLLoaderFactorySignedWebBundleTest,

@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "base/barrier_callback.h"
+#include "base/byte_size.h"
 #include "base/functional/bind.h"
 #include "base/json/json_string_value_serializer.h"
 #include "base/json/json_writer.h"
@@ -125,7 +126,7 @@ network::URLLoaderCompletionStatus CreateStatusForTest(
     int status,
     const std::string& response_body) {
   network::URLLoaderCompletionStatus response_status(status);
-  response_status.decoded_body_length = response_body.size();
+  response_status.decoded_body_length = base::ByteSize(response_body.size());
   return response_status;
 }
 

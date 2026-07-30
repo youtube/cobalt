@@ -165,7 +165,6 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
     private boolean mMaximizeButtonEnabled;
 
     private @Nullable CookieControlsBridge mCookieControlsBridge;
-    private boolean mShouldHighlightCookieControlsIcon;
     private Supplier<@Nullable AppMenuHandler> mAppMenuHandler = () -> null;
 
     private @Nullable AppMenuObserver mAppMenuObserver;
@@ -990,7 +989,6 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
         private static final int STATE_TITLE_ONLY = 1;
         private static final int STATE_DOMAIN_AND_TITLE = 2;
         private static final int STATE_EMPTY = 3; // Not used as a regular state.
-        private static final int COOKIE_CONTROLS_ICON_DISPLAY_TIMEOUT = 8500;
         private int mState = STATE_DOMAIN_ONLY;
 
         // Used for After branding runnables
@@ -1145,13 +1143,6 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
                     TaskTraits.UI_USER_VISIBLE,
                     () -> mBrowserControlsVisibilityDelegate.releasePersistentShowingToken(token),
                     MIN_URL_BAR_VISIBLE_TIME_POST_BRANDING_MS);
-        }
-
-        // CookieControlsObserver interface
-        @Override
-        public void onHighlightCookieControl(boolean shouldHighlight) {
-            if (mShouldHighlightCookieControlsIcon) return;
-            mShouldHighlightCookieControlsIcon = shouldHighlight;
         }
 
         private void cacheRegularState() {
@@ -1421,12 +1412,6 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
                                         new Handler(Looper.getMainLooper())),
                                 getSecurityIconView());
             }
-            if (mShouldHighlightCookieControlsIcon) {
-                mPageInfoIphController.showCookieControlsIph(
-                        COOKIE_CONTROLS_ICON_DISPLAY_TIMEOUT, R.string.cookie_controls_iph_message);
-                animateCookieControlsIcon();
-                mShouldHighlightCookieControlsIcon = false;
-            }
         }
 
         @Override
@@ -1527,19 +1512,6 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
 
         public int getSecurityIconResourceForTesting() {
             return mSecurityIconResourceForTesting;
-        }
-
-        private void animateCookieControlsIcon() {
-            mTaskHandler.removeCallbacksAndMessages(null);
-            mAnimDelegate.setUseRotationSecurityButtonTransition(true);
-            mAnimDelegate.updateSecurityButton(R.drawable.ic_eye_crossed);
-
-            Runnable finishIconAnimation =
-                    () -> {
-                        updateSecurityIcon();
-                        mAnimDelegate.setUseRotationSecurityButtonTransition(false);
-                    };
-            mTaskHandler.postDelayed(finishIconAnimation, COOKIE_CONTROLS_ICON_DISPLAY_TIMEOUT);
         }
 
         private void updateTitleBar() {

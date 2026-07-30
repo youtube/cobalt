@@ -6,7 +6,11 @@ package org.chromium.chrome.browser.ui.signin.fullscreen_signin;
 
 import android.text.method.LinkMovementMethod;
 import android.transition.AutoTransition;
+import android.transition.ChangeBounds;
+import android.transition.Fade;
+import android.transition.Transition;
 import android.transition.TransitionManager;
+import android.transition.TransitionSet;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.widget.ProgressBar;
@@ -57,7 +61,10 @@ class FullscreenSigninViewBinder {
                 // this case.
                 initialLoadProgressSpinner.animate().alpha(1.0f).setStartDelay(500);
             } else {
-                TransitionManager.beginDelayedTransition(view);
+                // Cancel any pending load spinner animations to prevent possible layout race
+                // conditions that could abort the incoming transition.
+                initialLoadProgressSpinner.animate().cancel();
+                TransitionManager.beginDelayedTransition(view, createTransitionToLoadedState());
                 initialLoadProgressSpinner.setVisibility(View.GONE);
             }
             updateTopAndBottomGroupVisibilities(view, model);
@@ -277,6 +284,20 @@ class FullscreenSigninViewBinder {
         view.getSigninProgressSpinner()
                 .setVisibility(showSigninProgressSpinner ? View.VISIBLE : View.GONE);
         view.getSigninProgressText().setVisibility(showSigningInText ? View.VISIBLE : View.GONE);
+    }
+
+    private static Transition createTransitionToLoadedState() {
+        // Replace the default AutoTransition with a custom TransitionSet. Instead of running
+        // everything sequentially, running Fade(OUT) and ChangeBounds in parallel avoids a 300ms UI
+        // freeze on fast startups when the load spinner was never made visible.
+        return new TransitionSet()
+                .setOrdering(TransitionSet.ORDERING_SEQUENTIAL)
+                .addTransition(
+                        new TransitionSet()
+                                .setOrdering(TransitionSet.ORDERING_TOGETHER)
+                                .addTransition(new Fade(Fade.OUT))
+                                .addTransition(new ChangeBounds()))
+                .addTransition(new Fade(Fade.IN));
     }
 
     private FullscreenSigninViewBinder() {}

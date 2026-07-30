@@ -84,7 +84,6 @@ class TaskManagerView : public TableViewDelegate,
   bool ExecuteWindowsCommand(int command_id) override;
   ui::ImageModel GetWindowIcon() override;
   std::string GetWindowName() const override;
-  bool Accept() override;
   bool IsDialogButtonEnabled(ui::mojom::DialogButton button) const override;
   void WindowClosing() override;
 
@@ -146,6 +145,9 @@ class TaskManagerView : public TableViewDelegate,
 
   // Creates the child controls (header, table, etc).
   void Init();
+
+  // Called when the user presses the "End Task" button.
+  bool OnAccept();
 
   // Initializes the state of the always-on-top setting as the window is shown.
   void InitAlwaysOnTopState();

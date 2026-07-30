@@ -540,4 +540,93 @@
       assertWithMatcher:grey_notVisible()];
 }
 
+- (void)testImmediateForceMigration {
+  if ([ChromeEarlGrey isIPadIdiom]) {
+    if (@available(iOS 26.0, *)) {
+      // TODO(crbug.com/505386534): Test is flaky on iPad and iOS 26.0.
+      EARL_GREY_TEST_DISABLED(@"Test flaky on iPad and iOS 26.0.");
+    }
+  }
+
+  // A personal and a managed identity exist on the device.
+  FakeSystemIdentity* const personalIdentity =
+      [FakeSystemIdentity fakeIdentity1];
+  FakeSystemIdentity* const managedIdentity =
+      [FakeSystemIdentity fakeManagedIdentity];
+  [SigninEarlGrey addFakeIdentity:personalIdentity];
+  [SigninEarlGrey addFakeIdentity:managedIdentity];
+
+  // The *managed* identity is the primary one.
+  [SigninEarlGreyUI signinWithFakeIdentity:managedIdentity];
+
+  // Check preconditions: Both accounts exist in the profile.
+  {
+    const base::flat_set<GaiaId> accountsInProfile =
+        [SigninEarlGrey accountsInProfileGaiaIDs];
+    GREYAssertEqual(
+        accountsInProfile.size(), 2u,
+        @"Pre-migration, both accounts should be in the personal profile");
+    GREYAssert(accountsInProfile.contains(personalIdentity.gaiaId),
+               @"Personal account should match");
+    GREYAssert(accountsInProfile.contains(managedIdentity.gaiaId),
+               @"Managed account should match");
+  }
+
+  NSString* originalPersonalProfile = [ChromeEarlGrey currentProfileName];
+
+  // Relaunch with the multi-profile features enabled, including immediate
+  // force-migration.
+  [self relaunchWithIdentities:@[ personalIdentity, managedIdentity ]
+               enabledFeatures:
+                   {kSeparateProfilesForManagedAccounts,
+                    kSeparateProfilesForManagedAccountsForceMigration,
+                    kSeparateProfilesForManagedAccountsImmediateForceMigration}
+              disabledFeatures:{}];
+
+  // Verify that the managed account is now in the converted-to-managed personal
+  // profile - no grace period was observed for the migration.
+  {
+    const base::flat_set<GaiaId> accountsInProfile =
+        [SigninEarlGrey accountsInProfileGaiaIDs];
+    GREYAssertEqual(
+        accountsInProfile.size(), 1u,
+        @"Post-migration, the personal account should be in a new personal "
+        @"profile, only the managed account is in the current managed profile");
+    GREYAssert(accountsInProfile.contains(managedIdentity.gaiaId),
+               @"Managed account should match");
+    GREYAssert([[ChromeEarlGrey currentProfileName]
+                   isEqualToString:originalPersonalProfile],
+               @"The old personal profile should be the current managed one.");
+    GREYAssert(
+        ![[ChromeEarlGrey personalProfileName]
+            isEqualToString:originalPersonalProfile],
+        @"A new personal profile should have been created with a new name.");
+  }
+
+  // Verify the enterprise onboarding UI shows to notify the user about the
+  // force-migration.
+  WaitForEnterpriseOnboardingScreen();
+  // Verify the primary button string is the right one.
+  [[EarlGrey
+      selectElementWithMatcher:grey_text(l10n_util::GetNSString(
+                                   IDS_IOS_ENTERPRISE_PROFILE_CREATION_GOTIT))]
+      assertWithMatcher:grey_sufficientlyVisible()];
+  [[EarlGrey
+      selectElementWithMatcher:chrome_test_util::ButtonStackPrimaryButton()]
+      performAction:grey_tap()];
+
+  // Relaunch again and verify the onboarding UI shows only once; does not show
+  // again.
+  [self relaunchWithIdentities:@[ personalIdentity, managedIdentity ]
+               enabledFeatures:
+                   {kSeparateProfilesForManagedAccounts,
+                    kSeparateProfilesForManagedAccountsForceMigration,
+                    kSeparateProfilesForManagedAccountsImmediateForceMigration}
+              disabledFeatures:{}];
+  [[EarlGrey selectElementWithMatcher:
+                 grey_accessibilityID(
+                     kManagedProfileCreationScreenAccessibilityIdentifier)]
+      assertWithMatcher:grey_notVisible()];
+}
+
 @end

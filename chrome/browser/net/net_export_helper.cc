@@ -27,6 +27,14 @@
 #include "chrome/browser/net/service_providers_win.h"
 #endif
 
+#if BUILDFLAG(IS_ANDROID)
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
+#include "base/functional/bind.h"
+#include "base/logging.h"
+#include "base/task/thread_pool.h"
+#endif
+
 namespace chrome_browser_net {
 
 base::DictValue GetPrerenderInfo(Profile* profile) {
@@ -97,6 +105,23 @@ base::DictValue GetWindowsServiceProviders() {
   service_providers.Set("namespace_providers", std::move(namespace_list));
 
   return service_providers;
+}
+#endif
+
+#if BUILDFLAG(IS_ANDROID)
+void PublishNetLogToDownloads(const base::FilePath& file_path) {
+  base::ThreadPool::PostTask(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::BEST_EFFORT},
+      base::BindOnce(
+          [](const base::FilePath& path) {
+            if (!base::CopyFileToDownloadsCollection(path,
+                                                     "application/json")) {
+              DLOG(ERROR) << "Failed to copy net-export log to public "
+                             "Downloads collection: "
+                          << path.value();
+            }
+          },
+          file_path));
 }
 #endif
 

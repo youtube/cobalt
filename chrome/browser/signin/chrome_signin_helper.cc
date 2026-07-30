@@ -636,13 +636,14 @@ void FixAccountConsistencyRequestHeader(
     bool is_off_the_record,
     int incognito_availability,
     AccountConsistencyMethod account_consistency,
-    const GaiaId& gaia_id,
+    const GaiaId& primary_account_gaia_id,
+    ConsentLevel primary_account_consent_level,
     signin::Tribool is_child_account,
 #if BUILDFLAG(IS_CHROMEOS)
     bool is_secondary_account_addition_allowed,
 #endif
+    bool is_sync_feature_enabled,
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
-    bool is_sync_enabled,
     const std::string& signin_scoped_device_id,
 #endif
     content_settings::CookieSettings* cookie_settings) {
@@ -669,16 +670,23 @@ void FixAccountConsistencyRequestHeader(
   }
 #endif
 
+  GaiaId primary_account_gaia_id_to_use =
+      (primary_account_consent_level == ConsentLevel::kSignin ||
+       is_sync_feature_enabled)
+          ? primary_account_gaia_id
+          : GaiaId();
+
   AppendOrRemoveMirrorRequestHeader(
-      request, redirect_url, gaia_id, is_child_account, account_consistency,
-      cookie_settings, profile_mode_mask, kChromeMirrorHeaderSource,
+      request, redirect_url, primary_account_gaia_id_to_use, is_child_account,
+      account_consistency, cookie_settings, profile_mode_mask,
+      kChromeMirrorHeaderSource,
       /*force_account_consistency=*/false);
 
 // Dice header:
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
   bool dice_header_added = DiceHeaderHelper::AppendOrRemoveDiceRequestHeader(
-      request, redirect_url, gaia_id, is_sync_enabled, account_consistency,
-      signin_scoped_device_id);
+      request, redirect_url, primary_account_gaia_id, is_sync_feature_enabled,
+      account_consistency, signin_scoped_device_id);
 
   // Block the AccountReconcilor while the Dice requests are in flight. This
   // allows the DiceReponseHandler to process the response before the reconcilor

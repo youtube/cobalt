@@ -94,11 +94,6 @@ class CONTENT_EXPORT RenderFrameHostReceiverSet : public WebContentsObserver {
     return *receivers_.current_context();
   }
 
-  // TODO(crbug.com/525108538): this is being migrated.
-  RETURNS_NONNULL RenderFrameHost* GetCurrentTargetFrame() {
-    return &CurrentTargetFrame();
-  }
-
   // Reports the currently dispatching Message as bad and closes+removes the
   // receiver which received the message. Prefer this over the global
   // `mojo::ReportBadMessage()` function, since calling this method promptly

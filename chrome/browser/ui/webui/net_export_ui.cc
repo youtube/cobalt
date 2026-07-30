@@ -146,6 +146,7 @@ class NetExportMessageHandler final
   // on the desktop UI.
   net::NetLogCaptureMode capture_mode_;
   uint64_t max_log_file_size_;
+  bool is_logging_ = false;
 
   scoped_refptr<ui::SelectFileDialog> select_file_dialog_;
 
@@ -203,6 +204,7 @@ void NetExportMessageHandler::OnEnableNotifyUIWithState(
   if (!state_observation_manager_.IsObserving()) {
     state_observation_manager_.Observe(file_writer_.get());
   }
+  is_logging_ = file_writer_->IsLogging();
   NotifyUIWithState(file_writer_->GetState());
 }
 
@@ -287,6 +289,15 @@ void NetExportMessageHandler::FileSelectionCanceled() {
 }
 
 void NetExportMessageHandler::OnNewState(const base::DictValue& state) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  const bool will_be_logging = file_writer_->IsLogging();
+#if BUILDFLAG(IS_ANDROID)
+  if (!will_be_logging && is_logging_) {
+    file_writer_->GetFilePathToCompletedLog(
+        base::BindOnce(&chrome_browser_net::PublishNetLogToDownloads));
+  }
+#endif
+  is_logging_ = will_be_logging;
   NotifyUIWithState(state);
 }
 
@@ -311,6 +322,7 @@ void NetExportMessageHandler::SendEmail(const base::FilePath& file_to_send) {
 
 void NetExportMessageHandler::StartNetLog(const base::FilePath& path) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  is_logging_ = true;
 
   file_writer_->StartNetLog(
       path, capture_mode_, max_log_file_size_,

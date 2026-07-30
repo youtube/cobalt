@@ -16,6 +16,8 @@ import org.chromium.base.Callback;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.content_public.browser.RenderFrameHost;
 import org.chromium.content_public.browser.WebContents;
 
@@ -196,6 +198,22 @@ public class DataProtectionBridge {
         getJni().shouldAllowSearchWith(textLength, webContents, callback);
     }
 
+    /**
+     * Checks if there is any active Data Controls rule that applies a blocking screenshot
+     * restriction for the given profile.
+     */
+    public static boolean hasBlockingScreenshotRule(@Nullable Profile profile) {
+        if (profile == null) {
+            return false;
+        }
+        return getJni().hasBlockingScreenshotRule(profile);
+    }
+
+    /** Checks if screenshots are allowed for the given tab based on enterprise policy. */
+    public static boolean isScreenshotAllowed(Tab tab) {
+        return getJni().isScreenshotAllowed(tab);
+    }
+
     public static void setInstanceForTesting(DataProtectionBridge.Natives instance) {
         sNativesForTesting = instance;
     }
@@ -251,5 +269,9 @@ public class DataProtectionBridge {
                 int textLength,
                 @Nullable WebContents webContents,
                 @JniType("base::OnceClosure") Runnable callback);
+
+        boolean hasBlockingScreenshotRule(@JniType("Profile*") Profile profile);
+
+        boolean isScreenshotAllowed(@JniType("TabAndroid*") Tab tab);
     }
 }

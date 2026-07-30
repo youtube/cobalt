@@ -62,6 +62,9 @@ extern const base::FeatureParam<base::TimeDelta> kClickBackoffTime;
 // If true, uses private AI to generate cues.
 extern const base::FeatureParam<bool> kUsePrivateAi;
 
+// Timeout for waiting for PageContentAnnotations to arrive.
+extern const base::FeatureParam<base::TimeDelta> kAnnotationTimeout;
+
 // UCB scorer hyperparameters for the V2 multi-source path.
 // See UCBHyperparameters in ucb_scorer.h for field semantics.
 extern const base::FeatureParam<double> kUcbExplorationWeight;

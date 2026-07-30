@@ -281,45 +281,55 @@ TEST_F(LoadingDataCollectorTest, SimpleNavigation) {
 
   std::vector<blink::mojom::ResourceLoadInfoPtr> resources;
   resources.push_back(CreateResourceLoadInfo("http://www.google.com"));
-  collector_->RecordResourceLoadComplete(navigation_id, *resources.back());
+  collector_->RecordResourceLoadComplete(
+      navigation_id, resources.back()->original_url, *resources.back());
   resources.push_back(
       CreateResourceLoadInfo("http://google.com/style1.css",
                              network::mojom::RequestDestination::kStyle));
-  collector_->RecordResourceLoadComplete(navigation_id, *resources.back());
+  collector_->RecordResourceLoadComplete(
+      navigation_id, resources.back()->original_url, *resources.back());
   resources.push_back(
       CreateResourceLoadInfo("http://google.com/script1.js",
                              network::mojom::RequestDestination::kScript));
-  collector_->RecordResourceLoadComplete(navigation_id, *resources.back());
+  collector_->RecordResourceLoadComplete(
+      navigation_id, resources.back()->original_url, *resources.back());
   resources.push_back(
       CreateResourceLoadInfo("http://google.com/script2.js",
                              network::mojom::RequestDestination::kScript));
-  collector_->RecordResourceLoadComplete(navigation_id, *resources.back());
+  collector_->RecordResourceLoadComplete(
+      navigation_id, resources.back()->original_url, *resources.back());
   resources.push_back(
       CreateResourceLoadInfo("http://google.com/script1.js",
                              network::mojom::RequestDestination::kScript));
-  collector_->RecordResourceLoadComplete(navigation_id, *resources.back());
+  collector_->RecordResourceLoadComplete(
+      navigation_id, resources.back()->original_url, *resources.back());
   resources.push_back(
       CreateResourceLoadInfo("http://google.com/image1.png",
                              network::mojom::RequestDestination::kImage));
-  collector_->RecordResourceLoadComplete(navigation_id, *resources.back());
+  collector_->RecordResourceLoadComplete(
+      navigation_id, resources.back()->original_url, *resources.back());
   resources.push_back(
       CreateResourceLoadInfo("http://google.com/image2.png",
                              network::mojom::RequestDestination::kImage));
-  collector_->RecordResourceLoadComplete(navigation_id, *resources.back());
+  collector_->RecordResourceLoadComplete(
+      navigation_id, resources.back()->original_url, *resources.back());
   resources.push_back(
       CreateResourceLoadInfo("http://google.com/style2.css",
                              network::mojom::RequestDestination::kStyle));
-  collector_->RecordResourceLoadComplete(navigation_id, *resources.back());
+  collector_->RecordResourceLoadComplete(
+      navigation_id, resources.back()->original_url, *resources.back());
   resources.push_back(
       CreateResourceLoadInfo("http://static.google.com/style2-no-store.css",
                              network::mojom::RequestDestination::kStyle,
                              /*always_access_network=*/true));
-  collector_->RecordResourceLoadComplete(navigation_id, *resources.back());
+  collector_->RecordResourceLoadComplete(
+      navigation_id, resources.back()->original_url, *resources.back());
   resources.push_back(CreateResourceLoadInfoWithRedirects(
       {"http://reader.google.com/style.css",
        "http://dev.null.google.com/style.css"},
       network::mojom::RequestDestination::kStyle));
-  collector_->RecordResourceLoadComplete(navigation_id, *resources.back());
+  collector_->RecordResourceLoadComplete(
+      navigation_id, resources.back()->original_url, *resources.back());
 
   auto summary = CreatePageRequestSummary("http://www.google.com",
                                           "http://www.google.com", resources);
@@ -333,12 +343,14 @@ TEST_F(LoadingDataCollectorTest, SimpleNavigation) {
   resources.push_back(
       CreateResourceLoadInfo("http://static.google.com/style-3.css",
                              network::mojom::RequestDestination::kStyle));
-  collector_->RecordResourceLoadComplete(navigation_id, *resources.back());
+  collector_->RecordResourceLoadComplete(
+      navigation_id, resources.back()->original_url, *resources.back());
   resources.push_back(CreateResourceLoadInfoWithRedirects(
       {"http://reader.google.com/style2.css",
        "http://dev.null.google.com/style2.css"},
       network::mojom::RequestDestination::kStyle));
-  collector_->RecordResourceLoadComplete(navigation_id, *resources.back());
+  collector_->RecordResourceLoadComplete(
+      navigation_id, resources.back()->original_url, *resources.back());
 
   // Prefetches/preconnects seen after the load event should be ignored and not
   // recorded.
@@ -375,7 +387,8 @@ TEST_F(LoadingDataCollectorTest, SimpleRedirect) {
                                      /* is_error_page */ false);
   EXPECT_EQ(1U, collector_->inflight_navigations_.size());
   EXPECT_EQ(url, collector_->inflight_navigations_[navigation_id]->initial_url);
-  collector_->RecordResourceLoadComplete(navigation_id, *main_frame);
+  collector_->RecordResourceLoadComplete(navigation_id,
+                                         main_frame->original_url, *main_frame);
 
   std::vector<blink::mojom::ResourceLoadInfoPtr> resources;
   resources.push_back(std::move(main_frame));
@@ -471,7 +484,8 @@ TEST_F(LoadingDataCollectorTest, RecordResourceLoadComplete) {
   auto resource1 =
       CreateResourceLoadInfo("http://google.com/style1.css",
                              network::mojom::RequestDestination::kStyle);
-  collector_->RecordResourceLoadComplete(navigation_id, *resource1);
+  collector_->RecordResourceLoadComplete(navigation_id, resource1->original_url,
+                                         *resource1);
   EXPECT_TRUE(collector_->inflight_navigations_.empty());
 
   // Add an inflight navigation.
@@ -486,9 +500,12 @@ TEST_F(LoadingDataCollectorTest, RecordResourceLoadComplete) {
   auto resource3 =
       CreateResourceLoadInfo("http://google.com/script2.js",
                              network::mojom::RequestDestination::kScript);
-  collector_->RecordResourceLoadComplete(navigation_id, *resource1);
-  collector_->RecordResourceLoadComplete(navigation_id, *resource2);
-  collector_->RecordResourceLoadComplete(navigation_id, *resource3);
+  collector_->RecordResourceLoadComplete(navigation_id, resource1->original_url,
+                                         *resource1);
+  collector_->RecordResourceLoadComplete(navigation_id, resource2->original_url,
+                                         *resource2);
+  collector_->RecordResourceLoadComplete(navigation_id, resource3->original_url,
+                                         *resource3);
 
   EXPECT_EQ(1U, collector_->inflight_navigations_.size());
 }

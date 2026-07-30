@@ -71,8 +71,7 @@ CGFloat const kSheetCornerRadius = 30;
 
   // The Background customization service for getting current and recently used
   // backgrounds.
-  raw_ptr<HomeBackgroundCustomizationService, DanglingUntriaged>
-      _backgroundService;
+  raw_ptr<HomeBackgroundCustomizationService> _backgroundService;
 
   // The mediator for background configuration generation and interactions.
   HomeCustomizationBackgroundConfigurationMediator*
@@ -179,9 +178,11 @@ CGFloat const kSheetCornerRadius = 30;
         dismissAllSnackbars];
   }
 
+  [_mediator disconnect];
   _mediator = nil;
   [_backgroundConfigurationMediator disconnect];
   _backgroundConfigurationMediator = nil;
+  _backgroundService = nullptr;
   _mainViewController = nil;
   _magicStackViewController = nil;
   _discoverViewController = nil;

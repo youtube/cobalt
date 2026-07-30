@@ -52,6 +52,8 @@ import org.chromium.chrome.browser.omnibox.fusebox.FuseboxProperties.BackgroundS
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxProperties.PopupButtonData;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxProperties.PopupButtonType;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
+import org.chromium.chrome.browser.preferences.Pref;
+import org.chromium.chrome.browser.preferences.PrefServiceUtil;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileIntentUtils;
 import org.chromium.chrome.browser.tab.Tab;
@@ -81,6 +83,8 @@ import org.chromium.components.omnibox.OmniboxFocusReason;
 import org.chromium.components.omnibox.ToolConfigProto.ToolConfig;
 import org.chromium.components.omnibox.ToolModeProto.ToolMode;
 import org.chromium.components.omnibox.ToolModeUtils;
+import org.chromium.components.prefs.PrefChangeRegistrar;
+import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.ui.base.MimeTypeUtils;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modelutil.ListObservable;
@@ -143,6 +147,7 @@ import java.util.function.Supplier;
     private boolean mActionTaken;
     private @Nullable Runnable mOnFirstPickerInteractionCanceledCallback;
     private boolean mNeedUnfocusOnCancel;
+    @VisibleForTesting /* package */ @Nullable PrefChangeRegistrar mPrefChangeRegistrar;
 
     private final ListObserver<Void> mListObserver =
             new ListObserver<>() {
@@ -341,6 +346,13 @@ import java.util.function.Supplier;
         mActionTaken = false;
         mMetrics = session.getMetrics();
         mProfile = assertNonNull(session.getProfile());
+        if (mPrefChangeRegistrar != null) {
+            mPrefChangeRegistrar.destroy();
+            mPrefChangeRegistrar = null;
+        }
+        mPrefChangeRegistrar = PrefServiceUtil.createFor(mProfile);
+        mPrefChangeRegistrar.addObserver(
+                Pref.SHOW_AI_MODE_OMNIBOX_BUTTON, this::updateActivationChip);
         setController(session.getComposeboxQueryControllerBridge());
         setModelList(session.getFuseboxAttachmentModelList());
         setAutocompleteInput(session.getAutocompleteInput());
@@ -364,6 +376,10 @@ import java.util.function.Supplier;
         mProfile = null;
         mMetrics = null;
         mIsTextWrapping = false;
+        if (mPrefChangeRegistrar != null) {
+            mPrefChangeRegistrar.destroy();
+            mPrefChangeRegistrar = null;
+        }
         updateFuseboxState();
         updateActivationChip();
     }
@@ -500,7 +516,7 @@ import java.util.function.Supplier;
 
         if (!isInInputSession()) {
             targetState = FuseboxState.DISABLED;
-        } else if (mInput.getAutocompleteState() == AutocompleteState.STANDBY_NO_FOCUS) {
+        } else if (mInput.isStandby()) {
             targetState = FuseboxState.DISABLED;
         } else if (!mHasContextualTasksFocus && isContextualTasks) {
             targetState = FuseboxState.COMPACT;
@@ -1023,7 +1039,7 @@ import java.util.function.Supplier;
         updateActivationChip();
     }
 
-    private void updateActivationChip() {
+    /* package */ void updateActivationChip() {
         boolean showActivationChip =
                 isInInputSession()
                         && mModel.get(FuseboxProperties.FUSEBOX_LAYOUT_MODE)
@@ -1031,6 +1047,10 @@ import java.util.function.Supplier;
                         && mInput.getRequestType() == AutocompleteRequestType.SEARCH
                         && mInput.getSiteSearchData() == null
                         && (mExactMatchUrlSupplier.get() == null);
+        if (mProfile != null
+                && !UserPrefs.get(mProfile).getBoolean(Pref.SHOW_AI_MODE_OMNIBOX_BUTTON)) {
+            showActivationChip = false;
+        }
         mModel.set(FuseboxProperties.ACTIVATION_CHIP_VISIBLE, showActivationChip);
         mActivationChipVisibilitySupplier.set(showActivationChip);
     }

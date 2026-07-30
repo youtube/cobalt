@@ -911,6 +911,7 @@ android_library("android_webview_unittests_java") {
     "//android_webview:android_webview_java",
     "//content/public/test/android:content_java_test_support",
     "//third_party/jni_zero:jni_zero_java",
+    "//third_party/mockito:mockito_java",
   ]
   sources = [ "../unittestjava/src/org/chromium/android_webview/unittest/MockAwContentsClientBridge.java" ]
   srcjar_deps = [ ":android_webview_unittests_jni" ]

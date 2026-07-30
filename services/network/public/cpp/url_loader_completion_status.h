@@ -9,6 +9,7 @@
 
 #include <optional>
 
+#include "base/byte_size.h"
 #include "base/component_export.h"
 #include "base/time/time.h"
 #include "net/dns/public/resolve_error_info.h"
@@ -61,13 +62,13 @@ struct COMPONENT_EXPORT(NETWORK_CPP_BASE) URLLoaderCompletionStatus {
   base::TimeTicks completion_time;
 
   // Total amount of data received from the network.
-  int64_t encoded_data_length = 0;
+  base::ByteSize encoded_data_length;
 
   // The length of the response body before removing any content encodings.
-  int64_t encoded_body_length = 0;
+  base::ByteSize encoded_body_length;
 
   // The length of the response body after decoding.
-  int64_t decoded_body_length = 0;
+  base::ByteSize decoded_body_length;
 
   // Optional CORS error details.
   std::optional<CorsErrorStatus> cors_error_status;

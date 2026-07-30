@@ -112,7 +112,7 @@ enum APIPermissionID {
   kIdentity = 85,
   kIdentityEmail = 86,
   kDeleted_IdentityPrivate = 87,
-  kIdltest = 88,
+  kDeleted_Idltest = 88,
   kIdle = 89,
   kImeWindowEnabled = 90,
   kDeleted_InlineInstallPrivate = 91,

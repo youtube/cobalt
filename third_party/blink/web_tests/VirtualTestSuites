@@ -471,7 +471,7 @@
       "--enable-features=ForcedColors",
       "--force-high-contrast"
     ],
-    "expires": "Jul 1, 2026"
+    "expires": "Jul 1, 2027"
   },
   {
     "prefix": "cookie-reject-domain-non-ascii",
@@ -825,6 +825,21 @@
       "--disable-blink-features=DialogCloseWhenOpenRemoved"
     ],
     "expires": "Jun 1, 2027"
+  },
+  "Enables the fake UI to test successful token retrieval by auto-resolving",
+  "requests in 1ms. Without this flag, the API hangs to simulate waiting",
+  "for user interaction (which is the default expectation for WPTs).",
+  {
+    "prefix": "digital-credentials-fake-ui",
+    "platforms": ["Linux", "Mac", "Win"],
+    "bases": [
+      "wpt_internal/digital-credentials",
+      "http/tests/inspector-protocol/digital-credentials"
+    ],
+    "args": ["--use-fake-ui-for-digital-identity"],
+    "exclusive_tests": "ALL",
+    "owners": ["mamir@chromium.org"],
+    "expires": "never"
   },
   {
     "prefix": "direct-sockets",
@@ -3629,6 +3644,8 @@
       "external/wpt/css/css-overflow/scroll-markers/scroll-markers-updated-by-programmatic-scroll.html",
       "external/wpt/css/cssom-view/overflow-hidden-smooth-scroll-crash.html",
       "external/wpt/css/cssom-view/scroll-behavior-smooth-after-hiding-iframe.html",
+      "external/wpt/fetch/compression-dictionary/dictionary-fetch-timing-001.tentative.https.html",
+      "external/wpt/fetch/compression-dictionary/dictionary-fetch-timing-002.tentative.https.html",
       "external/wpt/fetch/compression-dictionary/dictionary-fetch-with-link-element.tentative.https.html",
       "external/wpt/fetch/compression-dictionary/dictionary-fetch-with-link-header.tentative.https.html",
       "external/wpt/html/canvas/element/manual/draw-element-image",
@@ -3658,6 +3675,7 @@
       "view-transition",
       "wpt_internal/webgl/draw-element-image",
       "wpt_internal/html/script-execution",
+      "wpt_internal/route",
       "wpt_internal/scheduler/integration_tests",
       "wpt_internal/view-transition",
       "external/wpt/trusted-types/navigate-to-javascript-url-001.html",
@@ -3672,6 +3690,8 @@
       "external/wpt/trusted-types/trusted-types-reporting.html"
     ],
     "exclusive_tests": [
+      "external/wpt/fetch/compression-dictionary/dictionary-fetch-timing-001.tentative.https.html",
+      "external/wpt/fetch/compression-dictionary/dictionary-fetch-timing-002.tentative.https.html",
       "external/wpt/fetch/compression-dictionary/dictionary-fetch-with-link-element.tentative.https.html",
       "external/wpt/fetch/compression-dictionary/dictionary-fetch-with-link-header.tentative.https.html",
       "external/wpt/permissions-policy/experimental-features/vertical-scroll-touch-block-manual.tentative.html",
@@ -3680,6 +3700,7 @@
       "http/tests/devtools/isolated-code-cache",
       "external/wpt/css/css-view-transitions",
       "wpt_internal/html/script-execution",
+      "wpt_internal/route",
       "wpt_internal/scheduler/integration_tests",
       "wpt_internal/view-transition",
       "view-transition",
@@ -4943,7 +4964,9 @@
       "fast/xsl/xslt",
       "external/wpt/xml/xslt",
       "http/tests/xsl/xslt",
-      "inspector-protocol/debugger/unpause-after-xslt-commit.js"
+      "inspector-protocol/debugger/unpause-after-xslt-commit.js",
+      "http/tests/origin_trials/xslt-deprecation-trial-disabled.html",
+      "http/tests/origin_trials/xslt-deprecation-trial-enabled.html"
     ],
     "exclusive_tests": [
       "http/tests/xsl/xslt/xsltpi-issue.js",
@@ -4967,7 +4990,9 @@
       "fast/xsl/xslt",
       "external/wpt/xml/xslt",
       "http/tests/xsl/xslt",
-      "inspector-protocol/debugger/unpause-after-xslt-commit.js"
+      "inspector-protocol/debugger/unpause-after-xslt-commit.js",
+      "http/tests/origin_trials/xslt-deprecation-trial-disabled.html",
+      "http/tests/origin_trials/xslt-deprecation-trial-enabled.html"
     ],
     "args": ["--disable-blink-features=XSLTSpecialTrial"],
     "owners": [

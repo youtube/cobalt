@@ -1153,6 +1153,8 @@ void BrowserAutofillManager::OnAskForValuesToFillImpl(
     std::optional<PasswordSuggestionRequest> password_request) {
   base::TimeTicks suggestion_generation_start_time = base::TimeTicks::Now();
 
+  const FormFieldData& field = CHECK_DEREF(form.FindFieldByGlobalId(field_id));
+
   // In case we cannot fetch the parsed `FormStructure` and `AutofillField`, we
   // still need to offer Autocomplete.
   // TODO(crbug.com/433224307): Consider early returning here when the cache
@@ -1167,11 +1169,12 @@ void BrowserAutofillManager::OnAskForValuesToFillImpl(
       // type="password"> field, do not show a dropdown if the current value is
       // non empty (typically manually typed) or autofilled, and close any
       // previously opened dropdown.
-      if (autofill_field &&
-          autofill_field->form_control_type() ==
-              FormControlType::kInputPassword &&
-          !autofill_field->value().empty() &&
-          autofill_field->last_modifier() != FieldModifier::kAutofill) {
+      // Note that `FormFieldData::is_autofilled_according_to_renderer()` is
+      // preferred here over `AutofillField::last_modifier()` because PWM does
+      // not mutate `AutofillField::field_modifiers_`.
+      if (field.form_control_type() == FormControlType::kInputPassword &&
+          !field.value().empty() &&
+          !field.is_autofilled_according_to_renderer()) {
         client().HideSuggestions(SuggestionHidingReason::kFieldValueChanged,
                                  /*product=*/std::nullopt);
         return;
@@ -1229,7 +1232,6 @@ void BrowserAutofillManager::OnAskForValuesToFillImpl(
     return;
   }
 
-  const FormFieldData& field = CHECK_DEREF(form.FindFieldByGlobalId(field_id));
   external_delegate_->OnQuery(form, field, caret_bounds, trigger_source);
 
   if (IsAtMemoryTriggerSource(trigger_source)) {
@@ -2231,8 +2233,14 @@ void BrowserAutofillManager::DidShowSuggestions(
   auto [form_structure, autofill_field] =
       GetCachedFormAndField(form_id, field_id);
 
+  FormSignature form_signature =
+      form_structure ? form_structure->form_signature() : FormSignature(0);
+  FieldSignature field_signature =
+      autofill_field ? autofill_field->GetFieldSignature() : FieldSignature(0);
+
   GetAtMemoryManager().OnPopupShown(trigger_source, client().IsContextSecure(),
-                                    update_suggestions_callback);
+                                    update_suggestions_callback, form_signature,
+                                    field_signature);
 
   const DenseSet<SuggestionType> shown_suggestion_types(suggestions,
                                                         &Suggestion::type);

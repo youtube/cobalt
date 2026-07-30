@@ -826,6 +826,7 @@ void ReadAnythingAppController::OnActiveAXTreeIDChanged(
   model_.set_requires_distillation(false);
   model_.set_page_finished_loading(false);
   model_.set_page_start_time(std::nullopt);
+  has_logged_distillation_status_ = false;
 
   // Reset the distillation method for the new page. Every navigation
   // starts with the flag-determined distillation method before potentially
@@ -883,12 +884,14 @@ void ReadAnythingAppController::DistillNewTree() {
   // success or failures. Logging this via a timer reduces duplicate
   // distillation / failures being logged.
   distillations_completed_ = 0;
+  distillation_attempts_ = 0;
+  has_logged_distillation_status_ = false;
   distillation_status_logging_delay_timer_.Stop();
   distillation_status_logging_delay_timer_.Start(
       FROM_HERE, base::Milliseconds(kDistillationLoggingDelayMs),
       base::BindOnce(
           &ReadAnythingAppController::RecordScreen2xDistillationStatus,
-          base::Unretained(this)));
+          base::Unretained(this), /*just_hidden=*/false));
 
   if (features::IsImmersiveReadAnythingEnabled()) {
     SetDistillationState(read_anything::mojom::ReadAnythingDistillationState::
@@ -904,31 +907,48 @@ void ReadAnythingAppController::DistillNewTree() {
   }
 }
 
-void ReadAnythingAppController::RecordScreen2xDistillationStatus() {
+void ReadAnythingAppController::RecordScreen2xDistillationStatus(
+    bool just_hidden) {
+  // If reading mode was just hidden and distillation metrics were not yet
+  // logged, record these immediately. Otherwise, don't record distillation
+  // success metrics while hidden.
+  if (!just_hidden && IsHidden()) {
+    return;
+  }
+  if (has_logged_distillation_status_) {
+    return;
+  }
   read_anything::mojom::DistillationStatus distillation_status;
-  if (model_.screen2x_distiller_running()) {
+  if (model_.distillation_in_progress()) {
     distillation_status =
-        distillations_completed_ > 0
+        distillation_attempts_ > 1
             ? read_anything::mojom::DistillationStatus::kRestarted
             : read_anything::mojom::DistillationStatus::kStillRunning;
-  } else if (!model_.content_node_ids().empty()) {
+  } else if (!model_.display_node_ids().empty()) {
+    // TODO(b/525047429): Ensure that a kSuccess isn't logged if there are
+    // display nodes with no text.
     distillation_status = read_anything::mojom::DistillationStatus::kSuccess;
   } else {
     distillation_status = read_anything::mojom::DistillationStatus::kFailure;
   }
 
-  page_handler_->OnDistillationStatus(distillation_status,
-                                      model_.words_distilled());
   RecordDistillationStatus(distillation_status);
   distillations_completed_ = 0;
 }
 
 void ReadAnythingAppController::RecordDistillationStatus(
     read_anything::mojom::DistillationStatus status) {
+  if (has_logged_distillation_status_) {
+    // If reading mode is reopened on the same page and distillation isn't
+    // retriggered, don't log distillation status again.
+    return;
+  }
+  page_handler_->OnDistillationStatus(status, model_.words_distilled());
   ukm::builders::Accessibility_ReadAnything_Distillation(
       model_.GetUkmSourceId())
       .SetDistillationStatus(static_cast<int>(status))
       .Record(ukm_recorder_.get());
+  has_logged_distillation_status_ = true;
 }
 
 void ReadAnythingAppController::RecordNumSelections() {
@@ -998,6 +1018,7 @@ void ReadAnythingAppController::Distill() {
                         : tree_lang);
   }
   CHECK(serializer.SerializeChanges(tree->root(), &snapshot));
+  distillation_attempts_++;
   model_.set_screen2x_distiller_running(true);
   if (features::IsImmersiveReadAnythingEnabled()) {
     SetDistillationState(read_anything::mojom::ReadAnythingDistillationState::
@@ -1005,6 +1026,15 @@ void ReadAnythingAppController::Distill() {
   }
   VLOG(1) << "Distilling tree with ID: " << tree->GetAXTreeID();
   distiller_->Distill(*tree, snapshot, model_.GetUkmSourceId());
+
+  if (!has_logged_distillation_status_ &&
+      !distillation_status_logging_delay_timer_.IsRunning()) {
+    distillation_status_logging_delay_timer_.Start(
+        FROM_HERE, base::Milliseconds(kDistillationLoggingDelayMs),
+        base::BindOnce(
+            &ReadAnythingAppController::RecordScreen2xDistillationStatus,
+            base::Unretained(this), /*just_hidden=*/false));
+  }
 }
 
 void ReadAnythingAppController::OnAXTreeDistilled(
@@ -2017,8 +2047,29 @@ void ReadAnythingAppController::OnGetPresentationState(
       (model_.active_presentation_state() !=
        read_anything::mojom::ReadAnythingPresentationState::
            kInImmersiveOverlay);
+  bool is_opening =
+      ((presentation_state ==
+        read_anything::mojom::ReadAnythingPresentationState::kInSidePanel) ||
+       (presentation_state ==
+        read_anything::mojom::ReadAnythingPresentationState::
+            kInImmersiveOverlay)) &&
+      !model_.is_active_presentation_state_opened();
 
   model_.set_active_presentation_state(presentation_state);
+
+  // Distillation is active when reading mode is hidden, but reading mode
+  // should only log the distillation status once it has been opened. Ensure
+  // success is logged for Readability if distillation completed successfully
+  // while reading mode was hidden.
+  bool has_distilled_readability_content =
+      model_.is_readability_next_distillation_method() &&
+      !dom_distiller_content_html_.empty();
+  if (is_opening && !has_logged_distillation_status_ &&
+      has_distilled_readability_content) {
+    RecordDistillationStatus(
+        read_anything::mojom::DistillationStatus::kSuccess);
+  }
+
   // Now that the presentation state changed which is potentially one of the
   // factors blocking processing, see if we can unblock processing of the
   // updates.
@@ -2910,6 +2961,12 @@ void ReadAnythingAppController::RecordSessionMetricsIfShownOrRecentlyHidden(
     return;
   }
 
+  // Ensure distillation metrics are logged if reading mode closes prematurely.
+  if (distillation_status_logging_delay_timer_.IsRunning()) {
+    distillation_status_logging_delay_timer_.Stop();
+    RecordScreen2xDistillationStatus(just_hidden);
+  }
+
   LogPageDuration();
   LogLineFocusSession();
   RecordNumSelections();
@@ -3154,8 +3211,12 @@ void ReadAnythingAppController::UpdateContent(const std::string& title,
     ExecuteJavaScript("chrome.readingMode.onAnchorsReadyForReadability();");
   }
 
-  // Log a successful readability distillation
-  RecordDistillationStatus(read_anything::mojom::DistillationStatus::kSuccess);
+  // Log a successful readability distillation if reading mode is currently
+  // open. If it is hidden/closed, defer logging until it is reopened.
+  if (!IsHidden()) {
+    RecordDistillationStatus(
+        read_anything::mojom::DistillationStatus::kSuccess);
+  }
 }
 
 void ReadAnythingAppController::OnReadabilityDistillationStateChanged(
@@ -3298,7 +3359,5 @@ void ReadAnythingAppController::AttemptLogEarlySelection(bool from_side_panel) {
 }
 
 bool ReadAnythingAppController::IsHidden() const {
-  return IsImmersiveEnabled() &&
-         model_.active_presentation_state() ==
-             read_anything::mojom::ReadAnythingPresentationState::kInactive;
+  return IsImmersiveEnabled() && !model_.is_active_presentation_state_opened();
 }

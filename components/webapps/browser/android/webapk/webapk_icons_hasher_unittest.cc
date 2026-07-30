@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "base/byte_size.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
@@ -130,7 +131,7 @@ TEST_F(WebApkIconsHasherTest, MultipleIconUrls) {
       net::HttpUtil::AssembleRawHeaders(headers));
   head->mime_type = "image/png";
   network::URLLoaderCompletionStatus status;
-  status.decoded_body_length = icon_data.size();
+  status.decoded_body_length = base::ByteSize(icon_data.size());
   test_url_loader_factory()->AddResponse(GURL(icon_url1_string),
                                          std::move(head), icon_data, status);
 
@@ -180,7 +181,7 @@ TEST_F(WebApkIconsHasherTest, PrimaryIconFallbackToEncodeBitmap) {
       net::HttpUtil::AssembleRawHeaders(headers));
   head->mime_type = "image/png";
   network::URLLoaderCompletionStatus status;
-  status.decoded_body_length = icon_data.size();
+  status.decoded_body_length = base::ByteSize(icon_data.size());
   test_url_loader_factory()->AddResponse(GURL(icon_url1_string),
                                          std::move(head), icon_data, status);
 

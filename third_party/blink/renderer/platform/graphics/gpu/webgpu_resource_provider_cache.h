@@ -19,19 +19,19 @@
 
 namespace blink {
 
-class CanvasNon2DResourceProviderSharedImage;
+class WebGpuRecyclableResourceProvider;
 class WebGPURecyclableResourceCache;
 class WebGraphicsContext3DProviderWrapper;
 
 class PLATFORM_EXPORT RecyclableCanvasResource {
  public:
   RecyclableCanvasResource(
-      std::unique_ptr<CanvasNon2DResourceProviderSharedImage> resource_provider,
+      std::unique_ptr<WebGpuRecyclableResourceProvider> resource_provider,
       base::WeakPtr<WebGPURecyclableResourceCache> cache);
 
   ~RecyclableCanvasResource();
 
-  CanvasNon2DResourceProviderSharedImage* resource_provider() {
+  WebGpuRecyclableResourceProvider* resource_provider() {
     return resource_provider_.get();
   }
 
@@ -40,7 +40,7 @@ class PLATFORM_EXPORT RecyclableCanvasResource {
   }
 
  private:
-  std::unique_ptr<CanvasNon2DResourceProviderSharedImage> resource_provider_;
+  std::unique_ptr<WebGpuRecyclableResourceProvider> resource_provider_;
   base::WeakPtr<WebGPURecyclableResourceCache> cache_;
   gpu::SyncToken completion_sync_token_;
 };
@@ -62,7 +62,7 @@ class PLATFORM_EXPORT WebGPURecyclableResourceCache {
   // When the holder is destroyed, move the resource provider to
   // |unused_providers_| if the cache is not full.
   void OnDestroyRecyclableResource(
-      std::unique_ptr<CanvasNon2DResourceProviderSharedImage> resource_provider,
+      std::unique_ptr<WebGpuRecyclableResourceProvider> resource_provider,
       const gpu::SyncToken& completion_sync_token);
 
   wtf_size_t CleanUpResourcesAndReturnSizeForTesting();
@@ -72,7 +72,7 @@ class PLATFORM_EXPORT WebGPURecyclableResourceCache {
   }
 
  private:
-  // The maximum number of unused CanvasResourceProviders size, 128 MB.
+  // The maximum number of unused CanvasNon2DResourceProviders size, 128 MB.
   static constexpr int kMaxRecyclableResourceCachesInKB = 128 * 1024;
   static constexpr int kMaxRecyclableResourceCachesInBytes =
       kMaxRecyclableResourceCachesInKB * 1024;
@@ -93,14 +93,14 @@ class PLATFORM_EXPORT WebGPURecyclableResourceCache {
       kCleanUpDelayInSeconds / kTimerDurationInSeconds;
 
   struct PLATFORM_EXPORT Resource {
-    Resource(std::unique_ptr<CanvasNon2DResourceProviderSharedImage>
-                 resource_provider,
-             unsigned int timer_id,
-             size_t resource_size);
+    Resource(
+        std::unique_ptr<WebGpuRecyclableResourceProvider> resource_provider,
+        unsigned int timer_id,
+        size_t resource_size);
     Resource(Resource&& that) noexcept;
     ~Resource();
 
-    std::unique_ptr<CanvasNon2DResourceProviderSharedImage> resource_provider_;
+    std::unique_ptr<WebGpuRecyclableResourceProvider> resource_provider_;
     unsigned int timer_id_;
     size_t resource_size_;
   };
@@ -109,7 +109,7 @@ class PLATFORM_EXPORT WebGPURecyclableResourceCache {
 
   // Search |unused_providers_| and acquire the canvas resource provider with
   // the same cache key for re-use.
-  std::unique_ptr<CanvasNon2DResourceProviderSharedImage> AcquireCachedProvider(
+  std::unique_ptr<WebGpuRecyclableResourceProvider> AcquireCachedProvider(
       const gfx::Size& size,
       const viz::SharedImageFormat& format,
       SkAlphaType alpha_type,
@@ -121,7 +121,7 @@ class PLATFORM_EXPORT WebGPURecyclableResourceCache {
   // Start the clean-up function runs when there are unused resources.
   void StartResourceCleanUpTimer();
 
-  // This is the place to keep the unused CanvasResourceProviders. They are
+  // This is the place to keep the unused CanvasNon2DResourceProviders. They are
   // waiting to be used. MRU is in the front of the deque.
   DequeResourceProvider unused_providers_;
 

@@ -11,6 +11,7 @@
 #include "content/browser/renderer_host/render_widget_host_impl.h"
 #include "content/browser/renderer_host/unbounded_surface_window.h"
 #include "content/browser/web_contents/web_contents_impl.h"
+#include "content/public/common/url_constants.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/content_browser_test.h"
@@ -127,6 +128,27 @@ IN_PROC_BROWSER_TEST_F(UnboundedElementBrowserTest, ActivationPreconditions) {
   // user gesture.
   EXPECT_EQ("NotAllowedError", EvalJs(primary_main_frame_host(), script,
                                       EXECUTE_SCRIPT_NO_USER_GESTURE));
+}
+
+IN_PROC_BROWSER_TEST_F(UnboundedElementBrowserTest,
+                       WebUIPrivilegedBypassesUserActivation) {
+  GURL webui_url = GURL(std::string(kChromeUIScheme) + "://" +
+                        std::string(kChromeUIGpuHost));
+  EXPECT_TRUE(NavigateToURL(shell(), webui_url));
+
+  // Create an unbounded element via HTML snippet:
+  std::string script = R"(
+    const div = document.createElement('div');
+    div.setAttribute('unbounded', '');
+    div.style.width = '100px';
+    div.style.height = '100px';
+    document.body.appendChild(div);
+    div.showUnboundedElement().then(() => "Success", e => e.name);
+  )";
+  // Since it's a privileged WebUI page, it should bypass the transient user
+  // activation requirement.
+  EXPECT_EQ("Success", EvalJs(primary_main_frame_host(), script,
+                              EXECUTE_SCRIPT_NO_USER_GESTURE));
 }
 
 IN_PROC_BROWSER_TEST_F(UnboundedElementBrowserTest, AncestorClipping) {
@@ -800,6 +822,42 @@ IN_PROC_BROWSER_TEST_F(UnboundedElementBrowserTest,
 
   EXPECT_EQ("visible,hidden,hidden,visible",
             EvalJs(primary_main_frame_host(), script).ExtractString());
+}
+
+class UnboundedElementOnTheOpenWebDisabledBrowserTest
+    : public UnboundedElementBrowserTest {
+ public:
+  UnboundedElementOnTheOpenWebDisabledBrowserTest() = default;
+  ~UnboundedElementOnTheOpenWebDisabledBrowserTest() override = default;
+  void SetUp() override {
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+    GTEST_SKIP();
+#else
+    feature_list_.InitWithFeatures(
+        {blink::features::kUnboundedElement},
+        {blink::features::kUnboundedElementOnTheOpenWeb,
+         ::features::kTreesInViz});
+    ContentBrowserTest::SetUp();
+#endif
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(UnboundedElementOnTheOpenWebDisabledBrowserTest,
+                       RequestWithoutOpenWebFeatureFlagThrowsSecurityError) {
+  GURL url(embedded_test_server()->GetURL("/title1.html"));
+  EXPECT_TRUE(NavigateToURL(shell(), url));
+
+  std::string script = R"(
+    document.body.innerHTML = `
+        <div id="target"
+             style="width:50px; height:50px;" unbounded></div>`;
+    document.getElementById('target').showUnboundedElement()
+        .then(() => "Success", e => e.name);
+  )";
+  EXPECT_EQ("SecurityError", EvalJs(primary_main_frame_host(), script));
 }
 
 }  // namespace content

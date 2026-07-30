@@ -25,6 +25,7 @@ include_rules = [
   "+components/prefs",
   "+components/proxy_config",
   "+components/server_certificate_database",
+  "+components/session_manager/core",
   "+components/url_formatter",
   "+components/user_manager",
   "+crypto",
@@ -69,6 +70,7 @@ include_rules = [
 
 specific_include_rules = {
   ".*test\\.cc": [
+    "+components/session_manager/test",
     "+components/sync_preferences/testing_pref_service_syncable.h",
     "+content/public/browser",
     "+content/public/test",

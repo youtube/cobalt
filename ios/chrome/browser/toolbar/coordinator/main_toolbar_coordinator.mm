@@ -859,7 +859,8 @@ inline LayoutStateToolbarPassKey PassKey() {
     return nil;
   }
   UIImage* toolbarSnapshot = CaptureViewWithOption(
-      toolbarView, [[UIScreen mainScreen] scale], kClientSideRendering);
+      toolbarView, toolbarView.traitCollection.displayScale,
+      kClientSideRendering);
 
   [adaptiveToolbarCoordinator resetToolbarAfterSideSwipeSnapshot];
 

@@ -102,6 +102,12 @@ WebGLTexture* XRCubeMap::updateWebGLEnvironmentCube(
 
   auto* gl = context->ContextGL();
 
+#if DCHECK_IS_ON()
+  // Clear any pre-existing GL errors to avoid asserting on them.
+  while (gl->GetError() != GL_NO_ERROR) {
+  }
+#endif
+
   // Ensure the PIXEL_UNPACK_BUFFER is not set, which would otherwise interfere
   // with the TexImage2D operations.
   if (context->IsWebGL2()) {

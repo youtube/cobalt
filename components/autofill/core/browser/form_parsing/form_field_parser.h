@@ -17,7 +17,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/containers/flat_map.h"
-#include "base/containers/lru_cache.h"
+#include "base/containers/hashing_lru_cache.h"
 #include "base/containers/span.h"
 #include "base/feature_list.h"
 #include "base/functional/function_ref.h"
@@ -143,23 +143,6 @@ struct ParsingContext {
 // name, phone number, or address field.
 class FormFieldParser {
  public:
-  struct MatchInfo {
-    // This is different from `autofill::MatchAttribute`, since it further
-    // distinguishes between high and low quality labels. Low quality label
-    // matches are deprioritized during scoring (`AddClassification()`), so a
-    // different parser can overwrite the label match with e.g. a name match.
-    // High quality labels are labels for which we have high confidence that the
-    // label value is visible to the user and associated with the form control.
-    // Low quality labels are heuristically determined labels which may be
-    // incorrectly attributed to the form control.
-    enum class MatchAttribute {
-      kName = 0,
-      kHighQualityLabel = 1,
-      kLowQualityLabel = 2
-    } matched_attribute = internal::IsRequired();
-    // TODO(crbug.com/320965828): Add other details such as the regex that
-    // matched or how well the regex matched to improve match prioritisation.
-  };
   struct FieldAndMatchInfo {
     FieldAndMatchInfo(const FormFieldData* field LIFETIME_BOUND,
                       MatchInfo match_info)

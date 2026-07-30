@@ -135,7 +135,21 @@ bool RequiresHardwareContextReset(
          old_header.film_grain_params_present !=
              new_header.film_grain_params_present ||
          old_header.enable_cdef != new_header.enable_cdef ||
-         old_header.enable_restoration != new_header.enable_restoration;
+         old_header.enable_restoration != new_header.enable_restoration ||
+         old_header.enable_superres != new_header.enable_superres ||
+         old_header.enable_filter_intra != new_header.enable_filter_intra ||
+         old_header.enable_intra_edge_filter !=
+             new_header.enable_intra_edge_filter ||
+         old_header.enable_interintra_compound !=
+             new_header.enable_interintra_compound ||
+         old_header.enable_masked_compound !=
+             new_header.enable_masked_compound ||
+         old_header.enable_warped_motion != new_header.enable_warped_motion ||
+         old_header.enable_dual_filter != new_header.enable_dual_filter ||
+         old_header.enable_order_hint != new_header.enable_order_hint ||
+         old_header.order_hint_bits != new_header.order_hint_bits ||
+         old_header.enable_jnt_comp != new_header.enable_jnt_comp ||
+         old_header.enable_ref_frame_mvs != new_header.enable_ref_frame_mvs;
 }
 
 }  // namespace
@@ -512,12 +526,8 @@ AcceleratedVideoDecoder::DecodeResult AV1Decoder::DecodeInternal() {
         auto t35_payload_span = UNSAFE_BUFFERS(base::span<const uint8_t>(
             itut_t35.payload_bytes,
             static_cast<size_t>(itut_t35.payload_size)));
-        if (auto agtm = GetAgtmFromT35WithCountryCode(itut_t35.country_code,
-                                                      t35_payload_span)) {
-          // Overwrite existing AGTM metadata if any. If there is more than one
-          // metadata associated with this frame, use the last one.
-          hdr_metadata_bitstream_.SetSerializedAgtm(*agtm);
-        }
+        SetAgtmFromT35WithCountryCode(hdr_metadata_bitstream_,
+                                      itut_t35.country_code, t35_payload_span);
       }
     }
 

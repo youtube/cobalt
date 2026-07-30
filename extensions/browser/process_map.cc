@@ -161,10 +161,9 @@ bool ProcessMap::CanProcessHostContextType(
       return extension &&
              IsWebViewProcessForExtension(process_id, extension->id());
     case mojom::ContextType::kContentScript:
-      // Currently, we assume any process can host a content script.
-      // TODO(crbug.com/40055126): This could be better by looking at
-      // ScriptInjectionTracker, as we do for user scripts below.
-      return !!extension;
+      return extension &&
+             ScriptInjectionTracker::DidProcessRunContentScriptFromExtension(
+                 process, extension->id());
     case mojom::ContextType::kUserScript:
       return extension &&
              ScriptInjectionTracker::DidProcessRunUserScriptFromExtension(

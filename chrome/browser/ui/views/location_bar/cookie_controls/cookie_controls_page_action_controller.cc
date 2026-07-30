@@ -151,7 +151,6 @@ void CookieControlsPageActionController::Init() {
   // These will get updated naturally.
   icon_status_.controls_state = CookieControlsState::kHidden;
   icon_status_.icon_visible = false;
-  icon_status_.should_highlight = false;
 
   did_activate_subscription_ = tab_->RegisterDidActivate(
       base::BindRepeating(&CookieControlsPageActionController::OnDidActivate,
@@ -207,7 +206,6 @@ void CookieControlsPageActionController::OnWillDeactivate(
     controller->OnBubbleCloseTriggered();
   }
   controller_observation_.Reset();
-  iph_activity_.reset();
 }
 
 void CookieControlsPageActionController::OnWillDiscardContents(
@@ -223,27 +221,12 @@ void CookieControlsPageActionController::OnWillDiscardContents(
   }
 }
 
-void CookieControlsPageActionController::OnPageActionChipShown(
-    const page_actions::PageActionState& page_action) {
-  hide_chip_timer_.Start(
-      FROM_HERE, base::Seconds(12),
-      base::BindOnce(
-          [](page_actions::PageActionController& controller) {
-            controller.HideSuggestionChip(kActionShowCookieControls);
-          },
-          std::ref(page_action_controller_.get())));
-}
-
 void CookieControlsPageActionController::OnCookieControlsIconStatusChanged(
     bool icon_visible,
-    CookieControlsState controls_state,
-    bool should_highlight) {
-  const bool controls_state_changed =
-      controls_state != icon_status_.controls_state;
+    CookieControlsState controls_state) {
   icon_status_ = CookieControlsIconStatus{
       .icon_visible = icon_visible,
       .controls_state = controls_state,
-      .should_highlight = should_highlight,
   };
 
   UpdateIconVisibility();
@@ -254,37 +237,7 @@ void CookieControlsPageActionController::OnCookieControlsIconStatusChanged(
 
   const std::u16string label = GetLabelForState();
   page_action_controller_->OverrideTooltip(kActionShowCookieControls, label);
-  if (controls_state_changed) {
-    page_action_controller_->OverrideText(kActionShowCookieControls, label);
-  }
-
-  if (base::FeatureList::IsEnabled(
-          content_settings::features::kUserBypassUxSimplification) ||
-      !icon_status_.icon_visible || !icon_status_.should_highlight ||
-      icon_status_.controls_state != CookieControlsState::kBlocked3pc ||
-      bubble_delegate_->HasBubble()) {
-    return;
-  }
-  if (auto* user_education = BrowserUserEducationInterface::From(
-          tab_->GetBrowserWindowInterface())) {
-    MaybeShowIPH(*user_education);
-  }
-}
-
-void CookieControlsPageActionController::
-    OnFinishedPageReloadWithChangedSettings() {
-  if (ShouldShowIcon()) {
-    const std::u16string label = GetLabelForState();
-    page_action_controller_->OverrideText(kActionShowCookieControls, label);
-    page_action_controller_->OverrideTooltip(kActionShowCookieControls, label);
-    // Animate the label to provide a visual confirmation to the user that
-    // their protection status on the site has changed.
-    // TODO(crbug.com/376283777): Ensure that Mac voiceover doesn't trigger
-    // here.
-    page_action_controller_->ShowSuggestionChip(
-        kActionShowCookieControls,
-        {.should_animate = true, .should_announce_chip = true});
-  }
+  page_action_controller_->OverrideText(kActionShowCookieControls, label);
 }
 
 bool CookieControlsPageActionController::ShouldShowIcon() const {
@@ -293,11 +246,6 @@ bool CookieControlsPageActionController::ShouldShowIcon() const {
 
 void CookieControlsPageActionController::UpdateIconVisibility() {
   if (!ShouldShowIcon()) {
-    // Hiding the page action will close the IPH, if any, which will be
-    // re-entrant into the page action system when removing activity in the
-    // handler. Reset IPH activity up front to avoid this.
-    iph_activity_.reset();
-    page_action_controller_->HideSuggestionChip(kActionShowCookieControls);
     page_action_controller_->Hide(kActionShowCookieControls);
     return;
   }
@@ -309,70 +257,8 @@ std::u16string CookieControlsPageActionController::GetLabelForState() const {
       GetLabelForStatus(icon_status_.controls_state));
 }
 
-bool CookieControlsPageActionController::IsManagedIPHActive() const {
-  auto* user_education =
-      BrowserUserEducationInterface::From(tab_->GetBrowserWindowInterface());
-  if (!user_education) {
-    return false;
-  }
-  return user_education->IsFeaturePromoActive(
-             feature_engagement::kIPHCookieControlsFeature) ||
-         user_education->IsFeaturePromoQueued(
-             feature_engagement::kIPHCookieControlsFeature);
-}
-
-void CookieControlsPageActionController::OnShowPromoResult(
-    user_education::FeaturePromoResult result) {
-  if (result) {
-    iph_activity_ =
-        page_action_controller_->AddActivity(kActionShowCookieControls);
-    return;
-  }
-
-  // If the request to show the IPH failed then animate the chip in as a
-  // fallback to get attention. The exception to this is if the IPH is already
-  // showing or if the request failed because another "show" request is already
-  // queued. If there's already a request queued, then wait for its response
-  // before making a decision.
-  if (!iph_activity_ &&
-      result.failure() != user_education::FeaturePromoResult::kAlreadyQueued) {
-    page_action_controller_->ShowSuggestionChip(
-        kActionShowCookieControls, page_actions::SuggestionChipConfig{
-                                       .should_animate = true,
-                                       .should_announce_chip = true,
-                                   });
-  }
-}
-
-void CookieControlsPageActionController::OnIPHClosed() {
-  iph_activity_.reset();
-}
-
 void CookieControlsPageActionController::OnBubbleClosed() {
   UpdateIconVisibility();
-}
-
-void CookieControlsPageActionController::MaybeShowIPH(
-    BrowserUserEducationInterface& user_education) {
-  user_education::FeaturePromoParams params(
-      feature_engagement::kIPHCookieControlsFeature);
-  params.show_promo_result_callback =
-      base::BindOnce(&CookieControlsPageActionController::OnShowPromoResult,
-                     weak_ptr_factory_.GetWeakPtr());
-  params.close_callback =
-      base::BindOnce(&CookieControlsPageActionController::OnIPHClosed,
-                     weak_ptr_factory_.GetWeakPtr());
-
-  user_education.MaybeShowFeaturePromo(std::move(params));
-
-  // Note: originally we would animate here based on whether the promo showed,
-  // but since promos are show asynchronously, the options are:
-  //  - Always animate; if the IPH shows it shows
-  //  - Always wait until we get a yes or no answer from the promo system before
-  //    deciding whether to animate
-  // Since most of the time the result should come back quickly, and if it
-  // doesn't, it's because the user is doing something else or there is another
-  // promo showing, for now, we choose the later option.
 }
 
 void CookieControlsPageActionController::ExecutePageAction(

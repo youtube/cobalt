@@ -634,7 +634,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Bookmarks.ParentFolderType" enum="BookmarkFolderType"
-    expires_after="2026-12-01">
+    expires_after="2026-12-16">
   <owner>emshack@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
@@ -968,7 +968,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Bookmarks.UserFolderDepth.UrlOpened" units="folders"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>yzshen@chromium.org</owner>
   <owner>chrome-collections@google.com</owner>
   <summary>
@@ -1014,7 +1014,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Bookmarks.UtilizationPerBookmark.OnProfileLoad.DaysSinceUsed"
-    units="Days" expires_after="2026-12-01">
+    units="Days" expires_after="2026-12-16">
   <owner>emshack@chromium.org</owner>
   <owner>chrome-collections@google.com</owner>
   <summary>
@@ -1044,7 +1044,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PowerBookmarks.SidePanel.BookmarksShown" units="Bookmarks"
-    expires_after="2026-12-13">
+    expires_after="2026-12-16">
   <owner>emshack@chromium.org</owner>
   <owner>chrome-desktop-sea@google.com</owner>
   <component>1457140</component>
@@ -1056,7 +1056,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PowerBookmarks.SidePanel.Search.CTR"
-    enum="BookmarksSidePanelSearchCTREvent" expires_after="2026-10-11">
+    enum="BookmarksSidePanelSearchCTREvent" expires_after="2026-12-16">
   <owner>emshack@chromium.org</owner>
   <owner>chrome-desktop-sea@google.com</owner>
   <component>1457140</component>
@@ -1068,7 +1068,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PowerBookmarks.SidePanel.SearchOrFilter.BookmarksShown"
-    units="Bookmarks" expires_after="2026-08-09">
+    units="Bookmarks" expires_after="2026-12-16">
   <owner>emshack@chromium.org</owner>
   <owner>chrome-desktop-sea@google.com</owner>
   <component>1457140</component>
@@ -1080,7 +1080,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PowerBookmarks.SidePanel.SortTypeShown"
-    enum="BookmarksSidePanelSortType" expires_after="2026-08-09">
+    enum="BookmarksSidePanelSortType" expires_after="2026-12-16">
   <owner>emshack@chromium.org</owner>
   <owner>chrome-desktop-sea@google.com</owner>
   <component>1457140</component>
@@ -1091,7 +1091,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PowerBookmarks.SidePanel.ViewTypeShown"
-    enum="BookmarksSidePanelViewType" expires_after="2026-08-09">
+    enum="BookmarksSidePanelViewType" expires_after="2026-12-16">
   <owner>emshack@chromium.org</owner>
   <owner>chrome-desktop-sea@google.com</owner>
   <component>1457140</component>

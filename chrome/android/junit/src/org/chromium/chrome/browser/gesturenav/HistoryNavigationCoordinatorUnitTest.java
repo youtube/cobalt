@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.gesturenav;
 
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -29,6 +30,7 @@ import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.test.OverrideContextWrapperTestRule;
 import org.chromium.components.browser_ui.widget.TouchEventProvider;
 import org.chromium.ui.base.TestActivity;
+import org.chromium.ui.insets.InsetObserver;
 
 @RunWith(BaseRobolectricTestRunner.class)
 public class HistoryNavigationCoordinatorUnitTest {
@@ -48,6 +50,7 @@ public class HistoryNavigationCoordinatorUnitTest {
     @Mock private ViewGroup mParentView;
     @Mock private TouchEventProvider mTouchEventProvider;
     @Mock private FullscreenManager mFullscreenManager;
+    @Mock private InsetObserver mInsetObserver;
 
     @Captor private ArgumentCaptor<FullscreenManager.Observer> mFullscreenObserverCaptor;
 
@@ -68,7 +71,7 @@ public class HistoryNavigationCoordinatorUnitTest {
                         mParentView,
                         null,
                         ObservableSuppliers.alwaysNull(),
-                        null,
+                        mInsetObserver,
                         null,
                         mTouchEventProvider,
                         mFullscreenManager);
@@ -87,5 +90,24 @@ public class HistoryNavigationCoordinatorUnitTest {
         verify(mTouchEventProvider).removeTouchEventObserver(navigationHandler);
         mFullscreenObserverCaptor.getValue().onExitFullscreen(null);
         verify(mTouchEventProvider).addTouchEventObserver(navigationHandler);
+    }
+
+    @Test
+    public void testWindowResizing_stopsOnScroll() {
+        initializeHistoryNavigationCoordinator();
+        mHistoryNavigationCoordinator.initNavigationHandler();
+        NavigationHandler navigationHandler =
+                mHistoryNavigationCoordinator.getNavigationHandlerForTesting();
+
+        when(mParentView.getWidth()).thenReturn(100);
+        when(mParentView.getHeight()).thenReturn(200);
+        navigationHandler.onDown();
+
+        // Simulate resizing the window.
+        when(mParentView.getWidth()).thenReturn(150);
+        when(mParentView.getHeight()).thenReturn(200);
+
+        boolean handled = navigationHandler.onScroll(0f, 10f, 0f, 10f, 0f);
+        assertTrue(handled);
     }
 }

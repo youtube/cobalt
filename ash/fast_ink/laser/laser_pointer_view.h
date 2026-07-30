@@ -33,6 +33,7 @@ class LaserPointerView : public FastInkView {
   void AddNewPoint(const gfx::PointF& new_point,
                    const base::TimeTicks& new_time);
   void FadeOut(base::OnceClosure done);
+  void Reset();
 
  private:
   friend class LaserPointerControllerTestApi;
@@ -59,6 +60,8 @@ class LaserPointerView : public FastInkView {
   gfx::PointF stationary_point_location_;
   // A callback for when the fadeout is complete.
   base::OnceClosure fadeout_done_;
+  // True if the laser pointer is in the process of fading out.
+  bool is_fading_out_ = false;
   gfx::Rect laser_content_rect_;
   bool pending_update_buffer_ = false;
   base::WeakPtrFactory<LaserPointerView> weak_ptr_factory_{this};

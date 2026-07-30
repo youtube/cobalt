@@ -109,7 +109,7 @@ class ExternalInstallMenuAlert : public GlobalError {
 class ExternalInstallBubbleAlert final : public GlobalErrorWithStandardBubble {
  public:
   ExternalInstallBubbleAlert(ExternalInstallError* error,
-                             ExtensionInstallPrompt::Prompt* prompt);
+                             InstallPromptData* prompt);
 
   ExternalInstallBubbleAlert(const ExternalInstallBubbleAlert&) = delete;
   ExternalInstallBubbleAlert& operator=(const ExternalInstallBubbleAlert&) =
@@ -141,7 +141,7 @@ class ExternalInstallBubbleAlert final : public GlobalErrorWithStandardBubble {
 
   // The Prompt with all information, which we then use to populate the bubble.
   // Owned by |error|.
-  raw_ptr<ExtensionInstallPrompt::Prompt> prompt_;
+  raw_ptr<InstallPromptData> prompt_;
 
   base::WeakPtrFactory<ExternalInstallBubbleAlert> weak_ptr_factory_{this};
 };
@@ -196,7 +196,7 @@ GlobalErrorBubbleViewBase* ExternalInstallMenuAlert::GetBubbleView() {
 
 ExternalInstallBubbleAlert::ExternalInstallBubbleAlert(
     ExternalInstallError* error,
-    ExtensionInstallPrompt::Prompt* prompt)
+    InstallPromptData* prompt)
     : error_(error), prompt_(prompt) {
   DCHECK(error_);
   DCHECK(prompt_);
@@ -302,8 +302,8 @@ ExternalInstallErrorDesktop::ExternalInstallErrorDesktop(
       manager_(manager),
       error_service_(GlobalErrorServiceFactory::GetForProfile(
           Profile::FromBrowserContext(browser_context_))) {
-  prompt_ = std::make_unique<ExtensionInstallPrompt::Prompt>(
-      ExtensionInstallPrompt::EXTERNAL_INSTALL_PROMPT);
+  prompt_ = std::make_unique<InstallPromptData>(
+      InstallPromptData::EXTERNAL_INSTALL_PROMPT);
 
   const Extension* extension = GetExtension();
 
@@ -424,8 +424,7 @@ ExternalInstallError::AlertType ExternalInstallErrorDesktop::alert_type()
   return alert_type_;
 }
 
-ExtensionInstallPrompt::Prompt*
-ExternalInstallErrorDesktop::GetPromptForTesting() const {
+InstallPromptData* ExternalInstallErrorDesktop::GetPromptForTesting() const {
   return prompt_.get();
 }
 
@@ -472,7 +471,7 @@ void ExternalInstallErrorDesktop::OnFetchComplete() {
 void ExternalInstallErrorDesktop::OnDialogReady(
     std::unique_ptr<ExtensionInstallPromptShowParams> show_params,
     ExtensionInstallPrompt::DoneCallback callback,
-    std::unique_ptr<ExtensionInstallPrompt::Prompt> prompt) {
+    std::unique_ptr<InstallPromptData> prompt) {
   prompt_ = std::move(prompt);
 
   if (alert_type_ == BUBBLE_ALERT) {

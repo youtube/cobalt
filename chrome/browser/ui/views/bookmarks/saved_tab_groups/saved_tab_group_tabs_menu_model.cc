@@ -4,20 +4,14 @@
 
 #include "chrome/browser/ui/views/bookmarks/saved_tab_groups/saved_tab_group_tabs_menu_model.h"
 
-#include <memory>
 #include <optional>
 
-#include "base/metrics/user_metrics.h"
-#include "base/strings/utf_string_conversions.h"
-#include "base/uuid.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/favicon/favicon_service_factory.h"
 #include "chrome/browser/favicon/favicon_utils.h"
-#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
 #include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_window.h"
-#include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_metrics.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/tab_group_action_context_desktop.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
@@ -28,13 +22,9 @@
 #include "components/favicon/core/favicon_service.h"
 #include "components/saved_tab_groups/public/features.h"
 #include "components/saved_tab_groups/public/tab_group_sync_service.h"
-#include "components/saved_tab_groups/public/types.h"
 #include "ui/base/l10n/l10n_util.h"
-#include "ui/base/mojom/menu_source_type.mojom.h"
 #include "ui/base/ui_base_features.h"
-#include "ui/gfx/favicon_size.h"
 #include "ui/views/controls/menu/menu_model_adapter.h"
-#include "ui/views/widget/widget.h"
 
 namespace tab_groups {
 

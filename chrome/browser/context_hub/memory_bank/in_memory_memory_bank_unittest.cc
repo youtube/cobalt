@@ -58,16 +58,18 @@ TEST(InMemoryMemoryBankTest, SaveTextSelection) {
   EXPECT_EQ("Search", entries[0].selected_text.value());
 }
 
-TEST(InMemoryMemoryBankTest, DeleteEntry) {
+TEST(InMemoryMemoryBankTest, DeleteEntries) {
   InMemoryMemoryBank memory_bank;
 
   memory_bank.SaveTab(GURL("https://www.google.com"), "Google",
                       base::DoNothing());
+  memory_bank.SaveTab(GURL("https://www.youtube.com"), "YouTube",
+                      base::DoNothing());
   std::vector<MemoryBankEntry> entries = GetAllEntriesSync(memory_bank);
-  ASSERT_EQ(1u, entries.size());
+  ASSERT_EQ(2u, entries.size());
 
-  int64_t saved_id = entries[0].id;
-  memory_bank.DeleteEntry(saved_id, base::DoNothing());
+  std::vector<int64_t> ids_to_delete = {entries[0].id, entries[1].id};
+  memory_bank.DeleteEntries(ids_to_delete, base::DoNothing());
 
   EXPECT_TRUE(GetAllEntriesSync(memory_bank).empty());
 }

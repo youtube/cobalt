@@ -861,7 +861,7 @@ TEST(RegistrationFetcherParamTest, AikRequired) {
 
   ASSERT_EQ(params.size(), 1U);
   const auto& param = params[0];
-  EXPECT_TRUE(param.aik_required());
+  EXPECT_EQ(param.attestation_mode(), AttestationMode::kRequired);
 }
 
 TEST(RegistrationFetcherParamTest, AikRequiredDisabled) {
@@ -882,7 +882,7 @@ TEST(RegistrationFetcherParamTest, AikRequiredDisabled) {
 
   ASSERT_EQ(params.size(), 1U);
   const auto& param = params[0];
-  EXPECT_FALSE(param.aik_required());
+  EXPECT_EQ(param.attestation_mode(), AttestationMode::kNone);
 }
 
 TEST(RegistrationFetcherParamTest, AikRequiredDefault) {
@@ -901,7 +901,7 @@ TEST(RegistrationFetcherParamTest, AikRequiredDefault) {
 
   ASSERT_EQ(params.size(), 1U);
   const auto& param = params[0];
-  EXPECT_FALSE(param.aik_required());
+  EXPECT_EQ(param.attestation_mode(), AttestationMode::kNone);
 }
 
 TEST(RegistrationFetcherParamTest, AikRequiredFalse) {
@@ -921,7 +921,7 @@ TEST(RegistrationFetcherParamTest, AikRequiredFalse) {
 
   ASSERT_EQ(params.size(), 1U);
   const auto& param = params[0];
-  EXPECT_FALSE(param.aik_required());
+  EXPECT_EQ(param.attestation_mode(), AttestationMode::kNone);
 }
 
 TEST(RegistrationFetcherParamTest, AikRequiredInvalidValue) {

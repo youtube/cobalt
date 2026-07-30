@@ -255,6 +255,14 @@ bool ShouldShowSidePanel() {
 #endif
 }
 
+bool IsAndroidMobileFormFactor() {
+#if BUILDFLAG(IS_ANDROID)
+  return ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_PHONE;
+#else
+  return false;
+#endif
+}
+
 GURL GetContextualTasksFunctionalURL(content::WebContents* web_contents) {
   auto* ui = GetWebUiInterface(web_contents);
   return ui ? ui->GetInnerFrameUrl() : GURL();

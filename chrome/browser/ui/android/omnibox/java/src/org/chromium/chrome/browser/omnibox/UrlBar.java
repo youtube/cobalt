@@ -116,6 +116,8 @@ public class UrlBar extends AutocompleteEditText {
     private @Nullable Callback<Integer> mUrlDirectionListener;
     private @Nullable Callback<Boolean> mUrlTextWrappingChangeListener;
     private @Nullable Runnable mManageSearchEnginesCallback;
+    private boolean mShowAiMode;
+    private @Nullable Callback<Boolean> mShowAiModeCallback;
 
     private final Rect mClipBounds = new Rect();
 
@@ -128,6 +130,9 @@ public class UrlBar extends AutocompleteEditText {
 
     /** Tracks whether a long-press was performed during the current touch gesture. */
     private boolean mLongPressPerformed;
+
+    /** True while an unfocused press is in progress on desktop experience devices. */
+    private boolean mPointerDragActive;
 
     private boolean mPendingScroll;
 
@@ -350,6 +355,7 @@ public class UrlBar extends AutocompleteEditText {
         mTextContextMenuDelegate = null;
         mTextChangeListener = null;
         mManageSearchEnginesCallback = null;
+        mShowAiModeCallback = null;
     }
 
     /**
@@ -373,6 +379,16 @@ public class UrlBar extends AutocompleteEditText {
     /** Set the callback to trigger "Manage search engines" settings shortcut. */
     public void setManageSearchEnginesCallback(@Nullable Runnable callback) {
         mManageSearchEnginesCallback = callback;
+    }
+
+    /** Set the state of "Always Show AI Mode" option. */
+    public void setShowAiMode(boolean showAiMode) {
+        mShowAiMode = showAiMode;
+    }
+
+    /** Set the callback when "Always Show AI Mode" is toggled. */
+    public void setShowAiModeCallback(@Nullable Callback<Boolean> callback) {
+        mShowAiModeCallback = callback;
     }
 
     @Override
@@ -633,6 +649,19 @@ public class UrlBar extends AutocompleteEditText {
         int action = event.getActionMasked();
         if (action == MotionEvent.ACTION_DOWN) {
             mLongPressPerformed = false;
+            // Reveal the full URL when an unfocused bar is pressed with desktop experience.
+            mPointerDragActive =
+                    !mFocused && OmniboxCapabilities.hasDesktopExperience(getContext());
+            if (mPointerDragActive) {
+                Editable text = getText();
+                if (text != null) {
+                    text.removeSpan(EllipsisSpan.INSTANCE);
+                    // Re-hide very long URLs to prevent crashes.
+                    limitDisplayableLength();
+                }
+            }
+        } else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+            mPointerDragActive = false;
         }
 
         // We need to suppress the OS from taking ownership of initial focus.
@@ -821,6 +850,15 @@ public class UrlBar extends AutocompleteEditText {
 
     @Override
     public boolean onTextContextMenuItem(int id) {
+        if (id == R.id.url_bar_delete) {
+            int selStart = Math.min(getSelectionStart(), getSelectionEnd());
+            int selEnd = Math.max(getSelectionStart(), getSelectionEnd());
+            if (selStart != selEnd && selStart >= 0) {
+                getText().delete(selStart, selEnd);
+            }
+            return true;
+        }
+
         if (mTextContextMenuDelegate == null) return super.onTextContextMenuItem(id);
 
         boolean isCutOption = false;
@@ -887,6 +925,46 @@ public class UrlBar extends AutocompleteEditText {
     @Override
     protected void onCreateContextMenu(ContextMenu menu) {
         super.onCreateContextMenu(menu);
+        if (mShowAiModeCallback != null) {
+            if (menu.findItem(R.id.url_bar_always_show_ai_mode) == null) {
+                MenuItem alwaysShowItem =
+                        menu.add(
+                                Menu.NONE,
+                                R.id.url_bar_always_show_ai_mode,
+                                Menu.CATEGORY_SECONDARY,
+                                getContext().getString(R.string.always_show_ai_mode));
+                alwaysShowItem.setCheckable(true);
+                alwaysShowItem.setChecked(mShowAiMode);
+                alwaysShowItem.setOnMenuItemClickListener(
+                        clickedItem -> {
+                            boolean newCheckedState = !clickedItem.isChecked();
+                            clickedItem.setChecked(newCheckedState);
+                            if (mShowAiModeCallback != null) {
+                                mShowAiModeCallback.onResult(newCheckedState);
+                            }
+                            return true;
+                        });
+            }
+        }
+
+        if (getSelectionStart() != getSelectionEnd()
+                && menu.findItem(R.id.url_bar_delete) == null) {
+            MenuItem copyItem = menu.findItem(android.R.id.copy);
+            if (copyItem != null) {
+                MenuItem item =
+                        menu.add(
+                                copyItem.getGroupId(),
+                                R.id.url_bar_delete,
+                                copyItem.getOrder(),
+                                R.string.omnibox_context_menu_delete);
+                item.setOnMenuItemClickListener(
+                        clickedItem -> {
+                            onTextContextMenuItem(R.id.url_bar_delete);
+                            return true;
+                        });
+            }
+        }
+
         if (mManageSearchEnginesCallback == null
                 || !OmniboxFeatures.sOmniboxSiteSearch.isEnabled()) {
             return;
@@ -954,8 +1032,17 @@ public class UrlBar extends AutocompleteEditText {
         }
 
         truncationIndex = Math.min(text.length(), truncationIndex);
-        CharSequence truncatedText = text.subSequence(0, truncationIndex);
-        setText(truncatedText);
+        if (truncationIndex < text.length()) {
+            SpannableStringBuilder builder = new SpannableStringBuilder(text);
+            builder.setSpan(
+                    EllipsisSpan.INSTANCE,
+                    truncationIndex,
+                    text.length(),
+                    Editable.SPAN_INCLUSIVE_EXCLUSIVE);
+            setText(builder);
+        } else {
+            setText(text);
+        }
     }
 
     /**
@@ -1374,7 +1461,12 @@ public class UrlBar extends AutocompleteEditText {
     public boolean bringPointIntoView(int offset) {
         // TextView internally attempts to keep the selection visible, but in the unfocused state
         // this class ensures that the TLD is visible.
-        if (!mFocused) return false;
+        if (!mFocused) {
+            boolean draggingSelection = getSelectionStart() != getSelectionEnd();
+            if (!(mPointerDragActive && draggingSelection)) {
+                return false;
+            }
+        }
         assert !mPendingScroll || hasFocus();
 
         return super.bringPointIntoView(offset);

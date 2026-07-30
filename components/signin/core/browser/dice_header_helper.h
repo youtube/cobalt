@@ -74,18 +74,17 @@ class DiceHeaderHelper : public SigninHeaderHelper {
   static bool AppendOrRemoveDiceRequestHeader(
       RequestAdapter* request,
       const GURL& redirect_url,
-      const GaiaId& gaia_id,
-      bool sync_enabled,
+      const GaiaId& primary_account_gaia_id,
+      bool sync_feature_enabled,
       AccountConsistencyMethod account_consistency,
       const std::string& device_id);
 
   // Returns the header value for Dice requests. Returns the empty string when
   // the header must not be added.
-  // |sync_gaia_id| is not empty if Sync is currently enabled for this
-  // account.
-  // |show_signout_confirmation| is true if Gaia must display the signout
-  // confirmation dialog.
-  std::string BuildRequestHeader(const GaiaId& sync_gaia_id,
+  // `sync_feature_enabled` is true if Sync the feature is currently enabled for
+  // the profile.
+  std::string BuildRequestHeader(const GaiaId& primary_account_gaia_id,
+                                 bool sync_feature_enabled,
                                  const std::string& device_id);
 
  private:

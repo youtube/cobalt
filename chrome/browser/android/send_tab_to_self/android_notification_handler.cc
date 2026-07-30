@@ -10,6 +10,7 @@
 
 #include "base/android/application_status_listener.h"
 #include "base/android/jni_string.h"
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/time/time.h"
 #include "chrome/browser/android/send_tab_to_self/send_tab_to_self_android_bridge.h"
@@ -153,12 +154,15 @@ void AndroidNotificationHandler::DisplayNewEntriesOnUIThread(
   if (target_web_contents) {
     for (const SendTabToSelfEntry& entry : new_entries) {
       OpenEntryInBackgroundTab(entry, *target_web_contents);
+      RecordAutoOpenOutcome(
+          AutoOpenOutcome::kTabsOpenedImmediatelyInBackground);
     }
     ShowMessageBanner(new_entries.back().GetDeviceName(), target_web_contents);
   } else {
     // Otherwise, show a standard system notification.
     for (const SendTabToSelfEntry& entry : new_entries) {
       ShowNotification(entry);
+      RecordAutoOpenOutcome(AutoOpenOutcome::kUnopenedImmediately);
     }
   }
 }
@@ -243,6 +247,8 @@ void AndroidNotificationHandler::CheckAndOpenPendingEntries() {
   for (const SendTabToSelfEntry* entry : pending_entries) {
     OpenEntryInBackgroundTab(*entry, *target_web_contents);
     HideNotification(entry->GetGUID());
+    RecordAutoOpenOutcome(
+        AutoOpenOutcome::kTabsOpenedInBackgroundUponActivation);
   }
 
   if (!pending_entries.empty()) {
@@ -288,7 +294,7 @@ void AndroidNotificationHandler::OnNavigationStarted(
     // Attach a visual label indicating the sender device name to the newly
     // opened background tab.
     if (TabAndroid* tab = TabAndroid::FromWebContents(new_contents)) {
-      send_tab_to_self::AttachTabLabel(tab, device_name);
+      send_tab_to_self::AttachTabLabel(tab, guid, device_name);
     }
   }
 

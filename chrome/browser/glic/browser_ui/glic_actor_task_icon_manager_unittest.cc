@@ -353,9 +353,9 @@ TEST_F(GlicActorTaskIconManagerTest, TransientTaskDoesNotShowBubble) {
 }
 
 TEST_F(GlicActorTaskIconManagerTest, ShouldShowBubble_FeatureModeRules) {
-  // 1. Experimental Triggering task in kActing state should automatically show
-  // the bubble.
-  EXPECT_TRUE(GlicActorTaskIconManager::ShouldShowBubble(
+  // 1. Experimental Triggering task in kActing state should NOT show the
+  // bubble via nudge (startup bubble triggers are handled separately).
+  EXPECT_FALSE(GlicActorTaskIconManager::ShouldShowBubble(
       actor::ActorTask::State::kActing,
       actor::ActorTask::TaskDuration::kDefault,
       glic::mojom::FeatureMode::kExperimentalTriggering));
@@ -500,7 +500,7 @@ TEST_F(GlicActorTaskIconManagerTest,
   task->SetState(actor::ActorTask::State::kActing);
 
   EXPECT_CALL(mock_nudge_subscriber_,
-              OnStateChanged(/*show_bubble=*/true,
+              OnStateChanged(/*show_bubble=*/false,
                              Field(&ActorTaskNudgeState::text,
                                    ActorTaskNudgeState::Text::kDefault)));
   EXPECT_CALL(mock_bubble_subscriber_, OnStateChanged(true)).Times(1);

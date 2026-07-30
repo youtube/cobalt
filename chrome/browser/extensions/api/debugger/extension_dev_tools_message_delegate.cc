@@ -48,7 +48,7 @@ ExtensionDevToolsMessageDelegate::ExtensionDevToolsMessageDelegate(
                                  ext_name.substr(0, kMaxExtensionNameLength)));
   message_->SetPrimaryButtonText(l10n_util::GetStringUTF16(IDS_APP_CANCEL));
   message_->SetIconResourceId(
-      ResourceMapper::MapToJavaDrawableId(IDR_ANDROID_INFOBAR_WARNING));
+      ResourceMapper::MapToJavaDrawableId(IDR_ANDROID_PERMISSION_WARNING));
   // Unlike infobars, messages don't have an option for "never expire".
   // Use an arbitrary but long length of time that doesn't overflow a `long`.
   long duration_ms = static_cast<long>(base::Days(7).InMilliseconds());

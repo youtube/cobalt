@@ -6,6 +6,7 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/branding_buildflags.h"
+#include "build/build_config.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/actor_test_util.h"
@@ -41,6 +42,10 @@
 #include "ui/views/controls/button/md_text_button.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/interaction/element_tracker_views.h"
+
+#if BUILDFLAG(IS_OZONE)
+#include "ui/ozone/public/ozone_platform.h"
+#endif
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "ash/shell.h"
@@ -493,8 +498,8 @@ IN_PROC_BROWSER_TEST_F(SelectionOverlayInteractiveTest,
 // therefore the selection overlay in the first tab.
 //
 // Fails on Wayland platforms and flaky on Mac.
-#if BUILDFLAG(SUPPORTS_OZONE_WAYLAND) || BUILDFLAG(IS_MAC) || \
-    BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || \
+    BUILDFLAG(IS_CHROMEOS)
 #define MAYBE_EscDismissesFloatyOnSecondTab \
   DISABLED_EscDismissesFloatyOnSecondTab
 #else

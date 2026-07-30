@@ -26,7 +26,8 @@
 #include "extensions/browser/api/web_request/web_request_api_helpers.h"
 #include "extensions/browser/extension_event_histogram_value.h"
 #include "extensions/buildflags/buildflags.h"
-#include "extensions/common/api/web_request/web_request_filter_constants.h"
+#include "extensions/common/api/web_request/web_request_filter.h"
+#include "extensions/common/api/web_request/web_request_resource_type.h"
 #include "extensions/common/extension_id.h"
 #include "extensions/common/url_pattern_set.h"
 #include "net/base/completion_once_callback.h"
@@ -47,7 +48,6 @@ class HttpResponseHeaders;
 
 namespace extensions {
 
-enum class WebRequestResourceType : uint8_t;
 class WebRequestRulesRegistry;
 class WebRequestEventDetails;
 struct WebRequestInfo;
@@ -85,28 +85,9 @@ class WebRequestEventRouter : public KeyedService {
 
   // Internal representation of the webRequest.RequestFilter type, used to
   // filter what network events an extension cares about.
-  struct RequestFilter {
-    RequestFilter();
-    ~RequestFilter();
-
-    RequestFilter(const RequestFilter&) = delete;
-    RequestFilter& operator=(const RequestFilter&) = delete;
-
-    RequestFilter(RequestFilter&& other);
-    RequestFilter& operator=(RequestFilter&& other);
-
-    // Returns false if there was an error initializing. If it is a user error,
-    // an error message is provided, otherwise the error is internal (and
-    // unexpected).
-    bool InitFromValue(const base::DictValue& value, std::string* error);
-
+  struct RequestFilter : public WebRequestParsedFilter {
     // Serializes the filter to a dictionary value suitable for persistence.
     base::DictValue ToValue() const;
-
-    extensions::URLPatternSet urls;
-    std::vector<WebRequestResourceType> types;
-    int tab_id;
-    int window_id;
   };
 
   // Contains an extension's response to a blocking event.

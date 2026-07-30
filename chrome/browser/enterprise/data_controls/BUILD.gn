@@ -154,7 +154,34 @@ source_set("unit_tests") {
     "//components/enterprise/data_controls/core/browser:unit_tests",
   ]
 
+  if (enable_extensions && enterprise_data_controls) {
+    sources += [ "dlp_reporting_manager_unittest.cc" ]
+    deps += [
+      "//components/reporting/encryption:primitives",
+      "//components/reporting/storage:test_support",
+      "//components/user_manager",
+    ]
+  }
+
   # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
   # enable the diagnostic by removing this line.
   configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+}
+
+if (is_android) {
+  source_set("android_browsertests") {
+    testonly = true
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+    configs += [ "//components/enterprise:extra_warnings" ]
+
+    sources = [ "android_data_controls_dialog_browsertest.cc" ]
+
+    deps = [
+      ":data_controls",
+      "//base",
+      "//chrome/test:test_support",
+      "//content/test:test_support",
+      "//testing/gmock",
+    ]
+  }
 }

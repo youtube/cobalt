@@ -27,13 +27,6 @@ FastPairHandshake::FastPairHandshake(
       on_complete_callback_(std::move(on_complete)),
       fast_pair_data_encryptor_(std::move(data_encryptor)) {}
 
-FastPairHandshake::FastPairHandshake(
-    scoped_refptr<device::BluetoothAdapter> adapter,
-    scoped_refptr<Device> device)
-    : adapter_(std::move(adapter)),
-      device_(std::move(device)),
-      on_complete_callback_(base::DoNothing()) {}
-
 FastPairHandshake::~FastPairHandshake() = default;
 
 }  // namespace quick_pair

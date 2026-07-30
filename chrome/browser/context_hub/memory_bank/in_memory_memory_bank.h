@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_CONTEXT_HUB_MEMORY_BANK_IN_MEMORY_MEMORY_BANK_H_
 
 #include "base/containers/lru_cache.h"
+#include "base/containers/span.h"
 #include "chrome/browser/context_hub/memory_bank/memory_bank.h"
 #include "chrome/browser/context_hub/memory_bank/memory_bank_entry.h"
 
@@ -28,7 +29,8 @@ class InMemoryMemoryBank : public MemoryBank {
                          const std::string& selected_text,
                          OperationCompleteCallback callback) override;
   void GetAllEntries(GetAllEntriesCallback callback) const override;
-  void DeleteEntry(int64_t id, OperationCompleteCallback callback) override;
+  void DeleteEntries(base::span<const int64_t> ids,
+                     OperationCompleteCallback callback) override;
 
  private:
   // LRU cache to store the entries in the memory bank.

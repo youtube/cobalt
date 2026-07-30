@@ -730,7 +730,7 @@ class TestSupervisedUserExtensionsDelegateAndroid
         // the extension install dialog, which is then cancelled by the updated
         // scoped_auto_confirm_ value.
         ExtensionInstallPrompt::g_last_prompt_type_for_tests =
-            ExtensionInstallPrompt::EXTENSION_PARENT_APPROVAL_PROMPT;
+            InstallPromptData::EXTENSION_PARENT_APPROVAL_PROMPT;
 
         // Set the auto confirm value to cancel the install dialog.
         scoped_auto_confirm_.reset();
@@ -745,7 +745,7 @@ class TestSupervisedUserExtensionsDelegateAndroid
       case DialogActions::kFullInstall:
         // For this case, all dialogs will be approved.
         ExtensionInstallPrompt::g_last_prompt_type_for_tests =
-            ExtensionInstallPrompt::EXTENSION_PARENT_APPROVAL_PROMPT;
+            InstallPromptData::EXTENSION_PARENT_APPROVAL_PROMPT;
 
         std::move(extension_approval_callback)
             .Run(SupervisedExtensionApprovalResult::kApproved);
@@ -910,7 +910,7 @@ IN_PROC_BROWSER_TEST_F(
   // Set the prompt type to ensure we are testing the parent approval install
   // dialog.
   ExtensionInstallPrompt::g_last_prompt_type_for_tests =
-      ExtensionInstallPrompt::UNSET_PROMPT_TYPE;
+      InstallPromptData::UNSET_PROMPT_TYPE;
 
   WebstoreInstallListener listener;
   auto delegate_reset = WebstorePrivateApi::SetDelegateForTesting(&listener);
@@ -927,7 +927,7 @@ IN_PROC_BROWSER_TEST_F(
 
   // Verify that the parent approval install dialog was NOT shown.
   EXPECT_NE(ExtensionInstallPrompt::g_last_prompt_type_for_tests,
-            ExtensionInstallPrompt::EXTENSION_PARENT_APPROVAL_PROMPT);
+            InstallPromptData::EXTENSION_PARENT_APPROVAL_PROMPT);
 
   // Verify the Ask Parent Dialog metrics.
   EXPECT_EQ(1, user_action_tester.GetActionCount(
@@ -967,13 +967,13 @@ IN_PROC_BROWSER_TEST_F(SupervisedUserExtensionWebstorePrivateApiTestAndroid,
   // Set the prompt type to ensure we are testing the parent approval install
   // dialog.
   ExtensionInstallPrompt::g_last_prompt_type_for_tests =
-      ExtensionInstallPrompt::UNSET_PROMPT_TYPE;
+      InstallPromptData::UNSET_PROMPT_TYPE;
 
   WebstoreInstallListener listener;
   auto delegate_reset = WebstorePrivateApi::SetDelegateForTesting(&listener);
 
   // The parent approval install dialog
-  // (ExtensionInstallPrompt::EXTENSION_PARENT_APPROVAL_PROMPT) will be shown
+  // (InstallPromptData::EXTENSION_PARENT_APPROVAL_PROMPT) will be shown
   // after the parent authentication dialog. Auto-cancel it.
   set_dialog_actions(TestSupervisedUserExtensionsDelegateAndroid::
                          DialogActions::kDismissExtensionInstallDialog);
@@ -987,7 +987,7 @@ IN_PROC_BROWSER_TEST_F(SupervisedUserExtensionWebstorePrivateApiTestAndroid,
 
   // Verify that the parent approval install dialog was shown.
   EXPECT_EQ(ExtensionInstallPrompt::g_last_prompt_type_for_tests,
-            ExtensionInstallPrompt::EXTENSION_PARENT_APPROVAL_PROMPT);
+            InstallPromptData::EXTENSION_PARENT_APPROVAL_PROMPT);
 
   // Verify the Ask Parent Dialog metrics.
   EXPECT_EQ(1, user_action_tester.GetActionCount(
@@ -1045,13 +1045,13 @@ IN_PROC_BROWSER_TEST_F(SupervisedUserExtensionWebstorePrivateApiTestAndroid,
   // Set the prompt type to ensure we are testing the parent approval install
   // dialog.
   ExtensionInstallPrompt::g_last_prompt_type_for_tests =
-      ExtensionInstallPrompt::UNSET_PROMPT_TYPE;
+      InstallPromptData::UNSET_PROMPT_TYPE;
 
   WebstoreInstallListener listener;
   auto delegate_reset = WebstorePrivateApi::SetDelegateForTesting(&listener);
 
   // The parent approval install dialog
-  // (ExtensionInstallPrompt::EXTENSION_PARENT_APPROVAL_PROMPT) will be shown
+  // (InstallPromptData::EXTENSION_PARENT_APPROVAL_PROMPT) will be shown
   // after the parent authentication dialog. Auto-accept it.
   set_dialog_actions(
       TestSupervisedUserExtensionsDelegateAndroid::DialogActions::kFullInstall);
@@ -1063,7 +1063,7 @@ IN_PROC_BROWSER_TEST_F(SupervisedUserExtensionWebstorePrivateApiTestAndroid,
 
   // Verify that the parent approval install dialog was shown.
   EXPECT_EQ(ExtensionInstallPrompt::g_last_prompt_type_for_tests,
-            ExtensionInstallPrompt::EXTENSION_PARENT_APPROVAL_PROMPT);
+            InstallPromptData::EXTENSION_PARENT_APPROVAL_PROMPT);
 
   // Verify the Ask Parent Dialog metrics.
   EXPECT_EQ(1, user_action_tester.GetActionCount(

@@ -45,6 +45,9 @@ inline constexpr char kAccelerated2dCanvasDescription[] =
     "Enables the use of the GPU to perform 2d canvas rendering instead of "
     "using software rendering.";
 
+inline constexpr char kAim3pEntrypointName[] = "AIM 3P entrypoint";
+inline constexpr char kAim3pEntrypointDescription[] =
+    "Enables the omnibox AI Mode entrypoint for third party search engines.";
 
 inline constexpr char kAiModeEntryPointAlwaysNavigatesName[] =
     "AI Mode Omnibox Entrypoint always navigates";
@@ -212,6 +215,11 @@ inline constexpr char kAndroidSystemContactsPickerDescription[] =
     "Enables the new Android System Contacts Picker (ACTION_PICK_CONTACTS) "
     "on supported Android versions.";
 
+inline constexpr char kAndroidPdfReuseFragmentName[] =
+    "Reuse PdfViewerFragment";
+inline constexpr char kAndroidPdfReuseFragmentDescription[] =
+    "Reuse PdfViewerFragment instance to restore states";
+
 inline constexpr char kAndroidOpenIncognitoAsWindowName[] =
     "Open incognito tabs in new window";
 inline constexpr char kAndroidOpenIncognitoAsWindowDescription[] =
@@ -237,6 +245,12 @@ inline constexpr char kAndroidProgressBarVisualUpdateDescription[] =
 inline constexpr char kAndroidSmsOtpFillingName[] = "Enable SMS OTP filling";
 inline constexpr char kAndroidSmsOtpFillingDescription[] =
     "Enables filling of OTPs received via SMS on Android";
+
+inline constexpr char kApiContextualTasksPrivateName[] =
+    "Extensions Contextual Tasks API";
+inline constexpr char kApiContextualTasksPrivateDescription[] =
+    "Enables the contextualTasksPrivate API and contextual tasks component "
+    "extension.";
 
 inline constexpr char kApiMimeHandlerName[] =
     "Enable chrome.mimeHandler extension API";
@@ -519,6 +533,10 @@ inline constexpr char kDefaultSearchEnginePrewarmName[] =
 inline constexpr char kDefaultSearchEnginePrewarmDescription[] =
     "Performance optimization to prewarm the default search engine used in the "
     "Omnibox";
+
+inline constexpr char kDictationName[] = "Dictation";
+inline constexpr char kDictationDescription[] =
+    "Enables the Dictation feature.";
 
 inline constexpr char kDisableAutofillStrikeSystemName[] =
     "Disable the Autofill strike system";
@@ -1345,6 +1363,11 @@ inline constexpr char kCCTResetTimeoutAllowedDescription[] =
     "allows embedder to close CCT after a specified time in mins. This flag is "
     "always enabled.";
 
+inline constexpr char kInAppWindowManagerDeprecationName[] =
+    "In-app window manager deprecation";
+inline constexpr char kInAppWindowManagerDeprecationDescription[] =
+    "Enables the deprecation of the in-app window manager on Android.";
+
 inline constexpr char kSearchInCCTName[] = "Search in Chrome Custom Tabs";
 inline constexpr char kSearchInCCTDescription[] =
     "Permits apps to create searchable and "
@@ -1385,6 +1408,13 @@ inline constexpr char kGetDisplayMediaConfersActivationDescription[] =
     "flag is enabled, then after the user chooses what to share, transient "
     "activation is conferred on the Web application.";
 
+inline constexpr char kDeclarativePerformanceObserverName[] =
+    "Declarative Performance Observer";
+inline constexpr char kDeclarativePerformanceObserverDescription[] =
+    "Enables the Declarative Performance Observer API, a browser-resident "
+    "telemetry system that captures and reliably reports end-to-end user "
+    "journey metrics using HTTP response headers.";
+
 inline constexpr char kDevicePostureName[] = "Device Posture API";
 inline constexpr char kDevicePostureDescription[] =
     "Enables Device Posture API (foldable devices)";
@@ -1415,6 +1445,12 @@ inline constexpr char kHttpCacheCustomBackendDescription[] =
 inline constexpr char kHttpHeadersInjectionName[] = "HTTP Headers Injection";
 inline constexpr char kHttpHeadersInjectionDescription[] =
     "Enables injection of custom HTTP headers in network requests.";
+
+inline constexpr char kVariableSystemFontSupportOnWindowsName[] =
+    "Variable system font support on Windows";
+inline constexpr char kVariableSystemFontSupportOnWindowsDescription[] =
+    "Enables axis-aware matching and application of variation settings "
+    "for variable system fonts on Windows.";
 
 inline constexpr char kViewportSegmentsName[] = "Viewport Segments API";
 inline constexpr char kViewportSegmentsDescription[] =
@@ -2672,6 +2708,10 @@ inline constexpr char kChromeWebStoreNavigationThrottleName[] =
 inline constexpr char kChromeWebStoreNavigationThrottleDescription[] =
     "When enabled, passes DM Token to the Chrome Web Store.";
 
+inline constexpr char kChromeDarkNeutrals26Name[] = "Chrome Dark Neutrals 26";
+inline constexpr char kChromeDarkNeutrals26Description[] =
+    "When enabled, updates the neutral palette for dark mode default theme";
+
 inline constexpr char kChromeFindsInternalsName[] = "Chrome Finds Internals";
 inline constexpr char kChromeFindsInternalsDescription[] =
     "Enables the chrome://chrome-finds-internals page.";
@@ -3339,6 +3379,12 @@ inline constexpr char kOmniboxFuseboxAsyncInflationDescription[] =
     "When enabled, Fusebox RecyclerView will be inflated on a background thread"
     " instead of the UI thread.";
 
+inline constexpr char kOmniboxAimImageDownscalingName[] =
+    "Omnibox AIM Image Downscaling";
+inline constexpr char kOmniboxAimImageDownscalingDescription[] =
+    "When enabled, AIM image attachments will be downscaled on load before"
+    " reaching the C++ side.";
+
 inline constexpr char kOmniboxForceAllowedToBeDefaultName[] =
     "Omnibox Force Allowed To Be Default";
 inline constexpr char kOmniboxForceAllowedToBeDefaultDescription[] =
@@ -3540,6 +3586,11 @@ inline constexpr char kOmniboxSearchAggregatorDescription[] =
 inline constexpr char kOmniboxSiteSearchName[] = "Omnibox Site Search";
 inline constexpr char kOmniboxSiteSearchDescription[] =
     "Enables keyword-based site search functionality on Android devices";
+
+inline constexpr char kOmniboxListMenuContextMenuName[] =
+    "Omnibox ListMenu Context Menu";
+inline constexpr char kOmniboxListMenuContextMenuDescription[] =
+    "Enables the use of Chromium ListMenu for the Omnibox context menu.";
 
 inline constexpr char kContextualSearchBoxUsesContextualSearchProviderName[] =
     "Contextual search box uses contextual search provider";
@@ -4562,6 +4613,10 @@ inline constexpr char kToolbarGlicButtonResizingDescription[] =
 inline constexpr char kRoundedIconsName[] = "Rounded Icons";
 inline constexpr char kRoundedIconsDescription[] = "Enables rounded icons.";
 
+inline constexpr char kWebUIRoundedIconsName[] = "WebUI Rounded Icons";
+inline constexpr char kWebUIRoundedIconsDescription[] =
+    "Enables rounded icons in WebUI pages.";
+
 inline constexpr char kToolbarPhoneAnimationRefactorName[] =
     "Toolbar Phone Animation Refactor";
 inline constexpr char kToolbarPhoneAnimationRefactorDescription[] =
@@ -4784,14 +4839,6 @@ inline constexpr char kWebAppMigratePreinstalledChatDescription[] =
     "When enabled, the preinstalled Chat web app will be migrated from its old "
     "URL to a new URL. This migration only applies to users who have not "
     "manually installed the Chat app.";
-
-inline constexpr char kWebAuthnUsePasskeyFromAnotherDeviceInContextMenuName[] =
-    "Use passkey from another device in the context menu";
-inline constexpr char
-    kWebAuthnUsePasskeyFromAnotherDeviceInContextMenuDescription[] =
-        "Hides the \"Use a passkey\" entry from the autofill popup for "
-        "conditional "
-        "WebAuthn requests. Moves the entry point to the context menu.";
 
 inline constexpr char kWebAuthnAmbientSigninName[] =
     "Enable Ambient sign-in for WebAuthn get requests";
@@ -5138,6 +5185,12 @@ inline constexpr char kAAudioPerStreamDeviceSelectionDescription[] =
     "Enables per-stream device selection for AAudio streams. No effect on "
     "versions of Android prior to Android Q.";
 
+inline constexpr char kAccessibilityAndroidMathName[] =
+    "Improved screen reader MathML Support on Android";
+inline constexpr char kAccessibilityAndroidMathDescription[] =
+    "Exposes additional MathML information in "
+    "AccessibilityNodeInfoCompat.MathInfoCompat to screen readers.";
+
 inline constexpr char kAccessibilityDeprecateTypeAnnounceName[] =
     "Accessibility Deprecate TYPE_ANNOUNCE";
 inline constexpr char kAccessibilityDeprecateTypeAnnounceDescription[] =
@@ -5355,11 +5408,6 @@ inline constexpr char kAndroidForceTextInputStateUpdateUponFocusDescription[] =
     "Forces an active text input state update calculation and push whenever "
     "focus is gained on an editable text field.";
 
-inline constexpr char kAndroidShareFullLinkName[] =
-    "Share Full Link on Android";
-inline constexpr char kAndroidShareFullLinkDescription[] =
-    "Enables sharing the full link instead of the canonical URL on Android.";
-
 inline constexpr char kAndroidSpellcheckFullApiBlinkName[] =
     "Enable full Android Spellchecker API support for Blink";
 inline constexpr char kAndroidSpellcheckFullApiBlinkDescription[] =
@@ -5460,6 +5508,10 @@ inline constexpr char kLongScreenshotsNoMemoryCheckName[] =
     "Long Screenshots No Memory Check";
 inline constexpr char kLongScreenshotsNoMemoryCheckDescription[] =
     "Bypass memory pressure checks for long screenshots.";
+
+inline constexpr char kNtpVisionName[] = "New tab page vision";
+inline constexpr char kNtpVisionDescription[] =
+    "Enable the new vision of the new tab page";
 
 inline constexpr char kUpdatePaddingForDisplayCalculationName[] =
     "Update Padding For Display Calculation";
@@ -6267,6 +6319,12 @@ inline constexpr char kAimUsePecApiDescription[] =
     "When enabled, all composebox context menus will use the `SearchboxConfig` "
     "from the PEC API.";
 
+inline constexpr char kAimEligibilityComponentExtensionName[] =
+    "AIM Eligibility Component Extension";
+inline constexpr char kAimEligibilityComponentExtensionDescription[] =
+    "When enabled, registers the AIM Eligibility debugger as a component "
+    "extension.";
+
 inline constexpr char kUseAngleDescriptionAndroid[] =
     "Choose the graphics backend for ANGLE. The Vulkan backend is still "
     "experimental, and may contain bugs that "
@@ -6358,6 +6416,12 @@ inline constexpr char kPictureInPictureMuteControlName[] =
     "Picture-in-Picture Mute Control";
 inline constexpr char kPictureInPictureMuteControlDescription[] =
     "Adds a mute/unmute button to the Video Picture-in-Picture window.";
+
+inline constexpr char kCastMirroringNativeNV12Name[] =
+    "Cast Mirroring Native NV12";
+inline constexpr char kCastMirroringNativeNV12Description[] =
+    "If enabled, NV12 video frames will be sent to the encoder without being "
+    "converted to I420 during Cast Mirroring.";
 
 inline constexpr char kCastMirroringTargetPlayoutDelayName[] =
     "Changes the target playout delay for Cast mirroring.";

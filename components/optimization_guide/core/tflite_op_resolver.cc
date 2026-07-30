@@ -389,6 +389,8 @@ TFLiteOpResolver::TFLiteOpResolver() {
              tflite::ops::builtin::Register_BROADCAST_TO(),
              /* min_version = */ 1,
              /* max_version = */ 2);
+  AddBuiltin(tflite::BuiltinOperator_CUMSUM,
+             tflite::ops::builtin::Register_CUMSUM());
 
 #if BUILDFLAG(BUILD_TFLITE_WITH_XNNPACK)
   delegate_creators_.push_back([](TfLiteContext* context) {

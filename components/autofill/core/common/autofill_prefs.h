@@ -36,15 +36,7 @@ inline constexpr char kAutofillAiIdentityEntitiesEnabled[] =
 // Otherwise, filling of these entities is disabled.
 inline constexpr char kAutofillAiShoppingEntitiesEnabled[] =
     "autofill.autofill_ai.shopping_entities_enabled";
-// Boolean that is true if Autofill AI synced pref is enabled.
-// This pref supersedes the non-synced pref `kAutofillAiOptInStatus`, which is
-// in the process of being deprecated. Users who have previously interacted with
-// `kAutofillAiOptInStatus` will have its current value migrated to
-// `kAutofillAiSyncedOptInStatus` at start-up time, this way users will not need
-// to opt-in into the feature twice.
-// TODO(crbug.com/459767753): Delete this pref as feature is obsolete.
-inline constexpr char kAutofillAiSyncedOptInStatus[] =
-    "autofill.autofill_ai.synced_opt_in_status";
+
 // A dictionary that contains (hashed) GAIA ids and their opt-in status for
 // Autofill AI.
 // Note that the feature AutofillAiAvailableByDefault is currently in the
@@ -314,9 +306,6 @@ base::Time GetAutofillGmailOtpFillingActivationDismissalTimestamp(
 void SetAutofillGmailOtpFillingActivationDismissalTimestamp(PrefService* prefs,
                                                             base::Time time);
 
-bool IsAutofillAiSyncedOptInStatusEnabled(const PrefService* prefs);
-
-void SetAutofillAiSyncedOptInStatus(PrefService* prefs, bool enabled);
 
 bool IsAutofillAiReauthBeforeFillingEnabled(const PrefService* prefs);
 

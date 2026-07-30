@@ -209,7 +209,7 @@ void PermissionBlockedMessageDelegate::InitializeQuietUI() {
   switch (content_setting_type) {
     case ContentSettingsType::NOTIFICATIONS:
       title = IDS_NOTIFICATION_QUIET_PERMISSION_INFOBAR_TITLE;
-      icon = IDR_ANDROID_INFOBAR_NOTIFICATIONS_OFF;
+      icon = IDR_ANDROID_MESSAGE_NOTIFICATIONS_OFF;
       break;
     case ContentSettingsType::GEOLOCATION:
     case ContentSettingsType::GEOLOCATION_WITH_OPTIONS:

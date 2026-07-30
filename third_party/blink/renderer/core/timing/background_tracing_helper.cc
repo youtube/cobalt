@@ -186,9 +186,9 @@ BackgroundTracingHelper::GetSiteHashSet() {
 }
 
 // static
-size_t BackgroundTracingHelper::GetIdSuffixPos(StringView string) {
+wtf_size_t BackgroundTracingHelper::GetIdSuffixPos(StringView string) {
   // Extract any trailing integers.
-  size_t cursor = string.length();
+  wtf_size_t cursor = string.length();
   while (cursor > 0) {
     // SAFETY: non-zero cursor <= length implies cursor - 1 is valid.
     char c = UNSAFE_BUFFERS(string[cursor - 1]);
@@ -228,7 +228,7 @@ BackgroundTracingHelper::SplitMarkNameAndId(StringView mark_name) {
   DCHECK(MarkNameIsTrigger(mark_name));
   // Extract a sequence number suffix, if it exists.
   mark_name = StringView(mark_name, std::size(kTriggerPrefix) - 1);
-  size_t sequence_number_pos = GetIdSuffixPos(mark_name);
+  wtf_size_t sequence_number_pos = GetIdSuffixPos(mark_name);
   if (sequence_number_pos == 0) {
     return std::make_pair(mark_name, std::nullopt);
   }

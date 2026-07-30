@@ -192,6 +192,9 @@
                   'chrome/android/java/src/org/chromium/chrome/browser/settings/privacy/PrivacyPreferences.java|'\
                   'chrome/android/java/src/org/chromium/chrome/browser/metrics/UmaSessionStats.java',
     },
+    'android_vertical_tabs': {
+      'filepath': 'chrome/android/features/tab_ui/.*vertical_tab.*',
+    },
     'android_webapk': {
       'filepath': 'chrome/android/webapk/|'\
                   'chrome/browser/android/webapk/',
@@ -959,6 +962,9 @@
                   'content/browser/web_contents/.*drag|' \
                   'ui/base/clipboard/|'\
                   'ui/base/dragdrop/'
+    },
+    'code_health_agents': {
+      'filepath': 'agents/projects/code-health/.*',
     },
     'commerce': {
       'filepath': 'components/commerce/|'\
@@ -2616,6 +2622,7 @@
                            'ckitagawa+watch@chromium.org'],
     'android_uma_settings': ['asvitkine+watch@chromium.org',
                              'gayane+watch@chromium.org'],
+    'android_vertical_tabs': ['agazal@google.com'],
     'android_webapk': ['webapks-watchlist@chromium.org'],
     'android_webview': ['android-webview-reviews@chromium.org'],
     'android_webview_network_service': [],
@@ -2928,6 +2935,7 @@
     'client_hints': ['victortan@chromium.org',
                      'miketaylr@chromium.org'],
     'clipboard': ['dcheng+clipboard@chromium.org'],
+    'code_health_agents': ['agazal@google.com'],
     'commerce': ['ayman+watch@chromium.org',
                 'mdjones+watch@chromium.org',
                 'yuezhanggg+watch@chromium.org'],
@@ -3283,8 +3291,7 @@
     'rlz_id': ['gab+watch@chromium.org',
                'robertshield+watch@chromium.org'],
     'runtime_enabled_features': ['jmedley+watch@chromium.org'],
-    'safe_browsing': ['andysjlim+watch@chromium.org',
-                      'nwokedi+watch@chromium.org',
+      'safe_browsing': ['nwokedi+watch@chromium.org',
                       'vakh+safe_browsing_watch@chromium.org',
                       'xinghuilu+watch@chromium.org',
                       'zackhan+watch@chromium.org'],

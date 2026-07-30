@@ -1451,13 +1451,8 @@ gpu::Capabilities GLES2DecoderPassthroughImpl::GetCapabilities() {
   caps.avoid_stencil_buffers =
       feature_info_->workarounds().avoid_stencil_buffers;
 
-  if (base::FeatureList::IsEnabled(
-          features::kNvidiaWaylandYuvHardwareConversionWorkaround) &&
-      feature_info_->workarounds().disable_rgb_to_yuv_conversion) {
-    caps.supports_rgb_to_yuv_conversion = false;
-  } else {
-    caps.supports_rgb_to_yuv_conversion = true;
-  }
+  caps.supports_rgb_to_yuv_conversion =
+      !feature_info_->workarounds().disable_rgb_to_yuv_conversion;
   // Technically, YUV readback is handled on the client side, but enable it
   // here so that clients can use this to detect support.
   caps.supports_yuv_readback = true;

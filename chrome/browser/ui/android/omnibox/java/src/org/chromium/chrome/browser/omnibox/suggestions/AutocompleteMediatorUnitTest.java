@@ -27,7 +27,6 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
-import android.animation.Animator;
 import android.app.Activity;
 import android.content.Context;
 import android.os.Handler;
@@ -58,6 +57,7 @@ import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.RobolectricUtil;
+import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider.ControlsPosition;
@@ -66,7 +66,7 @@ import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.omnibox.DeferredIMEWindowInsetApplicationCallback;
 import org.chromium.chrome.browser.omnibox.FuseboxSessionState;
 import org.chromium.chrome.browser.omnibox.LocationBarDataProvider;
-import org.chromium.chrome.browser.omnibox.NewTabPageDelegate;
+import org.chromium.chrome.browser.omnibox.LocationBarEmbedderUiOverrides;
 import org.chromium.chrome.browser.omnibox.OmniboxMetrics;
 import org.chromium.chrome.browser.omnibox.R;
 import org.chromium.chrome.browser.omnibox.UrlBarEditingTextStateProvider;
@@ -79,6 +79,8 @@ import org.chromium.chrome.browser.omnibox.suggestions.SuggestionCommonPropertie
 import org.chromium.chrome.browser.omnibox.suggestions.action.OmniboxActionDelegateImpl;
 import org.chromium.chrome.browser.omnibox.suggestions.action.OmniboxActionInSuggest;
 import org.chromium.chrome.browser.omnibox.suggestions.header.HeaderProcessor;
+import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.preloading.PreloadingFeatureMap;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
@@ -111,7 +113,9 @@ import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.insets.InsetObserver;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
+import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
+import org.chromium.ui.modelutil.PropertyObservable.PropertyObserver;
 import org.chromium.url.GURL;
 import org.chromium.url.JUnitTestGURLs;
 
@@ -158,6 +162,7 @@ public class AutocompleteMediatorUnitTest {
             mVisualStateObserver;
     private @Mock DeferredIMEWindowInsetApplicationCallback mDeferredImeCallback;
     private @Mock FuseboxCoordinator mFuseboxCoordinator;
+    private @Mock LocationBarEmbedderUiOverrides mUiOverrides;
     private @Mock PreloadingFeatureMap mPreloadingFeatureMap;
     private @Mock ComposeboxQueryControllerBridge mComposeboxQueryControllerBridge;
     private @Mock Callback<GURL> mGurlCallback;
@@ -170,6 +175,7 @@ public class AutocompleteMediatorUnitTest {
     private @Mock Profile mProfile;
     private @Mock PrefService mPrefService;
     private @Mock TemplateUrl mTemplateUrl;
+    private @Mock PropertyObserver<PropertyKey> mPropertyObserver;
     private PropertyModel mListModel;
     private AutocompleteMediator mMediator;
     private List<AutocompleteMatch> mSuggestionsList;
@@ -243,7 +249,7 @@ public class AutocompleteMediatorUnitTest {
                         mWindowAndroid,
                         mDeferredImeCallback,
                         mFuseboxCoordinator,
-                        false);
+                        mUiOverrides);
         mMediator
                 .getDropdownItemViewInfoListBuilderForTest()
                 .registerSuggestionProcessor(mMockProcessor);
@@ -978,8 +984,8 @@ public class AutocompleteMediatorUnitTest {
         mMediator.allowPendingItemSelection();
 
         session.getAutocompleteInput().setPreviewText("preview");
-        session.getAutocompleteInput().setSiteSearchData(
-                new SiteSearchData("kw", "name", false, StarterPackId.NONE));
+        session.getAutocompleteInput()
+                .setSiteSearchData(new SiteSearchData("kw", "name", false, StarterPackId.NONE));
 
         AutocompleteMatch match =
                 new AutocompleteMatchBuilder()
@@ -1386,7 +1392,7 @@ public class AutocompleteMediatorUnitTest {
     @SmallTest
     public void requestToUiModelTime_subsequentKeyStrokesReportTimeSinceLastKeystroke() {
 
-        UnsyncedSuggestionsListAnimationDriver.setAnimationsDisabledForTesting(true);
+        UnsyncedSuggestionsListAnimation.setAnimationsDisabledForTesting(true);
 
         GURL url = JUnitTestGURLs.BLUE_1;
         String title = "Title";
@@ -1412,7 +1418,7 @@ public class AutocompleteMediatorUnitTest {
         ShadowPausedSystemClock.advanceBy(Duration.ofMillis(100));
         mMediator.onSuggestionsReceived(mAutocompleteResult, /* isFinal= */ true);
         verifySuggestionRequestToUiModelHistograms(2, 100, 1, 100);
-        UnsyncedSuggestionsListAnimationDriver.setAnimationsDisabledForTesting(false);
+        UnsyncedSuggestionsListAnimation.setAnimationsDisabledForTesting(false);
     }
 
     @Test
@@ -1965,50 +1971,6 @@ public class AutocompleteMediatorUnitTest {
 
     @Test
     @SmallTest
-    @EnableFeatures(
-            ChromeFeatureList.OMNIBOX_AUTOFOCUS_ON_INCOGNITO_NTP + ":disable_zero_suggest/true")
-    public void
-            onTextChanged_cachedZpsNotInvoked_whenOmniboxAutofocusOnIncognitoNtpAllowed_withoutZeroSuggest() {
-        HistogramWatcher histogramWatcher =
-                HistogramWatcher.newBuilder()
-                        .expectBooleanRecordTimes(
-                                OmniboxMetrics.HISTOGRAM_ZERO_SUGGEST_SUPPRESSED_ON_INCOGNITO_NTP,
-                                true,
-                                1)
-                        .build();
-
-        NewTabPageDelegate ntpDelegate = mock(NewTabPageDelegate.class);
-        doReturn(ntpDelegate).when(mLocationBarDataProvider).getNewTabPageDelegate();
-        var session =
-                createSession(
-                        new GURL("https://abc.xyz"),
-                        "title",
-                        PageClassification.ANDROID_SEARCH_WIDGET_VALUE);
-
-        // Cached suggestions should be suppressed when on an Incognito NTP with autofocus enabled
-        // and zero suggest disabled.
-        doReturn(true).when(ntpDelegate).isIncognitoNewTabPageCurrentlyVisible();
-
-        mMediator.beginInput(session);
-        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
-        verify(mMockCachedZeroSuggestionsManager, never()).readFromCache(anyInt());
-
-        // Histogram should be recorded once.
-        histogramWatcher.assertExpected();
-
-        // When not on an Incognito NTP, cached suggestions should be shown.
-        doReturn(false).when(ntpDelegate).isIncognitoNewTabPageCurrentlyVisible();
-        // Force an update as "" -> "" is not an observable change.
-        mMediator.onInputChanged();
-        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
-        verify(mMockCachedZeroSuggestionsManager, times(1)).readFromCache(anyInt());
-
-        // Histogram record count should not be increased.
-        histogramWatcher.assertExpected();
-    }
-
-    @Test
-    @SmallTest
     public void fuseboxStateChanges() {
         doReturn(true).when(mEmbedder).isTablet();
         mMediator.beginInput(createEmptySession());
@@ -2025,6 +1987,18 @@ public class AutocompleteMediatorUnitTest {
 
         assertTrue(mListModel.get(SuggestionListProperties.ROUND_TOP_CORNERS));
         assertTrue(mListModel.get(SuggestionListProperties.DRAW_OVER_ANCHOR));
+    }
+
+    @Test
+    @SmallTest
+    public void fuseboxStateChanges_phone() {
+        doReturn(false).when(mEmbedder).isTablet();
+        mMediator.beginInput(createEmptySession());
+        mFuseboxStateSupplier.set(FuseboxState.EXPANDED);
+        RobolectricUtil.runAllBackgroundAndUi();
+
+        assertFalse(mListModel.get(SuggestionListProperties.ROUND_TOP_CORNERS));
+        assertFalse(mListModel.get(SuggestionListProperties.DRAW_OVER_ANCHOR));
     }
 
     @Test
@@ -2056,33 +2030,6 @@ public class AutocompleteMediatorUnitTest {
 
         mFuseboxStateSupplier.set(FuseboxState.EXPANDED);
         verifySuggestionModelsRoundSides(RoundSides.TOP_AND_BOTTOM);
-    }
-
-    @Test
-    @SmallTest
-    @EnableFeatures(
-            ChromeFeatureList.OMNIBOX_AUTOFOCUS_ON_INCOGNITO_NTP + ":disable_zero_suggest/false")
-    public void
-            onTextChanged_cachedZpsShown_whenOmniboxAutofocusOnIncognitoNtpAllowed_withZeroSuggest() {
-        HistogramWatcher histogramWatcher =
-                HistogramWatcher.newBuilder()
-                        .expectNoRecords(
-                                OmniboxMetrics.HISTOGRAM_ZERO_SUGGEST_SUPPRESSED_ON_INCOGNITO_NTP)
-                        .build();
-
-        NewTabPageDelegate ntpDelegate = mock(NewTabPageDelegate.class);
-        doReturn(ntpDelegate).when(mLocationBarDataProvider).getNewTabPageDelegate();
-
-        var session =
-                createSession(
-                        new GURL("https://abc.xyz"),
-                        "title",
-                        PageClassification.ANDROID_SEARCH_WIDGET_VALUE);
-
-        mMediator.beginInput(session);
-        verify(mMockCachedZeroSuggestionsManager).readFromCache(anyInt());
-
-        histogramWatcher.assertExpected();
     }
 
     @Test
@@ -2256,9 +2203,9 @@ public class AutocompleteMediatorUnitTest {
         var session = createEmptySession();
         mMediator.beginInput(session);
         mFuseboxStateSupplier.set(FuseboxState.COMPACT);
-        @Nullable Animator result = mMediator.setupSuggestionsListShowAnimation();
-        UnsyncedSuggestionsListAnimationDriver animationDriver =
-                (UnsyncedSuggestionsListAnimationDriver) mMediator.getAnimationDriverForTesting();
+        OmniboxAnimator result = mMediator.setupSuggestionsListShowAnimation();
+        UnsyncedSuggestionsListAnimation animationDriver =
+                (UnsyncedSuggestionsListAnimation) mMediator.getAnimationDriverForTesting();
         assertFalse(animationDriver.isRunning());
     }
 
@@ -2272,7 +2219,9 @@ public class AutocompleteMediatorUnitTest {
         mMediator.beginInput(session);
 
         reset(mAutocompleteDelegate);
-        mMediator.setupSuggestionsListShowAnimation();
+        var animator = mMediator.setupSuggestionsListShowAnimation();
+        animator.start();
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
 
         verify(mAutocompleteDelegate, never()).setKeyboardVisibility(eq(true), anyBoolean());
     }
@@ -2287,7 +2236,9 @@ public class AutocompleteMediatorUnitTest {
         mMediator.beginInput(session);
 
         reset(mAutocompleteDelegate);
-        mMediator.setupSuggestionsListShowAnimation();
+        var animator = mMediator.setupSuggestionsListShowAnimation();
+        animator.start();
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
 
         verify(mAutocompleteDelegate, times(1)).setKeyboardVisibility(eq(true), anyBoolean());
     }
@@ -2479,6 +2430,19 @@ public class AutocompleteMediatorUnitTest {
 
     @Test
     @SmallTest
+    public void onInputChanged_resetsSelection() {
+        FuseboxSessionState session = createEmptySession();
+        mMediator.beginInput(session);
+
+        mListModel.addObserver(mPropertyObserver);
+
+        mMediator.onInputChanged();
+        verify(mPropertyObserver)
+                .onPropertyChanged(mListModel, SuggestionListProperties.RESET_SELECTION);
+    }
+
+    @Test
+    @SmallTest
     public void loadUrlForOmniboxMatch_modelPickerShown_conventional_loadsUrl() {
         OmniboxFeatures.sShowModelPicker.setForTesting(true);
         setUpSessionAndMatch(AutocompleteRequestType.SEARCH, OmniboxSuggestionType.SEARCH_SUGGEST);
@@ -2604,7 +2568,7 @@ public class AutocompleteMediatorUnitTest {
                         mWindowAndroid,
                         mDeferredImeCallback,
                         mFuseboxCoordinator,
-                        false);
+                        mUiOverrides);
         mediator.getDropdownItemViewInfoListBuilderForTest()
                 .registerSuggestionProcessor(mMockProcessor);
         mediator.getDropdownItemViewInfoListBuilderForTest()
@@ -2719,5 +2683,39 @@ public class AutocompleteMediatorUnitTest {
 
         verify(mGurlCallback).onResult(JUnitTestGURLs.BLUE_1);
         verifyNoInteractions(mComposeboxQueryControllerBridge);
+    }
+
+    @Test
+    @SmallTest
+    public void propagateOmniboxSessionStateChange_notMainBrowser() {
+        when(mUiOverrides.isMainBrowserOmnibox()).thenReturn(false);
+        mMediator.beginInput(createEmptySession());
+        mMediator.propagateOmniboxSessionStateChange(true);
+        assertEquals(
+                false, mListModel.get(SuggestionListProperties.APPLY_MARGIN_FOR_LEFT_SIDE_BAR));
+    }
+
+    @Test
+    @SmallTest
+    @DisableFeatures(ChromeFeatureList.ANDROID_VERTICAL_TABS)
+    public void propagateOmniboxSessionStateChange_verticalTabsDisabledAndMainBrowser() {
+        when(mUiOverrides.isMainBrowserOmnibox()).thenReturn(true);
+        mMediator.beginInput(createEmptySession());
+        mMediator.propagateOmniboxSessionStateChange(true);
+        assertEquals(
+                false, mListModel.get(SuggestionListProperties.APPLY_MARGIN_FOR_LEFT_SIDE_BAR));
+    }
+
+    @Test
+    @SmallTest
+    @Config(qualifiers = "sw600dp")
+    @EnableFeatures(ChromeFeatureList.ANDROID_VERTICAL_TABS)
+    public void propagateOmniboxSessionStateChange_verticalTabsEnabledAndMainBrowser() {
+        when(mUiOverrides.isMainBrowserOmnibox()).thenReturn(true);
+        ChromeSharedPreferences.getInstance()
+                .writeBoolean(ChromePreferenceKeys.VERTICAL_TABS_ENABLED, true);
+        mMediator.beginInput(createEmptySession());
+        mMediator.propagateOmniboxSessionStateChange(true);
+        assertEquals(true, mListModel.get(SuggestionListProperties.APPLY_MARGIN_FOR_LEFT_SIDE_BAR));
     }
 }

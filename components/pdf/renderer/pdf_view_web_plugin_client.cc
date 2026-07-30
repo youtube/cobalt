@@ -93,14 +93,24 @@ blink::WebURL PdfViewWebPluginClient::CompleteURL(
 }
 
 void PdfViewWebPluginClient::PostMessage(base::DictValue message) {
-  blink::WebLocalFrame* frame = GetFrame();
-  if (!frame) {
+  if (!HasFrame()) {
     return;
   }
 
+  // During Document::Shutdown(), script execution is forbidden but the frame
+  // still exists. Avoid entering V8 in this state to prevent CHECK failures in
+  // ScriptForbiddenScope.
+  if (!plugin_container_->GetDocument().IsActive()) {
+    return;
+  }
+
+  blink::WebLocalFrame* frame = GetFrame();
   v8::Isolate::Scope isolate_scope(isolate_);
   v8::HandleScope handle_scope(isolate_);
   v8::Local<v8::Context> context = frame->MainWorldScriptContext();
+  if (context.IsEmpty()) {
+    return;
+  }
   DCHECK_EQ(isolate_, v8::Isolate::GetCurrent());
   v8::Context::Scope context_scope(context);
 

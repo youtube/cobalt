@@ -8,7 +8,7 @@
 
 #include "build/build_config.h"
 #include "components/browser_apis/tab_drag/adapters/tab_drag_window_adapter.h"
-#include "components/browser_apis/tab_drag/sessions/drop_target.h"
+#include "components/browser_apis/tab_drag/destinations/drop_target.h"
 #include "components/browser_apis/tab_drag/testing/toy_tab_drag_window_adapter.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/native_ui_types.h"

@@ -13,15 +13,13 @@
 #include "chrome/browser/ui/autofill/autofill_suggestion_controller.h"
 #include "chrome/browser/ui/autofill/autofill_suggestion_controller_test_base.h"
 #include "chrome/browser/ui/autofill/mock_autofill_popup_view.h"
-#include "components/accessibility_annotator/core/at_memory_query_service.h"
-#include "components/accessibility_annotator/core/mock_at_memory_query_service.h"
 #include "components/autofill/content/browser/test_content_autofill_client.h"
 #include "components/autofill/core/browser/foundations/autofill_manager.h"
+#include "components/autofill/core/browser/integrators/at_memory/at_memory_query_service.h"
+#include "components/autofill/core/browser/integrators/at_memory/mock_at_memory_query_service.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace autofill {
-
-using accessibility_annotator::MockAtMemoryQueryService;
 
 // A modified `TestContentAutofillClient` that simulates the production behavior
 // of the popup controller and popup view lifetimes on Desktop platforms.
@@ -57,7 +55,8 @@ class TestAutofillPopupControllerAutofillClient
     if (!suggestion_controller_) {
       suggestion_controller_ =
           (new Controller(manager.external_delegate().GetWeakPtrForTest(),
-                          &GetWebContents(), gfx::RectF()))
+                          &GetWebContents(), manager.driver().GetFrameToken(),
+                          gfx::RectF()))
               ->GetWeakPtr();
       test_api(cast_suggestion_controller()).SetView(popup_view_.GetWeakPtr());
       manager_of_last_controller_ = manager.GetWeakPtr();

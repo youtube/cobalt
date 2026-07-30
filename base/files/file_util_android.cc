@@ -58,6 +58,14 @@ std::optional<FilePath> ResolveToVirtualDocumentPath(const FilePath& path) {
   return FilePath(vp->ToString());
 }
 
+std::optional<std::string> CopyFileToDownloadsCollection(
+    const FilePath& file_path,
+    const std::string& mime_type) {
+  JNIEnv* env = jni_zero::AttachCurrentThread();
+  return android::Java_FileUtils_copyFileToDownloadsCollection(
+      env, file_path.value(), mime_type);
+}
+
 }  // namespace base
 
 DEFINE_JNI(FileUtils)

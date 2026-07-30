@@ -10,6 +10,7 @@
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/notimplemented.h"
+#include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
@@ -115,7 +116,9 @@ void PaymentRequestDialogView::OnDialogClosed() {
   }
   RemoveChildViewT(view_stack_.get());
   controller_map_.clear();
-  request_->OnUserCancelled();
+  if (request_) {
+    request_->OnUserCancelled();
+  }
 
   if (observer_for_testing_) {
     observer_for_testing_->OnDialogClosed();
@@ -163,9 +166,19 @@ void PaymentRequestDialogView::ShowDialog() {
 
 void PaymentRequestDialogView::CloseDialog() {
   if (GetWidget()) {
-    // This calls PaymentRequestDialogView::Cancel() before closing.
-    // ViewHierarchyChanged() also gets called after Cancel().
-    GetWidget()->Close();
+    if (base::FeatureList::IsEnabled(
+            features::kPaymentRequestMandatoryPaymentAppUi)) {
+      // To avoid deleting the PaymentRequest and ChromePaymentRequestDelegate
+      // while their methods are on the call stack, we post a task to close the
+      // widget.
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+          FROM_HERE,
+          base::BindOnce(&views::Widget::Close, GetWidget()->GetWeakPtr()));
+    } else {
+      // This calls PaymentRequestDialogView::Cancel() before closing.
+      // ViewHierarchyChanged() also gets called after Cancel().
+      GetWidget()->Close();
+    }
   }
 }
 

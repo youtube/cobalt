@@ -5,15 +5,18 @@
 if (is_android) {
   source_set("readaloud") {
     sources = [
+      "read_aloud_constants.h",
       "read_aloud_service.h",
       "read_aloud_service_factory.h",
     ]
     public_deps = [
       "//base",
       "//chrome/browser/profiles:profile",
+      "//chrome/common:mojo_bindings",
       "//components/dom_distiller/core",
       "//components/keyed_service/core",
       "//content/public/browser",
+      "//media",
     ]
   }
 
@@ -26,6 +29,7 @@ if (is_android) {
       ":readaloud",
       "//chrome/browser/dom_distiller",
       "//components/dom_distiller/content/browser",
+      "//content/public/browser",
       "//ui/accessibility:ax_base",
     ]
   }

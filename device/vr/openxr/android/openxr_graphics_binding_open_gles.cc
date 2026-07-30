@@ -80,8 +80,8 @@ bool OpenXrGraphicsBindingOpenGLES::InitializeGl() {
   }
 
   // None of the other runtimes support ANGLE, so we disable it too for now.
-  // TODO(alcooper): Investigate if we can support ANGLE or if we'll run into
-  // similar problems as cardboard.
+  // TODO(crbug.com/529457533): Investigate if we can support ANGLE or if we'll
+  // run into similar problems as cardboard.
   gl::DisableANGLE();
 
   // Everything below is a hacky first pass at making a session and likely needs
@@ -160,7 +160,7 @@ bool OpenXrGraphicsBindingOpenGLES::Initialize(XrInstance instance,
     return false;
   }
 
-  // TODO(alcooper): Validate/set version based on the output here.
+  // TODO(crbug.com/529458212): Validate/set version based on the output here.
   XrGraphicsRequirementsOpenGLESKHR graphics_requirements = {
       XR_TYPE_GRAPHICS_REQUIREMENTS_OPENGL_ES_KHR};
   if (XR_FAILED(get_graphics_requirements_fn(instance, system,
@@ -454,7 +454,7 @@ bool OpenXrGraphicsBindingOpenGLES::ShouldFlipSubmittedImage(
   return should_flip;
 }
 
-void OpenXrGraphicsBindingOpenGLES::OnSwapchainImageActivated(
+void OpenXrGraphicsBindingOpenGLES::OnSwapchainImageReady(
     OpenXrCompositionLayer& layer,
     gpu::SharedImageInterface* sii) {
   OpenXrSwapchainInfo* swap_chain_info = layer.GetActiveSwapchainImage();

@@ -276,6 +276,120 @@ message ActiveDisplay {
   optional int64 screen_id = 1;
 }
 
+
+// Next ID: 16
+message TerminalControl {
+
+  // Message sent by the client to the host to create a terminal.
+  message CreateTerminal {}
+
+  // Message sent by the host to the client to indicate the result of a terminal
+  // creation request.
+  //
+  // Next ID: 3
+  message CreateTerminalResponse {
+    // Next ID: 6
+    message Error {
+      enum Reason {
+        // The reason is unknown.
+        UNKNOWN = 0;
+        FAILED = 1;
+      }
+
+      optional Reason reason = 1;
+
+      // The system error code, as returned by the platform.
+      optional int32 code = 2;
+
+      // The filename where the error occurred.
+      optional string file_name = 3;
+
+      // The line number where the error occurred.
+      optional uint32 line_number = 4;
+
+      optional string error_message = 5;
+    }
+
+    oneof result {
+      // The id of the newly created terminal.
+      int32 terminal_id = 1;
+
+      // A human-readable error message.
+      Error error = 2;
+    }
+  }
+
+  // Message sent by the client to the host to remove a terminal.
+  //
+  // Next ID: 2
+  message RemoveTerminal {
+    optional int32 terminal_id = 1;
+  }
+
+  // Message sent by the client to the host on user input.
+  //
+  // Next ID: 3
+  message TerminalInput {
+    optional int32 terminal_id = 1;
+    optional string input = 2;
+  }
+
+  // Message sent by the host to the client when terminal output is received, or
+  // on connection with the initial contents of the terminal. Note that the id
+  // may not match any terminal returned in a CreateTerminalResponse, as the
+  // terminal may have existed before the client was connected.
+  //
+  // Next ID: 6
+  message TerminalOutput {
+    optional int32 terminal_id = 1;
+    optional string output = 2;
+  }
+
+  // Next ID: 5
+  message ProcessInfo {
+    optional int32 terminal_id = 1;
+
+    // The process title, to be displayed in the tab.
+    optional string title = 2;
+
+    // True if the process is "active", in which case the client should prompt
+    // the user to confirm before destroying the terminal.
+    optional bool is_active = 3;
+
+    // True if the process is terminated, in which case no further input will be
+    // accepted.
+    optional bool is_terminated = 4;
+  }
+
+  // Message sent by the client to the host to resize a terminal.
+  //
+  // Next ID: 4
+  message ResizeTerminal {
+    optional int32 terminal_id = 1;
+    optional uint32 width = 2;
+    optional uint32 height = 3;
+  }
+
+  // Message sent by the client to the host (or host to client) to close a terminal.
+  //
+  // Next ID: 2
+  message CloseTerminal {
+    optional int32 terminal_id = 1;
+  }
+
+  oneof control {
+    CreateTerminal create_request = 1;
+    CreateTerminalResponse create_response = 2;
+    RemoveTerminal remove_request = 3;
+    TerminalInput terminal_input = 4;
+    TerminalOutput terminal_output = 5;
+    ProcessInfo process_info = 6;
+    ResizeTerminal resize_terminal = 7;
+    CloseTerminal close_terminal = 8;
+  }
+}
+
+
 // The position of the mouse cursor on the host. If the client receives a
 // HostCursorPosition with the fractional_coordinate, it should render the
 // host's cursor at the specified position. This may happen if relative mouse

@@ -80,12 +80,6 @@ FastPairHandshakeImpl::FastPairHandshakeImpl(
 
 FastPairHandshakeImpl::~FastPairHandshakeImpl() = default;
 
-void FastPairHandshakeImpl::SetUpHandshake(
-    OnFailureCallback on_failure_callback,
-    OnCompleteCallbackNew on_success_callback) {}
-
-void FastPairHandshakeImpl::Reset() {}
-
 void FastPairHandshakeImpl::OnGattClientInitializedCallback(
     std::optional<PairFailure> failure) {
   if (failure) {

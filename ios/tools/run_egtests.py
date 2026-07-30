@@ -334,9 +334,14 @@ def main() -> int:
         '--scheme',
         help='The EG test scheme to build and run. If not provided, it will be '
         'inferred from --tests.')
-    parser.add_argument('--device', help='The device type to use for the test.')
-    parser.add_argument('--os',
-                        help='The OS version to use for the test (e.g., 17.5).')
+    parser.add_argument(
+        '--device',
+        help='The device type or UDID to use for the test '
+             '(can also be set via IOS_SIMULATOR_DEFAULT_DEVICE).')
+    parser.add_argument(
+        '--os',
+        help='The OS version to use for the test (e.g., 17.5) '
+             '(can also be set via IOS_SIMULATOR_DEFAULT_OS).')
     parser.add_argument('--test-iterations',
                         type=int,
                         help='If specified, tests will run <number> times.')

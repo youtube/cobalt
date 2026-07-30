@@ -37,6 +37,7 @@
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/suggestions/contextual_cueing_prefs.h"
 #include "chrome/browser/gpu/gpu_mode_manager.h"
+#include "chrome/browser/hid/hid_policy_allowed_devices.h"
 #include "chrome/browser/lifetime/browser_shutdown.h"
 #include "chrome/browser/login_detection/login_detection_prefs.h"
 #include "chrome/browser/media/media_engagement_service.h"
@@ -64,6 +65,7 @@
 #include "chrome/browser/preloading/prefetch/prefetch_service/prefetch_origin_decider.h"
 #include "chrome/browser/preloading/prefetch/search_prefetch/search_prefetch_service.h"
 #include "chrome/browser/preloading/preloading_prefs.h"
+#include "chrome/browser/preloading/search_preload/search_preload_service.h"
 #include "chrome/browser/printing/print_preview_sticky_settings.h"
 #include "chrome/browser/privacy_sandbox/notice/notice_storage.h"
 #include "chrome/browser/profiles/chrome_version_service.h"
@@ -298,7 +300,6 @@
 #include "chrome/browser/actor/ui/actor_ui_state_manager_prefs.h"
 #include "chrome/browser/desktop_to_mobile_promos/promos_utils.h"  // nogncheck crbug.com/40147906
 #include "chrome/browser/gcm/gcm_product_util.h"
-#include "chrome/browser/hid/hid_policy_allowed_devices.h"
 #include "chrome/browser/indigo/indigo_prefs.h"
 #include "chrome/browser/intranet_redirect_detector.h"
 #include "chrome/browser/media/router/discovery/access_code/access_code_cast_feature.h"
@@ -999,6 +1000,10 @@ inline constexpr char kTabSearchPinnedToTabstripMigrationComplete2[] =
     "tab_search.pinned_to_tabstrip_migration_complete_2";
 
 // Deprecated 06/2026.
+constexpr char kPersonalContextInAutofillNoticeShouldBeShown[] =
+    "autofill.personal_context.notice_should_be_shown";
+
+// Deprecated 06/2026.
 inline constexpr char kDefaultBrowserInfobarLastDeclined[] =
     "browser.default_browser_infobar_last_declined";
 
@@ -1365,6 +1370,10 @@ void RegisterProfilePrefsForMigration(
                                 true);
 
   // Deprecated 06/2026.
+  registry->RegisterBooleanPref(kPersonalContextInAutofillNoticeShouldBeShown,
+                                true);
+
+  // Deprecated 06/2026.
   registry->RegisterInt64Pref(kDefaultBrowserInfobarLastDeclined, 0);
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -1447,9 +1456,7 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
   segmentation_platform::SegmentationPlatformService::RegisterLocalStatePrefs(
       registry);
   SerialPolicyAllowedPorts::RegisterPrefs(registry);
-#if !BUILDFLAG(IS_ANDROID)
   HidPolicyAllowedDevices::RegisterLocalStatePrefs(registry);
-#endif
   sessions::SessionIdGenerator::RegisterPrefs(registry);
   signin::ActivePrimaryAccountsMetricsRecorder::RegisterLocalStatePrefs(
       registry);
@@ -1826,6 +1833,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
       registry);
   segmentation_platform::DeviceSwitcherResultDispatcher::RegisterProfilePrefs(
       registry);
+  SearchPreloadService::RegisterProfilePrefs(registry);
   SessionStartupPref::RegisterProfilePrefs(registry);
   SharingSyncPreference::RegisterProfilePrefs(registry);
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
@@ -2656,6 +2664,9 @@ void MigrateObsoleteProfilePrefs(PrefService* profile_prefs,
   profile_prefs->ClearPref(kTabSearchMigrationComplete);
   profile_prefs->ClearPref(kTabSearchPinnedToTabstripMigrationComplete);
   profile_prefs->ClearPref(kTabSearchPinnedToTabstripMigrationComplete2);
+
+  // Added 06/2026.
+  profile_prefs->ClearPref(kPersonalContextInAutofillNoticeShouldBeShown);
 
   // Added 06/2026
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)

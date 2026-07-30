@@ -18,6 +18,7 @@
 #include "base/uuid.h"
 #include "components/history/core/browser/history_service_observer.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "components/multistep_filter/core/data_models/filter_annotation.h"
 #include "components/multistep_filter/core/data_models/suggestion_user_decision.h"
 #include "components/multistep_filter/core/data_models/url_filter_suggestion.h"
 #include "components/sync/service/sync_service.h"
@@ -48,6 +49,9 @@ class FilterSuggestionGenerator;
 // suggestions for filters to the user. It acts as the central
 // coordinator for the Multistep Filter feature, managing the lifecycle of
 // related components like the FilterSuggestionGenerator.
+//
+// One instance of `MultistepFilterService` is created per `BrowserContext`
+// (i.e. per profile) and owned by the `BrowserContext`.
 class MultistepFilterService : public KeyedService,
                                public history::HistoryServiceObserver {
  public:
@@ -83,12 +87,18 @@ class MultistepFilterService : public KeyedService,
   void Shutdown() override;
 
   // Parses the given url to extract a `FilterAnnotation`. A filter annotation
-  // is a set of normalized filter attributes.
-  virtual void ExtractAnnotation(int64_t navigation_id, const GURL& url);
+  // is a set of normalized filter attributes. The eventual extraction is
+  // delegated to `filter_extractor_` which takes care of storing the results.
+  virtual void ExtractAnnotation(
+      int64_t navigation_id,
+      const GURL& url,
+      std::optional<UrlFilterSuggestion> applied_suggestion);
 
   // Generates a filter suggestion for `url`. Based on URL analysis, the
   // suggestion may be stored for later use. Results are returned via the
-  // `callback`.
+  // `callback`. `GenerateFilterSuggestions` is guaranteed to call
+  // `OnSuggestionGenerated`. The `annotation` will be nullopt in case of
+  // failures.
   virtual void GenerateFilterSuggestions(
       int64_t navigation_id,
       const GURL& url,
@@ -114,26 +124,33 @@ class MultistepFilterService : public KeyedService,
  private:
   friend class MultistepFilterServiceTestApi;
 
-  // Callback for when an annotation is extracted.
-  void OnExtractionFinished(std::optional<base::Uuid> annotation_id);
-
-  // Callback for when a suggestion is generated.
-  void OnSuggestionGenerated(
-      base::OnceCallback<void(std::optional<UrlFilterSuggestion>)> callback,
-      std::optional<UrlFilterSuggestion> suggestion);
-
   // Callback for when `GetSupportedTaskForUrl` finishes for extraction.
-  void OnUrlAllowedForExtraction(const GURL& url,
-                                 std::vector<std::string> supported_task_types,
-                                 int64_t navigation_id);
+  void OnUrlAllowedForExtraction(
+      const GURL& url,
+      int64_t navigation_id,
+      std::optional<UrlFilterSuggestion> applied_suggestion,
+      std::vector<std::string> supported_task_types);
+
+  // Callback for when an annotation is extracted or failed. In case of failure,
+  // `annotation` will be nullopt.
+  void OnExtractionFinished(
+      std::optional<UrlFilterSuggestion> applied_suggestion,
+      std::string host,
+      int64_t navigation_id,
+      std::optional<FilterAnnotation> annotation);
 
   // Callback for when `GetSupportedTaskForUrl` finishes for suggestion
   // generation.
   void OnUrlAllowedForSuggestion(
       const GURL& url,
       base::OnceCallback<void(std::optional<UrlFilterSuggestion>)> callback,
-      std::vector<std::string> supported_task_types,
-      int64_t navigation_id);
+      int64_t navigation_id,
+      std::vector<std::string> supported_task_types);
+
+  // Callback for when a suggestion is generated.
+  void OnSuggestionGenerated(
+      base::OnceCallback<void(std::optional<UrlFilterSuggestion>)> callback,
+      std::optional<UrlFilterSuggestion> suggestion);
 
   // Checks if the user has provided consent (signed in, URL-keyed data
   // collection enabled, and history sync enabled), and logs the eligibility

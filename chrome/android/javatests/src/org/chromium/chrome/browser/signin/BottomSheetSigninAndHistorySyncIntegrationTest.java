@@ -63,6 +63,7 @@ import org.chromium.base.test.BaseActivityTestRule;
 import org.chromium.base.test.transit.RootSpec;
 import org.chromium.base.test.transit.ViewElement;
 import org.chromium.base.test.util.ApplicationTestUtils;
+import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.DisabledTest;
@@ -75,6 +76,7 @@ import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.device_lock.DeviceLockActivityLauncherImpl;
 import org.chromium.chrome.browser.firstrun.FirstRunStatus;
+import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.init.ChromeBrowserInitializer;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -119,6 +121,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 @DisableIf.Build(
         sdk_is_greater_than = Build.VERSION_CODES.VANILLA_ICE_CREAM,
         message = "crbug.com/428056054")
+@CommandLineFlags.Add(ChromeSwitches.DISABLE_STARTUP_PROMOS)
 public class BottomSheetSigninAndHistorySyncIntegrationTest {
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
 

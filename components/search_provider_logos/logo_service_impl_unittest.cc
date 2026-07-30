@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "base/base64.h"
+#include "base/byte_size.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -472,7 +473,7 @@ void LogoServiceImplTest::SetServerResponseWhenFingerprint(
   head->mime_type = "text/html";
   network::URLLoaderCompletionStatus status;
   status.error_code = error_code;
-  status.decoded_body_length = response_when_fingerprint.size();
+  status.decoded_body_length = base::ByteSize(response_when_fingerprint.size());
 
   test_url_loader_factory_.AddResponse(url_with_fp, std::move(head),
                                        response_when_fingerprint, status);

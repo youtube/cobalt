@@ -257,6 +257,8 @@ blink_core_sources_css = [
   "css_paint_value.h",
   "css_palette_mix_value.h",
   "css_palette_mix_value.cc",
+  "css_param_value_pair.cc",
+  "css_param_value_pair.h",
   "css_path_value.cc",
   "css_path_value.h",
   "css_pending_substitution_value.cc",
@@ -880,6 +882,7 @@ blink_core_tests_css = [
   "css_image_value_test.cc",
   "css_invalid_variable_value_test.cc",
   "css_light_dark_value_pair_test.cc",
+  "css_link_parameters_test.cc",
   "css_markup_test.cc",
   "css_math_expression_node_test.cc",
   "css_page_rule_test.cc",
@@ -1012,4 +1015,5 @@ blink_core_tests_css = [
   "threaded/font_object_threaded_test.cc",
   "threaded/text_renderer_threaded_test.cc",
   "white_space_test.cc",
+  "font_face_test.cc",
 ]

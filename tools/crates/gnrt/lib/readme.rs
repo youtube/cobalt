@@ -280,6 +280,10 @@ enum LicenseKind {
     /// https://spdx.org/licenses/IJG.html
     #[strum(serialize = "IJG")]
     IJG,
+
+    /// https://spdx.org/licenses/CC0-1.0.html
+    #[strum(serialize = "CC0-1.0")]
+    CC0_1,
 }
 
 impl<'a> TryFrom<&'a spdx::LicenseReq> for LicenseKind {

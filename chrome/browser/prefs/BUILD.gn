@@ -78,6 +78,7 @@ source_set("impl") {
     "//chrome/browser/glic",
     "//chrome/browser/glic/suggestions",
     "//chrome/browser/gpu",
+    "//chrome/browser/hid",
     "//chrome/browser/lifetime",
     "//chrome/browser/login_detection",
     "//chrome/browser/media",
@@ -93,6 +94,7 @@ source_set("impl") {
     "//chrome/browser/preloading:prefs",
     "//chrome/browser/preloading/prefetch/prefetch_service",
     "//chrome/browser/preloading/prefetch/search_prefetch",
+    "//chrome/browser/preloading/search_preload",
     "//chrome/browser/privacy_sandbox/notice:core",
     "//chrome/browser/profiles",
     "//chrome/browser/profiles:misc",
@@ -128,6 +130,7 @@ source_set("impl") {
     "//chrome/browser/ui/webui/policy",
     "//chrome/browser/updates/announcement_notification",
     "//chrome/browser/webauthn",
+    "//components/accessibility_annotator/core:prefs",
     "//components/blocked_content",
     "//components/bookmarks/common",
     "//components/breadcrumbs/core:status",
@@ -166,6 +169,7 @@ source_set("impl") {
     "//components/password_manager/core/browser",
     "//components/performance_manager",
     "//components/permissions",
+    "//components/personal_context/core:prefs",
     "//components/policy/resources/webui/mojom:mojo_bindings",
     "//components/pref_registry",
     "//components/privacy_sandbox:privacy_sandbox_prefs",
@@ -368,6 +372,9 @@ source_set("impl") {
       "//chrome/browser/password_manager/android:utils",
       "//chrome/browser/readaloud/android:native",
       "//chrome/browser/search_engines",
+      "//components/feed/core/common:feed_core_common",
+      "//components/feed/core/shared_prefs:feed_shared_prefs",
+      "//components/feed/core/v2:ios_shared",
     ]
   } else {
     deps += [
@@ -450,8 +457,7 @@ source_set("impl") {
 
   if (!is_android) {
     deps += [
-      "//chrome/browser/hid",
-      "//chrome/browser/indigo:indigo",
+      "//chrome/browser/indigo",
       "//chrome/browser/ui/read_anything:prefs",
       "//chrome/browser/ui/webui/cr_components/theme_color_picker:impl",
       "//chrome/browser/ui/webui/history",

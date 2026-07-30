@@ -7,19 +7,14 @@ package org.chromium.content_public.browser;
 import android.text.TextUtils;
 
 import org.chromium.base.CommandLine;
-import org.chromium.base.ThreadUtils;
 import org.chromium.build.annotations.EnsuresNonNull;
-import org.chromium.build.annotations.MonotonicNonNull;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.components.cached_flags.BooleanCachedFeatureParam;
-import org.chromium.components.cached_flags.CachedFeatureParam;
 import org.chromium.components.cached_flags.CachedFlag;
 import org.chromium.content_public.common.ContentSwitches;
 
 import java.util.List;
 import java.util.Locale;
-import java.util.function.BiConsumer;
 
 /** Data class for the JavalessRenderers feature. */
 @NullMarked
@@ -30,50 +25,18 @@ public class JavalessRenderersFeatureList {
             new CachedFlag(
                     ContentFeatureMap.getInstance(),
                     JAVALESS_RENDERER_EXPERIMENT_ON,
-                    /* defaultValue= */ false,
+                    /* defaultValue= */ true,
                     /* defaultValueInTests= */ true);
-
-    public static final BooleanCachedFeatureParam sJavalessRendererEnable =
-            new BooleanCachedFeatureParam(
-                    ContentFeatureMap.getInstance(),
-                    JAVALESS_RENDERER_EXPERIMENT_ON,
-                    "JavalessRendererEnable",
-                    /* defaultValue= */ false);
 
     public static final List<CachedFlag> sCachedFlags = List.of(sJavalessRendererExperimentOn);
 
-    public static final List<CachedFeatureParam<?>> sParamsCached =
-            List.of(sJavalessRendererEnable);
-
     private static @Nullable Boolean sEnabled;
-    private static @MonotonicNonNull String sGroup;
-    private static @Nullable BiConsumer<String, String> sCallback;
-
-    // Should be run only once, and will only run once both callback and group are set, then unsets
-    // callback to ensure it never runs again.
-    private static void maybeRunCallback() {
-        if (sCallback != null && sGroup != null) {
-            BiConsumer<String, String> callback = sCallback;
-            sCallback = null;
-            ThreadUtils.runOnUiThread(() -> callback.accept("JavalessRenderersSynthetic", sGroup));
-        }
-    }
-
-    public static void setRegisterSyntheticFieldTrialCallback(BiConsumer<String, String> callback) {
-        synchronized (JavalessRenderersFeatureList.class) {
-            sCallback = callback;
-            maybeRunCallback();
-        }
-    }
 
     public static boolean isEnabled() {
-        synchronized (JavalessRenderersFeatureList.class) {
-            if (sEnabled == null) {
-                decideEnabledState();
-                maybeRunCallback();
-            }
-            return sEnabled;
+        if (sEnabled == null) {
+            decideEnabledState();
         }
+        return sEnabled;
     }
 
     @EnsuresNonNull("sEnabled")
@@ -94,13 +57,6 @@ public class JavalessRenderersFeatureList {
             sEnabled = false;
             return;
         }
-        if (!sJavalessRendererExperimentOn.isEnabled()) {
-            sEnabled = false;
-        } else {
-            // We only give a sGroup if we are legitimately controlled by the trial.
-            boolean enabled = sJavalessRendererEnable.getValue();
-            sGroup = enabled ? "Enabled" : "Disabled";
-            sEnabled = enabled;
-        }
+        sEnabled = sJavalessRendererExperimentOn.isEnabled();
     }
 }

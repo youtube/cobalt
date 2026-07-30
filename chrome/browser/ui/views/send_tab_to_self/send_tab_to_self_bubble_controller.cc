@@ -17,9 +17,7 @@
 #include "chrome/browser/sync/send_tab_to_self_sync_service_factory.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_actions.h"
-#include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
@@ -166,12 +164,10 @@ void SendTabToSelfBubbleController::ShowBubbleWithAnchor(
       bubble_view = std::make_unique<SendTabToSelfDevicePickerBubbleView>(
           std::move(anchor.value()), &GetWebContents());
       break;
-    case send_tab_to_self::EntryPointDisplayReason::kOfferSignIn: {
+    case send_tab_to_self::EntryPointDisplayReason::kOfferSignIn:
       bubble_view = std::make_unique<SendTabToSelfSignInPromoBubbleView>(
-          std::move(anchor.value()), &GetWebContents(),
-          /*is_account_aware=*/!GetSharingAccountInfo().IsEmpty());
+          std::move(anchor.value()), &GetWebContents());
       break;
-    }
     case send_tab_to_self::EntryPointDisplayReason::kInformNoTargetDevice:
       bubble_view = std::make_unique<SendTabToSelfNoTargetDeviceBubbleView>(
           std::move(anchor.value()), &GetWebContents());

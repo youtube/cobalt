@@ -4,9 +4,12 @@
 
 package org.chromium.chrome.browser;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 
+import android.graphics.Rect;
 import android.util.JsonReader;
 
 import androidx.test.filters.MediumTest;
@@ -36,7 +39,6 @@ import org.chromium.chrome.test.transit.ChromeTransitTestRules;
 import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
 import org.chromium.components.prefs.PrefService;
 import org.chromium.components.user_prefs.UserPrefs;
-import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.test.util.Coordinates;
 import org.chromium.content_public.browser.test.util.DOMUtils;
 import org.chromium.content_public.browser.test.util.JavaScriptUtils;
@@ -90,7 +92,8 @@ public class VirtualKeyboardResizeTest {
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    getWebContents()
+                    mActivityTestRule
+                            .getWebContents()
                             .getMainFrame()
                             .insertVisualStateCallback(result -> ch.notifyCalled());
                 });
@@ -164,26 +167,68 @@ public class VirtualKeyboardResizeTest {
                 CriteriaHelper.DEFAULT_POLLING_INTERVAL);
     }
 
-    private WebContents getWebContents() {
-        return mActivityTestRule.getActivity().getActivityTab().getWebContents();
-    }
-
     private int getNumGeometryChangeEvents() throws Throwable {
         return Integer.parseInt(
                 JavaScriptUtils.executeJavaScriptAndWaitForResult(
-                        getWebContents(), "window.numGeometryChangeEvents"));
+                        mActivityTestRule.getWebContents(), "window.numGeometryChangeEvents"));
+    }
+
+    private Rect getKeyboardBoundingRect() throws Throwable {
+        String jsonText =
+                JavaScriptUtils.executeJavaScriptAndWaitForResult(
+                        mActivityTestRule.getWebContents(), "window.keyboardBoundingRect");
+        JsonReader jsonReader = new JsonReader(new StringReader(jsonText));
+        double x = 0;
+        double y = 0;
+        double width = 0;
+        double height = 0;
+        try {
+            jsonReader.beginObject();
+            while (jsonReader.hasNext()) {
+                switch (jsonReader.nextName()) {
+                    case "x":
+                        x = jsonReader.nextDouble();
+                        break;
+                    case "y":
+                        y = jsonReader.nextDouble();
+                        break;
+                    case "width":
+                        width = jsonReader.nextDouble();
+                        break;
+                    case "height":
+                        height = jsonReader.nextDouble();
+                        break;
+                    default:
+                        jsonReader.skipValue();
+                        break;
+                }
+            }
+            jsonReader.endObject();
+            jsonReader.close();
+        } catch (IOException exception) {
+            Assert.fail("Failed to evaluate JavaScript: " + jsonText + "\n" + exception);
+        }
+        int left = (int) Math.round(x);
+        int top = (int) Math.round(y);
+        return new Rect(left, top, left + (int) Math.round(width), top + (int) Math.round(height));
+    }
+
+    private int getPageInnerWidth() throws Throwable {
+        return Integer.parseInt(
+                JavaScriptUtils.executeJavaScriptAndWaitForResult(
+                        mActivityTestRule.getWebContents(), "window.innerWidth"));
     }
 
     private int getPageInnerHeight() throws Throwable {
         return Integer.parseInt(
                 JavaScriptUtils.executeJavaScriptAndWaitForResult(
-                        getWebContents(), "window.innerHeight"));
+                        mActivityTestRule.getWebContents(), "window.innerHeight"));
     }
 
     private ArrayList<Integer> getResizeEventLog() throws Throwable {
         String jsonText =
                 JavaScriptUtils.executeJavaScriptAndWaitForResult(
-                        getWebContents(), "window.resizeEventLog");
+                        mActivityTestRule.getWebContents(), "window.resizeEventLog");
         JsonReader jsonReader = new JsonReader(new StringReader(jsonText));
         ArrayList<Integer> pageHeights = new ArrayList<>();
         try {
@@ -202,22 +247,24 @@ public class VirtualKeyboardResizeTest {
     }
 
     private void clearResizeEventLog() throws Throwable {
-        JavaScriptUtils.executeJavaScript(getWebContents(), "window.resizeEventLog = []");
+        JavaScriptUtils.executeJavaScript(
+                mActivityTestRule.getWebContents(), "window.resizeEventLog = []");
     }
 
     private double getVisualViewportHeight() throws Throwable {
         return Float.parseFloat(
                 JavaScriptUtils.executeJavaScriptAndWaitForResult(
-                        getWebContents(), "window.visualViewport.height"));
+                        mActivityTestRule.getWebContents(), "window.visualViewport.height"));
     }
 
     private void hideKeyboard() {
         JavaScriptUtils.executeJavaScript(
-                getWebContents(), "document.querySelector('input').blur()");
+                mActivityTestRule.getWebContents(), "document.querySelector('input').blur()");
     }
 
     private double getKeyboardHeightDp() {
-        final double dpi = Coordinates.createFor(getWebContents()).getDeviceScaleFactor();
+        final double dpi =
+                Coordinates.createFor(mActivityTestRule.getWebContents()).getDeviceScaleFactor();
         double keyboardHeightPx =
                 mActivityTestRule
                         .getKeyboardDelegate()
@@ -253,7 +300,7 @@ public class VirtualKeyboardResizeTest {
         int initialHeight = getPageInnerHeight();
         double initialVVHeight = getVisualViewportHeight();
 
-        DOMUtils.clickNode(getWebContents(), TEXTFIELD_DOM_ID);
+        DOMUtils.clickNode(mActivityTestRule.getWebContents(), TEXTFIELD_DOM_ID);
         assertWaitForKeyboardStatus(true);
 
         double keyboardHeight = getKeyboardHeightDp();
@@ -287,7 +334,7 @@ public class VirtualKeyboardResizeTest {
         int initialHeight = getPageInnerHeight();
         double initialVVHeight = getVisualViewportHeight();
 
-        DOMUtils.clickNode(getWebContents(), TEXTFIELD_DOM_ID);
+        DOMUtils.clickNode(mActivityTestRule.getWebContents(), TEXTFIELD_DOM_ID);
         assertWaitForKeyboardStatus(true);
 
         double keyboardHeight = getKeyboardHeightDp();
@@ -321,7 +368,7 @@ public class VirtualKeyboardResizeTest {
         int initialHeight = getPageInnerHeight();
         double initialVVHeight = getVisualViewportHeight();
 
-        DOMUtils.clickNode(getWebContents(), TEXTFIELD_DOM_ID);
+        DOMUtils.clickNode(mActivityTestRule.getWebContents(), TEXTFIELD_DOM_ID);
         assertWaitForKeyboardStatus(true);
 
         double keyboardHeight = getKeyboardHeightDp();
@@ -364,7 +411,7 @@ public class VirtualKeyboardResizeTest {
         int initialHeight = getPageInnerHeight();
         double initialVVHeight = getVisualViewportHeight();
 
-        DOMUtils.clickNode(getWebContents(), TEXTFIELD_DOM_ID);
+        DOMUtils.clickNode(mActivityTestRule.getWebContents(), TEXTFIELD_DOM_ID);
         assertWaitForKeyboardStatus(true);
 
         double keyboardHeight = getKeyboardHeightDp();
@@ -396,7 +443,7 @@ public class VirtualKeyboardResizeTest {
         int initialHeight = getPageInnerHeight();
         double initialVVHeight = getVisualViewportHeight();
 
-        DOMUtils.clickNode(getWebContents(), TEXTFIELD_DOM_ID);
+        DOMUtils.clickNode(mActivityTestRule.getWebContents(), TEXTFIELD_DOM_ID);
         assertWaitForKeyboardStatus(true);
 
         double keyboardHeight = getKeyboardHeightDp();
@@ -432,7 +479,7 @@ public class VirtualKeyboardResizeTest {
         int initialHeight = getPageInnerHeight();
         double initialVVHeight = getVisualViewportHeight();
 
-        DOMUtils.clickNode(getWebContents(), TEXTFIELD_DOM_ID);
+        DOMUtils.clickNode(mActivityTestRule.getWebContents(), TEXTFIELD_DOM_ID);
         assertWaitForKeyboardStatus(true);
         assertWaitForNthGeometryChangeEvent(1);
 
@@ -443,6 +490,28 @@ public class VirtualKeyboardResizeTest {
         // Ensure neither the innerHeight nor visualViewport height has changed.
         Assert.assertEquals(getPageInnerHeight(), initialHeight);
         Assert.assertEquals(getVisualViewportHeight(), initialVVHeight, /* delta= */ 1.0f);
+    }
+
+    /** Test that overlays-content reports keyboard geometry relative to the viewport origin. */
+    @Test
+    @MediumTest
+    @DisabledTest(message = "crbug.com/530667596")
+    public void testOverlaysContentKeyboardGeometry() throws Throwable {
+        startMainActivityWithURL(
+                "/chrome/test/data/android/page_with_editable.html?overlays-content");
+
+        DOMUtils.clickNode(mActivityTestRule.getWebContents(), TEXTFIELD_DOM_ID);
+        assertWaitForKeyboardStatus(true);
+        assertWaitForNthGeometryChangeEvent(1);
+
+        int innerWidth = getPageInnerWidth();
+        int innerHeight = getPageInnerHeight();
+        Rect rect = getKeyboardBoundingRect();
+
+        Assert.assertEquals(0, rect.left, /* delta= */ 1.0);
+        Assert.assertEquals(innerWidth, rect.width(), /* delta= */ 1.0);
+        assertThat(rect.height()).isAtLeast(1);
+        Assert.assertEquals(innerHeight - rect.height(), rect.top, /* delta= */ 1.0);
     }
 
     /** Test that the virtual keyboard mode is correctly set/reset on navigations. */
@@ -498,7 +567,7 @@ public class VirtualKeyboardResizeTest {
         {
             int initialHeight = getPageInnerHeight();
 
-            DOMUtils.clickNode(getWebContents(), TEXTFIELD_DOM_ID);
+            DOMUtils.clickNode(mActivityTestRule.getWebContents(), TEXTFIELD_DOM_ID);
             assertWaitForKeyboardStatus(true);
 
             double keyboardHeight = getKeyboardHeightDp();
@@ -573,7 +642,7 @@ public class VirtualKeyboardResizeTest {
         int initialHeight = getPageInnerHeight();
 
         Assert.assertEquals(0, getNumGeometryChangeEvents());
-        DOMUtils.clickNode(getWebContents(), TEXTFIELD_DOM_ID);
+        DOMUtils.clickNode(mActivityTestRule.getWebContents(), TEXTFIELD_DOM_ID);
         assertWaitForNthGeometryChangeEvent(1);
 
         waitForVisualStateCallback();
@@ -605,7 +674,7 @@ public class VirtualKeyboardResizeTest {
         int initialHeight = getPageInnerHeight();
         double initialVVHeight = getVisualViewportHeight();
 
-        DOMUtils.clickNode(getWebContents(), TEXTFIELD_DOM_ID);
+        DOMUtils.clickNode(mActivityTestRule.getWebContents(), TEXTFIELD_DOM_ID);
         assertWaitForKeyboardStatus(true);
 
         double keyboardHeight = getKeyboardHeightDp();

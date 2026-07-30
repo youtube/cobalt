@@ -90,6 +90,12 @@ void ActorTaskListBubbleController::ShowBubbleImpl(views::View* anchor_view,
   if (task_id_to_state.empty()) {
     return;
   }
+  // Close any existing bubble widget to avoid stacking multiple bubble windows.
+  if (bubble_widget_) {
+    bubble_widget_->Close();
+    bubble_widget_ = nullptr;
+    widget_observation_.Reset();
+  }
   bubble_widget_ = ActorTaskListBubble::ShowBubble(
       browser_->GetProfile(), anchor_view, task_id_to_state,
       base::BindRepeating(&ActorTaskListBubbleController::OnTaskRowClicked,

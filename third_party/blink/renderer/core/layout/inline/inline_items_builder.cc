@@ -363,6 +363,20 @@ bool InlineItemsBuilderTemplate<MappingBuilder>::AppendTextReusing(
   if (!old_item0.Length())
     return false;
 
+  // Abort reuse if the item was previously preceded by a block-in-inline.
+  // Removing a block-in-inline alters the whitespace collapsing context.
+  if (old_item0.Index() < original_data.items.size()) {
+    for (wtf_size_t i = old_item0.Index(); i > 0; --i) {
+      const InlineItem& prev_item = *original_data.items[i - 1];
+      if (prev_item.Length() > 0 || prev_item.Type() == InlineItem::kControl) {
+        break;
+      }
+      if (prev_item.Type() == InlineItem::kBlockInInline) [[unlikely]] {
+        return false;
+      }
+    }
+  }
+
   const String& original_string = original_data.text_content;
 
   // Don't reuse existing items if they might be affected by whitespace

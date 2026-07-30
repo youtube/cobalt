@@ -7,6 +7,7 @@
 #import <Cocoa/Cocoa.h>
 
 #include "base/apple/owned_objc.h"
+#include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/task/single_thread_task_runner.h"
@@ -23,6 +24,7 @@
 #include "content/browser/renderer_host/render_widget_host_view_base.h"
 #include "content/browser/renderer_host/render_widget_host_view_mac.h"
 #include "content/public/browser/context_factory.h"
+#include "content/public/common/content_switches.h"
 #include "third_party/blink/public/common/features.h"
 #include "ui/accelerated_widget_mac/display_ca_layer_tree.h"
 #include "ui/base/cocoa/remote_layer_api.h"
@@ -186,6 +188,11 @@ void UnboundedSurfaceWindowMac::InitWindow(const gfx::Rect& bounds_in_dips) {
 
   CALayer* background_layer = [CALayer layer];
   background_layer.backgroundColor = [[NSColor clearColor] CGColor];
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kUnboundedWindowDebug)) {
+    background_layer.borderColor = [[NSColor redColor] CGColor];
+    background_layer.borderWidth = 3.0;
+  }
 
   display_ca_layer_tree_ =
       std::make_unique<ui::DisplayCALayerTree>(background_layer);

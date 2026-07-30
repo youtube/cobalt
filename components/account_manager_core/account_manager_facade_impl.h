@@ -16,8 +16,10 @@
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
+#include "base/scoped_observation.h"
 #include "chromeos/crosapi/mojom/account_manager.mojom.h"
 #include "components/account_manager_core/account_manager_facade.h"
+#include "components/account_manager_core/chromeos/account_manager.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 
@@ -32,7 +34,8 @@ class AccountManager;
 // |account_manager::AccountManager|.
 class COMPONENT_EXPORT(ACCOUNT_MANAGER_CORE) AccountManagerFacadeImpl
     : public AccountManagerFacade,
-      public crosapi::mojom::AccountManagerObserver {
+      public crosapi::mojom::AccountManagerObserver,
+      public AccountManager::Observer {
  public:
   // `account_manager` is the local AccountManager instance. It must be non-null
   // and outlive the constructed `AccountManagerFacadeImpl` instance.
@@ -50,8 +53,8 @@ class COMPONENT_EXPORT(ACCOUNT_MANAGER_CORE) AccountManagerFacadeImpl
   ~AccountManagerFacadeImpl() override;
 
   // AccountManagerFacade overrides:
-  void AddObserver(Observer* observer) override;
-  void RemoveObserver(Observer* observer) override;
+  void AddObserver(AccountManagerFacade::Observer* observer) override;
+  void RemoveObserver(AccountManagerFacade::Observer* observer) override;
   void GetAccounts(
       base::OnceCallback<void(const std::vector<Account>&)> callback) override;
   void GetPersistentErrorForAccount(
@@ -67,12 +70,11 @@ class COMPONENT_EXPORT(ACCOUNT_MANAGER_CORE) AccountManagerFacadeImpl
                                const std::string& token_value) override;
   void RemoveAccountForTesting(const AccountKey& account) override;
 
+  // AccountManager::Observer overrides:
+  void OnTokenUpserted(const Account& account) override;
+  void OnAccountRemoved(const Account& account) override;
+
   // crosapi::mojom::AccountManagerObserver overrides:
-  void OnTokenUpserted(crosapi::mojom::AccountPtr account) override;
-  void OnAccountRemoved(crosapi::mojom::AccountPtr account) override;
-  void OnAuthErrorChanged(
-      crosapi::mojom::AccountKeyPtr account,
-      crosapi::mojom::GoogleServiceAuthErrorPtr error) override;
   void OnSigninDialogClosed() override;
 
  private:
@@ -155,9 +157,11 @@ class COMPONENT_EXPORT(ACCOUNT_MANAGER_CORE) AccountManagerFacadeImpl
   std::unique_ptr<mojo::Receiver<crosapi::mojom::AccountManagerObserver>>
       receiver_;
 
-  base::ObserverList<Observer> observer_list_;
+  base::ObserverList<AccountManagerFacade::Observer> observer_list_;
 
   const raw_ref<AccountManager> account_manager_;
+  base::ScopedObservation<AccountManager, AccountManager::Observer>
+      account_manager_observation_{this};
 
   base::WeakPtrFactory<AccountManagerFacadeImpl> weak_factory_{this};
 };

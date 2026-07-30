@@ -136,7 +136,8 @@ class ContentAnalysisDelegate : public ContentAnalysisDelegateBase,
       base::RepeatingCallback<std::unique_ptr<ContentAnalysisDelegate>(
           content::WebContents*,
           Data,
-          CompletionCallback)>;
+          CompletionCallback,
+          DeepScanAccessPoint)>;
 
   ContentAnalysisDelegate(const ContentAnalysisDelegate&) = delete;
   ContentAnalysisDelegate& operator=(const ContentAnalysisDelegate&) = delete;

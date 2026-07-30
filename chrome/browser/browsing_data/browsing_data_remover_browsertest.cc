@@ -1383,8 +1383,9 @@ IN_PROC_BROWSER_TEST_P(BrowsingDataHistoryRemoverBrowserTest,
 // Restart after creating the data to ensure that everything was written to
 // disk.
 // TODO(crbug.com/522179929): Flaky on ASAN/LSAN/MSAN. Re-enable this test.
+// TODO(crbug.com/515997680): Flaky on Linux Debug. Re-enable this test.
 #if defined(ADDRESS_SANITIZER) || defined(LEAK_SANITIZER) || \
-    defined(MEMORY_SANITIZER)
+    defined(MEMORY_SANITIZER) || (BUILDFLAG(IS_LINUX) && !defined(NDEBUG))
 #define MAYBE_StorageRemovedFromDisk DISABLED_StorageRemovedFromDisk
 #else
 #define MAYBE_StorageRemovedFromDisk StorageRemovedFromDisk

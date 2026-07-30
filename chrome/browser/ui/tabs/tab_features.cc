@@ -25,6 +25,7 @@
 #include "chrome/browser/enterprise/reporting/saas_usage/saas_usage_navigation_observer.h"
 #include "chrome/browser/glic/host/context/glic_page_features_manager.h"
 #include "chrome/browser/glic/suggestions/contextual_cueing_helper.h"
+#include "chrome/browser/glic/suggestions/glic_cue_tab_state.h"
 #include "chrome/browser/image_fetcher/image_fetcher_service_factory.h"
 #include "chrome/browser/indigo/indigo_page_action_controller.h"
 #include "chrome/browser/loader/from_gws_navigation_and_keep_alive_request_observer.h"
@@ -51,6 +52,7 @@
 #include "chrome/browser/ui/autofill/payments/omnibox_autofill_bubble_controller.h"
 #include "chrome/browser/ui/autofill/payments/omnibox_autofill_page_action_controller.h"
 #include "chrome/browser/ui/autofill/payments/payments_churned_users_bubble_controller.h"
+#include "chrome/browser/ui/autofill/payments/payments_churned_users_page_action_controller.h"
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/commerce/commerce_ui_tab_helper.h"
@@ -72,6 +74,7 @@
 #include "chrome/browser/ui/tabs/alert/tab_alert_controller.h"
 #include "chrome/browser/ui/tabs/back_to_opener/back_to_opener_controller.h"
 #include "chrome/browser/ui/tabs/inactive_window_mouse_event_controller.h"
+#include "chrome/browser/ui/tabs/page_context_eligibility_helper.h"
 #include "chrome/browser/ui/tabs/public/tab_dialog_manager.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/collaboration_messaging_page_action_controller.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/collaboration_messaging_tab_data.h"
@@ -346,6 +349,7 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
     }
 
     glic::ContextualCueingHelper::MaybeCreateForWebContents(tab.GetContents());
+    glic::GlicCueTabState::CreateForWebContents(tab.GetContents());
 
     if (tab_groups::TabGroupSyncService* tab_group_sync_service =
             tab_groups::TabGroupSyncServiceFactory::GetForProfile(profile)) {
@@ -474,6 +478,9 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
           autofill::features::kAutofillEnableResurrectingPaymentsUsers) &&
       page_action_controller_->ActionExists(
           kActionShowPaymentsChurnedUsersBubble)) {
+    payments_churned_users_page_action_controller_ =
+        std::make_unique<autofill::PaymentsChurnedUsersPageActionController>(
+            tab, *page_action_controller_);
     payments_churned_users_bubble_controller_ =
         GetUserDataFactory()
             .CreateInstance<autofill::PaymentsChurnedUsersBubbleController>(
@@ -629,6 +636,10 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
     back_to_opener_controller_ =
         std::make_unique<back_to_opener::BackToOpenerController>(tab);
   }
+
+  page_context_eligibility_helper_ =
+      GetUserDataFactory().CreateInstance<tabs::PageContextEligibilityHelper>(
+          tab, tab);
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
   if (base::FeatureList::IsEnabled(enterprise_reporting::kSaasUsageReporting)) {

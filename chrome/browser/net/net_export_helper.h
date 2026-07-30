@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_NET_NET_EXPORT_HELPER_H_
 #define CHROME_BROWSER_NET_NET_EXPORT_HELPER_H_
 
+#include "base/files/file_path.h"
 #include "base/values.h"
 #include "build/build_config.h"
 
@@ -22,7 +23,9 @@ base::ListValue GetExtensionInfo(Profile* profile);
 #if BUILDFLAG(IS_WIN)
 base::DictValue GetWindowsServiceProviders();
 #endif
-
+#if BUILDFLAG(IS_ANDROID)
+void PublishNetLogToDownloads(const base::FilePath& file_path);
+#endif
 }  // namespace chrome_browser_net
 
 #endif  // CHROME_BROWSER_NET_NET_EXPORT_HELPER_H_

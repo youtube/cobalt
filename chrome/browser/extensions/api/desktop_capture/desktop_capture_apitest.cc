@@ -30,6 +30,10 @@
 #include "third_party/webrtc/modules/desktop_capture/desktop_capture_types.h"
 #include "ui/base/ozone_buildflags.h"
 
+#if BUILDFLAG(IS_OZONE)
+#include "ui/ozone/public/ozone_platform.h"
+#endif
+
 static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 namespace extensions {
@@ -93,12 +97,17 @@ class DesktopCaptureApiTest : public ExtensionApiTest {
 
 // TODO(crbug.com/40805704): Fails on the linux-wayland-rel bot.
 // TODO(crbug.com/40805725): Fails on Mac.
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
+#if BUILDFLAG(IS_MAC)
 #define MAYBE_ChooseDesktopMedia DISABLED_ChooseDesktopMedia
 #else
 #define MAYBE_ChooseDesktopMedia ChooseDesktopMedia
 #endif
 IN_PROC_BROWSER_TEST_F(DesktopCaptureApiTest, MAYBE_ChooseDesktopMedia) {
+#if BUILDFLAG(IS_OZONE)
+  if (::ui::OzonePlatform::RunningOnWaylandForTest()) {
+    GTEST_SKIP() << "Fails on Wayland";
+  }
+#endif
   // Each element in the following array corresponds to one test in
   // chrome/test/data/extensions/api_test/desktop_capture/test.js .
   FakeDesktopMediaPickerFactory::TestFlags test_flags[] = {
@@ -193,12 +202,17 @@ IN_PROC_BROWSER_TEST_F(DesktopCaptureApiTest, MAYBE_ChooseDesktopMedia) {
 // supported (see DesktopCaptureAccessHandler).
 // TODO(crbug.com/40805704): Fails on the linux-wayland-rel bot.
 // TODO(crbug.com/40805725): Fails on Mac.
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
+#if BUILDFLAG(IS_MAC)
 #define MAYBE_Delegation DISABLED_Delegation
 #else
 #define MAYBE_Delegation Delegation
 #endif
 IN_PROC_BROWSER_TEST_F(DesktopCaptureApiTest, MAYBE_Delegation) {
+#if BUILDFLAG(IS_OZONE)
+  if (::ui::OzonePlatform::RunningOnWaylandForTest()) {
+    GTEST_SKIP() << "Fails on Wayland";
+  }
+#endif
   // Initialize test server.
   base::FilePath test_data;
   EXPECT_TRUE(base::PathService::Get(chrome::DIR_TEST_DATA, &test_data));

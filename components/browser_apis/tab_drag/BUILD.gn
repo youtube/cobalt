@@ -30,6 +30,8 @@ source_set("tab_drag") {
   deps = [
     "//base",
     "//components/browser_apis/tab_drag/adapters",
+    "//components/browser_apis/tab_drag/destinations",
+    "//components/browser_apis/tab_drag/destinations:impl",
     "//components/browser_apis/tab_drag/sessions",
     "//components/browser_apis/tab_drag/sessions:impl",
     "//components/browser_apis/tab_strip/types",
@@ -42,5 +44,8 @@ source_set("tab_drag") {
 group("unit_tests") {
   testonly = true
 
-  deps = [ "//components/browser_apis/tab_drag/sessions:unit_tests" ]
+  deps = [
+    "//components/browser_apis/tab_drag/destinations:unit_tests",
+    "//components/browser_apis/tab_drag/sessions:unit_tests",
+  ]
 }

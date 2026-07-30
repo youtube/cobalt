@@ -63,7 +63,7 @@ RegistrationFetcherParam::RegistrationFetcherParam(
     std::optional<std::string> provider_key,
     std::optional<GURL> provider_url,
     std::optional<Session::Id> provider_session_id,
-    bool aik_required)
+    AttestationMode attestation_mode)
     : registration_endpoint_(std::move(registration_endpoint)),
       supported_algos_(std::move(supported_algos)),
       challenge_(std::move(challenge)),
@@ -71,7 +71,7 @@ RegistrationFetcherParam::RegistrationFetcherParam(
       provider_key_(std::move(provider_key)),
       provider_url_(std::move(provider_url)),
       provider_session_id_(std::move(provider_session_id)),
-      aik_required_(aik_required) {}
+      attestation_mode_(attestation_mode) {}
 
 std::optional<RegistrationFetcherParam> RegistrationFetcherParam::ParseItem(
     const GURL& request_url,
@@ -192,7 +192,8 @@ std::optional<RegistrationFetcherParam> RegistrationFetcherParam::ParseItem(
   return RegistrationFetcherParam(
       std::move(registration_endpoint), std::move(supported_algos),
       std::move(challenge), std::move(authorization), std::move(provider_key),
-      std::move(provider_url), std::move(provider_session_id), aik_required);
+      std::move(provider_url), std::move(provider_session_id),
+      aik_required ? AttestationMode::kRequired : AttestationMode::kNone);
 }
 
 std::vector<RegistrationFetcherParam> RegistrationFetcherParam::CreateIfValid(
@@ -248,11 +249,12 @@ RegistrationFetcherParam RegistrationFetcherParam::CreateInstanceForTesting(
     std::optional<std::string> provider_key,
     std::optional<GURL> provider_url,
     std::optional<Session::Id> provider_session_id,
-    bool aik_required) {
+    AttestationMode attestation_mode) {
   return RegistrationFetcherParam(
       std::move(registration_endpoint), std::move(supported_algos),
       std::move(challenge), std::move(authorization), std::move(provider_key),
-      std::move(provider_url), std::move(provider_session_id), aik_required);
+      std::move(provider_url), std::move(provider_session_id),
+      attestation_mode);
 }
 
 }  // namespace net::device_bound_sessions

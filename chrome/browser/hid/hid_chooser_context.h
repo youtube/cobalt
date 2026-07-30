@@ -17,13 +17,17 @@
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/scoped_observation_traits.h"
-#include "chrome/browser/hid/web_view_chooser_context.h"
 #include "components/permissions/object_permission_context_base.h"
+#include "extensions/buildflags/buildflags.h"
 #include "mojo/public/cpp/bindings/associated_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "services/device/public/mojom/hid.mojom.h"
 #include "url/origin.h"
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+#include "chrome/browser/hid/web_view_chooser_context.h"
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 class Profile;
 
@@ -168,7 +172,9 @@ class HidChooserContext : public permissions::ObjectPermissionContextBase,
   // Map from device GUID to device info.
   std::map<std::string, device::mojom::HidDeviceInfoPtr> devices_;
 
+#if BUILDFLAG(ENABLE_EXTENSIONS)
   WebViewChooserContext web_view_chooser_context_{this};
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
   mojo::Remote<device::mojom::HidManager> hid_manager_;
   mojo::AssociatedReceiver<device::mojom::HidManagerClient> client_receiver_{

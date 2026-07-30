@@ -41,7 +41,9 @@
 #include "services/audio/reference_signal_provider.h"
 
 #if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
+#include "media/webrtc/voice_isolation/voice_isolation.h"
 #include "services/audio/audio_processor_handler.h"
+#include "services/audio/ml_model_manager.h"
 #endif
 
 namespace audio {
@@ -361,7 +363,11 @@ InputController::InputController(
     media::mojom::AudioProcessingConfigPtr processing_config,
     const media::AudioParameters& output_params,
     const media::AudioParameters& device_params,
-    StreamType type)
+    StreamType type
+#if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
+    , std::unique_ptr<media::VoiceIsolation> voice_isolation
+#endif
+)
     : task_runner_(base::SingleThreadTaskRunner::GetCurrentDefault()),
       event_handler_(event_handler),
       stream_(nullptr),
@@ -381,7 +387,8 @@ InputController::InputController(
 #if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
   MaybeSetUpAudioProcessing(std::move(processing_config), output_params,
                             device_params, std::move(reference_signal_provider),
-                            aecdump_recording_manager, ml_model_manager);
+                            aecdump_recording_manager, ml_model_manager,
+                            std::move(voice_isolation));
 #endif
 }
 
@@ -392,7 +399,8 @@ void InputController::MaybeSetUpAudioProcessing(
     const media::AudioParameters& device_params,
     std::unique_ptr<ReferenceSignalProvider> reference_signal_provider,
     media::AecdumpRecordingManager* aecdump_recording_manager,
-    raw_ptr<MlModelManager> ml_model_manager) {
+    raw_ptr<MlModelManager> ml_model_manager,
+    std::unique_ptr<media::VoiceIsolation> voice_isolation) {
   SendLogMessage(base::StringPrintf(
       "%s({processing_config=[%s]}, {processing_output_params=[%s]}, "
       "{device_params=[%s]})",
@@ -445,7 +453,7 @@ void InputController::MaybeSetUpAudioProcessing(
       base::BindRepeating(&InputController::DoReportError, weak_this_,
                           REFERENCE_STREAM_ERROR),
       std::move(processing_config->controls_receiver),
-      aecdump_recording_manager, ml_model_manager);
+      aecdump_recording_manager, ml_model_manager, std::move(voice_isolation));
 
   if (audio_processor_handler_->needs_playout_reference()) {
     // Unretained() is safe, since |event_handler_| outlives |output_tapper_|.
@@ -486,6 +494,27 @@ std::unique_ptr<InputController> InputController::Create(
   if (params.channels() > kMaxInputChannels)
     return nullptr;
 
+#if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
+  std::unique_ptr<media::VoiceIsolation> voice_isolation = nullptr;
+  if (processing_config && processing_config->settings.voice_isolation) {
+    std::unique_ptr<MlModelHandle> model_handle =
+        ml_model_manager ? ml_model_manager->GetModel(
+                               mojom::MlModelType::kVoiceIsolationDenoiser)
+                         : nullptr;
+    if (model_handle && model_handle->Get()) {
+      // TODO(b/512016773): Pass the model to VoiceIsolation once it is
+      // supported.
+      voice_isolation = std::make_unique<media::VoiceIsolation>();
+    }
+    if (!voice_isolation) {
+      event_handler->OnError(STREAM_CREATE_ERROR);
+      LogCaptureStartupResult(ParamsToStreamType(params),
+                              CAPTURE_STARTUP_VOICE_ISOLATION_ERROR);
+      return nullptr;
+    }
+  }
+#endif
+
   const media::AudioParameters device_params =
       AudioManagerPowerUser(audio_manager).GetInputStreamParameters(device_id);
 
@@ -497,7 +526,11 @@ std::unique_ptr<InputController> InputController::Create(
           event_handler, sync_writer, std::move(reference_signal_provider),
           aecdump_recording_manager, ml_model_manager,
           std::move(processing_config), params, device_params,
-          ParamsToStreamType(params)));
+          ParamsToStreamType(params)
+#if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
+          , std::move(voice_isolation)
+#endif
+      ));
 
   controller->DoCreate(audio_manager, params, device_id, enable_agc,
                        std::move(maybe_create_loopback_mixin_cb));
@@ -678,6 +711,8 @@ InputController::ErrorCode MapOpenOutcomeToErrorCode(OpenOutcome outcome) {
       return InputController::STREAM_OPEN_SYSTEM_PERMISSIONS_ERROR;
     case OpenOutcome::kFailedInUse:
       return InputController::STREAM_OPEN_DEVICE_IN_USE_ERROR;
+    case OpenOutcome::kFailedDeviceRemoved:
+      return InputController::STREAM_OPEN_DEVICE_REMOVED_ERROR;
     default:
       return InputController::STREAM_OPEN_ERROR;
   }
@@ -825,8 +860,15 @@ void InputController::UpdateSilenceState(bool silence) {
 #endif
 
 void InputController::LogCaptureStartupResult(CaptureStartupResult result) {
-  if (type_ != LOW_LATENCY)
+  LogCaptureStartupResult(type_, result);
+}
+
+// static
+void InputController::LogCaptureStartupResult(StreamType type,
+                                              CaptureStartupResult result) {
+  if (type != LOW_LATENCY) {
     return;
+  }
   UMA_HISTOGRAM_ENUMERATION("Media.LowLatencyAudioCaptureStartupSuccess",
                             result, CAPTURE_STARTUP_RESULT_MAX + 1);
 }

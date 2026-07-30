@@ -6,6 +6,7 @@
 #define COMPONENTS_PASSAGE_EMBEDDINGS_CORE_INTERNAL_SCHEDULING_EMBEDDER_H_
 
 #include <deque>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -118,18 +119,17 @@ class SchedulingEmbedder
   // Returns true if currently in a work ready performance scenario state.
   bool IsPerformanceScenarioReady();
 
-  // Finds the job with the worst priority that is not in progress.
-  // Returns jobs.end() if no such job exists.
-  static std::deque<Job>::iterator FindWorstJob(std::deque<Job>& jobs);
+  // Returns an iterator to the highest priority non-empty queue in
+  // pending_jobs_, or pending_jobs_.end() if all queues are empty.
+  std::map<PassagePriority, std::deque<Job>>::iterator GetFirstNonEmptyQueue();
 
   // Call the callback with status, etc. and record relevant histograms.
   static void FinishJob(Job job,
                         ComputeEmbeddingsStatus status,
                         bool record_histograms);
 
-  // Jobs that are waiting to be scheduled or resumed. They are ordered by
-  // priority before submitting a batch to the embedder.
-  std::deque<Job> pending_jobs_;
+  // Jobs that are waiting to be scheduled or resumed, grouped by priority.
+  std::map<PassagePriority, std::deque<Job>> pending_jobs_;
 
   // Jobs that have passages in the current in-flight batch.
   std::deque<Job> active_jobs_;

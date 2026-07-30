@@ -2565,7 +2565,7 @@
       Not allowed to automatically download multiple files
     </message>
     <message name="IDS_SETTINGS_SITE_SETTINGS_AUTO_PICTURE_IN_PICTURE_DESCRIPTION" desc="Description of the auto-picture-in-picture content setting.">
-      Sites use this feature to enter picture-in-picture automatically. This lets you continue watching a video, while freeing up your screen for other tasks.
+      Sites can enter picture-in-picture automatically. This lets you continue watching a video, while freeing up your screen for other tasks.
     </message>
     <message name="IDS_SETTINGS_SITE_SETTINGS_AUTO_PICTURE_IN_PICTURE_ALLOWED" desc="Label for the enabled option of the auto-picture-in-picture content setting.">
       Sites can enter picture-in-picture automatically
@@ -3976,6 +3976,14 @@
     </message>
     <message name="IDS_SETTINGS_HISTORY_SEARCH_WITH_ANSWERS_SUBLABEL_OFF" desc="This string is the subheading of a setting for ‘History search, powered by AI’ when answers are available. This subheading notes that the setting is currently turned on. Then, it summarizes the user benefit of the History Search feature. This is an AI (artificial intelligence) feature that improves the search functionality so that users can write queries in natural language and search their Chrome browsing history. The tone should be motivating.">
       Use everyday language to search your browsing history and find sites you visited. You can also ask questions and get answers based on your browsing history. The setting is off.
+    </message>
+
+    <!-- Google Search AI Mode and connected apps (AIM Workspace) -->
+    <message name="IDS_SETTINGS_GOOGLE_SEARCH_AI_MODE_WORKSPACE_LABEL" desc="Label of the setting row that opens connection settings for Google Search AI Mode and Workspace connected apps.">
+      Google Search AI Mode and connected apps
+    </message>
+    <message name="IDS_SETTINGS_GOOGLE_SEARCH_AI_MODE_WORKSPACE_SUBLABEL" desc="Sublabel of the setting row that opens connection settings for Google Search AI Mode and Workspace connected apps. This sublabel explains that the user can manage the connection between search personalization services and their Google Workspace apps (like Google Drive).">
+      Manage the connection between Search services and Google Workspace apps, like Google Drive
     </message>
 
     <!-- Web Content -->

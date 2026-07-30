@@ -11,6 +11,7 @@
 #include "chrome/browser/glic/common/local_hotkey_manager.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/host/glic.mojom-shared.h"
+#include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/service/glic_instance_coordinator_impl.h"
 #include "chrome/browser/glic/service/glic_instance_impl.h"
@@ -271,8 +272,8 @@ ScopedGlicCapability::ScopedGlicCapability(Profile* profile, bool enabled)
         signin::Tribool::kTrue;
   } else {
     original_enabled_ =
-        primary_account.GetAccountCapabilities()
-            .can_use_model_execution_features() == signin::Tribool::kTrue;
+        glic::GlicEnabling::CanUseAdultFeatures(
+            primary_account.GetAccountCapabilities());
   }
 
   SetGlicCapability(profile_, enabled);

@@ -14,6 +14,7 @@
 #include "content/browser/loader/navigation_url_loader.h"
 #include "content/browser/loader/response_head_update_params.h"
 #include "content/browser/navigation_subresource_loader_params.h"
+#include "content/browser/scoped_browser_file_access.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/frame_tree_node_id.h"
 #include "content/public/browser/global_request_id.h"
@@ -168,7 +169,8 @@ class CONTENT_EXPORT NavigationURLLoaderImpl
                              StoragePartitionImpl* storage_partition,
                              FrameTreeNode* frame_tree_node,
                              const ukm::SourceIdObj& ukm_id,
-                             bool* bypass_redirect_checks);
+                             bool* bypass_redirect_checks,
+                             bool allow_same_site_none_cookies_override);
 
   void BindAndInterceptNonNetworkURLLoaderFactoryReceiver(
       const GURL& url,
@@ -315,6 +317,11 @@ class CONTENT_EXPORT NavigationURLLoaderImpl
   std::unique_ptr<NavigationUIData> navigation_ui_data_;
 
   scoped_refptr<network::SharedURLLoaderFactory> network_loader_factory_;
+
+  // Whether `network_loader_factory_` was created with the cookie-setting
+  // override that allows SameSite=None cookies in sandboxed contexts. Tracked
+  // so the factory can be recreated if the value changes after a redirect.
+  bool allow_same_site_none_cookies_override_ = false;
 
   SubresourceLoaderParams subresource_loader_params_;
 
@@ -592,6 +599,12 @@ class CONTENT_EXPORT NavigationURLLoaderImpl
   // it, we still expose some parameters like the worker timing as part of the
   // response.
   ResponseHeadUpdateParams head_update_params_;
+
+  // If the navigation request includes a file upload, this object ensures the
+  // browser process is aware that the Network Service is allowed to read the
+  // files. The files are granted access upon creation and revoked when this
+  // loader is destroyed.
+  std::unique_ptr<ScopedBrowserFileAccess> scoped_browser_file_access_;
 
   base::WeakPtrFactory<NavigationURLLoaderImpl> weak_factory_{this};
 };

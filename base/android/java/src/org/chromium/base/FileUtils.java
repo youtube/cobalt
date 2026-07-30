@@ -4,12 +4,18 @@
 
 package org.chromium.base;
 
+import android.content.ContentResolver;
+import android.content.ContentValues;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
+import android.os.Environment;
 import android.os.ParcelFileDescriptor;
+import android.provider.MediaStore.Downloads;
+import android.provider.MediaStore.MediaColumns;
 
+import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
@@ -20,6 +26,7 @@ import org.chromium.build.annotations.Nullable;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileDescriptor;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -191,8 +198,73 @@ public class FileUtils {
     }
 
     /**
+     * Copies a file from app-private storage into the public Downloads collection.
+     *
+     * @param sourceFilePath Absolute path to the source file.
+     * @return The public content URI string on success, or null on failure.
+     */
+    @CalledByNative
+    public static @JniType("std::optional<std::string>") @Nullable String
+            copyFileToDownloadsCollection(
+                    @JniType("std::string") String sourceFilePath,
+                    @JniType("std::string") String mimeType) {
+        File sourceFile = new File(sourceFilePath);
+        if (!sourceFile.exists()) {
+            Log.e(TAG, "Source file does not exist: " + sourceFilePath);
+            return null;
+        }
+
+        String fileName = sourceFile.getName();
+        Context context = ContextUtils.getApplicationContext();
+        ContentResolver resolver = context.getContentResolver();
+
+        final long now = TimeUtils.currentTimeMillis() / 1000;
+        ContentValues values = new ContentValues();
+        values.put(MediaColumns.TITLE, fileName);
+        values.put(MediaColumns.DISPLAY_NAME, fileName);
+        values.put(MediaColumns.MIME_TYPE, mimeType);
+        values.put(MediaColumns.DATE_ADDED, now);
+        values.put(MediaColumns.DATE_MODIFIED, now);
+        values.put(MediaColumns.IS_PENDING, 1);
+        values.put(MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
+
+        Uri collectionUri = Downloads.EXTERNAL_CONTENT_URI;
+        Uri itemUri = resolver.insert(collectionUri, values);
+        if (itemUri == null) {
+            Log.e(TAG, "Failed to insert item into MediaStore");
+            return null;
+        }
+
+        try (InputStream in = new FileInputStream(sourceFile);
+                OutputStream out = resolver.openOutputStream(itemUri)) {
+            if (out == null) {
+                Log.e(TAG, "Failed to open output stream for MediaStore Uri");
+                return null;
+            }
+            copyStream(in, out);
+        } catch (IOException e) {
+            Log.e(TAG, "Failed to copy file to MediaStore: " + e.getMessage(), e);
+            resolver.delete(itemUri, null, null);
+            return null;
+        }
+
+        ContentValues updateValues = new ContentValues();
+        updateValues.put(MediaColumns.IS_PENDING, 0);
+        try {
+            if (resolver.update(itemUri, updateValues, null, null) == 1) {
+                return itemUri.toString();
+            }
+        } catch (RuntimeException e) {
+            Log.e(TAG, "Failed to update pending status: " + e.getMessage(), e);
+        }
+        resolver.delete(itemUri, null, null);
+        return null;
+    }
+
+    /**
      * Gets the canonicalised absolute pathname for |filePath|. Returns empty string if the path is
      * invalid. This function can result in I/O so it can be slow.
+     *
      * @param filePath Path of the file, has to be a file path instead of a content URI.
      * @return canonicalised absolute pathname for |filePath|.
      */

@@ -40,4 +40,7 @@ id<GREYMatcher> TabWithTitleAndIndex(NSString* title, unsigned int index);
 void WaitForSnackbarTriggeredByTappingItem(NSString* snackbarLabel,
                                            id<GREYMatcher> matcher);
 
+// Opens the overflow menu on the tab grid.
+void OpenTabGridOverflowMenu();
+
 #endif  // IOS_CHROME_BROWSER_TAB_SWITCHER_UI_BUNDLED_TEST_TABS_EGTEST_UTIL_H_

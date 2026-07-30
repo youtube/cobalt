@@ -5,6 +5,8 @@
 #include "third_party/blink/renderer/core/editing/commands/editing_commands_utilities.h"
 
 #include "third_party/blink/renderer/core/dom/static_node_list.h"
+#include "third_party/blink/renderer/core/editing/position.h"
+#include "third_party/blink/renderer/core/editing/selection_template.h"
 #include "third_party/blink/renderer/core/editing/testing/editing_test_base.h"
 #include "third_party/blink/renderer/core/editing/visible_position.h"
 #include "third_party/blink/renderer/core/html/html_body_element.h"
@@ -147,6 +149,115 @@ TEST_F(EditingCommandsUtilitiesTest, IsEndOfBlockWithPosition) {
 
   // Mid position is not end of block.
   EXPECT_FALSE(IsEndOfBlock(Position(text, 3)));
+}
+
+// SnapIntoTableCell -----------------------------------------------------------
+
+TEST_F(EditingCommandsUtilitiesTest, SnapIntoTableCellNullPosition) {
+  // A null position (null anchor) is returned unchanged.
+  EXPECT_TRUE(SnapIntoTableCell(Position(), TableCellEdge::kStart).IsNull());
+}
+
+TEST_F(EditingCommandsUtilitiesTest, SnapIntoTableCellNonTableAnchor) {
+  SetBodyContent("<div id='d'>foo</div>");
+  Element* div = GetElementById("d");
+  // A position anchored on a non-table element is returned unchanged.
+  const Position p(div, 0);
+  EXPECT_EQ(p, SnapIntoTableCell(p, TableCellEdge::kStart));
+}
+
+TEST_F(EditingCommandsUtilitiesTest, SnapIntoTableCellTableAnchorIsExcluded) {
+  SetBodyContent("<table id='t'><tbody><tr><td>foo</td></tr></tbody></table>");
+  Element* table = GetElementById("t");
+  // A position anchored on the <table> element itself is returned unchanged.
+  const Position p(table, 0);
+  EXPECT_EQ(p, SnapIntoTableCell(p, TableCellEdge::kStart));
+}
+
+TEST_F(EditingCommandsUtilitiesTest, SnapIntoTableCellRowAnchorOnCellStart) {
+  SetBodyContent(
+      "<table><tbody><tr id='r'><td id='c0'>foo</td>"
+      "<td id='c1'>bar</td><td id='c2'>baz</td></tr></tbody></table>");
+  Element* row = GetElementById("r");
+  Element* c1 = GetElementById("c1");
+  // (tr, 1) points at the second cell; a start snap descends into it.
+  EXPECT_EQ(Position::FirstPositionInNode(*c1),
+            SnapIntoTableCell(Position(row, 1), TableCellEdge::kStart));
+}
+
+TEST_F(EditingCommandsUtilitiesTest, SnapIntoTableCellRowAnchorOnCellEnd) {
+  SetBodyContent(
+      "<table><tbody><tr id='r'><td id='c0'>foo</td>"
+      "<td id='c1'>bar</td><td id='c2'>baz</td></tr></tbody></table>");
+  Element* row = GetElementById("r");
+  Element* c1 = GetElementById("c1");
+  // (tr, 2) points back at the second cell; an end snap descends into it.
+  EXPECT_EQ(Position::LastPositionInNode(*c1),
+            SnapIntoTableCell(Position(row, 2), TableCellEdge::kEnd));
+}
+
+TEST_F(EditingCommandsUtilitiesTest, SnapIntoTableCellSectionAnchorStart) {
+  SetBodyContent(
+      "<table><tbody id='b'><tr><td id='c0'>foo</td>"
+      "<td id='c2'>baz</td></tr></tbody></table>");
+  Element* section = GetElementById("b");
+  Element* c0 = GetElementById("c0");
+  // (tbody, 0) points at the <tr>; a start snap searches forward to the first
+  // cell.
+  EXPECT_EQ(Position::FirstPositionInNode(*c0),
+            SnapIntoTableCell(Position(section, 0), TableCellEdge::kStart));
+}
+
+TEST_F(EditingCommandsUtilitiesTest, SnapIntoTableCellSectionAnchorEnd) {
+  SetBodyContent(
+      "<table><tbody id='b'><tr><td id='c0'>foo</td>"
+      "<td id='c2'>baz</td></tr></tbody></table>");
+  Element* section = GetElementById("b");
+  Element* c2 = GetElementById("c2");
+  // (tbody, 1) points back at the <tr>; an end snap searches back to the last
+  // cell.
+  EXPECT_EQ(Position::LastPositionInNode(*c2),
+            SnapIntoTableCell(Position(section, 1), TableCellEdge::kEnd));
+}
+
+TEST_F(EditingCommandsUtilitiesTest, SnapIntoTableCellNoChildAtOffset) {
+  SetBodyContent(
+      "<table><tbody><tr id='r'><td id='c0'>foo</td></tr></tbody></table>");
+  Element* row = GetElementById("r");
+  // A start snap past the last child has no node after it: returned unchanged.
+  const Position past_end(row, 1);
+  EXPECT_EQ(past_end, SnapIntoTableCell(past_end, TableCellEdge::kStart));
+  // An end snap before the first child has no node before it: unchanged.
+  const Position before_start(row, 0);
+  EXPECT_EQ(before_start, SnapIntoTableCell(before_start, TableCellEdge::kEnd));
+}
+
+TEST_F(EditingCommandsUtilitiesTest, SnapIntoTableCellNoCellInScope) {
+  SetBodyContent("<table><tbody id='b'><tr></tr></tbody></table>");
+  Element* section = GetElementById("b");
+  // The <tr> contains no cell, so the search finds none and returns unchanged.
+  const Position p(section, 0);
+  EXPECT_EQ(p, SnapIntoTableCell(p, TableCellEdge::kStart));
+}
+
+// SelectionForParagraphIteration (SelectionInDomTree) -------------------------
+// Note: the table-boundary adjustments and per-cell snapping inside this
+// function are exercised end-to-end by external/wpt/editing/run/indent.html and
+// formatblock.html (via ApplyBlockElementCommand under
+// EditingUseDomPositionApi) and by the SnapIntoTableCell unit tests above. They
+// depend on the caller's surrounding canonicalization and so are not asserted
+// in isolation here.
+
+TEST_F(EditingCommandsUtilitiesTest, SelectionForParagraphIterationNone) {
+  EXPECT_TRUE(SelectionForParagraphIteration(SelectionInDomTree()).IsNone());
+}
+
+TEST_F(EditingCommandsUtilitiesTest, SelectionForParagraphIterationNoTable) {
+  const SelectionInDomTree selection =
+      SetSelectionTextToBody("<div contenteditable>^foo|</div>");
+  EXPECT_EQ(
+      "<div contenteditable>^foo|</div>",
+      GetSelectionTextFromBody(SelectionForParagraphIteration(selection)));
 }
 
 }  // namespace blink

@@ -1,7 +1,0 @@
-This is a testharness.js-based test.
-[PRECONDITION_FAILED] Create requires sticky user activation when availability is "downloadable"
-  Model should be downloadable
-[PRECONDITION_FAILED] Create succeeds with user activation when availability is "downloadable"
-  Model should be downloadable
-Harness: the test ran to completion.
-

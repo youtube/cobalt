@@ -410,6 +410,50 @@ TEST_F(UDPSocketTest, ConnectRestrictedPort) {
                                      server_address.port(), 1);
 }
 
+TEST_F(UDPSocketTest, ConnectUsingNetworkRestrictedPort) {
+  base::HistogramTester histogram_tester;
+  base::test::ScopedFeatureList feature_list;
+  UDPServerSocket server(NetLog::Get(), NetLogSource());
+  server.AllowAddressReuse();
+  ASSERT_THAT(server.Listen(IPEndPoint(IPAddress::IPv4Localhost(), 0)), IsOk());
+  IPEndPoint server_address;
+  ASSERT_THAT(server.GetLocalAddress(&server_address), IsOk());
+  feature_list.InitAndEnableFeatureWithParameters(
+      features::kRestrictAbusePortsOnLocalhost,
+      {{"localhost_restrict_ports",
+        base::NumberToString(server_address.port())}});
+  ReloadLocalhostRestrictedPortsForTesting();
+
+  auto client = std::make_unique<UDPClientSocket>(
+      DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource(),
+      handles::kInvalidNetworkHandle);
+  EXPECT_THAT(client->ConnectUsingNetwork(1234, server_address),
+              IsError(ERR_UNSAFE_PORT));
+  histogram_tester.ExpectTotalCount("Net.RestrictedLocalhostPorts", 1);
+}
+
+TEST_F(UDPSocketTest, ConnectUsingDefaultNetworkRestrictedPort) {
+  base::HistogramTester histogram_tester;
+  base::test::ScopedFeatureList feature_list;
+  UDPServerSocket server(NetLog::Get(), NetLogSource());
+  server.AllowAddressReuse();
+  ASSERT_THAT(server.Listen(IPEndPoint(IPAddress::IPv4Localhost(), 0)), IsOk());
+  IPEndPoint server_address;
+  ASSERT_THAT(server.GetLocalAddress(&server_address), IsOk());
+  feature_list.InitAndEnableFeatureWithParameters(
+      features::kRestrictAbusePortsOnLocalhost,
+      {{"localhost_restrict_ports",
+        base::NumberToString(server_address.port())}});
+  ReloadLocalhostRestrictedPortsForTesting();
+
+  auto client = std::make_unique<UDPClientSocket>(
+      DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource(),
+      handles::kInvalidNetworkHandle);
+  EXPECT_THAT(client->ConnectUsingDefaultNetwork(server_address),
+              IsError(ERR_UNSAFE_PORT));
+  histogram_tester.ExpectTotalCount("Net.RestrictedLocalhostPorts", 1);
+}
+
 #if BUILDFLAG(IS_WIN)
 TEST_F(UDPSocketTest, ConnectNonBlocking) {
   ConnectTest(true, false);

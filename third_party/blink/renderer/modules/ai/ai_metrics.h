@@ -27,7 +27,8 @@ class MODULES_EXPORT AIMetrics {
     kLanguageDetector = 5,
     kProofreader = 6,
     kClassifier = 7,
-    kMaxValue = kClassifier,
+    kSemanticEmbedder = 8,
+    kMaxValue = kSemanticEmbedder,
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/ai/histograms.xml:SessionType)
 

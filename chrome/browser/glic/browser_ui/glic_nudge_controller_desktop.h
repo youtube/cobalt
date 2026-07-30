@@ -9,6 +9,8 @@
 #include "chrome/browser/glic/browser_ui/glic_nudge_controller.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/tab_list/tab_list_interface_observer.h"
+#include "components/tabs/public/tab_interface.h"
+#include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 
 class BrowserWindowInterface;
 class TabListInterface;
@@ -16,7 +18,7 @@ class ScopedCallToActionLock;
 
 namespace glic {
 
-class GlicNudgeDelegate;
+class GlicSplitButtonDelegate;
 
 class GlicNudgeControllerDesktop : public GlicNudgeController,
                                    public TabListInterfaceObserver {
@@ -40,9 +42,10 @@ class GlicNudgeControllerDesktop : public GlicNudgeController,
   // TabListInterfaceObserver:
   void OnActiveTabChanged(TabListInterface& tab_list,
                           tabs::TabInterface* tab) override;
+  void OnTabListDestroyed(TabListInterface& tab_list) override;
 
-  void SetTabStripDelegate(GlicNudgeDelegate* delegate) override;
-  void SetToolbarDelegate(GlicNudgeDelegate* delegate) override;
+  void SetTabStripDelegate(GlicSplitButtonDelegate* delegate) override;
+  void SetToolbarDelegate(GlicSplitButtonDelegate* delegate) override;
 
   void SetNudgeActivityCallbackForTesting();
 
@@ -50,21 +53,24 @@ class GlicNudgeControllerDesktop : public GlicNudgeController,
   void ClearPromptSuggestion() override;
 
  private:
-  GlicNudgeDelegate* GetActiveDelegate();
+  GlicSplitButtonDelegate* GetActiveDelegate();
 
   const raw_ptr<BrowserWindowInterface> browser_window_interface_;
   const raw_ptr<TabListInterface> tab_list_;
 
-  raw_ptr<GlicNudgeDelegate> tab_strip_delegate_ = nullptr;
-  raw_ptr<GlicNudgeDelegate> toolbar_delegate_ = nullptr;
+  tabs::TabHandle nudged_tab_handle_;
+  raw_ptr<GlicSplitButtonDelegate> tab_strip_delegate_ = nullptr;
+  raw_ptr<GlicSplitButtonDelegate> toolbar_delegate_ = nullptr;
 
-  std::unique_ptr<GlicNudgeDelegate> anchored_nudge_controller_;
+  std::unique_ptr<GlicSplitButtonDelegate> anchored_nudge_controller_;
   std::optional<std::string> prompt_suggestion_;
   GlicNudgeActivityCallback nudge_activity_callback_;
 
   base::ScopedObservation<TabListInterface, TabListInterfaceObserver>
       tab_list_observation_{this};
   std::unique_ptr<ScopedCallToActionLock> scoped_call_to_action_lock_;
+
+  ui::ScopedUnownedUserData<GlicNudgeController> scoped_unowned_user_data_;
 };
 
 }  // namespace glic

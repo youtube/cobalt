@@ -339,6 +339,13 @@ void WebUsbServiceImpl::GetPermission(
     return;
   }
 
+  if (!render_frame_host_) {
+    mojo::ReportBadMessage(
+        "GetPermission is not allowed from a service worker.");
+    std::move(callback).Run(nullptr);
+    return;
+  }
+
   usb_chooser_ = delegate->RunChooser(*render_frame_host_, std::move(options),
                                       std::move(callback));
 }

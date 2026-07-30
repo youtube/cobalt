@@ -30,6 +30,7 @@
 #import "ios/chrome/browser/shared/model/browser/browser_user_data.h"
 #import "ios/chrome/browser/tabs/model/tabs_dependency_installer.h"
 #import "ios/public/provider/chrome/browser/bwg/gemini_api.h"
+#import "ios/web/public/web_state_id.h"
 
 class Browser;
 class FullscreenController;
@@ -136,6 +137,9 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   // Dismisses the floaty and resets the Gemini flow.
   void DismissFloaty();
 
+  // Called when the tab picker selection changes.
+  void OnTabPickerSelectionChanged(std::set<web::WebStateID> selected_tabs);
+
   // Hide Gemini floaty with `animated` flag. When in a hidden state, the floaty
   // view is dismissed but still persists in memory and needs to be properly
   // cleaned up. Properly cleaning up the floaty can be done by resetting the
@@ -157,6 +161,8 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
       ios::provider::GeminiViewState view_state) override;
   void OnLiveButtonTapped() override;
   void OnGeminiLiveUserDidBargeIn() override;
+  void OnGeminiLiveUserDidPressStopButton() override;
+  void OnModeChanged(ios::provider::GeminiViewMode mode) override;
   void OnGeminiUIDidAppear() override;
 
   // Called when the scene activation level changes.
@@ -257,7 +263,7 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   void SetIsShowingLiveSessionDormantSnackbar(bool showing);
 
   // Updates the Gemini Live leading icon visibility in the location bar.
-  void UpdateGeminiLiveIconVisibility();
+  void UpdateGeminiLiveIconVisibility(bool animated = true);
 
   // Returns the floaty offset based on current fullscreen progress.
   CGFloat GetFloatyOffset();
@@ -279,6 +285,10 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   // Forces the floaty to be dismissed and cleaned up, ignoring if it is
   // temporarily hidden.
   void ForceDismissFloaty();
+
+  // Switches the view mode to Floaty (i.e., chat) mode if the current page is
+  // eligible, or dismisses the floaty if ineligible.
+  void SwitchToChatModeOrDismiss(bool animated);
 
   // Whether to allow the floaty to be shown given a `source`. If not allowed,
   // the floaty state will be as if a floaty was never shown.
@@ -334,6 +344,10 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
 
   // Called when the page content sharing preference changes.
   void OnPageContentPrefChanged();
+
+  // Clears the set of attached tabs if it doesn't include the active web
+  // state.
+  void UpdateAttachedTabsForActiveWebState(web::WebState* active_web_state);
 
   // The gateway for bridging internal protocols.
   __strong id<BWGGatewayProtocol> bwg_gateway_ = nullptr;
@@ -392,6 +406,9 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
 
   // Whether the keyboard is currently visible.
   bool is_keyboard_visible_ = false;
+
+  // The set of tabs currently attached to the floaty. Includes the active tab.
+  std::set<web::WebStateID> attached_tabs_;
 
   // Used to track the last shown view state of an invoked floaty. Used to show
   // a hidden floaty with the previous view state.

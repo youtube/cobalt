@@ -112,6 +112,7 @@ public class ActorForegroundServiceManager implements ActorKeyedService.Observer
     private void setKeyedService(@Nullable ActorKeyedService service) {
         if (mKeyedService != null) {
             mKeyedService.removeObserver(this);
+            mKeyedService.removeObserver(ActorMetrics.getInstance());
             // If we are switching or clearing, clear state.
             mActiveTaskIds.clear();
             if (mNotificationService != null) {
@@ -121,6 +122,7 @@ public class ActorForegroundServiceManager implements ActorKeyedService.Observer
         mKeyedService = service;
         if (mKeyedService != null) {
             mKeyedService.addObserver(this);
+            mKeyedService.addObserver(ActorMetrics.getInstance());
             if (mNotificationService == null) {
                 mNotificationService = new ActorNotificationService(mKeyedService);
             }

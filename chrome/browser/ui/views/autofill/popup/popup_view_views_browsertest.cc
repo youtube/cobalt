@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
-#include "build/buildflag.h"
 #include "chrome/browser/ui/autofill/autofill_popup_view.h"
 #include "chrome/browser/ui/autofill/mock_autofill_popup_controller.h"
 #include "chrome/browser/ui/views/autofill/popup/popup_bnpl_footnote_view.h"
@@ -25,11 +24,6 @@
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/browser/ui/tabbed_pane_enums.h"
 #include "components/autofill/core/common/aliases.h"
-#include "components/autofill/core/common/autofill_test_utils.h"
-#include "components/plus_addresses/core/browser/fake_plus_address_allocator.h"
-#include "components/plus_addresses/core/browser/fake_plus_address_service.h"
-#include "components/plus_addresses/core/browser/plus_address_test_utils.h"
-#include "components/plus_addresses/core/browser/settings/fake_plus_address_setting_service.h"
 #include "components/strings/grit/components_strings.h"
 #include "content/public/test/browser_test.h"
 #include "testing/gmock/include/gmock/gmock.h"

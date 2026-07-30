@@ -16,7 +16,6 @@
 #include "content/public/test/browser_test.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/ui_base_switches.h"
-#include "ui/views/test/views_test_base.h"
 #include "ui/views/widget/widget.h"
 
 namespace autofill {

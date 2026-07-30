@@ -42,28 +42,17 @@ class FastPairHandshake {
   using OnCompleteCallback =
       base::OnceCallback<void(scoped_refptr<Device>,
                               std::optional<PairFailure>)>;
-  using OnCompleteCallbackNew = base::OnceCallback<void(scoped_refptr<Device>)>;
-  using OnFailureCallback =
-      base::OnceCallback<void(std::optional<PairFailure>)>;
   using OnBleAddressRotationCallback = base::OnceClosure;
 
-  // TODO(b/265853116): After the Fast Pair Handshake code is refactored remove
-  // this constructor in favor of the two argument constructor below.
   FastPairHandshake(
       scoped_refptr<device::BluetoothAdapter> adapter,
       scoped_refptr<Device> device,
       OnCompleteCallback on_complete,
       std::unique_ptr<FastPairDataEncryptor> data_encryptor,
       std::unique_ptr<FastPairGattServiceClient> gatt_service_client);
-  FastPairHandshake(scoped_refptr<device::BluetoothAdapter> adapter,
-                    scoped_refptr<Device> device);
   FastPairHandshake(const FastPairHandshake&) = delete;
   FastPairHandshake& operator=(const FastPairHandshake&) = delete;
   virtual ~FastPairHandshake();
-
-  virtual void SetUpHandshake(OnFailureCallback on_failure_callback,
-                              OnCompleteCallbackNew on_success_callback) = 0;
-  virtual void Reset() = 0;
 
   bool completed_successfully() { return completed_successfully_; }
 
@@ -92,8 +81,6 @@ class FastPairHandshake {
   // TODO(b/265853116): Audit FastPairHandshake code once refactor is completed
   // and legacy code is removed.
   OnCompleteCallback on_complete_callback_;
-  OnCompleteCallbackNew on_complete_callback_new_;
-  OnFailureCallback on_failure_callback_;
   std::unique_ptr<FastPairDataEncryptor> fast_pair_data_encryptor_;
 
   // This callback will only be set if a BLE Address rotation happens during a

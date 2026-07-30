@@ -6,6 +6,7 @@ include_rules = [
   "+components/prefs",
   "+components/signin/public/identity_manager",
   "+components/personal_context/core",
+  "+components/personal_context/proto",
   "+components/subscription_eligibility",
   "+components/sync_preferences",
   "+components/sync/protocol",

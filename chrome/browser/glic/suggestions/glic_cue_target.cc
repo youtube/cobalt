@@ -4,11 +4,11 @@
 
 #include "chrome/browser/glic/suggestions/glic_cue_target.h"
 
-#include <algorithm>
 #include <utility>
 
 #include "base/notimplemented.h"
 #include "base/strings/stringprintf.h"
+#include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_controller.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_metrics.h"
 #include "chrome/browser/contextual_cueing/cueing_log.h"
@@ -21,8 +21,10 @@
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_passkeys.h"
 #include "chrome/browser/glic/resources/grit/glic_browser_resources.h"
+#include "chrome/browser/glic/suggestions/glic_cue_tab_state.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
+#include "chrome/browser/page_content_annotations/page_content_annotations_service_factory.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -30,6 +32,7 @@
 #include "components/pdf/common/constants.h"
 #include "components/prefs/pref_service.h"
 #include "components/tabs/public/tab_handle_factory.h"
+#include "content/public/browser/web_contents.h"
 #include "ui/base/models/image_model.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/gfx/image/image_skia.h"
@@ -67,6 +70,7 @@ GlicCueTarget::GlicCueTarget(
     : glic_keyed_service_(glic_keyed_service),
       optimization_guide_keyed_service_(optimization_guide_keyed_service),
       browser_window_interface_(browser_window_interface) {}
+
 GlicCueTarget::~GlicCueTarget() = default;
 
 contextual_cueing::CueTargetType GlicCueTarget::GetType() const {
@@ -77,18 +81,27 @@ void GlicCueTarget::CheckEligibility(
     base::WeakPtr<content::WebContents> web_contents,
     contextual_cueing::CueIntrusiveness intrusiveness,
     EligibilityCallback callback) {
-  // TODO(b/520159219): Placeholder stub. Glic eligibility logic is wired up
-  // in upcoming CLs.
-  // TODO(b/520159219): To avoid reentrancy issues with barrier callbacks, post
-  // this callback to the main thread task runner instead of running
-  // synchronously.
-  std::move(callback).Run(false, ContentGenerator());
+  if (!web_contents) {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(std::move(callback), false, ContentGenerator()));
+    return;
+  }
+
+  GlicCueTabState::CreateForWebContents(web_contents.get());
+  GlicCueTabState::FromWebContents(web_contents.get())
+      ->CheckEligibility(intrusiveness, std::move(callback), this);
 }
 
 bool GlicCueTarget::IsPageEligible(
     const page_content_annotations::PageContentAnnotationsResult& result,
     content::WebContents* active_web_contents) const {
   if (!active_web_contents) {
+    return false;
+  }
+
+  if (result.GetType() !=
+      page_content_annotations::AnnotationType::kCategoryClassifier) {
     return false;
   }
 

@@ -107,8 +107,8 @@ def GenerateAutofillFieldPredictionQualityByFieldType():
     result[256 * enum_id + 5] = f'{enum_name}: False Positive (Ambiguous)'
     result[256 * enum_id + 6] = f'{enum_name}: False Positive (Unknown)'
     result[256 * enum_id + 7] = f'{enum_name}: False Positive (Empty)'
-    result[256 * enum_id + 8] = f'{enum_name}: False Negative (Mismatch)'
-    result[256 * enum_id + 9] = f'{enum_name}: False Negative (Unknown)'
+    result[256 * enum_id + 8] = f'{enum_name}: False Negative (Unknown)'
+    result[256 * enum_id + 9] = f'{enum_name}: False Negative (Mismatch)'
   return result
 
 

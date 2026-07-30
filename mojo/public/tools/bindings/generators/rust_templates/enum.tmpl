@@ -4,9 +4,18 @@
 {# Hash and Eq are needed because enums can be keys in (hash)maps. -#}
 #[derive(Debug, PartialEq, Clone, PrimitiveEnum, Hash, Eq)]
 pub enum {{name}} {
-{%- for field in enum.fields %}
+{%- for field in enum|get_canonical_enum_fields %}
   {{field.name}} = {{field.numeric_value}},
 {%- endfor %}
 }
+{%- set duplicates = enum|get_duplicate_enum_fields %}
+{%- if duplicates %}
+
+impl {{name}} {
+{%- for dup in duplicates %}
+  pub const {{dup.name}}: Self = Self::{{dup.canonical_name}};
+{%- endfor %}
+}
+{%- endif %}
 
 {%- endmacro -%}

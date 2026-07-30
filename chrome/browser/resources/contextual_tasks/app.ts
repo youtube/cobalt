@@ -378,8 +378,10 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
   // Whether the composebox jump fix is enabled. This fix hides the composebox
   // until the server gives the embedded page gives the initial bounds for the
   // composebox.
+  // <if expr="not is_android or is_desktop_android">
   private enableComposeboxJumpFix_: boolean =
       loadTimeData.getBoolean('enableComposeboxJumpFix');
+  // </if>
   private enableGhostLoader_: boolean =
       loadTimeData.getBoolean('enableGhostLoader');
   // A callback to allow tests to wait until the popstate handler in this class
@@ -1214,10 +1216,14 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
 
     // If on an AI page and not the zero state, only show the composebox if the
     // forcedcomposeboxBounds are set. No-op if the feature flag is not enabled.
+    // On standard mobile Android, since we have no guest-to-host script
+    // communication the bounds will never be set, so we must not hide the composebox.
+    // <if expr="not is_android or is_desktop_android">
     if (this.enableComposeboxJumpFix_ && this.isAiPage_ && !this.isZeroState_ &&
         !this.forcedComposeboxBounds_) {
       return true;
     }
+    // </if>
 
     // In all other cases, show the composebox.
     return false;
@@ -1408,7 +1414,12 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
     // the pending URL.
     if (this.pendingUrl_ && this.commonSearchParams_ &&
         !this.isErrorPageVisible_) {
-      this.$.threadFrame.src = this.pendingUrl_;
+      if (!isFullWebView(this.$.threadFrame)) {
+        const url = new URL(this.pendingUrl_);
+        this.$.threadFrame.src = this.addCommonSearchParams(url).href;
+      } else {
+        this.$.threadFrame.src = this.pendingUrl_;
+      }
       this.pendingUrl_ = '';
     }
   }
@@ -1504,7 +1515,8 @@ export class ContextualTasksAppElement extends ContextualTasksAppElementBase {
   }
 
   private addCommonSearchParams(url: URL): URL {
-    if (!this.commonSearchParams_) {
+    if (!this.commonSearchParams_ ||
+        (url.protocol !== 'http:' && url.protocol !== 'https:')) {
       return url;
     }
     for (const [key, value] of Object.entries(this.commonSearchParams_)) {

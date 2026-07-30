@@ -20,12 +20,10 @@
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/message_loop/message_pump_for_io.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/synchronization/lock.h"
 #include "base/task/current_thread.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/task_runner.h"
-#include "base/time/time.h"
 #include "base/types/fixed_array.h"
 #include "build/build_config.h"
 #include "chromeos/ash/components/mojo_proxy/mojo_core/public/cpp/platform/socket_utils_posix.h"
@@ -46,13 +44,10 @@ const size_t kMaxBatchReadCapacity = 256 * 1024;
 class MessageView {
  public:
   // Owns |message|. |offset| indexes the first unsent byte in the message.
-  MessageView(Channel::MessagePtr message,
-              size_t offset,
-              base::TimeTicks start_time = base::TimeTicks::Now())
+  MessageView(Channel::MessagePtr message, size_t offset)
       : message_(std::move(message)),
         offset_(offset),
-        handles_(message_->TakeHandles()),
-        start_time_(start_time) {
+        handles_(message_->TakeHandles()) {
     DCHECK(!message_->data_num_bytes() || message_->data_num_bytes() > offset_);
   }
 
@@ -62,17 +57,6 @@ class MessageView {
 
   MessageView(const MessageView&) = delete;
   MessageView& operator=(const MessageView&) = delete;
-
-  ~MessageView() {
-    if (message_ && base::ShouldRecordSubsampledMetric(
-                        Channel::kMetricSubsamplingProbability)) {
-      base::TimeDelta latency = base::TimeTicks::Now() - start_time_;
-      UMA_HISTOGRAM_TIMES("Mojo.Channel.WriteMessageLatency", latency);
-      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES("Mojo.Channel.WriteLatencyUs",
-                                              latency, base::Microseconds(1),
-                                              base::Seconds(1), 100);
-    }
-  }
 
   const void* data() const {
     return UNSAFE_TODO(static_cast<const char*>(message_->data()) + offset_);
@@ -111,8 +95,6 @@ class MessageView {
   size_t offset_;
   std::vector<PlatformHandleInTransit> handles_;
   size_t num_handles_sent_ = 0;
-
-  base::TimeTicks start_time_;
 };
 
 ChannelPosix::ChannelPosix(
@@ -148,10 +130,6 @@ void ChannelPosix::ShutDownImpl() {
 }
 
 void ChannelPosix::Write(MessagePtr message) {
-  RecordSentMessageMetricsSubsampled(message->data_num_bytes());
-
-  base::TimeTicks start_time = base::TimeTicks::Now();
-
   bool write_error = false;
   {
     base::AutoLock lock(write_lock_);
@@ -159,11 +137,11 @@ void ChannelPosix::Write(MessagePtr message) {
       return;
     }
     if (outgoing_messages_.empty()) {
-      if (!WriteNoLock(MessageView(std::move(message), 0, start_time))) {
+      if (!WriteNoLock(MessageView(std::move(message), 0))) {
         reject_writes_ = write_error = true;
       }
     } else {
-      outgoing_messages_.emplace_back(std::move(message), 0, start_time);
+      outgoing_messages_.emplace_back(std::move(message), 0);
     }
   }
   if (write_error) {
@@ -191,20 +169,14 @@ bool ChannelPosix::GetReadPlatformHandles(
     return false;
   }
 
-  return GetReadPlatformHandlesForIpcz(num_handles, *handles);
-}
-
-bool ChannelPosix::GetReadPlatformHandlesForIpcz(
-    size_t num_handles,
-    std::vector<PlatformHandle>& handles) {
   if (incoming_fds_.size() < num_handles) {
     return true;
   }
 
-  DCHECK(handles.empty());
-  handles.reserve(num_handles);
+  DCHECK(handles->empty());
+  handles->reserve(num_handles);
   while (num_handles--) {
-    handles.emplace_back(std::move(incoming_fds_.front()));
+    handles->emplace_back(std::move(incoming_fds_.front()));
     incoming_fds_.pop_front();
   }
   return true;
@@ -459,11 +431,6 @@ bool ChannelPosix::FlushOutgoingMessagesNoLock() {
   base::circular_deque<MessageView> messages;
   std::swap(outgoing_messages_, messages);
 
-  if (!messages.empty()) {
-    UMA_HISTOGRAM_COUNTS_1000("Mojo.Channel.WriteQueuePendingMessages2",
-                              messages.size());
-  }
-
   while (!messages.empty()) {
     if (!WriteNoLock(std::move(messages.front()))) {
       return false;
@@ -525,6 +492,13 @@ bool ChannelPosix::OnControlMessage(Message::MessageType message_type,
       RejectPreIpczUpgradeOffer();
       return true;
     }
+    case Message::MessageType::UPGRADE_ACCEPT:
+    case Message::MessageType::UPGRADE_REJECT:
+      // A node that never offers channel upgrades should never receive
+      // these, but tolerate them like ChannelLinux did before the (ipcz-only)
+      // upgrade machinery was removed from this frozen copy.
+      LOG(ERROR) << "Ignoring unexpected channel upgrade response";
+      return true;
 #if BUILDFLAG(IS_IOS)
     case Message::MessageType::HANDLES_SENT: {
       if (payload_size == 0) {
@@ -608,21 +582,5 @@ scoped_refptr<Channel> Channel::Create(
                           io_task_runner);
 #endif
 }
-
-#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID))
-// static
-bool Channel::SupportsChannelUpgrade() {
-  return ChannelLinux::KernelSupportsUpgradeRequirements() &&
-         ChannelLinux::UpgradesEnabled();
-}
-
-void Channel::OfferChannelUpgrade() {
-  if (!SupportsChannelUpgrade()) {
-    return;
-  }
-  static_cast<ChannelLinux*>(this)->OfferSharedMemUpgrade();
-}
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) ||
-        // BUILDFLAG(IS_ANDROID)
 
 }  // namespace mojo_legacy::core

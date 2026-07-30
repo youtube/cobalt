@@ -120,7 +120,11 @@
     "required fields": [
       [ "Id" ]
     ],
-    "import constraints": [],
+    "import constraints": [
+      [ "Id", "Merchant name", "Date" ],
+      [ "Id", "Merchant domain", "Date" ],
+      [ "Id", "Product names", "Date" ]
+    ],
     "merge constraints": [
       [ "Id" ]
     ],
@@ -136,7 +140,10 @@
     "required fields": [
       [ "Tracking number" ]
     ],
-    "import constraints": [],
+    "import constraints": [
+      [ "Tracking number", "Merchant name", "Shipped date" ],
+      [ "Tracking number", "Product names", "Shipped date" ]
+    ],
     "merge constraints": [
       [ "Tracking number" ]
     ],

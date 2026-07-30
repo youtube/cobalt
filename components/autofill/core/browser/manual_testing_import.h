@@ -176,9 +176,6 @@ std::optional<std::vector<EntityInstance>> EntitiesFromJSON(
 void MaybeImportProfilesAndCardsForTesting(
     base::WeakPtr<PersonalDataManager> pdm);
 void MaybeImportEntitiesForTesting(base::WeakPtr<EntityDataManager> edm);
-void MaybeImportEntitiesForTesting(
-    base::WeakPtr<PersonalContextAccessManagerImpl>
-        personal_context_access_manager);
 
 }  // namespace autofill
 

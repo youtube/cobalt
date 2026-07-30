@@ -76,12 +76,6 @@ public class CookieControlsBridge {
         }
     }
 
-    public void onEntryPointAnimated() {
-        if (mNativeCookieControlsBridge != 0) {
-            CookieControlsBridgeJni.get().onEntryPointAnimated(mNativeCookieControlsBridge);
-        }
-    }
-
     /** Destroys the native counterpart of this class. */
     public void destroy() {
         if (mNativeCookieControlsBridge != 0) {
@@ -100,16 +94,6 @@ public class CookieControlsBridge {
             @CookieControlsEnforcement int enforcement,
             long expiration) {
         mObserver.onStatusChanged(controlsState, enforcement, expiration);
-    }
-
-    @CalledByNative
-    private void onHighlightCookieControl(boolean shouldHighlight) {
-        mObserver.onHighlightCookieControl(shouldHighlight);
-    }
-
-    @CalledByNative
-    private void onHighlightPwaCookieControl() {
-        mObserver.onHighlightPwaCookieControl();
     }
 
     @NativeMethods
@@ -132,8 +116,6 @@ public class CookieControlsBridge {
                 long nativeCookieControlsBridge, boolean blockCookies);
 
         void onUiClosing(long nativeCookieControlsBridge);
-
-        void onEntryPointAnimated(long nativeCookieControlsBridge);
 
         boolean isCookieControlsEnabled(BrowserContextHandle browserContextHandle);
     }

@@ -12,7 +12,7 @@
 #include "components/webapps/common/web_app_id.h"
 #include "ui/gfx/geometry/rect.h"
 
-class Browser;
+class BrowserWindowInterface;
 class GURL;
 
 namespace aura {
@@ -33,6 +33,8 @@ class BaseWindow;
 
 namespace ash {
 
+class SystemWebAppDelegate;
+
 // Abstraction of the `Browser` class from chrome/browser/ui/browser.h for use
 // by ChromeOS feature code. See README.md.
 class BrowserDelegate {
@@ -41,7 +43,7 @@ class BrowserDelegate {
   // NOTE: This function is here only temporarily to facilitate transitioning
   // code from Browser to BrowserDelegate incrementally. See also
   // BrowserController::GetDelegate.
-  virtual Browser& GetBrowser() const = 0;
+  virtual BrowserWindowInterface& GetBrowser() const = 0;
 
   // Returns the browser's type.
   virtual BrowserType GetType() const = 0;
@@ -56,6 +58,15 @@ class BrowserDelegate {
   // Returns whether the browser is off the record, i.e. incognito or in a guest
   // session.
   virtual bool IsOffTheRecord() const = 0;
+
+  // Returns whether the browser was created by StartupBrowserCreator. Mutually
+  // exclusive with `IsCreatedBySessionRestoreForStartupUrls`.
+  virtual bool IsCreatedByStartupCreator() const = 0;
+
+  // Returns whether the browser was created by SessionRestore to open
+  // startup URLs for the LAST_AND_URLS preference. Mutually exclusive with
+  // `IsCreatedByStartupCreator`.
+  virtual bool IsCreatedBySessionRestoreForStartupUrls() const = 0;
 
   // Returns the browser window's current bounds.
   virtual gfx::Rect GetBounds() const = 0;
@@ -89,6 +100,10 @@ class BrowserDelegate {
 
   // Returns whether the browser is a web app window/pop-up.
   virtual bool IsWebApp() const = 0;
+
+  // Returns the SystemWebAppDelegate if this browser is hosting a system web
+  // app, or nullptr otherwise.
+  virtual const SystemWebAppDelegate* GetSWADelegate() const = 0;
 
   // Returns true during the initial phase of the browser being closed, when
   // `beforeunload` handlers are running (async). It may be aborted.

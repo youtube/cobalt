@@ -37,7 +37,8 @@ from pathlib import Path
 sys.path.append(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'clang',
                  'scripts'))
-from build import (AddZlibToPath, GetLibXml2Dirs, CheckoutGitRepo)
+from build import (AddZlibToPath, CheckoutGitRepo, GetLatestCommit,
+                   GetLibXml2Dirs)
 
 from update_rust import (CHROMIUM_DIR, CRUBIT_REVISION, RUST_TOOLCHAIN_OUT_DIR)
 
@@ -61,9 +62,7 @@ EXE = '.exe' if sys.platform == 'win32' else ''
 def GetLatestCrubitCommit():
     """Get the latest commit hash in the Crubit repo."""
     url = CRUBIT_GIT + '/+/refs/heads/upstream/main?format=JSON'
-    main = json.loads(
-        urllib.request.urlopen(url).read().decode("utf-8").replace(")]}'", ""))
-    return main['commit']
+    return GetLatestCommit(url)
 
 
 def GetCcBindingsFromRsRustFlags():

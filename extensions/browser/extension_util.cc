@@ -581,9 +581,7 @@ bool IsExtensionDownload(const download::DownloadItem& download_item) {
     return false;
   }
 
-  if (download_item.GetMimeType() == Extension::kMimeType ||
-      UserScript::IsURLUserScript(download_item.GetURL(),
-                                  download_item.GetMimeType())) {
+  if (download_item.GetMimeType() == Extension::kMimeType) {
     return true;
   }
   return false;

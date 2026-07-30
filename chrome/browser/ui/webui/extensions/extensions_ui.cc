@@ -145,7 +145,7 @@ content::WebUIDataSource* CreateAndAddExtensionsSource(Profile* profile,
       {"safetyCheckExtensionsKeep", IDS_CONFIRM_DOWNLOAD},
       {"stackTrace", IDS_EXTENSIONS_ERROR_STACK_TRACE},
       {"sidebarDiscoverMore", IDS_EXTENSIONS_SIDEBAR_DISCOVER_MORE},
-      {"sidebarDocsPromo", IDS_EXTENSIONS_WHATS_NEW_SIDEBAR_PROMO},
+      {"sidebarDocsPromo", IDS_EXTENSIONS_MODERN_WEB_GUIDANCE_PROMO},
       {"keyboardShortcuts", IDS_EXTENSIONS_SIDEBAR_KEYBOARD_SHORTCUTS},
       {"incognitoInfoWarning", IDS_EXTENSIONS_INCOGNITO_WARNING},
       {"userScriptInfoWarning", IDS_EXTENSIONS_ALLOW_USER_SCRIPTS_WARNING},
@@ -219,6 +219,7 @@ content::WebUIDataSource* CreateAndAddExtensionsSource(Profile* profile,
       {"extensionIcon", IDS_EXTENSIONS_EXTENSION_ICON},
       {"extensionA11yAssociation", IDS_EXTENSIONS_EXTENSION_A11Y_ASSOCIATION},
       {"extensionsSectionHeader", IDS_EXTENSIONS_SECTION_HEADER},
+      {"pinNewExtensions", IDS_EXTENSIONS_PIN_NEW_EXTENSIONS},
       {"itemIdHeading", IDS_EXTENSIONS_ITEM_ID_HEADING},
       {"extensionEnabled", IDS_EXTENSIONS_EXTENSION_ENABLED},
       {"appEnabled", IDS_EXTENSIONS_APP_ENABLED},
@@ -457,10 +458,10 @@ content::WebUIDataSource* CreateAndAddExtensionsSource(Profile* profile,
               g_browser_process->GetApplicationLocale())
               .spec()));
   source->AddString(
-      "extensionsWhatsNewURL",
+      "modernWebGuidanceURL",
       base::ASCIIToUTF16(google_util::AppendGoogleLocaleParam(
                              extension_urls::AppendUtmSource(
-                                 extension_urls::GetDocsWhatsNewURL(),
+                                 extension_urls::GetModernWebGuidanceURL(),
                                  extension_urls::kExtensionsSidebarUtmSource),
                              g_browser_process->GetApplicationLocale())
                              .spec()));
@@ -468,6 +469,9 @@ content::WebUIDataSource* CreateAndAddExtensionsSource(Profile* profile,
       "hostPermissionsLearnMoreLink",
       extension_permissions_constants::kRuntimeHostPermissionsHelpURL);
   source->AddBoolean(kInDevModeKey, in_dev_mode);
+  source->AddBoolean(
+      "enableExtensionsPinnedByDefault",
+      base::FeatureList::IsEnabled(features::kExtensionsPinnedByDefault));
   source->AddBoolean(kShowActivityLogKey,
                      base::CommandLine::ForCurrentProcess()->HasSwitch(
                          ::switches::kEnableExtensionActivityLogging));

@@ -84,23 +84,10 @@ public class MerchantTrustSignalsEventStorage implements Destroyable {
                 .delete(mNativeMerchantSignalDB, event.getKey(), null);
     }
 
-    @MainThread
-    public void deleteForTesting(MerchantTrustSignalsEvent event, Runnable onComplete) {
-        if (!nativeExists()) return;
-        MerchantTrustSignalsEventStorageJni.get()
-                .delete(mNativeMerchantSignalDB, event.getKey(), onComplete);
-    }
-
     /** Delete all events from the database. */
     public void deleteAll() {
         if (!nativeExists()) return;
         MerchantTrustSignalsEventStorageJni.get().deleteAll(mNativeMerchantSignalDB, null);
-    }
-
-    @MainThread
-    public void deleteAllForTesting(Runnable onComplete) {
-        if (!nativeExists()) return;
-        MerchantTrustSignalsEventStorageJni.get().deleteAll(mNativeMerchantSignalDB, onComplete);
     }
 
     @Override
@@ -122,11 +109,6 @@ public class MerchantTrustSignalsEventStorage implements Destroyable {
     @CheckReturnValue
     private boolean nativeExists() {
         return mNativeMerchantSignalDB != 0;
-    }
-
-    @VisibleForTesting
-    void setNativePtrForTesting(long nativePtr) {
-        setNativePtr(nativePtr);
     }
 
     @NativeMethods
@@ -157,5 +139,22 @@ public class MerchantTrustSignalsEventStorage implements Destroyable {
         void deleteAll(long nativeMerchantSignalDB, @Nullable Runnable onComplete);
 
         void destroy(long nativeMerchantSignalDB);
+    }
+
+    @MainThread
+    public void deleteForTesting(MerchantTrustSignalsEvent event, Runnable onComplete) {
+        if (!nativeExists()) return;
+        MerchantTrustSignalsEventStorageJni.get()
+                .delete(mNativeMerchantSignalDB, event.getKey(), onComplete);
+    }
+
+    @MainThread
+    public void deleteAllForTesting(Runnable onComplete) {
+        if (!nativeExists()) return;
+        MerchantTrustSignalsEventStorageJni.get().deleteAll(mNativeMerchantSignalDB, onComplete);
+    }
+
+    void setNativePtrForTesting(long nativePtr) {
+        setNativePtr(nativePtr);
     }
 }

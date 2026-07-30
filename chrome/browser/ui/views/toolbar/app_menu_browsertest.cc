@@ -39,11 +39,11 @@
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/hats/mock_trust_safety_sentiment_service.h"
 #include "chrome/browser/ui/hats/trust_safety_sentiment_service_factory.h"
+#include "chrome/browser/ui/profiles/profile_view_utils.h"
 #include "chrome/browser/ui/safety_hub/safety_hub_hats_service.h"
 #include "chrome/browser/ui/safety_hub/safety_hub_hats_service_factory.h"
 #include "chrome/browser/ui/safety_hub/safety_hub_test_util.h"
 #include "chrome/browser/ui/test/test_browser_ui.h"
-#include "chrome/browser/ui/toolbar/app_menu_model.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/app_menu_button_observer.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -58,17 +58,19 @@
 #include "components/signin/public/base/signin_pref_names.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
+#include "components/subscription_eligibility/subscription_eligibility_prefs.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "ui/accessibility/ax_action_data.h"
+#include "ui/gfx/image/image_unittest_util.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/controls/menu/menu_item_view.h"
 #include "ui/views/controls/menu/menu_runner.h"
 #include "ui/views/controls/menu/menu_scroll_view_container.h"
 #include "ui/views/controls/menu/submenu_view.h"
 #include "ui/views/interaction/element_tracker_views.h"
-#include "ui/views/view.h"
+#include "ui/views/test/widget_test.h"
 
 namespace {
 using testing::AllOf;
@@ -129,29 +131,24 @@ void AppMenuBrowserTest::ShowUi(const std::string& name) {
 
   constexpr auto kSubmenus = base::MakeFixedFlatMap<std::string_view, int>({
       // Submenus present in all versions.
-      {"history", AppMenuModel::kRecentTabsMenuPlaceholder},
-      {"bookmarks", AppMenuModel::kBookmarksMenuPlaceholder},
-      {"bookmarks_comparison_tables", AppMenuModel::kBookmarksMenuPlaceholder},
-      {"more_tools", AppMenuModel::kMoreToolsMenuPlaceholder},
+      {"history", IDC_RECENT_TABS_MENU},
+      {"bookmarks", IDC_BOOKMARKS_MENU},
+      {"bookmarks_comparison_tables", IDC_BOOKMARKS_MENU},
+      {"more_tools", IDC_MORE_TOOLS_MENU},
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-      {"help", AppMenuModel::kHelpMenuPlaceholder},
+      {"help", IDC_HELP_MENU},
 #endif
 
       // Submenus only present after Chrome Refresh.
-      {"passwords_and_autofill",
-       AppMenuModel::kPasswordsAndAutofillMenuPlaceholder},
-      {"reading_list",
-       AppMenuModel::kReadingListMenuPlaceholder},  // Inside the bookmarks
-                                                    // menu.
-      {"extensions", AppMenuModel::kExtensionsSubmenuPlaceholder},
-      {"find_and_edit", AppMenuModel::kFindAndEditMenuPlaceholder},
-      {"save_and_share", AppMenuModel::kSaveAndShareMenuPlaceholder},
-      {"profile_menu_in_app_menu_signed_out",
-       AppMenuModel::kProfileMenuPlaceholder},
-      {"profile_menu_in_app_menu_signed_in",
-       AppMenuModel::kProfileMenuPlaceholder},
+      {"passwords_and_autofill", IDC_PASSWORDS_AND_AUTOFILL_MENU},
+      {"reading_list", IDC_READING_LIST_MENU},  // Inside the bookmarks menu.
+      {"extensions", IDC_EXTENSIONS_SUBMENU},
+      {"find_and_edit", IDC_FIND_AND_EDIT_MENU},
+      {"save_and_share", IDC_SAVE_AND_SHARE_MENU},
+      {"profile_menu_in_app_menu_signed_out", IDC_PROFILE_MENU_IN_APP_MENU},
+      {"profile_menu_in_app_menu_signed_in", IDC_PROFILE_MENU_IN_APP_MENU},
       {"profile_menu_in_app_menu_signin_not_allowed",
-       AppMenuModel::kProfileMenuPlaceholder},
+       IDC_PROFILE_MENU_IN_APP_MENU},
   });
   const auto id_entry = kSubmenus.find(name);
   if (id_entry == kSubmenus.end()) {
@@ -483,4 +480,91 @@ IN_PROC_BROWSER_TEST_F(AppMenuBrowserTest, Safety_Hub_shown_notification) {
           testing::_));
   menu_button()->CloseMenu();
 }
+
+#if !BUILDFLAG(IS_CHROMEOS)
+class AppMenuProfileAiRingBrowserTest : public AppMenuBrowserTest {
+ public:
+  AppMenuProfileAiRingBrowserTest() {
+    scoped_feature_list_.InitAndEnableFeature(
+        features::kEnableAiSubscriptionAvatarRing);
+  }
+
+  void SetAiSubscriptionTierForProfile(int32_t subscription_tier) {
+    browser()->profile()->GetPrefs()->SetInteger(
+        subscription_eligibility::prefs::kAiSubscriptionTier,
+        subscription_tier);
+  }
+
+  int GetProfileIconWidth() {
+    AppMenu* app_menu = menu_button()->app_menu();
+    CHECK(app_menu);
+    views::MenuItemView* menu_root = app_menu->root_menu_item();
+    CHECK(menu_root);
+    views::MenuItemView* profile_item =
+        menu_root->GetMenuItemByID(IDC_PROFILE_MENU_IN_APP_MENU);
+    CHECK(profile_item);
+    ui::ImageModel icon = profile_item->GetIcon();
+    CHECK(!icon.IsEmpty());
+    return icon.Size().width();
+  }
+
+  void CloseMenuAndWait() {
+    AppMenu* app_menu = menu_button()->app_menu();
+    ASSERT_TRUE(app_menu);
+    views::MenuItemView* menu_root = app_menu->root_menu_item();
+    ASSERT_TRUE(menu_root);
+    views::SubmenuView* submenu = menu_root->GetSubmenu();
+    ASSERT_TRUE(submenu);
+    views::Widget* menu_widget = submenu->GetWidget();
+    ASSERT_TRUE(menu_widget);
+
+    views::test::WidgetDestroyedWaiter waiter(menu_widget);
+    menu_button()->CloseMenu();
+    waiter.Wait();
+    ASSERT_FALSE(menu_button()->IsMenuShowing());
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(AppMenuProfileAiRingBrowserTest,
+                       ProfileMenuIconHasAiRing) {
+  // Sign in with an image to get a non-placeholder avatar.
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(browser()->profile());
+  AccountInfo account_info = signin::MakePrimaryAccountAvailable(
+      identity_manager, "user@example.com", signin::ConsentLevel::kSignin);
+
+  // Simulate account image fetch.
+  gfx::Image fake_image = gfx::test::CreateImage(20, 20, SK_ColorBLUE);
+  signin::SimulateAccountImageFetch(identity_manager, account_info.account_id,
+                                    "http://example.com/avatar.jpg",
+                                    fake_image);
+
+  // 1. Get initial size (no subscription).
+  menu_button()->ShowMenu(views::MenuRunner::SHOULD_SHOW_MNEMONICS);
+  ASSERT_TRUE(menu_button()->IsMenuShowing());
+  int initial_size = GetProfileIconWidth();
+  ASSERT_GT(initial_size, 0);
+  CloseMenuAndWait();
+
+  // 2. Set AI subscription and check size increases.
+  SetAiSubscriptionTierForProfile(1);
+  menu_button()->ShowMenu(views::MenuRunner::SHOULD_SHOW_MNEMONICS);
+  ASSERT_TRUE(menu_button()->IsMenuShowing());
+  int size_with_ring = GetProfileIconWidth();
+  EXPECT_GT(size_with_ring, initial_size);
+  CloseMenuAndWait();
+
+  // 3. Clear subscription and check size goes back to initial.
+  SetAiSubscriptionTierForProfile(0);
+  menu_button()->ShowMenu(views::MenuRunner::SHOULD_SHOW_MNEMONICS);
+  ASSERT_TRUE(menu_button()->IsMenuShowing());
+  int final_size = GetProfileIconWidth();
+  EXPECT_EQ(final_size, initial_size);
+  CloseMenuAndWait();
+}
+#endif  // !BUILDFLAG(IS_CHROMEOS)
+
 }  // namespace

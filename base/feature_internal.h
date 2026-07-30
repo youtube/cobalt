@@ -36,30 +36,86 @@ struct StringStorage {
 template <size_t N>
 StringStorage(const char (&feature)[N]) -> StringStorage<N - 1>;
 
+// Returns true if all country codes in the given span are valid in a simple
+// sense: A valid country code consists of exactly two lowercase ASCII letters.
+consteval bool AreCountryCodesValid(
+    base::span<const std::string_view> countries) {
+  return std::ranges::all_of(countries, [](std::string_view code) {
+    auto valid_letter = [](char c) { return c >= 'a' && c <= 'z'; };
+    return code.size() == 2 && valid_letter(code[0]) && valid_letter(code[1]);
+  });
+}
+
+// Packs a variadic list of country codes into a std::array and asserts
+// statically that the list is non-empty.
+// Not inlined to allow more descriptive error messages.
+template <typename... Args>
+consteval auto MakeCountryCodeStorage(Args... args) {
+  static_assert(sizeof...(Args) > 0, "The country list must be non-empty");
+  return std::array<std::string_view, sizeof...(Args)>{
+      std::string_view(args)...};
+}
+
 }  // namespace base::internal
 
 // Three-argument version of BASE_FEATURE macro.
-#define BASE_FEATURE_INTERNAL_3_ARGS(is_runtime_mutable, feature, name, \
-                                     default_state)                     \
-  constinit const base::Feature feature(                                \
-      name, default_state, is_runtime_mutable,                          \
-      base::internal::FeatureMacroHandshake::kSecret)
+#define BASE_FEATURE_INTERNAL_3_ARGS(is_runtime_mutable, feature, name,     \
+                                     default_state)                         \
+  constinit const base::Feature feature(                                    \
+      name,                                                                 \
+      []() {                                                                \
+        static_assert(!base::IsCountrySpecificFeatureState(default_state)); \
+        return default_state;                                               \
+      }(),                                                                  \
+      is_runtime_mutable, base::internal::FeatureMacroHandshake::kSecret)
 
 // Two-argument version of BASE_FEATURE macro.
-#define BASE_FEATURE_INTERNAL_2_ARGS(is_runtime_mutable, feature,         \
-                                     default_state)                       \
-  constinit const base::Feature feature(                                  \
-      []() {                                                              \
-        static_assert(#feature[0] == 'k');                                \
-        static constexpr base::internal::StringStorage storage(#feature); \
-        return storage.storage.data();                                    \
-      }(),                                                                \
-      default_state, is_runtime_mutable,                                  \
-      base::internal::FeatureMacroHandshake::kSecret)
+#define BASE_FEATURE_INTERNAL_2_ARGS(is_runtime_mutable, feature,           \
+                                     default_state)                         \
+  constinit const base::Feature feature(                                    \
+      []() {                                                                \
+        static_assert(#feature[0] == 'k');                                  \
+        static constexpr base::internal::StringStorage storage(#feature);   \
+        return storage.storage.data();                                      \
+      }(),                                                                  \
+      []() {                                                                \
+        static_assert(!base::IsCountrySpecificFeatureState(default_state)); \
+        return default_state;                                               \
+      }(),                                                                  \
+      is_runtime_mutable, base::internal::FeatureMacroHandshake::kSecret)
 
 // Helper macro to deduce whether to use the 2 or 3 argument version of the
 // BASE_FEATURE macro.
 #define BASE_FEATURE_INTERNAL_GET_FEATURE_MACRO(_1, _2, _3, NAME, ...) NAME
+
+// Provides a definition for a country-restricted `kFeature` with
+// `default_state` and a list of `countries`.
+//
+// Implementation note: `MakeCountryCodeStorage` is used to guarantee static
+// storage duration.
+#define BASE_FEATURE_WITH_COUNTRY_RESTRICTIONS(feature, default_state, ...) \
+  constinit const base::FeatureWithCountryRestriction feature(              \
+      []() {                                                                \
+        static_assert(#feature[0] == 'k');                                  \
+        static constexpr base::internal::StringStorage storage(#feature);   \
+        return storage.storage.data();                                      \
+      }(),                                                                  \
+      []() {                                                                \
+        static_assert(base::IsCountrySpecificFeatureState(default_state));  \
+        return default_state;                                               \
+      }(),                                                                  \
+      []() {                                                                \
+        static constexpr auto countries =                                   \
+            base::internal::MakeCountryCodeStorage(__VA_ARGS__);            \
+        static_assert(base::internal::AreCountryCodesValid(countries),      \
+                      "All country parameters must consist of two "         \
+                      "characters between a and z");                        \
+        return base::span(countries);                                       \
+      }(),                                                                  \
+      base::internal::FeatureMacroHandshake::kSecret)
+
+#define BASE_DECLARE_FEATURE_WITH_COUNTRY_RESTRICTIONS(kFeature) \
+  extern constinit const base::FeatureWithCountryRestriction kFeature
 
 // Five-argument version of BASE_FEATURE_PARAM macro.
 #define BASE_FEATURE_PARAM_INTERNAL_5_ARGS(T, feature_object_name, feature, \

@@ -140,10 +140,24 @@ void WellKnownChangePasswordState::PrefetchChangePasswordURLsCallback(GURL) {
 void WellKnownChangePasswordState::ContinueProcessing() {
   if (BothRequestsFinished()) {
     bool is_well_known_supported = SupportsWellKnownChangePasswordUrl();
-    // Don't wait for change password URL from Affiliation Service if
-    // .well-known/change-password is supported.
+    // We can proceed to notify the delegate in two cases:
+    // 1. The site supports the well-known change-password URL. In this case,
+    //    we don't need the affiliation fallback URL, so we can finish early
+    //    and stop the prefetch timer.
+    // 2. We are not waiting for the affiliation prefetch anymore (either it
+    //    finished or timed out, so the timer is not running).
     if (is_well_known_supported || !prefetch_timer_.IsRunning()) {
-      delegate_->OnProcessingFinished(is_well_known_supported);
+      // Stop the timer if we are finishing early (case 1). This also prevents
+      // the prefetch callback from running ContinueProcessing() again if it
+      // arrives later.
+      prefetch_timer_.Stop();
+      if (delegate_) {
+        auto* delegate = delegate_.get();
+        delegate_ = nullptr;
+        delegate->OnProcessingFinished(is_well_known_supported);
+        // WARNING: `this` may be deleted after the call above.
+        return;
+      }
     }
   }
 }

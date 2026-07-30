@@ -12,6 +12,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "components/origin_gating/core/origin_gating_cache.h"
+#include "components/origin_gating/core/origin_gating_configuration.h"
 #include "components/origin_gating/core/types.h"
 #include "url/gurl.h"
 #include "url/origin.h"
@@ -51,7 +52,7 @@ class OriginGatingChecker {
   };
 
   // The delegate must outlive this OriginGatingChecker instance.
-  OriginGatingChecker(Delegate& delegate, bool use_site_not_origin);
+  OriginGatingChecker(Delegate& delegate, OriginGatingConfiguration config);
   ~OriginGatingChecker();
 
   OriginGatingChecker(const OriginGatingChecker&) = delete;
@@ -76,6 +77,20 @@ class OriginGatingChecker {
   const OriginGatingCache& cache() const { return cache_; }
 
  private:
+  void RunNextPredicate(std::unique_ptr<GatingDecisionContext> context,
+                        base::span<const DecisionSource> pending_predicates,
+                        const GURL& source,
+                        const GURL& destination,
+                        GatingDecisionCallback callback);
+
+  void OnPredicateVerdict(std::unique_ptr<GatingDecisionContext> context,
+                          base::span<const DecisionSource> remaining_predicates,
+                          DecisionSource attribution,
+                          const GURL& source,
+                          const GURL& destination,
+                          GatingDecisionCallback callback,
+                          Decision decision);
+
   void OnUserConfirmationRequiredAnswer(
       std::unique_ptr<GatingDecisionContext> context,
       const GURL& source,
@@ -89,6 +104,7 @@ class OriginGatingChecker {
 
   SEQUENCE_CHECKER(sequence_checker_);
   const raw_ref<Delegate> delegate_;
+  OriginGatingConfiguration config_;
   OriginGatingCache cache_;
   base::WeakPtrFactory<OriginGatingChecker> weak_ptr_factory_{this};
 };

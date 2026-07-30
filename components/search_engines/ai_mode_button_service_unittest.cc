@@ -5,15 +5,18 @@
 #include "components/search_engines/ai_mode_button_service.h"
 
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
-#include "base/functional/bind.h"
+#include "base/metrics/field_trial_params.h"
 #include "base/notreached.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/mock_callback.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
+#include "components/omnibox/common/omnibox_features.h"
 #include "components/search_engines/ai_mode_button_config.h"
 #include "components/search_engines/search_engine_type.h"
 #include "components/search_engines/search_engines_test_environment.h"
@@ -58,6 +61,7 @@ class AiModeButtonServiceTest : public testing::Test {
        "Non Google"},
       {"nongoogle2", "https://nongoogle.com/search?q={searchTerms}",
        "Non Google 2"},
+      {"bing", "https://bing.com/search?q={searchTerms}", "Bing"},
   };
   search_engines::SearchEnginesTestEnvironment search_engines_test_environment_{
       {.template_url_service_initializer = test_engines_}};
@@ -272,6 +276,60 @@ TEST(AiModeButtonConfigTest, AllCompiledThirdPartyConfigsAreValid) {
     SCOPED_TRACE(
         base::StringPrintf("Testing ID %d", static_cast<int>(config->id)));
     EXPECT_TRUE(TestAiModeButtonService::IsValidConfig(*config));
+  }
+}
+
+TEST(AiModeButtonConfigTest, CompiledThirdPartyConfigsContainNoDuplicateIds) {
+  // Verify that every single 3p config defined in ai_mode_button_config.json
+  // has a unique `id`.
+  std::set<SearchEngineType> seen;
+  for (const auto* config : ai_mode_button_config::kAiModeButtonConfigs) {
+    SCOPED_TRACE(
+        base::StringPrintf("Testing ID %d", static_cast<int>(config->id)));
+    EXPECT_TRUE(seen.insert(config->id).second);
+  }
+}
+
+TEST_F(AiModeButtonServiceTest, DebugConfig) {
+  // For manual testing, ai_mode_button_config.json contains a debug config
+  // mapped to bing. Debug config shouldn't be returned when feature is
+  // disabled.
+  template_url_service()->SetUserSelectedDefaultSearchProvider(
+      FindTurl(u"bing"));
+  EXPECT_FALSE(service_->GetCurrentConfig());
+
+  // Debug config shouldn't be returned when feature is enabled without the
+  // debug param.
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(omnibox::kAim3pEntrypoint);
+
+    // Toggle DSE to force update.
+    template_url_service()->SetUserSelectedDefaultSearchProvider(
+        FindTurl(u"nongoogle"));
+    EXPECT_FALSE(service_->GetCurrentConfig());
+    template_url_service()->SetUserSelectedDefaultSearchProvider(
+        FindTurl(u"bing"));
+    EXPECT_FALSE(service_->GetCurrentConfig());
+  }
+
+  // Debug config should be returned when feature is enabled with the debug
+  // param.
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        omnibox::kAim3pEntrypoint, {{"Aim3pEntrypointDebug", "true"}});
+
+    // Toggle DSE to force update.
+    template_url_service()->SetUserSelectedDefaultSearchProvider(
+        FindTurl(u"nongoogle"));
+    EXPECT_FALSE(service_->GetCurrentConfig());
+    template_url_service()->SetUserSelectedDefaultSearchProvider(
+        FindTurl(u"bing"));
+    const auto* config = service_->GetCurrentConfig();
+    ASSERT_TRUE(config);
+    EXPECT_EQ(config->id, SearchEngineType::SEARCH_ENGINE_BING);
+    EXPECT_EQ(std::u16string_view(config->text), u"Google DEBÜG");
   }
 }
 

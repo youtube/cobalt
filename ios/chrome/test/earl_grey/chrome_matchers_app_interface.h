@@ -604,9 +604,6 @@
 // Returns the GREYMatcher for the button that closes the tab grid.
 + (id<GREYMatcher>)tabGridDoneButton;
 
-// Returns the GREYMatcher for the button to open the overflow menu.
-+ (id<GREYMatcher>)tabGridOverflowMenuButton;
-
 // Returns the GREYMatcher for the button that reverts the close all tabs action
 // in the tab grid.
 + (id<GREYMatcher>)tabGridUndoCloseAllButton;
@@ -808,17 +805,23 @@
 // Returns a matcher for the button to accept the generated password.
 + (id<GREYMatcher>)useSuggestedPasswordMatcher;
 
-#pragma mark - Tab Grid Edit Mode
+#pragma mark - Tab Grid Overflow Menu
 
-// Returns a matcher for the button to open the context menu for edit actions.
+// Returns the GREYMatcher for the button to open the overflow menu.
++ (id<GREYMatcher>)tabGridOverflowMenuButton;
+
+// Returns a matcher for the legacy edit button.
 + (id<GREYMatcher>)tabGridEditButton;
 
-// Returns a matcher for the context menu button to close all tabs.
+// Returns a matcher for the legacy edit menu button to close all tabs.
 + (id<GREYMatcher>)tabGridEditMenuCloseAllButton;
 
-// Returns a matcher for the context menu button to enter the tab grid tab
+// Returns a matcher for the overflow menu button to close all tabs.
++ (id<GREYMatcher>)tabGridOverflowMenuCloseAllButton;
+
+// Returns a matcher for the overflow menu button to enter the tab grid tab
 // selection mode.
-+ (id<GREYMatcher>)tabGridSelectTabsMenuButton;
++ (id<GREYMatcher>)tabGridOverflowMenuSelectTabsButton;
 
 // Returns a matcher for the button to act on the selected tabs.
 + (id<GREYMatcher>)tabGridEditAddToButton;

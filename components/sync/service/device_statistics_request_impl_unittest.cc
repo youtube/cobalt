@@ -4,6 +4,7 @@
 
 #include "components/sync/service/device_statistics_request_impl.h"
 
+#include "base/byte_size.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
@@ -41,7 +42,8 @@ class DeviceStatisticsRequestImplTest : public testing::Test {
     head->headers = base::MakeRefCounted<net::HttpResponseHeaders>(
         "HTTP/1.1 200 OK\nContent-Type: application/octet-stream");
     network::URLLoaderCompletionStatus status(net::OK);
-    status.decoded_body_length = response.SerializeAsString().size();
+    status.decoded_body_length =
+        base::ByteSize(response.SerializeAsString().size());
     test_url_loader_factory_.AddResponse(GURL(kTestUrl), std::move(head),
                                          response.SerializeAsString(), status);
   }

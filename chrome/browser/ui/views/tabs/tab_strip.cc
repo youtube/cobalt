@@ -16,7 +16,6 @@
 #include <vector>
 
 #include "base/check.h"
-#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/i18n/rtl.h"
@@ -71,6 +70,8 @@
 #include "components/tab_groups/tab_group_visual_data.h"
 #include "components/tabs/public/tab_alert.h"
 #include "content/public/browser/web_contents.h"
+#include "ui/accessibility/platform/assistive_tech.h"
+#include "ui/accessibility/platform/ax_platform.h"
 #include "ui/base/dragdrop/mojom/drag_drop_types.mojom.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -78,6 +79,7 @@
 #include "ui/base/models/list_selection_model.h"
 #include "ui/base/mojom/menu_source_type.mojom-forward.h"
 #include "ui/color/color_provider.h"
+#include "ui/compositor/layer.h"
 #include "ui/gfx/animation/tween.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/geometry/size.h"
@@ -635,6 +637,12 @@ class TabStrip::TabDragContextImpl : public TabDragContext,
       CHECK_NE(dragged_view->parent(), this);
       AddChildViewRaw(dragged_view);
       dragged_view->set_dragging(true);
+      // The dragged tabs must be painted to a layer to ensure they appear
+      // on top of other tabs' loading throbbers.
+      if (base::FeatureList::IsEnabled(features::kCompositorLoadingThrobber)) {
+        dragged_view->SetPaintToLayer();
+        dragged_view->layer()->SetFillsBoundsOpaquely(false);
+      }
       if (TabGroupHeader* header =
               views::AsViewClass<TabGroupHeader>(dragged_view)) {
         tab_strip_->tab_container_->GetGroupViews(header->group().value())
@@ -801,7 +809,10 @@ class TabStrip::TabDragContextImpl : public TabDragContext,
   void PaintChildren(const views::PaintInfo& paint_info) override {
     std::vector<ZOrderableTabContainerElement> orderable_children;
     for (views::View* child : children()) {
-      orderable_children.emplace_back(child);
+      // The compositor handles painting children with layers separately.
+      if (!child->layer()) {
+        orderable_children.emplace_back(child);
+      }
     }
 
     // Sort in ascending order by z-value. Stable sort breaks ties by child
@@ -858,6 +869,7 @@ class TabStrip::TabDragContextImpl : public TabDragContext,
       AnimationProgressed(animation);
       slot_view_->set_animating(false);
       slot_view_->set_dragging(false);
+      slot_view_->DestroyLayer();
       tab_container_->ReturnTabSlotView(base::to_address(slot_view_));
     }
 
@@ -2408,18 +2420,23 @@ void TabStrip::OnWidgetActivationChanged(views::Widget* widget, bool active) {
   }
 
   if (active && selected_tabs_.active().has_value() &&
-      !base::FeatureList::IsEnabled(
-          features::kTabStripSkipSelectionEventOnActivation)) {
+      ui::AXPlatform::GetInstance().active_assistive_tech() ==
+          ui::AssistiveTech::kJaws &&
+      ui::AXPlatform::GetInstance().JawsNeedsTabSelectionEvent()) {
     // When the browser window is activated, set the accessible selection and
     // fire a selection event on the currently active tab, to help enable
     // per-tab modes in assistive technologies.
+    //
+    // This is a workaround for older versions of JAWS, which rely on this
+    // event to restore per-tab settings (e.g. virtual cursor) when switching
+    // between windows. Newer versions of JAWS detect the active tab on their
+    // own, so the event is scoped to older versions only.
+    // TODO(crbug.com/505781387): Remove once the oldest supported JAWS version
+    // no longer needs this event.
     tab_at(selected_tabs_.active().value())
         ->GetViewAccessibility()
         .SetIsSelected(true);
 
-    // When the browser window is activated, fire a selection event on the
-    // currently active tab, to help enable per-tab modes in assistive
-    // technologies.
     // We need to make sure we fire the event manually here, because even
     // though we set the tab to selected above, there are cases where the
     // event will not be fired since the selected state was already set

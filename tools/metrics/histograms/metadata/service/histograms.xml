@@ -1239,7 +1239,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ServiceWorker.MainFrame.MainResource.FetchResult"
-    enum="ServiceWorkerFetchEventResult" expires_after="2026-10-25">
+    enum="ServiceWorkerFetchEventResult" expires_after="2026-12-27">
   <owner>yyanagisawa@chromium.org</owner>
   <owner>chrome-worker@google.com</owner>
   <summary>
@@ -1391,7 +1391,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ServiceWorker.PaymentHandler.DisconnectTimeout"
-    enum="BooleanTimedOut" expires_after="2026-10-25">
+    enum="BooleanTimedOut" expires_after="2026-12-27">
   <owner>smcgruer@chromium.org</owner>
   <owner>perryuwang@gmail.com</owner>
   <owner>chrome-payments-eng@google.com</owner>
@@ -1534,7 +1534,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ServiceWorker.RouterEvaluator.MatchedFirstSourceType"
-    enum="ServiceWorkerRouterSourceType" expires_after="2026-10-25">
+    enum="ServiceWorkerRouterSourceType" expires_after="2026-12-27">
   <owner>sisidovski@chromium.org</owner>
   <owner>chrome-worker@google.com</owner>
   <summary>
@@ -2570,7 +2570,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Worker.BrowserProcess.DevToolsCreateTime" units="ms"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>yyanagisawa@chromium.org</owner>
   <owner>chrome-worker@google.com</owner>
   <summary>
@@ -2665,7 +2665,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Worker.TopLevelScript.WorkerHostCreatedTime" units="ms"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>yyanagisawa@chromium.org</owner>
   <owner>chrome-worker@google.com</owner>
   <summary>

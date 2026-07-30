@@ -155,6 +155,14 @@ void TranslateAgent::PageCaptured(
   if (!main_frame)
     return;
 
+  blink::WebDocumentLoader* doc_loader = main_frame->GetDocumentLoader();
+  if (doc_loader &&
+      doc_loader->GetWebResponse().MimeType() == "application/pdf") {
+    // If the page is a PDF, we should only register it when
+    // PdfPageCaptured is called.
+    return;
+  }
+
   WebDocument document = main_frame->GetDocument();
   GURL url = GURL(document.Url());
   // Limit detection to URLs that only detect the language of the content if the

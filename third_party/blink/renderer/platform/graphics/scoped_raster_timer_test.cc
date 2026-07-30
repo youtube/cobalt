@@ -5,14 +5,16 @@
 #include "third_party/blink/renderer/platform/graphics/scoped_raster_timer.h"
 
 #include "base/test/metrics/histogram_tester.h"
+#include "cc/paint/paint_op.h"
+#include "cc/paint/paint_op_buffer.h"
 #include "cc/test/stub_decode_cache.h"
 #include "components/viz/test/test_context_provider.h"
 #include "components/viz/test/test_gles2_interface.h"
 #include "components/viz/test/test_raster_interface.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_2d_resource_provider.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource.h"
-#include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_gpu_context.h"
 #include "third_party/blink/renderer/platform/graphics/skia/skia_utils.h"
 #include "third_party/blink/renderer/platform/graphics/test/gpu_compositing_test_platform.h"
@@ -82,8 +84,8 @@ TEST_F(ScopedRasterTimerTest, UnacceleratedRasterDuration) {
 
   const gpu::SharedImageUsageSet shared_image_usage_flags =
       gpu::SHARED_IMAGE_USAGE_DISPLAY_READ | gpu::SHARED_IMAGE_USAGE_SCANOUT;
-  std::unique_ptr<Canvas2DResourceProviderSharedImage> provider =
-      Canvas2DResourceProviderSharedImage::CreateWithClear(
+  std::unique_ptr<Canvas2DResourceProvider> provider =
+      Canvas2DResourceProvider::CreateWithClear(
           gfx::Size(10, 10), GetN32FormatForCanvas(), kPremul_SkAlphaType,
           gfx::ColorSpace::CreateSRGB(), gfx::HDRMetadata(),
           context_provider_wrapper_, RasterMode::kCPU,
@@ -95,9 +97,11 @@ TEST_F(ScopedRasterTimerTest, UnacceleratedRasterDuration) {
 
   base::HistogramTester histograms;
 
-  // Trigger a flush, which will capture a raster duration measurement.
-  provider->GetCanvasForTesting().clear(SkColors::kBlue);
-  provider->ProduceCanvasResource(FlushReason::kOther);
+  // Trigger a rasterization, which will capture a raster duration measurement.
+  cc::PaintOpBuffer buffer;
+  buffer.push<cc::DrawColorOp>(SkColors::kBlue, SkBlendMode::kSrc);
+  provider->RasterRecord(buffer.ReleaseAsRecord());
+  provider->ProduceCanvasResource();
   provider = nullptr;
 
   histograms.ExpectUniqueSample(
@@ -116,7 +120,7 @@ TEST_F(ScopedRasterTimerTest, UnacceleratedRasterDuration) {
 TEST_F(ScopedRasterTimerTest, AcceleratedRasterDuration) {
   base::ScopedMockElapsedTimersForTest mock_timer;
 
-  auto provider = Canvas2DResourceProviderSharedImage::CreateWithClear(
+  auto provider = Canvas2DResourceProvider::CreateWithClear(
       gfx::Size(10, 10), GetN32FormatForCanvas(), kPremul_SkAlphaType,
       gfx::ColorSpace::CreateSRGB(), gfx::HDRMetadata(),
       context_provider_wrapper_, RasterMode::kGPU, gpu::SharedImageUsageSet());
@@ -125,9 +129,11 @@ TEST_F(ScopedRasterTimerTest, AcceleratedRasterDuration) {
 
   provider->AlwaysEnableRasterTimersForTesting(true);
 
-  // Trigger a flush, which will capture a raster duration measurement.
-  provider->GetCanvasForTesting().clear(SkColors::kBlue);
-  provider->ProduceCanvasResource(FlushReason::kOther);
+  // Trigger a rasterization, which will capture a raster duration measurement.
+  cc::PaintOpBuffer buffer;
+  buffer.push<cc::DrawColorOp>(SkColors::kBlue, SkBlendMode::kSrc);
+  provider->RasterRecord(buffer.ReleaseAsRecord());
+  provider->ProduceCanvasResource();
 
   base::HistogramTester histograms;
 

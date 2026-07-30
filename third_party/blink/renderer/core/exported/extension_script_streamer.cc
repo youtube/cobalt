@@ -5,6 +5,7 @@
 #include "third_party/blink/public/web/extension_script_streamer.h"
 
 #include "base/metrics/histogram_macros.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/time/time.h"
 #include "third_party/blink/public/platform/scheduler/web_agent_group_scheduler.h"
 #include "third_party/blink/public/platform/web_string.h"
@@ -30,7 +31,7 @@ void EmitCompilationHistograms(
         script_streamer->ElapsedTime());
     UMA_HISTOGRAM_MEMORY_KB(
         "Extensions.BackgroundCompileInjectedScripts.ScriptSizeTimedOut",
-        script_streamer->script_length());
+        base::saturated_cast<int>(script_streamer->script_length()));
   } else {
     UMA_HISTOGRAM_TIMES(
         "Extensions.BackgroundCompileInjectedScripts."
@@ -38,7 +39,7 @@ void EmitCompilationHistograms(
         script_streamer->ElapsedTime());
     UMA_HISTOGRAM_MEMORY_KB(
         "Extensions.BackgroundCompileInjectedScripts.ScriptSizeSuccess",
-        script_streamer->script_length());
+        base::saturated_cast<int>(script_streamer->script_length()));
   }
 }
 }  // namespace
@@ -97,7 +98,7 @@ ExtensionScriptStreamer::PostStreamingTaskToBackgroundThread(
           [](scoped_refptr<BackgroundInlineScriptStreamer> script_streamer,
              scoped_refptr<base::SingleThreadTaskRunner> frame_task_runner,
              uint64_t script_id, const std::string url) {
-            TRACE_EVENT_BEGIN1(
+            TRACE_EVENT(
                 "v8,devtools.timeline," TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                 "v8.parseOnBackground", "data",
                 [&](perfetto::TracedValue context) {
@@ -110,9 +111,6 @@ ExtensionScriptStreamer::PostStreamingTaskToBackgroundThread(
                 FROM_HERE,
                 ConvertToBaseOnceCallback(CrossThreadBindOnce(
                     &EmitCompilationHistograms, std::move(script_streamer))));
-            TRACE_EVENT_END0(
-                "v8,devtools.timeline," TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                "v8.parseOnBackground");
           },
           script_streamer, std::move(frame_task_runner), script_id,
           std::string(url)));

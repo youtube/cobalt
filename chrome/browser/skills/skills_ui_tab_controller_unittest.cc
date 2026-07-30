@@ -10,6 +10,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_feature_list.h"
 #include "chrome/browser/glic/glic_profile_manager.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
@@ -20,6 +21,7 @@
 #include "chrome/test/base/testing_profile_manager.h"
 #include "chrome/test/views/chrome_views_test_base.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
+#include "components/skills/features.h"
 #include "components/skills/public/skill.h"
 #include "components/skills/public/skills_metrics.h"
 #include "components/tabs/public/mock_tab_interface.h"
@@ -194,4 +196,34 @@ TEST_F(SkillsUiTabControllerTest, InvokeSkill_SkillNotFound_LogsMetric) {
   histogram_tester_.ExpectUniqueSample(
       "Skills.Invoke.Result", skills::SkillsInvokeResult::kSkillNotFound, 1);
 }
+
+class SkillsUiTabControllerV2Test : public SkillsUiTabControllerTest {
+ public:
+  SkillsUiTabControllerV2Test() {
+    feature_list_.InitAndEnableFeature(features::kSkillsWebViewV2Enabled);
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+TEST_F(SkillsUiTabControllerV2Test, InvokeSkill_SkipsPrompt) {
+  controller_->test_skill_.id = kTestSkillId;
+  controller_->test_skill_.prompt = "Test Prompt";
+
+  auto* mock_glic_keyed_service =
+      static_cast<glic::MockGlicKeyedService*>(controller_->GetGlicService());
+  EXPECT_CALL(*mock_glic_keyed_service,
+              InvokeWithAutoSubmit(testing::_, testing::_))
+      .WillOnce([](glic::InvokeWithAutoSubmitPasskey,
+                   const glic::GlicInvokeOptions& options)
+                    -> base::WeakPtr<glic::GlicInstance> {
+        EXPECT_EQ(options.skill_id, kTestSkillId);
+        EXPECT_TRUE(options.prompts.empty());
+        return base::WeakPtr<glic::GlicInstance>();
+      });
+
+  controller_->InvokeSkill(kTestSkillId);
+}
+
 }  // namespace skills

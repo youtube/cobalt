@@ -59,7 +59,9 @@ enum class AutofillAiAction {
   kIphForOptIn,
   // List existing AutofillAI data in settings.
   kListEntityInstancesInSettings,
-  // Log data to the `ModelQualityLogsService`.
+  // Log quality metrics to the `ModelQualityLogsService`. Doesn't control
+  // whether online model inference results are logged to Mqls. This is instead
+  // controlled by `kServerClassificationModel`.
   kLogToMqls,
   // If AutofillAiAvailableByDefault is disabled: Opt into (and out of) the
   // AutofillAI feature.

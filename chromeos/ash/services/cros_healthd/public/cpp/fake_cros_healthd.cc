@@ -793,6 +793,7 @@ void FakeCrosHealthd::AddEventObserver(
   }
 
   it->second.Add(std::move(observer));
+  observers_.Notify(&Observer::OnEventObserverAdded);
 }
 
 void FakeCrosHealthd::IsEventSupported(

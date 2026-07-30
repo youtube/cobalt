@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "base/byte_size.h"
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
@@ -226,6 +227,15 @@ bool PrefetchManager::IsAvailableForPrefetch(
   return GetResourceTypeForPrefetch(destination).has_value();
 }
 
+// TODO(crbug.com/447954811, crbug.com/524282506): Enforce the connection
+// allowlist for prefetch requests.
+//
+// If `kPrefetchManagerUseNetworkContextPrefetch` feature is enabled,
+// `PrefetchManager` uses `NetworkContext::Prefetch`.
+// Else, it uses a URL loader factory for the browser process.
+//
+// Neither of them checks the connection allowlist of the prefetch initiator
+// `RenderFrameHost`.
 void PrefetchManager::PrefetchUrl(
     std::unique_ptr<PrefetchJob> job,
     scoped_refptr<network::SharedURLLoaderFactory> factory) {
@@ -359,18 +369,19 @@ void PrefetchManager::OnPrefetchFinished(
 
   // TODO(ricea): Remove these histograms in October 2024 and make a note of the
   // results in https://crbug.com/335524391.
-  if (status.error_code == net::OK && status.decoded_body_length > 0) {
+  if (status.error_code == net::OK &&
+      status.decoded_body_length.InBytes() > 0) {
     if (status.decoded_body_length > status.encoded_body_length) {
       // Assume it was compressed.
       base::UmaHistogramCounts10000(
           "Navigation.Prefetch.CompressedBodySize",
-          static_cast<int>(status.encoded_body_length / 1024));
+          static_cast<int>(status.encoded_body_length.InBytes() / 1024));
     } else {
       // The cast to int will overflow if we prefetch a resource over a terabyte
       // in size, but I'm hoping that will never happen.
       base::UmaHistogramCounts10000(
           "Navigation.Prefetch.UncompressedBodySize",
-          static_cast<int>(status.encoded_body_length / 1024));
+          static_cast<int>(status.encoded_body_length.InBytes() / 1024));
     }
   }
 

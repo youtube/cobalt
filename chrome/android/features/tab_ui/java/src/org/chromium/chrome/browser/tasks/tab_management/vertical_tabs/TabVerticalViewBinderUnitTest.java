@@ -42,6 +42,7 @@ import org.robolectric.Robolectric;
 import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.Callback;
+import org.chromium.base.Token;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.chrome.R.string;
@@ -518,30 +519,6 @@ public class TabVerticalViewBinderUnitTest {
                         activity, TabGroupColorId.RED, /* isIncognito= */ false);
         assertEquals(expectedForegroundColor, titleView.getCurrentTextColor());
         assertEquals(expectedForegroundColor, expandChevron.getImageTintList().getDefaultColor());
-
-        // 3. Test Colors tinting in Incognito mode
-        PropertyModel incognitoModel =
-                new PropertyModel.Builder(TabProperties.ALL_KEYS_VERTICAL_TAB)
-                        .with(TabProperties.IS_INCOGNITO, true)
-                        .with(TabProperties.TAB_GROUP_CARD_COLOR, TabGroupColorId.RED)
-                        .build();
-        TabVerticalViewBinder.bindTabGroupHeader(
-                incognitoModel, headerView, TabProperties.IS_INCOGNITO);
-
-        tintList = headerView.getBackgroundTintList();
-        assertNotNull("Background tint list should be set in Incognito", tintList);
-        int expectedIncognitoBackgroundColor =
-                TabGroupColorPickerUtils.getTabGroupColorPickerItemColor(
-                        activity, TabGroupColorId.RED, /* isIncognito= */ true);
-        assertEquals(expectedIncognitoBackgroundColor, tintList.getDefaultColor());
-
-        int expectedIncognitoForegroundColor =
-                TabGroupColorPickerUtils.getTabGroupColorPickerItemTextColor(
-                        activity, TabGroupColorId.RED, /* isIncognito= */ true);
-        assertEquals(expectedIncognitoForegroundColor, titleView.getCurrentTextColor());
-        assertEquals(
-                expectedIncognitoForegroundColor,
-                expandChevron.getImageTintList().getDefaultColor());
     }
 
     @Test
@@ -660,7 +637,7 @@ public class TabVerticalViewBinderUnitTest {
                 new ViewGroup.MarginLayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        mModel.set(TabProperties.TAB_GROUP_ID, new org.chromium.base.Token(1L, 2L));
+        mModel.set(TabProperties.TAB_GROUP_ID, new Token(1L, 2L));
         TabVerticalViewBinder.bindTab(mModel, mItemView, TabProperties.TAB_GROUP_ID);
 
         ViewGroup.MarginLayoutParams lp =

@@ -70,6 +70,11 @@ void AwFieldTrials::RegisterFeatureOverrides(base::FeatureList* feature_list) {
   aw_feature_overrides.DisableFeature(
       input::features::kUpdateScrollPredictorInputMapping);
 
+  // TODO(crbug.com/444669046): Disable ScrollPredictorEnhancements refined
+  // prediction on WebView by default so it can be rolled out via Finch.
+  aw_feature_overrides.DisableFeature(
+      blink::features::kScrollPredictorRefinedHasPrediction);
+
   // InputVizard is disabled on WebView as it is a Chrome-only feature that
   // moves input handling to the VizCompositor thread, which is out of scope
   // for WebView's Synchronous Compositor architecture.

@@ -240,6 +240,10 @@ export class AppElement extends AppElementBase {
       showCustomizeChromeText_: {type: Boolean},
       showWallpaperSearch_: {type: Boolean},
       showVoiceSearchOverlay_: {type: Boolean},
+      showVoiceSearchScrim_: {
+        type: Boolean,
+        reflect: true,
+      },
       voiceSearchCoherenceAnySearchboxExperimentEnabled_: {type: Boolean},
       voiceSearchCoherenceSearchboxWithLiveTranscriptionEnabled_:
           {type: Boolean},
@@ -292,6 +296,7 @@ export class AppElement extends AppElementBase {
       caretAnimationsEnabled_: {type: Boolean},
       usePecApi_: {type: Boolean},
       smartTabSharingVisible_: {type: Boolean},
+      contextManagementInComposeboxEnabled_: {type: Boolean},
 
       modulesShownToUser: {
         type: Boolean,
@@ -395,6 +400,7 @@ export class AppElement extends AppElementBase {
   protected accessor showCustomizeChromeText_: boolean = false;
   protected accessor showWallpaperSearch_: boolean = false;
   protected accessor showVoiceSearchOverlay_: boolean = false;
+  protected accessor showVoiceSearchScrim_: boolean = false;
   protected accessor voiceSearchCoherenceAnySearchboxExperimentEnabled_:
       boolean = loadTimeData.getBoolean(
                     'voiceSearchCoherenceAnySearchboxExperimentEnabled') ||
@@ -426,6 +432,8 @@ export class AppElement extends AppElementBase {
       loadTimeData.getBoolean('contextualMenuUsePecApi');
   protected accessor smartTabSharingVisible_: boolean =
       loadTimeData.getBoolean('composeboxSmartTabSharingVisible');
+  protected accessor contextManagementInComposeboxEnabled_: boolean =
+      loadTimeData.getBoolean('contextManagementInComposeboxEnabled');
   protected accessor logoEnabled_: boolean =
       loadTimeData.getBoolean('logoEnabled');
   protected accessor oneGoogleBarEnabled_: boolean =
@@ -750,10 +758,18 @@ export class AppElement extends AppElementBase {
       this.recordBrowserPromoMetrics_();
     }
 
+    if (changedPrivateProperties.has('showVoiceSearchOverlay_')) {
+      this.showVoiceSearchScrim_ =
+          this.voiceSearchCoherenceAnySearchboxExperimentEnabled_ &&
+          this.showVoiceSearchOverlay_;
+    }
+
     if (this.ntpRealboxNextEnabled_ && [
           'showComposebox_',
           'showLensUploadDialog_',
           'containerFocused_',
+          'showVoiceSearchScrim_',
+          'showVoiceSearchOverlay_',
         ].some((prop) => changedPrivateProperties.has(prop))) {
       /**
        * The current requirement is that the scrim should be shown when the
@@ -777,7 +793,7 @@ export class AppElement extends AppElementBase {
        *      false, and everything works as desired.
        */
       this.showScrim_ = this.showComposebox_ || this.showLensUploadDialog_ ||
-          this.containerFocused_;
+          this.containerFocused_ || this.showVoiceSearchScrim_;
     }
   }
 
@@ -954,6 +970,7 @@ export class AppElement extends AppElementBase {
   }
 
   protected onActionChipClick_(e: CustomEvent<ComposeboxState>) {
+    this.pageHandler_.onContextualSearchIPHEngaged();
     this.onOpenComposebox_(e);
   }
 
@@ -961,6 +978,10 @@ export class AppElement extends AppElementBase {
     this.composeboxState_ = e.detail;
 
     this.toggleComposebox_();
+  }
+
+  protected onContextMenuEntrypointClick_() {
+    this.pageHandler_.onContextualSearchIPHEngaged();
   }
 
   protected toggleComposebox_() {
@@ -979,6 +1000,13 @@ export class AppElement extends AppElementBase {
     }
     if (this.showLensUploadDialog_) {
       this.onCloseLensSearch_();
+    }
+    if (this.showVoiceSearchOverlay_) {
+      const dialog = this.shadowRoot.querySelector<HTMLDialogElement>(
+          '#voiceSearchDialog');
+      if (dialog && dialog.open) {
+        dialog.close();
+      }
     }
     this.containerFocused_ = false;
   }

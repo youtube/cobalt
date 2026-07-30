@@ -1332,8 +1332,15 @@ void PasteFromGeminiIfAllowedByPolicy(content::RenderFrameHost* destination,
         data_controls::ChromeRulesServiceFactory::GetInstance()
             ->GetForBrowserContext(destination->GetBrowserContext());
     if (rules_service) {
+      base::ElapsedTimer timer;
       auto verdict = rules_service->GetPasteFromGeminiInChromeVerdict(
           GetSourceURL(destination));
+      base::UmaHistogramTimes(
+          "Enterprise.DataControls.GlicPaste.EvaluationLatency",
+          timer.Elapsed());
+      base::UmaHistogramEnumeration("Enterprise.DataControls.GlicPaste.Verdict",
+                                    verdict.level());
+
       auto* factory = GetDialogFactory();
       auto* web_contents =
           content::WebContents::FromRenderFrameHost(destination);

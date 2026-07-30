@@ -261,7 +261,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Clipboard.Read" enum="ClipboardFormatRead"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>huangdarwin@chromium.org</owner>
   <owner>src/ui/base/clipboard/OWNERS</owner>
   <summary>
@@ -288,7 +288,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Clipboard.Write" enum="ClipboardFormatWrite"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>huangdarwin@chromium.org</owner>
   <owner>src/ui/base/clipboard/OWNERS</owner>
   <summary>
@@ -753,7 +753,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IndexedDB.SQLite.FreelistPercentageAtClose" units="%"
-    expires_after="2026-10-27">
+    expires_after="2026-12-27">
   <owner>leimy@chromium.org</owner>
   <owner>evanstade@microsoft.com</owner>
   <owner>abhishek.shanthkumar@microsoft.com</owner>
@@ -974,7 +974,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="LevelDBEnv.SyncResult" enum="PlatformFileError"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>estade@chromium.org</owner>
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
@@ -1297,6 +1297,47 @@ chromium-metrics-reviews@google.com.
   <owner>chrome-owp-storage@google.com</owner>
   <summary>
     A Clear-Site-Data response header was seen with the given values.
+  </summary>
+</histogram>
+
+<histogram name="Storage.DeclarativePerformanceObserver.DatabaseSize"
+    units="KB" expires_after="2026-12-19">
+  <owner>sisidovski@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <summary>
+    Records the size of the Declarative Performance Observer SQLite database
+    file on disk. Recorded during database initialization.
+  </summary>
+</histogram>
+
+<histogram name="Storage.DeclarativePerformanceObserver.EvictionCount"
+    units="reports" expires_after="2026-12-19">
+  <owner>sisidovski@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <summary>
+    Records the number of early failure reports evicted in a single operation to
+    satisfy storage quota constraints. Recorded whenever eviction completes.
+  </summary>
+</histogram>
+
+<histogram name="Storage.DeclarativePerformanceObserver.StoredOriginCount"
+    units="origins" expires_after="2026-12-19">
+  <owner>sisidovski@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <summary>
+    Records the total number of unique origins with active early-failure
+    policies tracked in the SQLite database. Recorded during database
+    initialization.
+  </summary>
+</histogram>
+
+<histogram name="Storage.DeclarativePerformanceObserver.StoredReportCount"
+    units="reports" expires_after="2026-12-19">
+  <owner>sisidovski@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <summary>
+    Records the total number of early failure reports stored in the SQLite
+    database. Recorded during database initialization.
   </summary>
 </histogram>
 

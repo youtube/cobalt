@@ -12,22 +12,12 @@ namespace dictation {
 
 Target::Target() = default;
 
-Target::Target(content::RenderFrameHost* rfh, const std::string& selected_text)
-    : selected_text_(selected_text) {
-  // May be null in tests.
-  if (rfh) {
-    rfh_id_ = rfh->GetGlobalId();
-  }
-}
+Target::Target(const TargetId& target_id) : target_id_(target_id) {}
 
 Target::~Target() = default;
 
-const std::string& Target::GetSelectedText() const {
-  return selected_text_;
-}
-
 content::RenderFrameHost* Target::GetRenderFrameHost() const {
-  return content::RenderFrameHost::FromID(rfh_id_);
+  return target_id_.document.AsRenderFrameHostIfValid();
 }
 
 content::RenderWidgetHost* Target::GetRenderWidgetHost() const {

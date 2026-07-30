@@ -44,7 +44,8 @@ class OfflinePageDistillerViewer : public DistillerViewerInterface {
 
   // Called by the distiller when article is ready.
   void OnDistillerFinished(
-      std::unique_ptr<dom_distiller::DistilledArticleProto> distilled_article);
+      std::unique_ptr<dom_distiller::DistilledArticleProto> distilled_article,
+      dom_distiller::DistillationParseResult result);
 
   // Called by the distiller when article is updated.
   void OnArticleDistillationUpdated(

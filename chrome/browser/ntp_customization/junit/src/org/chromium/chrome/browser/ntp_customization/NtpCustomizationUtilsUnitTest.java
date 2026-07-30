@@ -93,6 +93,7 @@ import org.chromium.chrome.browser.ntp_customization.theme.theme_collections.Cus
 import org.chromium.chrome.browser.ntp_customization.theme.upload_image.BackgroundImageInfo;
 import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataBase;
 import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataBase.PlatformType;
+import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataThemeCollection;
 import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataUploadImage;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
@@ -516,13 +517,17 @@ public class NtpCustomizationUtilsUnitTest {
         File imageFile = NtpCustomizationUtils.createBackgroundImageFile();
         File dailyRefreshImageFile = NtpCustomizationUtils.createDailyRefreshBackgroundImageFile();
         File uploadImageFile = NtpCustomizationUtils.createUploadImageFileInDir("test");
+        File themeCollectionImageFile =
+                NtpCustomizationUtils.createThemeCollectionImageFileInDir("test_theme");
         NtpCustomizationUtils.saveBitmapImageToFile(bitmap, imageFile);
         NtpCustomizationUtils.saveBitmapImageToFile(bitmap, dailyRefreshImageFile);
         NtpCustomizationUtils.saveBitmapImageToFile(bitmap, uploadImageFile);
+        NtpCustomizationUtils.saveBitmapImageToFile(bitmap, themeCollectionImageFile);
         RobolectricUtil.runAllBackgroundAndUi();
         assertTrue(imageFile.exists());
         assertTrue(dailyRefreshImageFile.exists());
         assertTrue(uploadImageFile.exists());
+        assertTrue(themeCollectionImageFile.exists());
 
         // Call reset.
         NtpCustomizationUtils.resetCustomizedImage(/* deleteImageFile= */ true);
@@ -556,6 +561,8 @@ public class NtpCustomizationUtilsUnitTest {
         assertFalse(dailyRefreshImageFile.exists());
         assertFalse(uploadImageFile.exists());
         assertFalse(uploadImageFile.getParentFile().exists());
+        assertFalse(themeCollectionImageFile.exists());
+        assertFalse(themeCollectionImageFile.getParentFile().exists());
     }
 
     @Test
@@ -586,7 +593,7 @@ public class NtpCustomizationUtilsUnitTest {
         String filePath = "/path/to/image.png";
         SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
 
-        assertEquals("", NtpCustomizationUtils.getBackgroundImageFilePathFromSharedPreference());
+        assertNull(NtpCustomizationUtils.getBackgroundImageFilePathFromSharedPreference());
 
         NtpCustomizationUtils.setBackgroundImageFilePathToSharedPreference(filePath);
         assertEquals(
@@ -594,7 +601,7 @@ public class NtpCustomizationUtilsUnitTest {
         assertEquals(
                 filePath,
                 prefsManager.readString(
-                        ChromePreferenceKeys.NTP_CUSTOMIZATION_BACKGROUND_IMAGE_FILE_PATH, ""));
+                        ChromePreferenceKeys.NTP_CUSTOMIZATION_BACKGROUND_IMAGE_FILE_PATH, null));
 
         NtpCustomizationUtils.resetSharedPreferenceForTesting();
         assertFalse(
@@ -1316,6 +1323,23 @@ public class NtpCustomizationUtilsUnitTest {
                 uploadImageData);
     }
 
+    @Test
+    public void testSaveBackgroundInfo_withThemeCollection() {
+        Bitmap bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
+        NtpBackgroundDataThemeCollection themeCollectionData =
+                new NtpBackgroundDataThemeCollection(
+                        PlatformType.ANDROID_LOCAL,
+                        /* customBackgroundInfo= */ null,
+                        /* backgroundImageInfo= */ null,
+                        bitmap,
+                        /* primaryColor= */ null,
+                        "themeHash");
+        testSaveBackgroundInfoImpl(
+                /* customBackgroundInfo= */ null,
+                /* skipSavingPrimaryColor= */ false,
+                themeCollectionData);
+    }
+
     private void testSaveBackgroundInfoImpl(
             @Nullable CustomBackgroundInfo customBackgroundInfo,
             boolean skipSavingPrimaryColor,
@@ -1331,12 +1355,21 @@ public class NtpCustomizationUtilsUnitTest {
                         /* portraitWindowSize= */ null,
                         /* landscapeWindowSize= */ null);
 
+        String filePath = null;
+        if (ntpBackgroundData instanceof NtpBackgroundDataUploadImage uploadImageData) {
+            filePath = uploadImageData.getLastUploadImageFilePath();
+        } else if (ntpBackgroundData
+                instanceof NtpBackgroundDataThemeCollection themeCollectionData) {
+            filePath = themeCollectionData.getLastUploadImageFilePath();
+        }
+
         NtpCustomizationUtils.saveBackgroundInfo(
                 customBackgroundInfo,
                 bitmap,
                 backgroundImageInfo,
                 skipSavingPrimaryColor,
-                ntpBackgroundData);
+                /* primaryColor= */ null,
+                filePath);
         RobolectricUtil.runAllBackgroundAndUi(); // Wait for async file operations.
 
         File expectedSavedFile;
@@ -1345,6 +1378,10 @@ public class NtpCustomizationUtilsUnitTest {
             expectedSavedFile =
                     NtpCustomizationUtils.createUploadImageFileInDir(
                             uploadImageData.getFileIdHash());
+        } else if (ntpBackgroundData instanceof NtpBackgroundDataThemeCollection themeCollectionData
+                && themeCollectionData.getLastUploadImageFilePath() != null) {
+            expectedSavedFile =
+                    NtpCustomizationUtils.createThemeCollectionImageFileInDir("themeHash");
         } else {
             expectedSavedFile = NtpCustomizationUtils.createBackgroundImageFile();
         }

@@ -123,7 +123,7 @@ struct XRSessionDeviceConfig {
 struct XRSession {
   pending_remote<XRFrameDataProvider> data_provider;
   pending_remote<XRLayerManager>? layer_manager;
-  // TODO(http://crbug.com/842025) Move where the client_receiver gets set to the
+  // TODO(crbug.com/529477851): Move where the client_receiver gets set to the
   // device process then mark this as non-optional.
   pending_receiver<XRSessionClient>? client_receiver;
   XRPresentationConnection? submit_frame_sink;

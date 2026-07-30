@@ -1,0 +1,21 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("unit_tests") {
+  testonly = true
+
+  sources = [ "profile_id_service_factory_unittest.cc" ]
+
+  deps = [
+    "//base",
+    "//chrome/browser/enterprise:impl",
+    "//chrome/test:test_support",
+    "//components/enterprise:test_support",
+    "//testing/gtest",
+  ]
+
+  if (is_chromeos) {
+    deps += [ "//chromeos/ash/components/system" ]
+  }
+}

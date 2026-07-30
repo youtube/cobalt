@@ -30,6 +30,7 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.browser.tab.EmptyTabObserver;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tab.TabObserver;
 import org.chromium.chrome.browser.tab.proto.ShoppingPersistedTabData.ShoppingPersistedTabDataProto;
 import org.chromium.components.commerce.core.ShoppingService;
 import org.chromium.components.commerce.core.ShoppingService.ProductInfo;
@@ -116,6 +117,7 @@ public class ShoppingPersistedTabData extends PersistedTabData {
     private static class ShoppingDataRequest {
         public final WeakReference<Tab> tab;
         public final Callback<@Nullable ShoppingPersistedTabData> callback;
+        public final TabObserver observer;
 
         /**
          * @param tab {@link Tab} {@link ShoppingPersistedTabData} is being acquired for
@@ -124,6 +126,15 @@ public class ShoppingPersistedTabData extends PersistedTabData {
         ShoppingDataRequest(Tab tab, Callback<@Nullable ShoppingPersistedTabData> callback) {
             this.tab = new WeakReference<>(tab);
             this.callback = callback;
+            this.observer =
+                    new EmptyTabObserver() {
+                        @Override
+                        public void onDestroyed(Tab tab) {
+                            tab.removeObserver(this);
+                            sShoppingDataRequests.remove(ShoppingDataRequest.this);
+                        }
+                    };
+            tab.addObserver(this.observer);
         }
     }
 
@@ -358,6 +369,9 @@ public class ShoppingPersistedTabData extends PersistedTabData {
      * @param tab {@link Tab} for which {@link ShoppingPersistedTabData} is initialized.
      */
     public static void initialize(Tab tab) {
+        if (tab.isDestroyed()) {
+            return;
+        }
         WeakReference<Tab> tabRef = new WeakReference<>(tab);
         Callback<@Nullable ShoppingPersistedTabData> callback =
                 (res) -> {
@@ -956,6 +970,9 @@ public class ShoppingPersistedTabData extends PersistedTabData {
         }
         ShoppingDataRequest shoppingDataRequest = sShoppingDataRequests.poll();
         Tab tab = shoppingDataRequest.tab.get();
+        if (tab != null) {
+            tab.removeObserver(shoppingDataRequest.observer);
+        }
         if (tab == null || tab.isDestroyed()) {
             // If Tab was destroyed we should just return null and not try and
             // create and associate {@link ShoppingPersistedTabData} with a
@@ -970,6 +987,10 @@ public class ShoppingPersistedTabData extends PersistedTabData {
                     shoppingDataRequest.callback.onResult(res);
                     processNextItemOnQueue();
                 });
+    }
+
+    static int getQueueSizeForTesting() {
+        return sShoppingDataRequests.size();
     }
 
     private static ShoppingPersistedTabData getEmptyShoppingPersistedTabData(Tab tab) {

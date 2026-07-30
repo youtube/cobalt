@@ -10,10 +10,12 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Matrix;
 
 import androidx.annotation.ColorInt;
+import androidx.annotation.Nullable;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -22,6 +24,7 @@ import org.junit.runner.RunWith;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundType;
 import org.chromium.chrome.browser.ntp_customization.theme.theme_collections.CustomBackgroundInfo;
 import org.chromium.chrome.browser.ntp_customization.theme.upload_image.BackgroundImageInfo;
@@ -53,21 +56,24 @@ public class NtpBackgroundDataThemeCollectionUnitTest {
                         info1,
                         /* backgroundImageInfo= */ null,
                         /* bitmap= */ null,
-                        Color.RED);
+                        Color.RED,
+                        /* fileIdHash= */ null);
         NtpBackgroundDataThemeCollection data2 =
                 new NtpBackgroundDataThemeCollection(
                         PlatformType.ANDROID_LOCAL,
                         info2,
                         /* backgroundImageInfo= */ null,
                         /* bitmap= */ null,
-                        Color.RED);
+                        Color.RED,
+                        /* fileIdHash= */ null);
         NtpBackgroundDataThemeCollection data3 =
                 new NtpBackgroundDataThemeCollection(
                         PlatformType.ANDROID_LOCAL,
                         info1,
                         /* backgroundImageInfo= */ null,
                         /* bitmap= */ null,
-                        Color.BLUE);
+                        Color.BLUE,
+                        /* fileIdHash= */ null);
 
         assertEquals(data1, data2);
         assertNotEquals(data1, data3);
@@ -76,6 +82,85 @@ public class NtpBackgroundDataThemeCollectionUnitTest {
 
     @Test
     public void testToJsonAndFromJson() throws JSONException {
+        testToJsonAndFromJsonImpl(/* fileIdHash= */ null);
+    }
+
+    @Test
+    public void testToJsonAndFromJson_withFileIdHash() throws JSONException {
+        testToJsonAndFromJsonImpl("test_hash");
+    }
+
+    @Test
+    public void testSetPrimaryColor() {
+        CustomBackgroundInfo info =
+                new CustomBackgroundInfo(
+                        GURL.emptyGURL(),
+                        "id",
+                        /* isUploadedImage= */ false,
+                        /* isDailyRefreshEnabled= */ false);
+        NtpBackgroundDataThemeCollection data =
+                new NtpBackgroundDataThemeCollection(
+                        PlatformType.ANDROID_LOCAL,
+                        info,
+                        /* backgroundImageInfo= */ null,
+                        /* bitmap= */ null,
+                        Color.RED,
+                        /* fileIdHash= */ null);
+        assertEquals(Color.RED, data.getPrimaryColor().intValue());
+
+        data.setPrimaryColor(Color.GREEN);
+        assertEquals(Color.GREEN, data.getPrimaryColor().intValue());
+    }
+
+    @Test
+    public void testGetBitmapOrLoadImage_withBitmap() {
+        Bitmap bitmap = Bitmap.createBitmap(10, 10, Bitmap.Config.ARGB_8888);
+        CustomBackgroundInfo info =
+                new CustomBackgroundInfo(
+                        GURL.emptyGURL(),
+                        "id",
+                        /* isUploadedImage= */ false,
+                        /* isDailyRefreshEnabled= */ false);
+        NtpBackgroundDataThemeCollection data =
+                new NtpBackgroundDataThemeCollection(
+                        PlatformType.ANDROID_LOCAL,
+                        info,
+                        /* backgroundImageInfo= */ null,
+                        bitmap,
+                        Color.RED,
+                        /* fileIdHash= */ null);
+
+        data.getBitmapOrLoadImage((result) -> assertEquals(bitmap, result));
+    }
+
+    @Test
+    public void testNullBackgroundImageInfo() throws JSONException {
+        @PlatformType int platformType = PlatformType.ANDROID_LOCAL;
+        @NtpBackgroundType int backgroundType = NtpBackgroundType.THEME_COLLECTION;
+        @ColorInt Integer primaryColor = Color.BLUE;
+        GURL url = JUnitTestGURLs.URL_1;
+        String collectionId = "collection";
+        boolean isDailyRefreshEnabled = true;
+
+        CustomBackgroundInfo info =
+                new CustomBackgroundInfo(
+                        url, collectionId, /* isUploadedImage= */ false, isDailyRefreshEnabled);
+        NtpBackgroundDataThemeCollection data =
+                new NtpBackgroundDataThemeCollection(
+                        platformType,
+                        info,
+                        /* backgroundImageInfo= */ null,
+                        /* bitmap= */ null,
+                        primaryColor,
+                        /* fileIdHash= */ null);
+
+        JSONObject json = data.toJson();
+        NtpBackgroundDataThemeCollection restored = NtpBackgroundDataThemeCollection.fromJson(json);
+
+        assertNull(restored.getBackgroundImageInfo());
+    }
+
+    private void testToJsonAndFromJsonImpl(@Nullable String fileIdHash) throws JSONException {
         @PlatformType int platformType = PlatformType.ANDROID_LOCAL;
         @NtpBackgroundType int backgroundType = NtpBackgroundType.THEME_COLLECTION;
         @ColorInt Integer primaryColor = Color.BLUE;
@@ -98,7 +183,12 @@ public class NtpBackgroundDataThemeCollectionUnitTest {
 
         NtpBackgroundDataThemeCollection data =
                 new NtpBackgroundDataThemeCollection(
-                        platformType, info, backgroundImageInfo, /* bitmap= */ null, primaryColor);
+                        platformType,
+                        info,
+                        backgroundImageInfo,
+                        /* bitmap= */ null,
+                        primaryColor,
+                        fileIdHash);
 
         JSONObject json = data.toJson();
         NtpBackgroundDataThemeCollection restored = NtpBackgroundDataThemeCollection.fromJson(json);
@@ -119,31 +209,13 @@ public class NtpBackgroundDataThemeCollectionUnitTest {
         assertEquals(
                 landscapeMatrix.toShortString(),
                 restored.getBackgroundImageInfo().getLandscapeMatrix().toShortString());
-    }
-
-    @Test
-    public void testNullBackgroundImageInfo() throws JSONException {
-        @PlatformType int platformType = PlatformType.ANDROID_LOCAL;
-        @NtpBackgroundType int backgroundType = NtpBackgroundType.THEME_COLLECTION;
-        @ColorInt Integer primaryColor = Color.BLUE;
-        GURL url = JUnitTestGURLs.URL_1;
-        String collectionId = "collection";
-        boolean isDailyRefreshEnabled = true;
-
-        CustomBackgroundInfo info =
-                new CustomBackgroundInfo(
-                        url, collectionId, /* isUploadedImage= */ false, isDailyRefreshEnabled);
-        NtpBackgroundDataThemeCollection data =
-                new NtpBackgroundDataThemeCollection(
-                        platformType,
-                        info,
-                        /* backgroundImageInfo= */ null,
-                        /* bitmap= */ null,
-                        primaryColor);
-
-        JSONObject json = data.toJson();
-        NtpBackgroundDataThemeCollection restored = NtpBackgroundDataThemeCollection.fromJson(json);
-
-        assertNull(restored.getBackgroundImageInfo());
+        if (fileIdHash != null) {
+            assertEquals(
+                    NtpCustomizationUtils.createThemeCollectionImageFileInDir(fileIdHash)
+                            .getAbsolutePath(),
+                    restored.getLastUploadImageFilePath());
+        } else {
+            assertNull(restored.getLastUploadImageFilePath());
+        }
     }
 }

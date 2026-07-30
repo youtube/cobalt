@@ -4,6 +4,7 @@
 # found in the LICENSE file.
 """Shared utility functions for iOS test runners."""
 
+import uuid
 import dataclasses
 import glob
 import json
@@ -13,6 +14,46 @@ import subprocess
 import threading
 from typing import Any, Dict, List, Optional, Tuple
 import shlex
+
+
+def _load_env() -> None:
+    """Loads environment variables from a .env file if it exists."""
+    tools_dir = os.path.dirname(os.path.abspath(__file__))
+    repo_root = os.path.abspath(os.path.join(tools_dir, '..', '..'))
+
+    paths_to_try = [
+        os.path.join(os.getcwd(), '.env'),
+        os.path.join(repo_root, '.env'),
+    ]
+
+    loaded = set()
+    for path in paths_to_try:
+        path = os.path.abspath(path)
+        if path in loaded or not os.path.exists(path):
+            continue
+        loaded.add(path)
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith('#'):
+                        continue
+                    if '=' not in line:
+                        continue
+                    key, val = line.split('=', 1)
+                    key = key.strip()
+                    val = val.strip()
+                    if ((val.startswith('"') and val.endswith('"')) or
+                            (val.startswith("'") and val.endswith("'"))):
+                        val = val[1:-1]
+                    if key not in os.environ:
+                        os.environ[key] = val
+        except Exception as e:
+            print(f"Warning: Failed to read .env file at {path}: {e}")
+
+
+# Automatically load environment variables from .env files on import.
+_load_env()
 
 
 @dataclasses.dataclass
@@ -171,6 +212,16 @@ def find_and_boot_simulator(device_type: Optional[str],
         A Simulator object for the selected device, or None on failure.
     """
     print_header("--- Selecting Simulator ---")
+
+    env_device = os.environ.get('IOS_SIMULATOR_DEFAULT_DEVICE')
+    env_os = os.environ.get('IOS_SIMULATOR_DEFAULT_OS')
+
+    if not device_type and env_device:
+        device_type = env_device
+        print(f"Using default simulator device from environment: {device_type}")
+    if not os_version and env_os:
+        os_version = env_os
+        print(f"Using default simulator OS from environment: {os_version}")
     sim_manager = SimulatorManager()
     if not sim_manager.simulators:
         return None
@@ -179,13 +230,29 @@ def find_and_boot_simulator(device_type: Optional[str],
 
     # 1. If a specific device is requested, try to find it.
     if device_type:
-        simulator_to_use = sim_manager.find_device_by_type_and_version(
-            device_type, os_version)
-        if not simulator_to_use:
-            print(f"Could not find a simulator for device '{device_type}' "
-                  f"and OS '{os_version}'.")
-            sim_manager.list_available_simulators()
-            return None
+        is_udid = False
+        try:
+            uuid.UUID(device_type)
+            is_udid = True
+        except ValueError:
+            pass
+
+        if is_udid:
+            for sim in sim_manager.simulators:
+                if sim.udid.lower() == device_type.lower():
+                    simulator_to_use = sim
+                    break
+            if not simulator_to_use:
+                print(f"Could not find a simulator with UDID '{device_type}'.")
+                return None
+        else:
+            simulator_to_use = sim_manager.find_device_by_type_and_version(
+                device_type, os_version)
+            if not simulator_to_use:
+                print(f"Could not find a simulator for device '{device_type}' "
+                      f"and OS '{os_version}'.")
+                sim_manager.list_available_simulators()
+                return None
 
     # 2. If no device was specified, look for an already booted one.
     if not simulator_to_use:

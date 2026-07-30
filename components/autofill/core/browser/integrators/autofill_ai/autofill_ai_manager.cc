@@ -200,6 +200,13 @@ void PrefetchAmbientAutofillContext(AutofillClient& client,
   if (PersonalContextAccessManager* access_manager =
           client.GetPersonalContextAccessManager()) {
     base::flat_set<EntityType> requested_types(std::from_range, relevant_types);
+    base::EraseIf(requested_types, [&](const EntityType& type) {
+      return !MayPerformAutofillAiAction(
+          client, AutofillAiAction::kTypeSupportsAmbientAutofillData, type);
+    });
+    if (requested_types.empty()) {
+      return;
+    }
     access_manager->PrefetchContext(requested_types);
   }
 }
@@ -368,13 +375,14 @@ void AutofillAiManager::OnAfterLoadedServerPredictions(
 void AutofillAiManager::OnPrefetchContextComplete(
     const PersonalContextAccessManager& manager,
     std::optional<base::span<const EntityInstance>> entities) {
-  if (!entities.has_value()) {
-    client_->ShowAutofillAiPreFetchFailureNotification();
-  }
   if (!std::ranges::contains(client_->GetAutofillSuggestions(),
                              SuggestionType::kFetchingAmbientData,
                              &Suggestion::type)) {
     return;
+  }
+
+  if (!entities.has_value()) {
+    client_->ShowAutofillAiPreFetchFailureNotification();
   }
 
   if (generate_suggestions_and_update_popup_callback_) {

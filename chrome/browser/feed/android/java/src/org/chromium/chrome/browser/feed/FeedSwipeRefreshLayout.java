@@ -178,6 +178,25 @@ public class FeedSwipeRefreshLayout extends SwipeRefreshLayout implements Scroll
         setProgressViewEndTarget(false, (int) (SPINNER_END_OFFSET * metrics.density));
     }
 
+    @Override
+    public void setRefreshing(boolean refreshing) {
+        super.setRefreshing(refreshing);
+        if (!refreshing) {
+            resetAccessibility();
+        }
+    }
+
+    @Override
+    public void reset() {
+        super.reset();
+        resetAccessibility();
+    }
+
+    private void resetAccessibility() {
+        setAccessibilityLiveRegion(ACCESSIBILITY_LIVE_REGION_NONE);
+        setContentDescription(null);
+    }
+
     private void ensureTarget() {
         if (mTarget == null) {
             for (int i = 0; i < getChildCount(); i++) {

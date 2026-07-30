@@ -8,6 +8,7 @@
 #include <string>
 #include <variant>
 
+#include "base/check.h"
 #include "base/containers/span.h"
 #include "components/autofill/core/browser/filling/filling_product.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
@@ -28,11 +29,26 @@ class AutofillSuggestionDelegate {
  public:
   // Contains some additional information associated with a suggestion.
   struct SuggestionMetadata {
-    // Defines the row selected in the list of suggestions.
-    int row = 0;
-    // On desktop, it defines the subpopup that contains the suggestion
-    // selected.
-    int sub_popup_level = 0;
+    int row() const {
+      CHECK(!multi_index.empty());
+      return multi_index.back();
+    }
+
+    size_t sub_popup_level() const {
+      CHECK(!multi_index.empty());
+      return multi_index.size() - 1;
+    }
+
+    // The (multi-)index of the selected suggestion. It contains all the indices
+    // of the selected suggestion from the root popup down to the suggestion
+    // that was selected. Examples:
+    // - If the suggestion with index `n` of the root popup was selected, this
+    //   is `{n}`.
+    // - If the suggestion with index `p` of a child popup anchored on the
+    //   suggestion of index `n` in the root popup was selected, this is
+    //   `{n, p}`.
+    std::vector<size_t> multi_index;
+
     // Defines whether the suggestion appeared on a search result list (i.e.
     // the search input is not empty).
     bool from_search_result = false;
@@ -55,9 +71,10 @@ class AutofillSuggestionDelegate {
   // Returns true if a search is currently in progress.
   virtual bool IsSearching() const = 0;
 
+  // Will be removed together with kAutofillSimplifyFocusCheck.
   virtual std::variant<AutofillDriver*,
                        password_manager::PasswordManagerDriver*>
-  GetDriver() = 0;
+  GetDriver_DoNotUse() = 0;
 
   // Called when Autofill suggestions are shown. On Desktop, where the
   // suggestions support sub-popups, only the root popup triggers this call.

@@ -821,8 +821,8 @@ TEST_F(FilePathWatcherTest, DirectoryChain) {
   for (const auto& dir_name : dir_names) {
     sub_path = sub_path.AppendASCII(dir_name);
     ASSERT_TRUE(CreateDirectory(sub_path));
-    // TODO(crbug.com/40263777): Expect that no events are fired.
   }
+  delegate.SpinAndExpectNoEvents();
 
   // It may take some time for `watcher` to re-construct its watch list, so it's
   // possible an event is missed. _At least_ one event should be fired, though.
@@ -1930,7 +1930,7 @@ TEST_F(FilePathWatcherTest, DirAttributesChanged) {
   // to access the file.
   ASSERT_TRUE(ChangeFilePermissions(test_dir1, Read, false));
   ASSERT_TRUE(ChangeFilePermissions(test_dir1, Read, true));
-  // TODO(crbug.com/40263777): Expect that no events are fired.
+  delegate.SpinAndExpectNoEvents();
 
   // We should get notified in this case because filepathwatcher can no
   // longer access the file.
@@ -1939,7 +1939,7 @@ TEST_F(FilePathWatcherTest, DirAttributesChanged) {
   delegate.RunUntilEventsMatch(event_expecter);
 
   ASSERT_TRUE(ChangeFilePermissions(test_dir1, Execute, true));
-  // TODO(crbug.com/40263777): Expect that no events are fired.
+  delegate.RunUntilEventsMatch(event_expecter);
 }
 
 #endif  // BUILDFLAG(IS_APPLE)

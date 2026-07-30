@@ -31,6 +31,8 @@ per-file ..._win*=file://base/win/OWNERS
 
 # For base::Feature and base::FeatureList changes:
 per-file feature*=asvitkine@chromium.org
+per-file feature*=rogerm@chromium.org
+per-file feature*=lucnguyen@google.com
 
 # Logging-related changes:
 per-file check*=olivierli@chromium.org

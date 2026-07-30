@@ -386,9 +386,9 @@ class URLLoaderTest : public testing::Test {
     body_handle_.reset();
     base::RunLoop().RunUntilIdle();
     network::URLLoaderCompletionStatus status(net::OK);
-    status.encoded_data_length = kTestDataSize.InBytes();
-    status.encoded_body_length = kTestDataSize.InBytes();
-    status.decoded_body_length = kTestDataSize.InBytes();
+    status.encoded_data_length = kTestDataSize;
+    status.encoded_body_length = kTestDataSize;
+    status.decoded_body_length = kTestDataSize;
     resource_request_client()->OnCompletedRequest(status);
     EXPECT_TRUE(client()->did_finish());
     // There should be no error.
@@ -401,9 +401,9 @@ class URLLoaderTest : public testing::Test {
     body_handle_.reset();
     base::RunLoop().RunUntilIdle();
     network::URLLoaderCompletionStatus status(net::ERR_FAILED);
-    status.encoded_data_length = kTestDataSize.InBytes();
-    status.encoded_body_length = kTestDataSize.InBytes();
-    status.decoded_body_length = kTestDataSize.InBytes();
+    status.encoded_data_length = kTestDataSize;
+    status.encoded_body_length = kTestDataSize;
+    status.decoded_body_length = kTestDataSize;
     resource_request_client()->OnCompletedRequest(status);
     EXPECT_FALSE(client()->did_finish());
     ASSERT_TRUE(client()->error());

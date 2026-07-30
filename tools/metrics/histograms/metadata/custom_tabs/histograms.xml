@@ -578,7 +578,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CustomTabs.NavigationEvent" enum="CustomTabsNavigationEvent"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>jinsukkim@chromium.org</owner>
   <owner>clank-app-team@chromium.org</owner>
   <summary>

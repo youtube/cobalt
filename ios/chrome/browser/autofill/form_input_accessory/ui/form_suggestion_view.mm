@@ -199,12 +199,22 @@ void LogSelectedSuggestionIndexMetric(SuggestionType suggestion_type,
                                               atIndex:index];
 }
 
+- (BOOL)shouldShowRPId:(NSString*)rpId {
+  return [self.formSuggestionViewDelegate formSuggestionView:self
+                                              shouldShowRPId:rpId];
+}
+
 - (void)openSettingsForSuggestion:(FormSuggestion*)suggestion {
   [self.formSuggestionViewDelegate openSettingsForSuggestion:suggestion];
 }
 
 - (void)openEditForSuggestion:(FormSuggestion*)suggestion {
   [self.formSuggestionViewDelegate openEditForSuggestion:suggestion];
+}
+
+- (BOOL)isPersonalContextSuggestion:(FormSuggestion*)suggestion {
+  return
+      [self.formSuggestionViewDelegate isPersonalContextSuggestion:suggestion];
 }
 
 #pragma mark - Helper methods

@@ -38,7 +38,11 @@ struct SemanticEmbedderResult {
 // A semantic embedder.
 interface AISemanticEmbedder {
   // Embeds strings and returns an array of 1:1 mapped float arrays.
+  // `inputs` must not be empty. The renderer guarantees this, and sending an
+  // empty input will result in a BadMessage error.
+  // A null return result signifies a fatal error (like a model crash) or
+  // session destruction.
   Embed(array<string> inputs, AISemanticEmbedderEmbedOptions? options)
-      => (SemanticEmbedderResult result);
+      => (SemanticEmbedderResult? result);
 };
 

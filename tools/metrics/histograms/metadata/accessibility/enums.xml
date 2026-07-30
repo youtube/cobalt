@@ -1650,7 +1650,7 @@ Unknown properties are collapsed to zero. -->
   <int value="3" label="Content Too Short"/>
 </enum>
 
-<!-- LINT.ThenChange(//components/dom_distiller/core/distiller_page.cc:DistillationParseResult) -->
+<!-- LINT.ThenChange(//components/dom_distiller/core/distiller_page.h:DistillationParseResult) -->
 
 <!-- LINT.IfChange(DistillationResult)-->
 

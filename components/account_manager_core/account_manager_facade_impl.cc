@@ -235,6 +235,8 @@ AccountManagerFacadeImpl::AccountManagerFacadeImpl(
   DCHECK(init_finished);
   initialization_callbacks_.emplace_back(std::move(init_finished));
 
+  account_manager_observation_.Observe(account_manager);
+
   if (!account_manager_remote_ ||
       remote_version_ < RemoteMinVersions::kAddObserverMinVersion) {
     LOG(WARNING) << "Found remote at: " << remote_version_
@@ -259,11 +261,13 @@ AccountManagerFacadeImpl::~AccountManagerFacadeImpl() {
                               num_receiver_disconnections_);
 }
 
-void AccountManagerFacadeImpl::AddObserver(Observer* observer) {
+void AccountManagerFacadeImpl::AddObserver(
+    AccountManagerFacade::Observer* observer) {
   observer_list_.AddObserver(observer);
 }
 
-void AccountManagerFacadeImpl::RemoveObserver(Observer* observer) {
+void AccountManagerFacadeImpl::RemoveObserver(
+    AccountManagerFacade::Observer* observer) {
   observer_list_.RemoveObserver(observer);
 }
 
@@ -319,16 +323,16 @@ AccountManagerFacadeImpl::CreateAccessTokenFetcher(
 void AccountManagerFacadeImpl::ReportAuthError(
     const account_manager::AccountKey& account,
     const GoogleServiceAuthError& error) {
-  if (!account_manager_remote_ ||
-      remote_version_ < RemoteMinVersions::kReportAuthErrorMinVersion) {
-    LOG(WARNING) << "Found remote at: " << remote_version_ << ", expected: "
-                 << RemoteMinVersions::kReportAuthErrorMinVersion
-                 << " for ReportAuthError.";
+  // Silently ignore transient errors reported by apps to avoid polluting
+  // other apps' error caches with transient errors like
+  // `GoogleServiceAuthError::CONNECTION_FAILED`.
+  if (error.IsTransientError()) {
     return;
   }
 
-  account_manager_remote_->ReportAuthError(ToMojoAccountKey(account),
-                                           ToMojoGoogleServiceAuthError(error));
+  for (auto& observer : observer_list_) {
+    observer.OnAuthErrorChanged(account, error);
+  }
 }
 
 void AccountManagerFacadeImpl::UpsertAccountForTesting(
@@ -375,58 +379,18 @@ void AccountManagerFacadeImpl::OnReceiverReceived(
   FinishInitSequenceIfNotAlreadyFinished();
 }
 
-void AccountManagerFacadeImpl::OnTokenUpserted(
-    crosapi::mojom::AccountPtr account) {
-  std::optional<Account> maybe_account = FromMojoAccount(account);
-  if (!maybe_account) {
-    LOG(WARNING) << "Can't unmarshal account of type: "
-                 << account->key->account_type;
-    return;
-  }
-  for (auto& observer : observer_list_) {
-    observer.OnAccountUpserted(maybe_account.value());
-  }
+void AccountManagerFacadeImpl::OnTokenUpserted(const Account& account) {
+  observer_list_.Notify(&AccountManagerFacade::Observer::OnAccountUpserted,
+                        account);
 }
 
-void AccountManagerFacadeImpl::OnAccountRemoved(
-    crosapi::mojom::AccountPtr account) {
-  std::optional<Account> maybe_account = FromMojoAccount(account);
-  if (!maybe_account) {
-    LOG(WARNING) << "Can't unmarshal account of type: "
-                 << account->key->account_type;
-    return;
-  }
-  for (auto& observer : observer_list_) {
-    observer.OnAccountRemoved(maybe_account.value());
-  }
-}
-
-void AccountManagerFacadeImpl::OnAuthErrorChanged(
-    crosapi::mojom::AccountKeyPtr account,
-    crosapi::mojom::GoogleServiceAuthErrorPtr error) {
-  std::optional<AccountKey> maybe_account_key = FromMojoAccountKey(account);
-  if (!maybe_account_key) {
-    LOG(WARNING) << "Can't unmarshal account key of type: "
-                 << account->account_type;
-    return;
-  }
-
-  std::optional<GoogleServiceAuthError> maybe_error =
-      FromMojoGoogleServiceAuthError(error);
-  if (!maybe_error) {
-    LOG(WARNING) << "Can't unmarshal error with state: " << error->state;
-    return;
-  }
-
-  for (auto& observer : observer_list_) {
-    observer.OnAuthErrorChanged(maybe_account_key.value(), maybe_error.value());
-  }
+void AccountManagerFacadeImpl::OnAccountRemoved(const Account& account) {
+  observer_list_.Notify(&AccountManagerFacade::Observer::OnAccountRemoved,
+                        account);
 }
 
 void AccountManagerFacadeImpl::OnSigninDialogClosed() {
-  for (auto& observer : observer_list_) {
-    observer.OnSigninDialogClosed();
-  }
+  observer_list_.Notify(&AccountManagerFacade::Observer::OnSigninDialogClosed);
 }
 
 void AccountManagerFacadeImpl::GetPersistentErrorInternal(

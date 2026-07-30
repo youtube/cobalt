@@ -7,7 +7,7 @@
 #include <memory>
 #include <utility>
 
-#include "base/byte_count.h"
+#include "base/byte_size.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/process/kill.h"
@@ -71,7 +71,7 @@ blink::mojom::ResourceLoadInfoPtr CreateResourceLoadInfo(
   resource_load_info->original_url = url;
   resource_load_info->request_destination = request_destination;
   resource_load_info->was_cached = false;
-  resource_load_info->raw_body_bytes = base::ByteCount(0);
+  resource_load_info->raw_body_bytes = base::ByteSize(0);
   resource_load_info->net_error = net::OK;
   resource_load_info->network_info = blink::mojom::CommonNetworkInfo::New();
   resource_load_info->network_info->remote_endpoint = net::IPEndPoint();
@@ -1019,7 +1019,7 @@ TEST_P(MetricsWebContentsObserverTest, OnLoadedResource_MainFrame) {
   const auto request_id = navigation_simulator->GetGlobalRequestID();
 
   observer()->ResourceLoadComplete(
-      web_contents()->GetPrimaryMainFrame(), request_id,
+      web_contents()->GetPrimaryMainFrame(), request_id, main_resource_url,
       *CreateResourceLoadInfo(main_resource_url,
                               network::mojom::RequestDestination::kFrame));
   EXPECT_EQ(1u, loaded_resources().size());
@@ -1031,7 +1031,7 @@ TEST_P(MetricsWebContentsObserverTest, OnLoadedResource_MainFrame) {
   // Deliver a second main frame resource. This one should be ignored, since the
   // specified |request_id| is no longer associated with any tracked page loads.
   observer()->ResourceLoadComplete(
-      web_contents()->GetPrimaryMainFrame(), request_id,
+      web_contents()->GetPrimaryMainFrame(), request_id, main_resource_url,
       *CreateResourceLoadInfo(main_resource_url,
                               network::mojom::RequestDestination::kFrame));
   EXPECT_EQ(1u, loaded_resources().size());
@@ -1045,6 +1045,7 @@ TEST_P(MetricsWebContentsObserverTest, OnLoadedResource_Subresource) {
   GURL loaded_resource_url("http://www.other.com/");
   observer()->ResourceLoadComplete(
       web_contents()->GetPrimaryMainFrame(), content::GlobalRequestID(),
+      loaded_resource_url,
       *CreateResourceLoadInfo(loaded_resource_url,
                               network::mojom::RequestDestination::kScript));
 
@@ -1065,9 +1066,10 @@ TEST_P(MetricsWebContentsObserverTest,
       web_contents(), GURL(kDefaultTestUrl2));
 
   DCHECK(!old_rfh->IsActive());
+  GURL other_url("http://www.other.com/");
   observer()->ResourceLoadComplete(
-      old_rfh, content::GlobalRequestID(),
-      *CreateResourceLoadInfo(GURL("http://www.other.com/"),
+      old_rfh, content::GlobalRequestID(), other_url,
+      *CreateResourceLoadInfo(other_url,
                               network::mojom::RequestDestination::kScript));
 
   EXPECT_TRUE(loaded_resources().empty());

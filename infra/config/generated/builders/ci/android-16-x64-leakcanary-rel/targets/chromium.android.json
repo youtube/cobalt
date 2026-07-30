@@ -6,6 +6,7 @@
           "--git-revision=${got_revision}",
           "--enable-leak-checks",
           "--avd-config=../../tools/android/avd/proto/android_36_google_apis_x64.textpb",
+          "--skia-gold-consider-unsupported",
           "--gs-results-bucket=chromium-result-details",
           "--recover-devices"
         ],

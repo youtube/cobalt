@@ -1003,8 +1003,14 @@ ScriptPromise<PaymentResponse> PaymentRequest::show(
     ExceptionState& exception_state) {
   if (!script_state->ContextIsValid() || !LocalDOMWindow::From(script_state) ||
       !LocalDOMWindow::From(script_state)->GetFrame()) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kAbortError,
-                                      "Cannot show the payment request");
+    if (RuntimeEnabledFeatures::
+            PaymentRequestNonFullyActiveDocumentCheckInvalidStateErrorEnabled()) {
+      exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
+                                        "Cannot show the payment request");
+    } else {
+      exception_state.ThrowDOMException(DOMExceptionCode::kAbortError,
+                                        "Cannot show the payment request");
+    }
     return EmptyPromise();
   }
 
@@ -1174,8 +1180,14 @@ ScriptPromise<IDLUndefined> PaymentRequest::Retry(
     ExceptionState& exception_state) {
   if (!script_state->ContextIsValid() || !LocalDOMWindow::From(script_state) ||
       !LocalDOMWindow::From(script_state)->GetFrame()) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kAbortError,
-                                      "Cannot retry the payment request");
+    if (RuntimeEnabledFeatures::
+            PaymentRequestNonFullyActiveDocumentCheckInvalidStateErrorEnabled()) {
+      exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
+                                        "Cannot retry the payment request");
+    } else {
+      exception_state.ThrowDOMException(DOMExceptionCode::kAbortError,
+                                        "Cannot retry the payment request");
+    }
     return EmptyPromise();
   }
 

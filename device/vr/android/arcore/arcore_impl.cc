@@ -86,10 +86,9 @@ std::set<ArTrackableType> GetArCoreEntityTypes(
 // Helper, computes mojo_from_input_source transform based on mojo_from_viever
 // pose and input source state (containing input_from_pointer transform, which
 // in case of input sources is equivalent to viewer_from_pointer).
-// TODO(crbug.com/40669002): this currently assumes that the input source
-// ray mode is "tapping", which is OK for input sources available for AR on
-// Android, but is not true in the general case. This method should duplicate
-// the logic found in XRTargetRaySpace::MojoFromNative().
+// This currently assumes that the input source ray mode is "tapping", which
+// is OK for input sources available for AR on Android, but is not true in
+// the general case.
 std::optional<gfx::Transform> GetMojoFromInputSource(
     const device::mojom::XRInputSourceStatePtr& input_source_state,
     const gfx::Transform& mojo_from_viewer) {
@@ -556,8 +555,6 @@ std::optional<ArCore::InitializeResult> ArCoreImpl::Initialize(
   DCHECK(IsOnGlThread());
   DCHECK(!arcore_session_.is_valid());
 
-  // TODO(crbug.com/41386064): Notify error earlier if this will fail.
-
   JNIEnv* env = base::android::AttachCurrentThread();
   if (!env) {
     DLOG(ERROR) << "Unable to get JNIEnv for ArCore";
@@ -989,10 +986,11 @@ mojom::VRPosePtr ArCoreImpl::Update(bool* camera_updated) {
   DCHECK(arcore_frame_.is_valid());
   DCHECK(camera_updated);
 
-  TRACE_EVENT_BEGIN0("gpu", "ArCore Update");
-  ArStatus status =
-      ArSession_update(arcore_session_.get(), arcore_frame_.get());
-  TRACE_EVENT_END0("gpu", "ArCore Update");
+  ArStatus status;
+  {
+    TRACE_EVENT("gpu", "ArCore Update");
+    status = ArSession_update(arcore_session_.get(), arcore_frame_.get());
+  }
 
   if (status != AR_SUCCESS) {
     DLOG(ERROR) << "ArSession_update failed: " << status;
@@ -1289,8 +1287,6 @@ std::optional<HitTestSubscriptionId> ArCoreImpl::SubscribeToHitTest(
       // Unsupported by ARCore:
       return std::nullopt;
     case mojom::XRNativeOriginInformation::Tag::kImageIndex:
-      // TODO(crbug.com/40728355): Add hit test support for tracked
-      // images.
       return std::nullopt;
     case mojom::XRNativeOriginInformation::Tag::kAnchorId:
       // Validate that we know which anchor's space the hit test is interested
@@ -1534,8 +1530,6 @@ bool ArCoreImpl::NativeOriginExists(
     case mojom::XRNativeOriginInformation::Tag::kHandJointSpaceInfo:
       return false;
     case mojom::XRNativeOriginInformation::Tag::kImageIndex:
-      // TODO(crbug.com/40728355): Needed for anchor creation relaitve to
-      // tracked images.
       return false;
     case mojom::XRNativeOriginInformation::Tag::kMeshId:
       return false;
@@ -1586,8 +1580,6 @@ std::optional<gfx::Transform> ArCoreImpl::GetMojoFromNativeOrigin(
       return std::nullopt;
 
     case mojom::XRNativeOriginInformation::Tag::kImageIndex:
-      // TODO(crbug.com/40728355): Needed for hit test and anchors
-      // support for tracked images.
       return std::nullopt;
     case mojom::XRNativeOriginInformation::Tag::kMeshId:
       return std::nullopt;

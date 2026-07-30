@@ -186,7 +186,7 @@ try_.orchestrator_builder(
     branch_selector = branches.selector.MAC_BRANCHES,
     mirrors = [
         "ci/mac-arm64-rel",
-        "ci/mac15-arm64-rel-tests",
+        "ci/mac26-arm64-rel-tests",
         "ci/GPU Mac arm64 Builder",
         "ci/Mac Retina Release (Apple M2)",
     ],
@@ -266,6 +266,8 @@ try_.orchestrator_builder(
         "chromium.add_one_test_shard": 10,
         # crbug.com/940930
         "chromium.enable_cleandead": 100,
+        # go/rts-project-proposal
+        "chromium_rts.filter_file_analysis": 10,
     },
     main_list_view = "try",
     use_clang_coverage = True,
@@ -398,7 +400,7 @@ try_.builder(
 )
 
 try_.builder(
-    name = "mac26-arm64-rel-tests",
+    name = "mac26-arm64-rel",
     branch_selector = branches.selector.MAC_BRANCHES,
     mirrors = [
         "ci/mac-arm64-rel",
@@ -594,7 +596,7 @@ try_.builder(
     name = "mac_chromium_dbg_ng",
     mirrors = [
         "ci/mac-arm64-dbg",
-        "ci/mac15-tests-dbg",
+        "ci/mac26-tests-dbg",
     ],
     gn_args = "ci/mac-arm64-dbg",
     cpu = cpu.ARM64,

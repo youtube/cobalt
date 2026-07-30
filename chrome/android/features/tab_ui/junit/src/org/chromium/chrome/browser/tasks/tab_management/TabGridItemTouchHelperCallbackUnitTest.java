@@ -229,7 +229,7 @@ public class TabGridItemTouchHelperCallbackUnitTest {
                         isDialog ? TabListLayoutType.FLAT : TabListLayoutType.GROUPED,
                         CallbackUtils.emptyRunnable());
         mItemTouchHelperCallback.setupCallback(THRESHOLD, MERGE_AREA_THRESHOLD, THRESHOLD);
-        mItemTouchHelperCallback.getMovementFlags(mRecyclerView, mMockViewHolder1);
+        mItemTouchHelperCallback.setRecyclerView(mRecyclerView);
     }
 
     @Test

@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <string_view>
+#include <utility>
 
 #include "base/command_line.h"
 #include "base/run_loop.h"
@@ -759,7 +760,7 @@ IN_PROC_BROWSER_TEST_F(BrowserCommandControllerBrowserTestGlic,
   PrefService* profile_prefs = browser()->profile()->GetPrefs();
   profile_prefs->SetInteger(
       ::prefs::kGeminiSettings,
-      static_cast<int>(glic::prefs::SettingsPolicyState::kEnabled));
+      std::to_underlying(glic::prefs::SettingsPolicyState::kEnabled));
   // Bypass fre.
   glic::GlicKeyedService::Get(browser()->profile())
       ->enabling()

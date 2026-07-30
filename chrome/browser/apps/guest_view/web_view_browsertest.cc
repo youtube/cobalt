@@ -3391,6 +3391,96 @@ IN_PROC_BROWSER_TEST_P(WebViewTest, TestContextMenu) {
   EXPECT_EQ(true, context_menu_shown_observer.shown());
 }
 
+IN_PROC_BROWSER_TEST_P(WebViewTest, BlockOpenImageInNewTab) {
+  ASSERT_TRUE(StartEmbeddedTestServer());
+
+  LoadAppWithGuest("web_view/context_menus/basic");
+  auto* guest_view = GetGuestView();
+  ASSERT_TRUE(guest_view);
+  EXPECT_TRUE(GetGuestViewManager()->WaitUntilAttachedAndLoaded(guest_view));
+
+  auto* guest_main_frame = GetGuestRenderFrameHost();
+  ASSERT_TRUE(guest_main_frame);
+
+  // Navigate the guest to the test page by injecting a link and clicking it.
+  GURL guest_url = embedded_test_server()->GetURL(
+      "/android/contextmenu/context_menu_test.html");
+
+  content::TestFrameNavigationObserver navigation_observer(guest_main_frame);
+  static_cast<extensions::WebViewGuest*>(guest_view)
+      ->NavigateGuest(guest_url.spec(),
+                      base::OnceCallback<void(content::NavigationHandle&)>(),
+                      /*force_navigation=*/false);
+  navigation_observer.Wait();
+
+  guest_main_frame = GetGuestRenderFrameHost();
+  ASSERT_TRUE(guest_main_frame);
+
+  // Get the center coordinates of the image #testImage in the guest.
+  content::EvalJsResult coords_result = content::EvalJs(
+      guest_main_frame,
+      "var rect = document.getElementById('testImage').getBoundingClientRect();"
+      "[Math.round(rect.left + rect.width/2), Math.round(rect.top + "
+      "rect.height/2)];");
+  ASSERT_TRUE(coords_result.is_list());
+  const base::ListValue& list = coords_result.ExtractList();
+  int click_x = list[0].GetInt();
+  int click_y = list[1].GetInt();
+
+  // Debug: Check element at click coordinates
+  std::string tag_at_click =
+      content::EvalJs(guest_main_frame,
+                      content::JsReplace(
+                          "document.elementFromPoint($1, $2) ? "
+                          "document.elementFromPoint($1, $2).tagName : 'NULL'",
+                          click_x, click_y))
+          .ExtractString();
+  EXPECT_EQ("IMG", tag_at_click);
+
+  // Inject a listener in the embedder to block 'newwindow'.
+  content::WebContents* embedder_contents = GetEmbedderWebContents();
+  ASSERT_TRUE(embedder_contents);
+  std::string inject_listener_script =
+      "var webview = document.querySelector('webview');"
+      "window.newWindowBlockedCalled = false;"
+      "webview.addEventListener('newwindow', function(e) {"
+      "  e.preventDefault();"
+      "  window.newWindowBlockedCalled = true;"
+      "});";
+  EXPECT_TRUE(content::ExecJs(embedder_contents, inject_listener_script));
+
+  // We expect the tab count to NOT increase.
+  int tab_count = browser()->tab_strip_model()->count();
+
+  // Trigger "Open image in new tab" context menu.
+  auto open_context_menu_at = [](content::RenderFrameHost* rfh, int x, int y) {
+    ASSERT_TRUE(rfh);
+    blink::WebMouseEvent mouse_event(
+        blink::WebInputEvent::Type::kMouseDown,
+        blink::WebInputEvent::kNoModifiers,
+        blink::WebInputEvent::GetStaticTimeStampForTests());
+    mouse_event.button = blink::WebMouseEvent::Button::kRight;
+    mouse_event.SetPositionInWidget(x, y);
+    auto* guest_rwh = rfh->GetRenderWidgetHost();
+    guest_rwh->ForwardMouseEvent(mouse_event);
+    mouse_event.SetType(blink::WebInputEvent::Type::kMouseUp);
+    guest_rwh->ForwardMouseEvent(mouse_event);
+  };
+
+  ContextMenuWaiter waiter(IDC_CONTENT_CONTEXT_OPENIMAGENEWTAB);
+  open_context_menu_at(guest_main_frame, click_x, click_y);
+  waiter.WaitForMenuOpenAndClose();
+
+  // If the bug is present, the command is executed and opens a tab.
+  // If the bug is fixed, the command is blocked, and tab count remains same.
+  EXPECT_EQ(tab_count, browser()->tab_strip_model()->count());
+
+  bool new_window_blocked_called =
+      content::EvalJs(embedder_contents, "window.newWindowBlockedCalled")
+          .ExtractBool();
+  EXPECT_TRUE(new_window_blocked_called);
+}
+
 IN_PROC_BROWSER_TEST_P(WebViewTest, MediaAccessAPIAllow_TestAllow) {
   MediaAccessAPIAllowTestHelper("testAllow");
 }

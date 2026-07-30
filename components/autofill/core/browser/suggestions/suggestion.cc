@@ -115,6 +115,8 @@ std::string_view ConvertIconToPrintableString(Suggestion::Icon icon) {
       return "kKey";
     case Suggestion::Icon::kLocation:
       return "kLocation";
+    case Suggestion::Icon::kLocationSpark:
+      return "kLocationSpark";
     case Suggestion::Icon::kLoyalty:
       return "kLoyalty";
     case Suggestion::Icon::kMagic:
@@ -147,6 +149,8 @@ std::string_view ConvertIconToPrintableString(Suggestion::Icon icon) {
       return "kShipmentSpark";
     case Suggestion::Icon::kSpark:
       return "kSpark";
+    case Suggestion::Icon::kTextSpark:
+      return "kTextSpark";
     case Suggestion::Icon::kUndo:
       return "kUndo";
     case Suggestion::Icon::kVehicle:
@@ -163,6 +167,8 @@ std::string_view ConvertIconToPrintableString(Suggestion::Icon icon) {
       return "kGoogleCalendar";
     case Suggestion::Icon::kCardGeneric:
       return "kCardGeneric";
+    case Suggestion::Icon::kCardGenericSpark:
+      return "kCardGenericSpark";
     case Suggestion::Icon::kCardAmericanExpress:
       return "kCardAmericanExpress";
     case Suggestion::Icon::kCardDiners:

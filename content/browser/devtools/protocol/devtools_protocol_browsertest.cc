@@ -4842,6 +4842,73 @@ IN_PROC_BROWSER_TEST_F(PrerenderDevToolsProtocolTest,
   EXPECT_THAT(old_host->GetTitle(), testing::Eq(""));
 }
 
+IN_PROC_BROWSER_TEST_F(PrerenderDevToolsProtocolTest,
+                       RenderFrameDevToolsAgentHostPrerenderSwapSubframeCrash) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  const GURL kInitialUrl = GetUrl("/empty.html");
+  const GURL kPrerenderingUrl = GetUrl("/empty.html?prerender");
+  WebContentsImpl* web_contents_impl =
+      static_cast<WebContentsImpl*>(web_contents());
+
+  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+
+  // Attaching a session via a "tab" target is required to opt-in into
+  // FTN swapping mode during prerender activation.
+  AttachToTabTarget(web_contents_impl);
+  base::DictValue command_params;
+  command_params.Set("autoAttach", true);
+  command_params.Set("waitForDebuggerOnStart", false);
+  command_params.Set("flatten", true);
+  SendCommandSync("Target.setAutoAttach", std::move(command_params));
+
+  // Wait for the tab target to auto-attach to the page target.
+  std::string page_session_id;
+  while (true) {
+    base::DictValue notification =
+        WaitForNotification("Target.attachedToTarget", true);
+    if (*notification.FindStringByDottedPath("targetInfo.type") == "page") {
+      page_session_id = *notification.FindString("sessionId");
+      break;
+    }
+  }
+  ASSERT_FALSE(page_session_id.empty());
+
+  // Enable auto-attach recursively on the page target to attach to child frame
+  // OOPIFs.
+  base::DictValue subframe_auto_attach_params;
+  subframe_auto_attach_params.Set("autoAttach", true);
+  subframe_auto_attach_params.Set("waitForDebuggerOnStart", false);
+  subframe_auto_attach_params.Set("flatten", true);
+  SendSessionCommand("Target.setAutoAttach",
+                     std::move(subframe_auto_attach_params), page_session_id,
+                     true);
+
+  // Call setDiscoverTargets on the page target session. This registers it as
+  // a DevToolsAgentHostObserver, so that when the subframe attaches or detaches
+  // it triggers target info building (GetParentId()), reproducing the crash.
+  base::DictValue discover_opts;
+  discover_opts.Set("discover", true);
+  SendSessionCommand("Target.setDiscoverTargets", std::move(discover_opts),
+                     page_session_id, true);
+
+  // Create a cross-site iframe to ensure a subframe DevToolsAgentHost
+  // target is created and auto-attached.
+  GURL iframe_url = embedded_test_server()->GetURL("b.test", "/empty.html");
+  EXPECT_TRUE(content::ExecJs(
+      web_contents_impl->GetPrimaryMainFrame(),
+      JsReplace("const iframe = document.createElement('iframe');"
+                "iframe.src = $1;"
+                "document.body.appendChild(iframe);",
+                iframe_url)));
+  EXPECT_TRUE(content::WaitForLoadStop(web_contents_impl));
+
+  // Activating a prerender should cause FTN swapping on the RFH,
+  // which detaches the old page, auto-detaching the subframe inside it,
+  // and trigger the bug/crash if parent recreation is attempted.
+  AddPrerender(kPrerenderingUrl);
+  NavigatePrimaryPage(kPrerenderingUrl);
+}
+
 IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, ResponseAfterReload) {
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url = embedded_test_server()->GetURL("a.test", "/title1.html");

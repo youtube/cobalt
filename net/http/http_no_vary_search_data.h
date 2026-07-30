@@ -100,6 +100,14 @@ class NET_EXPORT_PRIVATE HttpNoVarySearchData {
   // UTF-8 string (not necessarily ASCII) and may end in significant whitespace.
   std::string CanonicalizeQuery(const GURL& url) const;
 
+  // Serializes the data back to a No-Vary-Search header value string.
+  //
+  // Returns `std::nullopt` if the serialization fails (see
+  // `net::structured_headers::SerializeDictionary`).
+  //
+  // If performance is concerned, consider to use `net::WriteToPickle()`.
+  std::optional<std::string> SerializeToString() const;
+
   // Member accessor methods.
   // Returns a copy of the affected params as a vector, hiding the internal
   // container type.

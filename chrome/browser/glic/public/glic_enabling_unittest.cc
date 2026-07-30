@@ -8,7 +8,9 @@
 #include <utility>
 
 #include "base/command_line.h"
+#include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/metrics/user_action_tester.h"
@@ -71,6 +73,13 @@ using base::test::FeatureRef;
 namespace glic {
 namespace {
 
+void FlushMessageLoop() {
+  base::RunLoop run_loop;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop.QuitClosure());
+  run_loop.Run();
+}
+
 class TestDelegate : public GlicGlobalEnabling::Delegate {
  public:
   std::string GetPermanentCountryCode() override {
@@ -109,6 +118,10 @@ class GlicEnablingTest : public testing::Test {
     // GlicBackgroundModeManager fails to be constructed without additional
     // setup.
     testing::Test::SetUp();
+    // Force basic password store to avoid talking to Linux desktop keyring
+    // services, which can run asynchronously and cause flakiness.
+    base::CommandLine::ForCurrentProcess()->AppendSwitchASCII("password-store",
+                                                              "basic");
     scoped_feature_list_.InitWithFeatures(
         {
             features::kGlic,
@@ -116,12 +129,20 @@ class GlicEnablingTest : public testing::Test {
             chromeos::features::kFeatureManagementGlic,
 #endif  // BUILDFLAG(IS_CHROMEOS)
         },
-        {});
+#if BUILDFLAG(IS_ANDROID)
+        {}
+#else
+        // Disable smart restart metrics to prevent background D-Bus queries to
+        // screensaver status, which causes asynchronous test flakiness.
+        {features::kSmartRestartMetrics}
+#endif
+    );
     histogram_tester_ = std::make_unique<base::HistogramTester>();
   }
 
   void TearDown() override {
     scoped_feature_list_.Reset();
+    FlushMessageLoop();
     testing::Test::TearDown();
   }
 
@@ -466,6 +487,10 @@ TEST_F(GlicEnablingTest, LocaleFilteringEnabledStar) {
 class GlicEnablingProfileEligibilityTest : public testing::Test {
  public:
   GlicEnablingProfileEligibilityTest() {
+    // Force basic password store to avoid talking to Linux desktop keyring
+    // services, which can run asynchronously and cause flakiness.
+    base::CommandLine::ForCurrentProcess()->AppendSwitchASCII("password-store",
+                                                              "basic");
     scoped_feature_list_.InitWithFeatures(
         /*enabled_features=*/
         {
@@ -477,6 +502,11 @@ class GlicEnablingProfileEligibilityTest : public testing::Test {
         /*disabled_features=*/{
             features::kGlicCountryFiltering,
             features::kGlicLocaleFiltering,
+#if !BUILDFLAG(IS_ANDROID)
+            // Disable smart restart metrics to prevent background D-Bus queries
+            // to screensaver status, which causes asynchronous test flakiness.
+            features::kSmartRestartMetrics,
+#endif
         });
   }
   ~GlicEnablingProfileEligibilityTest() override = default;
@@ -519,12 +549,14 @@ class GlicEnablingProfileEligibilityTest : public testing::Test {
     }
     identity_test_env_adaptor_.reset();
     profile_ = nullptr;
+    FlushMessageLoop();
 
     TestingBrowserProcess::GetGlobal()->TearDownGlobalFeaturesForTesting();
 
 #if BUILDFLAG(IS_CHROMEOS)
     glic_user_session_test_helper_.PostProfileTearDown();
 #endif  // BUILDFLAG(IS_CHROMEOS)
+    FlushMessageLoop();
   }
 
  protected:
@@ -652,6 +684,10 @@ TEST_F(GlicEnablingTrustFirstOnboardingTest, Consented_ReturnsReady) {
 class GlicEnablingAnchorEntryPointTestBase : public testing::Test {
  public:
   GlicEnablingAnchorEntryPointTestBase() {
+    // Force basic password store to avoid talking to Linux desktop keyring
+    // services, which can run asynchronously and cause flakiness.
+    base::CommandLine::ForCurrentProcess()->AppendSwitchASCII("password-store",
+                                                              "basic");
     scoped_feature_list_.InitWithFeatures(
         /*enabled_features=*/
         {
@@ -666,6 +702,16 @@ class GlicEnablingAnchorEntryPointTestBase : public testing::Test {
             features::kGlicUserStatusCheck,  // Disable user status check to
                                              // isolate from remote dogfood
                                              // status fetcher dependencies.
+            // Disable filtering features to isolate tests from host machine
+            // locale/country settings. Country filtering tested in
+            // GlicEnablingAnchorEntryPointCountryTest.
+            features::kGlicCountryFiltering,
+            features::kGlicLocaleFiltering,
+#if !BUILDFLAG(IS_ANDROID)
+            // Disable smart restart metrics to prevent background D-Bus queries
+            // to screensaver status, which causes asynchronous test flakiness.
+            features::kSmartRestartMetrics,
+#endif
         });
   }
 
@@ -709,10 +755,12 @@ class GlicEnablingAnchorEntryPointTestBase : public testing::Test {
     }
     identity_test_env_adaptor_.reset();
     profile_ = nullptr;
+    FlushMessageLoop();
     TestingBrowserProcess::GetGlobal()->TearDownGlobalFeaturesForTesting();
 #if BUILDFLAG(IS_CHROMEOS)
     glic_user_session_test_helper_.PostProfileTearDown();
 #endif  // BUILDFLAG(IS_CHROMEOS)
+    FlushMessageLoop();
   }
 
   Profile* profile() { return profile_.get(); }
@@ -734,11 +782,13 @@ TEST_F(GlicEnablingAnchorEntryPointTestBase,
        FeatureFlagDisablesButtonWhenAnchored) {
   profile()->GetPrefs()->SetInteger(
       glic::prefs::kGlicCompletedFre,
-      static_cast<int>(glic::prefs::FreStatus::kCompleted));
+      std::to_underlying(glic::prefs::FreStatus::kCompleted));
 
   base::test::ScopedFeatureList features;
   features.InitAndEnableFeature(
       features::kGlicAnchorEntryPointForOnboardedUsers);
+
+  base::HistogramTester histogram_tester;
 
   // Profile should NOT be eligible because the main kGlic flag is disabled,
   // which acts as a global killswitch.
@@ -750,12 +800,21 @@ TEST_F(GlicEnablingAnchorEntryPointTestBase,
   // The button should be hidden in the UI because the main feature flag
   // kGlic is disabled.
   EXPECT_FALSE(enablement.ShouldShowGlicButton());
+
+  enablement.RecordStartupMetrics();
+  enablement.RecordSteadyStateMetrics();
+
+  // Since ShouldShowGlicButton() is false, no anchored reasons should be
+  // logged.
+  EXPECT_THAT(histogram_tester.GetAllSamplesForPrefix(
+                  "Glic.ProfileEnablement.AnchoredDespiteEligibilityReason"),
+              testing::IsEmpty());
 }
 
 TEST_F(GlicEnablingAnchorEntryPointTestBase, FeatureFlagDisablesAnchoring) {
   profile()->GetPrefs()->SetInteger(
       glic::prefs::kGlicCompletedFre,
-      static_cast<int>(glic::prefs::FreStatus::kCompleted));
+      std::to_underlying(glic::prefs::FreStatus::kCompleted));
 
   base::test::ScopedFeatureList features;
   features.InitAndDisableFeature(
@@ -771,16 +830,68 @@ TEST_F(GlicEnablingAnchorEntryPointTestBase, FeatureFlagDisablesAnchoring) {
       GlicEnabling::EnablementForProfile(profile());
   enablement.RecordStartupMetrics();
 
-  histogram_tester.ExpectTotalCount(
-      "Glic.ProfileEnablement.AnchoredDespiteEligibilityFailureReason.Startup",
-      0);
+  EXPECT_THAT(histogram_tester.GetAllSamplesForPrefix(
+                  "Glic.ProfileEnablement.AnchoredDespiteEligibilityReason"),
+              testing::IsEmpty());
+}
+
+TEST_F(GlicEnablingAnchorEntryPointTestBase,
+       AnchoredButtonForIneligibleAccount) {
+  profile()->GetPrefs()->SetInteger(
+      glic::prefs::kGlicCompletedFre,
+      static_cast<int>(glic::prefs::FreStatus::kCompleted));
+
+  // Change the primary account capability to false (ineligible).
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(profile());
+  AccountInfo account_info =
+      identity_manager->FindExtendedAccountInfoByAccountId(
+          identity_manager->GetPrimaryAccountId(signin::ConsentLevel::kSignin));
+  AccountCapabilitiesTestMutator mutator(&account_info);
+  mutator.set_can_use_model_execution_features(false);
+  signin::UpdateAccountInfoForAccount(identity_manager, account_info);
+
+  base::test::ScopedFeatureList features;
+  features.InitWithFeatures(
+      {features::kGlicAnchorEntryPointForOnboardedUsers, features::kGlic}, {});
+
+  base::HistogramTester histogram_tester;
+
+  // Profile should be eligible because the anchor entry point feature is active
+  // and user is onboarded, even though the account is ineligible.
+  EXPECT_TRUE(GlicEnabling::IsProfileEligible(profile()));
+
+  GlicEnabling::ProfileEnablement enablement =
+      GlicEnabling::EnablementForProfile(profile());
+  EXPECT_TRUE(enablement.ShouldShowGlicButton());
+  EXPECT_EQ(GlicEnabling::GetProfileReadyState(profile()),
+            mojom::ProfileReadyState::kIneligibleAccount);
+  enablement.RecordStartupMetrics();
+  enablement.RecordSteadyStateMetrics();
+
+  // It should log the account ineligible reason to the new consolidated metric.
+  using Reason =
+      GlicEnabling::ProfileEnablement::AnchoredDespiteEligibilityReason;
+  EXPECT_THAT(
+      histogram_tester.GetAllSamplesForPrefix(
+          "Glic.ProfileEnablement.AnchoredDespiteEligibilityReason"),
+      testing::UnorderedElementsAre(
+          testing::Pair(
+              "Glic.ProfileEnablement.AnchoredDespiteEligibilityReason.Startup",
+              base::BucketsAre(
+                  base::Bucket(Reason::kPrimaryAccountNotCapable, 1))),
+          testing::Pair(
+              "Glic.ProfileEnablement.AnchoredDespiteEligibilityReason."
+              "SteadyState",
+              base::BucketsAre(
+                  base::Bucket(Reason::kPrimaryAccountNotCapable, 1)))));
 }
 
 TEST_F(GlicEnablingAnchorEntryPointTestBase,
        GlobalDisablementPropagatedToReadyState) {
   profile()->GetPrefs()->SetInteger(
       glic::prefs::kGlicCompletedFre,
-      static_cast<int>(glic::prefs::FreStatus::kCompleted));
+      std::to_underlying(glic::prefs::FreStatus::kCompleted));
 
   base::test::ScopedFeatureList features;
   features.InitAndEnableFeature(
@@ -798,7 +909,7 @@ TEST_F(GlicEnablingAnchorEntryPointTestBase,
        PrimaryAccountNotCapable_ReturnsIneligibleAccountWhenAnchored) {
   profile()->GetPrefs()->SetInteger(
       glic::prefs::kGlicCompletedFre,
-      static_cast<int>(glic::prefs::FreStatus::kCompleted));
+      std::to_underlying(glic::prefs::FreStatus::kCompleted));
 
   base::test::ScopedFeatureList features;
   features.InitAndEnableFeature(
@@ -1760,7 +1871,8 @@ TEST_F(GlicEnablingWebActuationToggleTest, ManagedProfile_CannotActOnWeb) {
 
   profile()->GetPrefs()->SetInteger(
       glic::prefs::kGlicActuationOnWeb,
-      static_cast<int>(glic::prefs::GlicActuationOnWebPolicyState::kDisabled));
+      std::to_underlying(
+          glic::prefs::GlicActuationOnWebPolicyState::kDisabled));
   profile()->GetPrefs()->SetInteger(
       subscription_eligibility::prefs::kAiSubscriptionTier, 1);
 
@@ -1783,12 +1895,149 @@ TEST_F(GlicEnablingWebActuationToggleTest, ManagedProfile_CanActOnWeb) {
 
   profile()->GetPrefs()->SetInteger(
       glic::prefs::kGlicActuationOnWeb,
-      static_cast<int>(glic::prefs::GlicActuationOnWebPolicyState::kEnabled));
+      std::to_underlying(glic::prefs::GlicActuationOnWebPolicyState::kEnabled));
   profile()->GetPrefs()->SetInteger(
       subscription_eligibility::prefs::kAiSubscriptionTier, 1);
 
   auto* glic_service = GlicKeyedService::Get(profile());
   EXPECT_TRUE(glic_service->enabling().ShouldShowWebActuationToggle());
+}
+
+class GlicEnablingAnchorEntryPointCountryTest
+    : public GlicEnablingAnchorEntryPointTestBase {
+ public:
+  GlicEnablingAnchorEntryPointCountryTest() {
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        /*enabled_features=*/
+        {
+            {features::kGlicCountryFiltering, {{"disabled_countries", "zz"}}},
+            {features::kGlicAnchorEntryPointForOnboardedUsers, {}},
+            {features::kGlic, {}},
+        },
+        /*disabled_features=*/{});
+  }
+
+  void SetUp() override {
+    variations::TestVariationsService::RegisterPrefs(local_state_.registry());
+    metrics_state_manager_ = metrics::MetricsStateManager::Create(
+        &local_state_, &enabled_state_provider_, std::wstring(),
+        base::FilePath(), metrics::StartupVisibility::kUnknown);
+    variations_service_ = std::make_unique<variations::TestVariationsService>(
+        &local_state_, metrics_state_manager_.get());
+
+    variations_service_->OverrideStoredPermanentCountry("zz");
+    TestingBrowserProcess::GetGlobal()->SetVariationsService(
+        variations_service_.get());
+
+    GlicEnablingAnchorEntryPointTestBase::SetUp();
+  }
+
+  void TearDown() override {
+    GlicEnablingAnchorEntryPointTestBase::TearDown();
+    TestingBrowserProcess::GetGlobal()->SetVariationsService(nullptr);
+    variations_service_.reset();
+    metrics_state_manager_.reset();
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+  TestingPrefServiceSimple local_state_;
+  metrics::TestEnabledStateProvider enabled_state_provider_{/*consent=*/false,
+                                                            /*enabled=*/false};
+  std::unique_ptr<metrics::MetricsStateManager> metrics_state_manager_;
+  std::unique_ptr<variations::TestVariationsService> variations_service_;
+};
+
+TEST_F(GlicEnablingAnchorEntryPointCountryTest,
+       AnchoredButtonForCountryDisabled) {
+  profile()->GetPrefs()->SetInteger(
+      glic::prefs::kGlicCompletedFre,
+      static_cast<int>(glic::prefs::FreStatus::kCompleted));
+
+  base::HistogramTester histogram_tester;
+
+  // Profile should be eligible because the anchor entry point feature is active
+  // and user is onboarded, even though the country is disabled.
+  EXPECT_TRUE(GlicEnabling::IsProfileEligible(profile()));
+
+  GlicEnabling::ProfileEnablement enablement =
+      GlicEnabling::EnablementForProfile(profile());
+  EXPECT_TRUE(enablement.ShouldShowGlicButton());
+  EXPECT_EQ(GlicEnabling::GetProfileReadyState(profile()),
+            mojom::ProfileReadyState::kLocationMismatch);
+  enablement.RecordStartupMetrics();
+  enablement.RecordSteadyStateMetrics();
+
+  // It should log the country disabled reason to the consolidated metric.
+  using Reason =
+      GlicEnabling::ProfileEnablement::AnchoredDespiteEligibilityReason;
+  EXPECT_THAT(
+      histogram_tester.GetAllSamplesForPrefix(
+          "Glic.ProfileEnablement.AnchoredDespiteEligibilityReason"),
+      testing::UnorderedElementsAre(
+          testing::Pair(
+              "Glic.ProfileEnablement.AnchoredDespiteEligibilityReason.Startup",
+              base::BucketsAre(base::Bucket(Reason::kCountryDisabled, 1))),
+          testing::Pair(
+              "Glic.ProfileEnablement.AnchoredDespiteEligibilityReason."
+              "SteadyState",
+              base::BucketsAre(base::Bucket(Reason::kCountryDisabled, 1)))));
+}
+
+TEST_F(GlicEnablingAnchorEntryPointCountryTest,
+       AnchoredButtonForMultipleIneligibilityReasons) {
+  profile()->GetPrefs()->SetInteger(
+      glic::prefs::kGlicCompletedFre,
+      static_cast<int>(glic::prefs::FreStatus::kCompleted));
+
+  // 1. Trigger account capability ineligibility.
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(profile());
+  AccountInfo account_info =
+      identity_manager->FindExtendedAccountInfoByAccountId(
+          identity_manager->GetPrimaryAccountId(signin::ConsentLevel::kSignin));
+  AccountCapabilitiesTestMutator mutator(&account_info);
+  mutator.set_can_use_model_execution_features(false);
+  signin::UpdateAccountInfoForAccount(identity_manager, account_info);
+
+  // 2. Country filtering is also disabled (overridden to "zz" in SetUp).
+
+  base::HistogramTester histogram_tester;
+
+  // Profile should be eligible because the anchor entry point feature is active
+  // and user is onboarded, even though the country and account are ineligible.
+  EXPECT_TRUE(GlicEnabling::IsProfileEligible(profile()));
+
+  GlicEnabling::ProfileEnablement enablement =
+      GlicEnabling::EnablementForProfile(profile());
+  EXPECT_TRUE(enablement.ShouldShowGlicButton());
+
+  // GetProfileReadyState prioritizes capability over country filtering, so it
+  // should return kIneligibleAccount.
+  EXPECT_EQ(GlicEnabling::GetProfileReadyState(profile()),
+            mojom::ProfileReadyState::kIneligibleAccount);
+
+  enablement.RecordStartupMetrics();
+  enablement.RecordSteadyStateMetrics();
+
+  // Both ineligibility reasons should be logged to the consolidated metric.
+  using Reason =
+      GlicEnabling::ProfileEnablement::AnchoredDespiteEligibilityReason;
+  EXPECT_THAT(
+      histogram_tester.GetAllSamplesForPrefix(
+          "Glic.ProfileEnablement.AnchoredDespiteEligibilityReason"),
+      testing::UnorderedElementsAre(
+          testing::Pair(
+              "Glic.ProfileEnablement.AnchoredDespiteEligibilityReason.Startup",
+              base::BucketsAre(
+                  base::Bucket(Reason::kCountryDisabled, 1),
+                  base::Bucket(Reason::kPrimaryAccountNotCapable, 1))),
+          testing::Pair(
+              "Glic.ProfileEnablement.AnchoredDespiteEligibilityReason."
+              "SteadyState",
+              base::BucketsAre(
+                  base::Bucket(Reason::kCountryDisabled, 1),
+                  base::Bucket(Reason::kPrimaryAccountNotCapable, 1)))));
 }
 
 }  // namespace

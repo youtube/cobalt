@@ -118,14 +118,14 @@ export class CollapsibleCardElement extends SettingsViewMixin
       },
 
       /**
-        If true, Autofill AI does not depend on whether Autofill for addresses
-        is enabled.
-      */
-      autofillAddOtherDatatypesPrefIsEnabled_: {
+       * If true, Autofill AI does not depend on whether Autofill for addresses
+       * is enabled.
+       */
+      autofillSettingsEnterprisePolicyEnabled_: {
         type: Boolean,
         value() {
           return loadTimeData.getBoolean(
-              'AutofillAddOtherDatatypesPrefIsEnabled');
+              'AutofillSettingsEnterprisePolicyEnabled');
         },
       },
 
@@ -165,7 +165,7 @@ export class CollapsibleCardElement extends SettingsViewMixin
   // </if>
   declare private enhancedAutofillOptedIn_: chrome.settingsPrivate.PrefObject;
   declare private isUserEligibleForWalletablePassDetection_: boolean;
-  declare private autofillAddOtherDatatypesPrefIsEnabled_: boolean;
+  declare private autofillSettingsEnterprisePolicyEnabled_: boolean;
   declare private autofillAiAvailableByDefault_: boolean;
   declare private showPersonalContextSettingsLink_: boolean;
 
@@ -245,7 +245,7 @@ export class CollapsibleCardElement extends SettingsViewMixin
     // initialization check
     const addressAutofillEnabled = this.get('prefs.autofill.profile_enabled');
 
-    if (!this.autofillAddOtherDatatypesPrefIsEnabled_ &&
+    if (!this.autofillSettingsEnterprisePolicyEnabled_ &&
         !!addressAutofillEnabled &&
         addressAutofillEnabled.enforcement ===
             chrome.settingsPrivate.Enforcement.ENFORCED &&
@@ -289,7 +289,7 @@ export class CollapsibleCardElement extends SettingsViewMixin
       const enhancedAutofillOptedIn =
           await this.entityDataManager_.getOptInStatus();
 
-      if (this.autofillAddOtherDatatypesPrefIsEnabled_) {
+      if (this.autofillSettingsEnterprisePolicyEnabled_) {
         this.set(
             'enhancedAutofillOptedIn_.value',
             this.enhancedAutofillEligibleUser_ && enhancedAutofillOptedIn);

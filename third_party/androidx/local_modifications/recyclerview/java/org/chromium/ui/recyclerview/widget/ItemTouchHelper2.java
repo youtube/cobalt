@@ -858,6 +858,9 @@ public class ItemTouchHelper2 extends RecyclerView.ItemDecoration
         final float threshold = mCallback.getMoveThreshold(viewHolder);
         final int x = (int) (mSelectedStartX + mDx);
         final int y = (int) (mSelectedStartY + mDy);
+        if (mCallback.hasDragEscapedBounds(mRecyclerView, viewHolder, x, y, mDx, mDy)) {
+            return;
+        }
         if (Math.abs(y - viewHolder.itemView.getTop()) < viewHolder.itemView.getHeight() * threshold
                 && Math.abs(x - viewHolder.itemView.getLeft())
                         < viewHolder.itemView.getWidth() * threshold) {
@@ -1626,6 +1629,23 @@ public class ItemTouchHelper2 extends RecyclerView.ItemDecoration
                 @NonNull RecyclerView recyclerView,
                 @NonNull ViewHolder viewHolder,
                 @NonNull ViewHolder target);
+
+        /**
+         * Called when the dragged view has moved past the drag threshold. The callback can use this
+         * to short-circuit swap logic if the item has escaped its logical boundaries (e.g. escaping
+         * a tab group).
+         *
+         * @return True if the callback handled the drag event and swapping should be skipped.
+         */
+        public boolean hasDragEscapedBounds(
+                @NonNull RecyclerView recyclerView,
+                @NonNull ViewHolder viewHolder,
+                int x,
+                int y,
+                float dx,
+                float dy) {
+            return false;
+        }
 
         /**
          * Returns whether ItemTouchHelper should start a drag and drop operation if an item is long

@@ -548,4 +548,9 @@ IN_PROC_BROWSER_TEST_F(WebUIBrowserTest,
   // The active tab's size must be non-zero immediately after the browser window
   // is created.
   EXPECT_FALSE(active_contents->GetSize().IsZero());
+  // Clean up the new browser window before test exits. This fixes flakiness on
+  // macOS. Sometimes the Browser is destroyed but the render process is still
+  // alive, then the browser process crashes due to UaF handling a mojo message
+  // from the render process.
+  CloseBrowserSynchronously(new_browser);
 }

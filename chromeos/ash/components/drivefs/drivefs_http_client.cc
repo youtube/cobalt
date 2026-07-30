@@ -9,6 +9,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "base/byte_size.h"
 #include "base/containers/enum_set.h"
 #include "base/functional/bind.h"
 #include "base/unguessable_token.h"
@@ -145,7 +146,7 @@ class DriveFsURLLoaderClient : public network::mojom::URLLoaderClient,
     DCHECK(IsFirstCall(CallbackState::kRequestComplete));
     http_delegate_remote_->OnRequestComplete(mojom::HttpCompletionStatus::New(
         static_cast<mojom::NetError>(status.error_code),
-        status.decoded_body_length));
+        status.decoded_body_length.InBytes()));
   }
 
   // DataPipeGetter Impl

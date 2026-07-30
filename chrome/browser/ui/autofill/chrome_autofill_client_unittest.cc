@@ -16,7 +16,7 @@
 #include "base/values.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
-#include "chrome/browser/autofill/at_memory_promo_tracker_factory.h"
+#include "chrome/browser/autofill/at_memory_cross_tab_copy_paste_tracker_factory.h"
 #include "chrome/browser/autofill/mock_autofill_agent.h"
 #include "chrome/browser/autofill/personal_data_manager_factory.h"
 #include "chrome/browser/autofill/ui/ui_util.h"
@@ -38,7 +38,7 @@
 #include "components/autofill/content/browser/test_autofill_driver_injector.h"
 #include "components/autofill/content/browser/test_autofill_manager_injector.h"
 #include "components/autofill/content/browser/test_content_autofill_driver.h"
-#include "components/autofill/core/browser/at_memory_promo_tracker.h"
+#include "components/autofill/core/browser/at_memory_cross_tab_copy_paste_tracker.h"
 #include "components/autofill/core/browser/data_manager/test_personal_data_manager.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile_test_api.h"
@@ -186,7 +186,7 @@ class TestChromeAutofillClient : public ChromeAutofillClient {
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS)
-  using ChromeAutofillClient::at_memory_promo_observer;
+  using ChromeAutofillClient::at_memory_copy_paste_observer;
 #endif
 };
 
@@ -955,15 +955,16 @@ TEST_F(ChromeAutofillClientTestWithMockWindow,
   client()->ShowAutofillAtMemoryPromo();
 }
 
-// Tests that `AtMemoryPromoObserver` does not track copy/paste signals and does
-// not trigger the promo for incognito profiles.
+// Tests that `AtMemoryCopyPasteObserver` does not track copy/paste signals and
+// does not trigger the promo for incognito profiles.
 TEST_F(ChromeAutofillClientTestWithMockWindow,
-       AtMemoryPromoObserver_IncognitoNoTracking) {
+       AtMemoryCopyPasteObserver_IncognitoNoTracking) {
   base::test::ScopedFeatureList feature_list(features::kAutofillAtMemory);
 
   // Verify that for regular profiles, the tracker exists.
   Profile* regular_profile = profile();
-  EXPECT_NE(AtMemoryPromoTrackerFactory::GetForBrowserContext(regular_profile),
+  EXPECT_NE(AtMemoryCrossTabCopyPasteTrackerFactory::GetForBrowserContext(
+                regular_profile),
             nullptr);
 
   // Create an `OffTheRecord` (incognito) profile.
@@ -972,9 +973,9 @@ TEST_F(ChromeAutofillClientTestWithMockWindow,
   ASSERT_TRUE(incognito_profile);
 
   // Verify that for incognito profile, the tracker factory returns nullptr.
-  EXPECT_EQ(
-      AtMemoryPromoTrackerFactory::GetForBrowserContext(incognito_profile),
-      nullptr);
+  EXPECT_EQ(AtMemoryCrossTabCopyPasteTrackerFactory::GetForBrowserContext(
+                incognito_profile),
+            nullptr);
 
   // Create web contents and client for the incognito profile.
   std::unique_ptr<content::WebContents> incognito_main_web_contents =
@@ -1024,15 +1025,16 @@ TEST_F(ChromeAutofillClientTestWithMockWindow,
       sessions::SessionTabHelper::DelegateLookup());
 
   // Copy on the first tab, and paste on the second tab.
-  incognito_main_client->at_memory_promo_observer().OnTextCopiedToClipboard(
-      incognito_main_web_contents->GetPrimaryMainFrame(), u"some text");
-  incognito_secondary_client->at_memory_promo_observer().OnPaste();
+  incognito_main_client->at_memory_copy_paste_observer()
+      .OnTextCopiedToClipboard(
+          incognito_main_web_contents->GetPrimaryMainFrame(), u"some text");
+  incognito_secondary_client->at_memory_copy_paste_observer().OnPaste();
 }
 
-// Tests that `AtMemoryPromoObserver` tracks copy/paste signals and triggers the
-// promo for regular profiles.
+// Tests that `AtMemoryCopyPasteObserver` tracks copy/paste signals and
+// triggers the promo for regular profiles.
 TEST_F(ChromeAutofillClientTestWithMockWindow,
-       AtMemoryPromoObserver_RegularProfileTracking) {
+       AtMemoryCopyPasteObserver_RegularProfileTracking) {
   base::test::ScopedFeatureList feature_list(features::kAutofillAtMemory);
   InitializePersonalContextEnablementService();
   EXPECT_CALL(*personal_context_enablement_service(), GetEnablementState())
@@ -1079,9 +1081,9 @@ TEST_F(ChromeAutofillClientTestWithMockWindow,
       sessions::SessionTabHelper::DelegateLookup());
 
   // Copy on the first tab, and paste on the second tab.
-  client()->at_memory_promo_observer().OnTextCopiedToClipboard(
+  client()->at_memory_copy_paste_observer().OnTextCopiedToClipboard(
       web_contents()->GetPrimaryMainFrame(), u"some text");
-  secondary_client->at_memory_promo_observer().OnPaste();
+  secondary_client->at_memory_copy_paste_observer().OnPaste();
 }
 
 #endif  // (BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||

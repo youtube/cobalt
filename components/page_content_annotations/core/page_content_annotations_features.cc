@@ -137,7 +137,7 @@ const base::FeatureParam<size_t> kMaxPDFTextExtractionByteSizeParam{
     &kAnnotatedPageContentPDFTextExtraction, "max_text_byte_size",
     1048576};  // 1MB
 
-BASE_FEATURE(kOnDeviceCategoryClassifier, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kOnDeviceCategoryClassifier, enabled_by_default_desktop_only);
 
 BASE_FEATURE(kPageContentCache, enabled_by_default_ios_only);
 
@@ -228,6 +228,26 @@ bool ShouldExecutePageVisibilityModelOnPageContent(const std::string& locale) {
 #else
   return IsSupportedLocale(locale, "ar,en,es,fa,fr,hi,id,pl,pt,tr,vi");
 #endif
+}
+
+bool ShouldExecuteOnDeviceCategoryClassifierOnPageContent(
+    const std::string& locale,
+    const std::string& country_code) {
+  // If the feature is overridden (e.g. via server-side config or command-line),
+  // use that state.
+  auto* feature_list = base::FeatureList::GetInstance();
+  if (feature_list &&
+      feature_list->IsFeatureOverridden(kOnDeviceCategoryClassifier.name)) {
+    // Important: If a server-side config applies to this client (i.e. after
+    // accounting for its filters), but the client gets assigned to the default
+    // group, they will still take this code path and receive the state
+    // specified via BASE_FEATURE() above.
+    return base::FeatureList::IsEnabled(kOnDeviceCategoryClassifier);
+  }
+  return base::FeatureList::IsEnabled(kOnDeviceCategoryClassifier) &&
+         IsSupportedLocale(locale, "en") &&
+         IsSupportedCountryForFeature(country_code, kOnDeviceCategoryClassifier,
+                                      "US");
 }
 
 bool RemotePageMetadataEnabled(const std::string& locale,

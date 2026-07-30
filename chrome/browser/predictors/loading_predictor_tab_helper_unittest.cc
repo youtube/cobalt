@@ -52,8 +52,10 @@ class MockLoadingDataCollector : public LoadingDataCollector {
                void(NavigationId, ukm::SourceId, const GURL&, base::TimeTicks));
 
   MOCK_METHOD3(RecordFinishNavigation, void(NavigationId, const GURL&, bool));
-  MOCK_METHOD2(RecordResourceLoadComplete,
-               void(NavigationId, const blink::mojom::ResourceLoadInfo&));
+  MOCK_METHOD3(RecordResourceLoadComplete,
+               void(NavigationId,
+                    const GURL&,
+                    const blink::mojom::ResourceLoadInfo&));
   MOCK_METHOD1(RecordMainFrameLoadComplete, void(NavigationId));
   MOCK_METHOD2(RecordPageDestroyed,
                void(NavigationId,
@@ -276,9 +278,11 @@ TEST_P(LoadingPredictorTabHelperTest, ResourceLoadComplete) {
 
   auto resource_load_info = CreateResourceLoadInfo(
       "http://test.org/script.js", network::mojom::RequestDestination::kScript);
-  EXPECT_CALL(*mock_collector_,
-              RecordResourceLoadComplete(_, Eq(ByRef(*resource_load_info))));
+  EXPECT_CALL(*mock_collector_, RecordResourceLoadComplete(
+                                    _, Eq(resource_load_info->original_url),
+                                    Eq(ByRef(*resource_load_info))));
   tab_helper_->ResourceLoadComplete(main_rfh(), content::GlobalRequestID(),
+                                    resource_load_info->original_url,
                                     *resource_load_info);
 }
 
@@ -296,6 +300,7 @@ TEST_P(LoadingPredictorTabHelperTest, ResourceLoadCompleteInSubFrame) {
                              network::mojom::RequestDestination::kScript,
                              /*always_access_network=*/false);
   tab_helper_->ResourceLoadComplete(subframe, content::GlobalRequestID(),
+                                    resource_load_info->original_url,
                                     *resource_load_info);
 }
 
@@ -309,7 +314,8 @@ TEST_P(LoadingPredictorTabHelperTest, LoadResourceFromMemoryCache) {
   resource_load_info->mime_type = "application/javascript";
   resource_load_info->network_info->network_accessed = false;
   EXPECT_CALL(*mock_collector_,
-              RecordResourceLoadComplete(_, Eq(ByRef(*resource_load_info))));
+              RecordResourceLoadComplete(_, resource_load_info->original_url,
+                                         Eq(ByRef(*resource_load_info))));
   tab_helper_->DidLoadResourceFromMemoryCache(
       main_rfh(), GURL("http://test.org/script.js"), "application/javascript",
       network::mojom::RequestDestination::kScript);
@@ -797,6 +803,7 @@ class TestLoadingDataCollector : public LoadingDataCollector {
                               bool is_error_page) override {}
   void RecordResourceLoadComplete(
       NavigationId navigation_id,
+      const GURL& original_url,
       const blink::mojom::ResourceLoadInfo& resource_load_info) override {
     ++count_resource_loads_completed_;
     EXPECT_EQ(expected_request_priority_, resource_load_info.request_priority);
@@ -861,6 +868,7 @@ TEST_P(LoadingPredictorTabHelperTestCollectorTest, ResourceLoadComplete) {
   auto resource_load_info = CreateResourceLoadInfo(
       "http://test.org/script.js", network::mojom::RequestDestination::kScript);
   tab_helper_->ResourceLoadComplete(main_rfh(), content::GlobalRequestID(),
+                                    resource_load_info->original_url,
                                     *resource_load_info);
   EXPECT_EQ(1u, test_collector_->count_resource_loads_completed());
 
@@ -869,6 +877,7 @@ TEST_P(LoadingPredictorTabHelperTestCollectorTest, ResourceLoadComplete) {
   resource_load_info = CreateLowPriorityResourceLoadInfo(
       "http://test.org/script.js", network::mojom::RequestDestination::kScript);
   tab_helper_->ResourceLoadComplete(main_rfh(), content::GlobalRequestID(),
+                                    resource_load_info->original_url,
                                     *resource_load_info);
   EXPECT_EQ(2u, test_collector_->count_resource_loads_completed());
 }
@@ -910,12 +919,14 @@ TEST_P(LoadingPredictorTabHelperTestCollectorFencedFramesTest,
   auto resource_load_info = CreateResourceLoadInfo(
       "http://test.org/script.js", network::mojom::RequestDestination::kScript);
   tab_helper_->ResourceLoadComplete(main_rfh(), content::GlobalRequestID(),
+                                    resource_load_info->original_url,
                                     *resource_load_info);
   EXPECT_EQ(1u, test_collector_->count_resource_loads_completed());
 
   // Load a sub resource on the fenced frame and do not record it.
   tab_helper_->ResourceLoadComplete(
-      fenced_frame_root, content::GlobalRequestID(), *resource_load_info);
+      fenced_frame_root, content::GlobalRequestID(),
+      resource_load_info->original_url, *resource_load_info);
   EXPECT_EQ(1u, test_collector_->count_resource_loads_completed());
 }
 

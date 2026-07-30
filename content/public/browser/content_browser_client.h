@@ -2607,6 +2607,10 @@ class CONTENT_EXPORT ContentBrowserClient {
   // This is called on the UI thread.
   virtual bool ShouldSandboxNetworkService();
 
+  // Returns true if the WebNN compiler service should be sandboxed. false
+  // otherwise. This is called on the UI thread.
+  virtual bool ShouldSandboxWebNNCompilerService();
+
   // Returns true if system DNS resolution should be run outside of the network
   // service. This is useful if the network service is sandboxed but system DNS
   // resolution cannot run sandboxed.

@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "base/memory/raw_ptr.h"
+#include "third_party/skia/include/core/SkColor.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/native_ui_types.h"
@@ -22,8 +23,7 @@ class Widget;
 // no application state; the controller feeds it absolute screen coordinates.
 class GuidedSetterOverlayWindowWin {
  public:
-  explicit GuidedSetterOverlayWindowWin(
-      gfx::NativeWindow parent_context = nullptr);
+  explicit GuidedSetterOverlayWindowWin(gfx::NativeWindow parent_widget);
 
   GuidedSetterOverlayWindowWin(const GuidedSetterOverlayWindowWin&) = delete;
   GuidedSetterOverlayWindowWin& operator=(const GuidedSetterOverlayWindowWin&) =
@@ -33,11 +33,14 @@ class GuidedSetterOverlayWindowWin {
 
   void Hide();
 
-  // `bounds_screen` is the window rect (screen coords); `start_screen` and
-  // `end_screen` are the arrow endpoints (screen coords).
+  // `bounds_screen` is the window rect (physical screen coords); `start_screen`
+  // and `end_screen` are the arrow endpoints (physical screen coords). They
+  // will be converted to DIPs for widget positioning and arrow rendering.
   void UpdateAndShow(const gfx::Rect& bounds_screen,
                      const gfx::Point& start_screen,
                      const gfx::Point& end_screen);
+
+  void SetArrowColor(SkColor color);
 
   views::Widget* widget_for_testing() const { return widget_.get(); }
 

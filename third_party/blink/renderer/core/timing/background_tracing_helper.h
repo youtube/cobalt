@@ -57,7 +57,7 @@ class CORE_EXPORT BackgroundTracingHelper final
   // Splits a string and an optional numeric suffix preceded by an
   // underscore. Returns the location of the underscore if a split is to
   // occur, otherwise returns 0.
-  static size_t GetIdSuffixPos(StringView string);
+  static wtf_size_t GetIdSuffixPos(StringView string);
 
   // Generates a 32-bit MD5 hash of the given string piece. This will return a
   // value that is equivalent to the first 8 bytes of a full MD5 hash. In bash

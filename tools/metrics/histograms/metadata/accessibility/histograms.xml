@@ -2309,7 +2309,7 @@ even if they fit the naming pattern. -->
 </histogram>
 
 <histogram name="Accessibility.LiveTranslate.GetTranslation.TargetLanguage"
-    enum="LocaleCodeBCP47" expires_after="2026-10-25">
+    enum="LocaleCodeBCP47" expires_after="2026-12-27">
   <owner>danft@google.com</owner>
   <owner>evliu@google.com</owner>
   <owner>chrome-media-ux@google.com</owner>
@@ -3679,7 +3679,7 @@ even if they fit the naming pattern. -->
 </histogram>
 
 <histogram name="Accessibility.ReadAnything.SpeechError"
-    enum="ReadAnythingSpeechError" expires_after="2026-10-25">
+    enum="ReadAnythingSpeechError" expires_after="2026-12-27">
   <owner>lwinston@google.com</owner>
   <owner>chrome-a11y-core@google.com</owner>
   <summary>
@@ -3822,7 +3822,7 @@ even if they fit the naming pattern. -->
 </histogram>
 
 <histogram name="Accessibility.ReadAnything.WordsHeard" units="words"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>kristislee@google.com</owner>
   <owner>komo-eng@google.com</owner>
   <summary>

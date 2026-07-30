@@ -1027,9 +1027,9 @@ String RepeatString(const String& string, unsigned count) {
 
 template <typename Strategy>
 static Element* TableElementJustBeforeAlgorithm(
-    const VisiblePositionTemplate<Strategy>& visible_position) {
+    const PositionTemplate<Strategy>& position) {
   const PositionTemplate<Strategy> upstream(
-      MostBackwardCaretPosition(visible_position.DeepEquivalent()));
+      MostBackwardCaretPosition(position));
   if (IsDisplayInsideTable(upstream.AnchorNode()) &&
       upstream.AtLastEditingPositionForNode())
     return To<Element>(upstream.AnchorNode());
@@ -1037,14 +1037,21 @@ static Element* TableElementJustBeforeAlgorithm(
   return nullptr;
 }
 
+Element* TableElementJustBefore(const Position& position) {
+  return TableElementJustBeforeAlgorithm<EditingStrategy>(position);
+}
+
+Element* TableElementJustBefore(const PositionInFlatTree& position) {
+  return TableElementJustBeforeAlgorithm<EditingInFlatTreeStrategy>(position);
+}
+
 Element* TableElementJustBefore(const VisiblePosition& visible_position) {
-  return TableElementJustBeforeAlgorithm<EditingStrategy>(visible_position);
+  return TableElementJustBefore(visible_position.DeepEquivalent());
 }
 
 Element* TableElementJustBefore(
     const VisiblePositionInFlatTree& visible_position) {
-  return TableElementJustBeforeAlgorithm<EditingInFlatTreeStrategy>(
-      visible_position);
+  return TableElementJustBefore(visible_position.DeepEquivalent());
 }
 
 Element* EnclosingTableCell(const Position& p) {
@@ -1054,14 +1061,17 @@ Element* EnclosingTableCell(const PositionInFlatTree& p) {
   return To<Element>(EnclosingNodeOfType(p, IsTableCell));
 }
 
-Element* TableElementJustAfter(const VisiblePosition& visible_position) {
-  Position downstream(
-      MostForwardCaretPosition(visible_position.DeepEquivalent()));
+Element* TableElementJustAfter(const Position& position) {
+  Position downstream(MostForwardCaretPosition(position));
   if (IsDisplayInsideTable(downstream.AnchorNode()) &&
       downstream.AtFirstEditingPositionForNode())
     return To<Element>(downstream.AnchorNode());
 
   return nullptr;
+}
+
+Element* TableElementJustAfter(const VisiblePosition& visible_position) {
+  return TableElementJustAfter(visible_position.DeepEquivalent());
 }
 
 // Returns the position at the beginning of a node

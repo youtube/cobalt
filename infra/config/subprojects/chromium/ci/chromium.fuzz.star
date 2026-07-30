@@ -267,6 +267,7 @@ def fuzz_target_builder(
         clusterfuzz_archive_subdir = None,
         clusterfuzz_ios_targets_only = None,
         clusterfuzz_v8_targets_only = None,
+        use_ssd_for_test_builder = False,
         contact_team_email = "chrome-fuzzing-core@google.com",
         **kwargs):
     if not name and not test_builder_name:
@@ -346,6 +347,9 @@ def fuzz_target_builder(
     description = "Builds and runs fuzz target tests."
     if name:
         description += " Mirrors the build configuration of \"" + name + "\"."
+
+    if "ssd" in kwargs:
+        kwargs["ssd"] = use_ssd_for_test_builder
 
     ci_builder(
         name = test_builder_name,
@@ -950,6 +954,7 @@ libfuzzer_linux_asan_builder(
 
 libfuzzer_linux_asan_builder(
     name = "Libfuzzer Upload Linux ASan Debug",
+    ssd = True,
     free_space = builders.free_space.high,
     build_config = builder_config.build_config.DEBUG,
     target_bits = 64,
@@ -1186,7 +1191,7 @@ libfuzzer_mac_asan_builder(
     cpu = cpu.ARM64,
     target_arch = builder_config.target_arch.ARM,
     console_short_name = "mac-arm64-asan",
-    swarming_mixins = ["mac_15_arm64"],
+    swarming_mixins = ["mac_default_arm64"],
     # Even if we don't actively fuzz this build configuration yet, it is useful
     # to test that things nominally work and do not regress.
     test_builder_name = "mac-arm64-libfuzzer-asan-rel-tests",

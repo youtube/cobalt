@@ -1539,11 +1539,6 @@ UIWindow* WindowWithAccessibilityIdentifier(NSString* accessibility_id) {
                                               descriptionBlock:describe];
 }
 
-+ (id<GREYMatcher>)tabGridOverflowMenuButton {
-  return grey_allOf(grey_accessibilityID(kTabGridOverflowMenuButtonIdentifier),
-                    grey_sufficientlyVisible(), nil);
-}
-
 + (id<GREYMatcher>)tabGridUndoCloseAllButton {
   return grey_allOf(grey_accessibilityID(kTabGridUndoCloseAllButtonIdentifier),
                     grey_sufficientlyVisible(), nil);
@@ -1901,10 +1896,16 @@ UIWindow* WindowWithAccessibilityIdentifier(NSString* accessibility_id) {
       grey_interactable(), nullptr);
 }
 
-#pragma mark - Tab Grid Selection Mode
+#pragma mark - Tab Grid Overflow Menu
+
++ (id<GREYMatcher>)tabGridOverflowMenuButton {
+  return grey_allOf(grey_accessibilityID(kTabGridOverflowMenuButtonIdentifier),
+                    grey_sufficientlyVisible(), nil);
+}
 
 + (id<GREYMatcher>)tabGridEditButton {
-  return grey_allOf(grey_accessibilityID(kTabGridEditButtonIdentifier), nil);
+  return grey_allOf(grey_accessibilityID(kTabGridEditButtonIdentifier),
+                    grey_sufficientlyVisible(), nil);
 }
 
 + (id<GREYMatcher>)tabGridEditMenuCloseAllButton {
@@ -1914,7 +1915,14 @@ UIWindow* WindowWithAccessibilityIdentifier(NSString* accessibility_id) {
       grey_sufficientlyVisible(), nil);
 }
 
-+ (id<GREYMatcher>)tabGridSelectTabsMenuButton {
++ (id<GREYMatcher>)tabGridOverflowMenuCloseAllButton {
+  int ID = IDS_IOS_CONTENT_CONTEXT_CLOSEALLTABSANDGROUPS;
+  return grey_allOf(
+      [ChromeMatchersAppInterface contextMenuItemWithAccessibilityLabelID:ID],
+      grey_sufficientlyVisible(), nil);
+}
+
++ (id<GREYMatcher>)tabGridOverflowMenuSelectTabsButton {
   return grey_allOf(
       [ChromeMatchersAppInterface contextMenuItemWithAccessibilityLabelID:
                                       (IDS_IOS_CONTENT_CONTEXT_SELECTTABS)],

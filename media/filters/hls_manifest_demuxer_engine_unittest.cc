@@ -302,8 +302,8 @@ class HlsManifestDemuxerEngineTest : public testing::Test {
     EXPECT_CALL(*mock_dsp_, ReadFromUrl(SegmentMatches(url, std::nullopt), _))
         .Times(1)
         .WillOnce(RunOnceCallback<1>(T::CreateStream(
-            value,
-            hls::SecurityMetadata::CreateForTesting(url, taint_origin))));
+            value, hls::SecurityMetadata::CreateForTesting(url, taint_origin),
+            GURL(url))));
   }
 
   template <typename T>
@@ -320,7 +320,8 @@ class HlsManifestDemuxerEngineTest : public testing::Test {
               std::move(cb),
               T::CreateStream(
                   std::move(value),
-                  hls::SecurityMetadata::CreateForTesting(url, taint_origin)));
+                  hls::SecurityMetadata::CreateForTesting(url, taint_origin),
+                  GURL(url)));
         });
   }
 
@@ -416,10 +417,10 @@ class HlsManifestDemuxerEngineTest : public testing::Test {
         .WillOnce([&continue_adaptation, value, url](
                       HlsDataSourceProvider::UrlDataSegment,
                       HlsDataSourceProvider::ReadCb cb) {
-          continue_adaptation = base::BindOnce(
-              std::move(cb),
-              StringHlsDataSourceStreamFactory::CreateStream(
-                  value, hls::SecurityMetadata::CreateForTesting(url)));
+          auto stream = StringHlsDataSourceStreamFactory::CreateStream(
+              value, hls::SecurityMetadata::CreateForTesting(url), GURL(url));
+          continue_adaptation =
+              base::BindOnce(std::move(cb), std::move(stream));
         });
     engine_->UpdateNetworkSpeed(netspeed);
     task_environment_.RunUntilIdle();
@@ -1036,16 +1037,24 @@ TEST_F(HlsManifestDemuxerEngineTest, TestEndOfStreamAfterAllFetched) {
   std::string bitstream = "hey, this isn't a bitstream!";
   EXPECT_CALL(*mock_dsp_,
               ReadFromUrl(SegmentMatches(manifest_uri, std::nullopt), _))
-      .WillOnce(
-          RunOnceCallback<1>(StringHlsDataSourceStreamFactory::CreateStream(
-              kShortMediaPlaylist,
-              hls::SecurityMetadata::CreateForTesting(manifest_uri))));
+      .WillOnce([manifest_uri](HlsDataSourceProvider::UrlDataSegment,
+                               HlsDataSourceProvider::ReadCb cb) {
+        auto stream = StringHlsDataSourceStreamFactory::CreateStream(
+            kShortMediaPlaylist,
+            hls::SecurityMetadata::CreateForTesting(manifest_uri),
+            GURL(manifest_uri));
+        std::move(cb).Run(std::move(stream));
+      });
   EXPECT_CALL(*mock_dsp_,
               ReadFromUrl(SegmentMatches(segment_uri, std::nullopt), _))
-      .WillOnce(
-          RunOnceCallback<1>(StringHlsDataSourceStreamFactory::CreateStream(
-              bitstream,
-              hls::SecurityMetadata::CreateForTesting(manifest_uri))));
+      .WillOnce([manifest_uri, segment_uri, bitstream](
+                    HlsDataSourceProvider::UrlDataSegment,
+                    HlsDataSourceProvider::ReadCb cb) {
+        auto stream = StringHlsDataSourceStreamFactory::CreateStream(
+            bitstream, hls::SecurityMetadata::CreateForTesting(manifest_uri),
+            GURL(segment_uri));
+        std::move(cb).Run(std::move(stream));
+      });
 
   // `GetBufferedRanges` gets called many times during this process:
   // - HlsVodRendition::CheckState (1) => empty ranges, nothing loaded.
@@ -1310,6 +1319,38 @@ TEST_F(HlsManifestDemuxerEngineTest, TestTrackChangeUpdatesSelectableOptions) {
     task_environment_.RunUntilIdle();
     testing::Mock::VerifyAndClear(this);
   }
+}
+
+TEST_F(HlsManifestDemuxerEngineTest, TestPersistentTainting) {
+  EXPECT_FALSE(engine_->WouldTaintOrigin());
+
+  EXPECT_CALL(*mock_mdeh_, SetSequenceMode("primary", true));
+  EXPECT_CALL(*mock_mdeh_, SetDuration(21.021));
+  EXPECT_CALL(*mock_mdeh_,
+              AddRole("primary", RelaxedParserSupportedType::kMP2T));
+  // The first request (multivariant playlist) taints the origin.
+  BindUrlToDataSource<StringHlsDataSourceStreamFactory>(
+      "http://media.example.com/manifest.m3u8", kSimpleMultivariantPlaylist,
+      /*taint_origin=*/true);
+  // The second request (media playlist) does not taint the origin.
+  BindUrlToDataSource<StringHlsDataSourceStreamFactory>(
+      "http://example.com/low.m3u8", kSimpleMediaPlaylist,
+      /*taint_origin=*/false);
+
+  EXPECT_CALL(*this, TrackNameAdded(MediaTrack::Type::kVideo, "1.2 Mbps"));
+  EXPECT_CALL(*this, TrackNameAdded(MediaTrack::Type::kVideo, "2.5 Mbps"));
+  EXPECT_CALL(*this, TrackNameAdded(MediaTrack::Type::kVideo, "7.6 Mbps"));
+  EXPECT_CALL(*this, TrackNameAdded(MediaTrack::Type::kAudio, "Default"));
+  EXPECT_CALL(*this, TrackChangedState(MediaTrack::Type::kVideo, "1.2 Mbps",
+                                       MediaTrack::State::kActive));
+  EXPECT_CALL(*this, MockInitComplete(HasStatusCode(PIPELINE_OK)));
+
+  InitializeEngine();
+  task_environment_.RunUntilIdle();
+
+  // The engine should persistently report that it would taint the origin even
+  // though the latest data source did not taint the origin.
+  EXPECT_TRUE(engine_->WouldTaintOrigin());
 }
 
 }  // namespace media

@@ -5,6 +5,7 @@
 #include "chrome/browser/glic/host/glic_internals_page_handler.h"
 
 #include <cstdio>
+#include <sstream>
 
 #include "base/command_line.h"
 #include "base/functional/callback_helpers.h"
@@ -33,6 +34,8 @@
 #include "chrome/browser/metrics/chrome_feature_list_creator.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/startup_data.h"
+#include "chrome/browser/subscription_eligibility/subscription_eligibility_service_factory.h"
+#include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
@@ -40,20 +43,19 @@
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/prefs/pref_service.h"
 #include "components/skills/features.h"
+#include "components/subscription_eligibility/subscription_eligibility_service.h"
+#include "components/sync/service/sync_service.h"
 #include "components/tabs/public/tab_interface.h"
 #include "components/variations/service/variations_service.h"
 #include "components/variations/service/variations_service_utils.h"
 #include "content/public/browser/web_contents.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "third_party/blink/public/common/features.h"
 #include "ui/base/device_form_factor.h"
 
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/glic/experimental_opt_in/glic_experimental_opt_in_controller.h"
 #endif
-
-#include <sstream>
-
-#include "third_party/abseil-cpp/absl/functional/overload.h"
 
 namespace glic {
 
@@ -229,6 +231,18 @@ std::string InvocationSourceToString(glic::mojom::InvocationSource source) {
       return "kWebDragDrop";
     case glic::mojom::InvocationSource::kPromotionPage:
       return "kPromotionPage";
+    case glic::mojom::InvocationSource::kDaisyChainOnNewTab:
+      return "kDaisyChainOnNewTab";
+    case glic::mojom::InvocationSource::kDaisyChainOnFollowLink:
+      return "kDaisyChainOnFollowLink";
+    case glic::mojom::InvocationSource::kConversationSwitch:
+      return "kConversationSwitch";
+    case glic::mojom::InvocationSource::kDetachAttachButton:
+      return "kDetachAttachButton";
+    case glic::mojom::InvocationSource::kTabRestore:
+      return "kTabRestore";
+    case glic::mojom::InvocationSource::kReshowInactive:
+      return "kReshowInactive";
   }
   LOG(ERROR) << "Unexpected value for InvocationSource: "
              << static_cast<int>(source);
@@ -574,7 +588,69 @@ void GlicInternalsPageHandler::GetInternalsDataPayload(
   debug_info->primary_account_needs_signed_in =
       enablement.primary_account_needs_signed_in;
 
+  std::string dogfood_status = "No";
+  auto* variations_service = g_browser_process->variations_service();
+  if (variations_service && variations_service->IsLikelyDogfoodClient()) {
+    if (base::FeatureList::IsEnabled(features::kGlicIgnoreDogfoodClient)) {
+      dogfood_status = "Yes (Ignored via kGlicIgnoreDogfoodClient)";
+    } else {
+      dogfood_status = "Yes";
+    }
+  }
+  debug_info->dogfood_status = dogfood_status;
+
   payload->debug_info = std::move(debug_info);
+
+  auto tiered_rollout_info = mojom::TieredRolloutInfo::New();
+  subscription_eligibility::SubscriptionEligibilityService*
+      subscription_eligibility_service = subscription_eligibility::
+          SubscriptionEligibilityServiceFactory::GetForProfile(profile);
+  if (subscription_eligibility_service) {
+    tiered_rollout_info->ai_subscription_tier =
+        subscription_eligibility_service->GetAiSubscriptionTier();
+  }
+  tiered_rollout_info->is_eligible_for_tiered_rollout_v1 =
+      base::FeatureList::IsEnabled(features::kGlicTieredRollout) &&
+      profile->GetPrefs()->GetBoolean(prefs::kGlicRolloutEligibility);
+  tiered_rollout_info->is_eligible_for_tiered_rollout_v2 =
+      base::FeatureList::IsEnabled(features::kGlicTieredRolloutV2) &&
+      subscription_eligibility_service &&
+      features::GetGlicTieredRolloutV2EligibleTiers().contains(
+          subscription_eligibility_service->GetAiSubscriptionTier());
+  tiered_rollout_info->is_eligible_overall =
+      GlicEnabling::IsEligibleForGlicTieredRollout(profile);
+  tiered_rollout_info->glic_rollout_eligibility_pref =
+      profile->GetPrefs()->GetBoolean(prefs::kGlicRolloutEligibility);
+  tiered_rollout_info->tiered_rollout_v2_eligible_tiers =
+      features::kGlicTieredRolloutV2EligibleTiers.Get();
+
+  std::string sync_status = "Sync Service Not Found";
+  if (syncer::SyncService* sync_service =
+          SyncServiceFactory::GetForProfile(profile)) {
+    if (!sync_service->IsEngineInitialized()) {
+      sync_status = "Sync Engine Not Initialized";
+    } else {
+      switch (
+          sync_service->GetDownloadStatusFor(syncer::DataType::PREFERENCES)) {
+        case syncer::SyncService::DataTypeDownloadStatus::kWaitingForUpdates:
+          sync_status = "Waiting for Updates / Syncing";
+          break;
+        case syncer::SyncService::DataTypeDownloadStatus::kUpToDate:
+          sync_status = "Up to Date (Successfully Synced)";
+          break;
+        case syncer::SyncService::DataTypeDownloadStatus::kError:
+          sync_status = "Error (Sync Failed)";
+          break;
+      }
+    }
+    if (sync_service->GetAuthError().IsPersistentError()) {
+      sync_status +=
+          " (Auth Error: " + sync_service->GetAuthError().ToString() + ")";
+    }
+  }
+  tiered_rollout_info->preference_sync_status = sync_status;
+
+  payload->tiered_rollout_info = std::move(tiered_rollout_info);
 
   std::move(callback).Run(std::move(payload));
 }

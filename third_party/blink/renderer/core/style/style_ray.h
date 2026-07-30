@@ -29,8 +29,7 @@ class StyleRay : public BasicShape {
   StyleRay(float angle,
            RaySize,
            bool contain,
-           const BasicShapeCenterCoordinate& center_x,
-           const BasicShapeCenterCoordinate& center_y,
+           const LengthPoint& center,
            bool has_explicit_center);
   ~StyleRay() override = default;
 
@@ -44,8 +43,7 @@ class StyleRay : public BasicShape {
   bool Contain() const { return contain_; }
 
   bool HasExplicitCenter() const { return has_explicit_center_; }
-  const BasicShapeCenterCoordinate& CenterX() const { return center_x_; }
-  const BasicShapeCenterCoordinate& CenterY() const { return center_y_; }
+  const LengthPoint& Center() const { return center_; }
 
   Path GetPath(const gfx::RectF&, float, float) const override;
 
@@ -58,8 +56,7 @@ class StyleRay : public BasicShape {
   float angle_;
   RaySize size_;
   bool contain_;
-  BasicShapeCenterCoordinate center_x_;
-  BasicShapeCenterCoordinate center_y_;
+  LengthPoint center_;
   bool has_explicit_center_ = true;
 };
 

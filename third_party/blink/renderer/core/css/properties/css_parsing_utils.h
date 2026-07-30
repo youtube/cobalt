@@ -233,6 +233,15 @@ bool ConsumeUrlRequestModifiers(CSSParserTokenStream&,
 CORE_EXPORT CSSURLPatternValue* ConsumeUrlPattern(CSSParserTokenStream&,
                                                   const CSSParserContext&);
 
+// Parses a comma-separated list of param() functions for the
+// link-parameters property.
+// Grammar: param(<dashed-ident>, <declaration-value>?)#
+// Returns a CSSValueList of CSSParamValuePair, or nullptr on failure.
+// Spec: https://drafts.csswg.org/css-link-params/
+CORE_EXPORT CSSValue* ConsumeLinkParameters(CSSParserTokenStream&,
+                                            const CSSParserContext&,
+                                            CSSParserLocalContext&);
+
 // Some properties accept non-standard colors, like rgb values without a
 // preceding hash, in quirks mode. This corresponds to the <quirky-color>
 // production.

@@ -258,6 +258,13 @@ static_library("utility") {
   if (enable_on_device_translation) {
     deps += [ "//components/on_device_translation/service:on_device_translation_service" ]
   }
+
+  if (is_android) {
+    sources += [
+      "readaloud/read_aloud_playback_controller.cc",
+      "readaloud/read_aloud_playback_controller.h",
+    ]
+  }
 }
 
 if (!is_android) {

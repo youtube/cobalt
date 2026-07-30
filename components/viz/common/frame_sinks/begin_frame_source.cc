@@ -179,6 +179,12 @@ void BeginFrameSource::SetInputClient(InputClient* input_client) {
   input_client_ = input_client;
 }
 
+// static
+base::flat_set<base::TimeDelta>
+BeginFrameSource::GetDefaultSupportedFrameIntervals(base::TimeDelta interval) {
+  return {interval, interval * 2};
+}
+
 bool BeginFrameSource::RequestCallbackOnGpuAvailable() {
   if (!is_gpu_busy_) {
     DCHECK_EQ(gpu_busy_response_state_, GpuBusyThrottlingState::kIdle);
@@ -292,7 +298,15 @@ void BackToBackBeginFrameSource::RemoveObserver(BeginFrameObserver* obs) {
   }
 }
 
-void BackToBackBeginFrameSource::DidFinishFrame(BeginFrameObserver* obs) {
+void BackToBackBeginFrameSource::DidFinishFrame(
+    BeginFrameObserver* obs,
+    DisplaySchedulerDrawResult result) {
+  if (result == DisplaySchedulerDrawResult::kDrawnLate ||
+      result == DisplaySchedulerDrawResult::kMayDrawLate) {
+    // BackToBackBeginFrameSource does not support multiple deadlines, so it
+    // should never receive late draw results.
+    NOTREACHED();
+  }
   if (observers_.contains(obs)) {
     pending_begin_frame_observers_.insert(obs);
     time_source_->SetActive(true);
@@ -646,7 +660,7 @@ base::TimeDelta ExternalBeginFrameSource::GetMinimumFrameInterval() {
 
 base::flat_set<base::TimeDelta>
 ExternalBeginFrameSource::GetSupportedFrameIntervals(base::TimeDelta interval) {
-  return {interval, interval * 2};
+  return GetDefaultSupportedFrameIntervals(interval);
 }
 
 }  // namespace viz

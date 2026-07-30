@@ -1,7 +1,12 @@
 # Copyright 2023 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-"""Sets up the isolate daemon environment to run test on the bots."""
+"""Sets up the isolated environment for running tests.
+
+Note: Although this file and class are named after "isolate daemon", it now
+runs ffx in daemonless mode. A follow-up cleanup is planned to rename and
+refactor this.
+"""
 
 import os
 import tempfile
@@ -11,14 +16,13 @@ from typing import Optional
 from contextlib import AbstractContextManager
 
 from common import get_ffx_isolate_dir,has_ffx_isolate_dir, \
-                        set_ffx_isolate_dir, is_daemon_running, \
-                        start_ffx_daemon, stop_ffx_daemon
+                        set_ffx_isolate_dir, is_daemon_running
 from ffx_integration import ScopedFfxConfig
 from modification_waiter import ModificationWaiter
 
 
 class IsolateDaemon(AbstractContextManager):
-    """Sets up the environment of an isolate ffx daemon."""
+    """Sets up the environment for ffx (currently running daemonless)."""
 
     class IsolateDir(AbstractContextManager):
         """Sets up the ffx isolate dir to a temporary folder if it's not set."""
@@ -92,16 +96,13 @@ class IsolateDaemon(AbstractContextManager):
 
     # Updating configurations to meet the requirement of isolate.
     def __enter__(self):
-        # This environment variable needs to be set before stopping ffx daemon
+        # This environment variable needs to be set before running ffx commands
         # to avoid sending unnecessary analytics.
         os.environ['FUCHSIA_ANALYTICS_DISABLED'] = '1'
-        stop_ffx_daemon()
         for init in self._inits:
             init.__enter__()
-        start_ffx_daemon()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         for init in self._inits:
             init.__exit__(exc_type, exc_value, traceback)
-        stop_ffx_daemon()

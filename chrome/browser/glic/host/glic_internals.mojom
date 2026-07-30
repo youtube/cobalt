@@ -9,6 +9,23 @@ import "chrome/common/glic_enums.mojom";
 import "mojo/public/mojom/base/time.mojom";
 import "url/mojom/url.mojom";
 
+struct TieredRolloutInfo {
+  // User's AI subscription tier (null if unavailable).
+  int32? ai_subscription_tier;
+  // Eligible for V1 (feature flag + pref).
+  bool is_eligible_for_tiered_rollout_v1;
+  // Eligible for V2 (feature flag + tier).
+  bool is_eligible_for_tiered_rollout_v2;
+  // Combined eligibility (V1 or V2).
+  bool is_eligible_overall;
+  // Value of the kGlicRolloutEligibility pref.
+  bool glic_rollout_eligibility_pref;
+  // Comma separated integers set from experiment config, eligible tiers configured for V2.
+  string tiered_rollout_v2_eligible_tiers;
+  // Text status of syncing the preference.
+  string preference_sync_status;
+};
+
 // Consolidated data payload to populate the Glic internals page.
 struct InternalsDataPayload {
   ProfileEnablement enablement;
@@ -16,6 +33,7 @@ struct InternalsDataPayload {
   bool show_error_allowed;
   bool experimental_triggering_enabled;
   InternalsDebugInfo debug_info;
+  TieredRolloutInfo tiered_rollout_info;
 };
 
 struct InternalsDebugInfo {
@@ -43,6 +61,7 @@ struct InternalsDebugInfo {
   bool os_version_supported;
   bool anchor_entrypoint_override_active;
   bool primary_account_needs_signed_in;
+  string dogfood_status;
 };
 
 // This determines how invoke will handle waiting for first run experience

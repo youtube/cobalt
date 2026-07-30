@@ -136,6 +136,7 @@ class LoadingDataCollector {
                                       bool is_error_page);
   virtual void RecordResourceLoadComplete(
       NavigationId navigation_id,
+      const GURL& original_url,
       const blink::mojom::ResourceLoadInfo& resource_load_info);
 
   // Called when a preconnect is initiated for the navigation.

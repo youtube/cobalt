@@ -95,6 +95,7 @@ import org.chromium.components.autofill.AutofillProvider;
 import org.chromium.components.autofill.AutofillSelectionActionMenuDelegate;
 import org.chromium.components.autofill.AutofillSelectionMenuItemHelper;
 import org.chromium.components.content_capture.OnscreenContentProvider;
+import org.chromium.components.embedder_support.application.ClassLoaderContextWrapperFactory;
 import org.chromium.components.embedder_support.util.TouchEventFilter;
 import org.chromium.components.embedder_support.util.WebResourceResponseInfo;
 import org.chromium.components.navigation_interception.InterceptNavigationDelegate;
@@ -375,7 +376,7 @@ public class AwContents implements SmartClipProvider {
     private AwBrowserContext mBrowserContext;
     private ViewGroup mContainerView;
     private AwDrawFnImpl mDrawFunctor;
-    private final Context mContext;
+    private Context mContext;
     private final int mAppTargetSdkVersion;
     private AwViewAndroidDelegate mViewAndroidDelegate;
     private WindowAndroidWrapper mWindowAndroid;
@@ -388,6 +389,7 @@ public class AwContents implements SmartClipProvider {
     private AwWebContentsObserver mWebContentsObserver;
     private final AwContentsClientBridge mContentsClientBridge;
     private final AwWebContentsDelegateAdapter mWebContentsDelegate;
+    private AwActionModeCallback mAwActionModeCallback;
     private final ShouldInterceptRequestMediator mShouldInterceptRequestMediator;
     private final AwContentsIoThreadClient mIoThreadClient;
     private final InterceptNavigationDelegateImpl mInterceptNavigationDelegate;
@@ -551,12 +553,18 @@ public class AwContents implements SmartClipProvider {
         private final long mNativeAwContents;
         // Hold onto a reference to the window (via its wrapper), so that it is not destroyed
         // until we are done here.
-        private final WindowAndroidWrapper mWindowAndroid;
+        private WindowAndroidWrapper mWindowAndroid;
 
         private AwContentsDestroyConsumer(
                 long nativeAwContents, WindowAndroidWrapper windowAndroid) {
             mNativeAwContents = nativeAwContents;
             mWindowAndroid = windowAndroid;
+            mWindowAndroid.incrementRefFromDestroyRunnable();
+        }
+
+        public void updateWindowAndroid(WindowAndroidWrapper newWindowAndroid) {
+            mWindowAndroid.decrementRefFromDestroyRunnable();
+            mWindowAndroid = newWindowAndroid;
             mWindowAndroid.incrementRefFromDestroyRunnable();
         }
 
@@ -643,6 +651,7 @@ public class AwContents implements SmartClipProvider {
     // Reference to the active mNativeAwContents pointer while it is active use
     // (ie before it is destroyed).
     private CleanupReference mCleanupReference;
+    private AwContentsDestroyConsumer mDestroyConsumer;
 
     @AnyThread
     public void onWebViewClientUpdated(WebViewClient client) {
@@ -1035,10 +1044,10 @@ public class AwContents implements SmartClipProvider {
             mLayoutSizer.setDelegate(new AwLayoutSizerDelegate());
             mWebContentsDelegate =
                     new AwWebContentsDelegateAdapter(
-                            this, contentsClient, settings, mContext, mContainerView);
+                            this, contentsClient, settings, mContainerView);
             mContentsClientBridge =
                     new AwContentsClientBridge(
-                            mContext, contentsClient, AwContentsStatics.getClientCertLookupTable());
+                            this, contentsClient, AwContentsStatics.getClientCertLookupTable());
             mZoomControls = new AwZoomControls(this);
             mShouldInterceptRequestMediator = new AwContentsShouldInterceptRequestMediator();
             mIoThreadClient =
@@ -1075,10 +1084,11 @@ public class AwContents implements SmartClipProvider {
             setOverScrollMode(mContainerView.getOverScrollMode());
             setScrollBarStyle(mInternalAccessAdapter.super_getScrollBarStyle());
 
-            mAwDarkMode = new AwDarkMode(context);
+            mAwDarkMode = new AwDarkMode(this);
             mStylusWritingController =
                     new StylusWritingController(
-                            context, /* lazyFetchHandWritingIconFeatureEnabled= */ true);
+                            context.getApplicationContext(),
+                            /* lazyFetchHandWritingIconFeatureEnabled= */ true);
 
             setNewAwContents(
                     AwContentsJni.get().init(mBrowserContext.getNativeBrowserContextPointer()));
@@ -1111,7 +1121,8 @@ public class AwContents implements SmartClipProvider {
         mViewEventSink = ViewEventSink.from(mWebContents);
         mViewEventSink.setHideKeyboardOnBlur(false);
         SelectionPopupController controller = SelectionPopupController.fromWebContents(webContents);
-        controller.setActionModeCallback(new AwActionModeCallback(mContext, this, webContents));
+        mAwActionModeCallback = new AwActionModeCallback(this, webContents);
+        controller.setActionModeCallback(mAwActionModeCallback);
         controller.setSelectionClient(SelectionClient.createSmartSelectionClient(webContents));
         controller.setSelectionActionMenuDelegate(selectionActionMenuDelegate);
         AwSelectionDropdownMenuDelegate.maybeSetWebViewDropdownSelectionMenuDelegate(controller);
@@ -1340,6 +1351,21 @@ public class AwContents implements SmartClipProvider {
         mViewEventSink.setAccessDelegate(mInternalAccessAdapter);
     }
 
+    public void adopt(ViewGroup newContainerView, InternalAccessDelegate internalAccessAdapter) {
+        ThreadUtils.assertOnUiThread();
+        if (mContainerView != null && mContainerView.isAttachedToWindow()) {
+            throw new IllegalStateException(
+                    "AwContents must be detached from the window before adopting.");
+        }
+        if (newContainerView.isAttachedToWindow()) {
+            throw new IllegalStateException(
+                    "The new container view must be detached from the window before adopting.");
+        }
+        updateContext(newContainerView.getContext());
+        setInternalAccessAdapter(internalAccessAdapter);
+        setContainerView(newContainerView);
+    }
+
     private void setContainerView(ViewGroup newContainerView) {
         // setWillNotDraw(false) is required since WebView draws its own contents using its
         // container view. If this is ever not the case we should remove this, as it removes
@@ -1358,6 +1384,44 @@ public class AwContents implements SmartClipProvider {
             drawable.onContainerViewChanged(newContainerView);
         }
         onContainerViewChanged();
+    }
+
+    /**
+     * Updates the context for the AwContents. This effectively reparents the AwContents to this new
+     * context.
+     *
+     * @param newContext The new context to use.
+     */
+    private void updateContext(Context newContext) {
+        mContext = ClassLoaderContextWrapperFactory.get(newContext);
+        WindowAndroidWrapper newWindowAndroid = getWindowAndroid(newContext);
+        if (newWindowAndroid != mWindowAndroid) {
+            mWindowAndroid = newWindowAndroid;
+            if (ContextUtils.activityFromContext(newContext) != null) {
+                mWebContents.setTopLevelNativeWindow(mWindowAndroid.getWindowAndroid());
+            } else {
+                mWebContents.setTopLevelNativeWindow(null);
+            }
+            mDestroyConsumer.updateWindowAndroid(newWindowAndroid);
+        }
+        if (mAutofillProvider != null) {
+            mAutofillProvider.switchToContext(new WeakReference<>(newContext));
+        }
+    }
+
+    /**
+     * Retrieves the Context that was passed to use via our constructor or was updated via
+     * AwContents#adopt. You should _not_ hold onto this Context in case AwContents gets reparented
+     * to a new Context. Before calling this, first determine if you can use the ApplicationContext.
+     *
+     * <p>Note that this may return a non-Activity context (e.g. an application context) if the
+     * AwContents was created with one.
+     *
+     * @return The Context provided to the AwContents.
+     */
+    public Context getProvidedContext() {
+        ThreadUtils.assertOnUiThread();
+        return mContext;
     }
 
     /** Reconciles the state of this AwContents object with the state of the new container view. */
@@ -1635,9 +1699,8 @@ public class AwContents implements SmartClipProvider {
 
         // The native side object has been bound to this java instance, so now is the time to
         // bind all the native->java relationships.
-        mCleanupReference =
-                new CleanupReference(
-                        this, new AwContentsDestroyConsumer(mNativeAwContents, mWindowAndroid));
+        mDestroyConsumer = new AwContentsDestroyConsumer(mNativeAwContents, mWindowAndroid);
+        mCleanupReference = new CleanupReference(this, mDestroyConsumer);
         if (textClassifier != null) setTextClassifier(textClassifier);
         if (mOnscreenContentProvider != null) {
             mOnscreenContentProvider.onWebContentsChanged(mWebContents);

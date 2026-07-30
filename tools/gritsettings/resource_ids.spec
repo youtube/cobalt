@@ -1655,17 +1655,17 @@
     "structures": [9360],
   },
   "extensions/extensions_resources.grd": {
-    "includes": [9380],
+    "includes": [9370],
   },
   "extensions/renderer/resources/extensions_renderer_resources.grd": {
-    "structures": [9420],
+    "structures": [9390],
   },
   "<(SHARED_INTERMEDIATE_DIR)/extensions/renderer/resources/resources.grd": {
     "META": {"sizes": {"includes": [100]}},
-    "includes": [9430],
+    "includes": [9400],
   },
   "extensions/strings/extensions_strings.grd": {
-    "messages": [9460],
+    "messages": [9420],
   },
 
   "mojo/public/js/mojo_bindings_resources.grd": {

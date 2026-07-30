@@ -4,28 +4,14 @@
 
 package org.chromium.chrome.browser.omnibox;
 
-import androidx.annotation.ColorInt;
-
 import org.chromium.build.annotations.NullMarked;
 
 /** A supplement to {@link LocationBarCoordinator} with methods specific to larger devices. */
 @NullMarked
 public class LocationBarCoordinatorTablet implements LocationBarCoordinator.SubCoordinator {
-    private LocationBarTablet mLocationBarTablet;
 
-    public LocationBarCoordinatorTablet(LocationBarTablet tabletLayout) {
-        mLocationBarTablet = tabletLayout;
-    }
+    public LocationBarCoordinatorTablet(LocationBarTablet tabletLayout) {}
 
-    @SuppressWarnings("NullAway")
     @Override
-    public void destroy() {
-        mLocationBarTablet = null;
-    }
-
-    /** Sets the color of the background. */
-    public void tintBackground(@ColorInt int color) {
-        // TODO(https://crbug.com/495787471): We should be able to completely remove this method.
-        mLocationBarTablet.getBackground().mutate().setTint(color);
-    }
+    public void destroy() {}
 }

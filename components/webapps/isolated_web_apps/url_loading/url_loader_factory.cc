@@ -236,7 +236,7 @@ class HeaderInjectionURLLoaderClient : public ForwardingURLLoaderClient {
 
   void OnComplete(const network::URLLoaderCompletionStatus& status) override {
     network::URLLoaderCompletionStatus adjusted_status = status;
-    adjusted_status.encoded_data_length += header_size_delta_.InBytes();
+    adjusted_status.encoded_data_length += header_size_delta_;
     url_loader_client()->OnComplete(adjusted_status);
   }
 

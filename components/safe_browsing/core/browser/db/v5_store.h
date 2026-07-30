@@ -14,6 +14,7 @@
 #include "components/safe_browsing/core/browser/db/hash_prefix_list.h"
 #include "components/safe_browsing/core/browser/db/sb_store.h"
 #include "components/safe_browsing/core/browser/db/sb_store_file_format.h"
+#include "components/safe_browsing/core/common/proto/webui.pb.h"
 
 namespace safe_browsing {
 
@@ -58,9 +59,46 @@ enum class V4ToV5MigrationResult {
   // Failed to rename the temp V5 store file to the final path.
   kRenameV5StoreFileFailure = 11,
 
-  kMaxValue = kRenameV5StoreFileFailure
+  // V4 to V5 migration was ineligible, and wiping V4 failed.
+  kStoreIneligibleWipeFailed = 12,
+
+  // V4 to V5 migration was ineligible, and wiping V4 succeeded.
+  kStoreIneligibleWipeSucceeded = 13,
+
+  // Failed to migrate extensions blocklist due to conversion or write failure.
+  kExtensionBlocklistMigrationFailed = 14,
+
+  kMaxValue = kExtensionBlocklistMigrationFailed
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/safe_browsing/enums.xml:V4ToV5MigrationResult)
+
+// Enumerate different results of converting the extensions blocklist from v4 to
+// v5.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(ConvertExtensionBlocklistV4ToV5Result)
+enum class ConvertExtensionBlocklistV4ToV5Result {
+  // Conversion completed successfully.
+  kSuccess = 0,
+
+  // Failed to read the V4 hash file.
+  kReadV4Failed = 1,
+
+  // The V4 hash file size was not a multiple of 32 bytes.
+  kInvalidFileSize = 2,
+
+  // An extension ID in the V4 hash file was invalid.
+  kInvalidExtensionId = 3,
+
+  // Failed to write the converted V5 hash file.
+  kWriteV5Failed = 4,
+
+  // The V4 store's checksum did not match the V4 data on disk.
+  kV4ChecksumMismatch = 5,
+
+  kMaxValue = kV4ChecksumMismatch
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/safe_browsing/enums.xml:ConvertExtensionBlocklistV4ToV5Result)
 
 class V5Store : public SBStore {
  public:
@@ -69,6 +107,10 @@ class V5Store : public SBStore {
   // disk for this file. The constructor doesn't read the store file from disk.
   // `v4_store_path` is the store path for the corresponding v4 store; this is
   // used for migrating from a v4 database to a v5 database.
+  // `is_eligible_for_v4_to_v5_disk_migration` specifies whether this store is
+  // eligible to migrate its old V4 disk format to V5.
+  // `is_extensions_blocklist` specifies whether this store is for the
+  // extensions blocklist.
   // If the store is being created to apply an update to the old store, then
   // `old_file_size` is the size of the existing file on disk for this store;
   // 0 otherwise. This is needed so that we can correctly report the size of
@@ -78,6 +120,8 @@ class V5Store : public SBStore {
           const base::FilePath& store_path,
           PrefixSize prefix_size,
           const base::FilePath& v4_store_path,
+          bool is_eligible_for_v4_to_v5_disk_migration,
+          bool is_extensions_blocklist,
           int64_t old_file_size = 0);
   ~V5Store() override;
 
@@ -86,6 +130,23 @@ class V5Store : public SBStore {
   // Reads the store file from disk and populates the in-memory representation
   // of the hash prefixes.
   void Initialize();
+
+  int64_t RecordAndReturnFileSize(const std::string& base_metric) override;
+
+  void Reset() override;
+
+  bool VerifyChecksum() override;
+
+  void CollectStoreInfo(
+      DatabaseManagerInfo::DatabaseInfo::StoreInfo* store_info) override;
+
+  const std::string& GetStoreState() const override;
+
+  HashPrefixStr GetMatchingHashPrefix(const FullHashStr& full_hash) override;
+
+  void ApplyUpdate(std::unique_ptr<SBUpdateResponse> response,
+                   const scoped_refptr<base::SequencedTaskRunner>& runner,
+                   UpdatedStoreReadyCallback callback) override;
 
  protected:
   std::string GetMetricPrefix() const override;
@@ -102,6 +163,10 @@ class V5Store : public SBStore {
   // reason for the failure or reports success.
   V5StoreReadResult ReadFromDiskInternal();
 
+  // Helper method for performing the actual checksum verification logic.
+  // Returns true if the calculated checksum matches the expected checksum.
+  bool VerifyChecksumInternal();
+
   // Attempts to migrate the store from v4 to v5 if eligible and needed. Returns
   // the reason for the failure or reports success.
   V4ToV5MigrationResult AttemptV4ToV5Migration();
@@ -109,6 +174,31 @@ class V5Store : public SBStore {
   // Performs the actual migration steps from the v4 store to v5. Returns the
   // reason for the failure or reports success.
   V4ToV5MigrationResult MigrateFromV4(const base::FilePath& v4_store_path);
+
+  // Wipes the V4 store file and its associated hash files.
+  // `v4_store_path` is the path of the V4 store to delete.
+  // Returns true if both the store file and all of its associated hash files
+  // are successfully deleted; false otherwise.
+  bool WipeV4Store(const base::FilePath& v4_store_path);
+
+  // Converts the extensions blocklist hash file from V4 to V5 format.
+  // `v4_hash_file_path` is the path to the existing V4 hash file.
+  // `v5_hash_file_path` is the path where the converted V5 hash file should be
+  // written.
+  // `checksum_sha256` is an in-out parameter. On input, it contains the
+  // expected V4 checksum (if any) used to verify the V4 data before
+  // conversion. On successful conversion, it is overwritten in-place with the
+  // newly calculated V5 checksum of the converted data. Can be nullptr if no
+  // checksum is expected.
+  // `file_size` is an output parameter that will be populated with the size of
+  // the converted hash data.
+  // Returns `ConvertExtensionBlocklistV4ToV5Result::kSuccess` on success, or an
+  // appropriate error code on failure.
+  ConvertExtensionBlocklistV4ToV5Result ConvertExtensionsBlocklistFromV4ToV5(
+      const base::FilePath& v4_hash_file_path,
+      const base::FilePath& v5_hash_file_path,
+      std::string* checksum_sha256,
+      uint64_t* file_size);
 
   std::unique_ptr<HashPrefixList> hash_prefix_list_;
 
@@ -118,16 +208,45 @@ class V5Store : public SBStore {
   // The path to the corresponding v4 store file on disk.
   const base::FilePath v4_store_path_;
 
+  // Whether this store is eligible for v4 to v5 disk migration.
+  const bool is_eligible_for_migration_ = true;
+
+  // Whether this store is for the extensions blocklist.
+  const bool is_extensions_blocklist_ = false;
+
   // The version of the store as returned by the PVer5 server in the last
   // applied update response.
   std::string version_;
 
-  // The checksum value as read from the disk, until it is verified. Once
-  // verified, it is cleared.
+  // The checksum value as read from the disk. It is cleared if the store is
+  // invalid. It is updated if there is a new checksum provided in an update.
   std::string expected_checksum_;
 
   // Records the status of the update being applied to the database.
   V5ApplyUpdateResult last_apply_update_result_ = V5ApplyUpdateResult::kUnknown;
+};
+
+using V5StorePtr = std::unique_ptr<V5Store, SBStoreDeleter>;
+
+// Factory for creating V5Store instances. Implements SBStoreFactory.
+class V5StoreFactory : public SBStoreFactory {
+ public:
+  ~V5StoreFactory() override = default;
+
+  // SBStoreFactory implementation:
+  SBStorePtr CreateStore(
+      const scoped_refptr<base::SequencedTaskRunner>& db_task_runner,
+      const base::FilePath& base_path,
+      const ListInfo& list_info) override;
+
+  // Creates a V5Store.
+  virtual V5StorePtr CreateV5Store(
+      const scoped_refptr<base::SequencedTaskRunner>& task_runner,
+      const base::FilePath& store_path,
+      PrefixSize prefix_size,
+      const base::FilePath& v4_store_path,
+      bool is_eligible_for_v4_to_v5_disk_migration,
+      bool is_extensions_blocklist);
 };
 
 }  // namespace safe_browsing

@@ -7,14 +7,10 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/autofill/payments/offer_notification_bubble_views_test_base.h"
-#include "chrome/common/webui_url_constants.h"
-#include "chrome/test/base/ui_test_utils.h"
 #include "components/autofill/core/browser/data_manager/payments/payments_data_manager_test_api.h"
 #include "components/autofill/core/browser/test_utils/test_autofill_clock.h"
 #include "content/public/test/browser_test.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "ui/base/window_open_disposition.h"
-#include "ui/views/test/widget_test.h"
 #include "ui/views/widget/widget.h"
 
 namespace autofill {

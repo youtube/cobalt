@@ -335,19 +335,14 @@ String AtomicStringTable::Add(base::span<const UChar> chars,
 
   const auto length = chars.size();
   if (encoding == AtomicStringUCharEncoding::kIs8Bit && length <= 7) {
-    uint64_t signature = 0;
-    auto signature_bytes =
-        base::as_writable_bytes(base::span_from_ref(signature));
-    for (size_t i = 0; i < length; ++i) {
-      signature_bytes[i] = static_cast<LChar>(chars[i]);
+    uint64_t signature = length;
+    for (UChar ch : chars) {
+      signature = (signature << 8) | static_cast<uint16_t>(ch);
     }
-    signature_bytes[7] = static_cast<uint8_t>(length);
 
-    return SmallStringCacheGetOrInsert(signature, [&]() {
-      unsigned hash = StringHasher::ComputeHashAndMaskTop8Bits(
-          reinterpret_cast<const char*>(&signature), length);
-      UCharBuffer buffer(chars, hash, encoding);
-      return AddToStringTable<UCharBuffer, UCharBufferTranslator>(buffer);
+    return SmallStringCacheGetOrInsert(signature, [this, &chars]() {
+      return AddToStringTable<UCharBuffer, UCharBufferTranslator>(
+          UCharBuffer(chars, AtomicStringUCharEncoding::kIs8Bit));
     });
   }
 
@@ -406,13 +401,10 @@ String AtomicStringTable::Add(const StringView& string_view) {
   const auto length = string_view.length();
   if (length <= 7 && string_view.Is8Bit()) {
     base::span<const LChar> chars = string_view.Span8();
-    // Initialize the signature to zero to ensure padding for strings shorter
-    // than 7 bytes, as copy_prefix_from() does not write past the input.
-    uint64_t signature = 0;
-    auto signature_bytes =
-        base::as_writable_bytes(base::span_from_ref(signature));
-    signature_bytes.copy_prefix_from(base::as_bytes(chars));
-    signature_bytes[7] = static_cast<uint8_t>(length);
+    uint64_t signature = length;
+    for (LChar ch : chars) {
+      signature = (signature << 8) | static_cast<uint8_t>(ch);
+    }
 
     return SmallStringCacheGetOrInsert(signature, [this, &chars]() {
       return AddToStringTable<LCharBuffer, LCharBufferTranslator>(
@@ -440,13 +432,10 @@ String AtomicStringTable::Add(base::span<const LChar> chars) {
 
   const auto length = chars.size();
   if (length <= 7) {
-    // Initialize the signature to zero to ensure padding for strings shorter
-    // than 7 bytes, as copy_prefix_from() does not write past the input.
-    uint64_t signature = 0;
-    auto signature_bytes =
-        base::as_writable_bytes(base::span_from_ref(signature));
-    signature_bytes.copy_prefix_from(base::as_bytes(chars));
-    signature_bytes[7] = static_cast<uint8_t>(length);
+    uint64_t signature = length;
+    for (LChar ch : chars) {
+      signature = (signature << 8) | static_cast<uint8_t>(ch);
+    }
 
     return SmallStringCacheGetOrInsert(signature, [this, &chars]() {
       return AddToStringTable<LCharBuffer, LCharBufferTranslator>(

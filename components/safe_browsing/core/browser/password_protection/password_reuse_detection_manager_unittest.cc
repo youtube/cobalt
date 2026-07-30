@@ -285,6 +285,25 @@ TEST_F(PasswordReuseDetectionManagerTest,
 }
 #endif
 
+TEST_F(PasswordReuseDetectionManagerTest, MultipleReuseChecks) {
+  PasswordReuseDetectionManager manager(&client_);
+
+  // 1. Reuse found.
+  EXPECT_CALL(client_, CheckProtectedPasswordEntry).Times(1);
+  manager.OnReuseCheckDone(
+      /*is_reuse_found=*/true, 0ul, std::nullopt,
+      {password_manager::MatchingReusedCredential(
+          "https://example.com", GURL("https://example.com"), u"username")},
+      0, std::string(), 0);
+  testing::Mock::VerifyAndClearExpectations(&client_);
+
+  // 2. Reuse NOT found.
+  // We expect CheckProtectedPasswordEntry NOT to be called.
+  EXPECT_CALL(client_, CheckProtectedPasswordEntry).Times(0);
+  manager.OnReuseCheckDone(
+      /*is_reuse_found=*/false, 0ul, std::nullopt, {}, 0, std::string(), 0);
+}
+
 }  // namespace
 
 }  // namespace safe_browsing

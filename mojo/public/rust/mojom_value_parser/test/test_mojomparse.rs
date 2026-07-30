@@ -22,6 +22,7 @@
 chromium::import! {
     "//mojo/public/rust/mojom_value_parser:mojom_value_parser_core";
     "//mojo/public/rust/mojom_value_parser:parser_unittests_rust";
+    "//mojo/public/rust/mojom_value_parser:dup_enum_unittest_rust";
     "//mojo/public/rust/bindings";
 }
 
@@ -2802,4 +2803,15 @@ fn test_pending_associated_types() {
                 && parsed.rem2.as_ref().unwrap().same_interface_for_testing(&rec_f)
         },
     );
+}
+
+#[gtest(MojomParseTest, DuplicateEnumValues)]
+fn test_duplicate_enum_values() {
+    use dup_enum_unittest_rust::dup_enum_unittest::DupEnum;
+    assert_eq!(DupEnum::kFoo as i32, 0);
+    assert_eq!(DupEnum::kBar as i32, 1);
+    assert_eq!(DupEnum::kLast as i32, 1);
+    assert_eq!(DupEnum::kBar, DupEnum::kLast);
+    assert_eq!(DupEnum::try_from(1).unwrap(), DupEnum::kBar);
+    assert_eq!(DupEnum::try_from(1).unwrap(), DupEnum::kLast);
 }

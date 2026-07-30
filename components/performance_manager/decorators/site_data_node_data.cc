@@ -5,10 +5,12 @@
 #include "components/performance_manager/decorators/site_data_node_data.h"
 
 #include "base/check_op.h"
+#include "base/feature_list.h"
 #include "components/performance_manager/graph/page_node_impl.h"
 #include "components/performance_manager/persistence/site_data/site_data_cache.h"
 #include "components/performance_manager/persistence/site_data/site_data_writer.h"
 #include "components/performance_manager/public/decorators/site_data_recorder.h"
+#include "components/performance_manager/public/features.h"
 #include "components/performance_manager/public/persistence/site_data/site_data_reader.h"
 #include "url/gurl.h"
 #include "url/origin.h"
@@ -122,8 +124,13 @@ void SiteDataNodeData::OnTitleUpdated() {
       FeatureType::kTitleChange);
 }
 
-void SiteDataNodeData::OnFaviconUpdated() {
+void SiteDataNodeData::OnFaviconUpdated(
+    blink::mojom::FaviconUpdateReason reason) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (base::FeatureList::IsEnabled(features::kIgnoreMediaQueryFaviconUpdates) &&
+      reason == blink::mojom::FaviconUpdateReason::kMediaQueryChange) {
+    return;
+  }
   MaybeNotifyBackgroundFeatureUsage(
       &SiteDataWriter::NotifyUpdatesFaviconInBackground,
       FeatureType::kFaviconChange);

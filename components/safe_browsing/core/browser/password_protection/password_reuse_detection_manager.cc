@@ -118,7 +118,7 @@ void PasswordReuseDetectionManager::OnReuseCheckDone(
   reuse_on_this_page_was_found_ |= is_reuse_found;
 
   // If no reuse was found, we're done.
-  if (!reuse_on_this_page_was_found_) {
+  if (!is_reuse_found) {
     return;
   }
 

@@ -188,6 +188,10 @@ class BASE_EXPORT FeatureList {
   // of the associated field trial.
   void InitFromSharedMemory(PersistentMemoryAllocator* allocator);
 
+  // Sets the `variation_country` that is used to determine whether
+  // default-enabled features with country restrictions are enabled.
+  void SetVariationCountry(std::string_view variation_country);
+
   // Enables runtime mutability for the given `feature` and registers the given
   // `callback` to be invoked when the feature's state changes at runtime. This
   // method should only be called once per feature and *MUST* be called before
@@ -635,6 +639,11 @@ class BASE_EXPORT FeatureList {
   // to check the state of a feature not on this list will behave as if no
   // feature list was initialized at all.
   base::flat_set<std::string> allowed_feature_names_;
+
+  // Used when querying `base::Feature` state to determine whether a
+  // default-enabled feature with country restrictions is enabled. Set via
+  // `SetVariationCountry()` during initialization.
+  std::string variation_country_;
 
   // Sequence checker for the main thread/sequence, used to ensure that runtime
   // mutable features are only accessed on the main thread.

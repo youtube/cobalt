@@ -764,6 +764,12 @@ BASE_EXPORT std::optional<FilePath> ResolveToContentUri(const FilePath& path);
 BASE_EXPORT std::optional<FilePath> ResolveToVirtualDocumentPath(
     const FilePath& path);
 
+// Copies a file from app-private storage into the public Downloads collection.
+// Returns the public content URI string on success, or std::nullopt on failure.
+BASE_EXPORT std::optional<std::string> CopyFileToDownloadsCollection(
+    const FilePath& file_path,
+    const std::string& mime_type);
+
 #endif
 
 // Internal --------------------------------------------------------------------

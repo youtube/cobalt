@@ -60,7 +60,7 @@ def write_blueprint_key_value(output,
             output.append('        "%s",' % escape(item))
         output.append('    ],')
         return
-    if isinstance(value, Module.Target):
+    if isinstance(value, Target):
         value.to_string(output)
         return
     if isinstance(value, dict):
@@ -106,292 +106,266 @@ def get_protoc_module_name(gn, context):
     return label_to_module_name(protoc_gn_target_name, context)
 
 
-class Module:
-    """A single module (e.g., cc_binary, cc_test) in a blueprint."""
+class Target:
+    """A target-scoped part of a module"""
+    COMMON_FIELDS = {'compile_multilib', 'srcs'}
+    SUPPORTED_FIELDS = set()
+    _allowed_fields = SUPPORTED_FIELDS.union(COMMON_FIELDS)
 
-    class Target:
-        """A target-scoped part of a module"""
+    def __init__(self, arch, parent=None):
+        self._arch = arch
+        self._parent = parent
+        self.compile_multilib = None
+        self.srcs = set()
 
-        def __init__(self, name):
-            self.name = name
-            self.srcs = set()
-            self.shared_libs = set()
-            self.static_libs = set()
-            self.whole_static_libs = set()
-            self.header_libs = set()
-            self.cflags = list()
-            self.stl = None
-            self.cppflags = list()
-            self.include_dirs = set()
-            self.generated_headers = set()
-            self.export_generated_headers = set()
-            self.ldflags = list()
-            self.linker_scripts = set()
-            self.compile_multilib = None
-            self.stem = ""
-            self.edition = ""
-            self.features = set()
-            self.cfgs = set()
-            self.flags = list()
-            self.rustlibs = set()
-            self.proc_macros = set()
+    def __setattr__(self, name, value):
+        if name.startswith('_'):
+            super().__setattr__(name, value)
+            return
+        if name not in self._allowed_fields:
+            raise AttributeError(
+                f"Target '{self._arch}' (parent type '{self._parent.type if self._parent else None}') "
+                f"does not support attribute '{name}'")
+        super().__setattr__(name, value)
 
-        def to_string(self, output):
-            nested_out = []
-            self._output_field(nested_out, 'srcs')
-            self._output_field(nested_out, 'shared_libs')
-            self._output_field(nested_out, 'static_libs')
-            self._output_field(nested_out, 'whole_static_libs')
-            self._output_field(nested_out, 'header_libs')
+    def to_string(self, output):
+        nested_out = []
+        for field in sorted(self._allowed_fields):
             # While sorting is a requirement for a deterministic output, sorting these flags correctly is
             # challenging. Sorting requires knowing the boundaries of each flag, but we cannot simply
             # assume flags are defined by whitespace, a leading - character, or something else.
             # With that in mind, we choose instead not to sort and instead we rely on GN's ordering of
             # these flags (and we assume that that ordering is deterministic).
-            self._output_field(nested_out, 'cflags', sort=False)
-            self._output_field(nested_out, 'stl')
-            # The reasoning for disabling sort is the same as cflags.
-            self._output_field(nested_out, 'cppflags', sort=False)
-            self._output_field(nested_out, 'include_dirs')
-            self._output_field(nested_out, 'generated_headers')
-            self._output_field(nested_out, 'export_generated_headers')
-            # The reasoning for disabling sort is the same as cflags.
-            self._output_field(nested_out, 'ldflags', sort=False)
-            self._output_field(nested_out, 'linker_scripts')
-            self._output_field(nested_out, 'compile_multilib')
-            self._output_field(nested_out, 'stem')
-            self._output_field(nested_out, "edition")
-            self._output_field(nested_out, 'cfgs')
-            self._output_field(nested_out, 'features')
-            self._output_field(nested_out, 'flags', sort=False)
-            self._output_field(nested_out, 'rustlibs')
-            self._output_field(nested_out, 'proc_macros')
+            #
+            # TODO: we should be able to get rid of this hardcoded list if
+            # we are more consistent with how we use lists vs. sets
+            # (list means order matters so should not be sorted, set
+            # means order does not matter so should be sorted for
+            # determinism)
+            #
+            # TODO: this logic is duplicated in `Module`.
+            self._output_field(nested_out,
+                               field,
+                               sort=field not in ('cflags', 'cppflags',
+                                                  'ldflags', 'flags'))
 
-            if nested_out:
-                output.append('    %s: {' % self.name)
-                for line in nested_out:
-                    output.append('    %s' % line)
-                output.append('    },')
+        if nested_out:
+            output.append('    %s: {' % self._arch)
+            for line in nested_out:
+                output.append('    %s' % line)
+            output.append('    },')
 
-        def _output_field(self,
-                          output,
-                          name,
-                          sort=True,
-                          list_to_multiline_string=False):
-            return write_blueprint_key_value(
-                output,
-                name,
-                getattr(self, name),
-                sort=sort,
-                list_to_multiline_string=list_to_multiline_string)
+    def _output_field(self,
+                      output,
+                      name,
+                      sort=True,
+                      list_to_multiline_string=False):
+        return write_blueprint_key_value(
+            output,
+            name,
+            getattr(self, name),
+            sort=sort,
+            list_to_multiline_string=list_to_multiline_string)
 
-    def __init__(self, mod_type, name, gn_target, context):
+
+class CcTarget(Target):
+    SUPPORTED_FIELDS = {
+        'shared_libs', 'static_libs', 'whole_static_libs', 'header_libs',
+        'cflags', 'stl', 'cppflags', 'include_dirs', 'generated_headers',
+        'export_generated_headers', 'ldflags', 'linker_scripts', 'stem'
+    }
+    _allowed_fields = SUPPORTED_FIELDS.union(Target.COMMON_FIELDS)
+
+    def __init__(self, name, parent=None):
+        super().__init__(name, parent)
+        self.shared_libs = set()
+        self.static_libs = set()
+        self.whole_static_libs = set()
+        self.header_libs = set()
+        self.cflags = list()
+        self.stl = None
+        self.cppflags = list()
+        self.include_dirs = set()
+        self.generated_headers = set()
+        self.export_generated_headers = set()
+        self.ldflags = list()
+        self.linker_scripts = set()
+        self.stem = ""
+
+
+class RustTarget(Target):
+    SUPPORTED_FIELDS = {
+        'edition', 'features', 'cfgs', 'flags', 'rustlibs', 'proc_macros',
+        'shared_libs', 'static_libs', 'whole_static_libs'
+    }
+    _allowed_fields = SUPPORTED_FIELDS.union(Target.COMMON_FIELDS)
+
+    def __init__(self, name, parent=None):
+        super().__init__(name, parent)
+        self.edition = ""
+        self.features = set()
+        self.cfgs = set()
+        self.flags = list()
+        self.rustlibs = set()
+        self.proc_macros = set()
+        self.shared_libs = set()
+        self.static_libs = set()
+        self.whole_static_libs = set()
+
+
+COMMON_FIELDS = {
+    'context', 'type', 'gn_target', 'name', 'comment', 'visibility',
+    'default_applicable_licenses', 'default_visibility', 'build_file_path',
+    'allow_rebasing', 'gn_type', 'target', 'jni_zero_target_type',
+    'java_unfiltered_module', 'genrule_headers', 'genrule_srcs',
+    'genrule_shared_libs', 'genrule_header_libs', 'include_build_directory',
+    'apex_available', 'host_supported', 'host_cross_supported',
+    'device_supported', 'defaults', 'srcs', 'role'
+}
+
+SKIP_IF_FALSY = {
+    'host_supported',
+    'whole_program_vtables',
+    'afdo',
+    'rtti',
+}
+
+SKIP_IF_TRUTHY = {
+    'host_cross_supported',
+    'device_supported',
+}
+
+ARCH_NAMES = {
+    'android', 'android_x86', 'android_x86_64', 'android_arm', 'android_arm64',
+    'android_riscv64', 'host', 'glibc'
+}
+
+COMMON_SOONG_FIELDS = {
+    'name',
+    'visibility',
+    'default_applicable_licenses',
+    'default_visibility',
+    'include_build_directory',
+    'apex_available',
+    'host_supported',
+    'host_cross_supported',
+    'device_supported',
+    'defaults',
+}
+
+
+class Module:
+    """Base class for Soong modules."""
+    SUPPORTED_FIELDS = set()
+
+    def __init__(self,
+                 mod_type,
+                 name,
+                 gn_target,
+                 context,
+                 is_test=False,
+                 role=None):
         self.context = context
         self.type = mod_type
         self.gn_target = gn_target
         self.name = name
-        self.srcs = set()
+        self.role = role
+        self._is_test = is_test
         self.comment = 'GN: ' + gn_target
-        self.shared_libs = set()
-        self.static_libs = set()
-        self.whole_static_libs = set()
-        self.tools = set()
-        self.cmd = None
+        self.visibility = set()
+        self.default_applicable_licenses = set()
+        self.default_visibility = []
+        self.gn_type = None
+        self.build_file_path = None
+        self.allow_rebasing = False
+        self.jni_zero_target_type = None
+        self.java_unfiltered_module = None
+        self.include_build_directory = None
+        self.apex_available = set()
         self.host_supported = False
         self.host_cross_supported = True
         self.device_supported = True
-        self.init_rc = set()
-        self.out = set()
-        self.export_include_dirs = set()
-        self.generated_headers = set()
-        self.export_generated_headers = set()
-        self.export_static_lib_headers = set()
-        self.export_header_lib_headers = set()
         self.defaults = set()
-        self.cflags = list()
-        self.include_dirs = set()
-        self.local_include_dirs = set()
-        self.header_libs = set()
-        self.tool_files = set()
-        # target contains a dict of Targets indexed by os_arch.
-        # example: { 'android_x86': Target('android_x86')
+        self.srcs = set()
         self.target = dict()
-        self.target['android'] = self.Target('android')
-        self.target['android_x86'] = self.Target('android_x86')
-        self.target['android_x86_64'] = self.Target('android_x86_64')
-        self.target['android_arm'] = self.Target('android_arm')
-        self.target['android_arm64'] = self.Target('android_arm64')
-        self.target['android_riscv64'] = self.Target('android_riscv64')
-        self.target['host'] = self.Target('host')
-        self.target['glibc'] = self.Target('glibc')
-        self.stl = None
-        self.cpp_std = None
-        self.strip = dict()
-        self.data = set()
-        self.apex_available = set()
-        self.min_sdk_version = None
-        self.proto = dict()
-        self.linker_scripts = set()
-        self.ldflags = list()
-        # The genrule_XXX below are properties that must to be propagated back
-        # on the module(s) that depend on the genrule.
+        self._initialize_targets(Target)
         self.genrule_headers = set()
         self.genrule_srcs = set()
         self.genrule_shared_libs = set()
         self.genrule_header_libs = set()
-        self.version_script = None
-        self.test_suites = set()
-        self.test_config = None
-        self.cppflags = list()
-        self.rtti = False
-        # Name of the output. Used for setting .so file name for libcronet
-        self.libs = set()
-        self.stem = None
-        self.compile_multilib = None
-        self.plugins = set()
-        self.processor_class = None
-        self.sdk_version = None
-        self.javacflags = set()
-        self.c_std = None
-        self.default_applicable_licenses = set()
-        self.default_visibility = []
-        self.visibility = set()
-        self.gn_type = None
-        self.jarjar_rules = ""
-        self.jars = set()
-        self.build_file_path = None
-        self.include_build_directory = None
-        self.allow_rebasing = False
-        self.license_kinds = set()
-        self.license_text = set()
-        self.errorprone = dict()
-        self.crate_name = None
-        # Should be arch-dependant
-        self.crate_root = None
-        self.edition = None
-        self.rustlibs = set()
-        self.proc_macros = set()
-        self.wrapper_src = ""
-        self.source_stem = ""
-        self.bindgen_flags = set()
-        self.handle_static_inline = None
-        self.static_inline_library = ""
-        self.jni_zero_target_type = None
-        self.unstable = ""
-        self.path = ""
-        # In the case of Java "top-level" modules, this points to the corresponding
-        # "unfiltered" module. The top-level module is just a dependency holder;
-        # it's the unfiltered module that does the actual compiling. For more
-        # details, see `create_java_module()`.
-        self.java_unfiltered_module = None
-        self.cargo_env_compat = None
-        self.cargo_pkg_version = None
-        self.whole_program_vtables = False
-        self.afdo = None
+
+    def _initialize_targets(self, target_class=Target):
+        for arch in [
+                'android', 'android_x86', 'android_x86_64', 'android_arm',
+                'android_arm64', 'android_riscv64', 'host', 'glibc'
+        ]:
+            self.target[arch] = target_class(arch, self)
+
+    def __setattr__(self, name, value):
+        if name.startswith('_'):
+            super().__setattr__(name, value)
+            return
+        allowed = self.SUPPORTED_FIELDS.union(COMMON_FIELDS).union(ARCH_NAMES)
+        if name not in allowed:
+            raise AttributeError(
+                f"Module '{self.name}' (type '{self.type}') does not support attribute '{name}'"
+            )
+        super().__setattr__(name, value)
 
     def variant(self, arch_name):
-        return self if arch_name == 'common' else self.target[arch_name]
+        return self if arch_name == 'common' else self.target.get(arch_name)
 
     def to_string(self, output):
         if self.comment:
             output.append('// %s' % self.comment)
         output.append('%s {' % self.type)
-        self._output_field(output, 'name')
-        self._output_field(output, 'srcs')
-        self._output_field(output, 'shared_libs')
-        self._output_field(output, 'static_libs')
-        self._output_field(output, 'whole_static_libs')
-        self._output_field(output, 'tools')
-        self._output_field(output,
-                           'cmd',
-                           sort=False,
-                           list_to_multiline_string=True)
-        if self.host_supported:
-            self._output_field(output, 'host_supported')
-        if not self.host_cross_supported:
-            self._output_field(output, 'host_cross_supported')
-        if not self.device_supported:
-            self._output_field(output, 'device_supported')
-        self._output_field(output, 'init_rc')
-        self._output_field(output, 'out')
-        self._output_field(output, 'export_include_dirs')
-        self._output_field(output, 'generated_headers')
-        self._output_field(output, 'export_generated_headers')
-        self._output_field(output, 'export_static_lib_headers')
-        self._output_field(output, 'export_header_lib_headers')
-        self._output_field(output, 'defaults')
-        # While sorting is a requirement for a deterministic output, sorting these flags correctly is
-        # challenging. Sorting requires knowing the boundaries of each flag, but we cannot simply
-        # assume flags are defined by whitespace, a leading - character, or something else.
-        # With that in mind, we choose instead not to sort and instead we rely on GN's ordering of
-        # these flags (and we assume that that ordering is deterministic).
-        self._output_field(output, 'cflags', sort=False)
-        self._output_field(output, 'include_dirs')
-        self._output_field(output, 'local_include_dirs')
-        self._output_field(output, 'header_libs')
-        self._output_field(output, 'strip')
-        self._output_field(output, 'tool_files')
-        self._output_field(output, 'data')
-        self._output_field(output, 'stl')
-        self._output_field(output, 'cpp_std')
-        self._output_field(output, 'apex_available')
-        self._output_field(output, 'min_sdk_version')
-        self._output_field(output, 'version_script')
-        self._output_field(output, 'test_suites')
-        self._output_field(output, 'test_config')
-        self._output_field(output, 'proto')
-        self._output_field(output, 'linker_scripts')
-        # The reasoning for disabling sort is the same as cflags.
-        self._output_field(output, 'ldflags', sort=False)
-        # The reasoning for disabling sort is the same as cflags.
-        self._output_field(output, 'cppflags', sort=False)
-        self._output_field(output, 'unstable')
-        self._output_field(output, 'path')
-        self._output_field(output, 'libs')
-        self._output_field(output, 'stem')
-        self._output_field(output, 'compile_multilib')
-        self._output_field(output, 'plugins')
-        self._output_field(output, 'processor_class')
-        self._output_field(output, 'sdk_version')
-        self._output_field(output, 'javacflags')
-        self._output_field(output, 'c_std')
-        self._output_field(output, 'default_applicable_licenses')
-        self._output_field(output, 'default_visibility')
-        self._output_field(output, 'visibility')
-        self._output_field(output, 'jarjar_rules')
-        self._output_field(output, 'jars')
-        self._output_field(output, 'include_build_directory')
-        self._output_field(output, 'license_text')
-        self._output_field(output, "license_kinds")
-        self._output_field(output, "errorprone")
-        self._output_field(output, 'crate_name')
-        self._output_field(output, 'crate_root')
-        self._output_field(output, 'rustlibs')
-        self._output_field(output, 'proc_macros')
-        self._output_field(output, 'source_stem')
-        self._output_field(output, 'bindgen_flags')
-        self._output_field(output, 'wrapper_src')
-        self._output_field(output, 'handle_static_inline')
-        self._output_field(output, 'static_inline_library')
-        self._output_field(output, 'cargo_env_compat')
-        self._output_field(output, 'cargo_pkg_version')
-        if self.whole_program_vtables:
-            self._output_field(output, 'whole_program_vtables')
-        if self.afdo:
-            self._output_field(output, 'afdo')
-        if self.rtti:
-            self._output_field(output, 'rtti')
-        target_out = []
-        for arch, target in sorted(self.target.items()):
-            # _output_field calls getattr(self, arch).
-            setattr(self, arch, target)
-            self._output_field(target_out, arch)
 
-        if target_out:
-            output.append('    target: {')
-            for line in target_out:
-                output.append('    %s' % line)
-            output.append('    },')
+        allowed_fields = self.SUPPORTED_FIELDS.union(COMMON_FIELDS)
+
+        fields_to_output = self.SUPPORTED_FIELDS.union(COMMON_SOONG_FIELDS)
+
+        for field in sorted(fields_to_output):
+            # TODO: stop hardcoding behavior for these fields. This function
+            # should not care about individual fields.
+            value = getattr(self, field, None)
+            if field in SKIP_IF_FALSY and not value:
+                continue
+            if field in SKIP_IF_TRUTHY and value:
+                continue
+
+            if field == 'cmd':
+                self._output_field(output,
+                                   'cmd',
+                                   sort=False,
+                                   list_to_multiline_string=True)
+            elif field in ('cflags', 'cppflags', 'ldflags', 'flags'):
+                # While sorting is a requirement for a deterministic output, sorting these flags correctly is
+                # challenging. Sorting requires knowing the boundaries of each flag, but we cannot simply
+                # assume flags are defined by whitespace, a leading - character, or something else.
+                # With that in mind, we choose instead not to sort and instead we rely on GN's ordering of
+                # these flags (and we assume that that ordering is deterministic).
+                #
+                # TODO: we should be able to get rid of this hardcoded list if
+                # we are more consistent with how we use lists vs. sets
+                # (list means order matters so should not be sorted, set
+                # means order does not matter so should be sorted for
+                # determinism)
+                #
+                # TODO: this logic is duplicated in `Target`.
+                self._output_field(output, field, sort=False)
+            else:
+                self._output_field(output, field)
+
+        if 'target' in allowed_fields and self.target:
+            target_out = []
+            for arch, target in sorted(self.target.items()):
+                write_blueprint_key_value(target_out, arch, target)
+
+            if target_out:
+                output.append('    target: {')
+                for line in target_out:
+                    output.append('    %s' % line)
+                output.append('    },')
 
         output.append('}')
         output.append('')
@@ -407,7 +381,13 @@ class Module:
         if self.host_supported:
             self.target['android'].shared_libs.add(lib)
         else:
-            self.shared_libs.add(lib)
+            shared_libs = getattr(self, 'shared_libs', None)
+            if shared_libs is not None:
+                shared_libs.add(lib)
+            else:
+                raise AttributeError(
+                    f"Module '{self.name}' of type '{self.type}' does not support shared_libs"
+                )
 
     def is_test(self):
         if gn_utils.TESTING_SUFFIX in self.name:
@@ -437,19 +417,277 @@ class Module:
         return self.type == "cc_genrule"
 
     def has_input_files(self):
-        if self.type in ["java_library", "java_import", "rust_bindgen"]:
-            return True
-        if len(self.srcs) > 0:
-            return True
-        if any(len(target.srcs) > 0 for target in self.target.values()):
-            return True
-        # Allow cc_static_library with export_generated_headers as those are crucial for
-        # the depending modules
-        return len(self.export_generated_headers) > 0 or len(
-            self.generated_headers) > 0
+        return self.type in [
+            "java_library", "java_import", "rust_bindgen"
+        ] or (self.srcs and len(self.srcs) > 0) or (self.target and any(
+            len(target.srcs) > 0 for target in self.target.values()))
 
     def is_java_top_level_module(self):
         return self.java_unfiltered_module is not None
+
+
+class CcModule(Module):
+    SUPPORTED_FIELDS = {
+        'srcs', 'shared_libs', 'static_libs', 'whole_static_libs', 'init_rc',
+        'export_include_dirs', 'generated_headers', 'export_generated_headers',
+        'export_static_lib_headers', 'export_header_lib_headers', 'cflags',
+        'include_dirs', 'local_include_dirs', 'header_libs', 'strip', 'stl',
+        'cpp_std', 'min_sdk_version', 'version_script', 'test_suites',
+        'test_config', 'proto', 'linker_scripts', 'ldflags', 'cppflags',
+        'stem', 'compile_multilib', 'c_std', 'whole_program_vtables', 'afdo',
+        'rtti'
+    }
+
+    def __init__(self,
+                 mod_type,
+                 name,
+                 gn_target,
+                 context,
+                 is_test=False,
+                 role=None):
+        super().__init__(mod_type, name, gn_target, context, is_test, role)
+        self.shared_libs = set()
+        self.static_libs = set()
+        self.whole_static_libs = set()
+        self.init_rc = set()
+        self.export_include_dirs = set()
+        self.generated_headers = set()
+        self.export_generated_headers = set()
+        self.export_static_lib_headers = set()
+        self.export_header_lib_headers = set()
+        self.cflags = list()
+        self.include_dirs = set()
+        self.local_include_dirs = set()
+        self.header_libs = set()
+        self.strip = dict()
+        self.stl = None
+        self.cpp_std = None
+        self.min_sdk_version = None
+        self.version_script = None
+        self.test_suites = set()
+        self.test_config = None
+        self.proto = dict()
+        self.linker_scripts = set()
+        self.ldflags = list()
+        self.cppflags = list()
+        self.stem = None
+        self.compile_multilib = None
+        self.c_std = None
+        self.whole_program_vtables = False
+        self.afdo = None
+        self.rtti = False
+        self._initialize_targets(CcTarget)
+
+    def has_input_files(self):
+        return super().has_input_files() or bool(self.export_generated_headers
+                                                 or self.generated_headers)
+
+
+class JavaModule(Module):
+    SUPPORTED_FIELDS = {
+        'srcs', 'plugins', 'processor_class', 'sdk_version', 'javacflags',
+        'jarjar_rules', 'jars', 'errorprone', 'libs', 'static_libs',
+        'min_sdk_version'
+    }
+
+    def __init__(self,
+                 mod_type,
+                 name,
+                 gn_target,
+                 context,
+                 is_test=False,
+                 role=None):
+        super().__init__(mod_type, name, gn_target, context, is_test, role)
+        self.plugins = set()
+        self.processor_class = None
+        self.sdk_version = None
+        self.javacflags = set()
+        self.jarjar_rules = ""
+        self.jars = set()
+        self.errorprone = dict()
+        self.libs = set()
+        self.static_libs = set()
+        self.min_sdk_version = None
+
+    def add_java_dependency(self, dep_module):
+        if self.java_unfiltered_module and dep_module.java_unfiltered_module:
+            # Soong does not bubble up `libs` dependencies, so we have to
+            # recurse and collect all the transitive dependencies ourselves. This
+            # is not necessary when using `static_libs` as Soong does that for us
+            # at build time.
+            #
+            # (You may wonder: "wait, doesn't Chromium already enforce that a
+            # Java target list all the classes it refers to in its direct
+            # dependencies? Why do we need to pull indirect dependencies then?"
+            # Well the problem is javac needs to see some of the indirect
+            # dependencies in some cases - see
+            # https://crbug.com/400952169#comment4 - which means the direct
+            # dependencies may not be enough.)
+            self.java_unfiltered_module.libs.add(
+                dep_module.java_unfiltered_module.name)
+            self.java_unfiltered_module.libs.update(
+                dep_module.java_unfiltered_module.libs)
+
+
+class RustModule(Module):
+    SUPPORTED_FIELDS = {
+        'srcs', 'min_sdk_version', 'crate_name', 'crate_root', 'edition',
+        'rustlibs', 'proc_macros', 'cargo_env_compat', 'cargo_pkg_version',
+        'shared_libs', 'static_libs', 'header_libs', 'whole_static_libs'
+    }
+
+    def __init__(self,
+                 mod_type,
+                 name,
+                 gn_target,
+                 context,
+                 is_test=False,
+                 role=None):
+        super().__init__(mod_type, name, gn_target, context, is_test, role)
+        self.min_sdk_version = None
+        self.shared_libs = set()
+        self.static_libs = set()
+        self.header_libs = set()
+        self.whole_static_libs = set()
+        self.crate_name = None
+        self.crate_root = None
+        self.edition = None
+        self.rustlibs = set()
+        self.proc_macros = set()
+        self.cargo_env_compat = None
+        self.cargo_pkg_version = None
+        self._initialize_targets(RustTarget)
+
+
+class RustBindgenModule(Module):
+    SUPPORTED_FIELDS = {
+        'srcs', 'min_sdk_version', 'crate_name', 'crate_root', 'wrapper_src',
+        'source_stem', 'bindgen_flags', 'handle_static_inline',
+        'static_inline_library', 'shared_libs', 'static_libs', 'cpp_std',
+        'c_std', 'header_libs', 'whole_static_libs'
+    }
+
+    def __init__(self,
+                 mod_type,
+                 name,
+                 gn_target,
+                 context,
+                 is_test=False,
+                 role=None):
+        super().__init__(mod_type, name, gn_target, context, is_test, role)
+        self.min_sdk_version = None
+        self.shared_libs = set()
+        self.static_libs = set()
+        self.header_libs = set()
+        self.whole_static_libs = set()
+        self.cpp_std = None
+        self.c_std = None
+        self.crate_name = None
+        self.crate_root = None
+        self.wrapper_src = ""
+        self.source_stem = ""
+        self.bindgen_flags = set()
+        self.handle_static_inline = None
+        self.static_inline_library = ""
+
+
+class GenruleModule(Module):
+    SUPPORTED_FIELDS = {
+        'srcs', 'tools', 'cmd', 'out', 'tool_files', 'export_include_dirs'
+    }
+
+    def __init__(self,
+                 mod_type,
+                 name,
+                 gn_target,
+                 context,
+                 is_test=False,
+                 role=None):
+        super().__init__(mod_type, name, gn_target, context, is_test, role)
+        self.tools = set()
+        self.cmd = None
+        self.out = set()
+        self.tool_files = set()
+        self.export_include_dirs = set()
+
+
+class AidlModule(Module):
+    SUPPORTED_FIELDS = {'srcs', 'unstable', 'include_dirs'}
+
+    def __init__(self,
+                 mod_type,
+                 name,
+                 gn_target,
+                 context,
+                 is_test=False,
+                 role=None):
+        super().__init__(mod_type, name, gn_target, context, is_test, role)
+        self.unstable = ""
+        self.include_dirs = []
+
+
+class FilegroupModule(Module):
+    SUPPORTED_FIELDS = {'srcs', 'path'}
+
+    def __init__(self,
+                 mod_type,
+                 name,
+                 gn_target,
+                 context,
+                 is_test=False,
+                 role=None):
+        super().__init__(mod_type, name, gn_target, context, is_test, role)
+        self.path = ""
+
+
+class LicenseModule(Module):
+    SUPPORTED_FIELDS = {'license_kinds', 'license_text'}
+
+    def __init__(self,
+                 mod_type,
+                 name,
+                 gn_target,
+                 context,
+                 is_test=False,
+                 role=None):
+        super().__init__(mod_type, name, gn_target, context, is_test, role)
+        self.license_kinds = set()
+        self.license_text = set()
+
+
+class PackageModule(Module):
+    SUPPORTED_FIELDS = set()
+
+
+def create_module(mod_type,
+                  name,
+                  gn_target,
+                  context,
+                  is_test=False,
+                  role=None):
+    if mod_type in ('cc_library_static', 'cc_library_shared', 'cc_binary',
+                    'cc_test', 'cc_defaults', 'cc_library_headers',
+                    'cc_preprocess_no_configuration'):
+        return CcModule(mod_type, name, gn_target, context, is_test, role)
+    if mod_type in ('java_library', 'java_import', 'java_defaults'):
+        return JavaModule(mod_type, name, gn_target, context, is_test, role)
+    if mod_type in ('rust_ffi_static', 'rust_binary', 'rust_proc_macro'):
+        return RustModule(mod_type, name, gn_target, context, is_test, role)
+    if mod_type == 'rust_bindgen':
+        return RustBindgenModule(mod_type, name, gn_target, context, is_test,
+                                 role)
+    if mod_type in ('cc_genrule', 'java_genrule', 'genrule'):
+        return GenruleModule(mod_type, name, gn_target, context, is_test, role)
+    if mod_type == 'aidl_interface':
+        return AidlModule(mod_type, name, gn_target, context, is_test, role)
+    if mod_type == 'filegroup':
+        return FilegroupModule(mod_type, name, gn_target, context, is_test,
+                               role)
+    if mod_type == 'license':
+        return LicenseModule(mod_type, name, gn_target, context, is_test, role)
+    if mod_type == 'package':
+        return PackageModule(mod_type, name, gn_target, context, is_test, role)
+    raise ValueError(f"Unknown module type: {mod_type}")
 
 
 class Blueprint:

@@ -6,6 +6,7 @@
 
 #include "base/command_line.h"
 #include "base/functional/bind.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/types/expected.h"
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
@@ -39,8 +40,6 @@ using blink::mojom::RegisterIdpStatus;
 
 RequestService::RequestService(RenderFrameHost* rfh)
     : DocumentUserData<RequestService>(rfh),
-      identity_registry_(IdentityRegistry::FromWebContents(
-          WebContents::FromRenderFrameHost(rfh))),
       api_permission_delegate_(
           rfh->GetBrowserContext()->GetFederatedIdentityApiPermissionContext()),
       auto_reauthn_permission_delegate_(
@@ -72,11 +71,6 @@ RequestService::~RequestService() {
   }
 }
 
-void RequestService::BindFederatedAuthRequest(
-    mojo::PendingReceiver<blink::mojom::FederatedAuthRequest> receiver) {
-  GetOrCreateActiveRequest()->BindReceiver(std::move(receiver));
-}
-
 void RequestService::BindFederatedRequestService(
     mojo::PendingReceiver<blink::mojom::FederatedRequestService> receiver) {
   receivers_.Add(this, std::move(receiver));
@@ -91,15 +85,13 @@ void RequestService::SetDelegatesForTesting(
   api_permission_delegate_ = api_permission_delegate;
   auto_reauthn_permission_delegate_ = auto_reauthn_permission_delegate;
   permission_delegate_ = permission_delegate;
-  identity_registry_ = identity_registry;
+  mock_identity_registry_ = identity_registry;
 }
 
 Request* RequestService::GetOrCreateActiveRequest() {
   if (!active_request_) {
     RenderFrameHost& rfh = render_frame_host();
-    active_request_ = std::make_unique<Request>(
-        &rfh, *this, api_permission_delegate_,
-        auto_reauthn_permission_delegate_, permission_delegate_);
+    active_request_ = std::make_unique<Request>(&rfh, *this);
   }
   return active_request_.get();
 }
@@ -109,55 +101,14 @@ Request* RequestService::GetActiveRequestForTesting() const {
 }
 
 void RequestService::DestroyActiveRequestForTesting() {
+  if (dialog_controller_) {
+    dialog_controller_.reset();
+  }
   active_request_.reset();
 }
 
-void RequestService::StartTokenRequest(
-    std::vector<blink::mojom::IdentityProviderGetParametersPtr> idp_get_params,
-    MediationRequirement requirement,
-    mojo::PendingReceiver<blink::mojom::FederatedRequest> request_receiver,
-    StartTokenRequestCallback callback) {
-  // 1. Create the new request temporarily.
-  RenderFrameHost& rfh = render_frame_host();
-  auto new_request = std::make_unique<Request>(
-      &rfh, *this, api_permission_delegate_, auto_reauthn_permission_delegate_,
-      permission_delegate_);
-  new_request->BindReceiver(std::move(request_receiver));
-
-  auto wrapper_callback = base::BindOnce(
-      &RequestService::OnTokenRequestComplete, weak_ptr_factory_.GetWeakPtr(),
-      new_request.get(), std::move(callback));
-
-  // 2. Temporarily hold the old active request on the stack.
-  // This keeps it alive and valid during the RequestToken() checks, preventing
-  // dangling pointers/UAF if the new request is rejected or replaces the old
-  // one.
-  std::unique_ptr<Request> old_request = std::move(active_request_);
-
-  // 3. Pre-assign the new request as active.
-  // This ensures that if the request completes synchronously (e.g. in tests or
-  // some error cases), OnTokenRequestComplete() will find it in active_request_
-  // and clean it up.
-  active_request_ = std::move(new_request);
-
-  // 4. Call RequestToken on the new request.
-  // This is coming from Mojo, so we have no navigation handle.
-  if (active_request_->RequestToken(std::move(idp_get_params), requirement,
-                                    /*navigation_handle=*/nullptr, GURL(),
-                                    std::move(wrapper_callback))) {
-    // 5. If it started successfully, we keep it as the active request!
-    // The old_request on the stack will go out of scope and be destroyed
-    // safely.
-  } else {
-    // 6. If it failed immediately, discard the new request and restore the old
-    // one!
-    active_request_ = std::move(old_request);
-    MaybeDestroyDialogController();
-  }
-}
-
-void RequestService::OnTokenRequestComplete(
-    Request* request,
+// static
+void RequestService::InvokeTokenRequestCallback(
     StartTokenRequestCallback callback,
     blink::mojom::RequestTokenStatus status,
     const std::optional<GURL>& selected_idp_config_url,
@@ -176,7 +127,103 @@ void RequestService::OnTokenRequestComplete(
     failure->error = std::move(error);
     std::move(callback).Run(base::unexpected(std::move(failure)));
   }
+}
+
+void RequestService::StartTokenRequest(
+    std::vector<blink::mojom::IdentityProviderGetParametersPtr> idp_get_params,
+    MediationRequirement requirement,
+    mojo::PendingReceiver<blink::mojom::FederatedRequest> request_receiver,
+    StartTokenRequestCallback callback) {
+  RenderFrameHost& rfh = render_frame_host();
+  auto new_request = std::make_unique<Request>(&rfh, *this);
+  new_request->BindReceiver(std::move(request_receiver));
+
+  auto wrapped_callback = base::BindOnce(
+      &RequestService::InvokeTokenRequestCallback, std::move(callback));
+
+  InitiateTokenRequest(std::move(new_request), std::move(idp_get_params),
+                       requirement, /*navigation_handle=*/nullptr, GURL(),
+                       std::move(wrapped_callback));
+}
+
+bool RequestService::StartTokenRequestFromNavigation(
+    std::vector<blink::mojom::IdentityProviderGetParametersPtr> idp_get_params,
+    MediationRequirement requirement,
+    NavigationHandle* navigation_handle,
+    const GURL& intercepted_url,
+    RequestTokenCallback callback) {
+  RenderFrameHost& rfh = render_frame_host();
+  auto new_request = std::make_unique<Request>(&rfh, *this);
+
+  return InitiateTokenRequest(std::move(new_request), std::move(idp_get_params),
+                              requirement, navigation_handle, intercepted_url,
+                              std::move(callback));
+}
+
+bool RequestService::InitiateTokenRequest(
+    std::unique_ptr<Request> new_request,
+    std::vector<blink::mojom::IdentityProviderGetParametersPtr> idp_get_params,
+    MediationRequirement requirement,
+    NavigationHandle* navigation_handle,
+    const GURL& intercepted_url,
+    RequestTokenCallback callback) {
+  // Wrap the callback to ensure the request is cleaned up from the active
+  // request list and destroyed asynchronously when it completes.
+  auto wrapper_callback = base::BindOnce(
+      &RequestService::OnTokenRequestCompleteInternal,
+      weak_ptr_factory_.GetWeakPtr(), new_request.get(), std::move(callback));
+
+  // Temporarily hold the old active request on the stack. This keeps it alive
+  // and valid during the RequestToken() checks, preventing dangling pointers
+  // or Use-After-Free if the new request is rejected or replaces the old one.
+  std::unique_ptr<Request> old_request = std::move(active_request_);
+
+  // Pre-assign the new request as active. This ensures that if the request
+  // completes synchronously (e.g. in tests or synchronous error cases), the
+  // completion callback will find it in `active_request_` and clean it up.
+  active_request_ = std::move(new_request);
+
+  // Call RequestToken on the new request.
+  if (active_request_->RequestToken(std::move(idp_get_params), requirement,
+                                    navigation_handle, intercepted_url,
+                                    std::move(wrapper_callback))) {
+    // If it started successfully, we keep it as the active request.
+    // The `old_request` on the stack will go out of scope and be destroyed
+    // safely.
+    return true;
+  } else {
+    // If it failed immediately, discard the new request and restore the old
+    // one.
+    active_request_ = std::move(old_request);
+    MaybeDestroyDialogController();
+    return false;
+  }
+}
+
+void RequestService::OnTokenRequestCompleteInternal(
+    Request* request,
+    RequestTokenCallback callback,
+    blink::mojom::RequestTokenStatus status,
+    const std::optional<GURL>& selected_idp_config_url,
+    std::optional<base::Value> token,
+    blink::mojom::TokenErrorPtr error,
+    bool is_auto_selected) {
+  std::move(callback).Run(status, selected_idp_config_url, std::move(token),
+                          std::move(error), is_auto_selected);
+  CleanUpActiveRequest(request);
+}
+
+void RequestService::CleanUpActiveRequest(Request* request) {
   if (active_request_.get() == request) {
+    if (dialog_controller_) {
+      // Reset the dialog controller synchronously. While this carries a
+      // potential Use-After-Free risk if the completion callback was triggered
+      // synchronously from the dialog controller itself, doing it synchronously
+      // is necessary to avoid asynchronous overlap where a subsequent request
+      // could instantiate and display a new dialog before the old one is
+      // destroyed.
+      dialog_controller_.reset();
+    }
     // Release ownership synchronously to prevent race conditions with
     // subsequent requests, but keep it in completed_requests_ to ensure it does
     // not outlive RequestService.
@@ -272,9 +319,8 @@ void RequestService::CloseModalDialogView() {
   SetupIdentityRegistryFromPopup();
 #endif
   // Invoke OnClose on the opener.
-  if (identity_registry_) {
-    identity_registry_->NotifyClose(
-        render_frame_host().GetLastCommittedOrigin());
+  if (IdentityRegistry* registry = GetIdentityRegistry()) {
+    registry->NotifyClose(render_frame_host().GetLastCommittedOrigin());
   }
 }
 void RequestService::PreventSilentAccess(PreventSilentAccessCallback callback) {
@@ -310,7 +356,7 @@ void RequestService::SetRequiresUserMediation(bool requires_user_mediation,
 
 bool RequestService::SetupIdentityRegistryFromPopup() {
 #if BUILDFLAG(IS_ANDROID)
-  if (identity_registry_) {
+  if (GetIdentityRegistry()) {
     return true;
   }
   IdentityRequestDialogController* controller = GetOrCreateDialogController();
@@ -333,7 +379,6 @@ bool RequestService::SetupIdentityRegistryFromPopup() {
   IdentityRegistry::CreateForWebContents(
       web_contents, rp_auth_request->weak_ptr_factory_.GetWeakPtr(),
       rp_auth_request->config_url_);
-  identity_registry_ = IdentityRegistry::FromWebContents(web_contents);
   return true;
 #else
   return false;
@@ -344,24 +389,17 @@ void RequestService::RequestUserInfo(
     blink::mojom::IdentityProviderConfigPtr provider,
     RequestUserInfoCallback callback) {
   // Enforce identity-credentials-get Permissions Policy browser-side.
+  // The renderer checks this, but a compromised renderer can bypass it.
   if (!render_frame_host().IsFeatureEnabled(
           network::mojom::PermissionsPolicyFeature::kIdentityCredentialsGet)) {
-    // TODO(crbug.com/519217823): Use receivers_.ReportBadMessage() and try to
-    // remove the callback run() below.
-    mojo::ReportBadMessage(
+    receivers_.ReportBadMessage(
         "identity-credentials-get permissions policy not enabled");
-    std::move(callback).Run(blink::mojom::RequestUserInfoResult::NewStatus(
-        blink::mojom::RequestUserInfoStatus::kError));
     return;
   }
 
   if (!render_frame_host().GetPage().IsPrimary()) {
-    // TODO(crbug.com/519217823): Use receivers_.ReportBadMessage() and try to
-    // remove the callback run() below.
-    mojo::ReportBadMessage(
+    receivers_.ReportBadMessage(
         "FedCM should not be allowed in nested frame trees.");
-    std::move(callback).Run(blink::mojom::RequestUserInfoResult::NewStatus(
-        blink::mojom::RequestUserInfoStatus::kError));
     return;
   }
   // FedCmMetrics class is currently not used for UserInfo API. If we log UKM
@@ -408,11 +446,8 @@ void RequestService::Disconnect(
   // The renderer checks this, but a compromised renderer can bypass it.
   if (!render_frame_host().IsFeatureEnabled(
           network::mojom::PermissionsPolicyFeature::kIdentityCredentialsGet)) {
-    // TODO(crbug.com/519217823): Use receivers_.ReportBadMessage() and try to
-    // remove the callback run() below.
-    mojo::ReportBadMessage(
+    receivers_.ReportBadMessage(
         "identity-credentials-get permissions policy not enabled");
-    std::move(callback).Run(blink::mojom::DisconnectStatus::kError);
     return;
   }
 
@@ -481,30 +516,26 @@ void RequestService::ResolveTokenRequest(
                                    ? redirect_to->get_get()->url
                                    : redirect_to->get_post()->url;
     if (!redirect_url.is_valid()) {
-      // TODO(crbug.com/519217823): Use receivers_.ReportBadMessage() and try to
-      // remove the callback run() below.
-      mojo::ReportBadMessage("Invalid redirect URL");
-      std::move(callback).Run(false);
+      receivers_.ReportBadMessage("Invalid redirect URL");
       return;
     }
     if (redirect_to->is_post() &&
         redirect_to->get_post()->request_body.empty()) {
-      // TODO(crbug.com/519217823): Use receivers_.ReportBadMessage() and try to
-      // remove the callback run() below.
-      mojo::ReportBadMessage("POST redirects must have a body");
-      std::move(callback).Run(false);
+      receivers_.ReportBadMessage("POST redirects must have a body");
       return;
     }
   }
 
-  if (!identity_registry_ && !SetupIdentityRegistryFromPopup()) {
+  if (!GetIdentityRegistry() && !SetupIdentityRegistryFromPopup()) {
     std::move(callback).Run(false);
     return;
   }
 
-  bool accepted = identity_registry_->NotifyResolve(
-      render_frame_host().GetLastCommittedOrigin(), account_id,
-      std::move(params));
+  IdentityRegistry* registry = GetIdentityRegistry();
+  CHECK(registry);
+  bool accepted =
+      registry->NotifyResolve(render_frame_host().GetLastCommittedOrigin(),
+                              account_id, std::move(params));
   std::move(callback).Run(accepted);
 }
 
@@ -605,6 +636,14 @@ void RequestService::SetIdpSigninStatus(
         idp_origin, status == blink::mojom::IdpSigninStatus::kSignedIn,
         options);
   }
+}
+
+IdentityRegistry* RequestService::GetIdentityRegistry() {
+  if (mock_identity_registry_) {
+    return mock_identity_registry_;
+  }
+  return IdentityRegistry::FromWebContents(
+      WebContents::FromRenderFrameHost(&render_frame_host()));
 }
 
 }  // namespace webid

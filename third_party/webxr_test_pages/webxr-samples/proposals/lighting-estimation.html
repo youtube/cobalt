@@ -89,11 +89,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         // Construct a Three.JS scene
         ctx.scene = new THREE.Scene();
 
-        // Set up the lighting estimation environment map, and then setup THREE
-        // to accept a webgl texture.
+        // Set up the lighting estimation environment map using the original PMREM setup.
         ctx.cubeTarget = new THREE.WebGLCubeRenderTarget(16);
         ctx.threeEnvMap = ctx.cubeTarget.texture;
-        ctx.scene.environment = ctx.threeEnvMap;
+        ctx.pmremGenerator = new THREE.PMREMGenerator(ctx.renderer);
+        ctx.pmremGenerator.compileCubemapShader();
 
         // Set up the camera
         ctx.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20 );
@@ -203,7 +203,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
             if (cubeMap) {
               let rendererProps = ctx.renderer.properties.get(ctx.threeEnvMap);
               rendererProps.__webglTexture = cubeMap;
-              ctx.threeEnvMap.needsPMREMUpdate = true;
+
+              // Run the PMREM Generator on the updated cubemap
+              const pmremRenderTarget = ctx.pmremGenerator.fromCubemap(ctx.threeEnvMap);
+              ctx.scene.environment = pmremRenderTarget.texture;
             } else {
               console.log("Cube map not available");
             }

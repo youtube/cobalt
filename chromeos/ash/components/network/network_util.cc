@@ -13,7 +13,6 @@
 #include "base/strings/string_tokenizer.h"
 #include "base/strings/string_util.h"
 #include "base/values.h"
-#include "chromeos/ash/components/login/login_state/login_state.h"
 #include "chromeos/ash/components/network/device_state.h"
 #include "chromeos/ash/components/network/managed_network_configuration_handler.h"
 #include "chromeos/ash/components/network/network_state.h"
@@ -23,6 +22,9 @@
 #include "chromeos/ash/components/network/onc/onc_translator.h"
 #include "chromeos/components/onc/onc_signature.h"
 #include "components/device_event_log/device_event_log.h"
+#include "components/session_manager/core/session.h"
+#include "components/session_manager/core/session_manager.h"
+#include "components/user_manager/user_manager.h"
 #include "third_party/cros_system_api/dbus/service_constants.h"
 
 namespace ash {
@@ -242,11 +244,19 @@ base::DictValue TranslateNetworkStateToONC(const NetworkState* network) {
   // of what profile is associated with the page that calls this method. We do
   // not expose any sensitive properties in the resulting dictionary, it is
   // only used to show connection state and icons.
-  std::string user_id_hash = LoginState::Get()->primary_user_hash();
+  std::string username_hash;
+  const auto* primary_session =
+      session_manager::SessionManager::Get()->GetPrimarySession();
+  if (primary_session) {
+    username_hash = user_manager::UserManager::Get()
+                        ->FindUser(primary_session->account_id())
+                        ->username_hash();
+  }
+
   ::onc::ONCSource onc_source = ::onc::ONC_SOURCE_NONE;
   NetworkHandler::Get()
       ->managed_network_configuration_handler()
-      ->FindPolicyByGUID(user_id_hash, network->guid(), &onc_source);
+      ->FindPolicyByGUID(username_hash, network->guid(), &onc_source);
 
   base::DictValue onc_dictionary = onc::TranslateShillServiceToONCPart(
       shill_dictionary, onc_source, &chromeos::onc::kNetworkWithStateSignature,

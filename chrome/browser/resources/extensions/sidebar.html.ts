@@ -37,7 +37,7 @@ export function getHtml(this: ExtensionsSidebarElement) {
       ${this.inDevMode ? html`
         <div class="cr-nav-menu-item" id="moreExtensions">
           <span id="promo-message-text" class="cr-secondary-text"
-            .innerHTML="${this.computeDocsPromoText_()}">
+            .innerHTML="${this.computeModernWebGuidancePromoText_()}">
           </span>
         </div>
         `: ''}

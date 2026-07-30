@@ -15,6 +15,7 @@
 #include "base/check.h"
 #include "base/check_op.h"
 #include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/logging.h"
 #include "base/notreached.h"
 #include "base/third_party/icu/icu_utf.h"
@@ -101,16 +102,6 @@ TrimPositions TrimStringT(T input,
   return static_cast<TrimPositions>(
       (first_good_char == 0 ? TRIM_NONE : TRIM_LEADING) |
       (last_good_char == last_char ? TRIM_NONE : TRIM_TRAILING));
-}
-
-template <typename T, typename CharT = typename T::value_type>
-T TrimStringPieceT(T input, T trim_chars, TrimPositions positions) {
-  size_t begin =
-      (positions & TRIM_LEADING) ? input.find_first_not_of(trim_chars) : 0;
-  size_t end = (positions & TRIM_TRAILING)
-                   ? input.find_last_not_of(trim_chars) + 1
-                   : input.size();
-  return input.substr(std::min(begin, input.size()), end - begin);
 }
 
 template <typename T, typename CharT = typename T::value_type>

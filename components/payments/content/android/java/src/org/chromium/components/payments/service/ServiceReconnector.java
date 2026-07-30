@@ -22,6 +22,7 @@ public class ServiceReconnector {
     private final int mMaxRetryNumber;
     private final Handler mHandler;
     private int mRetryNumber;
+    private boolean mIsReconnectScheduled;
 
     /**
      * Creates a service reconnector.
@@ -40,6 +41,8 @@ public class ServiceReconnector {
 
     /** Handle unexpected service disconnect. */
     public void onUnexpectedServiceDisconnect() {
+        if (mIsReconnectScheduled) return;
+
         if (mRetryNumber >= mMaxRetryNumber) {
             Log.i(TAG, "Max reconnects reached.");
             mConnection.terminateConnection();
@@ -51,12 +54,19 @@ public class ServiceReconnector {
                         * (int) Math.pow(EXPONENTIAL_BACKOFF_FACTOR, mRetryNumber++);
         Log.i(TAG, "%d: will reconnect in %d ms.", mRetryNumber, delayMilliseconds);
 
+        mIsReconnectScheduled = true;
         mConnection.unbindService();
-        mHandler.postDelayed(mConnection::connectToService, delayMilliseconds);
+        mHandler.postDelayed(
+                () -> {
+                    mIsReconnectScheduled = false;
+                    mConnection.connectToService();
+                },
+                delayMilliseconds);
     }
 
     /** Handle intentional service disconnect. */
     public void onIntentionalServiceDisconnect() {
+        mIsReconnectScheduled = false;
         mRetryNumber = mMaxRetryNumber;
         mHandler.removeCallbacksAndMessages(null);
     }

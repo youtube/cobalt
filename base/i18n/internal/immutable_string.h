@@ -40,7 +40,7 @@ constexpr void CopyParts(base::span<const std::string_view> parts,
 class BASE_I18N_EXPORT ImmutableString {
  public:
   // The size limit where we expect to keep things all in the stack.
-  static constexpr size_t kSmallBufferSize = 12;
+  static constexpr size_t kSmallBufferSize = 14;
 
   // Class that stores a small (determined by `kSmallBufferSize`), fixed-size
   // and immutable string. The class is copyable and movable for convenient
@@ -109,10 +109,10 @@ class BASE_I18N_EXPORT ImmutableString {
                                      base::span<const std::string_view> parts)
       : storage_(StorageVariantType(StackString(parts))) {}
 
-  ImmutableString(const ImmutableString& other);
-  ImmutableString& operator=(const ImmutableString& other);
+  constexpr ImmutableString(const ImmutableString& other);
+  constexpr ImmutableString& operator=(const ImmutableString& other);
   constexpr ImmutableString(ImmutableString&& other) noexcept;
-  ImmutableString& operator=(ImmutableString&&) noexcept;
+  constexpr ImmutableString& operator=(ImmutableString&&) noexcept;
 
   // Returns the string as a std::string_view.
   constexpr std::string_view AsString() const {
@@ -131,6 +131,12 @@ constexpr ImmutableString::HeapString::HeapString(HeapString&& other) noexcept =
     default;
 constexpr ImmutableString::ImmutableString(ImmutableString&& other) noexcept =
     default;
+inline constexpr ImmutableString& ImmutableString::operator=(
+    ImmutableString&&) noexcept = default;
+constexpr ImmutableString::ImmutableString(const ImmutableString& other) =
+    default;
+inline constexpr ImmutableString& ImmutableString::operator=(
+    const ImmutableString& other) = default;
 
 }  // namespace base::i18n::internal
 

@@ -67,7 +67,7 @@ uint32_t OpenXrViewProperties::ClampHeight(uint32_t val) const {
 }
 
 uint32_t OpenXrViewProperties::Width() const {
-  // TODO(crbug.com/40918787):Windows cannot support framebuffer scaling, so
+  // TODO(crbug.com/529457611): Windows does not support framebuffer scaling, so
   // must use the recommended size.
   if constexpr (BUILDFLAG(IS_WIN)) {
     return ClampWidth(xr_properties_.recommendedImageRectWidth);
@@ -77,7 +77,7 @@ uint32_t OpenXrViewProperties::Width() const {
 }
 
 uint32_t OpenXrViewProperties::Height() const {
-  // TODO(crbug.com/40918787):Windows cannot support framebuffer scaling, so
+  // TODO(crbug.com/529457611): Windows does not support framebuffer scaling, so
   // must use the recommended size.
   if constexpr (BUILDFLAG(IS_WIN)) {
     return ClampHeight(xr_properties_.recommendedImageRectHeight);
@@ -91,7 +91,7 @@ uint32_t OpenXrViewProperties::RecommendedSwapchainSampleCount() const {
 }
 
 float OpenXrViewProperties::RecommendedViewportScale() const {
-  // TODO(crbug.com/40918787):Windows cannot support framebuffer scaling, so
+  // TODO(crbug.com/529457611): Windows does not support framebuffer scaling, so
   // must use the recommended size.
   if constexpr (BUILDFLAG(IS_WIN)) {
     return 1.0f;

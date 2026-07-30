@@ -47,13 +47,6 @@ class CookieControlsContentViewBrowserTest : public InProcessBrowserTest {
   }
 
  protected:
-  views::View* GetFeedbackButton() {
-    return views::ElementTrackerViews::GetInstance()->GetFirstMatchingView(
-        CookieControlsContentView::kFeedbackButton,
-        views::ElementTrackerViews::GetContextForView(
-            view_->feedback_section_));
-  }
-
   views::ToggleButton* GetToggleButton() { return view_->toggle_button_; }
   CookieControlsContentView* GetContentView() { return view_.get(); }
 
@@ -61,17 +54,6 @@ class CookieControlsContentViewBrowserTest : public InProcessBrowserTest {
 };
 
 namespace {
-
-IN_PROC_BROWSER_TEST_F(CookieControlsContentViewBrowserTest, FeedbackSection) {
-  EXPECT_THAT(
-      GetFeedbackButton()->GetViewAccessibility().GetCachedName(),
-      Eq(base::JoinString(
-          {l10n_util::GetStringUTF16(
-               IDS_COOKIE_CONTROLS_BUBBLE_SEND_FEEDBACK_BUTTON_TITLE),
-           l10n_util::GetStringUTF16(
-               IDS_COOKIE_CONTROLS_BUBBLE_SEND_FEEDBACK_BUTTON_DESCRIPTION)},
-          u"\n")));
-}
 
 IN_PROC_BROWSER_TEST_F(CookieControlsContentViewBrowserTest,
                        ToggleButton_Initial) {

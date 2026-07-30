@@ -15,6 +15,7 @@
 #include "chrome/browser/contextual_tasks/jni_headers/ContextualTaskBottomSheetComponentProvider_jni.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "components/input/native_web_keyboard_event.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
@@ -91,6 +92,7 @@ void ContextualTasksPanelHostAndroid::SetWebContents(
   }
 
   if (content::WebContents* prev = std::exchange(web_contents_, web_contents)) {
+    webui::SetBrowserWindowInterface(prev, nullptr);
     prev->SetDelegate(nullptr);
   }
 
@@ -98,6 +100,7 @@ void ContextualTasksPanelHostAndroid::SetWebContents(
     return;
   }
 
+  webui::SetBrowserWindowInterface(web_contents_, browser_window_);
   web_contents_->SetDelegate(this);
   if (auto* bridge = GetOrCreateBridge()) {
     views_bridge_->SetWebContents(web_contents, /*request_focus=*/true);

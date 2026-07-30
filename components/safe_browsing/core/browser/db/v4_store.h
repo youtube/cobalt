@@ -26,12 +26,9 @@
 namespace safe_browsing {
 
 class V4Store;
+class ListInfo;
 
-struct V4StoreDeleter;
-using V4StorePtr = std::unique_ptr<V4Store, V4StoreDeleter>;
-
-using UpdatedStoreReadyCallback =
-    base::OnceCallback<void(V4StorePtr new_store)>;
+using V4StorePtr = std::unique_ptr<V4Store, SBStoreDeleter>;
 
 // Stores the iterator to the last element merged from the HashPrefixMap for a
 // given prefix size.
@@ -64,16 +61,33 @@ enum StoreWriteResult {
   STORE_WRITE_RESULT_MAX
 };
 
-// Factory for creating V4Store. Tests implement this factory to create fake
-// stores for testing.
-class V4StoreFactory {
+// Factory for creating V4Store instances. Implements SBStoreFactory. Tests
+// implement this factory to create fake stores for testing.
+class V4StoreFactory : public SBStoreFactory {
  public:
-  virtual ~V4StoreFactory() = default;
+  ~V4StoreFactory() override = default;
 
+  // SBStoreFactory implementation:
+  SBStorePtr CreateStore(
+      const scoped_refptr<base::SequencedTaskRunner>& db_task_runner,
+      const base::FilePath& base_path,
+      const ListInfo& list_info) override;
+
+  // Creates a V4Store.
+  // |task_runner| is used to ensure operations are done on the correct thread.
+  // |store_path| specifies the location on disk for this store.
+  // |v5_prefix_size| is the prefix size of the corresponding V5 store if
+  // we plan to migrate.
+  // |is_eligible_for_migration| specifies whether this store is eligible
+  // to migrate between V4 and V5 disk formats.
+  // |is_extensions_blocklist| specifies whether this store is for the
+  // extensions blocklist.
   virtual V4StorePtr CreateV4Store(
       const scoped_refptr<base::SequencedTaskRunner>& task_runner,
       const base::FilePath& store_path,
-      PrefixSize v5_prefix_size);
+      PrefixSize v5_prefix_size,
+      bool is_eligible_for_migration,
+      bool is_extensions_blocklist);
 };
 
 // Enumerate different results of the migration attempt from v5 to v4.
@@ -111,15 +125,54 @@ enum class V5ToV4MigrationResult {
   // Failed to serialize the new V4StoreFileFormat proto.
   kProtoSerializationFailure = 9,
 
-  kMaxValue = kProtoSerializationFailure
+  // V5 to V4 migration was ineligible, and wiping V5 failed.
+  kStoreIneligibleWipeFailed = 10,
+
+  // V5 to V4 migration was ineligible, and wiping V5 succeeded.
+  kStoreIneligibleWipeSucceeded = 11,
+
+  // Failed to migrate extensions blocklist due to conversion or write failure.
+  kExtensionBlocklistMigrationFailed = 12,
+
+  kMaxValue = kExtensionBlocklistMigrationFailed
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/safe_browsing/enums.xml:V5ToV4MigrationResult)
+
+// Enumerate different results of converting the extensions blocklist from v5 to
+// v4. These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(ConvertExtensionBlocklistV5ToV4Result)
+enum class ConvertExtensionBlocklistV5ToV4Result {
+  // Conversion succeeded.
+  kSuccess = 0,
+
+  // Failed to read the v5 hash file.
+  kReadV5Failed = 1,
+
+  // The v5 hash file size is not a multiple of the expected hash size.
+  kInvalidFileSize = 2,
+
+  // Failed to write the converted v4 hash file.
+  kWriteV4Failed = 3,
+
+  // The V5 store's checksum did not match the V5 data on disk.
+  kV5ChecksumMismatch = 4,
+
+  kMaxValue = kV5ChecksumMismatch
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/safe_browsing/enums.xml:ConvertExtensionBlocklistV5ToV4Result)
 
 class V4Store : public SBStore {
  public:
   // The |task_runner| is used to ensure that the operations in this file are
   // performed on the correct thread. |store_path| specifies the location on
   // disk for this file. The constructor doesn't read the store file from disk.
+  // |v5_prefix_size| is the prefix size of the corresponding V5 store if
+  // we plan to migrate.
+  // |is_eligible_for_migration| specifies whether this store is eligible
+  // to migrate between V4 and V5 disk formats.
+  // |is_extensions_blocklist| specifies whether this store is for the
+  // extensions blocklist.
   // If the store is being created to apply an update to the old store, then
   // |old_file_size| is the size of the existing file on disk for this store;
   // 0 otherwise. This is needed so that we can correctly report the size of
@@ -128,22 +181,20 @@ class V4Store : public SBStore {
   V4Store(const scoped_refptr<base::SequencedTaskRunner>& task_runner,
           const base::FilePath& store_path,
           PrefixSize v5_prefix_size,
+          bool is_eligible_for_migration,
+          bool is_extensions_blocklist,
           int64_t old_file_size = 0);
   ~V4Store() override;
 
-  // If a hash prefix in this store matches |full_hash|, returns that hash
-  // prefix; otherwise returns an empty hash prefix.
-  virtual HashPrefixStr GetMatchingHashPrefix(const FullHashStr& full_hash);
+  HashPrefixStr GetMatchingHashPrefix(const FullHashStr& full_hash) override;
 
   const std::string& state() const { return state_; }
 
-  void ApplyUpdate(std::unique_ptr<ListUpdateResponse> response,
+  void ApplyUpdate(std::unique_ptr<SBUpdateResponse> response,
                    const scoped_refptr<base::SequencedTaskRunner>& runner,
-                   UpdatedStoreReadyCallback callback);
+                   UpdatedStoreReadyCallback callback) override;
 
-  // Records (in kilobytes) and returns the size of the file on disk for this
-  // store using |base_metric| as prefix and the filename as suffix.
-  int64_t RecordAndReturnFileSize(const std::string& base_metric);
+  int64_t RecordAndReturnFileSize(const std::string& base_metric) override;
 
   std::string DebugString() const;
 
@@ -151,21 +202,14 @@ class V4Store : public SBStore {
   // of the hash prefixes.
   void Initialize();
 
-  // Reset internal state.
-  void Reset();
+  void Reset() override;
 
-  // Scheduled after reading the store file from disk on startup. When run, it
-  // ensures that the checksum of the hash prefixes in lexicographical sorted
-  // order matches the expected value in |expected_checksum_|. Returns true if
-  // it matches; false otherwise. Checksum verification can take a long time,
-  // so it is performed outside of the hotpath of loading SafeBrowsing database,
-  // which blocks resource loads.
-  bool VerifyChecksum();
+  bool VerifyChecksum() override;
 
-  // Populates the DatabaseInfo message.
   void CollectStoreInfo(
-      DatabaseManagerInfo::DatabaseInfo::StoreInfo* store_info,
-      const std::string& base_metric);
+      DatabaseManagerInfo::DatabaseInfo::StoreInfo* store_info) override;
+
+  const std::string& GetStoreState() const override;
 
  protected:
   std::string GetMetricPrefix() const override;
@@ -210,6 +254,8 @@ class V4Store : public SBStore {
   FRIEND_TEST_ALL_PREFIXES(V4StoreTest,
                            TestMergeUpdateFastPathMultipleRemovalsInARow);
   FRIEND_TEST_ALL_PREFIXES(V4StoreTest, TestVerifyChecksumFastPath);
+  FRIEND_TEST_ALL_PREFIXES(V4StoreTest,
+                           TestVerifyChecksumValidStoreChecksumEmptyHistogram);
   FRIEND_TEST_ALL_PREFIXES(V4StoreTest, TestMergeUpdatesRemovesOnlyElement);
   FRIEND_TEST_ALL_PREFIXES(V4StoreTest, TestMergeUpdatesRemovesFirstElement);
   FRIEND_TEST_ALL_PREFIXES(V4StoreTest, TestMergeUpdatesRemovesMiddleElement);
@@ -270,6 +316,11 @@ class V4Store : public SBStore {
   FRIEND_TEST_ALL_PREFIXES(V4StoreTest, PreMmapMigrationFileFormatFails);
   FRIEND_TEST_ALL_PREFIXES(V4StoreTest, TestMigrationAlreadyV4);
   FRIEND_TEST_ALL_PREFIXES(V4StoreTest, TestMigrationDisabled);
+  FRIEND_TEST_ALL_PREFIXES(V4StoreTest, TestMigrationNotEligible_WipeSucceeds);
+  FRIEND_TEST_ALL_PREFIXES(V4StoreTest, TestMigrationNotEligible_WipeFails);
+  FRIEND_TEST_ALL_PREFIXES(
+      V4StoreTest,
+      TestMigrationNotEligible_WipeHashFileFails_WipeStoreFileSucceeds);
   FRIEND_TEST_ALL_PREFIXES(V4StoreTest, TestMigrationV5NotFound);
   FRIEND_TEST_ALL_PREFIXES(V4StoreTest, TestMigrationSuccess);
   FRIEND_TEST_ALL_PREFIXES(V4StoreTest, TestMigrationSuccessNoHashFile);
@@ -420,6 +471,31 @@ class V4Store : public SBStore {
   // Returns the reason for the failure or reports success.
   V5ToV4MigrationResult MigrateFromV5(const base::FilePath& v5_store_path);
 
+  // Converts the extensions blocklist from v5 hash file format to v4 ID file
+  // format.
+  // |v5_hash_file_path| is the path to the source v5 hash file
+  // containing 16-byte hashes.
+  // |v4_hash_file_path| is the path where the
+  // converted 32-byte hex IDs should be written.
+  // |checksum_sha256| is an in-out parameter. On input, it contains the
+  // expected V5 checksum (if any) used to verify the V5 data before conversion.
+  // On successful conversion, it is overwritten in-place with the newly
+  // calculated V4 checksum of the converted data. Can be nullptr if no checksum
+  // is expected.
+  // |file_size| will be populated with the size of the converted file in
+  // bytes. Returns the granular result of the conversion attempt.
+  ConvertExtensionBlocklistV5ToV4Result ConvertExtensionsBlocklistFromV5ToV4(
+      const base::FilePath& v5_hash_file_path,
+      const base::FilePath& v4_hash_file_path,
+      std::string* checksum_sha256,
+      uint64_t* file_size);
+
+  // Wipes the V5 store file and its associated hash files.
+  // |v5_store_path| is the path of the V5 store to delete.
+  // Returns true if both the store file and all of its associated hash files
+  // are successfully deleted; false otherwise.
+  bool WipeV5Store(const base::FilePath& v5_store_path);
+
   // Updates the |additions_map| with the additions received in the partial
   // update from the server. The UMA metrics for all interesting sub-operations
   // use the prefix |metric|.
@@ -461,32 +537,18 @@ class V4Store : public SBStore {
   // The expected prefix size for the hash prefixes in V5 store.
   const PrefixSize v5_prefix_size_ = 0;
 
+  // Whether this store is eligible for v5 to v4 disk migration.
+  const bool is_eligible_for_migration_ = true;
+
+  // Whether this store is for the extensions blocklist.
+  const bool is_extensions_blocklist_ = false;
+
   // The state of the store as returned by the PVer4 server in the last applied
   // update response.
   std::string state_;
 };
 
 std::ostream& operator<<(std::ostream& os, const V4Store& store);
-
-struct V4StoreDeleter {
-  explicit V4StoreDeleter(scoped_refptr<base::SequencedTaskRunner> task_runner);
-  ~V4StoreDeleter();
-
-  V4StoreDeleter(V4StoreDeleter&&);
-  V4StoreDeleter& operator=(V4StoreDeleter&&);
-
-  void operator()(const V4Store* ptr) {
-    if (ptr) {
-      if (task_runner_->RunsTasksInCurrentSequence()) {
-        delete ptr;
-      } else {
-        task_runner_->DeleteSoon(FROM_HERE, ptr);
-      }
-    }
-  }
-
-  scoped_refptr<base::SequencedTaskRunner> task_runner_;
-};
 
 }  // namespace safe_browsing
 

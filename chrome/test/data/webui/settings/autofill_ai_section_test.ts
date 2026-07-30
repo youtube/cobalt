@@ -79,12 +79,12 @@ suite('AutofillAiSectionUiReflectsEligibilityStatus', function() {
 
   async function createSection(
       eligibleUser: boolean = true,
-      autofillAddOtherDatatypesPrefIsEnabled: boolean =
+      autofillSettingsEnterprisePolicyEnabled: boolean =
           false): Promise<SettingsAutofillAiSectionElement> {
     loadTimeData.overrideValues({
       userEligibleForAutofillAi: eligibleUser,
-      AutofillAddOtherDatatypesPrefIsEnabled:
-          autofillAddOtherDatatypesPrefIsEnabled,
+      AutofillSettingsEnterprisePolicyEnabled:
+          autofillSettingsEnterprisePolicyEnabled,
     });
     const section: SettingsAutofillAiSectionElement =
         document.createElement('settings-autofill-ai-section');
@@ -171,7 +171,7 @@ suite('AutofillAiSectionUiReflectsEligibilityStatus', function() {
         entityDataManager.setGetOptInStatusResponse(true);
         const section = await createSection(
             /*eligibleUser=*/ true,
-            /*autofillAddOtherDatatypesPrefIsEnabled=*/ true);
+            /*autofillSettingsEnterprisePolicyEnabled=*/ true);
 
         const toggle =
             section.shadowRoot!.querySelector<SettingsToggleButtonElement>(
@@ -321,7 +321,7 @@ suite('AutofillAiSectionUiTest', function() {
     loadTimeData.overrideValues({
       userEligibleForAutofillAi: true,
       autofillAiAvailableByDefault: autofillAiAvailableByDefault,
-      AutofillAddOtherDatatypesPrefIsEnabled: false,
+      AutofillSettingsEnterprisePolicyEnabled: false,
     });
     section = document.createElement('settings-autofill-ai-section');
     section.prefs = settingsPrefs.prefs!;

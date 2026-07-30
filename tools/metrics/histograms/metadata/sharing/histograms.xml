@@ -86,7 +86,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SharedHighlights.LinkGenerated.Error.Requested"
-    enum="LinkGenerationError" expires_after="2026-10-25">
+    enum="LinkGenerationError" expires_after="2026-12-27">
   <owner>jeffreycohen@chromium.org</owner>
   <owner>chrome-shared-highlighting@google.com</owner>
   <summary>
@@ -393,7 +393,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Sharing.SendTabToSelf.AutoOpenOutcome"
+<histogram name="Sharing.SendTabToSelf.AutoOpenOutcome2"
     enum="SendTabToSelfAutoOpenOutcome" expires_after="2027-03-30">
   <owner>ankushkush@google.com</owner>
   <owner>src/chrome/browser/share/OWNERS</owner>
@@ -639,7 +639,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sharing.SharingHubAndroid.CustomAction"
-    enum="ShareCustomAction" expires_after="2026-10-25">
+    enum="ShareCustomAction" expires_after="2026-12-27">
   <owner>wenyufu@chromium.org</owner>
   <owner>src/chrome/browser/share/OWNERS</owner>
   <summary>

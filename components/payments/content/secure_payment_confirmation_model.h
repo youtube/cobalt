@@ -8,6 +8,7 @@
 #include <optional>
 #include <string>
 
+#include "base/containers/to_vector.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "components/payments/content/payment_app.h"
@@ -30,11 +31,12 @@ class SecurePaymentConfirmationModel {
 
   // Header logos.
   const std::vector<PaymentApp::PaymentEntityLogo*> header_logos() const {
-    return header_logos_;
+    return base::ToVector<PaymentApp::PaymentEntityLogo*>(header_logos_);
   }
   void set_header_logos(
       const std::vector<PaymentApp::PaymentEntityLogo*> header_logos) {
-    header_logos_ = header_logos;
+    header_logos_ =
+        base::ToVector<raw_ptr<PaymentApp::PaymentEntityLogo>>(header_logos);
   }
 
   // Title, e.g. "Use TouchID to verify and complete your purchase?"
@@ -177,7 +179,7 @@ class SecurePaymentConfirmationModel {
   base::WeakPtr<SecurePaymentConfirmationModel> GetWeakPtr();
 
  private:
-  std::vector<PaymentApp::PaymentEntityLogo*> header_logos_;
+  std::vector<raw_ptr<PaymentApp::PaymentEntityLogo>> header_logos_;
 
   std::u16string title_;
   std::u16string description_;

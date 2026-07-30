@@ -72,11 +72,12 @@ FakeContentAnalysisDelegate::FakeContentAnalysisDelegate(
     std::string dm_token,
     content::WebContents* web_contents,
     Data data,
-    CompletionCallback callback)
+    CompletionCallback callback,
+    DeepScanAccessPoint access_point)
     : ContentAnalysisDelegate(web_contents,
                               std::move(data),
                               std::move(callback),
-                              DeepScanAccessPoint::UPLOAD),
+                              access_point),
       delete_closure_(delete_closure),
       status_callback_(status_callback),
       dm_token_(std::move(dm_token)) {}
@@ -122,10 +123,11 @@ std::unique_ptr<ContentAnalysisDelegate> FakeContentAnalysisDelegate::Create(
     std::string dm_token,
     content::WebContents* web_contents,
     Data data,
-    CompletionCallback callback) {
+    CompletionCallback callback,
+    DeepScanAccessPoint access_point) {
   auto ret = std::make_unique<FakeContentAnalysisDelegate>(
       delete_closure, status_callback, std::move(dm_token), web_contents,
-      std::move(data), std::move(callback));
+      std::move(data), std::move(callback), access_point);
   FilesRequestHandler::SetFactoryForTesting(base::BindRepeating(
       &FakeFilesRequestHandler::Create,
       base::BindRepeating(
@@ -261,6 +263,7 @@ void FakeContentAnalysisDelegate::Response(
           GetDataForTesting().settings, result_, response));
       break;
     case AnalysisConnector::FILE_TRANSFER:
+    case AnalysisConnector::NETWORK_REQUEST:
     case AnalysisConnector::ANALYSIS_CONNECTOR_UNSPECIFIED:
       NOTREACHED();
   }

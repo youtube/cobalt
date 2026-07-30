@@ -13,6 +13,7 @@
 #include "base/debug/dump_without_crashing.h"
 #include "base/feature_list.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/strings/escape.h"
 #include "base/strings/string_util.h"
 #include "base/types/expected.h"
 #include "net/base/features.h"
@@ -27,6 +28,13 @@
 namespace net {
 
 namespace {
+
+namespace keys {
+constexpr std::string_view kKeyOrder = "key-order";
+constexpr std::string_view kParams = "params";
+constexpr std::string_view kExcept = "except";
+}  // namespace keys
+
 // Tries to parse a list of ParameterizedItem as a list of strings.
 // Returns std::nullopt if unsuccessful.
 std::optional<std::vector<std::string>> ParseStringList(
@@ -187,7 +195,7 @@ bool HttpNoVarySearchData::HasBooleanParamsMember(
   if (!dict.has_value()) {
     return false;
   }
-  auto it = dict->find("params");
+  auto it = dict->find(keys::kParams);
   if (it == dict->end()) {
     return false;
   }
@@ -219,10 +227,8 @@ bool HttpNoVarySearchData::AreEquivalentNewImplForTesting(const GURL& a,
 base::expected<HttpNoVarySearchData, HttpNoVarySearchData::ParseErrorEnum>
 HttpNoVarySearchData::ParseNoVarySearchDictionary(
     const structured_headers::Dictionary& dict) {
-  static constexpr std::string_view kKeyOrder = "key-order";
-  static constexpr std::string_view kParams = "params";
-  static constexpr std::string_view kExcept = "except";
-  constexpr std::string_view kValidKeys[] = {kKeyOrder, kParams, kExcept};
+  constexpr std::string_view kValidKeys[] = {keys::kKeyOrder, keys::kParams,
+                                             keys::kExcept};
 
   base::flat_set<std::string> affected_params;
   bool vary_on_key_order = true;
@@ -243,7 +249,8 @@ HttpNoVarySearchData::ParseNoVarySearchDictionary(
   }
 
   // Populate `vary_on_key_order` based on the `key-order` key.
-  if (auto keyorder_it = dict.find(kKeyOrder); keyorder_it != dict.end()) {
+  if (auto keyorder_it = dict.find(keys::kKeyOrder);
+      keyorder_it != dict.end()) {
     const auto& key_order = keyorder_it->second;
     if (key_order.member_is_inner_list ||
         !key_order.member[0].item.is_boolean()) {
@@ -253,7 +260,7 @@ HttpNoVarySearchData::ParseNoVarySearchDictionary(
   }
 
   // Populate `affected_params` or `vary_by_default` based on the "params" key.
-  if (auto params_it = dict.find(kParams); params_it != dict.end()) {
+  if (auto params_it = dict.find(keys::kParams); params_it != dict.end()) {
     const auto& params = params_it->second;
     if (params.member_is_inner_list) {
       auto keys = ParseStringList(params.member);
@@ -271,7 +278,7 @@ HttpNoVarySearchData::ParseNoVarySearchDictionary(
   // Populate `affected_params` based on the "except" key.
   // This should be present only if "params" was true
   // (i.e., params don't vary by default).
-  if (auto except_it = dict.find(kExcept); except_it != dict.end()) {
+  if (auto except_it = dict.find(keys::kExcept); except_it != dict.end()) {
     const auto& excepted_params = except_it->second;
     if (vary_by_default) {
       return base::unexpected(ParseErrorEnum::kExceptWithoutTrueParams);
@@ -393,6 +400,53 @@ void HttpNoVarySearchData::DescribeForLog(std::ostream& ostream) const {
   ostream << R"(affected_params: [")"
           << base::JoinString(affected_params_, R"(", ")") << R"("])";
   ostream << "}";
+}
+
+std::optional<std::string> HttpNoVarySearchData::SerializeToString() const {
+  std::vector<structured_headers::DictionaryMember> members;
+
+  if (!vary_on_key_order_) {
+    members.emplace_back(keys::kKeyOrder,
+                         structured_headers::ParameterizedMember(
+                             structured_headers::Item(true), {}));
+  }
+
+  if (vary_by_default_) {
+    if (!affected_params_.empty()) {
+      std::vector<structured_headers::ParameterizedItem> param_items;
+      for (const auto& param : affected_params_) {
+        param_items.push_back(structured_headers::ParameterizedItem(
+            structured_headers::Item(
+                base::EscapeQueryParamValue(param, /*use_plus=*/true),
+                structured_headers::Item::kStringType),
+            {}));
+      }
+      members.emplace_back(
+          keys::kParams,
+          structured_headers::ParameterizedMember(param_items, {}));
+    }
+  } else {
+    members.emplace_back(keys::kParams,
+                         structured_headers::ParameterizedMember(
+                             structured_headers::Item(true), {}));
+
+    if (!affected_params_.empty()) {
+      std::vector<structured_headers::ParameterizedItem> except_items;
+      for (const auto& param : affected_params_) {
+        except_items.push_back(structured_headers::ParameterizedItem(
+            structured_headers::Item(
+                base::EscapeQueryParamValue(param, /*use_plus=*/true),
+                structured_headers::Item::kStringType),
+            {}));
+      }
+      members.emplace_back(
+          keys::kExcept,
+          structured_headers::ParameterizedMember(except_items, {}));
+    }
+  }
+
+  return structured_headers::SerializeDictionary(
+      structured_headers::Dictionary(std::move(members)));
 }
 
 }  // namespace net

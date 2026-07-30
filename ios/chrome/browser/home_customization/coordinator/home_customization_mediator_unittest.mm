@@ -49,11 +49,11 @@ class HomeCustomizationMediatorUnitTest : public PlatformTest {
  public:
   void SetUp() override {
     profile_ = TestProfileIOS::Builder().Build();
-    Browser* browser = new TestBrowser(profile_.get());
-    DiscoverFeedVisibilityBrowserAgent::CreateForBrowser(browser);
+    browser_ = std::make_unique<TestBrowser>(profile_.get());
+    DiscoverFeedVisibilityBrowserAgent::CreateForBrowser(browser_.get());
     pref_service_ = profile_->GetPrefs();
     discover_feed_visibility_browser_agent_ =
-        DiscoverFeedVisibilityBrowserAgent::FromBrowser(browser);
+        DiscoverFeedVisibilityBrowserAgent::FromBrowser(browser_.get());
 
     mediator_ =
         [[HomeCustomizationMediator alloc] initWithPrefService:pref_service_
@@ -65,11 +65,12 @@ class HomeCustomizationMediatorUnitTest : public PlatformTest {
  protected:
   web::WebTaskEnvironment task_environment_;
   IOSChromeScopedTestingLocalState scoped_testing_local_state_;
-  HomeCustomizationMediator* mediator_;
-  raw_ptr<DiscoverFeedVisibilityBrowserAgent, DanglingUntriaged>
-      discover_feed_visibility_browser_agent_;
-  raw_ptr<PrefService, DanglingUntriaged> pref_service_;
   std::unique_ptr<TestProfileIOS> profile_;
+  std::unique_ptr<TestBrowser> browser_;
+  HomeCustomizationMediator* mediator_;
+  raw_ptr<DiscoverFeedVisibilityBrowserAgent>
+      discover_feed_visibility_browser_agent_;
+  raw_ptr<PrefService> pref_service_;
 };
 
 // Tests that the mediator populates the main page data for its consumer based

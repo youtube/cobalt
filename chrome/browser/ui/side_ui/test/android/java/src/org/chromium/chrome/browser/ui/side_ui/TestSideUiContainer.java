@@ -9,6 +9,8 @@ import android.view.ViewGroup.LayoutParams;
 
 import androidx.annotation.Px;
 
+import com.google.errorprone.annotations.DoNotMock;
+
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ui.side_ui.SideUiCoordinator.AnchorSide;
@@ -17,6 +19,7 @@ import org.chromium.chrome.browser.ui.side_ui.SideUiCoordinator.UiUpdateRequest;
 import org.chromium.ui.base.ViewUtils;
 
 /** Minimum implementation of {@link SideUiContainer} to allow setting/getting width for tests. */
+@DoNotMock
 @NullMarked
 public final class TestSideUiContainer implements SideUiContainer {
     private static final int DEFAULT_MAX_WIDTH_DP = 412;
@@ -53,6 +56,15 @@ public final class TestSideUiContainer implements SideUiContainer {
      * the documentation of {@link #onWillAutoClose()} for details.
      */
     public boolean mRequestUiUpdateOnWillAutoClose;
+
+    /** Number of times {@link #onUiUpdateCompleted} is called. */
+    public int mNumOnUiUpdateCompletedReceived;
+
+    /** The last {@code oldWidth} received by {@link #onUiUpdateCompleted}. */
+    public @Nullable @Px Integer mLastOldWidth;
+
+    /** The last {@code newWidth} received by {@link #onUiUpdateCompleted}. */
+    public @Nullable @Px Integer mLastNewWidth;
 
     private final SideUiCoordinator mSideUiCoordinator;
     private final View mSideUiContainerView;
@@ -122,7 +134,11 @@ public final class TestSideUiContainer implements SideUiContainer {
     }
 
     @Override
-    public void onContainerResized(@Px int containerWidth) {}
+    public void onUiUpdateCompleted(@Px int oldWidth, @Px int newWidth) {
+        mNumOnUiUpdateCompletedReceived++;
+        mLastOldWidth = oldWidth;
+        mLastNewWidth = newWidth;
+    }
 
     @Override
     public void onWillAutoClose() {

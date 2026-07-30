@@ -549,7 +549,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.AppLaunchDrawBlocker.ActiveTabAvailable" units="ms"
-    expires_after="2026-07-05">
+    expires_after="2026-12-31">
   <owner>mfiaz@google.com</owner>
   <owner>clank-tab-dev@google.com</owner>
   <summary>
@@ -1987,7 +1987,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.Display.IsDisplayTopologyAvaialble" enum="Boolean"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>renkens@google.com</owner>
   <owner>boliu@chromium.org</owner>
   <summary>
@@ -2102,7 +2102,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.DragDrop.Files.Count" units="files"
-    expires_after="2026-07-26">
+    expires_after="2027-07-26">
   <owner>joelhockey@chromium.org</owner>
   <owner>clank-large-form-factors@google.com</owner>
   <summary>
@@ -2340,7 +2340,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Android.EdgeToEdge.Eligible2" enum="Boolean"
     expires_after="2026-11-15">
-  <owner>lazzzis@google.com</owner>
+  <owner>clhager@google.com</owner>
   <owner>edge-to-edge@chromium.org</owner>
   <summary>
     Records if the current activity is eligible for drawing any content edge to
@@ -2349,8 +2349,8 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.EdgeToEdge.Eligible2.OnCreateController"
-    enum="Boolean" expires_after="2026-07-05">
-  <owner>lazzzis@google.com</owner>
+    enum="Boolean" expires_after="2026-11-15">
+  <owner>clhager@google.com</owner>
   <owner>edge-to-edge@chromium.org</owner>
   <summary>
     Records if the current activity is eligible for drawing any content edge to
@@ -2361,7 +2361,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Android.EdgeToEdge.IneligibilityReason2"
     enum="IneligibilityReason" expires_after="2026-11-15">
-  <owner>lazzzis@google.com</owner>
+  <owner>clhager@google.com</owner>
   <owner>edge-to-edge@chromium.org</owner>
   <summary>
     Records the reason of why the current session is not eligibile for drawing
@@ -2371,8 +2371,8 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.EdgeToEdge.IneligibilityReason2.OnCreateController"
-    enum="IneligibilityReason" expires_after="2026-07-05">
-  <owner>lazzzis@google.com</owner>
+    enum="IneligibilityReason" expires_after="2026-11-15">
+  <owner>clhager@google.com</owner>
   <owner>edge-to-edge@chromium.org</owner>
   <summary>
     Records the reason of why the current session is not eligibile for drawing
@@ -2425,7 +2425,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.Event.ActionDown" enum="InputDeviceSource"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>mvanouwerkerk@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <owner>src/chrome/android/OWNERS</owner>
@@ -2626,7 +2626,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.Hub.PaneFocused" enum="HubPaneId"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>ckitagawa@chromium.org</owner>
   <owner>clank-hub-dev@google.com</owner>
   <summary>
@@ -2640,7 +2640,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.Hub.PaneFocused.PaneSwitcher" enum="HubPaneId"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>ckitagawa@chromium.org</owner>
   <owner>clank-hub-dev@google.com</owner>
   <summary>
@@ -2768,7 +2768,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.Input.TouchEvent.Action" enum="MotionEventAction"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>lizeb@google.com</owner>
   <owner>clank-performance-team@google.com</owner>
   <summary>
@@ -2807,7 +2807,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.InputHintChecker.InputHintResult"
-    enum="InputHintResult" expires_after="2026-10-25">
+    enum="InputHintResult" expires_after="2026-12-27">
   <owner>pasko@chromium.org</owner>
   <owner>mthiesse@chromium.org</owner>
   <summary>
@@ -3000,7 +3000,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.InputOnViz.Viz.StateProcessingResult3"
-    enum="InputOnVizStateProcessingResult" expires_after="2026-10-25">
+    enum="InputOnVizStateProcessingResult" expires_after="2026-12-27">
   <owner>kartarsingh@google.com</owner>
   <owner>woa-performance-team@google.com</owner>
   <summary>
@@ -3797,7 +3797,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.MultipleUserProfilesState"
-    enum="MultipleUserProfilesState" expires_after="2026-10-25">
+    enum="MultipleUserProfilesState" expires_after="2026-12-27">
   <owner>ckitagawa@chromium.org</owner>
   <owner>yfriedman@chromium.org</owner>
   <owner>chrome-metrics-team@google.com</owner>
@@ -3898,13 +3898,25 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Android.MultiWindow.WindowZOrder.FocusChangedCount"
-    units="count" expires_after="2027-04-02">
+<histogram name="Android.MultiWindow.WindowZOrder.PromotionCount" units="count"
+    expires_after="2027-04-02">
   <owner>kalutes@google.com</owner>
   <owner>clank-large-form-factors@google.com</owner>
   <summary>
-    Records the number of window focus change events handled by
-    WindowZOrderTracker over the preceding 5 minutes.
+    Records the number of times a window was promoted to the top of the z-order
+    by WindowZOrderTracker over the preceding 5 minutes. Recorded every 5
+    minutes while occlusion tracking is enabled.
+  </summary>
+</histogram>
+
+<histogram name="Android.MultiWindow.WindowZOrder.ResumedCount" units="count"
+    expires_after="2027-04-02">
+  <owner>kalutes@google.com</owner>
+  <owner>clank-large-form-factors@google.com</owner>
+  <summary>
+    Records the number of activity top resumed state transitions handled by
+    WindowZOrderTracker over the preceding 5 minutes. Recorded every 5 minutes
+    while occlusion tracking is enabled.
   </summary>
 </histogram>
 
@@ -5324,7 +5336,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.Pdf.DownloadTime.Transient" units="ms"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>shuyng@google.com</owner>
   <owner>clank-large-form-factors@google.com</owner>
   <summary>
@@ -6959,7 +6971,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.TopToolbar.InMotionStage" enum="ToolbarInMotionStage"
-    expires_after="2026-10-22">
+    expires_after="2026-12-27">
   <owner>skym@chromium.org</owner>
   <owner>fredmello@chromium.org</owner>
   <summary>
@@ -9305,7 +9317,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.WebView.Startup.CreationTime.InitReason2"
-    enum="WebViewStartupCallSite" expires_after="2026-06-30">
+    enum="WebViewStartupCallSite" expires_after="2026-10-02">
   <owner>torne@chromium.org</owner>
   <owner>src/android_webview/OWNERS</owner>
   <summary>
@@ -9977,7 +9989,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.Window.TimeToAcquireWindowBounds" units="ms"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>chominskib@google.com</owner>
   <owner>lt-web-apps-team@google.com</owner>
   <summary>
@@ -9987,7 +9999,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Android.Window.TimeToUpdateWindowBounds" units="ms"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>chominskib@google.com</owner>
   <owner>lt-web-apps-team@google.com</owner>
   <summary>

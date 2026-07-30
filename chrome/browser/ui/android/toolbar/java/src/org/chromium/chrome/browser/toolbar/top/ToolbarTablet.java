@@ -42,7 +42,6 @@ import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.FuseboxSta
 import org.chromium.chrome.browser.omnibox.status.StatusCoordinator;
 import org.chromium.chrome.browser.tabmodel.IncognitoStateProvider;
 import org.chromium.chrome.browser.theme.ThemeColorProvider;
-import org.chromium.chrome.browser.theme.ThemeUtils;
 import org.chromium.chrome.browser.toolbar.R;
 import org.chromium.chrome.browser.toolbar.ToolbarDataProvider;
 import org.chromium.chrome.browser.toolbar.ToolbarProgressBar;
@@ -157,8 +156,7 @@ public class ToolbarTablet extends ToolbarLayout {
                 .getFuseboxStateSupplier()
                 .addSyncObserverAndPostIfNonNull(
                         mCallbackController.makeCancelable(mFuseboxStateObserver));
-        final @ColorInt int color = SemanticColorUtils.getColorSurfaceContainer(getContext());
-        mLocationBar.getTabletCoordinator().tintBackground(color);
+        mLocationBar.updateVisualsForState();
 
         mToolbarWidthConsumers[ToolbarComponentId.OMNIBOX_BOOKMARK] =
                 mLocationBar.getBookmarkButtonToolbarWidthConsumer();
@@ -289,10 +287,6 @@ public class ToolbarTablet extends ToolbarLayout {
     public void onThemeColorChanged(@ColorInt int color, boolean shouldAnimate) {
         setBackgroundColor(color);
         mFixedHeightBackground.setBackgroundColor(color);
-        final @ColorInt int textBoxColor =
-                ThemeUtils.getTextBoxColorForToolbarBackgroundInNonNativePage(
-                        getContext(), color, isIncognitoBranded(), /* isCustomTab= */ false);
-        mLocationBar.getTabletCoordinator().tintBackground(textBoxColor);
         mLocationBar.updateVisualsForState();
         setToolbarHairlineColor(color);
 

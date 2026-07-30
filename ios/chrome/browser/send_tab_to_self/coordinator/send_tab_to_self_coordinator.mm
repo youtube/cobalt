@@ -81,9 +81,6 @@
 
 namespace {
 
-// Delay before dismissing the sheet after a successful send transaction.
-constexpr base::TimeDelta kSuccessDismissDelay = base::Seconds(1.5);
-
 void DisplaySendToSelfSnackbar(id<SnackbarCommands> snackbar_handler,
                                NSString* device_name) {
   CHECK(!base::FeatureList::IsEnabled(
@@ -103,7 +100,8 @@ void DisplaySendToSelfSnackbar(id<SnackbarCommands> snackbar_handler,
 }
 
 void DisplaySendToSelfSuccessSnackbar(id<SnackbarCommands> snackbar_handler,
-                                      std::string_view device_name) {
+                                      std::string_view device_name,
+                                      NSString* email) {
   CHECK(base::FeatureList::IsEnabled(
       send_tab_to_self::kSendTabToSelfPostSendToast));
   // `snackbar_handler` can be nil if the command dispatcher was already
@@ -117,6 +115,9 @@ void DisplaySendToSelfSuccessSnackbar(id<SnackbarCommands> snackbar_handler,
       l10n_util::GetNSStringF(IDS_SEND_TAB_TO_SELF_POST_SEND_SUCCESS_TOAST,
                               base::UTF8ToUTF16(device_name));
   SnackbarMessage* message = [[SnackbarMessage alloc] initWithTitle:text];
+  if (email.length > 0) {
+    message.subtitle = email;
+  }
   [snackbar_handler showSnackbarMessage:message];
 }
 
@@ -173,6 +174,7 @@ void DisplaySendToSelfFailureSnackbar(id<SnackbarCommands> snackbar_handler) {
 // integrations like the native share sheet.
 void ShowPostSendSnackbar(id<SnackbarCommands> snackbar_handler,
                           std::string_view device_name,
+                          NSString* email,
                           send_tab_to_self::SendTabToSelfResult result) {
   if (!base::FeatureList::IsEnabled(
           send_tab_to_self::kSendTabToSelfPostSendToast)) {
@@ -186,7 +188,7 @@ void ShowPostSendSnackbar(id<SnackbarCommands> snackbar_handler,
       web::GetUIThreadTaskRunner({})->PostTask(
           FROM_HERE,
           base::BindOnce(&DisplaySendToSelfSuccessSnackbar, snackbar_handler,
-                         std::string(device_name)));
+                         std::string(device_name), email));
       break;
     }
     case send_tab_to_self::SendTabToSelfResult::kSuccessThrottled: {
@@ -315,13 +317,6 @@ void OpenManageDevicesTab(CommandDispatcher* dispatcher) {
                       textFragment:
                           (std::optional<SendTabToSelfTextFragment>)textFragment
                        pageContext:(send_tab_to_self::PageContext)pageContext;
-
-// Handles the send result exclusively for the enhanced bottom sheet UI.
-- (void)handleEnhancedBottomSheetSendResult:
-            (send_tab_to_self::SendTabToSelfResult)result
-                            snackbarHandler:
-                                (id<SnackbarCommands>)snackbarHandler
-                                 deviceName:(NSString*)deviceName;
 
 @end
 
@@ -535,106 +530,29 @@ void OpenManageDevicesTab(CommandDispatcher* dispatcher) {
   __weak id<SnackbarCommands> snackbarHandler = HandlerForProtocol(
       self.browser->GetCommandDispatcher(), SnackbarCommands);
 
-  __weak SendTabToSelfCoordinator* weakSelf = self;
-  auto completionBlock = ^(send_tab_to_self::SendTabToSelfResult result) {
-    SendTabToSelfCoordinator* strongSelf = weakSelf;
-    if (strongSelf) {
-      [strongSelf handleSendResult:result
-                   snackbarHandler:snackbarHandler
-                        deviceName:deviceName];
-    }
-  };
+  id<SystemIdentity> account =
+      AuthenticationServiceFactory::GetForProfile(self.profile)
+          ->GetPrimaryIdentity();
+  NSString* email = account ? account.userEmail : nil;
 
   SendTabToSelfSyncServiceFactory::GetForProfile(self.profile)
       ->GetSendTabToSelfModel()
       ->SendEntry(self.url, base::SysNSStringToUTF8(self.title),
                   base::SysNSStringToUTF8(cacheGUID), pageContext,
                   send_tab_to_self::NavigationHistory(),
-                  base::BindOnce(completionBlock),
+                  base::BindOnce(&ShowPostSendSnackbar, snackbarHandler,
+                                 base::SysNSStringToUTF8(deviceName), email),
                   _entryPoint);
 
-  // If both the enhanced bottom sheet and the post-send toast are disabled,
-  // show the legacy snackbar message when the sheet is dismissed.
+  // If the post-send toast is disabled, show the legacy snackbar message when
+  // the sheet is dismissed.
   if (!base::FeatureList::IsEnabled(
-          send_tab_to_self::kSendTabToSelfEnhancedBottomsheet) &&
-      !base::FeatureList::IsEnabled(
           send_tab_to_self::kSendTabToSelfPostSendToast)) {
     self.dismissedCompletion = base::CallbackToBlock(base::BindRepeating(
         &DisplaySendToSelfSnackbar, snackbarHandler, deviceName));
   }
 
-  // If the enhanced bottom sheet is disabled, perform the legacy immediate
-  // cleanup.
-  if (!base::FeatureList::IsEnabled(
-          send_tab_to_self::kSendTabToSelfEnhancedBottomsheet)) {
-    [self.delegate sendTabToSelfCoordinatorWantsToBeStopped:self];
-  }
-}
-
-- (void)handleSendResult:(send_tab_to_self::SendTabToSelfResult)result
-         snackbarHandler:(id<SnackbarCommands>)snackbarHandler
-              deviceName:(NSString*)deviceName {
-  if (base::FeatureList::IsEnabled(
-          send_tab_to_self::kSendTabToSelfEnhancedBottomsheet)) {
-    [self handleEnhancedBottomSheetSendResult:result
-                              snackbarHandler:snackbarHandler
-                                   deviceName:deviceName];
-  } else {
-    ShowPostSendSnackbar(snackbarHandler,
-                         base::SysNSStringToUTF8(deviceName), result);
-  }
-}
-
-- (void)handleEnhancedBottomSheetSendResult:
-            (send_tab_to_self::SendTabToSelfResult)result
-                            snackbarHandler:
-                                (id<SnackbarCommands>)snackbarHandler
-                                 deviceName:(NSString*)deviceName {
-  if (self.stopped) {
-    return;
-  }
-
-  switch (result) {
-    case send_tab_to_self::SendTabToSelfResult::kSuccess:
-    case send_tab_to_self::SendTabToSelfResult::kSuccessThrottled: {
-      SendTabToSelfBottomSheetViewController* bottomSheet =
-          base::apple::ObjCCastStrict<SendTabToSelfBottomSheetViewController>(
-              self.sendTabToSelfViewController);
-      [bottomSheet showSuccessState:deviceName];
-
-      __weak SendTabToSelfCoordinator* weakSelf = self;
-      base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
-          FROM_HERE, base::BindOnce(^{
-            SendTabToSelfCoordinator* strongSelf = weakSelf;
-            if (strongSelf && !strongSelf.stopped) {
-              [strongSelf.delegate
-                  sendTabToSelfCoordinatorWantsToBeStopped:strongSelf];
-            }
-          }),
-          kSuccessDismissDelay);
-      break;
-    }
-    case send_tab_to_self::SendTabToSelfResult::kFailureNoInternetConnection:
-    case send_tab_to_self::SendTabToSelfResult::kFailureCommitTimeout: {
-      [self.delegate sendTabToSelfCoordinatorWantsToBeStopped:self];
-      web::GetUIThreadTaskRunner({})->PostTask(
-          FROM_HERE, base::BindOnce(&DisplaySendToSelfNoInternetSnackbar,
-                                    snackbarHandler));
-      break;
-    }
-    case send_tab_to_self::SendTabToSelfResult::kFailureNotTrackingMetadata:
-    case send_tab_to_self::SendTabToSelfResult::kFailureInvalidUrl:
-    case send_tab_to_self::SendTabToSelfResult::kFailureCommitAttemptFailed:
-    case send_tab_to_self::SendTabToSelfResult::kFailureCommitAttemptError:
-    case send_tab_to_self::SendTabToSelfResult::kFailureSyncDisabled:
-    case send_tab_to_self::SendTabToSelfResult::kFailureEntryRemoved: {
-      [self.delegate sendTabToSelfCoordinatorWantsToBeStopped:self];
-      web::GetUIThreadTaskRunner({})->PostTask(
-          FROM_HERE,
-          base::BindOnce(&DisplaySendToSelfFailureSnackbar, snackbarHandler));
-      break;
-    }
-  }
+  [self.delegate sendTabToSelfCoordinatorWantsToBeStopped:self];
 }
 
 - (void)openManageDevicesTab {

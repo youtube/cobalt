@@ -8,11 +8,9 @@
 #include "chrome/browser/ui/autofill/payments/payments_view_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/test/test_browser_dialog.h"
-#include "chrome/browser/ui/views/autofill/payments/bnpl_tos_dialog.h"
 #include "components/autofill/core/browser/data_model/payments/bnpl_issuer.h"
 #include "components/autofill/core/browser/foundations/test_autofill_client.h"
 #include "components/autofill/core/browser/payments/bnpl_util.h"
-#include "components/autofill/core/browser/payments/constants.h"
 #include "components/autofill/core/browser/ui/payments/bnpl_tos_controller_impl.h"
 #include "content/public/test/browser_test.h"
 

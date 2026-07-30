@@ -10,7 +10,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
-#include "base/win/atl.h"
+#include "base/win/scoped_bstr.h"
 #include "chrome/browser/ui/startup/credential_provider_signin_dialog_win_test_data.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/credential_provider/common/gcp_strings.h"
@@ -37,32 +37,29 @@ class GcpGaiaCredentialTest : public GlsRunnerTestBase {
  protected:
   GcpGaiaCredentialTest();
 
-  BSTR signin_result() { return signin_result_; }
+  BSTR signin_result() { return signin_result_.Get(); }
 
-  CComBSTR MakeSigninResult(const std::string& password);
+  BSTR MakeSigninResult(const std::string& password);
 
  private:
-  CComBSTR signin_result_;
+  base::win::ScopedBstr signin_result_;
 };
 
 GcpGaiaCredentialTest::GcpGaiaCredentialTest() {
-  signin_result_ = MakeSigninResult("password");
+  signin_result_.Reset(MakeSigninResult("password"));
 }
 
-CComBSTR GcpGaiaCredentialTest::MakeSigninResult(const std::string& password) {
-  USES_CONVERSION;
+BSTR GcpGaiaCredentialTest::MakeSigninResult(const std::string& password) {
   CredentialProviderSigninDialogTestDataStorage test_data_storage;
   test_data_storage.SetSigninPassword(password);
 
   std::string signin_result_utf8;
   EXPECT_TRUE(base::JSONWriter::Write(test_data_storage.expected_full_result(),
                                       &signin_result_utf8));
-  return CComBSTR(A2OLE(signin_result_utf8.c_str()));
+  return ::SysAllocString(base::UTF8ToWide(signin_result_utf8).c_str());
 }
 
 TEST_F(GcpGaiaCredentialTest, OnUserAuthenticated) {
-  USES_CONVERSION;
-
   Microsoft::WRL::ComPtr<ICredentialProviderCredential> cred;
 
   ASSERT_EQ(S_OK, InitializeProviderAndGetCredential(0, &cred));
@@ -70,8 +67,9 @@ TEST_F(GcpGaiaCredentialTest, OnUserAuthenticated) {
   Microsoft::WRL::ComPtr<IGaiaCredential> gaia_cred;
   ASSERT_EQ(S_OK, cred.As(&gaia_cred));
 
-  CComBSTR error;
-  ASSERT_EQ(S_OK, gaia_cred->OnUserAuthenticated(signin_result(), &error));
+  base::win::ScopedBstr error;
+  ASSERT_EQ(S_OK,
+            gaia_cred->OnUserAuthenticated(signin_result(), error.Receive()));
 
   Microsoft::WRL::ComPtr<ITestCredentialProvider> test_provider;
   ASSERT_EQ(S_OK, created_provider().As(&test_provider));
@@ -79,8 +77,6 @@ TEST_F(GcpGaiaCredentialTest, OnUserAuthenticated) {
 }
 
 TEST_F(GcpGaiaCredentialTest, OnUserAuthenticated_SamePassword) {
-  USES_CONVERSION;
-
   Microsoft::WRL::ComPtr<ICredentialProviderCredential> cred;
 
   ASSERT_EQ(S_OK, InitializeProviderAndGetCredential(0, &cred));
@@ -88,12 +84,13 @@ TEST_F(GcpGaiaCredentialTest, OnUserAuthenticated_SamePassword) {
   Microsoft::WRL::ComPtr<IGaiaCredential> gaia_cred;
   ASSERT_EQ(S_OK, cred.As(&gaia_cred));
 
-  CComBSTR error;
-  ASSERT_EQ(S_OK, gaia_cred->OnUserAuthenticated(signin_result(), &error));
+  base::win::ScopedBstr error;
+  ASSERT_EQ(S_OK,
+            gaia_cred->OnUserAuthenticated(signin_result(), error.Receive()));
 
   Microsoft::WRL::ComPtr<ITestCredentialProvider> test_provider;
   ASSERT_EQ(S_OK, created_provider().As(&test_provider));
-  CComBSTR first_sid = test_provider->sid();
+  std::wstring first_sid = test_provider->sid().Get();
 
   // Report to register the user.
   wchar_t* report_status_text = nullptr;
@@ -101,19 +98,18 @@ TEST_F(GcpGaiaCredentialTest, OnUserAuthenticated_SamePassword) {
   EXPECT_EQ(S_OK, cred->ReportResult(0, 0, &report_status_text, &report_icon));
 
   // Finishing with the same username+password should succeed.
-  CComBSTR error2;
-  ASSERT_EQ(S_OK, gaia_cred->OnUserAuthenticated(signin_result(), &error2));
+  base::win::ScopedBstr error2;
+  ASSERT_EQ(S_OK,
+            gaia_cred->OnUserAuthenticated(signin_result(), error2.Receive()));
 
   EXPECT_TRUE(test_provider->credentials_changed_fired());
-  EXPECT_EQ(first_sid, test_provider->sid());
+  EXPECT_EQ(first_sid, test_provider->sid().Get());
 }
 
 TEST_F(GcpGaiaCredentialTest, OnUserAuthenticated_DiffPassword) {
-  USES_CONVERSION;
-
   CredentialProviderSigninDialogTestDataStorage test_data_storage;
 
-  CComBSTR sid;
+  base::win::ScopedBstr sid;
   ASSERT_EQ(
       S_OK,
       fake_os_user_manager()->CreateTestOSUser(
@@ -121,7 +117,8 @@ TEST_F(GcpGaiaCredentialTest, OnUserAuthenticated_DiffPassword) {
           base::UTF8ToWide(test_data_storage.GetSuccessPassword()).c_str(),
           base::UTF8ToWide(test_data_storage.GetSuccessFullName()).c_str(),
           L"comment", GaiaId(test_data_storage.GetSuccessId()),
-          base::UTF8ToWide(test_data_storage.GetSuccessEmail()).c_str(), &sid));
+          base::UTF8ToWide(test_data_storage.GetSuccessEmail()).c_str(),
+          sid.Receive()));
   Microsoft::WRL::ComPtr<ICredentialProviderCredential> cred;
 
   ASSERT_EQ(S_OK, InitializeProviderAndGetCredential(0, &cred));
@@ -129,8 +126,9 @@ TEST_F(GcpGaiaCredentialTest, OnUserAuthenticated_DiffPassword) {
   Microsoft::WRL::ComPtr<IGaiaCredential> gaia_cred;
   ASSERT_EQ(S_OK, cred.As(&gaia_cred));
 
-  CComBSTR error;
-  ASSERT_EQ(S_OK, gaia_cred->OnUserAuthenticated(signin_result(), &error));
+  base::win::ScopedBstr error;
+  ASSERT_EQ(S_OK,
+            gaia_cred->OnUserAuthenticated(signin_result(), error.Receive()));
 
   Microsoft::WRL::ComPtr<ITestCredentialProvider> test_provider;
   ASSERT_EQ(S_OK, created_provider().As(&test_provider));
@@ -138,11 +136,14 @@ TEST_F(GcpGaiaCredentialTest, OnUserAuthenticated_DiffPassword) {
 
   test_provider->ResetCredentialsChangedFired();
 
-  CComBSTR new_signin_result = MakeSigninResult("password2");
+  base::win::ScopedBstr new_signin_result;
+  new_signin_result.Reset(MakeSigninResult("password2"));
 
   // Finishing with the same username but different password should mark
   // the password as stale and not fire the credentials changed event.
-  EXPECT_EQ(S_FALSE, gaia_cred->OnUserAuthenticated(new_signin_result, &error));
+  error.Reset();
+  EXPECT_EQ(S_FALSE, gaia_cred->OnUserAuthenticated(new_signin_result.Get(),
+                                                    error.Receive()));
   EXPECT_FALSE(test_provider->credentials_changed_fired());
 }
 
@@ -158,7 +159,6 @@ class GcpGaiaCredentialGlsTest : public GcpGaiaCredentialGlsRunnerTest,
                                      std::tuple<bool, bool, std::wstring>> {};
 
 TEST_P(GcpGaiaCredentialGlsTest, GetUserGlsCommandLine) {
-  USES_CONVERSION;
   CredentialProviderSigninDialogTestDataStorage test_data_storage;
 
   const bool is_gem_features_enabled = std::get<0>(GetParam());
@@ -228,16 +228,14 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_F(GcpGaiaCredentialGlsRunnerTest,
        AssociateToExistingAssociatedUser_LongUsername) {
-  USES_CONVERSION;
-
   // Create a fake user that has the same username but a different gaia id
   // as the test gaia id.
-  CComBSTR sid;
+  base::win::ScopedBstr sid;
   std::wstring base_username(L"foo1234567890abcdefg");
   GaiaId base_gaia_id("other-gaia-id");
   ASSERT_EQ(S_OK, fake_os_user_manager()->CreateTestOSUser(
                       base_username.c_str(), L"password", L"name", L"comment",
-                      base_gaia_id, std::wstring(), &sid));
+                      base_gaia_id, std::wstring(), sid.Receive()));
 
   ASSERT_EQ(2u, fake_os_user_manager()->GetUserCount());
 
@@ -281,32 +279,32 @@ class GcpAssociatedUserRunnableGaiaCredentialTest
 
 TEST_P(GcpAssociatedUserRunnableGaiaCredentialTest,
        AssociateToExistingAssociatedUser) {
-  USES_CONVERSION;
   int last_user_index = std::get<0>(GetParam());
   bool should_succeed = std::get<1>(GetParam());
   bool should_associate = std::get<2>(GetParam());
 
   // Create many fake users that has the same username but a different gaia id
   // as the test gaia id.
-  CComBSTR sid;
+  base::win::ScopedBstr sid;
   std::wstring base_username(L"foo");
   std::string base_gaia_id("other-gaia-id");
   ASSERT_EQ(S_OK, fake_os_user_manager()->CreateTestOSUser(
                       base_username.c_str(), L"password", L"name", L"comment",
                       should_associate ? GaiaId(base_gaia_id) : GaiaId(),
-                      std::wstring(), &sid));
-  ASSERT_EQ(S_OK, SetUserProperty(OLE2CW(sid), kUserId,
+                      std::wstring(), sid.Receive()));
+  ASSERT_EQ(S_OK, SetUserProperty(sid.Get(), kUserId,
                                   base::UTF8ToWide(base_gaia_id)));
 
   for (int i = 0; i < last_user_index; ++i) {
     std::string user_suffix =
         base::NumberToString(i + kInitialDuplicateUsernameIndex);
+    sid.Reset();
     ASSERT_EQ(S_OK, fake_os_user_manager()->CreateTestOSUser(
                         (base_username + base::UTF8ToWide(user_suffix)).c_str(),
                         L"password", L"name", L"comment",
                         should_associate ? GaiaId(base_gaia_id + user_suffix)
                                          : GaiaId(),
-                        std::wstring(), &sid));
+                        std::wstring(), sid.Receive()));
   }
 
   ASSERT_EQ(static_cast<size_t>(1 + last_user_index + 1),
@@ -330,7 +328,7 @@ TEST_P(GcpAssociatedUserRunnableGaiaCredentialTest,
         (base_username + base::NumberToWString(last_user_index +
                                                kInitialDuplicateUsernameIndex))
             .c_str(),
-        OLE2CW(test->GetFinalUsername()));
+        test->GetFinalUsername());
     // New user should be created.
     EXPECT_EQ(static_cast<size_t>(last_user_index + 2 + 1),
               fake_os_user_manager()->GetUserCount());

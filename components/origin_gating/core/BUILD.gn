@@ -10,6 +10,8 @@ source_set("core") {
     "origin_gating_cache.h",
     "origin_gating_checker.cc",
     "origin_gating_checker.h",
+    "origin_gating_configuration.cc",
+    "origin_gating_configuration.h",
     "types.h",
   ]
 
@@ -25,6 +27,7 @@ source_set("unit_tests") {
   sources = [
     "origin_gating_cache_unittest.cc",
     "origin_gating_checker_unittest.cc",
+    "origin_gating_configuration_unittest.cc",
   ]
 
   deps = [

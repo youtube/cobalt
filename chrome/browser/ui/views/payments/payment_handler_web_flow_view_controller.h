@@ -91,6 +91,7 @@ class PaymentHandlerWebFlowViewController
       bool* was_blocked) override;
   bool HandleKeyboardEvent(content::WebContents* source,
                            const input::NativeWebKeyboardEvent& event) override;
+  void CloseContents(content::WebContents* source) override;
 
   // content::WebContentsObserver:
   void DidFinishNavigation(

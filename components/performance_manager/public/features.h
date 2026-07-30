@@ -100,6 +100,11 @@ BASE_DECLARE_FEATURE_PARAM(int, kNotificationStringVersion);
 
 #endif
 
+// When enabled, LevelDBSiteDataStore uses BEST_EFFORT priority for its task
+// runner instead of the default USER_BLOCKING, to reduce thread pool contention
+// during startup.
+BASE_DECLARE_FEATURE(kLevelDBSiteDataStoreBestEffort);
+
 // Enable best effort task inhibiting based on performance scenario information.
 BASE_DECLARE_FEATURE(kEnableBestEffortTaskInhibitingPolicy);
 BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kBestEffortTaskInhibitingPeriod);
@@ -256,6 +261,11 @@ BASE_DECLARE_FEATURE(kDisableTabDiscarding);
 BASE_DECLARE_FEATURE(kUseLoadingStateToDetectBackgroundTitleOrFaviconUpdate);
 
 BASE_DECLARE_FEATURE(kGlicActuationPriorityVoter);
+
+// When enabled, ignores kMediaQueryChange favicon updates (e.g.
+// prefers-color-scheme toggles) when determining whether a background tab
+// updated its favicon.
+BASE_DECLARE_FEATURE(kIgnoreMediaQueryFaviconUpdates);
 
 }  // namespace performance_manager::features
 

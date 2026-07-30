@@ -481,6 +481,28 @@ def _speedometer3_turbolev_future_crossbench(estimated_runtime: int = 60,
       flags=flags,
   )
 
+
+@_register('speedometer_main.crossbench')
+def _speedometer_main_crossbench(estimated_runtime: int = 60,
+                                 flags: tuple[str, ...] = ()):
+  """The latest WIP speedometer version running all stories."""
+  return CrossbenchConfig('speedometer_main.crossbench',
+                          'speedometer_main',
+                          estimated_runtime=estimated_runtime,
+                          flags=('--detailed-metrics', *flags))
+
+
+@_register('speedometer_main.all.crossbench')
+def _speedometer_main_all_crossbench(estimated_runtime: int = 60,
+                                     flags: tuple[str, ...] = ()):
+  """The latest WIP speedometer version running all stories,
+  including experimental"""
+  return CrossbenchConfig('speedometer_main.all.crossbench',
+                          'speedometer_main',
+                          estimated_runtime=estimated_runtime,
+                          flags=('--stories=all', '--detailed-metrics', *flags))
+
+
 @_register('browser_startup.crossbench')
 def _browser_startup_crossbench(estimated_runtime: int = 60,
                                 flags: tuple[str, ...] = ()):
@@ -505,15 +527,6 @@ def _browser_startup_crossbench(estimated_runtime: int = 60,
                           flags=(f'--enable-features={INITIAL_WEBUI_FEATURES}',
                                  *flags))
 
-
-@_register('speedometer_main.crossbench')
-def _speedometer_main_crossbench(estimated_runtime: int = 60,
-                                 flags: tuple[str, ...] = ()):
-  # The latest WIP speedometer version
-  return CrossbenchConfig('speedometer_main.crossbench',
-                          'speedometer_main',
-                          estimated_runtime=estimated_runtime,
-                          flags=('--detailed-metrics', *flags))
 
 
 @_register('speedometer3.a11y.crossbench')

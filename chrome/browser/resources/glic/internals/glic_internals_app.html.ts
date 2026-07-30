@@ -88,6 +88,69 @@ export function getHtml(this: GlicInternalsAppElement) {
         </tr>
       </table>` :
       html`<h3 id="loadingMsg">Loading...</h3>`}
+    <h2>Tiered Rollout / User Tier</h2>
+    ${this.data_?.tieredRolloutInfo ? html`
+      <table>
+        <tr>
+          <th>Property</th>
+          <th>Value</th>
+        </tr>
+        <tr>
+          <td>AI Subscription Tier</td>
+          <td>${this.data_.tieredRolloutInfo.aiSubscriptionTier === null ?
+              'N/A (No Service or Not Logged In)' :
+              this.data_.tieredRolloutInfo.aiSubscriptionTier}</td>
+        </tr>
+        <tr>
+          <td>Preference Sync Status (Server Fetch)</td>
+          <td>${this.data_.tieredRolloutInfo.preferenceSyncStatus}</td>
+        </tr>
+        <tr>
+          <td>Is Eligible for Tiered Rollout V1 (C++)</td>
+          <td class="status-${
+              this.data_.tieredRolloutInfo.isEligibleForTieredRolloutV1}">
+            ${
+              this.data_.tieredRolloutInfo.isEligibleForTieredRolloutV1 ? '✅' :
+                                                                          '🚫'}
+          </td>
+        </tr>
+        <tr>
+          <td>Is Eligible for Tiered Rollout V2 (C++)</td>
+          <td class="status-${
+              this.data_.tieredRolloutInfo.isEligibleForTieredRolloutV2}">
+            ${
+              this.data_.tieredRolloutInfo.isEligibleForTieredRolloutV2 ? '✅' :
+                                                                          '🚫'}
+          </td>
+        </tr>
+        <tr>
+          <td>Is Eligible Overall (C++)</td>
+          <td class="status-${
+              this.data_.tieredRolloutInfo.isEligibleOverall}">
+            ${
+              this.data_.tieredRolloutInfo.isEligibleOverall ? '✅' :
+                                                               '🚫'}
+          </td>
+        </tr>
+        <tr>
+          <td>Rollout Eligibility Pref (kGlicRolloutEligibility)</td>
+          <td class="status-${
+              this.data_.tieredRolloutInfo.glicRolloutEligibilityPref}">
+            ${
+              this.data_.tieredRolloutInfo.glicRolloutEligibilityPref ? '✅' :
+                                                                        '🚫'}
+          </td>
+        </tr>
+        <tr>
+          <td>Eligible Tiers for V2 Rollout (Param)</td>
+          <td>
+            ${
+              this.data_.tieredRolloutInfo.tieredRolloutV2EligibleTiers ||
+              'None'}
+          </td>
+        </tr>
+      </table>` :
+      html`<h3 id="loadingMsg">Loading...</h3>`}
     <h2>Configuration</h2>
     ${this.data_?.config ? html`
       <table>

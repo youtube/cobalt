@@ -1,0 +1,65 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef SERVICES_AUDIO_VOICE_ISOLATION_HANDLER_H_
+#define SERVICES_AUDIO_VOICE_ISOLATION_HANDLER_H_
+
+#include <memory>
+#include <optional>
+
+#include "base/functional/callback.h"
+#include "base/time/time.h"
+#include "media/base/audio_glitch_info.h"
+
+namespace media {
+class AudioBus;
+class AudioParameters;
+class VoiceIsolation;
+}  // namespace media
+
+namespace audio {
+
+// Encapsulates the voice isolation capability in the audio service.
+//
+// VoiceIsolationHandler manages routing captured audio through a voice
+// isolation pipeline. Currently, it is a pass-through wrapper that forwards
+// the audio and its metadata directly, serving as a placeholder for the
+// voice isolation implementation.
+class VoiceIsolationHandler {
+ public:
+  using DeliverProcessedAudioCallback = base::RepeatingCallback<void(
+      const media::AudioBus& audio_bus,
+      base::TimeTicks audio_capture_time,
+      std::optional<double> new_volume,
+      const media::AudioGlitchInfo& audio_glitch_info)>;
+
+  explicit VoiceIsolationHandler(
+      std::unique_ptr<media::VoiceIsolation> voice_isolation,
+      const media::AudioParameters& output_params,
+      DeliverProcessedAudioCallback deliver_processed_audio_callback);
+
+  VoiceIsolationHandler(const VoiceIsolationHandler&) = delete;
+  VoiceIsolationHandler& operator=(const VoiceIsolationHandler&) = delete;
+
+  ~VoiceIsolationHandler();
+
+  // Processes the captured audio.
+  //
+  // Currently, it acts as a pass-through wrapper and forwards the audio and
+  // metadata directly to the final destination callback.
+  // Called on the capture/processing thread.
+  void ProcessCapturedAudio(const media::AudioBus& audio_source,
+                            base::TimeTicks audio_capture_time,
+                            std::optional<double> volume,
+                            const media::AudioGlitchInfo& audio_glitch_info);
+
+ private:
+  const std::unique_ptr<media::VoiceIsolation> voice_isolation_;
+  const DeliverProcessedAudioCallback deliver_processed_audio_callback_;
+  std::unique_ptr<media::AudioBus> output_bus_;
+};
+
+}  // namespace audio
+
+#endif  // SERVICES_AUDIO_VOICE_ISOLATION_HANDLER_H_

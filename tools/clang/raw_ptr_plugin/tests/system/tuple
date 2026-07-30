@@ -1,0 +1,22 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef TOOLS_CLANG_RAW_PTR_PLUGIN_TESTS_SYSTEM_TUPLE_
+#define TOOLS_CLANG_RAW_PTR_PLUGIN_TESTS_SYSTEM_TUPLE_
+
+namespace std {
+
+template<typename... Types>
+struct tuple {
+  tuple();
+  tuple(const tuple&);
+  tuple(tuple&&);
+  ~tuple();
+  tuple& operator=(const tuple&);
+  tuple& operator=(tuple&&);
+};
+
+}  // namespace std
+
+#endif  // TOOLS_CLANG_RAW_PTR_PLUGIN_TESTS_SYSTEM_TUPLE_

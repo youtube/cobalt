@@ -7,16 +7,11 @@
 #include <algorithm>
 #include <memory>
 
-#include "base/feature_list.h"
-#include "base/functional/callback.h"
 #include "chrome/browser/ui/views/autofill/popup/popup_base_view.h"
 #include "chrome/browser/ui/views/autofill/popup/popup_row_view.h"
-#include "chrome/browser/ui/views/autofill/popup/popup_view_utils.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
-#include "components/autofill/core/common/autofill_features.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/views/background.h"
-#include "ui/views/controls/label.h"
 
 namespace autofill {
 

@@ -7,7 +7,7 @@
 #include "base/check.h"
 #include "base/types/expected.h"
 #include "components/browser_apis/tab_drag/adapters/tab_drag_window_adapter.h"
-#include "components/browser_apis/tab_drag/sessions/drop_target_registry.h"
+#include "components/browser_apis/tab_drag/destinations/drop_target_registry.h"
 #include "components/browser_apis/tab_drag/sessions/tab_drag_session_injector.h"
 #include "components/browser_apis/tab_drag/sessions/tab_drag_session_manager.h"
 #include "mojo/public/mojom/base/error.mojom.h"

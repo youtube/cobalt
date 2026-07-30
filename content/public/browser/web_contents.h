@@ -74,7 +74,7 @@ namespace base {
 class FilePath;
 }  // namespace base
 namespace perfetto {
-class NamedTrack;
+struct Track;
 }  // namespace perfetto
 
 namespace blink {
@@ -475,7 +475,7 @@ class WebContents : public PageNavigator, public base::SupportsUserData {
 
   // Returns a tracing track to use as a grouping parent. Do not emit directly
   // events to this track.
-  virtual const perfetto::NamedTrack& GetTracingTrack() const = 0;
+  virtual const perfetto::Track& GetTracingTrack() const = 0;
 
   // Returns true if the WebContents is never user-visible and thus never need
   // to generate pixels for display.

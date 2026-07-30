@@ -10,7 +10,12 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
 #include "base/strings/utf_string_conversions.h"
+#include "chrome/browser/android/tab_android.h"
+#include "chrome/browser/android/tab_features.h"
+#include "chrome/browser/enterprise/data_controls/chrome_rules_service.h"
 #include "chrome/browser/enterprise/data_protection/data_protection_clipboard_utils.h"
+#include "chrome/browser/enterprise/data_protection/data_protection_navigation_controller.h"
+#include "chrome/browser/profiles/profile.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/clipboard_types.h"
 #include "content/public/browser/render_frame_host.h"
@@ -110,6 +115,37 @@ void VerifyGenericCopyActionIsAllowedByPolicy(
 
 }  // namespace
 
+static bool JNI_DataProtectionBridge_HasBlockingScreenshotRule(
+    JNIEnv* env,
+    Profile* profile) {
+  if (!profile) {
+    return false;
+  }
+
+  data_controls::ChromeRulesService* rules_service =
+      data_controls::ChromeRulesServiceFactory::GetInstance()
+          ->GetForBrowserContext(profile);
+  if (!rules_service) {
+    return false;
+  }
+
+  return rules_service->HasBlockingScreenshotRule();
+}
+
+static bool JNI_DataProtectionBridge_IsScreenshotAllowed(JNIEnv* env,
+                                                         TabAndroid* tab) {
+  if (!tab) {
+    return true;
+  }
+
+  enterprise_data_protection::DataProtectionNavigationController* controller =
+      tab->GetTabFeatures()->data_protection_controller();
+  if (!controller) {
+    return true;
+  }
+
+  return controller->screenshot_allowed();
+}
 // TODO(crbug.com/387484337) Add instrumentation tests
 static void JNI_DataProtectionBridge_VerifyCopyTextIsAllowedByPolicy(
     JNIEnv* env,

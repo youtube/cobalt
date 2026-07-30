@@ -119,8 +119,10 @@ IOSChromeActorLoginDelegateClient::CreateSiwgController(
 }
 
 bool IOSChromeActorLoginDelegateClient::IsTaskInFocus() {
-  // TODO(crbug.com/496662229): Implement.
-  return false;
+  // TODO(crbug.com/496662229): Take into account the case when the web state is
+  // not active, but a task is actuating on this web state and the task card is
+  // visible.
+  return web_state_->IsVisible();
 }
 
 bool IOSChromeActorLoginDelegateClient::SupportsFedCmEmbedderInitiatedLogin() {

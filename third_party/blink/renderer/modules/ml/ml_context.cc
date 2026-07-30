@@ -420,11 +420,6 @@ MLGraphBuilder* MLContext::CreateWebNNGraphBuilder(
 
   // The GPU/browser side decides whether a Compiler process is used; the
   // branches below only route the receiver per that decision.
-  //
-  // TODO(crbug.com/519254890): A compromised renderer could bypass the
-  // Compiler process by sending CreateGraphBuilder directly to context_remote_.
-  // Add GPU-side enforcement to reject this when the Compiler process is
-  // enabled.
   mojo::PendingRemote<webnn::mojom::blink::WebNNGraphBuilder> pending_remote;
   if (compiler_context_remote_.is_bound()) {
     compiler_context_remote_->CreateGraphBuilder(

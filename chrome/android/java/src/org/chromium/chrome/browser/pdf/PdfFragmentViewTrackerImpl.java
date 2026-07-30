@@ -100,7 +100,8 @@ public class PdfFragmentViewTrackerImpl implements PdfFragmentViewTracker {
         }
     }
 
-    private @Nullable View removeViewWithTag(String tag) {
+    @Override
+    public @Nullable View removeViewWithTag(String tag) {
         for (int i = mPdfFragmentViews.size() - 1; i >= 0; i--) {
             View child = mPdfFragmentViews.get(i);
             if (TextUtils.equals(tag, String.valueOf(child.getTag()))) {

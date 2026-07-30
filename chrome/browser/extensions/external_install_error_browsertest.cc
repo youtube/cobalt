@@ -118,8 +118,7 @@ IN_PROC_BROWSER_TEST_F(ExternalInstallErrorTest,
   ASSERT_EQ(1u, errors.size());
   EXPECT_EQ(kId, errors[0]->extension_id());
 
-  ExtensionInstallPrompt::Prompt* alert_prompt =
-      errors[0]->GetPromptForTesting();
+  InstallPromptData* alert_prompt = errors[0]->GetPromptForTesting();
   ASSERT_TRUE(alert_prompt);
 
   // Validate that the alert prompt's data corresponds to what is returned from
@@ -150,8 +149,7 @@ IN_PROC_BROWSER_TEST_F(ExternalInstallErrorTest,
   ASSERT_EQ(1u, errors.size());
   EXPECT_EQ(kId, errors[0]->extension_id());
 
-  ExtensionInstallPrompt::Prompt* alert_prompt =
-      errors[0]->GetPromptForTesting();
+  InstallPromptData* alert_prompt = errors[0]->GetPromptForTesting();
   ASSERT_TRUE(alert_prompt);
 
   // Validate that the alert prompt's data corresponds to what is returned from
@@ -185,8 +183,7 @@ IN_PROC_BROWSER_TEST_F(ExternalInstallErrorTest,
       ExternalInstallManager::Get(profile())->GetErrorsForTesting();
   ASSERT_EQ(1u, errors.size());
   EXPECT_EQ(kId, errors[0]->extension_id());
-  ExtensionInstallPrompt::Prompt* alert_prompt =
-      errors[0]->GetPromptForTesting();
+  InstallPromptData* alert_prompt = errors[0]->GetPromptForTesting();
   ASSERT_TRUE(alert_prompt);
 
   // Expect the provider-aware initial-install title.
@@ -224,8 +221,7 @@ IN_PROC_BROWSER_TEST_F(ExternalInstallErrorTest,
       ExternalInstallManager::Get(profile())->GetErrorsForTesting();
   ASSERT_EQ(1u, errors.size());
   EXPECT_EQ(kId, errors[0]->extension_id());
-  ExtensionInstallPrompt::Prompt* alert_prompt =
-      errors[0]->GetPromptForTesting();
+  InstallPromptData* alert_prompt = errors[0]->GetPromptForTesting();
   ASSERT_TRUE(alert_prompt);
 
   const Extension* extension = alert_prompt->extension();

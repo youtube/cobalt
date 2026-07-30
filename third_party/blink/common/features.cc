@@ -494,6 +494,11 @@ BASE_FEATURE(kCreateImageBitmapOrientationNone,
 BASE_FEATURE(kDeclarativeCSSModulesUseDataURI,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE_PARAM(bool,
+                   kDeclarativePerformanceObserverSupportCaptureEarlyFailures,
+                   &kDeclarativePerformanceObserver,
+                   true);
+
 BASE_FEATURE(kDataUrlWorkerOpaqueOrigin, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, HTMLTreeBuilder::Flush() will be throttled in kTextMode
@@ -2310,7 +2315,12 @@ BASE_FEATURE(kScrollPredictorFilteringBypassOnSynthetic,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kScrollPredictorRefinedHasPrediction,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_ANDROID)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
 
 BASE_FEATURE(kScrollPredictorSyntheticKalman,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -2633,6 +2643,13 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    base::Hertz(10));
 
 BASE_FEATURE(kVSyncEncoding, base::FEATURE_DISABLED_BY_DEFAULT);
+
+#if BUILDFLAG(IS_ANDROID)
+bool IsVirtualKeyboardGeometryAndInsetFixesEnabled() {
+  return base::FeatureList::IsEnabled(
+      base::features::kVirtualKeyboardGeometryAndInsetFixes);
+}
+#endif
 
 // Server-side kill switch for applying the local VisualViewport transform
 // (page scale + visual viewport location) when mapping visual rects into

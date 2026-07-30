@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <sstream>
+#include <utility>
 
 #include "base/scoped_observation.h"
 #include "base/strings/stringprintf.h"
@@ -823,7 +824,7 @@ IN_PROC_BROWSER_TEST_F(GlicUiConnectedUiTest, AccessDeniedAdminWithoutLink) {
       OpenGlic(GlicInstrumentMode::kHostOnly), InAnyContext(Do([&]() {
         browser()->profile()->GetPrefs()->SetInteger(
             ::prefs::kGeminiSettings,
-            static_cast<int>(glic::prefs::SettingsPolicyState::kDisabled));
+            std::to_underlying(glic::prefs::SettingsPolicyState::kDisabled));
       })),
 
       InAnyContext(WaitForElementVisible(

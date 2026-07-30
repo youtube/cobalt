@@ -32,6 +32,7 @@ source_set("search_preload") {
     "//chrome/browser/search_engines",
     "//components/omnibox/browser",
     "//components/omnibox/browser:mojo_bindings",
+    "//components/pref_registry",
     "//components/search_engines",
   ]
 }

@@ -320,8 +320,25 @@ constexpr auto kPageActionProperties = base::MakeFixedFlatMap<
             .element_identifier = kAutofillPaymentIconElementId,
         },
     },
+    {
+        kActionShowPaymentsChurnedUsersBubble,
+        {
+            .histogram_name = "PaymentsChurnedUsers",
+            .type = PageActionIconType::kPaymentsChurnedUsers,
+            .element_identifier = kPaymentsChurnedUsersBubbleId,
+        },
+    },
+    {
+        kActionFakePageActionForDebug,
+        {
+            .histogram_name = "FakePageActionForDebug",
+            .type = PageActionIconType::kFakePageActionForDebug,
+            .priority =
+                page_actions::PageActionPriorityCategory::kUserInteraction,
+        },
+    },
 });
-// LINT.ThenChange(//components/browser_apis/ui_controllers/toolbar/toolbar_ui_api_data_model.mojom:PageActionId)
+// LINT.ThenChange(//components/browser_apis/ui_controllers/toolbar/toolbar_ui_api_data_model.mojom:PageActionId,//chrome/browser/ui/page_action/action_ids.h:kActionIds)
 
 constexpr bool CheckIgnoreFlagUsage() {
   for (const auto& [action_id, properties] : kPageActionProperties) {

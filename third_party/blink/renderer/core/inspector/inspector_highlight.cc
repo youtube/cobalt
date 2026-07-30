@@ -1118,7 +1118,7 @@ std::unique_ptr<protocol::ListValue> BuildGridLineNamesInfo(
       const String& name = item.key;
 
       for (const wtf_size_t index : item.value) {
-        if (index < 0 || index >= positions.size()) {
+        if (index >= positions.size()) {
           continue;
         }
         const LayoutUnit track =
@@ -1239,8 +1239,8 @@ String GetWritingMode(const ComputedStyle& computed_style) {
 // Gets the list of authored track size values resolving repeat() functions
 // and skipping line names.
 Vector<String> GetAuthoredGridTrackSizes(const CSSValue* value,
-                                         size_t auto_repeat_count,
-                                         size_t track_count) {
+                                         wtf_size_t auto_repeat_count,
+                                         wtf_size_t track_count) {
   Vector<String> result;
 
   if (!value)

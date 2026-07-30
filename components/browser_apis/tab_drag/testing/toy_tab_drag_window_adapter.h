@@ -58,14 +58,24 @@ class ToyTabDragWindowAdapter : public TabDragWindowAdapter {
 
   DragMoveLoopResult RunWindowMoveLoop(
       const gfx::Point& screen_point,
-      const gfx::Vector2d& drag_offset) override {
+      const gfx::Vector2d& drag_offset,
+      WindowMoveCallback move_callback) override {
     run_window_move_loop_called_ = true;
     last_move_loop_point_ = screen_point;
     last_move_loop_offset_ = drag_offset;
+
+    loop_ended_ = false;
+    for (const auto& move_point : simulated_moves_) {
+      if (loop_ended_) {
+        break;
+      }
+      move_callback.Run(move_point);
+    }
+
     return run_window_move_loop_result_;
   }
 
-  void EndWindowMoveLoop() override {}
+  void EndWindowMoveLoop() override { loop_ended_ = true; }
 
   base::expected<void, mojo_base::mojom::ErrorPtr> MigrateTabs(
       TabDragWindowId target_window_id,
@@ -103,6 +113,9 @@ class ToyTabDragWindowAdapter : public TabDragWindowAdapter {
   void set_run_window_move_loop_result(DragMoveLoopResult result) {
     run_window_move_loop_result_ = result;
   }
+  void set_simulated_moves(std::vector<gfx::Point> moves) {
+    simulated_moves_ = std::move(moves);
+  }
 
  private:
   size_t tab_count_ = 2;
@@ -123,6 +136,8 @@ class ToyTabDragWindowAdapter : public TabDragWindowAdapter {
   gfx::Vector2d last_move_loop_offset_;
   DragMoveLoopResult run_window_move_loop_result_ =
       DragMoveLoopResult::kSuccess;
+  std::vector<gfx::Point> simulated_moves_;
+  bool loop_ended_ = false;
 };
 
 }  // namespace tabs_api

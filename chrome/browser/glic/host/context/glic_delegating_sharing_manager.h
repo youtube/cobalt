@@ -77,6 +77,7 @@ class GlicDelegatingSharingManagerBase : public GlicSharingManagerInternal {
   int32_t GetMaxPinnedTabs() const override;
   int32_t GetNumPinnedTabs() const override;
   bool IsTabPinned(tabs::TabHandle tab_handle) const override;
+  bool IsTabShared(tabs::TabInterface* tab) const override;
   bool IsTabFocused(tabs::TabHandle tab_handle) const override;
   int32_t SetMaxPinnedTabs(uint32_t max_pinned_tabs) override;
   std::vector<tabs::TabInterface*> GetPinnedTabs() const override;

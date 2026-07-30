@@ -84,7 +84,7 @@ class CertificateViewerUITest : public WebUIMochaBrowserTest {
       std::optional<
           chrome_browser_server_certificate_database::CertificateMetadata>
           cert_metadata) {
-    if (!browser() || !browser()->window()) {
+    if (!browser() || !browser()->GetWindow()) {
       return nullptr;
     }
 

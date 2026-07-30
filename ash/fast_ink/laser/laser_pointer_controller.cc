@@ -14,6 +14,7 @@
 #include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
+#include "base/time/time.h"
 #include "ui/display/screen.h"
 #include "ui/events/base_event_utils.h"
 #include "ui/events/types/event_type.h"
@@ -24,17 +25,22 @@ namespace ash {
 namespace {
 
 // A point gets removed from the collection if it is older than
-// |kPointLifeDurationMs|.
-const int kPointLifeDurationMs = 200;
+// |kPointLifeDuration|.
+constexpr base::TimeDelta kPointLifeDuration = base::Milliseconds(200);
 
 // When no move events are being received we add a new point every
-// |kAddStationaryPointsDelayMs| so that points older than
-// |kPointLifeDurationMs| can get removed.
+// |kAddStationaryPointsDelay| so that points older than
+// |kPointLifeDuration| can get removed.
 // Note: Using a delay less than the screen refresh interval will not
 // provide a visual benefit but instead just waste time performing
 // unnecessary updates. 16ms is the refresh interval on most devices.
 // TODO(reveman): Use real VSYNC interval instead of a hard-coded delay.
-const int kAddStationaryPointsDelayMs = 16;
+constexpr base::TimeDelta kAddStationaryPointsDelay = base::Milliseconds(16);
+
+// The laser pointer will remain alive for `kKeepAliveDuration` after a fade
+// out is completed. Meanwhile if a new gesture is started, the timer is stopped
+// so that laser_pointer_view is reused to paint the new gesture.
+constexpr base::TimeDelta kKeepAliveDuration = base::Seconds(30);
 
 }  // namespace
 
@@ -120,8 +126,7 @@ void LaserPointerController::CreatePointerView(
     base::TimeDelta presentation_delay,
     aura::Window* root_window) {
   laser_pointer_view_widget_ = LaserPointerView::Create(
-      base::Milliseconds(kPointLifeDurationMs), presentation_delay,
-      base::Milliseconds(kAddStationaryPointsDelayMs),
+      kPointLifeDuration, presentation_delay, kAddStationaryPointsDelay,
       Shell::GetContainer(root_window, kShellWindowId_OverlayContainer));
 
   DCHECK(!root_window_observation_.IsObserving());
@@ -152,7 +157,9 @@ void LaserPointerController::UpdatePointerView(ui::TouchEvent* event) {
   if (event->type() == ui::EventType::kTouchReleased ||
       event->type() == ui::EventType::kTouchCancelled) {
     laser_pointer_view->FadeOut(base::BindOnce(
-        &LaserPointerController::DestroyPointerView, base::Unretained(this)));
+        &LaserPointerController::OnFadeOutComplete, base::Unretained(this)));
+  } else {
+    keep_alive_timer_.Stop();
   }
 }
 
@@ -177,14 +184,29 @@ void LaserPointerController::UpdatePointerView(ui::MouseEvent* event) {
                                   event->time_stamp());
   if (event->type() == ui::EventType::kMouseReleased) {
     laser_pointer_view->FadeOut(base::BindOnce(
-        &LaserPointerController::DestroyPointerView, base::Unretained(this)));
+        &LaserPointerController::OnFadeOutComplete, base::Unretained(this)));
+  } else {
+    keep_alive_timer_.Stop();
   }
+}
+
+void LaserPointerController::OnFadeOutComplete() {
+  keep_alive_timer_.Start(FROM_HERE, kKeepAliveDuration, this,
+                          &LaserPointerController::DestroyPointerView);
 }
 
 void LaserPointerController::DestroyPointerView() {
   FastInkPointerController::DestroyPointerView();
+  keep_alive_timer_.Stop();
   root_window_observation_.Reset();
   laser_pointer_view_widget_.reset();
+}
+
+void LaserPointerController::ResetPointerView() {
+  FastInkPointerController::ResetPointerView();
+  if (LaserPointerView* view = GetLaserPointerView()) {
+    view->Reset();
+  }
 }
 
 bool LaserPointerController::CanStartNewGesture(ui::LocatedEvent* event) {

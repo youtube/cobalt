@@ -4,6 +4,8 @@
 
 #include "chrome/browser/glic/host/context/glic_share_image_handler.h"
 
+#include <utility>
+
 #include "base/memory/raw_ptr.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "chrome/browser/glic/glic_metrics.h"
@@ -94,8 +96,8 @@ class GlicShareImageHandlerTest : public testing::Test {
   void SetFreCompletion(bool completed) {
     profile_->GetPrefs()->SetInteger(
         glic::prefs::kGlicCompletedFre,
-        static_cast<int>(completed ? glic::prefs::FreStatus::kCompleted
-                                   : glic::prefs::FreStatus::kNotStarted));
+        std::to_underlying(completed ? glic::prefs::FreStatus::kCompleted
+                                     : glic::prefs::FreStatus::kNotStarted));
   }
 
   void SetTabHandle(tabs::TabHandle handle) { handler_->tab_handle_ = handle; }

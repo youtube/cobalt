@@ -70,6 +70,19 @@ class AppShimRegistry {
     kMaxValue = kEncryptionFailed,
   };
 
+  // The result of verifying the code directory hash for an app.
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  enum class VerifyCdHashResult {
+    kSuccess = 0,
+    kNoAppInfo = 1,
+    kNoCdHash = 2,
+    kDecodeFailure = 3,
+    kUnexpectedSize = 4,
+    kVerificationFailed = 5,
+    kMaxValue = kVerificationFailed,
+  };
+
   AppShimRegistry(const AppShimRegistry& other) = delete;
   AppShimRegistry& operator=(const AppShimRegistry& other) = delete;
 

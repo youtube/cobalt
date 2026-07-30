@@ -76,7 +76,8 @@ void ContextHubPageHandler::OnAutoTodosGenerated(
   std::move(callback).Run(std::move(mojo_todos));
 }
 
-void ContextHubPageHandler::GetAllEntries(GetAllEntriesCallback callback) {
+void ContextHubPageHandler::GetAllMemoryBankEntries(
+    GetAllMemoryBankEntriesCallback callback) {
   auto* service = ContextHubServiceFactory::GetForProfile(profile_);
   if (!service) {
     std::move(callback).Run({});
@@ -84,7 +85,7 @@ void ContextHubPageHandler::GetAllEntries(GetAllEntriesCallback callback) {
   }
 
   service->GetAllEntries(base::BindOnce(
-      [](GetAllEntriesCallback callback,
+      [](GetAllMemoryBankEntriesCallback callback,
          std::vector<context_hub::MemoryBankEntry> entries) {
         std::vector<browser::context_hub::mojom::MemoryBankEntryPtr>
             mojo_entries;
@@ -110,4 +111,16 @@ void ContextHubPageHandler::GetAllEntries(GetAllEntriesCallback callback) {
         std::move(callback).Run(std::move(mojo_entries));
       },
       std::move(callback)));
+}
+
+void ContextHubPageHandler::DeleteMemoryBankEntries(
+    const std::vector<int64_t>& ids,
+    DeleteMemoryBankEntriesCallback callback) {
+  auto* service = ContextHubServiceFactory::GetForProfile(profile_);
+  if (!service) {
+    std::move(callback).Run();
+    return;
+  }
+
+  service->DeleteEntries(ids, std::move(callback));
 }

@@ -99,10 +99,6 @@ namespace version_info {
 enum class Channel;
 }
 
-namespace accessibility_annotator {
-class AtMemoryQueryService;
-}
-
 namespace personal_context {
 enum class PersonalContextEnablementState;
 class PersonalContextEnablementService;
@@ -121,6 +117,7 @@ namespace autofill {
 class ActorKeyMetricsRecorder;
 class AutofillManager;
 class AddressNormalizer;
+class AtMemoryQueryService;
 class AutocompleteHistoryManager;
 class AutofillAblationStudy;
 class AutofillAiManager;
@@ -269,7 +266,8 @@ class AutofillClient {
   // Required arguments to create a dropdown showing autofill suggestions.
   struct PopupOpenArgs {
     PopupOpenArgs();
-    PopupOpenArgs(const gfx::RectF& element_bounds,
+    PopupOpenArgs(LocalFrameToken frame_token,
+                  const gfx::RectF& element_bounds,
                   base::i18n::TextDirection text_direction,
                   std::vector<Suggestion> suggestions,
                   AutofillSuggestionTriggerSource trigger_source,
@@ -282,6 +280,9 @@ class AutofillClient {
     PopupOpenArgs& operator=(const PopupOpenArgs&);
     PopupOpenArgs& operator=(PopupOpenArgs&&);
     ~PopupOpenArgs();
+    // The frame in which the popup is anchored. Typically this is the frame of
+    // the field on which the user triggered Autofill.
+    LocalFrameToken frame_token;
     // TODO(crbug.com/340817507): Update this member name since bounds can now
     // refer to the caret bounds and elements gives the idea of HTML elements
     // only.
@@ -435,10 +436,16 @@ class AutofillClient {
 
   // Returns true if Autofill suggestions should include the Personal Context
   // notice.
-  virtual bool ShouldShowPersonalContextAutofillNotice() const;
+  virtual bool ShouldShowPersonalContextAmbientAutofillNotice() const;
 
   // Marks the Personal Context notice as acknowledged.
-  virtual void MarkPersonalContextInAutofillNoticeAsAcknowledged();
+  virtual void MarkPersonalContextAmbientAutofillNoticeAsAcknowledged();
+
+  // Returns true if AtMemory UI should include the Personal Context notice.
+  virtual bool ShouldShowPersonalContextAtMemoryNotice() const;
+
+  // Marks the AtMemory Personal Context notice as acknowledged.
+  virtual void MarkPersonalContextAtMemoryNoticeAsAcknowledged();
 
   // Gets the AutocompleteHistoryManager instance associated with the client.
   virtual AutocompleteHistoryManager* GetAutocompleteHistoryManager() = 0;
@@ -488,8 +495,7 @@ class AutofillClient {
 
   // Returns the `AtMemoryQueryService` associated with the profile of
   // the window of this tab.
-  virtual accessibility_annotator::AtMemoryQueryService*
-  GetAtMemoryQueryService();
+  virtual AtMemoryQueryService* GetAtMemoryQueryService();
 
   // Returns the enablement state of the Accessibility Annotator.
   // TODO(crbug.com/524193567) Delete this method once all the invocations are
@@ -552,6 +558,9 @@ class AutofillClient {
 
   // Returns the last committed url of the primary main frame.
   virtual const GURL& GetLastCommittedPrimaryMainFrameURL() const = 0;
+
+  // Returns the title of the current page.
+  virtual std::u16string_view GetPageTitle() const = 0;
 
   // Returns the last committed origin of the primary main frame.
   virtual url::Origin GetLastCommittedPrimaryMainFrameOrigin() const = 0;
@@ -776,7 +785,7 @@ class AutofillClient {
 
   // Returns true if the device supports any kind of re-auth through the
   // `GetDeviceAuthenticator()`.
-  bool SupportsDeviceReauth() const;
+  virtual bool SupportsDeviceReauth() const;
 
   // Attaches the IPH for `feature` to the `field`, on
   // platforms that it. If another IPH has been shown for the tab, the IPH is

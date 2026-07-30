@@ -32,6 +32,7 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_entropy_provider.h"
 #include "base/test/scoped_feature_list.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -39,6 +40,7 @@ namespace base {
 namespace {
 
 using ::base::internal::RuntimeMutabilityResult;
+using ::testing::ElementsAre;
 
 constexpr char kFeatureOnByDefaultName[] = "OnByDefault";
 BASE_FEATURE(kFeatureOnByDefault,
@@ -97,6 +99,23 @@ BASE_FEATURE_PARAM(int,
                    kRuntimeMutableFeatureParam,
                    &kRuntimeMutableFeature,
                    12345);
+
+// For testing features with country restrictions.
+BASE_FEATURE_WITH_COUNTRY_RESTRICTIONS(kCountryEnabledEuropeFeature,
+                                       FEATURE_ENABLED_FOR_COUNTRIES,
+                                       "de",
+                                       "gb");
+BASE_FEATURE_WITH_COUNTRY_RESTRICTIONS(kCountryDisabledNorthAmericaFeature,
+                                       FEATURE_DISABLED_FOR_COUNTRIES,
+                                       "us",
+                                       "ca",
+                                       "mx");
+BASE_FEATURE_WITH_COUNTRY_RESTRICTIONS(kCountryEnabledAsiaFeature,
+                                       FEATURE_ENABLED_FOR_COUNTRIES,
+                                       "jp",
+                                       "kr",
+                                       "cn",
+                                       "in");
 
 constexpr std::string_view kRuntimeMutabilityResult =
     "Variations.RuntimeMutability.Result";
@@ -169,6 +188,69 @@ TEST_F(FeatureListTest, TwoArgMacro) {
   EXPECT_STREQ("Feature2ArgsOn", kFeature2ArgsOn.name);
   EXPECT_STREQ("Feature2ArgsOff", kFeature2ArgsOff.name);
 }
+
+TEST_F(FeatureListTest, CountryRestrictedFeatures) {
+  EXPECT_EQ(FEATURE_ENABLED_FOR_COUNTRIES,
+            kCountryEnabledEuropeFeature.default_state);
+  EXPECT_THAT(kCountryEnabledEuropeFeature.countries, ElementsAre("de", "gb"));
+
+  EXPECT_EQ(FEATURE_DISABLED_FOR_COUNTRIES,
+            kCountryDisabledNorthAmericaFeature.default_state);
+  EXPECT_THAT(kCountryDisabledNorthAmericaFeature.countries,
+              ElementsAre("us", "ca", "mx"));
+
+  EXPECT_EQ(FEATURE_ENABLED_FOR_COUNTRIES,
+            kCountryEnabledAsiaFeature.default_state);
+  EXPECT_THAT(kCountryEnabledAsiaFeature.countries,
+              ElementsAre("jp", "kr", "cn", "in"));
+}
+
+struct CountryRestrictionTestCase {
+  std::string_view country;
+  bool expected_europe;         // kCountryEnabledEuropeFeature
+  bool expected_north_america;  // kCountryDisabledNorthAmericaFeature
+  bool expected_asia;           // kCountryEnabledAsiaFeature
+};
+
+class FeatureListCountryRestrictionTest
+    : public FeatureListTest,
+      public testing::WithParamInterface<CountryRestrictionTestCase> {};
+
+TEST_P(FeatureListCountryRestrictionTest, Evaluation) {
+  const CountryRestrictionTestCase& test_case = GetParam();
+
+  auto feature_list = std::make_unique<FeatureList>();
+  feature_list->SetVariationCountry(test_case.country);
+  test::ScopedFeatureList local_feature_list;
+  local_feature_list.InitWithFeatureList(std::move(feature_list));
+
+  EXPECT_EQ(test_case.expected_europe,
+            FeatureList::IsEnabled(kCountryEnabledEuropeFeature));
+  EXPECT_EQ(test_case.expected_north_america,
+            FeatureList::IsEnabled(kCountryDisabledNorthAmericaFeature));
+  EXPECT_EQ(test_case.expected_asia,
+            FeatureList::IsEnabled(kCountryEnabledAsiaFeature));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    FeatureListCountryRestrictionTests,
+    FeatureListCountryRestrictionTest,
+    testing::Values(CountryRestrictionTestCase{"", false, true, false},
+                    CountryRestrictionTestCase{"de", true, true, false},
+                    CountryRestrictionTestCase{"DE", true, true, false},
+                    CountryRestrictionTestCase{"gb", true, true, false},
+                    CountryRestrictionTestCase{"us", false, false, false},
+                    CountryRestrictionTestCase{"ca", false, false, false},
+                    CountryRestrictionTestCase{"mx", false, false, false},
+                    CountryRestrictionTestCase{"jp", false, true, true},
+                    CountryRestrictionTestCase{"kr", false, true, true},
+                    CountryRestrictionTestCase{"cn", false, true, true},
+                    CountryRestrictionTestCase{"in", false, true, true},
+                    CountryRestrictionTestCase{"fr", false, true, false}),
+    [](const testing::TestParamInfo<CountryRestrictionTestCase>& info) {
+      return info.param.country.empty() ? "EmptyCountry"
+                                        : std::string(info.param.country);
+    });
 
 // Testing the 4-argument BASE_FEATURE_PARAM macro (auto-derived name).
 TEST_F(FeatureListTest, FourArgFeatureParamMacro) {

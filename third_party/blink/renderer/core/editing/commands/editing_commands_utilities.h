@@ -139,6 +139,18 @@ bool CanMergeLists(const Element& first_list, const Element& second_list);
 
 // Functions returning VisibleSelection
 VisibleSelection SelectionForParagraphIteration(const VisibleSelection&);
+CORE_EXPORT SelectionInDomTree
+SelectionForParagraphIteration(const SelectionInDomTree&);
+
+// Moves a position anchored directly on table-internal structure
+// (<tbody>/<thead>/<tfoot>/<tr>) into the table cell its offset points at, so
+// callers can iterate paragraphs per-cell. |edge| selects the child after the
+// position (and the first cell within it) for kStart, or the child before the
+// position (and the last cell within it) for kEnd. Positions anchored on the
+// <table> element itself, or not on table structure at all, are returned
+// unchanged.
+enum class TableCellEdge { kStart, kEnd };
+CORE_EXPORT Position SnapIntoTableCell(const Position&, TableCellEdge edge);
 
 const String& NonBreakingSpaceString();
 

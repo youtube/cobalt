@@ -66,14 +66,18 @@ constexpr char kTestUserEmail[] = "user@example.com";
 constexpr uint16_t kTestUsagePage = device::mojom::kPageGenericDesktop;
 constexpr uint16_t kTestUsage = device::mojom::kGenericDesktopGamePad;
 
+#if BUILDFLAG(ENABLE_EXTENSIONS)
 constexpr char kTestExtensionId[] = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 // Main text fixture.
 class HidChooserContextTestBase {
  public:
   HidChooserContextTestBase() {
+#if !BUILDFLAG(IS_ANDROID)
     scoped_feature_list_.InitAndEnableFeature(
         features::kSecurityKeyHidInterfacesAreFido);
+#endif  // !BUILDFLAG(IS_ANDROID)
   }
 
   HidChooserContextTestBase(const HidChooserContextTestBase&) = delete;
@@ -183,6 +187,7 @@ class HidChooserContextTestBase {
     return ConnectDeviceBlocking(CreateDevice(kTestSerialNumber));
   }
 
+#if BUILDFLAG(ENABLE_EXTENSIONS)
   device::mojom::HidDeviceInfoPtr ConnectFidoDeviceBlocking() {
     auto device = CreateDevice(/*serial_number=*/"");
     device->collections[0]->usage->usage_page = device::mojom::kPageFido;
@@ -208,6 +213,7 @@ class HidChooserContextTestBase {
     device->collections[0]->usage->usage = 1;
     return ConnectDeviceBlocking(std::move(device));
   }
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
   device::mojom::HidDeviceInfoPtr ConnectDeviceBlocking(
       device::mojom::HidDeviceInfoPtr device) {
@@ -1235,6 +1241,7 @@ TEST_P(HidChooserContextAffiliatedTest, BlocklistOverridesPolicy) {
   EXPECT_EQ(0u, context()->GetAllGrantedObjects().size());
 }
 
+#if BUILDFLAG(ENABLE_EXTENSIONS)
 TEST_F(HidChooserContextTest, FidoAllowlistOverridesBlocklistDeviceIdRule) {
   const auto kFidoAllowedOrigin = url::Origin::Create(
       GURL("chrome-extension://ckcendljdlmgnhghiaomidhiiclmapok"));
@@ -1309,6 +1316,7 @@ TEST_P(HidChooserContextAffiliatedTest,
                                  kFidoAndPolicyAllowedOrigin, *device));
   EXPECT_FALSE(context()->HasDevicePermission(kOtherOrigin, *device));
 }
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 // Boolean parameter means if user is affiliated on the device. Affiliated
 // users belong to the domain that owns the device and is only meaningful
@@ -1370,6 +1378,7 @@ TEST_F(HidChooserContextLoginScreenTest, ApplyPolicyOnLoginScreen) {
 #endif
 }
 
+#if BUILDFLAG(ENABLE_EXTENSIONS)
 class HidChooserContextWebViewTest : public HidChooserContextTest {
  public:
   HidChooserContextWebViewTest() {
@@ -1477,3 +1486,4 @@ TEST_F(HidChooserContextWebViewTest, WebsitePermissionDoesNotLeakToWebView) {
   EXPECT_FALSE(context()->HasDevicePermission(kWebViewOrigin, *device,
                                               kEmbeddingOrigin));
 }
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)

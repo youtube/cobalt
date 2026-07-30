@@ -64,6 +64,8 @@ class OneDrivePrefObserver : public KeyedService,
   void OnAppRegistryCacheWillBeDestroyed(
       apps::AppRegistryCache* cache) override;
 
+  void MaybeSetSupportedLinksPreference();
+
   // Serves as callback for pref changes.
   void OnMicrosoftOneDriveMountPrefChanged();
   void OnMicrosoftOneDriveAccountRestrictionsPrefChanged();
@@ -125,6 +127,14 @@ void OneDrivePrefObserver::Init() {
         apps::AppServiceProxyFactory::GetForProfile(profile_)
             ->AppRegistryCache();
     app_registry_cache_observer_.Observe(&cache);
+
+    // Check if the app is already ready on startup.
+    cache.ForOneApp(ash::kMicrosoft365AppId,
+                    [this](const apps::AppUpdate& update) {
+                      if (update.Readiness() == apps::Readiness::kReady) {
+                        MaybeSetSupportedLinksPreference();
+                      }
+                    });
   }
 }
 
@@ -248,11 +258,13 @@ void OneDrivePrefObserver::OnAppUpdate(const apps::AppUpdate& update) {
   // the automated Clippy flow. This will only be done once when the M365 PWA is
   // ready (either on install or after user session start) to allow the user to
   // modify this behavior.
-  if (update.AppId() != ash::kMicrosoft365AppId || !update.ReadinessChanged() ||
-      update.Readiness() != apps::Readiness::kReady) {
-    return;
+  if (update.AppId() == ash::kMicrosoft365AppId && update.ReadinessChanged() &&
+      update.Readiness() == apps::Readiness::kReady) {
+    MaybeSetSupportedLinksPreference();
   }
+}
 
+void OneDrivePrefObserver::MaybeSetSupportedLinksPreference() {
   if (!cloud_upload::IsMicrosoftOfficeOneDriveIntegrationAutomated(profile_)) {
     return;
   }

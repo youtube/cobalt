@@ -69,7 +69,6 @@ public class ChromeCachedFlags {
     static final List<List<CachedFeatureParam<?>>> LISTS_OF_FEATURE_PARAMS_FULL_BROWSER =
             List.of(
                     ChromeFeatureList.sParamsCached,
-                    JavalessRenderersFeatureList.sParamsCached,
                     OmniboxFeatures.getFeatureParamsToCache(),
                     PermissionsAndroidFeatureList.getFeatureParamsToCache(),
                     UiAndroidFeatureList.sParamsCached);
@@ -84,7 +83,6 @@ public class ChromeCachedFlags {
     static final List<List<CachedFeatureParam<?>>> LISTS_OF_FEATURE_PARAMS =
             List.of(
                     ChromeFeatureList.sParamsCached,
-                    JavalessRenderersFeatureList.sParamsCached,
                     OmniboxFeatures.getFeatureParamsToCache(),
                     PermissionsAndroidFeatureList.getFeatureParamsToCache(),
                     UiAndroidFeatureList.sParamsCached);

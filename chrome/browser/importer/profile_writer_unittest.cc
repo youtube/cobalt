@@ -175,7 +175,8 @@ class ProfileWriterTest : public testing::Test {
   }
 
   content::BrowserTaskEnvironment task_environment_;
-
+  base::test::ScopedFeatureList scoped_feature_list_{
+      switches::kSyncEnableBookmarksInTransportMode};
   std::unique_ptr<TestingProfile> profile_;
   std::unique_ptr<TestingProfile> second_profile_;
 };
@@ -225,9 +226,6 @@ TEST_F(ProfileWriterTest, CheckBookmarksAfterWritingDataTwice) {
 }
 
 TEST_F(ProfileWriterTest, CheckBookmarksWrittenToAccountStorageIfPresent) {
-  base::test::ScopedFeatureList scoped_feature_list{
-      switches::kSyncEnableBookmarksInTransportMode};
-
   CreateImportedBookmarksEntries();
   BookmarkModel* bookmark_model =
       BookmarkModelFactory::GetForBrowserContext(profile());

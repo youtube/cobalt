@@ -356,6 +356,7 @@ public class TabUnitTest {
 
     @Test
     @SmallTest
+    @EnableFeatures({ChromeFeatureList.PDF_REUSE_FRAGMENT})
     public void testFreezeDetachedNativePage() {
         TabImplJni.setInstanceForTesting(mNativeMock);
 

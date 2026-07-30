@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/android/content_uri_utils.h"
+#include "base/byte_size.h"
 #include "base/command_line.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
@@ -258,9 +259,9 @@ class ContentURLLoader : public network::mojom::URLLoader {
 
     if (result == MOJO_RESULT_OK) {
       network::URLLoaderCompletionStatus status(net::OK);
-      status.encoded_data_length = total_bytes_written_;
-      status.encoded_body_length = total_bytes_written_;
-      status.decoded_body_length = total_bytes_written_;
+      status.encoded_data_length = base::ByteSize(total_bytes_written_);
+      status.encoded_body_length = base::ByteSize(total_bytes_written_);
+      status.decoded_body_length = base::ByteSize(total_bytes_written_);
       client_->OnComplete(status);
     } else {
       client_->OnComplete(network::URLLoaderCompletionStatus(net::ERR_FAILED));

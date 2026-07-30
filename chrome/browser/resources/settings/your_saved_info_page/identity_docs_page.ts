@@ -122,13 +122,11 @@ export class SettingsIdentityDocsPageElement extends
         If true, Autofill AI does not depend on whether Autofill for addresses
         is enabled.
       */
-      // TODO(crbug.com/466345561): remove when enhanced autofill will stop
-      // depending on addresses autofill
-      autofillAddOtherDatatypesPrefIsEnabled_: {
+      autofillSettingsEnterprisePolicyEnabled_: {
         type: Boolean,
         value() {
           return loadTimeData.getBoolean(
-              'AutofillAddOtherDatatypesPrefIsEnabled');
+              'AutofillSettingsEnterprisePolicyEnabled');
         },
       },
 
@@ -157,7 +155,7 @@ export class SettingsIdentityDocsPageElement extends
   declare private autofillAiAvailableByDefault_: boolean;
   declare private canEnableOrDisableAutofillAi_: boolean;
   declare private identityDocsOptedIn_: chrome.settingsPrivate.PrefObject;
-  declare private autofillAddOtherDatatypesPrefIsEnabled_: boolean;
+  declare private autofillSettingsEnterprisePolicyEnabled_: boolean;
   declare private prefsInitialized_: boolean;
   declare private showSuggestionsFromGeminiSettings_: boolean;
 
@@ -179,7 +177,7 @@ export class SettingsIdentityDocsPageElement extends
 
     const addressAutofillOptInStatus =
         this.getPref<boolean>('autofill.profile_enabled').value;
-    const ignoreAddressAutofill = this.autofillAddOtherDatatypesPrefIsEnabled_;
+    const ignoreAddressAutofill = this.autofillSettingsEnterprisePolicyEnabled_;
     if (this.autofillAiAvailableByDefault_) {
       return !this.canEnableOrDisableAutofillAi_ ||
           (!ignoreAddressAutofill && !addressAutofillOptInStatus);

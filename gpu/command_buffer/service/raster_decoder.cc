@@ -1226,9 +1226,7 @@ Capabilities RasterDecoderImpl::GetCapabilities() {
     caps.supports_yuv_readback = true;
   }
 
-  if (base::FeatureList::IsEnabled(
-          features::kNvidiaWaylandYuvHardwareConversionWorkaround) &&
-      feature_info()->workarounds().disable_rgb_to_yuv_conversion) {
+  if (feature_info()->workarounds().disable_rgb_to_yuv_conversion) {
     caps.supports_rgb_to_yuv_conversion = false;
   }
 

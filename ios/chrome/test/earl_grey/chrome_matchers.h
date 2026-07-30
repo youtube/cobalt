@@ -635,9 +635,6 @@ id<GREYMatcher> TabGroupActivityLabelOnGridCellAtIndex(unsigned int index);
 // Returns a matcher for the button that closes the tab grid.
 id<GREYMatcher> TabGridDoneButton();
 
-// Returns a matcher for the tab grid overflow menu button.
-id<GREYMatcher> TabGridOverflowMenuButton();
-
 // Returns a matcher for the button that reverts the close all tabs action
 // in the tab grid.
 id<GREYMatcher> TabGridUndoCloseAllButton();
@@ -837,17 +834,23 @@ id<GREYMatcher> WhatsNewDestinationButton();
 // Returns a matcher for the settings action button in the overflow menu.
 id<GREYMatcher> SettingsActionButton();
 
-#pragma mark - Tab Grid Edit Mode
+#pragma mark - Tab Grid Overflow Menu
 
-// Returns a matcher for the button to open the context menu for edit actions.
+// Returns a matcher for the tab grid overflow menu button.
+id<GREYMatcher> TabGridOverflowMenuButton();
+
+// Returns a matcher for the legacy edit button.
 id<GREYMatcher> TabGridEditButton();
 
-// Returns a matcher for the context menu button to close all tabs.
+// Returns a matcher for the legacy edit menu button to close all tabs.
 id<GREYMatcher> TabGridEditMenuCloseAllButton();
 
-// Returns a matcher for the context menu button to enter the tab grid tab
+// Returns a matcher for the overflow menu button to close all tabs.
+id<GREYMatcher> TabGridOverflowMenuCloseAllButton();
+
+// Returns a matcher for the overflow menu button to enter the tab grid tab
 // selection mode.
-id<GREYMatcher> TabGridSelectTabsMenuButton();
+id<GREYMatcher> TabGridOverflowMenuSelectTabsButton();
 
 // Returns a matcher for the button to act on the selected tabs.
 id<GREYMatcher> TabGridEditAddToButton();

@@ -1,7 +1,7 @@
 // TODO(crbug.com/500386713) Consider using mojoBuiltins or another list instead of regex
 private func isTargetObject(type: ILType) -> Bool {
     guard type.Is(.object()), let group = type.group else { return false }
-    return group.starts(with: MojoStrings.mojoPrefix)
+    return group.starts(with: mojoPrefix)
 }
 
 /// Mojo variant of the builtin `MethodCallGenerator` that operates only on
@@ -14,14 +14,13 @@ private let MojoMethodCallGenerator = CodeGenerator("MojoMethodCallGenerator") {
     var targetVar = b.findVariable {
         let type = b.type(of: $0)
         return isTargetObject(type: type) && !type.methods.isEmpty
-            && type.group != MojoStrings.{{primary.name|to_camel(True)}}
+            && type.group != "{{primary|name_with_namespace}}"
     }
 
     // If we can't find a Mojo object in scope, create the {{primary.name}} remote
     guard let obj = targetVar else {
-        let primaryStatic = b.createNamedVariable(
-            forBuiltin: MojoStrings.{{primary.name|to_camel(True)}})
-        b.callMethod("getRemote", on: primaryStatic, withArgs: [], guard: false)
+        let getRemoteFunc = b.createNamedVariable(forBuiltin: "getOrCreatePrimaryRemote")
+        b.callFunction(getRemoteFunc, withArgs: [])
         return
     }
 

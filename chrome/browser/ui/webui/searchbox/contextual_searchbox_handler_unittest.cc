@@ -42,7 +42,6 @@
 #include "chrome/browser/ui/views/drive_picker_host/drive_picker_host_controller.h"
 #include "chrome/browser/ui/views/drive_picker_host/drive_picker_sanitizer.h"
 #include "chrome/browser/ui/webui/cr_components/composebox/composebox_handler.h"
-#include "chrome/browser/ui/webui/drive_picker_host/drive_disclaimer_controller.h"
 #include "chrome/browser/ui/webui/drive_picker_host/drive_picker_host_request.h"
 #include "chrome/browser/ui/webui/new_tab_page/composebox/variations/composebox_fieldtrial.h"
 #include "chrome/browser/ui/webui/searchbox/contextual_searchbox_test_utils.h"
@@ -51,6 +50,7 @@
 #include "chrome/common/webui_url_constants.h"
 #include "components/contextual_search/contextual_search_metrics_recorder.h"
 #include "components/contextual_search/contextual_search_service.h"
+#include "components/contextual_search/footprints/public/drive_disclaimer_controller.h"
 #include "components/contextual_search/footprints/public/fpop_service.h"
 #include "components/contextual_search/footprints/public/proto/footprints_oneplatform.pb.h"
 #include "components/contextual_search/internal/test_composebox_query_controller.h"
@@ -1963,7 +1963,8 @@ TEST_F(ContextualSearchboxHandlerTest, OpenAutocompleteMatch_ZeroSuggestClick) {
 
     handler().OpenAutocompleteMatch(0, GURL("https://www.google.com"),
                                     /*are_matches_showing=*/true, 0, false,
-                                    false, false, false);
+                                    false, false, false,
+                                    /*via_keyboard=*/false);
 
     histogram_tester().ExpectBucketCount(
         "ContextualSearch.ZeroSuggestClickV2.IsContextual.NewTabPage", false,
@@ -1997,7 +1998,8 @@ TEST_F(ContextualSearchboxHandlerTest, OpenAutocompleteMatch_ZeroSuggestClick) {
 
     handler().OpenAutocompleteMatch(0, GURL("https://www.contextual.com"),
                                     /*are_matches_showing=*/true, 0, false,
-                                    false, false, false);
+                                    false, false, false,
+                                    /*via_keyboard=*/false);
 
     histogram_tester().ExpectBucketCount(
         "ContextualSearch.ZeroSuggestClickV2.IsContextual.NewTabPage", true, 1);
@@ -2044,7 +2046,8 @@ TEST_F(ContextualSearchboxHandlerTest,
 
     handler().OpenAutocompleteMatch(0, GURL("https://www.google.com"),
                                     /*are_matches_showing=*/true, 0, false,
-                                    false, false, false);
+                                    false, false, false,
+                                    /*via_keyboard=*/false);
 
     histogram_tester().ExpectBucketCount(
         "ContextualSearch.TypedSuggestNavigation.IsVerbatim.NewTabPage", true,
@@ -2082,7 +2085,8 @@ TEST_F(ContextualSearchboxHandlerTest,
 
     handler().OpenAutocompleteMatch(
         1, GURL("https://www.google.com/search?q=suggestion"),
-        /*are_matches_showing=*/true, 0, false, false, false, false);
+        /*are_matches_showing=*/true, 0, false, false, false, false,
+        /*via_keyboard=*/false);
 
     histogram_tester().ExpectBucketCount(
         "ContextualSearch.TypedSuggestNavigation.IsVerbatim.NewTabPage", false,

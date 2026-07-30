@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "base/byte_size.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
@@ -128,7 +129,7 @@ TEST_F(WebApkSingleIconHasherTest, Success) {
       net::HttpUtil::AssembleRawHeaders(headers));
   head->mime_type = "image/png";
   network::URLLoaderCompletionStatus status;
-  status.decoded_body_length = icon_data.size();
+  status.decoded_body_length = base::ByteSize(icon_data.size());
   test_url_loader_factory()->AddResponse(icon_url, std::move(head), icon_data,
                                          status);
 
@@ -168,7 +169,7 @@ TEST_F(WebApkSingleIconHasherTest, SVGImage) {
       net::HttpUtil::AssembleRawHeaders(headers));
   head->mime_type = "image/svg+xml";
   network::URLLoaderCompletionStatus status;
-  status.decoded_body_length = icon_data.size();
+  status.decoded_body_length = base::ByteSize(icon_data.size());
   test_url_loader_factory()->AddResponse(icon_url, std::move(head), icon_data,
                                          status);
 
@@ -211,7 +212,7 @@ TEST_F(WebApkSingleIconHasherTest, WebpImage) {
       net::HttpUtil::AssembleRawHeaders(headers));
   head->mime_type = "image/webp";
   network::URLLoaderCompletionStatus status;
-  status.decoded_body_length = icon_data.size();
+  status.decoded_body_length = base::ByteSize(icon_data.size());
   test_url_loader_factory()->AddResponse(icon_url, std::move(head), icon_data,
                                          status);
 
@@ -255,7 +256,7 @@ TEST_F(WebApkSingleIconHasherTest, Favicon) {
       net::HttpUtil::AssembleRawHeaders(headers));
   head->mime_type = "image/vnd.microsoft.icon";
   network::URLLoaderCompletionStatus status;
-  status.decoded_body_length = icon_data.size();
+  status.decoded_body_length = base::ByteSize(icon_data.size());
   test_url_loader_factory()->AddResponse(icon_url, std::move(head), icon_data,
                                          status);
 
@@ -313,7 +314,7 @@ TEST_F(WebApkSingleIconHasherTest, HTTPError) {
       net::HttpUtil::AssembleRawHeaders(headers));
   head->mime_type = "text/html";
   network::URLLoaderCompletionStatus status;
-  status.decoded_body_length = 0;
+  status.decoded_body_length = base::ByteSize(0);
   test_url_loader_factory()->AddResponse(GURL(icon_url), std::move(head), "",
                                          status);
 

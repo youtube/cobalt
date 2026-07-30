@@ -434,6 +434,20 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//chrome/browser/ui/signin/chrome_signout_confirmation_prompt.h:ChromeSignoutConfirmationChoice) -->
 
+<!-- LINT.IfChange(CookieBindingUpgradeStatus) -->
+
+<enum name="CookieBindingUpgradeStatus">
+  <int value="0" label="FeatureNotSupported"/>
+  <int value="1" label="FeatureDisabled"/>
+  <int value="2" label="NoWrappedKey"/>
+  <int value="3" label="HasStandardSession"/>
+  <int value="4" label="HasPrototypeSession"/>
+  <int value="5" label="NotFirstRun"/>
+  <int value="6" label="NeedsUpgrade"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/signin/core/browser/account_reconcilor.h:CookieBindingUpgradeStatus) -->
+
 <!-- LINT.IfChange(DeviceBoundSessionCreateSessionsResult) -->
 
 <enum name="DeviceBoundSessionCreateSessionsResult">
@@ -579,6 +593,20 @@ chromium-metrics-reviews@google.com.
   <int value="5" label="Don't show, impression limit reached"/>
   <int value="6" label="Don't show, feature flag is disabled"/>
 </enum>
+
+<!-- LINT.IfChange(IOSAccountMenuAccessPoint) -->
+
+<enum name="IOSAccountMenuAccessPoint">
+  <int value="0" label="New Tab Page"/>
+  <int value="1" label="Settings"/>
+  <int value="2" label="Web"/>
+  <int value="3" label="App Bar"/>
+  <int value="4" label="Page Action Menu"/>
+  <int value="5" label="Gemini Entry Flow"/>
+  <int value="6" label="Overflow Menu"/>
+</enum>
+
+<!-- LINT.ThenChange(//ios/chrome/browser/authentication/account_menu/public/account_menu_constants.h:AccountMenuAccessPoint) -->
 
 <!-- LINT.IfChange(IOSAccountSwitchType) -->
 

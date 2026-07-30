@@ -17,7 +17,6 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/mojom/window_show_state.mojom.h"
-#include "ui/base/ui_base_types.h"
 #include "url/gurl.h"
 
 namespace {

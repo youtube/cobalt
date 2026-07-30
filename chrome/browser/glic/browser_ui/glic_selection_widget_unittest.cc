@@ -7,6 +7,7 @@
 #include "base/run_loop.h"
 #include "base/scoped_observation.h"
 #include "base/test/bind.h"
+#include "base/test/scoped_feature_list.h"
 #include "chrome/browser/glic/public/features.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/views/chrome_views_test_base.h"
@@ -80,9 +81,35 @@ class TestWidgetActionDelegate
   bool settings_called = false;
 };
 
-TEST_F(GlicSelectionWidgetTest, ButtonsTriggerCallbacks) {
+TEST_F(GlicSelectionWidgetTest, CopyButtonsHiddenByDefault) {
   gfx::Rect anchor_rect(10, 10, 100, 100);
   std::u16string selected_text = u"selected text";
+
+  auto test_delegate = std::make_unique<TestWidgetActionDelegate>();
+  auto widget_delegate = std::make_unique<GlicSelectionWidgetDelegate>(
+      *test_delegate, anchor_rect, gfx::Rect(), selected_text,
+      /*is_pinned=*/false);
+
+  views::View* contents_view = widget_delegate->GetContentsView();
+  ASSERT_TRUE(contents_view);
+
+  auto children = contents_view->children();
+  ASSERT_EQ(children.size(), 2u);
+
+  auto pill1_children = children[0]->children();
+  ASSERT_EQ(pill1_children.size(), 1u);
+  EXPECT_TRUE(views::AsViewClass<views::MdTextButton>(pill1_children[0]));
+}
+
+TEST_F(GlicSelectionWidgetTest, ButtonsTriggerCallbacks) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      features::kGlicSelectionPrompt,
+      {{features::kGlicSelectionShowCopyButtons.name, "true"}});
+
+  gfx::Rect anchor_rect(10, 10, 100, 100);
+  std::u16string selected_text = u"selected text";
+
 
   auto test_delegate = std::make_unique<TestWidgetActionDelegate>();
   auto widget_delegate = std::make_unique<GlicSelectionWidgetDelegate>(

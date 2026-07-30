@@ -37,6 +37,11 @@ BASE_FEATURE(kAccessibilityExposeNonAtomicTextFieldChildren,
 BASE_FEATURE(kAllowContentInitiatedDataUrlNavigations,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, AncestorThrottle evaluates redirect responses using the source
+// URL of the redirect rather than the target URL.
+BASE_FEATURE(kAncestorThrottleEvaluateRedirectSource,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Enables desktop-style scrollbars.
 BASE_FEATURE(kAndroidDesktopStyleScrollbars, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -413,6 +418,11 @@ BASE_FEATURE(kInterestGroupUpdateIfOlderThan, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIOSurfaceCapturer, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
+// When enabled, holds back (disables) the early-return optimization in
+// SiteInstanceImpl::IsSuitableForUrlInfo.
+BASE_FEATURE(kIsSuitableForUrlInfoEarlyReturnHoldback,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // When enabled, child process will not terminate itself when IPC is reset.
 BASE_FEATURE(kKeepChildProcessAfterIPCReset, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -655,7 +665,7 @@ BASE_FEATURE(kPreferWarmRendererProcess, base::FEATURE_DISABLED_BY_DEFAULT);
 // When enabled, try to reuse any same-site process that is hosting
 // only prerendered frames for main-frame navigations.
 BASE_FEATURE(kReusePrerenderingProcessForMainFrames,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Allows a reload to replace the initial navigation entry if it is
 // the first navigation to commit. This fixes the case where a browser-initiated

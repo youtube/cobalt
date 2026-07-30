@@ -14,6 +14,7 @@
 #include "base/apple/scoped_mach_port.h"
 #include "base/bits.h"
 #include "base/command_line.h"
+#include "base/containers/fixed_flat_map.h"
 #include "base/feature_list.h"
 #include "base/logging.h"
 #include "base/mac/mac_util.h"
@@ -44,44 +45,201 @@ void AddIntegerValue64(CFMutableDictionaryRef dictionary,
   CFDictionaryAddValue(dictionary, key, number.get());
 }
 
-// Return the expected four character code pixel format for an IOSurface with
-// the specified viz::SharedImageFormat.
-uint32_t SharedImageFormatToIOSurfacePixelFormat(viz::SharedImageFormat format,
-                                                 bool override_rgba_to_bgra) {
-  if (format == viz::SinglePlaneFormat::kR_8) {
-    return 'L008';
-  } else if (format == viz::SinglePlaneFormat::kR_F16) {
-    return 'L00h';
-  } else if (format == viz::SinglePlaneFormat::kRG_88) {
-    return '2C08';
-  } else if (format == viz::SinglePlaneFormat::kR_16) {
-    return 'L016';
-  } else if (format == viz::SinglePlaneFormat::kRG_1616) {
-    return '2C16';
-  } else if (format == viz::SinglePlaneFormat::kBGRA_1010102) {
-    return 'l10r';  // little-endian ARGB2101010 full-range ARGB
-  } else if (format == viz::SinglePlaneFormat::kBGRA_8888 ||
-             format == viz::SinglePlaneFormat::kBGRX_8888) {
-    return 'BGRA';
-  } else if (format == viz::SinglePlaneFormat::kRGBA_8888 ||
-             format == viz::SinglePlaneFormat::kRGBX_8888) {
-    return override_rgba_to_bgra ? 'BGRA' : 'RGBA';
-  } else if (format == viz::SinglePlaneFormat::kRGBA_F16) {
-    return 'RGhA';
-  } else if (format == viz::MultiPlaneFormat::kNV12) {
-    return '420v';
-  } else if (format == viz::MultiPlaneFormat::kNV12A) {
-    return 'v0a8';
-  } else if (format == viz::MultiPlaneFormat::kP010) {
-    return 'x420';
-  } else {
-    // Technically RGBA_1010102 should be accepted as 'R10k', but then it won't
-    // be supported by CGLTexImageIOSurface2D(), so it's best to reject it here.
-    NOTREACHED();
-  }
-}
+struct IOSurfaceFormatInfo {
+  uint32_t cv_pixel_format = 0;
+
+  // The list of SharedImageFormats that the CVPixelFormat can map to.
+  static constexpr size_t kMaxNumSharedImageFormats = 2;
+  std::optional<viz::SharedImageFormat>
+      shared_image_formats[kMaxNumSharedImageFormats] = {std::nullopt,
+                                                         std::nullopt};
+
+  // Various properties of the CVPixelFormat.
+  uint32_t flags = 0;
+};
+
+// This flag is set if an IOSurface of the specified format can be imported
+// using a SharedTextureMemoryDescriptor.
+constexpr uint32_t kWebGPUImport = 0x1;
+
+// This flag is set if an IOSurface of the specified format is compressed
+// and therefore cannot be accessed by the CPU.
+constexpr uint32_t kCompressed = 0x2;
+
+constexpr IOSurfaceFormatInfo kIOSurfaceFormats[] = {
+    // 8-bit unorm formats.
+    {
+        kCVPixelFormatType_OneComponent8,
+        {viz::SinglePlaneFormat::kR_8},
+        kWebGPUImport,
+    },
+    {
+        kCVPixelFormatType_TwoComponent8,
+        {viz::SinglePlaneFormat::kRG_88},
+        kWebGPUImport,
+    },
+    {
+        kCVPixelFormatType_32BGRA,
+        {viz::SinglePlaneFormat::kBGRA_8888,
+         viz::SinglePlaneFormat::kBGRX_8888},
+        kWebGPUImport,
+    },
+    {
+        kCVPixelFormatType_32RGBA,
+        {viz::SinglePlaneFormat::kRGBA_8888,
+         viz::SinglePlaneFormat::kRGBX_8888},
+        kWebGPUImport,
+    },
+
+    // 16-bit unorm formats.
+    {
+        kCVPixelFormatType_OneComponent16,
+        {viz::SinglePlaneFormat::kR_16},
+        0,
+    },
+    {
+        kCVPixelFormatType_TwoComponent16,
+        {viz::SinglePlaneFormat::kRG_1616},
+        0,
+    },
+
+    // 16-bit float formats.
+    {
+        kCVPixelFormatType_OneComponent16Half,
+        {viz::SinglePlaneFormat::kR_F16},
+        kWebGPUImport,
+    },
+    {
+        kCVPixelFormatType_TwoComponent16Half,
+        {},
+        kWebGPUImport,
+    },
+    {
+        kCVPixelFormatType_64RGBAHalf,
+        {viz::SinglePlaneFormat::kRGBA_F16},
+        kWebGPUImport,
+    },
+
+    // 10-10-10-2 format.
+    {
+        kCVPixelFormatType_ARGB2101010LEPacked,
+        {viz::SinglePlaneFormat::kBGRA_1010102},
+        kWebGPUImport,
+    },
+
+    // 8-bit video formats.
+    {
+        kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+        {viz::MultiPlaneFormat::kNV12},
+        kWebGPUImport,
+    },
+    {
+        kCVPixelFormatType_422YpCbCr8BiPlanarVideoRange,
+        {viz::MultiPlaneFormat::kNV16},
+        0,
+    },
+    {
+        kCVPixelFormatType_444YpCbCr8BiPlanarVideoRange,
+        {viz::MultiPlaneFormat::kNV24},
+        0,
+    },
+    {
+        kCVPixelFormatType_420YpCbCr8VideoRange_8A_TriPlanar,
+        {viz::MultiPlaneFormat::kNV12A},
+        0,
+    },
+    {
+        kCVPixelFormatType_420YpCbCr8Planar,
+        {viz::MultiPlaneFormat::kI420},
+        0,
+    },
+
+    // 10-bit video formats.
+    {
+        kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange,
+        {viz::MultiPlaneFormat::kP010},
+        0,
+    },
+    {
+        kCVPixelFormatType_422YpCbCr10BiPlanarVideoRange,
+        {viz::MultiPlaneFormat::kP210},
+        0,
+    },
+    {
+        kCVPixelFormatType_444YpCbCr10BiPlanarVideoRange,
+        {viz::MultiPlaneFormat::kP410},
+        0,
+    },
+
+    // Losslessly-compressed video formats. These occur after the non-compressed
+    // versions, and so SharedImageFormatToIOSurfacePixelFormat will not select
+    // them.
+    {
+        kCVPixelFormatType_Lossless_420YpCbCr8BiPlanarVideoRange,
+        {viz::MultiPlaneFormat::kNV12},
+        kCompressed,
+    },
+    {
+        kCVPixelFormatType_Lossless_420YpCbCr10PackedBiPlanarVideoRange,
+        {viz::MultiPlaneFormat::kP010},
+        kCompressed,
+    },
+    {
+        kCVPixelFormatType_Lossless_422YpCbCr10PackedBiPlanarVideoRange,
+        {viz::MultiPlaneFormat::kP210},
+        kCompressed,
+    },
+};
 
 }  // namespace
+
+std::optional<uint32_t> SharedImageFormatToIOSurfacePixelFormat(
+    viz::SharedImageFormat format,
+    bool override_rgba_to_bgra) {
+  if (override_rgba_to_bgra) {
+    if (format == viz::SinglePlaneFormat::kRGBA_8888 ||
+        format == viz::SinglePlaneFormat::kRGBX_8888) {
+      return kCVPixelFormatType_32BGRA;
+    }
+  }
+  for (const auto& info : kIOSurfaceFormats) {
+    for (const auto& shared_image_format : info.shared_image_formats) {
+      if (shared_image_format == format) {
+        return info.cv_pixel_format;
+      }
+    }
+  }
+  return std::nullopt;
+}
+
+std::optional<viz::SharedImageFormat> IOSurfacePixelFormatToSharedImageFormat(
+    uint32_t cv_pixel_format) {
+  for (const auto& info : kIOSurfaceFormats) {
+    if (cv_pixel_format == info.cv_pixel_format) {
+      return info.shared_image_formats[0];
+    }
+  }
+  return std::nullopt;
+}
+
+bool IOSurfacePixelFormatIsWebGPUCompatible(uint32_t cv_pixel_format) {
+  for (const auto& info : kIOSurfaceFormats) {
+    if (cv_pixel_format == info.cv_pixel_format) {
+      return (info.flags & kWebGPUImport) != 0;
+    }
+  }
+  return false;
+}
+
+bool IOSurfacePixelFormatSupportsCpuAccess(uint32_t cv_pixel_format) {
+  for (const auto& info : kIOSurfaceFormats) {
+    if (cv_pixel_format == info.cv_pixel_format) {
+      // Compressed formats do not support CPU access.
+      return (info.flags & kCompressed) == 0;
+    }
+  }
+  return false;
+}
 
 namespace internal {
 
@@ -200,9 +358,12 @@ ScopedIOSurface CreateIOSurface(const gfx::Size& size,
                                 &kCFTypeDictionaryValueCallBacks));
   AddIntegerValue(properties.get(), kIOSurfaceWidth, size.width());
   AddIntegerValue(properties.get(), kIOSurfaceHeight, size.height());
-  AddIntegerValue(
-      properties.get(), kIOSurfacePixelFormat,
-      SharedImageFormatToIOSurfacePixelFormat(format, override_rgba_to_bgra));
+  std::optional<uint32_t> pixel_format =
+      SharedImageFormatToIOSurfacePixelFormat(format, override_rgba_to_bgra);
+  CHECK(pixel_format)
+      << "Failed to find IOSurface pixel format for SharedImage pixel format "
+      << format.ToString() << ".";
+  AddIntegerValue(properties.get(), kIOSurfacePixelFormat, *pixel_format);
 
   // Don't specify plane information unless there are indeed multiple planes
   // because DisplayLink drivers do not support this.
@@ -369,23 +530,6 @@ ScopedIOSurface IOSurfaceMachPortToIOSurface(
     return io_surface;
   }
   return io_surface;
-}
-
-bool IOSurfaceIsWebGPUCompatible(IOSurfaceRef io_surface) {
-  switch (IOSurfaceGetPixelFormat(io_surface)) {
-    case kCVPixelFormatType_64RGBAHalf:
-    case kCVPixelFormatType_TwoComponent16Half:
-    case kCVPixelFormatType_OneComponent16Half:
-    case kCVPixelFormatType_ARGB2101010LEPacked:
-    case kCVPixelFormatType_32RGBA:
-    case kCVPixelFormatType_32BGRA:
-    case kCVPixelFormatType_TwoComponent8:
-    case kCVPixelFormatType_OneComponent8:
-    case kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange:
-      return true;
-    default:
-      return false;
-  }
 }
 
 }  // namespace gfx

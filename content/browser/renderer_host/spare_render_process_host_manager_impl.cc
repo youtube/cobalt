@@ -40,6 +40,12 @@ BASE_FEATURE(kKillSpareRenderOnMemoryPressure,
 BASE_FEATURE(kSpareRPHKeepOneAliveOnMemoryPressure,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// If enabled, MEMORY_PRESSURE_LEVEL_CRITICAL is used as the threshold that
+// determines when a spare RPH can be created or killed. By default,
+// MEMORY_PRESSURE_LEVEL_MODERATE is used.
+BASE_FEATURE(kSpareRPHUseCriticalMemoryPressure,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 using performance_scenarios::LoadingScenario;
 using performance_scenarios::PerformanceScenarioObserverList;
 using performance_scenarios::ScenarioScope;
@@ -47,12 +53,6 @@ using SpareProcessMaybeTakeAction =
     content::RenderProcessHostImpl::SpareProcessMaybeTakeAction;
 
 namespace {
-
-// If enabled, MEMORY_PRESSURE_LEVEL_CRITICAL is used as the threshold that
-// determines when a spare RPH can be created or killed. By default,
-// MEMORY_PRESSURE_LEVEL_MODERATE is used.
-BASE_FEATURE(kSpareRPHUseCriticalMemoryPressure,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
 // Enables the available memory threshold for creating a spare renderer.
@@ -325,12 +325,26 @@ int GetMemoryLimitThreshold() {
   return base::kModerateMemoryPressureThreshold;
 }
 
+constexpr base::MemoryConsumerTraits kSpareRenderProcessHostManagerTraits(
+    // Pools pre-warmed renderer processes (tens of MBs each).
+    base::MemoryConsumerTraits::EstimatedMemoryUsage::kMedium,
+    // Process termination lets the OS reclaim memory pages directly.
+    base::MemoryConsumerTraits::ReleaseMemoryCost::kFreesPagesWithoutTraversal,
+    // Eviction results in a cold start, but no user state is lost.
+    base::MemoryConsumerTraits::InformationRetention::kLossless,
+    // Cleans up host objects synchronously on the browser main thread.
+    base::MemoryConsumerTraits::ExecutionType::kSynchronous,
+    // Cached memory resides out-of-process.
+    base::MemoryConsumerTraits::InProcess::kNo,
+    // Launching a replacement renderer process is expensive.
+    base::MemoryConsumerTraits::RecreateMemoryCost::kExpensive);
+
 }  // namespace
 
 SpareRenderProcessHostManagerImpl::SpareRenderProcessHostManagerImpl()
     : memory_consumer_registration_(
           "SpareRenderProcessHostManagerImpl",
-          std::nullopt,  // TODO(crbug.com/489671163): Add traits.
+          kSpareRenderProcessHostManagerTraits,
           this,
           base::MemoryConsumerRegistration::CheckUnregister::kDisabled),
       metrics_heartbeat_timer_(

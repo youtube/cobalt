@@ -23,6 +23,8 @@
 #include "components/feature_engagement/public/feature_constants.h"
 #include "components/optimization_guide/core/feature_registry/feature_registration.h"
 #include "components/optimization_guide/core/model_execution/model_execution_prefs.h"
+#include "components/personal_context/core/personal_context_prefs.h"
+#include "components/personal_context/core/personal_context_types.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
 #include "components/subscription_eligibility/subscription_eligibility_prefs.h"
@@ -118,7 +120,9 @@ class AutofillAiPermissionUtilsTest : public ::testing::Test {
           {{"ambient_autofill_eligible_tiers", "1"}}},
          {features::kAutofillAiServerModel,
           {{"autofill_ai_model_use_cache_results", "true"}}}},
-        {});
+        // TODO(crbug.com/477163013): Once this feature launches, kLogToMqls can
+        // be deprecated as the behavior will be disabled for everyone.
+        {features::kAutofillAiUsePrivateAi});
 
     client().GetPrefs()->SetInteger(
         subscription_eligibility::prefs::kAiSubscriptionTier, 1);
@@ -574,6 +578,9 @@ TEST_P(AutofillAiMayPerformActionTest,
       !kForbiddenActions.contains(GetParam()));
 }
 TEST_F(AutofillAiPermissionUtilsTest, kTypeSupportsAmbientAutofillData) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::debug::kAutofillAiForceOptIn);
+
   client().set_personal_context_enablement_state(
       personal_context::PersonalContextEnablementState::kEnabled);
   for (const EntityTypeName type :
@@ -584,6 +591,23 @@ TEST_F(AutofillAiPermissionUtilsTest, kTypeSupportsAmbientAutofillData) {
         EntityType(type)));
   }
   for (const EntityTypeName type : {kRedressNumber, kKnownTravelerNumber}) {
+    EXPECT_FALSE(MayPerformAutofillAiAction(
+        client(), AutofillAiAction::kTypeSupportsAmbientAutofillData,
+        EntityType(type)));
+  }
+
+  // Without device re-auth, SPII types (Passport, Driver's license, National ID
+  // card) are not supported, but non-SPII types (Flight reservation, Shipment,
+  // Order, Vehicle) are.
+  edm().SetReauthAvailability(false);
+  for (const EntityTypeName type :
+       {kFlightReservation, kShipment, kOrder, kVehicle}) {
+    EXPECT_TRUE(MayPerformAutofillAiAction(
+        client(), AutofillAiAction::kTypeSupportsAmbientAutofillData,
+        EntityType(type)));
+  }
+  for (const EntityTypeName type : {kPassport, kDriversLicense, kNationalIdCard,
+                                    kRedressNumber, kKnownTravelerNumber}) {
     EXPECT_FALSE(MayPerformAutofillAiAction(
         client(), AutofillAiAction::kTypeSupportsAmbientAutofillData,
         EntityType(type)));
@@ -659,6 +683,33 @@ TEST_F(AutofillAiPermissionUtilsTest, kAmbientAutofill_G1Tiers) {
   }
 }
 
+TEST_F(AutofillAiPermissionUtilsTest,
+       AmbientAutofillRequiresPersonalContextPref) {
+  client().set_personal_context_enablement_state(
+      personal_context::PersonalContextEnablementState::kEnabled);
+
+  // Pref enabled by default in RegisterProfilePrefs.
+  EXPECT_TRUE(
+      MayPerformAutofillAiAction(client(), AutofillAiAction::kAmbientAutofill));
+  EXPECT_TRUE(MayPerformAutofillAiAction(
+      client(), AutofillAiAction::kTypeSupportsAmbientAutofillData,
+      EntityType(kPassport)));
+  EXPECT_TRUE(MayPerformAutofillAiAction(
+      client(), AutofillAiAction::kShowAmbientAutofillInSettings));
+
+  // Disable pref.
+  client().GetPrefs()->SetBoolean(
+      personal_context::prefs::kPersonalContextInAutofillSettingsToggleStatus,
+      false);
+  EXPECT_FALSE(
+      MayPerformAutofillAiAction(client(), AutofillAiAction::kAmbientAutofill));
+  EXPECT_FALSE(MayPerformAutofillAiAction(
+      client(), AutofillAiAction::kTypeSupportsAmbientAutofillData,
+      EntityType(kPassport)));
+  EXPECT_TRUE(MayPerformAutofillAiAction(
+      client(), AutofillAiAction::kShowAmbientAutofillInSettings));
+}
+
 INSTANTIATE_TEST_SUITE_P(
     All,
     AutofillAiMayPerformActionTest,
@@ -728,12 +779,11 @@ TEST_F(AutofillAiPermissionUtilsTest,
                                           std::nullopt));
 }
 
-// TODO(crbug.com/482301350): Remove this test
 TEST_F(
     AutofillAiPermissionUtilsTest,
-    UsersCanOptInIfAutofillForAddressesIsDisabledWhenOtherDatatypesPrefEnabled) {
+    UsersCanOptInIfAutofillForAddressesIsDisabledWhenEnterprisePolicyEnabled) {
   base::test::ScopedFeatureList feature_list{
-      features::kAutofillAddOtherDatatypesPref};
+      features::kAutofillEnableAutofillSettingsEnterprisePolicy};
   ASSERT_TRUE(MayPerformAutofillAiAction(client(), AutofillAiAction::kOptIn,
                                          std::nullopt));
   client().GetPrefs()->SetBoolean(prefs::kAutofillProfileEnabled, false);

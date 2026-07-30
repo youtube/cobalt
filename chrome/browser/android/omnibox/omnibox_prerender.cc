@@ -25,6 +25,7 @@
 #include "components/omnibox/browser/autocomplete_result.h"
 #include "components/omnibox/browser/base_search_provider.h"
 #include "content/public/browser/web_contents.h"
+#include "services/network/public/cpp/constants.h"
 #include "url/gurl.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
@@ -167,6 +168,7 @@ void OmniboxPrerender::DoPreconnect(const AutocompleteMatch& match,
     loading_predictor->PrepareForPageLoad(
         /*initiator_origin=*/std::nullopt, match.destination_url,
         predictors::HintOrigin::OMNIBOX,
+        network::GetNoOpNetworkRestrictionsId(),
         predictors::AutocompleteActionPredictor::IsPreconnectable(match));
   }
 }

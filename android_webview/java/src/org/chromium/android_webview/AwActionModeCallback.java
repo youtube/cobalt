@@ -31,14 +31,12 @@ import org.chromium.ui.base.WindowAndroid.IntentCallback;
 /** A class that handles selection action mode for Android WebView. */
 @Lifetime.WebView
 public class AwActionModeCallback extends ActionModeCallback implements IntentCallback {
-    private final Context mContext;
     private final AwContents mAwContents;
     private final SelectionPopupController mSelectionPopupController;
     private final ActionModeCallbackHelper mHelper;
     private int mAllowedMenuItems;
 
-    public AwActionModeCallback(Context context, AwContents awContents, WebContents webContents) {
-        mContext = context;
+    public AwActionModeCallback(AwContents awContents, WebContents webContents) {
         mAwContents = awContents;
         mSelectionPopupController = SelectionPopupController.fromWebContents(webContents);
         mHelper = mSelectionPopupController.getActionModeCallbackHelper();
@@ -128,9 +126,10 @@ public class AwActionModeCallback extends ActionModeCallback implements IntentCa
 
         intent.putExtra(Intent.EXTRA_PROCESS_TEXT, query);
 
-        if (ContextUtils.activityFromContext(mContext) == null) {
+        Context context = mAwContents.getProvidedContext();
+        if (ContextUtils.activityFromContext(context) == null) {
             try {
-                mContext.startActivity(intent);
+                context.startActivity(intent);
             } catch (ActivityNotFoundException ex) {
                 // If no app handles it, do nothing.
             }

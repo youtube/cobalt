@@ -73,10 +73,6 @@ class UserScript {
   // already has its source prefix appended.
   static Source GetSourceForScriptID(const std::string& script_id);
 
-  // Check if a URL should be treated as a user script and converted to an
-  // extension.
-  static bool IsURLUserScript(const GURL& url, const std::string& mime_type);
-
   // Get the valid user script schemes for the current process. If
   // `can_execute_script_everywhere` is true, this will return ALL_SCHEMES.
   static int ValidUserScriptSchemes(bool can_execute_script_everywhere = false);

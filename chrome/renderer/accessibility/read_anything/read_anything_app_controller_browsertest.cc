@@ -195,6 +195,8 @@ class ReadAnythingAppControllerTest : public ChromeRenderViewTest {
     controller_->page_handler_.Bind(page_handler_.BindNewPipeAndPassRemote());
     EXPECT_CALL(page_handler_, OnDistillationStateChanged(testing::_))
         .Times(testing::AnyNumber());
+    EXPECT_CALL(page_handler_, OnDistillationStatus(testing::_, testing::_))
+        .Times(testing::AnyNumber());
 
     // Set distiller for testing.
     auto distiller = std::make_unique<MockAXTreeDistiller>(render_frame);
@@ -204,7 +206,15 @@ class ReadAnythingAppControllerTest : public ChromeRenderViewTest {
     // Create a tree id.
     tree_id_ = ui::AXTreeID::CreateNewAXTreeID();
 
+    // Set presentation state to opened so distillation is not paused.
+    controller_->OnGetPresentationState(
+        read_anything::mojom::ReadAnythingPresentationState::kInSidePanel);
+
     DoInitialDistillation();
+    // Stop the distillation status logging timer started during setup to
+    // prevent it from firing or logging during test cases.
+    controller_->distillation_status_logging_delay_timer_.Stop();
+    controller_->has_logged_distillation_status_ = false;
   }
 
   virtual void DoInitialDistillation() {
@@ -240,6 +250,22 @@ class ReadAnythingAppControllerTest : public ChromeRenderViewTest {
 
   void Distill() { controller_->Distill(); }
   void ProcessModelUpdates() { controller_->ProcessModelUpdates(); }
+  void RecordSessionMetricsIfShownOrRecentlyHidden(bool recently_hidden) {
+    controller_->RecordSessionMetricsIfShownOrRecentlyHidden(recently_hidden);
+    page_handler_.FlushForTesting();
+  }
+  void RecordScreen2xDistillationStatus(bool just_hidden = false) {
+    controller_->RecordScreen2xDistillationStatus(just_hidden);
+    page_handler_.FlushForTesting();
+  }
+  void VerifyAndClearPageHandlerExpectations() {
+    page_handler_.FlushForTesting();
+    Mock::VerifyAndClearExpectations(&page_handler_);
+    EXPECT_CALL(page_handler_, OnDistillationStateChanged(testing::_))
+        .Times(testing::AnyNumber());
+    EXPECT_CALL(page_handler_, OnDistillationStatus(testing::_, testing::_))
+        .Times(testing::AnyNumber());
+  }
 
   void SendBatchUpdates() {
     std::vector<ui::AXTreeUpdate> batch_updates;
@@ -4970,6 +4996,8 @@ class ReadAnythingAppControllerReadabilityTest
     controller_->page_handler_.Bind(page_handler_.BindNewPipeAndPassRemote());
     EXPECT_CALL(page_handler_, OnDistillationStateChanged(testing::_))
         .Times(testing::AnyNumber());
+    EXPECT_CALL(page_handler_, OnDistillationStatus(testing::_, testing::_))
+        .Times(testing::AnyNumber());
 
     // Set distiller for testing.
     auto distiller = std::make_unique<MockAXTreeDistiller>(render_frame);
@@ -4985,6 +5013,8 @@ class ReadAnythingAppControllerReadabilityTest
     snapshot.nodes = {std::move(root)};
     test::SetUpdateTreeID(&snapshot, tree_id_);
     AccessibilityEventReceived({std::move(snapshot)});
+    controller().OnGetPresentationState(
+        read_anything::mojom::ReadAnythingPresentationState::kInSidePanel);
     controller().OnActiveAXTreeIDChanged(tree_id_, ukm::kInvalidSourceId,
                                          /*is_pdf=*/false);
   }
@@ -5340,8 +5370,7 @@ class ReadAnythingAppControllerReadabilitySelectTextTest
         ReadAnythingAppModel::DistillationMethod::kReadability);
     model().set_current_content_distillation_method(
         ReadAnythingAppModel::DistillationMethod::kReadability);
-    page_handler_.FlushForTesting();
-    Mock::VerifyAndClearExpectations(&page_handler_);
+    VerifyAndClearPageHandlerExpectations();
   }
 
  protected:
@@ -5653,4 +5682,242 @@ TEST_F(ReadAnythingAppControllerTest, LogPageDuration_NoStartTimeNoLog) {
       "Accessibility.ReadAnything.PageDuration.PdfInSidePanel", 0);
   histograms.ExpectTotalCount(
       "Accessibility.ReadAnything.PageDuration.WebPageInFullPage", 0);
+}
+
+TEST_F(ReadAnythingAppControllerTest,
+       Screen2xDistillationStatus_NotLoggedWhenHidden) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(features::kImmersiveReadAnything);
+
+  // Set to inactive (hidden)
+  controller().OnGetPresentationState(
+      read_anything::mojom::ReadAnythingPresentationState::kInactive);
+
+  auto const id = ui::AXTreeID::CreateNewAXTreeID();
+  const int word_count = 1234;
+
+  // OnDistillationStatus should NOT be called.
+  EXPECT_CALL(page_handler_, OnDistillationStatus(testing::_, testing::_))
+      .Times(0);
+
+  controller().OnDistilled(word_count);
+  controller().OnActiveAXTreeIDChanged(id, ukm::kInvalidSourceId, false);
+  RecordScreen2xDistillationStatus(/*just_hidden=*/false);
+}
+
+TEST_F(ReadAnythingAppControllerTest,
+       Screen2xDistillationStatus_LogsIfClosedBeforeTimer) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(features::kImmersiveReadAnything);
+
+  // Set to active (visible)
+  controller().OnGetPresentationState(
+      read_anything::mojom::ReadAnythingPresentationState::kInImmersiveOverlay);
+
+  auto const id = ui::AXTreeID::CreateNewAXTreeID();
+  const int word_count = 1234;
+
+  // OnDistillationStatus should be called exactly once.
+  EXPECT_CALL(page_handler_, OnDistillationStatus(testing::_, word_count))
+      .Times(1);
+
+  controller().OnDistilled(word_count);
+  controller().OnActiveAXTreeIDChanged(id, ukm::kInvalidSourceId, false);
+
+  // Close Reading Mode (triggering recently_hidden=true) before the timer
+  // finishes
+  RecordSessionMetricsIfShownOrRecentlyHidden(true);
+}
+
+TEST_F(ReadAnythingAppControllerTest,
+       Screen2xDistillationStatus_DoesNotRelogOnReopenWithoutRedistillation) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(features::kImmersiveReadAnything);
+
+  // 1. Open RM
+  controller().OnGetPresentationState(
+      read_anything::mojom::ReadAnythingPresentationState::kInImmersiveOverlay);
+
+  auto const id = ui::AXTreeID::CreateNewAXTreeID();
+  const int word_count = 1234;
+
+  // Expect OnDistillationStatus to be called only once
+  EXPECT_CALL(page_handler_, OnDistillationStatus(testing::_, word_count))
+      .Times(1);
+
+  controller().OnDistilled(word_count);
+  controller().OnActiveAXTreeIDChanged(id, ukm::kInvalidSourceId, false);
+  RecordScreen2xDistillationStatus(
+      /*just_hidden=*/false);  // First log happens here
+
+  // 2. Close RM
+  controller().OnGetPresentationState(
+      read_anything::mojom::ReadAnythingPresentationState::kInactive);
+
+  // 3. Reopen RM
+  controller().OnGetPresentationState(
+      read_anything::mojom::ReadAnythingPresentationState::kInImmersiveOverlay);
+  RecordScreen2xDistillationStatus(
+      /*just_hidden=*/false);  // Nothing should log here
+}
+
+TEST_F(ReadAnythingAppControllerTest,
+       ReadabilityDistillationStatus_LogsWhenHasContent) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      features::kReadAnythingWithReadability);
+
+  // Expect OnDistillationStatus with Success
+  EXPECT_CALL(
+      page_handler_,
+      OnDistillationStatus(read_anything::mojom::DistillationStatus::kSuccess,
+                           testing::_))
+      .Times(1);
+
+  controller().UpdateContent("Coolest website ever", "best content ever");
+  page_handler_.FlushForTesting();
+}
+
+TEST_F(ReadAnythingAppControllerTest,
+       ReadabilityDistillationStatus_FallsBackToScreen2xWhenNoContent) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      features::kReadAnythingWithReadability);
+
+  // Expect OnDistillationStatus to be called once with the Screen2x fallback
+  EXPECT_CALL(page_handler_, OnDistillationStatus(testing::_, testing::_))
+      .Times(1);
+
+  controller().UpdateContent("Empty page", "");
+  RecordScreen2xDistillationStatus(/*just_hidden=*/false);
+}
+
+TEST_F(ReadAnythingAppControllerTest,
+       Screen2xDistillationStatus_LogsOnReopenOnNewPage) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(features::kImmersiveReadAnything);
+
+  // 1. Open RM on first page (Page A)
+  controller().OnGetPresentationState(
+      read_anything::mojom::ReadAnythingPresentationState::kInSidePanel);
+
+  auto const id1 = ui::AXTreeID::CreateNewAXTreeID();
+  const int word_count1 = 100;
+
+  // Create tree for Page A so that ContainsActiveTree() is true
+  std::unique_ptr<ui::AXTreeUpdate> snapshot1 = test::CreateInitialUpdate();
+  test::SetUpdateTreeID(snapshot1.get(), id1);
+  AccessibilityEventReceived({*snapshot1});
+
+  EXPECT_CALL(page_handler_, OnDistillationStatus(testing::_, word_count1))
+      .Times(1);
+  EXPECT_CALL(*distiller_, Distill).Times(1);
+
+  controller().OnDistilled(word_count1);
+  controller().OnActiveAXTreeIDChanged(id1, ukm::kInvalidSourceId, false);
+  RecordScreen2xDistillationStatus(
+      /*just_hidden=*/false);  // First log happens here
+  controller().OnAXTreeDistilled(id1, {1});
+  VerifyAndClearPageHandlerExpectations();
+  Mock::VerifyAndClearExpectations(distiller_);
+
+  // 2. Close RM
+  controller().OnGetPresentationState(
+      read_anything::mojom::ReadAnythingPresentationState::kInactive);
+
+  // 3. Go to new page (Page B) while RM is closed
+  auto const id2 = ui::AXTreeID::CreateNewAXTreeID();
+  const int word_count2 = 200;
+
+  // Create tree for Page B so that ContainsActiveTree() is true
+  std::unique_ptr<ui::AXTreeUpdate> snapshot2 = test::CreateInitialUpdate();
+  test::SetUpdateTreeID(snapshot2.get(), id2);
+  AccessibilityEventReceived({*snapshot2});
+
+  // Expect OnDistillationStatus NOT to be called while hidden
+  EXPECT_CALL(page_handler_, OnDistillationStatus(testing::_, testing::_))
+      .Times(0);
+
+  controller().OnDistilled(word_count2);
+  controller().OnActiveAXTreeIDChanged(id2, ukm::kInvalidSourceId, false);
+  RecordScreen2xDistillationStatus(
+      /*just_hidden=*/false);  // Should not log while hidden
+  VerifyAndClearPageHandlerExpectations();
+
+  // 4. Reopen RM in side panel
+  EXPECT_CALL(page_handler_, OnDistillationStatus(testing::_, word_count2))
+      .Times(1);
+  EXPECT_CALL(*distiller_, Distill).Times(1);
+  controller().OnGetPresentationState(
+      read_anything::mojom::ReadAnythingPresentationState::kInSidePanel);
+  RecordScreen2xDistillationStatus(
+      /*just_hidden=*/false);  // Let the reopened status log
+}
+
+TEST_F(ReadAnythingAppControllerTest,
+       ReadabilityDistillationStatus_LogsOnlyOnceWhenCalledMultipleTimes) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      features::kReadAnythingWithReadability);
+
+  // Expect OnDistillationStatus with Success to be called EXACTLY once
+  EXPECT_CALL(
+      page_handler_,
+      OnDistillationStatus(read_anything::mojom::DistillationStatus::kSuccess,
+                           testing::_))
+      .Times(1);
+
+  controller().UpdateContent("Best title", "HTML-ing");
+  controller().UpdateContent("Better title", "HTML-er");
+  page_handler_.FlushForTesting();
+}
+
+TEST_F(ReadAnythingAppControllerTest,
+       ReadabilityDistillationStatus_LogsOnlyOnceOnReopenOnNewPage) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      features::kReadAnythingWithReadability);
+
+  // 1. Open RM on Page A (visible)
+  controller().OnGetPresentationState(
+      read_anything::mojom::ReadAnythingPresentationState::kInSidePanel);
+
+  // Expect success logged once for Page A
+  EXPECT_CALL(
+      page_handler_,
+      OnDistillationStatus(read_anything::mojom::DistillationStatus::kSuccess,
+                           testing::_))
+      .Times(1);
+  controller().UpdateContent("Title", "Content");
+  VerifyAndClearPageHandlerExpectations();
+
+  // 2. Close RM (hidden)
+  controller().OnGetPresentationState(
+      read_anything::mojom::ReadAnythingPresentationState::kInactive);
+
+  // 3. Navigate to Page B (resets logged status)
+  auto const id = ui::AXTreeID::CreateNewAXTreeID();
+  controller().OnActiveAXTreeIDChanged(id, ukm::kInvalidSourceId, false);
+
+  // 4. UpdateContent runs while RM is hidden (should NOT log)
+  EXPECT_CALL(page_handler_, OnDistillationStatus(testing::_, testing::_))
+      .Times(0);
+  controller().UpdateContent("Better title", "Better content");
+  VerifyAndClearPageHandlerExpectations();
+
+  // 5. Reopen RM (should log kSuccess once)
+  EXPECT_CALL(
+      page_handler_,
+      OnDistillationStatus(read_anything::mojom::DistillationStatus::kSuccess,
+                           testing::_))
+      .Times(1);
+  controller().OnGetPresentationState(
+      read_anything::mojom::ReadAnythingPresentationState::kInSidePanel);
+  VerifyAndClearPageHandlerExpectations();
+
+  // 6. UpdateContent runs again on reopening (should NOT log)
+  EXPECT_CALL(page_handler_, OnDistillationStatus(testing::_, testing::_))
+      .Times(0);
+  controller().UpdateContent("Better title", "Better content");
+  page_handler_.FlushForTesting();
 }

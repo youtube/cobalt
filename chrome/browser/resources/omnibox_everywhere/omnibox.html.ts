@@ -40,9 +40,15 @@ export function getHtml(this: OmniboxEverywhereOmniboxElement) {
                   .inputState="${this.inputState_}"
                   .searchboxLayoutMode="${this.searchboxLayoutMode}"
                   .tabSuggestions="${this.tabSuggestions_}"
+                  .tabSuggestionsState="${this.tabSuggestionsState_}"
+                  .contextManagementInComposeboxEnabled="${
+      this.contextManagementInComposeboxEnabled}"
                   @context-menu-entrypoint-click="${
       this.onContextMenuEntrypointClick_}"
                   @context-menu-opened="${this.onContextMenuOpened_}"
+                  @context-menu-closed="${this.onContextMenuClosed_}"
+                  @request-tab-suggestions-load="${
+      this.onRequestTabSuggestionsLoad}"
                   @tool-click="${this.onToolClick_}"
                   @deep-search-click="${this.onDeepSearchClick_}"
                   @create-image-click="${this.onCreateImageClick_}"

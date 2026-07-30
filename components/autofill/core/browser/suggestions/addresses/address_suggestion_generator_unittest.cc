@@ -1101,8 +1101,6 @@ TEST_F(AddressSuggestionGeneratorTest, SelectField_NoPrefixMatching) {
 // excluded, except when that suggestion is the only one, then it should not be.
 TEST_F(AddressSuggestionGeneratorTest,
        RemoveFieldByFieldFillingSuggestionsMatchingFieldContent) {
-  base::test::ScopedFeatureList scoped_feature_list{
-      features::kAutofillImproveAddressFieldSwapping};
   AutofillProfile profile1 = test::GetFullProfile();
   AutofillProfile profile2 = test::GetFullProfile2();
   address_data().AddProfile(profile1);
@@ -1144,8 +1142,6 @@ TEST_F(AddressSuggestionGeneratorTest,
 TEST_F(
     AddressSuggestionGeneratorTest,
     RemoveFieldByFieldFillingSuggestionsMatchingFieldContent_NoNormalization) {
-  base::test::ScopedFeatureList scoped_feature_list{
-      features::kAutofillImproveAddressFieldSwapping};
   AutofillProfile profile1 = test::GetFullProfile();
   AutofillProfile profile2 = test::GetFullProfile2();
   profile1.SetRawInfo(NAME_FULL, u"Test Name");

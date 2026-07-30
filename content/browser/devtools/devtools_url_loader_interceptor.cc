@@ -10,6 +10,7 @@
 
 #include "base/barrier_closure.h"
 #include "base/base64.h"
+#include "base/byte_size.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
@@ -1477,9 +1478,10 @@ Response InterceptionJob::ProcessResponseOverride(
   response_metadata_->transfer_size = body_size;
 
   response_metadata_->status.completion_time = base::TimeTicks::Now();
-  response_metadata_->status.encoded_data_length = headers_size + body_size;
-  response_metadata_->status.encoded_body_length = body_size;
-  response_metadata_->status.decoded_body_length = body_size;
+  response_metadata_->status.encoded_data_length =
+      base::ByteSize(headers_size) + base::ByteSize(body_size);
+  response_metadata_->status.encoded_body_length = base::ByteSize(body_size);
+  response_metadata_->status.decoded_body_length = base::ByteSize(body_size);
 
   base::OnceClosure continue_after_cookies_set;
   std::string location;

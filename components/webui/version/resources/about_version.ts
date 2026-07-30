@@ -50,6 +50,10 @@ function handleVariationInfo(
     getRequiredElement('variations-list')
         .appendChild(document.createElement('br'));
   }
+  if (variationsList.length) {
+    getRequiredElement('copy-active-variations-to-clipboard').dataset['value'] =
+        variationsList.join('\n');
+  }
 
   const includeVariationsCmd = location.search.includes('show-variations-cmd');
   if (variationsCmd !== '') {
@@ -141,6 +145,14 @@ async function copyVariationsToClipboard() {
   announceCopy('copy_variations_notice');
 }
 
+async function copyActiveVariationsToClipboard() {
+  const variations =
+      getRequiredElement('copy-active-variations-to-clipboard')
+          .dataset['value'] as string;
+  await navigator.clipboard.writeText(variations);
+  announceCopy('copy_variations_notice');
+}
+
 /**
  * Announce the copy action when screen reader is on.
  * @param id The id string for the notice.
@@ -204,6 +216,9 @@ function initialize() {
 
   getRequiredElement('copy-variations-to-clipboard')
       .addEventListener('click', copyVariationsToClipboard);
+
+  getRequiredElement('copy-active-variations-to-clipboard')
+      .addEventListener('click', copyActiveVariationsToClipboard);
 }
 
 document.addEventListener('DOMContentLoaded', initialize);

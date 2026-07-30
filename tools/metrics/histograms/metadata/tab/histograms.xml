@@ -988,7 +988,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabGroups.SavedTabGroupOpenedSubmenu"
-    enum="SavedTabGroupOpenedSubmenuDesktop" expires_after="2026-10-25">
+    enum="SavedTabGroupOpenedSubmenuDesktop" expires_after="2026-12-27">
   <owner>dominicaustria@google.com</owner>
   <owner>yuhengh@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
@@ -1849,7 +1849,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabManager.Discarding.InactiveToReloadTime" units="ms"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>fdoray@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -2409,7 +2409,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Tabs.RestoredFromInactiveCount" units="tabs"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>huitingyu@google.com</owner>
   <owner>bling-pandamonium@google.com</owner>
   <summary>
@@ -2935,7 +2935,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Tabs.TabSearch.Mojo.SwitchToTab.IsOverlap" enum="Boolean"
-    expires_after="2026-09-09">
+    expires_after="2026-12-27">
   <owner>kerenzhu@chromium.org</owner>
   <owner>romanarora@chromium.org</owner>
   <owner>yuhengh@chromium.org</owner>
@@ -3197,7 +3197,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Tabs.TabSearch.WebUI.SearchAlgorithmDuration" units="ms"
-    expires_after="2026-09-09">
+    expires_after="2026-12-27">
   <owner>yuhengh@chromium.org</owner>
   <owner>chrome-cros@chromium.org</owner>
   <summary>
@@ -3241,7 +3241,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Tabs.TabSearch.WebUI.TabListDataReceived2.IsOverlap"
-    enum="Boolean" expires_after="2026-09-09">
+    enum="Boolean" expires_after="2026-12-27">
   <owner>kerenzhu@chromium.org</owner>
   <owner>tluk@chromium.org</owner>
   <owner>robliao@chromium.org</owner>
@@ -3425,7 +3425,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Tabs.TabStateStore.FilteredTabCount" units="tabs"
-    expires_after="2026-10-28">
+    expires_after="2026-12-27">
   <owner>mfiaz@google.com</owner>
   <owner>clank-tab-dev@google.com</owner>
   <summary>
@@ -3436,7 +3436,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Tabs.TabStateStore.InternalTabCountDelta.CounterHigher"
-    units="tabs" expires_after="2026-10-28">
+    units="tabs" expires_after="2026-12-27">
   <owner>mfiaz@google.com</owner>
   <owner>clank-tab-dev@google.com</owner>
   <summary>
@@ -3447,7 +3447,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Tabs.TabStateStore.InternalTabCountDelta.DatabaseHigher"
-    units="tabs" expires_after="2026-10-28">
+    units="tabs" expires_after="2026-12-27">
   <owner>mfiaz@google.com</owner>
   <owner>clank-tab-dev@google.com</owner>
   <summary>
@@ -3458,7 +3458,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Tabs.TabStateStore.LoadAllTabsDuration" units="ms"
-    expires_after="2026-10-28">
+    expires_after="2026-12-27">
   <owner>skym@chromium.org</owner>
   <owner>clank-tab-dev@google.com</owner>
   <summary>
@@ -3470,7 +3470,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Tabs.TabStateStore.LoadWarning" enum="StorageLoadWarningCode"
-    expires_after="2026-10-28">
+    expires_after="2026-12-27">
   <owner>mfiaz@google.com</owner>
   <owner>clank-tab-dev@google.com</owner>
   <summary>
@@ -3482,7 +3482,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Tabs.TabStateStore.LoadWarningCount" units="count"
-    expires_after="2026-10-28">
+    expires_after="2026-12-27">
   <owner>mfiaz@google.com</owner>
   <owner>clank-tab-dev@google.com</owner>
   <summary>

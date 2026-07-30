@@ -936,9 +936,8 @@ IN_PROC_BROWSER_TEST_P(NavigationEntryScreenshotBrowserTest, HistoryDotBack) {
 
 // Asserting that both the navigations from and to the about:blank triggers
 // screenshot capture.
-// TODO(crbug.com/527732297)
 IN_PROC_BROWSER_TEST_P(NavigationEntryScreenshotBrowserTest,
-                       DISABLED_AboutBlankCaptured) {
+                       AboutBlankCaptured) {
   const size_t page_size = GetUncompressedScreenshotSizeInBytes();
   const size_t memory_budget = 10 * page_size;
   auto* manager = GetManagerForTab(web_contents());
@@ -966,13 +965,11 @@ IN_PROC_BROWSER_TEST_P(NavigationEntryScreenshotBrowserTest,
             GURL(url::kAboutBlankURL));
 
   // Navigates away from about:blank.
-  ASSERT_TRUE(NavigateToURL(tab, GetNextUrl("/green.html")));
-  WaitForCopyableViewInWebContents(tab);
-  // Captured.
+  NavigateTabAndWaitForScreenshotCached(tab, controller,
+                                        GetNextUrl("/green.html"));
   AssertOrderedScreenshotsAre(controller, {SK_ColorWHITE, std::nullopt});
 
   HistoryNavigateTabAndWaitForScreenshotCached(tab, controller, -1);
-  // Captured.
   AssertOrderedScreenshotsAre(controller, {std::nullopt, SK_ColorGREEN});
 }
 

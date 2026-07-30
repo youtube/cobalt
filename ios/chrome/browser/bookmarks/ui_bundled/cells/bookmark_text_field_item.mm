@@ -137,7 +137,7 @@
 
 - (void)applyContentSizeCategoryStyles {
   if (UIContentSizeCategoryIsAccessibilityCategory(
-          UIScreen.mainScreen.traitCollection.preferredContentSizeCategory)) {
+          self.traitCollection.preferredContentSizeCategory)) {
     self.stackView.axis = UILayoutConstraintAxisVertical;
     self.stackView.alignment = UIStackViewAlignmentLeading;
     self.textField.textAlignment = NSTextAlignmentLeft;

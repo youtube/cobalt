@@ -108,9 +108,6 @@ class CookieSettings
   // This should only be called on the UI thread.
   void SetCookieSetting(const GURL& primary_url, ContentSetting setting);
 
-  // Represents the TTL of each User Bypass entries.
-  static constexpr base::TimeDelta kUserBypassEntriesTTL = base::Days(90);
-
   // Sets the cookie setting to allow for the |first_party_url|.
   void SetCookieSettingForUserBypass(const GURL& first_party_url);
 
@@ -219,7 +216,7 @@ class CookieSettings
   base::ScopedObservation<HostContentSettingsMap, content_settings::Observer>
       content_settings_observation_{this};
   std::unique_ptr<PrefChangeRegistrar> pref_change_registrar_;
-  const bool is_incognito_;
+  [[maybe_unused]] const bool is_incognito_;
 
   const char* extension_scheme_;  // Weak.
 

@@ -16,3 +16,77 @@ mojom("mojo_bindings") {
     "//url/mojom:url_mojom_gurl",
   ]
 }
+
+source_set("bookmarks") {
+  public = [
+    "bookmarks_page_handler.h",
+    "bookmarks_side_panel_ui.h",
+  ]
+  public_deps = [
+    ":mojo_bindings",
+    "//chrome/browser:browser_public_dependencies",
+    "//chrome/browser/bookmarks",
+    "//chrome/browser/ui/webui:webui_load_timer",
+    "//chrome/browser/ui/webui/top_chrome",
+    "//components/page_image_service/mojom:mojo_bindings",
+    "//content/public/browser",
+    "//mojo/public/cpp/bindings",
+  ]
+}
+
+source_set("impl") {
+  sources = [
+    "bookmarks_page_handler.cc",
+    "bookmarks_side_panel_ui.cc",
+  ]
+  public_deps = [ ":bookmarks" ]
+  deps = [
+    "//chrome/app:command_ids",
+    "//chrome/browser/bookmarks",
+    "//chrome/browser/commerce",
+    "//chrome/browser/extensions",
+    "//chrome/browser/feature_engagement",
+    "//chrome/browser/page_image_service",
+    "//chrome/browser/prefs",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/resources/side_panel/bookmarks:resources",
+    "//chrome/browser/resources/side_panel/shared:resources_grit",
+    "//chrome/browser/ui:browser_element_identifiers",
+    "//chrome/browser/ui:ui_features",
+    "//chrome/browser/ui/bookmarks",
+    "//chrome/browser/ui/views/interaction",
+    "//chrome/browser/ui/webui:favicon_source",
+    "//chrome/browser/ui/webui:plural_string_handler",
+    "//chrome/browser/ui/webui:webui_util",
+    "//chrome/browser/ui/webui/bookmarks",
+    "//chrome/browser/ui/webui/commerce",
+    "//chrome/browser/ui/webui/sanitized_image:sanitized_image_source",
+    "//chrome/browser/ui/webui/side_panel/reading_list",
+    "//chrome/browser/undo",
+    "//chrome/common",
+    "//components/bookmarks/managed",
+    "//components/commerce/core:feature_list",
+    "//components/favicon_base",
+    "//components/page_image_service",
+    "//components/prefs",
+    "//components/undo",
+    "//ui/webui",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "bookmarks_page_handler_unittest.cc" ]
+  deps = [
+    ":impl",
+    "//base/test:test_support",
+    "//chrome/browser/bookmarks",
+    "//chrome/browser/bookmarks:test_support",
+    "//chrome/browser/ui/webui:webui_util",
+    "//chrome/browser/ui/webui/bookmarks",
+    "//chrome/test:test_support",
+    "//components/bookmarks/managed",
+    "//content/test:test_support",
+    "//testing/gtest",
+  ]
+}

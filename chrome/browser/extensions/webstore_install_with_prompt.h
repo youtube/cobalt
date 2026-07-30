@@ -50,8 +50,7 @@ class WebstoreInstallWithPrompt : public WebstoreStandaloneInstaller {
   bool CheckRequestorAlive() const override;
   bool ShouldShowPostInstallUI() const override;
   content::WebContents* GetWebContents() const override;
-  std::unique_ptr<ExtensionInstallPrompt::Prompt> CreateInstallPrompt()
-      const override;
+  std::unique_ptr<InstallPromptData> CreateInstallPrompt() const override;
   std::unique_ptr<ExtensionInstallPrompt> CreateInstallUI() override;
 
  private:

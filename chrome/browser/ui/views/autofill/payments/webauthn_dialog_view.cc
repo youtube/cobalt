@@ -9,20 +9,17 @@
 #include "chrome/browser/ui/autofill/payments/webauthn_dialog_state.h"
 #include "chrome/browser/ui/tabs/public/tab_dialog_manager.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
-#include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/webauthn/authenticator_request_sheet_view.h"
 #include "chrome/browser/ui/views/webauthn/sheet_view_factory.h"
 #include "chrome/browser/ui/webauthn/authenticator_request_sheet_model.h"
 #include "components/constrained_window/constrained_window_views.h"
 #include "components/tabs/public/tab_interface.h"
-#include "components/web_modal/web_contents_modal_dialog_host.h"
 #include "components/web_modal/web_contents_modal_dialog_manager.h"
 #include "components/web_modal/web_contents_modal_dialog_manager_delegate.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/base/mojom/ui_base_types.mojom-shared.h"
-#include "ui/views/controls/button/label_button.h"
 
 namespace autofill {
 

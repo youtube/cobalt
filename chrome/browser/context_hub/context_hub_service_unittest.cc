@@ -157,16 +157,19 @@ TEST_F(ContextHubServiceTest, SaveTextSelection) {
   EXPECT_EQ("Selection", entries[0].selected_text);
 }
 
-TEST_F(ContextHubServiceTest, DeleteEntry) {
-  service_.SaveTab(GURL("https://example.com"), "Title", base::DoNothing());
+TEST_F(ContextHubServiceTest, DeleteEntries) {
+  service_.SaveTab(GURL("https://example1.com"), "Title1", base::DoNothing());
+  service_.SaveTab(GURL("https://example2.com"), "Title2", base::DoNothing());
 
   base::test::TestFuture<std::vector<MemoryBankEntry>> get_entries_future;
   service_.GetAllEntries(get_entries_future.GetCallback());
   auto entries = get_entries_future.Get();
-  ASSERT_EQ(1u, entries.size());
+  ASSERT_EQ(2u, entries.size());
 
   base::test::TestFuture<void> delete_future;
-  service_.DeleteEntry(entries[0].id, delete_future.GetCallback());
+  std::vector<int64_t> ids_to_delete = {entries[0].id, entries[1].id};
+  service_.DeleteEntries(ids_to_delete,
+                         delete_future.GetCallback());
   EXPECT_TRUE(delete_future.Wait());
 
   base::test::TestFuture<std::vector<MemoryBankEntry>> get_entries_future2;

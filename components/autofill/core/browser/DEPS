@@ -76,6 +76,9 @@ specific_include_rules = {
     "+components/device_reauth",
     "+content/public/test",
   ],
+  "at_memory_cross_tab_copy_paste_tracker_unittest\\.cc": [
+    "+components/ukm",
+  ],
   "autofill_manager_unittest\\.cc": [
     "+components/ukm",
   ],

@@ -20,6 +20,15 @@
 #endif  // defined(CWV_UNIT_TEST)
 
 @implementation CWVEarlyInitFlags
+
+- (instancetype)init {
+  self = [super init];
+  if (self) {
+    _autofillStrikeSystemEnabled = YES;
+  }
+  return self;
+}
+
 @end
 
 @implementation CWVGlobalState {
@@ -97,6 +106,7 @@
   _autofillAcrossIframesEnabled = flags.autofillAcrossIframesEnabled;
   _delayLoadingResources = flags.delayLoadingResources;
   _mainThreadInitialNestingLevel = flags.mainThreadInitialNestingLevel;
+  _autofillStrikeSystemEnabled = flags.autofillStrikeSystemEnabled;
 
   DCHECK([NSThread isMainThread]);
 

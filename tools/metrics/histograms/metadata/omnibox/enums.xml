@@ -265,6 +265,36 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/fusebox/FuseboxMetrics.java:FuseboxAttachmentSizeLimitCheck) -->
 
+<!-- LINT.IfChange(GeolocationHeaderGetLocationOutcome) -->
+
+<enum name="GeolocationHeaderGetLocationOutcome">
+  <int value="0" label="Success"/>
+  <int value="1" label="No cached location"/>
+  <int value="2" label="Permission state mismatch"/>
+  <int value="3" label="Insecure connection"/>
+  <int value="4" label="Ineligible URL"/>
+  <int value="5" label="Header granularity mismatch"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/omnibox/browser/geolocation_header_service.h:GeolocationHeaderGetLocationOutcome) -->
+
+<!-- LINT.IfChange(GeolocationHeaderPrimeLocationOutcome) -->
+
+<enum name="GeolocationHeaderPrimeLocationOutcome">
+  <int value="0" label="Already bound"/>
+  <int value="1" label="No default search provider"/>
+  <int value="2"
+      label="Default search provider does not accept location header"/>
+  <int value="3" label="Invalid DSE URL or insecure connection"/>
+  <int value="4" label="Permission status mismatch"/>
+  <int value="5" label="Cached location is fresh"/>
+  <int value="6" label="Failed to connect to device geolocation service"/>
+  <int value="7" label="Triggered query for cached position only"/>
+  <int value="8" label="Triggered query for next position update"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/omnibox/browser/geolocation_header_service.h:GeolocationHeaderPrimeLocationOutcome) -->
+
 <enum name="GroupId">
   <summary>
     Suggestion group IDs toggled visible or hidden in the omnibox result list.

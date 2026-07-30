@@ -2,14 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <algorithm>
-#include <iterator>
 #include <memory>
 #include <optional>
 #include <vector>
 
 #include "base/task/single_thread_task_runner.h"
-#include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/uuid.h"
 #include "chrome/browser/favicon/favicon_utils.h"

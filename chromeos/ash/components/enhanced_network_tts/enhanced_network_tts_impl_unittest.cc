@@ -16,7 +16,6 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_status_code.h"
-#include "services/data_decoder/public/cpp/test_support/in_process_data_decoder.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #include "services/network/public/mojom/url_loader.mojom-shared.h"
 #include "services/network/test/test_url_loader_factory.h"
@@ -157,8 +156,6 @@ class TestAudioDataObserverImpl : public mojom::AudioDataObserver {
 class EnhancedNetworkTtsImplTest : public testing::Test {
  protected:
   void SetUp() override {
-    in_process_data_decoder_ =
-        std::make_unique<data_decoder::test::InProcessDataDecoder>();
     enhanced_network_tts_impl_ = new EnhancedNetworkTtsImpl();
     enhanced_network_tts_impl_->BindReceiverAndURLFactory(
         remote_.BindNewPipeAndPassReceiver(),
@@ -172,8 +169,6 @@ class EnhancedNetworkTtsImplTest : public testing::Test {
   TestAudioDataObserverImpl* GetTestingObserverPtr() { return &observer_; }
 
   raw_ptr<EnhancedNetworkTtsImpl> enhanced_network_tts_impl_;
-  std::unique_ptr<data_decoder::test::InProcessDataDecoder>
-      in_process_data_decoder_;
   base::test::TaskEnvironment test_task_env_;
   TestServerURLLoaderFactory test_url_factory_;
   mojo::Remote<mojom::EnhancedNetworkTts> remote_;

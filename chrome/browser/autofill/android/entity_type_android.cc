@@ -61,24 +61,31 @@ EntityTypeAndroid::EntityTypeAndroid(const EntityType& entity_type,
                                      [](const AttributeType& attr) {
                                        return AttributeTypeAndroid(attr);
                                      })),
+      // Read-only entity types cannot be created or updated in the UI, so they
+      // do not have required types. Bypassing them also prevents crashing on
+      // complex constraints (e.g. for Orders/Shipments) which the UI cannot
+      // represent.
       required_types(
-          base::ToVector(entity_type.import_constraints(),
-                         [](DenseSet<AttributeType> group) {
-                           // It was decided to keep the schema expressive to
-                           // allow future complex
-                           // constraints, rather than restricting it to match
-                           // current UI capabilities. Consequently, this code
-                           // enforces the current UI limitation (simple
-                           // disjunctions only) via runtime checks. Ex.
-                           // "[[a]]", "[[a], [b]]", "[[a], [b], [c]]" etc are
-                           // supported in UI. More details here:
-                           // crrev.com/c/7245980
-                           CHECK_EQ(group.size(), 1u)
-                               << "Unsupported format: Complex constraint "
-                                  "groups not supported by UI";
+          entity_type.read_only()
+              ? std::vector<AttributeTypeAndroid>{}
+              : base::ToVector(
+                    entity_type.import_constraints(),
+                    [](DenseSet<AttributeType> group) {
+                      // It was decided to keep the schema expressive to
+                      // allow future complex
+                      // constraints, rather than restricting it to match
+                      // current UI capabilities. Consequently, this code
+                      // enforces the current UI limitation (simple
+                      // disjunctions only) via runtime checks. Ex.
+                      // "[[a]]", "[[a], [b]]", "[[a], [b], [c]]" etc are
+                      // supported in UI. More details here:
+                      // crrev.com/c/7245980
+                      CHECK_EQ(group.size(), 1u)
+                          << "Unsupported format: Complex constraint "
+                             "groups not supported by UI";
 
-                           return AttributeTypeAndroid(*group.begin());
-                         })) {}
+                      return AttributeTypeAndroid(*group.begin());
+                    })) {}
 
 EntityTypeAndroid::EntityTypeAndroid(const EntityTypeAndroid&) = default;
 

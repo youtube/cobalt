@@ -65,7 +65,7 @@ suite('CollapsibleAutofillSettingsCard', function() {
 
   async function createCollapsibleAutofillSettingsCard(
       eligibleUser: boolean = true,
-      autofillAddOtherDatatypesPrefIsEnabled: boolean = false,
+      autofillSettingsEnterprisePolicyEnabled: boolean = false,
       optInStatusResponse: boolean = true,
       autofillAiAvailableByDefault: boolean = false,
       showPersonalContextSettingsLink: boolean =
@@ -73,8 +73,8 @@ suite('CollapsibleAutofillSettingsCard', function() {
     entityDataManager.setGetOptInStatusResponse(optInStatusResponse);
     loadTimeData.overrideValues({
       userEligibleForAutofillAi: eligibleUser,
-      AutofillAddOtherDatatypesPrefIsEnabled:
-          autofillAddOtherDatatypesPrefIsEnabled,
+      AutofillSettingsEnterprisePolicyEnabled:
+          autofillSettingsEnterprisePolicyEnabled,
       autofillAiAvailableByDefault: autofillAiAvailableByDefault,
       showPersonalContextSettingsLink: showPersonalContextSettingsLink,
     });
@@ -124,7 +124,7 @@ suite('CollapsibleAutofillSettingsCard', function() {
     test(params.title, async function() {
       const card = await createCollapsibleAutofillSettingsCard(
           params.enhancedAutofillEligibleUser,
-          /*autofillAddOtherDatatypesPrefIsEnabled=*/ false,
+          /*autofillSettingsEnterprisePolicyEnabled=*/ false,
           params.enhancedAutofillOptedIn);
 
       const toggle =
@@ -141,7 +141,7 @@ suite('CollapsibleAutofillSettingsCard', function() {
   test('AutofillAiAvailableByDefaultFalseRendersExpectedUI', async function() {
     const card = await createCollapsibleAutofillSettingsCard(
         /*eligibleUser=*/ true,
-        /*autofillAddOtherDatatypesPrefIsEnabled=*/ false,
+        /*autofillSettingsEnterprisePolicyEnabled=*/ false,
         /*optInStatusResponse=*/ true,
         /*autofillAiAvailableByDefault=*/ false);
 
@@ -174,7 +174,7 @@ suite('CollapsibleAutofillSettingsCard', function() {
   test('AutofillAiAvailableByDefaultTrueRendersExpectedUI', async function() {
     const card = await createCollapsibleAutofillSettingsCard(
         /*eligibleUser=*/ true,
-        /*autofillAddOtherDatatypesPrefIsEnabled=*/ false,
+        /*autofillSettingsEnterprisePolicyEnabled=*/ false,
         /*optInStatusResponse=*/ true,
         /*autofillAiAvailableByDefault=*/ true);
 
@@ -217,7 +217,7 @@ suite('CollapsibleAutofillSettingsCard', function() {
     // opted in.
     const card = await createCollapsibleAutofillSettingsCard(
         /*eligibleUser=*/ true,
-        /*autofillAddOtherDatatypesPrefIsEnabled=*/ false,
+        /*autofillSettingsEnterprisePolicyEnabled=*/ false,
         /*optInStatusResponse=*/ false);
 
     const toggle = card.shadowRoot!.querySelector<SettingsToggleButtonElement>(
@@ -376,7 +376,7 @@ suite('CollapsibleAutofillSettingsCard', function() {
       async function() {
         const card = await createCollapsibleAutofillSettingsCard(
             /*eligibleUser=*/ true,
-            /*autofillAddOtherDatatypesPrefIsEnabled=*/ true);
+            /*autofillSettingsEnterprisePolicyEnabled=*/ true);
 
         const toggle =
             card.shadowRoot!.querySelector<SettingsToggleButtonElement>(
@@ -552,7 +552,7 @@ suite('CollapsibleAutofillSettingsCard', function() {
   test('AddressAutofillDoesNotEnforceTrueValueOnToggle', async function() {
     const card = await createCollapsibleAutofillSettingsCard(
         /*eligibleUser=*/ true,
-        /*autofillAddOtherDatatypesPrefIsEnabled=*/ false,
+        /*autofillSettingsEnterprisePolicyEnabled=*/ false,
         /*optInStatusResponse=*/ false);
     card.set('prefs.autofill.profile_enabled', {
       value: true,
@@ -659,7 +659,7 @@ suite('CollapsibleAutofillSettingsCard', function() {
   test('PersonalContextSettingsLinkRow', async function() {
     const card = await createCollapsibleAutofillSettingsCard(
         /*eligibleUser=*/ true,
-        /*autofillAddOtherDatatypesPrefIsEnabled=*/ false,
+        /*autofillSettingsEnterprisePolicyEnabled=*/ false,
         /*optInStatusResponse=*/ true,
         /*autofillAiAvailableByDefault=*/ false,
         /*showPersonalContextSettingsLink=*/ true);
@@ -686,7 +686,7 @@ suite('CollapsibleAutofillSettingsCard', function() {
   test('PersonalContextSettingsLinkRowNotVisible', async function() {
     const card = await createCollapsibleAutofillSettingsCard(
         /*eligibleUser=*/ true,
-        /*autofillAddOtherDatatypesPrefIsEnabled=*/ false,
+        /*autofillSettingsEnterprisePolicyEnabled=*/ false,
         /*optInStatusResponse=*/ true,
         /*autofillAiAvailableByDefault=*/ false,
         /*showPersonalContextSettingsLink=*/ false);

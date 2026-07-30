@@ -56,9 +56,10 @@ class HttpAuthCacheStatusTest : public ChromeRenderViewHostTestHarness {
 TEST_F(HttpAuthCacheStatusTest, UseCounterNotIncrementedSamePartition) {
   NavigateAndCommit(GURL("https://www.google.com/"));
   // Simulate a subresource load with HTTP Auth.
+  const GURL subresource_url("https://www.google.com/subresource");
   http_auth_cache_status_->ResourceLoadComplete(
-      main_rfh(), content::GlobalRequestID(),
-      *CreateResourceLoadInfo(GURL("https://www.google.com/subresource"),
+      main_rfh(), content::GlobalRequestID(), subresource_url,
+      *CreateResourceLoadInfo(subresource_url,
                               /*did_use_server_http_auth=*/true));
 
   histogram_tester_.ExpectBucketCount(
@@ -74,9 +75,10 @@ TEST_F(HttpAuthCacheStatusTest, UseCounterNotIncrementedSamePartition) {
 TEST_F(HttpAuthCacheStatusTest, UseCounterNotIncrementedNoHttpAuth) {
   NavigateAndCommit(GURL("https://www.google.com/"));
   // Simulate a subresource load without HTTP Auth.
+  const GURL subresource_url("https://www.google.com/subresource");
   http_auth_cache_status_->ResourceLoadComplete(
-      main_rfh(), content::GlobalRequestID(),
-      *CreateResourceLoadInfo(GURL("https://www.google.com/subresource"),
+      main_rfh(), content::GlobalRequestID(), subresource_url,
+      *CreateResourceLoadInfo(subresource_url,
                               /*did_use_server_http_auth=*/false));
 
   histogram_tester_.ExpectBucketCount(
@@ -92,9 +94,10 @@ TEST_F(HttpAuthCacheStatusTest, UseCounterNotIncrementedNoHttpAuth) {
 TEST_F(HttpAuthCacheStatusTest, UseCounterIncrementedCrossPartition) {
   NavigateAndCommit(GURL("https://www.google.com/"));
   // Simulate a cross-origin subresource load with HTTP Auth.
+  const GURL subresource_url("https://www.example.com/subresource");
   http_auth_cache_status_->ResourceLoadComplete(
-      main_rfh(), content::GlobalRequestID(),
-      *CreateResourceLoadInfo(GURL("https://www.example.com/subresource"),
+      main_rfh(), content::GlobalRequestID(), subresource_url,
+      *CreateResourceLoadInfo(subresource_url,
                               /*did_use_server_http_auth=*/true));
   histogram_tester_.ExpectBucketCount(
       "Blink.UseCounter.Features",

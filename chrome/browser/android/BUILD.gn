@@ -44,6 +44,7 @@ source_set("tabs_impl") {
     "//chrome/browser/actor/android",
     "//chrome/browser/contextual_search",
     "//chrome/browser/contextual_tasks",
+    "//chrome/browser/enterprise",
     "//chrome/browser/glic",
     "//chrome/browser/net",
     "//chrome/browser/preloading/new_tab_page_preload",

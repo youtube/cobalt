@@ -16,7 +16,6 @@ source_set("language_tag") {
     "language_tag_matcher.h",
     "tag_converters.cc",
     "tag_converters.h",
-    "tags.cc",
     "tags.h",
   ]
 
@@ -40,6 +39,26 @@ source_set("language_tag") {
 source_set("unicodestring") {
   sources = [ "unicodestring.h" ]
   public_deps = [ "//third_party/icu" ]
+}
+
+source_set("timezone") {
+  sources = [
+    "timezone.cc",
+    "timezone.h",
+  ]
+
+  defines = [ "BASE_I18N_IMPLEMENTATION" ]
+
+  public_deps = [
+    ":base_i18n_export",
+    ":language_tag",
+    "//base",
+  ]
+
+  deps = [
+    ":unicodestring",
+    "//third_party/icu",
+  ]
 }
 
 source_set("time_formatting_types") {

@@ -72,6 +72,7 @@ enum class NoSpareRendererReason {
 
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kKillSpareRenderOnMemoryPressure);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kSpareRPHKeepOneAliveOnMemoryPressure);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kSpareRPHUseCriticalMemoryPressure);
 
 class CONTENT_EXPORT SpareRenderProcessHostManagerImpl
     : public SpareRenderProcessHostManager,

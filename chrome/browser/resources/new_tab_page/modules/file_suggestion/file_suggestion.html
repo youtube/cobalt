@@ -15,4 +15,12 @@
       </div>
     </a>
   `)}
+  ${this.seeMoreUrl ? html`
+    <div id="seeMoreButtonContainer">
+      <a href="${this.seeMoreUrl}" @click="${this.onSeeMoreClick_}">
+        ${this.seeMoreText}
+        <div id="hoverContainer"></div>
+      </a>
+    </div>
+  ` : ''}
 </div>

@@ -160,7 +160,6 @@ public class PaymentDetailsUpdateConnection implements ServiceConnection, Reconn
         if (mIsBindingInitiated) {
             Log.i(TAG, "Terminating connection to \"%s\".", mServiceName);
             unbindService();
-            mIsBindingInitiated = false;
         }
     }
 
@@ -168,5 +167,6 @@ public class PaymentDetailsUpdateConnection implements ServiceConnection, Reconn
     @Override
     public void unbindService() {
         mContext.unbindService(/* serviceConnection= */ this);
+        mIsBindingInitiated = false;
     }
 }

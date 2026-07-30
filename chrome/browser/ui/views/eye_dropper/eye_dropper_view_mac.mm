@@ -29,7 +29,8 @@ EyeDropperViewMac::EyeDropperViewMac(content::EyeDropperListener* listener)
     if (!selectedColor) {
       listener_->ColorSelectionCanceled();
     } else {
-      listener_->ColorSelected(skia::NSSystemColorToSkColor(selectedColor));
+      listener_->ColorSelected(
+          skia::CGColorRefToSkColor(selectedColor.CGColor));
     }
   }];
 }

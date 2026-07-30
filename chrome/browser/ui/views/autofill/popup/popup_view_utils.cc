@@ -8,12 +8,13 @@
 #include <optional>
 
 #include "base/containers/to_vector.h"
+#include "base/feature_list.h"
 #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
 #include "chrome/browser/platform_util.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/views/autofill/popup/popup_base_view.h"
-#include "chrome/browser/ui/views/chrome_widget_sublevel.h"
+#include "chrome/browser/ui/views/autofill/popup/popup_view_views.h"
 #include "chrome/browser/ui/views/extensions/extension_popup.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
@@ -22,6 +23,7 @@
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/browser/ui/popup_open_enums.h"
 #include "components/autofill/core/common/autofill_features.h"
+#include "components/feature_engagement/public/feature_constants.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "extensions/common/constants.h"
@@ -716,6 +718,57 @@ bool ShouldAutoselectFirstSuggestion(
   return trigger_source_autoselect.value() ||
          (first_suggestion_type &&
           IsSuggestionTypeAutoselected(*first_suggestion_type));
+}
+
+ui::ElementIdentifier GetAutofillPopupCellElementIdentifier(
+    const base::Feature* feature) {
+  if (!feature) {
+    return ui::ElementIdentifier();
+  }
+  if (feature ==
+          &feature_engagement::kIPHAutofillVirtualCardSuggestionFeature ||
+      feature == &feature_engagement::
+                     kIPHAutofillDisabledVirtualCardSuggestionFeature ||
+      feature ==
+          &feature_engagement::kIPHAutofillCardInfoRetrievalSuggestionFeature ||
+      feature ==
+          &feature_engagement::kIPHAutofillDownstreamCardAwarenessFeature) {
+    return PopupViewViews::kAutofillCreditCardSuggestionEntryElementId;
+  }
+  if (feature ==
+      &feature_engagement::kIPHAutofillVirtualCardCVCSuggestionFeature) {
+    return PopupViewViews::kAutofillStandaloneCvcSuggestionElementId;
+  }
+  if (feature == &feature_engagement::
+                     kIPHAutofillExternalAccountProfileSuggestionFeature) {
+    return PopupViewViews::kAutofillSuggestionElementId;
+  }
+  if (feature == &feature_engagement::kIPHAutofillCreditCardBenefitFeature) {
+    return PopupViewViews::kAutofillCreditCardBenefitElementId;
+  }
+  if (feature ==
+      &feature_engagement::kIPHAutofillBnplAffirmOrZipSuggestionFeature) {
+    return PopupViewViews::kAutofillBnplAffirmOrZipSuggestionElementId;
+  }
+  if (feature ==
+      &feature_engagement::kIPHAutofillBnplAffirmZipOrKlarnaSuggestionFeature) {
+    return PopupViewViews::kAutofillBnplAffirmZipOrKlarnaSuggestionElementId;
+  }
+  if (feature ==
+      &feature_engagement::kIPHAutofillHomeWorkProfileSuggestionFeature) {
+    return PopupViewViews::kAutofillHomeWorkSuggestionElementId;
+  }
+  if (feature == &feature_engagement::kIPHAutofillEnableLoyaltyCardsFeature) {
+    return PopupViewViews::kAutofillEnableLoyaltyCardsElementId;
+  }
+  if (feature ==
+      &feature_engagement::kIPHAutofillAccountNameEmailSuggestionFeature) {
+    return PopupViewViews::kAutofillAccountNameEmailSuggestionElementId;
+  }
+  if (feature == &feature_engagement::kIPHAutofillAiValuablesFeature) {
+    return PopupViewViews::kAutofillAiValuablesElementId;
+  }
+  return ui::ElementIdentifier();
 }
 
 }  // namespace autofill

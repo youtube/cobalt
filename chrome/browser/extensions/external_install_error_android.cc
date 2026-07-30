@@ -53,8 +53,7 @@ ExternalInstallError::AlertType ExternalInstallErrorAndroid::alert_type()
   return alert_type_;
 }
 
-ExtensionInstallPrompt::Prompt*
-ExternalInstallErrorAndroid::GetPromptForTesting() const {
+InstallPromptData* ExternalInstallErrorAndroid::GetPromptForTesting() const {
   NOTIMPLEMENTED();
   return nullptr;
 }

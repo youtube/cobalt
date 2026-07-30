@@ -205,6 +205,31 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//components/safe_browsing/core/common/proto/csd.proto:ClientSafeBrowsingReportType) -->
 
+<!-- LINT.IfChange(ConvertExtensionBlocklistV4ToV5Result) -->
+
+<enum name="ConvertExtensionBlocklistV4ToV5Result">
+  <int value="0" label="Success"/>
+  <int value="1" label="Failed to read V4 hash file"/>
+  <int value="2" label="Invalid hash file size"/>
+  <int value="3" label="Invalid extension ID"/>
+  <int value="4" label="Failed to write V5 hash file"/>
+  <int value="5" label="V4ChecksumMismatch"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/safe_browsing/core/browser/db/v5_store.h:ConvertExtensionBlocklistV4ToV5Result) -->
+
+<!-- LINT.IfChange(ConvertExtensionBlocklistV5ToV4Result) -->
+
+<enum name="ConvertExtensionBlocklistV5ToV4Result">
+  <int value="0" label="Success"/>
+  <int value="1" label="Failed to read V5 hash file"/>
+  <int value="2" label="Invalid hash file size"/>
+  <int value="3" label="Failed to write V4 hash file"/>
+  <int value="4" label="V5ChecksumMismatch"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/safe_browsing/core/browser/db/v4_store.h:ConvertExtensionBlocklistV5ToV4Result) -->
+
 <enum name="DisplayPersistentNotificationEvents">
   <int value="0" label="Request to display persistent notification"/>
   <int value="1" label="Finished displaying persistent notification"/>
@@ -605,6 +630,7 @@ chromium-metrics-reviews@google.com.
   <int value="9" label="MIGRATION_FAILURE"/>
   <int value="10" label="PRE_MMAP_MIGRATION_FILE_FORMAT_FAILURE"/>
   <int value="11" label="V5_TO_V4_MIGRATION_FAILURE"/>
+  <int value="12" label="V5_TO_V4_MIGRATION_WIPED_SUCCESSFULLY"/>
 </enum>
 
 <enum name="SafeBrowsingV4StoreWriteResult">
@@ -632,6 +658,7 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Success"/>
   <int value="2" label="MmapFailure"/>
   <int value="3" label="FileSizeNotMultipleOfPrefixSize"/>
+  <int value="4" label="ChecksumMismatchFailure"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/safe_browsing/core/browser/db/hash_prefix_list.h:V5ApplyUpdateResult) -->
@@ -650,6 +677,7 @@ chromium-metrics-reviews@google.com.
   <int value="8" label="HashPrefixListGenerationFailure"/>
   <int value="9" label="FileReadFailure"/>
   <int value="10" label="V4ToV5MigrationFailure"/>
+  <int value="11" label="V4ToV5MigrationWipedSuccessfully"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/safe_browsing/core/browser/db/sb_store.h:V5StoreReadResult) -->
@@ -667,6 +695,9 @@ chromium-metrics-reviews@google.com.
   <int value="7" label="WriteV4FileFailure"/>
   <int value="8" label="RenameV4StoreFileFailure"/>
   <int value="9" label="ProtoSerializationFailure"/>
+  <int value="10" label="StoreIneligibleWipeFailed"/>
+  <int value="11" label="StoreIneligibleWipeSucceeded"/>
+  <int value="12" label="ExtensionBlocklistMigrationFailed"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/safe_browsing/core/browser/db/v4_store.h:V5ToV4MigrationResult) -->
@@ -885,6 +916,9 @@ chromium-metrics-reviews@google.com.
   <int value="9" label="ProtoSerializationFailure"/>
   <int value="10" label="ExtensionParsingFailure"/>
   <int value="11" label="RenameV5StoreFileFailure"/>
+  <int value="12" label="StoreIneligibleWipeFailed"/>
+  <int value="13" label="StoreIneligibleWipeSucceeded"/>
+  <int value="14" label="ExtensionBlocklistMigrationFailed"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/safe_browsing/core/browser/db/v5_store.h:V4ToV5MigrationResult) -->

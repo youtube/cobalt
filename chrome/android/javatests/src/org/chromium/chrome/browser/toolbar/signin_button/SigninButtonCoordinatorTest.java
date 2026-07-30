@@ -364,8 +364,6 @@ public class SigninButtonCoordinatorTest {
 
     @Test
     @MediumTest
-    // TODO(crbug.com/496912352): Not including Brya as inconsistent test state causes flakiness.
-    @Restriction(DeviceFormFactor.PHONE_OR_TABLET)
     public void testSigninButtonHiddenOnIncognitoNtp() {
         startActivityOnNtp();
 

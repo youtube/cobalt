@@ -6,6 +6,7 @@ module blink.mojom;
 
 import "services/on_device_model/public/mojom/download_observer.mojom";
 import "third_party/blink/public/mojom/ai/ai_common.mojom";
+import "third_party/blink/public/mojom/ai/ai_semantic_embedder.mojom";
 import "third_party/blink/public/mojom/ai/ai_language_model.mojom";
 import "third_party/blink/public/mojom/ai/ai_proofreader.mojom";
 import "third_party/blink/public/mojom/ai/ai_rewriter.mojom";

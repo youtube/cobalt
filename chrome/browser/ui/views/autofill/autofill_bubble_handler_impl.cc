@@ -7,8 +7,6 @@
 #include <concepts>
 #include <memory>
 
-#include "chrome/app/chrome_command_ids.h"
-#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/autofill/autofill_ai/autofill_ai_import_data_controller.h"
 #include "chrome/browser/ui/autofill/autofill_bubble_base.h"
@@ -17,7 +15,6 @@
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
-#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/autofill/address_sign_in_promo_view.h"
 #include "chrome/browser/ui/views/autofill/autofill_ai/autofill_ai_import_data_bubble_view.h"
 #include "chrome/browser/ui/views/autofill/autofill_ai/autofill_ai_local_save_notification_view.h"
@@ -40,13 +37,9 @@
 #include "chrome/browser/ui/views/autofill/update_address_profile_view.h"
 #include "chrome/browser/ui/views/bubble_anchor_util_views.h"
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
-#include "chrome/browser/ui/views/profiles/avatar_toolbar_button.h"
-#include "components/autofill/content/browser/content_autofill_driver.h"
-#include "components/autofill/content/browser/content_autofill_driver_factory.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/browser/payments/virtual_card_enrollment_manager.h"
 #include "components/autofill/core/browser/ui/payments/virtual_card_enroll_bubble_controller.h"
-#include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/constrained_window/constrained_window_views.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"

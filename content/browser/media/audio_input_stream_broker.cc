@@ -166,6 +166,8 @@ InputStreamErrorCode MapDisconnectReasonToErrorCode(DisconnectReason reason) {
       return InputStreamErrorCode::kSystemPermissions;
     case DisconnectReason::kDeviceInUse:
       return InputStreamErrorCode::kDeviceInUse;
+    case DisconnectReason::kDeviceRemoved:
+      return InputStreamErrorCode::kDeviceRemoved;
     case DisconnectReason::kDefault:
     case DisconnectReason::kPlatformError:
     case DisconnectReason::kTerminatedByClient:

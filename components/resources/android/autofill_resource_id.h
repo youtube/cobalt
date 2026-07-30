@@ -151,6 +151,12 @@ DECLARE_RESOURCE_ID(IDR_ANDROID_AUTOFILL_ID_CARD_SPARK,
 DECLARE_RESOURCE_ID(IDR_ANDROID_AUTOFILL_ID_CARD_2, R.drawable.id_card_2)
 DECLARE_RESOURCE_ID(IDR_ANDROID_AUTOFILL_ID_CARD_2_SPARK,
                     R.drawable.id_card_2_spark)
+DECLARE_RESOURCE_ID(IDR_ANDROID_AUTOFILL_CARD_GENERIC_SPARK,
+                    R.drawable.card_generic_spark)
+DECLARE_RESOURCE_ID(IDR_ANDROID_AUTOFILL_LOCATION_SPARK,
+                    R.drawable.location_spark)
+DECLARE_RESOURCE_ID(IDR_ANDROID_AUTOFILL_TEXT_SPARK,
+                    R.drawable.ic_text_analysis_24dp)
 DECLARE_RESOURCE_ID(IDR_ANDROID_AUTOFILL_ID_CHROME_PRODUCT,
                     R.drawable.chrome_product)
 // Note that R.drawable.google_wallet_24dp is always present, but the icon in

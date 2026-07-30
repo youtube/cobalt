@@ -28,6 +28,7 @@
 #include "components/sync_device_info/device_info.h"
 #include "content/public/browser/web_contents.h"
 
+class AccountCapabilities;
 class Profile;
 class ProfileAttributesStorage;
 
@@ -145,6 +146,11 @@ class GlicEnabling final : public signin::IdentityManager::Observer,
   static bool IsAccountDataProtected(Profile* profile);
   static signin::Tribool IsAccountManaged(Profile* profile);
   static bool IsEnterpriseAccount(Profile* profile);
+
+  // Returns whether the account capability permits using Glic features that are
+  // available only to adult users.
+  static bool CanUseAdultFeatures(
+      const AccountCapabilities& capabilities);
 
   // Returns whether the OS version is supported.
   static bool IsOsVersionSupported();
@@ -304,6 +310,23 @@ class GlicEnabling final : public signin::IdentityManager::Observer,
       kMaxValue = kOsVersionNotSupported,
     };
     // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicFeatureDisabledReason)
+
+    // LINT.IfChange(GlicAnchoredDespiteEligibilityReason)
+    enum class AnchoredDespiteEligibilityReason {
+      kFeatureFlagDisabled = 0,
+      kCountryDisabled = 1,
+      kLocaleDisabled = 2,
+      kSystemRequirementNotMet = 3,
+      kOsVersionNotSupported = 4,
+      kPrimaryAccountNotCapable = 5,
+      kDisallowedByChromePolicy = 6,
+      kDisallowedByRemoteAdmin = 7,
+      kDisallowedByRemoteOther = 8,
+      kNotRegularProfile = 9,
+      kNotRolledOut = 10,
+      kMaxValue = kNotRolledOut,
+    };
+    // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicAnchoredDespiteEligibilityReason)
 
     enum class DisabledReason {
       kFeatureDisabled = 0,

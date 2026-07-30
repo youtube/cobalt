@@ -115,6 +115,14 @@ class MseTrackBuffer {
                                     base::TimeDelta start_pts);
 
  private:
+  // Returns true if `frame` is an audio frame that is a duplicate of the most
+  // recently processed frame. A duplicate is defined as:
+  // 1) zero duration
+  // 2) identical timestamps
+  // 3) the exact same keyframe status.
+  bool IsDuplicateAudioZeroDurationFrame(
+      const scoped_refptr<StreamParserBuffer>& frame) const;
+
   // The decode timestamp of the last coded frame appended in the current coded
   // frame group. Initially kNoTimestamp, meaning "unset".
   DecodeTimestamp last_decode_timestamp_;
@@ -236,12 +244,19 @@ void MseTrackBuffer::SetHighestPresentationTimestampIfIncreased(
   }
 }
 
+bool MseTrackBuffer::IsDuplicateAudioZeroDurationFrame(
+    const scoped_refptr<StreamParserBuffer>& frame) const {
+  return stream_->type() == DemuxerStream::AUDIO &&
+         !processed_frames_.empty() &&
+         frame->timestamp() == processed_frames_.back()->timestamp() &&
+         frame->duration().is_zero() &&
+         processed_frames_.back()->duration().is_zero() &&
+         frame->is_key_frame() == processed_frames_.back()->is_key_frame();
+}
+
 bool MseTrackBuffer::EnqueueProcessedFrame(
     scoped_refptr<StreamParserBuffer> frame) {
-  if (stream_->type() == DemuxerStream::AUDIO && !processed_frames_.empty() &&
-      frame->timestamp() == processed_frames_.back()->timestamp() &&
-      frame->duration().is_zero() &&
-      processed_frames_.back()->duration().is_zero()) {
+  if (IsDuplicateAudioZeroDurationFrame(frame)) {
     processed_frames_.pop_back();
   }
 

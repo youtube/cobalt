@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/byte_size.h"
 #include "base/functional/bind.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
@@ -63,7 +64,7 @@ class ImageFetcherTest : public testing::Test {
     if (net_status_code >= 0) {
       head->headers = base::MakeRefCounted<net::HttpResponseHeaders>(
           "HTTP/1.1 " + base::NumberToString(net_status_code));
-      status.decoded_body_length = response_string.length();
+      status.decoded_body_length = base::ByteSize(response_string.length());
     } else {
       status.error_code = net_status_code;
     }

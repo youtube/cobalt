@@ -114,8 +114,7 @@ public class ActorTaskTimeoutManager {
         ActorTask task = mKeyedService.getTask(taskId);
         if (task == null) return;
 
-        // TODO(crbug.com/513298536): Add a new StoppedReason for task timeout.
-        mKeyedService.stopTask(taskId, StoppedReason.CHROME_FAILURE);
+        mKeyedService.stopTask(taskId, StoppedReason.TIMEOUT);
     }
 
     private void scheduleTimer(Runnable action, int delayMs) {

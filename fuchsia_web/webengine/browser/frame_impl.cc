@@ -1646,6 +1646,7 @@ void FrameImpl::DidFirstVisuallyNonEmptyPaint() {
 void FrameImpl::ResourceLoadComplete(
     content::RenderFrameHost* render_frame_host,
     const content::GlobalRequestID& request_id,
+    const GURL& original_url,
     const blink::mojom::ResourceLoadInfo& resource_load_info) {
   int net_error = resource_load_info.net_error;
   if (net_error != net::OK) {

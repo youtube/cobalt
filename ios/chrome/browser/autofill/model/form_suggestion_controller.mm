@@ -159,6 +159,11 @@ UIImage* DefaultIconForType(FormSuggestion* suggestion,
           entity->type().name(), isPersonalContext, kSymbolPointSize,
           /*tint_color=*/nil);
     }
+    case autofill::SuggestionType::kAutocompleteAtMemoryButton:
+      return SymbolWithPalette(
+          CustomSymbolWithPointSize(kMagnifyingglassSparkSymbol,
+                                    kSymbolActionPointSize),
+          @[ [UIColor colorNamed:kTextPrimaryColor] ]);
     case autofill::SuggestionType::kAutocompleteEntry:
     default:
       return nil;

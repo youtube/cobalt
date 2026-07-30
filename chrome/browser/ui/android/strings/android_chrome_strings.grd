@@ -204,11 +204,6 @@ CHAR_LIMIT guidelines:
     <messages fallback_to_english="true">
       <!-- NOTE: Generic strings used across multiple features belong in //components/browser_ui/strings/android. -->
 
-       <!-- Cookie Controls -->
-      <message name="IDS_COOKIE_CONTROLS_IPH_MESSAGE" desc="In-context Product Help - Appears right under the page info icon to highlight the Cookie Controls entrypoint.">
-        Site not working? Third-party cookies are blocked
-      </message>
-
       <!-- Main Preferences -->
       <message name="IDS_PREFS_SECTION_BASICS" desc='Title of "Basics" section of preferences. [CHAR_LIMIT=32]'>
         Basics
@@ -488,6 +483,9 @@ For more settings that use data to improve your Chrome experience, go to <ph nam
       <!-- Manage search engines and site search -->
       <message name="IDS_MANAGE_SEARCH_ENGINES_AND_SITE_SEARCH" desc="Title shown in the menu item that takes the user to 'Manage search engines and site search' in Settings.">
         Manage search engines and site search
+      </message>
+      <message name="IDS_ALWAYS_SHOW_AI_MODE" desc="Label for the right-click menu item that toggles whether the AI Mode button is always shown.">
+        Always Show AI Mode
       </message>
       <message name="IDS_SITE_SEARCH_KEYBOARD_SHORTCUT_HEADER" desc="Header for the 'Keyboard Shortcut' section.">
         Keyboard shortcut
@@ -1293,6 +1291,9 @@ Your Google account may have other forms of browsing history like searches and a
       </message>
       <message name="IDS_CLEAR_BROWSING_DATA_TAB_PERIOD_EVERYTHING" desc="The option to delete browsing data from the beginning of time.">
         All time
+      </message>
+      <message name="IDS_CLEAR_BROWSING_DATA_MANAGE_OTHER_GOOGLE_DATA_EXPANDABLE_TITLE" desc="Title for the expandable 'Manage other Google data' section in Clear Browsing Data." translateable="false">
+        Manage other Google data
       </message>
       <message name="IDS_IMPORTANT_SITES_TITLE" desc="Title of clear storage dialogs used in a couple different places to confirm clearing site storage data. [CHAR_LIMIT=24]">
         Also clear data from these sites?
@@ -2742,13 +2743,13 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
 
       <!-- DuplicateDownloadInfoBar -->
-      <message name="IDS_DUPLICATE_DOWNLOAD_INFOBAR_TEXT" desc="Prompt text for the confirmation dialog asking whether the user really wants to download a file when there already exists a file with the same name">
+      <message name="IDS_DUPLICATE_DOWNLOAD_PROMPT_TEXT" desc="Prompt text for the confirmation dialog asking whether the user really wants to download a file when there already exists a file with the same name">
         Do you want to download <ph name="FILE_NAME">^1<ex>specialfile.pdf</ex></ph> again?
       </message>
-      <message name="IDS_DUPLICATE_DOWNLOAD_REQUEST_INFOBAR_TEXT" desc="Prompt text for the confirmation dialog asking whether the user really wants to download a file when a file with the same name is still being downloaded">
+      <message name="IDS_DUPLICATE_DOWNLOAD_REQUEST_PROMPT_TEXT" desc="Prompt text for the confirmation dialog asking whether the user really wants to download a file when a file with the same name is still being downloaded">
         Do you want to start downloading <ph name="FILE_NAME">^1<ex>specialfile.pdf</ex></ph> again?
       </message>
-      <message name="IDS_DUPLICATE_DOWNLOAD_INFOBAR_DOWNLOAD_BUTTON" desc="Label for the button that confirms that a user wants to download the file again. [CHAR_LIMIT=32]">
+      <message name="IDS_DUPLICATE_DOWNLOAD_PROMPT_DOWNLOAD_BUTTON" desc="Label for the button that confirms that a user wants to download the file again. [CHAR_LIMIT=32]">
         Download
       </message>
 
@@ -2882,11 +2883,15 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
 
       <!-- ContextMenu -->
+      <message name="IDS_CONTEXTMENU_TRANSLATE" desc="This string is shown in the context menu for translating the current page to the target language. [CHAR_LIMIT=30]">
+        Translate to <ph name="LANGUAGE">%1$s<ex>English</ex></ph>
+      </message>
       <message name="IDS_CONTEXTMENU_SAVE_PAGE" desc="This string is shown in the context menu for saving the current page. [CHAR_LIMIT=30]">
         Download
       </message>
-      <message name="IDS_CONTEXTMENU_SEARCH_TAB_WITH_GOOGLE_LENS" desc="Context sensitive menu item for deep linking into google lens. [CHAR_LIMIT=35]">
-        Search tab with Google Lens
+      <!-- TODO(b/527098378): Remove the "New" label, reduce CHAR_LIMIT back to 35, and deprecate CONTEXT_MENU_SEARCH_TAB_WITH_GOOGLE_LENS_CLICKED preference after feature is established. -->
+      <message name="IDS_CONTEXTMENU_SEARCH_TAB_WITH_GOOGLE_LENS" desc="Context sensitive menu item for deep linking into google lens. [CHAR_LIMIT=42]">
+        Search tab with Google Lens <ph name="BEGIN_NEW">&lt;new&gt;</ph>New<ph name="END_NEW">&lt;/new&gt;</ph>
       </message>
       <message name="IDS_CONTEXTMENU_SHARE_PAGE" desc="This string is shown in the context menu for sharing the current page. [CHAR_LIMIT=30]">
         Share
@@ -3037,6 +3042,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_CONTEXTMENU_SHOW_INTEREST_IN_ELEMENT" desc="This string is shown in the context menu for requesting additional details about the web link the user long-pressed. [CHAR_LIMIT=30]">
         Show details
+      </message>
+      <message name="IDS_CONTEXTMENU_CREATE_QR_CODE" desc="Context sensitive menu item to create a QR code for the current page. [CHAR_LIMIT=35]">
+        Create QR code for this page
       </message>
 
       <!-- Swipe refresh -->
@@ -5434,6 +5442,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
 
       <!-- Omnibox Suggestions -->
+      <message name="IDS_OMNIBOX_CONTEXT_MENU_DELETE" desc="The text label of the Delete menu item in the omnibox text selection context menu.">
+        Delete
+      </message>
       <message name="IDS_OMNIBOX_CONFIRM_DELETE" desc="A message within a modal dialog that confirms the user wants to delete a suggestion from the list dropdown in the omnibox">
         Remove suggestion from history?
       </message>
@@ -6167,9 +6178,6 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_IPH_DOWNLOAD_SETTINGS_ACCESSIBILITY_TEXT" desc="The in-product-help accessibility text to open download settings in download home.">
         Change the default download location any time using the Settings menu option
-      </message>
-      <message name="IDS_IPH_DOWNLOAD_INFOBAR_DOWNLOAD_CONTINUING_TEXT" desc="The in-product-help message on the download InfoBar to inform that download is still continuing.">
-        Your download is still in progress
       </message>
       <message name="IDS_SEARCH_WIDGET_DESCRIPTION" desc="Description text for the search widget">
         Quickly start a search in Chrome
@@ -7755,9 +7763,6 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
 
     <!-- Glic strings -->
-      <message name="IDS_GLIC_BUTTON_ENTRYPOINT_OPEN_GEMINI_LABEL" desc="Label on the 3-dot menu item used to open Gemini in Chrome.">
-        Open Gemini
-      </message>
       <message name="IDS_GLIC_ACTOR_TASK_IN_PROGRESS" desc="Snackbar message shown when a Glic actor task is still in progress.">
         Your task is still in progress
       </message>

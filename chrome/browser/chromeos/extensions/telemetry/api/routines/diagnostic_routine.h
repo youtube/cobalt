@@ -14,7 +14,6 @@
 #include "chrome/browser/chromeos/extensions/telemetry/api/routines/diagnostic_routine_info.h"
 #include "chrome/browser/chromeos/extensions/telemetry/api/routines/diagnostic_routine_observation.h"
 #include "chromeos/ash/services/cros_healthd/public/mojom/cros_healthd_routines.mojom.h"
-#include "chromeos/crosapi/mojom/telemetry_diagnostic_routine_service.mojom.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -26,7 +25,7 @@ namespace chromeos {
 // as the corresponding observation for this routine.
 // This class also handles error handling of a routine. When an error occurs, a
 // mojo disconnect will occur with the reason encoded from
-// `crosapi::mojom::TelemetryExtensionException::Reason` and an optional debug
+// `ash::cros_healthd::mojom::Exception::Reason` and an optional debug
 // message. This will be forwarded to an extension by dispatching the
 // `onRoutineException` callback.
 class DiagnosticRoutine {
@@ -35,7 +34,7 @@ class DiagnosticRoutine {
       base::OnceCallback<void(DiagnosticRoutineInfo)>;
 
   explicit DiagnosticRoutine(
-      mojo::PendingRemote<crosapi::mojom::TelemetryDiagnosticRoutineControl>
+      mojo::PendingRemote<ash::cros_healthd::mojom::RoutineControl>
           control_remote,
       mojo::PendingReceiver<ash::cros_healthd::mojom::RoutineObserver>
           observer_receiver,
@@ -47,7 +46,7 @@ class DiagnosticRoutine {
 
   ~DiagnosticRoutine();
 
-  mojo::Remote<crosapi::mojom::TelemetryDiagnosticRoutineControl>& GetRemote();
+  ash::cros_healthd::mojom::RoutineControl& GetControl();
 
   base::Uuid& uuid() { return info_.uuid; }
 
@@ -63,8 +62,7 @@ class DiagnosticRoutine {
  private:
   friend class TelemetryExtensionDiagnosticRoutinesManagerTest;
 
-  mojo::Remote<crosapi::mojom::TelemetryDiagnosticRoutineControl>
-      routine_control_;
+  mojo::Remote<ash::cros_healthd::mojom::RoutineControl> routine_control_;
   DiagnosticRoutineObservation observation_;
   DiagnosticRoutineInfo info_;
 

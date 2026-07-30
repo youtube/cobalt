@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 
+#include "base/byte_size.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/memory/scoped_refptr.h"
@@ -63,7 +64,7 @@ TEST_F(DialURLFetcherTest, FetchSuccessful) {
   std::string body("<xml>appInfo</xml>");
   EXPECT_CALL(*this, OnSuccess(body));
   network::URLLoaderCompletionStatus status;
-  status.decoded_body_length = body.size();
+  status.decoded_body_length = base::ByteSize(body.size());
   loader_factory_.AddResponse(url_, network::mojom::URLResponseHead::New(),
                               body, status);
   StartGetRequest();
@@ -105,7 +106,7 @@ TEST_F(DialURLFetcherTest, FetchFailsOnBadAppInfo) {
   EXPECT_CALL(*this, OnError("Invalid response encoding", _));
   std::string body("\xfc\x9c\xbf\x80\xbf\x80");
   network::URLLoaderCompletionStatus status;
-  status.decoded_body_length = body.size();
+  status.decoded_body_length = base::ByteSize(body.size());
   loader_factory_.AddResponse(url_, network::mojom::URLResponseHead::New(),
                               body, status);
   StartGetRequest();

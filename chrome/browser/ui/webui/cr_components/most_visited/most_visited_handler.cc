@@ -41,6 +41,7 @@
 #include "components/search_engines/template_url_service.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
+#include "services/network/public/cpp/constants.h"
 #include "ui/base/window_open_disposition_utils.h"
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -371,10 +372,11 @@ void MostVisitedHandler::PreconnectMostVisitedTile(
   auto* loading_predictor =
       predictors::LoadingPredictorFactory::GetForProfile(profile_);
   if (loading_predictor) {
-    loading_predictor->PrepareForPageLoad(/*initiator_origin=*/std::nullopt,
-                                          tile->url,
-                                          predictors::HintOrigin::NEW_TAB_PAGE,
-                                          /*preconnectable=*/true);
+    loading_predictor->PrepareForPageLoad(
+        /*initiator_origin=*/std::nullopt, tile->url,
+        predictors::HintOrigin::NEW_TAB_PAGE,
+        network::GetNoOpNetworkRestrictionsId(),
+        /*preconnectable=*/true);
   }
 }
 

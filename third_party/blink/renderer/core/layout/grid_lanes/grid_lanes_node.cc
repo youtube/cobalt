@@ -69,8 +69,13 @@ GridLanesItemGroups GridLanesNode::CollectItemGroups(
     // Keep a running sum of unplaced item spans to determine where to
     // place auto placed virtual items per the auto-fit grid-lanes heuristic.
     //
+    // Subgridded items belong to their subgrid, which is itself a grid item of
+    // this container; the subgrid's own span already represents them here.
+    // Thus, skip them to avoid overcounting their spans.
+    //
     // https://drafts.csswg.org/css-grid-3/#repeat-auto-fit
-    if (item_span.IsIndefinite()) {
+    if (item_span.IsIndefinite() &&
+        !grid_lanes_item->is_subgridded_to_parent_grid) {
       unplaced_item_span_count += item_span.SpanSize();
     }
 
@@ -129,6 +134,16 @@ GridItems* GridLanesNode::ConstructGridItems(
   const GridTrackSizingDirection grid_axis_direction =
       style.GridLanesTrackSizingDirection();
 
+  // Unlike grid, a grid-lanes container does not cache the placement of its own
+  // items (placement happens after track sizing). However, a regular-grid
+  // subgrid child *does* cache its placement, keyed on its own line resolver,
+  // which by design does not encode this container's named-line positions. If
+  // this container's placement-affecting style changed, that subgrid cache
+  // would otherwise go stale. Propagate the invalidation down the subtree.
+  CHECK(must_invalidate_placement_cache);
+  *must_invalidate_placement_cache =
+      To<LayoutGridLanes>(box_.Get())->IsGridPlacementDirty();
+
   // For grid-lanes, we only consider subgridding in the grid axis.
   const bool must_consider_for_columns = (grid_axis_direction == kForColumns);
   const bool must_consider_for_rows = (grid_axis_direction == kForRows);
@@ -140,11 +155,16 @@ GridItems* GridLanesNode::ConstructGridItems(
   GridItems* grid_lanes_items = MakeGarbageCollected<GridItems>();
 
   // Check if the container has alignment in the stacking axis set for its
-  // items.
+  // items. The initial value of `align-items` is `kNormal`, but the initial
+  // value of `justify-items` is `kLegacy` (per CSS Box Alignment spec:
+  // https://drafts.csswg.org/css-align-3/#justify-items-property, to enable
+  // legacy keyword inheritance). Both behave as `normal` when not explicitly
+  // set, so we exclude them from triggering stacking axis alignment.
   const bool is_for_columns = (grid_axis_direction == kForColumns);
   const auto& container_alignment =
       is_for_columns ? style.AlignItems() : style.JustifyItems();
-  if (container_alignment.GetPosition() != ItemPosition::kNormal) {
+  if (container_alignment.GetPosition() != ItemPosition::kNormal &&
+      container_alignment.GetPosition() != ItemPosition::kLegacy) {
     grid_lanes_items->SetHasStackingAxisAlignment();
   }
 

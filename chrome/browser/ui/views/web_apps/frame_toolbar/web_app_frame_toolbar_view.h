@@ -113,6 +113,13 @@ class WebAppFrameToolbarView : public views::AccessiblePaneView,
 
  protected:
   // views::AccessiblePaneView:
+  // Adds logic to ensure that the buttons to be focused follow these rules
+  // when the toolbar is focused:
+  // 1. Any content settings based buttons are focused first, falling back to
+  //    the three-dot menu if not found.
+  // 2. For minimal-ui, focus on the leftmost navigation control (e.g. reload or
+  //    back button) on the frame.
+  views::View* GetDefaultFocusableChild() override;
   void ChildPreferredSizeChanged(views::View* child) override;
   void OnThemeChanged() override;
 

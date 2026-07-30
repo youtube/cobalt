@@ -6,7 +6,6 @@
 
 #include "base/functional/bind.h"
 #include "base/location.h"
-#include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/ui/autofill/payments/create_card_unmask_prompt_view.h"
@@ -17,7 +16,6 @@
 #include "components/constrained_window/constrained_window_views.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/vector_icons/vector_icons.h"
-#include "components/web_modal/web_contents_modal_dialog_host.h"
 #include "components/web_modal/web_contents_modal_dialog_manager.h"
 #include "components/web_modal/web_contents_modal_dialog_manager_delegate.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -28,7 +26,6 @@
 #include "ui/base/ui_base_features.h"
 #include "ui/color/color_id.h"
 #include "ui/gfx/geometry/insets.h"
-#include "ui/gfx/paint_vector_icon.h"
 #include "ui/gfx/vector_icon_utils.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/background.h"

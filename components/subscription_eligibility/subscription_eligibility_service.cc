@@ -4,10 +4,14 @@
 
 #include "components/subscription_eligibility/subscription_eligibility_service.h"
 
+#include "base/command_line.h"
+#include "base/strings/string_number_conversions.h"
 #include "components/prefs/pref_service.h"
 #include "components/subscription_eligibility/subscription_eligibility_prefs.h"
 
 namespace subscription_eligibility {
+
+const char kForceAiSubscriptionTier[] = "force-ai-subscription-tier";
 
 SubscriptionEligibilityService::SubscriptionEligibilityService(
     PrefService* pref_service)
@@ -22,6 +26,16 @@ SubscriptionEligibilityService::SubscriptionEligibilityService(
 SubscriptionEligibilityService::~SubscriptionEligibilityService() = default;
 
 int32_t SubscriptionEligibilityService::GetAiSubscriptionTier() const {
+  const base::CommandLine* command_line =
+      base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(kForceAiSubscriptionTier)) {
+    std::string switch_value =
+        command_line->GetSwitchValueASCII(kForceAiSubscriptionTier);
+    int forced_tier;
+    if (base::StringToInt(switch_value, &forced_tier)) {
+      return forced_tier;
+    }
+  }
   return pref_service_->GetInteger(prefs::kAiSubscriptionTier);
 }
 

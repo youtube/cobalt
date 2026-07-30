@@ -59,9 +59,6 @@ class CookieControlsController final
   // blocking.
   void OnCookieBlockingEnabledForSite(bool block_third_party_cookies);
 
-  // Called when the entry point for cookie controls was animated.
-  void OnEntryPointAnimated();
-
   // Returns whether the user has changed their protections state via user
   // bypass.
   bool StateChangedViaBypass();
@@ -141,8 +138,6 @@ class CookieControlsController final
 
   bool HasOriginSandboxedTopLevelDocument() const;
 
-  void UpdateLastVisitedSitesMap();
-
   void UpdatePageReloadStatus(int recent_reloads_count);
 
   void OnPageFinishedLoading();
@@ -156,15 +151,12 @@ class CookieControlsController final
   // Returns the number of blocked third-party sites with cookies.
   int GetBlockedThirdPartyCookiesSitesCount() const;
 
-  double GetSiteEngagementScore();
-
   // Record metrics when third-party cookies are allowed.
   void RecordActivationMetrics();
 
   bool SiteDataAccessed(int third_party_allowed_sites,
                         int third_party_blocked_sites);
 
-  bool ShouldHighlightUserBypass(CookieControlsState controls_state);
   bool ShouldUserBypassIconBeVisible(CookieControlsState controls_state);
   bool SiteDataAccessAttempted();
   content::WebContents* GetWebContents() const;
@@ -187,8 +179,6 @@ class CookieControlsController final
 
   // The number of page reloads in last 30 seconds.
   int recent_reloads_count_ = 0;
-
-  bool has_exception_expired_since_last_visit_ = false;
 
   bool waiting_for_page_load_finish_ = false;
 

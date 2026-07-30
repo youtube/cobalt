@@ -474,6 +474,15 @@ chromium-metrics-reviews@google.com.
   <variant name="FedCmClickthroughRate"
       summary="Provides information about FedCM API clickthrough rate
                aggregated across all users on the page."/>
+  <variant name="FilterExecutionStrategy"
+      summary="This optimization provides execution strategies for Magic
+               Filter candidate suggestions."/>
+  <variant name="FilterExtractAttributes"
+      summary="This optimization provides task attributes extracted from a
+               URL for Magic Filters."/>
+  <variant name="FilterTasksSupported"
+      summary="This optimization provides the supported tasks for a URL in
+               Magic Filters."/>
   <variant name="FindsPageTheme"
       summary="Provides information about the page theme for Finds."/>
   <variant name="FormsAnnotations"
@@ -680,6 +689,7 @@ chromium-metrics-reviews@google.com.
       summary="Batch update of hints for result links off the Google SRP"/>
   <variant name="BatchUpdateModels" summary="Batch update of models"/>
   <variant name="Bookmarks" summary="Batch update of hints for bookmarks"/>
+  <variant name="FilterExecution" summary="Requests for filter execution"/>
   <variant name="GlicZeroStateSuggestions"
       summary="Requests glic zero state suggestions"/>
   <variant name="Journeys" summary="Journeys surface"/>
@@ -715,7 +725,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.AIPageContent.ExtractionConcurrency"
-    enum="AIPageContentExtractionConcurrency" expires_after="2026-10-25">
+    enum="AIPageContentExtractionConcurrency" expires_after="2026-12-27">
   <owner>alexmt@chromium.org</owner>
   <owner>khushalsagar@chromium.org</owner>
   <summary>
@@ -727,7 +737,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.AIPageContent.ExtractionsBetweenNavigations"
-    units="extractions" expires_after="2026-10-25">
+    units="extractions" expires_after="2026-12-27">
   <owner>alexmt@chromium.org</owner>
   <owner>khushalsagar@chromium.org</owner>
   <summary>
@@ -738,7 +748,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.AIPageContent.ExtractionsPerPage"
-    units="extractions" expires_after="2026-10-25">
+    units="extractions" expires_after="2026-12-27">
   <owner>alexmt@chromium.org</owner>
   <owner>khushalsagar@chromium.org</owner>
   <summary>
@@ -832,7 +842,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.AIPageContent.TimeSinceLastExtraction"
-    units="ms" expires_after="2026-10-25">
+    units="ms" expires_after="2026-12-27">
   <owner>alexmt@chromium.org</owner>
   <owner>khushalsagar@chromium.org</owner>
   <summary>

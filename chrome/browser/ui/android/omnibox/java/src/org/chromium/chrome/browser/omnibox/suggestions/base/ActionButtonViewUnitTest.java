@@ -4,7 +4,9 @@
 
 package org.chromium.chrome.browser.omnibox.suggestions.base;
 
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -75,6 +77,15 @@ public class ActionButtonViewUnitTest {
 
         mView.onParentViewSelected(false);
         inOrder.verify(mView).setVisibility(View.INVISIBLE);
+    }
+
+    @Test
+    public void showOnlyOnFocusButton_selectedBeforeEnabled() {
+        mView.onParentViewSelected(true);
+        verify(mView, never()).setVisibility(anyInt());
+
+        mView.enableShowOnlyOnFocus(true);
+        verify(mView).setVisibility(View.VISIBLE);
     }
 
     @Test

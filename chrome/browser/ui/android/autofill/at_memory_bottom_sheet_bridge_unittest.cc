@@ -30,6 +30,10 @@ class MockAtMemoryBottomSheetDelegate : public AtMemoryBottomSheetDelegate {
               (const std::u16string& query),
               (override));
   MOCK_METHOD(void, OnSuggestionSelected, (int position), (override));
+  MOCK_METHOD(void,
+              OnChildSuggestionSelected,
+              (int parent_position, int child_position),
+              (override));
   MOCK_METHOD(bool, IsSearching, (), (const, override));
 };
 
@@ -63,6 +67,20 @@ TEST_F(AtMemoryBottomSheetBridgeTest, OnDismissedCallsDelegate) {
 
 TEST_F(AtMemoryBottomSheetBridgeTest, HideDoesNotCrash) {
   bridge_->Hide();
+}
+
+TEST_F(AtMemoryBottomSheetBridgeTest, RequestShowContentWithChildren) {
+  auto delegate = std::make_unique<MockAtMemoryBottomSheetDelegate>();
+  MockAtMemoryBottomSheetDelegate* delegate_ptr = delegate.get();
+
+  Suggestion child(u"Child label", SuggestionType::kAtMemorySearchResult);
+  child.labels = {{Suggestion::Text(u"Child sublabel")}};
+  Suggestion parent(u"Parent label", SuggestionType::kAtMemorySearchResult);
+  parent.labels = {{Suggestion::Text(u"Parent sublabel")}};
+  parent.children = {std::move(child)};
+
+  EXPECT_CALL(*delegate_ptr, OnDismissed());
+  bridge_->RequestShowContent(std::move(delegate), {parent});
 }
 
 }  // namespace

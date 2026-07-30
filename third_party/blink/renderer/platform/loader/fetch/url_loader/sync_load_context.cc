@@ -7,6 +7,7 @@
 #include <optional>
 #include <string>
 
+#include "base/byte_size.h"
 #include "base/check_op.h"
 #include "base/containers/span.h"
 #include "base/feature_list.h"
@@ -266,10 +267,9 @@ void SyncLoadContext::OnCompletedRequest(
   response_->resolve_error_info = status.resolve_error_info;
   response_->should_collapse_initiator = status.should_collapse_initiator;
   response_->cors_error = status.cors_error_status;
-  response_->head->encoded_data_length = status.encoded_data_length;
-  DCHECK_GE(status.encoded_body_length, 0);
-  response_->head->encoded_body_length =
-      network::mojom::EncodedBodyLength::New(status.encoded_body_length);
+  response_->head->encoded_data_length = status.encoded_data_length.InBytes();
+  response_->head->encoded_body_length = network::mojom::EncodedBodyLength::New(
+      status.encoded_body_length.InBytes());
   if ((blob_response_started_ && !blob_finished_) || body_handle_.is_valid()) {
     // The body is still begin downloaded as a Blob, or being read through the
     // handle. Wait until it's completed.

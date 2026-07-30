@@ -19,3 +19,21 @@ source_set("keep_alive") {
     "//chrome/browser/profiles:profile_manager",
   ]
 }
+
+source_set("test_support") {
+  testonly = true
+
+  sources = [
+    "profile_keep_alive_waiter.cc",
+    "profile_keep_alive_waiter.h",
+  ]
+
+  public_deps = [ ":keep_alive" ]
+
+  deps = [
+    "//base",
+    "//chrome/browser:browser_process",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/profiles:profile_manager",
+  ]
+}

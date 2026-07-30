@@ -4,6 +4,8 @@
 
 #include "chrome/browser/ash/file_system_provider/operations/read_file.h"
 
+#include <limits.h>
+
 #include <memory>
 #include <string>
 #include <utility>
@@ -197,6 +199,52 @@ TEST_F(FileSystemProviderOperationsReadFileTest, OnError) {
   ASSERT_EQ(1u, callback_logger.events().size());
   CallbackLogger::Event* event = callback_logger.events()[0].get();
   EXPECT_EQ(base::File::FILE_ERROR_TOO_MANY_OPENED, event->result());
+}
+
+TEST_F(FileSystemProviderOperationsReadFileTest, OnSuccess_HeapOverflow) {
+  using extensions::api::file_system_provider_internal::
+      ReadFileRequestedSuccess::Params;
+
+  util::LoggingDispatchEventImpl dispatcher(/*dispatch_reply=*/true);
+  CallbackLogger callback_logger;
+
+  // Buffer clamped to 256 KiB.
+  constexpr int kFuseboxClampedBufLen = 262144;
+  // Emulate length from D-Bus exceeding clamped buffer
+  constexpr int kUnclampedBufLen = INT_MAX;
+
+  scoped_refptr<net::IOBuffer> small_buffer =
+      base::MakeRefCounted<net::IOBufferWithSize>(kFuseboxClampedBufLen);
+
+  ReadFile read_file(&dispatcher, file_system_info_, kFileHandle,
+                     small_buffer.get(), /*offset=*/0, kUnclampedBufLen,
+                     base::BindRepeating(&CallbackLogger::OnReadFile,
+                                         base::Unretained(&callback_logger)));
+  EXPECT_TRUE(read_file.Execute(kRequestId));
+
+  // Respond with 1MiB of data. Larger than clamped buffer but within unclamped
+  // buffer bounds check.
+  constexpr size_t kOverflowChunk = 1 * 1024 * 1024;
+  std::vector<uint8_t> overflow_data(kOverflowChunk, 0x41);
+
+  base::ListValue list;
+  list.Append(kFileSystemId);
+  list.Append(kRequestId);
+  list.Append(base::Value(base::as_byte_span(overflow_data)));
+  list.Append(/*has_more=*/false);
+  list.Append(/*execution_time=*/0);
+
+  std::optional<Params> params = Params::Create(std::move(list));
+  ASSERT_TRUE(params.has_value());
+  RequestValue request_value =
+      RequestValue::CreateForReadFileSuccess(std::move(*params));
+
+  read_file.OnSuccess(kRequestId, std::move(request_value),
+                      /*has_more=*/false);
+
+  ASSERT_EQ(1u, callback_logger.events().size());
+  CallbackLogger::Event* event = callback_logger.events()[0].get();
+  EXPECT_EQ(base::File::FILE_ERROR_IO, event->result());
 }
 
 }  // namespace ash::file_system_provider::operations

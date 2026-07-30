@@ -12,14 +12,14 @@ static_library("autofill") {
   sources = [
     "address_normalizer_factory.cc",
     "address_normalizer_factory.h",
+    "at_memory_cross_tab_copy_paste_tracker_factory.cc",
+    "at_memory_cross_tab_copy_paste_tracker_factory.h",
     "autocomplete_history_manager_factory.cc",
     "autocomplete_history_manager_factory.h",
     "autofill_ai_model_cache_factory.cc",
     "autofill_ai_model_cache_factory.h",
     "autofill_ai_model_executor_factory.cc",
     "autofill_ai_model_executor_factory.h",
-    "autofill_enterprise_policy_service_factory.cc",
-    "autofill_enterprise_policy_service_factory.h",
     "autofill_entity_data_manager_factory.cc",
     "autofill_entity_data_manager_factory.h",
     "autofill_field_classification_model_service_factory.cc",
@@ -30,6 +30,8 @@ static_library("autofill") {
     "autofill_offer_manager_factory.h",
     "autofill_optimization_guide_decider_factory.cc",
     "autofill_optimization_guide_decider_factory.h",
+    "autofill_policy_service_factory.cc",
+    "autofill_policy_service_factory.h",
     "gmail_otp_backend_factory.cc",
     "gmail_otp_backend_factory.h",
     "merchant_promo_code_manager_factory.cc",
@@ -89,6 +91,7 @@ static_library("autofill") {
     "//components/account_settings",
     "//components/autofill/content/browser",
     "//components/image_fetcher/core",
+    "//components/personal_context/core",
     "//components/prefs",
     "//components/strings:components_strings_grit",
     "//components/variations/service",
@@ -96,14 +99,6 @@ static_library("autofill") {
     "//third_party/libphonenumber",
   ]
   configs += [ "//build/config/compiler:wexit_time_destructors" ]
-
-  if (is_win || is_mac || is_linux || is_chromeos) {
-    sources += [
-      "at_memory_promo_tracker_factory.cc",
-      "at_memory_promo_tracker_factory.h",
-    ]
-  }
-
   if (is_android) {
     sources += [
       "android/android_autofill_availability_status.h",

@@ -40,11 +40,13 @@ class ExtensionInstallDialogView : public views::BubbleDialogDelegateView,
  public:
   // The views::View::id of the ratings section in the dialog.
   static const int kRatingsViewId = 1;
+  static const int kMinExtensionRating = 0;
+  static const int kMaxExtensionRating = 5;
 
   ExtensionInstallDialogView(
       std::unique_ptr<ExtensionInstallPromptShowParams> show_params,
       ExtensionInstallPrompt::DoneCallback done_callback,
-      std::unique_ptr<ExtensionInstallPrompt::Prompt> prompt);
+      std::unique_ptr<extensions::InstallPromptData> prompt);
   ExtensionInstallDialogView(const ExtensionInstallDialogView&) = delete;
   ExtensionInstallDialogView& operator=(const ExtensionInstallDialogView&) =
       delete;
@@ -120,7 +122,7 @@ class ExtensionInstallDialogView : public views::BubbleDialogDelegateView,
   raw_ptr<Profile> profile_;
   std::unique_ptr<ExtensionInstallPromptShowParams> show_params_;
   ExtensionInstallPrompt::DoneCallback done_callback_;
-  std::unique_ptr<ExtensionInstallPrompt::Prompt> prompt_;
+  std::unique_ptr<extensions::InstallPromptData> prompt_;
   base::ScopedObservation<extensions::ExtensionRegistry,
                           extensions::ExtensionRegistryObserver>
       extension_registry_observation_{this};

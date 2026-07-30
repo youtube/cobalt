@@ -27,9 +27,13 @@
 #include "media/base/audio_glitch_info.h"
 #include "media/base/audio_processing.h"
 #include "media/base/media_switches.h"
+#if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
+#include "media/webrtc/voice_isolation/voice_isolation.h"
+#endif
 #include "mojo/public/cpp/bindings/remote.h"
 #include "services/audio/audio_processor_handler.h"
 #include "services/audio/loopback_signal_provider.h"
+#include "services/audio/ml_model_manager.h"
 #include "services/audio/processing_audio_fifo.h"
 #include "services/audio/reference_output.h"
 #include "services/audio/reference_signal_provider.h"
@@ -72,6 +76,36 @@ std::unique_ptr<LoopbackMixin> DoNotCreateLoopbackMixin(
     LoopbackMixin::OnDataCallback on_data_callback) {
   return nullptr;
 }
+
+class FakeMlModelHandle : public MlModelHandle {
+ public:
+  FakeMlModelHandle() = default;
+  ~FakeMlModelHandle() override = default;
+
+  const tflite::FlatBufferModel* Get() override {
+    return reinterpret_cast<const tflite::FlatBufferModel*>(0x1234);
+  }
+};
+
+class FakeMlModelManager : public MlModelManager {
+ public:
+  FakeMlModelManager() = default;
+  ~FakeMlModelManager() override = default;
+
+  std::unique_ptr<MlModelHandle> GetModel(
+      mojom::MlModelType model_type) override {
+    if (model_type == mojom::MlModelType::kVoiceIsolationDenoiser &&
+        !return_null_model_) {
+      return std::make_unique<FakeMlModelHandle>();
+    }
+    return nullptr;
+  }
+
+  void set_return_null_model(bool val) { return_null_model_ = val; }
+
+ private:
+  bool return_null_model_ = false;
+};
 }  // namespace
 
 class MockInputControllerEventHandler : public InputController::EventHandler {
@@ -449,7 +483,12 @@ class InputControllerTestHelper {
 
   bool IsUsingProcessingThread() {
     return controller_->audio_processor_handler_ &&
-           !!controller_->audio_processor_handler_->processing_fifo_.get();
+           controller_->audio_processor_handler_->processing_fifo_;
+  }
+
+  bool HasVoiceIsolation() {
+    auto* handler = controller_->audio_processor_handler_.get();
+    return handler && handler->voice_isolation_handler_ != nullptr;
   }
 
   // Adds a callback that will be run immediately after processing is done, in
@@ -502,7 +541,7 @@ class TimeSourceInputControllerTestWithReferenceSignalProvider
     this->controller_ = InputController::Create(
         this->audio_manager_.get(), &this->event_handler_, &this->sync_writer_,
         std::move(reference_signal_provider_unique_),
-        &this->aecdump_recording_manager_, /*ml_model_manager=*/nullptr,
+        &this->aecdump_recording_manager_, &ml_model_manager_,
         std::move(processing_config_),
         base::BindOnce(&DoNotCreateLoopbackMixin), this->params_,
         media::AudioDeviceDescription::kDefaultDeviceId, false);
@@ -559,6 +598,7 @@ class TimeSourceInputControllerTestWithReferenceSignalProvider
       reference_signal_provider_ = reference_signal_provider_unique_.get();
   media::mojom::AudioProcessingConfigPtr processing_config_;
   mojo::Remote<media::mojom::AudioProcessorControls> remote_controls_;
+  FakeMlModelManager ml_model_manager_;
   std::unique_ptr<InputControllerTestHelper> helper_;
 };
 
@@ -1019,6 +1059,58 @@ TEST_F(InputControllerTestWithReferenceSignalProvider,
   controller_->Close();
 }
 
+TEST_F(SystemTimeInputControllerTestWithReferenceSignalProvider,
+       VoiceIsolationNotCalledIfNull) {
+  SetupProcessingConfig(AudioProcessingType::kWithPlayoutReference);
+  EXPECT_CALL(event_handler_, OnCreated(_));
+  CreateAudioController();
+  ASSERT_TRUE(controller_.get());
+  EXPECT_FALSE(helper_->HasVoiceIsolation());
+
+  base::RunLoop loop;
+  EXPECT_CALL(sync_writer_, Write(NotNull(), _, _, _))
+      .Times(AtLeast(1))
+      .WillOnce(InvokeWithoutArgs([&]() { loop.Quit(); }));
+
+  controller_->Record();
+  loop.Run();
+
+  EXPECT_CALL(sync_writer_, Close());
+  controller_->Close();
+}
+
+TEST_F(SystemTimeInputControllerTestWithReferenceSignalProvider,
+       VoiceIsolationEnabledInConfig) {
+  SetupProcessingConfig(AudioProcessingType::kWithPlayoutReference);
+  processing_config_->settings.voice_isolation = true;
+  EXPECT_CALL(event_handler_, OnCreated(_));
+
+  CreateAudioController();
+  ASSERT_TRUE(controller_.get());
+  EXPECT_TRUE(helper_->HasVoiceIsolation());
+
+  base::RunLoop loop;
+  EXPECT_CALL(sync_writer_, Write(NotNull(), _, _, _))
+      .Times(AtLeast(1))
+      .WillOnce(InvokeWithoutArgs([&]() { loop.Quit(); }));
+
+  controller_->Record();
+  loop.Run();
+
+  EXPECT_CALL(sync_writer_, Close());
+  controller_->Close();
+}
+
+TEST_F(SystemTimeInputControllerTestWithReferenceSignalProvider,
+       VoiceIsolationCreationFailsIfModelNotAvailable) {
+  SetupProcessingConfig(AudioProcessingType::kWithPlayoutReference);
+  processing_config_->settings.voice_isolation = true;
+  ml_model_manager_.set_return_null_model(true);
+  EXPECT_CALL(event_handler_, OnError(InputController::STREAM_CREATE_ERROR));
+
+  CreateAudioController();
+  EXPECT_FALSE(controller_.get());
+}
 #endif  // BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
 
 }  // namespace audio

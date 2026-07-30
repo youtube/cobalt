@@ -128,11 +128,11 @@ public class VerticalTabsSideUiCoordinatorUnitTest {
 
     @Test
     @SmallTest
-    public void testOnContainerResized() {
-        mCoordinator.onContainerResized(100);
+    public void testOnUiUpdateCompleted() {
+        mCoordinator.onUiUpdateCompleted(/* oldWidth= */ 0, /* newWidth= */ 100);
         assertTrue(mIsVerticalTabsActiveSupplier.get());
 
-        mCoordinator.onContainerResized(0);
-        assertTrue(!mIsVerticalTabsActiveSupplier.get());
+        mCoordinator.onUiUpdateCompleted(/* oldWidth= */ 100, /* newWidth= */ 0);
+        assertFalse(mIsVerticalTabsActiveSupplier.get());
     }
 }

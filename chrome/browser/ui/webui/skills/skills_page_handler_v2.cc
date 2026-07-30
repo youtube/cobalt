@@ -7,6 +7,8 @@
 #include "base/check_deref.h"
 #include "chrome/browser/glic/host/glic_cookie_synchronizer.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/skills/skills_ui_window_controller.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/common/webui_url_constants.h"
 #include "content/public/browser/storage_partition_config.h"
 #include "content/public/browser/web_contents.h"
@@ -35,6 +37,25 @@ SkillsPageHandlerV2::~SkillsPageHandlerV2() = default;
 void SkillsPageHandlerV2::SyncCookies(SyncCookiesCallback callback) {
   cookie_synchronizer_->CopyCookiesToWebviewStoragePartition(
       std::move(callback));
+}
+
+void SkillsPageHandlerV2::ShowToast(const std::string& skill_id,
+                                    ToastType toast_type) {
+  BrowserWindowInterface* browser =
+      GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
+          &web_contents_.get());
+  if (browser) {
+    if (auto* window_controller = SkillsUiWindowController::From(browser)) {
+      switch (toast_type) {
+        // TODO(b/529320994): Add case ToastType::kSave and ToastType::kDelete
+        // when added back to mojom.
+        case ToastType::kSaveAndInvoke:
+          window_controller->OnSkillSaved(skill_id,
+                                          /*hide_toast_button=*/false);
+          break;
+      }
+    }
+  }
 }
 
 }  // namespace skills

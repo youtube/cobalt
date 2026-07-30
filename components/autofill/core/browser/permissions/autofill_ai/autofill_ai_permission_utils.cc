@@ -33,6 +33,7 @@
 #include "components/feature_engagement/public/feature_constants.h"
 #include "components/optimization_guide/core/feature_registry/feature_registration.h"
 #include "components/optimization_guide/core/model_execution/model_execution_prefs.h"
+#include "components/personal_context/core/personal_context_prefs.h"
 #include "components/personal_context/core/personal_context_types.h"
 #include "components/prefs/pref_service.h"
 #include "components/signin/public/base/consent_level.h"
@@ -66,36 +67,13 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
   }
 }
 
-// Returns true if Personal Context is enabled for performing active operations
-// (e.g. ambient autofill filling or data lookup). This requires the user toggle
-// to be turned on.
-[[nodiscard]] bool IsPersonalContextEnabled(
-    personal_context::PersonalContextEnablementState state) {
-  using personal_context::PersonalContextEnablementState;
-  switch (state) {
-    case PersonalContextEnablementState::kEnabled:
-    case PersonalContextEnablementState::kEnabledShouldShowNotice:
-      return true;
-    case PersonalContextEnablementState::kDisabledNotEligible:
-    case PersonalContextEnablementState::kDisabledNeedsOptIn:
-    case PersonalContextEnablementState::
-        kDisabledViaPersonalIntelligenceInAutofillToggle:
-      return false;
-  }
-}
-
-// Returns true if the user/device is eligible for Personal Context features
-// (e.g. to determine whether to show Personal Context settings UI). Unlike
-// `IsPersonalContextEnabled`, this returns true even if the user has disabled
-// the feature via the settings toggle.
+// Returns true if the account is eligible for Personal Context (e.g. to
+// determine whether to show Personal Context settings UI).
 [[nodiscard]] bool IsPersonalContextEligible(
     personal_context::PersonalContextEnablementState state) {
   using personal_context::PersonalContextEnablementState;
   switch (state) {
     case PersonalContextEnablementState::kEnabled:
-    case PersonalContextEnablementState::kEnabledShouldShowNotice:
-    case PersonalContextEnablementState::
-        kDisabledViaPersonalIntelligenceInAutofillToggle:
       return true;
     case PersonalContextEnablementState::kDisabledNotEligible:
     case PersonalContextEnablementState::kDisabledNeedsOptIn:
@@ -305,9 +283,10 @@ base::flat_set<int32_t> GetAutofillAmbientAutofillEligibleTiers() {
     case AutofillAiAction::kFilling:
     case AutofillAiAction::kImport:
     case AutofillAiAction::kListEntityInstancesInSettings:
-    case AutofillAiAction::kLogToMqls:
     case AutofillAiAction::kOptIn:
       return true;
+    case AutofillAiAction::kLogToMqls:
+      return !is_enabled(features::kAutofillAiUsePrivateAi);
     case AutofillAiAction::kEnableOrDisable:
       return is_enabled(features::kAutofillAiAvailableByDefault);
     case AutofillAiAction::kAmbientAutofill:
@@ -374,13 +353,16 @@ base::flat_set<int32_t> GetAutofillAmbientAutofillEligibleTiers() {
 
   // State of the Address-Autofill pref.
   if (!prefs->GetBoolean(prefs::kAutofillProfileEnabled) &&
-      !base::FeatureList::IsEnabled(features::kAutofillAddOtherDatatypesPref)) {
+      !base::FeatureList::IsEnabled(
+          features::kAutofillEnableAutofillSettingsEnterprisePolicy)) {
     MaybeOutputReason(debug_message, "Address Autofill is not enabled.");
     return false;
   }
 
   const bool policy_pref_enabled =
       !IsAutofillAiDisabledByEnterprisePolicy(prefs);
+  const bool personal_context_pref_enabled = prefs->GetBoolean(
+      personal_context::prefs::kPersonalContextInAutofillSettingsToggleStatus);
   const bool autofill_ai_available =
       GetAutofillAiOptInStatus(prefs, identity_manager) ||
       base::FeatureList::IsEnabled(features::kAutofillAiAvailableByDefault);
@@ -420,10 +402,8 @@ base::flat_set<int32_t> GetAutofillAmbientAutofillEligibleTiers() {
           case EntityTypeName::kKnownTravelerNumber:
             return false;
         }
-        if (base::FeatureList::IsEnabled(
-                features::debug::
-                    kAutofillAmbientAutofillSkipEligibilityChecks)) {
-          return true;
+        if (!personal_context_pref_enabled) {
+          return false;
         }
       }
 
@@ -436,12 +416,16 @@ base::flat_set<int32_t> GetAutofillAmbientAutofillEligibleTiers() {
       }
       return policy_pref_enabled && autofill_ai_available;
     case AutofillAiAction::kAmbientAutofill:
-    case AutofillAiAction::kShowAmbientAutofillInSettings:
-      if (base::FeatureList::IsEnabled(
-              features::debug::kAutofillAmbientAutofillSkipEligibilityChecks)) {
-        return true;
+      if (!personal_context_pref_enabled) {
+        return false;
       }
       // TODO(crbug.com/523168644): Check `kGeminiSettings` pref enablement.
+      if (base::FeatureList::IsEnabled(
+              features::kAutofillAiAvailableByDefault)) {
+        return true;
+      }
+      return policy_pref_enabled && autofill_ai_available;
+    case AutofillAiAction::kShowAmbientAutofillInSettings:
       if (base::FeatureList::IsEnabled(
               features::kAutofillAiAvailableByDefault)) {
         return true;
@@ -678,23 +662,14 @@ base::flat_set<int32_t> GetAutofillAmbientAutofillEligibleTiers() {
     case AutofillAiAction::kFilling:
     case AutofillAiAction::kUseCachedServerClassificationModelResults:
       break;
-    case AutofillAiAction::kShowAmbientAutofillInSettings: {
-      if (base::FeatureList::IsEnabled(
-              features::debug::kAutofillAmbientAutofillSkipEligibilityChecks)) {
-        return true;
-      }
-      if (!IsPersonalContextEligible(personal_context_enablement_state)) {
-        return false;
-      }
-      break;
-    }
+    case AutofillAiAction::kShowAmbientAutofillInSettings:
     case AutofillAiAction::kAmbientAutofill:
     case AutofillAiAction::kTypeSupportsAmbientAutofillData: {
       if (base::FeatureList::IsEnabled(
               features::debug::kAutofillAmbientAutofillSkipEligibilityChecks)) {
         return true;
       }
-      if (!IsPersonalContextEnabled(personal_context_enablement_state)) {
+      if (!IsPersonalContextEligible(personal_context_enablement_state)) {
         return false;
       }
       break;
@@ -717,6 +692,18 @@ base::flat_set<int32_t> GetAutofillAmbientAutofillEligibleTiers() {
         return false;
       }
       break;
+    case AutofillAiAction::kTypeSupportsAmbientAutofillData:
+      CHECK(entity_type) << "An entity type is required to check if an entity "
+                            "type supports ambient autofill data";
+      if (!supports_reauth &&
+          GetPersonalContextSpiiType(
+              *entity_type, EntityInstance::RecordType::kPersonalContext) ==
+              EntityInstance::PersonalContextSpiiType::kSpii &&
+          !base::FeatureList::IsEnabled(
+              features::debug::kAutofillAiDisableReauthRequirement)) {
+        return false;
+      }
+      break;
     case AutofillAiAction::kWalletDataSharingPromotion:
     case AutofillAiAction::kAddLocalEntityInstanceInSettings:
     case AutofillAiAction::kCrowdsourcingVote:
@@ -730,10 +717,8 @@ base::flat_set<int32_t> GetAutofillAmbientAutofillEligibleTiers() {
     case AutofillAiAction::kServerClassificationModel:
     case AutofillAiAction::kFilling:
     case AutofillAiAction::kUseCachedServerClassificationModelResults:
-    // TODO(crbug.com/523168644): Check reauth availability.
     case AutofillAiAction::kAmbientAutofill:
     case AutofillAiAction::kShowAmbientAutofillInSettings:
-    case AutofillAiAction::kTypeSupportsAmbientAutofillData:
       break;
   }
 

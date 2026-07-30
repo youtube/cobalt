@@ -13,7 +13,7 @@
 #include "gpu/command_buffer/common/shared_image_usage.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_non_2d_resource_provider.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/canvas_utils.h"
 #include "third_party/blink/renderer/platform/graphics/skia/skia_utils.h"
 #include "third_party/blink/renderer/platform/graphics/static_bitmap_image.h"
@@ -150,8 +150,8 @@ TEST_F(BadSharedGpuContextTest, AllowSoftwareToAcceleratedCanvasUpgrade) {
 TEST_F(BadSharedGpuContextTest, AccelerateImageBufferSurfaceCreationFails) {
   // With a bad shared context, AccelerateImageBufferSurface should fail and
   // return a nullptr provider
-  std::unique_ptr<CanvasNon2DResourceProviderSharedImage> resource_provider =
-      CanvasNon2DResourceProviderSharedImage::Create(
+  std::unique_ptr<CanvasNon2DResourceProvider> resource_provider =
+      CanvasNon2DResourceProvider::Create(
           gfx::Size(10, 10), GetN32FormatForCanvas(), kPremul_SkAlphaType,
           gfx::ColorSpace::CreateSRGB(), gfx::HDRMetadata(),
           SharedGpuContext::ContextProviderWrapper(),
@@ -176,8 +176,8 @@ TEST_F(SharedGpuContextTest, AccelerateImageBufferSurfaceAutoRecovery) {
   // AcceleratedImageBufferSurface will restore the context and succeed
   test_context_provider_->GetTestRasterInterface()->set_context_lost(true);
   EXPECT_FALSE(SharedGpuContext::IsValidWithoutRestoringForTesting());
-  std::unique_ptr<CanvasNon2DResourceProviderSharedImage> resource_provider =
-      CanvasNon2DResourceProviderSharedImage::Create(
+  std::unique_ptr<CanvasNon2DResourceProvider> resource_provider =
+      CanvasNon2DResourceProvider::Create(
           gfx::Size(10, 10), GetN32FormatForCanvas(), kPremul_SkAlphaType,
           gfx::ColorSpace::CreateSRGB(), gfx::HDRMetadata(),
           SharedGpuContext::ContextProviderWrapper(),

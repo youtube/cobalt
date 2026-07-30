@@ -22,12 +22,6 @@ namespace dom_distiller {
 
 namespace {
 
-enum class DistillationParseResult {
-  kSuccess = 0,
-  kParseFailure = 1,
-  kNoResult = 2,
-  kContentTooShort = 3,
-};
 
 constexpr char kReadabilityTitle[] = "title";
 constexpr char kReadabilityContent[] = "content";
@@ -159,7 +153,7 @@ TEST_F(DistillerPageTest, RecordsNoResultMetric) {
                              base::DoNothing());
 
   histogram_tester_.ExpectUniqueSample("DomDistiller.Distillation.Result",
-                                       DistillationParseResult::kNoResult, 1);
+                                       DistillationParseResult::kNoData, 1);
 }
 
 // Test that the kNullResult value is recorded when the distiller returns null.
@@ -172,7 +166,7 @@ TEST_F(DistillerPageTest, RecordsNullResultMetric) {
                              base::DoNothing());
 
   histogram_tester_.ExpectUniqueSample("DomDistiller.Distillation.Result",
-                                       DistillationParseResult::kNoResult, 1);
+                                       DistillationParseResult::kNoData, 1);
 }
 
 // Asserts the fields exist in the DomDistillerResult.
@@ -213,8 +207,8 @@ TEST_F(DistillerPageTest, ReadabilityObjectIsExtracted) {
           [](std::string title, std::string content, std::string dir,
              int word_count,
              std::unique_ptr<proto::DomDistillerResult> distilled_page,
-             bool distillation_successful) {
-            EXPECT_TRUE(distillation_successful);
+             DistillationParseResult result) {
+            EXPECT_EQ(DistillationParseResult::kSuccess, result);
             AssertCorrectDomDistillerResult(*distilled_page.get(), title,
                                             content, dir, 10);
           },
@@ -254,8 +248,8 @@ TEST_F(DistillerPageTest,
           [](std::string title, std::string content, std::string dir,
              int word_count,
              std::unique_ptr<proto::DomDistillerResult> distilled_page,
-             bool distillation_successful) {
-            EXPECT_TRUE(distillation_successful);
+             DistillationParseResult result) {
+            EXPECT_EQ(DistillationParseResult::kSuccess, result);
             AssertCorrectDomDistillerResult(*distilled_page.get(), title,
                                             content, dir, 10);
           },
@@ -284,8 +278,8 @@ TEST_F(DistillerPageTest, ReadabilityObjectIsExtracted_FailureWhenNotDict) {
   DistillerPage::DistillerPageCallback cb =
       base::BindOnce(
           [](std::unique_ptr<proto::DomDistillerResult> distilled_page,
-             bool distillation_successful) {
-            EXPECT_FALSE(distillation_successful);
+             DistillationParseResult result) {
+            EXPECT_EQ(DistillationParseResult::kParseFailure, result);
           })
           .Then(run_loop.QuitClosure());
   distiller_page.DistillPage(GURL("http://example.com/success"),
@@ -325,8 +319,8 @@ TEST_F(DistillerPageTest, DistillationFailsWhenMinContentLengthNotMet) {
           [](std::string title, std::string content, std::string dir,
              int word_count,
              std::unique_ptr<proto::DomDistillerResult> distilled_page,
-             bool distillation_successful) {
-            EXPECT_FALSE(distillation_successful);
+             DistillationParseResult result) {
+            EXPECT_EQ(DistillationParseResult::kContentTooShort, result);
           },
           title, content, dir, 10)
           .Then(run_loop.QuitClosure());

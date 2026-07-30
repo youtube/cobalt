@@ -56,7 +56,7 @@
 #include "third_party/blink/renderer/modules/webcodecs/video_frame_init_util.h"
 #include "third_party/blink/renderer/modules/webcodecs/video_frame_rect_util.h"
 #include "third_party/blink/renderer/platform/geometry/geometry_hash_traits.h"
-#include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_non_2d_resource_provider.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_snapshot_info.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_gpu_context.h"
 #include "third_party/blink/renderer/platform/graphics/image.h"
@@ -353,8 +353,7 @@ class CanvasNon2DResourceProviderCache
   CanvasNon2DResourceProviderCache(const CanvasNon2DResourceProviderCache&) =
       delete;
 
-  CanvasNon2DResourceProviderSharedImage* CreateProvider(
-      const media::VideoFrame& frame) {
+  CanvasNon2DResourceProvider* CreateProvider(const media::VideoFrame& frame) {
     if (providers_.empty()) {
       PostMonitoringTask();
     }
@@ -374,8 +373,8 @@ class CanvasNon2DResourceProviderCache
       providers_.clear();
     }
 
-    std::unique_ptr<CanvasNon2DResourceProviderSharedImage> provider =
-        CanvasNon2DResourceProviderSharedImage::Create(
+    std::unique_ptr<CanvasNon2DResourceProvider> provider =
+        CanvasNon2DResourceProvider::Create(
             required_provider_info.size, required_provider_info.format,
             required_provider_info.alpha_type,
             required_provider_info.color_space,
@@ -431,7 +430,7 @@ class CanvasNon2DResourceProviderCache
     PostMonitoringTask();
   }
 
-  Vector<std::unique_ptr<CanvasNon2DResourceProviderSharedImage>> providers_;
+  Vector<std::unique_ptr<CanvasNon2DResourceProvider>> providers_;
   base::TimeTicks last_access_time_;
   TaskHandle task_handle_;
 };

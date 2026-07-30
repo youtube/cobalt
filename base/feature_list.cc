@@ -510,6 +510,11 @@ void FeatureList::InitFromSharedMemory(PersistentMemoryAllocator* allocator) {
   }
 }
 
+void FeatureList::SetVariationCountry(std::string_view variation_country) {
+  DCHECK(!initialized_);
+  variation_country_ = ToLowerASCII(variation_country);
+}
+
 void FeatureList::EnableRuntimeMutability(
     const base::Feature& feature,
     OnRuntimeMutableFeatureStateChangedCallback callback) {
@@ -718,7 +723,8 @@ bool FeatureList::IsEnabled(const Feature& feature) {
     EarlyFeatureAccessTracker::GetInstance()->AccessedFeature(
         feature, g_feature_list_instance &&
                      g_feature_list_instance->IsEarlyAccessInstance());
-    return feature.default_state == FEATURE_ENABLED_BY_DEFAULT;
+    return feature.default_state == FEATURE_ENABLED_BY_DEFAULT ||
+           feature.default_state == FEATURE_DISABLED_FOR_COUNTRIES;
   }
   return g_feature_list_instance->IsFeatureEnabled(feature);
 }
@@ -1039,6 +1045,21 @@ bool FeatureList::IsFeatureEnabled(const Feature& feature) const {
   // If marked as OVERRIDE_USE_DEFAULT, simply return the default state below.
   if (overridden_state != OVERRIDE_USE_DEFAULT) {
     return overridden_state == OVERRIDE_ENABLE_FEATURE;
+  }
+
+  if (IsCountrySpecificFeatureState(feature.default_state)) [[unlikely]] {
+    const auto& restricted_feature =
+        static_cast<const FeatureWithCountryRestriction&>(feature);
+    switch (restricted_feature.default_state) {
+      case FEATURE_DISABLED_FOR_COUNTRIES:
+        return !std::ranges::contains(restricted_feature.countries,
+                                      variation_country_);
+      case FEATURE_ENABLED_FOR_COUNTRIES:
+        return std::ranges::contains(restricted_feature.countries,
+                                     variation_country_);
+      default:
+        NOTREACHED();
+    }
   }
 
   return feature.default_state == FEATURE_ENABLED_BY_DEFAULT;

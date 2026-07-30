@@ -16,6 +16,7 @@
 #include "chrome/grit/generated_resources.h"
 #include "content/public/browser/page_navigator.h"
 #include "content/public/browser/web_contents.h"
+#include "extensions/browser/install_prompt_data.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_urls.h"
 #include "ui/android/modal_dialog_manager_bridge.h"
@@ -29,13 +30,14 @@
 
 using base::android::ConvertUTF16ToJavaString;
 using base::android::ScopedJavaLocalRef;
+using extensions::InstallPromptData;
 
 namespace {
 
 void ShowExtensionInstallDialogAndroid(
     std::unique_ptr<ExtensionInstallPromptShowParams> show_params,
     ExtensionInstallPrompt::DoneCallback done_callback,
-    std::unique_ptr<ExtensionInstallPrompt::Prompt> prompt) {
+    std::unique_ptr<InstallPromptData> prompt) {
   content::WebContents* web_contents = show_params->GetParentWebContents();
   if (!web_contents) {
     return;
@@ -60,7 +62,7 @@ namespace extensions {
 
 ExtensionInstallDialogViewAndroid::ExtensionInstallDialogViewAndroid(
     content::WebContents* web_contents,
-    std::unique_ptr<ExtensionInstallPrompt::Prompt> prompt,
+    std::unique_ptr<InstallPromptData> prompt,
     ExtensionInstallPrompt::DoneCallback done_callback)
     : web_contents_(web_contents),
       prompt_(std::move(prompt)),
@@ -155,8 +157,7 @@ void ExtensionInstallDialogViewAndroid::BuildPropertyModel() {
   }
 
   bool requires_justification =
-      prompt_->type() ==
-      ExtensionInstallPrompt::PromptType::EXTENSION_REQUEST_PROMPT;
+      prompt_->type() == InstallPromptData::EXTENSION_REQUEST_PROMPT;
   if (requires_justification) {
     std::u16string justification_heading = l10n_util::GetStringUTF16(
         IDS_ENTERPRISE_EXTENSION_REQUEST_JUSTIFICATION);

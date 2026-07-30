@@ -12,16 +12,36 @@ import androidx.annotation.Px;
 
 import org.jni_zero.CalledByNative;
 
+import org.chromium.base.supplier.MonotonicObservableSupplier;
+import org.chromium.base.supplier.NullableObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.components.browser_ui.widget.text.TextViewWithCompoundDrawables;
 
 /** Interface providing specialized components for different client features. */
 @NullMarked
 public interface CoBrowseComponentProvider {
+    /** Delegate to handle tab selection. */
+    interface TabSelectionDelegate {
+        /** Switches to the specified tab. */
+        void switchToTab(int tabId);
+    }
+
     /** Destroys the component provider and releases any resources. */
     @CalledByNative
     default void destroy() {}
+
+    /**
+     * Sets up the placeholder view.
+     *
+     * @param placeholder The placeholder view to set up.
+     * @return Whether the placeholder view was successfully set up.
+     */
+    default boolean setupPlaceholderView(TextViewWithCompoundDrawables placeholder) {
+        return false;
+    }
 
     /**
      * Instantiates a new instance of {@link TabBottomSheetContent}.
@@ -45,12 +65,19 @@ public interface CoBrowseComponentProvider {
     }
 
     /**
-     * Sets up the placeholder view.
+     * Instantiates a new instance of {@link PeekViewManager}.
      *
-     * @param placeholder The placeholder view.
-     * @return True if the placeholder should be used, false otherwise.
+     * @param tabBottomSheetManager The bottom sheet manager.
+     * @param profileSupplier The profile supplier.
+     * @param tabSupplier The active tab supplier.
+     * @param tabSelectionDelegate The tab selection delegate.
+     * @return A nullable {@link PeekViewManager}.
      */
-    default boolean setupPlaceholderView(TextViewWithCompoundDrawables placeholder) {
-        return false;
+    default @Nullable PeekViewManager createPeekViewManager(
+            TabBottomSheetManager tabBottomSheetManager,
+            MonotonicObservableSupplier<Profile> profileSupplier,
+            NullableObservableSupplier<Tab> tabSupplier,
+            TabSelectionDelegate tabSelectionDelegate) {
+        return null;
     }
 }

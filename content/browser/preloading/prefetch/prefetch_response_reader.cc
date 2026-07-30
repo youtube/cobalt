@@ -4,6 +4,7 @@
 
 #include "content/browser/preloading/prefetch/prefetch_response_reader.h"
 
+#include "base/byte_size.h"
 #include "base/debug/alias.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
@@ -375,7 +376,7 @@ void PrefetchResponseReader::RecordOnPrefetchContainerDestroyed(
 
   if (completion_status_) {
     builder.SetDataLength(ukm::GetExponentialBucketMinForBytes(
-        completion_status_->encoded_data_length));
+        completion_status_->encoded_data_length.InBytes()));
 
     base::TimeDelta fetch_duration =
         completion_status_->completion_time - head_->load_timing.request_start;

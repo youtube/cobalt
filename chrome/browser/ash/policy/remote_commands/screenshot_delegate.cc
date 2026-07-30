@@ -6,6 +6,8 @@
 
 #include <string>
 
+#include "base/check.h"
+#include "base/check_deref.h"
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "base/syslog_logging.h"
@@ -14,8 +16,6 @@
 #include "chrome/browser/ash/policy/core/device_cloud_policy_manager_ash.h"
 #include "chrome/browser/ash/policy/uploading/status_uploader.h"
 #include "chrome/browser/ash/policy/uploading/upload_job_impl.h"
-#include "chrome/browser/browser_process.h"
-#include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/device_identity/device_oauth2_token_service.h"
 #include "chrome/browser/device_identity/device_oauth2_token_service_factory.h"
 #include "content/public/browser/browser_thread.h"
@@ -23,15 +23,19 @@
 
 namespace policy {
 
-ScreenshotDelegate::ScreenshotDelegate() = default;
+ScreenshotDelegate::ScreenshotDelegate(
+    scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory,
+    BrowserPolicyConnectorAsh* browser_policy_connector)
+    : shared_url_loader_factory_(std::move(shared_url_loader_factory)),
+      browser_policy_connector_(CHECK_DEREF(browser_policy_connector)) {
+  CHECK(shared_url_loader_factory_);
+}
 
 ScreenshotDelegate::~ScreenshotDelegate() = default;
 
 bool ScreenshotDelegate::IsScreenshotAllowed() {
-  BrowserPolicyConnectorAsh* connector =
-      g_browser_process->platform_part()->browser_policy_connector_ash();
   DeviceCloudPolicyManagerAsh* manager =
-      connector->GetDeviceCloudPolicyManager();
+      browser_policy_connector_->GetDeviceCloudPolicyManager();
   // DeviceCloudPolicyManagerAsh and StatusUploader can be null during
   // shutdown (and unit tests) - don't allow screenshots unless we have a
   // StatusUploader that can confirm that screenshots are allowed.
@@ -82,7 +86,7 @@ std::unique_ptr<UploadJob> ScreenshotDelegate::CreateUploadJob(
   return std::unique_ptr<UploadJob>(new UploadJobImpl(
       upload_url, robot_account_id,
       device_oauth2_token_service->GetAccessTokenManager(),
-      g_browser_process->shared_url_loader_factory(), delegate,
+      shared_url_loader_factory_, delegate,
       base::WrapUnique(new UploadJobImpl::RandomMimeBoundaryGenerator),
       traffic_annotation, base::SingleThreadTaskRunner::GetCurrentDefault()));
 }

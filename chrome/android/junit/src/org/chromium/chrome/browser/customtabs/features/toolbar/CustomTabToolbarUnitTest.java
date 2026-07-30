@@ -71,7 +71,6 @@ import org.chromium.chrome.browser.toolbar.top.NavigationPopup.HistoryDelegate;
 import org.chromium.chrome.browser.toolbar.top.ToggleTabStackButtonCoordinator;
 import org.chromium.chrome.browser.toolbar.top.ToolbarSnapshotDifference;
 import org.chromium.chrome.browser.user_education.UserEducationHelper;
-import org.chromium.components.content_settings.CookieControlsState;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.security_state.ConnectionSecurityLevel;
 import org.chromium.content_public.common.ContentUrlConstants;
@@ -367,38 +366,6 @@ public class CustomTabToolbarUnitTest {
         mToolbar.removeContainerVisibilityChangeObserver(mContainerVisibilityChangeObserver);
         mToolbar.onVisibilityChanged(mParentView, View.VISIBLE);
         verify(mContainerVisibilityChangeObserver, never()).onResult(any());
-    }
-
-    @Test
-    public void testCookieControlsIcon_onHighlightCookieControl_animateOnPageStoppedLoading() {
-        verify(mAnimationDelegate, never()).updateSecurityButton(anyInt());
-
-        mLocationBar.onHighlightCookieControl(true);
-
-        verify(mAnimationDelegate, never()).updateSecurityButton(anyInt());
-        verify(mPageInfoIphController, never()).showCookieControlsIph(anyInt(), anyInt());
-
-        mLocationBar.onPageLoadStopped();
-        verify(mAnimationDelegate, times(1)).updateSecurityButton(R.drawable.ic_eye_crossed);
-        verify(mPageInfoIphController, times(1)).showCookieControlsIph(anyInt(), anyInt());
-
-        mLocationBar.onHighlightCookieControl(false);
-        mLocationBar.onPageLoadStopped();
-        verify(mAnimationDelegate, times(1)).updateSecurityButton(R.drawable.ic_eye_crossed);
-        verify(mPageInfoIphController, times(1)).showCookieControlsIph(anyInt(), anyInt());
-    }
-
-    @Test
-    public void testCookieControlsIcon_cookieBlockingEnabled_displaysCookieControlsIph() {
-        verify(mAnimationDelegate, never()).updateSecurityButton(anyInt());
-
-        mLocationBar.onHighlightCookieControl(true);
-        mLocationBar.onStatusChanged(
-                CookieControlsState.BLOCKED3PC, /* enforcement= */ 0, /* expiration= */ 0);
-
-        // Should show only the Cookie controls IPH.
-        mLocationBar.onPageLoadStopped();
-        verify(mPageInfoIphController, times(1)).showCookieControlsIph(anyInt(), anyInt());
     }
 
     @Test

@@ -215,26 +215,26 @@ public class AndroidPermissionRequester {
                                     && deniedContentSettings.contains(
                                             ContentSettingsType.MEDIASTREAM_CAMERA)) {
                                 deniedStringId =
-                                        R.string.infobar_missing_microphone_camera_permissions_text;
+                                        R.string.message_missing_microphone_camera_permissions_text;
                             } else if (deniedContentSettings.size() == 1) {
                                 if (deniedContentSettings.contains(getGeolocationType())) {
                                     deniedStringId =
-                                            R.string.infobar_missing_location_permission_text;
+                                            R.string.message_missing_location_permission_text;
                                 } else if (deniedContentSettings.contains(
                                         ContentSettingsType.MEDIASTREAM_MIC)) {
                                     deniedStringId =
-                                            R.string.infobar_missing_microphone_permission_text;
+                                            R.string.message_missing_microphone_permission_text;
                                 } else if (deniedContentSettings.contains(
                                         ContentSettingsType.MEDIASTREAM_CAMERA)) {
                                     deniedStringId =
-                                            R.string.infobar_missing_camera_permission_text;
+                                            R.string.message_missing_camera_permission_text;
                                 } else if (deniedContentSettings.contains(
                                         ContentSettingsType.HAND_TRACKING)) {
                                     deniedStringId =
-                                            R.string.infobar_missing_hand_tracking_permission_text;
+                                            R.string.message_missing_hand_tracking_permission_text;
                                 } else if (deniedContentSettings.contains(ContentSettingsType.AR)) {
                                     deniedStringId =
-                                            R.string.infobar_missing_ar_camera_permission_text;
+                                            R.string.message_missing_ar_camera_permission_text;
                                 } else if (deniedContentSettings.contains(
                                         ContentSettingsType.NOTIFICATIONS)) {
                                     // We don't want to request the notification prompt again, since
@@ -340,7 +340,7 @@ public class AndroidPermissionRequester {
                         .with(ModalDialogProperties.CANCEL_ON_TOUCH_OUTSIDE, true)
                         .with(
                                 ModalDialogProperties.POSITIVE_BUTTON_TEXT,
-                                context.getString(R.string.infobar_update_permissions_button_text))
+                                context.getString(R.string.message_update_permissions_button_text))
                         .with(ModalDialogProperties.CONTROLLER, controller)
                         .build();
         modalDialogManager.showDialog(dialogModel, ModalDialogManager.ModalDialogType.APP);

@@ -7,7 +7,7 @@
 
 #include "base/callback_list.h"
 #include "base/memory/raw_ref.h"
-#include "chrome/browser/glic/browser_ui/glic_nudge_delegate.h"
+#include "chrome/browser/glic/browser_ui/glic_split_button_delegate.h"
 
 class BrowserWindowInterface;
 
@@ -18,13 +18,13 @@ class PageActionController;
 namespace glic {
 
 // Controller for the "anchored message" variant of the contextual cue nudge.
-class AnchoredNudgeController : public GlicNudgeDelegate {
+class AnchoredNudgeController : public GlicSplitButtonDelegate {
  public:
   explicit AnchoredNudgeController(
       BrowserWindowInterface& browser_window_interface);
   ~AnchoredNudgeController() override;
 
-  // GlicNudgeDelegate:
+  // GlicSplitButtonDelegate:
   void OnTriggerGlicNudgeUI(NudgeParams params) override;
   void OnHideGlicNudgeUI() override;
   bool GetIsShowingGlicNudge() override;

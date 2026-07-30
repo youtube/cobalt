@@ -17,7 +17,6 @@
 #include "base/values.h"
 #include "chrome/browser/ash/policy/remote_commands/crd/crd_logging.h"
 #include "chrome/browser/ash/policy/remote_commands/crd/crd_remote_command_utils.h"
-#include "chrome/browser/browser_process.h"
 #include "components/policy/core/common/remote_commands/remote_command_job.h"
 #include "components/policy/proto/device_management_backend.pb.h"
 
@@ -51,9 +50,9 @@ base::ListValue GetSupportedSessionTypes(bool is_in_managed_environment) {
 }
 
 CrdSessionAvailability GetRemoteSupportAvailability(
+    const PrefService& local_state,
     UserSessionType current_user_session) {
-  if (!IsRemoteSupportAllowedByPolicy(
-          CHECK_DEREF(g_browser_process->local_state()))) {
+  if (!IsRemoteSupportAllowedByPolicy(local_state)) {
     return CrdSessionAvailability::UNAVAILABLE_DISABLED_BY_POLICY;
   }
   if (!UserSessionSupportsRemoteSupport(current_user_session)) {
@@ -63,10 +62,10 @@ CrdSessionAvailability GetRemoteSupportAvailability(
 }
 
 CrdSessionAvailability GetRemoteAccessAvailability(
+    const PrefService& local_state,
     bool is_in_managed_environment,
     UserSessionType current_user_session) {
-  if (!IsRemoteAccessAllowedByPolicy(
-          CHECK_DEREF(g_browser_process->local_state()))) {
+  if (!IsRemoteAccessAllowedByPolicy(local_state)) {
     return CrdSessionAvailability::UNAVAILABLE_DISABLED_BY_POLICY;
   }
   if (!is_in_managed_environment) {
@@ -85,7 +84,8 @@ int GetDeviceIdleTimeInSeconds() {
 }  // namespace
 
 DeviceCommandFetchCrdAvailabilityInfoJob::
-    DeviceCommandFetchCrdAvailabilityInfoJob() = default;
+    DeviceCommandFetchCrdAvailabilityInfoJob(PrefService* local_state)
+    : local_state_(CHECK_DEREF(local_state)) {}
 DeviceCommandFetchCrdAvailabilityInfoJob::
     ~DeviceCommandFetchCrdAvailabilityInfoJob() = default;
 
@@ -114,9 +114,11 @@ void DeviceCommandFetchCrdAvailabilityInfoJob::SendPayload(
               .Set(kSupportedCrdSessionTypes,
                    GetSupportedSessionTypes(is_in_managed_environment))
               .Set(kRemoteSupportAvailability,
-                   GetRemoteSupportAvailability(GetCurrentUserSessionType()))
+                   GetRemoteSupportAvailability(local_state_.get(),
+                                                GetCurrentUserSessionType()))
               .Set(kRemoteAccessAvailability,
-                   GetRemoteAccessAvailability(is_in_managed_environment,
+                   GetRemoteAccessAvailability(local_state_.get(),
+                                               is_in_managed_environment,
                                                GetCurrentUserSessionType())))
           .value();
 

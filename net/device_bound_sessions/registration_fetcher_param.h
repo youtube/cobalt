@@ -12,6 +12,7 @@
 #include "crypto/signature_verifier.h"
 #include "net/base/net_export.h"
 #include "net/device_bound_sessions/session.h"
+#include "net/device_bound_sessions/session_params.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/structured_headers.h"
 #include "url/gurl.h"
@@ -58,7 +59,7 @@ class NET_EXPORT RegistrationFetcherParam {
       std::optional<std::string> provider_key = std::nullopt,
       std::optional<GURL> provider_url = std::nullopt,
       std::optional<Session::Id> provider_session_id = std::nullopt,
-      bool aik_required = false);
+      AttestationMode attestation_mode = AttestationMode::kNone);
 
   const GURL& registration_endpoint() const { return registration_endpoint_; }
 
@@ -83,7 +84,7 @@ class NET_EXPORT RegistrationFetcherParam {
     return provider_session_id_;
   }
 
-  bool aik_required() const { return aik_required_; }
+  AttestationMode attestation_mode() const { return attestation_mode_; }
 
   GURL TakeRegistrationEndpoint() { return std::move(registration_endpoint_); }
 
@@ -103,7 +104,7 @@ class NET_EXPORT RegistrationFetcherParam {
       std::optional<std::string> provider_key,
       std::optional<GURL> provider_url,
       std::optional<Session::Id> provider_session_id,
-      bool aik_required);
+      AttestationMode attestation_mode);
 
   static std::optional<RegistrationFetcherParam> ParseItem(
       const GURL& request_url,
@@ -116,7 +117,7 @@ class NET_EXPORT RegistrationFetcherParam {
   std::optional<std::string> provider_key_;
   std::optional<GURL> provider_url_;
   std::optional<Session::Id> provider_session_id_;
-  bool aik_required_ = false;
+  AttestationMode attestation_mode_ = AttestationMode::kNone;
 };
 
 }  // namespace net::device_bound_sessions

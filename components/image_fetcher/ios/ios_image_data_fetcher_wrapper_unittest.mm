@@ -8,6 +8,7 @@
 
 #include <memory>
 
+#include "base/byte_size.h"
 #import "base/ios/ios_util.h"
 #include "base/memory/ref_counted.h"
 #include "base/test/task_environment.h"
@@ -169,7 +170,7 @@ TEST_F(IOSImageDataFetcherWrapperTest, TestGoodWebP) {
       std::string(kWEBPHeaderResponse, std::size(kWEBPHeaderResponse)));
   head->mime_type = "image/webp";
   network::URLLoaderCompletionStatus status;
-  status.decoded_body_length = content.size();
+  status.decoded_body_length = base::ByteSize(content.size());
   factory_.AddResponse(GURL(kTestUrl), std::move(head), content, status);
   environment_.RunUntilIdle();
   EXPECT_NE(nil, result_);
@@ -199,7 +200,7 @@ TEST_F(IOSImageDataFetcherWrapperTest, TestBadWebP) {
       std::string(kWEBPHeaderResponse, std::size(kWEBPHeaderResponse)));
   head->mime_type = "image/webp";
   network::URLLoaderCompletionStatus status;
-  status.decoded_body_length = content.size();
+  status.decoded_body_length = base::ByteSize(content.size());
   factory_.AddResponse(GURL(kTestUrl), std::move(head), content, status);
   environment_.RunUntilIdle();
   EXPECT_EQ(nil, result_);

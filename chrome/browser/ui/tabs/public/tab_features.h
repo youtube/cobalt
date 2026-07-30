@@ -59,6 +59,7 @@ class BubbleManager;
 class OmniboxAutofillBubbleController;
 class OmniboxAutofillPageActionController;
 class PaymentsChurnedUsersBubbleController;
+class PaymentsChurnedUsersPageActionController;
 }  // namespace autofill
 
 namespace actor {
@@ -184,6 +185,7 @@ namespace tabs {
 
 class ContextHighlightTabFeature;
 class InactiveWindowMouseEventController;
+class PageContextEligibilityHelper;
 class TabAlertController;
 class TabAttachmentTracker;
 class TabCreationMetricsController;
@@ -321,6 +323,11 @@ class TabFeatures {
 
   TabCreationMetricsController* tab_creation_metrics_controller() {
     return tab_creation_metrics_controller_.get();
+  }
+
+  autofill::PaymentsChurnedUsersPageActionController*
+  payments_churned_users_page_action_controller() {
+    return payments_churned_users_page_action_controller_.get();
   }
 
   autofill::BubbleManager* autofill_bubble_manager() {
@@ -528,6 +535,10 @@ class TabFeatures {
 
   std::unique_ptr<autofill::BubbleManager> autofill_bubble_manager_;
 
+  // Responsible for managing the "Payments Churned Users" page action.
+  std::unique_ptr<autofill::PaymentsChurnedUsersPageActionController>
+      payments_churned_users_page_action_controller_;
+
   // Responsible for managing the "Autofill payment" page action.
   std::unique_ptr<autofill::OmniboxAutofillPageActionController>
       omnibox_autofill_page_action_controller_;
@@ -568,6 +579,9 @@ class TabFeatures {
 
   std::unique_ptr<skills::SkillsUiTabControllerInterface>
       skills_ui_tab_controller_;
+
+  std::unique_ptr<tabs::PageContextEligibilityHelper>
+      page_context_eligibility_helper_;
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS)

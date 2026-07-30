@@ -12,6 +12,7 @@
 #include "mojo/public/mojom/base/error.mojom-forward.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/vector2d.h"
+#include "ui/views/widget/widget_observer.h"
 
 class BrowserWindowInterface;
 
@@ -19,7 +20,8 @@ namespace tabs_api {
 class TabDragWindowRegistry;
 }
 
-class TabDragWindowAdapterImpl : public tabs_api::TabDragWindowAdapter {
+class TabDragWindowAdapterImpl : public tabs_api::TabDragWindowAdapter,
+                                 public views::WidgetObserver {
  public:
   explicit TabDragWindowAdapterImpl(BrowserWindowInterface* browser_window);
   TabDragWindowAdapterImpl(const TabDragWindowAdapterImpl&) = delete;
@@ -46,7 +48,9 @@ class TabDragWindowAdapterImpl : public tabs_api::TabDragWindowAdapter {
 
   tabs_api::DragMoveLoopResult RunWindowMoveLoop(
       const gfx::Point& screen_point,
-      const gfx::Vector2d& drag_offset) override;
+      const gfx::Vector2d& drag_offset,
+      tabs_api::TabDragWindowAdapter::WindowMoveCallback move_callback)
+      override;
 
   void EndWindowMoveLoop() override;
 
@@ -54,10 +58,15 @@ class TabDragWindowAdapterImpl : public tabs_api::TabDragWindowAdapter {
       tabs_api::TabDragWindowId target_window_id,
       const std::vector<tabs_api::NodeId>& tab_ids) override;
 
+  // views::WidgetObserver:
+  void OnWidgetBoundsChanged(views::Widget* widget,
+                             const gfx::Rect& new_bounds) override;
+
  private:
   raw_ptr<BrowserWindowInterface> browser_window_;
   raw_ptr<tabs_api::TabDragWindowRegistry> registry_;
   tabs_api::TabDragWindowId id_;
+  tabs_api::TabDragWindowAdapter::WindowMoveCallback move_callback_;
 };
 
 #endif  // CHROME_BROWSER_UI_TABS_TAB_DRAG_API_DESKTOP_TAB_DRAG_IMPL_TAB_DRAG_WINDOW_ADAPTER_IMPL_H_

@@ -33,9 +33,24 @@ int CopyRequestValueToBuffer(const RequestValue& value,
 
   const size_t chunk_size = params->data.size();
 
-  // Check for overflows.
-  if (chunk_size > static_cast<size_t>(buffer_length) - buffer_offset)
+  if (buffer_offset < 0 || buffer_length < 0) {
     return -1;
+  }
+
+  const size_t offset_size = static_cast<size_t>(buffer_offset);
+  const size_t buffer_length_size = static_cast<size_t>(buffer_length);
+  const size_t buffer_capacity = buffer->span().size();
+
+  // Check for overflows. Validate against both the IOBuffer's true capacity,
+  // and the caller-supplied buffer_length, because the latter is untrusted.
+  if (offset_size > buffer_capacity || offset_size > buffer_length_size) {
+    return -1;
+  }
+
+  if (chunk_size > buffer_capacity - offset_size ||
+      chunk_size > buffer_length_size - offset_size) {
+    return -1;
+  }
 
   UNSAFE_TODO(
       memcpy(buffer->data() + buffer_offset, params->data.data(), chunk_size));

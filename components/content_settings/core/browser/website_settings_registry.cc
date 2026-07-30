@@ -208,11 +208,11 @@ void WebsiteSettingsRegistry::Init() {
            WebsiteSettingsInfo::TOP_ORIGIN_ONLY_SCOPE,
            DESKTOP | PLATFORM_ANDROID,
            WebsiteSettingsInfo::DONT_INHERIT_IN_INCOGNITO);
-  Register(ContentSettingsType::HID_CHOOSER_DATA, "hid-chooser-data",
-           base::Value(), WebsiteSettingsInfo::UNSYNCABLE,
-           WebsiteSettingsInfo::NOT_LOSSY,
-           WebsiteSettingsInfo::TOP_ORIGIN_ONLY_SCOPE, DESKTOP,
-           WebsiteSettingsInfo::DONT_INHERIT_IN_INCOGNITO);
+  Register(
+      ContentSettingsType::HID_CHOOSER_DATA, "hid-chooser-data", base::Value(),
+      WebsiteSettingsInfo::UNSYNCABLE, WebsiteSettingsInfo::NOT_LOSSY,
+      WebsiteSettingsInfo::TOP_ORIGIN_ONLY_SCOPE, DESKTOP | PLATFORM_ANDROID,
+      WebsiteSettingsInfo::DONT_INHERIT_IN_INCOGNITO);
   Register(
       ContentSettingsType::BLUETOOTH_CHOOSER_DATA, "bluetooth-chooser-data",
       /*initial_default_value=*/base::Value(), WebsiteSettingsInfo::UNSYNCABLE,

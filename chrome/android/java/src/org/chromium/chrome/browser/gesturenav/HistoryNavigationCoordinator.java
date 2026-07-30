@@ -213,7 +213,7 @@ public class HistoryNavigationCoordinator
         }
 
         // Preserve the previous enabled status if queried when there is no Window.
-        if (mWindow.getWindow() == null) {
+        if (mWindow == null || mWindow.getWindow() == null) {
             return mEnabled;
         }
 
@@ -265,7 +265,7 @@ public class HistoryNavigationCoordinator
 
     /** Initialize {@link NavigationHandler} object. */
     @EnsuresNonNull("mNavigationHandler")
-    private void initNavigationHandler() {
+    void initNavigationHandler() {
         PropertyModel model =
                 new PropertyModel.Builder(GestureNavigationProperties.ALL_KEYS).build();
         PropertyModelChangeProcessor.create(

@@ -2170,6 +2170,7 @@ interface Document : Node
     getter onwebkitfullscreenerror
     getter onwebkittransitionend
     getter onwheel
+    getter permissionsPolicy
     getter pictureInPictureElement
     getter pictureInPictureEnabled
     getter plugins
@@ -4537,6 +4538,7 @@ interface HTMLIFrameElement : HTMLElement
     getter marginHeight
     getter marginWidth
     getter name
+    getter permissionsPolicy
     getter policy
     getter privateToken
     getter referrerPolicy
@@ -5424,6 +5426,7 @@ interface HTMLTemplateElement : HTMLElement
     getter shadowRootDelegatesFocus
     getter shadowRootMode
     getter shadowRootSerializable
+    getter shadowRootSlotAssignment
     method constructor
     setter htmlFor
     setter shadowRootAdoptedStyleSheets
@@ -5432,6 +5435,7 @@ interface HTMLTemplateElement : HTMLElement
     setter shadowRootDelegatesFocus
     setter shadowRootMode
     setter shadowRootSerializable
+    setter shadowRootSlotAssignment
 interface HTMLTextAreaElement : HTMLElement
     attribute @@toStringTag
     getter autocomplete
@@ -7898,6 +7902,13 @@ interface Permissions
     method request
     method requestAll
     method revoke
+interface PermissionsPolicy
+    attribute @@toStringTag
+    method allowedFeatures
+    method allowsFeature
+    method constructor
+    method features
+    method getAllowlistForFeature
 interface PictureInPictureEvent : Event
     attribute @@toStringTag
     getter pictureInPictureWindow

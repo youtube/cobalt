@@ -7,22 +7,31 @@
 #include <optional>
 #include <string>
 
+#include "base/auto_reset.h"
 #include "base/functional/bind.h"
-#include "base/test/task_environment.h"
+#include "base/memory/raw_ptr.h"
+#include "base/run_loop.h"
+#include "base/scoped_observation.h"
+#include "base/strings/strcat.h"
+#include "base/task/single_thread_task_runner.h"
+#include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/task_environment.h"
 #include "base/time/clock.h"
 #include "base/time/time.h"
 #include "base/values.h"
-#include "chromeos/ash/components/login/login_state/login_state.h"
 #include "chromeos/ash/components/network/managed_network_configuration_handler.h"
 #include "chromeos/ash/components/network/network_configuration_handler.h"
 #include "chromeos/ash/components/network/network_handler_test_helper.h"
 #include "chromeos/ash/components/network/network_metadata_store.h"
 #include "chromeos/ash/components/network/network_profile_handler.h"
+#include "chromeos/ash/components/network/network_profile_observer.h"
 #include "components/proxy_config/pref_proxy_config_tracker_impl.h"
+#include "components/session_manager/test/test_user_session_manager.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
-#include "components/user_manager/fake_user_manager.h"
-#include "components/user_manager/scoped_user_manager.h"
+#include "components/user_manager/user_manager.h"
+#include "components/user_manager/user_manager_impl.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/cros_system_api/dbus/shill/dbus-constants.h"
 
@@ -33,22 +42,64 @@ namespace {
 
 const char kDecLastResetTime[] = "Fri, 15 December 2023 10:00:00 UTC";
 
+class ProfileWaiter : public NetworkProfileObserver {
+ public:
+  explicit ProfileWaiter(const std::string& userhash) : userhash_(userhash) {
+    observation_.Observe(NetworkHandler::Get()->network_profile_handler());
+  }
+  ~ProfileWaiter() override = default;
+
+  void Wait() {
+    CHECK(!run_loop_);
+    base::RunLoop run_loop;
+    base::AutoReset<raw_ptr<base::RunLoop>> auto_reset(&run_loop_, &run_loop);
+    run_loop.Run();
+  }
+
+  void OnProfileAdded(const NetworkProfile& profile) override {
+    if (run_loop_ && profile.userhash == userhash_) {
+      run_loop_->Quit();
+    }
+  }
+  void OnProfileRemoved(const NetworkProfile& profile) override {}
+
+ private:
+  std::string userhash_;
+  raw_ptr<base::RunLoop> run_loop_ = nullptr;
+  base::ScopedObservation<NetworkProfileHandler, NetworkProfileObserver>
+      observation_{this};
+};
+
 class TrafficCountersHandlerTest : public ::testing::Test {
  public:
   TrafficCountersHandlerTest()
       : task_environment_(base::test::TaskEnvironment::TimeSource::MOCK_TIME) {
-    //  TODO(b/278643115) Remove LoginState dependency.
-    LoginState::Initialize();
-
-    scoped_user_manager_ = std::make_unique<user_manager::ScopedUserManager>(
-        std::make_unique<user_manager::FakeUserManager>());
+    user_manager::UserManagerImpl::RegisterPrefs(local_state_.registry());
+    const AccountId account_id =
+        AccountId::FromUserEmailGaiaId("test@test", GaiaId("fakegaia"));
+    test_user_session_manager_ =
+        std::make_unique<ash::test::TestUserSessionManager>(&local_state_);
+    EXPECT_TRUE(test_user_session_manager_->AddRegularUser(account_id));
+    test_user_session_manager_->LogIn(account_id);
+    const std::string user_hash =
+        user_manager::UserManager::Get()->FindUser(account_id)->username_hash();
 
     feature_list_.InitWithFeatures(
       /*enabled_features=*/{features::kTrafficCountersEnabled,
       features::kTrafficCountersForWiFiTesting}, /*disabled_features=*/{});
 
     helper_ = std::make_unique<NetworkHandlerTestHelper>();
-    helper_->AddDefaultProfiles();
+    // Setup profiles manually to use the correct user_hash_ for the logged-in
+    // user.
+    helper_->profile_test()->AddProfile(
+        NetworkProfileHandler::GetSharedProfilePath(),
+        std::string() /* shared profile */);
+    helper_->profile_test()->AddProfile(base::StrCat({"/profile/", user_hash}),
+                                        user_hash);
+
+    ProfileWaiter waiter(user_hash);
+    waiter.Wait();
+
     helper_->ResetDevicesAndServices();
     helper_->RegisterPrefs(user_prefs_.registry(), local_state_.registry());
 
@@ -59,6 +110,11 @@ class TrafficCountersHandlerTest : public ::testing::Test {
     NetworkHandler::Get()->managed_network_configuration_handler()->SetPolicy(
         ::onc::ONC_SOURCE_DEVICE_POLICY,
         /*userhash=*/std::string(),
+        /*network_configs_onc=*/base::ListValue(),
+        /*global_network_config=*/base::DictValue());
+
+    NetworkHandler::Get()->managed_network_configuration_handler()->SetPolicy(
+        ::onc::ONC_SOURCE_USER_POLICY, user_hash,
         /*network_configs_onc=*/base::ListValue(),
         /*global_network_config=*/base::DictValue());
 
@@ -84,8 +140,7 @@ class TrafficCountersHandlerTest : public ::testing::Test {
   ~TrafficCountersHandlerTest() override {
     TrafficCountersHandler::Shutdown();
     helper_.reset();
-    scoped_user_manager_.reset();
-    LoginState::Shutdown();
+    test_user_session_manager_.reset();
   }
 
  protected:
@@ -178,10 +233,10 @@ class TrafficCountersHandlerTest : public ::testing::Test {
   // are dependent on them.
   base::test::TaskEnvironment task_environment_;
   base::test::ScopedFeatureList feature_list_;
-  std::unique_ptr<user_manager::ScopedUserManager> scoped_user_manager_;
-  std::unique_ptr<NetworkHandlerTestHelper> helper_;
   sync_preferences::TestingPrefServiceSyncable user_prefs_;
   TestingPrefServiceSimple local_state_;
+  std::unique_ptr<ash::test::TestUserSessionManager> test_user_session_manager_;
+  std::unique_ptr<NetworkHandlerTestHelper> helper_;
   std::string wifi_path_;
   std::string wifi_guid_;
 };

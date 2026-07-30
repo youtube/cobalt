@@ -43,7 +43,7 @@ void SafetyTipMessageDelegateAndroid::DisplaySafetyTipPrompt(
   message_->SetPrimaryButtonText(
       l10n_util::GetStringUTF16(GetSafetyTipLeaveButtonId(safety_tip_status)));
   message_->SetIconResourceId(ResourceMapper::MapToJavaDrawableId(
-      IDR_ANDROID_INFOBAR_SAFETYTIP_SHIELD));
+      IDR_ANDROID_MESSAGE_SAFETYTIP_SHIELD));
   message_->DisableIconTint();
   message_->SetSecondaryIconResourceId(
       ResourceMapper::MapToJavaDrawableId(IDR_ANDROID_MESSAGE_SETTINGS));

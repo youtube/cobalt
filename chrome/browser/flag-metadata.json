@@ -96,6 +96,11 @@
     "expiry_milestone": 155
   },
   {
+    "name": "aim-3p-entrypoint",
+    "owners": [ "manukh@chromium.org", "chrome-desktop-search@google.com" ],
+    "expiry_milestone": 160
+  },
+  {
     "name": "aim-cobrowse",
     "owners": [ "ameurhosni@google.com", "bling-search@google.com" ],
     "expiry_milestone": 152
@@ -104,6 +109,14 @@
     "name": "aim-cobrowse-header",
     "owners": [ "radunitescu@google.com", "bling-search@google.com" ],
     "expiry_milestone": 153
+  },
+  {
+    "name": "aim-eligibility-component-extension",
+    "owners": [
+      "mahmadi@chromium.org",
+      "chrome-desktop-search@google.com"
+    ],
+    "expiry_milestone": 160
   },
   {
     "name": "aim-eligibility-refresh-ntp-modules",
@@ -362,6 +375,11 @@
     "expiry_milestone": 160
   },
   {
+    "name": "android-pdf-reuse-fragment",
+    "owners": [ "jinsukkim@google.com", "shuyng@chromium.org"  ],
+    "expiry_milestone": 160
+  },
+  {
     "name": "android-progress-bar-visual-update",
     "owners": ["agazal@google.com", "peilinwang@google.com", "clank-app-team@google.com"],
     "expiry_milestone": 170
@@ -380,11 +398,6 @@
     "name": "android-setup-list",
     "owners": [ "agazal@google.com", "clank-app-team@google.com" ],
     "expiry_milestone": 155
-  },
-  {
-    "name": "android-share-full-link",
-    "owners": ["jhimawan@google.com", "clank-app-team@google.com"],
-    "expiry_milestone": 160
   },
   {
     "name": "android-sms-otp-filling",
@@ -546,6 +559,14 @@
   {
     "name": "apb144-patch9",
     "owners": ["peilinwang@google.com"],
+    "expiry_milestone": 160
+  },
+  {
+    "name": "api-contextual-tasks-private",
+    "owners": [
+      "juanmojica@google.com",
+      "mercerd@google.com"
+    ],
     "expiry_milestone": 160
   },
   {
@@ -1505,6 +1526,11 @@
     "expiry_milestone": 150
   },
   {
+    "name": "cast-mirroring-native-nv12",
+    "owners": [ "jophba@chromium.org", "openscreen-eng@chromium.org" ],
+    "expiry_milestone": 170
+  },
+  {
     "name": "cast-mirroring-target-playout-delay",
     "owners": [ "bzielinski@google.com", "jophba@chromium.org", "cros-edu-eng@google.com" ],
     "expiry_milestone": 151
@@ -1639,7 +1665,7 @@
   },
   {
     "name": "cellular-bypass-esim-installation-connectivity-check",
-    "owners": [ "khorimoto@chromium.org", "jiajunz@chromium.org", "cros-device-enablement@google.com" ],
+    "owners": [ "khorimoto@chromium.org", "jiajunz@google.com", "cros-device-enablement@google.com" ],
     // This flag does not expire because it allows some test cases that host a local SM-DP+ server
     // on a network without an external connection to the internet to be able to install eSIM.
     "expiry_milestone": -1
@@ -1669,6 +1695,14 @@
       "lbrady@google.com"
     ],
     "expiry_milestone": 170
+  },
+  {
+    "name": "chrome-dark-neutrals-26",
+    "owners": [
+      "rtatum@google.com",
+      "chrome-desktop-ntp@google.com"
+    ],
+    "expiry_milestone": 160
   },
   {
     "name": "chrome-finds",
@@ -1856,11 +1890,6 @@
   },
   {
     "name": "composebox-force-top",
-    "owners": [ "christianxu@google.com", "bling-search@google.com" ],
-    "expiry_milestone": 160
-  },
-  {
-    "name": "composebox-ios",
     "owners": [ "christianxu@google.com", "bling-search@google.com" ],
     "expiry_milestone": 160
   },
@@ -2304,6 +2333,11 @@
     "expiry_milestone": 160
   },
   {
+    "name": "declarative-performance-observer",
+    "owners": [ "sisidovski@chromium.org" ],
+    "expiry_milestone": 160
+  },
+  {
     "name": "default-angle-vulkan",
     "owners": ["syoussefi@chromium.org"],
     "expiry_milestone": 160
@@ -2472,6 +2506,11 @@
     "name": "devtools-webmcp-support",
     "owners": [ "pfaffe@chromium.org" ],
     "expiry_milestone": 155
+  },
+  {
+    "name": "dictation",
+    "owners": [ "bokan@chromium.org", "mcnee@chromium.org" ],
+    "expiry_milestone": 156
   },
   {
     "name": "direct-sockets-in-service-workers",
@@ -2799,6 +2838,11 @@
     "name": "enable-accessibility-accelerator",
     "owners": [ "zork@chromium.org", "//ash/accessibility/OWNERS" ],
     "expiry_milestone": 143
+  },
+  {
+    "name": "enable-accessibility-android-math",
+    "owners": [ "dtseng@chromium.org", "//ui/accessibility/OWNERS" ],
+    "expiry_milestone": 170
   },
   {
    "name": "enable-accessibility-atomic-live-regions",
@@ -5753,14 +5797,7 @@
     ],
     "expiry_milestone": 160
   },
-  {
-    "name": "hybrid-passkeys-in-context-menu",
-    "owners": [
-      "derinel@google.com",
-      "chrome-webauthn@google.com"
-    ],
-    "expiry_milestone": 138
-  },
+
   {
     "name": "idb-sqlite-backing-store",
     "owners": ["evanstade@microsoft.com", "abhishek.shanthkumar@microsoft.com", "//content/browser/indexed_db/OWNERS"],
@@ -5792,6 +5829,11 @@
    "name": "import-export-flags",
    "owners": [ "ananyaseelam@google.com", "kiehl@google.com", "//ui/webui/PLATFORM_OWNERS" ],
    "expiry_milestone": 160
+  },
+  {
+    "name": "in-app-window-manager-deprecation",
+    "owners": [ "aishwaryarj@google.com", "zheliooo@google.com", "clank-large-form-factors@google.com" ],
+    "expiry_milestone": 165
   },
   {
     "name": "in-product-help-demo-mode-choice",
@@ -7069,6 +7111,11 @@
     "expiry_milestone": 150
   },
   {
+    "name": "ntp-vision",
+    "owners": ["yanlinghu@google.com","hanxi@chromium.org", "clank-start@google.com"],
+    "expiry_milestone": 160
+  },
+  {
     "name": "ntp-wallpaper-search-button",
     "owners": [ "pauladedeji@google.com", "tiborg@chromium.org" ],
     "expiry_milestone": 130
@@ -7106,6 +7153,11 @@
   {
     "name": "omnibox-ai-mode-space-does-not-activate",
     "owners": [ "pauladedeji@google.com", "chrome-desktop-search@google.com" ],
+    "expiry_milestone": 160
+  },
+  {
+    "name": "omnibox-aim-image-downscaling",
+    "owners": ["jkoblinsky@google.com", "chrome-mobile-search@google.com"],
     "expiry_milestone": 160
   },
   {
@@ -7226,6 +7278,11 @@
       "charlesyc@google.com",
       "chrome-mobile-search@google.com"
     ],
+    "expiry_milestone": 160
+  },
+  {
+    "name": "omnibox-list-menu-context-menu",
+    "owners": ["oka@chromium.org", "chrome-omnibox-team@google.com"],
     "expiry_milestone": 160
   },
   {
@@ -9624,6 +9681,11 @@
     "expiry_milestone": 145
   },
   {
+    "name": "variable-system-font-support-on-windows",
+    "owners": [ "dileepmaurya@microsoft.com" ],
+    "expiry_milestone": 155
+  },
+  {
     "name": "variations-experimental-corpus",
     "owners": [ "//components/variations/OWNERS" ],
     // This is used by testers to manually test changes to the variations seed
@@ -10020,6 +10082,11 @@
     "expiry_milestone": 160
   },
   {
+    "name": "webui-rounded-icons",
+    "owners": [ "emshack@chromium.org", "top-chrome-desktop-ui@google.com" ],
+    "expiry_milestone": 160
+  },
+  {
     "name": "webui-toolbar",
     "owners": [ "//chrome/browser/ui/waap/OWNERS" ],
     "expiry_milestone": 170
@@ -10144,6 +10211,14 @@
   },
   {
     "name": "zero-state-suggestions-centralization",
+    "owners": [
+      "ogallant@google.com",
+      "bling-alchemy-eng@google.com"
+    ],
+    "expiry_milestone": 160
+  },
+  {
+    "name": "zero-state-suggestions-wcgd",
     "owners": [
       "ogallant@google.com",
       "bling-alchemy-eng@google.com"

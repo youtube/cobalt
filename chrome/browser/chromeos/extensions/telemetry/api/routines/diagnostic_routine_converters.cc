@@ -252,18 +252,18 @@ cx_diag::RoutineFinishedInfo UncheckedConvertPtr(
 }  // namespace unchecked
 
 cx_diag::ExceptionReason Convert(
-    crosapi::TelemetryExtensionException::Reason input) {
+    ash::cros_healthd::mojom::Exception::Reason input) {
   switch (input) {
-    case crosapi::TelemetryExtensionException::Reason::kUnmappedEnumField:
+    case ash::cros_healthd::mojom::Exception::Reason::kUnmappedEnumField:
       return cx_diag::ExceptionReason::kUnknown;
-    case crosapi::TelemetryExtensionException::Reason::
+    case ash::cros_healthd::mojom::Exception::Reason::
         kMojoDisconnectWithoutReason:
       return cx_diag::ExceptionReason::kUnknown;
-    case crosapi::TelemetryExtensionException::Reason::kUnexpected:
+    case ash::cros_healthd::mojom::Exception::Reason::kUnexpected:
       return cx_diag::ExceptionReason::kUnexpected;
-    case crosapi::TelemetryExtensionException::Reason::kUnsupported:
+    case ash::cros_healthd::mojom::Exception::Reason::kUnsupported:
       return cx_diag::ExceptionReason::kUnsupported;
-    case crosapi::TelemetryExtensionException::Reason::kCameraFrontendNotOpened:
+    case ash::cros_healthd::mojom::Exception::Reason::kCameraFrontendNotOpened:
       return cx_diag::ExceptionReason::kCameraFrontendNotOpened;
   }
   NOTREACHED();

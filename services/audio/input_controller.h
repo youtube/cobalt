@@ -31,6 +31,7 @@ class AecdumpRecordingManager;
 class AudioBus;
 class AudioInputStream;
 class AudioManager;
+class VoiceIsolation;
 struct AudioGlitchInfo;
 }  // namespace media
 
@@ -119,6 +120,9 @@ class InputController final {
 
     // Failed to open aec reference stream due to device in use by another app.
     REFERENCE_STREAM_OPEN_DEVICE_IN_USE_ERROR,  // = 10
+
+    // Open failed due to the device being removed.
+    STREAM_OPEN_DEVICE_REMOVED_ERROR,  // = 11
   };
 
 #if defined(AUDIO_POWER_MONITORING)
@@ -237,8 +241,12 @@ class InputController final {
     CAPTURE_STARTUP_OPEN_STREAM_FAILED = 2,
     CAPTURE_STARTUP_NEVER_GOT_DATA = 3,
     CAPTURE_STARTUP_STOPPED_EARLY = 4,
-    CAPTURE_STARTUP_RESULT_MAX = CAPTURE_STARTUP_STOPPED_EARLY,
+    CAPTURE_STARTUP_VOICE_ISOLATION_ERROR = 5,
+    CAPTURE_STARTUP_RESULT_MAX = CAPTURE_STARTUP_VOICE_ISOLATION_ERROR,
   };
+
+  static void LogCaptureStartupResult(StreamType type,
+                                      CaptureStartupResult result);
 
   InputController(
       EventHandler* event_handler,
@@ -249,7 +257,11 @@ class InputController final {
       media::mojom::AudioProcessingConfigPtr processing_config,
       const media::AudioParameters& output_params,
       const media::AudioParameters& device_params,
-      StreamType type);
+      StreamType type
+#if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
+      , std::unique_ptr<media::VoiceIsolation> voice_isolation
+#endif
+  );
 
   void DoCreate(
       media::AudioManager* audio_manager,
@@ -309,7 +321,8 @@ class InputController final {
       const media::AudioParameters& device_params,
       std::unique_ptr<ReferenceSignalProvider> reference_signal_provider,
       media::AecdumpRecordingManager* aecdump_recording_manager,
-      raw_ptr<MlModelManager> ml_model_manager);
+      raw_ptr<MlModelManager> ml_model_manager,
+      std::unique_ptr<media::VoiceIsolation> voice_isolation);
 
   // Used as a callback for |audio_processor_handler_|.
   void DeliverProcessedAudio(const media::AudioBus& audio_bus,

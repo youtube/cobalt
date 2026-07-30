@@ -319,7 +319,7 @@ public class LocationBarCoordinator
                                         : null,
                         backPressManager,
                         exactMatchUrlSupplier,
-                        () -> mAutocompleteCoordinator.loadTypedOmniboxText(),
+                        () -> mAutocompleteCoordinator.loadTypedOmniboxText(false),
                         () -> setOmniboxEditingText(""),
                         this::getUrlBarTextWithoutAutocomplete);
         NonNullObservableSupplier<Integer> fuseboxStateSupplier =
@@ -352,7 +352,6 @@ public class LocationBarCoordinator
                         bottomWindowPaddingSupplier,
                         fuseboxStateSupplier,
                         fuseboxLayoutModeSupplier,
-                        locationBarDataProvider,
                         topInsetProvider);
 
         mPageZoomIndicatorCoordinator =
@@ -435,7 +434,7 @@ public class LocationBarCoordinator
                         omniboxActionDelegate,
                         omniboxSuggestionsDropdownScrollListener,
                         mActivityLifecycleDispatcher,
-                        uiOverrides.isForcedPhoneStyleOmnibox(),
+                        uiOverrides,
                         windowAndroid,
                         mDeferredIMEWindowInsetApplicationCallback,
                         mFuseboxCoordinator);

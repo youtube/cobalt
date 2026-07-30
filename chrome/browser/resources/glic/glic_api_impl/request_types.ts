@@ -3,10 +3,11 @@
 // found in the LICENSE file.
 
 import type {WebClientInitialState} from '../glic.mojom-webui.js';
-import type {AdditionalContext, AdditionalContextPart, AnnotatedPageData, CaptureRegionErrorReason, CaptureRegionParams, CaptureRegionResult, ChromeVersion, ClientCapabilities, ClientErrorDialogType, ConversationInfo, CounterAbuseVerdict, CreateSkillRequest, ErrorReasonTypes, ErrorWithReason, ExperimentalTriggeringUpdate, FocusedTabDataHasFocus, FocusedTabDataHasNoFocus, FormFactor, GeminiEnterpriseSettings, GetPinCandidatesOptions, HostCapability, InvokeOptions, MetricUserInputReactionType, MicrophoneStatus, OnResponseStoppedDetails, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, PinTabsOptions, Platform, ResumeActorTaskResult, Screenshot, Skill, SkillPreview, SkillsWebClientEvent, TabContextOptions, TabContextResult, TabData, UnpinTabsOptions, UpdateSkillRequest, UserProfileInfo, WebClientMode, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
+import type {AdditionalContext, AdditionalContextPart, AnnotatedPageData, CaptureRegionErrorReason, CaptureRegionParams, CaptureRegionResult, ChromeVersion, ClientCapabilities, ClientErrorDialogType, ConversationInfo, CounterAbuseVerdict, ErrorReasonTypes, ErrorWithReason, ExperimentalTriggeringUpdate, FocusedTabDataHasFocus, FocusedTabDataHasNoFocus, FormFactor, GeminiEnterpriseSettings, GetPinCandidatesOptions, HostCapability, InvokeOptions, MetricUserInputReactionType, MicrophoneStatus, OnResponseStoppedDetails, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, PinTabsOptions, Platform, ResumeActorTaskResult, Screenshot, TabContextOptions, TabContextResult, TabData, UnpinTabsOptions, UserProfileInfo, WebClientMode, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
 
 import type {ActorClient, ActorHost} from './actor/actor_types.js';
 import type {AnnotationClient, AnnotationHost} from './annotation/annotation_types.js';
+import type {SkillsClient, SkillsHost} from './skills/skills_types.js';
 import type {InterfaceDef, InterfaceDefMethods, ReplaceProperties} from './transport/messaging.js';
 import {defInterface, defMessage} from './transport/messaging.js';
 import type {ErrorCodec, PendingReceiver, PendingRemote, TransferableException} from './transport/post_message_transport.js';
@@ -16,6 +17,8 @@ export type {
   ActorHost,
   AnnotationClient,
   AnnotationHost,
+  SkillsClient,
+  SkillsHost,
 };
 
 /*
@@ -39,6 +42,8 @@ export const WebClientHostDef = defInterface({
         initialState: WebClientInitialStatePrivate,
         actorRemote?: PendingRemote<ActorHost>,
         actorReceiver?: PendingReceiver<ActorClient>,
+        skillsRemote?: PendingRemote<SkillsHost>,
+        skillsReceiver?: PendingReceiver<SkillsClient>,
       }>(),
       histogram: {name: 'WebClientCreated', id: 1},
     },
@@ -405,51 +410,6 @@ export const WebClientHostDef = defInterface({
       histogram: {id: 51},
     },
     {
-      name: 'createSkill',
-      request: defMessage<{
-        request: CreateSkillRequest,
-      }>(),
-      response: defMessage<{
-        modalOpened: boolean,
-      }>(),
-      histogram: {id: 82},
-    },
-    {
-      name: 'updateSkill',
-      request: defMessage<{
-        request: UpdateSkillRequest,
-      }>(),
-      response: defMessage<{
-        modalOpened: boolean,
-      }>(),
-      histogram: {id: 83},
-    },
-    {
-      name: 'showManageSkillsUi',
-      histogram: {id: 86},
-    },
-    {
-      name: 'showBrowseSkillsUi',
-      histogram: {id: 95},
-    },
-    {
-      name: 'getSkill',
-      request: defMessage<{
-        id: string,
-      }>(),
-      response: defMessage<{
-        skill?: Skill,
-      }>(),
-      histogram: {id: 84},
-    },
-    {
-      name: 'recordSkillsWebClientEvent',
-      request: defMessage<{
-        event: SkillsWebClientEvent,
-      }>(),
-      histogram: {id: 91},
-    },
-    {
       name: 'subscribeToPinCandidates',
       request: defMessage<{
         options: GetPinCandidatesOptions,
@@ -719,30 +679,6 @@ export const WebClientDef = defInterface({
       }>(),
     },
     {
-      name: 'notifySkillPreviewsChanged',
-      request: defMessage<{
-        skillPreviews: SkillPreview[],
-      }>(),
-    },
-    {
-      name: 'notifySkillPreviewChanged',
-      request: defMessage<{
-        skillPreview: SkillPreview,
-      }>(),
-    },
-    {
-      name: 'notifyContextualSkillPreviewsChanged',
-      request: defMessage<{
-        contextualSkillPreviews: SkillPreview[],
-      }>(),
-    },
-    {
-      name: 'notifySkillDeleted',
-      request: defMessage<{
-        skillId: string,
-      }>(),
-    },
-    {
       name: 'zeroStateSuggestionsChanged',
       request: defMessage<{
         suggestions: ZeroStateSuggestionsV2,
@@ -989,7 +925,7 @@ export const RECORDED_REQUEST_IDS = {
 // //tools/metrics/histograms/metadata/glic/histograms.xml:ApiRequestType,
 // //tools/metrics/histograms/metadata/glic/enums.xml:GlicHostApiRequestType)
 InterfaceHistogramIds<WebClientHost>&InterfaceHistogramIds<ActorHost>&
-    InterfaceHistogramIds<AnnotationHost>;
+    InterfaceHistogramIds<AnnotationHost>&InterfaceHistogramIds<SkillsHost>;
 export const MAX_REQUEST_ID = Math.max(...Object.values(RECORDED_REQUEST_IDS));
 
 // Provides metrics histogram information for a host request type.

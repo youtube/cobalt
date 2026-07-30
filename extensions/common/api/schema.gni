@@ -144,6 +144,7 @@ extensions_api_uncompiled_sources =
 extensions_api_uncompiled_bundle_schema_sources =
     get_path_info([
                     "declarative_web_request.json",
+                    "dom.json",
                     "web_view_request.json",
                   ],
                   "abspath")

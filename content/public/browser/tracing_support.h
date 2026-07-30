@@ -38,7 +38,7 @@ CONTENT_EXPORT perfetto::NamedTrack CreateTracingTrackUnderChildProcess(
 //
 // auto track = perfetto::NamedTrack("Name", id,
 //     GetLocalFrameTracingTrack(frame_token, true));
-CONTENT_EXPORT perfetto::NamedTrack GetLocalFrameTracingTrack(
+CONTENT_EXPORT perfetto::StateTrack GetLocalFrameTracingTrack(
     const blink::LocalFrameToken& frame_token,
     bool is_main_frame,
     ChildProcessId process_id);
@@ -46,7 +46,7 @@ CONTENT_EXPORT perfetto::NamedTrack GetLocalFrameTracingTrack(
 // Returns a perfetto NamedTrack for a WebContents, identified by
 // `web_contents_token`. This may be used to emit events relating to a
 // WebContents.
-CONTENT_EXPORT perfetto::NamedTrack GetWebContentsTracingTrack(
+CONTENT_EXPORT perfetto::StateTrack GetWebContentsTracingTrack(
     const WebContents::UniqueToken& web_contents_token,
     perfetto::StaticString name = "WebContents");
 

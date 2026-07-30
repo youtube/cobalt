@@ -33,36 +33,6 @@ namespace remoting {
 
 namespace {
 
-// TODO garykac: Remove this unused traffic annotation in a separate cl.
-constexpr net::NetworkTrafficAnnotationTag kUnusedTrafficAnnotation =
-    net::DefineNetworkTrafficAnnotation("heartbeat_sender",
-                                        R"(
-        semantics {
-          sender: "Chrome Remote Desktop"
-          description:
-            "Sends heartbeat data to the Chrome Remote Desktop backend so that "
-            "the client knows about the presence of the host."
-          trigger:
-            "Starting a Chrome Remote Desktop host."
-          data:
-            "Chrome Remote Desktop Host ID and some non-PII information about "
-            "the host system such as the Chrome Remote Desktop version and the "
-            "OS version."
-          destination: OTHER
-          destination_other: "Chrome Remote Desktop directory service"
-        }
-        policy {
-          cookies_allowed: NO
-          setting:
-            "This request cannot be stopped in settings, but will not be sent "
-            "if the user does not use Chrome Remote Desktop."
-          policy_exception_justification:
-            "Not implemented."
-        })");
-
-void IgnoreTrafficAnnotation(
-    const net::NetworkTrafficAnnotationTag& traffic_annotation) {}
-
 constexpr base::TimeDelta kMinimumHeartbeatInterval = base::Minutes(3);
 constexpr base::TimeDelta kResendDelayOnHostNotFound = base::Seconds(10);
 constexpr base::TimeDelta kResendDelayOnUnauthenticated = base::Seconds(10);
@@ -123,9 +93,6 @@ HeartbeatSender::HeartbeatSender(
   signal_strategy_->AddListener(this);
   OnSignalingStateChanged(signal_strategy_->GetState());
   set_fqdn_ = set_fqdn;
-
-  // Touch the unused traffic annotation value to avoid complaints.
-  IgnoreTrafficAnnotation(kUnusedTrafficAnnotation);
 }
 
 HeartbeatSender::~HeartbeatSender() {

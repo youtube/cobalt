@@ -92,6 +92,10 @@
 #include "ui/views/widget/widget_interactive_uitest_utils.h"
 #include "url/gurl.h"
 
+#if BUILDFLAG(IS_OZONE)
+#include "ui/ozone/public/ozone_platform.h"
+#endif
+
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/resource_coordinator/tab_lifecycle_unit_source.h"
 #include "chrome/browser/resource_coordinator/tab_manager.h"
@@ -1235,20 +1239,19 @@ IN_PROC_BROWSER_TEST_F(ExtensionWindowCreateTest, MAYBE_AcceptState) {
 // For Linux, we only check X11 window manager and not Wayland since our
 // current fix only applies to X11.
 #if BUILDFLAG(IS_LINUX)
-// Must be checked inside IS_LINUX to compile on windows/mac.
-#if BUILDFLAG(SUPPORTS_OZONE_X11)
-  // DesktopWindowTreeHostX11::IsMinimized() relies on an asynchronous update
-  // from the window server
-  views::test::PropertyWaiter minimize_waiter(
-      base::BindRepeating(
-          &BrowserWindow::IsMinimized,
-          base::Unretained(BrowserWindow::FromBrowser(new_browser))),
-      true, TestTimeouts::action_timeout());
-  EXPECT_TRUE(minimize_waiter.Wait());
-#elif BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
+  // Must be checked inside IS_LINUX to compile on windows/mac.
   // TODO(crbug.com/40252593): Find a fix/workaround for wayland and add
   // verification of IsMinimized() for as well.
-#endif
+  if (::ui::OzonePlatform::RunningOnX11ForTest()) {
+    // DesktopWindowTreeHostX11::IsMinimized() relies on an asynchronous update
+    // from the window server
+    views::test::PropertyWaiter minimize_waiter(
+        base::BindRepeating(
+            &BrowserWindow::IsMinimized,
+            base::Unretained(BrowserWindow::FromBrowser(new_browser))),
+        true, TestTimeouts::action_timeout());
+    EXPECT_TRUE(minimize_waiter.Wait());
+  }
 #else
   EXPECT_TRUE(new_controller->window()->IsMinimized());
 #endif  // BUILDFLAG(IS_LINUX)

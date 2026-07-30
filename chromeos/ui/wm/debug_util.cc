@@ -4,12 +4,19 @@
 
 #include "chromeos/ui/wm/debug_util.h"
 
+#include <sstream>
+#include <string>
+#include <vector>
+
+#include "base/check_op.h"
+#include "base/memory/raw_ptr.h"
+#include "base/strings/utf_string_conversions.h"
 #include "chromeos/ui/base/window_properties.h"
 #include "chromeos/ui/base/window_state_type.h"
 #include "ui/accessibility/aura/aura_window_properties.h"
-#include "ui/aura/client/aura_constants.h"
 #include "ui/aura/client/capture_client.h"
 #include "ui/aura/client/focus_client.h"
+#include "ui/aura/window.h"
 #include "ui/views/debug_utils.h"
 #include "ui/views/widget/widget.h"
 #include "ui/wm/public/activation_client.h"
@@ -67,34 +74,38 @@ void PrintWindowHierarchy(const aura::Window* active_window,
 }  // namespace
 
 std::vector<std::string> PrintWindowHierarchy(
-    aura::Window::Windows roots,
+    aura::Window::Windows windows,
     bool scrub_data,
     std::ostringstream* out,
     GetChildrenCallback children_callback) {
   // TODO(crbug.com/41496823): Make ActiveClient and FocusClient return the same
   // window across all instances of the clients on Lacros.
-  aura::Window* root0 = roots[0];
+  aura::Window* root_window = windows[0]->GetRootWindow();
   aura::Window* active_window =
-      ::wm::GetActivationClient(root0)->GetActiveWindow();
+      ::wm::GetActivationClient(root_window)->GetActiveWindow();
   aura::Window* focused_window =
-      aura::client::GetFocusClient(root0)->GetFocusedWindow();
+      aura::client::GetFocusClient(root_window)->GetFocusedWindow();
   aura::Window* capture_window =
-      aura::client::GetCaptureClient(root0)->GetCaptureWindow();
+      aura::client::GetCaptureClient(root_window)->GetCaptureWindow();
 
   std::vector<std::string> window_titles;
-  for (size_t i = 0; i < roots.size(); ++i) {
+  for (size_t i = 0; i < windows.size(); ++i) {
     *out << "RootWindow " << i << ":\n";
-    aura::Window* root = roots[i];
+    aura::Window* window = windows[i];
+    aura::Window* current_root_window = window->GetRootWindow();
     // These windows must be the same across root windows.
-    DCHECK_EQ(active_window,
-              ::wm::GetActivationClient(root)->GetActiveWindow());
-    DCHECK_EQ(focused_window,
-              aura::client::GetFocusClient(root)->GetFocusedWindow());
+    DCHECK_EQ(
+        active_window,
+        ::wm::GetActivationClient(current_root_window)->GetActiveWindow());
+    DCHECK_EQ(
+        focused_window,
+        aura::client::GetFocusClient(current_root_window)->GetFocusedWindow());
     DCHECK_EQ(capture_window,
-              aura::client::GetCaptureClient(root)->GetCaptureWindow());
+              aura::client::GetCaptureClient(current_root_window)
+                  ->GetCaptureWindow());
 
-    PrintWindowHierarchy(active_window, focused_window, capture_window, root, 0,
-                         scrub_data, children_callback, &window_titles, out);
+    PrintWindowHierarchy(active_window, focused_window, capture_window, window,
+                         0, scrub_data, children_callback, &window_titles, out);
   }
   return window_titles;
 }

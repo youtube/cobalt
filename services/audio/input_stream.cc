@@ -49,6 +49,8 @@ const char* ErrorCodeToString(InputController::ErrorCode error) {
       return "STREAM_OPEN_SYSTEM_PERMISSIONS_ERROR";
     case (InputController::STREAM_OPEN_DEVICE_IN_USE_ERROR):
       return "STREAM_OPEN_DEVICE_IN_USE_ERROR";
+    case (InputController::STREAM_OPEN_DEVICE_REMOVED_ERROR):
+      return "STREAM_OPEN_DEVICE_REMOVED_ERROR";
     case (InputController::REFERENCE_STREAM_ERROR):
       return "REFERENCE_STREAM_ERROR";
     case (InputController::REFERENCE_STREAM_CREATE_ERROR):
@@ -271,6 +273,8 @@ DisconnectReason InputErrorToDisconnectReason(InputController::ErrorCode code) {
       return DisconnectReason::kSystemPermissions;
     case InputController::STREAM_OPEN_DEVICE_IN_USE_ERROR:
       return DisconnectReason::kDeviceInUse;
+    case InputController::STREAM_OPEN_DEVICE_REMOVED_ERROR:
+      return DisconnectReason::kDeviceRemoved;
     default:
       break;
   }
@@ -284,6 +288,8 @@ InputStreamErrorCode InputControllerErrorToStreamError(
       return InputStreamErrorCode::kSystemPermissions;
     case InputController::STREAM_OPEN_DEVICE_IN_USE_ERROR:
       return InputStreamErrorCode::kDeviceInUse;
+    case InputController::STREAM_OPEN_DEVICE_REMOVED_ERROR:
+      return InputStreamErrorCode::kDeviceRemoved;
     default:
       break;
   }

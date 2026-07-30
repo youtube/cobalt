@@ -7,6 +7,7 @@
 #include "partition_alloc/buildflags.h"
 #include "partition_alloc/partition_alloc.h"
 #include "partition_alloc/partition_alloc_base/compiler_specific.h"
+#include "partition_alloc/partition_alloc_base/containers/span.h"
 #include "partition_alloc/partition_root.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -344,44 +345,44 @@ template <template <typename> class PointerType,
           typename T1,
           typename T2,
           typename U>
-void CompareTest(U* array) {
+void CompareTest(internal::base::span<U> array) {
   PointerType<T1> p0 = static_cast<PointerType<T1>>(&array[0]);
-  PointerType<T2> p1 = static_cast<PointerType<T2>>(&PA_UNSAFE_TODO(array[1]));
+  PointerType<T2> p1 = static_cast<PointerType<T2>>(&array[1]);
   {
-    EXPECT_NE(p0, &PA_UNSAFE_TODO(array[1]));
+    EXPECT_NE(p0, &array[1]);
     EXPECT_NE(p0, p1);
     EXPECT_NE(p1, &array[0]);
     EXPECT_NE(p1, p0);
   }
   {
-    EXPECT_LT(p0, &PA_UNSAFE_TODO(array[1]));
+    EXPECT_LT(p0, &array[1]);
     EXPECT_LT(&array[0], p1);
     EXPECT_LT(p0, p1);
   }
   {
     EXPECT_LE(p0, &array[0]);
-    EXPECT_LE(p0, &PA_UNSAFE_TODO(array[1]));
+    EXPECT_LE(p0, &array[1]);
     EXPECT_LE(&array[0], p0);
 
-    EXPECT_LE(&PA_UNSAFE_TODO(array[1]), p1);
-    EXPECT_LE(p1, &PA_UNSAFE_TODO(array[1]));
+    EXPECT_LE(&array[1], p1);
+    EXPECT_LE(p1, &array[1]);
 
     auto p2 = p0;
     EXPECT_LE(p0, p2);
     EXPECT_LE(p2, p1);
   }
   {
-    EXPECT_GT(&PA_UNSAFE_TODO(array[1]), p0);
+    EXPECT_GT(&array[1], p0);
     EXPECT_GT(p1, &array[0]);
     EXPECT_GT(p1, p0);
   }
   {
     EXPECT_GE(&array[0], p0);
-    EXPECT_GE(&PA_UNSAFE_TODO(array[1]), p0);
+    EXPECT_GE(&array[1], p0);
     EXPECT_GE(p0, &array[0]);
 
-    EXPECT_GE(p1, &PA_UNSAFE_TODO(array[1]));
-    EXPECT_GE(&PA_UNSAFE_TODO(array[1]), p1);
+    EXPECT_GE(p1, &array[1]);
+    EXPECT_GE(&array[1], p1);
 
     auto p2 = p1;
     EXPECT_GE(p1, p2);
@@ -412,21 +413,23 @@ TYPED_TEST(CompressedPointerTest, EqualityDifferentPointerValues) {
 
 TYPED_TEST(CompressedPointerTest, CompareSamePointerValue) {
   auto d = make_pa_array_unique<Derived>(this->allocator_, 2);
-  CompareTest<TestFixture::template PointerType, Base, Base>(d.get());
-  CompareTest<TestFixture::template PointerType, Base, Derived>(d.get());
-  CompareTest<TestFixture::template PointerType, Derived, Base>(d.get());
-  CompareTest<TestFixture::template PointerType, Derived, Derived>(d.get());
+  // SAFETY: `d` is allocated with size 2.
+  auto span = PA_UNSAFE_BUFFERS(internal::base::span(d.get(), 2u));
+  CompareTest<TestFixture::template PointerType, Base, Base>(span);
+  CompareTest<TestFixture::template PointerType, Base, Derived>(span);
+  CompareTest<TestFixture::template PointerType, Derived, Base>(span);
+  CompareTest<TestFixture::template PointerType, Derived, Derived>(span);
 }
 
 TYPED_TEST(CompressedPointerTest, CompareDifferentPointerValues) {
   auto d = make_pa_array_unique<DerivedWithMixin>(this->allocator_, 2);
-  CompareTest<TestFixture::template PointerType, Mixin, Mixin>(d.get());
-  CompareTest<TestFixture::template PointerType, Mixin, DerivedWithMixin>(
-      d.get());
-  CompareTest<TestFixture::template PointerType, DerivedWithMixin, Mixin>(
-      d.get());
+  // SAFETY: `d` is allocated with size 2.
+  auto span = PA_UNSAFE_BUFFERS(internal::base::span(d.get(), 2u));
+  CompareTest<TestFixture::template PointerType, Mixin, Mixin>(span);
+  CompareTest<TestFixture::template PointerType, Mixin, DerivedWithMixin>(span);
+  CompareTest<TestFixture::template PointerType, DerivedWithMixin, Mixin>(span);
   CompareTest<TestFixture::template PointerType, DerivedWithMixin,
-              DerivedWithMixin>(d.get());
+              DerivedWithMixin>(span);
 }
 
 }  // namespace partition_alloc

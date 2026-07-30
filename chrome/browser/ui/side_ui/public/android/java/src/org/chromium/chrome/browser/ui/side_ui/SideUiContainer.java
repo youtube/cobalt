@@ -89,13 +89,17 @@ public interface SideUiContainer {
     void setWidth(@Px int width);
 
     /**
-     * Called after the container has been resized. This is called after any animations or static
-     * resizing have completed.
+     * Called after {@link SideUiCoordinator} completes a UI update <i>and</i> that update changed
+     * this {@link SideUiContainer}.
      *
-     * <p>This can be used by the container to perform post-transition cleanup or trigger subsequent
-     * actions that should only occur after the UI has settled.
+     * <p>A UI update can be triggered by either an explicit call to {@link
+     * SideUiCoordinator#updateUi} or other events that may affect {@link SideUiCoordinator}s and
+     * {@link SideUiObserver}s (such as when a window is resized).
+     *
+     * @param oldWidth The stable width of this {@link SideUiContainer} before the UI update.
+     * @param newWidth The stable width of this {@link SideUiContainer} after the UI update.
      */
-    void onContainerResized(@Px int containerWidth);
+    default void onUiUpdateCompleted(@Px int oldWidth, @Px int newWidth) {}
 
     /**
      * Called when this container <i>will</i> be auto-closed due to space constraints.

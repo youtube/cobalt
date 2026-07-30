@@ -89,6 +89,7 @@ std::string Base64UrlEncode(std::string_view input) {
   return output;
 }
 
+// Validates whether the given passkey request is permitted to proceed.
 bool ValidateFeatureUsage(const PasskeyRequestParams& request_params,
                           bool has_user_interaction) {
   if (request_params.Type() == PasskeyRequestParams::RequestType::kModal) {

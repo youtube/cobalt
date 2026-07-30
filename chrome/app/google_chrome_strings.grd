@@ -588,13 +588,13 @@ New bookmarks can’t be saved in your account until you delete some. If you sig
           Set Chrome as your default browser
         </message>
         <message name="IDS_DEFAULT_BROWSER_VISUAL_GUIDED_SETTER_HEADER_TITLE" desc="Header text of the default browser visual guided setter.">
-          Use Google recommended browser settings
+          Set Google Chrome as your default browser
         </message>
         <message name="IDS_DEFAULT_BROWSER_VISUAL_GUIDED_SETTER_CONTENT_TITLE" desc="Content title of the default browser visual guided setter.">
-          Set Chrome as your default
+          Click <ph name="BEGIN_BOLD">&lt;strong&gt;</ph>Set Default<ph name="END_BOLD">&lt;/strong&gt;</ph> in your Windows settings.
         </message>
         <message name="IDS_DEFAULT_BROWSER_VISUAL_GUIDED_SETTER_CONTENT_DESCRIPTION" desc="Body text of the default browser visual guided setter.">
-          Get easy access to the features you know, love, and trust by setting Chrome as your default browser.
+          Keep your passwords, bookmarks, and history perfectly synced across devices by setting Chrome as your default browser.
         </message>
         <message name="IDS_DEFAULT_BROWSER_VISUAL_GUIDED_SETTER_INSTRUCTION_STEP_2" desc="Instruction step 2 of the default browser visual guided setter. $1 is the bold button name.">
           Click <ph name="BEGIN_BOLD">&lt;strong&gt;</ph>Yes<ph name="END_BOLD">&lt;/strong&gt;</ph> in the Windows notification to pin Chrome to your taskbar for quick access.
@@ -824,6 +824,9 @@ Google Chrome is unable to recover your settings.
         </message>
         <message name="IDS_PDF_GLIC_SUMMARIZE_IPH_TEXT_NEW" desc="Text of the In Product Help message shown for the button to summarize PDF.">
           Share this document with Gemini in Chrome to get a quick overview and ask follow-up questions
+        </message>
+        <message name="IDS_PDF_GLIC_SUMMARIZE_IPH_TEXT_NEW_SCREENREADER" desc="The screenreader text of the In Product Help message shown for the button to summarize PDF." is_accessibility_with_no_ui="true">
+          Click the Summarize button to share this document with Gemini in Chrome to get a quick overview and ask follow-up questions
         </message>
       </if>
       <!-- Download Bubble Items -->
@@ -1884,24 +1887,7 @@ Google Chrome is unable to recover your settings.
 
       <!-- Runtime permission strings -->
       <if expr="is_android">
-        <message name="IDS_INFOBAR_MISSING_AR_CAMERA_PERMISSION_TEXT" desc="Text shown in an infobar when a website has requested access to augmented reality capabilities, but Chrome is missing the Android camera permission.">
-          Chrome needs permission to access your camera to create a 3D map of your surroundings
-        </message>
-        <message name="IDS_INFOBAR_MISSING_CAMERA_PERMISSION_TEXT" desc="Text shown in an infobar when a website has requested access to the camera capabilities, but Chrome is missing the Android camera permission.">
-          Chrome needs permission to access your camera for this site
-        </message>
-        <message name="IDS_INFOBAR_MISSING_HAND_TRACKING_PERMISSION_TEXT" desc="Text shown in an infobar when a website has requested access to hand tracking capabilities, but Chrome is missing the Android hand tracking permission.">
-          Chrome needs permission to track your hands
-        </message>
-        <message name="IDS_INFOBAR_MISSING_MICROPHONE_PERMISSION_TEXT" desc="Text shown in an infobar when a website has requested access to the microphone capabilities, but Chrome is missing the Android microphone permission.">
-          Chrome needs permission to access your microphone for this site
-        </message>
-        <message name="IDS_INFOBAR_MISSING_MICROPHONE_CAMERA_PERMISSIONS_TEXT" desc="Text shown in an infobar when a website has requested access to the microphone and camera capabilities, but Chrome is missing the Android microphone and camera permissions.">
-          Chrome needs permission to access your camera and microphone for this site
-        </message>
-        <message name="IDS_INFOBAR_MISSING_LOCATION_PERMISSION_TEXT" desc="Text shown in an infobar when a website has requested access to the location capabilities, but Chrome is missing the Android location permission.">
-          Chrome needs access to your location to share your location with this site
-        </message>
+
         <message name="IDS_MISSING_STORAGE_PERMISSION_DOWNLOAD_EDUCATION_TEXT" desc="Text shown educating the user that Chrome is missing the Android storage permission, which is required to download files.">
           Chrome needs storage access to download files
         </message>
@@ -2592,30 +2578,6 @@ Google Chrome is unable to recover your settings.
         <message name="IDS_EXTENSION_PERMISSIONS_BLOCKED_BY_PARENT_PROMPT_MESSAGE" desc="Text for the dialog indicating that a parent has blocked extensions and apps.">
          Your parent has turned off "Permissions for sites, apps and extensions" for Chrome
         </message>
-
-        <message name="IDS_EXTENSION_EXTERNAL_INSTALL_PROMPT_TITLE_APP" desc="Titlebar of the prompt window for an externally installed app">
-          Another program on your computer added an app that may change the way Chrome works.
-
-<ph name="EXTENSION_NAME">$1<ex>Babylon Toolbar</ex></ph>
-        </message>
-        <message name="IDS_EXTENSION_EXTERNAL_INSTALL_PROMPT_TITLE_EXTENSION" desc="Titlebar of the prompt window for an externally installed extension">
-          Another program on your computer added an extension that may change the way Chrome works.
-
-<ph name="EXTENSION_NAME">$1<ex>Babylon Toolbar</ex></ph>
-        </message>
-        <message name="IDS_EXTENSION_EXTERNAL_INSTALL_PROMPT_TITLE_THEME" desc="Titlebar of the prompt window for an externally installed theme">
-          Another program on your computer added a theme that may change the way Chrome works.
-
-<ph name="EXTENSION_NAME">$1<ex>Babylon Toolbar</ex></ph>
-        </message>
-        <message name="IDS_EXTENSION_EXTERNAL_INITIAL_INSTALL_PROMPT_TITLE_EXTENSION" desc="">
-          <ph name="PARTNER_NAME">$1<ex>Google</ex></ph> has added an extension that may change the way Chrome works.
-
-<ph name="EXTENSION_NAME">$2<ex>Babylon Toolbar</ex></ph>
-        </message>
-        <message name="IDS_EXTENSION_EXTERNAL_INSTALL_PROMPT_ABORT_BUTTON" desc="Button on the external install prompt to remove an extension installed by a third party.">
-          Remove from Chrome
-        </message>
       </if>
 
       <if expr="not is_chromeos and not is_android">
@@ -2718,9 +2680,6 @@ Google Chrome is unable to recover your settings.
         <message name="IDS_FEATURE_SHOWCASE_PASSWORD_MANAGER_SUBTITLE" desc="Description for the Password Manager page in the Feature Showcase.">
           Built into Chrome to help you create, save, and autofill strong passwords. Add the shortcut for easy access
         </message>
-        <message name="IDS_FEATURE_SHOWCASE_PASSWORD_MANAGER_ILLUSTRATION_A11Y_LABEL" desc="Accessibility label for the illustration on the Password Manager page in the Feature Showcase.">
-          A simplified image showing the Google Password Manager entry point in Chrome
-        </message>
 
         <!-- Feature Showcase - Lens Overlay -->
         <message name="IDS_FEATURE_SHOWCASE_LENS_OVERLAY_TITLE" desc="This is the headline for the Lens Overlay opt-in screen. It introduces the visual search feature. (CHAR LIMIT = 40).">
@@ -2728,9 +2687,6 @@ Google Chrome is unable to recover your settings.
         </message>
         <message name="IDS_FEATURE_SHOWCASE_LENS_OVERLAY_DISCLOSURE" desc="This is a technical disclosure for Google Lens. It specifies that PDFs are also part of the shared data. The tone should be informative.">
           When you use Google Lens on desktop, the page title, URL, and content, including PDFs, are sent to Google
-        </message>
-        <message name="IDS_FEATURE_SHOWCASE_LENS_OVERLAY_ILLUSTRATION_A11Y_LABEL" desc="Accessibility label for the illustration on the Lens Overlay page in the Feature Showcase.">
-          An illustration showing how you can use Google Lens to look up a product
         </message>
       </if>
 

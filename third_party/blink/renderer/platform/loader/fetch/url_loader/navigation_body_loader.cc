@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <utility>
 
+#include "base/byte_size.h"
 #include "base/containers/heap_array.h"
 #include "base/containers/span.h"
 #include "base/functional/bind.h"
@@ -567,9 +568,10 @@ void NavigationBodyLoader::NotifyCompletionIfAppropriate() {
   // |this| may be deleted after calling into client_, so clear it in advance.
   WebNavigationBodyLoader::Client* client = client_;
   client_ = nullptr;
-  client->BodyLoadingFinished(
-      status_.completion_time, status_.encoded_data_length,
-      status_.encoded_body_length, status_.decoded_body_length, error);
+  client->BodyLoadingFinished(status_.completion_time,
+                              status_.encoded_data_length.InBytes(),
+                              status_.encoded_body_length.InBytes(),
+                              status_.decoded_body_length.InBytes(), error);
 }
 
 void NavigationBodyLoader::

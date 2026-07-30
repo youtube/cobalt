@@ -35,7 +35,6 @@ pub(crate) fn print_rust_log(
 
     // SAFETY: Safety requirements of the C++ function are met as follows:
     //
-    // * `&wrapped_args`: Taken from a Rust reference, so must be valid
     // * `filename.as_ptr()`: `CStr` promises to return a pointer to a
     //   NUL-terminated string
     unsafe {
@@ -98,6 +97,10 @@ mod ffi {
 
         /// Emit a log message to the C++-managed logger. `msg` is passed back
         /// to `format_to_wrapped_message` to be stringified.
+        ///
+        /// # Safety
+        ///
+        /// `file` must be a valid pointer to a NUL-terminated C string.
         unsafe fn print_rust_log(
             msg: &RustFmtArguments,
             file: *const c_char,

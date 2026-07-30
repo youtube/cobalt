@@ -4,21 +4,27 @@
 
 #include "chrome/browser/indigo/indigo_service.h"
 
+#include <algorithm>
+
 #include "base/command_line.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
+#include "build/build_config.h"
 #include "chrome/browser/component_updater/indigo_component_installer.h"
+#include "chrome/browser/enterprise/browser_management/management_service_factory.h"
 #include "chrome/browser/extensions/component_loader.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/indigo/api_client.h"
 #include "chrome/browser/indigo/indigo_extension_utils.h"
 #include "chrome/browser/indigo/indigo_prefs.h"
+#include "chrome/browser/indigo/proto/indigo_config.pb.h"
 #include "chrome/browser/indigo/proto/indigo_prompts.pb.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/chrome_features.h"
+#include "components/policy/core/common/management/management_service.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/prefs/pref_service.h"
 #include "components/signin/public/base/signin_metrics.h"
@@ -28,10 +34,47 @@
 #include "google_apis/gaia/gaia_auth_util.h"
 #include "google_apis/gaia/google_service_auth_error.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
+#include "url/gurl.h"
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+#include "base/enterprise_util.h"
+#elif BUILDFLAG(IS_CHROMEOS)
+#include "chromeos/ash/components/install_attributes/install_attributes.h"
+#endif
 
 namespace indigo {
 
 namespace {
+
+// Returns true if there is any enterprise management at the profile, browser,
+// or physical device level.
+bool IsBrowserUnderAnyEnterpriseManagement(Profile* profile) {
+  // 1. Browser / Profile Level: Check if administrative policies (cloud policy,
+  // local machine Group Policy Object, macOS plist, Linux
+  // /etc/opt/chrome/policies, or local device management) are actively managing
+  // this browser or profile.
+  if (profile &&
+      policy::ManagementServiceFactory::GetForProfile(profile)->IsManaged()) {
+    return true;
+  }
+
+  // 2. Physical Device / OS Level: Check if the physical hardware is domain
+  // joined, MDM enrolled, or enterprise cloud managed.
+  // Note: All Linux machine management (via /etc/opt/chrome/policies/ or Chrome
+  // Browser Cloud Management) is fully captured by Step 1 above.
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+  if (base::IsManagedOrEnterpriseDevice()) {
+    return true;
+  }
+#elif BUILDFLAG(IS_CHROMEOS)
+  if (ash::InstallAttributes::IsInitialized() &&
+      ash::InstallAttributes::Get()->IsEnterpriseManaged()) {
+    return true;
+  }
+#endif
+
+  return false;
+}
 
 base::flat_map<std::string, std::string> LoadPromptsFromDisk(
     const base::FilePath& file_path) {
@@ -53,6 +96,49 @@ base::flat_map<std::string, std::string> LoadPromptsFromDisk(
   }
   return prompts;
 }
+
+IndigoService::ConfigData LoadConfigFromDisk(const base::FilePath& file_path) {
+  IndigoService::ConfigData config;
+  std::string binary_data;
+  if (!base::ReadFileToString(file_path, &binary_data)) {
+    VLOG(1) << "Failed to read config file: " << file_path;
+    return config;
+  }
+
+  chrome::aix::indigo::IndigoConfig proto;
+  if (!proto.ParseFromString(binary_data)) {
+    VLOG(1) << "Failed to parse config proto";
+    return config;
+  }
+
+  if (proto.has_heuristic_config()) {
+    const auto& heuristic_config = proto.heuristic_config();
+    for (const auto& origin_str : heuristic_config.allowed_origins()) {
+      GURL url(origin_str);
+      if (url.is_valid()) {
+        config.allowed_origins.push_back(url::Origin::Create(url));
+      } else {
+        VLOG(1) << "Invalid origin in config: " << origin_str;
+      }
+    }
+
+    for (const auto& kw : heuristic_config.allowed_keywords()) {
+      config.allowed_keywords.push_back(kw);
+    }
+
+    for (const auto& kw : heuristic_config.blocked_keywords()) {
+      config.blocked_keywords.push_back(kw);
+      if (std::ranges::contains(config.allowed_keywords, kw)) {
+        LOG(WARNING) << "Keyword '" << kw
+                     << "' is in both allowed and blocked lists.";
+      }
+    }
+  }
+
+  return config;
+}
+
+constexpr char kIndigoConfigProtoSwitch[] = "indigo-config-proto";
 
 }  // namespace
 
@@ -118,20 +204,30 @@ IndigoService::IndigoService(Profile* profile,
       identity_manager, profile->GetDefaultStoragePartition()
                             ->GetURLLoaderFactoryForBrowserProcess());
 
+  base::FilePath config_override_path =
+      base::CommandLine::ForCurrentProcess()->GetSwitchValuePath(
+          kIndigoConfigProtoSwitch);
+  if (!config_override_path.empty()) {
+    base::ThreadPool::PostTaskAndReplyWithResult(
+        FROM_HERE, {base::MayBlock(), base::TaskPriority::BEST_EFFORT},
+        base::BindOnce(&LoadConfigFromDisk, config_override_path),
+        base::BindOnce(&IndigoService::OnConfigLoaded,
+                       weak_ptr_factory_.GetWeakPtr()));
+  }
+
   // Register component extension for Indigo.
   extensions::ComponentLoader::Get(profile_)->Add(
       indigo_extension_utils::GetManifest(),
       base::FilePath(FILE_PATH_LITERAL("indigo")));
 
-  // If component was already installed skip registering ready callback.
+  // If component was already installed, load from it immediately.
   if (component_updater::GetIndigoComponentInstallDir().has_value()) {
     OnIndigoComponentReady();
-  } else {
-    indigo_component_ready_subscription_ =
-        component_updater::RegisterIndigoComponentReadyCallback(
-            base::BindRepeating(&IndigoService::OnIndigoComponentReady,
-                                base::Unretained(this)));
   }
+  indigo_component_ready_subscription_ =
+      component_updater::RegisterIndigoComponentReadyCallback(
+          base::BindRepeating(&IndigoService::OnIndigoComponentReady,
+                              base::Unretained(this)));
 }
 
 IndigoService::~IndigoService() = default;
@@ -186,13 +282,6 @@ LocalEligibility IndigoService::ComputeLocalEligibility() const {
     return LocalEligibility::kMissingScript;
   }
 
-  if (pref_service_) {
-    int policy_val = pref_service_->GetInteger(prefs::kIndigoPolicy);
-    if (policy_val != prefs::Policy::kAllowed) {
-      return LocalEligibility::kDisabledByPolicy;
-    }
-  }
-
   CoreAccountId account_id = identity_manager_
                                  ? identity_manager_->GetPrimaryAccountId(
                                        signin::ConsentLevel::kSignin)
@@ -203,9 +292,28 @@ LocalEligibility IndigoService::ComputeLocalEligibility() const {
 
   AccountInfo info =
       identity_manager_->FindExtendedAccountInfoByAccountId(account_id);
+  bool is_google_internal_account =
+      gaia::IsGoogleInternalAccountEmail(info.email);
   if (info.IsManaged() == signin::Tribool::kTrue &&
-      !gaia::IsGoogleInternalAccountEmail(info.email)) {
+      !is_google_internal_account) {
     return LocalEligibility::kManagedDomain;
+  }
+
+  if (IsBrowserUnderAnyEnterpriseManagement(profile_) &&
+      !is_google_internal_account) {
+    if (!features::kIndigoAllowForEnterprise.Get()) {
+      // TODO(b:512247450): Use a new enum such as `kEnterpriseDisallowed`.
+      return LocalEligibility::kManagedDomain;
+    } else if (pref_service_) {
+      int policy_val = pref_service_->GetInteger(prefs::kIndigoPolicy);
+      // TODO(b:512247450): Also allow kAllowedWithoutModelImprovement when the
+      // alternative disclaimer string is ready.
+      if (policy_val != prefs::Policy::kAllowed) {
+        return LocalEligibility::kDisabledByPolicy;
+      }
+    }
+    // `prefs::kIndigoPolicy` defaults to kAllowed. So when `pref_service_` is
+    // not available, skip the policy check.
   }
 
   if (info.GetAccountCapabilities().can_use_model_execution_features() !=
@@ -237,16 +345,27 @@ void IndigoService::UpdateLocalEligibilityAndNotify() {
 void IndigoService::OnIndigoComponentReady() {
   UpdateLocalEligibilityAndNotify();
 
-  if (!prompts_loaded_) {
-    std::optional<base::FilePath> install_dir =
-        component_updater::GetIndigoComponentInstallDir();
-    if (install_dir.has_value()) {
-      base::FilePath prompts_path =
-          install_dir->Append(FILE_PATH_LITERAL("indigo_prompts.bin"));
+  std::optional<base::FilePath> install_dir =
+      component_updater::GetIndigoComponentInstallDir();
+  if (install_dir.has_value()) {
+    base::FilePath prompts_path =
+        install_dir->Append(FILE_PATH_LITERAL("indigo_prompts.bin"));
+    base::ThreadPool::PostTaskAndReplyWithResult(
+        FROM_HERE, {base::MayBlock(), base::TaskPriority::BEST_EFFORT},
+        base::BindOnce(&LoadPromptsFromDisk, prompts_path),
+        base::BindOnce(&IndigoService::OnPromptsLoaded,
+                       weak_ptr_factory_.GetWeakPtr()));
+
+    const base::FilePath config_override_path =
+        base::CommandLine::ForCurrentProcess()->GetSwitchValuePath(
+            kIndigoConfigProtoSwitch);
+    if (config_override_path.empty()) {
+      base::FilePath config_path =
+          install_dir->Append(FILE_PATH_LITERAL("indigo_config.bin"));
       base::ThreadPool::PostTaskAndReplyWithResult(
           FROM_HERE, {base::MayBlock(), base::TaskPriority::BEST_EFFORT},
-          base::BindOnce(&LoadPromptsFromDisk, prompts_path),
-          base::BindOnce(&IndigoService::OnPromptsLoaded,
+          base::BindOnce(&LoadConfigFromDisk, config_path),
+          base::BindOnce(&IndigoService::OnConfigLoaded,
                          weak_ptr_factory_.GetWeakPtr()));
     }
   }
@@ -348,6 +467,40 @@ std::optional<std::string> IndigoService::GetPrompt(
     return std::nullopt;
   }
   return it->second;
+}
+
+IndigoService::ConfigData::ConfigData() = default;
+IndigoService::ConfigData::ConfigData(const ConfigData&) = default;
+IndigoService::ConfigData::ConfigData(ConfigData&&) = default;
+IndigoService::ConfigData& IndigoService::ConfigData::operator=(
+    const ConfigData&) = default;
+IndigoService::ConfigData& IndigoService::ConfigData::operator=(ConfigData&&) =
+    default;
+IndigoService::ConfigData::~ConfigData() = default;
+
+void IndigoService::OnConfigLoaded(ConfigData config) {
+  config_ = std::move(config);
+  config_loaded_ = true;
+}
+
+const std::vector<std::string>& IndigoService::GetAllowedKeywords() const {
+  return config_.allowed_keywords;
+}
+
+const std::vector<std::string>& IndigoService::GetBlockedKeywords() const {
+  return config_.blocked_keywords;
+}
+
+bool IndigoService::IsOriginAllowed(const url::Origin& origin) const {
+  if (!config_loaded_) {
+    return false;
+  }
+  return std::ranges::contains(config_.allowed_origins, origin);
+}
+
+void IndigoService::SetConfigForTesting(ConfigData config) {
+  config_ = std::move(config);
+  config_loaded_ = true;
 }
 
 }  // namespace indigo

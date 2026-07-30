@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/test/test_future.h"
+#include "build/build_config.h"
 #include "chrome/browser/actor/actor_test_util.h"
 #include "chrome/browser/actor/tools/tool_request.h"
 #include "chrome/browser/actor/tools/tools_test_util.h"
@@ -15,6 +16,10 @@
 #include "chrome/test/base/ui_test_utils.h"
 #include "content/public/test/browser_test.h"
 #include "ui/base/ozone_buildflags.h"
+
+#if BUILDFLAG(IS_OZONE)
+#include "ui/ozone/public/ozone_platform.h"
+#endif
 
 using base::test::TestFuture;
 
@@ -199,16 +204,13 @@ IN_PROC_BROWSER_TEST_F(ActorWindowManagementToolBrowserTest,
   EXPECT_TRUE(actor_task().GetTabs().empty());
 }
 
-#if BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
-// Wayland doesn't support programmatic window activation at all so this test
-// (and functionality?) isn't relevant.
-#define MAYBE_ActivateWindow DISABLED_ActivateWindow
-#else
-#define MAYBE_ActivateWindow ActivateWindow
-#endif
 // Ensure ActivateWindow activates the window with the given ID.
-IN_PROC_BROWSER_TEST_F(ActorWindowManagementToolBrowserTest,
-                       MAYBE_ActivateWindow) {
+IN_PROC_BROWSER_TEST_F(ActorWindowManagementToolBrowserTest, ActivateWindow) {
+#if BUILDFLAG(IS_OZONE)
+  if (::ui::OzonePlatform::RunningOnWaylandForTest()) {
+    GTEST_SKIP() << "Wayland doesn't support programmatic window activation";
+  }
+#endif
   BrowserWindowInterface* initial_window =
       GetLastActiveBrowserWindowInterfaceWithAnyProfile();
 

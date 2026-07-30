@@ -31,6 +31,7 @@
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/network/public/mojom/url_loader.mojom.h"
 #include "services/network/public/mojom/url_loader_factory.mojom.h"
+#include "services/network/public/mojom/url_response_head.mojom.h"
 #include "services/network/resource_scheduler/resource_scheduler.h"
 #include "services/network/test/test_url_loader_network_observer.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -79,6 +80,9 @@ class TestURLLoaderFactory : public mojom::URLLoaderFactory {
       int status_code,
       const std::vector<std::pair<std::string, std::string>>& extra_headers,
       mojo::ScopedDataPipeConsumerHandle body);
+
+  void NotifyClientOnReceiveResponse(mojom::URLResponseHeadPtr response_head,
+                                     mojo::ScopedDataPipeConsumerHandle body);
 
   void NotifyClientOnComplete(int error_code);
 
@@ -202,6 +206,15 @@ class CorsURLLoaderTestBase : public testing::Test {
     DCHECK(test_url_loader_factory_);
     test_url_loader_factory_->NotifyClientOnReceiveResponse(
         status_code, extra_headers, std::move(body));
+  }
+
+  void NotifyLoaderClientOnReceiveResponse(
+      mojom::URLResponseHeadPtr response_head,
+      mojo::ScopedDataPipeConsumerHandle body =
+          mojo::ScopedDataPipeConsumerHandle()) {
+    DCHECK(test_url_loader_factory_);
+    test_url_loader_factory_->NotifyClientOnReceiveResponse(
+        std::move(response_head), std::move(body));
   }
 
   void NotifyLoaderClientOnReceiveRedirect(

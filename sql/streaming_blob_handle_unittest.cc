@@ -488,6 +488,31 @@ TEST_F(StreamingBlobHandleTest, TransactionRollbackRevertsBlobClosedInScope) {
   }
 }
 
+TEST_F(StreamingBlobHandleTest, ZeroSizeBlobRead) {
+  int64_t row_id = 0;
+  {
+    Database db(test::kTestTag);
+    ASSERT_TRUE(db.Open(db_path_));
+    ASSERT_TRUE(db.Execute("CREATE TABLE foo (data BLOB)"));
+    ASSERT_TRUE(db.Execute("INSERT INTO foo (data) VALUES (x'C0FFEE')"));
+    row_id = db.GetLastInsertRowId();
+  }
+
+  {
+    Database db(test::kTestTag);
+    ASSERT_TRUE(db.Open(db_path_));
+    std::optional<StreamingBlobHandle> blob;
+    blob = db.GetStreamingBlob("foo", "data", row_id, /*readonly=*/true);
+    ASSERT_TRUE(blob.has_value());
+    auto read_data = base::HeapArray<uint8_t>::Uninit(0);
+    EXPECT_TRUE(blob->Read(0, read_data));
+    EXPECT_TRUE(blob->Read(1, read_data));
+    EXPECT_TRUE(blob->Read(2, read_data));
+    EXPECT_TRUE(blob->Read(3, read_data));
+    EXPECT_FALSE(blob->Read(4, read_data));
+  }
+}
+
 TEST_F(StreamingBlobHandleTest, BlobInvalidatedIfRowChanges) {
   Database db(test::kTestTag);
   std::vector<int> errors;

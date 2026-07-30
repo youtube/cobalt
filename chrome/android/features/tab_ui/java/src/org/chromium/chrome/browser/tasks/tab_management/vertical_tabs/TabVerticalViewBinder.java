@@ -20,7 +20,6 @@ import android.widget.TextView;
 import androidx.annotation.ColorInt;
 import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
-import androidx.core.content.ContextCompat;
 import androidx.core.view.ViewCompat;
 import androidx.core.widget.ImageViewCompat;
 
@@ -69,8 +68,7 @@ class TabVerticalViewBinder {
         if (TabProperties.TITLE == propertyKey) {
             TextView titleView = view.findViewById(R.id.tab_title);
             titleView.setText(model.get(TabProperties.TITLE));
-        } else if (TabProperties.IS_SELECTED == propertyKey
-                || TabProperties.IS_INCOGNITO == propertyKey) {
+        } else if (TabProperties.IS_SELECTED == propertyKey) {
             updateRegularColors(model, view);
         } else if (TabProperties.TAB_ACTION_BUTTON_DATA == propertyKey) {
             @Nullable TabActionButtonData data = model.get(TabProperties.TAB_ACTION_BUTTON_DATA);
@@ -108,8 +106,7 @@ class TabVerticalViewBinder {
 
         if (TabProperties.TITLE == propertyKey) {
             view.setContentDescription(model.get(TabProperties.TITLE));
-        } else if (TabProperties.IS_SELECTED == propertyKey
-                || TabProperties.IS_INCOGNITO == propertyKey) {
+        } else if (TabProperties.IS_SELECTED == propertyKey) {
             updatePinnedColors(model, view);
         }
     }
@@ -128,8 +125,7 @@ class TabVerticalViewBinder {
         if (TabProperties.TITLE == propertyKey) {
             TextView titleView = view.findViewById(R.id.group_title);
             titleView.setText(model.get(TabProperties.TITLE));
-        } else if (TabProperties.TAB_GROUP_CARD_COLOR == propertyKey
-                || TabProperties.IS_INCOGNITO == propertyKey) {
+        } else if (TabProperties.TAB_GROUP_CARD_COLOR == propertyKey) {
             updateGroupHeaderColors(model, view);
         } else if (TabProperties.CONTENT_DESCRIPTION_TEXT_RESOLVER == propertyKey) {
             TabListViewBinderUtils.updateContentDescription(model, view);
@@ -182,8 +178,8 @@ class TabVerticalViewBinder {
 
         if (spinner != null) {
             if (isLoading) {
-                boolean isIncognito = model.get(TabProperties.IS_INCOGNITO);
-                spinner.setIndicatorColor(getLoadingSpinnerColor(view.getContext(), isIncognito));
+                spinner.setIndicatorColor(
+                        SemanticColorUtils.getDefaultIconColorAccent1(view.getContext()));
                 spinner.show();
             } else {
                 spinner.setVisibility(View.GONE);
@@ -273,24 +269,22 @@ class TabVerticalViewBinder {
 
     private static void updateRegularColors(PropertyModel model, ViewGroup view) {
         boolean isSelected = model.get(TabProperties.IS_SELECTED);
-        boolean isIncognito = model.get(TabProperties.IS_INCOGNITO);
         Context context = view.getContext();
         view.setSelected(isSelected);
 
         @Nullable Drawable bg = view.getBackground();
         if (bg != null) {
             bg.mutate();
-            ViewCompat.setBackgroundTintList(
-                    view, getBackgroundTintList(context, isSelected, isIncognito));
+            ViewCompat.setBackgroundTintList(view, getBackgroundTintList(context, isSelected));
         }
 
         TextView titleView = view.findViewById(R.id.tab_title);
-        titleView.setTextColor(getTextColor(context, isSelected, isIncognito));
+        titleView.setTextColor(getTextColor(context, isSelected));
 
         @Nullable ImageView actionButton = view.findViewById(R.id.action_button);
         if (actionButton != null) {
             ImageViewCompat.setImageTintList(
-                    actionButton, getActionButtonTintList(context, isSelected, isIncognito));
+                    actionButton, getActionButtonTintList(context, isSelected));
             actionButton.setVisibility(isSelected ? View.VISIBLE : View.INVISIBLE);
         }
 
@@ -310,7 +304,6 @@ class TabVerticalViewBinder {
      */
     private static void updatePinnedColors(PropertyModel model, ViewGroup view) {
         boolean isSelected = model.get(TabProperties.IS_SELECTED);
-        boolean isIncognito = model.get(TabProperties.IS_INCOGNITO);
         Context context = view.getContext();
         view.setSelected(isSelected);
 
@@ -318,9 +311,7 @@ class TabVerticalViewBinder {
         if (bg != null) {
             bg.mutate();
             ColorStateList tintList =
-                    isSelected
-                            ? getBackgroundTintList(context, /* isSelected= */ true, isIncognito)
-                            : null;
+                    isSelected ? getBackgroundTintList(context, /* isSelected= */ true) : null;
             ViewCompat.setBackgroundTintList(view, tintList);
         }
         updateFavicon(model, view);
@@ -336,7 +327,6 @@ class TabVerticalViewBinder {
      */
     private static void updateGroupHeaderColors(PropertyModel model, ViewGroup view) {
         @Nullable Integer colorId = model.get(TabProperties.TAB_GROUP_CARD_COLOR);
-        boolean isIncognito = model.get(TabProperties.IS_INCOGNITO);
         Context context = view.getContext();
 
         @Nullable Drawable bg = view.getBackground();
@@ -344,13 +334,13 @@ class TabVerticalViewBinder {
             bg.mutate();
             int backgroundColor =
                     TabGroupColorPickerUtils.getTabGroupColorPickerItemColor(
-                            context, colorId, isIncognito);
+                            context, colorId, /* isIncognito= */ false);
             ViewCompat.setBackgroundTintList(view, ColorStateList.valueOf(backgroundColor));
 
             @ColorInt
             int foregroundColor =
                     TabGroupColorPickerUtils.getTabGroupColorPickerItemTextColor(
-                            context, colorId, isIncognito);
+                            context, colorId, /* isIncognito= */ false);
 
             TextView titleView = view.findViewById(R.id.group_title);
             if (titleView != null) {
@@ -426,53 +416,23 @@ class TabVerticalViewBinder {
 
     // Theme & Color Utility Methods
 
-    private static ColorStateList getBackgroundTintList(
-            Context context, boolean isSelected, boolean isIncognito) {
-        if (isSelected) {
-            int color =
-                    isIncognito
-                            ? ContextCompat.getColor(
-                                    context, R.color.incognito_tab_bg_selected_color)
-                            : SemanticColorUtils.getColorSurface(context);
-            return ColorStateList.valueOf(color);
-        }
-        return ColorStateList.valueOf(Color.TRANSPARENT);
+    private static ColorStateList getBackgroundTintList(Context context, boolean isSelected) {
+        return isSelected
+                ? ColorStateList.valueOf(SemanticColorUtils.getColorSurface(context))
+                : ColorStateList.valueOf(Color.TRANSPARENT);
     }
 
-    private static @ColorInt int getTextColor(
-            Context context, boolean isSelected, boolean isIncognito) {
-        if (isSelected) {
-            return isIncognito
-                    ? ContextCompat.getColor(context, R.color.incognito_tab_title_selected_color)
-                    : SemanticColorUtils.getColorOnSurface(context);
-        } else {
-            return isIncognito
-                    ? ContextCompat.getColor(context, R.color.incognito_tab_title_color)
-                    : SemanticColorUtils.getDefaultTextColorSecondary(context);
-        }
+    private static @ColorInt int getTextColor(Context context, boolean isSelected) {
+        return isSelected
+                ? SemanticColorUtils.getColorOnSurface(context)
+                : SemanticColorUtils.getDefaultTextColorSecondary(context);
     }
 
-    private static ColorStateList getActionButtonTintList(
-            Context context, boolean isSelected, boolean isIncognito) {
-        int color =
-                isIncognito
-                        ? ContextCompat.getColor(
-                                context,
-                                isSelected
-                                        ? R.color.incognito_tab_title_selected_color
-                                        : R.color.incognito_tab_title_color)
-                        : (isSelected
-                                ? SemanticColorUtils.getDefaultIconColor(context)
-                                : SemanticColorUtils.getDefaultIconColorSecondary(context));
-        return ColorStateList.valueOf(color);
-    }
-
-    private static @ColorInt int getLoadingSpinnerColor(Context context, boolean isIncognito) {
-        if (isIncognito) {
-            return Color.WHITE;
-        } else {
-            return SemanticColorUtils.getDefaultIconColorAccent1(context);
-        }
+    private static ColorStateList getActionButtonTintList(Context context, boolean isSelected) {
+        return ColorStateList.valueOf(
+                isSelected
+                        ? SemanticColorUtils.getDefaultIconColor(context)
+                        : SemanticColorUtils.getDefaultIconColorSecondary(context));
     }
 
     // Gesture & Interaction Layout Helpers
@@ -500,8 +460,7 @@ class TabVerticalViewBinder {
                                     view,
                                     ColorStateList.valueOf(
                                             TabUiThemeUtil.getHoveredTabContainerColor(
-                                                    view.getContext(),
-                                                    model.get(TabProperties.IS_INCOGNITO))));
+                                                    view.getContext(), /* isIncognito= */ false)));
                             break;
                         case MotionEvent.ACTION_HOVER_EXIT:
                             if (actionButton != null) {

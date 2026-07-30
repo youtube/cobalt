@@ -55,11 +55,13 @@ struct XRRuntimeSessionOptions {
   array<XRSessionFeature> required_features;
   array<XRSessionFeature> optional_features;
 
-  // The following options are used for permission requests and showing module
-  // install UI.
-  // TODO(crbug.com/41395699): Remove these fields, and do permission checks,
-  // show module install UI in the browser process before calling out to
-  // devices.
+  // The following options are used to pass renderer process and frame
+  // identifiers. This is required on Android because the XR runtimes
+  // (which run in the browser process) need to retrieve the Java
+  // Activity and WebContents to initialize SDKs (e.g. Cardboard),
+  // show module install UI (e.g. ARCore), and configure surface views
+  // for compositing.
+  [EnableIf=is_android]
   RendererInformation? renderer_information;
 
   array<XRTrackedImage> tracked_images;

@@ -10,13 +10,11 @@
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/view_transition/dom_view_transition.h"
 #include "third_party/blink/renderer/core/view_transition/view_transition_utils.h"
-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
 
 PageRevealEvent::PageRevealEvent()
     : Event(event_type_names::kPagereveal, Bubbles::kNo, Cancelable::kNo) {
-  CHECK(RuntimeEnabledFeatures::PageRevealEventEnabled());
 }
 
 PageRevealEvent::PageRevealEvent(const AtomicString& type,
@@ -24,7 +22,6 @@ PageRevealEvent::PageRevealEvent(const AtomicString& type,
     : Event(type, initializer),
       dom_view_transition_(initializer ? initializer->viewTransition()
                                        : nullptr) {
-  CHECK(RuntimeEnabledFeatures::PageRevealEventEnabled());
 }
 
 PageRevealEvent::~PageRevealEvent() = default;

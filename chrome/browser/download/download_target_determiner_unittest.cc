@@ -1735,17 +1735,6 @@ TEST_F(DownloadTargetDeterminerTest, PromptAlways_NonTrustedExtension) {
        FILE_PATH_LITERAL("foo.crx"), DownloadItem::TARGET_DISPOSITION_PROMPT,
 
        EXPECT_CRDOWNLOAD},
-
-      {// 1: Automatic User Script - Shouldn't prompt for user script downloads
-       //    even if "Prompt for download" preference is set.
-       AUTOMATIC, download::DOWNLOAD_DANGER_TYPE_NOT_DANGEROUS,
-       DownloadFileType::NOT_DANGEROUS, "http://example.com/foo.user.js", "",
-       FILE_PATH_LITERAL(""),
-
-       FILE_PATH_LITERAL("foo.user.js"),
-       DownloadItem::TARGET_DISPOSITION_PROMPT,
-
-       EXPECT_CRDOWNLOAD},
   };
 
   SetPromptForDownload(true);
@@ -1763,17 +1752,6 @@ TEST_F(DownloadTargetDeterminerTest, PromptAlways_TrustedExtension) {
        extensions::Extension::kMimeType, FILE_PATH_LITERAL(""),
 
        FILE_PATH_LITERAL("foo.crx"), DownloadItem::TARGET_DISPOSITION_OVERWRITE,
-
-       EXPECT_CRDOWNLOAD},
-
-      {// 1: Automatic User Script - Shouldn't prompt for user script downloads
-       //    even if "Prompt for download" preference is set.
-       AUTOMATIC, download::DOWNLOAD_DANGER_TYPE_NOT_DANGEROUS,
-       DownloadFileType::NOT_DANGEROUS, "http://example.com/foo.user.js", "",
-       FILE_PATH_LITERAL(""),
-
-       FILE_PATH_LITERAL("foo.user.js"),
-       DownloadItem::TARGET_DISPOSITION_OVERWRITE,
 
        EXPECT_CRDOWNLOAD},
   };

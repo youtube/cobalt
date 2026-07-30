@@ -440,10 +440,6 @@
     "dependencies": ["permission:documentScan"],
     "contexts": ["privileged_extension"]
   },
-  "dom": {
-    "channel": "stable",
-    "contexts": ["privileged_extension", "content_script"]
-  },
   "downloads": {
     "dependencies": ["permission:downloads"],
     "contexts": ["privileged_extension"]
@@ -677,10 +673,6 @@
   "identity.getAccounts": {
     "channel": "dev",
     "dependencies": ["permission:identity"],
-    "contexts": ["privileged_extension"]
-  },
-  "idltest": {
-    "dependencies": ["permission:idltest"],
     "contexts": ["privileged_extension"]
   },
   "indigoPrivate": {

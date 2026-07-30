@@ -29,6 +29,7 @@ const char* kTestUrl3 = "https://bax.com/page3";
 const char* kTestUrl4 = "https://dax.com/page4";
 
 constexpr base::TimeDelta kTimerDelay = base::Seconds(5);
+constexpr base::TimeDelta kEvictionOrderingDelay = base::Milliseconds(1);
 
 }  // namespace
 
@@ -165,16 +166,7 @@ TEST_F(TransientKeepAlivePolicyTest, KeepAliveNotYetExpired) {
 // Test that the oldest render process host kept-alive that is currently tracked
 // is evicted once we are over the the limit of tracked items.
 // crbug.com/459626659
-// TODO(crbug.com/524816981): Re-enable this test.
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_EvictsOldestProcessWhenLimitExceeded \
-  DISABLED_EvictsOldestProcessWhenLimitExceeded
-#else
-#define MAYBE_EvictsOldestProcessWhenLimitExceeded \
-  EvictsOldestProcessWhenLimitExceeded
-#endif
-TEST_F(TransientKeepAlivePolicyTest,
-       MAYBE_EvictsOldestProcessWhenLimitExceeded) {
+TEST_F(TransientKeepAlivePolicyTest, EvictsOldestProcessWhenLimitExceeded) {
   NavigateAndCommit(GURL(kTestUrl1));
   content::RenderProcessHost* rph1 = process();
 
@@ -185,6 +177,11 @@ TEST_F(TransientKeepAlivePolicyTest,
 
   EXPECT_EQ(1, rph1->GetPendingReuseRefCountForTesting());  // Now kept alive
   EXPECT_EQ(1, rph2->GetPendingReuseRefCountForTesting());  // Active process
+
+  // Give rph1 an older keep-alive start time than rph2. With mock time, both
+  // processes otherwise get identical timestamps and eviction can fall back to
+  // ProcessNode pointer order.
+  task_environment()->FastForwardBy(kEvictionOrderingDelay);
 
   NavigateAndCommit(GURL(kTestUrl3));
   content::RenderProcessHost* rph3 = process();
@@ -201,8 +198,8 @@ TEST_F(TransientKeepAlivePolicyTest,
   // eviction logic triggered by the third navigation.
   FlushUIThreadTasks();
 
-  // Verify final ref count for each renderer process host.
-  EXPECT_EQ(0, rph1->GetPendingReuseRefCountForTesting());  // Evicted
+  // After eviction, the async decrement can trigger Cleanup() on rph1 and make
+  // direct ref-count queries unsafe. Verify eviction via the histogram instead.
   EXPECT_EQ(1, rph2->GetPendingReuseRefCountForTesting());  // Still kept alive
   EXPECT_EQ(1, rph3->GetPendingReuseRefCountForTesting());  // Now kept alive
   EXPECT_EQ(1, rph4->GetPendingReuseRefCountForTesting());  // Active process
@@ -232,18 +229,15 @@ TEST_F(TransientKeepAlivePolicyTest, NoHistogramOnActiveProcessShutdown) {
 // Tests that eviction and timeout can happen in the same test run without
 // interference: evict the oldest, then let a second keep-alive expire via
 // the timer. Both paths post async decrements.
-// TODO(crbug.com/524816981): Re-enable this test.
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_EvictionFollowedByTimeout DISABLED_EvictionFollowedByTimeout
-#else
-#define MAYBE_EvictionFollowedByTimeout EvictionFollowedByTimeout
-#endif
-TEST_F(TransientKeepAlivePolicyTest, MAYBE_EvictionFollowedByTimeout) {
+TEST_F(TransientKeepAlivePolicyTest, EvictionFollowedByTimeout) {
   // rph1 will be evicted when we exceed the keep-alive limit.
   NavigateAndCommit(GURL(kTestUrl1));
 
   NavigateAndCommit(GURL(kTestUrl2));
   content::RenderProcessHost* rph2 = process();
+
+  // Make rph1 unambiguously older than rph2 for deterministic eviction.
+  task_environment()->FastForwardBy(kEvictionOrderingDelay);
 
   NavigateAndCommit(GURL(kTestUrl3));
   content::RenderProcessHost* rph3 = process();

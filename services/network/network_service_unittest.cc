@@ -32,11 +32,13 @@
 #include "net/base/features.h"
 #include "net/base/ip_address.h"
 #include "net/base/ip_endpoint.h"
+#include "net/base/isolation_info.h"
 #include "net/base/mock_network_change_notifier.h"
 #include "net/base/url_util.h"
 #include "net/cookies/canonical_cookie.h"
 #include "net/cookies/cookie_options.h"
 #include "net/cookies/cookie_util.h"
+#include "net/cookies/site_for_cookies.h"
 #include "net/dns/dns_client.h"
 #include "net/dns/dns_config.h"
 #include "net/dns/dns_config_service.h"
@@ -82,6 +84,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
+#include "url/origin.h"
 
 #if BUILDFLAG(USE_KERBEROS)
 #include "net/http/http_auth_handler_negotiate.h"
@@ -2092,6 +2095,7 @@ class ClearSiteDataAuthCertObserver : public TestURLLoaderNetworkObserver {
       OnClearSiteDataCallback callback) override {
     ++on_clear_site_data_counter_;
     last_on_clear_site_data_header_value_ = header_value;
+    last_partitioned_state_allowed_only_ = partitioned_state_allowed_only;
     std::move(callback).Run();
   }
 
@@ -2101,14 +2105,20 @@ class ClearSiteDataAuthCertObserver : public TestURLLoaderNetworkObserver {
     return last_on_clear_site_data_header_value_;
   }
 
+  bool last_partitioned_state_allowed_only() const {
+    return last_partitioned_state_allowed_only_;
+  }
+
   void ClearOnClearSiteDataCounter() {
     on_clear_site_data_counter_ = 0;
     last_on_clear_site_data_header_value_.clear();
+    last_partitioned_state_allowed_only_ = false;
   }
 
  private:
   int on_clear_site_data_counter_ = 0;
   std::string last_on_clear_site_data_header_value_;
+  bool last_partitioned_state_allowed_only_ = false;
 };
 
 // Check that |NetworkServiceNetworkDelegate| handles Clear-Site-Data header
@@ -2192,6 +2202,59 @@ TEST_F(NetworkServiceNetworkDelegateTest, HandleClearSiteDataHeaders) {
     }
     clear_site_observer.ClearOnClearSiteDataCounter();
   }
+}
+
+// When third-party cookies are blocked and a Clear-Site-Data response is
+// received for a request issued from a cross-site subframe, the network
+// delegate must report that only partitioned state may be cleared. This must
+// hold even if the request's site_for_cookies disagrees with the factory's
+// IsolationInfo.
+TEST_F(NetworkServiceNetworkDelegateTest,
+       ClearSiteDataPartitionedStateOnlyForCrossSiteSubframe) {
+  const char kClearCookiesHeader[] = "Clear-Site-Data: \"cookies\"";
+
+  mojom::NetworkContextParamsPtr context_params =
+      mojom::NetworkContextParams::New();
+  context_params->cookie_manager_params = mojom::CookieManagerParams::New();
+  context_params->cookie_manager_params->block_third_party_cookies = true;
+  CreateNetworkContext(std::move(context_params));
+
+  ClearSiteDataAuthCertObserver clear_site_observer;
+
+  GURL url = https_server()->GetURL("/foo");
+  url = AddQuery(url, "header", kClearCookiesHeader);
+  const url::Origin top_frame_origin = url::Origin::Create(url);
+  const url::Origin frame_origin =
+      url::Origin::Create(GURL("https://other-site.test"));
+
+  mojo::Remote<mojom::URLLoaderFactory> loader_factory;
+  mojom::URLLoaderFactoryParamsPtr params =
+      mojom::URLLoaderFactoryParams::New();
+  params->process_id = OriginatingProcessId::browser();
+  params->is_orb_enabled = false;
+  params->isolation_info = net::IsolationInfo::Create(
+      net::IsolationInfo::RequestType::kOther, top_frame_origin, frame_origin,
+      net::SiteForCookies());
+  params->url_loader_network_observer = clear_site_observer.Bind();
+  network_context_->CreateURLLoaderFactory(
+      loader_factory.BindNewPipeAndPassReceiver(), std::move(params));
+
+  ResourceRequest request;
+  request.url = url;
+  request.method = "GET";
+  request.request_initiator = frame_origin;
+  request.site_for_cookies = net::SiteForCookies::FromOrigin(top_frame_origin);
+
+  client_ = std::make_unique<TestURLLoaderClient>();
+  loader_.reset();
+  loader_factory->CreateLoaderAndStart(
+      loader_.BindNewPipeAndPassReceiver(), 1, mojom::kURLLoadOptionNone,
+      request, client_->CreateRemote(),
+      net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS));
+  client_->RunUntilComplete();
+
+  EXPECT_EQ(1, clear_site_observer.on_clear_site_data_counter());
+  EXPECT_TRUE(clear_site_observer.last_partitioned_state_allowed_only());
 }
 
 class TestNetworkAnnotationMonitor : public mojom::NetworkAnnotationMonitor {

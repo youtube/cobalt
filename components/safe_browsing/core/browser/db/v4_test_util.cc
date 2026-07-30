@@ -43,8 +43,14 @@ std::ostream& operator<<(std::ostream& os, const ThreatMetadata& meta) {
 TestV4Store::TestV4Store(
     const scoped_refptr<base::SequencedTaskRunner>& task_runner,
     const base::FilePath& store_path,
-    PrefixSize v5_prefix_size)
-    : V4Store(task_runner, store_path, v5_prefix_size) {}
+    PrefixSize v5_prefix_size,
+    bool is_eligible_for_migration,
+    bool is_extensions_blocklist)
+    : V4Store(task_runner,
+              store_path,
+              v5_prefix_size,
+              is_eligible_for_migration,
+              is_extensions_blocklist) {}
 
 TestV4Store::~TestV4Store() = default;
 
@@ -73,19 +79,19 @@ HashPrefixStr TestV4Store::GetMatchingHashPrefix(const FullHashStr& full_hash) {
   return HashPrefixStr();
 }
 
-TestV4Database::TestV4Database(
+TestSBDatabase::TestSBDatabase(
     const scoped_refptr<base::SequencedTaskRunner>& db_task_runner,
     std::unique_ptr<StoreMap> store_map)
-    : V4Database(db_task_runner, std::move(store_map)) {}
+    : SBDatabase(db_task_runner, std::move(store_map)) {}
 
-void TestV4Database::MarkPrefixAsBad(ListIdentifier list_id,
+void TestSBDatabase::MarkPrefixAsBad(ListIdentifier list_id,
                                      HashPrefixStr prefix) {
-  V4Store* base_store = store_map_->at(list_id).get();
+  SBStore* base_store = store_map_->at(list_id).get();
   TestV4Store* test_store = static_cast<TestV4Store*>(base_store);
   test_store->MarkPrefixAsBad(prefix);
 }
 
-int64_t TestV4Database::GetStoreSizeInBytes(const ListIdentifier& store) const {
+int64_t TestSBDatabase::GetStoreSizeInBytes(const ListIdentifier& store) const {
   return kDefaultStoreFileSizeInBytes;
 }
 
@@ -96,40 +102,44 @@ TestV4StoreFactory::~TestV4StoreFactory() = default;
 V4StorePtr TestV4StoreFactory::CreateV4Store(
     const scoped_refptr<base::SequencedTaskRunner>& task_runner,
     const base::FilePath& store_path,
-    PrefixSize v5_prefix_size) {
-  V4StorePtr new_store(new TestV4Store(task_runner, store_path, v5_prefix_size),
-                       V4StoreDeleter(task_runner));
+    PrefixSize v5_prefix_size,
+    bool is_eligible_for_migration,
+    bool is_extensions_blocklist) {
+  V4StorePtr new_store(
+      new TestV4Store(task_runner, store_path, v5_prefix_size,
+                      is_eligible_for_migration, is_extensions_blocklist),
+      SBStoreDeleter(task_runner));
   new_store->Initialize();
   return new_store;
 }
 
-TestV4DatabaseFactory::TestV4DatabaseFactory() = default;
+TestSBDatabaseFactory::TestSBDatabaseFactory() = default;
 
-TestV4DatabaseFactory::~TestV4DatabaseFactory() = default;
+TestSBDatabaseFactory::~TestSBDatabaseFactory() = default;
 
-std::unique_ptr<V4Database, base::OnTaskRunnerDeleter>
-TestV4DatabaseFactory::Create(
+std::unique_ptr<SBDatabase, base::OnTaskRunnerDeleter>
+TestSBDatabaseFactory::Create(
     const scoped_refptr<base::SequencedTaskRunner>& db_task_runner,
     std::unique_ptr<StoreMap> store_map) {
-  auto v4_db = std::unique_ptr<TestV4Database, base::OnTaskRunnerDeleter>(
-      new TestV4Database(db_task_runner, std::move(store_map)),
+  auto sb_db = std::unique_ptr<TestSBDatabase, base::OnTaskRunnerDeleter>(
+      new TestSBDatabase(db_task_runner, std::move(store_map)),
       base::OnTaskRunnerDeleter(db_task_runner));
-  v4_db_ = v4_db.get();
-  return std::move(v4_db);
+  sb_db_ = sb_db.get();
+  return std::move(sb_db);
 }
 
-bool TestV4DatabaseFactory::IsReady() {
-  // v4_db_ is created on a base threadpool thread.
+bool TestSBDatabaseFactory::IsReady() {
+  // sb_db_ is created on a base threadpool thread.
   // It might not be ready by the time it is used.
   // Ideally, this should be handled better, but this is a quick way
   // of checking if it has been constructed.
-  return v4_db_ != nullptr;
+  return sb_db_ != nullptr;
 }
 
-void TestV4DatabaseFactory::MarkPrefixAsBad(ListIdentifier list_id,
+void TestSBDatabaseFactory::MarkPrefixAsBad(ListIdentifier list_id,
                                             HashPrefixStr prefix) {
-  CHECK(v4_db_);
-  v4_db_->MarkPrefixAsBad(list_id, prefix);
+  CHECK(sb_db_);
+  sb_db_->MarkPrefixAsBad(list_id, prefix);
 }
 
 TestV4GetHashProtocolManager::TestV4GetHashProtocolManager(

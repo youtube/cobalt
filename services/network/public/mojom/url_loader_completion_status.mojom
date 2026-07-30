@@ -4,6 +4,7 @@
 
 module network.mojom;
 
+import "mojo/public/mojom/base/byte_size.mojom";
 import "mojo/public/mojom/base/time.mojom";
 import "services/network/public/mojom/blocked_by_response_reason.mojom";
 import "services/network/public/mojom/cors.mojom";
@@ -35,13 +36,13 @@ struct URLLoaderCompletionStatus {
   mojo_base.mojom.TimeTicks completion_time;
 
   // Total amount of data received from the network.
-  int64 encoded_data_length = 0;
+  mojo_base.mojom.ByteSize encoded_data_length;
 
   // The length of the response body before removing any content encodings.
-  int64 encoded_body_length = 0;
+  mojo_base.mojom.ByteSize encoded_body_length;
 
   // The length of the response body after decoding.
-  int64 decoded_body_length = 0;
+  mojo_base.mojom.ByteSize decoded_body_length;
 
   // Optional CORS error details.
   CorsErrorStatus? cors_error_status;

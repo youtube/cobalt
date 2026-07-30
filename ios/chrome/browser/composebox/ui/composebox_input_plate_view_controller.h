@@ -7,6 +7,7 @@
 
 #import <UIKit/UIKit.h>
 
+#import "ios/chrome/browser/composebox/public/composebox_entrypoint.h"
 #import "ios/chrome/browser/composebox/ui/composebox_input_plate_consumer.h"
 
 @protocol ComposeboxInputPlateMutator;
@@ -30,6 +31,9 @@
 // The input plate view to be used in animations.
 @property(nonatomic, readonly) UIView* inputPlateViewForAnimation;
 
+/// The container view for the omnibox/text field.
+@property(nonatomic, readonly) UIView* omniboxContainer;
+
 // Whether the UI is in compact (single line) mode.
 @property(nonatomic, readonly, getter=isCompact) BOOL compact;
 
@@ -39,8 +43,10 @@
 /// The button to toggle Image Generation mode.
 @property(nonatomic, strong) UIButton* imageGenerationButton;
 
-// Initializes a new instance with a given theme.
-- (instancetype)initWithTheme:(ComposeboxTheme*)theme NS_DESIGNATED_INITIALIZER;
+// Initializes a new instance with a given theme and entrypoint.
+- (instancetype)initWithTheme:(ComposeboxTheme*)theme
+                   entrypoint:(ComposeboxEntrypoint)entrypoint
+    NS_DESIGNATED_INITIALIZER;
 
 - (instancetype)init NS_UNAVAILABLE;
 - (instancetype)initWithCoder:(NSCoder*)coder NS_UNAVAILABLE;

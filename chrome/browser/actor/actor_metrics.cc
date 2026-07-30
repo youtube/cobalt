@@ -39,6 +39,8 @@ std::string_view ToString(ActorTask::StoppedReason stopped_reason) {
       return "PreviousChat";
     case ActorTask::StoppedReason::kUserNavigatedAway:
       return "UserNavigatedAway";
+    case ActorTask::StoppedReason::kTimeout:
+      return "Timeout";
   }
   NOTREACHED();
 }

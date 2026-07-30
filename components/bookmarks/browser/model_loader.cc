@@ -508,6 +508,9 @@ scoped_refptr<ModelLoader> ModelLoader::Create(
     SaveSingleFileCallback save_account_single_file_callback,
     LoadCallback callback) {
   CHECK(!local_or_syncable_file_path.empty());
+  // TODO(crbug.com/435317726): Consider asserting existence of other encrypted
+  // paths after the launch of bookmark encryption.
+
   // Note: base::MakeRefCounted is not available here, as ModelLoader's
   // constructor is private.
   auto model_loader = base::WrapRefCounted(new ModelLoader());

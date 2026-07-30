@@ -401,16 +401,16 @@ TEST(TelemetryExtensionDiagnosticRoutineConvertersTest,
 
 TEST(TelemetryExtensionDiagnosticRoutineConvertersTest, ExceptionReason) {
   EXPECT_EQ(
-      Convert(crosapi::TelemetryExtensionException::Reason::kUnmappedEnumField),
+      Convert(ash::cros_healthd::mojom::Exception::Reason::kUnmappedEnumField),
       cx_diag::ExceptionReason::kUnknown);
-  EXPECT_EQ(Convert(crosapi::TelemetryExtensionException::Reason::
+  EXPECT_EQ(Convert(ash::cros_healthd::mojom::Exception::Reason::
                         kMojoDisconnectWithoutReason),
             cx_diag::ExceptionReason::kUnknown);
-  EXPECT_EQ(Convert(crosapi::TelemetryExtensionException::Reason::kUnexpected),
+  EXPECT_EQ(Convert(ash::cros_healthd::mojom::Exception::Reason::kUnexpected),
             cx_diag::ExceptionReason::kUnexpected);
-  EXPECT_EQ(Convert(crosapi::TelemetryExtensionException::Reason::kUnsupported),
+  EXPECT_EQ(Convert(ash::cros_healthd::mojom::Exception::Reason::kUnsupported),
             cx_diag::ExceptionReason::kUnsupported);
-  EXPECT_EQ(Convert(crosapi::TelemetryExtensionException::Reason::
+  EXPECT_EQ(Convert(ash::cros_healthd::mojom::Exception::Reason::
                         kCameraFrontendNotOpened),
             cx_diag::ExceptionReason::kCameraFrontendNotOpened);
 }

@@ -440,6 +440,13 @@ class ReadAnythingAppModel {
         should_extract_anchors_from_tree_for_readability;
   }
 
+  bool distillation_in_progress() {
+    return distillation_state() ==
+               read_anything::mojom::ReadAnythingDistillationState::
+                   kDistillationInProgress ||
+           screen2x_distiller_running();
+  }
+
   // Processes the tree anchors.
   // Returns true indicating that the tree was successfully processed and we can
   // notify the frontend that anchors are ready.
@@ -681,6 +688,14 @@ class ReadAnythingAppModel {
       read_anything::mojom::ReadAnythingPresentationState
           active_presentation_state) {
     active_presentation_state_ = active_presentation_state;
+  }
+  bool is_active_presentation_state_opened() const {
+    return active_presentation_state_ ==
+               read_anything::mojom::ReadAnythingPresentationState::
+                   kInSidePanel ||
+           active_presentation_state_ ==
+               read_anything::mojom::ReadAnythingPresentationState::
+                   kInImmersiveOverlay;
   }
 
   read_anything::mojom::ReadAnythingDistillationState distillation_state()

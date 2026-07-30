@@ -6,6 +6,7 @@
 
 #include <optional>
 #include <ranges>
+#include <utility>
 
 #include "base/byte_size.h"
 #include "base/command_line.h"
@@ -258,6 +259,8 @@ bool g_bypass_enablement_checks_for_testing = false;
 using DisabledReason = GlicEnabling::ProfileEnablement::DisabledReason;
 using FeatureDisabledReason =
     GlicEnabling::ProfileEnablement::FeatureDisabledReason;
+using AnchoredDespiteEligibilityReason =
+    GlicEnabling::ProfileEnablement::AnchoredDespiteEligibilityReason;
 
 void RecordDisabledReasonsWith(
     const GlicEnabling::ProfileEnablement& enablement,
@@ -302,6 +305,55 @@ void RecordFeatureDisabledReasonsWith(
   }
   if (!enablement.os_version_supported) {
     record_reason(FeatureDisabledReason::kOsVersionNotSupported);
+  }
+}
+
+void RecordAnchoredDespiteEligibilityReasonsWith(
+    const GlicEnabling::ProfileEnablement& enablement,
+    std::string_view name) {
+  if (!enablement.feature_flag_enabled) {
+    base::UmaHistogramEnumeration(
+        name, AnchoredDespiteEligibilityReason::kFeatureFlagDisabled);
+  }
+  if (!enablement.allowed_by_country_filter) {
+    base::UmaHistogramEnumeration(
+        name, AnchoredDespiteEligibilityReason::kCountryDisabled);
+  }
+  if (!enablement.allowed_by_locale_filter) {
+    base::UmaHistogramEnumeration(
+        name, AnchoredDespiteEligibilityReason::kLocaleDisabled);
+  }
+  if (!enablement.system_requirement_met) {
+    base::UmaHistogramEnumeration(
+        name, AnchoredDespiteEligibilityReason::kSystemRequirementNotMet);
+  }
+  if (!enablement.os_version_supported) {
+    base::UmaHistogramEnumeration(
+        name, AnchoredDespiteEligibilityReason::kOsVersionNotSupported);
+  }
+  if (!enablement.primary_account_is_capable) {
+    base::UmaHistogramEnumeration(
+        name, AnchoredDespiteEligibilityReason::kPrimaryAccountNotCapable);
+  }
+  if (!enablement.allowed_by_chrome_policy) {
+    base::UmaHistogramEnumeration(
+        name, AnchoredDespiteEligibilityReason::kDisallowedByChromePolicy);
+  }
+  if (!enablement.allowed_by_remote_admin) {
+    base::UmaHistogramEnumeration(
+        name, AnchoredDespiteEligibilityReason::kDisallowedByRemoteAdmin);
+  }
+  if (!enablement.allowed_by_remote_other) {
+    base::UmaHistogramEnumeration(
+        name, AnchoredDespiteEligibilityReason::kDisallowedByRemoteOther);
+  }
+  if (!enablement.is_regular_profile) {
+    base::UmaHistogramEnumeration(
+        name, AnchoredDespiteEligibilityReason::kNotRegularProfile);
+  }
+  if (!enablement.is_rolled_out) {
+    base::UmaHistogramEnumeration(
+        name, AnchoredDespiteEligibilityReason::kNotRolledOut);
   }
 }
 
@@ -372,16 +424,11 @@ void GlicEnabling::ProfileEnablement::RecordMetrics(
       base::StrCat(
           {"Glic.ProfileEnablement.IsPrimaryAccountFullySignedIn.", suffix}),
       primary_account_is_fully_signed_in);
-  if (suffix == "Startup" && anchor_entrypoint_override_active) {
-    auto record_disabled_reason = [&](FeatureDisabledReason reason) {
-      base::UmaHistogramEnumeration(
-          base::StrCat({"Glic.ProfileEnablement."
-                        "AnchoredDespiteEligibilityFailureReason.",
-                        suffix}),
-          reason);
-    };
-
-    RecordFeatureDisabledReasonsWith(*this, record_disabled_reason);
+  if (anchor_entrypoint_override_active && ShouldShowGlicButton()) {
+    RecordAnchoredDespiteEligibilityReasonsWith(
+        *this, base::StrCat({"Glic.ProfileEnablement."
+                             "AnchoredDespiteEligibilityReason.",
+                             suffix}));
   }
 
   base::UmaHistogramBoolean(
@@ -543,22 +590,16 @@ GlicEnabling::ProfileEnablement GlicEnabling::EnablementForProfile(
       }
 
       // Check account capabilities.
-      //
-      // TODO(crbug.com/470004757): when cleaning up the
-      // kGlicEligibilitySeparateAccountCapability feature, also remove the
-      // fallback to can_use_model_execution_features().
-      signin::Tribool capability_value =
-          primary_account.GetAccountCapabilities()
-              .can_use_model_execution_features();
+      result.primary_account_is_capable =
+          CanUseAdultFeatures(primary_account.GetAccountCapabilities());
       if (base::FeatureList::IsEnabled(
               switches::kGlicEligibilitySeparateAccountCapability) &&
           (CanUseGeminiInChrome(primary_account.GetAccountCapabilities()) !=
            signin::Tribool::kUnknown)) {
-        capability_value =
-            CanUseGeminiInChrome(primary_account.GetAccountCapabilities());
+        result.primary_account_is_capable =
+            CanUseGeminiInChrome(primary_account.GetAccountCapabilities()) ==
+            signin::Tribool::kTrue;
       }
-      result.primary_account_is_capable =
-          (capability_value == signin::Tribool::kTrue);
 
       if (!result.primary_account_is_capable && result.fre_is_consented &&
           base::FeatureList::IsEnabled(
@@ -572,14 +613,9 @@ GlicEnabling::ProfileEnablement GlicEnabling::EnablementForProfile(
       base::FieldTrial* field_trial = base::FeatureList::GetFieldTrial(
           switches::kGlicEligibilitySeparateAccountCapability);
       if (field_trial &&
-          (CanUseGeminiInChrome(primary_account.GetAccountCapabilities()) !=
-           signin::Tribool::kUnknown) &&
-          (primary_account.GetAccountCapabilities()
-               .can_use_model_execution_features() !=
-           signin::Tribool::kUnknown) &&
-          (CanUseGeminiInChrome(primary_account.GetAccountCapabilities()) !=
-           primary_account.GetAccountCapabilities()
-               .can_use_model_execution_features())) {
+          (CanUseGeminiInChrome(primary_account.GetAccountCapabilities()) ==
+           signin::Tribool::kTrue !=
+           CanUseAdultFeatures(primary_account.GetAccountCapabilities()))) {
         g_browser_process->GetFeatures()
             ->glic_synthetic_trial_manager()
             ->SetSyntheticExperimentState(
@@ -588,19 +624,17 @@ GlicEnabling::ProfileEnablement GlicEnabling::EnablementForProfile(
       }
 
       result.live_allowed =
-          primary_account.GetAccountCapabilities()
-              .can_use_model_execution_features() == signin::Tribool::kTrue;
+          CanUseAdultFeatures(primary_account.GetAccountCapabilities());
 
       result.share_image_allowed =
-          primary_account.GetAccountCapabilities()
-              .can_use_model_execution_features() == signin::Tribool::kTrue;
+          CanUseAdultFeatures(primary_account.GetAccountCapabilities());
     }
   }
 
   result.gemini_enterprise_settings = GetGeminiEnterpriseSettings(profile);
 
   if (profile->GetPrefs()->GetInteger(::prefs::kGeminiSettings) !=
-      static_cast<int>(glic::prefs::SettingsPolicyState::kEnabled)) {
+      std::to_underlying(glic::prefs::SettingsPolicyState::kEnabled)) {
     result.allowed_by_chrome_policy = false;
   }
 
@@ -1023,10 +1057,12 @@ bool GlicEnabling::IsAutoOpenForPdfEnabled(Profile* profile) {
 
 // static
 bool GlicEnabling::IsContextualMenuItemEnabled(
-    Profile* profile, const std::u16string& selection_text) {
+    Profile* profile,
+    const std::u16string& selection_text) {
   const bool text_selection_menu_enabled =
       base::FeatureList::IsEnabled(features::kGlicTextSelectionContextMenu) &&
-      !selection_text.empty();
+      !base::TrimWhitespace(std::u16string_view(selection_text), base::TRIM_ALL)
+           .empty();
   const bool enabled =
       IsEnabledForProfile(profile) &&
       (base::FeatureList::IsEnabled(features::kGlicContextMenu) ||
@@ -1088,8 +1124,7 @@ GlicEnabling::GetGeminiEnterpriseSettings(Profile* profile) {
     auto parsed_json = base::JSONReader::Read(
         switch_value, base::JSON_PARSE_CHROMIUM_EXTENSIONS);
     if (parsed_json && parsed_json->is_dict()) {
-      if (auto settings =
-              ParseGeminiEnterpriseSettings(parsed_json->GetDict());
+      if (auto settings = ParseGeminiEnterpriseSettings(parsed_json->GetDict());
           settings.has_value()) {
         return settings;
       } else {
@@ -1199,7 +1234,7 @@ prefs::FreStatus GlicEnabling::GetCompletedFre() const {
 
 void GlicEnabling::SetCompletedFre(prefs::FreStatus status) {
   profile_->GetPrefs()->SetInteger(prefs::kGlicCompletedFre,
-                                   static_cast<int>(status));
+                                   std::to_underlying(status));
 }
 
 bool GlicEnabling::GetUserEnabledActuationOnWeb() const {
@@ -1320,6 +1355,13 @@ bool GlicEnabling::IsEnterpriseAccount(Profile* profile) {
   // Workspace accounts. They are backed by two different Google API endpoints.
   return IsAccountDataProtected(profile) ||
          (IsAccountManaged(profile) == signin::Tribool::kTrue);
+}
+
+// static
+bool GlicEnabling::CanUseAdultFeatures(
+    const AccountCapabilities& capabilities) {
+  return capabilities.can_use_model_execution_features() ==
+         signin::Tribool::kTrue;
 }
 
 syncer::DeviceInfo::GlicExperimentalTriggeringState

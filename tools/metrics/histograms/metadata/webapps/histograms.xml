@@ -1892,7 +1892,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Isolated.UpdateError" enum="IsolatedWebAppUpdateError"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>giovax@chromium.org</owner>
   <owner>pwa-commercial@google.com</owner>
   <owner>src/chrome/browser/web_applications/isolated_web_apps/OWNERS</owner>
@@ -1919,7 +1919,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Isolated.UpdateSuccess" enum="BooleanSuccess"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>giovax@chromium.org</owner>
   <owner>pwa-commercial@google.com</owner>
   <owner>src/chrome/browser/web_applications/isolated_web_apps/OWNERS</owner>
@@ -2158,7 +2158,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebApp.Migrations.ScopeRefQueryRemoved" units="count"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>dmurph@chromium.org</owner>
   <owner>pwa-team@google.com</owner>
   <summary>
@@ -2287,7 +2287,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Webapp.NavigationCapturing.Result"
-    enum="NavigationCapturingResult" expires_after="2026-10-25">
+    enum="NavigationCapturingResult" expires_after="2026-12-27">
   <owner>dibyapal@chromium.org</owner>
   <owner>desktop-pwas-team@google.com</owner>
   <summary>

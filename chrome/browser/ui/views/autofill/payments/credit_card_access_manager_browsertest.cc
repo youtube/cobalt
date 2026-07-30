@@ -4,9 +4,7 @@
 
 #include "components/autofill/core/browser/payments/credit_card_access_manager.h"
 
-#include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/autofill/autofill_uitest_util.h"
-#include "chrome/browser/sync/test/integration/sync_test.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -14,7 +12,6 @@
 #include "components/autofill/content/browser/test_autofill_manager_injector.h"
 #include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
 #include "components/autofill/core/browser/foundations/test_autofill_manager_waiter.h"
-#include "components/autofill/core/browser/foundations/test_browser_autofill_manager.h"
 #include "components/autofill/core/browser/payments/credit_card_access_manager_test_api.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "content/public/test/browser_test.h"

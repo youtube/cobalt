@@ -9,6 +9,7 @@
 #import "ios/chrome/browser/shared/coordinator/scene/test/stub_browser_provider_interface.h"
 #import "url/gurl.h"
 
+@class CommandDispatcher;
 class ProfileIOS;
 
 // Test double for SceneState, created with appropriate interface objects backed
@@ -17,9 +18,22 @@ class ProfileIOS;
 // because of the embedded test profile.
 @interface FakeSceneState : SceneState
 
-// Initializer.
+// Designated initializer.
 - (instancetype)initWithAppState:(AppState*)appState
-                         profile:(ProfileIOS*)profile NS_DESIGNATED_INITIALIZER;
+                         profile:(ProfileIOS*)profile
+                  sceneSessionID:(std::string)sceneSessionID
+               commandDispatcher:(CommandDispatcher*)commandDispatcher
+    NS_DESIGNATED_INITIALIZER;
+
+// Convenience initializer that uses a default value for `commandDispatcher`.
+- (instancetype)initWithAppState:(AppState*)appState
+                         profile:(ProfileIOS*)profile
+                  sceneSessionID:(std::string)sceneSessionID;
+
+// Convenience initializer that uses default values for `sceneSessionID`
+// and `commandDispatcher`.
+- (instancetype)initWithAppState:(AppState*)appState
+                         profile:(ProfileIOS*)profile;
 
 - (instancetype)initWithAppState:(AppState*)appState NS_UNAVAILABLE;
 
@@ -36,10 +50,10 @@ class ProfileIOS;
 @property(nonatomic, weak, readwrite) AppState* appState;
 
 // Appends a suitable web state test double to the receiver's main interface.
-- (void)appendWebStateWithURL:(const GURL)URL;
+- (void)appendWebStateWithURL:(const GURL&)URL;
 
 // Appends `count` web states, all with `url` as the current URL, to the
-- (void)appendWebStatesWithURL:(const GURL)URL count:(int)count;
+- (void)appendWebStatesWithURL:(const GURL&)URL count:(int)count;
 
 // Must be called before -dealloc.
 - (void)shutdown;

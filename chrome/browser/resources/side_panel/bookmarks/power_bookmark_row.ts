@@ -176,7 +176,7 @@ export class PowerBookmarkRowElement extends CrLitElement {
 
   override shouldUpdate(changedProperties: PropertyValues<this>) {
     if (changedProperties.has('updatedElementIds')) {
-      const updatedElementIds = changedProperties.get('updatedElementIds');
+      const updatedElementIds = this.updatedElementIds;
       if (updatedElementIds?.includes(this.bookmark?.id)) {
         return true;
       }

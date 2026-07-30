@@ -669,6 +669,7 @@ public class TabListCoordinator implements PriceWelcomeMessageProvider, DestroyO
                 mItemTouchHelper = new ItemTouchHelper2(callback, longPressHandler);
                 mOnAfterItemTouchHelperItemTouchListener =
                         TabListItemTouchHelperCallback.createAfterOnItemTouchListener(callback);
+                callback.setRecyclerView(mRecyclerView);
             }
             mRecyclerView.addOnItemTouchListener(mOnBeforeItemTouchHelperItemTouchListener);
             mItemTouchHelper.attachToRecyclerView(mRecyclerView);

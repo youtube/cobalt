@@ -51,6 +51,10 @@
 #include "ui/gfx/switches.h"
 #include "ui/views/test/widget_activation_waiter.h"
 
+#if BUILDFLAG(IS_OZONE)
+#include "ui/ozone/public/ozone_platform.h"
+#endif
+
 #if BUILDFLAG(IS_MAC)
 #include "base/mac/mac_util.h"
 #endif  // BUILDFLAG(IS_MAC)
@@ -650,15 +654,15 @@ IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewUiTest, FocusedTabDestroyed) {
   EXPECT_FALSE(border->IsShowing());
 }
 
-// TODO(crbug.com/430097333): Wayland doesn't support programmatic window
-// activation. Re-enable when activation is supported.
-#if BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
-#define MAYBE_FocusedWindowChange DISABLED_FocusedWindowChange
-#else
-#define MAYBE_FocusedWindowChange FocusedWindowChange
+// Ensure FocusedWindowChange.
+IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewUiTest, FocusedWindowChange) {
+#if BUILDFLAG(IS_OZONE)
+  // TODO(crbug.com/430097333): Wayland doesn't support programmatic window
+  // activation. Re-enable when activation is supported.
+  if (::ui::OzonePlatform::RunningOnWaylandForTest()) {
+    GTEST_SKIP() << "Wayland doesn't support programmatic window activation";
+  }
 #endif
-IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewUiTest,
-                       MAYBE_FocusedWindowChange) {
   if (base::FeatureList::IsEnabled(features::kGlicMultiInstance)) {
     // TODO(b/453696965): Broken in multi-instance.
     GTEST_SKIP() << "Skipping for kGlicMultiInstance";

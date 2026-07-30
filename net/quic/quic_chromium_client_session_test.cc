@@ -86,6 +86,7 @@
 #include "net/third_party/quiche/src/quiche/quic/test_tools/simple_quic_framer.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
 #include "testing/gmock/include/gmock/gmock.h"
+#include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "url/gurl.h"
 #include "url/scheme_host_port.h"
 #include "url/url_constants.h"
@@ -3010,6 +3011,139 @@ TEST_P(QuicChromiumClientSessionTest,
 
   // If there are active streams, it should STILL keep connection alive.
   EXPECT_TRUE(session_->ShouldKeepConnectionAlive());
+}
+
+TEST_P(QuicChromiumClientSessionTest, ResumedTicketAgeAccepted) {
+  // MockClock starts at 0. Advance it to 10000.
+  clock_.AdvanceTime(quic::QuicTime::Delta::FromSeconds(10000));
+
+  crypto_client_stream_factory_.set_handshake_mode(
+      MockCryptoClientStream::ZERO_RTT);
+
+  // Since we are in ZERO_RTT, we MUST configure client_maker_ for ZERO_RTT.
+  client_maker_.SetEncryptionLevel(quic::ENCRYPTION_ZERO_RTT);
+
+  MockQuicData quic_data(version_);
+  quic_data.AddWrite(SYNCHRONOUS, client_maker_.MakeInitialSettingsPacket(1));
+  quic_data.AddRead(ASYNC, ERR_IO_PENDING);
+  quic_data.AddRead(ASYNC, ERR_CONNECTION_CLOSED);
+  quic_data.AddSocketDataToFactory(&socket_factory_);
+
+  Initialize();
+
+  auto* crypto_stream = crypto_client_stream_factory_.last_stream();
+  crypto_stream->SetTicketCreationTime(
+      quic::QuicWallTime::FromUNIXSeconds(2800));  // 2 hours in the past
+  crypto_stream->SetEarlyDataReason(ssl_early_data_accepted);
+
+  base::HistogramTester histogram_tester;
+
+  CompleteCryptoHandshake();
+
+  // The handshake is not complete yet, so no histograms should be logged.
+  histogram_tester.ExpectTotalCount(
+      "Net.QuicSession.ResumeAttemptTicketAge.All", 0);
+
+  // Now, notify the session that 1-RTT keys are available (completing the
+  // handshake).
+  crypto_stream->NotifySessionOneRttKeyAvailable();
+
+  histogram_tester.ExpectUniqueTimeSample(
+      "Net.QuicSession.ResumeAttemptTicketAge.All", base::Seconds(7200), 1);
+  histogram_tester.ExpectUniqueTimeSample(
+      "Net.QuicSession.ResumeAttemptTicketAge.Accepted", base::Seconds(7200),
+      1);
+  histogram_tester.ExpectTotalCount(
+      "Net.QuicSession.ResumeAttemptTicketAge.Rejected", 0);
+}
+
+TEST_P(QuicChromiumClientSessionTest, ResumedTicketAgeRejected) {
+  // MockClock starts at 0. Advance it to 10000.
+  clock_.AdvanceTime(quic::QuicTime::Delta::FromSeconds(10000));
+
+  crypto_client_stream_factory_.set_handshake_mode(
+      MockCryptoClientStream::ZERO_RTT);
+
+  // Since we are in ZERO_RTT, we MUST configure client_maker_ for ZERO_RTT.
+  client_maker_.SetEncryptionLevel(quic::ENCRYPTION_ZERO_RTT);
+
+  MockQuicData quic_data(version_);
+  quic_data.AddWrite(SYNCHRONOUS, client_maker_.MakeInitialSettingsPacket(1));
+  quic_data.AddRead(ASYNC, ERR_IO_PENDING);
+  quic_data.AddRead(ASYNC, ERR_CONNECTION_CLOSED);
+  quic_data.AddSocketDataToFactory(&socket_factory_);
+
+  Initialize();
+
+  auto* crypto_stream = crypto_client_stream_factory_.last_stream();
+  crypto_stream->SetTicketCreationTime(
+      quic::QuicWallTime::FromUNIXSeconds(6400));  // 1 hour in the past
+  crypto_stream->SetEarlyDataReason(ssl_early_data_peer_declined);
+
+  base::HistogramTester histogram_tester;
+
+  CompleteCryptoHandshake();
+
+  // Handshake is not complete yet.
+  histogram_tester.ExpectTotalCount(
+      "Net.QuicSession.ResumeAttemptTicketAge.All", 0);
+
+  // Notify the session that 1-RTT keys are available (completing the
+  // handshake).
+  crypto_stream->NotifySessionOneRttKeyAvailable();
+
+  histogram_tester.ExpectUniqueTimeSample(
+      "Net.QuicSession.ResumeAttemptTicketAge.All", base::Seconds(3600), 1);
+  histogram_tester.ExpectUniqueTimeSample(
+      "Net.QuicSession.ResumeAttemptTicketAge.Rejected", base::Seconds(3600),
+      1);
+  histogram_tester.ExpectTotalCount(
+      "Net.QuicSession.ResumeAttemptTicketAge.Accepted", 0);
+}
+
+TEST_P(QuicChromiumClientSessionTest, ResumedTicketAgeNotAttempted) {
+  // MockClock starts at 0. Advance it to 10000.
+  clock_.AdvanceTime(quic::QuicTime::Delta::FromSeconds(10000));
+
+  crypto_client_stream_factory_.set_handshake_mode(
+      MockCryptoClientStream::ZERO_RTT);
+
+  // Since we are in ZERO_RTT, we MUST configure client_maker_ for ZERO_RTT.
+  client_maker_.SetEncryptionLevel(quic::ENCRYPTION_ZERO_RTT);
+
+  MockQuicData quic_data(version_);
+  quic_data.AddWrite(SYNCHRONOUS, client_maker_.MakeInitialSettingsPacket(1));
+  quic_data.AddRead(ASYNC, ERR_IO_PENDING);
+  quic_data.AddRead(ASYNC, ERR_CONNECTION_CLOSED);
+  quic_data.AddSocketDataToFactory(&socket_factory_);
+
+  Initialize();
+
+  auto* crypto_stream = crypto_client_stream_factory_.last_stream();
+  crypto_stream->SetTicketCreationTime(
+      quic::QuicWallTime::FromUNIXSeconds(6400));  // 1 hour in the past
+  crypto_stream->SetEarlyDataReason(ssl_early_data_disabled);
+
+  base::HistogramTester histogram_tester;
+
+  CompleteCryptoHandshake();
+
+  // Handshake is not complete yet.
+  histogram_tester.ExpectTotalCount(
+      "Net.QuicSession.ResumeAttemptTicketAge.All", 0);
+
+  // Notify the session that 1-RTT keys are available (completing the
+  // handshake).
+  crypto_stream->NotifySessionOneRttKeyAvailable();
+
+  // 0-RTT was not attempted (disabled), so no ticket age histograms should be
+  // logged.
+  histogram_tester.ExpectTotalCount(
+      "Net.QuicSession.ResumeAttemptTicketAge.All", 0);
+  histogram_tester.ExpectTotalCount(
+      "Net.QuicSession.ResumeAttemptTicketAge.Accepted", 0);
+  histogram_tester.ExpectTotalCount(
+      "Net.QuicSession.ResumeAttemptTicketAge.Rejected", 0);
 }
 
 }  // namespace

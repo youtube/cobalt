@@ -102,3 +102,37 @@ TEST_F(AssistantAIMCoordinatorTest, ActivityReporting_SetVisible) {
   [mockInstance stopMocking];
   [mockViewController stopMocking];
 }
+
+TEST_F(AssistantAIMCoordinatorTest,
+       DidTapClose_ShowsSnackbarOnDismissalCompletion) {
+  // Set up _viewController using KVC.
+  id mockViewController = OCMClassMock([AssistantAIMViewController class]);
+  [coordinator_ setValue:mockViewController forKey:@"viewController"];
+
+  // Expect the container dismissal to be triggered.
+  // We want to capture the completion block passed to it.
+  __block ProceduralBlock dismissal_completion = nil;
+  OCMExpect([mock_container_handler_
+      dismissAssistantContainerAnimated:YES
+                             completion:[OCMArg checkWithBlock:^BOOL(id obj) {
+                               dismissal_completion = obj;
+                               return YES;
+                             }]]);
+
+  // Trigger close tap.
+  [(id<AssistantAIMViewControllerDelegate>)coordinator_
+      assistantAIMViewControllerDidTapClose:mockViewController];
+
+  [mock_container_handler_ verify];
+  [mock_snackbar_handler_ verify];
+
+  // Now, the snackbar should be shown when the completion block is executed.
+  OCMExpect([mock_snackbar_handler_ showSnackbarMessage:[OCMArg any]]);
+
+  ASSERT_NE(nil, dismissal_completion);
+  dismissal_completion();
+
+  [mock_snackbar_handler_ verify];
+
+  [mockViewController stopMocking];
+}

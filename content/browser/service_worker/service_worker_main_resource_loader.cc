@@ -223,7 +223,7 @@ void ServiceWorkerMainResourceLoader::DetachedFromRequest() {
   // Clear |fallback_callback_| since it's no longer safe to invoke it because
   // the bound object has been destroyed.
   fallback_callback_.Reset();
-  DeleteIfNeeded();
+  CheckLifecycle();
 }
 
 base::WeakPtr<ServiceWorkerMainResourceLoader>
@@ -449,9 +449,8 @@ void ServiceWorkerMainResourceLoader::MaybeDispatchPreload(
     case RaceNetworkRequestMode::kForced:
       if (StartRaceNetworkRequest(
               context_wrapper, version,
-              base::BindOnce(
-                  &ServiceWorkerMainResourceLoader::InvalidateAndDeleteIfNeeded,
-                  weak_factory_.GetWeakPtr()))) {
+              base::BindOnce(&ServiceWorkerMainResourceLoader::CheckLifecycle,
+                             weak_factory_.GetWeakPtr()))) {
         SetDispatchedPreloadType(DispatchedPreloadType::kRaceNetworkRequest);
       }
       break;
@@ -770,9 +769,8 @@ void ServiceWorkerMainResourceLoader::DidDispatchFetchEvent(
   // response is already committed without waiting for the fetch event result.
   // Invalidate and destruct if the class already detached from the request.
   did_dispatch_event_ = true;
-  if (dispatched_preload_type() == DispatchedPreloadType::kRaceNetworkRequest &&
-      !ShouldDelayDeletion() && is_detached_ && status_ == Status::kCompleted) {
-    InvalidateAndDeleteIfNeeded();
+  if (is_detached_ && status_ == Status::kCompleted) {
+    CheckLifecycle();
     return;
   }
 
@@ -1062,9 +1060,16 @@ void ServiceWorkerMainResourceLoader::Fallback(
       receiver_.Unbind();
 
   if (fallback_callback_) {
-    if (network::mojom::URLLoaderFactory* factory =
-            std::move(fallback_callback_)
-                .Run(std::move(response_header_params))) {
+    // Running the fallback callback may synchronously destroy the owner of
+    // `this`, which in turn calls `DetachedFromRequest()`. Since `receiver_`
+    // is no longer bound at this point, that triggers `delete this`.
+    base::WeakPtr<ServiceWorkerMainResourceLoader> weak_this = AsWeakPtr();
+    network::mojom::URLLoaderFactory* factory =
+        std::move(fallback_callback_).Run(std::move(response_header_params));
+    if (!weak_this) {
+      return;
+    }
+    if (factory) {
       // Fallback to the default factory, and pass the original parameters/mojo
       // pipes of the initial request received in `StartRequest()`.
       factory->CreateLoaderAndStart(std::move(receiver), request_id_, options_,
@@ -1451,7 +1456,8 @@ void ServiceWorkerMainResourceLoader::OnConnectionClosed() {
   TRACE_EVENT("ServiceWorker",
               "ServiceWorkerMainResourceLoader::OnConnectionClosed",
               perfetto::Flow::FromPointer(this));
-  InvalidateAndDeleteIfNeeded();
+  connection_closed_ = true;
+  CheckLifecycle();
 }
 
 // TODO(crbug.com/468821930): Clarify the deletion condition for SWAutoPreload
@@ -1475,15 +1481,10 @@ bool ServiceWorkerMainResourceLoader::ShouldDelayDeletion() {
   return false;
 }
 
-void ServiceWorkerMainResourceLoader::InvalidateAndDeleteIfNeeded() {
-  if (ShouldDelayDeletion()) {
-    // `kRaceNetworkAndCache` doesn't dispatch a fetch event.
-    CHECK(fetch_dispatcher_ ||
-          IsMatchedRouterSourceType(
-              network::mojom::ServiceWorkerRouterSourceType::
-                  kRaceNetworkAndCache));
-    return;
-  }
+void ServiceWorkerMainResourceLoader::Invalidate() {
+  // Invalidate can only be called when we don't need to delay deletion.
+  CHECK(!ShouldDelayDeletion());
+  CHECK(receiver_.is_bound());
 
   // The fetch dispatcher or stream waiter may still be running. Don't let them
   // do callbacks back to this loader, since it is now done with the request.
@@ -1495,24 +1496,54 @@ void ServiceWorkerMainResourceLoader::InvalidateAndDeleteIfNeeded() {
   receiver_.reset();
 
   // Respond to the request if it's not yet responded to.
-  if (status_ != Status::kCompleted)
+  if (status_ != Status::kCompleted) {
     CommitCompleted(net::ERR_ABORTED, "Disconnected pipe before completed");
+  }
 
   url_loader_client_.reset();
-  DeleteIfNeeded();
 }
 
-void ServiceWorkerMainResourceLoader::DeleteIfNeeded() {
-  bool can_delete = !receiver_.is_bound() && is_detached_;
-  if (!can_delete) {
-    return;
-  }
+void ServiceWorkerMainResourceLoader::CheckLifecycle() {
+  // We should not perform any invalidation or deletion while we need to delay
+  // it. This happens when RaceNetworkRequest is active and we are still waiting
+  // for the fetch event to dispatch or the data to finish cloning.
   if (ShouldDelayDeletion()) {
-    // Delay the object deletion until the fetch event completion.
-    // crbug.com/340949948 for more details.
     return;
   }
-  delete this;
+
+  // 1. Handle Mojo connection closure.
+  // If the Mojo connection to the client was closed (recorded in
+  // connection_closed_), and we haven't invalidated the loader yet (receiver_
+  // is still bound), perform the invalidation now.
+  if (connection_closed_ && receiver_.is_bound()) {
+    Invalidate();
+  }
+
+  // 2. Handle completed and detached loader for RaceNetworkRequest.
+  // For RaceNetworkRequest, we actively invalidate the loader once it's
+  // completed and detached, without waiting for the client to close the Mojo
+  // pipe. This is because the fetch event might have finished after the
+  // completion of the race network request, and we want to clean up
+  // immediately.
+  if (dispatched_preload_type() == DispatchedPreloadType::kRaceNetworkRequest &&
+      is_detached_ && status_ == Status::kCompleted && receiver_.is_bound()) {
+    Invalidate();
+  }
+
+  // 3. Perform self-deletion.
+  // The loader can only be safely deleted when:
+  // - It is detached from the request (is_detached_ is true), meaning the
+  // browser
+  //   no longer needs it.
+  // - It has been invalidated (!receiver_.is_bound()), meaning the Mojo
+  // connection
+  //   is gone and internal resources are released.
+  // - We don't need to delay deletion (checked at the beginning of this
+  // function).
+  if (is_detached_ && !receiver_.is_bound()) {
+    // Delete `this` as it is no longer needed and all cleanup is done.
+    delete this;
+  }
 }
 
 network::mojom::ServiceWorkerStatus

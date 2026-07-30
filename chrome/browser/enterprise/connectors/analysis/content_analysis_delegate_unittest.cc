@@ -166,15 +166,13 @@ class BaseTest : public testing::Test {
         /*disabled_features=*/{});
   }
 
-  void ScanUpload(content::WebContents* web_contents,
-                  ContentAnalysisDelegate::Data data,
-                  ContentAnalysisDelegate::CompletionCallback callback) {
-    // The access point is only used for metrics and choosing the dialog text if
-    // one is shown, so its value doesn't affect the tests in this file and can
-    // always be the same.
-    ContentAnalysisDelegate::CreateForWebContents(web_contents, std::move(data),
-                                                  std::move(callback),
-                                                  DeepScanAccessPoint::UPLOAD);
+  void ScanUpload(
+      content::WebContents* web_contents,
+      ContentAnalysisDelegate::Data data,
+      ContentAnalysisDelegate::CompletionCallback callback,
+      DeepScanAccessPoint access_point = DeepScanAccessPoint::UPLOAD) {
+    ContentAnalysisDelegate::CreateForWebContents(
+        web_contents, std::move(data), std::move(callback), access_point);
   }
 
   void CreateFilesForTest(
@@ -686,10 +684,40 @@ TEST_F(ContentAnalysisDelegateAuditOnlyTest, StringDataAndReportSuccess) {
   EXPECT_EQ(1,
             test::FakeContentAnalysisDelegate::GetTotalAnalysisRequestsCount());
 
-  // FakeContentAnalysisDelegate is always constructed with UPLOAD; just
-  // verify a success histogram is recorded.
+  // FakeContentAnalysisDelegate is constructed with UPLOAD by default here;
+  // just verify a success histogram is recorded.
   histogram_tester_.ExpectTotalCount(
       "Enterprise.ContentAnalysis.Upload.Success.Duration", 1);
+  EXPECT_TRUE(called);
+}
+
+TEST_F(ContentAnalysisDelegateAuditOnlyTest, StringDataAndReportSuccess_Actor) {
+  base::HistogramTester histogram_tester_;
+
+  GURL url(kTestUrl);
+  ContentAnalysisDelegate::Data data;
+  ASSERT_TRUE(ContentAnalysisDelegate::IsEnabled(profile(), url, &data,
+                                                 BULK_DATA_ENTRY));
+
+  data.text.emplace_back(large_text());
+
+  bool called = false;
+  ScanUpload(
+      contents(), std::move(data),
+      base::BindOnce(
+          [](bool* called, const ContentAnalysisDelegate::Data& data,
+             ContentAnalysisDelegate::Result& result) { *called = true; },
+          &called),
+      enterprise_connectors::DeepScanAccessPoint::ACTOR);
+  RunUntilDone();
+  EXPECT_EQ(1,
+            test::FakeContentAnalysisDelegate::GetTotalAnalysisRequestsCount());
+
+  histogram_tester_.ExpectTotalCount(
+      "Enterprise.OnBulkDataEntry.Actor.DataSize", 1);
+  histogram_tester_.ExpectTotalCount("Enterprise.OnBulkDataEntry.DataSize", 1);
+  histogram_tester_.ExpectTotalCount(
+      "Enterprise.ContentAnalysis.Actor.Success.Duration", 1);
   EXPECT_TRUE(called);
 }
 

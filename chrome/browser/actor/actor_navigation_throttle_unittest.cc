@@ -12,6 +12,7 @@
 
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/test_future.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/actor_test_util.h"
@@ -101,10 +102,16 @@ TEST_F(ActorNavigationThrottleTest, PrerenderedMainFrame_CancelIfDeferred) {
   ActorNavigationThrottle throttle =
       ActorNavigationThrottle::CreateForTesting(registry, *task);
 
-  // WillProcessResponse should return CANCEL_AND_IGNORE because the engine
-  // would normally DEFER this cross-origin navigation, but it's a prerender.
-  EXPECT_EQ(content::NavigationThrottle::CANCEL_AND_IGNORE,
+  EXPECT_EQ(content::NavigationThrottle::DEFER,
             throttle.WillProcessResponse().action());
+
+  base::test::TestFuture<content::NavigationThrottle::ThrottleCheckResult>
+      future;
+  throttle.set_cancel_deferred_navigation_callback_for_testing(
+      future.GetRepeatingCallback());
+
+  EXPECT_EQ(content::NavigationThrottle::CANCEL_AND_IGNORE,
+            future.Get().action());
 }
 
 TEST_F(ActorNavigationThrottleTest, PrerenderedMainFrame_ProceedIfSameOrigin) {
@@ -125,8 +132,13 @@ TEST_F(ActorNavigationThrottleTest, PrerenderedMainFrame_ProceedIfSameOrigin) {
   ActorNavigationThrottle throttle =
       ActorNavigationThrottle::CreateForTesting(registry, *task);
 
-  EXPECT_EQ(content::NavigationThrottle::PROCEED,
+  EXPECT_EQ(content::NavigationThrottle::DEFER,
             throttle.WillProcessResponse().action());
+
+  base::test::TestFuture<void> future;
+  throttle.set_resume_callback_for_testing(future.GetRepeatingCallback());
+
+  EXPECT_TRUE(future.Wait());
 }
 
 TEST_F(ActorNavigationThrottleTest, BrowserInitiated_DeferAndConfirm) {
@@ -353,7 +365,18 @@ TEST_P(ActorNavigationThrottleMimeBypassTest, HandlesMimeTypes) {
   ActorNavigationThrottle throttle =
       ActorNavigationThrottle::CreateForTesting(registry, *task);
 
-  EXPECT_EQ(expected_action(), throttle.WillProcessResponse().action());
+  if (expected_action() == ThrottleAction::PROCEED) {
+    // Same-origin navigations are asynchronous, so they will return DEFER
+    // synchronously, but should eventually resume (proceed).
+    EXPECT_EQ(ThrottleAction::DEFER, throttle.WillProcessResponse().action());
+
+    base::test::TestFuture<void> future;
+    throttle.set_resume_callback_for_testing(future.GetRepeatingCallback());
+
+    EXPECT_TRUE(future.Wait());
+  } else {
+    EXPECT_EQ(expected_action(), throttle.WillProcessResponse().action());
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(

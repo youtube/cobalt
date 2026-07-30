@@ -10,6 +10,7 @@
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
+#include "base/memory/weak_ptr.h"
 #include "base/types/expected.h"
 #include "components/browser_apis/tab_drag/adapters/tab_drag_window_adapter.h"
 #include "components/browser_apis/tab_strip/types/node_id.h"
@@ -62,11 +63,14 @@ class TabDragSession {
   enum class DragMode {
     kAttachedToWindow,
     kDetaching,
+    kAttaching,
     kDetachedWindow,
   };
   void set_drag_mode_for_testing(DragMode mode) { drag_mode_ = mode; }
 
  private:
+  void OnWindowMoved(const gfx::Point& cursor_screen_point);
+
   void EndSession();
   void OnInputEvent(const TabDragInputEvent& event);
 
@@ -92,6 +96,8 @@ class TabDragSession {
   TabDragWindowRegistry* registry() const;
   DragMode drag_mode_ = DragMode::kAttachedToWindow;
   gfx::Vector2d start_window_offset_;
+
+  base::WeakPtrFactory<TabDragSession> weak_factory_{this};
 };
 
 }  // namespace tabs_api

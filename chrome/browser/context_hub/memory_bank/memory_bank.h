@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "base/containers/span.h"
 #include "base/functional/callback.h"
 #include "chrome/browser/context_hub/memory_bank/memory_bank_entry.h"
 
@@ -29,8 +30,9 @@ class MemoryBank {
                                  const std::string& tab_title,
                                  const std::string& selected_text,
                                  OperationCompleteCallback callback) = 0;
-  // Deletes an entry from the memory bank.
-  virtual void DeleteEntry(int64_t id, OperationCompleteCallback callback) = 0;
+  // Deletes entries from the memory bank.
+  virtual void DeleteEntries(base::span<const int64_t> ids,
+                             OperationCompleteCallback callback) = 0;
   using GetAllEntriesCallback =
       base::OnceCallback<void(std::vector<MemoryBankEntry>)>;
   // Returns all entries from the memory bank via the callback.

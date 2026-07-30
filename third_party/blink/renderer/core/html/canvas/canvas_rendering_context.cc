@@ -46,6 +46,7 @@
 #include "third_party/blink/renderer/core/paint/paint_layer_painter.h"
 #include "third_party/blink/renderer/core/workers/worker_global_scope.h"
 #include "third_party/blink/renderer/platform/graphics/accelerated_static_bitmap_image.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_non_2d_resource_provider.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_gpu_context.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_canvas.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_record_builder.h"
@@ -268,7 +269,7 @@ scoped_refptr<StaticBitmapImage> CanvasRenderingContext::GetElementImage(
   if (base::FeatureList::IsEnabled(kAllowAcceleratedTexElement) &&
       SharedGpuContext::IsGpuCompositingEnabled()) {
     if (auto wrapper = SharedGpuContext::ContextProviderWrapper()) {
-      auto resource_provider = CanvasNon2DResourceProviderSharedImage::Create(
+      auto resource_provider = CanvasNon2DResourceProvider::Create(
           dest_size, GetN32FormatForCanvas(), kPremul_SkAlphaType,
           gfx::ColorSpace::CreateSRGB(), gfx::HDRMetadata(), wrapper,
           gpu::SHARED_IMAGE_USAGE_RASTER_WRITE | usage);
@@ -285,15 +286,9 @@ scoped_refptr<StaticBitmapImage> CanvasRenderingContext::GetElementImage(
     }
   }
 
-  auto bitmap_provider = Canvas2DBitmapProvider::CreateWithClear(
-      dest_size, GetN32FormatForCanvas(), kPremul_SkAlphaType,
-      gfx::ColorSpace::CreateSRGB());
-
-  bitmap_provider->SetAnimatedImageFrameIndexes(
+  return UnacceleratedStaticBitmapImage::CreateFromRaster(
+      dest_size, draw_to_canvas,
       child_paint_record->paint_state.animated_image_frame_index_map);
-
-  bitmap_provider->RasterRecord(draw_to_canvas);
-  return bitmap_provider->Snapshot();
 }
 
 void CanvasRenderingContext::DidDraw(

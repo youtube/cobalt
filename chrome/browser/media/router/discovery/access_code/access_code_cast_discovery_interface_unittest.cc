@@ -4,6 +4,7 @@
 
 #include "chrome/browser/media/router/discovery/access_code/access_code_cast_discovery_interface.h"
 
+#include "base/byte_size.h"
 #include "base/command_line.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/mock_callback.h"
@@ -238,7 +239,7 @@ class AccessCodeCastDiscoveryInterfaceTest : public testing::Test {
         net::HttpUtil::AssembleRawHeaders(headers));
     head->mime_type = "application/json";
     network::URLLoaderCompletionStatus status(error);
-    status.decoded_body_length = response_data.size();
+    status.decoded_body_length = base::ByteSize(response_data.size());
     test_url_loader_factory_.AddResponse(request_url, std::move(head),
                                          response_data, status);
   }

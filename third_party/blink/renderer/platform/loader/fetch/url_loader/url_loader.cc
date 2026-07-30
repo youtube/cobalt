@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/byte_size.h"
 #include "base/check.h"
 #include "base/check_op.h"
 #include "base/functional/bind.h"
@@ -375,8 +376,8 @@ void URLLoader::Context::OnTransferSizeUpdated(int transfer_size_diff) {
 
 void URLLoader::Context::OnCompletedRequest(
     const network::URLLoaderCompletionStatus& status) {
-  int64_t total_transfer_size = status.encoded_data_length;
-  int64_t encoded_body_size = status.encoded_body_length;
+  int64_t total_transfer_size = status.encoded_data_length.InBytes();
+  int64_t encoded_body_size = status.encoded_body_length.InBytes();
 
   if (client_) {
     TRACE_EVENT("loading", "URLLoader::Context::OnCompletedRequest",
@@ -385,10 +386,11 @@ void URLLoader::Context::OnCompletedRequest(
     if (status.error_code != net::OK) {
       client_->DidFail(WebURLError::Create(status, url_),
                        status.completion_time, total_transfer_size,
-                       encoded_body_size, status.decoded_body_length);
+                       encoded_body_size, status.decoded_body_length.InBytes());
     } else {
       client_->DidFinishLoading(status.completion_time, total_transfer_size,
-                                encoded_body_size, status.decoded_body_length);
+                                encoded_body_size,
+                                status.decoded_body_length.InBytes());
     }
   }
 }

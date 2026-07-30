@@ -5,6 +5,7 @@
 #include "ash/quick_pair/repository/oauth_http_fetcher.h"
 
 #include "ash/quick_pair/common/mock_quick_pair_browser_delegate.h"
+#include "base/byte_size.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/test/task_environment.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
@@ -81,7 +82,7 @@ TEST_F(OAuthHttpFetcherTest, ExecuteGetRequest_Success) {
       net::HttpUtil::AssembleRawHeaders(""));
   head->headers->GetMimeType(&head->mime_type);
   network::URLLoaderCompletionStatus status(net::Error::OK);
-  status.decoded_body_length = body.size();
+  status.decoded_body_length = base::ByteSize(body.size());
   url_loader_factory_.AddResponse(url, std::move(head), body, status);
 
   http_fetcher_->ExecuteGetRequest(
@@ -181,7 +182,7 @@ TEST_F(OAuthHttpFetcherTest, ExecutePostRequest_Success) {
       net::HttpUtil::AssembleRawHeaders(""));
   head->headers->GetMimeType(&head->mime_type);
   network::URLLoaderCompletionStatus status(net::Error::OK);
-  status.decoded_body_length = body.size();
+  status.decoded_body_length = base::ByteSize(body.size());
   url_loader_factory_.AddResponse(url, std::move(head), body, status);
 
   http_fetcher_->ExecutePostRequest(
@@ -201,7 +202,7 @@ TEST_F(OAuthHttpFetcherTest, ExecuteDeleteRequest_Success) {
       net::HttpUtil::AssembleRawHeaders(""));
   head->headers->GetMimeType(&head->mime_type);
   network::URLLoaderCompletionStatus status(net::Error::OK);
-  status.decoded_body_length = body.size();
+  status.decoded_body_length = base::ByteSize(body.size());
   url_loader_factory_.AddResponse(url, std::move(head), body, status);
 
   http_fetcher_->ExecuteDeleteRequest(

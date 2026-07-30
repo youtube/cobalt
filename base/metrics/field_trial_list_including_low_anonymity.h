@@ -84,8 +84,8 @@ class BASE_EXPORT FieldTrialListIncludingLowAnonymity {
  private:
   // The same as |FieldTrialList::GetActiveFieldTrialGroups| but gives access to
   // low anonymity field trials too.
-  static void GetActiveFieldTrialGroups(
-      FieldTrial::ActiveGroups* active_groups);
+  static void GetActiveFieldTrialGroups(FieldTrial::ActiveGroups* active_groups,
+                                        bool include_runtime_overrides = false);
 
   // Identical to |FieldTrialList::AddObserver| but also notifies of low
   // anonymity trials.

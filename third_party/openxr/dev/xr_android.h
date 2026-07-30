@@ -431,4 +431,64 @@ typedef XrResult(XRAPI_PTR* PFN_xrGetSubmeshDataANDROID)(
     XrSceneSubmeshDataANDROID* inoutSubmeshData);
 #endif  // XR_ANDROID_scene_meshing
 
+#ifndef XR_ANDROID_light_estimation_cubemap
+#define XR_ANDROID_light_estimation_cubemap 1
+#define XR_ANDROID_light_estimation_cubemap_SPEC_VERSION 1
+#define XR_ANDROID_LIGHT_ESTIMATION_CUBEMAP_EXTENSION_NAME "XR_ANDROID_light_estimation_cubemap"
+
+#define XR_TYPE_SYSTEM_CUBEMAP_LIGHT_ESTIMATION_PROPERTIES_ANDROID ((XrStructureType) 1000721000U)
+#define XR_TYPE_CUBEMAP_LIGHT_ESTIMATOR_CREATE_INFO_ANDROID ((XrStructureType) 1000721001U)
+#define XR_TYPE_CUBEMAP_LIGHTING_DATA_ANDROID ((XrStructureType) 1000721002U)
+
+typedef enum XrCubemapLightingColorFormatANDROID {
+  XR_CUBEMAP_LIGHTING_COLOR_FORMAT_R32G32B32_SFLOAT_ANDROID = 1,
+  XR_CUBEMAP_LIGHTING_COLOR_FORMAT_R32G32B32A32_SFLOAT_ANDROID = 2,
+  XR_CUBEMAP_LIGHTING_COLOR_FORMAT_R16G16B16A16_SFLOAT_ANDROID = 3,
+  XR_CUBEMAP_LIGHTING_COLOR_FORMAT_MAX_ENUM_ANDROID = 0x7FFFFFFF
+} XrCubemapLightingColorFormatANDROID;
+
+typedef struct XrSystemCubemapLightEstimationPropertiesANDROID {
+  XrStructureType type;
+  void* XR_MAY_ALIAS next;
+  XrBool32 supportsCubemapLightEstimation;
+} XrSystemCubemapLightEstimationPropertiesANDROID;
+
+typedef struct XrCubemapLightEstimatorCreateInfoANDROID {
+  XrStructureType type;
+  const void* XR_MAY_ALIAS next;
+  uint32_t cubemapResolution;
+  XrCubemapLightingColorFormatANDROID colorFormat;
+  XrBool32 reproject;
+} XrCubemapLightEstimatorCreateInfoANDROID;
+
+typedef struct XrCubemapLightingDataANDROID {
+  XrStructureType type;
+  void* XR_MAY_ALIAS next;
+  XrLightEstimateStateANDROID state;
+  uint32_t imageBufferSize;
+  uint8_t* rightImageBuffer;
+  uint8_t* leftImageBuffer;
+  uint8_t* topImageBuffer;
+  uint8_t* bottomImageBuffer;
+  uint8_t* frontImageBuffer;
+  uint8_t* backImageBuffer;
+  XrQuaternionf rotation;
+} XrCubemapLightingDataANDROID;
+
+typedef XrResult (XRAPI_PTR *PFN_xrEnumerateCubemapLightingResolutionsANDROID)(
+    XrInstance                                  instance,
+    XrSystemId                                  systemId,
+    uint32_t                                    resolutionCapacityInput,
+    uint32_t*                                   resolutionCountOutput,
+    uint32_t*                                   resolutions);
+
+typedef XrResult (XRAPI_PTR *PFN_xrEnumerateCubemapLightingColorFormatsANDROID)(
+    XrInstance                                  instance,
+    XrSystemId                                  systemId,
+    uint32_t                                    colorFormatCapacityInput,
+    uint32_t*                                   colorFormatCountOutput,
+    XrCubemapLightingColorFormatANDROID*        colorFormats);
+
+#endif  // XR_ANDROID_light_estimation_cubemap
+
 #endif  // THIRD_PARTY_OPENXR_DEV_XR_ANDROID_H_

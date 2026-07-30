@@ -59,6 +59,10 @@ constexpr CGFloat kSegmentedControlHeight = 32;
 // Multiplier used to constraint the view's height.
 constexpr CGFloat kViewHeightMultiplier = 0.6;
 
+// Height used during the initial layout until the view is added to the view
+// hierarchy.
+constexpr CGFloat kInitialHeightPlaceholder = 400;
+
 // Height of the header's top view. Used for the narrow layout only.
 constexpr CGFloat kHeaderTopViewHeightNarrowLayout = 44;
 // Vertical spacing between the bottom of the header top view and segmented
@@ -266,8 +270,7 @@ CGFloat GetTableViewCellHorizontalInset(UITableView* tableView) {
   // window is loaded in `viewDidAppear`, the view's height will be
   // dynamically constraint to its window's height instead.
   self.view.autoresizingMask = UIViewAutoresizingNone;
-  self.view.frame = CGRectMake(
-      0, 0, 0, UIScreen.mainScreen.bounds.size.height * kViewHeightMultiplier);
+  self.view.frame = CGRectMake(0, 0, 0, kInitialHeightPlaceholder);
 
   _headerView = [self createHeaderView];
   _headerTopView = [self createHeaderTopView];

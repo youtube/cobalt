@@ -31,14 +31,6 @@ FakeFastPairHandshake::FakeFastPairHandshake(
 
 FakeFastPairHandshake::~FakeFastPairHandshake() = default;
 
-void FakeFastPairHandshake::SetUpHandshake(
-    OnFailureCallback on_failure_callback,
-    OnCompleteCallbackNew on_success_callback) {
-  completed_successfully_ = true;
-}
-
-void FakeFastPairHandshake::Reset() {}
-
 void FakeFastPairHandshake::InvokeCallback(std::optional<PairFailure> failure) {
   completed_successfully_ = !failure.has_value();
   std::move(on_complete_callback_).Run(device_, failure);

@@ -15,6 +15,7 @@
 #include "base/compiler_specific.h"
 #include "base/feature_list.h"
 #include "base/memory_coordinator/memory_coordinator_features.h"
+#include "base/memory_coordinator/traits.h"
 #include "base/memory_coordinator/utils.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
@@ -42,6 +43,18 @@ PassthroughProgramCache* g_program_cache = nullptr;
 // have one EGLDisplay in practice.
 bool g_blob_cache_funcs_set = false;
 
+constexpr base::MemoryConsumerTraits kPassthroughProgramCacheTraits(
+    // Default capacity is small, under 10MB.
+    base::MemoryConsumerTraits::EstimatedMemoryUsage::kSmall,
+    // Evicting entries requires traversing the LRU cache.
+    base::MemoryConsumerTraits::ReleaseMemoryCost::kRequiresTraversal,
+    // Shaders can be re-compiled and re-linked if evicted.
+    base::MemoryConsumerTraits::InformationRetention::kLossless,
+    // Asynchronous since AsyncMemoryConsumerRegistration is used.
+    base::MemoryConsumerTraits::ExecutionType::kAsynchronous,
+    // Compiling and linking shaders is highly CPU intensive.
+    base::MemoryConsumerTraits::RecreateMemoryCost::kExpensive);
+
 }  // namespace
 
 PassthroughProgramCache::PassthroughProgramCache(
@@ -53,7 +66,7 @@ PassthroughProgramCache::PassthroughProgramCache(
       store_(ProgramLRUCache::NO_AUTO_EVICT),
       memory_consumer_registration_(
           "PassthroughProgramCache",
-          std::nullopt,  // TODO(crbug.com/489671163): Add traits.
+          kPassthroughProgramCacheTraits,
           this,
           base::AsyncMemoryConsumerRegistration::CheckUnregister::kDisabled),
       current_max_size_bytes_(max_cache_size_bytes) {

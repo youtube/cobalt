@@ -178,7 +178,8 @@ constexpr std::string_view kThirdPartyModsDirectory =
   const CGFloat kHorizontalSpacing = 20;
 
   self.view.autoresizesSubviews = YES;
-  CGRect mainBounds = [[UIScreen mainScreen] bounds];
+  CGRect mainBounds =
+      self.view.window ? self.view.window.bounds : self.view.bounds;
   // SafeModeViewController only supports portrait orientation (see
   // implementation of supportedInterfaceOrientations: below) but if the app is
   // launched from landscape mode (e.g. iPad or iPhone 6+) then the mainScreen's

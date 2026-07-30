@@ -174,6 +174,36 @@ def _ShouldDeriveClone(ty: mojom.Kind) -> bool:
   return not mojom.ContainsHandlesOrInterfaces(ty)
 
 
+# Note that _GetCanonicalEnumFields returns different results depending on the
+# order of the fields—so if you change the order they are processed here, you
+# MUST change how they're processed in _GetDuplicateEnumFields as well.
+def _GetCanonicalEnumFields(enum: mojom.Enum):
+  seen = set()
+  canonical = []
+  for field in enum.fields:
+    if field.numeric_value not in seen:
+      seen.add(field.numeric_value)
+      canonical.append(field)
+  return canonical
+
+
+# Note that _GetDuplicateEnumFields returns different results depending on the
+# order of the fields—so if you change the order they are processed here, you
+# MUST change how they're processed in _GetCanonicalEnumFields as well.
+def _GetDuplicateEnumFields(enum: mojom.Enum):
+  canonical_names = {}
+  duplicates = []
+  for field in enum.fields:
+    if field.numeric_value not in canonical_names:
+      canonical_names[field.numeric_value] = field.name
+    else:
+      duplicates.append({
+          "name": field.name,
+          "canonical_name": canonical_names[field.numeric_value],
+      })
+  return duplicates
+
+
 _ESCAPABLE_KEYWORDS = {
     "as", "break", "const", "continue", "crate", "else", "enum", "extern",
     "false", "fn", "for", "if", "impl", "in", "let", "loop", "match", "mod",
@@ -252,6 +282,10 @@ class Generator(generator.Generator):
                                    self.typemap),
         "should_derive_clone":
         _ShouldDeriveClone,
+        "get_canonical_enum_fields":
+        _GetCanonicalEnumFields,
+        "get_duplicate_enum_fields":
+        _GetDuplicateEnumFields,
     }
 
   @UseJinja("module.tmpl")

@@ -6,3 +6,19 @@ source_set("net") {
   sources = []
   deps = [ "//base" ]
 }
+
+source_set("platform_browser_tests") {
+  testonly = true
+  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+  sources = [ "proxy_override_rules_browsertest.cc" ]
+
+  deps = [
+    "//base",
+    "//chrome/browser/enterprise/test:test_support",
+    "//chrome/test:test_support",
+    "//components/proxy_config",
+    "//content/test:test_support",
+    "//testing/gmock",
+  ]
+}

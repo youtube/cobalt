@@ -1797,6 +1797,13 @@ targets.binaries.generated_script(
 )
 
 targets.binaries.generated_script(
+    name = "ondevice_api_scrape_tests",
+    label = "//components/optimization_guide/internal/testing:ondevice_api_scrape_tests",
+    skip_usage_check = True,
+    module_scheme = "flat",
+)
+
+targets.binaries.generated_script(
     name = "litert_e2e_tests",
     label = "//components/optimization_guide/internal/testing:litert_e2e_tests",
     module_scheme = "flat",

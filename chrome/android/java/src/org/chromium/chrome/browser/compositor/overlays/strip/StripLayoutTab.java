@@ -11,7 +11,6 @@ import android.animation.AnimatorListenerAdapter;
 import android.content.Context;
 import android.content.res.Resources;
 import android.content.res.TypedArray;
-import android.graphics.Color;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.util.FloatProperty;
@@ -306,25 +305,16 @@ public class StripLayoutTab extends StripLayoutView {
                         /* clickSlopDp= */ 0f,
                         /* hasLongClickAction= */ true);
 
-        @ColorRes int iconTintRes = R.color.default_icon_color_tint_list;
-        @ColorRes int bgHoverTintRes = R.color.tab_strip_button_bg_hover_tint;
         @ColorRes
-        int bgPeripheralPressedTintRes = R.color.tab_strip_button_bg_peripheral_pressed_tint;
-
-        if (incognito) {
-            iconTintRes = R.color.default_icon_color_light;
-            bgHoverTintRes = R.color.tab_strip_button_bg_incognito_hover_tint;
-            bgPeripheralPressedTintRes =
-                    R.color.tab_strip_button_bg_incognito_peripheral_pressed_tint;
-        }
-
-        // Only set color for hover and peripheral-pressed bg.
+        int iconTintRes =
+                incognito ? R.color.default_icon_color_light : R.color.default_icon_color_tint_list;
+        @ColorRes
+        int bgTintRes =
+                incognito
+                        ? R.color.tab_strip_close_bg_incognito_tint_list
+                        : R.color.tab_strip_close_bg_tint_list;
         mCloseButton.setTint(context.getColor(iconTintRes));
-        mCloseButton.setBackgroundTint(
-                Color.TRANSPARENT,
-                mContext.getColor(bgHoverTintRes),
-                Color.TRANSPARENT,
-                mContext.getColor(bgPeripheralPressedTintRes));
+        mCloseButton.setBackgroundTint(context.getColorStateList(bgTintRes));
 
         mCloseButtonSize = getCloseButtonSize();
         resetCloseRect();

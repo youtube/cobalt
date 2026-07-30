@@ -134,12 +134,6 @@ bool ExtractFormFieldData(const base::DictValue& field,
                           const FieldDataManager& field_data_manager,
                           FormFieldData* field_data);
 
-// Extracts a single child frame's data from the JSON dictionary into a
-// FrameTokenWithPredecessor object. Returns false if the data could not be
-// extracted.
-bool ExtractRemoteFrameToken(const base::DictValue& frame_data,
-                             FrameTokenWithPredecessor* token_with_predecessor);
-
 typedef base::OnceCallback<void(const base::Value*)> JavaScriptResultCallback;
 
 // Creates a callback for a string JS function return type.
@@ -195,6 +189,12 @@ bool ExtractFillingResults(NSString* json_string,
 // Returns the WebFramesManager that manages the frame space in which Autofill
 // works.
 web::WebFramesManager* GetWebFramesManagerForAutofill(web::WebState* web_state);
+
+std::vector<FrameTokenWithPredecessor> ExtractChildFramesForTest(
+    const base::DictValue& form);
+
+std::optional<FrameTokenWithPredecessor> ExtractRemoteFrameTokenForTest(
+    const base::DictValue& frame_data);
 
 }  // namespace autofill
 

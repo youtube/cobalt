@@ -17,6 +17,7 @@
 #include "base/observer_list.h"
 #include "base/sequence_checker.h"
 #include "base/time/time.h"
+#include "base/types/pass_key.h"
 #include "components/variations/client_filterable_state.h"
 #include "components/variations/entropy_provider.h"
 #include "components/variations/service/safe_seed_manager.h"
@@ -174,6 +175,10 @@ class VariationsService
 
   // Exposed for testing.
   static std::string GetDefaultVariationsServerURLForTesting();
+
+  static base::PassKey<VariationsService> CreatePassKeyForTesting() {
+    return base::PassKey<VariationsService>();
+  }
 
   // Register Variations related prefs in Local State.
   static void RegisterPrefs(PrefRegistrySimple* registry);

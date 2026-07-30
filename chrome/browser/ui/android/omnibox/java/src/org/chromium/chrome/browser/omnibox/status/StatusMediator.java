@@ -49,7 +49,6 @@ import org.chromium.chrome.browser.theme.ThemeUtils;
 import org.chromium.chrome.browser.ui.extensions.ExtensionUi;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.chrome.browser.util.BrowserUiUtils;
-import org.chromium.components.browser_ui.settings.SettingsUtils;
 import org.chromium.components.browser_ui.util.DrawableUtils;
 import org.chromium.components.content_settings.CookieControlsBridge;
 import org.chromium.components.content_settings.CookieControlsObserver;
@@ -94,7 +93,6 @@ public class StatusMediator
     private final LocationBarDataProvider mLocationBarDataProvider;
     private final PermissionStatusHandler mPermissionStatusHandler;
     private final Handler mIconTaskHandler = new Handler();
-    private final PageInfoIphController mPageInfoIphController;
     private final PageInfoAction mPageInfoAction;
     private final NonNullObservableSupplier<@FuseboxState Integer> mFuseboxStateSupplier;
     private final NonNullObservableSupplier<@FuseboxLayoutMode Integer> mFuseboxLayoutModeSupplier;
@@ -185,7 +183,6 @@ public class StatusMediator
                 });
 
         mProfileSupplier = profileSupplier;
-        mPageInfoIphController = pageInfoIphController;
 
         mPageInfoAction = pageInfoAction;
         mModel.set(StatusProperties.INCOGNITO_BADGE_VISIBLE, false);
@@ -814,57 +811,6 @@ public class StatusMediator
         mExactMatchFavicon = favicon;
         mShowExactMatchGlobe = useGlobe;
         updateLocationBarIcon(IconTransitionType.CROSSFADE);
-    }
-
-    // CookieControlsObserver interface.
-    @Override
-    public void onHighlightCookieControl(boolean shouldHighlight) {
-        if (shouldHighlight) {
-            animateCookieControlsIcon(
-                    () -> {
-                        mPageInfoIphController.showCookieControlsIph(
-                                mPermissionStatusHandler.getIphTimeoutMs(),
-                                R.string.cookie_controls_iph_message);
-                    });
-        }
-    }
-
-    private void animateCookieControlsIcon(Runnable onAnimationFinished) {
-        // Check if the web content is valid before attempting to animate.
-        Tab tab = mLocationBarDataProvider.getTab();
-        if (tab == null || tab.getWebContents() == null) {
-            return;
-        }
-        resetCustomIconsStatus();
-
-        boolean isIncognitoBranded = mLocationBarDataProvider.isIncognitoBranded();
-        Drawable eyeCrossedIcon =
-                SettingsUtils.getTintedIcon(
-                        mContext,
-                        R.drawable.ic_eye_crossed,
-                        isIncognitoBranded
-                                ? R.color.default_icon_color_blue_light
-                                : R.color.default_icon_color_accent1_tint_list);
-
-        PermissionIconResource permissionIconResource =
-                new PermissionIconResource(
-                        eyeCrossedIcon, isIncognitoBranded, COOKIE_CONTROLS_ICON);
-        permissionIconResource.setTransitionType(IconTransitionType.ROTATE);
-        permissionIconResource.setAnimationFinishedCallback(
-                () -> {
-                    if (mCookieControlsBridge != null) {
-                        mCookieControlsBridge.onEntryPointAnimated();
-                    }
-                    onAnimationFinished.run();
-                });
-
-        // Set the timer to switch the icon back afterwards.
-        mIconTaskHandler.removeCallbacksAndMessages(null);
-        mModel.set(StatusProperties.STATUS_ICON_RESOURCE, permissionIconResource);
-        mModel.set(StatusProperties.STATUS_CLICK_LISTENER, this::onClickOpenPageInfo);
-        mIconTaskHandler.postDelayed(
-                () -> updateLocationBarIcon(IconTransitionType.ROTATE),
-                PermissionStatusHandler.PERMISSION_ICON_DEFAULT_DISPLAY_TIMEOUT_MS);
     }
 
     // Reset all customized icons' status to avoid different icons' conflicts.

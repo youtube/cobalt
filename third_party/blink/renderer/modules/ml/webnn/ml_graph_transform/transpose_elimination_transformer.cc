@@ -208,6 +208,7 @@ class BracketingContextBuilder
       if (visited_.Contains(input->Operator())) {
         continue;
       }
+      visited_.insert(input->Operator());
 
       if (input->Operator()->Kind() ==
           webnn::mojom::blink::Operation::Tag::kTranspose) {
@@ -238,6 +239,7 @@ class BracketingContextBuilder
       if (visited_.Contains(dep)) {
         continue;
       }
+      visited_.insert(dep);
 
       if (dep->Kind() == webnn::mojom::blink::Operation::Tag::kTranspose) {
         auto perm = static_cast<const MLTransposeOptions*>(dep->Options())

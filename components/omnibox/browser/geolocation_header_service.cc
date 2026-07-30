@@ -38,6 +38,12 @@ constexpr base::TimeDelta kMaxLocationAgeForHeader = base::Hours(24);
 // The "w " prefix identifies the subsequent string as a Base64-encoded proto
 // as defined by the X-Geo protocol.
 constexpr std::string_view kLocationProtoPrefix = "w ";
+constexpr char kHistogramGetLocationOutcomePrefix[] =
+    "Omnibox.GeolocationHeaderService.GetLocationOutcome.";
+constexpr char kTriggerAutomaticSuffix[] = "Automatic";
+constexpr char kTriggerInlineSuggestionSuffix[] = "InlineSuggestion";
+constexpr char kHistogramPrimeLocationOutcome[] =
+    "Omnibox.GeolocationHeaderService.PrimeLocationOutcome";
 
 constexpr char kHistogramInlineLocationSuggestionDenyPrefix[] =
     "Omnibox.InlineLocationSuggestion.Deny";
@@ -87,6 +93,19 @@ std::optional<std::string> SerializeXGeoHeader(
   return base::StrCat({kLocationProtoPrefix, encoded});
 }
 
+void RecordPrimeLocationOutcome(GeolocationHeaderPrimeLocationOutcome outcome) {
+  base::UmaHistogramEnumeration(kHistogramPrimeLocationOutcome, outcome);
+}
+
+void RecordGetLocationOutcome(GeolocationHeaderGetLocationOutcome outcome,
+                              bool for_automatic_sending) {
+  base::UmaHistogramEnumeration(
+      base::StrCat({kHistogramGetLocationOutcomePrefix,
+                    for_automatic_sending ? kTriggerAutomaticSuffix
+                                          : kTriggerInlineSuggestionSuffix}),
+      outcome);
+}
+
 }  // namespace
 
 GeolocationHeaderService::GeolocationHeaderService(
@@ -121,13 +140,28 @@ void GeolocationHeaderService::PrimeLocation() {
     return;
   }
 
-  if (geolocation_.is_bound() || !template_url_service_) {
+  if (geolocation_.is_bound()) {
+    RecordPrimeLocationOutcome(
+        GeolocationHeaderPrimeLocationOutcome::kNotTriedAlreadyBound);
+    return;
+  }
+  if (!template_url_service_) {
+    RecordPrimeLocationOutcome(
+        GeolocationHeaderPrimeLocationOutcome::kNotTriedNoDefaultProvider);
     return;
   }
 
   const TemplateURL* default_provider =
       template_url_service_->GetDefaultSearchProvider();
-  if (!default_provider || !default_provider->send_x_geo_header()) {
+  if (!default_provider) {
+    RecordPrimeLocationOutcome(
+        GeolocationHeaderPrimeLocationOutcome::kNotTriedNoDefaultProvider);
+    return;
+  }
+
+  if (!default_provider->send_x_geo_header()) {
+    RecordPrimeLocationOutcome(GeolocationHeaderPrimeLocationOutcome::
+                                   kNotTriedProviderDoesNotAcceptHeader);
     return;
   }
 
@@ -138,8 +172,15 @@ void GeolocationHeaderService::PrimeLocation() {
       base::FeatureList::IsEnabled(omnibox::kInlineLocationSignaling);
 
   if (!requesting_url.is_valid() ||
-      !requesting_url.SchemeIs(url::kHttpsScheme) ||
-      (!IsAllowedByPermission(requesting_url) && !is_ills_enabled)) {
+      !requesting_url.SchemeIs(url::kHttpsScheme)) {
+    RecordPrimeLocationOutcome(
+        GeolocationHeaderPrimeLocationOutcome::kNotTriedInvalidUrlOrInsecure);
+    last_position_.reset();
+    return;
+  }
+  if (!IsAllowedByPermission(requesting_url) && !is_ills_enabled) {
+    RecordPrimeLocationOutcome(GeolocationHeaderPrimeLocationOutcome::
+                                   kNotTriedPermissionStatusMismatch);
     last_position_.reset();
     return;
   }
@@ -151,6 +192,8 @@ void GeolocationHeaderService::PrimeLocation() {
     base::TimeDelta age = location_age_for_testing_.value_or(
         base::Time::Now() - last_position_->timestamp);
     if (age <= kMaxLocationAgeForPriming) {
+      RecordPrimeLocationOutcome(
+          GeolocationHeaderPrimeLocationOutcome::kNotTriedCachedLocationFresh);
       return;
     }
   }
@@ -159,14 +202,20 @@ void GeolocationHeaderService::PrimeLocation() {
       is_ills_enabled && !IsAllowedByPermission(requesting_url);
 
   if (!EnsureGeolocationServiceConnection(requesting_url, use_cache_only)) {
+    RecordPrimeLocationOutcome(
+        GeolocationHeaderPrimeLocationOutcome::kTriedFailedConnection);
     return;
   }
 
   auto callback = base::BindOnce(&GeolocationHeaderService::OnLocationUpdate,
                                  weak_factory_.GetWeakPtr());
   if (use_cache_only) {
+    RecordPrimeLocationOutcome(
+        GeolocationHeaderPrimeLocationOutcome::kTriedQueryCachedPosition);
     geolocation_->QueryCachedPosition(std::move(callback));
   } else {
+    RecordPrimeLocationOutcome(
+        GeolocationHeaderPrimeLocationOutcome::kTriedQueryNextPosition);
     geolocation_->QueryNextPosition(std::move(callback));
   }
 }
@@ -198,7 +247,17 @@ std::optional<std::string> GeolocationHeaderService::GetLocationHeader(
     return std::nullopt;
   }
 
-  if (!HasCachedLocation() || !IsUrlEligibleForLocationHeader(url)) {
+  if (!url.SchemeIs(url::kHttpsScheme)) {
+    RecordGetLocationOutcome(
+        GeolocationHeaderGetLocationOutcome::kInsecureConnection,
+        for_automatic_sending);
+    return std::nullopt;
+  }
+
+  if (!IsUrlEligibleForLocationHeader(url)) {
+    RecordGetLocationOutcome(
+        GeolocationHeaderGetLocationOutcome::kIneligibleUrl,
+        for_automatic_sending);
     return std::nullopt;
   }
 
@@ -207,6 +266,16 @@ std::optional<std::string> GeolocationHeaderService::GetLocationHeader(
   // omnibox suggestion, then it should only be allowed if the DSE does NOT have
   // permission.
   if (for_automatic_sending != IsAllowedByPermission(url)) {
+    RecordGetLocationOutcome(
+        GeolocationHeaderGetLocationOutcome::kPermissionStateMismatch,
+        for_automatic_sending);
+    return std::nullopt;
+  }
+
+  if (!HasCachedLocation()) {
+    RecordGetLocationOutcome(
+        GeolocationHeaderGetLocationOutcome::kNoCachedLocation,
+        for_automatic_sending);
     return std::nullopt;
   }
 
@@ -218,8 +287,14 @@ std::optional<std::string> GeolocationHeaderService::GetLocationHeader(
   // location").
   if (for_automatic_sending && last_position_->is_precise &&
       !HasPrecisePermission(url)) {
+    RecordGetLocationOutcome(
+        GeolocationHeaderGetLocationOutcome::kHeaderGranularityMismatch,
+        for_automatic_sending);
     return std::nullopt;
   }
+
+  RecordGetLocationOutcome(GeolocationHeaderGetLocationOutcome::kSuccess,
+                           for_automatic_sending);
 
   return SerializeXGeoHeader(*last_position_);
 }

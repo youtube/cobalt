@@ -44,7 +44,6 @@ class CookieControlsBubbleViewController
   void SetCallbacks();
   void OnUserClosedContentView();
   void OnToggleButtonPressed(bool toggled_on);
-  void OnFeedbackButtonPressed();
 
   void OnFaviconFetched(const favicon_base::FaviconImageResult& result) const;
 
@@ -79,7 +78,6 @@ class CookieControlsBubbleViewController
 
   base::CallbackListSubscription on_user_triggered_reloading_action_callback_;
   base::CallbackListSubscription toggle_button_callback_;
-  base::CallbackListSubscription feedback_button_callback_;
   base::WeakPtr<content_settings::CookieControlsController> controller_;
   base::WeakPtr<content::WebContents> web_contents_;
   base::ScopedObservation<content_settings::CookieControlsController,

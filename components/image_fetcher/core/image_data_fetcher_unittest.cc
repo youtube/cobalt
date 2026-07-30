@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "base/base64.h"
+#include "base/byte_size.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
@@ -107,7 +108,7 @@ TEST_F(ImageDataFetcherTest, FetchImageData) {
       net::HttpUtil::AssembleRawHeaders(raw_header));
   head->mime_type = "image/png";
   network::URLLoaderCompletionStatus status;
-  status.decoded_body_length = content.size();
+  status.decoded_body_length = base::ByteSize(content.size());
   test_url_loader_factory_.AddResponse(GURL(kImageURL), std::move(head),
                                        content, status);
   base::RunLoop().RunUntilIdle();
@@ -164,7 +165,7 @@ TEST_F(ImageDataFetcherTest, FetchImageDataTrafficAnnotationOnly) {
       net::HttpUtil::AssembleRawHeaders(raw_header));
   head->mime_type = "image/png";
   network::URLLoaderCompletionStatus status;
-  status.decoded_body_length = content.size();
+  status.decoded_body_length = base::ByteSize(content.size());
   test_url_loader_factory_.AddResponse(GURL(kImageURL), std::move(head),
                                        content, status);
   base::RunLoop().RunUntilIdle();
@@ -200,7 +201,7 @@ TEST_F(ImageDataFetcherTest, FetchImageDataWithCookies) {
       net::HttpUtil::AssembleRawHeaders(raw_header));
   head->mime_type = "image/png";
   network::URLLoaderCompletionStatus status;
-  status.decoded_body_length = content.size();
+  status.decoded_body_length = base::ByteSize(content.size());
   test_url_loader_factory_.AddResponse(GURL(kImageURL), std::move(head),
                                        content, status);
   base::RunLoop().RunUntilIdle();
@@ -232,7 +233,7 @@ TEST_F(ImageDataFetcherTest, FetchImageData_NotFound) {
       net::HttpUtil::AssembleRawHeaders(raw_header));
   head->mime_type = "image/png";
   network::URLLoaderCompletionStatus status;
-  status.decoded_body_length = content.size();
+  status.decoded_body_length = base::ByteSize(content.size());
   test_url_loader_factory_.AddResponse(GURL(kImageURL), std::move(head),
                                        content, status);
   base::RunLoop().RunUntilIdle();
@@ -266,7 +267,7 @@ TEST_F(ImageDataFetcherTest, FetchImageData_WithContentLocation) {
       net::HttpUtil::AssembleRawHeaders(raw_header));
   head->mime_type = "image/png";
   network::URLLoaderCompletionStatus status;
-  status.decoded_body_length = content.size();
+  status.decoded_body_length = base::ByteSize(content.size());
   test_url_loader_factory_.AddResponse(GURL(kImageURL), std::move(head),
                                        content, status);
   base::RunLoop().RunUntilIdle();

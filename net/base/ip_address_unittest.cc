@@ -348,6 +348,25 @@ TEST(IPAddressTest, IsMulticast) {
   ASSERT_TRUE(ipv6_non_multicast.AssignFromIPLiteral("fe80::1"));
   EXPECT_FALSE(ipv6_non_multicast.IsMulticast());
 
+  IPAddress ipv4_mapped_multicast;
+  ASSERT_TRUE(ipv4_mapped_multicast.AssignFromIPLiteral("::ffff:224.0.0.1"));
+  EXPECT_TRUE(ipv4_mapped_multicast.IsMulticast());
+
+  IPAddress ipv4_mapped_last_multicast;
+  ASSERT_TRUE(
+      ipv4_mapped_last_multicast.AssignFromIPLiteral("::ffff:239.255.255.255"));
+  EXPECT_TRUE(ipv4_mapped_last_multicast.IsMulticast());
+
+  IPAddress ipv4_mapped_non_multicast;
+  ASSERT_TRUE(
+      ipv4_mapped_non_multicast.AssignFromIPLiteral("::ffff:223.255.255.255"));
+  EXPECT_FALSE(ipv4_mapped_non_multicast.IsMulticast());
+
+  IPAddress ipv4_mapped_after_multicast;
+  ASSERT_TRUE(
+      ipv4_mapped_after_multicast.AssignFromIPLiteral("::ffff:240.0.0.0"));
+  EXPECT_FALSE(ipv4_mapped_after_multicast.IsMulticast());
+
   IPAddress invalid;
   EXPECT_FALSE(invalid.IsMulticast());
 }

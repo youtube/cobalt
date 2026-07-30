@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.tasks.tab_management;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.util.Pair;
 
 import org.chromium.base.Token;
@@ -11,7 +13,6 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabGroupObserver;
-import org.chromium.chrome.browser.tabmodel.TabGroupObserver.DidRemoveTabGroupReason;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.components.tab_groups.TabGroupColorId;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -31,7 +32,9 @@ abstract class TabGroupObserverDelegate implements TabGroupObserver {
     }
 
     @Override
-    public void didChangeTabGroupTitle(Token tabGroupId, String newTitle) {}
+    public void didChangeTabGroupTitle(Token tabGroupId, String newTitle) {
+        mMediator.updateTabGroupTitle(tabGroupId);
+    }
 
     @Override
     public void didChangeTabGroupColor(Token tabGroupId, @TabGroupColorId int newColor) {
@@ -49,27 +52,23 @@ abstract class TabGroupObserverDelegate implements TabGroupObserver {
     }
 
     @Override
-    public void didChangeTabGroupCollapsed(
-            Token tabGroupId, boolean isCollapsed, boolean animate) {}
+    public void didMoveWithinGroup(Tab movedTab, int tabModelOldIndex, int tabModelNewIndex) {
+        TabModel tabModel = mMediator.getCurrentTabModelChecked();
 
-    @Override
-    public void didMoveWithinGroup(Tab movedTab, int tabModelOldIndex, int tabModelNewIndex) {}
+        // Maintain correct order.
+        int curPosition = mModelList.indexFromTabId(movedTab.getId());
 
-    @Override
-    public void didMoveTabOutOfGroup(Tab movedTab, int prevFilterIndex) {}
+        if (!mModelList.isValidIndex(curPosition)) return;
 
-    @Override
-    public void didMergeTabToGroup(Tab movedTab, boolean isDestinationTab) {}
+        Tab destinationTab =
+                tabModel.getTabAt(
+                        tabModelNewIndex > tabModelOldIndex
+                                ? tabModelNewIndex - 1
+                                : tabModelNewIndex + 1);
+        assumeNonNull(destinationTab);
+        int newPosition = mModelList.indexFromTabId(destinationTab.getId());
 
-    @Override
-    public void didMoveTabGroup(Tab movedTab, int tabModelOldIndex, int tabModelNewIndex) {}
-
-    @Override
-    public void didCreateNewGroup(Tab destinationTab, TabModel tabModel) {}
-
-    @Override
-    public void didRemoveTabGroup(
-            int oldRootId,
-            @Nullable Token oldTabGroupId,
-            @DidRemoveTabGroupReason int removalReason) {}
+        if (!mModelList.isValidIndex(newPosition)) return;
+        mModelList.move(curPosition, newPosition);
+    }
 }

@@ -190,18 +190,21 @@ class MockDelegate : public enterprise_connectors::FilesRequestHandler {
 class DragDropTestContentAnalysisDelegate
     : public enterprise_connectors::test::FakeContentAnalysisDelegate {
  public:
-  DragDropTestContentAnalysisDelegate(StatusCallback status_callback,
-                                      std::string dm_token,
-                                      content::WebContents* web_contents,
-                                      Data data,
-                                      CompletionCallback callback)
+  DragDropTestContentAnalysisDelegate(
+      StatusCallback status_callback,
+      std::string dm_token,
+      content::WebContents* web_contents,
+      Data data,
+      CompletionCallback callback,
+      enterprise_connectors::DeepScanAccessPoint access_point)
       : enterprise_connectors::test::FakeContentAnalysisDelegate(
             base::DoNothing(),
             std::move(status_callback),
             std::move(dm_token),
             web_contents,
             std::move(data),
-            std::move(callback)) {}
+            std::move(callback),
+            access_point) {}
 
   static std::unique_ptr<ContentAnalysisDelegate> Create(
       StatusCallback status_callback,
@@ -209,10 +212,11 @@ class DragDropTestContentAnalysisDelegate
       bool use_mock_handler,
       content::WebContents* web_contents,
       Data data,
-      CompletionCallback callback) {
+      CompletionCallback callback,
+      enterprise_connectors::DeepScanAccessPoint access_point) {
     auto ret = std::make_unique<DragDropTestContentAnalysisDelegate>(
         std::move(status_callback), std::move(dm_token), web_contents,
-        std::move(data), std::move(callback));
+        std::move(data), std::move(callback), access_point);
     if (use_mock_handler) {
       enterprise_connectors::FilesRequestHandler::SetFactoryForTesting(
           base::BindRepeating(

@@ -238,16 +238,6 @@ GlicUnpinTrigger FromMojomUnpinTrigger(mojom::UnpinTrigger trigger) {
   }
 }
 
-mojom::SkillPreviewPtr ToMojomSkillPreview(const skills::proto::Skill& skill) {
-  std::optional<std::string> curated_by;
-  if (!skill.curated_by().empty()) {
-    curated_by = skill.curated_by();
-  }
-  return mojom::SkillPreview::New(
-      skill.id(), skill.name(), skill.icon(), mojom::SkillSource::kFirstParty,
-      skill.description(), curated_by, /*image_url=*/std::nullopt);
-}
-
 // Monitors the panel state and the browser widget state. Emits an event any
 // time the active state changes.
 // inactive = (panel hidden) || (panel attached) && (window not active)
@@ -429,7 +419,6 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
                              public GlicWebClientAccess,
                              public BrowserAttachObserver,
                              public ActiveStateCalculator::Observer,
-                             public skills::SkillsService::Observer,
                              public BrowserIsOpenCalculator::Observer {
  public:
   explicit GlicWebClientHandler(
@@ -596,12 +585,6 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
                   base::Unretained(this)));
     }
 
-    if (base::FeatureList::IsEnabled(features::kSkillsEnabled)) {
-      skills_service_ = skills::SkillsServiceFactory::GetForProfile(profile_);
-      if (skills_service_) {
-        skills_service_->AddObserver(this);
-      }
-    }
 
     auto state = glic::mojom::WebClientInitialState::New();
     PopulateGlobalClientInitialState(state.get(), profile_);
@@ -929,85 +912,10 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     annotation_manager_->Bind(std::move(receiver));
   }
 
-  void CreateSkill(mojom::CreateSkillRequestPtr request,
-                   CreateSkillCallback callback) override {
-    auto scoped_callback =
-        mojo::WrapCallbackWithDefaultInvokeIfNotRun(std::move(callback), false);
-
-    if (!base::FeatureList::IsEnabled(features::kSkillsEnabled)) {
-      receiver_.ReportBadMessage(
-          "CreateSkill cannot be called without Skills enabled.");
-      return;
-    }
-    // There are three scenarios:
-    // 1. Users click the + button in the / menu: no field is set.
-    // 2. Users click the save as a skill button: only prompt is set.
-    // 3. Users edit a 1P skill: all fields are set.
-    // TODO(https://crbug.com/479950619): consider using mojom source enum
-    // directly in skills::Skill..
-    skills::Skill skill(request->id, request->name, request->icon,
-                        request->prompt, request->description,
-                        /*curated_by=*/"", /*image_url=*/GURL(),
-                        skills::GlicMojomToSyncPbSkillSource(request->source));
-    host().skills_manager().LaunchSkillsDialog(
-        profile_, std::move(skill), skills::mojom::SkillsDialogType::kAdd,
-        std::move(scoped_callback));
-  }
-
-  void UpdateSkill(mojom::UpdateSkillRequestPtr request,
-                   UpdateSkillCallback callback) override {
-    auto scoped_callback =
-        mojo::WrapCallbackWithDefaultInvokeIfNotRun(std::move(callback), false);
-
-    if (!base::FeatureList::IsEnabled(features::kSkillsEnabled)) {
-      receiver_.ReportBadMessage(
-          "UpdateSkill cannot be called without Skills enabled.");
-      return;
-    }
-    // Get skill by ID from the SkillsService.
-    skills::SkillsService* skills_service =
-        skills::SkillsServiceFactory::GetForProfile(profile_);
-    if (const skills::Skill* skill =
-            skills_service->GetSkillById(request->id)) {
-      host().skills_manager().LaunchSkillsDialog(
-          profile_, *skill, skills::mojom::SkillsDialogType::kEdit,
-          std::move(scoped_callback));
-    }
-  }
-
-  void ShowManageSkillsUi() override {
-    if (!base::FeatureList::IsEnabled(features::kSkillsEnabled)) {
-      receiver_.ReportBadMessage(
-          "ShowManageSkillsUi cannot be called without Skills enabled.");
-      return;
-    }
-
-    host().skills_manager().ShowManageSkillsUi();
-  }
-
-  void ShowBrowseSkillsUi() override {
-    if (!base::FeatureList::IsEnabled(features::kSkillsEnabled)) {
-      receiver_.ReportBadMessage(
-          "ShowBrowseSkillsUi cannot be called without Skills enabled.");
-      return;
-    }
-
-    host().skills_manager().ShowBrowseSkillsUi();
-  }
-
-  void GetSkill(const std::string& id, GetSkillCallback callback) override {
-    if (!base::FeatureList::IsEnabled(features::kSkillsEnabled)) {
-      receiver_.ReportBadMessage(
-          "GetSkill cannot be called without Skills enabled.");
-      return;
-    }
-    mojom::SkillPtr skill = GetSkillById(id);
-    std::move(callback).Run(std::move(skill));
-  }
-
-  void RecordSkillsWebClientEvent(
-      glic::mojom::SkillsWebClientEvent action) override {
-    host().instance_metrics().RecordSkillsWebClientEvent(action);
+  void CreateSkillsHandler(
+      mojo::PendingReceiver<mojom::SkillsHandler> receiver,
+      mojo::PendingRemote<mojom::SkillsClient> client) override {
+    host().skills_manager().Bind(std::move(receiver), std::move(client));
   }
 
   void ActivateTab(int32_t tab_id) override {
@@ -1659,11 +1567,6 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
         tab_id, std::move(receiver));
   }
 
-  void NotifyContextualSkillPreviewsChanged(
-      std::vector<mojom::SkillPreviewPtr> contextual_skill_previews) override {
-    web_client_->NotifyContextualSkillPreviewsChanged(
-        std::move(contextual_skill_previews));
-  }
 
   void Invoke(mojom::InvokeOptionsPtr options,
               base::OnceClosure callback) override {
@@ -1677,74 +1580,6 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
         std::move(handler), std::move(success_status_callback));
   }
 
-  // SkillsService::Observer implementation.
-  void OnSkillUpdated(std::string_view skill_id,
-                      skills::SkillsService::UpdateSource update_source,
-                      bool is_position_changed) override {
-    if (!web_client_) {
-      return;
-    }
-
-    if (is_position_changed) {
-      // Update all the skill previews for simplicity as updating the position
-      // is not frequent.
-      host().skills_manager().UpdateSkillPreviews(std::nullopt);
-      web_client_->NotifySkillPreviewsChanged(GetSkillPreviewsList());
-      return;
-    }
-
-    mojom::SkillPtr skill = GetSkillById(skill_id);
-    if (!skill) {
-      web_client_->NotifySkillDeleted(skill_id.data());
-    } else {
-      web_client_->NotifySkillPreviewChanged(std::move(skill->preview));
-    }
-  }
-
-  // SkillsService::Observer implementation.
-  void OnTemporarySkillDisplay(
-      std::string_view skill_id,
-      skills::SkillsService::DisplayState display_state) override {
-    if (!web_client_) {
-      return;
-    }
-    switch (display_state) {
-      case skills::SkillsService::DisplayState::kDeleted:
-        web_client_->NotifySkillDeleted(skill_id.data());
-        break;
-      case skills::SkillsService::DisplayState::kReshown:
-        mojom::SkillPtr skill = GetSkillById(skill_id);
-        CHECK(skill);
-        web_client_->NotifySkillPreviewChanged(std::move(skill->preview));
-        break;
-    }
-  }
-
-  void OnStatusChanged() override {
-    if (!web_client_) {
-      return;
-    }
-    host().skills_manager().UpdateSkillPreviews(std::nullopt);
-    web_client_->NotifySkillPreviewsChanged(GetSkillPreviewsList());
-  }
-
-  void OnDiscoverySkillsUpdated(
-      const skills::FirstPartySkillData* first_party_skill_data) override {
-    // If first_party_skill_data is null, this means we don't have an updated
-    // value so we shouldn't modify the stored 1p data.
-    if (first_party_skill_data == nullptr) {
-      return;
-    }
-    if (!web_client_) {
-      return;
-    }
-    host().skills_manager().UpdateSkillPreviews(std::nullopt);
-    web_client_->NotifySkillPreviewsChanged(GetSkillPreviewsList());
-  }
-
-  bool Require1PSkillRefresh() override {
-    return active_state_calculator_.IsActive();
-  }
 
  private:
   glic::mojom::GeminiEnterpriseSettingsPtr GetGeminiEnterpriseSettingsPtr()
@@ -1784,9 +1619,6 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     web_actuation_pref_subscription_ = {};
     consent_subscription_ = {};
     browser_attach_observation_.reset();
-    if (skills_service_) {
-      skills_service_->RemoveObserver(this);
-    }
   }
 
   void WebClientDisconnected() {
@@ -1874,59 +1706,6 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     web_client_->NotifyFocusedTabChanged(std::move(data));
   }
 
-  mojom::SkillPtr GetSkillById(std::string_view skill_id) {
-    if (!skills_service_) {
-      return nullptr;
-    }
-
-    const skills::Skill* skill = skills_service_->GetSkillById(skill_id);
-    if (!skill) {
-      return nullptr;
-    }
-    // We should only set the source_skill_id if the skill was derived from
-    // another skill.
-    return mojom::Skill::New(
-        skills::SkillToGlicMojomSkillPreview(skill), skill->prompt,
-        skill->source ==
-                sync_pb::SkillSource::SKILL_SOURCE_DERIVED_FROM_FIRST_PARTY
-            ? skill->source_skill_id
-            : std::string());
-  }
-
-  std::vector<mojom::SkillPreviewPtr> GetSkillPreviewsList() {
-    std::vector<mojom::SkillPreviewPtr> skill_previews;
-    if (!skills_service_) {
-      return skill_previews;
-    }
-    const std::vector<std::unique_ptr<skills::Skill>>& skills =
-        skills_service_->GetSkills();
-    skill_previews.reserve(skills.size());
-    for (const auto& skill : skills) {
-      skill_previews.push_back(
-          skills::SkillToGlicMojomSkillPreview(skill.get()));
-    }
-
-    const auto& first_party_skills_list = skills_service_->Get1PSkills();
-    std::vector<mojom::SkillPreviewPtr> first_party_skills;
-    for (const auto& skill : first_party_skills_list) {
-      if (skill.category() == "Internal") {
-        continue;
-      }
-      first_party_skills.push_back(ToMojomSkillPreview(skill));
-    }
-
-    std::sort(first_party_skills.begin(), first_party_skills.end(),
-              [](const mojom::SkillPreviewPtr& skill_a,
-                 const mojom::SkillPreviewPtr& skill_b) {
-                return skill_a->name < skill_b->name;
-              });
-
-    skill_previews.reserve(skill_previews.size() + first_party_skills.size());
-    skill_previews.insert(skill_previews.end(),
-                          std::make_move_iterator(first_party_skills.begin()),
-                          std::make_move_iterator(first_party_skills.end()));
-    return skill_previews;
-  }
 
   PrefChangeRegistrar pref_change_registrar_;
   PrefChangeRegistrar local_state_pref_change_registrar_;
@@ -1957,7 +1736,6 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
 
   std::unique_ptr<DebouncerDeduper> debouncer_deduper_;
   std::unique_ptr<PageMetadataManager> page_metadata_manager_;
-  raw_ptr<skills::SkillsService> skills_service_;
   bool floating_panel_can_attach_ = false;
 };
 

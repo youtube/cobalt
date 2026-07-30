@@ -191,6 +191,85 @@ TEST_F(TemplateURLServiceUtilWithEnvTest,
   EXPECT_EQ(local_turls[0]->prepopulate_id(), 0);
 }
 
+TEST_F(
+    TemplateURLServiceUtilWithEnvTest,
+    CreateActionsFromCurrentPrepopulateData_RegulatoryDuplicatesSameKeyword) {
+  TemplateURLService::OwnedTemplateURLVector existing_urls;
+
+  // Add duplicate regulatory engines with the SAME keyword.
+  TemplateURLData reg_data1;
+  reg_data1.SetShortName(u"Google");
+  reg_data1.SetKeyword(u"reg_keyword");
+  reg_data1.SetURL("http://google.com/search?q={searchTerms}");
+  reg_data1.regulatory_origin = RegulatoryExtensionType::kAndroidEEA;
+  reg_data1.safe_for_autoreplace = false;
+  reg_data1.is_active = TemplateURLData::ActiveStatus::kTrue;
+
+  TemplateURLData reg_data2;
+  reg_data2.SetShortName(u"Google");
+  reg_data2.SetKeyword(u"reg_keyword");
+  reg_data2.SetURL("http://google.com/search?q={searchTerms}");
+  reg_data2.regulatory_origin = RegulatoryExtensionType::kAndroidEEA;
+  reg_data2.safe_for_autoreplace = false;
+  reg_data2.is_active = TemplateURLData::ActiveStatus::kTrue;
+
+  existing_urls.push_back(std::make_unique<TemplateURL>(reg_data1));
+  existing_urls.push_back(std::make_unique<TemplateURL>(reg_data2));
+
+  std::vector<std::unique_ptr<TemplateURLData>> prepopulated_urls;
+
+  base::HistogramTester histogram_tester;
+  CreateActionsFromCurrentPrepopulateData(
+      &prepopulated_urls, existing_urls,
+      /*default_search_provider=*/nullptr,
+      search_engines_test_environment_.prepopulate_data_resolver());
+
+  // Should record TRUE since keywords are identical and raw_regulatory_count
+  // > 1.
+  histogram_tester.ExpectUniqueSample(
+      "Omnibox.TemplateUrl.DBRefresh.RegulatoryDuplicatesSameKeyword", true, 1);
+}
+
+TEST_F(
+    TemplateURLServiceUtilWithEnvTest,
+    CreateActionsFromCurrentPrepopulateData_RegulatoryDuplicatesDifferentKeyword) {
+  TemplateURLService::OwnedTemplateURLVector existing_urls;
+
+  // Add duplicate regulatory engines with DIFFERENT keywords.
+  TemplateURLData reg_data1;
+  reg_data1.SetShortName(u"Google");
+  reg_data1.SetKeyword(u"reg_keyword_1");
+  reg_data1.SetURL("http://google.com/search?q={searchTerms}");
+  reg_data1.regulatory_origin = RegulatoryExtensionType::kAndroidEEA;
+  reg_data1.safe_for_autoreplace = false;
+  reg_data1.is_active = TemplateURLData::ActiveStatus::kTrue;
+
+  TemplateURLData reg_data2;
+  reg_data2.SetShortName(u"Google");
+  reg_data2.SetKeyword(u"reg_keyword_2");
+  reg_data2.SetURL("http://google.com/search?q={searchTerms}");
+  reg_data2.regulatory_origin = RegulatoryExtensionType::kAndroidEEA;
+  reg_data2.safe_for_autoreplace = false;
+  reg_data2.is_active = TemplateURLData::ActiveStatus::kTrue;
+
+  existing_urls.push_back(std::make_unique<TemplateURL>(reg_data1));
+  existing_urls.push_back(std::make_unique<TemplateURL>(reg_data2));
+
+  std::vector<std::unique_ptr<TemplateURLData>> prepopulated_urls;
+
+  base::HistogramTester histogram_tester;
+  CreateActionsFromCurrentPrepopulateData(
+      &prepopulated_urls, existing_urls,
+      /*default_search_provider=*/nullptr,
+      search_engines_test_environment_.prepopulate_data_resolver());
+
+  // Should record FALSE since keywords are different and
+  // raw_regulatory_count > 1.
+  histogram_tester.ExpectUniqueSample(
+      "Omnibox.TemplateUrl.DBRefresh.RegulatoryDuplicatesSameKeyword", false,
+      1);
+}
+
 // Tests that user modified fields are preserved and overwritten appropriately
 // in MergeIntoEngineData().
 TEST(TemplateURLServiceUtilTest, MergeIntoEngineData_OverwriteUserEdits) {

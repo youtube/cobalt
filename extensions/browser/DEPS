@@ -17,6 +17,7 @@ include_rules = [
   "+components/sessions",
   "+components/signin/public",
   "+components/storage_monitor",
+  "+components/strings/grit",
   "+components/sync",
   "+components/supervised_user",
   "+components/sync_preferences",

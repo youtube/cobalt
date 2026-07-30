@@ -795,6 +795,20 @@ class TabImpl implements Tab, TabInternal {
         }
     }
 
+    private @Nullable PdfInfo getPdfInfoForLoadUrl(LoadUrlParams params) {
+        boolean isPdf =
+                PdfUtils.shouldOpenPdfInline(isIncognito())
+                        && PdfUtils.isPdfNavigation(params.getUrl(), params);
+        PdfInfo pdfInfo = null;
+        if (isPdf) {
+            boolean preferReused =
+                    (params.getTransitionType() & PageTransition.CORE_MASK) == PageTransition.TYPED;
+            pdfInfo = PdfInfo.initReuse(preferReused);
+            params.setIsPdf(true);
+        }
+        return pdfInfo;
+    }
+
     @Override
     public LoadUrlResult loadUrl(LoadUrlParams params) {
         try {
@@ -802,14 +816,8 @@ class TabImpl implements Tab, TabInternal {
             // TODO(tedchoc): When showing the android NTP, delay the call to
             // TabImplJni.get().loadUrl until the android view has entirely rendered.
             if (!mIsNativePageCommitPending) {
-                boolean isPdf =
-                        PdfUtils.shouldOpenPdfInline(isIncognito())
-                                && PdfUtils.isPdfNavigation(params.getUrl(), params);
                 mIsNativePageCommitPending =
-                        maybeShowNativePage(params.getUrl(), false, isPdf ? new PdfInfo() : null);
-                if (isPdf) {
-                    params.setIsPdf(true);
-                }
+                        maybeShowNativePage(params.getUrl(), false, getPdfInfoForLoadUrl(params));
             }
 
             if ("chrome://java-crash/".equals(params.getUrl())) {
@@ -1827,8 +1835,8 @@ class TabImpl implements Tab, TabInternal {
             boolean isPdf,
             boolean isRendererInitiated,
             @Nullable Origin initiatorOrigin) {
-        mIsNativePageCommitPending = false;
-        boolean isReload = (transitionType & PageTransition.CORE_MASK) == PageTransition.RELOAD;
+        transitionType &= PageTransition.CORE_MASK;
+        boolean isReload = transitionType == PageTransition.RELOAD;
         // Set isPdf param based on the url. This is because the isPdf param in NavigationHandle is
         // not set in some cases (e.g. Chrome restart or navigate backward to pdf page). When the
         // pdf file is downloaded to media store, we should set isPdf param and open pdf page
@@ -1836,7 +1844,10 @@ class TabImpl implements Tab, TabInternal {
         isPdf |=
                 PdfUtils.shouldOpenPdfInline(isIncognito())
                         && PdfUtils.isDownloadedPdf(url.getSpec());
-        if (!maybeShowNativePage(url.getSpec(), isReload, isPdf ? new PdfInfo() : null)) {
+        boolean preferReuse = transitionType == PageTransition.TYPED || mIsNativePageCommitPending;
+        var pdfInfo = isPdf ? PdfInfo.initReuse(preferReuse) : null;
+        mIsNativePageCommitPending = false;
+        if (!maybeShowNativePage(url.getSpec(), isReload, pdfInfo)) {
             // This is restricted to HTTP(S) URLs specifically, as these are the only schemes that
             // necessitate a PDF re-download.
             String downloadUrl = PdfUtils.getPdfReDownloadUrl(url.getSpec());
@@ -1964,10 +1975,15 @@ class TabImpl implements Tab, TabInternal {
 
         mPendingNativePageHost = nativePageHost;
         mIsAlreadyCreatingNativePage = true;
-        NativePage candidateForReuse = forceReload ? null : getNativePage();
+
+        // Prefer reusing the NativePage when loading pdf.
+        boolean loadPdf = PdfUtils.isReuseFragmentEnabled() && pdfInfo != null;
+        NativePage candidateForReuse = forceReload && !loadPdf ? null : getNativePage();
+
         assumeNonNull(mDelegateFactory);
         NativePage nativePage =
                 mDelegateFactory.createNativePage(url, candidateForReuse, this, pdfInfo);
+
         mIsAlreadyCreatingNativePage = false;
         mPendingNativePageHost = null;
 

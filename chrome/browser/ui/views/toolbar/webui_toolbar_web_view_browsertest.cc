@@ -27,6 +27,7 @@
 #include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar_test_utils.h"
+#include "content/public/common/content_features.h"
 #if BUILDFLAG(IS_CHROMEOS)
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
@@ -1531,6 +1532,52 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewStabilityTest,
   // Succeeded, but not really. Browser should be shutting down at this point
   // so we just have to make sure it doesn't crash.
   ASSERT_TRUE(observer.last_navigation_succeeded());
+}
+
+class WebUIToolbarWebViewStabilityAboutBlankTest
+    : public WebUIToolbarWebViewStabilityTest,
+      public testing::WithParamInterface<bool> {
+ public:
+  WebUIToolbarWebViewStabilityAboutBlankTest() {
+    if (AllowAboutBlank()) {
+      param_feature_list_.InitAndEnableFeature(features::kDebugTopChromeWebUI);
+    } else {
+      param_feature_list_.InitAndDisableFeature(features::kDebugTopChromeWebUI);
+    }
+  }
+
+ protected:
+  bool AllowAboutBlank() { return GetParam(); }
+
+ private:
+  base::test::ScopedFeatureList param_feature_list_;
+};
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         WebUIToolbarWebViewStabilityAboutBlankTest,
+                         testing::Bool());
+
+// Make sure we can navigate to about:blank if and only if debugging is enabled.
+IN_PROC_BROWSER_TEST_P(WebUIToolbarWebViewStabilityAboutBlankTest,
+                       NavigateToAboutBlank) {
+  WebUIToolbarWebView* toolbar_view = GetWebUIToolbarWebView();
+  ASSERT_TRUE(toolbar_view);
+  content::WebContents* web_contents = GetWebContents(toolbar_view);
+  ASSERT_TRUE(web_contents);
+
+  content::TestNavigationObserver observer(web_contents);
+  // Navigate to about:blank
+  web_contents->GetController().LoadURL(
+      GURL("about:blank"), content::Referrer(), ui::PAGE_TRANSITION_TYPED,
+      std::string());
+  observer.Wait();
+
+  EXPECT_EQ(observer.last_navigation_succeeded(), AllowAboutBlank());
+  if (AllowAboutBlank()) {
+    EXPECT_EQ(web_contents->GetLastCommittedURL(), GURL("about:blank"));
+  } else {
+    EXPECT_NE(web_contents->GetLastCommittedURL(), GURL("about:blank"));
+  }
 }
 
 class SyncNavigationObserver : public content::WebContentsObserver {
@@ -5213,6 +5260,102 @@ IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest,
                                 "return btn?.getAttribute('iron-icon') || '';")
                .ExtractString() == expected_icon;
   }));
+}
+
+IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest,
+                       PostOrQueueActionAfterAnimation_SingleButton) {
+  auto* pinned_actions = GetPinnedToolbarActions();
+  actions::ActionId action_id = kActionSidePanelShowBookmarks;
+
+  ASSERT_FALSE(pinned_actions->IsActionPinned(action_id));
+
+  bool callback_called = false;
+  base::RunLoop run_loop;
+
+  model_->UpdatePinnedState(action_id, true);
+
+  pinned_actions->PostOrQueueActionAfterAnimation(
+      base::BindLambdaForTesting([&]() {
+        callback_called = true;
+        views::BubbleAnchor anchor = pinned_actions->GetBubbleAnchor(action_id);
+        EXPECT_FALSE(anchor.IsNull());
+        run_loop.Quit();
+      }));
+
+  EXPECT_FALSE(callback_called);
+  run_loop.Run();
+  EXPECT_TRUE(callback_called);
+
+  // Cleanup.
+  model_->UpdatePinnedState(action_id, false);
+}
+
+IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest,
+                       PostOrQueueActionAfterAnimation_MultipleButtons) {
+  auto* pinned_actions = GetPinnedToolbarActions();
+  actions::ActionId action_id_1 = kActionSidePanelShowBookmarks;
+  actions::ActionId action_id_2 = kActionSidePanelShowReadingList;
+
+  ASSERT_FALSE(pinned_actions->IsActionPinned(action_id_1));
+  ASSERT_FALSE(pinned_actions->IsActionPinned(action_id_2));
+
+  bool callback_called = false;
+  base::RunLoop run_loop;
+
+  model_->UpdatePinnedState(action_id_1, true);
+  model_->UpdatePinnedState(action_id_2, true);
+
+  pinned_actions->PostOrQueueActionAfterAnimation(
+      base::BindLambdaForTesting([&]() {
+        callback_called = true;
+        EXPECT_FALSE(pinned_actions->GetBubbleAnchor(action_id_1).IsNull());
+        EXPECT_FALSE(pinned_actions->GetBubbleAnchor(action_id_2).IsNull());
+        run_loop.Quit();
+      }));
+
+  EXPECT_FALSE(callback_called);
+  run_loop.Run();
+  EXPECT_TRUE(callback_called);
+
+  // Cleanup.
+  model_->UpdatePinnedState(action_id_1, false);
+  model_->UpdatePinnedState(action_id_2, false);
+}
+
+IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest,
+                       PostOrQueueActionAfterAnimation_ImmediateEmpty) {
+  auto* pinned_actions = GetPinnedToolbarActions();
+
+  // Ensure nothing is pinned.
+  for (const auto& [action_id, mojom_action] : kActionMappings) {
+    if (pinned_actions->IsActionPinned(action_id)) {
+      model_->UpdatePinnedState(action_id, false);
+    }
+  }
+
+  bool callback_called = false;
+  pinned_actions->PostOrQueueActionAfterAnimation(
+      base::BindLambdaForTesting([&]() { callback_called = true; }));
+
+  EXPECT_TRUE(callback_called);
+}
+
+IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest,
+                       PostOrQueueActionAfterAnimation_ImmediateWithPinned) {
+  auto* pinned_actions = GetPinnedToolbarActions();
+  actions::ActionId action_id = kActionSidePanelShowBookmarks;
+  toolbar_ui_api::mojom::PinnedToolbarAction mojom_action =
+      toolbar_ui_api::mojom::PinnedToolbarAction::kSidePanelShowBookmarks;
+
+  PinAction(action_id, mojom_action);
+
+  bool callback_called = false;
+  pinned_actions->PostOrQueueActionAfterAnimation(
+      base::BindLambdaForTesting([&]() { callback_called = true; }));
+
+  EXPECT_TRUE(callback_called);
+
+  UnpinAction(action_id, mojom_action);
 }
 
 struct DragTestParam {

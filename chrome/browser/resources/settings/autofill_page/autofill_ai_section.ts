@@ -127,11 +127,11 @@ export class SettingsAutofillAiSectionElement extends
         If true, Autofill AI does not depend on whether Autofill for addresses
         is enabled.
       */
-      autofillAddOtherDatatypesPrefIsEnabled_: {
+      autofillSettingsEnterprisePolicyEnabled_: {
         type: Boolean,
         value() {
           return loadTimeData.getBoolean(
-              'AutofillAddOtherDatatypesPrefIsEnabled');
+              'AutofillSettingsEnterprisePolicyEnabled');
         },
       },
 
@@ -165,7 +165,7 @@ export class SettingsAutofillAiSectionElement extends
   declare private optedIn_: chrome.settingsPrivate.PrefObject;
   declare private isWalletServerStorageEnabled_: boolean;
   declare private isUserEligibleForWalletablePassDetection_: boolean;
-  declare private autofillAddOtherDatatypesPrefIsEnabled_: boolean;
+  declare private autofillSettingsEnterprisePolicyEnabled_: boolean;
   declare private autofillAiAvailableByDefault_: boolean;
 
   private entityDataManager_: EntityDataManagerProxy =
@@ -180,7 +180,7 @@ export class SettingsAutofillAiSectionElement extends
         addressAutofillEnabled.enforcement ===
             chrome.settingsPrivate.Enforcement.ENFORCED &&
         !addressAutofillEnabled.value &&
-        !this.autofillAddOtherDatatypesPrefIsEnabled_) {
+        !this.autofillSettingsEnterprisePolicyEnabled_) {
       // We need to check addressAutofillEnabled.value here. this.ineligibleUser
       // does consider addressAutofillEnabled.value, but loadTimeData constants
       // are refreshed only after page reload.
@@ -207,7 +207,7 @@ export class SettingsAutofillAiSectionElement extends
       this.set('optedIn_.controlledBy', undefined);
     }
 
-    if (this.autofillAddOtherDatatypesPrefIsEnabled_) {
+    if (this.autofillSettingsEnterprisePolicyEnabled_) {
       this.set('optedIn_.value', !this.ineligibleUser && optedIn);
     } else {
       this.set(

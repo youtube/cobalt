@@ -1098,10 +1098,11 @@ class ClipboardTestContentAnalysisDelegate
       std::string dm_token,
       content::WebContents* web_contents,
       Data data,
-      CompletionCallback callback) {
+      CompletionCallback callback,
+      enterprise_connectors::DeepScanAccessPoint access_point) {
     auto ret = std::make_unique<ClipboardTestContentAnalysisDelegate>(
         delete_closure, std::move(status_callback), std::move(dm_token),
-        web_contents, std::move(data), std::move(callback));
+        web_contents, std::move(data), std::move(callback), access_point);
     enterprise_connectors::FilesRequestHandler::SetFactoryForTesting(
         base::BindRepeating(
             &enterprise_connectors::test::FakeFilesRequestHandler::Create,

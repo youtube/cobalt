@@ -42,6 +42,12 @@ public class MimeTypeUtils {
     /** The MIME type prefix for any image. */
     public static final String IMAGE_PREFIX_MIME_TYPE = "image/";
 
+    /** The MIME type for jpeg image. */
+    public static final String IMAGE_JPEG_MIME_TYPE = "image/jpeg";
+
+    /** The MIME type for jpg image. */
+    public static final String IMAGE_JPG_MIME_TYPE = "image/jpg";
+
     /** The MIME type prefix for any text file. */
     public static final String TEXT_PREFIX_MIME_TYPE = "text/";
 

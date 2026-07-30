@@ -10,6 +10,7 @@
 #include "chrome/browser/glic/glic_profile_manager.h"
 #include "chrome/browser/glic/suggestions/contextual_cueing_service_factory.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
+#include "chrome/browser/page_content_annotations/page_content_annotations_service_factory.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/subscription_eligibility/subscription_eligibility_service_factory.h"
@@ -50,6 +51,7 @@ GlicKeyedServiceFactory::GlicKeyedServiceFactory()
   DependsOn(subscription_eligibility::SubscriptionEligibilityServiceFactory::
                 GetInstance());
   DependsOn(OptimizationGuideKeyedServiceFactory::GetInstance());
+  DependsOn(PageContentAnnotationsServiceFactory::GetInstance());
   DependsOn(DeviceInfoSyncServiceFactory::GetInstance());
 #if BUILDFLAG(IS_ANDROID)
   DependsOn(AndroidProfileBrowserCollectionServiceFactory::GetInstance());

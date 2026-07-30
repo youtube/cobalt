@@ -6,17 +6,16 @@
 
 #include "base/functional/bind.h"
 #include "chrome/browser/favicon/large_icon_service_factory.h"
-#include "chrome/browser/sync/sync_service_factory.h"
 #include "components/autofill/core/browser/suggestions/payments/payments_suggestion_generator_util.h"
 #include "components/favicon/core/large_icon_service.h"
 #include "components/favicon_base/favicon_types.h"
 #include "components/image_fetcher/core/image_fetcher.h"
 #include "components/image_fetcher/core/image_fetcher_types.h"
 #include "components/image_fetcher/core/request_metadata.h"
-#include "components/password_manager/core/browser/password_sync_util.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "ui/gfx/image/image.h"
 #include "url/gurl.h"
+#include "url/url_constants.h"
 
 namespace autofill {
 namespace {
@@ -71,6 +70,11 @@ void PasswordFaviconLoaderImpl::Load(
     base::CancelableTaskTracker* task_tracker,
     OnLoadSuccess on_success,
     OnLoadFail on_fail) {
+  if (!favicon_details.domain_url.SchemeIs(url::kHttpsScheme)) {
+    std::move(on_fail).Run();
+    return;
+  }
+
   auto cached_image_it = cache_.Get(favicon_details.domain_url);
   if (cached_image_it != cache_.end()) {
     std::move(on_success).Run(cached_image_it->second);

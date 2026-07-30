@@ -100,6 +100,7 @@ class GlicSharingManagerImpl : public GlicSharingManagerInternal,
   int32_t GetNumPinnedTabs() const override;
 
   bool IsTabPinned(tabs::TabHandle tab_handle) const override;
+  bool IsTabShared(tabs::TabInterface* tab) const override;
 
   bool IsTabFocused(tabs::TabHandle tab_handle) const override;
 

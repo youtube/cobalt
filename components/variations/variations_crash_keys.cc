@@ -12,6 +12,7 @@
 #include "base/functional/bind.h"
 #include "base/metrics/field_trial_list_including_low_anonymity.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/metrics/runtime_field_trial_overrides.h"
 #include "base/sequence_checker.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
@@ -20,6 +21,7 @@
 #include "components/crash/core/common/crash_key.h"
 #include "components/variations/active_field_trials.h"
 #include "components/variations/buildflags.h"
+#include "components/variations/hashing.h"
 #include "components/variations/synthetic_trials.h"
 #include "components/variations/variations_switches.h"
 
@@ -66,9 +68,36 @@ crash_reporter::CrashKeyString<kVariationsKeySize> g_variations_crash_key(
 crash_reporter::CrashKeyString<64> g_variations_seed_version_crash_key(
     kVariationsSeedVersionKey);
 
+// Crash key reporting the full history of runtime field trial overrides. Each
+// override is at most 36 bytes (e.g. "FFFFFFFF-FFFFFFFF-FFFFFFFF-FFFFFFFF,"),
+// so this can hold about 1024/36 ~= 28 overrides (we don't expect a large
+// number of overrides).
+constexpr size_t kRuntimeFieldTrialOverridesKeySize = 1024;
+crash_reporter::CrashKeyString<kRuntimeFieldTrialOverridesKeySize>
+    g_variations_runtime_field_trial_overrides_crash_key(
+        kRuntimeFieldTrialOverridesKey);
+
+// Crash key reporting the total number of runtime overrides. 8 is the size of
+// the crash key in bytes, which is used to hold an int as a string. Useful
+// for determining if the override crash key was truncated.
+crash_reporter::CrashKeyString<8> g_num_runtime_field_trial_overrides_crash_key(
+    kNumRuntimeFieldTrialOverridesKey);
+
+// Truncates a crash key string down to the specified size, leaving no partial
+// entries.
+void TruncateToSize(std::string* list_string, size_t max_size) {
+  if (list_string->size() > max_size) {
+    // If size exceeded, truncate to the last full entry.
+    size_t comma_index = list_string->rfind(',', max_size - 1);
+    list_string->resize(comma_index + 1);
+  }
+}
+
 }  // namespace
 
-class VariationsCrashKeys final : public base::FieldTrialList::Observer {
+class VariationsCrashKeys final
+    : public base::FieldTrialList::Observer,
+      public base::RuntimeFieldTrialOverrides::Observer {
  public:
   VariationsCrashKeys();
 
@@ -81,6 +110,12 @@ class VariationsCrashKeys final : public base::FieldTrialList::Observer {
   void OnFieldTrialGroupFinalized(const base::FieldTrial& trial,
                                   const std::string& group_name) override;
 
+  // base::RuntimeFieldTrialOverrides::Observer:
+  void OnRuntimeFieldTrialOverride(
+      const base::RuntimeFieldTrialOverrides::RuntimeOverrideInfo&
+          override_info,
+      std::string_view previous_override_trial_name) override;
+
   // Notifies the object that the list of synthetic field trial groups has
   // changed. Note: This matches the SyntheticTrialObserver interface, but this
   // object isn't a direct observer, so doesn't implement it.
@@ -91,6 +126,9 @@ class VariationsCrashKeys final : public base::FieldTrialList::Observer {
   ExperimentListInfo GetExperimentListInfo();
 
  private:
+  // Populates `active_trials_` with all the currently active trials.
+  void InitializeWithActiveTrials();
+
   // Adds an entry for the specified field trial to internal state, without
   // updating crash keys. Returns true if it was successfully added. Returns
   // false otherwise (i.e., the trial was already added previously).
@@ -134,6 +172,16 @@ class VariationsCrashKeys final : public base::FieldTrialList::Observer {
   // Number of entries in |synthetic_trials_string_|.
   size_t num_synthetic_trials_ = 0;
 
+  // A serialized string containing the whole history of runtime field trial
+  // overrides.
+  std::string runtime_field_trial_overrides_string_;
+
+  // Total number of runtime field trial overrides.
+  size_t num_total_runtime_field_trial_overrides_ = 0;
+
+  // Whether the crash keys have been initialized.
+  bool initialized_ = false;
+
   SEQUENCE_CHECKER(sequence_checker_);
 };
 
@@ -164,18 +212,21 @@ VariationsCrashKeys::VariationsCrashKeys() {
   // possibly other platforms as well). Remove |active_trials_| when this is
   // fixed.
   base::FieldTrialListIncludingLowAnonymity::AddObserver(this);
+  InitializeWithActiveTrials();
 
-  base::FieldTrial::ActiveGroups active_groups;
-  base::FieldTrialListIncludingLowAnonymity::GetActiveFieldTrialGroups(
-      &active_groups);
-  for (const auto& entry : active_groups) {
-    AppendFieldTrial(entry.trial_name, entry.group_name, entry.is_overridden);
+  base::RuntimeFieldTrialOverrides::GetInstance()->AddObserver(this);
+  for (const auto& [override_trial_name, override_info] :
+       base::RuntimeFieldTrialOverrides::GetInstance()->GetRuntimeOverrides()) {
+    OnRuntimeFieldTrialOverride(override_info,
+                                /*previous_override_trial_name=*/"");
   }
 
   UpdateCrashKeys();
+  initialized_ = true;
 }
 
 VariationsCrashKeys::~VariationsCrashKeys() {
+  base::RuntimeFieldTrialOverrides::GetInstance()->RemoveObserver(this);
   base::FieldTrialListIncludingLowAnonymity::RemoveObserver(this);
   g_num_variations_crash_key.Clear();
   g_variations_crash_key.Clear();
@@ -204,6 +255,54 @@ void VariationsCrashKeys::OnFieldTrialGroupFinalized(
 
   AppendFieldTrialAndUpdateCrashKeys(trial.trial_name(), group_name,
                                      trial.IsOverridden());
+}
+
+void VariationsCrashKeys::OnRuntimeFieldTrialOverride(
+    const base::RuntimeFieldTrialOverrides::RuntimeOverrideInfo& override_info,
+    std::string_view previous_override_trial_name) {
+  // TODO(crbug.com/482449878): Propagate runtime overrides to child processes
+  // so that they also appear in crash reports from child processes.
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  uint32_t overridden_trial_name_hash =
+      override_info.overridden_trial == nullptr
+          ? 0
+          : HashName(override_info.overridden_trial->trial_name());
+  uint32_t previous_override_trial_name_hash =
+      previous_override_trial_name.empty()
+          ? 0
+          : HashName(previous_override_trial_name);
+
+  runtime_field_trial_overrides_string_ += base::StringPrintf(
+      "%x-%x-%x-%x,", HashName(override_info.trial_name),
+      HashName(override_info.group_name), overridden_trial_name_hash,
+      previous_override_trial_name_hash);
+
+  ++num_total_runtime_field_trial_overrides_;
+
+  // If we've already initialized crash keys previously, then we need to
+  // recompute the list of active trials from scratch when an override is
+  // applied because runtime overrides changes the state of active trials (i.e.,
+  // one of the currently active trial will be replaced by the override).
+  // If we are in the process of initializing (i.e. initialized_ is false), then
+  // there is no need to recompute the list of as it will be properly
+  // initialized with the overrides already taken into account.
+  if (initialized_) {
+    active_trials_.clear();
+    variations_string_.clear();
+    InitializeWithActiveTrials();
+    UpdateCrashKeys();
+  }
+}
+
+void VariationsCrashKeys::InitializeWithActiveTrials() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  base::FieldTrial::ActiveGroups active_groups;
+  base::FieldTrialListIncludingLowAnonymity::GetActiveFieldTrialGroups(
+      &active_groups, /*include_runtime_overrides=*/true);
+  for (const auto& entry : active_groups) {
+    AppendFieldTrial(entry.trial_name, entry.group_name, entry.is_overridden);
+  }
 }
 
 bool VariationsCrashKeys::AppendFieldTrial(const std::string& trial_name,
@@ -252,14 +351,17 @@ void VariationsCrashKeys::UpdateCrashKeys() {
   const size_t count_of_kbs = info.experiment_list.size() / 1024;
   base::UmaHistogramExactLinear(kVariationKeySizeHistogram, count_of_kbs,
                                 kVariationsKeySizeNumBuckets);
-  if (info.experiment_list.size() > kVariationsKeySize) {
-    // If size exceeded, truncate to the last full entry.
-    int comma_index =
-        info.experiment_list.substr(0, kVariationsKeySize).rfind(',');
-    info.experiment_list.resize(comma_index + 1);
-  }
+  TruncateToSize(&info.experiment_list, kVariationsKeySize);
 
   g_variations_crash_key.Set(info.experiment_list);
+
+  // Update runtime field trial overrides crash keys.
+  TruncateToSize(&runtime_field_trial_overrides_string_,
+                 kRuntimeFieldTrialOverridesKeySize);
+  g_variations_runtime_field_trial_overrides_crash_key.Set(
+      runtime_field_trial_overrides_string_);
+  g_num_runtime_field_trial_overrides_crash_key.Set(
+      base::NumberToString(num_total_runtime_field_trial_overrides_));
 
   // If we're in the child process, set the variations seed version from the
   // command line, which is passed from the browser process. In the browser
@@ -304,6 +406,9 @@ VariationsCrashKeys* g_variations_crash_keys = nullptr;
 const char kNumExperimentsKey[] = "num-experiments";
 const char kExperimentListKey[] = "variations";
 const char kVariationsSeedVersionKey[] = "variations-seed-version";
+const char kRuntimeFieldTrialOverridesKey[] = "variations-runtime-overrides";
+const char kNumRuntimeFieldTrialOverridesKey[] =
+    "num-variations-runtime-overrides";
 
 void InitCrashKeys() {
   DCHECK(!g_variations_crash_keys);

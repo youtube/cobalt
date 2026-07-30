@@ -223,8 +223,17 @@ void LogManualFallbackEntryThroughExpandIcon(ManualFillDataType data_type,
 #pragma mark - FormInputAccessoryConsumer
 
 - (void)showAccessorySuggestions:(NSArray<FormSuggestion*>*)suggestions {
+  BOOL hasSuggestions = suggestions.count > 0;
+  if (suggestions.count == 1 &&
+      suggestions.firstObject.type ==
+          autofill::SuggestionType::kAutocompleteAtMemoryButton) {
+    // If the only suggestion is kAutocompleteAtMemoryButton, the manual fill
+    // buttons should be shown.
+    hasSuggestions = NO;
+  }
+
   [self.formInputAccessoryView
-      showGroup:[self hasSingleManualFillButton:suggestions.count > 0]
+      showGroup:[self hasSingleManualFillButton:hasSuggestions]
                     ? FormInputAccessoryViewSubitemGroup::kExpandButton
                     : FormInputAccessoryViewSubitemGroup::kManualFillButtons];
 
@@ -705,6 +714,17 @@ UIImage* GetManualFillSymbol() {
 
 - (void)openEditForSuggestion:(FormSuggestion*)suggestion {
   [self.contextMenuHandler openEditForSuggestion:suggestion];
+}
+
+- (BOOL)formSuggestionView:(FormSuggestionView*)formSuggestionView
+            shouldShowRPId:(NSString*)rpId {
+  return [self.formInputAccessoryViewControllerDelegate
+      formInputAccessoryViewController:self
+                        shouldShowRPId:rpId];
+}
+
+- (BOOL)isPersonalContextSuggestion:(FormSuggestion*)suggestion {
+  return [self.contextMenuHandler isPersonalContextSuggestion:suggestion];
 }
 
 @end

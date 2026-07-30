@@ -851,31 +851,12 @@ void VRServiceImpl::DoRequestSession(SessionRequestData request) {
                                             request.required_features.end());
   runtime_options->optional_features.assign(request.optional_features.begin(),
                                             request.optional_features.end());
-
-  if constexpr (BUILDFLAG(IS_ANDROID)) {
-    bool send_renderer_information = false;
-#if BUILDFLAG(ENABLE_ARCORE)
-    send_renderer_information =
-        send_renderer_information ||
-        request.runtime_id == device::mojom::XRDeviceId::ARCORE_DEVICE_ID;
+#if BUILDFLAG(IS_ANDROID)
+  runtime_options->renderer_information =
+      device::mojom::RendererInformation::New(
+          ToRendererProcessId(render_frame_host_->GetProcess()->GetID()),
+          render_frame_host_->GetRoutingID());
 #endif
-#if BUILDFLAG(ENABLE_CARDBOARD)
-    send_renderer_information =
-        send_renderer_information ||
-        request.runtime_id == device::mojom::XRDeviceId::CARDBOARD_DEVICE_ID;
-#endif
-#if BUILDFLAG(ENABLE_OPENXR) && BUILDFLAG(IS_ANDROID)
-    send_renderer_information =
-        send_renderer_information ||
-        request.runtime_id == device::mojom::XRDeviceId::OPENXR_DEVICE_ID;
-#endif
-    if (send_renderer_information) {
-      runtime_options->renderer_information =
-          device::mojom::RendererInformation::New(
-              ToRendererProcessId(render_frame_host_->GetProcess()->GetID()),
-              render_frame_host_->GetRoutingID());
-    }
-  }
 
   if (device::XRSessionModeUtils::IsImmersive(runtime_options->mode)) {
     if (!request.options->tracked_images.empty()) {

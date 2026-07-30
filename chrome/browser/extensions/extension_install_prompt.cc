@@ -9,10 +9,6 @@
 
 #include "base/functional/bind.h"
 #include "base/location.h"
-#include "base/observer_list.h"
-#include "base/strings/string_number_conversions.h"
-#include "base/strings/string_util.h"
-#include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/values.h"
 #include "chrome/browser/extensions/extension_install_prompt_show_params.h"
@@ -20,28 +16,20 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/extensions/extension_install_ui.h"
 #include "chrome/common/buildflags.h"
-#include "chrome/grit/branded_strings.h"
-#include "chrome/grit/generated_resources.h"
-#include "chrome/grit/theme_resources.h"
-#include "components/strings/grit/components_strings.h"
 #include "content/public/browser/web_contents.h"
 #include "extensions/browser/disable_reason.h"
 #include "extensions/browser/extension_dialog_auto_confirm.h"
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/extension_util.h"
 #include "extensions/browser/image_loader.h"
-#include "extensions/browser/ui_util.h"
 #include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension.h"
-#include "extensions/common/extension_features.h"
 #include "extensions/common/extension_resource.h"
 #include "extensions/common/icons/extension_icon_set.h"
 #include "extensions/common/manifest.h"
 #include "extensions/common/manifest_constants.h"
 #include "extensions/common/manifest_handlers/icons_handler.h"
 #include "extensions/common/permissions/permission_set.h"
-#include "ui/base/l10n/l10n_util.h"
-#include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/base/resource/resource_scale_factor.h"
 #include "ui/base/ui_base_types.h"
@@ -51,17 +39,13 @@
 static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 using extensions::Extension;
+using extensions::InstallPromptData;
 using extensions::Manifest;
 using extensions::PermissionMessage;
 using extensions::PermissionMessages;
 using extensions::PermissionSet;
 
 namespace {
-
-bool AllowWebstoreData(ExtensionInstallPrompt::PromptType type) {
-  return type == ExtensionInstallPrompt::EXTERNAL_INSTALL_PROMPT ||
-         type == ExtensionInstallPrompt::REPAIR_PROMPT;
-}
 
 // Returns bitmap for the default icon with size equal to the default icon's
 // pixel size under maximal supported scale factor.
@@ -76,347 +60,9 @@ SkBitmap GetDefaultIconBitmapForMaxScaleFactor(bool is_app) {
 
 }  // namespace
 
-ExtensionInstallPrompt::PromptType
-ExtensionInstallPrompt::g_last_prompt_type_for_tests =
-    ExtensionInstallPrompt::UNSET_PROMPT_TYPE;
-
-ExtensionInstallPrompt::Prompt::Prompt(PromptType type)
-    : type_(type),
-      is_requesting_host_permissions_(false),
-      extension_(nullptr),
-      average_rating_(0.0),
-      rating_count_(0),
-      show_user_count_(false),
-      has_webstore_data_(false) {
-  DCHECK_NE(type_, UNSET_PROMPT_TYPE);
-  DCHECK_NE(type_, NUM_PROMPT_TYPES);
-}
-
-ExtensionInstallPrompt::Prompt::~Prompt() = default;
-
-void ExtensionInstallPrompt::Prompt::AddPermissionSet(
-    const PermissionSet& permissions) {
-  Manifest::Type type =
-      extension_ ? extension_->GetType() : Manifest::Type::kUnknown;
-  prompt_permissions_.LoadFromPermissionSet(&permissions, type);
-  if (!permissions.effective_hosts().is_empty()) {
-    is_requesting_host_permissions_ = true;
-  }
-}
-
-void ExtensionInstallPrompt::Prompt::AddPermissionMessages(
-    const PermissionMessages& permissions) {
-  prompt_permissions_.AddPermissionMessages(permissions);
-}
-
-void ExtensionInstallPrompt::Prompt::SetWebstoreData(
-    const std::string& localized_user_count,
-    bool show_user_count,
-    double average_rating,
-    int rating_count,
-    const std::string& localized_rating_count) {
-  CHECK(AllowWebstoreData(type_));
-  localized_user_count_ = localized_user_count;
-  show_user_count_ = show_user_count;
-  average_rating_ = average_rating;
-  rating_count_ = rating_count;
-  localized_rating_count_ = localized_rating_count;
-  has_webstore_data_ = true;
-}
-
-void ExtensionInstallPrompt::Prompt::SetInitialExtensionsProviderName(
-    std::u16string initial_extensions_provider_name) {
-  initial_extensions_provider_name_ =
-      std::move(initial_extensions_provider_name);
-}
-
-std::u16string ExtensionInstallPrompt::Prompt::GetDialogTitle() const {
-  int id = -1;
-  switch (type_) {
-    case INSTALL_PROMPT:
-      id = IDS_EXTENSION_INSTALL_PROMPT_TITLE;
-      break;
-    case RE_ENABLE_PROMPT:
-      id = IDS_EXTENSION_RE_ENABLE_PROMPT_TITLE;
-      break;
-    case PERMISSIONS_PROMPT:
-      id = IDS_EXTENSION_PERMISSIONS_PROMPT_TITLE;
-      break;
-    case EXTERNAL_INSTALL_PROMPT:
-      if (extension_->is_app()) {
-        id = IDS_EXTENSION_EXTERNAL_INSTALL_PROMPT_TITLE_APP;
-      } else if (extension_->is_theme()) {
-        id = IDS_EXTENSION_EXTERNAL_INSTALL_PROMPT_TITLE_THEME;
-      } else if (!initial_extensions_provider_name_.empty()) {
-        return l10n_util::GetStringFUTF16(
-            IDS_EXTENSION_EXTERNAL_INITIAL_INSTALL_PROMPT_TITLE_EXTENSION,
-            initial_extensions_provider_name_,
-            extensions::ui_util::GetFixupExtensionNameForUIDisplay(
-                extension_->name()));
-      } else {
-        id = IDS_EXTENSION_EXTERNAL_INSTALL_PROMPT_TITLE_EXTENSION;
-      }
-      break;
-    case REMOTE_INSTALL_PROMPT:
-      id = IDS_EXTENSION_REMOTE_INSTALL_PROMPT_TITLE;
-      break;
-    case REPAIR_PROMPT:
-      id = IDS_EXTENSION_REPAIR_PROMPT_TITLE;
-      break;
-    case EXTENSION_REQUEST_PROMPT:
-      id = IDS_EXTENSION_REQUEST_PROMPT_TITLE;
-      break;
-    case EXTENSION_PENDING_REQUEST_PROMPT:
-      id = IDS_EXTENSION_PENDING_REQUEST_PROMPT_TITLE;
-      break;
-    case EXTENSION_PARENT_APPROVAL_PROMPT:
-      id = IDS_EXTENSION_PARENT_APPROVAL_PROMPT_TITLE;
-      break;
-    case UNSET_PROMPT_TYPE:
-    case NUM_PROMPT_TYPES:
-      NOTREACHED();
-  }
-
-  return l10n_util::GetStringFUTF16(
-      id, extensions::ui_util::GetFixupExtensionNameForUIDisplay(
-              extension_->name()));
-}
-
-int ExtensionInstallPrompt::Prompt::GetDialogButtons() const {
-  // Extension pending request dialog doesn't have confirm button because there
-  // is no user action required.
-  if (type_ == EXTENSION_PENDING_REQUEST_PROMPT)
-    return static_cast<int>(ui::mojom::DialogButton::kCancel);
-
-  return static_cast<int>(ui::mojom::DialogButton::kOk) |
-         static_cast<int>(ui::mojom::DialogButton::kCancel);
-}
-
-std::u16string ExtensionInstallPrompt::Prompt::GetAcceptButtonLabel() const {
-  int id = -1;
-  switch (type_) {
-    case INSTALL_PROMPT:
-      if (requires_parent_permission()) {
-        id = IDS_EXTENSION_INSTALL_PROMPT_ASK_A_PARENT_BUTTON;
-      } else if (extension_->is_app()) {
-        id = IDS_EXTENSION_INSTALL_PROMPT_ACCEPT_BUTTON_APP;
-      } else if (extension_->is_theme()) {
-        id = IDS_EXTENSION_INSTALL_PROMPT_ACCEPT_BUTTON_THEME;
-      } else {
-        id = IDS_EXTENSION_INSTALL_PROMPT_ACCEPT_BUTTON_EXTENSION;
-      }
-      break;
-    case RE_ENABLE_PROMPT:
-      id = IDS_EXTENSION_PROMPT_RE_ENABLE_BUTTON;
-      break;
-    case PERMISSIONS_PROMPT:
-      id = IDS_EXTENSION_PROMPT_PERMISSIONS_BUTTON;
-      break;
-    case EXTERNAL_INSTALL_PROMPT:
-      if (extension_->is_app())
-        id = IDS_EXTENSION_EXTERNAL_INSTALL_PROMPT_ACCEPT_BUTTON_APP;
-      else if (extension_->is_theme())
-        id = IDS_EXTENSION_EXTERNAL_INSTALL_PROMPT_ACCEPT_BUTTON_THEME;
-      else
-        id = IDS_EXTENSION_EXTERNAL_INSTALL_PROMPT_ACCEPT_BUTTON_EXTENSION;
-      break;
-    case REMOTE_INSTALL_PROMPT:
-      if (extension_->is_app())
-        id = IDS_EXTENSION_PROMPT_REMOTE_INSTALL_BUTTON_APP;
-      else
-        id = IDS_EXTENSION_PROMPT_REMOTE_INSTALL_BUTTON_EXTENSION;
-      break;
-    case REPAIR_PROMPT:
-      if (extension_->is_app())
-        id = IDS_EXTENSION_PROMPT_REPAIR_BUTTON_APP;
-      else
-        id = IDS_EXTENSION_PROMPT_REPAIR_BUTTON_EXTENSION;
-      break;
-    case EXTENSION_REQUEST_PROMPT:
-      id = IDS_EXTENSION_INSTALL_PROMPT_REQUEST_BUTTON;
-      break;
-    case EXTENSION_PENDING_REQUEST_PROMPT:
-      // Pending request prompt doesn't have accept button.
-      break;
-    case EXTENSION_PARENT_APPROVAL_PROMPT:
-      id = IDS_PARENT_PERMISSION_PROMPT_APPROVE_BUTTON;
-      break;
-    case UNSET_PROMPT_TYPE:
-    case NUM_PROMPT_TYPES:
-      NOTREACHED();
-  }
-
-  return id != -1 ? l10n_util::GetStringUTF16(id) : std::u16string();
-}
-
-std::u16string ExtensionInstallPrompt::Prompt::GetAbortButtonLabel() const {
-  int id = -1;
-  switch (type_) {
-    case INSTALL_PROMPT:
-    case RE_ENABLE_PROMPT:
-    case REMOTE_INSTALL_PROMPT:
-    case REPAIR_PROMPT:
-    case EXTENSION_REQUEST_PROMPT:
-      id = IDS_CANCEL;
-      break;
-    case PERMISSIONS_PROMPT:
-      id = IDS_EXTENSION_PROMPT_PERMISSIONS_ABORT_BUTTON;
-      break;
-    case EXTERNAL_INSTALL_PROMPT:
-      id = IDS_EXTENSION_EXTERNAL_INSTALL_PROMPT_ABORT_BUTTON;
-      break;
-    case EXTENSION_PENDING_REQUEST_PROMPT:
-      id = IDS_CLOSE;
-      break;
-    case EXTENSION_PARENT_APPROVAL_PROMPT:
-      id = IDS_PARENT_PERMISSION_PROMPT_CANCEL_BUTTON;
-      break;
-    case UNSET_PROMPT_TYPE:
-    case NUM_PROMPT_TYPES:
-      NOTREACHED();
-  }
-
-  return l10n_util::GetStringUTF16(id);
-}
-
-std::u16string ExtensionInstallPrompt::Prompt::GetPermissionsHeading() const {
-  int id = -1;
-  switch (type_) {
-    case INSTALL_PROMPT:
-    case EXTERNAL_INSTALL_PROMPT:
-    case REMOTE_INSTALL_PROMPT:
-    case EXTENSION_REQUEST_PROMPT:
-    case EXTENSION_PENDING_REQUEST_PROMPT:
-      id = IDS_EXTENSION_PROMPT_WILL_HAVE_ACCESS_TO;
-      break;
-    case RE_ENABLE_PROMPT:
-      id = IDS_EXTENSION_PROMPT_WILL_NOW_HAVE_ACCESS_TO;
-      break;
-    case PERMISSIONS_PROMPT:
-      id = IDS_EXTENSION_PROMPT_WANTS_ACCESS_TO;
-      break;
-    case REPAIR_PROMPT:
-      id = IDS_EXTENSION_PROMPT_CAN_ACCESS;
-      break;
-    case EXTENSION_PARENT_APPROVAL_PROMPT:
-      id = IDS_EXTENSION_PROMPT_REQUESTS_PERMISSIONS;
-      break;
-    case UNSET_PROMPT_TYPE:
-    case NUM_PROMPT_TYPES:
-      NOTREACHED();
-  }
-  return l10n_util::GetStringUTF16(id);
-}
-
-std::vector<const gfx::ImageSkia*>
-ExtensionInstallPrompt::Prompt::GetRatingStars() const {
-  CHECK(AllowWebstoreData(type_));
-
-  // The star display logic replicates the one used by the webstore (from
-  // components.ratingutils.setFractionalYellowStars).
-  int full_stars = floor(average_rating_);
-  double rating_fractional = average_rating_ - full_stars;
-
-  if (rating_fractional > 0.66) {
-    // Show one more full star (e.g. 3.67 stars is shown as 4 full stars)
-    full_stars += 1;
-  }
-
-  if (rating_fractional < 0.33 || rating_fractional > 0.66) {
-    // Do not show a half star.
-    // E.g.:
-    //   - 3.32 stars is shown as 3 full stars
-    //   - 3.33 stars is shown as 3.5 full stars
-    //   - 3.66 stars is shown as 3.5 full stars
-    //   - 3.67 stars is shown as 4 full stars
-    rating_fractional = 0;
-  }
-
-  std::vector<const gfx::ImageSkia*> star_images;
-  ui::ResourceBundle& rb = ui::ResourceBundle::GetSharedInstance();
-
-  int i = 0;
-  while (i < full_stars) {
-    star_images.push_back(rb.GetImageSkiaNamed(IDR_EXTENSIONS_RATING_STAR_ON));
-    i++;
-  }
-  if (rating_fractional) {
-    star_images.push_back(
-        rb.GetImageSkiaNamed(IDR_EXTENSIONS_RATING_STAR_HALF_LEFT));
-    i++;
-  }
-  while (i < kMaxExtensionRating) {
-    star_images.push_back(rb.GetImageSkiaNamed(IDR_EXTENSIONS_RATING_STAR_OFF));
-    i++;
-  }
-  return star_images;
-}
-
-std::u16string ExtensionInstallPrompt::Prompt::GetRatingCount() const {
-  CHECK(AllowWebstoreData(type_));
-  return l10n_util::GetStringFUTF16(IDS_EXTENSION_RATING_COUNT,
-                                    base::UTF8ToUTF16(localized_rating_count_));
-}
-
-std::u16string ExtensionInstallPrompt::Prompt::GetUserCount() const {
-  CHECK(AllowWebstoreData(type_));
-
-  if (show_user_count_) {
-    return l10n_util::GetStringFUTF16(IDS_EXTENSION_USER_COUNT,
-                                      base::UTF8ToUTF16(localized_user_count_));
-  }
-  return std::u16string();
-}
-
-size_t ExtensionInstallPrompt::Prompt::GetPermissionCount() const {
-  return prompt_permissions_.permissions.size();
-}
-
-extensions::InstallPromptPermissions
-ExtensionInstallPrompt::Prompt::GetPermissions() const {
-  return prompt_permissions_;
-}
-
-std::u16string ExtensionInstallPrompt::Prompt::GetPermission(
-    size_t index) const {
-  CHECK_LT(index, prompt_permissions_.permissions.size());
-  return prompt_permissions_.permissions[index];
-}
-
-void ExtensionInstallPrompt::Prompt::AddObserver(Observer* observer) {
-  observers_.AddObserver(observer);
-}
-
-void ExtensionInstallPrompt::Prompt::RemoveObserver(Observer* observer) {
-  observers_.RemoveObserver(observer);
-}
-
-void ExtensionInstallPrompt::Prompt::OnDialogOpened() {
-  for (Observer& observer : observers_) {
-    observer.OnDialogOpened();
-  }
-}
-
-void ExtensionInstallPrompt::Prompt::OnDialogAccepted() {
-  for (Observer& observer : observers_) {
-    observer.OnDialogAccepted();
-  }
-}
-
-void ExtensionInstallPrompt::Prompt::OnDialogCanceled() {
-  for (Observer& observer : observers_) {
-    observer.OnDialogCanceled();
-  }
-}
-
-bool ExtensionInstallPrompt::Prompt::ShouldWithheldPermissionsOnDialogAccept()
-    const {
-  return base::FeatureList::IsEnabled(
-             extensions_features::
-                 kAllowWithholdingExtensionPermissionsOnInstall) &&
-         extensions::util::CanWithholdPermissionsFromExtension(*extension_) &&
-         is_requesting_host_permissions_ && type_ == INSTALL_PROMPT;
-}
+InstallPromptData::PromptType
+    ExtensionInstallPrompt::g_last_prompt_type_for_tests =
+        InstallPromptData::UNSET_PROMPT_TYPE;
 
 ExtensionInstallPrompt::DoneCallbackPayload::DoneCallbackPayload(Result result)
     : DoneCallbackPayload(result, std::string()) {}
@@ -427,7 +73,7 @@ ExtensionInstallPrompt::DoneCallbackPayload::DoneCallbackPayload(
     : result(result), justification(std::move(justification)) {}
 
 // static
-ExtensionInstallPrompt::PromptType
+InstallPromptData::PromptType
 ExtensionInstallPrompt::GetReEnablePromptTypeForExtension(
     content::BrowserContext* context,
     const extensions::Extension* extension) {
@@ -436,7 +82,8 @@ ExtensionInstallPrompt::GetReEnablePromptTypeForExtension(
       extensions::ExtensionPrefs::Get(context)->HasDisableReason(
           extension->id(), extensions::disable_reason::DISABLE_REMOTE_INSTALL);
 
-  return is_remote_install ? REMOTE_INSTALL_PROMPT : RE_ENABLE_PROMPT;
+  return is_remote_install ? InstallPromptData::REMOTE_INSTALL_PROMPT
+                           : InstallPromptData::RE_ENABLE_PROMPT;
 }
 
 // static
@@ -490,15 +137,17 @@ void ExtensionInstallPrompt::ShowDialog(
     const Extension* extension,
     const SkBitmap* icon,
     const ShowDialogCallback& show_dialog_callback) {
-  ShowDialog(std::move(done_callback), extension, icon,
-             std::make_unique<Prompt>(INSTALL_PROMPT), show_dialog_callback);
+  ShowDialog(
+      std::move(done_callback), extension, icon,
+      std::make_unique<InstallPromptData>(InstallPromptData::INSTALL_PROMPT),
+      show_dialog_callback);
 }
 
 void ExtensionInstallPrompt::ShowDialog(
     DoneCallback done_callback,
     const Extension* extension,
     const SkBitmap* icon,
-    std::unique_ptr<Prompt> prompt,
+    std::unique_ptr<InstallPromptData> prompt,
     const ShowDialogCallback& show_dialog_callback) {
   ShowDialog(std::move(done_callback), extension, icon, std::move(prompt),
              nullptr, show_dialog_callback);
@@ -508,7 +157,7 @@ void ExtensionInstallPrompt::ShowDialog(
     DoneCallback done_callback,
     const Extension* extension,
     const SkBitmap* icon,
-    std::unique_ptr<Prompt> prompt,
+    std::unique_ptr<InstallPromptData> prompt,
     std::unique_ptr<const PermissionSet> custom_permissions,
     const ShowDialogCallback& show_dialog_callback) {
   DCHECK(ui_thread_checker_.CalledOnValidThread());
@@ -525,8 +174,8 @@ void ExtensionInstallPrompt::ShowDialog(
   // immediately installed, and then we show an infobar (see OnInstallSuccess)
   // to allow the user to revert if they don't like it.
   if (extension->is_theme() && extension->from_webstore() &&
-      prompt_->type() != EXTENSION_REQUEST_PROMPT &&
-      prompt_->type() != EXTENSION_PENDING_REQUEST_PROMPT) {
+      prompt_->type() != InstallPromptData::EXTENSION_REQUEST_PROMPT &&
+      prompt_->type() != InstallPromptData::EXTENSION_PENDING_REQUEST_PROMPT) {
     std::move(done_callback_).Run(DoneCallbackPayload(Result::ACCEPTED));
     return;
   }
@@ -567,13 +216,14 @@ void ExtensionInstallPrompt::ConfirmReEnable(
     DoneCallback install_callback,
     const extensions::Extension* extension,
     content::BrowserContext* browser_context) {
-  PromptType type =
+  InstallPromptData::PromptType type =
       GetReEnablePromptTypeForExtension(browser_context, extension);
   ShowDialog(std::move(install_callback), extension, nullptr,
-             std::make_unique<Prompt>(type), GetDefaultShowDialogCallback());
+             std::make_unique<InstallPromptData>(type),
+             GetDefaultShowDialogCallback());
 }
 
-std::unique_ptr<ExtensionInstallPrompt::Prompt>
+std::unique_ptr<InstallPromptData>
 ExtensionInstallPrompt::GetPromptForTesting() {
   return std::move(prompt_);
 }

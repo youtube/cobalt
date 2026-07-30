@@ -1,0 +1,62 @@
+extension ILType {
+    // {{primary.name}}
+    fileprivate static let js{{primary.name}}: ILType = .object(
+        ofGroup: "{{primary|name_with_namespace}}",
+        withProperties: ["$interfaceName"])
+    fileprivate static let {{primary|format_il_type}}: ILType = .object(
+        ofGroup: "{{primary|name_with_namespace}}Remote",
+        withProperties: ["$"],
+        withMethods: [
+            {%- for method in primary.methods %}
+            "{{method.name}}",
+            {%- endfor %}
+        ])
+    fileprivate static let {{primary|format_il_type}}Wrapper: ILType = .object(
+        ofGroup: "{{primary|name_with_namespace}}RemoteWrapper",
+        withMethods: ["close", "isBound"])
+}
+
+{#- TODO(crbug.com/522372048): Include namespace in name to avoid collisions #}
+extension ObjectGroup {
+    fileprivate static let {{primary.name|to_camel(True)}} = ObjectGroup(
+        name: "{{primary|name_with_namespace}}",
+        instanceType: .js{{primary.name}},
+        properties: ["$interfaceName": .string],
+        methods: [:]
+    )
+
+    fileprivate static let {{primary.name|to_camel(True)}}Remote = ObjectGroup(
+        name: "{{primary|name_with_namespace}}Remote",
+        instanceType: .{{primary|format_il_type}},
+        properties: ["$": .{{primary|format_il_type}}Wrapper],
+        methods: [
+        {%- for method in primary.methods %}
+            "{{method.name}}": [
+            {%- for parameter in method.parameters %}
+                .plain(.{{parameter.kind|format_il_type}}),
+            {%- endfor %}
+            {#- TODO(crbug.com/522372048): Set return type appropriately for synchronous methods #}
+            {#-
+                The `{{ "" }}` preserves a whitespace between `=>` and the return type. The
+                whitespace is necessary to avoid a syntax error.
+            #}
+            ] => {{ "" }}
+            {%- if method.response_parameters -%}
+                .jsPromise
+            {%- else -%}
+                .undefined
+            {%- endif -%},
+        {%- endfor %}
+        ]
+    )
+
+    fileprivate static let {{primary.name|to_camel(True)}}RemoteWrapper = ObjectGroup(
+        name: "{{primary|name_with_namespace}}RemoteWrapper",
+        instanceType: .{{primary|format_il_type}}Wrapper,
+        properties: [:],
+        methods: [
+            "close": [] => .undefined,
+            "isBound": [] => .boolean
+        ]
+    )
+}

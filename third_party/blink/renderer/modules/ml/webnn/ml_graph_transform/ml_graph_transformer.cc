@@ -233,8 +233,10 @@ void MLGraphTransformer::Trace(Visitor* visitor) const {
 void MLGraphTransformer::Disconnect(MLOperand* from,
                                     MLOperator* to,
                                     OperandIndex positional_input_index) {
-  auto& dependent_operators = from->dependent_operators_;
+  CHECK(from);
+  CHECK(to);
 
+  auto& dependent_operators = from->dependent_operators_;
   CHECK(dependent_operators.Contains(to));
 
   CHECK_EQ(to->inputs_[positional_input_index], from);

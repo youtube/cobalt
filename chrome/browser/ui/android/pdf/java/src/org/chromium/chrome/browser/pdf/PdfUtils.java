@@ -140,7 +140,7 @@ public class PdfUtils {
     public static boolean shouldOpenPdfInline(boolean isIncognito) {
         if (sShouldOpenPdfInlineForTesting) return true;
         if (isIncognito) {
-            return false;
+            return ChromeFeatureList.sInlinePdfV2Incognito.isEnabled();
         }
         return isPlatformSupported();
     }
@@ -302,7 +302,7 @@ public class PdfUtils {
      * @param originalUrl The url to be decoded.
      * @return the decoded download url; or null if the original url is not a pdf page url.
      */
-    public static @Nullable String decodePdfPageUrl(String originalUrl) {
+    public static @Nullable String decodePdfPageUrl(@Nullable String originalUrl) {
         if (originalUrl == null || !originalUrl.startsWith(UrlConstants.PDF_URL)) {
             return null;
         }
@@ -392,7 +392,7 @@ public class PdfUtils {
 
     /** Returns {@code true} if {@link PdfViewFragment} is reused on activity restart. */
     public static boolean isReuseFragmentEnabled() {
-        return ChromeFeatureList.isEnabled(ChromeFeatureList.PDF_REUSE_FRAGMENT);
+        return ChromeFeatureList.sPdfReuseFragment.isEnabled();
     }
 
     public static void recordPdfLoad() {

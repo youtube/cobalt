@@ -178,13 +178,8 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
     std::string,
     kBackgroundTracingPerformanceMark_AllowList);
 
-// Declare the feature with C linkage so Rust can find it.
-// TODO(crbug.com/507165212) Clean this up once crrev.com/c/7891472 lands and
-// feature symbols are `extern "C"`'d by default.
-extern "C" {
 // Block all MIDI access with the MIDI_SYSEX permission
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kBlockMidiByDefault);
-}
 
 // Boost the priority of certain loading tasks (https://crbug.com/1470003).
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kBoostImageSetLoadingTaskPriority);
@@ -301,6 +296,12 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kContentSchemeIsLocal);
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kCreateImageBitmapOrientationNone);
 
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kDeclarativeCSSModulesUseDataURI);
+
+// Controls whether capture-early-failures is supported/used for Declarative
+// Performance Observers.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    bool,
+    kDeclarativePerformanceObserverSupportCaptureEarlyFailures);
 
 // When enabled, dedicated workers and shared workers created from data: URLs
 // will have an opaque origin, as required by the HTML spec.
@@ -1969,6 +1970,10 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
 
 // Feature flag for driving encoding with the Metronome by VSyncs.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kVSyncEncoding);
+
+#if BUILDFLAG(IS_ANDROID)
+BLINK_COMMON_EXPORT bool IsVirtualKeyboardGeometryAndInsetFixesEnabled();
+#endif
 
 // Server-side kill switch for applying the local VisualViewport transform
 // (page scale + visual viewport location) when mapping visual rects into

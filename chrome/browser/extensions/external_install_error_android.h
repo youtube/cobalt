@@ -46,7 +46,7 @@ class ExternalInstallErrorAndroid : public ExternalInstallError {
   const Extension* GetExtension() const override;
   const ExtensionId& extension_id() const override;
   ExternalInstallError::AlertType alert_type() const override;
-  ExtensionInstallPrompt::Prompt* GetPromptForTesting() const override;
+  InstallPromptData* GetPromptForTesting() const override;
 
  private:
   // The associated BrowserContext.

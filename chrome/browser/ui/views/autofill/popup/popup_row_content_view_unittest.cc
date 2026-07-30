@@ -8,16 +8,12 @@
 #include <utility>
 
 #include "base/memory/raw_ptr.h"
-#include "chrome/browser/ui/views/autofill/popup/popup_view_utils.h"
 #include "chrome/test/views/chrome_views_test_base.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/color/color_id.h"
 #include "ui/compositor/canvas_painter.h"
 #include "ui/events/test/event_generator.h"
 #include "ui/views/background.h"
-#include "ui/views/controls/label.h"
-#include "ui/views/style/typography.h"
-#include "ui/views/style/typography_provider.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_utils.h"
 

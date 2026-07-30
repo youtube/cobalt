@@ -60,6 +60,7 @@ GURL GetContextMemoryServiceBaseUrl() {
 size_t GetMaxParallelFeatureFetchers(proto::ContextMemoryFeature feature) {
   switch (feature) {
     case proto::CONTEXT_MEMORY_FEATURE_AMBIENT_AUTOFILL:
+      return 2;
     case proto::CONTEXT_MEMORY_FEATURE_AT_MEMORY:
     case proto::CONTEXT_MEMORY_FEATURE_AUTO_TODOS:
       return 1;

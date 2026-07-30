@@ -304,10 +304,46 @@ bool WebNNTensorImpl::ImportTensorInternal() {
   return ImportTensorImpl(std::move(access));
 }
 
-// static
+void WebNNTensorImpl::DestroyAccessAndRepresentationAndWait() {
+  // Destruction of access must occur before destroying the representation.
+  // A valid access or representation always has a valid task runner.
+  // Blocks the current sequence when teardown must be posted to a different
+  // bound sequence. This wait ensures destruction runs on its deleter-bound
+  // sequence before returning, so synchronous shared image cleanup (including
+  // TrackMemFree) completes before context tracker teardown.
+  // TODO(crbug.com/526535956): decouple tracker from context to avoid this
+  // blocking.
+  ScopedAccessPtr access = std::move(representation_access_);
+  if (access) {
+    scoped_refptr<base::SequencedTaskRunner> access_task_runner =
+        access.get_deleter().task_runner_;
+    RunOrPostTaskAndWaitOnSequence(access_task_runner,
+                                   base::BindOnce(
+                                       [](ScopedAccessPtr access_to_destroy) {
+                                         access_to_destroy.reset();
+                                       },
+                                       std::move(access)));
+  }
+
+  RepresentationPtr representation = std::move(representation_);
+  if (representation) {
+    scoped_refptr<base::SequencedTaskRunner> representation_task_runner =
+        representation.get_deleter().task_runner_;
+    RunOrPostTaskAndWaitOnSequence(
+        representation_task_runner,
+        base::BindOnce(
+            [](RepresentationPtr representation_to_destroy) {
+              representation_to_destroy.reset();
+            },
+            std::move(representation)));
+  }
+}
+
 void WebNNTensorImpl::RunOrPostTaskAndWaitOnSequence(
     scoped_refptr<base::SequencedTaskRunner> target,
     base::OnceClosure task) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
   if (target->RunsTasksInCurrentSequence()) {
     std::move(task).Run();
     return;

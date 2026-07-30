@@ -232,7 +232,7 @@ class Interceptor : public network::mojom::URLLoaderClient,
             network::URLLoaderCompletionStatus(decode_result_->net_err);
       } else {
         completion_status_->decoded_body_length =
-            decode_result_->transferred_bytes.InBytes();
+            decode_result_->transferred_bytes;
       }
     }
     destination_url_loader_client_->OnComplete(*completion_status_);

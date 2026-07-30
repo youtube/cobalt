@@ -793,10 +793,6 @@ id<GREYMatcher> TabGridDoneButton() {
   return [ChromeMatchersAppInterface tabGridDoneButton];
 }
 
-id<GREYMatcher> TabGridOverflowMenuButton() {
-  return [ChromeMatchersAppInterface tabGridOverflowMenuButton];
-}
-
 id<GREYMatcher> TabGridUndoCloseAllButton() {
   return [ChromeMatchersAppInterface tabGridUndoCloseAllButton];
 }
@@ -1050,7 +1046,11 @@ id<GREYMatcher> IncognitoInterstitialCancelButton() {
   return [ChromeMatchersAppInterface incognitoInterstitialCancelButton];
 }
 
-#pragma mark - Tab Grid Edit Mode
+#pragma mark - Tab Grid Overflow Menu
+
+id<GREYMatcher> TabGridOverflowMenuButton() {
+  return [ChromeMatchersAppInterface tabGridOverflowMenuButton];
+}
 
 id<GREYMatcher> TabGridEditButton() {
   return [ChromeMatchersAppInterface tabGridEditButton];
@@ -1060,8 +1060,12 @@ id<GREYMatcher> TabGridEditMenuCloseAllButton() {
   return [ChromeMatchersAppInterface tabGridEditMenuCloseAllButton];
 }
 
-id<GREYMatcher> TabGridSelectTabsMenuButton() {
-  return [ChromeMatchersAppInterface tabGridSelectTabsMenuButton];
+id<GREYMatcher> TabGridOverflowMenuCloseAllButton() {
+  return [ChromeMatchersAppInterface tabGridOverflowMenuCloseAllButton];
+}
+
+id<GREYMatcher> TabGridOverflowMenuSelectTabsButton() {
+  return [ChromeMatchersAppInterface tabGridOverflowMenuSelectTabsButton];
 }
 
 id<GREYMatcher> TabGridEditAddToButton() {

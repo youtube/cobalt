@@ -292,15 +292,15 @@ CTestGaiaCredentialProvider::CTestGaiaCredentialProvider() {
 
 CTestGaiaCredentialProvider::~CTestGaiaCredentialProvider() = default;
 
-const CComBSTR& CTestGaiaCredentialProvider::username() const {
+const base::win::ScopedBstr& CTestGaiaCredentialProvider::username() const {
   return username_;
 }
 
-const CComBSTR& CTestGaiaCredentialProvider::password() const {
+const base::win::ScopedBstr& CTestGaiaCredentialProvider::password() const {
   return password_;
 }
 
-const CComBSTR& CTestGaiaCredentialProvider::sid() const {
+const base::win::ScopedBstr& CTestGaiaCredentialProvider::sid() const {
   return sid_;
 }
 
@@ -318,9 +318,9 @@ HRESULT CTestGaiaCredentialProvider::OnUserAuthenticatedImpl(
     BSTR password,
     BSTR sid,
     BOOL fire_credentials_changed) {
-  username_ = username;
-  password_ = password;
-  sid_ = sid;
+  username_.Reset(::SysAllocString(username));
+  password_.Reset(::SysAllocString(password));
+  sid_.Reset(::SysAllocString(sid));
   credentials_changed_fired_ = fire_credentials_changed;
   return CGaiaCredentialProvider::OnUserAuthenticatedImpl(
       credential, username, password, sid, fire_credentials_changed);

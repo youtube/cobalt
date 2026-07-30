@@ -139,10 +139,12 @@ void RecordStartupPaintMetric(std::string_view paint_metric_base,
     return;
   }
 
-  std::string scenario_suffix;
   if (startup_metric_utils::GetBrowser().IsFirstRun()) {
-    scenario_suffix = ".FirstRun";
-  } else if (SessionRestore::IsAnySessionRestored()) {
+    return;
+  }
+
+  std::string scenario_suffix;
+  if (SessionRestore::IsAnySessionRestored()) {
     scenario_suffix = ".SessionRestore";
   }
 
@@ -298,8 +300,9 @@ void WaapUIMetricsService::OnNewWindowBrowserWindowFirstPresentation(
     return;
   }
 
-  RecordNewWindowPaintMetric("BrowserWindow.FirstPaint.FromConstructor", source,
-                             with_existing_window, start_time, paint_time);
+  RecordNewWindowPaintMetric("BrowserWindow.FirstPaint.FromConstructor2",
+                             source, with_existing_window, start_time,
+                             paint_time);
 }
 
 void WaapUIMetricsService::OnNewWindowReloadButtonFirstPaint(
@@ -312,7 +315,7 @@ void WaapUIMetricsService::OnNewWindowReloadButtonFirstPaint(
     return;
   }
 
-  RecordNewWindowPaintMetric("ReloadButton.FirstPaint.FromConstructor", source,
+  RecordNewWindowPaintMetric("ReloadButton.FirstPaint.FromConstructor2", source,
                              with_existing_window, start_time, paint_time);
 }
 
@@ -327,7 +330,7 @@ void WaapUIMetricsService::OnNewWindowReloadButtonFirstContentfulPaint(
   }
 
   RecordNewWindowPaintMetric(
-      "ReloadButton.FirstContentfulPaint.FromConstructor", source,
+      "ReloadButton.FirstContentfulPaint.FromConstructor2", source,
       with_existing_window, start_time, paint_time);
 }
 
@@ -343,9 +346,10 @@ void WaapUIMetricsService::OnNewWindowBrowserWindowToReloadButtonFirstPaintGap(
     bool with_existing_window,
     base::TimeTicks browser_window_paint_time,
     base::TimeTicks reload_button_paint_time) {
-  RecordNewWindowPaintMetric(
-      "BrowserWindowToReloadButton.FirstPaintGap", source, with_existing_window,
-      browser_window_paint_time, reload_button_paint_time);
+  RecordNewWindowPaintMetric("BrowserWindowToReloadButton.FirstPaintGap2",
+                             source, with_existing_window,
+                             browser_window_paint_time,
+                             reload_button_paint_time);
 }
 
 void WaapUIMetricsService::OnStartupBrowserWindowShowRequestedToFirstPaint(
@@ -361,7 +365,7 @@ void WaapUIMetricsService::OnNewWindowBrowserWindowShowRequestedToFirstPaint(
     base::TimeTicks request_time,
     base::TimeTicks paint_time) {
   RecordNewWindowPaintMetric(
-      "BrowserWindow.ShowRequestedToFirstPaint.FromConstructor", source,
+      "BrowserWindow.ShowRequestedToFirstPaint.FromConstructor2", source,
       with_existing_window, request_time, paint_time);
 }
 
@@ -377,7 +381,7 @@ void WaapUIMetricsService::OnNewWindowBrowserWindowClosedBeforeFirstPaint(
     bool with_existing_window,
     base::TimeTicks start_time,
     base::TimeTicks close_time) {
-  RecordNewWindowPaintMetric("BrowserWindow.ClosedBeforeFirstPaint", source,
+  RecordNewWindowPaintMetric("BrowserWindow.ClosedBeforeFirstPaint2", source,
                              with_existing_window, start_time, close_time);
 }
 

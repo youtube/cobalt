@@ -4,6 +4,8 @@
 
 #include "chrome/browser/glic/common/instance_independent_hotkey_manager.h"
 
+#include <utility>
+
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/glic_pref_names_internal.h"
@@ -60,7 +62,7 @@ IN_PROC_BROWSER_TEST_F(InstanceIndependentHotkeyManagerBrowserTest,
   // Override the FRE status to not completed.
   GetBrowser()->GetProfile()->GetPrefs()->SetInteger(
       prefs::kGlicCompletedFre,
-      static_cast<int>(prefs::FreStatus::kNotStarted));
+      std::to_underlying(prefs::FreStatus::kNotStarted));
 
   InstanceIndependentHotkeyManager manager(&service()->instance_coordinator(),
                                            GetBrowser()->GetProfile());

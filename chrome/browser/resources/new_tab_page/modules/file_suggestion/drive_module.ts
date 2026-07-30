@@ -43,11 +43,14 @@ export class DriveModuleElement extends DriveModuleElementBase {
     return {
       files: {type: Array},
       showInfoDialog_: {type: Boolean},
+      showDriveModuleSeeMoreLink_: {type: Boolean},
     };
   }
 
   accessor files: File[] = [];
   protected accessor showInfoDialog_: boolean = false;
+  protected accessor showDriveModuleSeeMoreLink_: boolean =
+      loadTimeData.getBoolean('showDriveModuleSeeMoreLink');
 
   protected getMenuItems_(): MenuItem[] {
     return [

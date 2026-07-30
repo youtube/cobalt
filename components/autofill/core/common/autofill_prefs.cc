@@ -33,6 +33,8 @@ inline constexpr char kFacilitatedPaymentsPixAccountLinkingDeprecated[] =
 #endif
 constexpr char kAutofillRanExtraDeduplication[] =
     "autofill.ran_extra_deduplication";
+constexpr char kAutofillAiSyncedOptInStatusDeprecated[] =
+    "autofill.autofill_ai.synced_opt_in_status";
 
 }  // namespace
 
@@ -49,9 +51,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
       user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
   registry->RegisterBooleanPref(
       kAutofillAiShoppingEntitiesEnabled, true,
-      user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
-  registry->RegisterBooleanPref(
-      kAutofillAiSyncedOptInStatus, false,
       user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
   registry->RegisterIntegerPref(
       kAutofillAiLastVersionDeduped, 0,
@@ -191,6 +190,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
                                 /*default_value=*/true);
 #endif  // BUILDFLAG(IS_ANDROID)
   registry->RegisterBooleanPref(kAutofillRanExtraDeduplication, false);
+  registry->RegisterBooleanPref(kAutofillAiSyncedOptInStatusDeprecated, false);
   // Don't add new prefs here. Add them before any deprecated prefs instead.
 }
 
@@ -203,6 +203,8 @@ void MigrateDeprecatedAutofillPrefs(PrefService* pref_service) {
 #endif  // BUILDFLAG(IS_ANDROID)
   // Added 01/2026
   pref_service->ClearPref(kAutofillRanExtraDeduplication);
+  // Added 06/2026
+  pref_service->ClearPref(kAutofillAiSyncedOptInStatusDeprecated);
 }
 
 void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
@@ -294,13 +296,6 @@ void SetAutofillGmailOtpFillingActivationDismissalTimestamp(PrefService* prefs,
   prefs->SetTime(kAutofillGmailOtpFillingActivationDismissalTimestamp, time);
 }
 
-bool IsAutofillAiSyncedOptInStatusEnabled(const PrefService* prefs) {
-  return prefs->GetBoolean(kAutofillAiSyncedOptInStatus);
-}
-
-void SetAutofillAiSyncedOptInStatus(PrefService* prefs, bool enabled) {
-  prefs->SetBoolean(kAutofillAiSyncedOptInStatus, enabled);
-}
 
 bool IsAutofillAiReauthBeforeFillingEnabled(const PrefService* prefs) {
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) || \

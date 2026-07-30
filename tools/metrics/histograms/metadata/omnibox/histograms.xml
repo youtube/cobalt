@@ -1915,7 +1915,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.FocusToCutOrCopyAllTextTime" units="ms"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>khalidpeer@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -1994,7 +1994,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.FocusToOpenTimeAnyPopupState3" units="ms"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>jdonnelly@chromium.org</owner>
   <owner>mpearson@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
@@ -2150,6 +2150,40 @@ Keep consistent with active providers. Doesn't need to include every provider in
   <token key="OmniboxSummarizedResultType"
       variants="OmniboxSummarizedResultType"/>
   <token key="OmniboxPageContext" variants="OmniboxPageContext"/>
+</histogram>
+
+<histogram name="Omnibox.GeolocationHeaderService.GetLocationOutcome.{Trigger}"
+    enum="GeolocationHeaderGetLocationOutcome" expires_after="2027-06-29">
+  <owner>andypaicu@chromium.org</owner>
+  <owner>chrome-permissions-team@google.com</owner>
+  <summary>
+    Recorded every time the geolocation header is attempted to be built by the
+    GeolocationHeaderService. This happens automatically when an omnibox
+    navigation goes to the DSE origin (if it has permission) [Automatic], or
+    during autocomplete match generation when attempting to build the inline
+    location suggestion [InlineSuggestion]. It records the outcome of the
+    attempt to build the geolocation header: either success or the failure
+    reason.
+  </summary>
+  <token key="Trigger">
+    <variant name="Automatic" summary="Automatic header addition"/>
+    <variant name="InlineSuggestion"
+        summary="Header built for inline suggestion"/>
+  </token>
+</histogram>
+
+<histogram name="Omnibox.GeolocationHeaderService.PrimeLocationOutcome"
+    enum="GeolocationHeaderPrimeLocationOutcome" expires_after="2027-06-29">
+  <owner>andypaicu@chromium.org</owner>
+  <owner>chrome-permissions-team@google.com</owner>
+  <summary>
+    Recorded every time the geolocation header service tries to retrieve the
+    user's geoposition in preparation for it be used to construct the XGeo HTTP
+    header. Logs the outcome of the priming attempt: either an early exit due to
+    checks (like no default search provider, permission denied, already in
+    progress, etc) or a successful request start (specifying if it requested a
+    cached position only or a next position update).
+  </summary>
 </histogram>
 
 <histogram name="Omnibox.GroupId.ToggledOff" enum="GroupId"
@@ -2484,7 +2518,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.LensAction.Precision" enum="Boolean"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>khalidpeer@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -4216,7 +4250,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.SearchPreload.ForwardingResult.WasServedToPrerender"
-    enum="SearchPreloadForwardingResult" expires_after="2026-08-22">
+    enum="SearchPreloadForwardingResult" expires_after="2026-12-27">
   <owner>lingqi@chromium.org</owner>
   <owner>ryansturm@chromium.org</owner>
   <owner>chrome-prerendering@google.com</owner>
@@ -4930,7 +4964,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.SuggestTiles.SelectedTileType" enum="SuggestTileType"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>ender@google.com</owner>
   <owner>mahmadi@chromium.org</owner>
   <summary>
@@ -5058,6 +5092,21 @@ Keep consistent with active providers. Doesn't need to include every provider in
     Recorded for each engine under migration that matches an existing engine,
     during the keywords DB refresh that is done on profile load after a database
     version update, country change, or migration feature flag flip.
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.TemplateUrl.DBRefresh.RegulatoryDuplicatesSameKeyword"
+    enum="Boolean" expires_after="2026-12-01">
+  <owner>dgn@google.com</owner>
+  <owner>chrome-regionalcapabilities@google.com</owner>
+  <summary>
+    Recorded when multiple TemplateURLs tagged as created by a regulatory
+    program (e.g., Android EEA Choice Screen) are loaded from the Keyword Web
+    Database during startup reconciliation. Records True if all such duplicate
+    regulatory entries share the identical search keyword, and False if at least
+    one entry has a different keyword. This helps identify whether database
+    duplicates are caused by row cloning vs incomplete deletions of prior engine
+    choices.
   </summary>
 </histogram>
 

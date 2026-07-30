@@ -313,6 +313,10 @@ public class SnackbarManager
         ThreadUtils.assertOnUiThread();
         if (mSnackbars.isEmpty()) return;
         mSnackbars.removeCurrentDueToSwipe();
+        if (mView != null) {
+            mView.dismiss();
+            mView = null;
+        }
         updateView();
     }
 

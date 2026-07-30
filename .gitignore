@@ -55,6 +55,7 @@
 .project
 .projectile
 .pydevproject
+/.scratch
 .siso_failed_targets
 *.class
 compile_commands.json

@@ -13,7 +13,7 @@ import type {TabInfo} from '//resources/mojo/components/omnibox/browser/searchbo
 import type {InputState} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import type {UnguessableToken} from '//resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
 
-import {GlifAnimationState} from './common.js';
+import {GlifAnimationState, TabSuggestionsState} from './common.js';
 import type {ContextualActionMenuElement} from './contextual_action_menu.js';
 import {getCss} from './contextual_entrypoint_and_menu.css.js';
 import {getHtml} from './contextual_entrypoint_and_menu.html.js';
@@ -56,6 +56,7 @@ export class ContextualEntrypointAndMenuElement extends
       showContextMenuDescription: {type: Boolean},
       smartTabSharingActive: {type: Boolean},
       smartTabSharingVisible: {type: Boolean},
+      contextManagementInComposeboxEnabled: {type: Boolean},
       hasImageFiles: {
         reflect: true,
         type: Boolean,
@@ -64,6 +65,7 @@ export class ContextualEntrypointAndMenuElement extends
       aimThreadRestoredTabs: {type: Array},
       tabSuggestions: {type: Array},
       inputState: {type: Object},
+      tabSuggestionsState: {type: Number},
       glifAnimationState: {type: String},
       searchboxLayoutMode: {type: String},
       uploadButtonDisabled: {type: Boolean},
@@ -91,6 +93,7 @@ export class ContextualEntrypointAndMenuElement extends
   accessor showContextMenuDescription: boolean = false;
   accessor smartTabSharingActive: boolean = false;
   accessor smartTabSharingVisible: boolean = false;
+  accessor contextManagementInComposeboxEnabled: boolean = false;
   accessor disabledTabIds: Map<number, UnguessableToken> = new Map();
   accessor aimThreadRestoredTabs: TabInfo[] = [];
   accessor tabSuggestions: TabInfo[] = [];
@@ -101,6 +104,11 @@ export class ContextualEntrypointAndMenuElement extends
   accessor sharedTabs: TabInfo[] = [];
   accessor recentTabId: number|null = null;
   accessor shareTabsFlyoutOpen: boolean = false;
+  accessor tabSuggestionsState: TabSuggestionsState =
+      TabSuggestionsState.NOT_STARTED;
+  menuOpenDelayMs: number = 200;
+
+  private openTimeoutId_: number|null = null;
 
   accessor hasImageFiles: boolean = false;
   accessor searchboxLayoutMode: string = '';
@@ -132,8 +140,27 @@ export class ContextualEntrypointAndMenuElement extends
     return {entrypointButton, entrypoint};
   }
 
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this.openTimeoutId_ !== null) {
+      window.clearTimeout(this.openTimeoutId_);
+      this.openTimeoutId_ = null;
+    }
+  }
+
   override updated(changedProperties: PropertyValues<this>) {
     super.updated(changedProperties);
+
+    if (changedProperties.has('tabSuggestionsState')) {
+      if (this.tabSuggestionsState !== TabSuggestionsState.LOADING &&
+          this.openTimeoutId_ !== null) {
+        window.clearTimeout(this.openTimeoutId_);
+        this.openTimeoutId_ = null;
+        this.$.menu.updateComplete.then(() => {
+          this.showMenuAtEntrypoint_();
+        });
+      }
+    }
 
     if (this.shouldOpenMenuForMultiSelection_) {
       const {entrypointButton, entrypoint} = this.getEntrypointElements_();
@@ -157,7 +184,6 @@ export class ContextualEntrypointAndMenuElement extends
     }
   }
 
-
   closeMenu() {
     const menu =
         this.shadowRoot.querySelector<ContextualActionMenuElement>('#menu');
@@ -175,15 +201,35 @@ export class ContextualEntrypointAndMenuElement extends
   }
 
   protected onContextMenuEntrypointClick_() {
-    this.showMenuAtEntrypoint_();
+    if (this.openTimeoutId_ !== null) {
+      return;
+    }
+    if (this.tabSuggestionsState === TabSuggestionsState.NOT_STARTED) {
+      this.tabSuggestionsState = TabSuggestionsState.LOADING;
+      this.fire('request-tab-suggestions-load');
+    }
+    if (this.tabSuggestionsState === TabSuggestionsState.LOADING) {
+      this.openTimeoutId_ = window.setTimeout(() => {
+        this.openTimeoutId_ = null;
+        this.showMenuAtEntrypoint_();
+      }, this.menuOpenDelayMs);
+    } else {
+      this.showMenuAtEntrypoint_();
+    }
   }
 
-  private showMenuAtEntrypoint_() {
+  protected onContextMenuEntrypointHover_() {
+    this.fire('context-menu-entrypoint-hover');
+  }
+
+  private async showMenuAtEntrypoint_() {
     const {entrypointButton, entrypoint} = this.getEntrypointElements_();
     if (entrypointButton && entrypoint) {
       entrypointButton.classList.add('menu-open');
-      this.fire('context-menu-opened');
+      await this.updateComplete;
+      await this.$.menu.updateComplete;
       this.$.menu.showAt(entrypoint);
+      this.fire('context-menu-opened');
     }
   }
 }

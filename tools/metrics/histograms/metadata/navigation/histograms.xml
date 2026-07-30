@@ -288,7 +288,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="BackForwardCache.CCNS.CookieChangeCause"
-    enum="CookieChangeCause" expires_after="2026-10-25">
+    enum="CookieChangeCause" expires_after="2026-12-27">
   <owner>leimy@chromium.org</owner>
   <owner>bfcache-dev@chromium.org</owner>
   <summary>
@@ -317,7 +317,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="BackForwardCache.CCNS.JSNetworkRequestIncludesCredentials"
-    enum="Boolean" expires_after="2026-10-25">
+    enum="Boolean" expires_after="2026-12-27">
   <owner>leimy@chromium.org</owner>
   <owner>bfcache-dev@chromium.org</owner>
   <summary>
@@ -683,7 +683,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="BackForwardCache.Restore.NavigationToFirstPaint" units="ms"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>sreejakshetty@chromium.org</owner>
   <owner>bfcache-dev@chromium.org</owner>
   <summary>
@@ -696,7 +696,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="BackForwardCache.RestoredNavigationDirection"
-    enum="HistoryNavigationDirection" expires_after="2026-10-11">
+    enum="HistoryNavigationDirection" expires_after="2026-12-27">
   <owner>rakina@chromium.org</owner>
   <owner>bfcache-dev@chromium.org</owner>
   <summary>
@@ -1440,6 +1440,28 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records whether a duplicate ad script ID was detected during when an iframe
     was created, indicating a cycle.
+  </summary>
+</histogram>
+
+<histogram name="Navigation.InitiatorType.All" enum="NavigationInitiatorType"
+    expires_after="2026-12-01">
+  <owner>robertlin@chromium.org</owner>
+  <owner>chrome-prerendering@google.com</owner>
+  <summary>
+    Records the initiator type of a navigation. Recorded for a standard
+    navigation when it commits. For a prerendered navigation, it is recorded
+    when the page is activated.
+  </summary>
+</histogram>
+
+<histogram name="Navigation.InitiatorType.SRP" enum="NavigationInitiatorType"
+    expires_after="2026-12-01">
+  <owner>robertlin@chromium.org</owner>
+  <owner>chrome-prerendering@google.com</owner>
+  <summary>
+    Records the initiator type of a SRP navigation. Recorded for a standard SRP
+    navigation when it commits. For a prerendered SRP navigation, it is recorded
+    when the page is activated.
   </summary>
 </histogram>
 
@@ -3478,7 +3500,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="NavigationPredictor.SearchEnginePreconnector.SessionEstablished.ConnectionInfo"
-    enum="SSLNegotiatedAlpnProtocol" expires_after="2026-10-11">
+    enum="SSLNegotiatedAlpnProtocol" expires_after="2026-12-27">
   <owner>suzukikeita@google.com</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -3888,7 +3910,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Prerender.Experimental.PredictionStatus.DefaultSearchEngine"
-    enum="PrerenderPredictionStatus" expires_after="2026-10-25">
+    enum="PrerenderPredictionStatus" expires_after="2026-12-27">
   <owner>nhiroki@chromium.org</owner>
   <owner>chrome-prerendering@google.com</owner>
   <summary>

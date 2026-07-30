@@ -2694,11 +2694,11 @@ void Document::UpdateStyleAndLayoutTreeForThisDocument() {
   // style-recalc and layout tree detach (Node::DetachLayoutTree).
   DCHECK(svg_resources_needing_invalidation_.empty());
 
-  TRACE_EVENT_BEGIN1("blink,devtools.timeline", "UpdateLayoutTree", "beginData",
-                     [&](perfetto::TracedValue context) {
-                       inspector_recalculate_styles_event::Data(
-                           std::move(context), GetFrame());
-                     });
+  TRACE_EVENT_BEGIN("blink,devtools.timeline", "UpdateLayoutTree", "beginData",
+                    [&](perfetto::TracedValue context) {
+                      inspector_recalculate_styles_event::Data(
+                          std::move(context), GetFrame());
+                    });
 
   StyleEngine& style_engine = GetStyleEngine();
   unsigned start_element_count = style_engine.StyleForElementCount();
@@ -2744,8 +2744,7 @@ void Document::UpdateStyleAndLayoutTreeForThisDocument() {
     document_rules->DocumentStyleUpdated();
   }
 
-  TRACE_EVENT_END1("blink,devtools.timeline", "UpdateLayoutTree",
-                   "elementCount", element_count);
+  TRACE_EVENT_END("blink,devtools.timeline", "elementCount", element_count);
 
   ElementRuleCollector::DumpAndClearRulesPerfMap();
 
@@ -2762,7 +2761,7 @@ void Document::InvalidateStyleAndLayoutForFontUpdates() {
 
 void Document::UpdateStyle() {
   DCHECK(!View()->ShouldThrottleRendering());
-  TRACE_EVENT_BEGIN0("blink,blink_style", "Document::updateStyle");
+  TRACE_EVENT_BEGIN("blink,blink_style", "Document::updateStyle");
   RUNTIME_CALL_TIMER_SCOPE(GetAgent().isolate(),
                            RuntimeCallStats::CounterId::kUpdateStyle);
 
@@ -2788,13 +2787,12 @@ void Document::UpdateStyle() {
   DCHECK(InStyleRecalc());
   lifecycle_.AdvanceTo(DocumentLifecycle::kStyleClean);
   if (should_record_stats) {
-    TRACE_EVENT_END2(
-        "blink,blink_style", "Document::updateStyle", "resolverAccessCount",
-        style_engine.StyleForElementCount() - initial_element_count, "counters",
-        GetStyleEngine().Stats()->ToTracedValue());
+    TRACE_EVENT_END("blink,blink_style", "resolverAccessCount",
+                    style_engine.StyleForElementCount() - initial_element_count,
+                    "counters", GetStyleEngine().Stats()->ToTracedValue());
   } else {
-    TRACE_EVENT_END1(
-        "blink,blink_style", "Document::updateStyle", "resolverAccessCount",
+    TRACE_EVENT_END(
+        "blink,blink_style", "resolverAccessCount",
         style_engine.StyleForElementCount() - initial_element_count);
   }
 }
@@ -10050,8 +10048,17 @@ void Document::ResetAgent(Agent& agent) {
 }
 
 void Document::EnqueuePageRevealEvent() {
-  CHECK(RuntimeEnabledFeatures::PageRevealEventEnabled());
   CHECK(dom_window_);
+
+  if (RuntimeEnabledFeatures::RouteMatchingEnabled()) {
+    // Set up a route map and navigation state now, and perform an active style
+    // update right away, in case there are any @navigation rules.
+    //
+    // TODO(crbug.com/436805487): This seems rather heavy. Should it be
+    // conditioned on active view transitions or something?
+    auto& route_map = RouteMap::Ensure(*this);
+    route_map.EstablishNavigationStateFromActivation();
+  }
 
   dom_window_->SetHasBeenRevealed(false);
   auto* page_reveal_event = MakeGarbageCollected<PageRevealEvent>();

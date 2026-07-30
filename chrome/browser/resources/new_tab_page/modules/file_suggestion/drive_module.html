@@ -11,8 +11,11 @@
 </ntp-module-header>
 <ntp-file-suggestion id="fileSuggestion"
     module-name="Drive"
+    see-more-url="${this.showDriveModuleSeeMoreLink_ ?
+        'https://drive.google.com' : ''}"
+    see-more-text="$i18n{modulesDriveSeeMore}"
     .files="${this.files}">
-  </ntp-file-suggestion>
+</ntp-file-suggestion>
 ${this.showInfoDialog_ ? html`
   <ntp-info-dialog show-on-attach
       .innerHTML="${this.i18nAdvanced('modulesDriveInfo')}"

@@ -45,18 +45,14 @@ AutofillExternalDelegateForPopupTest::~AutofillExternalDelegateForPopupTest() =
 AutofillSuggestionControllerForTest::AutofillSuggestionControllerForTest(
     base::WeakPtr<AutofillExternalDelegate> external_delegate,
     content::WebContents* web_contents,
+    const LocalFrameToken& frame_token,
     const gfx::RectF& element_bounds)
     : AutofillSuggestionControllerForTestBase(
           external_delegate,
           web_contents,
-          PopupControllerCommon(element_bounds, base::i18n::UNKNOWN_DIRECTION)
-#if !BUILDFLAG(IS_ANDROID)
-          // The comma has to be inside the #if or the compile fails.
-          ,
-          /*form_control_ax_id=*/0
-#endif
-      ) {
-}
+          PopupControllerCommon(frame_token,
+                                element_bounds,
+                                base::i18n::UNKNOWN_DIRECTION)) {}
 
 AutofillSuggestionControllerForTest::~AutofillSuggestionControllerForTest() =
     default;

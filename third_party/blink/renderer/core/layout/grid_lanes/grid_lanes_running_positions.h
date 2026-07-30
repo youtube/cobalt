@@ -47,9 +47,9 @@ class CORE_EXPORT GridLanesRunningPositions {
 
     Member<GridItemData> item;
     wtf_size_t item_index{kNotFound};
-    // This is only needed for stretch aligned items only as they will need to
-    // be relaid out once we know the final alignment candidate for a given
-    // track opening.
+    // This is only needed for stretch aligned items as they will need to be
+    // relaid out once we know the final alignment candidate for a given track
+    // opening.
     Member<GridLayoutSubtree> layout_subtree;
     LayoutUnit available_alignment_space;
   };
@@ -120,7 +120,7 @@ class CORE_EXPORT GridLanesRunningPositions {
   // between items if the user has specified one.
   //
   // If stacking axis alignment is enabled, `grid_lanes_item` will be set as the
-  // item above thelast unbounded opening in the track.
+  // item above the last unbounded opening in the track.
   //
   // `max_running_position_for_span` should only be used in the case of
   // dense-packing or the presence of stacking-axis alignment, and it is the
@@ -158,6 +158,11 @@ class CORE_EXPORT GridLanesRunningPositions {
 
   // Returns the max-position for a given span.
   LayoutUnit GetMaxPositionForSpan(const GridSpan& span) const;
+
+  // Returns the extent of real content within a span for computing the
+  // container's stacking-axis size. Unlike `GetMaxPositionForSpan`, this skips
+  // collapsed `auto-fit` tracks.
+  LayoutUnit GetStackingAxisSizeForSpan(const GridSpan& span) const;
 
   void UpdateAutoPlacementCursor(
       const GridArea& resolved_position,
@@ -378,6 +383,12 @@ class CORE_EXPORT GridLanesRunningPositions {
   LayoutUnit GetRunningPositionForTrack(wtf_size_t track_index) const {
     return track_collection_openings_[track_index].back().start_position;
   }
+
+  // Computes the max running position for the given `span`. When
+  // `exclude_collapsed_tracks` is true, any collapsed tracks are skipped in
+  // the calculation.
+  LayoutUnit ComputeMaxPositionForSpan(const GridSpan& span,
+                                       bool exclude_collapsed_tracks) const;
 
   TrackOpening& GetLastTrackOpening(wtf_size_t track_index) {
     return track_collection_openings_[track_index].back();

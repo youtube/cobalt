@@ -5,8 +5,11 @@
 #ifndef CHROME_BROWSER_ASH_POLICY_REMOTE_COMMANDS_CRD_DEVICE_COMMAND_FETCH_CRD_AVAILABILITY_INFO_JOB_H_
 #define CHROME_BROWSER_ASH_POLICY_REMOTE_COMMANDS_CRD_DEVICE_COMMAND_FETCH_CRD_AVAILABILITY_INFO_JOB_H_
 
+#include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "components/policy/core/common/remote_commands/remote_command_job.h"
+
+class PrefService;
 
 namespace policy {
 
@@ -14,7 +17,8 @@ namespace policy {
 // Remote Desktop session types are available (if any).
 class DeviceCommandFetchCrdAvailabilityInfoJob : public RemoteCommandJob {
  public:
-  DeviceCommandFetchCrdAvailabilityInfoJob();
+  // `local_state` must be non-null and must outlive `this`.
+  explicit DeviceCommandFetchCrdAvailabilityInfoJob(PrefService* local_state);
   DeviceCommandFetchCrdAvailabilityInfoJob(
       const DeviceCommandFetchCrdAvailabilityInfoJob&) = delete;
   DeviceCommandFetchCrdAvailabilityInfoJob& operator=(
@@ -27,6 +31,8 @@ class DeviceCommandFetchCrdAvailabilityInfoJob : public RemoteCommandJob {
 
  private:
   void SendPayload(CallbackWithResult callback, bool is_in_managed_network);
+
+  const raw_ref<PrefService> local_state_;
 
   base::WeakPtrFactory<DeviceCommandFetchCrdAvailabilityInfoJob>
       weak_ptr_factory_{this};

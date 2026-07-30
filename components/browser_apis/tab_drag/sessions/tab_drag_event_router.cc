@@ -7,8 +7,8 @@
 #include <utility>
 
 #include "base/check.h"
-#include "components/browser_apis/tab_drag/sessions/drop_target.h"
-#include "components/browser_apis/tab_drag/sessions/drop_target_registry.h"
+#include "components/browser_apis/tab_drag/destinations/drop_target.h"
+#include "components/browser_apis/tab_drag/destinations/drop_target_registry.h"
 
 namespace tabs_api {
 

@@ -350,7 +350,16 @@ def run_performance_test(
     casting = False
     rec_proc_local = None
     receiver_trace_proc = None
+    glances_proc = None
+    if args.sender_os == 'win':
+        csv_remote_path = f"C:/Users/Public/glances_{video_key}.csv"
+    else:
+        csv_remote_path = f"/tmp/glances_{video_key}.csv"
+    csv_local_path = os.path.join(
+        common.TRACES_DIR, f"glances_{video_key}.csv")
     try:
+        glances_proc = common.start_glances_monitoring(
+            args, csv_remote_path)
         # pylint: disable=consider-using-with
         rec_proc_local = subprocess.Popen(
             host_recording_cmd,
@@ -567,6 +576,16 @@ def run_performance_test(
                            timeout=30)
         except Exception as e:
             logging.error("Failed to collect sender log: %s", e)
+
+        if glances_proc:
+            try:
+                common.stop_glances_monitoring(
+                    args, glances_proc, csv_remote_path, csv_local_path)
+                common.parse_glances_csv_and_record(
+                    video_key, csv_local_path, args.sender_os)
+            except Exception as e:
+                logging.error(
+                    "Failed to stop or parse glances monitoring: %s", e)
     return rec_proc_local
 
 def main():

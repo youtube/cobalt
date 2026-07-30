@@ -134,6 +134,7 @@ enum MediaStreamRequestResult {
   FAILED_DUE_TO_SHUTDOWN_USER_MEDIA_PROCESSOR_STOP_ALL_PROCESSING = 52,
   FAILED_DUE_TO_SHUTDOWN_WEB_CONTENTS_NO_DELEGATE = 53,
   FAILED_DUE_TO_SHUTDOWN_OTHER = 54,
+  DEVICE_REMOVED = 55,
 };
 
 // Type of state change for the corresponding requests.

@@ -448,13 +448,10 @@ BASE_DECLARE_FEATURE(kRestrictForbiddenSecurityHeaders);
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
 BASE_DECLARE_FEATURE_PARAM(bool, kRestrictForbiddenSecurityHeadersDump);
 
-// Enables the Declarative Performance Observer feature.
-// When enabled, the network service will parse the `Performance-Observer`
-// HTTP response header to extract the telemetry policy for the document.
-// https://github.com/explainers-by-googlers/declarative-performance-observer
-// for more details.
+// Enables validating browser-initiated file upload requests from the network
+// service.
 COMPONENT_EXPORT(NETWORK_CPP_FLAGS_AND_SWITCHES)
-BASE_DECLARE_FEATURE(kDeclarativePerformanceObserver);
+BASE_DECLARE_FEATURE(kBrowserInitiatedFileUploadValidation);
 
 }  // namespace network::features
 

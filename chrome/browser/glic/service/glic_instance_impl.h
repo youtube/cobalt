@@ -136,7 +136,6 @@ class GlicInstanceImpl : public GlicInstance,
   base::Time GetLastActivationTimestamp() const override;
   base::TimeDelta GetTimeSinceLastActive() const override;
   base::TimeDelta GetTimeSinceLastPromptSubmission() const override;
-  bool IsHibernated() const;
   void Hibernate();
   void Shutdown();
   void CloseInstanceAndShutdown();
@@ -154,6 +153,7 @@ class GlicInstanceImpl : public GlicInstance,
   gfx::Size GetPanelSize() override;
   Target GetInvokeTarget(Target::Surface fallback_surface) override;
   bool IsActive() override;
+  bool IsHibernated() const override;
 
   bool HasActiveEmbedder() const;
   bool IsDetached();

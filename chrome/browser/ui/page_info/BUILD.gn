@@ -58,7 +58,6 @@ source_set("impl") {
     deps += [
       "//chrome/browser:certificate_viewer",
       "//chrome/browser/extensions",
-      "//chrome/browser/hid",
       "//chrome/browser/smart_card",
       "//chrome/browser/ui/tabs:tab_strip",
       "//chrome/browser/ui/web_applications",
@@ -75,6 +74,7 @@ source_set("impl") {
     "//chrome/browser:browser_process",
     "//chrome/browser/content_settings",
     "//chrome/browser/content_settings:content_settings_factory",
+    "//chrome/browser/hid",
     "//chrome/browser/lookalikes",
     "//chrome/browser/permissions",
     "//chrome/browser/permissions/system",

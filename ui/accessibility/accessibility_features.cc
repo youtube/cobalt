@@ -384,6 +384,13 @@ bool IsImprovedReadAloudEnabled() {
   return base::FeatureList::IsEnabled(::features::kImprovedReadAloud);
 }
 
+BASE_FEATURE(kPdfAccessibilityHeuristicEnhancements,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+bool IsPdfAccessibilityHeuristicEnhancementsEnabled() {
+  return base::FeatureList::IsEnabled(
+      ::features::kPdfAccessibilityHeuristicEnhancements);
+}
+
 BASE_FEATURE(kReadAnythingMenuShuffleExperiment,
              base::FEATURE_DISABLED_BY_DEFAULT);
 bool IsReadAnythingMenuShuffleExperimentEnabled() {

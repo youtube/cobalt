@@ -62,6 +62,31 @@ cc_component("base") {
   ]
 
   defines = [ "CC_BASE_IMPLEMENTATION=1" ]
+
+  if (is_win) {
+    # Inject debug visualizers for cc/viz types into all targets
+    # that reference this.
+    all_dependent_configs = [ "//tools/win/DebugVisualizers:cc" ]
+    inputs = [
+      # cc.natvis listed as an input here instead of in
+      # //tools/win/DebugVisualizers:cc to prevent unnecessary size increase
+      # in generated build files.
+      "//tools/win/DebugVisualizers/cc.natvis",
+    ]
+
+    # The cc::ListContainer visualizer differs between component and
+    # non-component builds. See //tools/win/DebugVisualizers/BUILD.gn for
+    # details.
+    if (is_component_build) {
+      all_dependent_configs +=
+          [ "//tools/win/DebugVisualizers:cc_component_build" ]
+      inputs += [ "//tools/win/DebugVisualizers/cc-component-build.natvis" ]
+    } else {
+      all_dependent_configs +=
+          [ "//tools/win/DebugVisualizers:cc_non_component_build" ]
+      inputs += [ "//tools/win/DebugVisualizers/cc-non-component-build.natvis" ]
+    }
+  }
 }
 
 if (is_android) {

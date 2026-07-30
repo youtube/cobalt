@@ -351,7 +351,8 @@ void PageLoadMetricsObserverTester::SimulateLoadedResource(
     resource_load_info.load_timing_info.request_start = base::TimeTicks::Now();
 
   metrics_web_contents_observer_->ResourceLoadComplete(
-      web_contents()->GetPrimaryMainFrame(), request_id, resource_load_info);
+      web_contents()->GetPrimaryMainFrame(), request_id,
+      resource_load_info.original_url, resource_load_info);
 }
 
 void PageLoadMetricsObserverTester::SimulateFrameReceivedUserActivation(

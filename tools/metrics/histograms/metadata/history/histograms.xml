@@ -49,7 +49,7 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <histogram name="History.AttemptedToFixProfileError"
-    enum="BooleanDatabaseKilled" expires_after="2026-10-25">
+    enum="BooleanDatabaseKilled" expires_after="2026-12-27">
   <owner>etienneb@chromium.org</owner>
   <owner>sdefresne@chromium.org</owner>
   <component>1456716</component>
@@ -2702,7 +2702,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="History.RemoveVisitsFromWebHistory.EntryCount" units="entries"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>treib@chromium.org</owner>
   <owner>src/components/sync/OWNERS</owner>
   <summary>
@@ -3006,7 +3006,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="HistoryPage.ActorContextMenuActions"
-    enum="VisitContextMenuAction" expires_after="2026-08-16">
+    enum="VisitContextMenuAction" expires_after="2026-12-27">
   <owner>zalmashni@google.com</owner>
   <owner>chrome-browser-privacy-team@google.com</owner>
   <summary>

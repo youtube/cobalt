@@ -30,6 +30,11 @@ CWV_EXPORT
 // Must be greater than 0.
 @property(nonatomic, assign) NSInteger mainThreadInitialNestingLevel;
 
+// Set to `YES` to enable the Autofill strike system.
+// Defaults to `YES`.
+@property(nonatomic, readwrite, getter=isAutofillStrikeSystemEnabled)
+    BOOL autofillStrikeSystemEnabled;
+
 @end
 
 // Manages internal global state that must be initialized before accessing any
@@ -64,6 +69,10 @@ CWV_EXPORT
 // Returns `YES` if the delay loading resources feature is enabled.
 @property(nonatomic, readonly, getter=isDelayLoadingResources)
     BOOL delayLoadingResources;
+
+// Returns `YES` if the Autofill strike system is enabled.
+@property(nonatomic, readonly, getter=isAutofillStrikeSystemEnabled)
+    BOOL autofillStrikeSystemEnabled;
 
 - (instancetype)init NS_UNAVAILABLE;
 // Use this method to set the necessary credentials used to communicate with

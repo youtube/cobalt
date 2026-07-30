@@ -198,6 +198,11 @@ WebNNCompilerProcessHost::LaunchCompilerProcess() {
         {sandbox::policy::switches::kAllowThirdPartyModules});
   }
 
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          sandbox::policy::switches::kDisableWebNNCompilerSandbox)) {
+    LOG(WARNING) << "[WebNN] Compiler sandbox is disabled";
+  }
+
   return ServiceProcessHost::Launch<webnn::mojom::WebNNCompilerService>(
       std::move(options));
 }

@@ -1164,7 +1164,8 @@ void WindowPerformance::TryFlushEventTimingQueue() {
     }
 
     // Remove reported EventData objects.
-    event_timing_entries_.EraseAt(0, frame_entries.size());
+    event_timing_entries_.EraseAt(
+        0, base::checked_cast<wtf_size_t>(frame_entries.size()));
   }
 }
 

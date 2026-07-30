@@ -8,6 +8,7 @@
 
 #include <algorithm>
 
+#include "base/byte_size.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/pickle.h"
@@ -454,7 +455,7 @@ class ThreatDetailsTest : public ChromeRenderViewHostTestHarness {
     head->remote_endpoint = net::IPEndPoint(net::IPAddress(1, 2, 3, 4), 80);
     head->mime_type = "text/html";
     network::URLLoaderCompletionStatus status;
-    status.decoded_body_length = content.size();
+    status.decoded_body_length = base::ByteSize(content.size());
 
     test_url_loader_factory_.AddResponse(GURL(url), std::move(head), content,
                                          status);

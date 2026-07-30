@@ -131,6 +131,7 @@ class CastWebContentsImpl : public CastWebContents,
   void ResourceLoadComplete(
       content::RenderFrameHost* render_frame_host,
       const content::GlobalRequestID& request_id,
+      const GURL& original_url,
       const blink::mojom::ResourceLoadInfo& resource_load_info) override;
   void InnerWebContentsCreated(
       content::WebContents* inner_web_contents) override;

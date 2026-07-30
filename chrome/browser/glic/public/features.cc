@@ -42,6 +42,8 @@ const base::FeatureParam<std::string> kGlicSelectionTopCueOnlyList{
     &kGlicSelectionPrompt, "top_cue_only_list", ""};
 const base::FeatureParam<bool> kGlicSelectionEnableSiteSettings{
     &kGlicSelectionPrompt, "enable_site_settings", false};
+const base::FeatureParam<bool> kGlicSelectionShowCopyButtons{
+    &kGlicSelectionPrompt, "show_copy_buttons", false};
 
 BASE_FEATURE(kGlicClearTurnIdOnPanelWillOpen,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -85,7 +87,13 @@ BASE_FEATURE(kGlicSummarizeVideoSuggestion, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kGlicFixTimeToFirstQueryKillSwitch,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kGlicContextMenu, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGlicContextMenu,
+#if BUILDFLAG(IS_ANDROID)
+             base::FEATURE_DISABLED_BY_DEFAULT
+#else
+             base::FEATURE_ENABLED_BY_DEFAULT
+#endif
+);
 const base::FeatureParam<std::string> kGlicContextMenuArm{&kGlicContextMenu,
                                                           "variant", "arm1"};
 const base::FeatureParam<bool> kGlicContextMenuWithOnboarding{

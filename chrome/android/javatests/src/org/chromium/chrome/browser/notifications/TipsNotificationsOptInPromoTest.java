@@ -33,11 +33,13 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import org.chromium.base.test.util.Batch;
+import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.chrome.browser.IntentHandler;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.notifications.channels.ChromeChannelDefinitions;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.transit.ChromeTransitTestRules;
@@ -56,6 +58,7 @@ import java.io.IOException;
 @RunWith(ChromeJUnit4ClassRunner.class)
 @EnableFeatures({ChromeFeatureList.ANDROID_TIPS_NOTIFICATIONS + ":always_show_opt_in_promo/true"})
 @Batch(Batch.PER_CLASS)
+@CommandLineFlags.Add({ChromeSwitches.DISABLE_STARTUP_PROMOS})
 @Restriction(DeviceRestriction.RESTRICTION_TYPE_NON_AUTO)
 public class TipsNotificationsOptInPromoTest {
     @Rule

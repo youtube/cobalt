@@ -100,6 +100,7 @@ class FakeCrosHealthd final : public mojom::CrosHealthdDiagnosticsService,
     ~Observer() override = default;
 
     virtual void OnRoutineCreated() {}
+    virtual void OnEventObserverAdded() {}
   };
 
   FakeCrosHealthd(const FakeCrosHealthd&) = delete;

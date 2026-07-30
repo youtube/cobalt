@@ -122,9 +122,30 @@ message GlicExperimentalTriggering {
       FAILED = 3;
     }
 
+    message ScreenshotResult {
+      enum Status {
+        // Default value.
+        UNSPECIFIED = 0;
+        // Capture successful.
+        SUCCESS = 1;
+        // Capture failure.
+        ERROR_CAPTURE = 2;
+        // Transient failure.
+        ERROR_SERVER = 3;
+      }
+
+      // The status of the screenshot capture operation.
+      optional Status status = 1;
+      // A screenshot file identifier.
+      optional string file_token = 2;
+      // Detailed error message.
+      optional string error_message = 3;
+    }
+
     oneof payload {
       TaskUpdate task_update = 3;
       DeviceOptInResult device_opt_in_result = 4;
+      ScreenshotResult screenshot_result = 5;
     }
   }
 

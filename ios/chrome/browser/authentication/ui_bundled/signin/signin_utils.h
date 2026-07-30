@@ -9,6 +9,7 @@
 
 #import <optional>
 #import <string>
+#import <string_view>
 #import <utility>
 
 #import "base/functional/callback.h"
@@ -45,6 +46,10 @@ class SyncService;
 
 namespace signin {
 
+// Callback to create a snackbar message to display after sign-out.
+using SnackbarMessageBuilder =
+    base::OnceCallback<SnackbarMessage*(Browser* browser)>;
+
 // Completion block called after a sign-out.
 // `scene_state` is the scene state from the window that requested the sign-out
 // after the profile switching it was needed, otherwise, the profile didn't
@@ -73,10 +78,10 @@ class ProfileSignoutRequest {
 
   ~ProfileSignoutRequest();
 
-  // Configures the snackbar message to display and whether it should be
-  // forced over the toolbar or not.
-  ProfileSignoutRequest&& SetSnackbarMessage(
-      SnackbarMessage* snackbar_message,
+  // Configures the builder used to create the snackbar message to display after
+  // sign-out and whether it should be forced over the toolbar or not.
+  ProfileSignoutRequest&& SetSnackbarMessageBuilder(
+      SnackbarMessageBuilder snackbar_message_builder,
       bool force_snackbar_over_toolbar) &&;
 
   // Configures the callback invoked before starting the request.
@@ -99,7 +104,7 @@ class ProfileSignoutRequest {
   const signin_metrics::ProfileSignout source_;
   PrepareCallback prepare_callback_;
   CompletionCallback completion_callback_;
-  SnackbarMessage* snackbar_message_;
+  SnackbarMessageBuilder snackbar_message_builder_;
   bool force_snackbar_over_toolbar_ = false;
   bool should_record_metrics_ = true;
   bool run_has_been_called_ = false;
@@ -144,7 +149,7 @@ id<SystemIdentity> GetDefaultIdentityOnDevice(
 // Returns the account info on the device with `email` or nullopt.
 std::optional<AccountInfo> GetAccountInfoOnDeviceWithEmail(
     signin::IdentityManager* identityManager,
-    std::string email);
+    std::string_view email);
 
 // Switch profile if needed in all windows then sign out from the current
 // profile, but switches to personal profile in all.
@@ -158,7 +163,7 @@ std::optional<AccountInfo> GetAccountInfoOnDeviceWithEmail(
 // have their own metrics for signout.
 void MultiProfileSignOutForProfile(
     ProfileIOS* profile,
-    std::string trigger_scene_session_id,
+    std::string_view trigger_scene_session_id,
     signin_metrics::ProfileSignout signout_source,
     SignoutCompletion signout_completion_closure);
 

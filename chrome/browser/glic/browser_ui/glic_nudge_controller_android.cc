@@ -4,29 +4,39 @@
 
 #include "chrome/browser/glic/browser_ui/glic_nudge_controller_android.h"
 
+#include "base/functional/bind.h"
 #include "base/notimplemented.h"
-#include "chrome/browser/glic/browser_ui/glic_nudge_delegate.h"
+#include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/glic/browser_ui/glic_nudge_delegate_android.h"
+#include "chrome/browser/glic/browser_ui/glic_split_button_delegate.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "components/tabs/public/tab_interface.h"
+#include "content/public/browser/web_contents.h"
 
 namespace glic {
 
 GlicNudgeControllerAndroid::GlicNudgeControllerAndroid(
-    content::WebContents* web_contents) {
-  // TODO(crbug.com/524810240): Observe tab changes.
-  delegate_ = std::make_unique<GlicNudgeDelegateAndroid>(
-      this, /*tab_list=*/nullptr, web_contents);
+    BrowserWindowInterface* browser)
+    : browser_(browser),
+      scoped_unowned_user_data_(browser->GetUnownedUserDataHost(), *this) {
+  TabListInterface* tab_list = GetTabList();
+  if (tab_list) {
+    tab_list_observation_.Observe(tab_list);
+  }
+  delegate_ = std::make_unique<GlicNudgeDelegateAndroid>(this, browser);
   SetTabStripDelegate(delegate_.get());
 }
+
 GlicNudgeControllerAndroid::~GlicNudgeControllerAndroid() = default;
 
 void GlicNudgeControllerAndroid::SetTabStripDelegate(
-    GlicNudgeDelegate* delegate) {
+    GlicSplitButtonDelegate* delegate) {
   tab_strip_delegate_ = delegate;
 }
 
 void GlicNudgeControllerAndroid::SetToolbarDelegate(
-    GlicNudgeDelegate* delegate) {
+    GlicSplitButtonDelegate* delegate) {
   NOTIMPLEMENTED() << "No toolbar glic nudge on Android currently.";
 }
 
@@ -37,11 +47,26 @@ void GlicNudgeControllerAndroid::UpdateNudgeLabel(
     const std::string& anchored_message_text,
     std::optional<GlicNudgeActivity> activity,
     GlicNudgeActivityCallback callback) {
-  // TODO(crbug.com/524810240): Skip update if this isn't the active tab.
+  TabListInterface* tab_list = GetTabList();
+  tabs::TabInterface* active_tab =
+      tab_list ? tab_list->GetActiveTab() : nullptr;
+  if (!active_tab || active_tab->GetContents() != web_contents) {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(std::move(callback),
+                       GlicNudgeActivity::kNudgeNotShownWebContents));
+    return;
+  }
   nudge_activity_callback_ = callback;
   prompt_suggestion_ = prompt_suggestion;
+  if (!nudge_label.empty()) {
+    CHECK(active_tab);
+    nudged_tab_handle_ = active_tab->GetHandle();
+  } else {
+    nudged_tab_handle_ = tabs::TabHandle::Null();
+  }
 
-  GlicNudgeDelegate* delegate = tab_strip_delegate_;
+  GlicSplitButtonDelegate* delegate = tab_strip_delegate_;
 
   if (delegate) {
     if (nudge_label.empty() && delegate->GetIsShowingGlicNudge()) {
@@ -73,11 +98,13 @@ void GlicNudgeControllerAndroid::OnNudgeActivity(GlicNudgeActivity activity) {
     case GlicNudgeActivity::kNudgeIgnoredNavigation:
     case GlicNudgeActivity::kNudgeIgnoredOpenedContextualTasksSidePanel:
     case GlicNudgeActivity::kNudgeIgnoredOmniboxContextMenuInteraction:
+      nudged_tab_handle_ = tabs::TabHandle::Null();
       nudge_activity_callback_.Run(activity);
       nudge_activity_callback_.Reset();
       break;
     case GlicNudgeActivity::kNudgeNotShownWebContents:
     case GlicNudgeActivity::kNudgeNotShownWindowCallToActionUI:
+      nudged_tab_handle_ = tabs::TabHandle::Null();
       nudge_activity_callback_.Reset();
       break;
   }
@@ -85,11 +112,22 @@ void GlicNudgeControllerAndroid::OnNudgeActivity(GlicNudgeActivity activity) {
 
 void GlicNudgeControllerAndroid::OnActiveTabChanged(TabListInterface& tab_list,
                                                     tabs::TabInterface* tab) {
-  GlicNudgeDelegate* delegate = tab_strip_delegate_;
+  // Ignore active tab changes that correspond to the tab currently showing the
+  // nudge. This avoids race conditions where the JNI or asynchronous tab
+  // activation event is processed after the nudge was shown.
+  if (!nudged_tab_handle_.Get() || tab == nudged_tab_handle_.Get()) {
+    return;
+  }
+  GlicSplitButtonDelegate* delegate = tab_strip_delegate_;
   if (delegate && delegate->GetIsShowingGlicNudge()) {
     delegate->OnHideGlicNudgeUI();
     OnNudgeActivity(glic::GlicNudgeActivity::kNudgeIgnoredActiveTabChanged);
   }
+}
+
+void GlicNudgeControllerAndroid::OnTabListDestroyed(
+    TabListInterface& tab_list) {
+  tab_list_observation_.Reset();
 }
 
 std::optional<std::string> GlicNudgeControllerAndroid::GetPromptSuggestion() {
@@ -98,6 +136,10 @@ std::optional<std::string> GlicNudgeControllerAndroid::GetPromptSuggestion() {
 
 void GlicNudgeControllerAndroid::ClearPromptSuggestion() {
   prompt_suggestion_.reset();
+}
+
+TabListInterface* GlicNudgeControllerAndroid::GetTabList() {
+  return browser_ ? TabListInterface::From(browser_) : nullptr;
 }
 
 }  // namespace glic

@@ -10,9 +10,7 @@
 #include "chrome/browser/ui/side_panel/side_panel_registry.h"
 #include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/views/side_panel/extensions/extension_side_panel_manager.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
 #include "content/public/test/browser_test.h"
-#include "extensions/browser/extension_host_test_helper.h"
 #include "extensions/test/extension_test_message_listener.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

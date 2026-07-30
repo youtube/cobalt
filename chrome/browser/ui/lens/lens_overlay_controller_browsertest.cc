@@ -28,6 +28,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/with_feature_override.h"
 #include "base/threading/thread_restrictions.h"
+#include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
 #include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
 #include "chrome/browser/companion/text_finder/text_highlighter.h"
@@ -162,6 +163,7 @@
 #include "ui/events/base_event_utils.h"
 #include "ui/events/event_constants.h"
 #include "ui/events/test/test_event.h"
+#include "ui/shell_dialogs/fake_select_file_dialog.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/controls/webview/webview.h"
 #include "ui/views/interaction/element_tracker_views.h"
@@ -828,6 +830,20 @@ class LensOverlayControllerBrowserTest : public InProcessBrowserTest {
             ->header_open_in_new_tab_button();
     views::test::ButtonTestApi(open_in_new_tab_button)
         .NotifyClick(ui::test::TestEvent());
+  }
+
+  // Waits for the overlay WebUI to finish rendering the screenshot bitmap.
+  // createImageBitmap resolves in a task, so the screenshot
+  // delivery chain completes asynchronously after FlushForTesting().
+  void WaitForOverlayScreenshotRendered() {
+    ASSERT_TRUE(base::test::RunUntil([&]() {
+      auto result = content::EvalJs(
+          GetOverlayWebContents(),
+          "document.querySelector('lens-overlay-app')?.shadowRoot"
+          "?.querySelector('#selectionOverlay')"
+          "?.hasAttribute('is-screenshot-rendered') ?? false");
+      return result.is_bool() && result.ExtractBool();
+    }));
   }
 
   void SimulateLeftClickDrag(gfx::Point from, gfx::Point to) {
@@ -1563,6 +1579,7 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerBrowserTest,
   ASSERT_TRUE(fake_controller);
   fake_controller->FlushForTesting();
   ASSERT_TRUE(content::WaitForLoadStop(GetOverlayWebContents()));
+  WaitForOverlayScreenshotRendered();
 
   // Simulate mouse events on the overlay for drawing a manual region.
   gfx::Point center =
@@ -1648,6 +1665,7 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerBrowserTest,
   ASSERT_TRUE(fake_controller);
   fake_controller->FlushForTesting();
   ASSERT_TRUE(content::WaitForLoadStop(GetOverlayWebContents()));
+  WaitForOverlayScreenshotRendered();
 
   // Simulate mouse events on the overlay for drawing a manual region.
   gfx::Point center =
@@ -8404,6 +8422,7 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerContextualFeaturesDisabledTest,
   ASSERT_TRUE(fake_controller);
   fake_controller->FlushForTesting();
   ASSERT_TRUE(content::WaitForLoadStop(GetOverlayWebContents()));
+  WaitForOverlayScreenshotRendered();
 
   // Preselection toast should be visible when the overlay is showing and is in
   // the kOverlay state.
@@ -9938,4 +9957,76 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerBrowserTest,
   EXPECT_TRUE(ui::clipboard_test_util::IsFormatAvailable(
       clipboard, ui::ClipboardFormatType::BitmapType(),
       ui::ClipboardBuffer::kCopyPaste, /* data_dst = */ nullptr));
+}
+
+IN_PROC_BROWSER_TEST_F(LensOverlayControllerBrowserTest,
+                       SaveAsImageBackgroundCheck) {
+  WaitForPaint();
+
+  auto* controller = GetLensOverlayController();
+  ASSERT_EQ(controller->state(), State::kOff);
+
+  // Show the overlay.
+  OpenLensOverlay(LensOverlayInvocationSource::kAppMenu);
+  ASSERT_EQ(controller->state(), State::kScreenshot);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return controller->state() == State::kOverlay; }));
+
+  // Keep track of the active tab index.
+  int active_controller_tab_index =
+      browser()->tab_strip_model()->active_index();
+
+  // Background the tab by opening a new tab.
+  WaitForPaint(kDocumentWithNamedElement,
+               WindowOpenDisposition::NEW_FOREGROUND_TAB,
+               ui_test_utils::BROWSER_TEST_WAIT_FOR_TAB |
+                   ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+  EXPECT_TRUE(base::test::RunUntil(
+      [&]() { return controller->state() == State::kBackground; }));
+
+  // Register the fake file dialog factory.
+  ui::FakeSelectFileDialog::Factory* factory =
+      ui::FakeSelectFileDialog::RegisterFactory();
+  bool file_dialog_opened = false;
+  factory->SetOpenCallback(base::BindRepeating(
+      [](bool* opened) { *opened = true; }, &file_dialog_opened));
+
+  // Test SaveAsImage when backgrounded. It should NOT open the dialog.
+  lens::mojom::LensPageHandler* page_handler = controller;
+  auto region = lens::mojom::CenterRotatedBox::New();
+  region->box = gfx::RectF(0.1, 0.1, 0.2, 0.2);
+  region->coordinate_type =
+      lens::mojom::CenterRotatedBox::CoordinateType::kNormalized;
+
+  page_handler->SaveAsImage(std::move(region));
+
+  // Yield to the message loop to ensure any pending tasks are run.
+  base::RunLoop run_loop;
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop.QuitClosure());
+  run_loop.Run();
+
+  // Dialog should NOT have been opened.
+  EXPECT_FALSE(file_dialog_opened);
+
+  // Reactivate the tab.
+  browser()->tab_strip_model()->ActivateTabAt(active_controller_tab_index);
+  EXPECT_TRUE(base::test::RunUntil(
+      [&]() { return controller->state() == State::kOverlay; }));
+
+  // Test SaveAsImage when active. It should open the dialog.
+  auto region2 = lens::mojom::CenterRotatedBox::New();
+  region2->box = gfx::RectF(0.1, 0.1, 0.2, 0.2);
+  region2->coordinate_type =
+      lens::mojom::CenterRotatedBox::CoordinateType::kNormalized;
+
+  page_handler->SaveAsImage(std::move(region2));
+
+  // Wait for the dialog to open.
+  ASSERT_TRUE(base::test::RunUntil([&]() { return file_dialog_opened; }));
+
+  // Complete the dialog to avoid hanging download manager.
+  auto* dialog = factory->GetLastDialog();
+  ASSERT_TRUE(dialog);
+  dialog->CallFileSelectionCanceled();
 }

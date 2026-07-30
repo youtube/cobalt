@@ -4,7 +4,7 @@
 
 #include "chrome/browser/extensions/webstore_reinstaller.h"
 
-#include <utility>
+#include <memory>
 
 #include "base/memory/ref_counted.h"
 #include "chrome/browser/extensions/extension_install_prompt.h"
@@ -47,11 +47,10 @@ bool WebstoreReinstaller::CheckRequestorAlive() const {
   return web_contents() != nullptr;
 }
 
-std::unique_ptr<ExtensionInstallPrompt::Prompt>
-WebstoreReinstaller::CreateInstallPrompt() const {
-  std::unique_ptr<ExtensionInstallPrompt::Prompt> prompt(
-      new ExtensionInstallPrompt::Prompt(
-          ExtensionInstallPrompt::REPAIR_PROMPT));
+std::unique_ptr<InstallPromptData> WebstoreReinstaller::CreateInstallPrompt()
+    const {
+  std::unique_ptr<InstallPromptData> prompt =
+      std::make_unique<InstallPromptData>(InstallPromptData::REPAIR_PROMPT);
   prompt->SetWebstoreData(localized_user_count(), show_user_count(),
                           average_rating(), rating_count(),
                           localized_rating_count());

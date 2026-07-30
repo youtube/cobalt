@@ -6,7 +6,6 @@
 
 #include "chrome/browser/ui/views/autofill/payments/payments_view_util.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
-#include "chrome/browser/ui/views/chrome_typography.h"
 #include "components/autofill/core/browser/payments/constants.h"
 #include "components/autofill/core/browser/ui/payments/save_and_fill_dialog_controller.h"
 #include "components/autofill/core/common/credit_card_number_validation.h"

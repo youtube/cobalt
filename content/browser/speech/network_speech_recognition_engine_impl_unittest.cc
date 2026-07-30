@@ -11,6 +11,7 @@
 #include <array>
 #include <memory>
 
+#include "base/byte_size.h"
 #include "base/containers/queue.h"
 #include "base/containers/span.h"
 #include "base/numerics/byte_conversions.h"
@@ -652,7 +653,7 @@ void NetworkSpeechRecognitionEngineImplTest::CloseMockDownstream(
   ASSERT_TRUE(downstream_request);
 
   network::URLLoaderCompletionStatus status;
-  status.decoded_body_length = response_buffer_.size();
+  status.decoded_body_length = base::ByteSize(response_buffer_.size());
   status.error_code =
       (error == DOWNSTREAM_ERROR_NETWORK) ? net::ERR_FAILED : net::OK;
   downstream_request->client->OnComplete(status);

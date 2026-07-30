@@ -17,6 +17,7 @@ import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.CallbackUtils;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
+import org.chromium.base.supplier.NullableObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
@@ -46,8 +47,6 @@ import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 import org.chromium.url.GURL;
 
-import java.util.function.Supplier;
-
 /**
  * Coordinator that hosts SearchUiCoordinator in a floating Tab Search panel positioned overlaying
  * the Vertical Tabs rail.
@@ -59,7 +58,7 @@ public class TabSearchOverlayCoordinator {
     private final WindowAndroid mWindowAndroid;
     private final MonotonicObservableSupplier<Profile> mProfileSupplier;
     private final SnackbarManager mSnackbarManager;
-    private final Supplier<@Nullable ModalDialogManager> mModalDialogManagerSupplier;
+    private final NullableObservableSupplier<ModalDialogManager> mModalDialogManagerSupplier;
     private final ActivityLifecycleDispatcher mLifecycleDispatcher;
     private final MonotonicObservableSupplier<TabModelSelector> mTabModelSelectorSupplier;
     private final @Nullable EdgeToEdgeSystemBarColorHelper mEdgeToEdgeSystemBarColorHelper;
@@ -92,7 +91,7 @@ public class TabSearchOverlayCoordinator {
             WindowAndroid windowAndroid,
             MonotonicObservableSupplier<Profile> profileSupplier,
             SnackbarManager snackbarManager,
-            Supplier<@Nullable ModalDialogManager> modalDialogManagerSupplier,
+            NullableObservableSupplier<ModalDialogManager> modalDialogManagerSupplier,
             ActivityLifecycleDispatcher lifecycleDispatcher,
             MonotonicObservableSupplier<TabModelSelector> tabModelSelectorSupplier,
             @Nullable EdgeToEdgeSystemBarColorHelper edgeToEdgeSystemBarColorHelper) {

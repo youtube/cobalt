@@ -627,35 +627,39 @@ const StaticRangeVector DomSelection::getComposedRanges(
   const SelectionInDomTree& selection = Selection().GetSelectionInDomTree();
   // 2. Otherwise, let startNode be start node of the range associated with
   // this, and let startOffset be start offset of the range.
-  const Position& start = selection.ComputeStartPosition();
-  Node* startNode = start.ComputeContainerNode();
-  unsigned startOffset = start.ComputeOffsetInContainerNode();
   // 3. Rescope startNode and startOffset with listed shadow roots.
-  Rescope(startNode, startOffset, options->shadowRoots(), /*isEnd=*/false);
+  Position start =
+      Rescope(selection.ComputeStartPosition(), options->shadowRoots(),
+              /*is_end=*/false);
 
   // 4. Let endNode be end node of the range associated with this, and let
   // endOffset be end offset of the range.
-  const Position& end = selection.ComputeEndPosition();
-  Node* endNode = end.ComputeContainerNode();
-  unsigned endOffset = end.ComputeOffsetInContainerNode();
   // 5. Rescope endNode and endOffset with listed shadow roots.
-  Rescope(endNode, endOffset, options->shadowRoots(), /*isEnd=*/true);
+  Position end = Rescope(selection.ComputeEndPosition(), options->shadowRoots(),
+                         /*is_end=*/true);
 
   // 6. Return an array consisting of new StaticRange whose start node is
   // startNode, start offset is startOffset, end node is endNode, and end
   // offset is endOffset.
   ranges.push_back(MakeGarbageCollected<StaticRange>(
-      Selection().GetDocument(), startNode, startOffset, endNode, endOffset));
+      Selection().GetDocument(), start.ComputeContainerNode(),
+      start.ComputeOffsetInContainerNode(), end.ComputeContainerNode(),
+      end.ComputeOffsetInContainerNode()));
   return ranges;
 }
 
 // If isEnd is false, rescope following spec step 3.
 // Else, Rescope following sepc step 5.
 // https://www.w3.org/TR/selection-api/#dom-selection-getcomposedranges
-void DomSelection::Rescope(Node*& node,
-                           unsigned& offset,
-                           const HeapVector<Member<ShadowRoot>>& shadowRoots,
-                           bool isEnd) const {
+Position DomSelection::Rescope(
+    const Position& position,
+    const HeapVector<Member<ShadowRoot>>& shadow_roots,
+    bool is_end) const {
+  if (position.IsNull()) {
+    return Position();
+  }
+  Node* node = position.ComputeContainerNode();
+  unsigned offset = position.ComputeOffsetInContainerNode();
   // 3. & 5. While node is a node, node's root is a shadow root, and
   // node's root is not a shadow-including inclusive ancestor of any of
   // shadowRoots, repeat these steps:
@@ -663,21 +667,22 @@ void DomSelection::Rescope(Node*& node,
     ShadowRoot* root = node->ContainingShadowRoot();
     Element* host = node->OwnerShadowHost();
     if (!root || !host) {
-      return;
+      return Position(node, offset);
     }
-    for (auto& shadowRoot : shadowRoots) {
+    for (auto& shadowRoot : shadow_roots) {
       if (root->IsShadowIncludingInclusiveAncestorOf(*shadowRoot)) {
-        return;
+        return Position(node, offset);
       }
     }
     // 1. Set node to node's root's host's parent.
     node = host->parentNode();
     // 2. Set offset to index of node's root's host.
     offset = host->NodeIndex();
-    if (isEnd) {
+    if (is_end) {
       offset += 1;
     }
   }
+  return Position(node, offset);
 }
 
 Range* DomSelection::PrimaryRangeOrNull() const {

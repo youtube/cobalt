@@ -21,8 +21,12 @@ import androidx.recyclerview.widget.RecyclerView.Adapter;
 import org.chromium.base.Callback;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.HomeProperties.ItemType;
 import org.chromium.chrome.browser.ui.autofill.internal.R;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
+import org.chromium.ui.modelutil.LayoutViewBuilder;
+import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
+import org.chromium.ui.modelutil.SimpleRecyclerViewAdapter;
 
 @NullMarked
 public class AtMemoryHomeView extends LinearLayout {
@@ -30,6 +34,7 @@ public class AtMemoryHomeView extends LinearLayout {
     private RecyclerView mRecyclerView;
     private View mNoticeContainer;
     private View mNoticeOkButton;
+    private View mNoticeSettingsLink;
 
     public AtMemoryHomeView(Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
@@ -42,14 +47,31 @@ public class AtMemoryHomeView extends LinearLayout {
         mSearchBarView = findViewById(R.id.search_query_input_container);
         mRecyclerView = findViewById(R.id.suggestions_view);
         mRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
-        mRecyclerView.addItemDecoration(new AtMemoryDividerItemDecoration(getContext()));
-
         mNoticeContainer = findViewById(R.id.notice_container);
         mNoticeOkButton = findViewById(R.id.notice_ok_button);
+        mNoticeSettingsLink = findViewById(R.id.notice_manage_settings_link);
     }
 
-    public void setRecyclerViewAdapter(Adapter adapter) {
+    public void setUpSheetItems(ModelList items) {
+        SimpleRecyclerViewAdapter adapter = new SimpleRecyclerViewAdapter(items);
+
+        adapter.registerType(
+                ItemType.SUGGESTION,
+                new LayoutViewBuilder<>(R.layout.at_memory_bottom_sheet_suggestion_item),
+                AtMemoryBottomSheetViewBinder::bindSuggestionItemView);
+
+        adapter.registerType(
+                ItemType.SEARCH_TILE,
+                new LayoutViewBuilder<>(R.layout.at_memory_bottom_sheet_search_item),
+                AtMemoryBottomSheetViewBinder::bindSearchItemView);
+
+        adapter.registerType(
+                ItemType.ZERO_STATE,
+                new LayoutViewBuilder<>(R.layout.at_memory_bottom_sheet_zero_state_item),
+                (model, view, propertyKey) -> {});
+
         mRecyclerView.setAdapter(adapter);
+        mRecyclerView.addItemDecoration(new AtMemoryDividerItemDecoration(getContext()));
     }
 
     public void focusSearchArea() {
@@ -70,6 +92,10 @@ public class AtMemoryHomeView extends LinearLayout {
 
     public void setNoticeOkClickListener(Runnable listener) {
         mNoticeOkButton.setOnClickListener(v -> listener.run());
+    }
+
+    public void setNoticeSettingsClickListener(Runnable listener) {
+        mNoticeSettingsLink.setOnClickListener(v -> listener.run());
     }
 
     public void setOnQuerySubmittedCallback(Callback<String> callback) {
@@ -118,7 +144,8 @@ public class AtMemoryHomeView extends LinearLayout {
                 View child = parent.getChildAt(i);
                 int position = parent.getChildAdapterPosition(child);
                 if (position == RecyclerView.NO_POSITION
-                        || position == adapter.getItemCount() - 1) {
+                        || position == adapter.getItemCount() - 1
+                        || shouldSkipItemType(adapter.getItemViewType(position))) {
                     continue;
                 }
 
@@ -139,10 +166,24 @@ public class AtMemoryHomeView extends LinearLayout {
             if (adapter == null) return;
 
             int position = parent.getChildAdapterPosition(view);
-            if (position == RecyclerView.NO_POSITION || position == adapter.getItemCount() - 1) {
+            if (position == RecyclerView.NO_POSITION
+                    || position == adapter.getItemCount() - 1
+                    || shouldSkipItemType(adapter.getItemViewType(position))) {
                 outRect.set(0, 0, 0, 0);
             } else {
                 outRect.set(0, 0, 0, mDividerHeight);
+            }
+        }
+
+        private boolean shouldSkipItemType(@ItemType int type) {
+            switch (type) {
+                case ItemType.ZERO_STATE:
+                case ItemType.SEARCH_TILE:
+                    return true;
+                case ItemType.SUGGESTION:
+                    return false;
+                default:
+                    return false;
             }
         }
     }

@@ -43,6 +43,14 @@
                 "arguments": [
                     "--enable-field-trials"
                 ]
+            },
+            "speedometer_main.all.crossbench": {
+                "crossbench_name": "speedometer_main",
+                "arguments": [
+                    "--stories=all",
+                    "--detailed-metrics",
+                    "--enable-field-trials"
+                ]
             }
         }
     },
@@ -56,7 +64,7 @@
                 "abridged": false
             },
             "blink_perf.accessibility": {
-                "end": 5,
+                "end": 6,
                 "abridged": false
             },
             "jetstream2": {
@@ -130,6 +138,14 @@
                 "arguments": [
                     "--enable-field-trials"
                 ]
+            },
+            "speedometer_main.all.crossbench": {
+                "crossbench_name": "speedometer_main",
+                "arguments": [
+                    "--stories=all",
+                    "--detailed-metrics",
+                    "--enable-field-trials"
+                ]
             }
         }
     },
@@ -140,8 +156,8 @@
                 "pageset_repeat": 2
             },
             "blink_perf.accessibility": {
-                "begin": 5,
-                "end": 21,
+                "begin": 6,
+                "end": 23,
                 "abridged": false
             },
             "jetstream2": {
@@ -206,6 +222,14 @@
                 "arguments": [
                     "--enable-field-trials"
                 ]
+            },
+            "speedometer_main.all.crossbench": {
+                "crossbench_name": "speedometer_main",
+                "arguments": [
+                    "--stories=all",
+                    "--detailed-metrics",
+                    "--enable-field-trials"
+                ]
             }
         }
     },
@@ -216,14 +240,14 @@
                 "pageset_repeat": 2
             },
             "blink_perf.accessibility": {
-                "begin": 21,
+                "begin": 23,
                 "abridged": false
             },
             "blink_perf.bindings": {
                 "abridged": false
             },
             "blink_perf.css": {
-                "end": 27,
+                "end": 45,
                 "abridged": false
             },
             "jetstream2": {
@@ -288,13 +312,21 @@
                 "arguments": [
                     "--enable-field-trials"
                 ]
+            },
+            "speedometer_main.all.crossbench": {
+                "crossbench_name": "speedometer_main",
+                "arguments": [
+                    "--stories=all",
+                    "--detailed-metrics",
+                    "--enable-field-trials"
+                ]
             }
         }
     },
     "7": {
         "benchmarks": {
             "blink_perf.css": {
-                "begin": 27,
+                "begin": 45,
                 "abridged": false
             },
             "blink_perf.dom": {
@@ -319,7 +351,7 @@
                 "abridged": false
             },
             "blink_perf.webaudio": {
-                "end": 5,
+                "end": 9,
                 "abridged": false
             },
             "speedometer3": {
@@ -380,13 +412,21 @@
                 "arguments": [
                     "--enable-field-trials"
                 ]
+            },
+            "speedometer_main.all.crossbench": {
+                "crossbench_name": "speedometer_main",
+                "arguments": [
+                    "--stories=all",
+                    "--detailed-metrics",
+                    "--enable-field-trials"
+                ]
             }
         }
     },
     "9": {
         "benchmarks": {
             "blink_perf.webaudio": {
-                "begin": 5,
+                "begin": 9,
                 "abridged": false
             },
             "blink_perf.webcodecs": {
@@ -412,7 +452,7 @@
                 "pageset_repeat": 11
             },
             "media.desktop": {
-                "end": 9,
+                "end": 11,
                 "abridged": false
             },
             "speedometer3": {
@@ -466,8 +506,8 @@
                 "pageset_repeat": 2
             },
             "media.desktop": {
-                "begin": 9,
-                "end": 13,
+                "begin": 11,
+                "end": 21,
                 "abridged": false
             },
             "speedometer3": {
@@ -479,6 +519,14 @@
             "speedometer3.crossbench": {
                 "crossbench_name": "speedometer_3",
                 "arguments": [
+                    "--enable-field-trials"
+                ]
+            },
+            "speedometer_main.all.crossbench": {
+                "crossbench_name": "speedometer_main",
+                "arguments": [
+                    "--stories=all",
+                    "--detailed-metrics",
                     "--enable-field-trials"
                 ]
             },
@@ -501,11 +549,10 @@
                 "pageset_repeat": 2
             },
             "media.desktop": {
-                "begin": 13,
+                "begin": 21,
                 "abridged": false
             },
             "memory.desktop": {
-                "end": 8,
                 "abridged": false,
                 "pageset_repeat": 5
             },
@@ -518,6 +565,14 @@
             "speedometer3.crossbench": {
                 "crossbench_name": "speedometer_3",
                 "arguments": [
+                    "--enable-field-trials"
+                ]
+            },
+            "speedometer_main.all.crossbench": {
+                "crossbench_name": "speedometer_main",
+                "arguments": [
+                    "--stories=all",
+                    "--detailed-metrics",
                     "--enable-field-trials"
                 ]
             },
@@ -539,13 +594,8 @@
                 "abridged": false,
                 "pageset_repeat": 2
             },
-            "memory.desktop": {
-                "begin": 8,
-                "abridged": false,
-                "pageset_repeat": 5
-            },
             "power.desktop": {
-                "end": 11,
+                "end": 13,
                 "abridged": false
             },
             "speedometer3": {
@@ -557,6 +607,14 @@
             "speedometer3.crossbench": {
                 "crossbench_name": "speedometer_3",
                 "arguments": [
+                    "--enable-field-trials"
+                ]
+            },
+            "speedometer_main.all.crossbench": {
+                "crossbench_name": "speedometer_main",
+                "arguments": [
+                    "--stories=all",
+                    "--detailed-metrics",
                     "--enable-field-trials"
                 ]
             },
@@ -586,14 +644,14 @@
                 "pageset_repeat": 2
             },
             "power.desktop": {
-                "begin": 11,
+                "begin": 13,
                 "abridged": false
             },
             "rasterize_and_record_micro.top_25": {
                 "abridged": false
             },
             "rendering.desktop": {
-                "end": 28,
+                "end": 29,
                 "abridged": false
             },
             "speedometer3": {
@@ -605,6 +663,14 @@
             "speedometer3.crossbench": {
                 "crossbench_name": "speedometer_3",
                 "arguments": [
+                    "--enable-field-trials"
+                ]
+            },
+            "speedometer_main.all.crossbench": {
+                "crossbench_name": "speedometer_main",
+                "arguments": [
+                    "--stories=all",
+                    "--detailed-metrics",
                     "--enable-field-trials"
                 ]
             },
@@ -627,8 +693,8 @@
                 "pageset_repeat": 2
             },
             "rendering.desktop": {
-                "begin": 28,
-                "end": 73,
+                "begin": 29,
+                "end": 71,
                 "abridged": false
             },
             "speedometer3": {
@@ -640,6 +706,14 @@
             "speedometer3.crossbench": {
                 "crossbench_name": "speedometer_3",
                 "arguments": [
+                    "--enable-field-trials"
+                ]
+            },
+            "speedometer_main.all.crossbench": {
+                "crossbench_name": "speedometer_main",
+                "arguments": [
+                    "--stories=all",
+                    "--detailed-metrics",
                     "--enable-field-trials"
                 ]
             },
@@ -662,8 +736,8 @@
                 "pageset_repeat": 2
             },
             "rendering.desktop": {
-                "begin": 73,
-                "end": 120,
+                "begin": 71,
+                "end": 118,
                 "abridged": false
             },
             "speedometer3": {
@@ -697,8 +771,8 @@
                 "pageset_repeat": 2
             },
             "rendering.desktop": {
-                "begin": 120,
-                "end": 159,
+                "begin": 118,
+                "end": 158,
                 "abridged": false
             },
             "speedometer3": {
@@ -732,8 +806,8 @@
                 "pageset_repeat": 2
             },
             "rendering.desktop": {
-                "begin": 159,
-                "end": 205,
+                "begin": 158,
+                "end": 204,
                 "abridged": false
             },
             "speedometer3": {
@@ -767,8 +841,8 @@
                 "pageset_repeat": 2
             },
             "rendering.desktop": {
-                "begin": 205,
-                "end": 250,
+                "begin": 204,
+                "end": 249,
                 "abridged": false
             },
             "speedometer3": {
@@ -802,8 +876,8 @@
                 "pageset_repeat": 2
             },
             "rendering.desktop": {
-                "begin": 250,
-                "end": 280,
+                "begin": 249,
+                "end": 279,
                 "abridged": false
             },
             "speedometer3": {
@@ -837,8 +911,8 @@
                 "pageset_repeat": 2
             },
             "rendering.desktop": {
-                "begin": 280,
-                "end": 324,
+                "begin": 279,
+                "end": 323,
                 "abridged": false
             },
             "speedometer3": {
@@ -872,7 +946,7 @@
                 "pageset_repeat": 2
             },
             "rendering.desktop": {
-                "begin": 324,
+                "begin": 323,
                 "abridged": false
             },
             "speedometer3": {
@@ -883,7 +957,7 @@
                 "abridged": false
             },
             "system_health.common_desktop": {
-                "end": 17,
+                "end": 16,
                 "abridged": false
             }
         },
@@ -927,8 +1001,8 @@
                 "pageset_repeat": 2
             },
             "system_health.common_desktop": {
-                "begin": 17,
-                "end": 62,
+                "begin": 16,
+                "end": 60,
                 "abridged": false
             },
             "speedometer3": {
@@ -962,11 +1036,11 @@
                 "pageset_repeat": 2
             },
             "system_health.common_desktop": {
-                "begin": 62,
+                "begin": 60,
                 "abridged": false
             },
             "system_health.memory_desktop": {
-                "end": 3,
+                "end": 2,
                 "abridged": false,
                 "pageset_repeat": 3
             },
@@ -1001,8 +1075,8 @@
                 "pageset_repeat": 2
             },
             "system_health.memory_desktop": {
-                "begin": 3,
-                "end": 22,
+                "begin": 2,
+                "end": 21,
                 "abridged": false,
                 "pageset_repeat": 3
             },
@@ -1033,8 +1107,8 @@
                 "pageset_repeat": 6
             },
             "system_health.memory_desktop": {
-                "begin": 22,
-                "end": 56,
+                "begin": 21,
+                "end": 54,
                 "abridged": false,
                 "pageset_repeat": 3
             },
@@ -1051,7 +1125,7 @@
                 "pageset_repeat": 6
             },
             "system_health.memory_desktop": {
-                "begin": 56,
+                "begin": 54,
                 "abridged": false,
                 "pageset_repeat": 3
             },
@@ -1100,38 +1174,38 @@
         }
     },
     "extra_infos": {
-        "num_stories": 1264,
-        "predicted_min_shard_time": 2035.0,
+        "num_stories": 1274,
+        "predicted_min_shard_time": 2095.0,
         "predicted_min_shard_index": 0,
-        "predicted_max_shard_time": 2320.0,
-        "predicted_max_shard_index": 24,
-        "shard #0": 2035.0,
-        "shard #1": 2226.0,
-        "shard #2": 2035.0,
-        "shard #3": 2229.0,
-        "shard #4": 2035.0,
-        "shard #5": 2233.0,
-        "shard #6": 2104.0,
-        "shard #7": 2237.0,
-        "shard #8": 2104.0,
-        "shard #9": 2241.0,
-        "shard #10": 2244.0,
-        "shard #11": 2231.0,
-        "shard #12": 2230.0,
+        "predicted_max_shard_time": 2323.0,
+        "predicted_max_shard_index": 9,
+        "shard #0": 2095.0,
+        "shard #1": 2249.0,
+        "shard #2": 2095.0,
+        "shard #3": 2248.0,
+        "shard #4": 2095.0,
+        "shard #5": 2251.0,
+        "shard #6": 2164.0,
+        "shard #7": 2262.0,
+        "shard #8": 2164.0,
+        "shard #9": 2323.0,
+        "shard #10": 2260.0,
+        "shard #11": 2308.0,
+        "shard #12": 2233.0,
         "shard #13": 2251.0,
-        "shard #14": 2250.0,
-        "shard #15": 2251.0,
-        "shard #16": 2251.0,
-        "shard #17": 2254.0,
-        "shard #18": 2238.0,
-        "shard #19": 2257.0,
-        "shard #20": 2257.0,
-        "shard #21": 2258.0,
-        "shard #22": 2261.0,
-        "shard #23": 2247.0,
-        "shard #24": 2320.0,
-        "shard #25": 2247.0,
-        "shard #26": 2190.0,
+        "shard #14": 2245.0,
+        "shard #15": 2259.0,
+        "shard #16": 2264.0,
+        "shard #17": 2239.0,
+        "shard #18": 2247.0,
+        "shard #19": 2255.0,
+        "shard #20": 2265.0,
+        "shard #21": 2243.0,
+        "shard #22": 2252.0,
+        "shard #23": 2235.0,
+        "shard #24": 2233.0,
+        "shard #25": 2265.0,
+        "shard #26": 2316.0,
         "shard #27": 2159.0
     }
 }

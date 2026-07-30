@@ -4,23 +4,13 @@
 
 #include "chrome/browser/ui/views/autofill/popup/popup_cell_utils.h"
 
-#include <memory>
-
-#include "base/test/task_environment.h"
 #include "chrome/app/vector_icons/vector_icons.h"
-#include "chrome/browser/ui/views/autofill/popup/popup_row_content_view.h"
 #include "chrome/browser/ui/views/autofill/popup/popup_view_utils.h"
-#include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
-#include "components/strings/grit/components_strings.h"
 #include "components/vector_icons/vector_icons.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/ui_base_features.h"
-#include "ui/views/controls/image_view.h"
-#include "ui/views/controls/label.h"
-#include "ui/views/controls/throbber.h"
 
 namespace autofill {
 namespace {

@@ -110,6 +110,17 @@ class PageZoomBarViewBinder {
             boolean useSlider = model.get(PageZoomProperties.USE_SLIDER);
             slider.setVisibility(useSlider ? View.VISIBLE : View.GONE);
             seekBar.setVisibility(useSlider ? View.GONE : View.VISIBLE);
+            if (useSlider) {
+                slider.setLabelFormatter(
+                        value -> {
+                            long zoomLevel =
+                                    Math.round(
+                                            100
+                                                    * PageZoomUtils.convertBarValueToZoomLevel(
+                                                            (int) value));
+                            return view.getContext().getString(R.string.page_zoom_level, zoomLevel);
+                        });
+            }
         }
     }
 }

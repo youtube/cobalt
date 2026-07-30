@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "base/byte_size.h"
 #include "base/containers/span.h"
 #include "base/functional/callback.h"
 #include "base/run_loop.h"
@@ -446,7 +447,7 @@ TEST_P(InterestGroupPermissionsCheckerParamaterizedTest,
                                               std::nullopt);
 
     auto status = network::URLLoaderCompletionStatus();
-    status.decoded_body_length = response_body.size();
+    status.decoded_body_length = base::ByteSize(response_body.size());
     pending_request.client->OnComplete(status);
   }
 

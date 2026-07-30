@@ -16,6 +16,17 @@
 
 namespace net::device_bound_sessions {
 
+// Specifies whether an `UnexportableAttestationKey` is required during the
+// session registration process.
+enum class AttestationMode {
+  // No attestation is requested. Only a standard session binding key is
+  // generated.
+  kNone,
+  // Attestation is required. The client must generate an attestation key and
+  // provide a cryptographic proof (attestation) of the session binding key.
+  kRequired,
+};
+
 // LINT.IfChange(SessionParams)
 // Struct to contain the parameters from the session instruction JSON.
 // https://github.com/WICG/dbsc/blob/main/README.md#session-registration-instructions-json

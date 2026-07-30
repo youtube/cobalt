@@ -17,6 +17,9 @@
 #include "chromeos/ash/components/network/network_event_log.h"
 #include "chromeos/ash/components/network/network_handler.h"
 #include "chromeos/ash/components/network/network_metadata_store.h"
+#include "components/session_manager/core/session.h"
+#include "components/session_manager/core/session_manager.h"
+#include "components/user_manager/user_manager.h"
 
 namespace ash {
 
@@ -25,7 +28,8 @@ namespace {
 // Interval duration to determine the auto reset check frequency.
 constexpr base::TimeDelta kResetCheckInterval = base::Hours(6);
 
-// Default reset day assigned to a network when the reset day has not been set.
+// Default reset day assigned to a network when the reset day has not been
+// set.
 constexpr int kDefaultResetDay = 1;
 
 // Stores the number of bytes per MB for UMA purposes.
@@ -73,9 +77,9 @@ base::Time CalculateCurrentMonthResetTime(base::Time::Exploded exploded,
   return GetValidTime(exploded);
 }
 
-// To avoid discrepancies between different times of the same day, set all times
-// to 12:00:00 AM. This is safe to do so because traffic counters will never be
-// automatically reset more than once on any given day.
+// To avoid discrepancies between different times of the same day, set all
+// times to 12:00:00 AM. This is safe to do so because traffic counters will
+// never be automatically reset more than once on any given day.
 void AdjustExplodedTimeValues(base::Time::Exploded* exploded_time) {
   exploded_time->hour = 0;
   exploded_time->minute = 0;
@@ -105,8 +109,8 @@ std::string GetNetworkTechnologyString(
 }
 
 // Since rx_bytes and tx_bytes may be larger than the maximum value
-// representable by uint32_t, we must check whether it was implicitly converted
-// to a double during D-Bus deserialization.
+// representable by uint32_t, we must check whether it was implicitly
+// converted to a double during D-Bus deserialization.
 uint64_t GetBytes(const base::DictValue& tc_dict, const std::string& key) {
   uint64_t bytes = 0;
   if (const base::Value* const value = tc_dict.Find(key)) {
@@ -157,6 +161,17 @@ bool AreTrafficCounterOperationsAllowed(const std::string& service_path) {
   }
 
   return true;
+}
+
+std::string GetPrimaryUserHash() {
+  const auto* primary_session =
+      session_manager::SessionManager::Get()->GetPrimarySession();
+  if (!primary_session) {
+    return std::string();
+  }
+  return user_manager::UserManager::Get()
+      ->FindUser(primary_session->account_id())
+      ->username_hash();
 }
 
 }  // namespace
@@ -289,10 +304,11 @@ void TrafficCountersHandler::
     NetworkHandler::Get()
         ->managed_network_configuration_handler()
         ->GetManagedProperties(
-            LoginState::Get()->primary_user_hash(), service_path,
+            GetPrimaryUserHash(), service_path,
             base::BindOnce(
                 &TrafficCountersHandler::OnGetManagedPropertiesForLastResetTime,
-                weak_ptr_factory_.GetWeakPtr(), /*total_data_usage=*/0.0));
+                weak_ptr_factory_.GetWeakPtr(),
+                /*total_data_usage=*/0.0));
     return;
   }
   for (const base::Value& tc : traffic_counters->GetList()) {
@@ -307,7 +323,7 @@ void TrafficCountersHandler::
   NetworkHandler::Get()
       ->managed_network_configuration_handler()
       ->GetManagedProperties(
-          LoginState::Get()->primary_user_hash(), service_path,
+          GetPrimaryUserHash(), service_path,
           base::BindOnce(
               &TrafficCountersHandler::OnGetManagedPropertiesForLastResetTime,
               weak_ptr_factory_.GetWeakPtr(), total_data_usage));
@@ -319,8 +335,8 @@ void TrafficCountersHandler::OnGetManagedPropertiesForLastResetTime(
     std::optional<base::DictValue> properties,
     std::optional<std::string> error) {
   // Since last reset time has already been retrieved (via
-  // GetManagedProperties), the network's traffic counters can be reset and the
-  // last reset time can be modified in the platform.
+  // GetManagedProperties), the network's traffic counters can be reset and
+  // the last reset time can be modified in the platform.
   NetworkHandler::Get()->network_state_handler()->ResetTrafficCounters(
       service_path);
   if (!properties) {
@@ -433,7 +449,7 @@ void TrafficCountersHandler::RunAutoResetTrafficCountersForActiveNetworks() {
     NetworkHandler::Get()
         ->managed_network_configuration_handler()
         ->GetManagedProperties(
-            LoginState::Get()->primary_user_hash(), service_path,
+            GetPrimaryUserHash(), service_path,
             base::BindOnce(
                 &TrafficCountersHandler::OnGetManagedPropertiesForAutoReset,
                 weak_ptr_factory_.GetWeakPtr(), network->guid()));
@@ -492,9 +508,9 @@ void TrafficCountersHandler::OnGetManagedPropertiesForAutoReset(
       base::Milliseconds(last_reset.value()));
   // If the last time traffic counters were reset (last_reset_time) was before
   // the time traffic counters were expected to be reset last month
-  // (last_month_reset), then the traffic counters should be reset. This handles
-  // the case where the traffic counters feature was disabled for over a month
-  // and then re-enabled.
+  // (last_month_reset), then the traffic counters should be reset. This
+  // handles the case where the traffic counters feature was disabled for over
+  // a month and then re-enabled.
   if (last_reset_time < last_month_reset) {
     NET_LOG(EVENT) << "Resetting traffic counters since " << last_reset_time
                    << " < " << last_month_reset;
@@ -508,13 +524,13 @@ void TrafficCountersHandler::OnGetManagedPropertiesForAutoReset(
   // If the last time traffic counters were reset (last_reset_time) was before
   // the expected reset date on this month (curr_month_resset), and today
   // (current_date) is equal to or greater than the expected date of reset for
-  // this month (curr_month_reset), then reset the counters. For example, let's
-  // assume that traffic counters are to be reset on the 5th of every month and
-  // were last reset on January 5th. If the current_date is between February
-  // 1st-February 4th, then current_date (e.g, Feb 3rd) < curr_month_reset (Feb
-  // 5th), so the counters are not reset. However, if the current date is Feb
-  // 5th onwards, then current_date (Feb 5th) = curr_month_reset (Feb 5th), so
-  // traffic counters are reset.
+  // this month (curr_month_reset), then reset the counters. For example,
+  // let's assume that traffic counters are to be reset on the 5th of every
+  // month and were last reset on January 5th. If the current_date is between
+  // February 1st-February 4th, then current_date (e.g, Feb 3rd) <
+  // curr_month_reset (Feb 5th), so the counters are not reset. However, if
+  // the current date is Feb 5th onwards, then current_date (Feb 5th) =
+  // curr_month_reset (Feb 5th), so traffic counters are reset.
   if (last_reset_time < curr_month_reset && current_date >= curr_month_reset) {
     NET_LOG(EVENT) << "Resetting traffic counters since " << last_reset_time
                    << " < " << curr_month_reset << " && " << current_date

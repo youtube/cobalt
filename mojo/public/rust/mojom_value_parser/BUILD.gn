@@ -58,6 +58,20 @@ mojom("parser_unittests") {
   visibility = [ "//mojo/public/rust/*" ]
 }
 
+mojom("shadowing_unittest") {
+  testonly = true
+  sources = [ "test_util/shadowing_unittest.test-mojom" ]
+  generate_rust = true
+  visibility = [ "//mojo/public/rust/*" ]
+}
+
+mojom("dup_enum_unittest") {
+  testonly = true
+  sources = [ "test_util/dup_enum_unittest.test-mojom" ]
+  generate_rust = true
+  visibility = [ "//mojo/public/rust/*" ]
+}
+
 rust_static_library("mojom_value_parser_unittests") {
   testonly = true
   is_gtest_unittests = true
@@ -71,6 +85,7 @@ rust_static_library("mojom_value_parser_unittests") {
   ]
 
   deps = [
+    ":dup_enum_unittest_rust",
     ":mojom_value_parser",
     ":mojom_value_parser_core",
     ":parser_unittests_rust",

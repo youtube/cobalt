@@ -37,7 +37,7 @@ using ComputePassagesEmbeddingsFuture =
                            ComputeEmbeddingsStatus>;
 
 std::vector<mojom::PassageEmbeddingsResultPtr> GenerateExpectedServiceOutput(
-    std::initializer_list<std::string> passages) {
+    const std::vector<std::string>& passages) {
   std::vector<mojom::PassageEmbeddingsResultPtr> results;
   for (size_t i = 0; i < passages.size(); ++i) {
     results.push_back(
@@ -589,8 +589,9 @@ TEST_F(SchedulingEmbedderTest, LimitsJobCountDisplacesLowPriority) {
 }
 
 // Verifies that when the job queue is full and we must displace a job to make
-// room for a higher-priority job, we displace the newer of the tied worst jobs.
-TEST_F(SchedulingEmbedderTest, LimitsJobCountDisplacesNewerOfTiedWorst) {
+// room for a higher-priority job, we displace the oldest of the tied worst jobs
+// (FIFO).
+TEST_F(SchedulingEmbedderTest, LimitsJobCountDisplacesOldestOfTiedWorst) {
   auto embedder = std::make_unique<SchedulingEmbedder>(
       embedder_metadata_provider_.get(),
       base::BindRepeating(&GetEmbeddingsStub::GetEmbeddings,
@@ -625,8 +626,8 @@ TEST_F(SchedulingEmbedderTest, LimitsJobCountDisplacesNewerOfTiedWorst) {
   Embedder::Job job3 = embedder->ComputePassagesEmbeddings(
       PassagePriority::kPassive, {"test passage 3"}, future3.GetCallback());
 
-  // Job 4 (Urgent) arrives. It should displace the newer Passive job (Job 3)
-  // instead of the older one (Job 2).
+  // Job 4 (Urgent) arrives. It should displace the older Passive job (Job 2)
+  // instead of the newer one (Job 3) due to FIFO eviction.
   ComputePassagesEmbeddingsFuture future4;
   Embedder::Job job4 = embedder->ComputePassagesEmbeddings(
       PassagePriority::kUrgent, {"test passage 4"}, future4.GetCallback());
@@ -646,15 +647,88 @@ TEST_F(SchedulingEmbedderTest, LimitsJobCountDisplacesNewerOfTiedWorst) {
 
   ASSERT_EQ(callbacks.size(), 3u);
   ASSERT_FALSE(callbacks.back().is_null());
-  // We expect future2 (older Passive) to be processed last.
+  // We expect future3 (newer Passive) to be processed last.
   std::move(callbacks.back())
-      .Run(GenerateExpectedServiceOutput({"test passage 2"}),
+      .Run(GenerateExpectedServiceOutput({"test passage 3"}),
            ComputeEmbeddingsStatus::kSuccess);
 
   EXPECT_EQ(std::get<3>(future1.Take()), ComputeEmbeddingsStatus::kSuccess);
-  EXPECT_EQ(std::get<3>(future2.Take()), ComputeEmbeddingsStatus::kSuccess);
-  EXPECT_EQ(std::get<3>(future3.Take()), ComputeEmbeddingsStatus::kCanceled);
+  EXPECT_EQ(std::get<3>(future2.Take()), ComputeEmbeddingsStatus::kCanceled);
+  EXPECT_EQ(std::get<3>(future3.Take()), ComputeEmbeddingsStatus::kSuccess);
   EXPECT_EQ(std::get<3>(future4.Take()), ComputeEmbeddingsStatus::kSuccess);
+}
+
+TEST_F(SchedulingEmbedderTest, LimitsJobCountDisplacesOldestLowPriority) {
+  auto embedder = std::make_unique<SchedulingEmbedder>(
+      embedder_metadata_provider_.get(),
+      base::BindRepeating(&GetEmbeddingsStub::GetEmbeddings,
+                          base::Unretained(&get_embeddings_stub_)),
+      /*max_jobs=*/3u,
+      /*max_batch_size=*/1u,
+      /*use_performance_scenario=*/false);
+
+  std::vector<SchedulingEmbedder::GetEmbeddingsResultCallback> callbacks;
+  const auto record_callback =
+      [&callbacks](std::vector<std::string> passages, PassagePriority priority,
+                   SchedulingEmbedder::GetEmbeddingsResultCallback callback) {
+        callbacks.push_back(std::move(callback));
+      };
+  EXPECT_CALL(get_embeddings_stub_, GetEmbeddings)
+      .WillRepeatedly(record_callback);
+
+  // Job 1 is active.
+  ComputePassagesEmbeddingsFuture future1;
+  Embedder::Job job1 = embedder->ComputePassagesEmbeddings(
+      PassagePriority::kPassive, {"test passage 1"}, future1.GetCallback());
+
+  // Job 2 is oldest pending (priority kLatent).
+  ComputePassagesEmbeddingsFuture future2;
+  Embedder::Job job2 = embedder->ComputePassagesEmbeddings(
+      PassagePriority::kLatent, {"test passage 2"}, future2.GetCallback());
+
+  // Job 3 is newer pending (priority kLatent).
+  ComputePassagesEmbeddingsFuture future3;
+  Embedder::Job job3 = embedder->ComputePassagesEmbeddings(
+      PassagePriority::kLatent, {"test passage 3"}, future3.GetCallback());
+
+  // Job 3b is newest pending (priority kLatent).
+  // This should reject Job 3b immediately (tied priority with worst pending
+  // when at capacity 3).
+  ComputePassagesEmbeddingsFuture future3b;
+  Embedder::Job job3b = embedder->ComputePassagesEmbeddings(
+      PassagePriority::kLatent, {"test passage 3b"}, future3b.GetCallback());
+  EXPECT_EQ(std::get<3>(future3b.Take()), ComputeEmbeddingsStatus::kCanceled);
+
+  // Now add a priority kPassive job. This should displace the oldest kLatent
+  // job (Job 2), while keeping Job 3.
+  ComputePassagesEmbeddingsFuture future4;
+  Embedder::Job job4 = embedder->ComputePassagesEmbeddings(
+      PassagePriority::kPassive, {"test passage 4"}, future4.GetCallback());
+
+  // Job 2 should be canceled now.
+  EXPECT_EQ(std::get<3>(future2.Take()), ComputeEmbeddingsStatus::kCanceled);
+
+  // Job 1 completes.
+  ASSERT_EQ(callbacks.size(), 1u);
+  std::move(callbacks[0])
+      .Run(GenerateExpectedServiceOutput({"test passage 1"}),
+           ComputeEmbeddingsStatus::kSuccess);
+
+  // Job 4 should be next (higher priority than Job 3).
+  ASSERT_EQ(callbacks.size(), 2u);
+  std::move(callbacks[1])
+      .Run(GenerateExpectedServiceOutput({"test passage 4"}),
+           ComputeEmbeddingsStatus::kSuccess);
+
+  // Job 3 should be next.
+  ASSERT_EQ(callbacks.size(), 3u);
+  std::move(callbacks[2])
+      .Run(GenerateExpectedServiceOutput({"test passage 3"}),
+           ComputeEmbeddingsStatus::kSuccess);
+
+  EXPECT_EQ(std::get<3>(future1.Take()), ComputeEmbeddingsStatus::kSuccess);
+  EXPECT_EQ(std::get<3>(future4.Take()), ComputeEmbeddingsStatus::kSuccess);
+  EXPECT_EQ(std::get<3>(future3.Take()), ComputeEmbeddingsStatus::kSuccess);
 }
 
 // Verifies that if a batch is partially fulfilled by the service:
@@ -942,6 +1016,58 @@ TEST_F(SchedulingEmbedderTest, ReprioritizeTasks) {
   ASSERT_EQ(calls.size(), 2u);
   EXPECT_EQ(calls[1].priority, PassagePriority::kUrgent);
   EXPECT_THAT(calls[1].passages, ElementsAre("p2"));
+}
+
+TEST_F(SchedulingEmbedderTest, ReprioritizeTasksPreservesFifoOrder) {
+  auto embedder = std::make_unique<SchedulingEmbedder>(
+      embedder_metadata_provider_.get(),
+      base::BindRepeating(&GetEmbeddingsStub::GetEmbeddings,
+                          base::Unretained(&get_embeddings_stub_)),
+      /*max_jobs=*/4u,
+      /*max_batch_size=*/1u,
+      /*use_performance_scenario=*/false);
+
+  std::vector<std::vector<std::string>> submitted_passages;
+  SchedulingEmbedder::GetEmbeddingsResultCallback active_callback;
+  bool is_first = true;
+  EXPECT_CALL(get_embeddings_stub_, GetEmbeddings)
+      .WillRepeatedly(
+          [&](std::vector<std::string> passages, PassagePriority priority,
+              SchedulingEmbedder::GetEmbeddingsResultCallback callback) {
+            submitted_passages.push_back(passages);
+            if (is_first) {
+              is_first = false;
+              active_callback = std::move(callback);
+            } else {
+              std::move(callback).Run(GenerateExpectedServiceOutput(passages),
+                                      ComputeEmbeddingsStatus::kSuccess);
+            }
+          });
+
+  // Active job to block processing of pending jobs.
+  Embedder::Job active_job = embedder->ComputePassagesEmbeddings(
+      PassagePriority::kUrgent, {"active"}, base::BindOnce(&IgnoreResults));
+
+  // Job 1 (oldest pending): priority kLatent.
+  Embedder::Job job1 = embedder->ComputePassagesEmbeddings(
+      PassagePriority::kLatent, {"p1"}, base::BindOnce(&IgnoreResults));
+
+  // Job 2 (newer pending): priority kPassive.
+  Embedder::Job job2 = embedder->ComputePassagesEmbeddings(
+      PassagePriority::kPassive, {"p2"}, base::BindOnce(&IgnoreResults));
+
+  // Reprioritize Job 1 from kLatent to kPassive. Since Job 1 was submitted
+  // before Job 2, it should execute before Job 2 within kPassive.
+  job1.Reprioritize(PassagePriority::kPassive);
+
+  // Finish active job so pending jobs run.
+  std::move(active_callback)
+      .Run(GenerateExpectedServiceOutput({"active"}),
+           ComputeEmbeddingsStatus::kSuccess);
+
+  ASSERT_EQ(submitted_passages.size(), 3u);
+  EXPECT_THAT(submitted_passages[1], ElementsAre("p1"));
+  EXPECT_THAT(submitted_passages[2], ElementsAre("p2"));
 }
 
 // Verifies that jobs in the active (in-flight) batch are correctly accounted

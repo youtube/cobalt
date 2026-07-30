@@ -59,6 +59,10 @@ class FakePdfListener : public pdf::mojom::PdfListener {
               HasMeaningfulText,
               (HasMeaningfulTextCallback callback),
               (override));
+  MOCK_METHOD(void,
+              HasJavaScript,
+              (HasJavaScriptCallback callback),
+              (override));
 #if BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
   MOCK_METHOD(void,
               GetSaveDataBufferHandlerForDrive,
@@ -334,6 +338,31 @@ IN_PROC_BROWSER_TEST_P(PDFDocumentHelperTest,
 
   base::test::TestFuture<bool> future;
   pdf_document_helper()->HasMeaningfulText(future.GetCallback());
+  EXPECT_TRUE(future.Get());
+}
+
+IN_PROC_BROWSER_TEST_P(PDFDocumentHelperTest,
+                       HasJavaScriptReturnsFalseBeforeLoad) {
+  base::test::TestFuture<bool> future;
+  pdf_document_helper()->HasJavaScript(future.GetCallback());
+  EXPECT_FALSE(future.Get());
+}
+
+IN_PROC_BROWSER_TEST_P(PDFDocumentHelperTest,
+                       HasJavaScriptReturnsTrueWhenHasJavaScript) {
+  NiceMock<FakePdfListener> listener;
+  mojo::Receiver<pdf::mojom::PdfListener> receiver(&listener);
+  pdf_document_helper()->SetListener(receiver.BindNewPipeAndPassRemote());
+
+  EXPECT_CALL(listener, HasJavaScript)
+      .WillOnce([](FakePdfListener::HasJavaScriptCallback callback) {
+        std::move(callback).Run(true);
+      });
+
+  pdf_document_helper()->OnDocumentLoadComplete();
+
+  base::test::TestFuture<bool> future;
+  pdf_document_helper()->HasJavaScript(future.GetCallback());
   EXPECT_TRUE(future.Get());
 }
 

@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/feature_list.h"
+#include "base/notimplemented.h"
 #include "base/observer_list.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/hid/hid_chooser_context.h"
@@ -40,6 +41,7 @@ HidChooserContext* GetChooserContext(content::BrowserContext* browser_context) {
   return profile ? HidChooserContextFactory::GetForProfile(profile) : nullptr;
 }
 
+#if !BUILDFLAG(IS_ANDROID)
 HidConnectionTracker* GetConnectionTracker(
     content::BrowserContext* browser_context,
     bool create) {
@@ -49,6 +51,7 @@ HidConnectionTracker* GetConnectionTracker(
   return profile ? HidConnectionTrackerFactory::GetForProfile(profile, create)
                  : nullptr;
 }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 std::optional<url::Origin> GetWebViewEmbedderOrigin(
     content::RenderFrameHost* render_frame_host) {
@@ -218,11 +221,17 @@ std::unique_ptr<content::HidChooser> ChromeHidDelegate::RunChooser(
   }
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
+#if BUILDFLAG(IS_ANDROID)
+  // TODO(crbug.com/480251649): Show a device chooser on Android.
+  NOTIMPLEMENTED();
+  return nullptr;
+#else
   return std::make_unique<HidChooser>(chrome::ShowDeviceChooserDialog(
       render_frame_host,
       std::make_unique<HidChooserController>(
           render_frame_host, std::move(filters), std::move(exclusion_filters),
           std::move(callback))));
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 bool ChromeHidDelegate::CanRequestDevicePermission(
@@ -330,6 +339,7 @@ ChromeHidDelegate::ContextObservation* ChromeHidDelegate::GetContextObserver(
 void ChromeHidDelegate::IncrementConnectionCount(
     content::BrowserContext* browser_context,
     const url::Origin& origin) {
+#if !BUILDFLAG(IS_ANDROID)
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   // Don't track connection when the feature isn't enabled or the connection
   // isn't made by an extension origin.
@@ -343,11 +353,13 @@ void ChromeHidDelegate::IncrementConnectionCount(
   if (hid_connection_tracker) {
     hid_connection_tracker->IncrementConnectionCount(origin);
   }
+#endif  // !BUILDFLAG(IS_ANDROID)
 }
 
 void ChromeHidDelegate::DecrementConnectionCount(
     content::BrowserContext* browser_context,
     const url::Origin& origin) {
+#if !BUILDFLAG(IS_ANDROID)
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   // Don't track connection when the feature isn't enabled or the connection
   // isn't made by an extension origin.
@@ -361,6 +373,7 @@ void ChromeHidDelegate::DecrementConnectionCount(
   if (hid_connection_tracker) {
     hid_connection_tracker->DecrementConnectionCount(origin);
   }
+#endif  // !BUILDFLAG(IS_ANDROID)
 }
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)

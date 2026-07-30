@@ -21,7 +21,7 @@ class ExtensionInstallDialogViewAndroid {
  public:
   ExtensionInstallDialogViewAndroid(
       content::WebContents* web_contents,
-      std::unique_ptr<ExtensionInstallPrompt::Prompt> prompt,
+      std::unique_ptr<InstallPromptData> prompt,
       ExtensionInstallPrompt::DoneCallback done_callback);
   ExtensionInstallDialogViewAndroid(const ExtensionInstallDialogViewAndroid&) =
       delete;
@@ -46,7 +46,7 @@ class ExtensionInstallDialogViewAndroid {
   void BuildPropertyModel();
 
   raw_ptr<content::WebContents> web_contents_;
-  std::unique_ptr<ExtensionInstallPrompt::Prompt> prompt_;
+  std::unique_ptr<InstallPromptData> prompt_;
   ExtensionInstallPrompt::DoneCallback done_callback_;
 
   base::android::ScopedJavaGlobalRef<jobject> java_object_;

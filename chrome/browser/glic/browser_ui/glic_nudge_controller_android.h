@@ -4,15 +4,21 @@
 #ifndef CHROME_BROWSER_GLIC_BROWSER_UI_GLIC_NUDGE_CONTROLLER_ANDROID_H_
 #define CHROME_BROWSER_GLIC_BROWSER_UI_GLIC_NUDGE_CONTROLLER_ANDROID_H_
 
-#include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/glic/browser_ui/glic_nudge_controller.h"
 #include "chrome/browser/tab_list/tab_list_interface_observer.h"
+#include "components/tabs/public/tab_interface.h"
+#include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 
+class BrowserWindowInterface;
 class TabListInterface;
 
 namespace content {
 class WebContents;
+}
+
+namespace tabs {
+class TabInterface;
 }
 
 namespace glic {
@@ -20,15 +26,15 @@ namespace glic {
 class GlicNudgeControllerAndroid : public GlicNudgeController,
                                    public TabListInterfaceObserver {
  public:
-  explicit GlicNudgeControllerAndroid(content::WebContents* web_contents);
+  explicit GlicNudgeControllerAndroid(BrowserWindowInterface* browser);
   GlicNudgeControllerAndroid(const GlicNudgeControllerAndroid&) = delete;
   GlicNudgeControllerAndroid& operator=(const GlicNudgeControllerAndroid&) =
       delete;
   ~GlicNudgeControllerAndroid() override;
 
   // GlicNudgeController:
-  void SetTabStripDelegate(GlicNudgeDelegate* delegate) override;
-  void SetToolbarDelegate(GlicNudgeDelegate* delegate) override;
+  void SetTabStripDelegate(GlicSplitButtonDelegate* delegate) override;
+  void SetToolbarDelegate(GlicSplitButtonDelegate* delegate) override;
 
   void UpdateNudgeLabel(content::WebContents* web_contents,
                         const std::string& nudge_label,
@@ -38,17 +44,26 @@ class GlicNudgeControllerAndroid : public GlicNudgeController,
                         GlicNudgeActivityCallback callback) override;
   void OnNudgeActivity(GlicNudgeActivity activity) override;
 
-  // TabListInterfaceObserver:
-  void OnActiveTabChanged(TabListInterface& tab_list,
-                          tabs::TabInterface* tab) override;
   std::optional<std::string> GetPromptSuggestion() override;
   void ClearPromptSuggestion() override;
 
  private:
-  raw_ptr<GlicNudgeDelegate> tab_strip_delegate_ = nullptr;
+  // TabListInterfaceObserver:
+  void OnActiveTabChanged(TabListInterface& tab_list,
+                          tabs::TabInterface* tab) override;
+  void OnTabListDestroyed(TabListInterface& tab_list) override;
+
+  TabListInterface* GetTabList();
+  base::ScopedObservation<TabListInterface, TabListInterfaceObserver>
+      tab_list_observation_{this};
+  tabs::TabHandle nudged_tab_handle_;
+  raw_ptr<GlicSplitButtonDelegate> tab_strip_delegate_ = nullptr;
   std::optional<std::string> prompt_suggestion_;
   GlicNudgeActivityCallback nudge_activity_callback_;
-  std::unique_ptr<GlicNudgeDelegate> delegate_;
+  std::unique_ptr<GlicSplitButtonDelegate> delegate_;
+  raw_ptr<BrowserWindowInterface> browser_ = nullptr;
+
+  ui::ScopedUnownedUserData<GlicNudgeController> scoped_unowned_user_data_;
 };
 
 }  // namespace glic

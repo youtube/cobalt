@@ -6,7 +6,6 @@
 
 #include "chrome/browser/bookmarks/bookmark_merged_surface_service_factory.h"
 #include "chrome/browser/ui/browser.h"
-#include "components/bookmarks/browser/bookmark_model.h"
 #include "components/bookmarks/browser/bookmark_node.h"
 
 BookmarkAccountStorageMoveDialogDelegate::

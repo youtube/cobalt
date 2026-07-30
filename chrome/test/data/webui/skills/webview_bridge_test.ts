@@ -3,8 +3,10 @@
 // found in the LICENSE file.
 
 import {loadTimeData} from '//resources/js/load_time_data.js';
+import {ToastType} from 'chrome://skills/skills.mojom-webui.js';
+import type {SkillsWebviewBridgeDelegate} from 'chrome://skills/v2/skills_webview_bridge.js';
 import {SkillsWebviewBridge} from 'chrome://skills/v2/skills_webview_bridge.js';
-import {HANDSHAKE_TIMEOUT_MS, SKILLS_HANDSHAKE_ACK, SKILLS_HANDSHAKE_TYPE, SKILLS_HOST_URL} from 'chrome://skills/v2/skills_webview_bridge_constants.js';
+import {HANDSHAKE_TIMEOUT_MS, SKILLS_HANDSHAKE_ACK, SKILLS_HANDSHAKE_TYPE, SKILLS_HOST_URL, SKILLS_SHOW_TOAST} from 'chrome://skills/v2/skills_webview_bridge_constants.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {MockTimer} from 'chrome://webui-test/mock_timer.js';
 
@@ -68,7 +70,11 @@ suite('SkillsWebviewBridgeTest', () => {
   });
 
   test('HostInitiatesHandshakeAndReceivesAck', async () => {
-    bridge = new SkillsWebviewBridge(webview, () => {});
+    const delegate: SkillsWebviewBridgeDelegate = {
+      onError: () => {},
+      onShowToast: () => {},
+    };
+    bridge = new SkillsWebviewBridge(webview, delegate);
 
     assertFalse(bridge.isConnected());
 
@@ -134,9 +140,13 @@ suite('SkillsWebviewBridgeTest', () => {
 
   test('HandshakeTimesOut', () => {
     let errorCalled = false;
-    bridge = new SkillsWebviewBridge(webview, () => {
-      errorCalled = true;
-    });
+    const delegate: SkillsWebviewBridgeDelegate = {
+      onError: () => {
+        errorCalled = true;
+      },
+      onShowToast: () => {},
+    };
+    bridge = new SkillsWebviewBridge(webview, delegate);
 
     const mockTimer = new MockTimer();
     mockTimer.install();
@@ -157,5 +167,49 @@ suite('SkillsWebviewBridgeTest', () => {
     assertFalse(bridge.isConnected());
 
     mockTimer.uninstall();
+  });
+
+  test('HostReceivesShowToastMessage_SaveAndInvoke', () => {
+    let receivedSkillId = '';
+    let receivedToastType: ToastType|null = null;
+    const delegate: SkillsWebviewBridgeDelegate = {
+      onError: () => {},
+      onShowToast: (skillId, toastType) => {
+        receivedSkillId = skillId;
+        receivedToastType = toastType;
+      },
+    };
+    bridge = new SkillsWebviewBridge(webview, delegate);
+
+    // Trigger loadcommit to start handshake.
+    const loadEvent = new CustomEvent('loadcommit');
+    Object.defineProperty(loadEvent, 'isTopLevel', {value: true});
+    Object.defineProperty(loadEvent, 'url', {value: SKILLS_HOST_URL});
+    webview.dispatchEvent(loadEvent);
+
+    // Send mock ACK to complete handshake.
+    const ackEvent = new MessageEvent('message', {
+      data: {type: SKILLS_HANDSHAKE_ACK},
+      origin: new URL(SKILLS_HOST_URL).origin,
+      source: window,
+    });
+    window.dispatchEvent(ackEvent);
+
+    assertTrue(bridge.isConnected());
+
+    // Send show-toast message via mock MessageEvent to match origin.
+    const toastEvent = new MessageEvent('message', {
+      data: {
+        type: SKILLS_SHOW_TOAST,
+        toastType: 'save_and_invoke',
+        skillId: 'test-skill-id',
+      },
+      origin: new URL(SKILLS_HOST_URL).origin,
+      source: window,
+    });
+    window.dispatchEvent(toastEvent);
+
+    assertEquals('test-skill-id', receivedSkillId);
+    assertEquals(ToastType.kSaveAndInvoke, receivedToastType);
   });
 });

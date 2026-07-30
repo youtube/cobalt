@@ -5,12 +5,15 @@
 package org.chromium.chrome.browser.compositor.layouts.components;
 
 import android.content.Context;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
 
 import androidx.annotation.ColorInt;
 import androidx.annotation.DrawableRes;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.R;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutView;
 
 /** Class for a CompositorButton that uses tint instead of multiple drawable resources. */
@@ -20,13 +23,8 @@ public class TintedCompositorButton extends CompositorButton {
     //  through the presence/absence of the handler.
     private final boolean mHasLongClickAction;
 
-    private @ColorInt int mBackgroundTint;
+    private ColorStateList mBackgroundTint = ColorStateList.valueOf(Color.TRANSPARENT);
     private @ColorInt int mTint;
-
-    // Hover and pressed colors.
-    private @ColorInt int mBackgroundHoverTint;
-    private @ColorInt int mBackgroundTouchPressedTint;
-    private @ColorInt int mBackgroundPeripheralPressedTint;
 
     public TintedCompositorButton(
             Context context,
@@ -107,23 +105,9 @@ public class TintedCompositorButton extends CompositorButton {
         return mTint;
     }
 
-    /**
-     * A set of Android colors to supply to the compositor.
-     *
-     * @param backgroundTint The background tint.
-     * @param backgroundHoverTint The background hover tint.
-     * @param backgroundTouchPressedTint The background touch pressed tint.
-     * @param backgroundPeripheralPressedTint The background peripheral pressed tint.
-     */
-    public void setBackgroundTint(
-            @ColorInt int backgroundTint,
-            @ColorInt int backgroundHoverTint,
-            @ColorInt int backgroundTouchPressedTint,
-            @ColorInt int backgroundPeripheralPressedTint) {
+    /** Sets the button's background tint to the given ColorStateList. */
+    public void setBackgroundTint(ColorStateList backgroundTint) {
         mBackgroundTint = backgroundTint;
-        mBackgroundHoverTint = backgroundHoverTint;
-        mBackgroundTouchPressedTint = backgroundTouchPressedTint;
-        mBackgroundPeripheralPressedTint = backgroundPeripheralPressedTint;
     }
 
     /**
@@ -131,12 +115,21 @@ public class TintedCompositorButton extends CompositorButton {
      *     of the button.
      */
     public @ColorInt int getBackgroundTint() {
-        if (isHovered()) return mBackgroundHoverTint;
-        if (isPressed()) {
-            return isPressedFromMouse()
-                    ? mBackgroundPeripheralPressedTint
-                    : mBackgroundTouchPressedTint;
-        }
-        return mBackgroundTint;
+        return resolveColor(mBackgroundTint);
+    }
+
+    private @ColorInt int resolveColor(ColorStateList csl) {
+        int stateCount = 0;
+        if (isHovered()) stateCount++;
+        if (isPressed()) stateCount++;
+        if (isPressedFromMouse()) stateCount++;
+
+        int[] stateSet = new int[stateCount];
+        int i = 0;
+        if (isHovered()) stateSet[i++] = android.R.attr.state_hovered;
+        if (isPressed()) stateSet[i++] = android.R.attr.state_pressed;
+        if (isPressedFromMouse()) stateSet[i++] = R.attr.state_peripheral_pressed;
+
+        return csl.getColorForState(stateSet, csl.getDefaultColor());
     }
 }

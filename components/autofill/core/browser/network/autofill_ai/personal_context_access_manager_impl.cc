@@ -46,16 +46,14 @@ constexpr net::BackoffEntry::Policy kBackoffPolicy = {
     .entry_lifetime_ms = -1,
     .always_use_initial_delay = false};
 
-bool IsPersonalContextEnabled(
+bool IsPersonalContextEligible(
     personal_context::PersonalContextEnablementState state) {
   using enum personal_context::PersonalContextEnablementState;
   switch (state) {
     case kDisabledNotEligible:
     case kDisabledNeedsOptIn:
-    case kDisabledViaPersonalIntelligenceInAutofillToggle:
       return false;
     case kEnabled:
-    case kEnabledShouldShowNotice:
       return true;
   }
 }
@@ -98,7 +96,6 @@ PersonalContextAccessManagerImpl::PersonalContextAccessManagerImpl(
                                 OnPersonalContextSettingsToggleChanged,
                             base::Unretained(this)));
   }
-  MaybeImportEntitiesForTesting(weak_factory_.GetWeakPtr());
 }
 
 PersonalContextAccessManagerImpl::~PersonalContextAccessManagerImpl() = default;
@@ -425,7 +422,7 @@ void PersonalContextAccessManagerImpl::WipeCache() {
 
 void PersonalContextAccessManagerImpl::OnEnablementStateChanged(
     personal_context::PersonalContextEnablementState new_state) {
-  if (!IsPersonalContextEnabled(new_state)) {
+  if (!IsPersonalContextEligible(new_state)) {
     WipeCache();
   }
 }
@@ -438,21 +435,6 @@ void PersonalContextAccessManagerImpl::
               kPersonalContextInAutofillSettingsToggleStatus)) {
     WipeCache();
   }
-}
-
-void PersonalContextAccessManagerImpl::SetTestingEntities(
-    const std::vector<EntityInstance>& test_entities) {
-  std::vector<ParsedEntity> parsed_entities;
-  std::set<EntityType> types;
-  for (const EntityInstance& entity : test_entities) {
-    types.insert(entity.type());
-    parsed_entities.push_back({
-        .instance = entity,
-        .proto = personal_context::proto::Entity(),
-    });
-  }
-  ProcessPrefetchedEntities(std::vector<EntityType>(types.begin(), types.end()),
-                            std::move(parsed_entities));
 }
 
 bool PersonalContextAccessManagerImpl::ShouldRequestType(

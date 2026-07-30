@@ -31,6 +31,10 @@
 #include "services/passage_embeddings/passage_embeddings_service.h"
 #include "ui/accessibility/accessibility_features.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "chrome/utility/readaloud/read_aloud_playback_controller.h"
+#endif  // BUILDFLAG(IS_ANDROID)
+
 #if BUILDFLAG(IS_WIN)
 #include "chrome/services/system_signals/win/win_system_signals_service.h"
 #include "chrome/services/util_win/processor_metrics.h"
@@ -438,6 +442,14 @@ auto RunBabelOrcaTachyonParsingService(
 }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
+#if BUILDFLAG(IS_ANDROID)
+auto RunReadAloudPlayerFactory(
+    mojo::PendingReceiver<read_aloud::mojom::ReadAloudPlayerFactory> receiver) {
+  return std::make_unique<readaloud::ReadAloudPlaybackController>(
+      std::move(receiver));
+}
+#endif  // BUILDFLAG(IS_ANDROID)
+
 }  // namespace
 
 void RegisterElevatedMainThreadServices(mojo::ServiceFactory& services) {
@@ -456,6 +468,10 @@ void RegisterMainThreadServices(mojo::ServiceFactory& services) {
   services.Add(ContentBookmarkParser);
   services.Add(RunPassageEmbeddingsService);
   services.Add(RunOakSessionService);
+
+#if BUILDFLAG(IS_ANDROID)
+  services.Add(RunReadAloudPlayerFactory);
+#endif  // BUILDFLAG(IS_ANDROID)
 
 #if !BUILDFLAG(IS_ANDROID)
   services.Add(RunProfileImporter);

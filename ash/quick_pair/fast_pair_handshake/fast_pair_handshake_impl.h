@@ -23,9 +23,6 @@ class FastPairHandshakeImpl : public FastPairHandshake {
   FastPairHandshakeImpl(const FastPairHandshakeImpl&) = delete;
   FastPairHandshakeImpl& operator=(const FastPairHandshakeImpl&) = delete;
   ~FastPairHandshakeImpl() override;
-  void SetUpHandshake(OnFailureCallback on_failure_callback,
-                      OnCompleteCallbackNew on_success_callback) override;
-  void Reset() override;
 
  private:
   void OnGattClientInitializedCallback(std::optional<PairFailure> failure);

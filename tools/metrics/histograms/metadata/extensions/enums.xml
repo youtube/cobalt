@@ -901,7 +901,7 @@ Called by update_extension_histograms.py.-->
   <int value="55" label="FILEMANAGERPRIVATEINTERNAL_GETFILETASKS"/>
   <int value="56" label="WEBSTOREPRIVATE_GETSTORELOGIN"/>
   <int value="57" label="SYSTEMPRIVATE_GETINCOGNITOMODEAVAILABILITY"/>
-  <int value="58" label="IDLTEST_SENDARRAYBUFFERVIEW"/>
+  <int value="58" label="DELETED_IDLTEST_SENDARRAYBUFFERVIEW"/>
   <int value="59" label="SOCKET_SETNODELAY"/>
   <int value="60" label="APP_CURRENTWINDOWINTERNAL_SHOW"/>
   <int value="61" label="WEBSTOREPRIVATE_GETBROWSERLOGIN"/>
@@ -1065,7 +1065,7 @@ Called by update_extension_histograms.py.-->
   <int value="218" label="USB_INTERRUPTTRANSFER"/>
   <int value="219" label="TYPES_CHROMESETTING_CLEAR"/>
   <int value="220" label="INPUT_IME_COMMITTEXT"/>
-  <int value="221" label="IDLTEST_SENDARRAYBUFFER"/>
+  <int value="221" label="DELETED_IDLTEST_SENDARRAYBUFFER"/>
   <int value="222" label="DELETED_WALLPAPERPRIVATE_SETWALLPAPERIFEXISTS"/>
   <int value="223" label="SOCKET_ACCEPT"/>
   <int value="224" label="WEBNAVIGATION_GETFRAME"/>
@@ -1095,7 +1095,7 @@ Called by update_extension_histograms.py.-->
   <int value="248" label="INPUT_IME_SETCANDIDATES"/>
   <int value="249" label="TERMINALPRIVATE_CLOSETERMINALPROCESS"/>
   <int value="250" label="HISTORY_DELETERANGE"/>
-  <int value="251" label="IDLTEST_GETARRAYBUFFER"/>
+  <int value="251" label="DELETED_IDLTEST_GETARRAYBUFFER"/>
   <int value="252" label="TERMINALPRIVATE_SENDINPUT"/>
   <int value="253" label="TABS_HIGHLIGHT"/>
   <int value="254" label="BLUETOOTH_STARTDISCOVERY"/>
@@ -3125,7 +3125,7 @@ Called by update_extension_permission.py.-->
   <int value="85" label="kIdentity"/>
   <int value="86" label="kIdentityEmail"/>
   <int value="87" label="kDeleted_IdentityPrivate"/>
-  <int value="88" label="kIdltest"/>
+  <int value="88" label="kDeleted_Idltest"/>
   <int value="89" label="kIdle"/>
   <int value="90" label="kImeWindowEnabled"/>
   <int value="91" label="kDeleted_InlineInstallPrivate"/>

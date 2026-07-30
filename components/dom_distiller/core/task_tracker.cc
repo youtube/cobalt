@@ -148,9 +148,22 @@ void TaskTracker::ScheduleSaveCallbacks(bool distillation_succeeded) {
 
 void TaskTracker::OnDistillerFinished(
     bool use_cache,
-    std::unique_ptr<DistilledArticleProto> distilled_article) {
+    std::unique_ptr<DistilledArticleProto> distilled_article,
+    DistillationParseResult result) {
+  // If content is already ready (e.g. loaded from the BlobFetcher), we ignore
+  // the distiller's failure since we already have the successful result.
   if (content_ready_) {
     return;
+  }
+
+  if (result != DistillationParseResult::kSuccess) {
+    // We notify viewers of the specific failure reason, but we do not return
+    // early here. We must proceed to clean up the `distiller_` and call
+    // `ContentSourceFinished()` to notify legacy viewers of the failure
+    // (via an empty article).
+    for (auto& viewer : viewers_) {
+      viewer.OnDistillationFailed(result);
+    }
   }
 
   DistilledArticleReady(std::move(distilled_article));

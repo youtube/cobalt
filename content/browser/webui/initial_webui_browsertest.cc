@@ -26,6 +26,7 @@
 #include "content/public/test/web_ui_browsertest_util.h"
 #include "content/shell/browser/shell.h"
 #include "content/test/content_browser_test_utils_internal.h"
+#include "url/url_constants.h"
 
 namespace content {
 
@@ -300,6 +301,75 @@ IN_PROC_BROWSER_TEST_F(InitialWebUINavigationBrowserTest,
     EXPECT_TRUE(
         config->sources[origin]->path_to_resource_map.contains("strings.m.js"));
   }
+}
+
+class InitialWebUINavigationFeatureEnabledBrowserTest
+    : public InitialWebUINavigationBrowserTest,
+      public testing::WithParamInterface<bool> {
+ public:
+  InitialWebUINavigationFeatureEnabledBrowserTest() {
+    if (ShouldAllowDebug()) {
+      feature_list_.InitAndEnableFeature(features::kDebugTopChromeWebUI);
+    } else {
+      feature_list_.InitAndDisableFeature(features::kDebugTopChromeWebUI);
+    }
+  }
+
+ protected:
+  bool ShouldAllowDebug() { return GetParam(); }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         InitialWebUINavigationFeatureEnabledBrowserTest,
+                         testing::Bool());
+
+// Test that we can navigate away from the initial web UI if and only if
+// debugging is enabled.
+IN_PROC_BROWSER_TEST_P(InitialWebUINavigationFeatureEnabledBrowserTest,
+                       NavigateAwayFromInitialWebUIWithDebugEnabled) {
+  GURL initial_webui_url("chrome://foo.top-chrome");
+
+  auto& config_map = WebUIConfigMap::GetInstance();
+  config_map.AddWebUIConfig(
+      std::make_unique<TestWebUIV2EnabledConfig>("foo.top-chrome"));
+  base::ScopedClosureRunner cleanup_configs(base::BindLambdaForTesting([&]() {
+    WebUIConfigMap::GetInstance().RemoveConfig(GURL("chrome://foo.top-chrome"));
+  }));
+
+  InitialWebUIOverrideContentBrowserClient content_browser_client(
+      initial_webui_url);
+
+  // Setup data source for the WebUI.
+  WebUIDataSource* source = WebUIDataSource::CreateAndAdd(
+      contents()->GetBrowserContext(), "foo.top-chrome");
+  source->SetResourcePathToResponse("", "<!doctype html><body>bar</body>");
+
+  // Create a new WebContents to navigate to initial WebUI.
+  WebContents::CreateParams new_contents_params(
+      contents()->GetBrowserContext());
+  new_contents_params.site_instance = SiteInstance::CreateForURL(
+      contents()->GetBrowserContext(), initial_webui_url);
+  std::unique_ptr<WebContents> new_web_contents(
+      WebContents::Create(new_contents_params));
+  NavigationControllerImpl& controller =
+      static_cast<NavigationControllerImpl&>(new_web_contents->GetController());
+
+  // Navigate to initial WebUI.
+  {
+    TestNavigationObserver navigation_observer(new_web_contents.get(), 1);
+    controller.LoadURLWithParams(
+        NavigationController::LoadURLParams(initial_webui_url));
+    navigation_observer.Wait();
+    EXPECT_TRUE(navigation_observer.last_navigation_succeeded());
+  }
+
+  // Now try to navigate away to about:blank
+  // With feature flag enabled, this should succeed.
+  ASSERT_EQ(NavigateToURL(new_web_contents.get(), GURL(url::kAboutBlankURL)),
+            ShouldAllowDebug());
 }
 #endif
 

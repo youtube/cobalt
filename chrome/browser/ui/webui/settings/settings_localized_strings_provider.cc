@@ -477,6 +477,12 @@ void AddAiStrings(content::WebUIDataSource* html_source) {
       {"indigoLabel", IDS_INDIGO_SETTINGS_LABEL},
       {"indigoSublabel", IDS_INDIGO_SETTINGS_SUB_LABEL},
 
+      // Google Search AI Mode and connected apps (AIM Workspace) strings.
+      {"googleSearchAiModeWorkspaceLabel",
+       IDS_SETTINGS_GOOGLE_SEARCH_AI_MODE_WORKSPACE_LABEL},
+      {"googleSearchAiModeWorkspaceSublabel",
+       IDS_SETTINGS_GOOGLE_SEARCH_AI_MODE_WORKSPACE_SUBLABEL},
+
       // AI Mode Search Settings strings for Smart Tab Sharing (STS)
       {"stsSettingsEntrypointGoogleSearchAiMode",
        IDS_STS_SETTINGS_ENTRYPOINT_GOOGLE_SEARCH_AI_MODE},
@@ -1462,9 +1468,9 @@ bool IsWalletServerStorageEnabled() {
          base::FeatureList::IsEnabled(syncer::kSyncWalletVehicleRegistrations);
 }
 
-bool AutofillAddOtherDatatypesPrefIsEnabled() {
+bool AutofillSettingsEnterprisePolicyEnabled() {
   return base::FeatureList::IsEnabled(
-      autofill::features::kAutofillAddOtherDatatypesPref);
+      autofill::features::kAutofillEnableAutofillSettingsEnterprisePolicy);
 }
 
 void AddAutofillStrings(content::WebUIDataSource* html_source,
@@ -1525,6 +1531,8 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
       {"enableProfilesLabel", IDS_AUTOFILL_ENABLE_PROFILES_TOGGLE_LABEL},
       {"autofillSyncToggleLabel", IDS_AUTOFILL_SYNC_TOGGLE_LABEL},
       {"enableProfilesSublabel", IDS_AUTOFILL_ENABLE_PROFILES_TOGGLE_SUBLABEL},
+      {"enableGmailOtpFillingTitle",
+       IDS_AUTOFILL_GMAIL_OTP_FILLING_TOGGLE_TITLE},
       {"emailVerificationLabel",
        IDS_AUTOFILL_SETTINGS_EMAIL_VERIFICATION_LABEL},
       {"emailVerificationSectionTitle",
@@ -1911,6 +1919,17 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
   html_source->AddBoolean(
       "emailVerificationProtocolEnabled",
       base::FeatureList::IsEnabled(features::kEmailVerificationProtocol));
+  html_source->AddBoolean("autofillGmailOtpFillingEnabled",
+                          base::FeatureList::IsEnabled(
+                              features::kGlicActorAutofillOneTimePassword));
+  html_source->AddString(
+      "enableGmailOtpFillingDescription",
+      l10n_util::GetStringFUTF16(
+          IDS_AUTOFILL_GMAIL_OTP_FILLING_TOGGLE_DESCRIPTION,
+          chrome::kGmailOtpFillingLearnMoreURL,
+          l10n_util::GetStringUTF16(IDS_SETTINGS_OPENS_IN_NEW_TAB)));
+  html_source->AddString("gmailOtpFillingLearnMoreUrl",
+                         chrome::kGmailOtpFillingLearnMoreURL);
   html_source->AddString(
       "plusAddressManagementUrl",
       plus_addresses::features::kPlusAddressManagementUrl.Get());
@@ -1939,8 +1958,8 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
           autofill::features::kAutofillAiWalletPassBranding2026));
   html_source->AddBoolean("isWalletServerStorageEnabled",
                           IsWalletServerStorageEnabled());
-  html_source->AddBoolean("AutofillAddOtherDatatypesPrefIsEnabled",
-                          AutofillAddOtherDatatypesPrefIsEnabled());
+  html_source->AddBoolean("AutofillSettingsEnterprisePolicyEnabled",
+                          AutofillSettingsEnterprisePolicyEnabled());
 
   html_source->AddBoolean(
       "isUserEligibleForWalletablePassDetection",

@@ -5,7 +5,9 @@ import {assert} from '//resources/js/assert.js';
 import {EventTracker} from '//resources/js/event_tracker.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
 
-import {HANDSHAKE_PING_INTERVAL_MS, HANDSHAKE_TIMEOUT_MS, PRIMARY_SKILLS_ORIGIN, SKILLS_API_ALLOWED_ORIGINS, SKILLS_HANDSHAKE_ACK, SKILLS_HANDSHAKE_TYPE} from './skills_webview_bridge_constants.js';
+import {ToastType} from '../skills.mojom-webui.js';
+
+import {HANDSHAKE_PING_INTERVAL_MS, HANDSHAKE_TIMEOUT_MS, PRIMARY_SKILLS_ORIGIN, SKILLS_API_ALLOWED_ORIGINS, SKILLS_HANDSHAKE_ACK, SKILLS_HANDSHAKE_TYPE, SKILLS_SHOW_TOAST} from './skills_webview_bridge_constants.js';
 
 /**
  * Returns a URLPattern given an origin pattern string that has the syntax:
@@ -53,6 +55,12 @@ export function urlMatchesApiAllowedOrigin(url: URL): boolean {
   });
 }
 
+// TODO(b/529400161): Consider moving to another file.
+export interface SkillsWebviewBridgeDelegate {
+  onError(): void;
+  onShowToast(skillId: string, toastType: ToastType): void;
+}
+
 /**
  * A bridge class that manages the postMessage handshake and communication
  * between the Chrome WebUI host and the guest Webview application.
@@ -64,12 +72,14 @@ export class SkillsWebviewBridge {
   private timeoutId_: number|null = null;
   private isConnected_: boolean = false;
   private eventTracker_: EventTracker = new EventTracker();
-  private onErrorCallback_: () => void;
+  private delegate_: SkillsWebviewBridgeDelegate;
 
-  constructor(webview: chrome.webviewTag.WebView, onError: () => void) {
+  constructor(
+      webview: chrome.webviewTag.WebView,
+      delegate: SkillsWebviewBridgeDelegate) {
     assert(loadTimeData.getBoolean('isSkillsWebViewV2Enabled'));
     this.webview_ = webview;
-    this.onErrorCallback_ = onError;
+    this.delegate_ = delegate;
 
     this.eventTracker_.add(
         this.webview_, 'loadcommit',
@@ -89,7 +99,7 @@ export class SkillsWebviewBridge {
 
     // Disallowed Origin.
     if (!urlObj || !urlMatchesApiAllowedOrigin(urlObj)) {
-      this.onErrorCallback_();
+      this.delegate_.onError();
       return;
     }
 
@@ -133,7 +143,7 @@ export class SkillsWebviewBridge {
     // Set a timeout to abort handshake.
     this.timeoutId_ = window.setTimeout(() => {
       this.stopHandshake();
-      this.onErrorCallback_();
+      this.delegate_.onError();
     }, HANDSHAKE_TIMEOUT_MS);
 
     this.sendPing();
@@ -177,6 +187,25 @@ export class SkillsWebviewBridge {
       this.isConnected_ = true;
       this.webview_.removeAttribute('hidden');
       this.stopHandshake();
+    }
+
+    // Before we process non-handshake message, make sure we are connected.
+    if (!this.isConnected_) {
+      return;
+    }
+
+    if (e.data.type === SKILLS_SHOW_TOAST) {
+      this.handleShowToastMessage(e.data);
+    }
+  }
+
+  private handleShowToastMessage(data: {skillId: string, toastType: string}) {
+    // TODO(b/529320994): Handle other toast strings in future.
+    // TODO(b/529405584): Refactor toastType to be an enum & consider how we
+    // want to surface errors to the user if skillId does not exist.
+    if (data.toastType === 'save_and_invoke') {
+      assert(data.skillId);
+      this.delegate_.onShowToast(data.skillId, ToastType.kSaveAndInvoke);
     }
   }
 

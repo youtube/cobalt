@@ -175,6 +175,8 @@ pub struct MetricsUpdate {
     pub recovery_key_store_wrap_pin_and_secret: u32,
     pub recovery_key_store_rewrap: u32,
     pub device_auth_keys_wrap: u32,
+    pub cmtg_limit_reached: u32,
+    pub cmtg_key_created: u32,
 }
 
 #[derive(Clone)]
@@ -896,8 +898,8 @@ fn do_request(
         "debug/dump" => do_debug_dump(ext_ctx, metrics, state, request),
         "keys/genpair" => do_keys_genpair(metrics, auth, state, request),
         "keys/wrap" => do_keys_wrap(metrics, auth, state, request),
-        "passkeys/assert" => passkeys::do_assert(metrics, auth, state, request),
-        "passkeys/create" => passkeys::do_create(metrics, auth, state, request),
+        "passkeys/assert" => passkeys::do_assert(ext_ctx, metrics, auth, state, request),
+        "passkeys/create" => passkeys::do_create(ext_ctx, metrics, auth, state, request),
         "passkeys/wrap_pin" => passkeys::do_wrap_pin(metrics, auth, state, request),
         "recovery_key_store/wrap" => {
             recovery_key_store::do_wrap(ext_ctx.current_time_epoch_millis, metrics, request)

@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.ui.browser_window;
 
+import static org.chromium.base.ApplicationStatus.getTaskId;
+
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.role.RoleManager;
@@ -33,7 +35,6 @@ import org.chromium.base.ThreadUtils;
 import org.chromium.base.TimeUtils;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher.ActivityState;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcherProvider;
@@ -466,15 +467,6 @@ final class ChromeAndroidTaskImpl
                                                     .getDisplay()));
                 }
             };
-
-    // TODO(https://crbug.com/518763461): remove flag once verified
-    private static int getTaskId(Activity activity) {
-        if (ChromeFeatureList.sTaskGetIdAnrFix.isEnabled()) {
-            return ApplicationStatus.getTaskId(activity);
-        } else {
-            return activity.getTaskId();
-        }
-    }
 
     private static Activity getActivity(ActivityWindowAndroid activityWindowAndroid) {
         Activity activity = activityWindowAndroid.getActivity().get();

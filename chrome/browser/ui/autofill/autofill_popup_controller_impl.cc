@@ -32,13 +32,14 @@
 #include "chrome/browser/ui/autofill/next_idle_barrier.h"
 #include "chrome/browser/ui/autofill/popup_controller_common.h"
 #include "components/accessibility_annotator/core/annotation_reducer/memory_search_result.h"
-#include "components/accessibility_annotator/core/at_memory_query_service.h"
 #include "components/autofill/content/browser/content_autofill_client.h"
+#include "components/autofill/content/browser/renderer_forms_from_browser_form.h"
 #include "components/autofill/core/browser/at_memory/at_memory_data_type.h"
 #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/from_accessibility_annotator.h"
 #include "components/autofill/core/browser/filling/filling_product.h"
 #include "components/autofill/core/browser/foundations/autofill_manager.h"
+#include "components/autofill/core/browser/integrators/at_memory/at_memory_query_service.h"
 #include "components/autofill/core/browser/metrics/autofill_metrics.h"
 #include "components/autofill/core/browser/metrics/autofill_metrics_utils.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
@@ -242,8 +243,7 @@ AutofillPopupControllerImpl::AutofillPopupControllerImpl(
     base::WeakPtr<AutofillSuggestionDelegate> delegate,
     content::WebContents* web_contents,
     PopupControllerCommon controller_common,
-    int32_t form_control_ax_id,
-    std::optional<base::WeakPtr<ExpandablePopupParentControllerImpl>> parent)
+    std::optional<base::WeakPtr<AutofillPopupControllerImpl>> parent)
     : web_contents_(web_contents->GetWeakPtr()),
       controller_common_(std::move(controller_common)),
       delegate_(delegate),
@@ -296,28 +296,37 @@ void AutofillPopupControllerImpl::Show(
     return;
   }
 
-  // The focused frame may be a different frame than the one the delegate is
-  // associated with. This happens in two scenarios:
-  // - With frame-transcending forms: the focused frame is a subframe whose
-  //   form has been flattened into an ancestor form.
-  // - With race conditions: while Autofill parsed the form, the focus may
-  //   have moved to another frame.
-  // We support the case where the focused frame is a descendant of the
-  // `delegate_`'s frame. We observe the focused frame's RenderFrameDeleted()
-  // event.
-  content::RenderFrameHost* rfh = web_contents_->GetFocusedFrame();
-  const bool focus_is_in_descendant =
-      rfh && delegate_ && IsAncestorOf(GetRenderFrameHost(*delegate_), rfh);
+  content::RenderFrameHost* rfh = nullptr;
+  if (base::FeatureList::IsEnabled(features::kAutofillSimplifyFocusCheck)) {
+    rfh = FindRenderFrameHostByToken(*web_contents_,
+                                     controller_common_.frame_token);
+  } else {
+    // The focused frame may be different from the one one the controller is
+    // anchored to. This happens in two scenarios:
+    // - With frame-transcending forms: the focused frame is a subframe whose
+    //   form has been flattened into an ancestor form.
+    // - With race conditions: while Autofill parsed the form, the focus may
+    //   have moved to another frame.
+    // We support the case where the focused frame is a descendant of the
+    // `delegate_`'s frame. We observe the focused frame's RenderFrameDeleted()
+    // event.
+    rfh = web_contents_->GetFocusedFrame();
+    content::RenderFrameHost* anchor_rfh = FindRenderFrameHostByToken(
+        *web_contents_, controller_common_.frame_token);
 
-  // If the focused frame is null or not a descendant of the delegate's frame,
-  // we either hide the popup, or fall back to the delegate's frame if focus
-  // loss should be ignored (e.g. when typing in a popup search bar).
-  if (!focus_is_in_descendant) {
-    if (!should_ignore_focus_loss) {
-      Hide(SuggestionHidingReason::kNoFrameHasFocus);
-      return;
+    const bool focus_is_in_descendant =
+        rfh && delegate_ && IsAncestorOf(anchor_rfh, rfh);
+
+    // If the focused frame is null or not a descendant of the delegate's frame,
+    // we either hide the popup, or fall back to the delegate's frame if focus
+    // loss should be ignored (e.g. when typing in a popup search bar).
+    if (!focus_is_in_descendant) {
+      if (!should_ignore_focus_loss) {
+        Hide(SuggestionHidingReason::kNoFrameHasFocus);
+        return;
+      }
+      rfh = delegate_ ? GetRenderFrameHost_DoNotUse(*delegate_) : nullptr;
     }
-    rfh = delegate_ ? GetRenderFrameHost(*delegate_) : nullptr;
   }
 
   if (!rfh) {
@@ -535,10 +544,21 @@ void AutofillPopupControllerImpl::AcceptSuggestion(
                                        PopupInteraction::kSuggestionAccepted);
   base::UmaHistogramEnumeration("Autofill.SuggestionAccepted.Method",
                                 accept_method);
+
+  const int popup_level = GetPopupLevel();
+  std::vector<size_t> multi_row_index(popup_level + 1, 0);
+  multi_row_index.back() = index;
+  base::WeakPtr<AutofillPopupControllerImpl> controller =
+      parent_controller_.value_or({});
+  for (int i = popup_level - 1; i >= 0 && controller && controller->view_;
+       --i) {
+    multi_row_index[i] =
+        controller->view_->GetIndexOfSubPopupAnchorSuggestion().value_or(0);
+    controller = controller->parent_controller_.value_or({});
+  }
   delegate_->DidAcceptSuggestion(suggestion,
                                  AutofillSuggestionDelegate::SuggestionMetadata{
-                                     .row = index,
-                                     .sub_popup_level = GetPopupLevel(),
+                                     .multi_index = std::move(multi_row_index),
                                      .from_search_result = !!filter_});
 }
 
@@ -956,7 +976,6 @@ AutofillPopupControllerImpl::OpenSubPopup(
   new_controller_common.element_bounds = anchor_bounds;
   AutofillPopupControllerImpl* controller = new AutofillPopupControllerImpl(
       delegate_, web_contents_.get(), std::move(new_controller_common),
-      /*form_control_ax_id=*/form_control_ax_id_,
       /*parent=*/weak_ptr_factory_.GetWeakPtr());
 
   // Show() can fail and cause controller deletion. Therefore store the weak

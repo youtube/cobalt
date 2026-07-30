@@ -19,12 +19,12 @@ void RecordMediaDeviceUpdateResponseMetric(
   switch (video_type) {
     case blink::mojom::MediaStreamType::GUM_DESKTOP_VIDEO_CAPTURE:
       base::UmaHistogramEnumeration(
-          "Media.MediaStreamManager.DesktopVideoDeviceUpdate3", result);
+          "Media.MediaStreamManager.DesktopVideoDeviceUpdate4", result);
       return;
     case blink::mojom::MediaStreamType::DISPLAY_VIDEO_CAPTURE:
     case blink::mojom::MediaStreamType::DISPLAY_VIDEO_CAPTURE_SET:
       base::UmaHistogramEnumeration(
-          "Media.MediaStreamManager.DisplayVideoDeviceUpdate3", result);
+          "Media.MediaStreamManager.DisplayVideoDeviceUpdate4", result);
       return;
     default:
       return;

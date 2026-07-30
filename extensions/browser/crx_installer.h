@@ -137,10 +137,6 @@ class CrxInstaller : public SandboxedUnpackerClient {
                           const std::string& public_key,
                           const base::FilePath& unpacked_dir);
 
-  // Convert the specified user script into an extension and install it.
-  void InstallUserScript(const base::FilePath& source_file,
-                         const GURL& download_url);
-
   // Update the extension `extension_id` with the unpacked crx in
   // `unpacked_dir`.
   // If `delete_source_` is true, `unpacked_dir` will be removed at the end of
@@ -289,9 +285,6 @@ class CrxInstaller : public SandboxedUnpackerClient {
                std::unique_ptr<ExtensionInstallPromptClient> client,
                const InstallApproval* approval);
   ~CrxInstaller() override;
-
-  // Converts the source user script to an extension.
-  void ConvertUserScriptOnSharedFileThread();
 
   // Called after OnUnpackSuccess check to see whether the install expectations
   // are met and the install process should continue.

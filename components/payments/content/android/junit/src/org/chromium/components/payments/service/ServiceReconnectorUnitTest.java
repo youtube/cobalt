@@ -8,6 +8,7 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.eq;
 
 import android.os.Handler;
+import android.os.Looper;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -16,9 +17,12 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
+import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Feature;
+
+import java.util.concurrent.TimeUnit;
 
 /** Tests for the service reconnector behavior. */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -70,26 +74,57 @@ public class ServiceReconnectorUnitTest {
     @Feature({"Payments"})
     public void testThreeReconnectAttempts() throws Exception {
         ServiceReconnector reconnector =
-                new ServiceReconnector(mConnection, /* maxRetryNumber= */ 3, mHandler);
+                new ServiceReconnector(
+                        mConnection, /* maxRetryNumber= */ 3, new Handler(Looper.getMainLooper()));
 
         reconnector.onUnexpectedServiceDisconnect();
 
         // First reconnect delay = 1 second.
-        Mockito.verify(mHandler).postDelayed(any(), eq(1000L));
+        // ShadowLooper.idleMainLooper is used to advance the Robolectric test clock.
+        // This causes tasks scheduled by the Handler to execute precisely when their delay expires.
+        ShadowLooper.idleMainLooper(1, TimeUnit.SECONDS);
+        Mockito.verify(mConnection, Mockito.times(1)).connectToService();
 
         reconnector.onUnexpectedServiceDisconnect();
 
         // Second reconnect delay = 2 seconds.
-        Mockito.verify(mHandler).postDelayed(any(), eq(2000L));
+        // Fast-forward 1s first to verify that the connectToService isn't called prematurely.
+        ShadowLooper.idleMainLooper(1, TimeUnit.SECONDS);
+        Mockito.verify(mConnection, Mockito.times(1)).connectToService();
+
+        // Fast-forward the remaining 1s to trigger the second reconnect.
+        ShadowLooper.idleMainLooper(1, TimeUnit.SECONDS);
+        Mockito.verify(mConnection, Mockito.times(2)).connectToService();
 
         reconnector.onUnexpectedServiceDisconnect();
 
         // Third reconnect delay = 4 seconds.
-        Mockito.verify(mHandler).postDelayed(any(), eq(4000L));
+        // Fast-forward 3s first to verify that the connectToService isn't called prematurely.
+        ShadowLooper.idleMainLooper(3, TimeUnit.SECONDS);
+        Mockito.verify(mConnection, Mockito.times(2)).connectToService();
+
+        // Fast-forward the remaining 1s to trigger the third reconnect.
+        ShadowLooper.idleMainLooper(1, TimeUnit.SECONDS);
+        Mockito.verify(mConnection, Mockito.times(3)).connectToService();
 
         reconnector.onUnexpectedServiceDisconnect();
 
         // Give up reconnecting after 3 attempts.
         Mockito.verify(mConnection).terminateConnection();
+    }
+
+    @Test
+    @Feature({"Payments"})
+    public void testReconnectDebouncing() throws Exception {
+        ServiceReconnector reconnector =
+                new ServiceReconnector(mConnection, /* maxRetryNumber= */ 3, mHandler);
+
+        reconnector.onUnexpectedServiceDisconnect();
+        reconnector.onUnexpectedServiceDisconnect();
+
+        // The second call should be ignored, meaning unbindService and postDelayed
+        // are only invoked once.
+        Mockito.verify(mConnection, Mockito.times(1)).unbindService();
+        Mockito.verify(mHandler, Mockito.times(1)).postDelayed(any(), eq(1000L));
     }
 }

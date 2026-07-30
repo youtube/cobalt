@@ -22,13 +22,15 @@ TEST(MemoryUsageMonitorPosixTest, CalculateProcessFootprint) {
       "First:    1\n"
       "Second:  2 kB\n"
       "VmSwap: 10 kB\n"
+      "RssAnon: 60 kB\n"
       "Third:  10 kB\n"
       "VmHWM:  72 kB\n"
       "Last:     8";
   const char kStatmFile[] = "100 40 25 0 0";
   uint64_t expected_swap_kb = 10;
+  uint64_t expected_rss_anon_kb = 60;
   uint64_t expected_private_footprint_kb =
-      (40 - 25) * getpagesize() / 1024 + expected_swap_kb;
+      expected_rss_anon_kb + expected_swap_kb;
   uint64_t expected_vm_size_kb = 100 * getpagesize() / 1024;
   uint64_t expected_peak_resident_kb = 72;
 

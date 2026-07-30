@@ -39,6 +39,10 @@
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_observer.h"
 
+#if BUILDFLAG(IS_OZONE)
+#include "ui/ozone/public/ozone_platform.h"
+#endif
+
 namespace extensions {
 
 namespace keys = tabs_constants;
@@ -468,9 +472,10 @@ IN_PROC_BROWSER_TEST_F(TabsApiInteractiveTest,
                       ->GetLastCommittedURL());
 
   bool check_window_active_state = true;
-#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && \
-    BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
-  check_window_active_state = false;
+#if BUILDFLAG(IS_OZONE)
+  if (::ui::OzonePlatform::RunningOnWaylandForTest()) {
+    check_window_active_state = false;
+  }
 #endif
 
   // The new browser should be inactive, since it was created with

@@ -11,11 +11,8 @@
 #include <utility>
 #include <vector>
 
-#include "base/compiler_specific.h"
 #include "base/memory/raw_ptr.h"
-#include "base/run_loop.h"
 #include "base/strings/utf_string_conversions.h"
-#include "base/test/bind.h"
 #include "base/test/metrics/user_action_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/with_feature_override.h"
@@ -50,8 +47,6 @@
 #include "ui/base/clipboard/clipboard.h"
 #include "ui/base/clipboard/test/test_clipboard.h"
 #include "ui/base/mojom/menu_source_type.mojom.h"
-#include "ui/events/platform/platform_event_source.h"
-#include "ui/gfx/native_ui_types.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/menu/menu_item_view.h"
 #include "ui/views/controls/menu/test_menu_item_view.h"

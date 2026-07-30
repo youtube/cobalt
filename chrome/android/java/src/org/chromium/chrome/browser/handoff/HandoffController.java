@@ -11,6 +11,7 @@ import android.app.Activity;
 import android.app.HandoffActivityData;
 import android.app.HandoffActivityDataRequestInfo;
 import android.app.HandoffActivityParams;
+import android.content.ComponentName;
 import android.content.Context;
 import android.net.Uri;
 import android.os.Bundle;
@@ -31,6 +32,7 @@ import org.chromium.chrome.browser.ActivityTabProvider;
 import org.chromium.chrome.browser.ActivityTabProvider.ActivityTabTabObserver;
 import org.chromium.chrome.browser.ExternalIntentUrlChecker;
 import org.chromium.chrome.browser.IntentHandler;
+import org.chromium.chrome.browser.document.ChromeLauncherActivity;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorObserver;
@@ -99,7 +101,8 @@ public class HandoffController implements TabModelSelectorObserver, Destroyable 
             extras.putString(Browser.EXTRA_APPLICATION_ID, activity.getPackageName());
             extras.putBoolean(Browser.EXTRA_CREATE_NEW_TAB, true);
 
-            return new HandoffActivityData.Builder(activity.getComponentName())
+            return new HandoffActivityData.Builder(
+                            new ComponentName(activity, ChromeLauncherActivity.class))
                     .setFallbackUri(Uri.parse(url))
                     .setExtras(extras)
                     .build();

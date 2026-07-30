@@ -40,6 +40,10 @@ bool LaserPointerControllerTestApi::HasLaserPointerView() const {
   return instance_->GetLaserPointerView();
 }
 
+void LaserPointerControllerTestApi::ResetPointerView() {
+  instance_->ResetPointerView();
+}
+
 views::View* LaserPointerControllerTestApi::GetLaserPointerView() const {
   return instance_->GetLaserPointerView();
 }

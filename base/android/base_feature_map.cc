@@ -23,6 +23,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &features::kRebindServiceBatchApi,
     &features::kUseSharedRebindServiceConnection,
     &features::kShutdownPreNativeThreadPoolAfterStartup,
+    &features::kVirtualKeyboardGeometryAndInsetFixes,
 };
 
 // static

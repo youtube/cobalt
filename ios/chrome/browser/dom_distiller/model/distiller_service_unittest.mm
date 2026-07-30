@@ -61,9 +61,16 @@ class DistillerServiceTest : public PlatformTest {
 
     // Concurrently requests all the distillations.
     for (const GURL& url : urls) {
-      distiller_service_->DistillPage(url,
-                                      std::make_unique<TestDistillerPage>(),
-                                      barrier, base::DoNothing());
+      distiller_service_->DistillPage(
+          url, std::make_unique<TestDistillerPage>(),
+          base::BindOnce(
+              [](base::RepeatingCallback<void(Article)> barrier,
+                 Article article,
+                 dom_distiller::DistillationParseResult /*result*/) {
+                barrier.Run(std::move(article));
+              },
+              barrier),
+          base::DoNothing());
     }
 
     // Wait for all requests to complete.

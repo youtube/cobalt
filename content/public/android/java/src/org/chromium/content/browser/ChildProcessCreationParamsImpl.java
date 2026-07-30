@@ -35,7 +35,7 @@ public class ChildProcessCreationParamsImpl {
     // Use only the explicit WebContents.setImportance signal, and ignore other implicit
     // signals in content.
     private static boolean sIgnoreVisibilityForImportance;
-    private static boolean sForceNativeSandboxedService;
+    private static @Nullable Boolean sForceNativeSandboxedService;
 
     private static boolean sInitialized;
 
@@ -106,16 +106,16 @@ public class ChildProcessCreationParamsImpl {
 
     private static boolean isNativeSandboxedServiceSupported() {
         return Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN
-                && BuildConfig.JAVALESS_RENDERERS_AVAILABLE
                 // Incremental install disables isolated processes, which are required for
                 // javaless renderers.
                 && !BuildConfig.IS_INCREMENTAL_INSTALL;
     }
 
     public static boolean isNativeSandboxedServiceEnabled() {
-        return sForceNativeSandboxedService
-                || (isNativeSandboxedServiceSupported()
-                        && JavalessRenderersFeatureList.isEnabled());
+        if (sForceNativeSandboxedService != null) {
+            return sForceNativeSandboxedService;
+        }
+        return isNativeSandboxedServiceSupported() && JavalessRenderersFeatureList.isEnabled();
     }
 
     public static String getSandboxedServicesName() {

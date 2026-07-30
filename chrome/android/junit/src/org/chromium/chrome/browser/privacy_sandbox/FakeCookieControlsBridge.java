@@ -40,9 +40,6 @@ public class FakeCookieControlsBridge implements CookieControlsBridge.Natives {
     public void onUiClosing(long nativeCookieControlsBridge) {}
 
     @Override
-    public void onEntryPointAnimated(long nativeCookieControlsBridge) {}
-
-    @Override
     public boolean isCookieControlsEnabled(BrowserContextHandle browserContextHandle) {
         return false;
     }

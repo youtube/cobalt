@@ -28,6 +28,7 @@
 
 using base::Time;
 
+// TODO(crbug.com/362791941): change all DCHECKs to CHECKs for v5 usages.
 namespace safe_browsing {
 
 // Can be overriden by tests.
@@ -219,7 +220,11 @@ std::string GetUmaSuffixForStore(const base::FilePath& file_path) {
 
 PrefixSize GetV5ListPrefixSize(const ListIdentifier& list_identifier) {
   CHECK(base::FeatureList::IsEnabled(safe_browsing::kLocalListsUseSBv5));
-  switch (list_identifier.sb_threat_type()) {
+  return GetV5PrefixSizeForThreatType(list_identifier.sb_threat_type());
+}
+
+PrefixSize GetV5PrefixSizeForThreatType(SBThreatType sb_threat_type) {
+  switch (sb_threat_type) {
     case SBThreatType::SB_THREAT_TYPE_EXTENSION:
       return 16;
     case SBThreatType::SB_THREAT_TYPE_BILLING:
@@ -260,9 +265,10 @@ PrefixSize GetV5ListPrefixSize(const ListIdentifier& list_identifier) {
     case SBThreatType::SB_THREAT_TYPE_MANAGED_POLICY_WARN:
     case SBThreatType::SB_THREAT_TYPE_MANAGED_POLICY_BLOCK:
     case SBThreatType::SB_THREAT_TYPE_WARNABLE_SUSPICIOUS_SITE:
-      NOTREACHED() << "GetV5ListPrefixSize not supported for SBThreatType: "
-                   << static_cast<std::underlying_type<SBThreatType>::type>(
-                          list_identifier.sb_threat_type());
+      NOTREACHED()
+          << "GetV5PrefixSizeForThreatType not supported for SBThreatType: "
+          << static_cast<std::underlying_type<SBThreatType>::type>(
+                 sb_threat_type);
   }
 }
 
@@ -353,6 +359,10 @@ bool ListIdentifier::operator==(const ListIdentifier& other) const {
   return platform_type_ == other.platform_type_ &&
          threat_entry_type_ == other.threat_entry_type_ &&
          threat_type_ == other.threat_type_;
+}
+
+bool ListIdentifier::operator!=(const ListIdentifier& other) const {
+  return !(*this == other);
 }
 
 size_t ListIdentifier::hash() const {
@@ -739,5 +749,31 @@ void SBProtocolManagerUtil::GetListClientStatesFromStoreStateMap(
                          std::back_inserter(*list_client_states),
                          &StoreStateMap::value_type::second);
 }
+
+ListInfo::ListInfo(const bool fetch_updates,
+                   const std::string& name,
+                   const ListIdentifier& list_id,
+                   const SBThreatType sb_threat_type)
+    : fetch_updates_(fetch_updates),
+      list_id_(list_id),
+      sb_threat_type_(sb_threat_type) {
+  CHECK(!fetch_updates_ || !name.empty());
+  CHECK_NE(SBThreatType::SB_THREAT_TYPE_SAFE, sb_threat_type_);
+  if (!name.empty()) {
+    filename_ = base::FeatureList::IsEnabled(kLocalListsUseSBv5)
+                    ? name + "_v5.store"
+                    : name + ".store";
+    v4_filename_ = name + ".store";
+  }
+  if (fetch_updates) {
+    v5_prefix_size_ = GetV5PrefixSizeForThreatType(sb_threat_type);
+  }
+}
+
+ListInfo::~ListInfo() = default;
+ListInfo::ListInfo(const ListInfo&) = default;
+ListInfo::ListInfo(ListInfo&&) noexcept = default;
+ListInfo& ListInfo::operator=(const ListInfo&) = default;
+ListInfo& ListInfo::operator=(ListInfo&&) noexcept = default;
 
 }  // namespace safe_browsing

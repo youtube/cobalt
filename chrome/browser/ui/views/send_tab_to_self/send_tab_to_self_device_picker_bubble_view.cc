@@ -7,7 +7,6 @@
 #include "base/functional/callback.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/ui/views/chrome_typography.h"
-#include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
 #include "chrome/browser/ui/views/send_tab_to_self/manage_account_devices_link_view.h"
 #include "chrome/browser/ui/views/send_tab_to_self/send_tab_to_self_bubble_controller.h"

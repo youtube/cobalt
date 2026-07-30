@@ -97,13 +97,23 @@ void CATransactionCoordinator::PreCommitHandler() {
     // `WaitForSingleTaskToRun()` in case there are already queued tasks.
     // There should not be any waiting for additional tasks so the waiting is
     // kept to essentially zero.
-    if (base::FeatureList::IsEnabled(
+    constexpr base::TimeDelta kSmallestWait = base::Nanoseconds(1);
+    const bool can_skip_window_resize_helper =
+        base::FeatureList::IsEnabled(
             features::kOnlyUseWindowResizeHelperOnResize) &&
-        !any_observed_window_in_live_resize) {
-      time_left = base::Nanoseconds(1);
+        !any_observed_window_in_live_resize;
+    if (can_skip_window_resize_helper) {
+      time_left = kSmallestWait;
     }
 
-    ui::WindowResizeHelperMac::Get()->WaitForSingleTaskToRun(time_left);
+    const bool task_ran =
+        ui::WindowResizeHelperMac::Get()->WaitForSingleTaskToRun(time_left);
+
+    // Pumping was attempted to get rid of pending work and none was executed.
+    // The loop can now be exited.
+    if (can_skip_window_resize_helper && !task_ran) {
+      break;
+    }
   }
 }
 

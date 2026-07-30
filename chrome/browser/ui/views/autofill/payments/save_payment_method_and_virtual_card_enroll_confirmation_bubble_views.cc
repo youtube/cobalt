@@ -7,7 +7,6 @@
 #include <utility>
 
 #include "base/feature_list.h"
-#include "chrome/browser/ui/views/accessibility/theme_tracking_non_accessible_image_view.h"
 #include "chrome/browser/ui/views/autofill/payments/dialog_view_ids.h"
 #include "chrome/browser/ui/views/autofill/payments/payments_view_util.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
@@ -15,7 +14,6 @@
 #include "components/autofill/core/common/autofill_payments_features.h"
 #include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/base/resource/resource_bundle.h"
-#include "ui/base/ui_base_types.h"
 #include "ui/views/accessibility/view_accessibility.h"
 
 namespace autofill {

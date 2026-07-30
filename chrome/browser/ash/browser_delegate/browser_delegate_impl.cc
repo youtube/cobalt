@@ -17,10 +17,12 @@
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/location_bar/location_bar.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/unload_controller.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/web_applications/web_app_launch_utils.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
@@ -36,7 +38,7 @@ BrowserDelegateImpl::BrowserDelegateImpl(Browser* browser)
 
 BrowserDelegateImpl::~BrowserDelegateImpl() = default;
 
-Browser& BrowserDelegateImpl::GetBrowser() const {
+BrowserWindowInterface& BrowserDelegateImpl::GetBrowser() const {
   return browser_.get();
 }
 
@@ -61,6 +63,16 @@ const AccountId& BrowserDelegateImpl::GetAccountId() const {
 
 bool BrowserDelegateImpl::IsOffTheRecord() const {
   return browser_->profile()->IsOffTheRecord();
+}
+
+bool BrowserDelegateImpl::IsCreatedByStartupCreator() const {
+  return browser_->creation_source() ==
+         Browser::CreationSource::kStartupCreator;
+}
+
+bool BrowserDelegateImpl::IsCreatedBySessionRestoreForStartupUrls() const {
+  return browser_->creation_source() ==
+         Browser::CreationSource::kLastAndUrlsStartupPref;
 }
 
 gfx::Rect BrowserDelegateImpl::GetBounds() const {
@@ -113,8 +125,12 @@ bool BrowserDelegateImpl::IsWebApp() const {
   return web_app::AppBrowserController::IsWebApp(&*browser_);
 }
 
+const SystemWebAppDelegate* BrowserDelegateImpl::GetSWADelegate() const {
+  return web_app::GetSystemWebAppDelegate(&*browser_);
+}
+
 bool BrowserDelegateImpl::IsAttemptingToClose() const {
-  return browser_->IsAttemptingToCloseBrowser();
+  return UnloadController::From(&*browser_)->is_attempting_to_close_browser();
 }
 
 bool BrowserDelegateImpl::IsClosing() const {

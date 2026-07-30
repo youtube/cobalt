@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "base/byte_size.h"
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
 #include "base/strings/stringprintf.h"
@@ -169,7 +170,7 @@ TEST_P(SpellingServiceClientTest, RequestTextCheck) {
   head->mime_type = "application/json";
 
   network::URLLoaderCompletionStatus status;
-  status.decoded_body_length = test_case.response_data.size();
+  status.decoded_body_length = base::ByteSize(test_case.response_data.size());
   GURL expected_request_url =
       client_.BuildEndpointUrl(&profile_, test_case.request_type);
   client_.test_url_loader_factory()->AddResponse(

@@ -77,7 +77,7 @@ class VideoFrameSharedImageCache;
 namespace blink {
 
 class AcceleratedStaticBitmapImage;
-class CanvasNon2DResourceProviderSharedImage;
+class CanvasNon2DResourceProvider;
 struct CanvasSnapshotInfo;
 class EXTDisjointTimerQuery;
 class EXTDisjointTimerQueryWebGL2;
@@ -705,7 +705,7 @@ class MODULES_EXPORT WebGLRenderingContextBase
       const Platform::WebGLContextInfo&);
   void SetupFlags();
   bool CopyRenderingResultsFromDrawingBufferAccelerated(
-      CanvasNon2DResourceProviderSharedImage*,
+      CanvasNon2DResourceProvider*,
       SourceDrawingBuffer);
 
   // CanvasRenderingContext implementation.
@@ -885,7 +885,8 @@ class MODULES_EXPORT WebGLRenderingContextBase
       device::mojom::blink::XrCompatibleResult xr_compatible_result);
   void CompleteXrCompatiblePromiseIfPending(DOMExceptionCode exception_code);
   bool xr_compatible_;
-  Member<ScriptPromiseResolver<IDLUndefined>> make_xr_compatible_resolver_;
+  HeapVector<Member<ScriptPromiseResolver<IDLUndefined>>>
+      make_xr_compatible_resolvers_;
 
   HeapVector<TextureUnitState> texture_units_;
   wtf_size_t active_texture_unit_;
@@ -894,19 +895,19 @@ class MODULES_EXPORT WebGLRenderingContextBase
 
   // Fixed-size cache of reusable snapshot providers for image and video
   // texImage2D calls.
-  class LRUCanvasResourceProviderCache {
+  class LRUCanvasNon2DResourceProviderCache {
    public:
-    LRUCanvasResourceProviderCache(wtf_size_t capacity);
+    LRUCanvasNon2DResourceProviderCache(wtf_size_t capacity);
     // The pointer returned is owned by the image buffer map.
-    CanvasNon2DResourceProviderSharedImage* GetCanvasResourceProvider(
+    CanvasNon2DResourceProvider* GetCanvasNon2DResourceProvider(
         const CanvasSnapshotInfo& info);
 
    private:
     void BubbleToFront(wtf_size_t idx);
     const wtf_size_t capacity_;
-    Vector<std::unique_ptr<CanvasNon2DResourceProviderSharedImage>> providers_;
+    Vector<std::unique_ptr<CanvasNon2DResourceProvider>> providers_;
   };
-  LRUCanvasResourceProviderCache generated_video_cache_{4};
+  LRUCanvasNon2DResourceProviderCache generated_video_cache_{4};
 
   GLint max_texture_size_;
   GLint max_cube_map_texture_size_;
@@ -1957,7 +1958,7 @@ class MODULES_EXPORT WebGLRenderingContextBase
   scoped_refptr<ExternalCanvasResource> ExportLowLatencyCanvasResource(
       SourceDrawingBuffer source_buffer);
 
-  CanvasNon2DResourceProviderSharedImage* GetSharedImageResourceProvider();
+  CanvasNon2DResourceProvider* GetSharedImageResourceProvider();
 
   // Attempts to copy the most recent rendering results from the drawing buffer
   // into a CanvasResource. Returns the resource if the copy succeeded;
@@ -2005,7 +2006,7 @@ class MODULES_EXPORT WebGLRenderingContextBase
 
   // Used to provide accelerated snapshots and CanvasResources holding the
   // current content.
-  std::unique_ptr<CanvasNon2DResourceProviderSharedImage> resource_provider_;
+  std::unique_ptr<CanvasNon2DResourceProvider> resource_provider_;
 
   // If PaintRenderingResultsToSnapshot() is unable to create
   // `resource_provider_`, it will attempt to create an unaccelerated snapshot

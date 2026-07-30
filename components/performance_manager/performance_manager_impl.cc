@@ -108,7 +108,7 @@ std::unique_ptr<FrameNodeImpl> PerformanceManagerImpl::CreateFrameNode(
     FrameNodeImpl* outer_document_for_fenced_frame,
     int render_frame_id,
     const blink::LocalFrameToken& frame_token,
-    const perfetto::NamedTrack& tracing_track,
+    const perfetto::Track& tracing_track,
     content::BrowsingInstanceId browsing_instance_id,
     content::SiteInstanceGroupId site_instance_group_id,
     bool is_current,
@@ -128,7 +128,7 @@ std::unique_ptr<PageNodeImpl> PerformanceManagerImpl::CreatePageNode(
     const GURL& visible_url,
     PagePropertyFlags initial_property_flags,
     base::TimeTicks visibility_change_time,
-    const perfetto::NamedTrack& tracing_track) {
+    const perfetto::Track& tracing_track) {
   return CreateNodeImpl<PageNodeImpl>(std::move(web_contents),
                                       web_contents_token, browser_context_id,
                                       visible_url, initial_property_flags,

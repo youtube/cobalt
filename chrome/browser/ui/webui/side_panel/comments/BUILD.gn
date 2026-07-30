@@ -14,3 +14,34 @@ mojom("mojo_bindings") {
     "//ui/base/mojom",
   ]
 }
+
+source_set("comments") {
+  public = [
+    "comments_page_handler.h",
+    "comments_side_panel_ui.h",
+  ]
+  public_deps = [
+    ":mojo_bindings",
+    "//chrome/browser:browser_public_dependencies",
+    "//chrome/browser/ui/webui/top_chrome",
+    "//content/public/browser",
+    "//mojo/public/cpp/bindings",
+  ]
+}
+
+source_set("impl") {
+  sources = [
+    "comments_page_handler.cc",
+    "comments_side_panel_ui.cc",
+  ]
+  public_deps = [ ":comments" ]
+  deps = [
+    "//chrome/app:command_ids",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/resources/side_panel/comments:resources",
+    "//chrome/browser/ui/webui:webui_util",
+    "//chrome/common",
+    "//components/collaboration/public:features",
+    "//ui/webui",
+  ]
+}

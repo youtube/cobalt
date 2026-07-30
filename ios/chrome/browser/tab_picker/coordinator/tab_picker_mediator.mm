@@ -136,7 +136,7 @@
       self.webStateList,
       WebStateSearchCriteria{
           .identifier = itemID.tabSwitcherItem.identifier,
-          .pinned_state = WebStateSearchCriteria::PinnedState::kNonPinned});
+          .pinned_state = WebStateSearchCriteria::PinnedState::kAny});
 
   if (webState) {
     base::UmaHistogramBoolean(

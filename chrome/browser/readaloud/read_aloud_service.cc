@@ -4,11 +4,15 @@
 
 #include "chrome/browser/readaloud/read_aloud_service.h"
 
+#include <utility>
+
+#include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
 #include "chrome/browser/dom_distiller/dom_distiller_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/dom_distiller/content/browser/distiller_page_web_contents.h"
 #include "components/dom_distiller/core/dom_distiller_service.h"
+#include "content/public/browser/service_process_host.h"
 #include "content/public/browser/web_contents.h"
 
 namespace readaloud {
@@ -42,6 +46,9 @@ void ReadAloudService::Shutdown() {
     delegate_->OnNativeDestroyed();
     delegate_.reset();
   }
+  utility_observer_receiver_.reset();
+  utility_player_.reset();
+  player_factory_.reset();
   viewer_handle_.reset();
 }
 
@@ -81,5 +88,45 @@ void ReadAloudService::OnArticleReady(
 
 void ReadAloudService::OnArticleUpdated(
     dom_distiller::ArticleDistillationUpdate article_update) {}
+
+void ReadAloudService::Initialize() {
+  EnsureServiceConnected();
+}
+
+void ReadAloudService::EnsureServiceConnected() {
+  if (player_factory_.is_bound()) {
+    return;
+  }
+  content::ServiceProcessHost::Launch<
+      read_aloud::mojom::ReadAloudPlayerFactory>(
+      player_factory_.BindNewPipeAndPassReceiver(),
+      content::ServiceProcessHost::Options()
+          // TODO(b/525116429): Use localized string resource.
+          .WithDisplayName("ReadAloud Playback Service")
+          .Pass());
+  player_factory_.reset_on_disconnect();
+
+  // Create player in utility process and bind our utility endpoints.
+  utility_player_.reset();
+  utility_observer_receiver_.reset();
+
+  player_factory_->CreatePlayer(
+      utility_player_.BindNewPipeAndPassReceiver(),
+      utility_observer_receiver_.BindNewPipeAndPassRemote());
+
+  utility_player_.set_disconnect_handler(base::BindOnce(
+      &ReadAloudService::OnUtilityDisconnect, weak_factory_.GetWeakPtr()));
+}
+
+void ReadAloudService::OnUtilityDisconnect() {
+  utility_observer_receiver_.reset();
+  utility_player_.reset();
+  player_factory_.reset();
+}
+
+void ReadAloudService::OnDistillationFailed(
+    dom_distiller::DistillationParseResult reason) {
+  base::UmaHistogramEnumeration("ReadAloud.Distillation.FailureReason", reason);
+}
 
 }  // namespace readaloud

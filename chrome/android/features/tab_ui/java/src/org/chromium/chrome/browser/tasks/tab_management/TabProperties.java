@@ -126,8 +126,8 @@ public class TabProperties {
 
     public static final WritableBooleanPropertyKey IS_COLLAPSED = new WritableBooleanPropertyKey();
 
-    public static final WritableBooleanPropertyKey IS_BEING_DRAGGED =
-            new WritableBooleanPropertyKey();
+    public static final WritableObjectPropertyKey<Float> DRAGGING_Y =
+            new WritableObjectPropertyKey<>();
 
     public static final WritableObjectPropertyKey<Token> TAB_GROUP_ID =
             new WritableObjectPropertyKey<>();
@@ -231,7 +231,7 @@ public class TabProperties {
 
     private static final PropertyKey[] COMMON_KEYS_TAB_AND_GROUP_GRID =
             new PropertyKey[] {
-                IS_BEING_DRAGGED,
+                DRAGGING_Y,
                 IS_INCOGNITO,
                 IS_SELECTED,
                 TAB_CLICK_LISTENER,
@@ -319,8 +319,8 @@ public class TabProperties {
                 ACTION_BUTTON_DESCRIPTION_TEXT_RESOLVER,
                 ACTOR_UI_STATE,
                 CONTENT_DESCRIPTION_TEXT_RESOLVER,
+                DRAGGING_Y,
                 FAVICON_FETCHER,
-                IS_BEING_DRAGGED,
                 IS_COLLAPSED,
                 IS_INCOGNITO,
                 IS_LOADING,

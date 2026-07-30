@@ -5,6 +5,7 @@
 #include "content/browser/renderer_host/unbounded_surface_window_aura.h"
 
 #include "base/check.h"
+#include "base/command_line.h"
 #include "base/memory/ptr_util.h"
 #include "base/task/single_thread_task_runner.h"
 #include "components/input/native_web_keyboard_event.h"
@@ -16,6 +17,7 @@
 #include "content/browser/renderer_host/render_widget_host_impl.h"
 #include "content/browser/renderer_host/render_widget_host_view_aura.h"
 #include "content/browser/renderer_host/render_widget_host_view_base.h"
+#include "content/public/common/content_switches.h"
 #include "third_party/blink/public/common/input/web_mouse_event.h"
 #include "third_party/blink/public/common/input/web_touch_event.h"
 #include "ui/aura/client/screen_position_client.h"
@@ -23,6 +25,7 @@
 #include "ui/aura/client/window_parenting_client.h"
 #include "ui/compositor/compositor.h"
 #include "ui/compositor/layer.h"
+#include "ui/compositor/paint_recorder.h"
 #include "ui/display/display.h"
 #include "ui/display/screen.h"
 #include "ui/events/blink/blink_event_util.h"
@@ -53,6 +56,26 @@ gfx::Rect ConvertRectFromScreen(aura::Window* window,
 }
 
 }  // namespace
+
+class UnboundedSurfaceWindowAura::DebugBorderDelegate
+    : public ui::LayerDelegate {
+ public:
+  explicit DebugBorderDelegate(ui::Layer* layer) : layer_(layer) {}
+  ~DebugBorderDelegate() override = default;
+
+  // ui::LayerDelegate:
+  void OnPaintLayer(const ui::PaintContext& context) override {
+    ui::PaintRecorder recorder(context, layer_->size());
+    recorder.canvas()->DrawSolidFocusRect(gfx::RectF(layer_->size()),
+                                          SK_ColorRED, 3);
+  }
+
+  void OnDeviceScaleFactorChanged(float old_device_scale_factor,
+                                  float new_device_scale_factor) override {}
+
+ private:
+  raw_ptr<ui::Layer> layer_;
+};
 
 // static
 std::unique_ptr<UnboundedSurfaceWindowAura> UnboundedSurfaceWindowAura::Create(
@@ -100,6 +123,15 @@ UnboundedSurfaceWindowAura::~UnboundedSurfaceWindowAura() {
     }
     GetHostFrameSinkManager()->InvalidateFrameSinkId(frame_sink_id_, this, {});
   }
+
+  // Explicitly destroy the debug border components in a safe order to prevent
+  // dangling raw_ptrs in both directions (layer -> delegate and delegate ->
+  // layer).
+  if (debug_border_layer_) {
+    debug_border_layer_->set_delegate(nullptr);
+  }
+  debug_border_delegate_.reset();
+  debug_border_layer_.reset();
 }
 
 base::WeakPtr<UnboundedSurfaceWindow> UnboundedSurfaceWindowAura::GetWeakPtr() {
@@ -276,6 +308,20 @@ bool UnboundedSurfaceWindowAura::InitWindow(const gfx::Rect& bounds_in_dips) {
       bounds_in_screen.size(), SK_ColorTRANSPARENT,
       cc::DeadlinePolicy::UseDefaultDeadline(),
       /*stretch_content_to_fill_bounds=*/false);
+
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kUnboundedWindowDebug)) {
+    debug_border_layer_ =
+        std::make_unique<ui::Layer>(ui::LayerType::LAYER_TEXTURED);
+    debug_border_delegate_ =
+        std::make_unique<DebugBorderDelegate>(debug_border_layer_.get());
+    debug_border_layer_->set_delegate(debug_border_delegate_.get());
+    debug_border_layer_->SetBounds(gfx::Rect(window_->layer()->size()));
+    debug_border_layer_->SetFillsBoundsOpaquely(false);
+    debug_border_layer_->SetAcceptEvents(false);
+    window_->layer()->Add(debug_border_layer_.get());
+  }
+
   window_->Show();
 
   if (client_remote_.is_bound()) {
@@ -297,6 +343,9 @@ void UnboundedSurfaceWindowAura::SetBounds(const gfx::Rect& bounds_in_screen) {
       bounds_in_screen.size(), SK_ColorTRANSPARENT,
       cc::DeadlinePolicy::UseDefaultDeadline(),
       /*stretch_content_to_fill_bounds=*/false);
+  if (debug_border_layer_) {
+    debug_border_layer_->SetBounds(gfx::Rect(window_->layer()->size()));
+  }
 }
 
 void UnboundedSurfaceWindowAura::UpdateBounds(const gfx::Rect& bounds) {

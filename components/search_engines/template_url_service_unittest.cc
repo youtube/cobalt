@@ -14,6 +14,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_ostream_operators.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "components/search_engines/search_engine_choice/search_engine_choice_service.h"
 #include "components/search_engines/search_engine_choice/search_engine_choice_utils.h"
@@ -768,6 +769,46 @@ TEST_F(TemplateURLServiceWithDatabaseUnitTest, ResetPlayAPISearchEngine) {
       template_url_service().GetTemplateURLForKeyword(kOldPlayEngineKeyword));
 
   // The new engine is added, flagged as coming from Play, and set as default.
+  EXPECT_EQ(template_url_service().GetDefaultSearchProvider()->keyword(),
+            kNewPlayEngineKeyword);
+}
+
+TEST_F(TemplateURLServiceWithDatabaseUnitTest,
+       ResetPlayAPISearchEngine_RemoveMultipleOldEngines) {
+  const size_t initial_turl_count =
+      template_url_service().GetTemplateURLs().size();
+
+  // Create multiple search engines declared as coming from Play.
+  const std::u16string kOldPlayKeyword1 = u"old_play_1";
+  const std::u16string kOldPlayKeyword2 = u"old_play_2";
+
+  AddPlayApiEngineLegacy(kOldPlayKeyword1, /*set_as_default=*/false);
+  AddPlayApiEngineLegacy(kOldPlayKeyword2, /*set_as_default=*/false);
+
+  // Both legacy play engines are added.
+  EXPECT_EQ(template_url_service().GetTemplateURLs().size(),
+            initial_turl_count + 2);
+
+  base::HistogramTester histogram_tester;
+
+  const auto new_play_engine_data =
+      CreatePlayAPITemplateURLData(kNewPlayEngineKeyword);
+  EXPECT_TRUE(
+      template_url_service().ResetPlayAPISearchEngine(new_play_engine_data));
+
+  // Both old regulatory engines are removed from the service and database.
+  EXPECT_FALSE(
+      template_url_service().GetTemplateURLForKeyword(kOldPlayKeyword1));
+  EXPECT_FALSE(
+      template_url_service().GetTemplateURLForKeyword(kOldPlayKeyword2));
+
+  // Verify that the Removal Count histogram recorded exactly 2 removals.
+  histogram_tester.ExpectUniqueSample(
+      "Search.ChoiceDebug.PreexistingProgramTaggedEntries", 2, 1);
+
+  // The new engine is added and set as default.
+  EXPECT_EQ(template_url_service().GetDefaultSearchProvider()->keyword(),
+            kNewPlayEngineKeyword);
   auto* new_play_engine =
       template_url_service().GetTemplateURLForKeyword(kNewPlayEngineKeyword);
   EXPECT_TRUE(new_play_engine);

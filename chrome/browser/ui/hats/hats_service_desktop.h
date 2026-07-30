@@ -193,19 +193,19 @@ class HatsServiceDesktop : public HatsService {
 
   // Returns the launch error for the given trigger and browser, performing all
   // checks.
-  LaunchError GetLaunchError(Browser* browser,
-                             const std::string& trigger) const;
+  LaunchError RunLaunchChecks(Browser* browser,
+                              const std::string& trigger) const;
 
   // Helper for CanShowSurvey, performing browser-independent checks (except
   // probability).
-  LaunchError GetCommonLaunchError(const std::string& trigger) const;
+  LaunchError RunCommonLaunchChecks(const std::string& trigger) const;
 
-  // Returns true is the requested browser type matches the actual browser type.
+  // Returns true if the requested browser type matches the actual browser type.
   bool IsRightBrowserType(
       Browser* browser,
       hats::SurveyConfig::RequestedBrowserType requested_browser_type) const;
 
-  // Shows the survey, assuming all checks have passed.
+  // Shows the survey after checking all conditions are met.
   LaunchError ShowSurvey(
       Browser* browser,
       const std::string& trigger,

@@ -96,6 +96,8 @@ class PaymentRequestBrowserTestBase
     PROCESSING_SPINNER_SHOWN,
     PROCESSING_SPINNER_HIDDEN,
     PAYMENT_HANDLER_WINDOW_OPENED,
+    // Note that this is a merchant html title set event, and the signal is
+    // provided by WebcontentsObserver::TitleWasSet.
     PAYMENT_HANDLER_TITLE_SET,
   };
 

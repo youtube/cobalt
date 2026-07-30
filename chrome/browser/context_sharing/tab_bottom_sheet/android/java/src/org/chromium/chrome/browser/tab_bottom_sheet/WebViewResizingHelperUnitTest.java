@@ -240,7 +240,7 @@ public class WebViewResizingHelperUnitTest {
 
     @Test
     public void testUpdateBounds_InactiveActivity() {
-        when(mMockWindowAndroid.getActivityState()).thenReturn(ActivityState.PAUSED);
+        when(mMockWindowAndroid.getActivityState()).thenReturn(ActivityState.STOPPED);
 
         mHelper.setThinWebView(mMockThinWebView, mMockWebContents);
         FrameLayout container = (FrameLayout) mHelper.getResizingContainer();
@@ -254,6 +254,25 @@ public class WebViewResizingHelperUnitTest {
         container.layout(0, 0, 100, 200);
 
         verify(mMockThinWebView, never()).resizeWebContents(anyInt(), anyInt());
+        verify(mMockWebContents, never()).setSize(anyInt(), anyInt());
+    }
+
+    @Test
+    public void testUpdateBounds_PausedActivity() {
+        when(mMockWindowAndroid.getActivityState()).thenReturn(ActivityState.PAUSED);
+
+        mHelper.setThinWebView(mMockThinWebView, mMockWebContents);
+        FrameLayout container = (FrameLayout) mHelper.getResizingContainer();
+
+        when(mMockWebContents.getWidth()).thenReturn(50);
+        when(mMockWebContents.getHeight()).thenReturn(50);
+
+        clearInvocations(mMockWebContents);
+        clearInvocations(mMockThinWebView);
+
+        container.layout(0, 0, 100, 200);
+
+        verify(mMockThinWebView).resizeWebContents(100, 200);
         verify(mMockWebContents, never()).setSize(anyInt(), anyInt());
     }
 

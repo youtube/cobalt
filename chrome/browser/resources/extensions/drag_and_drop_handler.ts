@@ -68,7 +68,7 @@ export class DragAndDropHandler implements DragWrapperDelegate {
     if (item.kind === 'file' && entry && entry.isDirectory) {
       handled = true;
       this.handleDirectoryDrop_();
-    } else if (/\.(crx|user\.js|zip)$/i.test(e.dataTransfer!.files[0]!.name)) {
+    } else if (/\.(crx|zip)$/i.test(e.dataTransfer!.files[0]!.name)) {
       // Only process files that look like extensions. Other files should
       // navigate the browser normally.
       handled = true;

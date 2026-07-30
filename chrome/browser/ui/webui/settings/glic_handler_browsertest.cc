@@ -10,6 +10,7 @@
 #include "base/test/gmock_callback_support.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "build/buildflag.h"
 #include "chrome/browser/background/glic/glic_launcher_configuration.h"
 #include "chrome/browser/browser_process.h"
@@ -38,6 +39,10 @@
 #include "ui/base/ozone_buildflags.h"
 #include "ui/events/event_constants.h"
 #include "ui/events/keycodes/keyboard_codes.h"
+
+#if BUILDFLAG(IS_OZONE)
+#include "ui/ozone/public/ozone_platform.h"
+#endif
 
 using testing::_;
 using testing::Return;
@@ -133,8 +138,12 @@ class GlicHandlerExperimentalTriggeringBrowserTest
 
 // TODO(crbug.com/388101855): Remove buildflag when GlobalAcceleratorListener
 // supports Linux Wayland.
-#if !BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
 IN_PROC_BROWSER_TEST_F(GlicHandlerBrowserTest, UpdateShortcutSuspension) {
+#if BUILDFLAG(IS_OZONE)
+  if (::ui::OzonePlatform::RunningOnWaylandForTest()) {
+    GTEST_SKIP() << "GlobalAcceleratorListener doesn't support Linux Wayland";
+  }
+#endif
   auto* const global_accelerator_listener =
       ui::GlobalAcceleratorListener::GetInstance();
   EXPECT_FALSE(global_accelerator_listener->IsShortcutHandlingSuspended());
@@ -147,7 +156,6 @@ IN_PROC_BROWSER_TEST_F(GlicHandlerBrowserTest, UpdateShortcutSuspension) {
       base::ListValue().Append(false));
   EXPECT_FALSE(global_accelerator_listener->IsShortcutHandlingSuspended());
 }
-#endif  //  !BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
 
 IN_PROC_BROWSER_TEST_F(GlicHandlerBrowserTest, UpdateGlicShortcut) {
   const ui::Accelerator invalid_shortcut(ui::VKEY_A, ui::EF_NONE);

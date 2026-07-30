@@ -41,4 +41,10 @@ public class BaseFeatureList {
 
     public static final MutableIntParamWithSafeDefault sMaxDeferredSharedRebindServiceConnection =
             sUseSharedRebindServiceConnection.newIntParam("max-deferred-bindings", 10);
+
+    public static final MutableFlagWithSafeDefault sVirtualKeyboardGeometryAndInsetFixes =
+            new MutableFlagWithSafeDefault(
+                    BaseFeatureMap.getInstance(),
+                    BaseFeatures.VIRTUAL_KEYBOARD_GEOMETRY_AND_INSET_FIXES,
+                    true);
 }

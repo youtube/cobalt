@@ -103,6 +103,10 @@ mod ffi {
 
         fn new_archive(zip_filename: &[u8]) -> Box<ResultOfZipFileArchive>;
 
+        /// # Safety
+        ///
+        /// Caller needs to guarantee that `owned_fd` is an owned file descriptor.
+        /// See <https://doc.rust-lang.org/beta/std/io/index.html#io-safety> for more details.
         #[cfg(target_family = "unix")]
         unsafe fn parse_stable_portability_history(
             owned_fd: i32,

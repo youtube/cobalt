@@ -167,66 +167,59 @@ void PageAnimator::ServiceScriptedAnimations(
 
   // https://html.spec.whatwg.org/multipage/webappapis.html#event-loop-processing-model
 
-  // For each fully active Document doc in docs, run the reveal steps for doc.
-  // Not currently in spec but comes from monkeypatch in:
-  // https://drafts.csswg.org/css-view-transitions-2/#monkey-patch-to-html
-  if (RuntimeEnabledFeatures::PageRevealEventEnabled()) {
-    // The event will be dispatched if the filter returns true. The sequencing
-    // here is important:
-    // 1. Resolve the view transition based on @view-transition and set it to
-    //    the event. This happens in the filter so before the event is fired.
-    // 2. Dispatch the pagereveal event
-    // 3. Activate the view transition
-    auto page_reveal_event_filter =
-        BindRepeating([](const LocalDOMWindow* window, Event* event) {
-          PageRevealEvent* page_reveal = DynamicTo<PageRevealEvent>(event);
-          if (!page_reveal) {
-            return false;
-          }
+  // 6. For each doc of docs, reveal doc.
+  //
+  // The event will be dispatched if the filter returns true. The sequencing
+  // here is important:
+  // 1. Resolve the view transition based on @view-transition and set it to
+  //    the event. This happens in the filter so before the event is fired.
+  // 2. Dispatch the pagereveal event
+  // 3. Activate the view transition
+  auto page_reveal_event_filter = BindRepeating([](const LocalDOMWindow* window,
+                                                   Event* event) {
+    PageRevealEvent* page_reveal = DynamicTo<PageRevealEvent>(event);
+    if (!page_reveal) {
+      return false;
+    }
 
-          // pagereveal is only fired on Documents.
-          CHECK(window);
-          CHECK(window->document());
-          CHECK(!window->HasBeenRevealed());
+    // pagereveal is only fired on Documents.
+    CHECK(window);
+    CHECK(window->document());
+    CHECK(!window->HasBeenRevealed());
 
-          if (auto* supplement =
-                  window->document()->GetViewTransitionsIfExists()) {
-            DOMViewTransition* view_transition =
-                supplement->ResolveCrossDocumentViewTransition();
-            page_reveal->SetViewTransition(view_transition);
-          }
+    if (auto* supplement = window->document()->GetViewTransitionsIfExists()) {
+      DOMViewTransition* view_transition =
+          supplement->ResolveCrossDocumentViewTransition();
+      page_reveal->SetViewTransition(view_transition);
+    }
 
-          return true;
-        });
+    return true;
+  });
 
-    run_for_all_active_controllers_with_timing([&](wtf_size_t i) {
-      LocalDOMWindow* window = active_controllers[i]->GetWindow();
-      bool pagereveal_dispatched =
-          active_controllers[i]->DispatchEvents(blink::BindRepeating(
-              page_reveal_event_filter, WrapPersistent(window)));
+  run_for_all_active_controllers_with_timing([&](wtf_size_t i) {
+    LocalDOMWindow* window = active_controllers[i]->GetWindow();
+    bool pagereveal_dispatched = active_controllers[i]->DispatchEvents(
+        blink::BindRepeating(page_reveal_event_filter, WrapPersistent(window)));
 
-      if (pagereveal_dispatched) {
-        window->SetHasBeenRevealed(true);
-        if (ViewTransition* transition =
-                ViewTransitionUtils::GetTransition(*window->document());
-            transition && transition->IsForNavigationOnNewDocument()) {
-          transition->ActivateFromSnapshot();
-        }
+    if (pagereveal_dispatched) {
+      window->SetHasBeenRevealed(true);
+      if (ViewTransition* transition =
+              ViewTransitionUtils::GetTransition(*window->document());
+          transition && transition->IsForNavigationOnNewDocument()) {
+        transition->ActivateFromSnapshot();
       }
-    });
-  }
+    }
+  });
 
-  // 6. For each fully active Document in docs, flush autofocus
-  // candidates for that Document if its browsing context is a top-level
-  // browsing context.
+  // 7. For each doc of docs, flush autofocus candidates for doc if its node
+  // navigable is a top-level traversable.
   run_for_all_active_controllers_with_timing([&](wtf_size_t i) {
     if (const auto* window = active_controllers[i]->GetWindow()) {
       window->document()->FlushAutofocusCandidates();
     }
   });
 
-  // 7. For each fully active Document in docs, run the resize steps
-  // for that Document, passing in now as the timestamp.
+  // 8. For each doc of docs, run the resize steps for doc.
   wtf_size_t active_controller_id = 0;
   auto start_time = base::TimeTicks::Now();
   for (wtf_size_t i = 0; i < controllers.size(); ++i) {
@@ -250,8 +243,7 @@ void PageAnimator::ServiceScriptedAnimations(
     start_time = end_time;
   }
 
-  // 8. For each fully active Document in docs, run the scroll steps
-  // for that Document, passing in now as the timestamp.
+  // 9. For each doc of docs, run the scroll steps for doc.
   run_for_all_active_controllers_with_timing([&](wtf_size_t i) {
     auto scope = SyncScrollAttemptHeuristic::GetScrollHandlerScope();
     active_controllers[i]->DispatchEvents(BindRepeating([](Event* event) {
@@ -262,20 +254,19 @@ void PageAnimator::ServiceScriptedAnimations(
     }));
   });
 
-  // 9. For each fully active Document in docs, evaluate media
-  // queries and report changes for that Document, passing in now as the
-  // timestamp
+  // 10. For each doc of docs, evaluate media queries and report changes for
+  // doc.
   run_for_all_active_controllers_with_timing([&](wtf_size_t i) {
     active_controllers[i]->CallMediaQueryListListeners();
   });
 
-  // 10. For each fully active Document in docs, update animations and
-  // send events for that Document, passing in now as the timestamp.
+  // 11. For each doc of docs, update animations and send events for doc,
+  // passing in relative high resolution time given frameTimestamp and doc's
+  // relevant global object as the timestamp.
   run_for_all_active_controllers_with_timing(
       [&](wtf_size_t i) { active_controllers[i]->DispatchEvents(); });
 
-  // 11. For each fully active Document in docs, run the fullscreen
-  // steps for that Document, passing in now as the timestamp.
+  // 12. For each doc of docs, run the fullscreen steps for doc.
   run_for_all_active_controllers_with_timing(
       [&](wtf_size_t i) { active_controllers[i]->RunTasks(); });
 
@@ -285,8 +276,9 @@ void PageAnimator::ServiceScriptedAnimations(
     active_controllers[i]->ExecuteVideoFrameCallbacks();
   });
 
-  // 13. For each fully active Document in docs, run the animation
-  // frame callbacks for that Document, passing in now as the timestamp.
+  // 14. For each doc of docs, run the animation frame callbacks for doc,
+  // passing in the relative high resolution time given frameTimestamp and
+  // doc's relevant global object as the timestamp.
   run_for_all_active_controllers_with_timing([&](wtf_size_t i) {
     auto scope = SyncScrollAttemptHeuristic::GetRequestAnimationFrameScope();
     active_controllers[i]->ExecuteFrameCallbacks();
@@ -297,7 +289,7 @@ void PageAnimator::ServiceScriptedAnimations(
     if (animator && active_controllers[i]->HasFrameCallback()) {
       animator->SetNextFrameHasPendingRaf();
     }
-    // See LocalFrameView::RunPostLifecycleSteps() for 14.
+    // See LocalFrameView::RunPostLifecycleSteps() for 15 and 16.
     active_controllers[i]->ScheduleAnimationIfNeeded(
         cc::BeginMainFrameReason::kServiceScriptedAnimations);
   });

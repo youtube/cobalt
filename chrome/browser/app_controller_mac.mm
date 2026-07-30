@@ -14,6 +14,7 @@
 
 #include "base/apple/bridging.h"
 #include "base/apple/foundation_util.h"
+#include "base/apple/scoped_cftyperef.h"
 #include "base/auto_reset.h"
 #include "base/check_is_test.h"
 #include "base/check_op.h"
@@ -35,6 +36,7 @@
 #include "base/task/thread_pool.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "base/threading/thread_restrictions.h"
+#include "base/time/time.h"
 #include "build/branding_buildflags.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/apps/app_shim/app_shim_termination_manager.h"
@@ -832,7 +834,7 @@ class AppControllerProfileObserver : public ProfileAttributesStorage::Observer,
 }
 
 - (NSMenu*)fileMenu {
-  return [[NSApp.mainMenu itemWithTag:kMacFileMenuId] submenu];
+  return [[NSApp.mainMenu itemWithTag:IDC_FILE_MENU] submenu];
 }
 
 // Returns the ⌘W menu item in the File menu. Returns nil if no such menu item
@@ -1137,7 +1139,7 @@ class AppControllerProfileObserver : public ProfileAttributesStorage::Observer,
   if (browser->GetType() == BrowserWindowInterface::Type::TYPE_NORMAL) {
     if (!_tabMenuBridge) {
       _tabMenuBridge = std::make_unique<TabMenuBridge>(
-          [[NSApp mainMenu] itemWithTag:kMacTabMenuId]);
+          [[NSApp mainMenu] itemWithTag:IDC_TAB_MENU]);
     }
     _tabMenuBridge->SetTabStripModel(browser->GetTabStripModel());
 
@@ -1178,7 +1180,7 @@ class AppControllerProfileObserver : public ProfileAttributesStorage::Observer,
   // Updates the `Tab` menu's "New Tab to the ..." and "Close Tabs to the ..."
   // accordingly.
   if (_tabMenuBridge) {
-    NSMenu* tabSubmenu = [[[NSApp mainMenu] itemWithTag:kMacTabMenuId] submenu];
+    NSMenu* tabSubmenu = [[[NSApp mainMenu] itemWithTag:IDC_TAB_MENU] submenu];
     NSMenuItem* newTabPositionalItem =
         [tabSubmenu itemWithTag:IDC_NEW_TAB_TO_RIGHT];
     NSMenuItem* closeTabsPositionalItem =
@@ -1220,11 +1222,12 @@ class AppControllerProfileObserver : public ProfileAttributesStorage::Observer,
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   CFStringRef app = CFSTR("com.google.Keystone.Agent");
   CFStringRef checkInterval = CFSTR("checkInterval");
-  CFPropertyListRef plist = CFPreferencesCopyAppValue(checkInterval, app);
-  if (!plist) {
-    const float fiveHoursInSeconds = 5.0 * 60.0 * 60.0;
+  base::apple::ScopedCFTypeRef<CFPropertyListRef> plist(
+      CFPreferencesCopyAppValue(checkInterval, app));
+  if (!plist.get()) {
+    const float interval = base::Hours(5).InSecondsF();
     CFPreferencesSetAppValue(
-        checkInterval, base::apple::NSToCFPtrCast(@(fiveHoursInSeconds)), app);
+        checkInterval, base::apple::NSToCFPtrCast(@(interval)), app);
     CFPreferencesAppSynchronize(app);
   }
 #endif
@@ -1943,7 +1946,7 @@ class AppControllerProfileObserver : public ProfileAttributesStorage::Observer,
 // Conditionally adds the Profile menu to the main menu bar.
 - (void)initProfileMenu {
   NSMenu* mainMenu = [NSApp mainMenu];
-  NSMenuItem* profileMenu = [mainMenu itemWithTag:kMacProfileMainMenuId];
+  NSMenuItem* profileMenu = [mainMenu itemWithTag:IDC_PROFILE_MAIN_MENU];
 
   if (!profiles::IsMultipleProfilesEnabled()) {
     [mainMenu removeItem:profileMenu];
@@ -2206,7 +2209,7 @@ class AppControllerProfileObserver : public ProfileAttributesStorage::Observer,
 
   _profilePrefRegistrar.reset();
 
-  NSMenuItem* bookmarkItem = [NSApp.mainMenu itemWithTag:kBookmarksMenuId];
+  NSMenuItem* bookmarkItem = [NSApp.mainMenu itemWithTag:IDC_BOOKMARKS_MENU];
   BOOL hidden = bookmarkItem.hidden;
   if (profile != nullptr) {
     // Rebuild the menus with the new profile. The bookmarks submenu is cached

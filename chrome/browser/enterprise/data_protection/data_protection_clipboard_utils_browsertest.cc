@@ -2258,11 +2258,17 @@ IN_PROC_BROWSER_TEST_P(
   ASSERT_TRUE(content::NavigateToURL(contents(), url));
 
   base::test::TestFuture<bool> future;
+  base::HistogramTester histogram_tester;
   PasteFromGeminiIfAllowedByPolicy(contents()->GetPrimaryMainFrame(),
                                    std::string(1000, 'a'),
                                    future.GetCallback());
 
   EXPECT_FALSE(future.Get());
+  histogram_tester.ExpectUniqueSample(
+      "Enterprise.DataControls.GlicPaste.Verdict",
+      data_controls::Rule::Level::kNotSet, 1);
+  histogram_tester.ExpectTotalCount(
+      "Enterprise.DataControls.GlicPaste.EvaluationLatency", 1);
 }
 
 IN_PROC_BROWSER_TEST_P(DataControlsClipboardUtilsBrowserTest,
@@ -2398,12 +2404,18 @@ IN_PROC_BROWSER_TEST_P(DataControlsClipboardUtilsBrowserTest,
                                  machine_scope());
 
   base::test::TestFuture<bool> future;
+  base::HistogramTester histogram_tester;
   PasteFromGeminiIfAllowedByPolicy(contents()->GetPrimaryMainFrame(),
                                    std::string(1000, 'a'),
                                    future.GetCallback());
 
   EXPECT_FALSE(future.Get());
   run_loop.Run();
+  histogram_tester.ExpectUniqueSample(
+      "Enterprise.DataControls.GlicPaste.Verdict",
+      data_controls::Rule::Level::kBlock, 1);
+  histogram_tester.ExpectTotalCount(
+      "Enterprise.DataControls.GlicPaste.EvaluationLatency", 1);
 }
 
 IN_PROC_BROWSER_TEST_P(DataControlsClipboardUtilsBrowserTest,
@@ -2453,12 +2465,18 @@ IN_PROC_BROWSER_TEST_P(DataControlsClipboardUtilsBrowserTest,
       data_controls::DataControlsDialog::Type::kClipboardPasteWarn);
 
   base::test::TestFuture<bool> future;
+  base::HistogramTester histogram_tester;
   PasteFromGeminiIfAllowedByPolicy(contents()->GetPrimaryMainFrame(),
                                    std::string(1000, 'a'),
                                    future.GetCallback());
 
   dialog_helper.WaitForDialogToInitialize();
   run_loop.Run();
+  histogram_tester.ExpectUniqueSample(
+      "Enterprise.DataControls.GlicPaste.Verdict",
+      data_controls::Rule::Level::kWarn, 1);
+  histogram_tester.ExpectTotalCount(
+      "Enterprise.DataControls.GlicPaste.EvaluationLatency", 1);
 
   base::RunLoop run_loop_bypass;
   event_validator = event_report_validator_helper_->CreateValidator();

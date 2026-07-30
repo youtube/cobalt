@@ -775,7 +775,7 @@
                              visibleRect.size.width, visibleRect.size.height);
   }
 
-  CGFloat screenScale = [UIScreen mainScreen].scale;
+  CGFloat screenScale = self.traitCollection.displayScale;
   // Calculate the maximum pixel dimension needed for the cell's display.
   CGFloat thumbnailDimension =
       MAX(backgroundCell.bounds.size.width, backgroundCell.bounds.size.height) *

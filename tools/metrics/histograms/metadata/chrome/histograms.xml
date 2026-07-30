@@ -236,8 +236,41 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Chrome.ProcessSingleton.CreateLockFileWithTimeout.ErrorCode"
+    enum="WinGetLastError" expires_after="2027-06-01">
+  <owner>etienneb@chromium.org</owner>
+  <owner>grt@chromium.org</owner>
+  <summary>
+    Records the Windows last error code (GetLastError) when lock file creation
+    fails for a reason other than a sharing violation. Recorded once per fatal
+    failure on Windows.
+  </summary>
+</histogram>
+
+<histogram name="Chrome.ProcessSingleton.CreateLockFileWithTimeout.Result"
+    enum="BooleanSuccess" expires_after="2027-06-01">
+  <owner>etienneb@chromium.org</owner>
+  <owner>grt@chromium.org</owner>
+  <summary>
+    Records whether creating the lock file eventually succeeded. Recorded once
+    per attempt to create the lock file with a timeout on Windows.
+  </summary>
+</histogram>
+
+<histogram name="Chrome.ProcessSingleton.CreateLockFileWithTimeout.RetryCount"
+    units="retries" expires_after="2027-06-01">
+  <owner>etienneb@chromium.org</owner>
+  <owner>grt@chromium.org</owner>
+  <summary>
+    Records the number of retries it took to successfully acquire the lock file.
+    Recorded once per successful lock file creation on Windows. A value of 0
+    indicates that the lock file was successfully acquired on the first attempt
+    with no retries.
+  </summary>
+</histogram>
+
 <histogram name="Chrome.ProcessSingleton.NotifyResult" enum="NotifyResult"
-    expires_after="2026-05-03">
+    expires_after="2027-06-29">
   <owner>gab@chromium.org</owner>
   <owner>etienneb@chromium.org</owner>
   <summary>
@@ -246,14 +279,14 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Chrome.ProcessSingleton.RemoteHungProcessTerminateReason"
-    enum="RemoteHungProcessTerminateReason" expires_after="2025-02-10">
+    enum="RemoteHungProcessTerminateReason" expires_after="2027-06-29">
   <owner>gab@chromium.org</owner>
   <owner>etienneb@chromium.org</owner>
   <summary>The reason of remote hang processes termination.</summary>
 </histogram>
 
 <histogram name="Chrome.ProcessSingleton.RemoteProcessInteractionResult"
-    enum="RemoteProcessInteractionResult" expires_after="2024-10-06">
+    enum="RemoteProcessInteractionResult" expires_after="2027-06-29">
   <owner>gab@chromium.org</owner>
   <owner>etienneb@chromium.org</owner>
   <summary>
@@ -263,7 +296,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Chrome.ProcessSingleton.TerminateProcessErrorCode.Posix"
-    enum="PopularOSErrno" expires_after="2024-06-04">
+    enum="PopularOSErrno" expires_after="2027-06-29">
   <owner>gab@chromium.org</owner>
   <owner>etienneb@chromium.org</owner>
   <summary>
@@ -273,7 +306,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Chrome.ProcessSingleton.TerminateProcessTime" units="ms"
-    expires_after="2026-11-01">
+    expires_after="2027-06-29">
   <owner>gab@chromium.org</owner>
   <owner>etienneb@chromium.org</owner>
   <summary>
@@ -283,16 +316,16 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Chrome.ProcessSingleton.TerminationWaitErrorCode.Windows"
-    enum="WinGetLastError" expires_after="2024-06-04">
+    enum="WinGetLastError" expires_after="2027-06-29">
   <owner>gab@chromium.org</owner>
   <owner>etienneb@chromium.org</owner>
   <summary>
-    The error code of wating for remote process termination on Windows.
+    The error code of waiting for remote process termination on Windows.
   </summary>
 </histogram>
 
 <histogram name="Chrome.ProcessSingleton.TimeToCreate" units="ms"
-    expires_after="2024-06-04">
+    expires_after="2027-06-29">
   <owner>etienneb@chromium.org</owner>
   <owner>gab@chromium.org</owner>
   <summary>
@@ -302,7 +335,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Chrome.ProcessSingleton.TimeToNotify" units="ms"
-    expires_after="2025-04-13">
+    expires_after="2027-06-29">
   <owner>etienneb@chromium.org</owner>
   <owner>gab@chromium.org</owner>
   <summary>
@@ -433,7 +466,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ChromeColors.DynamicColorOnLoad"
-    enum="DynamicChromeColorsInfo" expires_after="2026-10-25">
+    enum="DynamicChromeColorsInfo" expires_after="2026-12-27">
   <owner>tiborg@chromium.org</owner>
   <owner>chrome-desktop-ntp@google.com</owner>
   <summary>

@@ -5,10 +5,12 @@
 #ifndef COMPONENTS_CRITICAL_ACTIONS_CORE_BROWSER_CRITICAL_ACTION_BACKEND_H_
 #define COMPONENTS_CRITICAL_ACTIONS_CORE_BROWSER_CRITICAL_ACTION_BACKEND_H_
 
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "base/files/file_path.h"
 #include "base/sequence_checker.h"
@@ -36,22 +38,29 @@ class CriticalActionBackend {
 
   // Initializes the underlying critical action database. Performs required
   // SQLite table creations/schema setup.
-  bool Init();
+  void Init();
 
   // Inserts a new critical action record.
-  bool AddCriticalAction(const CriticalActionEntry& entry);
+  void AddCriticalAction(const CriticalActionEntry& entry);
 
   // Retrieves a critical action record by its client UUID.
   std::optional<CriticalActionEntry> GetCriticalAction(
       std::string_view critical_action_id);
 
+  // Retrieves critical action records matching the given `options`.
+  std::vector<CriticalActionEntry> GetCriticalActions(
+      const CriticalActionQueryOptions& options);
+
   // Deletes a single critical action record.
-  bool DeleteCriticalAction(std::string_view critical_action_id);
+  void DeleteCriticalAction(std::string_view critical_action_id);
 
   // Deletes all critical action records within the given time range,
   // inclusive of start_time and exclusive of end_time.
-  bool DeleteCriticalActionsInTimeRange(base::Time start_time,
+  void DeleteCriticalActionsInTimeRange(base::Time start_time,
                                         base::Time end_time);
+
+  // Deletes all critical action records associated with the given visit IDs.
+  void DeleteCriticalActionsByVisitIds(const std::vector<int64_t>& visit_ids);
 
  private:
   const base::FilePath db_path_;

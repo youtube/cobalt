@@ -23,16 +23,11 @@ OnboardingManager::OnboardingManager(DictationKeyedService& service,
 OnboardingManager::~OnboardingManager() = default;
 
 bool OnboardingManager::ShowOnboardingIfNeeded(
-    BrowserWindowInterface& window,
-    std::unique_ptr<Target>& target) {
+    tabs::TabInterface& tab,
+    const TargetId& target_id,
+    DictationSessionEntryPoint entry_point) {
   if (pref_service_->GetBoolean(prefs::kPrefDictationOnboardingCompleted)) {
     return false;
-  }
-
-  // TODO(b/525853741): Passed in argument should be a TabInterface.
-  tabs::TabInterface* active_tab = window.GetActiveTabInterface();
-  if (!active_tab) {
-    return true;
   }
 
   // TODO(b/525857719): Handle the case where the FRE is triggered from a second
@@ -41,11 +36,13 @@ bool OnboardingManager::ShowOnboardingIfNeeded(
     return true;
   }
 
-  pending_window_ = window.GetWeakPtr();
-  pending_target_ = std::move(target);
+  // TODO(bokan): I think we can extract this from the dialog_controller_ rather
+  // than explicitly holding a weak ptr here.
+  pending_tab_ = tab.GetWeakPtr();
+  pending_target_id_ = target_id;
+  pending_entry_point_ = entry_point;
 
-  dialog_controller_ =
-      std::make_unique<OnboardingDialogController>(*active_tab);
+  dialog_controller_ = std::make_unique<OnboardingDialogController>(tab);
   dialog_controller_->Show(
       base::BindOnce(&OnboardingManager::OnOnboardingCompleted,
                      weak_ptr_factory_.GetWeakPtr()),
@@ -54,8 +51,9 @@ bool OnboardingManager::ShowOnboardingIfNeeded(
 
   if (!dialog_controller_->IsShowing()) {
     dialog_controller_.reset();
-    pending_window_.reset();
-    pending_target_.reset();
+    pending_tab_.reset();
+    pending_target_id_.reset();
+    pending_entry_point_.reset();
     // TODO(b/527240600): Fails closed but this should report an error somehow.
   }
 
@@ -64,11 +62,15 @@ bool OnboardingManager::ShowOnboardingIfNeeded(
 
 void OnboardingManager::OnOnboardingCompleted() {
   pref_service_->SetBoolean(prefs::kPrefDictationOnboardingCompleted, true);
-  if (pending_window_) {
-    service_->StartSession(*pending_window_, std::move(pending_target_));
+  if (pending_tab_) {
+    CHECK(pending_target_id_);
+    CHECK(pending_entry_point_);
+    service_->StartSession(*pending_tab_, *pending_target_id_,
+                           *pending_entry_point_);
   }
-  pending_window_.reset();
-  pending_target_.reset();
+  pending_tab_.reset();
+  pending_target_id_.reset();
+  pending_entry_point_.reset();
 }
 
 void OnboardingManager::OnDialogClosed() {

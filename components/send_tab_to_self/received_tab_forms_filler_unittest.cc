@@ -7,10 +7,10 @@
 #include <memory>
 #include <vector>
 
-#include "base/run_loop.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
 #include "base/test/task_environment.h"
+#include "base/test/test_future.h"
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/foundations/autofill_driver.h"
@@ -36,20 +36,25 @@ namespace {
 
 using autofill::FormData;
 using autofill::TestBrowserAutofillManager;
+using base::test::TestFuture;
 using ::testing::_;
 using ::testing::Eq;
+using ::testing::Mock;
 using ::testing::Test;
+using ::testing::TestParamInfo;
+using ::testing::Values;
+using ::testing::WithParamInterface;
 
 PageContext::FormField MakeFormField(
     std::u16string id_attribute,
     std::u16string name_attribute,
-    std::string form_control_type,
+    autofill::FormControlType form_control_type,
     std::u16string value,
     std::optional<PageContext::FormFieldAutofillSignature> sig = std::nullopt) {
   PageContext::FormField field;
   field.id_attribute = std::move(id_attribute);
   field.name_attribute = std::move(name_attribute);
-  field.form_control_type = std::move(form_control_type);
+  field.form_control_type = form_control_type;
   field.value = std::move(value);
   if (sig) {
     field.autofill_signature = *sig;
@@ -86,15 +91,58 @@ class ReceivedTabFormsFillerTest
   ReceivedTabFormsFillerTest() = default;
 
   void SetUp() override {
+    // Initialize the test Autofill client to manage autofill state.
     InitAutofillClient();
+    // Create the test driver associated with the client.
     CreateAutofillDriver();
+    // Activate the driver to allow it to receive and process page actions.
+    ActivateAutofillDriver(autofill_driver());
   }
 
   void TearDown() override { DestroyAutofillClient(); }
 
  protected:
+  // Helper to start the filler, simulate seeing a form, and wait for
+  // completion.
+  [[nodiscard]] bool TryStartFillerAndSeeForm(
+      const url::Origin& origin,
+      const PageContext::FormFieldInfo& field_info,
+      const FormData& form) {
+    TestFuture<void> future;
+    ReceivedTabFormsFiller::Start(autofill_client(), origin, field_info,
+                                  future.GetCallback());
+    autofill_manager().OnFormsSeen({form}, {});
+    return future.Wait();
+  }
+
+  // Helper to assert a unique match outcome sample.
+  void ExpectUniqueMatchOutcome(FormFieldMatchOutcome outcome, int count) {
+    histogram_tester_.ExpectUniqueSample(
+        "Sharing.SendTabToSelf.ReceivedTabFormFieldMatchOutcome", outcome,
+        count);
+  }
+
+  // Helper to assert no match outcome was recorded.
+  void ExpectNoMatchOutcome() {
+    histogram_tester_.ExpectTotalCount(
+        "Sharing.SendTabToSelf.ReceivedTabFormFieldMatchOutcome", 0);
+  }
+
+  // Helper to reduce FormFieldInfo boilerplate.
+  PageContext::FormFieldInfo CreateFormFieldInfo(
+      std::vector<PageContext::FormField> fields) {
+    PageContext::FormFieldInfo info;
+    info.fields = std::move(fields);
+    return info;
+  }
+
+  const url::Origin origin_ = url::Origin::Create(GURL("https://example.com"));
+  const url::Origin other_origin_ =
+      url::Origin::Create(GURL("https://other.com"));
+
   base::test::TaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+  base::HistogramTester histogram_tester_;
 
  private:
   autofill::test::AutofillUnitTestEnvironment autofill_test_environment_;
@@ -109,14 +157,13 @@ struct FillTriggerTestCase {
 
 class ReceivedTabFormsFillerFillTriggerTest
     : public ReceivedTabFormsFillerTest,
-      public ::testing::WithParamInterface<FillTriggerTestCase> {};
+      public WithParamInterface<FillTriggerTestCase> {};
 
 TEST_P(ReceivedTabFormsFillerFillTriggerTest, ShouldConditionallyFill) {
   const FillTriggerTestCase& test_case = GetParam();
-  const url::Origin kOrigin = url::Origin::Create(GURL("https://example.com"));
-  PageContext::FormFieldInfo form_field_info;
-  form_field_info.fields.push_back(
-      MakeFormField(u"id1", u"name1", "text", u"shared_value"));
+  PageContext::FormFieldInfo form_field_info = CreateFormFieldInfo(
+      {MakeFormField(u"id1", u"name1", autofill::FormControlType::kInputText,
+                     u"shared_value")});
 
   const FormData form = autofill::test::GetFormData(
       {.fields = {{.renderer_id = autofill::FieldRendererId(1),
@@ -124,7 +171,7 @@ TEST_P(ReceivedTabFormsFillerFillTriggerTest, ShouldConditionallyFill) {
                    .name_attribute = u"name1",
                    .id_attribute = u"id1",
                    .value = test_case.receiver_field_value,
-                   .origin = kOrigin,
+                   .origin = origin_,
                    .properties_mask =
                        test_case.receiver_field_properties_mask}},
        .url = "https://example.com"});
@@ -139,24 +186,15 @@ TEST_P(ReceivedTabFormsFillerFillTriggerTest, ShouldConditionallyFill) {
     EXPECT_CALL(autofill_driver(), ApplyFieldAction).Times(0);
   }
 
-  base::HistogramTester histogram_tester;
-  base::RunLoop run_loop;
-  ReceivedTabFormsFiller::Start(autofill_client(), kOrigin, form_field_info,
-                                run_loop.QuitClosure());
+  EXPECT_TRUE(TryStartFillerAndSeeForm(origin_, form_field_info, form));
 
-  autofill_manager().OnFormsSeen({form}, {});
-
-  run_loop.Run();
-
-  histogram_tester.ExpectUniqueSample(
-      "Sharing.SendTabToSelf.ReceivedTabFormFieldMatchOutcome",
-      FormFieldMatchOutcome::kMatchedByIdNameAndType, 1);
+  ExpectUniqueMatchOutcome(FormFieldMatchOutcome::kMatchedByIdNameAndType, 1);
 }
 
 INSTANTIATE_TEST_SUITE_P(
     ReceivedTabFormsFillerFillTriggerTests,
     ReceivedTabFormsFillerFillTriggerTest,
-    ::testing::Values(
+    Values(
         FillTriggerTestCase{
             .test_name = "NormalFieldShouldFill",
             .receiver_field_value = u"",
@@ -175,16 +213,13 @@ INSTANTIATE_TEST_SUITE_P(
             .receiver_field_properties_mask = autofill::kUserTyped,
             .expect_fill = true,
         }),
-    [](const ::testing::TestParamInfo<
-        ReceivedTabFormsFillerFillTriggerTest::ParamType>& info) {
-      return info.param.test_name;
-    });
+    [](const TestParamInfo<ReceivedTabFormsFillerFillTriggerTest::ParamType>&
+           info) { return info.param.test_name; });
 
 TEST_F(ReceivedTabFormsFillerTest, ShouldNotFillUserClearedPrefilledField) {
-  const url::Origin kOrigin = url::Origin::Create(GURL("https://example.com"));
-  PageContext::FormFieldInfo form_field_info;
-  form_field_info.fields.push_back(
-      MakeFormField(u"id1", u"name1", "text", u"shared_value"));
+  PageContext::FormFieldInfo form_field_info = CreateFormFieldInfo(
+      {MakeFormField(u"id1", u"name1", autofill::FormControlType::kInputText,
+                     u"shared_value")});
 
   const autofill::LocalFrameToken frame_token =
       autofill_driver().GetFrameToken();
@@ -197,49 +232,46 @@ TEST_F(ReceivedTabFormsFillerTest, ShouldNotFillUserClearedPrefilledField) {
                    .name_attribute = u"name1",
                    .id_attribute = u"id1",
                    .value = u"prefilled_value",
-                   .origin = kOrigin}},
+                   .origin = origin_}},
        .host_frame = frame_token,
        .renderer_id = form_renderer_id,
        .url = "https://example.com"});
   autofill_manager().OnFormsSeen({initial_form}, {});
 
   // 2. Simulate user clearing the field (value is empty, properties_mask has
-  // kUserTyped).
+  // autofill::kUserTyped).
   const FormData form = autofill::test::GetFormData(
       {.fields = {{.renderer_id = autofill::FieldRendererId(1),
                    .label = u"label1",
                    .name_attribute = u"name1",
                    .id_attribute = u"id1",
                    .value = u"",
-                   .origin = kOrigin,
+                   .origin = origin_,
                    .properties_mask = autofill::kUserTyped}},
        .host_frame = frame_token,
        .renderer_id = form_renderer_id,
        .url = "https://example.com"});
+  autofill_manager().OnFormsSeen({form}, {});
 
-  // We expect ApplyFieldAction to NOT be called because the field is
+  // Expect ApplyFieldAction to NOT be called because the field is
   // user-cleared.
   EXPECT_CALL(autofill_driver(), ApplyFieldAction).Times(0);
 
-  base::HistogramTester histogram_tester;
-  base::RunLoop run_loop;
-  ReceivedTabFormsFiller::Start(autofill_client(), kOrigin, form_field_info,
-                                run_loop.QuitClosure());
+  // 3. Now start the filler.
+  TestFuture<void> future;
+  ReceivedTabFormsFiller::Start(autofill_client(), origin_, form_field_info,
+                                future.GetCallback());
 
-  autofill_manager().OnFormsSeen({form}, {});
+  EXPECT_TRUE(future.Wait());
 
-  run_loop.Run();
-
-  histogram_tester.ExpectUniqueSample(
-      "Sharing.SendTabToSelf.ReceivedTabFormFieldMatchOutcome",
-      FormFieldMatchOutcome::kMatchedByIdNameAndType, 1);
+  ExpectUniqueMatchOutcome(FormFieldMatchOutcome::kMatchedByIdNameAndType, 1);
 }
 
 TEST_F(ReceivedTabFormsFillerTest, ShouldNotFillIncomingSensitiveField) {
-  const url::Origin kOrigin = url::Origin::Create(GURL("https://example.com"));
-  PageContext::FormFieldInfo form_field_info;
-  form_field_info.fields.push_back(
-      MakeFormField(u"id1", u"name1", "password", u"shared_value"));
+  PageContext::FormFieldInfo form_field_info =
+      CreateFormFieldInfo({MakeFormField(
+          u"id1", u"name1", autofill::FormControlType::kInputPassword,
+          u"shared_value")});
 
   const FormData form = autofill::test::GetFormData(
       {.fields = {{.renderer_id = autofill::FieldRendererId(1),
@@ -249,53 +281,85 @@ TEST_F(ReceivedTabFormsFillerTest, ShouldNotFillIncomingSensitiveField) {
                    .value = u"",
                    .form_control_type =
                        autofill::FormControlType::kInputPassword,
-                   .origin = kOrigin}},
+                   .origin = origin_}},
+       .url = "https://example.com"});
+
+  EXPECT_CALL(autofill_driver(), ApplyFieldAction).Times(0);
+
+  EXPECT_TRUE(TryStartFillerAndSeeForm(origin_, form_field_info, form));
+
+  ExpectNoMatchOutcome();
+}
+
+// Tests that fallback signature matching is skipped if the control types
+// of the sender and receiver fields differ.
+TEST_F(ReceivedTabFormsFillerTest,
+       ShouldNotMatchSignatureFallbackWithDifferentControlTypes) {
+  // Create a sender form (control type "text").
+  const FormData form_sender = autofill::test::GetFormData(
+      {.fields = {{.renderer_id = autofill::FieldRendererId(1),
+                   .name_attribute = u"name_123",
+                   .form_control_type = autofill::FormControlType::kInputText,
+                   .origin = origin_}},
+       .url = "https://example.com"});
+  PageContext::FormFieldInfo form_field_info;
+  form_field_info.fields.push_back(
+      MakeFormField(u"id1", u"name_123", autofill::FormControlType::kInputText,
+                    u"shared_value", GetSignature(form_sender, 0)));
+
+  // Create a receiver form with same signature but different control type
+  // ("password").
+  const FormData form_receiver = autofill::test::GetFormData(
+      {.fields = {{.renderer_id = autofill::FieldRendererId(2),
+                   .label = u"label1",
+                   .name_attribute = u"name_124",
+                   .id_attribute = u"id2",
+                   .form_control_type =
+                       autofill::FormControlType::kInputPassword,
+                   .origin = origin_}},
        .url = "https://example.com"});
 
   EXPECT_CALL(autofill_driver(), ApplyFieldAction).Times(0);
 
   base::HistogramTester histogram_tester;
-  base::RunLoop run_loop;
-  ReceivedTabFormsFiller::Start(autofill_client(), kOrigin, form_field_info,
-                                run_loop.QuitClosure());
+  TestFuture<void> future;
+  ReceivedTabFormsFiller::Start(autofill_client(), origin_, form_field_info,
+                                future.GetCallback());
 
-  autofill_manager().OnFormsSeen({form}, {});
+  autofill_manager().OnFormsSeen({form_receiver}, {});
 
-  run_loop.Run();
+  EXPECT_TRUE(future.Wait());
 
-  histogram_tester.ExpectTotalCount(
-      "Sharing.SendTabToSelf.ReceivedTabFormFieldMatchOutcome", 0);
+  histogram_tester.ExpectUniqueSample(
+      "Sharing.SendTabToSelf.ReceivedTabFormFieldMatchOutcome",
+      FormFieldMatchOutcome::kNoMatch, 1);
 }
 
-// Tests that local fields of a sensitive type (e.g. "password") are not filled,
-// even if the sent field matches.
-TEST_F(ReceivedTabFormsFillerTest, ShouldNotFillLocalSensitiveField) {
-  const url::Origin kOrigin = url::Origin::Create(GURL("https://example.com"));
-
-  // The sent field is "text"/USERNAME (not sensitive).
-  PageContext::FormFieldInfo form_field_info;
-  PageContext::FormField pending_field =
-      MakeFormField(u"id1", u"name1", "text", u"shared_value");
+// Tests that fallback semantic matching is skipped if the control types
+// of the sender and receiver fields differ.
+TEST_F(ReceivedTabFormsFillerTest,
+       ShouldNotMatchSemanticFallbackWithDifferentControlTypes) {
+  // Sender field is "text" with USERNAME type.
+  PageContext::FormField pending_field = MakeFormField(
+      u"id1", u"name1", autofill::FormControlType::kInputText, u"shared_value");
   pending_field.autofill_types = {
       sync_pb::FormField_AutofillFieldType_USERNAME};
-  form_field_info.fields.push_back(pending_field);
+  PageContext::FormFieldInfo form_field_info =
+      CreateFormFieldInfo({pending_field});
 
-  // The receiver field is "password" (sensitive). It has a different name and
-  // ID than the sent field, so the matching algorithm will fall back to a
-  // semantic match (by autofill type).
+  // Receiver field is "password" with USERNAME type.
   const FormData form_receiver = autofill::test::GetFormData(
       {.fields = {{.renderer_id = autofill::FieldRendererId(2),
                    .name_attribute = u"name_diff",
                    .id_attribute = u"id_diff",
                    .form_control_type =
                        autofill::FormControlType::kInputPassword,
-                   .origin = kOrigin}},
+                   .origin = origin_}},
        .url = "https://example.com"});
 
-  ActivateAutofillDriver(autofill_driver());
-
-  // The *autofill* type of the local field is USERNAME, so it'll match the
-  // pending field by semantic type.
+  // The *autofill* type of the local field is USERNAME. Even though it matches
+  // the pending field's type, they should not match because the control types
+  // differ.
   auto form_structure =
       std::make_unique<autofill::FormStructure>(form_receiver);
   form_structure->field(0)->SetTypeTo(
@@ -305,76 +369,27 @@ TEST_F(ReceivedTabFormsFillerTest, ShouldNotFillLocalSensitiveField) {
 
   EXPECT_CALL(autofill_driver(), ApplyFieldAction).Times(0);
 
-  base::HistogramTester histogram_tester;
-  base::RunLoop run_loop;
-  ReceivedTabFormsFiller::Start(autofill_client(), kOrigin, form_field_info,
-                                run_loop.QuitClosure());
+  TestFuture<void> future;
+  ReceivedTabFormsFiller::Start(autofill_client(), origin_, form_field_info,
+                                future.GetCallback());
 
-  run_loop.Run();
+  EXPECT_TRUE(future.Wait());
 
-  // Since the field type was "password" (sensitive), it should not have been
-  // filled.
-  histogram_tester.ExpectTotalCount(
-      "Sharing.SendTabToSelf.ReceivedTabFormFieldMatchOutcome", 0);
+  // Since the control types differ, it should not have been filled.
+  ExpectUniqueMatchOutcome(FormFieldMatchOutcome::kNoMatch, 1);
 }
-
-// Tests that if the sender sent a sensitive field value, it does not get
-// filled. (The sender should not have sent such a value in the first place;
-// this test covers the receiving side in case of a bug on the sender side.)
-TEST_F(ReceivedTabFormsFillerTest,
-       ShouldNotFillIncomingSensitiveFieldToLocalNonSensitiveField) {
-  const url::Origin kOrigin = url::Origin::Create(GURL("https://example.com"));
-
-  // The sent field is of type "password" (sensitive).
-  PageContext::FormFieldInfo form_field_info;
-  PageContext::FormField pending_field =
-      MakeFormField(u"id1", u"name1", "password", u"shared_value");
-  pending_field.autofill_types = {
-      sync_pb::FormField_AutofillFieldType_EMAIL_ADDRESS};
-  form_field_info.fields.push_back(pending_field);
-
-  // Local field is "text" (non-sensitive).
-  const FormData form_receiver = autofill::test::GetFormData(
-      {.fields = {{.role = autofill::FieldType::EMAIL_ADDRESS,
-                   .renderer_id = autofill::FieldRendererId(2),
-                   .name_attribute = u"name_diff",
-                   .id_attribute = u"id_diff",
-                   .form_control_type = autofill::FormControlType::kInputText,
-                   .origin = kOrigin}},
-       .url = "https://example.com"});
-
-  ActivateAutofillDriver(autofill_driver());
-
-  EXPECT_CALL(autofill_driver(), ApplyFieldAction).Times(0);
-
-  base::HistogramTester histogram_tester;
-  base::RunLoop run_loop;
-  ReceivedTabFormsFiller::Start(autofill_client(), kOrigin, form_field_info,
-                                run_loop.QuitClosure());
-
-  autofill_manager().OnFormsSeen({form_receiver}, {});
-
-  run_loop.Run();
-
-  histogram_tester.ExpectTotalCount(
-      "Sharing.SendTabToSelf.ReceivedTabFormFieldMatchOutcome", 0);
-}
-
 // Tests that fallback signature matching works when names/IDs are dynamic
 // but the signature is unique.
 TEST_F(ReceivedTabFormsFillerTest, ShouldFillFieldsByUniqueSignatureFallback) {
-  const url::Origin kOrigin = url::Origin::Create(GURL("https://example.com"));
-
   // Create a sender form to generate a signature for the pending field.
   const FormData form_sender = autofill::test::GetFormData(
       {.fields = {{.renderer_id = autofill::FieldRendererId(1),
                    .name_attribute = u"name_123",
-                   .origin = kOrigin}},
+                   .origin = origin_}},
        .url = "https://example.com"});
-  PageContext::FormFieldInfo form_field_info;
-  form_field_info.fields.push_back(MakeFormField(u"id1", u"name_123", "text",
-                                                 u"shared_value",
-                                                 GetSignature(form_sender, 0)));
+  PageContext::FormFieldInfo form_field_info = CreateFormFieldInfo(
+      {MakeFormField(u"id1", u"name_123", autofill::FormControlType::kInputText,
+                     u"shared_value", GetSignature(form_sender, 0))});
 
   // Create a receiver form with a different name/ID but same signature.
   const FormData form_receiver = autofill::test::GetFormData(
@@ -382,7 +397,7 @@ TEST_F(ReceivedTabFormsFillerTest, ShouldFillFieldsByUniqueSignatureFallback) {
                    .label = u"label1",
                    .name_attribute = u"name_124",
                    .id_attribute = u"id2",
-                   .origin = kOrigin}},
+                   .origin = origin_}},
        .url = "https://example.com"});
 
   const autofill::FieldGlobalId field_id =
@@ -393,106 +408,82 @@ TEST_F(ReceivedTabFormsFillerTest, ShouldFillFieldsByUniqueSignatureFallback) {
                                autofill::mojom::ActionPersistence::kFill,
                                Eq(field_id), Eq(u"shared_value")));
 
-  base::HistogramTester histogram_tester;
-  base::RunLoop run_loop;
-  ReceivedTabFormsFiller::Start(autofill_client(), kOrigin, form_field_info,
-                                run_loop.QuitClosure());
+  EXPECT_TRUE(
+      TryStartFillerAndSeeForm(origin_, form_field_info, form_receiver));
 
-  autofill_manager().OnFormsSeen({form_receiver}, {});
-
-  run_loop.Run();
-
-  histogram_tester.ExpectUniqueSample(
-      "Sharing.SendTabToSelf.ReceivedTabFormFieldMatchOutcome",
-      FormFieldMatchOutcome::kMatchedBySignature, 1);
+  ExpectUniqueMatchOutcome(FormFieldMatchOutcome::kMatchedBySignature, 1);
 }
 
 // Tests that fallback matching is skipped if the receiver form has multiple
 // fields with the same signature.
 TEST_F(ReceivedTabFormsFillerTest,
        ShouldNotFillFieldsByNonUniqueReceiverSignatureFallback) {
-  const url::Origin kOrigin = url::Origin::Create(GURL("https://example.com"));
-
   // Create a sender form to generate a signature for the pending field.
   const FormData form_sender = autofill::test::GetFormData(
       {.fields = {{.renderer_id = autofill::FieldRendererId(1),
                    .name_attribute = u"name_123",
-                   .origin = kOrigin}},
+                   .origin = origin_}},
        .url = "https://example.com"});
-  PageContext::FormFieldInfo form_field_info;
-  form_field_info.fields.push_back(MakeFormField(u"id1", u"name_123", "text",
-                                                 u"shared_value",
-                                                 GetSignature(form_sender, 0)));
+  PageContext::FormFieldInfo form_field_info = CreateFormFieldInfo(
+      {MakeFormField(u"id1", u"name_123", autofill::FormControlType::kInputText,
+                     u"shared_value", GetSignature(form_sender, 0))});
 
   // Create a receiver form with TWO fields that have the SAME signature.
-  // We use the same name to ensure they generate the same signature in tests.
+  // Using the same name ensures they generate the same signature in tests.
   const FormData form_receiver = autofill::test::GetFormData(
       {.fields = {{.renderer_id = autofill::FieldRendererId(2),
                    .label = u"label1",
                    .name_attribute = u"name_123",
                    .id_attribute = u"id2",
-                   .origin = kOrigin},
+                   .origin = origin_},
                   {.renderer_id = autofill::FieldRendererId(3),
                    .label = u"label2",
                    .name_attribute = u"name_123",
                    .id_attribute = u"id3",
-                   .origin = kOrigin}},
+                   .origin = origin_}},
        .url = "https://example.com"});
 
   EXPECT_CALL(autofill_driver(), ApplyFieldAction).Times(0);
 
-  base::HistogramTester histogram_tester;
-  base::RunLoop run_loop;
-  ReceivedTabFormsFiller::Start(autofill_client(), kOrigin, form_field_info,
-                                run_loop.QuitClosure());
+  EXPECT_TRUE(
+      TryStartFillerAndSeeForm(origin_, form_field_info, form_receiver));
 
-  autofill_manager().OnFormsSeen({form_receiver}, {});
-
-  run_loop.Run();
-
-  histogram_tester.ExpectUniqueSample(
-      "Sharing.SendTabToSelf.ReceivedTabFormFieldMatchOutcome",
-      FormFieldMatchOutcome::kNoMatch, 1);
+  ExpectUniqueMatchOutcome(FormFieldMatchOutcome::kNoMatch, 1);
 }
 
 // Tests that fallback signature matching works and ignores cross-origin fields
 // when determining signature uniqueness in the receiver form.
 TEST_F(ReceivedTabFormsFillerTest,
        ShouldFillFieldsByUniqueSignatureFallbackIgnoringCrossOriginFields) {
-  const url::Origin kOrigin = url::Origin::Create(GURL("https://example.com"));
-  const url::Origin kOtherOrigin =
-      url::Origin::Create(GURL("https://other.com"));
-
   // Create a sender form to generate a signature for the pending field.
   // The sender form mirrors the receiver form's structure (one same-origin
   // and one cross-origin field) to ensure the computed FormSignature matches.
   const FormData form_sender = autofill::test::GetFormData(
       {.fields = {{.renderer_id = autofill::FieldRendererId(1),
                    .name_attribute = u"name_123",
-                   .origin = kOrigin},
+                   .origin = origin_},
                   {.renderer_id = autofill::FieldRendererId(4),
                    .name_attribute = u"name_123",
-                   .origin = kOtherOrigin}},
+                   .origin = other_origin_}},
        .url = "https://example.com"});
-  PageContext::FormFieldInfo form_field_info;
-  form_field_info.fields.push_back(MakeFormField(u"id1", u"name_123", "text",
-                                                 u"shared_value",
-                                                 GetSignature(form_sender, 0)));
+  PageContext::FormFieldInfo form_field_info = CreateFormFieldInfo(
+      {MakeFormField(u"id1", u"name_123", autofill::FormControlType::kInputText,
+                     u"shared_value", GetSignature(form_sender, 0))});
 
   // Create a receiver form with TWO fields that have the SAME signature.
-  // But one is same-origin (kOrigin) and the other is cross-origin
-  // (kOtherOrigin).
+  // But one is same-origin (origin_) and the other is cross-origin
+  // (other_origin_).
   const FormData form_receiver = autofill::test::GetFormData(
       {.fields = {{.renderer_id = autofill::FieldRendererId(2),
                    .label = u"label1",
                    .name_attribute = u"name_123",
                    .id_attribute = u"id2",
-                   .origin = kOrigin},
+                   .origin = origin_},
                   {.renderer_id = autofill::FieldRendererId(3),
                    .label = u"label2",
                    .name_attribute = u"name_123",
                    .id_attribute = u"id3",
-                   .origin = kOtherOrigin}},
+                   .origin = other_origin_}},
        .url = "https://example.com"});
 
   const autofill::FieldGlobalId field_id =
@@ -505,44 +496,32 @@ TEST_F(ReceivedTabFormsFillerTest,
                                autofill::mojom::ActionPersistence::kFill,
                                Eq(field_id), Eq(u"shared_value")));
 
-  base::HistogramTester histogram_tester;
-  base::RunLoop run_loop;
-  ReceivedTabFormsFiller::Start(autofill_client(), kOrigin, form_field_info,
-                                run_loop.QuitClosure());
+  EXPECT_TRUE(
+      TryStartFillerAndSeeForm(origin_, form_field_info, form_receiver));
 
-  autofill_manager().OnFormsSeen({form_receiver}, {});
-
-  run_loop.Run();
-
-  histogram_tester.ExpectUniqueSample(
-      "Sharing.SendTabToSelf.ReceivedTabFormFieldMatchOutcome",
-      FormFieldMatchOutcome::kMatchedBySignature, 1);
+  ExpectUniqueMatchOutcome(FormFieldMatchOutcome::kMatchedBySignature, 1);
 }
 
 // Tests that fallback matching is skipped if there are multiple pending fields
 // with the same signature.
 TEST_F(ReceivedTabFormsFillerTest,
        ShouldNotFillFieldsByNonUniquePendingSignatureFallback) {
-  const url::Origin kOrigin = url::Origin::Create(GURL("https://example.com"));
-
   // Create a sender form to generate a signature for the pending field.
   const FormData form_sender = autofill::test::GetFormData(
       {.fields = {{.renderer_id = autofill::FieldRendererId(1),
                    .name_attribute = u"name_123",
-                   .origin = kOrigin}},
+                   .origin = origin_}},
        .url = "https://example.com"});
   const PageContext::FormFieldAutofillSignature sig =
       GetSignature(form_sender, 0);
 
-  PageContext::FormFieldInfo form_field_info;
-
   // Add TWO fields to pending_fields_ with the SAME signature but different
   // IDs.
-  form_field_info.fields.push_back(
-      MakeFormField(u"id1", u"name_123", "text", u"value1", sig));
-
-  form_field_info.fields.push_back(
-      MakeFormField(u"id2", u"name_124", "text", u"value2", sig));
+  PageContext::FormFieldInfo form_field_info = CreateFormFieldInfo(
+      {MakeFormField(u"id1", u"name_123", autofill::FormControlType::kInputText,
+                     u"value1", sig),
+       MakeFormField(u"id2", u"name_124", autofill::FormControlType::kInputText,
+                     u"value2", sig)});
 
   // Create a receiver form with a field that has the same signature.
   const FormData form_receiver = autofill::test::GetFormData(
@@ -550,45 +529,33 @@ TEST_F(ReceivedTabFormsFillerTest,
                    .label = u"label1",
                    .name_attribute = u"name_123",
                    .id_attribute = u"id3",
-                   .origin = kOrigin}},
+                   .origin = origin_}},
        .url = "https://example.com"});
 
   EXPECT_CALL(autofill_driver(), ApplyFieldAction).Times(0);
 
-  base::HistogramTester histogram_tester;
-  base::RunLoop run_loop;
-  ReceivedTabFormsFiller::Start(autofill_client(), kOrigin, form_field_info,
-                                run_loop.QuitClosure());
+  EXPECT_TRUE(
+      TryStartFillerAndSeeForm(origin_, form_field_info, form_receiver));
 
-  autofill_manager().OnFormsSeen({form_receiver}, {});
-
-  run_loop.Run();
-
-  histogram_tester.ExpectUniqueSample(
-      "Sharing.SendTabToSelf.ReceivedTabFormFieldMatchOutcome",
-      FormFieldMatchOutcome::kNoMatch, 2);
+  ExpectUniqueMatchOutcome(FormFieldMatchOutcome::kNoMatch, 2);
 }
 // Tests that fallback matching via semantic type works when names and IDs do
 // not match but there is a unique type match.
 TEST_F(ReceivedTabFormsFillerTest, ShouldFillFieldsBySemanticMatchFallback) {
-  const url::Origin kOrigin = url::Origin::Create(GURL("https://example.com"));
-
-  PageContext::FormFieldInfo form_field_info;
-  PageContext::FormField pending_field =
-      MakeFormField(u"id1", u"name1", "text", u"shared_value");
+  PageContext::FormField pending_field = MakeFormField(
+      u"id1", u"name1", autofill::FormControlType::kInputText, u"shared_value");
   pending_field.autofill_types = {
       sync_pb::FormField_AutofillFieldType_EMAIL_ADDRESS};
-  form_field_info.fields.push_back(pending_field);
+  PageContext::FormFieldInfo form_field_info =
+      CreateFormFieldInfo({pending_field});
 
   const FormData form_receiver = autofill::test::GetFormData(
       {.fields = {{.role = autofill::FieldType::EMAIL_ADDRESS,
                    .renderer_id = autofill::FieldRendererId(2),
                    .name_attribute = u"name_diff",
                    .id_attribute = u"id_diff",
-                   .origin = kOrigin}},
+                   .origin = origin_}},
        .url = "https://example.com"});
-
-  ActivateAutofillDriver(autofill_driver());
 
   const autofill::FieldGlobalId field_id =
       form_receiver.fields()[0].global_id();
@@ -597,131 +564,93 @@ TEST_F(ReceivedTabFormsFillerTest, ShouldFillFieldsBySemanticMatchFallback) {
                                autofill::mojom::ActionPersistence::kFill,
                                Eq(field_id), Eq(u"shared_value")));
 
-  base::HistogramTester histogram_tester;
-  base::RunLoop run_loop;
-  ReceivedTabFormsFiller::Start(autofill_client(), kOrigin, form_field_info,
-                                run_loop.QuitClosure());
+  EXPECT_TRUE(
+      TryStartFillerAndSeeForm(origin_, form_field_info, form_receiver));
 
-  autofill_manager().OnFormsSeen({form_receiver}, {});
-
-  run_loop.Run();
-
-  histogram_tester.ExpectUniqueSample(
-      "Sharing.SendTabToSelf.ReceivedTabFormFieldMatchOutcome",
-      FormFieldMatchOutcome::kMatchedByExactTypeSet, 1);
+  ExpectUniqueMatchOutcome(FormFieldMatchOutcome::kMatchedByExactTypeSet, 1);
 }
 
 // Tests that matching is skipped if multiple pending fields share the same
 // semantic type.
 TEST_F(ReceivedTabFormsFillerTest,
        ShouldNotFillFieldsByAmbiguousSemanticMatchFallback) {
-  const url::Origin kOrigin = url::Origin::Create(GURL("https://example.com"));
-
-  PageContext::FormFieldInfo form_field_info;
-  PageContext::FormField pending_field1 =
-      MakeFormField(u"id1", u"name1", "text", u"val1");
+  PageContext::FormField pending_field1 = MakeFormField(
+      u"id1", u"name1", autofill::FormControlType::kInputText, u"val1");
   pending_field1.autofill_types = {
       sync_pb::FormField_AutofillFieldType_EMAIL_ADDRESS};
-  form_field_info.fields.push_back(pending_field1);
-
-  PageContext::FormField pending_field2 =
-      MakeFormField(u"id2", u"name2", "text", u"val2");
+  PageContext::FormField pending_field2 = MakeFormField(
+      u"id2", u"name2", autofill::FormControlType::kInputText, u"val2");
   pending_field2.autofill_types = {
       sync_pb::FormField_AutofillFieldType_EMAIL_ADDRESS};
-  form_field_info.fields.push_back(pending_field2);
+  PageContext::FormFieldInfo form_field_info =
+      CreateFormFieldInfo({pending_field1, pending_field2});
 
   const FormData form_receiver = autofill::test::GetFormData(
       {.fields = {{.role = autofill::FieldType::EMAIL_ADDRESS,
                    .renderer_id = autofill::FieldRendererId(2),
                    .name_attribute = u"name_diff",
                    .id_attribute = u"id_diff",
-                   .origin = kOrigin}},
+                   .origin = origin_}},
        .url = "https://example.com"});
-
-  ActivateAutofillDriver(autofill_driver());
 
   EXPECT_CALL(autofill_driver(), ApplyFieldAction).Times(0);
 
-  base::HistogramTester histogram_tester;
-  base::RunLoop run_loop;
-  ReceivedTabFormsFiller::Start(autofill_client(), kOrigin, form_field_info,
-                                run_loop.QuitClosure());
+  EXPECT_TRUE(
+      TryStartFillerAndSeeForm(origin_, form_field_info, form_receiver));
 
-  autofill_manager().OnFormsSeen({form_receiver}, {});
-
-  run_loop.Run();
-
-  histogram_tester.ExpectUniqueSample(
-      "Sharing.SendTabToSelf.ReceivedTabFormFieldMatchOutcome",
-      FormFieldMatchOutcome::kNoMatch, 2);
+  ExpectUniqueMatchOutcome(FormFieldMatchOutcome::kNoMatch, 2);
 }
 
 // Tests that matching is skipped if the semantic type is not unique within
 // the receiver form.
 TEST_F(ReceivedTabFormsFillerTest,
        ShouldNotFillFieldsByDuplicateTypesInReceiverForm) {
-  const url::Origin kOrigin = url::Origin::Create(GURL("https://example.com"));
-
-  PageContext::FormFieldInfo form_field_info;
-  PageContext::FormField pending_field =
-      MakeFormField(u"id1", u"name1", "text", u"shared_value");
+  PageContext::FormField pending_field = MakeFormField(
+      u"id1", u"name1", autofill::FormControlType::kInputText, u"shared_value");
   pending_field.autofill_types = {
       sync_pb::FormField_AutofillFieldType_EMAIL_ADDRESS};
-  form_field_info.fields.push_back(pending_field);
+  PageContext::FormFieldInfo form_field_info =
+      CreateFormFieldInfo({pending_field});
 
   const FormData form_receiver = autofill::test::GetFormData(
       {.fields = {{.role = autofill::FieldType::EMAIL_ADDRESS,
                    .renderer_id = autofill::FieldRendererId(2),
                    .name_attribute = u"name_diff1",
                    .id_attribute = u"id_diff1",
-                   .origin = kOrigin},
+                   .origin = origin_},
                   {.role = autofill::FieldType::EMAIL_ADDRESS,
                    .renderer_id = autofill::FieldRendererId(3),
                    .name_attribute = u"name_diff2",
                    .id_attribute = u"id_diff2",
-                   .origin = kOrigin}},
+                   .origin = origin_}},
        .url = "https://example.com"});
-
-  ActivateAutofillDriver(autofill_driver());
 
   EXPECT_CALL(autofill_driver(), ApplyFieldAction).Times(0);
 
-  base::HistogramTester histogram_tester;
-  base::RunLoop run_loop;
-  ReceivedTabFormsFiller::Start(autofill_client(), kOrigin, form_field_info,
-                                run_loop.QuitClosure());
+  EXPECT_TRUE(
+      TryStartFillerAndSeeForm(origin_, form_field_info, form_receiver));
 
-  autofill_manager().OnFormsSeen({form_receiver}, {});
-
-  run_loop.Run();
-
-  histogram_tester.ExpectUniqueSample(
-      "Sharing.SendTabToSelf.ReceivedTabFormFieldMatchOutcome",
-      FormFieldMatchOutcome::kNoMatch, 1);
+  ExpectUniqueMatchOutcome(FormFieldMatchOutcome::kNoMatch, 1);
 }
 
 // Tests that fallback semantic matching works when both the pending field and
 // receiver field have the same multiple semantic types (exact match).
 TEST_F(ReceivedTabFormsFillerTest,
        ShouldFillFieldsBySemanticMatchWithMultipleTypes) {
-  const url::Origin kOrigin = url::Origin::Create(GURL("https://example.com"));
-
-  PageContext::FormFieldInfo form_field_info;
-  PageContext::FormField pending_field =
-      MakeFormField(u"id1", u"name1", "text", u"shared_value");
+  PageContext::FormField pending_field = MakeFormField(
+      u"id1", u"name1", autofill::FormControlType::kInputText, u"shared_value");
   pending_field.autofill_types = {
       sync_pb::FormField_AutofillFieldType_EMAIL_ADDRESS,
       sync_pb::FormField_AutofillFieldType_USERNAME};
-  form_field_info.fields.push_back(pending_field);
+  PageContext::FormFieldInfo form_field_info =
+      CreateFormFieldInfo({pending_field});
 
   const FormData form_receiver = autofill::test::GetFormData(
       {.fields = {{.renderer_id = autofill::FieldRendererId(2),
                    .name_attribute = u"name_diff",
                    .id_attribute = u"id_diff",
-                   .origin = kOrigin}},
+                   .origin = origin_}},
        .url = "https://example.com"});
-
-  ActivateAutofillDriver(autofill_driver());
 
   auto form_structure =
       std::make_unique<autofill::FormStructure>(form_receiver);
@@ -739,33 +668,31 @@ TEST_F(ReceivedTabFormsFillerTest,
                                autofill::mojom::ActionPersistence::kFill,
                                Eq(field_id), Eq(u"shared_value")));
 
-  base::RunLoop run_loop;
-  ReceivedTabFormsFiller::Start(autofill_client(), kOrigin, form_field_info,
-                                run_loop.QuitClosure());
+  TestFuture<void> future;
+  ReceivedTabFormsFiller::Start(autofill_client(), origin_, form_field_info,
+                                future.GetCallback());
 
-  run_loop.Run();
+  EXPECT_TRUE(future.Wait());
+
+  ExpectUniqueMatchOutcome(FormFieldMatchOutcome::kMatchedByExactTypeSet, 1);
 }
 
 // Tests that matching is skipped if a semantic type is not unique within
 // the incoming fields, even if they match separate fields in the receiver form.
 TEST_F(ReceivedTabFormsFillerTest,
        ShouldNotFillFieldsByDuplicateTypesInIncomingFields) {
-  const url::Origin kOrigin = url::Origin::Create(GURL("https://example.com"));
-
-  PageContext::FormFieldInfo form_field_info;
   // Field 1 and Field 2 in the incoming fields share the same type
   // (EMAIL_ADDRESS).
-  PageContext::FormField pending_field1 =
-      MakeFormField(u"id1", u"name1", "text", u"val1");
+  PageContext::FormField pending_field1 = MakeFormField(
+      u"id1", u"name1", autofill::FormControlType::kInputText, u"val1");
   pending_field1.autofill_types = {
       sync_pb::FormField_AutofillFieldType_EMAIL_ADDRESS};
-  form_field_info.fields.push_back(pending_field1);
-
-  PageContext::FormField pending_field2 =
-      MakeFormField(u"id2", u"name2", "text", u"val2");
+  PageContext::FormField pending_field2 = MakeFormField(
+      u"id2", u"name2", autofill::FormControlType::kInputText, u"val2");
   pending_field2.autofill_types = {
       sync_pb::FormField_AutofillFieldType_EMAIL_ADDRESS};
-  form_field_info.fields.push_back(pending_field2);
+  PageContext::FormFieldInfo form_field_info =
+      CreateFormFieldInfo({pending_field1, pending_field2});
 
   // The receiver form has two distinct fields, both matching the EMAIL_ADDRESS
   // type.
@@ -774,52 +701,43 @@ TEST_F(ReceivedTabFormsFillerTest,
                    .renderer_id = autofill::FieldRendererId(2),
                    .name_attribute = u"name_diff1",
                    .id_attribute = u"id_diff1",
-                   .origin = kOrigin},
+                   .origin = origin_},
                   {.role = autofill::FieldType::EMAIL_ADDRESS,
                    .renderer_id = autofill::FieldRendererId(3),
                    .name_attribute = u"name_diff2",
                    .id_attribute = u"id_diff2",
-                   .origin = kOrigin}},
+                   .origin = origin_}},
        .url = "https://example.com"});
-
-  ActivateAutofillDriver(autofill_driver());
 
   // Since the type is not unique in incoming fields, no autofill action should
   // be applied.
   EXPECT_CALL(autofill_driver(), ApplyFieldAction).Times(0);
 
-  base::RunLoop run_loop;
-  ReceivedTabFormsFiller::Start(autofill_client(), kOrigin, form_field_info,
-                                run_loop.QuitClosure());
+  EXPECT_TRUE(
+      TryStartFillerAndSeeForm(origin_, form_field_info, form_receiver));
 
-  autofill_manager().OnFormsSeen({form_receiver}, {});
-
-  run_loop.Run();
+  ExpectUniqueMatchOutcome(FormFieldMatchOutcome::kNoMatch, 2);
 }
 
 // Tests that a single pending field does not match multiple fields in the
 // receiver form due to deferred erasure.
 TEST_F(ReceivedTabFormsFillerTest,
        ShouldNotFillSameFieldMultipleTimesDueToDeferredErasure) {
-  const url::Origin kOrigin = url::Origin::Create(GURL("https://example.com"));
-
-  PageContext::FormFieldInfo form_field_info;
-  form_field_info.fields.push_back(
-      MakeFormField(u"id1", u"name1", "text", u"shared_value"));
+  PageContext::FormFieldInfo form_field_info = CreateFormFieldInfo(
+      {MakeFormField(u"id1", u"name1", autofill::FormControlType::kInputText,
+                     u"shared_value")});
 
   // Create a receiver form with TWO identical fields.
   const FormData form_receiver = autofill::test::GetFormData(
       {.fields = {{.renderer_id = autofill::FieldRendererId(2),
                    .name_attribute = u"name1",
                    .id_attribute = u"id1",
-                   .origin = kOrigin},
+                   .origin = origin_},
                   {.renderer_id = autofill::FieldRendererId(3),
                    .name_attribute = u"name1",
                    .id_attribute = u"id1",
-                   .origin = kOrigin}},
+                   .origin = origin_}},
        .url = "https://example.com"});
-
-  ActivateAutofillDriver(autofill_driver());
 
   const autofill::FieldGlobalId first_field_id =
       form_receiver.fields()[0].global_id();
@@ -831,31 +749,22 @@ TEST_F(ReceivedTabFormsFillerTest,
                                Eq(first_field_id), Eq(u"shared_value")))
       .Times(1);
 
-  base::HistogramTester histogram_tester;
-  base::RunLoop run_loop;
-  ReceivedTabFormsFiller::Start(autofill_client(), kOrigin, form_field_info,
-                                run_loop.QuitClosure());
+  EXPECT_TRUE(
+      TryStartFillerAndSeeForm(origin_, form_field_info, form_receiver));
 
-  autofill_manager().OnFormsSeen({form_receiver}, {});
-
-  run_loop.Run();
-
-  histogram_tester.ExpectUniqueSample(
-      "Sharing.SendTabToSelf.ReceivedTabFormFieldMatchOutcome",
-      FormFieldMatchOutcome::kMatchedByIdNameAndType, 1);
+  ExpectUniqueMatchOutcome(FormFieldMatchOutcome::kMatchedByIdNameAndType, 1);
 }
 
 TEST_F(ReceivedTabFormsFillerTest, ShouldStopOnManagerDestruction) {
-  PageContext::FormFieldInfo form_field_info;
-  form_field_info.fields.push_back(MakeFormField(u"id1", u"", "text", u"val"));
+  PageContext::FormFieldInfo form_field_info =
+      CreateFormFieldInfo({MakeFormField(
+          u"id1", u"", autofill::FormControlType::kInputText, u"val")});
 
   EXPECT_CALL(autofill_driver(), ApplyFieldAction).Times(0);
 
-  base::HistogramTester histogram_tester;
-  base::RunLoop run_loop;
-  ReceivedTabFormsFiller::Start(
-      autofill_client(), url::Origin::Create(GURL("https://example.com")),
-      form_field_info, run_loop.QuitClosure());
+  TestFuture<void> future;
+  ReceivedTabFormsFiller::Start(autofill_client(), origin_, form_field_info,
+                                future.GetCallback());
 
   // Simulate destruction by notifying observers.
   autofill_manager().NotifyObservers(
@@ -865,59 +774,50 @@ TEST_F(ReceivedTabFormsFillerTest, ShouldStopOnManagerDestruction) {
 
   // Verifies that the completion callback gets invoked upon manager
   // destruction.
-  run_loop.Run();
+  EXPECT_TRUE(future.Wait());
 
-  histogram_tester.ExpectUniqueSample(
-      "Sharing.SendTabToSelf.ReceivedTabFormFieldMatchOutcome",
-      FormFieldMatchOutcome::kNoMatch, 1);
+  ExpectUniqueMatchOutcome(FormFieldMatchOutcome::kNoMatch, 1);
 }
 
 TEST_F(ReceivedTabFormsFillerTest, ShouldStopOnTimeout) {
-  PageContext::FormFieldInfo form_field_info;
-  form_field_info.fields.push_back(MakeFormField(u"id1", u"", "text", u"val"));
+  PageContext::FormFieldInfo form_field_info =
+      CreateFormFieldInfo({MakeFormField(
+          u"id1", u"", autofill::FormControlType::kInputText, u"val")});
 
-  base::HistogramTester histogram_tester;
   base::MockCallback<base::OnceClosure> completion_callback;
-  ReceivedTabFormsFiller::Start(
-      autofill_client(), url::Origin::Create(GURL("https://example.com")),
-      form_field_info, completion_callback.Get());
+  ReceivedTabFormsFiller::Start(autofill_client(), origin_, form_field_info,
+                                completion_callback.Get());
 
   // Should not stop after 9 seconds.
   EXPECT_CALL(completion_callback, Run).Times(0);
   task_environment_.FastForwardBy(base::Seconds(9));
-  testing::Mock::VerifyAndClearExpectations(&completion_callback);
+  Mock::VerifyAndClearExpectations(&completion_callback);
 
   // Should stop after 10 seconds.
   EXPECT_CALL(completion_callback, Run);
   task_environment_.FastForwardBy(base::Seconds(1));
 
-  histogram_tester.ExpectUniqueSample(
-      "Sharing.SendTabToSelf.ReceivedTabFormFieldMatchOutcome",
-      FormFieldMatchOutcome::kNoMatch, 1);
+  ExpectUniqueMatchOutcome(FormFieldMatchOutcome::kNoMatch, 1);
 }
 
 TEST_F(ReceivedTabFormsFillerTest, ShouldNotFillFieldsWithDifferentOrigin) {
-  const url::Origin kOrigin = url::Origin::Create(GURL("https://example.com"));
-  const url::Origin kOtherOrigin =
-      url::Origin::Create(GURL("https://other.com"));
-  PageContext::FormFieldInfo form_field_info;
-  form_field_info.fields.push_back(
-      MakeFormField(u"id1", u"name1", "text", u"shared_value"));
+  PageContext::FormFieldInfo form_field_info = CreateFormFieldInfo(
+      {MakeFormField(u"id1", u"name1", autofill::FormControlType::kInputText,
+                     u"shared_value")});
 
   const FormData form = autofill::test::GetFormData(
       {.fields = {{.renderer_id = autofill::FieldRendererId(1),
                    .label = u"label1",
                    .name_attribute = u"name1",
                    .id_attribute = u"id1",
-                   .origin = kOtherOrigin}},
+                   .origin = other_origin_}},
        .url = "https://example.com"});
 
   EXPECT_CALL(autofill_driver(), ApplyFieldAction).Times(0);
 
-  base::HistogramTester histogram_tester;
-  base::RunLoop run_loop;
-  ReceivedTabFormsFiller::Start(autofill_client(), kOrigin, form_field_info,
-                                run_loop.QuitClosure());
+  TestFuture<void> future;
+  ReceivedTabFormsFiller::Start(autofill_client(), origin_, form_field_info,
+                                future.GetCallback());
 
   autofill_manager().OnFormsSeen({form}, {});
 
@@ -927,11 +827,9 @@ TEST_F(ReceivedTabFormsFillerTest, ShouldNotFillFieldsWithDifferentOrigin) {
       autofill::AutofillManager::LifecycleState::kActive,
       autofill::AutofillManager::LifecycleState::kPendingDeletion);
 
-  run_loop.Run();
+  EXPECT_TRUE(future.Wait());
 
-  histogram_tester.ExpectUniqueSample(
-      "Sharing.SendTabToSelf.ReceivedTabFormFieldMatchOutcome",
-      FormFieldMatchOutcome::kNoMatch, 1);
+  ExpectUniqueMatchOutcome(FormFieldMatchOutcome::kNoMatch, 1);
 }
 
 }  // namespace

@@ -299,7 +299,8 @@ class DistillerTest : public testing::Test {
  public:
   ~DistillerTest() override = default;
 
-  void OnDistillArticleDone(std::unique_ptr<DistilledArticleProto> proto) {
+  void OnDistillArticleDone(std::unique_ptr<DistilledArticleProto> proto,
+                            DistillationParseResult /*result*/) {
     article_proto_ = std::move(proto);
   }
 

@@ -102,10 +102,16 @@ class NavigationHandler implements TouchEventObserver {
 
     private GestureDetector mDetector;
     private final View.OnAttachStateChangeListener mAttachStateListener;
+    private final View.OnLayoutChangeListener mLayoutChangeListener;
     private final BackActionDelegate mBackActionDelegate;
     private @Nullable TabOnBackGestureHandler mTabOnBackGestureHandler;
     private @Nullable Tab mTab;
     private final Supplier<Boolean> mWillNavigateSupplier;
+
+    // The width/height of the parent view when gesture navigation gets started (onDown).
+    // These values are used to cancel the navigation if the view size changes.
+    private int mDownWidth;
+    private int mDownHeight;
 
     private @GestureState int mState;
 
@@ -174,6 +180,17 @@ class NavigationHandler implements TouchEventObserver {
                     }
                 };
         parentView.addOnAttachStateChangeListener(mAttachStateListener);
+        mLayoutChangeListener =
+                (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+                    if ((right - left) != (oldRight - oldLeft)
+                            || (bottom - top) != (oldBottom - oldTop)) {
+                        if (mState != GestureState.NONE) {
+                            if (isActive()) reset();
+                            mState = GestureState.NONE;
+                        }
+                    }
+                };
+        parentView.addOnLayoutChangeListener(mLayoutChangeListener);
         mIncorrectEdgeSwipeCount = 0;
     }
 
@@ -201,7 +218,9 @@ class NavigationHandler implements TouchEventObserver {
         assert e != null : "The motion event in NavigationHandler shouldn't be null!";
         if (e == null || !shouldProcessTouchEvents()) return false;
         mDetector.onTouchEvent(e);
-        if (e.getAction() == MotionEvent.ACTION_UP) release(true);
+        if (e.getAction() == MotionEvent.ACTION_UP || e.getAction() == MotionEvent.ACTION_CANCEL) {
+            release(e.getAction() == MotionEvent.ACTION_UP);
+        }
         return false;
     }
 
@@ -213,6 +232,11 @@ class NavigationHandler implements TouchEventObserver {
      * @see GestureDetector#SimpleOnGestureListener#onDown(MotionEvent)
      */
     public boolean onDown() {
+        mDownWidth = mParentView.getWidth();
+        mDownHeight = mParentView.getHeight();
+        if (isStopped()) {
+            mTriggerUiCallSource = TriggerUiCallSource.NO_TRIGGER;
+        }
         mState = GestureState.STARTED;
         return true;
     }
@@ -230,6 +254,11 @@ class NavigationHandler implements TouchEventObserver {
     boolean onScroll(float startX, float distanceX, float distanceY, float endX, float endY) {
         // onScroll needs handling only after the state moves away from |NONE|.
         if (mState == GestureState.NONE || !isValidState()) return true;
+        if (isResizing()) {
+            if (isActive()) reset();
+            mState = GestureState.NONE;
+            return true;
+        }
 
         if (mState == GestureState.STARTED) {
             if (shouldTriggerUi(startX, distanceX, distanceY)) {
@@ -243,6 +272,12 @@ class NavigationHandler implements TouchEventObserver {
         }
         pull(-distanceX, -distanceY);
         return true;
+    }
+
+    private boolean isResizing() {
+        return mDownWidth != 0
+                && mDownHeight != 0
+                && (mParentView.getWidth() != mDownWidth || mParentView.getHeight() != mDownHeight);
     }
 
     private boolean isValidState() {
@@ -414,6 +449,8 @@ class NavigationHandler implements TouchEventObserver {
      * @see {@link HistoryNavigationCoordinator#reset()}
      */
     void reset() {
+        mDownWidth = 0;
+        mDownHeight = 0;
         if (GestureNavigationUtils.shouldAnimateBackForwardTransitions()) {
             onGestureEnd(OverscrollActivationStatus.RESET);
         } else {
@@ -427,6 +464,8 @@ class NavigationHandler implements TouchEventObserver {
     }
 
     private void onGestureEnd(@OverscrollActivationStatus int status) {
+        mDownWidth = 0;
+        mDownHeight = 0;
         boolean allowNav =
                 status == OverscrollActivationStatus.ALLOW_ACTIVATION
                         || status == OverscrollActivationStatus.FORCE_ACTIVATION;
@@ -528,6 +567,7 @@ class NavigationHandler implements TouchEventObserver {
             mTab.removeObserver(mTabObserver);
         }
         mParentView.removeOnAttachStateChangeListener(mAttachStateListener);
+        mParentView.removeOnLayoutChangeListener(mLayoutChangeListener);
         mDetector = null;
     }
 

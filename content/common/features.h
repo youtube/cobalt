@@ -20,6 +20,7 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kAccessibilityExpandEventMetadata);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(
     kAccessibilityExposeNonAtomicTextFieldChildren);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAllowContentInitiatedDataUrlNavigations);
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kAncestorThrottleEvaluateRedirectSource);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAndroidDesktopStyleScrollbars);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kAndroidDownloadableFontsMatching);
 #if BUILDFLAG(IS_WIN)
@@ -156,6 +157,8 @@ CONTENT_EXPORT BASE_DECLARE_FEATURE(kInterestGroupUpdateIfOlderThan);
 #if BUILDFLAG(IS_MAC)
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kIOSurfaceCapturer);
 #endif
+CONTENT_EXPORT BASE_DECLARE_FEATURE(kIsSuitableForUrlInfoEarlyReturnHoldback);
+
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kKeepChildProcessAfterIPCReset);
 CONTENT_EXPORT BASE_DECLARE_FEATURE(kKillOnInvalidNavigationHeaders);
 

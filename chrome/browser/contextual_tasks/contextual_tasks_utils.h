@@ -94,6 +94,9 @@ void SendInjectedInputRemovedUpdate(
 // Returns true if the side panel should be used instead of the bottom sheet.
 bool ShouldShowSidePanel();
 
+// Returns true if running on Android mobile (phone form factor).
+bool IsAndroidMobileFormFactor();
+
 // Returns whether the provided URL is to a contextual tasks WebUI page.
 bool IsContextualTasksUrl(const GURL& url);
 

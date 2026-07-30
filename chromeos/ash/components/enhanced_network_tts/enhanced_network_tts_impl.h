@@ -17,7 +17,6 @@
 #include "chromeos/ash/components/enhanced_network_tts/mojom/enhanced_network_tts.mojom.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
-#include "services/data_decoder/public/cpp/data_decoder.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/simple_url_loader.h"
 
@@ -86,14 +85,6 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_ENHANCED_NETWORK_TTS)
       const ServerRequestList::iterator server_request_it,
       std::optional<std::string> json_response);
 
-  // Called when the data decoder service provides parsed JSON data for a
-  // server response. The server response corresponds to the text piece that
-  // has the |start_index| in the original input utterance. |is_last_request|
-  // indicates if this is the last response we expect.
-  void OnResponseJsonParsed(const int start_index,
-                            const bool is_last_request,
-                            data_decoder::DataDecoder::ValueOrError result);
-
   // Sends the response to the |mojom::AudioDataObserver|.
   void SendResponse(mojom::TtsResponsePtr response);
 
@@ -112,9 +103,6 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_ENHANCED_NETWORK_TTS)
   // stops the request by calling |Reset()|. Or the JS extension accidentally
   // gets shut down and closes the pipe passively.
   mojo::Remote<mojom::AudioDataObserver> on_data_received_observer_;
-
-  // Decoder for data decoding service.
-  data_decoder::DataDecoder data_decoder_;
 
   // Url loader factory to be loaded.
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;

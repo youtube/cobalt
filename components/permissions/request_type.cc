@@ -60,7 +60,7 @@ int GetIconIdAndroid(RequestType type) {
     case RequestType::kMidiSysex:
       return IDR_ANDROID_INFOBAR_MIDI;
     case RequestType::kMultipleDownloads:
-      return IDR_ANDROID_INFOBAR_MULTIPLE_DOWNLOADS;
+      return IDR_ANDROID_PERMISSION_MULTIPLE_DOWNLOADS;
     case RequestType::kNfcDevice:
       return IDR_ANDROID_INFOBAR_NFC;
     case RequestType::kNotifications:
@@ -68,7 +68,7 @@ int GetIconIdAndroid(RequestType type) {
     case RequestType::kSensors:
       return IDR_ANDROID_INFOBAR_SENSORS;
     case RequestType::kProtectedMediaIdentifier:
-      return IDR_ANDROID_INFOBAR_PROTECTED_MEDIA_IDENTIFIER;
+      return IDR_ANDROID_PERMISSION_PROTECTED_MEDIA;
     case RequestType::kStorageAccess:
     case RequestType::kTopLevelStorageAccess:
       return IDR_ANDROID_STORAGE_ACCESS;

@@ -115,8 +115,7 @@ class WebstoreStandaloneInstaller
 
   // Should return an installation prompt with desired properties or NULL if
   // no prompt should be shown.
-  virtual std::unique_ptr<ExtensionInstallPrompt::Prompt> CreateInstallPrompt()
-      const = 0;
+  virtual std::unique_ptr<InstallPromptData> CreateInstallPrompt() const = 0;
 
   // Will be called after the extension's manifest has been successfully parsed.
   // Subclasses can perform asynchronous checks at this point and call
@@ -219,7 +218,7 @@ class WebstoreStandaloneInstaller
 
   // Installation dialog and its underlying prompt.
   std::unique_ptr<ExtensionInstallPrompt> install_ui_;
-  std::unique_ptr<ExtensionInstallPrompt::Prompt> install_prompt_;
+  std::unique_ptr<InstallPromptData> install_prompt_;
 
   // For fetching webstore JSON data.
   std::unique_ptr<WebstoreDataFetcher> webstore_data_fetcher_;

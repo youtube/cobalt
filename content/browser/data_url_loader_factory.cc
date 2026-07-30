@@ -6,6 +6,7 @@
 
 #include <string_view>
 
+#include "base/byte_size.h"
 #include "base/memory/ref_counted.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/system/data_pipe_producer.h"
@@ -34,9 +35,9 @@ void OnWrite(std::unique_ptr<WriteData> write_data, MojoResult result) {
   }
 
   network::URLLoaderCompletionStatus status(net::OK);
-  status.encoded_data_length = write_data->data.size();
-  status.encoded_body_length = write_data->data.size();
-  status.decoded_body_length = write_data->data.size();
+  status.encoded_data_length = base::ByteSize(write_data->data.size());
+  status.encoded_body_length = base::ByteSize(write_data->data.size());
+  status.decoded_body_length = base::ByteSize(write_data->data.size());
   write_data->client->OnComplete(status);
 }
 

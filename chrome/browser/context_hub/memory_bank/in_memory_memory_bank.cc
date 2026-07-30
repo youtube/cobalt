@@ -63,11 +63,13 @@ void InMemoryMemoryBank::GetAllEntries(GetAllEntriesCallback callback) const {
   }
 }
 
-void InMemoryMemoryBank::DeleteEntry(int64_t id,
-                                     OperationCompleteCallback callback) {
-  auto it = entries_.Peek(id);
-  if (it != entries_.end()) {
-    entries_.Erase(it);
+void InMemoryMemoryBank::DeleteEntries(base::span<const int64_t> ids,
+                                       OperationCompleteCallback callback) {
+  for (int64_t id : ids) {
+    auto it = entries_.Peek(id);
+    if (it != entries_.end()) {
+      entries_.Erase(it);
+    }
   }
   if (callback) {
     std::move(callback).Run();

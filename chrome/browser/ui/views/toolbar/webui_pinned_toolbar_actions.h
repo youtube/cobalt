@@ -83,6 +83,8 @@ class WebUIPinnedToolbarActions : public PinnedToolbarActions,
   void OnActionsChanged() override;
 
   void OnElementShown(actions::ActionId action_id, ui::TrackedElement* element);
+  void RetryPostOrQueueAction(base::OnceClosure action,
+                              BubbleAnchorResult result);
 
   struct PendingAnchorRequest;
 

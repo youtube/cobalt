@@ -4,6 +4,7 @@
 
 #include <memory>
 
+#include "base/byte_size.h"
 #include "base/command_line.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
@@ -134,7 +135,7 @@ void RespondToRegisterWithSuccess(em::DeviceRegisterRequest::Type expected_type,
   register_response->set_device_management_token("s3cr3t70k3n");
   response.SerializeToString(&content);
 
-  status.decoded_body_length = content.size();
+  status.decoded_body_length = base::ByteSize(content.size());
 
   auto head = network::CreateURLResponseHead(net::HTTP_OK);
   head->mime_type = "application/protobuf";

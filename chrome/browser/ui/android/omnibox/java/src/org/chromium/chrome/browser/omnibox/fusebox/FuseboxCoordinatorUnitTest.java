@@ -61,6 +61,7 @@ import org.chromium.chrome.browser.omnibox.R;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.ViewportRectProvider;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
 import org.chromium.chrome.browser.omnibox.suggestions.AutocompleteController;
+import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabModel;
@@ -70,7 +71,11 @@ import org.chromium.components.metrics.OmniboxEventProtos.OmniboxEventProto.Page
 import org.chromium.components.omnibox.AutocompleteInput;
 import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.components.omnibox.OmniboxFeatureList;
+import org.chromium.components.prefs.PrefChangeRegistrar;
+import org.chromium.components.prefs.PrefChangeRegistrarJni;
+import org.chromium.components.prefs.PrefService;
 import org.chromium.components.search_engines.TemplateUrlService;
+import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.ui.base.TestActivity;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.widget.RectProvider;
@@ -100,6 +105,8 @@ public class FuseboxCoordinatorUnitTest {
     @Mock private FuseboxMetrics mMetrics;
     @Mock private RectProvider.Observer mRectProviderObserver;
     @Mock private BackPressManager mBackPressManager;
+    @Mock private PrefService mPrefService;
+    @Mock private PrefChangeRegistrar.Natives mPrefChangeRegistrarJni;
 
     private AutocompleteInput mAutocompleteInput;
     private ActivityController<TestActivity> mActivityController;
@@ -118,6 +125,10 @@ public class FuseboxCoordinatorUnitTest {
 
     @Before
     public void setUp() {
+        UserPrefs.setPrefServiceForTesting(mPrefService);
+        lenient().doReturn(true).when(mPrefService).getBoolean(Pref.SHOW_AI_MODE_OMNIBOX_BUTTON);
+        PrefChangeRegistrarJni.setInstanceForTesting(mPrefChangeRegistrarJni);
+        lenient().doReturn(1L).when(mPrefChangeRegistrarJni).init(any(), any());
         AutocompleteController.setInstanceForTesting(mAutocompleteController);
 
         mActivityController = Robolectric.buildActivity(TestActivity.class).setup();

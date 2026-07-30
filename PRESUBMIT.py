@@ -1886,6 +1886,16 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
         ),
     ),
     BanRule(
+        r'/\bTRACE_(COPY_)?COUNTER(_ID)?[12]\b',
+        (
+            'Please use TRACE_COUNTER macro with perfetto::CounterTrack ',
+            'instead of legacy TRACE_COUNTER1/2 macros which are not well ',
+            'supported in perfetto.',
+        ),
+        True,
+        (),
+    ),
+    BanRule(
         r'/\bperfetto::Track(\(|\{|::(Global|FromPointer|ThreadScoped)\b)',
         (
             'Creating tracks directly with perfetto::Track is discouraged. ',
@@ -3036,6 +3046,45 @@ def CheckNoDISABLETypoInTests(input_api, output_api):
         output_api.PresubmitPromptWarning(
             'Attempt to disable a test with DISABLE_ instead of DISABLED_?\n' +
             '\n'.join(problems))
+    ]
+
+
+def CheckNoOzonePlatformMacrosInTests(input_api, output_api):
+    """Warns if SUPPORTS_OZONE_WAYLAND or SUPPORTS_OZONE_X11 is used in tests.
+
+    These are compile-time macros and do not reflect the runtime environment.
+    Tests should use runtime checks instead.
+    """
+    def FilterFile(affected_file):
+        res = input_api.FilterSourceFile(
+            affected_file,
+            files_to_check=_TEST_CODE_EXCLUDED_PATHS,
+            files_to_skip=_EXCLUDED_PATHS)
+        return res
+
+    problems = []
+    ozone_macro_pattern = input_api.re.compile(
+        r'\bBUILDFLAG\(SUPPORTS_OZONE_(WAYLAND|X11)\)')
+
+    for f in input_api.AffectedSourceFiles(FilterFile):
+        for line_num, line in f.ChangedContents():
+            if ozone_macro_pattern.search(line):
+                problems.append(
+                    f'{f.LocalPath()}:{line_num}: {line.strip()}')
+
+    if not problems:
+        return []
+
+    return [
+        output_api.PresubmitPromptWarning(
+            'Use of SUPPORTS_OZONE_WAYLAND or SUPPORTS_OZONE_X11 in '
+            'test files:\n'
+            'These macros are compile-time configurations and do not '
+            'check if the\n'
+            'test is running on Wayland or X11 at runtime. Please '
+            'use runtime checks\n'
+            'instead (e.g., checking the ozone platform).',
+            problems)
     ]
 
 

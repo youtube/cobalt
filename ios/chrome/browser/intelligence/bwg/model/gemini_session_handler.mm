@@ -369,6 +369,14 @@ IOSGeminiSessionCancellationReason HistogramEnumFromGeminiCancelType(
   [self.geminiViewStateDelegate geminiLiveUserDidTapLiveButton];
 }
 
+- (void)geminiLiveUserDidPressStopButton {
+  [self.geminiViewStateDelegate geminiLiveUserDidPressStopButton];
+}
+
+- (void)didSwitchToMode:(ios::provider::GeminiViewMode)mode {
+  [self.geminiViewStateDelegate didSwitchToMode:mode];
+}
+
 - (void)geminiLiveIntroShown:(UIViewController*)viewController {
   if (_prefService) {
     gemini::SetGeminiLiveIntroPlayed(_prefService);
@@ -387,6 +395,12 @@ IOSGeminiSessionCancellationReason HistogramEnumFromGeminiCancelType(
   [self.geminiHandler
       startGeminiLiveFirstRunWithBaseViewController:viewController
                                          completion:^(BOOL success) {
+                                           if (!success) {
+                                             ios::provider::SwitchToMode(
+                                                 ios::provider::GeminiViewMode::
+                                                     kFloaty,
+                                                 /*animated=*/YES);
+                                           }
                                            if (completion) {
                                              completion(success);
                                            }

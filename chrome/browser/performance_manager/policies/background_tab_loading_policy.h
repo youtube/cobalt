@@ -281,6 +281,7 @@ class BackgroundTabLoadingPolicy
   // after the policy object is destroyed.
   base::WeakPtrFactory<BackgroundTabLoadingPolicy> weak_factory_{this};
 
+  FRIEND_TEST_ALL_PREFIXES(BackgroundTabLoadingPolicyTest, MaxTabsToRestore);
   FRIEND_TEST_ALL_PREFIXES(BackgroundTabLoadingPolicyTest,
                            ShouldLoad_MaxTabsToRestore);
   FRIEND_TEST_ALL_PREFIXES(BackgroundTabLoadingPolicyTest,

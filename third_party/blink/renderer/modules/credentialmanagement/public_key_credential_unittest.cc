@@ -6,15 +6,23 @@
 
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/mojom/webauthn/authenticator.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_union_arraybuffer_arraybufferview.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_arraybuffer_arraybufferview_string.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_client_inputs.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_client_inputs_js_on.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_client_outputs_js_on.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_cmtg_key_outputs.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_cmtg_key_outputs_js_on.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_large_blob_outputs.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_prf_inputs.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_prf_inputs_js_on.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_prf_outputs.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_prf_values.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_authentication_extensions_prf_values_js_on.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_authenticator_selection_criteria.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_credential_properties_output.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_public_key_credential_creation_options.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_public_key_credential_creation_options_js_on.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_public_key_credential_descriptor.h"
@@ -27,7 +35,7 @@
 #include "third_party/blink/renderer/bindings/modules/v8/v8_public_key_credential_user_entity_js_on.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/testing/dummy_page_holder.h"
-#include "third_party/blink/renderer/core/typed_arrays/dom_array_piece.h"
+#include "third_party/blink/renderer/modules/credentialmanagement/json.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/wtf/text/base64.h"
@@ -78,6 +86,7 @@ struct ExtensionsClientInputsValues {
   std::optional<std::vector<std::pair<std::string, PRFValues>>>
       prf_eval_by_credential;
   std::optional<std::string> cross_device_fallback_url;
+  std::optional<bool> cmtg_key;
 };
 
 AuthenticationExtensionsClientInputsJSON* MakeExtensionsInputsJSON(
@@ -129,6 +138,9 @@ AuthenticationExtensionsClientInputsJSON* MakeExtensionsInputsJSON(
   if (in.cross_device_fallback_url) {
     extensions->setCrossDeviceFallbackUrl(
         String(*in.cross_device_fallback_url));
+  }
+  if (in.cmtg_key) {
+    extensions->setCmtgKey(*in.cmtg_key);
   }
   return extensions;
 }
@@ -389,6 +401,11 @@ void ExpectExtensionsMatch(
   } else {
     EXPECT_FALSE(extensions.hasCrossDeviceFallbackUrl());
   }
+  if (values.cmtg_key) {
+    EXPECT_EQ(extensions.cmtgKey(), *values.cmtg_key);
+  } else {
+    EXPECT_FALSE(extensions.hasCmtgKey());
+  }
 }
 
 // Tests `PublicKeyCredentialCreationOptions` and `CreationOptionsValues` for
@@ -572,6 +589,8 @@ TEST(PublicKeyCredentialTest, ParseCreationOptionsFromJSON_WithExtensions) {
       {.cred_props = true},
       {.cred_blob = kTestB64URL},
       {.prf_eval = kTestPRFValues},
+      {.cmtg_key = true},
+      {.cmtg_key = false},
   };
   for (const auto& ext : kTestCases) {
     CredentialCreationOptionsValues options_values{.extensions = ext};
@@ -599,6 +618,8 @@ TEST(PublicKeyCredentialTest, ParseRequestOptionsFromJSON_WithExtensions) {
       {.get_cred_blob = true},
       {.prf_eval_by_credential = {{std::make_pair("ABEiMw", kTestPRFValues)}}},
       {.cross_device_fallback_url = "https://example.com/fallback"},
+      {.cmtg_key = true},
+      {.cmtg_key = false},
   };
   for (const auto& ext : kTestCases) {
     CredentialRequestOptionsValues options_values{.extensions = ext};
@@ -674,6 +695,278 @@ TEST(PublicKeyCredentialTest, ParseRequestOptionsFromJSON_InvalidBase64URL) {
     EXPECT_EQ(options, nullptr);
     ASSERT_TRUE(exception_state.HadException());
     EXPECT_EQ(exception_state.Message().Utf8(), t.expected_message);
+  }
+}
+
+struct PRFEvalValues {
+  bool enabled;
+  std::optional<Vector<uint8_t>> first;
+  std::optional<Vector<uint8_t>> second;
+};
+
+struct ExtensionsClientOutputsValues {
+  std::optional<bool> appid;
+  std::optional<bool> hmac_create_secret;
+  std::optional<bool> cred_props_rk;
+  std::optional<bool> large_blob_supported;
+  std::optional<Vector<uint8_t>> large_blob_data;
+  std::optional<bool> large_blob_written;
+  std::optional<bool> cred_blob;
+  std::optional<Vector<uint8_t>> get_cred_blob;
+  std::optional<PRFEvalValues> prf_eval;
+  std::optional<Vector<uint8_t>> cmtg_key_data;
+  std::optional<Vector<uint8_t>> cmtg_key_sig;
+  std::optional<bool> cross_device_fallback_url;
+};
+
+AuthenticationExtensionsClientOutputs* MakeExtensionsOutputs(
+    const ExtensionsClientOutputsValues& in) {
+  auto* extensions = AuthenticationExtensionsClientOutputs::Create();
+  if (in.appid) {
+    extensions->setAppid(*in.appid);
+  }
+  if (in.hmac_create_secret) {
+    extensions->setHmacCreateSecret(*in.hmac_create_secret);
+  }
+  if (in.cred_props_rk) {
+    auto* cred_props = CredentialPropertiesOutput::Create();
+    cred_props->setRk(*in.cred_props_rk);
+    extensions->setCredProps(cred_props);
+  }
+  if (in.large_blob_supported || in.large_blob_data || in.large_blob_written) {
+    auto* large_blob = AuthenticationExtensionsLargeBlobOutputs::Create();
+    if (in.large_blob_supported) {
+      large_blob->setSupported(*in.large_blob_supported);
+    }
+    if (in.large_blob_data) {
+      large_blob->setBlob(DOMArrayBuffer::Create(*in.large_blob_data));
+    }
+    if (in.large_blob_written) {
+      large_blob->setWritten(*in.large_blob_written);
+    }
+    extensions->setLargeBlob(large_blob);
+  }
+  if (in.cred_blob) {
+    extensions->setCredBlob(*in.cred_blob);
+  }
+  if (in.get_cred_blob) {
+    extensions->setGetCredBlob(DOMArrayBuffer::Create(*in.get_cred_blob));
+  }
+  if (in.prf_eval) {
+    auto* prf = AuthenticationExtensionsPRFOutputs::Create();
+    prf->setEnabled(in.prf_eval->enabled);
+    if (in.prf_eval->first) {
+      auto* prf_values = AuthenticationExtensionsPRFValues::Create();
+      prf_values->setFirst(
+          MakeGarbageCollected<V8UnionArrayBufferOrArrayBufferView>(
+              DOMArrayBuffer::Create(*in.prf_eval->first)));
+      if (in.prf_eval->second) {
+        prf_values->setSecond(
+            MakeGarbageCollected<V8UnionArrayBufferOrArrayBufferView>(
+                DOMArrayBuffer::Create(*in.prf_eval->second)));
+      }
+      prf->setResults(prf_values);
+    }
+    extensions->setPrf(prf);
+  }
+  if (in.cmtg_key_data || in.cmtg_key_sig) {
+    auto* cmtg_key = AuthenticationExtensionsCmtgKeyOutputs::Create();
+    if (in.cmtg_key_data) {
+      cmtg_key->setCmtgKey(DOMArrayBuffer::Create(*in.cmtg_key_data));
+    }
+    if (in.cmtg_key_sig) {
+      cmtg_key->setSignature(DOMArrayBuffer::Create(*in.cmtg_key_sig));
+    }
+    extensions->setCmtgKey(cmtg_key);
+  }
+  if (in.cross_device_fallback_url) {
+    extensions->setCrossDeviceFallbackUrl(*in.cross_device_fallback_url);
+  }
+  return extensions;
+}
+
+void ExpectExtensionsJSONMatch(
+    ScriptState* script_state,
+    const AuthenticationExtensionsClientOutputsJSON& extensions,
+    const ExtensionsClientOutputsValues& values) {
+  v8::Isolate* isolate = script_state->GetIsolate();
+  v8::Local<v8::Context> context = script_state->GetContext();
+
+  if (values.appid) {
+    ASSERT_TRUE(extensions.hasAppid());
+    EXPECT_EQ(extensions.appid(), *values.appid);
+  } else {
+    EXPECT_FALSE(extensions.hasAppid());
+  }
+  if (values.hmac_create_secret) {
+    ASSERT_TRUE(extensions.hasHmacCreateSecret());
+    EXPECT_EQ(extensions.hmacCreateSecret(), *values.hmac_create_secret);
+  } else {
+    EXPECT_FALSE(extensions.hasHmacCreateSecret());
+  }
+  if (values.cred_props_rk) {
+    ASSERT_TRUE(extensions.hasCredProps());
+    ASSERT_TRUE(extensions.credProps()->hasRk());
+    EXPECT_EQ(extensions.credProps()->rk(), *values.cred_props_rk);
+  } else {
+    EXPECT_FALSE(extensions.hasCredProps());
+  }
+  if (values.large_blob_supported || values.large_blob_data ||
+      values.large_blob_written) {
+    ASSERT_TRUE(extensions.hasLargeBlob());
+    v8::Local<v8::Object> large_blob_obj = extensions.largeBlob().V8Object();
+
+    if (values.large_blob_supported) {
+      v8::Local<v8::Value> supported_val;
+      ASSERT_TRUE(large_blob_obj->Get(context, V8String(isolate, "supported"))
+                      .ToLocal(&supported_val));
+      ASSERT_TRUE(supported_val->IsBoolean());
+      EXPECT_EQ(supported_val.As<v8::Boolean>()->Value(),
+                *values.large_blob_supported);
+    }
+    if (values.large_blob_data) {
+      v8::Local<v8::Value> blob_val;
+      ASSERT_TRUE(large_blob_obj->Get(context, V8String(isolate, "blob"))
+                      .ToLocal(&blob_val));
+      ASSERT_TRUE(blob_val->IsString());
+      EXPECT_EQ(ToCoreString(isolate, blob_val.As<v8::String>()),
+                WebAuthnBase64UrlEncode(
+                    DOMArrayBuffer::Create(*values.large_blob_data)));
+    }
+    if (values.large_blob_written) {
+      v8::Local<v8::Value> written_val;
+      ASSERT_TRUE(large_blob_obj->Get(context, V8String(isolate, "written"))
+                      .ToLocal(&written_val));
+      ASSERT_TRUE(written_val->IsBoolean());
+      EXPECT_EQ(written_val.As<v8::Boolean>()->Value(),
+                *values.large_blob_written);
+    }
+  } else {
+    EXPECT_FALSE(extensions.hasLargeBlob());
+  }
+  if (values.cred_blob) {
+    ASSERT_TRUE(extensions.hasCredBlob());
+    EXPECT_EQ(extensions.credBlob(), *values.cred_blob);
+  } else {
+    EXPECT_FALSE(extensions.hasCredBlob());
+  }
+  if (values.get_cred_blob) {
+    ASSERT_TRUE(extensions.hasGetCredBlob());
+    EXPECT_EQ(
+        extensions.getCredBlob(),
+        WebAuthnBase64UrlEncode(DOMArrayBuffer::Create(*values.get_cred_blob)));
+  } else {
+    EXPECT_FALSE(extensions.hasGetCredBlob());
+  }
+  if (values.cross_device_fallback_url) {
+    ASSERT_TRUE(extensions.hasCrossDeviceFallbackUrl());
+    EXPECT_EQ(extensions.crossDeviceFallbackUrl(),
+              *values.cross_device_fallback_url);
+  } else {
+    EXPECT_FALSE(extensions.hasCrossDeviceFallbackUrl());
+  }
+  if (values.prf_eval) {
+    ASSERT_TRUE(extensions.hasPrf());
+    v8::Local<v8::Object> prf_obj = extensions.prf().V8Object();
+    v8::Local<v8::Value> enabled_val;
+    ASSERT_TRUE(prf_obj->Get(context, V8String(isolate, "enabled"))
+                    .ToLocal(&enabled_val));
+    ASSERT_TRUE(enabled_val->IsBoolean());
+    EXPECT_EQ(enabled_val.As<v8::Boolean>()->Value(), values.prf_eval->enabled);
+
+    if (values.prf_eval->first) {
+      v8::Local<v8::Value> results_val;
+      ASSERT_TRUE(prf_obj->Get(context, V8String(isolate, "results"))
+                      .ToLocal(&results_val));
+      ASSERT_TRUE(results_val->IsObject());
+      v8::Local<v8::Object> results_obj = results_val.As<v8::Object>();
+
+      v8::Local<v8::Value> first_val;
+      ASSERT_TRUE(results_obj->Get(context, V8String(isolate, "first"))
+                      .ToLocal(&first_val));
+      ASSERT_TRUE(first_val->IsString());
+      EXPECT_EQ(ToCoreString(isolate, first_val.As<v8::String>()),
+                WebAuthnBase64UrlEncode(
+                    DOMArrayBuffer::Create(*values.prf_eval->first)));
+
+      if (values.prf_eval->second) {
+        v8::Local<v8::Value> second_val;
+        ASSERT_TRUE(results_obj->Get(context, V8String(isolate, "second"))
+                        .ToLocal(&second_val));
+        ASSERT_TRUE(second_val->IsString());
+        EXPECT_EQ(ToCoreString(isolate, second_val.As<v8::String>()),
+                  WebAuthnBase64UrlEncode(
+                      DOMArrayBuffer::Create(*values.prf_eval->second)));
+      }
+    } else {
+      v8::Local<v8::Value> results_val;
+      EXPECT_FALSE(prf_obj->Get(context, V8String(isolate, "results"))
+                       .ToLocal(&results_val) &&
+                   !results_val->IsUndefined());
+    }
+  } else {
+    EXPECT_FALSE(extensions.hasPrf());
+  }
+  if (values.cmtg_key_data || values.cmtg_key_sig) {
+    ASSERT_TRUE(extensions.hasCmtgKey());
+    const auto* cmtg_key = extensions.cmtgKey();
+    ASSERT_NE(cmtg_key, nullptr);
+    if (values.cmtg_key_data) {
+      ASSERT_TRUE(cmtg_key->hasCmtgKey());
+      EXPECT_EQ(cmtg_key->cmtgKey(),
+                WebAuthnBase64UrlEncode(
+                    DOMArrayBuffer::Create(*values.cmtg_key_data)));
+    }
+    if (values.cmtg_key_sig) {
+      ASSERT_TRUE(cmtg_key->hasSignature());
+      EXPECT_EQ(cmtg_key->signature(),
+                WebAuthnBase64UrlEncode(
+                    DOMArrayBuffer::Create(*values.cmtg_key_sig)));
+    }
+  } else {
+    EXPECT_FALSE(extensions.hasCmtgKey());
+  }
+}
+
+TEST(PublicKeyCredentialTest, AuthenticationExtensionsClientOutputsToJSON) {
+  test::TaskEnvironment task_environment;
+  DummyPageHolder holder;
+  ScriptState* script_state = ToScriptStateForMainWorld(&holder.GetFrame());
+  ScriptState::Scope scope(script_state);
+
+  // TODO(crbug.com/530457807): Fix credBlob serialization.
+  const ExtensionsClientOutputsValues kTestCases[] = {
+      {.appid = true},
+      {.appid = false},
+      {.hmac_create_secret = true},
+      {.hmac_create_secret = false},
+      {.cred_props_rk = true},
+      {.cred_props_rk = false},
+      {.large_blob_supported = true,
+       .large_blob_data = Vector<uint8_t>{'b', 'l', 'o', 'b', 'b', 'y'},
+       .large_blob_written = true},
+      {.large_blob_supported = false},
+      {.large_blob_supported = true, .large_blob_written = false},
+      {.get_cred_blob = Vector<uint8_t>{'g', 'e', 't', 't', 'y'}},
+      {.cred_blob = true},
+      {.cred_blob = false},
+      {.cross_device_fallback_url = true},
+      {.cross_device_fallback_url = false},
+      {.prf_eval =
+           PRFEvalValues{
+               .enabled = true,
+               .first = Vector<uint8_t>{'f', 'i', 'r', 's', 't', 'y'},
+               .second = Vector<uint8_t>{'s', 'e', 'c', 'o', 'n', 'd', 'y'}}},
+      {.prf_eval = PRFEvalValues{.enabled = false}},
+      {.cmtg_key_data = Vector<uint8_t>{'c', 'm', 't', 'g', 'k'},
+       .cmtg_key_sig = Vector<uint8_t>{'c', 'm', 't', 'g', 's'}},
+  };
+
+  for (const auto& inputs : kTestCases) {
+    auto* extensions = MakeExtensionsOutputs(inputs);
+    auto* json_ext =
+        AuthenticationExtensionsClientOutputsToJSON(script_state, *extensions);
+    SUBTEST(ExpectExtensionsJSONMatch(script_state, *json_ext, inputs));
   }
 }
 

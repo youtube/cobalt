@@ -62,6 +62,13 @@ namespace {
 BASE_FEATURE(kPrerenderCancelOnCrossDocumentRestart,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+constexpr base::MemoryConsumerTraits kPrerenderHostRegistryTraits(
+    base::MemoryConsumerTraits::EstimatedMemoryUsage::kLarge,
+    base::MemoryConsumerTraits::ReleaseMemoryCost::kRequiresTraversal,
+    base::MemoryConsumerTraits::InformationRetention::kLossy,
+    base::MemoryConsumerTraits::ExecutionType::kAsynchronous,
+    base::MemoryConsumerTraits::IsStateful::kNo);
+
 bool IsBackground(Visibility visibility) {
   // PrerenderHostRegistry treats HIDDEN and OCCLUDED as background.
   switch (visibility) {
@@ -498,10 +505,11 @@ bool IsSlowNetwork(WebContents* web_contents) {
 }  // namespace
 
 PrerenderHostRegistry::PrerenderHostRegistry(WebContents& web_contents)
-    : memory_pressure_listener_registration_(
-          FROM_HERE,
-          base::MemoryPressureListenerTag::kPrerenderHostRegistry,
-          this) {
+    : memory_consumer_registration_(
+          "PrerenderHostRegistry",
+          kPrerenderHostRegistryTraits,
+          this,
+          base::MemoryConsumerRegistration::CheckUnregister::kDisabled) {
   Observe(&web_contents);
 }
 
@@ -1983,15 +1991,16 @@ bool PrerenderHostRegistry::IsAllowedToStartPrerenderingForTrigger(
   }
 }
 
-void PrerenderHostRegistry::OnMemoryPressure(
-    base::MemoryPressureLevel memory_pressure_level) {
+void PrerenderHostRegistry::OnUpdateMemoryLimit() {}
+
+void PrerenderHostRegistry::OnReleaseMemory() {
   // Ignore the memory pressure event if the memory control is disabled.
   if (!base::FeatureList::IsEnabled(
           blink::features::kPrerender2MemoryControls)) {
     return;
   }
 
-  if (GetMemoryLimit() <= base::kCriticalMemoryPressureThreshold) {
+  if (memory_limit() <= base::kCriticalMemoryPressureThreshold) {
     CancelAllHosts(PrerenderFinalStatus::kMemoryPressureAfterTriggered);
   }
 }
@@ -2010,7 +2019,7 @@ int PrerenderHostRegistry::GetCurrentMemoryLimit() {
     return base::kNoMemoryPressureThreshold;
   }
 
-  return GetMemoryLimit();
+  return memory_limit();
 }
 
 void PrerenderHostRegistry::SetTaskRunnerForTesting(

@@ -16,7 +16,7 @@ class BrowserWindowInterface;
 
 namespace glic {
 
-class GlicActorNudgeDelegate;
+class GlicSplitButtonDelegate;
 
 // Controller that handles Glic Actor notification/nudge handling.
 // TODO(crbug.com/431015299): Move GlicNudgeController logic into this
@@ -25,8 +25,8 @@ class GlicActorNudgeController {
  public:
   explicit GlicActorNudgeController(
       BrowserWindowInterface* browser,
-      GlicActorNudgeDelegate* horizontal_tabs_delegate,
-      GlicActorNudgeDelegate* vertical_tabs_delegate);
+      GlicSplitButtonDelegate* horizontal_tabs_delegate,
+      GlicSplitButtonDelegate* vertical_tabs_delegate);
 
   GlicActorNudgeController(const GlicActorNudgeController&) = delete;
   GlicActorNudgeController& operator=(const GlicActorNudgeController& other) =
@@ -64,15 +64,15 @@ class GlicActorNudgeController {
   void UpdateNudgeLabelOrRetrigger(std::u16string nudge_label_text,
                                    bool show_bubble);
 
-  void CallOnBoth(base::RepeatingCallback<void(GlicActorNudgeDelegate&)> fn);
+  void CallOnBoth(base::RepeatingCallback<void(GlicSplitButtonDelegate&)> fn);
 
-  bool IsDelegateActive(GlicActorNudgeDelegate* delegate) const;
-  GlicActorNudgeDelegate* GetActiveDelegate() const;
+  bool IsDelegateActive(GlicSplitButtonDelegate* delegate) const;
+  GlicSplitButtonDelegate* GetActiveDelegate() const;
 
   const raw_ptr<Profile> profile_;
   raw_ptr<BrowserWindowInterface> browser_;
-  raw_ptr<GlicActorNudgeDelegate> horizontal_tabs_delegate_;
-  raw_ptr<GlicActorNudgeDelegate> vertical_tabs_delegate_;
+  raw_ptr<GlicSplitButtonDelegate> horizontal_tabs_delegate_;
+  raw_ptr<GlicSplitButtonDelegate> vertical_tabs_delegate_;
 
   std::vector<base::CallbackListSubscription>
       actor_nudge_state_change_callback_subscription_;

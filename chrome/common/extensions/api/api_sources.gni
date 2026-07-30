@@ -166,7 +166,6 @@ if (enable_extensions) {
 
   uncompiled_sources_ += [
     "browser_action.json",
-    "idltest.idl",
     "page_action.json",
   ]
 

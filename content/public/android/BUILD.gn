@@ -314,6 +314,7 @@ android_library("content_full_java") {
     "java/src/org/chromium/content/browser/font/AndroidFontLookupImpl.java",
     "java/src/org/chromium/content/browser/font/FontsContractWrapper.java",
     "java/src/org/chromium/content/browser/framehost/NavigationControllerImpl.java",
+    "java/src/org/chromium/content/browser/framehost/PageImpl.java",
     "java/src/org/chromium/content/browser/framehost/RenderFrameHostDelegate.java",
     "java/src/org/chromium/content/browser/framehost/RenderFrameHostImpl.java",
     "java/src/org/chromium/content/browser/input/AutocorrectManager.java",
@@ -537,6 +538,7 @@ generate_jni("content_jni_headers") {
     "java/src/org/chromium/content/browser/androidoverlay/DialogOverlayImpl.java",
     "java/src/org/chromium/content/browser/device_posture/DevicePosturePlatformProviderAndroid.java",
     "java/src/org/chromium/content/browser/framehost/NavigationControllerImpl.java",
+    "java/src/org/chromium/content/browser/framehost/PageImpl.java",
     "java/src/org/chromium/content/browser/framehost/RenderFrameHostImpl.java",
     "java/src/org/chromium/content/browser/input/DateTimeChooserAndroid.java",
     "java/src/org/chromium/content/browser/input/ImeAdapterImpl.java",
@@ -558,7 +560,6 @@ generate_jni("content_jni_headers") {
     "java/src/org/chromium/content_public/browser/LoadCommittedDetails.java",
     "java/src/org/chromium/content_public/browser/LoadUrlParams.java",
     "java/src/org/chromium/content_public/browser/NavigationHandle.java",
-    "java/src/org/chromium/content_public/browser/Page.java",
   ]
 
   if (enable_screen_capture) {

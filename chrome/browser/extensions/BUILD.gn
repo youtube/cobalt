@@ -2455,7 +2455,6 @@ source_set("browser_tests") {
     "updater/update_service_browsertest.cc",
     "user_host_restrictions_browsertest.cc",
     "user_script_csp_browsertest.cc",
-    "user_script_extension_browsertest.cc",
     "view_extension_source_browsertest.cc",
     "wasm_mv3_browsertest.cc",
     "web_accessible_resources_browsertest.cc",
@@ -2624,6 +2623,10 @@ source_set("browser_tests") {
     ]
   }
 
+  if (is_chromeos && use_cups) {
+    sources += [ "api/printing/printing_apitest.cc" ]
+  }
+
   # ChromeOS and Android don't use the download bubble UI.
   if (is_win || is_mac || is_linux) {
     deps += [ "//chrome/browser/ui/download" ]
@@ -2681,7 +2684,6 @@ source_set("browser_tests") {
       "api/file_system/file_system_apitest.cc",
       "api/hid/hid_apitest.cc",
       "api/identity/gaia_remote_consent_flow_browsertest.cc",
-      "api/idltest/idltest_apitest.cc",
       "api/image_writer_private/extractor_browsertest.cc",
       "api/image_writer_private/image_writer_private_apitest.cc",
       "api/image_writer_private/test_utils.cc",
@@ -3119,6 +3121,10 @@ source_set("browser_tests") {
       deps += [ "//chrome/browser/ui/aura/accessibility" ]
     }
 
+    if (use_ozone) {
+      deps += [ "//ui/ozone" ]
+    }
+
     # TODO(417228688): Remove when the following tests get modularized:
     # - chrome_serial_browsertest.cc
     # - controlled_frame_disabled_permission_browsertest.cc
@@ -3201,6 +3207,10 @@ source_set("interactive_ui_tests") {
         "//chrome/browser/ui/download",
         "//chrome/browser/ui/download:download_display",
       ]
+    }
+
+    if (use_ozone) {
+      deps += [ "//ui/ozone" ]
     }
   }
 }

@@ -643,7 +643,7 @@ IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne, SameOriginNavigation) {
 IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne, SingleHatsNextDialog) {
   SetMetricsConsent(true);
   EXPECT_EQ(
-      GetHatsService()->GetLaunchError(browser(), kHatsSurveyTriggerSettings),
+      GetHatsService()->RunLaunchChecks(browser(), kHatsSurveyTriggerSettings),
       HatsService::LaunchError::kNone);
   GetHatsService()->LaunchSurvey(kHatsSurveyTriggerSettings);
 
@@ -657,13 +657,13 @@ IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne, SingleHatsNextDialog) {
   // closing itself. Since this test is also on the UI thread, these checks,
   // which rely on the dialog still being open, will not race.
   EXPECT_EQ(
-      GetHatsService()->GetLaunchError(browser(), kHatsSurveyTriggerSettings),
+      GetHatsService()->RunLaunchChecks(browser(), kHatsSurveyTriggerSettings),
       HatsService::LaunchError::kSurveyInProgress);
 
   // Inform the service directly that the dialog has been closed.
   GetHatsService()->HatsNextDialogClosed();
   EXPECT_EQ(
-      GetHatsService()->GetLaunchError(browser(), kHatsSurveyTriggerSettings),
+      GetHatsService()->RunLaunchChecks(browser(), kHatsSurveyTriggerSettings),
       HatsService::LaunchError::kNone);
 }
 

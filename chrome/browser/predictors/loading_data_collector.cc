@@ -278,6 +278,7 @@ void LoadingDataCollector::RecordFinishNavigation(
 
 void LoadingDataCollector::RecordResourceLoadComplete(
     NavigationId navigation_id,
+    const GURL& original_url,
     const blink::mojom::ResourceLoadInfo& resource_load_info) {
   auto nav_it = inflight_navigations_.find(navigation_id);
   if (nav_it == inflight_navigations_.end())

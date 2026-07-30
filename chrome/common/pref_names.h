@@ -729,6 +729,11 @@ inline constexpr char kGrayscaleThemeEnabled[] = "browser.theme.is_grayscale2";
 inline constexpr char kExtensionsUIDeveloperMode[] =
     "extensions.ui.developer_mode";
 
+// Boolean pref which persists whether new extensions should be pinned by
+// default.
+inline constexpr char kExtensionsPinnedByDefault[] =
+    "extensions.pinned_by_default";
+
 #if BUILDFLAG(IS_ANDROID) && BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 // A boolean pref set to true if the extensions menu button should be pinned to
 // the toolbar.
@@ -1315,7 +1320,6 @@ inline constexpr char kManagedSerialAllowAllPortsForUrls[] =
 inline constexpr char kManagedSerialAllowUsbDevicesForUrls[] =
     "managed.serial_allow_usb_devices_for_urls";
 
-#if !BUILDFLAG(IS_ANDROID)
 // Used to store the value of the WebHidAllowAllDevicesForUrls policy.
 inline constexpr char kManagedWebHidAllowAllDevicesForUrls[] =
     "managed.web_hid_allow_all_devices_for_urls";
@@ -1333,7 +1337,6 @@ inline constexpr char kManagedWebHidAllowDevicesForUrlsOnLoginScreen[] =
 // policy.
 inline constexpr char kManagedWebHidAllowDevicesWithHidUsagesForUrls[] =
     "managed.web_hid_allow_devices_with_hid_usages_for_urls";
-#endif  // !BUILDFLAG(IS_ANDROID)
 
 // Directory of the last profile used.
 inline constexpr char kProfileLastUsed[] = "profile.last_used";

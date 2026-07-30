@@ -350,7 +350,7 @@ void AiOverlayTools::PlayVideo(PlayVideoCallback callback) {
   content::MediaSession* media_session =
       content::MediaSession::GetIfExists(contents);
   if (media_session) {
-    media_session->Resume(content::MediaSession::SuspendType::kUI);
+    media_session->Resume(content::MediaSession::SuspendType::kSystem);
     std::move(callback).Run(std::monostate());
   } else {
     std::move(callback).Run(base::unexpected("No active media session"));
@@ -369,7 +369,7 @@ void AiOverlayTools::PauseVideo(PauseVideoCallback callback) {
   content::MediaSession* media_session =
       content::MediaSession::GetIfExists(contents);
   if (media_session) {
-    media_session->Suspend(content::MediaSession::SuspendType::kUI);
+    media_session->Suspend(content::MediaSession::SuspendType::kSystem);
     std::move(callback).Run(std::monostate());
   } else {
     std::move(callback).Run(base::unexpected("No active media session"));

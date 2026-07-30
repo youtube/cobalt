@@ -1785,6 +1785,8 @@ void ScrollTree::clear() {
     scroll_offset_map_.clear();
   }
 
+  scrolling_contents_cull_rects_.clear();
+
 #if DCHECK_IS_ON()
   ScrollTree tree;
   if (property_trees()->is_main_thread()) {

@@ -15,6 +15,7 @@
 #include "base/component_export.h"
 #include "base/containers/circular_deque.h"
 #include "base/containers/small_map.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/sequence_checker.h"
 #include "base/synchronization/lock.h"
@@ -348,7 +349,8 @@ class COMPONENT_EXPORT(MOJO_CPP_BINDINGS) MultiplexRouter
 
   base::circular_deque<std::unique_ptr<Task>> tasks_;
   // It refers to tasks in |tasks_| and doesn't own any of them.
-  std::map<InterfaceId, base::circular_deque<Task*>> sync_message_tasks_;
+  std::map<InterfaceId, base::circular_deque<raw_ptr<Task>>>
+      sync_message_tasks_;
 
   bool posted_to_process_tasks_ = false;
   scoped_refptr<base::SequencedTaskRunner> posted_to_task_runner_;

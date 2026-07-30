@@ -232,6 +232,7 @@ DomKey NonPrintableXKeySymToDomKey(xkb_keysym_t keysym) {
     case XKB_KEY_Hyper_R:
       return DomKey::HYPER;
     case XKB_KEY_Delete:
+    case XKB_KEY_KP_Delete:
       return DomKey::DEL;
     case XKB_KEY_SunProps:
       return DomKey::PROPS;

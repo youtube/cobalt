@@ -66,7 +66,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DevTools.DeveloperResourceLoaded"
-    enum="DevToolsDeveloperResourceLoaded" expires_after="2026-10-11">
+    enum="DevToolsDeveloperResourceLoaded" expires_after="2026-12-27">
   <owner>bmeurer@google.com</owner>
   <owner>danilsomsikov@google.com</owner>
   <summary>

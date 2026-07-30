@@ -12,8 +12,16 @@
         metaTagContent += ',interactive-widget=overlays-content';
 
         window.numGeometryChangeEvents = 0;
+        window.keyboardBoundingRect = {x: 0, y: 0, width: 0, height: 0};
         navigator.virtualKeyboard.addEventListener('geometrychange', () => {
           window.numGeometryChangeEvents++;
+          const rect = navigator.virtualKeyboard.boundingRect;
+          window.keyboardBoundingRect = {
+            x: rect.x,
+            y: rect.y,
+            width: rect.width,
+            height: rect.height,
+          };
         });
       }
 

@@ -14,6 +14,7 @@ import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant
 import org.chromium.components.commerce.core.CommerceFeatureUtils;
 import org.chromium.components.commerce.core.ShoppingService;
 import org.chromium.components.embedder_support.util.UrlUtilities;
+import org.chromium.url.GURL;
 
 import java.util.function.Supplier;
 
@@ -34,7 +35,8 @@ public class PriceTrackingActionProvider implements ContextualPageActionControll
     @Override
     public void getAction(Tab tab, SignalAccumulator signalAccumulator) {
 
-        if (tab == null || tab.getUrl() == null || !UrlUtilities.isHttpOrHttps(tab.getUrl())) {
+        final GURL tabUrl = tab != null ? tab.getUrl() : null;
+        if (tabUrl == null || !UrlUtilities.isHttpOrHttps(tabUrl)) {
             signalAccumulator.setSignal(AdaptiveToolbarButtonVariant.PRICE_TRACKING, false);
             return;
         }
@@ -53,7 +55,7 @@ public class PriceTrackingActionProvider implements ContextualPageActionControll
                     }
 
                     shoppingService.getProductInfoForUrl(
-                            tab.getUrl(),
+                            tabUrl,
                             (url, info) -> {
                                 boolean canTrackPrice =
                                         info != null && info.productClusterId != null;

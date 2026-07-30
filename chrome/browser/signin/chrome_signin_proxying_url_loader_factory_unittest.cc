@@ -9,6 +9,7 @@
 #include <optional>
 #include <string>
 
+#include "base/byte_size.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/run_loop.h"
@@ -279,7 +280,7 @@ TEST_F(ChromeSigninProxyingURLLoaderFactoryTest, ModifyHeaders) {
     response_head->headers->SetHeader("X-Response-4", "Bar");
     std::string body("Hello.");
     network::URLLoaderCompletionStatus status;
-    status.decoded_body_length = body.size();
+    status.decoded_body_length = base::ByteSize(body.size());
 
     network::TestURLLoaderFactory::Redirects redirects;
     redirects.push_back({redirect_info, std::move(redirect_head)});
