@@ -12,11 +12,29 @@
 
 namespace content {
 
+struct PrefetchUpdateHeadersParams;
+
 // Avoid using `inline constexpr` here in order to place the definition to
 // `.cc` file to get `tools/traffic_annotation/scripts/auditor/auditor.py` to
 // work (See crbug.com/484967082 for more details).
 extern const net::NetworkTrafficAnnotationTag
     kNavigationalPrefetchTrafficAnnotation;
+
+// ------------------------------------------------------------------------
+// Utilities for constructing request headers.
+// Header modifications should be applied in the following order, and the
+// latter (if any) should override the former.
+// [1] `request().additional_headers()`
+// [2] Chromium's default headers
+// [3] WebContents overrides
+// [4] DevTools overrides
+
+// Returns a `PrefetchUpdateHeadersParams` that contains the headers to be added
+// to the initial prefetch `ResourceRequest`.
+PrefetchUpdateHeadersParams PrepareInitialHeadersForPrefetch(
+    const GURL& request_url,
+    const PrefetchRequest& prefetch_request,
+    bool is_first_party_context_for_variations_header);
 
 // Returns "Sec-Purpose" header value for a prefetch request to `request_url`.
 // Note that `request_url` and `prefetch_request.url` / `resource_request`
@@ -50,6 +68,17 @@ void AddVariationsHeaderForPrefetch(
     const GURL& request_url,
     const PrefetchRequest& prefetch_request,
     bool is_first_party_context_for_variations);
+
+void MaybeApplyOverrideForWebContentsUserAgentHeader(
+    net::HttpRequestHeaders& request_headers,
+    const GURL& request_url,
+    const PrefetchRequest& prefetch_request);
+void AddClientHintsHeaders(net::HttpRequestHeaders& request_headers,
+                           const url::Origin& origin,
+                           const PrefetchRequest& prefetch_request);
+void MaybeApplyOverrideForDevtoolsUserAgentHeader(
+    net::HttpRequestHeaders& request_headers,
+    const PrefetchRequest& prefetch_request);
 
 mojo::PendingRemote<network::mojom::DevToolsObserver>
 MaybeMakeSelfOwnedNetworkServiceDevToolsObserverForPrefetch(

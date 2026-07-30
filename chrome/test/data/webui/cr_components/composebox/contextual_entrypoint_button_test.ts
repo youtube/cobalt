@@ -8,11 +8,9 @@ import 'chrome://resources/cr_components/composebox/contextual_entrypoint_button
 import type {ContextualEntrypointButtonElement} from 'chrome://resources/cr_components/composebox/contextual_entrypoint_button.js';
 import {WindowProxy} from 'chrome://resources/cr_components/composebox/window_proxy.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import {assertDeepEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {TestMock} from 'chrome://webui-test/test_mock.js';
 import {$$, eventToPromise, microtasksFinished} from 'chrome://webui-test/test_util.js';
-
-import {createValidInputState} from './composebox_test_utils.js';
 
 suite('ContextualEntrypointButton', () => {
   let entrypointButton: ContextualEntrypointButtonElement;
@@ -21,16 +19,11 @@ suite('ContextualEntrypointButton', () => {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     const element =
         document.createElement('cr-composebox-contextual-entrypoint-button');
-    element.inputState = createValidInputState();
     document.body.appendChild(element);
     return element;
   }
 
   setup(async () => {
-    loadTimeData.overrideValues({
-      contextualMenuUsePecApi: true,
-    });
-
     entrypointButton = createEntrypointButton();
     await microtasksFinished();
   });
@@ -47,14 +40,6 @@ suite('ContextualEntrypointButton', () => {
     // Assert.
     const event = await eventPromise;
     assertTrue(!!event);
-  });
-
-  test('invalid input state disables entrypoint', async () => {
-    entrypointButton.inputState = null;
-    await microtasksFinished();
-
-    const entrypoint = $$(entrypointButton, '#entrypoint');
-    assertFalse(!!entrypoint);
   });
 
   test('hides description when window is narrow', async () => {
@@ -111,6 +96,25 @@ suite('ContextualEntrypointButton', () => {
     // Assert narrow state.
     description = $$(testElement, '#description');
     assertFalse(!!description);
+  });
+
+  test('ShowContextMenuDescription', async () => {
+    loadTimeData.overrideValues({
+      addContext: 'Add tabs and more',
+    });
+
+    const testElement = createEntrypointButton();
+    testElement.showContextMenuDescription = false;
+    await microtasksFinished();
+
+    assertFalse(!!$$(testElement, '#description'));
+
+    testElement.showContextMenuDescription = true;
+    await microtasksFinished();
+
+    const description = $$(testElement, '#description');
+    assertTrue(!!description);
+    assertEquals('Add tabs and more', description.textContent.trim());
   });
 
   test('disables animations when --cr-animations-disabled is 1', async () => {

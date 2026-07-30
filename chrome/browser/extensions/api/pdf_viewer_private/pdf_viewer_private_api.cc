@@ -18,12 +18,14 @@
 #include "chrome/browser/pdf/pdf_pref_names.h"
 #include "chrome/browser/pdf/pdf_viewer_stream_manager.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/common/chrome_features.h"
 #include "chrome/common/extensions/api/pdf_viewer_private.h"
 #include "chrome/common/pref_names.h"
 #include "components/pdf/common/constants.h"
 #include "components/prefs/pref_service.h"
 #include "components/tabs/public/tab_interface.h"
 #include "extensions/browser/guest_view/mime_handler_view/mime_handler_view_guest.h"
+#include "extensions/browser/mime_handler/stream_container.h"
 #include "pdf/buildflags.h"
 #include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
 #include "url/url_constants.h"
@@ -317,14 +319,30 @@ ExtensionFunction::ResponseAction PdfViewerPrivateGlicSummarizeFunction::Run() {
           contents->GetBrowserContext());
   CHECK(glic_service);
 
+  int arm = features::kPdfGlicSummarizeArm.Get();
+  bool has_consented = glic::GlicEnabling::HasConsentedForProfile(
+      Profile::FromBrowserContext(contents->GetBrowserContext()));
+
   glic::GlicInvokeOptions options{
       glic::mojom::InvocationSource::kPdfSummarizeButton};
   options.prompts.push_back(kSummarizePrompt);
   options.conversation = glic::NewConversation();
 
-  glic_service->InvokeWithAutoSubmit(
-      glic::InvokeWithAutoSubmitPasskeyProvider::GetPassKey(), tab_interface,
-      std::move(options));
+  if (has_consented) {
+    glic_service->InvokeWithAutoSubmit(
+        glic::InvokeWithAutoSubmitPasskeyProvider::GetPassKey(), tab_interface,
+        std::move(options));
+  } else {
+    if (arm == 3) {
+      options.fre_override = glic::mojom::FreOverride::kTrustFirstInline;
+      glic_service->InvokeWithAutoSubmit(
+          glic::InvokeWithAutoSubmitPasskeyProvider::GetPassKey(),
+          tab_interface, std::move(options));
+    } else {
+      options.fre_override = glic::mojom::FreOverride::kTrustFirstText;
+      glic_service->Invoke(tab_interface, std::move(options));
+    }
+  }
 
   success = true;
   return RespondNow(NoArguments());

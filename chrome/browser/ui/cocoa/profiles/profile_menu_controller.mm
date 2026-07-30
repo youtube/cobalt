@@ -11,7 +11,6 @@
 #include <optional>
 
 #include "base/feature_list.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/strings/sys_string_conversions.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/avatar_menu.h"
@@ -75,7 +74,11 @@ class Observer : public BrowserCollectionObserver, public AvatarMenuObserver {
 
  private:
   ProfileMenuController* controller_;  // Weak; owns this.
-  base::ScopedObservation<GlobalBrowserCollection, BrowserCollectionObserver>
+
+  // TODO(crbug.com/495683109): remove when the Observer is no
+  // longer outliving the GlobalBrowserCollection it observes.
+  base::ScopedObservation<GlobalBrowserCollection,
+                          BrowserCollectionObserver>::LeakedDanglingUntriaged
       browser_collection_observation_{this};
 };
 

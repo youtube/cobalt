@@ -104,9 +104,7 @@ blink_python_runner("runtime_feature_state_override_context") {
 
 blink_python_runner("color_data") {
   script = "../build/scripts/gperf.py"
-  if (!is_ios) {
-    sources = [ gperf_exe ]
-  }
+  sources = [ gperf_exe ]
 
   color_data_gperf = "color_data.gperf"
   inputs = [
@@ -189,8 +187,8 @@ rust_static_library("font_format_check") {
   cxx_bindings = [ crate_root ]
   deps = [
     "//third_party/rust/font_types/v0_11:lib",
-    "//third_party/rust/read_fonts/v0_37:lib",
-    "//third_party/rust/skrifa/v0_40:lib",
+    "//third_party/rust/read_fonts/v0_38:lib",
+    "//third_party/rust/skrifa/v0_41:lib",
   ]
 }
 
@@ -1025,14 +1023,14 @@ component("platform") {
     "graphics/flush_reason.h",
     "graphics/generated_image.cc",
     "graphics/generated_image.h",
+    "graphics/gpu/canvas_utils.cc",
+    "graphics/gpu/canvas_utils.h",
     "graphics/gpu/dawn_control_client_holder.cc",
     "graphics/gpu/dawn_control_client_holder.h",
     "graphics/gpu/drawing_buffer.cc",
     "graphics/gpu/drawing_buffer.h",
     "graphics/gpu/extensions_3d_util.cc",
     "graphics/gpu/extensions_3d_util.h",
-    "graphics/gpu/graphics_context_3d_utils.cc",
-    "graphics/gpu/graphics_context_3d_utils.h",
     "graphics/gpu/image_extractor.cc",
     "graphics/gpu/image_extractor.h",
     "graphics/gpu/image_layer_bridge.cc",
@@ -1846,7 +1844,7 @@ component("platform") {
     "//third_party/blink/renderer/platform/wtf",
     "//third_party/ced",
     "//third_party/emoji-segmenter",
-    "//third_party/harfbuzz-ng",
+    "//third_party/harfbuzz",
     "//third_party/highway:libhwy",
     "//third_party/icu",
     "//third_party/libgav1:libgav1_parser",
@@ -2061,8 +2059,6 @@ static_library("test_support") {
     "testing/test_paint_artifact.h",
     "testing/testing_platform_support.cc",
     "testing/testing_platform_support.h",
-    "testing/testing_platform_support_with_mock_scheduler.cc",
-    "testing/testing_platform_support_with_mock_scheduler.h",
     "testing/unit_test_helpers.cc",
     "testing/unit_test_helpers.h",
     "testing/url_loader_mock.cc",
@@ -2495,7 +2491,7 @@ source_set("blink_platform_unittests_sources") {
     "//third_party/blink/renderer/platform/wtf",
     "//third_party/dawn/src/dawn/native",
     "//third_party/dawn/src/dawn/wire",
-    "//third_party/harfbuzz-ng",
+    "//third_party/harfbuzz",
     "//third_party/libyuv",
     "//third_party/webrtc/api/task_queue:task_queue_test",
     "//third_party/webrtc_overrides:metronome_like_task_queue_test",
@@ -2623,7 +2619,7 @@ test("blink_platform_perftests") {
     "//services/network/public/cpp",
     "//testing/gtest",
     "//testing/perf",
-    "//third_party/harfbuzz-ng",
+    "//third_party/harfbuzz",
   ]
 }
 
@@ -2637,6 +2633,7 @@ group("blink_platform_unittests_data") {
     "image-decoders/testing/",
     "//third_party/blink/web_tests/images/resources/",
     "//third_party/blink/web_tests/images/bmp-suite/",
+    "//third_party/blink/web_tests/images/jpeg-suite/",
 
     # Required by some font tests.
     "//third_party/blink/web_tests/external/wpt/fonts/",

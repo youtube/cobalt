@@ -13,9 +13,8 @@ import './searchbox_input.js';
 
 import type {ComposeboxState, ContextualUpload, TabUpload, TabUploadOrigin} from '//resources/cr_components/composebox/common.js';
 import {GlifAnimationState, recordContextAdditionMethod} from '//resources/cr_components/composebox/common.js';
-import type {ContextualEntrypointAndMenuElement} from '//resources/cr_components/composebox/contextual_entrypoint_and_menu.js';
 import {ComposeboxContextAddedMethod, GlowAnimationState} from '//resources/cr_components/search/constants.js';
-import {DragAndDropHandler} from '//resources/cr_components/search/drag_drop_handler.js';
+import type {DragAndDropHandler} from '//resources/cr_components/search/drag_drop_handler.js';
 import type {DragAndDropHost} from '//resources/cr_components/search/drag_drop_host.js';
 import {I18nMixinLit} from '//resources/cr_elements/i18n_mixin_lit.js';
 import {WebUiListenerMixinLit} from '//resources/cr_elements/web_ui_listener_mixin_lit.js';
@@ -87,7 +86,7 @@ export class SearchboxElement extends SearchboxElementBase implements
     return getHtml.bind(this)();
   }
 
-  static override get properties() {
+  static override get properties(): any {
     return {
       //========================================================================
       // Public properties
@@ -103,12 +102,6 @@ export class SearchboxElement extends SearchboxElementBase implements
       },
 
       colorSourceIsBaseline: {
-        type: Boolean,
-        reflect: true,
-      },
-
-      /** Whether the cr-searchbox-dropdown should be visible. */
-      dropdownIsVisible: {
         type: Boolean,
         reflect: true,
       },
@@ -136,15 +129,6 @@ export class SearchboxElement extends SearchboxElementBase implements
         reflect: true,
       },
 
-      /** The aria description to include on the input element. */
-      searchboxAriaDescription: {type: String},
-
-      /** Whether the Google Lens icon should be visible in the searchbox. */
-      searchboxLensSearchEnabled: {
-        type: Boolean,
-        reflect: true,
-      },
-
       searchboxChromeRefreshTheming: {
         type: Boolean,
         reflect: true,
@@ -157,11 +141,6 @@ export class SearchboxElement extends SearchboxElementBase implements
 
       searchboxLayoutMode: {
         type: String,
-        reflect: true,
-      },
-
-      ntpRealboxNextEnabled: {
-        type: Boolean,
         reflect: true,
       },
 
@@ -239,9 +218,6 @@ export class SearchboxElement extends SearchboxElementBase implements
       thumbnailUrl_: {type: String},
       isThumbnailDeletable_: {type: Boolean},
 
-      /** The value of the input element's 'aria-live' attribute. */
-      inputAriaLive_: {type: String},
-
       useWebkitSearchIcons_: {
         type: Boolean,
         reflect: true,
@@ -256,9 +232,6 @@ export class SearchboxElement extends SearchboxElementBase implements
         reflect: true,
         type: String,
       },
-      showModelPicker_: {
-        type: Boolean,
-      },
     };
   }
 
@@ -267,15 +240,11 @@ export class SearchboxElement extends SearchboxElementBase implements
   accessor hadSecondarySide: boolean = false;
   accessor hasSecondarySide: boolean = false;
   accessor isDark: boolean = false;
-  accessor searchboxAriaDescription: string = '';
-  accessor searchboxLensSearchEnabled: boolean =
-      loadTimeData.getBoolean('searchboxLensSearch');
   accessor searchboxChromeRefreshTheming: boolean =
       loadTimeData.getBoolean('searchboxCr23Theming');
   accessor searchboxSteadyStateShadow: boolean =
       loadTimeData.getBoolean('searchboxCr23SteadyStateShadow');
   accessor searchboxLayoutMode: string = '';
-  accessor ntpRealboxNextEnabled: boolean = false;
   accessor contextMenuGlifAnimationState: GlifAnimationState =
       GlifAnimationState.INELIGIBLE;
   accessor cyclingPlaceholders: boolean = false;
@@ -285,7 +254,6 @@ export class SearchboxElement extends SearchboxElementBase implements
   accessor placeholderText: string = '';
   accessor isDraggingFile: boolean = false;
   accessor animationState: GlowAnimationState = GlowAnimationState.NONE;
-  protected accessor inputAriaLive_: string = '';
   protected accessor isLensSearchbox_: boolean =
       loadTimeData.getBoolean('isLensSearchbox');
   protected accessor enableThumbnailSizingTweaks_: boolean =
@@ -296,10 +264,6 @@ export class SearchboxElement extends SearchboxElementBase implements
       loadTimeData.getBoolean('searchboxVoiceSearch');
   protected accessor searchboxLensSearchEnabled_: boolean =
       loadTimeData.getBoolean('searchboxLensSearch');
-  protected accessor showModelPicker_: boolean =
-      loadTimeData.valueExists('contextualMenuUsePecApi') ?
-      loadTimeData.getBoolean('contextualMenuUsePecApi') :
-      false;
   protected accessor thumbnailUrl_: string = '';
   protected accessor isThumbnailDeletable_: boolean = false;
   private accessor useWebkitSearchIcons_: boolean = false;
@@ -309,8 +273,7 @@ export class SearchboxElement extends SearchboxElementBase implements
   private pageHandler_: PageHandlerInterface;
   private callbackRouter_: PageCallbackRouter;
   protected dragAndDropHandler: DragAndDropHandler|null = null;
-  private dragAndDropEnabled_: boolean =
-      loadTimeData.getBoolean('composeboxContextDragAndDropEnabled');
+
   private autocompleteResultChangedListenerId_: number|null = null;
   private thumbnailChangedListenerId_: number|null = null;
   private onTabStripChangedListenerId_: number|null = null;
@@ -339,11 +302,6 @@ export class SearchboxElement extends SearchboxElementBase implements
     this.inputState_ = (await this.pageHandler_.getInputState()).state;
     if (this.inputState_) {
       this.inputState_.activeModel = ModelMode.kUnspecified;
-    }
-
-    if (this.ntpRealboxNextEnabled) {
-      this.dragAndDropHandler =
-          new DragAndDropHandler(this, this.dragAndDropEnabled_);
     }
   }
 
@@ -377,10 +335,6 @@ export class SearchboxElement extends SearchboxElementBase implements
     if (changedPrivateProperties.has('result') ||
         changedPrivateProperties.has('selectedMatchIndex')) {
       this.selectedMatch = this.computeSelectedMatch_();
-    }
-
-    if (changedPrivateProperties.has('selectedMatch')) {
-      this.inputAriaLive_ = this.computeInputAriaLive_();
     }
 
     if (changedPrivateProperties.has('thumbnailUrl_')) {
@@ -429,10 +383,6 @@ export class SearchboxElement extends SearchboxElementBase implements
     return this.pageHandler_;
   }
 
-  private computeInputAriaLive_(): string {
-    return this.selectedMatch ? 'off' : 'polite';
-  }
-
   getDropTarget() {
     return this;
   }
@@ -459,9 +409,7 @@ export class SearchboxElement extends SearchboxElementBase implements
       return false;
     }
 
-    if (this.dropdownIsVisible &&
-        (this.composeButtonEnabled ||
-         this.searchboxLayoutMode.startsWith('Tall'))) {
+    if (this.dropdownIsVisible && this.composeButtonEnabled) {
       return false;
     }
 
@@ -506,9 +454,9 @@ export class SearchboxElement extends SearchboxElementBase implements
     this.placeholderCycler_?.stop();
   }
 
-  protected onInputTextUpdated_(
+  protected onSearchboxInputTextUpdated_(
       e: CustomEvent<{value: string, isComposing: boolean}>) {
-    this.onInputTextUpdated(e, this.isLensSearchbox_);
+    this.onSearchboxInputTextUpdated(e, this.isLensSearchbox_);
   }
 
   protected onSearchboxInputFilesPasted_(e: CustomEvent<{files: FileList}>) {
@@ -748,13 +696,6 @@ export class SearchboxElement extends SearchboxElementBase implements
   protected openComposebox_(
       uploads: ContextualUpload[] = [], mode: ToolMode = ToolMode.kUnspecified,
       model: ModelMode = ModelMode.kUnspecified) {
-    if (this.ntpRealboxNextEnabled) {
-      const context =
-          this.shadowRoot.querySelector<ContextualEntrypointAndMenuElement>(
-              '#context');
-      assert(context);
-      context.closeMenu();
-    }
     this.fire<ComposeboxState>('open-composebox', {
       text: this.$.input.inputElement.value,
       files: uploads,

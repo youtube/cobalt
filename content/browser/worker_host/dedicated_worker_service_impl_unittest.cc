@@ -38,7 +38,7 @@ namespace content {
 class MockDedicatedWorker
     : public blink::mojom::DedicatedWorkerHostFactoryClient {
  public:
-  MockDedicatedWorker(int worker_process_id,
+  MockDedicatedWorker(ChildProcessId worker_process_id,
                       GlobalRenderFrameHostId render_frame_host_id,
                       const url::Origin& origin) {
     // The COEP reporter is replaced by a placeholder connection. Reports are
@@ -159,7 +159,7 @@ class TestDedicatedWorkerServiceObserver
     : public DedicatedWorkerService::Observer {
  public:
   struct DedicatedWorkerInfo {
-    int worker_process_id;
+    ChildProcessId worker_process_id;
     url::Origin origin;
     DedicatedWorkerCreator creator;
 
@@ -178,7 +178,7 @@ class TestDedicatedWorkerServiceObserver
 
   // DedicatedWorkerService::Observer:
   void OnWorkerCreated(const blink::DedicatedWorkerToken& token,
-                       int worker_process_id,
+                       ChildProcessId worker_process_id,
                        const url::Origin& security_origin,
                        DedicatedWorkerCreator creator) override {
     bool inserted =
@@ -240,8 +240,8 @@ TEST_F(DedicatedWorkerServiceImplTest, DedicatedWorkerServiceObserver) {
 
   // Create the dedicated worker.
   const DedicatedWorkerCreator creator(render_frame_host->GetGlobalId());
-  const int render_process_host_id =
-      render_frame_host->GetProcess()->GetDeprecatedID();
+  const ChildProcessId render_process_host_id =
+      render_frame_host->GetProcess()->GetID();
   const auto origin = url::Origin::Create(kUrl);
   auto mock_dedicated_worker = std::make_unique<MockDedicatedWorker>(
       render_process_host_id, render_frame_host->GetGlobalId(), origin);

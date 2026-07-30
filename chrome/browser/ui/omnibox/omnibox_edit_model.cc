@@ -544,8 +544,7 @@ gfx::Image OmniboxEditModel::GetAgentspaceIcon(bool dark_mode) const {
 #endif
 }
 
-void OmniboxEditModel::UpdateInput(bool has_selected_text,
-                                   bool prevent_inline_autocomplete) {
+void OmniboxEditModel::UpdateInput(bool prevent_inline_autocomplete) {
   bool changed_to_user_input_in_progress = SetInputInProgressNoNotify(true);
   if (!has_focus()) {
     if (changed_to_user_input_in_progress) {
@@ -570,7 +569,7 @@ void OmniboxEditModel::UpdateInput(bool has_selected_text,
     StartZeroSuggestRequest(/*user_clobbered_permanent_text=*/true);
   } else {
     // Otherwise run the normal prefix (as-you-type) autocomplete.
-    StartAutocomplete(has_selected_text, prevent_inline_autocomplete);
+    StartAutocomplete(prevent_inline_autocomplete);
   }
 
   if (changed_to_user_input_in_progress) {
@@ -615,8 +614,7 @@ void OmniboxEditModel::Revert() {
   controller_->client()->OnRevert();
 }
 
-void OmniboxEditModel::StartAutocomplete(bool has_selected_text,
-                                         bool prevent_inline_autocomplete) {
+void OmniboxEditModel::StartAutocomplete(bool prevent_inline_autocomplete) {
   const std::u16string input_text = MaybePrependKeyword(user_text_);
 
   // This method currently only works when there's a view, but ideally the
@@ -650,10 +648,9 @@ void OmniboxEditModel::StartAutocomplete(bool has_selected_text,
       controller_->client()->IsUsingFakeHttpsForHttpsUpgradeTesting());
   input_.set_current_url(controller_->client()->GetURL());
   input_.set_current_title(controller_->client()->GetTitle());
-  input_.set_prevent_inline_autocomplete(
-      prevent_inline_autocomplete || just_deleted_text_ ||
-      (has_selected_text && inline_autocompletion_.empty()) ||
-      paste_state_ != PasteState::kNone);
+  input_.set_prevent_inline_autocomplete(prevent_inline_autocomplete ||
+                                         just_deleted_text_ ||
+                                         paste_state_ != PasteState::kNone);
   input_.set_prefer_keyword(is_keyword_selected());
   input_.set_allow_exact_keyword_match(is_keyword_selected() ||
                                        allow_exact_keyword_match_);
@@ -714,12 +711,6 @@ void OmniboxEditModel::EnterKeywordMode(
   DCHECK(template_url);
   controller_->StopAutocomplete(/*clear_result=*/false);
 
-  if (keyword_ != template_url->keyword()) {
-    // Note, this is not the only place that keyword mode can be entered, but
-    // it would be better to make it so than to add extra notification calls
-    // elsewhere. At present, the method is only meaningfully used for exit.
-    controller_->client()->OnKeywordModeChanged(true, template_url->keyword());
-  }
   SetKeyword(template_url->keyword());
   SetKeywordPlaceholder(placeholder_text);
   SetIsKeywordHint(false);
@@ -948,7 +939,7 @@ void OmniboxEditModel::AcceptKeyword(
     selection.state = OmniboxPopupSelection::KEYWORD_MODE;
     SetPopupSelection(selection);
   } else {
-    StartAutocomplete(false, true);
+    StartAutocomplete(true);
   }
 
   // When user text is empty (the user hasn't typed anything beyond the
@@ -1705,7 +1696,7 @@ std::u16string OmniboxEditModel::MaybeStripKeyword(
 
 std::u16string OmniboxEditModel::MaybePrependKeyword(
     const std::u16string& text) const {
-  return is_keyword_selected() ? (keyword_ + u' ' + text) : text;
+  return is_keyword_selected() ? keyword_ + u' ' + text : text;
 }
 
 void OmniboxEditModel::GetInfoForCurrentText(AutocompleteMatch* match,
@@ -2565,20 +2556,24 @@ void OmniboxEditModel::OnDefaultSearchExtensionDialogDone(
     const GURL& alternate_nav_url,
     const std::u16string& pasted_text,
     base::TimeTicks match_selection_timestamp,
-    bool proceed) {
+    OmniboxClient::ExtensionControlledDialogResult proceed) {
   // Reaching here mean that the default search engine was initially overridden
   // by an extension and that user either accepted or rejected the change.
   //
-  // When `proceed` is true, it means that the user accepted the change the
+  // When `proceed` is kAccept, it means that the user accepted the change the
   // search will continue as normal.
   //
-  // When `proceed` is false, it means that the user rejected the change.
+  // When `proceed` is kReject, it means that the user rejected the change.
   // Therefore, It is necessary to re-classify the input text using the current
   // (restored) settings and build the new navigation url.
-  if (proceed) {
+  //
+  // When `proceed` is kCancel, the dialog was closed without making a choice,
+  // and we don't do a search.
+  if (proceed == OmniboxClient::ExtensionControlledDialogResult::kAccept) {
     OpenMatch(selection, match, disposition, alternate_nav_url, pasted_text,
               match_selection_timestamp);
-  } else {
+  } else if (proceed ==
+             OmniboxClient::ExtensionControlledDialogResult::kReject) {
     std::u16string input_text =
         pasted_text.empty()
             ? (user_input_in_progress_ ? user_text_ : url_for_editing_)
@@ -2596,6 +2591,8 @@ void OmniboxEditModel::OnDefaultSearchExtensionDialogDone(
     // The omnibox is focused during the string classification, so we need to
     // focus the web contents after the string classification.
     controller_->client()->FocusWebContents();
+  } else {
+    CHECK_EQ(proceed, OmniboxClient::ExtensionControlledDialogResult::kCancel);
   }
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)

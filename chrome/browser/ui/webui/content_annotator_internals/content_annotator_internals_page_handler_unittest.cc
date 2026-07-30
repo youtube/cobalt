@@ -12,16 +12,19 @@
 #include "chrome/browser/accessibility_annotator/accessibility_annotator_backend_factory.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/accessibility_annotator/core/logging/accessibility_annotator_internals.mojom.h"
-#include "components/accessibility_annotator/core/storage/accessibility_annotator_backend.h"
+#include "components/accessibility_annotator/core/storage/accessibility_annotator_backend_impl.h"
 #include "components/sync/test/data_type_store_test_util.h"
-#include "components/version_info/channel.h"
 #include "content/public/test/browser_task_environment.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace content_annotator_internals {
+
+using ::testing::Eq;
+using ::testing::Pointee;
 
 namespace {
 
@@ -51,8 +54,8 @@ class ContentAnnotatorInternalsPageHandlerTest : public testing::Test {
                 [](base::FilePath path, content::BrowserContext* context)
                     -> std::unique_ptr<KeyedService> {
                   return std::make_unique<
-                      accessibility_annotator::AccessibilityAnnotatorBackend>(
-                      version_info::Channel::UNKNOWN,
+                      accessibility_annotator::
+                          AccessibilityAnnotatorBackendImpl>(
                       /*history_service=*/nullptr,
                       syncer::DataTypeStoreTestUtil::
                           FactoryForInMemoryStoreForTest(),
@@ -96,8 +99,9 @@ TEST_F(ContentAnnotatorInternalsPageHandlerTest, GetAnnotatedContentWithData) {
       AccessibilityAnnotatorBackendFactory::GetForProfile(profile());
   ASSERT_TRUE(backend);
 
-  backend->SetContentAnnotationsCacheData(GURL("https://example.com"), "Title",
-                                          "{\"key\": \"value\"}");
+  backend->SetContentAnnotationsCacheData(
+      GURL("https://example.com"), "Title",
+      base::DictValue().Set("key", "value"));
 
   base::RunLoop run_loop;
   handler()->GetAnnotatedContent(
@@ -106,11 +110,11 @@ TEST_F(ContentAnnotatorInternalsPageHandlerTest, GetAnnotatedContentWithData) {
         const base::ListValue& list = content.GetList();
         ASSERT_EQ(list.size(), 1u);
         const base::DictValue& entry = list[0].GetDict();
-        EXPECT_EQ(*entry.FindString("url"), "https://example.com/");
-        EXPECT_EQ(*entry.FindString("title"), "Title");
+        EXPECT_THAT(entry.FindString("url"), Pointee(Eq("https://example.com/")));
+        EXPECT_THAT(entry.FindString("title"), Pointee(Eq("Title")));
         const base::DictValue* annotations = entry.FindDict("annotations");
         ASSERT_TRUE(annotations);
-        EXPECT_EQ(*annotations->FindString("key"), "value");
+        EXPECT_THAT(annotations->FindString("key"), Pointee(Eq("value")));
         run_loop.Quit();
       }));
   run_loop.Run();

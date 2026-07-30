@@ -19,6 +19,7 @@
 #include "base/strings/strcat.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "components/metrics/profile_metrics_service.h"
 
 namespace signin_metrics {
 
@@ -101,7 +102,6 @@ std::optional<AccessPoint> AccessPointFromInt(int value) {
     case AccessPoint::kSaveToPhotosIos:
     case AccessPoint::kChromeSigninInterceptBubble:
     case AccessPoint::kRestorePrimaryAccountOnProfileLoad:
-    case AccessPoint::kTabOrganization:
     case AccessPoint::kSaveToDriveIos:
     case AccessPoint::kTipsNotification:
     case AccessPoint::kNotificationsOptInScreenContentToggle:
@@ -260,8 +260,10 @@ void LogSignInOffered(AccessPoint access_point, PromoAction promo_action) {
       access_point);
 }
 
-void LogSignInStarted(AccessPoint access_point) {
-  base::UmaHistogramEnumeration("Signin.SignIn.Started", access_point);
+void LogSignInStarted(AccessPoint access_point,
+                      metrics::ProfileMetricsService& profile_metrics_service) {
+  profile_metrics_service.UmaHistogramEnumeration("Signin.SignIn.Started",
+                                                  access_point);
 }
 
 void LogSigninPendingOffered(AccessPoint access_point) {
@@ -643,10 +645,6 @@ void RecordSigninUserActionForAccessPoint(AccessPoint access_point) {
       base::RecordAction(base::UserMetricsAction(
           "Signin_Signin_FromChromeSigninInterceptBubble"));
       break;
-    case AccessPoint::kTabOrganization:
-      base::RecordAction(
-          base::UserMetricsAction("Signin_Signin_FromTabOrganization"));
-      break;
     case AccessPoint::kTipsNotification:
       base::RecordAction(
           base::UserMetricsAction("Signin_Signin_FromTipsNotification"));
@@ -880,7 +878,6 @@ void RecordSigninImpressionUserActionForAccessPoint(AccessPoint access_point) {
     case AccessPoint::kReauthInfoBar:
     case AccessPoint::kAccountConsistencyService:
     case AccessPoint::kRestorePrimaryAccountOnProfileLoad:
-    case AccessPoint::kTabOrganization:
     case AccessPoint::kProfileMenuSignoutConfirmationPrompt:
     case AccessPoint::kSettingsSignoutConfirmationPrompt:
     case AccessPoint::kOidcRedirectionInterception:

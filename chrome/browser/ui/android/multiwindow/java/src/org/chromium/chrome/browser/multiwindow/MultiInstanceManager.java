@@ -21,7 +21,6 @@ import org.chromium.chrome.browser.tabmodel.SupportedProfileType;
 import org.chromium.chrome.browser.tabmodel.TabGroupMetadata;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorTabModelObserver;
-import org.chromium.content_public.browser.LoadUrlParams;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -253,9 +252,13 @@ public abstract class MultiInstanceManager {
      * @param tabGroupMetadata The {@link TabGroupMetadata} describing the tab group being moved.
      * @param destTabIndex The tab index in the destination window where the tab group will be
      *     positioned. To use the default tab index, set this to {@code TabList.INVALID_TAB_INDEX}.
+     * @param bringToFront Whether the destination window should be brought to the front.
      */
     public void moveTabGroupToWindowByIdChecked(
-            int destWindowId, TabGroupMetadata tabGroupMetadata, int destTabIndex) {
+            int destWindowId,
+            TabGroupMetadata tabGroupMetadata,
+            int destTabIndex,
+            boolean bringToFront) {
         // Not implemented
     }
 
@@ -270,23 +273,6 @@ public abstract class MultiInstanceManager {
     public void moveTabGroupToOtherWindow(
             TabGroupMetadata tabGroupMetadata, @NewWindowAppSource int source) {
         // Not implemented
-    }
-
-    /**
-     * Opens a URL in another existing window or a new window.
-     *
-     * @param loadUrlParams The url to open.
-     * @param parentTabId The ID of the parent tab.
-     * @param preferNew Whether we should prioritize launching the tab in a new window.
-     * @param instanceType The {@link PersistedInstanceType} that will be used to determine the type
-     *     of window the URL can be opened in.
-     */
-    public void openUrlInOtherWindow(
-            LoadUrlParams loadUrlParams,
-            int parentTabId,
-            boolean preferNew,
-            @PersistedInstanceType int instanceType) {
-        // not implemented
     }
 
     /**

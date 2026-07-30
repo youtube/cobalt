@@ -19,21 +19,17 @@
 #include "base/task/thread_pool.h"
 #include "base/thread_annotations.h"
 #include "components/optimization_guide/core/delivery/optimization_target_model_observer.h"
-#include "components/optimization_guide/machine_learning_tflite_buildflags.h"
 #include "components/safe_browsing/core/common/fbs/client_model_generated.h"
 #include "components/safe_browsing/core/common/proto/client_model.pb.h"
 #include "components/safe_browsing/core/common/proto/csd.pb.h"
-
-#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 #include "third_party/tflite_support/src/tensorflow_lite_support/cc/task/vision/proto/embeddings.pb.h"
-#endif
+
 namespace optimization_guide {
 class OptimizationGuideModelProvider;
 }  // namespace optimization_guide
 
 namespace safe_browsing {
 
-#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 // Holds an embedding we are targeting.
 struct TargetEmbedding {
   TargetEmbedding(tflite::task::vision::FeatureVector embedding,
@@ -41,7 +37,6 @@ struct TargetEmbedding {
   tflite::task::vision::FeatureVector embedding;
   float threshold;
 };
-#endif
 
 enum class CSDModelType { kNone = 0, kFlatbuffer = 1 };
 
@@ -68,11 +63,13 @@ class ClientSidePhishingModel
       base::optional_ref<const optimization_guide::ModelInfo> model_info)
       override;
 
-  // Enhanced Safe Browsing users receive an additional image embedding model to
-  // be attached to CSD-Phishing ping to better train the models.
+  // Enhanced Safe Browsing users receive the image classifier and embedding
+  // model.
   void SubscribeToImageEmbedderOptimizationGuide();
+  void SubscribeToImageClassifierOptimizationGuide();
 
   void UnsubscribeToImageEmbedderOptimizationGuide();
+  void UnsubscribeToImageClassifierOptimizationGuide();
 
   // Register a callback to be notified whenever the model changes. All
   // notifications will occur on the UI thread.
@@ -118,12 +115,10 @@ class ClientSidePhishingModel
   const std::vector<TfLiteModelMetadata::Threshold>&
   GetVisualTfLiteModelThresholds() const;
 
-#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
   const std::vector<TargetEmbedding>& GetTargetImageEmbeddings() const;
 
   void SetTargetImageEmbeddingsForTesting(
       std::vector<TargetEmbedding> target_embeddings);
-#endif
 
   // This function is used to override internal model for testing in
   // client_side_phishing_model_unittest
@@ -147,6 +142,7 @@ class ClientSidePhishingModel
                                 base::File visual_tflite_model);
 
   bool IsSubscribedToImageEmbeddingModelUpdates();
+  bool IsSubscribedToImageClassifierModelUpdates();
 
   int GetClassificationInputWidth();
   int GetClassificationInputHeight();
@@ -225,22 +221,21 @@ class ClientSidePhishingModel
   scoped_refptr<base::SequencedTaskRunner> background_task_runner_;
 
   // If the users subscribe to ESB, the code will add an observer to the
-  // OptimizationGuide service for the image embedder model. We can choose to
-  // remove the observer, but it will be on the list to be removed, and not
-  // removed instantly. Therefore, if the user subscribes, unsubscribes, and
-  // re-subscribes again in very quick succession, the code will crash because
-  // the DCHECK fails, indicating that the observer is added already. Therefore,
-  // this will be a one time use flag.
+  // OptimizationGuide service for the image embedder and classifier model. We
+  // can choose to remove the observer, but it will be on the list to be
+  // removed, and not removed instantly. Therefore, if the user subscribes,
+  // unsubscribes, and re-subscribes again in very quick succession, the code
+  // will crash because the DCHECK fails, indicating that the observer is added
+  // already. Therefore, this will be a one time use flag.
   bool subscribed_to_image_embedder_ = false;
+  bool subscribed_to_image_classifier_ = false;
 
   SEQUENCE_CHECKER(sequence_checker_);
 
   base::TimeTicks beginning_time_;
 
-#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
   // The image embedding targets to evaluate pages against.
   std::vector<TargetEmbedding> target_image_embeddings_;
-#endif
 
   base::WeakPtrFactory<ClientSidePhishingModel> weak_ptr_factory_{this};
 };

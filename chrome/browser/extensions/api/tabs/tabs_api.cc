@@ -136,6 +136,28 @@ constexpr char kWindowCreateCannotMoveIwaTabError[] =
     "The tab of an Isolated Web App cannot be moved to a new window.";
 #endif
 
+#if BUILDFLAG(IS_ANDROID)
+std::string WindowResizePrecheckResultToErrorMessage(
+    ui::WindowResizePrecheckResult result) {
+  switch (result) {
+    case ui::WindowResizePrecheckResult::kOk:
+      NOTREACHED();
+    case ui::WindowResizePrecheckResult::kAndroidBrowserRoleNotHeld:
+      return tabs_constants::kUnableToResizeErrorAndroidBrowserRoleNotHeld;
+    case ui::WindowResizePrecheckResult::kAndroidSdkTooLow:
+      return tabs_constants::kUnableToResizeErrorAndroidSdkTooLow;
+    case ui::WindowResizePrecheckResult::kAndroidNotAFreeformWindow:
+      return tabs_constants::kUnableToResizeErrorAndroidNotAFreeformWindow;
+    case ui::WindowResizePrecheckResult::kAndroidNullAppTask:
+      return tabs_constants::kUnableToResizeErrorAndroidNullAppTask;
+    case ui::WindowResizePrecheckResult::kAndroidNoActivity:
+      [[fallthrough]];
+    case ui::WindowResizePrecheckResult::kAndroidNullAconfigFlaggedApiDelegate:
+      return tabs_constants::kUnableToResizeErrorAndroidUnsupportedOperation;
+  }
+}
+#endif
+
 bool IsValidStateForWindowsCreateFunction(
     const windows::Create::Params::CreateData* create_data) {
   if (!create_data) {
@@ -1410,6 +1432,18 @@ ExtensionFunction::ResponseAction WindowsUpdateFunction::Run() {
     }
   }
 
+#if BUILDFLAG(IS_ANDROID)
+  if (set_window_bounds ||
+      show_state == ui::mojom::WindowShowState::kMaximized ||
+      show_state == ui::mojom::WindowShowState::kNormal) {
+    ui::WindowResizePrecheckResult resize_precheck_result;
+    if (!browser_window->CanResize(resize_precheck_result)) {
+      return RespondNow(Error(
+          WindowResizePrecheckResultToErrorMessage(resize_precheck_result)));
+    }
+  }
+#endif
+
   // Parameters are valid. Now to perform the actual updates.
   MaybeSetLockedFullscreenState(*params, browser, is_locked_fullscreen);
 
@@ -1981,6 +2015,22 @@ ExtensionFunction::ResponseAction TabsCreateFunction::Run() {
     fallback_to_tabbed_browser = true;
     create_if_needed = true;
   }
+
+  // TODO(crbug.com/491910697): This is a short-term solution for Android to
+  // ensure new tabs are routed to a tabbed browser when the current browser
+  // is non-NORMAL (e.g., a PWA). The long-term goal is to unify this with
+  // the cross-platform logic below by making the tab creation process
+  // (specifically OpenTabHelper::OpenTab) asynchronous, which is required
+  // on Android when a new window needs to be created.
+#if BUILDFLAG(IS_ANDROID)
+  // TODO(crbug.com/496733610): Supporting CCT/PWA/TWA is currently not possible
+  // in C++ browser tests on Android. Add tests once that's supported.
+  if (browser && browser->GetType() != BrowserWindowInterface::TYPE_NORMAL) {
+    browser = nullptr;
+    fallback_to_tabbed_browser = true;
+    create_if_needed = true;
+  }
+#endif
 
   // This check (for the opener) comes last. It will fail (by design) if
   // we're intending to create a new browser; that's good, because the new
@@ -2687,13 +2737,43 @@ bool TabsMoveFunction::MoveTab(int tab_id,
     return false;
   }
 
+#if BUILDFLAG(IS_ANDROID)
+  // TODO(crbug.com/496733610): Supporting CCT/PWA/TWA is currently not possible
+  // in C++ browser tests on Android. Add tests once that's supported
+  BrowserWindowInterface* source_browser =
+      source_window->GetBrowserWindowInterface();
+  bool is_source_window_cct_or_app_on_android =
+      source_browser &&
+      (source_browser->GetType() == BrowserWindowInterface::TYPE_CUSTOM_TAB ||
+       source_browser->GetType() == BrowserWindowInterface::TYPE_APP);
+#endif
+
   if (window_id && *window_id != ExtensionTabUtil::GetWindowIdOfTab(contents)) {
+#if BUILDFLAG(IS_ANDROID)
+    if (is_source_window_cct_or_app_on_android &&
+        contents != source_window->GetActiveTab()) {
+      *error = tabs_constants::
+          kAndroidOnlyActiveTabCanBeMovedFromCctOrWebAppWindowError;
+      return false;
+    }
+#endif
+
     WindowController* target_controller =
         ExtensionTabUtil::GetControllerFromWindowID(
             ChromeExtensionFunctionDetails(this), *window_id, error);
     if (!target_controller) {
       return false;
     }
+
+#if BUILDFLAG(IS_ANDROID)
+    if (is_source_window_cct_or_app_on_android &&
+        target_controller->GetBrowserWindowInterface()->GetType() !=
+            BrowserWindowInterface::TYPE_NORMAL) {
+      *error =
+          tabs_constants::kAndroidCanOnlyMoveCctOrWebAppTabsToNormalWindowError;
+      return false;
+    }
+#endif
 
     BrowserWindowInterface* target_browser =
         target_controller->GetBrowserWindowInterface();
@@ -2726,6 +2806,14 @@ bool TabsMoveFunction::MoveTab(int tab_id,
   // Clamp move location to the last position.
   // This is ">=" because the move must be to an existing location.
   // -1 means set the move location to the last position.
+
+#if BUILDFLAG(IS_ANDROID)
+  if (is_source_window_cct_or_app_on_android) {
+    *error = tabs_constants::kAndroidCannotMoveTabsWithinCctOrWebAppWindowError;
+    return false;
+  }
+#endif
+
   TabListInterface* source_tab_list =
       TabListInterface::From(source_window->GetBrowserWindowInterface());
   if (*new_index >= source_tab_list->GetTabCount() || *new_index < 0) {

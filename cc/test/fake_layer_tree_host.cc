@@ -33,11 +33,11 @@ FakeLayerTreeHost::FakeLayerTreeHost(FakeLayerTreeHostClient* client,
 }
 
 void FakeLayerTreeHost::ClearPendingLayerCommitStates() {
-  for (auto layer :
-       pending_commit_state()->layers_that_should_push_properties) {
-    layer->ClearChangedPushPropertiesForTesting();
+  for (auto layer_id :
+       pending_commit_state()->layer_ids_that_should_push_properties) {
+    LayerById(layer_id)->ClearChangedPushPropertiesForTesting();
   }
-  pending_commit_state()->layers_that_should_push_properties.clear();
+  pending_commit_state()->layer_ids_that_should_push_properties.clear();
 }
 
 std::unique_ptr<FakeLayerTreeHost> FakeLayerTreeHost::Create(
@@ -129,6 +129,7 @@ LayerImpl* FakeLayerTreeHost::CommitToTree(LayerTreeImpl* tree) {
   pending_commit_state()->property_trees = *property_trees();
   host_impl_->FinishCommit(*pending_commit_state(),
                            thread_unsafe_commit_state());
+  pending_commit_state()->picture_layer_ids_with_new_raster_source.clear();
   std::swap(change_state, pending_commit_state()->property_trees_change_state);
   return tree->root_layer();
 }

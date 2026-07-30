@@ -255,16 +255,16 @@ static bool PseudoElementStylesEqual(const ComputedStyle& old_style,
 
 static bool DiffAffectsContainerQueries(const ComputedStyle& old_style,
                                         const ComputedStyle& new_style) {
+  if (!base::ValuesEquivalent(old_style.ContainerName(),
+                              new_style.ContainerName()) ||
+      old_style.ContainerType() != new_style.ContainerType()) {
+    return true;
+  }
   if (!old_style.IsContainerForSizeContainerQueries() &&
       !new_style.IsContainerForSizeContainerQueries() &&
       !old_style.IsContainerForScrollStateContainerQueries() &&
       !new_style.IsContainerForScrollStateContainerQueries()) {
     return false;
-  }
-  if (!base::ValuesEquivalent(old_style.ContainerName(),
-                              new_style.ContainerName()) ||
-      (old_style.ContainerType() != new_style.ContainerType())) {
-    return true;
   }
   if (new_style.Display() != old_style.Display()) {
     if (new_style.Display() == EDisplay::kNone ||
@@ -380,11 +380,13 @@ bool ComputedStyle::NeedsReattachLayoutTree(const Element& element,
 
 bool ComputedStyle::NeedsReinsertLayoutTree(const ComputedStyle& old_style,
                                             const ComputedStyle& new_style) {
-  if (old_style.IsFloating() != new_style.IsFloating()) {
+  if (old_style.HasOutOfFlowPosition() != new_style.HasOutOfFlowPosition()) {
     return true;
   }
 
-  if (old_style.HasOutOfFlowPosition() != new_style.HasOutOfFlowPosition()) {
+  // If we are OOF-positioned a change in float status will have no effect.
+  if (!new_style.HasOutOfFlowPosition() &&
+      (old_style.IsFloating() != new_style.IsFloating())) {
     return true;
   }
 
@@ -1376,7 +1378,8 @@ bool ComputedStyle::RequireTransformOrigin(
 }
 
 InterpolationQuality ComputedStyle::GetInterpolationQuality() const {
-  if (ImageRendering() == EImageRendering::kPixelated) {
+  if (ImageRendering() == EImageRendering::kPixelated ||
+      ImageRendering() == EImageRendering::kCrispEdges) {
     return kInterpolationNone;
   }
 
@@ -3056,8 +3059,11 @@ ComputedStyleBuilder::ComputedStyleBuilder(
     SetUserSelect(EUserSelect::kAuto);  // FIXME(sesse): Is this right?
   }
 
-  // TODO(sesse): Why do we do this?
-  SetBaseTextDecorationData(parent_style.AppliedTextDecorationData());
+  // NOTE: BaseTextDecorationData also “inherits” in our implementation
+  // (from EffectiveTextDecorationData), but since it inherits from the
+  // layout parent and also not in all cases (it depends on e.g. the
+  // computed display property), that inheritance happens in StyleAdjuster,
+  // not here.
 }
 
 const ComputedStyle* ComputedStyleBuilder::TakeStyle() {

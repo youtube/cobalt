@@ -405,6 +405,22 @@ Việc lập danh sách URL trong chính sách này có tác dụng tương tự
 <translation id="1317158052518324525">Không cho phép tính năng tự động điền nâng cao.</translation>
 <translation id="1317658068839330898">Không cho phép dùng <ph name="ASSISTANT_PRODUCT_NAME" /> trên web</translation>
 <translation id="1318233005302276244">Cho phép người dùng theo dõi gói hàng của họ trên Chrome.</translation>
+<translation id="1321747583289636863">Nếu bạn đặt chính sách này, hệ thống sẽ chỉ định số lượng tối đa kết nối đồng thời tới máy chủ proxy áp dụng cho yêu cầu sử dụng giao thức WebSocket.
+
+Để sửa đổi giới hạn yêu cầu không sử dụng giao thức WebSocket, vui lòng xem <ph name="MAX_CONNECTIONS_PER_PROXY_POLICY_NAME" />.
+
+Nếu bạn không đặt chính sách này, giá trị mặc định được dùng sẽ là 32.
+
+Một số ứng dụng web tiêu hao lượng lớn lượt kết nối khi có các lệnh GET bị treo. Vì vậy, việc đặt giá trị dưới 32 có thể khiến mạng của trình duyệt bị treo nếu có quá nhiều ứng dụng web (với các lượt kết nối bị treo) đang mở.
+Một số máy chủ proxy không thể xử lý lượng lớn lượt kết nối đồng thời trên mỗi máy khách. Tuy nhiên, bạn có thể giải quyết vấn đề đó bằng cách đặt chính sách này về giá trị thấp hơn.
+
+Giá trị phải bằng hoặc cao hơn 6.
+Nếu bạn đặt giá trị thấp hơn giới hạn đó, thì hệ thống sẽ sử dụng giá trị 6.
+Bạn phải tự chịu rủi ro khi đặt giá trị thấp hơn giá trị mặc định (32).
+
+Giá trị phải bằng hoặc thấp hơn 256.
+Nếu bạn đặt giá trị cao hơn giới hạn đó, thì hệ thống sẽ sử dụng giá trị 256.
+Bạn phải tự chịu rủi ro khi đặt giá trị cao hơn giá trị mặc định (32).</translation>
 <translation id="1323501563951768821">Chế độ cài đặt phím F12 sử dụng phím tắt chứa phím bổ trợ shift</translation>
 <translation id="1325547947664414578">Khi người dùng chuyển đổi giữa các thiết bị <ph name="PRODUCT_OS_NAME" />, dịch vụ <ph name="PRODUCT_NAME" /> sẽ mở các cửa sổ trình duyệt và ứng dụng từ thiết bị trước đó trên thiết bị mới.
 Nếu bạn đặt chính sách này thành Bật thì sau khi người dùng hiện tại đăng nhập, hệ thống sẽ tự động mở các cửa sổ trình duyệt và ứng dụng có trên thiết bị <ph name="PRODUCT_OS_NAME" /> mà họ đã dùng gần đây nhất.
@@ -2844,7 +2860,6 @@ Bạn chỉ có thể đặt chính sách này thành chính sách người 
 <translation id="2901969573658712576">Ưu tiên các thuật toán mật mã đáp ứng yêu cầu của CNSA 1.0 và 2.0</translation>
 <translation id="2905984450136807296">Thời gian tồn tại của bộ nhớ đệm lưu trữ dữ liệu xác thực</translation>
 <translation id="2906874737073861391">Danh sách tiện ích trong AppPack</translation>
-<translation id="2908277604670530363">Số lượng tối đa kết nối đồng thời tới máy chủ proxy</translation>
 <translation id="2912366658685903301">Định cấu hình màu cho giao diện của trình duyệt</translation>
 <translation id="2914283793640833265">Không cho phép bật chính sách tiếp tục tác vụ trong Trung tâm điều khiển điện thoại</translation>
 <translation id="2915787312243722351">Chính sách này kiểm soát chế độ cài đặt "Sử dụng phím trình chạy/phím tìm kiếm để thay đổi hành vi của các phím chức năng". Chế độ cài đặt này cho phép người dùng giữ phím trình chạy để thay đổi giữa phím chức năng và phím hàng trên cùng của hệ thống.
@@ -2979,6 +2994,13 @@ Nếu bạn đặt chính sách này thành false (sai), thì người dùng s�
 <translation id="2969568582351417848">Tắt cảnh báo dựa trên tiện ích loại tệp tải xuống cho một số loại tệp cụ thể trên miền</translation>
 <translation id="2971096666394658693">Trình đơn theo bối cảnh sẽ có một mục cho phép chia sẻ hình ảnh với <ph name="GOOGLE_PHOTOS_PRODUCT_NAME" />.</translation>
 <translation id="2973972555495515337">Nếu bạn đặt chính sách này thành Enabled (Bật), thì các ứng dụng web bên thứ ba có thể sử dụng <ph name="DESK_API_NAME" /> để lưu và chia sẻ các không gian làm việc trên <ph name="PRODUCT_OS_NAME" />. Nếu bạn đặt chính sách này thành Disabled (Tắt), thì người dùng sẽ không thể lưu và chia sẻ dữ liệu không gian làm việc qua <ph name="DESK_API_NAME" />. Nếu bạn không đặt chính sách này, thì hành vi sẽ giống như khi bạn đặt chính sách thành tắt. Chính sách này sẽ chỉ có hiệu lực trên các thiết bị đã đăng ký.</translation>
+<translation id="2974326457745806202">SharedWorker có thể có thời gian hoạt động lâu hơn nếu bạn đặt tuỳ chọn "extendedLifetime" thành true (đúng) trong hàm khởi tạo SharedWorker.
+
+Nếu bạn đặt chính sách này thành Bật hoặc không đặt thì SharedWorker có thể có thời gian hoạt động lâu hơn.
+
+Nếu bạn đặt chính sách này thành Tắt, thì SharedWorker sẽ không thể có thời gian hoạt động lâu hơn, ngay cả khi bạn đặt tuỳ chọn này thành true (đúng).
+
+Chính sách này chỉ mang tính tạm thời và sẽ bị loại bỏ trong tương lai.</translation>
 <translation id="2976033779241323433">Bật bàn phím ảo cảm ứng dựa trên suy đoán mặc định của hệ thống</translation>
 <translation id="2976429807269247880">Cài đặt hành vi cookie <ph name="ATTRIBUTE_SAMESITE_NAME" /> cũ</translation>
 <translation id="2979696534869541158">Buộc sử dụng phương thức triển khai cũ</translation>
@@ -4927,6 +4949,7 @@ Nếu bạn đặt thành Enabled (Bật) hoặc không đặt chính sách này
 Nếu bạn đặt chính sách này thành Disabled (Tắt), thì dữ liệu trong trình quản lý mật khẩu của người dùng sẽ không bị ảnh hưởng nhưng chức năng của trình quản lý đó sẽ bị hỏng.
 
 Nếu bạn đặt chính sách này, người dùng sẽ không thể thay đổi chính sách trong <ph name="PRODUCT_NAME" />.</translation>
+<translation id="4321788213579606602">Số lượng tối đa kết nối đồng thời tới máy chủ proxy áp dụng cho yêu cầu không sử dụng giao thức WebSocket</translation>
 <translation id="4322842393287974810">Cho phép ứng dụng kiosk tự động khởi chạy với độ trễ bằng không kiểm soát phiên bản <ph name="PRODUCT_OS_NAME" /></translation>
 <translation id="4323412353642577604">Bật chính sách chứng thực từ xa để bảo vệ nội dung</translation>
 <translation id="4325690621216251241">Thêm một nút đăng xuất vào khay hệ thống</translation>
@@ -7753,6 +7776,7 @@ Nếu bạn đặt chính sách này thành false (sai), thì người dùng s�
 <translation id="6075316301208933536">Nếu bạn đặt <ph name="DEVICE_BATTERY_CHARGE_MODE_POLICY_NAME" /> thành <ph name="DEVICE_BATTERY_CHARGE_CUSTOM_MODE_NAME" />, tùy chọn cài đặt <ph name="DEVICE_BATTERY_CHARGE_CUSTOM_STOP_CHARGING_POLICY_NAME" /> sẽ tùy chỉnh thời điểm pin ngừng sạc, dựa vào phần trăm pin đã sạc. <ph name="DEVICE_BATTERY_CHARGE_CUSTOM_START_CHARGING_POLICY_NAME" /> phải thấp hơn <ph name="DEVICE_BATTERY_CHARGE_CUSTOM_STOP_CHARGING_POLICY_NAME" /> tối thiểu là 5 điểm phần trăm.
 
       Nếu bạn không đặt chính sách này, chế độ sạc pin <ph name="DEVICE_BATTERY_CHARGE_STANDARD_MODE_NAME" /> sẽ được áp dụng.</translation>
+<translation id="6080808146443476891">Số lượng tối đa kết nối đồng thời tới máy chủ proxy áp dụng cho yêu cầu sử dụng giao thức WebSocket</translation>
 <translation id="6082161804984853051">Nếu bạn đặt chính sách này, thì <ph name="PRODUCT_NAME" /> sẽ sử dụng thư mục bạn cung cấp để lưu trữ các tệp đã lưu vào bộ nhớ đệm trên ổ đĩa, cho dù người dùng có chỉ định cờ --disk-cache-dir hay không.
 
       Nếu bạn không đặt chính sách này, thì <ph name="PRODUCT_NAME" /> sẽ sử dụng thư mục bộ nhớ đệm mặc định. Tuy nhiên, người dùng có thể thay đổi tùy chọn cài đặt đó bằng cờ dòng lệnh --disk-cache-dir.
@@ -9726,6 +9750,7 @@ Chúng tôi sẽ ngừng hỗ trợ chế độ cài đặt chính sách này k�
 <translation id="7216442368414164495">Cho phép người dùng chọn sử dụng báo cáo mở rộng trong Duyệt web an toàn</translation>
 <translation id="7218238054592349618">Cho phép sử dụng tính năng tối ưu hoá JavaScript trên các trang web này</translation>
 <translation id="721970071627370558">Tắt tính năng báo cáo trạng thái nguồn của thiết bị</translation>
+<translation id="7220960206733388609">SharedWorker có thể có thời gian hoạt động lâu hơn.</translation>
 <translation id="7221574724100909818">Sử dụng biểu tượng khóa cho các kết nối an toàn</translation>
 <translation id="7227348936232766462">Cho phép người dùng thêm dữ liệu gỡ lỗi cấp thấp từ tất cả các loại thiết bị có bên dưới vào phản hồi của người dùng</translation>
 <translation id="7229365071755865554">Bật tính năng lưu mật khẩu bằng trình quản lý mật khẩu</translation>
@@ -10384,6 +10409,7 @@ Khi bạn bật chính sách này, trình xem PDF sẽ sử dụng trình kết 
 Khi bạn tắt chính sách này, trình xem PDF sẽ sử dụng trình kết xuất đồ hoạ AGG hiện tại.
 
 Khi bạn không đặt chính sách này, trình duyệt sẽ chọn trình kết xuất đồ hoạ PDF.</translation>
+<translation id="7704244074621846004">Bật thời gian hoạt động lâu hơn cho SharedWorker</translation>
 <translation id="7707869387893611318">Bật tính năng phát chuông báo khi sạc.
 
           Tính năng này có nhiệm vụ phát chuông báo khi sạc.
@@ -10401,6 +10427,7 @@ Khi bạn không đặt chính sách này, trình duyệt sẽ chọn trình k�
 
       Máy chủ nên chuyển sang bộ thuật toán mật mã ECDHE. Nếu không có các bộ thuật toán này, hãy đảm bảo bộ thuật toán mật mã sử dụng phương thức trao đổi khoá RSA được kích hoạt.</translation>
 <translation id="7709470712369261710">Không sử dụng các dịch vụ của Google để cung cấp nội dung mô tả hình ảnh tự động</translation>
+<translation id="7711003696883532277">SharedWorker không thể có thời gian hoạt động lâu hơn.</translation>
 <translation id="7712109699186360774">Hỏi mỗi lần trang web muốn truy cập vào máy ảnh và/hoặc micrô</translation>
 <translation id="7712245244073542805">In trên nền tảng từ quy trình của trình duyệt.</translation>
 <translation id="7713608076604149344">Hạn chế tải xuống</translation>
@@ -11220,6 +11247,22 @@ Tính năng này sẽ chỉ có trên kênh Canary.
 
 Nếu bạn bật hoặc không đặt chính sách, thì người dùng có thể truy cập vào trang.
 Nếu bạn tắt chính sách, thì trang sẽ bị chặn.</translation>
+<translation id="8264002158987842436">Nếu bạn đặt chính sách này, hệ thống sẽ chỉ định số lượng tối đa kết nối đồng thời tới máy chủ proxy áp dụng cho yêu cầu không sử dụng giao thức WebSocket.
+
+Để sửa đổi giới hạn yêu cầu sử dụng giao thức WebSocket, vui lòng xem <ph name="MAX_CONNECTIONS_PER_PROXY_FOR_WEBSOCKET_POLICY_NAME" />.
+
+Nếu bạn không đặt chính sách này, giá trị mặc định được dùng sẽ là 32.
+
+Một số ứng dụng web tiêu hao lượng lớn lượt kết nối khi có các lệnh GET bị treo. Vì vậy, việc đặt giá trị dưới 32 có thể khiến mạng của trình duyệt bị treo nếu có quá nhiều ứng dụng web (với các lượt kết nối bị treo) đang mở.
+Một số máy chủ proxy không thể xử lý lượng lớn lượt kết nối đồng thời trên mỗi máy khách. Tuy nhiên, bạn có thể giải quyết vấn đề đó bằng cách đặt chính sách này về giá trị thấp hơn.
+
+Giá trị phải bằng hoặc cao hơn 6.
+Nếu bạn đặt giá trị thấp hơn giới hạn đó, thì hệ thống sẽ sử dụng giá trị 6.
+Bạn phải tự chịu rủi ro khi đặt giá trị thấp hơn giá trị mặc định (32).
+
+Giá trị phải bằng hoặc thấp hơn 256 (99 trong <ph name="PRODUCT_NAME" /> 147 trở xuống).
+Nếu bạn đặt một giá trị cao hơn giới hạn đó, thì hệ thống sẽ sử dụng giá trị 256 (99 trong <ph name="PRODUCT_NAME" /> 147 trở xuống).
+Bạn phải tự chịu rủi ro khi đặt giá trị cao hơn giá trị mặc định (32).</translation>
 <translation id="8266778278542911985">Nếu bạn đặt chính sách này thành 3, thì các trang web có thể yêu cầu quyền truy cập vào cổng nối tiếp. Nếu bạn đặt chính sách này thành 2, quyền truy cập vào cổng nối tiếp sẽ bị từ chối.
 
       Nếu bạn không đặt chính sách này, thì các trang web có thể yêu cầu quyền truy cập nhưng người dùng được quyền thay đổi tùy chọn cài đặt này.</translation>

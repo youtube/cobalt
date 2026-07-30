@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "base/check.h"
-#include "base/command_line.h"
 #include "base/functional/callback_helpers.h"
 #include "base/metrics/histogram_functions.h"
 #include "components/account_settings/account_setting_sync_bridge.h"
@@ -23,12 +22,6 @@ namespace account_settings {
 namespace {
 constexpr std::string_view kWalletPrivacyContextualSurfacingSetting =
     "WALLET_PRIVACY_CONTEXTUAL_SURFACING";
-
-// TODO(crbug.com/441735283): Remove once the rollout starts.
-// Overrides the return value of
-// AccountSettingService::IsWalletPrivacyContextualSurfacingEnabled() to true.
-constexpr char kEnableAutofillWalletPrivacyContextualSurfacingForTesting[] =
-    "enable-autofill-wallet-privacy-contextual-surfacing";
 }  // namespace
 
 AccountSettingService::AccountSettingService(
@@ -44,11 +37,17 @@ AccountSettingService::AccountSettingService(
 
 AccountSettingService::~AccountSettingService() = default;
 
+void AccountSettingService::AddObserver(
+    AccountSettingService::Observer* observer) {
+  observers_.AddObserver(observer);
+}
+
+void AccountSettingService::RemoveObserver(
+    AccountSettingService::Observer* observer) {
+  observers_.RemoveObserver(observer);
+}
+
 bool AccountSettingService::IsWalletPrivacyContextualSurfacingEnabled() const {
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          kEnableAutofillWalletPrivacyContextualSurfacingForTesting)) {
-    return true;
-  }
   if (!base::FeatureList::IsEnabled(syncer::kSyncAccountSettings)) {
     return false;
   }
@@ -67,6 +66,10 @@ AccountSettingService::GetSyncControllerDelegate() {
 void AccountSettingService::OnDataLoadedFromDisk() {
   base::UmaHistogramBoolean("Autofill.Ai.WalletContextualSurfacingEnabled",
                             IsWalletPrivacyContextualSurfacingEnabled());
+}
+
+void AccountSettingService::OnDataUpdated() {
+  observers_.Notify(&Observer::OnAccountSettingDataUpdated);
 }
 
 }  // namespace account_settings

@@ -552,6 +552,8 @@ class MediaStreamManager::DeviceRequest {
   void set_request_type(MediaStreamRequestType type) { request_type_ = type; }
   MediaStreamRequestType request_type() const { return request_type_; }
 
+  const std::string& label() const { return label_; }
+
   const StreamControls& stream_controls() const { return stream_controls_; }
 
   void SetAudioType(MediaStreamType audio_type) {
@@ -1285,7 +1287,7 @@ class MediaStreamManager::GenerateStreamsRequest
     DCHECK_CURRENTLY_ON(BrowserThread::IO);
     if (generate_streams_callback_) {
       std::move(generate_streams_callback_)
-          .Run(MediaStreamRequestResult::FAILED_DUE_TO_SHUTDOWN,
+          .Run(MediaStreamRequestResult::FAILED_DUE_TO_SHUTDOWN_REQUEST_REMOVED,
                /*label=*/std::string(),
                /*stream_devices_set=*/nullptr,
                /*pan_tilt_zoom_allowed=*/false);
@@ -1392,7 +1394,7 @@ class MediaStreamManager::GetOpenDeviceRequest
     DCHECK_CURRENTLY_ON(BrowserThread::IO);
     if (get_open_device_callback_) {
       std::move(get_open_device_callback_)
-          .Run(MediaStreamRequestResult::FAILED_DUE_TO_SHUTDOWN, nullptr);
+          .Run(MediaStreamRequestResult::FAILED_DUE_TO_SHUTDOWN_OTHER, nullptr);
     }
   }
 
@@ -2581,7 +2583,7 @@ void MediaStreamManager::PostRequestToUI(
   }
   DCHECK(request->HasUIRequest());
   SendLogMessage(
-      base::StringPrintf("PostRequestToUI({label=%s}, ", label.c_str()));
+      base::StringPrintf("PostRequestToUI({label=%s}", label.c_str()));
 
   const MediaStreamType audio_type = request->audio_type();
   const MediaStreamType video_type = request->video_type();
@@ -2731,7 +2733,8 @@ bool MediaStreamManager::SetUpDeviceCaptureRequest(
          (request->video_type() == MediaStreamType::DEVICE_VIDEO_CAPTURE ||
           request->video_type() == MediaStreamType::NO_SERVICE));
   SendLogMessage(base::StringPrintf(
-      "SetUpDeviceCaptureRequest([requester_id=%d])", request->requester_id));
+      "SetUpDeviceCaptureRequest([requester_id=%d] {label=%s})",
+      request->requester_id, request->label().c_str()));
   std::vector<std::string> audio_device_ids;
   if (request->stream_controls().audio.requested() &&
       !GetEligibleCaptureDeviceids(
@@ -3921,30 +3924,19 @@ void MediaStreamManager::NotifyDevicesChanged(
   }
 }
 
-bool MediaStreamManager::RequestDone(const DeviceRequest& request) const {
+// static
+bool MediaStreamManager::RequestDone(const DeviceRequest& request) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
-  SendLogMessage(base::StringPrintf(
-      "RequestDone({requester_id=%d}, {request_type=%s})", request.requester_id,
-      RequestTypeToString(request.request_type())));
 
-  const bool requested_audio =
-      blink::IsAudioInputMediaType(request.audio_type());
-  const bool requested_video =
-      blink::IsVideoInputMediaType(request.video_type());
-
-  const bool audio_done =
-      !requested_audio ||
-      request.state(request.audio_type()) == MEDIA_REQUEST_STATE_DONE ||
-      request.state(request.audio_type()) == MEDIA_REQUEST_STATE_ERROR;
-  if (!audio_done) {
+  if (blink::IsAudioInputMediaType(request.audio_type()) &&
+      request.state(request.audio_type()) != MEDIA_REQUEST_STATE_DONE &&
+      request.state(request.audio_type()) != MEDIA_REQUEST_STATE_ERROR) {
     return false;
   }
 
-  const bool video_done =
-      !requested_video ||
-      request.state(request.video_type()) == MEDIA_REQUEST_STATE_DONE ||
-      request.state(request.video_type()) == MEDIA_REQUEST_STATE_ERROR;
-  if (!video_done) {
+  if (blink::IsVideoInputMediaType(request.video_type()) &&
+      request.state(request.video_type()) != MEDIA_REQUEST_STATE_DONE &&
+      request.state(request.video_type()) != MEDIA_REQUEST_STATE_ERROR) {
     return false;
   }
 

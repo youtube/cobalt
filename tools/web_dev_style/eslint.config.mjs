@@ -6,7 +6,6 @@ import eslintPluginLit from '../../third_party/node/node_modules/eslint-plugin-l
 import stylistic from '../../third_party/node/node_modules/@stylistic/eslint-plugin/dist/index.js';
 import typescriptEslint from '../../third_party/node/node_modules/@typescript-eslint/eslint-plugin/dist/index.js';
 import tsParser from '../../third_party/node/node_modules/@typescript-eslint/parser/dist/index.js';
-import webUiEslint from '../../ui/webui/resources/tools/webui_eslint_plugin.js';
 
 const noRestrictedSyntaxCases = [
   {
@@ -106,6 +105,9 @@ export default [
       // Ignore generated checked-in JS file.
       'ios/tools/documents_statistics_viewer/tsc/viewer.js',
 
+      // No point checking minify_js expected output tests.
+      'ui/webui/resources/tools/tests/minify_js/*_expected.js',
+
       // ESLint is disabled for camera_app_ui and recorder_app_ui as they used
       // a custom eslint plugin that does not work with the latest eslint, and
       // they had complex eslint rc files that have not been updated to the
@@ -130,7 +132,9 @@ export default [
       ecmaVersion: 'latest',
       sourceType: 'module',
     },
-
+    plugins: {
+      '@stylistic': stylistic,
+    },
     rules: {
       // Enabled checks.
       'brace-style': ['error', '1tbs'],
@@ -218,6 +222,8 @@ export default [
         }
       ],
 
+      '@stylistic/eol-last': ['error'],
+
       // TODO(dpapad): Add more checks according to our styleguide.
     },
   },
@@ -227,13 +233,6 @@ export default [
     plugins: {
       '@typescript-eslint': typescriptEslint,
       '@stylistic': stylistic,
-
-      // Need to register the WebUI plugin even though it is not used in the
-      // configuration below, to prevent errors like
-      // "Definition for rule XYZ was not found  @webui-eslint/XYZ"
-      // when encountering 'eslint-disable-next-line' comments referencing rules
-      // defined in the `webUiEslint` plugin.
-      '@webui-eslint': webUiEslint,
     },
 
     languageOptions: {
@@ -257,8 +256,6 @@ export default [
       // parameter.
       'no-array-constructor': 'off',
       '@typescript-eslint/no-array-constructor': 'error',
-
-      '@stylistic/eol-last': ['error'],
 
       // https://google.github.io/styleguide/tsguide.html#automatic-semicolon-insertion
       semi: 'off',

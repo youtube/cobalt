@@ -175,6 +175,10 @@ class BnplManager : public AutofillManager::Observer {
   void OnVcnDetailsFetched(PaymentsAutofillClient::PaymentsRpcResult result,
                            const BnplFetchVcnResponseDetails& response_details);
 
+  // Cancels in-progress requests to `PaymentsNetworkInterface` and invalidates
+  // `BnplManager` weak pointers from the factory.
+  void CancelOngoingRequests();
+
   // Cancels in-progress requests to `PaymentsNetworkInterface` and resets the
   // BNPL flow state. Also invalidates `BnplManager` weak pointers from the
   // factory.
@@ -293,6 +297,10 @@ class BnplManager : public AutofillManager::Observer {
   void UpdateSuggestionsOnAiAmountExtractionResponse(
       const std::vector<payments::BnplIssuerContext>& issuer_contexts);
 
+  // Replace the existing BNPL suggestions on the Pay Later tab of the
+  // suggestion dropdown with a loading throbber.
+  void ShowProgressUiForPayLaterTab();
+
   // Hides the autofill suggestions or removes the select BNPL issuer or
   // progress UI.
   void HideSuggestionsOrRemoveSelectBnplIssuerOrProgressUi();
@@ -342,6 +350,10 @@ class BnplManager : public AutofillManager::Observer {
   // Callback for updating the currently shown payments autofill suggestions.
   // Set when suggestions are shown, and reset when a BNPL flow is finished.
   UpdateSuggestionsCallback update_suggestions_callback_;
+
+  // True if the user has seen the amount extraction AI terms before. Set when
+  // suggestions are shown, and reset when a BNPL flow is ended.
+  std::optional<bool> user_has_seen_bnpl_ai_terms_before_;
 
   // Observes the AutofillManager so the BnplManager will be notified when
   // autofill suggestions are hidden.

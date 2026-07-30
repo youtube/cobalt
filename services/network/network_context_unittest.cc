@@ -10,6 +10,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -77,6 +78,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/network_anonymization_key.h"
 #include "net/base/network_change_notifier.h"
+#include "net/base/network_handle.h"
 #include "net/base/network_isolation_key.h"
 #include "net/base/proxy_chain.h"
 #include "net/base/proxy_server.h"
@@ -134,6 +136,8 @@
 #include "net/http/mock_http_cache.h"
 #include "net/http/transport_security_state.h"
 #include "net/http/transport_security_state_test_util.h"
+#include "net/log/net_log_source_type.h"
+#include "net/log/test_net_log.h"
 #include "net/nqe/network_quality_estimator_test_util.h"
 #include "net/proxy_resolution/configured_proxy_resolution_service.h"
 #include "net/proxy_resolution/proxy_config.h"
@@ -5634,7 +5638,9 @@ TEST_F(NetworkContextTest, CanaryDomainServiceProbe_FeatureDisabled) {
 
   net::CanaryDomainService* canary_domain_service =
       network_context->canary_domain_service_for_testing();
-  ASSERT_TRUE(canary_domain_service);
+  EXPECT_TRUE(canary_domain_service);
+  EXPECT_EQ(net::CanaryDomainCheckStatus::kInactive,
+            resolve_context.doh_fallback_canary_domain_check_status());
   EXPECT_EQ(mock_resolver->num_resolve(), 0u);
 }
 
@@ -6184,7 +6190,8 @@ TEST_F(NetworkContextTest, PreconnectHSTS) {
         net::PrivacyMode::PRIVACY_MODE_ENABLED,
         partition_connections ? network_anonymization_key
                               : net::NetworkAnonymizationKey(),
-        net::SecureDnsPolicy::kAllow, /*disable_cert_network_fetches=*/false);
+        net::SecureDnsPolicy::kAllow, /*disable_cert_network_fetches=*/false,
+        net::handles::kInvalidNetworkHandle);
 
     const GURL server_http_url = GetHttpUrlFromHttps(test_server.base_url());
     ASSERT_TRUE(server_http_url.SchemeIs(url::kHttpScheme));
@@ -6193,7 +6200,8 @@ TEST_F(NetworkContextTest, PreconnectHSTS) {
         net::PrivacyMode::PRIVACY_MODE_ENABLED,
         partition_connections ? network_anonymization_key
                               : net::NetworkAnonymizationKey(),
-        net::SecureDnsPolicy::kAllow, /*disable_cert_network_fetches=*/false);
+        net::SecureDnsPolicy::kAllow, /*disable_cert_network_fetches=*/false,
+        net::handles::kInvalidNetworkHandle);
 
     network_context->PreconnectSockets(
         1, server_http_url, network::mojom::CredentialsMode::kOmit,
@@ -6356,11 +6364,13 @@ TEST_F(NetworkContextTest, PreconnectNetworkIsolationKey) {
   url::SchemeHostPort destination(test_server.base_url());
   net::ClientSocketPool::GroupId group_id1(
       destination, net::PrivacyMode::PRIVACY_MODE_ENABLED, kNak1,
-      net::SecureDnsPolicy::kAllow, /*disable_cert_network_fetches=*/false);
+      net::SecureDnsPolicy::kAllow, /*disable_cert_network_fetches=*/false,
+      net::handles::kInvalidNetworkHandle);
   EXPECT_EQ(1, GetSocketCountForGroup(network_context.get(), group_id1));
   net::ClientSocketPool::GroupId group_id2(
       destination, net::PrivacyMode::PRIVACY_MODE_ENABLED, kNak2,
-      net::SecureDnsPolicy::kAllow, /*disable_cert_network_fetches=*/false);
+      net::SecureDnsPolicy::kAllow, /*disable_cert_network_fetches=*/false,
+      net::handles::kInvalidNetworkHandle);
   EXPECT_EQ(2, GetSocketCountForGroup(network_context.get(), group_id2));
 }
 
@@ -12762,6 +12772,36 @@ TEST_F(NetworkContextTest, ProvidedResponseBodyStream) {
   EXPECT_TRUE(mojo::BlockingCopyToString(std::move(consumer), &body));
   EXPECT_EQ("<!doctype html>\n<p>hello</p>\n", body);
 }
+
+// Tests for WebSocket NetLog tracking feature.
+// The core NetLog entry creation logic is tested in websocket_factory_unittest
+// and websocket_channel_test. These tests cover the NetworkContext delegation
+// layer.
+class NetworkContextWebSocketNetLogTest : public NetworkContextTest {};
+
+#if BUILDFLAG(ENABLE_WEBSOCKETS)
+TEST_F(NetworkContextWebSocketNetLogTest,
+       CreateNetLogEntriesWithNoWebSocketFactory) {
+  // Create a network context without any WebSocket factory
+  std::unique_ptr<NetworkContext> network_context =
+      CreateContextWithParams(CreateNetworkContextParamsForTesting());
+
+  // Create a RecordingNetLogObserver to capture events
+  net::RecordingNetLogObserver observer(
+      network_context->url_request_context()->net_log(),
+      net::NetLogCaptureMode::kIncludeSensitive);
+
+  // Should not crash and should not create any entries
+  network_context->CreateNetLogEntriesForActiveWebSockets(&observer);
+
+  // No WEBSOCKET_ALIVE entries should be created
+  std::vector<net::NetLogEntry> entries =
+      observer.GetEntriesWithType(net::NetLogEventType::WEBSOCKET_ALIVE);
+  EXPECT_TRUE(entries.empty());
+}
+
+#endif  // BUILDFLAG(ENABLE_WEBSOCKETS)
+
 }  // namespace
 
 }  // namespace network

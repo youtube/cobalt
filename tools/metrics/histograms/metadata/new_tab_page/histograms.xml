@@ -637,7 +637,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.Customization.Theme.Type" enum="NtpBackgroundType"
-    expires_after="2026-05-10">
+    expires_after="2027-05-10">
   <owner>hanxi@chromium.org</owner>
   <owner>yyanting@google.com</owner>
   <owner>clank-start@google.com</owner>
@@ -1634,6 +1634,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="NewTabPage.Modules.AutoRemovalSkipped{Reason}"
     enum="NtpModules" expires_after="2026-08-30">
+  <owner>giannich@google.com</owner>
   <owner>romanarora@chromium.org</owner>
   <owner>tiborg@chromium.org</owner>
   <owner>chrome-desktop-ntp@google.com</owner>
@@ -1661,6 +1662,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="NewTabPage.Modules.AutoRemovalStaleDays{NewTabPageModules}"
     units="count" expires_after="2026-08-30">
+  <owner>giannich@google.com</owner>
   <owner>romanarora@chromium.org</owner>
   <owner>tiborg@chromium.org</owner>
   <owner>chrome-desktop-ntp@google.com</owner>
@@ -1904,7 +1906,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NewTabPage.Modules.LoadedModulesCount" units="count"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>romanarora@chromium.org</owner>
   <owner>tiborg@chromium.org</owner>
   <owner>chrome-desktop-ntp@google.com</owner>
@@ -2068,6 +2070,40 @@ chromium-metrics-reviews@google.com.
   <summary>Logs whether the NTP modules are visible at NTP load.</summary>
 </histogram>
 
+<histogram name="NewTabPage.MostVisited.AutoRemovalSkipped"
+    enum="NtpShortcutsAutoRemovalReason" expires_after="2026-08-30">
+  <owner>giannich@google.com</owner>
+  <owner>romanarora@chromium.org</owner>
+  <owner>tiborg@chromium.org</owner>
+  <owner>chrome-desktop-ntp@google.com</owner>
+  <summary>
+    Logged when the auto-removal logic is skipped for the most visited tiles.
+    This can happen due to a variety of reasons, and it's the default steady
+    state for the most visited tiles.
+
+    Only logged on the 1P NTP. Note that even if the user has Google as their
+    default search engine, Incognito and Guest mode NTPs are not considered 1P
+    and don't log this histogram.
+  </summary>
+</histogram>
+
+<histogram name="NewTabPage.MostVisited.AutoRemovalStaleDays" units="count"
+    expires_after="2026-08-30">
+  <owner>giannich@google.com</owner>
+  <owner>romanarora@chromium.org</owner>
+  <owner>tiborg@chromium.org</owner>
+  <owner>chrome-desktop-ntp@google.com</owner>
+  <summary>
+    Logged when the staleness count is updated for most visited tiles. This is
+    logged only once per staleness threshold update interval, which is typically
+    once a day. Note that the value being logged is the old staleness count.
+
+    Only logged on the 1P NTP. Note that even if the user has Google as their
+    default search engine, Incognito and Guest mode NTPs are not considered 1P
+    and don't log this histogram.
+  </summary>
+</histogram>
+
 <histogram name="NewTabPage.MostVisited.DeciScore.{TileIndex}.Local"
     units="deciscore" expires_after="2025-08-10">
   <owner>fredmello@chromium.org</owner>
@@ -2090,6 +2126,20 @@ chromium-metrics-reviews@google.com.
     <variant name="8"/>
     <variant name="9"/>
   </token>
+</histogram>
+
+<histogram name="NewTabPage.MostVisited.IsExpandedOnLoad" enum="Boolean"
+    expires_after="2027-03-17">
+  <owner>adamyao@google.com</owner>
+  <owner>chrome-desktop-ntp@google.com</owner>
+  <summary>
+    Logs whether the Most Visited tiles were in the expanded state (showing more
+    than the default number of tiles) when the NTP was loaded. Logged when Most
+    Visited tiles are rendered (e.g., on NTP load and refresh). True (1) is
+    logged when the Most Visited tiles are expanded, showing more than the
+    default number of tiles. False (0) is logged when they are not expanded,
+    showing the default number of tiles.
+  </summary>
 </histogram>
 
 <histogram name="NewTabPage.MostVisited.NumberOfCustomTilesOnFirstNtp"
@@ -2119,6 +2169,17 @@ chromium-metrics-reviews@google.com.
     <variant name="LaxUpToRef"/>
     <variant name="Strict"/>
   </token>
+</histogram>
+
+<histogram name="NewTabPage.MostVisited.ShowActionsToggleClicked"
+    enum="MostVisitedShowActions" expires_after="2027-03-17">
+  <owner>adamyao@google.com</owner>
+  <owner>chrome-desktop-ntp@google.com</owner>
+  <summary>
+    Logs clicks on the &quot;Show more&quot; and &quot;Show less&quot; buttons
+    in the Most Visited component. Logged when the show more or show less action
+    chip is clicked.
+  </summary>
 </histogram>
 
 <histogram name="NewTabPage.MostVisitedMigratedDefaultAppType"

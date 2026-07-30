@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {isEspeak, isNatural} from '../read_aloud/voice_language_conversions.js';
+import {hasEspeakIdentifier, hasNaturalIdentifier} from '../read_aloud/voice_language_conversions.js';
 
 import {MetricsBrowserProxyImpl, ReadAnythingSpeechError, ReadAnythingVoiceType} from './metrics_browser_proxy.js';
 import type {MetricsBrowserProxy, ReadAloudSettingsChange, ReadAnythingSettingsChange} from './metrics_browser_proxy.js';
@@ -71,6 +71,9 @@ export class ReadAnythingLogger {
       case 'timeout-engine-stalled':
         error = ReadAnythingSpeechError.TIMEOUT_ENGINE_STALLED;
         break;
+      case 'timeout-stalled-after-recovery':
+        error = ReadAnythingSpeechError.TIMEOUT_STALLED_AFTER_ENGINE_RECOVERY;
+        break;
       default:
         return;
     }
@@ -101,9 +104,9 @@ export class ReadAnythingLogger {
     }
 
     let voiceType: ReadAnythingVoiceType;
-    if (isNatural(voice)) {
+    if (hasNaturalIdentifier(voice)) {
       voiceType = ReadAnythingVoiceType.NATURAL;
-    } else if (isEspeak(voice)) {
+    } else if (hasEspeakIdentifier(voice)) {
       voiceType = ReadAnythingVoiceType.ESPEAK;
     } else {
       // <if expr="is_chromeos">

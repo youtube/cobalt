@@ -33,7 +33,8 @@ public class ActorForegroundServiceManager implements ActorKeyedService.Observer
     private static final String TAG = "ActorFgsMngr";
     public static final int INVALID_NOTIFICATION_ID = -1;
     // Delay to ensure start/stop foreground doesn't happen too quickly.
-    private static int sWaitTimeMs = 200;
+    private static final int ONE_HOUR_MS = 60 * 60 * 1000;
+    private static int sWaitTimeMs = ONE_HOUR_MS;
 
     @Nullable private static ActorForegroundServiceManager sInstance;
 
@@ -141,9 +142,9 @@ public class ActorForegroundServiceManager implements ActorKeyedService.Observer
         if (mNotificationService == null || mKeyedService == null) return;
         mNotificationService.updateNotificationForTask(taskId, newState);
 
-        // Currently we only consider ongoing tasks as "active".
+        // Any task that is not completed is considered active for the foreground service.
         ActorTask task = mKeyedService.getTask(taskId);
-        if (task != null && !task.isCompleted() && task.isUnderActorControl()) {
+        if (task != null && !task.isCompleted()) {
             mActiveTaskIds.add(taskId);
         } else {
             mActiveTaskIds.remove(taskId);
@@ -158,10 +159,6 @@ public class ActorForegroundServiceManager implements ActorKeyedService.Observer
         int activeTaskCount = mKeyedService.getActiveTasksCount();
         boolean hasActiveTasks = activeTaskCount > 0 && !mActiveTaskIds.isEmpty();
 
-        if (!canStartForeground()) {
-            return;
-        }
-
         if (!mIsServiceBound) {
             if (!hasActiveTasks) return;
             startAndBindService();
@@ -173,6 +170,11 @@ public class ActorForegroundServiceManager implements ActorKeyedService.Observer
         }
 
         if (hasActiveTasks) {
+            // Check if we are allowed to start the foreground state. Updates are always allowed
+            // if the service is already in foreground.
+            if (!mStartForegroundCalled && !canStartForeground()) {
+                return;
+            }
             mHandler.removeCallbacks(mMaybeStopServiceRunnable);
             mStopServiceDelayed = false;
 

@@ -37,14 +37,15 @@ ImageBitmapRenderingContext::ImageBitmapRenderingContext(
 
 ImageBitmapRenderingContext::~ImageBitmapRenderingContext() = default;
 
-V8UnionHTMLCanvasElementOrOffscreenCanvas*
-ImageBitmapRenderingContext::getHTMLOrOffscreenCanvas() const {
+V8UnionHTMLCanvasElementOrOffscreenCanvas::Ret
+ImageBitmapRenderingContext::getHTMLOrOffscreenCanvas(
+    ScriptState* script_state) const {
   if (Host()->IsOffscreenCanvas()) {
-    return MakeGarbageCollected<V8UnionHTMLCanvasElementOrOffscreenCanvas>(
-        static_cast<OffscreenCanvas*>(Host()));
+    return V8UnionHTMLCanvasElementOrOffscreenCanvas::Ret(
+        script_state, static_cast<OffscreenCanvas*>(Host()));
   }
-  return MakeGarbageCollected<V8UnionHTMLCanvasElementOrOffscreenCanvas>(
-      static_cast<HTMLCanvasElement*>(Host()));
+  return V8UnionHTMLCanvasElementOrOffscreenCanvas::Ret(
+      script_state, static_cast<HTMLCanvasElement*>(Host()));
 }
 
 void ImageBitmapRenderingContext::Reset() {
@@ -221,13 +222,12 @@ bool ImageBitmapRenderingContext::PushFrame() {
 
   cc::PaintFlags paint_flags;
   paint_flags.setBlendMode(SkBlendMode::kSrc);
-  resource_provider_for_offscreen_canvas_->Canvas().drawImage(
+  resource_provider_for_offscreen_canvas_->GetCanvasDeprecated().drawImage(
       image->PaintImageForCurrentFrame(), 0, 0, SkSamplingOptions(),
       &paint_flags);
   scoped_refptr<CanvasResource> resource =
-      resource_provider_for_offscreen_canvas_->ProduceCanvasResource(
-          FlushReason::kOther);
-  Host()->PushFrame(std::move(resource), std::nullopt);
+      resource_provider_for_offscreen_canvas_->ProduceCanvasResource();
+  Host()->PushFrame(std::move(resource));
   return true;
 }
 

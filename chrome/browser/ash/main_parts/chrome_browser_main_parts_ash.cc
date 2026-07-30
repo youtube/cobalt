@@ -822,7 +822,8 @@ int ChromeBrowserMainPartsAsh::PreMainMessageLoopRun() {
 
   // Initialize NSS database for system token.
   system_token_certdb_initializer_ =
-      std::make_unique<SystemTokenCertDBInitializer>();
+      std::make_unique<SystemTokenCertDBInitializer>(
+          g_browser_process->local_state());
 
   system_token_key_permissions_manager_ = platform_keys::
       KeyPermissionsManagerImpl::CreateSystemTokenKeyPermissionsManager(
@@ -869,7 +870,8 @@ int ChromeBrowserMainPartsAsh::PreMainMessageLoopRun() {
 
   // Start loading machine statistics here. StatisticsProvider::Shutdown()
   // will ensure that loading is aborted on early exit.
-  bool load_oem_statistics = !StartupUtils::IsOobeCompleted();
+  bool load_oem_statistics = !StartupUtils::IsOobeCompleted(
+      CHECK_DEREF(g_browser_process->local_state()));
   system::StatisticsProvider::GetInstance()->StartLoadingMachineStatistics(
       load_oem_statistics);
 
@@ -1803,9 +1805,7 @@ void ChromeBrowserMainPartsAsh::PostMainMessageLoopRun() {
 
   // TokenHandleStore needs to outlive the Profile, which
   // is destroyed inside ChromeBrowserMainPartsLinux::PostMainMessageLoopRun().
-  if (ash::features::IsUseTokenHandleStoreEnabled()) {
-    TokenHandleStoreFactory::Get()->DestroyTokenHandleStore();
-  }
+  TokenHandleStoreFactory::Get()->DestroyTokenHandleStore();
 
   magic_boost_controller_.reset();
 

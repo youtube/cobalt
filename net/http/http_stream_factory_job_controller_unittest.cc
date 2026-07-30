@@ -119,7 +119,11 @@ const std::string_view kHttpTestUrls[] = {"http://www.example.com",
 
 // The default delay for main job defined in QuicSessionPool::
 // GetTimeDelayForWaitingJob().
+#if BUILDFLAG(IS_ANDROID)
+const int kDefaultDelayMilliSecsForWaitingJob = 400;
+#else
 const int kDefaultDelayMilliSecsForWaitingJob = 300;
+#endif  // BUILDFLAG(IS_ANDROID)
 
 // Phases in which errors will happen for HTTP, HTTPS and SOCKS5 tests.
 enum class TcpErrorPhase {
@@ -781,10 +785,10 @@ TEST_P(HttpStreamFactoryJobControllerDualPathTest,
   EXPECT_TRUE(HttpStreamFactoryPeer::IsJobControllerDeleted(factory_));
 
   // There should be no H1/H2 connection.
-  ClientSocketPool::GroupId group_id(server, PRIVACY_MODE_DISABLED,
-                                     NetworkAnonymizationKey(),
-                                     SecureDnsPolicy::kAllow,
-                                     /*disable_cert_network_fetches=*/false);
+  ClientSocketPool::GroupId group_id(
+      server, PRIVACY_MODE_DISABLED, NetworkAnonymizationKey(),
+      SecureDnsPolicy::kAllow,
+      /*disable_cert_network_fetches=*/false, handles::kInvalidNetworkHandle);
   TransportClientSocketPool* socket_pool =
       reinterpret_cast<TransportClientSocketPool*>(session_->GetSocketPool(
           HttpNetworkSession::SocketPoolType::kNormal, ProxyChain::Direct()));
@@ -831,10 +835,10 @@ TEST_P(HttpStreamFactoryJobControllerDualPathTest,
   EXPECT_TRUE(HttpStreamFactoryPeer::IsJobControllerDeleted(factory_));
 
   // There should be no H1/H2 connection.
-  ClientSocketPool::GroupId group_id(server, PRIVACY_MODE_DISABLED,
-                                     NetworkAnonymizationKey(),
-                                     SecureDnsPolicy::kAllow,
-                                     /*disable_cert_network_fetches=*/false);
+  ClientSocketPool::GroupId group_id(
+      server, PRIVACY_MODE_DISABLED, NetworkAnonymizationKey(),
+      SecureDnsPolicy::kAllow,
+      /*disable_cert_network_fetches=*/false, handles::kInvalidNetworkHandle);
   TransportClientSocketPool* socket_pool =
       reinterpret_cast<TransportClientSocketPool*>(session_->GetSocketPool(
           HttpNetworkSession::SocketPoolType::kNormal, ProxyChain::Direct()));
@@ -889,10 +893,10 @@ TEST_P(HttpStreamFactoryJobControllerDualPathTest,
   EXPECT_TRUE(request_delegate_->WaitForHttpStream());
 
   // There should be no H1/H2 connection.
-  ClientSocketPool::GroupId group_id(server, PRIVACY_MODE_DISABLED,
-                                     NetworkAnonymizationKey(),
-                                     SecureDnsPolicy::kAllow,
-                                     /*disable_cert_network_fetches=*/false);
+  ClientSocketPool::GroupId group_id(
+      server, PRIVACY_MODE_DISABLED, NetworkAnonymizationKey(),
+      SecureDnsPolicy::kAllow,
+      /*disable_cert_network_fetches=*/false, handles::kInvalidNetworkHandle);
   TransportClientSocketPool* socket_pool =
       reinterpret_cast<TransportClientSocketPool*>(session_->GetSocketPool(
           HttpNetworkSession::SocketPoolType::kNormal, ProxyChain::Direct()));
@@ -4361,6 +4365,11 @@ TEST_F(HttpStreamFactoryJobControllerTest, InvalidPortForQuic) {
 // Verifies that the main job is not resumed until after the alt job completes
 // host resolution.
 TEST_F(HttpStreamFactoryJobControllerTest, HostResolutionHang) {
+  // Explicitly disable the kAdditionalDelayMainJob feature, since this would
+  // add a delay to the main job and cause the test to fail.
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(net::features::kAdditionalDelayMainJob);
+
   auto hanging_resolver = std::make_unique<MockHostResolver>();
   hanging_resolver->set_ondemand_mode(true);
   hanging_resolver->rules()->AddRule("www.google.com", "1.2.3.4");
@@ -4370,6 +4379,7 @@ TEST_F(HttpStreamFactoryJobControllerTest, HostResolutionHang) {
   request_info.method = "GET";
   request_info.url = GURL("https://www.google.com");
 
+  SetNotDelayMainJobWithAvailableSpdySession();
   Initialize(request_info);
 
   // handshake will fail asynchronously after mock data is unpaused.
@@ -5230,15 +5240,15 @@ TEST_F(JobControllerLimitMultipleH2Requests,
   ClientSocketPool::GroupId group_id0(
       url::SchemeHostPort(request_info.url), request_info.privacy_mode,
       NetworkAnonymizationKey(), SecureDnsPolicy::kAllow,
-      /*disable_cert_network_fetches=*/false);
+      /*disable_cert_network_fetches=*/false, handles::kInvalidNetworkHandle);
   ClientSocketPool::GroupId group_id1(
       url::SchemeHostPort(request_info.url), request_info.privacy_mode,
       kNetworkAnonymizationKey1, SecureDnsPolicy::kAllow,
-      /*disable_cert_network_fetches=*/false);
+      /*disable_cert_network_fetches=*/false, handles::kInvalidNetworkHandle);
   ClientSocketPool::GroupId group_id2(
       url::SchemeHostPort(request_info.url), request_info.privacy_mode,
       kNetworkAnonymizationKey2, SecureDnsPolicy::kAllow,
-      /*disable_cert_network_fetches=*/false);
+      /*disable_cert_network_fetches=*/false, handles::kInvalidNetworkHandle);
   EXPECT_EQ(static_cast<uint32_t>(kNumRequests),
             socket_pool->NumConnectJobsInGroupForTesting(group_id0));
   EXPECT_EQ(1u, socket_pool->NumConnectJobsInGroupForTesting(group_id1));

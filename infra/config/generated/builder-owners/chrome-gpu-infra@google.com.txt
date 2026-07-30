@@ -88,6 +88,7 @@ ci/GPU Linux Builder
 ci/GPU Linux Builder (dbg)
 ci/GPU Mac Builder
 ci/GPU Mac Builder (dbg)
+ci/GPU Mac arm64 Builder
 ci/GPU Win x64 Builder
 ci/GPU Win x64 Builder (dbg)
 ci/Linux Debug (NVIDIA)
@@ -95,6 +96,7 @@ ci/Linux FYI Debug (NVIDIA)
 ci/Linux FYI Experimental Release (AMD 780M)
 ci/Linux FYI Experimental Release (AMD 890M)
 ci/Linux FYI Experimental Release (AMD 9900X)
+ci/Linux FYI Experimental Release (AMD RX 5500XT)
 ci/Linux FYI Experimental Release (Intel Arc 140V)
 ci/Linux FYI Experimental Release (Intel UHD 630)
 ci/Linux FYI Experimental Release (NVIDIA)
@@ -127,6 +129,7 @@ ci/Mac Pro FYI Release (AMD)
 ci/Mac Release (Intel)
 ci/Mac Retina Debug (AMD)
 ci/Mac Retina Release (AMD)
+ci/Mac Retina Release (Apple M2)
 ci/Win10 FYI x64 DX12 Vulkan Debug (NVIDIA)
 ci/Win10 FYI x64 DX12 Vulkan Release (NVIDIA)
 ci/Win10 FYI x64 Debug (NVIDIA)
@@ -209,6 +212,7 @@ try/gpu-fyi-try-linux-amd-780m-exp
 try/gpu-fyi-try-linux-amd-890m-exp
 try/gpu-fyi-try-linux-amd-9900x-exp
 try/gpu-fyi-try-linux-amd-rel
+try/gpu-fyi-try-linux-amd-rx-5500xt-exp
 try/gpu-fyi-try-linux-amd-rx-7600-rel
 try/gpu-fyi-try-linux-intel-arc-140v-exp
 try/gpu-fyi-try-linux-intel-exp

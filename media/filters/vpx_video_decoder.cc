@@ -17,7 +17,6 @@
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/logging.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/numerics/byte_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "base/trace_event/trace_event.h"
@@ -98,25 +97,6 @@ static int32_t ReleaseVP9FrameBuffer(void* user_priv,
   FrameBufferPool* pool = static_cast<FrameBufferPool*>(user_priv);
   pool->ReleaseFrameBuffer(fb->priv);
   return 0;
-}
-
-// static
-SupportedVideoDecoderConfigs VpxVideoDecoder::SupportedConfigs() {
-  SupportedVideoDecoderConfigs supported_configs;
-  supported_configs.emplace_back(/*profile_min=*/VP8PROFILE_ANY,
-                                 /*profile_max=*/VP8PROFILE_ANY,
-                                 /*coded_size_min=*/kDefaultSwDecodeSizeMin,
-                                 /*coded_size_max=*/kDefaultSwDecodeSizeMax,
-                                 /*allow_encrypted=*/false,
-                                 /*require_encrypted=*/false);
-
-  supported_configs.emplace_back(/*profile_min=*/VP9PROFILE_PROFILE0,
-                                 /*profile_max=*/VP9PROFILE_PROFILE2,
-                                 /*coded_size_min=*/kDefaultSwDecodeSizeMin,
-                                 /*coded_size_max=*/kDefaultSwDecodeSizeMax,
-                                 /*allow_encrypted=*/false,
-                                 /*require_encrypted=*/false);
-  return supported_configs;
 }
 
 VpxVideoDecoder::VpxVideoDecoder(OffloadState offload_state)
@@ -333,20 +313,9 @@ bool VpxVideoDecoder::VpxDecode(const DecoderBuffer* buffer,
     return true;
   }
 
-  static constexpr size_t kItut35HeaderSize = 7;
-  if (buffer->side_data() &&
-      buffer->side_data()->itu_t35_data.size() >= kItut35HeaderSize) {
-    auto side_data = buffer->side_data()->itu_t35_data.as_span();
-    static constexpr uint8_t kItut35CountryCodeExtensionMarker = 0xFF;
-    if (side_data.data()[0] == kItut35CountryCodeExtensionMarker) {
-      side_data = side_data.subspan(1u);
-    }
-    auto [country_code, payload] = side_data.split_at<1u>();
-    if (auto agtm = GetSerializedAgtmItutT35(country_code.data()[0], payload)) {
-      gfx::HDRMetadata hdr_metadata = config_.hdr_metadata();
-      hdr_metadata.setSerializedAgtm(agtm);
-      config_.set_hdr_metadata(hdr_metadata);
-    }
+  if (buffer->side_data()) {
+    config_.writable_hdr_metadata().MergeMetadataFrom(
+        buffer->side_data()->hdr_metadata);
   }
 
   const vpx_image_t* vpx_image_alpha = nullptr;

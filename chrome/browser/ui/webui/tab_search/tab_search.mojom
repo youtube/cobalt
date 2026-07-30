@@ -4,35 +4,12 @@
 
 module tab_search.mojom;
 
-import "mojo/public/mojom/base/string16.mojom";
 import "components/tab_groups/public/mojom/tab_group_types.mojom";
+import "components/tabs/public/mojom/tabs.mojom";
+import "mojo/public/mojom/base/string16.mojom";
 import "mojo/public/mojom/base/time.mojom";
 import "mojo/public/mojom/base/token.mojom";
 import "url/mojom/url.mojom";
-import "chrome/browser/ui/webui/tabs/tabs.mojom";
-
-// These values are persisted and must not be renumbered or reordered.
-[Stable, Extensible]
-enum TabOrganizationFeature {
-  [Default] kNone = 0,
-  kSelector = 1, // Deprecated
-  kAutoTabGroups = 2, // Deprecated
-  kDeclutter = 3, // Deprecated
-};
-
-enum TabOrganizationModelStrategy {
-  kTopic,
-  kTask,
-  kDomain,
-};
-
-// These values are persisted and must not be renumbered or reordered.
-[Stable, Extensible]
-enum TabSearchSection {
-  [Default] kNone = 0,
-  kSearch = 1,
-  kOrganize = 2, // Deprecated
-};
 
 // Collection of tab searching details associated with a profile.
 struct ProfileData {
@@ -200,8 +177,8 @@ struct TabsRemovedInfo {
 // Used by the WebUI page to bootstrap bidirectional communication.
 interface PageHandlerFactory {
   // The WebUI calls this method when the page is first initialized.
-  CreatePageHandler(pending_remote<Page> page,
-                    pending_receiver<PageHandler> handler);
+  CreatePageHandler(
+      pending_remote<Page> page, pending_receiver<PageHandler> handler);
 };
 
 // Browser-side handler for requests from WebUI page.
@@ -234,9 +211,6 @@ interface PageHandler {
 
   // Force trigger the tab group tutorial.
   StartTabGroupTutorial();
-
-  // Initiate the sign in flow.
-  TriggerSignIn();
 
   // Notify the backend that the UI is ready to be shown.
   MaybeShowUI();

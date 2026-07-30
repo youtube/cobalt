@@ -12,7 +12,7 @@
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
-#include "components/accessibility_annotator/core/annotation_reducer/autofill_data_provider.h"
+#include "components/accessibility_annotator/core/annotation_reducer/memory_data_provider.h"
 #include "components/accessibility_annotator/core/annotation_reducer/memory_search_result.h"
 #include "components/accessibility_annotator/core/annotation_reducer/query_intent_type.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -21,17 +21,19 @@ namespace accessibility_annotator {
 
 namespace {
 
-using ::accessibility_annotator::AutofillDataProvider;
+using ::accessibility_annotator::MemoryDataProvider;
 using ::accessibility_annotator::MemorySearchResult;
 using ::accessibility_annotator::MemorySearchResults;
 using ::accessibility_annotator::MemorySearchStatus;
 using ::accessibility_annotator::QueryIntentType;
 
-class FakeAutofillDataProvider : public AutofillDataProvider {
+class FakeMemoryDataProvider : public MemoryDataProvider {
  public:
-  std::vector<MemorySearchResult> RetrieveAll(QueryIntentType type) override {
+  void RetrieveAll(QueryIntentType type,
+                   base::OnceCallback<void(std::vector<MemorySearchResult>)>
+                       callback) override {
     last_type_ = type;
-    return results_;
+    std::move(callback).Run(results_);
   }
   void set_results(std::vector<MemorySearchResult> results) {
     results_ = std::move(results);
@@ -51,13 +53,78 @@ class AccessibilityQueryServiceTest : public testing::Test {
   base::test::SingleThreadTaskEnvironment task_environment_;
 };
 
+// Tests that the query service returns an internal failure status after
+// shutdown.
+TEST_F(AccessibilityQueryServiceTest, Query_AfterShutdown) {
+  auto data_provider = std::make_unique<FakeMemoryDataProvider>();
+  std::vector<std::unique_ptr<MemoryDataProvider>> providers;
+  providers.push_back(std::move(data_provider));
+  auto service = std::make_unique<AccessibilityQueryService>(
+      std::move(providers), /*remote_model_executor=*/nullptr);
+
+  service->Shutdown();
+
+  base::test::TestFuture<MemorySearchResults> future;
+  service->Query(u"what is my name", future.GetRepeatingCallback());
+
+  ASSERT_TRUE(future.Wait());
+  EXPECT_TRUE(future.Get().entries.empty());
+  EXPECT_EQ(future.Get().status, MemorySearchStatus::kInternalFailure);
+}
+
+// Tests that the query service returns an internal failure status when no
+// providers are available.
+TEST_F(AccessibilityQueryServiceTest, Query_NoProviders) {
+  std::vector<std::unique_ptr<MemoryDataProvider>> providers;
+  auto service = std::make_unique<AccessibilityQueryService>(
+      std::move(providers), /*remote_model_executor=*/nullptr);
+
+  base::test::TestFuture<MemorySearchResults> future;
+  service->Query(u"what is my name", future.GetRepeatingCallback());
+
+  ASSERT_TRUE(future.Wait());
+  EXPECT_TRUE(future.Get().entries.empty());
+  EXPECT_EQ(future.Get().status, MemorySearchStatus::kInternalFailure);
+}
+
+// Tests that the query service queries multiple providers and combines results.
+TEST_F(AccessibilityQueryServiceTest, Query_MultipleProviders) {
+  auto data_provider1 = std::make_unique<FakeMemoryDataProvider>();
+  auto* fake_data_provider1 = data_provider1.get();
+  auto data_provider2 = std::make_unique<FakeMemoryDataProvider>();
+  auto* fake_data_provider2 = data_provider2.get();
+
+  std::vector<std::unique_ptr<MemoryDataProvider>> providers;
+  providers.push_back(std::move(data_provider1));
+  providers.push_back(std::move(data_provider2));
+  auto service = std::make_unique<AccessibilityQueryService>(
+      std::move(providers), /*remote_model_executor=*/nullptr);
+
+  MemorySearchResult result1(QueryIntentType::kNameFull, u"Name", u"John Doe");
+  fake_data_provider1->set_results({result1});
+  MemorySearchResult result2(QueryIntentType::kNameFull, u"Name", u"Jane Doe");
+  fake_data_provider2->set_results({result2});
+
+  base::test::TestFuture<MemorySearchResults> future;
+  service->Query(u"what is my name", future.GetRepeatingCallback());
+
+  ASSERT_TRUE(future.Wait());
+  EXPECT_EQ(future.Get().entries.size(), 2u);
+  EXPECT_EQ(future.Get().entries[0].value, u"John Doe");
+  EXPECT_EQ(future.Get().entries[1].value, u"Jane Doe");
+  EXPECT_EQ(fake_data_provider1->last_type(), QueryIntentType::kNameFull);
+  EXPECT_EQ(fake_data_provider2->last_type(), QueryIntentType::kNameFull);
+}
+
 // Tests that the query service returns the expected results when the intent is
 // successfully classified.
 TEST_F(AccessibilityQueryServiceTest, Query_Success) {
-  auto data_provider = std::make_unique<FakeAutofillDataProvider>();
+  auto data_provider = std::make_unique<FakeMemoryDataProvider>();
   auto* fake_data_provider = data_provider.get();
-  auto service =
-      std::make_unique<AccessibilityQueryService>(std::move(data_provider));
+  std::vector<std::unique_ptr<MemoryDataProvider>> providers;
+  providers.push_back(std::move(data_provider));
+  auto service = std::make_unique<AccessibilityQueryService>(
+      std::move(providers), /*remote_model_executor=*/nullptr);
 
   MemorySearchResult result(QueryIntentType::kNameFull, u"Name", u"John Doe");
   fake_data_provider->set_results({result});
@@ -74,9 +141,11 @@ TEST_F(AccessibilityQueryServiceTest, Query_Success) {
 // Tests that the query service returns an empty list when the intent is
 // unknown.
 TEST_F(AccessibilityQueryServiceTest, Query_UnknownIntent) {
-  auto data_provider = std::make_unique<FakeAutofillDataProvider>();
-  auto service =
-      std::make_unique<AccessibilityQueryService>(std::move(data_provider));
+  auto data_provider = std::make_unique<FakeMemoryDataProvider>();
+  std::vector<std::unique_ptr<MemoryDataProvider>> providers;
+  providers.push_back(std::move(data_provider));
+  auto service = std::make_unique<AccessibilityQueryService>(
+      std::move(providers), /*remote_model_executor=*/nullptr);
 
   base::test::TestFuture<MemorySearchResults> future;
   service->Query(u"random query", future.GetRepeatingCallback());
@@ -89,10 +158,12 @@ TEST_F(AccessibilityQueryServiceTest, Query_UnknownIntent) {
 // Tests that the query service correctly filters results when filter words
 // are present in the query.
 TEST_F(AccessibilityQueryServiceTest, Query_WithFilterWords) {
-  auto data_provider = std::make_unique<FakeAutofillDataProvider>();
+  auto data_provider = std::make_unique<FakeMemoryDataProvider>();
   auto* fake_data_provider = data_provider.get();
-  auto service =
-      std::make_unique<AccessibilityQueryService>(std::move(data_provider));
+  std::vector<std::unique_ptr<MemoryDataProvider>> providers;
+  providers.push_back(std::move(data_provider));
+  auto service = std::make_unique<AccessibilityQueryService>(
+      std::move(providers), /*remote_model_executor=*/nullptr);
 
   MemorySearchResult entry1(QueryIntentType::kAddressFull, u"Address",
                             u"123 San Diego St Home San Diego");
@@ -115,10 +186,12 @@ TEST_F(AccessibilityQueryServiceTest, Query_WithFilterWords) {
 // classified intent if none of the results match the filter words.
 TEST_F(AccessibilityQueryServiceTest,
        Query_WithFilterWords_NoMatch_ReturnsAll) {
-  auto data_provider = std::make_unique<FakeAutofillDataProvider>();
+  auto data_provider = std::make_unique<FakeMemoryDataProvider>();
   auto* fake_data_provider = data_provider.get();
-  auto service =
-      std::make_unique<AccessibilityQueryService>(std::move(data_provider));
+  std::vector<std::unique_ptr<MemoryDataProvider>> providers;
+  providers.push_back(std::move(data_provider));
+  auto service = std::make_unique<AccessibilityQueryService>(
+      std::move(providers), /*remote_model_executor=*/nullptr);
 
   MemorySearchResult entry(QueryIntentType::kAddressFull, u"Address",
                            u"123 San Diego St Home San Diego");

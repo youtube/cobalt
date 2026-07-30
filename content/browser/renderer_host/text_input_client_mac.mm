@@ -12,7 +12,6 @@
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop/message_pump_apple.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/no_destructor.h"
 #include "base/run_loop.h"
 #include "base/threading/thread_restrictions.h"
@@ -138,7 +137,7 @@ uint32_t TextInputClientMac::GetCharacterIndexAtPoint(
     return 0;
   }
 
-  base::TimeTicks start = base::TimeTicks::Now();
+  base::LiveTicks start = base::LiveTicks::Now();
   base::TimeDelta wait_timeout = features::kTextInputClientIPCTimeout.Get();
 
   BeforeRequest();
@@ -154,17 +153,18 @@ uint32_t TextInputClientMac::GetCharacterIndexAtPoint(
     while (!character_index_ && remaining_timeout.is_positive()) {
       base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope allow_wait;
       condition_.TimedWait(remaining_timeout);
-      remaining_timeout = start + wait_timeout - base::TimeTicks::Now();
+      remaining_timeout = start + wait_timeout - base::LiveTicks::Now();
     }
   }
+  base::UmaHistogramBoolean("TextInputClient.CharacterIndex.TimedOut",
+                            !character_index_.has_value());
 
   // Return a sentinel if no response was received.
   uint32_t index = character_index_.value_or(UINT32_MAX);
   AfterRequest();
 
-  base::TimeDelta delta(base::TimeTicks::Now() - start);
-  UMA_HISTOGRAM_LONG_TIMES("TextInputClient.CharacterIndex",
-                           delta * base::Time::kMicrosecondsPerMillisecond);
+  base::UmaHistogramLongTimes("TextInputClient.CharacterIndex2",
+                              base::LiveTicks::Now() - start);
 
   return index;
 }
@@ -188,7 +188,7 @@ gfx::Rect TextInputClientMac::GetFirstRectForRange(
     return gfx::Rect();
   }
 
-  base::TimeTicks start = base::TimeTicks::Now();
+  base::LiveTicks start = base::LiveTicks::Now();
   base::TimeDelta wait_timeout = features::kTextInputClientIPCTimeout.Get();
 
   BeforeRequest();
@@ -204,9 +204,12 @@ gfx::Rect TextInputClientMac::GetFirstRectForRange(
     while (!first_rect_ && remaining_timeout.is_positive()) {
       base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope allow_wait;
       condition_.TimedWait(remaining_timeout);
-      remaining_timeout = start + wait_timeout - base::TimeTicks::Now();
+      remaining_timeout = start + wait_timeout - base::LiveTicks::Now();
     }
   }
+
+  base::UmaHistogramBoolean("TextInputClient.FirstRect.TimedOut",
+                            !first_rect_.has_value());
 
   // `first_rect_` is in (child) frame coordinate and needs to be transformed to
   // the root frame coordinate. If `rfhi` has been deleted, it's too late to do
@@ -219,9 +222,8 @@ gfx::Rect TextInputClientMac::GetFirstRectForRange(
           : gfx::Rect();
   AfterRequest();
 
-  base::TimeDelta delta(base::TimeTicks::Now() - start);
-  UMA_HISTOGRAM_LONG_TIMES("TextInputClient.FirstRect",
-                           delta * base::Time::kMicrosecondsPerMillisecond);
+  base::UmaHistogramLongTimes("TextInputClient.FirstRect2",
+                              base::LiveTicks::Now() - start);
 
   return rect;
 }
@@ -302,13 +304,12 @@ void TextInputClientMac::BeforeRequest() {
   CHECK(!in_sync_request_);
   in_sync_request_ = true;
 
-  base::TimeTicks start = base::TimeTicks::Now();
+  base::LiveTicks start = base::LiveTicks::Now();
 
   lock_.Acquire();
 
-  base::TimeDelta delta(base::TimeTicks::Now() - start);
-  UMA_HISTOGRAM_LONG_TIMES("TextInputClient.LockWait",
-                           delta * base::Time::kMicrosecondsPerMillisecond);
+  base::UmaHistogramLongTimes("TextInputClient.LockWait2",
+                              base::LiveTicks::Now() - start);
 
   CHECK(!current_request_.has_value());
   current_request_ = RequestToken();

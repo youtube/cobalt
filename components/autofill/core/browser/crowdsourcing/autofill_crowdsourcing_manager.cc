@@ -19,7 +19,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/no_destructor.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/rand_util.h"
@@ -28,6 +27,7 @@
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/time/time.h"
 #include "build/build_config.h"
 #include "components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_encoding.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
@@ -321,7 +321,7 @@ size_t CountActiveFieldsInForms(const std::vector<FormData>& forms) {
 std::string FieldTypeToString(uint32_t type) {
   return base::StrCat(
       {base::NumberToString(type), "/",
-       FieldTypeToStringView(ToSafeFieldType(type, UNKNOWN_TYPE))});
+       FieldTypeToStringView(ToSafeFieldType(type).value_or(UNKNOWN_TYPE))});
 }
 
 LogBuffer& operator<<(LogBuffer& out, const AutofillPageQueryRequest& query) {

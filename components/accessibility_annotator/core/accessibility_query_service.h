@@ -11,19 +11,25 @@
 #include <vector>
 
 #include "base/functional/callback.h"
+#include "base/memory/weak_ptr.h"
 #include "components/accessibility_annotator/core/annotation_reducer/memory_search_result.h"
 #include "components/accessibility_annotator/core/annotation_reducer/query_classifier.h"
 #include "components/keyed_service/core/keyed_service.h"
 
+namespace optimization_guide {
+class RemoteModelExecutor;
+}
+
 namespace accessibility_annotator {
 
-class AutofillDataProvider;
+class MemoryDataProvider;
 
 // Service for querying @memory suggestions.
 class AccessibilityQueryService : public KeyedService {
  public:
-  explicit AccessibilityQueryService(
-      std::unique_ptr<AutofillDataProvider> data_provider);
+  AccessibilityQueryService(
+      std::vector<std::unique_ptr<MemoryDataProvider>> data_providers,
+      optimization_guide::RemoteModelExecutor* remote_model_executor);
   AccessibilityQueryService(const AccessibilityQueryService&) = delete;
   AccessibilityQueryService& operator=(const AccessibilityQueryService&) =
       delete;
@@ -32,14 +38,26 @@ class AccessibilityQueryService : public KeyedService {
   // KeyedService:
   void Shutdown() override;
 
-  // Executes a query and returns suggestions via `update_callback`.
+  // Results from different data sources are returned by multiple calls of
+  // `update_callback`.
   virtual void Query(
       std::u16string_view query,
       base::RepeatingCallback<void(MemorySearchResults)> update_callback);
 
  private:
-  std::unique_ptr<AutofillDataProvider> data_provider_;
+  void OnClassificationComplete(
+      base::RepeatingCallback<void(MemorySearchResults)> update_callback,
+      ClassifiedQuery classified_query);
+
+  void OnDataRetrieved(
+      ClassifiedQuery classified_query,
+      base::RepeatingCallback<void(MemorySearchResults)> update_callback,
+      std::vector<std::vector<MemorySearchResult>> entries_list);
+
+  std::vector<std::unique_ptr<MemoryDataProvider>> data_providers_;
   QueryClassifier classifier_;
+
+  base::WeakPtrFactory<AccessibilityQueryService> weak_ptr_factory_{this};
 };
 
 }  // namespace accessibility_annotator

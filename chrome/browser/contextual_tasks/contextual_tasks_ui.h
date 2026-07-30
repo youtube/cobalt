@@ -11,6 +11,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
+#include "base/observer_list.h"
 #include "base/scoped_observation.h"
 #include "base/timer/timer.h"
 #include "base/uuid.h"
@@ -169,6 +170,12 @@ class ContextualTasksUI
   contextual_search::ContextualSearchSessionHandle*
   GetOrCreateContextualSessionHandle() override;
   GURL GetWebUiUrl() override;
+  bool IsInitComplete() override;
+  void OnInitComplete() override;
+  void AddObserver(contextual_tasks::ContextualTasksUIInterface::Observer*
+                       observer) override;
+  void RemoveObserver(contextual_tasks::ContextualTasksUIInterface::Observer*
+                          observer) override;
 
   void ClearContextualSessionHandle();
 
@@ -176,6 +183,7 @@ class ContextualTasksUI
       override;
   mojo::Remote<contextual_tasks::mojom::Page>& GetPageRemote() override;
   const GURL& GetInnerFrameUrl() const override;
+  content::WebContents* GetInnerWebContents() const override;
 
   // ContextualTaskService::Observer impl:
   void OnTaskUpdated(
@@ -343,6 +351,9 @@ class ContextualTasksUI
 
   mojo::Remote<contextual_tasks::mojom::Page> page_;
 
+  base::ObserverList<contextual_tasks::ContextualTasksUIInterface::Observer>
+      observers_;
+
   mojo::Receiver<contextual_tasks_internals::mojom::
                      ContextualTasksInternalsPageHandlerFactory>
       contextual_tasks_internals_page_handler_receiver_{this};
@@ -365,6 +376,13 @@ class ContextualTasksUI
       contextual_tasks_service_observation_{this};
 
   base::WeakPtrFactory<ContextualTasksUI> weak_ptr_factory_{this};
+
+#if !BUILDFLAG(IS_ANDROID)
+  void UpdateZoom();
+
+  // content::WebUIController overrides:
+  void WebUIPrimaryPageChanged(content::Page& page) override;
+#endif
 
   WEB_UI_CONTROLLER_TYPE_DECL();
 };

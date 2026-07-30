@@ -92,7 +92,6 @@ suite('PersonalizationRouterElementTest', function() {
   });
 
   test('puts googlePhotosAlbumIsShared query param in url', async () => {
-    loadTimeData.overrideValues({isGooglePhotosSharedAlbumsEnabled: true});
     const isSharedParam = 'googlePhotosAlbumIsShared';
     const sharedAlbum: GooglePhotosAlbum = {
       id: 'aaa',
@@ -227,8 +226,8 @@ suite('PersonalizationRouterElementTest', function() {
         getComputedStyle(wallpaperSelected).display, 'none',
         'sea-pen-router shows wallpaper-selected');
     assertFalse(
-        !!routerElement.shadowRoot!.getElementById('wallpaperSelected')!
-              .classList.contains('wallpaperSelectedHidden'),
+        routerElement.shadowRoot!.getElementById('wallpaperSelected')!.classList
+            .contains('wallpaperSelectedHidden'),
         'wallpaper-selected should be displayed on template home page');
   });
 
@@ -253,16 +252,16 @@ suite('PersonalizationRouterElementTest', function() {
 
     // No wallpaper-selected in Template results page.
     assertTrue(
-        !!routerElement.shadowRoot!.getElementById('wallpaperSelected')!
-              .classList.contains('wallpaperSelectedHidden'),
+        routerElement.shadowRoot!.getElementById('wallpaperSelected')!.classList
+            .contains('wallpaperSelectedHidden'),
         'wallpaper-selected should not be displayed in template results page');
 
     // No wallpaper-selected in Freeform subpage.
     routerElement.goToRoute(Paths.SEA_PEN_FREEFORM);
     await waitAfterNextRender(routerElement);
     assertTrue(
-        !!routerElement.shadowRoot!.getElementById('wallpaperSelected')!
-              .classList.contains('wallpaperSelectedHidden'),
+        routerElement.shadowRoot!.getElementById('wallpaperSelected')!.classList
+            .contains('wallpaperSelectedHidden'),
         'wallpaper-selected should not be displayed in freeform subpage');
   });
 

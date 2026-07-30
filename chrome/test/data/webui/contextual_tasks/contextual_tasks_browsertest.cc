@@ -20,24 +20,30 @@ class ContextualTasksBrowserTest : public WebUIMochaBrowserTest {
     set_test_loader_host(chrome::kChromeUIContextualTasksHost);
   }
 
-  void SetUpCommandLine(base::CommandLine* command_line) override {
-    WebUIMochaBrowserTest::SetUpCommandLine(command_line);
-    // TODO(crbug.com/489032845): Re-enable crash-on-JS-error for tests.
-    command_line->AppendSwitch("disable-crash-on-webui-js-error");
-  }
+
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-// TODO(crbug.com/487802136): Flaky on Linux.
-// TODO(crbug.com/489258910): Failing on multiple platforms
-IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, App) {
+// TODO(crbug.com/480689282): Flaky on ChromeOS debug.
+#if BUILDFLAG(IS_CHROMEOS) && !defined(NDEBUG)
+#define MAYBE_App App
+#else
+#define MAYBE_App DISABLED_App
+#endif
+IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, MAYBE_App) {
   RunTest("contextual_tasks/app_test.js", "mocha.run();");
 }
 
 #if !BUILDFLAG(IS_ANDROID)
-IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, Composebox) {
+// TODO(crbug.com/480689282): Flaky on Linux debug.
+#if BUILDFLAG(IS_LINUX) && !defined(NDEBUG)
+#define MAYBE_Composebox DISABLED_Composebox
+#else
+#define MAYBE_Composebox Composebox
+#endif
+IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, MAYBE_Composebox) {
   RunTest("contextual_tasks/composebox_test.js", "mocha.run();");
 }
 

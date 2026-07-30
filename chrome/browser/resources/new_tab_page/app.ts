@@ -5,9 +5,9 @@
 import './action_chips/action_chips.js';
 import './iframe.js';
 import './logo.js';
+import './ntp_searchbox.js';
 import '/strings.m.js';
 import 'chrome://new-tab-page/shared/customize_buttons/customize_buttons.js';
-import 'chrome://resources/cr_components/searchbox/searchbox.js';
 import 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 import 'chrome://resources/cr_components/composebox/composebox.js';
@@ -16,11 +16,10 @@ import 'chrome://resources/cr_components/composebox/threads_rail.js';
 import type {CustomizeButtonsElement} from 'chrome://new-tab-page/shared/customize_buttons/customize_buttons.js';
 import {ColorChangeUpdater} from 'chrome://resources/cr_components/color_change_listener/colors_css_updater.js';
 import {GlifAnimationState} from 'chrome://resources/cr_components/composebox/common.js';
+import type {ComposeboxState} from 'chrome://resources/cr_components/composebox/common.js';
 import type {ComposeboxElement} from 'chrome://resources/cr_components/composebox/composebox.js';
 import {VoiceSearchAction as ComposeVoiceSearchAction} from 'chrome://resources/cr_components/composebox/composebox.js';
 import {HelpBubbleMixinLit} from 'chrome://resources/cr_components/help_bubble/help_bubble_mixin_lit.js';
-import type {ComposeboxState} from 'chrome://resources/cr_components/composebox/common.js';
-import type {SearchboxElement} from 'chrome://resources/cr_components/searchbox/searchbox.js';
 import type {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 import {assert, assertNotReached} from 'chrome://resources/js/assert.js';
 import type {ClickInfo} from 'chrome://resources/js/browser_command.mojom-webui.js';
@@ -53,6 +52,7 @@ import {NtpBackgroundImageSource} from './new_tab_page.mojom-webui.js';
 import {NewTabPageProxy} from './new_tab_page_proxy.js';
 import type {MicrosoftAuthUntrustedDocumentRemote} from './ntp_microsoft_auth_shared_ui.mojom-webui.js';
 import {ShowNtpPromosResult} from './ntp_promo.mojom-webui.js';
+import type {NtpSearchboxElement} from './ntp_searchbox.js';
 import {$$} from './utils.js';
 import {Action as VoiceAction, recordVoiceAction} from './voice_search_overlay.js';
 import {WindowProxy} from './window_proxy.js';
@@ -165,7 +165,7 @@ export interface AppElement {
     customizeButtons: CustomizeButtonsElement,
     oneGoogleBarClipPath: HTMLElement,
     logo: LogoElement,
-    searchbox: SearchboxElement,
+    searchbox: NtpSearchboxElement,
     composebox: ComposeboxElement,
     undoToast: CrToastElement,
     undoToastMessage: HTMLElement,
@@ -407,8 +407,6 @@ export class AppElement extends AppElementBase {
   protected accessor wallpaperSearchButtonEnabled_: boolean =
       loadTimeData.getBoolean('wallpaperSearchButtonEnabled');
   protected accessor showWallpaperSearchButton_: boolean = false;
-  protected accessor composeboxCloseByClickOutside_: boolean =
-      loadTimeData.getBoolean('composeboxCloseByClickOutside');
   protected accessor isActionChipsVisible_: boolean =
       loadTimeData.getBoolean('actionChipsEnabled');
   protected accessor isFooterVisible_: boolean = false;
@@ -879,8 +877,8 @@ export class AppElement extends AppElementBase {
   }
 
   protected onScrimClick_() {
-    if (this.showComposebox_ && this.composeboxCloseByClickOutside_) {
-      this.onComposeboxClickOutside_();
+    if (this.showComposebox_) {
+      this.onComposeboxOutsideClick_();
     }
     if (this.showLensUploadDialog_) {
       this.onCloseLensSearch_();
@@ -888,12 +886,12 @@ export class AppElement extends AppElementBase {
     this.containerFocused_ = false;
   }
 
-  protected onComposeboxClickOutside_() {
+  protected onComposeboxOutsideClick_() {
     const composebox =
         this.shadowRoot.querySelector<ComposeboxElement>('#composebox');
     assert(composebox);
     const closeComposebox = new CustomEvent('closeComposebox', {
-      detail: {composeboxText: composebox.getText()},
+      detail: {composeboxText: composebox.input},
       bubbles: true,
       cancelable: true,
     });
@@ -915,7 +913,7 @@ export class AppElement extends AppElementBase {
     const composebox =
         this.shadowRoot.querySelector<ComposeboxElement>('#composebox');
     assert(composebox);
-    composebox.setText('');
+    composebox.input = '';
     composebox.resetModes();
     if (this.ntpRealboxNextEnabled_) {
       composebox.closeDropdown();
@@ -1328,6 +1326,23 @@ export class AppElement extends AppElementBase {
   }
 
   private onWindowClick_(e: Event) {
+    if (this.ntpRealboxNextEnabled_) {
+      const searchbox = this.shadowRoot.querySelector('ntp-searchbox');
+      const actionChips = this.shadowRoot.querySelector('ntp-action-chips');
+      const helpBubble =
+          searchbox ? searchbox.shadowRoot.querySelector('help-bubble') : null;
+      if (helpBubble) {
+        const isClickOnBubble = e.composedPath().includes(helpBubble);
+        const isClickOnSearchbox =
+            searchbox && e.composedPath().includes(searchbox);
+        const isClickOnActionChips =
+            actionChips && e.composedPath().includes(actionChips);
+        if (!isClickOnBubble && (isClickOnSearchbox || isClickOnActionChips)) {
+          this.hideHelpBubble(CONTEXTUAL_ENTRYPOINT_ELEMENT_ID);
+        }
+      }
+    }
+
     if (e.composedPath() && e.composedPath()[0] === $$(this, '#content')) {
       recordClick(NtpElement.BACKGROUND);
       return;
@@ -1337,7 +1352,7 @@ export class AppElement extends AppElementBase {
         case $$(this, 'ntp-logo'):
           recordClick(NtpElement.LOGO);
           return;
-        case $$(this, 'cr-searchbox'):
+        case $$(this, 'ntp-searchbox'):
           recordClick(NtpElement.REALBOX);
           return;
         case $$(this, 'ntp-action-chips'):
@@ -1398,9 +1413,13 @@ export class AppElement extends AppElementBase {
     this.realboxHadSecondarySide = e.detail.value;
   }
 
-  protected onSearchboxContainerFocusin_() {
+  protected onSearchboxContainerFocusin_(e: FocusEvent) {
     if (this.ntpRealboxNextEnabled_) {
-      this.containerFocused_ = true;
+      const isHelpBubble = e.composedPath().some(
+          el => (el as HTMLElement)?.tagName === 'HELP-BUBBLE');
+      if (!isHelpBubble) {
+        this.containerFocused_ = true;
+      }
     }
   }
 

@@ -87,7 +87,7 @@ class CanvasResourceDispatcherTest
  public:
   scoped_refptr<CanvasResource> DispatchOneFrame() {
     scoped_refptr<CanvasResource> canvas_resource =
-        resource_provider_->ProduceCanvasResource(FlushReason::kOther);
+        resource_provider_->ProduceCanvasResource();
     auto canvas_resource_extra = canvas_resource;
     dispatcher_->DispatchFrame(std::move(canvas_resource), SkIRect::MakeEmpty(),
                                /*is_opaque=*/false);
@@ -146,7 +146,7 @@ class CanvasResourceDispatcherTest
   test::TaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   std::unique_ptr<MockCanvasResourceDispatcher> dispatcher_;
-  std::unique_ptr<CanvasResourceProviderSharedImage> resource_provider_;
+  std::unique_ptr<CanvasNon2DResourceProviderSharedImage> resource_provider_;
   std::unique_ptr<WebGraphicsSharedImageInterfaceProvider>
       test_web_shared_image_interface_provider_;
 };
@@ -383,10 +383,13 @@ TEST_P(CanvasResourceDispatcherTest, DispatchFrame) {
               CreateCompositorFrameSink_(viz::FrameSinkId(kClientId, kSinkId)));
   platform->RunUntilIdle();
 
-  auto canvas_resource = CanvasResourceSharedImage::CreateSoftware(
+  auto canvas_resource = CanvasResourceSharedImage::CreateForTesting(
       GetSize(), viz::SinglePlaneFormat::kBGRA_8888, kPremul_SkAlphaType,
-      gfx::ColorSpace::CreateSRGB(),
-      /*provider=*/nullptr, shared_image_interface_provider());
+      gfx::ColorSpace::CreateSRGB(), gpu::SHARED_IMAGE_USAGE_CPU_WRITE_ONLY,
+      /*is_software=*/true,
+      /*is_accelerated=*/false, /*provider=*/nullptr,
+      /*context_provider_wrapper=*/nullptr, shared_image_interface_provider());
+
   EXPECT_TRUE(!!canvas_resource);
   EXPECT_EQ(canvas_resource->Size(), GetSize());
 

@@ -7,7 +7,7 @@ updated. This can be called from a chromium PRESUBMIT.py to ensure updates to
 bad_message.h also include the generated changes to histograms.xml
 """
 
-import setup_modules
+import setup_modules  # pylint: disable=unused-import
 
 import chromium_src.tools.metrics.histograms.update_histogram_enum as update_histogram_enum
 
@@ -28,7 +28,7 @@ def PrecheckBadMessage(input_api,
 
   # If the |bad_message.h| wasn't found in this change, then there is nothing to
   # do and histogram.xml does not need to be updated.
-  if source_path == '':
+  if not source_path:
     return []
 
   START_MARKER='^enum (class )?BadMessageReason {'

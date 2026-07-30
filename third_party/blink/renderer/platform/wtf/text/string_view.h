@@ -112,9 +112,8 @@ class WTF_EXPORT StringView {
   StringView() { Clear(); }
 
   // From a StringView:
+  StringView(const StringView& view, size_type offset);
   StringView(const StringView&, size_type offset, size_type length);
-  StringView(const StringView& view, size_type offset)
-      : StringView(view, offset, view.length_ - offset) {}
 
   // From a StringImpl:
   StringView(const StringImpl*);
@@ -317,11 +316,13 @@ class WTF_EXPORT StringView {
   // `length()`. It's compatible with both std::string_view::substr() and
   // blink::String::Substring(). This behavior does not match to
   // `StringView(*this, offset, len)`.
-  StringView substr(size_type offset, size_type len = npos) const;
+  StringView substr(size_type offset) const;
+  StringView substr(size_type offset, size_type length) const;
 
   // This is an alias for `substr()`.
-  StringView subview(size_type offset, size_type len = npos) const {
-    return substr(offset, len);
+  StringView subview(size_type offset) const { return substr(offset); }
+  StringView subview(size_type offset, size_type length) const {
+    return substr(offset, length);
   }
 
   // Returns `true` if `this` string starts with `other`.
@@ -422,6 +423,7 @@ class WTF_EXPORT StringView {
   [[nodiscard]] String EncodeForDebugging() const;
 
  private:
+  void Set(const StringImpl&, size_type offset);
   void Set(const StringImpl&, size_type offset, size_type length);
 
 // We use the StringImpl to mark for 8bit or 16bit, even for strings where
@@ -436,20 +438,28 @@ class WTF_EXPORT StringView {
   size_type length_;
 };
 
+inline StringView::StringView(const StringView& view, size_type offset)
+    : impl_(view.impl_) {
+  if (Is8Bit()) {
+    auto span = view.Span8().subspan(offset);
+    length_ = span.size();
+    bytes_ = span.data();
+  } else {
+    auto span = view.Span16().subspan(offset);
+    length_ = span.size();
+    bytes_ = span.data();
+  }
+}
+
 inline StringView::StringView(const StringView& view,
                               size_type offset,
                               size_type length)
     : impl_(view.impl_), length_(length) {
-  SECURITY_DCHECK(offset <= view.length());
-  SECURITY_DCHECK(length <= view.length() - offset);
-  // SAFETY: Invariants are checked last two line.
-  UNSAFE_BUFFERS({
-    if (Is8Bit()) {
-      bytes_ = view.Span8().data() + offset;
-    } else {
-      bytes_ = view.Span16().data() + offset;
-    }
-  });
+  if (Is8Bit()) {
+    bytes_ = view.Span8().subspan(offset, length).data();
+  } else {
+    bytes_ = view.Span16().subspan(offset, length).data();
+  }
 }
 
 inline StringView::StringView(const StringImpl* impl) {
@@ -463,7 +473,7 @@ inline StringView::StringView(const StringImpl* impl) {
 }
 
 inline StringView::StringView(const StringImpl* impl, size_type offset) {
-  impl ? Set(*impl, offset, impl->length() - offset) : Clear();
+  impl ? Set(*impl, offset) : Clear();
 }
 
 inline StringView::StringView(const StringImpl* impl,
@@ -473,7 +483,7 @@ inline StringView::StringView(const StringImpl* impl,
 }
 
 inline StringView::StringView(StringImpl& impl, size_type offset) {
-  Set(impl, offset, impl.length() - offset);
+  Set(impl, offset);
 }
 
 inline StringView::StringView(StringImpl& impl,
@@ -488,21 +498,32 @@ inline void StringView::Clear() {
   impl_ = StringImpl::empty_;  // mark as 8 bit.
 }
 
+inline void StringView::Set(const StringImpl& impl, size_type offset) {
+  impl_ = const_cast<StringImpl*>(&impl);
+  if (impl.Is8Bit()) {
+    auto span = impl.Span8().subspan(offset);
+    length_ = span.size();
+    bytes_ = span.data();
+  } else {
+    auto span = impl.Span16().subspan(offset);
+    length_ = span.size();
+    bytes_ = span.data();
+  }
+}
+
 inline void StringView::Set(const StringImpl& impl,
                             size_type offset,
                             size_type length) {
-  SECURITY_DCHECK(offset <= impl.length());
-  SECURITY_DCHECK(length <= impl.length() - offset);
-  length_ = length;
   impl_ = const_cast<StringImpl*>(&impl);
-  // SAFETY: Invariants are checked at beginning of this method.
-  UNSAFE_BUFFERS({
-    if (impl.Is8Bit()) {
-      bytes_ = impl.Characters8() + offset;
-    } else {
-      bytes_ = impl.Characters16() + offset;
-    }
-  });
+  if (impl.Is8Bit()) {
+    auto span = impl.Span8().subspan(offset, length);
+    length_ = span.size();
+    bytes_ = span.data();
+  } else {
+    auto span = impl.Span16().subspan(offset, length);
+    length_ = span.size();
+    bytes_ = span.data();
+  }
 }
 
 // Unicode aware case insensitive string matching. Non-ASCII characters might

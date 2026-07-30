@@ -631,6 +631,25 @@ TEST_F(AILanguageModelTest, InitialPromptsTooLarge) {
   ASSERT_EQ(result.error().quota_error_info->quota, kTestMaxTokens);
 }
 
+TEST_F(AILanguageModelTest, CreateResolvesAfterInitialPromptsAreAppended) {
+  auto options = blink::mojom::AILanguageModelCreateOptions::New();
+  options->initial_prompts.push_back(MakePrompt(Role::kSystem, "hi"));
+
+  fake_broker_->settings().set_append_delay(base::Seconds(5));
+
+  TestCreateLanguageModelClient language_model_client;
+  GetAIManagerRemote()->CreateLanguageModel(
+      language_model_client.BindNewPipeAndPassRemote(), std::move(options));
+
+  // Creation will not be complete yet, because Append is delayed.
+  task_environment()->FastForwardBy(base::Seconds(1));
+  EXPECT_FALSE(language_model_client.result().IsReady());
+
+  // Fast forward time to allow Append to complete.
+  task_environment()->FastForwardBy(base::Seconds(5));
+  EXPECT_TRUE(language_model_client.result().IsReady());
+}
+
 TEST_F(AILanguageModelTest, InputTooLarge) {
   auto session = CreateSession();
 
@@ -735,7 +754,8 @@ TEST_F(AILanguageModelTest, OutputOverflowsModelMaxTokens) {
   session->Prompt(MakeInput("bar"), nullptr, responder.BindRemote());
   EXPECT_FALSE(responder.WaitForCompletion());
   EXPECT_EQ(responder.error_status(),
-            blink::mojom::ModelStreamingResponseStatus::kErrorGenericFailure);
+            blink::mojom::ModelStreamingResponseStatus::
+                kErrorResponseExceedsMaxTokens);
 
   // Now prompt again, the failed prompt should not be present.
   fake_broker_->settings().set_execute_result({});
@@ -761,7 +781,8 @@ TEST_F(AILanguageModelTest, OutputOverflowsAdditionalBuffer) {
   session->Prompt(MakeInput(""), nullptr, responder.BindRemote());
   EXPECT_FALSE(responder.WaitForCompletion());
   EXPECT_EQ(responder.error_status(),
-            blink::mojom::ModelStreamingResponseStatus::kErrorGenericFailure);
+            blink::mojom::ModelStreamingResponseStatus::
+                kErrorResponseExceedsMaxTokens);
 }
 
 TEST_F(AILanguageModelTest, OutputOverflowsContextMaxTokens) {
@@ -777,7 +798,8 @@ TEST_F(AILanguageModelTest, OutputOverflowsContextMaxTokens) {
   session->Prompt(MakeInput("bar"), nullptr, responder.BindRemote());
   EXPECT_FALSE(responder.WaitForCompletion());
   EXPECT_EQ(responder.error_status(),
-            blink::mojom::ModelStreamingResponseStatus::kErrorGenericFailure);
+            blink::mojom::ModelStreamingResponseStatus::
+                kErrorResponseExceedsRemainingContext);
 
   // Now prompt again, the failed prompt should not be present.
   fake_broker_->settings().set_execute_result({});
@@ -1236,7 +1258,7 @@ TEST_F(AILanguageModelTest, ServiceCrash) {
   fake_broker_->CrashService();
   EXPECT_FALSE(responder.WaitForCompletion());
   EXPECT_EQ(responder.error_status(),
-            blink::mojom::ModelStreamingResponseStatus::kErrorGenericFailure);
+            blink::mojom::ModelStreamingResponseStatus::kErrorSessionDestroyed);
 
   // Recreating the session should be fine.
   session = CreateSession();

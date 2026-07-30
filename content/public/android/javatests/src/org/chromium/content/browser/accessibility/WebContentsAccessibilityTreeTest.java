@@ -1190,6 +1190,18 @@ public class WebContentsAccessibilityTreeTest {
 
     @Test
     @SmallTest
+    public void test_ariaTreeviewFileDirectoryComputedProperties() {
+        performAriaTest("aria-treeview-file-directory-computed-properties.html");
+    }
+
+    @Test
+    @SmallTest
+    public void test_ariaTreeviewFileDirectoryDeclaredProperties() {
+        performAriaTest("aria-treeview-file-directory-declared-properties.html");
+    }
+
+    @Test
+    @SmallTest
     public void test_ariaTree() {
         performAriaTest("aria-tree.html");
     }
@@ -1717,6 +1729,16 @@ public class WebContentsAccessibilityTreeTest {
     @EnableFeatures(ContentInternalFeatures.ACCESSIBILITY_EXPOSE_NON_ATOMIC_TEXT_FIELD_CHILDREN)
     public void test_contenteditableMultiNode() {
         performHtmlTest("contenteditable-multi-node.html");
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures({
+        ContentInternalFeatures.ACCESSIBILITY_EXPOSE_NON_ATOMIC_TEXT_FIELD_CHILDREN,
+        ContentFeatureList.ACCESSIBILITY_EXTENDED_SELECTION
+    })
+    public void test_selectionInContenteditable() {
+        performHtmlTest("selection-in-contenteditable.html");
     }
 
     @Test

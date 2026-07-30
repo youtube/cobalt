@@ -221,7 +221,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Compositing.DirectRenderer.OverlayProcessingUs"
-    units="microseconds" expires_after="2026-07-19">
+    units="microseconds" expires_after="2026-09-20">
   <owner>khaslett@chromium.org</owner>
   <owner>kylechar@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -392,7 +392,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Compositing.Display.FlattenedRenderPassCount" units="units"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>jonross@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -579,22 +579,6 @@ chromium-metrics-reviews@google.com.
     Record the number of excess pixels for the output rect that would not be
     visible due to the parent root clip. This is logged once per frame.
   </summary>
-</histogram>
-
-<histogram name="Compositing.SurfaceAggregator.Has{Type}PerFrame"
-    enum="Boolean" expires_after="2025-10-26">
-  <owner>magchen@chromium.org</owner>
-  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
-  <summary>
-    Record whether a frame has a specific type of render pass. This is logged
-    once per frame.
-  </summary>
-  <token key="Type">
-    <variant name="CopyRequests"/>
-    <variant name="PixelMovingBackdropFilters"/>
-    <variant name="PixelMovingFilters"/>
-    <variant name="UnembeddedRenderPasses"/>
-  </token>
 </histogram>
 
 <histogram name="Compositing.SurfaceAggregator.RenderPassDamageType"

@@ -16,7 +16,6 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/rand_util.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
@@ -230,11 +229,17 @@ void CompositorView::OnPhysicalBackingSizeChanged(
     JNIEnv* env,
     const JavaRef<jobject>& jweb_contents,
     int32_t width,
-    int32_t height) {
+    int32_t height,
+    bool is_fluid_resize) {
   content::WebContents* web_contents =
       content::WebContents::FromJavaWebContents(jweb_contents);
   gfx::Size size(width, height);
-  web_contents->GetNativeView()->OnPhysicalBackingSizeChanged(size);
+  std::optional<base::TimeDelta> deadline_override;
+  if (is_fluid_resize) {
+    deadline_override = base::TimeDelta();
+  }
+  web_contents->GetNativeView()->OnPhysicalBackingSizeChanged(
+      size, deadline_override);
 }
 
 void CompositorView::OnControlsResizeViewChanged(

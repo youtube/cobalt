@@ -10,15 +10,19 @@
 
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/send_tab_to_self/send_tab_to_self_scroll_observer.h"
 #include "chrome/browser/sync/send_tab_to_self_sync_service_factory.h"
 #include "components/autofill/content/browser/content_autofill_client.h"
 #include "components/autofill/content/browser/content_autofill_driver.h"
 #include "components/send_tab_to_self/features.h"
+#include "components/send_tab_to_self/metrics_util.h"
 #include "components/send_tab_to_self/outgoing_tab_form_field_extractor.h"
 #include "components/send_tab_to_self/page_context.h"
 #include "components/send_tab_to_self/received_tab_forms_filler.h"
 #include "components/send_tab_to_self/send_tab_to_self_entry.h"
+#include "components/send_tab_to_self/send_tab_to_self_model.h"
 #include "components/send_tab_to_self/send_tab_to_self_sync_service.h"
 #include "components/shared_highlighting/core/common/text_fragment.h"
 #include "content/public/browser/render_frame_host.h"
@@ -33,17 +37,17 @@ namespace {
 using ExtractorCallback = base::RepeatingCallback<
     PageContext::FormFieldInfo(autofill::AutofillManager&, const url::Origin&)>;
 
-PageContext ExtractFormFieldsFromWebContentsInternal(
+PageContext::FormFieldInfo ExtractFormFieldsFromWebContentsInternal(
     content::WebContents* web_contents,
     ExtractorCallback extractor) {
   if (!web_contents) {
-    return PageContext();
+    return PageContext::FormFieldInfo();
   }
 
   const url::Origin main_origin =
       web_contents->GetPrimaryMainFrame()->GetLastCommittedOrigin();
 
-  PageContext context;
+  PageContext::FormFieldInfo form_field_info;
 
   web_contents->ForEachRenderFrameHost([&](content::RenderFrameHost* rfh) {
     autofill::ContentAutofillDriver* driver =
@@ -54,13 +58,13 @@ PageContext ExtractFormFieldsFromWebContentsInternal(
 
     PageContext::FormFieldInfo frame_info =
         extractor.Run(driver->GetAutofillManager(), main_origin);
-    context.form_field_info.fields.insert(
-        context.form_field_info.fields.end(),
+    form_field_info.fields.insert(
+        form_field_info.fields.end(),
         std::make_move_iterator(frame_info.fields.begin()),
         std::make_move_iterator(frame_info.fields.end()));
   });
 
-  return context;
+  return form_field_info;
 }
 
 }  // namespace
@@ -83,13 +87,14 @@ bool ShouldDisplayEntryPoint(content::WebContents* web_contents) {
   return GetEntryPointDisplayReason(web_contents).has_value();
 }
 
-PageContext ExtractFormFieldsFromWebContents(
+PageContext::FormFieldInfo ExtractFormFieldsFromWebContents(
     content::WebContents* web_contents) {
   return ExtractFormFieldsFromWebContentsInternal(
       web_contents, base::BindRepeating(&ExtractOutgoingTabFormFields));
 }
 
-PageContext ExtractFormFieldsFromWebContentsForTesting(  // IN-TEST
+PageContext::FormFieldInfo
+ExtractFormFieldsFromWebContentsForTesting(  // IN-TEST
     content::WebContents* web_contents,
     std::ostream& os) {
   return ExtractFormFieldsFromWebContentsInternal(

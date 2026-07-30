@@ -405,6 +405,22 @@ https://chromeenterprise.google/policies/url-patterns/ 페이지를 참고하세
 <translation id="1317158052518324525">향상된 자동 완성을 허용하지 않습니다.</translation>
 <translation id="1317658068839330898">웹에서 <ph name="ASSISTANT_PRODUCT_NAME" />를 사용하도록 허용 안함</translation>
 <translation id="1318233005302276244">사용자가 Chrome에서 배송을 추적하도록 허용합니다.</translation>
+<translation id="1321747583289636863">정책을 설정하면 WebSocket 요청에 대한 프록시 서버의 최대 동시 연결 수가 지정됩니다.
+
+WebSocket이 아닌 요청 한도를 수정하려면 <ph name="MAX_CONNECTIONS_PER_PROXY_POLICY_NAME" /> 정책을 참고하세요.
+
+정책을 설정하지 않으면 기본값 32가 사용됩니다.
+
+일부 웹 앱은 중지 상태인 GET에 너무 많은 연결을 사용하는 것으로 알려져 있으므로 32 밑으로 낮추면 연결이 중지 상태인 웹 앱이 여러 개 열려 있을 때 브라우저 네트워크가 끊길 수 있습니다.
+일부 프록시 서버는 클라이언트당 많은 수의 동시 연결을 처리할 수 없으며 정책을 더 낮은 값으로 설정하여 해결할 수 있습니다.
+
+값은 6 이상이어야 합니다.
+이 한도 미만의 값을 설정하면 6이 사용됩니다.
+기본값(32) 밑으로 낮추는 데 따르는 위험은 사용자가 감수해야 합니다.
+
+값은 256 이하여야 합니다.
+이 한도를 초과하는 값을 설정하면 256이 사용됩니다.
+기본값(32)보다 높게 설정하는 데 따르는 위험은 사용자가 감수해야 합니다.</translation>
 <translation id="1323501563951768821">F12 설정은 Shift 수정자가 포함된 단축키를 사용합니다.</translation>
 <translation id="1325547947664414578">사용자가 <ph name="PRODUCT_OS_NAME" /> 기기 간에 전환하면 <ph name="PRODUCT_NAME" /> 서비스에서 이전 기기의 브라우저와 앱 창을 새 기기로 실행합니다.
 정책을 사용으로 설정하면 로그인 시 현재 사용자가 마지막으로 사용한 <ph name="PRODUCT_OS_NAME" /> 기기에서 브라우저 및 앱 창이 자동으로 실행됩니다.
@@ -2862,7 +2878,6 @@ Chrome에서 퍼스트 파티 세트 관련 통합을 지원하는지 제어합�
 <translation id="2901969573658712576">CNSA 1.0 및 2.0의 요구사항을 충족하는 암호화 선호</translation>
 <translation id="2905984450136807296">인증 데이터 캐시 전체 기간</translation>
 <translation id="2906874737073861391">AppPack 확장 프로그램 목록</translation>
-<translation id="2908277604670530363">프록시 서버에 대한 최대 동시 연결 수</translation>
 <translation id="2912366658685903301">브라우저 테마의 색상 구성</translation>
 <translation id="2914283793640833265">'휴대전화 허브 작업 이어서 하기' 사용 설정을 불허</translation>
 <translation id="2915787312243722351">이 정책은 '런처/검색 키를 사용하여 기능 키 동작 변경' 설정을 제어합니다. 이 설정을 사용하면 사용자가 런처 키를 길게 눌러 기능 키와 시스템 맨 위 줄에 있는 키 간에 전환할 수 있습니다.
@@ -2996,6 +3011,13 @@ false로 설정되면 기능에 액세스할 수 없습니다.</translation>
 <translation id="2969568582351417848">도메인에서 특정 파일 형식에 관한 파일 형식 확장자 기반 다운로드 경고 사용 중지</translation>
 <translation id="2971096666394658693">컨텍스트 메뉴에는 <ph name="GOOGLE_PHOTOS_PRODUCT_NAME" />에 이미지를 공유하기 위한 메뉴 항목이 있습니다.</translation>
 <translation id="2973972555495515337">정책을 사용 설정하면 서드 파티 웹 애플리케이션에서 <ph name="DESK_API_NAME" />를 사용하여 <ph name="PRODUCT_OS_NAME" /> 데스크를 저장하고 공유할 수 있습니다. 정책을 사용 중지하면 사용자는 <ph name="DESK_API_NAME" />를 통해 데스크 데이터를 저장하고 공유할 수 없습니다. 정책을 설정하지 않으면 사용 중지와 동일하게 작동합니다. 이 정책은 등록된 기기에만 적용됩니다.</translation>
+<translation id="2974326457745806202">SharedWorker 생성자에서 'extendedLifetime' 옵션을 true로 설정하면 SharedWorker의 수명이 연장될 수 있습니다.
+
+정책을 사용 설정하거나 설정하지 않은 상태로 두면 SharedWorker의 수명이 연장될 수 있습니다.
+
+이 정책을 사용 중지로 설정하면 옵션이 true로 설정되어 있어도 SharedWorker의 수명이 연장될 수 없습니다.
+
+이 정책은 일시적이며 향후 삭제될 예정입니다.</translation>
 <translation id="2976033779241323433">기본 시스템 휴리스틱을 기반으로 터치 가상 키보드 사용 설정</translation>
 <translation id="2976429807269247880">레거시 <ph name="ATTRIBUTE_SAMESITE_NAME" /> 쿠키 동작 설정</translation>
 <translation id="2979696534869541158">이전 구현 강제 적용</translation>
@@ -4935,6 +4957,7 @@ Chrome Root Store를 공개 신뢰의 소스로 사용하는 내장된
 이 정책을 사용 중지하면 사용자의 비밀번호 관리자 데이터는 그대로 유지되지만, 비밀번호 관리자 기능이 손상됩니다.
 
 정책을 설정하면 사용자가 <ph name="PRODUCT_NAME" />에서 이를 변경할 수 없습니다.</translation>
+<translation id="4321788213579606602">WebSocket이 아닌 요청을 위해 프록시 서버에 동시 연결할 수 있는 최대 수</translation>
 <translation id="4322842393287974810">지연 없이 자동 실행된 키오스크 앱에서 <ph name="PRODUCT_OS_NAME" /> 버전을 제어하도록 허용합니다.</translation>
 <translation id="4323412353642577604">콘텐츠 보호를 위한 원격 증명 사용 설정</translation>
 <translation id="4325690621216251241">작업 표시줄에 로그아웃 버튼 추가</translation>
@@ -7766,6 +7789,7 @@ false로 설정되면 기능에 액세스할 수 없습니다.</translation>
 <translation id="6075316301208933536"><ph name="DEVICE_BATTERY_CHARGE_MODE_POLICY_NAME" />를 <ph name="DEVICE_BATTERY_CHARGE_CUSTOM_MODE_NAME" />으로 설정하고 <ph name="DEVICE_BATTERY_CHARGE_CUSTOM_STOP_CHARGING_POLICY_NAME" />을 설정하면 배터리 충전 백분율을 기준으로 배터리 충전 중단 시기가 맞춤설정됩니다. <ph name="DEVICE_BATTERY_CHARGE_CUSTOM_START_CHARGING_POLICY_NAME" />은 <ph name="DEVICE_BATTERY_CHARGE_CUSTOM_STOP_CHARGING_POLICY_NAME" />보다 최소 5퍼센트 포인트 낮아야 합니다.
 
       정책을 설정하지 않으면 <ph name="DEVICE_BATTERY_CHARGE_STANDARD_MODE_NAME" /> 배터리 충전 모드가 적용됩니다.</translation>
+<translation id="6080808146443476891">WebSocket 요청을 위해 프록시 서버에 동시 연결할 수 있는 최대 수</translation>
 <translation id="6082161804984853051">정책을 설정하면 <ph name="PRODUCT_NAME" />에서 사용자가 --disk-cache-dir 플래그를 지정한 여부와 관계없이 디스크에 캐시된 파일을 저장하는 데 제공된 디렉터리를 사용합니다.
 
       설정되지 않으면 <ph name="PRODUCT_NAME" />에서 기본 캐시 디렉터리를 사용하지만 사용자는 --disk-cache-dir 명령줄 플래그를 사용하여 해당 설정을 변경할 수 있습니다.
@@ -9722,6 +9746,7 @@ true로 설정하면 <ph name="PRODUCT_NAME" />에서는
 <translation id="7216442368414164495">사용자가 세이프 브라우징 확장 보고를 선택하도록 허용</translation>
 <translation id="7218238054592349618">이 사이트에서 JavaScript 최적화 허용</translation>
 <translation id="721970071627370558">기기 전원 상태 보고 사용 중지</translation>
+<translation id="7220960206733388609">SharedWorker는 수명이 연장될 수 있습니다.</translation>
 <translation id="7221574724100909818">보안 연결일 경우 자물쇠 아이콘 표시</translation>
 <translation id="7227348936232766462">사용자가 아래에서 제공되는 모든 기기 유형의 하위 수준 디버그 데이터를 사용자 의견에 포함하도록 허용</translation>
 <translation id="7229365071755865554">비밀번호 관리자를 통한 비밀번호 저장 기능 사용</translation>
@@ -10380,6 +10405,7 @@ URL 패턴은 <ph name="WEB_PRINTING_BLOCKED_FOR_URLS_POLICY_NAME" /> 정책과 
 정책을 사용 중지하면 PDF 뷰어에서 현재 AGG 렌더기를 사용합니다.
 
 정책을 설정하지 않으면 브라우저에서 PDF 렌더러를 선택합니다.</translation>
+<translation id="7704244074621846004">SharedWorker에 수명 연장 사용 설정</translation>
 <translation id="7707869387893611318">충전음 기능을 사용 설정합니다.
 
           이 기능은 충전음을 재생합니다.
@@ -10397,6 +10423,7 @@ URL 패턴은 <ph name="WEB_PRINTING_BLOCKED_FOR_URLS_POLICY_NAME" /> 정책과 
 
       서버는 ECDHE 암호화 스위트로 이전하는 것이 좋습니다. 이전할 수 없는 경우 RSA 키 교환을 사용하는 암호화 스위트를 사용 설정하세요.</translation>
 <translation id="7709470712369261710">자동 생성된 이미지 설명을 제공하는 Google 서비스를 사용하지 않음</translation>
+<translation id="7711003696883532277">SharedWorker는 수명이 연장될 수 없습니다.</translation>
 <translation id="7712109699186360774">사이트가 카메라 또는 마이크에 액세스하려고 할 때마다 확인함</translation>
 <translation id="7712245244073542805">브라우저 프로세스의 플랫폼 인쇄입니다.</translation>
 <translation id="7713608076604149344">다운로드 제한</translation>
@@ -11218,6 +11245,22 @@ Windows에서는 GPO를 통해 정책을 설정하는 것이 좋습니다. 하�
 
 정책을 사용 설정하거나 설정하지 않으면 페이지에 액세스할 수 있습니다.
 정책을 사용 중지하면 페이지가 차단됩니다.</translation>
+<translation id="8264002158987842436">정책을 설정하면 WebSocket이 아닌 요청에 대해 프록시 서버에 동시 연결할 수 있는 최대 대수가 지정됩니다.
+
+WebSocket 요청 한도를 수정하려면 <ph name="MAX_CONNECTIONS_PER_PROXY_FOR_WEBSOCKET_POLICY_NAME" /> 정책을 참고하세요.
+
+정책을 설정하지 않으면 기본값 32가 사용됩니다.
+
+일부 웹 앱은 중지 상태인 GET에 너무 많은 연결을 사용하는 것으로 알려져 있으므로 32 밑으로 낮추면 연결이 중지 상태인 웹 앱이 여러 개 열려 있을 때 브라우저 네트워크가 끊길 수 있습니다.
+일부 프록시 서버는 클라이언트당 많은 수의 동시 연결을 처리할 수 없으며 정책을 더 낮은 값으로 설정하여 해결할 수 있습니다.
+
+값은 6 이상이어야 합니다.
+이 한도 미만의 값을 설정하면 6이 사용됩니다.
+기본값(32) 밑으로 낮추는 데 따르는 위험은 사용자가 감수해야 합니다.
+
+값은 256(<ph name="PRODUCT_NAME" /> 147 이전 버전에서는 99) 이하여야 합니다.
+이 한도를 초과하는 값을 설정하면 256(<ph name="PRODUCT_NAME" /> 147 이전 버전에서는 99)이 사용됩니다.
+기본값(32)보다 높게 설정하는 데 따르는 위험은 사용자가 감수해야 합니다.</translation>
 <translation id="8266778278542911985">이 정책을 3으로 설정하면 웹사이트에서 직렬 포트 액세스를 요청할 수 있습니다. 정책을 2로 설정하면 직렬 포트 액세스를 거부합니다.
 
       정책을 설정하지 않으면 웹사이트에서 액세스를 요청할 수 있지만, 사용자가 이 설정을 변경할 수 있습니다.</translation>

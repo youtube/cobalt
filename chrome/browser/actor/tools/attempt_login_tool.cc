@@ -61,7 +61,10 @@ mojom::ActionResultCode LoginErrorToActorError(
   }
 }
 
-mojom::ActionResultCode LoginResultToActorResult(
+}  // namespace
+
+// static
+mojom::ActionResultCode AttemptLoginTool::LoginResultToActorResult(
     actor_login::LoginStatusResult login_result) {
   // TODO(crbug.com/427817201): Re-assess whether all success statuses should
   // map to kOk or if differentiation is needed.
@@ -82,47 +85,31 @@ mojom::ActionResultCode LoginResultToActorResult(
     case actor_login::LoginStatusResult::kErrorDeviceReauthFailed:
       return mojom::ActionResultCode::kLoginDeviceReauthFailed;
     case actor_login::LoginStatusResult::kErrorFederatedContinuation:
-      // TODO(crbug.com/481685277): handle the continuation case.
+      return mojom::ActionResultCode::kLoginFederatedContinuation;
     case actor_login::LoginStatusResult::kErrorFederatedAccountNotLoggedIn:
+      return mojom::ActionResultCode::kLoginFederatedAccountNotLoggedIn;
     case actor_login::LoginStatusResult::kErrorFederatedAccountIsSignUp:
+      return mojom::ActionResultCode::kLoginFederatedAccountIsSignUp;
     case actor_login::LoginStatusResult::kErrorFederatedAccountNotAvailable:
+      return mojom::ActionResultCode::kLoginFederatedAccountNotAvailable;
     case actor_login::LoginStatusResult::kErrorFederatedIdpReturnedError:
+      return mojom::ActionResultCode::kLoginFederatedIdpReturnedError;
     case actor_login::LoginStatusResult::kErrorFederatedIdpNetworkError:
+      return mojom::ActionResultCode::kLoginFederatedIdpNetworkError;
     case actor_login::LoginStatusResult::kErrorFederatedTokenRequestAborted:
+      return mojom::ActionResultCode::kLoginFederatedTokenRequestAborted;
     case actor_login::LoginStatusResult::kErrorFederatedFrameNotActive:
+      return mojom::ActionResultCode::kLoginFederatedFrameNotActive;
     case actor_login::LoginStatusResult::
         kErrorFederatedExpectedAccountNotPresent:
+      return mojom::ActionResultCode::kLoginFederatedExpectedAccountNotPresent;
     case actor_login::LoginStatusResult::kErrorFederatedTimeout:
-      // TODO(crbug.com/477507796): Handle federated login errors.
-      return mojom::ActionResultCode::kLoginFillingNotAllowed;
+      return mojom::ActionResultCode::kLoginFederatedTimeout;
     case actor_login::LoginStatusResult::kRequiresButtonClick:
       // TODO(crbug.com/479505793): Consider adding a more specific error code.
       return mojom::ActionResultCode::kArgumentsInvalid;
   }
 }
-
-actor_login::LoginStatusResultCallback CreateFederatedLoginCallback(
-    const actor_login::Credential& credential,
-    ToolDelegate& delegate) {
-  if (!base::FeatureList::IsEnabled(
-          password_manager::features::kActorLoginFederatedClickFromActor) ||
-      credential.type != actor_login::CredentialType::kFederated) {
-    return base::NullCallback();
-  }
-  return base::BindOnce(
-      [](base::WeakPtr<ToolDelegate> delegate,
-         actor_login::LoginStatusResult result) {
-        if (delegate) {
-          mojom::ActionResultCode code = LoginResultToActorResult(result);
-          if (!IsOk(code)) {
-            delegate->FailCurrentTool(code);
-          }
-        }
-      },
-      delegate.GetAsWeakPtrForCurrentActions());
-}
-
-}  // namespace
 
 AttemptLoginTool::AttemptLoginTool(
     TaskId task_id,
@@ -208,11 +195,6 @@ void AttemptLoginTool::Invoke(ToolCallback callback) {
         user_selected_credential_and_pemission->permission_duration ==
         webui::mojom::UserGrantedPermissionDuration::kAlwaysAllow;
 
-    actor_login::LoginStatusResultCallback federated_login_callback =
-        CreateFederatedLoginCallback(
-            user_selected_credential_and_pemission->credential,
-            tool_delegate());
-
     GetActorLoginService().AttemptLogin(
         tab, user_selected_credential_and_pemission->credential,
         should_store_permission, quality_logger_.AsWeakPtr(),
@@ -221,7 +203,7 @@ void AttemptLoginTool::Invoke(ToolCallback callback) {
                        weak_ptr_factory_.GetWeakPtr(),
                        user_selected_credential_and_pemission->credential,
                        should_store_permission),
-        std::move(federated_login_callback));
+        tool_delegate().GetActionSequenceDelegate());
     return;
   }
 
@@ -445,16 +427,13 @@ void AttemptLoginTool::OnCredentialCachingDone(
       permission_duration ==
       webui::mojom::UserGrantedPermissionDuration::kAlwaysAllow;
 
-  actor_login::LoginStatusResultCallback federated_login_callback =
-      CreateFederatedLoginCallback(selected_credential, tool_delegate());
-
   GetActorLoginService().AttemptLogin(
       tab, selected_credential, should_store_permission,
       quality_logger_.AsWeakPtr(), attempt_login_tool_start_time_,
       base::BindOnce(&AttemptLoginTool::OnAttemptLogin,
                      weak_ptr_factory_.GetWeakPtr(), selected_credential,
                      should_store_permission),
-      std::move(federated_login_callback));
+      tool_delegate().GetActionSequenceDelegate());
 }
 
 void AttemptLoginTool::OnAttemptLogin(
@@ -586,8 +565,7 @@ void AttemptLoginTool::MaybeRetryCredentialNeedingFocus() {
                      weak_ptr_factory_.GetWeakPtr(),
                      credential_awaiting_task_focus_->first,
                      credential_awaiting_task_focus_->second),
-      CreateFederatedLoginCallback(credential_awaiting_task_focus_->first,
-                                   tool_delegate()));
+      tool_delegate().GetActionSequenceDelegate());
 }
 
 std::string AttemptLoginTool::DebugString() const {

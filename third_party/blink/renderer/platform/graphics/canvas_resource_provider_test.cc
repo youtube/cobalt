@@ -297,9 +297,9 @@ TEST_F(CanvasResourceProviderTest, CanvasResourceProviderUnacceleratedOverlay) {
   EXPECT_FALSE(provider->IsSingleBuffered());
 }
 
-std::unique_ptr<CanvasResourceProviderSharedImage> MakeCanvas2DResourceProvider(
-    base::WeakPtr<WebGraphicsContext3DProviderWrapper>
-        context_provider_wrapper) {
+std::unique_ptr<Canvas2DResourceProviderSharedImage>
+MakeCanvas2DResourceProvider(base::WeakPtr<WebGraphicsContext3DProviderWrapper>
+                                 context_provider_wrapper) {
   const gpu::SharedImageUsageSet shared_image_usage_flags =
       gpu::SHARED_IMAGE_USAGE_DISPLAY_READ | gpu::SHARED_IMAGE_USAGE_SCANOUT;
 
@@ -312,10 +312,10 @@ std::unique_ptr<CanvasResourceProviderSharedImage> MakeCanvas2DResourceProvider(
 }
 
 scoped_refptr<CanvasResource> UpdateResource(
-    CanvasResourceProviderSharedImage* provider) {
+    Canvas2DResourceProviderSharedImage* provider) {
   provider->ProduceCanvasResource(FlushReason::kOther);
   // Resource updated after draw.
-  provider->Canvas().clear(SkColors::kWhite);
+  provider->GetCanvasForCanvas2DForTesting().clear(SkColors::kWhite);
   return provider->ProduceCanvasResource(FlushReason::kOther);
 }
 
@@ -338,7 +338,7 @@ TEST_F(CanvasResourceProviderTest,
       gfx::Size(10, 10), color_params,
       SharedGpuContext::ContextProviderWrapper(), shared_image_usage_flags);
 
-  auto resource = provider->ProduceCanvasResource(FlushReason::kOther);
+  auto resource = provider->ProduceCanvasResource();
   auto old_compositor_read_sync_token = GetSyncToken(resource.get());
 
   // NOTE: Need to ensure that this SyncToken's release count is greater than
@@ -391,21 +391,22 @@ TEST_F(CanvasResourceProviderTest,
 #endif
 
   // Same resource and sync token if we query again without updating.
-  auto resource = provider->ProduceCanvasResource(FlushReason::kOther);
+  auto resource = provider->ProduceCanvasResource();
   auto sync_token = GetSyncToken(resource.get());
   ASSERT_TRUE(resource);
-  EXPECT_EQ(resource, provider->ProduceCanvasResource(FlushReason::kOther));
+  EXPECT_EQ(resource, provider->ProduceCanvasResource());
   EXPECT_EQ(sync_token, GetSyncToken(resource.get()));
 
-  auto new_resource = UpdateResource(provider.get());
+  provider->GetCanvasDeprecated().clear(SkColors::kWhite);
+  auto new_resource = provider->ProduceCanvasResource();
   EXPECT_NE(resource, new_resource);
   EXPECT_NE(GetSyncToken(resource.get()), GetSyncToken(new_resource.get()));
   auto* resource_ptr = resource.get();
 
   EnsureResourceRecycled(provider.get(), std::move(resource));
 
-  provider->Canvas().clear(SkColors::kBlack);
-  auto resource_again = provider->ProduceCanvasResource(FlushReason::kOther);
+  provider->GetCanvasDeprecated().clear(SkColors::kBlack);
+  auto resource_again = provider->ProduceCanvasResource();
   EXPECT_EQ(resource_ptr, resource_again);
   EXPECT_NE(sync_token, GetSyncToken(resource_again.get()));
 }
@@ -533,7 +534,7 @@ TEST_F(CanvasResourceProviderTest,
             image->GetSharedImage());
 
   // Resource updated after draw.
-  provider->Canvas().clear(SkColors::kWhite);
+  provider->GetCanvasForCanvas2DForTesting().clear(SkColors::kWhite);
   provider->FlushCanvas2D(FlushReason::kOther);
   new_image = provider->Snapshot();
   EXPECT_NE(new_image->GetSharedImage(), image->GetSharedImage());
@@ -541,7 +542,7 @@ TEST_F(CanvasResourceProviderTest,
   // Resource recycled.
   auto original_shared_image = image->GetSharedImage();
   image.reset();
-  provider->Canvas().clear(SkColors::kBlack);
+  provider->GetCanvasForCanvas2DForTesting().clear(SkColors::kBlack);
   provider->FlushCanvas2D(FlushReason::kOther);
   EXPECT_EQ(original_shared_image, provider->Snapshot()->GetSharedImage());
 }
@@ -685,7 +686,7 @@ TEST_F(CanvasResourceProviderTest, FlushForImage) {
       gfx::Size(10, 10), color_params, context_provider_wrapper_,
       gpu::SharedImageUsageSet());
 
-  MemoryManagedPaintCanvas& dst_canvas = dst_provider->Canvas();
+  MemoryManagedPaintCanvas& dst_canvas = dst_provider->GetCanvasDeprecated();
 
   PaintImage paint_image =
       src_provider->Snapshot()->PaintImageForCurrentFrame();
@@ -698,12 +699,13 @@ TEST_F(CanvasResourceProviderTest, FlushForImage) {
   EXPECT_TRUE(dst_canvas.IsCachingImage(src_content_id));
 
   // Modify the canvas to trigger OnFlushForImage
-  src_provider->Canvas().clear(SkColors::kWhite);
+  src_provider->GetCanvasDeprecated().clear(SkColors::kWhite);
   // So that all the cached draws are executed
-  src_provider->ProduceCanvasResource(FlushReason::kOther);
+  src_provider->ProduceCanvasResource();
 
   // The paint canvas may have moved
-  MemoryManagedPaintCanvas& new_dst_canvas = dst_provider->Canvas();
+  MemoryManagedPaintCanvas& new_dst_canvas =
+      dst_provider->GetCanvasDeprecated();
 
   // TODO(aaronhk): The resource on the src_provider should be the same before
   // and after the draw. Something about the program flow within
@@ -728,73 +730,76 @@ TEST_F(CanvasResourceProviderTest, ImageCacheOnContextLost) {
       cc::DrawImage(cc::CreateDiscardablePaintImage(gfx::Size(20, 20)), false,
                     SkIRect::MakeWH(5, 5), cc::PaintFlags::FilterQuality::kNone,
                     SkM44(), 0u, cc::TargetColorParams())};
-  provider->Canvas().drawImage(images[0].paint_image(), 0u, 0u,
-                               SkSamplingOptions(), nullptr);
+  provider->GetCanvasForCanvas2DForTesting().drawImage(
+      images[0].paint_image(), 0u, 0u, SkSamplingOptions(), nullptr);
 
   // Lose the context and ensure that the image provider is not used.
   provider->OnContextDestroyed();
   // We should unref all images on the cache when the context is destroyed.
   EXPECT_EQ(image_decode_cache_.num_locked_images(), 0);
   image_decode_cache_.set_disallow_cache_use(true);
-  provider->Canvas().drawImage(images[1].paint_image(), 0u, 0u,
-                               SkSamplingOptions(), nullptr);
+  provider->GetCanvasForCanvas2DForTesting().drawImage(
+      images[1].paint_image(), 0u, 0u, SkSamplingOptions(), nullptr);
 }
 
 TEST_F(CanvasResourceProviderTest, FlushCanvasReleasesAllReleasableOps) {
   std::unique_ptr<CanvasResourceProvider> provider =
       MakeCanvas2DResourceProvider(context_provider_wrapper_);
 
-  EXPECT_FALSE(provider->Recorder().HasRecordedDrawOps());
-  EXPECT_FALSE(provider->Recorder().HasReleasableDrawOps());
+  EXPECT_FALSE(provider->RecorderForCanvas2D().HasRecordedDrawOps());
+  EXPECT_FALSE(provider->RecorderForCanvas2D().HasReleasableDrawOps());
 
-  provider->Canvas().drawRect({0, 0, 10, 10}, cc::PaintFlags());
-  EXPECT_TRUE(provider->Recorder().HasRecordedDrawOps());
-  EXPECT_TRUE(provider->Recorder().HasReleasableDrawOps());
+  provider->GetCanvasForCanvas2DForTesting().drawRect({0, 0, 10, 10},
+                                                      cc::PaintFlags());
+  EXPECT_TRUE(provider->RecorderForCanvas2D().HasRecordedDrawOps());
+  EXPECT_TRUE(provider->RecorderForCanvas2D().HasReleasableDrawOps());
 
   // `FlushCanvas` releases all ops, leaving the canvas clean.
   provider->FlushCanvas2D(FlushReason::kOther);
-  EXPECT_FALSE(provider->Recorder().HasRecordedDrawOps());
-  EXPECT_FALSE(provider->Recorder().HasReleasableDrawOps());
+  EXPECT_FALSE(provider->RecorderForCanvas2D().HasRecordedDrawOps());
+  EXPECT_FALSE(provider->RecorderForCanvas2D().HasReleasableDrawOps());
 }
 
 TEST_F(CanvasResourceProviderTest, FlushCanvasReleasesAllOpsOutsideLayers) {
   std::unique_ptr<CanvasResourceProvider> provider =
       MakeCanvas2DResourceProvider(context_provider_wrapper_);
 
-  EXPECT_FALSE(provider->Recorder().HasRecordedDrawOps());
-  EXPECT_FALSE(provider->Recorder().HasReleasableDrawOps());
-  EXPECT_FALSE(provider->Recorder().HasSideRecording());
+  EXPECT_FALSE(provider->RecorderForCanvas2D().HasRecordedDrawOps());
+  EXPECT_FALSE(provider->RecorderForCanvas2D().HasReleasableDrawOps());
+  EXPECT_FALSE(provider->RecorderForCanvas2D().HasSideRecording());
 
   // Side canvases (used for canvas 2d layers) cannot be flushed until closed.
   // Open one and validate that flushing the canvas only flushed that main
   // recording, not the side one.
-  provider->Canvas().drawRect({0, 0, 10, 10}, cc::PaintFlags());
-  provider->Recorder().BeginSideRecording();
-  provider->Canvas().saveLayerAlphaf(0.5f);
-  provider->Canvas().drawRect({0, 0, 10, 10}, cc::PaintFlags());
-  EXPECT_TRUE(provider->Recorder().HasRecordedDrawOps());
-  EXPECT_TRUE(provider->Recorder().HasReleasableDrawOps());
-  EXPECT_TRUE(provider->Recorder().HasSideRecording());
+  provider->GetCanvasForCanvas2DForTesting().drawRect({0, 0, 10, 10},
+                                                      cc::PaintFlags());
+  provider->RecorderForCanvas2D().BeginSideRecording();
+  provider->GetCanvasForCanvas2DForTesting().saveLayerAlphaf(0.5f);
+  provider->GetCanvasForCanvas2DForTesting().drawRect({0, 0, 10, 10},
+                                                      cc::PaintFlags());
+  EXPECT_TRUE(provider->RecorderForCanvas2D().HasRecordedDrawOps());
+  EXPECT_TRUE(provider->RecorderForCanvas2D().HasReleasableDrawOps());
+  EXPECT_TRUE(provider->RecorderForCanvas2D().HasSideRecording());
 
   provider->FlushCanvas2D(FlushReason::kOther);
-  EXPECT_TRUE(provider->Recorder().HasRecordedDrawOps());
-  EXPECT_FALSE(provider->Recorder().HasReleasableDrawOps());
-  EXPECT_TRUE(provider->Recorder().HasSideRecording());
+  EXPECT_TRUE(provider->RecorderForCanvas2D().HasRecordedDrawOps());
+  EXPECT_FALSE(provider->RecorderForCanvas2D().HasReleasableDrawOps());
+  EXPECT_TRUE(provider->RecorderForCanvas2D().HasSideRecording());
 
-  provider->Canvas().restore();
-  EXPECT_TRUE(provider->Recorder().HasRecordedDrawOps());
-  EXPECT_FALSE(provider->Recorder().HasReleasableDrawOps());
-  EXPECT_TRUE(provider->Recorder().HasSideRecording());
+  provider->GetCanvasForCanvas2DForTesting().restore();
+  EXPECT_TRUE(provider->RecorderForCanvas2D().HasRecordedDrawOps());
+  EXPECT_FALSE(provider->RecorderForCanvas2D().HasReleasableDrawOps());
+  EXPECT_TRUE(provider->RecorderForCanvas2D().HasSideRecording());
 
-  provider->Recorder().EndSideRecording();
-  EXPECT_TRUE(provider->Recorder().HasRecordedDrawOps());
-  EXPECT_TRUE(provider->Recorder().HasReleasableDrawOps());
-  EXPECT_FALSE(provider->Recorder().HasSideRecording());
+  provider->RecorderForCanvas2D().EndSideRecording();
+  EXPECT_TRUE(provider->RecorderForCanvas2D().HasRecordedDrawOps());
+  EXPECT_TRUE(provider->RecorderForCanvas2D().HasReleasableDrawOps());
+  EXPECT_FALSE(provider->RecorderForCanvas2D().HasSideRecording());
 
   provider->FlushCanvas2D(FlushReason::kOther);
-  EXPECT_FALSE(provider->Recorder().HasRecordedDrawOps());
-  EXPECT_FALSE(provider->Recorder().HasReleasableDrawOps());
-  EXPECT_FALSE(provider->Recorder().HasSideRecording());
+  EXPECT_FALSE(provider->RecorderForCanvas2D().HasRecordedDrawOps());
+  EXPECT_FALSE(provider->RecorderForCanvas2D().HasReleasableDrawOps());
+  EXPECT_FALSE(provider->RecorderForCanvas2D().HasSideRecording());
 }
 
 }  // namespace blink

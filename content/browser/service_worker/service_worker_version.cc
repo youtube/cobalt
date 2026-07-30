@@ -50,6 +50,7 @@
 #include "content/browser/service_worker/service_worker_security_utils.h"
 #include "content/browser/service_worker/service_worker_usb_delegate_observer.h"
 #include "content/common/content_navigation_policy.h"
+#include "content/common/features.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/page_navigator.h"
@@ -828,6 +829,12 @@ bool ServiceWorkerVersion::FinishRequestWithFetchCount(int request_id,
       request->event_type, tick_clock_->NowTicks() - request->start_time_ticks,
       was_handled, fetch_count);
 
+  // "Fire Functional Event" spec algorithm step 8: trigger a soft update
+  // check after a functional event completes.
+  if (request->soft_update_on_completion && IsRegistrationStale()) {
+    ScheduleUpdate();
+  }
+
   // ServiceWorkerVersion::Request
   TRACE_EVENT_END("ServiceWorker", perfetto::Track::FromPointer(request),
                   "Handled", was_handled);
@@ -841,6 +848,59 @@ bool ServiceWorkerVersion::FinishRequestWithFetchCount(int request_id,
     OnNoWorkInBrowser();
   }
   return true;
+}
+
+bool ServiceWorkerVersion::IsRegistrationStale() {
+  if (!context_) {
+    return false;
+  }
+  scoped_refptr<ServiceWorkerRegistration> registration =
+      context_->GetLiveRegistration(registration_id_);
+  if (!registration || registration->installing_version()) {
+    return false;
+  }
+  return clock_->Now() - registration->last_update_check() >
+         ServiceWorkerConsts::kServiceWorkerScriptMaxCacheAge;
+}
+
+void ServiceWorkerVersion::RunAfterStartWorkerForFunctionalEvent(
+    ServiceWorkerMetrics::EventType purpose,
+    StatusCallback callback) {
+  RunAfterStartWorker(
+      purpose,
+      base::BindOnce(&ServiceWorkerVersion::DidStartWorkerForFunctionalEvent,
+                     weak_factory_.GetWeakPtr(), std::move(callback)));
+}
+
+void ServiceWorkerVersion::DidStartWorkerForFunctionalEvent(
+    StatusCallback callback,
+    blink::ServiceWorkerStatusCode status) {
+  if (status != blink::ServiceWorkerStatusCode::kOk) {
+    if (IsRegistrationStale()) {
+      ScheduleUpdate();
+    }
+  }
+  std::move(callback).Run(status);
+}
+
+int ServiceWorkerVersion::StartRequestForFunctionalEvent(
+    ServiceWorkerMetrics::EventType event_type,
+    StatusCallback error_callback) {
+  return StartRequestForFunctionalEventWithCustomTimeout(
+      event_type, std::move(error_callback), kRequestTimeout, KILL_ON_TIMEOUT);
+}
+
+int ServiceWorkerVersion::StartRequestForFunctionalEventWithCustomTimeout(
+    ServiceWorkerMetrics::EventType event_type,
+    StatusCallback error_callback,
+    const base::TimeDelta& timeout,
+    TimeoutBehavior timeout_behavior) {
+  int request_id = StartRequestWithCustomTimeout(
+      event_type, std::move(error_callback), timeout, timeout_behavior);
+  InflightRequest* request = inflight_requests_.Lookup(request_id);
+  DCHECK(request);
+  request->soft_update_on_completion = true;
+  return request_id;
 }
 
 ServiceWorkerExternalRequestResult ServiceWorkerVersion::FinishExternalRequest(
@@ -973,11 +1033,9 @@ void ServiceWorkerVersion::RemoveControllee(const std::string& client_uuid) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   // TODO(crbug.com/40653867): Remove this once RemoveControllee() matches with
   // AddControllee().
-  if (!controllee_map_.contains(client_uuid)) {
+  if (controllee_map_.erase(client_uuid) == 0) {
     return;
   }
-
-  controllee_map_.erase(client_uuid);
 
   embedded_worker_->UpdateForegroundPriority();
 
@@ -1012,9 +1070,11 @@ void ServiceWorkerVersion::OnControlleeNavigationCommitted(
 void ServiceWorkerVersion::MoveControlleeToBackForwardCacheMap(
     const std::string& client_uuid) {
   DCHECK(IsBackForwardCacheEnabled());
-  CHECK(controllee_map_.contains(client_uuid));
-  CHECK(!bfcached_controllee_map_.contains(client_uuid));
-  bfcached_controllee_map_[client_uuid] = controllee_map_[client_uuid];
+  auto it = controllee_map_.find(client_uuid);
+  CHECK(it != controllee_map_.end());
+  auto [bf_it, inserted] =
+      bfcached_controllee_map_.try_emplace(client_uuid, it->second);
+  CHECK(inserted);
   RemoveControllee(client_uuid);
 }
 
@@ -1055,8 +1115,8 @@ void ServiceWorkerVersion::RemoveControlleeFromBackForwardCacheMap(
   // `bfcache_controllee_map_` does not contain the client.
   SCOPED_CRASH_KEY_BOOL("ServiceWorkerBfcache", "in_controllee_map",
                         controllee_map_.contains(client_uuid));
-  CHECK(bfcached_controllee_map_.contains(client_uuid));
-  bfcached_controllee_map_.erase(client_uuid);
+  size_t count = bfcached_controllee_map_.erase(client_uuid);
+  CHECK_GT(count, 0u);
 }
 
 void ServiceWorkerVersion::Uncontrol(const std::string& client_uuid) {
@@ -1075,8 +1135,8 @@ void ServiceWorkerVersion::Uncontrol(const std::string& client_uuid) {
       // In this case, |controllees_to_be_evicted_| should contain the
       // controllee.
       // TODO(crbug.com/40657227): Remove this CHECK once we fix the crash.
-      CHECK(controllees_to_be_evicted_.contains(client_uuid));
-      controllees_to_be_evicted_.erase(client_uuid);
+      size_t count = controllees_to_be_evicted_.erase(client_uuid);
+      CHECK_GT(count, 0u);
     }
   }
 }

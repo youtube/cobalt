@@ -639,6 +639,13 @@ OwnedLayerImplList LayerTreeImpl::DetachLayersKeepingRootLayerForTesting() {
   return layers;
 }
 
+OwnedLayerImplList LayerTreeImpl::SwapLayers(OwnedLayerImplList new_layers) {
+  OwnedLayerImplList result = DetachLayers();
+  layer_list_ = std::move(new_layers);
+  set_needs_update_draw_properties();
+  return result;
+}
+
 void LayerTreeImpl::SetPropertyTrees(PropertyTrees& property_trees,
                                      bool preserve_change_tracking) {
   PropertyTreesChangeState change_state;
@@ -718,8 +725,9 @@ void LayerTreeImpl::PullPropertiesFrom(
   AddSuccessfulPresentationCallbacks(
       std::move(commit_state.pending_successful_presentation_callbacks));
 
-  if (commit_state.needs_full_tree_sync)
+  if (commit_state.needs_full_tree_sync) {
     TreeSynchronizer::SynchronizeTrees(commit_state, unsafe_state, this);
+  }
 
   if (commit_state.clear_caches_on_next_commit) {
     host_impl_->ClearHistory();
@@ -738,12 +746,18 @@ void LayerTreeImpl::PullPropertiesFrom(
 
   {
     DiscardableImageMapUpdater updater(this);
-    TreeSynchronizer::PushLayerProperties(commit_state, this);
+    TreeSynchronizer::PushLayerProperties(commit_state, unsafe_state, this);
     lifecycle().AdvanceTo(LayerTreeLifecycle::kSyncedLayerProperties);
 
     for (const ElementId& id : commit_state.scrollers_clobbering_active_value) {
       property_trees()->scroll_tree_mutable().SetScrollOffsetClobberActiveValue(
           id);
+    }
+
+    for (const int layer_id :
+         commit_state.picture_layer_ids_with_new_raster_source) {
+      static_cast<PictureLayerImpl*>(LayerById(layer_id))
+          ->CommitPendingRasterSource();
     }
 
     // This must happen after synchronizing property trees and after pushing

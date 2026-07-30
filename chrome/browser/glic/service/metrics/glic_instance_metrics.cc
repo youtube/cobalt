@@ -532,6 +532,8 @@ void GlicInstanceMetrics::OnOpen(glic::mojom::InvocationSource source,
     base::UmaHistogramEnumeration("Glic.Instance.InitialInvocationSource",
                                   source);
   }
+  base::RecordAction(base::UserMetricsAction("Glic.Instance.Open"));
+  LogEvent(GlicInstanceEvent::kOpen);
   if (std::holds_alternative<FloatingShowOptions>(options.embedder_options)) {
     base::UmaHistogramEnumeration("Glic.Instance.Floaty.OpenSource", source);
   } else {
@@ -836,6 +838,11 @@ void GlicInstanceMetrics::OnResponseStarted() {
           "Glic.Turn.ResponseStartTime.WithoutContext", start_time);
     }
   }
+
+  base::UmaHistogramEnumeration(
+      "Glic.Response.Segmentation",
+      GetResponseSegmentation(turn_.ui_mode_ == EmbedderType::kSidePanel,
+                              turn_.input_mode_, last_invocation_source_));
 
   ukm::builders::Glic_Response(turn_.chosen_source_id_)
       .SetAttached(turn_.ui_mode_ == EmbedderType::kSidePanel)

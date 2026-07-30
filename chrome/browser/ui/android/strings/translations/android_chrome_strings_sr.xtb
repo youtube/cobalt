@@ -462,6 +462,7 @@
 <translation id="2932150158123903946">Меморијски простор за Google <ph name="APP_NAME" /></translation>
 <translation id="2932222164150889403">Тастатура се неће променити</translation>
 <translation id="2936980480904111527">Chrome обавештења олакшавају ствари</translation>
+<translation id="2939908794993783865">Додатни неактивни сајтови</translation>
 <translation id="2940075786175545812">Опција за одобравање или neодобравање веб-сајта</translation>
 <translation id="2942036813789421260">Картица за преглед је затворена</translation>
 <translation id="2951071800649516099">Додајте странице на листу за читање за касније</translation>
@@ -699,6 +700,7 @@
 <translation id="3985215325736559418">Желите ли стварно да поново преузмете <ph name="FILE_NAME" />?</translation>
 <translation id="3987993985790029246">Копирај линк</translation>
 <translation id="3994236846568425219">Укључите тамну тему када је тамна тема укључена на уређају</translation>
+<translation id="399788104667917863">Закачите на траку с алаткама</translation>
 <translation id="4000212216660919741">Офлајн почетна страница</translation>
 <translation id="4000670338830950598">Прилагодите и контролишите Google Chrome помоћу истакнуте ставке</translation>
 <translation id="4015643064997321279">{NUM_PASSWORDS,plural, =1{1 угрожена лозинка на Google налогу}one{# угрожена лозинка на Google налогу}few{# угрожене лозинке на Google налогу}other{# угрожених лозинки на Google налогу}}</translation>
@@ -1394,7 +1396,6 @@ Google налог можда има друге облике историје п�
 <translation id="6746338529702829275">Прегледајте податке о налогу</translation>
 <translation id="6746834324024491643">Да би вам лозинке и други садржај били доступни на свим уређајима, пријавите се као <ph name="EMAIL" /></translation>
 <translation id="6751521182688001123">Брзо отворите нову картицу. Да бисте изменили ову пречицу, додирните и задржите.</translation>
-<translation id="6752130751133944215">Да бисте вратили нови прозор, смањите укупан број активних и неактивних прозора на <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> или мање. Неактивни прозори се бришу после 6 месеци.</translation>
 <translation id="6754359471209693699">Започните нову претрагу</translation>
 <translation id="6756507620369789050">Делите повратне информације</translation>
 <translation id="6762511428368667596"><ph name="NAME" />, <ph name="EMAIL" />.</translation>
@@ -1584,7 +1585,6 @@ Google налог можда има друге облике историје п�
 <translation id="7388615499319468910">Сајтови и оглашавачи могу да разумеју учинак огласа. Ово подешавање је искључено.</translation>
 <translation id="7400003506822844357">{FILE_COUNT,plural, =1{1 други фајл на листи}one{# други фајл на листи}few{# друга фајла на листи}other{# других фајлова на листи}}</translation>
 <translation id="7400418766976504921">URL адреса</translation>
-<translation id="7400424692675800399">Да бисте отворили нови прозор, смањите укупан број активних и неактивних прозора на <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> или мање.</translation>
 <translation id="7403691278183511381">Chrome доживљај првог покретања</translation>
 <translation id="7411224099004328643">Корисник Google налога</translation>
 <translation id="7419565702166471774">Увек користи безбедне везе</translation>

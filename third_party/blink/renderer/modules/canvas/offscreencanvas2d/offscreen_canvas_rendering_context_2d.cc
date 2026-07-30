@@ -28,6 +28,7 @@
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
+#include "third_party/blink/renderer/platform/graphics/gpu/canvas_utils.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_gpu_context.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_canvas.h"
 #include "third_party/blink/renderer/platform/graphics/skia/skia_utils.h"
@@ -116,7 +117,6 @@ OffscreenCanvasRenderingContext2D::OffscreenCanvasRenderingContext2D(
       canvas->SetDisableReadingFromCanvasTrue();
     return;
   }
-  dirty_rect_for_commit_.setEmpty();
   WorkerSettings* worker_settings =
       To<WorkerGlobalScope>(execution_context)->GetWorkerSettings();
   if (worker_settings && worker_settings->DisableReadingFromCanvas())
@@ -226,8 +226,7 @@ OffscreenCanvasRenderingContext2D::GetOrCreateResourceProvider() {
   if (use_shared_image) {
     gpu::SharedImageUsageSet shared_image_usage_flags =
         gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
-    if (host->HasPlaceholderCanvas() &&
-        SharedGpuContext::UseOverlaysForCanvas2D()) {
+    if (host->HasPlaceholderCanvas() && UseOverlaysForCanvas2D()) {
       shared_image_usage_flags |= gpu::SHARED_IMAGE_USAGE_SCANOUT;
     }
 
@@ -265,6 +264,7 @@ OffscreenCanvasRenderingContext2D::GetOrCreateResourceProvider() {
                               resource_provider_->IsAccelerated());
     base::UmaHistogramEnumeration("Blink.Canvas.ResourceProviderType",
                                   resource_provider_->GetType());
+
     host->DidDraw();
   }
   return resource_provider_.get();
@@ -294,9 +294,6 @@ void OffscreenCanvasRenderingContext2D::Reset() {
   BaseRenderingContext2D::ResetInternal();
   // Because the host may have changed to a zero size
   is_valid_size_ = Host()->IsValidImageSize();
-  // We must resize the damage rect to avoid a potentially larger damage than
-  // actual canvas size. See: crbug.com/1227165
-  dirty_rect_for_commit_ = SkIRect::MakeWH(Width(), Height());
 }
 
 scoped_refptr<CanvasResource>
@@ -323,14 +320,8 @@ OffscreenCanvasRenderingContext2D::ProduceCanvasResource(FlushReason reason) {
 }
 
 bool OffscreenCanvasRenderingContext2D::PushFrame() {
-  if (dirty_rect_for_commit_.isEmpty())
-    return false;
-
-  SkIRect damage_rect(dirty_rect_for_commit_);
   FinalizeFrame(FlushReason::kOther);
-  bool ret = Host()->PushFrame(ProduceCanvasResource(FlushReason::kOther),
-                               damage_rect);
-  dirty_rect_for_commit_.setEmpty();
+  bool ret = Host()->PushFrame(ProduceCanvasResource(FlushReason::kOther));
   GetOffscreenFontCache().PruneLocalFontCache(kMaxCachedFonts);
   return ret;
 }
@@ -413,20 +404,24 @@ OffscreenCanvasRenderingContext2D::GetPaintCanvas() const {
 
 const MemoryManagedPaintRecorder* OffscreenCanvasRenderingContext2D::Recorder()
     const {
-  return resource_provider_ ? &resource_provider_->Recorder() : nullptr;
+  return resource_provider_ ? &resource_provider_->RecorderForCanvas2D()
+                            : nullptr;
 }
 
 void OffscreenCanvasRenderingContext2D::WillDraw(
     const SkIRect& dirty_rect,
     CanvasPerformanceMonitor::DrawType draw_type) {
-  dirty_rect_for_commit_.join(dirty_rect);
-  GetCanvasPerformanceMonitor().DidDraw(draw_type);
+  SkIRect adjusted_dirty_rect = dirty_rect;
   if (GetState().ShouldAntialias()) {
-    SkIRect inflated_dirty_rect = dirty_rect_for_commit_.makeOutset(1, 1);
-    Host()->DidDraw(inflated_dirty_rect);
-  } else {
-    Host()->DidDraw(dirty_rect_for_commit_);
+    adjusted_dirty_rect = adjusted_dirty_rect.makeOutset(1, 1);
+
+    // We might expanded rect beyond canvas's bounds. Clamp it back.
+    adjusted_dirty_rect.intersect(SkIRect::MakeWH(Width(), Height()));
   }
+
+  GetCanvasPerformanceMonitor().DidDraw(draw_type);
+  Host()->DidDraw(adjusted_dirty_rect);
+
   if (layer_count_ == 0 && resource_provider_ != nullptr) [[likely]] {
     // TODO(crbug.com/1246486): Make auto-flushing layer friendly.
     resource_provider_->FlushIfRecordingLimitExceededForCanvas2D();

@@ -55,6 +55,12 @@ struct ProfileEnablement {
   // Whether the user has passed the FRE.
   bool not_consented;
 
+  // Whether disallowed by country filtering.
+  bool disallowed_by_country_filter;
+
+  // Whether disallowed by locale filtering.
+  bool disallowed_by_locale_filter;
+
   // Whether the user has consented to actuation.
   bool actuation_not_consented;
 
@@ -168,7 +174,8 @@ interface GlicPreloadHandlerFactory {
 interface PageHandlerFactory {
   // Creates the PageHandler for chrome://glic.
   CreatePageHandler(
-      pending_receiver<PageHandler> receiver, pending_remote<Page> page);
+      pending_receiver<PageHandler> receiver, pending_remote<Page> page)
+      => (string instance_id);
 };
 
 // It is used in the Glic.PanelWebUiState.FinishState histogram.
@@ -266,6 +273,7 @@ struct TriggerInvokeFromInternalsOptions {
   mojo_base.mojom.TimeDelta? timeout;
   AllowedInflightNavigation allowed_inflight_navigation;
   bool auto_submit;
+  FreOverride fre_override = kUnspecified;
 };
 
 // Page handler for the glic WebUI.
@@ -752,10 +760,8 @@ enum SkillSource {
   [MinVersion=1] kDerivedFromFirstParty = 3,
 };
 
-// clang-format off
 // LINT.ThenChange(//components/skills/public/skill.mojom:SkillSource,
 // //components/sync/protocol/skill_specifics.proto:SkillSource)
-// clang-format on
 
 // LINT.IfChange(Skill)
 // A single skill preview.
@@ -785,11 +791,9 @@ struct Skill {
   string? source_skill_id;
 };
 
-// clang-format off
 // LINT.ThenChange(//components/skills/public/skill.mojom:Skill,
 // //components/skills/public/skill.h:Skill,
 // //chrome/browser/resources/glic/glic_api/glic_api.ts:Skill)
-// clang-format on
 
 // Request to create a skill.
 struct CreateSkillRequest {
@@ -1042,7 +1046,6 @@ interface WebClientHandler {
   // `tab_context_result` is null if tab content could not be captured.
   // This may fail if the tab is navigated while collecting data, or closed
   // before data is collected.
-  [RuntimeFeature=glic.mojom.features.kGlicMultiTab]
   GetContextFromTab(int32 tab_id, GetTabContextOptions options)
       => (GetContextResult result);
 
@@ -1057,24 +1060,20 @@ interface WebClientHandler {
   // effective limit is returned. The returned number may also differ from the
   // requested number if the current number of pinned tabs exceeds the requested
   // amount.
-  [RuntimeFeature=glic.mojom.features.kGlicMultiTab]
   SetMaximumNumberOfPinnedTabs(uint32 requested_max)
       => (uint32 effective_max);
 
   // Pins the given tabs. Can fail if the tabs cannot be found, if the number of
   // pinned tabs exceeds the allowed limit or if the tabs are already pinned.
   // Returns true if all the given tabs were pinned.
-  [RuntimeFeature=glic.mojom.features.kGlicMultiTab]
   PinTabs(array<int32> tab_ids, PinTabsOptions? options) => (bool pinned_all);
 
   // Unpins the given tabs. Can fail if the tabs cannot be found, or if some of
   // the given tabs aren't pinned.
-  [RuntimeFeature=glic.mojom.features.kGlicMultiTab]
   UnpinTabs(array<int32> tab_ids, UnpinTabsOptions? options)
       => (bool unpinned_all);
 
   // Unpins all currently pinned tabs.
-  [RuntimeFeature=glic.mojom.features.kGlicMultiTab]
   UnpinAllTabs(UnpinTabsOptions? options);
 
   // Initiates the creation of a skill by opening a modal dialog. It returns a
@@ -1097,7 +1096,6 @@ interface WebClientHandler {
   RecordSkillsWebClientEvent(SkillsWebClientEvent event);
 
   // Subscribes to receive updates on pin candidates.
-  [RuntimeFeature=glic.mojom.features.kGlicMultiTab]
   SubscribeToPinCandidates(GetPinCandidatesOptions options,
                            pending_remote<PinCandidatesObserver> observer);
 
@@ -1567,7 +1565,7 @@ enum InvocationSource {
   [MinVersion=15] kWebContentsContextMenu = 23,
 };
 
-// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicInvocationSource, //chrome/browser/glic/glic_metrics.h:ResponseSegmentation, //chrome/browser/glic/service/metrics/metrics_types.h:GlicEntrypoint)
+// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicInvocationSource, //chrome/browser/glic/service/metrics/metrics_types.h:ResponseSegmentation, //chrome/browser/glic/service/metrics/metrics_types.h:GlicEntrypoint)
 
 // @generate glic_api
 // Mode for specific feature behaviors.
@@ -1787,11 +1785,9 @@ interface WebClient {
   NotifyClosedCaptioningSettingChanged(bool enabled);
 
   // Notify that the collection of shared tabs has changed.
-  [RuntimeFeature=glic.mojom.features.kGlicMultiTab]
   NotifyPinnedTabsChanged(array<TabData> tab_data);
 
   // Notify that the TabData for a pinned tab has changed.
-  [RuntimeFeature=glic.mojom.features.kGlicMultiTab]
   NotifyPinnedTabDataChanged(TabData tab_data);
 
   // Notify that a skill has been deleted.
@@ -2108,4 +2104,14 @@ enum HostCapability {
   kPdfZeroState = 7,
   // Indicates that the host supports the invoke mechanism.
   kInvoke = 8,
+  // Indicates that the host does not support Live Mode.
+  kNoLiveMode = 9,
+};
+
+// @generate glic_api
+// Lists capabilities that the glic web client may support.
+enum ClientCapabilities {
+  // The glic web client does not use favicons in TabData, so they can
+  // be omitted from TabData.
+  kIgnoresTabDataFavicons = 0,
 };

@@ -462,6 +462,7 @@
 <translation id="2932150158123903946">Хранилище на Google <ph name="APP_NAME" /></translation>
 <translation id="2932222164150889403">Клавиатурата ви няма да се промени</translation>
 <translation id="2936980480904111527">Всичко е по-лесно с известията в Chrome</translation>
+<translation id="2939908794993783865">Още неактивни сайтове</translation>
 <translation id="2940075786175545812">Опция за одобряване или отхвърляне на уебсайт</translation>
 <translation id="2942036813789421260">Разделът за визуализация е затворен</translation>
 <translation id="2951071800649516099">Добавете страници към списъка за четене по-късно</translation>
@@ -699,6 +700,7 @@
 <translation id="3985215325736559418">Искате ли отново да изтеглите „<ph name="FILE_NAME" />“?</translation>
 <translation id="3987993985790029246">Връзка: Коп.</translation>
 <translation id="3994236846568425219">Включване на тъмната тема, когато тъмната тема на устройството ви е включена</translation>
+<translation id="399788104667917863">Фиксиране в лентата с инструменти</translation>
 <translation id="4000212216660919741">Начална страница в офлайн режим</translation>
 <translation id="4000670338830950598">Персонализиране и контролиране на Google Chrome с откроен елемент</translation>
 <translation id="4015643064997321279">{NUM_PASSWORDS,plural, =1{1 компрометирана парола в профила ви в Google}other{# компрометирани пароли в профила ви в Google}}</translation>
@@ -1394,7 +1396,6 @@
 <translation id="6746338529702829275">Преглед на данните за профила ви</translation>
 <translation id="6746834324024491643">За да получите паролите си и др. на всичките си устройства, влезте като <ph name="EMAIL" /></translation>
 <translation id="6751521182688001123">Бързо отваряне на нов раздел. За да редактирате този пряк път, докоснете и задръжте.</translation>
-<translation id="6752130751133944215">За да възстановите нов прозорец, намалете общия брой на активните и неактивните прозорци до не повече от <ph name="MAX_WINDOW_COUNT_MINUS_ONE" />. Неактивните прозорци се изтриват след 6 месеца.</translation>
 <translation id="6754359471209693699">Стартиране на ново търсене</translation>
 <translation id="6756507620369789050">Споделяне на отзиви</translation>
 <translation id="6762511428368667596"><ph name="NAME" /> (<ph name="EMAIL" />).</translation>
@@ -1584,7 +1585,6 @@
 <translation id="7388615499319468910">Сайтовете и рекламодателите могат да разберат ефективността на рекламите. Тази настройка е изключена.</translation>
 <translation id="7400003506822844357">{FILE_COUNT,plural, =1{Други, 1 файл в списъка}other{Други, # файла в списъка}}</translation>
 <translation id="7400418766976504921">URL адрес</translation>
-<translation id="7400424692675800399">За да отворите нов прозорец, намалете общия брой на активните и неактивните прозорци до не повече от <ph name="MAX_WINDOW_COUNT_MINUS_ONE" />.</translation>
 <translation id="7403691278183511381">Представяне при първо стартиране на Chrome</translation>
 <translation id="7411224099004328643">Потребител на профила в Google</translation>
 <translation id="7419565702166471774">Винаги да се използват сигурни връзки</translation>

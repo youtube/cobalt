@@ -11,6 +11,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewStub;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import org.chromium.base.lifetime.LifetimeAssert;
 import org.chromium.base.supplier.NullableObservableSupplier;
@@ -26,10 +27,13 @@ import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
 import org.chromium.chrome.browser.ui.extensions.ExtensionActionsBridge;
 import org.chromium.chrome.browser.ui.extensions.ExtensionsToolbarBridge;
 import org.chromium.chrome.browser.ui.extensions.R;
+import org.chromium.chrome.browser.ui.toolbar.InvocationSource;
 import org.chromium.components.embedder_support.contextmenu.ContextMenuPopulatorFactory;
 import org.chromium.content_public.browser.selection.SelectionDropdownMenuDelegate;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.listmenu.ListMenuButton;
+import org.chromium.ui.modelutil.PropertyModel;
+import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 
 import java.util.Collection;
 
@@ -45,10 +49,14 @@ public class ExtensionToolbarCoordinatorImpl implements ExtensionToolbarCoordina
     private LinearLayout mContainer;
     private ExtensionsToolbarBridge mExtensionsToolbarBridge;
     private ExtensionActionListCoordinator mExtensionActionListCoordinator;
-    private ExtensionsMenuAndAccessControlButtonCoordinator
-            mExtensionsMenuAndAccessControlButtonCoordinator;
+    private ExtensionsMenuCoordinator mExtensionsMenuCoordinator;
+    private ExtensionAccessControlButtonCoordinator mExtensionAccessControlButtonCoordinator;
+    private PropertyModel mModel;
+    private PropertyModelChangeProcessor mMenuButtonChangeProcessor;
 
     private final MenuButtonWidthConsumer mMenuButtonWidthConsumer = new MenuButtonWidthConsumer();
+    private final RequestAccessButtonWidthConsumer mRequestAccessButtonWidthConsumer =
+            new RequestAccessButtonWidthConsumer();
     private final ActionListWidthConsumer mActionListWidthConsumer = new ActionListWidthConsumer();
     private final PoppedOutActionWidthConsumer mPoppedOutActionWidthConsumer =
             new PoppedOutActionWidthConsumer();
@@ -85,8 +93,20 @@ public class ExtensionToolbarCoordinatorImpl implements ExtensionToolbarCoordina
                         rootView,
                         contextMenuPopulatorFactory,
                         selectionDropdownMenuDelegate);
-        mExtensionsMenuAndAccessControlButtonCoordinator =
-                new ExtensionsMenuAndAccessControlButtonCoordinator(
+        mModel =
+                new PropertyModel.Builder(
+                                PropertyModel.concatKeys(
+                                        ExtensionsMenuProperties.ALL_KEYS,
+                                        ExtensionsToolbarProperties.ALL_KEYS))
+                        .build();
+        mMenuButtonChangeProcessor =
+                PropertyModelChangeProcessor.create(
+                        mModel,
+                        mContainer.findViewById(R.id.extensions_menu_button),
+                        ExtensionsMenuButtonViewBinder::bind);
+
+        mExtensionsMenuCoordinator =
+                new ExtensionsMenuCoordinator(
                         context,
                         mContainer.findViewById(R.id.extensions_menu_button),
                         themeColorProvider,
@@ -95,12 +115,21 @@ public class ExtensionToolbarCoordinatorImpl implements ExtensionToolbarCoordina
                         currentTabSupplier,
                         tabCreator,
                         mExtensionsToolbarBridge,
-                        mContainer.findViewById(R.id.extensions_request_access_button));
+                        mModel);
+        mExtensionAccessControlButtonCoordinator =
+                new ExtensionAccessControlButtonCoordinator(
+                        mModel,
+                        currentTabSupplier,
+                        mExtensionsToolbarBridge,
+                        (TextView) mContainer.findViewById(R.id.extensions_request_access_button),
+                        (v) -> {});
     }
 
     @Override
     public void destroy() {
-        mExtensionsMenuAndAccessControlButtonCoordinator.destroy();
+        mMenuButtonChangeProcessor.destroy();
+        mExtensionAccessControlButtonCoordinator.destroy();
+        mExtensionsMenuCoordinator.destroy();
         mExtensionActionListCoordinator.destroy();
         mExtensionsToolbarBridge.destroy();
         mBridge.destroy();
@@ -123,13 +152,16 @@ public class ExtensionToolbarCoordinatorImpl implements ExtensionToolbarCoordina
             return false;
         }
 
-        mExtensionActionListCoordinator.click(result.actionId);
+        mExtensionActionListCoordinator.executeUserAction(
+                result.actionId, InvocationSource.COMMAND);
         return true;
     }
 
     @Override
     public void updateMenuButtonBackground(int backgroundResource) {
-        mExtensionsMenuAndAccessControlButtonCoordinator.updateButtonBackground(backgroundResource);
+        mModel.set(
+                ExtensionsToolbarProperties.EXTENSIONS_MENU_BUTTON_DEFAULT_BACKGROUND,
+                backgroundResource);
     }
 
     @Override
@@ -148,6 +180,11 @@ public class ExtensionToolbarCoordinatorImpl implements ExtensionToolbarCoordina
     @Override
     public ToolbarWidthConsumer getMenuButtonWidthConsumer() {
         return mMenuButtonWidthConsumer;
+    }
+
+    @Override
+    public ToolbarWidthConsumer getRequestAccessButtonWidthConsumer() {
+        return mRequestAccessButtonWidthConsumer;
     }
 
     @Override
@@ -176,6 +213,51 @@ public class ExtensionToolbarCoordinatorImpl implements ExtensionToolbarCoordina
         }
     }
 
+    private class RequestAccessButtonWidthConsumer implements ToolbarWidthConsumer {
+        @Override
+        public boolean isVisible() {
+            return mModel.get(ExtensionsToolbarProperties.IS_REQUEST_ACCESS_BUTTON_VISIBLE);
+        }
+
+        private void setHasSpaceToShow(boolean hasSpaceToShow) {
+            int visibility = hasSpaceToShow ? View.VISIBLE : View.GONE;
+            mContainer
+                    .findViewById(R.id.extensions_request_access_button)
+                    .setVisibility(visibility);
+        }
+
+        @Override
+        public int updateVisibility(int availableWidth) {
+            if (!isVisible()) {
+                setHasSpaceToShow(false);
+                return 0;
+            }
+
+            TextView requestAccessButton =
+                    mContainer.findViewById(R.id.extensions_request_access_button);
+
+            requestAccessButton.measure(
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+            int buttonWidth = requestAccessButton.getMeasuredWidth();
+
+            boolean hasSpaceToShow = buttonWidth <= availableWidth;
+            setHasSpaceToShow(hasSpaceToShow);
+
+            // TODO(crbug.com/473396591): Add styling and width adjustments for Clank message which
+            // appears where the access button should appear, but the menu puzzle icon is unpinned
+            // as well as when the window size is compact and there isn't enough space to show the
+            // button.
+            return Math.min(availableWidth, buttonWidth);
+        }
+
+        @Override
+        public int updateVisibilityWithAnimation(
+                int availableWidth, Collection<Animator> animators) {
+            return updateVisibility(availableWidth);
+        }
+    }
+
     private class MenuButtonWidthConsumer implements ToolbarWidthConsumer {
         @Override
         public boolean isVisible() {
@@ -186,7 +268,6 @@ public class ExtensionToolbarCoordinatorImpl implements ExtensionToolbarCoordina
         private void setHasSpaceToShow(boolean hasSpaceToShow) {
             int visibility = hasSpaceToShow ? View.VISIBLE : View.GONE;
             mContainer.findViewById(R.id.extensions_menu_button).setVisibility(visibility);
-            mContainer.findViewById(R.id.extensions_divider).setVisibility(visibility);
         }
 
         @Override

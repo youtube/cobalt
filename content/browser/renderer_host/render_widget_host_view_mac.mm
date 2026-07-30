@@ -58,7 +58,6 @@
 #include "skia/ext/skia_utils_mac.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
 #include "third_party/blink/public/mojom/input/input_handler.mojom.h"
-#include "third_party/blink/public/mojom/widget/record_content_to_visible_time_request.mojom.h"
 #import "ui/accessibility/platform/browser_accessibility_cocoa.h"
 #import "ui/accessibility/platform/browser_accessibility_mac.h"
 #include "ui/accessibility/platform/browser_accessibility_manager_mac.h"
@@ -163,6 +162,10 @@ void RenderWidgetHostViewMac::SetCurrentDeviceScaleFactor(
   // TODO(crbug.com/40229152): does this need to be upscaled by
   // scale_override_for_capture_ for HiDPI capture mode?
   screen_infos_.mutable_current().device_scale_factor = device_scale_factor;
+}
+
+bool RenderWidgetHostViewMac::ShouldWaitRemoteCompositorFrameOnResize() const {
+  return remote_ns_view_.is_bound();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -522,7 +525,8 @@ void RenderWidgetHostViewMac::WasUnOccluded() {
 }
 
 void RenderWidgetHostViewMac::NotifyHostAndDelegateOnWasShown(
-    blink::mojom::RecordContentToVisibleTimeRequestPtr tab_switch_start_state) {
+    std::optional<blink::RecordContentToVisibleTimeRequest>
+        tab_switch_start_state) {
   DCHECK(host_->IsHidden());
 
   // SetRenderWidgetHostIsHidden may cause a state transition that switches to
@@ -536,8 +540,8 @@ void RenderWidgetHostViewMac::NotifyHostAndDelegateOnWasShown(
 
   const bool renderer_should_record_presentation_time = !has_saved_frame;
   host()->WasShown(renderer_should_record_presentation_time
-                       ? tab_switch_start_state.Clone()
-                       : blink::mojom::RecordContentToVisibleTimeRequestPtr());
+                       ? tab_switch_start_state
+                       : std::nullopt);
 
   // If the frame for the renderer is already available, then the
   // tab-switching time is the presentation time for the browser-compositor.
@@ -546,16 +550,14 @@ void RenderWidgetHostViewMac::NotifyHostAndDelegateOnWasShown(
   if (has_saved_frame && tab_switch_start_state) {
     browser_compositor_->GetDelegatedFrameHost()
         ->RequestSuccessfulPresentationTimeForNextFrame(
-            std::move(tab_switch_start_state));
+            std::move(*tab_switch_start_state));
   }
 }
 
 void RenderWidgetHostViewMac::
     RequestSuccessfulPresentationTimeFromHostOrDelegate(
-        blink::mojom::RecordContentToVisibleTimeRequestPtr
-            visible_time_request) {
+        blink::RecordContentToVisibleTimeRequest visible_time_request) {
   DCHECK(!host_->IsHidden());
-  DCHECK(visible_time_request);
 
   // No state transition here so don't use
   // has_saved_frame_before_state_transition.

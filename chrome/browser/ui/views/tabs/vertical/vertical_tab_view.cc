@@ -42,6 +42,7 @@
 #include "chrome/browser/ui/views/tabs/vertical/vertical_split_tab_view.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_drag_handler.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_controller.h"
+#include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_utils.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_view.h"
 #include "chrome/common/buildflags.h"
 #include "chrome/grit/generated_resources.h"
@@ -156,8 +157,7 @@ VerticalTabView::VerticalTabView(TabCollectionNode* collection_node)
   tabs::TabInterface* tab = const_cast<tabs::TabInterface*>(GetTabInterface());
   BrowserWindowInterface* browser_window = tab->GetBrowserWindowInterface();
   if (browser_window &&
-      ((base::FeatureList::IsEnabled(features::kGlicMultitabUnderlines) &&
-        glic::GlicEnabling::IsProfileEligible(browser_window->GetProfile())) ||
+      (glic::GlicEnabling::IsProfileEligible(browser_window->GetProfile()) ||
        base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks))) {
     glic_tab_underline_view_ = AddChildView(
         views::Builder<glic::TabUnderlineView>(
@@ -666,6 +666,12 @@ void VerticalTabView::OnBlur() {
   if (collection_node_ && collection_node_->GetController()) {
     collection_node_->GetController()->TabKeyboardFocusChangedTo(nullptr);
   }
+
+  if (auto* tab_strip_view = GetVerticalTabStripView(this)) {
+    if (!tab_strip_view->IsFocusInTabStrip()) {
+      UpdateHoverCard(nullptr, TabSlotController::HoverCardUpdateType::kFocus);
+    }
+  }
 }
 
 void VerticalTabView::OnBoundsChanged(const gfx::Rect& previous_bounds) {
@@ -881,6 +887,7 @@ const views::View* VerticalTabView::GetAnchorView() const {
 
 void VerticalTabView::ResetCollectionNode() {
   CHECK(collection_node_);
+
   TabHoverCardController* hover_card_controller =
       collection_node_->GetController()->GetHoverCardController();
   if (hover_card_controller && hover_card_controller->target_tab() == this) {
@@ -893,7 +900,7 @@ void VerticalTabView::ResetCollectionNode() {
   active_ = false;
   selected_ = false;
 
-  // Update the callbacks for the buttons so that we dont call anything that
+  // Update the callbacks for the buttons so that we don't call anything that
   // needs the node.
   close_button_->SetCallback(base::RepeatingClosure(base::DoNothing()));
 
@@ -1093,13 +1100,7 @@ void VerticalTabView::CloseButtonPressed(const ui::Event& event) {
 }
 
 void VerticalTabView::RecordMousePressedInTab() {
-  views::View* parent_view = parent();
-  while (parent_view &&
-         !views::IsViewClass<VerticalTabStripView>(parent_view)) {
-    parent_view = parent_view->parent();
-  }
-
-  auto* tab_strip_view = views::AsViewClass<VerticalTabStripView>(parent_view);
+  auto* tab_strip_view = GetVerticalTabStripView(this);
   CHECK(tab_strip_view);
   tab_strip_view->RecordMousePressedInTab();
 }

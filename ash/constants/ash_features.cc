@@ -1304,9 +1304,6 @@ BASE_FEATURE(kNearbyPresence, base::FEATURE_DISABLED_BY_DEFAULT);
 // Enables a limit on the number of notifications that can show.
 BASE_FEATURE(kNotificationLimit, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enables a bugfix for devices with a null custom top row property.
-BASE_FEATURE(kNullTopRowFix, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enables the Night Light feature.
 BASE_FEATURE(kNightLight, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -1977,10 +1974,6 @@ BASE_FEATURE(kWakeOnWifiAllowed, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enable "daily" refresh wallpaper to refresh every ten seconds for testing.
 BASE_FEATURE(kWallpaperFastRefresh, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enable using google photos shared albums for wallpaper.
-BASE_FEATURE(kWallpaperGooglePhotosSharedAlbums,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // kWelcomeExperienceTestUnsupportedDevices enables the new device Welcome
 // Experience to be tested on external devices that are not officially
@@ -3369,10 +3362,6 @@ bool IsVcWebApiEnabled() {
 
 bool IsWallpaperFastRefreshEnabled() {
   return base::FeatureList::IsEnabled(kWallpaperFastRefresh);
-}
-
-bool IsWallpaperGooglePhotosSharedAlbumsEnabled() {
-  return base::FeatureList::IsEnabled(kWallpaperGooglePhotosSharedAlbums);
 }
 
 bool IsWelcomeExperienceTestUnsupportedDevicesEnabled() {

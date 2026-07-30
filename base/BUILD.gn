@@ -35,7 +35,6 @@ import("//build/config/sanitizers/sanitizers.gni")
 import("//build/config/sysroot.gni")
 import("//build/config/ui.gni")
 import("//build/nocompile.gni")
-import("//build/rust/rust_bindgen.gni")
 import("//build/rust/rust_static_library.gni")
 import("//build/util/process_version.gni")
 import("//build_overrides/build.gni")
@@ -297,6 +296,8 @@ component("base") {
     "environment.cc",
     "environment.h",
     "export_template.h",
+    "feature.h",
+    "feature_internal.h",
     "feature_list.cc",
     "feature_list.h",
     "feature_visitor.h",
@@ -1091,7 +1092,7 @@ component("base") {
   deps += [ "//third_party/zlib" ]
 
   deps += [
-    ":rust_logger",
+    "logging:rust_logger",
     "//third_party/rust/serde_json_lenient/v0_2/wrapper",
   ]
 
@@ -1129,7 +1130,7 @@ component("base") {
     ":cfi_buildflags",
     ":clang_profiling_buildflags",
     ":debugging_buildflags",
-    ":feature_list_buildflags",
+    ":feature_buildflags",
     ":ios_cronet_buildflags",
     ":orderfile_buildflags",
     ":power_monitor_buildflags",
@@ -1431,13 +1432,16 @@ component("base") {
       "android/unguessable_token_android.h",
     ]
     deps += [
-      ":base_minimal_jni($default_toolchain)",
       ":callback_jni($default_toolchain)",
       ":command_line_jni($default_toolchain)",
+      ":java_exception_reporter_jni($default_toolchain)",
       ":jni_android_jni($default_toolchain)",
+      ":jni_callback_jni($default_toolchain)",
+      ":jni_utils_jni($default_toolchain)",
       ":library_loader_jni($default_toolchain)",
       ":metrics_jni($default_toolchain)",
       ":tasks_minimal_jni($default_toolchain)",
+      ":token_jni($default_toolchain)",
     ]
     public_deps += [
       ":uuid_jni($default_toolchain)",
@@ -1782,6 +1786,7 @@ component("base") {
       "allocator/scheduler_loop_quarantine_config.h",
       "allocator/scheduler_loop_quarantine_support.h",
     ]
+    deps += [ "//build:android_buildflags" ]
   }
   if (use_allocator_shim) {
     public_deps += [ "allocator/partition_allocator:allocator_shim" ]
@@ -2578,6 +2583,20 @@ component("base") {
   }
 }
 
+# This meta-target is equivalent to //base, but for rust code. It's separate
+# to make dependency management easier: base_rust depends on //base, but not
+# vice-versa.
+# TODO(crbug.com/475513466): We may want to rename :base to :base_cpp and
+# create a new meta-target :base that includes both cpp and rust code, for
+# convenience.
+group("base_rust") {
+  public_deps = [
+    ":callback",
+    ":run_loop",
+    ":sequenced_task_runner",
+  ]
+}
+
 # A separate source_set for this header to avoid circular dependencies.
 source_set("compiler_specific") {
   public = [ "compiler_specific.h" ]
@@ -2610,61 +2629,108 @@ if (is_android) {
   }
 }
 
-rust_bindgen("logging_log_severity_bindgen") {
-  # TODO(danakj): Maybe combine all base bindgen targets, or all base/logging
-  # ones even) into a single GN target? But the GN rule needs to handle multiple
-  # headers then.
-  header = "logging/log_severity.h"
-  cpp = true
-  visibility = [ ":*" ]
+rust_static_library("scoped_refptr") {
+  sources = [ "memory/scoped_refptr.rs" ]
+  crate_root = "memory/scoped_refptr.rs"
+  allow_unsafe = true
 
-  # Transitive generated header dependency.
-  deps = [ ":debugging_buildflags" ]
+  # This file uses cxx APIs but doesn't have its own bindings
+  deps = [ "//third_party/rust/cxx/v1:lib" ]
 }
 
-rust_static_library("rust_logger") {
-  allow_unsafe = true  # Unsafe needed for FFI.
+rust_static_library("callback") {
+  sources = [ "functional/callback.rs" ]
+  crate_root = "functional/callback.rs"
+  cxx_bindings = [ "functional/callback.rs" ]
+  allow_unsafe = true
+  deps = [ ":scoped_refptr" ]
+}
+
+rust_static_library("run_loop") {
+  sources = [ "run_loop.rs" ]
+  crate_root = "run_loop.rs"
+  cxx_bindings = [ "run_loop.rs" ]
+  allow_unsafe = true
   deps = [
-    ":logging_log_severity_bindgen",
-    ":tracing_buildflags",
-    "//build:chromeos_buildflags",
-    "//third_party/rust/log/v0_4:lib",
-
-    # Needed because of circular dependency: base depends on this target and by
-    # extension the cxx-generated C++ code, but the cxx-generated code includes
-    # base headers and calls base code. This seems to generally not cause
-    # issues, except for partition_alloc which applies configs when depended on.
-    #
-    # This allows the generated C++ code to transitively include partition alloc
-    # headers without issue.
-    #
-    # TODO(collinbaker): determine how to handle these cxx bindings-induced
-    # circular dependencies more robustly.
-    "//base/allocator/partition_allocator:raw_ptr",
-
-    # Needed because logging/rust_logger.rs contains:
-    #   include!("base/logging/rust_log_integration.h");
-    # rust_log_integration.h ends up transitively #including
-    # debug/debugging_buildflags.h, which is a generated header that needs to
-    # be written first.
-    #
-    # Technically it would be more correct to depend on :base, which is the
-    # target for rust_log_integration.h, but that's not possible due to circular
-    # dependencies.
-    #
-    # Note if this is removed the build may still work by accident because
-    # debug/debugging_buildflags.h still ends up being generated through a
-    # dependency chain via :logging_log_severity_bindgen. But we should not
-    # rely on that.
-    #
-    # See also https://crbug.com/406267472.
-    ":debugging_buildflags",
+    ":run_loop_shim",
+    "//base",
   ]
-  visibility = [ ":base" ]
-  sources = [ "logging/rust_logger.rs" ]
-  crate_root = "logging/rust_logger.rs"
+}
 
-  cxx_bindings = [ "logging/rust_logger.rs" ]
+rust_static_library("sequenced_task_runner") {
+  sources = [ "task/sequenced_task_runner.rs" ]
+  crate_root = "task/sequenced_task_runner.rs"
+  cxx_bindings = [ "task/sequenced_task_runner.rs" ]
+  allow_unsafe = true
+  deps = [
+    ":callback",
+    ":run_loop",
+    ":scoped_refptr",
+    ":sequenced_task_runner_shim",
+    "//base",
+  ]
+}
+
+rust_static_library("sequenced_task_runner_test_bridge") {
+  testonly = true
+  sources = [ "task/sequenced_task_runner_test_bridge.rs" ]
+  crate_root = "task/sequenced_task_runner_test_bridge.rs"
+  cxx_bindings = [ "task/sequenced_task_runner_test_bridge.rs" ]
+  allow_unsafe = true
+  deps = [
+    ":base_rust",
+    ":scoped_refptr",
+    ":sequenced_task_runner_test_util",
+    "//base",
+  ]
+}
+
+source_set("sequenced_task_runner_test_util") {
+  testonly = true
+  sources = [
+    "task/sequenced_task_runner_test_util.cc",
+    "task/sequenced_task_runner_test_util.h",
+  ]
+  deps = [
+    "test:test_support",
+    "//base",
+  ]
+}
+
+source_set("run_loop_shim") {
+  sources = [
+    "run_loop_rust_shim.cc",
+    "run_loop_rust_shim.h",
+  ]
+
+  deps = [ "//base" ]
+}
+
+source_set("sequenced_task_runner_shim") {
+  sources = [
+    "task/sequenced_task_runner_rust_shim.cc",
+    "task/sequenced_task_runner_rust_shim.h",
+  ]
+
+  deps = [
+    ":callback",
+    "//base",
+  ]
+}
+
+rust_static_library("rust_sequences_unittests") {
+  testonly = true
+  is_gtest_unittests = true
+  allow_unsafe = true
+  sources = [ "task/sequenced_task_runner_unittest.rs" ]
+  crate_root = "task/sequenced_task_runner_unittest.rs"
+  deps = [
+    ":scoped_refptr",
+    ":sequenced_task_runner",
+    ":sequenced_task_runner_test_bridge",
+    "//base/test:task_environment",
+    "//testing/rust_gtest_interop",
+  ]
 }
 
 if (is_linux || is_chromeos) {
@@ -2773,8 +2839,8 @@ buildflag_header("debugging_buildflags") {
   ]
 }
 
-buildflag_header("feature_list_buildflags") {
-  header = "feature_list_buildflags.h"
+buildflag_header("feature_buildflags") {
+  header = "feature_buildflags.h"
 
   if (is_chromeos) {
     flags = [
@@ -3876,15 +3942,17 @@ test("base_unittests") {
     ":base_stack_sampling_profiler_test_util",
     ":build_time",
     ":check_version_internal",
-    ":feature_list_buildflags",
+    ":feature_buildflags",
     ":hardening_tests",
     ":i18n",
     ":path_service_unittest",
+    ":rust_sequences_unittests",
     ":sanitizer_buildflags",
     "//base/allocator:buildflags",
     "//base/numerics:unittests",
     "//base/test:proto_test_support",
     "//base/test:run_all_unittests",
+    "//base/test:task_environment",
     "//base/test:test_proto",
     "//base/test:test_support",
     "//build:blink_buildflags",
@@ -4533,6 +4601,7 @@ source_set("build_time") {
 if (enable_nocompile_tests) {
   nocompile_source_set("base_nocompile_tests") {
     sources = [
+      "allocator/partition_allocator/src/partition_alloc/bounds_checks_nocompile.nc",
       "allocator/partition_allocator/src/partition_alloc/partition_alloc_base/thread_annotations_pa_nocompile.nc",
       "allocator/partition_allocator/src/partition_alloc/pointers/raw_ptr_nocompile.nc",
       "allocator/partition_allocator/src/partition_alloc/pointers/raw_ref_nocompile.nc",
@@ -4542,7 +4611,6 @@ if (enable_nocompile_tests) {
       "check_nocompile.nc",
       "containers/buffer_iterator_nocompile.nc",
       "containers/checked_iterators_nocompile.nc",
-      "containers/enum_set_nocompile.nc",
       "containers/fixed_flat_map_nocompile.nc",
       "containers/fixed_flat_set_nocompile.nc",
       "containers/heap_array_nocompile.nc",
@@ -4615,21 +4683,6 @@ if (is_android || is_robolectric) {
 }  # is_android || is_robolectric
 
 if (is_android) {
-  # JNI supported in Robolectric tests.
-  generate_jni("base_minimal_jni") {
-    enable_definition_macros = true
-    sources = [
-      "android/java/src/org/chromium/base/IntStringCallback.java",
-      "android/java/src/org/chromium/base/JNIUtils.java",
-      "android/java/src/org/chromium/base/JavaExceptionReporter.java",
-      "android/java/src/org/chromium/base/JniCallbackImpl.java",
-      "android/java/src/org/chromium/base/Token.java",
-      "android/java/src/org/chromium/base/TokenBase.java",
-      "android/java/src/org/chromium/base/UnguessableToken.java",
-    ]
-    public_deps = [ ":android_runtime_jni_headers" ]
-  }
-
   # JNI not supported in Robolectric.
   generate_jni("base_jni") {
     sources = [
@@ -4647,18 +4700,68 @@ if (is_android) {
       "android/java/src/org/chromium/base/PowerMonitorReading.java",
       "android/java/src/org/chromium/base/RadioUtils.java",
     ]
+  }
 
-    public_deps = [
-      ":android_runtime_jni_headers",
-      ":base_minimal_jni",
+  generate_jni("jni_callback_jni") {
+    sources = [
+      "android/java/src/org/chromium/base/IntStringCallback.java",
+      "android/java/src/org/chromium/base/JniCallbackImpl.java",
+    ]
+  }
+  android_library("jni_callback_java") {
+    public_deps = [ ":jni_callback_jni_java" ]
+    sources = [
+      "android/java/src/org/chromium/base/IntStringCallback.java",
+      "android/java/src/org/chromium/base/JniCallbackImpl.java",
+      "android/java/src/org/chromium/base/JniOnceCallback.java",
+      "android/java/src/org/chromium/base/JniOnceCallback2.java",
+      "android/java/src/org/chromium/base/JniOnceRunnable.java",
+      "android/java/src/org/chromium/base/JniRepeatingCallback.java",
+      "android/java/src/org/chromium/base/JniRepeatingCallback2.java",
+      "android/java/src/org/chromium/base/JniRepeatingRunnable.java",
+    ]
+    deps = [
+      ":callback_java",
+      ":lifetime_java",
+      "//third_party/jni_zero:jni_zero_java",
     ]
   }
 
-  generate_jar_jni("android_runtime_jni_headers") {
-    classes = [
-      "java/lang/Runnable.class",
-      "java/lang/Runtime.class",
-      "java/lang/Throwable.class",
+  generate_jni("java_exception_reporter_jni") {
+    sources =
+        [ "android/java/src/org/chromium/base/JavaExceptionReporter.java" ]
+  }
+  android_library("java_exception_reporter_java") {
+    public_deps = [ ":java_exception_reporter_jni_java" ]
+    sources =
+        [ "android/java/src/org/chromium/base/JavaExceptionReporter.java" ]
+    deps = [
+      ":jni_android_java",
+      ":pii_elider_java",
+      ":tasks_java",
+      "//third_party/androidx:androidx_annotation_annotation_java",
+      "//third_party/jni_zero:jni_zero_java",
+    ]
+  }
+
+  generate_jni("token_jni") {
+    sources = [
+      "android/java/src/org/chromium/base/Token.java",
+      "android/java/src/org/chromium/base/TokenBase.java",
+      "android/java/src/org/chromium/base/UnguessableToken.java",
+    ]
+  }
+  android_library("token_java") {
+    public_deps = [ ":token_jni_java" ]
+    sources = [
+      "android/java/src/org/chromium/base/Token.java",
+      "android/java/src/org/chromium/base/TokenBase.java",
+      "android/java/src/org/chromium/base/UnguessableToken.java",
+    ]
+    deps = [
+      "//third_party/android_deps:com_google_errorprone_error_prone_annotations_java",
+      "//third_party/androidx:androidx_annotation_annotation_java",
+      "//third_party/jni_zero:jni_zero_java",
     ]
   }
 
@@ -4793,8 +4896,6 @@ if (is_android) {
 
     deps = [
       "//third_party/android_deps:com_google_code_findbugs_jsr305_java",
-      "//third_party/android_deps:com_google_errorprone_error_prone_annotations_java",
-      "//third_party/androidx:androidx_annotation_annotation_experimental_java",
       "//third_party/androidx:androidx_annotation_annotation_java",
       "//third_party/jni_zero:jni_zero_java",
     ]
@@ -4815,17 +4916,8 @@ if (is_android) {
       "android/java/src/org/chromium/base/FieldTrialList.java",
       "android/java/src/org/chromium/base/ImportantFileWriterAndroid.java",
       "android/java/src/org/chromium/base/InputHintChecker.java",
-      "android/java/src/org/chromium/base/IntStringCallback.java",
       "android/java/src/org/chromium/base/IntentUtils.java",
-      "android/java/src/org/chromium/base/JavaExceptionReporter.java",
       "android/java/src/org/chromium/base/JavaHandlerThread.java",
-      "android/java/src/org/chromium/base/JniCallbackImpl.java",
-      "android/java/src/org/chromium/base/JniOnceCallback.java",
-      "android/java/src/org/chromium/base/JniOnceCallback2.java",
-      "android/java/src/org/chromium/base/JniOnceRunnable.java",
-      "android/java/src/org/chromium/base/JniRepeatingCallback.java",
-      "android/java/src/org/chromium/base/JniRepeatingCallback2.java",
-      "android/java/src/org/chromium/base/JniRepeatingRunnable.java",
       "android/java/src/org/chromium/base/LocaleUtils.java",
       "android/java/src/org/chromium/base/MathUtils.java",
       "android/java/src/org/chromium/base/PackageManagerUtils.java",
@@ -4835,9 +4927,6 @@ if (is_android) {
       "android/java/src/org/chromium/base/PowerMonitorReading.java",
       "android/java/src/org/chromium/base/RadioUtils.java",
       "android/java/src/org/chromium/base/RequiredCallback.java",
-      "android/java/src/org/chromium/base/Token.java",
-      "android/java/src/org/chromium/base/TokenBase.java",
-      "android/java/src/org/chromium/base/UnguessableToken.java",
       "android/java/src/org/chromium/base/UserData.java",
       "android/java/src/org/chromium/base/UserDataHost.java",
       "android/java/src/org/chromium/base/ValueChangedCallback.java",
@@ -4857,7 +4946,6 @@ if (is_android) {
     public_deps = [
       ":activity_state_java",
       ":base_jni_java",
-      ":base_minimal_jni_java",
       ":base_switches_java",
       ":build_info_java",
       ":bundle_utils_java",
@@ -4868,7 +4956,9 @@ if (is_android) {
       ":features_java",
       ":file_provider_utils_java",
       ":file_utils_java",
+      ":java_exception_reporter_java",
       ":jni_android_java",
+      ":jni_callback_java",
       ":jni_utils_java",
       ":library_loader_java",
       ":lifetime_java",
@@ -4885,6 +4975,7 @@ if (is_android) {
       ":sys_utils_java",
       ":tasks_java",
       ":time_utils_java",
+      ":token_java",
       ":unowned_user_data_java",
       ":wrapped_class_loader_java",
     ]
@@ -4998,7 +5089,11 @@ if (is_android) {
     ]
   }
 
+  generate_jni("jni_utils_jni") {
+    sources = [ "android/java/src/org/chromium/base/JNIUtils.java" ]
+  }
   android_library("jni_utils_java") {
+    srcjar_deps = [ ":jni_utils_jni" ]
     sources = [ "android/java/src/org/chromium/base/JNIUtils.java" ]
     deps = [
       ":bundle_utils_java",

@@ -10,15 +10,13 @@
 #include <vector>
 
 #include "base/time/time.h"
-#include "chrome/browser/enterprise/connectors/analysis/content_analysis_info.h"
 #include "components/enterprise/common/proto/connectors.pb.h"
 #include "components/enterprise/connectors/core/cloud_content_scanning/binary_upload_service.h"
 #include "components/enterprise/connectors/core/cloud_content_scanning/common.h"
 #include "components/enterprise/connectors/core/common.h"
+#include "components/enterprise/connectors/core/content_analysis_info_base.h"
 #include "components/safe_browsing/core/browser/referrer_chain_provider.h"
 #include "url/gurl.h"
-
-class Profile;
 
 namespace enterprise_connectors {
 class ContentAnalysisResponse;
@@ -26,24 +24,11 @@ class ContentAnalysisResponse;
 
 namespace safe_browsing {
 
-// Helper function to report the user bypassed a warning to the enterprise
-// admin. This is split from MaybeReportDeepScanningVerdict since it happens
-// after getting a response. |download_digest_sha256| must be encoded using
-// base::HexEncode.
-void ReportAnalysisConnectorWarningBypass(
-    Profile* profile,
-    const enterprise_connectors::ContentAnalysisInfo& content_analysis_info,
-    const std::string& source,
-    const std::string& destination,
-    const std::string& file_name,
-    const std::string& download_digest_sha256,
-    const std::string& mime_type,
-    const std::string& trigger,
-    const std::string& content_transfer_method,
-    const int64_t content_size,
-    const safe_browsing::ReferrerChain& referrer_chain,
-    const enterprise_connectors::ContentAnalysisResponse& response,
-    std::optional<std::u16string> user_justification);
+// Maps the request's connector and reason to the corresponding
+// DeepScanAccessPoint.
+enterprise_connectors::DeepScanAccessPoint AccessPointFromRequest(
+    enterprise_connectors::AnalysisConnector connector,
+    enterprise_connectors::ContentAnalysisRequest::Reason reason);
 
 // Helper functions to record DeepScanning UMA metrics for the duration of the
 // request split by its result and bytes/sec for successful requests.

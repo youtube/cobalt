@@ -91,32 +91,32 @@ void UpdateRequestResult(UserMediaRequest* request,
     case UserMediaRequestType::kUserMedia: {
       if (request->IsGumExtensionRequest()) {
         base::UmaHistogramEnumeration(
-            "WebRTC.UserMediaRequest.GetUserMedia.Extension.Result2", result);
+            "WebRTC.UserMediaRequest.GetUserMedia.Extension.Result3", result);
         return;
       } else {
         if (request->Audio() && !request->Video()) {
           base::UmaHistogramEnumeration(
-              "WebRTC.UserMediaRequest.GetUserMedia.AudioCapture.Result2",
+              "WebRTC.UserMediaRequest.GetUserMedia.AudioCapture.Result3",
               result);
         }
         if (!request->Audio() && request->Video()) {
           base::UmaHistogramEnumeration(
-              "WebRTC.UserMediaRequest.GetUserMedia.VideoCapture.Result2",
+              "WebRTC.UserMediaRequest.GetUserMedia.VideoCapture.Result3",
               result);
         }
         base::UmaHistogramEnumeration(
-            "WebRTC.UserMediaRequest.GetUserMedia.DeviceCapture.Result2",
+            "WebRTC.UserMediaRequest.GetUserMedia.DeviceCapture.Result3",
             result);
         return;
       }
     }
     case UserMediaRequestType::kDisplayMedia:
       base::UmaHistogramEnumeration(
-          "WebRTC.UserMediaRequest.GetDisplayMedia.Result2", result);
+          "WebRTC.UserMediaRequest.GetDisplayMedia.Result3", result);
       return;
     case UserMediaRequestType::kAllScreensMedia:
       base::UmaHistogramEnumeration(
-          "WebRTC.UserMediaRequest.GetAllScreensMedia.Result2", result);
+          "WebRTC.UserMediaRequest.GetAllScreensMedia.Result3", result);
       return;
   }
 }
@@ -140,12 +140,14 @@ void MaybeLogStreamDevice(const int32_t& request_id,
       device->name.c_str()));
 }
 
-std::string GetTrackLogString(MediaStreamComponent* component,
+std::string GetTrackLogString(int32_t request_id,
+                              MediaStreamComponent* component,
                               bool is_pending) {
   String str = String::Format(
-      "StartAudioTrack({track=[id: %s, enabled: %d]}, "
+      "StartAudioTrack({track=[request_id = %d, id: %s, enabled: %d]}, "
       "{is_pending=%d})",
-      component->Id().Utf8().c_str(), component->Enabled(), is_pending);
+      request_id, component->Id().Utf8().c_str(), component->Enabled(),
+      is_pending);
   return str.Utf8();
 }
 
@@ -160,17 +162,19 @@ std::string GetTrackSourceLogString(blink::MediaStreamAudioSource* source) {
     builder.AppendFormat(", group_id: %s", device.group_id.value().c_str());
   }
   builder.AppendFormat(", name: %s", device.name.c_str());
-  builder.Append(String("]})"));
-  return builder.ToString().Utf8();
+  builder.Append("]})");
+  return StringView(builder).Utf8();
 }
 
 std::string GetOnTrackStartedLogString(
+    int32_t request_id,
     blink::WebPlatformMediaStreamSource* source,
     MediaStreamRequestResult result) {
   const MediaStreamDevice& device = source->device();
-  String str = String::Format("OnTrackStarted({session_id=%s}, {result=%s})",
-                              device.session_id().ToString().c_str(),
-                              base::ToString(result).c_str());
+  String str = String::Format(
+      "OnTrackStarted({request_id = %d}, {session_id=%s}, {result=%s})",
+      request_id, device.session_id().ToString().c_str(),
+      base::ToString(result).c_str());
   return str.Utf8();
 }
 
@@ -303,7 +307,25 @@ String ErrorCodeToString(MediaStreamRequestResult result) {
     case MediaStreamRequestResult::MULTI_CAPTURE_NOT_SUPPORTED:
     case MediaStreamRequestResult::NOT_SUPPORTED:
       return "Not supported";
-    case MediaStreamRequestResult::FAILED_DUE_TO_SHUTDOWN:
+    case MediaStreamRequestResult::FAILED_DUE_TO_SHUTDOWN_OTHER:
+    case MediaStreamRequestResult::FAILED_DUE_TO_SHUTDOWN_CONTROLLER_DESTRUCTOR:
+    case MediaStreamRequestResult::FAILED_DUE_TO_SHUTDOWN_REQUEST_REMOVED:
+    case MediaStreamRequestResult::FAILED_DUE_TO_SHUTDOWN_NO_DELEGATE:
+    case MediaStreamRequestResult::
+        FAILED_DUE_TO_SHUTDOWN_NO_GUEST_PAGE_HOLDER_DELEGATE:
+    case MediaStreamRequestResult::FAILED_DUE_TO_SHUTDOWN_NO_RFH_IN_DISPATCHER:
+    case MediaStreamRequestResult::
+        FAILED_DUE_TO_SHUTDOWN_NO_RFH_CANCELLED_REQUEST:
+    case MediaStreamRequestResult::FAILED_DUE_TO_SHUTDOWN_NO_RFH_IN_CONTROLLER:
+    case MediaStreamRequestResult::FAILED_DUE_TO_SHUTDOWN_NO_RFH_IN_HANDLER:
+    case MediaStreamRequestResult::FAILED_DUE_TO_SHUTDOWN_NO_WEB_VIEW_DELEGATE:
+    case MediaStreamRequestResult::FAILED_DUE_TO_SHUTDOWN_WEB_VIEW_NOT_ATTACHED:
+    case MediaStreamRequestResult::
+        FAILED_DUE_TO_SHUTDOWN_USER_MEDIA_PROCESSOR_CANCEL_REQUEST:
+    case MediaStreamRequestResult::
+        FAILED_DUE_TO_SHUTDOWN_USER_MEDIA_PROCESSOR_STOP_ALL_PROCESSING:
+    case MediaStreamRequestResult::
+        FAILED_DUE_TO_SHUTDOWN_WEB_CONTENTS_NO_DELEGATE:
       return "Failed due to shutdown";
     case MediaStreamRequestResult::KILL_SWITCH_ON:
       return "Killswitch on";
@@ -572,7 +594,7 @@ void UserMediaProcessor::RequestInfo::StartAudioTrack(
 #if DCHECK_IS_ON()
   DCHECK(audio_capture_settings_.HasValue());
 #endif
-  SendLogMessage(GetTrackLogString(component, is_pending));
+  SendLogMessage(GetTrackLogString(request_id(), component, is_pending));
   auto* native_source = MediaStreamAudioSource::From(component->Source());
   SendLogMessage(GetTrackSourceLogString(native_source));
   // Add the source as pending since OnTrackStarted will expect it to be there.
@@ -626,7 +648,7 @@ void UserMediaProcessor::RequestInfo::OnTrackStarted(
     blink::WebPlatformMediaStreamSource* source,
     MediaStreamRequestResult result,
     const blink::WebString& result_name) {
-  SendLogMessage(GetOnTrackStartedLogString(source, result));
+  SendLogMessage(GetOnTrackStartedLogString(request_id(), source, result));
   auto it = std::ranges::find(sources_waiting_for_callback_, source);
   CHECK(it != sources_waiting_for_callback_.end());
   sources_waiting_for_callback_.erase(it);
@@ -1559,14 +1581,15 @@ void UserMediaProcessor::OnDeviceStopped(const MediaStreamDevice& device) {
 void UserMediaProcessor::OnDeviceChanged(const MediaStreamDevice& old_device,
                                          const MediaStreamDevice& new_device) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  // TODO(https://crbug.com/1017219): possibly useful in native logs as well.
-  DVLOG(1) << "UserMediaProcessor::OnDeviceChange("
-           << "{old_device_id = " << old_device.id
-           << ", session id = " << old_device.session_id()
-           << ", type = " << old_device.type << "}"
-           << "{new_device_id = " << new_device.id
-           << ", session id = " << new_device.session_id()
-           << ", type = " << new_device.type << "})";
+  std::string log_message = base::StringPrintf(
+      "OnDeviceChange({old_device_id=%s, session_id=%s, type=%d}, "
+      "{new_device_id=%s, session_id=%s, type=%d})",
+      old_device.id.c_str(), old_device.session_id().ToString().c_str(),
+      static_cast<int>(old_device.type), new_device.id.c_str(),
+      new_device.session_id().ToString().c_str(),
+      static_cast<int>(new_device.type));
+  SendLogMessage(log_message);
+  DVLOG(1) << "UserMediaProcessor::" << log_message;
 
   MediaStreamSource* source = FindLocalSource(old_device);
   if (!source) {
@@ -1730,7 +1753,7 @@ MediaStreamSource* UserMediaProcessor::InitializeVideoSourceObject(
   source->SetCapabilities(ComputeCapabilitiesForVideoSource(
       // TODO(crbug.com/704136): Change ComputeCapabilitiesForVideoSource to
       // operate over Vector.
-      String::FromUTF8(device.id),
+      String::FromUtf8(device.id),
       ToStdVector(*current_request_info_->GetNativeVideoFormats(device_id)),
       static_cast<mojom::blink::FacingMode>(device.video_facing),
       current_request_info_->is_video_device_capture(), device.group_id));
@@ -1753,9 +1776,10 @@ MediaStreamSource* UserMediaProcessor::InitializeAudioSourceObject(
     bool* is_pending) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(current_request_info_);
-  SendLogMessage(
-      base::StringPrintf("InitializeAudioSourceObject({session_id=%s})",
-                         device.session_id().ToString().c_str()));
+  SendLogMessage(base::StringPrintf(
+      "InitializeAudioSourceObject({request_id=%d, session_id=%s})",
+      current_request_info_->request_id(),
+      device.session_id().ToString().c_str()));
 
   *is_pending = true;
 
@@ -1843,9 +1867,9 @@ MediaStreamSource* UserMediaProcessor::InitializeAudioSourceObject(
                             std::max(fallback_latency, max_latency)};
   }
 
-  capabilities.device_id = String::FromUTF8(device.id);
+  capabilities.device_id = String::FromUtf8(device.id);
   if (device.group_id) {
-    capabilities.group_id = String::FromUTF8(*device.group_id);
+    capabilities.group_id = String::FromUtf8(*device.group_id);
   }
 
   MediaStreamSource* source =
@@ -1892,8 +1916,9 @@ UserMediaProcessor::CreateAudioSource(
   if (processing_layout && processing_layout->NeedWebrtcAudioProcessing()) {
     // The audio device is not associated with screen capture and also requires
     // processing.
-    SendLogMessage(
-        base::StringPrintf("%s => (audiprocessing is required)", __func__));
+    SendLogMessage(base::StringPrintf(
+        "%s => (audioprocessing is required for request_id %d)", __func__,
+        current_request_info_->request_id()));
     return std::make_unique<blink::ProcessedLocalAudioSource>(
         *frame_, device, stream_controls->disable_local_echo,
         *processing_layout, std::move(source_ready), task_runner_);
@@ -1920,7 +1945,8 @@ UserMediaProcessor::CreateAudioSource(
   CHECK(!local_source_processing_layout.NeedWebrtcAudioProcessing());
 
   SendLogMessage(
-      base::StringPrintf("%s => (no audioprocessing is used)", __func__));
+      base::StringPrintf("%s => (no audioprocessing is used for request_id %d)",
+                         __func__, current_request_info_->request_id()));
   return std::make_unique<blink::LocalMediaStreamAudioSource>(
       frame_, device,
       base::OptionalToPtr(current_request_info_->audio_capture_settings()
@@ -2031,9 +2057,9 @@ MediaStreamComponent* UserMediaProcessor::CreateAudioTrack(
       current_request_info_->audio_capture_settings()
           .render_to_associated_sink();
 
-  SendLogMessage(
-      base::StringPrintf("CreateAudioTrack({render_to_associated_sink=%d})",
-                         render_to_associated_sink));
+  SendLogMessage(base::StringPrintf(
+      "CreateAudioTrack({request_id=%d, render_to_associated_sink=%d})",
+      current_request_info_->request_id(), render_to_associated_sink));
 
   if (!render_to_associated_sink) {
     // If the GetUserMedia request did not explicitly set the constraint
@@ -2228,11 +2254,11 @@ MediaStreamSource* UserMediaProcessor::InitializeSourceObject(
                                            : MediaStreamSource::kTypeVideo;
 
   auto* source = MakeGarbageCollected<MediaStreamSource>(
-      String::FromUTF8(device.id), device.display_id, type,
-      String::FromUTF8(device.name), false /* remote */,
+      String::FromUtf8(device.id), device.display_id, type,
+      String::FromUtf8(device.name), false /* remote */,
       std::move(platform_source));
   if (device.group_id) {
-    source->SetGroupId(String::FromUTF8(*device.group_id));
+    source->SetGroupId(String::FromUtf8(*device.group_id));
   }
   return source;
 }
@@ -2331,8 +2357,10 @@ bool UserMediaProcessor::CancelRequest(UserMediaRequest* user_media_request) {
         // might cause issues.
         break;
     }
-    UpdateRequestResult(user_media_request,
-                        MediaStreamRequestResult::FAILED_DUE_TO_SHUTDOWN);
+    UpdateRequestResult(
+        user_media_request,
+        MediaStreamRequestResult::
+            FAILED_DUE_TO_SHUTDOWN_USER_MEDIA_PROCESSOR_CANCEL_REQUEST);
     return true;
   }
   return false;
@@ -2351,7 +2379,8 @@ void UserMediaProcessor::DeleteUserMediaRequest(
 void UserMediaProcessor::StopAllProcessing() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (current_request_info_) {
-    auto result = MediaStreamRequestResult::FAILED_DUE_TO_SHUTDOWN;
+    auto result = MediaStreamRequestResult::
+        FAILED_DUE_TO_SHUTDOWN_USER_MEDIA_PROCESSOR_STOP_ALL_PROCESSING;
     UpdateRequestResult(current_request_info_->request(), result);
     switch (current_request_info_->state()) {
       case RequestInfo::State::kSentForGeneration:

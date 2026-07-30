@@ -4,7 +4,9 @@
 
 #include "chrome/browser/ui/tabs/tab_strip_api/android_tab_model_impl/android_tab_strip_model_adapter.h"
 
+#include "base/check_deref.h"
 #include "base/notreached.h"
+#include "base/strings/string_number_conversions.h"
 #include "components/tabs/public/tab_collection.h"
 
 namespace tabs_api {
@@ -17,13 +19,17 @@ class FakedAndroidTabCollection : public tabs::TabCollection {
 };
 
 AndroidTabStripModelAdapter::AndroidTabStripModelAdapter(TabModel* model)
-    : model_(*model),
+    : model_(CHECK_DEREF(model)),
       fake_root_(std::make_unique<FakedAndroidTabCollection>()) {}
 
 AndroidTabStripModelAdapter::~AndroidTabStripModelAdapter() = default;
 
 std::vector<tabs::TabHandle> AndroidTabStripModelAdapter::GetTabs() const {
-  NOTREACHED() << "not implemented";
+  std::vector<tabs::TabHandle> handles;
+  for (auto* tab_interface : model_->GetAllTabs()) {
+    handles.push_back(tab_interface->GetHandle());
+  }
+  return handles;
 }
 
 types::TabStates AndroidTabStripModelAdapter::GetTabStates(
@@ -36,16 +42,25 @@ const ui::ColorProvider& AndroidTabStripModelAdapter::GetColorProvider() const {
 }
 
 void AndroidTabStripModelAdapter::CloseTab(size_t tab_index) {
-  NOTREACHED() << "not implemented";
+  auto tabs = GetTabs();
+  CHECK(tab_index < tabs.size());
+  model_->CloseTab(tabs.at(tab_index));
 }
 
 std::optional<int> AndroidTabStripModelAdapter::GetIndexForHandle(
     tabs::TabHandle tab_handle) const {
-  NOTREACHED() << "not implemented";
+  for (int i = 0; i < model_->GetTabCount(); ++i) {
+    if (model_->GetTab(i)->GetHandle() == tab_handle) {
+      return i;
+    }
+  }
+  return std::nullopt;
 }
 
 void AndroidTabStripModelAdapter::ActivateTab(size_t index) {
-  NOTREACHED() << "not implemented";
+  auto handles = GetTabs();
+  CHECK(index < handles.size());
+  model_->ActivateTab(handles.at(index));
 }
 
 void AndroidTabStripModelAdapter::MoveTab(tabs::TabHandle handle,
@@ -60,28 +75,29 @@ void AndroidTabStripModelAdapter::MoveCollection(const NodeId& id,
 
 mojom::ContainerPtr AndroidTabStripModelAdapter::GetTabStripTopology(
     tabs::TabCollection::Handle root) const {
-  // Simulate a single tab in a single tab strip in a single window.
-  // TODO(crbug.com/494284032): Remove.
   auto window_container = mojom::Container::New();
   auto window_data = mojom::Window::New();
 
-  window_data->id = NodeId::FromWindowId("-");
+  window_data->id = NodeId::FromWindowId(GetWindowId());
   window_container->data = mojom::Data::NewWindow(std::move(window_data));
 
   auto tab_strip = tabs_api::mojom::Container::New();
   auto tab_strip_data = mojom::TabStrip::New();
+  // TODO(crbug.com/494284032): How do I access the TabCollection outside of
+  // JNI?
   tab_strip_data->id =
       tabs_api::NodeId(tabs_api::NodeId::Type::kCollection, "-");
   tab_strip->data = mojom::Data::NewTabStrip(std::move(tab_strip_data));
 
-  auto tab = tabs_api::mojom::Container::New();
-  auto tab_data = mojom::Tab::New();
-  tab_data->id = tabs_api::NodeId(tabs_api::NodeId::Type::kContent, "1337");
-  tab->data = mojom::Data::NewTab(std::move(tab_data));
+  for (auto* tab_interface : model_->GetAllTabs()) {
+    auto tab = tabs_api::mojom::Container::New();
+    auto tab_data = mojom::Tab::New();
+    tab_data->id = tabs_api::NodeId::FromTabHandle(tab_interface->GetHandle());
+    tab->data = mojom::Data::NewTab(std::move(tab_data));
+    tab_strip->children.emplace_back(std::move(tab));
+  }
 
-  tab_strip->children.emplace_back(std::move(tab));
   window_container->children.emplace_back(std::move(tab_strip));
-
   return window_container;
 }
 
@@ -132,7 +148,10 @@ tabs_api::Path AndroidTabStripModelAdapter::GetPathForCollection(
 
 InsertionParams AndroidTabStripModelAdapter::CalculateInsertionParams(
     const std::optional<tabs_api::Position>& pos) const {
-  NOTREACHED() << "not implemented";
+  // TODO(crbug.com/494284032): hardcoded to always insert at the end for now.
+  return {.index = model_->GetTabCount(),
+          .group_id = std::nullopt,
+          .pinned = false};
 }
 
 void AndroidTabStripModelAdapter::ReplaceTabInSplit(
@@ -146,7 +165,7 @@ const tabs::TabCollection* AndroidTabStripModelAdapter::GetRoot() const {
 }
 
 std::string AndroidTabStripModelAdapter::GetWindowId() const {
-  NOTREACHED() << "not implemented";
+  return base::NumberToString(model_->GetSessionId().id());
 }
 
 }  // namespace tabs_api

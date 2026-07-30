@@ -13,13 +13,14 @@ import static org.chromium.chrome.browser.ui.native_page.NativePageTest.isValidI
 import android.app.Activity;
 import android.view.View;
 
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
@@ -40,6 +41,7 @@ import org.chromium.components.embedder_support.util.UrlConstants;
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class NativePageFactoryTest {
+    @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
     @Mock private PdfPage mPdfPage;
     @Mock private NativePage mCandidatePage;
     @Mock private Tab mTab;
@@ -47,7 +49,6 @@ public class NativePageFactoryTest {
     @Mock private TabModelSelector mTabModelSelector;
     @Mock private Activity mActivity;
     private NativePageFactory mNativePageFactory;
-    private AutoCloseable mCloseableMocks;
     private PdfInfo mPdfInfo;
     private static final String PDF_LINK = "https://www.foo.com/testfiles/pdf/sample.pdf";
 
@@ -114,7 +115,7 @@ public class NativePageFactoryTest {
         private MockNativePageBuilder() {
             super(
                     null, null, null, null, null, null, null, null, null, null, null, null, null,
-                    null, null, null, null, null, null, null, null, null, null);
+                    null, null, null, null, null, null, null, null);
         }
 
         @Override
@@ -140,20 +141,14 @@ public class NativePageFactoryTest {
 
     @Before
     public void setUp() {
-        mCloseableMocks = MockitoAnnotations.openMocks(this);
         mNativePageFactory =
                 new NativePageFactory(
                         null, null, null, null, null, null, null, null, null, null, null, null,
-                        null, null, null, null, null, null, null, null, null, null);
+                        null, null, null, null, null, null, null, null);
         mNativePageFactory.setNativePageBuilderForTesting(new MockNativePageBuilder());
         NativePageFactory.setPdfPageForTesting(mPdfPage);
         mPdfInfo = new PdfInfo();
         doReturn(PDF_LINK).when(mCandidatePage).getUrl();
-    }
-
-    @After
-    public void tearDown() throws Exception {
-        mCloseableMocks.close();
     }
 
     /**

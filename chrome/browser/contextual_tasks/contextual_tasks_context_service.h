@@ -7,6 +7,7 @@
 
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/functional/callback.h"
@@ -14,10 +15,12 @@
 #include "base/scoped_observation.h"
 #include "base/time/tick_clock.h"
 #include "base/time/time.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_context_scoring_utils.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_types.mojom.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/page_content_annotations/content/page_embeddings_service.h"
 #include "components/passage_embeddings/core/passage_embeddings_types.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 
 class GURL;
 class OptimizationGuideKeyedService;
@@ -29,6 +32,7 @@ class WebContents;
 
 namespace optimization_guide::proto {
 class ContextualTasksContextQuality;
+class ContextualTasksTabContext;
 }  // namespace optimization_guide::proto
 
 namespace page_content_annotations {
@@ -49,10 +53,11 @@ enum class ContextDeterminationStatus {
   kQueryEmbeddingFailed = 2,
   kQueryEmbeddingOutputMalformed = 3,
   kNoEligibleTabs = 4,
+  kTimedOut = 5,
 
   // Keep in sync with ContextualTasksContextDeterminationStatus in
   // contextual_tasks/enums.xml.
-  kMaxValue = kNoEligibleTabs,
+  kMaxValue = kTimedOut,
 };
 
 // Options to regulate tab selection behavior.
@@ -63,6 +68,9 @@ struct TabSelectionOptions {
   // If set, only tabs with a model score of at least `min_model_score` will be
   // selected.
   std::optional<float> min_model_score;
+
+  // If set, tab selection will time out after this duration.
+  std::optional<base::TimeDelta> tab_selection_timeout;
 };
 
 // A service used to determine the relevant context for a given task.
@@ -94,6 +102,24 @@ class ContextualTasksContextService
   void SetClockForTesting(const base::TickClock* tick_clock);
 
  private:
+  struct QueryState {
+    QueryState();
+    ~QueryState();
+    QueryState(const QueryState&);
+    QueryState& operator=(const QueryState&);
+
+    std::string query;
+    passage_embeddings::Embedding query_embedding;
+    int query_word_count = 0;
+
+    base::WeakPtr<content::WebContents> active_tab;
+    std::vector<page_content_annotations::PassageEmbedding> active_tab_embeddings;
+
+    std::optional<passage_embeddings::Embedding> active_tab_title_embedding;
+    std::optional<float> active_tab_title_similarity;
+    std::vector<ScoredPassage> active_tab_passage_similarities;
+  };
+
   // EmbedderMetadataObserver:
   void EmbedderMetadataUpdated(
       passage_embeddings::EmbedderMetadata metadata) override;
@@ -108,14 +134,27 @@ class ContextualTasksContextService
       const TabSelectionOptions& options,
       base::TimeTicks start_time,
       const std::vector<GURL>& explicit_urls,
-      base::OnceCallback<void(std::vector<content::WebContents*>)> callback,
+      int64_t request_id,
       std::vector<std::string> passages,
       std::vector<passage_embeddings::Embedding> embeddings,
       passage_embeddings::Embedder::TaskId task_id,
       passage_embeddings::ComputeEmbeddingsStatus status);
 
+  // Callback invoked when the request has timed out.
+  void OnRequestTimedOut(int64_t request_id);
+
   // Returns all tabs for the profile that are eligible for selection.
   std::vector<content::WebContents*> GetAllEligibleTabs();
+
+  // Creates the QueryState including active tab context.
+  QueryState CreateQueryState(
+      const std::string& query,
+      const passage_embeddings::Embedding& query_embedding);
+
+  // Computes TabSignals for a candidate tab.
+  TabSignals ComputeTabSignals(
+      content::WebContents* web_contents,
+      const QueryState& query_state);
 
   // Returns the relevant tabs for `query`. Collects and logs all the signals
   // irrespective of chosen `tab_selection_mode`.
@@ -127,6 +166,15 @@ class ContextualTasksContextService
       const std::vector<GURL>& explicit_urls,
       optimization_guide::proto::ContextualTasksContextQuality* quality_log);
 
+  // Helper method to populate query state context. These are common for all
+  // candidate tabs.
+  void PopulateQueryContext(
+      const QueryState& query_state,
+      optimization_guide::proto::ContextualTasksContextQuality* quality_log);
+
+  // Returns the WebContents of the currently active tab.
+  content::WebContents* GetActiveTabWebContents();
+
   // Returns the duration since the tab was last active.
   std::optional<base::TimeDelta> GetDurationSinceLastActive(
       content::WebContents* web_contents);
@@ -135,6 +183,9 @@ class ContextualTasksContextService
   // active, then it returns the time spent in the current visit.
   std::optional<base::TimeDelta> GetDurationOfCurrentOrLastVisit(
       content::WebContents* web_contents);
+
+  // Returns whether the tab is valid i.e. it is not NTP, internal page, etc.
+  bool IsValidTab(content::WebContents* web_contents);
 
   // Returns whether the tab should be added to the selection.
   bool ShouldAddTabToSelection(content::WebContents* web_contents);
@@ -153,6 +204,19 @@ class ContextualTasksContextService
   raw_ptr<page_content_annotations::PageContentExtractionService>
       page_content_extraction_service_;
   raw_ptr<const base::TickClock> tick_clock_;
+
+  struct PendingRequest {
+    PendingRequest(
+        passage_embeddings::Embedder::TaskId task_id,
+        base::OnceCallback<void(std::vector<content::WebContents*>)> callback);
+    ~PendingRequest();
+
+    passage_embeddings::Embedder::TaskId task_id;
+    base::OnceCallback<void(std::vector<content::WebContents*>)> callback;
+  };
+  absl::flat_hash_map<int64_t, std::unique_ptr<PendingRequest>>
+      pending_requests_;
+  int64_t next_request_id_ = 0;
 
   base::ScopedObservation<passage_embeddings::EmbedderMetadataProvider,
                           passage_embeddings::EmbedderMetadataObserver>

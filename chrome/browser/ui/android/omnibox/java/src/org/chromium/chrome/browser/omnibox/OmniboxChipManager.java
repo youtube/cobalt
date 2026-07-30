@@ -181,10 +181,6 @@ public class OmniboxChipManager {
         mExpandedToolbarWidthConsumer = new ExpandedToolbarWidthConsumer();
     }
 
-    public void destroy() {
-        dismissChip();
-    }
-
     /**
      * Places a chip in the Omnibox with the specified properties. If there is already a chip
      * placed, updates its properties.

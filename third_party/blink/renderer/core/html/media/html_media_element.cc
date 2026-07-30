@@ -32,6 +32,7 @@
 #include <variant>
 
 #include "base/auto_reset.h"
+#include "base/check_is_test.h"
 #include "base/containers/span.h"
 #include "base/feature_list.h"
 #include "base/memory/ptr_util.h"
@@ -122,6 +123,7 @@
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/scheduler/public/event_loop.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
+#include "third_party/blink/renderer/platform/widget/frame_widget.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "third_party/blink/renderer/platform/wtf/text/strcat.h"
@@ -624,9 +626,39 @@ void HTMLMediaElement::DidMoveToNewDocument(Document& old_document) {
   // load event from within the destructor.
   old_document.DecrementLoadEventDelayCount();
 
+  // When moving a video into a Document Picture-in-Picture window, we must
+  // reparent its frame sink to the new document's compositor. This ensures
+  // the video continues to receive vsyncs even if the opener window is
+  // backgrounded or suspended. This also automatically handles reparenting
+  // back to the original tab when exiting PiP.
+  // Note: For document moves other than Document PiP, there is typically no
+  // player at this point. We generally destroy the player when moving the
+  // element between frames (see the `ShouldReusePlayer()` check above).
+  // Therefore, `GetWebMediaPlayer()` will be null here and reparenting will be
+  // skipped.
+  if (base::FeatureList::IsEnabled(
+          media::kDocumentPictureInPictureReparenting)) {
+    if (IsHTMLVideoElement() && GetWebMediaPlayer() &&
+        GetDocument().GetFrame()) {
+      // A Document will always have a non-null FrameWidget when it has a
+      // LocalFrame, except in specialized cases like DevTools or internal
+      // popups. Because ShouldReusePlayer() restricts player reuse strictly to
+      // valid Document PiP transitions, those specialized frameless cases are
+      // already filtered out.
+      // However, Blink unit tests sometimes use DummyPageHolder, which
+      // intentionally mocks a LocalFrame without creating a FrameWidget.
+      if (auto* frame_widget =
+              GetDocument().GetFrame()->GetWidgetForLocalRoot()) {
+        GetWebMediaPlayer()->ReparentFrameSinkHierarchy(
+            frame_widget->GetFrameSinkId());
+      } else {
+        CHECK_IS_TEST();
+      }
+    }
+  }
+
   HTMLElement::DidMoveToNewDocument(old_document);
 }
-
 bool HTMLMediaElement::ShouldReusePlayer(Document& old_document,
                                          Document& new_document) const {
   // A NULL frame implies a NULL domWindow, so just check one of them
@@ -3480,22 +3512,24 @@ void HTMLMediaElement::SelectedVideoTrackChanged(
 }
 
 void HTMLMediaElement::AddTrack(const media::MediaTrack& track) {
+  // `track.label()` and `track.language()` may contains invalid UTF-8
+  // sequences, and AtomicString::FromUtf8() doesn't accept invalid sequences.
   switch (track.type()) {
     case media::MediaTrack::Type::kVideo: {
       bool enabled = track.enabled() && videoTracks().selectedIndex() == -1;
       videoTracks().Add(MakeGarbageCollected<VideoTrack>(
-          String::FromUTF8(track.track_id().value()),
-          AtomicString(String::FromUTF8(track.kind().value())),
-          AtomicString(String::FromUTF8(track.label().value())),
-          AtomicString(String::FromUTF8(track.language().value())), enabled));
+          String::FromUtf8(track.track_id().value()),
+          AtomicString(String::FromUtf8(track.kind().value())),
+          AtomicString(String::FromUtf8(track.label().value())),
+          AtomicString(String::FromUtf8(track.language().value())), enabled));
       break;
     }
     case media::MediaTrack::Type::kAudio: {
       audioTracks().Add(MakeGarbageCollected<AudioTrack>(
-          String::FromUTF8(track.track_id().value()),
-          AtomicString(String::FromUTF8(track.kind().value())),
-          AtomicString(String::FromUTF8(track.label().value())),
-          AtomicString(String::FromUTF8(track.language().value())),
+          String::FromUtf8(track.track_id().value()),
+          AtomicString(String::FromUtf8(track.kind().value())),
+          AtomicString(String::FromUtf8(track.label().value())),
+          AtomicString(String::FromUtf8(track.language().value())),
           track.enabled(), track.exclusive()));
       break;
     }
@@ -3505,11 +3539,11 @@ void HTMLMediaElement::AddTrack(const media::MediaTrack& track) {
 void HTMLMediaElement::RemoveTrack(const media::MediaTrack& track) {
   switch (track.type()) {
     case media::MediaTrack::Type::kVideo: {
-      videoTracks().Remove(String::FromUTF8(track.track_id().value()));
+      videoTracks().Remove(String::FromUtf8(track.track_id().value()));
       break;
     }
     case media::MediaTrack::Type::kAudio: {
-      audioTracks().Remove(String::FromUTF8(track.track_id().value()));
+      audioTracks().Remove(String::FromUtf8(track.track_id().value()));
       break;
     }
   }
@@ -3517,7 +3551,7 @@ void HTMLMediaElement::RemoveTrack(const media::MediaTrack& track) {
 
 void HTMLMediaElement::SetTrackState(const media::MediaTrack& track,
                                      media::MediaTrack::State state) {
-  auto id = String::FromUTF8(track.track_id().value());
+  auto id = String::FromUtf8(track.track_id().value());
   bool active = state == media::MediaTrack::State::kActive;
   switch (track.type()) {
     case media::MediaTrack::Type::kVideo: {

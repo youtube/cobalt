@@ -101,6 +101,7 @@ void ImageReplacement::StartReplacement(
   // when `CreateImageReplacement()` was called, we would have already called
   // `Reset()`.
   CHECK(image_element_->IsPrimaryContent());
+  original_image_source_url_ = image_element_->ImageSourceURL();
   image_element_->StartImageReplacement();
 
   ShadowRoot* shadow_root = image_element_->UserAgentShadowRoot();
@@ -159,6 +160,7 @@ void ImageReplacement::CreateImageReplacementShadowTree(
       MakeGarbageCollected<HTMLIFrameElement>(image_element.GetDocument());
   iframe->SetInlineStyleProperty(CSSPropertyID::kBorderStyle, "none");
   iframe->SetInlineStyleProperty(CSSPropertyID::kBorderWidth, "0");
+  iframe->SetInlineStyleProperty(CSSPropertyID::kPointerEvents, "none");
   // Note: We use opacity: 0 (instead of visibility: hidden) to ensure that
   // the iframe's rendering isn't throttled.
   iframe->SetInlineStyleProperty(CSSPropertyID::kOpacity, "0");

@@ -955,6 +955,8 @@ BASE_FEATURE(kForceHighPerformanceGPUForWebGL,
 // small screens. This feature is for disabling these heuristics.
 BASE_FEATURE(kForceOffTextAutosizing, base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kForceSkcmsICCParsing, base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Automatically convert light-themed pages to use a Blink-generated dark theme
 BASE_FEATURE(kForceWebContentsDarkMode,
              "WebContentsForceDark",
@@ -2164,6 +2166,8 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    &kResamplingScrollEvents,
                    "max_resample_time",
                    base::Milliseconds(20));
+
+BASE_FEATURE(kResampleScrollEventsForFling, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kRestrictLinkHeaderOnSubresource,
              base::FEATURE_DISABLED_BY_DEFAULT);

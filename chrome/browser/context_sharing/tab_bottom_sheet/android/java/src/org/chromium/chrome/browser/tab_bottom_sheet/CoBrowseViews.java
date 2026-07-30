@@ -62,6 +62,7 @@ public class CoBrowseViews {
     }
 
     /** Returns the view for the co-browse content. */
+    @CalledByNative
     public View getView() {
         return mView;
     }
@@ -93,6 +94,7 @@ public class CoBrowseViews {
     public void attachPeekView(View peekView) {
         ViewGroup peekContainer = mView.findViewById(R.id.actor_control_container);
         assert peekContainer.getChildCount() == 0;
+        detachFromParent(peekView);
         mPeekView = peekView;
         peekContainer.addView(mPeekView);
     }
@@ -101,7 +103,15 @@ public class CoBrowseViews {
     @CalledByNative
     public void setWebContents(@Nullable WebContents webContents) {
         if (mWebUi != null) {
+            View oldView = mWebUi.getWebUiView();
             mWebUi.setWebContents(webContents);
+            View newView = mWebUi.getWebUiView();
+            if (oldView != newView) {
+                ViewGroup webUiContainer = mView.findViewById(R.id.web_ui_container);
+                webUiContainer.removeAllViews();
+                detachFromParent(newView);
+                webUiContainer.addView(newView);
+            }
         }
     }
 
@@ -149,18 +159,34 @@ public class CoBrowseViews {
         ViewGroup peekContainer = view.findViewById(R.id.actor_control_container);
 
         if (mToolbar != null) {
-            toolbarContainer.addView(mToolbar.getToolbarView());
+            View toolbarView = mToolbar.getToolbarView();
+            detachFromParent(toolbarView);
+            toolbarContainer.addView(toolbarView);
         }
         if (mWebUi != null) {
-            webUiContainer.addView(mWebUi.getWebUiView());
+            View webUiView = mWebUi.getWebUiView();
+            detachFromParent(webUiView);
+            webUiContainer.addView(webUiView);
         }
         if (mFusebox != null) {
-            fuseboxContainer.addView(mFusebox.getFuseboxView());
+            View fuseboxView = mFusebox.getFuseboxView();
+            detachFromParent(fuseboxView);
+            fuseboxContainer.addView(fuseboxView);
         }
         if (mPeekView != null) {
+            detachFromParent(mPeekView);
             peekContainer.addView(mPeekView);
         }
 
         return view;
+    }
+
+    private void detachFromParent(View view) {
+        if (view == null) return;
+
+        final ViewGroup parent = (ViewGroup) view.getParent();
+        if (parent == null) return;
+
+        parent.removeView(view);
     }
 }

@@ -49,6 +49,7 @@ source_set("glic") {
     "public/context/glic_sharing_manager.h",
     "public/glic_close_options.h",
     "public/glic_enabling.h",
+    "public/glic_instance.cc",
     "public/glic_instance.h",
     "public/glic_instance_metrics_backwards_compatibility.h",
     "public/glic_invoke_options.h",
@@ -82,7 +83,10 @@ source_set("glic") {
       "widget/glic_widget.h",
     ]
   } else {  # is_android
-    sources += [ "public/widget/glic_side_panel_coordinator_android.h" ]
+    sources += [
+      "public/widget/glic_side_panel_coordinator_android.h",
+      "public/widget/glic_side_panel_coordinator_desktop_android.h",
+    ]
   }
   public_deps = [
     ":enum",
@@ -96,6 +100,7 @@ source_set("glic") {
     "//chrome/browser/page_content_annotations:fetcher",
     "//chrome/browser/permissions/system",
     "//chrome/browser/profiles:profile",
+    "//chrome/browser/subscription_eligibility",
     "//chrome/browser/ui/browser_window",
     "//components/autofill/core/browser/integrators/actor:actor_form_filling_types",
     "//components/content_extraction/content/browser",
@@ -127,6 +132,7 @@ source_set("glic") {
   }
 
   deps = [
+    "//chrome/browser/ui/side_panel",
     "//chrome/common",
     "//components/skills/public:mojo_bindings",
     "//components/tabs:public",
@@ -138,7 +144,6 @@ source_set("glic") {
     deps += [
       "//chrome/browser:primitives",
       "//chrome/browser/actor:types",
-      "//chrome/browser/ui/side_panel",
     ]
   } else {  # is_android
     deps += [
@@ -345,6 +350,7 @@ source_set("impl") {
       "widget/glic_inactive_side_panel_ui_android.cc",
       "widget/glic_inactive_side_panel_ui_android.h",
       "widget/glic_side_panel_coordinator_android.cc",
+      "widget/glic_side_panel_coordinator_desktop_android.cc",
       "widget/glic_side_panel_ui_android.cc",
       "widget/glic_side_panel_ui_android.h",
     ]
@@ -368,6 +374,7 @@ source_set("impl") {
     "//chrome/browser/lifetime:termination_notification",
     "//chrome/browser/media/webrtc",
     "//chrome/browser/picture_in_picture",
+    "//chrome/browser/profiles:profile_manager",
     "//chrome/browser/profiles:profile_util",
     "//chrome/browser/profiles/keep_alive",
     "//chrome/browser/resources/glic:resources",
@@ -454,8 +461,10 @@ source_set("impl") {
   } else {  # is_android
     deps += [
       ":actor_types_for_migration",
-      "//chrome/browser/context_sharing/tab_bottom_sheet/android:jni_headers",
       "//chrome/browser/glic/android",
+      "//chrome/browser/glic/android:jni_bridges",
+      "//chrome/browser/ui/side_panel:side_panel_ui_provider",
+      "//chrome/browser/ui/side_panel/android",
       "//ui/android",
     ]
   }
@@ -618,6 +627,7 @@ source_set("browser_tests") {
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
   sources = [
     "host/context/glic_delegating_sharing_manager_browsertest.cc",
+    "host/glic_web_contents_warming_pool_browsertest.cc",
     "host/new_glic_api_browsertest.cc",
     "service/glic_instance_coordinator_browsertest.cc",
   ]
@@ -650,6 +660,7 @@ source_set("browser_tests") {
     ":glic",
     ":impl",
     "//chrome/app:command_ids",
+    "//chrome/browser:browser_features",
     "//chrome/browser/background/glic",
     "//chrome/browser/glic/actor",
     "//chrome/browser/glic/actor:test_support",
