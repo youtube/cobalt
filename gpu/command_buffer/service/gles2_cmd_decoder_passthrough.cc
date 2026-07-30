@@ -963,7 +963,7 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
   FAIL_INIT_IF_NOT(api()->glIsEnabledFn(GL_CLIENT_ARRAYS_ANGLE) == GL_FALSE,
                    "GL_ANGLE_client_arrays shouldn't be enabled");
 
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_COBALT)
   // Cobalt on some platforms (like RDK) runs on native GL without ANGLE compatibility,
   // but we still want to allow WebGL context creation.
   const bool webgl_compat_match = true;
