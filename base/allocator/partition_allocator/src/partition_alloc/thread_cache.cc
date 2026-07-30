@@ -411,6 +411,10 @@ void ThreadCache::Init(PartitionRoot* root) {
   SetGlobalLimits(root, kDefaultMultiplier);
 }
 
+bool ThreadCache::IsInitialized() {
+  return g_thread_cache_root.load(std::memory_order_acquire) != nullptr;
+}
+
 // static
 ThreadCache* ThreadCache::EnsureAndGetForQuarantine() {
   PartitionRoot* root =

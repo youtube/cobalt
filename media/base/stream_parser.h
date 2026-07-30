@@ -8,6 +8,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <atomic>
+#include <map>
 #include <memory>
 #include <vector>
 
@@ -17,9 +19,14 @@
 #include "base/functional/callback_forward.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/functional/callback_helpers.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/base/demuxer_stream.h"
 #include "media/base/eme_constants.h"
 #include "media/base/media_export.h"
+#include "media/media_buildflags.h"
 
 namespace media {
 
@@ -161,6 +168,24 @@ class MEDIA_EXPORT StreamParser {
   [[nodiscard]] virtual bool AppendToParseBuffer(
       base::span<const uint8_t> buf) = 0;
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Zero-copy variant of AppendToParseBuffer() above.
+  //
+  // Unlike the copying variant, `buf` is *borrowed*: the parser may retain the
+  // span itself rather than copying its contents. The caller guarantees that
+  // the memory referenced by `buf` stays valid until `release_runner` is
+  // destroyed (or run). The parser signals that it is done with `buf` by
+  // destroying `release_runner`, which may happen on any thread and at any time
+  // after this call returns, including from the parser's destructor.
+  [[nodiscard]] virtual bool AppendToParseBuffer(
+      base::span<const uint8_t> buf,
+      base::ScopedClosureRunner release_runner) {
+    // Default implementation which `release_runner` runs when it goes out of
+    // scope here.
+    return AppendToParseBuffer(buf);
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   // Attempts to parse more data previously provided via AppendToParseBuffer().
   // May not attempt to parse all of it in one pass;
   // `max_pending_bytes_to_inspect` should normally be set to
@@ -181,6 +206,22 @@ class MEDIA_EXPORT StreamParser {
   [[nodiscard]] virtual ParseStatus Parse(int max_pending_bytes_to_inspect) = 0;
   [[nodiscard]] virtual bool ProcessChunks(
       std::unique_ptr<BufferQueue> buffer_queue);
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // When enabled, if `Parse()` fails to make progress in an initial attempt, it
+  // will automatically process more data from the pending queue in increments
+  // of `max_pending_bytes_to_inspect` and retry immediately. This continues
+  // until either progress is made or all pending data has been consumed.
+  // This optimizes the parsing of large media elements (like high-bitrate video
+  // blocks or large EBML clusters) by avoiding redundant Return-and-Re-entry
+  // cycles between the parser and the caller when the element size exceeds the
+  // initial inspection limit.
+  //
+  // This is a global, thread-safe setting that applies to all subsequent
+  // `Parse()` calls across all parser instances.
+  static void SetEnableIncrementalParseLookAhead(bool enable);
+  static bool IsIncrementalParseLookAheadEnabled();
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 // Appends to |merged_buffers| the provided buffers in decode-timestamp order.

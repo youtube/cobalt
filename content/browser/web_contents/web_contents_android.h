@@ -99,8 +99,17 @@ class CONTENT_EXPORT WebContentsAndroid {
   void ResumeLoadingCreatedWebContents(JNIEnv* env);
 
   void SetPrimaryPageImportance(JNIEnv* env,
+<<<<<<< HEAD
                                 int32_t main_frame_importance,
                                 int32_t subframe_importance);
+=======
+                                jint main_frame_importance,
+                                jint subframe_importance);
+
+  void OnFreeze(JNIEnv* env);
+  void OnResume(JNIEnv* env);
+
+>>>>>>> parent of e7af2792ef7 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   void SuspendAllMediaPlayers(JNIEnv* env);
   void SetAudioMuted(JNIEnv* env, bool mute);
   bool IsAudioMuted(JNIEnv* env);

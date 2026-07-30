@@ -2263,7 +2263,7 @@ void WasmCodeManager::Decommit(base::AddressRegion region) {
   DCHECK_LE(region.size(), old_committed);
   TRACE_HEAP("Decommitting system pages 0x%" PRIxPTR ":0x%" PRIxPTR "\n",
              region.begin(), region.end());
-#ifdef V8_OS_IOS
+#if defined(V8_OS_IOS)
   // iOS devices do not support toggling the page permissions after a MAP_JIT
   // call. See https://developer.apple.com/forums/thread/672804
   // Use DiscardSystemPages instead, which uses madvise() to release
@@ -2271,15 +2271,22 @@ void WasmCodeManager::Decommit(base::AddressRegion region) {
   allocator->DiscardSystemPages(reinterpret_cast<void*>(region.begin()),
                                 region.size());
 #else
-  if (V8_UNLIKELY(!allocator->DecommitPages(
-          reinterpret_cast<void*>(region.begin()), region.size()))) {
+#if BUILDFLAG(IS_COBALT)
+  // no_decommit_pooled_pages to address crash at b/527944046.
+  const bool success = allocator->DiscardSystemPages(
+      reinterpret_cast<void*>(region.begin()), region.size());
+#else
+  const bool success = allocator->DecommitPages(
+      reinterpret_cast<void*>(region.begin()), region.size());
+#endif  // BUILDFLAG(IS_COBALT)
+  if (V8_UNLIKELY(!success)) {
     // Decommit can fail in near-OOM situations.
     auto oom_detail = base::FormattedString{} << "region size: "
                                               << region.size();
     V8::FatalProcessOutOfMemory(nullptr, "Decommit Wasm code space",
                                 {.detail = oom_detail.PrintToArray().data()});
   }
-#endif  // V8_OS_IOS
+#endif  // defined(V8_OS_IOS)
 }
 
 void WasmCodeManager::AssignRange(base::AddressRegion region,
