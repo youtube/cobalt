@@ -51,7 +51,6 @@
 #include "util/posix/spawn_subprocess.h"
 
 #if BUILDFLAG(IS_STARBOARD)
-#include "base/notreached.h"
 #include "base/synchronization/lock.h"
 #include "starboard/elf_loader/evergreen_info.h"
 #endif  // BUILDFLAG(IS_STARBOARD)
