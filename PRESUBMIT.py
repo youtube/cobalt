@@ -960,6 +960,9 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
             # The early zone registration can't use base or absl. So it uses
             # std.
             r'base/allocator/partition_allocator/src/partition_alloc/shim/early_zone_registration_utils_apple.h',
+            # Similarly, helpers for printing stack traces can't use base or absl.
+            r'base/debug/buffered_dwarf_reader\.cc',
+            r'base/debug/buffered_dwarf_reader\.h',
 
             # Needed to use QUICHE API.
             r'components/private_ai/phosphor/.*',
@@ -5479,6 +5482,7 @@ def CheckNoDeprecatedCss(input_api, output_api):
             # The NTP team prefers reserving -webkit-line-clamp for
             # ellipsis effect which can only be used with -webkit-box.
             r'ui/webui/resources/cr_components/most_visited/.*\.css$',
+            r'ui/webui/resources/cr_components/composebox/composebox_match.css$',
             r'ui/webui/resources/cr_components/searchbox/searchbox_match.css$')
     )
     file_filter = lambda f: input_api.FilterSourceFile(

@@ -56,7 +56,7 @@
 #include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/core/html/custom/custom_element_registry.h"
 #include "third_party/blink/renderer/core/html/html_slot_element.h"
-#include "third_party/blink/renderer/core/html/parser/fragment_parser_options.h"
+#include "third_party/blink/renderer/core/html/parser/fragment_parser.h"
 #include "third_party/blink/renderer/core/loader/modulescript/module_script_creation_params.h"
 #include "third_party/blink/renderer/core/loader/modulescript/module_script_fetch_request.h"
 #include "third_party/blink/renderer/core/sanitizer/sanitizer_api.h"
@@ -97,18 +97,15 @@ struct SameSizeAsShadowRoot : public DocumentFragment,
                               public ElementRareDataField {
   Member<void*> member[2];
   unsigned flags[1];
-  AtomicString marker;
 };
 
 ASSERT_SIZE(ShadowRoot, SameSizeAsShadowRoot);
 
 ShadowRoot::ShadowRoot(Document& document,
                        ShadowRootMode mode,
-                       SlotAssignmentMode assignment_mode,
-                       const AtomicString& marker)
+                       SlotAssignmentMode assignment_mode)
     : DocumentFragment(nullptr, kCreateShadowRoot),
       TreeScope(*this, document),
-      marker_(marker),
       child_shadow_root_count_(0),
       mode_(static_cast<unsigned>(mode)),
       registered_with_parent_shadow_root_(false),
@@ -237,15 +234,6 @@ void ShadowRoot::SetInnerHTMLInternal(
 
 void ShadowRoot::setHTML(const String& html,
                          SetHTMLOptions* options,
-                         ExceptionState& exception_state) {
-  SetInnerHTMLInternal(
-      html, FragmentParserOptions(options), Sanitizer::Mode::kSafe,
-      FragmentParserConfig::ParseDeclarativeShadowRoots::kParse,
-      trusted_types_names::kSetHTML, exception_state);
-}
-
-void ShadowRoot::setHTML(const String& html,
-                         TrustedParserOptions* options,
                          ExceptionState& exception_state) {
   SetInnerHTMLInternal(
       html, FragmentParserOptions(options), Sanitizer::Mode::kSafe,

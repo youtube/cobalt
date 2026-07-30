@@ -142,6 +142,7 @@
 #include "components/webapps/browser/install_result_code.h"
 #include "components/webapps/browser/installable/installable_metrics.h"
 #include "components/webapps/browser/uninstall_result_code.h"
+#include "components/webapps/browser/web_app_url_config.h"
 #include "components/webapps/common/web_app_id.h"
 #include "components/webapps/isolated_web_apps/test_support/test_signed_web_bundle_builder.h"
 #include "content/public/browser/browser_task_traits.h"
@@ -1024,7 +1025,7 @@ void WebAppIntegrationTestDriver::SetUpOnMainThread() {
       content::WebUIDataSource::CreateAndAdd(browser()->profile(),
                                              "webapps_integration_tests");
   valid_chrome_url_for_webapps_registration_ =
-      AddValidWebAppChromeUrlHostForTesting("webapps_integration_tests");
+      webapps::AddValidChromeUrlHostForTesting("webapps_integration_tests");
   data_source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::DefaultSrc,
       "default-src * 'unsafe-eval' 'unsafe-inline'; ");
@@ -4980,7 +4981,6 @@ WebAppIntegrationTest::WebAppIntegrationTest() : helper_(this) {
   // TODO(b/313492499): Update test driver to work with new intent picker UI.
   enabled_features.push_back(features::kPwaNavigationCapturing);
 #endif  // !BUILDFLAG(IS_CHROMEOS)
-  enabled_features.push_back(features::kWebAppPredictableAppUpdating);
   enabled_features.push_back(blink::features::kWebAppMigrationApi);
 
   scoped_feature_list_.InitWithFeatures(enabled_features, {});

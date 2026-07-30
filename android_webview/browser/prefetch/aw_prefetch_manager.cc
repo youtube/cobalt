@@ -172,14 +172,25 @@ int AwPrefetchManager::StartPrefetchRequest(
   // the purpose of deduping prefetch requests on the application's behalf.
   // TODO(crbug.com/393344309): Apply deduping to all prefetch requests (not
   // just WebView).
-  if (browser_context_->IsPrefetchDuplicate(pf_url, expected_no_vary_search)) {
+  if (IsPrefetchDuplicate(pf_url, expected_no_vary_search)) {
     if (request_status_listener) {
       request_status_listener->OnPrefetchStartFailedDuplicate();
     }
     return NO_PREFETCH_KEY;
   }
 
-  // Make room for the new prefetch request by evicting the older ones.
+  // Make room for the new prefetch request by evicting the older ones to
+  // respect the `max_prefetches_` limit.
+  //
+  // We intentionally do this **before** starting prefetch instead of after.
+  // Due to current //content `PrefetchScheduler` restrictions of its
+  // sequential async scheduling, if an evicted prefetch is still running,
+  // canceling it before starting a next one reduces one PostTask, which is good
+  // from performance perspective. Please see
+  // https://docs.google.com/document/d/1OylSDdS_RTOkG_E_PXJ0aPI1QrygMjGkgSs5JcTrFlE/edit?tab=t.0#bookmark=id.rcr0rfweiz90
+  // for more information.
+  // TODO(crbug.com/426404355?): After parallel prefetching being enabled
+  // for WV.prefetch, perhaps we no longer need this. Revisit and verify.
   if (all_prefetches_map_.size() >= max_prefetches_) {
     int num_prefetches_to_evict =
         all_prefetches_map_.size() - max_prefetches_ + 1;
@@ -211,10 +222,28 @@ int AwPrefetchManager::StartPrefetchRequest(
           should_bypass_http_cache);
 
   if (prefetch_handle) {
-    return AddPrefetchHandle(std::move(prefetch_handle));
+    return AddPrefetchHandle(std::make_unique<AwPrefetchHandleWrapper>(
+        pf_url, std::move(expected_no_vary_search),
+        std::move(prefetch_handle)));
   } else {
     return NO_PREFETCH_KEY;
   }
+}
+
+bool AwPrefetchManager::IsPrefetchDuplicate(
+    const GURL& url,
+    const std::optional<net::HttpNoVarySearchData>& expected_no_vary_search)
+    const {
+  if (!base::FeatureList::IsEnabled(
+          features::kWebViewPrefetchOffTheMainThread)) {
+    return browser_context_->IsPrefetchDuplicate(url, expected_no_vary_search);
+  }
+  std::vector<const content::PrefetchDeduplicationEntry*> candidates;
+  candidates.reserve(all_prefetches_map_.size());
+  for (const auto& [_, prefetch_handle_wrapper] : all_prefetches_map_) {
+    candidates.push_back(prefetch_handle_wrapper.get());
+  }
+  return content::IsPrefetchDuplicate(candidates, url, expected_no_vary_search);
 }
 
 void AwPrefetchManager::CancelPrefetch(JNIEnv* env, int32_t prefetch_key) {

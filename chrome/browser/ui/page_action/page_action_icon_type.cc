@@ -22,10 +22,6 @@ const base::FeatureParam<bool>* GetPageActionsMigrationParam(
       return &features::kPageActionsMigrationManagePasswords;
     case PageActionIconType::kCookieControls:
       return &features::kPageActionsMigrationCookieControls;
-    case PageActionIconType::kAutofillAddress:
-      return &features::kPageActionsMigrationAutofillAddress;
-    case PageActionIconType::kCollaborationMessaging:
-      return &features::kPageActionsMigrationCollaborationMessaging;
     case PageActionIconType::kMandatoryReauth:
       return &features::kPageActionsMigrationAutofillMandatoryReauth;
     case PageActionIconType::kSharingHub:
@@ -60,12 +56,14 @@ bool IsPageActionMigrated(PageActionIconType page_action) {
   // Page actions on the new framework that don't have an implementation on the legacy path
   // and don't have a feature param.
   switch (page_action) {
+    case PageActionIconType::kCollaborationMessaging:
     case PageActionIconType::kGlic:
     case PageActionIconType::kLensOverlay:
     case PageActionIconType::kMemorySaver:
     case PageActionIconType::kTranslate:
     case PageActionIconType::kFind:
     case PageActionIconType::kPwaInstall:
+    case PageActionIconType::kAutofillAddress:
     case PageActionIconType::kPaymentsOfferNotification:
     case PageActionIconType::kContextualSidePanel:
     case PageActionIconType::kJsOptimizations:

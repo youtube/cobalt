@@ -55,6 +55,7 @@
 <translation id="1594928384848033697">Chromium soovib kustutada teie Paroolihalduri andmed. Selle lubamiseks sisestage oma Windowsi parool.</translation>
 <translation id="1607715478322902680">{COUNT,plural, =0{Administraator nõuab, et käivitaksite Chromiumi värskenduse rakendamiseks uuesti}=1{Administraator nõuab, et käivitaksite Chromiumi värskenduse rakendamiseks uuesti. Teie inkognito akent ei avata uuesti.}other{Administraator nõuab, et käivitaksite Chromiumi värskenduse rakendamiseks uuesti. Teie # inkognito akent ei avata uuesti.}}</translation>
 <translation id="1625909126243026060">Vaadake üle Chromiumi peamised privaatsus- ja turvaseaded</translation>
+<translation id="1639380494700489405">AI-režiimilt vahelehe kohta küsimiseks ilma lehelt lahkumata logige Chromiumi sisse. Lisaks saate kõigis oma seadmetes oma paroole ja muud kasutada.</translation>
 <translation id="1640672724030957280">Allalaadimine ...</translation>
 <translation id="1680687534629375545">Küsige pildiotsingult selle lehe kohta</translation>
 <translation id="1709772298389099340">Annab brauserile <ph name="BROWSER_NAME" /> administraatoriõigused.</translation>
@@ -196,6 +197,7 @@
 <translation id="3045032126857188731">Tõlgitud keel: <ph name="LANGUAGE" /></translation>
 <translation id="3047590466164881923">Sulge tagasisidedialoog</translation>
 <translation id="3068187312562070417">Muud Chromiumi profiilid</translation>
+<translation id="3068290154869370196">Laiendused on pistikprogrammid, mis võimaldavad teil Chromiumi kohandada. Laiendused aitavad teil Chromiumi enda vajaduste järgi kohandada, olgu selleks siis asjade organiseerimine või igapäevaste toimingute lihtsustamine.</translation>
 <translation id="3068515742935458733">Aidake Chromiumi täiustada, saates Google'ile krahhiaruandeid ja lingi <ph name="UMA_LINK" /></translation>
 <translation id="3079753320517721795">{NUM_DEVICES,plural, =0{Üks või mitu Chromiumi laiendust kasutasid juurdepääsu ühele USB-seadmele}=1{Üks või mitu Chromiumi laiendust kasutasid juurdepääsu ühele USB-seadmele}other{Üks või mitu Chromiumi laiendust kasutasid juurdepääsu # USB-seadmele}}</translation>
 <translation id="3095811995836568724">Chromiumi ajalugu</translation>
@@ -430,6 +432,7 @@
 <translation id="5821520528363214608">Chromiumi andmete kasutamiseks ja salvestamiseks oma Google'i kontol värskendage Chromiumi</translation>
 <translation id="5824893331272123205">Seda paneeli ei õnnestunud laadida. Proovige uuesti</translation>
 <translation id="5862307444128926510">Tere tulemast Chromiumi</translation>
+<translation id="5867606647614813312">Lülitab sisse lisafunktsioonid, et pakkuda Chromiumi tugevaimat kaitset.</translation>
 <translation id="5871205389137001634">Klõpsake pildiotsingust väljumiseks</translation>
 <translation id="5883558403894052917">Chromium leidis, et need üksused sisaldavad pahavara:</translation>
 <translation id="5889361821821684993">Chromium kontrollib regulaarselt, kas teie brauseril on kõige turvalisemad seaded. Anname teile teada, kui midagi tuleb üle vaadata.</translation>

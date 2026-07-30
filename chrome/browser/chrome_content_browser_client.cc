@@ -24,6 +24,7 @@
 #include "base/containers/fixed_flat_set.h"
 #include "base/containers/to_vector.h"
 #include "base/dcheck_is_on.h"
+#include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -339,6 +340,7 @@
 #include "content/public/browser/permission_descriptor_util.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/browser/security_principal.h"
 #include "content/public/browser/service_worker_context.h"
 #include "content/public/browser/site_isolation_mode.h"
 #include "content/public/browser/site_isolation_policy.h"
@@ -362,6 +364,7 @@
 #include "device/vr/buildflags/buildflags.h"
 #include "extensions/browser/browser_frame_context_data.h"
 #include "extensions/buildflags/buildflags.h"
+#include "extensions/common/extension_features.h"
 #include "extensions/common/switches.h"
 #include "google_apis/gaia/gaia_urls.h"
 #include "google_apis/google_api_keys.h"
@@ -468,6 +471,7 @@
 #include "chrome/browser/ash/fileapi/file_system_backend.h"
 #include "chrome/browser/ash/fileapi/mtp_file_system_backend_delegate.h"
 #include "chrome/browser/ash/login/signin_partition_manager.h"
+#include "chrome/browser/ash/login/signin_partition_manager_factory.h"
 #include "chrome/browser/ash/login/startup_utils.h"
 #include "chrome/browser/ash/net/network_health/network_health_manager.h"
 #include "chrome/browser/ash/net/system_proxy_manager.h"
@@ -1619,6 +1623,8 @@ void ChromeContentBrowserClient::RegisterProfilePrefs(
 
   registry->RegisterBooleanPref(prefs::kWebAudioOutputBufferingEnabled, false);
   registry->RegisterBooleanPref(prefs::kSharedWorkerBlobURLFixEnabled, true);
+  registry->RegisterBooleanPref(prefs::kSharedWorkerExtendedLifetimeEnabled,
+                                true);
   registry->RegisterBooleanPref(
       prefs::kServiceWorkerToControlSrcdocIframeEnabled, true);
   registry->RegisterBooleanPref(prefs::kReduceAcceptLanguageEnabled, true);
@@ -2251,8 +2257,12 @@ bool ChromeContentBrowserClient::HasWebRequestAPIProxy(
           browser_context);
   if (!web_request_api) {
     return false;
+  } else {
+    // TODO(crbug.com/362539771): Check if the request is from guest view and
+    // use HasWebRequestOrDeclarativeWebRequestExtension() instead of using
+    // MayHaveProxies().
+    return web_request_api->MayHaveProxies();
   }
-  return web_request_api && web_request_api->MayHaveProxies();
 #else
   return false;
 #endif
@@ -3323,6 +3333,14 @@ bool ChromeContentBrowserClient::AllowSharedWorkerBlobURLFix(
   return profile->GetPrefs()->GetBoolean(prefs::kSharedWorkerBlobURLFixEnabled);
 }
 
+bool ChromeContentBrowserClient::AllowSharedWorkerExtendedLifetime(
+    content::BrowserContext* browser_context) {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  Profile* profile = Profile::FromBrowserContext(browser_context);
+  return profile->GetPrefs()->GetBoolean(
+      prefs::kSharedWorkerExtendedLifetimeEnabled);
+}
+
 void ChromeContentBrowserClient::RequestFilesAccess(
     const std::vector<base::FilePath>& files,
     const GURL& destination_url,
@@ -4126,7 +4144,7 @@ blink::mojom::PreferredColorScheme ToBlinkPreferredColorScheme(
 std::tuple<blink::mojom::PreferredColorScheme,
            blink::mojom::PreferredColorScheme>
 GetPreferredColorScheme(const WebPreferences& web_prefs,
-                        const GURL& url,
+                        const content::SecurityPrincipal& security_principal,
                         WebContents* web_contents) {
   blink::mojom::PreferredColorScheme preferred_color_scheme;
   blink::mojom::PreferredColorScheme preferred_root_scrollbar_color_scheme;
@@ -4147,7 +4165,7 @@ GetPreferredColorScheme(const WebPreferences& web_prefs,
 #else  // !BUILDFLAG(IS_ANDROID)
   if (Profile::FromBrowserContext(web_contents->GetBrowserContext())
           ->IsIncognitoProfile() &&
-      !content::HasWebUIScheme(url)) {
+      !security_principal.IsWebUI()) {
     // Incognito contents follow the device color mode.
     preferred_color_scheme = ToBlinkPreferredColorScheme(
         ui::NativeTheme::GetInstanceForWeb()->preferred_color_scheme());
@@ -4293,7 +4311,7 @@ base::OnceClosure ChromeContentBrowserClient::SelectClientCertificate(
     content::StoragePartition* storage_partition =
         profile->GetStoragePartition(web_contents->GetSiteInstance());
     auto* signin_partition_manager =
-        ash::login::SigninPartitionManager::Factory::GetForBrowserContext(
+        ash::login::SigninPartitionManagerFactory::GetForBrowserContext(
             profile);
     if (!signin_partition_manager->IsCurrentSigninStoragePartition(
             storage_partition)) {
@@ -4860,8 +4878,8 @@ void ChromeContentBrowserClient::OverrideWebPreferences(
 
   std::tie(web_prefs->preferred_color_scheme,
            web_prefs->preferred_root_scrollbar_color_scheme) =
-      GetPreferredColorScheme(*web_prefs, main_frame_site.GetSiteURL(),
-                              web_contents);
+      GetPreferredColorScheme(
+          *web_prefs, main_frame_site.GetSecurityPrincipal(), web_contents);
 
   web_prefs->root_scrollbar_theme_color =
       GetRootScrollbarThemeColor(web_contents);
@@ -4969,8 +4987,8 @@ bool ChromeContentBrowserClient::OverrideWebPreferencesAfterNavigation(
       web_prefs->preferred_root_scrollbar_color_scheme;
   std::tie(web_prefs->preferred_color_scheme,
            web_prefs->preferred_root_scrollbar_color_scheme) =
-      GetPreferredColorScheme(*web_prefs, main_frame_site.GetSiteURL(),
-                              web_contents);
+      GetPreferredColorScheme(
+          *web_prefs, main_frame_site.GetSecurityPrincipal(), web_contents);
   prefs_changed |=
       web_prefs->preferred_color_scheme != old_preferred_color_scheme ||
       web_prefs->preferred_root_scrollbar_color_scheme !=
@@ -5020,7 +5038,7 @@ bool ChromeContentBrowserClient::
          GetForcedColorsForWebContent(&web_contents) !=
              std::tie(prefs.in_forced_colors,
                       prefs.is_forced_colors_disabled) ||
-         GetPreferredColorScheme(prefs, main_frame_site.GetSiteURL(),
+         GetPreferredColorScheme(prefs, main_frame_site.GetSecurityPrincipal(),
                                  &web_contents) !=
              std::tie(prefs.preferred_color_scheme,
                       prefs.preferred_root_scrollbar_color_scheme) ||
@@ -6622,10 +6640,9 @@ bool ChromeContentBrowserClient::WillInterceptWebSocket(
   // BrowserContextKeyedAPI factories for e.g. WebRequest.
   if (!web_request_api) {
     return false;
+  } else {
+    return web_request_api->MayHaveProxiesForFrame(frame);
   }
-
-  return (web_request_api->MayHaveProxies() ||
-          web_request_api->IsAvailableToWebViewEmbedderFrame(frame));
 #else
   return false;
 #endif
@@ -8293,8 +8310,8 @@ bool ChromeContentBrowserClient::ShouldPreconnectNavigation(
   const auto* web_request_api =
       extensions::BrowserContextKeyedAPIFactory<extensions::WebRequestAPI>::Get(
           browser_context);
-  if (!web_request_api || web_request_api->MayHaveProxies() ||
-      web_request_api->IsAvailableToWebViewEmbedderFrame(render_frame_host)) {
+  if (!web_request_api ||
+      web_request_api->MayHaveProxiesForFrame(render_frame_host)) {
     return false;
   }
 #endif

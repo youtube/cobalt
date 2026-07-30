@@ -30,17 +30,12 @@
 #include "base/containers/flat_map.h"
 #include "base/containers/span.h"
 #include "base/trace_event/base_tracing_forward.h"
-#include "base/types/pass_key.h"
 #include "base/value_iterators.h"
 
 namespace base {
 
 class DictValue;
 class Value;
-
-namespace internal {
-class JSONParser;
-}  // namespace internal
 
 using BlobStorage = std::vector<uint8_t>;
 
@@ -266,9 +261,6 @@ class BASE_EXPORT GSL_OWNER DictValue {
   template <class IteratorType>
   DictValue(std::move_iterator<IteratorType> first,
             std::move_iterator<IteratorType> last);
-
-  DictValue(PassKey<internal::JSONParser>,
-            flat_map<std::string, std::unique_ptr<Value>>);
 
   ~DictValue();
 
@@ -1078,10 +1070,13 @@ bool ListValue::contains(const T& val,
   });
 }
 
-template <class IteratorType>
-DictValue::DictValue(std::move_iterator<IteratorType> first,
-                     std::move_iterator<IteratorType> last) {
-  // Need to move into a vector first, since `storage_` currently uses
+namespace detail {
+
+template <typename IteratorType>
+flat_map<std::string, std::unique_ptr<Value>> MakeDictStorageFromIterators(
+    std::move_iterator<IteratorType> first,
+    std::move_iterator<IteratorType> last) {
+  // Need to move into a vector first, since DictValue's storage currently uses
   // unique_ptrs.
   std::vector<std::pair<std::string, std::unique_ptr<Value>>> values;
   values.reserve(static_cast<size_t>(std::distance(first, last)));
@@ -1093,8 +1088,15 @@ DictValue::DictValue(std::move_iterator<IteratorType> first,
     values.emplace_back(std::move(value.first),
                         std::make_unique<Value>(std::move(value.second)));
   }
-  storage_ = flat_map<std::string, std::unique_ptr<Value>>(std::move(values));
+  return flat_map<std::string, std::unique_ptr<Value>>(std::move(values));
 }
+
+}  // namespace detail
+
+template <class IteratorType>
+DictValue::DictValue(std::move_iterator<IteratorType> first,
+                     std::move_iterator<IteratorType> last)
+    : DictValue(detail::MakeDictStorageFromIterators(first, last)) {}
 
 }  // namespace base
 

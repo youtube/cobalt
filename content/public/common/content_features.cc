@@ -71,9 +71,9 @@ const base::FeatureParam<double> kAndroidNavigationAnimationBlurSigma{
 // Enables the physical keyboard autocorrect underline feature.
 BASE_FEATURE(kAndroidPkAutocorrectUnderline, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Enables the spelling underline in composition mode.
-BASE_FEATURE(kAndroidSpellingUnderlineInCompositionMode,
-             base::FEATURE_ENABLED_BY_DEFAULT);
+// Blocks the misspelling suggestion span in composition mode.
+BASE_FEATURE(kAndroidBlockMisspellingSuggestionSpanInCompositionMode,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Warm up a spare renderer after each navigation on Android.
 BASE_FEATURE(kAndroidWarmUpSpareRendererWithTimeout,
@@ -276,9 +276,6 @@ BASE_FEATURE(kDeviceBoundSessionTerminationEvictBackForwardCache,
 // Whether DevTools Live Edit (Debugger.setScriptSource usage in CDP) is
 // enabled.
 BASE_FEATURE(kDevToolsLiveEdit, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// When enabled, the DevTools Privacy UI is displayed.
-BASE_FEATURE(kDevToolsPrivacyUI, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls whether the Digital Goods API is enabled.
 // https://github.com/WICG/digital-goods/
@@ -742,12 +739,6 @@ BASE_FEATURE(kPushSubscriptionChangeEventOnInvalidation,
 // https://w3c.github.io/push-api/#the-pushsubscriptionchange-event
 // upon manual resubscription to previously unsubscribed notifications.
 BASE_FEATURE(kPushSubscriptionChangeEventOnResubscribe,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// When enabled, queues navigations instead of cancelling the previous
-// navigation if the previous navigation is already waiting for commit.
-// See https://crbug.com/838348 and https://crbug.com/1220337.
-BASE_FEATURE(kQueueNavigationsWhileWaitingForCommit,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, sends SubresourceResponseStarted IPC only when the user has
@@ -1267,6 +1258,12 @@ BASE_FEATURE(kAccessibilityImeGetFormattedText,
 BASE_FEATURE(kAccessibilityImproveLiveRegionAnnounce,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, allows Android to fire WINDOW_CONTENT_CHANGED events for value
+// changes made to ARIA meter controls.
+// TODO(crbug.com/493195387): Remove killswitch after stability period.
+BASE_FEATURE(kAccessibilityMeterEventsOnAndroid,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // When this feature is enabled, the accessibility tree will be requested to
 // layout based on the actions that are performed on the renderer side. In
 // particular this will be used to determine whether or not a node is clickable
@@ -1283,6 +1280,14 @@ BASE_FEATURE(kAccessibilityRequestScopedContentChangedEvents,
 
 const base::FeatureParam<int> kMaxContentChangedEventsToFireParam{
     &kAccessibilityRequestScopedContentChangedEvents, "max_events", 30};
+
+// When this feature is enabled, this param will allow to only fire events which
+// target nodes we assume are known by the Android framework.
+const base::FeatureParam<bool>
+    kPreventWindowContentChangesForNodesNotLikelyInAndroid{
+        &kAccessibilityRequestScopedContentChangedEvents,
+        "prevent_window_content_changes_for_nodes_not_likely_in_android",
+        false};
 
 // When enabled, supports atomic announcements, meaning that when
 // aria-atomic=true, the entire live region will be announced not just the node

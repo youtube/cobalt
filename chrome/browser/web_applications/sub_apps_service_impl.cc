@@ -34,6 +34,7 @@
 #include "chrome/browser/web_applications/web_app_management_type.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
+#include "chrome/browser/web_applications/web_app_scope.h"
 #include "chrome/browser/web_applications/web_app_tab_helper.h"
 #include "chrome/browser/web_applications/web_app_ui_manager.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
@@ -199,6 +200,34 @@ bool ShouldSkipUserConfirmation(content::RenderFrameHost& frame) {
 #endif  // BUILDFLAG(IS_CHROMEOS)
 }
 
+bool AppsScopesOverlap(
+    const GURL& new_scope,
+    const webapps::AppId& parent_app_id,
+    const std::vector<std::unique_ptr<WebAppInstallInfo>>& collected_installs,
+    WebAppRegistrar& registrar) {
+  auto scopes_overlap = [&](const GURL& other_scope) {
+    return IsInScope(new_scope, other_scope) ||
+           IsInScope(other_scope, new_scope);
+  };
+
+  // Check against already collected sub apps in this call.
+  for (const auto& existing_info : collected_installs) {
+    if (scopes_overlap(existing_info->scope)) {
+      return true;
+    }
+  }
+
+  // Check against already installed sub apps.
+  for (const webapps::AppId& installed_id :
+       registrar.GetAllSubAppIds(parent_app_id)) {
+    if (scopes_overlap(registrar.GetAppScope(installed_id))) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 }  // namespace
 
 SubAppsServiceImpl::SubAppsServiceImpl(
@@ -262,15 +291,6 @@ void SubAppsServiceImpl::Add(
 
   if (sub_apps_to_add.empty()) {
     std::move(result_callback).Run({});
-    return;
-  }
-
-  // Check if origin is embargoed because of too many dismissals.
-  if (PermissionDecisionAutoBlockerFactory::GetForProfile(
-          Profile::FromBrowserContext(render_frame_host().GetBrowserContext()))
-          ->IsEmbargoed(render_frame_host().GetLastCommittedOrigin().GetURL(),
-                        ContentSettingsType::SUB_APP_INSTALLATION_PROMPTS)) {
-    ReturnAllAddsAsFailed(sub_apps_to_add, std::move(result_callback));
     return;
   }
 
@@ -361,16 +381,30 @@ void SubAppsServiceImpl::ProcessInstallData(
       continue;
     }
 
-    if (install_info) {
-      install_info->parent_app_id = *parent_app_id;
-      install_info->user_display_mode = mojom::UserDisplayMode::kStandalone;
-      add_call_info.install_infos.emplace_back(std::move(install_info));
-    } else {
+    if (!install_info) {
       // Log error if install info could not be loaded
       add_call_info.results.emplace_back(SubAppsServiceAddResult::New(
           ConvertUrlToPath(manifest_id),
           blink::mojom::SubAppsServiceResultCode::kFailure));
+      continue;
     }
+
+    install_info->parent_app_id = *parent_app_id;
+    install_info->user_display_mode = mojom::UserDisplayMode::kStandalone;
+
+    WebAppProvider* provider = GetWebAppProvider(render_frame_host());
+    bool scope_overlaps_with_other_apps = AppsScopesOverlap(
+        install_info->scope, *parent_app_id, add_call_info.install_infos,
+        provider->registrar_unsafe());
+
+    if (scope_overlaps_with_other_apps) {
+      add_call_info.results.emplace_back(SubAppsServiceAddResult::New(
+          ConvertUrlToPath(manifest_id),
+          blink::mojom::SubAppsServiceResultCode::kFailure));
+      continue;
+    }
+
+    add_call_info.install_infos.emplace_back(std::move(install_info));
   }
 
   FinishAddCallOrShowInstallDialog(add_call_id);
@@ -402,23 +436,9 @@ void SubAppsServiceImpl::FinishAddCallOrShowInstallDialog(int add_call_id) {
 void SubAppsServiceImpl::ProcessDialogResponse(int add_call_id,
                                                bool dialog_accepted) {
   if (dialog_accepted) {
-    PermissionDecisionAutoBlockerFactory::GetForProfile(
-        Profile::FromBrowserContext(render_frame_host().GetBrowserContext()))
-        ->RemoveEmbargoAndResetCounts(
-            render_frame_host().GetLastCommittedOrigin().GetURL(),
-            ContentSettingsType::SUB_APP_INSTALLATION_PROMPTS);
-
     ScheduleSubAppInstalls(add_call_id);
     return;
   }
-
-  // Dialog was declined.
-  PermissionDecisionAutoBlockerFactory::GetForProfile(
-      Profile::FromBrowserContext(render_frame_host().GetBrowserContext()))
-      ->RecordDismissAndEmbargo(
-          render_frame_host().GetLastCommittedOrigin().GetURL(),
-          ContentSettingsType::SUB_APP_INSTALLATION_PROMPTS,
-          /*dismissed_prompt_was_quiet=*/false);
 
   AddCallInfo& add_call_info =
       CHECK_DEREF(base::FindOrNull(add_call_info_, add_call_id));

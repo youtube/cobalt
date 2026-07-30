@@ -683,8 +683,10 @@ const LayoutResult* BlockLayoutAlgorithm::LayoutInlineChild(
       // multi-column layouts.
       LayoutAlgorithmParams cloned_param(
           Node(), container_builder_.InitialFragmentGeometry(),
-          GetConstraintSpace(), GetBreakToken(), early_break_,
-          additional_early_breaks_);
+          GetConstraintSpace());
+      cloned_param.break_token = GetBreakToken();
+      cloned_param.early_break = early_break_;
+      cloned_param.additional_early_breaks = additional_early_breaks_;
       cloned_param.column_spanner_path = column_spanner_path_;
       cloned_param.previous_result = previous_result_;
       BlockLayoutAlgorithm cloned_algorithm(cloned_param);
@@ -806,7 +808,7 @@ inline const LayoutResult* BlockLayoutAlgorithm::Layout(
     abort_when_bfc_block_offset_updated_ = true;
   }
 
-  if (Style().HasLineClamp()) {
+  if (Style().HasLineClamp() && !Node().IsMulticolContainer()) {
     if (!line_clamp_data_.data.IsLineClampContext()) {
       LayoutUnit clamp_bfc_offset = kIndefiniteSize;
       if (!Style().LineClamp() ||
@@ -1289,20 +1291,13 @@ const LayoutResult* BlockLayoutAlgorithm::FinishLayout(
     // Additionally this fragment produces no end margin strut.
 
     // If the current layout is a new formatting context, we need to encapsulate
-    // all of our floats, except for those that were hidden because of
-    // line-clamp.
-    if (constraint_space.IsNewFormattingContext()) {
-      LayoutUnit clearance =
-          GetExclusionSpace().NonHiddenClearanceOffsetIncludingInitialLetter();
-#ifdef DCHECK_ALWAYS_ON
-      if (!RuntimeEnabledFeatures::CSSLineClampEnabled() ||
-          !line_clamp_data_.previous_inflow_position_when_clamped) {
-        DCHECK_EQ(clearance,
-                  GetExclusionSpace().ClearanceOffsetIncludingInitialLetter(
-                      EClear::kBoth));
-      }
-#endif
-      intrinsic_block_size_ = std::max(intrinsic_block_size_, clearance);
+    // all of our floats. We only do this if we haven't line-clamped, though.
+    if (constraint_space.IsNewFormattingContext() &&
+        !line_clamp_data_.previous_inflow_position_when_clamped) {
+      intrinsic_block_size_ =
+          std::max(intrinsic_block_size_,
+                   GetExclusionSpace().ClearanceOffsetIncludingInitialLetter(
+                       EClear::kBoth));
     }
 
     if (!container_builder_.BfcBlockOffset()) {

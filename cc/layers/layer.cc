@@ -1187,16 +1187,16 @@ void Layer::SetCaptureBounds(viz::RegionCaptureBounds bounds) {
   SetSubtreePropertyChanged();
 }
 
-void Layer::SetTrackedElementBounds(TrackedElementBounds bounds) {
+void Layer::SetTrackedElementRects(viz::TrackedElementRects rects) {
   DCHECK(IsPropertyChangeAllowed());
   const auto& rare_inputs = inputs_.Read(*this).rare_inputs;
-  if (!rare_inputs && bounds.empty()) {
+  if (!rare_inputs && rects.empty()) {
     return;
   }
-  if (rare_inputs && rare_inputs->tracked_element_bounds == bounds) {
+  if (rare_inputs && rare_inputs->tracked_element_rects == rects) {
     return;
   }
-  EnsureRareInputs().tracked_element_bounds = std::move(bounds);
+  EnsureRareInputs().tracked_element_rects = std::move(rects);
   SetPropertyTreesNeedRebuild();
   SetNeedsCommit();
   SetSubtreePropertyChanged();
@@ -1482,8 +1482,7 @@ bool Layer::IsSnappedToPixelGridInTarget() const {
 
 void Layer::PushDirtyPropertiesTo(LayerImpl* layer,
                                   uint8_t dirty_flag,
-                                  const CommitState& commit_state,
-                                  const ThreadUnsafeCommitState& unsafe_state) {
+                                  const CommitState& commit_state) {
   const PropertyTrees& property_trees = commit_state.property_trees;
 
   if (dirty_flag & kChangedPropertyTreeIndex) {
@@ -1524,17 +1523,6 @@ void Layer::PushDirtyPropertiesTo(LayerImpl* layer,
     // to call |SetScrollOffsetClobberActiveValue|.
     DCHECK(layer->layer_tree_impl()->lifecycle().AllowsPropertyTreeAccess());
 
-    // When a scroll offset animation is interrupted the new scroll position on
-    // the pending tree will clobber any impl-side scrolling occurring on the
-    // active tree. To do so, avoid scrolling the pending tree along with it
-    // instead of trying to undo that scrolling later.
-    if (unsafe_state.mutator_host->ScrollOffsetAnimationWasInterrupted(
-            element_id())) {
-      PropertyTrees* trees = layer->layer_tree_impl()->property_trees();
-      trees->scroll_tree_mutable().SetScrollOffsetClobberActiveValue(
-          layer->element_id());
-    }
-
     layer->UnionUpdateRect(update_rect_.Read(*this));
 
     // debug_info_->invalidations, if exist, will be cleared in the function.
@@ -1548,8 +1536,7 @@ void Layer::PushDirtyPropertiesTo(LayerImpl* layer,
       layer->SetNonCompositedScrollHitTestRects(
           inputs.rare_inputs->non_composited_scroll_hit_test_rects);
       layer->SetCaptureBounds(inputs.rare_inputs->capture_bounds);
-      layer->SetTrackedElementBounds(
-          inputs.rare_inputs->tracked_element_bounds);
+      layer->SetTrackedElementRects(inputs.rare_inputs->tracked_element_rects);
       layer->SetWheelEventHandlerRegion(inputs.rare_inputs->wheel_event_region);
     } else {
       layer->ResetRareProperties();
@@ -1564,15 +1551,14 @@ void Layer::PushDirtyPropertiesTo(LayerImpl* layer,
 }
 
 void Layer::PushPropertiesTo(LayerImpl* layer_impl,
-                             const CommitState& commit_state,
-                             const ThreadUnsafeCommitState& unsafe_state) {
+                             const CommitState& commit_state) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("cc.debug"),
                "Layer::PushPropertiesTo");
   DCHECK(IsAttached());
 
   const uint8_t changed_props = changed_properties_.Read(*this);
 
-  PushDirtyPropertiesTo(layer_impl, changed_props, commit_state, unsafe_state);
+  PushDirtyPropertiesTo(layer_impl, changed_props, commit_state);
 
   // Reset change flags for next update.
   changed_properties_.Write(*this) = 0u;

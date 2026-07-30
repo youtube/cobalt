@@ -12,277 +12,169 @@
 #include <vector>
 
 #include "base/check.h"
-#include "base/check_op.h"
 #include "base/containers/adapters.h"
-#include "base/notreached.h"
+#include "base/containers/span.h"
 #include "base/types/expected.h"
-#include "base/types/strong_alias.h"
+#include "pdf/pdf_ink_ids.h"
 
 namespace chrome_pdf {
 
 namespace {
 
-PdfInkUndoRedoModel::AddCommands& GetModifiableAddCommands(
-    PdfInkUndoRedoModel::Commands& commands) {
-  return std::get<PdfInkUndoRedoModel::AddCommands>(commands);
-}
-
-PdfInkUndoRedoModel::RemoveCommands& GetModifiableRemoveCommands(
-    PdfInkUndoRedoModel::Commands& commands) {
-  return std::get<PdfInkUndoRedoModel::RemoveCommands>(commands);
+bool IsAllowedInCommandsStack(IdType id) {
+  return std::holds_alternative<InkStrokeId>(id) ||
+         std::holds_alternative<InkTextId>(id);
 }
 
 }  // namespace
+
+PdfInkUndoRedoModel::Commands::Commands() = default;
+
+PdfInkUndoRedoModel::Commands::Commands(const Commands&) = default;
+
+PdfInkUndoRedoModel::Commands& PdfInkUndoRedoModel::Commands::operator=(
+    const Commands&) = default;
+
+PdfInkUndoRedoModel::Commands::~Commands() = default;
 
 PdfInkUndoRedoModel::PdfInkUndoRedoModel() = default;
 
 PdfInkUndoRedoModel::~PdfInkUndoRedoModel() = default;
 
 base::expected<std::optional<IdType>, std::monostate>
-PdfInkUndoRedoModel::StartAdd() {
-  return StartImpl<AddCommands>();
-}
-
-bool PdfInkUndoRedoModel::Add(IdType id) {
-  CHECK(!commands_stack_.empty());
-
-  if (!std::holds_alternative<InkStrokeId>(id)) {
-    return false;  // Failed invariant 7.
+PdfInkUndoRedoModel::Start() {
+  if (has_started_) {
+    return base::unexpected(std::monostate());
   }
 
-  if (!IsAtTopOfStackWithGivenCommandType(CommandsType::kAdd)) {
-    // Can only add at top of the stack, and the entry there must be for adding.
-    return false;
-  }
-
-  // Check the last AddCommands on the stack to ensure IDs are added in strictly
-  // increasing order.
-  for (const Commands& commands : base::Reversed(commands_stack_)) {
-    if (GetCommandsType(commands) == CommandsType::kAdd) {
-      const IdSet& last_add_set = GetAddCommands(commands).value();
-      if (!last_add_set.empty()) {
-        // Checking the last ID in the set is sufficient because AddCommands
-        // only contains InkStrokeId (Invariant 7), which are added in
-        // strictly increasing order.
-        const IdType& last_id = *last_add_set.rbegin();
-        if (id <= last_id) {
-          return false;
-        }
+  std::optional<IdType> lowest_discard;
+  if (stack_position_ < commands_stack_.size()) {
+    // Find the lowest add command to discard.
+    for (size_t i = stack_position_; i < commands_stack_.size(); ++i) {
+      const auto& current_commands = commands_stack_[i];
+      if (!current_commands.adds.empty()) {
+        lowest_discard = *current_commands.adds.begin();
         break;
       }
     }
+
+    // Discard rest of stack.
+    commands_stack_.resize(stack_position_);
   }
 
-  // Invariant 4 holds if invariant 6 holds.
-  CHECK(!HasIdInRemoveCommands(id));
-  AddCommands& add_commands = GetModifiableAddCommands(commands_stack_.back());
-  add_commands->insert(add_commands->end(), id);
-  return true;
+  commands_stack_.push_back(Commands());
+  has_started_ = true;
+  return lowest_discard;
 }
 
-bool PdfInkUndoRedoModel::FinishAdd() {
-  CHECK(!commands_stack_.empty());
-
-  if (!IsAtTopOfStackWithGivenCommandType(CommandsType::kAdd)) {
-    // Can only add at top of the stack, and the entry there must be for adding.
+bool PdfInkUndoRedoModel::Add(IdType id) {
+  if (!has_started_) {
     return false;
   }
 
-  auto& commands = commands_stack_.back();
-  if (GetAddCommands(commands)->empty()) {
-    commands = std::monostate();  // Reuse top of stack if empty.
-  } else {
-    // Otherwise push new item onto the stack.
-    ++stack_position_;
-    commands_stack_.push_back(std::monostate());
-  }
-  return true;
-}
-
-base::expected<std::optional<IdType>, std::monostate>
-PdfInkUndoRedoModel::StartRemove() {
-  return StartImpl<RemoveCommands>();
-}
-
-bool PdfInkUndoRedoModel::Remove(IdType id) {
   CHECK(!commands_stack_.empty());
 
-  if (!IsAtTopOfStackWithGivenCommandType(CommandsType::kRemove)) {
-    // Can only remove at top of the stack, and the entry there must be for
-    // erasing.
-    return false;
-  }
-
-  if (HasIdInRemoveCommands(id)) {
+  if (!IsAllowedInCommandsStack(id)) {
     return false;  // Failed invariant 5.
   }
 
-  if (std::holds_alternative<InkStrokeId>(id) && !HasIdInAddCommands(id)) {
-    return false;  // Failed invariant 6.
+  // Check the last add in the commands stack to ensure IDs are added in
+  // strictly increasing order.
+  for (const Commands& commands : base::Reversed(commands_stack_)) {
+    if (!commands.adds.empty()) {
+      // Checking the last ID in the set is sufficient because IDs are added in
+      // strictly increasing order.
+      const IdType& last_id = *commands.adds.rbegin();
+      // Compare underlying values, as the default variant operator compares
+      // indices first.
+      if (GetIdTypeValue(id) <= GetIdTypeValue(last_id)) {
+        return false;
+      }
+      break;
+    }
   }
 
-  GetModifiableRemoveCommands(commands_stack_.back())->insert(id);
+  // Invariant 2 holds if invariant 4 holds.
+  CHECK(!HasIdInRemoveCommands(id));
+  commands_stack_.back().adds.insert(id);
   return true;
 }
 
-bool PdfInkUndoRedoModel::FinishRemove() {
-  CHECK(!commands_stack_.empty());
-
-  if (!IsAtTopOfStackWithGivenCommandType(CommandsType::kRemove)) {
-    // Can only remove at top of the stack, and the entry there must be for
-    // erasing.
+bool PdfInkUndoRedoModel::Remove(IdType id) {
+  if (!has_started_) {
     return false;
   }
 
+  CHECK(!commands_stack_.empty());
+
+  if (HasIdInRemoveCommands(id)) {
+    return false;  // Failed invariant 3.
+  }
+
+  if (IsAllowedInCommandsStack(id) && !HasIdInPreviousAddCommands(id)) {
+    return false;  // Failed invariant 4.
+  }
+
+  commands_stack_.back().removes.insert(id);
+  return true;
+}
+
+bool PdfInkUndoRedoModel::Finish() {
+  if (!has_started_) {
+    return false;
+  }
+
+  CHECK(!commands_stack_.empty());
+
+  has_started_ = false;
   auto& commands = commands_stack_.back();
-  if (GetRemoveCommands(commands)->empty()) {
-    commands = std::monostate();  // Reuse top of stack if empty.
-  } else {
-    // Otherwise push new item onto the stack.
+  if (!commands.adds.empty() || !commands.removes.empty()) {
     ++stack_position_;
-    commands_stack_.push_back(std::monostate());
+  } else {
+    commands_stack_.pop_back();
   }
   return true;
 }
 
 PdfInkUndoRedoModel::Commands PdfInkUndoRedoModel::Undo() {
+  if (has_started_ || stack_position_ == 0) {
+    // Cannot undo while adding/removing or at the bottom of the stack.
+    return Commands();
+  }
+
   CHECK(!commands_stack_.empty());
-  CHECK_LT(stack_position_, commands_stack_.size());
 
-  if (stack_position_ == 0) {
-    return std::monostate();  // Already at bottom of stack.
-  }
-
-  // Result is reverse of the recorded commands.
+  // Result is the reverse of the recorded commands.
   --stack_position_;
-  const auto& commands = commands_stack_[stack_position_];
-  switch (GetCommandsType(commands)) {
-    case CommandsType::kNone: {
-      NOTREACHED();  // Invariant 2.
-    }
-    case CommandsType::kAdd: {
-      RemoveCommands result;
-      auto add_commands = GetAddCommands(commands).value();
-      result->insert(add_commands.begin(), add_commands.end());
-      return result;
-    }
-    case CommandsType::kRemove: {
-      AddCommands result;
-      auto remove_commands = GetRemoveCommands(commands).value();
-      result->insert(remove_commands.begin(), remove_commands.end());
-      return result;
-    }
-  }
-  NOTREACHED();
+  const auto& recorded = commands_stack_[stack_position_];
+  Commands result;
+  result.adds = recorded.removes;
+  result.removes = recorded.adds;
+  return result;
 }
 
 PdfInkUndoRedoModel::Commands PdfInkUndoRedoModel::Redo() {
-  CHECK(!commands_stack_.empty());
-  CHECK_LT(stack_position_, commands_stack_.size());
-
-  if (stack_position_ == commands_stack_.size() - 1) {
-    return std::monostate();  // Already at top of stack.
+  if (has_started_ || stack_position_ == commands_stack_.size()) {
+    // Cannot redo while adding/removing or at the top of the stack.
+    return Commands();
   }
+
+  CHECK(!commands_stack_.empty());
 
   // Result is the recorded commands as-is.
-  const auto& commands = commands_stack_[stack_position_];
-  ++stack_position_;
-  switch (GetCommandsType(commands)) {
-    case CommandsType::kNone: {
-      NOTREACHED();  // Invariant 2.
-    }
-    case CommandsType::kAdd: {
-      return GetAddCommands(commands);
-    }
-    case CommandsType::kRemove: {
-      return GetRemoveCommands(commands);
-    }
-  }
-  NOTREACHED();
+  return commands_stack_[stack_position_++];
 }
 
-// static
-PdfInkUndoRedoModel::CommandsType PdfInkUndoRedoModel::GetCommandsType(
-    const Commands& commands) {
-  if (std::holds_alternative<std::monostate>(commands)) {
-    return CommandsType::kNone;
-  }
-  if (std::holds_alternative<AddCommands>(commands)) {
-    return CommandsType::kAdd;
-  }
-  CHECK(std::holds_alternative<RemoveCommands>(commands));
-  return CommandsType::kRemove;
-}
-
-// static
-const PdfInkUndoRedoModel::AddCommands& PdfInkUndoRedoModel::GetAddCommands(
-    const Commands& commands) {
-  return std::get<AddCommands>(commands);
-}
-
-// static
-const PdfInkUndoRedoModel::RemoveCommands&
-PdfInkUndoRedoModel::GetRemoveCommands(const Commands& commands) {
-  return std::get<RemoveCommands>(commands);
-}
-
-template <typename T>
-base::expected<std::optional<IdType>, std::monostate>
-PdfInkUndoRedoModel::StartImpl() {
-  CHECK(!commands_stack_.empty());
-  CHECK_LT(stack_position_, commands_stack_.size());
-
-  std::optional<IdType> lowest_discard;
-  auto& commands = commands_stack_[stack_position_];
-  const bool has_commands = GetCommandsType(commands) != CommandsType::kNone;
-  if (stack_position_ == commands_stack_.size() - 1) {
-    if (has_commands) {
-      // Cannot start when adding/removing already started.
-      return base::unexpected(std::monostate());
-    }
-  } else {
-    CHECK(has_commands);  // Invariant 2.
-
-    // Find the lowest add command to discard.
-    for (size_t i = stack_position_; i < commands_stack_.size(); ++i) {
-      const auto& current_commands = commands_stack_[i];
-      if (GetCommandsType(current_commands) == CommandsType::kAdd) {
-        const IdSet& id_set = GetAddCommands(current_commands).value();
-        if (!id_set.empty()) {
-          lowest_discard = *id_set.begin();
-          break;
-        }
-      }
-    }
-
-    // Discard rest of stack.
-    //
-    // The vector capacity is never reduced when resizing to smaller size. Thus
-    // references to `commands_stack_` elements are not invalidated and safe to
-    // use.
-    commands_stack_.resize(stack_position_ + 1);
-  }
-
-  // Set the top of the stack to the appropriate command type.
-  //
-  // Safe to reuse `commands`, which references an element inside of
-  // `commands_stack_`. See note above the resize() call regarding safety.
-  commands = T();
-  return lowest_discard;
-}
-
-bool PdfInkUndoRedoModel::IsAtTopOfStackWithGivenCommandType(
-    CommandsType type) const {
-  if (stack_position_ != commands_stack_.size() - 1) {
+bool PdfInkUndoRedoModel::HasIdInPreviousAddCommands(IdType id) const {
+  if (commands_stack_.back().adds.contains(id)) {
+    // Fails invariant 4. The ID must exist in a different `Commands` in the
+    // stack, so it cannot be in the currently active one.
     return false;
   }
-  return GetCommandsType(commands_stack_.back()) == type;
-}
 
-bool PdfInkUndoRedoModel::HasIdInAddCommands(IdType id) const {
-  for (const auto& commands : commands_stack_) {
-    if (GetCommandsType(commands) == CommandsType::kAdd &&
-        GetAddCommands(commands)->contains(id)) {
+  for (const auto& commands :
+       base::span(commands_stack_).first(commands_stack_.size() - 1)) {
+    if (commands.adds.contains(id)) {
       return true;
     }
   }
@@ -291,8 +183,7 @@ bool PdfInkUndoRedoModel::HasIdInAddCommands(IdType id) const {
 
 bool PdfInkUndoRedoModel::HasIdInRemoveCommands(IdType id) const {
   for (const auto& commands : commands_stack_) {
-    if (GetCommandsType(commands) == CommandsType::kRemove &&
-        GetRemoveCommands(commands)->contains(id)) {
+    if (commands.removes.contains(id)) {
       return true;
     }
   }

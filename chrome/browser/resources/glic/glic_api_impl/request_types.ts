@@ -433,6 +433,12 @@ export declare type HostRequestTypes = ValidateRequestMap<{
   glicBrowserOnClosedCaptionsShown: {
     backgroundAllowed: true,
   },
+  glicBrowserOnActionSubmitted: {
+    request: {
+      isRetry?: boolean,
+    },
+    backgroundAllowed: true,
+  },
   glicBrowserScrollTo: {
     request: {
       params: ScrollToParams,
@@ -537,6 +543,13 @@ export declare type HostRequestTypes = ValidateRequestMap<{
   glicBrowserUnsubscribeFromCaptureRegion: {
     request: {
       observationId: number,
+    },
+    backgroundAllowed: true,
+  },
+  glicBrowserDeleteCapturedRegion: {
+    request: {
+      tabId: string,
+      regionId: string,
     },
     backgroundAllowed: true,
   },
@@ -987,6 +1000,8 @@ export const HOST_REQUEST_TYPES: HostRequestEnumNamesType&{MAX_VALUE: number} =
         AutofillSuggestionDialogOnFormConfirmed: 89,
         OnMicrophoneStatusChange: 90,
         RecordSkillsWebClientEvent: 91,
+        DeleteCapturedRegion: 92,
+        OnActionSubmitted: 93,
       };
       return {...result, MAX_VALUE: Math.max(...Object.values(result))};
     })();

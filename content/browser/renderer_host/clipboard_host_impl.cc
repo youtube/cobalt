@@ -622,7 +622,8 @@ void ClipboardHostImpl::WriteDataTransferCustomData(
 
 void ClipboardHostImpl::WriteBookmark(const std::string& url,
                                       const std::u16string& title) {
-  clipboard_writer_->WriteBookmark(title, url);
+  clipboard_writer_->WriteURL(
+      ui::ClipboardUrlInfo{.url = GURL(url), .title = title});
 }
 
 void ClipboardHostImpl::WriteImage(const SkBitmap& bitmap) {
@@ -1014,7 +1015,7 @@ void ClipboardHostImpl::OnReadAvailableTypesForUpdate(
           ui::kMimeTypeHtml16,
           ui::kMimeTypePlainText16,
       },
-      base::MakeFlatSet<std::u16string>(std::move(types)));
+      base::flat_set<std::u16string>(std::move(types)));
 
   clipboard_listener_->OnClipboardDataChanged(
       filtered_types, last_change_id_.emplace(change_id));

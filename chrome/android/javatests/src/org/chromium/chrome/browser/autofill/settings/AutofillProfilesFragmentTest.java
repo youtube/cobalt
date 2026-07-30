@@ -233,6 +233,8 @@ public class AutofillProfilesFragmentTest {
     public void setUp() throws TimeoutException {
         ReauthenticatorBridge.setInstanceForTesting(mMockReauthenticatorBridge);
         Intents.init();
+        when(sEntityDataManager.isWalletPublicPassStorageEnabled()).thenReturn(true);
+        when(sEntityDataManager.canListEntityInstancesInSettings()).thenReturn(true);
         mHelper.setProfile(sLocalOrSyncProfile);
         mHelper.setProfile(
                 AutofillProfile.builder()
@@ -1044,6 +1046,124 @@ public class AutofillProfilesFragmentTest {
 
     @Test
     @MediumTest
+    @EnableFeatures(ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA)
+    public void testDisabledWalletDataSharingDataCard_shownWhenDisabled() throws Exception {
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    AutofillClientProviderUtils.setAutofillAvailabilityToUseForTesting(
+                            AndroidAutofillAvailabilityStatus.SETTING_TURNED_OFF);
+                });
+        when(sEntityDataManager.isWalletPublicPassStorageEnabled()).thenReturn(false);
+
+        AutofillProfilesFragment autofillProfileFragment = sSettingsActivityTestRule.getFragment();
+
+        // Trigger address profile list rebuild.
+        ThreadUtils.runOnUiThreadBlocking(autofillProfileFragment::onPersonalDataChanged);
+
+        assertNotNull(
+                autofillProfileFragment.findPreference(
+                        AutofillProfilesFragment.DISABLED_WALLET_DATA_SHARING));
+    }
+
+    @Test
+    @MediumTest
+    @EnableFeatures(ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA)
+    public void testDisabledWalletDataSharingDataCard_notShownWhenWalletPublicPassEnabled()
+            throws Exception {
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    AutofillClientProviderUtils.setAutofillAvailabilityToUseForTesting(
+                            AndroidAutofillAvailabilityStatus.SETTING_TURNED_OFF);
+                });
+        when(sEntityDataManager.isWalletPublicPassStorageEnabled()).thenReturn(true);
+
+        AutofillProfilesFragment autofillProfileFragment = sSettingsActivityTestRule.getFragment();
+
+        // Trigger address profile list rebuild.
+        ThreadUtils.runOnUiThreadBlocking(autofillProfileFragment::onPersonalDataChanged);
+
+        assertNull(
+                autofillProfileFragment.findPreference(
+                        AutofillProfilesFragment.DISABLED_WALLET_DATA_SHARING));
+    }
+
+    @Test
+    @MediumTest
+    @EnableFeatures(ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA)
+    public void testDisabledWalletDataSharingDataCard_notShownInThirdPartyMode() throws Exception {
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    AutofillClientProviderUtils.setAutofillAvailabilityToUseForTesting(
+                            AndroidAutofillAvailabilityStatus.AVAILABLE);
+                });
+        when(sEntityDataManager.isWalletPublicPassStorageEnabled()).thenReturn(false);
+
+        AutofillProfilesFragment autofillProfileFragment = sSettingsActivityTestRule.getFragment();
+
+        // Trigger address profile list rebuild.
+        ThreadUtils.runOnUiThreadBlocking(autofillProfileFragment::onPersonalDataChanged);
+
+        assertNull(
+                autofillProfileFragment.findPreference(
+                        AutofillProfilesFragment.DISABLED_WALLET_DATA_SHARING));
+    }
+
+    @Test
+    @MediumTest
+    @DisableFeatures(ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA)
+    public void testDisabledWalletDataSharingDataCard_notShownWhenFeatureDisabled()
+            throws Exception {
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    AutofillClientProviderUtils.setAutofillAvailabilityToUseForTesting(
+                            AndroidAutofillAvailabilityStatus.SETTING_TURNED_OFF);
+                });
+        when(sEntityDataManager.isWalletPublicPassStorageEnabled()).thenReturn(false);
+
+        AutofillProfilesFragment autofillProfileFragment = sSettingsActivityTestRule.getFragment();
+
+        // Trigger address profile list rebuild.
+        ThreadUtils.runOnUiThreadBlocking(autofillProfileFragment::onPersonalDataChanged);
+
+        assertNull(
+                autofillProfileFragment.findPreference(
+                        AutofillProfilesFragment.DISABLED_WALLET_DATA_SHARING));
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"Preferences"})
+    public void testAutofillAiEntities_notRenderedIfCannotListEntityInstancesInSettings()
+            throws Exception {
+        EntityType vehicleType = TestUtils.getVehicleEntityType();
+        EntityInstanceWithLabels entity1 =
+                new EntityInstanceWithLabels(
+                        "guid1",
+                        vehicleType,
+                        /* entityInstanceLabel= */ "Vehicle",
+                        /* entityInstanceSubLabel= */ "Mercedez",
+                        /* storedInWallet= */ false);
+        LinkedHashMap<EntityType, List<EntityInstanceWithLabels>> instancesMap =
+                new LinkedHashMap<>();
+        instancesMap.put(vehicleType, Arrays.asList(entity1));
+
+        when(sEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
+        when(sEntityDataManager.canListEntityInstancesInSettings()).thenReturn(false);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> sSettingsActivityTestRule.getFragment().onPersonalDataChanged());
+
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    AutofillProfilesFragment fragment = sSettingsActivityTestRule.getFragment();
+                    Preference category = fragment.findPreference("Vehicle");
+                    Criteria.checkThat(
+                            "Vehicle category should NOT exist", category, Matchers.nullValue());
+                });
+    }
+
+    @Test
+    @MediumTest
     @Feature({"Preferences"})
     @DisableFeatures(ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA)
     public void testAutofillAiEntities_renderedCorrectly() throws Exception {
@@ -1334,6 +1454,7 @@ public class AutofillProfilesFragmentTest {
         when(sEntityDataManager.getInstancesToList()).thenReturn(instancesMap);
         when(sEntityDataManager.isEligibleToAutofillAi()).thenReturn(true);
         when(sEntityDataManager.getAutofillAiOptInStatus()).thenReturn(true);
+        when(sEntityDataManager.canEnableOrDisableAutofillAi()).thenReturn(true);
         EntityDataManagerFactory.setInstanceForTesting(sEntityDataManager);
 
         // Trigger a rebuild of the profile list to pick up the new mock entities.

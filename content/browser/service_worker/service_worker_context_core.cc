@@ -461,9 +461,8 @@ ScopedServiceWorkerClient
 ServiceWorkerClientOwner::CreateServiceWorkerClientForWorker(
     ChildProcessId process_id,
     ServiceWorkerClientInfo client_info) {
-  // TODO(crbug.com/379869738) Remove GetUnsafeValue().
-  auto client = std::make_unique<ServiceWorkerClient>(
-      context_->AsWeakPtr(), process_id.GetUnsafeValue(), client_info);
+  auto client = std::make_unique<ServiceWorkerClient>(context_->AsWeakPtr(),
+                                                      process_id, client_info);
   auto weak_client = client->AsWeakPtr();
   auto inserted = service_worker_clients_by_uuid_
                       .emplace(weak_client->client_uuid(), std::move(client))
@@ -1267,14 +1266,11 @@ void ServiceWorkerContextCore::OnRunningStateChanged(
                              version->version_id());
       break;
     case blink::EmbeddedWorkerStatus::kRunning:
-      // TODO(crbug.com/379869738) Remove FromUnsafeValue.
-      observer_list_->Notify(FROM_HERE,
-                             &ServiceWorkerContextCoreObserver::OnStarted,
-                             version->version_id(), version->scope(),
-                             ChildProcessId::FromUnsafeValue(
-                                 version->embedded_worker()->process_id()),
-                             version->script_url(),
-                             version->worker_host()->token(), version->key());
+      observer_list_->Notify(
+          FROM_HERE, &ServiceWorkerContextCoreObserver::OnStarted,
+          version->version_id(), version->scope(),
+          version->embedded_worker()->process_id(), version->script_url(),
+          version->worker_host()->token(), version->key());
       break;
     case blink::EmbeddedWorkerStatus::kStopping:
       observer_list_->Notify(FROM_HERE,
@@ -1311,12 +1307,10 @@ void ServiceWorkerContextCore::OnDevToolsRoutingIdChanged(
   if (!version->embedded_worker()) {
     return;
   }
-  // TODO(crbug.com/379869738) Remove FromUnsafeValue.
   observer_list_->Notify(
       FROM_HERE,
       &ServiceWorkerContextCoreObserver::OnVersionDevToolsRoutingIdChanged,
-      version->version_id(),
-      ChildProcessId::FromUnsafeValue(version->embedded_worker()->process_id()),
+      version->version_id(), version->embedded_worker()->process_id(),
       version->embedded_worker()->worker_devtools_agent_route_id());
 }
 
@@ -1361,12 +1355,9 @@ void ServiceWorkerContextCore::OnReportConsoleMessage(
       version->version_id(), version->scope(), version->key(), console_message);
 
   for (auto& observer : sync_observer_list_->observers) {
-    // TODO(crbug.com/379869738) Remove FromUnsafeValue.
     observer.OnReportConsoleMessageSync(
-        version->embedded_worker()
-            ? ChildProcessId::FromUnsafeValue(
-                  version->embedded_worker()->process_id())
-            : ChildProcessId(),
+        version->embedded_worker() ? version->embedded_worker()->process_id()
+                                   : ChildProcessId(),
         version->version_id(), version->scope(), console_message);
   }
 }

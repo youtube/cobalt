@@ -29,8 +29,6 @@ extern const base::FeatureParam<bool> kShowComposeboxImageSuggestions;
 // Whether to show the + entrypoint and contextual input menu in the realbox and
 // composebox.
 extern const base::FeatureParam<bool> kShowContextMenu;
-// Whether to show the recent tab chip in the realbox and composebox.
-extern const base::FeatureParam<bool> kShowRecentTabChip;
 // Whether to show tab previews on hover for the composebox context menu.
 extern const base::FeatureParam<bool> kShowContextMenuTabPreviews;
 // The maximum number of tab suggestions to show in the composebox context menu.
@@ -43,26 +41,13 @@ extern const base::FeatureParam<int> kMaxNumFiles;
 // Whether or not to show a description in the context menu entrypoint, or just
 // the icon.
 extern const base::FeatureParam<bool> kShowContextMenuDescription;
-// Whether or not to show the context menu description only when the user
-// hovers over the button.
-extern const base::FeatureParam<bool> kEnableEphemeralContextMenuDescription;
 // Whether to show section headers in the context menu.
 extern const base::FeatureParam<bool> kShowContextMenuHeaders;
-// Whether to allow drag and drop files on composebox
-extern const base::FeatureParam<bool> kEnableContextDragAndDrop;
 
 // Whether to show the smart compose in the composebox.
 extern const base::FeatureParam<bool> kShowSmartCompose;
-// Whether to show the voice search button in steady state composebox.
-extern const base::FeatureParam<bool> kShowVoiceSearchInSteadyComposebox;
-// Whether to show the voice search button in expanded composebox.
-extern const base::FeatureParam<bool> kShowVoiceSearchInExpandedComposebox;
-// Whether to exit AI mode when the user clicks Escape in the composebox.
-extern const base::FeatureParam<bool> kCloseComposeboxByEscape;
 // Whether to exit AI mode when the user clicks outside the composebox.
 extern const base::FeatureParam<bool> kCloseComposeboxByClickOutside;
-// Whether to delay an upload if tab context is added from the recent tab chip.
-extern const base::FeatureParam<bool> kAddTabUploadDelayOnRecentTabChipClick;
 // Whether to show the AIM threads rail when composebox is open.
 extern const base::FeatureParam<bool> kEnableThreadsRail;
 // Whether to show the AIM threads rail Google logo.
@@ -119,30 +104,10 @@ extern const base::FeatureParam<PlaceholderText> kSteadyPlaceholder;
 // Whether to show a series of cycling placeholder texts on the search input UI.
 extern const base::FeatureParam<bool> kCyclingPlaceholders;
 
-// Enum for `kRealboxLayoutMode`.
-enum class RealboxLayoutMode {
-  kTallBottomContext,
-  kTallTopContext,
-  kCompact,
-};
-
-// Flag to control the realbox layout mode (Tall, Compact).
-extern const base::FeatureParam<RealboxLayoutMode> kRealboxLayoutMode;
-
 // Whether to enable multi-line input in the searchbox.
 extern const base::FeatureParam<bool> kMultiLineEnabled;
 
 bool IsNtpRealboxNextEnabled(Profile* profile);
-
-// String constants for RealboxLayoutMode.
-inline constexpr char kRealboxLayoutModeTallBottomContext[] =
-    "TallBottomContext";
-inline constexpr char kRealboxLayoutModeTallTopContext[] = "TallTopContext";
-inline constexpr char kRealboxLayoutModeCompact[] = "Compact";
-
-// Returns the string representation of `RealboxLayoutMode`.
-std::string_view RealboxLayoutModeToString(
-    RealboxLayoutMode realbox_layout_mode);
 
 }  // namespace ntp_realbox
 

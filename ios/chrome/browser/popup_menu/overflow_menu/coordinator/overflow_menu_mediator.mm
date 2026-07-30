@@ -78,6 +78,7 @@
 #import "ios/chrome/browser/shared/public/commands/bookmarks_commands.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
 #import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
+#import "ios/chrome/browser/shared/public/commands/cobalt_commands.h"
 #import "ios/chrome/browser/shared/public/commands/find_in_page_commands.h"
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
 #import "ios/chrome/browser/shared/public/commands/lens_overlay_commands.h"
@@ -1332,7 +1333,8 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
     if (weakSelf.menuHasBeenDismissed) {
       return;
     }
-    overflow_menu::RecordUmaActionForDestination(destination);
+    overflow_menu::RecordUmaActionForDestination(
+        destination, [weakSelf isCurrentWebPageNTP]);
 
     [weakSelf.menuOrderer recordClickForDestination:destination];
 
@@ -1820,6 +1822,22 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
   return URL.is_valid() && !web::GetWebClient()->IsAppSpecificURL(URL);
 }
 
+// Whether the current web page is the NTP.
+- (BOOL)isCurrentWebPageNTP {
+  if (!self.webState) {
+    return NO;
+  }
+  web::NavigationItem* navItem =
+      self.webState->GetNavigationManager()->GetVisibleItem();
+  if (!navItem) {
+    return NO;
+  }
+  const GURL& URL = navItem->GetURL();
+
+  return URL.spec() == kChromeUIAboutNewTabURL ||
+         URL.spec() == kChromeUINewTabURL;
+}
+
 // Whether the current web page has available site info.
 - (BOOL)currentWebPageSupportsSiteInfo {
   if (!self.webState) {
@@ -1836,8 +1854,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
     return YES;
   }
   // Do not show site info for NTP.
-  if (URL.spec() == kChromeUIAboutNewTabURL ||
-      URL.spec() == kChromeUINewTabURL) {
+  if ([self isCurrentWebPageNTP]) {
     return NO;
   }
 
@@ -2633,7 +2650,8 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
 
 - (void)startCollapseToolbars {
   [self dismissMenu];
-  [self.browserCoordinatorHandler forceFullscreenMode];
+  [self.browserCoordinatorHandler
+      forceFullscreenMode:FullscreenModeTransitionTrigger::kForcedByUser];
 }
 
 // Opens the "Set a reminder" screen for the user's current tab.
@@ -2702,7 +2720,7 @@ OverflowMenuFooter* CreateOverflowMenuManagedFooter(
 // Dismisses the menu and opens Cobalt.
 - (void)openCobalt {
   [self dismissMenu];
-  // TODO(crbug.com/475807780): Open Cobalt UI.
+  [self.cobaltHandler showCobalt];
 }
 
 // Dismisses the menu and opens price notifications list.

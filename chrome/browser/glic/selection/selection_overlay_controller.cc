@@ -13,15 +13,18 @@
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/generated_resources.h"
+#include "components/input/native_web_keyboard_event.h"
 #include "components/viz/common/frame_sinks/copy_output_result.h"
 #include "content/public/browser/render_view_host.h"
 #include "third_party/blink/public/mojom/content_extraction/ai_page_content.mojom.h"
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkPaint.h"
 #include "third_party/skia/include/effects/SkDashPathEffect.h"
+#include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/gfx/codec/jpeg_codec.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/geometry/skia_conversions.h"
+#include "ui/views/controls/webview/webview.h"
 
 // TODO(http://b/485358530): Consider `OverlayBaseController::State` to the
 // mojom file so the << operator is auto generated.
@@ -60,6 +63,11 @@ gfx::RectF GetRectForRegion(const SkBitmap& image, const gfx::RectF& region) {
   return gfx::RectF((region.x() - 0.5 * region.width()) * x_scale,
                     (region.y() - 0.5 * region.height()) * y_scale,
                     region.width() * x_scale, region.height() * y_scale);
+}
+
+bool IsEscapeEvent(const input::NativeWebKeyboardEvent& event) {
+  return event.GetType() == input::NativeWebKeyboardEvent::Type::kRawKeyDown &&
+         event.windows_key_code == ui::VKEY_ESCAPE;
 }
 
 class SelectionOverlayFetchPageProgressListener
@@ -210,6 +218,24 @@ void SelectionOverlayController::InitializeOverlay() {
   page_->ScreenshotReceived(initial_rgb_screenshot_);
 }
 
+bool SelectionOverlayController::HandleKeyboardEvent(
+    content::WebContents* source,
+    const input::NativeWebKeyboardEvent& event) {
+  if (!overlay_web_view_ || state() != State::kOverlay) {
+    return false;
+  }
+  views::FocusManager* focus_manager = overlay_web_view_->GetFocusManager();
+  if (!focus_manager) {
+    return false;
+  }
+  if (IsEscapeEvent(event)) {
+    CloseUI();
+    return true;
+  }
+  return unhandled_keyboard_event_handler_.HandleKeyboardEvent(event,
+                                                               focus_manager);
+}
+
 void SelectionOverlayController::StartScreenshotFlow() {
   auto options = mojom::GetTabContextOptions::New();
   options->include_viewport_screenshot = true;
@@ -298,7 +324,9 @@ bool SelectionOverlayController::UseOverlayBlur() {
   return true;
 }
 
-void SelectionOverlayController::NotifyPageNavigated() {}
+void SelectionOverlayController::NotifyPageNavigated() {
+  CloseUI();
+}
 
 void SelectionOverlayController::NotifyTabForegrounded() {}
 
@@ -363,7 +391,7 @@ void SelectionOverlayController::RenderRegions() {
   }
 
   std::vector<SkRect> regions;
-  std::vector<gfx::Rect> gfx_regions;
+  std::vector<std::pair<base::UnguessableToken, gfx::Rect>> gfx_regions;
   std::vector<selection::SelectedRegionPtr> regions_mojo;
   // TODO(http://b/452032491): Reconsider what happens if the regions overlap.
   // TODO(http://b/452032491): Currently this class is only used once per
@@ -376,7 +404,7 @@ void SelectionOverlayController::RenderRegions() {
     if (!rect_on_canvas.isEmpty() &&
         redacted_screenshot_.bounds().contains(rect_on_canvas)) {
       regions.push_back(rect_on_canvas);
-      gfx_regions.push_back(gfx::ToEnclosingRect(gfx_rect_on_canvas));
+      gfx_regions.emplace_back(id, gfx::ToEnclosingRect(gfx_rect_on_canvas));
       regions_mojo.push_back(region.Clone());
     } else {
       // TODO(http://b/485358530): Record proper histograms for the error case.
@@ -434,15 +462,19 @@ void SelectionOverlayController::RenderRegions() {
 
 glic::mojom::AdditionalContextPtr
 SelectionOverlayController::CreateAdditionalContext(
-    const std::vector<gfx::Rect>& regions) {
+    const std::vector<std::pair<base::UnguessableToken, gfx::Rect>>& regions) {
   auto context = glic::mojom::AdditionalContext::New();
   std::vector<glic::mojom::AdditionalContextPartPtr> parts;
   mojom::TabContextPtr tab_context = tab_context_.Clone();
   parts.push_back(glic::mojom::AdditionalContextPart::NewTabContext(
       std::move(tab_context)));
   for (const auto& region : regions) {
+    parts.push_back(glic::mojom::AdditionalContextPart::NewPendingRegion(
+        glic::mojom::PendingCapturedRegion::New(
+            region.first,
+            glic::mojom::CapturedRegion::NewRect(region.second))));
     parts.push_back(glic::mojom::AdditionalContextPart::NewRegion(
-        glic::mojom::CapturedRegion::NewRect(region)));
+        glic::mojom::CapturedRegion::NewRect(region.second)));
   }
   context->source = glic::mojom::AdditionalContextSource::kRegionSelection;
   context->tab_id = tab_->GetHandle().raw_value();

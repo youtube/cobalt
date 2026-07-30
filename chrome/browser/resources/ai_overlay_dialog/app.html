@@ -1,5 +1,17 @@
-<!-- This is skeleton placeholder content only. -->
-<button id="state"
-    @click="${this.onStateClick_}">
-  <!-- UI content for AI Overlay Dialog goes here -->
-</button>
+<div id="container">
+  <!-- This is skeleton placeholder content only. -->
+  <button id="state" class="${this.uiState_}"
+      @click="${this.onStateClick_}">
+    <!-- UI content for AI Overlay Dialog goes here -->
+  </button>
+  <!--
+    If there's no microphone present, show a button to inject a pre-canned audio
+    message to make development easier.
+  -->
+  ${this.mockButtons_.map((button, index) => html`
+    <button class="inject-audio" type="button" data-index="${index}"
+        @click="${this.onInjectAudioClick_}">
+      ${button.name}
+    </button>
+  `)}
+</div>

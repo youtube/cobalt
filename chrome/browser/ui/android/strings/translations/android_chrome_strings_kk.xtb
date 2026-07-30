@@ -287,7 +287,7 @@ Chrome тәжірибесін жақсарту үшін деректерді қ�
 <translation id="2230777942707397948">Бос терезе</translation>
 <translation id="223356358902285214">Интернет пен қолданбаларды пайдалану тарихы</translation>
 <translation id="2233735624724508540">Уақыт аралығын таңдап, "Деректерді жою" түймесін түртіңіз.</translation>
-<translation id="2234031676056123135">Пернелер тіркесімін бейімдеу</translation>
+<translation id="2234031676056123135">Жылдам пәрмендерді реттеу</translation>
 <translation id="2234827758954819389">Құпиялық нұсқаулығы</translation>
 <translation id="2238038374973843156">Басқа терезеге тасымалдау</translation>
 <translation id="2247789808226901522">Картаның мерзімі аяқталды</translation>
@@ -348,6 +348,7 @@ Chrome тәжірибесін жақсарту үшін деректерді қ�
 <translation id="2496180316473517155">Шолу журналы</translation>
 <translation id="2497852260688568942">Синхрондау мүмкіндігін әкімші өшіріп қойған</translation>
 <translation id="250020030759455918"><ph name="SITE_NAME" /> сайтына кіру күйін, браузерді пайдалану деректерін және Chrome-дағы сайт деректерін көресіз.</translation>
+<translation id="2501278716633472235">Артқа қайту</translation>
 <translation id="2510106555128151389"><ph name="WEBAPK_NAME" /> орнатылып жатыр…</translation>
 <translation id="2512234228327349533">Сатып алу опцияларын іздеу</translation>
 <translation id="2513403576141822879">Құпиялық, қауіпсіздік және дерек жинағына қатысты басқа да параметрлерді <ph name="BEGIN_LINK" />Синхрондау және Google қызметтері<ph name="END_LINK" /> бөлімінен қараңыз</translation>
@@ -797,6 +798,7 @@ Chrome тәжірибесін жақсарту үшін деректерді қ�
 <translation id="4384468725000734951">Sogou іздеу жүйесін пайдаланып іздеу</translation>
 <translation id="4387647248986092471">Көліктің профиль құлпын жасау</translation>
 <translation id="4387817230000841154">Жүктеп алғандарды ашу</translation>
+<translation id="4394049700291259645">Өшіру</translation>
 <translation id="4395046795145457714">Chrome Finds мүмкіндігін қосу терезесі толық ашылды.</translation>
 <translation id="4398561997852463382"><ph name="TAB_TITLE" />, жазудың таңдалған, бекітілген инкогнито қойындысы</translation>
 <translation id="4402611456429872546"><ph name="LANG" /> – жүктеп алынып жатыр…</translation>
@@ -821,7 +823,6 @@ Chrome тәжірибесін жақсарту үшін деректерді қ�
 <translation id="4478161224666880173">Бұл сайтта <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> аккаунтыңызды пайдалануға болады. Жалғастыру үшін <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> аккаунтына кіріңіз.</translation>
 <translation id="4479972344484327217">Chrome браузері үшін <ph name="MODULE" /> орнатылуда…</translation>
 <translation id="4487967297491345095">Chrome жүйесінің барлық қолданба деректері (бүкіл файлдар, параметрлер, аккаунттар, дерекқорлар, т.б.) біржола жойылады.</translation>
-<translation id="4494315997125191493">Барлық терезені көру үшін "Басқару" опциясын таңдаңыз.</translation>
 <translation id="4494806687727322324">Құпия сөздерді сақтау функциясын әкімші қосқан.</translation>
 <translation id="4508528996305412043">Фид картасы мәзірі ашылды.</translation>
 <translation id="4509741852167209430">Жарнамаларының өнімділігін (мысалы, сайтқа кіргеннен кейін, тауар сатып алған-алмағаныңызды) өлшеу үшін сайттар бір-бірімен деректердің шектеулі түрін бөліседі.</translation>
@@ -869,7 +870,6 @@ Google аккаунтының шолу тарихы басқа Google қызме
 <translation id="4673702426794876519">Инкогнито терезесі</translation>
 <translation id="4675298276894277358">Бұл сайт қайта көрсетілмейді.</translation>
 <translation id="4678082183394354975">Chrome-да сайттар үшін қараңғы режим қосылды.</translation>
-<translation id="4682306524980568490">Тек <ph name="MAX_INSTANCE_COUNT" /> терезені көрсетуге болады</translation>
 <translation id="4684427112815847243">Барлығын синхрондау</translation>
 <translation id="4685741273709472646">Ашылмалы тізімнен таңдау</translation>
 <translation id="4687718960473379118">Сайт ұсынған жарнамалар</translation>
@@ -1492,7 +1492,6 @@ Google аккаунтының шолу тарихы басқа Google қызме
 <translation id="7057969023583258980">Толық Chrome тарихын ашу</translation>
 <translation id="7063006564040364415">Синхрондау серверіне қосылу мүмкін емес.</translation>
 <translation id="7063106218165698546">Қойындылар тобын бейімдеп, "Дайын" түймесін басыңыз.</translation>
-<translation id="7071521146534760487">Аккаунтты басқару</translation>
 <translation id="707155805709242880">Синхрондау қажет контентті төменнен таңдаңыз.</translation>
 <translation id="7072949719501323344"><ph name="TAB_TITLE" />, бірнеше таңдалған "Cуреттегі сурет" режиміндегі бекітілген инкогнито қойындысы</translation>
 <translation id="7077143737582773186">SD картасы</translation>
@@ -1757,7 +1756,7 @@ Google аккаунтының шолу тарихы басқа Google қызме
 <translation id="8073388330009372546">Кескінді жаңа қойындыда ашу</translation>
 <translation id="8076492880354921740">Қойындылар</translation>
 <translation id="8078096376109663956">Тек мәтін бөлісіледі.</translation>
-<translation id="8078348702936632821">Осы таңбашаны бекіту</translation>
+<translation id="8078348702936632821">Жылдам пәрмен етіп бекіту</translation>
 <translation id="8084285576995584326">Google аккаунтының деректерін басқару</translation>
 <translation id="8084864785646838999">Тарих бұл жерде толық көрсетілмеуі мүмкін. Барлық деректі көру үшін толық Chrome тарихын ашыңыз. <ph name="BEGIN_LINK" />myactivity.google.com<ph name="END_LINK" /> мекенжайында Google аккаунтында браузерді қолдану тарихының басқа да түрлері болуы мүмкін.</translation>
 <translation id="8088176524274673045">Жаныңыздағы адамдармен бөлісу үшін олар осы QR кодын сканерлеуі қажет.</translation>
@@ -1821,6 +1820,7 @@ Google аккаунтының шолу тарихы басқа Google қызме
 <translation id="8282950411412455249">Қауіпсіздік параметрлеріне өту</translation>
 <translation id="8288688997999490824">{NUM_WINDOWS,plural, =1{1 инкогнито терезесін жабу}other{# инкогнито терезесін жабу}}</translation>
 <translation id="831192587911042850">Ағымдағы веб-сайтты сіз жазылған веб-сайттардың тізіміне енгізеді.</translation>
+<translation id="8313599942510782709">Тапсырмаңыз әлі орындалып жатыр</translation>
 <translation id="8317318757008452355">Басып шығару опцияларын ашу</translation>
 <translation id="8320212361750431956">Соңғы іс-әрекеттер</translation>
 <translation id="832514020744584629"><ph name="PREF_TITLE" />  <ph name="BEGIN_NEW" />Жаңалық<ph name="END_NEW" /></translation>

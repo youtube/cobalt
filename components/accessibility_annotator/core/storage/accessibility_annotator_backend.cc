@@ -7,11 +7,15 @@
 #include "base/containers/map_util.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
+#include "base/json/json_reader.h"
 #include "base/metrics/histogram_macros_local.h"
+#include "base/notimplemented.h"
 #include "base/task/thread_pool.h"
 #include "components/accessibility_annotator/core/accessibility_annotator_features.h"
 #include "components/accessibility_annotator/core/storage/accessibility_annotation_sync_bridge.h"
 #include "components/accessibility_annotator/core/storage/accessibility_annotator_database.h"
+#include "components/history/core/browser/history_service.h"
+#include "components/history/core/browser/history_types.h"
 #include "components/sync/base/data_type.h"
 #include "components/sync/base/report_unrecoverable_error.h"
 #include "components/sync/model/client_tag_based_data_type_processor.h"
@@ -20,6 +24,7 @@ namespace accessibility_annotator {
 
 AccessibilityAnnotatorBackend::AccessibilityAnnotatorBackend(
     version_info::Channel channel,
+    history::HistoryService* history_service,
     syncer::RepeatingDataTypeStoreFactory data_type_store_factory,
     const base::FilePath& db_path)
     : db_path_(db_path),
@@ -35,9 +40,16 @@ AccessibilityAnnotatorBackend::AccessibilityAnnotatorBackend(
       std::make_unique<AccessibilityAnnotationSyncBridge>(
           std::move(processor), data_type_store_factory);
   sync_bridge_observation_.Observe(accessibility_annotation_sync_bridge_.get());
+  if (history_service) {
+    history_service_observation_.Observe(history_service);
+  }
 }
 
 AccessibilityAnnotatorBackend::~AccessibilityAnnotatorBackend() = default;
+
+void AccessibilityAnnotatorBackend::Shutdown() {
+  history_service_observation_.Reset();
+}
 
 void AccessibilityAnnotatorBackend::Init() {
   db_.AsyncCall(&AccessibilityAnnotatorDatabase::Init)
@@ -67,7 +79,25 @@ void AccessibilityAnnotatorBackend::
   // TODO(crbug.com/486856790): Implement logic to handle sync bridge loaded.
 }
 
-std::optional<std::string>
+void AccessibilityAnnotatorBackend::OnURLVisited(
+    history::HistoryService* history_service,
+    const history::VisitedURLInfo& visited_url_info) {
+  // TODO(crbug.com/489690454): Ingest new visit for intent clustering.
+}
+
+void AccessibilityAnnotatorBackend::OnHistoryDeletions(
+    history::HistoryService* history_service,
+    const history::DeletionInfo& deletion_info) {
+  // TODO(crbug.com/489690454): Purge associated intents/clusters from the
+  // persistent SQLite database.
+}
+
+void AccessibilityAnnotatorBackend::OnHistoryServiceLoaded(
+    history::HistoryService* history_service) {
+  // TODO(crbug.com/489690454): Query the history service for historical data.
+}
+
+std::optional<AccessibilityAnnotatorBackend::ContentAnnotationsData>
 AccessibilityAnnotatorBackend::GetContentAnnotationsCacheData(
     const GURL& url) const {
   auto it = content_annotations_cache_.Peek(url);
@@ -79,16 +109,32 @@ AccessibilityAnnotatorBackend::GetContentAnnotationsCacheData(
 
 void AccessibilityAnnotatorBackend::SetContentAnnotationsCacheData(
     const GURL& url,
+    std::string page_title,
     std::string annotations) {
   // This automatically handles eviction of the oldest entries if full.
-  content_annotations_cache_.Put(url, std::move(annotations));
+  content_annotations_cache_.Put(
+      url,
+      ContentAnnotationsData{std::move(page_title), std::move(annotations)});
 }
 
-std::string AccessibilityAnnotatorBackend::GetDebugUIFormattedCacheData()
-    const {
-  // TODO(b/488355081): Pull data from the cache here and format it for UI
-  // display.
-  return "Cache data not yet available for the debug UI.";
+base::Value AccessibilityAnnotatorBackend::GetDebugUICacheData() const {
+  base::ListValue result;
+  for (const std::pair<GURL, ContentAnnotationsData>& item :
+       content_annotations_cache_) {
+    base::DictValue entry;
+    entry.Set("url", item.first.spec());
+    entry.Set("title", item.second.page_title);
+
+    std::optional<base::Value> json =
+        base::JSONReader::Read(item.second.annotations, base::JSON_PARSE_RFC);
+    if (json) {
+      entry.Set("annotations", std::move(*json));
+    } else {
+      entry.Set("annotations", base::Value(item.second.annotations));
+    }
+    result.Append(std::move(entry));
+  }
+  return base::Value(std::move(result));
 }
 
 AccessibilityAnnotationSyncBridge*

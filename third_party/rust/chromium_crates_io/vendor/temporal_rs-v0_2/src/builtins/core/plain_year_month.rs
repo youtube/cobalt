@@ -598,9 +598,7 @@ impl PlainYearMonth {
     }
 
     /// Gets the epochMilliseconds represented by this YearMonth in the given timezone
-    /// (using the reference year, and noon time)
-    ///
-    // Useful for implementing HandleDateTimeTemporalYearMonth
+    /// (using the reference day, and noon time)
     pub fn epoch_ns_for_with_provider(
         &self,
         time_zone: TimeZone,
@@ -612,6 +610,19 @@ impl PlainYearMonth {
         Ok(time_zone
             .get_epoch_nanoseconds_for(iso, Disambiguation::Compatible, provider)?
             .ns)
+    }
+
+    /// Gets the EpochNanoseconds represented by this YearMonth
+    /// (using the reference day, noon time, and UTC timezone)
+    ///
+    // Useful for implementing HandleDateTimeTemporalYearMonth
+    pub fn epoch_ns_for_utc(&self) -> EpochNanoseconds {
+        // 2. Let isoDateTime be CombineISODateAndTimeRecord(temporalYearMonth.[[ISODate]], NoonTimeRecord()).
+        // new_unchecked: PYM is supposed to support year-months outside of the ISO range as well as long
+        // as the year is in range
+        let iso = IsoDateTime::new_unchecked(self.iso, IsoTime::noon());
+        // 3. Let epochNs be ? GetUTCEpochNanoseconds(isoDateTime).
+        iso.as_nanoseconds()
     }
 
     /// Returns a RFC9557 IXDTF string for the current `PlainYearMonth`
@@ -987,6 +998,11 @@ mod tests {
             "+275760-10-01",
             "+275760-10-01T00:00",
             "1976-11[u-ca=hebrew]",
+            // built-ins/Temporal/PlainYearMonth/from/argument-string-too-many-decimals
+            "1970-01-01T00:00:00.1234567891",
+            "1970-01-01T00:00:00.1234567890",
+            "1970-01-01T00+00:00:00.1234567891",
+            "1970-01-01T00+00:00:00.1234567890",
         ];
 
         for invalid_case in invalid_strings {

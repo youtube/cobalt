@@ -54,6 +54,7 @@
 <translation id="1594928384848033697">Chromium 想要删除您的密码管理工具数据。请输入您的 Windows 密码以允许此操作。</translation>
 <translation id="1607715478322902680">{COUNT,plural, =0{您的管理员要求您重新启动 Chromium 以应用一项更新}=1{您的管理员要求您重新启动 Chromium 以应用一项更新。您的无痕式窗口不会重新打开。}other{您的管理员要求您重新启动 Chromium 以应用一项更新。您的 # 个无痕式窗口不会重新打开。}}</translation>
 <translation id="1625909126243026060">检查 Chromium 中重要的隐私控制设置和安全控件</translation>
+<translation id="1639380494700489405">如需在不离开网页的情况下向 AI 模式询问有关标签页的问题，请登录 Chromium。登录后，您还可在自己的所有设备上同步保存的密码等信息。</translation>
 <translation id="1640672724030957280">正在下载...</translation>
 <translation id="1680687534629375545">向图片搜索功能询问此页面</translation>
 <translation id="1709772298389099340">为 <ph name="BROWSER_NAME" /> 提供提升的权限。</translation>
@@ -195,6 +196,7 @@
 <translation id="3045032126857188731">译文语言：<ph name="LANGUAGE" /></translation>
 <translation id="3047590466164881923">关闭反馈对话框</translation>
 <translation id="3068187312562070417">其他 Chromium 个人资料</translation>
+<translation id="3068290154869370196">扩展程序是可让您自定义 Chromium 的插件。从保持井然有序到简化日常任务，扩展程序可帮助您打造专属的 Chromium。</translation>
 <translation id="3068515742935458733">将崩溃报告和<ph name="UMA_LINK" />发送给Google，帮助我们完善Chromium。</translation>
 <translation id="3079753320517721795">{NUM_DEVICES,plural, =0{一个或多个 Chromium 扩展程序访问过 1 部 USB 设备}=1{一个或多个 Chromium 扩展程序正在访问 1 部 USB 设备}other{一个或多个 Chromium 扩展程序正在访问 # 部 USB 设备}}</translation>
 <translation id="3095811995836568724">Chromium 历史记录</translation>
@@ -429,6 +431,7 @@
 <translation id="5821520528363214608">如要将 Chromium 数据保存在 Google 账号中并使用这些数据，请更新 Chromium</translation>
 <translation id="5824893331272123205">无法加载此面板，请重试</translation>
 <translation id="5862307444128926510">欢迎使用 Chromium</translation>
+<translation id="5867606647614813312">开启更多功能，提供 Chromium 最强大的安全防护</translation>
 <translation id="5871205389137001634">点击即可退出图片搜索功能</translation>
 <translation id="5883558403894052917">Chromium 发现这些内容包含恶意软件：</translation>
 <translation id="5889361821821684993">Chromium 会定期进行检查，以确保您的浏览器使用了最安全的设置。如有任何事项需要您审核，我们会通知您。</translation>

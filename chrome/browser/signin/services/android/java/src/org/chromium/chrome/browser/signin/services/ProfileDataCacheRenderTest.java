@@ -8,7 +8,6 @@ import static org.junit.Assert.assertEquals;
 
 import android.app.Activity;
 import android.graphics.drawable.Drawable;
-import android.text.TextUtils;
 import android.view.ViewGroup.LayoutParams;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -23,10 +22,12 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.mockito.quality.Strictness;
 
+import org.chromium.base.FeatureOverrides;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.BaseActivityTestRule;
 import org.chromium.base.test.params.ParameterAnnotations.ClassParameter;
@@ -39,9 +40,7 @@ import org.chromium.base.test.util.Feature;
 import org.chromium.chrome.test.ChromeJUnit4RunnerDelegate;
 import org.chromium.chrome.test.util.ChromeRenderTestRule;
 import org.chromium.chrome.test.util.browser.signin.AccountManagerTestRule;
-import org.chromium.components.signin.AccountManagerFacade;
-import org.chromium.components.signin.base.AccountInfo;
-import org.chromium.components.signin.identitymanager.IdentityManager;
+import org.chromium.components.signin.SigninFeatures;
 import org.chromium.components.signin.test.util.TestAccounts;
 import org.chromium.ui.test.util.BlankUiTestActivity;
 import org.chromium.ui.widget.ChromeImageView;
@@ -57,11 +56,19 @@ import java.util.List;
 public class ProfileDataCacheRenderTest {
     public static final String PROFILE_DATA_BATCH_NAME = "profile_data";
 
+    // TODO(crbug.com/493130564) - Remove the data source parameterization after
+    // MAKE_IDENTITY_MANAGER_SOURCE_OF_ACCOUNTS launch.
     @ClassParameter
     private static final List<ParameterSet> sClassParams =
             Arrays.asList(
-                    new ParameterSet().value(64).name("ImageSize64"),
-                    new ParameterSet().value(128).name("ImageSize128"));
+                    new ParameterSet()
+                            .value(64, false)
+                            .name("ImageSize64_AccountManagerFacadeSource"),
+                    new ParameterSet().value(64, true).name("ImageSize64_IdentityManagerSource"),
+                    new ParameterSet()
+                            .value(128, false)
+                            .name("ImageSize128_AccountManagerFacadeSource"),
+                    new ParameterSet().value(128, true).name("ImageSize128_IdentityManagerSource"));
 
     @ClassRule
     public static BaseActivityTestRule<BlankUiTestActivity> sActivityTestRule =
@@ -70,9 +77,11 @@ public class ProfileDataCacheRenderTest {
     private static Activity sActivity;
 
     private final @Px int mImageSize;
+    private final boolean mIsIdentityManagerSourceOfAccounts;
 
-    public ProfileDataCacheRenderTest(int imageSize) {
+    public ProfileDataCacheRenderTest(int imageSize, boolean isIdentityManagerSourceOfAccounts) {
         mImageSize = imageSize;
+        mIsIdentityManagerSourceOfAccounts = isIdentityManagerSourceOfAccounts;
     }
 
     @Rule
@@ -89,10 +98,7 @@ public class ProfileDataCacheRenderTest {
 
     private FrameLayout mContentView;
     private ImageView mImageView;
-
-    private final AccountManagerFacade mAccountManagerFacade =
-            mAccountManagerTestRule.getAccountManagerFacade();
-    private final IdentityManager mIdentityManager = mAccountManagerTestRule.getIdentityManager();
+    @Mock private ProfileDataCache.Observer mObserver;
     private ProfileDataCache mProfileDataCache;
 
     @BeforeClass
@@ -102,6 +108,9 @@ public class ProfileDataCacheRenderTest {
 
     @Before
     public void setUp() {
+        FeatureOverrides.overrideFlag(
+                SigninFeatures.MAKE_IDENTITY_MANAGER_SOURCE_OF_ACCOUNTS,
+                mIsIdentityManagerSourceOfAccounts);
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     mContentView = new FrameLayout(sActivity);
@@ -113,8 +122,8 @@ public class ProfileDataCacheRenderTest {
                     mProfileDataCache =
                             new ProfileDataCache(
                                     sActivity,
-                                    mAccountManagerFacade,
-                                    mIdentityManager,
+                                    mAccountManagerTestRule.getAccountManagerFacade(),
+                                    mAccountManagerTestRule.getIdentityManager(),
                                     mImageSize,
                                     /* badgeConfig= */ null);
                 });
@@ -124,11 +133,13 @@ public class ProfileDataCacheRenderTest {
     @MediumTest
     @Feature("RenderTest")
     public void testProfileDataPopulatedFromIdentityManagerObserver() throws IOException {
+        mAccountManagerTestRule.blockGetAccountsUpdate();
+        ThreadUtils.runOnUiThreadBlocking(() -> mProfileDataCache.addObserver(mObserver));
+        mAccountManagerTestRule.addAccount(TestAccounts.ACCOUNT1);
+        CriteriaHelper.pollUiThread(
+                () -> mProfileDataCache.hasProfileDataForTesting(TestAccounts.ACCOUNT1.getEmail()));
         ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    mAccountManagerTestRule.addAccount(TestAccounts.ACCOUNT1);
-                    checkImageIsScaled(TestAccounts.ACCOUNT1.getEmail());
-                });
+                () -> checkImageIsScaled(TestAccounts.ACCOUNT1.getEmail()));
         mRenderTestRule.render(mImageView, "profile_data_cache_avatar" + mImageSize);
     }
 
@@ -143,22 +154,11 @@ public class ProfileDataCacheRenderTest {
                     mProfileDataCache =
                             new ProfileDataCache(
                                     sActivity,
-                                    mAccountManagerFacade,
-                                    mIdentityManager,
+                                    mAccountManagerTestRule.getAccountManagerFacade(),
+                                    mAccountManagerTestRule.getIdentityManager(),
                                     mImageSize,
                                     /* badgeConfig= */ null);
-                });
 
-        CriteriaHelper.pollUiThread(
-                () -> {
-                    return !TextUtils.isEmpty(
-                            mProfileDataCache
-                                    .getProfileDataOrDefault(TestAccounts.ACCOUNT1.getEmail())
-                                    .getFullName());
-                });
-
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
                     final DisplayableProfileData profileData =
                             mProfileDataCache.getProfileDataOrDefault(
                                     TestAccounts.ACCOUNT1.getEmail());
@@ -174,30 +174,15 @@ public class ProfileDataCacheRenderTest {
     @Test
     @MediumTest
     @Feature("RenderTest")
-    public void testNoProfileDataRemovedWithEmptyAccountInfo() throws IOException {
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    mAccountManagerTestRule.addAccount(TestAccounts.ACCOUNT1);
-                    final AccountInfo emptyAccountInfo =
-                            new AccountInfo.Builder(
-                                            TestAccounts.ACCOUNT1.getEmail(),
-                                            TestAccounts.ACCOUNT1.getGaiaId())
-                                    .build();
-                    mAccountManagerTestRule.updateAccount(emptyAccountInfo);
-                    checkImageIsScaled(TestAccounts.ACCOUNT1.getEmail());
-                });
-        mRenderTestRule.render(mImageView, "profile_data_cache_avatar" + mImageSize);
-    }
-
-    @Test
-    @MediumTest
-    @Feature("RenderTest")
     public void testPlaceholderIsScaled() throws IOException {
-        mAccountManagerTestRule.addAccount(TestAccounts.ACCOUNT1);
+        ThreadUtils.runOnUiThreadBlocking(() -> mProfileDataCache.addObserver(mObserver));
+        mAccountManagerTestRule.addAccount(TestAccounts.TEST_ACCOUNT_NO_NAME);
+        CriteriaHelper.pollUiThread(
+                () ->
+                        mProfileDataCache.hasProfileDataForTesting(
+                                TestAccounts.TEST_ACCOUNT_NO_NAME.getEmail()));
         ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    checkImageIsScaled(TestAccounts.ACCOUNT1.getEmail());
-                });
+                () -> checkImageIsScaled(TestAccounts.TEST_ACCOUNT_NO_NAME.getEmail()));
         mRenderTestRule.render(mImageView, "profile_data_cache_placeholder" + mImageSize);
     }
 
@@ -205,20 +190,21 @@ public class ProfileDataCacheRenderTest {
     @MediumTest
     @Feature("RenderTest")
     public void testAvatarIsScaled() throws IOException {
+        ThreadUtils.runOnUiThreadBlocking(() -> mProfileDataCache.addObserver(mObserver));
         mAccountManagerTestRule.addAccount(TestAccounts.ACCOUNT1);
+        CriteriaHelper.pollUiThread(
+                () -> mProfileDataCache.hasProfileDataForTesting(TestAccounts.ACCOUNT1.getEmail()));
         ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    checkImageIsScaled(TestAccounts.ACCOUNT1.getEmail());
-                });
+                () -> checkImageIsScaled(TestAccounts.ACCOUNT1.getEmail()));
         mRenderTestRule.render(mImageView, "profile_data_cache_avatar" + mImageSize);
     }
 
     private void checkImageIsScaled(String accountName) {
         DisplayableProfileData displayableProfileData =
                 mProfileDataCache.getProfileDataOrDefault(accountName);
-        Drawable placeholderImage = displayableProfileData.getImage();
-        assertEquals(mImageSize, placeholderImage.getIntrinsicHeight());
-        assertEquals(mImageSize, placeholderImage.getIntrinsicWidth());
-        mImageView.setImageDrawable(placeholderImage);
+        Drawable profileDataImage = displayableProfileData.getImage();
+        assertEquals(mImageSize, profileDataImage.getIntrinsicHeight());
+        assertEquals(mImageSize, profileDataImage.getIntrinsicWidth());
+        mImageView.setImageDrawable(profileDataImage);
     }
 }

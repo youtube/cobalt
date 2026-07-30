@@ -32,6 +32,7 @@
 #include "chrome/browser/file_system_access/file_system_access_features.h"
 #include "chrome/browser/file_system_access/file_system_access_permission_request_manager.h"
 #include "chrome/browser/file_system_access/file_system_access_tab_helper.h"
+#include "chrome/browser/finds/core/finds_features.h"
 #include "chrome/browser/finds/core/finds_tab_helper.h"
 #include "chrome/browser/finds/finds_service_factory.h"
 #include "chrome/browser/history/history_tab_helper.h"
@@ -81,7 +82,6 @@
 #include "chrome/browser/sync/sessions/sync_sessions_web_contents_router_factory.h"
 #include "chrome/browser/tab_contents/navigation_metrics_recorder.h"
 #include "chrome/browser/task_manager/web_contents_tags.h"
-#include "chrome/browser/tpcd/metadata/devtools_observer.h"
 #include "chrome/browser/translate/chrome_translate_client.h"
 #include "chrome/browser/trusted_vault/trusted_vault_encryption_keys_tab_helper.h"
 #include "chrome/browser/ui/autofill/autofill_client_provider.h"
@@ -215,6 +215,7 @@
 #include "chrome/browser/chromeos/policy/dlp/dlp_content_tab_helper.h"
 #include "chrome/browser/chromeos/printing/print_preview/printing_init_cros.h"
 #include "chrome/browser/ui/ash/google_one/google_one_offer_iph_tab_helper.h"
+#include "chromeos/ash/experiences/isolated_web_app/cros_isolated_web_app_enabler.h"
 #endif
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
@@ -612,8 +613,6 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents) {
   }
 #endif
   tasks::TaskTabHelper::CreateForWebContents(web_contents);
-  tpcd::metadata::TpcdMetadataDevtoolsObserver::CreateForWebContents(
-      web_contents);
 #if !BUILDFLAG(IS_ANDROID)
   TabCaptureContentsBorderHelper::CreateForWebContents(web_contents);
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -645,9 +644,11 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents) {
   }
   ContextMenuHelper::CreateForWebContents(web_contents);
 
-  if (base::FeatureList::IsEnabled(chrome::android::kChromeFinds)) {
-    finds::FindsTabHelper::CreateForWebContents(
-        web_contents, finds::FindsServiceFactory::GetForProfile(profile));
+  if (base::FeatureList::IsEnabled(finds::features::kChromeFinds)) {
+    if (auto* finds_service =
+            finds::FindsServiceFactory::GetForProfile(profile)) {
+      finds::FindsTabHelper::CreateForWebContents(web_contents, finds_service);
+    }
   }
 
   if (base::FeatureList::IsEnabled(
@@ -724,6 +725,7 @@ void TabHelpers::AttachTabHelpers(WebContents* web_contents) {
   ash::BootTimesRecorderTabHelper::MaybeCreateForWebContents(web_contents);
 
   CrosAppsTabHelper::MaybeCreateForWebContents(web_contents);
+  ash::CrosIsolatedWebAppEnabler::CreateForWebContents(web_contents);
   GeminiAppTabHelper::MaybeCreateForWebContents(web_contents);
   mahi::MahiTabHelper::MaybeCreateForWebContents(web_contents);
   policy::DlpContentTabHelper::MaybeCreateForWebContents(web_contents);

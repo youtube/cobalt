@@ -183,7 +183,7 @@ void EvaluateLineNumberProgram(const int fd,
                                uint64_t base_address,
                                uint64_t start,
                                const ProgramInfo& program_info) {
-  BufferedDwarfReader reader(fd, start);
+  BufferedDwarfReader<google::kBigFileCacheSize> reader(fd, start);
   uint64_t module_relative_pc = info->pc - base_address;
 
   // Helper that records the line-number table entry corresponding with the
@@ -486,7 +486,7 @@ void EvaluateLineNumberProgram(const int fd,
 
 // Parses a 32-bit DWARF-4 line number program header per section 6.2.4.
 // `cu_name_offset` is the module offset for the 0th entry of the file table.
-bool ParseDwarf4ProgramInfo(BufferedDwarfReader* reader,
+bool ParseDwarf4ProgramInfo(BufferedDwarfReaderBase* reader,
                             bool is_64bit,
                             uint64_t cu_name_offset,
                             ProgramInfo* program_info) {
@@ -609,7 +609,7 @@ bool ReadProgramInfo(const int fd,
                      uint64_t start,
                      uint64_t cu_name_offset,
                      ProgramInfo* program_info) {
-  BufferedDwarfReader reader(fd, start);
+  BufferedDwarfReader<google::kBigFileCacheSize> reader(fd, start);
   program_info->end_offset = kMaxOffset;
 
   // Note that 64-bit dwarf does NOT imply a 64-bit binary and vice-versa. In
@@ -657,7 +657,7 @@ uint64_t GetLineNumbersInProgram(const int fd,
 
 // Scans the .debug_abbrev entry until it finds the Attribute List matching the
 // `wanted_abbreviation_code`. This is called when parsing a DIE in .debug_info.
-bool AdvancedReaderToAttributeList(BufferedDwarfReader& reader,
+bool AdvancedReaderToAttributeList(BufferedDwarfReaderBase& reader,
                                    uint64_t table_end,
                                    uint64_t wanted_abbreviation_code,
                                    uint64_t& tag,
@@ -770,7 +770,8 @@ bool GetCompileUnitName(int fd,
 
   // Iterate Compile Units.
   uint64_t next_compilation_unit = kMaxOffset;
-  for (BufferedDwarfReader reader(fd, debug_info_start);
+  for (BufferedDwarfReader<google::kBigFileCacheSize> reader(fd,
+                                                             debug_info_start);
        reader.position() < debug_info_end;
        reader.set_position(next_compilation_unit)) {
     bool is_64bit;
@@ -1222,7 +1223,7 @@ struct FrameInfo {
 //
 // The main benefit of this function is preserving the single pass through the
 // table which is important for performance.
-size_t ProcessFlatArangeSet(BufferedDwarfReader* reader,
+size_t ProcessFlatArangeSet(BufferedDwarfReaderBase* reader,
                             uint64_t next_set,
                             uint8_t address_size,
                             uint64_t base_address,
@@ -1275,7 +1276,8 @@ void PopulateCompileUnitOffsets(int fd,
   uint64_t debug_aranges_end = debug_aranges.sh_offset + debug_aranges.sh_size;
   uint64_t next_arange_set = kMaxOffset;
   size_t unsorted_start = 0;
-  for (BufferedDwarfReader reader(fd, debug_aranges.sh_offset);
+  for (BufferedDwarfReader<google::kBigFileCacheSize> reader(
+           fd, debug_aranges.sh_offset);
        unsorted_start < num_frames && reader.position() < debug_aranges_end;
        reader.set_position(next_arange_set)) {
     bool is_64bit;
@@ -1323,11 +1325,13 @@ bool GetDwarfSourceLineNumber(const void* pc,
                               size_t out_size) {
   uint64_t pc0 = reinterpret_cast<uint64_t>(pc);
   uint64_t object_start_address = 0;
+  uint64_t ignored_object_end_address;
   uint64_t object_base_address = 0;
 
   google::FileDescriptor object_fd(google::FileDescriptor(
       google::OpenObjectFileContainingPcAndGetStartAddress(
-          pc0, object_start_address, object_base_address, nullptr, 0)));
+          pc0, object_start_address, ignored_object_end_address,
+          object_base_address, nullptr, 0)));
 
   if (!object_fd.get()) {
     return false;
@@ -1357,34 +1361,39 @@ void GetDwarfCompileUnitOffsets(const void* const* trace,
   };
 
   // Use heapsort to avoid recursion in a signal handler.
-  std::make_heap(&frame_info[0], &frame_info[num_frames - 1], pc_comparator);
-  std::sort_heap(&frame_info[0], &frame_info[num_frames - 1], pc_comparator);
+  std::make_heap(frame_info.begin(), frame_info.begin() + num_frames,
+                 pc_comparator);
+  std::sort_heap(frame_info.begin(), frame_info.begin() + num_frames,
+                 pc_comparator);
 
   // Walk the frame_info one compilation unit at a time.
-  for (size_t cur_frame = 0; cur_frame < num_frames; ++cur_frame) {
+  for (size_t cur_frame = 0; cur_frame < num_frames;) {
     uint64_t object_start_address = 0;
     uint64_t object_base_address = 0;
+    uint64_t object_end_address = 0;
     google::FileDescriptor object_fd(google::FileDescriptor(
         google::OpenObjectFileContainingPcAndGetStartAddress(
-            frame_info[cur_frame].pc, object_start_address, object_base_address,
-            nullptr, 0)));
+            frame_info[cur_frame].pc, object_start_address, object_end_address,
+            object_base_address, nullptr, 0)));
 
     // Some stack frames may not have a corresponding object file, e.g. a call
     // frame inside the Linux kernel's vdso. Just skip over these stack frames,
     // as this is done on a best-effort basis.
     if (object_fd.get() < 0) {
+      ++cur_frame;
       continue;
     }
 
-    // TODO(crbug.com/40228616): Consider exposing the end address so a
-    // range of frames can be bulk-populated. This was originally implemented,
-    // but line number symbolization is currently broken by default (and also
-    // broken in sandboxed processes). The various issues will be addressed
-    // incrementally in follow-up patches, and the optimization here restored if
-    // needed.
+    size_t batch_size = 1;
+    while (cur_frame + batch_size < num_frames &&
+           frame_info[cur_frame + batch_size].pc >= object_start_address &&
+           frame_info[cur_frame + batch_size].pc < object_end_address) {
+      ++batch_size;
+    }
 
-    PopulateCompileUnitOffsets(object_fd.get(), &frame_info[cur_frame], 1,
-                               object_base_address);
+    PopulateCompileUnitOffsets(object_fd.get(), &frame_info[cur_frame],
+                               batch_size, object_base_address);
+    cur_frame += batch_size;
   }
 }
 

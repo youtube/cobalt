@@ -12,6 +12,7 @@
 #include "components/password_manager/core/browser/actor_login/actor_login_permissions_manager_impl.h"
 #include "components/password_manager/core/browser/actor_login/internal/actor_login_permission_service_impl.h"
 #include "components/password_manager/core/browser/actor_login/test/actor_login_test_util.h"
+#include "components/password_manager/core/browser/actor_login/test/mock_actor_login_permission_service.h"
 #include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_store/test_password_store.h"
 #include "components/sync/test/test_sync_service.h"
@@ -37,22 +38,6 @@ class MockObserver : public ActorLoginPermissionsManager::Observer {
   MOCK_METHOD(void, OnPermissionsChanged, (), (override));
 };
 
-class MockActorLoginPermissionService : public ActorLoginPermissionService {
- public:
-  MOCK_METHOD(void,
-              ListPermissions,
-              (const std::vector<FederatedOrigins>&, ListPermissionsResult),
-              (override));
-  MOCK_METHOD(void, ListAllPermissions, (ListPermissionsResult), (override));
-  MOCK_METHOD(void,
-              DeletePermission,
-              (const url::Origin&, DeletePermissionResult),
-              (override));
-  MOCK_METHOD(void,
-              GrantPermission,
-              (const FederatedPermission&, GrantPermissionResult),
-              (override));
-};
 
 PasswordForm CreateApprovedForm(const std::string& signon_realm,
                                 const std::u16string& username) {
@@ -169,9 +154,10 @@ TEST_F(ActorLoginPermissionsManagerTest, RevokePermission) {
 
   EXPECT_CALL(
       actor_login_permission_service_,
-      DeletePermission(url::Origin::Create(GURL("https://example.com/")), _));
+      DeletePermission(url::Origin::Create(GURL("https://example.com/")),
+                       "user1", _));
 
-  permissions_manager_->RevokePermission("https://example.com/");
+  permissions_manager_->RevokePermission("https://example.com/", "user1");
   revoke_run_loop.Run();
 
   base::test::TestFuture<base::flat_set<password_manager::ActorLoginPermission>>
@@ -300,14 +286,14 @@ TEST_F(ActorLoginPermissionsManagerTest,
   MockObserver observer;
   permissions_manager_->AddObserver(&observer);
 
-  EXPECT_CALL(
-      actor_login_permission_service_,
-      DeletePermission(url::Origin::Create(GURL("https://example.com/")), _))
-      .WillOnce(base::test::RunOnceCallback<1>(true));
+  EXPECT_CALL(actor_login_permission_service_,
+              DeletePermission(
+                  url::Origin::Create(GURL("https://example.com/")), "user", _))
+      .WillOnce(base::test::RunOnceCallback<2>(true));
 
   EXPECT_CALL(observer, OnPermissionsChanged);
 
-  permissions_manager_->RevokePermission("https://example.com/");
+  permissions_manager_->RevokePermission("https://example.com/", "user");
 }
 
 TEST_F(ActorLoginPermissionsManagerTest,
@@ -315,14 +301,14 @@ TEST_F(ActorLoginPermissionsManagerTest,
   MockObserver observer;
   permissions_manager_->AddObserver(&observer);
 
-  EXPECT_CALL(
-      actor_login_permission_service_,
-      DeletePermission(url::Origin::Create(GURL("https://example.com/")), _))
-      .WillOnce(base::test::RunOnceCallback<1>(false));
+  EXPECT_CALL(actor_login_permission_service_,
+              DeletePermission(
+                  url::Origin::Create(GURL("https://example.com/")), "user", _))
+      .WillOnce(base::test::RunOnceCallback<2>(false));
 
   EXPECT_CALL(observer, OnPermissionsChanged).Times(0);
 
-  permissions_manager_->RevokePermission("https://example.com/");
+  permissions_manager_->RevokePermission("https://example.com/", "user");
 }
 
 }  // namespace actor_login

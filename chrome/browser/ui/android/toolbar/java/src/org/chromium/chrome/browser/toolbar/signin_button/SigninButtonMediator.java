@@ -14,16 +14,19 @@ import android.view.View;
 import androidx.appcompat.content.res.AppCompatResources;
 
 import org.chromium.base.Callback;
+import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
 import org.chromium.chrome.browser.signin.services.BadgeConfig;
 import org.chromium.chrome.browser.signin.services.DisplayableProfileData;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.browser.signin.services.ProfileDataCache;
+import org.chromium.chrome.browser.signin.services.SigninManager;
 import org.chromium.chrome.browser.sync.SyncServiceFactory;
 import org.chromium.chrome.browser.toolbar.R;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
@@ -36,9 +39,12 @@ import org.chromium.chrome.browser.ui.signin.SigninSurveyController;
 import org.chromium.chrome.browser.ui.signin.SigninUtils;
 import org.chromium.chrome.browser.ui.signin.account_picker.AccountPickerBottomSheetStrings;
 import org.chromium.chrome.browser.ui.signin.history_sync.HistorySyncConfig;
+import org.chromium.chrome.browser.util.BrowserUiUtils;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.device_lock.DeviceLockActivityLauncher;
 import org.chromium.components.browser_ui.settings.SettingsNavigation;
+import org.chromium.components.feature_engagement.EventConstants;
+import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.signin.SigninFeatureMap;
 import org.chromium.components.signin.SigninFeatures;
 import org.chromium.components.signin.base.CoreAccountInfo;
@@ -62,6 +68,7 @@ final class SigninButtonMediator
         implements ProfileDataCache.Observer,
                 IdentityManager.Observer,
                 SyncService.SyncStateChangedListener,
+                SigninManager.SignInStateObserver,
                 BottomSheetSigninAndHistorySyncCoordinator.Delegate {
     private final Context mContext;
     private final PropertyModel mModel;
@@ -75,6 +82,7 @@ final class SigninButtonMediator
     private final SnackbarManager mSnackbarManager;
     private @Nullable Profile mProfile;
     private @Nullable BottomSheetSigninAndHistorySyncCoordinator mSigninCoordinator;
+    private @Nullable SigninManager mSigninManager;
 
     // We observe IdentityManager to receive primary account state change notifications.
     private @Nullable IdentityManager mIdentityManager;
@@ -138,6 +146,15 @@ final class SigninButtonMediator
     }
 
     /**
+     * {@link SigninManager.SignInStateObserver} implementation which updates the signin button when
+     * signin allowed state changes.
+     */
+    @Override
+    public void onSignInAllowedChanged() {
+        updateButtonState();
+    }
+
+    /**
      * {@link IdentityManager.Observer} implementation which updates the signin button when primary
      * account changes.
      */
@@ -178,7 +195,12 @@ final class SigninButtonMediator
             assert !mModel.get(SigninButtonProperties.SHOW_BUTTON);
             return;
         }
-        mIdentityError = assumeNonNull(mSyncService).getUserActionableError();
+
+        // TODO(crbug.com/89655527): Add mediator unit test case to cover this possibility.
+        mIdentityError =
+                mSyncService == null
+                        ? UserActionableError.NONE
+                        : mSyncService.getUserActionableError();
 
         CoreAccountInfo coreAccountInfo =
                 assumeNonNull(mIdentityManager).getPrimaryAccountInfo(ConsentLevel.SIGNIN);
@@ -198,27 +220,32 @@ final class SigninButtonMediator
                 email == null
                         ? null
                         : assumeNonNull(mProfileDataCache).getProfileDataOrDefault(email);
-        mModel.set(
-                SigninButtonProperties.CONTENT_DESCRIPTION,
-                SigninUtils.getContentDescriptionForIdentityDisc(
-                        mContext, profileData, mIdentityError));
-        setAvatarImage(profileData);
+        setButton(profileData);
     }
 
-    private void setAvatarImage(@Nullable DisplayableProfileData profileData) {
-        if (profileData == null) {
+    private void setButton(@Nullable DisplayableProfileData profileData) {
+        boolean showSigninText =
+                profileData == null && assumeNonNull(mSigninManager).isSigninAllowed();
+
+        if (!showSigninText) {
             mModel.set(
                     SigninButtonProperties.BUTTON_AVATAR,
-                    AppCompatResources.getDrawable(mContext, R.drawable.account_circle));
+                    profileData != null
+                            ? profileData.getImage()
+                            : AppCompatResources.getDrawable(mContext, R.drawable.account_circle));
             mModel.set(
                     SigninButtonProperties.AVATAR_TINT,
-                    AppCompatResources.getColorStateList(
-                            mContext, R.color.default_icon_color_tint_list));
-        } else {
-            mModel.set(SigninButtonProperties.BUTTON_AVATAR, profileData.getImage());
-            mModel.set(SigninButtonProperties.AVATAR_TINT, null);
+                    profileData != null
+                            ? null
+                            : AppCompatResources.getColorStateList(
+                                    mContext, R.color.default_icon_color_tint_list));
+            mModel.set(
+                    SigninButtonProperties.AVATAR_CONTENT_DESCRIPTION,
+                    SigninUtils.getContentDescriptionForIdentityDisc(
+                            mContext, profileData, mIdentityError));
         }
-        mModel.set(SigninButtonProperties.SHOW_AVATAR, true);
+
+        mModel.set(SigninButtonProperties.USE_SIGNIN_TEXT_BUTTON, showSigninText);
         mModel.set(SigninButtonProperties.ON_CLICK, this::onClick);
     }
 
@@ -233,6 +260,10 @@ final class SigninButtonMediator
             mIdentityManager.removeObserver(this);
             mIdentityManager = null;
         }
+        if (mSigninManager != null) {
+            mSigninManager.removeSignInStateObserver(this);
+            mSigninManager = null;
+        }
         if (mSyncService != null) {
             mSyncService.removeSyncStateChangedListener(this);
             mSyncService = null;
@@ -246,6 +277,9 @@ final class SigninButtonMediator
         }
         mIdentityManager = IdentityServicesProvider.get().getIdentityManager(profile);
         assumeNonNull(mIdentityManager).addObserver(this);
+        mSigninManager = IdentityServicesProvider.get().getSigninManager(profile);
+        assumeNonNull(mSigninManager).addSignInStateObserver(this);
+
         mProfileDataCache =
                 ProfileDataCache.createWithoutBadge(
                         mContext, mIdentityManager, R.dimen.toolbar_identity_disc_size);
@@ -264,10 +298,10 @@ final class SigninButtonMediator
         if (mProfile == null) {
             return;
         }
+        recordSigninButtonUsed(mProfile);
 
         Profile originalProfile = mProfile.getOriginalProfile();
-        if (assumeNonNull(IdentityServicesProvider.get().getSigninManager(mProfile))
-                .isSigninAllowed()) {
+        if (assumeNonNull(mSigninManager).isSigninAllowed()) {
             AccountPickerBottomSheetStrings bottomSheetStrings =
                     new AccountPickerBottomSheetStrings.Builder(
                                     mContext.getString(
@@ -310,6 +344,18 @@ final class SigninButtonMediator
                     originalProfile,
                     SigninSurveyController.SigninSurveyType.NTP_ACCOUNT_AVATAR_TAP);
         }
+    }
+
+    /**
+     * Records SigninButton usage with feature engagement tracker. This signal can be used to decide
+     * whether to show in-product help. We also record the clicking actions on the profile icon in
+     * histograms.
+     */
+    private void recordSigninButtonUsed(Profile profile) {
+        BrowserUiUtils.recordIdentityDiscClicked(true);
+        Tracker tracker = TrackerFactory.getTrackerForProfile(profile);
+        tracker.notifyEvent(EventConstants.IDENTITY_DISC_USED);
+        RecordUserAction.record("MobileToolbarIdentityDiscTap");
     }
 
     private void initializeSigninCoordinator() {

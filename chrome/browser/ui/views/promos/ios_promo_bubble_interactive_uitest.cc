@@ -10,6 +10,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
@@ -71,6 +72,7 @@ class IOSPromoBubbleBrowserTest
       PromoType promo_type = GetParam();
       views::BubbleAnchor anchor = nullptr;
       views::Button* highlighted_button = nullptr;
+      std::optional<ui::ElementIdentifier> highlighted_element;
 
       // Explicitly set impression count to 0 before showing the promo.
       // This ensures that the first impression is recorded as 1.
@@ -84,18 +86,21 @@ class IOSPromoBubbleBrowserTest
               kActionShowPasswordsBubbleOrPage);
           highlighted_button = button_provider->GetPageActionView(
               kActionShowPasswordsBubbleOrPage);
+          highlighted_element = kPasswordsOmniboxKeyIconElementId;
           break;
         case PromoType::kAddress:
           anchor = button_provider->GetBubbleAnchor(
               kActionShowAddressesBubbleOrPage);
-          highlighted_button = button_provider->GetPageActionIconView(
-              PageActionIconType::kAutofillAddress);
+          highlighted_button = button_provider->GetPageActionView(
+              kActionShowAddressesBubbleOrPage);
+          highlighted_element = kAutofillAddressPageActionElementId;
           break;
         case PromoType::kPayment:
           anchor =
               button_provider->GetBubbleAnchor(kActionShowPaymentsBubbleOrPage);
-          highlighted_button = button_provider->GetPageActionIconView(
-              PageActionIconType::kSaveCard);
+          highlighted_button =
+              button_provider->GetPageActionView(kActionShowPaymentsBubbleOrPage);
+          highlighted_element = kAutofillSavePaymentsPageActionElementId;
           break;
         case PromoType::kEnhancedBrowsing:
         case PromoType::kLens:
@@ -106,9 +111,9 @@ class IOSPromoBubbleBrowserTest
       }
 
       promos_utils::IOSDesktopPromoShown(browser()->profile(), promo_type);
-      IOSPromoBubble::ShowPromoBubble(IOSPromoBubble::Anchor{anchor},
-                                      highlighted_button, browser()->profile(),
-                                      promo_type, bubble_type);
+      IOSPromoBubble::ShowPromoBubble(
+          IOSPromoBubble::Anchor{anchor}, highlighted_button,
+          highlighted_element, browser()->profile(), promo_type, bubble_type);
     });
   }
 
@@ -119,9 +124,7 @@ class IOSPromoBubbleBrowserTest
 
 IN_PROC_BROWSER_TEST_P(IOSPromoBubbleBrowserTest, ShowQRCode) {
   if (GetParam() == PromoType::kAddress) {
-    if (IsPageActionMigrated(PageActionIconType::kAutofillAddress)) {
-      GTEST_SKIP() << "This test is for the non-migrated state.";
-    }
+    GTEST_SKIP() << "kAutofillAddress is migrated, use ShowQRCode_NoPageAction instead.";
   }
 
   RunTestSequence(
@@ -135,10 +138,6 @@ IN_PROC_BROWSER_TEST_P(IOSPromoBubbleBrowserTest, ShowQRCode) {
 IN_PROC_BROWSER_TEST_P(IOSPromoBubbleBrowserTest, ShowQRCode_NoPageAction) {
   if (GetParam() != PromoType::kAddress) {
     GTEST_SKIP() << "Test is only for DesktopToIOSPromoType::kAddress.";
-  }
-
-  if (!IsPageActionMigrated(PageActionIconType::kAutofillAddress)) {
-    GTEST_SKIP() << "This test is for the migrated state.";
   }
 
   RunTestSequence(

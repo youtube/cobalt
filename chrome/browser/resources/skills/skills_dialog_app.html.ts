@@ -16,7 +16,7 @@ ${this.shouldShowErrorPage_ ? html`<error-page></error-page>` : html`
       <h1 id="header">${this.dialogTitle_}</h1>
       <p class="description">$i18n{skillDescription}</p>
     </div>
-    <div slot="body">
+    <div slot="body" @keydown="${this.onKeydown_}">
         <div id="nameWrapper">
           <div id="nameLabel" class="cr-form-field-label" aria-hidden="true">$i18n{name}
           </div>
@@ -48,13 +48,19 @@ ${this.shouldShowErrorPage_ ? html`<error-page></error-page>` : html`
                   .value="${this.skill_.icon}" @click="${this.onEmojiBtnClick_}"
                   @input="${this.onEmojiInput_}"
                   @keydown="${this.onEmojiKeydown_}" title="$i18n{chooseIcon}"
-                  aria-label="$i18n{chooseIcon}">
+                  aria-label="$i18n{chooseIcon}" readonly>
               </div>
             </cr-input>
             <div id="nameErrorMessage" class="error-message"
                 ?hidden="${!this.hasNameCharLimitError_}">
               $i18n{nameCharLimitError}
             </div>
+            ${this.showEmojiPicker_ ? html`
+              <skills-emoji-picker id="emojiPicker"
+                  @emoji-selected="${this.onEmojiSelected_}"
+                  @picker-close="${this.onEmojiPickerClose_}">
+              </skills-emoji-picker>
+            ` : ''}
             `}
         </div>
         <div id="instructionsWrapper">
@@ -66,11 +72,15 @@ ${this.shouldShowErrorPage_ ? html`<error-page></error-page>` : html`
             ?error="${this.hasPromptError_()}">
             ${this.isRefineLoading_ ? html`
               <cr-loading-gradient id="instructionsLoader">
-                <svg width="100%" height="90">
+                <svg width="100%" height="175">
                   <clipPath>
                     <rect x="10" y="14" width="90%" height="12" rx="4"></rect>
                     <rect x="10" y="38" width="90%" height="12" rx="4"></rect>
-                    <rect x="10" y="62" width="60%" height="12" rx="4"></rect>
+                    <rect x="10" y="62" width="90%" height="12" rx="4"></rect>
+                    <rect x="10" y="86" width="90%" height="12" rx="4"></rect>
+                    <rect x="10" y="110" width="90%" height="12" rx="4"></rect>
+                    <rect x="10" y="134" width="90%" height="12" rx="4"></rect>
+                    <rect x="10" y="158" width="60%" height="12" rx="4"></rect>
                   </clipPath>
                 </svg>
               </cr-loading-gradient>

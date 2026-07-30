@@ -185,7 +185,7 @@ bool MessagePumpEpoll::WatchFileDescriptor(int fd,
       .one_shot = !persistent,
   };
 
-  auto [it, is_new_fd_entry] = entries_.emplace(fd, fd);
+  auto [it, is_new_fd_entry] = entries_.try_emplace(fd, fd);
   EpollEventEntry& entry = it->second;
   scoped_refptr<Interest> existing_interest = controller->interest();
   if (existing_interest && existing_interest->params().IsEqual(params)) {
@@ -511,9 +511,9 @@ bool MessagePumpEpoll::WaitForEpollEvents(TimeDelta timeout) {
 }
 
 std::vector<struct pollfd>::iterator MessagePumpEpoll::FindPollEntry(int fd) {
-  return std::find_if(
-      pollfds_.begin(), pollfds_.end(),
-      [fd](const struct pollfd poll_entry) { return poll_entry.fd == fd; });
+  return std::ranges::find_if(pollfds_, [fd](const struct pollfd poll_entry) {
+    return poll_entry.fd == fd;
+  });
 }
 
 void MessagePumpEpoll::RemovePollEntry(int fd) {

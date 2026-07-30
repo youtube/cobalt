@@ -393,6 +393,7 @@
 <translation id="2359808026110333948">Naprej</translation>
 <translation id="2360196772093551345">Zahtevaj spletno mesto za mobilno napravo</translation>
 <translation id="2362083820973145409">Prijavljen kot <ph name="USER_NAME" />. <ph name="USER_EMAIL" />. Odpre nastavitve.</translation>
+<translation id="2367025302166767427">Težava pri izpolnjevanju podatkov</translation>
 <translation id="2371084566192454134">Zavihki in skupine zavihkov</translation>
 <translation id="2371303771137626249">Novo</translation>
 <translation id="2381405137052800939">Basics</translation>
@@ -480,6 +481,7 @@
 <translation id="2691653761409724435">Ni na voljo brez povezave</translation>
 <translation id="2697530870203420261">Neveljaven vzdevek</translation>
 <translation id="269819437389494246">Ogledate si lahko strani, ki ste jih obiskali, ali jih izbrišete iz zgodovine</translation>
+<translation id="2704295676501803339">Premik levo</translation>
 <translation id="2704606927547763573">Kopirano</translation>
 <translation id="2708051474374549906">Proaktivna sprotna zaščita pred nevarnimi spletnimi mesti, prenosi in razširitvami, ki temelji na podatkih brskanja, poslanih Googlu</translation>
 <translation id="2709516037105925701">Samodejno izpolnjevanje</translation>
@@ -1662,6 +1664,7 @@ Handoff must also be enabled in the General section of Settings, and your device
 <translation id="6899890595581608884">Obvestila varnostnega preverjanja so izklopljena</translation>
 <translation id="6900532703269623216">Izboljšana zaščita</translation>
 <translation id="6900702165119149418">Odjavljeni ste</translation>
+<translation id="6903282483217634857">Premik desno</translation>
 <translation id="6903907808598579934">Vklopi sinhronizacijo</translation>
 <translation id="6906448540340261898">Poskrbite, da boste v računu Google lahko vedno uporabljali gesla</translation>
 <translation id="6908734251759299256">Posodobite brskalnik</translation>
@@ -1724,6 +1727,7 @@ Handoff must also be enabled in the General section of Settings, and your device
 <translation id="7149893636342594995">Zadnjih 24 ur</translation>
 <translation id="7154417656353909837">Odstrani naslove</translation>
 <translation id="7161230316646448869">Sinhronizirajte zaznamke, zgodovino in drugo v vseh napravah</translation>
+<translation id="7165323152084385463">VIN</translation>
 <translation id="7173114856073700355">Odpri nastavitve</translation>
 <translation id="7173721738069475737">{count,plural, =1{Zaznamek je shranjen}one{{count} zaznamek je shranjen}two{{count} zaznamka sta shranjena}few{{count} zaznamki so shranjeni}other{{count} zaznamkov je shranjenih}}</translation>
 <translation id="7176183551031110427">Pomanjšava</translation>
@@ -2218,6 +2222,7 @@ Handoff must also be enabled in the General section of Settings, and your device
 <translation id="8863067612494559785">Pošiljanje v napravo <ph name="DEVICE_NAME" /> …</translation>
 <translation id="8863431381414769983">Pridobivanje navodil za pot in lokalnih informacij iz Google Zemljevidov</translation>
 <translation id="8871974300055371298">Nastavitve vsebine</translation>
+<translation id="8876661425082386199">Preverjanje povezave</translation>
 <translation id="8877788021141246043">Nastavi opomnik</translation>
 <translation id="8879604564928138696">Dvakrat se dotaknite, če želite poskusiti</translation>
 <translation id="8879952635974818770">Osebno prilagojena vsebina</translation>
@@ -2319,7 +2324,6 @@ Handoff must also be enabled in the General section of Settings, and your device
 <translation id="926455622548529175">Preklopi in izbriši</translation>
 <translation id="929748059769569925">Označeno besedilo</translation>
 <translation id="932305336591073205">{count,plural, =1{Zapri zavihek}one{Zapri zavihke}two{Zapri zavihke}few{Zapri zavihke}other{Zapri zavihke}}</translation>
-<translation id="932327136139879170">Domov</translation>
 <translation id="939472100615258482">Trenutna stran</translation>
 <translation id="939598580284253335">Vnesite geslo</translation>
 <translation id="939736085109172342">Nova mapa</translation>

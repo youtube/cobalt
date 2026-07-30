@@ -508,7 +508,6 @@ void LocationBarView::Init() {
     if (optimization_guide::features::ShouldEnableOptimizationGuideIconView()) {
       params.types_enabled.push_back(PageActionIconType::kOptimizationGuide);
     }
-    params.types_enabled.push_back(PageActionIconType::kAutofillAddress);
     params.types_enabled.push_back(PageActionIconType::kManagePasswords);
     if (!apps::features::ShouldShowLinkCapturingUX()) {
       params.types_enabled.push_back(PageActionIconType::kIntentPicker);
@@ -564,10 +563,6 @@ void LocationBarView::Init() {
     // meets AIM eligibility criteria.
     params.types_enabled.insert(params.types_enabled.begin(),
                                 PageActionIconType::kAiMode);
-  }
-
-  if (browser_ && tab_groups::SavedTabGroupUtils::SupportsSharedTabGroups()) {
-    params.types_enabled.push_back(PageActionIconType::kCollaborationMessaging);
   }
 
   if (browser_ && !is_popup_mode_) {
@@ -1256,6 +1251,10 @@ Browser* LocationBarView::GetBrowser() {
   return browser();
 }
 
+Profile* LocationBarView::GetProfile() {
+  return profile_;
+}
+
 bool LocationBarView::IsVisible() const {
   return GetVisible();
 }
@@ -1274,6 +1273,10 @@ void LocationBarView::InvalidateLayout() {
 
 gfx::Rect LocationBarView::Bounds() const {
   return bounds();
+}
+
+gfx::Rect LocationBarView::BoundsInScreen() const {
+  return GetBoundsInScreen();
 }
 
 gfx::Size LocationBarView::MinimumSize() const {
@@ -1369,10 +1372,10 @@ bool LocationBarView::ShouldHidePageActionIcon(
     return false;
   }
 
-  PinnedToolbarActionsContainer* pinned_toolbar_actions_container =
-      browser_view->toolbar()->pinned_toolbar_actions_container();
-  return pinned_toolbar_actions_container &&
-         pinned_toolbar_actions_container->IsActionPinnedOrPoppedOut(
+  PinnedToolbarActions* pinned_toolbar_actions =
+      browser_view->toolbar()->pinned_toolbar_actions();
+  return pinned_toolbar_actions &&
+         pinned_toolbar_actions->IsActionPinnedOrPoppedOut(
              icon_view->action_id().value_or(-1));
 }
 
@@ -1758,6 +1761,7 @@ bool LocationBarView::IsContentSettingBubbleShowing(size_t index) {
 
 void LocationBarView::OnBoundsChanged(const gfx::Rect& previous_bounds) {
   RefreshBackground();
+  NotifyBoundsChanged();
 }
 
 bool LocationBarView::GetNeedsNotificationWhenVisibleBoundsChange() const {

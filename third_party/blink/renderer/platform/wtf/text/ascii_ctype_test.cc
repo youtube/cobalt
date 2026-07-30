@@ -8,19 +8,19 @@
 
 namespace blink {
 
-TEST(ASCIICTypeTest, ASCIICaseFoldTable) {
+TEST(AsciiCTypeTest, ASCIICaseFoldTable) {
   LChar symbol = 0xff;
   while (symbol--) {
-    EXPECT_EQ(ToAsciiLower<LChar>(symbol), kASCIICaseFoldTable[symbol]);
+    EXPECT_EQ(ToAsciiLower<LChar>(symbol), kAsciiCaseFoldTable[symbol]);
   }
 }
 
-TEST(ASCIICTypeTest, IsASCIISpaceWHATWG) {
+TEST(AsciiCTypeTest, IsAsciiSpaceWhatwg) {
   char c = 0xFF;
   do {
     bool expected_whitespace =
         c == 0x9 || c == 0xA || c == 0xC || c == 0xD || c == 0x20;
-    EXPECT_EQ(IsASCIISpaceWHATWG(c), expected_whitespace);
+    EXPECT_EQ(IsAsciiSpaceWhatwg(c), expected_whitespace);
   } while (c--);
 }
 

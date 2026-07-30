@@ -1,5 +1,6 @@
 include_rules = [
   # keep-sorted start
+  "+components/account_settings",
   "+components/plus_addresses/core/browser",
   "+ios/chrome/browser/bubble/ui_bundled",
   "+ios/chrome/browser/device_reauth/model",
@@ -20,16 +21,3 @@ include_rules = [
   "+ios/chrome/browser/webdata_services/model/web_data_service_factory.h",
   # keep-sorted end
 ]
-
-specific_include_rules = {
-  # web::HttpServer is deprecated in favor of net::EmbeddedTestServer.
-  # TODO:(crbug.com/891834) Remove this exception.
-  "save_card_infobar_egtest\.mm": [
-    "+ios/web/public/test/http_server",
-  ],
-  # web::HttpServer is deprecated in favor of net::EmbeddedTestServer.
-  # TODO:(crbug.com/891834) Remove this exception.
-  "save_profile_egtest\.mm": [
-    "+ios/web/public/test/http_server",
-  ],
-}

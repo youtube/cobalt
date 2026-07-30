@@ -28,6 +28,7 @@ import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 import type {UnguessableToken} from 'chrome://resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
 import type {Uuid} from 'chrome://resources/mojo/mojo/public/mojom/base/uuid.mojom-webui.js';
+import type {Url} from 'chrome://resources/mojo/url/mojom/url.mojom-webui.js';
 
 import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
@@ -57,6 +58,8 @@ export type OnBeforeRequestDetails = Parameters<
 const VIEWPORT_HEIGHT_KEY = 'bih';
 const VIEWPORT_WIDTH_KEY = 'biw';
 
+const CHROME_TASK_PARAM_KEY = 'chrome_task_id';
+
 // The extra padding to add to the occluders to ensure that the composebox is
 // fully visible. This helps to account for inconsistencies between the bounding
 // boxes of the element, and what is actually rendered (for example, box shadows
@@ -77,20 +80,13 @@ export interface ContextualTasksAppElement {
   };
 }
 
-// Updates the params for task ID, thread ID, and turn ID in the URL without
-// reloading the page or adding to history.
-function updateTaskDetailsInUrl(
-    taskId: Uuid, threadId: string, turnId: string) {
+// Updates the param for task ID in the URL and adds an entry in history if it
+// changed.
+function updateTaskDetailsInUrl(taskId: Uuid) {
   const url = new URL(window.location.href);
 
-  const existingTaskId = url.searchParams.get('task');
-  url.searchParams.set('task', taskId.value);
-
-  threadId ? url.searchParams.set('thread', threadId) :
-             url.searchParams.delete('thread');
-
-  turnId ? url.searchParams.set('turn', turnId) :
-           url.searchParams.delete('turn');
+  const existingTaskId = url.searchParams.get(CHROME_TASK_PARAM_KEY);
+  url.searchParams.set(CHROME_TASK_PARAM_KEY, taskId.value);
 
   // Allow back navigation if the task ID changes. Other changes to the URL
   // represent state changes for the current task.
@@ -101,37 +97,34 @@ function updateTaskDetailsInUrl(
   }
 }
 
-// Preserve the aim url to the search param named aim_url used for reload and
-// session restore.
-function updateAimUrl(aimUrl: any) {
-  const url = new URL(window.location.href);
-  url.searchParams.set('aim_url', aimUrl);
-  window.history.replaceState({}, '', url.href);
+// Copy the params from the current aim URL to the webui URL without adding a
+// history entry. Keeping the params in sync ensures the page reloads or
+// restores correctly.
+function updateWebuiParams(aimUrl: Url) {
+  const webuiUrl = new URL(window.location.href);
+
+  const taskId = webuiUrl.searchParams.get(CHROME_TASK_PARAM_KEY);
+
+  // Clear the existing params
+  webuiUrl.search = '';
+
+  // Add all the params from the aim URL.
+  new URL(aimUrl).searchParams.forEach(
+      (value, key) => webuiUrl.searchParams.set(key, value));
+
+  // Add the task ID back to the params if it was there to begin with.
+  if (taskId) {
+    webuiUrl.searchParams.set(CHROME_TASK_PARAM_KEY, taskId);
+  }
+
+  window.history.replaceState({}, '', webuiUrl.href);
 }
 
-// Updates param for the title in the WebUI URL. This facilitates the restore
-// flow on refresh or restart.
-function updateTitleInUrl(title: string) {
-  const url = new URL(window.location.href);
-
-  url.searchParams.set('title', title);
-
-  window.history.replaceState({}, '', url.href);
-}
-
-// Returns whether the URL that is used in the embedded thread frame has
-// appropriate params to load an existing thread, as opposed to the default
-// zero-state.
-function embeddedUrlHasThreadParams(url: URL): boolean {
+// Returns whether the provided URL has the appropriate params to load an
+// existing thread, as opposed to the default zero-state.
+function urlHasThreadParams(url: URL): boolean {
   return url.searchParams.has('mstk') && url.searchParams.has('mtid') &&
       url.searchParams.has('q');
-}
-
-// Returns whether the WebUI URL (the outer frame) has params that facilitate
-// loading an existing thread as opposed to the default zero state.
-function webUiUrlHasThreadParams(url: URL): boolean {
-  return url.searchParams.has('thread') && url.searchParams.has('turn') &&
-      url.searchParams.has('title');
 }
 
 function applyWebUiParamsToThreadUrl(threadUrl: URL, webUiUrl: URL) {
@@ -285,6 +278,11 @@ export class ContextualTasksAppElement extends CrLitElement {
       loadTimeData.getString('forcedEmbeddedPageHost');
   private signInDomains_: string[] =
       loadTimeData.getString('contextualTasksSignInDomains').split(',');
+  // Whether the composebox jump fix is enabled. This fix hides the composebox
+  // until the server gives the embedded page gives the initial bounds for the
+  // composebox.
+  private enableComposeboxJumpFix_: boolean =
+      loadTimeData.getBoolean('enableComposeboxJumpFix');
   private enableGhostLoader_: boolean =
       loadTimeData.getBoolean('enableGhostLoader');
   // A callback to allow tests to wait until the popstate handler in this class
@@ -326,7 +324,6 @@ export class ContextualTasksAppElement extends CrLitElement {
           () => this.updateSidePanelState()),
       callbackRouter.setThreadTitle.addListener((title: string) => {
         this.threadTitle_ = title;
-        updateTitleInUrl(title);
         document.title = title || loadTimeData.getString('title');
       }),
       callbackRouter.onAiPageStatusChanged.addListener((isAiPage: boolean) => {
@@ -391,15 +388,14 @@ export class ContextualTasksAppElement extends CrLitElement {
             this.composebox_?.deleteFile(fileToken);
           }),
       callbackRouter.setTaskDetails.addListener(updateTaskDetailsInUrl),
-      callbackRouter.setAimUrl.addListener(updateAimUrl),
+      callbackRouter.setAimUrl.addListener(updateWebuiParams),
       callbackRouter.onZeroStateChange.addListener((isZeroState: boolean) => {
-        const wasZeroState = this.isZeroState_;
         this.isZeroState_ = isZeroState;
         // If we just changed to zero state, that means
         // it is a new thread or new AIM page. Otherwise,
         // we are not in zero state anymore, or not in an AIM URL. In
         // both thread/AIM cases for zero state, we clear input.
-        if (isZeroState && !wasZeroState) {
+        if (isZeroState) {
           this.composebox_?.clearInputAndFocus();
           // Reset the forced composebox bounds since the zero state position
           // is controlled natively.
@@ -442,7 +438,8 @@ export class ContextualTasksAppElement extends CrLitElement {
     this.eventTracker_.add(window, 'popstate', async () => {
       // The back button may pop state that was pushed by a task change. If that
       // is the case, fetch the URL for the task ID and load that in the frame.
-      const taskUuid = new URLSearchParams(location.search).get('task');
+      const taskUuid =
+          new URLSearchParams(location.search).get(CHROME_TASK_PARAM_KEY);
       if (taskUuid) {
         const {url} =
             await this.browserProxy_.handler.getUrlForTask({value: taskUuid});
@@ -484,7 +481,7 @@ export class ContextualTasksAppElement extends CrLitElement {
 
     // Check if the URL that loaded this page has a task attached to it. If it
     // does, we'll use the tasks URL to load the embedded page.
-    const taskUuid = webUiUrlOnLoad.searchParams.get('task');
+    const taskUuid = webUiUrlOnLoad.searchParams.get(CHROME_TASK_PARAM_KEY);
     let threadUrl = '';
     if (taskUuid) {
       const {url} =
@@ -787,6 +784,31 @@ export class ContextualTasksAppElement extends CrLitElement {
     }
   }
 
+  protected isComposeboxHidden_(): boolean {
+    // Stay hidden until the first isZeroState_ value is determined to prevent
+    // the composebox from flickering in.
+    if (this.isZeroState_ === undefined) {
+      return true;
+    }
+
+    // If using the basic mode without z-ordering, if in basic mode, hide the
+    // composebox.
+    if (this.enableBasicMode_ && this.isInBasicMode_ &&
+        !this.enableBasicModeZOrder_) {
+      return true;
+    }
+
+    // If on an AI page and not the zero state, only show the composebox if the
+    // forcedcomposeboxBounds are set. No-op if the feature flag is not enabled.
+    if (this.enableComposeboxJumpFix_ && this.isAiPage_ && !this.isZeroState_ &&
+        !this.forcedComposeboxBounds_) {
+      return true;
+    }
+
+    // In all other cases, show the composebox.
+    return false;
+  }
+
   getComposeboxBoundsStyles() {
     if (this.isZeroState_ || !this.forcedComposeboxBounds_) {
       return '';
@@ -917,12 +939,12 @@ export class ContextualTasksAppElement extends CrLitElement {
     // TODO(470107169): The ContextualTasksService should provide this URL
     //                  based on task ID alone.
     const updatedThreadUrl = new URL(threadUrl.href);
-    const threadUrlHasParams = embeddedUrlHasThreadParams(updatedThreadUrl);
-    const webUiUrlHasParams = webUiUrlHasThreadParams(webUiUrl);
+    const threadUrlHasParams = urlHasThreadParams(updatedThreadUrl);
+    const webUiUrlHasParams = urlHasThreadParams(webUiUrl);
     if (!threadUrlHasParams && webUiUrlHasParams) {
       applyWebUiParamsToThreadUrl(updatedThreadUrl, webUiUrl);
       this.threadTitle_ =
-          webUiUrl.searchParams.get('title') || loadTimeData.getString('title');
+          webUiUrl.searchParams.get('q') || loadTimeData.getString('title');
       document.title = this.threadTitle_;
     }
 
@@ -1140,6 +1162,18 @@ export class ContextualTasksAppElement extends CrLitElement {
 
   setIsZeroStateForTesting(isZeroState: boolean) {
     this.isZeroState_ = isZeroState;
+  }
+
+  setForcedComposeboxBoundsForTesting(bounds: Rect|null) {
+    this.forcedComposeboxBounds_ = bounds;
+  }
+
+  getOccludersForTesting(): Rect[]|null {
+    return this.occluders_;
+  }
+
+  getPendingBasicModeForTesting(): boolean|null {
+    return this.pendingBasicMode_;
   }
 
   private updateBackgroundColor_() {

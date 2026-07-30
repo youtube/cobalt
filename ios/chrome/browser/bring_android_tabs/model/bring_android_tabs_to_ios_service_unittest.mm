@@ -28,6 +28,7 @@
 #import "components/sync/test/test_sync_service.h"
 #import "components/sync_device_info/device_info.h"
 #import "components/sync_device_info/fake_device_info_tracker.h"
+#import "components/sync_sessions/mock_session_sync_service.h"
 #import "components/sync_sessions/open_tabs_ui_delegate.h"
 #import "components/sync_sessions/session_sync_service.h"
 #import "components/sync_sessions/session_sync_test_helper.h"
@@ -108,23 +109,6 @@ class FakeDeviceSwitcherResultDispatcher
   const char* classification_label_;
 };
 
-// Mock SessionSyncService used to override the call to GetOpenTabsUIDelegate().
-// SessionSyncService is a dependency of BringAndroidTabsToIOSService.
-class MockSessionSyncService : public sync_sessions::SessionSyncService {
- public:
-  MOCK_METHOD(sync_sessions::OpenTabsUIDelegate*,
-              GetOpenTabsUIDelegate,
-              (),
-              (override));
-  MOCK_METHOD(syncer::GlobalIdMapper*, GetGlobalIdMapper, (), (const));
-  MOCK_METHOD(base::CallbackListSubscription,
-              SubscribeToForeignSessionsChanged,
-              (const base::RepeatingClosure&));
-  MOCK_METHOD(base::WeakPtr<syncer::DataTypeControllerDelegate>,
-              GetControllerDelegate,
-              ());
-};
-
 // Mock OpenTabsUIDelegate that takes the time the SyncedSession was last
 // modified as input and creates a fake open tab. OpenTabsUIDelegate is a
 // dependency of SessionSyncService.
@@ -189,7 +173,7 @@ class MockOpenTabsUIDelegate : public sync_sessions::OpenTabsUIDelegate {
   // Returns a fake session with modified time `modified_time_` and form factor
   // type `device_form_factor`.
   sync_sessions::SyncedSession* Session(
-      sync_pb::SyncEnums::DeviceType device_type,
+      syncer::DeviceInfo::DeviceType device_type,
       syncer::DeviceInfo::FormFactor device_form_factor) {
     sync_sessions::SyncedSession* session = new sync_sessions::SyncedSession();
     session->SetDeviceTypeAndFormFactor(device_type, device_form_factor);
@@ -208,12 +192,12 @@ class MockOpenTabsUIDelegate : public sync_sessions::OpenTabsUIDelegate {
                                        VectorExperimental>>* sessions) {
               for (size_t i = 0; i < kPhoneSessionCount; i++) {
                 sessions->push_back(
-                    Session(sync_pb::SyncEnums_DeviceType_TYPE_PHONE,
+                    Session(syncer::DeviceInfo::DeviceType::kPhone,
                             syncer::DeviceInfo::FormFactor::kPhone));
               }
               for (size_t i = 0; i < kTabletSessionCount; i++) {
                 sessions->push_back(
-                    Session(sync_pb::SyncEnums_DeviceType_TYPE_TABLET,
+                    Session(syncer::DeviceInfo::DeviceType::kTablet,
                             syncer::DeviceInfo::FormFactor::kTablet));
               }
               return true;
@@ -303,7 +287,7 @@ class BringAndroidTabsToIOSServiceTest : public PlatformTest {
     // only used in `LoadTabs()`, therefore they can be scoped within this
     // method.
     auto session_sync_service =
-        std::make_unique<bring_android_tabs::MockSessionSyncService>();
+        std::make_unique<sync_sessions::MockSessionSyncService>();
     ON_CALL(*session_sync_service, GetOpenTabsUIDelegate)
         .WillByDefault(testing::Return(open_ui_delegate_.get()));
     const char* classification_label =

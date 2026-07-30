@@ -13,6 +13,8 @@ namespace accessibility_annotator {
 
 BASE_DECLARE_FEATURE(kContentAnnotator);
 BASE_DECLARE_FEATURE(kAccessibilityAnnotator);
+BASE_DECLARE_FEATURE(kAccessibilityAnnotatorFirstRun);
+BASE_DECLARE_FEATURE(kAccessibilityAnnotatorGetEntities);
 
 BASE_DECLARE_FEATURE_PARAM(int, kContentAnnotatorMaxPendingUrls);
 BASE_DECLARE_FEATURE_PARAM(std::string,
@@ -30,8 +32,12 @@ BASE_DECLARE_FEATURE_PARAM(int, kContentAnnotatorMaxCacheAnnotations);
 BASE_DECLARE_FEATURE_PARAM(std::string,
                            kContentAnnotatorClassifierSemanticMatchRules);
 BASE_DECLARE_FEATURE_PARAM(double, kContentAnnotatorSemanticMatchThreshold);
+BASE_DECLARE_FEATURE_PARAM(std::string,
+                           kContentAnnotatorExtractedDataValidationSchema);
 
 BASE_DECLARE_FEATURE(kAccessibilityAnnotationReducerOnePResolver);
+
+BASE_DECLARE_FEATURE_PARAM(std::string, kAccessibilityAnnotatorOnePServiceUrl);
 
 }  // namespace accessibility_annotator
 

@@ -12,6 +12,8 @@
 #import "components/feature_engagement/public/event_constants.h"
 #import "components/feature_engagement/public/tracker.h"
 #import "components/send_tab_to_self/features.h"
+#import "ios/chrome/browser/assistant/coordinator/assistant_container_commands.h"
+#import "ios/chrome/browser/assistant/ui/assistant_container_detent.h"
 #import "ios/chrome/browser/bookmarks/model/bookmark_model_factory.h"
 #import "ios/chrome/browser/browser_content/ui_bundled/browser_content_mediator.h"
 #import "ios/chrome/browser/bubble/model/tab_based_iph_browser_agent.h"
@@ -19,6 +21,7 @@
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/lens_overlay/coordinator/lens_overlay_availability.h"
+#import "ios/chrome/browser/ntp/model/new_tab_page_util.h"
 #import "ios/chrome/browser/overlays/model/public/overlay_presenter.h"
 #import "ios/chrome/browser/policy/model/browser_management_service_factory.h"
 #import "ios/chrome/browser/popup_menu/coordinator/popup_menu_help_coordinator.h"
@@ -46,6 +49,7 @@
 #import "ios/chrome/browser/shared/public/commands/browser_commands.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
 #import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
+#import "ios/chrome/browser/shared/public/commands/cobalt_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/find_in_page_commands.h"
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
@@ -68,6 +72,7 @@
 #import "ios/chrome/browser/shared/public/commands/whats_new_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/public/features/system_flags.h"
+#import "ios/chrome/browser/shared/ui/elements/invisible_arrow_popover_background_view.h"
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/shared/ui/util/util_swift.h"
@@ -77,6 +82,7 @@
 #import "ios/chrome/browser/sync/model/sync_service_factory.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
 #import "ios/chrome/browser/web/model/web_navigation_browser_agent.h"
+#import "ios/chrome/common/material_timing.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/web/public/web_state.h"
@@ -126,6 +132,10 @@ using base::UserMetricsAction;
   // Stores whether certain events occurred during an overflow menu session for
   // logs.
   OverflowMenuVisitedEvent _event;
+
+  // When the user is taking an action (and not a destination), this is storing
+  // the type of action taken.
+  std::optional<overflow_menu::ActionType> _actionTriggered;
 }
 
 @synthesize UIUpdater = _UIUpdater;
@@ -187,6 +197,17 @@ using base::UserMetricsAction;
   id<BrowserCoordinatorCommands> browserCoordinatorHandler = HandlerForProtocol(
       self.browser->GetCommandDispatcher(), BrowserCoordinatorCommands);
   [browserCoordinatorHandler hideComposebox];
+
+  CommandDispatcher* commandDispatcher = self.browser->GetCommandDispatcher();
+  if ([commandDispatcher
+          dispatchingForProtocol:@protocol(AssistantContainerCommands)]) {
+    id<AssistantContainerCommands> assistantContainerHandler =
+        HandlerForProtocol(commandDispatcher, AssistantContainerCommands);
+    [assistantContainerHandler
+        animateAssistantContainerToDetent:AssistantContainerDetent::kMinimized
+                                 duration:kMaterialDuration1
+                                    curve:UIViewAnimationCurveEaseInOut];
+  }
 
   id<BrowserCommands> callableDispatcher =
       HandlerForProtocol(self.browser->GetCommandDispatcher(), BrowserCommands);
@@ -250,6 +271,7 @@ using base::UserMetricsAction;
   mediator.settingsHandler = HandlerForProtocol(dispatcher, SettingsCommands);
   mediator.tabGroupsHandler = HandlerForProtocol(dispatcher, TabGroupsCommands);
   mediator.bookmarksHandler = HandlerForProtocol(dispatcher, BookmarksCommands);
+  mediator.cobaltHandler = HandlerForProtocol(dispatcher, CobaltCommands);
   if (IsLensOverlayAllowedByPolicy(profile->GetPrefs())) {
     mediator.lensOverlayHandler =
         HandlerForProtocol(dispatcher, LensOverlayCommands);
@@ -347,21 +369,16 @@ using base::UserMetricsAction;
   UILayoutGuide* layoutGuide =
       [layoutGuideCenter makeLayoutGuideNamed:kToolsMenuGuide];
   [self.baseViewController.view addLayoutGuide:layoutGuide];
-  CGRect frame = layoutGuide.layoutFrame;
   menu.modalPresentationStyle = UIModalPresentationPopover;
 
   UIPopoverPresentationController* popoverPresentationController =
       menu.popoverPresentationController;
-
-  // Hides the arrow on the popover.
-  popoverPresentationController.permittedArrowDirections = 0;
+  popoverPresentationController.popoverBackgroundViewClass =
+      [InvisibleArrowPopoverBackgroundView class];
   popoverPresentationController.sourceView = self.baseViewController.view;
-  // With permittedArrowDirections = 0 (no arrow), apply an offset to position
-  // the popover approximately where it would be with an arrow-up.
-  popoverPresentationController.sourceRect =
-      CGRectMake(frame.origin.x, frame.origin.y + 360, frame.size.width,
-                 frame.size.height);
-
+  popoverPresentationController.sourceRect = layoutGuide.layoutFrame;
+  popoverPresentationController.permittedArrowDirections =
+      UIPopoverArrowDirectionUp;
   popoverPresentationController.delegate = self;
   popoverPresentationController.backgroundColor =
       [UIColor colorNamed:kBackgroundColor];
@@ -450,6 +467,19 @@ using base::UserMetricsAction;
     self.overflowMenuUserSelectedAction = NO;
     self.overflowMenuUserSelectedDestination = NO;
     self.overflowMenuUserScrolledToEndOfActions = NO;
+  }
+
+  if (_actionTriggered) {
+    IOSOverflowMenuAction UMAAction =
+        HistogramActionFromActionType(_actionTriggered.value());
+    base::UmaHistogramEnumeration("IOS.OverflowMenu.ActionTriggered",
+                                  UMAAction);
+    if (IsVisibleURLNewTabPage(
+            self.browser->GetWebStateList()->GetActiveWebState())) {
+      base::UmaHistogramEnumeration("IOS.OverflowMenu.ActionTriggeredOnNTP",
+                                    UMAAction);
+    }
+    _actionTriggered.reset();
   }
 
   if (self.overflowMenuMediator) {
@@ -591,8 +621,12 @@ using base::UserMetricsAction;
   _event.Put(OverflowMenuVisitedEventFields::kUserScrolledHorizontally);
 }
 
-- (void)popupMenuTookAction {
+- (void)popupMenuTriggerElement {
   self.toolsMenuUserTookAction = YES;
+}
+
+- (void)popupMenuDidTriggerAction:(NSInteger)actionType {
+  _actionTriggered = static_cast<overflow_menu::ActionType>(actionType);
 }
 
 - (void)popupMenuUserSelectedAction {

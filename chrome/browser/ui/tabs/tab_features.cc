@@ -18,9 +18,10 @@
 #include "chrome/browser/browsing_topics/browsing_topics_service_factory.h"
 #include "chrome/browser/commerce/shopping_service_factory.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
-#include "chrome/browser/contextual_cueing/contextual_cueing_helper.h"
 #include "chrome/browser/enterprise/data_protection/data_protection_navigation_controller.h"
 #include "chrome/browser/enterprise/reporting/saas_usage/saas_usage_navigation_observer.h"
+#include "chrome/browser/glic/host/context/glic_page_features_manager.h"
+#include "chrome/browser/glic/suggestions/contextual_cueing_helper.h"
 #include "chrome/browser/image_fetcher/image_fetcher_service_factory.h"
 #include "chrome/browser/indigo/indigo_page_action_controller.h"
 #include "chrome/browser/loader/from_gws_navigation_and_keep_alive_request_observer.h"
@@ -95,7 +96,6 @@
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "components/contextual_tasks/public/features.h"
 #include "components/enterprise/browser/reporting/reporting_features.h"
-
 #include "components/multistep_filter/core/features.h"
 #include "components/skills/features.h"
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
@@ -111,12 +111,12 @@
 #include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/public/widget/glic_side_panel_coordinator_impl.h"
 #include "chrome/browser/glic/selection/selection_overlay_controller.h"
 #include "chrome/browser/glic/service/glic_instance_helper.h"
 #include "chrome/browser/skills/skills_ui_tab_controller.h"
 #include "chrome/browser/ui/contextual_search/tab_contextualization_controller.h"
 #include "chrome/browser/ui/tabs/features.h"
-#include "chrome/browser/ui/views/side_panel/glic/glic_side_panel_coordinator_impl.h"
 #include "chrome/browser/web_applications/web_app_tab_helper.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "chrome/common/chrome_features.h"
@@ -322,8 +322,7 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
           std::make_unique<RollBackModeBInfoBarController>(tab.GetContents());
     }
 
-    contextual_cueing::ContextualCueingHelper::MaybeCreateForWebContents(
-        tab.GetContents());
+    glic::ContextualCueingHelper::MaybeCreateForWebContents(tab.GetContents());
 
     if (tab_groups::TabGroupSyncService* tab_group_sync_service =
             tab_groups::TabGroupSyncServiceFactory::GetForProfile(profile)) {
@@ -345,8 +344,7 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
                                                                          &tab);
     }
 
-    if (IsPageActionMigrated(PageActionIconType::kCollaborationMessaging) &&
-        tab_groups::SavedTabGroupUtils::SupportsSharedTabGroups()) {
+    if (tab_groups::SavedTabGroupUtils::SupportsSharedTabGroups()) {
       collaboration_messaging_page_action_controller_ =
           GetUserDataFactory()
               .CreateInstance<CollaborationMessagingPageActionController>(
@@ -368,6 +366,12 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
       if (base::FeatureList::IsEnabled(features::kGlicSelectionPrompt)) {
         glic_selection_observer_ =
             std::make_unique<glic::GlicSelectionObserver>(tab.GetContents());
+      }
+      if (base::FeatureList::IsEnabled(
+              features::kGlicSummarizeVideoSuggestion)) {
+        glic_page_features_manager_ =
+            GetUserDataFactory().CreateInstance<glic::GlicPageFeaturesManager>(
+                tab, &tab);
       }
     }
     if (glic::GlicEnabling::IsMultiInstanceEnabled() &&

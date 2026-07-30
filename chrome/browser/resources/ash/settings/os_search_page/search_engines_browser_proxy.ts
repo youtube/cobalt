@@ -10,7 +10,7 @@
 import {sendWithPromise} from 'chrome://resources/js/cr.js';
 
 /**
- * @see chrome/browser/ui/webui/settings/search_engine_manager_handler.cc
+ * @see chrome/browser/ui/webui/settings/search_engines_handler.cc
  */
 export interface SearchEngine {
   canBeDefault: boolean;
@@ -28,7 +28,6 @@ export interface SearchEngine {
   id: number;
   isOmniboxExtension: boolean;
   keyword: string;
-  modelIndex: number;
   name: string;
   url: string;
   urlLocked: boolean;
@@ -41,7 +40,16 @@ export interface SearchEnginesInfo {
   extensions: SearchEngine[];
 }
 
+export interface CategorizedTemplateUrls {
+  activeSiteShortcuts: SearchEngine[];
+  inactiveSiteShortcuts: SearchEngine[];
+  activeFeatureShortcuts: SearchEngine[];
+  inactiveFeatureShortcuts: SearchEngine[];
+  [key: string]: SearchEngine[];
+}
+
 export interface SearchEnginesBrowserProxy {
+  getCategorizedTemplateUrls(): Promise<CategorizedTemplateUrls>;
   getSearchEnginesList(): Promise<SearchEnginesInfo>;
   openBrowserSearchSettings(): void;
 }
@@ -56,6 +64,10 @@ export class SearchEnginesBrowserProxyImpl implements
 
   static setInstanceForTesting(obj: SearchEnginesBrowserProxy): void {
     instance = obj;
+  }
+
+  getCategorizedTemplateUrls(): Promise<CategorizedTemplateUrls> {
+    return sendWithPromise('getCategorizedTemplateUrls');
   }
 
   getSearchEnginesList(): Promise<SearchEnginesInfo> {

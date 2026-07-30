@@ -1084,7 +1084,7 @@ AXObject* AXObjectCacheImpl::FocusedObject() const {
     // gets trimmed.
     // In these cases, treat the focus as on the root object itself, so that
     // AT users have some starting point.
-    DLOG(ERROR) << "The focus was not part of the a11y tree: " << FocusedNode();
+    DLOG(INFO) << "The focus was not part of the a11y tree: " << FocusedNode();
     return Get(document_);
   }
 
@@ -1375,6 +1375,11 @@ bool AXObjectCacheImpl::IsRelevantPseudoElement(const Node& node) {
     // option::checkmark is decorative and redundant with the checked state of
     // the option element.
     if (node.IsCheckPseudoElement()) {
+      return false;
+    }
+    // ::expand-icon should not generate anything in the a11y tree for the same
+    // reason as ::picker-icon.
+    if (node.GetPseudoId() == kPseudoIdExpandIcon) {
       return false;
     }
     // Scroll control pseudo-elements are always relevant when they have a

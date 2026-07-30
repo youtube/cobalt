@@ -348,6 +348,7 @@
 <translation id="2496180316473517155">Ιστορικό περιήγησης</translation>
 <translation id="2497852260688568942">Ο συγχρονισμός έχει απενεργοποιηθεί από τον διαχειριστή σας</translation>
 <translation id="250020030759455918">Θα δείτε στο Chrome την κατάσταση σύνδεσής σας στον ιστότοπο <ph name="SITE_NAME" />, τα δεδομένα περιήγησης και τα δεδομένα ιστοτόπου.</translation>
+<translation id="2501278716633472235">Επιστροφή</translation>
 <translation id="2510106555128151389">Εγκατάσταση <ph name="WEBAPK_NAME" />…</translation>
 <translation id="2512234228327349533">Αναζήτηση επιλογών αγοράς</translation>
 <translation id="2513403576141822879">Για περισσότερες ρυθμίσεις που σχετίζονται με το απόρρητο, την ασφάλεια και τη συλλογή δεδομένων, ανατρέξτε στην ενότητα <ph name="BEGIN_LINK" />Συγχρονισμός και υπηρεσίες Google<ph name="END_LINK" /></translation>
@@ -797,6 +798,7 @@
 <translation id="4384468725000734951">Χρήση του Sogou για αναζήτηση</translation>
 <translation id="4387647248986092471">Δημιουργία κλειδώματος προφίλ αυτοκινήτου</translation>
 <translation id="4387817230000841154">Άνοιγμα Λήψεων</translation>
+<translation id="4394049700291259645">Απενεργοποίηση</translation>
 <translation id="4395046795145457714">Το φύλλο δήλωσης συμμετοχής στα Ευρήματα Chrome άνοιξε σε πλήρες ύψος</translation>
 <translation id="4398561997852463382"><ph name="TAB_TITLE" />, Επιλεγμένη καρφιτσωμένη καρτέλα ανώνυμης περιήγησης που κάνει εγγραφή</translation>
 <translation id="4402611456429872546"><ph name="LANG" /> - Λήψη…</translation>
@@ -821,7 +823,6 @@
 <translation id="4478161224666880173">Μπορείτε να χρησιμοποιήσετε τον λογαριασμό σας <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> σε αυτόν τον ιστότοπο. Για να συνεχίσετε, συνδεθείτε στο <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" />.</translation>
 <translation id="4479972344484327217">Εγκατάσταση <ph name="MODULE" /> για το Chrome…</translation>
 <translation id="4487967297491345095">Όλα τα δεδομένα εφαρμογών του Chrome θα διαγραφούν οριστικά. Σε αυτά περιλαμβάνονται όλα τα αρχεία, οι ρυθμίσεις, οι λογαριασμοί, οι βάσεις δεδομένων, κ.λπ.</translation>
-<translation id="4494315997125191493">Επιλέξτε Διαχείριση, για να δείτε όλα τα παράθυρα</translation>
 <translation id="4494806687727322324">Η αποθήκευση κωδικών πρόσβασης ενεργοποιήθηκε από τον διαχειριστή σας</translation>
 <translation id="4508528996305412043">Το μενού της κάρτας ροής είναι ανοικτό</translation>
 <translation id="4509741852167209430">Κοινοποιούνται περιορισμένοι τύποι δεδομένων μεταξύ των ιστοτόπων για τη μέτρηση της απόδοσης των διαφημίσεών τους, όπως το αν κάνατε κάποια αγορά μετά την επίσκεψη σε κάποιον ιστότοπο</translation>
@@ -869,7 +870,6 @@
 <translation id="4673702426794876519">Ανώνυμη περιήγηση</translation>
 <translation id="4675298276894277358">Αυτός ο ιστότοπος δεν θα εμφανιστεί ξανά</translation>
 <translation id="4678082183394354975">Το σκούρο θέμα για ιστοτόπους ενεργοποιήθηκε στο Chrome.</translation>
-<translation id="4682306524980568490">Μπορούν να εμφανίζονται μόνο <ph name="MAX_INSTANCE_COUNT" /> παράθυρα</translation>
 <translation id="4684427112815847243">Συγχρονισμός όλων</translation>
 <translation id="4685741273709472646">Επιλέξτε από την αναπτυσσόμενη λίστα</translation>
 <translation id="4687718960473379118">Διαφημίσεις που προτείνονται από ιστότοπο</translation>
@@ -1492,7 +1492,6 @@
 <translation id="7057969023583258980">Άνοιγμα πλήρους ιστορικού Chrome</translation>
 <translation id="7063006564040364415">Δεν ήταν δυνατή η σύνδεση στον διακομιστή συγχρονισμού.</translation>
 <translation id="7063106218165698546">Προσαρμόστε την ομάδα καρτελών και πατήστε Τέλος</translation>
-<translation id="7071521146534760487">Διαχείριση λογαριασμού</translation>
 <translation id="707155805709242880">Επιλέξτε παρακάτω τι θέλετε να συγχρονίσετε.</translation>
 <translation id="7072949719501323344"><ph name="TAB_TITLE" />, Καρφιτσωμένη καρτέλα ανώνυμης περιήγησης Picture-in-Picture με πολλαπλή επιλογή</translation>
 <translation id="7077143737582773186">Secure Digital</translation>
@@ -1821,6 +1820,7 @@
 <translation id="8282950411412455249">Μετάβαση στις ρυθμίσεις ασφαλείας</translation>
 <translation id="8288688997999490824">{NUM_WINDOWS,plural, =1{Κλείσιμο 1 παραθύρου για ανώνυμη περιήγηση}other{Κλείσιμο # παραθύρων για ανώνυμη περιήγηση}}</translation>
 <translation id="831192587911042850">Προσθέτει τον τρέχοντα ιστότοπο στη λίστα των ιστοτόπων που ακολουθείτε.</translation>
+<translation id="8313599942510782709">Η εργασία σας βρίσκεται ακόμη σε εξέλιξη</translation>
 <translation id="8317318757008452355">Άνοιγμα επιλογών για εκτύπωση</translation>
 <translation id="8320212361750431956">Πρόσφατη δραστηριότητα</translation>
 <translation id="832514020744584629"><ph name="PREF_TITLE" />  <ph name="BEGIN_NEW" />Νέο<ph name="END_NEW" /></translation>

@@ -7,13 +7,6 @@
 load("@chromium-luci//gn_args.star", "gn_args")
 
 gn_args.config(
-    name = "afl",
-    args = {
-        "use_afl": True,
-    },
-)
-
-gn_args.config(
     name = "amd64-generic",
     args_file = "//build/args/chromeos/amd64-generic.gni",
 )
@@ -574,6 +567,16 @@ gn_args.config(
     name = "enable_android_secondary_abi",
     args = {
         "enable_android_secondary_abi": True,
+    },
+)
+
+# Enables Asan backup ref ptr v2 service for Asan build. This enables raw_ptr
+# refcount emulation on Asan build, but at the cost of some runtime
+# performance. This feature depends on Asan, BackupRefPtr, and Asan hooks.
+gn_args.config(
+    name = "enable_asan_backup_ref_ptr_v2",
+    args = {
+        "use_asan_backup_ref_ptr_v2": True,
     },
 )
 

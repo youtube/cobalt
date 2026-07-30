@@ -13,9 +13,7 @@
 #include "ash/system/tray/imaged_tray_icon.h"
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
-#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
-#include "ui/views/accessibility/view_accessibility.h"
 
 namespace ash {
 
@@ -24,17 +22,16 @@ StopRecordingButtonTray::StopRecordingButtonTray(Shelf* shelf)
           shelf,
           ui::ImageModel::FromVectorIcon(kCaptureModeCircleStopIcon,
                                          kColorAshIconColorAlert),
-          l10n_util::GetStringUTF16(
-              IDS_ASH_STATUS_AREA_STOP_RECORDING_BUTTON_ACCESSIBLE_NAME),
+          /*tooltip=*/
+          IDS_ASH_STATUS_AREA_STOP_RECORDING_BUTTON_ACCESSIBLE_NAME,
+          /*accessibility_name=*/
+          IDS_ASH_STATUS_AREA_STOP_RECORDING_BUTTON_ACCESSIBLE_NAME,
           TrayBackgroundViewCatalogName::kScreenCaptureStopRecording) {
   SetCallback(base::BindRepeating([](const ui::Event& event) {
     base::RecordAction(base::UserMetricsAction("Tray_StopRecording"));
     CaptureModeController::Get()->EndVideoRecording(
         EndRecordingReason::kStopRecordingButton);
   }));
-
-  GetViewAccessibility().SetName(l10n_util::GetStringUTF16(
-      IDS_ASH_STATUS_AREA_STOP_RECORDING_BUTTON_ACCESSIBLE_NAME));
 }
 
 StopRecordingButtonTray::~StopRecordingButtonTray() = default;

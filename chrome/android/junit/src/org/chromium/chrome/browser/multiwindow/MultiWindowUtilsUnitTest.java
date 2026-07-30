@@ -8,11 +8,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -28,6 +25,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
+import android.os.Build;
 import android.os.Build.VERSION_CODES;
 import android.os.PersistableBundle;
 
@@ -43,6 +41,7 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
+import org.robolectric.util.ReflectionHelpers;
 
 import org.chromium.base.ActivityState;
 import org.chromium.base.ApplicationStatus;
@@ -52,7 +51,6 @@ import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.DisabledTest;
-import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
@@ -115,8 +113,6 @@ public class MultiWindowUtilsUnitTest {
     private boolean mIsInMultiWindowMode;
     private boolean mIsInMultiDisplayMode;
     private boolean mIsMultipleInstanceRunning;
-    private boolean mIsAutosplitSupported;
-    private boolean mCustomMultiWindowSupported;
     private Boolean mOverrideOpenInNewWindowSupported;
 
     @Mock TabModelSelector mTabModelSelector;
@@ -153,16 +149,6 @@ public class MultiWindowUtilsUnitTest {
                     @Override
                     public boolean areMultipleChromeInstancesRunning(Context context) {
                         return mIsMultipleInstanceRunning;
-                    }
-
-                    @Override
-                    public boolean aospMultiWindowModeSupported() {
-                        return mIsAutosplitSupported;
-                    }
-
-                    @Override
-                    public boolean customMultiWindowModeSupported() {
-                        return mCustomMultiWindowSupported;
                     }
 
                     @Override
@@ -268,32 +254,39 @@ public class MultiWindowUtilsUnitTest {
     }
 
     @Test
-    public void testCanEnterMultiWindowMode() {
-        // Chrome can enter multi-window mode through menu on the platform that supports it
-        // (Android S or certain vendor-customized platform).
-        for (int i = 0; i < 32; ++i) {
-            mIsInMultiWindowMode = ((i >> 0) & 1) == 1;
-            mIsInMultiDisplayMode = ((i >> 1) & 1) == 1;
-            mIsMultipleInstanceRunning = ((i >> 2) & 1) == 1;
-            mIsAutosplitSupported = ((i >> 3) & 1) == 1;
-            mCustomMultiWindowSupported = ((i >> 4) & 1) == 1;
+    public void testCanEnterMultiWindowMode_isAutomotive_returnsFalse() {
+        mOverrideContextWrapperTestRule.setIsAutomotive(true);
+        assertFalse(MultiWindowUtils.canEnterMultiWindowMode());
+    }
 
-            boolean canEnter = mIsAutosplitSupported || mCustomMultiWindowSupported;
-            assertEquals(
-                    " api-s: " + mIsAutosplitSupported + " vendor: " + mCustomMultiWindowSupported,
-                    canEnter,
-                    mUtils.canEnterMultiWindowMode());
-        }
+    @Test
+    @Config(sdk = VERSION_CODES.R)
+    public void testCanEnterMultiWindowMode_withCustomOemSupport_returnsTrue() {
+        mOverrideContextWrapperTestRule.setIsAutomotive(false);
+        ReflectionHelpers.setStaticField(Build.class, "MANUFACTURER", "samsung");
+        assertTrue(MultiWindowUtils.canEnterMultiWindowMode());
+    }
+
+    @Test
+    @Config(sdk = VERSION_CODES.S)
+    public void testCanEnterMultiWindowMode_withoutAutoSplitSupport_returnsFalse() {
+        mOverrideContextWrapperTestRule.setIsAutomotive(false);
+        assertFalse(MultiWindowUtils.canEnterMultiWindowMode());
+    }
+
+    @Test
+    @Config(sdk = VERSION_CODES.S_V2)
+    public void testCanEnterMultiWindowMode_withAutoSplitSupport_returnsTrue() {
+        mOverrideContextWrapperTestRule.setIsAutomotive(false);
+        assertTrue(MultiWindowUtils.canEnterMultiWindowMode());
     }
 
     @Test
     public void testIsOpenInOtherWindowEnabled() {
-        for (int i = 0; i < 32; ++i) {
+        for (int i = 0; i < 8; ++i) {
             mIsInMultiWindowMode = ((i >> 0) & 1) == 1;
             mIsInMultiDisplayMode = ((i >> 1) & 1) == 1;
             mIsMultipleInstanceRunning = ((i >> 2) & 1) == 1;
-            mIsAutosplitSupported = ((i >> 3) & 1) == 1;
-            mCustomMultiWindowSupported = ((i >> 4) & 1) == 1;
 
             // 'openInOtherWindow' is supported if we are already in multi-window/display mode.
             boolean openInOtherWindow = (mIsInMultiWindowMode || mIsInMultiDisplayMode);
@@ -453,7 +446,7 @@ public class MultiWindowUtilsUnitTest {
     }
 
     @Test
-    @Config(sdk = VERSION_CODES.Q)
+    @Config(sdk = BaseRobolectricTestRunner.MIN_SDK)
     public void
             testIsMoveOtherWindowSupported_InstanceSwitcherDisabledAndOpenInOtherWindowAllowed_ReturnsTrue() {
         mOverrideOpenInNewWindowSupported = true;
@@ -960,104 +953,6 @@ public class MultiWindowUtilsUnitTest {
                 "The last accessed window ID should be returned.",
                 newestId,
                 MultiWindowUtils.getLastAccessedWindowId());
-    }
-
-    @Test
-    @DisableFeatures(ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT)
-    public void testInstanceRestorationMessage() {
-        MultiWindowTestUtils.enableMultiInstance();
-        MultiWindowUtils.setInstanceCountForTesting(5);
-        MultiWindowUtils.setMaxInstancesForTesting(3);
-        MessageDispatcher messageDispatcher = mock(MessageDispatcher.class);
-        Context context = ApplicationProvider.getApplicationContext();
-        CallbackHelper primaryActionCallbackHelper = new CallbackHelper();
-        int primaryActionClickCount = primaryActionCallbackHelper.getCallCount();
-
-        boolean shown =
-                MultiWindowUtils.maybeShowInstanceRestorationMessage(
-                        messageDispatcher, context, primaryActionCallbackHelper::notifyCalled);
-
-        assertTrue("Message should be enqueued.", shown);
-        assertTrue(
-                "SharedPreferences should be updated.",
-                ChromeMultiInstancePersistentStore.readRestorationMessageShown());
-        ArgumentCaptor<PropertyModel> message = ArgumentCaptor.forClass(PropertyModel.class);
-        verify(messageDispatcher).enqueueWindowScopedMessage(message.capture(), eq(false));
-
-        Resources resources = context.getResources();
-        Assert.assertEquals(
-                "Message identifier should match.",
-                MessageIdentifier.MULTI_INSTANCE_RESTORATION_ON_DOWNGRADED_LIMIT,
-                message.getValue().get(MessageBannerProperties.MESSAGE_IDENTIFIER));
-        Assert.assertEquals(
-                "Message title should match.",
-                resources.getString(R.string.multi_instance_restoration_message_title, 3),
-                message.getValue().get(MessageBannerProperties.TITLE));
-        Assert.assertEquals(
-                "Message description should match.",
-                resources.getString(R.string.multi_instance_restoration_message_description),
-                message.getValue().get(MessageBannerProperties.DESCRIPTION));
-        Assert.assertEquals(
-                "Message primary button text should match.",
-                resources.getString(R.string.multi_instance_message_button),
-                message.getValue().get(MessageBannerProperties.PRIMARY_BUTTON_TEXT));
-        Assert.assertEquals(
-                "Message icon resource ID should match.",
-                R.drawable.ic_chrome,
-                message.getValue().get(MessageBannerProperties.ICON_RESOURCE_ID));
-
-        // Simulate and verify primary button click.
-        var unused = message.getValue().get(MessageBannerProperties.ON_PRIMARY_ACTION).get();
-        assertEquals(
-                "Primary action callback was not called.",
-                primaryActionClickCount + 1,
-                primaryActionCallbackHelper.getCallCount());
-    }
-
-    @Test
-    @DisableFeatures(ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT)
-    public void testInstanceRestorationMessage_InstanceCountWithinLimit() {
-        MultiWindowUtils.setInstanceCountForTesting(2);
-        MultiWindowUtils.setMaxInstancesForTesting(3);
-        MessageDispatcher messageDispatcher = mock(MessageDispatcher.class);
-        Context context = ApplicationProvider.getApplicationContext();
-        CallbackHelper primaryActionCallbackHelper = new CallbackHelper();
-
-        boolean shown =
-                MultiWindowUtils.maybeShowInstanceRestorationMessage(
-                        messageDispatcher, context, primaryActionCallbackHelper::notifyCalled);
-        assertFalse("Message should not be enqueued.", shown);
-        assertFalse(
-                "SharedPreferences should not be updated.",
-                ChromeMultiInstancePersistentStore.readRestorationMessageShown());
-        verify(messageDispatcher, never()).enqueueWindowScopedMessage(any(), anyBoolean());
-    }
-
-    @Test
-    @DisableFeatures(ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT)
-    public void testInstanceRestorationMessage_ShownExactlyOnce() {
-        MultiWindowTestUtils.enableMultiInstance();
-        MultiWindowUtils.setInstanceCountForTesting(5);
-        MultiWindowUtils.setMaxInstancesForTesting(3);
-        MessageDispatcher messageDispatcher = mock(MessageDispatcher.class);
-        Context context = ApplicationProvider.getApplicationContext();
-        CallbackHelper primaryActionCallbackHelper = new CallbackHelper();
-
-        boolean shown =
-                MultiWindowUtils.maybeShowInstanceRestorationMessage(
-                        messageDispatcher, context, primaryActionCallbackHelper::notifyCalled);
-        assertTrue("Message should be enqueued.", shown);
-        assertTrue(
-                "SharedPreferences should be updated.",
-                ChromeMultiInstancePersistentStore.readRestorationMessageShown());
-
-        // Simulate second request to show message.
-        shown =
-                MultiWindowUtils.maybeShowInstanceRestorationMessage(
-                        messageDispatcher, context, primaryActionCallbackHelper::notifyCalled);
-        assertFalse("Message should not be enqueued.", shown);
-
-        verify(messageDispatcher, times(1)).enqueueWindowScopedMessage(any(), anyBoolean());
     }
 
     @Test

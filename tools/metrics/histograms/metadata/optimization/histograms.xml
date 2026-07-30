@@ -460,6 +460,8 @@ chromium-metrics-reviews@google.com.
       summary="Allowlist for the NTP-Next deep dive action chip."/>
   <variant name="NtpNextDeepDiveActionChipBlocklist"
       summary="Blocklist for the NTP-Next deep dive action chip."/>
+  <variant name="OmniboxAutofillIframeAllowlist"
+      summary="Allowlist for Omnibox-chip-triggered Autofill."/>
   <variant name="OptimizationGuideIconView"
       summary="Provides information for what to show in the debug
                optimization guide icon view."/>
@@ -1166,7 +1168,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.ModelExecution.OnDeviceModelCrashCount"
-    enum="OnDeviceModelValidationResult" expires_after="2026-07-19">
+    enum="OnDeviceModelValidationResult" expires_after="2026-09-20">
   <owner>cduvall@chromium.org</owner>
   <owner>holte@chromium.org</owner>
   <summary>
@@ -1565,7 +1567,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.ModelExecutor.TaskExecutionLatency.{OptimizationTarget}"
-    units="ms" expires_after="2026-07-19">
+    units="ms" expires_after="2026-09-20">
   <owner>wittman@chromium.org</owner>
   <owner>rajendrant@chromium.org</owner>
   <summary>
@@ -2024,6 +2026,17 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
+    name="OptimizationGuide.PageContentScreenshotService.RequestScreenshot.IsHandlingInput"
+    units="bool" expires_after="M155">
+  <owner>thiabaud@google.com</owner>
+  <owner>jonross@chromium.org</owner>
+  <summary>
+    Records whether Chrome was handling input, at the time when we requested a
+    screenshot.
+  </summary>
+</histogram>
+
+<histogram
     name="OptimizationGuide.PredictionManager.DownloadServiceAvailabilityBlockedFetch"
     enum="BooleanBlocked" expires_after="2026-11-09">
   <owner>rajendrant@chromium.org</owner>
@@ -2325,7 +2338,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.ProcessHintsResult"
-    enum="OptimizationGuideProcessHintsResult" expires_after="2026-07-19">
+    enum="OptimizationGuideProcessHintsResult" expires_after="2026-09-20">
   <owner>rajendrant@chromium.org</owner>
   <owner>catliu@chromium.org</owner>
   <summary>

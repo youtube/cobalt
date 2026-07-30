@@ -4,6 +4,10 @@
 
 #include "gpu/command_buffer/client/shared_image_pool.h"
 
+#include <inttypes.h>
+
+#include "base/strings/stringprintf.h"
+#include "base/trace_event/process_memory_dump.h"
 #include "gpu/command_buffer/client/shared_image_interface.h"
 
 namespace {
@@ -13,7 +17,8 @@ gpu::ImageInfo GetImageInfo(scoped_refptr<gpu::ClientImage> image) {
   return gpu::ImageInfo(
       shared_image->size(), shared_image->format(), shared_image->usage(),
       shared_image->color_space(), shared_image->surface_origin(),
-      shared_image->alpha_type(), shared_image->buffer_usage());
+      shared_image->alpha_type(), shared_image->buffer_usage(),
+      shared_image->is_software());
 }
 
 }  // namespace
@@ -48,6 +53,26 @@ const SharedImagePoolId& ClientImage::GetPoolIdForTesting() const {
   return pool_id_;
 }
 
+void ClientImage::OnMemoryDump(base::trace_event::ProcessMemoryDump* pmd,
+                               const std::string& parent_path) const {
+  CHECK(shared_image_);
+  CHECK(!parent_path.empty());
+
+  std::string dump_name = base::StringPrintf(
+      "%s/shared_image_pool_%s/client_image_0x%" PRIXPTR, parent_path,
+      pool_id_.ToString(), reinterpret_cast<uintptr_t>(this));
+  auto* dump = pmd->CreateAllocatorDump(dump_name);
+  size_t memory_size =
+      shared_image_->format().EstimatedSizeInBytes(shared_image_->size());
+  dump->AddScalar(base::trace_event::MemoryAllocatorDump::kNameSize,
+                  base::trace_event::MemoryAllocatorDump::kUnitsBytes,
+                  memory_size);
+
+  shared_image_->OnMemoryDump(
+      pmd, dump->guid(),
+      static_cast<int>(gpu::TracingImportance::kClientOwner));
+}
+
 SharedImagePoolBase::SharedImagePoolBase(
     const SharedImagePoolId& pool_id,
     const ImageInfo& image_info,
@@ -78,7 +103,12 @@ bool SharedImagePoolBase::IsReclaimTimerRunningForTesting() const {
 scoped_refptr<ClientSharedImage>
 SharedImagePoolBase::CreateSharedImageInternal() {
   CHECK(sii_);
-  if (image_info_.buffer_usage.has_value()) {
+  if (image_info_.is_software) {
+    return sii_->CreateSharedImageForSoftwareCompositor(
+        {image_info_.format, image_info_.size, image_info_.color_space,
+         image_info_.surface_origin, image_info_.alpha_type, image_info_.usage,
+         debug_label_ + "Software"});
+  } else if (image_info_.buffer_usage.has_value()) {
     // Creates a Mappable shared image. Note that eventually when shared image
     // usage is merged with buffer usage, there will be only one method to
     // create both mappable and non-mappable shared image. These 2 paths will be

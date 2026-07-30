@@ -5,12 +5,19 @@
 package org.chromium.chrome.browser.glic;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.GLIC_AUTO_BROWSE_SETTING_ENABLED;
+import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.GLIC_BUTTON_PINNED;
+import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.GLIC_PRECISE_LOCATION_SETTING_ENABLED;
+import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.GLIC_SHARE_CURRENT_TAB_DEFAULT_ACCESS_ENABLED;
 
 import android.content.Context;
 
@@ -28,8 +35,12 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.components.browser_ui.settings.ChromeSwitchPreference;
 import org.chromium.components.browser_ui.settings.SettingsCustomTabLauncher;
+import org.chromium.components.prefs.PrefChangeRegistrar;
+import org.chromium.components.prefs.PrefChangeRegistrarJni;
 import org.chromium.components.prefs.PrefService;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.components.user_prefs.UserPrefsJni;
@@ -50,10 +61,12 @@ public class GlicSettingsUnitTest {
     @Mock private UserPrefs.Natives mUserPrefsJniMock;
     @Mock private PrefService mPrefServiceMock;
     @Mock private SettingsCustomTabLauncher mCustomTabLauncher;
+    @Mock private PrefChangeRegistrar.Natives mPrefChangeRegistrarJniMock;
 
     @Before
     public void setUp() {
         UserPrefsJni.setInstanceForTesting(mUserPrefsJniMock);
+        PrefChangeRegistrarJni.setInstanceForTesting(mPrefChangeRegistrarJniMock);
         when(mUserPrefsJniMock.get(mProfileMock)).thenReturn(mPrefServiceMock);
         doNothing().when(mCustomTabLauncher).openUrlInCct(any(Context.class), anyString());
 
@@ -109,5 +122,109 @@ public class GlicSettingsUnitTest {
                 .openUrlInCct(
                         any(),
                         eq(mActivity.getString(R.string.settings_glic_extensions_button_url)));
+    }
+
+    @Test
+    public void testGlicButtonPinnedInitialState_Enabled() {
+        doTestInitialState(GlicPrefNames.GLIC_PINNED_TO_TABSTRIP, "glic_button", true);
+    }
+
+    @Test
+    public void testGlicButtonPinnedInitialState_Disabled() {
+        doTestInitialState(GlicPrefNames.GLIC_PINNED_TO_TABSTRIP, "glic_button", false);
+    }
+
+    @Test
+    public void testGlicButtonPinnedToggle() {
+        doTestToggle(GLIC_BUTTON_PINNED, GlicPrefNames.GLIC_PINNED_TO_TABSTRIP, "glic_button");
+    }
+
+    @Test
+    public void testLocationPermissionInitialState_Enabled() {
+        doTestInitialState(GlicPrefNames.GLIC_GEOLOCATION_ENABLED, "permissions_location", true);
+    }
+
+    @Test
+    public void testLocationPermissionInitialState_Disabled() {
+        doTestInitialState(GlicPrefNames.GLIC_GEOLOCATION_ENABLED, "permissions_location", false);
+    }
+
+    @Test
+    public void testLocationPermissionToggle() {
+        doTestToggle(
+                GLIC_PRECISE_LOCATION_SETTING_ENABLED,
+                GlicPrefNames.GLIC_GEOLOCATION_ENABLED,
+                "permissions_location");
+    }
+
+    @Test
+    public void testTabAccessPermissionInitialState_Enabled() {
+        doTestInitialState(
+                GlicPrefNames.GLIC_TAB_CONTEXT_ENABLED,
+                "glic_permissions_default_tab_access",
+                true);
+    }
+
+    @Test
+    public void testTabAccessPermissionInitialState_Disabled() {
+        doTestInitialState(
+                GlicPrefNames.GLIC_TAB_CONTEXT_ENABLED,
+                "glic_permissions_default_tab_access",
+                false);
+    }
+
+    @Test
+    public void testTabAccessPermissionToggle() {
+        doTestToggle(
+                GLIC_SHARE_CURRENT_TAB_DEFAULT_ACCESS_ENABLED,
+                GlicPrefNames.GLIC_TAB_CONTEXT_ENABLED,
+                "glic_permissions_default_tab_access");
+    }
+
+    @Test
+    public void testAutoBrowsePermissionInitialState_Enabled() {
+        doTestInitialState(
+                GlicPrefNames.GLIC_USER_ENABLED_ACTUATION_ON_WEB,
+                "glic_permissions_auto_browse",
+                true);
+    }
+
+    @Test
+    public void testAutoBrowsePermissionInitialState_Disabled() {
+        doTestInitialState(
+                GlicPrefNames.GLIC_USER_ENABLED_ACTUATION_ON_WEB,
+                "glic_permissions_auto_browse",
+                false);
+    }
+
+    @Test
+    public void testAutoBrowsePermissionToggle() {
+        doTestToggle(
+                GLIC_AUTO_BROWSE_SETTING_ENABLED,
+                GlicPrefNames.GLIC_USER_ENABLED_ACTUATION_ON_WEB,
+                "glic_permissions_auto_browse");
+    }
+
+    private void doTestToggle(String sharedPrefKey, String profilePrefKey, String viewId) {
+        when(mPrefServiceMock.getBoolean(profilePrefKey)).thenReturn(false);
+        GlicSettings fragment = launchFragment();
+        ChromeSwitchPreference preference = fragment.findPreference(viewId);
+
+        // Test toggling on
+        preference.getOnPreferenceChangeListener().onPreferenceChange(preference, true);
+        assertTrue(ChromeSharedPreferences.getInstance().readBoolean(sharedPrefKey, false));
+        verify(mPrefServiceMock).setBoolean(profilePrefKey, true);
+
+        // Test toggling off
+        preference.getOnPreferenceChangeListener().onPreferenceChange(preference, false);
+        assertFalse(ChromeSharedPreferences.getInstance().readBoolean(sharedPrefKey, true));
+        verify(mPrefServiceMock).setBoolean(profilePrefKey, false);
+    }
+
+    private void doTestInitialState(String profilePrefKey, String prefName, boolean initialState) {
+        when(mPrefServiceMock.getBoolean(profilePrefKey)).thenReturn(initialState);
+        GlicSettings fragment = launchFragment();
+        ChromeSwitchPreference preference = fragment.findPreference(prefName);
+        assertEquals(initialState, preference.isChecked());
     }
 }

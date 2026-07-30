@@ -14,6 +14,7 @@
 #import "ios/chrome/browser/authentication/test/signin_earl_grey_ui_test_util.h"
 #import "ios/chrome/browser/autofill/ui_bundled/address_editor/autofill_constants.h"
 #import "ios/chrome/browser/autofill/ui_bundled/autofill_app_interface.h"
+#import "ios/chrome/browser/device_reauth/test/reauthentication_app_interface.h"
 #import "ios/chrome/browser/policy/model/policy_earl_grey_utils.h"
 #import "ios/chrome/browser/settings/ui_bundled/autofill/autofill_settings_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/settings_root_table_constants.h"
@@ -147,6 +148,14 @@ id<GREYMatcher> TextFieldWithLabel(NSString* textFieldLabel) {
         autofill::features::kAutofillAiReauthRequired);
     config.features_enabled.push_back(
         autofill::features::kAutofillAiWithDataSchema);
+  }
+
+  if ([self isRunningTest:@selector(testToggleToolbarAddButtonByPolicy)] ||
+      [self isRunningTest:@selector(testToggleToolbarAddButtonBySwitch)]) {
+    config.features_disabled.push_back(
+        autofill::features::kAutofillAiWithDataSchema);
+    config.features_disabled.push_back(
+        autofill::features::kAutofillAiCreateEntityDataManager);
   }
 
   return config;
@@ -977,10 +986,9 @@ id<GREYMatcher> TextFieldWithLabel(NSString* textFieldLabel) {
 
 // Tests that the verification switch does not change if reauthentication fails.
 - (void)testVerificationSwitchReauthFailure {
-  [AutofillAppInterface setUpMockReauthenticationModule];
-  [AutofillAppInterface mockReauthenticationModuleExpectedResult:
-                            ReauthenticationResult::kFailure];
-  [AutofillAppInterface mockReauthenticationModuleCanAttempt:YES];
+  [ReauthenticationAppInterface mockReauthenticationModuleExpectedResult:
+                                    ReauthenticationResult::kFailure];
+  [ReauthenticationAppInterface mockReauthenticationModuleCanAttempt:YES];
 
   [AutofillAppInterface saveExampleProfile];
   [self openAutofillProfilesSettings];
@@ -998,16 +1006,13 @@ id<GREYMatcher> TextFieldWithLabel(NSString* textFieldLabel) {
                                    /*is_toggled_on=*/YES,
                                    /*is_enabled=*/YES)]
       assertWithMatcher:grey_sufficientlyVisible()];
-
-  [AutofillAppInterface clearMockReauthenticationModule];
 }
 
 // Tests that the verification switch changes if reauthentication succeeds.
 - (void)testVerificationSwitchReauthSuccess {
-  [AutofillAppInterface setUpMockReauthenticationModule];
-  [AutofillAppInterface mockReauthenticationModuleExpectedResult:
-                            ReauthenticationResult::kSuccess];
-  [AutofillAppInterface mockReauthenticationModuleCanAttempt:YES];
+  [ReauthenticationAppInterface mockReauthenticationModuleExpectedResult:
+                                    ReauthenticationResult::kSuccess];
+  [ReauthenticationAppInterface mockReauthenticationModuleCanAttempt:YES];
 
   [AutofillAppInterface saveExampleProfile];
   [self openAutofillProfilesSettings];
@@ -1025,8 +1030,6 @@ id<GREYMatcher> TextFieldWithLabel(NSString* textFieldLabel) {
                                    /*is_toggled_on=*/NO,
                                    /*is_enabled=*/YES)]
       assertWithMatcher:grey_sufficientlyVisible()];
-
-  [AutofillAppInterface clearMockReauthenticationModule];
 }
 
 @end

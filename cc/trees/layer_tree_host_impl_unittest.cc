@@ -742,7 +742,8 @@ TEST_P(LayerTreeHostImplTest, ScrollRootCallsCommitAndRedraw) {
   GetInputHandler().ScrollEnd(/*should_snap=*/false, std::nullopt);
   EXPECT_FALSE(host_impl_->CurrentlyScrollingNode());
   EXPECT_TRUE(did_request_redraw_);
-  EXPECT_TRUE(did_request_commit_);
+  EXPECT_EQ(!host_impl_->settings().trees_in_viz_in_viz_process,
+            did_request_commit_);
 }
 
 // Ensure correct semantics for the GetActivelyScrollingType method. This
@@ -1829,36 +1830,6 @@ TEST_P(LayerTreeHostImplTest, FixedLayerOverNonFixedLayer) {
               status.main_thread_hit_test_reasons);
     GetInputHandler().ScrollEnd(/*should_snap=*/false, std::nullopt);
   }
-}
-
-TEST_P(LayerTreeHostImplTest, ScrollHandlerNotPresent) {
-  SetupViewportLayersInnerScrolls(gfx::Size(100, 100), gfx::Size(200, 200));
-  EXPECT_FALSE(host_impl_->active_tree()->have_scroll_event_handlers());
-  DrawFrame();
-
-  EXPECT_FALSE(host_impl_->ScrollAffectsScrollHandler());
-  GetInputHandler().ScrollBegin(BeginState(gfx::Point(), gfx::Vector2d(0, 10),
-                                           ui::ScrollInputType::kTouchscreen)
-                                    .get(),
-                                ui::ScrollInputType::kTouchscreen);
-  EXPECT_FALSE(host_impl_->ScrollAffectsScrollHandler());
-  GetInputHandler().ScrollEnd(/*should_snap=*/false, std::nullopt);
-  EXPECT_FALSE(host_impl_->ScrollAffectsScrollHandler());
-}
-
-TEST_P(LayerTreeHostImplTest, ScrollHandlerPresent) {
-  SetupViewportLayersInnerScrolls(gfx::Size(100, 100), gfx::Size(200, 200));
-  host_impl_->active_tree()->set_have_scroll_event_handlers(true);
-  DrawFrame();
-
-  EXPECT_FALSE(host_impl_->ScrollAffectsScrollHandler());
-  GetInputHandler().ScrollBegin(BeginState(gfx::Point(), gfx::Vector2d(0, 10),
-                                           ui::ScrollInputType::kTouchscreen)
-                                    .get(),
-                                ui::ScrollInputType::kTouchscreen);
-  EXPECT_TRUE(host_impl_->ScrollAffectsScrollHandler());
-  GetInputHandler().ScrollEnd(/*should_snap=*/false, std::nullopt);
-  EXPECT_FALSE(host_impl_->ScrollAffectsScrollHandler());
 }
 
 TEST_P(LayerTreeHostImplTest, ScrollUpdateReturnsCorrectValue) {
@@ -3167,7 +3138,8 @@ TEST_P(LayerTreeHostImplTest, ImplPinchZoom) {
     GetInputHandler().ScrollEnd(/*should_snap=*/false, std::nullopt);
     EXPECT_FALSE(did_request_next_frame_);
     EXPECT_TRUE(did_request_redraw_);
-    EXPECT_TRUE(did_request_commit_);
+    EXPECT_EQ(!host_impl_->settings().trees_in_viz_in_viz_process,
+              did_request_commit_);
     EXPECT_EQ(gfx::Size(50, 50), root_layer()->bounds());
 
     std::unique_ptr<CompositorCommitData> commit_data =
@@ -3743,7 +3715,8 @@ TEST_P(LayerTreeHostImplTest, PinchGesture) {
     GetInputHandler().ScrollEnd(/*should_snap=*/false, std::nullopt);
     EXPECT_FALSE(did_request_next_frame_);
     EXPECT_TRUE(did_request_redraw_);
-    EXPECT_TRUE(did_request_commit_);
+    EXPECT_EQ(!host_impl_->settings().trees_in_viz_in_viz_process,
+              did_request_commit_);
 
     std::unique_ptr<CompositorCommitData> commit_data =
         host_impl_->ProcessCompositorDeltas(
@@ -4090,7 +4063,8 @@ TEST_P(LayerTreeHostImplTest, PinchZoomTriggersPageScaleAnimation) {
     begin_frame_args.frame_id.sequence_number++;
     host_impl_->WillBeginImplFrame(begin_frame_args);
     host_impl_->Animate();
-    EXPECT_TRUE(did_request_commit_);
+    EXPECT_EQ(!host_impl_->settings().trees_in_viz_in_viz_process,
+              did_request_commit_);
     EXPECT_FALSE(did_request_next_frame_);
     host_impl_->DidFinishImplFrame(begin_frame_args);
 
@@ -4222,7 +4196,8 @@ TEST_P(LayerTreeHostImplTest, PageScaleAnimation) {
     begin_frame_args.frame_id.sequence_number++;
     host_impl_->WillBeginImplFrame(begin_frame_args);
     host_impl_->Animate();
-    EXPECT_TRUE(did_request_commit_);
+    EXPECT_EQ(!host_impl_->settings().trees_in_viz_in_viz_process,
+              did_request_commit_);
     EXPECT_FALSE(did_request_next_frame_);
     host_impl_->DidFinishImplFrame(begin_frame_args);
 
@@ -4277,7 +4252,8 @@ TEST_P(LayerTreeHostImplTest, PageScaleAnimation) {
     host_impl_->Animate();
     EXPECT_TRUE(did_request_redraw_);
     EXPECT_FALSE(did_request_next_frame_);
-    EXPECT_TRUE(did_request_commit_);
+    EXPECT_EQ(!host_impl_->settings().trees_in_viz_in_viz_process,
+              did_request_commit_);
     host_impl_->DidFinishImplFrame(begin_frame_args);
 
     std::unique_ptr<CompositorCommitData> commit_data =
@@ -4338,7 +4314,8 @@ TEST_P(LayerTreeHostImplTest, PageScaleAnimationNoOp) {
     begin_frame_args.frame_id.sequence_number++;
     host_impl_->WillBeginImplFrame(begin_frame_args);
     host_impl_->Animate();
-    EXPECT_TRUE(did_request_commit_);
+    EXPECT_EQ(!host_impl_->settings().trees_in_viz_in_viz_process,
+              did_request_commit_);
     host_impl_->DidFinishImplFrame(begin_frame_args);
 
     std::unique_ptr<CompositorCommitData> commit_data =
@@ -4464,10 +4441,10 @@ TEST_P(LayerTreeHostImplTest, PageScaleAnimationTransferedOnSyncTreeActivate) {
   begin_frame_args.frame_id.sequence_number++;
   host_impl_->WillBeginImplFrame(begin_frame_args);
   host_impl_->Animate();
-  EXPECT_TRUE(did_request_commit_);
+  EXPECT_EQ(!host_impl_->settings().trees_in_viz_in_viz_process,
+            did_request_commit_);
   EXPECT_FALSE(did_request_next_frame_);
   host_impl_->DidFinishImplFrame(begin_frame_args);
-
   std::unique_ptr<CompositorCommitData> commit_data =
       host_impl_->ProcessCompositorDeltas(
           /* main_thread_mutator_host */ nullptr);
@@ -5647,7 +5624,8 @@ TEST_P(PendingTreeLayerTreeHostImplTest,
                                              scroll->element_id(), false}));
     EXPECT_FALSE(scrollbar_controller->visibility_changed());
     EXPECT_TRUE(did_request_redraw_);
-    EXPECT_TRUE(did_request_commit_);
+    EXPECT_EQ(!host_impl_->settings().trees_in_viz_in_viz_process,
+              did_request_commit_);
   }
 }
 
@@ -7860,7 +7838,8 @@ TEST_P(LayerTreeHostImplTest, ScrollNonCompositedRoot) {
                                              ui::ScrollInputType::kWheel));
   GetInputHandler().ScrollEnd(/*should_snap=*/false, std::nullopt);
   EXPECT_TRUE(did_request_redraw_);
-  EXPECT_TRUE(did_request_commit_);
+  EXPECT_EQ(!host_impl_->settings().trees_in_viz_in_viz_process,
+            did_request_commit_);
 }
 
 TEST_P(LayerTreeHostImplTest, ScrollChildCallsCommitAndRedraw) {
@@ -7887,7 +7866,8 @@ TEST_P(LayerTreeHostImplTest, ScrollChildCallsCommitAndRedraw) {
                                              ui::ScrollInputType::kWheel));
   GetInputHandler().ScrollEnd(/*should_snap=*/false, std::nullopt);
   EXPECT_TRUE(did_request_redraw_);
-  EXPECT_TRUE(did_request_commit_);
+  EXPECT_EQ(!host_impl_->settings().trees_in_viz_in_viz_process,
+            did_request_commit_);
 }
 
 TEST_P(LayerTreeHostImplTest, ScrollMissesChild) {
@@ -11211,11 +11191,8 @@ TEST_P(ClientModeLayerTreeHostImplTest, CreateETC1UIResource) {
   EXPECT_EQ(0u, sii->shared_image_count());
 
   gfx::Size size(4, 4);
-  // SkImageInfo has no support for ETC1.  The |info| below contains the right
-  // total pixel size for the bitmap but not the right height and width.  The
-  // correct width/height are passed directly to UIResourceBitmap.
   SkImageInfo info =
-      SkImageInfo::Make(4, 2, kAlpha_8_SkColorType, kPremul_SkAlphaType);
+      SkImageInfo::Make(4, 4, kAlpha_8_SkColorType, kPremul_SkAlphaType);
   sk_sp<SkPixelRef> pixel_ref(SkMallocPixelRef::MakeAllocate(info, 0));
   pixel_ref->setImmutable();
   UIResourceBitmap bitmap(std::move(pixel_ref), size);
@@ -11805,7 +11782,8 @@ TEST_P(LayerTreeHostImplWithBrowserControlsTest,
   ASSERT_TRUE(host_impl_->browser_controls_manager()->HasAnimation());
   EXPECT_TRUE(did_request_next_frame_);
   EXPECT_TRUE(did_request_redraw_);
-  EXPECT_TRUE(did_request_commit_);
+  EXPECT_EQ(!host_impl_->settings().trees_in_viz_in_viz_process,
+            did_request_commit_);
 
   // The browser controls should properly animate until finished, despite the
   // scroll offset being at the origin.
@@ -11894,7 +11872,8 @@ TEST_P(LayerTreeHostImplWithBrowserControlsTest,
   ASSERT_TRUE(host_impl_->browser_controls_manager()->HasAnimation());
   EXPECT_TRUE(did_request_next_frame_);
   EXPECT_TRUE(did_request_redraw_);
-  EXPECT_TRUE(did_request_commit_);
+  EXPECT_EQ(!host_impl_->settings().trees_in_viz_in_viz_process,
+            did_request_commit_);
 
   // Animate the browser controls to the limit.
   viz::BeginFrameArgs begin_frame_args = viz::CreateBeginFrameArgsForTesting(
@@ -11917,7 +11896,8 @@ TEST_P(LayerTreeHostImplWithBrowserControlsTest,
 
     if (new_offset != old_offset) {
       EXPECT_TRUE(did_request_redraw_);
-      EXPECT_TRUE(did_request_commit_);
+      EXPECT_EQ(!host_impl_->settings().trees_in_viz_in_viz_process,
+                did_request_commit_);
     }
     host_impl_->DidFinishImplFrame(begin_frame_args);
   }
@@ -13113,14 +13093,14 @@ TEST_P(LayerTreeHostImplTest, ScrollAnimatedUpdateInnerViewport) {
 }
 
 // Fluent Overlay Scrollbars track opacity is scaled depending on the thickness
-// scale factor of the scrollbar's thumb. When the thumb's thickness is at it's
+// scale factor of the scrollbar's thumb. When the thumb's thickness is at its
 // minimum the track should be invisible
 // (`thickness_scale_factor_` == `kIdleThicknessScale`) => (`opacity_` == 0).
-// When the thumb's thickness is at it's maximum, the track should be fully
+// When the thumb's thickness is at its maximum, the track should be fully
 // visible.
 // (`thickness_scale_factor_` == 1) => (`opacity_` == 1).
 // For every thickness value in between `kIdleThicknessScale` and 1.f the
-// opacity should be scaled appropriately This test ensures the correlation
+// opacity should be scaled appropriately. This test ensures the correlation
 // between thickness of the thumb and opacity of the track.
 TEST_P(FluentOverlayScrollbarOpacityLayerTreeHostImplTest,
        PaintedOverlayScrollbarTrackOpacityTest) {
@@ -13229,12 +13209,12 @@ TEST_F(FluentOverlayScrollbarLayerTreeHostImplTest,
   EXPECT_FLOAT_EQ(CreateAndRegisterPaintedScrollbarLayer()->Opacity(), 0.f);
 }
 
-// Fluent Overlay Scrollbar should not be hit tested when it's opacity is zero.
+// Fluent Overlay Scrollbar should not be hit tested when its opacity is zero.
 TEST_F(FluentOverlayScrollbarLayerTreeHostImplTest,
        DoesntGetHitTestedWhenInvisible) {
   EXPECT_FLOAT_EQ(CreateAndRegisterPaintedScrollbarLayer()->Opacity(), 0.f);
   // Per CreateAndRegisterPaintedScrollbarLayer the Scrollbar's rect is located
-  // at (345,0)x(15,600). A point of 352 clicks it in the middle of the the
+  // at (345,0)x(15,600). A point of 352 clicks it in the middle of the
   // track and would cause a scroll.
   InputHandlerPointerResult result =
       GetInputHandler().MouseMoveAt(gfx::Point(352, 300));
@@ -17470,7 +17450,8 @@ void UnifiedScrollingTest::TestNonCompositedScrollingState(
 
     ScrollUpdate(gfx::Vector2d(0, 10));
     ASSERT_EQ(gfx::PointF(0, 10), ScrollerOffset());
-    EXPECT_TRUE(did_request_commit_);
+    EXPECT_EQ(!host_impl_->settings().trees_in_viz_in_viz_process,
+              did_request_commit_);
 
     // Ensure the transform tree was updated only if expected.
     EXPECT_EQ(mutates_transform_tree, transform_node->transform_changed());
@@ -17503,7 +17484,8 @@ void UnifiedScrollingTest::TestNonCompositedScrollingState(
     BeginFrame(kFrameInterval);
 
     ASSERT_EQ(gfx::PointF(0, 20), ScrollerOffset());
-    EXPECT_TRUE(did_request_commit_);
+    EXPECT_EQ(!host_impl_->settings().trees_in_viz_in_viz_process,
+              did_request_commit_);
 
     EXPECT_EQ(mutates_transform_tree, transform_node->transform_changed());
     EXPECT_EQ(mutates_transform_tree,

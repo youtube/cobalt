@@ -14,6 +14,7 @@
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_features.mojom-features.h"
 #include "chrome/browser/glic/host/glic_features.mojom.h"
+#include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/test_support/glic_test_environment.h"
@@ -220,6 +221,8 @@ class GlicMetricsTestBase : public testing::Test {
 class GlicMetricsTest : public GlicMetricsTestBase {
  public:
   void SetUp() override {
+    scoped_feature_list_.InitAndDisableFeature(
+        features::kGlicFixTimeToFirstQueryKillSwitch);
     GlicMetricsTestBase::SetUp();
 
     enabling_ = std::make_unique<GlicEnabling>(
@@ -257,13 +260,15 @@ class GlicMetricsTest : public GlicMetricsTestBase {
   GlicMetrics* metrics() { return metrics_.get(); }
   MockDelegate* delegate() { return delegate_.get(); }
 
- private:
-  std::unique_ptr<content::WebContents> test_web_contents_;
-
+ protected:
+  base::test::ScopedFeatureList scoped_feature_list_;
   std::unique_ptr<GlicEnabling> enabling_;
   std::unique_ptr<GlicMetrics> metrics_;
   // Owned by `metrics_`.
   raw_ptr<MockDelegate> delegate_ = nullptr;
+
+ private:
+  std::unique_ptr<content::WebContents> test_web_contents_;
 };
 
 TEST_F(GlicMetricsTest, RecordGlicProfilePreferences) {
@@ -389,8 +394,6 @@ TEST_F(GlicMetricsTest, BasicVisible) {
   metrics()->OnGlicWindowClose(nullptr, std::nullopt, gfx::Rect());
 
   histogram_tester().ExpectTotalCount("Glic.Response.StopTime", 1);
-  histogram_tester().ExpectUniqueSample("Glic.Session.Open.BrowserActiveState",
-                                        5 /*kBrowserHidden*/, 1);
   EXPECT_THAT(
       histogram_tester().GetAllSamplesForPrefix("Glic.Response.StartTime"),
       UnorderedElementsAre(
@@ -1127,17 +1130,24 @@ TEST_F(GlicMetricsTest, OnRecordUseCounter) {
 class GlicMetricsTrustFirstOnboardingTest : public GlicMetricsTest {
  public:
   void SetUp() override {
-    scoped_feature_list_.InitWithFeatures({features::kGlicTrustFirstOnboarding},
-                                          {});
-    GlicMetricsTest::SetUp();
+    scoped_feature_list_.Reset();
+    scoped_feature_list_.InitWithFeatures(
+        {features::kGlicTrustFirstOnboarding},
+        {features::kGlicFixTimeToFirstQueryKillSwitch});
+    GlicMetricsTestBase::SetUp();
+
+    enabling_ = std::make_unique<GlicEnabling>(
+        profile(), &profile_manager()->GetProfileAttributesStorage());
+    metrics_ = std::make_unique<GlicMetrics>(profile(), enabling_.get());
+    auto delegate = std::make_unique<MockDelegate>();
+    delegate_ = delegate.get();
+    metrics_->SetDelegateForTesting(std::move(delegate));
+
     // Revert FRE status to NotStarted to simulate new user for this experiment.
     profile()->GetPrefs()->SetInteger(
         prefs::kGlicCompletedFre,
         static_cast<int>(prefs::FreStatus::kNotStarted));
   }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 TEST_F(GlicMetricsTrustFirstOnboardingTest, ShownAndDismissed) {
@@ -1148,11 +1158,15 @@ TEST_F(GlicMetricsTrustFirstOnboardingTest, ShownAndDismissed) {
             1);
 
   // Closing without accept triggers "Dismissed".
-  metrics()->OnGlicWindowClose(nullptr, std::nullopt, gfx::Rect());
+  metrics()->OnInstanceClosed();
   EXPECT_EQ(
       user_action_tester().GetActionCount("Glic.Fre.Dismissed.Onboarding"), 1);
   histogram_tester().ExpectTotalCount("Glic.Fre.TotalTime.Dismissed.Onboarding",
                                       1);
+  histogram_tester().ExpectUniqueSample("Glic.Fre.Shown.Entrypoint",
+                                        mojom::InvocationSource::kOsButton, 1);
+  histogram_tester().ExpectUniqueSample("Glic.Fre.Dismissed.Entrypoint",
+                                        mojom::InvocationSource::kOsButton, 1);
 }
 
 TEST_F(GlicMetricsTrustFirstOnboardingTest, ShownAndAccepted) {
@@ -1173,6 +1187,11 @@ TEST_F(GlicMetricsTrustFirstOnboardingTest, ShownAndAccepted) {
   metrics()->OnGlicWindowClose(nullptr, std::nullopt, gfx::Rect());
   EXPECT_EQ(
       user_action_tester().GetActionCount("Glic.Fre.Dismissed.Onboarding"), 0);
+  histogram_tester().ExpectUniqueSample("Glic.Fre.Shown.Entrypoint",
+                                        mojom::InvocationSource::kOsButton, 1);
+  histogram_tester().ExpectUniqueSample("Glic.Fre.Accept.Entrypoint",
+                                        mojom::InvocationSource::kOsButton, 1);
+  histogram_tester().ExpectTotalCount("Glic.Fre.Dismissed.Entrypoint", 0);
 }
 
 TEST_F(GlicMetricsTrustFirstOnboardingTest, NotShownIfConsented) {
@@ -1197,6 +1216,18 @@ TEST_F(GlicMetricsTrustFirstOnboardingTest, FreToFirstQueryTimeRecorded) {
   metrics()->OnUserInputSubmitted(mojom::WebClientMode::kText);
 
   histogram_tester().ExpectUniqueSample("Glic.FreToFirstQueryTime", 1000, 1);
+}
+
+TEST_F(GlicMetricsTest, FreToFirstQueryElapsedTimeReportedInMultiInstance) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(
+      {features::kGlicFixTimeToFirstQueryKillSwitch}, {});
+
+  metrics()->OnFreAccepted();
+  task_environment().FastForwardBy(base::Milliseconds(100));
+  metrics()->OnUserInputSubmitted(mojom::WebClientMode::kText);
+  histogram_tester().ExpectTotalCount("Glic.FreToFirstQueryTime", 1);
+  histogram_tester().ExpectUniqueSample("Glic.FreToFirstQueryTime", 100, 1);
 }
 
 }  // namespace

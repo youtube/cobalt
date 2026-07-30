@@ -11,6 +11,16 @@
 #include "ui/base/base_window.h"
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 
+namespace {
+
+bool g_is_startup_first_paint_recorded = false;
+bool g_is_startup_reload_first_paint_recorded = false;
+bool g_is_startup_reload_first_contentful_paint_recorded = false;
+bool g_is_startup_process_recorded = false;
+bool g_process_startup_delta_recorded = false;
+
+}  // namespace
+
 DEFINE_USER_DATA(InitialWebUIWindowMetricsManager);
 
 InitialWebUIWindowMetricsManager::InitialWebUIWindowMetricsManager(
@@ -34,12 +44,32 @@ void InitialWebUIWindowMetricsManager::SetWindowCreationInfo(
   new_window_start_time_ = creation_time;
 }
 
+void InitialWebUIWindowMetricsManager::OnBrowserWindowShowRequested(
+    base::TimeTicks time) {
+  if (!window_show_first_requested_time_.has_value()) {
+    window_show_first_requested_time_ = time;
+  }
+}
+
 void InitialWebUIWindowMetricsManager::OnBrowserWindowFirstPresentation(
     base::TimeTicks timestamp) {
   // Ensures only one startup window is recorded per browser process.
-  static bool is_startup_first_paint_recorded = false;
+  bool& is_startup_first_paint_recorded = g_is_startup_first_paint_recorded;
   if (!waap_service_) {
     return;
+  }
+
+  if (window_show_first_requested_time_.has_value()) {
+    // Record ShowRequestedToFirstPaint metric.
+    if (!is_startup_first_paint_recorded &&
+        !skip_startup_metrics_for_testing_) {
+      waap_service_->OnStartupBrowserWindowShowRequestedToFirstPaint(
+          *window_show_first_requested_time_, timestamp);
+    } else if (!is_new_window_first_paint_recorded_ &&
+               new_window_start_time_.has_value()) {
+      waap_service_->OnNewWindowBrowserWindowShowRequestedToFirstPaint(
+          creation_source_, *window_show_first_requested_time_, timestamp);
+    }
   }
 
   if (!browser_window_first_paint_time_.has_value()) {
@@ -74,7 +104,8 @@ void InitialWebUIWindowMetricsManager::OnReloadButtonCreated() {
 void InitialWebUIWindowMetricsManager::OnReloadButtonFirstPaint(
     base::TimeTicks timestamp) {
   // Ensures only one startup reload button is recorded per browser process.
-  static bool is_startup_first_paint_recorded = false;
+  bool& is_startup_first_paint_recorded =
+      g_is_startup_reload_first_paint_recorded;
   if (!waap_service_) {
     return;
   }
@@ -99,7 +130,8 @@ void InitialWebUIWindowMetricsManager::OnReloadButtonFirstPaint(
 void InitialWebUIWindowMetricsManager::OnReloadButtonFirstContentfulPaint(
     base::TimeTicks timestamp) {
   // Ensures only one startup reload button is recorded per browser process.
-  static bool is_startup_first_contentful_paint_recorded = false;
+  bool& is_startup_first_contentful_paint_recorded =
+      g_is_startup_reload_first_contentful_paint_recorded;
   if (!waap_service_) {
     return;
   }
@@ -122,7 +154,7 @@ void InitialWebUIWindowMetricsManager::
         base::TimeTicks created_timestamp,
         base::TimeTicks launched_timestamp) {
   // Ensures only one startup process launch is recorded per browser process.
-  static bool is_startup_process_recorded = false;
+  bool& is_startup_process_recorded = g_is_startup_process_recorded;
   if (!waap_service_) {
     return;
   }
@@ -144,6 +176,17 @@ void InitialWebUIWindowMetricsManager::RecordPaintDeltaIfAvailable() {
     return;
   }
 
+  // Handle Startup metrics only once per process.
+  bool& process_startup_delta_recorded = g_process_startup_delta_recorded;
+  bool is_startup_metric = false;
+  if (!process_startup_delta_recorded) {
+    // Update the `process_startup_delta_recorded` before the negative delta check to make
+    // sure that we are in the correct state. Even if the recording is skipped, we don't
+    // accidentally record a startup metric for the new window case later.
+    is_startup_metric = true;
+    process_startup_delta_recorded = true;
+  }
+
   base::TimeDelta delta =
       *reload_button_first_paint_time_ - *browser_window_first_paint_time_;
 
@@ -152,10 +195,7 @@ void InitialWebUIWindowMetricsManager::RecordPaintDeltaIfAvailable() {
     return;
   }
 
-  // Handle Startup metrics only once per process.
-  static bool process_startup_delta_recorded = false;
-  if (!process_startup_delta_recorded && !skip_startup_metrics_for_testing_) {
-    process_startup_delta_recorded = true;
+  if (is_startup_metric && !skip_startup_metrics_for_testing_) {
     startup_delta_recorded_ = true;
     waap_service_->OnStartupBrowserWindowToReloadButtonFirstPaintGap(
         *browser_window_first_paint_time_, *reload_button_first_paint_time_);
@@ -167,4 +207,13 @@ void InitialWebUIWindowMetricsManager::RecordPaintDeltaIfAvailable() {
         creation_source_, *browser_window_first_paint_time_,
         *reload_button_first_paint_time_);
   }
+}
+
+// static
+void InitialWebUIWindowMetricsManager::ResetForTesting() {
+  g_is_startup_first_paint_recorded = false;
+  g_is_startup_reload_first_paint_recorded = false;
+  g_is_startup_reload_first_contentful_paint_recorded = false;
+  g_is_startup_process_recorded = false;
+  g_process_startup_delta_recorded = false;
 }

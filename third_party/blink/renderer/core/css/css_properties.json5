@@ -2358,6 +2358,7 @@
       valid_for_page_context: true,
       invalidate: ["border-radius", "paint"],
       percentages_depend_on_used_value: true,
+      affected_by_zoom: true,
     },
     {
       name: "border-bottom-right-radius",
@@ -2381,6 +2382,7 @@
       valid_for_page_context: true,
       invalidate: ["border-radius", "paint"],
       percentages_depend_on_used_value: true,
+      affected_by_zoom: true,
     },
     {
       name: "border-bottom-style",
@@ -2714,6 +2716,7 @@
       valid_for_page_context: true,
       invalidate: ["border-radius", "paint"],
       percentages_depend_on_used_value: true,
+      affected_by_zoom: true,
     },
     {
       name: "border-top-right-radius",
@@ -2737,6 +2740,7 @@
       valid_for_page_context: true,
       invalidate: ["border-radius", "paint"],
       percentages_depend_on_used_value: true,
+      affected_by_zoom: true,
     },
     {
       name: "border-top-style",
@@ -3484,6 +3488,7 @@
       valid_for_permission_element: true,
       invalidate: ["layout", "paint"],
       percentages_depend_on_used_value: true,
+      affected_by_zoom: true,
     },
     {
       name: "flex-direction",
@@ -3882,7 +3887,7 @@
         "third_party/blink/renderer/platform/graphics/image_node_animation_info.h"
       ],
       type_name: "ImageAnimationEnum",
-      keywords: ["normal", "running", "paused"],
+      keywords: ["normal", "running", "paused", "stopped"],
       default_value: "normal",
       typedom_types: ["Keyword"],
       invalidate: ["paint"],
@@ -4178,6 +4183,7 @@
       invalidate: ["margin", "out-of-flow", "scroll-anchor"],
       anchor_mode: "height",
       percentages_depend_on_used_value: true,
+      affected_by_zoom: true,
     },
     {
       name: "margin-left",
@@ -4204,6 +4210,7 @@
       invalidate: ["margin", "out-of-flow", "scroll-anchor"],
       anchor_mode: "width",
       percentages_depend_on_used_value: true,
+      affected_by_zoom: true,
     },
     {
       name: "margin-right",
@@ -4230,6 +4237,7 @@
       invalidate: ["margin", "out-of-flow", "scroll-anchor"],
       anchor_mode: "width",
       percentages_depend_on_used_value: true,
+      affected_by_zoom: true,
     },
     {
       name: "margin-top",
@@ -4255,6 +4263,7 @@
       invalidate: ["margin", "out-of-flow", "scroll-anchor"],
       anchor_mode: "height",
       percentages_depend_on_used_value: true,
+      affected_by_zoom: true,
     },
     {
       name: "margin-trim",
@@ -4661,6 +4670,7 @@
       valid_for_permission_element: true,
       valid_for_page_context: true,
       invalidate: ["outline"],
+      affected_by_zoom: true,
     },
     {
       name: "outline-style",
@@ -4697,6 +4707,7 @@
       valid_for_permission_element: true,
       valid_for_page_context: true,
       invalidate: ["outline"],
+      affected_by_zoom: true,
     },
     {
       name: "overflow-anchor",
@@ -4886,6 +4897,7 @@
       valid_for_permission_element: true,
       invalidate: ["layout", "paint", "scroll-anchor"],
       percentages_depend_on_used_value: true,
+      affected_by_zoom: true,
     },
     {
       name: "padding-left",
@@ -4908,6 +4920,7 @@
       valid_for_permission_element: true,
       invalidate: ["layout", "paint", "scroll-anchor"],
       percentages_depend_on_used_value: true,
+      affected_by_zoom: true,
     },
     {
       name: "padding-right",
@@ -4930,6 +4943,7 @@
       valid_for_permission_element: true,
       invalidate: ["layout", "paint", "scroll-anchor"],
       percentages_depend_on_used_value: true,
+      affected_by_zoom: true,
     },
     {
       name: "padding-top",
@@ -4952,6 +4966,7 @@
       valid_for_permission_element: true,
       invalidate: ["layout", "paint", "scroll-anchor"],
       percentages_depend_on_used_value: true,
+      affected_by_zoom: true,
     },
     {
       name: "page",
@@ -6797,6 +6812,7 @@
       typedom_types: ["Keyword", "Length", "Percentage"],
       invalidate: ["layout", "paint"],
       percentages_depend_on_used_value: true,
+      affected_by_zoom: true,
     },
     {
       name: "row-gap",
@@ -7074,6 +7090,7 @@
       keywords: ["thin", "medium", "thick"],
       typedom_types: ["Keyword", "Length"],
       invalidate: ["paint"],
+      affected_by_zoom: true,
     },
     {
       name: "row-rule-width",
@@ -7116,6 +7133,7 @@
       keywords: ["auto"],
       typedom_types: ["Keyword", "Length"],
       invalidate: ["layout", "paint"],
+      affected_by_zoom: true,
     },
     {
       name: "column-height",
@@ -7131,6 +7149,7 @@
       keywords: ["auto"],
       typedom_types: ["Keyword", "Length"],
       invalidate: ["layout", "paint"],
+      affected_by_zoom: true,
       runtime_flag: "MulticolColumnWrapping",
     },
     {

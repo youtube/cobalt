@@ -40,12 +40,9 @@ namespace content {
 class BrowserContext;
 }  // namespace content
 
-namespace contextual_cueing {
-class ZeroStateSuggestionsPageData;
-}  // namespace contextual_cueing
-
 namespace glic {
 class GlicPageContextEligibilityObserver;
+class ZeroStateSuggestionsPageData;
 }  // namespace glic
 
 namespace on_device_internals {
@@ -111,9 +108,7 @@ class OptimizationGuideKeyedService
   ~OptimizationGuideKeyedService() override;
 
 #if BUILDFLAG(IS_ANDROID)
-  base::android::ScopedJavaLocalRef<
-      optimization_guide::android::JOptimizationGuideBridge>
-  GetJavaObject();
+  base::android::ScopedJavaLocalRef<JOptimizationGuideBridge> GetJavaObject();
 #endif
 
   // Constructs a ModelBrokerClient with remote fallback capability.
@@ -166,7 +161,6 @@ class OptimizationGuideKeyedService
   void RemoveOnDeviceModelAvailabilityChangeObserver(
       optimization_guide::mojom::OnDeviceFeature feature,
       optimization_guide::OnDeviceModelAvailabilityObserver* observer) override;
-  on_device_model::Capabilities GetOnDeviceCapabilities() override;
   optimization_guide::OnDeviceModelEligibilityReason
   GetOnDeviceModelEligibility(
       optimization_guide::mojom::OnDeviceFeature feature) override;
@@ -176,11 +170,6 @@ class OptimizationGuideKeyedService
       base::OnceCallback<
           void(optimization_guide::OnDeviceModelEligibilityReason)> callback)
       override;
-  std::optional<optimization_guide::SamplingParamsConfig>
-  GetSamplingParamsConfig(
-      optimization_guide::mojom::OnDeviceFeature feature) override;
-  std::optional<const optimization_guide::proto::Any> GetFeatureMetadata(
-      optimization_guide::mojom::OnDeviceFeature feature) override;
 
   // Returns true if the `feature` should be currently enabled for this user.
   // Note that the return value here may not match the feature enable state on
@@ -283,7 +272,7 @@ class OptimizationGuideKeyedService
 
  private:
   friend class ChromeBrowsingDataRemoverDelegate;
-  friend class contextual_cueing::ZeroStateSuggestionsPageData;
+  friend class glic::ZeroStateSuggestionsPageData;
   friend class glic::GlicPageContextEligibilityObserver;
   friend class HintsFetcherBrowserTest;
   friend class on_device_internals::PageHandler;
