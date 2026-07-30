@@ -114,7 +114,6 @@ Chrome मा तपाईंलाई अझ राम्रो ब्राउ
 <translation id="1413446866325418126">आफ्नो Google खातामा डेटा सेभ गर्नुहोस्</translation>
 <translation id="1414919006379339073">हालको विन्डो बन्द गर्नुहोस्</translation>
 <translation id="1416550906796893042">एपको संस्करण</translation>
-<translation id="1419753403124156396">Chrome रिस्टार्ट गर्ने हो?</translation>
 <translation id="1428770807407000502">सिंक गर्ने सुविधा अफ गर्ने हो?</translation>
 <translation id="1430915738399379752">प्रिन्ट गर्नुहोस्</translation>
 <translation id="1435593198351412143">PDF हरू स्वतः खोलियोस्</translation>
@@ -247,10 +246,8 @@ Chrome मा तपाईंलाई अझ राम्रो ब्राउ
 <translation id="2063047797624276601">तपाईंको सङ्गठनले "परिष्कृत सुरक्षित ब्राउजिङ" अन गरेको छ</translation>
 <translation id="2065944887543506430">{FILE_COUNT,plural, =1{१ वटा डाउनलोड गर्न सकिएन}other{# वटा डाउनलोडहरू गर्न सकिएन}}</translation>
 <translation id="2067805253194386918">पाठ</translation>
-<translation id="2072027001582274150">प्रयोग नगरिएका वा दोहोरिएका ट्याबहरू</translation>
 <translation id="2079545284768500474">अन्डू गर्नुहोस्</translation>
 <translation id="2082238445998314030"><ph name="TOTAL_RESULTS" /> को <ph name="RESULT_NUMBER" /> परिणाम</translation>
-<translation id="2088833076121753253">अटोफिल सेवा सेटअप गर्ने कार्य पूरा गर्न अहिले नै Chrome रिस्टार्ट गर्नुहोस्। तपाईंका ट्याबहरू स्वतः खुल्ने छन्।</translation>
 <translation id="2091863218454846791">कम्प्याक्ट भ्यू देखाइँदै छ</translation>
 <translation id="2093731487903423814">पछिल्ला १५ मिनेट</translation>
 <translation id="2096577711562668473">अटोफिल सेवा परिवर्तन गर्ने हो?</translation>
@@ -428,6 +425,7 @@ Chrome मा तपाईंलाई अझ राम्रो ब्राउ
 <translation id="2854916915045135148">इन्कोग्निटो मोड प्रयोग गर्न टच एण्ड होल्ड गर्नुहोस्</translation>
 <translation id="2860954141821109167">यस यन्त्रमा कुनै फोन एप सक्षम गरिएको कुरा सुनिश्चित गर्नुहोस्</translation>
 <translation id="2861923151411510142">Chrome का केही सुविधाहरू अबदेखि उपलब्ध हुने छैनन्</translation>
+<translation id="2869416538780777323">{OTHER_TAB_COUNT,plural, =1{<ph name="URL" /> र अन्य एउटा ट्याब}other{<ph name="URL" /> र अन्य <ph name="TAB_COUNT_MANY" /> वटा ट्याब}}</translation>
 <translation id="2869430948265924908">कारमा भएको आफ्नो संवेदनशील सामग्री सुरक्षित राख्न तपाईंले अनिवार्य रूपमा कार प्रोफाइल लक बनाउनु पर्छ।  तपाईं पिन, कोड वा पासवर्ड राखेर कार प्रोफाइल लक बनाउन सक्नुहुन्छ।</translation>
 <translation id="2870560284913253234">साइट</translation>
 <translation id="2871733351037274014">पेजहरू प्रिलोड गर्नुहोस्</translation>
@@ -446,6 +444,7 @@ Chrome मा तपाईंलाई अझ राम्रो ब्राउ
 <translation id="2904414404539560095">ट्याब आदान प्रदान गरिनु पर्ने डिभाइसहरूको सूची पूर्ण उचाइमा खोलिएको छ।</translation>
 <translation id="2908243544703713905">नपढिएका स्टोरिज तयार छन्</translation>
 <translation id="2909615210195135082">Google का सूचनाहरूको प्लेटफर्म</translation>
+<translation id="2912247081180973411">विन्डोहरू बन्द गर्नुहोस्</translation>
 <translation id="2912345083818861431">तपाईं हाल खोलिएका इन्कोग्निटो ट्याब हेर्न चाहनुहुन्छ भने स्क्रिन लक प्रयोग गर्नुहोस्</translation>
 <translation id="2918484639460781603">सेटिङमा जानुहोस्</translation>
 <translation id="2920713489113095380"><ph name="TAB_TITLE" />, म्युट गरिएको ट्याब</translation>
@@ -503,7 +502,6 @@ Chrome मा तपाईंलाई अझ राम्रो ब्राउ
 <translation id="3159335509547415276">ब्लक गरिएका खाताहरूका बारेमा जान्नुहोस्</translation>
 <translation id="3161699713309727585"><ph name="BUTTON_TEXT" />, नयाँ ट्याबमा खुल्छ</translation>
 <translation id="3166827708714933426">ट्याब र विन्डोका सर्टकटहरू</translation>
-<translation id="316694332262407393">यसमा अहिले Chrome चलिरहेको छ।</translation>
 <translation id="3167258285411721858">तपाईं <ph name="HOST_NAME" /> को मोबाइल साइटको लिंक माग्न सक्नुहुन्छ</translation>
 <translation id="3169472444629675720">पत्ता लगाउनुहोस्</translation>
 <translation id="3181145110929454111"><ph name="TAB_TITLE" />, एकभन्दा बढी विकल्प चयन गरिएको पिन गरिएको म्युट गरिएको इन्कोग्निटो ट्याब</translation>
@@ -850,7 +848,6 @@ Chrome मा तपाईंलाई अझ राम्रो ब्राउ
 <translation id="468924408576231679">बेवपेज <ph name="PAGE_TITLE" /> को लिंक सेयर गर्नुहोस्। स्रोत: <ph name="PAGE_URL" /></translation>
 <translation id="469286762610133730">अझ उत्कृष्ट सामग्री प्राप्त गर्नुहोस्</translation>
 <translation id="4695891336199304370">{SHIPPING_OPTIONS,plural, =1{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 र <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> थप}other{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 र <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" /> थप}}</translation>
-<translation id="4698061626562952596">यहाँ गई आफ्ना निष्क्रिय ट्याबहरूको समीक्षा गर्नुहोस्</translation>
 <translation id="4698757800236023795"><ph name="ITEM_COUNT" /> वटा ट्याब सक्रिय अवस्थामा छन्</translation>
 <translation id="4699172675775169585">क्यास गरिएका फोटो र फाइलहरू</translation>
 <translation id="4710167854527459075">सबैभन्दा नयाँ सुरुमा आउने गरी क्रमबद्ध गर्नुहोस्</translation>
@@ -905,7 +902,7 @@ Chrome मा तपाईंलाई अझ राम्रो ब्राउ
 <translation id="4878404682131129617">प्रोक्सी सर्भरमार्फत कुनै टनेल स्थापना गर्न सकिएन</translation>
 <translation id="4880127995492972015">अनुवाद गर्नुहोस्…</translation>
 <translation id="4881695831933465202">खोल्नुहोस्</translation>
-<translation id="488187801263602086">फाइलको पुनः नामकरण गर्नुहोस्</translation>
+<translation id="488187801263602086">फाइलको नाम बदल्नुहोस्</translation>
 <translation id="4885273946141277891">असमर्थित संख्याका Chrome दृष्टान्तहरू।</translation>
 <translation id="4890973535105146893">तपाईंको Google खातामा कुनै पनि पासवर्ड सेभ गरिएको छैन</translation>
 <translation id="4905823827770127520">यो पेजको लिंक समावेश गर्नुहोस्</translation>
@@ -949,6 +946,7 @@ Chrome मा तपाईंलाई अझ राम्रो ब्राउ
 <translation id="5039678609803776426">{TAB_COUNT,plural, =1{<ph name="TAB_COUNT_ONE" /> वटा ट्याब - <ph name="URL_LIST" />}other{<ph name="TAB_COUNT_MANY" /> वटा ट्याब - <ph name="URL_LIST" />}}</translation>
 <translation id="5040262127954254034">गोपनीयता</translation>
 <translation id="504456571576643789">विचार गर्नु पर्ने कुराहरू</translation>
+<translation id="5052017727857614804">{WINDOW_COUNT,plural, =1{<ph name="WINDOW_COUNT_ONE" /> विन्डो चयन गरिएको छ}other{<ph name="WINDOW_COUNT_NORMAL" /> वटा विन्डो चयन गरिएका छन्}}</translation>
 <translation id="5056587122125565772">फोटो बनाउनुहोस्</translation>
 <translation id="506254248375231072">कुनै पनि ट्याब छैन</translation>
 <translation id="5075939510584558547">इन्क्रिप्ट नगरिकनै सेभ गर्नुहोस्</translation>
@@ -965,7 +963,6 @@ Chrome मा तपाईंलाई अझ राम्रो ब्राउ
 <translation id="5123685120097942451">इन्कोग्निटो ट्याब</translation>
 <translation id="5142281402488957685">नयाँ समाचार रिफ्रेस गर्न तलतिर तान्नुहोस्</translation>
 <translation id="5144385790872094440">तपाईंले खोल्ने केही पेजहरू प्रिलोड गरिएका छन्। Google का सर्भर र Google को साइट वा एप लिंक गरेपछि पेजहरू ती सर्भरमार्फत प्रिलोड गरिन सक्छन्।</translation>
-<translation id="5145887002054615868"><ph name="DAYS_INACTIVE" /> दिनदेखि प्रयोग नगरिएका वा दोहोरिएका ट्याबहरू सारेर यहाँ लगिन्छन्<ph name="AUTODELETE_SECTION" />। तपाईं जुनसुकै बेला <ph name="DECLUTTER_SETTINGS_TITLE" /> मा गई यसलाई परिवर्तन गर्न सक्नुहुन्छ।</translation>
 <translation id="5152843274749979095">समर्थन गरिने कुनै एप स्थापना गरिएको छैन</translation>
 <translation id="5161254044473106830">शीर्षक आवश्यक छ</translation>
 <translation id="5161262286013276579">पासकी पुष्टि गर्ने पाना खोलिएको छ</translation>
@@ -1040,6 +1037,7 @@ Chrome मा तपाईंलाई अझ राम्रो ब्राउ
 <translation id="5469852975082458401">तपाईं टेक्स्ट कर्सर प्रयोग गरी पृष्ठहरूमा नेभिगेट गर्न सक्नुहुन्छ। अफ गर्न F7 थिच्नुहोस्।</translation>
 <translation id="5471273988133666918">ट्याब <ph name="TAB_TITLE" /> सार्न मिल्दैन</translation>
 <translation id="548278423535722844">नक्सा एपमा खोल्नुहोस्</translation>
+<translation id="5494920125229734069">सबै चयन गर्नुहोस्</translation>
 <translation id="549660026907543296"><ph name="MEMBER_FULL_NAME" /> का रूपमा सामेल हुनुहोस्</translation>
 <translation id="5517326820028369152">हालसालैको क्रियाकलापसम्बन्धी जानकारी दिने पुछारको पाना</translation>
 <translation id="5526281268548144413">एकभन्दा बढी विन्डोहरूमा बन्द गर्न सकिँदैन</translation>
@@ -1148,6 +1146,7 @@ Chrome मा तपाईंलाई अझ राम्रो ब्राउ
 <translation id="5958275228015807058">डाउनलोडरू नामक फोल्डरमा भएका आफ्ना फाइल र पृष्ठहरू भेट्टाउनुहोस्</translation>
 <translation id="5962718611393537961">संक्षिप्त गर्न ट्याप गर्नुहोस्</translation>
 <translation id="5964869237734432770">फोटो विवरण पाउन छाड्नुहोस्</translation>
+<translation id="5972844218283131174">सबैको चयन रद्द गर्नुहोस्</translation>
 <translation id="5975083100439434680">जुम आउट</translation>
 <translation id="5977976211062815271">यस यन्त्रमा</translation>
 <translation id="5978661847409534366">{ITEMS_COUNT,plural, =1{तपाईंको रिडिङ लिस्टमा एउटा पेज छ}other{तपाईंको रिडिङ लिस्टमा # वटा पेज छन्}}</translation>
@@ -1720,12 +1719,14 @@ Chrome मा तपाईंलाई अझ राम्रो ब्राउ
 <translation id="8137562778192957619">तपाईंले यो पासवर्ड याद गरिराख्नु पर्दैन। यो पासवर्ड Google पासवर्ड म्यानेजरमा सेभ गरिने छ।</translation>
 <translation id="8152331954420209374">लेन्समा जानुहोस्</translation>
 <translation id="8153206878708357851">क्यारेट ब्राउजिङ टगल गर्नुहोस्</translation>
+<translation id="8154784523622173959">यो पेजको ब्याकग्राउन्ड पर्सनलाइज गर्नुहोस्</translation>
 <translation id="8163820386638255770">तपाईं आफ्नो Google खातामा सेभ गरिएका पासवर्डहरू प्रयोग गर्न र Google खातामा थप पासवर्डहरू सेभ गर्न चाहनुहुन्छ भने आफ्नो पहिचान पुष्टि गर्नुहोस्</translation>
 <translation id="8175940240143658258">{ARCHIVED_TAB_COUNT,plural, =1{(1) निष्क्रिय वस्तु}other{(#) वटा निष्क्रिय वस्तु}}</translation>
 <translation id="8186512483418048923"><ph name="FILES" /> फाइलहरू बाँकी छन्</translation>
 <translation id="8190358571722158785">१ दिन बाँकी छ</translation>
 <translation id="8192765420340770300">साइन इन गर्ने पुछारको पाना पूरै स्क्रिनमा खोलिएको छ</translation>
 <translation id="8193953846147532858"><ph name="BEGIN_LINK" />तपाईंका डिभाइसहरू<ph name="END_LINK" /> · <ph name="EMAIL" /></translation>
+<translation id="8201752259339925400">किवर्ड हटाउनुहोस्</translation>
 <translation id="820568752112382238">सबैभन्दा बढी हेरिएका साइटहरू</translation>
 <translation id="8207867836430106322">{NUM_OTHER_MEMBERS,plural, =1{<ph name="OWNER_FIRST_NAME" /> र अन्य <ph name="NUMBER_OF_OTHER_MEMBERS" /> जना सामेल हुनुभएको ट्याब समूहमा सामेल हुनुहोस्}other{<ph name="OWNER_FIRST_NAME" /> र अन्य <ph name="NUMBER_OF_OTHER_MEMBERS" /> जना सामेल हुनुभएको ट्याब समूहमा सामेल हुनुहोस्}}</translation>
 <translation id="8209050860603202033">फोटो खोल्नुहोस्</translation>

@@ -21,8 +21,6 @@
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
-#include "chrome/browser/ui/webui/new_tab_page/action_chips/action_chips.mojom-data-view.h"
-#include "chrome/browser/ui/webui/new_tab_page/action_chips/action_chips.mojom-forward.h"
 #include "chrome/browser/ui/webui/new_tab_page/action_chips/action_chips.mojom.h"
 #include "chrome/browser/ui/webui/new_tab_page/action_chips/remote_suggestions_service_simple.h"
 #include "chrome/browser/ui/webui/new_tab_page/action_chips/tab_id_generator.h"
@@ -39,6 +37,7 @@
 #include "components/search/ntp_features.h"
 #include "components/url_formatter/url_formatter.h"
 #include "content/public/browser/web_contents.h"
+#include "third_party/omnibox_proto/groups.pb.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "url/url_util.h"
 
@@ -202,28 +201,15 @@ std::vector<ActionChipPtr> CreateDeepDiveChips(
     if (chips.size() == 3) {
       break;
     }
-    if (suggestion.type() != AutocompleteMatchType::SEARCH_SUGGEST) {
+    if (suggestion.type() != AutocompleteMatchType::SEARCH_SUGGEST ||
+        (suggestion.suggestion_group_id().has_value() &&
+         suggestion.suggestion_group_id().value() !=
+             omnibox::GroupId::GROUP_CONTEXTUAL_SEARCH)) {
       continue;
     }
     chips.push_back(CreateDeepDiveChip(tab->Clone(), suggestion.suggestion()));
   }
   return chips;
-}
-
-void AppendStaticAimChipsBasedOnEligibility(
-    std::vector<ActionChipPtr>& chips,
-    const AimEligibilityService* aim_eligibility_service) {
-  for (base::FunctionRef<std::optional<ActionChipPtr>(
-           std::string_view, const AimEligibilityService*)> generator :
-       {&CreateDeepSearchChipIfEligible, &CreateImageCreationChipIfEligible}) {
-    if (chips.size() >= 3) {
-      break;
-    }
-    std::optional<ActionChipPtr> chip = generator("", aim_eligibility_service);
-    if (chip.has_value()) {
-      chips.push_back(*std::move(chip));
-    }
-  }
 }
 
 TabInfoPtr CreateTabInfo(const TabIdGenerator& tab_id_generator,
@@ -358,11 +344,5 @@ void ActionChipsGeneratorImpl::GenerateDeepDiveChipsFromRemoteResponse(
     return;
   }
   std::vector<ActionChipPtr> chips = CreateDeepDiveChips(tab, *result);
-  if (chips.size() < 3) {
-    // This ensures that at least two chips are available for display.
-    // Assumption: The user is either deepsearch eligible or nanobanana
-    // eligible (and can be both).
-    AppendStaticAimChipsBasedOnEligibility(chips, aim_eligibility_service_);
-  }
   std::move(callback).Run(std::move(chips));
 }

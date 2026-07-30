@@ -38,7 +38,8 @@ class VIZ_COMMON_EXPORT ExternalBeginFrameSourceMac
   ~ExternalBeginFrameSourceMac() override;
 
   // BeginFrameSource implementation.
-  void SetVSyncDisplayID(int64_t display_id) override;
+  void SetVSyncDisplayID(int64_t display_id, bool force_update) override;
+  void UpdateVSyncDisplay() override;
 
   // ExternalBeginFrameSourceClient implementation.
   void OnNeedsBeginFrames(bool needs_begin_frames) override;

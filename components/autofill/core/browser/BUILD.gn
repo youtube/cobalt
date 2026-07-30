@@ -730,6 +730,8 @@ static_library("browser") {
     "suggestions/payments/merchant_promo_code_suggestion_generator.h",
     "suggestions/payments/payments_suggestion_generator.cc",
     "suggestions/payments/payments_suggestion_generator.h",
+    "suggestions/payments/payments_suggestion_generator_util.cc",
+    "suggestions/payments/payments_suggestion_generator_util.h",
     "suggestions/payments/save_and_fill_suggestion.h",
     "suggestions/payments/virtual_card_suggestion_data.h",
     "suggestions/plus_addresses/plus_address.h",
@@ -1150,6 +1152,7 @@ if (is_android) {
   java_cpp_enum("autofill_ai_core_browser_java_enums") {
     sources = [
       "$target_gen_dir/data_model/autofill_ai/entity_type_names.h",
+      "data_model/autofill_ai/entity_instance.h",
       "data_model/autofill_ai/entity_type.h",
     ]
     deps = [ ":entity_schema_enums_and_functions" ]
@@ -1330,7 +1333,6 @@ static_library("test_support") {
     "strike_databases/payments/test_credit_card_save_strike_database.h",
     "strike_databases/payments/test_strike_database.cc",
     "strike_databases/payments/test_strike_database.h",
-    "suggestions/payments/credit_card_suggestion_generator_test_api.h",
     "suggestions/suggestion_test_helpers.cc",
     "suggestions/suggestion_test_helpers.h",
     "test_utils/autofill_form_test_utils.cc",

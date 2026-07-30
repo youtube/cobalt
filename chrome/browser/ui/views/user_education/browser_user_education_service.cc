@@ -526,7 +526,7 @@ void MaybeRegisterChromeFeaturePromos(
   registry.RegisterFeature(std::move(
       FeaturePromoSpecification::CreateForCustomAction(
           feature_engagement::kIPHDesktopCustomizeChromeExperimentFeature,
-          kTopContainerElementId,
+          kBrowserDialogAnchorElementId,
           IDS_TUTORIAL_CUSTOMIZE_CHROME_START_TUTORIAL_IPH,
           IDS_PROMO_SHOW_TUTORIAL_BUTTON,
           base::BindRepeating(
@@ -825,8 +825,9 @@ void MaybeRegisterChromeFeaturePromos(
   // kIPHPdfSearchifyFeature:
   registry.RegisterFeature(std::move(
       FeaturePromoSpecification::CreateForToastPromo(
-          feature_engagement::kIPHPdfSearchifyFeature, kTopContainerElementId,
-          IDS_PDF_SEARCHIFY_IPH_BODY, IDS_PDF_SEARCHIFY_IPH_BODY_SCREEN_READER,
+          feature_engagement::kIPHPdfSearchifyFeature,
+          kBrowserDialogAnchorElementId, IDS_PDF_SEARCHIFY_IPH_BODY,
+          IDS_PDF_SEARCHIFY_IPH_BODY_SCREEN_READER,
           FeaturePromoSpecification::AcceleratorInfo())
           .SetBubbleArrow(HelpBubbleArrow::kNone)
           .SetBubbleTitleText(IDS_PDF_SEARCHIFY_IPH_TITLE)
@@ -1035,8 +1036,8 @@ void MaybeRegisterChromeFeaturePromos(
   registry.RegisterFeature(std::move(
       FeaturePromoSpecification::CreateForTutorialPromo(
           feature_engagement::kIPHSideBySideTabSwitchFeature,
-          kTopContainerElementId, IDS_SPLIT_VIEW_TAB_SWITCH_ENTRY_IPH_BODY,
-          kSplitViewTutorialId)
+          kBrowserDialogAnchorElementId,
+          IDS_SPLIT_VIEW_TAB_SWITCH_ENTRY_IPH_BODY, kSplitViewTutorialId)
           .SetBubbleArrow(HelpBubbleArrow::kNone)
           .SetBubbleIcon(kLightbulbOutlineIcon)
           .SetBubbleTitleText(IDS_SPLIT_VIEW_TAB_SWITCH_ENTRY_IPH_TITLE)
@@ -1119,6 +1120,10 @@ void MaybeRegisterChromeFeaturePromos(
                       views::ElementTrackerViews::GetInstance()
                           ->GetFirstMatchingViewAs<BrowserView>(
                               kBrowserViewElementId, elements[0]->context());
+                  if (!browser_view) {
+                    // The browser_view may be null in tests.
+                    return nullptr;
+                  }
                   IconLabelBubbleView* page_action_view =
                       browser_view->toolbar_button_provider()
                           ->GetPageActionView(kActionSidePanelShowReadAnything);
@@ -1169,8 +1174,8 @@ void MaybeRegisterChromeFeaturePromos(
     registry.RegisterFeature(std::move(
         FeaturePromoSpecification::CreateForCustomAction(
             feature_engagement::kIPHTabGroupsSharedTabChangedFeature,
-            kTopContainerElementId, IDS_DATA_SHARING_USER_ED_FIRST_TAB_CHANGE,
-            IDS_LEARN_MORE,
+            kBrowserDialogAnchorElementId,
+            IDS_DATA_SHARING_USER_ED_FIRST_TAB_CHANGE, IDS_LEARN_MORE,
             CreateNavigationAction(GURL(
                 data_sharing::features::kLearnMoreSharedTabGroupPageURL.Get())))
             .SetBubbleArrow(HelpBubbleArrow::kTopLeft)
@@ -1302,11 +1307,11 @@ void MaybeRegisterChromeFeaturePromos(
                        "into the toolbar.")));
 
   // kIPHDesktopSharedHighlightingFeature:
-  registry.RegisterFeature(
-      std::move(FeaturePromoSpecification::CreateForLegacyPromo(
-                    &feature_engagement::kIPHDesktopSharedHighlightingFeature,
-                    kTopContainerElementId, IDS_SHARED_HIGHLIGHTING_PROMO)
-                    .SetBubbleArrow(HelpBubbleArrow::kNone)));
+  registry.RegisterFeature(std::move(
+      FeaturePromoSpecification::CreateForLegacyPromo(
+          &feature_engagement::kIPHDesktopSharedHighlightingFeature,
+          kBrowserDialogAnchorElementId, IDS_SHARED_HIGHLIGHTING_PROMO)
+          .SetBubbleArrow(HelpBubbleArrow::kNone)));
 
   // kIPHWebUiHelpBubbleTestFeature
   registry.RegisterFeature(std::move(
@@ -1953,40 +1958,6 @@ void MaybeRegisterChromeNewBadges(user_education::NewBadgeRegistry& registry) {
       user_education::features::kNewBadgeTestFeature,
       user_education::Metadata(124, "Frizzle Team",
                                "Used to test \"New\" Badge logic.")));
-
-  registry.RegisterFeature(user_education::NewBadgeSpecification(
-      features::kDevToolsAiAssistanceFileAgent,
-      user_education::Metadata(132, "wolfi@chromium.org, kimanh@chromium.org",
-                               "Shown in the Sources panel in the AI menu item "
-                               "when opening the context menu of a file.")));
-  registry.RegisterFeature(user_education::NewBadgeSpecification(
-      features::kDevToolsAiAssistanceNetworkAgent,
-      user_education::Metadata(
-          132, "wolfi@chromium.org, kimanh@chromium.org",
-          "Shown in the Network panel in the AI menu item "
-          "when opening the context menu of a network request.")));
-  registry.RegisterFeature(user_education::NewBadgeSpecification(
-      features::kDevToolsAiAssistancePerformanceAgent,
-      user_education::Metadata(
-          132, "jacktfranklin@chromium.org, kimanh@chromium.org",
-          "Shown in the Performance panel in the AI menu item "
-          "when opening the context menu of a main thread task.")));
-  registry.RegisterFeature(user_education::NewBadgeSpecification(
-      features::kDevToolsFreestyler,
-      user_education::Metadata(
-          131, "wolfi@chromium.org, kimanh@chromium.org",
-          "Shown in the Elements panel in the AI menu item "
-          "when opening the context menu of a DOM element.")));
-  registry.RegisterFeature(user_education::NewBadgeSpecification(
-      features::kDevToolsAiSubmenuPrompts,
-      user_education::Metadata(
-          142, "kprokopenko@chromium.org, kimanh@chromium.org",
-          "Shows AI submenu prompts in the AI menu item.")));
-  registry.RegisterFeature(user_education::NewBadgeSpecification(
-      features::kDevToolsAiDebugWithAi,
-      user_education::Metadata(
-          142, "kprokopenko@chromium.org, kimanh@chromium.org",
-          "Shows Debug with AI menu item for AI assistance.")));
 
   registry.RegisterFeature(user_education::NewBadgeSpecification(
       compose::features::kEnableCompose,

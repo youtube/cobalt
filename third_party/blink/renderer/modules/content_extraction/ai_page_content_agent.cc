@@ -533,10 +533,11 @@ bool ShouldSkipDescendants(
     return true;
   }
 
-  // We don't capture the SVG layout internally so there's no need to
-  // walk their tree.
+  // If the feature is disabled, we don't capture the SVG layout internally so
+  // there's no need to walk their tree.
   if (content_node->content_attributes->attribute_type ==
-      mojom::blink::AIPageContentAttributeType::kSVG) {
+          mojom::blink::AIPageContentAttributeType::kSvgRoot &&
+      !RuntimeEnabledFeatures::AIPageContentIncludeSVGSubtreeEnabled()) {
     return true;
   }
 
@@ -576,10 +577,12 @@ void ProcessTextNode(const LayoutText& layout_text,
   attributes.text_info = std::move(text_info);
 }
 
-void ProcessImageNode(const LayoutImage& layout_image,
+void ProcessImageNode(const LayoutObject& layout_image,
                       mojom::blink::AIPageContentAttributes& attributes) {
   attributes.attribute_type = mojom::blink::AIPageContentAttributeType::kImage;
   CHECK(IsVisible(layout_image));
+  CHECK(layout_image.IsImage() || layout_image.IsSVGImage());
+
   // LayoutImage is a superclass of LayoutMedia, which is a superclass of
   // LayoutVideo and LayoutAudio. We only want to process images here, so
   // we enforce that the object is not a media object.
@@ -587,6 +590,7 @@ void ProcessImageNode(const LayoutImage& layout_image,
 
   auto image_info = mojom::blink::AIPageContentImageInfo::New();
 
+  // TODO(b/468126774): Set caption for SVG <images> based on <title> elements.
   if (auto* image_element =
           DynamicTo<HTMLImageElement>(layout_image.GetNode())) {
     // TODO(crbug.com/383127202): A11y stack generates alt text using image
@@ -598,9 +602,10 @@ void ProcessImageNode(const LayoutImage& layout_image,
   attributes.image_info = std::move(image_info);
 }
 
-void ProcessSVGNode(const LayoutSVGRoot& layout_svg,
+void ProcessSVGRoot(const LayoutSVGRoot& layout_svg,
                     mojom::blink::AIPageContentAttributes& attributes) {
-  attributes.attribute_type = mojom::blink::AIPageContentAttributeType::kSVG;
+  attributes.attribute_type =
+      mojom::blink::AIPageContentAttributeType::kSvgRoot;
   CHECK(IsVisible(layout_svg));
 
   auto* element = DynamicTo<Element>(layout_svg.GetNode());
@@ -608,9 +613,11 @@ void ProcessSVGNode(const LayoutSVGRoot& layout_svg,
     return;
   }
 
-  auto svg_data = mojom::blink::AIPageContentSVGData::New();
-  svg_data->inner_text = element->GetInnerTextWithoutUpdate();
-  attributes.svg_data = std::move(svg_data);
+  auto svg_root_data = mojom::blink::AIPageContentSvgRootData::New();
+  // TODO(b/452908424): Consider removing this given that the inner text is
+  // available in the text nodes.
+  svg_root_data->inner_text = element->GetInnerTextWithoutUpdate();
+  attributes.svg_root_data = std::move(svg_root_data);
 }
 
 void ProcessCanvasNode(const LayoutHTMLCanvas& layout_canvas,
@@ -882,8 +889,11 @@ void OffsetNodeGeometry(mojom::blink::AIPageContentNode& node,
 }  // namespace
 
 // static
+const char AIPageContentAgent::kSupplementName[] = "AIPageContentAgent";
+
+// static
 AIPageContentAgent* AIPageContentAgent::From(Document& document) {
-  return document.GetAIPageContentAgent();
+  return Supplement<Document>::From<AIPageContentAgent>(document);
 }
 
 // static
@@ -898,7 +908,7 @@ void AIPageContentAgent::BindReceiver(
   if (!agent) {
     agent = MakeGarbageCollected<AIPageContentAgent>(
         base::PassKey<AIPageContentAgent>(), *frame);
-    document.SetAIPageContentAgent(agent);
+    Supplement<Document>::ProvideTo(document, agent);
   }
   agent->Bind(std::move(receiver));
 }
@@ -911,7 +921,7 @@ AIPageContentAgent* AIPageContentAgent::GetOrCreateForTesting(
     DCHECK(document.GetFrame());
     agent = MakeGarbageCollected<AIPageContentAgent>(
         base::PassKey<AIPageContentAgent>(), *document.GetFrame());
-    document.SetAIPageContentAgent(agent);
+    Supplement<Document>::ProvideTo(document, agent);
   }
   return agent;
 }
@@ -940,7 +950,8 @@ void AIPageContentAgent::
 
 AIPageContentAgent::AIPageContentAgent(base::PassKey<AIPageContentAgent>,
                                        LocalFrame& frame)
-    : document_(*frame.GetDocument()), receiver_set_(this, frame.DomWindow()) {
+    : Supplement<Document>(*frame.GetDocument()),
+      receiver_set_(this, frame.DomWindow()) {
   DCHECK(frame.GetDocument());
 }
 
@@ -950,12 +961,12 @@ void AIPageContentAgent::Bind(
     mojo::PendingReceiver<mojom::blink::AIPageContentAgent> receiver) {
   receiver_set_.Add(
       std::move(receiver),
-      document_->GetTaskRunner(TaskType::kInternalUserInteraction));
+      GetSupplementable()->GetTaskRunner(TaskType::kInternalUserInteraction));
 }
 
 void AIPageContentAgent::Trace(Visitor* visitor) const {
-  visitor->Trace(document_);
   visitor->Trace(receiver_set_);
+  Supplement<Document>::Trace(visitor);
 }
 
 void AIPageContentAgent::DidFinishPostLifecycleSteps(const LocalFrameView&) {
@@ -973,16 +984,22 @@ void AIPageContentAgent::GetAIPageContent(
     GetAIPageContentCallback callback) {
   base::TimeTicks start_time = base::TimeTicks::Now();
 
-  LocalFrameView* view = document_->View();
+  LocalFrameView* view = GetSupplementable()->View();
 
   // If there's no lifecycle pending, we can't rely on post lifecycle
   // notifications and the layout is likely clean.
   const bool can_do_sync_extraction = !view || !view->LifecycleUpdatePending();
 
+  // TODO(b/467336183): Remove VLOGs once resolved.
   if (can_do_sync_extraction || NeedsSyncExtraction(*options)) {
+    VLOG(1) << "GetAIPageContent SYNC MainFrame: "
+            << GetSupplementable()->IsInMainFrame();
     GetAIPageContentSync(std::move(options), std::move(callback), start_time);
+    VLOG(1) << "GetAIPageContent SYNC DONE";
     return;
   }
+
+  VLOG(1) << "GetAIPageContent ASYNC";
 
   EnsureLifecycleObserverRegistered();
 
@@ -1007,7 +1024,8 @@ void AIPageContentAgent::GetAIPageContentSync(
 
   const auto end_time = base::TimeTicks::Now();
   RecordLatencyMetrics(start_time, sync_start_time, end_time,
-                       document_->GetFrame()->IsOutermostMainFrame(), *options);
+                       GetSupplementable()->GetFrame()->IsOutermostMainFrame(),
+                       *options);
   std::move(callback).Run(std::move(content));
 }
 
@@ -1015,8 +1033,8 @@ void AIPageContentAgent::EnsureLifecycleObserverRegistered() {
   if (is_lifecycle_observer_registered_) {
     return;
   }
-  DCHECK(document_);
-  if (auto* view = document_->View()) {
+  DCHECK(GetSupplementable());
+  if (auto* view = GetSupplementable()->View()) {
     view->RegisterForLifecycleNotifications(this);
     is_lifecycle_observer_registered_ = true;
   }
@@ -1028,10 +1046,10 @@ void AIPageContentAgent::MaybeRunAutomaticActionableExtraction() {
     return;
   }
 
-  if (!document_->LoadEventFinished()) {
+  if (!GetSupplementable()->LoadEventFinished()) {
     return;
   }
-  LocalFrame* frame = document_->GetFrame();
+  LocalFrame* frame = GetSupplementable()->GetFrame();
   if (!frame) {
     return;
   }
@@ -1084,7 +1102,7 @@ String AIPageContentAgent::DumpContentNodeForTest(Node* node) {
 
 mojom::blink::AIPageContentPtr AIPageContentAgent::GetAIPageContentInternal(
     const mojom::blink::AIPageContentOptions& options) const {
-  LocalFrame* frame = document_->GetFrame();
+  LocalFrame* frame = GetSupplementable()->GetFrame();
   if (!frame || !frame->GetDocument() || !frame->GetDocument()->View()) {
     return nullptr;
   }
@@ -1155,6 +1173,8 @@ mojom::blink::AIPageContentPtr AIPageContentAgent::ContentBuilder::Build(
   CHECK(root_node);
   WalkChildren(*layout_view, *root_node, *document_style);
   page_content->root_node = std::move(root_node);
+  page_content->visible_bounding_boxes_for_password_redaction =
+      std::move(visible_bounding_box_for_passwords_);
 
   if (stack_depth_exceeded_) {
     ukm::builders::OptimizationGuide_AIPageContentAgent(document.UkmSourceID())
@@ -1470,20 +1490,20 @@ AIPageContentAgent::ContentBuilder::MaybeGenerateContentNode(
     }
     ProcessTextNode(To<LayoutText>(object), attributes,
                     recursion_data.document_style);
-  } else if (object.IsImage()) {
+  } else if (object.IsImage() || object.IsSVGImage()) {
     // Since image is a leaf node, do not create a content node if should skip
     // content.
     if (!IsVisible(object)) {
       return nullptr;
     }
-    ProcessImageNode(To<LayoutImage>(object), attributes);
+    ProcessImageNode(object, attributes);
   } else if (object.IsSVGRoot()) {
     // Since we add the full text under SVG directly, don't add anything if the
     // SVG is hidden.
     if (!IsVisible(object)) {
       return nullptr;
     }
-    ProcessSVGNode(To<LayoutSVGRoot>(object), attributes);
+    ProcessSVGRoot(To<LayoutSVGRoot>(object), attributes);
   } else if (object.IsCanvas()) {
     // No content will be rendered if the canvas is hidden.
     if (!IsVisible(object)) {
@@ -1674,13 +1694,40 @@ void AIPageContentAgent::ContentBuilder::AddAnnotatedRoles(
   }
 }
 
+void AIPageContentAgent::ContentBuilder::TrackPasswordRedactionIfNeeded(
+    const LayoutObject& object,
+    mojom::blink::AIPageContentAttributes& attributes,
+    std::optional<gfx::Rect> visible_bounding_box) {
+  if (!options_->include_passwords_for_redaction) {
+    return;
+  }
+
+  if (!attributes.form_control_data) {
+    return;
+  }
+
+  switch (attributes.form_control_data->redaction_decision) {
+    case mojom::blink::AIPageContentRedactionDecision::kNoRedactionNecessary:
+    case mojom::blink::AIPageContentRedactionDecision::
+        kUnredacted_EmptyPassword:
+      return;
+    case mojom::blink::AIPageContentRedactionDecision::
+        kRedacted_HasBeenPassword:
+      break;
+  }
+
+  visible_bounding_box_for_passwords_.push_back(
+      visible_bounding_box.value_or(ComputeVisibleBoundingBox(object)));
+}
+
 void AIPageContentAgent::ContentBuilder::AddNodeGeometry(
     const LayoutObject& object,
-    mojom::blink::AIPageContentAttributes& attributes) const {
+    mojom::blink::AIPageContentAttributes& attributes) {
   // When in non-actionable mode, we only want to add geometry for the
   // accessibility focused node.
   if (!actionable_mode() &&
       attributes.dom_node_id != accessibility_focused_node_id_) {
+    TrackPasswordRedactionIfNeeded(object, attributes);
     return;
   }
 
@@ -1711,6 +1758,8 @@ void AIPageContentAgent::ContentBuilder::AddNodeGeometry(
   //   users and immediately hit-testable without scrolling.
   geometry.outer_bounding_box = ComputeOuterBoundingBox(object);
   geometry.visible_bounding_box = ComputeVisibleBoundingBox(object);
+  TrackPasswordRedactionIfNeeded(object, attributes,
+                                 geometry.visible_bounding_box);
 
   // Validate the relationship between outer and visible bounding boxes
   // TODO(aleventhal): restore for Canary builds.

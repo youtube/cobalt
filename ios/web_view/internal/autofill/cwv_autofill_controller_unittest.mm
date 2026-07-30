@@ -102,6 +102,7 @@ class MockOtpUnmaskDelegate : public autofill::OtpUnmaskDelegate {
 class CWVAutofillControllerTest : public web::WebTest {
  protected:
   CWVAutofillControllerTest() {
+    l10n_util::OverrideLocaleWithCocoaLocale();
     pref_service_.registry()->RegisterBooleanPref(
         password_manager::prefs::kCredentialsEnableService, true);
     pref_service_.registry()->RegisterBooleanPref(
@@ -161,6 +162,13 @@ class CWVAutofillControllerTest : public web::WebTest {
 
     OverrideJavaScriptFeatures(
         {autofill::AutofillJavaScriptFeature::GetInstance()});
+  }
+
+  void TearDown() override {
+    password_manager_client_ = nullptr;
+    [password_controller_ stopMocking];
+    autofill_controller_ = nil;
+    web::WebTest::TearDown();
   }
 
   void AddWebFrame(std::unique_ptr<web::WebFrame> frame) {

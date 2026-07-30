@@ -12,6 +12,7 @@ import {WebUiListenerMixinLit} from '//resources/cr_elements/web_ui_listener_mix
 import {assert} from '//resources/js/assert.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
+import type {ShowAtConfigPrefs} from '../content/read_anything_types.js';
 import {ToolbarEvent} from '../content/read_anything_types.js';
 import {openMenu} from '../shared/common.js';
 
@@ -60,8 +61,12 @@ export class SimpleActionMenuElement extends SimpleActionMenuElementBase {
   accessor eventName: ToolbarEvent = ToolbarEvent.THEME;
   accessor label: string = '';
 
-  open(anchor: HTMLElement) {
-    openMenu(this.$.lazyMenu.get(), anchor);
+  open(anchor: HTMLElement, showAtConfig?: ShowAtConfigPrefs) {
+    openMenu(this.$.lazyMenu.get(), anchor, showAtConfig);
+  }
+
+  close() {
+    this.$.lazyMenu.get().close();
   }
 
   protected onClick_(e: Event) {
@@ -84,6 +89,10 @@ export class SimpleActionMenuElement extends SimpleActionMenuElementBase {
 
   protected itemIcon_(item: MenuStateItem<any>): string {
     return item.icon === undefined ? '' : item.icon;
+  }
+
+  protected doesItemHaveHeader_(item: MenuStateItem<any>): boolean {
+    return chrome.readingMode.isLineFocusEnabled && !!item.header;
   }
 }
 

@@ -15,6 +15,8 @@ namespace page_content_annotations::features {
 COMPONENT_EXPORT(PAGE_CONTENT_ANNOTATIONS_FEATURES)
 BASE_DECLARE_FEATURE(kPageContentAnnotations);
 COMPONENT_EXPORT(PAGE_CONTENT_ANNOTATIONS_FEATURES)
+BASE_DECLARE_FEATURE(kPageVisibilityPageContentAnnotations);
+COMPONENT_EXPORT(PAGE_CONTENT_ANNOTATIONS_FEATURES)
 BASE_DECLARE_FEATURE(kPageContentAnnotationsValidation);
 COMPONENT_EXPORT(PAGE_CONTENT_ANNOTATIONS_FEATURES)
 BASE_DECLARE_FEATURE(kRemotePageMetadata);
@@ -119,11 +121,6 @@ bool RemotePageMetadataEnabled(const std::string& locale,
 // Will be a value from 0 to 100, inclusive.
 COMPONENT_EXPORT(PAGE_CONTENT_ANNOTATIONS_FEATURES)
 int GetMinimumPageCategoryScoreToPersist();
-
-// Whether to persist salient image metadata for each visit.
-COMPONENT_EXPORT(PAGE_CONTENT_ANNOTATIONS_FEATURES)
-bool ShouldPersistSalientImageMetadata(const std::string& locale,
-                                       const std::string& country_code);
 
 // Returns whether the page visibility model should be executed on page content
 // for a user using |locale| as their browser language.

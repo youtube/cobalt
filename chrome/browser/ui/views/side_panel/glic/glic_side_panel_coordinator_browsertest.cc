@@ -1,7 +1,7 @@
 // Copyright 2025 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-#include "chrome/browser/ui/views/side_panel/glic/glic_side_panel_coordinator.h"
+#include "chrome/browser/glic/public/glic_side_panel_coordinator.h"
 
 #include "base/memory/raw_ptr.h"
 #include "base/test/scoped_feature_list.h"
@@ -9,6 +9,7 @@
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
+#include "chrome/browser/glic/test_support/glic_test_environment.h"
 #include "chrome/browser/glic/test_support/glic_test_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
@@ -16,9 +17,12 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/ui_features.h"
+#include "chrome/browser/ui/views/side_panel/glic/glic_side_panel_coordinator_impl.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry_id.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry_observer.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_registry.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -68,7 +72,10 @@ class GlicSidePanelCoordinatorTest : public InProcessBrowserTest {
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
         },
-        {});
+        {
+            features::kGlicLocaleFiltering,
+            features::kGlicCountryFiltering,
+        });
   }
 
  protected:
@@ -98,11 +105,11 @@ class GlicSidePanelCoordinatorTest : public InProcessBrowserTest {
         ->side_panel_registry();
   }
 
-  GlicSidePanelCoordinator& coordinator() {
+  GlicSidePanelCoordinatorImpl& coordinator() {
     auto* coordinator =
         GlicSidePanelCoordinator::GetForTab(browser()->GetActiveTabInterface());
     CHECK(coordinator);
-    return *coordinator;
+    return *static_cast<GlicSidePanelCoordinatorImpl*>(coordinator);
   }
 
   void CallOnGlicEnabledChanged() { coordinator().OnGlicEnabledChanged(); }
@@ -309,6 +316,34 @@ IN_PROC_BROWSER_TEST_F(GlicSidePanelCoordinatorStateTest, Replaced) {
 
   EXPECT_EQ(future_.Take(), GlicSidePanelCoordinator::State::kClosed);
   EXPECT_FALSE(coordinator().IsShowing());
+}
+
+IN_PROC_BROWSER_TEST_F(GlicSidePanelCoordinatorStateTest,
+                       CloseFromBackgroundedResetsActiveEntry) {
+  GlicSidePanelCoordinator& initial_tab_coordinator = coordinator();
+  // Show the panel.
+  initial_tab_coordinator.Show();
+  EXPECT_EQ(future_.Take(), GlicSidePanelCoordinator::State::kShown);
+
+  tabs::TabInterface* first_tab = browser()->GetActiveTabInterface();
+  EXPECT_TRUE(GlicSidePanelCoordinator::IsGlicSidePanelActive(first_tab));
+
+  // Add a new tab and switch to it.
+  chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
+
+  // The first tab's coordinator should transition to kBackgrounded.
+  EXPECT_EQ(future_.Take(), GlicSidePanelCoordinator::State::kBackgrounded);
+  EXPECT_EQ(initial_tab_coordinator.state(),
+            GlicSidePanelCoordinator::State::kBackgrounded);
+
+  // Close the panel from the backgrounded state.
+  initial_tab_coordinator.Close();
+
+  // Verify the active entry is reset and the state is kClosed.
+  EXPECT_FALSE(GlicSidePanelCoordinator::IsGlicSidePanelActive(first_tab));
+  EXPECT_EQ(future_.Take(), GlicSidePanelCoordinator::State::kClosed);
+  EXPECT_EQ(initial_tab_coordinator.state(),
+            GlicSidePanelCoordinator::State::kClosed);
 }
 
 }  // namespace

@@ -8,14 +8,25 @@
 #include <utility>
 
 #include "base/containers/contains.h"
+#include "base/containers/map_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
-#include "base/types/cxx23_to_underlying.h"
+#include "base/uuid.h"
+#include "base/values.h"
 #include "chrome/browser/ash/crosapi/crosapi_ash.h"
 #include "chrome/browser/ash/crosapi/crosapi_manager.h"
 #include "chrome/browser/ash/crosapi/vpn_service_ash.h"
+#include "chrome/browser/ash/profiles/profile_helper.h"
+#include "chrome/browser/chromeos/extensions/vpn_provider/vpn_service.h"
+#include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/common/extensions/api/vpn_provider.h"
 #include "chromeos/ash/components/dbus/shill/shill_third_party_vpn_driver_client.h"
+#include "chromeos/ash/components/dbus/shill/shill_third_party_vpn_observer.h"
+#include "chromeos/ash/components/network/network_configuration_handler.h"
+#include "chromeos/ash/components/network/network_handler.h"
+#include "chromeos/ash/components/network/network_profile_handler.h"
+#include "chromeos/ash/components/network/network_state_handler.h"
+#include "chromeos/ash/components/network/network_type_pattern.h"
 #include "content/public/browser/browser_context.h"
 #include "extensions/browser/event_router.h"
 #include "extensions/browser/extension_event_histogram_value.h"
@@ -94,8 +105,8 @@ class VpnService::VpnConfiguration
         object_path_(shill::kObjectPathBase + key),
         vpn_service_(std::move(vpn_service)) {}
 
-  const std::string& extension_id() const { return extension_id_; }
   // VpnServiceAsh::VpnConfiguration:
+  const std::string& extension_id() const override { return extension_id_; }
   const std::string& configuration_name() const override {
     return configuration_name_;
   }
@@ -138,14 +149,14 @@ void VpnService::VpnConfiguration::OnPlatformMessage(
             platform_message);
 
   if (platform_message ==
-      base::to_underlying(api_vpn::PlatformMessage::kConnected)) {
+      std::to_underlying(api_vpn::PlatformMessage::kConnected)) {
     vpn_service_->GetVpnService()
         ->GetVpnServiceForExtension(extension_id())
         ->SetActiveConfiguration(this);
   } else if (platform_message ==
-                 base::to_underlying(api_vpn::PlatformMessage::kDisconnected) ||
+                 std::to_underlying(api_vpn::PlatformMessage::kDisconnected) ||
              platform_message ==
-                 base::to_underlying(api_vpn::PlatformMessage::kError)) {
+                 std::to_underlying(api_vpn::PlatformMessage::kError)) {
     vpn_service_->GetVpnService()
         ->GetVpnServiceForExtension(extension_id())
         ->SetActiveConfiguration(nullptr);
@@ -208,7 +219,7 @@ void VpnServiceForExtension::DispatchEvent(
 }
 
 VpnService::VpnService(content::BrowserContext* browser_context)
-    : browser_context_(browser_context) {
+    : browser_context_(browser_context), vpn_providers_observer_(this) {
   GetVpnService()->SetController(this);
 
   auto* registry = extensions::ExtensionRegistry::Get(browser_context);
@@ -218,6 +229,13 @@ VpnService::VpnService(content::BrowserContext* browser_context)
   for (const char* event_name : kEventNames) {
     event_router->RegisterObserver(this, event_name);
   }
+
+  network_state_handler_observer_.Observe(
+      ash::NetworkHandler::Get()->network_state_handler());
+
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(&VpnService::NetworkListChanged,
+                                weak_factory_.GetWeakPtr()));
 }
 
 VpnService::~VpnService() {
@@ -278,14 +296,129 @@ void VpnService::SendOnPlatformMessageToExtension(
   it->second->OnPlatformMessage(configuration_name, platform_message);
 }
 
+crosapi::VpnServiceForExtensionAsh::VpnConfiguration*
+VpnService::LookupConfiguration(const std::string& service_path) {
+  return base::FindPtrOrNull(service_path_to_configuration_map_, service_path);
+}
+
+crosapi::VpnServiceForExtensionAsh::VpnConfiguration*
+VpnService::LookupConfiguration(const std::string& extension_id,
+                                const std::string& configuration_name) {
+  const std::string key = crosapi::VpnServiceForExtensionAsh::GetKey(
+      extension_id, configuration_name);
+  return base::FindPtrOrNull(key_to_configuration_map_, key);
+}
+
 void VpnService::CreateConfiguration(const std::string& extension_id,
                                      const std::string& configuration_name,
                                      SuccessCallback success,
                                      FailureCallback failure) {
-  GetVpnServiceForExtension(extension_id)
-      ->CreateConfiguration(
-          configuration_name,
-          AdaptCallback(std::move(success), std::move(failure)));
+  if (configuration_name.empty()) {
+    RunFailureCallback(std::move(failure), /*error_name=*/{},
+                       "Empty name not supported.");
+    return;
+  }
+
+  if (LookupConfiguration(extension_id, configuration_name)) {
+    RunFailureCallback(std::move(failure), /*error_name=*/{},
+                       "Name not unique.");
+    return;
+  }
+
+  // Since the API is only designed to be used with the primary profile, it's
+  // safe to get the hash of the primary profile here.
+  const ash::NetworkProfile* profile =
+      ash::NetworkHandler::Get()
+          ->network_profile_handler()
+          ->GetProfileForUserhash(ash::ProfileHelper::GetUserIdHashFromProfile(
+              ProfileManager::GetPrimaryUserProfile()));
+  if (!profile) {
+    RunFailureCallback(std::move(failure), /*error_name=*/{},
+                       "No user profile for unshared network configuration.");
+    return;
+  }
+
+  crosapi::VpnServiceForExtensionAsh::VpnConfiguration* configuration =
+      CreateConfigurationInternal(extension_id, configuration_name);
+
+  auto properties =
+      base::Value::Dict()
+          .Set(shill::kTypeProperty, shill::kTypeVPN)
+          .Set(shill::kNameProperty, configuration_name)
+          .Set(shill::kProviderHostProperty, extension_id)
+          .Set(shill::kObjectPathSuffixProperty,
+               crosapi::VpnServiceForExtensionAsh::GetKey(extension_id,
+                                                          configuration_name))
+          .Set(shill::kProviderTypeProperty, shill::kProviderThirdPartyVpn)
+          .Set(shill::kProfileProperty, profile->path)
+          .Set(shill::kGuidProperty,
+               base::Uuid::GenerateRandomV4().AsLowercaseString());
+
+  ash::NetworkHandler::Get()
+      ->network_configuration_handler()
+      ->CreateShillConfiguration(
+          std::move(properties),
+          base::BindOnce(&VpnService::OnCreateConfigurationSuccess,
+                         weak_factory_.GetWeakPtr(), std::move(success),
+                         configuration),
+          base::BindOnce(&VpnService::OnCreateConfigurationFailure,
+                         weak_factory_.GetWeakPtr(), std::move(failure),
+                         configuration));
+}
+
+void VpnService::NetworkListChanged() {
+  auto* network_handler = ash::NetworkHandler::Get();
+
+  ash::NetworkStateHandler::NetworkStateList network_list;
+  network_handler->network_state_handler()->GetVisibleNetworkListByType(
+      ash::NetworkTypePattern::VPN(), &network_list);
+
+  for (auto* network_state : network_list) {
+    network_handler->network_configuration_handler()->GetShillProperties(
+        network_state->path(), base::BindOnce(&VpnService::OnGetShillProperties,
+                                              weak_factory_.GetWeakPtr()));
+  }
+}
+
+void VpnService::OnVpnExtensionsChanged(
+    base::flat_set<std::string> vpn_extensions) {
+  // No changes to the existing set?
+  if (vpn_extensions_ == vpn_extensions) {
+    return;
+  }
+  vpn_extensions_ = std::move(vpn_extensions);
+  NetworkListChanged();
+}
+
+void VpnService::OnGetShillProperties(
+    const std::string& service_path,
+    std::optional<base::Value::Dict> configuration_properties) {
+  if (!configuration_properties || LookupConfiguration(service_path)) {
+    return;
+  }
+
+  const std::string* vpn_type =
+      configuration_properties->FindStringByDottedPath(
+          shill::kProviderTypeProperty);
+  const std::string* extension_id =
+      configuration_properties->FindStringByDottedPath(
+          shill::kProviderHostProperty);
+  const std::string* type =
+      configuration_properties->FindStringByDottedPath(shill::kTypeProperty);
+  const std::string* configuration_name =
+      configuration_properties->FindStringByDottedPath(shill::kNameProperty);
+  if (!vpn_type || !extension_id || !type || !configuration_name ||
+      *vpn_type != shill::kProviderThirdPartyVpn || *type != shill::kTypeVPN) {
+    return;
+  }
+
+  if (!base::Contains(vpn_extensions_, *extension_id)) {
+    return;
+  }
+
+  crosapi::VpnServiceForExtensionAsh::VpnConfiguration* configuration =
+      CreateConfigurationInternal(*extension_id, *configuration_name);
+  RegisterConfiguration(configuration, service_path);
 }
 
 void VpnService::DestroyConfiguration(const std::string& extension_id,
@@ -349,9 +482,9 @@ void VpnService::NotifyConnectionStateChanged(const std::string& extension_id,
   ash::ShillThirdPartyVpnDriverClient::Get()->UpdateConnectionState(
       GetActiveConfigurationObjectPath(extension_id).value(),
       connection_success
-          ? base::to_underlying(
+          ? std::to_underlying(
                 extensions::api::vpn_provider::VpnConnectionState::kConnected)
-          : base::to_underlying(
+          : std::to_underlying(
                 extensions::api::vpn_provider::VpnConnectionState::kFailure),
       std::move(success), std::move(failure));
 }
@@ -404,6 +537,39 @@ VpnService::CreateConfigurationInternal(const std::string& extension_id,
   auto* ptr = configuration.get();
   key_to_configuration_map_.emplace(key, std::move(configuration));
   return ptr;
+}
+
+void VpnService::OnCreateConfigurationSuccess(
+    SuccessCallback callback,
+    crosapi::VpnServiceForExtensionAsh::VpnConfiguration* configuration,
+    const std::string& service_path,
+    const std::string& guid) {
+  RegisterConfiguration(configuration, service_path);
+  std::move(callback).Run();
+}
+
+void VpnService::RegisterConfiguration(
+    crosapi::VpnServiceForExtensionAsh::VpnConfiguration* configuration,
+    const std::string& service_path) {
+  // Ensure the corresponding VpnServiceForExtensionAsh is created.
+  GetVpnService()->GetVpnServiceForExtension(configuration->extension_id());
+
+  configuration->set_service_path(service_path);
+  auto [_, inserted] =
+      service_path_to_configuration_map_.emplace(service_path, configuration);
+  CHECK(inserted);
+  ash::ShillThirdPartyVpnDriverClient::Get()->AddShillThirdPartyVpnObserver(
+      configuration->object_path(), configuration);
+}
+
+void VpnService::OnCreateConfigurationFailure(
+    FailureCallback callback,
+    crosapi::VpnServiceForExtensionAsh::VpnConfiguration* configuration,
+    const std::string& error_name) {
+  GetVpnService()
+      ->GetVpnServiceForExtension(configuration->extension_id())
+      ->OnCreateConfigurationFailure(std::move(callback), configuration,
+                                     error_name);
 }
 
 void VpnService::OnListenerAdded(const extensions::EventListenerInfo& details) {

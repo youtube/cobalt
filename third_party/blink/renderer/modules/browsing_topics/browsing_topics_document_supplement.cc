@@ -38,14 +38,18 @@ void RecordInvalidRequestingContextUkmMetrics(Document& document) {
 }  // namespace
 
 // static
+const char BrowsingTopicsDocumentSupplement::kSupplementName[] =
+    "BrowsingTopicsDocumentSupplement";
+
+// static
 BrowsingTopicsDocumentSupplement* BrowsingTopicsDocumentSupplement::From(
     Document& document) {
-  BrowsingTopicsDocumentSupplement* supplement =
-      document.GetBrowsingTopicsDocumentSupplement();
+  auto* supplement =
+      Supplement<Document>::From<BrowsingTopicsDocumentSupplement>(document);
   if (!supplement) {
     supplement =
         MakeGarbageCollected<BrowsingTopicsDocumentSupplement>(document);
-    document.SetBrowsingTopicsDocumentSupplement(supplement);
+    Supplement<Document>::ProvideTo(document, supplement);
   }
   return supplement;
 }
@@ -75,7 +79,8 @@ BrowsingTopicsDocumentSupplement::browsingTopics(
 
 BrowsingTopicsDocumentSupplement::BrowsingTopicsDocumentSupplement(
     Document& document)
-    : document_(document), document_host_(document.GetExecutionContext()) {}
+    : Supplement<Document>(document),
+      document_host_(document.GetExecutionContext()) {}
 
 ScriptPromise<IDLSequence<BrowsingTopic>>
 BrowsingTopicsDocumentSupplement::GetBrowsingTopics(
@@ -208,8 +213,9 @@ BrowsingTopicsDocumentSupplement::GetBrowsingTopics(
 }
 
 void BrowsingTopicsDocumentSupplement::Trace(Visitor* visitor) const {
-  visitor->Trace(document_);
   visitor->Trace(document_host_);
+
+  Supplement<Document>::Trace(visitor);
 }
 
 }  // namespace blink

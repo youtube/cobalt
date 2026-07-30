@@ -48,7 +48,7 @@ Network.responseReceived {
         charset :
         connectionId : <number>
         connectionReused : true
-        encodedDataLength : 334
+        encodedDataLength : <number>
         fromDiskCache : false
         fromPrefetchCache : false
         fromServiceWorker : false
@@ -100,7 +100,7 @@ Network.responseReceived {
     type : Fetch
 }
 Network.loadingFinished {
-    encodedDataLength : 345
+    encodedDataLength : <number>
     requestId : <string>
     timestamp : <number>
 }

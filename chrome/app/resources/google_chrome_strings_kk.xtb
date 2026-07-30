@@ -84,6 +84,7 @@
 <translation id="1843347690926158494">Бұл қойындыны Google Lens арқылы іздеу</translation>
 <translation id="1849248141818021764">Құпия фразасы бар адам ғана шифрланған деректеріңізді оқи алады. Құпия фраза Google компаниясына жіберілмейді немесе ол құпия фразаңызды сақтамайды. Құпия фразаны ұмытып қалсаңыз немесе осы параметрді өзгерту керек болса, <ph name="BEGIN_LINK" />аккаунттағы Chrome деректерін жою<ph name="END_LINK" /> қажет.</translation>
 <translation id="1860536484129686729">Chrome браузеріне бұл сайтта камераны пайдалану үшін рұқсат керек</translation>
+<translation id="1867503717113754604"><ph name="START_GLIC_STYLING" />Gemini<ph name="END_GLIC_STYLING" /> пайдалану үшін Chrome-ға Google аккаунтыңызбен кіріңіз.</translation>
 <translation id="1873233029667955273">Google Chrome әдепкі браузеріңіз емес</translation>
 <translation id="1874309113135274312">Google Chrome Beta (mDNS-In)</translation>
 <translation id="1877026089748256423">Chrome ескірген</translation>
@@ -121,6 +122,7 @@
 <translation id="2216543877350048334">Chrome-нан Google аккаунтын өшіру үшін аккаунттан шығыңыз.</translation>
 <translation id="2236949375853147973">Әрекеттерім</translation>
 <translation id="22791603784558743">Chrome Dev-дегі Gemini-ды жабу</translation>
+<translation id="2284380654876659752">Сайтқа кірген кезіңізде, Chrome браузері URL мекенжайының обфускация жасалған бөлігін IP мекенжайыңызды жасыратын құпиялық сервері арқылы <ph name="BEGIN_LINK" />Google Safe Browsing-ге<ph name="END_LINK" /> жібереді. Сайтта күдікті әрекеттер орындалса, толық URL мекенжайлары және беттегі контент бөліктері де жіберіледі.</translation>
 <translation id="2290014774651636340">Google API пернелері жоқ. Кейбір Google Chrome функционалдықтары өшіріледі.</translation>
 <translation id="2290095356545025170">Google Chrome жою қажет пе?</translation>
 <translation id="2301513536169703857">Құпия сөздерді, бетбелгілер мен басқа ақпаратты барлық құрылғыдан алу үшін Chrome аккаунтына кіріңіз.</translation>
@@ -174,6 +176,7 @@
 <translation id="286025080868315611">Неліктен Chrome кейбір жүктеп алынғандарды блоктайтыны туралы ақпарат алыңыз</translation>
 <translation id="2861074815332034794">Chrome жаңартылуда (<ph name="PROGRESS_PERCENT" />)</translation>
 <translation id="2871893339301912279">Chrome жүйесіне кірдіңіз!</translation>
+<translation id="2875053229394024379">Chrome-ға Google аккаунтыңызбен кірген кезде, Chrome профиліңізді Gemini-мен бірге пайдалана аласыз. <ph name="BEGIN_LINK" />Chrome-ға кіру жолы туралы ақпарат алыңыз<ph name="END_LINK" />.</translation>
 <translation id="2876628302275096482"><ph name="BEGIN_LINK" />Chrome-ның деректеріңізді құпия сақтау жолы<ph name="END_LINK" /> туралы толық ақпарат</translation>
 <translation id="2885378588091291677">Тапсырмалар реттегіші</translation>
 <translation id="2888126860611144412">Chrome туралы</translation>
@@ -204,6 +207,7 @@
 <translation id="3112458742631356345">Chrome жүктеп алуды блоктады, себебі бұл файл әдетте жүктеп алынбайды және ол қауіпті болуы мүмкін.</translation>
 <translation id="3114643501466072395">Басқа құпия сөздеріңіздің ұрланудан және басқа да қауіпсіздік мәселелерінен қаншалықты қорғалғанын тексеру үшін <ph name="BEGIN_LINK" />Chrome браузеріне кіріңіз<ph name="END_LINK" />.</translation>
 <translation id="3119573284443908657">Chrome бұл мұрағаттау файлын жүктеп алуға тыйым салды, себебі онда зиянды бағдарламаны жасыруы мүмкін басқа файлдар бар</translation>
+<translation id="3124332159330678621">Браузеріңізге жаңа көрініс беру үшін Chrome браузерін бейімдеңіз</translation>
 <translation id="3130333203120345554">Жаңадан іздеу</translation>
 <translation id="3135560418014806498">Chrome профилін қосу</translation>
 <translation id="3137969841538672700">Іздеу үшін курсорды жүргізіңіз.</translation>
@@ -223,6 +227,7 @@
 <translation id="3352986031709923790">іздеу аймағының жоғарғы оң жақ бұрышы: оң жақ <ph name="RIGHT" />%, жоғарғы жақ <ph name="TOP" />%</translation>
 <translation id="3360895254066713204">Chrome Helper</translation>
 <translation id="3379938682270551431">{0,plural, =0{Chrome браузері қазір қайта іске қосылады}=1{Chrome браузері 1 секундтан кейін қайта іске қосылады}other{Chrome браузері # секундтан кейін қайта іске қосылады}}</translation>
+<translation id="3380249972812870825">Chrome-дағы Gemini-ды ашу үшін <ph name="GLOBAL_HOTKEY" /> пернесін басыңыз.</translation>
 <translation id="3396977131400919238">Орнату барысында операциялық жүйе қатесі орын алды. Google Chrome қолданбасын қайта жүктеңіз.</translation>
 <translation id="3428747202529429621">Аккаунтқа кірген болсаңыз, сізді Chrome браузерінде қорғайды және басқа Google қолданбаларында қауіпсіздігіңізді жақсартуға пайдаланылуы мүмкін.</translation>
 <translation id="3434246496373299699">Google аккаунтыңызбен кіргенде, Chrome сіздің құпия сөздеріңізді тексере алады.</translation>
@@ -268,6 +273,7 @@
 <translation id="3885770153807205175">Тіл таңдағыш</translation>
 <translation id="3889417619312448367">Google Chrome жою</translation>
 <translation id="3892148308691398805">Мәтінді көшіру</translation>
+<translation id="3906096710440765802">Барлық құрылғыңызға құпия сөздер, бетбелгілер мен т.б. ақпаратты алу үшін Chrome браузеріне кіріңіз.</translation>
 <translation id="3941890832296813527">Орнату қатесі: орнату файлының атауы жарамсыз немесе оған қолдау көрсетілмейді.</translation>
 <translation id="395904275706073188">Қорғалған беттерді оқу мүмкін емес. Басқа бетті байқап көріңіз.</translation>
 <translation id="3968962723676998462">Chrome деректерін <ph name="ACCOUNT_EMAIL" /> аккаунтында қолдану және сақтау үшін құпия фразаны енгізіңіз.</translation>
@@ -351,6 +357,7 @@
 <translation id="4891791193823137474">Google Chrome жүйесіне фонда жұмыс істеуге рұқсат беру</translation>
 <translation id="4895437082222824641">Сілтемені жаңа Chrome қойындысында ашу</translation>
 <translation id="4918844574251943176">Сурет көшірілді.</translation>
+<translation id="4926882258455737990">Chrome-дағы Gemini-ды басқа Google аккаунтымен пайдалану үшін <ph name="BEGIN_LINK" />жаңа профиль жасап<ph name="END_LINK" />, қажетті аккаунтқа кіріңіз.</translation>
 <translation id="492720062778050435">Chrome осы кеңейтімді қарап шығуды ұсынады</translation>
 <translation id="4946912144186040233">Chrome үлгілерді жақсы түсінеді және сізден де жылдам толтыра алады. Бұл параметр өшірулі.</translation>
 <translation id="4953650215774548573">Әдепкі браузеріңіз ретінде Google Chrome орнату</translation>
@@ -376,6 +383,7 @@
 Кейбір мүмкіндіктер қолжетімсіз болуы мүмкін. Басқа профиль каталогін көрсетіңіз немесе жаңарақ Chrome нұсқасын пайдаланыңыз.</translation>
 <translation id="5174969993834422967">Әдетте хабарландыруларға тыйым саласыз. Бұл сайт сізге хабарландыру жіберсін десеңіз, локация жолағының оң жақ бұрышындағы хабарландыру белгішесін басыңыз.</translation>
 <translation id="5174983315706567306">Диск жады жеткіліксіз.</translation>
+<translation id="5179933070463113976">Chrome-дағы Gemini пайдалану үшін Chrome-ға Google аккаунтыңызбен кіруіңіз керек.</translation>
 <translation id="5190467473654176081">Chrome-ға жаңа көрініс беру үшін оны бейімдеңіз</translation>
 <translation id="5201744974236816379">Chrome жаңарту</translation>
 <translation id="521447420733633466">Құрылғыңызды бөліссеңіз, достарыңыз және отбасыңыздың мүшелері интернетке бөлек кіріп, Chrome параметрлерін өздері қалағандай орната алады.</translation>
@@ -397,6 +405,7 @@
 <translation id="5430073640787465221">Реттеулер файлы бұзылған немесе жарамсыз.
 
 Google Chrome параметрлеріңізді қалпына келтіре алмайды.</translation>
+<translation id="5465210843490471889"><ph name="START_GLIC_STYLING" />Gemini<ph name="END_GLIC_STYLING" />-мен пайдалану үшін Chrome профилін таңдаңыз</translation>
 <translation id="5468572406162360320">Бұл функцияларды жақсарту үшін Chrome оларды қолдануыңыз туралы ақпаратты Google-ға жібереді. Бұл деректерді тексерушілер оқуы, өңдеуі және aннотация қосуы мүмкін.</translation>
 <translation id="5510398294750420479">Телефоныңызды фондық режимде қосымша қорғау үшін оған Chrome-ды жүктеп алыңыз.</translation>
 <translation id="5524890928877629608">іздеу аймағының жоғарғы сол жақ бұрышы: сол жақ <ph name="LEFT" />%, жоғарғы жақ <ph name="TOP" />%</translation>
@@ -489,6 +498,7 @@ Google Chrome параметрлеріңізді қалпына келтіре �
 <translation id="6288580400488258237">Google Chrome-ды әдепкі браузер ретінде орнатып, тапсырмалар жолағына бекітіңіз.</translation>
 <translation id="6291089322031436445">Chrome Dev қолданбалары</translation>
 <translation id="6291549208091401781">Google Chrome компьютердегі барлық пайдаланушылар үшін әлдеқашан орнатылған.</translation>
+<translation id="6311220991371174222">Профильді ашу кезінде қате кеткендіктен, Chrome іске қосылмады. Оны қайта іске қосып көріңіз.</translation>
 <translation id="6319856120645568262">Chrome-ға айналаңызды картаға түсіруге және қолыңызды бақылауға рұқсат қажет.</translation>
 <translation id="6321592572353357376">"<ph name="EXTENSION_NAME" />" кеңейтімін қолдану үшін Chrome-ға кіруіңіз керек</translation>
 <translation id="6326175484149238433">Chrome бағдарламасынан жою</translation>
@@ -617,9 +627,11 @@ Google Chrome параметрлеріңізді қалпына келтіре �
 <translation id="7655472416356262023">Аккаунтты Chrome-нан өшіру</translation>
 <translation id="7658239707568436148">Бас тарту</translation>
 <translation id="7670287553302121848">Chrome аккаунтын қайта аутентификациялау қажет.</translation>
+<translation id="7675756456029023637">Chrome-нан сұрау</translation>
 <translation id="769538538642757151">Тексеруге қажетті нәрсе болса, Chrome сізге хабар береді</translation>
 <translation id="769906121737764913">Chrome Beta-дағы Gemini-ды жабу</translation>
 <translation id="7716950018788545737">Тапсырмалар аяқталды.</translation>
+<translation id="7723388585204724670">Chrome-ның әдепкі күйіне қайта орнату</translation>
 <translation id="77283119132245232"><ph name="BROWSER_NAME" /> браузеріне арналған жүйені трассалау қызметтерін ұсынады. Қызмет өшірілсе, браузер жасаған өнімділік трассалары контекст ауыстыру және дайын ағын оқиғалары сияқты жалпы жүйелік оқиғаларды қамтымайды.</translation>
 <translation id="7736869414036750079">Ұйымыңыз Chrome-ға кіруді талап етеді</translation>
 <translation id="7747138024166251722">Орнату құралы уақытша каталогті жасай алмады. Дисктегі бос орынды және бағдарламалық жасақтама рұқсатын тексеріңіз.</translation>

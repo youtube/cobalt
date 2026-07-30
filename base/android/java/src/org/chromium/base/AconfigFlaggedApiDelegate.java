@@ -19,6 +19,7 @@ import android.view.View;
 import android.view.ViewConfiguration;
 import android.view.Window;
 import android.view.accessibility.AccessibilityEvent;
+import android.view.inputmethod.TextAttribute;
 import android.webkit.WebViewDelegate;
 
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
@@ -155,6 +156,21 @@ public interface AconfigFlaggedApiDelegate {
     }
 
     /**
+     * Calls {@link
+     * android.view.accessibility.AccessibilityEvent#setTextChangeTypes(@TextChangeTypes int types)}
+     * method if supported.
+     */
+    default void setTextChangeTypes(AccessibilityEvent event, int subType) {}
+
+    /**
+     * Calls {@link android.view.inputmethod.TextAttribute#isTextSuggestionSelected()} method if
+     * supported.
+     */
+    default boolean isTextSuggestionSelected(@Nullable TextAttribute textAttribute) {
+        return false;
+    }
+
+    /**
      * Calls the {@link android.content.Context#rebindService(ServiceConnection, BindServiceFlags)}
      * method if supported.
      *
@@ -275,6 +291,28 @@ public interface AconfigFlaggedApiDelegate {
 
     /** Checks if {@link android.content.pm.webapp.WebAppManager} service is available. */
     default boolean isWebAppServiceEnabled() {
+        return false;
+    }
+
+    /**
+     * Constructs {@link WebAppInstallRequest} and calls {@link
+     * android.content.pm.webapp.WebAppManager#install(@NonNull WebAppInstallRequest
+     * request, @NonNull @CallbackExecutor Executor executor, @NonNull ObjIntConsumer<String>
+     * callback)} with it if supported. Returns whether the method was successfully called.
+     *
+     * @param title The title of the web app to install.
+     * @param manifestUrl The manifest URL to install from.
+     * @param installSucceededCallback The callback to run when the install finished successfully.
+     * @param installFailedCallback The callback to run when the install failed.
+     * @param installCancelledCallback The callback to run when the user cancelled the installation.
+     */
+    default boolean installTwa(
+            String title,
+            String manifestUrl,
+            Runnable installSucceededCallback,
+            Runnable installFailedCallback,
+            Runnable installCancelledCallback) {
+        installFailedCallback.run();
         return false;
     }
 }

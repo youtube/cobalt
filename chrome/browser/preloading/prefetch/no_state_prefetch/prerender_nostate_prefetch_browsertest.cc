@@ -1578,13 +1578,8 @@ IN_PROC_BROWSER_TEST_F(NoStatePrefetchBrowserTest, Loop) {
 #define MAYBE_RendererCrash RendererCrash
 #endif
 IN_PROC_BROWSER_TEST_F(NoStatePrefetchBrowserTest, MAYBE_RendererCrash) {
-  // Navigate to about:blank to get the session storage namespace.
   ASSERT_TRUE(ui_test_utils::NavigateToURL(current_browser(),
                                            GURL(url::kAboutBlankURL)));
-  content::SessionStorageNamespace* storage_namespace =
-      GetActiveWebContents()
-          ->GetController()
-          .GetDefaultSessionStorageNamespace();
 
   // Navigate to about:crash without an intermediate loader because chrome://
   // URLs are ignored in renderers, and the test server has no support for them.
@@ -1594,9 +1589,11 @@ IN_PROC_BROWSER_TEST_F(NoStatePrefetchBrowserTest, MAYBE_RendererCrash) {
       no_state_prefetch_contents_factory()->ExpectNoStatePrefetchContents(
           FINAL_STATUS_RENDERER_CRASHED);
   content::ScopedAllowRendererCrashes scoped_allow_renderer_crashes;
-  std::unique_ptr<NoStatePrefetchHandle> no_state_prefetch_handle(
-      GetNoStatePrefetchManager()->AddSameOriginSpeculation(
-          url, storage_namespace, kSize, url::Origin::Create(url)));
+  std::unique_ptr<NoStatePrefetchHandle> no_state_prefetch_handle =
+      GetNoStatePrefetchManager()->StartPrefetchingFromLinkRelPrerender(
+          /*process_id=*/-1, /*route_id=*/-1, url,
+          blink::mojom::PrerenderTriggerType::kLinkRelPrerender,
+          content::Referrer(), url::Origin::Create(url), kSize);
   ASSERT_EQ(no_state_prefetch_handle->contents(), test_prerender->contents());
   test_prerender->WaitForStop();
 }
@@ -1936,96 +1933,6 @@ IN_PROC_BROWSER_TEST_F(NoStatePrefetchBrowserTest, PrerenderNoSSLReferrer) {
   const std::string referrer =
       EvalJs(web_contents, "document.referrer").ExtractString();
   EXPECT_TRUE(referrer.empty());
-}
-
-// Test class to verify speculation hints for non-private same origin no state
-// prefetches.
-class SpeculationNoStatePrefetchBrowserTest
-    : public NoStatePrefetchBrowserTest {
- public:
-  void SetUp() override { NoStatePrefetchBrowserTest::SetUp(); }
-
-  void InsertSpeculation(const GURL& prefetch_url,
-                         FinalStatus expected_final_status,
-                         bool should_navigate_away = false) {
-    std::string speculation_script = R"(
-      var script = document.createElement('script');
-      script.type = 'speculationrules';
-      script.text = `{)";
-    speculation_script.append(R"("prefetch_with_subresources": [{)");
-    speculation_script.append(R"("source": "list",
-          "urls": [)");
-
-    speculation_script.append("\"").append(prefetch_url.spec()).append("\"");
-
-    speculation_script.append(R"(]
-        }]
-      }`;
-      document.head.appendChild(script);)");
-    std::unique_ptr<TestPrerender> test_prerender =
-        no_state_prefetch_contents_factory()->ExpectNoStatePrefetchContents(
-            expected_final_status);
-    EXPECT_TRUE(ExecJs(GetActiveWebContents(), speculation_script));
-    if (should_navigate_away) {
-      ASSERT_TRUE(ui_test_utils::NavigateToURL(
-          current_browser(), src_server()->GetURL("/defaultresponse?page")));
-    }
-    test_prerender->WaitForStop();
-  }
-};
-
-IN_PROC_BROWSER_TEST_F(SpeculationNoStatePrefetchBrowserTest,
-                       SpeculationPrefetch) {
-  UseHttpsSrcServer();
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(
-      current_browser(), src_server()->GetURL("/defaultresponse?landing")));
-  InsertSpeculation(src_server()->GetURL(kPrefetchPage),
-                    FINAL_STATUS_NOSTATE_PREFETCH_FINISHED);
-  WaitForRequestCount(src_server()->GetURL(kPrefetchPage), 1);
-  WaitForRequestCount(src_server()->GetURL(kPrefetchScript), 1);
-}
-
-IN_PROC_BROWSER_TEST_F(SpeculationNoStatePrefetchBrowserTest,
-                       SpeculationDisallowsCrossOriginRedirect) {
-  UseHttpsSrcServer();
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(
-      current_browser(), src_server()->GetURL("/defaultresponse?landing")));
-  InsertSpeculation(
-      src_server()->GetURL("/server-redirect-307?" +
-                           src_server()->GetURL(kPrefetchPage).spec()),
-      FINAL_STATUS_NOSTATE_PREFETCH_FINISHED);
-  WaitForRequestCount(src_server()->GetURL(kPrefetchPage), 1);
-  WaitForRequestCount(src_server()->GetURL(kPrefetchScript), 1);
-}
-
-IN_PROC_BROWSER_TEST_F(SpeculationNoStatePrefetchBrowserTest,
-                       SpeculationAllowsSameOriginRedirectBlocked) {
-  UseHttpsSrcServer();
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(
-      current_browser(), src_server()->GetURL("/defaultresponse?landing")));
-  InsertSpeculation(src_server()->GetURL(
-                        "/server-redirect-307?" +
-                        embedded_test_server()->GetURL(kPrefetchPage).spec()),
-                    FINAL_STATUS_UNSUPPORTED_SCHEME);
-  EXPECT_EQ(0u, GetRequestCount(embedded_test_server()->GetURL(kPrefetchPage)));
-  EXPECT_EQ(0u,
-            GetRequestCount(embedded_test_server()->GetURL(kPrefetchScript)));
-}
-
-IN_PROC_BROWSER_TEST_F(SpeculationNoStatePrefetchBrowserTest,
-                       HungSpeculationTimedOutByNavigation) {
-  // The test assumes the previous page gets deleted after navigation. Disable
-  // back/forward cache to ensure that it doesn't get preserved in the cache.
-  content::DisableBackForwardCacheForTesting(
-      browser()->tab_strip_model()->GetActiveWebContents(),
-      content::BackForwardCache::TEST_REQUIRES_NO_CACHING);
-  UseHttpsSrcServer();
-  GetNoStatePrefetchManager()->mutable_config().abandon_time_to_live =
-      base::Milliseconds(500);
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(
-      current_browser(), src_server()->GetURL("/defaultresponse?landing")));
-  InsertSpeculation(src_server()->GetURL("/hung"), FINAL_STATUS_TIMED_OUT,
-                    /*should_navigate_away=*/true);
 }
 
 class NoStatePrefetchMPArchBrowserTest : public NoStatePrefetchBrowserTest {

@@ -293,14 +293,17 @@ tabs::TabInterface* TabModelJniBridge::GetActiveTab() {
 
 void TabModelJniBridge::CreateTab(TabAndroid* parent,
                                   WebContents* web_contents,
-                                  bool select) {
+                                  int index,
+                                  bool select,
+                                  bool should_pin) {
   JNIEnv* env = AttachCurrentThread();
   Profile* profile =
       Profile::FromBrowserContext(web_contents->GetBrowserContext());
 
   Java_TabModelJniBridge_createTabWithWebContents(
       env, java_object_.get(env), (parent ? parent->GetJavaObject() : nullptr),
-      profile->GetJavaObject(), web_contents->GetJavaWebContents(), select);
+      profile->GetJavaObject(), web_contents->GetJavaWebContents(), index,
+      select, should_pin);
 }
 
 void TabModelJniBridge::HandlePopupNavigation(TabAndroid* parent,
@@ -332,7 +335,8 @@ void TabModelJniBridge::HandlePopupNavigation(TabAndroid* parent,
   Java_TabModelJniBridge_openNewTab(
       env, jobj, parent->GetJavaObject(), jurl, jinitiator_origin,
       params->extra_headers, jpost_data, static_cast<int>(disposition),
-      params->opened_by_another_window, params->is_renderer_initiated);
+      params->opened_by_another_window, params->is_renderer_initiated,
+      params->user_gesture);
 }
 
 WebContents* TabModelJniBridge::GetWebContentsAt(int index) const {
@@ -434,6 +438,12 @@ void TabModelJniBridge::CloseTabsNavigatedInTimeWindow(
   int64_t end_time_ms = end_time.InMillisecondsSinceUnixEpoch();
   return Java_TabModelJniBridge_closeTabsNavigatedInTimeWindow(
       env, java_object_.get(env), begin_time_ms, end_time_ms);
+}
+
+void TabModelJniBridge::ActivateTab(tabs::TabHandle tab) {
+  int index = GetIndexOfTab(tab);
+  CHECK_NE(-1, index);
+  SetActiveIndex(index);
 }
 
 tabs::TabInterface* TabModelJniBridge::OpenTab(const GURL& url, int index) {
@@ -572,6 +582,28 @@ void TabModelJniBridge::UnpinTab(tabs::TabHandle tab) {
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> jobj = java_object_.get(env);
   Java_TabModelJniBridge_unpinTab(env, jobj, tab_android);
+}
+
+bool TabModelJniBridge::ContainsTabGroup(tab_groups::TabGroupId group_id) {
+  JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jobject> jobj = java_object_.get(env);
+  return Java_TabModelJniBridge_containsTabGroup(env, jobj, group_id.token());
+}
+
+std::vector<tab_groups::TabGroupId> TabModelJniBridge::ListTabGroups() {
+  JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jobject> jobj = java_object_.get(env);
+  std::vector<base::Token> group_id_tokens =
+      Java_TabModelJniBridge_listTabGroups(env, jobj);
+
+  // NOTE: Order is not guaranteed by the underlying API, but TabListInterface
+  // requires returning a <vector> and not a <set>.
+  std::vector<tab_groups::TabGroupId> group_ids;
+  group_ids.reserve(group_id_tokens.size());
+  for (base::Token token : group_id_tokens) {
+    group_ids.push_back(tab_groups::TabGroupId::FromRawToken(token));
+  }
+  return group_ids;
 }
 
 std::optional<tab_groups::TabGroupId> TabModelJniBridge::AddTabsToGroup(

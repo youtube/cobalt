@@ -9,8 +9,8 @@ source_set("coordinator") {
     "bwg_mediator.h",
     "bwg_mediator.mm",
     "bwg_mediator_delegate.h",
-    "bwg_promo_scene_agent.h",
-    "bwg_promo_scene_agent.mm",
+    "gemini_promo_scene_agent.h",
+    "gemini_promo_scene_agent.mm",
   ]
   deps = [
     "//base",
@@ -27,9 +27,9 @@ source_set("coordinator") {
     "//ios/chrome/browser/intelligence/bwg/utils:constants",
     "//ios/chrome/browser/intelligence/features",
     "//ios/chrome/browser/intelligence/proto_wrappers",
+    "//ios/chrome/browser/promos_manager/coordinator:promos",
     "//ios/chrome/browser/promos_manager/model",
     "//ios/chrome/browser/promos_manager/model:constants",
-    "//ios/chrome/browser/promos_manager/ui_bundled:promos",
     "//ios/chrome/browser/shared/coordinator/chrome_coordinator",
     "//ios/chrome/browser/shared/coordinator/scene:observing_scene_agent",
     "//ios/chrome/browser/shared/model/application_context",
@@ -46,8 +46,8 @@ source_set("coordinator") {
 source_set("unit_tests") {
   testonly = true
   sources = [
-    "bwg_promo_scene_agent_unittest.mm",
     "gemini_coordinator_unittest.mm",
+    "gemini_promo_scene_agent_unittest.mm",
   ]
 
   deps = [

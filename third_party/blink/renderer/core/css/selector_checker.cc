@@ -34,7 +34,7 @@
 #include "third_party/blink/renderer/core/css/check_pseudo_has_argument_context.h"
 #include "third_party/blink/renderer/core/css/check_pseudo_has_cache_scope.h"
 #include "third_party/blink/renderer/core/css/css_selector_list.h"
-#include "third_party/blink/renderer/core/css/navigation_query.h"
+#include "third_party/blink/renderer/core/css/link_condition.h"
 #include "third_party/blink/renderer/core/css/part_names.h"
 #include "third_party/blink/renderer/core/css/post_style_update_scope.h"
 #include "third_party/blink/renderer/core/css/style_engine.h"
@@ -90,7 +90,6 @@
 #include "third_party/blink/renderer/core/page/spatial_navigation.h"
 #include "third_party/blink/renderer/core/page/spatial_navigation_controller.h"
 #include "third_party/blink/renderer/core/probe/core_probes.h"
-#include "third_party/blink/renderer/core/route_matching/route.h"
 #include "third_party/blink/renderer/core/scroll/scrollable_area.h"
 #include "third_party/blink/renderer/core/scroll/scrollbar_theme.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
@@ -738,6 +737,7 @@ SelectorChecker::FeaturelessMatch SelectorChecker::MatchShadowHost(
     case CSSSelector::kPseudoOnlyChild:
     case CSSSelector::kPseudoOnlyOfType:
     case CSSSelector::kPseudoOptional:
+    case CSSSelector::kPseudoOverscrollTarget:
     case CSSSelector::kPseudoPart:
     case CSSSelector::kPseudoPermissionGranted:
     case CSSSelector::kPseudoPermissionIcon:
@@ -802,7 +802,6 @@ SelectorChecker::FeaturelessMatch SelectorChecker::MatchShadowHost(
     case CSSSelector::kPseudoMultiSelectFocus:
     case CSSSelector::kPseudoOpen:
     case CSSSelector::kPseudoPastCue:
-    case CSSSelector::kPseudoPatching:
     case CSSSelector::kPseudoPopoverInTopLayer:
     case CSSSelector::kPseudoPopoverOpen:
     case CSSSelector::kPseudoRelativeAnchor:
@@ -2221,16 +2220,9 @@ bool SelectorChecker::CheckPseudoHas(const SelectorCheckingContext& context,
 bool SelectorChecker::CheckPseudoLinkTo(const SelectorCheckingContext& context,
                                         MatchResult& result) const {
   DCHECK(context.selector);
-  DCHECK(context.selector->GetNavigationLocation());
+  DCHECK(context.selector->GetLinkCondition());
   Element& element = GetCandidateElement(context, result);
-  const auto* anchor = DynamicTo<HTMLAnchorElement>(&element);
-  if (!anchor) {
-    return false;
-  }
-  const Route* route =
-      context.selector->GetNavigationLocation()->FindOrCreateRoute(
-          element.GetDocument());
-  return route && route->MatchesUrl(anchor->Href());
+  return context.selector->GetLinkCondition()->Evaluate(element);
 }
 
 bool SelectorChecker::CheckPseudoClass(const SelectorCheckingContext& context,
@@ -2979,9 +2971,6 @@ bool SelectorChecker::CheckPseudoClass(const SelectorCheckingContext& context,
       auto* vtt_element = DynamicTo<VTTElement>(element);
       return vtt_element && vtt_element->IsPastNode();
     }
-    case CSSSelector::kPseudoPatching: {
-      return element.currentPatch();
-    }
     case CSSSelector::kPseudoScope:
       return CheckPseudoScope(context, result);
     case CSSSelector::kPseudoDefined:
@@ -3083,6 +3072,8 @@ bool SelectorChecker::CheckPseudoClass(const SelectorCheckingContext& context,
         return false;
       }
       return context.search_text_request_is_current;
+    case CSSSelector::kPseudoOverscrollTarget:
+      return SelectorChecker::MatchesOverscrollTarget(element);
     case CSSSelector::kPseudoUnknown:
     default:
       NOTREACHED();
@@ -3634,6 +3625,20 @@ bool SelectorChecker::MatchesSelectorFragmentAnchorPseudoClass(
 bool SelectorChecker::MatchesActiveViewTransitionPseudoClass(
     const Element& element) {
   return GetTransitionForScope(element) != nullptr;
+}
+
+bool SelectorChecker::MatchesOverscrollTarget(const Element& element) {
+  if (!RuntimeEnabledFeatures::CSSOverscrollGesturesEnabled()) {
+    return false;
+  }
+
+  const AtomicString& id = element.FastGetAttribute(html_names::kIdAttr);
+  if (id.empty() ||
+      !element.GetDocument().OverscrollCommandTargets().Contains(id)) {
+    return false;
+  }
+
+  return element.GetDocument().getElementById(id) == &element;
 }
 
 bool SelectorChecker::MatchesFocusPseudoClass(

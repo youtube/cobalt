@@ -13,6 +13,7 @@
 #include "content/browser/accessibility/browser_accessibility_android.h"
 #include "content/browser/accessibility/web_contents_accessibility_android.h"
 #include "content/public/common/content_features.h"
+#include "ui/accessibility/accessibility_features.h"
 #include "ui/accessibility/ax_event_generator.h"
 #include "ui/accessibility/ax_role_properties.h"
 #include "ui/accessibility/ax_selection.h"
@@ -212,12 +213,12 @@ void BrowserAccessibilityManagerAndroid::FireLocationChanged(
   wcax->HandleContentChanged(android_node->GetUniqueId());
 }
 
-void BrowserAccessibilityManagerAndroid::FireBlinkEvent(
+void BrowserAccessibilityManagerAndroid::FireSourceEvent(
     ax::mojom::Event event_type,
     ui::BrowserAccessibility* node,
     int action_request_id) {
-  ui::BrowserAccessibilityManager::FireBlinkEvent(event_type, node,
-                                                  action_request_id);
+  ui::BrowserAccessibilityManager::FireSourceEvent(event_type, node,
+                                                   action_request_id);
   WebContentsAccessibilityAndroid* wcax = GetWebContentsAXFromRootManager();
   if (!wcax) {
     return;
@@ -432,7 +433,22 @@ void BrowserAccessibilityManagerAndroid::FireGeneratedEvent(
       // when the text field is inside a button, the leaf node is the button not
       // the text field.
       if (android_node->IsTextField() && GetFocus() == wrapper) {
-        wcax->HandleEditableTextChanged(android_node->GetUniqueId());
+        int32_t text_change_types =
+            ANDROID_ACCESSIBILITY_EVENT_TEXT_CHANGE_TYPE_UNDEFINED;
+        if (::features::IsAccessibilityTextChangeTypesEnabled()) {
+          if (android_node->GetBoolAttribute(
+                  ax::mojom::BoolAttribute::kHasComposition)) {
+            text_change_types |=
+                ANDROID_ACCESSIBILITY_EVENT_TEXT_CHANGE_TYPE_IN_COMPOSITION;
+          }
+          if (android_node->GetIntAttribute(
+                  ax::mojom::IntAttribute::kCommittedTextLength) > 0) {
+            text_change_types |=
+                ANDROID_ACCESSIBILITY_EVENT_TEXT_CHANGE_TYPE_COMMITTED_BY_IME;
+          }
+        }
+        wcax->HandleEditableTextChanged(android_node->GetUniqueId(),
+                                        text_change_types);
       }
       break;
 

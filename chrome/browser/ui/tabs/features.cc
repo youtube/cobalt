@@ -15,28 +15,18 @@ BASE_FEATURE(kDebugUITabStrip, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTabGroupHome, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kTabSearchPositionSetting, base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kVerticalTabs, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kTabSelectionByPointer, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kTabSelectionByPointer, base::FEATURE_ENABLED_BY_DEFAULT);
 
-bool CanShowTabSearchPositionSetting() {
-  // Alternate tab search locations cannot be repositioned.
-  if (features::HasTabSearchToolbarButton()) {
-    return false;
-  }
-// Mac and other platforms will always have the tab search position in the
-// correct location, cros/linux/win git the user the option to change.
-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
-  return base::FeatureList::IsEnabled(kTabSearchPositionSetting);
-#else
-  return false;
-#endif
-}
+BASE_FEATURE(kProjectsPanel, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsVerticalTabsFeatureEnabled() {
   return base::FeatureList::IsEnabled(kVerticalTabs);
+}
+
+bool IsProjectsPanelFeatureEnabled() {
+  return base::FeatureList::IsEnabled(kProjectsPanel);
 }
 
 }  // namespace tabs

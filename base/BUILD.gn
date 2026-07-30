@@ -236,7 +236,6 @@ component("base") {
     "check_op.h",
     "command_line.cc",
     "command_line.h",
-    "compiler_specific.h",
     "component_export.h",
     "containers/adapters.h",
     "containers/adapters_internal.h",
@@ -932,10 +931,11 @@ component("base") {
     "trace_event/named_trigger.h",
     "trace_event/trace_id_helper.cc",
     "trace_event/trace_id_helper.h",
+    "trace_event/trace_session_observer.cc",
+    "trace_event/trace_session_observer.h",
     "traits_bag.h",
     "tuple.h",
     "types/cxx23_from_range.h",
-    "types/cxx23_is_scoped_enum.h",
     "types/cxx23_to_underlying.h",
     "types/expected.h",
     "types/expected_internal.h",
@@ -1073,6 +1073,7 @@ component("base") {
 
   deps = [
     ":check_version_internal",
+    ":simdutf_shim",
     "//base/allocator:buildflags",
     "//base/third_party/cityhash",
     "//base/third_party/cityhash_v103",
@@ -2495,6 +2496,7 @@ component("base") {
   ]
 
   public_deps += [
+    ":compiler_specific",
     ":memory_dump_provider_name_variants",
     "//base/tracing/protos:chrome_track_event_zero",
     "//third_party/perfetto:libperfetto",
@@ -2542,6 +2544,29 @@ component("base") {
     configs -= [ "//build/config/compiler:default_optimization" ]
     configs += [ "//build/config/compiler:optimize_max" ]
   }
+}
+
+# A separate source_set for this header to avoid circular dependencies.
+source_set("compiler_specific") {
+  public = [ "compiler_specific.h" ]
+}
+
+# Separate simdutf from ":base", so simdutf cannot accidentally affect the
+# build config for ":base".
+source_set("simdutf_shim") {
+  visibility = [ ":base" ]
+  configs += [
+    "//build/config/compiler:wexit_time_destructors",
+    "//build/config/compiler:wglobal_constructors",
+  ]
+  if (!is_win) {
+    # Generates -Werror,-Wsign-conversion
+    configs += [ "//build/config/compiler:prevent_unsafe_narrowing" ]
+  }
+
+  public = [ "simdutf_shim.h" ]
+  sources = [ "simdutf_shim.cc" ]
+  deps = [ "//third_party/simdutf" ]
 }
 
 if (is_android) {
@@ -2626,6 +2651,7 @@ if (is_linux || is_chromeos) {
     ]
 
     deps = [
+      ":compiler_specific",
       "//base/allocator/partition_allocator:raw_ptr",
       "//base/numerics:base_numerics",
       "//base/third_party/symbolize",
@@ -3752,8 +3778,6 @@ test("base_unittests") {
     "tools_sanity_unittest.cc",
     "traits_bag_unittest.cc",
     "tuple_unittest.cc",
-    "types/cxx23_is_scoped_enum_unittest.cc",
-    "types/cxx23_to_underlying_unittest.cc",
     "types/expected_macros_unittest.cc",
     "types/expected_unittest.cc",
     "types/fixed_array_unittest.cc",
@@ -5611,10 +5635,7 @@ if (is_android) {
       ":tasks_java",
     ]
 
-    srcjar_deps = [ "//base/test:test_support_jni_headers" ]
-
     sources = [
-      "test/android/java/src/org/chromium/base/ScopedFeatureListTestUtils.java",
       "test/android/javatests/src/org/chromium/base/test/ActivityFinisher.java",
       "test/android/javatests/src/org/chromium/base/test/BaseChromiumAndroidJUnitRunner.java",
       "test/android/javatests/src/org/chromium/base/test/BaseJUnit4ClassRunner.java",
@@ -5681,7 +5702,6 @@ if (is_android) {
       "test/android/javatests/src/org/chromium/base/test/util/SkipCheck.java",
       "test/android/javatests/src/org/chromium/base/test/util/TestAnimations.java",
       "test/android/javatests/src/org/chromium/base/test/util/TestFileUtil.java",
-      "test/android/javatests/src/org/chromium/base/test/util/TestLocale.java",
       "test/android/javatests/src/org/chromium/base/test/util/TestThreadUtils.java",
       "test/android/javatests/src/org/chromium/base/test/util/TimeoutTimer.java",
       "test/android/javatests/src/org/chromium/base/test/util/UserActionTester.java",
@@ -5946,7 +5966,10 @@ fuzzer_test("base64_decode_fuzzer") {
 
 fuzzer_test("base64_encode_fuzzer") {
   sources = [ "base64_encode_fuzzer.cc" ]
-  deps = [ "//base" ]
+  deps = [
+    "//base",
+    "//base/test:test_support",
+  ]
 }
 
 fuzzer_test("base64url_fuzzer") {

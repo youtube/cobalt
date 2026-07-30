@@ -100,6 +100,15 @@ bool UnexportableKeyServiceImpl::IsUnexportableKeyProviderSupported(
              std::move(config)) != nullptr;
 }
 
+// static
+bool UnexportableKeyServiceImpl::IsStatefulUnexportableKeyProviderSupported(
+    crypto::UnexportableKeyProvider::Config config) {
+  std::unique_ptr<crypto::UnexportableKeyProvider> provider =
+      UnexportableKeyTaskManager::GetUnexportableKeyProvider(std::move(config));
+  return provider != nullptr &&
+         provider->AsStatefulUnexportableKeyProvider() != nullptr;
+}
+
 void UnexportableKeyServiceImpl::GenerateSigningKeySlowlyAsync(
     base::span<const crypto::SignatureVerifier::SignatureAlgorithm>
         acceptable_algorithms,
@@ -268,6 +277,36 @@ UnexportableKeyServiceImpl::GetAlgorithm(UnexportableKeyId key_id) const {
     return base::unexpected(ServiceError::kKeyNotFound);
   }
   return it->second->key().Algorithm();
+}
+
+ServiceErrorOr<std::string> UnexportableKeyServiceImpl::GetKeyTag(
+    UnexportableKeyId key_id) const {
+  auto it = key_by_key_id_.find(key_id);
+  if (it == key_by_key_id_.end()) {
+    return base::unexpected(ServiceError::kKeyNotFound);
+  }
+
+  crypto::StatefulUnexportableSigningKey* stateful_key =
+      it->second->key().AsStatefulUnexportableSigningKey();
+  if (!stateful_key) {
+    return base::unexpected(ServiceError::kOperationNotSupported);
+  }
+  return stateful_key->GetKeyTag();
+}
+
+ServiceErrorOr<base::Time> UnexportableKeyServiceImpl::GetCreationTime(
+    UnexportableKeyId key_id) const {
+  auto it = key_by_key_id_.find(key_id);
+  if (it == key_by_key_id_.end()) {
+    return base::unexpected(ServiceError::kKeyNotFound);
+  }
+
+  crypto::StatefulUnexportableSigningKey* stateful_key =
+      it->second->key().AsStatefulUnexportableSigningKey();
+  if (!stateful_key) {
+    return base::unexpected(ServiceError::kOperationNotSupported);
+  }
+  return stateful_key->GetCreationTime();
 }
 
 void UnexportableKeyServiceImpl::OnGetAllSigningKeysForGarbageCollectionSlowly(

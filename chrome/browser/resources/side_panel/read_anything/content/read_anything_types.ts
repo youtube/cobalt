@@ -2,17 +2,26 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(crbug.com/447427066): Move this into read_anything.mojom once the
-// options are finalized and line focus is stored in prefs.
+import type {AnchorAlignment} from '//resources/cr_elements/cr_action_menu/cr_action_menu.js';
+
 export enum LineFocusType {
   NONE = 0,
   LINE = 1,
   WINDOW = 2,
 }
 
-export interface LineFocus {
-  type: LineFocusType;
-  lines: number;
+export class LineFocus {
+  static readonly OFF = new LineFocus(LineFocusType.NONE, 0);
+  static readonly ONE_LINE_WINDOW = new LineFocus(LineFocusType.WINDOW, 1);
+  static readonly THREE_LINE_WINDOW = new LineFocus(LineFocusType.WINDOW, 3);
+  static readonly FIVE_LINE_WINDOW = new LineFocus(LineFocusType.WINDOW, 5);
+  static readonly STATIC_LINE = new LineFocus(LineFocusType.LINE, 1, true);
+  static readonly CURSOR_LINE = new LineFocus(LineFocusType.LINE, 1);
+
+  // Private constructor prevents others from creating new options
+  private constructor(
+      public readonly type: LineFocusType, public readonly lines: number,
+      public readonly isStatic: boolean = false) {}
 }
 
 // Events emitted from the toolbar to the app
@@ -39,6 +48,21 @@ export enum ToolbarEvent {
   LINE_FOCUS = 'line-focus-change',
 }
 
+// The available menu items in Reading mode
+export enum SettingsOption {
+  COLOR = 'color',
+  FONT = 'font',
+  FONT_SIZE = 'font-size',
+  IMAGES = 'images',
+  LETTER_SPACING = 'letter-spacing',
+  LINE_FOCUS = 'line-focus',
+  LINE_SPACING = 'line-spacing',
+  LINKS = 'links',
+  VIEW = 'view',
+  VOICE_HIGHLIGHT = 'voice-highlight',
+  VOICE_SELECTION = 'voice-selection',
+}
+
 // The user settings stored in preferences and restored on re-opening Reading
 // mode. Used to set the initial values for the toolbar buttons and menus.
 export interface SettingsPrefs {
@@ -48,4 +72,13 @@ export interface SettingsPrefs {
   speechRate: number;
   font: string;
   highlightGranularity: number;
+  lineFocus: number;
+}
+
+export interface ShowAtConfigPrefs {
+  anchorAlignmentX?: AnchorAlignment;
+  anchorAlignmentY?: AnchorAlignment;
+  maxX?: number;
+  minX?: number;
+  minY?: number;
 }

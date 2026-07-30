@@ -4,13 +4,14 @@
 
 #import "ios/chrome/browser/shared/model/prefs/browser_prefs.h"
 
+#import <utility>
+
 #import "base/apple/foundation_util.h"
 #import "base/containers/contains.h"
 #import "base/json/values_util.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/threading/thread_restrictions.h"
 #import "base/time/time.h"
-#import "base/types/cxx23_to_underlying.h"
 #import "base/values.h"
 #import "components/autofill/core/common/autofill_prefs.h"
 #import "components/breadcrumbs/core/breadcrumbs_status.h"
@@ -61,7 +62,6 @@
 #import "components/policy/core/common/policy_statistics_collector.h"
 #import "components/pref_registry/pref_registry_syncable.h"
 #import "components/prefs/pref_service.h"
-#import "components/privacy_sandbox/tracking_protection_prefs.h"
 #import "components/proxy_config/pref_proxy_config_tracker_impl.h"
 #import "components/regional_capabilities/regional_capabilities_prefs.h"
 #import "components/safe_browsing/core/common/safe_browsing_prefs.h"
@@ -142,7 +142,7 @@
 #import "ui/base/l10n/l10n_util.h"
 
 #if !BUILDFLAG(IS_IOS_MACCATALYST)
-#import "ios/chrome/browser/default_browser/model/default_status/default_status_helper_prefs.h"
+#import "ios/chrome/browser/default_browser/default_status/model/default_status_helper_prefs.h"
 #endif  // !BUILDFLAG(IS_IOS_MACCATALYST)
 
 namespace {
@@ -250,6 +250,10 @@ inline constexpr char kLegacySyncSessionsGUID[] = "sync.session_sync_guid";
 
 // Deprecated 12/2025.
 inline constexpr char kAutofillStatesDataDir[] = "autofill.states_data_dir";
+
+// Deprecated 12/2025.
+inline constexpr char kFingerprintingProtectionEnabled[] =
+    "tracking_protection.fingerprinting_protection_enabled";
 
 // Migrates a boolean pref from source to target PrefService.
 void MigrateBooleanPref(std::string_view pref_name,
@@ -843,7 +847,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   // Register prerender network prediction preferences.
   registry->RegisterIntegerPref(
       prefs::kNetworkPredictionSetting,
-      base::to_underlying(
+      std::to_underlying(
           prerender_prefs::NetworkPredictionSetting::kEnabledWifiOnly),
       user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
 
@@ -1071,8 +1075,8 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterIntegerPref(prefs::kGeminiEnabledByPolicy, 0);
   registry->RegisterBooleanPref(prefs::kAIHubEligibilityTriggered, false);
 
-  registry->RegisterListPref(policy::policy_prefs::kIncognitoModeBlocklist);
-  registry->RegisterListPref(policy::policy_prefs::kIncognitoModeAllowlist);
+  registry->RegisterListPref(policy::policy_prefs::kIncognitoModeUrlBlocklist);
+  registry->RegisterListPref(policy::policy_prefs::kIncognitoModeUrlAllowlist);
 
   // Prefs for the Synced Set Up Feature.
   registry->RegisterIntegerPref(prefs::kSyncedSetUpImpressionCount, 0);
@@ -1171,7 +1175,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
 
   // Deprecated 10/2025.
   registry->RegisterStringPref(kLegacySyncSessionsGUID, std::string());
-  registry->RegisterBooleanPref(prefs::kFingerprintingProtectionEnabled, true);
+  registry->RegisterBooleanPref(kFingerprintingProtectionEnabled, true);
 
   // Deprecated 11/2025.
   registry->RegisterListPref(kReaderModeRecentlyUsedTimestampsPref);
@@ -1377,7 +1381,7 @@ void MigrateObsoleteProfilePrefs(PrefService* prefs) {
   prefs->ClearPref(kLongFeedVisitTimeAggregateKey);
   prefs->ClearPref(kLastUsedFeedForGoodVisitsKey);
   prefs->ClearPref(kLegacySyncSessionsGUID);
-  prefs->ClearPref(prefs::kFingerprintingProtectionEnabled);
+  prefs->ClearPref(kFingerprintingProtectionEnabled);
 
   // Added 11/2025.
   prefs->ClearPref(kReaderModeRecentlyUsedTimestampsPref);
@@ -1389,9 +1393,6 @@ void MigrateObsoleteProfilePrefs(PrefService* prefs) {
 
 void MigrateObsoleteUserDefault() {
   NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
-
-  // Added 01/2025.
-  [defaults removeObjectForKey:@"ChromeRecentTabsCollapsedSections"];
 
   // Added 03/2025.
   [defaults removeObjectForKey:@"FeedLastBackgroundRefreshTimestamp"];

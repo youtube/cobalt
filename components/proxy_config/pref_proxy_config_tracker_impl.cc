@@ -12,6 +12,7 @@
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
+#include "base/memory/ptr_util.h"
 #include "base/observer_list.h"
 #include "base/strings/string_util.h"
 #include "base/task/single_thread_task_runner.h"
@@ -21,10 +22,13 @@
 #include "components/prefs/pref_service.h"
 #include "components/proxy_config/proxy_config_dictionary.h"
 #include "components/proxy_config/proxy_config_pref_names.h"
+#include "components/proxy_config/proxy_prefs_utils.h"
 #include "net/base/proxy_server.h"
 #include "net/base/proxy_string_util.h"
+#include "net/base/url_util.h"
 #include "net/net_buildflags.h"
 #include "url/gurl.h"
+#include "url/url_constants.h"
 
 namespace {
 
@@ -69,22 +73,30 @@ ValueToDnsCondition(const base::Value& value) {
   // For now "DnsProbe" is always expected, but eventually other types of
   // conditions will be possible.
   const base::Value::Dict& dict = value.GetDict();
-  auto* dns_probe_value = dict.FindDict("DnsProbe");
+  auto* dns_probe_value = dict.FindDict(proxy_config::kKeyDnsProbe);
   if (!dns_probe_value) {
     return std::nullopt;
   }
 
-  const std::string* host_value = dns_probe_value->FindString("Host");
-  const std::string* result_value = dns_probe_value->FindString("Result");
+  const std::string* host_value =
+      dns_probe_value->FindString(proxy_config::kKeyHost);
+  const std::string* result_value =
+      dns_probe_value->FindString(proxy_config::kKeyResult);
   if (!host_value || !result_value ||
-      (*result_value != "resolved" && *result_value != "not_found")) {
+      (*result_value != proxy_config::kResultResolved &&
+       *result_value != proxy_config::kResultNotFound)) {
     return std::nullopt;
   }
 
   net::ProxyConfig::ProxyOverrideRule::DnsProbeCondition dns_probe_condition;
-  dns_probe_condition.host = url::SchemeHostPort(GURL(*host_value));
+  dns_probe_condition.host =
+      proxy_config::ProxyOverrideRuleHostFromString(*host_value);
+  if (!dns_probe_condition.host.IsValid()) {
+    return std::nullopt;
+  }
+
   dns_probe_condition.result =
-      *result_value == "resolved"
+      *result_value == proxy_config::kResultResolved
           ? net::ProxyConfig::ProxyOverrideRule::DnsProbeCondition::kResolved
           : net::ProxyConfig::ProxyOverrideRule::DnsProbeCondition::kNotFound;
   return dns_probe_condition;
@@ -130,7 +142,8 @@ bool AddUrlMatcher(const base::Value::Dict& value,
 // Returns false if an unexpected value was found in the passed `value`.
 bool AddDestinationMatchers(const base::Value::Dict& value,
                             net::ProxyConfig::ProxyOverrideRule& rule) {
-  return AddUrlMatcher(value, rule.destination_matchers, "DestinationMatchers",
+  return AddUrlMatcher(value, rule.destination_matchers,
+                       proxy_config::kKeyDestinationMatchers,
                        /*optional_field=*/false);
 }
 
@@ -138,7 +151,8 @@ bool AddDestinationMatchers(const base::Value::Dict& value,
 bool AddExcludeDestinationMatchers(const base::Value::Dict& value,
                                    net::ProxyConfig::ProxyOverrideRule& rule) {
   return AddUrlMatcher(value, rule.exclude_destination_matchers,
-                       "ExcludeDestinationMatchers", /*optional_field=*/true);
+                       proxy_config::kKeyExcludeDestinationMatchers,
+                       /*optional_field=*/true);
 }
 
 // Returns false if an unexpected value was found in the passed `value`, or if
@@ -154,7 +168,7 @@ bool AddProxyChain(const base::Value::Dict& value,
   //
   // The entries of the list can have the PAC format as above, or a regular URL
   // format of "scheme://host:port".
-  auto* proxy_list_value = value.FindList("ProxyList");
+  auto* proxy_list_value = value.FindList(proxy_config::kKeyProxyList);
   if (!proxy_list_value) {
     return false;
   }
@@ -166,20 +180,8 @@ bool AddProxyChain(const base::Value::Dict& value,
       return false;
     }
 
-    net::ProxyChain chain;
-    GURL url(entry.GetString());
-    if (url.is_valid()) {
-      net::ProxyServer::Scheme scheme =
-          net::GetSchemeFromUriScheme(url.scheme());
-      if (scheme == net::ProxyServer::SCHEME_INVALID) {
-        continue;
-      }
-      chain = net::ProxyChain::FromSchemeHostAndPort(scheme, url.host(),
-                                                     url.port());
-    } else {
-      chain = net::PacResultElementToProxyChain(entry.GetString());
-    }
-
+    net::ProxyChain chain =
+        proxy_config::ProxyOverrideRuleProxyFromString(entry.GetString());
     if (chain.IsValid()) {
       rule.proxy_list.AddProxyChain(std::move(chain));
     }
@@ -207,7 +209,7 @@ bool AddConditions(const base::Value::Dict& value,
   //   ]
   //   ...
   // }
-  auto* conditions_value = value.FindList("Conditions");
+  auto* conditions_value = value.FindList(proxy_config::kKeyConditions);
   if (!conditions_value) {
     // This field is optional, so it being missing isn't considered an error.
     return true;
@@ -416,6 +418,10 @@ void ProxyConfigServiceImpl::RegisterObserver() {
   }
 }
 
+base::WeakPtr<ProxyConfigServiceImpl> ProxyConfigServiceImpl::AsWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
+}
+
 //========================= PrefProxyConfigTrackerImpl =========================
 
 PrefProxyConfigTrackerImpl::PrefProxyConfigTrackerImpl(
@@ -450,12 +456,13 @@ std::unique_ptr<net::ProxyConfigService>
 PrefProxyConfigTrackerImpl::CreateTrackingProxyConfigService(
     std::unique_ptr<net::ProxyConfigService> base_service) {
   DCHECK(!proxy_config_service_impl_);
-  proxy_config_service_impl_ = new ProxyConfigServiceImpl(
+  auto* proxy_config_service_impl = new ProxyConfigServiceImpl(
       std::move(base_service), active_config_state_, active_config_);
+  proxy_config_service_impl_ = proxy_config_service_impl->AsWeakPtr();
   VLOG(1) << this << ": set chrome proxy config service to "
-          << proxy_config_service_impl_;
+          << proxy_config_service_impl;
 
-  return std::unique_ptr<net::ProxyConfigService>(proxy_config_service_impl_);
+  return base::WrapUnique<net::ProxyConfigService>(proxy_config_service_impl);
 }
 
 void PrefProxyConfigTrackerImpl::DetachFromPrefService() {
@@ -612,9 +619,9 @@ void PrefProxyConfigTrackerImpl::OnProxyConfigChanged(
   }
 
   proxy_config_service_task_runner_->PostTask(
-      FROM_HERE, base::BindOnce(&ProxyConfigServiceImpl::UpdateProxyConfig,
-                                base::Unretained(proxy_config_service_impl_),
-                                config_state, config));
+      FROM_HERE,
+      base::BindOnce(&ProxyConfigServiceImpl::UpdateProxyConfig,
+                     proxy_config_service_impl_, config_state, config));
 }
 
 bool PrefProxyConfigTrackerImpl::PrefConfigToNetConfig(

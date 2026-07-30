@@ -78,13 +78,15 @@ TEST_F(OmniboxNextFeaturesTest, ComposeboxConfigEnabled_DefaultConfiguration) {
   EXPECT_EQ(image_upload.downscale_max_image_width(), 1600);
   EXPECT_EQ(image_upload.downscale_max_image_height(), 1600);
   EXPECT_EQ(image_upload.image_compression_quality(), 40);
-  EXPECT_THAT(image_upload.mime_types_allowed(), "image/*");
+  EXPECT_THAT(image_upload.mime_types_allowed(),
+              "image/avif,image/bmp,image/jpeg,image/png,image/webp,image/"
+              "heif,image/heic");
 
   auto attachment_upload = config.composebox().attachment_upload();
   EXPECT_EQ(attachment_upload.max_size_bytes(), 200000000);
   EXPECT_THAT(attachment_upload.mime_types_allowed(), ".pdf,application/pdf");
 
-  EXPECT_EQ(composebox.max_num_files(), 1);
+  EXPECT_EQ(composebox.max_num_files(), 10);
   EXPECT_EQ(composebox.input_placeholder_text(),
             l10n_util::GetStringUTF8(IDS_NTP_COMPOSE_PLACEHOLDER_TEXT));
   EXPECT_EQ(composebox.is_pdf_upload_enabled(), true);
@@ -234,12 +236,35 @@ TEST_F(OmniboxNextFeaturesTest, ComposeboxConfigEnabled_Valid_ClearMimeTypes) {
   omnibox::NTPComposeboxConfig config = scoped_config_.Get().config;
   // Check that both default mime type lists were cleared.
   EXPECT_THAT(config.composebox().image_upload().mime_types_allowed(),
-              "image/*");
+              "image/avif,image/bmp,image/jpeg,image/png,image/webp,image/"
+              "heif,image/heic");
   EXPECT_THAT(config.composebox().attachment_upload().mime_types_allowed(),
               ".pdf,application/pdf");
 
   histogram_tester.ExpectUniqueSample(kConfigParamParseSuccessHistogram, true,
                                       1);
+}
+
+TEST_F(OmniboxNextFeaturesTest, CreateQueryControllerConfigParams) {
+  {
+    base::test::ScopedFeatureList scoped_feature_list;
+    scoped_feature_list.InitAndEnableFeatureWithParameters(
+        internal::kWebUIOmniboxAimPopup,
+        {{"AttachPageTitleAndUrlToSuggestRequest", "true"}});
+
+    auto config_params = CreateQueryControllerConfigParams();
+    EXPECT_TRUE(config_params->attach_page_title_and_url_to_suggest_requests);
+  }
+
+  {
+    base::test::ScopedFeatureList scoped_feature_list;
+    scoped_feature_list.InitAndEnableFeatureWithParameters(
+        internal::kWebUIOmniboxAimPopup,
+        {{"AttachPageTitleAndUrlToSuggestRequest", "false"}});
+
+    auto config_params = CreateQueryControllerConfigParams();
+    EXPECT_FALSE(config_params->attach_page_title_and_url_to_suggest_requests);
+  }
 }
 
 class TestingAimEligibilityService : public ChromeAimEligibilityService {

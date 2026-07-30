@@ -59,23 +59,19 @@ source_set("tracking_protection_settings") {
   sources = [
     "tracking_protection_settings.cc",
     "tracking_protection_settings.h",
-    "tracking_protection_settings_observer.h",
   ]
 
   deps = [
     ":features",
     ":privacy_sandbox_prefs",
-    ":tracking_protection_onboarding",
     ":tracking_protection_prefs",
     "//components/content_settings/core/browser",
+    "//components/content_settings/core/browser:cookie_settings",
     "//components/content_settings/core/common",
-    "//components/keyed_service/core",
-    "//components/policy/core/common",
     "//components/pref_registry",
     "//components/prefs",
     "//components/sync/base",
     "//components/sync/service",
-    "//url",
   ]
 
   public_deps = [ "//base" ]
@@ -128,7 +124,6 @@ if (use_blink) {
     ]
 
     deps = [
-      ":tracking_protection_settings",
       "//components/browsing_topics/common",
       "//components/keyed_service/core",
       "//components/pref_registry",
@@ -151,7 +146,6 @@ if (use_blink) {
     deps = [
       ":privacy_sandbox_prefs",
       ":privacy_sandbox_survey_service",
-      ":tracking_protection_settings",
       "//components/browsing_topics/common",
       "//components/content_settings/core/browser",
       "//components/content_settings/core/browser:cookie_settings",

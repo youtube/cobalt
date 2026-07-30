@@ -68,6 +68,7 @@
 #include "third_party/blink/renderer/core/frame/web_local_frame_impl.h"
 #include "third_party/blink/renderer/core/html/canvas/html_canvas_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_button_element.h"
+#include "third_party/blink/renderer/core/html/forms/html_form_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_input_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_label_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_option_element.h"
@@ -1804,6 +1805,49 @@ void AXObjectCacheImpl::Remove(AXObject* object, bool notify_parent) {
   }
 }
 
+void AXObjectCacheImpl::RemoveFromRadioButtonGroupCache(AXID ax_id) {
+  AXObject* obj = ObjectFromAXID(ax_id);
+  if (!obj || obj->RoleValue() != ax::mojom::blink::Role::kRadioButton) {
+    return;
+  }
+
+  // If the cache is disposing, we don't need to invalidate peers.
+  if (IsDisposing() || HasBeenDisposed()) {
+    return;
+  }
+
+  if (auto* radio_button = DynamicTo<HTMLInputElement>(obj->GetNode())) {
+    if (RadioButtonGroup* cached_group =
+            GetCachedRadioButtonGroup(radio_button)) {
+      for (AXID peer_id : cached_group->members_) {
+        if (peer_id != ax_id) {
+          if (AXObject* peer = ObjectFromAXID(peer_id)) {
+            if (lifecycle().StateAllowsImmediateTreeUpdates()) {
+              MarkAXObjectDirtyWithCleanLayout(peer);
+            } else {
+              MarkAXObjectDirty(peer);
+            }
+          }
+        }
+      }
+    } else if (obj->GetNode() && obj->GetNode()->isConnected()) {
+      HeapVector<Member<HTMLInputElement>> group =
+          AXNodeObject::FindAllRadioButtonsWithSameName(radio_button);
+      for (auto& radio : group) {
+        if (AXObject* radio_obj = Get(radio)) {
+          if (radio_obj != obj) {
+            if (lifecycle().StateAllowsImmediateTreeUpdates()) {
+              MarkAXObjectDirtyWithCleanLayout(radio_obj);
+            } else {
+              MarkAXObjectDirty(radio_obj);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
 // This is safe to call even if there isn't a current mapping.
 // This is called by other Remove() methods, called by Blink for DOM and layout
 // changes, iterating over all removed content in the subtree:
@@ -1822,6 +1866,8 @@ void AXObjectCacheImpl::Remove(AXID ax_id, bool notify_parent) {
   AXObject* obj = it != objects_.end() ? it->value : nullptr;
   if (!obj)
     return;
+
+  RemoveFromRadioButtonGroupCache(ax_id);
 
 #if AX_FAIL_FAST_BUILD()
   if (obj->CachedIsIncludedInTree()) {
@@ -2924,6 +2970,19 @@ void AXObjectCacheImpl::NodeIsAttachedWithCleanLayout(Node* node) {
   CHECK(obj);
   CHECK(obj->ParentObject());
 
+  if (obj->RoleValue() == ax::mojom::blink::Role::kRadioButton) {
+    if (auto* radio_button = DynamicTo<HTMLInputElement>(node)) {
+      if (!GetCachedRadioButtonGroup(radio_button)) {
+        auto* group = ComputeAndCacheRadioButtonGroup(radio_button, obj);
+        for (auto peer_id : group->members_) {
+          if (peer_id != obj->AXObjectID()) {
+            MarkAXObjectDirtyWithCleanLayout(ObjectFromAXID(peer_id));
+          }
+        }
+      }
+    }
+  }
+
   if (element) {
     MaybeNewRelationTarget(*node, obj);
   }
@@ -3900,6 +3959,67 @@ AXObjectCacheImpl::GetTreeUpdateCallbackQueue(Document& document) {
                            : tree_update_callback_queue_main_;
 }
 
+void AXObjectCacheImpl::RadioButtonGroup::Trace(Visitor* visitor) const {
+  visitor->Trace(form_);
+  visitor->Trace(tree_scope_);
+}
+
+AXObjectCacheImpl::RadioButtonGroup*
+AXObjectCacheImpl::GetCachedRadioButtonGroup(HTMLInputElement* radio_button) {
+  HTMLFormElement* form = radio_button->Form();
+  TreeScope& tree_scope = radio_button->GetTreeScope();
+  String name = radio_button->GetName();
+
+  auto it = radio_group_name_to_node_ids_.find(name);
+  if (it == radio_group_name_to_node_ids_.end()) {
+    return nullptr;
+  }
+
+  for (auto& group : it->value) {
+    if (group->form_ == form && group->tree_scope_ == &tree_scope) {
+      return group;
+    }
+  }
+  return nullptr;
+}
+
+AXObjectCacheImpl::RadioButtonGroup*
+AXObjectCacheImpl::ComputeAndCacheRadioButtonGroup(
+    HTMLInputElement* radio_button,
+    AXObject* ax_object) {
+  DCHECK(radio_button);
+  HeapVector<Member<HTMLInputElement>> group_members =
+      AXNodeObject::FindAllRadioButtonsWithSameName(radio_button);
+  Vector<AXID> ids;
+  for (auto& radio : group_members) {
+    if (AXObject* radio_obj = Get(radio)) {
+      ids.push_back(radio_obj->AXObjectID());
+    }
+  }
+
+  auto* new_group = MakeGarbageCollected<RadioButtonGroup>(
+      radio_button->Form(), &radio_button->GetTreeScope(), std::move(ids));
+
+  String name = radio_button->GetName();
+  auto result = radio_group_name_to_node_ids_.insert(
+      name, HeapVector<Member<RadioButtonGroup>>());
+  result.stored_value->value.push_back(new_group);
+  return new_group;
+}
+
+HeapVector<Member<AXObject>> AXObjectCacheImpl::GetRadioButtonGroupMembers(
+    HTMLInputElement* radio_button) {
+  HeapVector<Member<AXObject>> members;
+  if (RadioButtonGroup* group = GetCachedRadioButtonGroup(radio_button)) {
+    for (AXID id : group->members_) {
+      if (AXObject* obj = ObjectFromAXID(id)) {
+        members.push_back(obj);
+      }
+    }
+  }
+  return members;
+}
+
 void AXObjectCacheImpl::ProcessCleanLayoutCallbacks(Document& document) {
   SCOPED_DISALLOW_LIFECYCLE_TRANSITION();
 
@@ -4386,6 +4506,20 @@ AriaNotifications AXObjectCacheImpl::RetrieveAriaNotifications(
   return aria_notifications_.Take(obj->AXObjectID());
 }
 
+ImeState* AXObjectCacheImpl::GetImeState(const AXObject* obj) {
+  DCHECK(obj);
+
+  if (ime_state_axid_ == obj->AXObjectID()) {
+    return &ime_state_;
+  }
+  return nullptr;
+}
+
+void AXObjectCacheImpl::ClearImeState() {
+  ime_state_axid_ = ui::AXNodeData::kInvalidAXID;
+  ime_state_ = ImeState();
+}
+
 void AXObjectCacheImpl::UpdateTableRoleWithCleanLayout(Node* table) {
   if (AXObject* ax_table = Get(table)) {
     if (ax_table->RoleValue() == ax::mojom::blink::Role::kLayoutTable &&
@@ -4671,6 +4805,19 @@ void AXObjectCacheImpl::HandleRoleChangeWithCleanLayout(Node* node) {
       relation_cache_->UpdateAriaOwnsWithCleanLayout(new_object,
                                                      /*force*/ true);
       new_object->UpdateChildrenIfNecessary();
+      if (new_object->RoleValue() == ax::mojom::blink::Role::kRadioButton) {
+        if (auto* radio_button = DynamicTo<HTMLInputElement>(node)) {
+          auto* group = GetCachedRadioButtonGroup(radio_button);
+          if (!group) {
+            group = ComputeAndCacheRadioButtonGroup(radio_button, new_object);
+          }
+          for (auto peer_id : group->members_) {
+            if (peer_id != new_object->AXObjectID()) {
+              MarkAXObjectDirtyWithCleanLayout(ObjectFromAXID(peer_id));
+            }
+          }
+        }
+      }
       // Need to mark dirty because the dom_node_id-based ID remains the same,
       // and therefore the serializer may not automatically serialize this node
       // from the children changed on the parent.
@@ -5008,6 +5155,42 @@ void AXObjectCacheImpl::HandleEventListenerRemoved(
 
 void AXObjectCacheImpl::HandleReferenceTargetChanged(Element& element) {
   DeferTreeUpdate(TreeUpdateReason::kReferenceTargetChanged, &element);
+}
+
+void AXObjectCacheImpl::HandleSetComposition(Node* node) {
+  if (!node) {
+    return;
+  }
+
+  AXObject* obj = Get(node);
+  if (!obj) {
+    return;
+  }
+
+  ime_state_axid_ = obj->AXObjectID();
+  ime_state_.has_composition = true;
+}
+
+void AXObjectCacheImpl::HandleCommitText(Node* node,
+                                         int committed_text_length) {
+  if (committed_text_length == 0) {
+    return;
+  }
+
+  if (!node) {
+    return;
+  }
+
+  AXObject* obj = Get(node);
+  if (!obj) {
+    return;
+  }
+
+  ime_state_axid_ = obj->AXObjectID();
+  ime_state_.committed_text_length = committed_text_length;
+
+  // Text commit might cause no text value changes.
+  MarkAXObjectDirty(obj);
 }
 
 bool AXObjectCacheImpl::DoesEventListenerImpactIgnoredState(
@@ -5703,6 +5886,11 @@ void AXObjectCacheImpl::UpdateActiveAriaModalDialog(Node* focused_node) {
   Element* new_active_aria_modal = AncestorAriaModalDialog(focused_node);
   if (active_aria_modal_dialog_ == new_active_aria_modal)
     return;
+
+  // Don't update when the focus itself is the modal.
+  if (new_active_aria_modal == focused_node) {
+    return;
+  }
 
   active_aria_modal_dialog_ = new_active_aria_modal;
   MarkDocumentDirty();
@@ -6435,8 +6623,14 @@ void AXObjectCacheImpl::HandleLoadComplete(Document* document) {
 }
 
 void AXObjectCacheImpl::HandleScrolledToAnchor(const Node* anchor_node) {
-  if (!anchor_node)
+  if (!anchor_node) {
     return;
+  }
+
+  if (!lifecycle_.StateAllowsDeferTreeUpdates()) {
+    // TODO(crbug.com/467491112): root cause needs investigation.
+    return;
+  }
 
   DeferTreeUpdate(TreeUpdateReason::kPostNotificationFromHandleScrolledToAnchor,
                   const_cast<Node*>(anchor_node),
@@ -6481,6 +6675,28 @@ void AXObjectCacheImpl::HandleScrollPositionChanged(
   Node* node = GetClosestNodeForLayoutObject(layout_object);
   if (node) {
     InvalidateBoundingBox(node->GetDomNodeId());
+  }
+}
+
+void AXObjectCacheImpl::HandleScrollMarkerTabSelectionChanged(
+    Element* scroller) {
+  if (!scroller) {
+    return;
+  }
+
+  AXObject* obj = Get(scroller);
+  if (!obj) {
+    // There is no AXObject, so there is no subtree to mark dirty.
+    MarkElementDirty(scroller);
+    return;
+  }
+
+  // Check if the a11y lifecycle allows immediate tree updates (layout is
+  // clean), otherwise defer tree updates.
+  if (lifecycle_.StateAllowsImmediateTreeUpdates()) {
+    MarkAXSubtreeDirtyWithCleanLayout(obj);
+  } else {
+    MarkAXSubtreeDirty(obj);
   }
 }
 
@@ -6585,6 +6801,7 @@ void AXObjectCacheImpl::Trace(Visitor* visitor) const {
   visitor->Trace(node_to_parse_before_more_tree_updates_);
   visitor->Trace(weak_factory_for_serialization_pipeline_);
   visitor->Trace(weak_factory_for_loc_updates_pipeline_);
+  visitor->Trace(radio_group_name_to_node_ids_);
 
   AXObjectCache::Trace(visitor);
 }

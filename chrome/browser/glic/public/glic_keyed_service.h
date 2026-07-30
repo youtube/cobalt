@@ -275,6 +275,9 @@ class GlicKeyedService : public KeyedService,
   // Close the active embedder for an instance associated with this render frame
   // host.
   void Close(content::RenderFrameHost* outermost_render_frame_host);
+  // Archive the active embedder for an instance associated with this render
+  // frame host.
+  void Archive(content::RenderFrameHost* outermost_render_frame_host);
   Profile* profile() const { return profile_; }
 
   // Used only for testing purposes.
@@ -283,10 +286,6 @@ class GlicKeyedService : public KeyedService,
   base::WeakPtr<GlicKeyedService> GetWeakPtr();
 
   void OnMemoryPressure(base::MemoryPressureLevel level) override;
-
-  // ActorTaskDelegate:
-  void OnTabAddedToTask(actor::TaskId task_id,
-                        const tabs::TabInterface::Handle& tab_handle) override;
 
   HostManager& host_manager();
 
@@ -320,15 +319,11 @@ class GlicKeyedService : public KeyedService,
   void SendAdditionalContext(tabs::TabHandle tab_handle,
                              mojom::AdditionalContextPtr context);
 
-  // Registers a callback to be invoked when the TabData for an explicitly
-  // observed tab changes. Note that currently, only tabs observed via
-  // `OnTabAddedToTask` trigger updates.
-  using TabDataChangedCallback =
-      base::RepeatingCallback<void(const TabDataChange&)>;
-  base::CallbackListSubscription AddTabDataChangedCallback(
-      TabDataChangedCallback callback);
+  GlicTabDataObserver& tab_data_observer() { return *tab_data_observer_; }
 
   // ActorTaskDelegate:
+  void OnTabAddedToTask(actor::TaskId task_id,
+                        const tabs::TabInterface::Handle& tab_handle) override;
   void RequestToShowCredentialSelectionDialog(
       actor::TaskId task_id,
       const base::flat_map<std::string, gfx::Image>& icons,

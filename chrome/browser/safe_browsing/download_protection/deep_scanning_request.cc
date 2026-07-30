@@ -18,11 +18,9 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/download/download_item_warning_data.h"
 #include "chrome/browser/download/download_prefs.h"
-#include "chrome/browser/enterprise/connectors/analysis/content_analysis_dialog_controller.h"
 #include "chrome/browser/enterprise/connectors/analysis/content_analysis_downloads_delegate.h"
 #include "chrome/browser/enterprise/data_protection/data_protection_features.h"
 #include "chrome/browser/policy/dm_token_utils.h"
-#include "chrome/browser/safe_browsing/cloud_content_scanning/binary_upload_service.h"
 #include "chrome/browser/safe_browsing/cloud_content_scanning/deep_scanning_utils.h"
 #include "chrome/browser/safe_browsing/cloud_content_scanning/file_analysis_request.h"
 #include "chrome/browser/safe_browsing/cloud_content_scanning/file_opening_job.h"
@@ -37,6 +35,7 @@
 #include "chrome/common/pref_names.h"
 #include "components/download/public/common/download_item.h"
 #include "components/enterprise/common/proto/connectors.pb.h"
+#include "components/enterprise/connectors/core/cloud_content_scanning/binary_upload_service.h"
 #include "components/enterprise/connectors/core/common.h"
 #include "components/enterprise/connectors/core/reporting_constants.h"
 #include "components/enterprise/connectors/core/reporting_utils.h"
@@ -52,6 +51,7 @@
 #include "content/public/browser/download_item_utils.h"
 
 #if BUILDFLAG(ENTERPRISE_CLOUD_CONTENT_ANALYSIS)
+#include "chrome/browser/enterprise/connectors/analysis/content_analysis_dialog_controller.h"
 #include "chrome/browser/enterprise/connectors/common.h"
 #include "chrome/browser/enterprise/connectors/connectors_service.h"
 #endif  // BUILDFLAG(ENTERPRISE_CLOUD_CONTENT_ANALYSIS)
@@ -583,7 +583,7 @@ void DeepScanningRequest::OnDownloadRequestReady(
   upload_start_times_[current_path] = base::TimeTicks::Now();
   Profile* profile =
       Profile::FromBrowserContext(metadata_->GetBrowserContext());
-  BinaryUploadService* binary_upload_service =
+  enterprise_connectors::BinaryUploadService* binary_upload_service =
       download_service_->GetBinaryUploadService(profile, analysis_settings_);
   if (binary_upload_service) {
     binary_upload_service->MaybeUploadForDeepScanning(
@@ -690,7 +690,8 @@ void DeepScanningRequest::OnEnterpriseScanComplete(
         // `web_contents()` may be nullptr in several cases, if the tab owning
         // the download was opened by a download link, a restored page, or an
         // external application. For those cases, download to drive directly.
-        //
+
+#if BUILDFLAG(ENTERPRISE_CLOUD_CONTENT_ANALYSIS)
         // ProcessEnterpriseDownloadResult will run via
         // dialog callback.
         base::OnceClosure keep_closure = base::BindOnce(
@@ -717,6 +718,7 @@ void DeepScanningRequest::OnEnterpriseScanComplete(
                 FORCE_SAVE_TO_CLOUD,
             nullptr);
         return;
+#endif  // BUILDFLAG(ENTERPRISE_CLOUD_CONTENT_ANALYSIS)
       }
     }
   } else if (enterprise_connectors::ResultIsFailClosed(result) &&
@@ -978,7 +980,7 @@ void DeepScanningRequest::AcknowledgeRequest(
     enterprise_connectors::EventResult event_result) {
   Profile* profile =
       Profile::FromBrowserContext(metadata_->GetBrowserContext());
-  BinaryUploadService* binary_upload_service =
+  enterprise_connectors::BinaryUploadService* binary_upload_service =
       download_service_->GetBinaryUploadService(profile, analysis_settings_);
   if (!binary_upload_service) {
     return;

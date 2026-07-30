@@ -152,6 +152,9 @@ enum class ChromeMLGenerateStatus {
   // Generation either completed normally or was cancelled. This is the
   // last output.
   kComplete,
+
+  // Generation failed because there was an error creating the constraint.
+  kInvalidConstraint,
 };
 using ChromeMLExecutionStatus = ChromeMLGenerateStatus;
 
@@ -563,6 +566,11 @@ struct ChromeMLAPI {
   // Gets parameters needed to construct a tokenizer.
   bool (*GetTokenizerParams)(ChromeMLModel model,
                              const ChromeMLGetTokenizerParamsFn& fn);
+
+  // Gets parameters needed to construct a tokenizer.
+  bool (*GetTokenizerParamsV2)(ChromeMLModel model,
+                               ChromeMLSession session,
+                               const ChromeMLGetTokenizerParamsFn& fn);
 
   // Creates a new TFLite delegate using the GPU inference engine.
   TfLiteDelegate* (*CreateGpuDelegate)();

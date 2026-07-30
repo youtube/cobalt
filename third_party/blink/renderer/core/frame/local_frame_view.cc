@@ -2280,14 +2280,29 @@ bool LocalFrameView::UpdateLifecyclePhases(
   return Lifecycle().GetState() == target_state;
 }
 
+cc::PropertyChangeForcesCommitCriteria LocalFrameView::ForceCommitCriteria()
+    const {
+  cc::PropertyChangeForcesCommitCriteria criteria =
+      cc::PropertyChangeForcesCommitCriteria::kNone;
+  if (HasActiveIntersectionObservations() ||
+      HasRunningAnchorTransformAnimation()) {
+    criteria = NeedsOcclusionTracking() && HasActiveIntersectionObservations()
+                   ? cc::PropertyChangeForcesCommitCriteria::kAny
+                   : cc::PropertyChangeForcesCommitCriteria::kTransform;
+  }
+  return criteria;
+}
+
 void LocalFrameView::UpdateLifecyclePhasesInternal(
     DocumentLifecycle::LifecycleState target_state) {
   // TODO(https://crbug.com/1196853): Switch to ScriptForbiddenScope once
   // failures are fixed.
   BlinkLifecycleScopeWillBeScriptForbidden forbid_script;
 
-  // RunScrollSnapshotClientSteps must not run more than once.
-  bool should_run_scroll_snapshot_client_steps = true;
+  // RunPostLayoutSnapshotClientSteps must not run more than once.
+  bool should_run_post_layout_snapshot_client_steps = true;
+
+  auto old_force_commit_criteria = ForceCommitCriteria();
 
   // Run style, layout, compositing and prepaint lifecycle phases and deliver
   // resize observations if required. Resize observer callbacks/delegates have
@@ -2325,14 +2340,14 @@ void LocalFrameView::UpdateLifecyclePhasesInternal(
     }
     DCHECK(Lifecycle().GetState() >= DocumentLifecycle::kLayoutClean);
 
-    // ScrollSnapshotClients may be associated with scrollers that never had a
-    // chance to get a layout box at the time style was calculated; when this
+    // PostLayoutSnapshotClients may be associated with scrollers that never had
+    // a chance to get a layout box at the time style was calculated; when this
     // situation happens, RunScrollTimelineSteps will re-snapshot all affected
     // clients and dirty style for associated effect targets.
     //
     // https://github.com/w3c/csswg-drafts/issues/5261
-    if (should_run_scroll_snapshot_client_steps) {
-      should_run_scroll_snapshot_client_steps = false;
+    if (should_run_post_layout_snapshot_client_steps) {
+      should_run_post_layout_snapshot_client_steps = false;
       bool needs_to_repeat_lifecycle = RunSnapshotPostLayoutStateSteps();
       if (needs_to_repeat_lifecycle) {
         continue;
@@ -2376,11 +2391,10 @@ void LocalFrameView::UpdateLifecyclePhasesInternal(
         continue;
     }
 
-    DCHECK(ShouldThrottleRendering() ||
-           Lifecycle().GetState() >= DocumentLifecycle::kPrePaintClean);
-    if (ShouldThrottleRendering() || !run_more_lifecycle_phases) {
-      return;
-    }
+      DCHECK(ShouldThrottleRendering() ||
+             Lifecycle().GetState() >= DocumentLifecycle::kPrePaintClean);
+      if (ShouldThrottleRendering() || !run_more_lifecycle_phases)
+        return;
 
     // Some features may require several passes over style and layout
     // within the same lifecycle update.
@@ -2424,7 +2438,7 @@ void LocalFrameView::UpdateLifecyclePhasesInternal(
     // Only run the rest of the steps here if resize observer is done.
     if (needs_to_repeat_lifecycle) {
       if (RuntimeEnabledFeatures::RunSnapshotPostLayoutStateStepsEnabled()) {
-        should_run_scroll_snapshot_client_steps = true;
+        should_run_post_layout_snapshot_client_steps = true;
       }
       continue;
     }
@@ -2438,12 +2452,15 @@ void LocalFrameView::UpdateLifecyclePhasesInternal(
   }
 
   UpdateIntersectionObserverStatus();
-  if (HasActiveIntersectionObservations() ||
-      HasRunningAnchorTransformAnimation()) {
+
+  auto new_force_commit_criteria = ForceCommitCriteria();
+  bool force_propagation =
+      new_force_commit_criteria != old_force_commit_criteria;
+  if (force_propagation || new_force_commit_criteria !=
+                               cc::PropertyChangeForcesCommitCriteria::kNone) {
+    // Force a commit even if there are no updates, to propagate these bits.
     GetChromeClient()->RequestMainFrameOnCompositorAnimation(
-        *frame_, NeedsOcclusionTracking() && HasActiveIntersectionObservations()
-                     ? cc::PropertyChangeForcesCommitCriteria::kAny
-                     : cc::PropertyChangeForcesCommitCriteria::kTransform);
+        *frame_, new_force_commit_criteria, force_propagation);
   }
 
   // 21. For each doc of docs, mark paint timing for doc.
@@ -2496,7 +2513,7 @@ bool LocalFrameView::RunSnapshotPostLayoutStateSteps() {
   bool re_run_lifecycles = false;
   ForAllNonThrottledLocalFrameViews(
       [&re_run_lifecycles](LocalFrameView& frame_view) {
-        bool valid = frame_view.GetFrame().UpdateScrollSnapshotClients();
+        bool valid = frame_view.GetFrame().UpdatePostLayoutSnapshotClients();
         re_run_lifecycles |= !valid;
       });
   return re_run_lifecycles;
@@ -2674,7 +2691,7 @@ bool LocalFrameView::RunCompositingInputsLifecyclePhase(
       // and then painted during this lifecycle.
       if (LocalDOMWindow* window = frame_view.GetFrame().DomWindow()) {
         if (HighlightRegistry* highlight_registry =
-                window->Supplementable<LocalDOMWindow, 48>::RequireSupplement<
+                window->Supplementable<LocalDOMWindow>::RequireSupplement<
                     HighlightRegistry>()) {
           highlight_registry->ValidateHighlightMarkers();
         }
@@ -2792,34 +2809,35 @@ void LocalFrameView::RunPaintLifecyclePhase(PaintBenchmarkMode benchmark_mode) {
   }
 
   size_t total_animations_count = 0;
-  ForAllNonThrottledLocalFrameViews([this, needed_full_update,
-                                     &total_animations_count](
-                                        LocalFrameView& frame_view) {
-    if (auto* scrollable_area = frame_view.GetScrollableArea()) {
-      scrollable_area->UpdateCompositorScrollAnimations();
-    }
-    for (PaintLayerScrollableArea* area :
-         frame_view.animating_scrollable_areas_) {
-      area->UpdateCompositorScrollAnimations();
-    }
-    frame_view.GetPage()->GetLinkHighlight().UpdateAfterPaint(
-        paint_artifact_compositor_.Get());
-    Document& document = frame_view.GetLayoutView()->GetDocument();
-    // Attach the compositor timeline during the commit as it blocks on
-    // the previous commit completion.
-    document.AttachCompositorTimeline(document.Timeline().CompositorTimeline());
-    {
-      // Updating animations can notify ready promises which could mutate
-      // the DOM. We should delay these until we have finished the lifecycle
-      // update. https://crbug.com/1196781
-      ScriptForbiddenScope forbid_script;
-      document.GetDocumentAnimations().UpdateAnimations(
-          DocumentLifecycle::kPaintClean, paint_artifact_compositor_.Get(),
-          needed_full_update);
-    }
-    total_animations_count +=
-        document.GetDocumentAnimations().GetAnimationsCount();
-  });
+  ForAllNonThrottledLocalFrameViews(
+      [this, needed_full_update,
+       &total_animations_count](LocalFrameView& frame_view) {
+        if (auto* scrollable_area = frame_view.GetScrollableArea()) {
+          scrollable_area->UpdateCompositorScrollAnimations();
+        }
+        for (PaintLayerScrollableArea* area :
+             frame_view.animating_scrollable_areas_) {
+          area->UpdateCompositorScrollAnimations();
+        }
+        frame_view.GetPage()->GetLinkHighlight().UpdateAfterPaint(
+            paint_artifact_compositor_.Get());
+        Document& document = frame_view.GetLayoutView()->GetDocument();
+        // Attach the compositor timeline during the commit as it blocks on
+        // the previous commit completion.
+        document.AttachCompositorTimeline(
+            document.Timeline().CompositorTimeline());
+        {
+          // Updating animations can notify ready promises which could mutate
+          // the DOM. We should delay these until we have finished the lifecycle
+          // update. https://crbug.com/1196781
+          ScriptForbiddenScope forbid_script;
+          document.GetDocumentAnimations().UpdateAnimations(
+              DocumentLifecycle::kPaintClean, paint_artifact_compositor_.Get(),
+              needed_full_update);
+        }
+        total_animations_count +=
+            document.GetDocumentAnimations().GetAnimationsCount();
+      });
 
   // If this is a throttled local root, then we shouldn't run animation steps
   // below, because the cc animation data structures might not even exist.
@@ -3675,7 +3693,7 @@ void LocalFrameView::ServiceScrollAnimations(base::TimeTicks start_time) {
     }
 
     if (!RuntimeEnabledFeatures::RunSnapshotPostLayoutStateStepsEnabled()) {
-      GetFrame().UpdateScrollSnapshotClientsForServiceAnimations();
+      GetFrame().UpdatePostLayoutSnapshotClientsForServiceAnimations();
     }
     if (SVGDocumentExtensions::ServiceSmilOnAnimationFrame(*document)) {
       GetPage()->Animator().SetHasSmilAnimation();

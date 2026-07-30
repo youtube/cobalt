@@ -25,6 +25,7 @@
 #include "third_party/blink/renderer/core/paint/timing/paint_timing_detector.h"
 #include "third_party/blink/renderer/core/timing/dom_window_performance.h"
 #include "third_party/blink/renderer/core/timing/interaction_effects_monitor.h"
+#include "third_party/blink/renderer/core/timing/performance_timing_for_reporting.h"
 #include "third_party/blink/renderer/core/timing/soft_navigation_context.h"
 #include "third_party/blink/renderer/core/timing/soft_navigation_paint_attribution_tracker.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
@@ -387,7 +388,6 @@ void SoftNavigationHeuristics::MaybeCommitNavigationOrEmitSoftNavigationEntry(
   // We must *not* wait on this presentation time callback, because all other
   // new performance entries created need to use this new navigation id, in
   // order to match with the eventual soft-nav entry.
-  ++soft_navigation_count_;
 
   WindowPerformance* performance = DOMWindowPerformance::performance(*window_);
   CHECK(performance);
@@ -408,6 +408,10 @@ void SoftNavigationHeuristics::EmitSoftNavigationEntry(
   CHECK(context->HasFirstContentfulPaint());
   CHECK(!context->WasEmitted());
   context->MarkEmitted();
+  // Since this is used for metrics reporting and sent as part of the
+  // SoftNavigationMetrics record, we must increment it before calling
+  // ReportSoftNavigationToMetrics.
+  soft_navigation_count_++;
 
   WindowPerformance* performance = DOMWindowPerformance::performance(*window_);
   CHECK(performance);
@@ -490,15 +494,18 @@ void SoftNavigationHeuristics::UpdateSoftLcpCandidateForContext(
     context->UpdateWebExposedLargestContentfulPaintIfNeeded();
   }
 
-  soft_navigation_lcp_details_for_metrics_ = context->LatestLcpDetailsForUkm();
-
   LocalFrame* frame = window_->GetFrame();
   // We should not be running paint timing callbacks for detached frames.
   CHECK(frame);
-  auto* loader = frame->Loader().GetDocumentLoader();
-  // This should only be null if the frame was detached.
-  CHECK(loader);
-  loader->DidChangePerformanceTiming();
+  LocalFrameClient* frame_client = frame->Client();
+  CHECK(frame_client);
+  WindowPerformance* performance = DOMWindowPerformance::performance(*window_);
+  CHECK(performance);
+  LargestContentfulPaintDetailsForReporting lcp =
+      performance->timingForReporting()
+          ->PopulateLargestContentfulPaintDetailsForReporting(
+              context->LatestLcpDetailsForUkm());
+  frame_client->DidObserveSoftLargestContentfulPaint(lcp);
 }
 
 void SoftNavigationHeuristics::ReportSoftNavigationToMetrics(

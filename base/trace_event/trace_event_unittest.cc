@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "base/trace_event/trace_event.h"
 
 #include <inttypes.h>
@@ -25,6 +20,7 @@
 
 #include "base/at_exit.h"
 #include "base/command_line.h"
+#include "base/compiler_specific.h"
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
@@ -164,14 +160,12 @@ class TraceEventTestFixture : public testing::Test {
     TraceLog::ResetForTesting();
     TraceLog* tracelog = TraceLog::GetInstance();
     ASSERT_TRUE(tracelog);
-    ASSERT_FALSE(tracelog->IsEnabled());
+    ASSERT_FALSE(base::TrackEvent::IsEnabled());
     trace_buffer_.SetOutputCallback(json_output_.GetCallback());
     num_flush_callbacks_ = 0;
   }
   void TearDown() override {
-    if (TraceLog::GetInstance()) {
-      EXPECT_FALSE(TraceLog::GetInstance()->IsEnabled());
-    }
+    EXPECT_FALSE(base::TrackEvent::IsEnabled());
     PlatformThread::SetName(old_thread_name_);
     // We want our singleton torn down after each test.
     TraceLog::ResetForTesting();
@@ -261,7 +255,7 @@ static bool IsAllKeyValueInDict(const JsonKeyValue* key_values,
     if (!IsKeyValueInDict(key_values, dict)) {
       return false;
     }
-    ++key_values;
+    UNSAFE_TODO(++key_values);
   }
   return true;
 }
@@ -804,118 +798,6 @@ TEST_F(TraceEventTestFixture, DataDiscarded) {
   EXPECT_TRUE(trace_parsed_.empty());
 }
 
-class MockEnabledStateChangedObserver : public TraceLog::EnabledStateObserver {
- public:
-  MOCK_METHOD0(OnTraceLogEnabled, void());
-  MOCK_METHOD0(OnTraceLogDisabled, void());
-};
-
-TEST_F(TraceEventTestFixture, EnabledObserverFiresOnEnable) {
-  MockEnabledStateChangedObserver observer;
-  TraceLog::GetInstance()->AddEnabledStateObserver(&observer);
-
-  EXPECT_CALL(observer, OnTraceLogEnabled()).Times(1);
-  TraceLog::GetInstance()->SetEnabled(
-      TraceConfig(kRecordAllCategoryFilter, ""));
-  testing::Mock::VerifyAndClear(&observer);
-  EXPECT_TRUE(TraceLog::GetInstance()->IsEnabled());
-
-  // Cleanup.
-  TraceLog::GetInstance()->RemoveEnabledStateObserver(&observer);
-  TraceLog::GetInstance()->SetDisabled();
-}
-
-TEST_F(TraceEventTestFixture, EnabledObserverFiresOnDisable) {
-  TraceLog::GetInstance()->SetEnabled(
-      TraceConfig(kRecordAllCategoryFilter, ""));
-
-  MockEnabledStateChangedObserver observer;
-  TraceLog::GetInstance()->AddEnabledStateObserver(&observer);
-
-  EXPECT_CALL(observer, OnTraceLogDisabled()).Times(1);
-  TraceLog::GetInstance()->SetDisabled();
-  testing::Mock::VerifyAndClear(&observer);
-
-  // Cleanup.
-  TraceLog::GetInstance()->RemoveEnabledStateObserver(&observer);
-}
-
-TEST_F(TraceEventTestFixture, EnabledObserverOwnedByTraceLog) {
-  auto observer = std::make_unique<MockEnabledStateChangedObserver>();
-  EXPECT_CALL(*observer, OnTraceLogEnabled()).Times(1);
-  EXPECT_CALL(*observer, OnTraceLogDisabled()).Times(1);
-  TraceLog::GetInstance()->AddOwnedEnabledStateObserver(std::move(observer));
-  TraceLog::GetInstance()->SetEnabled(
-      TraceConfig(kRecordAllCategoryFilter, ""));
-  TraceLog::GetInstance()->SetDisabled();
-  TraceLog::ResetForTesting();
-  // These notifications won't be sent.
-  TraceLog::GetInstance()->SetEnabled(
-      TraceConfig(kRecordAllCategoryFilter, ""));
-  TraceLog::GetInstance()->SetDisabled();
-}
-
-// Tests the IsEnabled() state of TraceLog changes before callbacks.
-class AfterStateChangeEnabledStateObserver
-    : public TraceLog::EnabledStateObserver {
- public:
-  AfterStateChangeEnabledStateObserver() = default;
-  ~AfterStateChangeEnabledStateObserver() override = default;
-
-  // TraceLog::EnabledStateObserver overrides:
-  void OnTraceLogEnabled() override {
-    EXPECT_TRUE(TraceLog::GetInstance()->IsEnabled());
-  }
-
-  void OnTraceLogDisabled() override {
-    EXPECT_FALSE(TraceLog::GetInstance()->IsEnabled());
-  }
-};
-
-TEST_F(TraceEventTestFixture, ObserversFireAfterStateChange) {
-  AfterStateChangeEnabledStateObserver observer;
-  TraceLog::GetInstance()->AddEnabledStateObserver(&observer);
-
-  TraceLog::GetInstance()->SetEnabled(
-      TraceConfig(kRecordAllCategoryFilter, ""));
-  EXPECT_TRUE(TraceLog::GetInstance()->IsEnabled());
-
-  TraceLog::GetInstance()->SetDisabled();
-  EXPECT_FALSE(TraceLog::GetInstance()->IsEnabled());
-
-  TraceLog::GetInstance()->RemoveEnabledStateObserver(&observer);
-}
-
-// Tests that a state observer can remove itself during a callback.
-class SelfRemovingEnabledStateObserver : public TraceLog::EnabledStateObserver {
- public:
-  SelfRemovingEnabledStateObserver() = default;
-  ~SelfRemovingEnabledStateObserver() override = default;
-
-  // TraceLog::EnabledStateObserver overrides:
-  void OnTraceLogEnabled() override {}
-
-  void OnTraceLogDisabled() override {
-    TraceLog::GetInstance()->RemoveEnabledStateObserver(this);
-  }
-};
-
-// Self removing observers are not supported at the moment.
-// TODO(alph): We could add support once we have recursive locks.
-TEST_F(TraceEventTestFixture, DISABLED_SelfRemovingObserver) {
-  ASSERT_EQ(0u, TraceLog::GetInstance()->GetObserverCountForTest());
-
-  SelfRemovingEnabledStateObserver observer;
-  TraceLog::GetInstance()->AddEnabledStateObserver(&observer);
-  EXPECT_EQ(1u, TraceLog::GetInstance()->GetObserverCountForTest());
-
-  TraceLog::GetInstance()->SetEnabled(
-      TraceConfig(kRecordAllCategoryFilter, ""));
-  TraceLog::GetInstance()->SetDisabled();
-  // The observer removed itself on disable.
-  EXPECT_EQ(0u, TraceLog::GetInstance()->GetObserverCountForTest());
-}
-
 bool IsNewTrace() {
   bool is_new_trace;
   TRACE_EVENT_IS_NEW_TRACE(&is_new_trace);
@@ -1272,14 +1154,14 @@ TEST_F(TraceEventTestFixture, TraceEnableDisable) {
   TraceLog* trace_log = TraceLog::GetInstance();
   TraceConfig tc_inc_all("*", "");
   trace_log->SetEnabled(tc_inc_all);
-  EXPECT_TRUE(trace_log->IsEnabled());
+  EXPECT_TRUE(base::TrackEvent::IsEnabled());
   trace_log->SetDisabled();
-  EXPECT_FALSE(trace_log->IsEnabled());
+  EXPECT_FALSE(base::TrackEvent::IsEnabled());
 
   trace_log->SetEnabled(tc_inc_all);
-  EXPECT_TRUE(trace_log->IsEnabled());
+  EXPECT_TRUE(base::TrackEvent::IsEnabled());
   trace_log->SetDisabled();
-  EXPECT_FALSE(trace_log->IsEnabled());
+  EXPECT_FALSE(base::TrackEvent::IsEnabled());
 }
 
 TEST_F(TraceEventTestFixture, TraceWithDefaultCategoryFilters) {

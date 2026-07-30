@@ -33,6 +33,15 @@ class ClientImpl : public Client {
   using SecureChannelFactory =
       base::RepeatingCallback<std::unique_ptr<SecureChannel>()>;
 
+  using BinaryEncodedProtoRequest = Request;
+  using BinaryEncodedProtoResponse = Response;
+
+  // Callback for when a `SendRequest` operation completes.
+  // If the operation is successful, the result will contain the server's
+  // response. Otherwise, it will contain an `ErrorCode` error.
+  using OnRequestCompletedCallback = base::OnceCallback<void(
+      base::expected<BinaryEncodedProtoResponse, ErrorCode> result)>;
+
   explicit ClientImpl(SecureChannelFactory channel_factory);
   ~ClientImpl() override;
 
@@ -54,8 +63,9 @@ class ClientImpl : public Client {
  private:
   friend class ClientImplTest;
 
-  // Recreates the secure channel and sets the response callback.
-  void RecreateSecureChannel();
+  // Returns the existing secure channel or creates a new one if it doesn't
+  // exist.
+  SecureChannel* GetOrCreateSecureChannel();
 
   // Sends a request over the secure channel.
   void SendRequest(int32_t request_id,

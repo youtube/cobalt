@@ -39,7 +39,9 @@ class ExtensionsMenuCoordinator;
 class ExtensionsToolbarContainer : public ToolbarIconContainerView,
                                    public ExtensionsContainerViews,
                                    public ToolbarActionView::Delegate,
-                                   public views::WidgetObserver {
+                                   public views::WidgetObserver,
+                                   public ExtensionsToolbarViewModel::Delegate,
+                                   public ExtensionsToolbarViewModel::Observer {
   METADATA_HEADER(ExtensionsToolbarContainer, ToolbarIconContainerView)
 
  public:
@@ -164,9 +166,7 @@ class ExtensionsToolbarContainer : public ToolbarIconContainerView,
     return extension_with_open_context_menu_id_;
   }
 
-  int GetNumberOfActionsForTesting() {
-    return view_model_->GetActions().size();
-  }
+  int GetNumberOfActionsForTesting() { return model_->action_ids().size(); }
 
   ToolbarButton* GetCloseSidePanelButtonForTesting() {
     return close_side_panel_button_;
@@ -231,6 +231,17 @@ class ExtensionsToolbarContainer : public ToolbarIconContainerView,
                            const gfx::Point& press_pt,
                            const gfx::Point& p) override;
 
+  // ExtensionsToolbarViewModel::Delegate:
+  std::unique_ptr<ExtensionActionViewModel> CreateActionViewModel(
+      const ToolbarActionsModel::ActionId& action_id) override;
+
+  // ExtensionsToolbarViewModel::Observer:
+  void OnActionsInitialized() override;
+  void OnActionAdded(const ToolbarActionsModel::ActionId& action_id) override;
+  void OnActionRemoved(const ToolbarActionsModel::ActionId& action_id) override;
+  void OnActionUpdated(const ToolbarActionsModel::ActionId& action_id) override;
+  void OnPinnedActionsChanged() override;
+
  private:
   friend class ToolbarActionHoverCardBubbleViewUITest;
 
@@ -267,7 +278,7 @@ class ExtensionsToolbarContainer : public ToolbarIconContainerView,
   void AnchorAndShowWidgetImmediately(MayBeDangling<views::Widget> widget);
 
   // Creates an action and toolbar button for the corresponding ID.
-  void CreateActionForId(const ToolbarActionsModel::ActionId& action_id);
+  void CreateActionViewForId(const ToolbarActionsModel::ActionId& action_id);
 
   // Sorts child views to display them in the correct order (pinned actions,
   // popped out actions, other buttons).
@@ -333,7 +344,7 @@ class ExtensionsToolbarContainer : public ToolbarIconContainerView,
       action_hover_card_controller_;
 
   // The view model for this container.
-  std::unique_ptr<ExtensionsToolbarViewModel> view_model_;
+  std::unique_ptr<ExtensionsToolbarViewModel> toolbar_view_model_;
 
   // View for every action, does not imply pinned or currently shown.
   ToolbarIcons icons_;
@@ -360,6 +371,11 @@ class ExtensionsToolbarContainer : public ToolbarIconContainerView,
 
   // Observes and listens to side panel alignment changes.
   PrefChangeRegistrar pref_change_registrar_;
+
+  // Observes and listens to changes to the view model.
+  base::ScopedObservation<ExtensionsToolbarViewModel,
+                          ExtensionsToolbarViewModel::Observer>
+      toolbar_view_model_observation_{this};
 
   base::WeakPtrFactory<ExtensionsToolbarContainer> weak_ptr_factory_{this};
 

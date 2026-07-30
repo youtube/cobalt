@@ -21,7 +21,6 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/syslog_logging.h"
 #include "base/timer/timer.h"
-#include "base/types/cxx23_to_underlying.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
@@ -523,6 +522,19 @@ void ServiceWorkerTaskQueue::RegisterServiceWorker(
     RegistrationReason reason,
     const SequencedContextId& context_id,
     const Extension& extension) {
+  // If there is a pending unregistration for this extension, the registration
+  // may get aborted by the unregistration and fail with
+  // blink::ServiceWorkerStatusCode::kErrorAbort. Avoid this by retrying the
+  // registration after giving the unregistration time to complete.
+  // After the maximum retries, the registration will be attempted regardless.
+  if (pending_unregistrations_.contains(context_id.extension_id) &&
+      ScheduleRetry(
+          context_id.token, worker_unregistration_wait_retries_,
+          base::BindOnce(&ServiceWorkerTaskQueue::RetryRegisterServiceWorker,
+                         weak_factory_.GetWeakPtr(), context_id, reason))) {
+    return;
+  }
+
   GURL script_url =
       BackgroundInfo::GetBackgroundServiceWorkerScriptURL(&extension);
   blink::mojom::ServiceWorkerRegistrationOptions option;
@@ -572,6 +584,7 @@ void ServiceWorkerTaskQueue::DeactivateExtension(const Extension* extension) {
   // If an extension/worker is unloaded/disabled before the registration
   // callback then we might still have this record to delete.
   worker_registration_retries_.erase(context_id.token);
+  worker_unregistration_wait_retries_.erase(context_id.token);
   // Same for worker start attempts.
   worker_start_retries_.erase(context_id.token);
 
@@ -587,6 +600,7 @@ void ServiceWorkerTaskQueue::DeactivateExtension(const Extension* extension) {
   // state where the old registration is not cleared by the time we re-register
   // the worker if the extension is being reloaded, e.g. for an update.
   // See https://crbug.com/1501930.
+  pending_unregistrations_.insert(extension_id);
   service_worker_context->UnregisterServiceWorkerImmediately(
       extension->url(),
       blink::StorageKey::CreateFirstParty(extension->origin()),
@@ -657,6 +671,8 @@ void ServiceWorkerTaskQueue::RetryRegisterServiceWorker(
   if (!IsCurrentActivation(context_id.extension_id, context_id.token)) {
     // NOTE: retry state has been cleared when `DeactivateExtension` was called.
     DCHECK(!base::Contains(worker_registration_retries_, context_id.token));
+    DCHECK(
+        !base::Contains(worker_unregistration_wait_retries_, context_id.token));
     return;
   }
 
@@ -667,6 +683,7 @@ void ServiceWorkerTaskQueue::RetryRegisterServiceWorker(
   if (!extension) {
     // Extension unloaded during retry delay. Clean up retry state.
     worker_registration_retries_.erase(context_id.token);
+    worker_unregistration_wait_retries_.erase(context_id.token);
     return;
   }
 
@@ -916,6 +933,10 @@ void ServiceWorkerTaskQueue::DidRegisterServiceWorker(
                   "Extensions.ServiceWorkerBackground."
                   "WorkerRegistrationRetryAttemptsResult",
                   success);
+  ClearRetryState(context_id.token, worker_unregistration_wait_retries_,
+                  "Extensions.ServiceWorkerBackground."
+                  "WorkerRegistrationRetryForUnregistrationAttemptsResult",
+                  success);
 
   // After retries are exhausted, emit the ultimate end result.
   base::UmaHistogramBoolean(
@@ -988,7 +1009,7 @@ void ServiceWorkerTaskQueue::DidUnregisterServiceWorker(
   if (!success) {
     LOG(ERROR) << "Failed to unregister service worker for extension id: "
                << extension_id
-               << " error status was: " << base::to_underlying(status);
+               << " error status was: " << std::to_underlying(status);
     base::UmaHistogramEnumeration(
         "Extensions.ServiceWorkerBackground.WorkerUnregistrationFailureStatus",
         status);
@@ -1001,6 +1022,8 @@ void ServiceWorkerTaskQueue::DidUnregisterServiceWorker(
   if (g_test_observer) {
     g_test_observer->WorkerUnregistered(extension_id);
   }
+
+  pending_unregistrations_.erase(extension_id);
 }
 
 bool ServiceWorkerTaskQueue::IsWorkerRegistrationSuccess(

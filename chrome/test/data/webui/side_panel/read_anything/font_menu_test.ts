@@ -9,7 +9,7 @@ import type {FontMenuElement} from 'chrome-untrusted://read-anything-side-panel.
 import {assertEquals, assertFalse, assertTrue} from 'chrome-untrusted://webui-test/chai_assert.js';
 import {microtasksFinished} from 'chrome-untrusted://webui-test/test_util.js';
 
-import {assertCheckMarksForDropdown, getItemsInMenu, mockMetrics} from './common.js';
+import {assertCheckMarksForDropdown, assertHeadersForDropdown, getItemsInMenu, mockMetrics, stubAnimationFrame} from './common.js';
 import {FakeReadingMode} from './fake_reading_mode.js';
 import type {TestMetricsBrowserProxy} from './test_metrics_browser_proxy.js';
 
@@ -44,6 +44,10 @@ suite('FontMenu', () => {
 
   test('has checkmarks', () => {
     assertCheckMarksForDropdown(fontMenu);
+  });
+
+  test('does not have headers', () => {
+    assertHeadersForDropdown(fontMenu.$.menu, /*shouldHaveHeaders=*/ false);
   });
 
   test('updates fonts on page language change', async () => {
@@ -87,6 +91,7 @@ suite('FontMenu', () => {
       speechRate: 0,
       font: chrome.readingMode.fontName,
       highlightGranularity: 0,
+      lineFocus: 0,
     };
     await microtasksFinished();
 
@@ -145,5 +150,13 @@ suite('FontMenu', () => {
         ReadAnythingSettingsChange.FONT_CHANGE,
         await metrics.whenCalled('recordTextSettingsChange'));
     assertEquals(3, metrics.getCallCount('recordTextSettingsChange'));
+  });
+
+  test('can be closed programatically', () => {
+    stubAnimationFrame();
+    fontMenu.open(document.body);
+    assertTrue(fontMenu.$.menu.$.lazyMenu.get().open);
+    fontMenu.close();
+    assertFalse(fontMenu.$.menu.$.lazyMenu.get().open);
   });
 });

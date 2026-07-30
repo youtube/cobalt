@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_FRAME_CACHED_PERMISSION_STATUS_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_FRAME_CACHED_PERMISSION_STATUS_H_
 
+#include "base/gtest_prod_util.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/task/single_thread_task_runner.h"
 #include "third_party/blink/public/mojom/permissions/permission.mojom-blink.h"
@@ -36,7 +37,7 @@ class CORE_EXPORT CachedPermissionStatus final
       public mojom::blink::PermissionObserver,
       public Supplement<LocalDOMWindow> {
  public:
-  static const unsigned kSupplementIndex;
+  static const char kSupplementName[];
 
   // Returns the supplement, creating one as needed.
   static CachedPermissionStatus* From(LocalDOMWindow* window);

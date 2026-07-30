@@ -11,8 +11,7 @@
 #include "ui/views/view_tracker.h"
 
 class Browser;
-class ExtensionsMenuViewPlatformDelegateViews;
-class ExtensionsMenuViewModel;
+class ExtensionsMenuDelegateDesktop;
 class ExtensionsContainerViews;
 
 namespace views {
@@ -43,8 +42,8 @@ class ExtensionsMenuCoordinator : public views::ViewObserver {
   views::Widget* GetExtensionsMenuWidget();
 
   // Accessors used by tests:
-  ExtensionsMenuViewPlatformDelegateViews* GetDelegateForTesting() {
-    return menu_delegate_;
+  ExtensionsMenuDelegateDesktop* GetDelegateForTesting() {
+    return menu_delegate_.get();
   }
   std::unique_ptr<views::BubbleDialogDelegate>
   CreateExtensionsMenuBubbleDialogDelegateForTesting(
@@ -67,11 +66,8 @@ class ExtensionsMenuCoordinator : public views::ViewObserver {
   base::ScopedObservation<views::View, views::ViewObserver>
       bubble_view_observation_{this};
 
-  // The model for the extensions menu.
-  std::unique_ptr<ExtensionsMenuViewModel> menu_model_;
-
   // The platform delegate for the extensions menu.
-  raw_ptr<ExtensionsMenuViewPlatformDelegateViews> menu_delegate_;
+  std::unique_ptr<ExtensionsMenuDelegateDesktop> menu_delegate_;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_EXTENSIONS_EXTENSIONS_MENU_COORDINATOR_H_

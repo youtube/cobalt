@@ -97,9 +97,16 @@ const CGFloat kFadeAnimationVerticalOffset = 12;
     _popupContainerView.overrideUserInterfaceStyle = userInterfaceStyle;
     viewController.overrideUserInterfaceStyle = userInterfaceStyle;
 
+    // TODO(crbug.com/469986429): The final state of this should be us exposing
+    // the presenter property OmniboxPopupPresenterDelegate and set it there.
     if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
-      _popupContainerView.backgroundColor =
-          [UIColor colorNamed:kPrimaryBackgroundColor];
+      if (IsComposeboxIpadEnabled()) {
+        _popupContainerView.backgroundColor =
+            [self.delegate popupBackgroundColorForPresenter:self];
+      } else {
+        _popupContainerView.backgroundColor =
+            [UIColor colorNamed:kPrimaryBackgroundColor];
+      }
     } else {
       _popupContainerView.backgroundColor =
           [self.delegate popupBackgroundColorForPresenter:self];
@@ -194,7 +201,7 @@ const CGFloat kFadeAnimationVerticalOffset = 12;
 
 // Sets the additional vertical content inset for the suggestion list.
 - (void)setAdditionalVerticalContentInset:
-    (CGFloat)additionalVerticalContentInset {
+    (UIEdgeInsets)additionalVerticalContentInset {
   [_viewController
       setAdditionalVerticalContentInset:additionalVerticalContentInset];
 }

@@ -137,6 +137,7 @@
 #include "components/omnibox/browser/document_provider.h"
 #include "components/omnibox/browser/omnibox_prefs.h"
 #include "components/omnibox/browser/zero_suggest_provider.h"
+#include "components/on_device_translation/buildflags/buildflags.h"
 #include "components/optimization_guide/core/model_execution/model_execution_prefs.h"
 #include "components/optimization_guide/core/optimization_guide_prefs.h"
 #include "components/page_info/core/merchant_trust_service.h"
@@ -170,7 +171,6 @@
 #include "components/security_interstitials/content/stateful_ssl_host_state_delegate.h"
 #include "components/segmentation_platform/embedder/default_model/device_switcher_result_dispatcher.h"
 #include "components/segmentation_platform/public/segmentation_platform_service.h"
-#include "components/services/on_device_translation/buildflags/buildflags.h"
 #include "components/sessions/core/session_id_generator.h"
 #include "components/sharing_message/sharing_sync_preference.h"
 #include "components/signin/core/browser/active_primary_accounts_metrics_recorder.h"
@@ -178,7 +178,7 @@
 #include "components/signin/public/base/signin_prefs.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/site_engagement/content/site_engagement_service.h"
-#include "components/subresource_filter/content/shared/browser/ruleset_service.h"
+#include "components/subresource_filter/content/browser/ruleset_service.h"
 #include "components/subresource_filter/core/common/constants.h"
 #include "components/supervised_user/core/browser/supervised_user_preferences.h"
 #include "components/supervised_user/core/common/pref_names.h"
@@ -248,9 +248,9 @@
 #include "chrome/browser/readaloud/android/prefs.h"
 #include "chrome/browser/ssl/known_interception_disclosure_infobar_delegate.h"
 #include "components/cdm/browser/media_drm_storage_impl.h"  // nogncheck crbug.com/1125897
-#include "components/feed/core/common/pref_names.h"         // nogncheck
-#include "components/feed/core/shared_prefs/pref_names.h"   // nogncheck
-#include "components/feed/core/v2/ios_shared_prefs.h"       // nogncheck
+#include "components/feed/core/common/pref_names.h"        // nogncheck
+#include "components/feed/core/shared_prefs/pref_names.h"  // nogncheck
+#include "components/feed/core/v2/ios_shared_prefs.h"      // nogncheck
 #include "components/ntp_tiles/popular_sites_impl.h"
 #include "components/permissions/contexts/geolocation_permission_context_android.h"
 #include "components/webapps/browser/android/install_prompt_prefs.h"
@@ -281,8 +281,8 @@
 #include "chrome/browser/themes/theme_syncable_service.h"
 #include "chrome/browser/ui/commerce/commerce_ui_tab_helper.h"
 #include "chrome/browser/ui/hats/hats_service_desktop.h"
-#include "chrome/browser/ui/send_tab_to_self/send_tab_to_self_bubble.h"
 #include "chrome/browser/ui/read_anything/read_anything_prefs.h"
+#include "chrome/browser/ui/send_tab_to_self/send_tab_to_self_bubble.h"
 #include "chrome/browser/ui/startup/startup_browser_creator.h"
 #include "chrome/browser/ui/tabs/organization/prefs.h"
 #include "chrome/browser/ui/tabs/pinned_tab_codec.h"
@@ -540,7 +540,7 @@
 #include "components/enterprise/data_controls/core/browser/prefs.h"
 #endif
 
-#if BUILDFLAG(ENABLE_GLIC)
+#if BUILDFLAG(ENABLE_GLIC) || BUILDFLAG(ENABLE_GLIC_ANDROID)
 #include "chrome/browser/glic/glic_pref_names.h"
 #endif
 
@@ -904,11 +904,50 @@ constexpr char kReduceUserAgentMinorVersion[] = "user_agent_reduction";
 
 // Deprecated 12/2025.
 constexpr char kAutofillStatesDataDir[] = "autofill.states_data_dir";
+constexpr char kMerchantTrustUiLastInteractionTime[] =
+    "merchant_trust.ui.last_interaction_time";
+constexpr char kMerchantTrustPageInfoLastOpenTime[] =
+    "merchant_trust.page_info.last_open_time";
+
+// Deprecated 12/2025.
+constexpr char kCloudPrintProxyEnabled[] = "cloud_print.enabled";
+constexpr char kCloudPrintEmail[] = "cloud_print.email";
+
+// Deprecated 12/2025.
+constexpr char kTrackingProtectionEligibleSince[] =
+    "tracking_protection.tracking_protection_eligible_since";
+constexpr char kTrackingProtectionOnboardedSince[] =
+    "tracking_protection.tracking_protection_onboarded_since";
+constexpr char kTrackingProtectionNoticeLastShown[] =
+    "tracking_protection.tracking_protection_notice_last_shown";
+constexpr char kTrackingProtectionOnboardingAckedSince[] =
+    "tracking_protection.tracking_protection_onboarding_acked_since";
+constexpr char kTrackingProtectionOnboardingAcked[] =
+    "tracking_protection.tracking_protection_onboarding_acked";
+constexpr char kTrackingProtectionOnboardingAckAction[] =
+    "tracking_protection.tracking_protection_onboarding_ack_action";
+constexpr char kTrackingProtectionSilentEligibleSince[] =
+    "tracking_protection.tracking_protection_silent_eligible_since";
+constexpr char kTrackingProtectionSilentOnboardedSince[] =
+    "tracking_protection.tracking_protection_silent_onboarded_since";
+constexpr char kAllowAll3pcToggleEnabled[] =
+    "tracking_protection.allow_all_3pc_toggle_enabled";
+constexpr char kTrackingProtectionLevel[] =
+    "tracking_protection.tracking_protection_level";
+constexpr char kIpProtectionEnabled[] =
+    "tracking_protection.ip_protection_enabled";
+constexpr char kIpProtectionInitializedByDogfood[] =
+    "tracking_protection.ip_protection_initialized_by_dogfood";
+constexpr char kUserBypass3pcExceptionsMigrated[] =
+    "tracking_protection.user_bypass_3pc_exceptions_migrated";
+constexpr char kTrackingProtectionSilentOnboardingStatus[] =
+    "tracking_protection.tracking_protection_silent_onboarding_status";
+constexpr char kFingerprintingProtectionEnabled[] =
+    "tracking_protection.fingerprinting_protection_enabled";
 
 // Register local state used only for migration (clearing or moving to a new
 // key).
 void RegisterLocalStatePrefsForMigration(PrefRegistrySimple* registry) {
-
   // Deprecated 02/2025.
   registry->RegisterBooleanPref(kUserAgentClientHintsGREASEUpdateEnabled, true);
 
@@ -998,6 +1037,26 @@ void RegisterLocalStatePrefsForMigration(PrefRegistrySimple* registry) {
 
   // Deprecated 12/2025.
   registry->RegisterStringPref(kAutofillStatesDataDir, std::string());
+
+  // Deprecated 12/2025.
+  registry->RegisterBooleanPref(kFingerprintingProtectionEnabled, false);
+  registry->RegisterBooleanPref(kIpProtectionEnabled, false);
+  registry->RegisterBooleanPref(kAllowAll3pcToggleEnabled, false);
+  registry->RegisterBooleanPref(kUserBypass3pcExceptionsMigrated, false);
+  registry->RegisterIntegerPref(kTrackingProtectionLevel, 0);
+  registry->RegisterTimePref(kTrackingProtectionSilentOnboardedSince,
+                             base::Time());
+  registry->RegisterTimePref(kTrackingProtectionSilentEligibleSince,
+                             base::Time());
+  registry->RegisterTimePref(kTrackingProtectionEligibleSince, base::Time());
+  registry->RegisterTimePref(kTrackingProtectionOnboardedSince, base::Time());
+  registry->RegisterTimePref(kTrackingProtectionNoticeLastShown, base::Time());
+  registry->RegisterTimePref(kTrackingProtectionOnboardingAckedSince,
+                             base::Time());
+  registry->RegisterBooleanPref(kTrackingProtectionOnboardingAcked, false);
+  registry->RegisterIntegerPref(kTrackingProtectionOnboardingAckAction, 0);
+  registry->RegisterBooleanPref(kIpProtectionInitializedByDogfood, false);
+  registry->RegisterIntegerPref(kTrackingProtectionSilentOnboardingStatus, 0);
 }
 
 // Register prefs used only for migration (clearing or moving to a new key).
@@ -1233,6 +1292,12 @@ void RegisterProfilePrefsForMigration(
 
   // Deprecated 12/2025.
   registry->RegisterBooleanPref(kReduceUserAgentMinorVersion, false);
+  registry->RegisterTimePref(kMerchantTrustUiLastInteractionTime, base::Time());
+  registry->RegisterTimePref(kMerchantTrustPageInfoLastOpenTime, base::Time());
+
+  // Deprecated 12/2025.
+  registry->RegisterBooleanPref(kCloudPrintProxyEnabled, true);
+  registry->RegisterStringPref(kCloudPrintEmail, std::string());
 }
 
 }  // namespace
@@ -1348,7 +1413,7 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
 
   registry->RegisterIntegerPref(first_run::kTosDialogBehavior, 0);
   registry->RegisterBooleanPref(lens::kLensCameraAssistedSearchEnabled, true);
-#else  // BUILDFLAG(IS_ANDROID)
+#else   // BUILDFLAG(IS_ANDROID)
   gcm::RegisterPrefs(registry);
   headless::RegisterPrefs(registry);
   IntranetRedirectDetector::RegisterPrefs(registry);
@@ -1531,7 +1596,7 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
 
   registry->RegisterIntegerPref(prefs::kChromeDataRegionSetting, 0);
 
-#if BUILDFLAG(ENABLE_GLIC)
+#if BUILDFLAG(ENABLE_GLIC) || BUILDFLAG(ENABLE_GLIC_ANDROID)
   glic::prefs::RegisterLocalStatePrefs(registry);
 #endif
 
@@ -1577,7 +1642,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   enterprise_reporting::RegisterProfilePrefs(registry);
   dom_distiller::DistilledPagePrefs::RegisterProfilePrefs(registry);
   DownloadPrefs::RegisterProfilePrefs(registry);
-#if BUILDFLAG(ENABLE_GLIC)
+#if BUILDFLAG(ENABLE_GLIC) || BUILDFLAG(ENABLE_GLIC_ANDROID)
   glic::prefs::RegisterProfilePrefs(registry);
 #endif
   permissions::PermissionHatsTriggerHelper::RegisterProfilePrefs(registry);
@@ -1595,7 +1660,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   media_device_salt::MediaDeviceIDSalt::RegisterProfilePrefs(registry);
   MediaEngagementService::RegisterProfilePrefs(registry);
   MediaStorageIdSalt::RegisterProfilePrefs(registry);
-  page_info::MerchantTrustService::RegisterProfilePrefs(registry);
   metrics::RegisterDemographicsProfilePrefs(registry);
   NotificationDisplayServiceImpl::RegisterProfilePrefs(registry);
   NotifierStateTracker::RegisterProfilePrefs(registry);
@@ -1730,7 +1794,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   usage_stats::UsageStatsBridge::RegisterProfilePrefs(registry);
   variations::VariationsService::RegisterProfilePrefs(registry);
   webapps::InstallPromptPrefs::RegisterProfilePrefs(registry);
-#else  // BUILDFLAG(IS_ANDROID)
+#else   // BUILDFLAG(IS_ANDROID)
   bookmarks_webui::RegisterProfilePrefs(registry);
   browser_sync::ForeignSessionHandler::RegisterProfilePrefs(registry);
   BrowserUserEducationStorageService::RegisterProfilePrefs(registry);
@@ -2002,8 +2066,8 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
 
   // TODO(crbug.com/442891187): Move these to appropriate manager files when
   // the policies logic is implemented.
-  registry->RegisterListPref(policy::policy_prefs::kIncognitoModeBlocklist);
-  registry->RegisterListPref(policy::policy_prefs::kIncognitoModeAllowlist);
+  registry->RegisterListPref(policy::policy_prefs::kIncognitoModeUrlBlocklist);
+  registry->RegisterListPref(policy::policy_prefs::kIncognitoModeUrlAllowlist);
 
   registry->RegisterBooleanPref(
       ntp_tiles::prefs::kTabResumptionHomeModuleEnabled, true);
@@ -2164,6 +2228,23 @@ void MigrateObsoleteLocalStatePrefs(PrefService* local_state) {
 
   // Added 12/2025
   local_state->ClearPref(kAutofillStatesDataDir);
+
+  // Added 12/2025
+  local_state->ClearPref(kFingerprintingProtectionEnabled);
+  local_state->ClearPref(kIpProtectionEnabled);
+  local_state->ClearPref(kAllowAll3pcToggleEnabled);
+  local_state->ClearPref(kUserBypass3pcExceptionsMigrated);
+  local_state->ClearPref(kTrackingProtectionLevel);
+  local_state->ClearPref(kTrackingProtectionSilentOnboardedSince);
+  local_state->ClearPref(kTrackingProtectionSilentEligibleSince);
+  local_state->ClearPref(kTrackingProtectionEligibleSince);
+  local_state->ClearPref(kTrackingProtectionOnboardedSince);
+  local_state->ClearPref(kTrackingProtectionNoticeLastShown);
+  local_state->ClearPref(kTrackingProtectionOnboardingAckedSince);
+  local_state->ClearPref(kTrackingProtectionOnboardingAcked);
+  local_state->ClearPref(kTrackingProtectionOnboardingAckAction);
+  local_state->ClearPref(kIpProtectionInitializedByDogfood);
+  local_state->ClearPref(kTrackingProtectionSilentOnboardingStatus);
 
   // Please don't delete the following line. It is used by PRESUBMIT.py.
   // END_MIGRATE_OBSOLETE_LOCAL_STATE_PREFS
@@ -2442,6 +2523,12 @@ void MigrateObsoleteProfilePrefs(PrefService* profile_prefs,
 
   // Added 12/2025.
   profile_prefs->ClearPref(kReduceUserAgentMinorVersion);
+  profile_prefs->ClearPref(kMerchantTrustUiLastInteractionTime);
+  profile_prefs->ClearPref(kMerchantTrustPageInfoLastOpenTime);
+
+  // Added 12/2025.
+  profile_prefs->ClearPref(kCloudPrintProxyEnabled);
+  profile_prefs->ClearPref(kCloudPrintEmail);
 
   // Please don't delete the following line. It is used by PRESUBMIT.py.
   // END_MIGRATE_OBSOLETE_PROFILE_PREFS

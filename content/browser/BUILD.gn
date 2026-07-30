@@ -2489,6 +2489,8 @@ source_set("browser") {
     "webtransport/web_transport_throttle_context.h",
     "webui/content_web_ui_configs.cc",
     "webui/content_web_ui_configs.h",
+    "webui/initial_webui_navigation_url_loader.cc",
+    "webui/initial_webui_navigation_url_loader.h",
     "webui/network_error_url_loader.cc",
     "webui/network_error_url_loader.h",
     "webui/shared_resources_data_source.cc",
@@ -2971,7 +2973,6 @@ source_set("browser") {
   # built depending on the available implementations for each platform.
   if (enable_screen_capture) {
     sources += [
-      "media/capture/capture_util.h",
       "media/capture/frame_sink_video_capture_device.cc",
       "media/capture/frame_sink_video_capture_device.h",
       "media/capture/pip_screen_capture_coordinator.cc",

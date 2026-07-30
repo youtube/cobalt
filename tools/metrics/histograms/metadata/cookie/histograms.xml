@@ -555,7 +555,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cookie.IncludedRequestEffectiveSameSite.Subsampled"
-    enum="CookieEffectiveSameSite" expires_after="2026-04-12">
+    enum="CookieEffectiveSameSite" expires_after="2026-06-21">
   <owner>miketaylr@chromium.org</owner>
   <owner>src/net/cookies/OWNERS</owner>
   <summary>
@@ -701,6 +701,30 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Cookie.Parse.EmptyName" enum="Boolean"
+    expires_after="2026-02-15">
+  <owner>morlovich@chromium.org</owner>
+  <owner>src/net/cookies/OWNERS</owner>
+  <summary>
+    Whether a site tried to set a cookie with an empty name.
+
+    Recorded when creating a cookie from a parseable set-cookie string.
+  </summary>
+</histogram>
+
+<histogram name="Cookie.Parse.EmptyNameAmbiguousValue" enum="Boolean"
+    expires_after="2026-02-15">
+  <owner>morlovich@chromium.org</owner>
+  <owner>src/net/cookies/OWNERS</owner>
+  <summary>
+    Whether a site tried to set a cookie with an empty name and a value
+    containing =, which can result in parsing ambiguity on Cookie: headers.
+
+    Recorded when creating a cookie from a parseable set-cookie string whose
+    name is empty.
+  </summary>
+</histogram>
+
 <histogram name="Cookie.PartitionCount" units="partitions"
     expires_after="2026-05-24">
   <owner>dylancutler@google.com</owner>
@@ -710,17 +734,6 @@ chromium-metrics-reviews@google.com.
     only recorded when partitioned cookies are enabled. This count does not
     include the unpartitioned cookie jar. Only counts cookie jar partitions with
     at least one cookie. This metric is recorded every 10 minutes.
-  </summary>
-</histogram>
-
-<histogram name="Cookie.Partitioned.AncestorChainBitFeatureEnabled"
-    enum="Boolean" expires_after="2026-05-24">
-  <owner>selya@google.com</owner>
-  <owner>src/net/cookies/OWNERS</owner>
-  <summary>
-    This histogram records if the kAncestorChainBitEnabledInPartitionedCookies
-    feature is enabled or disabled. This metric recorded is each time
-    CookieMonster::OnLoaded is called.
   </summary>
 </histogram>
 
@@ -1144,7 +1157,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Cookie.TimeOpsBlockedDueToGlobalOp" units="ms"
-    expires_after="2026-04-12">
+    expires_after="2026-06-14">
   <owner>morlovich@chromium.org</owner>
   <owner>src/net/cookies/OWNERS</owner>
   <summary>

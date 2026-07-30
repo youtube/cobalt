@@ -32,6 +32,9 @@ class FaviconLoader;
 // Notifies the delegate to display the import screen.
 - (void)showImportScreen;
 
+// Notifies the delegate to display the "nothing imported" alert.
+- (void)showNothingImportedScreen;
+
 // Notifies the delegate to display a conflict resolution screen.
 - (void)showConflictResolutionScreenWithPasswords:
             (NSArray<PasswordImportItem*>*)passwords
@@ -55,6 +58,9 @@ class FaviconLoader;
 
 // Passwords that were not imported due to errors.
 @property(nonatomic, copy) NSArray<PasswordImportItem*>* invalidPasswords;
+
+// Passkeys that were not imported due to errors.
+@property(nonatomic, copy) NSArray<PasskeyImportItem*>* invalidPasskeys;
 
 // `UUID` is a token received from the OS during app launch, required to be
 // passed back to the OS to receive the credential data.

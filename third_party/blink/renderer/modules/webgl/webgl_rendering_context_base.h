@@ -30,6 +30,7 @@
 #include <memory>
 #include <optional>
 
+#include "base/byte_size.h"
 #include "base/check_op.h"
 #include "base/memory/raw_ptr_exclusion.h"
 #include "base/memory/scoped_refptr.h"
@@ -435,6 +436,32 @@ class MODULES_EXPORT WebGLRenderingContextBase
                     Element* element,
                     ExceptionState& exception_state);
 
+  void texElement2D(GLenum target,
+                    GLint level,
+                    GLint internalformat,
+                    GLfloat sx,
+                    GLfloat sy,
+                    GLfloat swidth,
+                    GLfloat sheight,
+                    GLenum format,
+                    GLenum type,
+                    Element* element,
+                    ExceptionState& exception_state);
+
+  void texElement2D(GLenum target,
+                    GLint level,
+                    GLint internalformat,
+                    GLfloat sx,
+                    GLfloat sy,
+                    GLfloat swidth,
+                    GLfloat sheight,
+                    GLsizei width,
+                    GLsizei height,
+                    GLenum format,
+                    GLenum type,
+                    Element* element,
+                    ExceptionState& exception_state);
+
   void texElementImage2D(GLenum target,
                          GLint level,
                          GLint internalformat,
@@ -446,6 +473,32 @@ class MODULES_EXPORT WebGLRenderingContextBase
   void texElementImage2D(GLenum target,
                          GLint level,
                          GLint internalformat,
+                         GLsizei width,
+                         GLsizei height,
+                         GLenum format,
+                         GLenum type,
+                         Element* element,
+                         ExceptionState& exception_state);
+
+  void texElementImage2D(GLenum target,
+                         GLint level,
+                         GLint internalformat,
+                         GLfloat sx,
+                         GLfloat sy,
+                         GLfloat swidth,
+                         GLfloat sheight,
+                         GLenum format,
+                         GLenum type,
+                         Element* element,
+                         ExceptionState& exception_state);
+
+  void texElementImage2D(GLenum target,
+                         GLint level,
+                         GLint internalformat,
+                         GLfloat sx,
+                         GLfloat sy,
+                         GLfloat swidth,
+                         GLfloat sheight,
                          GLsizei width,
                          GLsizei height,
                          GLenum format,
@@ -629,7 +682,7 @@ class MODULES_EXPORT WebGLRenderingContextBase
   void Trace(Visitor*) const override;
 
   // Returns approximate gpu memory allocated.
-  base::ByteCount AllocatedBufferSize() const override;
+  base::ByteSize AllocatedBufferSize() const override;
   int AllocatedBufferCountPerPixel() const override { NOTREACHED(); }
 
   // Returns the drawing buffer size after it is, probably, has scaled down
@@ -2027,6 +2080,10 @@ class MODULES_EXPORT WebGLRenderingContextBase
   void TexElementImage2DInternal(GLenum target,
                                  GLint level,
                                  GLint internalformat,
+                                 std::optional<GLfloat> sx,
+                                 std::optional<GLfloat> sy,
+                                 std::optional<GLfloat> swidth,
+                                 std::optional<GLfloat> sheight,
                                  std::optional<GLsizei> width,
                                  std::optional<GLsizei> height,
                                  GLenum format,

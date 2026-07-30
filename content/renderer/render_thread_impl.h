@@ -30,6 +30,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_log.h"
+#include "base/trace_event/trace_session_observer.h"
 #include "base/trace_event/typed_macros.h"
 #include "base/types/pass_key.h"
 #include "build/build_config.h"
@@ -122,7 +123,6 @@ class CONTENT_EXPORT RenderThreadImpl
       public ChildThreadImpl,
       public mojom::Renderer,
       public viz::mojom::CompositingModeWatcher,
-      public base::trace_event::TraceLog::AsyncEnabledStateObserver,
       public base::MemoryPressureListener {
  public:
   static RenderThreadImpl* current();
@@ -154,10 +154,6 @@ class CONTENT_EXPORT RenderThreadImpl
   IPC::SyncChannel* GetChannel() override;
   std::string GetLocale() override;
 
-  // base::trace_event::TraceLog::AsyncEnabledStateObserver implementation:
-  void OnTraceLogEnabled() override;
-  void OnTraceLogDisabled() override;
-
   bool GenerateFrameRoutingID(int32_t& routing_id,
                               blink::LocalFrameToken& frame_token,
                               base::UnguessableToken& devtools_frame_token,
@@ -181,7 +177,8 @@ class CONTENT_EXPORT RenderThreadImpl
 
   blink::scheduler::WebThreadScheduler* GetWebMainThreadScheduler();
   bool IsLcdTextEnabled();
-  bool IsElasticOverscrollEnabled();
+  bool IsElasticOverscrollEnabledOnRoot();
+  bool IsElasticOverscrollSupported();
   bool IsScrollAnimatorEnabled();
 
   // TODO(crbug.com/40142495): The `enable_scroll_animator` flag is currently
@@ -469,9 +466,7 @@ class CONTENT_EXPORT RenderThreadImpl
   // Updated via an IPC from the browser process. If nullopt, the browser
   // process has yet to send an update and the state is unknown.
   std::optional<base::Process::Priority> process_priority_;
-  perfetto::NamedTrack process_priority_track_{"Renderer priority"};
   std::optional<mojom::RenderProcessVisibleState> visible_state_;
-  perfetto::NamedTrack process_visibility_track_{"Renderer visibility"};
 
   // A read-only mapping of a std::atomic<base::TimeTicks> set to
   // TimeTicks::Now() by RenderProcessHostImpl when this process is foregrounded
@@ -529,7 +524,7 @@ class CONTENT_EXPORT RenderThreadImpl
 
   HistogramCustomizer histogram_customizer_;
 
-  std::unique_ptr<base::SyncMemoryPressureListenerRegistration>
+  std::unique_ptr<base::MemoryPressureListenerRegistration>
       memory_pressure_listener_registration_;
 
   MemoryReclaimerPressureListener memory_reclaimer_pressure_listener_;
@@ -545,7 +540,8 @@ class CONTENT_EXPORT RenderThreadImpl
   // Compositor settings.
   bool is_lcd_text_enabled_;
   bool is_partial_raster_enabled_;
-  bool is_elastic_overscroll_enabled_;
+  bool is_elastic_overscroll_enabled_on_root_;
+  bool is_elastic_overscroll_supported_;
   bool is_threaded_animation_enabled_;
   bool is_scroll_animator_enabled_;
 

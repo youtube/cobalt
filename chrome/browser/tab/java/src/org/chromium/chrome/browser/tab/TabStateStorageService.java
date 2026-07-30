@@ -16,6 +16,22 @@ import org.chromium.build.annotations.NullMarked;
 @JNINamespace("tabs")
 @NullMarked
 public class TabStateStorageService {
+    private static class ScopedStorageBatchImpl implements ScopedStorageBatch {
+        private long mNativeScopedBatch;
+
+        private ScopedStorageBatchImpl(long nativeScopedBatch) {
+            mNativeScopedBatch = nativeScopedBatch;
+        }
+
+        @Override
+        public void close() {
+            assert mNativeScopedBatch != 0;
+            if (mNativeScopedBatch != 0) {
+                TabStateStorageServiceJni.get().commitBatch(mNativeScopedBatch);
+                mNativeScopedBatch = 0;
+            }
+        }
+    }
 
     private final long mNativeTabStateStorageService;
 
@@ -71,6 +87,17 @@ public class TabStateStorageService {
         TabStateStorageServiceJni.get().clearWindow(mNativeTabStateStorageService, windowTag);
     }
 
+    /** Clears all the tabs for a given window from persistent storage. */
+    public void printAll() {
+        TabStateStorageServiceJni.get().printAll(mNativeTabStateStorageService);
+    }
+
+    /** Starts a scoped batch of operations. */
+    public ScopedStorageBatch createBatch() {
+        long batchPtr = TabStateStorageServiceJni.get().createBatch(mNativeTabStateStorageService);
+        return new ScopedStorageBatchImpl(batchPtr);
+    }
+
     @NativeMethods
     interface Natives {
         void boostPriority(long nativeTabStateStorageServiceAndroid);
@@ -87,5 +114,11 @@ public class TabStateStorageService {
 
         void clearWindow(
                 long nativeTabStateStorageServiceAndroid, @JniType("std::string") String windowTag);
+
+        long createBatch(long nativeTabStateStorageServiceAndroid);
+
+        void printAll(long nativeTabStateStorageServiceAndroid);
+
+        void commitBatch(long scopedBatchAndroid);
     }
 }

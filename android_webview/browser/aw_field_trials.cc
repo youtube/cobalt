@@ -13,6 +13,7 @@
 #include "base/metrics/persistent_histogram_allocator.h"
 #include "base/path_service.h"
 #include "components/history/core/browser/features.h"
+#include "components/input/features.h"
 #include "components/metrics/persistent_histograms.h"
 #include "components/payments/content/android/payment_feature_map.h"
 #include "components/permissions/features.h"
@@ -64,10 +65,10 @@ void AwFieldTrials::RegisterFeatureOverrides(base::FeatureList* feature_list) {
   aw_feature_overrides.DisableFeature(
       blink::features::kAboutBlankPageRespectsDarkModeOnUserAction);
 
-  // TODO(crbug.com/433304196): Remove this once webview experiment has
+  // TODO(crbug.com/444669046): Remove this once webview experiment has
   // concluded.
   aw_feature_overrides.DisableFeature(
-      blink::features::kAsyncTouchMovesImmediatelyAfterScroll);
+      input::features::kUpdateScrollPredictorInputMapping);
 
   // Disable enforcing `noopener` on Blob URL navigations on WebView.
   aw_feature_overrides.DisableFeature(
@@ -200,6 +201,9 @@ void AwFieldTrials::RegisterFeatureOverrides(base::FeatureList* feature_list) {
   // FedCM is not yet supported on WebView.
   aw_feature_overrides.DisableFeature(::features::kFedCm);
 
+  // Email Verification Protocol is not yet supported on WebView.
+  aw_feature_overrides.DisableFeature(::features::kEmailVerificationProtocol);
+
   // Disable Digital Credentials API on WebView.
   aw_feature_overrides.DisableFeature(
       ::features::kWebIdentityDigitalCredentials);
@@ -291,6 +295,8 @@ void AwFieldTrials::RegisterFeatureOverrides(base::FeatureList* feature_list) {
   // policy currently blocks iframes from using it. crbug.com/442879527
   aw_feature_overrides.DisableFeature(
       network::features::kLocalNetworkAccessChecks);
+  aw_feature_overrides.DisableFeature(
+      network::features::kLocalNetworkAccessChecksSplitPermissions);
 
   // Disable background media for WebView, until we have consensus on long-term
   // behavior crbug.com/453706851

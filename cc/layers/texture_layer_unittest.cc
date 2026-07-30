@@ -20,6 +20,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/location.h"
+#include "base/memory/memory_pressure_listener_registry.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
@@ -1605,6 +1606,7 @@ class SoftwareTextureLayerPurgeMemoryTest : public SoftwareTextureLayerTest {
     SoftwareTextureLayerTest::AfterTest();
   }
 
+  base::MemoryPressureListenerRegistry memory_pressure_listener_registry_;
   int step_ = 0;
   int verified_frames_ = 0;
 };
@@ -1720,12 +1722,35 @@ class SoftwareTextureLayerLoseFrameSinkTest : public SoftwareTextureLayerTest {
         // Release the TransferableResource before shutdown, the test ends when
         // it is released.
         texture_layer_->ClearClient();
+        break;
+      case 4:
+        // DisplayReceivedCompositorFrameOnThread and DidCommitAndDrawFrame
+        // may happen in random order since they are on different threads.
+        // In TreesInViz mode, DisplayReceivedCompositorFrameOnThread is
+        // further delayed, making the behavior more flaky. Therefore, here
+        // we explicitly wait until both happen before calling EndTest().
+        if (last_received_frame_ < step_) {
+          may_end_test_ = true;
+        } else {
+          EndTest();
+        }
     }
   }
 
   void DisplayReceivedCompositorFrameOnThread(
       const viz::CompositorFrame& frame) override {
+    MainThreadTaskRunner()->PostTask(
+        FROM_HERE,
+        base::BindOnce(&SoftwareTextureLayerLoseFrameSinkTest::VerifyFrame,
+                       base::Unretained(this), frame.metadata.frame_token));
+  }
+
+  void VerifyFrame(int frame_token) {
     verified_frames_++;
+    last_received_frame_ = frame_token;
+    if (may_end_test_) {
+      EndTest();
+    }
   }
 
   void WillCommit(const CommitState& commit_state) override {
@@ -1739,18 +1764,20 @@ class SoftwareTextureLayerLoseFrameSinkTest : public SoftwareTextureLayerTest {
 
     EXPECT_EQ(source_frame_number_, 3);
     released_ = true;
-    EndTest();
   }
 
   void AfterTest() override {
     EXPECT_EQ(4, verified_frames_);
+    EXPECT_TRUE(released_);
     SoftwareTextureLayerTest::AfterTest();
   }
 
   int step_ = 0;
   int verified_frames_ = 0;
   int source_frame_number_ = 0;
+  int last_received_frame_ = 0;
   bool released_ = false;
+  bool may_end_test_ = false;
 };
 
 SINGLE_AND_MULTI_THREAD_TEST_F(SoftwareTextureLayerLoseFrameSinkTest);

@@ -22,9 +22,9 @@
 #include "base/containers/contains.h"
 #include "base/functional/callback.h"
 #include "base/gtest_prod_util.h"
+#include "base/memory/advanced_memory_safety_checks.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/safety_checks.h"
 #include "base/observer_list.h"
 #include "base/types/pass_key.h"
 #include "build/build_config.h"
@@ -2438,11 +2438,9 @@ class VIEWS_EXPORT View : public ui::LayerDelegate,
   // This view's children.
   Views children_;
 
-#if DCHECK_IS_ON()
-  // True while iterating over |children_|. Used to detect and DCHECK when
+  // True while iterating over |children_|. Used to detect and CHECK when
   // |children_| is mutated during iteration.
   mutable bool iterating_ = false;
-#endif
 
   bool can_process_events_within_subtree_ = true;
 
@@ -2668,8 +2666,7 @@ class VIEWS_EXPORT View : public ui::LayerDelegate,
 namespace internal {
 
 // Helper to catch reentrant mutations while iterating over a view's children.
-#if DCHECK_IS_ON()
-class ScopedChildrenLock {
+class VIEWS_EXPORT ScopedChildrenLock {
  public:
   explicit ScopedChildrenLock(const View* view);
 
@@ -2681,13 +2678,6 @@ class ScopedChildrenLock {
  private:
   base::AutoReset<bool> reset_;
 };
-#else
-class ScopedChildrenLock {
- public:
-  explicit ScopedChildrenLock(const View* view) {}
-  ~ScopedChildrenLock() = default;
-};
-#endif
 
 }  // namespace internal
 

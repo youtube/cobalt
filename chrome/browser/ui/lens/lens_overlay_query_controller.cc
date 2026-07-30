@@ -32,6 +32,7 @@
 #include "chrome/browser/ui/lens/lens_overlay_proto_converter.h"
 #include "chrome/browser/ui/lens/lens_overlay_url_builder.h"
 #include "chrome/browser/ui/lens/lens_search_feature_flag_utils.h"
+#include "chrome/browser/ui/omnibox/omnibox_next_features.h"
 #include "chrome/common/channel_info.h"
 #include "components/base32/base32.h"
 #include "components/endpoint_fetcher/endpoint_fetcher.h"
@@ -44,6 +45,7 @@
 #include "components/lens/proto/server/lens_overlay_response.pb.h"
 #include "components/lens/ref_counted_lens_overlay_client_logs.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
+#include "components/omnibox/browser/lens_suggest_inputs_utils.h"
 #include "components/prefs/pref_service.h"
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/identity_manager/access_token_info.h"
@@ -95,6 +97,8 @@ constexpr char kSessionIdQueryParameterKey[] = "gsessionid";
 constexpr char kGen204IdentifierQueryParameter[] = "plla";
 constexpr char kVisualSearchInteractionDataQueryParameterKey[] = "vsint";
 constexpr char kVisualInputTypeQueryParameterKey[] = "vit";
+inline constexpr char kModeParameterKey[] = "udm";
+inline constexpr char kAimModeParameterValue[] = "50";
 
 constexpr net::NetworkTrafficAnnotationTag kTrafficAnnotationTag =
     net::DefineNetworkTrafficAnnotation("lens_overlay", R"(
@@ -236,6 +240,12 @@ LenOverlayEntryPointFromInvocationSource(
     case lens::LensOverlayInvocationSource::kContextMenu:
     case lens::LensOverlayInvocationSource::kAIHub:
     case lens::LensOverlayInvocationSource::kFREPromo:
+    // TODO(crbug.com/469929036): Potentially add a new client log enum for
+    // NTP / omnibox contextual query flows. For now, since this method is only
+    // used by the Lens overlay query controller, which is not used by those
+    // flows, it is not necessary.
+    case lens::LensOverlayInvocationSource::kNtpContextualQuery:
+    case lens::LensOverlayInvocationSource::kOmniboxContextualQuery:
       NOTREACHED() << "Invocation source not supported.";
   }
   return lens::LensOverlayClientLogs::UNKNOWN_ENTRY_POINT;
@@ -363,7 +373,6 @@ LensOverlayQueryController::LensOverlayQueryController(
     LensOverlayFullImageResponseCallback full_image_callback,
     LensOverlayUrlResponseCallback url_callback,
     LensOverlayInteractionResponseCallback interaction_response_callback,
-    LensOverlaySuggestInputsCallback suggest_inputs_callback,
     LensOverlayThumbnailCreatedCallback thumbnail_created_callback,
     UploadProgressCallback page_content_upload_progress_callback,
     variations::VariationsClient* variations_client,
@@ -374,7 +383,6 @@ LensOverlayQueryController::LensOverlayQueryController(
     lens::LensOverlayGen204Controller* gen204_controller)
     : full_image_callback_(std::move(full_image_callback)),
       interaction_response_callback_(std::move(interaction_response_callback)),
-      suggest_inputs_callback_(std::move(suggest_inputs_callback)),
       thumbnail_created_callback_(std::move(thumbnail_created_callback)),
       page_content_upload_progress_callback_(
           std::move(page_content_upload_progress_callback)),
@@ -438,7 +446,9 @@ void LensOverlayQueryController::StartQueryFlow(
 
 void LensOverlayQueryController::EndQuery() {
   ResetPageContentData();
-  gen204_controller_->OnQueryFlowEnd();
+  if (gen204_id_ != 0) {
+    gen204_controller_->OnQueryFlowEnd();
+  }
   full_image_endpoint_fetcher_.reset();
   interaction_endpoint_fetcher_.reset();
   pending_interaction_callback_.Reset();
@@ -590,6 +600,12 @@ void LensOverlayQueryController::SendContextualTextQuery(
   // Include the vit to get contextualized results.
   additional_search_query_params = AddVisualInputTypeQueryParam(
       additional_search_query_params, primary_content_type_);
+  // If AIM omnibox is enabled, all contextual queries for lens should be
+  // fulfilled in AIM.
+  if (omnibox::IsAimPopupEnabled(profile_)) {
+    additional_search_query_params.insert(
+        {kModeParameterKey, kAimModeParameterValue});
+  }
 
   SendInteraction(query_start_time, /*region=*/nullptr, query_text,
                   /*object_id=*/std::nullopt, lens_selection_type,
@@ -707,8 +723,11 @@ void LensOverlayQueryController::RunSuggestInputsCallback() {
   } else {
     suggest_inputs_.clear_search_session_id();
   }
-  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, base::BindOnce(suggest_inputs_callback_, suggest_inputs_));
+  if (suggest_inputs_ready_callback_ &&
+      AreLensSuggestInputsReady(suggest_inputs_)) {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, suggest_inputs_ready_callback_);
+  }
 }
 
 void LensOverlayQueryController::ResetRequestClusterInfoStateForTesting() {
@@ -994,8 +1013,13 @@ void LensOverlayQueryController::PrepareAndFetchFullImageRequest() {
   // blocking on the encoding.
   encoding_task_runner_->PostTaskAndReplyWithResult(
       FROM_HERE,
-      base::BindOnce(&lens::DownscaleAndEncodeBitmap, original_screenshot_,
-                     ui_scale_factor_, ref_counted_logs),
+      base::BindOnce(
+          [](const SkBitmap& screenshot, int scale_factor,
+             scoped_refptr<lens::RefCountedLensOverlayClientLogs> logs) {
+            return lens::DownscaleAndEncodeBitmap(screenshot, scale_factor,
+                                                  logs);
+          },
+          original_screenshot_, ui_scale_factor_, ref_counted_logs),
       base::BindOnce(&LensOverlayQueryController::
                          CreateFullImageRequestAndTryPerformFullImageRequest,
                      weak_ptr_factory_.GetWeakPtr(), current_sequence_id,
@@ -2017,9 +2041,8 @@ void LensOverlayQueryController::InteractionFetchResponseHandler(
 }
 
 void LensOverlayQueryController::RunInteractionCallbackForError() {
-  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, base::BindOnce(suggest_inputs_callback_,
-                                lens::proto::LensOverlaySuggestInputs()));
+  suggest_inputs_.Clear();
+  RunSuggestInputsCallback();
 }
 
 void LensOverlayQueryController::SendFullImageLatencyGen204IfEnabled(
@@ -2395,6 +2418,20 @@ void LensOverlayQueryController::OnChunkUploadEndpointFetcherCreated(
 bool LensOverlayQueryController::ShouldSendContextualSearchQuery() {
   // Can send the query if the page content request has finished.
   return !page_content_request_in_progress_ && cluster_info_.has_value();
+}
+
+bool LensOverlayQueryController::IsOff() {
+  return query_controller_state_ == QueryControllerState::kOff;
+}
+
+const lens::proto::LensOverlaySuggestInputs&
+LensOverlayQueryController::GetLensSuggestInputs() const {
+  return suggest_inputs_;
+}
+
+void LensOverlayQueryController::SetSuggestInputsReadyCallback(
+    base::RepeatingClosure callback) {
+  suggest_inputs_ready_callback_ = std::move(callback);
 }
 
 bool LensOverlayQueryController::IsPartialPageContentSubstantial() {

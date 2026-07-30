@@ -66,6 +66,7 @@
 #import "ios/chrome/browser/content_suggestions/ui_bundled/magic_stack/ui/magic_stack_module_container_delegate.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/most_visited_tiles/coordinator/most_visited_tiles_mediator.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/most_visited_tiles/ui/most_visited_item.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/most_visited_tiles/ui/pinned_site_form_view_controller.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/ntp_home_constant.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/price_tracking_promo/coordinator/price_tracking_promo_action_delegate.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/price_tracking_promo/coordinator/price_tracking_promo_mediator.h"
@@ -116,6 +117,7 @@
 #import "ios/chrome/browser/passwords/model/password_checkup_utils.h"
 #import "ios/chrome/browser/policy/model/policy_util.h"
 #import "ios/chrome/browser/promos_manager/model/promos_manager_factory.h"
+#import "ios/chrome/browser/push_notification/coordinator/notifications_opt_in_alert_coordinator.h"
 #import "ios/chrome/browser/push_notification/model/constants.h"
 #import "ios/chrome/browser/push_notification/model/provisional_push_notification_service.h"
 #import "ios/chrome/browser/push_notification/model/provisional_push_notification_service_factory.h"
@@ -123,7 +125,6 @@
 #import "ios/chrome/browser/push_notification/model/push_notification_service.h"
 #import "ios/chrome/browser/push_notification/model/push_notification_settings_util.h"
 #import "ios/chrome/browser/push_notification/model/push_notification_util.h"
-#import "ios/chrome/browser/push_notification/ui_bundled/notifications_opt_in_alert_coordinator.h"
 #import "ios/chrome/browser/reading_list/model/reading_list_model_factory.h"
 #import "ios/chrome/browser/safety_check/model/ios_chrome_safety_check_manager.h"
 #import "ios/chrome/browser/safety_check/model/ios_chrome_safety_check_manager_factory.h"
@@ -266,6 +267,9 @@ using segmentation_platform::TipIdentifier;
 }
 
 - (void)start {
+  // TODO(crbug.com/470320455): Replace all usages of
+  // `static_cast<id<AnyCommand>>(dispatcher)` by
+  // `HandlerForProtocol(dispatcher, AnyCommand)` in this method.
   DCHECK(self.browser);
   DCHECK(self.NTPActionsDelegate);
   if (self.started) {
@@ -554,6 +558,8 @@ using segmentation_platform::TipIdentifier;
   [self.browser->GetCommandDispatcher()
       startDispatchingToTarget:self
                    forProtocol:@protocol(ContentSuggestionsCommands)];
+  _mostVisitedTilesMediator.contentSuggestionsHandler = HandlerForProtocol(
+      self.browser->GetCommandDispatcher(), ContentSuggestionsCommands);
 }
 
 - (void)stop {
@@ -648,6 +654,28 @@ using segmentation_platform::TipIdentifier;
   [_magicStackCollectionView presentViewController:navController
                                           animated:YES
                                         completion:nil];
+}
+
+- (void)showPinnedSiteCreator {
+  // TODO(crbug.com/469998604): Configure the view controller to be used for
+  // site creation.
+  PinnedSiteFormViewController* viewController =
+      [[PinnedSiteFormViewController alloc] init];
+  viewController.mutator = _mostVisitedTilesMediator;
+  [self.contentSuggestionsViewController presentViewController:viewController
+                                                      animated:YES
+                                                    completion:nil];
+}
+
+- (void)showPinnedSiteEditorForItem:(MostVisitedItem*)item {
+  // TODO(crbug.com/469998604): Configure the view controller to be used for
+  // editing.
+  PinnedSiteFormViewController* viewController =
+      [[PinnedSiteFormViewController alloc] init];
+  viewController.mutator = _mostVisitedTilesMediator;
+  [self.contentSuggestionsViewController presentViewController:viewController
+                                                      animated:YES
+                                                    completion:nil];
 }
 
 #pragma mark - ContentSuggestionsViewControllerAudience

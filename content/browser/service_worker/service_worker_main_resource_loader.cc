@@ -86,15 +86,6 @@ const std::string_view ComposeNavigationTypeString(
              : "CrossOriginNavigation";
 }
 
-// Check the eligibility based on the allowlist. This doesn't mean the
-// experiment is actually enabled. The eligibility is checked and UMA is
-// reported for the analysis purpose.
-bool HasAutoPreloadEligibleScript(scoped_refptr<ServiceWorkerVersion> version) {
-  return content::service_worker_loader_helpers::
-      FetchHandlerBypassedHashStrings()
-          .contains(version->sha256_script_checksum());
-}
-
 void MaybeSetHeaderReceivedTiming(net::LoadTimingInfo& timing) {
   if (timing.receive_headers_start.is_null()) {
     timing.receive_headers_start = base::TimeTicks::Now();
@@ -435,7 +426,11 @@ void ServiceWorkerMainResourceLoader::MaybeDispatchPreload(
     scoped_refptr<ServiceWorkerVersion> version) {
   switch (race_network_request_mode) {
     case RaceNetworkRequestMode::kForced:
-      if (StartRaceNetworkRequest(context_wrapper, version)) {
+      if (StartRaceNetworkRequest(
+              context_wrapper, version,
+              base::BindOnce(
+                  &ServiceWorkerMainResourceLoader::InvalidateAndDeleteIfNeeded,
+                  weak_factory_.GetWeakPtr()))) {
         SetDispatchedPreloadType(DispatchedPreloadType::kRaceNetworkRequest);
       }
       break;
@@ -491,13 +486,6 @@ bool ServiceWorkerMainResourceLoader::MaybeStartAutoPreload(
     return false;
   }
 
-  bool use_allowlist = base::GetFieldTrialParamByFeatureAsBool(
-      features::kServiceWorkerAutoPreload, "use_allowlist",
-      /*default_value=*/false);
-  if (use_allowlist && !HasAutoPreloadEligibleScript(version)) {
-    return false;
-  }
-
   // Hosts to disable AutoPreload feature. This mechanism is needed to address
   // the case when the AutoPreload behavior is problematic for some websites and
   // those should be opted out from the feature.
@@ -522,7 +510,7 @@ bool ServiceWorkerMainResourceLoader::MaybeStartAutoPreload(
     return false;
   }
 
-  bool result = StartRaceNetworkRequest(context, version);
+  bool result = StartRaceNetworkRequest(context, version, base::DoNothing());
   if (result) {
     version->CountFeature(blink::mojom::WebFeature::kServiceWorkerAutoPreload);
     SetDispatchedPreloadType(DispatchedPreloadType::kAutoPreload);
@@ -549,7 +537,8 @@ bool ServiceWorkerMainResourceLoader::MaybeStartAutoPreload(
 
 bool ServiceWorkerMainResourceLoader::StartRaceNetworkRequest(
     scoped_refptr<ServiceWorkerContextWrapper> context,
-    scoped_refptr<ServiceWorkerVersion> version) {
+    scoped_refptr<ServiceWorkerVersion> version,
+    base::OnceCallback<void()> clone_completed_for_fetch_handler_callback) {
   // Set fetch_handler_bypass_option to tell the renderer that
   // RaceNetworkRequest is enabled.
   version->set_fetch_handler_bypass_option(
@@ -582,9 +571,7 @@ bool ServiceWorkerMainResourceLoader::StartRaceNetworkRequest(
   CHECK(!race_network_request_url_loader_client_);
   race_network_request_url_loader_client_.emplace(
       resource_request_.url, AsWeakPtr(), std::move(forwarding_client),
-      base::BindOnce(
-          &ServiceWorkerMainResourceLoader::InvalidateAndDeleteIfNeeded,
-          weak_factory_.GetWeakPtr()));
+      std::move(clone_completed_for_fetch_handler_callback));
 
   // If the initial state is not kWaitForBody, that means creating data pipes
   // failed. Do not start RaceNetworkRequest this case.
@@ -1377,6 +1364,8 @@ void ServiceWorkerMainResourceLoader::OnConnectionClosed() {
   InvalidateAndDeleteIfNeeded();
 }
 
+// TODO(crbug.com/468821930): Clarify the deletion condition for SWAutoPreload
+// cases and refactor this function.
 bool ServiceWorkerMainResourceLoader::ShouldDelayDeletion() {
   // If `race-network-and-fetch-handler` is used, postpone the invalidation and
   // destruction until following conditions are satisfied:

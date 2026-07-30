@@ -28,7 +28,6 @@
 #include "components/web_modal/web_contents_modal_dialog_manager.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
-#include "third_party/skia/include/core/SkRegion.h"
 #include "ui/views/view.h"
 
 namespace glic {
@@ -139,10 +138,6 @@ void GlicSidePanelUi::SetDraggableAreas(
   NOTIMPLEMENTED();
 }
 
-void GlicSidePanelUi::SetDraggableRegion(const SkRegion& draggable_region) {
-  NOTIMPLEMENTED();
-}
-
 void GlicSidePanelUi::EnableDragResize(bool enabled) {
   NOTIMPLEMENTED();
 }
@@ -247,7 +242,7 @@ void GlicSidePanelUi::Close() {
     screenshot_capturer_->CloseScreenPicker();
   }
   auto* glic_side_panel_coordinator = GetGlicSidePanelCoordinator();
-  if (!glic_side_panel_coordinator || !IsShowing()) {
+  if (!glic_side_panel_coordinator) {
     return;
   }
   // NOTE: `this` will be destroyed after this call.

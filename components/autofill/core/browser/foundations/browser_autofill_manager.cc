@@ -345,7 +345,7 @@ FillDataType GetEventTypeFromSingleFieldSuggestionType(SuggestionType type) {
 
 void LogAutocompletePredictionCollisionTypeMetrics(
     const FormStructure& form_structure) {
-  for (size_t i = 0; i < form_structure.field_count(); i++) {
+  for (size_t i = 0; i < form_structure.field_count(); ++i) {
     const AutofillField* field = form_structure.field(i);
     auto heuristic_type = field->heuristic_type();
     auto server_type = field->server_type();
@@ -445,7 +445,7 @@ void LogSuggestionsCount(const SuggestionsContext& context,
   }
 
   if (context.filling_product == FillingProduct::kCreditCard) {
-    // TODO(crbug.com/41484171): Move to payments_suggestion_generator.cc.
+    // TODO(crbug.com/41484171): Move to payments_suggestion_generator_util.cc.
     autofill_metrics::LogSuggestionsCount(
         std::ranges::count_if(suggestions,
                               [](const Suggestion& suggestion) {
@@ -801,9 +801,9 @@ BrowserAutofillManager::BrowserAutofillManager(AutofillDriver* driver)
 
 BrowserAutofillManager::~BrowserAutofillManager() {
   // Process log events and record into UKM when the FormStructure is destroyed.
-  for (const auto& [form_id, form_structure] : form_structures()) {
-    ProcessFieldLogEventsInForm(*form_structure);
-  }
+  ForEachCachedForm([this](const FormStructure& form_structure) {
+    ProcessFieldLogEventsInForm(form_structure);
+  });
   client().GetSingleFieldFillRouter().CancelPendingQueries();
 }
 
@@ -1161,7 +1161,7 @@ void BrowserAutofillManager::OnAskForValuesToFillImpl(
     return;
   }
 
-  UpdateLoggersReadinessData();
+  UpdateLoggersReadinessData(form_structure);
 
   if (form_structure && autofill_field) {
     AutofillMetrics::LogParsedFormUntilInteractionTiming(
@@ -2106,6 +2106,19 @@ void BrowserAutofillManager::OnFocusOnFormFieldImpl(
   }
   autofill_field->set_was_focused(true);
 
+  for (const FieldType type : autofill_field->Type().GetTypes()) {
+    static constexpr std::string_view kMetricName =
+        "Autofill.FocusedField.FieldType";
+    const bool same_origin =
+        autofill_field->origin() == form.main_frame_origin();
+    base::UmaHistogramExactLinear(base::StrCat({kMetricName}), type,
+                                  MAX_VALID_FIELD_TYPE);
+    base::UmaHistogramExactLinear(
+        base::StrCat(
+            {kMetricName, ".", same_origin ? "Same" : "Cross", "Origin"}),
+        type, MAX_VALID_FIELD_TYPE);
+  }
+
   // Notify installed screen readers if the focus is on a field for which there
   // are suggestions to present. Ignore if a screen reader is not present.
   if (!external_delegate_->HasActiveScreenReader()) {
@@ -2261,10 +2274,11 @@ void BrowserAutofillManager::DidShowSuggestions(
     // Assert that only the expected suggestion types exist. Note that despite
     // `SuggestionType::kDatalistEntry` is optionally added by
     // `AutofillExternalDelegate`, therefore checking for it is also required.
-    CHECK(DenseSet<SuggestionType>({SuggestionType::kAddressEntryOnTyping,
-                                    SuggestionType::kDatalistEntry,
-                                    SuggestionType::kSeparator,
-                                    SuggestionType::kManageAddress})
+    CHECK(DenseSet<SuggestionType>(
+              {SuggestionType::kAddressEntryOnTyping,
+               SuggestionType::kDatalistEntry, SuggestionType::kSeparator,
+               SuggestionType::kWebauthnSignInWithAnotherDevice,
+               SuggestionType::kManageAddress})
               .contains_all(shown_suggestion_types));
     address_on_typing_manager_.OnDidShowAddressOnTyping(field_id,
                                                         autofill_field);
@@ -2606,9 +2620,9 @@ const gfx::Image& BrowserAutofillManager::GetCardImage(
 //   - fast_checkout_delegate_
 void BrowserAutofillManager::Reset() {
   // Process log events and record into UKM when the FormStructure is destroyed.
-  for (const auto& [form_id, form_structure] : form_structures()) {
-    ProcessFieldLogEventsInForm(*form_structure);
-  }
+  ForEachCachedForm([this](const FormStructure& form_structure) {
+    ProcessFieldLogEventsInForm(form_structure);
+  });
   ProcessPendingFormForUpload();
   DCHECK(!pending_form_data_);
 
@@ -2633,7 +2647,8 @@ void BrowserAutofillManager::Reset() {
   metrics_.emplace(this);
 }
 
-void BrowserAutofillManager::UpdateLoggersReadinessData() {
+void BrowserAutofillManager::UpdateLoggersReadinessData(
+    const FormStructure* form_structure) {
   if (!client().IsAutofillEnabled()) {
     return;
   }
@@ -2646,6 +2661,10 @@ void BrowserAutofillManager::UpdateLoggersReadinessData() {
         .UpdateLoyaltyCardsAvailabilityForReadiness(
             valuables_manager->GetLoyaltyCards(),
             client().GetLastCommittedPrimaryMainFrameURL());
+  }
+  if (AutofillAiManager* ai_manager = client().GetAutofillAiManager();
+      ai_manager && form_structure) {
+    ai_manager->UpdateLoggerReadinessData(*form_structure);
   }
 }
 
@@ -2967,7 +2986,13 @@ std::vector<Suggestion> BrowserAutofillManager::GetCreditCardSuggestions(
       is_card_number_autofilled && card_number_field_value.size() >= 4
           ? card_number_field_value.substr(card_number_field_value.size() - 4)
           : u"",
-      card_number_field_value.empty());
+      card_number_field_value.empty(),
+      payments::AmountExtractionStatus{
+          .has_timed_out_for_page_load =
+              GetAmountExtractionManager().HasTimedOutForPageLoad(),
+          .seen_unsupported_currency_for_page_load =
+              GetAmountExtractionManager()
+                  .SeenUnsupportedCurrencyForPageLoad()});
   bool is_virtual_card_standalone_cvc_field =
       std::ranges::any_of(suggestions, [](Suggestion suggestion) {
         return suggestion.type == SuggestionType::kVirtualCreditCardEntry;
@@ -3564,6 +3589,11 @@ void BrowserAutofillManager::InitializeSuggestionGenerators(
         std::make_unique<AddressSuggestionGenerator>(std::nullopt,
                                                      log_manager()));
   }
+}
+
+base::WeakPtr<BrowserAutofillManager>
+BrowserAutofillManager::GetBrowserAutofillManagerWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
 }
 
 }  // namespace autofill

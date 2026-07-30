@@ -75,12 +75,17 @@ class UnexportableKeyServiceProxied : public UnexportableKeyService {
       UnexportableKeyId key_id) const override;
   ServiceErrorOr<crypto::SignatureVerifier::SignatureAlgorithm> GetAlgorithm(
       UnexportableKeyId key_id) const override;
+  ServiceErrorOr<std::string> GetKeyTag(
+      UnexportableKeyId key_id) const override;
+  ServiceErrorOr<base::Time> GetCreationTime(
+      UnexportableKeyId key_id) const override;
 
  private:
   const mojo::Remote<mojom::UnexportableKeyService> remote_;
 
   struct CachedKeyData {
     CachedKeyData();
+    explicit CachedKeyData(const mojom::NewKeyDataPtr& new_key_data);
 
     CachedKeyData(const CachedKeyData& other);
     CachedKeyData& operator=(const CachedKeyData& other);
@@ -92,6 +97,8 @@ class UnexportableKeyServiceProxied : public UnexportableKeyService {
     std::vector<uint8_t> subject_public_key_info;
     std::vector<uint8_t> wrapped_key;
     crypto::SignatureVerifier::SignatureAlgorithm algorithm;
+    ServiceErrorOr<std::string> key_tag;
+    ServiceErrorOr<base::Time> creation_time;
   };
 
   void OnKeyGenerated(

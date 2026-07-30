@@ -172,6 +172,7 @@ group("make_platform_generated") {
     ":font_family_names",
     ":runtime_enabled_features",
     ":runtime_feature_state_override_context",
+    "//third_party/blink/public:buildflags",
     "//third_party/blink/public/common:buildflags",
     "//third_party/blink/renderer/platform/heap:blink_heap_buildflags",
     "//third_party/blink/renderer/platform/network:make_generated",
@@ -904,6 +905,8 @@ component("platform") {
     "graphics/canvas_resource_provider.cc",
     "graphics/canvas_resource_provider.h",
     "graphics/canvas_snapshot_provider.h",
+    "graphics/canvas_snapshot_provider_external_bitmap.cc",
+    "graphics/canvas_snapshot_provider_external_bitmap.h",
     "graphics/color.cc",
     "graphics/color.h",
     "graphics/color_behavior.h",
@@ -1957,7 +1960,7 @@ component("platform") {
     allow_circular_includes_from += [ ":blink_x86_avx" ]
   }
 
-  if (current_cpu == "arm64" || (current_cpu == "arm" && arm_use_neon)) {
+  if (current_cpu == "arm64" || current_cpu == "arm") {
     sources += [ "audio/cpu/arm/delay_neon.cc" ]
   }
 
