@@ -31,6 +31,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
+#include "starboard/common/pointer_arithmetic.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/string.h"
 #include "starboard/media.h"
