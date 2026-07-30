@@ -469,7 +469,6 @@ void InitializeGLDebugLogging(bool log_non_errors,
   }
 
   glDebugMessageCallback(callback, user_param);
-
 }
 
 bool ValidContextLostReason(GLenum reason) {

@@ -170,13 +170,6 @@ component("boringssl") {
     ldflags = [ "-Wl,--version-script=" +
                 rebase_path(version_script, root_build_dir) ]
   }
-
-  if (is_cobalt_hermetic_build) {
-    deps += [
-      "//starboard:starboard_headers_only",
-      "//starboard/common",
-    ]
-  }
 }
 
 if (build_with_chromium) {
@@ -231,10 +224,6 @@ if (build_with_chromium) {
     # Chromium infrastructure does not support GTest, only the //base wrapper.
     sources -= [ "src/crypto/test/gtest_main.cc" ]
     sources += [ "gtest_main_chromium.cc" ]
-    if (is_cobalt_hermetic_build) {
-      sources += [ "starboard/gtest_main_chromium.cc" ]
-      sources -= [ "gtest_main_chromium.cc" ]
-    }
     deps += [ "//base/test:test_support" ]
 
     if (is_fuchsia) {
@@ -259,11 +248,7 @@ if (build_with_chromium) {
 
     # Chromium infrastructure does not support GTest, only the //base wrapper.
     sources -= [ "src/crypto/test/gtest_main.cc" ]
-    if (is_cobalt_hermetic_build) {
-      sources += [ "starboard/gtest_main_chromium.cc" ]
-    } else {
-      sources += [ "gtest_main_chromium.cc" ]
-    }
+    sources += [ "gtest_main_chromium.cc" ]
     deps += [ "//base/test:test_support" ]
   }
 
@@ -284,11 +269,7 @@ if (build_with_chromium) {
 
     # Chromium infrastructure does not support GTest, only the //base wrapper.
     sources -= [ "src/crypto/test/gtest_main.cc" ]
-    if (is_cobalt_hermetic_build) {
-      sources += [ "starboard/gtest_main_chromium.cc" ]
-    } else {
-      sources += [ "gtest_main_chromium.cc" ]
-    }
+    sources += [ "gtest_main_chromium.cc" ]
     deps += [ "//base/test:test_support" ]
   }
 

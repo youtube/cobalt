@@ -128,21 +128,6 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelSharedImageInterface
       const bool is_thread_safe);
 #endif
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  scoped_refptr<ClientSharedImage> CreateSharedImageForStarboardGLTexture(
-      viz::SharedImageFormat format,
-      const gfx::Size& size,
-      const gfx::ColorSpace& color_space,
-      const std::vector<uint32_t>& texture_service_ids,
-      const std::vector<uint32_t>& texture_targets,
-      uint64_t decode_target
-#if BUILDFLAG(IS_ANDROID)
-      ,
-      scoped_refptr<RefCountedLock> drdc_lock
-#endif
-  );
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
   SequenceId sequence() { return sequence_; }
 
  protected:
