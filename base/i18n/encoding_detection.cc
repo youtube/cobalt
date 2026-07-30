@@ -22,18 +22,18 @@
 
 namespace base {
 
+#if !BUILDFLAG(IS_COBALT)
 namespace {
 
 // Include 7-bit encodings
 constexpr bool kIgnore7bitEncodings = false;
 
-#if !BUILDFLAG(IS_COBALT)
 // Plain text
 constexpr CompactEncDet::TextCorpusType kPlainTextCorpus =
     CompactEncDet::QUERY_CORPUS;
-#endif  // !BUILDFLAG(IS_COBALT)
 
 }  // namespace
+#endif  // !BUILDFLAG(IS_COBALT)
 
 bool DetectEncoding(std::string_view text, std::string* encoding) {
 #if !BUILDFLAG(IS_COBALT)
