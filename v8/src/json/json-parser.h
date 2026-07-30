@@ -239,26 +239,23 @@ class JsonParser final {
     advance();
   }
 
-  V8_WARN_UNUSED_RESULT bool Expect(
-      JsonToken token,
-      std::optional<MessageTemplate> errorMessage = std::nullopt) {
+  void Expect(JsonToken token,
+              std::optional<MessageTemplate> errorMessage = std::nullopt) {
     if (V8_LIKELY(peek() == token)) {
       advance();
-      return true;
+    } else {
+      errorMessage ? ReportUnexpectedToken(peek(), errorMessage.value())
+                   : ReportUnexpectedToken(peek());
     }
-    errorMessage ? ReportUnexpectedToken(peek(), errorMessage.value())
-                 : ReportUnexpectedToken(peek());
-    return false;
   }
 
-  V8_WARN_UNUSED_RESULT bool ExpectNext(
-      JsonToken token,
-      std::optional<MessageTemplate> errorMessage = std::nullopt) {
+  void ExpectNext(JsonToken token,
+                  std::optional<MessageTemplate> errorMessage = std::nullopt) {
     SkipWhitespace();
-    return errorMessage ? Expect(token, errorMessage.value()) : Expect(token);
+    errorMessage ? Expect(token, errorMessage.value()) : Expect(token);
   }
 
-  V8_WARN_UNUSED_RESULT bool Check(JsonToken token) {
+  bool Check(JsonToken token) {
     SkipWhitespace();
     if (next_ != token) return false;
     advance();

@@ -11,14 +11,11 @@
 #include "modules/audio_coding/acm2/acm_resampler.h"
 
 #include <array>
-#include <cstddef>
 #include <cstdint>
 
 #include "api/audio/audio_frame.h"
 #include "api/audio/audio_view.h"
-#include "audio/utility/audio_frame_operations.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/logging.h"
 
 namespace webrtc {
 namespace acm2 {
@@ -39,18 +36,6 @@ bool ResamplerHelper::MaybeResample(int desired_sample_rate_hz,
   const bool need_resampling =
       (desired_sample_rate_hz != -1) &&
       (current_sample_rate_hz != desired_sample_rate_hz);
-
-  if (need_resampling) {
-    const size_t target_size =
-        audio_frame->num_channels_ *
-        SampleRateToDefaultChannelSize(desired_sample_rate_hz);
-    if (target_size > AudioFrame::kMaxDataSizeSamples) {
-      RTC_LOG(LS_ERROR) << "AudioFrame cannot hold resampled data.";
-      AudioFrameOperations::Mute(audio_frame);
-      audio_frame->SetSampleRateAndChannelSize(desired_sample_rate_hz);
-      return false;
-    }
-  }
 
   if (need_resampling && !resampled_last_output_frame_) {
     // Prime the resampler with the last frame.

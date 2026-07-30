@@ -281,12 +281,8 @@ public class WindowAndroid
         // Because of crbug.com/756180, many devices report true for isScreenWideColorGamut in
         // 8.0.0, even when they don't actually support wide color gamut.
         // TODO(boliu): Observe configuration changes to update the value of isScreenWideColorGamut.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
-                && !Build.VERSION.RELEASE.equals("8.0.0")
+        if (!Build.VERSION.RELEASE.equals("8.0.0")
                 && ContextUtils.activityFromContext(context) != null) {
-            // Cobalt: Configuration.isScreenWideColorGamut() requires API level 26 (Android O).
-            // Guard it to prevent NoSuchMethodError on older devices (e.g. SDK 24/25)
-            // as Cobalt supports SDK 24. See b/508072838.
             Configuration configuration = context.getResources().getConfiguration();
             boolean isScreenWideColorGamut = configuration.isScreenWideColorGamut();
             display.updateIsDisplayServerWideColorGamut(isScreenWideColorGamut);
