@@ -3,7 +3,6 @@
 # found in the LICENSE file.
 
 import("//build/config/ui.gni")
-import("//components/surface_embed/buildflags/buildflags.gni")
 import("//content/common/features.gni")
 import("//content/public/common/features.gni")
 import("//device/vr/buildflags/buildflags.gni")
@@ -341,8 +340,6 @@ source_set("browser_sources") {
     "presentation_request.h",
     "presentation_screen_availability_listener.h",
     "presentation_service_delegate.h",
-    "preview_cancel_reason.cc",
-    "preview_cancel_reason.h",
     "privacy_sandbox_invoking_api.h",
     "private_aggregation_data_model.cc",
     "private_aggregation_data_model.h",
@@ -460,6 +457,7 @@ source_set("browser_sources") {
     "stored_payment_app.h",
     "supported_delegations.cc",
     "supported_delegations.h",
+    "surface_embed_connector.h",
     "swap_metrics_driver.h",
     "synthetic_trial_syncer.h",
     "touch_selection_controller_client_manager.h",
@@ -558,6 +556,13 @@ source_set("browser_sources") {
     sources += [ "color_chooser.h" ]
   }
 
+  if (is_linux || is_mac) {
+    sources += [
+      "cdm_helper.cc",
+      "cdm_helper.h",
+    ]
+  }
+
   if (rtc_use_pipewire) {
     configs +=
         [ "//third_party/webrtc/modules/desktop_capture:pipewire_config" ]
@@ -571,7 +576,6 @@ source_set("browser_sources") {
     "//components/file_access",
     "//components/services/storage/privileged/mojom",
     "//components/services/storage/public/mojom",
-    "//components/surface_embed/buildflags",
     "//content/public/common:buildflags",
     "//content/public/common:common_sources",
     "//device/vr/buildflags",
@@ -650,10 +654,6 @@ source_set("browser_sources") {
       "plugin_service.h",
       "plugin_service_filter.h",
     ]
-  }
-
-  if (enable_surface_embed) {
-    sources += [ "surface_embed_connector.h" ]
   }
 
   if (is_posix || is_fuchsia) {

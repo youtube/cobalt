@@ -167,6 +167,7 @@ source_set("impl") {
     "//sandbox/policy",
     "//services/network/public/cpp:flags_and_switches",
     "//services/webnn:webnn_switches",
+    "//services/webnn/public/mojom:features",
     "//third_party/abseil-cpp:absl",
     "//third_party/blink/public:runtime_features_for_public",
     "//ui/base",
@@ -267,6 +268,10 @@ source_set("impl") {
         "//chrome/browser/ui/pdf/infobar",
         "//chrome/browser/ui/startup/default_browser_prompt/pin_infobar",
       ]
+    }
+
+    if (is_mac) {
+      deps += [ "//chrome/browser/mac" ]
     }
 
     if (is_win || is_mac || is_linux) {

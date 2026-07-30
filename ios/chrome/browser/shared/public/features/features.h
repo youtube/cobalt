@@ -851,6 +851,14 @@ BASE_DECLARE_FEATURE(kAIMCobrowseDebugEntrypoint);
 // Returns true if the AIMCobrowseDebugEntrypoint feature is enabled.
 bool IsAIMCobrowseDebugEntrypointEnabled();
 
+extern const char kAIMCobrowseHeaderParam[];
+extern const char kAIMCobrowseHeaderParamOptionA[];
+extern const char kAIMCobrowseHeaderParamOptionB[];
+extern const char kAIMCobrowseHeaderParamOptionC[];
+
+// Variation for the Cobrowse header.
+BASE_DECLARE_FEATURE(kAIMCobrowseHeader);
+
 // Enables recording the number of recent days with active sessions.
 BASE_DECLARE_FEATURE(kRecordRecentActiveDays);
 
@@ -917,10 +925,37 @@ BASE_DECLARE_FEATURE(kYourSavedInfoSettingsPageIos);
 // Returns true if the YourSavedInfoSettingsPageIos feature is enabled.
 bool IsYourSavedInfoSettingsPageIosEnabled();
 
+// Arms for the BackgroundRefreshRegressionTest experiment.
+enum class BackgroundRefreshRegressionTestArm {
+  kControl = 0,
+  kBaseline = 1,
+  kShortPersistenceDelay = 2,
+  kLongRefreshInterval = 3,
+  kNoBeacon = 4,
+};
+
+// Feature flag for the BackgroundRefreshRegressionTest experiment.
+BASE_DECLARE_FEATURE(kBackgroundRefreshRegressionTest);
+
+// Returns the current arm for the BackgroundRefreshRegressionTest experiment.
+BackgroundRefreshRegressionTestArm GetBackgroundRefreshRegressionTestArm();
+
 // Enables the OpenEditGroupViewByTappingTitle feature.
 BASE_DECLARE_FEATURE(kOpenEditGroupViewByTappingTitle);
 
 // Returns true if the OpenEditGroupViewByTappingTitle feature is enabled.
 bool IsOpenEditGroupViewByTappingTitleEnabled();
+
+// Enables the SyncedGroupColor feature.
+BASE_DECLARE_FEATURE(kSyncedGroupColor);
+
+// Returns true if the SyncedGroupColor feature is enabled.
+bool IsSyncedGroupColorEnabled();
+
+// Enables the plus button in NTP fakebox.
+BASE_DECLARE_FEATURE(kPlusButtonInFakebox);
+
+// Returns true if the plus button in NTP fakebox is enabled
+bool IsPlusButtonInFakeboxEnabled();
 
 #endif  // IOS_CHROME_BROWSER_SHARED_PUBLIC_FEATURES_FEATURES_H_

@@ -117,7 +117,7 @@ class OnDeviceModelClassifierController::Solution
 
     // Hardcoded substitution for the classifier model.
     auto* substitution = input_config->add_execute_substitutions();
-    substitution->set_string_template("%s");
+    substitution->set_string_template("%s <ctrl1>");
 
     auto* sub_arg = substitution->add_substitutions();
     auto* candidate = sub_arg->add_candidates();
@@ -262,8 +262,8 @@ OnDeviceModelClassifierController::GetSolution() {
     return base::unexpected(error);
   }
 
-  if (!usage_tracker_->WasOnDeviceEligibleFeatureRecentlyUsed(
-          mojom::OnDeviceFeature::kClassifier)) {
+  if (!usage_tracker_->WasUseCaseRecentlyUsed(
+          ToUseCaseName(mojom::OnDeviceFeature::kClassifier))) {
     return base::unexpected(
         OnDeviceModelEligibilityReason::kNoOnDeviceFeatureUsed);
   }

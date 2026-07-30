@@ -222,10 +222,6 @@
 #include "components/rlz/rlz_tracker.h"  // nogncheck
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS)
-#include "chrome/browser/chromeos/printing/print_preview/print_view_manager_common.h"
-#endif
-
 #if !BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/apps/link_capturing/enable_link_capturing_infobar_delegate.h"
 #endif
@@ -367,8 +363,8 @@ content::WebContents* DuplicateTabAt(BrowserWindowInterface* browser,
     CreateAndShowNewWindowWithContents(std::move(contents_dupe), browser);
   }
 
-  SessionServiceBase* session_service = GetAppropriateSessionServiceIfExisting(
-      browser->GetBrowserForMigrationOnly());
+  SessionServiceBase* session_service =
+      GetAppropriateSessionServiceIfExisting(browser);
   if (session_service) {
     session_service->TabRestored(raw_contents_dupe, pinned);
   }
@@ -1507,7 +1503,7 @@ void AddNewTabToGroup(BrowserWindowInterface* browser) {
     return;
   }
 
-  AddTabAt(browser->GetBrowserForMigrationOnly(), GURL(), -1, true, group_id);
+  AddTabAt(browser, GURL(), -1, true, group_id);
 }
 
 void CreateNewTabGroup(BrowserWindowInterface* browser) {
@@ -1640,7 +1636,7 @@ void AddNewTabToRecentGroup(BrowserWindowInterface* browser) {
     return;
   }
 
-  AddTabAt(browser->GetBrowserForMigrationOnly(), GURL(), -1, true, group_id);
+  AddTabAt(browser, GURL(), -1, true, group_id);
 }
 
 void UnfocusTabGroup(BrowserWindowInterface* browser) {
@@ -2114,20 +2110,6 @@ void Print(BrowserWindowInterface* browser) {
   auto* const web_contents =
       browser->GetTabStripModel()->GetActiveWebContents();
 
-  // Launch ChromeOS print preview only if in a ChromeOS build and
-  // `kPrintPreviewCrosPrimary` enabled. Otherwise use browser print preview.
-#if BUILDFLAG(IS_CHROMEOS)
-  if (base::FeatureList::IsEnabled(::features::kPrintPreviewCrosPrimary)) {
-    chromeos::printing::StartPrint(
-        web_contents,
-        /*print_renderer=*/mojo::NullAssociatedRemote(),
-        browser->GetProfile()->GetPrefs()->GetBoolean(
-            prefs::kPrintPreviewDisabled),
-        /*has_selection=*/false);
-    return;
-  }
-#endif
-
   printing::StartPrint(web_contents,
 #if BUILDFLAG(IS_CHROMEOS)
                        /*print_renderer=*/mojo::NullAssociatedRemote(),
@@ -2553,7 +2535,7 @@ BrowserWindowInterface* OpenInChrome(
   }
 
   web_app::ReparentWebContentsIntoBrowserImpl(
-      hosted_app_browser->GetBrowserForMigrationOnly(),
+      hosted_app_browser,
       hosted_app_browser->GetTabStripModel()->GetActiveWebContents(),
       target_browser);
   return target_browser;

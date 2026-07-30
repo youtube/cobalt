@@ -5,7 +5,9 @@
 #ifndef COMPONENTS_GUEST_VIEW_BROWSER_SLIM_WEB_VIEW_SLIM_WEB_VIEW_GUEST_H_
 #define COMPONENTS_GUEST_VIEW_BROWSER_SLIM_WEB_VIEW_SLIM_WEB_VIEW_GUEST_H_
 
+#include <memory>
 #include <optional>
+#include <vector>
 
 #include "base/memory/weak_ptr.h"
 #include "components/guest_view/browser/guest_view.h"
@@ -13,6 +15,7 @@
 #include "components/guest_view/browser/slim_web_view/request_utils.h"
 #include "components/guest_view/browser/slim_web_view/slim_web_view_permission_helper.h"
 #include "net/base/net_errors.h"
+#include "url/origin.h"
 
 class GURL;
 
@@ -48,6 +51,13 @@ class SlimWebViewGuest : public GuestView<SlimWebViewGuest> {
   }
 
   void Navigate(const GURL& url);
+
+  // Returns true if an origin allowlist was provided at creation time.
+  bool HasAllowedOrigins() const;
+
+  // Returns true if |url|'s origin matches the allowlist, or if no allowlist
+  // was configured.
+  bool IsUrlAllowed(const GURL& url) const;
 
  private:
   explicit SlimWebViewGuest(content::RenderFrameHost* owner_render_frame_host);
@@ -112,6 +122,8 @@ class SlimWebViewGuest : public GuestView<SlimWebViewGuest> {
   std::optional<BeforeSendHeadersParams> before_send_headers_params_;
 
   SlimWebViewPermissionHelper permission_helper_{this};
+
+  std::vector<url::Origin> allowed_origins_;
 
   base::WeakPtrFactory<SlimWebViewGuest> weak_ptr_factory_{this};
 };

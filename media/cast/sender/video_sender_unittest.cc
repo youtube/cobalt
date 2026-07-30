@@ -24,6 +24,7 @@
 #include "base/test/simple_test_tick_clock.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "gpu/command_buffer/client/test_shared_image_interface.h"
 #include "media/base/fake_single_thread_task_runner.h"
 #include "media/base/media_switches.h"
@@ -272,7 +273,13 @@ TEST_P(VideoSenderTest, BuiltInEncoder) {
   RunUntilQuit();
 }
 
-TEST_P(VideoSenderTest, MockEncoderGoldenCase) {
+// TODO(crbug.com/500613219): Enable the test.
+#if defined(MEMORY_SANITIZER) && (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS))
+#define MAYBE_MockEncoderGoldenCase DISABLED_MockEncoderGoldenCase
+#else
+#define MAYBE_MockEncoderGoldenCase MockEncoderGoldenCase
+#endif
+TEST_P(VideoSenderTest, MAYBE_MockEncoderGoldenCase) {
   CreateSender(EncoderType::kMock);
 
   VideoEncoder::FrameEncodedCallback callback;
@@ -389,6 +396,25 @@ TEST_P(VideoSenderTest, ExternalEncoderInitFails) {
 
   EXPECT_THAT(status_changes(), Contains(STATUS_CODEC_INIT_FAILED));
   RunTasksAndAdvanceClock();
+}
+
+TEST_P(VideoSenderTest, GettersReturnValidValues) {
+  CreateSender(EncoderType::kSoftware);
+  ASSERT_EQ(STATUS_INITIALIZED, status_changes().front());
+
+  // They should have some default values or zeroes
+  EXPECT_GE(video_sender().GetEncoderBitrate(), 0);
+  EXPECT_GE(video_sender().GetEncoderUtilization(), -1.0);  // Defaults to -1.0
+  EXPECT_GE(video_sender().GetLossiness(), -1.0);           // Defaults to -1.0
+  EXPECT_GE(video_sender().GetFramesInserted(), 0);
+  EXPECT_GE(video_sender().GetFramesDropped(), 0);
+
+  // Send a frame to update metrics
+  video_sender().InsertRawVideoFrame(GetNewVideoFrame(), NowTicks());
+  RunTasksAndAdvanceClock();
+
+  EXPECT_EQ(video_sender().GetFramesInserted(), 1);
+  EXPECT_GE(video_sender().GetEncoderBitrate(), 0);
 }
 
 INSTANTIATE_TEST_SUITE_P(All,

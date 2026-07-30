@@ -1701,6 +1701,7 @@ TEST_F(ReadAnythingAppModelTest, PdfEvents_SetRequiresDistillation) {
   update.nodes = {std::move(node)};
   ApplyAccessibilityUpdates(tree_id_, {std::move(update)});
   ASSERT_FALSE(model().requires_distillation());
+  ASSERT_FALSE(model().reset_distillation_delay_timer());
 
   // Tree update with PDF contents (new nodes added).
   ui::AXTreeUpdate update2;
@@ -1721,6 +1722,7 @@ TEST_F(ReadAnythingAppModelTest, PdfEvents_SetRequiresDistillation) {
 
   ApplyAccessibilityUpdates(tree_id_, {std::move(update2)});
   ASSERT_TRUE(model().requires_distillation());
+  ASSERT_TRUE(model().reset_distillation_delay_timer());
 }
 
 TEST_F(ReadAnythingAppModelTest, PdfEvents_DontSetRequiresDistillation) {
@@ -1744,6 +1746,7 @@ TEST_F(ReadAnythingAppModelTest, PdfEvents_DontSetRequiresDistillation) {
   update.nodes = {std::move(static_text_node)};
   ApplyAccessibilityUpdates(tree_id_, {std::move(update)});
   ASSERT_FALSE(model().requires_distillation());
+  ASSERT_FALSE(model().reset_distillation_delay_timer());
 }
 
 TEST_F(ReadAnythingAppModelTest, Expand_NodeDoesNotExist_Redistills) {
@@ -2026,9 +2029,7 @@ class ReadAnythingAppModelReadabilityTest : public ReadAnythingAppModelTest {
  public:
   ReadAnythingAppModelReadabilityTest() {
     scoped_feature_list_.InitWithFeatures(
-        {features::kReadAnythingWithReadability,
-         features::kReadAnythingWithReadabilityAllowLinks},
-        {});
+        {features::kReadAnythingWithReadability}, {});
   }
   ~ReadAnythingAppModelReadabilityTest() override = default;
 

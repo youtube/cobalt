@@ -82,6 +82,9 @@ BASE_DECLARE_FEATURE(kBoundSessionCredentialsKillSwitch);
 // the capability service with device signals.
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kBuildExternalPrivacyContext);
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+extern const base::FeatureParam<std::string>
+    kBuildExternalPrivacyContextAgeMismatchLearnMoreUrl;
 #endif
 
 #if BUILDFLAG(IS_IOS)
@@ -432,6 +435,12 @@ BASE_DECLARE_FEATURE(kIdentityInAuthErrorFollowUps);
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kIgnoreInvalidGrantError);
 #endif
+
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+// Controls experiments for MagiChrome (e.g. Gaia sign-in URL parameters).
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kMagiChromeSignInExperimentsBatch1);
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 #if BUILDFLAG(IS_ANDROID)
 // Allow to switch the source of truth for accounts from AccountManagerFacade to

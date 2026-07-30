@@ -1185,7 +1185,6 @@ class CORE_EXPORT Document : public ContainerNode,
   // Updates for :target (CSS3 selector).
   void SetCSSTarget(Element*);
   Element* CssTarget() const { return css_target_.Get(); }
-  void SetSelectorFragmentAnchorCSSTarget(Element*);
 
   void ScheduleLayoutTreeUpdateIfNeeded();
   bool HasPendingForcedStyleRecalc() const;
@@ -1620,7 +1619,7 @@ class CORE_EXPORT Document : public ContainerNode,
   void EnqueueOverscrollEvent(const AtomicString& type,
                               Node* target,
                               Element* overscroll_target,
-                              bool overscrolling = false);
+                              bool overscrolling);
 
   void DispatchMediaQueryListEvents();
 
@@ -1986,6 +1985,10 @@ class CORE_EXPORT Document : public ContainerNode,
   // associated Web App Manifest, it will return false.
   bool IsInWebAppScope() const;
 
+  // Returns whether this document is associated with the browser's initial
+  // ("Default") profile.
+  bool IsInitialProfile() const;
+
   void DispatchHandleLoadStart();
   void DispatchHandleLoadComplete();
 
@@ -2014,7 +2017,6 @@ class CORE_EXPORT Document : public ContainerNode,
 
   // A META element with name=responsive-embedded-sizing was added, removed, or
   // modified. Re-collect the META values.
-  void ResponsiveEmbeddedSizingChanged();
   void SetResponsiveEmbeddedSizing() { responsive_embedded_sizing_ = true; }
 
   // A META element with name=text-scale was added, removed, or
@@ -2852,7 +2854,6 @@ class CORE_EXPORT Document : public ContainerNode,
   bool should_update_selection_after_layout_ = false;
 
   WeakMember<Element> css_target_;
-  bool css_target_is_selector_fragment_ = false;
 
   bool was_discarded_ = false;
 

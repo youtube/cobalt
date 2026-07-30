@@ -93,8 +93,11 @@ int64_t g_unique_identifier = 0;
 FrameTreeNode* GetFrameTreeNodeForPendingEntry(
     NavigationControllerImpl& controller) {
   NavigationEntryImpl* pending_entry = controller.GetPendingEntry();
-  FrameTreeNodeId frame_tree_node_id = pending_entry->frame_tree_node_id();
   FrameTree& frame_tree = controller.frame_tree();
+  if (!pending_entry) {
+    return frame_tree.root();
+  }
+  FrameTreeNodeId frame_tree_node_id = pending_entry->frame_tree_node_id();
   if (frame_tree_node_id.is_null()) {
     return frame_tree.root();
   }
@@ -1201,6 +1204,10 @@ void NavigationSimulatorImpl::BrowserInitiatedStartAndWaitBeforeUnload() {
   // Update it.
   NavigationEntryImpl* pending_entry =
       static_cast<NavigationEntryImpl*>(controller.GetPendingEntry());
+  if (!pending_entry) {
+    state_ = FAILED;
+    return;
+  }
   FrameNavigationEntry* pending_frame_entry =
       pending_entry->GetFrameEntry(frame_tree_node_);
   navigation_url_ = pending_frame_entry->url();
@@ -1333,7 +1340,9 @@ bool NavigationSimulatorImpl::SimulateBrowserInitiatedStart() {
       // navigation to a renderer-debug URL. Instead, the URL is passed to the
       // current RenderFrameHost so that the renderer process can handle it.
       CHECK(!request_);
-      CHECK(web_contents_->GetPrimaryMainFrame()->is_loading());
+      if (state_ != FAILED) {
+        CHECK(web_contents_->GetPrimaryMainFrame()->is_loading());
+      }
 
       // A navigation to a renderer-debug URL cannot commit. Simulate the
       // renderer process aborting it.
@@ -1393,8 +1402,7 @@ bool NavigationSimulatorImpl::SimulateRendererInitiatedStart() {
           base::TimeTicks() /* before_unload_dialog_opened */,
           base::TimeTicks() /* before_unload_dialog_closed */,
           has_user_gesture_, false /* started_by_ad */,
-          false /* is_container_initiated */,
-          net::StorageAccessApiStatus::kNone, false /* has_rel_opener */);
+          false /* is_container_initiated */, false /* has_rel_opener */);
   auto common_params = blink::CreateCommonNavigationParams();
   common_params->navigation_start =
       navigation_start_.is_null() ? base::TimeTicks::Now() : navigation_start_;
@@ -1422,7 +1430,7 @@ bool NavigationSimulatorImpl::SimulateRendererInitiatedStart() {
   render_frame_host_->frame_host_receiver_for_testing().impl()->BeginNavigation(
       std::move(common_params), std::move(begin_params), mojo::NullRemote(),
       std::move(navigation_client_remote), mojo::NullRemote(),
-      mojo::NullReceiver(), mojo::NullReceiver());
+      mojo::NullReceiver(), mojo::NullReceiver(), mojo::NullReceiver());
 
   NavigationRequest* request =
       render_frame_host_->frame_tree_node()->navigation_request();

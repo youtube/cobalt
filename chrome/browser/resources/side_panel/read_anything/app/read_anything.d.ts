@@ -124,10 +124,6 @@ declare namespace chrome {
     // Whether the line focus feature flag is enabled.
     let isLineFocusEnabled: boolean;
 
-    // Whether the links can be enabled when the Readability feature flag is
-    // enabled.
-    let isReadabilityWithLinksEnabled: boolean;
-
     // Indicates if this page is a Google doc.
     let isGoogleDocs: boolean;
 
@@ -378,6 +374,9 @@ declare namespace chrome {
 
     // Called by the Read Anything app to close the Read Anything UI.
     function close(): void;
+
+    // Called when the speech engine stalls for 10 seconds.
+    function onSpeechEngineFirstStall(): void;
 
     // Called when the speech engine stalls.
     function onSpeechEngineStalled(): void;

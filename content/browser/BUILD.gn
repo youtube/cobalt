@@ -9,7 +9,6 @@ import("//build/config/features.gni")
 import("//build/config/linux/pangocairo/pangocairo.gni")
 import("//build/config/ozone.gni")
 import("//build/config/ui.gni")
-import("//components/surface_embed/buildflags/buildflags.gni")
 import("//components/viz/common/debugger/viz_debugger.gni")
 import("//content/browser/devtools/features.gni")
 import("//content/common/features.gni")
@@ -45,8 +44,8 @@ if (is_android) {
     ]
     deps = [
       "//third_party/rust/font_types/v0_11:lib",
-      "//third_party/rust/read_fonts/v0_38:lib",
-      "//third_party/rust/skrifa/v0_41:lib",
+      "//third_party/rust/read_fonts/v0_39:lib",
+      "//third_party/rust/skrifa/v0_42:lib",
     ]
   }
 }
@@ -161,7 +160,6 @@ source_set("browser") {
     "//components/services/storage/public/cpp",
     "//components/services/storage/public/mojom",
     "//components/sqlite_proto",
-    "//components/surface_embed/buildflags",
     "//components/system_media_controls",
     "//components/tracing:tracing_config",
     "//components/ukm",
@@ -479,6 +477,8 @@ source_set("browser") {
     "aggregation_service/public_key_parsing_utils.h",
     "aggregation_service/report_scheduler_timer.cc",
     "aggregation_service/report_scheduler_timer.h",
+    "ai/echo_ai_classifier.cc",
+    "ai/echo_ai_classifier.h",
     "ai/echo_ai_language_model.cc",
     "ai/echo_ai_language_model.h",
     "ai/echo_ai_manager_impl.cc",
@@ -2336,6 +2336,10 @@ source_set("browser") {
     "storage_partition_impl.h",
     "storage_partition_impl_map.cc",
     "storage_partition_impl_map.h",
+    "surface_embed/dummy_surface_provider.cc",
+    "surface_embed/dummy_surface_provider.h",
+    "surface_embed/surface_embed_connector_impl.cc",
+    "surface_embed/surface_embed_connector_impl.h",
     "synthetic_trial_syncer.cc",
     "theme_helper.cc",
     "theme_helper.h",
@@ -2581,6 +2585,13 @@ source_set("browser") {
       "memory_pressure/user_level_memory_pressure_signal_generator.h",
       "renderer_host/input/touch_selection_controller_input_observer.cc",
       "renderer_host/input/touch_selection_controller_input_observer.h",
+    ]
+  }
+
+  if (is_linux || is_mac) {
+    sources += [
+      "media/cdm_helper_impl.cc",
+      "media/cdm_helper_impl.h",
     ]
   }
 
@@ -3764,15 +3775,6 @@ source_set("browser") {
   # TODO(crbug.com/371609830): Remove dep on experiment end.
   if (is_chromeos) {
     deps += [ "//ash/constants" ]
-  }
-
-  if (enable_surface_embed) {
-    sources += [
-      "surface_embed/dummy_surface_provider.cc",
-      "surface_embed/dummy_surface_provider.h",
-      "surface_embed/surface_embed_connector_impl.cc",
-      "surface_embed/surface_embed_connector_impl.h",
-    ]
   }
 }
 

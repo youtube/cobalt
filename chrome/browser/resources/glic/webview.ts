@@ -4,9 +4,6 @@
 
 import {EventTracker} from '//resources/js/event_tracker.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
-import {GlicRequestHeaderInjector} from '/shared/glic_request_headers.js';
-import {isFullWebView} from '/shared/web_view_type.js';
-import type {WebViewType} from '/shared/web_view_type.js';
 import type {ChromeEvent} from '/tools/typescript/definitions/chrome_event.js';
 // <if expr="not is_android">
 import {getInstance as getAnnouncerInstance} from 'chrome://resources/cr_elements/cr_a11y_announcer/cr_a11y_announcer.js';
@@ -20,6 +17,9 @@ import {DetailedWebClientState, GlicApiCommunicator, GlicApiHost, WebClientState
 import type {ApiHostEmbedder} from './glic_api_impl/host/glic_api_host.js';
 import {ObservableValue} from './observable.js';
 import type {ObservableValueReadOnly} from './observable.js';
+import {GlicRequestHeaderInjector} from './shared/glic_request_headers.js';
+import {isFullWebView} from './shared/web_view_type.js';
+import type {WebViewType} from './shared/web_view_type.js';
 import {OneShotTimer} from './timer.js';
 
 // LINT.IfChange(WebviewExitReason)
@@ -209,6 +209,10 @@ export class WebviewController {
     return this.webClientState;
   }
 
+  focus(): void {
+    this.webview.focus();
+  }
+
   destroy() {
     if (this.glicRequestHeaderInjector !== undefined) {
       this.glicRequestHeaderInjector.destroy();
@@ -250,14 +254,12 @@ export class WebviewController {
   zoom(zoomAction: ZoomAction) {
     // `WebViewType` is a union of `chrome.webviewTag.WebView` and
     // `SlimWebviewElement`. Only full webviews support zoom.
+    // TODO(crbug.com/500052160): Support zoom for slim webviews.
     if (!isFullWebView(this.webview)) {
       return;
     }
 
-    // Cast to any because the WebView type definition seems to be missing
-    // `getZoom` and `setZoom`. We've already checked that this.webview is a
-    // full WebView so this should be safe.
-    const webview = this.webview as any;
+    const webview = this.webview;
 
     if (zoomAction === ZoomAction.kReset) {
       webview.setZoom(1.0);
@@ -318,7 +320,13 @@ export class WebviewController {
   }
 
   private onLoadStop(): void {
-    this.webview.focus();
+    // Focus the webview only if it is visible. When it is not visible, the
+    // focus will fail to focus the client page (document.hasFocus() is false).
+    // GlicAppController.showPanel() will make a separate call to focus the
+    // webview when the panel is shown.
+    if (this.webview.checkVisibility()) {
+      this.webview.focus();
+    }
   }
 
   private onNewWindow(e: chrome.webviewTag.NewWindowEvent): void {

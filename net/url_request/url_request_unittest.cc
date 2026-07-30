@@ -1940,9 +1940,9 @@ TEST_F(URLRequestTest, DelayedCookieCallbackAsync) {
       url, "AlreadySetCookie=1;Secure", base::Time::Now(),
       CookieSourceType::kOther);
   auto delayed_cm = std::make_unique<DelayedCookieMonster>();
-  delayed_cm->SetCanonicalCookieAsync(std::move(cookie1), url,
-                                      net::CookieOptions::MakeAllInclusive(),
-                                      CookieStore::SetCookiesCallback());
+  delayed_cm->SetCanonicalCookieAsync(
+      std::move(cookie1), url, net::CookieOptions::MakeAllInclusive(),
+      CookieStore::SetCookiesCallback(), /*cookie_access_result=*/std::nullopt);
 
   auto cookie2 = CanonicalCookie::CreateForTesting(
       url, "AlreadySetCookie=1;Secure", base::Time::Now(),
@@ -1950,7 +1950,8 @@ TEST_F(URLRequestTest, DelayedCookieCallbackAsync) {
   auto cm = std::make_unique<CookieMonster>(nullptr, nullptr);
   cm->SetCanonicalCookieAsync(std::move(cookie2), url,
                               net::CookieOptions::MakeAllInclusive(),
-                              CookieStore::SetCookiesCallback());
+                              CookieStore::SetCookiesCallback(),
+                              /*cookie_access_result=*/std::nullopt);
 
   auto async_context_builder = CreateTestURLRequestContextBuilder();
   async_context_builder->SetCookieStore(std::move(delayed_cm));
@@ -3465,7 +3466,8 @@ TEST_F(URLRequestTest, PartitionedCookiesRedirect) {
     base::test::TestFuture<CookieAccessResult> future;
     cm.SetCanonicalCookieAsync(
         std::move(same_site_partitioned_cookie), create_cookie_url,
-        CookieOptions::MakeAllInclusive(), future.GetCallback());
+        CookieOptions::MakeAllInclusive(), future.GetCallback(),
+        /*cookie_access_result=*/std::nullopt);
     ASSERT_TRUE(future.Get().status.IsInclude());
   }
 
@@ -3483,7 +3485,8 @@ TEST_F(URLRequestTest, PartitionedCookiesRedirect) {
     base::test::TestFuture<CookieAccessResult> future;
     cm.SetCanonicalCookieAsync(
         std::move(cross_site_partitioned_cookie), create_cookie_url,
-        CookieOptions::MakeAllInclusive(), future.GetCallback());
+        CookieOptions::MakeAllInclusive(), future.GetCallback(),
+        /*cookie_access_result=*/std::nullopt);
     ASSERT_TRUE(future.Get().status.IsInclude());
   }
 
@@ -7879,7 +7882,8 @@ TEST_F(URLRequestTest, NoCookieInclusionStatusWarningIfWouldBeExcludedAnyway) {
         base::BindLambdaForTesting([&](CookieAccessResult result) {
           access_result = result;
           run_loop.Quit();
-        }));
+        }),
+        /*cookie_access_result=*/std::nullopt);
     run_loop.Run();
     EXPECT_TRUE(access_result.status.IsInclude());
 
@@ -7924,7 +7928,8 @@ TEST_F(URLRequestTest, NoCookieInclusionStatusWarningIfWouldBeExcludedAnyway) {
         base::BindLambdaForTesting([&](CookieAccessResult result) {
           access_result = result;
           run_loop.Quit();
-        }));
+        }),
+        /*cookie_access_result=*/std::nullopt);
     run_loop.Run();
     EXPECT_TRUE(access_result.status.IsInclude());
 
@@ -8067,7 +8072,8 @@ TEST_F(URLRequestTestHTTP, AuthChallengeWithFilteredCookies) {
     cm->SetCanonicalCookieAsync(std::move(another_cookie),
                                 url_requiring_auth_wo_cookies,
                                 net::CookieOptions::MakeAllInclusive(),
-                                CookieStore::SetCookiesCallback());
+                                CookieStore::SetCookiesCallback(),
+                                /*cookie_access_result=*/std::nullopt);
 
     TestDelegate delegate;
 
@@ -8096,7 +8102,8 @@ TEST_F(URLRequestTestHTTP, AuthChallengeWithFilteredCookies) {
     cm->SetCanonicalCookieAsync(std::move(one_more_cookie),
                                 url_requiring_auth_wo_cookies,
                                 net::CookieOptions::MakeAllInclusive(),
-                                CookieStore::SetCookiesCallback());
+                                CookieStore::SetCookiesCallback(),
+                                /*cookie_access_result=*/std::nullopt);
 
     request->SetAuth(AuthCredentials(kUser, kSecret));
     delegate.RunUntilComplete();
@@ -8485,7 +8492,8 @@ TEST_F(URLRequestTestHTTP, RedirectWithFilteredCookies) {
         CookieSourceType::kOther);
     cm->SetCanonicalCookieAsync(std::move(another_cookie), original_url,
                                 net::CookieOptions::MakeAllInclusive(),
-                                CookieStore::SetCookiesCallback());
+                                CookieStore::SetCookiesCallback(),
+                                /*cookie_access_result=*/std::nullopt);
 
     TestDelegate delegate;
     std::unique_ptr<URLRequest> request =
@@ -8512,7 +8520,8 @@ TEST_F(URLRequestTestHTTP, RedirectWithFilteredCookies) {
     cm->SetCanonicalCookieAsync(std::move(one_more_cookie),
                                 original_url_wo_cookie,
                                 net::CookieOptions::MakeAllInclusive(),
-                                CookieStore::SetCookiesCallback());
+                                CookieStore::SetCookiesCallback(),
+                                /*cookie_access_result=*/std::nullopt);
 
     request->FollowDeferredRedirect(std::nullopt, std::nullopt);
     delegate.RunUntilComplete();
@@ -10899,264 +10908,6 @@ TEST_F(HTTPSOCSPTest, OldStapledButValidAIA) {
   EXPECT_EQ(0u, cert_status & CERT_STATUS_ALL_ERRORS);
   EXPECT_TRUE(cert_status & CERT_STATUS_REV_CHECKING_ENABLED);
 }
-
-static const struct OCSPVerifyTestData {
-  EmbeddedTestServer::OCSPConfig ocsp_config;
-  bssl::OCSPVerifyResult::ResponseStatus expected_response_status;
-  // |expected_cert_status| is only used if |expected_response_status| is
-  // PROVIDED.
-  bssl::OCSPRevocationStatus expected_cert_status;
-} kOCSPVerifyData[] = {
-    // 0
-    {EmbeddedTestServer::OCSPConfig(
-         {{bssl::OCSPRevocationStatus::GOOD,
-           EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kValid}},
-         EmbeddedTestServer::OCSPConfig::Produced::kValid),
-     bssl::OCSPVerifyResult::PROVIDED, bssl::OCSPRevocationStatus::GOOD},
-
-    // 1
-    {EmbeddedTestServer::OCSPConfig(
-         {{bssl::OCSPRevocationStatus::GOOD,
-           EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kOld}},
-         EmbeddedTestServer::OCSPConfig::Produced::kValid),
-     bssl::OCSPVerifyResult::INVALID_DATE, bssl::OCSPRevocationStatus::UNKNOWN},
-
-    // 2
-    {EmbeddedTestServer::OCSPConfig(
-         {{bssl::OCSPRevocationStatus::GOOD,
-           EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kEarly}},
-         EmbeddedTestServer::OCSPConfig::Produced::kValid),
-     bssl::OCSPVerifyResult::INVALID_DATE, bssl::OCSPRevocationStatus::UNKNOWN},
-
-    // 3
-    {EmbeddedTestServer::OCSPConfig(
-         {{bssl::OCSPRevocationStatus::GOOD,
-           EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kLong}},
-         EmbeddedTestServer::OCSPConfig::Produced::kValid),
-     bssl::OCSPVerifyResult::INVALID_DATE, bssl::OCSPRevocationStatus::UNKNOWN},
-
-    // 4
-    {EmbeddedTestServer::OCSPConfig(
-         EmbeddedTestServer::OCSPConfig::ResponseType::kTryLater),
-     bssl::OCSPVerifyResult::ERROR_RESPONSE,
-     bssl::OCSPRevocationStatus::UNKNOWN},
-
-    // 5
-    {EmbeddedTestServer::OCSPConfig(
-         EmbeddedTestServer::OCSPConfig::ResponseType::kInvalidResponse),
-     bssl::OCSPVerifyResult::PARSE_RESPONSE_ERROR,
-     bssl::OCSPRevocationStatus::UNKNOWN},
-
-    // 6
-    {EmbeddedTestServer::OCSPConfig(
-         EmbeddedTestServer::OCSPConfig::ResponseType::kInvalidResponseData),
-     bssl::OCSPVerifyResult::PARSE_RESPONSE_DATA_ERROR,
-     bssl::OCSPRevocationStatus::UNKNOWN},
-
-    // 7
-    {EmbeddedTestServer::OCSPConfig(
-         {{bssl::OCSPRevocationStatus::REVOKED,
-           EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kEarly}},
-         EmbeddedTestServer::OCSPConfig::Produced::kValid),
-     bssl::OCSPVerifyResult::INVALID_DATE, bssl::OCSPRevocationStatus::UNKNOWN},
-
-    // 8
-    {EmbeddedTestServer::OCSPConfig(
-         {{bssl::OCSPRevocationStatus::UNKNOWN,
-           EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kValid}},
-         EmbeddedTestServer::OCSPConfig::Produced::kValid),
-     bssl::OCSPVerifyResult::PROVIDED, bssl::OCSPRevocationStatus::UNKNOWN},
-
-    // 9
-    {EmbeddedTestServer::OCSPConfig(
-         {{bssl::OCSPRevocationStatus::UNKNOWN,
-           EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kOld}},
-         EmbeddedTestServer::OCSPConfig::Produced::kValid),
-     bssl::OCSPVerifyResult::INVALID_DATE, bssl::OCSPRevocationStatus::UNKNOWN},
-
-    // 10
-    {EmbeddedTestServer::OCSPConfig(
-         {{bssl::OCSPRevocationStatus::UNKNOWN,
-           EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kEarly}},
-         EmbeddedTestServer::OCSPConfig::Produced::kValid),
-     bssl::OCSPVerifyResult::INVALID_DATE, bssl::OCSPRevocationStatus::UNKNOWN},
-
-    // 11
-    {EmbeddedTestServer::OCSPConfig(
-         {{bssl::OCSPRevocationStatus::GOOD,
-           EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kValid}},
-         EmbeddedTestServer::OCSPConfig::Produced::kBeforeCert),
-     bssl::OCSPVerifyResult::BAD_PRODUCED_AT,
-     bssl::OCSPRevocationStatus::UNKNOWN},
-
-    // 12
-    {EmbeddedTestServer::OCSPConfig(
-         {{bssl::OCSPRevocationStatus::GOOD,
-           EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kValid}},
-         EmbeddedTestServer::OCSPConfig::Produced::kAfterCert),
-     bssl::OCSPVerifyResult::BAD_PRODUCED_AT,
-     bssl::OCSPRevocationStatus::UNKNOWN},
-
-    // 13
-    {EmbeddedTestServer::OCSPConfig(
-         {{bssl::OCSPRevocationStatus::GOOD,
-           EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kOld},
-          {bssl::OCSPRevocationStatus::GOOD,
-           EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kValid}},
-         EmbeddedTestServer::OCSPConfig::Produced::kValid),
-     bssl::OCSPVerifyResult::PROVIDED, bssl::OCSPRevocationStatus::GOOD},
-
-    // 14
-    {EmbeddedTestServer::OCSPConfig(
-         {{bssl::OCSPRevocationStatus::GOOD,
-           EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kEarly},
-          {bssl::OCSPRevocationStatus::GOOD,
-           EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kValid}},
-         EmbeddedTestServer::OCSPConfig::Produced::kValid),
-     bssl::OCSPVerifyResult::PROVIDED, bssl::OCSPRevocationStatus::GOOD},
-
-    // 15
-    {EmbeddedTestServer::OCSPConfig(
-         {{bssl::OCSPRevocationStatus::GOOD,
-           EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kLong},
-          {bssl::OCSPRevocationStatus::GOOD,
-           EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kValid}},
-         EmbeddedTestServer::OCSPConfig::Produced::kValid),
-     bssl::OCSPVerifyResult::PROVIDED, bssl::OCSPRevocationStatus::GOOD},
-
-    // 16
-    {EmbeddedTestServer::OCSPConfig(
-         {{bssl::OCSPRevocationStatus::GOOD,
-           EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kEarly},
-          {bssl::OCSPRevocationStatus::GOOD,
-           EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kOld},
-          {bssl::OCSPRevocationStatus::GOOD,
-           EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kLong}},
-         EmbeddedTestServer::OCSPConfig::Produced::kValid),
-     bssl::OCSPVerifyResult::INVALID_DATE, bssl::OCSPRevocationStatus::UNKNOWN},
-
-    // 17
-    {EmbeddedTestServer::OCSPConfig(
-         {{bssl::OCSPRevocationStatus::UNKNOWN,
-           EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kValid},
-          {bssl::OCSPRevocationStatus::REVOKED,
-           EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kValid},
-          {bssl::OCSPRevocationStatus::GOOD,
-           EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kValid}},
-         EmbeddedTestServer::OCSPConfig::Produced::kValid),
-     bssl::OCSPVerifyResult::PROVIDED, bssl::OCSPRevocationStatus::REVOKED},
-
-    // 18
-    {EmbeddedTestServer::OCSPConfig(
-         {{bssl::OCSPRevocationStatus::UNKNOWN,
-           EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kValid},
-          {bssl::OCSPRevocationStatus::GOOD,
-           EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kValid}},
-         EmbeddedTestServer::OCSPConfig::Produced::kValid),
-     bssl::OCSPVerifyResult::PROVIDED, bssl::OCSPRevocationStatus::UNKNOWN},
-
-    // 19
-    {EmbeddedTestServer::OCSPConfig(
-         {{bssl::OCSPRevocationStatus::UNKNOWN,
-           EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kValid},
-          {bssl::OCSPRevocationStatus::REVOKED,
-           EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kLong},
-          {bssl::OCSPRevocationStatus::GOOD,
-           EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kValid}},
-         EmbeddedTestServer::OCSPConfig::Produced::kValid),
-     bssl::OCSPVerifyResult::PROVIDED, bssl::OCSPRevocationStatus::UNKNOWN},
-
-    // 20
-    {EmbeddedTestServer::OCSPConfig(
-         {{bssl::OCSPRevocationStatus::GOOD,
-           EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kValid,
-           EmbeddedTestServer::OCSPConfig::SingleResponse::Serial::kMismatch}},
-         EmbeddedTestServer::OCSPConfig::Produced::kValid),
-     bssl::OCSPVerifyResult::NO_MATCHING_RESPONSE,
-     bssl::OCSPRevocationStatus::UNKNOWN},
-
-    // 21
-    {EmbeddedTestServer::OCSPConfig(
-         {{bssl::OCSPRevocationStatus::GOOD,
-           EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kEarly,
-           EmbeddedTestServer::OCSPConfig::SingleResponse::Serial::kMismatch}},
-         EmbeddedTestServer::OCSPConfig::Produced::kValid),
-     bssl::OCSPVerifyResult::NO_MATCHING_RESPONSE,
-     bssl::OCSPRevocationStatus::UNKNOWN},
-
-    // 22
-    {EmbeddedTestServer::OCSPConfig(
-         {{bssl::OCSPRevocationStatus::REVOKED,
-           EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kValid}},
-         EmbeddedTestServer::OCSPConfig::Produced::kValid),
-     bssl::OCSPVerifyResult::PROVIDED, bssl::OCSPRevocationStatus::REVOKED},
-
-    // 23
-    {EmbeddedTestServer::OCSPConfig(
-         {{bssl::OCSPRevocationStatus::REVOKED,
-           EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kOld}},
-         EmbeddedTestServer::OCSPConfig::Produced::kValid),
-     bssl::OCSPVerifyResult::INVALID_DATE, bssl::OCSPRevocationStatus::UNKNOWN},
-
-    // 24
-    {EmbeddedTestServer::OCSPConfig(
-         {{bssl::OCSPRevocationStatus::REVOKED,
-           EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kLong}},
-         EmbeddedTestServer::OCSPConfig::Produced::kValid),
-     bssl::OCSPVerifyResult::INVALID_DATE, bssl::OCSPRevocationStatus::UNKNOWN},
-};
-
-class HTTPSOCSPVerifyTest
-    : public HTTPSOCSPTest,
-      public testing::WithParamInterface<OCSPVerifyTestData> {};
-
-TEST_P(HTTPSOCSPVerifyTest, VerifyResult) {
-#if BUILDFLAG(CRONET_BUILD)
-  // Previously, OCSP stapling would never be passed to the platform verifier
-  // which meant that the only layer performing the verification was BoringSSL.
-  // However, this has changed with Android 16 where we started passing the OCSP
-  // stapling data to Conscrypt. This meant certificates with bad OCSP stapling
-  // that were previously passing the Conscrypt check are now failing the check.
-  // See crbug.com/408137065 for more information.
-  if (base::android::android_info::sdk_int() >= 36) {
-    GTEST_SKIP();
-  }
-#endif
-  OCSPVerifyTestData test = GetParam();
-
-  scoped_refptr<X509Certificate> root_cert =
-      ImportCertFromFile(GetTestCertsDirectory(), "root_ca_cert.pem");
-  ASSERT_TRUE(root_cert);
-  ScopedTestKnownRoot scoped_known_root(root_cert.get());
-
-  EmbeddedTestServer::ServerCertificateConfig cert_config;
-  cert_config.stapled_ocsp_config = test.ocsp_config;
-  cert_config.dns_names = {"example.com"};
-
-  SSLInfo ssl_info;
-  OCSPErrorTestDelegate delegate;
-  ASSERT_NO_FATAL_FAILURE(DoConnectionWithDelegate("example.com", cert_config,
-                                                   &delegate, &ssl_info));
-
-  // The SSLInfo must be extracted from |delegate| on error, due to how
-  // URLRequest caches certificate errors.
-  if (delegate.have_certificate_errors()) {
-    ASSERT_TRUE(delegate.on_ssl_certificate_error_called());
-    ssl_info = delegate.ssl_info();
-  }
-
-  EXPECT_EQ(test.expected_response_status,
-            ssl_info.ocsp_result.response_status);
-
-  if (test.expected_response_status == bssl::OCSPVerifyResult::PROVIDED) {
-    EXPECT_EQ(test.expected_cert_status,
-              ssl_info.ocsp_result.revocation_status);
-  }
-}
-
-INSTANTIATE_TEST_SUITE_P(OCSPVerify,
-                         HTTPSOCSPVerifyTest,
-                         testing::ValuesIn(kOCSPVerifyData));
 
 #endif  // !BUILDFLAG(IS_IOS)
 

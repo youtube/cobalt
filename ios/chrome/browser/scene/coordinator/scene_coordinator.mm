@@ -34,10 +34,10 @@
 #import "ios/chrome/browser/authentication/account_menu/coordinator/account_menu_coordinator.h"
 #import "ios/chrome/browser/authentication/account_menu/coordinator/account_menu_coordinator_delegate.h"
 #import "ios/chrome/browser/authentication/account_menu/public/account_menu_constants.h"
+#import "ios/chrome/browser/authentication/enterprise/managed_profile_creation/coordinator/managed_profile_creation_coordinator.h"
+#import "ios/chrome/browser/authentication/enterprise/public/managed_profile_creation_constants.h"
 #import "ios/chrome/browser/authentication/ui_bundled/change_profile/change_profile_load_url.h"
 #import "ios/chrome/browser/authentication/ui_bundled/continuation.h"
-#import "ios/chrome/browser/authentication/ui_bundled/enterprise/managed_profile_creation/managed_profile_creation_constants.h"
-#import "ios/chrome/browser/authentication/ui_bundled/enterprise/managed_profile_creation/managed_profile_creation_coordinator.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_coordinator.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_utils.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_notification_infobar_delegate.h"
@@ -173,6 +173,7 @@ void OnListFamilyMembersResponse(
   id<TabOpening> _tabOpener;
   base::WeakPtr<Browser> _inactiveBrowser;
   base::WeakPtr<Browser> _regularBrowser;
+  raw_ptr<Browser> _incognitoBrowser;
   // Coordinator for the Tab Grid
   TabGridCoordinator* _tabGridCoordinator;
   // Coordinator for the AppBar.
@@ -247,7 +248,7 @@ void OnListFamilyMembersResponse(
       initWithSceneCommandsEndpoint:self
                      regularBrowser:_regularBrowser.get()
                     inactiveBrowser:_inactiveBrowser.get()
-                   incognitoBrowser:_incognitoBrowser];
+                   incognitoBrowser:_incognitoBrowser.get()];
   _tabGridCoordinator.delegate = self.tabGridDelegate;
   [_tabGridCoordinator start];
   if (IsUseSceneViewControllerEnabled()) {
@@ -272,14 +273,14 @@ void OnListFamilyMembersResponse(
         initWithRegularFullscreenController:FullscreenController::FromBrowser(
                                                 _regularBrowser.get())
               incognitoFullscreenController:FullscreenController::FromBrowser(
-                                                _incognitoBrowser)];
+                                                _incognitoBrowser.get())];
     _sceneMediator.consumer = _viewController;
   }
 
   if (IsChromeNextIaEnabled()) {
-    _appBarCoordinator =
-        [[AppBarCoordinator alloc] initWithRegularBrowser:_regularBrowser.get()
-                                         incognitoBrowser:_incognitoBrowser];
+    _appBarCoordinator = [[AppBarCoordinator alloc]
+        initWithRegularBrowser:_regularBrowser.get()
+              incognitoBrowser:_incognitoBrowser.get()];
     [_appBarCoordinator start];
     [_viewController setAppBar:_appBarCoordinator.viewController];
   }
@@ -328,7 +329,7 @@ void OnListFamilyMembersResponse(
 
 - (void)setBrowsersFromProvider:(id<BrowserProviderInterface>)provider {
   _regularBrowser = provider.mainBrowserProvider.browser->AsWeakPtr();
-  _inactiveBrowser = provider.mainBrowserProvider.inactiveBrowser->AsWeakPtr();
+  _inactiveBrowser = _regularBrowser->GetInactiveBrowser()->AsWeakPtr();
   _incognitoBrowser = provider.incognitoBrowserProvider.browser;
 }
 
@@ -1376,12 +1377,21 @@ void OnListFamilyMembersResponse(
   _tabGridCoordinator.delegate = delegate;
 }
 
+- (Browser*)incognitoBrowser {
+  return _incognitoBrowser.get();
+}
+
 - (void)setIncognitoBrowser:(Browser*)incognitoBrowser {
   _incognitoBrowser = incognitoBrowser;
   _tabGridCoordinator.incognitoBrowser = incognitoBrowser;
   if (IsChromeNextIaEnabled()) {
     _appBarCoordinator.incognitoBrowser = incognitoBrowser;
   }
+  [_sceneMediator
+      setIncognitoFullscreenController:incognitoBrowser == nullptr
+                                           ? nullptr
+                                           : FullscreenController::FromBrowser(
+                                                 incognitoBrowser)];
 }
 
 - (UIViewController*)activeViewController {

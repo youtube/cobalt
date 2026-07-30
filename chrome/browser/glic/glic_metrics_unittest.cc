@@ -217,8 +217,9 @@ class GlicMetricsTestBase : public testing::Test {
 class GlicMetricsTest : public GlicMetricsTestBase {
  public:
   void SetUp() override {
-    scoped_feature_list_.InitAndDisableFeature(
-        features::kGlicFixTimeToFirstQueryKillSwitch);
+    scoped_feature_list_.InitWithFeatures(
+        /*enabled_features=*/{features::kGlicCaptureRegion},
+        /*disabled_features=*/{features::kGlicFixTimeToFirstQueryKillSwitch});
     GlicMetricsTestBase::SetUp();
 
     enabling_ = std::make_unique<GlicEnabling>(
@@ -255,6 +256,7 @@ class GlicMetricsTest : public GlicMetricsTestBase {
   content::WebContents* test_web_contents() { return test_web_contents_.get(); }
   GlicMetrics* metrics() { return metrics_.get(); }
   MockDelegate* delegate() { return delegate_.get(); }
+  GlicEnabling* enabling() { return enabling_.get(); }
 
  protected:
   base::test::ScopedFeatureList scoped_feature_list_;
@@ -276,8 +278,7 @@ TEST_F(GlicMetricsTest, RecordGlicProfilePreferences) {
   profile()->GetPrefs()->SetBoolean(prefs::kGlicGeolocationEnabled, true);
   profile()->GetPrefs()->SetBoolean(prefs::kGlicMicrophoneEnabled, true);
   profile()->GetPrefs()->SetBoolean(prefs::kGlicDefaultTabContextEnabled, true);
-  profile()->GetPrefs()->SetBoolean(prefs::kGlicUserEnabledActuationOnWeb,
-                                    true);
+  enabling()->SetUserEnabledActuationOnWeb(true);
 
   metrics()->RecordGlicProfilePreferences();
 
@@ -306,8 +307,7 @@ TEST_F(GlicMetricsTest, RecordGlicProfilePreferences) {
   profile()->GetPrefs()->SetBoolean(prefs::kGlicMicrophoneEnabled, false);
   profile()->GetPrefs()->SetBoolean(prefs::kGlicDefaultTabContextEnabled,
                                     false);
-  profile()->GetPrefs()->SetBoolean(prefs::kGlicUserEnabledActuationOnWeb,
-                                    false);
+  enabling()->SetUserEnabledActuationOnWeb(false);
 
   metrics()->RecordGlicProfilePreferences();
 
@@ -698,17 +698,13 @@ TEST_F(GlicMetricsTest, LogGetContextFromFocusedTabError_ChangingModes) {
 }
 
 TEST_F(GlicMetricsTest, ImpressionBeforeFreNotPermittedByPolicy) {
-  profile()->GetPrefs()->SetInteger(
-      prefs::kGlicCompletedFre,
-      static_cast<int>(prefs::FreStatus::kNotStarted));
+  enabling()->SetCompletedFre(prefs::FreStatus::kNotStarted);
 
   ExpectEntryPointImpressionLogged(EntryPointStatus::kBeforeFreNotEligible);
 }
 
 TEST_F(GlicMetricsTest, ImpressionIncompleteFreNotPermittedByPolicy) {
-  profile()->GetPrefs()->SetInteger(
-      prefs::kGlicCompletedFre,
-      static_cast<int>(prefs::FreStatus::kIncomplete));
+  enabling()->SetCompletedFre(prefs::FreStatus::kIncomplete);
 
   ExpectEntryPointImpressionLogged(EntryPointStatus::kIncompleteFreNotEligible);
 }
@@ -761,17 +757,15 @@ TEST_F(GlicMetricsFeaturesEnabledTest, TimeToEnabledFromStartupDelayed) {
 }
 
 TEST_F(GlicMetricsFeaturesEnabledTest, ImpressionBeforeFre) {
-  profile()->GetPrefs()->SetInteger(
-      prefs::kGlicCompletedFre,
-      static_cast<int>(prefs::FreStatus::kNotStarted));
+  glic::GlicKeyedService::Get(profile())->enabling().SetCompletedFre(
+      prefs::FreStatus::kNotStarted);
 
   ExpectEntryPointImpressionLogged(EntryPointStatus::kBeforeFreAndEligible);
 }
 
 TEST_F(GlicMetricsFeaturesEnabledTest, ImpressionIncompleteFre) {
-  profile()->GetPrefs()->SetInteger(
-      prefs::kGlicCompletedFre,
-      static_cast<int>(prefs::FreStatus::kIncomplete));
+  glic::GlicKeyedService::Get(profile())->enabling().SetCompletedFre(
+      prefs::FreStatus::kIncomplete);
 
   ExpectEntryPointImpressionLogged(EntryPointStatus::kIncompleteFreAndEligible);
 }
@@ -827,14 +821,13 @@ TEST_F(GlicMetricsFeaturesEnabledTest, EnablingChanged) {
   // action.
   EXPECT_EQ(user_action_tester().GetActionCount("Glic.Enabled"), 1);
 
-  profile()->GetPrefs()->SetInteger(
-      prefs::kGlicCompletedFre,
-      static_cast<int>(prefs::FreStatus::kNotStarted));
+  glic::GlicKeyedService::Get(profile())->enabling().SetCompletedFre(
+      prefs::FreStatus::kNotStarted);
   EXPECT_EQ(user_action_tester().GetActionCount("Glic.Disabled"), 1);
   EXPECT_EQ(user_action_tester().GetActionCount("Glic.Enabled"), 1);
 
-  profile()->GetPrefs()->SetInteger(
-      prefs::kGlicCompletedFre, static_cast<int>(prefs::FreStatus::kCompleted));
+  glic::GlicKeyedService::Get(profile())->enabling().SetCompletedFre(
+      prefs::FreStatus::kCompleted);
   EXPECT_EQ(user_action_tester().GetActionCount("Glic.Disabled"), 1);
   EXPECT_EQ(user_action_tester().GetActionCount("Glic.Enabled"), 2);
 
@@ -850,9 +843,8 @@ TEST_F(GlicMetricsFeaturesEnabledTest, EnablingChanged) {
   EXPECT_EQ(user_action_tester().GetActionCount("Glic.Disabled"), 2);
   EXPECT_EQ(user_action_tester().GetActionCount("Glic.Enabled"), 3);
 
-  profile()->GetPrefs()->SetInteger(
-      prefs::kGlicCompletedFre,
-      static_cast<int>(prefs::FreStatus::kIncomplete));
+  glic::GlicKeyedService::Get(profile())->enabling().SetCompletedFre(
+      prefs::FreStatus::kIncomplete);
   EXPECT_EQ(user_action_tester().GetActionCount("Glic.Disabled"), 3);
   EXPECT_EQ(user_action_tester().GetActionCount("Glic.Enabled"), 3);
 }
@@ -1066,9 +1058,7 @@ class GlicMetricsTrustFirstOnboardingTest : public GlicMetricsTest {
     metrics_->SetDelegateForTesting(std::move(delegate));
 
     // Revert FRE status to NotStarted to simulate new user for this experiment.
-    profile()->GetPrefs()->SetInteger(
-        prefs::kGlicCompletedFre,
-        static_cast<int>(prefs::FreStatus::kNotStarted));
+    enabling_->SetCompletedFre(prefs::FreStatus::kNotStarted);
   }
 };
 
@@ -1117,8 +1107,9 @@ TEST_F(GlicMetricsTrustFirstOnboardingTest, ShownAndAccepted) {
 }
 
 TEST_F(GlicMetricsTrustFirstOnboardingTest, NotShownIfConsented) {
-  profile()->GetPrefs()->SetInteger(
-      prefs::kGlicCompletedFre, static_cast<int>(prefs::FreStatus::kCompleted));
+  enabling()->SetCompletedFre(prefs::FreStatus::kCompleted);
+
+  EXPECT_FALSE(enabling()->IsTrustFirstOnboardingEnabled());
 
   metrics()->OnGlicWindowStartedOpening(/*attached=*/false,
                                         mojom::InvocationSource::kOsButton);

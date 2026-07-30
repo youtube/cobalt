@@ -6,6 +6,8 @@
 
 #import "base/check_op.h"
 #import "base/feature_list.h"
+#import "base/functional/bind.h"
+#import "base/functional/callback.h"
 #import "base/functional/callback_helpers.h"
 #import "base/ios/block_types.h"
 #import "base/metrics/user_metrics.h"
@@ -27,10 +29,10 @@
 #import "ios/chrome/browser/authentication/account_menu/coordinator/account_menu_coordinator.h"
 #import "ios/chrome/browser/authentication/account_menu/coordinator/account_menu_coordinator_delegate.h"
 #import "ios/chrome/browser/authentication/account_menu/public/account_menu_constants.h"
+#import "ios/chrome/browser/authentication/signin/reauth/coordinator/signin_reauth_coordinator.h"
 #import "ios/chrome/browser/authentication/trusted_vault_reauthentication/coordinator/trusted_vault_reauthentication_coordinator.h"
 #import "ios/chrome/browser/authentication/trusted_vault_reauthentication/coordinator/trusted_vault_reauthentication_coordinator_delegate.h"
 #import "ios/chrome/browser/authentication/ui_bundled/continuation.h"
-#import "ios/chrome/browser/authentication/ui_bundled/signin/reauth/signin_reauth_coordinator.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_coordinator.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_utils.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signout_action_sheet/signout_action_sheet_coordinator.h"
@@ -39,12 +41,12 @@
 #import "ios/chrome/browser/settings/google_services/bulk_upload/coordinator/bulk_upload_coordinator_delegate.h"
 #import "ios/chrome/browser/settings/google_services/manage_accounts/coordinator/manage_accounts_coordinator.h"
 #import "ios/chrome/browser/settings/google_services/manage_accounts/coordinator/manage_accounts_coordinator_delegate.h"
+#import "ios/chrome/browser/settings/google_services/personalize_google_services/coordinator/personalize_google_services_coordinator.h"
 #import "ios/chrome/browser/settings/model/sync/utils/sync_util.h"
 #import "ios/chrome/browser/settings/ui_bundled/google_services/manage_sync_settings_command_handler.h"
 #import "ios/chrome/browser/settings/ui_bundled/google_services/manage_sync_settings_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/google_services/manage_sync_settings_mediator.h"
 #import "ios/chrome/browser/settings/ui_bundled/google_services/manage_sync_settings_table_view_controller.h"
-#import "ios/chrome/browser/settings/ui_bundled/google_services/personalize_google_services_coordinator.h"
 #import "ios/chrome/browser/settings/ui_bundled/google_services/sync_error_settings_command_handler.h"
 #import "ios/chrome/browser/settings/ui_bundled/settings_controller_protocol.h"
 #import "ios/chrome/browser/settings/ui_bundled/settings_navigation_controller.h"
@@ -81,6 +83,20 @@
 using signin_metrics::AccessPoint;
 using signin_metrics::PromoAction;
 using DismissViewCallback = SystemIdentityManager::DismissViewCallback;
+
+namespace {
+
+// What to do once the user reauth is done.
+enum class ActionAfterReauth {
+  // Do nothing.
+  kNone,
+  //  Show "manage your google account" page.
+  kShowManageYourGoogleAccount,
+  // Opens "account storage" page.
+  kOpenAccountStorage,
+};
+
+}  // namespace
 
 @interface ManageSyncSettingsCoordinator () <
     AccountMenuCoordinatorDelegate,
@@ -138,6 +154,8 @@ using DismissViewCallback = SystemIdentityManager::DismissViewCallback;
   // TODO(crbug.com/471207686): Remove after kIdentityInAuthErrorFollowUps is
   // launched.
   SigninCoordinator* _addAccountCoordinator;
+  // What to do once the user reauth is done.
+  ActionAfterReauth _actionAfterReauth;
 }
 
 @synthesize baseNavigationController = _baseNavigationController;
@@ -520,6 +538,13 @@ using DismissViewCallback = SystemIdentityManager::DismissViewCallback;
 }
 
 - (void)showManageYourGoogleAccount {
+  id<SystemIdentity> identity =
+      self.authService->GetPrimaryIdentity(signin::ConsentLevel::kSignin);
+  if (!identity.hasValidAuth) {
+    [self openPrimaryAccountReauthDialogWithAction:
+              ActionAfterReauth::kShowManageYourGoogleAccount];
+    return;
+  }
   __weak __typeof(self) weakself = self;
   _accountDetailsControllerDismissCallback =
       GetApplicationContext()
@@ -556,6 +581,19 @@ using DismissViewCallback = SystemIdentityManager::DismissViewCallback;
 - (void)reauthFinishedWithResult:(ReauthResult)result
                           gaiaID:(const GaiaId*)gaiaID {
   [self stopReauthCoordinator];
+  if (result != ReauthResult::kSuccess) {
+    return;
+  }
+  switch (_actionAfterReauth) {
+    case ActionAfterReauth::kShowManageYourGoogleAccount:
+      [self showManageYourGoogleAccount];
+      break;
+    case ActionAfterReauth::kOpenAccountStorage:
+      [self openAccountStorage];
+      break;
+    case ActionAfterReauth::kNone:
+      break;
+  }
 }
 
 #pragma mark - SignoutActionSheetCoordinatorDelegate
@@ -683,6 +721,13 @@ using DismissViewCallback = SystemIdentityManager::DismissViewCallback;
 }
 
 - (void)openPrimaryAccountReauthDialog {
+  [self openPrimaryAccountReauthDialogWithAction:ActionAfterReauth::kNone];
+}
+
+#pragma mark - Private
+
+- (void)openPrimaryAccountReauthDialogWithAction:
+    (ActionAfterReauth)actionAfterReauth {
   if (!base::FeatureList::IsEnabled(switches::kIdentityInAuthErrorFollowUps)) {
     [self openPrimaryAccountReauthDialogLegacy];
     return;
@@ -691,6 +736,7 @@ using DismissViewCallback = SystemIdentityManager::DismissViewCallback;
     return;
   }
   [self stopReauthCoordinator];
+  _actionAfterReauth = actionAfterReauth;
 
   signin::IdentityManager* identityManager =
       IdentityManagerFactory::GetForProfile(self.profile);
@@ -739,6 +785,11 @@ using DismissViewCallback = SystemIdentityManager::DismissViewCallback;
 - (void)openAccountStorage {
   id<SystemIdentity> identity =
       self.authService->GetPrimaryIdentity(signin::ConsentLevel::kSignin);
+  if (!identity.hasValidAuth) {
+    [self openPrimaryAccountReauthDialogWithAction:ActionAfterReauth::
+                                                       kOpenAccountStorage];
+    return;
+  }
   id<GoogleOneCommands> googleOneCommands = HandlerForProtocol(
       self.browser->GetCommandDispatcher(), GoogleOneCommands);
   [googleOneCommands showGoogleOneForIdentity:identity

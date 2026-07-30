@@ -129,7 +129,7 @@ String& String::erase(size_type pos, size_type len) {
   return *this;
 }
 
-String String::Substring(size_type pos, size_type len) const {
+String String::DeprecatedSubstring(size_type pos, size_type len) const {
   if (!impl_)
     return String();
   return impl_->Substring(pos, len);
@@ -283,7 +283,7 @@ String String::Number(double number, unsigned precision) {
   return String(converter.ToStringWithFixedPrecision(number, precision));
 }
 
-String String::NumberToStringECMAScript(double number) {
+String String::NumberToStringEcmaScript(double number) {
   DoubleToStringConverter converter;
   return String(converter.ToString(number));
 }

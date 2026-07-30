@@ -56,7 +56,10 @@
 #include "third_party/blink/renderer/core/dom/indexed_pseudo_element.h"
 #include "third_party/blink/renderer/core/dom/shadow_root.h"
 #include "third_party/blink/renderer/core/dom/slot_assignment_engine.h"
+#include "third_party/blink/renderer/core/editing/character_range_mapper.h"
 #include "third_party/blink/renderer/core/editing/editing_utilities.h"
+#include "third_party/blink/renderer/core/editing/frame_selection.h"
+#include "third_party/blink/renderer/core/editing/selection_template.h"
 #include "third_party/blink/renderer/core/events/keyboard_event.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
@@ -592,7 +595,8 @@ void AXObject::SetParent(AXObject* new_parent) {
   if (parent_ && new_parent != parent_ && !parent_->NeedsToUpdateChildren() &&
       !parent_->IsDetached()) {
     for (const auto& child : parent_->ChildrenIncludingIgnored()) {
-      DUMP_WILL_BE_CHECK(child != this)
+      // TODO(crbug.com/500774799): Investigate and convert to CHECK.
+      DCHECK(child != this)
           << "Previous parent still has |this| child:\n"
           << this << " should be a child of " << new_parent << " not of "
           << parent_;
@@ -634,13 +638,15 @@ bool AXObject::IsMissingParent() const {
     // object, because hidden ones are purposely kept around without being in
     // the tree, and without a parent, for potential later reuse.
     bool is_missing = !IsRoot();
-    DUMP_WILL_BE_CHECK(!is_missing || !AXObjectCache().IsFrozen())
+    // TODO(crbug.com/500793607): Investigate and convert to CHECK.
+    DCHECK(!is_missing || !AXObjectCache().IsFrozen())
         << "Should not have missing parent in frozen tree: " << this;
     return is_missing;
   }
 
   if (parent_->IsDetached()) {
-    DUMP_WILL_BE_CHECK(!AXObjectCache().IsFrozen())
+    // TODO(crbug.com/500793607): Investigate and convert to CHECK.
+    DCHECK(!AXObjectCache().IsFrozen())
         << "Should not have detached parent in frozen tree: " << this;
     return true;
   }
@@ -3532,7 +3538,8 @@ bool AXObject::IsIncludedInTree() {
 
 void AXObject::CheckCanAccessCachedValues() const {
   if (!IsDetached() && AXObjectCache().IsFrozen()) {
-    DUMP_WILL_BE_CHECK(!NeedsToUpdateCachedValues())
+    // TODO(crbug.com/500793607): Investigate and convert to CHECK.
+    DCHECK(!NeedsToUpdateCachedValues())
         << "Stale values: " << this;
   }
 }
@@ -3569,7 +3576,8 @@ void AXObject::UpdateCachedAttributeValuesIfNeeded(
 #if AX_FAIL_FAST_BUILD()
     parent_chain = "\n* Parent Chain:\n" + ParentChainToStringHelper(this);
 #endif
-    DUMP_WILL_BE_CHECK(false)
+    // TODO(crbug.com/500774800): Investigate and convert to CHECK.
+    DCHECK(false)
         << AXObjectCache() << "\n* Object: " << this << parent_chain;
   }
 
@@ -3589,7 +3597,8 @@ void AXObject::UpdateCachedAttributeValuesIfNeeded(
       << GetDocument()->Lifecycle().ToString();
 #endif  // DCHECK_IS_ON()
 
-  DUMP_WILL_BE_CHECK(!IsMissingParent()) << "Missing parent: " << this;
+  // TODO(crbug.com/500774799): Investigate and convert to CHECK.
+  DCHECK(!IsMissingParent()) << "Missing parent: " << this;
 
   const ComputedStyle* style = GetComputedStyle();
 
@@ -3748,7 +3757,8 @@ void AXObject::UpdateCachedAttributeValuesIfNeeded(
     // The document root is never a live region root.
     cached_live_region_root_ = nullptr;
   } else {
-    DUMP_WILL_BE_CHECK(!IsMissingParent()) << this;
+    // TODO(crbug.com/500774799): Investigate and convert to CHECK.
+    DCHECK(!IsMissingParent()) << this;
     // Is a live region root if this or an ancestor is a live region.
     if (IsLiveRegionRoot()) {
       cached_live_region_root_ = this;
@@ -3830,7 +3840,8 @@ bool AXObject::ComputeIsIgnored(
 
 bool AXObject::ShouldIgnoreForHiddenOrInert(
     IgnoredReasons* ignored_reasons) const {
-  DUMP_WILL_BE_CHECK(!cached_values_need_update_)
+  // TODO(crbug.com/500793607): Investigate and convert to CHECK.
+  DCHECK(!cached_values_need_update_)
       << "Tried to compute ignored value without up-to-date hidden/inert "
          "values on "
       << this;
@@ -6490,14 +6501,17 @@ AXObject* AXObject::UnignoredPreviousInPreOrderSlow() const {
 }
 
 AXObject* AXObject::ParentObject() const {
-  DUMP_WILL_BE_CHECK(!IsDetached());
-  DUMP_WILL_BE_CHECK(!IsMissingParent()) << "Missing parent: " << this;
+  // TODO(crbug.com/500774799): Investigate and convert to CHECK.
+  DCHECK(!IsDetached());
+  // TODO(crbug.com/500774799): Investigate and convert to CHECK.
+  DCHECK(!IsMissingParent()) << "Missing parent: " << this;
 
   return parent_;
 }
 
 AXObject* AXObject::ParentObject() {
-  DUMP_WILL_BE_CHECK(!IsDetached());
+  // TODO(crbug.com/500774799): Investigate and convert to CHECK.
+  DCHECK(!IsDetached());
   // Calling IsMissingParent can cause us to dereference pointers that
   // are null on detached objects, return early here to avoid crashing.
   // TODO(accessibility) Remove early return and change above assertion
@@ -6505,7 +6519,8 @@ AXObject* AXObject::ParentObject() {
   if (IsDetached()) {
     return nullptr;
   }
-  DUMP_WILL_BE_CHECK(!IsMissingParent()) << "Missing parent: " << this;
+  // TODO(crbug.com/500774799): Investigate and convert to CHECK.
+  DCHECK(!IsMissingParent()) << "Missing parent: " << this;
 
   // TODO(crbug.com/337178753): this should not be necessary once subtree
   // removals can be immediate, complete and safe.
@@ -6625,7 +6640,8 @@ void AXObject::UpdateChildrenIfNecessary() {
   }
 
   if (AXObjectCache().IsFrozen()) {
-    DUMP_WILL_BE_CHECK(!AXObjectCache().IsFrozen())
+    // TODO(crbug.com/500793607): Investigate and convert to CHECK.
+    DCHECK(!AXObjectCache().IsFrozen())
         << "Object should have already had its children updated in "
            "AXObjectCacheImpl::FinalizeTree(): "
         << this;
@@ -7453,6 +7469,8 @@ bool AXObject::PerformAction(const ui::AXActionData& action_data) {
       return RequestFocusAction();
     case ax::mojom::blink::Action::kIncrement:
       return RequestIncrementAction();
+    case ax::mojom::blink::Action::kReplaceRanges:
+      return RequestReplaceRangesAction(action_data);
     case ax::mojom::blink::Action::kScrollToPoint:
       return RequestScrollToGlobalPointAction(action_data.target_point);
     case ax::mojom::blink::Action::kSetAccessibilityFocus:
@@ -7654,6 +7672,161 @@ bool AXObject::RequestCollapseAction() {
     return OnNativeKeyboardAction(ax::mojom::blink::Action::kCollapse);
   }
   return RequestClickAction();
+}
+
+struct ReplaceRangeParams {
+  DOMNodeId scope_node_id;
+  CharacterRange character_range;
+  std::string replacement_string;
+};
+
+bool AXObject::RequestReplaceRangesAction(const ui::AXActionData& action_data) {
+  Document* document = GetDocument();
+  if (!document) {
+    return false;
+  }
+
+  if (!action_data.HasIntListAttribute(
+          ax::mojom::blink::IntListAttribute::kTextOperationStartAnchorIds) ||
+      !action_data.HasIntListAttribute(
+          ax::mojom::blink::IntListAttribute::kTextOperationStartOffsets) ||
+      !action_data.HasIntListAttribute(
+          ax::mojom::blink::IntListAttribute::kTextOperationEndAnchorIds) ||
+      !action_data.HasIntListAttribute(
+          ax::mojom::blink::IntListAttribute::kTextOperationEndOffsets) ||
+      !action_data.HasStringListAttribute(
+          ax::mojom::blink::StringListAttribute::
+              kTextOperationReplacementStrings)) {
+    return false;
+  }
+
+  std::vector<int32_t> start_anchor_ids = action_data.GetIntListAttribute(
+      ax::mojom::blink::IntListAttribute::kTextOperationStartAnchorIds);
+  std::vector<int32_t> start_offsets = action_data.GetIntListAttribute(
+      ax::mojom::blink::IntListAttribute::kTextOperationStartOffsets);
+  std::vector<int32_t> end_anchor_ids = action_data.GetIntListAttribute(
+      ax::mojom::blink::IntListAttribute::kTextOperationEndAnchorIds);
+  std::vector<int32_t> end_offsets = action_data.GetIntListAttribute(
+      ax::mojom::blink::IntListAttribute::kTextOperationEndOffsets);
+  std::vector<std::string> replacement_strings =
+      action_data.GetStringListAttribute(ax::mojom::blink::StringListAttribute::
+                                             kTextOperationReplacementStrings);
+
+  size_t size = replacement_strings.size();
+  if (start_anchor_ids.size() != size || end_anchor_ids.size() != size ||
+      start_offsets.size() != size || end_offsets.size() != size) {
+    return false;
+  }
+
+  // Convert all the AXPosition-based replacement ranges into character ranges
+  // relative to the first position within their editable container. This
+  // enables a more reliable batch of replacements since the node referenced in
+  // the AXPosition may be orphaned after we perform a replacement.
+  Vector<ReplaceRangeParams> replace_ranges_params;
+  for (size_t i = 0; i < size; ++i) {
+    AXObject* start_anchor =
+        AXObjectCache().ObjectFromAXID(start_anchor_ids[i]);
+    AXObject* end_anchor = AXObjectCache().ObjectFromAXID(end_anchor_ids[i]);
+
+    if (!start_anchor || !end_anchor) {
+      continue;
+    }
+
+    AXObject* text_field_ancestor = start_anchor->GetTextFieldAncestor();
+    AXObject* end_text_field_ancestor = end_anchor->GetTextFieldAncestor();
+
+    // Ensuring that the range is contained in same editable field.
+    if (!text_field_ancestor ||
+        text_field_ancestor != end_text_field_ancestor) {
+      continue;
+    }
+
+    Node* scope_node = text_field_ancestor->GetNode();
+    if (!scope_node) {
+      continue;
+    }
+
+    if (auto* text_control = DynamicTo<TextControlElement>(scope_node)) {
+      // Use the inner editor element as the scope for <input> and <textarea>.
+      scope_node = text_control->InnerEditorElement();
+      if (!scope_node) {
+        continue;
+      }
+    }
+
+    AXPosition start_position =
+        AXPosition::CreatePositionInTextObject(*start_anchor, start_offsets[i]);
+    AXPosition end_position =
+        AXPosition::CreatePositionInTextObject(*end_anchor, end_offsets[i]);
+
+    if (!start_position.IsValid() || !end_position.IsValid()) {
+      continue;
+    }
+
+    if (end_position < start_position) {
+      std::swap(start_position, end_position);
+    }
+
+    const EphemeralRange scope = EphemeralRange::RangeOfContents(*scope_node);
+    const EphemeralRange replacement_range = EphemeralRange(
+        start_position.ToPosition(AXPositionAdjustmentBehavior::kMoveRight),
+        end_position.ToPosition(AXPositionAdjustmentBehavior::kMoveLeft));
+
+    CharacterRange char_range =
+        CharacterRangeMapper::CreateCharacterRange(scope, replacement_range);
+
+    replace_ranges_params.push_back(ReplaceRangeParams{
+        scope_node->GetDomNodeId(),
+        char_range,
+        replacement_strings[i],
+    });
+  }
+
+  // Use the characters ranges constructed above along with their editable
+  // container node to reconstruct the appropriate Positions for selecting
+  // the replacement range.
+  for (auto& params : replace_ranges_params) {
+    Node* scope_node = Node::FromDomNodeId(params.scope_node_id);
+    if (!scope_node) {
+      continue;
+    }
+
+    const EphemeralRange scope = EphemeralRange::RangeOfContents(*scope_node);
+    const EphemeralRange replacement_range =
+        CharacterRangeMapper::ResolveCharacterRange(scope,
+                                                    params.character_range);
+
+    const Position start_position = replacement_range.StartPosition();
+    const Position end_position = replacement_range.EndPosition();
+    if (!start_position || !end_position) {
+      continue;
+    }
+
+    LocalFrame* frame = document->GetFrame();
+    if (!frame) {
+      return false;
+    }
+
+    const SelectionInDOMTree selection = SelectionInDOMTree::Builder()
+                                             .Collapse(start_position)
+                                             .Extend(end_position)
+                                             .Build();
+
+    const SetSelectionOptions options =
+        SetSelectionOptions::Builder()
+            .SetIsDirectional(true)
+            .SetShouldCloseTyping(true)
+            .SetShouldClearTypingStyle(true)
+            .SetSetSelectionBy(SetSelectionBy::kUser)
+            .Build();
+
+    FrameSelection& frame_selection = frame->Selection();
+    frame_selection.SetSelectionForAccessibility(selection, options);
+    InsertTextAndSendInputEventsOfTypeInsertReplacementText(
+        *frame, String::FromUtf8(params.replacement_string));
+  }
+
+  return true;
 }
 
 bool AXObject::OnNativeKeyboardAction(const ax::mojom::Action action) {

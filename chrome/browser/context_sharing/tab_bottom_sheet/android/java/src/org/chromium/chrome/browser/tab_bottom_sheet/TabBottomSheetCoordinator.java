@@ -7,15 +7,22 @@ package org.chromium.chrome.browser.tab_bottom_sheet;
 import android.content.ComponentCallbacks;
 import android.content.Context;
 import android.content.res.Configuration;
+import android.view.GestureDetector;
+import android.view.MotionEvent;
 import android.view.View;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController.SheetState;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController.StateChangeReason;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetObserver;
 import org.chromium.components.browser_ui.bottomsheet.EmptyBottomSheetObserver;
+import org.chromium.components.browser_ui.widget.TouchEventObserver;
+import org.chromium.components.browser_ui.widget.TouchEventProvider;
+import org.chromium.ui.KeyboardVisibilityDelegate;
+import org.chromium.ui.base.ViewUtils;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
@@ -23,6 +30,14 @@ import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 /** Coordinator for the tab bottom sheet. */
 @NullMarked
 public class TabBottomSheetCoordinator {
+    // Values are not final and may need tuning.
+    private static final float FLING_VELOCITY_THRESHOLD_DP = 50f;
+    private static final float SCROLL_DISTANCE_THRESHOLD_DP = 100f;
+
+    // Can be modified later to be set dynamically based on device
+    private static final float FULL_HEIGHT_RATIO = 0.7f;
+    private static final float KEYBOARD_SHOWING_HEIGHT_RATIO = 0.9f;
+
     private final ComponentCallbacks mComponentsCallbacks =
             new ComponentCallbacks() {
                 @Override
@@ -36,8 +51,77 @@ public class TabBottomSheetCoordinator {
                 public void onLowMemory() {}
             };
 
+    private final GestureDetector mGestureDetector;
+    private final GestureDetector.SimpleOnGestureListener mGestureListener =
+            new GestureDetector.SimpleOnGestureListener() {
+                @Override
+                public boolean onDown(MotionEvent e) {
+                    return true;
+                }
+
+                @Override
+                public boolean onDoubleTap(MotionEvent e) {
+                    collapseSheet();
+                    return true;
+                }
+
+                @Override
+                public void onLongPress(MotionEvent e) {
+                    collapseSheet();
+                }
+
+                @Override
+                public boolean onScroll(
+                        @Nullable MotionEvent e1,
+                        MotionEvent e2,
+                        float distanceX,
+                        float distanceY) {
+                    if (e1 == null || e2 == null) return false;
+                    float totalDistanceY = e2.getRawY() - e1.getRawY();
+                    if (Math.abs(totalDistanceY)
+                            > ViewUtils.dpToPx(mContext, SCROLL_DISTANCE_THRESHOLD_DP)) {
+                        collapseSheet();
+                    }
+                    return true;
+                }
+
+                @Override
+                public boolean onFling(
+                        @Nullable MotionEvent e1,
+                        MotionEvent e2,
+                        float velocityX,
+                        float velocityY) {
+                    if (Math.abs(velocityY)
+                            > ViewUtils.dpToPx(mContext, FLING_VELOCITY_THRESHOLD_DP)) {
+                        collapseSheet();
+                    }
+                    return true;
+                }
+            };
+
+    private final TouchEventObserver mTouchEventObserver =
+            new TouchEventObserver() {
+                @Override
+                public boolean mayInterceptTouchSequenceInWebContents() {
+                    // Given that the bottom sheet only intercepts for very brief period of time,
+                    // this is safe to return true. The alternatives suggested by the warning on
+                    // this method are infeasible for this use case.
+                    return true;
+                }
+
+                @Override
+                public boolean onInterceptTouchEvent(MotionEvent e) {
+                    // Intercept the touch stream if it's the start of a gesture, or process
+                    // it normally to detect scrolls.
+                    mGestureDetector.onTouchEvent(e);
+                    // Do not claim the sequence by returning true here, just silently observe it.
+                    return false;
+                }
+            };
+
     private final Context mContext;
     private final BottomSheetController mBottomSheetController;
+    private final TouchEventProvider mTouchEventProvider;
     private final PropertyModel mModel;
     private final CoBrowseViews mCoBrowseViews;
     private final TabBottomSheetMediator mMediator;
@@ -55,6 +139,8 @@ public class TabBottomSheetCoordinator {
     /**
      * @param context The context to use for creating views.
      * @param bottomSheetController The {@link BottomSheetController} used to show the bottom sheet.
+     * @param touchEventProvider The {@link TouchEventProvider} used to observe touch events on the
+     *     tab behind the bottom sheet.
      * @param coBrowseViews The views to be displayed within the bottom sheet. These should be
      *     obtained via {@link CoBrowseViewFactory}. Note that these views have a single-use
      *     lifecycle; they are destroyed when the bottom sheet is closed and cannot be reused for
@@ -65,17 +151,26 @@ public class TabBottomSheetCoordinator {
             Context context,
             WindowAndroid windowAndroid,
             BottomSheetController bottomSheetController,
+            TouchEventProvider touchEventProvider,
             CoBrowseViews coBrowseViews,
             @Nullable Runnable onClose) {
         mContext = context;
+        mGestureDetector = new GestureDetector(mContext, mGestureListener);
         mWindowAndroid = windowAndroid;
         mBottomSheetController = bottomSheetController;
+        mTouchEventProvider = touchEventProvider;
         mCoBrowseViews = coBrowseViews;
         mOnClose = onClose;
 
         mModel = TabBottomSheetProperties.createDefaultModel(coBrowseViews);
 
-        mMediator = new TabBottomSheetMediator(mContext, mModel, coBrowseViews);
+        mMediator =
+                new TabBottomSheetMediator(
+                        mContext,
+                        mModel,
+                        coBrowseViews,
+                        FULL_HEIGHT_RATIO,
+                        KEYBOARD_SHOWING_HEIGHT_RATIO);
 
         coBrowseViews.setWebUiTouchHandler(mMediator.getWebUiTouchHandler());
     }
@@ -86,7 +181,7 @@ public class TabBottomSheetCoordinator {
             return false;
         }
         mContentView = mCoBrowseViews.getView();
-        mSheetContent = new TabBottomSheetContent(mContentView);
+        mSheetContent = new TabBottomSheetContent(mContentView, getDefaultHeightRatio());
         mViewBinder =
                 PropertyModelChangeProcessor.create(
                         mModel, mContentView, TabBottomSheetViewBinder::bind);
@@ -95,16 +190,16 @@ public class TabBottomSheetCoordinator {
             // Set peek height for touch arbitration.
             mMediator.setPeekHeight(mSheetContent.getPeekHeight());
 
-            // If bottom sheet has never been initialized, its max height return 0.
+            // If bottom sheet has never been initialized, the max bottom offset may be 0.
             // We set it here, and if it changes later, we will update it in the observer.
             mContentView.post(
                     () -> {
-                        boolean isKeyboard = isKeyboardShowing();
-                        mMediator.setMaxSheetHeight(
-                                mBottomSheetController.getContainerHeight(), isKeyboard);
-                        if (startsExpanded
-                                && mSheetContent != null
-                                && mMediator.isSheetHeightSufficient()) {
+                        updateResizingStateWithFixedHeight();
+
+                        boolean isSheetHeightSufficient =
+                                mMediator.isSheetHeightSufficient(
+                                        mBottomSheetController.getMaxOffset());
+                        if (startsExpanded && mSheetContent != null && isSheetHeightSufficient) {
                             mBottomSheetController.expandSheet();
                         }
                     });
@@ -134,6 +229,32 @@ public class TabBottomSheetCoordinator {
      */
     void attachPeekView(View peekView) {
         mCoBrowseViews.attachPeekView(peekView);
+    }
+
+    /**
+     * Shows the peek view and hides the expanded content.
+     *
+     * @return Whether the peek view was successfully shown.
+     */
+    boolean showPeekViewAndHideExpandedContent() {
+        if (!mCoBrowseViews.hasPeekView()) {
+            return false;
+        }
+        mMediator.onSheetStateChanged(SheetState.PEEK, mCoBrowseViews.hasPeekView());
+        return true;
+    }
+
+    /**
+     * Hides the peek view and shows the expanded content.
+     *
+     * @return Whether the peek view was successfully hidden.
+     */
+    boolean hidePeekViewAndShowExpandedContent() {
+        if (!mCoBrowseViews.hasPeekView()) {
+            return false;
+        }
+        mMediator.onSheetStateChanged(SheetState.FULL, mCoBrowseViews.hasPeekView());
+        return true;
     }
 
     void closeBottomSheet() {
@@ -167,6 +288,7 @@ public class TabBottomSheetCoordinator {
         }
 
         mContext.unregisterComponentCallbacks(mComponentsCallbacks);
+        stopObservingCompositorViewInteractions();
 
         if (mSheetContent != null) {
             mSheetContent.destroy();
@@ -192,6 +314,12 @@ public class TabBottomSheetCoordinator {
                         mOnClose.run();
                     }
                 }
+
+                if (state == SheetState.HALF || state == SheetState.FULL) {
+                    observeCompositorViewInteractions();
+                } else {
+                    stopObservingCompositorViewInteractions();
+                }
             }
 
             @Override
@@ -200,14 +328,42 @@ public class TabBottomSheetCoordinator {
                     mBottomSheetController.collapseSheet(/* animate= */ true);
                     mExpectingLayoutChange = false;
                 }
-                mMediator.setMaxSheetHeight(containerHeight, isKeyboardShowing());
+                if (!ChromeFeatureList.sTabBottomSheetResizeWebview.getValue()) {
+                    updateResizingStateWithFixedHeight();
+                }
+            }
+
+            @Override
+            public void onSheetOffsetChanged(float heightFraction, float offsetPx) {
+                if (ChromeFeatureList.sTabBottomSheetResizeWebview.getValue()) {
+                    mMediator.updateResizingState(
+                            getDefaultHeightRatio(),
+                            heightFraction,
+                            (int) offsetPx,
+                            mBottomSheetController.getMaxOffset());
+                }
             }
         };
     }
 
+    private void observeCompositorViewInteractions() {
+        mTouchEventProvider.addTouchEventObserver(mTouchEventObserver);
+    }
+
+    private void stopObservingCompositorViewInteractions() {
+        mTouchEventProvider.removeTouchEventObserver(mTouchEventObserver);
+    }
+
+    private void collapseSheet() {
+        if (mBottomSheetController.getCurrentSheetContent() == mSheetContent) {
+            mBottomSheetController.collapseSheet(/* animate= */ true);
+        }
+    }
+
     private boolean isKeyboardShowing() {
-        if (mWindowAndroid.getKeyboardDelegate() == null) return false;
-        return mWindowAndroid.getKeyboardDelegate().isKeyboardShowing(mCoBrowseViews.getView());
+        KeyboardVisibilityDelegate keyboardDelegate = mWindowAndroid.getKeyboardDelegate();
+        if (keyboardDelegate == null) return false;
+        return keyboardDelegate.isKeyboardShowing(mCoBrowseViews.getView());
     }
 
     // Testing methods.
@@ -221,5 +377,22 @@ public class TabBottomSheetCoordinator {
 
     boolean isExpectingLayoutChangeForTesting() {
         return mExpectingLayoutChange;
+    }
+
+    GestureDetector.SimpleOnGestureListener getGestureListenerForTesting() {
+        return mGestureListener;
+    }
+
+    private void updateResizingStateWithFixedHeight() {
+        float defaultHeightRatio = getDefaultHeightRatio();
+        mMediator.updateResizingState(
+                defaultHeightRatio,
+                defaultHeightRatio,
+                mBottomSheetController.getCurrentOffset(),
+                mBottomSheetController.getMaxOffset());
+    }
+
+    private float getDefaultHeightRatio() {
+        return isKeyboardShowing() ? KEYBOARD_SHOWING_HEIGHT_RATIO : FULL_HEIGHT_RATIO;
     }
 }

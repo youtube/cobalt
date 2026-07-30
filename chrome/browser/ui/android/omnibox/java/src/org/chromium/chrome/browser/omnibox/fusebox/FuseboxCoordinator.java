@@ -11,13 +11,13 @@ import android.content.ComponentCallbacks;
 import android.content.Context;
 import android.content.res.Configuration;
 import android.content.res.Resources;
-import android.graphics.Rect;
 import android.util.DisplayMetrics;
 import android.view.LayoutInflater;
+import android.view.accessibility.AccessibilityEvent;
 
 import androidx.annotation.IntDef;
+import androidx.annotation.VisibleForTesting;
 import androidx.constraintlayout.widget.ConstraintLayout;
-import androidx.window.layout.WindowMetricsCalculator;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.DeviceInfo;
@@ -42,6 +42,7 @@ import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.components.search_engines.TemplateUrlService.TemplateUrlServiceObserver;
+import org.chromium.ui.base.Clipboard;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
@@ -82,6 +83,7 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
     private final SnackbarManager mSnackbarManager;
     private @Nullable ViewportRectProvider mViewportRectProvider;
     private @Nullable FuseboxMetrics mMetrics;
+    private @Nullable BottomSheetRectProvider mBottomSheetRectProvider;
 
     // Mediator is scoped to a particular profile. Can reuse as long as the profile does not change.
     private @Nullable FuseboxMediator mMediator;
@@ -123,22 +125,18 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
         if (mDeferredInitialized) return;
         mDeferredInitialized = true;
 
-        RectProvider rectProvider;
+        Resources res = mContext.getResources();
 
-        if (OmniboxFeatures.sShowBottomSheetPopup.getValue()) {
-            Activity activity = assumeNonNull(ContextUtils.activityFromContext(mContext));
-            var windowMetrics =
-                    WindowMetricsCalculator.getOrCreate().computeCurrentWindowMetrics(activity);
-            var bounds = new Rect(windowMetrics.getBounds());
-            bounds.top = bounds.bottom; // Anchor popup to the bottom of the window.
-            rectProvider = new RectProvider(bounds);
-        } else {
-            var viewRectProvider = new ViewRectProvider(mParent);
-            Resources res = mContext.getResources();
-            viewRectProvider.setInsetPx(
-                    0, res.getDimensionPixelSize(R.dimen.fusebox_vertical_space_above_popup), 0, 0);
-            rectProvider = viewRectProvider;
-        }
+        // Prepare rect provider for the floating popup window.
+        var viewRectProvider = new ViewRectProvider(mParent);
+        viewRectProvider.setInsetPx(
+                0, res.getDimensionPixelSize(R.dimen.fusebox_vertical_space_above_popup), 0, 0);
+
+        // Prepare rect provider for the bottom-sheet like popup window.
+        Activity activity = assumeNonNull(ContextUtils.activityFromContext(mContext));
+        mBottomSheetRectProvider = new BottomSheetRectProvider(activity, mParent);
+        var dynamicRectProvider =
+                new DynamicRectProvider(viewRectProvider, mBottomSheetRectProvider);
 
         var popupView = LayoutInflater.from(mContext).inflate(R.layout.fusebox_context_popup, null);
         mViewportRectProvider = new ViewportRectProvider(mContext);
@@ -151,20 +149,20 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
                                 OmniboxResourceProvider.getPopupBackgroundDrawable(
                                         mContext, BrandedColorScheme.APP_DEFAULT),
                                 () -> popupView,
-                                rectProvider)
+                                dynamicRectProvider)
+                        .setFocusable(true)
+                        .addOnDismissListener(this::onContextPopupDismissed)
                         .setOutsideTouchable(true)
                         .setAnimateFromAnchor(true)
                         .setPreferredHorizontalOrientation(HorizontalOrientation.LAYOUT_DIRECTION)
                         .setViewportRectProvider(mViewportRectProvider)
-                        .setDesiredContentWidth(
-                                OmniboxFeatures.sShowBottomSheetPopup.getValue()
-                                        ? rectProvider.getRect().width()
-                                        : mContext.getResources()
-                                                .getDimensionPixelSize(R.dimen.fusebox_popup_width))
                         .setHorizontalOverlapAnchor(true)
                         .setVerticalOverlapAnchor(true);
 
-        var popup = new FuseboxPopup(mContext, popupWindowBuilder.build(), popupView);
+        var popup =
+                new FuseboxPopup(
+                        mContext, popupWindowBuilder.build(), popupView, dynamicRectProvider);
+
         mViewHolder = new FuseboxViewHolder(mParent, popup);
         mModel =
                 new PropertyModel.Builder(FuseboxProperties.ALL_KEYS)
@@ -179,6 +177,7 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
                         .with(
                                 FuseboxProperties.SHOW_DEDICATED_MODE_BUTTON,
                                 OmniboxFeatures.sShowDedicatedModeButton.getValue())
+                        .with(FuseboxProperties.POPUP_STATE, FuseboxProperties.PopupState.HIDDEN)
                         .build();
         PropertyModelChangeProcessor.create(mModel, mViewHolder, FuseboxViewBinder::bind);
     }
@@ -195,7 +194,8 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
                         assumeNonNull(mViewHolder),
                         mTabModelSelectorSupplier,
                         mFuseboxStateSupplier,
-                        mSnackbarManager);
+                        mSnackbarManager,
+                        Clipboard.getInstance());
         if (mLastBrandedColorScheme != null) {
             mMediator.updateVisualsForState(mLastBrandedColorScheme);
         }
@@ -212,6 +212,9 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
         }
         if (mViewportRectProvider != null) {
             mViewportRectProvider.destroy();
+        }
+        if (mBottomSheetRectProvider != null) {
+            mBottomSheetRectProvider.destroy();
         }
     }
 
@@ -314,6 +317,13 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
 
     @Nullable FuseboxMediator getMediatorForTesting() {
         return mMediator;
+    }
+
+    @VisibleForTesting
+    void onContextPopupDismissed() {
+        if (mViewHolder == null || mViewHolder.addButton == null) return;
+        mViewHolder.addButton.requestFocus();
+        mViewHolder.addButton.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED);
     }
 
     @Initializer

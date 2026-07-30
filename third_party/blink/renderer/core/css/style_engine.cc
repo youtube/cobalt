@@ -3248,8 +3248,10 @@ bool StyleEngine::EvaluateFunctionalMediaQuery(const MediaQuerySet& query_set) {
 }
 
 void StyleEngine::InvalidateFunctionalMediaDependentStylesIfNeeded() {
-  if (!EnsureMediaQueryEvaluator().DidResultsChange(
-          functional_media_query_results_)) {
+  if (!media_query_evaluator_ || !media_query_evaluator_->DidResultsChange(
+                                     functional_media_query_results_)) {
+    // A null evaluator here means we have not evaluated media queries before,
+    // or the Document/StyleEngine has been detached.
     return;
   }
   functional_media_query_results_.clear();
@@ -4619,7 +4621,7 @@ void StyleEngine::UpdateForcedBackgroundColor() {
       CSSValueID::kCanvas, color_scheme,
       GetDocument().GetPage()->GetColorProviderForPainting(
           color_scheme, forced_colors_ != ForcedColors::kNone),
-      GetDocument().IsInWebAppScope());
+      GetDocument().IsInWebAppScope() && GetDocument().IsInitialProfile());
 }
 
 mojom::blink::ColorScheme StyleEngine::AdjustAboutBlankColorScheme(
@@ -5023,12 +5025,12 @@ void StyleEngine::NavigationsMayHaveChanged() {
 }
 
 double StyleEngine::GetCachedRandomBaseValue(
-    const RandomValueSharing& random_value_sharing,
+    const RandomCacheKey& random_cache_key,
     const Element* element) {
-  if (random_value_sharing.IsElementShared()) {
+  if (!random_cache_key.IsElementScoped()) {
     ElementSharedRandomValueCache::AddResult element_shared_cache_result =
         element_shared_random_base_value_cache_.insert(
-            random_value_sharing.Name(), 0);
+            random_cache_key.RandomNameForCaching(), 0);
     if (element_shared_cache_result.is_new_entry) {
       element_shared_cache_result.stored_value->value = base::RandDouble();
     }
@@ -5036,7 +5038,7 @@ double StyleEngine::GetCachedRandomBaseValue(
   }
 
   RandomCachingKey* random_caching_key =
-      RandomCachingKey::Create(random_value_sharing, element);
+      RandomCachingKey::Create(random_cache_key, element);
 
   const RandomCachingKeyLifetimeCache::AddResult&
       random_caching_key_lifetime_cache_result =

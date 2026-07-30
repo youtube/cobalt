@@ -28,6 +28,7 @@
 #include "base/compiler_specific.h"
 #include "base/containers/heap_array.h"
 #include "base/containers/span.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/numerics/ostream_operators.h"
@@ -5559,28 +5560,6 @@ GLenum GLES2Implementation::GetGraphicsResetStatusKHR() {
   if (share_group_->IsLost())
     return GL_UNKNOWN_CONTEXT_RESET_KHR;
   return GL_NO_ERROR;
-}
-
-GLboolean GLES2Implementation::EnableFeatureCHROMIUM(const char* feature) {
-  GPU_CLIENT_SINGLE_THREAD_CHECK();
-  GPU_CLIENT_LOG("[" << GetLogPrefix() << "] glEnableFeatureCHROMIUM("
-                     << feature << ")");
-  TRACE_EVENT0("gpu", "GLES2::EnableFeatureCHROMIUM");
-  typedef cmds::EnableFeatureCHROMIUM::Result Result;
-  SetBucketAsCString(kResultBucketId, feature);
-  auto result = GetResultAs<Result>();
-  if (!result) {
-    return false;
-  }
-  *result = 0;
-  helper_->EnableFeatureCHROMIUM(kResultBucketId, GetResultShmId(),
-                                 result.offset());
-  if (!WaitForCmd()) {
-    return false;
-  }
-  helper_->SetBucketSize(kResultBucketId, 0);
-  GPU_CLIENT_LOG("   returned " << GLES2Util::GetStringBool(*result));
-  return *result != 0;
 }
 
 void* GLES2Implementation::MapBufferSubDataCHROMIUM(GLuint target,

@@ -429,13 +429,13 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
       mojo::PendingReceiver<mojom::HostResolver> receiver) override;
   void VerifyCert(const scoped_refptr<net::X509Certificate>& certificate,
                   const net::HostPortPair& host_port,
-                  const std::string& ocsp_result,
+                  const std::string& ocsp_response,
                   const std::string& sct_list,
                   VerifyCertCallback callback) override;
   void VerifyCertForSignedExchange(
       const scoped_refptr<net::X509Certificate>& certificate,
       const net::HostPortPair& host_port,
-      const std::string& ocsp_result,
+      const std::string& ocsp_response,
       const std::string& sct_list,
       VerifyCertCallback callback) override;
   void Verify2QwacCertBinding(
@@ -838,7 +838,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
   void VerifyCertInternal(
       const scoped_refptr<net::X509Certificate>& certificate,
       const net::HostPortPair& host_port,
-      const std::string& ocsp_result,
+      const std::string& ocsp_response,
       const std::string& sct_list,
       CTVerificationMode ct_verification_mode,
       VerifyCertCallback callback);
@@ -872,11 +872,13 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
       base::DictValue body,
       net::ReportingTargetType target_type);
 
-  void QueueConnectionAllowlistReport(const GURL& context,
-                                      const GURL& resource,
-                                      const net::NetworkAnonymizationKey& key,
-                                      const std::string& group,
-                                      bool enforced);
+  void QueueConnectionAllowlistReport(
+      const GURL& context,
+      const GURL& resource,
+      const net::NetworkAnonymizationKey& key,
+      const std::optional<base::UnguessableToken>& reporting_source,
+      const std::string& group,
+      bool enforced);
 
   const raw_ptr<NetworkService> network_service_;
 
@@ -1128,6 +1130,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
     ConnectionAllowlist::RedirectBehavior report_only_redirect_behavior =
         ConnectionAllowlist::RedirectBehavior::kBlock;
     GURL response_url;
+    std::optional<base::UnguessableToken> reporting_source;
   };
   std::map<base::UnguessableToken, NetworkRestriction>
       network_revocation_nonces_;

@@ -43,8 +43,12 @@ export class HomeButtonElement extends CrLitElement {
   protected pressHandler_: PressHandler = new PressHandler(
       this.onLongPress_.bind(this), this.onShortPress_.bind(this));
 
-  protected readonly label_: string = loadTimeData.getString('homeButtonAccName');
-  protected readonly tooltip_: string = loadTimeData.getString('homeButtonTooltip');
+  protected getLabel_(): string {
+    return loadTimeData.getString('homeButtonAccName');
+  }
+  protected getTooltip_(): string {
+    return loadTimeData.getString('homeButtonTooltip');
+  }
 
   private browserProxy_: BrowserProxy = BrowserProxyImpl.getInstance();
 
@@ -63,6 +67,36 @@ export class HomeButtonElement extends CrLitElement {
     // left-click equivalent. Keyboard 'click' has detail === 0.
     if (e.detail === 0) {
       this.onShortPress_(e);
+    }
+  }
+
+  protected onDragEnter_(e: DragEvent) {
+    if (e.dataTransfer && e.dataTransfer.types.includes('Files') &&
+        !e.dataTransfer.types.includes('text/uri-list')) {
+      e.preventDefault();
+    }
+  }
+
+  protected onDragOver_(e: DragEvent) {
+    if (e.dataTransfer &&
+        (e.dataTransfer.types.includes('text/uri-list') ||
+         e.dataTransfer.types.includes('Files'))) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+    }
+  }
+
+  protected onDrop_(e: DragEvent) {
+    e.preventDefault();
+    if (!e.dataTransfer) {
+      return;
+    }
+
+    const url = e.dataTransfer.getData('text/uri-list');
+    if (url) {
+      this.browserProxy_.toolbarUIHandler.onHomeButtonDropUrl(url.split('\n')[0]!);
+    } else if (e.dataTransfer.types.includes('Files')) {
+      this.browserProxy_.toolbarUIHandler.onHomeButtonDropFile({x: e.clientX, y: e.clientY});
     }
   }
 }

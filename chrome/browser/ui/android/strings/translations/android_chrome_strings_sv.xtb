@@ -293,6 +293,7 @@ Din krypterade data kan endast läsas av en person som har din lösenfras. Löse
 <translation id="2251809247798634662">Nytt inkognitofönster</translation>
 <translation id="2253927598983295051">Välj vad du vill dela med <ph name="APP_NAME" /></translation>
 <translation id="2261570557291037252">Mer appinformation</translation>
+<translation id="2270544918551255912">Återgå genom att svepa från kanten</translation>
 <translation id="2276696007612801991">Logga in på ditt Google-konto om du vill kontrollera lösenorden</translation>
 <translation id="2281243904606300427"><ph name="TAB_TITLE" />, vald inkognitoflik</translation>
 <translation id="2286841657746966508">Faktureringsadress</translation>
@@ -480,6 +481,7 @@ Din krypterade data kan endast läsas av en person som har din lösenfras. Löse
 <translation id="2989523299700148168">Nyligen besökta</translation>
 <translation id="2992473221983447149">Bildbeskrivningar</translation>
 <translation id="2996291259634659425">Skapa lösenfras</translation>
+<translation id="2996682533106928201">Tryck för att ignorera</translation>
 <translation id="2996809686854298943">En webbadress måste anges.</translation>
 <translation id="3024215143424744261">Inställningarna för läsläget har stängts</translation>
 <translation id="3026955690410463085">Inkludera länk</translation>
@@ -640,6 +642,7 @@ Din krypterade data kan endast läsas av en person som har din lösenfras. Löse
 <translation id="3739455665973395693">Inga utsatta lösenord i Google-kontot</translation>
 <translation id="3739899004075612870">Bokmärket har lagts till i <ph name="PRODUCT_NAME" /></translation>
 <translation id="3740525748616366977">Röstsökning är inte tillgängligt på enheten</translation>
+<translation id="3763110477555836428">Ett virtuellt kortnummer fylls i när du betalar med det här kortet för att skydda dina faktiska uppgifter. Hantera detta i Google Wallet. <ph name="BEGIN_LINK1" />Läs mer om virtuella kort<ph name="END_LINK1" />.</translation>
 <translation id="376561056759077985">Viss data har inte sparats ännu</translation>
 <translation id="3770620323585347665">Namnge fönstret</translation>
 <translation id="3771033907050503522">Inkognitoflikar</translation>
@@ -684,6 +687,7 @@ Din krypterade data kan endast läsas av en person som har din lösenfras. Löse
 <translation id="3927692899758076493">Sans Serif</translation>
 <translation id="3931947361983910192">de senaste fyra veckorna</translation>
 <translation id="393697183122708255">Röstsökning är inte tillgängligt</translation>
+<translation id="3941718885865495207">Ark på nedre delen av skärmen för att välja att använda Chrome Finds</translation>
 <translation id="3943322906274039960"><ph name="TAB_TITLE" />, fäst flik med bild-i-bild</translation>
 <translation id="3950820424414687140">Logga in</translation>
 <translation id="395377504920307820">Använd utan ett konto</translation>
@@ -830,6 +834,7 @@ Din krypterade data kan endast läsas av en person som har din lösenfras. Löse
 <translation id="4521489764227272523">Markerad data har tagits bort från Chrome och från synkroniserade enheter.
 
 Det kan finnas andra former av webbhistorik i Google-kontot på <ph name="BEGIN_LINK" />myactivity.google.com<ph name="END_LINK" />, t.ex. sökningar och aktivitet på andra tjänster från Google.</translation>
+<translation id="4521637321901000942">Hantera dina tillägg i verktygsfältet</translation>
 <translation id="4523326818319942067">senaste timmen</translation>
 <translation id="452750746583162491">Granska din synkroniserade data</translation>
 <translation id="4532845899244822526">Välj mapp</translation>
@@ -1189,6 +1194,7 @@ Det kan finnas andra former av webbhistorik i Google-kontot på <ph name="BEGIN_
 <translation id="6011308810877101166">Förbättra sökförslag</translation>
 <translation id="6013305291643746595">Sorterar efter äldsta</translation>
 <translation id="6022659036123304283">Anpassa Chrome</translation>
+<translation id="6023820583797130428">Öppna menyn för att gå tillbaka</translation>
 <translation id="6026538407078977628">Utöka till helskärmsläge</translation>
 <translation id="6030719887161080597">Hantera information som används av webbplatser för att mäta annonsresultat</translation>
 <translation id="6039379616847168523">Hoppa till nästa flik</translation>
@@ -1294,6 +1300,7 @@ Vissa webbplatser kan till exempel svara på begäran genom att visa annonser so
 <translation id="6380100320871303656">Chrome läser oftare in sidor som du kanske vill besöka i förväg. Den här inställningen kan leda till ökad dataanvändning.</translation>
 <translation id="6382848304055775421">Exporterar</translation>
 <translation id="6388152137132427505">Dela alltid smart. Länkar upphör att gälla om 48 timmar.</translation>
+<translation id="6389513857577090038">Vill du tillåta tillägget <ph name="EXTENSION_NAME" />?</translation>
 <translation id="6394791151443660613">Sök efter: <ph name="SEARCH_QUERY" /></translation>
 <translation id="6397616442223433927">Online igen</translation>
 <translation id="6399363707848566877">Nu kan du enkelt lägga till flikar i grupper här</translation>
@@ -1633,6 +1640,7 @@ Om du vill ändra den här inställningen <ph name="BEGIN_LINK" />raderar du Chr
 <translation id="7597601275223325603">{NUMBER_OF_TABS,plural, =1{<ph name="TABS_COUNT_ONE" /> standardflik}other{<ph name="TABS_COUNT_MANY" /> standardflikar}}</translation>
 <translation id="7603168929588204083">Ogiltigt datum</translation>
 <translation id="7605594153474022051">Det går inte att synkronisera</translation>
+<translation id="7608245556672190037">Arket på nedre delen av skärmen för att välja att använda Chrome Finds har öppnats över hela skärmen</translation>
 <translation id="7612619742409846846">Inloggad i Google som</translation>
 <translation id="7612989789287281429">Du loggas in …</translation>
 <translation id="7619072057915878432">Det gick inte att ladda ned <ph name="FILE_NAME" /> på grund av nätverksfel.</translation>
@@ -1640,6 +1648,7 @@ Om du vill ändra den här inställningen <ph name="BEGIN_LINK" />raderar du Chr
 <translation id="7628417132421583481">Öppna Lösenordshantering</translation>
 <translation id="7630202231528827509">Leverantörens webbadress</translation>
 <translation id="7638584964844754484">Felaktig lösenfras</translation>
+<translation id="764047009170754705">Arket på nedre delen av skärmen för att välja att använda Chrome Finds har stängts</translation>
 <translation id="7646499124171960488">Varnar för osäkra offentliga webbplatser</translation>
 <translation id="7646772052135772216">Det går inte att synkronisera lösenord</translation>
 <translation id="7655240423373329753">de senaste sju dagarna</translation>
@@ -1864,6 +1873,7 @@ Om du vill ändra den här inställningen <ph name="BEGIN_LINK" />raderar du Chr
 <translation id="8473863474539038330">Adresser och annat</translation>
 <translation id="847433688444405067">Bläddra bland enheter</translation>
 <translation id="8477178913400731244">Ta bort data</translation>
+<translation id="8481771036036087705">Arket på nedre delen av skärmen för att välja att använda Chrome Finds har öppnats över halva skärmen</translation>
 <translation id="8485434340281759656"><ph name="FILE_SIZE" /> <ph name="SEPARATOR" /> <ph name="DESCRIPTION" /></translation>
 <translation id="8491317241605644838">Inga inaktiva fönster</translation>
 <translation id="8493948351860045254">Frigör lagringsutrymme</translation>

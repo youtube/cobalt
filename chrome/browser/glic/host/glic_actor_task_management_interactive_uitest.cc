@@ -4,7 +4,6 @@
 
 #include "base/test/metrics/user_action_tester.h"
 #include "build/build_config.h"
-#include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/download/download_test_file_activity_observer.h"
 #include "chrome/browser/glic/host/glic_actor_interactive_uitest_common.h"
 #include "chrome/browser/glic/host/glic_features.mojom-features.h"
@@ -12,6 +11,7 @@
 #include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/interaction/interactive_browser_test.h"
+#include "components/actor/core/actor_features.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/download_test_observer.h"
@@ -371,7 +371,8 @@ IN_PROC_BROWSER_TEST_F(GlicActorTaskManagementUiTest, CreateTaskNoTitle) {
 }
 
 // Flaky timeout on ASAN.
-#if defined(ADDRESS_SANITIZER)
+// TODO(crbug.com/498409892): Flaky on linux-chromeos-dbg.
+#if defined(ADDRESS_SANITIZER) || BUILDFLAG(IS_CHROMEOS)
 #define MAYBE_ForegroundActorTaskTab DISABLED_ForegroundActorTaskTab
 #else
 #define MAYBE_ForegroundActorTaskTab ForegroundActorTaskTab

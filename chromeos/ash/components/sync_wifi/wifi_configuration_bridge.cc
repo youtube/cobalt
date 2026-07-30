@@ -105,11 +105,6 @@ void WifiConfigurationBridge::OnShuttingDown() {
   }
 }
 
-std::unique_ptr<syncer::MetadataChangeList>
-WifiConfigurationBridge::CreateMetadataChangeList() {
-  return syncer::DataTypeStore::WriteBatch::CreateMetadataChangeList();
-}
-
 std::optional<syncer::ModelError> WifiConfigurationBridge::MergeFullSyncData(
     std::unique_ptr<syncer::MetadataChangeList> metadata_change_list,
     syncer::EntityChangeList change_list) {
@@ -327,7 +322,8 @@ void WifiConfigurationBridge::ApplyDisableSyncChanges(
   network_guid_to_timer_map_.clear();
   networks_to_sync_when_ready_.clear();
   if (store_) {
-    store_->DeleteAllDataAndMetadata(base::DoNothing());
+    store_->DeleteAllDataAndMetadata(std::move(delete_metadata_change_list),
+                                     base::DoNothing());
   }
   // Callbacks are no longer valid.
   weak_ptr_factory_.InvalidateWeakPtrs();

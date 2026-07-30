@@ -138,8 +138,8 @@ export enum PageContentAnnotatedRole {
 
 export interface PageContentGeometry {
   outerBoundingBox: Rect;
-  visibleBoundingBox: Rect;
-  fragmentVisibleBoundingBoxes: Rect[];
+  visibleBoundingBox?: Rect;
+  fragmentVisibleBoundingBoxes?: Rect[];
 }
 
 export interface PageContentSelection {
@@ -157,6 +157,7 @@ export interface PageContentPageInteractionInfo {
 }
 
 export interface PageContentFrameInteractionInfo {
+  focusedDomNodeId?: number;
   selection?: PageContentSelection;
 }
 
@@ -217,7 +218,9 @@ export enum PageContentTextSize {
 export interface PageContentTextStyle {
   textSize: PageContentTextSize;
   hasEmphasis: boolean;
-  color?: number;
+  // Color is passed as a string to avoid 32-bit signed integer overflow
+  // during bridge conversion (values can exceed INT_MAX).
+  color?: string;
 }
 
 export interface PageContentTextInfo {

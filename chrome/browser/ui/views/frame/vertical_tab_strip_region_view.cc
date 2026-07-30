@@ -61,6 +61,7 @@
 #include "ui/color/color_id.h"
 #include "ui/compositor/layer.h"
 #include "ui/display/screen.h"
+#include "ui/events/event.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/button/label_button.h"
@@ -90,10 +91,6 @@ constexpr ShadowFrameView::ShadowAlpha kExpandOnHoverShadowAlpha(
      .light_ambient = 0.0,
      .dark_key = 0.6,
      .dark_ambient = 0.0});
-
-// TODO(crbug.com/493593208): This value was chosen arbitrarily and should be
-// updated based on ux feedback.
-constexpr base::TimeDelta kExpandOnHoverDelay = base::Milliseconds(500);
 }  // namespace
 
 DEFINE_CLASS_CUSTOM_ELEMENT_EVENT_TYPE(VerticalTabStripRegionView,
@@ -449,7 +446,20 @@ void VerticalTabStripRegionView::OnMouseMoved(const ui::MouseEvent& event) {
 }
 
 void VerticalTabStripRegionView::OnMouseExited(const ui::MouseEvent& event) {
-  UpdateExpandOnHoverState();
+  UpdateExpandOnHoverState(
+#if BUILDFLAG(IS_LINUX)
+      // On Linux, `GetCursorScreenPoint()` can be buggy because it doesn't
+      // return values outside the browser window. To work around that, force a
+      // value of false when `OnMouseExited` is called. See
+      // `WaylandScreen::GetCursorScreenPoint()` for details.
+      false
+#else
+      // On Windows, we can get OnMouseExited events when the region view has
+      // fully expanded due to hover and the mouse leaves the original bounds of
+      // the region view. So defer to checking the mouse position in this case.
+      std::nullopt
+#endif
+  );
 }
 
 void VerticalTabStripRegionView::InitializeTabStrip() {
@@ -783,6 +793,8 @@ void VerticalTabStripRegionView::OnResize(int resize_amount,
   }
 
   if (done_resizing) {
+    resize_area_->SetVisible(!state_controller_->IsCollapsed() ||
+                             !state_controller_->IsExpandOnHoverEnabled());
     base::RecordAction(base::UserMetricsAction(
         new_state.collapsed ? "VerticalTabs_TabStrip_ResizeToCollapsed"
                             : "VerticalTabs_TabStrip_ResizeToUncollapsed"));
@@ -844,6 +856,20 @@ void VerticalTabStripRegionView::RegionViewFocusListener::OnDidChangeFocus(
   }
 }
 
+VerticalTabStripRegionView::ClickEventHandler::ClickEventHandler(
+    VerticalTabStripRegionView* region_view)
+    : region_view_(region_view) {}
+
+void VerticalTabStripRegionView::ClickEventHandler::OnMouseEvent(
+    ui::MouseEvent* event) {
+  if (event->type() == ui::EventType::kMousePressed &&
+      region_view_->state_controller_->IsExpandOnHoverEnabled() &&
+      !region_view_->is_expanded_on_hover()) {
+    region_view_->RestartExpandOnHoverTimer(
+        tabs::kVerticalTabsExpandOnHoverClickDelay.Get());
+  }
+}
+
 views::View* VerticalTabStripRegionView::SetTabStripView(
     std::unique_ptr<views::View> view) {
   CHECK(views::IsViewClass<VerticalTabStripView>(view.get()));
@@ -873,6 +899,12 @@ views::View* VerticalTabStripRegionView::SetTabStripView(
                           &VerticalTabStripRegionView::OnAnimationProgressed,
                           base::Unretained(this)));
 
+  expand_on_hover_enabled_changed_subscription_ =
+      state_controller_->RegisterOnExpandOnHoverEnabledChanged(
+          base::BindRepeating(
+              &VerticalTabStripRegionView::OnExpandOnHoverEnabledChanged,
+              base::Unretained(this)));
+
   std::optional<size_t> separator_index = GetIndexOf(top_button_separator_);
   CHECK(separator_index.has_value());
   ReorderChildView(tab_strip_view_, separator_index.value() + 1);
@@ -885,6 +917,7 @@ views::View* VerticalTabStripRegionView::SetTabStripView(
 void VerticalTabStripRegionView::ClearTabStripView(views::View* view) {
   on_animation_update_subscription_.reset();
   on_active_tab_changed_subscription_.reset();
+  expand_on_hover_enabled_changed_subscription_.reset();
   omnibox_tab_helper_observation_.Reset();
   CHECK(tab_strip_view_);
   CHECK(tab_strip_view_ == view);
@@ -897,9 +930,13 @@ void VerticalTabStripRegionView::OnCollapseStateChanged(
   // the collapsing state.
   bool collapsed = state != tabs::VerticalTabStripCollapseState::kExpanded;
 
+  resize_area_->SetVisible(!collapsed ||
+                           !state_controller_->IsExpandOnHoverEnabled() ||
+                           resize_area_->is_resizing());
+
   // Immediately apply the padding at the start of the collapsing animation.
   const int padding = GetLayoutConstant(
-      collapsed ? LayoutConstant::kVerticalTabStripCollapsedPadding
+      collapsed ? LayoutConstant::kVerticalTabStripCollapsedHorizontalPadding
                 : LayoutConstant::kVerticalTabStripUncollapsedPadding);
 
   // The TopContainer handles the padding distance to the separator so that we
@@ -933,7 +970,8 @@ void VerticalTabStripRegionView::OnCollapseStateChanged(
     tab_strip_view_->SetCollapsedState(collapsed);
   }
 
-  if (state == tabs::VerticalTabStripCollapseState::kExpanded) {
+  if (state == tabs::VerticalTabStripCollapseState::kExpanded ||
+      state == tabs::VerticalTabStripCollapseState::kCollapsed) {
     UpdateExpandOnHoverState();
   }
 }
@@ -985,14 +1023,21 @@ void VerticalTabStripRegionView::OnChildMoved() {
   hover_tab_selector_->CancelTabTransition();
 }
 
-void VerticalTabStripRegionView::UpdateExpandOnHoverState() {
-  if (!state_controller_->IsExpandOnHoverEnabled()) {
-    return;
-  }
+void VerticalTabStripRegionView::OnExpandOnHoverEnabledChanged(bool enabled) {
+  resize_area_->SetVisible(!state_controller_->IsCollapsed() || !enabled ||
+                           resize_area_->is_resizing());
+  UpdateExpandOnHoverState();
+}
+
+void VerticalTabStripRegionView::UpdateExpandOnHoverState(
+    std::optional<bool> hovered) {
   // If not collapsed, then we shouldn't be in or entering the expand on hover
   // state.
   if (!state_controller_->IsCollapsed()) {
     expand_on_hover_timer_.Stop();
+    if (tabs::IsExpandOnHoverClickDelayEnabled()) {
+      RemovePreTargetHandler(&click_handler_);
+    }
     hover_card_animation_lock_.reset();
     is_expanded_on_hover_ = false;
     return;
@@ -1006,9 +1051,14 @@ void VerticalTabStripRegionView::UpdateExpandOnHoverState() {
     return;
   }
 
+  // On Linux, `GetCursorScreenPoint()` can be buggy because it doesn't return
+  // values outside the browser window. To work around that, force a value of
+  // false when `OnMouseExited` is called. See
+  // `WaylandScreen::GetCursorScreenPoint()` for details.
   const bool should_expand =
-      IsMouseHovered() ||
-      (GetFocusManager() && Contains(GetFocusManager()->GetFocusedView()));
+      state_controller_->IsExpandOnHoverEnabled() &&
+      (hovered.value_or(IsMouseHovered()) ||
+       (GetFocusManager() && Contains(GetFocusManager()->GetFocusedView())));
 
   if (expand_on_hover_timer_.IsRunning()) {
     if (should_expand) {
@@ -1018,6 +1068,9 @@ void VerticalTabStripRegionView::UpdateExpandOnHoverState() {
     } else {
       // If the timer is running but we shouldn't be expanding, stop the timer.
       expand_on_hover_timer_.Stop();
+      if (tabs::IsExpandOnHoverClickDelayEnabled()) {
+        RemovePreTargetHandler(&click_handler_);
+      }
       hover_card_animation_lock_.reset();
       is_expanded_on_hover_ = false;
     }
@@ -1026,13 +1079,27 @@ void VerticalTabStripRegionView::UpdateExpandOnHoverState() {
   if (!is_expanded_on_hover_ && should_expand) {
     hover_card_animation_lock_ = hover_card_controller_->GetHoverCardHideLock();
     expand_on_hover_timer_.Start(
-        FROM_HERE, kExpandOnHoverDelay,
+        FROM_HERE, tabs::kVerticalTabsExpandOnHoverDelay.Get(),
         base::BindOnce(&VerticalTabStripRegionView::AnimateExpandOnHover,
                        base::Unretained(this),
                        /*expand=*/true));
+    if (tabs::IsExpandOnHoverClickDelayEnabled()) {
+      AddPreTargetHandler(&click_handler_);
+    }
   } else if (is_expanded_on_hover_ && !should_expand &&
              keep_expanded_lock_count_ == 0) {
     AnimateExpandOnHover(/*expand=*/false);
+  }
+}
+
+void VerticalTabStripRegionView::RestartExpandOnHoverTimer(
+    const base::TimeDelta& delay) {
+  if (expand_on_hover_timer_.IsRunning()) {
+    expand_on_hover_timer_.Start(
+        FROM_HERE, delay,
+        base::BindOnce(&VerticalTabStripRegionView::AnimateExpandOnHover,
+                       base::Unretained(this),
+                       /*expand=*/true));
   }
 }
 

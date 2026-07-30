@@ -98,14 +98,14 @@ class SelectionOverlayController
   void NotifyIsOverlayShowing(bool is_showing) override;
   int GetToolResourceId() override;
   ui::ElementIdentifier GetViewContainerId() override;
-  SidePanelEntry::PanelType GetSidePanelType() override;
+  SidePanelType GetSidePanelType() override;
   bool ShouldCloseSidePanel() override;
   bool ShouldShowPreselectionBubble() override;
   bool UseOverlayBlur() override;
   void NotifyPageNavigated() override;
   void NotifyTabForegrounded() override;
   void NotifyTabWillEnterBackground() override;
-  PreselectionBubbleResources GetPreselectionBubbleResources() override;
+  PreselectionUIConfig GetPreselectionBubbleConfig() override;
   bool IsOverlayViewShared() const override;
 
   // `selection::SelectionOverlayPageHandler`:

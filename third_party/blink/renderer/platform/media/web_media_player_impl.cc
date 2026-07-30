@@ -998,8 +998,8 @@ void WebMediaPlayerImpl::DoLoad(LoadType load_type,
   auto* mb_data_source = data_source.get();
   demuxer_manager_->SetDataSource(std::move(data_source));
 
-  mb_data_source->OnRedirect(blink::BindRepeating(
-      &WebMediaPlayerImpl::OnDataSourceRedirected, weak_this_));
+  mb_data_source->SetTaintedCallback(blink::BindRepeating(
+      &WebMediaPlayerImpl::OnDataSourceTainted, weak_this_));
   mb_data_source->SetPreload(preload_);
   mb_data_source->SetIsClientAudioElement(client_->IsAudioElement());
   mb_data_source->Initialize(blink::BindOnce(
@@ -1475,7 +1475,7 @@ WebMediaPlayer::ReadyState WebMediaPlayerImpl::GetReadyState() const {
 
 WebString WebMediaPlayerImpl::GetErrorMessage() const {
   DCHECK(main_task_runner_->BelongsToCurrentThread());
-  return WebString::FromUTF8(media_log_->GetErrorMessage());
+  return WebString::FromUtf8(media_log_->GetErrorMessage());
 }
 
 WebTimeRanges WebMediaPlayerImpl::Buffered() const {
@@ -1610,8 +1610,20 @@ WebMediaPlayerImpl::GetPaintCanvasVideoRenderer() {
   return &video_renderer_;
 }
 
+media::VideoFrameSharedImageCache*
+WebMediaPlayerImpl::GetRGBSharedImageCache() {
+  DCHECK(main_task_runner_->BelongsToCurrentThread());
+  return &rgb_shared_image_cache_;
+}
+
+media::VideoFrameSharedImageCache*
+WebMediaPlayerImpl::GetYUVSharedImageCache() {
+  DCHECK(main_task_runner_->BelongsToCurrentThread());
+  return &yuv_shared_image_cache_;
+}
+
 bool WebMediaPlayerImpl::WouldTaintOrigin() const {
-  return demuxer_manager_->WouldTaintOrigin();
+  return is_origin_tainted_ || demuxer_manager_->WouldTaintOrigin();
 }
 
 double WebMediaPlayerImpl::MediaTimeForTimeValue(double timeValue) const {
@@ -1738,14 +1750,16 @@ WebMediaPlayerImpl::GetHlsDataSourceProvider() {
   // these things when they change, for example when CORS mode changes from
   // untainted to tainted. Using a NullMediaLog here prevents the unnecessary
   // spamming.
-  auto media_log = std::make_unique<media::NullMediaLog>();
   return base::SequenceBound<media::HlsDataSourceProviderImpl>(
       main_task_runner_,
       std::make_unique<MultiBufferDataSource::Factory>(
-          media_log.get(),
+          std::make_unique<media::NullMediaLog>(),
           blink::BindRepeating(&WebMediaPlayerImpl::GetUrlData,
                                weak_factory_.GetWeakPtr()),
-          main_task_runner_, tick_clock_));
+          client_->IsAudioElement(), preload_,
+          blink::BindRepeating(&WebMediaPlayerImpl::OnDataSourceTainted,
+                               weak_this_),
+          tick_clock_, main_task_runner_));
 }
 #endif
 
@@ -2902,13 +2916,11 @@ void WebMediaPlayerImpl::MultiBufferDataSourceInitialized(bool success) {
   DataSourceInitialized(success);
 }
 
-void WebMediaPlayerImpl::OnDataSourceRedirected() {
+void WebMediaPlayerImpl::OnDataSourceTainted(const media::DataSource*) {
   DVLOG(1) << __func__;
   DCHECK(main_task_runner_->BelongsToCurrentThread());
-
-  if (WouldTaintOrigin()) {
-    audio_source_provider_->TaintOrigin();
-  }
+  audio_source_provider_->TaintOrigin();
+  is_origin_tainted_ = true;
 }
 
 void WebMediaPlayerImpl::NotifyDownloading(bool is_downloading) {
@@ -3930,7 +3942,7 @@ void WebMediaPlayerImpl::SwitchToRemoteRenderer(
   ScheduleRestart();
   if (client_) {
     client_->MediaRemotingStarted(
-        WebString::FromUTF8(remote_device_friendly_name));
+        WebString::FromUtf8(remote_device_friendly_name));
   }
 }
 

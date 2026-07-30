@@ -94,6 +94,7 @@ import org.chromium.chrome.browser.toolbar.optional_button.OptionalButtonCoordin
 import org.chromium.chrome.browser.toolbar.optional_button.OptionalButtonCoordinator.TransitionType;
 import org.chromium.chrome.browser.toolbar.reload_button.ReloadButtonCoordinator;
 import org.chromium.chrome.browser.toolbar.settings.AddressBarPreference;
+import org.chromium.chrome.browser.toolbar.signin_button.SigninButtonCoordinator;
 import org.chromium.chrome.browser.toolbar.top.CaptureReadinessResult.TopToolbarBlockCaptureReason;
 import org.chromium.chrome.browser.toolbar.top.NavigationPopup.HistoryDelegate;
 import org.chromium.chrome.browser.toolbar.top.TopToolbarCoordinator.ToolbarColorObserver;
@@ -129,6 +130,8 @@ public class ToolbarPhone extends ToolbarLayout
     private static final int URL_FOCUS_TOOLBAR_BUTTONS_DURATION_MS = 100;
     private static final int URL_CLEAR_FOCUS_TABSTACK_DELAY_MS = 200;
     private static final int URL_CLEAR_FOCUS_MENU_DELAY_MS = 250;
+
+    public static final int BUTTON_TRANSITION_DURATION_MS = 225;
 
     // Values used during animation to show/hide optional toolbar button.
     private static final float UNINITIALIZED_FRACTION = -1f;
@@ -408,6 +411,7 @@ public class ToolbarPhone extends ToolbarLayout
             @Nullable BackButtonCoordinator backButtonCoordinator,
             @Nullable ForwardButtonCoordinator forwardButtonCoordinator,
             HomeButtonCoordinator homeButtonCoordinator,
+            @Nullable SigninButtonCoordinator signinButtonCoordinator,
             ThemeColorProvider themeColorProvider,
             IncognitoStateProvider incognitoStateProvider,
             @Nullable Supplier<Integer> incognitoWindowCountSupplier) {
@@ -425,6 +429,7 @@ public class ToolbarPhone extends ToolbarLayout
                 backButtonCoordinator,
                 forwardButtonCoordinator,
                 homeButtonCoordinator,
+                signinButtonCoordinator,
                 themeColorProvider,
                 incognitoStateProvider,
                 /* incognitoWindowCountSupplier= */ null);
@@ -1652,6 +1657,17 @@ public class ToolbarPhone extends ToolbarLayout
             canvas.restore();
         }
 
+        // Draw the signin button if visible.
+        if (mSigninButtonCoordinator != null && mSigninButtonCoordinator.isVisible()) {
+            View signinButtonView = mSigninButtonCoordinator.getViewForDrawing();
+            if (signinButtonView != null) {
+                canvas.save();
+                ViewUtils.translateCanvasToView(mToolbarButtonsContainer, signinButtonView, canvas);
+                signinButtonView.draw(canvas);
+                canvas.restore();
+            }
+        }
+
         // Draw the tab stack button and associated text if necessary.
         if (getTabSwitcherButtonCoordinator() != null && mUrlExpansionFraction != 1f) {
             // Draw the tab stack button image.
@@ -1998,6 +2014,24 @@ public class ToolbarPhone extends ToolbarLayout
     @Override
     public void setLayoutUpdater(Runnable layoutUpdater) {
         mLayoutUpdater = layoutUpdater;
+    }
+
+    @Override
+    public void beginButtonTransition() {
+        if (isInTabSwitcherMode()
+                || mUrlFocusChangeInProgress
+                || urlHasFocus()
+                || getToolbarDataProvider()
+                        .getNewTabPageDelegate()
+                        .transitioningAwayFromLocationBar()) {
+            return;
+        }
+
+        Transition transition =
+                new ChangeBounds()
+                        .setDuration(BUTTON_TRANSITION_DURATION_MS)
+                        .setInterpolator(Interpolators.FAST_OUT_SLOW_IN_INTERPOLATOR);
+        TransitionManager.beginDelayedTransition(mToolbarButtonsContainer, transition);
     }
 
     @Override

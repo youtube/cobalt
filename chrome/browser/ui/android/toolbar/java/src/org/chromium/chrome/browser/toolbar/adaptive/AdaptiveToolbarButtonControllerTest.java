@@ -90,17 +90,11 @@ public class AdaptiveToolbarButtonControllerTest {
     public void setUp() {
         VoiceRecognitionUtil.setIsVoiceSearchEnabledForTesting(true);
         SettingsNavigationFactory.setInstanceForTesting(mSettingsNavigation);
-        mButtonData =
-                new ButtonDataImpl(
-                        /* canShow= */ true,
-                        /* drawable= */ null,
-                        mock(View.OnClickListener.class),
-                        /* contentDescription= */ "",
-                        /* supportsTinting= */ false,
-                        /* iphCommandBuilder= */ null,
-                        /* isEnabled= */ true,
-                        AdaptiveToolbarButtonVariant.UNKNOWN,
-                        /* tooltipTextResId= */ Resources.ID_NULL);
+        ButtonSpec buttonSpec =
+                new ButtonSpec.Builder(null, "", false)
+                        .setOnClickListener(mock(View.OnClickListener.class))
+                        .build();
+        mButtonData = new ButtonDataImpl(/* canShow= */ true, /* isEnabled= */ true, buttonSpec);
         mConfiguration.screenWidthDp = 420;
         doReturn(mProfile).when(mProfile).getOriginalProfile();
         mProfileSupplier = ObservableSuppliers.createMonotonic();
@@ -360,6 +354,72 @@ public class AdaptiveToolbarButtonControllerTest {
         Assert.assertTrue(buttonSpec.isDynamicAction());
         // Dynamic actions should have no long click handlers.
         Assert.assertNull(buttonSpec.getOnLongClickListener());
+        adaptiveToolbarButtonController.destroy();
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures(ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_V2)
+    public void testShowDynamicAction_suppressedByCurrentButton() {
+        Activity activity = Robolectric.setupActivity(Activity.class);
+
+        AdaptiveToolbarStatePredictor.setSegmentationResultsForTesting(
+                new Pair<>(true, List.of(AdaptiveToolbarButtonVariant.NEW_TAB)));
+
+        AdaptiveButtonActionMenuCoordinator menuCoordinator =
+                mock(AdaptiveButtonActionMenuCoordinator.class);
+
+        AdaptiveToolbarButtonController adaptiveToolbarButtonController =
+                new AdaptiveToolbarButtonController(
+                        activity,
+                        mActivityLifecycleDispatcher,
+                        mProfileSupplier,
+                        menuCoordinator,
+                        mToolbarBehavior,
+                        mAndroidPermissionDelegate);
+
+        // Register a mock provider with shouldSuppressCpa = true
+        ButtonDataProvider mockGlicProvider = mock(ButtonDataProvider.class);
+        adaptiveToolbarButtonController.addButtonVariant(
+                AdaptiveToolbarButtonVariant.GLIC, mockGlicProvider);
+
+        ButtonDataImpl glicButtonData = new ButtonDataImpl();
+        glicButtonData.setCanShow(true);
+        glicButtonData.setEnabled(true);
+        ButtonSpec glicSpec =
+                new ButtonSpec.Builder(null, "description", false)
+                        .setButtonVariant(AdaptiveToolbarButtonVariant.GLIC)
+                        .setShouldSuppressCpa(true)
+                        .build();
+        glicButtonData.setButtonSpec(glicSpec);
+
+        when(mockGlicProvider.get(any())).thenReturn(glicButtonData);
+
+        // Also register a CPA provider (e.g. price tracking)
+        adaptiveToolbarButtonController.addButtonVariant(
+                AdaptiveToolbarButtonVariant.PRICE_TRACKING, mPriceTrackingButtonController);
+
+        // Initialize tab supplier to avoid null check bailing
+        var tabSupplier = ObservableSuppliers.<Tab>createNullable();
+        tabSupplier.set(mTab);
+        adaptiveToolbarButtonController.initializePageLoadMetricsRecorder(tabSupplier);
+
+        mProfileSupplier.set(mProfile);
+
+        // Force the controller to use Glic as the single provider first.
+        adaptiveToolbarButtonController.showDynamicAction(AdaptiveToolbarButtonVariant.GLIC);
+
+        Assert.assertEquals(
+                mockGlicProvider, adaptiveToolbarButtonController.getSingleProviderForTesting());
+
+        // Now try to show a CPA action (PRICE_TRACKING).
+        adaptiveToolbarButtonController.showDynamicAction(
+                AdaptiveToolbarButtonVariant.PRICE_TRACKING);
+
+        // It should STILL be Glic provider because it suppressed CPA!
+        Assert.assertEquals(
+                mockGlicProvider, adaptiveToolbarButtonController.getSingleProviderForTesting());
+        activity.finish();
         adaptiveToolbarButtonController.destroy();
     }
 

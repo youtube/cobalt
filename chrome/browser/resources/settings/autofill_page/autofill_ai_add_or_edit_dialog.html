@@ -56,10 +56,6 @@
     white-space: initial;
   }
 
-  .title-text {
-    font-weight: bold;
-  }
-
   .title-container {
     display: flex;
     justify-content: space-between;
@@ -98,9 +94,9 @@
       <if expr="_google_chrome">
         <div class="title-icon-container">
           <picture id="branding-image">
-            <source srcset="chrome://theme/IDR_AUTOFILL_GOOGLE_WALLET_DARK"
+            <source srcset="[[getScaledSrcSet_('chrome://theme/IDR_AUTOFILL_GOOGLE_WALLET_DARK')]]"
                 media="(prefers-color-scheme: dark)">
-            <img srcset="chrome://theme/IDR_AUTOFILL_GOOGLE_WALLET"
+            <img srcset="[[getScaledSrcSet_('chrome://theme/IDR_AUTOFILL_GOOGLE_WALLET')]]"
                 alt=""
                 role="presentation">
           </picture>
@@ -250,8 +246,8 @@
     </template>
 
     <div id="footer"
-         hidden="[[!footerText_]]">
-      [[footerText_]]
+         hidden="[[shouldHideFooterText_(footerText_)]]"
+         inner-h-t-m-l="[[footerText_]]">
     </div>
   </div>
   <div slot="button-container">

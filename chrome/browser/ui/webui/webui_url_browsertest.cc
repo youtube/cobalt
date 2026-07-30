@@ -3,12 +3,10 @@
 // found in the LICENSE file.
 
 #include "base/strings/string_util.h"
-#include "base/test/scoped_feature_list.h"
 #include "chrome/browser/ui/webui/web_ui_all_urls_browser_test.h"
 #include "chrome/browser/ui/webui/webui_urls_for_test.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
-#include "components/privacy_sandbox/privacy_sandbox_features.h"
 #include "content/public/browser/webui_config_map.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -26,12 +24,12 @@ IN_PROC_BROWSER_TEST_F(WebUIUrlBrowserTest, UrlsInTestList) {
     missing_entries.insert(url);
   }
 
-  for (const char* url : kChromeUrls) {
-    missing_entries.erase(url);
+  for (std::string_view url : GetChromeUrlsForTest()) {
+    missing_entries.erase(std::string(url));
   }
 
-  for (const char* url : kChromeUntestedUrls) {
-    missing_entries.erase(url);
+  for (std::string_view url : GetUntestedChromeUrlsForTest()) {
+    missing_entries.erase(std::string(url));
   }
 
   EXPECT_TRUE(missing_entries.empty())
@@ -64,11 +62,6 @@ static const char* const kConsoleErrorUrls[] = {
 
 class WebUIUrlNoConsoleErrorsTest : public WebUIAllUrlsBrowserTest {
  public:
-  WebUIUrlNoConsoleErrorsTest() {
-    scoped_feature_list_.InitAndDisableFeature(
-        privacy_sandbox::kPrivacySandboxAdPrivacyUxDeprecation);
-  }
-
   void CheckNoConsoleErrors(std::string_view url) {
     for (const char* broken_url : kConsoleErrorUrls) {
       if (url == broken_url) {
@@ -94,9 +87,6 @@ class WebUIUrlNoConsoleErrorsTest : public WebUIAllUrlsBrowserTest {
     log_watcher.FlushAndStopWatching();
     EXPECT_EQ(log_watcher.last_message(), "");
   }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 // Verify that there's no console errors when loading any `kChromeUrls`.
@@ -111,5 +101,5 @@ IN_PROC_BROWSER_TEST_P(WebUIUrlNoConsoleErrorsTest, NoConsoleErrors) {
 
 INSTANTIATE_TEST_SUITE_P(,
                          WebUIUrlNoConsoleErrorsTest,
-                         ::testing::ValuesIn(kChromeUrls),
+                         testing::ValuesIn(GetChromeUrlsForTest()),
                          WebUIAllUrlsBrowserTest::ParamInfoToString);

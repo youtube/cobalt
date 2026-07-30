@@ -73,7 +73,7 @@ class SequenceManagerThreadDelegate : public Thread::Delegate {
             sequence_manager::TaskQueue::Spec(
                 sequence_manager::QueueName::DEFAULT_TQ))),
         message_pump_factory_(std::move(message_pump_factory)) {
-    sequence_manager_->SetDefaultTaskRunner(default_task_queue_->task_runner());
+    sequence_manager_->SetDefaultTaskQueue(default_task_queue_.get());
   }
 
   ~SequenceManagerThreadDelegate() override = default;
@@ -94,16 +94,12 @@ class SequenceManagerThreadDelegate : public Thread::Delegate {
     // could happen far away from where the Thread is created. We should
     // consider getting rid of StartWithOptions, and pass them as a constructor
     // argument instead.
-    return sequence_manager_->GetTaskRunner();
+    return sequence_manager_->GetDefaultTaskRunner();
   }
 
   void BindToCurrentThread() override {
     sequence_manager_->BindToMessagePump(
         std::move(message_pump_factory_).Run());
-  }
-
-  void AddTaskObserver(TaskObserver* observer) override {
-    sequence_manager_->AddTaskObserver(observer);
   }
 
  private:
@@ -128,8 +124,7 @@ Thread::Options::Options(Options&& other)
       stack_size(std::move(other.stack_size)),
       thread_type(std::move(other.thread_type)),
       joinable(std::move(other.joinable)),
-      sequence_manager_settings(std::move(other.sequence_manager_settings)),
-      task_observer(std::move(other.task_observer)) {
+      sequence_manager_settings(std::move(other.sequence_manager_settings)) {
   other.moved_from = true;
 }
 
@@ -142,7 +137,6 @@ Thread::Options& Thread::Options::operator=(Thread::Options&& other) {
   thread_type = std::move(other.thread_type);
   joinable = std::move(other.joinable);
   sequence_manager_settings = std::move(other.sequence_manager_settings);
-  task_observer = std::move(other.task_observer);
   other.moved_from = true;
 
   return *this;
@@ -224,10 +218,6 @@ bool Thread::StartWithOptions(Options options) {
               options.message_pump_type),
           std::move(options.sequence_manager_settings));
     }
-  }
-
-  if (options.task_observer) {
-    delegate_->AddTaskObserver(options.task_observer);
   }
 
   start_event_.Reset();

@@ -13,9 +13,12 @@
 #include "base/containers/span.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/weak_ptr.h"
+#include "base/observer_list_types.h"
+#include "base/time/time.h"
 #include "base/types/optional_ref.h"
 #include "base/values.h"
 #include "components/accessibility_annotator/core/data_models/entity_types.h"
+#include "components/history/core/browser/history_types.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/optimization_guide/proto/features/content_annotation.pb.h"
 #include "url/gurl.h"
@@ -34,6 +37,18 @@ class AccessibilityAnnotationSyncBridge;
 
 class AccessibilityAnnotatorBackend : public KeyedService {
  public:
+  struct ContentAnnotationsData;
+
+  class Observer : public base::CheckedObserver {
+    // TODO(crbug.com/501107222): Add observer method for when annotations are
+    // deleted.
+   public:
+    // Called when content annotations are added.
+    virtual void OnContentAnnotationsAdded(
+        const ContentAnnotationsData& annotation_data) = 0;
+  };
+
+  // TODO(crbug.com/501429617): Move this struct out of backend class.
   struct ContentAnnotationsData {
     ContentAnnotationsData();
     ~ContentAnnotationsData();
@@ -49,6 +64,10 @@ class AccessibilityAnnotatorBackend : public KeyedService {
     std::optional<optimization_guide::proto::ContentAnnotation>
         content_annotation;
     base::DictValue classifier_results;
+    base::Time navigation_timestamp;
+    history::VisitID visit_id = history::kInvalidVisitID;
+    // TODO(crbug.com/501092664): Add URL field to prepare for keying cache by
+    // visit_id and pass to observers for data ingestion.
   };
 
   ~AccessibilityAnnotatorBackend() override = default;
@@ -60,6 +79,12 @@ class AccessibilityAnnotatorBackend : public KeyedService {
   // datatype.
   virtual base::WeakPtr<syncer::DataTypeControllerDelegate>
   GetAccessibilityAnnotationControllerDelegate() = 0;
+
+  // Adds an observer to the backend.
+  virtual void AddObserver(Observer* observer) = 0;
+
+  // Removes an observer from the backend.
+  virtual void RemoveObserver(Observer* observer) = 0;
 
   // Reads from Content Annotations cache.
   virtual base::optional_ref<const ContentAnnotationsData>

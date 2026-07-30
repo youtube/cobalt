@@ -140,7 +140,6 @@ public class FeedSurfaceCoordinator
     private final Profile mProfile;
     private @Nullable FeedSurfaceLifecycleManager mFeedSurfaceLifecycleManager;
     private @Nullable View mSigninPromoView;
-    private final @Nullable ViewGroup mViewportView;
     // Feed RecyclerView/xSurface fields.
     private FeedListContentManager mContentManager;
     private final RecyclerView mRecyclerView;
@@ -388,8 +387,6 @@ public class FeedSurfaceCoordinator
      * @param embeddingSurfaceCreatedTimeNs Timestamp of creation of the UI surface.
      * @param swipeRefreshLayout The layout to support pull-to-refresh.
      * @param overScrollDisabled Whether the overscroll effect is disabled.
-     * @param viewportView The view that should be used as a container for viewport measurement
-     *     purposes, or |null| if the view returned by HybridListRenderer is to be used.
      * @param createActionDelegate Factory for creating the implementation of Feed actions.
      * @param tabStripHeightSupplier Supplier for the tab strip height.
      * @param edgeToEdgeControllerSupplier Supplier for the {@link EdgeToEdgeController} instance.
@@ -414,7 +411,6 @@ public class FeedSurfaceCoordinator
             long embeddingSurfaceCreatedTimeNs,
             FeedSwipeRefreshLayout swipeRefreshLayout,
             boolean overScrollDisabled,
-            @Nullable ViewGroup viewportView,
             ActionDelegateFactory createActionDelegate,
             NonNullObservableSupplier<Integer> tabStripHeightSupplier,
             MonotonicObservableSupplier<EdgeToEdgeController> edgeToEdgeControllerSupplier,
@@ -433,7 +429,6 @@ public class FeedSurfaceCoordinator
         mToolbarSupplier = toolbarSupplier;
         mSwipeRefreshLayout = swipeRefreshLayout;
         mOverScrollDisabled = overScrollDisabled;
-        mViewportView = viewportView;
         mActionDelegate = createActionDelegate.createActionDelegate();
         mEmbeddingSurfaceCreatedTimeNs = embeddingSurfaceCreatedTimeNs;
         mHeaderIndex = 0;
@@ -546,7 +541,7 @@ public class FeedSurfaceCoordinator
 
         if (mNtpHeader != null && ChromeFeatureList.isEnabled(ChromeFeatureList.FEED_CONTAINMENT)) {
             int bottomPadding =
-                    mActivity.getResources().getDimensionPixelSize(R.dimen.feed_header_top_margin);
+                    mActivity.getResources().getDimensionPixelSize(R.dimen.ntp_section_top_margin);
             mNtpHeader.setPadding(
                     mNtpHeader.getPaddingLeft(),
                     mNtpHeader.getPaddingTop(),
@@ -782,8 +777,11 @@ public class FeedSurfaceCoordinator
         }
 
         mFeedStreamViewResizer.destroy();
+        mContentManager.destroy();
         mUiConfig.destroy();
         mActionDelegate.destroy();
+
+        mObservers.clear();
 
         // Null remaining objects.
         mReliabilityLogger = null;
@@ -986,7 +984,8 @@ public class FeedSurfaceCoordinator
         // XSurface returns a View, but it should be a RecyclerView.
         RecyclerView view =
                 (RecyclerView)
-                        mHybridListRenderer.bind(mContentManager, mViewportView, gutterPadding);
+                        mHybridListRenderer.bind(
+                                mContentManager, /* viewport= */ null, gutterPadding);
         assumeNonNull(view);
         view.setId(R.id.feed_stream_recycler_view);
         view.setClipToPadding(false);
@@ -1144,7 +1143,7 @@ public class FeedSurfaceCoordinator
                 int topPadding =
                         mActivity
                                 .getResources()
-                                .getDimensionPixelSize(R.dimen.feed_header_top_margin);
+                                .getDimensionPixelSize(R.dimen.feed_header_top_padding);
                 mSigninPromoView.setPadding(
                         mSigninPromoView.getPaddingLeft(),
                         topPadding,

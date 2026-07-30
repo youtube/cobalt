@@ -86,7 +86,7 @@ class BrowserViewTabbedLayoutImplUiTest : public InteractiveBrowserTest {
   }
 
   auto ReplaceAndShowSidePanel(
-      SidePanelEntry::PanelType type,
+      SidePanelType type,
       std::optional<int> force_preferred_width = std::nullopt) {
     return Steps(
         Do([this, type]() {
@@ -428,7 +428,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTabbedLayoutImplUiTest,
                        HorizontalTabsWithToolbarHeightSidePanel) {
   RunTestSequence(
       SelectTab(kBrowserViewElementId, 0),
-      ReplaceAndShowSidePanel(SidePanelEntry::PanelType::kToolbar),
+      ReplaceAndShowSidePanel(SidePanelType::kToolbar),
       SetOnIncompatibleAction(OnIncompatibleAction::kSkipTest,
                               "Test is screenshot-only."),
       ScreenshotLeft(kTabStripRegionElementId, "tabstrip_leading", 3),
@@ -467,7 +467,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTabbedLayoutImplUiTest,
   RunTestSequence(
       WaitForShow(kTabStripRegionElementId),
       SelectTab(kBrowserViewElementId, 0),
-      ReplaceAndShowSidePanel(SidePanelEntry::PanelType::kToolbar),
+      ReplaceAndShowSidePanel(SidePanelType::kToolbar),
       SetOnIncompatibleAction(OnIncompatibleAction::kSkipTest,
                               "Test is screenshot-only."),
       ScreenshotTop(kTabStripRegionElementId, "tabstrip_top", 3),
@@ -509,7 +509,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTabbedLayoutImplUiTest,
                        OpenSidePanelAtSmallWidthCollapsesLayout) {
   gfx::Rect toolbar_bounds_in_screen;
   RunTestSequence(ResizeToMinimumWidth(), SelectTab(kBrowserViewElementId, 0),
-                  ReplaceAndShowSidePanel(SidePanelEntry::PanelType::kToolbar),
+                  ReplaceAndShowSidePanel(SidePanelType::kToolbar),
                   WithView(ToolbarView::kToolbarElementId,
                            [&](views::View* toolbar) {
                              toolbar_bounds_in_screen =
@@ -525,7 +525,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTabbedLayoutImplUiTest,
                        TestMinimumWindowSizeWhenSidePanelIsOpen) {
   gfx::Rect toolbar_bounds_in_screen;
   RunTestSequence(SelectTab(kBrowserViewElementId, 0),
-                  ReplaceAndShowSidePanel(SidePanelEntry::PanelType::kToolbar),
+                  ReplaceAndShowSidePanel(SidePanelType::kToolbar),
                   ResizeToMinimumWidth(),
                   WithView(ToolbarView::kToolbarElementId,
                            [&](views::View* toolbar) {
@@ -544,36 +544,33 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTabbedLayoutImplUiTest,
 IN_PROC_BROWSER_TEST_F(BrowserViewTabbedLayoutImplUiTest, NormalSidePanelSize) {
   RunScheduledLayouts();
   RunTestSequence(SelectTab(kBrowserViewElementId, 0),
-                  ReplaceAndShowSidePanel(SidePanelEntry::PanelType::kToolbar),
+                  ReplaceAndShowSidePanel(SidePanelType::kToolbar),
                   VerifyLayout());
 }
 
 IN_PROC_BROWSER_TEST_F(BrowserViewTabbedLayoutImplUiTest, SmallSidePanelSize) {
   RunScheduledLayouts();
-  RunTestSequence(
-      SelectTab(kBrowserViewElementId, 0),
-      ReplaceAndShowSidePanel(SidePanelEntry::PanelType::kToolbar, 100),
-      VerifyLayout());
+  RunTestSequence(SelectTab(kBrowserViewElementId, 0),
+                  ReplaceAndShowSidePanel(SidePanelType::kToolbar, 100),
+                  VerifyLayout());
 }
 
 IN_PROC_BROWSER_TEST_F(BrowserViewTabbedLayoutImplUiTest,
                        LargeSidePanelPreferredSize) {
   RunScheduledLayouts();
   const int large_width = browser()->GetBrowserView().width() - 20;
-  RunTestSequence(
-      SelectTab(kBrowserViewElementId, 0),
-      ReplaceAndShowSidePanel(SidePanelEntry::PanelType::kToolbar, large_width),
-      VerifyLayout());
+  RunTestSequence(SelectTab(kBrowserViewElementId, 0),
+                  ReplaceAndShowSidePanel(SidePanelType::kToolbar, large_width),
+                  VerifyLayout());
 }
 
 IN_PROC_BROWSER_TEST_F(BrowserViewTabbedLayoutImplUiTest,
                        VeryLargeSidePanelPreferredSize) {
   RunScheduledLayouts();
   const int large_width = browser()->GetBrowserView().width() + 100;
-  RunTestSequence(
-      SelectTab(kBrowserViewElementId, 0),
-      ReplaceAndShowSidePanel(SidePanelEntry::PanelType::kToolbar, large_width),
-      VerifyLayout());
+  RunTestSequence(SelectTab(kBrowserViewElementId, 0),
+                  ReplaceAndShowSidePanel(SidePanelType::kToolbar, large_width),
+                  VerifyLayout());
 }
 
 // Regression test for limiting the amount of WebContents resizing when the
@@ -605,8 +602,7 @@ class BrowserViewTabbedLayoutImplContentLayoutUiTest
   auto OpenSidePanel() {
     return Steps(
         InParallel(
-            RunSubsequence(
-                ReplaceAndShowSidePanel(SidePanelEntry::PanelType::kToolbar)),
+            RunSubsequence(ReplaceAndShowSidePanel(SidePanelType::kToolbar)),
             RunSubsequence(WaitForEvent(kSidePanelElementId,
                                         SidePanel::kOpenAnimationCompletedEvent)
                                .SetMustBeVisibleAtStart(false))),

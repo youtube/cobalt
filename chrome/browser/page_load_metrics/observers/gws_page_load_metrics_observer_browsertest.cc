@@ -4,6 +4,7 @@
 
 #include "components/page_load_metrics/google/browser/gws_page_load_metrics_observer.h"
 
+#include "base/location.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/page_load_metrics/integration_tests/metric_integration_test.h"
@@ -16,6 +17,7 @@
 #include "chrome/test/base/search_test_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/lens/lens_features.h"
+#include "components/page_load_metrics/browser/observers/core/uma_page_load_metrics_observer.h"
 #include "components/page_load_metrics/browser/page_load_metrics_test_waiter.h"
 #include "components/page_load_metrics/google/browser/google_url_util.h"
 #include "components/page_load_metrics/google/browser/gws_abandoned_page_load_metrics_observer.h"
@@ -25,6 +27,7 @@
 #include "components/sessions/core/tab_restore_types.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_features.h"
+#include "content/public/common/content_switches.h"
 #include "content/public/test/back_forward_cache_util.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -48,6 +51,7 @@ std::unique_ptr<net::test_server::HttpResponse> SRPHandler(
     <html>
       <body>
         SRP Content
+        <a id="thelink" href="/search?q=duplicate">Next SRP Link</a>
       </body>
     </html>
   )");
@@ -277,6 +281,113 @@ IN_PROC_BROWSER_TEST_F(GWSPageLoadMetricsObserverBrowserTest,
   histogram_tester.ExpectTotalCount(restored_lcp_histogram, 1);
 }
 
+struct GWSActualNavigationStartBasedBrowserTestParam {
+  std::string test_name;
+  bool is_srp;
+};
+
+const GWSActualNavigationStartBasedBrowserTestParam
+    kGWSActualNavigationStartBasedBrowserTestParams[]{
+        {
+            .test_name = "ForSrp",
+            .is_srp = true,
+        },
+        {
+            .test_name = "ForNonSrp",
+            .is_srp = false,
+        },
+    };
+
+class GWSActualNavigationStartBasedBrowserTest
+    : public GWSPageLoadMetricsObserverBrowserTest,
+      public testing::WithParamInterface<
+          GWSActualNavigationStartBasedBrowserTestParam> {};
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    GWSActualNavigationStartBasedBrowserTest,
+    testing::ValuesIn(kGWSActualNavigationStartBasedBrowserTestParams),
+    [](const ::testing::TestParamInfo<
+        GWSActualNavigationStartBasedBrowserTestParam>& info) {
+      return info.param.test_name;
+    });
+
+IN_PROC_BROWSER_TEST_P(GWSActualNavigationStartBasedBrowserTest, Uma) {
+  base::HistogramTester histogram_tester;
+  bool is_srp = GetParam().is_srp;
+
+  // 1. Navigate to an initial page.
+  GURL target_url =
+      is_srp ? GetSrpUrl("test")
+             : embedded_test_server()->GetURL("a.test", "/title1.html");
+  ASSERT_TRUE(content::NavigateToURL(
+      web_contents(),
+      GURL(base::StrCat({"data:text/html,<html><body><a id='link' href='",
+                         target_url.spec(), "'>Link</a></body></html>"}))));
+
+  // 2. Click the link to trigger a renderer-initiated navigation with user
+  // gesture.
+  std::unique_ptr<PageLoadMetricsTestWaiter> waiter =
+      CreatePageLoadMetricsTestWaiter();
+  waiter->AddPageExpectation(
+      PageLoadMetricsTestWaiter::TimingField::kLargestContentfulPaint);
+  content::SimulateMouseClickOrTapElementWithId(web_contents(), "link");
+  waiter->Wait();
+
+  // 3. Flush metrics by navigating away.
+  ASSERT_TRUE(
+      content::NavigateToURL(web_contents(), GURL(url::kAboutBlankURL)));
+
+  // 4. Check that metrics are recorded and match core metrics.
+  auto check_metric = [&](const std::string& core_name,
+                          const std::string& gws_name,
+                          base::Location location = FROM_HERE) {
+    SCOPED_TRACE(location.ToString());
+    histogram_tester.ExpectTotalCount(core_name, 1);
+    histogram_tester.ExpectTotalCount(gws_name, is_srp ? 1 : 0);
+    if (is_srp) {
+      EXPECT_EQ(histogram_tester.GetTotalSum(core_name),
+                histogram_tester.GetTotalSum(gws_name))
+          << "Value mismatch between: \n - " << core_name << "\n - "
+          << gws_name;
+    }
+  };
+
+  check_metric(
+      "Navigation.Timeline.InteractionToActualNavigationStart.MainFrameOnly."
+      "Duration",
+      internal::kHistogramGWSInteractionToActualNavigationStart);
+  check_metric(internal::kHistogramInteractionToNavigationStart,
+               internal::kHistogramGWSInteractionToNavigationStart);
+  check_metric(
+      internal::kHistogramNavigationTimingNavigationStartToNavigationCommitSent,
+      internal::kHistogramGWSNavigationStartToNavigationCommitSent);
+  check_metric(internal::kHistogramNavigationCommitSentToParseStart,
+               internal::kHistogramGWSNavigationCommitSentToParseStart);
+  check_metric("PageLoad.PaintTiming.ParseStartToFirstContentfulPaint",
+               internal::kHistogramGWSParseStartToFirstContentfulPaint);
+  check_metric(internal::kHistogramParseStartToDOMContentLoaded,
+               internal::kHistogramGWSParseStartToDOMContentLoaded);
+  check_metric(internal::kHistogramParseStartToLargestContentfulPaint,
+               internal::kHistogramGWSParseStartToLargestContentfulPaint);
+
+  check_metric(internal::kHistogramActualNavigationStartToNavigationStart,
+               internal::kHistogramGWSActualNavigationStartToNavigationStart);
+  check_metric(
+      internal::kHistogramActualNavigationStartToNavigationCommitSent,
+      internal::kHistogramGWSActualNavigationStartToNavigationCommitSent);
+  check_metric(internal::kHistogramActualNavigationStartToParseStart,
+               internal::kHistogramGWSActualNavigationStartToParseStart);
+  check_metric(
+      internal::kHistogramActualNavigationStartToFirstContentfulPaint,
+      internal::kHistogramGWSActualNavigationStartToFirstContentfulPaint);
+  check_metric(internal::kHistogramActualNavigationStartToDOMContentLoaded,
+               internal::kHistogramGWSActualNavigationStartToDOMContentLoaded);
+  check_metric(
+      internal::kHistogramActualNavigationStartToLargestContentfulPaint,
+      internal::kHistogramGWSActualNavigationStartToLargestContentfulPaint);
+}
+
 class GWSPageLoadMetricsObserverContextMenuNaviBrowserTest
     : public GWSPageLoadMetricsObserverBrowserTest {
  public:
@@ -346,6 +457,118 @@ IN_PROC_BROWSER_TEST_F(GWSPageLoadMetricsObserverContextMenuNaviBrowserTest,
   histogram_tester.ExpectTotalCount(
       base::StrCat({internal::kHistogramGWSLargestContentfulPaint,
                     internal::kStartedFromContextMenu}),
+      1);
+}
+
+class GWSPageLoadMetricsObserverIgnoreDuplicateNavsBrowserTest
+    : public GWSPageLoadMetricsObserverBrowserTest {
+ public:
+  GWSPageLoadMetricsObserverIgnoreDuplicateNavsBrowserTest() {
+    feature_list_.InitAndEnableFeature(features::kIgnoreDuplicateNavs);
+  }
+
+  void SetUpInProcessBrowserTestFixture() override {
+    GWSPageLoadMetricsObserverBrowserTest::SetUpInProcessBrowserTestFixture();
+    // By default, IgnoreDuplicateNavs is disabled in tests to prevent
+    // navigations from being unintentionally ignored. This test requires the
+    // feature, so remove the switch.
+    base::CommandLine::ForCurrentProcess()->RemoveSwitch(
+        switches::kDisableIgnoreDuplicateNavsForTesting);
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+// Tests that a link click navigation that's a duplicate of an ongoing link
+// click navigation gets ignored.
+IN_PROC_BROWSER_TEST_F(GWSPageLoadMetricsObserverIgnoreDuplicateNavsBrowserTest,
+                       DuplicateLinkClickIsIgnored) {
+  auto waiter = CreatePageLoadMetricsTestWaiter();
+  waiter->AddPageExpectation(
+      PageLoadMetricsTestWaiter::TimingField::kLargestContentfulPaint);
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), GetSrpUrl("initial")));
+  waiter->Wait();
+
+  GURL srp_link_url = GetSrpUrl("duplicate");
+
+  base::HistogramTester histogram_tester;
+  auto srp_waiter = CreatePageLoadMetricsTestWaiter();
+  srp_waiter->AddPageExpectation(
+      PageLoadMetricsTestWaiter::TimingField::kFirstContentfulPaint);
+  // 1. Navigate to an SRP page.
+  content::TestNavigationManager nav_manager(web_contents(), srp_link_url);
+  std::string click_script = "document.getElementById('thelink').click()";
+  ASSERT_TRUE(content::ExecJs(web_contents(), click_script));
+
+  // Pause the navigation at request start.
+  ASSERT_TRUE(nav_manager.WaitForRequestStart());
+
+  // 2. Click the link again.
+  ASSERT_TRUE(content::ExecJs(web_contents(), click_script));
+  EXPECT_TRUE(ExecJs(web_contents(), "console.log('Success');"));
+
+  // Wait for the first navigation to finish.
+  EXPECT_TRUE(nav_manager.WaitForNavigationFinished());
+  srp_waiter->Wait();
+
+  // Flush metrics by navigating away again.
+  ASSERT_TRUE(
+      content::NavigateToURL(web_contents(), GURL(url::kAboutBlankURL)));
+
+  // Check that the FCP metrics are recorded only for the first navigation.
+  histogram_tester.ExpectTotalCount(internal::kHistogramGWSFirstContentfulPaint,
+                                    1);
+  // Check that the FCP metrics for duplicate navigations are also recorded.
+  histogram_tester.ExpectTotalCount(
+      base::StrCat({internal::kHistogramGWSFirstContentfulPaint,
+                    internal::kHistogramDuplicateIgnoredSuffix}),
+      1);
+}
+
+// Tests that a browser-initiated navigation that's a duplicate of an ongoing
+// browser-initiated navigation gets ignored.
+IN_PROC_BROWSER_TEST_F(GWSPageLoadMetricsObserverIgnoreDuplicateNavsBrowserTest,
+                       DuplicateLoadURLIsIgnored) {
+  auto waiter = CreatePageLoadMetricsTestWaiter();
+  waiter->AddPageExpectation(
+      PageLoadMetricsTestWaiter::TimingField::kLargestContentfulPaint);
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), GetSrpUrl("initial")));
+  waiter->Wait();
+
+  GURL srp_url = GetSrpUrl("duplicate");
+
+  base::HistogramTester histogram_tester;
+  auto srp_waiter = CreatePageLoadMetricsTestWaiter();
+  srp_waiter->AddPageExpectation(
+      PageLoadMetricsTestWaiter::TimingField::kFirstContentfulPaint);
+  // 1. Navigate to an SRP page.
+  content::TestNavigationManager nav_manager(web_contents(), srp_url);
+  web_contents()->GetController().LoadURL(srp_url, content::Referrer(),
+                                          ui::PAGE_TRANSITION_TYPED,
+                                          std::string());
+  // Pause the navigation at request start.
+  ASSERT_TRUE(nav_manager.WaitForRequestStart());
+
+  // 2. Load the same URL again.
+  web_contents()->GetController().LoadURL(srp_url, content::Referrer(),
+                                          ui::PAGE_TRANSITION_TYPED,
+                                          std::string());
+  // Wait for the first navigation to finish.
+  EXPECT_TRUE(nav_manager.WaitForNavigationFinished());
+  srp_waiter->Wait();
+
+  // Flush metrics by navigating away again.
+  ASSERT_TRUE(
+      content::NavigateToURL(web_contents(), GURL(url::kAboutBlankURL)));
+
+  // Check that the FCP metrics are recorded only for the first navigation.
+  histogram_tester.ExpectTotalCount(internal::kHistogramGWSFirstContentfulPaint,
+                                    1);
+  // Check that the FCP metrics for duplicate navigations are also recorded.
+  histogram_tester.ExpectTotalCount(
+      base::StrCat({internal::kHistogramGWSFirstContentfulPaint,
+                    internal::kHistogramDuplicateIgnoredSuffix}),
       1);
 }
 

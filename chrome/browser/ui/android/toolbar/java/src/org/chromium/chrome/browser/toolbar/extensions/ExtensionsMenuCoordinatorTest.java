@@ -15,6 +15,7 @@ import static org.mockito.Mockito.when;
 
 import android.app.Activity;
 import android.graphics.Color;
+import android.view.View;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -34,6 +35,7 @@ import org.robolectric.Robolectric;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableNullableObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabCreator;
@@ -46,9 +48,12 @@ import org.chromium.chrome.browser.ui.extensions.ExtensionsMenuBridge;
 import org.chromium.chrome.browser.ui.extensions.ExtensionsMenuBridgeJni;
 import org.chromium.chrome.browser.ui.extensions.ExtensionsMenuTypes;
 import org.chromium.chrome.browser.ui.extensions.ExtensionsToolbarBridge;
-import org.chromium.components.browser_ui.widget.MaterialSwitchWithText;
 import org.chromium.components.embedder_support.util.UrlConstants;
+import org.chromium.components.feature_engagement.EventConstants;
+import org.chromium.components.feature_engagement.FeatureConstants;
+import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.content_public.browser.LoadUrlParams;
+import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.listmenu.ListMenuButton;
 import org.chromium.ui.listmenu.ListMenuHost;
 
@@ -72,6 +77,8 @@ public class ExtensionsMenuCoordinatorTest {
     @Mock private ExtensionsToolbarBridge mExtensionsToolbarBridge;
     @Mock private ExtensionsMenuBridge.Natives mExtensionsMenuBridgeJniMock;
     @Mock private MenuButtonPinningDelegate mMenuButtonPinningDelegate;
+    @Mock private Tracker mTracker;
+    @Mock private WindowAndroid mWindowAndroid;
 
     @Captor private ArgumentCaptor<LoadUrlParams> mLoadUrlParamsCaptor;
 
@@ -87,6 +94,7 @@ public class ExtensionsMenuCoordinatorTest {
 
     @Before
     public void setUp() {
+        TrackerFactory.setTrackerForTests(mTracker);
         ExtensionsMenuBridgeJni.setInstanceForTesting(mExtensionsMenuBridgeJniMock);
         when(mExtensionsMenuBridgeJniMock.init(Mockito.any(), Mockito.anyLong())).thenReturn(1L);
 
@@ -99,7 +107,11 @@ public class ExtensionsMenuCoordinatorTest {
         activity.setContentView(mExtensionsMenuButton);
 
         when(mTask.getOrCreateNativeBrowserWindowPtr(mProfile)).thenReturn(BROWSER_WINDOW_POINTER);
+        java.lang.ref.WeakReference<Activity> mockActivityRef =
+                new java.lang.ref.WeakReference<>(mContext);
+        when(mWindowAndroid.getActivity()).thenReturn(mockActivityRef);
         when(mTab.getProfile()).thenReturn(mProfile);
+        when(mProfile.getOriginalProfile()).thenReturn(mProfile);
 
         // Mock {@link ExtensionsMenuBridge}.
         ExtensionsMenuBridgeJni.setInstanceForTesting(mExtensionsMenuBridgeJniMock);
@@ -128,6 +140,7 @@ public class ExtensionsMenuCoordinatorTest {
                         mExtensionsMenuButton,
                         mThemeColorProvider,
                         mTask,
+                        mWindowAndroid,
                         mProfile,
                         mCurrentTabSupplier,
                         mTabCreator,
@@ -158,6 +171,9 @@ public class ExtensionsMenuCoordinatorTest {
         mExtensionsMenuButton.performClick();
         verify(shownListener, never()).onPopupMenuShown();
         assertNotNull(mExtensionsMenuCoordinator.mMediator);
+
+        // Verify that the IPH event was recorded.
+        verify(mTracker).notifyEvent(EventConstants.EXTENSIONS_MENU_BUTTON_CLICKED);
 
         // Menu should be shown once mediator trigger the onReady runnable.
         triggerOnMediatorReady();
@@ -295,24 +311,78 @@ public class ExtensionsMenuCoordinatorTest {
     }
 
     @Test
+    public void testMenuUnpinned_ShowsManageAppMenuIph() {
+        when(mTracker.isInitialized()).thenReturn(true);
+        doAnswer(
+                        invocation -> {
+                            org.chromium.base.Callback<Boolean> callback =
+                                    invocation.getArgument(0);
+                            callback.onResult(true);
+                            return null;
+                        })
+                .when(mTracker)
+                .addOnInitializedCallback(any());
+
+        // Mock that the button is initially pinned.
+        when(mMenuButtonPinningDelegate.isMenuButtonPinned()).thenReturn(true);
+
+        // Activity is already mocked in setUp().
+        View anchorView = new View(mContext);
+        anchorView.setId(org.chromium.chrome.browser.toolbar.R.id.menu_button_wrapper);
+        mContext.setContentView(anchorView);
+
+        // Unpin the extensions menu button.
+        mExtensionsMenuCoordinator
+                .getContentView()
+                .findViewById(
+                        org.chromium.chrome.browser.ui.extensions.R.id
+                                .extensions_menu_pin_menu_icon_button)
+                .performClick();
+
+        org.robolectric.shadows.ShadowLooper.idleMainLooper();
+
+        // Verify the IPH tracker was notified with the correct feature.
+        verify(mTracker)
+                .shouldTriggerHelpUi(FeatureConstants.IPH_EXTENSIONS_MANAGE_APP_MENU_FEATURE);
+    }
+
+    @Test
     public void testSiteSettingsToggle_ClickCallsBridge() {
         mCurrentTabSupplier.set(mTab);
         mExtensionsMenuButton.performClick();
 
-        MaterialSwitchWithText toggle =
+        View container =
                 mExtensionsMenuCoordinator
                         .getContentView()
-                        .findViewById(R.id.extensions_menu_site_settings_toggle);
+                        .findViewById(R.id.extensions_menu_site_settings_toggle_container);
 
         // Click to toggle from checked (default) to unchecked.
-        toggle.performClick();
+        container.performClick();
         verify(mExtensionsMenuBridgeJniMock, Mockito.times(1))
                 .onSiteSettingsToggleChanged(Mockito.anyLong(), Mockito.eq(false));
 
         // Click again to toggle back to checked.
-        toggle.performClick();
+        container.performClick();
         verify(mExtensionsMenuBridgeJniMock, Mockito.times(1))
                 .onSiteSettingsToggleChanged(Mockito.anyLong(), Mockito.eq(true));
+    }
+
+    /** Tests that calling {@code closeExtensionsMenuIfOpen()} successfully dismisses the menu. */
+    @Test
+    public void testCloseExtensionsMenuIfOpen() {
+        // Show the menu.
+        ListMenuHost.PopupMenuShownListener shownListener =
+                Mockito.mock(ListMenuHost.PopupMenuShownListener.class);
+        mExtensionsMenuButton.addPopupListener(shownListener);
+        mExtensionsMenuButton.performClick();
+        triggerOnMediatorReady();
+        verify(shownListener).onPopupMenuShown();
+
+        // Trigger the programmatic close.
+        mExtensionsMenuCoordinator.closeExtensionsMenuIfOpen();
+
+        // Verify that the menu is closed.
+        verify(shownListener).onPopupMenuDismissed();
     }
 
     private ExtensionsMenuTypes.SiteSettingsState createSiteSettingsState(

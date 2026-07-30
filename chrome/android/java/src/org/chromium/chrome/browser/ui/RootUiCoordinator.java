@@ -49,6 +49,8 @@ import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.supplier.SupplierUtils;
 import org.chromium.build.annotations.EnsuresNonNull;
+import org.chromium.build.annotations.MonotonicNonNull;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.build.annotations.RequiresNonNull;
 import org.chromium.chrome.R;
@@ -149,12 +151,13 @@ import org.chromium.chrome.browser.share.ShareDelegate.ShareOrigin;
 import org.chromium.chrome.browser.share.qrcode.QrCodeDialog;
 import org.chromium.chrome.browser.share.scroll_capture.ScrollCaptureManager;
 import org.chromium.chrome.browser.signin.SigninAndHistorySyncActivityLauncherImpl;
+import org.chromium.chrome.browser.signin.WebSigninRedirectCoordinator;
+import org.chromium.chrome.browser.signin.WebSigninRedirectCoordinatorSupplier;
 import org.chromium.chrome.browser.signin.services.WebSigninBridge;
 import org.chromium.chrome.browser.tab.AccessibilityVisibilityHandler;
 import org.chromium.chrome.browser.tab.AutofillSessionLifetimeController;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLaunchType;
-import org.chromium.chrome.browser.tab.TabLoadIfNeededCaller;
 import org.chromium.chrome.browser.tab.TabObscuringHandler;
 import org.chromium.chrome.browser.tab.TabObscuringHandlerSupplier;
 import org.chromium.chrome.browser.tab.TabSelectionType;
@@ -269,6 +272,7 @@ import java.util.function.Supplier;
  * <p>The specific things this component will manage and how it will hook into Chrome*Activity are
  * still being discussed See https://crbug.com/931496.
  */
+@NullMarked
 public class RootUiCoordinator
         implements DestroyObserver,
                 InflationObserver,
@@ -290,11 +294,14 @@ public class RootUiCoordinator
     private final SettableMonotonicObservableSupplier<BottomSheetSigninAndHistorySyncCoordinator>
             mWebSigninAndHistorySyncCoordinatorSupplier = ObservableSuppliers.createMonotonic();
 
+    private final SettableMonotonicObservableSupplier<WebSigninRedirectCoordinator>
+            mWebSigninRedirectCoordinatorSupplier = ObservableSuppliers.createMonotonic();
+
     protected final SettableMonotonicObservableSupplier<ReadAloudController>
             mReadAloudControllerSupplier = ObservableSuppliers.createMonotonic();
 
     protected AppCompatActivity mActivity;
-    protected @Nullable AppMenuCoordinator mAppMenuCoordinator;
+    protected @MonotonicNonNull AppMenuCoordinator mAppMenuCoordinator;
     private final MenuOrKeyboardActionController mMenuOrKeyboardActionController;
     protected final ActivityWindowAndroid mWindowAndroid;
     protected final ActivityResultTracker mActivityResultTracker;
@@ -677,13 +684,16 @@ public class RootUiCoordinator
 
                             @Override
                             public BrowserContextHandle getBrowserContextHandle() {
-                                return mProfileSupplier.get().getOriginalProfile();
+                                Profile profile = mProfileSupplier.get();
+                                assumeNonNull(profile);
+                                return profile.getOriginalProfile();
                             }
 
                             @Override
                             public void addZoomEventsObserver(ZoomEventsObserver observer) {
-                                HostZoomListenerFactory.getForProfile(
-                                                mProfileSupplier.get().getOriginalProfile())
+                                Profile profile = mProfileSupplier.get();
+                                assumeNonNull(profile);
+                                HostZoomListenerFactory.getForProfile(profile.getOriginalProfile())
                                         .addObserver(observer);
                             }
 
@@ -692,9 +702,10 @@ public class RootUiCoordinator
                                 // HostZoomListenerFactory stores each HostZoomListener object in a
                                 // ProfileKeyedMap. When the profile is destroyed, each
                                 // HostZoomFactory will be destroyed, removing all observers stored.
-                                if (mProfileSupplier.get() != null) {
+                                Profile profile = mProfileSupplier.get();
+                                if (profile != null) {
                                     HostZoomListenerFactory.getForProfile(
-                                                    mProfileSupplier.get().getOriginalProfile())
+                                                    profile.getOriginalProfile())
                                             .removeObserver(observer);
                                 }
                             }
@@ -703,12 +714,18 @@ public class RootUiCoordinator
                             public void enterImmersiveMode() {
                                 DisplayAndroid display =
                                         DisplayAndroid.getNonMultiDisplay(mActivity);
+                                Tab tab = mActivityTabProvider.get();
+                                if (tab == null) {
+                                    return;
+                                }
+
                                 mFullscreenManager.onEnterFullscreen(
-                                        mActivityTabProvider.get(),
+                                        tab,
                                         new FullscreenOptions(
                                                 /* showNavigationBar= */ false,
                                                 /* showStatusBar= */ false,
                                                 /* displayId= */ display.getDisplayId()));
+                                assumeNonNull(mAppMenuCoordinator);
                                 mAppMenuCoordinator.getAppMenuHandler().hideAppMenu();
                             }
 
@@ -782,6 +799,7 @@ public class RootUiCoordinator
 
     // TODO(pnoland, crbug.com/865801): remove this in favor of wiring it directly.
     public ToolbarManager getToolbarManager() {
+        assert mToolbarManager != null;
         return mToolbarManager;
     }
 
@@ -973,6 +991,13 @@ public class RootUiCoordinator
             signinAndHistorySyncCoordinator.destroy();
         }
 
+        WebSigninRedirectCoordinator webSigninRedirectCoordinator =
+                mWebSigninRedirectCoordinatorSupplier.get();
+        mWebSigninRedirectCoordinatorSupplier.destroy();
+        if (webSigninRedirectCoordinator != null) {
+            webSigninRedirectCoordinator.destroy();
+        }
+
         if (mEdgeToEdgeController != null) {
             mEdgeToEdgeController.destroy();
             mEdgeToEdgeController = null;
@@ -1037,6 +1062,8 @@ public class RootUiCoordinator
         ReadAloudControllerSupplier.attach(userDataHost, mReadAloudControllerSupplier);
         WebSigninAndHistorySyncCoordinatorSupplier.attach(
                 userDataHost, mWebSigninAndHistorySyncCoordinatorSupplier);
+        WebSigninRedirectCoordinatorSupplier.attach(
+                userDataHost, mWebSigninRedirectCoordinatorSupplier);
     }
 
     private void destroyUnownedUserDataSuppliers() {
@@ -1047,6 +1074,7 @@ public class RootUiCoordinator
         ReadAloudControllerSupplier.destroy(mReadAloudControllerSupplier);
         WebSigninAndHistorySyncCoordinatorSupplier.destroy(
                 mWebSigninAndHistorySyncCoordinatorSupplier);
+        WebSigninRedirectCoordinatorSupplier.destroy(mWebSigninRedirectCoordinatorSupplier);
     }
 
     @Override
@@ -1089,6 +1117,7 @@ public class RootUiCoordinator
                     if (TextUtils.isEmpty(query)) return;
 
                     Tab tab = mActivityTabProvider.get();
+                    assumeNonNull(tab);
                     TrackerFactory.getTrackerForProfile(tab.getProfile())
                             .notifyEvent(EventConstants.WEB_SEARCH_PERFORMED);
 
@@ -1144,6 +1173,7 @@ public class RootUiCoordinator
     @Override
     @CallSuper
     public void onFinishNativeInitialization() {
+        TabModelSelector tabModelSelector = mTabModelSelectorSupplier.asNonNull().get();
         Profile profile = mProfileSupplier.get();
         if (profile != null) {
             initProfileDependentFeatures(profile);
@@ -1154,8 +1184,8 @@ public class RootUiCoordinator
         }
 
         if (ChromeFeatureList.sEnableExclusiveAccessManager.isEnabled()) {
-            mExclusiveAccessManager.initialize(
-                    mTabModelSelectorSupplier.get(), mActivity, mActivityTabProvider);
+            assumeNonNull(mExclusiveAccessManager);
+            mExclusiveAccessManager.initialize(tabModelSelector, mActivity, mActivityTabProvider);
         }
 
         initMessagesInfra();
@@ -1182,8 +1212,7 @@ public class RootUiCoordinator
                     () ->
                             mTabCreatorManagerSupplier
                                     .get()
-                                    .getTabCreator(
-                                            mTabModelSelectorSupplier.get().isIncognitoSelected());
+                                    .getTabCreator(tabModelSelector.isIncognitoSelected());
             ContextMenuPopulatorFactory contextMenuPopulatorFactory =
                     new ChromeContextMenuPopulatorFactory(
                             /* itemDelegate= */ null,
@@ -1200,7 +1229,6 @@ public class RootUiCoordinator
                             assertNonNull(getBottomSheetController()),
                             contextMenuPopulatorFactory));
         }
-        TabModelSelector tabModelSelector = mTabModelSelectorSupplier.get();
         ReadAloudController controller =
                 new ReadAloudController(
                         mActivity,
@@ -1305,7 +1333,7 @@ public class RootUiCoordinator
                         mFullscreenManager,
                         mBrowserControlsManager,
                         mWindowAndroid,
-                        mTabModelSelectorSupplier.get(),
+                        mTabModelSelectorSupplier.asNonNull().get(),
                         mEdgeToEdgeControllerSupplier));
     }
 
@@ -1318,15 +1346,16 @@ public class RootUiCoordinator
                 controlContainerHeightId == ActivityUtils.NO_RESOURCE_ID
                         ? 0f
                         : mActivity.getResources().getDimension(controlContainerHeightId);
+
+        assert mLayoutManager != null;
+
         manager.initialize(
                 mActivity.findViewById(android.R.id.content),
                 mLayoutManager,
-                assertNonNull(getBottomSheetController()),
                 mCompositorViewHolderSupplier.get(),
                 toolbarHeightDp,
-                mToolbarManager,
+                assertNonNull(mToolbarManager),
                 canContextualSearchPromoteToNewTab(),
-                mIntentRequestTracker,
                 getDesktopWindowStateManager(),
                 mBottomControlsStacker);
     }
@@ -1346,9 +1375,7 @@ public class RootUiCoordinator
     public void hideContextualSearch() {
         var manager = mContextualSearchManagerSupplier.get();
         if (manager != null) {
-            mContextualSearchManagerSupplier
-                    .get()
-                    .hideContextualSearch(OverlayPanel.StateChangeReason.UNKNOWN);
+            manager.hideContextualSearch(OverlayPanel.StateChangeReason.UNKNOWN);
         }
     }
 
@@ -1397,9 +1424,7 @@ public class RootUiCoordinator
                         getPrimaryDisplaySizeInInches(), originalProfile, mActivity)) {
             // TODO(crbug.com/40856393): Remove this explicit load when this bug is addressed.
             if (mActivityTabProvider != null && mActivityTabProvider.get() != null) {
-                mActivityTabProvider
-                        .get()
-                        .loadIfNeeded(TabLoadIfNeededCaller.ON_FINISH_NATIVE_INITIALIZATION);
+                mActivityTabProvider.get().loadIfNeeded(/* forceBackingSize= */ false);
             }
         }
 
@@ -1504,7 +1529,7 @@ public class RootUiCoordinator
                                 mActivityResultTracker,
                                 new WebSigninAccountPickerDelegate(
                                         profile,
-                                        mTabModelSelectorSupplier.get(),
+                                        mTabModelSelectorSupplier.asNonNull().get(),
                                         new WebSigninBridge.Factory()),
                                 assertNonNull(mDeviceLockActivityLauncherSupplier.get()),
                                 profileSupplier,
@@ -1521,7 +1546,7 @@ public class RootUiCoordinator
                 : "Sub-classes need to provide a valid factory instance.";
         mIncognitoReauthController =
                 new IncognitoReauthControllerImpl(
-                        mTabModelSelectorSupplier.get(),
+                        mTabModelSelectorSupplier.asNonNull().get(),
                         mActivityLifecycleDispatcher,
                         mLayoutStateProviderOneShotSupplier,
                         mProfileSupplier,
@@ -1547,7 +1572,7 @@ public class RootUiCoordinator
      */
     protected IncognitoReauthCoordinatorFactory getIncognitoReauthCoordinatorFactory(
             Profile profile) {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     private void initMerchantTrustSignals(Profile profile) {
@@ -1583,7 +1608,8 @@ public class RootUiCoordinator
     }
 
     /** Returns the supplier of {@link MerchantTrustSignalsCoordinator}. */
-    public Supplier<MerchantTrustSignalsCoordinator> getMerchantTrustSignalsCoordinatorSupplier() {
+    public MonotonicObservableSupplier<MerchantTrustSignalsCoordinator>
+            getMerchantTrustSignalsCoordinatorSupplier() {
         return mMerchantTrustSignalsCoordinatorSupplier;
     }
 
@@ -1640,10 +1666,12 @@ public class RootUiCoordinator
         } else if (id == R.id.find_in_page_id) {
             Tab tab = mActivityTabProvider.get();
             // PDF pages require Android pdf viewer API to "find in page".
-            if (tab != null && tab.isNativePage() && tab.getNativePage().isPdf()) {
-                NativePage pdfPage = tab.getNativePage();
-                assert pdfPage instanceof PdfPage;
-                return ((PdfPage) pdfPage).findInPage();
+            if (tab != null) {
+                NativePage nativePage = tab.getNativePage();
+                if (nativePage != null && nativePage.isPdf()) {
+                    assert nativePage instanceof PdfPage;
+                    return ((PdfPage) nativePage).findInPage();
+                }
             }
 
             if (mFindToolbarManager == null) return false;
@@ -1652,6 +1680,9 @@ public class RootUiCoordinator
 
             if (fromMenu) {
                 RecordUserAction.record("MobileMenuFindInPage");
+                if (tab == null) {
+                    return true;
+                }
                 WebContents webContents = tab.getWebContents();
                 assert webContents != null;
                 new UkmRecorder(webContents, "MobileMenu.FindInPage")
@@ -1668,14 +1699,18 @@ public class RootUiCoordinator
             DemoPaintPreview.showForTab(mActivityTabProvider.get());
             return true;
         } else if (id == R.id.get_image_descriptions_id) {
-            WebContents webContents = mActivityTabProvider.get().getWebContents();
-            assert webContents != null;
-            ImageDescriptionsController.getInstance()
-                    .onImageDescriptionsMenuItemSelected(
-                            mActivity, mModalDialogManagerSupplier.get(), webContents);
+            Tab tab = mActivityTabProvider.get();
+            if (tab != null) {
+                WebContents webContents = tab.getWebContents();
+                assert webContents != null;
+                ImageDescriptionsController.getInstance()
+                        .onImageDescriptionsMenuItemSelected(
+                                mActivity, mModalDialogManagerSupplier.get(), webContents);
+            }
             return true;
         } else if (id == R.id.page_zoom_id) {
             Tab tab = mActivityTabProvider.get();
+            assumeNonNull(tab);
             TrackerFactory.getTrackerForProfile(tab.getProfile())
                     .notifyEvent(EventConstants.PAGE_ZOOM_OPENED);
             mPageZoomBarCoordinator.show(tab.getWebContents());
@@ -1843,8 +1878,10 @@ public class RootUiCoordinator
                     mBookmarkModelSupplier,
                     mReadAloudControllerSupplier,
                     mShareDelegateSupplier,
-                    /* onShareRunnable= */ () ->
-                            mToolbarManager.setUrlBarFocus(false, OmniboxFocusReason.UNFOCUS),
+                    /* onShareRunnable= */ () -> {
+                        assumeNonNull(mToolbarManager);
+                        mToolbarManager.setUrlBarFocus(false, OmniboxFocusReason.UNFOCUS);
+                    },
                     mWindowAndroid,
                     mActivityResultTracker,
                     assertNonNull(mDeviceLockActivityLauncherSupplier.get()),
@@ -1877,27 +1914,28 @@ public class RootUiCoordinator
                             () -> {
                                 PasswordManagerLauncher.showPasswordSettings(
                                         mActivity,
-                                        mProfileSupplier.get(),
+                                        mProfileSupplier.asNonNull().get(),
                                         ManagePasswordsReferrer.CHROME_SETTINGS,
                                         mModalDialogManagerSupplier.get(),
                                         /* managePasskeys= */ false);
                             },
                             // Open Quick Delete Dialog callback:
                             () -> {
+                                Profile profile = mProfileSupplier.asNonNull().get();
                                 TabModelSelectorBase tabModelSelector =
-                                        ArchivedTabModelOrchestrator.getForProfile(
-                                                        mProfileSupplier.get())
+                                        ArchivedTabModelOrchestrator.getForProfile(profile)
                                                 .getTabModelSelector();
                                 assert tabModelSelector != null;
                                 QuickDeleteController quickDeleteController =
                                         new QuickDeleteController(
                                                 mActivity,
                                                 new QuickDeleteDelegateImpl(
-                                                        mProfileSupplier, mTabSwitcherSupplier),
+                                                        profile.getOriginalProfile(),
+                                                        mTabSwitcherSupplier),
                                                 mModalDialogManagerSupplier.get(),
                                                 assertNonNull(mSnackbarManagerSupplier.get()),
                                                 mLayoutManager,
-                                                mTabModelSelectorSupplier.get(),
+                                                mTabModelSelectorSupplier.asNonNull().get(),
                                                 tabModelSelector);
                                 quickDeleteController.showDialog();
                             },
@@ -1987,7 +2025,7 @@ public class RootUiCoordinator
         }
 
         mAdaptiveToolbarUiCoordinator.addVoiceSearchAdaptiveButton(
-                () -> mToolbarManager.getVoiceRecognitionHandler(), trackerSupplier);
+                () -> assumeNonNull(mToolbarManager).getVoiceRecognitionHandler(), trackerSupplier);
     }
 
     /**
@@ -2033,7 +2071,10 @@ public class RootUiCoordinator
                             hideAppMenu();
                             // Attempt to show the promo sheet for the restore tabs feature.
                             // Do not attempt to show the promo if in incognito mode.
-                            if (!mTabModelSelectorSupplier.get().isIncognitoSelected()) {
+                            if (!mTabModelSelectorSupplier
+                                    .asNonNull()
+                                    .get()
+                                    .isIncognitoSelected()) {
                                 // TODO(crbug.com/40274033): Add support for triggering in incognito
                                 // mode.
                                 attemptToShowRestoreTabsPromo();
@@ -2141,7 +2182,7 @@ public class RootUiCoordinator
         mFindToolbarManager =
                 new FindToolbarManager(
                         mActivity.findViewById(stubId),
-                        mTabModelSelectorSupplier.get(),
+                        mTabModelSelectorSupplier.asNonNull().get(),
                         mWindowAndroid,
                         mActionModeControllerCallback,
                         mBackPressManager);
@@ -2368,12 +2409,8 @@ public class RootUiCoordinator
     }
 
     /** Returns the {@link BottomSheetController} Supplier for this activity. */
-    @SuppressWarnings("unchecked")
     public MonotonicObservableSupplier<BottomSheetController> getBottomSheetControllerSupplier() {
-        // This cast is ok since we're removing "Settable", and the Supplier's value actual type
-        // will remain ManagedBottomSheetController.
-        return (MonotonicObservableSupplier<BottomSheetController>)
-                (MonotonicObservableSupplier<?>) mBottomSheetControllerSupplier;
+        return SupplierUtils.upcast(mBottomSheetControllerSupplier, BottomSheetController.class);
     }
 
     /**

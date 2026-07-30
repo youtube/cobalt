@@ -1298,7 +1298,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.ModelExecution.OnDeviceModelToBeInstalledReason.{ModelExecutionFeature}"
-    enum="OptimizationGuideOnDeviceModelStatus" expires_after="2026-08-02">
+    enum="OptimizationGuideOnDeviceModelStatus" expires_after="2026-10-04">
   <owner>holte@chromium.org</owner>
   <owner>andysjlim@chromium.org</owner>
   <summary>
@@ -1373,7 +1373,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.ModelExecution.OnDeviceResponseTokensTimeToNextToken.{ModelExecutionFeature}"
-    units="ms" expires_after="2026-08-01">
+    units="ms" expires_after="2026-10-04">
   <owner>cduvall@chromium.org</owner>
   <owner>memmottt@chromium.org</owner>
   <summary>
@@ -1569,7 +1569,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.ModelExecutor.ModelLoadingDuration2.{OptimizationTarget}"
-    units="ms" expires_after="2026-08-02">
+    units="ms" expires_after="2026-10-04">
   <owner>wittman@chromium.org</owner>
   <owner>rajendrant@chromium.org</owner>
   <summary>
@@ -1716,7 +1716,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.OnDeviceModel.DetectedVram" units="MB"
-    expires_after="2026-08-03">
+    expires_after="2026-10-04">
   <owner>zekunjiang@google.com</owner>
   <owner>wittman@chromium.org</owner>
   <summary>
@@ -1736,7 +1736,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.OnDeviceModel.InstalledModel"
-    enum="InstalledModel" expires_after="2026-08-03">
+    enum="InstalledModel" expires_after="2026-10-04">
   <owner>zekunjiang@google.com</owner>
   <owner>wittman@chromium.org</owner>
   <summary>
@@ -1747,7 +1747,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.OnDeviceModel.OnDeviceModelComponentInstantiated"
-    enum="Boolean" expires_after="2026-08-03">
+    enum="Boolean" expires_after="2026-10-04">
   <owner>zekunjiang@google.com</owner>
   <owner>wittman@chromium.org</owner>
   <summary>
@@ -2043,6 +2043,32 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram
+    name="OptimizationGuide.PageContentExtraction.Async.PendingContentCallbacksBatched"
+    units="callbacks" expires_after="2026-09-16">
+  <owner>alexmt@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records the number of pending async content callbacks that are resolved
+    together when a page content extraction completes. Recorded once per
+    completed extraction if there was at least one pending callback of any type
+    (on-demand, async content, or async eligibility). This excludes PDFs.
+  </summary>
+</histogram>
+
+<histogram
+    name="OptimizationGuide.PageContentExtraction.Async.PendingEligibilityCallbacksBatched"
+    units="callbacks" expires_after="2026-09-16">
+  <owner>alexmt@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records the number of pending async eligibility callbacks that are resolved
+    together when a page content extraction completes. Recorded once per
+    completed extraction if there was at least one pending callback of any type
+    (on-demand, async content, or async eligibility). This excludes PDFs.
+  </summary>
+</histogram>
+
 <histogram name="OptimizationGuide.PageContentExtraction.OnDemand.IsPDF"
     enum="Boolean" expires_after="2026-09-16">
   <owner>alexmt@chromium.org</owner>
@@ -2073,8 +2099,8 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records the number of pending on-demand callbacks that are resolved together
     when a page content extraction completes. Recorded once per completed
-    extraction that had at least one pending on-demand callback. This excludes
-    PDFs.
+    extraction if there was at least one pending callback of any type
+    (on-demand, async content, or async eligibility). This excludes PDFs.
   </summary>
 </histogram>
 

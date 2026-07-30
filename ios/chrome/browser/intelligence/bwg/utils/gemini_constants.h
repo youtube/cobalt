@@ -90,6 +90,22 @@ enum class InputPlateAttachmentOption {
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:IOSGeminiInputPlateAttachmentOption)
 
+// The type of regenerate option for a Gemini query retry.
+// Logged as IOSGeminiRegenerateOptionType enum for the
+// IOS.Gemini.RegenerateButton.Tapped histogram.
+// LINT.IfChange(RegenerateOptionType)
+enum class RegenerateOptionType {
+  kUnspecified = 0,
+  kNoChanges = 1,
+  kWithoutPersonalization = 2,
+  kWithPersonalization = 3,
+  kWithNanoBananaPro = 4,
+  kElaborate = 5,
+  kShorten = 6,
+  kMaxValue = kShorten,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:IOSGeminiRegenerateOptionType)
+
 // Settings for Gemini integration.
 enum class SettingsPolicy {
   kAllowed = 0,
@@ -119,6 +135,67 @@ enum class FREState {
   kMaxValue = kCompleted
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:IOSGeminiFREState)
+
+// Input type for Gemini queries.
+// LINT.IfChange(InputType)
+enum class InputType {
+  // Unknown input type.
+  kUnknown = 0,
+  // Text input type.
+  kText = 1,
+  // Summarize input type.
+  kSummarize = 2,
+  // Check this site input type.
+  kCheckThisSite = 3,
+  // Find related sites input type.
+  kFindRelatedSites = 4,
+  // Ask about page input type.
+  kAskAboutPage = 5,
+  // Create FAQ input type.
+  kCreateFaq = 6,
+  // Zero state model suggestion input type.
+  kZeroStateModelSuggestion = 7,
+  // 'What can Gemini do' input type.
+  kWhatCanGeminiDo = 8,
+  // Discovery card input type.
+  kDiscoveryCard = 9,
+  // Omnibox summarize input type.
+  kOmniboxSummarize = 10,
+  // Omnibox prompt input type.
+  kOmniboxPrompt = 11,
+  // Transition to live input type.
+  kTransitionToLive = 12,
+  // Onboarding: what can gemini do input type.
+  kOnboardingWhatCanGeminiDo = 13,
+  // Onboarding: ask about page input type.
+  kOnboardingAskAboutPage = 14,
+  // Onboarding: summarize input type.
+  kOnboardingSummarize = 15,
+  // Suggested reply input type.
+  kSuggestedReply = 16,
+  // Nano Banana: turn this page into a comic strip input type.
+  kNanoBananaTurnThisPageIntoAComicStrip = 17,
+  // Nano Banana: make a folk art illustration input type.
+  kNanoBananaMakeAFolkArtIllustration = 18,
+  // Nano Banana: make a custom mini figure input type.
+  kNanoBananaMakeACustomMiniFigure = 19,
+  // Nano Banana: give me a grunge makeover input type.
+  kNanoBananaGiveMeAGrungeMakeover = 20,
+  // Nano Banana: turn this image into a vintage postcard input type.
+  kNanoBananaTurnThisImageIntoAVintagePostcard = 21,
+  // Nano Banana: turn this image into a watercolor painting input type.
+  kNanoBananaTurnThisImageIntoAWatercolorPainting = 22,
+  // Nano Banana: make this image look like instant film input type.
+  kNanoBananaMakeThisImageLookLikeInstantFilm = 23,
+  // Input from Helios entry point on the Edit menu when user highlights text
+  // Something like: “Explain this to me: <selected text>”
+  kEditMenuPrompt = 24,
+  kMaxValue = kEditMenuPrompt,
+};
+// LINT.ThenChange(
+//   /ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h:IOSGeminiFirstPromptSubmissionMethod,
+//   /tools/metrics/histograms/metadata/ios/enums.xml:IOSGeminiFirstPromptSubmissionMethod
+// )
 
 }  // namespace gemini
 
@@ -170,6 +247,7 @@ extern const char kURLOnLastInteractionDictKey[];
 // Links for attributed links.
 extern const char kFirstFootnoteLinkURL[];
 extern const char kSecondFootnoteLinkURL[];
+extern const char kKoreanTermsFootnoteLinkURL[];
 extern const char kFootnoteLinkURLManagedAccount[];
 extern const char kSecondBoxLinkURLManagedAccount[];
 extern const char kSecondBoxLink1URLNonManagedAccount[];
@@ -181,6 +259,7 @@ extern const char kLivePrivacyPolicyLinkURL[];
 // Action identifier on a tap on links in the footnote.
 extern NSString* const kGeminiFirstFootnoteLinkAction;
 extern NSString* const kGeminiSecondFootnoteLinkAction;
+extern NSString* const kGeminiKoreanTermsLinkAction;
 extern NSString* const kGeminiFootnoteLinkActionManagedAccount;
 extern NSString* const kGeminiSecondBoxLinkActionManagedAccount;
 extern NSString* const kGeminiSecondBoxLink1ActionNonManagedAccount;

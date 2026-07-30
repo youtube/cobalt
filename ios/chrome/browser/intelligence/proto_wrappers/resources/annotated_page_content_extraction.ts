@@ -6,7 +6,7 @@ import {HAS_BEEN_PASSWORD_SYMBOL} from '//components/autofill/ios/form_util/reso
 import {APC_NODE_DEPTH_COST, getRemoteFrameRemoteToken, NONCE_ATTR} from '//ios/chrome/browser/intelligence/proto_wrappers/resources/common.js';
 import {getNodeId, getOrCreateNodeId} from '//ios/chrome/browser/intelligence/proto_wrappers/resources/dom_node_ids.js';
 import {AxRole, FormControlType, PageContentAnchorRel, PageContentAnnotatedRole, PageContentAttributeType, PageContentClickabilityReason, PageContentInteractionDisabledReason, PageContentMediaType, PageContentRedactionDecision, PageContentTableRowType, PageContentTextSize} from '//ios/chrome/browser/intelligence/proto_wrappers/resources/page_content_types.js';
-import type {PageContent, PageContentAttributes, PageContentFormControlData, PageContentFormData, PageContentFrameData, PageContentFrameInteractionInfo, PageContentMediaData, PageContentNode, PageContentNodeInteractionInfo, PageContentPageInteractionInfo, PageContentScrollerInfo, PageContentTableData} from '//ios/chrome/browser/intelligence/proto_wrappers/resources/page_content_types.js';
+import type {PageContent, PageContentAttributes, PageContentFormControlData, PageContentFormData, PageContentFrameData, PageContentFrameInteractionInfo, PageContentGeometry, PageContentMediaData, PageContentNode, PageContentNodeInteractionInfo, PageContentPageInteractionInfo, PageContentScrollerInfo, PageContentTableData} from '//ios/chrome/browser/intelligence/proto_wrappers/resources/page_content_types.js';
 
 // Set of DOM Node IDs that are considered interactive (focused, selection
 // start/end). These nodes should be included in the APC tree even if they are
@@ -89,6 +89,9 @@ const TAG_H6 = 'H6';
 // Dialog tags and attributes.
 const TAG_DIALOG = 'DIALOG';
 const ATTRIBUTE_OPEN_DIALOG = 'open';
+
+// Tags whose subtrees should be skipped.
+const TAGS_TO_SKIP_SUBTREE = [TAG_SELECT, TAG_CANVAS];
 
 // Tags that should be rejected during the DOM tree walk.
 const TAGS_TO_REJECT = [
@@ -246,9 +249,10 @@ const BASIC_CONTENT_ATTRIBUTES: PageContentAttributes = {
 };
 
 // Style values.
-const STYLE_VALUE_OVERFLOW_AUTO = 'auto';
-const STYLE_VALUE_OVERFLOW_SCROLL = 'scroll';
-const STYLE_VALUE_CONTENT_VISIBILITY_HIDDEN = 'hidden';
+const STYLE_VALUE_AUTO = 'auto';
+const STYLE_VALUE_SCROLL = 'scroll';
+const STYLE_VALUE_CLIP = 'clip';
+const STYLE_VALUE_HIDDEN = 'hidden';
 
 
 // Type alias for accessing webkit-specific fullscreen document properties that
@@ -418,20 +422,20 @@ const HEADING_6_FONT_SIZE_MULTIPLIER = 0.67;
  * Heading 3: 1.17em
  * Heading 4: 1em
  * Heading 5: 0.83em
-* Heading 6: 0.67em
+ * Heading 6: 0.67em
  *
  * @param fontSize The font size string (e.g., "16px").
  * @param doc The document to use for root font size reference.
  * @return The corresponding PageContentTextSize category.
  */
 function getTextSizeCategory(
-  fontSize: string, doc: Document): PageContentTextSize {
+    fontSize: string, doc: Document): PageContentTextSize {
   const size = parseFloat(fontSize);
   if (isNaN(size)) {
     return PageContentTextSize.M;
   }
 
-  const rootStyle = doc.defaultView?.getComputedStyle(doc.documentElement);
+  const rootStyle = getComputedStyleForElement(doc.documentElement);
   if (!rootStyle) {
     return PageContentTextSize.M;
   }
@@ -552,7 +556,7 @@ function getFormControlType(element: HTMLElement): FormControlType|undefined {
  * @return An array of PageContentAnchorRel, defaulting to [RELATION_UNKNOWN] if
  *     none found.
  */
-function getAnchorRel(anchorElement: HTMLAnchorElement):
+function getAnchorRel(anchorElement: HTMLAnchorElement|SVGAElement):
     PageContentAnchorRel[] {
   const rels = anchorElement.relList;
   if (!rels) {
@@ -635,6 +639,59 @@ function getFormData(form: HTMLFormElement): PageContentFormData {
   return formData;
 }
 
+/**
+ * Checks if a given CSS overflow style value implies clipping or scrolling.
+ *
+ * @param overflow The overflow style value (e.g., 'hidden', 'scroll', 'auto').
+ * @return True if the style implies clipping, false otherwise.
+ */
+function isClippedStyle(overflow: string): boolean {
+  return overflow === STYLE_VALUE_HIDDEN || overflow === STYLE_VALUE_SCROLL ||
+      overflow === STYLE_VALUE_AUTO || overflow === STYLE_VALUE_CLIP;
+}
+
+/**
+ * Safely gets the computed style for an element.
+ * Properly handles elements in cross-origin frames or same-origin iframes
+ * by looking up the element's owner document's window object.
+ *
+ * @param element The DOM element to get the style for.
+ * @return The CSSStyleDeclaration for the element, or undefined if no valid
+ *     window exists.
+ */
+function getComputedStyleForElement(element: Element): CSSStyleDeclaration|
+    undefined {
+  const elementWindow = element.ownerDocument?.defaultView;
+  if (elementWindow) {
+    return elementWindow.getComputedStyle(element);
+  }
+
+  // Fallback to the global window only if the element belongs to the same
+  // document that the script is currently executing in. This prevents
+  // erroneously computing styles using the parent frame's window for elements
+  // inside a same-origin iframe that might have lost their defaultView.
+  if (element.ownerDocument === document) {
+    return window.getComputedStyle(element);
+  }
+
+  return undefined;
+}
+
+/**
+ * Returns the viewport rectangle for the given document.
+ * This represents the visible portion of the page content.
+ *
+ * @param doc The document to get the viewport rectangle for.
+ * @return The viewport rectangle.
+ */
+function getViewportRect(doc: Document): Rect {
+  // Using documentElement.clientWidth/Height instead of
+  // window.innerWidth/Height to exclude scrollbars, which is more consistent
+  // with how Blink calculates the viewport area.
+  return createRect(
+      0, 0, doc.documentElement.clientWidth, doc.documentElement.clientHeight);
+}
+
 // TODO(crbug.com/480945289): Complete this function as more data becomes
 // available throughout iterations.
 /**
@@ -689,8 +746,8 @@ function isGenericContainer(
     return true;
   }
 
-  const style = windowObj.getComputedStyle(element);
-  const position = style.position;
+  const style = getComputedStyleForElement(element);
+  const position = style?.position;
   if (position === ATTR_POSITION_FIXED || position === ATTR_POSITION_STICKY) {
     return true;
   }
@@ -701,10 +758,12 @@ function isGenericContainer(
 
   // Scrollable elements act as containers because they create a new
   // visual context for their content, handling overflow.
-  const overflowX = style.getPropertyValue('overflow-x');
-  const overflowY = style.getPropertyValue('overflow-y');
-  if (overflowX === 'auto' || overflowX === 'scroll' || overflowY === 'auto' ||
-      overflowY === 'scroll') {
+  // Note: 'hidden' is included because elements with overflow: hidden
+  // also establish a new block formatting context and manage overflow,
+  // preventing content from leaking out of their visually defined boundaries.
+  const overflowX = style?.overflowX || '';
+  const overflowY = style?.overflowY || '';
+  if (isClippedStyle(overflowX) || isClippedStyle(overflowY)) {
     return true;
   }
 
@@ -718,15 +777,19 @@ function isGenericContainer(
  * @param style The computed style of the element.
  * @return The PageContentScrollerInfo or undefined if not scrollable.
  */
-function getScrollerInfo(element: HTMLElement, style: CSSStyleDeclaration):
-    PageContentScrollerInfo|undefined {
+function getScrollerInfo(
+    element: HTMLElement,
+    style: CSSStyleDeclaration|undefined): PageContentScrollerInfo|undefined {
+  if (!style) {
+    return undefined;
+  }
   const overflowX = style.overflowX;
   const overflowY = style.overflowY;
 
-  const isScrollableX = overflowX === STYLE_VALUE_OVERFLOW_SCROLL ||
-      overflowX === STYLE_VALUE_OVERFLOW_AUTO;
-  const isScrollableY = overflowY === STYLE_VALUE_OVERFLOW_SCROLL ||
-      overflowY === STYLE_VALUE_OVERFLOW_AUTO;
+  const isScrollableX =
+      overflowX === STYLE_VALUE_SCROLL || overflowX === STYLE_VALUE_AUTO;
+  const isScrollableY =
+      overflowY === STYLE_VALUE_SCROLL || overflowY === STYLE_VALUE_AUTO;
 
   // We consider it a scroller if configured to scroll AND there is overflow
   // (scrollHeight > clientHeight), OR if 'scroll' is forced.
@@ -802,10 +865,12 @@ function getScrollerInfo(element: HTMLElement, style: CSSStyleDeclaration):
  *
  * @param element The element to process.
  * @param actionableMode Whether to extract actionable interaction info.
+ * @param hasCanvas Whether there is a canvas element on the page.
  * @return The populated PageContentNodeInteractionInfo or undefined if none.
  */
-function getNodeInteractionInfo(element: HTMLElement, actionableMode: boolean):
-    PageContentNodeInteractionInfo|undefined {
+function getNodeInteractionInfo(
+    element: HTMLElement, actionableMode: boolean,
+    hasCanvas: boolean): PageContentNodeInteractionInfo|undefined {
   const interactionInfo: PageContentNodeInteractionInfo = {
     clickabilityReasons: [],
     isDisabled: false,
@@ -813,20 +878,24 @@ function getNodeInteractionInfo(element: HTMLElement, actionableMode: boolean):
     isFocusable: false,
   };
 
-  const style = window.getComputedStyle(element);
+  // If we are not in actionable mode and there is no canvas, we can skip
+  // everything. This assumes that scroller info is only used to compute the
+  // canvas heavy heuristic.
+  if (!actionableMode && !hasCanvas) {
+    return undefined;
+  }
 
-  // Scroller Info.
+  const style = getComputedStyleForElement(element);
+
+  // Scroller Info
   const scrollerInfo = getScrollerInfo(element, style);
   if (scrollerInfo) {
     interactionInfo.scrollerInfo = scrollerInfo;
   }
 
+  // Just return the scroller info when not in actionable mode.
   if (!actionableMode) {
-    // Just return the scroller info when not in actionable mode.
-    if (interactionInfo.scrollerInfo) {
-      return interactionInfo;
-    }
-    return undefined;
+    return scrollerInfo ? interactionInfo : undefined;
   }
 
   // TODO(crbug.com/486460634): Double check that everything is there to support
@@ -851,7 +920,7 @@ function getNodeInteractionInfo(element: HTMLElement, actionableMode: boolean):
     isDisabled = true;
   }
   // Check cursor: not-allowed.
-  if (style.cursor === ATTR_VALUE_CURSOR_NOT_ALLOWED) {
+  if (style?.cursor === ATTR_VALUE_CURSOR_NOT_ALLOWED) {
     interactionDisabledReasons.push(
         PageContentInteractionDisabledReason.CURSOR_NOT_ALLOWED);
   }
@@ -886,7 +955,7 @@ function getNodeInteractionInfo(element: HTMLElement, actionableMode: boolean):
   }
 
   // Pointer Cursor.
-  if (style.cursor === ATTR_VALUE_CURSOR_POINTER) {
+  if (style?.cursor === ATTR_VALUE_CURSOR_POINTER) {
     clickabilityReasons.push(PageContentClickabilityReason.CURSOR_POINTER);
   }
 
@@ -938,7 +1007,7 @@ function getNodeInteractionInfo(element: HTMLElement, actionableMode: boolean):
   // HTMLElement.tabIndex defaults to -1 for non-focusable elements.
   // We also check for contenteditable which makes elements focusable even
   // without tabIndex.
-  if (!isDisabled && style.visibility === ATTR_VISIBILITY_VISIBLE &&
+  if (!isDisabled && style?.visibility === ATTR_VISIBILITY_VISIBLE &&
       (element.tabIndex >= 0 || element.hasAttribute(ATTR_KEY_TABINDEX) ||
        element.isContentEditable)) {
     interactionInfo.isFocusable = true;
@@ -1007,6 +1076,23 @@ function extractMediaData(document: Document): PageContentMediaData|undefined {
 }
 
 /**
+ * Gets the DOM node ID of the currently focused element in the document.
+ *
+ * @param document The document to extract data from.
+ * @return The DOM node ID of the focused element, or undefined if none.
+ */
+function getFocusedNodeId(document: Document): number|undefined {
+  const activeElement = document.activeElement;
+  if (activeElement) {
+    const id = getOrCreateNodeId(activeElement);
+    if (id !== null) {
+      return id;
+    }
+  }
+  return undefined;
+}
+
+/**
  * Extracts the frame interaction info (selection).
  *
  * @param document The document to extract data from.
@@ -1015,6 +1101,12 @@ function extractMediaData(document: Document): PageContentMediaData|undefined {
 function extractFrameInteractionInfo(document: Document):
     PageContentFrameInteractionInfo {
   const frameInteractionInfo: PageContentFrameInteractionInfo = {};
+
+  const focusedId = getFocusedNodeId(document);
+  if (focusedId !== undefined) {
+    frameInteractionInfo.focusedDomNodeId = focusedId;
+  }
+
   const selection = document.getSelection();
   if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
     const range = selection.getRangeAt(0);
@@ -1260,12 +1352,12 @@ function extractFrameData(
 }
 
 /**
- * Parses a CSS color string and returns it as a packed RGBA uint32.
+ * Parses a CSS color string and returns it as a packed ARGB uint32.
  * Supported formats: rgb(r, g, b), rgba(r, g, b, a).
- * Returns null if the color string is invalid.
+ * Returns undefined if the color string is invalid.
  *
  * @param colorString The CSS color string to parse.
- * @return The packed color value ((r << 24) | (g << 16) | (b << 8) | a).
+ * @return The packed color value ((a << 24) | (r << 16) | (g << 8) | b).
  */
 function parseCssColor(colorString: string): number | undefined {
   if (!colorString) {
@@ -1279,18 +1371,20 @@ function parseCssColor(colorString: string): number | undefined {
     const g = parseInt(rgbMatch[2]!, 10);
     const b = parseInt(rgbMatch[3]!, 10);
     // Fully opaque alpha = 255
-    return (((r & 0xFF) << 24) | ((g & 0xFF) << 16) | ((b & 0xFF) << 8) | 0xFF) >>> 0;
+    return ((0xFF << 24) | ((r & 0xFF) << 16) | ((g & 0xFF) << 8) |
+            (b & 0xFF)) >>> 0;
   }
 
   // Handle rgba(r, g, b, a).
   const rgbaMatch =
-    colorString.match(/^rgba\(\s*(\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\s*\)$/);
+      colorString.match(/^rgba\(\s*(\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\s*\)$/);
   if (rgbaMatch) {
     const r = parseInt(rgbaMatch[1]!, 10);
     const g = parseInt(rgbaMatch[2]!, 10);
     const b = parseInt(rgbaMatch[3]!, 10);
     const a = Math.round(parseFloat(rgbaMatch[4]!) * 255);
-    return (((r & 0xFF) << 24) | ((g & 0xFF) << 16) | ((b & 0xFF) << 8) | (a & 0xFF)) >>> 0;
+    return (((a & 0xFF) << 24) | ((r & 0xFF) << 16) | ((g & 0xFF) << 8) |
+            (b & 0xFF)) >>> 0;
   }
 
   return undefined;
@@ -1356,11 +1450,10 @@ function getAttributesForTextNode(domNode: Node): PageContentAttributes|null {
     return null;
   }
 
-  const windowObj = parentElement.ownerDocument?.defaultView;
-  if (!windowObj) {
+  const style = getComputedStyleForElement(parentElement);
+  if (!style) {
     return null;
   }
-  const style = windowObj.getComputedStyle(parentElement);
   const maskedText = applyTextTransformAndMasking(textContent, style);
 
   if (maskedText.trim().length === 0) {
@@ -1380,7 +1473,7 @@ function getAttributesForTextNode(domNode: Node): PageContentAttributes|null {
   const textSize = domNode.ownerDocument ?
     getTextSizeCategory(style.fontSize, domNode.ownerDocument) :
     PageContentTextSize.M;
-  const color = parseCssColor(style.color);
+  const color = parseCssColor(style.color)?.toString();
 
   return {
     attributeType: PageContentAttributeType.TEXT,
@@ -1667,9 +1760,8 @@ function isCustomPassword(element: Element): boolean {
     }
   }
 
-  const windowObj = element.ownerDocument?.defaultView || window;
-  const style = windowObj.getComputedStyle(element);
-  const textSecurity = style.getPropertyValue('-webkit-text-security');
+  const style = getComputedStyleForElement(element);
+  const textSecurity = style?.getPropertyValue('-webkit-text-security');
   return !!textSecurity && textSecurity !== 'none';
 }
 
@@ -1851,8 +1943,10 @@ function getBasicContentForNonGenericElement(
           ...BASIC_CONTENT_ATTRIBUTES,
           attributeType: PageContentAttributeType.ANCHOR,
           anchorData: {
-            url: (domNode as HTMLAnchorElement).href,
-            rel: getAnchorRel(domNode as HTMLAnchorElement),
+            url: (domNode instanceof SVGAElement) ?
+                (domNode as SVGAElement).href.baseVal :
+                (domNode as HTMLAnchorElement).href,
+            rel: getAnchorRel(domNode as HTMLAnchorElement | SVGAElement),
           },
         },
       };
@@ -2109,12 +2203,9 @@ function addAnnotatedRoles(
     domNode: HTMLElement,
     annotatedRoles: PageContentAnnotatedRole[],
     paidContentContext: PaidContentExtractionContext): void {
-  const windowObj = domNode.ownerDocument?.defaultView;
-  if (windowObj) {
-    const style = windowObj.getComputedStyle(domNode);
-    if (style.contentVisibility === STYLE_VALUE_CONTENT_VISIBILITY_HIDDEN) {
-      annotatedRoles.push(PageContentAnnotatedRole.CONTENT_HIDDEN);
-    }
+  const style = getComputedStyleForElement(domNode);
+  if (style?.contentVisibility === STYLE_VALUE_HIDDEN) {
+    annotatedRoles.push(PageContentAnnotatedRole.CONTENT_HIDDEN);
   }
 
   const roleFromTag = getAnnotatedRoleForTag(getStandardTagName(domNode));
@@ -2135,6 +2226,182 @@ function addAnnotatedRoles(
   }
 }
 
+// Defines a rectangle compatible with DOMRectReadOnly.
+interface Rect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+
+/**
+ * Computes the intersection of two rectangles.
+ * Returns a 0-size rectangle at (0,0) if they do not intersect,
+ * matching the behavior of Blink's gfx::Rect::Intersect.
+ */
+function intersection(r1: Rect, r2: Rect): Rect {
+  if (r1.width <= 0 || r1.height <= 0 || r2.width <= 0 || r2.height <= 0) {
+    return createRect(0, 0, 0, 0);
+  }
+
+  const x = Math.max(r1.x, r2.x);
+  const y = Math.max(r1.y, r2.y);
+  const right = Math.min(r1.right, r2.right);
+  const bottom = Math.min(r1.bottom, r2.bottom);
+
+  // TODO(crbug.com/499496584): Double check that a 0-size rectangle and no
+  // rectangle are semantically the same for fully clipped rectangles.
+  if (x >= right || y >= bottom) {
+    return createRect(0, 0, 0, 0);
+  }
+
+  return createRect(x, y, right - x, bottom - y);
+}
+
+/**
+ * Creates a Rect from x, y, width, height.
+ */
+function createRect(x: number, y: number, width: number, height: number): Rect {
+  return {
+    x,
+    y,
+    width,
+    height,
+    top: y,
+    right: x + width,
+    bottom: y + height,
+    left: x,
+  };
+}
+
+/**
+ * Converts a floating-point Rect into an integer-based enclosing Rect.
+ * This snaps the rectangle outward to the nearest integer boundaries to ensure
+ * no content is lost, mirroring Blink's gfx::ToEnclosingRect().
+ */
+function toEnclosingRect(rect: Rect): Rect {
+  if (rect.width === 0 && rect.height === 0) {
+    return createRect(0, 0, 0, 0);
+  }
+  const x = Math.floor(rect.x);
+  const y = Math.floor(rect.y);
+  const right = Math.ceil(rect.right);
+  const bottom = Math.ceil(rect.bottom);
+  return createRect(x, y, right - x, bottom - y);
+}
+
+/**
+ * Calculates and adds geometry information to a node's content attributes.
+ * This includes the element's bounding box and visible bounding box, adjusted
+ * for any clipping from parent elements.
+ *
+ * @param element The HTML element to calculate geometry for.
+ * @param attributes The attributes object where geometry will be stored.
+ * @param parentClipRect The clipping rectangle inherited from parent elements,
+ *     or null if no clipping applies.
+ * @return The new clipping rectangle for this element's children, or the
+ *     inherited parentClipRect if this element does not clip its children.
+ */
+function addNodeGeometry(
+    element: HTMLElement, attributes: PageContentAttributes,
+    parentClipRect: Rect|null, actionableMode: boolean): Rect|null {
+  // Only process element nodes when in actionable mode and return null in that
+  // case since the resulting rectangle isn't needed.
+  if (!actionableMode) {
+    return null;
+  }
+
+
+  const style = getComputedStyleForElement(element);
+  if (style?.position === ATTR_POSITION_FIXED) {
+    // Fixed positioned elements are relative to the viewport, bypassing parent
+    // clips.
+    parentClipRect = null;
+  }
+
+  // getBoundingClientRect() provides the element's position relative to the
+  // viewport. It accounts for all CSS transforms and scroll offsets.
+  // Crucially, it is NOT clipped by its ancestors or the viewport, which makes
+  // it functionally equivalent to Blink's ComputeOuterBoundingBox (using
+  // kSkipAncestorAndViewportClips).
+  const domRect = element.getBoundingClientRect();
+  const elementRect =
+      createRect(domRect.x, domRect.y, domRect.width, domRect.height);
+
+  const geometry = {} as PageContentGeometry;
+  geometry.outerBoundingBox = toEnclosingRect(elementRect);
+
+  // TODO(crbug.com/500701829): The current clipping logic uses simple top-down
+  // inheritance, which does not accurately model CSS position-based clipping
+  // (e.g., an absolute child should only be clipped by a hidden overflow parent
+  // if that parent is its containing block). Consider tracking a containing
+  // block stack for more precise visible bounding box calculations.
+
+  // Calculate visibleBoundingBox by intersecting the element's client rect with
+  // its ancestry clip chain (or viewport if top level).
+  const elementDoc = element.ownerDocument;
+  if (!elementDoc) {
+    // HTMLElement should always have an ownerDocument (unless the node itself
+    // is a Document). If it's somehow missing, we cannot accurately determine
+    // the viewport boundaries.
+    return parentClipRect;
+  }
+  const clipToUse = parentClipRect || getViewportRect(elementDoc);
+  const visibleRect = intersection(elementRect, clipToUse);
+  if (visibleRect.width > 0 && visibleRect.height > 0) {
+    geometry.visibleBoundingBox = toEnclosingRect(visibleRect);
+  }
+
+  // Handle fragmentation (e.g., text wrapping across multiple lines).
+  // getClientRects() returns multiple rectangles for inline elements that
+  // are split across lines. We compute the intersection with the current
+  // clip rect (or viewport) for each fragment to determine its visibility.
+  const clientRects = element.getClientRects();
+  if (clientRects.length > 1) {
+    const fragmentVisibleBoundingBoxes: Rect[] = [];
+
+    for (let i = 0; i < clientRects.length; i++) {
+      const rect = clientRects[i]!;
+      const fragmentRect = createRect(rect.x, rect.y, rect.width, rect.height);
+      const visibleFragmentRect = intersection(fragmentRect, clipToUse);
+      if (visibleFragmentRect.width > 0 && visibleFragmentRect.height > 0) {
+        fragmentVisibleBoundingBoxes.push(toEnclosingRect(visibleFragmentRect));
+      }
+    }
+
+    if (fragmentVisibleBoundingBoxes.length > 0) {
+      geometry.fragmentVisibleBoundingBoxes = fragmentVisibleBoundingBoxes;
+    }
+  }
+
+  attributes.geometry = geometry;
+
+  // Determine the new clip rect to pass down to children.
+  // We default to passing down the parent's clip rect because elements with
+  // 'overflow: visible' do not clip their children. We specifically do not use
+  // this element's visibleRect because children are allowed to overflow and
+  // bleed outside of this element's visible boundaries if it doesn't clip.
+  let childClipRect = parentClipRect;
+
+  const overflowX = style?.overflowX || '';
+  const overflowY = style?.overflowY || '';
+  if (isClippedStyle(overflowX) || isClippedStyle(overflowY)) {
+    // If the element actively clips its children, its own visible bounds become
+    // the new absolute boundary for any descendant.
+    // Note: To properly support CSS transforms (which affect elementRect but
+    // not clientWidth/clientHeight), we fallback to using the visible rect
+    // (which is based on the outer border box) as the clipping boundary rather
+    // than attempting to manually calculate the transformed padding box.
+    childClipRect = visibleRect;
+  }
+
+  return childClipRect;
+}
+
 // TODO(crbug.com/476341187): Carry status information when the max depth is
 // reached.
 /**
@@ -2144,17 +2411,24 @@ function addAnnotatedRoles(
  *
  * @param domNode The DOM node to process (Element or Text).
  * @param nonce Unique identifier for the extraction run.
- * @param interactiveNodeIds Specific node IDs verified as interactive.
- * @param paidNodesSet Set of DOM nodes verified as paid content.
+ * @param depth Current recursion depth.
+ * @param maxDepth The maximum recursion depth.
  * @param interactiveNodeIds A map of interactive node IDs to their
  *     interaction info.
  * @param actionableMode Whether to extract actionable interaction info.
+ * @param paidContentContext Context regarding paid content.
+ * @param hasCanvas Whether there is a canvas element on the page.
+ * @param parentClipRect The clipping rectangle of the parent.
  * @return A new PageContentNode if valid content was found, null otherwise.
  */
 function maybeGenerateContentNode(
     domNode: Node, nonce: string, depth: number, maxDepth: number,
     interactiveNodeIds: InteractiveNodeIds, actionableMode: boolean,
-    paidContentContext: PaidContentExtractionContext): PageContentNode|null {
+    paidContentContext: PaidContentExtractionContext, hasCanvas: boolean,
+    parentClipRect: Rect|null): {
+  node: PageContentNode|null,
+  nextClipRect: Rect|null,
+} {
   let contentAttributes: PageContentAttributes|null = null;
   if (domNode.nodeType === Node.TEXT_NODE) {
     contentAttributes = getAttributesForTextNode(domNode);
@@ -2163,16 +2437,22 @@ function maybeGenerateContentNode(
       if (domNodeId !== null) {
         contentAttributes.domNodeId = domNodeId;
       }
+      // Text nodes don't have children, so they don't need a clip rect passed
+      // down. Explicit geometry for text nodes isn't currently extracted.
       return {
-        childrenNodes: [],
-        contentAttributes: contentAttributes,
+        node: {
+          childrenNodes: [],
+          contentAttributes: contentAttributes,
+        },
+        nextClipRect: null,
       };
     }
   } else if (domNode.nodeType === Node.ELEMENT_NODE) {
     const element = domNode as HTMLElement;
     const annotatedRoles: PageContentAnnotatedRole[] = [];
     addAnnotatedRoles(element, annotatedRoles, paidContentContext);
-    const interactionInfo = getNodeInteractionInfo(element, actionableMode);
+    const interactionInfo =
+        getNodeInteractionInfo(element, actionableMode, hasCanvas);
 
     const contentNode = getContentForElementNode(
         element, nonce, depth, maxDepth, annotatedRoles, interactionInfo,
@@ -2189,17 +2469,25 @@ function maybeGenerateContentNode(
             roleStr ? getAXRoleForAriaRole(roleStr) : AxRole.AX_ROLE_UNKNOWN;
       }
 
-      return contentNode;
+      const nextClipRect = addNodeGeometry(
+          element, contentNode.contentAttributes, parentClipRect,
+          actionableMode);
+      return {node: contentNode, nextClipRect};
     }
   }
 
-  return null;
+  return {node: null, nextClipRect: null};
 }
 
 /**
  * Checks if a node should be accepted for extraction.
  */
 function shouldAcceptNode(node: Node): number {
+  const parent = node.parentElement;
+  if (parent && TAGS_TO_SKIP_SUBTREE.includes(getStandardTagName(parent))) {
+    return NodeFilter.FILTER_REJECT;
+  }
+
   if (node.nodeType === Node.ELEMENT_NODE) {
     const element = node as Element;
     const tagName = getStandardTagName(element);
@@ -2227,7 +2515,6 @@ function shouldAcceptNode(node: Node): number {
       return NodeFilter.FILTER_ACCEPT;
     }
   } else if (node.nodeType === Node.TEXT_NODE) {
-    const parent = node.parentElement;
     // Determine the text node visibility based on their parent since
     // this is the best proxy we have for that due to the lack of
     // `getComputedStyle()` for text element nodes as opposed to the
@@ -2255,6 +2542,9 @@ interface AncestorStackItem {
   depth: number;
   // Whether the node has style.
   isVisible: boolean;
+  // Clipping rectangle of the node. Falls back to using the viewport as the
+  // clipping rectangle if null.
+  clipRect: Rect|null;
 }
 
 /**
@@ -2268,12 +2558,15 @@ interface AncestorStackItem {
  * @param ancestorStack The stack of ancestors that provides the parent node and
  *     where the new node is pushed as the next closest parent.
  * @param interactiveNodeIds Specific node IDs verified as interactive.
- * @param paidNodesSet Set of DOM nodes verified as paid content.
+ * @param actionableMode Whether to extract actionable interaction info.
+ * @param paidContentContext Context regarding paid content.
+ * @param hasCanvas Whether there is a canvas element on the page.
  */
 function generateAndPushContentNode(
     node: Node, nonce: string, maxDepth: number,
     ancestorStack: AncestorStackItem[], interactiveNodeIds: InteractiveNodeIds,
-    actionableMode: boolean, paidContentContext: PaidContentExtractionContext) {
+    actionableMode: boolean, paidContentContext: PaidContentExtractionContext,
+    hasCanvas: boolean) {
   const parentStackItem = ancestorStack[ancestorStack.length - 1]!;
 
   // 2. Generate Content Node. Skip nodes that are too deep while keep
@@ -2284,15 +2577,20 @@ function generateAndPushContentNode(
     return;
   }
 
-  const newApcNode = maybeGenerateContentNode(
+  const parentClipRect = parentStackItem.clipRect;
+
+  const result = maybeGenerateContentNode(
       node, nonce, currentDepth, maxDepth, interactiveNodeIds, actionableMode,
-      paidContentContext);
-  if (!newApcNode) {
+      paidContentContext, hasCanvas, parentClipRect);
+  if (!result.node) {
     // Ignore the node if it can't be parsed. That node cannot be a parent
     // either where another node in the ancestor stack will be picked as the
     // parent for the descendents of this node (if there are).
     return;
   }
+
+  const newApcNode = result.node;
+  const nextClipRect = result.nextClipRect;
 
   parentStackItem.apcNode.childrenNodes.push(newApcNode);
 
@@ -2302,20 +2600,15 @@ function generateAndPushContentNode(
 
   // Re-check visibility for stack logic.
   const element = node as Element;
-  const windowObj = element.ownerDocument?.defaultView;
-  let isVisible = true;
-  if (windowObj) {
-    const style = windowObj.getComputedStyle(element);
-    // Blink treats 'opacity: 0' as visible. Only 'visibility:
-    // hidden/collapse' is invisible.
-    isVisible = style.visibility === 'visible';
-  }
+  const style = getComputedStyleForElement(element);
+  const isVisible = style?.visibility === ATTR_VISIBILITY_VISIBLE;
 
   ancestorStack.push({
     domNode: node,
     apcNode: newApcNode,
     depth: currentDepth,
     isVisible: isVisible,
+    clipRect: nextClipRect,
   });
 }
 
@@ -2329,13 +2622,12 @@ function generateAndPushContentNode(
 function extractPageInteractionInfo(document: Document):
     PageContentPageInteractionInfo {
   const pageInteractionInfo: PageContentPageInteractionInfo = {};
-  const activeElement = document.activeElement;
-  if (activeElement) {
-    const focusedId = getOrCreateNodeId(activeElement);
-    if (focusedId !== null) {
-      pageInteractionInfo.focusedDomNodeId = focusedId;
-    }
+
+  const focusedId = getFocusedNodeId(document);
+  if (focusedId !== undefined) {
+    pageInteractionInfo.focusedDomNodeId = focusedId;
   }
+
   return pageInteractionInfo;
 }
 
@@ -2348,13 +2640,12 @@ function extractPageInteractionInfo(document: Document):
  */
 function getInteractiveNodeIds(document: Document): InteractiveNodeIds {
   const interactiveNodeIds: InteractiveNodeIds = new Set();
-  const focusedElement = document.activeElement;
-  if (focusedElement) {
-    const id = getOrCreateNodeId(focusedElement);
-    if (id !== null) {
-      interactiveNodeIds.add(id);
-    }
+
+  const focusedId = getFocusedNodeId(document);
+  if (focusedId !== undefined) {
+    interactiveNodeIds.add(focusedId);
   }
+
   const selection = document.getSelection();
   if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
     const range = selection.getRangeAt(0);
@@ -2394,7 +2685,7 @@ function getStandardTagName(element: Element): string {
 function getAssociatedControlDOMNodeID(
     labelElement: HTMLLabelElement,
     interactiveNodeIds: InteractiveNodeIds,
-): number | undefined {
+    ): number|undefined {
   const associatedControl = labelElement.control;
   if (associatedControl) {
     const controlId = getOrCreateNodeId(associatedControl);
@@ -2449,6 +2740,13 @@ export function extractAnnotatedPageContent(
   }
   root.setAttribute(NONCE_ATTR, nonce);
 
+  // TODO(crbug.com/480945289): Assume there is a canvas when feature is
+  // disabled. We only need to extract the scroller info for nodes when there is
+  // a canvas on the page. It is required to compute the canvas heavy heuristic.
+  const hasCanvas = isPageContextIPCOptimizationEnabled() ?
+      document.querySelector('canvas') !== null :
+      true;
+
   // Perform pre-walk extraction of paid content globals and specific nodes.
   const paidContentContext = extractContainsPaidContent(
       document, extractPaidContent, attemptPaidContentJsonFixing);
@@ -2474,8 +2772,15 @@ export function extractAnnotatedPageContent(
   // that there is at least a root node that is walkable.
   // We use this to find the correct parent for the current node without
   // needing a full map of all visited nodes.
-  const ancestorStack: AncestorStackItem[] =
-      [{domNode: root, apcNode: rootNode, depth, isVisible: true}];
+  const ancestorStack: AncestorStackItem[] = [{
+    domNode: root,
+    apcNode: rootNode,
+    depth,
+    isVisible: true,
+    clipRect: addNodeGeometry(
+        root, rootNode.contentAttributes, getViewportRect(document),
+        actionableMode),
+  }];
 
   // Collect interactive nodes (focused element, selection start/end).
   const interactiveNodeIds = getInteractiveNodeIds(document);
@@ -2532,7 +2837,7 @@ export function extractAnnotatedPageContent(
     // walking the tree since future nodes might be shallow enough.
     generateAndPushContentNode(
         currentNode, nonce, maxDepth, ancestorStack, interactiveNodeIds,
-        actionableMode, paidContentContext);
+        actionableMode, paidContentContext, hasCanvas);
 
     currentNode = walker.nextNode();
   }
@@ -2555,12 +2860,7 @@ export function extractAnnotatedPageContent(
   // rather than accounting for visual viewport offsets (e.g., pinch-to-zoom),
   // to maintain parity with Blink's ConvertViewportGeometry in
   // components/optimization_guide/content/browser/page_content_proto_provider.cc.
-  const viewportGeometry = {
-    x: 0,
-    y: 0,
-    width: documentWindow.innerWidth,
-    height: documentWindow.innerHeight,
-  };
+  const viewportGeometry = toEnclosingRect(getViewportRect(document));
 
   return {
     rootNode,

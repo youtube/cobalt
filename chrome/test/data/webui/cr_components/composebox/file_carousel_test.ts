@@ -71,6 +71,25 @@ suite('FileCarouselTest', function() {
     assertEquals(2, thumbnails.length);
   });
 
+  test('renders tab chip with title tooltip', async () => {
+    const tabFile: ComposeboxFile = {
+      ...createFile(1),
+      type: 'tab',
+      url: 'https://example.com' as any,
+      name: 'Example Tab Title',
+    };
+    fileCarousel.files = [tabFile];
+    await microtasksFinished();
+
+    const thumbnail =
+        fileCarousel.shadowRoot.querySelector('cr-composebox-file-thumbnail');
+    assertTrue(!!thumbnail);
+
+    const tabChip = thumbnail.shadowRoot.querySelector('#tabChip');
+    assertTrue(!!tabChip);
+    assertEquals('Example Tab Title', tabChip.getAttribute('title'));
+  });
+
   test('getThumbnailElementByUuid returns correct element', async () => {
     const uuid1 = {high: 0n, low: 1n} as any;
     const uuid2 = {high: 0n, low: 2n} as any;
@@ -121,7 +140,8 @@ suite('FileCarouselTest', function() {
   });
 
   test('fires carousel-resize event on resize', async () => {
-    const eventPromise = eventToPromise('carousel-resize', fileCarousel);
+    const eventPromise = eventToPromise<CustomEvent<{height: number}>>(
+        'carousel-resize', fileCarousel);
 
     // Trigger the callback
     resizeObserverCallback([], window.ResizeObserver as any);
@@ -133,6 +153,33 @@ suite('FileCarouselTest', function() {
     const event = await eventPromise;
     assertTrue(!!event);
     assertEquals(0, event.detail.height);
+  });
+
+  test('elides www from tab chip url', async () => {
+    const tabFile: ComposeboxFile = {
+      uuid: {high: 0n, low: 1n} as any,
+      name: 'Example Tab Title',
+      dataUrl: null,
+      objectUrl: null,
+      type: 'tab',
+      inputType: InputType.kLensFile,
+      status: ContextUploadStatus.kUploadStarted,
+      url: 'https://www.example.com/path' as any,
+      tabId: 1,
+      isDeletable: true,
+      iconName: null,
+      supportsUnimodal: true,
+    };
+    fileCarousel.files = [tabFile];
+    await microtasksFinished();
+
+    const thumbnail =
+        fileCarousel.shadowRoot.querySelector('cr-composebox-file-thumbnail');
+    assertTrue(!!thumbnail);
+
+    const urlDiv = thumbnail.shadowRoot.querySelector('.url');
+    assertTrue(!!urlDiv);
+    assertEquals('example.com/path', urlDiv.textContent.trim());
   });
 
   test('disconnects resize observer on disconnectedCallback', async () => {

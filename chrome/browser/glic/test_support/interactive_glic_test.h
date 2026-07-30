@@ -30,6 +30,7 @@
 #include "chrome/browser/glic/host/glic_cookie_synchronizer.h"
 #include "chrome/browser/glic/host/glic_page_handler.h"
 #include "chrome/browser/glic/host/host.h"
+#include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
@@ -45,7 +46,6 @@
 #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
-#include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -135,6 +135,9 @@ class InteractiveGlicTestMixin : public T {
         {{features::kGlic, glic_params},
          {features::kGlicRollout, {}},
          {features::kGlicKeyboardShortcutNewBadge, {}},
+         // Live mode is disabled by default on Linux, but we still want to test
+         // it.
+         {features::kGlicLiveMode, {}},
 #if BUILDFLAG(IS_CHROMEOS)
          { chromeos::features::kFeatureManagementGlic,
            {} }
@@ -221,7 +224,7 @@ class InteractiveGlicTestMixin : public T {
                   if (!instance->IsShowing()) {
                     return "Glic not showing";
                   }
-                  if (!instance->host().IsReady()) {
+                  if (!instance->host().IsWebClientConnected()) {
                     return "Glic host not ready";
                   }
                   return "showing and ready";

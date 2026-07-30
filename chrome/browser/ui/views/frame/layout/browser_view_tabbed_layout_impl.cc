@@ -675,9 +675,9 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
   // Lay out vertical tab strip if visible.
   int collapsed_vertical_tab_strip_adjustment = 0;
   VerticalTabStripAnimation vertical_tab_strip_animation;
+  gfx::Rect vertical_tab_strip_bounds;
   if (IsParentedTo(views().vertical_tab_strip_region_view,
                    views().browser_view)) {
-    gfx::Rect vertical_tab_strip_bounds;
     if (tab_strip_type == TabStripType::kVertical) {
       vertical_tab_strip_animation = CalculateVerticalTabStripAnimation(params);
       if (vertical_tab_strip_animation.top_offset > 0) {
@@ -737,7 +737,8 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
           views().vertical_tab_strip_top_corner->GetPreferredSize();
       preferred.set_width(base::ClampCeil(
           preferred.width() * vertical_tab_strip_animation.top_corner));
-      corner_bounds = gfx::Rect(params.visual_client_area.origin(), preferred);
+      corner_bounds =
+          gfx::Rect(vertical_tab_strip_bounds.top_right(), preferred);
       corner_bounds.Outset(
           gfx::Outsets::TLBR(0, views::Separator::kThickness, 0, 0));
     }
@@ -757,8 +758,8 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
       preferred.set_width(base::ClampCeil(
           preferred.width() * vertical_tab_strip_animation.bottom_corner));
       corner_bounds =
-          gfx::Rect(params.visual_client_area.x(),
-                    params.visual_client_area.bottom() - preferred.height(),
+          gfx::Rect(vertical_tab_strip_bounds.right(),
+                    vertical_tab_strip_bounds.bottom() - preferred.height(),
                     preferred.width(), preferred.height());
       corner_bounds.Outset(
           gfx::Outsets::TLBR(0, views::Separator::kThickness, 0, 0));
@@ -945,13 +946,17 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
       // bar.
       const int additional_offset =
           show_shadow_overlay ? 0 : delegate().GetExtraInfobarOffset();
+      const int infobar_height =
+          views().infobar_container->GetPreferredSize().height();
+      // The content starts below the infobar, but is not affected by the
+      // extra offset from the toolbar reveal animation. The infobar slides
+      // down to stay visible below the revealed toolbar, while the content
+      // stays in place. See https://crbug.com/1473068.
       infobar_bounds =
           gfx::Rect(params.visual_client_area.x(),
                     params.visual_client_area.y() + additional_offset,
-                    params.visual_client_area.width(),
-                    // This returns zero for empty infobar.
-                    views().infobar_container->GetPreferredSize().height());
-      params.SetTop(infobar_bounds.bottom());
+                    params.visual_client_area.width(), infobar_height);
+      params.SetTop(params.visual_client_area.y() + infobar_height);
     }
     layout.AddChild(views().infobar_container, infobar_bounds, infobar_visible);
   }
@@ -1247,7 +1252,12 @@ void BrowserViewTabbedLayoutImpl::ConfigureTopContainerBackground(
   // The top container always draws an opaque background in tabbed browser mode
   // to avoid cracking between visual elements.
   background->SetVisible(true);
-  background->SetPrimaryColor(CustomCornersBackground::ToolbarTheme());
+  if (delegate().GetBrowserWindowState() == WindowState::kFullscreen &&
+      GetTabStripType() == TabStripType::kHorizontal) {
+    background->SetPrimaryColor(ui::kColorFrameActive);
+  } else {
+    background->SetPrimaryColor(CustomCornersBackground::ToolbarTheme());
+  }
 
   // By default, this is just a flat background.
   CustomCornersBackground::Corners corners;

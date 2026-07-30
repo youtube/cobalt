@@ -69,7 +69,11 @@ class SendTabToSelfPageHandler
   void WebContentsDestroyed() override;
 
   struct PendingRequest {
-    PendingRequest();
+    PendingRequest(
+        const std::string& target_device_guid,
+        const GURL& url,
+        const std::string& title,
+        base::OnceCallback<void(SendTabToSelfResult)> result_callback);
     PendingRequest(PendingRequest&&);
     PendingRequest& operator=(PendingRequest&&);
     ~PendingRequest();
@@ -94,7 +98,7 @@ class SendTabToSelfPageHandler
 
   void SelectorGenerationTimedOutForRequest(base::Token request_token);
 
-  void CancelPendingRequest(base::Token request_token);
+  void CancelPendingRequests(ScrollPositionGenerationOutcome outcome);
 
   void RequestScrollPositionSelectorAndSendRequest(base::Token request_token,
                                                    PendingRequest request);

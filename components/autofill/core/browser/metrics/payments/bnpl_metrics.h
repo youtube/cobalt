@@ -134,13 +134,23 @@ enum class PayLaterTabsFormEvent {
   // Payments autofill suggestions were shown in Pay Now / Pay Later tabs.
   kSuggestionsShownWithPayLaterTab = 1,
 
-  // Expected remaining buckets:
-  //  kSwitchedToPayLaterTab = 2,
-  //  kSwitchedToPayNowTab = 3,
-  //  kAffirmAccepted = 4,
-  //  kZipAccepted = 5,
-  //  kKlarnaAccepted = 6,
-  //  kAfterpayAccepted = 7,
+  // Users switched from the Pay Now tab to the Pay Later tab.
+  kSwitchedToPayLaterTab = 2,
+
+  // Users switched from the Pay Later tab to the Pay Now tab.
+  kSwitchedToPayNowTab = 3,
+
+  // An Affirm BNPL suggestion was accepted.
+  kAffirmAccepted = 4,
+
+  // A Zip BNPL suggestion was accepted.
+  kZipAccepted = 5,
+
+  // A Klarna BNPL suggestion was accepted.
+  kKlarnaAccepted = 6,
+
+  // An Afterpay BNPL suggestion was accepted.
+  kAfterpayAccepted = 7,
 
   // A form was filled with an Affirm VCN.
   kFormFilledWithAffirm = 8,
@@ -212,6 +222,9 @@ void LogBnplPopupWindowLatency(base::TimeDelta duration,
 
 // Logs suggestion shown events for the Pay Later tab.
 void LogSuggestionShownForPayLaterTab(bool contains_pay_later_tab_suggestions);
+
+// Logs that a pay later tab suggestion was accepted.
+void LogPayLaterTabSuggestionAccepted(autofill::BnplIssuer::IssuerId issuer_id);
 
 // Logs Pay Later Tab form events. Please refer to `PayLaterTabsFormEvent` for
 // the possible enumerations that can be logged.

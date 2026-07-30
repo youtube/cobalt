@@ -23,6 +23,7 @@
 #include "ash/shell.h"
 #include "ash/wm/window_util.h"
 #include "base/base_paths.h"
+#include "base/check.h"
 #include "base/check_deref.h"
 #include "base/check_is_test.h"
 #include "base/check_op.h"
@@ -36,6 +37,7 @@
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/memory/singleton.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/path_service.h"
 #include "base/scoped_observation.h"
@@ -220,6 +222,8 @@ std::string Sha1AsHexForRefreshToken(
 }  // namespace login
 
 namespace {
+
+UserSessionManager* g_instance = nullptr;
 
 using ::signin::ConsentLevel;
 
@@ -609,8 +613,8 @@ void MaybeSaveSessionStartedTimeBeforeRestart(Profile* profile) {
 
 // static
 UserSessionManager* UserSessionManager::GetInstance() {
-  return base::Singleton<UserSessionManager, base::DefaultSingletonTraits<
-                                                 UserSessionManager>>::get();
+  CHECK(g_instance);
+  return g_instance;
 }
 
 // static
@@ -634,16 +638,16 @@ UserSessionManager::UserSessionManager()
   content::GetNetworkConnectionTrackerFromUIThread(
       base::BindOnce(&UserSessionManager::SetNetworkConnectionTracker,
                      GetUserSessionManagerAsWeakPtr()));
+
+  CHECK(!g_instance);
+  g_instance = this;
 }
 
 UserSessionManager::~UserSessionManager() {
-  // UserManager is destroyed before singletons, so we need to check if it
-  // still exists.
-  // TODO(nkostylev): fix order of destruction of UserManager
-  // / UserSessionManager objects.
-  if (user_manager::UserManager::IsInitialized()) {
-    user_manager::UserManager::Get()->RemoveSessionStateObserver(this);
-  }
+  user_manager::UserManager::Get()->RemoveSessionStateObserver(this);
+
+  CHECK_EQ(g_instance, this);
+  g_instance = nullptr;
 }
 
 // Observes the Device Account's LST and informs UserSessionManager about it.

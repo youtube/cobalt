@@ -7,8 +7,8 @@
 #import "build/branding_buildflags.h"
 #import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/autofill/model/message/save_card_message_with_links.h"
-#import "ios/chrome/browser/autofill/ui_bundled/autofill_credit_card_util.h"
 #import "ios/chrome/browser/autofill/ui_bundled/bottom_sheet/bottom_sheet_constants.h"
+#import "ios/chrome/browser/autofill/ui_bundled/util/autofill_credit_card_util.h"
 #import "ios/chrome/browser/net/model/crurl.h"
 #import "ios/chrome/browser/shared/ui/bottom_sheet/table_view_bottom_sheet_view_controller+subclassing.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
@@ -30,10 +30,17 @@ CGFloat const kSpacingBeforeAboveTitleImage = 12;
 // Spacing after the logo in the bottom sheet.
 CGFloat const kSpacingAfterAboveTitleImage = 4;
 
+// Spacing after the logo in the bottom sheet.
+CGFloat const kSpacingAfterAboveTitleImage_V2 = 16;
+
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-//  Height of the Google Wallet logo used as the image above the title of the
-//  bottomsheet for upload save.
+// Point size of the Google Wallet logo used as the image above the title of
+// the bottomsheet for upload save.
 CGFloat const kGoogleWalletLogoHeight = 32;
+
+// Width and container size of the Google Wallet logo used as the image above
+// the title of the bottomsheet for upload save.
+CGFloat const kGoogleWalletLogoV2Height = 36;
 
 // Height of the Chrome logo used as the image above the title of the
 // bottomsheet for local save.
@@ -66,7 +73,11 @@ CGFloat const kChromeLogoHeight = 22;
   self.image = [self aboveTitleImage];
   self.imageViewAccessibilityLabel = [self aboveTitleImageAccessibilityLabel];
   self.customSpacingBeforeImage = kSpacingBeforeAboveTitleImage;
-  self.customSpacingAfterImage = kSpacingAfterAboveTitleImage;
+  self.customSpacingAfterImage =
+      base::FeatureList::IsEnabled(
+          autofill::features::kAutofillEnableWalletBrandingV2)
+          ? kSpacingAfterAboveTitleImage_V2
+          : kSpacingAfterAboveTitleImage;
   self.customSpacing = kSpacing;
   self.actionHandler = self;
 
@@ -261,7 +272,10 @@ CGFloat const kChromeLogoHeight = 22;
                      ? kGoogleWalletIconSymbol
                      : kGoogleWalletSymbol)
               : kGooglePaySymbol,
-          kGoogleWalletLogoHeight));
+          base::FeatureList::IsEnabled(
+              autofill::features::kAutofillEnableWalletBrandingV2)
+              ? kGoogleWalletLogoV2Height
+              : kGoogleWalletLogoHeight));
     case kNoLogo:
     default:
       NOTREACHED() << "Unsupported logo type for save card bottomsheet.";
@@ -313,6 +327,17 @@ CGFloat const kChromeLogoHeight = 22;
             kGPayPillIconSymbol, kGoogleWalletLogoHeight));
 
     configuration.trailingConfiguration = trailingImageConfiguration;
+
+    if (_cardAccessibilityLabel.length) {
+      configuration.customAccessibilityLabel =
+          [NSString stringWithFormat:
+                        @"%@, %@", _cardAccessibilityLabel,
+                        l10n_util::GetNSString(
+                            IDS_AUTOFILL_GOOGLE_WALLET_LOGO_ACCESSIBLE_NAME)];
+    } else {
+      configuration.customAccessibilityLabel = l10n_util::GetNSString(
+          IDS_AUTOFILL_GOOGLE_WALLET_LOGO_ACCESSIBLE_NAME);
+    }
   }
 #endif
 

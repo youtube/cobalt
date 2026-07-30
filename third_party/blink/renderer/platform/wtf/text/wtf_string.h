@@ -114,7 +114,7 @@ class WTF_EXPORT String {
   [[nodiscard]] static String Number(double, unsigned precision = 6);
 
   // Number to String conversion following the ECMAScript definition.
-  [[nodiscard]] static String NumberToStringECMAScript(double);
+  [[nodiscard]] static String NumberToStringEcmaScript(double);
   [[nodiscard]] static String NumberToStringFixedWidth(double,
                                                        unsigned decimal_places);
 
@@ -416,9 +416,11 @@ class WTF_EXPORT String {
   // string. If `len` exceeds the length from `pos` to the end of the string,
   // the substring from `pos` to the end is returned.
   //
-  // This method exists for historical reasons. For compatibility with
-  // `std::string::substr`, consider using the `substr()` method.
-  [[nodiscard]] String Substring(size_type pos, size_type len = npos) const;
+  // This method is deprecated. Use `str.substr(pos, len)` if `pos` is
+  // guaranteed to be <= `str.length()`. If `pos` might be greater than
+  // `str.length()`, use `str.substr(std::min(pos, str.length()), len)`.
+  [[nodiscard]] String DeprecatedSubstring(size_type pos,
+                                           size_type len = npos) const;
 
   bool starts_with(const StringView& prefix) const {
     return impl_ ? impl_->StartsWith(prefix) : prefix.empty();

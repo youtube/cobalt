@@ -68,6 +68,8 @@ export class AppRefreshElement extends AppRefreshElementBase {
       showInfoDialog_: {type: Boolean},
       // Exposed to CSS as 'use-horizontal-mode_'.
       useHorizontalMode_: {type: Boolean, reflect: true},
+      saveGuestModeSearchEngineChoice_: {type: Boolean},
+      showGuestCheckbox_: {type: Boolean},
     };
   }
 
@@ -79,9 +81,9 @@ export class AppRefreshElement extends AppRefreshElementBase {
   protected accessor showInfoDialog_: boolean = false;
   protected accessor actionButtonText_: string = '';
   protected accessor useHorizontalMode_: boolean = false;
-  protected showGuestCheckbox_: boolean =
+  protected accessor showGuestCheckbox_: boolean =
       loadTimeData.getBoolean('showGuestCheckbox');
-  protected saveGuestModeSearchEngineChoice_: boolean = false;
+  protected accessor saveGuestModeSearchEngineChoice_: boolean = false;
 
   private mediaQueryList_: MediaQueryList =
       window.matchMedia('(max-width: 840px), (max-height: 640px)');
@@ -172,11 +174,13 @@ export class AppRefreshElement extends AppRefreshElementBase {
 
   private addResizeObserver_() {
     function doElementsOverlap(
-        buttonRect: DOMRect, listRect: DOMRect, offset: number): boolean {
+        firstElement: DOMRect, secondElement: DOMRect,
+        offset: number): boolean {
       return !(
-          buttonRect.right + offset < listRect.left ||
-          buttonRect.left - offset > listRect.right ||
-          buttonRect.bottom < listRect.top || buttonRect.top > listRect.bottom);
+          firstElement.right + offset < secondElement.left ||
+          firstElement.left - offset > secondElement.right ||
+          firstElement.bottom < secondElement.top ||
+          firstElement.top > secondElement.bottom);
     }
 
     this.resizeObserver_ = new ResizeObserver(() => {

@@ -51,7 +51,7 @@ public class ActorPictureInPictureController
 
     private static final String TAG = "ActorPiPController";
     private static final int REQUEST_CODE_PAUSE_RESUME = 101;
-    private static final long PIP_EXIT_DELAY_MS = TimeUnit.HOURS.toMillis(1);
+    private static final long PIP_EXIT_DELAY_MS = TimeUnit.MINUTES.toMillis(1);
 
     private final ComponentActivity mActivity;
     private final Supplier<Profile> mProfileSupplier;
@@ -392,7 +392,6 @@ public class ActorPictureInPictureController
         mPipOverlayCoordinator = coordinator;
     }
 
-    @VisibleForTesting
     public void setInActorPiPForTesting(boolean inPiP) {
         mInActorPiP = inPiP;
     }

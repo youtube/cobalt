@@ -14,6 +14,7 @@
 #import "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_wallet_utils.h"
 #import "components/autofill/core/browser/network/autofill_ai/wallet_pass_access_manager.h"
 #import "components/autofill/core/browser/proto/server.pb.h"
+#import "ios/chrome/browser/autofill/autofill_ai/public/autofill_ai_ui_util.h"
 #import "ios/chrome/browser/autofill/ui_bundled/address_editor/autofill_profile_edit_mediator.h"
 #import "ios/chrome/browser/autofill/ui_bundled/address_editor/cells/country_item.h"
 #import "ios/chrome/browser/settings/autofill/autofill_ai/ui/autofill_ai_entity_country_item.h"
@@ -49,15 +50,6 @@ NSDateFormatter* CreateDateFormatterForLocale(const std::string& locale) {
   return dateFormatter;
 }
 
-// Returns true if `attribute_type` is found in `required_fields`.
-bool IsFieldRequired(const EntityInstance& entity_instance,
-                     AttributeType attribute_type) {
-  return std::ranges::any_of(entity_instance.type().required_fields(),
-                             [&](const auto& required_set) {
-                               return required_set.contains(attribute_type);
-                             });
-}
-
 }  // namespace
 
 @implementation AutofillAIEntityEditMediator {
@@ -90,6 +82,9 @@ bool IsFieldRequired(const EntityInstance& entity_instance,
 
   // The reauthentication module.
   __weak id<ReauthenticationProtocol> _reauthModule;
+
+  // Whether the view controller is currently in edit mode.
+  BOOL _isEditing;
 }
 
 - (instancetype)
@@ -119,20 +114,19 @@ bool IsFieldRequired(const EntityInstance& entity_instance,
 
 // Sets the consumer of the mediator.
 - (void)setConsumer:(id<AutofillAIEntityEditConsumer>)consumer {
-  if (!consumer || !_entityInstance.has_value()) {
+  if (!consumer) {
     return;
   }
 
-  [consumer setTitle:base::SysUTF16ToNSString(
-                         _entityInstance->type().GetNameForI18n())];
+  _consumer = consumer;
+
+  [self updateTitle];
 
   [consumer setEditingAllowed:!_entityInstance->are_attributes_read_only()];
   [consumer setIsServerWalletItem:
                 (_entityInstance->record_type() ==
                  autofill::EntityInstance::RecordType::kServerWallet)];
   [consumer setUserEmail:_userEmail];
-
-  _consumer = consumer;
 
   [self updateEditItemsWithAllAttributes:NO];
 }
@@ -141,6 +135,8 @@ bool IsFieldRequired(const EntityInstance& entity_instance,
 
 - (void)saveEntityInstance {
   CHECK(_entityInstance.has_value());
+  _isEditing = NO;
+  [self updateTitle];
 
   base::flat_set<autofill::AttributeInstance,
                  autofill::AttributeInstance::CompareByType>
@@ -244,9 +240,25 @@ bool IsFieldRequired(const EntityInstance& entity_instance,
   item.detailText = [_dateFormatter stringFromDate:date];
 }
 
-- (BOOL)isFieldRequired:(autofill::AttributeTypeName)attributeTypeName {
-  return IsFieldRequired(*_entityInstance,
-                         autofill::AttributeType(attributeTypeName));
+- (autofill::DenseSet<autofill::AttributeType>)getMissingRequiredFieldsFor:
+    (const autofill::DenseSet<autofill::AttributeType>&)presentAttributes {
+  bool satisfied = std::ranges::any_of(
+      _entityInstance->type().required_fields(), [&](const auto& constraint) {
+        return presentAttributes.contains_all(constraint);
+      });
+  if (satisfied) {
+    return {};
+  }
+
+  autofill::DenseSet<autofill::AttributeType> missingTypes;
+  for (const auto& constraint : _entityInstance->type().required_fields()) {
+    for (auto type : constraint) {
+      if (!presentAttributes.contains(type)) {
+        missingTypes.insert(type);
+      }
+    }
+  }
+  return missingTypes;
 }
 
 - (void)requestEditingWithCompletion:
@@ -259,12 +271,14 @@ bool IsFieldRequired(const EntityInstance& entity_instance,
       std::ranges::any_of(_entityInstance->type().attributes(),
                           &autofill::AttributeType::is_obfuscated);
   if (!isMasked && !hasObfuscatedFields) {
+    _isEditing = YES;
+    [self updateTitle];
     [self updateEditItemsWithAllAttributes:YES];
     completion(ReauthenticationResult::kSuccess);
     return;
   }
 
-  NSString* reason = l10n_util::GetNSString(IDS_IOS_AUTOFILL_REAUTH_REASON);
+  NSString* reason = l10n_util::GetNSString(IDS_IOS_AUTH_REASON);
   __weak AutofillAIEntityEditMediator* weakSelf = self;
   [_reauthModule
       attemptReauthWithLocalizedReason:reason
@@ -272,8 +286,8 @@ bool IsFieldRequired(const EntityInstance& entity_instance,
                                handler:^(ReauthenticationResult result) {
                                  [weakSelf
                                      onReauthenticationFinished:
-                                         result ==
-                                         ReauthenticationResult::kSuccess];
+                                         result !=
+                                         ReauthenticationResult::kFailure];
                                  completion(result);
                                }];
 }
@@ -282,9 +296,30 @@ bool IsFieldRequired(const EntityInstance& entity_instance,
 
 - (void)onReauthenticationFinished:(BOOL)success {
   if (success) {
+    _isEditing = YES;
+    [self updateTitle];
     [_itemFactory setUserHasAuthenticated:success];
     [self updateEditItemsWithAllAttributes:YES];
   }
+}
+
+- (void)updateTitle {
+  if (!_consumer) {
+    return;
+  }
+
+  autofill::EntityTypeName typeName = _entityInstance->type().name();
+  NSString* title = nil;
+
+  if (_consumer.mode == AutofillAIEntityEditMode::kCreate) {
+    title = autofill::GetDialogTitleForAddEntity(typeName);
+  } else if (_isEditing) {
+    title = autofill::GetDialogTitleForEditEntity(typeName);
+  } else {
+    title = autofill::GetDialogTitleForViewEntity(typeName);
+  }
+
+  [_consumer setTitle:title];
 }
 
 - (void)updateEditItemsWithAllAttributes:(BOOL)showAllAttributes {

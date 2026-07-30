@@ -28,11 +28,13 @@ import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.BaseActivityTestRule;
 import org.chromium.base.test.BaseJUnit4ClassRunner;
 import org.chromium.base.test.util.Batch;
+import org.chromium.base.test.util.DisabledTest;
 import org.chromium.ui.R;
 
 /** Java test show case how to use the wrapper. */
 @Batch(Batch.PER_CLASS)
 @RunWith(BaseJUnit4ClassRunner.class)
+@DisabledTest(message = "crbug.com/499024053")
 public class ThemeResourceWrapperJavaUnitTest {
 
     @Rule

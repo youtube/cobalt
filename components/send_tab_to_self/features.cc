@@ -36,6 +36,11 @@ BASE_FEATURE(kSendTabToSelfImprovedLastActiveLabels,
 BASE_FEATURE(kSendTabToSelfPropagateNavigationHistory,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kSendTabToSelfAutoOpen, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kSendTabToSelfShowTargetsInContextMenus,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 #if BUILDFLAG(IS_IOS)
 
 BASE_FEATURE(kIOSTabReminders, base::FEATURE_DISABLED_BY_DEFAULT);

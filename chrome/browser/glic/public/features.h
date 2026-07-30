@@ -14,6 +14,7 @@
 namespace features {
 
 BASE_DECLARE_FEATURE(kGlicTabRestoration);
+BASE_DECLARE_FEATURE(kGlicAndroidSidePanel);
 
 BASE_DECLARE_FEATURE(kGlicDaisyChainViaCoordinator);
 BASE_DECLARE_FEATURE(kGlicClearTurnIdOnPanelWillOpen);
@@ -51,6 +52,8 @@ extern const base::FeatureParam<std::string> kGlicTieredRolloutV2EligibleTiers;
 const base::flat_set<int32_t>& GetGlicTieredRolloutV2EligibleTiers();
 
 BASE_DECLARE_FEATURE(kGlicHorizontalTabToolbarButton);
+
+BASE_DECLARE_FEATURE(kGlicButtonAutoSummarize);
 
 BASE_DECLARE_FEATURE(kGlicGetTabFaviconById);
 

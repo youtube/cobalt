@@ -25,7 +25,6 @@
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/preloading.h"
 #include "content/public/browser/preloading_trigger_type.h"
-#include "content/public/browser/preview_cancel_reason.h"
 #include "content/public/browser/select_audio_output_request.h"
 #include "content/public/browser/serial_chooser.h"
 #include "content/public/browser/storage_partition_config.h"
@@ -422,6 +421,12 @@ class CONTENT_EXPORT WebContentsDelegate {
   // are owned by a prerender handle. `prerender_web_contents` outlives this
   // delegate.
   virtual void PrerenderWebContentsCreated(
+      WebContents* prerender_web_contents) {}
+
+  // Called when a prerendered WebContents is about to be released from a
+  // PrerenderNewTabHandle for activation. This gives the delegate a chance to
+  // clean up any prerender-specific state.
+  virtual void PrerenderWebContentsReleased(
       WebContents* prerender_web_contents) {}
 
   // Notification that one of the frames in the WebContents is hung. |source| is
@@ -843,8 +848,6 @@ class CONTENT_EXPORT WebContentsDelegate {
   // WebContents.
   virtual bool IsPrivileged();
 
-  // Initiates previewing the given `url` within the given `web_contents`.
-  virtual void InitiatePreview(WebContents& web_contents, const GURL& url) {}
 
   // CloseWatcher web API support. If the currently focused frame has a
   // CloseWatcher registered in JavaScript, the CloseWatcher should receive the
@@ -854,11 +857,7 @@ class CONTENT_EXPORT WebContentsDelegate {
   // intercept.
   virtual void DidChangeCloseSignalInterceptStatus() {}
 
-  // Reports that cancellation occurred in preview navigation.
-  virtual void CancelPreview(PreviewCancelReason reason) {}
 
-  // Notifies the previewed page is activated.
-  virtual void DidActivatePreviewedPage() {}
 
   // Updates the draggable regions defined by the app-region CSS property.
   virtual void DraggableRegionsChanged(

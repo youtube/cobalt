@@ -49,6 +49,7 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.cc.input.BrowserControlsState;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.actor.ui.ActorUiTabController;
 import org.chromium.chrome.browser.back_press.BackPressManager;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsOffsetTagsInfo;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
@@ -110,6 +111,7 @@ import org.chromium.chrome.browser.toolbar.ToolbarFeatures;
 import org.chromium.chrome.browser.toolbar.ToolbarManager;
 import org.chromium.chrome.browser.ui.desktop_windowing.AppHeaderUtils;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
+import org.chromium.chrome.browser.ui.side_panel.AndroidSidePanelEnabledFn;
 import org.chromium.chrome.browser.ui.system.StatusBarColorController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.desktop_windowing.AppHeaderState;
@@ -299,6 +301,7 @@ public class StripLayoutHelperManager
             (tabModel) -> {
                 tabModelSwitched(tabModel.isIncognito());
             };
+    private final ActorUiTabController.Observer mActorObserver;
 
     private @MonotonicNonNull TabModelObserver mTabModelObserver; // Set on native initialization.
     private final ActivityLifecycleDispatcher mLifecycleDispatcher;
@@ -550,6 +553,12 @@ public class StripLayoutHelperManager
         mManagerHost = managerHost;
         mUpdateHost = updateHost;
         mRenderHost = renderHost;
+        mActorObserver =
+                state -> {
+                    getStripLayoutHelper(false)
+                            .onActuationStateChanged(state.tabId, state.tabIndicator);
+                    mRenderHost.requestRender();
+                };
         mLayerTitleCacheSupplier = layerTitleCacheSupplier;
         mDensity = res.getDisplayMetrics().density;
         mTabStripTreeProvider = new TabStripSceneLayer(mDensity);
@@ -722,7 +731,8 @@ public class StripLayoutHelperManager
                 (LayerTitleCache layerTitleCache) -> {
                     mNormalHelper.setLayerTitleCache(layerTitleCache);
                     mIncognitoHelper.setLayerTitleCache(layerTitleCache);
-                    setGlicButtonText(mContext.getString(R.string.glic_button_entrypoint_label));
+                    setGlicButtonText(
+                            mContext.getString(R.string.glic_button_entrypoint_ask_gemini_label));
                 });
 
         if (mDesktopWindowStateManager != null) {
@@ -775,7 +785,7 @@ public class StripLayoutHelperManager
                         },
                         selectorClickHandler,
                         keyboardFocusHandler,
-                        R.drawable.ic_spark_16dp,
+                        R.drawable.ic_spark_4c_16dp,
                         GLIC_BUTTON_CLICK_SLOP_DP,
                         /* hasLongClickAction= */ false,
                         /* dismissButton= */ null);
@@ -798,11 +808,6 @@ public class StripLayoutHelperManager
                 ColorUtils.setAlphaComponentWithFloat(
                         SemanticColorUtils.getColorPrimary(context),
                         GLIC_BUTTON_HOVER_BACKGROUND_PRESSED_OPACITY);
-
-        @ColorInt int iconDefaultColor = SemanticColorUtils.getDefaultIconColor(context);
-
-        mGlicButton.setTint(
-                iconDefaultColor, iconDefaultColor, Color.TRANSPARENT, Color.TRANSPARENT);
 
         mGlicButton.setBackgroundTint(
                 backgroundDefaultColor,
@@ -924,6 +929,13 @@ public class StripLayoutHelperManager
             mTabModelSelector.removeTabGroupModelFilterObserver(mTabModelObserver);
 
             mTabModelSelector.getCurrentTabModelSupplier().removeObserver(mCurrentTabModelObserver);
+
+            // Remove observers for Glic actuation icons.
+            TabModel standardModel = mTabModelSelector.getModel(false);
+            for (int i = 0; i < standardModel.getCount(); i++) {
+                unregisterActorObserver(standardModel.getTabAt(i));
+            }
+
             mTabModelSelectorTabModelObserver.destroy();
             mTabModelSelectorTabObserver.destroy();
         }
@@ -1762,11 +1774,13 @@ public class StripLayoutHelperManager
                     @Override
                     public void willCloseTab(Tab tab, boolean didCloseAlone) {
                         getStripLayoutHelper(tab.isIncognitoBranded()).willCloseTab(tab);
+                        unregisterActorObserver(tab);
                     }
 
                     @Override
                     public void tabRemoved(Tab tab) {
                         getStripLayoutHelper(tab.isIncognitoBranded()).tabClosed(tab);
+                        unregisterActorObserver(tab);
                         updateStripButtons();
                     }
 
@@ -1785,6 +1799,7 @@ public class StripLayoutHelperManager
                     public void tabClosureUndone(Tab tab) {
                         getStripLayoutHelper(tab.isIncognitoBranded())
                                 .tabClosureCancelled(time(), tab.getId());
+                        registerActorObserver(tab);
                         updateStripButtons();
                     }
 
@@ -1837,6 +1852,7 @@ public class StripLayoutHelperManager
                         getStripLayoutHelper(tab.isIncognitoBranded())
                                 .tabCreated(
                                         time(), tab.getId(), markedForSelection, false, onStartup);
+                        registerActorObserver(tab);
                     }
                 };
 
@@ -1904,6 +1920,15 @@ public class StripLayoutHelperManager
         if (mTabStripDragHandler != null) {
             mTabStripDragHandler.setTabModelSelector(mTabModelSelector);
         }
+
+        // Register observer for existing standard tabs.
+        TabModel standardModel = mTabModelSelector.getModel(false);
+        for (int i = 0; i < standardModel.getCount(); i++) {
+            Tab tab = standardModel.getTabAt(i);
+            if (tab != null) {
+                registerActorObserver(tab);
+            }
+        }
     }
 
     @Override
@@ -1940,6 +1965,28 @@ public class StripLayoutHelperManager
         mUpdateHost.requestUpdate();
     }
 
+    private void registerActorObserver(Tab tab) {
+        if (tab.isIncognitoBranded()) return;
+        ActorUiTabController controller = ActorUiTabController.from(tab);
+        if (controller == null) return;
+
+        controller.addObserver(mActorObserver);
+
+        ActorUiTabController.UiTabState state = controller.getUiTabState();
+        if (state != null) {
+            getStripLayoutHelper(/* incognito= */ false)
+                    .onActuationStateChanged(tab.getId(), state.tabIndicator);
+        }
+    }
+
+    private void unregisterActorObserver(Tab tab) {
+        if (tab == null || tab.isIncognitoBranded()) return;
+        ActorUiTabController controller = ActorUiTabController.from(tab);
+        if (controller != null) {
+            controller.removeObserver(mActorObserver);
+        }
+    }
+
     public float getHeight() {
         return mHeight;
     }
@@ -1951,24 +1998,6 @@ public class StripLayoutHelperManager
     public @ColorInt int getBackgroundColor() {
         return TabUiThemeUtil.getTabStripBackgroundColor(
                 mContext, mIsIncognito, isAppInDesktopWindow(), mIsTopResumedActivity);
-    }
-
-    /**
-     * Returns the tint color for a given media state.
-     *
-     * @param mediaState The {@link MediaState} for which to get the tint.
-     * @param defaultTint The default tint to use.
-     */
-    public @ColorInt int getMediaIndicatorTintColor(
-            @MediaState int mediaState, @ColorInt int defaultTint) {
-        if (mediaState == MediaState.RECORDING) {
-            return mContext.getColor(R.color.tab_recording_media_color);
-        } else if (mediaState == MediaState.SHARING) {
-            return mContext.getColor(R.color.tab_sharing_media_color);
-        } else if (mediaState == MediaState.PICTURE_IN_PICTURE) {
-            return mContext.getColor(R.color.tab_pip_media_color);
-        }
-        return defaultTint;
     }
 
     @Override
@@ -2003,7 +2032,7 @@ public class StripLayoutHelperManager
     }
 
     private boolean isGlicButtonEnabled() {
-        return ChromeFeatureList.sGlic.isEnabled();
+        return ChromeFeatureList.sGlic.isEnabled() && AndroidSidePanelEnabledFn.isEnabled();
     }
 
     @Override

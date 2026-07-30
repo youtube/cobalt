@@ -418,8 +418,10 @@ void ClientControlledShellSurface::SetBounds(int64_t display_id,
 
   SetDisplay(display_id);
 
+  const float scale = GetClientToDpPendingScale();
   const gfx::Rect bounds_dp =
-      gfx::ScaleToRoundedRect(bounds, GetClientToDpPendingScale());
+      gfx::Rect(gfx::ScaleToRoundedPoint(bounds.origin(), scale),
+                gfx::ScaleToRoundedSize(bounds.size(), scale));
   SetGeometry(bounds_dp);
 }
 
@@ -1465,15 +1467,17 @@ void ClientControlledShellSurface::UpdateBackdrop() {
 }
 
 void ClientControlledShellSurface::UpdateFrameWidth() {
-  int width = -1;
+  std::optional<int> width_in_pixels;
   if (shadow_bounds_) {
     float device_scale_factor =
         GetWidget()->GetNativeWindow()->layer()->device_scale_factor();
-    float dsf_to_default_dsf = device_scale_factor / GetScale();
-    width = base::ClampRound(shadow_bounds_->width() * dsf_to_default_dsf);
+    int dp_width =
+        gfx::ScaleToRoundedSize(shadow_bounds_->size(), 1.f / GetScale())
+            .width();
+    width_in_pixels = base::ClampRound(dp_width * device_scale_factor);
   }
   static_cast<chromeos::HeaderView*>(GetFrameView()->GetHeaderView())
-      ->SetWidthInPixels(width);
+      ->SetWidthInPixels(width_in_pixels);
 }
 
 void ClientControlledShellSurface::UpdateFrameType() {

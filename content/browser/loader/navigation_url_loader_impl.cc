@@ -96,6 +96,7 @@
 #include "net/http/http_request_headers.h"
 #include "net/http/http_status_code.h"
 #include "net/ssl/ssl_info.h"
+#include "net/storage_access_api/status.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "net/url_request/redirect_util.h"
 #include "services/metrics/public/cpp/metrics_utils.h"
@@ -331,7 +332,12 @@ std::unique_ptr<network::ResourceRequest> CreateResourceRequest(
   }
 
   new_request->storage_access_api_status =
-      request_info.begin_params->storage_access_api_status;
+      frame_tree_node->current_frame_host()
+              ->document_associated_data()
+              .cookie_setting_overrides()
+              .Has(net::CookieSettingOverride::kStorageAccessGrantEligible)
+          ? net::StorageAccessApiStatus::kAccessViaAPI
+          : net::StorageAccessApiStatus::kNone;
 
   WebContentsImpl* web_contents = static_cast<WebContentsImpl*>(
       WebContents::FromFrameTreeNodeId(frame_tree_node->frame_tree_node_id()));
@@ -510,6 +516,17 @@ void CheckParsedHeadersEquals(const network::mojom::ParsedHeadersPtr& lhs,
     adjusted_lhs->critical_ch = std::nullopt;
     adjusted_lhs->client_hints_ignored_due_to_clear_site_data_header = true;
   }
+
+  // The parsed Connection-Allowlist header holds a copy of the response URL,
+  // which is used to construct violation reports. If devtools protocol or
+  // similar is used to tinker with the navigation URL, it's possible for there
+  // to be a mismatch between the two sets of headers. For now, force the two
+  // URLs to be equal, in order to prevent this check from failing.
+  if (base::FeatureList::IsEnabled(network::features::kConnectionAllowlists)) {
+    adjusted_lhs->connection_allowlists.response_url =
+        rhs->connection_allowlists.response_url;
+  }
+
   if (mojo::Equals(adjusted_lhs, rhs)) {
     return;
   }
@@ -1421,6 +1438,8 @@ void NavigationURLLoaderImpl::OnReceiveResponse(
     network::mojom::URLResponseHeadPtr head,
     mojo::ScopedDataPipeConsumerHandle response_body,
     std::optional<mojo_base::BigBuffer> cached_metadata) {
+  TRACE_EVENT("navigation", "NavigationURLLoaderImpl::OnReceiveResponse",
+              perfetto::Flow::FromPointer(this));
   DCHECK(!cached_metadata);
   // TODO(https://crbug.com/434182226): Remove DUMP_WILL_BE_.
   DUMP_WILL_BE_CHECK(!loader_holder_.HasExclusiveTask());
@@ -1889,6 +1908,9 @@ void NavigationURLLoaderImpl::Clone(
 bool NavigationURLLoaderImpl::MaybeCreateLoaderForResponse(
     const network::URLLoaderCompletionStatus& status,
     network::mojom::URLResponseHeadPtr* response) {
+  TRACE_EVENT("navigation",
+              "NavigationURLLoaderImpl::MaybeCreateLoaderForResponse",
+              perfetto::Flow::FromPointer(this));
   if (!default_loader_used_) {
     return false;
   }
@@ -1981,6 +2003,8 @@ void NavigationURLLoaderImpl::ParseHeaders(
     network::mojom::URLResponseHeadPtr head,
     base::OnceCallback<void(network::mojom::URLResponseHeadPtr)> continuation,
     bool clear_parsed_headers_for_testing) {
+  TRACE_EVENT("navigation", "NavigationURLLoaderImpl::ParseHeaders",
+              perfetto::Flow::FromPointer(this));
   // As an optimization, when we know the parsed headers will be empty, we can
   // skip the network process roundtrip.
   // TODO(arthursonzogni): If there are any performance issues, consider
@@ -2393,6 +2417,8 @@ void NavigationURLLoaderImpl::NotifyResponseStarted(
     const GlobalRequestID& global_request_id,
     bool is_download,
     network::mojom::URLResponseHeadPtr response_head) {
+  TRACE_EVENT("navigation", "NavigationURLLoaderImpl::NotifyResponseStarted",
+              perfetto::Flow::FromPointer(this));
   // End "Navigation timeToResponseStarted" trace event.
   TRACE_EVENT_END("navigation", perfetto::Track::FromPointer(this),
                   "&NavigationURLLoaderImpl", static_cast<void*>(this),

@@ -785,8 +785,7 @@ NetworkContext::NetworkContext(
   cookie_manager_ = std::make_unique<CookieManager>(
       url_request_context_, &first_party_sets_access_delegate_,
       std::move(session_cleanup_cookie_store),
-      std::move(params_->cookie_manager_params),
-      network_service_->tpcd_metadata_manager());
+      std::move(params_->cookie_manager_params));
 
   cookie_manager_->AddSettingsWillChangeCallback(
       base::BindRepeating(&NetworkContext::OnCookieManagerSettingsChanged,
@@ -888,8 +887,7 @@ NetworkContext::NetworkContext(
           url_request_context,
           nullptr,
           /*first_party_sets_access_delegate=*/nullptr,
-          /*params=*/nullptr,
-          /*tpcd_metadata_manager=*/nullptr)),
+          /*params=*/nullptr)),
       socket_factory_(
           std::make_unique<SocketFactory>(url_request_context_->net_log(),
                                           url_request_context)),
@@ -1694,6 +1692,7 @@ void NetworkContext::QueueConnectionAllowlistReport(
     const GURL& context,
     const GURL& resource,
     const net::NetworkAnonymizationKey& key,
+    const std::optional<base::UnguessableToken>& reporting_source,
     const std::string& group,
     bool enforced) {
   base::DictValue body;
@@ -1701,10 +1700,8 @@ void NetworkContext::QueueConnectionAllowlistReport(
   body.Set("connection", resource.GetAsReferrer().spec());
   body.Set("disposition", enforced ? "enforce" : "report");
 
-  // TODO(crbug.com/482728970): We need a reporting source, which we'll need
-  // to thread through like the NAK.
-  QueueReport("connection-allowlist", group, context,
-              /*reporting_source=*/std::nullopt, key, std::move(body));
+  QueueReport("connection-allowlist", group, context, reporting_source, key,
+              std::move(body));
 }
 
 void NetworkContext::QueueSignedExchangeReport(
@@ -2192,7 +2189,7 @@ void NetworkContext::CreateHostResolver(
 void NetworkContext::VerifyCertInternal(
     const scoped_refptr<net::X509Certificate>& certificate,
     const net::HostPortPair& host_port,
-    const std::string& ocsp_result,
+    const std::string& ocsp_response,
     const std::string& sct_list,
     CTVerificationMode ct_verification_mode,
     VerifyCertCallback callback) {
@@ -2216,7 +2213,7 @@ void NetworkContext::VerifyCertInternal(
   }
   int result = cert_verifier->Verify(
       net::CertVerifier::RequestParams(certificate, host_port.host(), flags,
-                                       ocsp_result, sct_list),
+                                       ocsp_response, sct_list),
       pending_cert_verify->result.get(),
       base::BindOnce(&NetworkContext::OnVerifyCertComplete,
                      base::Unretained(this), cert_verify_id),
@@ -2233,20 +2230,20 @@ void NetworkContext::VerifyCertInternal(
 void NetworkContext::VerifyCert(
     const scoped_refptr<net::X509Certificate>& certificate,
     const net::HostPortPair& host_port,
-    const std::string& ocsp_result,
+    const std::string& ocsp_response,
     const std::string& sct_list,
     VerifyCertCallback callback) {
-  VerifyCertInternal(certificate, host_port, ocsp_result, sct_list,
+  VerifyCertInternal(certificate, host_port, ocsp_response, sct_list,
                      CTVerificationMode::kTlsCertificate, std::move(callback));
 }
 
 void NetworkContext::VerifyCertForSignedExchange(
     const scoped_refptr<net::X509Certificate>& certificate,
     const net::HostPortPair& host_port,
-    const std::string& ocsp_result,
+    const std::string& ocsp_response,
     const std::string& sct_list,
     VerifyCertCallback callback) {
-  VerifyCertInternal(certificate, host_port, ocsp_result, sct_list,
+  VerifyCertInternal(certificate, host_port, ocsp_response, sct_list,
                      CTVerificationMode::kSignedExchange, std::move(callback));
 }
 
@@ -3612,10 +3609,9 @@ void NetworkContext::RevokeNetworkForNonces(
         if (!source) {
           return;
         }
-        dest_endpoint = std::move(source->reporting_endpoint);
+        dest_endpoint = source->reporting_endpoint;
         dest_redirect_behavior = source->redirect_behavior;
-        std::set<std::unique_ptr<url_pattern::SimpleUrlPatternMatcher>>
-            patterns;
+        dest_patterns.emplace();
         for (const std::string& pattern : source->allowlist) {
           // TODO(crbug.com/447954811): We can safely DCHECK here, as we've done
           // pattern validation already while validating the header's syntax.
@@ -3626,9 +3622,8 @@ void NetworkContext::RevokeNetworkForNonces(
               pattern, /*base_url=*/nullptr);
 
           DCHECK(matcher.has_value());
-          patterns.insert(std::move(matcher.value()));
+          dest_patterns->insert(std::move(matcher.value()));
         }
-        dest_patterns = std::move(patterns);
       };
 
   for (auto& entry : nonces_to_patterns) {
@@ -3640,6 +3635,7 @@ void NetworkContext::RevokeNetworkForNonces(
     // complete network revocation.
     NetworkRestriction& restriction = network_revocation_nonces_[nonce];
     restriction.response_url = entry->allowlists.response_url;
+    restriction.reporting_source = entry->allowlists.reporting_source;
 
     parse_allowlist(entry->allowlists.enforced,
                     restriction.enforced_reporting_endpoint,
@@ -3767,21 +3763,23 @@ bool NetworkContext::IsNetworkForNonceAndUrlAllowed(
     const GURL& url,
     const net::NetworkAnonymizationKey& network_anonymization_key,
     bool is_redirect) {
-  // If network hasn't been revoked for the nonce, it's allowed.
-  if (!network_revocation_nonces_.contains(nonce)) {
+  // If network hasn't been revoked for the nonce, it's allowed. Likewise, local
+  // schemes that reach this point should be excluded as they don't generate
+  // network requests.
+  auto it = network_revocation_nonces_.find(nonce);
+  if (it == network_revocation_nonces_.end() || url.SchemeIsLocal()) {
     return true;
   }
 
   // Note: network_revocation_exemptions_ is only used for fenced frames and the
   // disableUntrustedNetwork API for testing scenarios.
-  if (auto it = network_revocation_exemptions_.find(nonce);
-      it != network_revocation_exemptions_.end() &&
-      it->second.contains(url.GetWithoutFilename())) {
+  if (auto it_exempt = network_revocation_exemptions_.find(nonce);
+      it_exempt != network_revocation_exemptions_.end() &&
+      it_exempt->second.contains(url.GetWithoutFilename())) {
     return true;
   }
 
-  const NetworkRestriction& restriction =
-    network_revocation_nonces_.find(nonce)->second;
+  const NetworkRestriction& restriction = it->second;
 
   // Temporary disgusting hack: if we have a NetworkRestriction but we've not
   // actually specified anything to be restricted, then this restriction must
@@ -3801,19 +3799,17 @@ bool NetworkContext::IsNetworkForNonceAndUrlAllowed(
   // If there are no allowlisted URLs then it is assumed that all network URLs
   // are restricted (unless exempted for FF testing).
   if (base::FeatureList::IsEnabled(network::features::kConnectionAllowlists)) {
-    // TODO(crbug.com/492439215): Implement reporting via
-    // restriction.report_only_redirect_behavior.
-    if (is_redirect) {
-      return restriction.enforced_redirect_behavior ==
-             ConnectionAllowlist::RedirectBehavior::kAllow;
-    }
+    auto restriction_allowed = [&](const NetworkRestriction& r, bool enforced) {
+      const auto& patterns = enforced ? r.enforced_allowlisted_patterns
+                                      : r.report_only_allowlisted_patterns;
+      const auto& redirect_behavior = enforced
+                                          ? r.enforced_redirect_behavior
+                                          : r.report_only_redirect_behavior;
 
-    auto url_matches_patterns = [&url](auto& patterns) {
-      // If a Connection-Allowlist(-Report-Only) header was not provided, this
-      // optional will not have a value, so we don't need to examine it. If the
-      // header is provided but the list of patterns is empty, we will execute
-      // the second half of this statement, which will fail to find a pattern
-      // match.
+      if (is_redirect) {
+        return redirect_behavior ==
+               ConnectionAllowlist::RedirectBehavior::kAllow;
+      }
       return !patterns.has_value() ||
              std::ranges::any_of(
                  *patterns,
@@ -3825,28 +3821,26 @@ bool NetworkContext::IsNetworkForNonceAndUrlAllowed(
 
     // First, check against the report-only allowlist, reporting violations:
     if (restriction.report_only_reporting_endpoint.has_value() &&
-        !url_matches_patterns(restriction.report_only_allowlisted_patterns)) {
+        !restriction_allowed(restriction, /*enforced=*/false)) {
       QueueConnectionAllowlistReport(
           restriction.response_url, url, network_anonymization_key,
-          *restriction.report_only_reporting_endpoint,
-          /*enforced=*/false);
+          restriction.reporting_source,
+          *restriction.report_only_reporting_endpoint, /*enforced=*/false);
     }
 
     // Then, match against the enforced allowlist, and return `false` to cancel
     // the request if a violation is found:
-    if (!url_matches_patterns(restriction.enforced_allowlisted_patterns)) {
+    if (!restriction_allowed(restriction, /*enforced=*/true)) {
       if (restriction.enforced_reporting_endpoint.has_value()) {
-        QueueConnectionAllowlistReport(restriction.response_url, url,
-                                       network_anonymization_key,
-                                       *restriction.enforced_reporting_endpoint,
-                                       /*enforced=*/true);
+        QueueConnectionAllowlistReport(
+            restriction.response_url, url, network_anonymization_key,
+            restriction.reporting_source,
+            *restriction.enforced_reporting_endpoint, /*enforced=*/true);
       }
       return false;
     }
 
-    // If we didn't block the request via the enforcement check directly above,
-    // then non-redirect responses should be allowed:
-    return !is_redirect;
+    return true;
   }
 
   return false;
@@ -3865,10 +3859,6 @@ bool NetworkContext::IsHostResolutionForNonceAndHostAllowed(
     return true;
   }
 
-  // Per the spec we need to match a URL synthesized from the relevant host
-  // against a host-only variant of each URLPattern:
-  //
-  // https://wicg.github.io/connection-allowlists/#abstract-opdef-match-a-host-to-a-connection-allowlist
   std::string host_fragment = host.is_host_port_pair()
                                   ? host.get_host_port_pair().host()
                                   : host.get_scheme_host_port().host();
@@ -3878,9 +3868,15 @@ bool NetworkContext::IsHostResolutionForNonceAndHostAllowed(
     return false;
   }
 
+  // Per
+  // https://wicg.github.io/connection-allowlists/#abstract-opdef-match-a-host-to-a-connection-allowlist,
+  // we need to match `synthetic_url` against a host-only variant against each
+  // URLPattern corresponding to `nonce`.
   const NetworkRestriction& restriction = it->second;
 
-  auto host_matches_patterns = [&synthetic_url](auto& patterns) {
+  auto restriction_allowed = [&](const NetworkRestriction& r, bool enforced) {
+    const auto& patterns = enforced ? r.enforced_allowlisted_patterns
+                                    : r.report_only_allowlisted_patterns;
     return !patterns.has_value() ||
            std::ranges::any_of(
                *patterns,
@@ -3893,19 +3889,21 @@ bool NetworkContext::IsHostResolutionForNonceAndHostAllowed(
 
   // First, check against the report-only allowlist, reporting violations:
   if (restriction.report_only_reporting_endpoint.has_value() &&
-      !host_matches_patterns(restriction.report_only_allowlisted_patterns)) {
+      !restriction_allowed(restriction, /*enforced=*/false)) {
     QueueConnectionAllowlistReport(restriction.response_url, synthetic_url,
                                    network_anonymization_key,
+                                   restriction.reporting_source,
                                    *restriction.report_only_reporting_endpoint,
                                    /*enforced=*/false);
   }
 
-  // Then, checkagainst the enforced allowlist, and return `false` to cancel
+  // Then, match against the enforced allowlist, and return `false` to cancel
   // the request if a violation is found:
-  if (!host_matches_patterns(restriction.enforced_allowlisted_patterns)) {
+  if (!restriction_allowed(restriction, /*enforced=*/true)) {
     if (restriction.enforced_reporting_endpoint.has_value()) {
       QueueConnectionAllowlistReport(restriction.response_url, synthetic_url,
                                      network_anonymization_key,
+                                     restriction.reporting_source,
                                      *restriction.enforced_reporting_endpoint,
                                      /*enforced=*/true);
     }

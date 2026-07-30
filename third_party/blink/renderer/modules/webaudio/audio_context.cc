@@ -623,24 +623,23 @@ AudioContext::AudioContext(LocalDOMWindow& window,
   TRACE_EVENT2("webaudio", "AudioContext::AudioContext", "UUID", Uuid(),
                "AutoplayPolicy", static_cast<int>(GetAutoplayPolicy()));
 
+  if (window.document() && window.document()->IsPrerendering()) {
+    // In prerendering, the AudioContext will not start even if the
+    // AutoplayPolicy permits it. the context will resume automatically
+    // once the page is activated. See:
+    // https://wicg.github.io/nav-speculation/prerendering.html#web-audio-patch
+    autoplay_status_ = AutoplayStatus::kFailed;
+    blocked_by_prerendering_ = true;
+    window.document()->AddPostPrerenderingActivationStep(blink::BindOnce(
+        &AudioContext::ResumeOnPrerenderActivation, WrapWeakPersistent(this)));
+  }
+
   switch (GetAutoplayPolicy()) {
     case AutoplayPolicy::Type::kNoUserGestureRequired:
-      CHECK(window.document());
-      if (window.document()->IsPrerendering()) {
-        // In prerendering, the AudioContext will not start even if the
-        // AutoplayPolicy permits it. the context will resume automatically
-        // once the page is activated. See:
-        // https://wicg.github.io/nav-speculation/prerendering.html#web-audio-patch
-        autoplay_status_ = AutoplayStatus::kFailed;
-        blocked_by_prerendering_ = true;
-        window.document()->AddPostPrerenderingActivationStep(
-            blink::BindOnce(&AudioContext::ResumeOnPrerenderActivation,
-                            WrapWeakPersistent(this)));
-      }
       break;
     case AutoplayPolicy::Type::kUserGestureRequired:
-      // kUserGestureRequire policy only applies to cross-origin iframes for Web
-      // Audio.
+      // kUserGestureRequire policy only applies to cross-origin iframes for
+      // Web Audio.
       if (window.GetFrame() &&
           window.GetFrame()->IsCrossOriginToOutermostMainFrame()) {
         autoplay_status_ = AutoplayStatus::kFailed;
@@ -1524,8 +1523,7 @@ void AudioContext::ResolvePromisesForUnpause() {
   // Resolve any pending promises created by resume(). Only do this if we
   // haven't already started resolving these promises. This gets called very
   // often and it takes some time to resolve the promises in the main thread.
-  if (!is_resolving_resume_promises_ &&
-      pending_promises_resolvers_.size() > 0) {
+  if (!is_resolving_resume_promises_ && !pending_promises_resolvers_.empty()) {
     is_resolving_resume_promises_ = true;
     ScheduleMainThreadCleanup();
   }
@@ -1868,7 +1866,17 @@ void AudioContext::ResumeOnPrerenderActivation() {
   blocked_by_prerendering_ = false;
   switch (ContextState()) {
     case V8AudioContextState::Enum::kSuspended:
-      StartRendering();
+      MaybeAllowAutoplayWithUnlockType(AutoplayUnlockType::kContextConstructor);
+      if (!suspended_by_user_ &&
+          IsAllowedToStart(/*should_suppress_warning=*/true)) {
+        StartRendering();
+        if (RuntimeEnabledFeatures::
+                AudioContextAsyncStateTransitionsEnabled()) {
+          ScheduleInitialTransitionToRunning();
+        } else {
+          SetContextState(V8AudioContextState::Enum::kRunning);
+        }
+      }
       break;
     case V8AudioContextState::Enum::kRunning:
       NOTREACHED();

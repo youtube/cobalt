@@ -132,10 +132,6 @@ bool SessionSyncBridge::IsLocalDataOutOfSyncForTest() const {
          sessions_client_->GetSessionSyncPrefs()->GetLocalDataOutOfSync();
 }
 
-std::unique_ptr<MetadataChangeList>
-SessionSyncBridge::CreateMetadataChangeList() {
-  return std::make_unique<syncer::InMemoryMetadataChangeList>();
-}
 
 std::optional<syncer::ModelError> SessionSyncBridge::MergeFullSyncData(
     std::unique_ptr<MetadataChangeList> metadata_change_list,
@@ -314,8 +310,8 @@ void SessionSyncBridge::ApplyDisableSyncChanges(
 
   syncing_.reset();
 
-  recreate_empty_store_callback_ =
-      SessionStore::DeleteAllDataAndMetadata(std::move(store_));
+  recreate_empty_store_callback_ = SessionStore::DeleteAllDataAndMetadata(
+      std::move(delete_metadata_change_list), std::move(store_));
   CHECK(recreate_empty_store_callback_);
 
   // Ensure that we clear on-demand favicons that were downloaded using user

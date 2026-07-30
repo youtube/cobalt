@@ -142,6 +142,13 @@ public class ToolbarProgressBar extends ClipDrawableProgressBar
                 }
             };
 
+    private final Runnable mHideProgressBarRunnable =
+            () -> {
+                if (isAttachedToWindow()) {
+                    hideProgressBar(true);
+                }
+            };
+
     private final TimeAnimator mSmoothProgressAnimator = new TimeAnimator();
     TimeListener mSmoothProgressAnimatorListener =
             new TimeListener() {
@@ -242,6 +249,11 @@ public class ToolbarProgressBar extends ClipDrawableProgressBar
             mProgressBarAnimationBc25.setInterpolator(
                     PathInterpolatorCompat.create(0.57f, 0f, 0.12f, 1.0f));
             mProgressBarAnimationBc25.setDuration(FINISH_ANIMATION_DURATION_MS);
+        } else {
+            // When path9 flag is enabled, these time listeners are set in onAttachToWindow()
+            mSmoothProgressAnimator.setTimeListener(mSmoothProgressAnimatorListener);
+            mCompositedProgressBarAnimation.setTimeListener(
+                    mCompositedProgressBarAnimationListener);
         }
     }
 
@@ -316,6 +328,8 @@ public class ToolbarProgressBar extends ClipDrawableProgressBar
     @Override
     public void onDetachedFromWindow() {
         super.onDetachedFromWindow();
+
+        removeCallbacks(mHideProgressBarRunnable);
 
         mSmoothProgressAnimator.setTimeListener(null);
         mSmoothProgressAnimator.cancel();
@@ -427,7 +441,8 @@ public class ToolbarProgressBar extends ClipDrawableProgressBar
         }
 
         if (fadeOut) {
-            postDelayed(() -> hideProgressBar(true), HIDE_DELAY_MS);
+            removeCallbacks(mHideProgressBarRunnable);
+            postDelayed(mHideProgressBarRunnable, HIDE_DELAY_MS);
         } else {
             hideProgressBar(false);
         }

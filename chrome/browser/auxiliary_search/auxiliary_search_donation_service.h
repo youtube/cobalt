@@ -8,6 +8,7 @@
 #include <jni.h>
 
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "base/android/application_status_listener.h"
@@ -18,7 +19,8 @@
 #include "base/timer/timer.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/page_content_annotations/core/page_content_annotations_service.h"
-#include "third_party/jni_zero/jni_zero.h"
+#include "components/visited_url_ranking/public/visited_url_ranking_service.h"
+#include "url/gurl.h"
 
 class PrefService;
 class PrefRegistrySimple;
@@ -28,6 +30,7 @@ class PageContentAnnotationsResult;
 namespace visited_url_ranking {
 class VisitedURLRankingService;
 struct URLVisitsMetadata;
+struct URLVisitAggregate;
 }
 
 // AuxiliarySearchDonationService manages donation of Chrome data to AppSearch.
@@ -38,8 +41,33 @@ class AuxiliarySearchDonationService
       public page_content_annotations::PageContentAnnotationsService::
           PageContentAnnotationsObserver {
  public:
-  using DonateCallback = base::RepeatingCallback<void(
-      std::vector<jni_zero::ScopedJavaLocalRef<jobject>>)>;
+  // Data for a single history entry.
+  struct HistoryData {
+    // From `URLVisitAggregate`.
+    std::string url_key;
+
+    // From `URLVisitAggregate::HistoryData::visit`.
+    GURL url;
+    std::u16string title;
+
+    // From `URLVisitAggregate::HistoryData::last_visited::visit_row`.
+    base::Time last_visited;
+
+    HistoryData(std::string url_key,
+                GURL url,
+                std::u16string title,
+                base::Time last_visited);
+
+    HistoryData(const HistoryData&);
+    HistoryData& operator=(const HistoryData&);
+    HistoryData(HistoryData&&);
+    HistoryData& operator=(HistoryData&&);
+
+    ~HistoryData();
+  };
+  using DonateCallback =
+      base::RepeatingCallback<void(std::vector<HistoryData>)>;
+
   explicit AuxiliarySearchDonationService(
       page_content_annotations::PageContentAnnotationsService*
           page_content_annotations_service,
@@ -67,8 +95,12 @@ class AuxiliarySearchDonationService
 
  private:
   void FetchHistoryAndDonate();
+  void OnHistoryFetched(
+      visited_url_ranking::ResultStatus status,
+      visited_url_ranking::URLVisitsMetadata url_visits_metadata,
+      std::vector<visited_url_ranking::URLVisitAggregate> aggregates);
   void DonateHistoryEntries(
-      std::vector<jni_zero::ScopedJavaLocalRef<jobject>> entries,
+      std::vector<HistoryData> entries,
       const visited_url_ranking::URLVisitsMetadata& metadata);
   void OnApplicationStateChanged(base::android::ApplicationState state);
 

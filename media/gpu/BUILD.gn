@@ -183,10 +183,6 @@ component("gpu") {
       "mediandk",
     ]
     deps += [
-      # TODO(crbug.com/40552063): This can be removed once CdmManager is removed.
-      "//gpu/ipc/common",
-      "//media/mojo:buildflags",
-      "//services/service_manager/public/cpp",
       "//third_party/libgav1:libgav1_parser",
     ]
     if (enable_vulkan) {
@@ -355,6 +351,8 @@ source_set("common") {
     "gpu_video_decode_accelerator_helpers.h",
     "gpu_video_encode_accelerator_helpers.cc",
     "gpu_video_encode_accelerator_helpers.h",
+    "h264_builder.cc",
+    "h264_builder.h",
     "h264_decoder.cc",
     "h264_decoder.h",
     "h264_dpb.cc",
@@ -427,8 +425,6 @@ source_set("common") {
     sources += [
       "av1_builder.cc",
       "av1_builder.h",
-      "h264_builder.cc",
-      "h264_builder.h",
       "svc_layers.cc",
       "svc_layers.h",
     ]

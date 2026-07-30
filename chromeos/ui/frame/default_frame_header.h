@@ -34,7 +34,8 @@ class COMPONENT_EXPORT(CHROMEOS_UI_FRAME) DefaultFrameHeader
 
   ~DefaultFrameHeader() override;
 
-  void SetWidthInPixels(int width_in_pixels);
+  void SetWidthInPixels(std::optional<int> width_in_pixels);
+  std::optional<int> width_in_pixels() const { return width_in_pixels_; }
 
   // FrameHeader:
   void UpdateFrameColors() override;
@@ -57,7 +58,7 @@ class COMPONENT_EXPORT(CHROMEOS_UI_FRAME) DefaultFrameHeader
   SkColor active_frame_color_ = chromeos::kDefaultFrameColor;
   SkColor inactive_frame_color_ = chromeos::kDefaultFrameColor;
 
-  int width_in_pixels_ = -1;
+  std::optional<int> width_in_pixels_;
 };
 
 }  // namespace chromeos

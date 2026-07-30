@@ -10,7 +10,7 @@ import static org.junit.Assert.assertTrue;
 import org.chromium.base.ThreadUtils;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.tab.Tab;
-import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
+import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiTestHelper;
 import org.chromium.chrome.test.util.TabStripUtils;
 
@@ -20,20 +20,6 @@ import java.util.List;
 
 // Test helper for Tab Strip features.
 public class TabStripTestUtils {
-
-    /**
-     * Creates tabs to reach the target count in the selected model.Regular mode already has one
-     * default tab, so this creates (numOfTabs - 1); incognito creates numOfTabs. Note: repeated
-     * calls in regular mode accumulate (e.g., N then M results in N+M-1).
-     *
-     * @param activity The hosting ChromeTabbedActivity.
-     * @param isIncognito Whether the tab is in incognito.
-     * @param numOfTabs Total number of tabs desired after creation.
-     */
-    public static void createTabs(
-            ChromeTabbedActivity activity, boolean isIncognito, int numOfTabs) {
-        TabUiTestHelper.createTabs(activity, isIncognito, numOfTabs);
-    }
 
     /**
      * Creates a tab group from two tabs (by index) in the selected model. Note: with multiple
@@ -72,11 +58,10 @@ public class TabStripTestUtils {
     /**
      * @param activity The hosting ChromeTabbedActivity.
      * @param isIncognito Whether the tab is in incognito.
-     * @return The {@link TabGroupModelFilter} to act on.
+     * @return The {@link TabModel} to act on.
      */
-    public static TabGroupModelFilter getTabGroupModelFilter(
-            ChromeTabbedActivity activity, boolean isIncognito) {
-        return activity.getTabModelSelector().getTabGroupModelFilter(isIncognito);
+    public static TabModel getTabModel(ChromeTabbedActivity activity, boolean isIncognito) {
+        return activity.getTabModelSelector().getModel(isIncognito);
     }
 
     /**

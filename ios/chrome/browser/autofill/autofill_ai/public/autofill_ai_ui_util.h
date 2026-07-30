@@ -9,6 +9,7 @@
 
 #import "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
 #import "components/autofill/core/browser/data_model/autofill_ai/entity_type_names.h"
+#import "url/gurl.h"
 
 namespace autofill {
 
@@ -21,6 +22,40 @@ UIImage* DefaultIconForAutofillAiEntityType(EntityTypeName entity_type_name,
 // For attribute types with long names, this function returns a localized
 // shorter name.
 NSString* DisplayNameForAutofillAiAttributeType(AttributeType attribute_type);
+
+// Returns the title for a dialog asking to save an entity.
+NSString* GetDialogTitleForSaveEntity(EntityTypeName entity_type_name);
+
+// Returns the title for a dialog asking to update an entity.
+NSString* GetDialogTitleForUpdateEntity(EntityTypeName entity_type_name);
+
+// Returns the title for a dialog asking to add an entity.
+NSString* GetDialogTitleForAddEntity(EntityTypeName entity_type_name);
+
+// Returns the title for a dialog to view an entity.
+NSString* GetDialogTitleForViewEntity(EntityTypeName entity_type_name);
+
+// Returns the title for a dialog to edit an entity.
+NSString* GetDialogTitleForEditEntity(EntityTypeName entity_type_name);
+
+// Returns the footer text for saving an entity to Wallet, formatted with the
+// user's email.
+NSString* GetSaveEntityToWalletFooterText(NSString* user_email);
+
+// Returns the footer text for updating an entity saved in Wallet, formatted
+// with the user's email.
+NSString* GetUpdateEntitySavedInWalletFooterText(NSString* user_email);
+
+// Returns the URL for "manage your info" link for save to wallet footer.
+GURL GetManageYourInfoURL();
+
+// Returns the URL for Google Wallet passes.
+GURL GetGoogleWalletPassesURL();
+
+// Returns a view for use as the title on surfaces where the user is about to
+// save (update, etc) an entity in Google Wallet. Should not be used for local
+// saves. `title` is the desired text to display (e.g., "Add Passport").
+UIView* CreateBrandedTitleForWalletSave(NSString* title);
 
 }  // namespace autofill
 

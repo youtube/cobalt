@@ -4630,6 +4630,14 @@ be describing additional metrics about the same event.
       call is immediately rejected.
     </summary>
   </metric>
+  <metric name="HasNonceOutsideParamsOnly" enum="BooleanHit">
+    <summary>
+      Records a 1 whenever a FedCM API call includes the nonce parameter, but
+      does not include it inside the params JSON blob. Records towards the
+      beginning of the call, except for some cases where the call is immediately
+      rejected.
+    </summary>
+  </metric>
   <metric name="HasSigninAccount" enum="Boolean">
     <summary>
       Records whether a user is signing up with the API. Records once per
@@ -4880,6 +4888,13 @@ be describing additional metrics about the same event.
       Blink.FedCm.Status.RequestIdToken.
     </summary>
   </metric>
+  <metric name="WellKnownInvalidDueToClientMetadata" enum="BooleanHit">
+    <summary>
+      Records a 1 whenever a FedCM API call includes a well-known file without
+      `accounts` or `login_url` but where the config file has `client_metadata`.
+      Records when the config and well-known files have been fetched.
+    </summary>
+  </metric>
 </event>
 
 <event name="Blink.FedCmIdp">
@@ -4966,6 +4981,14 @@ be describing additional metrics about the same event.
       Records a 1 whenever a FedCM API call includes the nonce parameter.
       Records towards the beginning of the call, except for some cases where the
       call is immediately rejected.
+    </summary>
+  </metric>
+  <metric name="HasNonceOutsideParamsOnly" enum="BooleanHit">
+    <summary>
+      Records a 1 whenever a FedCM API call includes the nonce parameter, but
+      does not include it inside the params JSON blob. Records towards the
+      beginning of the call, except for some cases where the call is immediately
+      rejected.
     </summary>
   </metric>
   <metric name="HasSigninAccount" enum="Boolean">
@@ -5129,6 +5152,13 @@ be describing additional metrics about the same event.
       Records the outcome of the verifying dialog. Recorded once per verifying
       dialog shown when the FedCM call is completed, i.e. at the same time as
       Blink.FedCm.Status.RequestIdToken.
+    </summary>
+  </metric>
+  <metric name="WellKnownInvalidDueToClientMetadata" enum="BooleanHit">
+    <summary>
+      Records a 1 whenever a FedCM API call includes a well-known file without
+      `accounts` or `login_url` but where the config file has `client_metadata`.
+      Records when the config and well-known files have been fetched.
     </summary>
   </metric>
 </event>
@@ -8461,7 +8491,7 @@ be describing additional metrics about the same event.
 
 <event name="DevTools.Opened">
   <owner>skrakowi@chromium.org</owner>
-  <owner>chrome-counter-abuse-core@google.com</owner>
+  <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
     Records that the DevTools were opened by the user.
   </summary>
@@ -11090,6 +11120,18 @@ be describing additional metrics about the same event.
   <metric name="ShouldTryOn" enum="Boolean">
     <summary>
       Is this something to try on.
+    </summary>
+    <aggregation>
+      <history>
+        <statistics>
+          <enumeration/>
+        </statistics>
+      </history>
+    </aggregation>
+  </metric>
+  <metric name="ShouldViewInRoom" enum="Boolean">
+    <summary>
+      Is this an item to view in your room or house.
     </summary>
     <aggregation>
       <history>
@@ -15443,6 +15485,16 @@ be describing additional metrics about the same event.
       renderer process sends a DidCommitNavigation reply.
     </summary>
   </metric>
+  <metric name="RendererProcessCreated">
+    <summary>
+      The time when the renderer process was created.
+    </summary>
+  </metric>
+  <metric name="RendererProcessLaunched">
+    <summary>
+      The time when the renderer process was launched.
+    </summary>
+  </metric>
   <metric name="StartToBeforeUnloadPhase1Duration">
     <summary>
       When the navigation starts, which could be in the renderer process, to
@@ -19187,7 +19239,7 @@ be describing additional metrics about the same event.
 
 <event name="PermissionUsage.NotificationShown">
   <owner>skrakowi@chromium.org</owner>
-  <owner>chrome-counter-abuse-core@google.com</owner>
+  <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
     Recorded when the notification content detection model is ran on
     notification contents, which happens on a request to display a persistent
@@ -20552,7 +20604,7 @@ be describing additional metrics about the same event.
 
 <event name="SafeBrowsingInterstitial">
   <owner>skrakowi@chromium.org</owner>
-  <owner>chrome-counter-abuse-core@google.com</owner>
+  <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
     Records that the user encountered a Safe Browsing interstitial and whether
     they proceeded past the interstitial, bypassing the warning.
@@ -20589,7 +20641,7 @@ be describing additional metrics about the same event.
 
 <event name="SafetyHub.AbusiveNotificationPermissionRevocation.Interactions">
   <owner>skrakowi@chromium.org</owner>
-  <owner>chrome-counter-abuse-core@google.com</owner>
+  <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
     Recorded when the user takes a Safety Hub action after an abusive
     notification is auto-revoked.
@@ -22522,7 +22574,7 @@ be describing additional metrics about the same event.
 
 <event name="SiteFamiliarityHeuristicResult">
   <owner>pkotwicz@chromium.org</owner>
-  <owner>chrome-counter-abuse-core@google.com</owner>
+  <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
     Recorded when a toplevel page navigates. This records which
     user-page-familiarity-heuristics would trigger for a given site, if any.
@@ -23006,7 +23058,7 @@ be describing additional metrics about the same event.
 
 <event name="SuspiciousNotificationInteraction">
   <owner>skrakowi@chromium.org</owner>
-  <owner>chrome-counter-abuse-core@google.com</owner>
+  <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
     Recorded when the user takes an action on a suspicious notification whose
     contents were replaced by a warning.

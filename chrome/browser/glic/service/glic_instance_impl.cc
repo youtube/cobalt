@@ -39,6 +39,7 @@
 #include "chrome/browser/glic/public/glic_side_panel_coordinator.h"
 #include "chrome/browser/glic/service/glic_ui_embedder.h"
 #include "chrome/browser/glic/service/glic_ui_types.h"
+#include "chrome/browser/glic/suggestions/contextual_cueing_features.h"
 #include "chrome/browser/glic/suggestions/contextual_cueing_service.h"
 #include "chrome/browser/glic/suggestions/contextual_cueing_service_factory.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
@@ -76,7 +77,6 @@
 #include "chrome/browser/glic/widget/glic_floating_ui.h"
 #include "chrome/browser/glic/widget/glic_inactive_side_panel_ui.h"
 #include "chrome/browser/glic/widget/glic_side_panel_ui.h"
-#include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #endif
 
@@ -271,10 +271,6 @@ GlicInstanceImpl::GlicInstanceImpl(
   browser_collection_observation_.Observe(
       GlobalBrowserCollection::GetInstance());
   host_.SetDelegate(&empty_embedder_delegate_);
-  if (!base::FeatureList::IsEnabled(features::kGlicWebContentsWarming)) {
-    // Start warming the contents.
-    host_.CreateContents(/*initially_hidden=*/false);
-  }
   host_observation_.Observe(&host_);
   if (base::FeatureList::IsEnabled(features::kGlicBindPinnedUnboundTab)) {
     pinned_tabs_change_subscription_ =
@@ -316,6 +312,10 @@ glic::GlicInstanceMetrics* GlicInstanceImpl::instance_metrics() {
 glic::GlicInstanceMetricsBackwardsCompatibility&
 GlicInstanceImpl::instance_metrics_backwards_compatibility() {
   return instance_metrics_;
+}
+
+void GlicInstanceImpl::OnSelectionAreasChanged(int count) {
+  instance_metrics_.OnSelectionAreasChanged(count);
 }
 
 bool GlicInstanceImpl::IsShowing() const {
@@ -383,6 +383,8 @@ void GlicInstanceImpl::Show(const ShowOptions& options) {
     SetActiveEmbedderAndNotifyStateChange(new_key);
   }
 
+  MaybeWarmZeroStateSuggestions();
+
   MaybeShowHostUi(embedder_to_show, options.invocation_source,
                   options.prompt_suggestion, options.auto_send,
                   options.fre_override);
@@ -396,6 +398,8 @@ void GlicInstanceImpl::Show(const ShowOptions& options) {
 }
 
 void GlicInstanceImpl::Detach(tabs::TabInterface& tab) {
+  CHECK(GlicEnabling::IsLiveAndFloatyEnabledByFlags())
+      << "Detach called when floaty is disabled by flags.";
   instance_metrics_.OnDetach();
   auto show_options =
       ShowOptions::ForFloating(tab.GetHandle(), interaction_mode_);
@@ -439,8 +443,7 @@ void GlicInstanceImpl::Close(EmbedderKey key, const CloseOptions& options) {
     return;
   }
 
-  if (base::FeatureList::IsEnabled(kGlicUnbindOnClose) &&
-      !entry->user_input_submitted_while_bound) {
+  if (ShouldUnbindOnClose(key, *entry)) {
     UnbindEmbedder(key);
     return;
   }
@@ -456,6 +459,39 @@ void GlicInstanceImpl::CloseInternal(EmbedderKey key,
   if (entry.embedder) {
     entry.embedder->Close(options);
   }
+}
+
+bool GlicInstanceImpl::ShouldUnbindOnClose(EmbedderKey key,
+                                           const EmbedderEntry& entry) {
+  // Determines whether the instance should be unbound from the embedder when
+  // closed. Unbinding occurs only when all of the following conditions are met:
+  // - Both `kGlicUnbindOnClose` and `kGlicDefaultToLastActiveConversation`
+  //   flags are enabled.
+  // - The user has not submitted input (ie. sent a prompt) while the tab was
+  //   bound.
+  // - The instance is scoped to a tab (not a floating panel or window).
+  // - The tab was pinned as a result of clicking an entrypoint (e.g., clicking
+  //   the entrypoint), rather than being pinned via one of the other mechanisms
+  //   (eg. actuation, daisy chaining, explicit pinning, etc.)
+  if (!base::FeatureList::IsEnabled(kGlicUnbindOnClose)) {
+    return false;
+  }
+  if (!base::FeatureList::IsEnabled(
+          features::kGlicDefaultToLastActiveConversation)) {
+    return false;
+  }
+  if (entry.user_input_submitted_while_bound) {
+    return false;
+  }
+  const auto* tab_key = std::get_if<tabs::TabInterface*>(&key);
+  if (!tab_key) {
+    return false;
+  }
+  auto usage = sharing_manager().GetPinnedTabUsage((**tab_key).GetHandle());
+  // This is the pin trigger used for entrypoint clicks.
+  // TODO(b/501090068): Figure out how to separate this from invoke pin
+  // triggers.
+  return usage && usage->pin_event.trigger == GlicPinTrigger::kInstanceCreation;
 }
 
 bool GlicInstanceImpl::Toggle(ShowOptions&& options,
@@ -925,13 +961,15 @@ void GlicInstanceImpl::DeactivateCurrentEmbedder() {
 GlicUiEmbedder* GlicInstanceImpl::CreateActiveEmbedder(
     const ShowOptions& options) {
   return std::visit(
-      absl::Overload{[&](const SidePanelShowOptions& opts) {
-                       return CreateActiveEmbedderForSidePanel(opts);
-                     },
-                     [&](const FloatingShowOptions& opts) {
-                       return CreateActiveEmbedderForFloaty(opts.initial_bounds,
-                                                            opts.source_tab);
-                     }},
+      absl::Overload{
+          [&](const SidePanelShowOptions& opts) {
+            return CreateActiveEmbedderForSidePanel(opts);
+          },
+          [&](const FloatingShowOptions& opts) {
+            CHECK(base::FeatureList::IsEnabled(features::kGlicLiveMode));
+            return CreateActiveEmbedderForFloaty(opts.initial_bounds,
+                                                 opts.source_tab);
+          }},
       options.embedder_options);
 }
 
@@ -947,6 +985,7 @@ GlicUiEmbedder* GlicInstanceImpl::CreateActiveEmbedderForSidePanel(
 GlicUiEmbedder* GlicInstanceImpl::CreateActiveEmbedderForFloaty(
     const gfx::Rect& initial_bounds,
     tabs::TabInterface::Handle source_tab) {
+  CHECK(GlicEnabling::IsLiveAndFloatyEnabledByFlags());
   if (coordinator_delegate_) {
     coordinator_delegate_->OnWillCreateFloaty();
   }
@@ -1120,6 +1159,19 @@ void GlicInstanceImpl::MaybeDeactivateEmbedder(EmbedderKey key) {
                        weak_ptr_factory_.GetWeakPtr()),
         base::Milliseconds(30));
   }
+}
+
+void GlicInstanceImpl::MaybeWarmZeroStateSuggestions() {
+  if (conversation_id() ||
+      !GlicEnabling::IsEnabledAndConsentForProfile(profile_) ||
+      !IsZeroStateSuggestionsEnabled()) {
+    return;
+  }
+
+  // Warm ZSS to reduce latency. But only do it for new conversations.
+  // Conversations with an ID won't have ZSS.
+  FetchZeroStateSuggestions(/*is_first_run=*/false, std::nullopt,
+                            base::DoNothing());
 }
 
 bool GlicInstanceImpl::ShouldPinOnBind() const {

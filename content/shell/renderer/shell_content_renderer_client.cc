@@ -19,7 +19,7 @@
 #include "base/types/pass_key.h"
 #include "components/cdm/renderer/external_clear_key_key_system_info.h"
 #include "components/network_hints/renderer/web_prescient_networking_impl.h"
-#include "components/surface_embed/buildflags/buildflags.h"
+#include "components/surface_embed/renderer/create_plugin.h"
 #include "components/web_cache/renderer/web_cache_impl.h"
 #include "content/common/pseudonymization_salt.h"
 #include "content/public/common/content_switches.h"
@@ -52,10 +52,6 @@
 #include "base/feature_list.h"
 #include "media/base/media_switches.h"
 #endif
-
-#if BUILDFLAG(ENABLE_SURFACE_EMBED)
-#include "components/surface_embed/renderer/create_plugin.h"
-#endif  // BUILDFLAG(ENABLE_SURFACE_EMBED)
 
 #if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && \
     (defined(ARCH_CPU_X86_64) || defined(ARCH_CPU_ARM64))
@@ -203,16 +199,17 @@ class ShellContentRendererUrlLoaderThrottleProvider
               [](const blink::LocalFrameToken& token,
                  const scoped_refptr<base::SequencedTaskRunner>
                      main_thread_task_runner,
-                 const url::Origin& origin,
+                 const std::optional<url::Origin>& initiator,
+                 const url::Origin& idp_origin,
                  blink::mojom::IdpSigninStatus status) {
                 if (content::RenderThread::IsMainThread()) {
-                  blink::SetIdpSigninStatus(token, origin, status);
+                  blink::SetIdpSigninStatus(token, idp_origin, status);
                   return;
                 }
                 if (main_thread_task_runner) {
                   main_thread_task_runner->PostTask(
                       FROM_HERE, base::BindOnce(&blink::SetIdpSigninStatus,
-                                                token, origin, status));
+                                                token, idp_origin, status));
                 }
               },
               local_frame_token.value(), main_thread_task_runner_));
@@ -333,11 +330,18 @@ bool ShellContentRendererClient::OverrideCreatePlugin(
     RenderFrame* render_frame,
     const blink::WebPluginParams& params,
     blink::WebPlugin** plugin) {
-#if BUILDFLAG(ENABLE_SURFACE_EMBED)
+  // Tries to create a SurfaceEmbedWebPlugin for
+  // <embed type="application/x-chromium-surface-embed">. The render process
+  // will reach a NOTREACHED() if the browser process does not provide the
+  // SurfaceEmbedHost interface. The interface is available in surface embed's
+  // content_browsertests / components_browsertests by overriding
+  // RegisterBrowserInterfaceBindersForFrame and is not available in the general
+  // content_shell.
+  // TODO(crbug.com/500385593): don't crash content_shell when SurfaceEmbedHost
+  // is not available.
   if (surface_embed::MaybeCreatePlugin(render_frame, params, plugin)) {
     return true;
   }
-#endif  // BUILDFLAG(ENABLE_SURFACE_EMBED)
 
   return false;
 }

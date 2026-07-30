@@ -272,7 +272,7 @@ class PolicyService : public base::RefCountedThreadSafe<PolicyService> {
   }
 
   std::string GetAllPoliciesAsString() const;
-  bool AreUpdatesSuppressedNow(base::Time now = base::Time::Now()) const;
+  bool AreUpdatesSuppressed(base::Time time) const;
 
   void SetManagersForTesting(
       std::vector<scoped_refptr<PolicyManagerInterface>> managers);
@@ -359,6 +359,11 @@ struct PolicyServiceProxyConfiguration {
 // Enterprise Core (formerly Chrome Enterprise Cloud Management). Performs
 // blocking IO.
 bool IsCloudManaged();
+
+// Determines whether `updates_suppressed_times` disallows updates from
+// occurring at the specified time.
+bool AreUpdatesSuppressed(UpdatesSuppressedTimes updates_suppressed_times,
+                          base::Time time);
 
 }  // namespace updater
 

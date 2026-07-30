@@ -19,6 +19,7 @@ class FilePath;
 }
 
 class Browser;
+class BrowserWindowInterface;
 class Profile;
 class SessionID;
 
@@ -105,10 +106,6 @@ Browser* FindTabbedBrowser(const Profile* profile,
                            bool match_original_profiles,
                            int64_t display_id = display::kInvalidDisplayId);
 
-// Returns an existing browser window of any kind.
-// WARNING: Do not use this method. See comment at top of file.
-Browser* FindAnyBrowser(const Profile* profile, bool match_original_profiles);
-
 // Returns an existing browser window with the provided profile. Searches in the
 // order of last activation. Only browsers that have been active can be
 // returned. Returns nullptr if no such browser currently exists.
@@ -184,7 +181,7 @@ Browser* FindLastActiveWithProfile(Profile* profile);
 // returns nullptr.
 //
 // WARNING #2: This will always return nullptr in unit tests run on the bots.
-Browser* FindLastActive();
+BrowserWindowInterface* FindLastActive();
 
 // Returns the number of browsers across all profiles. This does not include
 // pending delete browsers.

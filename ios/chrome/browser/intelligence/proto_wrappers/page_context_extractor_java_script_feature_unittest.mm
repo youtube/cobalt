@@ -465,12 +465,12 @@ TEST_P(PageContextExtractorJavaScriptFeatureTest,
   EXPECT_EQ(*p_text, "Green Text");
 
   // Check Color
-  // Green: (0, 255, 0) -> (0 << 24) | (255 << 16) | (0 << 8) | 255
-  // = 0 | 16711680 | 0 | 255 = 16711935
-  std::optional<double> color = p_text_node.FindDoubleByDottedPath(
+  // Green: (0, 255, 0) -> (255 << 24) | (0 << 16) | (255 << 8) | 0
+  // = 4278190080 | 0 | 65280 | 0 = 4278255360
+  const std::string* color_str = p_text_node.FindStringByDottedPath(
       "contentAttributes.textInfo.textStyle.color");
-  ASSERT_TRUE(color.has_value());
-  EXPECT_EQ(static_cast<uint32_t>(*color), 16711935u);
+  ASSERT_TRUE(color_str);
+  EXPECT_EQ(*color_str, "4278255360");
 }
 
 // Test the extraction of the table caption.
@@ -628,6 +628,61 @@ TEST_P(PageContextExtractorJavaScriptFeatureTest,
   EXPECT_EQ(*(nested_text_node.FindStringByDottedPath(
                 "contentAttributes.textInfo.textContent")),
             "Nested Text");
+}
+
+// Verifies that SVG anchors are correctly extracted.
+TEST_P(PageContextExtractorJavaScriptFeatureTest,
+       ExtractPageContext_RichExtraction_Svg_Anchor) {
+  const std::string html =
+      "<html><body>"
+      "<svg width=\"200\" height=\"40\" xmlns=\"http://www.w3.org/2000/svg\">"
+      "  <a href=\"relative_page.html\">"
+      "    <text>SVG Text</text>"
+      "  </a>"
+      "</svg>"
+      "</body></html>";
+  web::test::LoadHtml(base::SysUTF8ToNSString(html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  std::optional<base::Value> result_value = RunExtraction(
+      web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
+      /*include_cross_origin_frame_content=*/false,
+      /*use_rich_extraction=*/true,
+      /*use_rich_extraction_with_actionable=*/false,
+      /*extract_paid_content=*/false,
+      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(1));
+
+  ASSERT_TRUE(result_value);
+  ASSERT_TRUE(result_value->is_dict());
+
+  const base::DictValue& dict = result_value->GetDict();
+  const base::DictValue* root_node = dict.FindDict("rootNode");
+  ASSERT_TRUE(root_node);
+
+  const base::ListValue* children = root_node->FindList("childrenNodes");
+  ASSERT_TRUE(children);
+  ASSERT_EQ(children->size(), 1u);
+
+  // Check SVG
+  const base::DictValue& svg_node = (*children)[0].GetDict();
+
+  const base::ListValue* svg_children = svg_node.FindList("childrenNodes");
+  ASSERT_TRUE(svg_children);
+  ASSERT_EQ(svg_children->size(), 1u);
+
+  // Check Anchor
+  const base::DictValue& anchor_node = (*svg_children)[0].GetDict();
+  std::optional<double> attribute_type =
+      anchor_node.FindDoubleByDottedPath("contentAttributes.attributeType");
+  ASSERT_TRUE(attribute_type.has_value());
+  EXPECT_EQ(
+      static_cast<int>(attribute_type.value()),
+      static_cast<int>(optimization_guide::proto::CONTENT_ATTRIBUTE_ANCHOR));
+
+  const std::string* url =
+      anchor_node.FindStringByDottedPath("contentAttributes.anchorData.url");
+  ASSERT_TRUE(url);
+  EXPECT_EQ(*url, "relative_page.html");
 }
 
 // Verifies that SVG elements rendered invisible via CSS (display/visibility)
@@ -977,6 +1032,17 @@ TEST_P(PageContextExtractorJavaScriptFeatureTest,
 
   const base::ListValue* children = root_node->FindList("childrenNodes");
   ASSERT_TRUE(children);
+
+  if (GetParam() == IPCExtractionMethod::kJSON) {
+    // In optimized mode, generic scrollable divs does not extract scroller
+    // info.
+    const base::DictValue& div_node = (*children)[0].GetDict();
+    const base::DictValue* interaction_info =
+        div_node.FindDictByDottedPath("contentAttributes.nodeInteractionInfo");
+    EXPECT_FALSE(interaction_info);
+    return;
+  }
+
   ASSERT_GE(children->size(), 1u);
 
   const base::DictValue& div_node = (*children)[0].GetDict();
@@ -1044,6 +1110,66 @@ TEST_P(PageContextExtractorJavaScriptFeatureTest,
       scroller_info->FindBool("userScrollableVertical");
   ASSERT_TRUE(user_scrollable_vertical.has_value());
   EXPECT_TRUE(user_scrollable_vertical.value());
+}
+
+// Tests that scroller info is extracted for all nodes when a canvas is present.
+TEST_P(PageContextExtractorJavaScriptFeatureTest,
+       ExtractPageContext_RichExtraction_ScrollerInfo_Canvas) {
+  const std::string html =
+      "<html><body>"
+      "  <canvas id=\"canvas_scroller\" style=\"display: block; width: 100px; "
+      "height: 100px; overflow: auto;\">"
+      "    <div style=\"width: 200px; height: 300px;\"></div>"
+      "  </canvas>"
+      "  <div id=\"div_scroller\" style=\"width: 100px; height: 100px; "
+      "overflow: auto;\">"
+      "    <div style=\"width: 200px; height: 300px;\"></div>"
+      "  </div>"
+      "</body></html>";
+  web::test::LoadHtml(base::SysUTF8ToNSString(html),
+                      test_server_.GetURL(kMainPagePath), web_state());
+
+  std::optional<base::Value> result_value = RunExtraction(
+      web_state()->GetPageWorldWebFramesManager()->GetMainWebFrame(),
+      /*include_cross_origin_frame_content=*/false,
+      /*use_rich_extraction=*/true,
+      /*use_rich_extraction_with_actionable=*/false,
+      /*extract_paid_content=*/false,
+      /*attempt_paid_content_json_fixing=*/false, "nonce", base::Seconds(1));
+
+  ASSERT_TRUE(result_value);
+  ASSERT_TRUE(result_value->is_dict());
+
+  const base::DictValue& dict = result_value->GetDict();
+  const base::DictValue* root_node = dict.FindDict("rootNode");
+  ASSERT_TRUE(root_node);
+
+  const base::ListValue* children = root_node->FindList("childrenNodes");
+  ASSERT_TRUE(children);
+
+  ASSERT_GE(children->size(), 2u);
+
+  // 1. Check canvas_scroller
+  const base::DictValue& canvas_node = (*children)[0].GetDict();
+  const base::DictValue* canvas_interaction_info =
+      canvas_node.FindDictByDottedPath("contentAttributes.nodeInteractionInfo");
+  ASSERT_TRUE(canvas_interaction_info);
+  const base::DictValue* canvas_scroller_info =
+      canvas_interaction_info->FindDict("scrollerInfo");
+  ASSERT_TRUE(canvas_scroller_info);
+  ASSERT_TRUE(canvas_scroller_info->FindDict("scrollingBounds"));
+  ASSERT_TRUE(canvas_scroller_info->FindDict("visibleArea"));
+
+  // 2. Check div_scroller
+  const base::DictValue& div_node = (*children)[1].GetDict();
+  const base::DictValue* div_interaction_info =
+      div_node.FindDictByDottedPath("contentAttributes.nodeInteractionInfo");
+  ASSERT_TRUE(div_interaction_info);
+  const base::DictValue* div_scroller_info =
+      div_interaction_info->FindDict("scrollerInfo");
+  ASSERT_TRUE(div_scroller_info);
+  ASSERT_TRUE(div_scroller_info->FindDict("scrollingBounds"));
+  ASSERT_TRUE(div_scroller_info->FindDict("visibleArea"));
 }
 
 // Verifies that ExtractPageContext payload is a string when IPC optimization

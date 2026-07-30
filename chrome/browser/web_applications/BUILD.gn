@@ -571,6 +571,7 @@ source_set("web_applications") {
     "//chrome/browser:global_features",
     "//chrome/browser:shell_integration",
     "//chrome/browser/apps:user_type_filter",
+    "//chrome/browser/browsing_data",
     "//chrome/browser/browsing_data:constants",
     "//chrome/browser/content_settings:content_settings_factory",
     "//chrome/browser/favicon",
@@ -684,6 +685,7 @@ source_set("web_applications") {
     deps += [
       "//chrome/browser/profiles:profile_util",
       "//chrome/browser/web_applications/chrome_pwa_launcher:util",
+      "//chrome/browser/win",
       "//components/custom_handlers",
     ]
   }
@@ -881,6 +883,7 @@ source_set("web_applications_test_support") {
     "//chrome/browser:shell_integration",
     "//chrome/browser/apps/app_service",
     "//chrome/browser/apps/app_service:app_registry_cache_waiter",
+    "//chrome/browser/component_updater",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/ui",
     "//chrome/browser/ui/web_applications",
@@ -1065,6 +1068,7 @@ source_set("web_applications_unit_tests") {
     "web_app_utils_unittest.cc",
     "web_contents/web_app_data_retriever_unittest.cc",
     "web_contents/web_app_icon_downloader_unittest.cc",
+    "web_install_service_impl_unittest.cc",
   ]
 
   if (is_win) {
@@ -1127,6 +1131,7 @@ source_set("web_applications_unit_tests") {
     "//chrome/browser/apps/app_service",
     "//chrome/browser/apps/app_service/publishers",
     "//chrome/browser/apps/link_capturing:test_support",
+    "//chrome/browser/component_updater",
     "//chrome/browser/content_settings:content_settings_factory",
     "//chrome/browser/notifications:system_notification_helper",
     "//chrome/browser/profiles:profile",
@@ -1341,6 +1346,7 @@ source_set("web_applications_browser_tests") {
     "//chrome/browser/apps/link_capturing:test_support",
     "//chrome/browser/banners:test_support",
     "//chrome/browser/browsing_data:constants",
+    "//chrome/browser/component_updater",
     "//chrome/browser/content_settings:content_settings_factory",
     "//chrome/browser/devtools:test_support",
     "//chrome/browser/gcm",
@@ -1348,6 +1354,8 @@ source_set("web_applications_browser_tests") {
     "//chrome/browser/permissions",
     "//chrome/browser/policy:policy_util",
     "//chrome/browser/profiles:profile",
+    "//chrome/browser/push_messaging",
+    "//chrome/browser/push_messaging:service_impl_public",
     "//chrome/browser/ui:browser_navigator_params_headers",
     "//chrome/browser/ui/views/location_bar",
     "//chrome/browser/ui/views/toolbar",

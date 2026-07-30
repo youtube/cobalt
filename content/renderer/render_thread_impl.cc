@@ -165,8 +165,6 @@
 #include "third_party/perfetto/include/perfetto/tracing/track.h"
 #include "third_party/skia/include/core/SkFontMgr.h"
 #include "third_party/skia/include/core/SkGraphics.h"
-#include "third_party/skia/include/private/chromium/SkCodecsICCProfileChromium.h"
-#include "third_party/skia/include/private/chromium/SkExifChromium.h"
 #include "ui/base/ui_base_switches.h"
 #include "ui/base/ui_base_switches_util.h"
 #include "ui/display/display_switches.h"
@@ -800,22 +798,6 @@ void RenderThreadImpl::InitializeWebKit(mojo::BinderMap* binders) {
 
   RenderMediaClient::Initialize();
 
-  // Configure the ICC profile parser kill-switch early, before any image
-  // decoding occurs. When the feature is enabled, this forces skcms to be
-  // used instead of the Rust-based ICC parser.
-  // TODO(crbug.com/463653726): Remove this once the feature is validated in
-  // Stable.
-  SkCodecs::ICCProfileChromium::ForceSkcms(
-      base::FeatureList::IsEnabled(blink::features::kForceSkcmsICCParsing));
-
-  // Configure the EXIF parser kill-switch early, before any image decoding
-  // occurs. When the feature is enabled, this forces the C++ SkExif parser to
-  // be used instead of the Rust-based EXIF parser.
-  // TODO(crbug.com/463653726): Remove this once the feature is validated in
-  // Stable.
-  SkExif::ForceSkExif(
-      base::FeatureList::IsEnabled(blink::features::kForceSkExifCppParsing));
-
   // Hook up blink's codecs so skia can call them. Since only the renderer
   // processes should be doing image decoding, this is not done in the common
   // skia initialization code for the GPU.
@@ -834,7 +816,7 @@ void RenderThreadImpl::InitializeRenderer(
               perfetto::TerminatingFlow::Global(trace_id));
   DCHECK(user_agent_.IsNull());
 
-  user_agent_ = WebString::FromUTF8(user_agent);
+  user_agent_ = WebString::FromUtf8(user_agent);
   GetContentClient()->renderer()->DidSetUserAgent(user_agent);
   user_agent_metadata_ = user_agent_metadata;
   cors_exempt_header_list_ = cors_exempt_header_list;
@@ -948,8 +930,7 @@ media::GpuVideoAcceleratorFactories* RenderThreadImpl::GetGpuFactories() {
   auto media_context_provider = viz::ContextProviderCommandBuffer::CreateForGL(
       gpu_channel_host, kGpuStreamIdMedia, kGpuStreamPriorityMedia,
       GURL("chrome://gpu/RenderThreadImpl::CreateOffscreenContext/Media"),
-      viz::command_buffer_metrics::ContextType::MEDIA,
-      /*lose_context_when_out_of_memory=*/true);
+      viz::command_buffer_metrics::ContextType::MEDIA);
 
   const bool enable_video_decode_accelerator =
 #if BUILDFLAG(IS_LINUX)
@@ -1033,9 +1014,7 @@ RenderThreadImpl::GetVideoFrameCompositorContextProvider(
           GURL("chrome://gpu/RenderThreadImpl::CreateOffscreenContext/"
                "RenderCompositor"),
           /*automatic_flushes=*/false, /*support_locking=*/false, limits,
-          viz::command_buffer_metrics::ContextType::RENDERER_COMPOSITOR,
-          /*lose_context_when_out_of_memory=*/true);
-
+          viz::command_buffer_metrics::ContextType::RENDERER_COMPOSITOR);
   return video_frame_compositor_context_provider_;
 }
 
@@ -1099,8 +1078,7 @@ RenderThreadImpl::SharedMainThreadContextProvider() {
                "RendererMainThread"),
           /*automatic_flushes=*/true, /*support_locking=*/false,
           gpu::SharedMemoryLimits(),
-          viz::command_buffer_metrics::ContextType::RENDERER_MAIN_THREAD,
-          /*lose_context_when_out_of_memory=*/true);
+          viz::command_buffer_metrics::ContextType::RENDERER_MAIN_THREAD);
 
   auto result = shared_main_thread_contexts_->BindToCurrentSequence();
   if (result != gpu::ContextResult::kSuccess) {
@@ -1555,8 +1533,7 @@ RenderThreadImpl::SharedCompositorWorkerContextProvider(
                "RenderWorker"),
           /*automatic_flushes=*/false, /*support_locking=*/true,
           shared_memory_limits,
-          viz::command_buffer_metrics::ContextType::RENDERER_RASTER_WORKER,
-          /*lose_context_when_out_of_memory=*/true);
+          viz::command_buffer_metrics::ContextType::RENDERER_RASTER_WORKER);
 
   auto result = shared_worker_context_provider_->BindToCurrentSequence();
   if (result != gpu::ContextResult::kSuccess) {
@@ -1598,8 +1575,7 @@ void RenderThreadImpl::SharedMediaContextProvider(
            "MediaWorker"),
       /*automatic_flushes=*/false, /*support_locking=*/true,
       shared_memory_limits,
-      viz::command_buffer_metrics::ContextType::RENDERER_MEDIA_WORKER,
-      /*lose_context_when_out_of_memory=*/true);
+      viz::command_buffer_metrics::ContextType::RENDERER_MEDIA_WORKER);
 
   GetMediaSequencedTaskRunner()->PostTaskAndReplyWithResult(
       FROM_HERE,

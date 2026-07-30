@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_CONTEXTUAL_TASKS_CONTEXTUAL_TASKS_CONTEXT_SERVICE_H_
 #define CHROME_BROWSER_CONTEXTUAL_TASKS_CONTEXTUAL_TASKS_CONTEXT_SERVICE_H_
 
+#include <memory>
 #include <optional>
 #include <string>
 #include <utility>
@@ -20,6 +21,7 @@
 #include "chrome/browser/contextual_tasks/contextual_tasks_types.mojom.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/page_content_annotations/content/page_embeddings_service.h"
+#include "components/page_content_annotations/core/page_embeddings_common.h"
 #include "components/passage_embeddings/core/passage_embeddings_types.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 
@@ -102,17 +104,29 @@ class ContextualTasksContextService
   ~ContextualTasksContextService() override;
 
   // Returns the relevant tabs for `query`. Will invoke `callback` when done.
-  void GetRelevantTabsForQuery(
+  virtual void GetRelevantTabsForQuery(
       const TabSelectionOptions& options,
       const std::string& query,
       const std::vector<GURL>& explicit_urls,
-      base::OnceCallback<void(std::vector<content::WebContents*>)> callback);
+      base::OnceCallback<void(std::vector<base::WeakPtr<content::WebContents>>)>
+          callback);
+
+  // Called when the user starts typing a query.
+  //
+  // This will pre-flight any pending embeddings required.
+  void OnTypedQuery();
 
   void SetClockForTesting(const base::TickClock* tick_clock);
 
+ protected:
+  // Constructor for testing that avoids initializing other dependencies.
+  explicit ContextualTasksContextService(Profile* profile);
+
  private:
   struct QueryState {
-    QueryState();
+    QueryState(std::string query,
+               passage_embeddings::Embedding query_embedding,
+               int query_word_count);
     ~QueryState();
     QueryState(const QueryState&);
     QueryState& operator=(const QueryState&);
@@ -166,7 +180,7 @@ class ContextualTasksContextService
   //
   // This function will scope the eligible tabs to what's in
   // `browser_window_interface` if it is not null.
-  std::vector<content::WebContents*> GetAllEligibleTabs(
+  std::vector<base::WeakPtr<content::WebContents>> GetAllEligibleTabs(
       base::WeakPtr<BrowserWindowInterface> browser_window_interface);
 
   // Creates the QueryState including active tab context.
@@ -181,11 +195,11 @@ class ContextualTasksContextService
 
   // Returns the relevant tabs for `query`. Collects and logs all the signals
   // irrespective of chosen `tab_selection_mode`.
-  std::vector<content::WebContents*> SelectRelevantTabs(
+  std::vector<base::WeakPtr<content::WebContents>> SelectRelevantTabs(
       const std::string& query,
       const TabSelectionOptions& options,
       const passage_embeddings::Embedding& query_embedding,
-      const std::vector<content::WebContents*>& all_tabs,
+      const std::vector<base::WeakPtr<content::WebContents>>& all_tabs,
       const std::vector<GURL>& explicit_urls,
       optimization_guide::proto::ContextualTasksContextQuality* quality_log);
 
@@ -234,11 +248,13 @@ class ContextualTasksContextService
   struct PendingRequest {
     PendingRequest(
         passage_embeddings::Embedder::TaskId task_id,
-        base::OnceCallback<void(std::vector<content::WebContents*>)> callback);
+        base::OnceCallback<
+            void(std::vector<base::WeakPtr<content::WebContents>>)> callback);
     ~PendingRequest();
 
     passage_embeddings::Embedder::TaskId task_id;
-    base::OnceCallback<void(std::vector<content::WebContents*>)> callback;
+    base::OnceCallback<void(std::vector<base::WeakPtr<content::WebContents>>)>
+        callback;
   };
   absl::flat_hash_map<int64_t, std::unique_ptr<PendingRequest>>
       pending_requests_;

@@ -363,6 +363,7 @@ public class PdfCoordinator implements PdfActionsDelegate, PdfToolbarActionsDele
             return;
         }
         mUri = PdfUtils.getUriFromFilePath(mPdfFilePath);
+        PdfUtils.recordIsUriNull(mUri == null);
         if (mUri != null) {
             if (sSkipLoadPdfForTesting) {
                 mIsPdfLoaded = true;
@@ -438,12 +439,7 @@ public class PdfCoordinator implements PdfActionsDelegate, PdfToolbarActionsDele
         ResettersForTesting.register(() -> sSkipLoadPdfForTesting = oldValue);
     }
 
-    static float calculateYOffsetPoints(float viewHeightPx, float currentZoom) {
-        return (viewHeightPx / 2f) / currentZoom;
-    }
-
     // Implementation of PdfToolbarActionsDelegate
-
     /**
      * Navigates to the specified page.
      *

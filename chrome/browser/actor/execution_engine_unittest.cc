@@ -16,16 +16,13 @@
 #include "base/test/test_future.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
-#include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_keyed_service_factory.h"
 #include "chrome/browser/actor/actor_tab_data.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/actor_test_util.h"
 #include "chrome/browser/actor/autofill_selection_dialog_event_handler.h"
-#include "chrome/browser/actor/enterprise_policy_url_checker.h"
-#include "chrome/browser/actor/safety_list_manager.h"
-#include "chrome/browser/actor/shared_types.h"
+#include "chrome/browser/actor/enterprise_policy_checker.h"
 #include "chrome/browser/actor/tool_request_variant.h"
 #include "chrome/browser/actor/tools/click_tool_request.h"
 #include "chrome/browser/actor/tools/fake_tool.h"
@@ -41,6 +38,9 @@
 #include "chrome/common/chrome_render_frame.mojom.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
+#include "components/actor/core/actor_features.h"
+#include "components/actor/core/safety_list_manager.h"
+#include "components/actor/core/shared_types.h"
 #include "components/autofill/core/browser/integrators/actor/actor_form_filling_types.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "components/tabs/public/mock_tab_interface.h"
@@ -374,7 +374,7 @@ class ExecutionEngineTest : public ChromeRenderViewHostTestHarness {
   std::optional<TestTabState> tab_state_;
 
   MockPolicyChecker no_enterprise_checker_{
-      EnterprisePolicyBlockReason::kNotBlocked};
+      EnterprisePolicyChecker::UrlBlockReason::kNotBlocked};
 };
 
 // TODO(crbug.com/480230075): Crashing on Android.

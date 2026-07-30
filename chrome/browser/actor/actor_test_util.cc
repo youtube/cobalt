@@ -17,9 +17,8 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/values.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
-#include "chrome/browser/actor/enterprise_policy_url_checker.h"
+#include "chrome/browser/actor/enterprise_policy_checker.h"
 #include "chrome/browser/actor/execution_engine.h"
-#include "chrome/browser/actor/shared_types.h"
 #include "chrome/browser/actor/tools/attempt_login_tool_request.h"
 #include "chrome/browser/actor/tools/click_tool_request.h"
 #include "chrome/browser/actor/tools/drag_and_release_tool_request.h"
@@ -38,7 +37,8 @@
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/actor/actor_constants.h"
 #include "chrome/common/actor/task_id.h"
-#include "components/actor/task_source_info.h"
+#include "components/actor/core/shared_types.h"
+#include "components/actor/core/task_source_info.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "components/optimization_guide/core/filters/bloom_filter.h"
 #include "components/optimization_guide/core/optimization_guide_switches.h"
@@ -843,17 +843,27 @@ ScopedExecutionEngineFactory::~ScopedExecutionEngineFactory() {
   ExecutionEngine::GetFactoryFunctionForTesting().Reset();
 }
 
-MockPolicyChecker::MockPolicyChecker(EnterprisePolicyBlockReason reason)
-    : reason_(reason) {}
+MockPolicyChecker::MockPolicyChecker(UrlBlockReason reason,
+                                     ContentValidationReason content_reason)
+    : reason_(reason), content_reason_(content_reason) {}
 MockPolicyChecker::~MockPolicyChecker() = default;
 
-EnterprisePolicyBlockReason MockPolicyChecker::Evaluate(const GURL& url) const {
+EnterprisePolicyChecker::UrlBlockReason MockPolicyChecker::Evaluate(
+    const GURL& url) const {
   return reason_;
 }
 
-const EnterprisePolicyUrlChecker* NoEnterprisePolicyChecker() {
+void MockPolicyChecker::ValidateContentSentToRenderer(
+    content::RenderFrameHost* frame,
+    const std::string& content,
+    ContentValidationCallback callback) const {
+  std::move(callback).Run(content_reason_);
+}
+
+const EnterprisePolicyChecker* NoEnterprisePolicyChecker() {
   static base::NoDestructor<MockPolicyChecker> checker(
-      EnterprisePolicyBlockReason::kNotBlocked);
+      EnterprisePolicyChecker::UrlBlockReason::kNotBlocked,
+      EnterprisePolicyChecker::ContentValidationReason::kAllowed);
   return checker.get();
 }
 

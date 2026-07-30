@@ -478,6 +478,12 @@ void RecalcFragmentScrollableOverflow(RecalcScrollableOverflowResult& result,
   }
 }
 
+bool IsAppearanceAutoMenuList(const LayoutBox& obj) {
+  return obj.IsMenuList() &&
+         obj.StyleRef().EffectiveAppearance() != AppearanceValue::kBase &&
+         obj.StyleRef().EffectiveAppearance() != AppearanceValue::kBaseSelect;
+}
+
 }  // namespace
 
 LayoutBoxRareData::LayoutBoxRareData()
@@ -598,15 +604,6 @@ void LayoutBox::StyleWillChange(StyleDifference diff,
   NOT_DESTROYED();
   const ComputedStyle* old_style = Style();
   if (old_style) {
-    if (IsDocumentElement() || IsBody()) {
-      // The background of the root element or the body element could propagate
-      // up to the canvas. Just dirty the entire canvas when our style changes
-      // substantially.
-      if (diff.NeedsNormalPaintInvalidation()) {
-        View()->SetShouldDoFullPaintInvalidation();
-      }
-    }
-
     // When a layout hint happens and an object's position style changes, we
     // have to do a layout to dirty the layout tree using the old position
     // value now.
@@ -664,16 +661,9 @@ void LayoutBox::StyleWillChange(StyleDifference diff,
       }
       if (will_become_inflow)
         SetIsInLayoutNGInlineFormattingContext(false);
-
-      style_change_context.did_prevent_spanner_descendants =
-          IsInsideMulticol() && !IsSelfValidColumnSpanner() &&
-          ShouldPreventColumnSpannerDescendants();
     }
-    // FIXME: This branch runs when !oldStyle, which means that layout was never
-    // called so what's the point in invalidating the whole view that we never
-    // painted?
-  } else if (IsBody()) {
-    View()->SetShouldDoFullPaintInvalidation();
+    style_change_context.did_prevent_spanner_descendants =
+        IsInsideMulticol() && ShouldPreventColumnSpannerDescendants();
   }
 
   LayoutBoxModelObject::StyleWillChange(diff, new_style, style_change_context);
@@ -769,11 +759,17 @@ void LayoutBox::StyleDidChange(StyleDifference diff,
       SetNeedsPaintPropertyUpdate();
     }
 
-    if (style_change_context.did_prevent_spanner_descendants &&
-        !ShouldPreventColumnSpannerDescendants()) {
-      // This object used to prevent column spanner descendants, but that is no
-      // longer the case. Look for new spanners inside.
-      MarkNewColumnSpannersForLayoutIfNeeded();
+    bool should_prevent_now =
+        IsInsideMulticol() && ShouldPreventColumnSpannerDescendants();
+    if (style_change_context.did_prevent_spanner_descendants !=
+        should_prevent_now) {
+      // Certain styles (transforms, formatting context roots, etc.) prevent
+      // column spanners inside. If such styles have now been set, we need to
+      // turn now-invalid spanners into regular block-level elements that
+      // participate in the fragmentation context. If such styles have now been
+      // removed, we need to turn regular block-level elements into now-valid
+      // spanners. See https://drafts.csswg.org/css-multicol-1/#spanning-columns
+      MarkColumnSpannerCandidatesForLayoutIfNeeded();
     }
   }
 
@@ -784,6 +780,14 @@ void LayoutBox::StyleDidChange(StyleDifference diff,
 
   if (diff.needs_box_paint_property_update) {
     SetNeedsPaintPropertyUpdate();
+  }
+
+  // The background of the root or body element could propagate up to the
+  // canvas. Just dirty the entire canvas when our style changes substantially.
+  if (diff.NeedsNormalPaintInvalidation()) {
+    if (IsDocumentElement() || IsBody()) {
+      View()->SetShouldDoFullPaintInvalidation();
+    }
   }
 
   // Update the script style map, from the new computed style.
@@ -1192,8 +1196,10 @@ LayoutBlock* LayoutBox::ScrollerFromScrollMarkerGroup() const {
   DCHECK(IsScrollMarkerGroup());
   auto* pseudo_element = DynamicTo<PseudoElement>(GetNode());
   if (const Element* originating_element = pseudo_element->parentElement()) {
-    return DynamicTo<LayoutBlock>(
-        originating_element->GetLayoutBoxForScrolling());
+    auto* box = originating_element->GetLayoutBoxForScrolling();
+    return box && box->GetScrollableArea()->ScrollableAxes()
+               ? DynamicTo<LayoutBlock>(box)
+               : nullptr;
   }
   return nullptr;
 }
@@ -2308,7 +2314,8 @@ bool LayoutBox::IntersectsVisibleViewport() const {
   PhysicalRect rect = VisualOverflowRect();
   MapToVisualRectInAncestorSpace(layout_view, rect);
   return rect.Intersects(PhysicalRect(
-      layout_view->GetFrameView()->GetScrollableArea()->VisibleContentRect()));
+      layout_view->GetFrameView()->GetScrollableArea()->VisibleContentRect(
+          kExcludeScrollbars)));
 }
 
 void LayoutBox::EnsureIsReadyForPaintInvalidation() {
@@ -2416,7 +2423,7 @@ PhysicalRect LayoutBox::OverflowClipRect(
       control_clip.Move(location);
       clip_rect.Intersect(control_clip);
     }
-  } else if (IsMenuList()) [[unlikely]] {
+  } else if (IsAppearanceAutoMenuList(*this)) [[unlikely]] {
     DCHECK(HasControlClip());
     PhysicalRect control_clip = PhysicalContentBoxRect();
     control_clip.Move(location);
@@ -2435,7 +2442,8 @@ PhysicalRect LayoutBox::OverflowClipRectForScrollNode(
 
 bool LayoutBox::HasControlClip() const {
   NOT_DESTROYED();
-  if (IsTextField() || IsMenuList() || IsInputButton()) [[unlikely]] {
+  if (IsTextField() || IsAppearanceAutoMenuList(*this) || IsInputButton())
+      [[unlikely]] {
     return true;
   }
   return false;
@@ -2495,11 +2503,27 @@ LayoutUnit LayoutBox::ContainingBlockLogicalHeightForRelPositioned() const {
   NOT_DESTROYED();
   DCHECK(IsRelPositioned());
 
+  const auto* container = To<LayoutBoxModelObject>(Container());
+
+  if (const auto* box = DynamicTo<LayoutBox>(container)) {
+    return box->ContentLogicalHeight();
+  }
+
   // TODO(ikilpatrick): This is resolving percentages against incorrectly if
   // the container is an inline.
-  auto* cb = To<LayoutBoxModelObject>(Container());
-  return ContainingBlockLogicalHeightForPositioned(cb) -
-         cb->PaddingLogicalHeight();
+  const auto* layout_inline = To<LayoutInline>(container);
+
+  // If the containing block is empty, return a height of 0.
+  if (!layout_inline->HasInlineFragments()) {
+    return LayoutUnit();
+  }
+
+  const LayoutUnit block_size =
+      ToLogicalSize(layout_inline->PhysicalLinesBoundingBox().size,
+                    layout_inline->StyleRef().GetWritingMode())
+          .block_size;
+  return (block_size - layout_inline->BorderAndPaddingBlockSize())
+      .ClampNegativeToZero();
 }
 
 LayoutUnit LayoutBox::ContainingBlockLogicalWidthForContent() const {
@@ -2951,6 +2975,12 @@ bool LayoutBox::DoesAncestryAllowColumnSpanner(
 
 bool LayoutBox::ShouldPreventColumnSpannerDescendants() const {
   NOT_DESTROYED();
+
+  if (IsSelfValidColumnSpanner()) {
+    // No spanners inside spanners in the same multicol context.
+    return true;
+  }
+
   const auto* block_flow = DynamicTo<LayoutBlockFlow>(this);
   if (!block_flow) {
     // Needs to be in a block-flow container, and not e.g. a table.
@@ -2972,17 +3002,15 @@ bool LayoutBox::ShouldPreventColumnSpannerDescendants() const {
   return false;
 }
 
-void LayoutBox::MarkNewColumnSpannersForLayoutIfNeeded() {
+void LayoutBox::MarkColumnSpannerCandidatesForLayoutIfNeeded() {
   NOT_DESTROYED();
 
   // This function examines relevant descendants, and its ancestry, but not
-  // itself. It assumes that it itself doesn't prevent descendants from becoming
-  // column spanners.
-  DCHECK(!ShouldPreventColumnSpannerDescendants());
-  DCHECK(!IsSelfValidColumnSpanner());
+  // itself. It assumes that it has just changed whether it allows spanners
+  // inside or not.
   DCHECK(IsInsideMulticol());
 
-  if (IsMulticolContainer()) {
+  if (IsMulticolContainer() || IsSelfValidColumnSpanner()) {
     return;
   }
 
@@ -3103,48 +3131,6 @@ void LayoutBox::InflateVisualRectForFilter(
       transform_state.LastPlanarQuad().BoundingBox());
   transform_state.SetQuad(
       gfx::QuadF(gfx::RectF(Layer()->MapRectForFilter(rect))));
-}
-
-LayoutUnit LayoutBox::ContainingBlockLogicalHeightForPositioned(
-    const LayoutBoxModelObject* containing_block) const {
-  NOT_DESTROYED();
-
-  // Use viewport as container for top-level fixed-position elements.
-  const auto* view = DynamicTo<LayoutView>(containing_block);
-  if (StyleRef().GetPosition() == EPosition::kFixed && view &&
-      !GetDocument().Printing()) {
-    if (LocalFrameView* frame_view = view->GetFrameView()) {
-      // Don't use visibleContentRect since the PaintLayer's size has not been
-      // set yet.
-      gfx::Size viewport_size =
-          frame_view->LayoutViewport()->ExcludeScrollbars(frame_view->Size());
-      return LayoutUnit(containing_block->IsHorizontalWritingMode()
-                            ? viewport_size.height()
-                            : viewport_size.width());
-    }
-  }
-
-  if (containing_block->IsBox())
-    return To<LayoutBox>(containing_block)->ClientLogicalHeight();
-
-  DCHECK(containing_block->IsLayoutInline());
-  DCHECK(containing_block->CanContainOutOfFlowPositionedElement(
-      StyleRef().GetPosition()));
-
-  const auto* flow = To<LayoutInline>(containing_block);
-  // If the containing block is empty, return a height of 0.
-  if (!flow->HasInlineFragments())
-    return LayoutUnit();
-
-  LayoutUnit height_result;
-  auto bounding_box_size = flow->PhysicalLinesBoundingBox().size;
-  if (containing_block->IsHorizontalWritingMode())
-    height_result = bounding_box_size.height;
-  else
-    height_result = bounding_box_size.width;
-  height_result -= (containing_block->BorderBlockStart() +
-                    containing_block->BorderBlockEnd());
-  return height_result;
 }
 
 PhysicalRect LayoutBox::LocalCaretRect(int caret_offset,

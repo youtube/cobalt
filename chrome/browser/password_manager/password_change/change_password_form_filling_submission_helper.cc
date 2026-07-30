@@ -199,7 +199,8 @@ void ChangePasswordFormFillingSubmissionHelper::TriggerFilling(
     return;
   }
 
-  observed_fields_.push_back(form.new_password_element_renderer_id);
+  observed_fields_.push_back(autofill::FieldGlobalId{
+      form.form_data.host_frame(), form.new_password_element_renderer_id});
 
   if (auto logger = GetLoggerIfAvailable(client_)) {
     logger->LogString(
@@ -305,8 +306,8 @@ void ChangePasswordFormFillingSubmissionHelper::ChangePasswordFormFilled(
            generated_password_);
   form_manager_->UpdateBackupPassword(stored_password_);
 
-  capturer_ = std::make_unique<AnnotatedPageContentCapturer>(
-      web_contents_, GetAIPageContentOptions(),
+  capturer_ = AnnotatedPageContentCapturer::Create(
+      web_contents_, client_, GetAIPageContentOptions(),
       base::BindOnce(
           &ChangePasswordFormFillingSubmissionHelper::OnPageContentReceived,
           weak_ptr_factory_.GetWeakPtr()));
@@ -401,7 +402,9 @@ void ChangePasswordFormFillingSubmissionHelper::OnButtonClicked(
     return;
   }
 
-  logs_uploader_->RecordButtonClickFailure(kSubmitFormFlowStep, result);
+  if (logs_uploader_) {
+    logs_uploader_->RecordButtonClickFailure(kSubmitFormFlowStep, result);
+  }
   std::move(callback_).Run(
       base::unexpected(SubmissionError::kFailedToClickSubmit));
 }

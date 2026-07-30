@@ -2298,11 +2298,6 @@ class CONTENT_EXPORT RenderFrameHostImpl
   // while prerendering.
   void CancelPrerenderingByMojoBinderPolicy(const std::string& interface_name);
 
-  // LinkPreview:
-  // Called by MojoBinderPolicyApplier when it receives a kCancel interface in
-  // preview mode.
-  void CancelPreviewByMojoBinderPolicy(const std::string& interface_name);
-
   // Called when the Activate IPC is sent to the renderer. Puts the
   // MojoPolicyBinderApplier in "loose" mode via PrepareToGrantAll() until
   // DidActivateForPrerending() is called.
@@ -3691,6 +3686,9 @@ class CONTENT_EXPORT RenderFrameHostImpl
           initiator_navigation_state_keep_alive_handle,
       mojo::PendingReceiver<mojom::NavigationRendererCancellationListener>
           renderer_cancellation_listener,
+      mojo::PendingReceiver<
+          mojom::NavigationRendererIgnoreDuplicateNavigationListener>
+          renderer_ignore_duplicate_navigation_listener,
       mojo::PendingReceiver<
           blink::mojom::NavigationResumeDeferredCommitListener>
           deferred_commit_resume_listener) override;

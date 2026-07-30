@@ -115,7 +115,6 @@ static_library("devtools") {
     "//chrome/browser/search",
     "//chrome/browser/search_engines",
     "//chrome/browser/sync",
-    "//chrome/browser/tpcd/metadata",
     "//chrome/browser/ui/autofill",
     "//chrome/browser/ui/dialogs",
     "//chrome/browser/ui/select_file_policy",
@@ -245,7 +244,6 @@ static_library("devtools") {
     deps += [ "//chrome/browser/ui/android/tab_model" ]
   } else {
     public_deps += [
-      "//chrome/browser/ui:browser_list",
       "//chrome/browser/ui:browser_tab_strip",
       "//chrome/browser/ui/tabs:tab_strip_model_observer",
     ]

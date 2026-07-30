@@ -39,7 +39,6 @@
 #include "components/autofill/core/browser/form_parsing/search_field_parser.h"
 #include "components/autofill/core/browser/form_parsing/standalone_cvc_field_parser.h"
 #include "components/autofill/core/browser/form_parsing/travel_field_parser.h"
-#include "components/autofill/core/browser/form_processing/label_processing_util.h"
 #include "components/autofill/core/browser/form_processing/name_processing_util.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/logging/log_manager.h"
@@ -165,7 +164,6 @@ ParsingContext::ParsingContext(base::span<const FormFieldData> fields,
                                DenseSet<RegexFeature> active_features,
                                LogManager* log_manager)
     : name_overrides(GetParseableNames(fields)),
-      label_overrides(GetParseableLabels(fields)),
       client_country(std::move(client_country)),
       page_language(std::move(page_language)),
       pattern_file(pattern_file),
@@ -187,7 +185,6 @@ ParsingContext::ParsingContext(
     DenseSet<RegexFeature> active_features,
     LogManager* log_manager)
     : name_overrides(GetParseableNames(fields)),
-      label_overrides(GetParseableLabels(fields)),
       client_country(std::move(client_country)),
       page_language(std::move(page_language)),
       pattern_file(pattern_file),
@@ -323,26 +320,23 @@ void FormFieldParser::ClearCandidatesIfHeuristicsDidNotFindEnoughFields(
   size_t fillable_distinct_field_types = heuristic_types.size();
 
   // Do not autofill a form if there aren't enough fields. Otherwise, it is
-  // very easy to have false positives. See http://crbug.com/447332
-  // For <form> tags, make an exception for email fields, which are commonly
-  // the only recognized field on account registration sites. Also make an
-  // exception for single-field Autofillable types, even when the form contains
-  // less than kMinRequiredFieldsForHeuristics fields in its form signature.
+  // very easy to have false positives (see http://crbug.com/447332 for more
+  // details) (see `permitted_single_field_types` for the exceptions).
   if (!ignore_small_forms ||
       fillable_distinct_field_types >= kMinRequiredFieldsForHeuristics) {
     return;
   }
 
   FieldTypeSet permitted_single_field_types{
-      MERCHANT_PROMO_CODE, IBAN_VALUE, CREDIT_CARD_STANDALONE_VERIFICATION_CODE,
-      EMAIL_ADDRESS};
+      CREDIT_CARD_STANDALONE_VERIFICATION_CODE,
+      EMAIL_ADDRESS,
+      EMAIL_OR_LOYALTY_MEMBERSHIP_ID,
+      IBAN_VALUE,
+      LOYALTY_MEMBERSHIP_ID,
+      MERCHANT_PROMO_CODE};
   if (AddressFieldParser::IsStandaloneZipSupported(client_country)) {
     permitted_single_field_types.insert(ADDRESS_HOME_ZIP);
   }
-
-  permitted_single_field_types.insert(LOYALTY_MEMBERSHIP_ID);
-
-  permitted_single_field_types.insert(EMAIL_OR_LOYALTY_MEMBERSHIP_ID);
 
   struct WipedField {
     FieldGlobalId field_id;
@@ -715,13 +709,7 @@ std::optional<FormFieldParser::MatchInfo> FormFieldParser::MatchInLabel(
       context.log_manager && context.log_manager->IsLoggingActive() ? &matches
                                                                     : nullptr;
 
-  const std::u16string& label = [&]() -> const std::u16string& {
-    if (auto it = context.label_overrides.find(field.global_id());
-        it != context.label_overrides.end()) {
-      return it->second;
-    }
-    return field.label();
-  }();
+  const std::u16string& label = field.label();
 
   if (!context.better_placeholder_support || field.placeholder().empty()) {
     if (MatchesRegexWithCache(context, label, pattern, capture_destination)) {

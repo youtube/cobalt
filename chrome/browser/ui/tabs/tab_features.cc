@@ -374,8 +374,7 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
                 tab, &tab);
       }
     }
-    if (glic::GlicEnabling::IsMultiInstanceEnabled() &&
-        glic::GlicKeyedService::Get(profile)) {
+    if (glic::GlicKeyedService::Get(profile)) {
       glic_side_panel_coordinator_ =
           GetUserDataFactory()
               .CreateInstance<glic::GlicSidePanelCoordinatorImpl>(
@@ -618,6 +617,8 @@ void TabFeatures::WillDiscardContents(tabs::TabInterface* tab,
   // scoped.
   side_panel_registry_->Deregister(
       SidePanelEntry::Key(SidePanelEntry::Id::kAboutThisSite));
+  side_panel_registry_->Deregister(
+      SidePanelEntry::Key(SidePanelEntry::Id::kMerchantTrust));
 
   if (web_app::AreWebAppsEnabled(
           tab->GetBrowserWindowInterface()->GetProfile())) {

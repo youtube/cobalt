@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/check.h"
 #include "base/check_deref.h"
 #include "base/compiler_specific.h"
 #include "base/containers/fixed_flat_map.h"
@@ -86,6 +87,9 @@ constexpr char kUndeterminedLocale[] = "und";
 // The number of seconds to wait before distilling after a user has stopped
 // entering text into a richly editable text field.
 const double kPostInputDistillSeconds = 1.5;
+
+// The amount of time after a distillation for a PDF to wait before drawing.
+const int kPdfDrawDebounceMs = 500;
 
 // The following methods convert v8::Value types to an AXTreeUpdate. This is not
 // a complete conversion (thus way gin::Converter<ui::AXTreeUpdate> is not used
@@ -438,6 +442,11 @@ ReadAnythingAppController::ReadAnythingAppController(
       base::BindRepeating(&ReadAnythingAppController::Draw,
                           weak_ptr_factory_.GetWeakPtr(),
                           /* recompute_display_nodes= */ true));
+  pdf_draw_debouncer_ = std::make_unique<base::RetainingOneShotTimer>(
+      FROM_HERE, base::Milliseconds(kPdfDrawDebounceMs),
+      base::BindRepeating(&ReadAnythingAppController::Draw,
+                          weak_ptr_factory_.GetWeakPtr(),
+                          /* recompute_display_nodes= */ false));
   renderer_load_triggered_time_ms_ = base::TimeTicks::Now();
   distiller_ = std::make_unique<AXTreeDistiller>(
       render_frame,
@@ -461,6 +470,7 @@ ReadAnythingAppController::ReadAnythingAppController(
 ReadAnythingAppController::~ReadAnythingAppController() {
   RecordNumSelections();
   post_user_entry_draw_timer_->Stop();
+  pdf_draw_debouncer_->Stop();
 }
 
 void ReadAnythingAppController::OnDestruct() {
@@ -651,6 +661,13 @@ void ReadAnythingAppController::ProcessModelUpdates() {
     post_user_entry_draw_timer_->Reset();
     model_.set_reset_draw_timer(false);
   }
+
+  // If a subtree was created in a PDF, this value will be true and it will
+  // reset the timer to distill.
+  if (model_.reset_distillation_delay_timer()) {
+    pdf_draw_debouncer_->Reset();
+    model_.set_reset_distillation_delay_timer(false);
+  }
 }
 
 void ReadAnythingAppController::AccessibilityLocationChangesReceived(
@@ -711,8 +728,7 @@ void ReadAnythingAppController::SetDistillationState(
   model_.set_distillation_state(state);
   // Ensure that we always clear the AXTree anchors when a new
   // distillation occurs.
-  if (IsReadabilityWithLinksEnabled() &&
-      state == read_anything::mojom::ReadAnythingDistillationState::
+  if (state == read_anything::mojom::ReadAnythingDistillationState::
                    kDistillationInProgress) {
     model_.set_should_extract_anchors_from_tree_for_readability(false);
     model_.ResetAXTreeAnchors();
@@ -739,10 +755,14 @@ void ReadAnythingAppController::OnActiveAXTreeIDChanged(
 
   // Cancel any running draw timers.
   post_user_entry_draw_timer_->Stop();
+  pdf_draw_debouncer_->Stop();
 
   model_.SetRootTreeId(tree_id);
   model_.SetUkmSourceIdForTree(tree_id, ukm_source_id);
   model_.set_is_pdf(is_pdf);
+  if (is_pdf) {
+    pdf_draw_debouncer_->Reset();
+  }
 
   if (read_aloud_model_.speech_playing()) {
     model_.SetUrlInformationCallback(
@@ -839,6 +859,10 @@ void ReadAnythingAppController::RecordDistillationSuccess() {
 }
 
 void ReadAnythingAppController::RecordNumSelections() {
+  if (IsHidden()) {
+    return;
+  }
+
   ukm::builders::Accessibility_ReadAnything_EmptyState(model_.GetUkmSourceId())
       .SetTotalNumSelections(model_.GetNumSelections())
       .Record(ukm_recorder_.get());
@@ -846,6 +870,10 @@ void ReadAnythingAppController::RecordNumSelections() {
 }
 
 void ReadAnythingAppController::RecordEstimatedWordsSeen() {
+  if (IsHidden()) {
+    return;
+  }
+
   VLOG(1) << "Words seen: " << model_.words_seen();
   base::UmaHistogramCustomCounts(kWordsSeenHistogramName, model_.words_seen(),
                                  1, kMaxWordsConsumed, kWordsConsumedBuckets);
@@ -853,6 +881,10 @@ void ReadAnythingAppController::RecordEstimatedWordsSeen() {
 }
 
 void ReadAnythingAppController::RecordEstimatedWordsHeard() {
+  if (IsHidden()) {
+    return;
+  }
+
   VLOG(1) << "Words heard: " << model_.words_heard();
   base::UmaHistogramCustomCounts(kWordsHeardHistogramName, model_.words_heard(),
                                  1, kMaxWordsConsumed, kWordsConsumedBuckets);
@@ -1034,10 +1066,11 @@ void ReadAnythingAppController::OnAXTreeDistilled(
   }
 
   if (model_.is_empty()) {
-    // For Google Docs, the initial AXTree may be empty while the document is
-    // loading. Therefore, to avoid displaying an empty side panel, wait for
-    // Google Docs to finish loading.
-    if (!IsGoogleDocs() || model_.page_finished_loading()) {
+    // For Google Docs and PDFs, the initial AXTree may be empty while the
+    // document is loading. Therefore, to avoid displaying an empty side panel,
+    // wait for the page to finish loading.
+    if (!pdf_draw_debouncer_->IsRunning() &&
+        (!IsGoogleDocs() || model_.page_finished_loading())) {
       if (features::IsImmersiveReadAnythingEnabled()) {
         SetDistillationState(
             read_anything::mojom::ReadAnythingDistillationState::
@@ -1055,7 +1088,7 @@ void ReadAnythingAppController::OnAXTreeDistilled(
   // AXNode's language code is BCP 47. Only the base language is needed to
   // record the metric.
   std::string language = model_.GetActiveTree()->root()->GetLanguage();
-  if (!language.empty()) {
+  if (!language.empty() && !IsHidden()) {
     base::UmaHistogramSparse(
         "Accessibility.ReadAnything.Language",
         base::HashMetricName(language::ExtractBaseLanguage(language)));
@@ -1112,7 +1145,8 @@ bool ReadAnythingAppController::PostProcessSelection() {
 
 void ReadAnythingAppController::Draw(bool recompute_display_nodes) {
   // For Google Docs, do not show any text before the doc finishing loading.
-  if (IsGoogleDocs() && !model_.page_finished_loading()) {
+  if (pdf_draw_debouncer_->IsRunning() ||
+      (IsGoogleDocs() && !model_.page_finished_loading())) {
     return;
   }
   if (recompute_display_nodes && !model_.content_node_ids().empty()) {
@@ -1150,6 +1184,9 @@ void ReadAnythingAppController::DrawEmptyState() {
 }
 
 void ReadAnythingAppController::LogEmptyState() {
+  if (IsHidden()) {
+    return;
+  }
   base::UmaHistogramEnumeration(ReadAnythingAppModel::kEmptyStateHistogramName,
                                 ReadAnythingAppModel::EmptyState::kShown);
 }
@@ -1304,8 +1341,6 @@ gin::ObjectTemplateBuilder ReadAnythingAppController::GetObjectTemplateBuilder(
                    &ReadAnythingAppController::GetDistillationMethod)
       .SetProperty("isLineFocusEnabled",
                    &ReadAnythingAppController::IsLineFocusEnabled)
-      .SetProperty("isReadabilityWithLinksEnabled",
-                   &ReadAnythingAppController::IsReadabilityWithLinksEnabled)
       .SetProperty("isChromeOsAsh", &ReadAnythingAppController::IsChromeOsAsh)
       .SetProperty("baseLanguageForSpeech",
                    &ReadAnythingAppController::GetLanguageCodeForSpeech)
@@ -1453,6 +1488,8 @@ gin::ObjectTemplateBuilder ReadAnythingAppController::GetObjectTemplateBuilder(
       .SetMethod("togglePinState", &ReadAnythingAppController::TogglePinState)
       .SetMethod("sendPinStateRequest",
                  &ReadAnythingAppController::SendPinStateRequest)
+      .SetMethod("onSpeechEngineFirstStall",
+                 &ReadAnythingAppController::OnSpeechEngineFirstStall)
       .SetMethod("onSpeechEngineStalled",
                  &ReadAnythingAppController::OnSpeechEngineStalled);
 }
@@ -1939,10 +1976,6 @@ bool ReadAnythingAppController::IsReadabilityEnabled() const {
 
 bool ReadAnythingAppController::IsLineFocusEnabled() const {
   return features::IsReadAnythingLineFocusEnabled();
-}
-
-bool ReadAnythingAppController::IsReadabilityWithLinksEnabled() const {
-  return features::IsReadAnythingWithReadabilityAllowLinksEnabled();
 }
 
 bool ReadAnythingAppController::IsChromeOsAsh() const {
@@ -2474,7 +2507,12 @@ void ReadAnythingAppController::OnReadingModeHidden(bool tab_active) {
   RecordEstimatedWordsHeard();
 }
 
+void ReadAnythingAppController::OnSpeechEngineFirstStall() {
+  DUMP_WILL_BE_CHECK(false) << "Speech engine stalled after 10 seconds";
+}
+
 void ReadAnythingAppController::OnSpeechEngineStalled() {
+  DUMP_WILL_BE_CHECK(false) << "Speech engine stalled after recovery timeout";
   page_handler_->OnSpeechEngineStalled();
 }
 
@@ -2694,7 +2732,7 @@ void ReadAnythingAppController::StartLineFocusSession() {
 
 void ReadAnythingAppController::LogLineFocusSession() {
   if (IsLineFocusEnabled() &&
-      model_.line_focus_session_start_time().has_value()) {
+      model_.line_focus_session_start_time().has_value() && !IsHidden()) {
     base::UmaHistogramLongTimes(
         "Accessibility.ReadAnything.LineFocusSessionLength",
         base::TimeTicks::Now() -
@@ -2801,7 +2839,7 @@ std::string ReadAnythingAppController::GetDomDistillerContentHtml() const {
 
 v8::Local<v8::Value> ReadAnythingAppController::GetDomDistillerAnchors() const {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  if (!IsReadabilityEnabled() || !IsReadabilityWithLinksEnabled() || !isolate) {
+  if (!IsReadabilityEnabled() || !isolate) {
     return v8::Undefined(isolate);
   }
 
@@ -2889,12 +2927,10 @@ void ReadAnythingAppController::UpdateContent(const std::string& title,
       ReadAnythingAppModel::DistillationMethod::kReadability);
   ExecuteJavaScript("chrome.readingMode.updateContent();");
 
-  if (IsReadabilityWithLinksEnabled()) {
-    model_.set_should_extract_anchors_from_tree_for_readability(true);
-    bool didProcessAnchors = model_.ProcessAXTreeAnchors();
-    if (didProcessAnchors) {
-      ExecuteJavaScript("chrome.readingMode.onAnchorsReadyForReadability();");
-    }
+  model_.set_should_extract_anchors_from_tree_for_readability(true);
+  bool didProcessAnchors = model_.ProcessAXTreeAnchors();
+  if (didProcessAnchors) {
+    ExecuteJavaScript("chrome.readingMode.onAnchorsReadyForReadability();");
   }
 }
 
@@ -2921,4 +2957,10 @@ void ReadAnythingAppController::ApplyAccessibilityUpdatesForReadabilityLinks(
   if (didProcessAnchors) {
     ExecuteJavaScript("chrome.readingMode.onAnchorsReadyForReadability();");
   }
+}
+
+bool ReadAnythingAppController::IsHidden() {
+  return IsImmersiveEnabled() &&
+         model_.active_presentation_state() ==
+             read_anything::mojom::ReadAnythingPresentationState::kInactive;
 }

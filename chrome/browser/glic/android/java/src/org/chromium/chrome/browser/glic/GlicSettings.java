@@ -46,7 +46,10 @@ public class GlicSettings extends ChromeBaseSettingsFragment {
     private static final String PERMISSION_DEFAULT_TAB_ACCESS =
             "glic_permissions_default_tab_access";
     private static final String PERMISSION_AUTO_BROWSE = "glic_permissions_auto_browse";
+    // TODO(b/498717684): Replace answer number urls with a p= identifier instead.
     private static final String LEARN_MORE_AI_URL = "https://support.google.com/a/answer/15706919";
+    private static final String LEARN_MORE_MANAGED_AI_URL =
+            "https://support.google.com/chrome/a/answer/14443058";
     private static final String AUTO_BROWSE_LEARN_MORE_URL =
             "https://support.google.com/gemini/answer/16821166";
     private static final String AUTO_BROWSE_CONSIDER_SAFELY_URL =
@@ -63,15 +66,18 @@ public class GlicSettings extends ChromeBaseSettingsFragment {
             ObservableSuppliers.createMonotonic();
 
     private @Nullable PrefChangeRegistrar mPrefChangeRegistrar;
+    private GlicKeyedService.@Nullable UserEnabledActuationOnWebObserver
+            mUserEnabledActuationOnWebObserver;
 
     @Override
     public void onCreatePreferences(@Nullable Bundle savedInstanceState, @Nullable String rootKey) {
         SettingsUtils.addPreferencesFromResource(this, R.xml.glic_settings);
-        mPageTitle.set(getString(R.string.settings_glic_button_toggle));
+        mPageTitle.set(getString(R.string.glic_setting_label));
         SettingsCustomTabLauncher customTabLauncher = getCustomTabLauncher();
 
         PrefService prefService = UserPrefs.get(getProfile());
         mPrefChangeRegistrar = new PrefChangeRegistrar(prefService);
+        GlicKeyedService glicService = GlicKeyedServiceFactory.getForProfile(getProfile());
 
         setupSwitchPreference(
                 PREFERENCE_BUTTON,
@@ -111,11 +117,30 @@ public class GlicSettings extends ChromeBaseSettingsFragment {
                 SpanApplier.applySpans(summary, getLearnMoreSpanInfo(LEARN_MORE_AI_URL)));
 
         ChromeExpandableSwitchPreference autoBrowsePref =
-                setupSwitchPreference(
-                        PERMISSION_AUTO_BROWSE,
-                        ChromePreferenceKeys.GLIC_AUTO_BROWSE_SETTING_ENABLED,
-                        GlicPrefNames.GLIC_USER_ENABLED_ACTUATION_ON_WEB,
-                        /* extraListener= */ null);
+                assertNonNull(findPreference(PERMISSION_AUTO_BROWSE));
+        if (glicService != null) {
+            boolean value = glicService.getUserEnabledActuationOnWeb();
+            mSharedPreferencesManager.writeBoolean(
+                    ChromePreferenceKeys.GLIC_AUTO_BROWSE_SETTING_ENABLED, value);
+            autoBrowsePref.setChecked(value);
+            autoBrowsePref.setOnPreferenceChangeListener(
+                    (pref, newValue) -> {
+                        boolean boolValue = (boolean) newValue;
+                        mSharedPreferencesManager.writeBoolean(
+                                ChromePreferenceKeys.GLIC_AUTO_BROWSE_SETTING_ENABLED, boolValue);
+                        glicService.setUserEnabledActuationOnWeb(boolValue);
+                        return true;
+                    });
+            mUserEnabledActuationOnWebObserver =
+                    enabled -> {
+                        if (autoBrowsePref.isChecked() != enabled) {
+                            autoBrowsePref.setChecked(enabled);
+                            mSharedPreferencesManager.writeBoolean(
+                                    ChromePreferenceKeys.GLIC_AUTO_BROWSE_SETTING_ENABLED, enabled);
+                        }
+                    };
+            glicService.addUserEnabledActuationOnWebObserver(mUserEnabledActuationOnWebObserver);
+        }
 
         String autoBrowseSummary =
                 getString(R.string.settings_glic_permissions_chrome_web_actuation_toggle_sublabel);
@@ -144,6 +169,12 @@ public class GlicSettings extends ChromeBaseSettingsFragment {
                         return true;
                     });
         }
+
+        GlicExtraInfoPreference aiInfoPref = findPreference("glic_custom_box_preference");
+        if (aiInfoPref != null) {
+            aiInfoPref.setOnLearnMoreClicked(
+                    () -> customTabLauncher.openUrlInCct(getActivity(), LEARN_MORE_MANAGED_AI_URL));
+        }
     }
 
     @Override
@@ -151,6 +182,14 @@ public class GlicSettings extends ChromeBaseSettingsFragment {
         if (mPrefChangeRegistrar != null) {
             mPrefChangeRegistrar.destroy();
             mPrefChangeRegistrar = null;
+        }
+        if (mUserEnabledActuationOnWebObserver != null) {
+            GlicKeyedService glicService = GlicKeyedServiceFactory.getForProfile(getProfile());
+            if (glicService != null) {
+                glicService.removeUserEnabledActuationOnWebObserver(
+                        mUserEnabledActuationOnWebObserver);
+            }
+            mUserEnabledActuationOnWebObserver = null;
         }
         super.onDestroy();
     }

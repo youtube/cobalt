@@ -102,6 +102,23 @@ void ContentFacilitatedPaymentsDriverFactory::OnTextCopiedToClipboard(
   // If the copy event occurred in an iframe, capture the iframe URL.
   if (render_frame_host != main_frame) {
     iframe_url = render_frame_host->GetLastCommittedURL();
+    if (iframe_url->is_empty()) {
+      LogPixIframeUrlType(PixIframeUrlType::kEmpty);
+    } else if (iframe_url->IsAboutBlank()) {
+      LogPixIframeUrlType(PixIframeUrlType::kAboutBlank);
+    } else if (iframe_url->IsAboutSrcdoc()) {
+      LogPixIframeUrlType(PixIframeUrlType::kAboutSrcDoc);
+    } else {
+      LogPixIframeUrlType(PixIframeUrlType::kOtherNonEmptyUrl);
+    }
+
+    if (iframe_url->is_empty() || iframe_url->IsAboutBlank() ||
+        iframe_url->IsAboutSrcdoc()) {
+      const bool is_same_origin =
+          render_frame_host->GetLastCommittedOrigin().IsSameOriginWith(
+              main_frame->GetLastCommittedOrigin());
+      LogPixIframeIsSameOriginAsMainFrame(is_same_origin);
+    }
   }
 
   auto& driver = GetOrCreateForFrame(render_frame_host);

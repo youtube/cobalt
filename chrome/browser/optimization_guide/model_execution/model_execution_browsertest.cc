@@ -29,6 +29,7 @@
 #include "components/optimization_guide/core/feature_registry/feature_registration.h"
 #include "components/optimization_guide/core/feature_registry/mqls_feature_registry.h"
 #include "components/optimization_guide/core/model_execution/feature_keys.h"
+#include "components/optimization_guide/core/model_execution/model_broker_state.h"
 #include "components/optimization_guide/core/model_execution/model_execution_features.h"
 #include "components/optimization_guide/core/model_execution/model_execution_manager.h"
 #include "components/optimization_guide/core/model_execution/model_execution_prefs.h"
@@ -697,10 +698,10 @@ class OnDeviceModelExecutionEnabledBrowserTest
   ModelBrokerState* broker_state() {
     // Ensure keyed service is created, which should create and hold state.
     GetOptimizationGuideKeyedService();
-    return &g_browser_process->GetFeatures()
-                ->optimization_guide_global_feature()
-                ->Get()
-                .model_broker_state();
+    return g_browser_process->GetFeatures()
+        ->optimization_guide_global_feature()
+        ->Get()
+        .model_broker_state();
   }
 
   void SetUpLocalStatePrefService(PrefService* local_state) override {

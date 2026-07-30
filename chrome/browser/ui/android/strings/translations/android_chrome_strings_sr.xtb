@@ -293,6 +293,7 @@
 <translation id="2251809247798634662">Нови прозор без архивирања</translation>
 <translation id="2253927598983295051">Одаберите шта ћете делити са апликацијом <ph name="APP_NAME" /></translation>
 <translation id="2261570557291037252">Још информација о апликацији</translation>
+<translation id="2270544918551255912">Превуците од ивице да бисте се вратили</translation>
 <translation id="2276696007612801991">Пријавите се на Google налог да бисте проверили лозинке</translation>
 <translation id="2281243904606300427"><ph name="TAB_TITLE" />, изабрана картица без архивирањa</translation>
 <translation id="2286841657746966508">Адреса за наплату</translation>
@@ -480,6 +481,7 @@
 <translation id="2989523299700148168">Недавно посећено</translation>
 <translation id="2992473221983447149">Описи слика</translation>
 <translation id="2996291259634659425">Направите приступну фразу</translation>
+<translation id="2996682533106928201">Додирните да бисте одбацили</translation>
 <translation id="2996809686854298943">URL је обавезан</translation>
 <translation id="3024215143424744261">Жељена подешавања режима читања су затворена</translation>
 <translation id="3026955690410463085">Уврстите линк</translation>
@@ -640,6 +642,7 @@
 <translation id="3739455665973395693">Нема угрожених лозинки на Google налогу</translation>
 <translation id="3739899004075612870">Обележено у <ph name="PRODUCT_NAME" />-у</translation>
 <translation id="3740525748616366977">Гласовна претрага није доступна на овом уређају</translation>
+<translation id="3763110477555836428">Број виртуелне картице ће бити попуњен при плаћању овом картицом ради заштите стварних података. Управљајте у Google новчанику. <ph name="BEGIN_LINK1" />Сазнајте више о виртуелним картицама<ph name="END_LINK1" /></translation>
 <translation id="376561056759077985">Неки подаци још нису сачувани</translation>
 <translation id="3770620323585347665">Именујте прозор…</translation>
 <translation id="3771033907050503522">Картице Без архивирања</translation>
@@ -683,6 +686,7 @@
 <translation id="3927692899758076493">Sans Serif</translation>
 <translation id="3931947361983910192">последње 4 недеље</translation>
 <translation id="393697183122708255">Није доступна нијед. омогућ. глас. прет.</translation>
+<translation id="3941718885865495207">Доња табела за омогућавање Chrome проналазака</translation>
 <translation id="3943322906274039960"><ph name="TAB_TITLE" />, закачена картица у режиму слике у слици</translation>
 <translation id="3950820424414687140">Пријави ме</translation>
 <translation id="395377504920307820">Користи без налога</translation>
@@ -829,6 +833,7 @@
 <translation id="4521489764227272523">Изабрани подаци су уклоњени из Chrome-а и са синхронизованих уређаја.
 
 Google налог можда има друге облике историје прегледања, попут претрага и активности у другим Google услугама на <ph name="BEGIN_LINK" />myactivity.google.com<ph name="END_LINK" />.</translation>
+<translation id="4521637321901000942">Управљајте додацима на траци с алаткама</translation>
 <translation id="4523326818319942067">последњи сат</translation>
 <translation id="452750746583162491">Прегледајте синхронизоване податке</translation>
 <translation id="4532845899244822526">Изаберите фолдер</translation>
@@ -1188,6 +1193,7 @@ Google налог можда има друге облике историје п�
 <translation id="6011308810877101166">Побољшајте предлоге за претрагу</translation>
 <translation id="6013305291643746595">Сортира се према најстаријем</translation>
 <translation id="6022659036123304283">Прилагодите Chrome себи</translation>
+<translation id="6023820583797130428">Отворите мени да бисте се вратили</translation>
 <translation id="6026538407078977628">Проширите на приказ преко целог екрана</translation>
 <translation id="6030719887161080597">Управљајте информацијама које сајтови користе за мерење учинка огласа</translation>
 <translation id="6039379616847168523">Прелазак на следећу картицу</translation>
@@ -1632,6 +1638,7 @@ Google налог можда има друге облике историје п�
 <translation id="7597601275223325603">{NUMBER_OF_TABS,plural, =1{<ph name="TABS_COUNT_ONE" /> стандардна картица}one{<ph name="TABS_COUNT_MANY" /> стандардна картица}few{<ph name="TABS_COUNT_MANY" /> стандардне картице}other{<ph name="TABS_COUNT_MANY" /> стандардних картица}}</translation>
 <translation id="7603168929588204083">Неважећи датум</translation>
 <translation id="7605594153474022051">Синхронизација не функционише</translation>
+<translation id="7608245556672190037">Табела за омогућавање Chrome проналазака отворена је у пуној висини</translation>
 <translation id="7612619742409846846">Пријављени сте у Google као</translation>
 <translation id="7612989789287281429">Пријављујете се…</translation>
 <translation id="7619072057915878432">Преузимање датотеке <ph name="FILE_NAME" /> није успело због проблема са мрежом.</translation>
@@ -1639,6 +1646,7 @@ Google налог можда има друге облике историје п�
 <translation id="7628417132421583481">Иди у Менаџер лозинки</translation>
 <translation id="7630202231528827509">URL добављача</translation>
 <translation id="7638584964844754484">Неисправна приступна фраза</translation>
+<translation id="764047009170754705">Омогућавање Chrome проналазака је затворено</translation>
 <translation id="7646499124171960488">Упозорава вас на небезбедне јавне сајтове</translation>
 <translation id="7646772052135772216">Синхронизација лозинки не ради</translation>
 <translation id="7655240423373329753">последњих 7 дана</translation>
@@ -1863,6 +1871,7 @@ Google налог можда има друге облике историје п�
 <translation id="8473863474539038330">Адресе и друго</translation>
 <translation id="847433688444405067">Прегледајте на више уређаја</translation>
 <translation id="8477178913400731244">Избриши податке</translation>
+<translation id="8481771036036087705">Опција за омогућавање Chrome проналазака отворена је до половине екрана</translation>
 <translation id="8485434340281759656"><ph name="FILE_SIZE" /> <ph name="SEPARATOR" /> <ph name="DESCRIPTION" /></translation>
 <translation id="8491317241605644838">Нема неактивних прозора</translation>
 <translation id="8493948351860045254">Ослободите простор</translation>

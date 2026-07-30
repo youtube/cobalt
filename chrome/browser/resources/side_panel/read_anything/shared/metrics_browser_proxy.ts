@@ -14,6 +14,8 @@ enum UmaName {
       'Accessibility.ReadAnything.ReadAloud.SettingsChange',
   TEXT_SETTINGS_CHANGE = 'Accessibility.ReadAnything.SettingsChange',
   VOICE = 'Accessibility.ReadAnything.ReadAloud.Voice',
+  VOICE_LANGUAGE_CHANGE =
+      'Accessibility.ReadAnything.ReadAloud.VoiceLanguageChange',
   VOICE_SPEED = 'Accessibility.ReadAnything.ReadAloud.VoiceSpeed',
 }
 
@@ -95,9 +97,10 @@ export enum ReadAloudSettingsChange {
   VOICE_SPEED_CHANGE = 0,
   VOICE_NAME_CHANGE = 1,
   HIGHLIGHT_CHANGE = 2,
+  LANGUAGE_TOGGLE = 3,
 
   // Must be last.
-  COUNT = 3,
+  COUNT = 4,
 }
 // LINT.ThenChange(/tools/metrics/histograms/metadata/accessibility/enums.xml:ReadAnythingReadAloudSettingsChange)
 
@@ -143,6 +146,7 @@ export interface MetricsBrowserProxy {
   recordTime(umaName: string, time: number): void;
   recordVoiceSpeed(index: number): void;
   recordVoiceType(voiceType: ReadAnythingVoiceType): void;
+  recordVoiceLanguageChange(): void;
   recordExtensionState(): void;
   recordCount(umaName: string, count: number): void;
 }
@@ -198,6 +202,10 @@ export class MetricsBrowserProxyImpl implements MetricsBrowserProxy {
   recordVoiceType(voiceType: ReadAnythingVoiceType) {
     chrome.metricsPrivate.recordEnumerationValue(
         UmaName.VOICE, voiceType, ReadAnythingVoiceType.COUNT);
+  }
+
+  recordVoiceLanguageChange() {
+    this.incrementMetricCount(UmaName.VOICE_LANGUAGE_CHANGE);
   }
 
   recordLanguage(lang: string) {

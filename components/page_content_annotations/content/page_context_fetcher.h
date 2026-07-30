@@ -23,16 +23,18 @@
 #include "base/types/optional_ref.h"
 #include "components/content_extraction/content/browser/inner_text.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
+#include "components/page_content_annotations/core/page_content_annotations_enums.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "pdf/buildflags.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/gfx/geometry/size.h"
 #include "url/origin.h"
 
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(ENABLE_PDF)
 #include "pdf/mojom/pdf.mojom.h"
-#endif
+#endif  // BUILDFLAG(ENABLE_PDF)
 
 namespace content {
 class WebContents;
@@ -41,15 +43,6 @@ class WebContents;
 namespace page_content_annotations {
 
 class PageContentScreenshotService;
-
-enum class ScreenshotIframeRedactionScope {
-  // No redaction.
-  kNone,
-  // Redact cross-site iframes.
-  kCrossSite,
-  // Redact cross-origin iframes.
-  kCrossOrigin,
-};
 
 struct PaintPreviewOptions {
   // The maximum memory/file bytes used for the capture of a single frame.
@@ -300,13 +293,13 @@ class PageContextFetcher : public content::WebContentsObserver {
                   FetchPageContextResultCallback callback);
 
  private:
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(ENABLE_PDF)
   void ReceivedPdfBytes(const url::Origin& pdf_origin,
                         uint32_t pdf_size_limit,
                         pdf::mojom::PdfListener::GetPdfBytesStatus status,
                         const std::vector<uint8_t>& pdf_bytes,
                         uint32_t page_count);
-#endif
+#endif  // BUILDFLAG(ENABLE_PDF)
 
   void GetTabScreenshot(content::WebContents& web_contents,
                         const ScreenshotOptions& screenshot_options);
@@ -351,8 +344,7 @@ class PageContextFetcher : public content::WebContentsObserver {
 
   // screenshot processing dependencies.
   std::optional<SkBitmap> screenshot_bitmap_;
-  bool screenshot_needs_password_redaction_ = false;
-  bool screenshot_needs_sensitive_payment_redaction_ = false;
+  bool screenshot_needs_redaction_ = false;
 
   // Intermediate results:
 

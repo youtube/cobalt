@@ -7,6 +7,7 @@
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
+#include "base/memory_coordinator/utils.h"
 #include "base/notimplemented.h"
 #include "base/task/sequenced_task_runner.h"
 #include "build/build_config.h"
@@ -88,10 +89,12 @@ GlicProfileManager* GlicProfileManager::GetInstance() {
 }
 
 GlicProfileManager::GlicProfileManager()
-    : memory_pressure_listener_registration_(
-          FROM_HERE,
-          base::MemoryPressureListenerTag::kGlicProfileManager,
-          this) {
+    : memory_consumer_registration_(
+          /*consumer_name=*/"GlicProfileManager",
+          /*traits=*/std::nullopt,  // TODO(crbug.com/489671163): Fill traits.
+          this,
+          base::MemoryConsumerRegistration::CheckUnregister::kDisabled,
+          base::MemoryConsumerRegistration::CheckRegistryExists::kDisabled) {
   ProfileManager* profile_manager = g_browser_process->profile_manager();
   if (profile_manager) {
     profile_manager->AddObserver(this);
@@ -108,13 +111,9 @@ Profile* GlicProfileManager::GetProfileForLaunch() const {
     return *g_forced_profile_for_launch_;
   }
 
-  // If the glic window is currently showing detached use that profile. When
-  // GlicMultiInstance is enabled, this profile is the one where a detached
-  // instance was most recently used.
-  if (!GlicEnabling::IsMultiInstanceEnabled() && last_active_glic_ &&
-      last_active_glic_->IsWindowDetached()) {
-    return last_active_glic_->profile();
-  } else if (GlicEnabling::IsMultiInstanceEnabled() && current_detached_glic_) {
+  // If the glic window is currently showing detached use that profile. This
+  // profile is the one where a detached instance was most recently used.
+  if (current_detached_glic_) {
     return current_detached_glic_->profile();
   }
 
@@ -337,8 +336,6 @@ void GlicProfileManager::OnProfileWillBeDestroyed(Profile* profile) {
   profile_observations_.RemoveObservation(profile);
 }
 
-void GlicProfileManager::OnMemoryPressure(base::MemoryPressureLevel level) {}
-
 // static
 void GlicProfileManager::SetPrewarmingEnabledForTesting(bool enabled) {
   g_prewarming_enabled_for_testing_ = enabled;
@@ -357,7 +354,7 @@ void GlicProfileManager::ForceConnectionTypeForTesting(
 }
 
 bool GlicProfileManager::IsUnderMemoryPressure() const {
-  return memory_pressure_level() == base::MEMORY_PRESSURE_LEVEL_CRITICAL;
+  return memory_limit() <= base::kCriticalMemoryPressureThreshold;
 }
 
 void GlicProfileManager::CanPreloadForProfile(Profile* profile,

@@ -8,10 +8,6 @@
 
 namespace enterprise_connectors {
 
-FileInfo::FileInfo() = default;
-FileInfo::FileInfo(FileInfo&& other) = default;
-FileInfo::~FileInfo() = default;
-
 std::string ScanRequestUploadResultToString(ScanRequestUploadResult result) {
   switch (result) {
     case ScanRequestUploadResult::kUnknown:
@@ -34,6 +30,8 @@ std::string ScanRequestUploadResultToString(ScanRequestUploadResult result) {
       return "TOO_MANY_REQUESTS";
     case ScanRequestUploadResult::kIncompleteResponse:
       return "INCOMPLETE_RESPONSE";
+    case ScanRequestUploadResult::kUserCancelled:
+      return "USER_CANCELLED";
   }
   NOTREACHED();
 }

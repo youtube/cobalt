@@ -209,7 +209,7 @@ enum class LayoutConstant {
 
   // The padding between the sides of the vertical tab strip and its
   // content when in the collapsed state.
-  kVerticalTabStripCollapsedPadding,
+  kVerticalTabStripCollapsedHorizontalPadding,
 
   // The padding between the top/bottom of the vertical tab strip and its
   // content when in the collapsed state.
@@ -239,6 +239,9 @@ enum class LayoutConstant {
   // The default height and width of the new tab button for the vertical tab
   // strip.
   kVerticalTabStripNewTabButtonSize,
+
+  // The height and width of the collapse button for the vertical tab strip.
+  kVerticalTabStripCollapseButtonSize,
 
   // The default height and width of the tab groups and tab search buttons for
   // the vertical tab strip.

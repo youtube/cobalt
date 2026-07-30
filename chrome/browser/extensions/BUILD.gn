@@ -468,6 +468,9 @@ source_set("extensions") {
     "//build/config/compiler:wexit_time_destructors",
   ]
   allow_circular_includes_from = [
+    # enterprise headers include extension_management.h.
+    "//chrome/browser/enterprise",
+
     # TODO(crbug.com/40161499): Remove this circular dependency.
     "//chrome/browser/devtools",
 
@@ -493,9 +496,11 @@ source_set("extensions") {
     "//chrome/browser/apps:user_type_filter",
     "//chrome/browser/bitmap_fetcher",
     "//chrome/browser/bookmarks",
+    "//chrome/browser/component_updater",
     "//chrome/browser/content_settings:content_settings_factory",
     "//chrome/browser/devtools",
     "//chrome/browser/download",
+    "//chrome/browser/enterprise",
     "//chrome/browser/enterprise/connectors/reporting",
     "//chrome/browser/extensions:external_loader",
     "//chrome/browser/extensions/api:api_registration",
@@ -524,6 +529,7 @@ source_set("extensions") {
     "//chrome/browser/signin",
     "//chrome/browser/tab_group_sync:factories",
     "//chrome/browser/tab_list",
+    "//chrome/browser/ui:browser_element_identifiers",
     "//chrome/browser/ui:browser_navigator_params_headers",
     "//chrome/browser/ui:ui_features",
     "//chrome/browser/ui/autofill",
@@ -626,6 +632,10 @@ source_set("extensions") {
   if (is_mac || is_win || is_linux || is_chromeos) {
     deps += [ "//components/webapps/isolated_web_apps:scheme" ]
   }
+
+  if (is_mac) {
+    deps += [ "//chrome/browser/mac" ]
+  }
   if (enable_spellcheck) {
     deps += [ "//chrome/browser/spellchecker" ]
   }
@@ -660,6 +670,7 @@ source_set("extensions") {
       "//components/app_icon_loader",
     ]
     deps += [
+      "//chrome/browser/ui/interaction",
       "//chrome/browser/ui/user_education",
       "//chrome/browser/ui/web_applications:launch_utils",
     ]
@@ -838,6 +849,7 @@ source_set("extensions") {
 
       # TODO(crbug.com/344921703): Remove circular dependencies.
       "//chrome/browser/sync",
+      "//chrome/browser/sync_file_system",
 
       # TODO(crbug.com/345487716): Remove this circular dependency.
       "//chrome/browser/ui/views/side_panel",
@@ -855,7 +867,6 @@ source_set("extensions") {
       "//chrome/browser:browser_public_dependencies",
       "//chrome/browser/extensions/api:api_registration",
       "//chrome/browser/task_manager",
-      "//chrome/browser/ui:browser_list",
       "//chrome/browser/ui:browser_tab_strip",
       "//chrome/browser/ui/bookmarks",
       "//chrome/browser/ui/global_error",
@@ -893,6 +904,7 @@ source_set("extensions") {
       "//chrome/browser/feedback",
       "//chrome/browser/glic",
       "//chrome/browser/importer",
+      "//chrome/browser/language",
       "//chrome/browser/lifetime:termination_notification",
       "//chrome/browser/picture_in_picture",
       "//chrome/browser/prefs",
@@ -905,6 +917,7 @@ source_set("extensions") {
       "//chrome/browser/search_engines",
       "//chrome/browser/signin:google_accounts_private_api",
       "//chrome/browser/sync",
+      "//chrome/browser/sync_file_system",
       "//chrome/browser/themes",
       "//chrome/browser/ui/apps",
       "//chrome/browser/ui/browser_window",

@@ -376,16 +376,12 @@
       name: "AIPromptAPI",
       public: true,
       status: {
-        "Win": "experimental",
-        "Mac": "experimental",
-        "Linux": "experimental",
-        "ChromeOS": "experimental",
+        "Win": "stable",
+        "Mac": "stable",
+        "Linux": "stable",
+        "ChromeOS": "stable",
         "default": "",
       },
-      origin_trial_feature_name: "AIPromptAPIMultimodalInput",
-      origin_trial_os: ["win", "mac", "linux", "chromeos"],
-      origin_trial_allows_third_party: true,
-      implied_by: ["AIPromptAPIMultimodalInput"],
     },
     {
       // Extension access to "AIPromptAPI".
@@ -422,17 +418,12 @@
     {
       name: "AIPromptAPIMultimodalInput",
       status: {
-        "Win": "experimental",
-        "Mac": "experimental",
-        "Linux": "experimental",
-        "ChromeOS": "experimental",
+        "Win": "stable",
+        "Mac": "stable",
+        "Linux": "stable",
+        "ChromeOS": "stable",
         "default": "",
       },
-      origin_trial_feature_name: "AIPromptAPIMultimodalInput",
-      origin_trial_os: ["win", "mac", "linux", "chromeos"],
-      origin_trial_allows_third_party: true,
-      base_feature_status: "enabled",
-      copied_from_base_feature_if: "overridden",
     },
     {
       // Gates access to inference parameter enhancements for "AIPromptAPI".
@@ -662,6 +653,9 @@
       // This feature is controlled by the kApproximateGeolocationPermission
       // base::Feature in the browser process.
       base_feature: "none",
+    },
+    {
+      name: "ApproximateGeolocationPermissionAPI",
     },
     {
       name: "ApproximateGeolocationWebVisibleAPI",
@@ -991,7 +985,8 @@
       // https://github.com/WICG/html-in-canvas/blob/main/README.md
       // Note the API name has changed to `drawElementImage`.
       name: "CanvasDrawElement",
-      status: "test",
+      origin_trial_feature_name: "HTMLInCanvas",
+      status: "experimental",
     },
     {
       name: "CanvasFloatingPoint",
@@ -1173,10 +1168,6 @@
     },
     {
       name: "CollapseZeroWidthSpaceWhenReuseItem",
-      status: "stable",
-    },
-    {
-      name: "CollectWidthAndHeightAsStylesForNestedSvg",
       status: "stable",
     },
     {
@@ -1625,6 +1616,10 @@
       public: true,
     },
     {
+      name: "CSSHangingPunctuation",
+      status: "test",
+    },
+    {
       // This needs to be kept as a runtime flag as long as we need to forcibly
       // disable it for WebView on Android versions older than P. See
       // https://crrev.com/f311a84728272e30979432e8474089b3db3c67df
@@ -1734,6 +1729,9 @@
       status: "experimental",
     },
     {
+      name: "CSSOverscrollBehaviorChain",
+    },
+    {
       name: "CSSPaintAPIArguments",
       status: "experimental",
     },
@@ -1741,6 +1739,13 @@
       // Ignore the stylesheet encoding when parsing URLs, always using UTF-8.
       // See crbug.com/1485525.
       name: "CSSParserIgnoreCharsetForURLs",
+    },
+    {
+      // Support `polygon(round <length>, ...)` per CSS Shapes Level 1.
+      // Spec: https://www.w3.org/TR/css-shapes-1/#typedef-basic-shape
+      // Issue: https://crbug.com/329302249
+      name: "CSSPolygonRounding",
+      status: "experimental",
     },
     {
       name: "CSSPositionStickyStaticScrollPosition",
@@ -1893,11 +1898,6 @@
       status: "experimental",
     },
     {
-      name: "CSSSelectorFragmentAnchor",
-      status: "experimental",
-      base_feature: "CssSelectorFragmentAnchor",
-    },
-    {
       // rect() and xywh() basic shapes for shape-outside.
       // https://drafts.csswg.org/css-shapes-1/#basic-shape-functions
       // https://drafts.csswg.org/css-shapes/#shape-outside-property
@@ -1993,6 +1993,14 @@
       name: "CSSTypedArithmetic",
       status: "stable",
     },
+    {
+      // CSS URL request modifiers: cross-origin(), integrity(),
+      // referrer-policy() inside url() functions.
+      //
+      // https://drafts.csswg.org/css-values-5/#request-url-modifiers
+      name: "CSSURLRequestModifiers",
+      status: "experimental",
+    },
     // Support for `user-select:contain`.
     {
       name: "CSSUserSelectContain",
@@ -2052,11 +2060,13 @@
     {
       name: "DeclarativeCSSModules",
       status: "experimental",
+      origin_trial_feature_name: "DeclarativeCSSModules",
     },
     // https://crbug.com/448174611
     {
       name: "DeclarativeCSSModulesStyleTag",
       implied_by: ["DeclarativeCSSModules"],
+      origin_trial_feature_name: "DeclarativeCSSModules",
     },
     {
       // https://chromestatus.com/feature/5133099851317248
@@ -2166,6 +2176,10 @@
       // Experimental support for the Direct Sockets API in Shared Workers.
       // https://github.com/WICG/direct-sockets
       name: "DirectSocketsInSharedWorkers",
+    },
+    {
+      name: "DisableAnchorCenterOnAlignJustifyItems",
+      status: "stable",
     },
     {
       name: "DisableDifferentOriginSubframeDialogSuppression",
@@ -2763,6 +2777,13 @@
       status: "stable"
     },
     {
+      // Enables the beforefilter event and the option.filtered IDL, which are
+      // shared primitives needed by both the FilterableSelect and
+      // CustomizableCombobox features.
+      name: "FilteringPrimitives",
+      implied_by: ["FilterableSelect", "CustomizableCombobox"],
+    },
+    {
       name: "FindFirstMisspellingEndWhenNonEditable",
       status: "stable",
     },
@@ -2811,6 +2832,12 @@
       // Fix for strikethrough toggle not working in empty
       // contenteditable. See https://crbug.com/427915243
       name: "FixStrikethroughToggleInEmptyContentEditable",
+      status: "stable",
+    },
+    // Fix LayoutView viewport mapping in the GeometryMapper fast path for
+    // OOPIFs.
+    {
+      name: "FixVisualRectRemoteViewportTransform",
       status: "stable",
     },
     {
@@ -3209,13 +3236,6 @@
     {
       name: "HTMLElementScrollParent",
       status: "experimental",
-    },
-    {
-      // Don't require a LayoutObject when the 'src' of an <embed> with 'type'
-      // unset changes from empty ("represents nothing") to something
-      // ("potentially active"). https://crbug.com/479233864
-      name: "HTMLEmbedElementRepresentsNothingToActive",
-      status: "stable",
     },
     // Return a natural width/height of zero from
     // HTMLImageElement.naturalWidth/Height for SVG images that don't have a
@@ -3916,7 +3936,7 @@
       // streamHTML, appendHTML, etc.
       name: "NewHTMLSettingMethods",
       status: "experimental",
-      depends_on: ["SetHTMLCanRunScripts", "TrustedTypesCreateParserOptions"]
+      depends_on: ["SetHTMLCanRunScripts", "StreamingSanitizer", "TrustedTypesCreateParserOptions"]
     },
     // This is a killswitch flag, shipped in M144. It can be removed in M146.
     {
@@ -4035,12 +4055,6 @@
       // This will be shipped in M142, and it can be removed in M144.
       // See https://issues.chromium.org/issues/443031270.
       name: "OpenPopoverInvokerRestrictToSameTreeScope",
-      status: "stable",
-    },
-    {
-      // Improves the performance of the option element's MutationObserver.
-      // Enabled in M145, can be removed in M147.
-      name: "OptionMutationObserverImprovement",
       status: "stable",
     },
     {
@@ -5026,16 +5040,6 @@
       status: "stable",
     },
     {
-      name: "SecurePaymentConfirmationBrowserBoundKeys",
-      status: {
-        "Android": "stable",
-        "Mac": "stable",
-        "Win": "stable",
-        "iOS": "",
-        "default": "test",
-      },
-    },
-    {
       name: "SecurePaymentConfirmationCapabilities",
       status: "stable",
     },
@@ -5059,14 +5063,6 @@
         "Android": "",
         "default": "test",
       },
-    },
-    {
-      // Replicates old behavior which removes selectedness from option
-      // elements when they are all removed from a select at the same time.
-      // https://issues.chromium.org/issues/444330901
-      // Enabled in M142, can be removed in M145.
-      name: "SelectChildrenRemovedFix",
-      status: "stable",
     },
     {
       // The selectedcontentelement attribute is for connecting select elements
@@ -5240,6 +5236,7 @@
     {
       name: "ShadowRootAdoptedStyleSheet",
       implied_by: ["DeclarativeCSSModules"],
+      origin_trial_feature_name: "DeclarativeCSSModules",
     },
     {
       // Reference Target allows IDREF attributes to refer inside Shadow DOM.
@@ -5283,8 +5280,9 @@
     {
       // If enabled, SharedWorker supports extendedLifetime
       // https://github.com/whatwg/html/issues/10997
+      // https://issues.chromium.org/issues/400473072
       name: "SharedWorkerExtendedLifetime",
-      status: "experimental",
+      status: "stable",
       origin_trial_feature_name: "SharedWorkerExtendedLifetime",
       origin_trial_allows_third_party: true,
     },
@@ -5359,6 +5357,11 @@
     // Fix for crbug.com/41393366
     {
       name: "SkipUnselectableContentInSerialization",
+      status: "stable",
+    },
+    {
+      // See crbug.com/446113738.
+      name: "SkipUnselectableElementsInParagraphBoundary",
       status: "stable",
     },
     {
@@ -5495,6 +5498,12 @@
     {
       // Gates the `locks()` method on a storage bucket.
       name: "StorageBucketsLocks",
+      status: "experimental",
+    },
+    {
+      // Performs sanitization while parsing instead of post-processing a parsed
+      // fragment. https://crbug.com/498272014
+      name: "StreamingSanitizer",
       status: "experimental",
     },
     {
@@ -5637,6 +5646,12 @@
       status: "stable",
     },
     {
+      // Remove <table>'s explicit `border-color: gray` UA stylesheet rule,
+      // since it is non-standard. See crbug.com/494554835.
+      name: "TableDefaultBorderColorCurrentColor",
+      status: "experimental",
+    },
+    {
       name: "TableIsAutoFixedLayout",
       status: "test",
     },
@@ -5763,7 +5778,7 @@
       // selection focus is inside the element, revealing the full text content.
       // See https://crbug.com/40731275
       name: "TextOverflowClipWithSelection",
-      status: "test",
+      status: "stable",
     },
     {
       // https://crbug.com/41492459
@@ -5967,7 +5982,7 @@
     },
     {
       name: "TwoPhaseViewTransition",
-      status: "test",
+      status: "experimental",
     },
     {
       name: "UnclosedFormControlIsInvalid",
@@ -6218,9 +6233,9 @@
     },
     {
       // If enabled, form controls will only render the OS accent color in a
-      // web app context.
+      // web app context for the initial browser profile.
       name: "WebAppScopeSystemAccentColor",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "WebAppTabStrip",
@@ -6310,12 +6325,6 @@
       origin_trial_feature_name: "WebAuthnAttestationFormats",
       origin_trial_os: ["android"],
       origin_trial_allows_third_party: true,
-    },
-    // Enables providing a URL to retrieve a WebAuthn challenge.
-    // https://chromestatus.com/feature/5109012922892288
-    {
-      name: "WebAuthenticationChallengeUrl",
-      status: "experimental",
     },
     // Enables `uiMode` enumeration field in CredentialRequestOptions struct.
     // and `get()` requests with `uiMode: 'immediate'`.
@@ -6706,11 +6715,6 @@
       name: "WebXRVisibilityMask",
       depends_on: ["WebXR"],
       status: "stable",
-    },
-    {
-      name: "WidthAndHeightAsPresentationAttributesOnNestedSvg",
-      // Disabled due to web compat issues, see https://crbug.com/449170647.
-      status: "experimental",
     },
     {
       name: "WindowControlsOverlay",

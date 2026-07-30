@@ -7,11 +7,7 @@
 
 #include "base/containers/circular_deque.h"
 #include "base/memory/raw_ptr.h"
-
-namespace base {
-template <typename T>
-struct DefaultSingletonTraits;
-}
+#include "base/no_destructor.h"
 
 namespace javascript_dialogs {
 
@@ -45,6 +41,13 @@ class AppModalDialogQueue {
   // longer app modal.
   void ShowNextDialog();
 
+  // Cancels all pending dialogs and prevents new ones from being shown.
+  // Must be called during browser shutdown to avoid showing dialogs after
+  // profiles have been destroyed.
+  void CancelAllDialogs();
+
+  void ResetForTesting();
+
   // Activates and shows the current dialog, if the user clicks on one of the
   // windows disabled by the presence of an app modal dialog. This forces
   // the window to be visible on the display even if desktop manager software
@@ -64,7 +67,7 @@ class AppModalDialogQueue {
   iterator end() { return app_modal_dialog_queue_.end(); }
 
  private:
-  friend struct base::DefaultSingletonTraits<AppModalDialogQueue>;
+  friend class base::NoDestructor<AppModalDialogQueue>;
 
   AppModalDialogQueue();
   ~AppModalDialogQueue();
@@ -78,6 +81,8 @@ class AppModalDialogQueue {
   // queue are not valid.
   AppModalDialogController* GetNextDialog();
 
+  void InvalidateAndDeleteQueuedDialogs();
+
   // Contains all app modal dialogs which are waiting to be shown. The currently
   // active modal dialog is not included.
   base::circular_deque<AppModalDialogController*> app_modal_dialog_queue_;
@@ -89,6 +94,9 @@ class AppModalDialogQueue {
   // Stores if |ShowModalDialog()| is currently being called on an app-modal
   // dialog.
   bool showing_modal_dialog_;
+
+  // Set to true when CancelAllDialogs() is called during browser shutdown.
+  bool shutting_down_ = false;
 };
 
 }  // namespace javascript_dialogs

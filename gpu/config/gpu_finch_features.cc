@@ -116,6 +116,16 @@ BASE_FEATURE(kRemoveGPULegacyIPC, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kSharedImageStubHighPriority, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
+// Disables hardware YUV conversion on NVIDIA + Wayland to workaround a driver
+// bug.
+BASE_FEATURE(kNvidiaWaylandYuvHardwareConversionWorkaround,
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
+
 // Enable GPU Rasterization by default. This can still be overridden by
 // --enable-gpu-rasterization or --disable-gpu-rasterization.
 // DefaultEnableGpuRasterization has launched on Mac, Windows, ChromeOS,
@@ -927,4 +937,10 @@ BASE_FEATURE(kConfigurableGPUWatchdogTimeout,
              base::FEATURE_DISABLED_BY_DEFAULT);
 const base::FeatureParam<int> kConfigurableGPUWatchdogTimeoutSeconds{
     &kConfigurableGPUWatchdogTimeout, "watchdog_timeout_seconds", 30};
+
+// Enables the optimization where GPU channels are sent to renderer processes
+// early when the renderer process is being initialized, instead of waiting
+// for the renderer to request the GPU channel to the browser process.
+BASE_FEATURE(kSendGPUChannelEarly, base::FEATURE_DISABLED_BY_DEFAULT);
+
 }  // namespace features

@@ -31,6 +31,7 @@ class LensSearchController;
 namespace contextual_tasks {
 class ContextualTasksService;
 class ContextualTasksUIInterface;
+class DesktopQueryContextualizerDelegate;
 }  // namespace contextual_tasks
 
 // Struct to store file data and mime type.
@@ -58,6 +59,7 @@ class ContextualTasksComposeboxHandler
       mojo::PendingRemote<composebox::mojom::Page> pending_page,
       mojo::PendingReceiver<searchbox::mojom::PageHandler>
           pending_searchbox_handler,
+      mojo::PendingRemote<searchbox::mojom::Page> pending_searchbox_page,
       GetSessionHandleCallback get_session_callback,
       ClearSessionHandleCallback clear_session_callback,
       TakeInputStateModelCallback take_input_model_callback);
@@ -116,19 +118,15 @@ class ContextualTasksComposeboxHandler
   void CloseLensOverlayFromWebUI(
       composebox::mojom::LensOverlayDismissalSource dismissal_source) override;
 
-  // QueryContextualizer::Delegate:
-  GURL GetTabUrl(contextual_tasks::QueryContextualizer::TabId id) override;
-  SessionID GetTabSessionId(
-      contextual_tasks::QueryContextualizer::TabId id) override;
-  void GetPageContext(
-      contextual_tasks::QueryContextualizer::TabId id,
-      base::OnceCallback<void(std::unique_ptr<lens::ContextualInputData>)>
-          callback) override;
-  void OnPageContextIneligible() override;
+  // Callbacks for QueryContextualizer:
+
+  // Called when the page context is determined to be ineligible for
+  // contextualization (e.g., non-HTTP(S) URL).
+  void OnPageContextIneligible();
+
+  // Called when a tab has been processed for query contextualization.
   void OnTabProcessedForQueryContextualization(
-      contextual_tasks::QueryContextualizer::TabId id) override;
-  contextual_search::ContextualSearchSessionHandle*
-  GetOrCreateSessionHandleForQueryContextualizer() override;
+      contextual_tasks::QueryContextualizer::TabId id);
 
   OmniboxController* GetOmniboxControllerForTesting() const {
     return omnibox_controller();
@@ -193,6 +191,13 @@ class ContextualTasksComposeboxHandler
   // this class.
   raw_ptr<contextual_tasks::ContextualTasksService> contextual_tasks_service_;
 
+ protected:
+  // Delegate handling desktop-specific operations for QueryContextualizer,
+  // such as tab validation and retrieving viewport encoding options.
+  std::unique_ptr<contextual_tasks::DesktopQueryContextualizerDelegate>
+      desktop_delegate_;
+
+ private:
   std::unique_ptr<contextual_tasks::QueryContextualizer> recontextualizer_;
   scoped_refptr<ui::SelectFileDialog> file_dialog_;
   // Map of context tokens to tab IDs for tabs that are delayed for upload.

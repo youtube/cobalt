@@ -13,6 +13,7 @@
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
 #include "base/files/file_path.h"
+#include "base/logging.h"
 #include "base/memory/weak_ptr.h"
 #include "base/test/run_until.h"
 #include "base/version.h"
@@ -125,15 +126,16 @@ class TestManifestAssetManagerComponentState final {
   // Methods for making components installable.
   // These will also cause installations to complete based on the download
   // scenario and active registrations.
-  void UpdateManifest(const ManifestComponentDirectory& manifest_dir);
+  void UpdateManifest(std::unique_ptr<ManifestComponentDirectory> manifest_dir);
   void UpdateBaseModel(const std::string& public_key,
-                       const FakeBaseModelAsset& asset);
+                       std::unique_ptr<FakeBaseModelAsset> asset);
   void UpdateModelAdaptation(const std::string& public_key,
-                             const FakeAdaptationAsset& asset);
+                             std::unique_ptr<FakeAdaptationAsset> asset);
   void UpdateSafetyModel(const std::string& public_key,
-                         const FakeSafetyModelAsset& asset);
-  void UpdateLanguageDetectionModel(const std::string& public_key,
-                                    const FakeLanguageModelAsset& asset);
+                         std::unique_ptr<FakeSafetyModelAsset> asset);
+  void UpdateLanguageDetectionModel(
+      const std::string& public_key,
+      std::unique_ptr<FakeLanguageModelAsset> asset);
 
   // Simulate restart behavior.
   // This will clear all registrations, but not installed components.
@@ -152,12 +154,13 @@ class TestManifestAssetManagerComponentState final {
   bool WasBackgroundUpdateRequested(const std::string& public_key) const;
 
   bool WaitForRegistration(const InstallTarget& target) const {
-    VLOG(1) << "WaitForRegistration";
+    VLOG(1) << "WaitForRegistration PK:" << target.public_key_hex
+            << " V:" << target.version->GetString();
     return base::test::RunUntil([&] { return IsRegistered(target); });
   }
 
   bool WaitForUninstall(const std::string& public_key) const {
-    VLOG(1) << "WaitForUninstall";
+    VLOG(1) << "WaitForUninstall PK:" << public_key;
     return base::test::RunUntil(
         [&]() { return WasUninstallRequested(public_key); });
   }
@@ -183,10 +186,12 @@ class TestManifestAssetManagerComponentState final {
       installable_components_;
 
   // The amount of free disk space we are pretending is available.
-  base::ByteCount free_disk_space_ = base::GiB(100);
+  base::ByteCount free_disk_space_ = base::GiB(30);
   // The directories that we are pretending that the component updater has
   // installed, keyed by public key.
   absl::flat_hash_map<std::string, InstallableComponent> installed_components_;
+  // The path for the installed manifest.
+  std::optional<base::FilePath> manifest_path_;
 
   // Whether to defer calling OnInstallerRegistered/OnAssetUninstalled.
   bool defer_registration_callbacks_ = false;
@@ -195,6 +200,13 @@ class TestManifestAssetManagerComponentState final {
 
   // All registrations for the Manifest component.
   base::RepeatingCallbackList<void(base::FilePath)> manifest_ready_callbacks_;
+
+  // Owned assets for simulations.
+  std::vector<std::unique_ptr<ManifestComponentDirectory>> manifest_assets_;
+  std::vector<std::unique_ptr<FakeBaseModelAsset>> base_model_assets_;
+  std::vector<std::unique_ptr<FakeAdaptationAsset>> adaptation_assets_;
+  std::vector<std::unique_ptr<FakeSafetyModelAsset>> safety_model_assets_;
+  std::vector<std::unique_ptr<FakeLanguageModelAsset>> language_model_assets_;
 
   testing::NiceMock<FakeComponentUpdateService> component_update_service_;
   base::WeakPtrFactory<TestManifestAssetManagerComponentState>

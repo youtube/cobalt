@@ -58,7 +58,7 @@ public final class AutofillSaveCardBottomSheetBridgeTest {
     public void setUp() {
         AutofillSaveCardBottomSheetBridgeJni.setInstanceForTesting(mBridgeNatives);
         Activity activity = Robolectric.buildActivity(Activity.class).create().get();
-        mWindow = new WindowAndroid(activity, /* trackOcclusion= */ true);
+        mWindow = new WindowAndroid(activity, /* occlusionTrackingAllowed= */ true);
         BottomSheetControllerFactory.attach(mWindow, mBottomSheetController);
         AnchoredDialogCoordinatorProvider.attach(mWindow, mAnchoredDialogCoordinator);
         LayoutManagerAppUtils.attach(mWindow, mLayoutManager);
@@ -82,7 +82,7 @@ public final class AutofillSaveCardBottomSheetBridgeTest {
                         .withLogoIconDescription("")
                         .withCardDetail(new CardDetail(/* iconId= */ 0, "label", "subLabel"))
                         .withCardDescription("Card description")
-                        .withLegalMessageLines(Collections.EMPTY_LIST)
+                        .withLegalMessageLines(Collections.emptyList())
                         .withTitleText("Title")
                         .withConfirmText("Confirm")
                         .withCancelText("Cancel")

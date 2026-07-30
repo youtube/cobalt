@@ -158,10 +158,8 @@ class AutocompleteMediator
     private final Callback<@Nullable SiteSearchData> mOnSiteSearchDataChanged =
             this::onSiteSearchDataChanged;
     private final Callback<Integer> mOnFuseboxStateChanged = this::onFuseboxStateChanged;
-    private final Callback<String> mOnUserTextChanged =
-            text -> onInputChanged(/* isOnFocusContext= */ false);
-    private final Callback<Boolean> mOnShouldAutocompleteChanged =
-            state -> onInputChanged(/* isOnFocusContext= */ false);
+    private final Callback<String> mOnUserTextChanged = text -> onInputChanged();
+    private final Callback<Boolean> mOnShouldAutocompleteChanged = state -> onInputChanged();
 
     private @Nullable AutocompleteController mAutocomplete;
     private @Nullable AutocompleteResult mAutocompleteResult;
@@ -169,11 +167,6 @@ class AutocompleteMediator
     private @Nullable PropertyModel mDeleteDialogModel;
 
     private boolean mNativeInitialized;
-    // Tracks whether the activity window is currently focused.
-    // This flag is updated via the onTopResumedActivityChanged(boolean) callback:
-    // https://developer.android.com/reference/android/app/Activity#onTopResumedActivityChanged(boolean)
-    // Default value is true, as this API is only available starting from API level 29.
-    private boolean mActivityWindowFocused = true;
     // When set, specifies the system time of the most recent suggestion list request.
     private @Nullable Long mLastSuggestionRequestTime;
     // When set, specifies the time when the suggestion list was shown the first time.
@@ -534,7 +527,7 @@ class AutocompleteMediator
             // suggestion would take the user to the DSE home page.
             // This is tracked by MobileStartup.LaunchCause / EXTERNAL_SEARCH_ACTION_INTENT
             // metric.
-            onInputChanged(/* isOnFocusContext= */ OmniboxFeatures.shouldRetainOmniboxOnFocus());
+            onInputChanged();
         }
     }
 
@@ -632,17 +625,20 @@ class AutocompleteMediator
     }
 
     private void setAutocompleteController(@Nullable AutocompleteController controller) {
-        if (mAutocomplete != null) {
-            cancelAutocompleteRequests();
-            mAutocomplete.removeOnSuggestionsReceivedListener(this);
-            mAutocomplete = null;
-        }
-
+        removeAutocompleteObservers();
         mAutocomplete = controller;
+        installAutocompleteObservers();
+    }
 
-        if (mAutocomplete != null) {
-            mAutocomplete.addOnSuggestionsReceivedListener(this);
-        }
+    private void installAutocompleteObservers() {
+        if (mAutocomplete == null) return;
+        mAutocomplete.addOnSuggestionsReceivedListener(this);
+    }
+
+    private void removeAutocompleteObservers() {
+        if (mAutocomplete == null) return;
+        cancelAutocompleteRequests();
+        mAutocomplete.removeOnSuggestionsReceivedListener(this);
     }
 
     private void setAutocompleteInput(@Nullable AutocompleteInput input) {
@@ -830,7 +826,7 @@ class AutocompleteMediator
             mAutocompleteInput.setUserText(refineText);
         }
         mDelegate.setOmniboxEditingText(refineText);
-        onInputChanged(/* isOnFocusContext= */ false);
+        onInputChanged();
 
         if (isSearchSuggestion) {
             // Note: the logic below toggles assumes individual values to be represented by
@@ -1003,19 +999,19 @@ class AutocompleteMediator
      */
     @Override
     public void setOmniboxEditingText(String text) {
+        if (!isInInputSession()) return;
         if (mIgnoreOmniboxItemSelection) return;
         mIgnoreOmniboxItemSelection = true;
 
-        if (mAutocompleteInput != null) {
-            // Sync the source of truth (AutocompleteInput) with the focused match.
-            // This includes stripping the keyword if we were previously in keyword mode.
-            mAutocompleteInput.setUserText(stripKeywordIfNecessary(text));
-            // When moving focus between suggestions via keyboard, we should always clear
-            // the site search preview unless we explicitly target a site search chip.
-            mAutocompleteInput.setSiteSearchData(null);
-
-            mDelegate.setOmniboxEditingText(mAutocompleteInput.getUserText());
-        }
+        // In most cases the AutocompleteInput needs to be the source of truth.
+        // This method is used to communicate user selection back to the UrlBar without
+        // committing UserText -- the most recently committed UserText is what the user typed,
+        // and the DPAD selection triggered here represents text that is uncommitted until
+        // - the user amends the input (by typing), or
+        // - the user accepts the input (by pressing Enter).
+        // for that reason this logic should not apply UserText.
+        mDelegate.setOmniboxEditingText(stripKeywordIfNecessary(text));
+        mAutocompleteInput.setSiteSearchData(null);
     }
 
     /**
@@ -1056,7 +1052,7 @@ class AutocompleteMediator
      *
      * @param isOnFocusContext whether Omnibox is currently gaining focus
      */
-    public void onInputChanged(boolean isOnFocusContext) {
+    public void onInputChanged() {
         if (!isInInputSession()) return;
         if (mShouldPreventOmniboxAutocomplete) return;
 
@@ -1094,7 +1090,7 @@ class AutocompleteMediator
 
         stopAutocomplete(false);
 
-        if (isInZeroPrefixContext || isOnFocusContext) {
+        if (isInZeroPrefixContext) {
             clearSuggestions();
             startZeroSuggest();
         } else {
@@ -1248,7 +1244,7 @@ class AutocompleteMediator
 
     private void onAutocompleteRequestTypeChanged(@AutocompleteRequestType int type) {
         if (!isInInputSession()) return;
-        onInputChanged(/* isOnFocusContext= */ false);
+        onInputChanged();
     }
 
     private void onKeywordModeEntered(@Nullable SiteSearchData siteSearchData) {
@@ -1298,7 +1294,7 @@ class AutocompleteMediator
                 siteSearchData != null ? siteSearchData.fullName : null);
 
         if (isInInputSession()) {
-            onInputChanged(/* isOnFocusContext= */ false);
+            onInputChanged();
         }
     }
 
@@ -1830,7 +1826,7 @@ class AutocompleteMediator
             // triggering recalculation of refine arrow icon. TODO(http://crbug.com/446058347):
             // refactor to enable updates to the icon property of the model once the list is already
             // built.
-            onInputChanged(/* isOnFocusContext= */ false);
+            onInputChanged();
         }
     }
 
@@ -1856,7 +1852,7 @@ class AutocompleteMediator
     public void onAttachmentListChanged() {
         if (!isInInputSession()) return;
         // Re-request ZPS in the event of attachments being removed/replaced.
-        onInputChanged(/* isOnFocusContext= */ false);
+        onInputChanged();
     }
 
     /**
@@ -1867,13 +1863,21 @@ class AutocompleteMediator
         if (!isInInputSession()) return;
 
         // Re-request ZPS in the event of new attachments being uploaded.
-        onInputChanged(/* isOnFocusContext= */ false);
+        onInputChanged();
     }
 
     @Override
     public void onTopResumedActivityChanged(boolean isTopResumedActivity) {
-        mActivityWindowFocused = isTopResumedActivity;
         if (!isInInputSession()) return;
+
+        if (isTopResumedActivity) {
+            installAutocompleteObservers();
+            onInputChanged();
+        } else {
+            stopAutocomplete(/* clear= */ true);
+            removeAutocompleteObservers();
+        }
+
         // Always set the window activity focused property to true for hub search so that the
         // dropdown container persists when search activity is dismissed.
         // TODO(crbug.com/390011136): Find a better way to create a seamless animation when
@@ -1883,22 +1887,17 @@ class AutocompleteMediator
                 mAutocompleteInput.getPageClassification() == PageClassification.ANDROID_HUB_VALUE
                         ? true
                         : isTopResumedActivity);
-
-        onInputChanged(/* isOnFocusContext= */ false);
     }
 
     /**
-     * @return Whether there is currently an active omnibox session. An active session is defined by
-     *     the presence of an {@link AutocompleteInput} and the activity window having focus.
+     * @return Whether there is currently an active omnibox session, regardless of whether the
+     *     current activity window is active.
      */
     @EnsuresNonNullIf(
             value = {"mAutocompleteInput", "mSessionState", "mAutocomplete"},
             result = true)
-    private boolean isInInputSession() {
-        return mSessionState != null
-                && mAutocompleteInput != null
-                && mAutocomplete != null
-                && mActivityWindowFocused;
+    /* package */ boolean isInInputSession() {
+        return mSessionState != null && mAutocompleteInput != null && mAutocomplete != null;
     }
 
     @Override

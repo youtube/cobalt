@@ -4,7 +4,9 @@
 
 #import "ios/chrome/browser/fullscreen/model/fullscreen_browser_agent.h"
 
+#import "base/test/metrics/histogram_tester.h"
 #import "base/test/task_environment.h"
+#import "ios/chrome/browser/fullscreen/public/fullscreen_metrics.h"
 #import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
 #import "testing/platform_test.h"
@@ -70,10 +72,6 @@ class FullscreenBrowserAgentTest : public PlatformTest {
     return base::PassKey<FullscreenBrowserAgentTest>();
   }
 
-  void InvalidateInsetRange(FullscreenBrowserAgent* agent) {
-    agent->InvalidateInsetRange(PassKey());
-  }
-
   base::test::TaskEnvironment task_environment_;
   std::unique_ptr<TestProfileIOS> profile_;
   std::unique_ptr<TestBrowser> browser_;
@@ -115,7 +113,7 @@ TEST_F(FullscreenBrowserAgentTest, InvalidateInsetRange) {
   agent->AddObserver(&observer2);
   agent->AddObserver(&observer3);
 
-  InvalidateInsetRange(agent);
+  agent->InvalidateInsetRange();
 
   EXPECT_TRUE(base_observer.will_update_obscured_inset_range_called_);
   EXPECT_TRUE(base_observer.did_update_obscured_inset_range_called_);
@@ -147,12 +145,16 @@ TEST_F(FullscreenBrowserAgentTest, IncrementalScroll) {
   agent->AddObserver(&observer2);
 
   // Initialize ranges. Top delta = 40, Bottom delta = 60.
-  InvalidateInsetRange(agent);
+  agent->InvalidateInsetRange();
 
   EXPECT_EQ(1.0, agent->top_progress());
   EXPECT_EQ(1.0, agent->bottom_progress());
-  EXPECT_FALSE(base_observer.will_update_called_);
-  EXPECT_FALSE(base_observer.did_update_called_);
+  EXPECT_TRUE(base_observer.will_update_called_);
+  EXPECT_TRUE(base_observer.did_update_called_);
+
+  // Reset observer flags.
+  base_observer.will_update_called_ = false;
+  base_observer.did_update_called_ = false;
 
   // Scroll down partially.
   agent->IncrementalScroll(20.0, PassKey());
@@ -188,6 +190,7 @@ TEST_F(FullscreenBrowserAgentTest, IncrementalScroll) {
 
 // Tests that EnterFullscreen and ExitFullscreen correctly update progress.
 TEST_F(FullscreenBrowserAgentTest, EnterExitFullscreen) {
+  base::HistogramTester histogram_tester;
   FullscreenBrowserAgent::CreateForBrowser(browser_.get());
   FullscreenBrowserAgent* agent =
       FullscreenBrowserAgent::FromBrowser(browser_.get());
@@ -198,26 +201,40 @@ TEST_F(FullscreenBrowserAgentTest, EnterExitFullscreen) {
   // Initialize ranges. Top delta = 40.
   RangeTestFullscreenBrowserAgentObserver observer1(UIRectEdgeTop, 10.0, 50.0);
   agent->AddObserver(&observer1);
-  InvalidateInsetRange(agent);
+  agent->InvalidateInsetRange();
 
   EXPECT_EQ(1.0, agent->top_progress());
 
+  // Reset observer flags.
+  base_observer.will_update_called_ = false;
+  base_observer.did_update_called_ = false;
+
   // Enter Fullscreen.
-  agent->EnterFullscreen(PassKey(), /*animated=*/false);
+  agent->EnterFullscreen(PassKey(),
+                         FullscreenModeTransitionTrigger::kForcedByCode,
+                         /*animated=*/false);
   EXPECT_EQ(0.0, agent->top_progress());
   EXPECT_EQ(10.0, agent->insets().top);
   EXPECT_TRUE(base_observer.will_update_called_);
   EXPECT_TRUE(base_observer.did_update_called_);
+  histogram_tester.ExpectUniqueSample(
+      kEnterFullscreenModeTransitionTriggerHistogram,
+      FullscreenModeTransitionTrigger::kForcedByCode, 1);
 
   base_observer.will_update_called_ = false;
   base_observer.did_update_called_ = false;
 
   // Exit Fullscreen.
-  agent->ExitFullscreen(PassKey(), /*animated=*/false);
+  agent->ExitFullscreen(PassKey(),
+                        FullscreenModeTransitionTrigger::kForcedByCode,
+                        /*animated=*/false);
   EXPECT_EQ(1.0, agent->top_progress());
   EXPECT_EQ(50.0, agent->insets().top);
   EXPECT_TRUE(base_observer.will_update_called_);
   EXPECT_TRUE(base_observer.did_update_called_);
+  histogram_tester.ExpectUniqueSample(
+      kExitFullscreenModeTransitionTriggerHistogram,
+      FullscreenModeTransitionTrigger::kForcedByCode, 1);
 
   agent->RemoveObserver(&base_observer);
   agent->RemoveObserver(&observer1);

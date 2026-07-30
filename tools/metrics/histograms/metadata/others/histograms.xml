@@ -2784,7 +2784,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="BootTime.Chrome.{Type}" units="ms" expires_after="2026-09-27">
+<histogram name="BootTime.Chrome.{Type}" units="ms" expires_after="2027-04-07">
   <owner>takayas@google.com</owner>
   <owner>uekawa@google.com</owner>
   <summary>
@@ -2814,7 +2814,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="BootTime.Firmware.{Type}" units="ms"
-    expires_after="2026-09-12">
+    expires_after="2027-04-07">
   <owner>takayas@google.com</owner>
   <owner>uekawa@google.com</owner>
   <summary>
@@ -2843,7 +2843,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="BootTime.Kernel.{Type}" units="ms" expires_after="2026-05-24">
+<histogram name="BootTime.Kernel.{Type}" units="ms" expires_after="2027-04-07">
   <owner>takayas@google.com</owner>
   <owner>uekawa@google.com</owner>
   <summary>
@@ -2940,7 +2940,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="BootTime.System.{Type}" units="ms" expires_after="2026-05-17">
+<histogram name="BootTime.System.{Type}" units="ms" expires_after="2027-04-07">
   <owner>takayas@google.com</owner>
   <owner>uekawa@google.com</owner>
   <summary>
@@ -2976,7 +2976,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="BootTime.Total2.{Type}" units="ms" expires_after="2026-09-27">
+<histogram name="BootTime.Total2.{Type}" units="ms" expires_after="2027-04-07">
   <owner>takayas@google.com</owner>
   <owner>uekawa@google.com</owner>
   <summary>
@@ -3118,7 +3118,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ComponentUpdater.Calls" enum="ComponentUpdaterCalls"
-    expires_after="2026-08-02">
+    expires_after="2026-10-04">
   <owner>sorin@chromium.org</owner>
   <owner>src/components/component_updater/OWNERS</owner>
   <summary>
@@ -3205,36 +3205,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="CopylessPaste.CacheHit" enum="CopylessCacheHit"
-    expires_after="2020-03-01">
-  <owner>wychen@chromium.org</owner>
-  <summary>
-    The cache hit status of metadata extraction for AppIndexing.
-  </summary>
-</histogram>
-
-<histogram name="DeviceNotifications.StatusIconMenu.Overflow.ConnectionCount"
-    units="connections" expires_after="2026-05-03">
-  <owner>robpitkin@google.com</owner>
-  <owner>deviceapi-team@google.com</owner>
-  <summary>
-    The number of connections when the number of menu items for the device
-    status icon exceeds the command ID limit. This is recorded when the status
-    icon is refreshed and the number of items overflows.
-  </summary>
-</histogram>
-
-<histogram name="DeviceNotifications.StatusIconMenu.Overflow.ProfileCount"
-    units="profiles" expires_after="2026-05-03">
-  <owner>robpitkin@google.com</owner>
-  <owner>deviceapi-team@google.com</owner>
-  <summary>
-    The number of profiles when the number of menu items for the device status
-    icon exceeds the command ID limit. This is recorded when the status icon is
-    refreshed and the number of items overflows.
-  </summary>
-</histogram>
-
 <histogram name="DirectSockets.TCPNetworkFailures" enum="NetErrorCodes"
     expires_after="2026-09-27">
   <owner>greengrape@google.com</owner>
@@ -3245,7 +3215,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DirectSockets.TCPReadableStreamError" enum="NetErrorCodes"
-    expires_after="2026-08-02">
+    expires_after="2026-10-04">
   <owner>greengrape@google.com</owner>
   <owner>iwa-team@google.com</owner>
   <summary>How often tcp socket readable stream is errored.</summary>
@@ -3324,7 +3294,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DocumentScan.ScanFailed" enum="DocumentScanSaneBackend"
-    expires_after="2026-08-02">
+    expires_after="2026-10-04">
   <owner>bmgordon@chromium.org</owner>
   <owner>project-bolton@google.com</owner>
   <summary>
@@ -3460,7 +3430,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Eche.AppStream.LaunchAttempt" enum="AppStreamLaunchEntryPoint"
-    expires_after="2026-08-02">
+    expires_after="2026-10-04">
   <owner>crisrael@google.com</owner>
   <owner>jonmann@chromium.org</owner>
   <owner>chromeos-cross-device-eng@google.com</owner>
@@ -3518,7 +3488,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Eche.MultiDeviceFeatureState" enum="MultiDevice_FeatureState"
-    expires_after="2026-08-02">
+    expires_after="2026-10-04">
   <owner>jonmann@chromium.org</owner>
   <owner>chromeos-cross-device-eng@google.com</owner>
   <summary>
@@ -3551,7 +3521,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Eche.Onboarding.UserAction" enum="OnboardingUserActionMetric"
-    expires_after="2026-08-02">
+    expires_after="2026-10-04">
   <owner>crisrael@google.com</owner>
   <owner>exo-core-eng@google.com</owner>
   <owner>samchiu@google.com</owner>
@@ -3562,7 +3532,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Eche.StreamEvent" enum="StreamState"
-    expires_after="2026-08-02">
+    expires_after="2026-10-04">
   <owner>crisrael@google.com</owner>
   <owner>exo-core-eng@google.com</owner>
   <owner>chromeos-cross-device-eng@google.com</owner>
@@ -3662,7 +3632,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Eche.UniqueAppsStreamed.PerDay" units="count"
-    expires_after="2026-08-02">
+    expires_after="2026-10-04">
   <owner>crisrael@google.com</owner>
   <owner>jonmann@chromium.org</owner>
   <owner>chromeos-cross-device-eng@google.com</owner>
@@ -4004,17 +3974,6 @@ chromium-metrics-reviews@google.com.
     request submitted by a user and the report has been added to the send queue.
     Fires during the process of sending a feedback report on Chrome or Chrome
     OS.
-  </summary>
-</histogram>
-
-<histogram name="Feedback.HappinessTrackingSurvey.BubbleUsage"
-    enum="HappinessTrackingSurveyDesktopBubbleUsage" expires_after="M82">
-  <owner>weili@chromium.org</owner>
-  <owner>robliao@chromium.org</owner>
-  <summary>
-    Records how user interacts with Happiness Tracking Surveys (HaTS) bubble
-    prompt which is shown for a subset of users. Each time when the bubble is
-    shown, there should be one and only one enum type is recorded.
   </summary>
 </histogram>
 
@@ -5153,15 +5112,6 @@ chromium-metrics-reviews@google.com.
   <summary>Tracks the result of parsing id field in the Manifest.</summary>
 </histogram>
 
-<histogram name="Mist.SwitchResult" enum="MistSwitchResult" expires_after="M77">
-  <owner>akhouderchah@chromium.org</owner>
-  <owner>benchan@chromium.org</owner>
-  <summary>
-    The result (e.g. success or the type of failure) of a modem interface switch
-    operation performed by mist on Chrome OS.
-  </summary>
-</histogram>
-
 <histogram name="Mojo.Channel.ChannelInitPauseToFlushTime" units="ms"
     expires_after="2026-09-13">
   <owner>rakina@chromium.org</owner>
@@ -5272,7 +5222,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Mojo.Channel.WriteToReadLatencyUs" units="microseconds"
-    expires_after="2026-08-02">
+    expires_after="2026-10-04">
   <owner>lizeb@chromium.org</owner>
   <owner>rockot@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -5671,7 +5621,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OriginTrials.PersistentOriginTrial.LevelDbLoadTime" units="ms"
-    expires_after="2026-08-03">
+    expires_after="2026-10-04">
   <owner>pbirk@chromium.org</owner>
   <owner>src/components/origin_trials/OWNERS</owner>
   <summary>
@@ -5980,7 +5930,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PageImageService.Backend.Suggest.Result{ClientId}"
-    enum="PageImageServiceResult" expires_after="2026-05-14">
+    enum="PageImageServiceResult" expires_after="2027-04-01">
   <owner>wylieb@google.com</owner>
   <owner>chrome-journeys@google.com</owner>
   <component>1457319</component>
@@ -5994,7 +5944,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PageImageService.Backend{ClientId}"
-    enum="PageImageServiceBackend" expires_after="2026-05-14">
+    enum="PageImageServiceBackend" expires_after="2027-04-01">
   <owner>wylieb@google.com</owner>
   <owner>chrome-journeys@google.com</owner>
   <component>1457319</component>
@@ -6456,7 +6406,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ReadingList.Read.Number" units="count"
-    expires_after="2026-08-02">
+    expires_after="2026-10-04">
   <owner>gambard@chromium.org</owner>
   <owner>bling-team@google.com</owner>
   <summary>Number of read entries in reading list.</summary>
@@ -8101,17 +8051,6 @@ should be kept until we use this API.  -->
   </summary>
 </histogram>
 
-<histogram name="Tracing.Background.UploadingTraceSizeInKB" units="KB"
-    expires_after="2026-02-10">
-  <owner>oksamyt@chromium.org</owner>
-  <owner>tracing@chromium.org</owner>
-  <owner>chrometto-team@google.com</owner>
-  <summary>
-    The size, in kilobytes, of a trace about to be uploaded. Values can range
-    from 1KB to 100MB.
-  </summary>
-</histogram>
-
 <histogram name="Tracing.ElevatedTracingService.LaunchResult.{Stage}"
     enum="Hresult" expires_after="2026-08-09">
   <owner>etiennep@chromium.org</owner>
@@ -8528,7 +8467,7 @@ regressions. -->
 </histogram>
 
 <histogram name="VoiceInteraction.VoiceSearchResult" enum="BooleanSuccess"
-    expires_after="2026-08-03">
+    expires_after="2026-10-04">
   <owner>basiaz@google.com</owner>
   <owner>chrome-language@google.com</owner>
   <summary>

@@ -212,8 +212,8 @@ if (!is_android && !is_mac) {
         "//chrome/app:exit_code_watcher",
         "//chrome/app/version_assembly:chrome_exe_manifest",
         "//chrome/browser:active_use_util",
-        "//chrome/browser:chrome_process_finder",
         "//chrome/browser/policy:path_parser",
+        "//chrome/browser/win:chrome_process_finder",
         "//chrome/chrome_elf",
         "//chrome/common:constants",
         "//chrome/common/win:delay_load_failure_support",
@@ -226,6 +226,7 @@ if (!is_android && !is_mac) {
         "//components/crash/core/app:run_as_crashpad_handler",
         "//components/crash/core/common",
         "//components/crash/win:chrome_wer",
+        "//components/version_info:channel",
         "//components/webui/flags:switches",
         "//content:sandbox_helper_win",
         "//content/public/common:static_switches",
@@ -388,6 +389,10 @@ if (!is_android && !is_mac) {
         "app/chrome_main_linux.h",
       ]
     }
+
+    if (is_chrome_for_testing) {
+      deps += [ "//chrome/browser/chrome_for_testing:browser" ]
+    }
   }
 
   # TODO(crbug.com/40204298): Make this work on other platforms.
@@ -449,6 +454,10 @@ if (is_win) {
 
     if (use_aura) {
       deps += [ "//ui/compositor" ]
+    }
+
+    if (is_chrome_for_testing) {
+      deps += [ "//chrome/browser/chrome_for_testing:browser" ]
     }
   }
 
@@ -1127,6 +1136,7 @@ if (is_win) {
       ":dependencies",
       "//build:chromeos_buildflags",
       "//chrome/app:command_ids",
+      "//chrome/browser/mac",
       "//chrome/common:buildflags",
       "//chrome/common:version_header",
       "//chrome/common/profiler",
@@ -1140,6 +1150,10 @@ if (is_win) {
 
     if (is_chromeos) {
       deps += [ "//chrome/browser/ash/schedqos" ]
+    }
+
+    if (is_chrome_for_testing) {
+      deps += [ "//chrome/browser/chrome_for_testing:browser" ]
     }
 
     if (is_component_build) {

@@ -39,7 +39,6 @@
 #include "components/paint_preview/buildflags/buildflags.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/sessions/core/session_id.h"
-#include "components/zoom/zoom_observer.h"
 #include "content/public/browser/fullscreen_types.h"
 #include "content/public/browser/page_navigator.h"
 #include "content/public/browser/web_contents.h"
@@ -123,7 +122,6 @@ class Browser : public TabStripModelObserver,
                 public content::WebContentsDelegate,
                 public ChromeWebModalDialogManagerDelegate,
                 public BookmarkTabHelperObserver,
-                public zoom::ZoomObserver,
                 public BrowserWindowInterface,
                 public DesktopBrowserWindowCapabilitiesDelegate {
  public:
@@ -728,8 +726,6 @@ class Browser : public TabStripModelObserver,
   std::unique_ptr<content::EyeDropper> OpenEyeDropper(
       content::RenderFrameHost* frame,
       content::EyeDropperListener* listener) override;
-  void InitiatePreview(content::WebContents& web_contents,
-                       const GURL& url) override;
   bool ShouldUseInstancedSystemMediaControls() const override;
   void DraggableRegionsChanged(
       const std::vector<blink::mojom::DraggableRegionPtr>& regions,
@@ -1041,12 +1037,6 @@ class Browser : public TabStripModelObserver,
   // Overridden from BookmarkTabHelperObserver:
   void URLStarredChanged(content::WebContents* web_contents,
                          bool starred) override;
-
-  // Overridden from ZoomObserver:
-  void OnZoomControllerDestroyed(
-      zoom::ZoomController* zoom_controller) override;
-  void OnZoomChanged(
-      const zoom::ZoomController::ZoomChangedEventData& data) override;
 
   // Command and state updating ///////////////////////////////////////////////
 
@@ -1373,6 +1363,8 @@ class Browser : public TabStripModelObserver,
       base::RepeatingCallbackList<void(BrowserWindowInterface*)>;
   DidBecomeInactiveCallbackList did_become_inactive_callback_list_;
 
+  ui::UnownedUserDataHost unowned_user_data_host_;
+
   std::unique_ptr<BrowserWindowFeatures> features_;
 
 #if BUILDFLAG(IS_OZONE)
@@ -1385,8 +1377,6 @@ class Browser : public TabStripModelObserver,
 
   // Tracks whether the browser object is fully initialized.
   bool is_initialized_ = false;
-
-  ui::UnownedUserDataHost unowned_user_data_host_;
 
   // The following factory is used for chrome update coalescing.
   base::WeakPtrFactory<Browser> chrome_updater_factory_{this};

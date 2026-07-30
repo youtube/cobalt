@@ -28,8 +28,6 @@
 #include "chrome/browser/password_manager/factories/account_password_store_factory.h"
 #include "chrome/browser/password_manager/factories/profile_password_store_factory.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/subscription_eligibility/subscription_eligibility_prefs.h"
-#include "chrome/browser/subscription_eligibility/subscription_eligibility_service.h"
 #include "chrome/browser/subscription_eligibility/subscription_eligibility_service_factory.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/user_education/user_education_service.h"
@@ -40,6 +38,8 @@
 #include "components/password_manager/core/browser/password_store/password_store_interface.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
+#include "components/subscription_eligibility/subscription_eligibility_prefs.h"
+#include "components/subscription_eligibility/subscription_eligibility_service.h"
 #include "components/variations/service/variations_service.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
@@ -120,6 +120,14 @@ void GlicHandler::RegisterMessages() {
       "getWebActuationToggleVisibility",
       base::BindRepeating(&GlicHandler::HandleGetWebActuationToggleVisibility,
                           base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "getWebActuationEnabled",
+      base::BindRepeating(&GlicHandler::HandleGetWebActuationEnabled,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "setWebActuationEnabled",
+      base::BindRepeating(&GlicHandler::HandleSetWebActuationEnabled,
+                          base::Unretained(this)));
 }
 
 void GlicHandler::OnJavascriptAllowed() {
@@ -136,12 +144,12 @@ void GlicHandler::OnJavascriptAllowed() {
         base::BindRepeating(&GlicHandler::OnWebActuationCapabilityChanged,
                             base::Unretained(this)));
 
-    pref_change_registrar_.Init(profile->GetPrefs());
-    pref_change_registrar_.Add(
-        glic::prefs::kGlicUserEnabledActuationOnWeb,
-        base::BindRepeating(&GlicHandler::OnWebActuationPrefChanged,
-                            base::Unretained(this)));
+    web_actuation_pref_subscription_ =
+        service->enabling().RegisterOnUserEnabledActuationOnWebChanged(
+            base::BindRepeating(&GlicHandler::OnWebActuationPrefChanged,
+                                base::Unretained(this)));
 
+    pref_change_registrar_.Init(profile->GetPrefs());
     pref_change_registrar_.Add(
         ::subscription_eligibility::prefs::kAiSubscriptionTier,
         base::BindRepeating(&GlicHandler::OnWebActuationPrefChanged,
@@ -163,6 +171,7 @@ void GlicHandler::OnJavascriptAllowed() {
 void GlicHandler::OnJavascriptDisallowed() {
   glic_enabling_subscription_ = {};
   web_actuation_subscription_ = {};
+  web_actuation_pref_subscription_ = {};
   observation_.Reset();
   pref_change_registrar_.RemoveAll();
 }
@@ -295,6 +304,15 @@ void GlicHandler::FireOnGlicDisallowedByAdminChanged() {
 
 void GlicHandler::OnWebActuationPrefChanged() {
   FireWebActuationToggleVisibilityChanged();
+
+  Profile* profile = Profile::FromWebUI(web_ui());
+  auto* glic_service =
+      glic::GlicKeyedServiceFactory::GetGlicKeyedService(profile);
+  if (glic_service) {
+    bool enabled = glic_service->enabling().GetUserEnabledActuationOnWeb();
+    FireWebUIListener("glic-web-actuation-enabled-changed",
+                      base::Value(enabled));
+  }
 }
 
 void GlicHandler::OnWebActuationCapabilityChanged(bool can_act_on_web) {
@@ -310,6 +328,33 @@ void GlicHandler::HandleGetWebActuationToggleVisibility(
   ResolveJavascriptCallback(
       callback_id,
       base::Value(ShouldShowWebActuationToggle(Profile::FromWebUI(web_ui()))));
+}
+
+void GlicHandler::HandleGetWebActuationEnabled(const base::ListValue& args) {
+  CHECK_EQ(1U, args.size());
+  const base::Value& callback_id = args[0];
+  AllowJavascript();
+
+  Profile* profile = Profile::FromWebUI(web_ui());
+  auto* glic_service =
+      glic::GlicKeyedServiceFactory::GetGlicKeyedService(profile);
+  bool enabled = false;
+  if (glic_service) {
+    enabled = glic_service->enabling().GetUserEnabledActuationOnWeb();
+  }
+  ResolveJavascriptCallback(callback_id, base::Value(enabled));
+}
+
+void GlicHandler::HandleSetWebActuationEnabled(const base::ListValue& args) {
+  CHECK_EQ(1U, args.size());
+  const bool enabled = args[0].GetBool();
+
+  Profile* profile = Profile::FromWebUI(web_ui());
+  auto* glic_service =
+      glic::GlicKeyedServiceFactory::GetGlicKeyedService(profile);
+  if (glic_service) {
+    glic_service->enabling().SetUserEnabledActuationOnWeb(enabled);
+  }
 }
 
 void GlicHandler::FireWebActuationToggleVisibilityChanged() {
@@ -369,9 +414,7 @@ bool GlicHandler::ShouldShowWebActuationToggle(Profile* profile) {
   }
   // Show the toggle if the user has explicitly modified the preference before
   // (via accepting the consent card).
-  const auto* pref = profile->GetPrefs()->FindPreference(
-      glic::prefs::kGlicUserEnabledActuationOnWeb);
-  if (pref && !pref->IsDefaultValue()) {
+  if (!glic_service->enabling().IsUserEnabledActuationOnWebDefault()) {
     return true;
   }
   return false;

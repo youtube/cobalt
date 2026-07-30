@@ -6,6 +6,8 @@
 
 #include "base/command_line.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/to_string.h"
 #include "base/task/sequenced_task_runner.h"
@@ -31,23 +33,32 @@
 #include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
 #include "chrome/browser/ui/interaction/browser_elements.h"
 #include "chrome/browser/ui/layout_constants.h"
+#include "chrome/browser/ui/side_panel/side_panel_entry.h"
+#include "chrome/browser/ui/side_panel/side_panel_enums.h"
+#include "chrome/browser/ui/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/split_tab_metrics.h"
+#include "chrome/browser/ui/test/test_browser_dialog.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
 #include "chrome/browser/ui/views/location_bar/webui_location_bar.h"
+#include "chrome/browser/ui/views/toolbar/home_button.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
+#include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar_ui.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/browser_apis/browser_controls/browser_controls_api.mojom.h"
 #include "components/browser_apis/ui_controllers/toolbar/toolbar_ui_api_data_model.mojom.h"
 #include "components/collaboration/public/features.h"
+#include "components/contextual_tasks/public/features.h"
+#include "components/data_sharing/public/features.h"
 #include "components/metrics/content/subprocess_metrics_provider.h"
 #include "components/prefs/pref_service.h"
 #include "components/strings/grit/components_strings.h"
@@ -68,6 +79,7 @@
 #include "content/public/test/navigation_handle_observer.h"
 #include "content/public/test/scoped_accessibility_mode_override.h"
 #include "content/public/test/test_navigation_observer.h"
+#include "net/base/filename_util.h"
 #include "third_party/blink/public/common/page/page_zoom.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 #include "third_party/skia/include/core/SkBitmap.h"
@@ -83,11 +95,13 @@
 #include "ui/snapshot/snapshot.h"
 #include "ui/views/controls/menu/menu_runner.h"
 #include "ui/views/controls/menu/menu_runner_handler.h"
+#include "ui/views/controls/styled_label.h"
 #include "ui/views/controls/webview/webview.h"
 #include "ui/views/interaction/element_tracker_views.h"
 #include "ui/views/test/menu_runner_test_api.h"
 #include "ui/views/test/view_skia_gold_pixel_diff.h"
 #include "ui/views/view_utils.h"
+#include "ui/views/widget/any_widget_observer.h"
 #include "ui/views/widget/widget.h"
 
 namespace {
@@ -368,20 +382,15 @@ class WebUIToolbarWebViewPixelBrowserTest : public InProcessBrowserTest {
   base::test::ScopedFeatureList feature_list_;
 };
 
-// TODO(crbug.com/493362471): Deflake and reenable it.
-IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest, DISABLED_Basic) {
+IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest, Basic) {
   BasicPixelTest(browser(), "Basic");
 }
 
-// TODO(crbug.com/493362471): Deflake and reenable it.
-IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
-                       DISABLED_IncognitoBasic) {
+IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest, IncognitoBasic) {
   BasicPixelTest(CreateIncognitoBrowser(), "IncognitoBasic");
 }
 
-// TODO(crbug.com/493362471): Deflake and reenable it.
-IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
-                       DISABLED_Accessibility) {
+IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest, Accessibility) {
   content::ScopedAccessibilityModeOverride mode_override(ui::kAXModeComplete);
   ui::TrackedElement* element = nullptr;
   WebUIToolbarWebView* webui_toolbar_view = nullptr;
@@ -407,21 +416,25 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
             reload.GetStringAttribute(ax::mojom::StringAttribute::kName));
   EXPECT_EQ("Reload this page", reload.GetStringAttribute(
                                     ax::mojom::StringAttribute::kDescription));
-  EXPECT_EQ(0, reload.GetIntAttribute(ax::mojom::IntAttribute::kHasPopup));
+  EXPECT_EQ(static_cast<int>(ax::mojom::HasPopup::kFalse),
+            reload.GetIntAttribute(ax::mojom::IntAttribute::kHasPopup));
 
   // Verify enabling devtools is reflected in HasPopup attribute.
   webui_toolbar_view->GetReloadControl()->SetDevToolsStatus(true);
   content::WaitForAccessibilityTreeToChange(web_view->GetWebContents());
   content::WaitForAccessibilityTreeToContainNodeWithName(
       web_view->GetWebContents(), "Reload");
-  reload_node =
-      content::FindAccessibilityNode(web_view->GetWebContents(), find_criteria);
-  ASSERT_TRUE(reload_node);
-  EXPECT_EQ(2, reload_node->GetData().GetIntAttribute(
-                   ax::mojom::IntAttribute::kHasPopup));
-  EXPECT_EQ("Reload this page, hold to see more options",
-            reload_node->GetData().GetStringAttribute(
-                ax::mojom::StringAttribute::kDescription));
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    ui::AXPlatformNodeDelegate* node = content::FindAccessibilityNode(
+        web_view->GetWebContents(), find_criteria);
+    return node &&
+           node->GetData().GetIntAttribute(
+               ax::mojom::IntAttribute::kHasPopup) ==
+               static_cast<int>(ax::mojom::HasPopup::kMenu) &&
+           node->GetData().GetStringAttribute(
+               ax::mojom::StringAttribute::kDescription) ==
+               "Reload this page, hold to see more options";
+  }));
 
   // Verify appropriate accessibility properties for back button.
   content::WaitForAccessibilityTreeToContainNodeWithName(
@@ -485,14 +498,17 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
   content::WaitForAccessibilityTreeToContainNodeWithName(
       web_view->GetWebContents(), "Reload");
   find_criteria.name = "Reload";
-  reload_node =
-      content::FindAccessibilityNode(web_view->GetWebContents(), find_criteria);
-  ASSERT_TRUE(reload_node);
-  EXPECT_EQ(0, reload_node->GetData().GetIntAttribute(
-                   ax::mojom::IntAttribute::kHasPopup));
-  EXPECT_EQ("Stop loading this page",
-            reload_node->GetData().GetStringAttribute(
-                ax::mojom::StringAttribute::kDescription));
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    ui::AXPlatformNodeDelegate* node = content::FindAccessibilityNode(
+        web_view->GetWebContents(), find_criteria);
+    return node &&
+           node->GetData().GetIntAttribute(
+               ax::mojom::IntAttribute::kHasPopup) ==
+               static_cast<int>(ax::mojom::HasPopup::kFalse) &&
+           node->GetData().GetStringAttribute(
+               ax::mojom::StringAttribute::kDescription) ==
+               "Stop loading this page";
+  }));
 
   // Verify it works when returning to kReload mode.
   webui_toolbar_view->GetReloadControl()->ChangeMode(
@@ -500,15 +516,17 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
   content::WaitForAccessibilityTreeToChange(web_view->GetWebContents());
   content::WaitForAccessibilityTreeToContainNodeWithName(
       web_view->GetWebContents(), "Reload");
-  find_criteria.name = "Reload";
-  reload_node =
-      content::FindAccessibilityNode(web_view->GetWebContents(), find_criteria);
-  ASSERT_TRUE(reload_node);
-  EXPECT_EQ(2, reload_node->GetData().GetIntAttribute(
-                   ax::mojom::IntAttribute::kHasPopup));
-  EXPECT_EQ("Reload this page, hold to see more options",
-            reload_node->GetData().GetStringAttribute(
-                ax::mojom::StringAttribute::kDescription));
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    ui::AXPlatformNodeDelegate* node = content::FindAccessibilityNode(
+        web_view->GetWebContents(), find_criteria);
+    return node &&
+           node->GetData().GetIntAttribute(
+               ax::mojom::IntAttribute::kHasPopup) ==
+               static_cast<int>(ax::mojom::HasPopup::kMenu) &&
+           node->GetData().GetStringAttribute(
+               ax::mojom::StringAttribute::kDescription) ==
+               "Reload this page, hold to see more options";
+  }));
 }
 
 IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
@@ -2065,6 +2083,15 @@ class WebUIToolbarWebViewHomeButtonBrowserTest : public InProcessBrowserTest {
     return webui_toolbar_view;
   }
 
+  void WaitForUndoBubble(WebUIToolbarWebView* webui_toolbar_view) {
+    ASSERT_TRUE(base::test::RunUntil([&]() {
+      return views::ElementTrackerViews::GetInstance()->GetFirstMatchingView(
+                 HomePageUndoBubbleCoordinator::kHomePageUndoBubbleMainViewId,
+                 views::ElementTrackerViews::GetContextForView(
+                     webui_toolbar_view)) != nullptr;
+    }));
+  }
+
   GURL GetHomeURL() {
     GURL home_url(
         browser()->profile()->GetPrefs()->GetString(prefs::kHomePage));
@@ -2072,6 +2099,53 @@ class WebUIToolbarWebViewHomeButtonBrowserTest : public InProcessBrowserTest {
       return GURL(chrome::kChromeUINewTabURL);
     }
     return home_url;
+  }
+
+  WebUIToolbarWebView* PerformDragAndDrop(const std::string& new_home_url) {
+    WebUIToolbarWebView* webui_toolbar_view = SetUpAndPinHomeButton();
+    views::WebView* web_view = webui_toolbar_view->GetWebViewForTesting();
+    content::WebContents* web_contents = web_view->GetWebContents();
+
+    // JS to simulate a drop event on the home button.
+    EXPECT_TRUE(content::ExecJs(
+        web_contents,
+        base::StringPrintf(R"(
+      const homeButton = document.querySelector('toolbar-app').shadowRoot
+                             .querySelector('#home').shadowRoot
+                             .querySelector('cr-icon-button');
+      const dataTransfer = new DataTransfer();
+      dataTransfer.setData('text/uri-list', '%s');
+      dataTransfer.setData('text/plain', '%s');
+      const dropEvent = new DragEvent('drop', {
+        bubbles: true,
+        cancelable: true,
+        dataTransfer: dataTransfer
+      });
+      homeButton.dispatchEvent(dropEvent);
+    )",
+                           new_home_url.c_str(), new_home_url.c_str())));
+
+    // Wait for the bubble widget to be created.
+    WaitForUndoBubble(webui_toolbar_view);
+
+    // Verify the new home page was correctly set.
+    auto* prefs = browser()->profile()->GetPrefs();
+    EXPECT_EQ(new_home_url, prefs->GetString(prefs::kHomePage));
+    EXPECT_FALSE(prefs->GetBoolean(prefs::kHomePageIsNewTabPage));
+
+    return webui_toolbar_view;
+  }
+
+  void PerformUndo(WebUIToolbarWebView* webui_toolbar_view) {
+    // Click undo.
+    auto* bubble =
+        views::ElementTrackerViews::GetInstance()->GetFirstMatchingView(
+            HomePageUndoBubbleCoordinator::kHomePageUndoBubbleMainViewId,
+            views::ElementTrackerViews::GetContextForView(webui_toolbar_view));
+    ASSERT_TRUE(bubble);
+    auto* styled_label =
+        static_cast<views::StyledLabel*>(bubble->children().front());
+    styled_label->ClickFirstLinkForTesting();
   }
 
  private:
@@ -2290,6 +2364,115 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewHomeButtonBrowserTest,
   EXPECT_EQ(home_url, new_tab->GetLastCommittedURL());
 }
 
+IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewHomeButtonBrowserTest,
+                       DragAndDropHomeButton) {
+  std::string current_home_url =
+      browser()->profile()->GetPrefs()->GetString(prefs::kHomePage);
+  std::string new_home_url = "https://www.example.test/";
+  EXPECT_NE(current_home_url, new_home_url);
+
+  PerformDragAndDrop(new_home_url);
+}
+
+IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewHomeButtonBrowserTest,
+                       DragAndDropHomeButtonAndUndo) {
+  auto* const prefs = browser()->profile()->GetPrefs();
+  prefs->SetString(prefs::kHomePage, "https://www.url-a.test");
+  prefs->SetBoolean(prefs::kHomePageIsNewTabPage, false);
+  base::RunLoop().RunUntilIdle();
+
+  WebUIToolbarWebView* webui_toolbar_view =
+      PerformDragAndDrop("https://www.url-b.test/");
+  PerformUndo(webui_toolbar_view);
+
+  // Verify the home page is reverted.
+  EXPECT_EQ("https://www.url-a.test/", prefs->GetString(prefs::kHomePage));
+  EXPECT_FALSE(prefs->GetBoolean(prefs::kHomePageIsNewTabPage));
+}
+
+IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewHomeButtonBrowserTest,
+                       DragAndDropHomeButtonAndUndoFromNTP) {
+  auto* const prefs = browser()->profile()->GetPrefs();
+  prefs->SetBoolean(prefs::kHomePageIsNewTabPage, true);
+  base::RunLoop().RunUntilIdle();
+
+  WebUIToolbarWebView* webui_toolbar_view =
+      PerformDragAndDrop("https://www.example.test/");
+  PerformUndo(webui_toolbar_view);
+
+  // Verify the home page is reverted.
+  EXPECT_TRUE(prefs->GetBoolean(prefs::kHomePageIsNewTabPage));
+}
+
+// Verify that dropping a file on the home button sets it as the home page,
+// and the action can be undone.
+IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewHomeButtonBrowserTest,
+                       DropFileOnHomeButtonAndUndo) {
+  WebUIToolbarWebView* webui_toolbar_view = SetUpAndPinHomeButton();
+  content::WebContents* web_contents =
+      webui_toolbar_view->GetWebViewForTesting()->GetWebContents();
+
+  std::string file_path = "/fake/path/to/file.pdf";
+
+  // Get the coordinates of the home button and dispatch event via hit-testing.
+  gfx::Point center = BrowserElements::From(browser())
+                          ->GetElement(kToolbarHomeButtonElementId)
+                          ->GetScreenBounds()
+                          .CenterPoint();
+  gfx::Point click_point =
+      center - webui_toolbar_view->GetBoundsInScreen().OffsetFromOrigin();
+
+  PrefService* prefs = browser()->profile()->GetPrefs();
+  GURL old_url = GURL(prefs->GetString(prefs::kHomePage));
+  bool old_is_ntp = prefs->GetBoolean(prefs::kHomePageIsNewTabPage);
+
+  content::DropData drop_data;
+  drop_data.filenames.emplace_back(base::FilePath::FromUTF8Unsafe(file_path),
+                                   base::FilePath());
+
+  webui_toolbar_view->GetWebViewForTesting()
+      ->GetWebContents()
+      ->GetDelegate()
+      ->PreHandleDragUpdate(drop_data, gfx::PointF(click_point));
+
+  // Now actually dispatch the drop event.
+  EXPECT_EQ("success",
+            content::EvalJs(web_contents, base::StringPrintf(R"(
+    (function() {
+      const target = document.querySelector('toolbar-app').shadowRoot
+                       .querySelector('#home').shadowRoot
+                       .querySelector('cr-icon-button');
+      const dataTransfer = new DataTransfer();
+      Object.defineProperty(dataTransfer, 'types', {value: ['Files']});
+      const dropEvent = new DragEvent('drop', {
+        bubbles: true,
+        cancelable: true,
+        clientX: %d,
+        clientY: %d,
+        dataTransfer: dataTransfer
+      });
+      target.dispatchEvent(dropEvent);
+      return 'success';
+    })();
+  )",
+                                                             click_point.x(),
+                                                             click_point.y())));
+
+  // Wait for the undo bubble. This proves the Mojo call reached C++.
+  WaitForUndoBubble(webui_toolbar_view);
+
+  GURL expected_url =
+      net::FilePathToFileURL(base::FilePath::FromUTF8Unsafe(file_path));
+  EXPECT_EQ(prefs->GetString(prefs::kHomePage), expected_url.spec());
+  EXPECT_FALSE(prefs->GetBoolean(prefs::kHomePageIsNewTabPage));
+
+  PerformUndo(webui_toolbar_view);
+
+  // Verify that the pref is restored.
+  EXPECT_EQ(prefs->GetString(prefs::kHomePage), old_url.spec());
+  EXPECT_EQ(prefs->GetBoolean(prefs::kHomePageIsNewTabPage), old_is_ntp);
+}
+
 class WebUIPinnedToolbarActionsBrowserTest
     : public WebUIToolbarWebViewBrowserTest {
  public:
@@ -2303,11 +2486,19 @@ class WebUIPinnedToolbarActionsBrowserTest
              // Need non-zero initial toolbar size, otherwise hidden on Mac.
              features::kWebUIReloadButton,
              // Facilitate testing kActionSidePanelShowComments
-             collaboration::features::kCollaborationComments},
+             collaboration::features::kCollaborationComments,
+             // Facilitate testing kActionsSidePanelShowContextualTasks
+             contextual_tasks::kContextualTasks,
+             // Facilitate testing kActionSendSharedTabGroupFeedback
+             data_sharing::features::kDataSharingFeature},
             {}) {}
 
   void SetUpOnMainThread() override {
     WebUIToolbarWebViewBrowserTest::SetUpOnMainThread();
+    // Make everything pinnable by default to facilitate testing.
+    for (const auto& mapping : kActionMappings) {
+      SetPinnableProperty(mapping.first, true);
+    }
     model_ = PinnedToolbarActionsModel::Get(browser()->profile());
   }
 
@@ -2354,6 +2545,16 @@ class WebUIPinnedToolbarActionsBrowserTest
                "if (!btn || !btn.checkVisibility()) return false; btn.click(); "
                "return true;")
         .ExtractBool();
+  }
+
+  void SetPinnableProperty(actions::ActionId id, bool pinnable) {
+    actions::ActionManager::Get()
+        .FindAction(id, browser()->GetActions()->root_action_item())
+        ->SetProperty(
+            actions::kActionItemPinnableKey,
+            static_cast<int>(pinnable
+                                 ? actions::ActionPinnableState::kPinnable
+                                 : actions::ActionPinnableState::kNotPinnable));
   }
 
   raw_ptr<PinnedToolbarActionsModel> model_;
@@ -2433,15 +2634,8 @@ class WebUIPinnedToolbarActionsBrowserTest
       };
 };
 
-// TODO(crbug.com/499825436): Fix and enable these tests on Windows and
-// ChromeOS.
-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
-#define MAYBE_PinUnpinIndividually DISABLED_PinUnpinIndividually
-#else
-#define MAYBE_PinUnpinIndividually PinUnpinIndividually
-#endif
 IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest,
-                       MAYBE_PinUnpinIndividually) {
+                       PinUnpinIndividually) {
   WebUIToolbarWebView* webui_toolbar_view = GetWebUIToolbarWebView(browser());
   views::WebView* web_view = webui_toolbar_view->GetWebViewForTesting();
   content::WebContents* web_contents = web_view->GetWebContents();
@@ -2463,13 +2657,7 @@ IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest,
   }
 }
 
-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
-#define MAYBE_PinAllTogether DISABLED_PinAllTogether
-#else
-#define MAYBE_PinAllTogether PinAllTogether
-#endif
-IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest,
-                       MAYBE_PinAllTogether) {
+IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest, PinAllTogether) {
   WebUIToolbarWebView* webui_toolbar_view = GetWebUIToolbarWebView(browser());
   views::WebView* web_view = webui_toolbar_view->GetWebViewForTesting();
   content::WebContents* web_contents = web_view->GetWebContents();
@@ -2484,13 +2672,40 @@ IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest,
   }
 }
 
-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
-#define MAYBE_InvokeActions DISABLED_InvokeActions
-#else
-#define MAYBE_InvokeActions InvokeActions
-#endif
-IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest,
-                       MAYBE_InvokeActions) {
+IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest, SidePanelToggle) {
+  WebUIToolbarWebView* webui_toolbar_view = GetWebUIToolbarWebView(browser());
+  views::WebView* web_view = webui_toolbar_view->GetWebViewForTesting();
+  content::WebContents* web_contents = web_view->GetWebContents();
+
+  actions::ActionId action_id = kActionSidePanelShowCustomizeChrome;
+  auto mojom_action =
+      toolbar_ui_api::mojom::PinnedToolbarAction::kSidePanelShowCustomizeChrome;
+
+  model_->UpdatePinnedState(action_id, true);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return IsPinnedButtonVisible(web_contents, mojom_action); }));
+
+  auto* side_panel_ui = browser()->GetFeatures().side_panel_ui();
+  auto is_any_side_panel_showing = [&]() {
+    for (auto type : SidePanelTypes::All()) {
+      if (side_panel_ui->IsSidePanelShowing(type)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  // Show side panel.
+  EXPECT_TRUE(ClickPinnedButton(web_contents, mojom_action));
+  ASSERT_TRUE(base::test::RunUntil(is_any_side_panel_showing));
+
+  // Dismiss side panel.
+  EXPECT_TRUE(ClickPinnedButton(web_contents, mojom_action));
+  ASSERT_TRUE(
+      base::test::RunUntil([&]() { return !is_any_side_panel_showing(); }));
+}
+
+IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest, InvokeActions) {
   WebUIToolbarWebView* webui_toolbar_view = GetWebUIToolbarWebView(browser());
   views::WebView* web_view = webui_toolbar_view->GetWebViewForTesting();
   content::WebContents* web_contents = web_view->GetWebContents();
@@ -2652,6 +2867,32 @@ IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest,
                                  "return !!btn && btn.disabled;")
                 .ExtractBool();
   }));
+}
+
+IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest, PinUnpinnable) {
+  WebUIToolbarWebView* webui_toolbar_view = GetWebUIToolbarWebView(browser());
+  views::WebView* web_view = webui_toolbar_view->GetWebViewForTesting();
+  content::WebContents* web_contents = web_view->GetWebContents();
+
+  actions::ActionId action_id = kActionPrint;
+  toolbar_ui_api::mojom::PinnedToolbarAction mojom_action =
+      toolbar_ui_api::mojom::PinnedToolbarAction::kPrint;
+
+  model_->UpdatePinnedState(action_id, true);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return IsPinnedButtonVisible(web_contents, mojom_action); }));
+
+  // Make unpinnable.
+  SetPinnableProperty(action_id, false);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return !IsPinnedButtonVisible(web_contents, mojom_action); }));
+  // Make sure it's still pinned.
+  ASSERT_TRUE(model_->Contains(action_id));
+
+  // Make pinnable.
+  SetPinnableProperty(action_id, true);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return IsPinnedButtonVisible(web_contents, mojom_action); }));
 }
 
 IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest, StateAccessors) {
@@ -2875,13 +3116,8 @@ IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest, ToolbarDivider) {
   ASSERT_TRUE(base::test::RunUntil([&]() { return !is_divider_visible(); }));
 }
 
-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
-#define MAYBE_SetActionElementIdentifier DISABLED_SetActionElementIdentifier
-#else
-#define MAYBE_SetActionElementIdentifier SetActionElementIdentifier
-#endif
 IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest,
-                       MAYBE_SetActionElementIdentifier) {
+                       SetActionElementIdentifier) {
   WebUIToolbarWebView* webui_toolbar_view = GetWebUIToolbarWebView(browser());
   views::WebView* web_view = webui_toolbar_view->GetWebViewForTesting();
   content::WebContents* web_contents = web_view->GetWebContents();

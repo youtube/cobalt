@@ -23,7 +23,7 @@ AwPrefetchManagerData::~AwPrefetchManagerData() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 }
 
-AwPrefetchKey AwPrefetchManagerData::AddPrefetchHandle(
+AwPrefetchKey AwPrefetchManagerData::AddNewPrefetchHandleWrapper(
     std::unique_ptr<AwPrefetchHandleWrapper> prefetch_handle_wrapper) {
   int32_t new_prefetch_key;
 
@@ -40,6 +40,34 @@ AwPrefetchKey AwPrefetchManagerData::AddPrefetchHandle(
   UpdateLastPrefetchKeyLocked(new_prefetch_key);
 
   return new_prefetch_key;
+}
+
+std::unique_ptr<content::PrePrefetchHandle>
+AwPrefetchManagerData::TakePrePrefetchHandleForConsume(
+    AwPrefetchKey prefetch_key) {
+  base::AutoLockMaybe auto_lock(lock_.get());
+
+  auto it = all_prefetches_map_.find(prefetch_key);
+  if (it != all_prefetches_map_.end() &&
+      it->second->CanTakePrePrefetchHandleForConsume()) {
+    return it->second->TakePrePrefetchHandleForConsume();
+  }
+
+  return nullptr;
+}
+
+void AwPrefetchManagerData::CommitPrefetchHandleAfterConsume(
+    AwPrefetchKey prefetch_key,
+    std::unique_ptr<content::PrefetchHandle> prefetch_handle) {
+  base::AutoLockMaybe auto_lock(lock_.get());
+
+  auto it = all_prefetches_map_.find(prefetch_key);
+  if (it != all_prefetches_map_.end()) {
+    it->second->CommitPrefetchHandleAfterConsume(std::move(prefetch_handle));
+  }
+
+  // If the prefetch was already removed by other calls, this does nothing.
+  // `prefetch_handle` will be released here.
 }
 
 bool AwPrefetchManagerData::IsPrefetchDuplicate(

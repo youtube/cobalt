@@ -10,28 +10,34 @@ assert(toolkit_views)
 source_set("send_tab_to_self") {
   sources = [
     "send_tab_to_self_bubble.h",
+    "send_tab_to_self_context_menu_delegate.h",
     "send_tab_to_self_toolbar_icon_controller.h",
+    "send_tab_to_self_util.h",
   ]
 
   public_deps = [
     "//base",
     "//chrome/browser/send_tab_to_self",
-    "//chrome/browser/ui:browser_list",
     "//components/send_tab_to_self",
+    "//ui/menus",
   ]
   deps = [ "//chrome/browser/ui/browser_window" ]
 }
 
 source_set("impl") {
-  sources = [ "send_tab_to_self_toolbar_icon_controller.cc" ]
+  sources = [
+    "send_tab_to_self_context_menu_delegate.cc",
+    "send_tab_to_self_toolbar_icon_controller.cc",
+    "send_tab_to_self_util.cc",
+  ]
   deps = [
     ":send_tab_to_self",
     "//chrome/browser:primitives",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/sync",
-    "//chrome/browser/ui:browser_list",
     "//chrome/browser/ui/actions:actions_headers",
     "//chrome/browser/ui/browser_window",
+    "//chrome/browser/ui/toasts",
     "//chrome/browser/ui/views/send_tab_to_self",
     "//chrome/browser/ui/views/toolbar",
     "//components/send_tab_to_self",
@@ -48,6 +54,7 @@ if (!is_android) {
     deps = [
       ":send_tab_to_self",
       "//chrome/browser/ui/browser_window",
+      "//chrome/browser/ui/toasts",
       "//chrome/browser/ui/views/send_tab_to_self",
       "//chrome/browser/web_applications",
       "//chrome/browser/web_applications:web_applications_test_support",
@@ -58,4 +65,24 @@ if (!is_android) {
       "//ui/base:ozone_buildflags",
     ]
   }
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "send_tab_to_self_context_menu_delegate_unittest.cc" ]
+  deps = [
+    ":send_tab_to_self",
+    "//base",
+    "//base/test:test_support",
+    "//chrome/app:command_ids",
+    "//chrome/browser/send_tab_to_self",
+    "//chrome/browser/sync",
+    "//chrome/test:test_support",
+    "//components/send_tab_to_self",
+    "//components/send_tab_to_self:test_support",
+    "//content/test:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//url",
+  ]
 }

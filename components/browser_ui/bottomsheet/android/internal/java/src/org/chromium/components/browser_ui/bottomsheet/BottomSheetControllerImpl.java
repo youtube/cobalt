@@ -13,6 +13,7 @@ import android.view.ViewGroup;
 import android.view.Window;
 
 import androidx.annotation.ColorInt;
+import androidx.annotation.Px;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.Callback;
@@ -426,8 +427,13 @@ class BottomSheetControllerImpl implements ManagedBottomSheetController, ScrimCo
     }
 
     @Override
-    public int getCurrentOffset() {
+    public @Px int getCurrentOffset() {
         return mBottomSheet == null ? 0 : (int) mBottomSheet.getCurrentOffsetPx();
+    }
+
+    @Override
+    public @Px int getMaxOffset() {
+        return mBottomSheet != null ? (int) mBottomSheet.getMaxOffsetPx() : 0;
     }
 
     @Override
@@ -550,11 +556,9 @@ class BottomSheetControllerImpl implements ManagedBottomSheetController, ScrimCo
             return content == mBottomSheet.getCurrentSheetContent();
         }
 
-        boolean shouldSwapForPriorityContent =
+        boolean shouldSwapContent =
                 mBottomSheet.getCurrentSheetContent() != null
-                        && content.getPriority()
-                                < mBottomSheet.getCurrentSheetContent().getPriority()
-                        && canBottomSheetSwitchContent();
+                        && canBottomSheetSwitchContent(content);
 
         // Always add the content to the queue, it will be handled after the sheet closes if
         // necessary. If already hidden, |showNextContent| will handle the request.
@@ -563,7 +567,7 @@ class BottomSheetControllerImpl implements ManagedBottomSheetController, ScrimCo
         if (mBottomSheet.getCurrentSheetContent() == null && !mSuppressionTokens.hasTokens()) {
             showNextContent(animate);
             return true;
-        } else if (shouldSwapForPriorityContent) {
+        } else if (shouldSwapContent) {
             mIsSuppressingCurrentContent = true;
             mContentQueue.add(mBottomSheet.getCurrentSheetContent());
             if (!mSuppressionTokens.hasTokens()) {
@@ -774,14 +778,14 @@ class BottomSheetControllerImpl implements ManagedBottomSheetController, ScrimCo
      *
      * @return Whether the sheet currently supports switching its content.
      */
-    private boolean canBottomSheetSwitchContent() {
+    private boolean canBottomSheetSwitchContent(BottomSheetContent nextContent) {
         BottomSheetContent currentContent = assumeNonNull(mBottomSheet).getCurrentSheetContent();
-        if (!mBottomSheet.isSheetOpen()) {
+        if (nextContent.getPriority() < assumeNonNull(currentContent).getPriority()
+                && !mBottomSheet.isSheetOpen()) {
             return true;
         }
 
-        if (currentContent != null && currentContent.canSuppressInAnyState()) {
-            assert currentContent.getPriority() == BottomSheetContent.ContentPriority.LOW;
+        if (assumeNonNull(currentContent).canBeSuppressed(nextContent)) {
             return true;
         }
 
