@@ -41,15 +41,16 @@ import org.mockito.junit.MockitoRule;
 import org.robolectric.Robolectric;
 import org.robolectric.android.controller.ActivityController;
 import org.robolectric.annotation.Config;
-import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.RobolectricUtil;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
+import org.chromium.chrome.browser.omnibox.FuseboxSessionState;
 import org.chromium.chrome.browser.omnibox.R;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.ViewportRectProvider;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
@@ -146,7 +147,11 @@ public class FuseboxCoordinatorUnitTest {
 
         // By default, make the mediator available.
         mCoordinator.setMediatorForTesting(mMediator);
-        mCoordinator.beginInput(mAutocompleteInput);
+        mCoordinator.beginInput(createSession());
+    }
+
+    private FuseboxSessionState createSession() {
+        return new FuseboxSessionState(mAutocompleteInput);
     }
 
     @After
@@ -224,7 +229,7 @@ public class FuseboxCoordinatorUnitTest {
         mCoordinator.setMediatorForTesting(null);
 
         // Nothing should happen (including no crashes).
-        mCoordinator.beginInput(mAutocompleteInput);
+        mCoordinator.beginInput(createSession());
         mCoordinator.endInput();
     }
 
@@ -237,7 +242,7 @@ public class FuseboxCoordinatorUnitTest {
         clearInvocations(mMediator);
 
         // Mediator set by setUp().
-        mCoordinator.beginInput(mAutocompleteInput);
+        mCoordinator.beginInput(createSession());
         verify(mMediator).beginInput(mAutocompleteInput);
 
         mCoordinator.endInput();
@@ -271,7 +276,7 @@ public class FuseboxCoordinatorUnitTest {
             reset(mMediator);
             mAutocompleteInput.setPageClassification(pageClass.getNumber());
 
-            mCoordinator.beginInput(mAutocompleteInput);
+            mCoordinator.beginInput(createSession());
 
             boolean shouldBeVisible = supportedPageClassifications.contains(pageClass);
             verify(mMediator, times(shouldBeVisible ? 1 : 0)).beginInput(mAutocompleteInput);
@@ -284,9 +289,9 @@ public class FuseboxCoordinatorUnitTest {
     @EnableFeatures(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT)
     public void testNonGoogleDse() {
         doReturn(false).when(mTemplateUrlService).isDefaultSearchEngineGoogle();
-        mCoordinator.beginInput(mAutocompleteInput);
+        mCoordinator.beginInput(createSession());
         mTemplateUrlServiceSupplier.set(mTemplateUrlService);
-        ShadowLooper.idleMainLooper();
+        RobolectricUtil.runAllBackgroundAndUi();
 
         verify(mMediator).setToolbarVisible(false);
     }
@@ -298,10 +303,10 @@ public class FuseboxCoordinatorUnitTest {
                 .when(mComposeboxController)
                 .init(any(Profile.class), any(ComposeboxQueryControllerBridge.class));
         mProfileSupplier.set(mProfile);
-        ShadowLooper.idleMainLooper();
+        RobolectricUtil.runAllBackgroundAndUi();
         mAutocompleteInput.setRequestType(AutocompleteRequestType.AI_MODE);
 
-        mCoordinator.beginInput(mAutocompleteInput);
+        mCoordinator.beginInput(createSession());
         verify(mMediator).beginInput(mAutocompleteInput);
     }
 

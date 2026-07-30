@@ -42,6 +42,7 @@ if (_is_default_toolchain) {
   import("//content/public/common/features.gni")
   import("//device/vr/buildflags/buildflags.gni")
   import("//printing/buildflags/buildflags.gni")
+  import("//services/on_device_model/on_device_model.gni")
   import("//testing/test.gni")
   import("//third_party/icu/config.gni")
   import("//third_party/jni_zero/jni_zero.gni")
@@ -167,13 +168,17 @@ if (_is_default_toolchain) {
 
   android_resources("chrome_app_java_resources") {
     sources = chrome_java_resources
-    sources += [ "//chrome/android/java/res_app/layout/main.xml" ]
+    sources += [
+      "//chrome/android/java/res_app/layout/main.xml",
+      "//chrome/android/java/res_app/layout/main_forked_with_secondary_ui_container.xml",
+    ]
 
     deps = [
       ":chrome_base_module_resources",
       ":ui_locale_string_resources",
       "//chrome/android/webapk/libs/common:splash_resources",
       "//chrome/app:java_strings_grd",
+      "//chrome/browser/actor/android:java_resources",
       "//chrome/browser/android/customtabs/branding:java_resources",
       "//chrome/browser/autofill/android:java_resources",
       "//chrome/browser/auxiliary_search:java_resources",
@@ -389,6 +394,7 @@ if (_is_default_toolchain) {
 
       # TODO(ssid): Decouple dependency on internal library.
       "//base:holder_java",
+      "//chrome/browser/actor/android:java",
       "//chrome/browser/autofill/android:third_party_provider_java",
       "//chrome/browser/collaboration:utils_java",
       "//chrome/browser/data_sharing:data_sharing_public_java",
@@ -558,6 +564,7 @@ if (_is_default_toolchain) {
       "//chrome/browser/ui/side_panel_container/public:java",
       "//chrome/browser/ui/side_ui/public:factory_java",
       "//chrome/browser/ui/side_ui/public:java",
+      "//chrome/browser/ui/side_ui/public:java_resources",
       "//chrome/browser/uid/android:java",
       "//chrome/browser/url_constants/android:java",
       "//chrome/browser/usb/android:java",
@@ -920,6 +927,7 @@ if (_is_default_toolchain) {
     deps = [
       ":chrome_java",
       "//chrome/android/features/keyboard_accessory:internal_java",
+      "//chrome/browser/actor/android:java",
       "//chrome/browser/android/content:java",
       "//chrome/browser/android/httpclient:java",
       "//chrome/browser/commerce/merchant_viewer/android:java",
@@ -991,7 +999,6 @@ if (_is_default_toolchain) {
       "//chrome/browser/metrics/metrics_reporting_state.h",
       "//chrome/browser/notifications/notification_handler.h",
       "//chrome/browser/notifications/notification_platform_bridge_android.cc",
-      "//components/privacy_sandbox/privacy_sandbox_survey_service.h",
     ]
   }
 
@@ -1070,7 +1077,6 @@ if (_is_default_toolchain) {
       "junit:chrome_junit_tests_org.chromium.chrome.browser.ntp",
       "junit:chrome_junit_tests_org.chromium.chrome.browser.offlinepages",
       "junit:chrome_junit_tests_org.chromium.chrome.browser.omaha",
-      "junit:chrome_junit_tests_org.chromium.chrome.browser.omnibox",
       "junit:chrome_junit_tests_org.chromium.chrome.browser.page_info",
       "junit:chrome_junit_tests_org.chromium.chrome.browser.password_manager",
       "junit:chrome_junit_tests_org.chromium.chrome.browser.permissions",
@@ -1094,6 +1100,7 @@ if (_is_default_toolchain) {
       "junit:chrome_junit_tests_org.chromium.chrome.browser.webapps",
       "junit:chrome_junit_tests_various",
       "//chrome/android/features/android_library_factory:junit_tests",
+      "//chrome/browser/actor/android:junit",
       "//chrome/browser/android/browserservices/intents:junit",
       "//chrome/browser/android/cookies:junit",
       "//chrome/browser/android/customtabs/branding:junit",
@@ -1202,6 +1209,8 @@ if (_is_default_toolchain) {
       "//chrome/browser/ui/browser_window/internal:junit",
       "//chrome/browser/ui/messages/android:junit",
       "//chrome/browser/ui/plus_addresses/android:junit",
+      "//chrome/browser/ui/side_panel_container/internal:junit",
+      "//chrome/browser/ui/side_ui/internal:junit",
       "//chrome/browser/uid/android:junit",
       "//chrome/browser/url_constants/android:junit",
       "//chrome/browser/usb/android:junit",
@@ -1364,6 +1373,7 @@ if (_is_default_toolchain) {
     testonly = true
 
     deps = [
+      "javatests:chrome_unit_test_java_org.chromium.chrome.browser.actor",
       "javatests:chrome_unit_test_java_org.chromium.chrome.browser.compositor",
       "javatests:chrome_unit_test_java_org.chromium.chrome.browser.contextmenu",
       "javatests:chrome_unit_test_java_org.chromium.chrome.browser.customtabs",
@@ -2038,6 +2048,7 @@ if (_is_default_toolchain) {
     sources = [
       "java/src/org/chromium/chrome/app/TrichromeZygotePreload.java",
       "java/src/org/chromium/chrome/browser/DeferredStartupHandler.java",
+      "java/src/org/chromium/chrome/browser/actor/ActorForegroundService.java",
       "java/src/org/chromium/chrome/browser/app/bluetooth/BluetoothNotificationService.java",
       "java/src/org/chromium/chrome/browser/app/serial/SerialNotificationService.java",
       "java/src/org/chromium/chrome/browser/app/usb/UsbNotificationService.java",
@@ -2137,6 +2148,11 @@ if (_is_default_toolchain) {
     # More deps for DFMs.
     if (dfmify_dev_ui) {
       deps += [ "//chrome/android/modules/dev_ui/provider:java" ]
+    }
+
+    if (use_mlkit_for_aicore) {
+      # MLKitInitProvider must be in the base manifest, so the lib must be in the base module.
+      deps += [ "//third_party/android_deps:com_google_mlkit_common_java" ]
     }
 
     srcjar_deps = [
@@ -2921,6 +2937,7 @@ if (_is_default_toolchain) {
       "../browser/share/android/java/src/org/chromium/chrome/browser/share/screenshot/EditorScreenshotTask.java",
       "../browser/share/android/java/src/org/chromium/chrome/browser/share/send_tab_to_self/MetricsRecorder.java",
       "../browser/share/android/java/src/org/chromium/chrome/browser/share/send_tab_to_self/NotificationManager.java",
+      "../browser/share/android/java/src/org/chromium/chrome/browser/share/send_tab_to_self/PageContext.java",
       "../browser/share/android/java/src/org/chromium/chrome/browser/share/send_tab_to_self/SendTabToSelfAndroidBridge.java",
       "../browser/share/android/java/src/org/chromium/chrome/browser/share/send_tab_to_self/TargetDeviceInfo.java",
       "java/src/org/chromium/chrome/browser/DevToolsServer.java",
@@ -2930,6 +2947,7 @@ if (_is_default_toolchain) {
       "java/src/org/chromium/chrome/browser/RecentlyClosedEntriesManager.java",
       "java/src/org/chromium/chrome/browser/ServiceTabLauncher.java",
       "java/src/org/chromium/chrome/browser/ShortcutHelper.java",
+      "java/src/org/chromium/chrome/browser/TabModelAndTimestamp.java",
       "java/src/org/chromium/chrome/browser/WarmupManager.java",
       "java/src/org/chromium/chrome/browser/about_settings/AboutSettingsBridge.java",
       "java/src/org/chromium/chrome/browser/accessibility/settings/AccessibilitySettingsBridge.java",
@@ -2974,7 +2992,6 @@ if (_is_default_toolchain) {
       "java/src/org/chromium/chrome/browser/compositor/scene_layer/ContextualSearchSceneLayer.java",
       "java/src/org/chromium/chrome/browser/compositor/scene_layer/SolidColorSceneLayer.java",
       "java/src/org/chromium/chrome/browser/compositor/scene_layer/StaticTabSceneLayer.java",
-      "java/src/org/chromium/chrome/browser/compositor/scene_layer/TabListSceneLayer.java",
       "java/src/org/chromium/chrome/browser/compositor/scene_layer/TabStripSceneLayer.java",
       "java/src/org/chromium/chrome/browser/compositor/scene_layer/ToolbarSwipeSceneLayer.java",
       "java/src/org/chromium/chrome/browser/contextmenu/ContextMenuHelper.java",

@@ -157,9 +157,9 @@ String FindMagicComment(const String& content, const String& name) {
   }
   match = match.StripWhiteSpace();
 
-  String disallowed_chars("\"' \t");
+  const StringView disallowed_chars("\"' \t");
   for (uint32_t i = 0; i < match.length(); ++i) {
-    if (disallowed_chars.find(match[i]) != kNotFound) {
+    if (disallowed_chars.contains(match[i])) {
       return g_empty_string;
     }
   }
@@ -998,8 +998,8 @@ InspectorStyle::LonghandProperties(
     return nullptr;
   }
   auto local_context =
-      CSSParserLocalContext::CreateWithoutPropertyForInspector()
-          .WithCurrentShorthand(property_id);
+      CSSParserLocalContext::CreateWithoutPropertyForInspector();
+  local_context.SetCurrentShorthand(property_id);
   HeapVector<CSSPropertyValue, 64> longhand_properties;
   if (To<Shorthand>(property).ParseShorthand(
           property_entry.important, stream,

@@ -135,7 +135,6 @@
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/transitions/tab_grid_transition_handler.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/transitions/tab_grid_transition_layout_providing.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_utils.h"
-#import "ios/chrome/browser/tabs/model/inactive_tabs/features.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_params.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
@@ -535,6 +534,7 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   DCHECK(viewController || self.browserLayoutViewController);
 
   SceneState* sceneState = self.regularBrowser->GetSceneState();
+  BOOL wasTabGridVisible = sceneState.tabGridState.tabGridVisible;
   sceneState.tabGridState.tabGridVisible = NO;
 
   __weak TabGridCoordinator* weakSelf = self;
@@ -563,9 +563,6 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   sceneState.window.overrideUserInterfaceStyle =
       UIUserInterfaceStyleUnspecified;
 
-  BOOL wasTabGridVisible = sceneState.tabGridState.tabGridVisible;
-  sceneState.tabGridState.tabGridVisible = NO;
-
   // If another browserLayoutViewController is already being presented, swap
   // this one into the container.
   if (self.browserLayoutViewController && !wasTabGridVisible) {
@@ -580,6 +577,7 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
 
       [_viewController addChildViewController:viewController];
       viewController.view.frame = frame;
+      viewController.view.alpha = 1.0;
       [_viewController.view addSubview:viewController.view];
       [viewController didMoveToParentViewController:_viewController];
     }
@@ -1146,6 +1144,7 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   // to initialize them.
   _regularBrowser = nil;
   _incognitoBrowser = nil;
+  _inactiveBrowser = nil;
 }
 
 - (void)stop {
@@ -1360,8 +1359,6 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
 }
 
 - (void)showInactiveTabs {
-  CHECK(!IsInactiveTabsExplicitlyDisabledByUser(
-      _inactiveBrowser->GetProfile()->GetPrefs()));
   [self.inactiveTabsCoordinator show];
 }
 

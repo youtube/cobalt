@@ -44,6 +44,7 @@ public interface ModuleDelegate {
         ModuleType.SIGN_IN_PROMO,
         ModuleType.SAVE_PASSWORDS_PROMO,
         ModuleType.PASSWORD_CHECKUP_PROMO,
+        ModuleType.SETUP_LIST_CELEBRATORY_PROMO,
         ModuleType.NUM_ENTRIES
     })
     @Retention(RetentionPolicy.SOURCE)
@@ -66,7 +67,8 @@ public interface ModuleDelegate {
         int SIGN_IN_PROMO = 15;
         int SAVE_PASSWORDS_PROMO = 16;
         int PASSWORD_CHECKUP_PROMO = 17;
-        int NUM_ENTRIES = 18;
+        int SETUP_LIST_CELEBRATORY_PROMO = 18;
+        int NUM_ENTRIES = 19;
     }
 
     // LINT.ThenChange(//chrome/browser/ntp_customization/java/src/org/chromium/chrome/browser/ntp_customization/ntp_cards/NtpCardsMediator.java:HomeModuleTypes)
@@ -118,8 +120,14 @@ public interface ModuleDelegate {
     /** Gets the local Tab that is showing on the magic stack. */
     @Nullable Tab getTrackingTab();
 
-    /** Updates the ranking of the given module type in the magic stack. */
-    void updateModuleRanking(@ModuleType int moduleType);
+    /**
+     * Moves the given module to the end of the magic stack, triggering a vanish and reappear
+     * animation. Does nothing if the module is not currently shown.
+     */
+    void maybeMoveModuleToTheEnd(@ModuleType int moduleType);
+
+    /** Re-evaluates eligibility and re-renders the magic stack. */
+    void refreshModules();
 
     /** Called before build and show modules. */
     void prepareBuildAndShow();

@@ -29,7 +29,9 @@ enum class EntryPoint {
   ImageContextMenu = 6,
   // Gemini was opened via tapping the image remix in-product help.
   ImageRemixIPH = 7,
-  kMaxValue = ImageRemixIPH,
+  // Gemini was opened via the edit menu to explain the selection.
+  EditMenu = 8,
+  kMaxValue = EditMenu,
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:IOSGeminiEntryPoint)
 
@@ -45,11 +47,15 @@ enum class FloatyUpdateSource {
   TabGrid = 3,
   ContextMenu = 4,
   WebContextMenu = 5,
-  ForcedFromFullscreen = 6,
+  ForcedFromScroll = 6,
   Overlay = 7,
   IneligibleSite = 8,
   ForcedFromQueryResponse = 9,
-  kMaxValue = ForcedFromQueryResponse,
+  Snackbar = 10,
+  Alert = 11,
+  Banner = 12,
+  Keyboard = 13,
+  kMaxValue = Keyboard,
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:IOSGeminiFloatyUpdateSource)
 
@@ -80,6 +86,21 @@ enum class InputPlateAttachmentOption {
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:IOSGeminiInputPlateAttachmentOption)
 
+// Settings for Gemini integration.
+enum class SettingsPolicy {
+  kAllowed = 0,
+  kNotAllowed = 1,
+};
+
+// Default policy values for generative AI features.
+enum class GenAiDefaultSettingsPolicy {
+  //  Allow GenAI features and improve AI models by using relevant data.
+  kAllowedImprovingModels = 0,
+  //  Allow GenAI features without improving AI models.
+  kAllowedWithoutImprovingModels = 1,
+  // Do not allow GenAI features.
+  kNotAllowed = 2,
+};
 }  // namespace gemini
 
 // BWG UI sheet detent identifier.

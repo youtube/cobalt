@@ -32,6 +32,10 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, DISABLED_Composebox) {
   RunTest("contextual_tasks/composebox_test.js", "mocha.run();");
 }
 
+IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, Composebox_MiscInputs) {
+  RunTest("contextual_tasks/composebox_misc_inputs_test.js", "mocha.run();");
+}
+
 IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, PostMessageHandler) {
   RunTest("contextual_tasks/post_message_handler_test.js", "mocha.run();");
 }
@@ -43,4 +47,8 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, TopToolbarTest) {
 IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, WebView) {
   RunTest("contextual_tasks/contextual_tasks_webview_browsertest.js",
           "mocha.run();");
+}
+
+IN_PROC_BROWSER_TEST_F(ContextualTasksBrowserTest, ClipPath) {
+  RunTest("contextual_tasks/utils/clip_path_test.js", "mocha.run();");
 }

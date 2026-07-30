@@ -31,7 +31,6 @@ class PasswordStoreInterface;
 class FaviconLoader;
 class PrefService;
 class WebStateList;
-class GURL;
 
 @class FormSuggestion;
 
@@ -50,7 +49,6 @@ class GURL;
                prefService:(PrefService*)prefService
                     params:(const autofill::FormActivityParams&)params
               reauthModule:(id<ReauthenticationProtocol>)reauthModule
-                       URL:(const GURL&)URL
       profilePasswordStore:
           (scoped_refptr<password_manager::PasswordStoreInterface>)
               profilePasswordStore
@@ -60,8 +58,11 @@ class GURL;
     sharedURLLoaderFactory:
         (scoped_refptr<network::SharedURLLoaderFactory>)sharedURLLoaderFactory
          engagementTracker:(feature_engagement::Tracker*)engagementTracker
-                 presenter:
-                     (id<CredentialSuggestionBottomSheetPresenter>)presenter;
+    NS_DESIGNATED_INITIALIZER;
+
+- (instancetype)initWithWebStateList:(WebStateList*)webStateList NS_UNAVAILABLE;
+
+- (instancetype)init NS_UNAVAILABLE;
 
 // Returns the credential associated with the form suggestion. It is an
 // optional, in case the credential can't be found.

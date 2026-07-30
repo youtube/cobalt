@@ -90,6 +90,7 @@ export class ComposeboxElement extends I18nMixinLit
   static override get properties() {
     return {
       showLensButton: {type: Boolean},
+      suggestionActivityEnabled: {type: Boolean},
       lensButtonTriggersOverlay: {type: Boolean},
       input_: {type: String},
       isCollapsible: {
@@ -209,11 +210,16 @@ export class ComposeboxElement extends I18nMixinLit
         type: Boolean,
         reflect: true,
       },
+      enableCarouselScrolling: {type: Boolean},
+      inputPlaceholderOverride: {type: String},
     };
   }
 
+  accessor inputPlaceholderOverride: string = '';
+  accessor suggestionActivityEnabled: boolean = true;
   accessor disableCaretColorAnimation: boolean = false;
   accessor disableComposeboxAnimation: boolean = false;
+  accessor enableCarouselScrolling: boolean = false;
   accessor lensButtonTriggersOverlay: boolean = false;
   accessor fileUploadsComplete: boolean = true;
   accessor maxSuggestions: number|null = null;
@@ -351,11 +357,6 @@ export class ComposeboxElement extends I18nMixinLit
           this.showFileCarousel_ = this.contextFilesSize_ > 0;
           this.submitEnabled_ = this.computeSubmitEnabled_();
         });
-    this.eventTracker_.add(
-        this.$.context, 'carousel-resize',
-        (e: CustomEvent<{height: number}>) => {
-          this.fire('composebox-resize', {carouselHeight: e.detail.height});
-        });
     this.focusInput();
     // For "next" searchboxes (Realbox Next, Omnibox Next, etc.), the zps
     // autocomplete query is triggered after the state has been initialized.
@@ -434,6 +435,10 @@ export class ComposeboxElement extends I18nMixinLit
           (this.inputState_.allowedModels.length > 0 ||
            this.inputState_.allowedTools.length > 0 ||
            this.inputState_.allowedInputTypes.length > 0);
+    }
+
+    if (changedPrivateProperties.has('inputPlaceholderOverride')) {
+      this.updateInputPlaceholder_();
     }
   }
   override updated(changedProperties: PropertyValues<this>) {
@@ -634,10 +639,10 @@ export class ComposeboxElement extends I18nMixinLit
   }
 
   protected shouldShowSuggestionActivityLink_() {
-    if (!this.result_ || !this.showDropdown_) {
-      return false;
-    }
-    return this.result_.matches.some((match) => match.isNoncannedAimSuggestion);
+    const showActivityLink = this.result_ && this.showDropdown_ &&
+        this.result_.matches.some((match) => match.isNoncannedAimSuggestion);
+    this.fire('show-suggestion-activity-link', showActivityLink);
+    return showActivityLink;
   }
 
   protected shouldShowSmartComposeInlineHint_() {
@@ -692,15 +697,22 @@ export class ComposeboxElement extends I18nMixinLit
       const fileBuffer = await file.arrayBuffer();
       const bigBuffer:
           BigBuffer = {bytes: Array.from(new Uint8Array(fileBuffer))};
-      const {token} = await this.searchboxHandler_.addFileContext(
-          {
-            fileName: file.name,
-            imageDataUrl: null,
-            mimeType: file.type,
-            isDeletable: true,
-            selectionTime: new Date(),
-          },
-          bigBuffer);
+      let token: UnguessableToken;
+      try {
+        token = await this.searchboxHandler_.addFileContext(
+            {
+              fileName: file.name,
+              imageDataUrl: null,
+              mimeType: file.type,
+              isDeletable: true,
+              selectionTime: new Date(),
+            },
+            bigBuffer);
+      } catch (e) {
+        // TODO(crbug.com/484429365): Notify the user the reason for the context
+        // upload failure.
+        continue;
+      }
 
       const attachment: ComposeboxFile = {
         uuid: token,
@@ -740,6 +752,26 @@ export class ComposeboxElement extends I18nMixinLit
     this.$.context.onFileContextAdded(attachment);
   }
 
+  injectInput(title: string, thumbnail: string, fileToken: UnguessableToken) {
+    const attachment: ComposeboxFile = {
+      uuid: fileToken,
+      name: title,
+      dataUrl: thumbnail,
+      objectUrl: thumbnail,
+      type: 'injectedinput',
+      status: FileUploadStatus.kUploadSuccessful,
+      url: null,
+      tabId: null,
+      isDeletable: true,
+    };
+
+    this.$.context.onFileContextAdded(attachment);
+  }
+
+  deleteFile(fileToken: UnguessableToken) {
+    this.$.context.deleteFile(fileToken);
+  }
+
   private updateAutoSuggestedTabContext_(tab: TabInfo|null) {
     this.$.context.updateAutoActiveTabContext(tab);
   }
@@ -755,26 +787,30 @@ export class ComposeboxElement extends I18nMixinLit
     delayUpload: boolean,
     onContextAdded: (file: ComposeboxFile) => void,
   }>) {
-    const {token} = await this.searchboxHandler_.addTabContext(
-        e.detail.id, e.detail.delayUpload);
-    if (!token) {
+    try {
+      const token = await this.searchboxHandler_.addTabContext(
+          e.detail.id, e.detail.delayUpload);
+
+      const attachment: ComposeboxFile = {
+        uuid: token,
+        name: e.detail.title,
+        dataUrl: null,
+        objectUrl: null,
+        type: 'tab',
+        status: FileUploadStatus.kNotUploaded,
+        url: e.detail.url,
+        tabId: e.detail.id,
+        isDeletable: true,
+      };
+
+      e.detail.onContextAdded(attachment);
+      this.focusInput();
+
+    } catch (e) {
+      // TODO(crbug.com/484429365): Notify the user the reason for the context
+      // upload failure.
       return;
     }
-
-    const attachment: ComposeboxFile = {
-      uuid: token,
-      name: e.detail.title,
-      dataUrl: null,
-      objectUrl: null,
-      type: 'tab',
-      status: FileUploadStatus.kNotUploaded,
-      url: e.detail.url,
-      tabId: e.detail.id,
-      isDeletable: true,
-    };
-
-    e.detail.onContextAdded(attachment);
-    this.focusInput();
   }
 
   protected onPaste_(event: ClipboardEvent) {
@@ -894,7 +930,8 @@ export class ComposeboxElement extends I18nMixinLit
   protected onCancelClick_() {
     if (this.hasContent_()) {
       this.resetModes();
-      this.clearAllInputs(/* querySubmitted= */ false);
+      this.clearAllInputs(/* querySubmitted= */ false,
+                          /* shouldBlockAutoSuggestedTabs= */ true);
       this.focusInput();
       this.queryAutocomplete_(/* clearMatches= */ true);
     } else {
@@ -905,7 +942,8 @@ export class ComposeboxElement extends I18nMixinLit
   handleEscapeKeyLogic(): void {
     if (!this.composeboxCloseByEscape_ && this.hasContent_()) {
       this.resetModes();
-      this.clearAllInputs(/* querySubmitted= */ false);
+      this.clearAllInputs(/* querySubmitted= */ false,
+                          /* shouldBlockAutoSuggestedTabs= */ false);
       this.focusInput();
       this.queryAutocomplete_(/* clearMatches= */ true);
     } else {
@@ -926,10 +964,6 @@ export class ComposeboxElement extends I18nMixinLit
     }
   }
 
-  protected onOpenFileDialog_(e: CustomEvent<{isImage: boolean}>) {
-    this.pageHandler_.handleFileUpload(e.detail.isImage);
-  }
-
   protected onLensIconMouseDown_(e: MouseEvent) {
     // Prevent the composebox from expanding due to being focused by capturing
     // the mousedown event. This is needed to allow the Lens icon to be
@@ -939,6 +973,11 @@ export class ComposeboxElement extends I18nMixinLit
   }
 
   private updateInputPlaceholder_() {
+    if (this.inputPlaceholderOverride) {
+      this.inputPlaceholder_ = this.inputPlaceholderOverride;
+      return;
+    }
+
     if (this.inputState_) {
       if (this.activeToolMode_ !== ToolMode.kUnspecified) {
         const config = this.inputState_.toolConfigs.find(
@@ -1189,7 +1228,7 @@ export class ComposeboxElement extends I18nMixinLit
 
   private closeComposebox_() {
     this.resetModes();
-    this.searchboxHandler_.clearFiles();
+    this.searchboxHandler_.clearFiles(/*shouldBlockAutoSuggestedTabs=*/ false);
     this.resetToolsAndModels();
     this.fire('close-composebox', {composeboxText: this.input_});
 
@@ -1212,7 +1251,8 @@ export class ComposeboxElement extends I18nMixinLit
     // If the composebox is expandable or we should clear it, clear the input
     // after submitting the query.
     if (this.isCollapsible || this.clearAllInputsWhenSubmittingQuery_) {
-      this.clearAllInputs(/* querySubmitted= */ true);
+      this.clearAllInputs(/* querySubmitted= */ true,
+                          /* shouldBlockAutoSuggestedTabs= */ false);
     }
 
     if (this.isCollapsible) {
@@ -1356,42 +1396,63 @@ export class ComposeboxElement extends I18nMixinLit
     }
 
     // Populate the smart compose suggestion.
-    this.smartComposeInlineHint_ = this.result_.smartComposeInlineHint ?
+    this.smartComposeInlineHint_ = this.result_.smartComposeInlineHint?.trim() ?
         this.result_.smartComposeInlineHint :
         '';
   }
 
   private async onContextualInputStatusChanged_(
       token: UnguessableToken, status: FileUploadStatus,
-      errorType: FileUploadErrorType) {
+      errorType: FileUploadErrorType|null) {
+    // If error message is updated, then the returned file is stale and removed
+    // from carousel. File is removed from carousel on `kUploadReplaced` as
+    // well despite no error message being returned (special case).
+    // Else, `file` below is updated to its most recent state,
+    // and `errorMessage` is null.
     const {file, errorMessage} =
         this.$.context.updateFileStatus(token, status, errorType);
-    if (errorMessage) {
+    if (errorMessage) {  // `file` value is definitely stale.
       this.errorMessage_ = errorMessage;
       this.pendingUploads_.delete(token);
       this.fileUploadsComplete = this.pendingUploads_.size === 0;
     } else if (file) {
+      // Treat `kUploadReplaced` like an error upload state
+      // (like `kUploadFailed`. `kValidationFailed`,
+      // `kUploadExpired`), just without setting `errorMessage_`.
+      // This means for `kUploadReplaced`, we do not fetch suggestions,
+      // etc.
+      if (file.status === FileUploadStatus.kUploadReplaced) {
+        this.pendingUploads_.delete(file.uuid);
+        this.fileUploadsComplete = this.pendingUploads_.size === 0;
+        return;
+      } else if (file.status === FileUploadStatus.kUploadSuccessful) {
+        // At this point, due to the error message handling above (for
+        // `kValidationFailed`, `kUploadExpired`, and `kUploadFailed`),
+        // if kUploadSuccessful, the file upload is complete.
+        // Else, the file upload is in progress.
+        this.pendingUploads_.delete(file.uuid);
+        this.fileUploadsComplete = this.pendingUploads_.size === 0;
+
+        const announcer = getAnnouncerInstance();
+        announcer.announce(this.i18n('composeboxFileUploadCompleteText'));
+      } else if (
+          file.status === FileUploadStatus.kProcessing ||
+          file.status === FileUploadStatus.kProcessingSuggestSignalsReady) {
+        // `NotUploaded`, `UploadStarted` come before and after `kProcessing`
+        //  respectively, so we only need to add to `pendingUploads_` when in a
+        //  type of processing state.
+        this.pendingUploads_.add(file.uuid);
+        this.fileUploadsComplete = this.pendingUploads_.size === 0;
+      }
+
+      // Fetch contextual suggestions for processingSuggestSignalsReady
+      // non-images:
       if (status === FileUploadStatus.kProcessingSuggestSignalsReady &&
           this.showZps && !file.type.includes('image')) {
         // Query autocomplete to get contextual suggestions for files.
         this.queryAutocomplete_(/* clearMatches= */ true);
       }
-      // `NotUploaded`, `UploadStarted` come before and after `kProcessing`
-      //  respectively, so we only need to add to `pendingUploads_` when in a
-      //  type of processing state.
-      if (file.status === FileUploadStatus.kProcessing ||
-          file.status === FileUploadStatus.kProcessingSuggestSignalsReady) {
-        this.pendingUploads_.add(file.uuid);
-        this.fileUploadsComplete = this.pendingUploads_.size === 0;
-      }
-      const isFinished = file?.status === FileUploadStatus.kValidationFailed ||
-          file.status === FileUploadStatus.kUploadSuccessful ||
-          file.status === FileUploadStatus.kUploadExpired ||
-          file.status === FileUploadStatus.kUploadFailed;
-      if (isFinished) {
-        this.pendingUploads_.delete(file.uuid);
-        this.fileUploadsComplete = this.pendingUploads_.size === 0;
-      }
+      // For image files:
       if (status === FileUploadStatus.kProcessingSuggestSignalsReady &&
           file.type.includes('image')) {
         // If we're in create image mode, update the aim tool mode.
@@ -1409,11 +1470,6 @@ export class ComposeboxElement extends I18nMixinLit
       if (status === FileUploadStatus.kProcessing &&
           file.type.includes('tab')) {
         this.queryAutocomplete_(/* clearMatches= */ true);
-      }
-
-      if (status === FileUploadStatus.kUploadSuccessful) {
-        const announcer = getAnnouncerInstance();
-        announcer.announce(this.i18n('composeboxFileUploadCompleteText'));
       }
     }
   }
@@ -1458,7 +1514,8 @@ export class ComposeboxElement extends I18nMixinLit
     this.searchboxHandler_.queryAutocomplete(this.input_, false);
   }
 
-  clearAllInputs(querySubmitted: boolean) {
+  clearAllInputs(
+      querySubmitted: boolean, shouldBlockAutoSuggestedTabs: boolean) {
     this.clearInput();
     // Let `querySubmit_` handle clearing files if the tool mode is a tool mode
     // that should be cleared after submitting. For all other general
@@ -1474,7 +1531,7 @@ export class ComposeboxElement extends I18nMixinLit
     if (!querySubmitted) {
       // If the query was submitted, the searchbox handler will clear its own
       // uploaded file state when the query submission is handled.
-      this.searchboxHandler_.clearFiles();
+      this.searchboxHandler_.clearFiles(shouldBlockAutoSuggestedTabs);
     }
     this.fileUploadsComplete = this.pendingUploads_.size === 0;
   }

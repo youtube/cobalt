@@ -232,6 +232,11 @@ public class UrlBarCoordinator
         return mUrlBar.getTextWithoutAutocomplete();
     }
 
+    @Override
+    public void setSiteSearchChip(@Nullable String keyword) {
+        mUrlBar.setSiteSearchChip(keyword);
+    }
+
     /** Returns the {@link ViewRectProvider} for the UrlBar. */
     public ViewRectProvider getViewRectProvider() {
         return new ViewRectProvider(mUrlBar);

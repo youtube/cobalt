@@ -20,6 +20,7 @@ static_library("safe_browsing") {
 
   public_deps = [
     "//chrome/browser:browser_public_dependencies",
+    "//chrome/browser/metrics",
     "//chrome/browser/notifications",
   ]
 
@@ -33,6 +34,7 @@ static_library("safe_browsing") {
     "//chrome/browser/history",
     "//chrome/browser/optimization_guide",
     "//chrome/browser/password_manager/factories",
+    "//chrome/browser/preloading/prefetch/no_state_prefetch",
     "//chrome/browser/profiles",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/profiles:profile_io_data",
@@ -158,6 +160,12 @@ static_library("safe_browsing") {
       "client_side_detection_intelligent_scan_delegate_util.h",
       "client_side_detection_service_factory.cc",
       "client_side_detection_service_factory.h",
+      "cloud_content_scanning/cloud_binary_upload_service.cc",
+      "cloud_content_scanning/cloud_binary_upload_service.h",
+      "cloud_content_scanning/cloud_binary_upload_service_factory.cc",
+      "cloud_content_scanning/cloud_binary_upload_service_factory.h",
+      "cloud_content_scanning/deep_scanning_utils.cc",
+      "cloud_content_scanning/deep_scanning_utils.h",
       "cloud_content_scanning/file_analysis_request.cc",
       "cloud_content_scanning/file_analysis_request.h",
       "cloud_content_scanning/file_opening_job.cc",
@@ -172,6 +180,8 @@ static_library("safe_browsing") {
       "download_protection/check_file_system_access_write_request.h",
       "download_protection/deep_scanning_metadata.cc",
       "download_protection/deep_scanning_metadata.h",
+      "download_protection/deep_scanning_request.cc",
+      "download_protection/deep_scanning_request.h",
       "download_protection/download_item_metadata.cc",
       "download_protection/download_item_metadata.h",
       "download_protection/download_protection_delegate.cc",
@@ -328,14 +338,6 @@ static_library("safe_browsing") {
       sources += [
         "chrome_safe_browsing_hats_delegate.cc",
         "chrome_safe_browsing_hats_delegate.h",
-        "cloud_content_scanning/cloud_binary_upload_service.cc",
-        "cloud_content_scanning/cloud_binary_upload_service.h",
-        "cloud_content_scanning/cloud_binary_upload_service_factory.cc",
-        "cloud_content_scanning/cloud_binary_upload_service_factory.h",
-        "cloud_content_scanning/deep_scanning_utils.cc",
-        "cloud_content_scanning/deep_scanning_utils.h",
-        "download_protection/deep_scanning_request.cc",
-        "download_protection/deep_scanning_request.h",
         "download_protection/download_feedback.cc",
         "download_protection/download_feedback.h",
         "download_protection/download_feedback_service.cc",

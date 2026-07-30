@@ -17,15 +17,14 @@ import android.os.Build;
 import android.os.Looper;
 
 import org.junit.After;
-import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
-import org.robolectric.annotation.LooperMode;
-import org.robolectric.annotation.LooperMode.Mode;
 import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
@@ -35,8 +34,8 @@ import java.util.concurrent.TimeUnit;
 /** Tests for {@link ToastManager}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
-@LooperMode(Mode.PAUSED)
 public class ToastManagerTest {
+    @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
     @Mock Toast mToast;
     @Mock Toast mToastNext;
     @Mock android.widget.Toast mAndroidToastObject;
@@ -45,11 +44,6 @@ public class ToastManagerTest {
     private static final String TOAST_MSG = "now";
     private static final String TOAST_MSG_NEXT = "next";
     private static final long DURATION_BETWEEN_TOASTS_MS = 500;
-
-    @Before
-    public void setUp() {
-        MockitoAnnotations.initMocks(this);
-    }
 
     @After
     public void tearDown() {

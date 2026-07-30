@@ -54,6 +54,19 @@
     "expires": "never"
   },
   {
+    "prefix": "allow-unsafe-redirect-schemes",
+    "platforms": ["Linux"],
+    "bases": [
+      "external/wpt/fetch/api/redirect/redirect-location.any.js"
+    ],
+    "exclusive_tests": "ALL",
+    "args": [
+      "--enable-features=AllowUnsafeRedirectSchemesForManualMode"
+    ],
+    "owners": ["helmut@januschka.com"],
+    "expires": "Jan 24, 2027"
+  },
+  {
     "prefix": "attribution-reporting-aggregatable-debug",
     "platforms": [
       "Linux",
@@ -434,25 +447,6 @@
     "owners": [
       "awillia@chromium.org"
     ]
-  },
-  {
-    "prefix": "css-anchor-update-disabled",
-    "owners": [
-      "ikilpatrick@chromium.org",
-      "rendering-core-dev@chromium.org"
-    ],
-    "platforms": [
-      "Linux",
-      "Mac",
-      "Win"
-    ],
-    "bases": [
-      "external/wpt/css/css-anchor-position"
-    ],
-    "args": [
-      "--disable-blink-features=CSSAnchorUpdate"
-    ],
-    "expires": "Aug 13, 2026"
   },
   {
     "prefix": "css-gap-decorations-disabled",
@@ -845,39 +839,6 @@
     ]
   },
   {
-    "prefix": "dom-parts-disabled",
-    "owners": [
-      "masonf@chromium.org"
-    ],
-    "platforms": [
-      "Linux"
-    ],
-    "bases": [
-      "external/wpt/dom/parts",
-      "fast/parser"
-    ],
-    "args": [
-      "--disable-features=DOMPartsAPI,DOMPartsAPIMinimal"
-    ],
-    "expires": "Jun 1, 2026"
-  },
-  {
-    "prefix": "dom-parts-minimal",
-    "owners": [
-      "masonf@chromium.org"
-    ],
-    "platforms": [
-      "Linux"
-    ],
-    "bases": [
-      "external/wpt/dom/parts"
-    ],
-    "args": [
-      "--enable-features=DOMPartsAPIMinimal"
-    ],
-    "expires": "Jun 1, 2026"
-  },
-  {
     "prefix": "echo-cancellation-mode-all",
     "platforms": [
       "Win11",
@@ -914,7 +875,7 @@
     ],
     "expires": "never",
     "owners": [
-      "arakeri@microsoft.com"
+      "gastonr@microsoft.com"
     ]
   },
   {
@@ -1055,6 +1016,27 @@
       "--enable-features=FedCmLightweightMode"
     ],
     "expires": "Aug 1, 2026"
+  },
+  {
+    "prefix": "fedcm-navigation-interception",
+    "platforms": [
+      "Linux",
+      "Mac",
+      "Win"
+    ],
+    "bases": [
+      "external/wpt/fedcm/fedcm-navigation-interception/"
+    ],
+    "exclusive_tests": "ALL",
+    "args": [
+      "--enable-features=FedCmNavigationInterception"
+    ],
+    "owners": [
+      "cbiesinger@chromium.org",
+      "npm@chromium.org",
+      "goto@chromium.org"
+    ],
+    "expires": "Dec 1, 2026"
   },
   {
     "prefix": "fedcm-flexible-tokens",
@@ -1548,7 +1530,7 @@
   {
     "prefix": "hidpi",
     "owners": [
-      "arakeri@microsoft.com"
+      "gastonr@microsoft.com"
     ],
     "platforms": [
       "Linux",
@@ -2327,23 +2309,6 @@
     ],
     "expires": "Dec 1, 2026"
   },
-  {
-    "prefix": "orb-errors-for-all-fetches",
-    "owners": [
-      "vogelheim@chromium.org"
-    ],
-    "platforms": [
-      "Linux"
-    ],
-    "args": [
-      "--enable-features=OpaqueResponseBlockingErrorsForAllFetches"
-    ],
-    "bases": [
-      "external/wpt/fetch/orb",
-      "external/wpt/fetch/corb"
-    ],
-    "expires": "Jul 1, 2024"
-  },
   "The origin trials suite tests that OT-controlled features are exposed to",
   "the web as expected, so should not expire.",
   {
@@ -3025,6 +2990,27 @@
       "guidou@chromium.org"
     ],
     "expires": "Nov 11, 2026"
+  },
+  {
+    "prefix": "selective-permissions-intervention",
+    "platforms": [
+      "Linux",
+      "Mac",
+      "Win",
+      "Android",
+      "Fuchsia"
+    ],
+    "bases": [
+      "http/tests/inspector-protocol/issues/selective-permissions-intervention-issue.js"
+    ],
+    "exclusive_tests": "ALL",
+    "args": [
+      "--enable-features=SelectivePermissionsIntervention"
+    ],
+    "owners": [
+      "jkarlin@google.com"
+    ],
+    "expires": "Jan 24, 2027"
   },
   {
     "prefix": "shadow-realm-enabled",
@@ -4366,8 +4352,10 @@
   },
   {
     "prefix": "symphonia-audio-decoding",
-    "owners": ["jophba@chromium.org"],
-    "platforms": ["Android", "Fuchsia", "Linux", "Mac", "Win", "Webview"],
+    "owners": [
+      "jophba@chromium.org"
+    ],
+    "platforms": ["Linux", "Mac", "Win", "ChromeOS"],
     "bases": [
       "webaudio/codec-tests"
     ],
@@ -4377,6 +4365,18 @@
       "--enable-features=SymphoniaAudioDecoding"
     ],
     "expires": "Jul 7, 2026"
+  },
+   {
+    "prefix": "symphonia-mp3-decoding",
+    "owners": ["wenz@google.com"],
+    "platforms": ["Linux", "Mac", "Win", "ChromeOS"],
+    "bases": [
+      "webaudio/codec-tests"
+    ],
+    "args": [
+      "--enable-features=SymphoniaMp3Decoding"
+    ],
+    "expires": "Aug 10, 2026"
   },
   {
     "prefix": "freeze-shared-worker-bfcache",
@@ -6156,5 +6156,98 @@
     ],
     "args": ["--enable-features=DomStorageSqlite"],
     "expires": "Aug 13, 2026"
+  },
+  {
+    "prefix": "css-line-clamp-lines-and-height",
+    "platforms": [
+      "Linux"
+    ],
+    "bases": [
+      "external/wpt/css/css-overflow/line-clamp/",
+      "external/wpt/compat/webkit-box-clamp-bottom-border.html",
+      "external/wpt/compat/webkit-box-clamp-visibility-change.html",
+      "external/wpt/css/css-flexbox/alignment/flex-align-baseline-line-clamp-001.tentative.html",
+      "external/wpt/css/css-flexbox/alignment/flex-align-baseline-line-clamp-002.tentative.html",
+      "external/wpt/css/css-flexbox/alignment/flex-align-baseline-line-clamp-003.tentative.html",
+      "external/wpt/css/css-grid/alignment/grid-align-baseline-line-clamp-001.tentative.html",
+      "external/wpt/css/css-grid/alignment/grid-align-baseline-line-clamp-002.tentative.html",
+      "external/wpt/css/css-grid/alignment/grid-align-baseline-line-clamp-003.tentative.html",
+      "external/wpt/css/css-inline/baseline-source/baseline-source-first-001.html",
+      "external/wpt/css/css-inline/baseline-source/baseline-source-first-002.html",
+      "external/wpt/css/css-inline/baseline-source/baseline-source-first-003.html",
+      "external/wpt/css/css-inline/baseline-source/baseline-source-last-001.html",
+      "external/wpt/css/css-inline/baseline-source/baseline-source-last-002.html",
+      "external/wpt/css/css-inline/baseline-source/baseline-source-last-003.html",
+      "external/wpt/css/css-inline/text-box-trim/text-box-trim-line-clamp-001.html",
+      "external/wpt/css/css-inline/text-box-trim/text-box-trim-line-clamp-002.html",
+      "external/wpt/css/css-text/white-space/text-wrap-balance-005.html",
+      "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-001.html",
+      "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-002.html",
+      "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-003.html",
+      "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-004.html",
+      "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-005.html",
+      "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-006.html",
+      "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-007.html",
+      "external/wpt/css/css-text/white-space/text-wrap-pretty-line-clamp-crash-001.html",
+      "external/wpt/css/css-ui/text-overflow-string-001.html",
+      "external/wpt/css/css-ui/text-overflow-string-002.html",
+      "external/wpt/css/css-ui/text-overflow-string-003.html",
+      "external/wpt/css/css-ui/text-overflow-string-004.html",
+      "external/wpt/css/css-ui/text-overflow-string-005.html",
+      "external/wpt/css/css-ui/text-overflow-string-006.html",
+      "fast/deprecated-flexbox/dynamically-change-line-clamp.html",
+      "fast/deprecated-flexbox/line-clamp-crash.html",
+      "fast/deprecated-flexbox/line-clamp-removed-dynamically.html",
+      "fast/overflow/line-clamp-and-columns.html",
+      "fast/overflow/line-clamp-ellipsis-in-free-space.html",
+      "fast/overflow/line-clamp-hides-trailing-anchor.html",
+      "fast/overflow/line-clamp.html",
+      "paint/invalidation/text-line-clamp-truncation.html"
+    ],
+    "args": [
+      "--enable-blink-features=CSSLineClamp,CSSLineClampLinesAndHeight"
+    ],
+    "owners": [
+      "abotella@igalia.com"
+    ]
+  },
+  {
+    "prefix": "durable-messages",
+    "owners": [
+      "alexnj@chromium.org"
+    ],
+    "platforms": [
+      "Linux",
+      "Mac",
+      "Win"
+    ],
+    "bases": [
+      "http/tests/inspector-protocol/network/durable-messages-global-limits.js"
+    ],
+    "args": [
+      "--enable-features=DurableMessages:max_global_buffer_size/20000"
+    ],
+    "expires": "Dec 31, 2026"
+  },
+  {
+    "prefix": "web-audio-configurable-render-quantum",
+    "owners": [
+      "mjwilson@chromium.org",
+      "web-audio-team@google.com"
+    ],
+    "platforms": [
+      "Linux",
+      "Mac",
+      "Win",
+      "Android"
+    ],
+    "bases": [
+      "webaudio/BiquadFilter/biquad-render-size-hint.html",
+      "webaudio/WaveShaper/waveshaper-rendersizehint.html"
+    ],
+    "args": [
+      "--enable-features=WebAudioConfigurableRenderQuantum"
+    ],
+    "expires": "never"
   }
 ]

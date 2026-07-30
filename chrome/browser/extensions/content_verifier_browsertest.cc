@@ -27,7 +27,6 @@
 #include "chrome/browser/extensions/chrome_content_verifier_delegate.h"
 #include "chrome/browser/extensions/content_verifier_test_utils.h"
 #include "chrome/browser/extensions/corrupted_extension_reinstaller.h"
-#include "chrome/browser/extensions/crx_installer.h"
 #include "chrome/browser/extensions/devtools_util.h"
 #include "chrome/browser/extensions/extension_browsertest.h"
 #include "chrome/browser/extensions/extension_management_test_util.h"
@@ -46,6 +45,7 @@
 #include "extensions/browser/content_verifier/content_verify_job.h"
 #include "extensions/browser/content_verifier/test_utils.h"
 #include "extensions/browser/crx_file_info.h"
+#include "extensions/browser/crx_installer.h"
 #include "extensions/browser/disable_reason.h"
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/extension_registry.h"
@@ -515,8 +515,13 @@ IN_PROC_BROWSER_TEST_F(ContentVerifierTestWithForcedHashes,
   job_observer.ExpectJobResult(extension->id(), background_script_relative_path,
                                TestContentVerifyJobObserver::Result::FAILURE);
 
+  // Set up an observer to wait for the extension to be disabled.
+  TestExtensionRegistryObserver disable_observer(
+      ExtensionRegistry::Get(profile()), extension->id());
+
   EnableExtension(extension->id());
   EXPECT_TRUE(job_observer.WaitForExpectedJobs());
+  EXPECT_TRUE(disable_observer.WaitForExtensionUnloaded());
 
   // The extension should be disabled...
   ExtensionRegistry* registry = ExtensionRegistry::Get(profile());
@@ -676,8 +681,13 @@ IN_PROC_BROWSER_TEST_F(ContentVerifierTest, TestServiceWorker_AcrossSession) {
   job_observer.ExpectJobResult(extension->id(), background_script_relative_path,
                                TestContentVerifyJobObserver::Result::FAILURE);
 
+  // Set up an observer to wait for the extension to be disabled.
+  TestExtensionRegistryObserver disable_observer(
+      ExtensionRegistry::Get(profile()), extension->id());
+
   EnableExtension(extension->id());
   EXPECT_TRUE(job_observer.WaitForExpectedJobs());
+  EXPECT_TRUE(disable_observer.WaitForExtensionUnloaded());
 
   // The extension should be disabled...
   EXPECT_FALSE(registry->enabled_extensions().Contains(extension->id()));

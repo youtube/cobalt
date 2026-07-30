@@ -13,27 +13,14 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
+#include "remoting/signaling/jingle_data_structures.h"
+#include "remoting/signaling/jingle_message_xml_converter.h"
 #include "remoting/signaling/signal_strategy.h"
 #include "remoting/signaling/signaling_id_util.h"
 #include "remoting/signaling/xmpp_constants.h"
 #include "third_party/libjingle_xmpp/xmllite/xmlelement.h"
 
 namespace remoting {
-
-// static
-std::unique_ptr<jingle_xmpp::XmlElement> IqSender::MakeIqStanza(
-    const std::string& type,
-    const std::string& addressee,
-    std::unique_ptr<jingle_xmpp::XmlElement> iq_body) {
-  std::unique_ptr<jingle_xmpp::XmlElement> stanza(
-      new jingle_xmpp::XmlElement(kQNameIq));
-  stanza->AddAttr(kQNameType, type);
-  if (!addressee.empty()) {
-    stanza->AddAttr(kQNameTo, addressee);
-  }
-  stanza->AddElement(iq_body.release());
-  return stanza;
-}
 
 IqSender::IqSender(SignalStrategy* signal_strategy)
     : signal_strategy_(signal_strategy) {
@@ -42,6 +29,11 @@ IqSender::IqSender(SignalStrategy* signal_strategy)
 
 IqSender::~IqSender() {
   signal_strategy_->RemoveListener(this);
+}
+
+std::unique_ptr<IqRequest> IqSender::SendIq(const JingleMessage& message,
+                                            ReplyCallback callback) {
+  return SendIq(JingleMessageToXml(message), std::move(callback));
 }
 
 std::unique_ptr<IqRequest> IqSender::SendIq(
@@ -53,7 +45,8 @@ std::unique_ptr<IqRequest> IqSender::SendIq(
     id = signal_strategy_->GetNextId();
     stanza->AddAttr(kQNameId, id);
   }
-  if (!signal_strategy_->SendStanza(std::move(stanza))) {
+  if (!signal_strategy_->SendMessage(SignalingAddress(addressee),
+                                     SignalingMessage(std::move(stanza)))) {
     return nullptr;
   }
   DCHECK(requests_.find(id) == requests_.end());
@@ -64,15 +57,6 @@ std::unique_ptr<IqRequest> IqSender::SendIq(
     requests_[id] = request.get();
   }
   return request;
-}
-
-std::unique_ptr<IqRequest> IqSender::SendIq(
-    const std::string& type,
-    const std::string& addressee,
-    std::unique_ptr<jingle_xmpp::XmlElement> iq_body,
-    ReplyCallback callback) {
-  return SendIq(MakeIqStanza(type, addressee, std::move(iq_body)),
-                std::move(callback));
 }
 
 void IqSender::RemoveRequest(IqRequest* request) {
@@ -89,8 +73,15 @@ void IqSender::RemoveRequest(IqRequest* request) {
 
 void IqSender::OnSignalStrategyStateChange(SignalStrategy::State state) {}
 
-bool IqSender::OnSignalStrategyIncomingStanza(
-    const jingle_xmpp::XmlElement* stanza) {
+bool IqSender::OnSignalStrategyIncomingMessage(
+    const SignalingAddress& sender_address,
+    const SignalingMessage& message) {
+  std::unique_ptr<jingle_xmpp::XmlElement> stanza =
+      SignalStrategy::GetXmlStanza(message);
+  if (!stanza) {
+    return false;
+  }
+
   if (stanza->Name() != kQNameIq) {
     LOG(WARNING) << "Received unexpected non-IQ packet " << stanza->Str();
     return false;
@@ -129,7 +120,7 @@ bool IqSender::OnSignalStrategyIncomingStanza(
   }
 
   requests_.erase(it);
-  request->OnResponse(stanza);
+  request->OnResponse(stanza.get());
 
   return true;
 }

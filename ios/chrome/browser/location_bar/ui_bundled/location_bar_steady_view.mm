@@ -357,14 +357,13 @@ const CGFloat kSmallerLocationLabelFontMultiplier = 0.75;
 
 - (void)setUpTraitChangeHandler {
   __weak __typeof(self) weakSelf = self;
-  NSArray<UITrait>* traits = TraitCollectionSetForTraits(
-      @[ UITraitPreferredContentSizeCategory.class ]);
   UITraitChangeHandler traitChangeHandler =
       ^(id<UITraitEnvironment> traitEnvironment,
         UITraitCollection* previousCollection) {
         [weakSelf updateFontOnTraitChange:previousCollection];
       };
-  [self registerForTraitChanges:traits withHandler:traitChangeHandler];
+  [self registerForTraitChanges:@[ UITraitPreferredContentSizeCategory.class ]
+                    withHandler:traitChangeHandler];
 }
 
 - (void)setUpAccessibility {
@@ -430,11 +429,23 @@ const CGFloat kSmallerLocationLabelFontMultiplier = 0.75;
 }
 
 - (void)setLocationLabelText:(NSString*)string {
-  if ([self.locationLabel.text isEqualToString:string]) {
-    return;
-  }
+  [self setLocationLabelText:string clipTail:NO];
+}
+
+- (void)setLocationLabelText:(NSString*)string clipTail:(BOOL)clipTail {
+  // Use attributed text to force LTR direction for URLs, preventing RTL
+  // characters from messing up the visual order (e.g. IDN with RTL scripts).
+  NSMutableParagraphStyle* style = [[NSMutableParagraphStyle alloc] init];
+  // https://chromium.googlesource.com/chromium/src/+/HEAD/docs/security/url_display_guidelines/url_display_guidelines.md#rtl
+  [style setBaseWritingDirection:NSWritingDirectionLeftToRight];
+  [style setLineBreakMode:clipTail ? NSLineBreakByTruncatingTail
+                                   : NSLineBreakByTruncatingHead];
+
+  NSDictionary* attributes = @{NSParagraphStyleAttributeName : style};
+
+  self.locationLabel.attributedText =
+      [[NSAttributedString alloc] initWithString:string attributes:attributes];
   self.locationLabel.textColor = self.colorScheme.fontColor;
-  self.locationLabel.text = string;
   [self updateAccessibility];
 }
 

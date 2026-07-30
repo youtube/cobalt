@@ -133,7 +133,7 @@
             {
               "cipd_package": "chromium/android_webview/tools/cts_archive",
               "location": "android_webview/tools/cts_archive/cipd",
-              "revision": "8BpUBTnmt5bH3GiqPKpmTWTP-Ie2X1TuUgf4F0IsgVgC"
+              "revision": "oW6-jyOPGwPJeLlaldYwrxZoYqzXpjO1OZUdyF3Qq7sC"
             }
           ],
           "dimensions": {
@@ -166,6 +166,7 @@
           "--use-apk-under-test-flags-file",
           "--enable-features=WebViewBackForwardCache",
           "--avd-config=../../tools/android/avd/proto/android_35_google_apis_x64.textpb",
+          "--test-launcher-filter-file=../../testing/buildbot/filters/android.webview_instrumentation_test_apk_bfcache_mutations.filter",
           "--gs-results-bucket=chromium-result-details",
           "--recover-devices"
         ],

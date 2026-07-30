@@ -115,10 +115,6 @@ class ContextualSearchContextController {
     // The tokens of the contextual inputs to attach to the search url.
     std::vector<base::UnguessableToken> file_tokens;
 
-    // The currently active model.
-    omnibox::ModelMode active_model =
-        omnibox::ModelMode::MODEL_MODE_UNSPECIFIED;
-
     // Additional params to attach to the search url.
     std::map<std::string, std::string> additional_params;
 
@@ -223,6 +219,11 @@ class ContextualSearchContextController {
 
   // Return the file infos for all files in the request.
   virtual std::vector<const FileInfo*> GetFileInfoList() = 0;
+
+  // Search the file infos for an injected input with the given id, and return
+  // the file token if present.
+  virtual std::optional<base::UnguessableToken> FindTokenForInjectedInput(
+      const std::string& id) = 0;
 
   // Returns a weak pointer to the context controller.
   virtual base::WeakPtr<ContextualSearchContextController> AsWeakPtr() = 0;

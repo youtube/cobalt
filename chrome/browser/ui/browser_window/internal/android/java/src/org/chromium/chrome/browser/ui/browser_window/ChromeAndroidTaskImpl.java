@@ -4,8 +4,6 @@
 
 package org.chromium.chrome.browser.ui.browser_window;
 
-import static org.chromium.build.NullUtil.assertNonNull;
-
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.role.RoleManager;
@@ -39,6 +37,7 @@ import org.chromium.build.BuildConfig;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
+import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher.ActivityState;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcherProvider;
 import org.chromium.chrome.browser.lifecycle.ConfigurationChangedObserver;
 import org.chromium.chrome.browser.lifecycle.TopResumedActivityChangedWithNativeObserver;
@@ -55,6 +54,7 @@ import org.chromium.chrome.browser.ui.desktop_windowing.AppHeaderUtils;
 import org.chromium.chrome.browser.util.AndroidTaskUtils;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
 import org.chromium.ui.base.ActivityWindowAndroid;
+import org.chromium.ui.base.WindowAndroid.ActivityStateObserver;
 import org.chromium.ui.display.DisplayAndroid;
 import org.chromium.ui.display.DisplayUtil;
 import org.chromium.ui.insets.InsetObserver.WindowInsetsAnimationListener;
@@ -64,8 +64,10 @@ import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.function.Supplier;
 
 /** Implements {@link ChromeAndroidTask}. */
@@ -75,7 +77,8 @@ final class ChromeAndroidTaskImpl
                 ConfigurationChangedObserver,
                 TopResumedActivityChangedWithNativeObserver,
                 TaskVisibilityListener,
-                ViewTreeObserver.OnGlobalLayoutListener {
+                ViewTreeObserver.OnGlobalLayoutListener,
+                ActivityStateObserver {
 
     private static final String TAG = "ChromeAndroidTask";
 
@@ -283,14 +286,31 @@ final class ChromeAndroidTaskImpl
             };
 
     private @Nullable Integer mId;
-    private @Nullable Long mLastActivatedTimeMillis;
+    private long mLastActivatedTimeMillis;
     private @Nullable PendingTaskInfo mPendingTaskInfo;
 
     /** Last Task (window) bounds updated by {@link #onConfigurationChanged(Configuration)}. */
     private @Nullable Rect mLastBoundsInDpOnConfigChanged;
 
     private @State int mState;
-    private boolean mShouldDispatchPendingDeactivate;
+
+    /**
+     * Whether this Task has seen its top Activity becomes the top-resumed Activity for the first
+     * time.
+     *
+     * <p>This is set by {@link ActivityStateObserver#onActivityTopResumedChanged}, i.e., it doesn't
+     * indicate whether native initialization is completed.
+     */
+    private boolean mReceivedFirstTopResumedActivity;
+
+    /**
+     * Whether this Task has seen its top Activity becomes the top-resumed Activity for the first
+     * time after native initialization is completed.
+     *
+     * <p>This is set by {@link TopResumedActivityChangedWithNativeObserver}, i.e., it may or may
+     * not become true before {@link #mReceivedFirstTopResumedActivity}.
+     */
+    private boolean mReceivedFirstTopResumedActivityWithNative;
 
     /**
      * Listener for window insets animation.
@@ -455,9 +475,7 @@ final class ChromeAndroidTaskImpl
         addActivityScopedObjectsInternal(activityScopedObjects);
     }
 
-    @Override
-    public void onNativeInitializationFinished() {
-        ThreadUtils.assertOnUiThread();
+    private void completePendingCreate() {
         var topActivityScopedObjects = TopActivityScopedObjects.obtain(this);
         if (mPendingTaskInfo == null || topActivityScopedObjects == null) {
             return;
@@ -472,7 +490,6 @@ final class ChromeAndroidTaskImpl
         @Nullable Rect futureBounds = mPendingActionManager.getFutureBoundsInDp();
         @Nullable Rect futureRestoredBounds = mPendingActionManager.getFutureRestoredBoundsInDp();
         mState = State.IDLE;
-        setLastActivatedTimeMillis();
         dispatchPendingActions(topActivityScopedObjects, futureBounds, futureRestoredBounds);
 
         JniOnceCallback<Long> taskCreationCallbackForNative =
@@ -482,7 +499,6 @@ final class ChromeAndroidTaskImpl
             assert browserWindow != null;
             taskCreationCallbackForNative.onResult(browserWindow.getOrCreateNativePtr());
         }
-
         mPendingTaskInfo = null;
     }
 
@@ -725,7 +741,7 @@ final class ChromeAndroidTaskImpl
     @Override
     public long getLastActivatedTimeMillis() {
         ThreadUtils.assertOnUiThread();
-        return assertNonNull(mLastActivatedTimeMillis);
+        return mLastActivatedTimeMillis;
     }
 
     @Override
@@ -950,16 +966,31 @@ final class ChromeAndroidTaskImpl
     }
 
     @Override
+    public void onActivityTopResumedChanged(boolean isTopResumedActivity) {
+        if (isTopResumedActivity && !mReceivedFirstTopResumedActivity) {
+            mReceivedFirstTopResumedActivity = true;
+        }
+
+        if (mReceivedFirstTopResumedActivity && mReceivedFirstTopResumedActivityWithNative) {
+            completePendingCreate();
+        }
+    }
+
+    @Override
     public void onTopResumedActivityChangedWithNative(boolean isTopResumedActivity) {
         ThreadUtils.assertOnUiThread();
-
         if (isTopResumedActivity) {
             setLastActivatedTimeMillis();
-            if (mShouldDispatchPendingDeactivate) {
-                ChromeAndroidTaskTrackerImpl.getInstance().activatePenultimatelyActivatedTask();
-                mShouldDispatchPendingDeactivate = false;
-            }
         }
+
+        if (isTopResumedActivity && !mReceivedFirstTopResumedActivityWithNative) {
+            mReceivedFirstTopResumedActivityWithNative = true;
+        }
+
+        if (mReceivedFirstTopResumedActivity && mReceivedFirstTopResumedActivityWithNative) {
+            completePendingCreate();
+        }
+
         if (mState == State.PENDING_UPDATE) {
             int[] settledActions =
                     isTopResumedActivity
@@ -1087,7 +1118,18 @@ final class ChromeAndroidTaskImpl
         var topActivityWindowAndroid = topActivityScopedObjects.mActivityWindowAndroid;
 
         // Register Activity LifecycleObservers
-        getActivityLifecycleDispatcher(topActivityWindowAndroid).register(this);
+        var lifecycleDispatcher = getActivityLifecycleDispatcher(topActivityWindowAndroid);
+        lifecycleDispatcher.register(this);
+        if (lifecycleDispatcher.getCurrentActivityState() == ActivityState.RESUMED_WITH_NATIVE) {
+            mReceivedFirstTopResumedActivityWithNative = true;
+        }
+        if (topActivityWindowAndroid.isTopResumedActivity()) {
+            mReceivedFirstTopResumedActivity = true;
+        }
+        if (mReceivedFirstTopResumedActivity && mReceivedFirstTopResumedActivityWithNative) {
+            completePendingCreate();
+        }
+        topActivityWindowAndroid.addActivityStateObserver(this);
 
         // Register Task VisibilityListener
         ApplicationStatus.registerTaskVisibilityListener(this);
@@ -1161,6 +1203,7 @@ final class ChromeAndroidTaskImpl
 
         // Unregister Activity LifecycleObservers.
         getActivityLifecycleDispatcher(topActivityWindowAndroid).unregister(this);
+        topActivityWindowAndroid.removeActivityStateObserver(this);
 
         // Unregister Task VisibilityListener.
         ApplicationStatus.unregisterTaskVisibilityListener(this);
@@ -1216,12 +1259,7 @@ final class ChromeAndroidTaskImpl
                     break;
                 case PendingAction.SHOW_INACTIVE:
                 case PendingAction.DEACTIVATE:
-                    // We will not activate the penultimately active task just yet (in order to
-                    // deactivate the current task) because at the time this method is invoked, the
-                    // current task's activated time is not guaranteed to be set in order to
-                    // correctly determine the penultimate task. We will therefore dispatch this
-                    // action after the current task's activated time is set.
-                    mShouldDispatchPendingDeactivate = true;
+                    ChromeAndroidTaskTrackerImpl.getInstance().activatePenultimatelyActivatedTask();
                     break;
                 case PendingAction.CLOSE:
                     closeInternal(topActivityScopedObjects);
@@ -1276,6 +1314,18 @@ final class ChromeAndroidTaskImpl
 
         if (activityScopedObjectsToRemove != null) {
             mActivityScopedObjectsDeque.remove(activityScopedObjectsToRemove);
+
+            Iterator<Entry<ChromeAndroidTaskFeatureKey, ChromeAndroidTaskFeature>> iterator =
+                    mFeatures.entrySet().iterator();
+            while (iterator.hasNext()) {
+                Entry<ChromeAndroidTaskFeatureKey, ChromeAndroidTaskFeature> entry =
+                        iterator.next();
+                ChromeAndroidTaskFeatureKey key = entry.getKey();
+                if (activityWindowAndroid == key.mActivityWindowAndroid) {
+                    entry.getValue().onFeatureRemoved();
+                    iterator.remove();
+                }
+            }
         }
     }
 

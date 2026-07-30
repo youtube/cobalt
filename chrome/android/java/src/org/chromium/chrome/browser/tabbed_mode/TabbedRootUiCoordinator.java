@@ -21,8 +21,6 @@ import android.view.ViewGroup;
 import android.view.ViewStub;
 
 import androidx.annotation.ColorInt;
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
 import org.chromium.base.ApplicationStatus;
@@ -48,6 +46,8 @@ import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.supplier.SupplierUtils;
 import org.chromium.base.version_info.VersionInfo;
 import org.chromium.build.BuildConfig;
+import org.chromium.build.annotations.NonNull;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ActivityTabProvider;
 import org.chromium.chrome.browser.ActivityTabProvider.ActivityTabTabObserver;
@@ -55,6 +55,7 @@ import org.chromium.chrome.browser.ChromeInactivityTracker;
 import org.chromium.chrome.browser.ChromeInactivityTracker.InactivityObserver;
 import org.chromium.chrome.browser.SwipeRefreshHandler;
 import org.chromium.chrome.browser.accessibility.PageZoomIphController;
+import org.chromium.chrome.browser.actor.ui.ActorOverlayCoordinator;
 import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
 import org.chromium.chrome.browser.back_press.BackPressManager;
 import org.chromium.chrome.browser.bookmarks.BookmarkManagerOpener;
@@ -106,6 +107,8 @@ import org.chromium.chrome.browser.gesturenav.BackActionDelegate;
 import org.chromium.chrome.browser.gesturenav.HistoryNavigationCoordinator;
 import org.chromium.chrome.browser.gesturenav.NavigationSheet;
 import org.chromium.chrome.browser.gesturenav.TabbedSheetDelegate;
+import org.chromium.chrome.browser.glic.GlicKeyedService;
+import org.chromium.chrome.browser.glic.GlicKeyedServiceFactory;
 import org.chromium.chrome.browser.history.HistoryManagerUtils;
 import org.chromium.chrome.browser.hub.HubManager;
 import org.chromium.chrome.browser.incognito.reauth.IncognitoReauthCoordinatorFactory;
@@ -137,8 +140,10 @@ import org.chromium.chrome.browser.ntp_customization.policy.NtpCustomizationPoli
 import org.chromium.chrome.browser.ntp_customization.theme.NtpSyncedThemeManager;
 import org.chromium.chrome.browser.offlinepages.indicator.OfflineIndicatorControllerV2;
 import org.chromium.chrome.browser.offlinepages.indicator.OfflineIndicatorInProductHelpController;
-import org.chromium.chrome.browser.omnibox.OmniboxActionDelegateImpl;
+import org.chromium.chrome.browser.omnibox.LocationBarEmbedder;
+import org.chromium.chrome.browser.omnibox.OmniboxChipManager;
 import org.chromium.chrome.browser.omnibox.UrlFocusChangeListener;
+import org.chromium.chrome.browser.omnibox.suggestions.action.OmniboxActionDelegateImpl;
 import org.chromium.chrome.browser.open_in_app.OpenInAppUtils;
 import org.chromium.chrome.browser.open_in_app.TabbedOpenInAppEntryPoint;
 import org.chromium.chrome.browser.pdf.PdfPageIphController;
@@ -222,7 +227,6 @@ import org.chromium.components.browser_ui.widget.scrim.ScrimManager;
 import org.chromium.components.browser_ui.widget.scrim.ScrimManager.ScrimClient;
 import org.chromium.components.collaboration.CollaborationService;
 import org.chromium.components.feature_engagement.Tracker;
-import org.chromium.components.omnibox.action.OmniboxActionDelegate;
 import org.chromium.components.signin.AccountManagerFacadeProvider;
 import org.chromium.components.signin.base.CoreAccountInfo;
 import org.chromium.components.signin.identitymanager.ConsentLevel;
@@ -325,6 +329,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
     private final OneshotSupplierImpl<Boolean> mTrackerInitializedOneshotSupplier =
             new OneshotSupplierImpl<>();
     private ContextualTasksBridge mContextualTasksBridge;
+    private @Nullable ActorOverlayCoordinator mActorOverlayCoordinator;
 
     // Activity tab observer that updates the current tab used by various UI components.
     private class RootUiTabObserver extends ActivityTabTabObserver {
@@ -460,7 +465,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             @NonNull FullscreenManager fullscreenManager,
             @NonNull Supplier<CompositorViewHolder> compositorViewHolderSupplier,
             @NonNull Supplier<TabContentManager> tabContentManagerSupplier,
-            @NonNull Supplier<SnackbarManager> snackbarManagerSupplier,
+            @NonNull MonotonicObservableSupplier<SnackbarManager> snackbarManagerSupplier,
             @NonNull SettableMonotonicObservableSupplier<EdgeToEdgeController> edgeToEdgeSupplier,
             @NonNull TopInsetProvider topInsetProvider,
             @NonNull OneshotSupplierImpl<SystemBarColorHelper> systemBarColorHelperSupplier,
@@ -823,20 +828,17 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             mCrossDeviceSettingImporter.destroy();
         }
 
-        if (mSideUiCoordinator != null) {
-            mSideUiCoordinator.destroy();
-            mSideUiCoordinator = null;
-        }
-
-        if (mSidePanelContainerCoordinator != null) {
-            mSidePanelContainerCoordinator.destroy();
-            mSidePanelContainerCoordinator = null;
-        }
-
         if (mContextualTasksBridge != null) {
             mContextualTasksBridge.destroy();
             mContextualTasksBridge = null;
         }
+
+        if (mActorOverlayCoordinator != null) {
+            mActorOverlayCoordinator.destroy();
+            mActorOverlayCoordinator = null;
+        }
+
+        destroySideUi();
 
         super.onDestroy();
     }
@@ -861,6 +863,21 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                         mOverviewColorSupplier,
                         mInsetObserver,
                         mEdgeToEdgeManager.getEdgeToEdgeSystemBarColorHelper());
+    }
+
+    @Override
+    protected void initializeToolbar() {
+        if (OpenInAppUtils.isOpenInAppAvailable()) {
+            View controlContainer = mActivity.findViewById(R.id.control_container);
+            assert controlContainer != null;
+
+            ViewGroup omniboxChipContainer =
+                    controlContainer.findViewById(R.id.omnibox_chip_container);
+            LocationBarEmbedder locationBarEmbedder = mActivity.findViewById(R.id.toolbar);
+            mOmniboxChipManager = new OmniboxChipManager(omniboxChipContainer, locationBarEmbedder);
+        }
+
+        super.initializeToolbar();
     }
 
     @Override
@@ -949,6 +966,17 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                             mActivityTabProvider.asObservable(),
                             assumeNonNull(mOmniboxChipManager),
                             mActivity);
+        }
+
+        if (ChromeFeatureList.sGlicActorUi.isEnabled()
+                && ChromeFeatureList.sGlicActorUiOverlay.getValue()) {
+            ViewStub stub = mActivity.findViewById(R.id.actor_overlay_stub);
+            mActorOverlayCoordinator =
+                    new ActorOverlayCoordinator(
+                            stub,
+                            assumeNonNull(mTabModelSelectorSupplier.get()),
+                            mBrowserControlsManager,
+                            mTabObscuringHandlerSupplier.get());
         }
     }
 
@@ -1083,18 +1111,17 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             mBookmarkBarVisibilityProvider.addObserver(mBookmarkBarVisibilityObserver);
         }
 
-        mSideUiCoordinator = SideUiCoordinatorFactory.create();
-        mSidePanelContainerCoordinator = SidePanelContainerCoordinatorFactory.create();
         if (ChromeFeatureList.isEnabled(ChromeFeatureList.CONTEXTUAL_TASKS)) {
             mContextualTasksBridge = new ContextualTasksBridge();
         }
 
         initiateTabBottomSheetManagers();
+        initializeSideUi();
     }
 
     @Override
     protected AdaptiveToolbarBehavior createAdaptiveToolbarBehavior(
-            Supplier<Tracker> trackerSupplier) {
+            Supplier<@Nullable Tracker> trackerSupplier) {
 
         Supplier<GroupSuggestionsButtonController> groupSuggestionsButtonControllerSupplier =
                 () -> {
@@ -1626,7 +1653,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
         if (TabBottomSheetUtils.isTabBottomSheetEnabled()) {
             View contentView =
                     LayoutInflater.from(mActivity).inflate(R.layout.search_activity, null);
-            OmniboxActionDelegate omniboxActionDelegate =
+            var omniboxActionDelegate =
                     new OmniboxActionDelegateImpl(
                             mActivity,
                             () -> null,
@@ -1816,6 +1843,42 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                 MultiWindowUtils.launchIntentInMaybeClosedWindow(mActivity, intent, windowId);
             }
         };
+    }
+
+    private void initializeSideUi() {
+        ViewStub sideUiStartAnchorContainerStub =
+                mActivity.findViewById(R.id.side_ui_start_anchor_container_stub);
+        ViewStub sideUiEndAnchorContainerStub =
+                mActivity.findViewById(R.id.side_ui_end_anchor_container_stub);
+        mSideUiCoordinator =
+                SideUiCoordinatorFactory.create(
+                        sideUiStartAnchorContainerStub, sideUiEndAnchorContainerStub);
+        if (mSideUiCoordinator == null) {
+            return;
+        }
+
+        mSidePanelContainerCoordinator =
+                SidePanelContainerCoordinatorFactory.create(mSideUiCoordinator);
+        if (mSidePanelContainerCoordinator != null) {
+            mSidePanelContainerCoordinator.init();
+        }
+    }
+
+    private void destroySideUi() {
+        // The destruction order matters:
+        //
+        // Each SideUiContainer implementation that's registered with SideUiCoordinator should be
+        // destroyed before SideUiCoordinator.
+
+        if (mSidePanelContainerCoordinator != null) {
+            mSidePanelContainerCoordinator.destroy();
+            mSidePanelContainerCoordinator = null;
+        }
+
+        if (mSideUiCoordinator != null) {
+            mSideUiCoordinator.destroy();
+            mSideUiCoordinator = null;
+        }
     }
 
     /** Returns the {@link TabGroupSyncControllerImpl} if it has been created yet. */
@@ -2112,6 +2175,27 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             }
         } else if (id == R.id.close_window) {
             mActivity.finishAndRemoveTask();
+            return true;
+        } else if (id == R.id.glic_menu_id) {
+            Profile profile = mTabModelSelectorSupplier.get().getCurrentModel().getProfile();
+            assert profile != null;
+
+            GlicKeyedService service = GlicKeyedServiceFactory.getForProfile(profile);
+            if (service == null) {
+                return false;
+            }
+
+            var task = mChromeAndroidTaskSupplier.get();
+            if (task == null) {
+                Log.w(TAG, "Failed to trigger GLIC: ChromeAndroidTask is null.");
+                return false;
+            }
+            long browserWindowPtr = task.getOrCreateNativeBrowserWindowPtr(profile);
+            // TODO(crbug.com/479863299): Create and pass in enum for invocationSource.
+            service.toggleUI(
+                    browserWindowPtr,
+                    assumeNonNull(mProfileSupplier.get()),
+                    /* invocationSource= */ 7);
             return true;
         }
 

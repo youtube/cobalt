@@ -47,9 +47,9 @@
 #include "chrome/browser/ui/views/tabs/browser_tab_strip_controller.h"
 #include "chrome/browser/ui/views/tabs/dragging/tab_drag_controller.h"
 #include "chrome/browser/ui/views/tabs/tab/alert_indicator_button.h"
+#include "chrome/browser/ui/views/tabs/tab/tab_accessibility.h"
 #include "chrome/browser/ui/views/tabs/tab/tab_close_button.h"
 #include "chrome/browser/ui/views/tabs/tab/tab_icon.h"
-#include "chrome/browser/ui/views/tabs/tab_accessibility.h"
 #include "chrome/browser/ui/views/tabs/tab_hover_card_bubble_view.h"
 #include "chrome/browser/ui/views/tabs/tab_slot_controller.h"
 #include "chrome/browser/ui/views/tabs/tab_slot_view.h"
@@ -995,7 +995,7 @@ void Tab::SetData(TabRendererData data) {
   }
 
   std::u16string title = data_.title;
-  if (title.empty() && !data_.should_render_empty_title) {
+  if (data_.should_render_loading_title) {
     title = icon_->GetShowingLoadingAnimation()
                 ? l10n_util::GetStringUTF16(IDS_TAB_LOADING_TITLE)
                 : CoreTabHelper::GetDefaultTitle();
@@ -1286,11 +1286,10 @@ void Tab::CloseButtonPressed(const ui::Event& event) {
 
   if (!alert_indicator_button_ || !alert_indicator_button_->GetVisible()) {
     base::RecordAction(UserMetricsAction("CloseTab_NoAlertIndicator"));
-  } else if (tabs::TabAlertController::GetAlertStateToShow(data_.alert_state) ==
-             tabs::TabAlert::kAudioPlaying) {
-    base::RecordAction(UserMetricsAction("CloseTab_AudioIndicator"));
-  } else {
-    base::RecordAction(UserMetricsAction("CloseTab_RecordingIndicator"));
+  } else if (auto alert_state = tabs::TabAlertController::GetAlertStateToShow(
+                 data_.alert_state);
+             alert_state.has_value()) {
+    tabs::TabAlertController::RecordCloseTabMetrics(alert_state.value());
   }
 
   const std::vector<Tab*>& tabs_in_split = controller()->GetTabsInSplit(this);

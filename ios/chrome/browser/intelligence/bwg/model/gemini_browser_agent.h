@@ -40,6 +40,7 @@ class PageContext;
 @class GeminiCameraHandler;
 @class GeminiPageContext;
 @class GeminiViewStateChangeHandler;
+@class GeminiScrollObserver;
 @class GeminiSuggestionHandler;
 
 @protocol BWGGatewayProtocol;
@@ -72,16 +73,6 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   void StartGeminiFlow(UIViewController* base_view_controller,
                        UIImage* image_attachment,
                        gemini::EntryPoint entry_point);
-
-  // Presents the floaty on a given view controller with a given expected
-  // PageContext.
-  // TODO(crbug.com/465535924): Deprecated, new callers should use
-  // `StartGeminiFlow` instead.
-  void PresentFloatyWithPageContext(
-      UIViewController* base_view_controller,
-      base::expected<std::unique_ptr<optimization_guide::proto::PageContext>,
-                     PageContextWrapperError> expected_page_context,
-      gemini::EntryPoint entry_point);
 
   // Presents the floaty on a given view controller in a pending state
   // with a partial PageContext.
@@ -188,6 +179,9 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   // provided web state.
   BwgTabHelper* GetActiveTabHelper(web::WebState* web_state);
 
+  // Callback for scroll events.
+  void OnScrollEvent();
+
   // FullscreenControllerObserver:
   void FullscreenProgressUpdated(FullscreenController* controller,
                                  CGFloat progress) override;
@@ -227,6 +221,11 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
       std::unique_ptr<optimization_guide::proto::PageContext>
           page_context_proto);
 
+  // Updates the presented source, if any, of the active tab helper.
+  void UpdateActiveTabHelperWithPresentedSource(
+      gemini::FloatyUpdateSource source,
+      bool is_presented);
+
   // The gateway for bridging internal protocols.
   __strong id<BWGGatewayProtocol> bwg_gateway_ = nullptr;
 
@@ -257,8 +256,14 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   id keyboard_show_observer_ = nil;
   id keyboard_hide_observer_ = nil;
 
+  // Observer for scroll events.
+  __strong GeminiScrollObserver* scroll_observer_ = nullptr;
+
   // Whether the keyboard is currently visible.
   bool is_keyboard_visible_ = false;
+
+  // Whether the floaty is currently hidden due to the keyboard being visible.
+  bool is_hidden_by_keyboard_ = false;
 
   // Called when keyboard state changes.
   void OnKeyboardStateChanged(bool is_visible);
@@ -289,6 +294,14 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   // to avoid showing the floaty when view controllers are presented/dismissed
   // while an overlay is presented.
   bool is_external_overlay_presented_ = false;
+
+  // Whether an alert is currently presented. Used to avoid showing the floaty
+  // when view controllers are presented/dismissed while an alert is presented.
+  bool is_alert_presented_ = false;
+
+  // Whether a banner is currently presented. Used to avoid showing the floaty
+  // when view controllers are presented/dismissed while a banner is presented.
+  bool is_banner_presented_ = false;
 
   // Registrar for pref changes.
   PrefChangeRegistrar pref_change_registrar_;

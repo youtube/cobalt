@@ -15,6 +15,7 @@
 #include "build/build_config.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/layout_constants.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/bookmarks/bookmark_bar_view.h"
 #include "chrome/browser/ui/views/frame/custom_corners_background.h"
 #include "chrome/browser/ui/views/frame/custom_floating_corner.h"
@@ -28,6 +29,7 @@
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
 #include "chrome/browser/ui/views/side_panel/side_panel.h"
+#include "chrome/browser/ui/views/tabs/projects/layout_constants.h"
 #include "chrome/browser/ui/views/tabs/projects/projects_panel_view.h"
 #include "ui/gfx/geometry/outsets.h"
 #include "ui/gfx/geometry/size.h"
@@ -584,6 +586,12 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
                     tab_strip_type == TabStripType::kHorizontal);
   }
 
+  // This will be the area next to the vertical tab strip (if present) that will
+  // be targeted for the content area when animating. It allows other elements
+  // to "fly over" the contents.
+  bool clip_content_for_animation = false;
+  gfx::Rect unclipped_contents_region = params.visual_client_area;
+
   // Lay out vertical tab strip if visible.
   int collapsed_vertical_tab_strip_adjustment = 0;
   VerticalTabStripAnimation vertical_tab_strip_animation;
@@ -610,6 +618,16 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
       }
       params.InsetHorizontal(horizontal_layout.vertical_tab_strip_width,
                              /*leading=*/true);
+
+      // Let the vertical tab strip animate out over the content.
+      if (views().vertical_tab_strip_region_view->is_animating()) {
+        clip_content_for_animation = true;
+        unclipped_contents_region.Inset(gfx::Insets::TLBR(
+            0, VerticalTabStripRegionView::kCollapsedWidth, 0, 0));
+      } else {
+        unclipped_contents_region.Inset(gfx::Insets::TLBR(
+            0, horizontal_layout.vertical_tab_strip_width, 0, 0));
+      }
     }
     layout.AddChild(views().vertical_tab_strip_region_view,
                     vertical_tab_strip_bounds,
@@ -660,8 +678,20 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
   // Project Panel Container.
   if (IsParentedToAndVisible(views().projects_panel_container,
                              views().browser_view)) {
-    const int target_width =
-        views().projects_panel_container->GetPreferredSize().width();
+    int target_width = projects_panel::kProjectsPanelMinWidth;
+    bool elevated = true;
+    if (tab_strip_type == TabStripType::kVertical) {
+      elevated = horizontal_layout.vertical_tab_strip_width <
+                 projects_panel::kProjectsPanelMinWidth;
+      if (!elevated) {
+        target_width = std::max(target_width - views::Separator::kThickness,
+                                horizontal_layout.vertical_tab_strip_width -
+                                    views::Separator::kThickness);
+      }
+    }
+    views().projects_panel_container->SetTargetWidth(target_width);
+    views().projects_panel_container->SetIsElevated(elevated);
+
     const double reveal_amount =
         views().projects_panel_container->GetResizeAnimationValue();
     const int visible_width = base::ClampFloor(target_width * reveal_amount);
@@ -706,9 +736,11 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
   }
 
   // Lay out the main area background.
+  ProposedLayout* main_background_layout = nullptr;
   if (IsParentedTo(views().main_background_region, views().browser_view)) {
-    layout.AddChild(views().main_background_region, params.visual_client_area,
-                    horizontal_layout.has_toolbar_height_side_panel());
+    main_background_layout = &layout.AddChild(
+        views().main_background_region, params.visual_client_area,
+        horizontal_layout.has_toolbar_height_side_panel());
   }
 
   // Lay out toolbar-height side panel.
@@ -720,11 +752,17 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
   const bool pad_toolbar_height_side_panel_top =
       tab_strip_type != TabStripType::kVertical ||
       delegate().GetImmersiveModeController()->IsEnabled();
+  bool adjust_for_shadow_box = false;
   if (horizontal_layout.has_toolbar_height_side_panel()) {
     const SidePanel* const toolbar_height_side_panel =
         views().toolbar_height_side_panel;
     toolbar_height_side_panel_leading =
         toolbar_height_side_panel->IsRightAligned() == base::i18n::IsRTL();
+
+    if (toolbar_height_side_panel_reveal_amount < 1.0) {
+      clip_content_for_animation = true;
+      adjust_for_shadow_box = true;
+    }
 
     // Not all of the width may be visible on the screen.
     const int target_width = horizontal_layout.toolbar_height_side_panel_width;
@@ -767,17 +805,19 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
   }
 
   const bool show_shadow_overlay = ShadowOverlayVisible();
+  gfx::Insets shadow_overlay_insets;
   if (show_shadow_overlay) {
     // As the toolbar height side panel animates in, the main panel shrinks and
     // moves over to accommodate the panel.
     const int scaled_main_area_padding =
         base::ClampRound(toolbar_height_side_panel_reveal_amount *
                          horizontal_layout.side_panel_padding);
-    params.Inset(gfx::Insets::TLBR(
+    shadow_overlay_insets = gfx::Insets::TLBR(
         pad_toolbar_height_side_panel_top ? scaled_main_area_padding : 0,
         toolbar_height_side_panel_leading ? 0 : scaled_main_area_padding,
         scaled_main_area_padding,
-        toolbar_height_side_panel_leading ? scaled_main_area_padding : 0));
+        toolbar_height_side_panel_leading ? scaled_main_area_padding : 0);
+    params.Inset(shadow_overlay_insets);
   }
 
   // Lay out the shadow overlay.
@@ -841,14 +881,18 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
     const bool is_right_aligned = contents_height_side_panel->IsRightAligned();
     contents_height_side_panel_leading =
         is_right_aligned == base::i18n::IsRTL();
+    const double animation_value =
+        contents_height_side_panel->GetAnimationValue();
     if (horizontal_layout.has_content_height_side_panel()) {
       show_leading_separator = contents_height_side_panel_leading;
       show_trailing_separator = !contents_height_side_panel_leading;
+      if (animation_value < 1.0) {
+        clip_content_for_animation = true;
+      }
     }
 
     const int target_width = horizontal_layout.content_height_side_panel_width;
-    const int visible_width = base::ClampFloor(
-        target_width * contents_height_side_panel->GetAnimationValue());
+    const int visible_width = base::ClampFloor(target_width * animation_value);
 
     // Side panel slides in from the edge of the main container.
     const gfx::Rect contents_height_side_panel_bounds(
@@ -875,9 +919,10 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
   const bool suppress_top_separator =
       horizontal_layout.has_toolbar_height_side_panel() &&
       horizontal_layout.force_top_container_to_top;
+  const auto top_separator_type = GetTopSeparatorType();
   views().multi_contents_view->SetShouldShowTopSeparator(
       !suppress_top_separator &&
-      GetTopSeparatorType() == TopSeparatorType::kMultiContents);
+      top_separator_type == TopSeparatorType::kMultiContents);
 
   // Lay out contents container. The contents container contains the multi-
   // contents view when multi-contents are enabled. The checks here are to
@@ -903,10 +948,64 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
     content_right =
         std::min(content_right, browser_params.visual_client_area.right());
   }
-  layout.AddChild(views().contents_container,
-                  gfx::Rect(content_left, params.visual_client_area.y(),
-                            content_right - content_left,
-                            params.visual_client_area.height()));
+  auto& contents_layout =
+      layout.AddChild(views().contents_container,
+                      gfx::Rect(content_left, params.visual_client_area.y(),
+                                content_right - content_left,
+                                params.visual_client_area.height()));
+
+  // Maybe expand and clip the web contents to avoid issues during animation.
+  if (features::UseSidePanelFlyoverAnimation()) {
+    if (clip_content_for_animation) {
+      // Vertical span is whatever it is, minus any shadow overlay insets.
+      unclipped_contents_region.set_y(contents_layout.bounds.y());
+      unclipped_contents_region.set_height(contents_layout.bounds.height());
+      if (adjust_for_shadow_box) {
+        unclipped_contents_region.Outset(gfx::Outsets::TLBR(
+            shadow_overlay_insets.top(), 0, shadow_overlay_insets.bottom(), 0));
+      }
+
+      // Horizontal separators may be shown. In this case, adjust clip area as
+      // if there are no separators, as at the extent of the animation there
+      // will not be.
+      if (show_leading_separator) {
+        unclipped_contents_region.Outset(
+            gfx::Outsets::TLBR(0, views::Separator::kThickness, 0, 0));
+      }
+      if (show_trailing_separator) {
+        unclipped_contents_region.Outset(
+            gfx::Outsets::TLBR(0, 0, 0, views::Separator::kThickness));
+      }
+
+      // If the top separator is suppressed now, it won't be at the extent of
+      // the animation.
+      if (top_separator_type == TopSeparatorType::kMultiContents &&
+          suppress_top_separator) {
+        unclipped_contents_region.Inset(
+            gfx::Insets::TLBR(views::Separator::kThickness, 0, 0, 0));
+      }
+
+      // Avoid cases where these areas are somehow misaligned (shouldn't happen,
+      // but want to avoid visual artifacts if they are).
+      contents_layout.bounds.Intersect(unclipped_contents_region);
+      auto clip_insets =
+          unclipped_contents_region.InsetsFrom(contents_layout.bounds);
+
+      // Set the target size of the contents.
+      views().multi_contents_view->SetTargetContentBounds(
+          MultiContentsView::TargetContentBounds(
+              unclipped_contents_region.size(), clip_insets));
+
+      // Paint the main background during animations when clipping is
+      // required. This prevents "cracking" at the edge of the contents area
+      // as the clip region is manipulated.
+      if (main_background_layout) {
+        main_background_layout->visibility = true;
+      }
+    } else {
+      views().multi_contents_view->SetTargetContentBounds(std::nullopt);
+    }
+  }
 
   // Make final visual adjustments required for child views to paint.
   if (tab_strip_type == TabStripType::kVertical) {

@@ -72,9 +72,8 @@ class LensQueryFlowRouter
 
   // Returns the file token for the tab and full image viewport uploaded when
   // the overlay first opens.
-  std::optional<base::UnguessableToken> overlay_tab_context_file_token() const {
-    return overlay_tab_context_file_token_;
-  }
+  virtual std::optional<base::UnguessableToken> overlay_tab_context_file_token()
+      const;
 
   // Sets the callback for when the suggest inputs are ready.
   void SetSuggestInputsReadyCallback(base::RepeatingClosure callback);
@@ -129,6 +128,9 @@ class LensQueryFlowRouter
   void HandleInteractionResponse(
       std::optional<lens::ImageCrop> image_crop,
       lens::LensOverlayInteractionResponse interaction_response);
+
+  // Removes the contextual search context if no region selection was made.
+  void RemoveContextualSearchContextIfNecessary(bool has_region_selection);
 
   void reset_file_upload_status_observation() {
     file_upload_status_observation_.Reset();

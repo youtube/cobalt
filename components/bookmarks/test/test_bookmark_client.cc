@@ -17,6 +17,7 @@
 #include "components/bookmarks/browser/bookmark_node.h"
 #include "components/bookmarks/browser/bookmark_storage.h"
 #include "components/favicon_base/favicon_types.h"
+#include "components/os_crypt/async/browser/test_utils.h"
 #include "ui/gfx/image/image.h"
 
 namespace bookmarks {
@@ -86,7 +87,7 @@ bool TestBookmarkClient::HasFaviconLoadTasks() const {
 }
 
 void TestBookmarkClient::SetIsSyncFeatureEnabledIncludingBookmarks(bool value) {
-  is_sync_feature_enabled_including_bookmarks_for_uma = value;
+  is_sync_feature_enabled_including_bookmarks_ = value;
 }
 
 void TestBookmarkClient::SetAccountBookmarkSyncMetadataAndScheduleWrite(
@@ -106,7 +107,7 @@ LoadManagedNodeCallback TestBookmarkClient::GetLoadManagedNodeCallback() {
 }
 
 bool TestBookmarkClient::IsSyncFeatureEnabledIncludingBookmarks() {
-  return is_sync_feature_enabled_including_bookmarks_for_uma;
+  return is_sync_feature_enabled_including_bookmarks_;
 }
 
 bool TestBookmarkClient::CanSetPermanentNodeTitle(
@@ -167,6 +168,14 @@ void TestBookmarkClient::SchedulePersistentTimerForDailyMetrics(
 
 void TestBookmarkClient::TriggerPersistentLogInterval() {
   metrics_callback_.Run();
+}
+
+void TestBookmarkClient::GetEncryptor(
+    base::OnceCallback<void(os_crypt_async::Encryptor encryptor)> callback) {
+  if (!os_crypt_async_) {
+    os_crypt_async_ = os_crypt_async::GetTestOSCryptAsyncForTesting();
+  }
+  os_crypt_async_->GetInstance(std::move(callback));
 }
 
 }  // namespace bookmarks

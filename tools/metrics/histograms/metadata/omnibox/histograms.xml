@@ -22,10 +22,21 @@ chromium-metrics-reviews@google.com.
 
 <histograms>
 
+<variants name="AimEligibilityBooleanFeature">
+  <variant name="is_cobrowse_eligible" summary="is_cobrowse_eligible"/>
+  <variant name="is_deep_search_eligible" summary="is_deep_search_eligible"/>
+  <variant name="is_eligible" summary="is_eligible"/>
+  <variant name="is_image_generation_eligible"
+      summary="is_image_generation_eligible"/>
+  <variant name="is_pdf_upload_eligible" summary="is_pdf_upload_eligible"/>
+</variants>
+
 <!-- LINT.IfChange(AimEligibilityRequestSource) -->
 
 <variants name="AimEligibilityRequestSource">
   <variant name="" summary="Aggregated across all request sources"/>
+  <variant name=".CoBrowseAimUrlDetection"
+      summary="Requests triggered by the co-browse AIM URL detection logic"/>
   <variant name=".CookieChange" summary="Requests triggered by cookie changes"/>
   <variant name=".NetworkChange"
       summary="Requests triggered by network changes (expected at most once
@@ -89,6 +100,7 @@ chromium-metrics-reviews@google.com.
   <variant name=".RegularModel" summary=""/>
   <variant name=".Tab" summary=""/>
   <variant name=".ThinkingModel" summary=""/>
+  <variant name=".Unknown" summary=""/>
 </variants>
 
 <!-- LINT.ThenChange(//chrome/browser/ui/omnibox/omnibox_context_menu_controller.h:ContextType) -->
@@ -460,6 +472,69 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram
+    name="Omnibox.AimEligibility.EligibilityRequestDebounced{RequestSource}"
+    enum="Boolean" expires_after="2026-08-05">
+  <owner>mahmadi@chromium.org</owner>
+  <owner>avivkiss@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    The AIM Eligibility service makes HTTP requests to determine which AIM
+    features the user is eligible for. This metric logs whether the request was
+    debounced (i.e., a new request is scheduled while a timer for a previous
+    request is already running), sliced by request source. This metric is logged
+    every time a request is attempted.
+  </summary>
+  <token key="RequestSource" variants="AimEligibilityRequestSource"/>
+</histogram>
+
+<histogram
+    name="Omnibox.AimEligibility.EligibilityRequestOAuthFallback{RequestSource}"
+    enum="Boolean" expires_after="2026-08-05">
+  <owner>mahmadi@chromium.org</owner>
+  <owner>avivkiss@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    The AIM Eligibility service makes HTTP requests to determine which AIM
+    features the user is eligible for. This metric logs whether the request fell
+    back to cookies because an OAuth token was unavailable, sliced by request
+    source. The metric is logged when a request is attempted and OAuth is not
+    available.
+  </summary>
+  <token key="RequestSource" variants="AimEligibilityRequestSource"/>
+</histogram>
+
+<histogram
+    name="Omnibox.AimEligibility.EligibilityRequestOAuthTokenFetchStatus{RequestSource}"
+    enum="GoogleServiceAuthError" expires_after="2026-08-05">
+  <owner>mahmadi@chromium.org</owner>
+  <owner>avivkiss@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    The AIM Eligibility service makes HTTP requests to determine which AIM
+    features the user is eligible for. This metric logs the status of the OAuth
+    token fetch, sliced by request source. This metric is logged every time the
+    OAuth token is fetched (happens whenever a request is made).
+  </summary>
+  <token key="RequestSource" variants="AimEligibilityRequestSource"/>
+</histogram>
+
+<histogram
+    name="Omnibox.AimEligibility.EligibilityRequestOAuthTokenProvided{RequestSource}"
+    enum="Boolean" expires_after="2026-08-05">
+  <owner>mahmadi@chromium.org</owner>
+  <owner>avivkiss@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    The AIM Eligibility service makes HTTP requests to determine which AIM
+    features the user is eligible for. This metric logs whether an OAuth token
+    was successfully provided for the request, sliced by request source. This
+    metric is logged every time the OAuth token is fetched (happens whenever a
+    request is made).
+  </summary>
+  <token key="RequestSource" variants="AimEligibilityRequestSource"/>
+</histogram>
+
+<histogram
     name="Omnibox.AimEligibility.EligibilityRequestPrimaryAccountExists{RequestSource}"
     enum="Boolean" expires_after="2026-08-05">
   <owner>mahmadi@chromium.org</owner>
@@ -468,7 +543,8 @@ Keep consistent with active providers. Doesn't need to include every provider in
   <summary>
     The AIM Eligibility service makes HTTP requests to determine which AIM
     features the user is eligible for. The requests are triggered on profile
-    startup and when the primary account changes.
+    startup, when the primary account changes, or whenever an AIM interception
+    may happen.
 
     This metric logs whether the primary account exists when the request was
     sent, sliced by request source.
@@ -485,7 +561,8 @@ Keep consistent with active providers. Doesn't need to include every provider in
   <summary>
     The AIM Eligibility service makes HTTP requests to determine which AIM
     features the user is eligible for. The requests are triggered on profile
-    startup and when the primary account changes.
+    startup, when the primary account changes, or whenever an AIM interception
+    may happen.
 
     This metric logs whether the primary account was found in the cookie jar
     when the request was sent, sliced by request source. Logged only if the
@@ -503,7 +580,8 @@ Keep consistent with active providers. Doesn't need to include every provider in
   <summary>
     The AIM Eligibility service makes HTTP requests to determine which AIM
     features the user is eligible for. The requests are triggered on profile
-    startup and when the primary account changes.
+    startup, when the primary account changes, or whenever an AIM interception
+    may happen.
 
     This metric logs the index of the primary account in the cookie jar when the
     request was sent, sliced by request source. Logged only if the primary
@@ -540,33 +618,15 @@ Keep consistent with active providers. Doesn't need to include every provider in
   <summary>
     The AIM Eligibility service makes HTTP requests to determine which AIM
     features the user is eligible for. The requests are triggered on profile
-    startup and when the primary account changes.
+    startup, when the primary account changes, or whenever an AIM interception
+    may happen.
 
     This metric logs the status of the request, sliced by request source.
   </summary>
   <token key="RequestSource" variants="AimEligibilityRequestSource"/>
 </histogram>
 
-<histogram
-    name="Omnibox.AimEligibility.EligibilityResponseChange.is_deep_search_eligible"
-    units="index" expires_after="2026-11-12">
-  <owner>ananyaseelam@chromium.org</owner>
-  <owner>manukh@chromium.org</owner>
-  <owner>chrome-desktop-search@google.com</owner>
-  <summary>
-    The AIM Eligibility service makes HTTP requests to determine which AIM
-    features the user is eligible for. The requests are triggered on profile
-    startup and when the primary account changes.
-
-    This metric is logged only when the server response changes compared to the
-    previous value (e.g., the value of the &quot;is_deep_search_eligible&quot;
-    field differs from the last logged response). If the response fails (e.g.
-    server is down or response is poorly formatted), this metric will not be
-    logged.
-  </summary>
-</histogram>
-
-<histogram name="Omnibox.AimEligibility.EligibilityResponseChange.is_eligible"
+<histogram name="Omnibox.AimEligibility.EligibilityResponseChange.{Feature}"
     enum="Boolean" expires_after="2026-11-12">
   <owner>mahmadi@chromium.org</owner>
   <owner>manukh@chromium.org</owner>
@@ -574,69 +634,25 @@ Keep consistent with active providers. Doesn't need to include every provider in
   <summary>
     The AIM Eligibility service makes HTTP requests to determine which AIM
     features the user is eligible for. The requests are triggered on profile
-    startup and when the primary account changes.
+    startup, when the primary account changes, or whenever an AIM interception
+    may happen.
 
     This metric is logged only when the server response changes compared to the
-    previous value (e.g., the value of the &quot;is_eligible&quot; field differs
-    from the last logged response). If the response fails (e.g. server is down
-    or response is poorly formatted), this metric will not be logged.
+    previous value (e.g., the value of the &quot;{Feature}&quot; field differs
+    from the last logged response). For the &quot;session_index&quot; variant,
+    this records whether the selected account index changed. If the response
+    fails (e.g. server is down or response is poorly formatted), this metric
+    will not be logged.
   </summary>
-</histogram>
-
-<histogram
-    name="Omnibox.AimEligibility.EligibilityResponseChange.is_image_generation_eligible"
-    units="index" expires_after="2026-11-12">
-  <owner>ananyaseelam@chromium.org</owner>
-  <owner>manukh@chromium.org</owner>
-  <owner>chrome-desktop-search@google.com</owner>
-  <summary>
-    The AIM Eligibility service makes HTTP requests to determine which AIM
-    features the user is eligible for. The requests are triggered on profile
-    startup and when the primary account changes.
-
-    This metric is logged only when the server response changes compared to the
-    previous value (e.g., the value of the
-    &quot;is_image_generation_eligible&quot; field differs from the last logged
-    response). If the response fails (e.g. server is down or response is poorly
-    formatted), this metric will not be logged.
-  </summary>
-</histogram>
-
-<histogram
-    name="Omnibox.AimEligibility.EligibilityResponseChange.is_pdf_upload_eligible"
-    enum="Boolean" expires_after="2026-11-12">
-  <owner>mahmadi@chromium.org</owner>
-  <owner>manukh@chromium.org</owner>
-  <owner>chrome-desktop-search@google.com</owner>
-  <summary>
-    The AIM Eligibility service makes HTTP requests to determine which AIM
-    features the user is eligible for. The requests are triggered on profile
-    startup and when the primary account changes.
-
-    This metric is logged only when the server response changes compared to the
-    previous value (e.g., the value of the &quot;is_pdf_upload_eligible&quot;
-    field differs from the last logged response). If the response fails (e.g.
-    server is down or response is poorly formatted), this metric will not be
-    logged.
-  </summary>
-</histogram>
-
-<histogram
-    name="Omnibox.AimEligibility.EligibilityResponseChange.session_index"
-    units="index" expires_after="2026-11-12">
-  <owner>mahmadi@chromium.org</owner>
-  <owner>manukh@chromium.org</owner>
-  <owner>chrome-desktop-search@google.com</owner>
-  <summary>
-    The AIM Eligibility service makes HTTP requests to determine which AIM
-    features the user is eligible for. The requests are triggered on profile
-    startup and when the primary account changes.
-
-    This metric is logged only when the server response changes compared to the
-    previous value (e.g., the value of the &quot;session_index&quot; field
-    differs from the last logged response). If the response fails (e.g. server
-    is down or response is poorly formatted), this metric will not be logged.
-  </summary>
+  <token key="Feature">
+    <variant name="is_cobrowse_eligible" summary="is_cobrowse_eligible"/>
+    <variant name="is_deep_search_eligible" summary="is_deep_search_eligible"/>
+    <variant name="is_eligible" summary="is_eligible"/>
+    <variant name="is_image_generation_eligible"
+        summary="is_image_generation_eligible"/>
+    <variant name="is_pdf_upload_eligible" summary="is_pdf_upload_eligible"/>
+    <variant name="session_index" summary="session_index"/>
+  </token>
 </histogram>
 
 <histogram name="Omnibox.AimEligibility.EligibilityResponseCode{RequestSource}"
@@ -647,7 +663,8 @@ Keep consistent with active providers. Doesn't need to include every provider in
   <summary>
     The AIM Eligibility service makes HTTP requests to determine which AIM
     features the user is eligible for. The requests are triggered on profile
-    startup and when the primary account changes.
+    startup, when the primary account changes, or whenever an AIM interception
+    may happen.
 
     This metric logs the HTTP response code, sliced by request source.
   </summary>
@@ -662,52 +679,14 @@ Keep consistent with active providers. Doesn't need to include every provider in
   <summary>
     The AIM Eligibility service makes HTTP requests to determine which AIM
     features the user is eligible for. The requests are triggered on profile
-    startup and when the primary account changes.
+    startup, when the primary account changes, or whenever an AIM interception
+    may happen.
 
     This metric logs the source of the eligibility response when the service is
     queried by its clients for the server eligibility status. It helps determine
     how often the clients are receiving a fresh response from the server, a
     stale response stored in the prefs, or the default value.
   </summary>
-</histogram>
-
-<histogram
-    name="Omnibox.AimEligibility.EligibilityResponse{RequestSource}.is_eligible"
-    enum="Boolean" expires_after="2026-11-12">
-  <owner>mahmadi@chromium.org</owner>
-  <owner>manukh@chromium.org</owner>
-  <owner>chrome-desktop-search@google.com</owner>
-  <summary>
-    The AIM Eligibility service makes HTTP requests to determine which AIM
-    features the user is eligible for. The requests are triggered on profile
-    startup and when the primary account changes.
-
-    This metric logs whether the response contained a &quot;is_eligible&quot;
-    field set to true, sliced by request source. If the field is missing or
-    false, this metric will log false. If the response fails (e.g. server is
-    down or response is poorly formatted), this metric will not be logged.
-  </summary>
-  <token key="RequestSource" variants="AimEligibilityRequestSource"/>
-</histogram>
-
-<histogram
-    name="Omnibox.AimEligibility.EligibilityResponse{RequestSource}.is_pdf_upload_eligible"
-    enum="Boolean" expires_after="2026-11-12">
-  <owner>mahmadi@chromium.org</owner>
-  <owner>manukh@chromium.org</owner>
-  <owner>chrome-desktop-search@google.com</owner>
-  <summary>
-    The AIM Eligibility service makes HTTP requests to determine which AIM
-    features the user is eligible for. The requests are triggered on profile
-    startup and when the primary account changes.
-
-    This metric logs whether the response contained a
-    &quot;is_pdf_upload_eligible&quot; field set to true, sliced by request
-    source. If the field is missing or false, this metric will log false. If the
-    response fails (e.g. server is down or response is poorly formatted), this
-    metric will not be logged.
-  </summary>
-  <token key="RequestSource" variants="AimEligibilityRequestSource"/>
 </histogram>
 
 <histogram
@@ -719,7 +698,8 @@ Keep consistent with active providers. Doesn't need to include every provider in
   <summary>
     The AIM Eligibility service makes HTTP requests to determine which AIM
     features the user is eligible for. The requests are triggered on profile
-    startup and when the primary account changes.
+    startup, when the primary account changes, or whenever an AIM interception
+    may happen.
 
     This metric logs the selected session index (index of the account in the
     cookie jar selected by the server for authentication), sliced by request
@@ -728,6 +708,27 @@ Keep consistent with active providers. Doesn't need to include every provider in
     metric will not be logged.
   </summary>
   <token key="RequestSource" variants="AimEligibilityRequestSource"/>
+</histogram>
+
+<histogram
+    name="Omnibox.AimEligibility.EligibilityResponse{RequestSource}.{Feature}"
+    enum="Boolean" expires_after="2026-11-12">
+  <owner>mahmadi@chromium.org</owner>
+  <owner>manukh@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    The AIM Eligibility service makes HTTP requests to determine which AIM
+    features the user is eligible for. The requests are triggered on profile
+    startup, when the primary account changes, or whenever an AIM interception
+    may happen.
+
+    This metric logs whether the response contained a &quot;{Feature}&quot;
+    field set to true, sliced by request source. If the field is missing or
+    false, this metric will log false. If the response fails (e.g. server is
+    down or response is poorly formatted), this metric will not be logged.
+  </summary>
+  <token key="RequestSource" variants="AimEligibilityRequestSource"/>
+  <token key="Feature" variants="AimEligibilityBooleanFeature"/>
 </histogram>
 
 <histogram name="Omnibox.AimEntrypoint.Activated.UserTextPresent"
@@ -1618,7 +1619,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 
 <histogram
     name="Omnibox.DsePreload.SignalResult{DsePreloadTriggerType}{PreloadType}"
-    enum="SearchPreloadSignalResult" expires_after="2026-06-21">
+    enum="SearchPreloadSignalResult" expires_after="2026-08-23">
   <owner>khalidpeer@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <owner>kenoss@chromium.org</owner>
@@ -1715,6 +1716,9 @@ Keep consistent with active providers. Doesn't need to include every provider in
 
     On Android variants with attachments are recorded as of M144.
 
+    On Android M144-M146 the values &quot;Navigation w/o attachments&quot; and
+    &quot;No navigation with attachments&quot; were flipped.
+
     This metric is not recorded for the Realbox interactions.
 
     Recorded every time the Omnibox focus is cleared.
@@ -1728,7 +1732,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.FocusToCutOrCopyAllTextTime" units="ms"
-    expires_after="2026-06-21">
+    expires_after="2026-08-23">
   <owner>khalidpeer@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -1825,7 +1829,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 
 <histogram
     name="Omnibox.FocusToOpenTimeAnyPopupState3.ByPageContext.{OmniboxPageContext}"
-    units="ms" expires_after="2026-06-21">
+    units="ms" expires_after="2026-08-23">
   <owner>khalidpeer@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -2241,7 +2245,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.LensAction.Precision" enum="Boolean"
-    expires_after="2026-02-22">
+    expires_after="2026-06-28">
   <owner>khalidpeer@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -2305,7 +2309,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.LoadingPredictor.MatchType.{PreconnectableType}"
-    enum="OmniboxResultType" expires_after="2026-06-21">
+    enum="OmniboxResultType" expires_after="2026-08-23">
   <owner>nidhijaju@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -2480,6 +2484,33 @@ Keep consistent with active providers. Doesn't need to include every provider in
   </summary>
 </histogram>
 
+<histogram name="Omnibox.MobileFusebox.AttachmentAbandoned" units="ms"
+    expires_after="2027-02-01">
+  <owner>skym@chromium.org</owner>
+  <owner>chrome-mobile-search@google.com</owner>
+  <summary>
+    Records the amount of time between when the user choose to add an
+    attachment, and when it was abandoned. Being abandoned might mean the user
+    removed the attachment, or navigated, or backed out of the UI. Note that
+    abandonment, success, and failure are exclusive outcomes, only one will be
+    reported.
+  </summary>
+</histogram>
+
+<histogram
+    name="Omnibox.MobileFusebox.AttachmentAbandoned{FuseboxAttachmentButtonType}"
+    units="ms" expires_after="2027-02-01">
+  <owner>skym@chromium.org</owner>
+  <owner>chrome-mobile-search@google.com</owner>
+  <summary>
+    Records the amount of time between when the user choose to add an
+    attachment, and when it was abandoned. Being abandoned might mean the user
+    removed the attachment, or navigated, or backed out of the UI. Scoped to a
+    particular button type. Note that abandonment, success, and failure are
+    exclusive outcomes, only one will be reported.
+  </summary>
+</histogram>
+
 <histogram name="Omnibox.MobileFusebox.AttachmentButtonShown"
     enum="FuseboxAttachmentButtonType" expires_after="2026-11-11">
   <owner>pnoland@google.com</owner>
@@ -2514,6 +2545,30 @@ Keep consistent with active providers. Doesn't need to include every provider in
       variants="FuseboxAttachmentButtonType"/>
 </histogram>
 
+<histogram name="Omnibox.MobileFusebox.AttachmentFailed" units="ms"
+    expires_after="2027-02-01">
+  <owner>skym@chromium.org</owner>
+  <owner>chrome-mobile-search@google.com</owner>
+  <summary>
+    Records the amount of time between when the user choose to add an
+    attachment, and when it failed to upload. Note that abandonment, success,
+    and failure are exclusive outcomes, only one will be reported.
+  </summary>
+</histogram>
+
+<histogram
+    name="Omnibox.MobileFusebox.AttachmentFailed{FuseboxAttachmentButtonType}"
+    units="ms" expires_after="2027-02-01">
+  <owner>skym@chromium.org</owner>
+  <owner>chrome-mobile-search@google.com</owner>
+  <summary>
+    Records the amount of time between when the user choose to add an
+    attachment, and when it failed to upload. Scoped to a particular button
+    type. Note that abandonment, success, and failure are exclusive outcomes,
+    only one will be reported.
+  </summary>
+</histogram>
+
 <histogram name="Omnibox.MobileFusebox.AttachmentsPopupToggled" enum="Boolean"
     expires_after="2026-11-11">
   <owner>pnoland@google.com</owner>
@@ -2522,6 +2577,30 @@ Keep consistent with active providers. Doesn't need to include every provider in
     Counts the number of times the user deliberately toggled the attachments
     popup on or off. Does not count popup dismissals as the result of attaching
     an item.
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.MobileFusebox.AttachmentSucceeded" units="ms"
+    expires_after="2027-02-01">
+  <owner>skym@chromium.org</owner>
+  <owner>chrome-mobile-search@google.com</owner>
+  <summary>
+    Records the amount of time between when the user choose to add an
+    attachment, and when it succeeded uploading. Note that abandonment, success,
+    and failure are exclusive outcomes, only one will be reported.
+  </summary>
+</histogram>
+
+<histogram
+    name="Omnibox.MobileFusebox.AttachmentSucceeded{FuseboxAttachmentButtonType}"
+    units="ms" expires_after="2027-02-01">
+  <owner>skym@chromium.org</owner>
+  <owner>chrome-mobile-search@google.com</owner>
+  <summary>
+    Records the amount of time between when the user choose to add an
+    attachment, and when it succeeded uploading. Scoped to a particular button
+    type. Note that abandonment, success, and failure are exclusive outcomes,
+    only one will be reported.
   </summary>
 </histogram>
 
@@ -3380,7 +3459,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 
 <histogram
     name="Omnibox.SearchPrefetch.Within1sDuplicateSearchTermsRelationship"
-    enum="DuplicateNavigationServingResult" expires_after="2026-06-14">
+    enum="DuplicateNavigationServingResult" expires_after="2026-08-16">
   <owner>lingqi@chromium.org</owner>
   <owner>nhiroki@chromium.org</owner>
   <owner>chrome-prerendering@google.com</owner>

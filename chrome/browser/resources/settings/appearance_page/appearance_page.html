@@ -181,9 +181,31 @@
             <settings-dropdown-menu id="tabStripPosition"
                 label="$i18n{tabStripPosition}"
                 pref="{{prefs.vertical_tabs.enabled}}"
-                menu-options="[[tabStripOptions_]]">
+                menu-options="[[tabStripOptions_]]"
+                on-settings-control-change="onTabStripPositionChanged_">
             </settings-dropdown-menu>
           </div>
+        </template>
+
+        <template is="dom-if" if="[[showTabStripComboButtonEnabled_]]">
+          <settings-toggle-button id="showTabSearchButton" class="hr"
+              pref="{{prefs.tab_search.pinned_to_tabstrip}}"
+              label="$i18n{showTabSearchButton}">
+          </settings-toggle-button>
+          <template is="dom-if" if="[[showProjectsPanelEnabled_]]">
+            <settings-toggle-button id="showProjectsPanelButton" class="hr"
+                pref="{{prefs.projects_panel.pinned_to_tabstrip}}"
+                label="$i18n{showProjectsPanelButton}">
+            </settings-toggle-button>
+          </template>
+          <template is="dom-if"
+              if="[[showEverythingMenuToggle_(
+                  showProjectsPanelEnabled_, showEverythingMenuEnabled_)]]">
+            <settings-toggle-button id="showEverythingMenuButton" class="hr"
+                pref="{{prefs.everything_menu.pinned_to_tabstrip}}"
+                label="$i18n{showEverythingMenuButton}">
+            </settings-toggle-button>
+          </template>
         </template>
 
         <settings-toggle-button class="hr" id="showSavedTabGroups"

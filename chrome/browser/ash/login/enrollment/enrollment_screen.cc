@@ -9,6 +9,7 @@
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_switches.h"
 #include "base/check.h"
+#include "base/check_deref.h"
 #include "base/check_is_test.h"
 #include "base/command_line.h"
 #include "base/functional/bind.h"
@@ -39,7 +40,6 @@
 #include "chrome/browser/ash/policy/enrollment/enrollment_status.h"
 #include "chrome/browser/ash/policy/handlers/tpm_auto_update_mode_policy_handler.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/ui/ash/login/login_display_host.h"
 #include "chrome/browser/ui/ash/login/webui_login_view.h"
 #include "chrome/browser/ui/webui/ash/login/error_screen_handler.h"
@@ -53,6 +53,7 @@
 #include "components/policy/core/common/cloud/cloud_policy_constants.h"
 #include "components/user_manager/user_manager.h"
 #include "google_apis/gaia/gaia_auth_util.h"
+#include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "ui/chromeos/devicetype_utils.h"
 
 namespace ash {
@@ -90,14 +91,6 @@ constexpr char kUserActionUsingSamlApi[] = "using-saml-api";
 
 // Max number of retries to check install attributes state.
 constexpr int kMaxInstallAttributesStateCheckRetries = 60;
-
-// Returns the manager of the domain (either the domain name or the email of the
-// admin of the domain) after enrollment, or an empty string.
-std::string GetEnterpriseDomainManager() {
-  policy::BrowserPolicyConnectorAsh* connector =
-      g_browser_process->platform_part()->browser_policy_connector_ash();
-  return connector->GetEnterpriseDomainManager();
-}
 
 bool IsOnEnrollmentScreen() {
   return LoginDisplayHost::default_host()->GetOobeUI()->current_screen() ==
@@ -143,19 +136,24 @@ EnrollmentScreen* EnrollmentScreen::Get(ScreenManager* manager) {
       manager->GetScreen(EnrollmentScreenView::kScreenId));
 }
 
-EnrollmentScreen::EnrollmentScreen(base::WeakPtr<EnrollmentScreenView> view,
-                                   ErrorScreen* error_screen,
-                                   const ScreenExitCallback& exit_callback)
+EnrollmentScreen::EnrollmentScreen(
+    scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory,
+    const policy::BrowserPolicyConnectorAsh* browser_policy_connector_ash,
+    base::WeakPtr<EnrollmentScreenView> view,
+    ErrorScreen* error_screen,
+    const ScreenExitCallback& exit_callback)
     : BaseScreen(EnrollmentScreenView::kScreenId, OobeScreenPriority::DEFAULT),
+      shared_url_loader_factory_(std::move(shared_url_loader_factory)),
+      browser_policy_connector_ash_(CHECK_DEREF(browser_policy_connector_ash)),
       view_(std::move(view)),
       error_screen_(error_screen),
       exit_callback_(exit_callback),
-      tpm_updater_(base::BindRepeating([]() {
-        g_browser_process->platform_part()
-            ->browser_policy_connector_ash()
-            ->GetTPMAutoUpdateModePolicyHandler()
-            ->UpdateOnEnrollmentIfNeeded();
-      })),
+      tpm_updater_(base::BindRepeating(
+          [](const policy::BrowserPolicyConnectorAsh* connector) {
+            connector->GetTPMAutoUpdateModePolicyHandler()
+                ->UpdateOnEnrollmentIfNeeded();
+          },
+          browser_policy_connector_ash)),
       histogram_helper_(
           ErrorScreensHistogramHelper::ErrorParentScreen::kEnrollment) {
   retry_policy_.num_errors_to_ignore = 0;
@@ -661,7 +659,11 @@ void EnrollmentScreen::OnDeviceEnrolled() {
   enrollment_succeeded_ = true;
   // Some info to be shown on the success screen.
   if (view_) {
-    view_->SetEnterpriseDomainInfo(GetEnterpriseDomainManager(),
+    // The manager of the domain (either the domain name or the email of the
+    // admin of the domain) after enrollment, or an empty string.
+    std::string enterprise_domain_manager =
+        browser_policy_connector_ash_->GetEnterpriseDomainManager();
+    view_->SetEnterpriseDomainInfo(enterprise_domain_manager,
                                    ui::GetChromeOSDeviceName());
   }
 
@@ -737,10 +739,9 @@ void EnrollmentScreen::OnDeviceAttributeUpdatePermission(bool granted) {
 void EnrollmentScreen::OnDeviceAttributeUploadCompleted(bool success) {
   if (success) {
     // If the device attributes have been successfully uploaded, fetch policy.
-    policy::BrowserPolicyConnectorAsh* connector =
-        g_browser_process->platform_part()->browser_policy_connector_ash();
-    connector->GetDeviceCloudPolicyManager()->core()->RefreshSoon(
-        policy::PolicyFetchReason::kDeviceEnrollment);
+    browser_policy_connector_ash_->GetDeviceCloudPolicyManager()
+        ->core()
+        ->RefreshSoon(policy::PolicyFetchReason::kDeviceEnrollment);
     if (view_) {
       view_->ShowEnrollmentStatus(policy::EnrollmentStatus::ForEnrollmentCode(
           policy::EnrollmentStatus::Code::kSuccess));
@@ -752,10 +753,8 @@ void EnrollmentScreen::OnDeviceAttributeUploadCompleted(bool success) {
 }
 
 void EnrollmentScreen::ShowAttributePromptScreen() {
-  policy::BrowserPolicyConnectorAsh* connector =
-      g_browser_process->platform_part()->browser_policy_connector_ash();
   policy::DeviceCloudPolicyManagerAsh* policy_manager =
-      connector->GetDeviceCloudPolicyManager();
+      browser_policy_connector_ash_->GetDeviceCloudPolicyManager();
 
   std::string asset_id;
   std::string location;
@@ -1027,7 +1026,8 @@ void EnrollmentScreen::MaybeStoreUserContextInWizardContext() {
   // Make sure we aren't overwriting any existing information.
   CHECK(!wizard_context->user_context);
   wizard_context->timebound_user_context_holder =
-      std::make_unique<TimeboundUserContextHolder>(std::move(user_context));
+      std::make_unique<TimeboundUserContextHolder>(shared_url_loader_factory_,
+                                                   std::move(user_context));
 
   return;
 }

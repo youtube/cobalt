@@ -1374,21 +1374,6 @@ void HTMLDocumentParser::ParseDocumentFragment(
       fragment, context_element, parser_content_policy,
       ParserPrefetchPolicy::kAllowPrefetching, registry, /*sanitizer*/ nullptr);
 
-  if (RuntimeEnabledFeatures::DOMPartsAPIEnabled()) {
-    // Within templates containing the `parseparts` attribute, allow parsing
-    // DOM Parts. Otherwise do not parse any DOM Part content.
-    DOMPartsAllowed parts_allowed{DOMPartsAllowed::kNever};
-    if (auto* template_element =
-            DynamicTo<HTMLTemplateElement>(context_element);
-        template_element &&
-        template_element->hasAttribute(html_names::kParsepartsAttr)) {
-      parts_allowed = DOMPartsAllowed::kAlways;
-    }
-    parser->tree_builder_->SetDOMPartsAllowedState(parts_allowed);
-    parser->tokenizer_.SetShouldAllowDOMParts(parts_allowed !=
-                                              DOMPartsAllowed::kNever);
-  }
-
   parser->Append(source);
   parser->Finish();
   // Allows ~DocumentParser to assert it was detached before destruction.
@@ -1829,7 +1814,14 @@ bool HTMLDocumentParser::AllowPreloading() {
       return true;
     }
 
-    ExecutionContext* context = GetDocument()->GetExecutionContext();
+    Document* document = GetDocument();
+    if (!document) {
+      // Seen CSP tag, but there is no document to check the CSP (detach()
+      // has been called). Disallow preloads.
+      return false;
+    }
+
+    ExecutionContext* context = document->GetExecutionContext();
     if (!context) {
       // Seen CSP meta tag but there's no CSP info yet. Disallow preloads.
       return false;

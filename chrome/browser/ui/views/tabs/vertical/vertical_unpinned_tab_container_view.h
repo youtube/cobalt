@@ -7,6 +7,7 @@
 
 #include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
+#include "chrome/browser/ui/views/frame/browser_root_view.h"
 #include "chrome/browser/ui/views/tabs/vertical/tab_collection_animating_layout_manager.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_dragged_tabs_container.h"
 #include "ui/base/metadata/metadata_header_macros.h"
@@ -49,10 +50,15 @@ class VerticalUnpinnedTabContainerView
   VerticalDraggedTabsContainer& GetTabDragTarget(
       const gfx::Point& point_in_screen) override;
 
+  std::optional<BrowserRootView::DropIndex> GetLinkDropIndex(
+      const gfx::Point& point_in_local_coords);
+
  private:
   // VerticalDraggedTabsContainer:
   views::ScrollView* GetScrollViewForContainer() const override;
-  void UpdateLayoutForDrag() override;
+  void UpdateTargetLayoutForDrag(
+      const std::vector<const views::View*>& views_to_snap) override;
+  const views::ProposedLayout& GetLayoutForDrag() const override;
   void HandleTabDragInContainer(const gfx::Rect& dragged_tab_bounds) override;
 
   // Returns whether a drag that is currently being handled by the given

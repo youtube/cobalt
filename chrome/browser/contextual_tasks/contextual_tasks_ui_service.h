@@ -13,6 +13,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/timer/timer.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks.mojom.h"
+#include "chrome/browser/tab_list/tab_list_interface.h"
 #include "components/contextual_search/contextual_search_session_handle.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "content/public/browser/frame_tree_node_id.h"
@@ -24,7 +25,6 @@ class AimEligibilityService;
 class BrowserWindowInterface;
 class GoogleServiceAuthError;
 class Profile;
-class TabStripModel;
 
 namespace base {
 class Uuid;
@@ -254,8 +254,10 @@ class ContextualTasksUiService : public KeyedService {
   // compared without text selection directives as they don't change the page
   // content and only tell the browser what text to highlight on the page. A
   // pointer to the selected tab is returned if found.
+  // TODO(crbug.com/483442073): Remove the ifdef block once we remove
+  // TabStripModel from MaybeFocusExistingOpenTab.
   tabs::TabInterface* MaybeFocusExistingOpenTab(const GURL& url,
-                                                TabStripModel* tab_strip_model,
+                                                TabListInterface* tab_list,
                                                 const base::Uuid& task_id);
 
   // A callback for checking whether text fragments from a URL are on a page.

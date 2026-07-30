@@ -1060,6 +1060,7 @@ Ellers vil det blive blokeret af dine privatlivsindstillinger. Det giver det ind
 <translation id="2674524144218093528">Husmaling og overfladebehandling</translation>
 <translation id="26774279487328902"><ph name="GROUP_COUNT" /> fanegrupper er ikke længere tilgængelige</translation>
 <translation id="2677748264148917807">Forlad</translation>
+<translation id="2679659833697380">Dine oplysninger gemmes på din enhed</translation>
 <translation id="2683195745483370038">Andre resultater blev fundet</translation>
 <translation id="2686919536310834199">Send feedback om Hjælp mig med at skrive.</translation>
 <translation id="2687555958734450033">Bedste format</translation>
@@ -2574,6 +2575,7 @@ Ellers vil det blive blokeret af dine privatlivsindstillinger. Det giver det ind
 <translation id="5114987907971894280">virtual reality</translation>
 <translation id="5115232566827194440">Tilsidesættelse af begrænset administreret gæstesession</translation>
 <translation id="5115563688576182185">(64-bit)</translation>
+<translation id="5116015291385561204">Verificer din identitet for at bruge autofyld i forbindelse med følsomme oplysninger</translation>
 <translation id="5120526915373271910">Familiefilm</translation>
 <translation id="5122786942953798871">Kuvert (bomuld)</translation>
 <translation id="5123063207673082822">Weekend</translation>
@@ -3974,6 +3976,7 @@ Yderligere oplysninger:
 <translation id="7372973238305370288">søgeresultat</translation>
 <translation id="7374461526650987610">Protokolhåndtering</translation>
 <translation id="7374733840632556089">Dette problem opstår på grund af et certifikat, som du eller en anden har installeret på din enhed. Certifikatet anvendes ofte til at overvåge og opfange netværk, og Chrome har ikke tillid til det. Der findes legitime årsager til at overvåge, f.eks. på skole- og virksomhedsnetværk, men Chrome vil sikre, at du er bevidst om det, når det sker, også selvom du ikke kan stoppe det. Overvågning kan finde sted i enhver browser eller app, der har adgang til nettet.</translation>
+<translation id="73750335798090836">Af sikkerhedshensyn bør du altid bruge dit fingeraftryk, ansigtsgenkendelse eller en anden skærmlås, når du anvender følsomme oplysninger som f.eks. rejse- og identitetsdokumenter</translation>
 <translation id="7375532151824574023">{NUM_COOKIES,plural, =0{Ingen websites er tilladt}=1{1 website er tilladt}one{# website er tilladt}other{# websites er tilladt}}</translation>
 <translation id="7375818412732305729">En fil vedhæftes</translation>
 <translation id="7376031331622621328">Feltet i bunden med handelsoplysninger</translation>
@@ -4230,6 +4233,7 @@ Yderligere oplysninger:
 <translation id="7714404809393719981">Foto (halvblankt)</translation>
 <translation id="7714424966701020172">Valgmuligheden for udfyldelse af hele navnet blev valgt</translation>
 <translation id="7714464543167945231">Certifikat</translation>
+<translation id="7714943438925794410">Indhold fra betalingssiden deles med Google for at give disse valgmuligheder. Gå til <ph name="IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_FOOTNOTE_HIDE_OPTION_PAYMENT_SETTINGS_LINK_TEXT" /> for at skjule valgmuligheder for Betal senere i autofyld.</translation>
 <translation id="7716147886133743102">Blokeret af din administrator</translation>
 <translation id="7716375162095500223">Ignoreret eller endnu ikke uploadet</translation>
 <translation id="7716424297397655342">Dette website kan ikke indlæses fra cachen</translation>
@@ -4312,6 +4316,7 @@ Yderligere oplysninger:
 <translation id="7862306158978555061">vise følsomme oplysninger</translation>
 <translation id="7865448901209910068">Bedste hastighed</translation>
 <translation id="7865482168955081228">Skærmen med fejlmeddelelse for Køb nu, betal senere er lukket.</translation>
+<translation id="7870207318911766769">Indhold fra betalingssiden deles med Google for at give disse valgmuligheder.</translation>
 <translation id="7870281855125116701">Der blev fundet en rabat</translation>
 <translation id="7871445724586827387">Skift adgangskoden til din Google-konto</translation>
 <translation id="787226752901403048">Log ind i Chrome for at dele og deltage i fanegrupper og samarbejde om idéer</translation>

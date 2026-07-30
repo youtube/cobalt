@@ -6,6 +6,8 @@ package org.chromium.chrome.browser.ui.extensions;
 
 import android.graphics.Bitmap;
 
+import androidx.annotation.IntDef;
+
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.JniType;
@@ -21,19 +23,38 @@ import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
 import org.chromium.chrome.browser.ui.toolbar.InvocationSource;
 import org.chromium.content_public.browser.WebContents;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+
 /** A JNI bridge to interact with extension actions for the toolbar. */
 @NullMarked
 @JNINamespace("extensions")
 public class ExtensionsToolbarBridge implements Destroyable {
+    // TODO(crbug.com/423483658): Consider moving ExtensionsToolbarButtonState and related types
+    // (e.g., RequestAccessButtonParams) into a new ExtensionControls.java file.
+    @IntDef({
+        ExtensionsToolbarButtonState.ALL_EXTENSIONS_BLOCKED,
+        ExtensionsToolbarButtonState.ANY_EXTENSION_HAS_ACCESS,
+        ExtensionsToolbarButtonState.DEFAULT
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface ExtensionsToolbarButtonState {
+        int ALL_EXTENSIONS_BLOCKED = 0;
+        int ANY_EXTENSION_HAS_ACCESS = 1;
+        int DEFAULT = 2;
+    }
+
     private final @Nullable LifetimeAssert mLifetimeAssert = LifetimeAssert.create(this);
     private long mNativeExtensionsToolbarAndroid;
     private final ObserverList<Observer> mObservers = new ObserverList<>();
+    private final Profile mProfile;
 
     // The delegate is set via a setter because of a bidirectional dependency
     // with {@code ExtensionActionListMediator}.
     private @Nullable Delegate mDelegate;
 
     public ExtensionsToolbarBridge(ChromeAndroidTask task, Profile profile) {
+        mProfile = profile;
         mNativeExtensionsToolbarAndroid =
                 ExtensionsToolbarBridgeJni.get()
                         .init(this, task.getOrCreateNativeBrowserWindowPtr(profile));
@@ -61,6 +82,12 @@ public class ExtensionsToolbarBridge implements Destroyable {
 
     @Nullable
     public ExtensionAction getAction(String actionId) {
+        if (mProfile.shutdownStarted()) {
+            // TODO(crbug.com/459079170): This is to prevent tests from breaking. {@code
+            // ExtensionToolbarCoordinatorImpl} should ideally be destroyed following {@code
+            // ChromeAndroidTask}'s destruction, and it is currently being worked on.
+            return null;
+        }
         return ExtensionsToolbarBridgeJni.get()
                 .getAction(mNativeExtensionsToolbarAndroid, actionId);
     }
@@ -72,6 +99,12 @@ public class ExtensionsToolbarBridge implements Destroyable {
             int canvasWidthDp,
             int canvasHeightDp,
             float scaleFactor) {
+        if (mProfile.shutdownStarted()) {
+            // TODO(crbug.com/459079170): This is to prevent tests from breaking. {@code
+            // ExtensionToolbarCoordinatorImpl} should ideally be destroyed following {@code
+            // ChromeAndroidTask}'s destruction, and it is currently being worked on.
+            return null;
+        }
         return ExtensionsToolbarBridgeJni.get()
                 .getIcon(
                         mNativeExtensionsToolbarAndroid,
@@ -83,21 +116,51 @@ public class ExtensionsToolbarBridge implements Destroyable {
     }
 
     public String[] getAllActionIds() {
+        if (mProfile.shutdownStarted()) {
+            // TODO(crbug.com/459079170): This is to prevent tests from breaking. {@code
+            // ExtensionToolbarCoordinatorImpl} should ideally be destroyed following {@code
+            // ChromeAndroidTask}'s destruction, and it is currently being worked on.
+            return new String[0];
+        }
         return ExtensionsToolbarBridgeJni.get().getAllActionIds(mNativeExtensionsToolbarAndroid);
     }
 
     public String[] getPinnedActionIds() {
+        if (mProfile.shutdownStarted()) {
+            // TODO(crbug.com/459079170): This is to prevent tests from breaking. {@code
+            // ExtensionToolbarCoordinatorImpl} should ideally be destroyed following {@code
+            // ChromeAndroidTask}'s destruction, and it is currently being worked on.
+            return new String[0];
+        }
         return ExtensionsToolbarBridgeJni.get().getPinnedActionIds(mNativeExtensionsToolbarAndroid);
     }
 
     public void executeUserAction(String actionId, @InvocationSource int source) {
+        if (mProfile.shutdownStarted()) {
+            // TODO(crbug.com/459079170): This is to prevent tests from breaking. {@code
+            // ExtensionToolbarCoordinatorImpl} should ideally be destroyed following {@code
+            // ChromeAndroidTask}'s destruction, and it is currently being worked on.
+            return;
+        }
         ExtensionsToolbarBridgeJni.get()
                 .executeUserAction(mNativeExtensionsToolbarAndroid, actionId, source);
     }
 
     public void movePinnedAction(String actionId, int targetIndex) {
+        if (mProfile.shutdownStarted()) {
+            // TODO(crbug.com/459079170): This is to prevent tests from breaking. {@code
+            // ExtensionToolbarCoordinatorImpl} should ideally be destroyed following {@code
+            // ChromeAndroidTask}'s destruction, and it is currently being worked on.
+            return;
+        }
         ExtensionsToolbarBridgeJni.get()
                 .movePinnedAction(mNativeExtensionsToolbarAndroid, actionId, targetIndex);
+    }
+
+    public @ExtensionsToolbarButtonState int getExtensionsMenuButtonState(WebContents webContents) {
+        assert mNativeExtensionsToolbarAndroid != 0;
+        return ExtensionsToolbarBridgeJni.get()
+                .getExtensionsMenuButtonState(mNativeExtensionsToolbarAndroid, webContents);
     }
 
     public RequestAccessButtonParams getRequestAccessButtonParams(WebContents webContents) {
@@ -121,6 +184,13 @@ public class ExtensionsToolbarBridge implements Destroyable {
     public void onRequestAccessButtonParamsChanged() {
         for (Observer observer : mObservers) {
             observer.onRequestAccessButtonParamsChanged();
+        }
+    }
+
+    @CalledByNative
+    public void onToolbarControlStateUpdated() {
+        for (Observer observer : mObservers) {
+            observer.onToolbarControlStateUpdated();
         }
     }
 
@@ -187,6 +257,9 @@ public class ExtensionsToolbarBridge implements Destroyable {
 
         // Called when the request access button parameters have changed.
         default void onRequestAccessButtonParamsChanged() {}
+
+        // Called when both the extensions button and the request access button should be updated.
+        default void onToolbarControlStateUpdated() {}
     }
 
     public interface Delegate {
@@ -228,6 +301,10 @@ public class ExtensionsToolbarBridge implements Destroyable {
                 int targetIndex);
 
         RequestAccessButtonParams getRequestAccessButtonParams(
+                long nativeExtensionsToolbarAndroid,
+                @JniType("content::WebContents*") WebContents webContents);
+
+        int getExtensionsMenuButtonState(
                 long nativeExtensionsToolbarAndroid,
                 @JniType("content::WebContents*") WebContents webContents);
     }

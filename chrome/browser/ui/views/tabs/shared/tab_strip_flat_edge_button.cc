@@ -11,13 +11,16 @@
 #include "third_party/skia/include/core/SkRRect.h"
 #include "ui/actions/actions.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/compositor/layer.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/rrect_f.h"
 #include "ui/gfx/geometry/skia_conversions.h"
 #include "ui/views/actions/action_view_interface.h"
+#include "ui/views/animation/ink_drop.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/button/label_button_border.h"
 #include "ui/views/controls/highlight_path_generator.h"
+#include "ui/views/layout/box_layout.h"
 #include "ui/views/layout/layout_provider.h"
 #include "ui/views/view_class_properties.h"
 
@@ -62,11 +65,33 @@ TabStripFlatEdgeButton::TabStripFlatEdgeButton() {
   ConfigureInkDropForToolbar(
       this, std::make_unique<views::RoundRectHighlightPathGenerator>(
                 GetToolbarInkDropInsets(this), GetButtonCornerRadii()));
+  ConfigureToolbarInkdropForRefresh2023(
+      this, kColorTabStripControlButtonInkDrop,
+      kColorTabStripControlButtonInkDropRipple);
   SetIconSize(
       GetLayoutConstant(LayoutConstant::kVerticalTabStripBottomButtonIconSize));
 }
 
 TabStripFlatEdgeButton::~TabStripFlatEdgeButton() = default;
+
+gfx::Size TabStripFlatEdgeButton::CalculatePreferredSize(
+    const views::SizeBounds& available_size) const {
+  const int raw_button_size = GetLayoutConstant(
+      LayoutConstant::kVerticalTabStripTopContainerButtonSize);
+  gfx::Size size(raw_button_size, raw_button_size);
+
+  if (parent() && parent()->GetLayoutManager()) {
+    views::BoxLayout* layout =
+        static_cast<views::BoxLayout*>(parent()->GetLayoutManager());
+    if (layout->GetOrientation() ==
+        views::BoxLayout::Orientation::kHorizontal) {
+      size.set_width(size.width() * expansion_factor_);
+    } else {
+      size.set_height(size.height() * expansion_factor_);
+    }
+  }
+  return size;
+}
 
 std::unique_ptr<views::ActionViewInterface>
 TabStripFlatEdgeButton::GetActionViewInterface() {
@@ -92,6 +117,38 @@ void TabStripFlatEdgeButton::SetInsets(const gfx::Insets& insets) {
   SetBorder(std::move(border));
 }
 
+void TabStripFlatEdgeButton::SetIconOpacity(float opacity) {
+  if (!image_container_view()->layer()) {
+    image_container_view()->SetPaintToLayer();
+    image_container_view()->layer()->SetFillsBoundsOpaquely(false);
+  }
+  image_container_view()->layer()->SetOpacity(opacity);
+}
+
+void TabStripFlatEdgeButton::SetExpansionFactor(float factor) {
+  if (expansion_factor_ == factor) {
+    return;
+  }
+  expansion_factor_ = factor;
+  PreferredSizeChanged();
+}
+
+void TabStripFlatEdgeButton::SetFlatEdgeFactor(float factor) {
+  if (flat_edge_factor_ == factor) {
+    return;
+  }
+  flat_edge_factor_ = factor;
+
+  SetProperty(views::kHighlightPathGeneratorKey,
+              std::make_unique<views::RoundRectHighlightPathGenerator>(
+                  GetToolbarInkDropInsets(this), GetButtonCornerRadii()));
+  // The ink drop doesn't automatically pick up on rounded corner changes, so │
+  // we need to manually notify it here.
+  views::InkDrop::Get(this)->GetInkDrop()->HostSizeChanged(size());
+
+  SchedulePaint();
+}
+
 base::CallbackListSubscription
 TabStripFlatEdgeButton::RegisterWillInvokeActionCallback(
     base::RepeatingClosure callback) {
@@ -111,6 +168,15 @@ void TabStripFlatEdgeButton::OnPaintBackground(gfx::Canvas* canvas) {
   flags.setColor(color);
 
   canvas->sk_canvas()->drawRRect(GetButtonShape(), flags);
+}
+
+void TabStripFlatEdgeButton::OnThemeChanged() {
+  views::LabelButton::OnThemeChanged();
+  const std::optional<ui::ImageModel>& model =
+      GetImageModel(views::Button::STATE_NORMAL);
+  if (model && model->IsVectorIcon()) {
+    UpdateIcon(*model);
+  }
 }
 
 bool TabStripFlatEdgeButton::GetHitTestMask(SkPath* mask) const {
@@ -141,7 +207,7 @@ void TabStripFlatEdgeButton::SetIconSize(int icon_size) {
 void TabStripFlatEdgeButton::AddedToWidget() {
   paint_as_active_subscription_ =
       GetWidget()->RegisterPaintAsActiveChangedCallback(base::BindRepeating(
-          &View::NotifyViewControllerCallback, base::Unretained(this)));
+          &TabStripFlatEdgeButton::OnThemeChanged, base::Unretained(this)));
 }
 
 void TabStripFlatEdgeButton::RemovedFromWidget() {
@@ -163,18 +229,21 @@ ui::ColorId TabStripFlatEdgeButton::GetBackgroundColor() const {
 gfx::RoundedCornersF TabStripFlatEdgeButton::GetButtonCornerRadii() const {
   int radius = views::LayoutProvider::Get()->GetCornerRadiusMetric(
       views::Emphasis::kHigh);
+  constexpr float kFlatRadius = 2.0f;
+  float flat_radius =
+      kFlatRadius + ((radius - kFlatRadius) * (1.0f - flat_edge_factor_));
 
   switch (flat_edge_) {
     case FlatEdge::kNone:
       return gfx::RoundedCornersF(radius, radius, radius, radius);
     case FlatEdge::kTop:
-      return gfx::RoundedCornersF(0, 0, radius, radius);
+      return gfx::RoundedCornersF(flat_radius, flat_radius, radius, radius);
     case FlatEdge::kLeft:
-      return gfx::RoundedCornersF(0, radius, radius, 0);
+      return gfx::RoundedCornersF(flat_radius, radius, radius, flat_radius);
     case FlatEdge::kBottom:
-      return gfx::RoundedCornersF(radius, radius, 0, 0);
+      return gfx::RoundedCornersF(radius, radius, flat_radius, flat_radius);
     case FlatEdge::kRight:
-      return gfx::RoundedCornersF(radius, 0, 0, radius);
+      return gfx::RoundedCornersF(radius, flat_radius, flat_radius, radius);
   }
 }
 

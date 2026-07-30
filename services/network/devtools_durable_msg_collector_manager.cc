@@ -10,6 +10,7 @@
 #include "base/trace_event/memory_dump_manager.h"
 #include "base/trace_event/process_memory_dump.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
+#include "services/network/public/cpp/features.h"
 
 namespace network {
 
@@ -19,8 +20,9 @@ constexpr const char* kDumpProviderName =
     "DevtoolsDurableMessageCollectorManager";
 }  // namespace
 
-DevtoolsDurableMessageCollectorManager::
-    DevtoolsDurableMessageCollectorManager() {
+DevtoolsDurableMessageCollectorManager::DevtoolsDurableMessageCollectorManager()
+    : max_global_buffer_size_(static_cast<uint64_t>(
+          network::features::kDurableMessagesGlobalBufferSize.Get())) {
   base::trace_event::MemoryDumpManager::GetInstance()->RegisterDumpProvider(
       this, kDumpProviderName,
       base::SingleThreadTaskRunner::GetCurrentDefault());
@@ -59,6 +61,17 @@ void DevtoolsDurableMessageCollectorManager::OnCollectorDestroyed(
   collectors_.erase(collector);
 }
 
+bool DevtoolsDurableMessageCollectorManager::CanAccommodate(size_t size) const {
+  if (max_global_buffer_size_ == 0) {
+    // No global limit set, so we can accommodate any size.
+    return true;
+  }
+  if (total_memory_usage_ >= max_global_buffer_size_) {
+    return false;
+  }
+  return size <= max_global_buffer_size_ - total_memory_usage_;
+}
+
 void DevtoolsDurableMessageCollectorManager::OnCollectorAddedBytes(
     size_t size) {
   total_memory_usage_ += size;
@@ -70,6 +83,17 @@ void DevtoolsDurableMessageCollectorManager::OnCollectorRemovedBytes(
   total_memory_usage_ -= size;
 }
 
+void DevtoolsDurableMessageCollectorManager::OnCollectorAddedMessage(
+    size_t count) {
+  total_message_count_ += count;
+}
+
+void DevtoolsDurableMessageCollectorManager::OnCollectorRemovedMessage(
+    size_t count) {
+  DCHECK_GE(total_message_count_, count);
+  total_message_count_ -= count;
+}
+
 bool DevtoolsDurableMessageCollectorManager::OnMemoryDump(
     const base::trace_event::MemoryDumpArgs& args,
     base::trace_event::ProcessMemoryDump* pmd) {
@@ -78,6 +102,9 @@ bool DevtoolsDurableMessageCollectorManager::OnMemoryDump(
   dump->AddScalar(base::trace_event::MemoryAllocatorDump::kNameSize,
                   base::trace_event::MemoryAllocatorDump::kUnitsBytes,
                   total_memory_usage_);
+  dump->AddScalar(base::trace_event::MemoryAllocatorDump::kNameObjectCount,
+                  base::trace_event::MemoryAllocatorDump::kUnitsObjects,
+                  total_message_count_);
   dump->AddScalar(base::trace_event::MemoryAllocatorDump::kNameObjectCount,
                   base::trace_event::MemoryAllocatorDump::kUnitsObjects,
                   collectors_.size());

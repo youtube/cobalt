@@ -24,6 +24,8 @@
 #include "components/autofill/core/common/autofill_regex_constants.h"
 #include "components/autofill/core/common/autofill_regexes.h"
 #include "components/autofill/core/common/autofill_switches.h"
+#include "components/autofill/core/common/form_data.h"
+#include "components/autofill/core/common/form_field_data.h"
 
 namespace autofill {
 
@@ -203,11 +205,11 @@ std::u16string GetButtonTitlesString(const ButtonTitleList& titles_list) {
   return base::JoinString(titles, u",");
 }
 
-bool IsFormPerfectlyFilled(const FormData& form) {
-  return std::none_of(form.fields().begin(), form.fields().end(),
-                      [](const FormFieldData& field) {
-                        return field.is_user_edited() && !field.is_autofilled();
-                      });
+bool IsFormDataPerfectlyFilled(const FormData& form) {
+  return std::ranges::none_of(form.fields(), [](const FormFieldData& field) {
+    return (field.properties_mask() & kUserTyped) &&
+           !field.is_autofilled_according_to_renderer();
+  });
 }
 
 bool LikelyAugmentedPhoneCountryCode(

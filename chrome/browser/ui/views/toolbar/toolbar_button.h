@@ -11,6 +11,7 @@
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ptr_exclusion.h"
+#include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/views/chrome_views_export.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/metadata/metadata_header_macros.h"
@@ -183,6 +184,9 @@ class ToolbarButton : public views::LabelButton,
   void ShowMenuForModel(ui::mojom::MenuSourceType source_type,
                         ui::MenuModel* menu_model);
 
+  // Sets a default background color
+  void SetDefaultBackgroundColorId(ChromeColorIds color_id);
+
   // Updates the button's background and border.
   virtual void UpdateColorsAndInsets();
 
@@ -238,10 +242,6 @@ class ToolbarButton : public views::LabelButton,
                              SkColor disabled_color);
 
   std::optional<SkColor> GetBackgroundColor() const;
-
-  static constexpr int kDefaultIconSize = 16;
-  static constexpr int kDefaultIconSizeChromeRefresh = 20;
-  static constexpr int kDefaultTouchableIconSize = 24;
 
  private:
   friend test::ToolbarButtonTestApi;
@@ -375,6 +375,12 @@ class ToolbarButton : public views::LabelButton,
       ui::TouchUiController::Get()->RegisterCallback(
           base::BindRepeating(&ToolbarButton::TouchUiChanged,
                               base::Unretained(this)));
+
+  // Default background color
+  std::optional<SkColor> default_background_color_;
+  // Default background color id
+  ChromeColorIds default_background_color_id_ =
+      ChromeColorIds::kChromeColorsStart;
 
   // A factory for tasks that show the dropdown context menu for the button.
   base::WeakPtrFactory<ToolbarButton> show_menu_factory_{this};

@@ -222,8 +222,7 @@ class TestIndexedDBObserver : public storage::mojom::IndexedDBObserver {
 
 }  // namespace
 
-class IndexedDBTest : public testing::Test,
-                      public testing::WithParamInterface<bool> {
+class IndexedDBTestBase : public testing::Test {
  public:
   blink::StorageKey kNormalFirstPartyStorageKey;
   BucketLocator kNormalFirstPartyBucketLocator;
@@ -244,9 +243,10 @@ class IndexedDBTest : public testing::Test,
   blink::StorageKey kInvertedSessionOnlySubdomainThirdPartyStorageKey;
   BucketLocator kInvertedSessionOnlySubdomainThirdPartyBucketLocator;
 
-  IndexedDBTest()
-      : sqlite_override_(BucketContext::OverrideShouldUseSqliteForTesting(
-            IsSqliteBackingStoreEnabled())),
+  explicit IndexedDBTestBase(bool use_sqlite)
+      : sqlite_override_(
+            BucketContext::OverrideShouldUseSqliteForTesting(use_sqlite)),
+        use_sqlite_(use_sqlite),
         special_storage_policy_(
             base::MakeRefCounted<storage::MockSpecialStoragePolicy>()),
         quota_manager_(base::MakeRefCounted<storage::MockQuotaManager>(
@@ -335,12 +335,12 @@ class IndexedDBTest : public testing::Test,
         bucket_info.ToBucketLocator();
   }
 
-  IndexedDBTest(const IndexedDBTest&) = delete;
-  IndexedDBTest& operator=(const IndexedDBTest&) = delete;
+  IndexedDBTestBase(const IndexedDBTestBase&) = delete;
+  IndexedDBTestBase& operator=(const IndexedDBTestBase&) = delete;
 
-  ~IndexedDBTest() override = default;
+  ~IndexedDBTestBase() override = default;
 
-  bool IsSqliteBackingStoreEnabled() { return GetParam(); }
+  bool IsSqliteBackingStoreEnabled() { return use_sqlite_; }
 
   storage::BucketInfo InitBucket(const blink::StorageKey& storage_key) {
     storage::BucketInfo bucket;
@@ -544,9 +544,78 @@ class IndexedDBTest : public testing::Test,
     }
   }
 
+  // Creates a new database, commits the versionchange transaction, and waits
+  // for success. Fails if UpgradeNeeded is not received (i.e. the database
+  // already exists). Returns the open connection.
+  mojo::AssociatedRemote<blink::mojom::IDBDatabase> CreateDatabase(
+      mojo::Remote<blink::mojom::IDBFactory>& factory_remote,
+      const std::u16string& name,
+      int64_t transaction_id,
+      blink::mojom::IDBDataLoss expected_data_loss =
+          blink::mojom::IDBDataLoss::None) {
+    MockMojoFactoryClient client;
+    MockMojoDatabaseCallbacks database_callbacks;
+    mojo::AssociatedRemote<blink::mojom::IDBTransaction> transaction_remote;
+    mojo::PendingAssociatedRemote<blink::mojom::IDBDatabase> pending_database;
+    base::RunLoop upgrade_run_loop;
+    EXPECT_CALL(client,
+                MockedUpgradeNeeded(IsAssociatedInterfacePtrInfoValid(true),
+                                    IndexedDBDatabaseMetadata::NO_VERSION,
+                                    expected_data_loss, _, _))
+        .WillOnce(testing::DoAll(
+            MoveArgPointee<0>(&pending_database),
+            ::base::test::RunClosure(upgrade_run_loop.QuitClosure())));
+    factory_remote->Open(client.CreateInterfacePtrAndBind(),
+                         database_callbacks.CreateInterfacePtrAndBind(), name,
+                         /*version=*/1,
+                         transaction_remote.BindNewEndpointAndPassReceiver(),
+                         transaction_id, /*priority=*/0);
+    upgrade_run_loop.Run();
+
+    mojo::AssociatedRemote<blink::mojom::IDBDatabase> connection(
+        std::move(pending_database));
+    transaction_remote->Commit(0);
+    EXPECT_CALL(database_callbacks, Complete(transaction_id)).Times(1);
+
+    base::RunLoop success_run_loop;
+    EXPECT_CALL(client, MockedOpenSuccess)
+        .WillOnce(::base::test::RunClosure(success_run_loop.QuitClosure()));
+    success_run_loop.Run();
+
+    return connection;
+  }
+
+  // Opens an existing database and waits for success. Fails if UpgradeNeeded is
+  // received (i.e. the database doesn't exist). Returns the open connection.
+  mojo::AssociatedRemote<blink::mojom::IDBDatabase> OpenDatabase(
+      mojo::Remote<blink::mojom::IDBFactory>& factory_remote,
+      const std::u16string& name,
+      int64_t transaction_id) {
+    MockMojoFactoryClient client;
+    MockMojoDatabaseCallbacks database_callbacks;
+    mojo::PendingAssociatedRemote<blink::mojom::IDBDatabase> pending_database;
+    base::RunLoop run_loop;
+    EXPECT_CALL(client, MockedUpgradeNeeded).Times(0);
+    EXPECT_CALL(client, MockedOpenSuccess)
+        .WillOnce(
+            testing::DoAll(MoveArgPointee<0>(&pending_database),
+                           ::base::test::RunClosure(run_loop.QuitClosure())));
+    mojo::AssociatedRemote<blink::mojom::IDBTransaction> transaction_remote;
+    factory_remote->Open(client.CreateInterfacePtrAndBind(),
+                         database_callbacks.CreateInterfacePtrAndBind(), name,
+                         /*version=*/1,
+                         transaction_remote.BindNewEndpointAndPassReceiver(),
+                         transaction_id, /*priority=*/0);
+    run_loop.Run();
+
+    return mojo::AssociatedRemote<blink::mojom::IDBDatabase>(
+        std::move(pending_database));
+  }
+
  protected:
   IndexedDBContextImpl* context() const { return context_.get(); }
   base::AutoReset<std::optional<bool>> sqlite_override_;
+  bool use_sqlite_;
 
   base::test::TaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
@@ -559,12 +628,53 @@ class IndexedDBTest : public testing::Test,
   mojo::Remote<blink::mojom::IDBFactory> factory_remote_;
 };
 
+// Parametrized by SQLite (true) vs LevelDB (false) backing store.
+class IndexedDBTest : public IndexedDBTestBase,
+                      public testing::WithParamInterface<bool> {
+ public:
+  IndexedDBTest() : IndexedDBTestBase(GetParam()) {}
+};
+
 INSTANTIATE_TEST_SUITE_P(
     /* no prefix */,
     IndexedDBTest,
     /*use SQLite backing store*/ testing::Bool(),
     [](const testing::TestParamInfo<IndexedDBTest::ParamType>& info) {
       return info.param ? "SQLite" : "LevelDB";
+    });
+
+// Parametrized by "default" bucket (true) vs "non-default" bucket (false),
+// and SQLite (true) vs LevelDB (false) backing store. These two bucket types
+// use different base paths, which is relevant to code paths that manipulate
+// files on disk.
+class IndexedDBTestWithBucketType
+    : public IndexedDBTestBase,
+      public testing::WithParamInterface<std::tuple<bool, bool>> {
+ public:
+  IndexedDBTestWithBucketType() : IndexedDBTestBase(std::get<1>(GetParam())) {}
+
+  bool IsDefaultBucket() const { return std::get<0>(GetParam()); }
+
+  storage::BucketInfo CreateTestBucket(
+      const std::string& origin = "http://localhost:81") {
+    blink::StorageKey storage_key =
+        blink::StorageKey::CreateFromStringForTesting(origin);
+    return GetOrCreateBucket(
+        IsDefaultBucket()
+            ? storage::BucketInitParams::ForDefaultBucket(storage_key)
+            : storage::BucketInitParams(storage_key, "non_default"));
+  }
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    /* no prefix */,
+    IndexedDBTestWithBucketType,
+    testing::Combine(/*is_default_bucket=*/testing::Bool(),
+                     /*use_sqlite=*/testing::Bool()),
+    [](const testing::TestParamInfo<IndexedDBTestWithBucketType::ParamType>&
+           info) {
+      return std::string(std::get<0>(info.param) ? "Default" : "NonDefault") +
+             "_" + std::string(std::get<1>(info.param) ? "SQLite" : "LevelDB");
     });
 
 TEST_P(IndexedDBTest, CloseConnectionBeforeUpgrade) {
@@ -2124,49 +2234,21 @@ TEST_P(IndexedDBTest, ConnectionCloseDuringUpgrade) {
 
 // Verifies that opening an existing database that is not currently open in the
 // backing store works as expected.
-TEST_P(IndexedDBTest, OpenExistingDatabase) {
-  const blink::StorageKey storage_key =
-      blink::StorageKey::CreateFromStringForTesting("http://localhost:81");
-  BucketLocator bucket_locator = BucketLocator();
-  bucket_locator.storage_key = storage_key;
+TEST_P(IndexedDBTestWithBucketType, OpenExistingDatabase) {
+  storage::BucketInfo bucket_info = CreateTestBucket();
+  BucketLocator bucket_locator = bucket_info.ToBucketLocator();
 
   // Bind the IDBFactory.
   mojo::Remote<blink::mojom::IDBFactory> factory_remote;
   mojo::PendingRemote<storage::mojom::IndexedDBClientStateChecker>
       checker_remote;
   BindFactory(std::move(checker_remote),
-              factory_remote.BindNewPipeAndPassReceiver(),
-              ToBucketInfo(bucket_locator));
+              factory_remote.BindNewPipeAndPassReceiver(), bucket_info);
 
   // Create a database with a valid version so that it gets persisted.
   {
     base::HistogramTester histogram_tester;
-    MockMojoFactoryClient client;
-    MockMojoDatabaseCallbacks database_callbacks;
-    mojo::PendingAssociatedRemote<blink::mojom::IDBDatabase> pending_database;
-    base::RunLoop upgrade_run_loop;
-    EXPECT_CALL(client, MockedUpgradeNeeded)
-        .WillOnce(testing::DoAll(
-            MoveArgPointee<0>(&pending_database),
-            ::base::test::RunClosure(upgrade_run_loop.QuitClosure())));
-    mojo::AssociatedRemote<blink::mojom::IDBTransaction> transaction_remote;
-    factory_remote->Open(client.CreateInterfacePtrAndBind(),
-                         database_callbacks.CreateInterfacePtrAndBind(), u"db",
-                         /*version=*/1,
-                         transaction_remote.BindNewEndpointAndPassReceiver(),
-                         /*transaction_id=*/1, /*priority=*/0);
-    upgrade_run_loop.Run();
-
-    // Commit the versionchange transaction, lest it be aborted and rolled back
-    // and the database deleted.
-    mojo::AssociatedRemote<blink::mojom::IDBDatabase> connection(
-        std::move(pending_database));
-    transaction_remote->Commit(0);
-
-    base::RunLoop success_run_loop;
-    EXPECT_CALL(client, MockedOpenSuccess)
-        .WillOnce(::base::test::RunClosure(success_run_loop.QuitClosure()));
-    success_run_loop.Run();
+    CreateDatabase(factory_remote, kDatabaseName, /*transaction_id=*/1);
 
     histogram_tester.ExpectUniqueSample(
         "IndexedDB.BackingStore.CreateIfMissing.OnDisk",
@@ -2186,18 +2268,7 @@ TEST_P(IndexedDBTest, OpenExistingDatabase) {
   // Open the database again, which should require reopening the backing store.
   {
     base::HistogramTester histogram_tester;
-    MockMojoFactoryClient client;
-    MockMojoDatabaseCallbacks database_callbacks;
-    base::RunLoop run_loop;
-    EXPECT_CALL(client, MockedOpenSuccess)
-        .WillOnce(::base::test::RunClosure(run_loop.QuitClosure()));
-    mojo::AssociatedRemote<blink::mojom::IDBTransaction> transaction_remote;
-    factory_remote->Open(client.CreateInterfacePtrAndBind(),
-                         database_callbacks.CreateInterfacePtrAndBind(), u"db",
-                         /*version=*/1,
-                         transaction_remote.BindNewEndpointAndPassReceiver(),
-                         /*transaction_id=*/2, /*priority=*/0);
-    run_loop.Run();
+    OpenDatabase(factory_remote, kDatabaseName, /*transaction_id=*/2);
 
     histogram_tester.ExpectTotalCount(
         "IndexedDB.BackingStore.CreateIfMissing.OnDisk", 1);
@@ -2277,49 +2348,25 @@ TEST_P(IndexedDBTest, DeleteDatabase) {
 
 // Verifies that deleting an existing database that is not currently open in the
 // backing store works as expected.
-TEST_P(IndexedDBTest, DeleteDatabase_Cold) {
-  const blink::StorageKey storage_key =
-      blink::StorageKey::CreateFromStringForTesting("http://localhost:81");
-  BucketLocator bucket_locator = BucketLocator();
-  bucket_locator.storage_key = storage_key;
+TEST_P(IndexedDBTestWithBucketType, DeleteDatabase_Cold) {
+  storage::BucketInfo bucket_info = CreateTestBucket();
+  BucketLocator bucket_locator = bucket_info.ToBucketLocator();
 
   // Bind the IDBFactory.
   mojo::Remote<blink::mojom::IDBFactory> factory_remote;
   mojo::PendingRemote<storage::mojom::IndexedDBClientStateChecker>
       checker_remote;
   BindFactory(std::move(checker_remote),
-              factory_remote.BindNewPipeAndPassReceiver(),
-              ToBucketInfo(bucket_locator));
+              factory_remote.BindNewPipeAndPassReceiver(), bucket_info);
 
   // Create a database with a valid version so that it gets persisted.
   {
     base::HistogramTester histogram_tester;
-    MockMojoFactoryClient client;
-    MockMojoDatabaseCallbacks database_callbacks;
-    mojo::PendingAssociatedRemote<blink::mojom::IDBDatabase> pending_database;
-    base::RunLoop upgrade_run_loop;
-    EXPECT_CALL(client, MockedUpgradeNeeded)
-        .WillOnce(testing::DoAll(
-            MoveArgPointee<0>(&pending_database),
-            ::base::test::RunClosure(upgrade_run_loop.QuitClosure())));
-    mojo::AssociatedRemote<blink::mojom::IDBTransaction> transaction_remote;
-    factory_remote->Open(client.CreateInterfacePtrAndBind(),
-                         database_callbacks.CreateInterfacePtrAndBind(), u"db",
-                         /*version=*/1,
-                         transaction_remote.BindNewEndpointAndPassReceiver(),
-                         /*transaction_id=*/1, /*priority=*/0);
-    upgrade_run_loop.Run();
+    CreateDatabase(factory_remote, kDatabaseName, /*transaction_id=*/1);
 
-    // Commit the versionchange transaction, lest it be aborted and rolled back
-    // and the database deleted.
-    mojo::AssociatedRemote<blink::mojom::IDBDatabase> connection(
-        std::move(pending_database));
-    transaction_remote->Commit(0);
-
-    base::RunLoop success_run_loop;
-    EXPECT_CALL(client, MockedOpenSuccess)
-        .WillOnce(::base::test::RunClosure(success_run_loop.QuitClosure()));
-    success_run_loop.Run();
+    histogram_tester.ExpectUniqueSample(
+        "IndexedDB.BackingStore.CreateIfMissing.OnDisk",
+        0 /*Status::Type::kOk*/, 1);
   }
 
   // Fast forward by the grace period so that the backing store gets closed.
@@ -2371,35 +2418,9 @@ TEST_P(IndexedDBTest, DeleteDatabase_DuplicateRequests) {
               factory_remote.BindNewPipeAndPassReceiver(),
               ToBucketInfo(bucket_locator));
 
-  // Open (create) a database.
-  mojo::AssociatedRemote<blink::mojom::IDBDatabase> connection;
-  {
-    MockMojoFactoryClient client;
-    MockMojoDatabaseCallbacks database_callbacks;
-    mojo::PendingAssociatedRemote<blink::mojom::IDBDatabase> pending_database;
-    base::RunLoop upgrade_run_loop;
-    EXPECT_CALL(client, MockedUpgradeNeeded)
-        .WillOnce(testing::DoAll(
-            MoveArgPointee<0>(&pending_database),
-            ::base::test::RunClosure(upgrade_run_loop.QuitClosure())));
-    mojo::AssociatedRemote<blink::mojom::IDBTransaction> transaction_remote;
-    factory_remote->Open(
-        client.CreateInterfacePtrAndBind(),
-        database_callbacks.CreateInterfacePtrAndBind(), kDatabaseName,
-        /*version=*/1, transaction_remote.BindNewEndpointAndPassReceiver(),
-        /*transaction_id=*/1, /*priority=*/0);
-    upgrade_run_loop.Run();
-
-    // Commit the versionchange transaction so the database gets persisted.
-    connection.Bind(std::move(pending_database));
-    transaction_remote->Commit(0);
-    EXPECT_CALL(database_callbacks, Complete);
-
-    base::RunLoop success_run_loop;
-    EXPECT_CALL(client, MockedOpenSuccess)
-        .WillOnce(::base::test::RunClosure(success_run_loop.QuitClosure()));
-    success_run_loop.Run();
-  }
+  // Open (create) a database and keep the connection alive.
+  mojo::AssociatedRemote<blink::mojom::IDBDatabase> connection =
+      CreateDatabase(factory_remote, kDatabaseName, /*transaction_id=*/1);
 
   // Issue two delete requests in succession. The first one should really delete
   // the database, while the second should find the database non-existent.
@@ -2433,20 +2454,17 @@ TEST_P(IndexedDBTest, DeleteDatabase_DuplicateRequests) {
       "IndexedDB.BackendDuration.DeleteDatabase.OnDisk", 1);
 }
 
-TEST_P(IndexedDBTest, GetDatabaseNames_NoFactory) {
+TEST_P(IndexedDBTestWithBucketType, GetDatabaseNames_NoFactory) {
   base::HistogramTester histogram_tester;
-  const blink::StorageKey storage_key =
-      blink::StorageKey::CreateFromStringForTesting("http://localhost:81");
-  BucketLocator bucket_locator = BucketLocator();
-  bucket_locator.storage_key = storage_key;
+  storage::BucketInfo bucket_info = CreateTestBucket();
+  BucketLocator bucket_locator = bucket_info.ToBucketLocator();
 
   // Bind the IDBFactory.
   mojo::Remote<blink::mojom::IDBFactory> factory_remote;
   mojo::PendingRemote<storage::mojom::IndexedDBClientStateChecker>
       checker_remote;
   BindFactory(std::move(checker_remote),
-              factory_remote.BindNewPipeAndPassReceiver(),
-              ToBucketInfo(bucket_locator));
+              factory_remote.BindNewPipeAndPassReceiver(), bucket_info);
 
   // Don't create a backing store if one doesn't exist.
   {
@@ -2834,11 +2852,9 @@ TEST_P(IndexedDBTest, DatabaseFailedOpen) {
 }
 
 // Test for `IndexedDBDataFormatVersion`.
-TEST_P(IndexedDBTest, DataLoss) {
-  const blink::StorageKey storage_key =
-      blink::StorageKey::CreateFromStringForTesting("http://localhost:81");
-  BucketLocator bucket_locator = BucketLocator();
-  bucket_locator.storage_key = storage_key;
+TEST_P(IndexedDBTestWithBucketType, DataLoss) {
+  storage::BucketInfo bucket_info = CreateTestBucket();
+  BucketLocator bucket_locator = bucket_info.ToBucketLocator();
   const std::u16string db_name(u"test_db");
 
   // Bind the IDBFactory.
@@ -2846,37 +2862,15 @@ TEST_P(IndexedDBTest, DataLoss) {
   mojo::PendingRemote<storage::mojom::IndexedDBClientStateChecker>
       checker_remote;
   BindFactory(std::move(checker_remote),
-              factory_remote.BindNewPipeAndPassReceiver(),
-              ToBucketInfo(bucket_locator));
+              factory_remote.BindNewPipeAndPassReceiver(), bucket_info);
 
   // Set a data format version and create a new database. No data loss.
   {
     base::AutoReset<IndexedDBDataFormatVersion> override_version(
         &IndexedDBDataFormatVersion::GetMutableCurrentForTesting(),
         IndexedDBDataFormatVersion(3, 4));
-    MockMojoFactoryClient client;
-    MockMojoDatabaseCallbacks database_callbacks;
-    mojo::PendingAssociatedRemote<blink::mojom::IDBDatabase> pending_database;
-    base::RunLoop run_loop;
-    EXPECT_CALL(client, MockedUpgradeNeeded(
-                            _, _, blink::mojom::IDBDataLoss::None, _, _))
-        .WillOnce(
-            testing::DoAll(MoveArgPointee<0>(&pending_database),
-                           ::base::test::RunClosure(run_loop.QuitClosure())));
-    mojo::AssociatedRemote<blink::mojom::IDBTransaction> transaction_remote;
-    factory_remote->Open(client.CreateInterfacePtrAndBind(),
-                         database_callbacks.CreateInterfacePtrAndBind(),
-                         db_name, /*version=*/1,
-                         transaction_remote.BindNewEndpointAndPassReceiver(),
-                         /*transaction_id=*/1, /*priority=*/0);
-    run_loop.Run();
-
-    // Commit the versionchange transaction, lest it be aborted and rolled back
-    // and the database deleted.
-    mojo::AssociatedRemote<blink::mojom::IDBDatabase> connection(
-        std::move(pending_database));
-    transaction_remote->Commit(0);
-    transaction_remote.FlushForTesting();
+    CreateDatabase(factory_remote, db_name, /*transaction_id=*/1,
+                   blink::mojom::IDBDataLoss::None);
 
     // This step is necessary to make sure the backing store is closed so that
     // the second `Open` will initialize it with the new (older) data format
@@ -2897,24 +2891,115 @@ TEST_P(IndexedDBTest, DataLoss) {
     base::AutoReset<IndexedDBDataFormatVersion> override_version(
         &IndexedDBDataFormatVersion::GetMutableCurrentForTesting(),
         IndexedDBDataFormatVersion(3, 3));
-    base::RunLoop run_loop;
-    MockMojoFactoryClient client;
-    MockMojoDatabaseCallbacks database_callbacks;
-    EXPECT_CALL(client, MockedUpgradeNeeded(
-                            _, _, blink::mojom::IDBDataLoss::Total, _, _))
-        .WillOnce(::base::test::RunClosure(run_loop.QuitClosure()));
-    mojo::AssociatedRemote<blink::mojom::IDBTransaction> transaction_remote;
-    factory_remote->Open(client.CreateInterfacePtrAndBind(),
-                         database_callbacks.CreateInterfacePtrAndBind(),
-                         db_name, /*version=*/1,
-                         transaction_remote.BindNewEndpointAndPassReceiver(),
-                         /*transaction_id=*/2, /*priority=*/0);
-    run_loop.Run();
+    CreateDatabase(factory_remote, db_name, /*transaction_id=*/2,
+                   blink::mojom::IDBDataLoss::Total);
     if (IsSqliteBackingStoreEnabled()) {
       histograms.ExpectUniqueSample("IndexedDB.SQLite.OpenRetryResult",
                                     0 /*Status::Type::kOk*/, 1);
     }
   }
+}
+
+TEST_P(IndexedDBTestWithBucketType, ChangingEngineDeletesOtherEngineFiles) {
+  storage::BucketInfo bucket_info = CreateTestBucket();
+
+  mojo::Remote<blink::mojom::IDBFactory> factory_remote;
+  mojo::PendingRemote<storage::mojom::IndexedDBClientStateChecker>
+      checker_remote;
+  BindFactory(std::move(checker_remote),
+              factory_remote.BindNewPipeAndPassReceiver(), bucket_info);
+
+  // Create a database using the "other" engine.
+  GetBucketContext(bucket_info.id)
+      ->SetSqliteRolloutStageForTesting(
+          IsSqliteBackingStoreEnabled() ? SqliteRolloutStage::kUseLevelDbOnly
+                                        : SqliteRolloutStage::kUseSqliteOnly);
+  CreateDatabase(factory_remote, kDatabaseName, /*transaction_id=*/1);
+
+  // Close the backing store so the next open will reinitialize it.
+  task_environment_.FastForwardBy(base::Seconds(2));
+  VerifyBucketContext(bucket_info.id, /*expected_context_exists=*/true,
+                      /*expected_backing_store_exists=*/false);
+
+  // Switch to the parameterized engine and re-create the database.
+  GetBucketContext(bucket_info.id)
+      ->SetSqliteRolloutStageForTesting(
+          IsSqliteBackingStoreEnabled() ? SqliteRolloutStage::kUseSqliteOnly
+                                        : SqliteRolloutStage::kUseLevelDbOnly);
+  CreateDatabase(factory_remote, kDatabaseName, /*transaction_id=*/1);
+  ASSERT_EQ(GetBucketContext(bucket_info.id)->IsUsingSqlite(),
+            IsSqliteBackingStoreEnabled());
+
+  // Close the backing store again.
+  task_environment_.FastForwardBy(base::Seconds(2));
+  VerifyBucketContext(bucket_info.id, /*expected_context_exists=*/true,
+                      /*expected_backing_store_exists=*/false);
+
+  // Switch to the other engine and verify that creating the database again
+  // succeeds. This will fail with an unmet expectation of UpgradeNeeded if the
+  // old database files were not deleted.
+  GetBucketContext(bucket_info.id)
+      ->SetSqliteRolloutStageForTesting(
+          IsSqliteBackingStoreEnabled() ? SqliteRolloutStage::kUseLevelDbOnly
+                                        : SqliteRolloutStage::kUseSqliteOnly);
+  CreateDatabase(factory_remote, kDatabaseName, /*transaction_id=*/1);
+}
+
+TEST_P(IndexedDBTestWithBucketType, UseSqliteForNewStores) {
+  if (IsSqliteBackingStoreEnabled()) {
+    // This test is not relevant when SQLite is the only engine.
+    GTEST_SKIP();
+  }
+
+  // Create a bucket with a LevelDB database.
+  storage::BucketInfo old_bucket = CreateTestBucket("http://oldbucket.com");
+  mojo::Remote<blink::mojom::IDBFactory> old_factory_remote;
+  {
+    mojo::PendingRemote<storage::mojom::IndexedDBClientStateChecker>
+        checker_remote;
+    BindFactory(std::move(checker_remote),
+                old_factory_remote.BindNewPipeAndPassReceiver(), old_bucket);
+
+    CreateDatabase(old_factory_remote, kDatabaseName, /*transaction_id=*/1);
+    task_environment_.FastForwardBy(base::Seconds(2));
+    VerifyBucketContext(old_bucket.id, /*expected_context_exists=*/true,
+                        /*expected_backing_store_exists=*/false);
+  }
+
+  // Create an empty bucket with no database.
+  storage::BucketInfo new_bucket = CreateTestBucket("http://newbucket.com");
+  mojo::Remote<blink::mojom::IDBFactory> new_factory_remote;
+  {
+    mojo::PendingRemote<storage::mojom::IndexedDBClientStateChecker>
+        checker_remote;
+    BindFactory(std::move(checker_remote),
+                new_factory_remote.BindNewPipeAndPassReceiver(), new_bucket);
+  }
+
+  // Move both buckets to the SqliteForNewStores rollout stage.
+  GetBucketContext(old_bucket.id)
+      ->SetSqliteRolloutStageForTesting(
+          SqliteRolloutStage::kUseSqliteForNewStores);
+  GetBucketContext(new_bucket.id)
+      ->SetSqliteRolloutStageForTesting(
+          SqliteRolloutStage::kUseSqliteForNewStores);
+
+  // Opening the database on the old bucket should succeed.
+  OpenDatabase(old_factory_remote, kDatabaseName, /*transaction_id=*/1);
+  EXPECT_FALSE(GetBucketContext(old_bucket.id)->IsUsingSqlite());
+
+  // Creating a database on the new bucket should succeed and use SQLite.
+  CreateDatabase(new_factory_remote, kDatabaseName, /*transaction_id=*/1);
+  EXPECT_TRUE(GetBucketContext(new_bucket.id)->IsUsingSqlite());
+
+  // Now simulate corruption in the old bucket.
+  GetBucketContext(old_bucket.id)->HandleBackingStoreCorruption("testing");
+
+  // Creating a database in the old bucket should succeed again because it was
+  // recreated with SQLite.
+  CreateDatabase(old_factory_remote, kDatabaseName, /*transaction_id=*/1,
+                 blink::mojom::IDBDataLoss::Total);
+  EXPECT_TRUE(GetBucketContext(old_bucket.id)->IsUsingSqlite());
 }
 
 #if BUILDFLAG(IS_WIN)
@@ -3007,5 +3092,71 @@ TEST_P(IndexedDBTest, FilePathLengthLogging) {
   }
 }
 #endif
+
+// Regression test for crbug.com/484647042.
+TEST_P(IndexedDBTest, ForceCloseWithQueuedDelete) {
+  storage::BucketInfo bucket_info = InitBucket(GetTestStorageKey());
+  BucketLocator bucket_locator = bucket_info.ToBucketLocator();
+
+  mojo::PendingRemote<storage::mojom::IndexedDBClientStateChecker>
+      checker_remote;
+  BindFactory(std::move(checker_remote),
+              factory_remote_.BindNewPipeAndPassReceiver(), bucket_info);
+
+  // Open a database at version 1 and complete the upgrade.
+  {
+    auto connection = std::make_unique<TestDatabaseConnection>(
+        context()->idb_task_runner(), ToOrigin(kOrigin), kDatabaseName,
+        /*version=*/1, /*upgrade_txn_id=*/1);
+    mojo::PendingAssociatedRemote<blink::mojom::IDBDatabase> pending_database;
+
+    base::RunLoop open_loop;
+    EXPECT_CALL(*connection->open_callbacks,
+                MockedUpgradeNeeded(IsAssociatedInterfacePtrInfoValid(true),
+                                    IndexedDBDatabaseMetadata::NO_VERSION,
+                                    blink::mojom::IDBDataLoss::None,
+                                    std::string(""), _))
+        .WillOnce(testing::DoAll(MoveArgPointee<0>(&pending_database),
+                                 QuitLoop(&open_loop)));
+    connection->Open(factory_remote_.get());
+    open_loop.Run();
+
+    base::RunLoop commit_loop;
+    base::RepeatingClosure quit_closure =
+        base::BarrierClosure(2, commit_loop.QuitClosure());
+    {
+      ::testing::InSequence dummy;
+      EXPECT_CALL(*connection->connection_callbacks, Complete(1))
+          .WillOnce(RunClosure(quit_closure));
+      EXPECT_CALL(
+          *connection->open_callbacks,
+          MockedOpenSuccess(IsAssociatedInterfacePtrInfoValid(false), _))
+          .WillOnce(RunClosure(std::move(quit_closure)));
+    }
+    connection->database.Bind(std::move(pending_database));
+    connection->version_change_transaction->Commit(0);
+    commit_loop.Run();
+  }
+
+  // Wait for the Database to be destroyed. For SQLite, this starts async
+  // cleanup on a background thread.
+  BucketContext* bucket_context = GetBucketContext(bucket_info.id);
+  ASSERT_TRUE(bucket_context);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return bucket_context->GetDatabasesForTesting().empty(); }));
+
+  // Queue a delete, then force close.
+  MockMojoFactoryClient delete_client;
+  EXPECT_CALL(delete_client, Error(blink::mojom::IDBException::kAbortError, _));
+  factory_remote_->DeleteDatabase(delete_client.CreateInterfacePtrAndBind(),
+                                  kDatabaseName, /*force_close=*/false);
+
+  base::RunLoop force_close_loop;
+  context_->ForceClose(
+      bucket_locator.id,
+      storage::mojom::ForceCloseReason::FORCE_CLOSE_BACKING_STORE_FAILURE,
+      force_close_loop.QuitClosure());
+  force_close_loop.Run();
+}
 
 }  // namespace content::indexed_db

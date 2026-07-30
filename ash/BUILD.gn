@@ -2698,6 +2698,7 @@ component("ash") {
     "system/video_conference/effects/video_conference_tray_effects_manager_types.h",
     "system/video_conference/fake_video_conference_tray_controller.cc",
     "system/video_conference/fake_video_conference_tray_controller.h",
+    "system/video_conference/video_conference_common.cc",
     "system/video_conference/video_conference_common.h",
     "system/video_conference/video_conference_tray.cc",
     "system/video_conference/video_conference_tray.h",
@@ -3320,6 +3321,7 @@ component("ash") {
     "//ui/wm",
   ]
   deps = [
+    ":accessibility_prefs_custom_associator",
     "//ash/app_list",
     "//ash/app_menu",
     "//ash/birch:removed_items_proto",
@@ -3632,6 +3634,25 @@ component("ash") {
   # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
   # enable the diagnostic by removing this line.
   configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+}
+
+source_set("accessibility_prefs_custom_associator") {
+  sources = [
+    "accessibility/accessibility_sync_prefs_utils.cc",
+    "accessibility/accessibility_sync_prefs_utils.h",
+  ]
+
+  public_deps = [
+    ":ash_export",
+    "//base",
+  ]
+
+  deps = [
+    "//ash/constants",
+    "//components/live_caption:constants",
+    "//components/pref_registry",
+    "//ui/base/cursor",
+  ]
 }
 
 action("dbus_service_files") {
@@ -4742,6 +4763,7 @@ test("ash_unittests") {
     "//ui/aura:test_support",
     "//ui/base",
     "//ui/base:test_support",
+    "//ui/base/clipboard:clipboard_test_support",
     "//ui/base/cursor",
     "//ui/base/cursor/mojom:cursor_type",
     "//ui/base/dragdrop:types",
@@ -5450,6 +5472,7 @@ static_library("test_support") {
     "//ui/aura:test_support",
     "//ui/base:pixel_diff_test_support",
     "//ui/base:test_support",
+    "//ui/base/clipboard:clipboard_test_support",
     "//ui/chromeos/styles:cros_tokens_color_mappings",
     "//ui/color:mixers",
     "//ui/compositor:test_support",

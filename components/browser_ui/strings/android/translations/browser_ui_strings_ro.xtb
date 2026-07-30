@@ -7,8 +7,9 @@
 <translation id="1070329623210597193">Fișierele pe care le poate vedea sau modifica acest site</translation>
 <translation id="1073417869336441572">Ajută-ne să îmbunătățim Chrome spunându-ne de ce ai permis cookie-urile terță parte. <ph name="BEGIN_LINK" />Trimite feedback<ph name="END_LINK" /></translation>
 <translation id="1074758928858737435">Poți solicita să vezi versiunea pentru computer a site-urilor</translation>
-<translation id="1085696779717592361">Folosește Chrome în mod prestabilit</translation>
+<translation id="1126523729897810826">Finalizează mai jos aceste acțiuni sugerate, pentru a profita din plin de Chrome</translation>
 <translation id="113098737392899175">Navighează în pagini folosind cursorul pentru text când este conectată o tastatură</translation>
+<translation id="1148624853678088576">Ești gata!</translation>
 <translation id="1149644372535087155">Salvează parolele în Chrome</translation>
 <translation id="1178015372320901893">Foaia din partea de jos cu comenzile mele rapide</translation>
 <translation id="1178581264944972037">Întrerupe</translation>
@@ -53,6 +54,7 @@
 <translation id="1569054338208717605">Accelerează site-urile cu motorul V8 din Chrome, dar redu ușor rezistența Chrome la atacuri</translation>
 <translation id="1593426485665524382">Acțiuni noi disponibile în partea de sus a ecranului</translation>
 <translation id="1594521731409209842">Ciupește ecranul pentru a redimensiona fotografia</translation>
+<translation id="1599268789440304082">Foaia de configurare a fost deschisă</translation>
 <translation id="1601560923496285236">Aplică</translation>
 <translation id="1615755956145364867">Site-urile pot solicita permisiunea de a reda conținut protejat</translation>
 <translation id="1620510694547887537">Cameră</translation>
@@ -191,12 +193,12 @@ Protecția avansată gestionează următoarele setări Chrome:
 <translation id="2802908157808345702">Nu permite site-urilor să afișeze ferestre pop-up sau să folosească redirecționări</translation>
 <translation id="2814830417943086299">Chrome afișează acum filele recente în lista de aplicații și în rezultatele căutării de pe dispozitiv. Poți dezactiva oricând această opțiune din setările Chrome.</translation>
 <translation id="2822354292072154809">Sigur dorești să resetezi toate permisiunile la nivel de site pentru <ph name="CHOSEN_OBJECT_NAME" />?</translation>
+<translation id="2848335882304088250">Acum vei profita la maximum de Chrome pe dispozitiv.</translation>
 <translation id="2850913818900871965">Solicită afișarea pe mobil</translation>
 <translation id="2870560284913253234">Site</translation>
 <translation id="2874939134665556319">Melodia anterioară</translation>
 <translation id="2891975107962658722">Nu permite unui site să salveze date pe dispozitiv</translation>
 <translation id="2903493209154104877">Adrese</translation>
-<translation id="2910701580606108292">Întreabă înainte de a permite site-urilor să redea conținut protejat</translation>
 <translation id="2918484639460781603">Accesați setările</translation>
 <translation id="2932883381142163287">Raportează un abuz</translation>
 <translation id="2939338015096024043">Când opțiunea este activată, site-urile pot solicita permisiunea de a urmări poziția camerei și de a afla informații despre împrejurimile tale. Când opțiunea este dezactivată, site-urile nu pot să urmărească poziția camerei sau să afle informații despre împrejurimile tale.</translation>
@@ -298,7 +300,6 @@ Protecția avansată gestionează următoarele setări Chrome:
 <translation id="3924858949939391676">Afișează linkurile după activarea modului de lectură</translation>
 <translation id="3933121352599513978">Restrânge solicitările nedorite (recomandat)</translation>
 <translation id="3934905113567851655">Ciupește pentru redimensionare</translation>
-<translation id="3955193568934677022">Permite site-urilor să redea conținutul protejat (recomandat)</translation>
 <translation id="3955321697524543127">Nu permite site-urilor să se conecteze la dispozitive USB</translation>
 <translation id="3965467402665811906">Site-urile pot solicita permisiunea de a folosi informațiile pe care le-au salvat despre tine</translation>
 <translation id="3967822245660637423">Descărcare finalizată</translation>
@@ -352,7 +353,9 @@ Protecția avansată gestionează următoarele setări Chrome:
 <translation id="4505788138578415521">Adresă URL extinsă</translation>
 <translation id="4522570452068850558">Detalii</translation>
 <translation id="4523472416386354622">Conectează-te pentru a începe</translation>
+<translation id="4529207923544043455">Foaie din partea de jos care afișează activitățile finalizate și nefinalizate din lista de configurare</translation>
 <translation id="4534723447064627427">Pentru a permite aplicației <ph name="APP_NAME" /> să acceseze microfonul, activează microfonul și în <ph name="BEGIN_LINK" />Setările Android<ph name="END_LINK" />.</translation>
+<translation id="4545694195887112015">Foaia de configurare a fost închisă</translation>
 <translation id="4566417217121906555">Dezactivează sunetul microfonului</translation>
 <translation id="4570913071927164677">Detalii</translation>
 <translation id="4578289292431526768">Să începem!</translation>
@@ -509,7 +512,6 @@ Protecția avansată gestionează următoarele setări Chrome:
 <translation id="6171020522141473435">Când opțiunea este activată, site-urile pot solicita permisiunea de a folosi dispozitive Bluetooth. Când opțiunea este dezactivată, site-urile nu pot folosi dispozitive Bluetooth.</translation>
 <translation id="6177128806592000436">Conexiunea la acest site nu este sigură</translation>
 <translation id="6181444274883918285">Adaugă o excepție privind site-urile</translation>
-<translation id="6192792657125177640">Excepții</translation>
 <translation id="6194967801833346599">{DAYS,plural, =1{Chrome va bloca din nou cookie-urile mâine}few{# zile până când cookie-urile vor fi blocate din nou}other{# de zile până când cookie-urile vor fi blocate din nou}}</translation>
 <translation id="6196640612572343990">Blochează cookie-urile terță parte</translation>
 <translation id="6205314730813004066">Confidențialitatea anunțurilor</translation>
@@ -632,7 +634,6 @@ Protecția avansată gestionează următoarele setări Chrome:
 <translation id="7561196759112975576">Întotdeauna</translation>
 <translation id="7573594921350120855">Site-urile folosesc de obicei camera video pentru opțiuni de comunicare, cum ar fi chatul video</translation>
 <translation id="7574529565935733861">{NUM_MONTHS,plural, =1{Acum <ph name="NUM_MONTHS_ONE" /> lună}few{Acum <ph name="NUM_MONTHS_MANY" /> luni}other{Acum <ph name="NUM_MONTHS_MANY" /> de luni}}</translation>
-<translation id="757524316907819857">Împiedică site-urile să redea conținutul protejat</translation>
 <translation id="7586676035079382730">Notificările nu sunt permise</translation>
 <translation id="7594634374516752650">Conectat la un dispozitiv Bluetooth</translation>
 <translation id="7617547684249261169">Poți să ștergi parțial sau integral istoricul, cookie-urile, datele privind site-urile și multe altele</translation>

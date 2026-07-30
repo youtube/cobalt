@@ -243,6 +243,9 @@ const Metric kAllocatorDumpNamesForMetrics[] = {
     {"devtools/durable_message_collectors",
      "DurableMessages.AggregateMemoryUsage", MetricSize::kLarge, kSize,
      EmitTo::kSizeInUmaOnly, nullptr},
+    {"devtools/durable_message_collectors",
+     "DurableMessages.AggregateMessageCount", MetricSize::kTiny,
+     MemoryAllocatorDump::kNameObjectCount, EmitTo::kSizeInUmaOnly, nullptr},
     {"devtools/durable_message_collectors", "DurableMessages.CollectorCount",
      MetricSize::kTiny, MemoryAllocatorDump::kNameObjectCount,
      EmitTo::kSizeInUmaOnly, nullptr},
@@ -749,6 +752,8 @@ const Metric kAllocatorDumpNamesForMetrics[] = {
     {"web_cache/Other_resources", "WebCache.OtherResources", MetricSize::kSmall,
      kEffectiveSize, EmitTo::kSizeInUkmAndUma,
      &Memory_Experimental::SetWebCache_OtherResources},
+    {"webnn", "WebNN", MetricSize::kLarge, kEffectiveSize,
+     EmitTo::kSizeInUkmAndUma, &Memory_Experimental::SetWebNN},
 #if BUILDFLAG(IS_ANDROID)
     {base::android::MeminfoDumpProvider::kDumpName, "AndroidOtherPss",
      MetricSize::kLarge, base::android::MeminfoDumpProvider::kPssMetricName,

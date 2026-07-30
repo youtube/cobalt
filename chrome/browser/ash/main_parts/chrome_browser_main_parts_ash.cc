@@ -48,6 +48,7 @@
 #include "build/branding_buildflags.h"
 #include "build/config/chromebox_for_meetings/buildflags.h"  // PLATFORM_CFM
 #include "build/config/cuttlefish/buildflags.h"  // PLATFORM_CUTTLEFISH
+#include "build/config/squid/buildflags.h"       // PLATFORM_SQUID
 #include "chrome/browser/ash/accessibility/accessibility_event_rewriter_delegate_impl.h"
 #include "chrome/browser/ash/accessibility/accessibility_manager.h"
 #include "chrome/browser/ash/accessibility/magnification_manager.h"
@@ -92,6 +93,7 @@
 #include "chrome/browser/ash/dbus/vm/plugin_vm_service_provider.h"
 #include "chrome/browser/ash/dbus/vm/vm_applications_service_provider.h"
 #include "chrome/browser/ash/dbus/vm/vm_launch_service_provider.h"
+#include "chrome/browser/ash/dbus/vm/vm_management_service_provider.h"
 #include "chrome/browser/ash/dbus/vm/vm_permission_service_provider.h"
 #include "chrome/browser/ash/dbus/vm/vm_sk_forwarding_service_provider.h"
 #include "chrome/browser/ash/dbus/vm/vm_wl_service_provider.h"
@@ -304,7 +306,7 @@
 #include "chrome/browser/ash/chromebox_for_meetings/cfm_chrome_services.h"
 #endif
 
-#if BUILDFLAG(PLATFORM_CUTTLEFISH)
+#if BUILDFLAG(PLATFORM_CUTTLEFISH) || BUILDFLAG(PLATFORM_SQUID)
 #include "chrome/browser/ash/dbus/fjord_oobe_service_provider.h"
 #endif
 
@@ -442,6 +444,12 @@ class DBusServices {
         CrosDBusService::CreateServiceProviderList(
             std::make_unique<VmApplicationsServiceProvider>()));
 
+    vm_management_service_ = CrosDBusService::Create(
+        system_bus, chromeos::kVmManagementServiceName,
+        dbus::ObjectPath(chromeos::kVmManagementServicePath),
+        CrosDBusService::CreateServiceProviderList(
+            std::make_unique<VmManagementServiceProvider>()));
+
     vm_launch_service_ = CrosDBusService::Create(
         system_bus, vm_tools::launch::kVmLaunchServiceName,
         dbus::ObjectPath(vm_tools::launch::kVmLaunchServicePath),
@@ -539,7 +547,7 @@ class DBusServices {
         CrosDBusService::CreateServiceProviderList(
             std::make_unique<ArcCroshServiceProvider>()));
 
-#if BUILDFLAG(PLATFORM_CUTTLEFISH)
+#if BUILDFLAG(PLATFORM_CUTTLEFISH) || BUILDFLAG(PLATFORM_SQUID)
     fjord_oobe_service_ = CrosDBusService::Create(
         system_bus, chromeos::kFjordOobeServiceName,
         dbus::ObjectPath(chromeos::kFjordOobeServicePath),
@@ -602,6 +610,7 @@ class DBusServices {
     component_updater_service_.reset();
     chrome_features_service_.reset();
     vm_applications_service_.reset();
+    vm_management_service_.reset();
     vm_launch_service_.reset();
     vm_sk_forwarding_service_.reset();
     vm_permission_service_.reset();
@@ -613,7 +622,7 @@ class DBusServices {
     fusebox_service_.reset();
     mojo_connection_service_.reset();
     arc_crosh_service_.reset();
-#if BUILDFLAG(PLATFORM_CUTTLEFISH)
+#if BUILDFLAG(PLATFORM_CUTTLEFISH) || BUILDFLAG(PLATFORM_SQUID)
     fjord_oobe_service_.reset();
 #endif
     PowerDataCollector::Shutdown();
@@ -636,6 +645,7 @@ class DBusServices {
   std::unique_ptr<CrosDBusService> component_updater_service_;
   std::unique_ptr<CrosDBusService> chrome_features_service_;
   std::unique_ptr<CrosDBusService> vm_applications_service_;
+  std::unique_ptr<CrosDBusService> vm_management_service_;
   std::unique_ptr<CrosDBusService> vm_launch_service_;
   std::unique_ptr<CrosDBusService> vm_sk_forwarding_service_;
   std::unique_ptr<CrosDBusService> vm_permission_service_;
@@ -652,7 +662,7 @@ class DBusServices {
   std::unique_ptr<CrosDBusService> dlp_files_policy_service_;
   std::unique_ptr<CrosDBusService> arc_tracing_service_;
   std::unique_ptr<CrosDBusService> arc_crosh_service_;
-#if BUILDFLAG(PLATFORM_CUTTLEFISH)
+#if BUILDFLAG(PLATFORM_CUTTLEFISH) || BUILDFLAG(PLATFORM_SQUID)
   std::unique_ptr<CrosDBusService> fjord_oobe_service_;
 #endif
 };
@@ -910,7 +920,8 @@ int ChromeBrowserMainPartsAsh::PreMainMessageLoopRun() {
   auth_events_recorder_ =
       base::WrapUnique<AuthEventsRecorder>(new AuthEventsRecorder());
 
-  auth_parts_ = std::make_unique<ChromeAuthParts>();
+  auth_parts_ =
+      std::make_unique<ChromeAuthParts>(g_browser_process->local_state());
 
   return ChromeBrowserMainPartsLinux::PreMainMessageLoopRun();
 }
@@ -1327,6 +1338,7 @@ void ChromeBrowserMainPartsAsh::PostProfileInit(Profile* profile,
             g_browser_process->local_state());
 
     g_browser_process->platform_part()->chrome_session_manager()->Initialize(
+        g_browser_process->shared_url_loader_factory(),
         *base::CommandLine::ForCurrentProcess(), profile,
         is_integration_test());
 
@@ -1864,6 +1876,10 @@ void ChromeBrowserMainPartsAsh::PostDestroyThreads() {
   // This has to be destroyed after DBusServices
   // (ComponentUpdaterServiceProvider).
   g_browser_process->platform_part()->ShutdownComponentManager();
+
+  // BrowserController depends on GlobalFeatures and must be destroyed before
+  // GlobalFeatures.
+  browser_controller_.reset();
 
   ShutdownDBus();
 

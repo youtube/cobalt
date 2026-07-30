@@ -40,17 +40,25 @@ public class OmniboxChipManager {
         void onChipShown();
     }
 
-    @IntDef({VisibilityState.HIDDEN, VisibilityState.COLLAPSED, VisibilityState.EXPANDED})
+    @IntDef({
+        VisibilityState.UNINITIALIZED,
+        VisibilityState.HIDDEN,
+        VisibilityState.COLLAPSED,
+        VisibilityState.EXPANDED
+    })
     @Retention(RetentionPolicy.SOURCE)
     public @interface VisibilityState {
+        /** The chip hasn't been shown or hidden yet. */
+        int UNINITIALIZED = 0;
+
         /** The chip is not shown. */
-        int HIDDEN = 0;
+        int HIDDEN = 1;
 
         /** The chip is shown in its collapsed state. */
-        int COLLAPSED = 1;
+        int COLLAPSED = 2;
 
         /** The chip is shown in its expanded state. */
-        int EXPANDED = 2;
+        int EXPANDED = 3;
     }
 
     /**
@@ -70,9 +78,14 @@ public class OmniboxChipManager {
             if (mChip == null) return 0;
             if (availableWidth < mCollapsedWidth) {
                 if (mChipVisibilityState != VisibilityState.HIDDEN) {
+                    if (mChipVisibilityState != VisibilityState.UNINITIALIZED) {
+                        // If we're initializing as hidden, we don't need to call the callback.
+                        // TODO(crbug.com/450253146): This can be done in the view binder at the
+                        // point we actually set the view visibility.
+                        assumeNonNull(mChipCallback).onChipHidden();
+                    }
                     mChipVisibilityState = VisibilityState.HIDDEN;
                     mChip.setAvailableWidth(0);
-                    assumeNonNull(mChipCallback).onChipHidden();
                 }
 
                 // Consume all the width to prevent any smaller components from showing.
@@ -81,7 +94,8 @@ public class OmniboxChipManager {
 
             // We're showing the chip when it was hidden before. It may become expanded later, but
             // that doesn't change the fact that it's shown now.
-            if (mChipVisibilityState == VisibilityState.HIDDEN) {
+            if (mChipVisibilityState == VisibilityState.UNINITIALIZED
+                    || mChipVisibilityState == VisibilityState.HIDDEN) {
                 mChipVisibilityState = VisibilityState.COLLAPSED;
                 assumeNonNull(mChipCallback).onChipShown();
             }
@@ -137,6 +151,7 @@ public class OmniboxChipManager {
     }
 
     private final ViewGroup mRootView;
+    private final LocationBarEmbedder mLocationBarEmbedder;
     private final @Px int mCollapsedWidth;
     private final @Px int mMinExpandedWidth;
     private final @Px int mMaxExpandedWidth;
@@ -146,14 +161,17 @@ public class OmniboxChipManager {
     private @Nullable OmniboxChipCoordinator mChip;
     private @VisibilityState int mChipVisibilityState;
     private @Nullable ChipCallback mChipCallback;
+    private boolean mOmniboxFocused;
 
     /**
      * Creates an instance of {@link OmniboxChipManager}.
      *
      * @param rootView The root {@link ViewGroup} that will house the chip view.
+     * @param locationBarEmbedder The {@link LocationBarEmbedder} to notify of visibility changes.
      */
-    public OmniboxChipManager(ViewGroup rootView) {
+    public OmniboxChipManager(ViewGroup rootView, LocationBarEmbedder locationBarEmbedder) {
         mRootView = rootView;
+        mLocationBarEmbedder = locationBarEmbedder;
         var context = mRootView.getContext();
         var res = context.getResources();
         mCollapsedWidth = AttrUtils.getDimensionPixelSize(context, R.attr.minInteractTargetSize);
@@ -168,8 +186,8 @@ public class OmniboxChipManager {
     }
 
     /**
-     * Displays a chip in the Omnibox with the specified properties. If there is already a chip
-     * showing, updates its properties.
+     * Places a chip in the Omnibox with the specified properties. If there is already a chip
+     * placed, updates its properties.
      *
      * @param text The text to display when the chip is in its expanded state.
      * @param icon The icon drawable to display on the chip.
@@ -177,9 +195,7 @@ public class OmniboxChipManager {
      * @param onClick A runnable to execute when the chip is clicked.
      * @param callback A callback to get notified when the chip is hidden or shown.
      */
-    // TODO(crbug.com/450253146): Think of a better verb than "show" since calling this won't
-    // display the chip on the omnibox if there isn't enough space.
-    public void showChip(
+    public void placeChip(
             String text,
             Drawable icon,
             String contentDesc,
@@ -199,7 +215,9 @@ public class OmniboxChipManager {
             mChip.updateChip(text, icon, contentDesc, onClick);
         }
 
-        mRootView.setVisibility(View.VISIBLE);
+        mRootView.setVisibility(getRootVisibility());
+        mChipVisibilityState = VisibilityState.UNINITIALIZED;
+        mLocationBarEmbedder.onWidthConsumerVisibilityChanged();
     }
 
     /** Dismisses the existing chip, if exists. */
@@ -208,14 +226,25 @@ public class OmniboxChipManager {
             mChip.destroy();
             mChip = null;
             mChipCallback = null;
-            mChipVisibilityState = VisibilityState.HIDDEN;
+            mChipVisibilityState = VisibilityState.UNINITIALIZED;
             mRootView.setVisibility(View.GONE);
+            mLocationBarEmbedder.onWidthConsumerVisibilityChanged();
         }
     }
 
-    /** Returns whether the chip is shown. */
-    public boolean isChipShown() {
+    /** Returns whether the chip is placed. */
+    public boolean isChipPlaced() {
         return mChip != null;
+    }
+
+    /**
+     * Sets whether the omnibox is focused and the chip should be hidden.
+     *
+     * @param focused Whether the omnibox is focused.
+     */
+    public void setOmniboxFocused(boolean focused) {
+        mOmniboxFocused = focused;
+        mRootView.setVisibility(getRootVisibility());
     }
 
     /** Returns the {@link ToolbarWidthConsumer} for the collapsed (icon only) state. */
@@ -236,5 +265,11 @@ public class OmniboxChipManager {
     @Px
     int getMinExpandedWidthForTesting() {
         return mMinExpandedWidth;
+    }
+
+    private int getRootVisibility() {
+        if (!isChipPlaced()) return View.GONE;
+
+        return mOmniboxFocused ? View.INVISIBLE : View.VISIBLE;
     }
 }

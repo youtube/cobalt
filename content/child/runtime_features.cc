@@ -76,12 +76,14 @@ void SetRuntimeFeatureDefaultsForPlatform(
 #endif
 
 #if BUILDFLAG(IS_APPLE)
+  // NOTE: Canvas2D checks this feature only when GPU compositing is enabled
+  // (since the entire concept of creating accelerated overlays makes sense only
+  // when GPU compositing is enabled), so there is no need to explicitly guard
+  // by switches::kDisableGpu.
   const bool enable_canvas_2d_image_chromium =
       command_line.HasSwitch(
           blink::switches::kEnableGpuMemoryBufferCompositorResources) &&
-      !command_line.HasSwitch(switches::kDisable2dCanvasImageChromium) &&
-      !command_line.HasSwitch(switches::kDisableGpu) &&
-      base::FeatureList::IsEnabled(features::kCanvas2DImageChromium);
+      !command_line.HasSwitch(switches::kDisable2dCanvasImageChromium);
 #else
   constexpr bool enable_canvas_2d_image_chromium = false;
 #endif
@@ -412,9 +414,6 @@ void SetRuntimeFeaturesFromChromiumFeatures() {
            raw_ref(webnn::mojom::features::
                        kExperimentalWebMachineLearningNeuralNetwork),
            kSetOnlyIfOverridden},
-#if BUILDFLAG(IS_ANDROID)
-          {"WebAppLaunchQueue", raw_ref(features::kAndroidWebAppLaunchHandler)},
-#endif
           {"LocalNetworkAccessPermissionPolicy",
            raw_ref(network::features::kLocalNetworkAccessChecks)},
           {"LocalNetworkAccessSplitPermissions",

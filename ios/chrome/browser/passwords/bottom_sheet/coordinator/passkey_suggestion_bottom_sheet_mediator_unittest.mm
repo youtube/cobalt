@@ -15,6 +15,7 @@
 #import "ios/chrome/browser/passwords/bottom_sheet/ui/credential_suggestion_bottom_sheet_consumer.h"
 #import "ios/chrome/browser/shared/model/web_state_list/test/fake_web_state_list_delegate.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
+#import "ios/chrome/grit/ios_strings.h"
 #import "ios/web/public/test/fakes/fake_web_frames_manager.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
 #import "ios/web/public/test/web_task_environment.h"
@@ -22,6 +23,7 @@
 #import "testing/platform_test.h"
 #import "third_party/ocmock/OCMock/OCMock.h"
 #import "third_party/ocmock/gtest_support.h"
+#import "ui/base/l10n/l10n_util.h"
 
 using password_manager::PasskeyCredential;
 
@@ -46,8 +48,9 @@ PasskeyCredential CreatePasskeyCredential() {
 // Test fixture for PasskeySuggestionBottomSheetMediator.
 class PasskeySuggestionBottomSheetMediatorTest : public PlatformTest {
  protected:
-  PasskeySuggestionBottomSheetMediatorTest()
-      : web_state_list_(&web_state_list_delegate_) {}
+  PasskeySuggestionBottomSheetMediatorTest() {
+    web_state_list_ = std::make_unique<WebStateList>(&web_state_list_delegate_);
+  }
 
   void SetUp() override {
     PlatformTest::SetUp();
@@ -58,7 +61,7 @@ class PasskeySuggestionBottomSheetMediatorTest : public PlatformTest {
     web_state_->SetWebFramesManager(ContentWorldForAutofillJavascriptFeatures(),
                                     std::move(web_frames_manager));
 
-    web_state_list_.InsertWebState(
+    web_state_list_->InsertWebState(
         std::move(web_state),
         WebStateList::InsertionParams::AtIndex(0).Activate());
 
@@ -70,9 +73,17 @@ class PasskeySuggestionBottomSheetMediatorTest : public PlatformTest {
         OCMProtocolMock(@protocol(CredentialSuggestionBottomSheetConsumer));
   }
 
+  void TearDown() override { [mediator_ disconnect]; }
+
+  void CreateMediator() {
+    mediator_ = [[PasskeySuggestionBottomSheetMediator alloc]
+        initWithWebStateList:web_state_list_.get()
+                 requestInfo:{kFrameId, kRequestId}];
+  }
+
   web::WebTaskEnvironment task_environment_;
   FakeWebStateListDelegate web_state_list_delegate_;
-  WebStateList web_state_list_;
+  std::unique_ptr<WebStateList> web_state_list_;
   raw_ptr<web::FakeWebState> web_state_;
   raw_ptr<webauthn::IOSWebAuthnCredentialsDelegate>
       webauthn_credentials_delegate_;
@@ -86,9 +97,7 @@ TEST_F(PasskeySuggestionBottomSheetMediatorTest, InitializeSuggestions) {
   webauthn_credentials_delegate_->OnCredentialsReceived(credentials,
                                                         kRequestId);
 
-  mediator_ = [[PasskeySuggestionBottomSheetMediator alloc]
-      initWithWebStateList:&web_state_list_
-               requestInfo:{kFrameId, kRequestId}];
+  CreateMediator();
 
   OCMExpect([consumer_
       setSuggestions:[OCMArg checkWithBlock:^BOOL(
@@ -100,7 +109,10 @@ TEST_F(PasskeySuggestionBottomSheetMediatorTest, InitializeSuggestions) {
                   autofill::SuggestionType::kWebauthnCredential);
         return YES;
       }]
-           andDomain:@""]);
+           andDomain:[OCMArg isNotNil]]);
+  OCMExpect([consumer_
+      setPrimaryActionString:l10n_util::GetNSString(
+                                 IDS_IOS_CREDENTIAL_BOTTOM_SHEET_CONTINUE)]);
 
   [mediator_ setConsumer:consumer_];
 
@@ -114,13 +126,27 @@ TEST_F(PasskeySuggestionBottomSheetMediatorTest, HandleEmptySuggestions) {
   webauthn_credentials_delegate_->OnCredentialsReceived(credentials,
                                                         kRequestId);
 
-  mediator_ = [[PasskeySuggestionBottomSheetMediator alloc]
-      initWithWebStateList:&web_state_list_
-               requestInfo:{kFrameId, kRequestId}];
+  CreateMediator();
 
   OCMReject([consumer_ setSuggestions:[OCMArg any] andDomain:[OCMArg any]]);
 
   [mediator_ setConsumer:consumer_];
 
   EXPECT_OCMOCK_VERIFY(consumer_);
+}
+
+// Tests that the mediator is correctly cleaned up when the WebStateList is
+// destroyed. There are a lot of checked observer lists that could potentially
+// cause a crash in the process, so this test ensures they're executed.
+TEST_F(PasskeySuggestionBottomSheetMediatorTest,
+       CleanupWhenWebStateListDestroyed) {
+  CreateMediator();
+  ASSERT_TRUE(mediator_);
+
+  // Pointers in the test fixture must be nullified before the objects they
+  // point to are destroyed to avoid dangling pointer errors.
+  web_state_ = nullptr;
+  webauthn_credentials_delegate_ = nullptr;
+
+  web_state_list_.reset();
 }

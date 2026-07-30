@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/callback_list.h"
+#include "base/containers/flat_map.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/memory_pressure_listener.h"
 #include "base/memory/raw_ptr.h"
@@ -23,7 +24,9 @@
 #include "chrome/browser/glic/host/host.h"
 #include "chrome/browser/glic/public/context/glic_sharing_manager.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
+#include "chrome/browser/glic/public/glic_invoke_options.h"
 #include "chrome/browser/glic/service/glic_instance_impl.h"
+#include "chrome/browser/glic/service/glic_invoke_handler.h"
 #include "chrome/browser/glic/service/metrics/glic_instance_coordinator_metrics.h"
 #include "chrome/browser/glic/widget/glic_window_controller.h"
 #include "chrome/browser/profiles/profile.h"
@@ -125,13 +128,15 @@ class GlicInstanceCoordinatorImpl
   void Toggle(BrowserWindowInterface* browser,
               bool prevent_close,
               mojom::InvocationSource source,
-              std::optional<std::string> prompt_suggestion,
-              bool auto_send) override;
+              std::optional<std::string> deprecated_prompt_suggestion,
+              bool deprecated_auto_send,
+              std::optional<std::string> deprecated_conversation_id) override;
   void ShowAfterSignIn(base::WeakPtr<Browser> browser) override;
   // Shuts down all hosts. Only call it before destruction of the instance
   // coordinator.
   void Shutdown() override;
   void Close(const CloseOptions& options) override;
+  void Invoke(tabs::TabInterface* tab, GlicInvokeOptions options);
   void CloseInstanceWithFrame(
       content::RenderFrameHost* render_frame_host) override;
   void CloseAndShutdownInstanceWithFrame(
@@ -185,6 +190,12 @@ class GlicInstanceCoordinatorImpl
 
  private:
   void OnTabEvent(const GlicTabEvent& event);
+  // Returns a pointer to an instance with the given conversation id or nullptr
+  // if no such instance exists.
+  GlicInstanceImpl* GetInstanceImplForConversationId(
+      const std::string& conversation_id);
+  GlicInstanceImpl* GetOrCreateInstanceImplForConversationId(
+      const std::string& conversation_id);
   GlicInstanceImpl* GetOrCreateGlicInstanceImplForTab(tabs::TabInterface* tab);
   GlicInstanceImpl* GetOrCreateInstanceImplForFloaty();
   GlicInstanceImpl* CreateGlicInstance(
@@ -207,7 +218,8 @@ class GlicInstanceCoordinatorImpl
                        bool prevent_close,
                        glic::mojom::InvocationSource source,
                        std::optional<std::string> prompt_suggestion,
-                       bool auto_send);
+                       bool auto_send,
+                       std::optional<std::string> conversation_id);
 
   void CloseFloaty(const CloseOptions& options = {});
 
@@ -224,6 +236,9 @@ class GlicInstanceCoordinatorImpl
   void MaybeDaisyChainNewTab(const TabCreationEvent& event);
   void MaybeDaisyChainFromLinkClick(const TabCreationEvent& event);
 
+  void OnInvokeHandlerComplete(GlicInstance* instance,
+                               GlicInvokeHandler* handler);
+
   GlicInstanceImpl* GetOrRestoreInstanceImpl(
       const GlicRestoredState::InstanceInfo& instance_info);
   void RestoreTab(content::WebContents* web_contents,
@@ -238,6 +253,9 @@ class GlicInstanceCoordinatorImpl
       contextual_cueing_service_;
 
   std::map<InstanceId, std::unique_ptr<GlicInstanceImpl>> instances_;
+
+  base::flat_map<GlicInstance*, std::unique_ptr<GlicInvokeHandler>>
+      invoke_handlers_;
 
   std::unique_ptr<GlicInstanceImpl> warmed_instance_;
 

@@ -67,8 +67,6 @@ static_library("protocol") {
     "connection_to_client.h",
     "connection_to_host.cc",
     "connection_to_host.h",
-    "content_description.cc",
-    "content_description.h",
     "coordinate_conversion.cc",
     "coordinate_conversion.h",
     "coordinate_converter.cc",
@@ -77,8 +75,11 @@ static_library("protocol") {
     "data_channel_manager.cc",
     "data_channel_manager.h",
     "datagram_channel_factory.h",
-    "desktop_capturer.cc",
     "desktop_capturer.h",
+    "desktop_capturer_proxy.cc",
+    "desktop_capturer_proxy.h",
+    "desktop_capturer_wrapper.cc",
+    "desktop_capturer_wrapper.h",
     "display_size.cc",
     "display_size.h",
     "file_transfer_helpers.cc",
@@ -123,10 +124,6 @@ static_library("protocol") {
     "input_stub.h",
     "it2me_host_authenticator_factory.cc",
     "it2me_host_authenticator_factory.h",
-    "jingle_message_xml_converter.cc",
-    "jingle_message_xml_converter.h",
-    "jingle_messages.cc",
-    "jingle_messages.h",
     "jingle_session.cc",
     "jingle_session.h",
     "jingle_session_manager.cc",
@@ -241,7 +238,6 @@ static_library("protocol") {
 
   public_deps = [
     ":errors",
-    ":session_config",
     ":transport",
     "//remoting/proto",
     "//third_party/webrtc_overrides:webrtc_component",
@@ -292,8 +288,6 @@ static_library("protocol") {
       "capture_scheduler.h",
       "ice_connection_to_client.cc",
       "ice_connection_to_client.h",
-      "no_op_webrtc_frame_scheduler.cc",
-      "no_op_webrtc_frame_scheduler.h",
       "video_frame_pump.cc",
       "video_frame_pump.h",
       "video_stream_event_router.cc",
@@ -324,15 +318,6 @@ static_library("protocol") {
       "//remoting/codec:encoder",
     ]
   }
-}
-
-static_library("session_config") {
-  sources = [
-    "session_config.cc",
-    "session_config.h",
-  ]
-
-  deps = [ "//base" ]
 }
 
 static_library("test_support") {
@@ -405,7 +390,6 @@ source_set("unit_tests") {
     "clipboard_filter_unittest.cc",
     "connection_tester.cc",
     "connection_tester.h",
-    "content_description_unittest.cc",
     "coordinate_conversion_test.cc",
     "coordinate_converter_unittest.cc",
     "data_channel_manager_unittest.cc",
@@ -417,7 +401,6 @@ source_set("unit_tests") {
     "ice_transport_unittest.cc",
     "input_event_tracker_unittest.cc",
     "input_filter_unittest.cc",
-    "jingle_messages_unittest.cc",
     "jingle_session_unittest.cc",
     "message_decoder_unittest.cc",
     "message_reader_unittest.cc",
@@ -431,7 +414,6 @@ source_set("unit_tests") {
     "sdp_message_unittest.cc",
     "session_authz_authenticator_unittest.cc",
     "session_authz_reauthorizer_unittest.cc",
-    "session_config_unittest.cc",
     "spake2_authenticator_unittest.cc",
     "ssl_hmac_channel_authenticator_unittest.cc",
     "validating_authenticator_unittest.cc",

@@ -732,11 +732,9 @@ TEST_P(CanvasRenderingContext2DTest,
   // Install a CanvasResourceProvider that does not support direct compositing.
   gfx::Size size = CanvasElement().Size();
   auto provider = Canvas2DResourceProviderBitmap::CreateForTesting(
-      size,
-      Canvas2DColorParams(PredefinedColorSpace::kSRGB,
-                          CanvasPixelFormat::kUint8,
-                          /*has_alpha=*/true),
-      CanvasResourceProvider::ShouldInitialize::kNo);
+      size, Canvas2DColorParams(PredefinedColorSpace::kSRGB,
+                                CanvasPixelFormat::kUint8,
+                                /*has_alpha=*/true));
 
   Context2D()->SetCanvas2DResourceProviderForTesting(std::move(provider), size);
 
@@ -1720,9 +1718,9 @@ TEST_P(CanvasRenderingContext2DTest,
        SoftwareCanvasIsCompositedIfImageChromium) {
   ScopedCanvas2dImageChromiumForTest canvas_2d_image_chromium(true);
 
-  // Ensure that native support for BGRA GMBs is present, as otherwise
-  // compositing will not occur irrespective of whether
-  // `ScopedCanvas2dImageChromium` is enabled.
+  // Ensure that support for BGRA overlays is present, as otherwise compositing
+  // will not occur irrespective of whether `ScopedCanvas2dImageChromium` is
+  // enabled.
   ScopedTestingPlatformSupport<GpuCompositingTestPlatform> platform;
   const_cast<gpu::Capabilities&>(SharedGpuContext::ContextProviderWrapper()
                                      ->ContextProvider()
@@ -1745,9 +1743,9 @@ TEST_P(CanvasRenderingContext2DTest,
   CreateContext(kNonOpaque);
   EXPECT_TRUE(Context2D()->GetOrCreateResourceProvider());
 
-  // Ensure that native support for BGRA GMBs is present, as otherwise
-  // compositing will not occur irrespective of whether
-  // `ScopedCanvas2dImageChromium` is enabled.
+  // Ensure that support for BGRA overlays is present, as otherwise compositing
+  // will not occur irrespective of whether `ScopedCanvas2dImageChromium` is
+  // enabled.
   ScopedTestingPlatformSupport<GpuCompositingTestPlatform> platform;
   const_cast<gpu::Capabilities&>(SharedGpuContext::ContextProviderWrapper()
                                      ->ContextProvider()

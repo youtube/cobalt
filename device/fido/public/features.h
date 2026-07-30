@@ -86,12 +86,6 @@ BASE_DECLARE_FEATURE(kWebAuthnPublishPrelinkingInfo);
 COMPONENT_EXPORT(FIDO_PUBLIC)
 BASE_DECLARE_FEATURE(kWebAuthnHelloSignal);
 
-#if BUILDFLAG(IS_ANDROID)
-// Enables the WebAuthn Signal API for Chrome on Android.
-COMPONENT_EXPORT(FIDO_PUBLIC)
-BASE_DECLARE_FEATURE(kWebAuthnAndroidSignal);
-#endif  // BUILDFLAG(IS_ANDROID)
-
 // When enabled, skips configuring hybrid when Windows can do hybrid. Hybrid may
 // still be delegated to Windows regardless of this flag.
 COMPONENT_EXPORT(FIDO_PUBLIC)
@@ -155,11 +149,6 @@ BASE_DECLARE_FEATURE(kAuthenticatorPasswordsOnlyImmediateRequests);
 COMPONENT_EXPORT(FIDO_PUBLIC)
 BASE_DECLARE_FEATURE(kWebAuthnNewRefreshFlow);
 
-// When running an assertion operation, sends the enclave a hash of the client
-// data JSON instead of the full contents.
-COMPONENT_EXPORT(FIDO_PUBLIC)
-BASE_DECLARE_FEATURE(kWebAuthenticationHashClientDataJsonForEnclave);
-
 // Enables to save keys from out of context ("opportunistic") retrieval.
 COMPONENT_EXPORT(FIDO_PUBLIC)
 BASE_DECLARE_FEATURE(kWebAuthnOpportunisticRetrieval);
@@ -193,6 +182,12 @@ BASE_DECLARE_FEATURE(kFedCmInAuthenticator);
 // fulfill a GPM passkey operation but no system UV or GPM PIN is available.
 COMPONENT_EXPORT(FIDO_PUBLIC)
 BASE_DECLARE_FEATURE(kWebAuthnCreatePinWhenSystemUvDisabled);
+
+#if BUILDFLAG(IS_WIN)
+// Enables support for PRF on create on Windows.
+COMPONENT_EXPORT(FIDO_PUBLIC)
+BASE_DECLARE_FEATURE(kWebAuthnWinPrfOnCreate);
+#endif  // BUILDFLAG(IS_WIN)
 
 }  // namespace device
 

@@ -12,8 +12,10 @@
 #include "base/metrics/user_metrics.h"
 #include "base/notreached.h"
 #include "base/time/time.h"
+#include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "chrome/browser/background/glic/glic_launcher_configuration.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/devtools/features.h"
 #include "chrome/browser/feature_engagement/tracker_factory.h"
 #include "chrome/browser/performance_manager/public/user_tuning/user_performance_tuning_manager.h"
@@ -59,8 +61,6 @@
 #include "chrome/browser/ui/views/user_education/browser_ntp_promos.h"
 #include "chrome/browser/ui/views/user_education/custom_webui_help_bubble.h"
 #include "chrome/browser/ui/views/user_education/impl/browser_feature_promo_controller.h"
-#include "chrome/browser/ui/views/user_education/impl/browser_feature_promo_controller_20.h"
-#include "chrome/browser/ui/views/user_education/impl/browser_feature_promo_controller_25.h"
 #include "chrome/browser/ui/views/user_education/impl/browser_feature_promo_preconditions.h"
 #include "chrome/browser/ui/views/user_education/impl/browser_user_education_context.h"
 #include "chrome/browser/ui/views/user_education/ios_promo_bubble_view.h"
@@ -1633,7 +1633,8 @@ void MaybeRegisterChromeFeaturePromos(
                               &IOSPromoBubbleView::Create,
                               desktop_to_mobile_promos::PromoType::kLens)))
                       .SetMetadata(144, "scottyoder@google.com",
-                                   "Triggered when Lens Overlay is used.")));
+                                   "Triggered when Lens Overlay is used.")
+                      .SetBubbleArrow(HelpBubbleArrow::kNone)));
   }
 
   // kIPHiOSEnhancedBrowsingDesktopFeature
@@ -1650,7 +1651,8 @@ void MaybeRegisterChromeFeaturePromos(
             .SetPromoSubtype(
                 FeaturePromoSpecification::PromoSubtype::kActionableAlert)
             .SetMetadata(144, "scottyoder@google.com",
-                         "Triggered when ESB is first enabled.")));
+                         "Triggered when ESB is first enabled.")
+            .SetBubbleArrow(HelpBubbleArrow::kNone)));
   }
 
   // kIPHiOSPasswordPromoDesktopFeature
@@ -1665,7 +1667,8 @@ void MaybeRegisterChromeFeaturePromos(
                               &IOSPromoBubbleView::Create,
                               desktop_to_mobile_promos::PromoType::kPassword)))
                       .SetMetadata(144, "scottyoder@google.com",
-                                   "Triggered when a password is saved.")));
+                                   "Triggered when a password is saved.")
+                      .SetBubbleArrow(HelpBubbleArrow::kNone)));
   }
 
   // kIPHiOSTabGroupsDesktopFeature
@@ -1680,7 +1683,8 @@ void MaybeRegisterChromeFeaturePromos(
                     &IOSPromoBubbleView::Create,
                     desktop_to_mobile_promos::PromoType::kTabGroups)))
             .SetMetadata(146, "bmcclure@google.com",
-                         "Triggered when Tab Groups are interacted with.")));
+                         "Triggered when Tab Groups are interacted with.")
+            .SetBubbleArrow(HelpBubbleArrow::kNone)));
   }
 
   // kIPHiOSPriceTrackingDesktopFeature
@@ -2124,7 +2128,7 @@ void MaybeRegisterChromeNewBadges(user_education::NewBadgeRegistry& registry) {
                                "to be a vertical tab strip")));
 }
 
-std::unique_ptr<user_education::FeaturePromoControllerCommon>
+std::unique_ptr<user_education::FeaturePromoControllerImpl>
 CreateUserEducationResources(UserEducationService& user_education_service) {
   Profile* const profile = &user_education_service.profile();
   CHECK(UserEducationServiceFactory::ProfileAllowsUserEducation(profile));
@@ -2145,27 +2149,16 @@ CreateUserEducationResources(UserEducationService& user_education_service) {
     MaybeRegisterNtpPromos(*user_education_service.ntp_promo_registry());
   }
 
-  if (user_education::features::IsUserEducationV25()) {
-    auto result = std::make_unique<BrowserFeaturePromoController25>(
-        feature_engagement::TrackerFactory::GetForBrowserContext(profile),
-        &user_education_service.feature_promo_registry(),
-        &user_education_service.help_bubble_factory_registry(),
-        &user_education_service.user_education_storage_service(),
-        &user_education_service.feature_promo_session_policy(),
-        &user_education_service.tutorial_service(),
-        &user_education_service.product_messaging_controller());
-    result->Init();
-    return result;
-  } else {
-    return std::make_unique<BrowserFeaturePromoController20>(
-        feature_engagement::TrackerFactory::GetForBrowserContext(profile),
-        &user_education_service.feature_promo_registry(),
-        &user_education_service.help_bubble_factory_registry(),
-        &user_education_service.user_education_storage_service(),
-        &user_education_service.feature_promo_session_policy(),
-        &user_education_service.tutorial_service(),
-        &user_education_service.product_messaging_controller());
-  }
+  auto result = std::make_unique<BrowserFeaturePromoController>(
+      feature_engagement::TrackerFactory::GetForBrowserContext(profile),
+      &user_education_service.feature_promo_registry(),
+      &user_education_service.help_bubble_factory_registry(),
+      &user_education_service.user_education_storage_service(),
+      &user_education_service.feature_promo_session_policy(),
+      &user_education_service.tutorial_service(),
+      &user_education_service.product_messaging_controller());
+  result->Init();
+  return result;
 }
 
 void QueueLegalAndPrivacyNotices(Profile* profile) {
@@ -2175,4 +2168,12 @@ void QueueLegalAndPrivacyNotices(Profile* profile) {
     privacy_sandbox_service->GetPrivacySandboxNoticeQueueManager()
         .MaybeQueueNotice();
   }
+}
+
+bool DoesEnterprisePolicyBlockPromotions() {
+  PrefService* local_state = g_browser_process->local_state();
+  if (local_state && !local_state->GetBoolean(prefs::kPromotionsEnabled)) {
+    return true;
+  }
+  return false;
 }

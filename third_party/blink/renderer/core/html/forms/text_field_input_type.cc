@@ -183,13 +183,13 @@ void TextFieldInputType::SetValue(const String& sanitized_value,
   if (!value_changed)
     return;
 
-  // Handles programmatic value changes by updating FormControlRanges as a
+  // Handles programmatic value changes by updating OpaqueRanges as a
   // full-value replace. If the skip flag is set (e.g. by setRangeText), this
   // automatic update is skipped since the caller issues its own targeted range
   // update.
-  if (value_changed && RuntimeEnabledFeatures::FormControlRangeEnabled() &&
+  if (value_changed && RuntimeEnabledFeatures::OpaqueRangeEnabled() &&
       !GetElement().ShouldSkipNextSetValueAutoDiff()) {
-    GetElement().CommitProgrammaticFormControlRangeEdit(
+    GetElement().CommitProgrammaticOpaqueRangeEdit(
         old_value, /*old_sel_start=*/0u, /*old_sel_end=*/old_value.length());
   }
 
@@ -226,11 +226,58 @@ void TextFieldInputType::SetValue(const String& sanitized_value,
 void TextFieldInputType::HandleKeydownEvent(KeyboardEvent& event) {
   if (!GetElement().IsFocused())
     return;
-  if (ChromeClient* chrome_client = GetChromeClient()) {
-    chrome_client->HandleKeyboardEventOnTextField(GetElement(), event);
+  if (GetElement().IsBaseAppearanceCombobox()) {
+    if (HandleKeydownForCustomizableCombobox(event)) {
+      event.SetDefaultHandled();
+    }
+    // If this is a base appearance combobox, then we should never call into
+    // ChromeClient to do stuff with the "native" datalist popup, so return
+    // early here.
     return;
   }
-  event.SetDefaultHandled();
+  if (ChromeClient* chrome_client = GetChromeClient()) {
+    chrome_client->HandleKeyboardEventOnTextField(GetElement(), event);
+  }
+}
+
+bool TextFieldInputType::HandleKeydownForCustomizableCombobox(
+    KeyboardEvent& event) {
+  CHECK(RuntimeEnabledFeatures::CustomizableComboboxEnabled());
+  auto* datalist = GetElement().DataList();
+  CHECK(datalist);
+  const AtomicString key(event.key());
+  // These modifiers are copied from HTMLOptionElement::DefaultEventHandler.
+  int tab_ignore_modifiers = WebInputEvent::kControlKey |
+                             WebInputEvent::kAltKey | WebInputEvent::kMetaKey;
+  int ignore_modifiers = WebInputEvent::kShiftKey | tab_ignore_modifiers;
+
+  if (datalist->popoverOpen() && !(event.GetModifiers() & ignore_modifiers)) {
+    CHECK(datalist->ActiveOption());
+    if (key == keywords::kCapitalEnter) {
+      GetElement().SetValue(
+          datalist->ActiveOption()->DisplayLabel(),
+          TextFieldEventBehavior::kDispatchInputAndChangeEvent,
+          TextControlSetValueSelection::kSetSelectionToEnd,
+          WebAutofillState::kNotFilled);
+      datalist->HidePopoverInternal(
+          /*invoker=*/&GetElement(), HidePopoverFocusBehavior::kNone,
+          HidePopoverTransitionBehavior::kFireEventsAndWaitForTransitions,
+          /*exception_state=*/nullptr);
+      GetElement().DispatchFormControlChangeEvent();
+      return true;
+    } else if (key == keywords::kArrowUp) {
+      // TODO(crbug.com/485286877): Consider looking at other arrow keys for
+      // other writing modes.
+      datalist->MoveActiveOption(HTMLDataListElement::Direction::kBackwards);
+      return true;
+    } else if (key == keywords::kArrowDown) {
+      datalist->MoveActiveOption(HTMLDataListElement::Direction::kForwards);
+      return true;
+    }
+    // TODO(crbug.com/453705243): Handle PageUp and PageDown like
+    // HTMLOptionElement::DefaultEventHandler does.
+  }
+  return false;
 }
 
 void TextFieldInputType::HandleKeydownEventForSpinButton(KeyboardEvent& event) {
@@ -642,8 +689,8 @@ void TextFieldInputType::SubtreeHasChanged() {
   GetElement().PseudoStateChanged(CSSSelector::kPseudoInRange);
   GetElement().PseudoStateChanged(CSSSelector::kPseudoOutOfRange);
 
-  if (RuntimeEnabledFeatures::FormControlRangeEnabled()) {
-    GetElement().CommitFormControlRangeEdit();
+  if (RuntimeEnabledFeatures::OpaqueRangeEnabled()) {
+    GetElement().CommitOpaqueRangeEdit();
   }
 
   DidSetValueByUserEdit();

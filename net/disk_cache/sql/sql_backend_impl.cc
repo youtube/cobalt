@@ -442,18 +442,13 @@ void SqlBackendImpl::OnInitialized(CompletionOnceCallback callback,
 }
 
 void SqlBackendImpl::RunDelayedPostInitializationTasks() {
-  if (store_->MaybeLoadInMemoryIndex(base::BindOnce(
-          [](base::WeakPtr<SqlBackendImpl> self,
-             SqlPersistentStore::Error result) {
-            if (self && result == SqlPersistentStore::Error::kOk) {
-              self->store_->MaybeRunCleanupDoomedEntries(base::DoNothing());
-            }
-          },
-          weak_factory_.GetWeakPtr()))) {
-    return;
-  }
-  // The in-memory index has been already read. So trigger clean up task.
-  store_->MaybeRunCleanupDoomedEntries(base::DoNothing());
+  store_->MaybeLoadInMemoryIndex(base::BindOnce(
+      [](base::WeakPtr<SqlBackendImpl> self, SqlPersistentStore::Error result) {
+        if (self && result == SqlPersistentStore::Error::kOk) {
+          self->store_->MaybeRunCleanupDoomedEntries(base::DoNothing());
+        }
+      },
+      weak_factory_.GetWeakPtr()));
 }
 
 int64_t SqlBackendImpl::MaxFileSize() const {
@@ -1455,10 +1450,20 @@ void SqlBackendImpl::ApplyInFlightEntryModifications(
 }
 
 int SqlBackendImpl::FlushQueueForTest(CompletionOnceCallback callback) {
+  // `FlushQueueForTest` posts an exclusive operation to wait for all queued
+  // operations to complete. However, if this operation sets the "has pending
+  // task" flag, it would pause the eviction process (which checks this flag)
+  // that we might be waiting for. To avoid this, hold the
+  // `decrement_keep_has_pending_task_unset_count` until the operation is
+  // executed.
+  auto decrement_keep_has_pending_task_unset_count =
+      exclusive_operation_coordinator_
+          .KeepHasPendingTaskFlagUnsetForTesting();  // IN-TEST
   exclusive_operation_coordinator_.PostOrRunExclusiveOperation(base::BindOnce(
       [](std::vector<scoped_refptr<base::SequencedTaskRunner>>
              background_task_runners,
          CompletionOnceCallback callback,
+         base::ScopedClosureRunner decrement_keep_has_pending_task_unset_count,
          std::unique_ptr<ExclusiveOperationCoordinator::OperationHandle>
              handle) {
         auto barrier_closure = base::BarrierClosure(
@@ -1471,7 +1476,8 @@ int SqlBackendImpl::FlushQueueForTest(CompletionOnceCallback callback) {
               FROM_HERE, base::BindOnce([]() {}), barrier_closure);
         }
       },
-      background_task_runners_, std::move(callback)));
+      background_task_runners_, std::move(callback),
+      std::move(decrement_keep_has_pending_task_unset_count)));
 
   return net::ERR_IO_PENDING;
 }
@@ -1482,9 +1488,9 @@ void SqlBackendImpl::MaybeTriggerEviction(bool is_idle_time_eviction) {
     return;
   }
   eviction_operation_queued_ = true;
-  exclusive_operation_coordinator_.PostOrRunExclusiveOperation(base::BindOnce(
+  exclusive_operation_coordinator_.PostOrRunExclusiveOperation(
       base::BindOnce(&SqlBackendImpl::HandleTriggerEvictionOperation,
-                     weak_factory_.GetWeakPtr(), is_idle_time_eviction)));
+                     weak_factory_.GetWeakPtr(), is_idle_time_eviction));
 }
 
 void SqlBackendImpl::HandleTriggerEvictionOperation(
@@ -1503,9 +1509,11 @@ void SqlBackendImpl::HandleTriggerEvictionOperation(
                                  store_->GetShardIdForHash(it.first.hash()));
     }
   }
-  store_->StartEviction(std::move(excluded_list), is_idle_time_eviction,
-                        base::BindOnce([](SqlPersistentStore::Error result) {
-                        }).Then(OnceClosureWithBoundArgs(std::move(handle))));
+  store_->StartEviction(
+      std::move(excluded_list), is_idle_time_eviction,
+      exclusive_operation_coordinator_.GetHasPendingTaskFlag(),
+      base::BindOnce([](SqlPersistentStore::Error result) {
+      }).Then(OnceClosureWithBoundArgs(std::move(handle))));
 }
 
 void SqlBackendImpl::EnableStrictCorruptionCheckForTesting() {

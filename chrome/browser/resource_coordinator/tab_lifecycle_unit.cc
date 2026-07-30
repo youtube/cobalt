@@ -14,6 +14,7 @@
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/notreached.h"
 #include "base/process/process_metrics.h"
 #include "build/build_config.h"
 #include "chrome/browser/devtools/devtools_window.h"
@@ -36,6 +37,7 @@
 #include "chrome/browser/web_applications/web_app_tab_helper.h"
 #include "components/device_event_log/device_event_log.h"
 #include "components/performance_manager/public/decorators/page_live_state_decorator.h"
+#include "components/performance_manager/public/features.h"
 #include "components/performance_manager/public/mojom/lifecycle.mojom.h"
 #include "components/permissions/permission_manager.h"
 #include "content/public/browser/navigation_controller.h"
@@ -46,6 +48,43 @@
 #include "url/gurl.h"
 
 namespace resource_coordinator {
+
+namespace {
+
+bool IsDiscardBlockedByFeature(LifecycleUnitDiscardReason reason) {
+  // When the "Disable Tab Discarding" experiment is active, prevent proactive
+  // discards for Finch testing.
+  if (!base::FeatureList::IsEnabled(
+          performance_manager::features::kDisableTabDiscarding)) {
+    return false;
+  }
+
+  // Allow the discard if it falls into one of these explicit categories.
+  switch (reason) {
+    case LifecycleUnitDiscardReason::EXTERNAL:
+      // The discard was explicitly requested by an extension or user.
+      return false;
+    case LifecycleUnitDiscardReason::FROZEN_WITH_GROWING_MEMORY:
+      // The tab is leaking memory while frozen (e.g., unprocessed Mojo
+      // messages) and must be discarded to prevent OOM.
+      return false;
+    case LifecycleUnitDiscardReason::PROACTIVE:
+      // The discard was explicitly requested by the Memory Saver feature,
+      // and we should respect the user's settings.
+      return false;
+    case LifecycleUnitDiscardReason::URGENT:
+      // Block urgent memory pressure discards during this experiment.
+      return true;
+    case LifecycleUnitDiscardReason::SUGGESTED:
+      // The discard is an optional suggestion to free up resources, which
+      // we block while the disable discarding experiment is active.
+      return true;
+  }
+
+  NOTREACHED();
+}
+
+}  // namespace
 
 TabLifecycleUnitSource::TabLifecycleUnit::TabLifecycleUnit(
     TabLifecycleUnitSource* source,
@@ -305,6 +344,10 @@ void TabLifecycleUnitSource::TabLifecycleUnit::
 bool TabLifecycleUnitSource::TabLifecycleUnit::Discard(
     LifecycleUnitDiscardReason reason,
     uint64_t tab_memory_footprint_estimate) {
+  if (IsDiscardBlockedByFeature(reason)) {
+    return false;
+  }
+
   const base::TimeTicks discard_start_time = NowTicks();
 
   last_discard_time_ = discard_start_time;

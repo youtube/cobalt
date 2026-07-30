@@ -196,6 +196,7 @@ source_set("cronet_static") {
     "//net",
     "//third_party/zlib",
     "//url",
+    "//third_party/boringssl"
   ]
   sources = [
     "//components/cronet/android/completion_once_callback_adapter.cc",
@@ -1627,6 +1628,7 @@ instrumentation_test_apk(
            ":cronet_impl_common_java",
            ":cronet_impl_platform_java",
            ":cronet_test_apk_resources",
+           ":httpengine_native_provider_java",
            "//base:base_java_test_support",
            "//base:log_java",
            "//third_party/android_sdk:android_test_mock_java",

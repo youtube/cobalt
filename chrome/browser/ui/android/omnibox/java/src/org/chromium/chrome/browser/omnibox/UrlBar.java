@@ -836,7 +836,7 @@ public class UrlBar extends AutocompleteEditText {
                 && currentTextSize == mPreviousScrollFontSize
                 && currentIsRtl == mPreviousScrollWasRtl
                 && isVisibleTextTheSame(text)) {
-            scrollTo(mPreviousScrollResultXPosition, getScrollY());
+            scrollTo(mPreviousScrollResultXPosition, 0);
 
             return;
         }
@@ -891,7 +891,22 @@ public class UrlBar extends AutocompleteEditText {
             float width = layout.getPaint().measureText(text.toString());
             scrollPos = Math.max(0, endPointX - measuredWidth + width);
         }
-        scrollTo((int) scrollPos, getScrollY());
+        scrollTo((int) scrollPos, 0);
+    }
+
+    @Override
+    public void setSelection(int start, int end) {
+        // TODO(crbug.com/483451424): This is needed to address a regression in M146 that has since
+        // been addressed in M147. The change resolving the regression may not meet the quality bar
+        // to be cherrypicked to M146.
+        // The problem is linked to `setSelection` being still exposed in M146 via
+        // UrlBarCoordinator. Anyone calling setSelection makes certain assumptions about the
+        // contents of the Omnibox (specifically - the length of the text) which may or may not
+        // hold true. The logic below ensures that bounds passed by caller are not exceeded.
+        int textLength = getText().length();
+        if (start > textLength) start = textLength;
+        if (end > textLength) end = textLength;
+        super.setSelection(start, end);
     }
 
     /**
@@ -1073,7 +1088,7 @@ public class UrlBar extends AutocompleteEditText {
                 scrollPos = endPointX + measuredWidth;
             }
         }
-        scrollTo((int) scrollPos, getScrollY());
+        scrollTo((int) scrollPos, 0);
     }
 
     @Override
@@ -1169,21 +1184,6 @@ public class UrlBar extends AutocompleteEditText {
                 spanLeft,
                 textLength - spanLeft,
                 Editable.SPAN_INCLUSIVE_EXCLUSIVE);
-    }
-
-    @Override
-    public void setTranslationY(float translationY) {
-        // Certain locale (e.g. Burmese) use particularly tall glyphs, which, combined with
-        // font_scale set to 2.0, render outside the Omnibox. We scale these fonts down (see
-        // enforceMaxTextHeight() call below). Despite the computation, Android's ElegantTextHeight
-        // feature imposes an extra margins around the text, forcing the already tall text to
-        // receive additional wide space on top and bottom, shifting the content upwards.
-        // We suppress Y translation here, as the Omnibox is not a vertically scrollable view, and
-        // our font height computation logic appears to produce correct glyph sizes.
-        //
-        // Allows translation in CCT that has to animate URL bar text for branding.
-        // TODO(crbug.com/357399658): Consider a new approach to remove this exception for CCT.
-        if (mIsInCct) super.setTranslationY(translationY);
     }
 
     @Override

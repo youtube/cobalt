@@ -63,15 +63,13 @@ class TestCascadeResolver {
   STACK_ALLOCATED();
 
  public:
-  explicit TestCascadeResolver(uint8_t generation = 0)
-      : resolver_(CascadeFilter(), generation) {}
+  explicit TestCascadeResolver() : resolver_(CascadeFilter()) {}
   bool InCycle() const { return resolver_.InCycle(); }
   bool DetectCycle(const CSSProperty& property) {
     return resolver_.DetectCycle(property);
   }
   wtf_size_t CycleStart() const { return resolver_.cycle_start_; }
   wtf_size_t CycleEnd() const { return resolver_.cycle_end_; }
-  uint8_t GetGeneration() { return resolver_.generation_; }
   CascadeResolver& InnerResolver() { return resolver_; }
   const CSSProperty* CurrentProperty() const {
     return resolver_.CurrentProperty();
@@ -159,12 +157,12 @@ class TestCascade {
 
   void ApplySingle(const CSSProperty& property) {
     EnsureAtLeast(CascadeOrigin::kAnimation);
-    cascade_.AnalyzeIfNeeded();
-    TestCascadeResolver resolver(++cascade_.generation_);
+    cascade_.CollectDeclarationsIfNeeded();
+    TestCascadeResolver resolver;
     cascade_.LookupAndApply(property, resolver.InnerResolver());
   }
 
-  void AnalyzeIfNeeded() { cascade_.AnalyzeIfNeeded(); }
+  void CollectDeclarationsIfNeeded() { cascade_.CollectDeclarationsIfNeeded(); }
 
   const CSSValue* Resolve(const CSSProperty& property,
                           const CSSValue& value,
@@ -189,8 +187,8 @@ class TestCascade {
                                  /*mixin_parameter_bindings=*/nullptr);
   }
 
-  std::unique_ptr<CSSBitset> GetImportantSet() {
-    return cascade_.GetImportantSet();
+  std::unique_ptr<CSSBitset> ReleaseImportantSet() {
+    return cascade_.ReleaseImportantSet();
   }
 
   String ComputedValue(String name) const {
@@ -244,11 +242,11 @@ class TestCascade {
     current_origin_ = CascadeOrigin::kUserAgent;
   }
 
-  bool NeedsMatchResultAnalyze() const {
-    return cascade_.needs_match_result_analyze_;
+  bool NeedsCollectFromMatchResult() const {
+    return cascade_.needs_collect_from_match_result_;
   }
-  bool NeedsInterpolationsAnalyze() const {
-    return cascade_.needs_interpolations_analyze_;
+  bool NeedsCollectFromInterpolations() const {
+    return cascade_.needs_collect_from_interpolations_;
   }
   bool DependsOnCascadeAffectingProperty() const {
     return cascade_.depends_on_cascade_affecting_property_;
@@ -497,7 +495,7 @@ TEST_F(StyleCascadeTest, ApplyCustomProperty) {
   EXPECT_EQ("nope", cascade.ComputedValue("--y"));
 }
 
-TEST_F(StyleCascadeTest, ApplyGenerations) {
+TEST_F(StyleCascadeTest, ApplyMultipleTimes) {
   TestCascade cascade(GetDocument());
 
   cascade.Add("--x:10px");
@@ -3553,7 +3551,7 @@ TEST_F(StyleCascadeTest, AuthorBorderRevertLogical) {
   EXPECT_FALSE(style->HasAuthorBorder());
 }
 
-TEST_F(StyleCascadeTest, AnalyzeMatchResult) {
+TEST_F(StyleCascadeTest, CollectFromMatchResult) {
   auto ua = CascadeOrigin::kUserAgent;
   auto author = CascadeOrigin::kAuthor;
 
@@ -3570,7 +3568,7 @@ TEST_F(StyleCascadeTest, AnalyzeMatchResult) {
   EXPECT_EQ(cascade.GetPriority("font-size").GetOrigin(), ua);
 }
 
-TEST_F(StyleCascadeTest, AnalyzeMatchResultAll) {
+TEST_F(StyleCascadeTest, CollectFromMatchResultAll) {
   auto ua = CascadeOrigin::kUserAgent;
   auto author = CascadeOrigin::kAuthor;
 
@@ -3588,7 +3586,7 @@ TEST_F(StyleCascadeTest, AnalyzeMatchResultAll) {
   EXPECT_EQ(cascade.GetPriority("color"), cascade.GetPriority("display"));
 }
 
-TEST_F(StyleCascadeTest, AnalyzeFlagsClean) {
+TEST_F(StyleCascadeTest, CollectionFlagsClean) {
   AppendSheet(R"HTML(
      @keyframes test {
         from { top: 0px; }
@@ -3601,13 +3599,13 @@ TEST_F(StyleCascadeTest, AnalyzeFlagsClean) {
   cascade.Add("bottom:10px");
   cascade.Add("animation:test linear 1000s -500s");
   cascade.Apply();
-  EXPECT_FALSE(cascade.NeedsMatchResultAnalyze());
-  EXPECT_FALSE(cascade.NeedsInterpolationsAnalyze());
+  EXPECT_FALSE(cascade.NeedsCollectFromMatchResult());
+  EXPECT_FALSE(cascade.NeedsCollectFromInterpolations());
 
   cascade.AddInterpolations();
   cascade.Apply();
-  EXPECT_FALSE(cascade.NeedsMatchResultAnalyze());
-  EXPECT_FALSE(cascade.NeedsInterpolationsAnalyze());
+  EXPECT_FALSE(cascade.NeedsCollectFromMatchResult());
+  EXPECT_FALSE(cascade.NeedsCollectFromInterpolations());
 }
 
 TEST_F(StyleCascadeTest, ApplyMatchResultFilter) {
@@ -3700,11 +3698,11 @@ TEST_F(StyleCascadeTest, Reset) {
 
   cascade.Add("color:red");
   cascade.Add("--x:red");
-  cascade.Apply();  // generation=1
-  cascade.Apply();  // generation=2
+  cascade.Apply();  // apply 1
+  cascade.Apply();  // apply 2
 
-  EXPECT_EQ(2u, cascade.GetPriority("color").GetGeneration());
-  EXPECT_EQ(2u, cascade.GetPriority("--x").GetGeneration());
+  EXPECT_EQ(true, cascade.GetPriority("color").IsAlreadyApplied());
+  EXPECT_EQ(true, cascade.GetPriority("--x").IsAlreadyApplied());
 
   cascade.Reset();
 
@@ -3712,30 +3710,32 @@ TEST_F(StyleCascadeTest, Reset) {
   EXPECT_EQ(CascadePriority(), cascade.GetPriority("--x"));
 }
 
-TEST_F(StyleCascadeTest, GetImportantSetEmpty) {
+TEST_F(StyleCascadeTest, ReleaseImportantSetEmpty) {
   TestCascade cascade(GetDocument());
   cascade.Add("color:red");
   cascade.Add("width:1px");
   cascade.Add("--x:green");
-  EXPECT_FALSE(cascade.GetImportantSet());
+  EXPECT_FALSE(cascade.ReleaseImportantSet());
 }
 
-TEST_F(StyleCascadeTest, GetImportantSetSingle) {
+TEST_F(StyleCascadeTest, ReleaseImportantSetSingle) {
   TestCascade cascade(GetDocument());
   cascade.Add("width:1px !important");
-  ASSERT_TRUE(cascade.GetImportantSet());
-  EXPECT_EQ(CSSBitset({CSSPropertyID::kWidth}), *cascade.GetImportantSet());
+  std::unique_ptr<CSSBitset> bitset = cascade.ReleaseImportantSet();
+  ASSERT_TRUE(bitset);
+  EXPECT_EQ(CSSBitset({CSSPropertyID::kWidth}), *bitset);
 }
 
-TEST_F(StyleCascadeTest, GetImportantSetMany) {
+TEST_F(StyleCascadeTest, ReleaseImportantSetMany) {
   TestCascade cascade(GetDocument());
   cascade.Add("width:1px !important");
   cascade.Add("height:1px !important");
   cascade.Add("top:1px !important");
-  ASSERT_TRUE(cascade.GetImportantSet());
+  std::unique_ptr<CSSBitset> bitset = cascade.ReleaseImportantSet();
+  ASSERT_TRUE(bitset);
   EXPECT_EQ(CSSBitset({CSSPropertyID::kWidth, CSSPropertyID::kHeight,
                        CSSPropertyID::kTop}),
-            *cascade.GetImportantSet());
+            *bitset);
 }
 
 TEST_F(StyleCascadeTest, RootColorNotModifiedByEmptyCascade) {
@@ -4030,7 +4030,7 @@ TEST_F(StyleCascadeTest, RevertOrigin) {
   cascade.Add("display", "revert", CascadeOrigin::kAuthor);
   cascade.Add("margin-left", "revert", CascadeOrigin::kAuthor);
 
-  cascade.AnalyzeIfNeeded();
+  cascade.CollectDeclarationsIfNeeded();
 
   CSSValue* revert_value = cssvalue::CSSRevertValue::Create();
 

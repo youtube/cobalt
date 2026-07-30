@@ -136,6 +136,7 @@ chromium-metrics-reviews@google.com.
   <variant name="vulkan"/>
   <variant name="WebMediaPlayer_MainThread"/>
   <variant name="WebMediaPlayer_MediaThread"/>
+  <variant name="WebNN"/>
 </variants>
 
 <variants name="ProcessMemoryAllocator2">
@@ -753,6 +754,9 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <variants name="ProcessMemoryAllocatorTiny2">
+  <variant name=".DurableMessages.AggregateMessageCount"
+      summary="Reports the aggregate message count by all
+               DevToolsDurableMessageCollector instances."/>
   <variant name=".Malloc.BRPQuarantinedCount"
       summary="Number of slots quarantined by BRP, recorded when
                USE_BACKUP_REF_PTR build flag is enabled."/>
@@ -2174,7 +2178,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Memory.Experimental.Windows.DemandZeroFaultsFulfilledPerSecond2"
-    units="faults/sec" expires_after="2026-05-24">
+    units="faults/sec" expires_after="2026-08-16">
   <owner>spvm@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -2282,6 +2286,7 @@ chromium-metrics-reviews@google.com.
     <variant name="SharedImageStub" summary="Shared Image Stub"/>
     <variant name="Skia" summary="Skia"/>
     <variant name="Unknown" summary="an unknown source"/>
+    <variant name="WebNN" summary="WebNN context"/>
   </token>
 </histogram>
 
@@ -2355,7 +2360,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Memory.Gpu.SharedMemoryFootprint" units="MB"
-    expires_after="2026-06-21">
+    expires_after="2026-08-23">
   <owner>erikchen@chromium.org</owner>
   <owner>ssid@chromium.org</owner>
   <summary>
@@ -2414,7 +2419,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Memory.MemoryDumpOutcome" enum="RequestOutcome"
-    expires_after="2026-06-14">
+    expires_after="2026-08-16">
   <owner>fdoray@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -3081,7 +3086,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Memory.RenderProcessHost.Count2.InitializedAndNotDead"
-    units="processes" expires_after="2026-06-21">
+    units="processes" expires_after="2026-08-23">
   <owner>alexmos@chromium.org</owner>
   <owner>creis@chromium.org</owner>
   <owner>lukasza@chromium.org</owner>
@@ -3518,7 +3523,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Memory.Total.SharedMemoryFootprint" units="MB"
-    expires_after="2026-06-21">
+    expires_after="2026-08-23">
   <owner>erikchen@chromium.org</owner>
   <owner>ssid@chromium.org</owner>
   <summary>

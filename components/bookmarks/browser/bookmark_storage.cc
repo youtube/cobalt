@@ -5,6 +5,7 @@
 #include "components/bookmarks/browser/bookmark_storage.h"
 
 #include <stddef.h>
+
 #include <algorithm>
 #include <unordered_map>
 #include <utility>
@@ -23,7 +24,9 @@
 #include "components/bookmarks/browser/bookmark_codec.h"
 #include "components/bookmarks/browser/bookmark_model.h"
 #include "components/bookmarks/browser/bookmark_node.h"
+#include "components/bookmarks/common/bookmark_features.h"
 #include "components/bookmarks/common/bookmark_metrics.h"
+#include "components/os_crypt/async/common/encryptor.h"
 
 namespace bookmarks {
 
@@ -31,10 +34,20 @@ namespace {
 
 // Extension used for backup files (copy of main file created during startup).
 const base::FilePath::CharType kBackupExtension[] = FILE_PATH_LITERAL("bak");
+constexpr char kBookmarkStorageHistogramSuffix[] = "BookmarkStorage";
+constexpr char kBookmarkStorageEncryptedHistogramSuffix[] =
+    "BookmarkStorageEncrypted";
 
-void BackupCallback(const base::FilePath& path) {
+void BackupCallback(const base::FilePath& path,
+                    const std::optional<base::FilePath> encrypted_file_path) {
   base::FilePath backup_path = path.ReplaceExtension(kBackupExtension);
   base::CopyFile(path, backup_path);
+  if (ShouldWriteEncryptedBookmarksToDisk()) {
+    CHECK(encrypted_file_path);
+    base::FilePath encrypted_backup_path =
+        encrypted_file_path->ReplaceExtension(kBackupExtension);
+    base::CopyFile(encrypted_file_path.value(), encrypted_backup_path);
+  }
 }
 
 base::DictValue EncodeModelToDict(
@@ -87,13 +100,21 @@ constexpr base::TimeDelta BookmarkStorage::kSaveDelay;
 BookmarkStorage::BookmarkStorage(
     const BookmarkModel* model,
     PermanentNodeSelection permanent_node_selection,
-    const base::FilePath& file_path)
+    const scoped_refptr<base::RefCountedData<const os_crypt_async::Encryptor>>
+        encryptor,
+    const base::FilePath& file_path,
+    const std::optional<base::FilePath> encrypted_file_path)
     : model_(model),
       backend_task_runner_(base::ThreadPool::CreateSequencedTaskRunner(
           {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
            base::TaskShutdownBehavior::BLOCK_SHUTDOWN})),
       permanent_node_selection_(permanent_node_selection),
-      writer_(file_path, backend_task_runner_, kSaveDelay, "BookmarkStorage"),
+      encryptor_(encryptor),
+      encrypted_file_path_(encrypted_file_path),
+      writer_(file_path,
+              backend_task_runner_,
+              kSaveDelay,
+              kBookmarkStorageHistogramSuffix),
       last_scheduled_save_(base::TimeTicks::Now()) {
   CHECK(!file_path.empty());
 }
@@ -108,7 +129,8 @@ void BookmarkStorage::ScheduleSave() {
   if (!backup_triggered_ && ShouldSaveBackupFile(permanent_node_selection_)) {
     backup_triggered_ = true;
     backend_task_runner_->PostTask(
-        FROM_HERE, base::BindOnce(&BackupCallback, writer_.path()));
+        FROM_HERE,
+        base::BindOnce(&BackupCallback, writer_.path(), encrypted_file_path_));
   }
 
   writer_.ScheduleWriteWithBackgroundDataSerializer(this);
@@ -124,16 +146,37 @@ BookmarkStorage::GetSerializedDataProducerForBackgroundSequence() {
   base::DictValue value = EncodeModelToDict(model_, permanent_node_selection_);
 
   return base::BindOnce(
-      [](base::DictValue value) -> std::optional<std::string> {
-        // This runs on the background sequence.
+      [](base::DictValue value,
+         scoped_refptr<base::RefCountedData<const os_crypt_async::Encryptor>>
+             encryptor,
+         const std::optional<base::FilePath> encrypted_file_path)
+          -> std::optional<std::string> {
         std::string output;
         if (!base::JSONWriter::WriteWithOptions(
                 value, base::JSONWriter::OPTIONS_PRETTY_PRINT, &output)) {
           return std::nullopt;
         }
+
+        if (ShouldWriteEncryptedBookmarksToDisk()) {
+          CHECK(encryptor);
+          CHECK(encrypted_file_path);
+          std::string encrypted;
+          if (encryptor->data.EncryptString(output, &encrypted)) {
+            // Also write the encrypted data to disk. Make sure this second
+            // write is performed after the first one is completed.
+            base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+                FROM_HERE,
+                base::BindOnce(
+                    base::IgnoreResult(
+                        &base::ImportantFileWriter::WriteFileAtomically),
+                    encrypted_file_path.value(), std::move(encrypted),
+                    kBookmarkStorageEncryptedHistogramSuffix));
+          }
+        }
+
         return output;
       },
-      std::move(value));
+      std::move(value), encryptor_, encrypted_file_path_);
 }
 
 bool BookmarkStorage::HasScheduledSaveForTesting() const {

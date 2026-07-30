@@ -71,7 +71,7 @@ using ::testing::Pointee;
 
 DEFINE_SPECIFICS_TO_VALUE_TEST(encrypted)
 
-static_assert(62 == syncer::GetNumDataTypes(),
+static_assert(63 == syncer::GetNumDataTypes(),
               "When adding a new field, add a DEFINE_SPECIFICS_TO_VALUE_TEST "
               "for your field below, and optionally a test for the specific "
               "conversions.");
@@ -138,6 +138,7 @@ DEFINE_SPECIFICS_TO_VALUE_TEST(ai_thread)
 DEFINE_SPECIFICS_TO_VALUE_TEST(contextual_task)
 DEFINE_SPECIFICS_TO_VALUE_TEST(skill)
 DEFINE_SPECIFICS_TO_VALUE_TEST(gemini_thread)
+DEFINE_SPECIFICS_TO_VALUE_TEST(accessibility_annotation)
 
 TEST(ProtoValueConversionsTest, AutofillWalletSpecificsToValue) {
   sync_pb::AutofillWalletSpecifics specifics;
@@ -412,8 +413,8 @@ TEST(ProtoValueConversionsTest, GeminiThreadSpecificsToValue) {
               Pointee(Eq("1770989828")));
 }
 
-TEST(ProtoValueConversionsTest, ThemeSpecificsIosToValue) {
-  sync_pb::ThemeSpecificsIos specifics;
+TEST(ProtoValueConversionsTest, ThemeIosSpecificsToValue) {
+  sync_pb::ThemeIosSpecifics specifics;
 
   // Populate `UserColorTheme`.
   auto* color_theme = specifics.mutable_user_color_theme();
@@ -427,7 +428,7 @@ TEST(ProtoValueConversionsTest, ThemeSpecificsIosToValue) {
   background->set_collection_id("nature_collection");
   background->set_main_color(4278190080);
 
-  base::DictValue value = ThemeSpecificsIosToValue(specifics).TakeDict();
+  base::DictValue value = ThemeIosSpecificsToValue(specifics).TakeDict();
   EXPECT_FALSE(value.empty());
 
   const base::DictValue* color_dict = value.FindDict("user_color_theme");

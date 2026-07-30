@@ -126,11 +126,6 @@ void PageTimingMetricsSender::DidObserveSoftNavigation(
   CHECK(new_metrics.count);
   CHECK_GT(new_metrics.count, soft_navigation_metrics_->count);
 
-  CHECK(new_metrics.navigation_id);  // blink::kNavigationIdAbsentValue
-  // Increases strictly monotonically but can overflow,
-  // see blink::NavigationIdGenerator.
-  CHECK_NE(new_metrics.navigation_id, soft_navigation_metrics_->navigation_id);
-
   // The start_time is a TimeDelta, and its resolution is in microseconds.
   // Note that it may not be monotonically increasing, see:
   // crbug.com/418449366#comment3
@@ -144,7 +139,6 @@ void PageTimingMetricsSender::DidObserveSoftNavigation(
   // message, including a cleared out largest_contentful_paint field.
   soft_navigation_metrics_ = CreateSoftNavigationMetrics();
   soft_navigation_metrics_->count = new_metrics.count;
-  soft_navigation_metrics_->navigation_id = new_metrics.navigation_id;
   soft_navigation_metrics_->start_time = new_metrics.start_time;
   soft_navigation_metrics_->same_document_metrics_token =
       new_metrics.same_document_metrics_token;
@@ -255,6 +249,12 @@ void PageTimingMetricsSender::UpdateResourceMetadata(
   it->second->SetIsMainFrameResource(is_main_frame_resource);
 }
 
+void PageTimingMetricsSender::UpdateCustomUserTimings(
+    mojom::CustomUserTimingMarkPtr custom_timing) {
+  custom_user_timings_.push_back(std::move(custom_timing));
+  EnsureSendTimer();
+}
+
 void PageTimingMetricsSender::SetUpDroppedFramesReporting(
     base::ReadOnlySharedMemoryRegion shared_memory_dropped_frames) {
   sender_->SetUpDroppedFramesReporting(std::move(shared_memory_dropped_frames));
@@ -357,7 +357,8 @@ void PageTimingMetricsSender::SendNow() {
   sender_->SendTiming(last_timing_, metadata_, std::move(new_features_),
                       std::move(resources), render_data_, last_cpu_timing_,
                       std::move(event_timings_), subresource_load_metrics_,
-                      soft_navigation_metrics_);
+                      soft_navigation_metrics_,
+                      std::move(custom_user_timings_));
 
   event_timings_.clear();
   new_features_.clear();

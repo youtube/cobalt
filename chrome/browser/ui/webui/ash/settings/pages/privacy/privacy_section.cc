@@ -9,6 +9,7 @@
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
 #include "ash/constants/ash_switches.h"
+#include "ash/constants/url_constants.h"
 #include "ash/constants/web_app_id_constants.h"
 #include "base/check.h"
 #include "base/check_deref.h"
@@ -634,22 +635,23 @@ void PrivacySection::AddLoadTimeData(content::WebUIDataSource* html_source) {
       ui::SubstituteChromeOSDeviceType(IDS_OS_SETTINGS_SMART_PRIVACY_DESC));
 
   html_source->AddString("smartPrivacyLearnMoreURL",
-                         chrome::kSmartPrivacySettingsLearnMoreURL);
+                         ash::external_urls::kSmartPrivacySettingsLearnMoreURL);
 
   html_source->AddString("suggestedContentLearnMoreURL",
-                         chrome::kSuggestedContentLearnMoreURL);
+                         ash::external_urls::kSuggestedContentLearnMoreURL);
 
   html_source->AddString("syncAndGoogleServicesLearnMoreURL",
                          chrome::kSyncAndGoogleServicesLearnMoreURL);
 
   html_source->AddString("peripheralDataAccessLearnMoreURL",
-                         chrome::kPeripheralDataAccessHelpURL);
+                         ash::external_urls::kPeripheralDataAccessHelpURL);
 
   html_source->AddString("speakOnMuteDetectionLearnMoreURL",
-                         chrome::kSpeakOnMuteDetectionLearnMoreURL);
+                         ash::external_urls::kSpeakOnMuteDetectionLearnMoreURL);
 
-  html_source->AddString("geolocationAccuracyLearnMoreUrl",
-                         chrome::kPrivacyHubGeolocationAccuracyLearnMoreURL);
+  html_source->AddString(
+      "geolocationAccuracyLearnMoreUrl",
+      ash::external_urls::kPrivacyHubGeolocationAccuracyLearnMoreURL);
 
   html_source->AddString("osSettingsAppId", ash::kOsSettingsAppId);
 

@@ -47,11 +47,13 @@
 #include "components/language/core/browser/language_model_manager.h"
 #include "components/language/core/common/locale_util.h"
 #include "components/language_detection/core/constants.h"
+#include "components/pdf/browser/pdf_frame_util.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/translate/core/browser/language_state.h"
 #include "components/translate/core/browser/translate_driver.h"
 #include "content/public/browser/browser_accessibility_state.h"
+#include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/scoped_accessibility_mode.h"
 #include "content/public/browser/web_ui.h"
@@ -112,7 +114,7 @@ class ReadAnythingUntrustedPageHandler::DistillerDelegate
     // observer of previous request and allow it to observe new request.
     viewer_handle_.reset();
     const GURL& url = contents->GetLastCommittedURL();
-    viewer_handle_ = service->ViewUrl(
+    viewer_handle_ = service->ViewUrlIgnoreCache(
         this,
         service->CreateDefaultDistillerPageWithHandle(
             std::make_unique<dom_distiller::SourcePageHandleWebContents>(
@@ -494,22 +496,14 @@ void ReadAnythingUntrustedPageHandler::DidStopLoading() {
 }
 
 bool ReadAnythingUntrustedPageHandler::CheckForPdfContentAfterLoad() {
-#if BUILDFLAG(ENABLE_PDF)
-  content::WebContents* main_contents = main_observer_->web_contents();
-  if (!chrome_pdf::features::IsOopifPdfEnabled()) {
-    std::vector<content::WebContents*> inner_contents =
-        main_contents ? main_contents->GetInnerWebContents()
-                      : std::vector<content::WebContents*>();
-    // If this page was previously recognized as not a pdf from the original
-    // call to PrimaryPageChanged() but it's now recognized as a PDF after the
-    // page has finished loaded, call PrimaryPageChanged() again to redistill.
-    if (!is_pdf_ && AreInnerContentsPdfContent(inner_contents)) {
-      PrimaryPageChanged();
-      return true;
-    }
+  // If this page was previously recognized as not a pdf from the original
+  // call to PrimaryPageChanged() but it's now recognized as a PDF after the
+  // page has finished loaded, notify the page of the new tree as a PDF.
+  if (!is_pdf_with_frame_) {
+    SetUpPdfObserver();
+    CheckIfActiveAXTreeChangedToPdf();
   }
-#endif
-  return false;
+  return is_pdf_with_frame_;
 }
 
 void ReadAnythingUntrustedPageHandler::DidUpdateAudioMutingState(bool muted) {
@@ -1180,8 +1174,38 @@ void ReadAnythingUntrustedPageHandler::SetUpPdfObserver() {
 #endif  // BUILDFLAG(ENABLE_PDF)
 }
 
+void ReadAnythingUntrustedPageHandler::CheckIfActiveAXTreeChangedToPdf() {
+#if BUILDFLAG(ENABLE_PDF)
+  content::WebContents* contents = !!pdf_observer_
+                                       ? pdf_observer_->web_contents()
+                                       : main_observer_->web_contents();
+  bool are_contents_pdf =
+      chrome_pdf::features::IsOopifPdfEnabled()
+          ? !!pdf::PdfViewerStreamManager::FromWebContents(contents)
+          : !!pdf_observer_;
+  if (!are_contents_pdf) {
+    return;
+  }
+
+  content::RenderFrameHost* pdf_rfh =
+      chrome_pdf::features::IsOopifPdfEnabled()
+          ? pdf_frame_util::FindFullPagePdfExtensionHost(contents)
+          : pdf_frame_util::FindPdfChildFrame(contents->GetPrimaryMainFrame());
+  if (pdf_rfh) {
+    is_pdf_with_frame_ = true;
+    is_waiting_for_pdf_frame_ = false;
+    VLOG(1) << "Sending pdf tree with id " << pdf_rfh->GetAXTreeID();
+    page_->OnActiveAXTreeIDChanged(
+        pdf_rfh->GetAXTreeID(), pdf_rfh->GetPageUkmSourceId(), /*is_pdf=*/true);
+  } else {
+    VLOG(1) << "Page is a pdf, but has no pdf frame yet";
+    is_waiting_for_pdf_frame_ = true;
+  }
+#endif  // BUILDFLAG(ENABLE_PDF)
+}
+
 void ReadAnythingUntrustedPageHandler::OnActiveAXTreeIDChanged() {
-  is_pdf_ = false;
+  is_pdf_with_frame_ = false;
   // If the side panel is not active, we should not send the active tree id.
   // This check is skipped when immersive read anything is enabled because
   // there are times when the side panel is inactive but the Reading Mode
@@ -1230,20 +1254,11 @@ void ReadAnythingUntrustedPageHandler::OnActiveAXTreeIDChanged() {
   }
 
 #if BUILDFLAG(ENABLE_PDF)
-  bool is_pdf = chrome_pdf::features::IsOopifPdfEnabled()
-                    ? !!pdf::PdfViewerStreamManager::FromWebContents(contents)
-                    : !!pdf_observer_;
-  if (is_pdf) {
-    // What happens if there are multiple such `rfhs`?
-    contents->ForEachRenderFrameHost([this](content::RenderFrameHost* rfh) {
-      if (rfh->GetProcess()->IsPdf()) {
-        is_pdf_ = true;
-        VLOG(1) << "Sending pdf tree with id " << rfh->GetAXTreeID();
-        page_->OnActiveAXTreeIDChanged(rfh->GetAXTreeID(),
-                                       rfh->GetPageUkmSourceId(),
-                                       /*is_pdf=*/true);
-      }
-    });
+  CheckIfActiveAXTreeChangedToPdf();
+  // If is_waiting_for_pdf_frame_ is true, we know the current page is a pdf,
+  // but we don't have the necessary info to call OnActiveAXTreeIDChanged
+  // accurately, so wait until the pdf frame is loaded.
+  if (is_pdf_with_frame_ || is_waiting_for_pdf_frame_) {
     return;
   }
 #endif  // BUILDFLAG(ENABLE_PDF)
@@ -1260,8 +1275,7 @@ void ReadAnythingUntrustedPageHandler::OnActiveAXTreeIDChanged() {
 
 void ReadAnythingUntrustedPageHandler::RequestDomDistillerDistillation(
     content::WebContents* content) {
-  // TODO(crbug.com/459156156): Work on PDF distillation in a future CL.
-  if (!features::IsReadAnythingWithReadabilityEnabled() || is_pdf_) {
+  if (!features::IsReadAnythingWithReadabilityEnabled() || is_pdf_with_frame_) {
     return;
   }
 
@@ -1328,7 +1342,8 @@ void ReadAnythingUntrustedPageHandler::RecordDistillationSchemeHistogram(
 
 void ReadAnythingUntrustedPageHandler::ProcessDistilledArticle(
     const dom_distiller::DistilledArticleProto* article_proto) {
-  CHECK(features::IsReadAnythingWithReadabilityEnabled() && !is_pdf_);
+  CHECK(features::IsReadAnythingWithReadabilityEnabled() &&
+        !is_pdf_with_frame_);
   if (article_proto && article_proto->pages_size() > 0) {
     dom_distiller_title_ = article_proto->title();
 
@@ -1338,17 +1353,20 @@ void ReadAnythingUntrustedPageHandler::ProcessDistilledArticle(
     }
     dom_distiller_content_ = full_html;
 
-    if (dom_distiller_title() && dom_distiller_content()) {
+    // If distillation successfully produced content, update the distillation
+    // state and notify the renderer.
+    if (dom_distiller_content()) {
       page_->OnReadabilityDistillationStateChanged(
           read_anything::mojom::ReadAnythingDistillationState::
               kDistillationWithContent);
-      page_->UpdateContent(dom_distiller_title().value(),
+      page_->UpdateContent(dom_distiller_title().value_or(""),
                            dom_distiller_content().value());
     }
   } else {
     page_->OnReadabilityDistillationStateChanged(
         read_anything::mojom::ReadAnythingDistillationState::
             kDistillationEmpty);
+    page_->UpdateContent(/*title=*/"", /*content=*/"");
   }
 }
 

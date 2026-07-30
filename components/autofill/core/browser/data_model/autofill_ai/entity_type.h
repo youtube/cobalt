@@ -13,7 +13,6 @@
 #include "base/containers/span.h"
 #include "base/notreached.h"
 #include "base/types/optional_ref.h"
-#include "base/types/pass_key.h"
 #include "components/autofill/core/browser/country_type.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type_names.h"
 #include "components/autofill/core/browser/field_types.h"
@@ -54,6 +53,12 @@ class AttributeType final {
     kMaxValue = kString,
   };
 
+  class EntityTablePassKey {
+    friend class EntityTable;
+    friend class AttributeTypeTestApi;
+    EntityTablePassKey() = default;
+  };
+
   // Comparator that ranks types by their priority for disambiguating different
   // instances of the same entity type, as specified in the schema.
   // `DisambiguationOrder(x, y) == true` means `x` has higher priority than `y`.
@@ -86,10 +91,11 @@ class AttributeType final {
   //   Except for name types, `field_subtypes() == {field_type}`.
   //   For name types, `field_subtypes()` includes `NAME_FIRST` etc.
   // - `storable_field_types()` are the ones that may be physically stored in
-  //   the database.
+  //   the database. It is a subset of `field_subtypes()`.
+  //   Except for name types, `storable_field_types() == {field_type}`.
   constexpr FieldType field_type() const;
   constexpr FieldTypeSet field_subtypes() const;
-  FieldTypeSet storable_field_types(base::PassKey<EntityTable> pass_key) const;
+  FieldTypeSet storable_field_types(EntityTablePassKey pass_key) const;
 
   // Returns whether the attribute should be obfuscated in preview and
   // suggestion labels.
@@ -122,6 +128,8 @@ class AttributeType final {
   }
 
  private:
+  friend class AttributeTypeTestApi;
+
   AttributeTypeName name_{};
 };
 
@@ -144,6 +152,7 @@ constexpr AttributeType::DataType AttributeType::data_type() const {
     case AttributeTypeName::kKnownTravelerNumberExpirationDate:
     case AttributeTypeName::kNationalIdCardIssueDate:
     case AttributeTypeName::kNationalIdCardExpirationDate:
+    case AttributeTypeName::kOrderDate:
     case AttributeTypeName::kPassportExpirationDate:
     case AttributeTypeName::kPassportIssueDate:
       return DataType::kDate;
@@ -157,6 +166,12 @@ constexpr AttributeType::DataType AttributeType::data_type() const {
     case AttributeTypeName::kFlightReservationDepartureAirport:
     case AttributeTypeName::kFlightReservationArrivalAirport:
     case AttributeTypeName::kKnownTravelerNumberNumber:
+    case AttributeTypeName::kOrderAccount:
+    case AttributeTypeName::kOrderGrandTotal:
+    case AttributeTypeName::kOrderId:
+    case AttributeTypeName::kOrderMerchantDomain:
+    case AttributeTypeName::kOrderMerchantName:
+    case AttributeTypeName::kOrderProductNames:
     case AttributeTypeName::kNationalIdCardNumber:
     case AttributeTypeName::kPassportNumber:
     case AttributeTypeName::kRedressNumberNumber:
@@ -215,6 +230,21 @@ constexpr FieldType AttributeType::field_type() const {
       return NATIONAL_ID_CARD_ISSUE_DATE;
     case AttributeTypeName::kNationalIdCardExpirationDate:
       return NATIONAL_ID_CARD_EXPIRATION_DATE;
+
+    case AttributeTypeName::kOrderAccount:
+      return ORDER_ACCOUNT;
+    case AttributeTypeName::kOrderDate:
+      return ORDER_DATE;
+    case AttributeTypeName::kOrderGrandTotal:
+      return ORDER_GRAND_TOTAL;
+    case AttributeTypeName::kOrderId:
+      return ORDER_ID;
+    case AttributeTypeName::kOrderMerchantDomain:
+      return ORDER_MERCHANT_DOMAIN;
+    case AttributeTypeName::kOrderMerchantName:
+      return ORDER_MERCHANT_NAME;
+    case AttributeTypeName::kOrderProductNames:
+      return ORDER_PRODUCT_NAMES;
 
     case AttributeTypeName::kPassportName:
       return NAME_FULL;

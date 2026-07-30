@@ -14,6 +14,7 @@
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
+#include "base/scoped_observation.h"
 #include "base/uuid.h"
 #include "base/version_info/channel.h"
 #include "components/contextual_tasks/internal/ai_thread_sync_bridge.h"
@@ -43,7 +44,8 @@ struct ContextDecorationParams;
 
 class ContextualTasksServiceImpl : public ContextualTasksService,
                                    public AiThreadSyncBridge::Observer,
-                                   public ContextualTaskSyncBridge::Observer {
+                                   public ContextualTaskSyncBridge::Observer,
+                                   public GeminiThreadSyncBridge::Observer {
  public:
   ContextualTasksServiceImpl(
       version_info::Channel channel,
@@ -142,6 +144,9 @@ class ContextualTasksServiceImpl : public ContextualTasksService,
       const std::vector<ContextualTask>& contextual_tasks) override;
   void OnTaskRemovedRemotely(const std::vector<base::Uuid>& task_ids) override;
 
+  // GeminiThreadSyncBridge::Observer implementation.
+  void OnGeminiThreadDataStoreLoaded() override;
+
   void NotifyTaskAdded(const ContextualTask& task, TriggerSource source);
   void NotifyTaskUpdated(const ContextualTask& task, TriggerSource source);
   void NotifyTaskRemoved(const base::Uuid& task_id, TriggerSource source);
@@ -189,6 +194,15 @@ class ContextualTasksServiceImpl : public ContextualTasksService,
   // Whether the service only supports ephemeral tasks.
   const bool supports_ephemeral_only_;
 
+  base::ScopedObservation<AiThreadSyncBridge, AiThreadSyncBridge::Observer>
+      ai_thread_observation_{this};
+  base::ScopedObservation<ContextualTaskSyncBridge,
+                          ContextualTaskSyncBridge::Observer>
+      task_observation_{this};
+
+  base::ScopedObservation<GeminiThreadSyncBridge,
+                          GeminiThreadSyncBridge::Observer>
+      gemini_thread_observation_{this};
   base::WeakPtrFactory<ContextualTasksServiceImpl> weak_ptr_factory_{this};
 };
 

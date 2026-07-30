@@ -7,15 +7,18 @@
 
 #include "base/containers/flat_map.h"
 #include "base/functional/callback.h"
+#include "base/memory/weak_ptr.h"
 #include "chrome/common/actor/task_id.h"
 #include "chrome/common/actor_webui.mojom-forward.h"
-#include "components/autofill/core/browser/integrators/glic/actor_form_filling_types.h"
+#include "components/autofill/core/browser/integrators/actor/actor_form_filling_types.h"
 #include "components/password_manager/core/browser/actor_login/actor_login_types.h"
 #include "components/tabs/public/tab_interface.h"
 #include "ui/gfx/image/image.h"
 #include "url/origin.h"
 
 namespace actor {
+
+class AutofillSelectionDialogEventHandler;
 
 // Delegate interface for ActorTask to communicate with other classes.
 class ActorTaskDelegate {
@@ -55,6 +58,7 @@ class ActorTaskDelegate {
   virtual void RequestToShowAutofillSuggestionsDialog(
       actor::TaskId task_id,
       std::vector<autofill::ActorFormFillingRequest> requests,
+      base::WeakPtr<AutofillSelectionDialogEventHandler> event_handler,
       AutofillSuggestionSelectedCallback callback) = 0;
 };
 

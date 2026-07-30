@@ -69,6 +69,8 @@ inline constexpr char kChromeUIBrowsingTopicsInternalsHost[] =
     "topics-internals";
 inline constexpr char kChromeUICertificateViewerHost[] = "view-cert";
 inline constexpr char kChromeUICertificateViewerURL[] = "chrome://view-cert/";
+inline constexpr char kChromeUIChromeFindsInternalsHost[] =
+    "chrome-finds-internals";
 inline constexpr char kChromeUIChromeSigninHost[] = "chrome-signin";
 inline constexpr char kChromeUIChromeSigninURL[] = "chrome://chrome-signin/";
 inline constexpr char kChromeUIChromeURLsHost[] = "chrome-urls";
@@ -125,7 +127,6 @@ inline constexpr char kChromeUIDiceWebSigninInterceptURL[] =
 inline constexpr char kChromeUIDownloadInternalsHost[] = "download-internals";
 inline constexpr char kChromeUIDownloadsHost[] = "downloads";
 inline constexpr char kChromeUIDownloadsURL[] = "chrome://downloads/";
-inline constexpr char kChromeUIDriveInternalsHost[] = "drive-internals";
 inline constexpr char kChromeUIEDUCoexistenceLoginURLV2[] =
     "chrome://chrome-signin/edu-coexistence";
 inline constexpr char kChromeUIExtensionIconHost[] = "extension-icon";
@@ -151,15 +152,14 @@ inline constexpr char kChromeUIFileiconURL[] = "chrome://fileicon/";
 inline constexpr char kChromeUIFlagsHost[] = "flags";
 inline constexpr char kChromeUIFlagsURL[] = "chrome://flags/";
 inline constexpr char16_t kChromeUIFlagsURL16[] = u"chrome://flags/";
-inline constexpr char kChromeUIFloatingWorkspaceDialogHost[] =
-    "floating-workspace";
-inline constexpr char kChromeUIFloatingWorkspaceDialogURL[] =
-    "chrome://floating-workspace";
 inline constexpr char kChromeUIGCMInternalsHost[] = "gcm-internals";
 inline constexpr char kChromeUIGlicHost[] = "glic";
 inline constexpr char kChromeUIGlicURL[] = "chrome://glic/";
 inline constexpr char kChromeUIGlicFreHost[] = "glic-fre";
 inline constexpr char kChromeUIGlicFreURL[] = "chrome://glic-fre";
+inline constexpr char kChromeUIContextualTasksVirtualHost[] = "googlesearch";
+inline constexpr char kChromeUIContextualTasksVirtualURL[] =
+    "chrome://googlesearch";
 inline constexpr char kChromeUIHangUIHost[] = "uithreadhang";
 inline constexpr char kChromeUIHelpHost[] = "help";
 inline constexpr char kChromeUIHelpURL[] = "chrome://help/";
@@ -183,7 +183,6 @@ inline constexpr char kChromeUIInternalsHost[] = "internals";
 inline constexpr char kChromeUIInterstitialHost[] = "interstitials";
 inline constexpr char kChromeUIInterstitialURL[] = "chrome://interstitials/";
 inline constexpr char kChromeUIKillHost[] = "kill";
-inline constexpr char kChromeUILauncherInternalsHost[] = "launcher-internals";
 inline constexpr char kChromeUILocalStateHost[] = "local-state";
 inline constexpr char kChromeUILocalStateURL[] = "chrome://local-state";
 inline constexpr char kChromeUILocationInternalsHost[] = "location-internals";
@@ -255,15 +254,10 @@ inline constexpr char kChromeUIResetPasswordHost[] = "reset-password";
 inline constexpr char kChromeUIResetPasswordURL[] = "chrome://reset-password/";
 inline constexpr char kChromeUIRestartHost[] = "restart";
 inline constexpr char kChromeUIRestartURL[] = "chrome://restart/";
-inline constexpr char kChromeUISafetyPixelbookURL[] =
-    "https://g.co/Pixelbook/legal";
-inline constexpr char kChromeUISafetyPixelSlateURL[] =
-    "https://g.co/PixelSlate/legal";
 inline constexpr char kChromeUISavedTabGroupsUnsupportedHost[] =
     "saved-tab-groups-unsupported";
 inline constexpr char kChromeUISegmentationInternalsHost[] =
     "segmentation-internals";
-inline constexpr char kChromeUISensorInfoHost[] = "sensor-info";
 inline constexpr char kChromeUISettingsHost[] = "settings";
 inline constexpr char16_t kChromeUISettingsHost16[] = u"settings";
 inline constexpr char kChromeUISettingsURL[] = "chrome://settings/";

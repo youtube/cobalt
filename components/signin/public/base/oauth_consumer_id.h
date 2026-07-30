@@ -105,9 +105,10 @@ enum class OAuthConsumerId {
   kAshScannerKeyedService = 84,
   kAshAutotestPrivateApi = 85,
   kSyncDeviceStatisticsMetrics = 86,
-  kLegionService = 87,
+  kPrivateAiService = 87,
   kWalletPasses = 88,
-  kMaxValue = kWalletPasses,
+  kAimEligibilityService = 89,
+  kMaxValue = kAimEligibilityService,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/signin/enums.xml:OAuthConsumerId)
 

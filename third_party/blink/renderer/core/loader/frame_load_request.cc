@@ -56,9 +56,9 @@ void LogDanglingMarkupHistogram(LocalDOMWindow* origin_window,
   DCHECK(origin_window);
 
   origin_window->CountUse(WebFeature::kDanglingMarkupInTarget);
-  if (!target.EndsWith('>')) {
+  if (!target.ends_with('>')) {
     origin_window->CountUse(WebFeature::kDanglingMarkupInTargetNotEndsWithGT);
-    if (!target.EndsWith('\n')) {
+    if (!target.ends_with('\n')) {
       origin_window->CountUse(
           WebFeature::kDanglingMarkupInTargetNotEndsWithNewLineOrGT);
     }
@@ -66,9 +66,9 @@ void LogDanglingMarkupHistogram(LocalDOMWindow* origin_window,
 }
 
 bool ContainsNewLineAndLessThan(const AtomicString& target) {
-  return (target.Contains('\n') || target.Contains('\r') ||
-          target.Contains('\t')) &&
-         target.Contains('<');
+  return (target.contains('\n') || target.contains('\r') ||
+          target.contains('\t')) &&
+         target.contains('<');
 }
 
 }  // namespace

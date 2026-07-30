@@ -272,9 +272,8 @@ DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(ui::test::PollingStateObserver<URLs>,
 DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(ui::test::PollingStateObserver<PinnedURLs>,
                                     kPinnedTabOrderPoller);
 
-// TODO(crbug.com/40249472): Tab DnD tests not working on ChromeOS and Mac, and
-// flakes on Wayland
-#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_LINUX)
+// TODO(crbug.com/40249472): Tab DnD tests not working on ChromeOS and Mac.
+#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_CHROMEOS)
 #define MAYBE_DragToDetachIntoNewWindow DragToDetachIntoNewWindow
 #else
 #define MAYBE_DragToDetachIntoNewWindow DISABLED_DragToDetachIntoNewWindow
@@ -458,11 +457,7 @@ IN_PROC_BROWSER_TEST_F(VerticalTabDragHandlerTest,
       }));
 }
 
-// TODO(crbug.com/476509652): This test flakes because drag handling hit tests
-// against the view's position in the layout (skipping animation), which means
-// that if a layout cycle hasn't happened between drag loop iterations then
-// the tab strip model updates might bounce. This should be fixed once a more
-// robust hit-testing approach is implemented.
+// TODO(crbug.com/40249472): Disabled because this flakes on all platforms.
 IN_PROC_BROWSER_TEST_F(VerticalTabDragHandlerTest, DISABLED_DragSplitTabs) {
   DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kFourthTab);
   TabStripModel* tab_strip_model = browser()->GetTabStripModel();
@@ -505,11 +500,7 @@ IN_PROC_BROWSER_TEST_F(VerticalTabDragHandlerTest, DISABLED_DragSplitTabs) {
       ReleaseMouseAsync());
 }
 
-// TODO(crbug.com/476509652): This test flakes because drag handling hit tests
-// against the view's position in the layout (skipping animation), which means
-// that if a layout cycle hasn't happened between drag loop iterations then
-// the tab strip model updates might bounce. This should be fixed once a more
-// robust hit-testing approach is implemented.
+// TODO(crbug.com/40249472): Disabled because this flakes on all platforms.
 IN_PROC_BROWSER_TEST_F(VerticalTabDragHandlerTest, DISABLED_DragOverSplit) {
   DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kFourthTab);
   TabStripModel* tab_strip_model = browser()->GetTabStripModel();
@@ -563,11 +554,7 @@ IN_PROC_BROWSER_TEST_F(VerticalTabDragHandlerTest, DISABLED_DragOverSplit) {
       ReleaseMouseAsync());
 }
 
-// TODO(crbug.com/476509652): This test flakes because drag handling hit tests
-// against the view's position in the layout (skipping animation), which means
-// that if a layout cycle hasn't happened between drag loop iterations then
-// the tab strip model updates might bounce. This should be fixed once a more
-// robust hit-testing approach is implemented.
+// TODO(crbug.com/40249472): Disabled because this flakes on all platforms.
 IN_PROC_BROWSER_TEST_F(VerticalTabDragHandlerTest,
                        DISABLED_DragOverSplitInGroup) {
   DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kFourthTab);
@@ -630,7 +617,7 @@ IN_PROC_BROWSER_TEST_F(VerticalTabDragHandlerTest,
       ReleaseMouseAsync());
 }
 
-#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_LINUX)
+#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_CHROMEOS)
 #define MAYBE_DetachMultipleTabs DetachMultipleTabs
 #else
 #define MAYBE_DetachMultipleTabs DISABLED_DetachMultipleTabs

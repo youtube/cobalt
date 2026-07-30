@@ -38,11 +38,10 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
-import org.robolectric.annotation.LooperMode;
-import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.Callback;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.RobolectricUtil;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.feed.test.R;
 import org.chromium.chrome.browser.feed.webfeed.WebFeedSnackbarController.FeedLauncher;
@@ -51,7 +50,6 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuHandler;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.components.browser_ui.widget.chips.ChipView;
-import org.chromium.components.embedder_support.util.ShadowUrlUtilities;
 import org.chromium.components.url_formatter.UrlFormatter;
 import org.chromium.ui.base.TestActivity;
 import org.chromium.ui.modaldialog.ModalDialogManager;
@@ -63,10 +61,7 @@ import java.util.ArrayList;
 
 /** Tests {@link WebFeedMainMenuItem}. */
 @RunWith(BaseRobolectricTestRunner.class)
-@Config(
-        manifest = Config.NONE,
-        shadows = {ShadowUrlUtilities.class})
-@LooperMode(LooperMode.Mode.LEGACY)
+@Config(manifest = Config.NONE)
 @EnableFeatures({ChromeFeatureList.CORMORANT})
 @SmallTest
 public final class WebFeedMainMenuItemTest {
@@ -134,6 +129,7 @@ public final class WebFeedMainMenuItemTest {
                 (WebFeedMainMenuItem)
                         LayoutInflater.from(mActivity)
                                 .inflate(R.layout.web_feed_main_menu_item, null);
+        mActivity.setContentView(mWebFeedMainMenuItem);
 
         LoadingView.setDisableAnimationForTest(true);
     }
@@ -190,6 +186,7 @@ public final class WebFeedMainMenuItemTest {
         TextView textView = mWebFeedMainMenuItem.findViewById(R.id.menu_item_text);
         mWebFeedMainMenuItem.setContextForTest(mContext);
         textView.performClick();
+        RobolectricUtil.runAllBackgroundAndUi();
 
         verify(mContext).startActivity(mIntentCaptor.capture());
         Intent intent = mIntentCaptor.getValue();
@@ -256,7 +253,7 @@ public final class WebFeedMainMenuItemTest {
 
         // ChipView imposes a delay.
         assertEquals("invisible", getChipState());
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         assertEquals("disabled following", getChipState());
     }
 
@@ -266,11 +263,11 @@ public final class WebFeedMainMenuItemTest {
         respondWithFeedMetadata(
                 createWebFeedMetadata(
                         WebFeedSubscriptionStatus.UNSUBSCRIBE_IN_PROGRESS, GURL.emptyGURL()));
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
 
         respondWithFeedMetadata(
                 createWebFeedMetadata(WebFeedSubscriptionStatus.NOT_SUBSCRIBED, GURL.emptyGURL()));
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
 
         assertEquals("follow", getChipState());
     }
@@ -281,11 +278,11 @@ public final class WebFeedMainMenuItemTest {
         respondWithFeedMetadata(
                 createWebFeedMetadata(
                         WebFeedSubscriptionStatus.UNSUBSCRIBE_IN_PROGRESS, GURL.emptyGURL()));
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
 
         respondWithFeedMetadata(
                 createWebFeedMetadata(WebFeedSubscriptionStatus.SUBSCRIBED, GURL.emptyGURL()));
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
 
         assertEquals("following", getChipState());
     }
@@ -299,13 +296,13 @@ public final class WebFeedMainMenuItemTest {
 
         // ChipView imposes a delay.
         assertEquals("invisible", getChipState());
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         assertEquals("disabled follow", getChipState());
 
         // Now the web feed is subscribed.
         respondWithFeedMetadata(
                 createWebFeedMetadata(WebFeedSubscriptionStatus.SUBSCRIBED, GURL.emptyGURL()));
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         assertEquals("following", getChipState());
     }
 
@@ -316,10 +313,10 @@ public final class WebFeedMainMenuItemTest {
                 createWebFeedMetadata(
                         WebFeedSubscriptionStatus.SUBSCRIBE_IN_PROGRESS, GURL.emptyGURL()));
 
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
         respondWithFeedMetadata(
                 createWebFeedMetadata(WebFeedSubscriptionStatus.NOT_SUBSCRIBED, GURL.emptyGURL()));
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        RobolectricUtil.runAllBackgroundAndUiIncludingDelayed();
 
         assertEquals("follow", getChipState());
     }

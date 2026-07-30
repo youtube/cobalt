@@ -119,9 +119,25 @@ public class SigninTestRule implements TestRule {
         mFakeAccountManagerFacade.setAccountFetchFailed();
     }
 
-    /** See {@link FakeAccountManagerFacade#blockGetAccounts(boolean)}. */
+    /**
+     * @deprecated Please use {@link #blockGetAccountsUpdate()} or {@link
+     *     #blockGetAccountsUpdateAndPopulateCache()} below.
+     */
+    @Deprecated
     public FakeAccountManagerFacade.UpdateBlocker blockGetAccountsUpdate(boolean populateCache) {
+        // TODO(crbug.com/484956351): Remove this method when all callers have been updated to use
+        // blockGetAccountsUpdate/blockGetAccountsUpdateAndPopulateCache.
         return mFakeAccountManagerFacade.blockGetAccounts(populateCache);
+    }
+
+    /** See {@link FakeAccountManagerFacade#blockGetAccounts}. */
+    public FakeAccountManagerFacade.UpdateBlocker blockGetAccountsUpdate() {
+        return mFakeAccountManagerFacade.blockGetAccounts();
+    }
+
+    /** See {@link FakeAccountManagerFacade#blockGetAccountsAndPopulateCache}. */
+    public FakeAccountManagerFacade.UpdateBlocker blockGetAccountsUpdateAndPopulateCache() {
+        return mFakeAccountManagerFacade.blockGetAccountsAndPopulateCache();
     }
 
     /**

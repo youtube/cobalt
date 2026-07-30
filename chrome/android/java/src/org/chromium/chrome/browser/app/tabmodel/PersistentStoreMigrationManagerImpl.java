@@ -9,6 +9,7 @@ import static org.chromium.chrome.browser.tab.TabStateStorageFlagHelper.allowFul
 import static org.chromium.chrome.browser.tab.TabStateStorageFlagHelper.isStorageAuthoritative;
 import static org.chromium.chrome.browser.tab.TabStateStorageFlagHelper.isTabStorageEnabled;
 
+import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.shared_preferences.SharedPreferencesManager;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
@@ -68,6 +69,10 @@ public class PersistentStoreMigrationManagerImpl implements PersistentStoreMigra
         if (shadowWrittenStore == StoreType.INVALID) {
             shadowWrittenStore = mShadowStoreType;
             if (!maybePerformMigrationSwap(currentAuthoritativeStoreType, shadowWrittenStore)) {
+                if (shadowWrittenStore == StoreType.TAB_STATE_STORE) {
+                    RecordHistogram.recordBooleanHistogram(
+                            "Tabs.TabStateStore.ShadowStoreCaughtUp", true);
+                }
                 setShadowWrittenStore(shadowWrittenStore);
                 return;
             }
@@ -86,8 +91,9 @@ public class PersistentStoreMigrationManagerImpl implements PersistentStoreMigra
     }
 
     @Override
-    public void onAllShadowStoresRazed() {
+    public void onAllStoresRazed() {
         getPrefs().removeKeysWithPrefix(TAB_PERSISTENCE_SHADOW_WRITTEN_STORE);
+        getPrefs().removeKeysWithPrefix(TAB_PERSISTENCE_CURRENT_AUTHORITATIVE_STORE);
     }
 
     @Override
