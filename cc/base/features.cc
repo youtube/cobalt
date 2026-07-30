@@ -274,7 +274,15 @@ BASE_FEATURE(kBrowserControlsSmoothScroll, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kBrowserControlsHeightChangeCancelAnimations,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+<<<<<<< HEAD
 // Killswitch for disabling Headless scheduler state machine.
 BASE_FEATURE(kHeadlessSchedulerStateMachine, base::FEATURE_ENABLED_BY_DEFAULT);
+=======
+#if BUILDFLAG(IS_COBALT)
+BASE_FEATURE(kCobaltMainFrameBeforeActivation,
+             "CobaltMainFrameBeforeActivation",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_COBALT)
+>>>>>>> parent of 62d0c1af243 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 }  // namespace features

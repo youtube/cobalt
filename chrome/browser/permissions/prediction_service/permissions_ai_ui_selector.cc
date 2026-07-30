@@ -45,7 +45,11 @@
 // TODO(crbug.com/382447738): Fix tflite defines; this might not build for
 // tflite right now.
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
+<<<<<<< HEAD
 #include "components/passage_embeddings/core/passage_embeddings_types.h"
+=======
+#include "components/passage_embeddings/passage_embeddings_types.h"  // nogncheck
+>>>>>>> parent of 62d0c1af243 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "components/permissions/prediction_service/permissions_aiv3_handler.h"
 #include "components/permissions/prediction_service/permissions_aiv4_handler.h"
 #include "components/permissions/prediction_service/prediction_model_handler.h"
