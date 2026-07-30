@@ -128,6 +128,11 @@ bool CrashReportExceptionHandler::HandleException(
     UUID* local_report_id) {
   Metrics::ExceptionEncountered();
 
+#if BUILDFLAG(IS_COBALT)
+  LOG(INFO) << "Crashpad handler processing exception for PID: "
+            << client_process_id;
+#endif
+
   DirectPtraceConnection connection;
   if (!connection.Initialize(client_process_id)) {
     Metrics::ExceptionCaptureResult(
@@ -228,6 +233,11 @@ bool CrashReportExceptionHandler::WriteMinidumpToDatabase(
         Metrics::CaptureResult::kMinidumpWriteFailed);
     return false;
   }
+
+#if BUILDFLAG(IS_COBALT)
+  LOG(INFO) << "Minidump successfully written to database. ReportID: "
+            << new_report->ReportID().ToString();
+#endif
 
   bool write_minidump_to_log_succeed = false;
   if (write_minidump_to_log) {

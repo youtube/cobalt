@@ -34,6 +34,9 @@ const char kCreateSessionSessionTypeUMAName[] = "CreateSession.SessionType";
 const char kSetServerCertificateUMAName[] = "SetServerCertificate";
 const char kGetStatusForPolicyUMAName[] = "GetStatusForPolicy";
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+const char kGetMetricsUMAName[] = "GetMetrics";
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }  // namespace
 
 void WebContentDecryptionModuleImpl::Create(
@@ -131,6 +134,15 @@ void WebContentDecryptionModuleImpl::GetStatusForPolicy(
           result, adapter_->GetKeySystemUMAPrefix(),
           kGetStatusForPolicyUMAName));
 }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+void WebContentDecryptionModuleImpl::GetMetrics(
+    WebContentDecryptionModuleResult result) {
+  adapter_->GetMetrics(std::make_unique<CdmResultPromise<std::string>>(
+                       result, adapter_->GetKeySystemUMAPrefix(),
+                       kGetMetricsUMAName));
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 std::unique_ptr<media::CdmContextRef>
 WebContentDecryptionModuleImpl::GetCdmContextRef() {

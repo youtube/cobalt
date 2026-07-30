@@ -1,0 +1,202 @@
+<!--
+  Copyright 2026 The Cobalt Authors. All Rights Reserved.
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Cobalt Ad Picture-in-Picture Demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      background: #000;
+      color: #fff;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    /* Main Content Video Layout (Background) */
+    #main-video-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #000;
+      z-index: 1;
+    }
+
+    #main-video-container video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    /* Ad Video Container (The actual PiP source element) */
+    #ad-container {
+      position: absolute;
+      bottom: 50px;
+      right: 50px;
+      width: 480px;
+      height: 270px;
+      pointer-events: none;
+      z-index: 10;
+      /* Normal dimensions so the texture is fully visible to PiP */
+    }
+
+    #ad-container video {
+      width: 100%;
+      height: 100%;
+    }
+
+    #log {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      color: #0f0;
+      font-family: monospace;
+      font-size: 16px;
+      white-space: pre-wrap;
+      z-index: 100;
+      text-shadow: 1px 1px 2px #000;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- Main Video Container -->
+  <div id="main-video-container">
+    <video id="main-video" playsinline></video>
+  </div>
+
+  <!-- Notice Overlay -->
+  <div id="notice-overlay">
+    Ad will pop up in <span id="countdown">5</span> seconds...
+  </div>
+
+
+
+  <!-- Ad Takeover Layer (Full screen Ad and Button) -->
+  <div id="ad-takeover-layer">
+    <div id="ad-container">
+      <video id="video" playsinline></video>
+    </div>
+    <button id="minimize-btn">
+      <span>Minimize to PiP</span>
+      <svg class="pip-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" stroke-width="2"/>
+        <rect x="12" y="11" width="8" height="7" rx="1" fill="currentColor"/>
+      </svg>
+    </button>
+  </div>
+
+  <div id="log"></div>
+
+  <style>
+    #notice-overlay {
+      position: absolute;
+      top: 50px;
+      left: 50px;
+      color: white;
+      text-shadow: 2px 2px 4px black;
+      z-index: 100;
+      font-size: 32px;
+      font-family: sans-serif;
+    }
+
+
+    #ad-takeover-layer {
+      display: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: black;
+      z-index: 200;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #ad-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    #video {
+      width: 100%;
+      height: 100%;
+    }
+
+    #minimize-btn {
+      position: absolute;
+      bottom: 60px;
+      right: 60px;
+      font-size: 16px;
+      font-weight: 500;
+      font-family: sans-serif;
+      padding: 10px 22px;
+      background-color: #212121;
+      color: #f1f1f1;
+      border: 2px solid #3d3d3d;
+      border-radius: 30px;
+      z-index: 210;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s ease-in-out, transform 0.2s cubic-bezier(0.18, 0.89, 0.32, 1.28), background-color 0.2s ease, border-color 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #minimize-btn.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    #minimize-btn .pip-icon {
+      display: inline-block;
+      flex-shrink: 0;
+      transition: transform 0.2s ease;
+    }
+
+    #minimize-btn:focus {
+      background-color: #ffffff;
+      color: #0f0f0f;
+      border-color: #ffffff;
+      transform: scale(1.08);
+      outline: none;
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+    }
+
+    #minimize-btn:focus .pip-icon {
+      transform: translate(2px, 2px); /* Subtle animation on focus */
+    }
+  </style>
+
+
+
+  <script src="ad-pip-demo.js"></script>
+</body>
+</html>

@@ -29,6 +29,8 @@ with host_paths.SysPath(host_paths.BUILD_UTIL_PATH):
 BROWSER_TEST_SUITES = [
     'android_browsertests',
     'android_sync_integration_tests',
+    'cobalt_browsertests',
+    'cobalt_browsertests_loader',
     'components_browsertests',
     'content_browsertests',
 ]

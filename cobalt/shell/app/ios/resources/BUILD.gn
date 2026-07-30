@@ -1,0 +1,61 @@
+# Copyright 2022 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/ios/rules.gni")
+
+bundle_data_xcassets("resources") {
+  catalog = "Assets.xcassets"
+  sources = [
+    "Assets.xcassets/Contents.json",
+    "Assets.xcassets/ic_back.imageset/Contents.json",
+    "Assets.xcassets/ic_back.imageset/ic_back.png",
+    "Assets.xcassets/ic_back.imageset/ic_back_2x.png",
+    "Assets.xcassets/ic_back.imageset/ic_back_3x.png",
+    "Assets.xcassets/ic_forward.imageset/Contents.json",
+    "Assets.xcassets/ic_forward.imageset/ic_forward.png",
+    "Assets.xcassets/ic_forward.imageset/ic_forward_2x.png",
+    "Assets.xcassets/ic_forward.imageset/ic_forward_3x.png",
+    "Assets.xcassets/ic_menu.imageset/Contents.json",
+    "Assets.xcassets/ic_menu.imageset/ic_menu.png",
+    "Assets.xcassets/ic_menu.imageset/ic_menu_2x.png",
+    "Assets.xcassets/ic_menu.imageset/ic_menu_3x.png",
+    "Assets.xcassets/ic_reload.imageset/Contents.json",
+    "Assets.xcassets/ic_reload.imageset/ic_reload.png",
+    "Assets.xcassets/ic_reload.imageset/ic_reload_2x.png",
+    "Assets.xcassets/ic_reload.imageset/ic_reload_3x.png",
+    "Assets.xcassets/ic_stop.imageset/Contents.json",
+    "Assets.xcassets/ic_stop.imageset/ic_stop.png",
+    "Assets.xcassets/ic_stop.imageset/ic_stop_2x.png",
+    "Assets.xcassets/ic_stop.imageset/ic_stop_3x.png",
+  ]
+
+  # Official builds use different assets for the app icon and top shelf image.
+  # See //cobalt/doc/build_flavours.md: qa and gold builds have
+  # is_official_build set to true and will not include the assets below.
+  if (!is_official_build) {
+    sources += [
+      "Assets.xcassets/App Icon & Top Shelf Image.brandassets/App Icon - App Store.imagestack/Back.imagestacklayer/Content.imageset/Contents.json",
+      "Assets.xcassets/App Icon & Top Shelf Image.brandassets/App Icon - App Store.imagestack/Back.imagestacklayer/Contents.json",
+      "Assets.xcassets/App Icon & Top Shelf Image.brandassets/App Icon - App Store.imagestack/Contents.json",
+      "Assets.xcassets/App Icon & Top Shelf Image.brandassets/App Icon - App Store.imagestack/Front.imagestacklayer/Content.imageset/Contents.json",
+      "Assets.xcassets/App Icon & Top Shelf Image.brandassets/App Icon - App Store.imagestack/Front.imagestacklayer/Contents.json",
+      "Assets.xcassets/App Icon & Top Shelf Image.brandassets/App Icon - App Store.imagestack/Middle.imagestacklayer/Content.imageset/Contents.json",
+      "Assets.xcassets/App Icon & Top Shelf Image.brandassets/App Icon - App Store.imagestack/Middle.imagestacklayer/Contents.json",
+      "Assets.xcassets/App Icon & Top Shelf Image.brandassets/App Icon.imagestack/Back.imagestacklayer/Content.imageset/Contents.json",
+      "Assets.xcassets/App Icon & Top Shelf Image.brandassets/App Icon.imagestack/Back.imagestacklayer/Content.imageset/bg.png",
+      "Assets.xcassets/App Icon & Top Shelf Image.brandassets/App Icon.imagestack/Back.imagestacklayer/Contents.json",
+      "Assets.xcassets/App Icon & Top Shelf Image.brandassets/App Icon.imagestack/Contents.json",
+      "Assets.xcassets/App Icon & Top Shelf Image.brandassets/App Icon.imagestack/Front.imagestacklayer/Content.imageset/Contents.json",
+      "Assets.xcassets/App Icon & Top Shelf Image.brandassets/App Icon.imagestack/Front.imagestacklayer/Content.imageset/cobalt.png",
+      "Assets.xcassets/App Icon & Top Shelf Image.brandassets/App Icon.imagestack/Front.imagestacklayer/Contents.json",
+      "Assets.xcassets/App Icon & Top Shelf Image.brandassets/App Icon.imagestack/Middle.imagestacklayer/Content.imageset/Contents.json",
+      "Assets.xcassets/App Icon & Top Shelf Image.brandassets/App Icon.imagestack/Middle.imagestacklayer/Content.imageset/bg.png",
+      "Assets.xcassets/App Icon & Top Shelf Image.brandassets/App Icon.imagestack/Middle.imagestacklayer/Contents.json",
+      "Assets.xcassets/App Icon & Top Shelf Image.brandassets/Contents.json",
+      "Assets.xcassets/App Icon & Top Shelf Image.brandassets/Top Shelf Image Wide.imageset/Contents.json",
+      "Assets.xcassets/App Icon & Top Shelf Image.brandassets/Top Shelf Image.imageset/Contents.json",
+      "Assets.xcassets/App Icon & Top Shelf Image.brandassets/Top Shelf Image.imageset/cobalt.png",
+    ]
+  }
+}

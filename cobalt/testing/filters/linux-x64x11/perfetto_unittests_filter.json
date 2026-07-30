@@ -1,0 +1,6 @@
+{
+  "comment": "TODO(b/549636881): Requires root to run but does not have enough permissions in the container",
+  "failing_tests": [
+    "ScopedSchedBoostLinuxIntegrationTest.LinuxApiCalls"
+  ]
+}

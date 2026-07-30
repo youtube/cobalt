@@ -1,0 +1,351 @@
+name: tvos_staging
+
+# Workflow Dispatcher reruns this workflow when kokoro:run or kokoro:force-run
+# is added.
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+    branches:
+      - staging
+      - autoroll-chromium/main-to-staging
+  push:
+    branches:
+      - staging
+  workflow_dispatch:
+    inputs:
+      nightly:
+        description: 'Nightly workflow.'
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: read
+  statuses: read
+
+jobs:
+  get-sha:
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.set-sha.outputs.sha }}
+    steps:
+      - id: set-sha
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
+          PUSH_SHA: ${{ github.sha }}
+        run: |
+          if [ "${EVENT_NAME}" = "pull_request" ]; then
+            echo "sha=${PR_SHA}" >> "${GITHUB_OUTPUT}"
+          else
+            echo "sha=${PUSH_SHA}" >> "${GITHUB_OUTPUT}"
+          fi
+
+  get-targets:
+    runs-on: ubuntu-latest
+    outputs:
+      targets: ${{ steps.short-targets.outputs.targets }}
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          sparse-checkout: |
+            .github/actions/test_targets_json
+            cobalt/build/testing/targets/tvos-arm64-simulator/test_targets.json
+          sparse-checkout-cone-mode: false
+
+      - name: Parse Test Targets JSON
+        id: parse-targets
+        uses: ./.github/actions/test_targets_json
+        with:
+          test_targets_json_file: cobalt/build/testing/targets/tvos-arm64-simulator/test_targets.json
+
+      - name: Convert Targets to Short Names
+        id: short-targets
+        env:
+          TEST_TARGETS_JSON: ${{ steps.parse-targets.outputs.test_targets_json }}
+        run: |
+          targets=$(echo "${TEST_TARGETS_JSON}" | jq -cr 'map(split(":")[-1])')
+          echo "Targets found: ${targets}"
+          echo "targets=${targets}" >> "${GITHUB_OUTPUT}"
+
+  wait-for-kokoro-build:
+    needs: get-sha
+    runs-on: ubuntu-latest
+    timeout-minutes: 140 # Up to 10 min for the label, then 2h polling for the build.
+    outputs:
+      invocation_id: ${{ steps.poll-status.outputs.invocation_id }}
+      skipped: ${{ steps.check-skip.outputs.skipped }}
+    steps:
+      # Skips (outputs skipped=true), continues to wait for Kokoro, or fails.
+      - name: Check if tvOS build should be skipped
+        id: check-skip
+        if: github.event_name == 'pull_request'
+        env:
+          COMMIT_SHA: ${{ needs.get-sha.outputs.sha }}
+          RUN_NAME_SUFFIX: "@ ${{ needs.get-sha.outputs.sha }} (${{ github.event.action }}))"
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          IS_DRAFT: ${{ github.event.pull_request.draft }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          skip() { echo "$1"; echo "skipped=true" >> "${GITHUB_OUTPUT}"; exit 0; }
+          [[ "${IS_DRAFT}" == "true" ]] && skip "Draft PR."
+
+          # Wait up to 10 min for the tvOS Impact run of this commit and event,
+          # then for the Auto Label Kokoro run that adds the kokoro:run label
+          # from its result. On staging, tvOS Impact doesn't run an analysis,
+          # so both normally finish within a minute or two.
+          impact='{}'
+          label='{}'
+          for _ in {1..60}; do
+            if [[ "$(jq -r .status <<< "${impact}")" != "completed" ]]; then
+              impact=$(gh api "repos/${REPO}/actions/workflows/tvos_impact.yaml/runs?event=pull_request&head_sha=${COMMIT_SHA}&per_page=100" \
+                --jq "[.workflow_runs[] | select(.display_title | endswith(\"${RUN_NAME_SUFFIX}\"))][0] // {}" || echo '{}')
+            fi
+            if [[ "$(jq -r .status <<< "${impact}")" == "completed" ]]; then
+              label_title="Auto Label Kokoro (tvOS Impact run $(jq -r .id <<< "${impact}"))"
+              label=$(gh api "repos/${REPO}/actions/workflows/auto_label_kokoro.yaml/runs?event=workflow_run&per_page=100" \
+                --jq "[.workflow_runs[] | select(.display_title == \"${label_title}\")][0] // {}" || echo '{}')
+              [[ "$(jq -r .status <<< "${label}")" == "completed" ]] && break
+            fi
+            sleep 10
+          done
+
+          # Continue if a Kokoro build was requested. Kokoro posts a pending
+          # status before removing the label, so one of them is always visible.
+          labeled=$(gh pr view "${PR_NUMBER}" --repo "${REPO}" --json labels \
+            --jq 'any(.labels[]; .name == "kokoro:run" or .name == "kokoro:force-run")' || echo false)
+          started=$(gh api "repos/${REPO}/commits/${COMMIT_SHA}/status?per_page=100" \
+            --jq 'any(.statuses[]; .context == "kokoro")' || echo false)
+          [[ "${labeled}" == "true" || "${started}" == "true" ]] && exit 0
+
+          # No build requested. Skip if Auto Label Kokoro decided so, or if this
+          # commit is outdated. Otherwise it didn't finish: fail rather than skip.
+          conclusion=$(jq -r '.conclusion // "timed out"' <<< "${label}")
+          [[ "${conclusion}" == "success" ]] && skip "Kokoro build not requested."
+          head_sha=$(gh pr view "${PR_NUMBER}" --repo "${REPO}" --json headRefOid --jq .headRefOid || true)
+          [[ -n "${head_sha}" && "${head_sha}" != "${COMMIT_SHA}" ]] && skip "Outdated commit."
+          echo "::error::Auto Label Kokoro run: ${conclusion}. Add the kokoro:run label to build."
+          exit 1
+
+      - name: Poll GitHub Statuses API for Kokoro build
+        id: poll-status
+        if: steps.check-skip.outputs.skipped != 'true'
+        env:
+          COMMIT_SHA: ${{ needs.get-sha.outputs.sha }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Polling GitHub Statuses API for Kokoro status on commit ${COMMIT_SHA}..."
+          for i in {1..240}; do # Poll for 2 hours (240 * 30s)
+            echo "Attempt ${i}/240..."
+            # Latest status per context; /statuses would need paging.
+            statuses=$(gh api "repos/youtube/cobalt/commits/${COMMIT_SHA}/status?per_page=100" --jq '.statuses')
+
+            echo "--- Current Statuses ---"
+            echo "${statuses}" | jq -r '.[] | "\(.context): \(.state) (\(.description))"'
+            echo "----------------------"
+
+            # Select the latest kokoro status
+            target_status=$(echo "${statuses}" | jq -c '[.[] | select(.context == "kokoro")][0]')
+
+            if [[ -n "${target_status}" && "${target_status}" != "null" ]]; then
+              state=$(echo "${target_status}" | jq -r '.state')
+              description=$(echo "${target_status}" | jq -r '.description')
+              target_url=$(echo "${target_status}" | jq -r '.target_url')
+              invocation_id="${target_url##*/}"
+
+              echo "Found target status: kokoro"
+              echo "State: ${state} | Description: ${description}"
+              echo "Kokoro Invocation ID: ${invocation_id}"
+              echo "Kokoro ResultStore URL: ${target_url}"
+
+              if [[ "${state}" == "success" ]]; then
+                echo "Kokoro build succeeded!"
+                echo "invocation_id=${invocation_id}" >> "${GITHUB_OUTPUT}"
+                exit 0
+              elif [[ "${state}" == "failure" || "${state}" == "error" ]]; then
+                echo "Kokoro build failed with state: ${state}"
+                exit 1
+              fi
+              # If state is "pending", we continue waiting
+            else
+              echo "Kokoro status not found yet."
+            fi
+
+            echo "Waiting 30 seconds..."
+            sleep 30
+          done
+          echo "Timeout waiting for Kokoro build."
+          exit 1
+
+  download-artifacts:
+    needs: [get-sha, wait-for-kokoro-build, get-targets]
+    if: needs.wait-for-kokoro-build.outputs.skipped != 'true'
+    runs-on: [self-hosted, odt-runner]
+    container:
+      image: ghcr.io/youtube/cobalt/linux:main
+    steps:
+      - name: Download Artifacts from GCS
+        env:
+          INVOCATION_ID: ${{ needs.wait-for-kokoro-build.outputs.invocation_id }}
+          TARGETS: ${{ needs.get-targets.outputs.targets }}
+        run: |
+          BUCKET="cobalt-unittest-storage"
+          PLATFORM="tvos-arm64-simulator"
+          CONFIG="devel"
+          for target in $(python3 -c "import json, os; print(' '.join(json.loads(os.environ['TARGETS'])))"); do
+            echo "Downloading ${target}.tar.gz..."
+            gcloud storage cp "gs://${BUCKET}/kokoro/build/${PLATFORM}_${CONFIG}/${INVOCATION_ID}/${target}.tar.gz" .
+          done
+
+      - name: Upload to GitHub Actions
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: tvos-test-artifacts
+          path: "*.tar.gz"
+          retention-days: 1
+
+  # TODO(b/519669027): Refactor below steps to reuse the logic from main.yaml.
+  run-tests:
+    name: tvos_${{ matrix.target }}
+    needs: [get-targets, wait-for-kokoro-build, download-artifacts]
+    if: needs.wait-for-kokoro-build.outputs.skipped != 'true'
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.get-targets.outputs.targets) }}
+    steps:
+      - name: Checkout Cobalt (Sparse)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          sparse-checkout: |
+            cobalt/testing/filters
+            .github
+            cobalt/tools
+
+      - name: Download from GitHub Actions
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        with:
+          name: tvos-test-artifacts
+
+      - name: Filter
+        id: filter
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          test_filter=""
+          filter_file="cobalt/testing/filters/tvos-arm64-simulator/${TARGET}_filter.json"
+          if [[ -f "${filter_file}" ]]; then
+            test_filter="$(jq -cr '.failing_tests[0]' "${filter_file}")"
+            if [[ "${test_filter}" == '*' ]]; then
+              echo "${TARGET} was skipped due to test filter."
+              echo "skipped=true" >> "${GITHUB_OUTPUT}"
+            else
+              echo "skipped=false" >> "${GITHUB_OUTPUT}"
+            fi
+          else
+            echo "skipped=false" >> "${GITHUB_OUTPUT}"
+          fi
+        shell: bash
+
+      - name: Run Test in Simulator
+        id: run-tests
+        if: steps.filter.outputs.skipped != 'true'
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          tar -xzf "${TARGET}.tar.gz"
+
+          mkdir -p results
+
+          filter_file="cobalt/testing/filters/tvos-arm64-simulator/${TARGET}_filter.json"
+          gtest_args=()
+          if [[ -f "${filter_file}" ]]; then
+            echo "Found filter file: ${filter_file}"
+            failing_tests=$(jq -r '.failing_tests | join(":")' "${filter_file}")
+            if [[ -n "${failing_tests}" ]]; then
+              gtest_args+=(-c "--gtest_filter=-${failing_tests}")
+              echo "Applying gtest_filter: -${failing_tests}"
+            fi
+          fi
+
+          xml_path="${GITHUB_WORKSPACE}/results/${TARGET}_result.xml"
+          log_path="${GITHUB_WORKSPACE}/results/${TARGET}_log.txt"
+
+          gtest_args+=(-c "--gtest_output=xml:${xml_path}")
+
+          ./iossim \
+            -x tvos \
+            -d "Apple TV 4K (3rd generation)" \
+            -v \
+            -i \
+            "${gtest_args[@]}" \
+            "./${TARGET}.app" 2>&1 | tee "${log_path}" || true
+
+          if [[ ! -f "${xml_path}" ]]; then
+            echo "XML result not found. Generating crash report."
+            python3 .github/scripts/generate_crash_report.py "${log_path}" "${xml_path}"
+          fi
+
+      - name: Test Results
+        if: always() && steps.filter.outputs.skipped != 'true'
+        uses: ./.github/actions/process_test_results
+        with:
+          target_name: ${{ matrix.target }}
+          results_glob: results/${{ matrix.target }}_result.xml
+          log_glob: results/${{ matrix.target }}_log.txt
+          num_gtest_shards: 1
+          datadog_api_key: ""
+
+      - name: Archive Test Results
+        if: always() && steps.filter.outputs.skipped != 'true'
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: tvos_${{ matrix.target }}_test_results
+          path: results/*
+
+  validate-test-result:
+    needs: [wait-for-kokoro-build, run-tests]
+    if: always() && !cancelled() && needs.wait-for-kokoro-build.result == 'success'
+    runs-on: ubuntu-latest
+    name: tvos_tests_passing
+    steps:
+      - name: Check test results
+        env:
+          GATE_SKIPPED: ${{ needs.wait-for-kokoro-build.outputs.skipped }}
+          RUN_TESTS_RESULT: ${{ needs.run-tests.result }}
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: |
+          jq -n \
+            --arg platform "tvos" \
+            --argjson needs "${NEEDS_JSON}" \
+            '{
+              platform: $platform,
+              checks: ($needs | map_values(.result)),
+              test_failures: {}
+            }' > shepherd_report.json
+
+          # Check the gate's output. Not RUN_TESTS_RESULT == "skipped", which causes run-tests
+          # skipped when a job it needs fails.
+          if [[ "${GATE_SKIPPED}" == "true" ]]; then
+            echo "tvOS build skipped."
+            exit 0
+          elif [[ "${RUN_TESTS_RESULT}" == "success" ]]; then
+            echo "All tvOS tests passed successfully!"
+            exit 0
+          else
+            echo "tvOS test job failed with result: ${RUN_TESTS_RESULT}"
+            exit 1
+          fi
+      - name: Upload Shepherd Report
+        if: always()
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: shepherd-report-tvos
+          path: shepherd_report.json
+          retention-days: 30
+          overwrite: true

@@ -10,6 +10,7 @@ load("@builtin//runtime.star", "runtime")
 load("@builtin//struct.star", "module")
 load("./backend_config/backend.star", "backend")
 load("./blink_all.star", "blink_all")
+load("./cobalt.star", "cobalt")
 load("./config.star", "config")
 load("./denylist.star", "denylist")
 load("./gn_logs.star", "gn_logs")
@@ -83,8 +84,14 @@ def init(ctx):
     step_config = rust.step_config(ctx, step_config)
     step_config = simple.step_config(ctx, step_config)
     step_config = typescript_all.step_config(ctx, step_config)
+<<<<<<< HEAD
     if reclient.enabled(ctx):
         step_config = reclient.step_config(ctx, step_config)
+=======
+    step_config = cobalt.step_config(ctx, step_config)
+    if reproxy.enabled(ctx):
+        step_config = reproxy.step_config(ctx, step_config)
+>>>>>>> parent of 1568f373233 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
     step_config = denylist.step_config(ctx, step_config)
 
@@ -97,6 +104,7 @@ def init(ctx):
     filegroups.update(rust.filegroups(ctx))
     filegroups.update(simple.filegroups(ctx))
     filegroups.update(typescript_all.filegroups(ctx))
+    filegroups.update(cobalt.filegroups(ctx))
 
     handlers = {}
     handlers.update(blink_all.handlers)

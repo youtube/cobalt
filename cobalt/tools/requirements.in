@@ -1,0 +1,11 @@
+# IMPORTANT: Remember to also update requirements.txt when updating this file:
+#
+#   docker run -it -v .:/code -w /code python:3.11 /bin/bash
+#
+# In the container:
+#
+#   pip3 install pip-tools
+#   pip-compile --allow-unsafe --generate-hashes cobalt/tools/requirements.in
+#
+grpcio==1.70.0
+grpcio-tools==1.70.0

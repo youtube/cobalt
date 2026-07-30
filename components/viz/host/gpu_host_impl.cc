@@ -359,9 +359,20 @@ void GpuHostImpl::SetChannelDiskCacheHandle(
     return;
   }
 
+<<<<<<< HEAD
   if (!CanUseShaderCache(handle, gpu_uses_graphite_)) {
     return;
   }
+=======
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Each opened cache is read in full during startup. Only Skia's
+  // GrShaderCache is worth that cost, so skip the other caches.
+  if (base::FeatureList::IsEnabled(features::kCobaltGpuShaderDiskCache) &&
+      handle != gpu::GpuDiskCacheHandle(gpu::kGrShaderGpuDiskCacheHandle)) {
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+>>>>>>> parent of 1568f373233 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   scoped_refptr<gpu::GpuDiskCache> cache =
       delegate_->GetGpuDiskCacheFactory()->Get(handle);

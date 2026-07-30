@@ -5,6 +5,8 @@
 #ifndef COMPONENTS_UPDATE_CLIENT_TEST_UTILS_H_
 #define COMPONENTS_UPDATE_CLIENT_TEST_UTILS_H_
 
+#include "build/build_config.h"
+
 namespace base {
 class FilePath;
 }
@@ -22,6 +24,20 @@ namespace update_client {
 // should be handled by the caller.
 [[nodiscard]] base::FilePath DuplicateTestFile(const base::FilePath& temp_path,
                                                const char* file);
+
+#if BUILDFLAG(IS_STARBOARD)
+class ScopedStarboardInstallationMock {
+ public:
+  ScopedStarboardInstallationMock();
+  ~ScopedStarboardInstallationMock();
+
+  void SetInstallationPath(const char* path);
+  void SetRequestRollForwardSuccess(bool success);
+
+  ScopedStarboardInstallationMock(const ScopedStarboardInstallationMock&) = delete;
+  ScopedStarboardInstallationMock& operator=(const ScopedStarboardInstallationMock&) = delete;
+};
+#endif
 
 }  // namespace update_client
 
