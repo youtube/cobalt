@@ -111,14 +111,16 @@ function startTest() {
 
     // Plugins
     function removePluginAtDocumentStart() {
-      if (maybeSkipPluginTest())
+      if (maybeSkipPluginTest()) {
         return;
+      }
       testRemoveSelf('plugin_frame.html?start');
     },
 
     function removePluginAtDocumentEnd() {
-      if (maybeSkipPluginTest())
+      if (maybeSkipPluginTest()) {
         return;
+      }
       // TODO(crbug.com/40268279): Add a way to identify that the frame is for a
       // PDF.
       testRemoveSelf('plugin_frame.html?end');
@@ -162,12 +164,14 @@ function startTest() {
   const kBucketIndex = parseInt(testParams.get('bucketindex'));
   const kTestsPerBucket = Math.ceil(allTests.length / kBucketCount);
 
-  chrome.test.assertTrue(kBucketCount * kTestsPerBucket >= allTests.length,
+  chrome.test.assertTrue(
+      kBucketCount * kTestsPerBucket >= allTests.length,
       'To cover all tests, the number of buckets multiplied by the number of ' +
-      'tests per bucket must be at least as big as the number of tests.');
-  chrome.test.assertTrue(0 <= kBucketIndex >= 0 && kBucketIndex < kBucketCount,
+          'tests per bucket must be at least as big as the number of tests.');
+  chrome.test.assertTrue(
+      0 <= kBucketIndex >= 0 && kBucketIndex < kBucketCount,
       'There are only ' + kBucketCount + ' buckets, so the bucket index must ' +
-      'be between 0 and ' + kBucketCount + ', but it was ' + kBucketIndex);
+          'be between 0 and ' + kBucketCount + ', but it was ' + kBucketIndex);
 
   // Every run except for the last run contains |kTestsPerBucket| tests. The
   // last run (i.e. |kBucketIndex| = |kBucketCount| - 1) may contain fewer tests
@@ -230,12 +234,13 @@ function maybeSkipPluginTest() {
     const plugin = navigator.plugins[i];
     for (let j = 0; j < plugin.length; ++j) {
       const mimeType = plugin[j];
-      if (mimeType.type === kPluginMimeType)
+      if (mimeType.type === kPluginMimeType) {
         return false;
+      }
     }
   }
   const kMessage = `Plugin not found for ${kPluginMimeType}, skipping test.`;
-  console.log(kMessage);
+  console.info(kMessage);
   chrome.test.log(kMessage);
   chrome.test.succeed();
   return true;

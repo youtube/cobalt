@@ -599,6 +599,8 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
             r'^base/memory/memory_pressure_listener\.(cc|h)$',
             r'^base/memory/memory_pressure_listener_unittest\.cc$',
             r'^base/memory/mock_memory_pressure_listener\.(cc|h)$',
+            r'^content/browser/back_forward_cache/'
+            r'back_forward_cache_impl\.(cc|h)$',
         ),
     ),
     BanRule(
@@ -1863,6 +1865,15 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
         ),
     ),
     BanRule(
+        r'/\bperfetto::Track::FromPointer',
+        ('Creating tracks from pointer is discouraged because it risks aliasing when the address ',
+         'is reused. Consider using NamedTrack instead, see ',
+        'https://chromium.googlesource.com/chromium/src.git/+/main/docs/trace_events.md#named-tracks',
+        ),
+        False,
+        (),
+    ),
+    BanRule(
         'RoInitialize',
         ('Improper use of [base::win]::RoInitialize() has been implicated in a ',
          'few COM initialization leaks. Use base::win::ScopedWinrtInitializer ',
@@ -2549,7 +2560,6 @@ _GENERIC_PYDEPS_FILES = [
     'build/android/gyp/tracereferences.pydeps',
     'build/android/gyp/turbine.pydeps',
     'build/android/gyp/unused_resources.pydeps',
-    'build/android/gyp/validate_static_library_dex_references.pydeps',
     'build/android/gyp/write_build_config.pydeps',
     'build/android/gyp/write_native_libraries_java.pydeps',
     'build/android/gyp/zip.pydeps',

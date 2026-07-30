@@ -34,6 +34,7 @@ export interface AnnotationBrush {
 
 export interface TextAnnotation {
   id: number;
+  isEdited: boolean;
   mojoTextInfo: ArrayBuffer;
   // Serialized SkTypeface font data that the backend needs. Only contains
   // fonts that the backend has never seen before.
@@ -58,13 +59,11 @@ export enum TextAlignment {
   RIGHT = 'right',
 }
 
-// Note that this is not used by the backend.
 export enum TextStyle {
   BOLD = 'bold',
   ITALIC = 'italic',
 }
 
-// Note that this is not used by the backend.
 export enum TextTypeface {
   SANS_SERIF = 'sans-serif',
   SERIF = 'serif',

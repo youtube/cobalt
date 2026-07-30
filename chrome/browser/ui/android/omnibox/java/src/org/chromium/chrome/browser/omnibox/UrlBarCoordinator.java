@@ -213,6 +213,11 @@ public class UrlBarCoordinator
         setAllowMultilineInput(false);
     }
 
+    /** Sets whether this {@link UrlBar} should enable bounds ellipsis. */
+    public void setBoundsEllipsisEnabled(boolean enabled) {
+        mUrlBar.setBoundsEllipsisEnabled(enabled);
+    }
+
     @Override
     public int getSelectionStart() {
         return mUrlBar.getSelectionStart();
@@ -398,6 +403,29 @@ public class UrlBarCoordinator
      */
     public void setUrlBarHintText(String hintTextRes) {
         mMediator.setUrlBarHintText(hintTextRes);
+    }
+
+    /**
+     * Tell the UrlBar that it is being relocated to a new parent. Focus change notifications are
+     * dropped while this process is ongoing.
+     */
+    public void startReparenting() {
+        mMediator.startReparenting();
+    }
+
+    /**
+     * Tell the UrlBar that it has been relocated to a new parent and set its new focus state.
+     *
+     * @param postReparentingFocus Whether the UrlBar should be focused now that the reparenting
+     *     process has completed.
+     */
+    public void finishReparenting(boolean postReparentingFocus) {
+        mMediator.finishReparenting();
+        if (postReparentingFocus) {
+            mUrlBar.requestFocus();
+        } else {
+            mUrlBar.clearFocus();
+        }
     }
 
     /**

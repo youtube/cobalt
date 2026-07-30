@@ -20,7 +20,7 @@ import androidx.annotation.Nullable;
 import org.chromium.base.test.transit.Facility;
 import org.chromium.base.test.transit.ViewElement;
 import org.chromium.base.test.transit.ViewSpec;
-import org.chromium.chrome.test.R;
+import org.chromium.chrome.R;
 import org.chromium.chrome.test.transit.tabmodel.TabGroupExistsCondition;
 import org.chromium.chrome.test.transit.tabmodel.TabGroupUtil;
 import org.chromium.components.tab_groups.TabGroupColorId;
@@ -71,8 +71,7 @@ public class TabSwitcherGroupCardFacility extends TabSwitcherCardFacility {
         menuButtonElement = declareActionButton();
 
         declareEnterCondition(
-                new TabGroupExistsCondition(
-                        mHostStation.tabGroupModelFilterElement, mTabIdsToGroup));
+                new TabGroupExistsCondition(mHostStation.tabModelElement, mTabIdsToGroup));
     }
 
     /** Clicks the group card to open the tab group dialog. */

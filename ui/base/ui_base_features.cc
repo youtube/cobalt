@@ -63,6 +63,9 @@ const char kApplyNativeOcclusionToCompositorTypeThrottleAndRelease[] =
 #if BUILDFLAG(IS_MAC)
 BASE_FEATURE(kOnlyUseWindowResizeHelperOnResize,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Controls replacement of CATransactionCoordinator with a new implementation.
+BASE_FEATURE(kCATransactionV2, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_MAC)
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -438,6 +441,12 @@ BASE_FEATURE(kHandleIMESpanChangesOnUpdateComposition,
 bool IsHandleIMESpanChangesOnUpdateCompositionEnabled() {
   return base::FeatureList::IsEnabled(
       features::kHandleIMESpanChangesOnUpdateComposition);
+}
+
+BASE_FEATURE(kTSFHonorAutocorrectOff, base::FEATURE_ENABLED_BY_DEFAULT);
+
+bool IsTSFHonorAutocorrectOffEnabled() {
+  return base::FeatureList::IsEnabled(features::kTSFHonorAutocorrectOff);
 }
 
 BASE_FEATURE(kUseSystemDefaultAccentColors, base::FEATURE_ENABLED_BY_DEFAULT);

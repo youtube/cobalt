@@ -27,7 +27,9 @@
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/url_constants.h"
 #include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/web_contents.h"
 #include "ui/base/base_window.h"
+
 namespace glic {
 
 namespace {
@@ -84,8 +86,23 @@ GlicInvokeHandler::ResolvedTarget GlicInvokeHandler::ResolveTargetSurface(
       return {nullptr, /*is_new=*/false};
     }
     tabs::TabInterface* tab = TabListInterface::From(browser)->OpenTab(
-        chrome::ChromeUINewTabURLAsGURL(), -1);
+        chrome::ChromeUINewTabURLAsGURL(), -1, new_tab_opt->open_in_foreground);
     if (tab) {
+      // TODO(b/503310855): Test/handle Android invocations to see if same
+      // issue is present.
+#if !BUILDFLAG(IS_ANDROID)
+      if (!new_tab_opt->open_in_foreground) {
+        // Force the background tab to start loading. Chromium defers loading
+        // for background tabs to save resources. Calling WasShown() and then
+        // WasHidden() tricks the WebContents into thinking it was shown,
+        // triggering the load.
+        content::WebContents* contents = tab->GetContents();
+        if (contents) {
+          contents->WasShown();
+          contents->WasHidden();
+        }
+      }
+#endif
       return {tab, /*is_new=*/true};
     }
     return {nullptr, /*is_new=*/false};
@@ -103,19 +120,15 @@ GlicInvokeHandler::GlicInvokeHandler(
     GlicInstanceImpl& instance,
     ResolvedTarget resolved_target,
     GlicInvokeOptions options,
+    GlicInvokeWithAutoSubmitOptions auto_submit_options,
     std::optional<InvokeWithAutoSubmitPasskey> auto_submit_passkey,
     CompletionCallback completion_callback)
     : instance_(instance),
       tab_(resolved_target.tab),
       options_(std::move(options)),
       auto_submit_passkey_(auto_submit_passkey),
+      auto_submit_options_(std::move(auto_submit_options)),
       completion_callback_(std::move(completion_callback)) {
-  if (tab_ && GlicInstanceHelper::From(tab_)) {
-    tab_destruction_subscription_ =
-        GlicInstanceHelper::From(tab_)->SubscribeToDestruction(
-            base::BindRepeating(&GlicInvokeHandler::OnTabClosed,
-                                weak_ptr_factory_.GetWeakPtr()));
-  }
   if (resolved_target.is_new && tab_ && tab_->GetContents() &&
       tab_->GetContents()->HasUncommittedNavigationInPrimaryMainFrame()) {
     // NOTE: This simple check won't do the right thing for chained navigations
@@ -123,6 +136,17 @@ GlicInvokeHandler::GlicInvokeHandler(
     // proceed, but then another navigation will start.
     should_wait_for_load_ = true;
   }
+
+  CHECK(tab_);
+
+  // As the handler holds a raw_ptr to GlicInstanceImpl and TabInterface, it
+  // must listen to destruction of both.
+  tab_destruction_subscription_ = tab_->RegisterWillDetach(base::BindRepeating(
+      &GlicInvokeHandler::OnTabWillDetach, weak_ptr_factory_.GetWeakPtr()));
+
+  instance_destruction_subscription_ = instance_->RegisterWillBeDestroyed(
+      base::BindOnce(&GlicInvokeHandler::OnInstanceWillBeDestroyed,
+                     weak_ptr_factory_.GetWeakPtr()));
 }
 
 GlicInvokeHandler::~GlicInvokeHandler() = default;
@@ -133,9 +157,20 @@ void GlicInvokeHandler::Invoke() {
                                       weak_ptr_factory_.GetWeakPtr(),
                                       GlicInvokeError::kTimeout));
 
-  if (!tab_destruction_subscription_ || !tab_) {
-    OnError(GlicInvokeError::kInvalidTab);
-    return;
+  if (auto_submit_options_.on_conversation_id_ready) {
+    if (auto conv_id = instance_->conversation_id()) {
+      std::move(auto_submit_options_.on_conversation_id_ready).Run(*conv_id);
+    } else {
+      conversation_subscription_ =
+          instance_->AddConversationInfoChangedCallback(
+              base::BindRepeating(&GlicInvokeHandler::OnConversationInfoChanged,
+                                  weak_ptr_factory_.GetWeakPtr()));
+    }
+  }
+  if (!options_.tab_sharing.tabs_to_pin.empty()) {
+    CHECK(options_.tab_sharing.pin_trigger != GlicPinTrigger::kUnknown);
+    instance_->sharing_manager().PinTabs(options_.tab_sharing.tabs_to_pin,
+                                         options_.tab_sharing.pin_trigger);
   }
 
   std::vector<std::unique_ptr<GlicInvokeTask>> tasks;
@@ -147,37 +182,29 @@ void GlicInvokeHandler::Invoke() {
 
   auto show_options = ShowOptions::ForSidePanel(
       *tab_, GlicPinTrigger::kInstanceCreation, options_.invocation_source);
+
   if (options_.fre_override != mojom::FreOverride::kUnspecified) {
-    if (RequiresOverrideIncompatibleFre()) {
-      OnError(GlicInvokeError::kInvalidConfiguration);
-      return;
-    }
-
     show_options.fre_override = options_.fre_override;
-  }
-
-  if (auto_submit_passkey_ && RequiresAutoSubmitIncompatibleFre()) {
-    OnError(GlicInvokeError::kInvalidConfiguration);
-    return;
   }
 
   tasks.push_back(
       std::make_unique<ShowInstanceTask>(&*instance_, show_options));
+  tasks.push_back(std::make_unique<MaybeInitializeHiddenClientTask>(
+      &*instance_, options_.invocation_source, options_.fre_override));
   tasks.push_back(
       std::make_unique<WaitForClientConnectedTask>(&instance_->host()));
   if (options_.on_client_connected) {
     tasks.push_back(std::make_unique<PostCallbackTask>(base::BindOnce(
         [](base::WeakPtr<GlicInstanceImpl> instance,
-           base::OnceCallback<void(GlicInstance*)> cb) {
+           base::OnceCallback<void(base::WeakPtr<GlicInstance>)> cb) {
           if (instance) {
-            std::move(cb).Run(instance.get());
+            std::move(cb).Run(instance);
           }
         },
         instance_->GetWeakPtr(), std::move(options_.on_client_connected))));
   }
   // TODO(b/505086089): Handle client disconnects.
-  tasks.push_back(
-      std::make_unique<NotifyIsInvokingTask>(&instance_->host(), true));
+  tasks.push_back(std::make_unique<NotifyIsInvokingTask>(&instance_->host()));
 
   if (options_.wait_for_panel_open) {
     tasks.push_back(std::make_unique<StabilizationTask>(tab_->GetContents()));
@@ -189,7 +216,7 @@ void GlicInvokeHandler::Invoke() {
   tasks.push_back(std::make_unique<SendToClientTask>(
       &*instance_, CreateMojoOptions(), auto_submit_passkey_));
 
-  if (options_.feature_mode == mojom::FeatureMode::kActuation) {
+  if (IsActuatingFeatureMode()) {
     auto on_actuation_started = base::BindOnce(
         [](base::WeakPtr<GlicInvokeHandler> handler) {
           if (handler) {
@@ -211,30 +238,36 @@ void GlicInvokeHandler::Invoke() {
                                    weak_ptr_factory_.GetWeakPtr()));
 }
 
-bool GlicInvokeHandler::RequiresAutoSubmitIncompatibleFre() const {
-  return false;
+void GlicInvokeHandler::OnTabWillDetach(
+    tabs::TabInterface* tab,
+    tabs::TabInterface::DetachReason reason) {
+  if (reason == tabs::TabInterface::DetachReason::kDelete) {
+    OnError(GlicInvokeError::kTabClosed);
+  }
 }
 
-bool GlicInvokeHandler::RequiresOverrideIncompatibleFre() const {
-  return false;
+void GlicInvokeHandler::OnInstanceWillBeDestroyed(GlicInstance* instance) {
+  OnError(GlicInvokeError::kInstanceDestroyed);
 }
 
-
-
-void GlicInvokeHandler::OnTabClosed(tabs::TabInterface* tab) {
-  tab_ = nullptr;
-  OnError(GlicInvokeError::kTabClosed);
+void GlicInvokeHandler::OnConversationInfoChanged(
+    const mojom::ConversationInfo& info) {
+  if (auto_submit_options_.on_conversation_id_ready) {
+    std::move(auto_submit_options_.on_conversation_id_ready)
+        .Run(info.conversation_id);
+  }
+  conversation_subscription_ = {};
 }
 
 void GlicInvokeHandler::OnSuccess() {
   timeout_timer_.Stop();
-  instance_->host().NotifyIsInvoking(false);
   if (main_task_) {
     main_task_->NotifySequenceCompleted(/*success=*/true);
   }
 
   if (options_.on_success) {
-    std::move(options_.on_success).Run();
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, std::move(options_.on_success));
   }
   if (completion_callback_) {
     std::move(completion_callback_).Run(&*instance_, this);
@@ -243,16 +276,30 @@ void GlicInvokeHandler::OnSuccess() {
 
 void GlicInvokeHandler::OnError(GlicInvokeError error) {
   timeout_timer_.Stop();
-  instance_->host().NotifyIsInvoking(false);
   if (main_task_) {
     main_task_->NotifySequenceCompleted(/*success=*/false);
   }
 
   if (options_.on_error) {
-    std::move(options_.on_error).Run(error);
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(std::move(options_.on_error), error));
   }
-  if (completion_callback_) {
-    std::move(completion_callback_).Run(&*instance_, this);
+
+  // The completion callback deletes `this`.
+  std::move(completion_callback_).Run(&*instance_, this);
+}
+
+bool GlicInvokeHandler::IsActuatingFeatureMode() const {
+  if (!options_.feature_mode.has_value()) {
+    return false;
+  }
+  switch (*options_.feature_mode) {
+    case mojom::FeatureMode::kActuation:
+    case mojom::FeatureMode::kExperimentalTriggering:
+    case mojom::FeatureMode::kUniversalCart:
+      return true;
+    default:
+      return false;
   }
 }
 
@@ -271,6 +318,7 @@ mojom::InvokeOptionsPtr GlicInvokeHandler::CreateMojoOptions() {
   mojo_options->auto_submit = auto_submit_passkey_.has_value();
   mojo_options->feature_mode =
       options_.feature_mode.value_or(mojom::FeatureMode::kUnspecified);
+  mojo_options->actuation_target = options_.target.actuation_target;
   mojo_options->disable_zero_state_suggestions = options_.disable_zss;
 
   if (options_.skill_id) {

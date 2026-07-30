@@ -1532,6 +1532,10 @@ interface ContactsManager
     method constructor
     method getProperties
     method select
+interface ContainerQueryList : EventTarget
+    attribute @@toStringTag
+    getter matches
+    method constructor
 interface ContentIndex
     attribute @@toStringTag
     method add
@@ -2628,6 +2632,7 @@ interface Element : Node
     method insertAdjacentElement
     method insertAdjacentHTML
     method insertAdjacentText
+    method matchContainer
     method matches
     method moveBefore
     method prepend
@@ -5382,6 +5387,7 @@ interface HTMLTemplateElement : HTMLElement
     attribute @@toStringTag
     getter content
     getter htmlFor
+    getter shadowRootAdoptedStyleSheets
     getter shadowRootClonable
     getter shadowRootCustomElementRegistry
     getter shadowRootDelegatesFocus
@@ -5389,6 +5395,7 @@ interface HTMLTemplateElement : HTMLElement
     getter shadowRootSerializable
     method constructor
     setter htmlFor
+    setter shadowRootAdoptedStyleSheets
     setter shadowRootClonable
     setter shadowRootCustomElementRegistry
     setter shadowRootDelegatesFocus
@@ -6029,6 +6036,7 @@ interface LanguageModel : EventTarget
     getter contextUsage
     getter contextWindow
     getter oncontextoverflow
+    getter samplingMode
     getter temperature
     getter topK
     method append
@@ -6754,10 +6762,13 @@ interface MimeTypeArray
     method constructor
     method item
     method namedItem
-interface ModelContext
+interface ModelContext : EventTarget
     attribute @@toStringTag
+    getter ontoolchange
     method constructor
+    method getTools
     method registerTool
+    setter ontoolchange
 interface Mojo
     static method bindInterface
     static method createDataPipe

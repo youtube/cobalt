@@ -76,7 +76,8 @@ class CONTENT_EXPORT ImeAdapterAndroid : public RenderWidgetHostConnector {
                    const base::android::JavaRef<jobject>& obj,
                    int start,
                    int end,
-                   const base::android::JavaRef<jstring>& text,
+                   const base::android::JavaRef<jobject>& text,
+                   const base::android::JavaRef<jstring>& text_str,
                    int relative_cursor_pos);
   void FinishComposingText(JNIEnv* env);
   void SetEditableSelectionOffsets(JNIEnv*, int start, int end);
@@ -147,7 +148,6 @@ class CONTENT_EXPORT ImeAdapterAndroid : public RenderWidgetHostConnector {
       const base::android::JavaRef<jobject>& obj,
       const base::android::JavaRef<jobject>& text,
       const std::u16string& text16);
-  void OnPasteFromImageBytesCompleted(bool success);
 
   gfx::SizeF old_viewport_size_;
 

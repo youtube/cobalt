@@ -7,6 +7,7 @@
 
 #include <list>
 #include <map>
+#include <vector>
 
 #include "base/callback_list.h"
 #include "base/memory/raw_ptr.h"
@@ -43,10 +44,11 @@ class PageActionContainerView : public views::View {
   PageActionView* GetPageActionView(actions::ActionId page_action_id);
 
  private:
-  // Invoked when the chip state changes. When the view's suggestion chip is
-  // shown, it is placed in the front before all other page action view.
-  // Otherwise, the page action is placed in its initial insertion position.
-  void OnPageActionSuggestionChipStateChanged(PageActionView* view);
+  // Invoked when the chip or anchored message state changes. We show the
+  // anchored message (if any), then suggestion chips then all other page action
+  // icons. Within its category, the page action is placed in its initial
+  // insertion position.
+  void OnPageActionStateChanged(PageActionView* view);
 
   // Ensure the chip (if any) is at index 0 and all other actions are in
   // the correct relative order (after the chip).
@@ -59,10 +61,10 @@ class PageActionContainerView : public views::View {
   // ensure that the container reorders the page actions accordingly.
   std::vector<base::CallbackListSubscription> chip_state_changed_callbacks_;
 
-  // Subscriptions to page action view visibility changes, used to ensure that
-  // the chips/non-chips page action view are correctly ordered.
+  // Callbacks used to handle page action view anchored message state changes.
+  // Used to ensure that the container reorders the page actions accordingly.
   std::vector<base::CallbackListSubscription>
-      page_action_view_visible_changed_callbacks_;
+      anchored_message_state_changed_callbacks_;
 };
 
 }  // namespace page_actions

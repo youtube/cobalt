@@ -5,7 +5,6 @@
 package org.chromium.chrome.browser.omnibox.status;
 
 import android.content.Context;
-import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
@@ -104,12 +103,10 @@ public class StatusProperties {
             return mIconTransitionType;
         }
 
-        /**
-         * @return The {@link Drawable} for this StatusIconResource.
-         */
-        public @Nullable Drawable getDrawable(Context context, Resources resources) {
+        /** Returns a {@link Drawable} for this StatusIconResource. */
+        public @Nullable Drawable getDrawable(Context context) {
             if (mBitmap != null) {
-                Drawable drawable = new BitmapDrawable(resources, mBitmap);
+                Drawable drawable = new BitmapDrawable(context.getResources(), mBitmap);
                 if (mTint != 0) {
                     DrawableCompat.setTintList(
                             drawable, AppCompatResources.getColorStateList(context, mTint));
@@ -210,10 +207,9 @@ public class StatusProperties {
             return mContentDescriptionRes;
         }
 
-        /** Returns a {@link Drawable} for this StatusIconResource. */
         @Override
-        public @Nullable Drawable getDrawable(Context context, Resources resources) {
-            Drawable icon = super.getDrawable(context, resources);
+        public @Nullable Drawable getDrawable(Context context) {
+            Drawable icon = super.getDrawable(context);
             if (icon == null) {
                 return null;
             }
@@ -223,7 +219,7 @@ public class StatusProperties {
             Canvas canvas = new Canvas(bitmap);
             drawCircleBackground(canvas, context);
             drawCenteredIcon(context, canvas, icon);
-            return new BitmapDrawable(resources, bitmap);
+            return new BitmapDrawable(context.getResources(), bitmap);
         }
 
         /** Draws the provided icon at INNER_ICON_DP on the canvas. */
@@ -264,26 +260,23 @@ public class StatusProperties {
     /** The status separator color. */
     static final WritableIntPropertyKey SEPARATOR_COLOR = new WritableIntPropertyKey();
 
-    /** Whether the icon is shown. */
-    static final WritableBooleanPropertyKey SHOW_STATUS_ICON = new WritableBooleanPropertyKey();
-
-    /** Whether the status view should be wide. */
-    static final WritableBooleanPropertyKey USE_WIDE_STATUS_ICON = new WritableBooleanPropertyKey();
-
-    /** The handler of status click events. */
-    static final WritableObjectPropertyKey<View.OnClickListener> STATUS_CLICK_LISTENER =
-            new WritableObjectPropertyKey<>();
-
-    /** The accessibility string shown upon a long click. */
-    static final WritableIntPropertyKey STATUS_ACCESSIBILITY_TOAST_RES =
-            new WritableIntPropertyKey();
+    /** Whether the status view is shown. */
+    static final WritableBooleanPropertyKey SHOW_STATUS_VIEW = new WritableBooleanPropertyKey();
 
     /** The accessibility description read for double tab upon a click on status view. */
     static final WritableIntPropertyKey STATUS_ACCESSIBILITY_DOUBLE_TAP_DESCRIPTION_RES =
             new WritableIntPropertyKey();
 
-    /** Alpha of the icon. */
-    static final WritableFloatPropertyKey STATUS_ICON_ALPHA = new WritableFloatPropertyKey();
+    /** The accessibility string shown upon a long click. */
+    static final WritableIntPropertyKey STATUS_ACCESSIBILITY_TOAST_RES =
+            new WritableIntPropertyKey();
+
+    /** The handler of status click events. */
+    static final WritableObjectPropertyKey<View.OnClickListener> STATUS_CLICK_LISTENER =
+            new WritableObjectPropertyKey<>();
+
+    /** The corner radius of the status icon. */
+    static final WritableIntPropertyKey STATUS_ICON_CORNER_RADIUS = new WritableIntPropertyKey();
 
     /** The string resource used for the description for security icon. */
     static final WritableIntPropertyKey STATUS_ICON_DESCRIPTION_RES = new WritableIntPropertyKey();
@@ -292,18 +285,21 @@ public class StatusProperties {
     static final WritableObjectPropertyKey<StatusIconResource> STATUS_ICON_RESOURCE =
             new WritableObjectPropertyKey<>();
 
-    /** The corner radius of the status icon. */
-    static final WritableIntPropertyKey STATUS_ICON_CORNER_RADIUS = new WritableIntPropertyKey();
-
-    /** The StatusView tooltip text resource. */
-    static final WritableIntPropertyKey STATUS_VIEW_TOOLTIP_TEXT = new WritableIntPropertyKey();
-
     /** The StatusView background drawable. */
     static final WritableObjectPropertyKey<Drawable> STATUS_VIEW_BACKGROUND =
             new WritableObjectPropertyKey<>();
 
+    /** The StatusView tooltip text resource. */
+    static final WritableIntPropertyKey STATUS_VIEW_TOOLTIP_TEXT = new WritableIntPropertyKey();
+
     /** The x translation of the status view. */
     static final WritableFloatPropertyKey TRANSLATION_X = new WritableFloatPropertyKey();
+
+    /** Specifies the preferred size of the Status field. */
+    static final WritableBooleanPropertyKey USE_SMALL_WIDGET = new WritableBooleanPropertyKey();
+
+    /** Whether the status view should be wide. */
+    static final WritableBooleanPropertyKey USE_WIDE_STATUS_ICON = new WritableBooleanPropertyKey();
 
     /** Text color of the verbose status text field. */
     static final WritableIntPropertyKey VERBOSE_STATUS_TEXT_COLOR = new WritableIntPropertyKey();
@@ -319,40 +315,31 @@ public class StatusProperties {
     /** Specifies width of the verbose status text field. */
     static final WritableIntPropertyKey VERBOSE_STATUS_TEXT_WIDTH = new WritableIntPropertyKey();
 
-    /** Specifies the preferred size of the Status field. */
-    static final WritableBooleanPropertyKey USE_SMALL_WIDGET = new WritableBooleanPropertyKey();
-
-    /**
-     * Whether the status view is shown. This is different from SHOW_STATUS_ICON, which is
-     * responsible for whether the icon sub-view is shown or not and is managed independently.
-     */
-    static final WritableBooleanPropertyKey SHOW_STATUS_VIEW = new WritableBooleanPropertyKey();
-
     @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
     public static final PropertyKey[] ALL_KEYS =
             new PropertyKey[] {
+                // go/keep-sorted start
                 ALPHA,
                 ANIMATIONS_ENABLED,
                 INCOGNITO_BADGE_VISIBLE,
                 SEPARATOR_COLOR,
-                SHOW_STATUS_ICON,
                 SHOW_STATUS_VIEW,
-                USE_WIDE_STATUS_ICON,
-                STATUS_CLICK_LISTENER,
-                STATUS_ACCESSIBILITY_TOAST_RES,
                 STATUS_ACCESSIBILITY_DOUBLE_TAP_DESCRIPTION_RES,
-                STATUS_ICON_ALPHA,
+                STATUS_ACCESSIBILITY_TOAST_RES,
+                STATUS_CLICK_LISTENER,
                 STATUS_ICON_CORNER_RADIUS,
                 STATUS_ICON_DESCRIPTION_RES,
                 STATUS_ICON_RESOURCE,
-                STATUS_VIEW_TOOLTIP_TEXT,
                 STATUS_VIEW_BACKGROUND,
+                STATUS_VIEW_TOOLTIP_TEXT,
                 TRANSLATION_X,
                 USE_SMALL_WIDGET,
+                USE_WIDE_STATUS_ICON,
                 VERBOSE_STATUS_TEXT_COLOR,
                 VERBOSE_STATUS_TEXT_STRING_RES,
                 VERBOSE_STATUS_TEXT_VISIBLE,
                 VERBOSE_STATUS_TEXT_WIDTH,
+                // go/keep-sorted end
             };
 
     private StatusProperties() {}

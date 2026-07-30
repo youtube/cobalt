@@ -42,8 +42,6 @@ class MetricsReporter {
   class Delegate {
    public:
     virtual void RegisterFeedUserSettingsFieldTrial(std::string_view group) = 0;
-    virtual ContentOrder GetContentOrder(
-        const StreamType& stream_type) const = 0;
   };
 
   explicit MetricsReporter(PrefService* profile_prefs);
@@ -85,16 +83,10 @@ class MetricsReporter {
   void StreamScrollStart();
 
   // Called when the Feed surface is opened and closed.
-  void SurfaceOpened(const StreamType& stream_type,
-                     SurfaceId surface_id,
-                     SingleWebFeedEntryPoint single_web_feed_entry_point =
-                         SingleWebFeedEntryPoint::kOther);
+  void SurfaceOpened(const StreamType& stream_type, SurfaceId surface_id);
   void SurfaceClosed(SurfaceId surface_id);
 
   // Network metrics.
-
-  void NetworkRefreshRequestStarted(const StreamType& stream_type,
-                                    ContentOrder content_order);
   static void NetworkRequestComplete(NetworkRequestType type,
                                      const NetworkResponseInfo& response_info);
 
@@ -109,7 +101,6 @@ class MetricsReporter {
     bool is_initial_load = false;
     bool loaded_new_content_from_network = false;
     base::TimeDelta stored_content_age;
-    ContentOrder content_order = ContentOrder::kUnspecified;
     std::optional<feedstore::Metadata::StreamMetadata> stream_metadata;
   };
   virtual void OnLoadStream(const StreamType& stream_type,

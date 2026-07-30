@@ -4,6 +4,8 @@
 
 #import "ios/chrome/browser/download/model/download_manager_tab_helper.h"
 
+#import <optional>
+
 #import "base/check_op.h"
 #import "base/feature_list.h"
 #import "base/files/file_path.h"
@@ -185,6 +187,18 @@ void DownloadManagerTabHelper::AdaptToFullscreen(bool adapt_to_fullscreen) {
   }
 }
 
+bool DownloadManagerTabHelper::IsScannerProcessing() const {
+  if (is_processing_for_testing_) {
+    return true;
+  }
+  return files_request_handler_ != nullptr;
+}
+
+void DownloadManagerTabHelper::SetIsScannerProcessingForTesting(  // IN-TEST
+    bool processing) {
+  is_processing_for_testing_ = processing;
+}
+
 bool DownloadManagerTabHelper::WillDownloadTaskBeSavedToDrive() const {
   DriveTabHelper* drive_tab_helper =
       DriveTabHelper::FromWebState(task_->GetWebState());
@@ -326,6 +340,7 @@ void DownloadManagerTabHelper::MoveComplete(bool move_completed,
                                             const base::FilePath& final_path) {
   DCHECK(move_completed);
   MaybeSetDownloadPathForAutoDeletion();
+  [delegate_ downloadManagerTabHelperDidChangeState:this];
 }
 
 void DownloadManagerTabHelper::MaybeEnrollFileForAutoDeletion(
@@ -369,22 +384,16 @@ DownloadFileService* DownloadManagerTabHelper::GetDownloadFileService() {
 
 void DownloadManagerTabHelper::MaybeMoveDownloadToDownloadsDirectory(
     bool shouldProceed) {
-  // Ensure the handler and content_analysis_info_ are destroyed as soon as they
-  // are no longer necessary.
-  base::ScopedClosureRunner cleanup(base::BindOnce(
-      [](std::unique_ptr<enterprise_connectors::FilesRequestHandlerBase>
-             handler,
-         std::unique_ptr<enterprise_connectors::ContentAnalysisInfo> info) {
-        // Make sure the request_handler is destroyed first.
-        handler.reset();
-      },
-      std::move(files_request_handler_), std::move(content_analysis_info_)));
-
   if (!shouldProceed) {
     CleanupCurrentDownload();
     return;
   }
 
+  // This will only report when scan result is WARNING and bypassed.
+  files_request_handler_->ReportWarningBypass(
+      /* user_justification */ std::nullopt);
+
+  [delegate_ downloadManagerTabHelperDidChangeState:this];
   base::FilePath user_download_path;
   GetDownloadsDirectory(&user_download_path);
   base::FilePath base_file_name = task_->GenerateFileName();
@@ -393,6 +402,11 @@ void DownloadManagerTabHelper::MaybeMoveDownloadToDownloadsDirectory(
       user_download_path, base_file_name,
       base::BindOnce(&DownloadManagerTabHelper::UseAvailableUserDocumentsPath,
                      weak_ptr_factory_.GetWeakPtr()));
+
+  // Ensure the handler and content_analysis_info_ are destroyed as soon as they
+  // are no longer necessary.
+  files_request_handler_.reset();
+  content_analysis_info_.reset();
 }
 
 void DownloadManagerTabHelper::ProcessCompleteDownloadTask() {
@@ -418,8 +432,8 @@ void DownloadManagerTabHelper::ProcessCompleteDownloadTask() {
   content_analysis_info_ =
       std::make_unique<enterprise_connectors::ContentAnalysisInfo>(
           url,
-          settings.has_value() ? std::move(settings.value())
-                               : enterprise_connectors::AnalysisSettings(),
+          std::move(settings).value_or(
+              enterprise_connectors::AnalysisSettings()),
           enterprise_connectors::ContentAnalysisRequest::NORMAL_DOWNLOAD,
           *web_state_);
   auto files_request_handler_delegate = std::make_unique<

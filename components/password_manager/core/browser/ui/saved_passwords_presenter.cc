@@ -30,6 +30,7 @@
 #include "components/password_manager/core/browser/passkey_credential.h"
 #include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_manager_metrics_util.h"
+#include "components/password_manager/core/browser/password_store/password_form_converters.h"
 #include "components/password_manager/core/browser/ui/actor_login_permission.h"
 #include "components/password_manager/core/browser/ui/affiliated_group.h"
 #include "components/password_manager/core/browser/ui/credential_ui_entry.h"
@@ -98,7 +99,8 @@ password_manager::PasswordStoreChangeList GetChangesForAddedForms(
     const std::vector<password_manager::PasswordForm>& forms) {
   password_manager::PasswordStoreChangeList changes;
   for (const auto& form : forms) {
-    changes.emplace_back(password_manager::PasswordStoreChange::ADD, form);
+    changes.emplace_back(password_manager::PasswordStoreChange::ADD,
+                         FromPasswordForm(form));
   }
   return changes;
 }
@@ -583,14 +585,14 @@ void SavedPasswordsPresenter::OnLoginsChanged(
   for (const PasswordStoreChange& change : changes) {
     switch (change.type()) {
       case PasswordStoreChange::ADD:
-        forms_to_add.push_back(change.form());
+        forms_to_add.push_back(ToPasswordForm(change.credential()));
         break;
       case PasswordStoreChange::UPDATE:
-        forms_to_remove.push_back(change.form());
-        forms_to_add.push_back(change.form());
+        forms_to_remove.push_back(ToPasswordForm(change.credential()));
+        forms_to_add.push_back(ToPasswordForm(change.credential()));
         break;
       case PasswordStoreChange::REMOVE:
-        forms_to_remove.push_back(change.form());
+        forms_to_remove.push_back(ToPasswordForm(change.credential()));
         break;
     }
   }
@@ -636,24 +638,19 @@ void SavedPasswordsPresenter::OnPasskeyModelShuttingDown() {
 
 void SavedPasswordsPresenter::OnPasskeyModelIsReady(bool is_ready) {}
 
-void SavedPasswordsPresenter::OnGetPasswordStoreResults(
-    std::vector<std::unique_ptr<PasswordForm>> results) {
-  // This class overrides OnGetPasswordStoreResultsFrom() (the version of this
-  // method that also receives the originating store), so the store-less version
-  // never gets called.
-  NOTREACHED();
-}
-
-void SavedPasswordsPresenter::OnGetPasswordStoreResultsFrom(
+void SavedPasswordsPresenter::OnGetPasswordStoreResultsOrErrorFrom(
     PasswordStoreInterface* store,
-    std::vector<std::unique_ptr<PasswordForm>> results) {
+    LoginsResultOrError results_or_error) {
   pending_store_updates_--;
   DCHECK_GE(pending_store_updates_, 0);
 
-  std::vector<PasswordForm> forms;
-  for (auto& form : results) {
-    forms.push_back(std::move(*form));
+  if (std::holds_alternative<PasswordStoreBackendError>(results_or_error)) {
+    NotifySavedPasswordsChanged(PasswordStoreChangeList());
+    return;
   }
+  auto results = std::get<LoginsResult>(std::move(results_or_error));
+  std::vector<PasswordForm> forms = ToPasswordForms(std::move(results));
+
   AddForms(forms,
            base::BindOnce(&SavedPasswordsPresenter::NotifySavedPasswordsChanged,
                           weak_ptr_factory_.GetWeakPtr(),

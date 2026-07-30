@@ -16,6 +16,7 @@
 #include "components/password_manager/core/browser/actor_login/actor_login_permission_service.h"
 #include "components/password_manager/core/browser/password_form_digest.h"
 #include "components/password_manager/core/browser/password_manager_util.h"
+#include "components/password_manager/core/browser/password_store/password_form_converters.h"
 #include "content/public/common/content_features.h"
 
 using password_manager::PasswordForm;
@@ -26,7 +27,6 @@ namespace actor_login {
 namespace {
 bool ShouldSkipPasswordCredential(const PasswordForm& match,
                                   const Credential& credential,
-                                  std::optional<std::string> signon_realm,
                                   bool federated_exact_match_exists) {
   if (!match.actor_login_approved) {
     return true;
@@ -34,7 +34,7 @@ bool ShouldSkipPasswordCredential(const PasswordForm& match,
 
   if (credential.type == CredentialType::kPassword &&
       match.username_value == credential.username &&
-      match.signon_realm == signon_realm) {
+      match.signon_realm == credential.signon_realm) {
     return true;
   }
 
@@ -66,12 +66,10 @@ bool ShouldSkipPasswordCredential(const PasswordForm& match,
 
 ActorLoginDuplicatePermissionCleaner::ActorLoginDuplicatePermissionCleaner(
     const Credential& credential,
-    std::optional<std::string> signon_realm,
     scoped_refptr<password_manager::PasswordStoreInterface> profile_store,
     scoped_refptr<password_manager::PasswordStoreInterface> account_store,
     ActorLoginPermissionService* permission_service)
     : credential_(credential),
-      signon_realm_(signon_realm),
       profile_store_(std::move(profile_store)),
       account_store_(std::move(account_store)),
       permission_service_(permission_service) {}
@@ -128,7 +126,7 @@ void ActorLoginDuplicatePermissionCleaner::OnGetPasswordStoreResultsOrErrorFrom(
     const auto& results =
         std::get<password_manager::LoginsResult>(results_or_error);
     for (const auto& match : results) {
-      pending_matches_.push_back(match);
+      pending_matches_.push_back(password_manager::ToPasswordForm(match));
     }
   }
 
@@ -151,7 +149,7 @@ void ActorLoginDuplicatePermissionCleaner::ClearPasswordPermissions() {
                                 GetLoginMatchType::kExact;
                    }) != pending_matches_.end();
   for (const PasswordForm& match : pending_matches_) {
-    if (ShouldSkipPasswordCredential(match, credential_, signon_realm_,
+    if (ShouldSkipPasswordCredential(match, credential_,
                                      federated_exact_match_exists)) {
       continue;
     }

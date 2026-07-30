@@ -52,12 +52,15 @@ import org.chromium.chrome.browser.magic_stack.ModuleDelegateHost;
 import org.chromium.chrome.browser.magic_stack.ModuleRegistry;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.ntp.NewTabPage.OnSearchBoxScrollListener;
-import org.chromium.chrome.browser.ntp.search.SearchBoxCoordinator;
+import org.chromium.chrome.browser.ntp.search.NtpSearchBox;
+import org.chromium.chrome.browser.ntp.search.NtpSearchBoxFactory;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinatorFactory;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
 import org.chromium.chrome.browser.omnibox.SearchEngineUtils;
+import org.chromium.chrome.browser.omnibox.SearchEngineUtils.SearchBoxHintTextObserver;
+import org.chromium.chrome.browser.omnibox.SearchEngineUtils.SearchEngineIconObserver;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.setup_list.SetupListManager;
 import org.chromium.chrome.browser.setup_list.SetupListModuleUtils;
@@ -133,14 +136,14 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
     private final boolean mEnableLogs;
 
     private @Nullable LogoCoordinator mLogoCoordinator;
-    private @Nullable SearchBoxCoordinator mSearchBoxCoordinator;
+    private @Nullable NtpSearchBox mNtpSearchBox;
     private @Nullable MostVisitedTilesCoordinator mMostVisitedTilesCoordinator;
     private @Nullable OnSearchBoxScrollListener mSearchBoxScrollListener;
     private @Nullable UiConfig mUiConfig;
     private @Nullable DisplayStyleObserver mDisplayStyleObserver;
     private CallbackController mCallbackController = new CallbackController();
-    private SearchEngineUtils.@Nullable SearchEngineIconObserver mSearchEngineIconObserver;
-    private SearchEngineUtils.@Nullable SearchBoxHintTextObserver mSearchBoxHintTextObserver;
+    private @Nullable SearchEngineIconObserver mSearchEngineIconObserver;
+    private @Nullable SearchBoxHintTextObserver mSearchBoxHintTextObserver;
 
     private @Nullable HomeModulesCoordinator mHomeModulesCoordinator;
     private @Nullable ViewGroup mHomeModulesContainer;
@@ -330,14 +333,17 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
             mUiConfig.updateDisplayStyle();
         }
 
-        mSearchBoxCoordinator =
-                new SearchBoxCoordinator(
+        mNtpSearchBox =
+                NtpSearchBoxFactory.createSearchBox(
                         mActivity,
                         mNewTabPageLayout,
                         mIsTablet,
                         lifecycleDispatcher,
                         mProfile.isOffTheRecord(),
-                        mWindowAndroid);
+                        mWindowAndroid,
+                        mManager,
+                        mProfile);
+        mModel.set(NewTabPageLayoutProperties.SEARCH_BOX_VIEW, mNtpSearchBox.getView());
 
         updateSearchBoxTwoSideMargin();
         initializeLogoCoordinator();
@@ -346,22 +352,21 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
                 mProfile, lifecycleDispatcher, tileGroupDelegate, touchEnabledDelegate);
 
         mSearchEngineIconObserver =
-                (newIcon) -> assumeNonNull(mSearchBoxCoordinator).setSearchEngineIcon(newIcon);
+                (newIcon) -> assumeNonNull(mNtpSearchBox).setSearchEngineIcon(newIcon);
         mSearchEngineUtils.addIconObserver(mSearchEngineIconObserver);
         setSearchBoxTextAppearance();
 
         initializeSearchBoxTextView();
-        initializeVoiceSearchButton();
-        initializeLensButton();
 
         initializeComposeplateFlags(mProfile);
+        mNtpSearchBox.setIsFuseboxEligible(Boolean.TRUE.equals(mIsComposeplateEnabled));
         if (assumeNonNull(mIsComposeplateEnabled)) {
             initializeComposeplate();
         }
 
         initializeHomeModules();
 
-        // This should be called after both mSearchBoxCoordinator and mComposeplateCoordinator are
+        // This should be called after both mNtpSearchBox and mComposeplateCoordinator are
         // initialized.
         onCustomizedBackgroundChanged(
                 NtpCustomizationUtils.shouldApplyWhiteBackgroundOnSearchBox());
@@ -390,8 +395,8 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
         int searchBoxHeight =
                 NtpCustomizationUtils.getSearchBoxHeight(
                         resources, assumeNonNull(mIsComposeplateEnabled));
-        if (mSearchBoxCoordinator != null) {
-            mSearchBoxCoordinator.setHeight(searchBoxHeight);
+        if (mNtpSearchBox != null) {
+            mNtpSearchBox.setHeight(searchBoxHeight);
         }
 
         mSearchBoxBoundsVerticalInset =
@@ -407,8 +412,8 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
     }
 
     public void enableSearchBoxEditText(boolean enable) {
-        if (mSearchBoxCoordinator != null) {
-            mSearchBoxCoordinator.enableSearchBoxEditText(enable);
+        if (mNtpSearchBox != null) {
+            mNtpSearchBox.enableSearchBoxEditText(enable);
         }
     }
 
@@ -423,12 +428,10 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
     private void initializeSearchBoxTextView() {
         TraceEvent.begin(TAG + ".initializeSearchBoxTextView()");
 
-        assumeNonNull(mSearchBoxCoordinator);
-        mSearchBoxCoordinator.setSearchBoxClickListener(
-                v -> mManager.focusSearchBox(false, AutocompleteRequestType.SEARCH, null));
+        assumeNonNull(mNtpSearchBox);
 
         // @TODO(crbug.com/41492572): Add test case for search box OnDragListener.
-        mSearchBoxCoordinator.setSearchBoxDragListener(
+        mNtpSearchBox.setSearchBoxDragListener(
                 new View.OnDragListener() {
                     @Override
                     public boolean onDrag(View view, DragEvent dragEvent) {
@@ -448,62 +451,40 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
                     }
                 });
 
-        mSearchBoxCoordinator.setSearchBoxTextWatcher(
+        mNtpSearchBox.setSearchBoxTextWatcher(
                 new EmptyTextWatcher() {
                     @Override
                     public void afterTextChanged(Editable s) {
-                        if (s.length() == 0 || mSearchBoxCoordinator == null) return;
+                        if (s.length() == 0 || mNtpSearchBox == null) return;
                         mManager.focusSearchBox(
-                                false, AutocompleteRequestType.SEARCH, s.toString());
-                        mSearchBoxCoordinator.setSearchText("");
+                                false, AutocompleteRequestType.SEARCH, false, s.toString());
+                        mNtpSearchBox.setSearchText("");
                     }
                 });
         TraceEvent.end(TAG + ".initializeSearchBoxTextView()");
     }
 
     public void onSearchBoxHintTextChanged() {
-        if (mSearchBoxCoordinator != null) {
-            mSearchBoxCoordinator.setSearchBoxHintText(
+        if (mNtpSearchBox != null) {
+            mNtpSearchBox.setSearchBoxHintText(
                     mSearchEngineUtils.getOmniboxHintText(
                             AutocompleteRequestType.SEARCH, /* fuseboxSessionState= */ null));
         }
     }
 
     private void setSearchBoxTextAppearance() {
-        if (mSearchBoxCoordinator == null) return;
+        if (mNtpSearchBox == null) return;
 
         boolean shouldApplyWhiteBackground =
                 NtpCustomizationUtils.shouldApplyWhiteBackgroundOnSearchBox();
 
         if (shouldApplyWhiteBackground) {
-            mSearchBoxCoordinator.setSearchBoxTextAppearance(
+            mNtpSearchBox.setSearchBoxTextAppearance(
                     R.style.TextAppearance_FakeSearchBoxTextMediumDark);
         } else {
-            mSearchBoxCoordinator.setSearchBoxTextAppearance(
+            mNtpSearchBox.setSearchBoxTextAppearance(
                     R.style.TextAppearance_FakeSearchBoxTextMedium);
         }
-    }
-
-    private void initializeVoiceSearchButton() {
-        TraceEvent.begin(TAG + ".initializeVoiceSearchButton()");
-        View.OnClickListener voiceSearchButtonClickListener =
-                v -> mManager.focusSearchBox(true, AutocompleteRequestType.SEARCH, null);
-        assumeNonNull(mSearchBoxCoordinator)
-                .addVoiceSearchButtonClickListener(voiceSearchButtonClickListener);
-        TraceEvent.end(TAG + ".initializeVoiceSearchButton()");
-    }
-
-    private void initializeLensButton() {
-        TraceEvent.begin(TAG + ".initializeLensButton()");
-        View.OnClickListener lensButtonClickListener =
-                v -> {
-                    if (mSearchBoxCoordinator == null) return;
-
-                    LensMetrics.recordClicked(LensEntryPoint.NEW_TAB_PAGE);
-                    mSearchBoxCoordinator.startLens(LensEntryPoint.NEW_TAB_PAGE);
-                };
-        assumeNonNull(mSearchBoxCoordinator).addLensButtonClickListener(lensButtonClickListener);
-        TraceEvent.end(TAG + ".initializeLensButton()");
     }
 
     private void initializeComposeplateFlags(Profile profile) {
@@ -541,7 +522,7 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
                 && OmniboxFeatures.sRedirectComposeplateButton.getValue()
                 && !mIsTablet
                 && mIsComposeplatePolicyEnabled) {
-            mManager.focusSearchBox(false, AutocompleteRequestType.AI_MODE, null);
+            mManager.focusSearchBox(false, AutocompleteRequestType.AI_MODE, false, null);
             return;
         }
 
@@ -644,10 +625,7 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
 
         mMostVisitedTilesCoordinator.initWithNative(
                 profile, mManager, tileGroupDelegate, touchEnabledDelegate);
-
-        if (ChromeFeatureList.sNewTabPageCustomizationForMvt.isEnabled()) {
-            mMostVisitedTilesCoordinator.updateMvtVisibility();
-        }
+        mMostVisitedTilesCoordinator.updateMvtVisibility();
     }
 
     private void initializeSigninPromoCoordinator() {
@@ -670,7 +648,7 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
 
     /** Updates the search box when the parent view's scroll position is changed. */
     void updateSearchBoxOnScroll() {
-        if (mDisableUrlFocusChangeAnimations || mSearchBoxCoordinator == null) return;
+        if (mDisableUrlFocusChangeAnimations || mNtpSearchBox == null) return;
 
         // When the page changes (tab switching or new page loading), it is possible that events
         // (e.g. delayed view change notifications) trigger calls to these methods after
@@ -691,9 +669,9 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
      * @return the transition percentage
      */
     float getToolbarTransitionPercentage() {
-        if (mSearchBoxCoordinator == null || mScrollDelegate == null) return 0f;
+        if (mNtpSearchBox == null || mScrollDelegate == null) return 0f;
 
-        return mSearchBoxCoordinator.getToolbarTransitionPercentage(
+        return mNtpSearchBox.getToolbarTransitionPercentage(
                 mScrollDelegate,
                 mTabStripHeightSupplier,
                 mCurrentNtpFakeSearchBoxTransitionStartOffset);
@@ -703,7 +681,7 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
      * @return The fake search box view.
      */
     public View getSearchBoxView() {
-        return assumeNonNull(mSearchBoxCoordinator).getView();
+        return assumeNonNull(mNtpSearchBox).getView();
     }
 
     public void onSwitchToForeground() {
@@ -854,7 +832,7 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
          */
         if (mDisableUrlFocusChangeAnimations
                 || mIsTablet
-                || mSearchBoxCoordinator == null
+                || mNtpSearchBox == null
                 || mScrollDelegate == null) {
             return;
         }
@@ -879,8 +857,8 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
      * @param alpha opacity (alpha) value to use.
      */
     public void setSearchBoxAlpha(float alpha) {
-        if (mSearchBoxCoordinator != null) {
-            mSearchBoxCoordinator.setAlpha(alpha);
+        if (mNtpSearchBox != null) {
+            mNtpSearchBox.setAlpha(alpha);
         }
     }
 
@@ -902,8 +880,8 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
      * @param parentView The top level parent view used to translate search box bounds.
      */
     void getSearchBoxBounds(Rect bounds, Point translation, View parentView) {
-        if (mSearchBoxCoordinator != null && mScrollDelegate != null) {
-            mSearchBoxCoordinator.getSearchBoxBounds(
+        if (mNtpSearchBox != null && mScrollDelegate != null) {
+            mNtpSearchBox.getSearchBoxBounds(
                     bounds,
                     translation,
                     parentView,
@@ -931,9 +909,9 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
         mCurrentNtpFakeSearchBoxTransitionStartOffset =
                 getNtpSearchBoxTransitionStartOffset(showFakeSearchBoxWithoutLogo);
 
-        if (mSearchBoxCoordinator != null) {
+        if (mNtpSearchBox != null) {
             int topMargin = showFakeSearchBoxWithoutLogo ? mNtpSearchBoxTopMarginWithoutLogo : 0;
-            mSearchBoxCoordinator.setTopMargin(topMargin);
+            mNtpSearchBox.setTopMargin(topMargin);
         }
 
         if (mLogoCoordinator != null) {
@@ -988,19 +966,18 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
 
     /** Update the visibility of the action buttons. */
     public void updateActionButtonVisibility() {
-        if (mSearchBoxCoordinator == null) return;
+        if (mNtpSearchBox == null) return;
 
         boolean shouldShowVoiceSearchButton = mManager.isVoiceSearchEnabled();
-        boolean shouldShowLensButton =
-                mSearchBoxCoordinator.isLensEnabled(LensEntryPoint.NEW_TAB_PAGE);
+        boolean shouldShowLensButton = mNtpSearchBox.isLensEnabled(LensEntryPoint.NEW_TAB_PAGE);
 
         // Skips now if the composeplate flag hasn't been initialized. This prevents logging the
         // impression metrics incorrectly due to the status of whether to show the composeplate
         // button hasn't been initialized.
         if (mIsComposeplateEnabled == null) return;
 
-        mSearchBoxCoordinator.setVoiceSearchButtonVisibility(shouldShowVoiceSearchButton);
-        mSearchBoxCoordinator.setLensButtonVisibility(shouldShowLensButton);
+        mNtpSearchBox.setVoiceSearchButtonVisibility(shouldShowVoiceSearchButton);
+        mNtpSearchBox.setLensButtonVisibility(shouldShowLensButton);
         boolean shouldShowComposeplateButton = false;
         // As long as mComposeplateCoordinator has been initialized, we should update its
         // visibility.
@@ -1301,9 +1278,10 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
             mComposeplateCoordinator = null;
         }
 
-        if (mSearchBoxCoordinator != null) {
-            mSearchBoxCoordinator.destroy();
-            mSearchBoxCoordinator = null;
+        if (mNtpSearchBox != null) {
+            mModel.set(NewTabPageLayoutProperties.SEARCH_BOX_VIEW, null);
+            mNtpSearchBox.destroy();
+            mNtpSearchBox = null;
         }
 
         if (mMostVisitedTilesCoordinator != null) {
@@ -1343,8 +1321,8 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
     /** Makes the Search Box and Logo as wide as Most Visited. */
     private void unifyElementWidths(int width) {
         int searchBoxWidth = width - mSearchBoxTwoSideMargin;
-        if (mSearchBoxCoordinator != null) {
-            mSearchBoxCoordinator.setLayoutWidth(searchBoxWidth);
+        if (mNtpSearchBox != null) {
+            mNtpSearchBox.setLayoutWidth(searchBoxWidth);
         }
 
         if (mLogoCoordinator != null) {
@@ -1453,14 +1431,14 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
         }
 
         // If the fake search box hasn't been initialized, returns now. It is fine to skip here
-        // because applyWhiteBackground() will be called immediately after the mSearchBoxCoordinator
+        // because applyWhiteBackground() will be called immediately after the mNtpSearchBox
         // is initialized.
-        if (mSearchBoxCoordinator == null) return;
+        if (mNtpSearchBox == null) return;
 
         mIsWhiteBackgroundOnSearchBoxApplied = applyWhiteBackgroundOnSearchBox;
 
-        if (mSearchBoxCoordinator != null) {
-            mSearchBoxCoordinator.applyWhiteBackground(applyWhiteBackgroundOnSearchBox);
+        if (mNtpSearchBox != null) {
+            mNtpSearchBox.applyWhiteBackground(applyWhiteBackgroundOnSearchBox);
         }
 
         if (mComposeplateCoordinator != null) {
@@ -1484,6 +1462,10 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
 
     public @Nullable HomeModulesCoordinator getHomeModulesCoordinatorForTesting() {
         return mHomeModulesCoordinator;
+    }
+
+    public @Nullable NtpSearchBox getNtpSearchBoxForTesting() {
+        return mNtpSearchBox;
     }
 
     public PropertyModel getModelForTesting() {

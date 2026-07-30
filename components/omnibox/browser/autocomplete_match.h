@@ -13,6 +13,7 @@
 #include <optional>
 #include <ranges>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -395,7 +396,7 @@ struct AutocompleteMatch {
   static std::string ClassificationsToString(
       const ACMatchClassifications& classifications);
   static ACMatchClassifications ClassificationsFromString(
-      const std::string& serialized_classifications);
+      std::string_view serialized_classifications);
 
   // Adds a classification to the end of |classifications| iff its style is
   // different from the last existing classification.  |offset| must be larger
@@ -554,6 +555,10 @@ struct AutocompleteMatch {
   // Checks if this match is a contextual search suggestion to be fulfilled
   // by lens in the side panel.
   bool IsContextualSearchSuggestion() const;
+
+  // Checks if this match is a static contextual search suggestion to be
+  // fulfilled by lens in the side panel.
+  bool IsStaticContextualSearchSuggestion() const;
 
   // Checks if this match is an  Aim threads history suggestion.
   bool IsThreadsHistorySuggestion() const;
@@ -905,6 +910,9 @@ struct AutocompleteMatch {
 
   // Used for document suggestions to show the mime-corresponding icons.
   DocumentType document_type = DocumentType::NONE;
+
+  // The id of the starter pack engine, if this is a starter pack match.
+  int starter_pack_id = 0;
 
   // Used for enterprise search aggregator suggestions for grouping.
   EnterpriseSearchAggregatorType enterprise_search_aggregator_type =

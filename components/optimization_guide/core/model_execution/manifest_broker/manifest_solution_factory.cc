@@ -183,6 +183,22 @@ class ManifestSolutionFactory::Solution : public ModelBrokerImpl::Solution {
         mojo_base::ProtoWrapper(state().config_.safety());
     config->model_versions =
         mojo_base::ProtoWrapper(state().config_.model_versions());
+    for (int c : state().config_.capabilities()) {
+      switch (c) {
+        case proto::OnDeviceModelCapability::
+            ON_DEVICE_MODEL_CAPABILITY_IMAGE_INPUT:
+          config->model_capabilities.Put(
+              on_device_model::CapabilityFlags::kImageInput);
+          break;
+        case proto::OnDeviceModelCapability::
+            ON_DEVICE_MODEL_CAPABILITY_AUDIO_INPUT:
+          config->model_capabilities.Put(
+              on_device_model::CapabilityFlags::kAudioInput);
+          break;
+        default:
+          break;
+      }
+    }
     return config;
   }
 
@@ -555,7 +571,7 @@ void ManifestSolutionFactory::LoadBaseModel(const std::string& model_id,
   // We should not get here unless the asset is available.
   paths.weights = *ResolveFile(recipe.weights_file());
   if (recipe.backend_type() == proto::BaseModelRecipe::BACKEND_TYPE_CPU) {
-    paths.cache = paths.weights.DirName().Append(kExperimentalCacheFile);
+    paths.cache = paths.weights.DirName().Append(kWeightCacheFile);
   }
   paths.encoder_cache = paths.weights.DirName().Append(kEncoderCacheFile);
   paths.adapter_cache = paths.weights.DirName().Append(kAdapterCacheFile);

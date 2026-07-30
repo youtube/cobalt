@@ -211,6 +211,8 @@ class CORE_EXPORT HTMLSelectElement final
                                                      HTMLOptionElement*,
                                                      ExceptionState&);
 
+  bool WasOptionInserted() const { return was_option_inserted_; }
+
   void OptGroupInsertedOrRemoved(HTMLOptGroupElement&);
   void HrInsertedOrRemoved(HTMLHRElement&);
 
@@ -366,6 +368,11 @@ class CORE_EXPORT HTMLSelectElement final
   // can use the cached currently-selected option element as an optimization.
   void UpdateAllSelectedcontentsSingle(HTMLOptionElement*);
   void UpdateAllSelectedcontentsMultiple();
+  // UpdateAllSelectedcontents calls either UpdateAllSelectedcontentsSingle or
+  // UpdateAllSelectedcontentsMultiple based on whether this element IsMultiple
+  // or not. Using the other two UpdateAllSelectedcontents methods is preferred
+  // since they are more optimized.
+  void UpdateAllSelectedcontents();
   // UpdateSelectedcontent clones the contents of all selected option
   // elements into the provided selectedcontent element. This is called when the
   // provided selectedcontent is added to the subtree of this select element.
@@ -441,7 +448,11 @@ class CORE_EXPORT HTMLSelectElement final
 
   void SetRecalcListItems();
   void RecalcListItems() const;
-  enum ResetReason { kResetReasonSelectedOptionRemoved, kResetReasonOthers };
+  enum ResetReason {
+    kResetReasonSelectedOptionRemoved,
+    kResetReasonOptionInsertedOrRemoved,
+    kResetReasonOthers
+  };
   void ResetToDefaultSelection(ResetReason = kResetReasonOthers);
   void TypeAheadFind(const KeyboardEvent&);
 
@@ -456,6 +467,11 @@ class CORE_EXPORT HTMLSelectElement final
     kDeselectOtherOptionsFlag = 1 << 0,
     kDispatchInputAndChangeEventFlag = 1 << 1,
     kMakeOptionDirtyFlag = 1 << 2,
+    // The kDontUpdateSelectedcontentFlag was added in order to defer the DOM of
+    // selectedcontent elements from being updated in the case that options are
+    // inserted or removed because we shouldn't be updating the DOM during
+    // insertion or removal steps.
+    kDontUpdateSelectedcontentFlag = 1 << 3,
   };
   typedef unsigned SelectOptionFlags;
   void SelectOption(HTMLOptionElement*,
@@ -528,6 +544,10 @@ class CORE_EXPORT HTMLSelectElement final
   bool uses_menu_list_ = true;
   bool is_multiple_ = false;
   mutable bool should_recalc_list_items_ = false;
+  // was_option_inserted_ is set to true the first time that OptionInserted is
+  // called, and never gets set back to false again. It is used for parsing
+  // <input> in <select>.
+  bool was_option_inserted_ = false;
 
   Member<HTMLOptionElement> active_option_;
 

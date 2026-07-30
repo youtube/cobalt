@@ -10,6 +10,7 @@
 #include "ash/public/cpp/login_screen_test_api.h"
 #include "ash/public/cpp/reauth_reason.h"
 #include "base/run_loop.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/test_future.h"
 #include "base/values.h"
 #include "chrome/browser/ash/login/auth_factors_policy/local_auth_factors_policy_controller_factory.h"
@@ -43,6 +44,9 @@ namespace ash {
 namespace {
 
 using test::UserAuthConfig;
+
+constexpr char kComplexityUpdateNotificationId[] =
+    "local_auth_factors_policy_controller.complexity_update";
 
 }  // namespace
 
@@ -80,6 +84,11 @@ class LocalAuthFactorsPolicyControllerTest : public LoginManagerTest {
   void WaitForNotificationShownCallback() {
     ASSERT_TRUE(on_notification_shown_future_.WaitAndClear())
         << "Failed waiting for complexity update notification shown callback";
+  }
+
+  void WaitForNotificationClosedCallback() {
+    ASSERT_TRUE(on_notification_closed_future_.WaitAndClear())
+        << "Failed waiting for complexity update notification closed callback";
   }
 
   void ClearPendingPrefProcessedCallback() {
@@ -180,6 +189,7 @@ class LocalAuthFactorsPolicyControllerTest : public LoginManagerTest {
 
   base::test::TestFuture<void> on_pref_processed_future_;
   base::test::TestFuture<void> on_notification_shown_future_;
+  base::test::TestFuture<void> on_notification_closed_future_;
   CryptohomeMixin cryptohome_{&mixin_host_};
   FakeGaiaMixin fake_gaia_{&mixin_host_};
   LoginManagerMixin login_mixin_{
@@ -197,9 +207,12 @@ class LocalAuthFactorsPolicyControllerTest : public LoginManagerTest {
 
 IN_PROC_BROWSER_TEST_F(LocalAuthFactorsPolicyControllerTest,
                        PRE_ForceReauthForLocalPasswordAndPin) {
+  base::HistogramTester histogram_tester;
   PerformLoginAndVerifyPolicyEnforcement(
       local_password_and_pin_user_,
       ReauthReason::kForcedByLocalAuthFactorsPolicy);
+  histogram_tester.ExpectBucketCount(
+      "Enterprise.LocalAuthFactorsPolicy.ForcedReauth", true, 1);
 }
 
 IN_PROC_BROWSER_TEST_F(LocalAuthFactorsPolicyControllerTest,
@@ -266,8 +279,11 @@ IN_PROC_BROWSER_TEST_F(LocalAuthFactorsPolicyControllerTest,
 
 IN_PROC_BROWSER_TEST_F(LocalAuthFactorsPolicyControllerTest,
                        PRE_NoForceReauthForGaiaPassword) {
+  base::HistogramTester histogram_tester;
   PerformLoginAndVerifyPolicyEnforcement(gaia_password_user_,
                                          ReauthReason::kNone);
+  histogram_tester.ExpectBucketCount(
+      "Enterprise.LocalAuthFactorsPolicy.ForcedReauth", false, 1);
 }
 
 IN_PROC_BROWSER_TEST_F(LocalAuthFactorsPolicyControllerTest,
@@ -302,6 +318,7 @@ IN_PROC_BROWSER_TEST_F(LocalAuthFactorsPolicyControllerTest,
 
 IN_PROC_BROWSER_TEST_F(LocalAuthFactorsPolicyControllerTest,
                        ShowComplexityUpdateNotificationOnPolicyUpdate) {
+  base::HistogramTester histogram_tester;
   const AccountId& account_id = local_password_and_pin_user_.account_id;
   LoginUser(account_id);
   Profile* profile = GetProfile(account_id);
@@ -314,6 +331,10 @@ IN_PROC_BROWSER_TEST_F(LocalAuthFactorsPolicyControllerTest,
   // GetAuthFactorsConfiguration.
   WaitForNotificationShownCallback();
 
+  histogram_tester.ExpectBucketCount(
+      "Enterprise.LocalAuthFactorsPolicy.PasswordComplexity",
+      static_cast<int>(LocalAuthFactorsComplexity::kLow), 1);
+
   std::optional<message_center::Notification> notification =
       tester.GetNotification(
           "local_auth_factors_policy_controller.complexity_update");
@@ -325,26 +346,56 @@ IN_PROC_BROWSER_TEST_F(LocalAuthFactorsPolicyControllerTest,
 }
 
 IN_PROC_BROWSER_TEST_F(LocalAuthFactorsPolicyControllerTest,
-                       NotificationDismissedOnFactorChanged) {
+                       NotificationPersistsUntilAllFactorsUpdated) {
+  base::HistogramTester histogram_tester;
   const AccountId& account_id = local_password_and_pin_user_.account_id;
   LoginUser(account_id);
   Profile* profile = GetProfile(account_id);
   NotificationDisplayServiceTester tester(profile);
+  tester.SetNotificationClosedClosure(
+      on_notification_closed_future_.GetRepeatingCallback());
 
   // Set complexity policy to Low to trigger notification.
   SetComplexityPolicy(LocalAuthFactorsComplexity::kLow);
 
   WaitForNotificationShownCallback();
 
-  const std::string notification_id =
-      "local_auth_factors_policy_controller.complexity_update";
-  EXPECT_TRUE(tester.GetNotification(notification_id).has_value());
+  {
+    std::optional<message_center::Notification> notification =
+        tester.GetNotification(kComplexityUpdateNotificationId);
+    ASSERT_TRUE(notification.has_value());
+    EXPECT_EQ(notification->title(), u"Change your PIN and password");
+  }
 
-  // Simulate factor update.
+  // Simulate updating only the password.
   OnFactorChanged(account_id, ash::auth::mojom::AuthFactor::kLocalPassword);
 
-  // Notification should be dismissed.
-  EXPECT_FALSE(tester.GetNotification(notification_id).has_value());
+  // The notification should still be shown because PIN also needs update.
+  WaitForNotificationShownCallback();
+  {
+    std::optional<message_center::Notification> notification =
+        tester.GetNotification(kComplexityUpdateNotificationId);
+    ASSERT_TRUE(notification.has_value());
+    // Title should have updated to only mention PIN.
+    EXPECT_EQ(notification->title(), u"Change your PIN");
+  }
+
+  // Simulate updating the PIN.
+  OnFactorChanged(account_id, ash::auth::mojom::AuthFactor::kCryptohomePin);
+
+  // Wait for the notification to be asynchronously dismissed.
+  WaitForNotificationClosedCallback();
+
+  // Notification should finally be dismissed.
+  EXPECT_FALSE(
+      tester.GetNotification(kComplexityUpdateNotificationId).has_value());
+
+  histogram_tester.ExpectBucketCount(
+      "Enterprise.LocalAuthFactorsPolicy.LocalAuthFactorChanged",
+      static_cast<int>(LocalAuthFactorType::kLocalPassword), 1);
+  histogram_tester.ExpectBucketCount(
+      "Enterprise.LocalAuthFactorsPolicy.LocalAuthFactorChanged",
+      static_cast<int>(LocalAuthFactorType::kPin), 1);
 }
 
 IN_PROC_BROWSER_TEST_F(LocalAuthFactorsPolicyControllerTest,

@@ -262,6 +262,11 @@ bool IsFullscreenNextIAEnabled() {
   // Used to get the layout guide center.
   LayoutGuideCenter* _layoutGuideCenter;
 
+  // Leading constraint for the toolbars.
+  NSLayoutConstraint* _toolbarLeadingConstraint;
+  // Trailing constraint for the toolbars.
+  NSLayoutConstraint* _toolbarTrailingConstraint;
+
   // Whether the Lens Overlay is currently active and visible for the browser
   // view.
   BOOL _lensOverlayVisible;
@@ -1099,6 +1104,10 @@ bool IsFullscreenNextIAEnabled() {
     return;
   }
   CHECK(_fullscreenBrowserAgent);
+  // Reset the keyboard inset to 0 during rotation to avoid using a stale
+  // portrait height on the smaller landscape frame, which might be larger
+  // than the new viewport height.
+  _fullscreenBrowserAgent->SetKeyboardObscuredInset(0);
   _fullscreenBrowserAgent->InvalidateInsetRange();
 }
 
@@ -1112,6 +1121,7 @@ bool IsFullscreenNextIAEnabled() {
     self.fullscreenController->ResizeHorizontalViewport();
   }
 
+  [self updateToolbarConstraints];
   [self.popupMenuCommandsHandler adjustPopupSize];
 }
 
@@ -1299,10 +1309,15 @@ bool IsFullscreenNextIAEnabled() {
       self.toolbarCoordinator.primaryToolbarViewController.view;
 
   UIView* view = self.view;
+  _toolbarLeadingConstraint =
+      [primaryView.leadingAnchor constraintEqualToAnchor:view.leadingAnchor];
+  _toolbarTrailingConstraint =
+      [primaryView.trailingAnchor constraintEqualToAnchor:view.trailingAnchor];
   [NSLayoutConstraint activateConstraints:@[
-    [primaryView.leadingAnchor constraintEqualToAnchor:view.leadingAnchor],
-    [primaryView.trailingAnchor constraintEqualToAnchor:view.trailingAnchor],
+    _toolbarLeadingConstraint,
+    _toolbarTrailingConstraint,
   ]];
+  [self updateToolbarConstraints];
 
   // Create a constraint for the vertical positioning of the toolbar.
   self.primaryToolbarOffsetConstraint =
@@ -1318,6 +1333,29 @@ bool IsFullscreenNextIAEnabled() {
   self.primaryToolbarHeightConstraint.active = YES;
 }
 
+// Updates the toolbar leading and trailing constraints depending on the
+// position of the AppBar.
+- (void)updateToolbarConstraints {
+  if (!IsFullscreenNextIAEnabled()) {
+    return;
+  }
+  AppBarPosition position = AppBarPositionForView(self.view);
+  switch (position) {
+    case AppBarPosition::kLeft:
+      _toolbarLeadingConstraint.constant = kAppBarHeight;
+      _toolbarTrailingConstraint.constant = 0;
+      break;
+    case AppBarPosition::kRight:
+      _toolbarLeadingConstraint.constant = 0;
+      _toolbarTrailingConstraint.constant = -kAppBarHeight;
+      break;
+    default:
+      _toolbarLeadingConstraint.constant = 0;
+      _toolbarTrailingConstraint.constant = 0;
+      break;
+  }
+}
+
 - (void)addConstraintsToSecondaryToolbar {
   UIView* toolbarView =
       self.toolbarCoordinator.secondaryToolbarViewController.view;
@@ -1330,7 +1368,9 @@ bool IsFullscreenNextIAEnabled() {
   // The bottom toolbar can be constraint to the keyboard in some cases.
   self.secondaryToolbarHeightConstraint.priority = UILayoutPriorityRequired - 1;
   self.secondaryToolbarHeightConstraint.active = YES;
-  AddSameConstraintsToSides(self.view, toolbarView,
+  UIView* primaryToolbar =
+      self.toolbarCoordinator.primaryToolbarViewController.view;
+  AddSameConstraintsToSides(toolbarView, primaryToolbar,
                             LayoutSides::kLeading | LayoutSides::kTrailing);
 
   if (IsFullscreenNextIAEnabled()) {
@@ -1551,6 +1591,24 @@ bool IsFullscreenNextIAEnabled() {
       }];
 }
 
+// Calls `callback` for each edge that has a safe area inset.
+- (void)getSafeAreaInsets:(void (^)(UIRectEdge edge, CGFloat amount))callback {
+  callback(UIRectEdgeTop, [self topInset]);
+  AppBarPosition position = AppBarPositionForView(self.view);
+  UIEdgeInsets insets = self.rootSafeAreaInsets;
+  if (position == AppBarPosition::kRight && insets.left > 0) {
+    callback(UIRectEdgeLeft, insets.left);
+  } else if (position == AppBarPosition::kLeft && insets.right > 0) {
+    callback(UIRectEdgeRight, insets.right);
+  } else if (IsSplitToolbarMode(self) && !IsChromeNextIaEnabled() &&
+             insets.bottom > 0) {
+    // Avoid adding the bottom safe area inset when Chrome Next is enabled
+    // because the bottom UI elements report heights that already include the
+    // safe area.
+    callback(UIRectEdgeBottom, insets.bottom);
+  }
+}
+
 #pragma mark - Private Methods: UI Configuration, update and Layout
 
 // Starts or stops broadcasting the toolbar UI and main content UI depending on
@@ -1579,17 +1637,44 @@ bool IsFullscreenNextIAEnabled() {
   [NSLayoutConstraint deactivateConstraints:_NTPConstraints];
   DCHECK(self.ntpCoordinator.isNTPActiveForCurrentWebState);
   UIViewController* NTPViewController = self.ntpCoordinator.viewController;
+
+  BOOL canShowTabStrip = CanShowTabStrip(self);
+  BOOL isSplitToolbarMode = IsSplitToolbarMode(self);
+
+  // Logic for pinning the top anchor to the UI view edge instead of the primary
+  // toolbar.
+  BOOL useTopViewEdge = NO;
+  if (IsChromeNextIaEnabled()) {
+    /// TODO(crbug.com/508170459): Implement toolbar visibility logic in split
+    /// toolbar mode and update this to allow using view edges when in split
+    /// toolbar mode.
+    useTopViewEdge =
+        !canShowTabStrip && !isSplitToolbarMode && !_isOffTheRecord;
+  } else {
+    useTopViewEdge = !canShowTabStrip && isSplitToolbarMode && !_isOffTheRecord;
+  }
+
+  // Logic for pinning the bottom anchor.
+  // If ChromeNextIa is disabled, it always pins to the view edge.
+  BOOL useBottomViewEdge = NO;
+  if (IsChromeNextIaEnabled()) {
+    useBottomViewEdge =
+        !canShowTabStrip && !isSplitToolbarMode && !_isOffTheRecord;
+  }
+
   NSLayoutYAxisAnchor* topAnchor =
-      (CanShowTabStrip(self) || !IsSplitToolbarMode(self) || _isOffTheRecord)
-          ? self.self.toolbarCoordinator.primaryToolbarViewController.view
-                .bottomAnchor
-          : self.view.topAnchor;
+      useTopViewEdge ? self.view.topAnchor
+                     : self.toolbarCoordinator.primaryToolbarViewController.view
+                           .bottomAnchor;
+
+  NSLayoutYAxisAnchor* bottomAnchor =
+      useBottomViewEdge ? self.view.bottomAnchor
+                        : self.toolbarCoordinator.secondaryToolbarViewController
+                              .view.topAnchor;
+
   _NTPConstraints = @[
     [NTPViewController.view.topAnchor constraintEqualToAnchor:topAnchor],
-    [NTPViewController.view.bottomAnchor
-        constraintEqualToAnchor:self.toolbarCoordinator
-                                    .secondaryToolbarViewController.view
-                                    .topAnchor],
+    [NTPViewController.view.bottomAnchor constraintEqualToAnchor:bottomAnchor],
     [NTPViewController.view.leadingAnchor
         constraintEqualToAnchor:self.view.leadingAnchor],
     [NTPViewController.view.trailingAnchor
@@ -1603,14 +1688,30 @@ bool IsFullscreenNextIAEnabled() {
   DCHECK(self.ntpCoordinator.isNTPActiveForCurrentWebState);
   // NTP is laid out only in the visible part of the screen.
   UIEdgeInsets viewportInsets = UIEdgeInsetsZero;
-  viewportInsets.bottom = [self secondaryToolbarHeightWithInset];
 
-  // Add toolbar margin to the frame for every scenario except compact-width
-  // non-otr, as that is the only case where there isn't a primary toolbar.
-  // (see crbug.com/1063173)
-  if (CanShowTabStrip(self) || !IsSplitToolbarMode(self) || _isOffTheRecord) {
+  BOOL canShowTabStrip = CanShowTabStrip(self);
+
+  if (!IsChromeNextIaEnabled() || canShowTabStrip || _isOffTheRecord) {
+    viewportInsets.bottom = [self secondaryToolbarHeightWithInset];
+  }
+
+  BOOL useTopToolbarEdgeAsInset = NO;
+  if (IsChromeNextIaEnabled()) {
+    // Toolbar is always visible when the tab strip can be shown or in
+    // incognito.
+    useTopToolbarEdgeAsInset = canShowTabStrip || _isOffTheRecord;
+  } else {
+    // Add toolbar margin to the frame for every scenario except compact-width
+    // non-otr, as that is the only case where there isn't a primary toolbar.
+    // (see crbug.com/1063173)
+    useTopToolbarEdgeAsInset =
+        canShowTabStrip || !IsSplitToolbarMode(self) || _isOffTheRecord;
+  }
+
+  if (useTopToolbarEdgeAsInset) {
     viewportInsets.top = [self expandedTopToolbarHeight];
   }
+
   return UIEdgeInsetsInsetRect(self.contentArea.bounds, viewportInsets);
 }
 
@@ -1962,45 +2063,31 @@ bool IsFullscreenNextIAEnabled() {
 - (void)fullscreenWillUpdateObscuredInsetRange:(FullscreenBrowserAgent*)agent {
   CHECK(IsFullscreenRefactoringEnabled());
 
-  // Add the safe area top (with dynamic island adaptation).
-  CGFloat topInset = [self topInset];
-  agent->AddObscuredInsetRange(UIRectEdgeTop, /*min=*/topInset,
-                               /*max=*/topInset);
-
-  // Avoid adding the bottom safe area inset when Chrome Next is enabled
-  // because the bottom UI elements report heights that already include the
-  // safe area.
-  if (IsSplitToolbarMode(self) && !IsChromeNextIaEnabled()) {
-    CGFloat bottomInset = self.rootSafeAreaInsets.bottom;
-    if ([self collapsedBottomToolbarHeight] == 0.0) {
+  [self getSafeAreaInsets:^(UIRectEdge edge, CGFloat amount) {
+    CGFloat min = amount, max = amount;
+    if (edge == UIRectEdgeBottom &&
+        [self collapsedBottomToolbarHeight] == 0.0) {
       // If bottom toolbar collapses completely, then the safe area inset should
       // collapse also.
-      agent->AddObscuredInsetRange(UIRectEdgeBottom, /*min=*/0,
-                                   /*max=*/bottomInset);
-    } else {
-      agent->AddObscuredInsetRange(UIRectEdgeBottom, /*min=*/bottomInset,
-                                   /*max=*/bottomInset);
+      min = 0;
     }
-  }
+    agent->AddObscuredInsetRange(edge, min, max);
+  }];
 }
 
 - (void)fullscreenWillUpdateState:(FullscreenBrowserAgent*)agent {
   CHECK(IsFullscreenRefactoringEnabled());
   [self updateHeadersForFullscreenProgress:agent->top_progress()];
   [self updateFootersForFullscreenProgress:agent->bottom_progress()];
-  CGFloat topInset = [self topInset];
-  agent->AddObscuredInset(UIRectEdgeTop, topInset);
 
-  // Avoid adding the bottom safe area inset when Chrome Next is enabled
-  // because the bottom UI elements report heights that already include the
-  // safe area.
-  if (IsSplitToolbarMode(self) && !IsChromeNextIaEnabled()) {
-    CGFloat bottomInset = self.rootSafeAreaInsets.bottom;
-    if ([self collapsedBottomToolbarHeight] == 0.0) {
-      bottomInset *= agent->bottom_progress();
+  [self getSafeAreaInsets:^(UIRectEdge edge, CGFloat amount) {
+    if (edge == UIRectEdgeBottom) {
+      if ([self collapsedBottomToolbarHeight] == 0.0) {
+        amount *= agent->bottom_progress();
+      }
     }
-    agent->AddObscuredInset(UIRectEdgeBottom, bottomInset);
-  }
+    agent->AddObscuredInset(edge, amount);
+  }];
 }
 
 - (void)fullscreenDidUpdateState:(FullscreenBrowserAgent*)agent {

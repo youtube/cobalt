@@ -21,10 +21,11 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
+#include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/web_applications/navigation_handle_user_data_forwarder.h"
 #include "chrome/browser/ui/web_applications/web_app_browser_controller.h"
@@ -154,7 +155,8 @@ void ReparentToAppBrowser(content::WebContents* old_web_contents,
       WebAppFilter::IsIsolatedApp() | WebAppFilter::IsIsolatedSubApp()));
 
   BrowserWindowInterface* main_browser =
-      chrome::FindBrowserWithTab(old_web_contents);
+      GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
+          old_web_contents);
   BrowserWindowInterface* target_browser = nullptr;
   if (target_display_mode == blink::mojom::DisplayMode::kTabbed) {
     target_browser =
@@ -188,7 +190,8 @@ void ReparentWebContentsToTabbedBrowser(content::WebContents* old_web_contents,
                                         WindowOpenDisposition disposition,
                                         Browser* navigate_params_browser) {
   BrowserWindowInterface* source_browser =
-      chrome::FindBrowserWithTab(old_web_contents);
+      GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
+          old_web_contents);
 
   // Cannot reparent contents to browser from Isolated Web App.
   // This will never be called, because redirect chain stops when it encounters
@@ -253,7 +256,7 @@ ReparentIfPossibleOrInitiateIsolatedWebAppLaunch(
   if (registrar.AppMatches(app_id, WebAppFilter::IsIsolatedApp() |
                                        WebAppFilter::IsIsolatedSubApp())) {
     LaunchWebAppCallback callback =
-        base::IgnoreArgs<base::WeakPtr<Browser>,
+        base::IgnoreArgs<base::WeakPtr<BrowserWindowInterface>,
                          base::WeakPtr<content::WebContents>,
                          apps::LaunchContainer>(base::BindOnce(
             &content::WebContents::Close, old_web_contents->GetWeakPtr()));

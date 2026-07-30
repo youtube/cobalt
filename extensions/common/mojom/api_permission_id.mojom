@@ -187,7 +187,7 @@ enum APIPermissionID {
   kWebrtcAudioPrivate = 160,
   kWebrtcDesktopCapturePrivate = 161,
   kWebrtcLoggingPrivate = 162,
-  kWebstorePrivate = 163,
+  kDeleted_WebstorePrivate = 163,
   kDeleted_WebstoreWidgetPrivate = 164,
   kWebView = 165,
   kWindowShape = 166,
@@ -291,6 +291,7 @@ enum APIPermissionID {
   kProxyOverrideRulesPrivate = 264,
   kGlicPrivate = 265,
   kGlicPrivateInvoke = 266,
+  kIndigoPrivate = 267,
 
   // Add new entries at the end of the enum and be sure to update the
   // "ExtensionPermission3" enum in

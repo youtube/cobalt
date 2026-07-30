@@ -197,7 +197,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </variants>
 
 <histogram name="ExtensionBlacklist.BlacklistInstalled"
-    enum="ExtensionLocation" expires_after="2026-05-11">
+    enum="ExtensionLocation" expires_after="2027-05-11">
   <owner>anunoy@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -222,7 +222,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="ExtensionBlacklist.SilentInstall" enum="ExtensionLocation"
-    expires_after="2026-05-11">
+    expires_after="2027-05-11">
   <owner>anunoy@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -532,21 +532,6 @@ This is emitted for two scenarios when a worker may be unregistered:
     can install extensions, specifically profiles that can have non-component
     extensions installed).
   </summary>
-</histogram>
-
-<histogram
-    name="Extensions.CommandLineWith{DeveloperModeState}{ExtensionState}"
-    units="count" expires_after="2026-05-11">
-  <owner>richche@google.com</owner>
-  <owner>chrome-counter-abuse-alerts@google.com</owner>
-  <summary>
-    Records when a {ExtensionState} command-line extension is loaded with
-    {DeveloperModeState}. Emitted on every profile open only for &quot;user
-    profiles&quot; (profiles where people can install extensions, specifically
-    profiles that can have non-component extensions installed).
-  </summary>
-  <token key="DeveloperModeState" variants="DeveloperModeState"/>
-  <token key="ExtensionState" variants="ExtensionState"/>
 </histogram>
 
 <histogram name="Extensions.ContentScripts.ContentScriptLength" units="KB"
@@ -1076,7 +1061,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.DaysSinceInstall" units="days"
-    expires_after="2026-05-11">
+    expires_after="2027-05-11">
   <owner>richche@google.com</owner>
   <owner>anunoy@chromium.org</owner>
   <summary>
@@ -1087,7 +1072,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.DaysSinceLastUpdate" units="days"
-    expires_after="2026-05-11">
+    expires_after="2027-05-11">
   <owner>richche@google.com</owner>
   <owner>anunoy@chromium.org</owner>
   <summary>
@@ -1261,6 +1246,17 @@ This is emitted for two scenarios when a worker may be unregistered:
     function or when it updates the dynamic rules through a call to
     addDynamicRules or removeDynamicRules. Note: this histogram was expired from
     2023-06-01 to 2023-09-01; data may be missing.
+  </summary>
+</histogram>
+
+<histogram name="Extensions.DeclarativeNetRequest.RedirectAction"
+    enum="DeclarativeNetRequestRedirectType" expires_after="2026-12-31">
+  <owner>marwant@chromium.org</owner>
+  <owner>src/extensions/OWNERS</owner>
+  <summary>
+    Logs the type of redirect action when a request is redirected by the
+    Declarative Net Request API. Logged whenever a navigation or resource
+    request is redirected.
   </summary>
 </histogram>
 
@@ -2008,7 +2004,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.ExtensionAddDisabledRemotelyReason2"
-    enum="ExtensionUpdateCheckDataKey" expires_after="2026-05-11">
+    enum="ExtensionUpdateCheckDataKey" expires_after="2027-05-11">
   <owner>anunoy@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -2113,7 +2109,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.ExtensionReenabledRemotely{BlocklistState}"
-    units="count" expires_after="2026-05-11">
+    units="count" expires_after="2027-05-11">
   <owner>anunoy@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -2147,7 +2143,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.ExternalItemState2" enum="ExternalItemState"
-    expires_after="2026-05-11">
+    expires_after="2027-05-11">
   <owner>anunoy@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
   <summary>
@@ -2647,7 +2643,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.FromWebstoreInconsistency2"
-    enum="ExtensionFromWebstoreInconcistencyEnum" expires_after="2026-05-11">
+    enum="ExtensionFromWebstoreInconcistencyEnum" expires_after="2027-05-11">
   <owner>anunoy@chromium.org</owner>
   <owner>extensions-core@chromium.org</owner>
   <summary>
@@ -2913,7 +2909,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.Greylist.Disabled" enum="ExtensionLocation"
-    expires_after="2026-05-11">
+    expires_after="2027-05-11">
   <owner>anunoy@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -2927,7 +2923,7 @@ This is emitted for two scenarios when a worker may be unregistered:
 </histogram>
 
 <histogram name="Extensions.Greylist.Enabled" enum="ExtensionLocation"
-    expires_after="2026-05-11">
+    expires_after="2027-05-11">
   <owner>anunoy@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>

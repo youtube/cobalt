@@ -12,9 +12,9 @@
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/picture_in_picture/picture_in_picture_occlusion_observer.h"
 #include "chrome/browser/picture_in_picture/scoped_picture_in_picture_occlusion_observation.h"
+#include "chrome/browser/ui/page_actions/page_action_observer.h"
 #include "chrome/browser/ui/tabs/public/tab_dialog_manager.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
-#include "chrome/browser/ui/views/page_action/page_action_observer.h"
 #include "chrome/browser/ui/views/webid/account_selection_bubble_view.h"
 #include "chrome/browser/ui/views/webid/fedcm_modal_dialog_view.h"
 #include "chrome/browser/ui/webid/account_selection_view.h"
@@ -125,7 +125,7 @@ class FedCmAccountSelectionView : public AccountSelectionView,
                            Account::SignInMode sign_in_mode,
                            blink::mojom::RpMode rp_mode) override;
 
-  void SetCanShowWidget(bool can_show_widget) override;
+  void SetCanShowUi(bool can_show_ui) override;
 
   void ShowUrl(LinkType link_type, const GURL& url) override;
   std::string GetTitle() const override;
@@ -600,8 +600,8 @@ class FedCmAccountSelectionView : public AccountSelectionView,
   // inputs).
   bool is_occluded_by_pip_{false};
 
-  // Whether the widget can be shown.
-  bool can_show_widget_{true};
+  // Whether the UI can be shown.
+  bool can_show_ui_{true};
 
   // Observer for widget occlusion.
   std::unique_ptr<ScopedPictureInPictureOcclusionObservation>

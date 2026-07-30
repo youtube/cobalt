@@ -80,6 +80,7 @@ import org.chromium.chrome.browser.compositor.CompositorViewHolder;
 import org.chromium.chrome.browser.compositor.layouts.LayoutManagerImpl;
 import org.chromium.chrome.browser.compositor.overlay_panel.OverlayPanel;
 import org.chromium.chrome.browser.compositor.overlay_panel.OverlayPanelManager;
+import org.chromium.chrome.browser.compositor.overlay_panel.OverlayPanelManager.OverlayPanelManagerObserver;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutHelperManager;
 import org.chromium.chrome.browser.contextmenu.ChromeContextMenuPopulator;
 import org.chromium.chrome.browser.contextmenu.ChromeContextMenuPopulatorFactory;
@@ -115,6 +116,7 @@ import org.chromium.chrome.browser.incognito.reauth.IncognitoReauthCoordinatorFa
 import org.chromium.chrome.browser.incognito.reauth.IncognitoReauthManager;
 import org.chromium.chrome.browser.layouts.LayoutManager;
 import org.chromium.chrome.browser.layouts.LayoutStateProvider;
+import org.chromium.chrome.browser.layouts.LayoutStateProvider.LayoutStateObserver;
 import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.lifecycle.DestroyObserver;
@@ -178,9 +180,10 @@ import org.chromium.chrome.browser.theme.TopUiThemeColorProvider;
 import org.chromium.chrome.browser.toolbar.ToolbarIntentMetadata;
 import org.chromium.chrome.browser.toolbar.ToolbarManager;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarBehavior;
-import org.chromium.chrome.browser.toolbar.menu_button.MenuButtonCoordinator;
+import org.chromium.chrome.browser.toolbar.menu_button.MenuButtonCoordinator.VisibilityDelegate;
 import org.chromium.chrome.browser.toolbar.top.ToolbarActionModeCallback;
 import org.chromium.chrome.browser.toolbar.top.ToolbarControlContainer;
+import org.chromium.chrome.browser.ui.actions.ActionId;
 import org.chromium.chrome.browser.ui.actions.ActionRegistry;
 import org.chromium.chrome.browser.ui.activity_recreation.ActivityRecreationController;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuBlocker;
@@ -200,6 +203,8 @@ import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils.MissingNavbarInsetsReason;
 import org.chromium.chrome.browser.ui.edge_to_edge.TopInsetProvider;
 import org.chromium.chrome.browser.ui.edge_to_edge.TransitiveTopInsetProvider;
+import org.chromium.chrome.browser.ui.lens.LensOverlayCoordinator;
+import org.chromium.chrome.browser.ui.lens.LensOverlayInvocationSource;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.native_page.NativePage;
 import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncCoordinator;
@@ -313,11 +318,11 @@ public class RootUiCoordinator
     private @Nullable FindToolbarObserver mFindToolbarObserver;
 
     private @Nullable OverlayPanelManager mOverlayPanelManager;
-    private OverlayPanelManager.@Nullable OverlayPanelManagerObserver mOverlayPanelManagerObserver;
+    private @Nullable OverlayPanelManagerObserver mOverlayPanelManagerObserver;
 
     protected OneshotSupplier<LayoutStateProvider> mLayoutStateProviderOneShotSupplier;
     protected @Nullable LayoutStateProvider mLayoutStateProvider;
-    private LayoutStateProvider.@Nullable LayoutStateObserver mLayoutStateObserver;
+    private @Nullable LayoutStateObserver mLayoutStateObserver;
 
     /**
      * A controller which is used to show an Incognito re-auth dialog when the feature is available.
@@ -1413,6 +1418,7 @@ public class RootUiCoordinator
 
         if (ChromeFeatureList.isEnabled(ChromeFeatureList.CROSS_DEVICE_TASK_HANDOFF)
                 && Build.VERSION.SDK_INT >= HANDOFF_SDK_VERSION) {
+            // TODO(crbug.com/444503472) Verify handoff works in custom tabs.
             mHandoffController =
                     new HandoffController(
                             mActivity,
@@ -1689,6 +1695,14 @@ public class RootUiCoordinator
                 RecordUserAction.record("MobileShortcutFindInPage");
             }
             return true;
+        } else if (id == R.id.lens_overlay_menu_id) {
+            Tab tab = mActivityTabProvider.get();
+            if (tab != null && tab.getWebContents() != null) {
+                new LensOverlayCoordinator(tab.getWebContents())
+                        .start(LensOverlayInvocationSource.APP_MENU);
+                RecordUserAction.record("MobileMenuLensOverlay");
+            }
+            return true;
         } else if (id == R.id.share_menu_id || id == R.id.direct_share_menu_id) {
             onShareMenuItemSelected(id == R.id.direct_share_menu_id);
             return true;
@@ -1770,8 +1784,8 @@ public class RootUiCoordinator
         return true;
     }
 
-    /** Returns the {@link MenuButtonCoordinator.VisibilityDelegate}. */
-    protected MenuButtonCoordinator.@Nullable VisibilityDelegate getMenuButtonVisibilityDelegate() {
+    /** Returns the {@link VisibilityDelegate}. */
+    protected @Nullable VisibilityDelegate getMenuButtonVisibilityDelegate() {
         return null;
     }
 
@@ -1802,7 +1816,7 @@ public class RootUiCoordinator
 
         if (mOverlayPanelManagerObserver == null) {
             mOverlayPanelManagerObserver =
-                    new OverlayPanelManager.OverlayPanelManagerObserver() {
+                    new OverlayPanelManagerObserver() {
                         @Override
                         public void onOverlayPanelShown() {
                             if (mFindToolbarManager != null) {
@@ -1833,6 +1847,7 @@ public class RootUiCoordinator
      * {@link Toolbar}.
      */
     @RequiresNonNull("mFindToolbarManager")
+    @EnsuresNonNull("mToolbarManager")
     protected void initializeToolbar() {
         try (TraceEvent te = TraceEvent.scoped("RootUiCoordinator.initializeToolbar")) {
             final View controlContainer = mActivity.findViewById(R.id.control_container);
@@ -2051,7 +2066,7 @@ public class RootUiCoordinator
 
         mLayoutStateProvider = layoutStateProvider;
         mLayoutStateObserver =
-                new LayoutStateProvider.LayoutStateObserver() {
+                new LayoutStateObserver() {
                     @Override
                     public void onStartedShowing(int layoutType) {
                         if (layoutType != LayoutType.BROWSING
@@ -2138,6 +2153,10 @@ public class RootUiCoordinator
             mAppMenuCoordinator.registerAppMenuBlocker(mAppMenuBlocker);
 
             mAppMenuSupplier.set(mAppMenuCoordinator);
+
+            if (mActionRegistry != null) {
+                mAppMenuCoordinator.setActionModelSupplier(mActionRegistry.get(ActionId.APP_MENU));
+            }
 
             mAppMenuObserver =
                     new AppMenuObserver() {

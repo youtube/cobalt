@@ -93,6 +93,7 @@
 #include "third_party/blink/renderer/platform/wtf/casting.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "third_party/blink/renderer/platform/wtf/text/strcat.h"
+#include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
@@ -667,11 +668,33 @@ void HTMLFormElement::PrepareForSubmission(const Event* event,
     if (!skip_validation && !ValidateInteractively()) {
       should_submit = false;
       if (declarative_webmcp_call) {
-        // TODO(crbug.com/493951236) This error message should describe more
-        // of the details of what failed validation.
+        StringBuilder error_message;
+        error_message.Append("Form validation failed: ");
+
+        for (const auto& control : ListedElements()) {
+          // If the control is a candidate for validation and is currently
+          // invalid
+          if (!control->IsNotCandidateOrValid()) {
+            String name;
+            if (auto* form_control =
+                    DynamicTo<HTMLFormControlElement>(control.Get())) {
+              name = form_control->GetWebMCPParameterName();
+            } else if (auto* element_internals =
+                           DynamicTo<ElementInternals>(control.Get())) {
+              name = element_internals->GetName();
+            } else {
+              name = "{unknown}";
+            }
+            error_message.Append(name);
+            error_message.Append(": ");
+            error_message.Append(control->validationMessage());
+            error_message.Append(". ");
+          }
+        }
+
         executing_tool->CallDoneCallback(base::unexpected(
             ScriptToolError(ScriptToolErrorCode::kToolInvocationFailed,
-                            "Form validation failed")));
+                            error_message.ToString())));
       }
     } else {
       frame->Client()->DispatchWillSendSubmitEvent(this);
@@ -747,6 +770,13 @@ void HTMLFormElement::PrepareForSubmission(const Event* event,
 
 void HTMLFormElement::submitFromJavaScript() {
   ScheduleFormSubmission(nullptr, nullptr);
+
+  // If a WebMCP tool is running, resolving it here handles the case where
+  // the site manually called form.submit() from inside a submit handler.
+  if (active_webmcp_tool_ && active_webmcp_tool_->CurrentlyRunning()) {
+    CHECK(RuntimeEnabledFeatures::WebMCPEnabled(GetExecutionContext()));
+    active_webmcp_tool_->CallDoneCallback(base::ok(String()));
+  }
 }
 
 void HTMLFormElement::requestSubmit(ExceptionState& exception_state) {
@@ -949,16 +979,18 @@ void HTMLFormElement::ScheduleFormSubmission(const Event* event,
       target_frame->ScheduleFormSubmission(scheduler, form_submission);
 }
 
-FormData* HTMLFormElement::ConstructEntryList(
-    HTMLFormControlElement* submit_button,
-    const TextEncoding& encoding) {
+FormData* HTMLFormElement::ConstructEntryList(Element* submitter,
+                                              const TextEncoding& encoding) {
   if (is_constructing_entry_list_) {
     return nullptr;
   }
   auto& form_data = *MakeGarbageCollected<FormData>(encoding);
   base::AutoReset<bool> entry_list_scope(&is_constructing_entry_list_, true);
-  if (submit_button)
-    submit_button->SetActivatedSubmit(true);
+
+  if (submitter) {
+    submitter->SetActivatedSubmit(true);
+  }
+
   for (ListedElement* control : ListedElements()) {
     DCHECK(control);
     HTMLElement& element = control->ToHTMLElement();
@@ -973,8 +1005,9 @@ FormData* HTMLFormElement::ConstructEntryList(
   }
   DispatchEvent(*MakeGarbageCollected<FormDataEvent>(form_data));
 
-  if (submit_button)
-    submit_button->SetActivatedSubmit(false);
+  if (submitter) {
+    submitter->SetActivatedSubmit(false);
+  }
   return &form_data;
 }
 

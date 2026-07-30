@@ -150,7 +150,8 @@ class VIZ_SERVICE_EXPORT SkiaOutputDevice {
                        BufferPresentedCallback feedback,
                        OutputSurfaceFrame frame) = 0;
 
-  virtual void SetVSyncDisplayID(int64_t display_id) {}
+  virtual void SetVSyncDisplayID(int64_t display_id, bool force_update) {}
+  virtual void RefreshRateChangedOnSameDisplay() {}
 
   // Schedule overlays which will be on screen when SwapBuffers() or
   // PostSubBuffer() is called.
@@ -199,7 +200,7 @@ class VIZ_SERVICE_EXPORT SkiaOutputDevice {
     SwapInfo(SwapInfo&& other);
     ~SwapInfo();
     uint64_t SwapId();
-    const gpu::SwapBuffersCompleteParams& Complete(
+    gpu::SwapBuffersCompleteParams Complete(
         gfx::SwapCompletionResult result,
         const std::optional<gfx::Rect>& damage_area,
         std::vector<gpu::Mailbox> released_overlays,
@@ -208,7 +209,7 @@ class VIZ_SERVICE_EXPORT SkiaOutputDevice {
 
    private:
     BufferPresentedCallback feedback_;
-    gpu::SwapBuffersCompleteParams params_;
+    gfx::SwapResponse swap_response_;
   };
 
   // Begin paint the back buffer.

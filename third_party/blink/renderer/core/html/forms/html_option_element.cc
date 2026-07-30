@@ -191,18 +191,53 @@ bool HTMLOptionElement::IsKeyboardFocusableSlow(
     }
   }
 
-  // TODO(crbug.com/357649033): consider implementing "memory" to only make only
-  // the last focused option in a select focusable, so that tabbing out and back
-  // into an in-page select results in the same <option> being focused.
-  return true;
+  HTMLOptionElement* first_focusable_option = nullptr;
+  HTMLOptionElement* first_selected_option = nullptr;
+  for (HTMLOptionElement& option : OwnerSelectElement()->GetOptionList()) {
+    if (!first_focusable_option && option.IsFocusable()) {
+      first_focusable_option = &option;
+    }
+    if (option.Selected() && option.IsFocusable()) {
+      first_selected_option = &option;
+      break;
+    }
+  }
+
+  if (first_selected_option) {
+    return this == first_selected_option;
+  } else if (first_focusable_option) {
+    return this == first_focusable_option;
+  } else {
+    return true;
+  }
 }
 
 bool HTMLOptionElement::MatchesDefaultPseudoClass() const {
   return FastHasAttribute(html_names::kSelectedAttr);
 }
 
+// The :enabled and :disabled selectors have special behavior for option
+// elements which is separate from their normal disabledness state. The
+// selectors depend on whether the ancestor select is disabled, but the internal
+// state does not. See https://github.com/w3c/csswg-drafts/issues/13383
 bool HTMLOptionElement::MatchesEnabledPseudoClass() const {
-  return !IsDisabledFormControl();
+  if (!RuntimeEnabledFeatures::OptionDisablednessCheckAncestorsEnabled()) {
+    return !IsDisabledFormControl();
+  }
+  return !MatchesDisabledPseudoClass();
+}
+bool HTMLOptionElement::MatchesDisabledPseudoClass() const {
+  if (!RuntimeEnabledFeatures::OptionDisablednessCheckAncestorsEnabled()) {
+    return IsDisabledFormControl();
+  }
+  if (IsDisabledFormControl()) {
+    return true;
+  }
+  if (nearest_ancestor_select_ &&
+      nearest_ancestor_select_->IsDisabledFormControl()) {
+    return true;
+  }
+  return false;
 }
 
 // The logic in this method to choose rendering the label attribute or the text
@@ -577,7 +612,22 @@ Node::InsertionNotificationRequest HTMLOptionElement::InsertedInto(
   // TODO(crbug.com/453705243): Call OptionInserted on the ancestor datalist if
   // it changed.
 
+  if (RuntimeEnabledFeatures::SelectedcontentSpecEnabled() && Selected()) {
+    return InsertionNotificationRequest::
+        kInsertionShouldCallDidNotifySubtreeInsertions;
+  }
   return return_value;
+}
+
+void HTMLOptionElement::DidNotifySubtreeInsertionsToDocument() {
+  if (RuntimeEnabledFeatures::SelectedcontentSpecEnabled() && Selected() &&
+      nearest_ancestor_select_) {
+    if (nearest_ancestor_select_->IsMultiple()) {
+      nearest_ancestor_select_->UpdateAllSelectedcontentsMultiple();
+    } else {
+      nearest_ancestor_select_->UpdateAllSelectedcontentsSingle(this);
+    }
+  }
 }
 
 void HTMLOptionElement::RemovedFrom(ContainerNode& insertion_point) {

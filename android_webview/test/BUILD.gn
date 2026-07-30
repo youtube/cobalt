@@ -274,6 +274,7 @@ shared_library_with_jni("libstandalonelibwebviewchromium") {
   ldflags = [ "-Wl,-shared,-Bsymbolic" ]
   deps = [
     ":draw_fn_impl_jni_headers",
+    ":test_support",
     ":webview_instrumentation_test_native_jni_impl",
     "//android_webview",
     "//android_webview/browser/gfx",
@@ -478,7 +479,6 @@ base_webview_instrumentation_test_apk("webview_instrumentation_test_apk") {
     "../javatests/src/org/chromium/android_webview/test/ClientOnReceivedErrorTest.java",
     "../javatests/src/org/chromium/android_webview/test/ClientOnReceivedHttpErrorTest.java",
     "../javatests/src/org/chromium/android_webview/test/ConsoleMessagesForBlockedLoadsTest.java",
-    "../javatests/src/org/chromium/android_webview/test/ContentViewMiscTest.java",
     "../javatests/src/org/chromium/android_webview/test/ContextMenuTest.java",
     "../javatests/src/org/chromium/android_webview/test/CookieManagerDisabledPartitioningTest.java",
     "../javatests/src/org/chromium/android_webview/test/CookieManagerStartupTest.java",
@@ -705,6 +705,7 @@ android_library("webview_instrumentation_test_mock_services_java") {
 android_library("webview_instrumentation_test_utils_java") {
   testonly = true
   sources = [
+    "../javatests/src/org/chromium/android_webview/test/util/AwPrefetchTestUtil.java",
     "../javatests/src/org/chromium/android_webview/test/util/DisableOriginTrialsSafeModeTestUtils.java",
     "../javatests/src/org/chromium/android_webview/test/util/EmbeddedComponentLoaderFactory.java",
     "../javatests/src/org/chromium/android_webview/test/util/ManifestMetadataMockApplicationContext.java",
@@ -732,6 +733,7 @@ android_library("webview_instrumentation_test_utils_java") {
 generate_jni("webview_instrumentation_test_native_jni") {
   testonly = true
   sources = [
+    "../javatests/src/org/chromium/android_webview/test/util/AwPrefetchTestUtil.java",
     "../javatests/src/org/chromium/android_webview/test/util/DisableOriginTrialsSafeModeTestUtils.java",
     "../javatests/src/org/chromium/android_webview/test/util/EmbeddedComponentLoaderFactory.java",
     "../javatests/src/org/chromium/android_webview/test/util/RendererProcessMetricsProviderUtils.java",
@@ -743,6 +745,7 @@ generate_jni("webview_instrumentation_test_native_jni") {
 
 source_set("webview_instrumentation_test_native_jni_impl") {
   sources = [
+    "browser/aw_prefetch_manager_test_utils.cc",
     "browser/disable_origin_trials_safemode_test_utils.cc",
     "browser/embedded_component_loader_test_helper.cc",
     "browser/renderer_process_metrics_provider_utils.cc",
@@ -762,6 +765,7 @@ source_set("webview_instrumentation_test_native_jni_impl") {
     "//components/component_updater/android:embedded_component_loader",
     "//components/component_updater/android:embedded_component_loader_jni_headers",
     "//components/embedder_support/origin_trials",
+    "//components/prefs:test_support",
     "//content/public/common",
     "//net:test_support",
     "//third_party/protobuf:protobuf_lite",
@@ -776,11 +780,22 @@ repack("android_webview_unittests_pak") {
   output = "$root_out_dir/android_webview_unittests_resources.pak"
 }
 
+source_set("test_support") {
+  testonly = true
+  sources = [
+    "../browser/gfx/test/fake_hwui_gl_context.cc",
+    "../browser/gfx/test/fake_hwui_gl_context.h",
+  ]
+
+  deps = [ "//base" ]
+}
+
 test("android_webview_unittests") {
   deps = [
     ":android_webview_unittests_assets",
     ":android_webview_unittests_java",
     ":android_webview_unittests_jni",
+    ":test_support",
     "//android_webview/browser",
     "//android_webview/browser/gfx",
     "//android_webview/browser/lifecycle",
@@ -935,7 +950,6 @@ robolectric_binary("android_webview_junit_tests") {
     "../junit/src/org/chromium/android_webview/robolectric/AwLayoutSizerTest.java",
     "../junit/src/org/chromium/android_webview/robolectric/AwScrollOffsetManagerTest.java",
     "../junit/src/org/chromium/android_webview/robolectric/AwWebContentsMetricsRecorderTest.java",
-    "../junit/src/org/chromium/android_webview/robolectric/FindAddressTest.java",
     "../junit/src/org/chromium/android_webview/robolectric/PlatformSelectionActionMenuDelegateTest.java",
     "../junit/src/org/chromium/android_webview/robolectric/PrefetchOperationResultTest.java",
     "../junit/src/org/chromium/android_webview/robolectric/RectUtilsTest.java",

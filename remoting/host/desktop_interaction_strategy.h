@@ -24,6 +24,7 @@
 
 namespace remoting {
 
+class AudioInjector;
 class ClientSessionControl;
 class CurtainMode;
 class DesktopDisplayInfoMonitor;
@@ -61,6 +62,7 @@ class DesktopInteractionStrategy {
           callback) = 0;
   virtual std::unique_ptr<ActiveDisplayMonitor> CreateActiveDisplayMonitor(
       base::RepeatingCallback<void(webrtc::ScreenId)> callback) = 0;
+  virtual std::unique_ptr<AudioInjector> CreateAudioInjector() = 0;
 
   // Factory methods used by DesktopEnvironment that aren't exposed directly.
   virtual std::unique_ptr<DesktopDisplayInfoMonitor>

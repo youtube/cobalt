@@ -12,6 +12,7 @@
 #include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_store/mock_password_store_interface.h"
 #include "components/password_manager/core/browser/password_store/mock_smart_bubble_stats_store.h"
+#include "components/password_manager/core/browser/password_store/password_form_converters.h"
 #include "services/network/test/test_network_context.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -85,7 +86,7 @@ class MockConsumer : public HttpPasswordStoreMigrator::Consumer {
  public:
   MOCK_METHOD(void,
               ProcessMigratedForms,
-              (std::vector<std::unique_ptr<PasswordForm>>),
+              (std::vector<PasswordForm>),
               (override));
 };
 
@@ -157,8 +158,7 @@ void HttpPasswordStoreMigratorTest::TestEmptyStore(bool is_hsts) {
                                      &consumer());
 
   EXPECT_CALL(consumer(), ProcessMigratedForms(IsEmpty()));
-  migrator.OnGetPasswordStoreResults(
-      std::vector<std::unique_ptr<PasswordForm>>());
+  migrator.OnGetPasswordStoreResultsOrErrorFrom(nullptr, LoginsResultOrError());
 }
 
 void HttpPasswordStoreMigratorTest::TestFullStore(bool is_hsts) {
@@ -195,15 +195,15 @@ void HttpPasswordStoreMigratorTest::TestFullStore(bool is_hsts) {
   EXPECT_CALL(store(), AddLogin(expected_federated_form, _));
   EXPECT_CALL(store(), RemoveLogin(_, form)).Times(is_hsts);
   EXPECT_CALL(store(), RemoveLogin(_, federated_form)).Times(is_hsts);
-  EXPECT_CALL(consumer(),
-              ProcessMigratedForms(ElementsAre(
-                  Pointee(expected_form), Pointee(expected_federated_form))));
-  std::vector<std::unique_ptr<PasswordForm>> results;
-  results.push_back(std::make_unique<PasswordForm>(psl_form));
-  results.push_back(std::make_unique<PasswordForm>(form));
-  results.push_back(std::make_unique<PasswordForm>(android_form));
-  results.push_back(std::make_unique<PasswordForm>(federated_form));
-  migrator.OnGetPasswordStoreResults(std::move(results));
+  EXPECT_CALL(consumer(), ProcessMigratedForms(ElementsAre(
+                              expected_form, expected_federated_form)));
+  std::vector<PasswordForm> results;
+  results.push_back(psl_form);
+  results.push_back(form);
+  results.push_back(android_form);
+  results.push_back(federated_form);
+  migrator.OnGetPasswordStoreResultsOrErrorFrom(
+      nullptr, password_manager::FromPasswordForms(std::move(results)));
 }
 
 // This test checks whether the migration successfully completes even if the
@@ -232,8 +232,8 @@ void HttpPasswordStoreMigratorTest::TestMigratorDeletionByConsumer(
   EXPECT_CALL(consumer(), ProcessMigratedForms(_))
       .WillOnce([&migrator](Unused) { migrator.reset(); });
 
-  migrator->OnGetPasswordStoreResults(
-      std::vector<std::unique_ptr<PasswordForm>>());
+  migrator->OnGetPasswordStoreResultsOrErrorFrom(nullptr,
+                                                 LoginsResultOrError());
 }
 
 TEST_F(HttpPasswordStoreMigratorTest, EmptyStoreWithHSTS) {

@@ -2381,34 +2381,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Android.FontLookup.Blink.DLFontsLatencyFailure2"
-    units="microseconds" expires_after="2023-01-15">
-  <owner>drott@chromium.org</owner>
-  <owner>layout-dev@chromium.org</owner>
-  <summary>
-    Records the latency of looking up a local font from Android downloadable
-    fonts at the time of instantiating the font in the fonts backend in the
-    renderer. Includes time for error checking and attempting to create the font
-    from the retrieved blob, if there is one. Only records timings for
-    situations in which a font could not be instantiated. This is recorded only
-    on devices that support high resolution timers.
-  </summary>
-</histogram>
-
-<histogram name="Android.FontLookup.Blink.DLFontsLatencySuccess2"
-    units="microseconds" expires_after="2023-07-30">
-  <owner>drott@chromium.org</owner>
-  <owner>layout-dev@chromium.org</owner>
-  <summary>
-    Records the latency of looking up a local font from Android downloadable
-    fonts at the time of instantiating the font in the fonts backend in the
-    renderer. Includes time for error checking and attempting to create the font
-    from the retrieved blob, if there is one. Only records timings for
-    situations in which a font was successfully instantiated and returned. This
-    is recorded only on devices that support high resolution timers.
-  </summary>
-</histogram>
-
 <histogram name="Android.FontLookup.Blink.GetTableLatency" units="ms"
     expires_after="2023-11-12">
   <owner>drott@chromium.org</owner>
@@ -5402,37 +5374,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Android.Reparent.TabGroup.Duration" units="ms"
-    expires_after="2026-04-30">
-  <owner>zheliooo@google.com</owner>
-  <owner>clank-large-form-factors@google.com</owner>
-  <summary>
-    The duration captured the time between A) before setup reparenting intent
-    and tabs being detached and B) target activity processes the intent and is
-    brought to the foreground.
-  </summary>
-</histogram>
-
-<histogram name="Android.Reparent.TabGroup.GroupSize" units="tabs"
-    expires_after="2026-04-30">
-  <owner>zheliooo@google.com</owner>
-  <owner>clank-large-form-factors@google.com</owner>
-  <summary>
-    Record the number of tabs in the group being reparented to another window.
-  </summary>
-</histogram>
-
-<histogram name="Android.Reparent.TabGroup.GroupSize.Diff" units="tabs"
-    expires_after="2026-04-30">
-  <owner>zheliooo@google.com</owner>
-  <owner>clank-large-form-factors@google.com</owner>
-  <summary>
-    Record the change in the number of tabs in the reparented group before and
-    after the reparenting operation. Should be 0 if all the tabs in the tab
-    group is successfully reparented.
-  </summary>
-</histogram>
-
 <histogram name="Android.RequestDesktopSite.Changed" enum="SiteLayout"
     expires_after="2026-09-20">
   <owner>shuyng@google.com</owner>
@@ -7502,6 +7443,21 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram
+    name="Android.WebView.FilteredClassLoader.FindClassReturnedAllowedClass"
+    enum="Boolean" expires_after="2026-10-29">
+  <owner>abhijithnair@chromium.org</owner>
+  <owner>src/android_webview/OWNERS</owner>
+  <summary>
+    Records whether `FilteredClassLoader.findClass` returned an allowed class.
+    Logged when `findClass` is called. This histogram is used to measure how
+    often an exception would be thrown if class filtering restriction is
+    enforced.
+
+    Only logged for Android WebView.
+  </summary>
+</histogram>
+
 <histogram name="Android.WebView.ForceDarkBehavior"
     enum="WebViewForceDarkBehavior" expires_after="2023-06-01">
   <owner>peter@chromium.org</owner>
@@ -8308,6 +8264,19 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Android.WebView.Profile.Prefetch.ApiCallResult"
+    enum="AwPrefetchApiCallResult" expires_after="2026-12-31">
+  <owner>taiyo@chromium.org</owner>
+  <owner>wbjacksonjr@chromium.org</owner>
+  <owner>webview-team@google.com</owner>
+  <summary>
+    Records the result of prefetch API calls, distinguishing between UI thread
+    and worker thread calls, and success/failure states.
+
+    Recorded when a prefetch request is initiated (or fails validation).
+  </summary>
+</histogram>
+
 <histogram name="Android.WebView.Profile.Prefetch.QueuedPrefetchExecutionDelay"
     units="ms" expires_after="2026-05-21">
   <owner>wbjacksonjr@chromium.org</owner>
@@ -8708,6 +8677,19 @@ chromium-metrics-reviews@google.com.
     older than a week. The purpose of this metric is to slice it by package name
     to help characterize the usage of that package. This histogram uses eTLD+1
     as the definition of a site.
+  </summary>
+</histogram>
+
+<histogram name="Android.WebView.Startup.CachedFlagInitTime" units="ms"
+    expires_after="2026-10-29">
+  <owner>abhijithnair@chromium.org</owner>
+  <owner>src/android_webview/OWNERS</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    Measures the time taken to initialize shared preferences and cached flags in
+    WebViewChromiumFactoryProvider.initialize().
+
+    Only measured in Android WebView.
   </summary>
 </histogram>
 

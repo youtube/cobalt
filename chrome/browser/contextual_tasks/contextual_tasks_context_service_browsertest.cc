@@ -51,6 +51,7 @@ namespace contextual_tasks {
 
 using ::testing::_;
 using ::testing::Return;
+using ::testing::UnorderedElementsAre;
 
 constexpr char kValidUrlDomain[] = "a.test";
 
@@ -97,9 +98,16 @@ class FakeEmbedder : public passage_embeddings::TestEmbedder {
         base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
             FROM_HERE,
             base::BindOnce(
-                std::move(callback), passages,
-                passage_embeddings::ComputeEmbeddingsForPassages(passages), 0,
-                status_),
+                [](ComputePassagesEmbeddingsCallback callback,
+                   std::vector<std::string> passages,
+                   passage_embeddings::ComputeEmbeddingsStatus status) {
+                  std::vector<passage_embeddings::Embedding> embeddings(
+                      passages.size(),
+                      passage_embeddings::Embedding({1.0f, 0.0f, 0.0f}));
+                  std::move(callback).Run(std::move(passages),
+                                          std::move(embeddings), 0, status);
+                },
+                std::move(callback), std::move(passages), status_),
             *timeout_);
         return 0;
       }
@@ -513,10 +521,11 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksContextServiceTest,
   ConversationThread conversation_thread;
   ThreadTurn turn1;
   turn1.query = "history query";
-  turn1.shared_tab_titles = {"tab1"};
   conversation_thread.previous_turns.push_back(turn1);
 
   conversation_thread.query = "some text";
+  conversation_thread.shared_tab_titles.push_back("shared tab 1");
+  conversation_thread.shared_tab_titles.push_back("shared tab 2");
 
   service()->GetRelevantTabsForConversationThread(options, conversation_thread,
                                             /*explicit_urls=*/{valid_url()},
@@ -1569,7 +1578,54 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksContextServiceTest, SuccessWithMlModel) {
                                      /*explicit_urls=*/{},
                                      future.GetCallback());
 
-  EXPECT_EQ(2u, future.Get().size());
+  // Expect 1 tab because both tabs have the same URL and are deduped.
+  EXPECT_EQ(1u, future.Get().size());
+}
+
+IN_PROC_BROWSER_TEST_F(ContextualTasksContextServiceTest, DeduplicateTabs) {
+  base::HistogramTester histogram_tester;
+
+  NavigateToValidURL();
+
+  // Open a second tab with the same URL.
+  ui_test_utils::NavigateToURLWithDisposition(
+      browser(), valid_url(), WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+
+  // Open a third tab with a different URL.
+  GURL url2 = embedded_test_server()->GetURL("b.test",
+                                             "/optimization_guide/hello.html");
+  ui_test_utils::NavigateToURLWithDisposition(
+      browser(), url2, WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+
+  NotifyEmbedderMetadata();
+
+  std::vector<page_content_annotations::PassageEmbedding> fake_page_embeddings =
+      {{std::make_pair("page title",
+                       page_content_annotations::EmbeddingPassageType::kTitle),
+        passage_embeddings::Embedding({1.0f, 0.0f, 0.0f})}};
+  EXPECT_CALL(*page_embeddings_service(), GetEmbeddings(_))
+      .WillRepeatedly(Return(fake_page_embeddings));
+
+  base::test::TestFuture<std::vector<base::WeakPtr<content::WebContents>>>
+      future;
+  TabSelectionOptions options;
+  options.tab_selection_mode = mojom::TabSelectionMode::kEmbeddingsMatch;
+  service()->GetRelevantTabsForQuery(options, "some text", /*explicit_urls=*/{},
+                                     future.GetCallback());
+
+  // Expect 2 tabs: one for valid_url() (deduped) and one for url2.
+  auto tabs = future.Get();
+  EXPECT_EQ(2u, tabs.size());
+
+  std::vector<GURL> urls;
+  for (const auto& tab : tabs) {
+    if (tab) {
+      urls.push_back(tab->GetLastCommittedURL());
+    }
+  }
+  EXPECT_THAT(urls, UnorderedElementsAre(valid_url(), url2));
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualTasksContextServiceTest,

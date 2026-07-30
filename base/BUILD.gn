@@ -119,7 +119,7 @@ _build_date_header = "$target_gen_dir/generated_build_date.h"
 # mold does not support PROVIDE_HIDDEN.
 # https://github.com/rui314/mold/issues/1055
 _enable_code_ordering =
-    is_android && !is_component_build && experimental_linker_path == "" &&
+    is_android && !is_component_build && linker_path == "" &&
     (current_cpu == "arm" || current_cpu == "arm64" || current_cpu == "x86" ||
      current_cpu == "x64")
 
@@ -188,6 +188,7 @@ source_set("asan_raw_ptr_service") {
   # Used by raw_ptr_service.cc to override {malloc,free,ignore_free} hooks.
   sources = []
   if (use_asan_backup_ref_ptr) {
+    defines = [ "BASE_IMPLEMENTATION" ]
     sources += [
       "memory/raw_ptr_asan_allocator.cc",
       "memory/raw_ptr_asan_allocator.h",
@@ -1645,7 +1646,6 @@ component("base") {
     "memory/discardable_memory.h",
     "memory/discardable_memory_allocator.cc",
     "memory/discardable_memory_allocator.h",
-    "memory/discardable_memory_internal.h",
     "metrics/persistent_histogram_storage.cc",
     "metrics/persistent_histogram_storage.h",
     "native_library.h",
@@ -1693,10 +1693,6 @@ component("base") {
   if (is_posix) {
     sources += [
       "base_paths_posix.h",
-      "memory/madv_free_discardable_memory_allocator_posix.cc",
-      "memory/madv_free_discardable_memory_allocator_posix.h",
-      "memory/madv_free_discardable_memory_posix.cc",
-      "memory/madv_free_discardable_memory_posix.h",
       "posix/unix_domain_socket.cc",
       "posix/unix_domain_socket.h",
       "rand_util_posix.cc",
@@ -3672,7 +3668,6 @@ test("base_unittests") {
     "macros/is_empty_unittest.cc",
     "memory/aligned_memory_unittest.cc",
     "memory/available_memory_monitor_unittest.cc",
-    "memory/discardable_memory_backing_field_trial_unittest.cc",
     "memory/discardable_shared_memory_unittest.cc",
     "memory/memory_pressure_listener_unittest.cc",
     "memory/platform_shared_memory_region_unittest.cc",
@@ -4189,14 +4184,12 @@ test("base_unittests") {
     deps += [ ":stack_canary_linux_unittests" ]
   }
 
-  sources += [ "test/test_trace_processor_example_unittest.cc" ]
+  sources += [ "test/tracing/test_trace_processor_example_unittest.cc" ]
 
   if (is_posix) {
     sources += [
       "files/dir_reader_posix_unittest.cc",
       "files/file_descriptor_watcher_posix_unittest.cc",
-      "memory/madv_free_discardable_memory_allocator_posix_unittest.cc",
-      "memory/madv_free_discardable_memory_posix_unittest.cc",
       "message_loop/fd_watch_controller_posix_unittest.cc",
       "message_loop/io_watcher_fd_unittest.cc",
       "posix/file_descriptor_shuffle_unittest.cc",
@@ -4530,7 +4523,7 @@ test("base_unittests") {
   }
 
   sources += [
-    "test/trace_event_analyzer_unittest.cc",
+    "test/tracing/trace_event_analyzer_unittest.cc",
     "trace_event/memory_allocator_dump_unittest.cc",
     "trace_event/memory_dump_manager_unittest.cc",
     "trace_event/memory_dump_scheduler_unittest.cc",
@@ -5022,7 +5015,7 @@ if (is_android) {
       ":pii_elider_java",
       ":promise_java",
       ":resetters_java",
-      ":screen_off_broadcast_receiver_java",
+      ":screen_state_receiver_java",
       ":stream_util_java",
       ":supplier_java",
       ":sys_utils_java",
@@ -5332,9 +5325,8 @@ if (is_android) {
     ]
   }
 
-  android_library("screen_off_broadcast_receiver_java") {
-    sources =
-        [ "android/java/src/org/chromium/base/ScreenOffBroadcastReceiver.java" ]
+  android_library("screen_state_receiver_java") {
+    sources = [ "android/java/src/org/chromium/base/ScreenStateReceiver.java" ]
     deps = [
       ":tasks_java",
       "//third_party/androidx:androidx_annotation_annotation_java",
@@ -5835,6 +5827,7 @@ if (is_android) {
       "//third_party/hamcrest:hamcrest_java",
       "//third_party/jni_zero:jni_zero_java",
       "//third_party/junit",
+      "//third_party/mockito:mockito_java",
     ]
 
     if (!is_cronet_build) {
@@ -5905,6 +5898,7 @@ if (is_android) {
       "test/android/javatests/src/org/chromium/base/test/util/Manual.java",
       "test/android/javatests/src/org/chromium/base/test/util/MaxAndroidSdkLevel.java",
       "test/android/javatests/src/org/chromium/base/test/util/MinAndroidSdkLevel.java",
+      "test/android/javatests/src/org/chromium/base/test/util/MockitoResetter.java",
       "test/android/javatests/src/org/chromium/base/test/util/PayloadCallbackHelper.java",
       "test/android/javatests/src/org/chromium/base/test/util/RawFailureHandler.java",
       "test/android/javatests/src/org/chromium/base/test/util/RequiresRestart.java",
@@ -6025,6 +6019,7 @@ if (is_android) {
       "android/junit/src/org/chromium/base/CallbackControllerTest.java",
       "android/junit/src/org/chromium/base/CollectionUtilTest.java",
       "android/junit/src/org/chromium/base/CommandLineTest.java",
+      "android/junit/src/org/chromium/base/ContentUriUtilsUnitTest.java",
       "android/junit/src/org/chromium/base/DiscardableReferencePoolTest.java",
       "android/junit/src/org/chromium/base/FeatureOverridesUnitTest.java",
       "android/junit/src/org/chromium/base/FileUtilsTest.java",
@@ -6040,7 +6035,7 @@ if (is_android) {
       "android/junit/src/org/chromium/base/PostNativeFlagUnitTest.java",
       "android/junit/src/org/chromium/base/PromiseTest.java",
       "android/junit/src/org/chromium/base/ResettersForTestingTest.java",
-      "android/junit/src/org/chromium/base/ScreenOffBroadcastReceiverTest.java",
+      "android/junit/src/org/chromium/base/ScreenStateReceiverTest.java",
       "android/junit/src/org/chromium/base/ThreadUtilsTest.java",
       "android/junit/src/org/chromium/base/TimeUtilsTest.java",
       "android/junit/src/org/chromium/base/TokenUnitTest.java",
@@ -6097,6 +6092,7 @@ if (is_android) {
       ":base_java_test_support_uncommon",
       ":base_junit_test_support",
       ":base_shared_preferences_java",
+      ":content_uri_utils_java",
       ":features_java",
       ":flagged_apis_java",
       ":jni_callbacks_junit_tests_java",

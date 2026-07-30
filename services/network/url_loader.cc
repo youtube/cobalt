@@ -1127,6 +1127,29 @@ void URLLoader::OnCertificateRequested(net::URLRequest* unused,
       base::BindOnce(&URLLoader::CancelRequest, base::Unretained(this)));
 }
 
+void URLLoader::OnPlatformLocalNetworkAccessPermissionRequired(
+    net::URLRequest* request) {
+  CHECK(!is_waiting_for_platform_local_network_permission_);
+  if (!url_loader_network_observer_) {
+    request->CancelWithError(net::ERR_LOCAL_NETWORK_PERMISSION_MISSING);
+    return;
+  }
+  is_waiting_for_platform_local_network_permission_ = true;
+  url_loader_network_observer_->OnPlatformLocalNetworkPermissionRequired(
+      base::BindOnce(
+          &URLLoader::OnPlatformLocalNetworkPermissionRequiredResponse,
+          weak_ptr_factory_.GetWeakPtr()));
+}
+
+void URLLoader::OnPlatformLocalNetworkPermissionRequiredResponse(bool granted) {
+  is_waiting_for_platform_local_network_permission_ = false;
+  if (granted) {
+    url_request_->SetPlatformLocalNetworkAccessGranted();
+  } else {
+    url_request_->CancelPlatformLocalNetworkAccessRequest();
+  }
+}
+
 void URLLoader::OnSSLCertificateError(net::URLRequest* request,
                                       int net_error,
                                       const net::SSLInfo& ssl_info,
@@ -1959,17 +1982,6 @@ void URLLoader::ContinueWithoutCertificate() {
 void URLLoader::CancelRequest() {
   client_cert_responder_receiver_.reset();
   url_request_->CancelWithError(net::ERR_SSL_CLIENT_AUTH_CERT_NEEDED);
-}
-
-void URLLoader::CancelRequestIfNonceMatchesAndUrlNotExempted(
-    const base::UnguessableToken& nonce,
-    const std::set<GURL>& exemptions) {
-  if (url_request_->isolation_info().nonce() == nonce) {
-    if (!exemptions.contains(
-            url_request_->original_url().GetWithoutFilename())) {
-      url_request_->CancelWithError(net::ERR_NETWORK_ACCESS_REVOKED);
-    }
-  }
 }
 
 void URLLoader::NotifyCompleted(int error_code) {

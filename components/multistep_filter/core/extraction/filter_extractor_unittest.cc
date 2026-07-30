@@ -24,6 +24,7 @@ constexpr char kTestAttributeKey[] = "category";
 constexpr char kTestAttributeValue[] = "shoes";
 constexpr char kTestUrl[] = "https://example.com/search?q=shoes";
 constexpr char kTestTask[] = "SHOPPING";
+constexpr int64_t kTestNavigationId = 12345;
 
 class MockFilterStore : public FilterStore {
  public:
@@ -50,7 +51,8 @@ class FilterExtractorTest : public ::testing::Test {
   base::test::TaskEnvironment task_environment_;
   testing::NiceMock<MockAnnotationIndexClient> mock_client_;
   testing::NiceMock<MockFilterStore> filter_store_;
-  FilterExtractor extractor_{mock_client_, filter_store_};
+  FilterExtractor extractor_{mock_client_, filter_store_,
+                             /*log_router=*/nullptr};
 };
 
 // Test that the extractor successfully extracts and stores an annotation.
@@ -62,13 +64,16 @@ TEST_F(FilterExtractorTest, ExtractAnnotationFromUrl_Success) {
   FilterAnnotation annotation(id, kTestTask, kTestDomain, base::Time::Now(),
                               attributes);
 
-  EXPECT_CALL(mock_client(), ExtractFilterAnnotation(test_url, _))
+  EXPECT_CALL(mock_client(),
+              ExtractFilterAnnotation(test_url, _, kTestNavigationId))
+
       .WillOnce(base::test::RunOnceCallback<1>(annotation));
   EXPECT_CALL(filter_store(), StoreAnnotation(_, _))
       .WillOnce(base::test::RunOnceCallback<1>(true));
 
   base::test::TestFuture<std::optional<base::Uuid>> extract_future;
-  extractor().ExtractAnnotationFromUrl(test_url, extract_future.GetCallback());
+  extractor().ExtractAnnotationFromUrl(test_url, extract_future.GetCallback(),
+                                       kTestNavigationId, kTestDomain);
 
   std::optional<base::Uuid> annotation_id = extract_future.Get();
   ASSERT_TRUE(annotation_id.has_value());
@@ -84,13 +89,16 @@ TEST_F(FilterExtractorTest, ExtractAnnotationFromUrl_StoreFailed) {
   FilterAnnotation annotation(id, kTestTask, kTestDomain, base::Time::Now(),
                               attributes);
 
-  EXPECT_CALL(mock_client(), ExtractFilterAnnotation(test_url, _))
+  EXPECT_CALL(mock_client(),
+              ExtractFilterAnnotation(test_url, _, kTestNavigationId))
+
       .WillOnce(base::test::RunOnceCallback<1>(annotation));
   EXPECT_CALL(filter_store(), StoreAnnotation(_, _))
       .WillOnce(base::test::RunOnceCallback<1>(false));
 
   base::test::TestFuture<std::optional<base::Uuid>> extract_future;
-  extractor().ExtractAnnotationFromUrl(test_url, extract_future.GetCallback());
+  extractor().ExtractAnnotationFromUrl(test_url, extract_future.GetCallback(),
+                                       kTestNavigationId, kTestDomain);
 
   std::optional<base::Uuid> annotation_id = extract_future.Get();
   EXPECT_FALSE(annotation_id.has_value());
@@ -101,11 +109,14 @@ TEST_F(FilterExtractorTest, ExtractAnnotationFromUrl_StoreFailed) {
 TEST_F(FilterExtractorTest, ExtractAnnotationFromUrl_EmptyResult) {
   GURL test_url(kTestUrl);
 
-  EXPECT_CALL(mock_client(), ExtractFilterAnnotation(test_url, _))
+  EXPECT_CALL(mock_client(),
+              ExtractFilterAnnotation(test_url, _, kTestNavigationId))
+
       .WillOnce(base::test::RunOnceCallback<1>(std::nullopt));
 
   base::test::TestFuture<std::optional<base::Uuid>> extract_future;
-  extractor().ExtractAnnotationFromUrl(test_url, extract_future.GetCallback());
+  extractor().ExtractAnnotationFromUrl(test_url, extract_future.GetCallback(),
+                                       kTestNavigationId, kTestDomain);
 
   std::optional<base::Uuid> annotation_id = extract_future.Get();
   EXPECT_FALSE(annotation_id.has_value());

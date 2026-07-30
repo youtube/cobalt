@@ -38,7 +38,6 @@ import org.chromium.base.test.params.ParameterizedRunner;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.base.test.util.Feature;
-import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.autofill.AutofillImageFetcher;
 import org.chromium.chrome.browser.autofill.PersonalDataManager;
@@ -83,7 +82,6 @@ import java.util.List;
 @EnableFeatures({
     ChromeFeatureList.ANDROID_ELEGANT_TEXT_HEIGHT,
     ChromeFeatureList.AUTOFILL_ENABLE_SUPPORT_FOR_HOME_AND_WORK,
-    ChromeFeatureList.AUTOFILL_ENABLE_KEYBOARD_ACCESSORY_CHIP_REDESIGN
 })
 public class KeyboardAccessoryChipViewRenderTest {
 
@@ -167,20 +165,6 @@ public class KeyboardAccessoryChipViewRenderTest {
     @Test
     @MediumTest
     @Feature({"RenderTest"})
-    @DisableFeatures({ChromeFeatureList.AUTOFILL_ENABLE_KEYBOARD_ACCESSORY_CHIP_REDESIGN})
-    public void renderSuggestions() throws Exception {
-        // All suggestion types are rendered in the same test to minimize the number of render
-        // tests.
-        runOnUiThreadBlocking(
-                () -> {
-                    layoutViews();
-                });
-        mRenderTestRule.render(mContentView, "keyboard_accessory_suggestions");
-    }
-
-    @Test
-    @MediumTest
-    @Feature({"RenderTest"})
     public void renderTwoLineSuggestions() throws Exception {
         // All suggestion types are rendered in the same test to minimize the number of render
         // tests.
@@ -189,6 +173,23 @@ public class KeyboardAccessoryChipViewRenderTest {
                     layoutViews();
                 });
         mRenderTestRule.render(mContentView, "keyboard_accessory_two_line_suggestions");
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"RenderTest"})
+    public void renderDeactivatedSuggestion() throws Exception {
+        runOnUiThreadBlocking(
+                () -> {
+                    AutofillSuggestion suggestion =
+                            new AutofillSuggestion.Builder()
+                                    .setLabel("Homer Simpson")
+                                    .setSubLabel("hsimpson@gmail.com")
+                                    .setSuggestionType(SuggestionType.ADDRESS_ENTRY)
+                                    .build();
+                    mContentView.addView(createDeactivatedChipFromSuggestion(suggestion));
+                });
+        mRenderTestRule.render(mContentView, "keyboard_accessory_deactivated_suggestion");
     }
 
     private List<AutofillSuggestion> createSuggestionsToRender() {
@@ -286,6 +287,26 @@ public class KeyboardAccessoryChipViewRenderTest {
                         AutofillBarItem.getBarItemType(suggestion, mMockProfile));
         ChipView chipView = (ChipView) viewHolder.itemView;
         viewHolder.bind(new AutofillBarItem(suggestion, action, mMockProfile), chipView);
+        chipView.setLayoutParams(
+                new ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        return chipView;
+    }
+
+    // KeyboardAccessoryViewBinder.create() returns a raw BarItemViewHolder.
+    @SuppressWarnings("unchecked")
+    private ChipView createDeactivatedChipFromSuggestion(AutofillSuggestion suggestion) {
+        Action action = new Action(AUTOFILL_SUGGESTION, unused -> {});
+        BarItemViewHolder<AutofillBarItem, ChipView> viewHolder =
+                KeyboardAccessoryViewBinder.create(
+                        mKeyboardAccessoryView,
+                        mUiConfiguration,
+                        mContentView,
+                        AutofillBarItem.getBarItemType(suggestion, mMockProfile));
+        ChipView chipView = (ChipView) viewHolder.itemView;
+        AutofillBarItem item = new AutofillBarItem(suggestion, action, mMockProfile);
+        item.setViewState(ActionBarItem.ViewState.DEACTIVATED);
+        viewHolder.bind(item, chipView);
         chipView.setLayoutParams(
                 new ViewGroup.LayoutParams(
                         ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));

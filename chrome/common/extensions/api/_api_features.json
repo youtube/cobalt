@@ -251,7 +251,6 @@
       "webui_untrusted"
     ],
     "matches": [
-      "chrome-untrusted://boca-app/*",
       "chrome-untrusted://lens/*"
     ]
   }],
@@ -274,7 +273,6 @@
       "webui_untrusted"
     ],
     "matches": [
-      "chrome-untrusted://boca-app/*",
       "chrome-untrusted://lens/*"
     ]
   }, {
@@ -637,6 +635,13 @@
   "idltest": {
     "dependencies": ["permission:idltest"],
     "contexts": ["privileged_extension"]
+  },
+  "indigoPrivate": {
+    "dependencies": ["permission:indigoPrivate"],
+    "contexts": [
+      "privileged_extension"
+    ],
+    "disallow_for_service_workers": true
   },
   "imageLoaderPrivate": {
     "dependencies": ["permission:imageLoaderPrivate"],
@@ -1084,12 +1089,6 @@
     ]
   },
   "webstorePrivate": [{
-    "dependencies": ["permission:webstorePrivate"],
-    // NOTE: even though this is only used by the webstore hosted app, which
-    // normally would mean privileged_web_page, component hosted apps are
-    // actually given the privileged_extension denomination. Confusing.
-    "contexts": ["privileged_extension"]
-  }, {
     "channel": "stable",
     "contexts": ["web_page"],
     "matches": ["https://chromewebstore.google.com/*"]

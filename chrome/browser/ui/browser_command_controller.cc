@@ -56,7 +56,6 @@
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -65,8 +64,10 @@
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/customize_chrome/side_panel_controller.h"
 #include "chrome/browser/ui/dialogs/browser_dialogs.h"
+#include "chrome/browser/ui/fullscreen/browser_window_fullscreen_controller.h"
 #include "chrome/browser/ui/lens/lens_overlay_controller.h"
 #include "chrome/browser/ui/managed_ui.h"
+#include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/page_info/page_info_dialog.h"
 #include "chrome/browser/ui/passwords/ui_utils.h"
 #include "chrome/browser/ui/profiles/profile_picker.h"
@@ -341,7 +342,7 @@ BrowserCommandController::BrowserCommandController(BrowserWindowInterface* bwi)
           base::Unretained(this)));
 #endif  //! BUILDFLAG(IS_MAC)
 
-  if (glic::GlicEnabling::IsEnabledByFlags()) {
+  if (glic::GlicEnabling::IsEnabledByGlobalCriteria()) {
     auto* glic_service =
         glic::GlicKeyedServiceFactory::GetGlicKeyedService(profile());
     if (glic_service) {
@@ -354,7 +355,7 @@ BrowserCommandController::BrowserCommandController(BrowserWindowInterface* bwi)
     }
   }
 
-  if (glic::GlicEnabling::IsEnabledByFlags()) {
+  if (glic::GlicEnabling::IsEnabledByGlobalCriteria()) {
     auto* service =
         glic::GlicKeyedServiceFactory::GetGlicKeyedService(profile());
     if (service) {
@@ -2226,7 +2227,8 @@ void BrowserCommandController::UpdateCommandsForFullscreenMode() {
 void BrowserCommandController::UpdateCommandsForHostedAppAvailability() {
   bool has_toolbar = browser_->is_type_normal() ||
                      web_app::AppBrowserController::IsWebApp(browser_);
-  if (window() && window()->ShouldHideUIForFullscreen()) {
+  if (BrowserWindowFullscreenController::From(browser_)
+          ->ShouldHideUIForFullscreen()) {
     has_toolbar = false;
   }
   command_updater_.UpdateCommandEnabled(IDC_FOCUS_TOOLBAR, has_toolbar);
@@ -2310,7 +2312,7 @@ void BrowserCommandController::UpdatePrintingState() {
 }
 
 void BrowserCommandController::UpdateGlicState() {
-  if (glic::GlicEnabling::IsEnabledByFlags()) {
+  if (glic::GlicEnabling::IsEnabledByGlobalCriteria()) {
     auto* service =
         glic::GlicKeyedServiceFactory::GetGlicKeyedService(profile());
     if (service) {

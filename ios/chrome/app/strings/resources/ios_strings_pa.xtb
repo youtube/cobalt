@@ -54,6 +54,7 @@
 <translation id="1179890706672152411">ਤੁਹਾਡੀ ਸਟੋਰੇਜ ਭਰ ਗਈ ਹੈ</translation>
 <translation id="1181037720776840403">ਹਟਾਓ</translation>
 <translation id="1190609913194133056">ਸੂਚਨਾ ਕੇਂਦਰ</translation>
+<translation id="1199631150313925648">ਹੱਥੀਂ ਦਾਖਲ ਕਰੋ</translation>
 <translation id="1199963004393929848">ਹਰਾ ਥੀਮ</translation>
 <translation id="1201402288615127009">ਅੱਗੇ</translation>
 <translation id="1204075260022434100">{count,plural, =1{ਬੁੱਕਮਾਰਕ ਨੂੰ ਤੁਹਾਡੇ ਖਾਤੇ, {email}, ਵਿੱਚ "{title}" ਵਿੱਚ ਰੱਖਿਅਤ ਕੀਤਾ ਗਿਆ}one{{count} ਬੁੱਕਮਾਰਕ ਨੂੰ ਤੁਹਾਡੇ ਖਾਤੇ, {email} ਵਿੱਚ "{title}" ਵਿੱਚ ਰੱਖਿਅਤ ਕੀਤਾ ਗਿਆ,}other{{count} ਬੁੱਕਮਾਰਕ ਨੂੰ ਤੁਹਾਡੇ ਖਾਤੇ, {email} ਵਿੱਚ "{title}" ਵਿੱਚ ਰੱਖਿਅਤ ਕੀਤਾ ਗਿਆ,}}</translation>
@@ -720,6 +721,7 @@
 <translation id="3565012355885596568">ਚਿੱਤਰ ਲੋਡ ਨਹੀਂ ਕੀਤੇ ਜਾ ਸਕੇ</translation>
 <translation id="3565930036634619844">ਟੈਬ। <ph name="NUMBER_OF_TABS" /> ਵਿੱਚੋਂ <ph name="TAB_INDEX" />.</translation>
 <translation id="3567168891086460374">ਹੋਰ ਤਰੀਕੇ ਰੱਖਿਅਤ ਕਰੋ</translation>
+<translation id="3571703298474554279">ਐਪ ਨੂੰ ਵਰਤਣ ਦਾ ਜ਼ਿਆਦਾ ਤੇਜ਼ ਤਰੀਕਾ</translation>
 <translation id="3572503683475187385">ਜਦੋਂ ਤੁਸੀਂ ਨਵੀਂ ਚੈਟ ਸ਼ੁਰੂ ਕਰਦੇ ਹੋ, ਤਾਂ ਮੌਜੂਦਾ ਟੈਬ Gemini ਨਾਲ ਸਾਂਝੀ ਕੀਤੀ ਜਾਂਦੀ ਹੈ। ਜਦੋਂ ਤੁਸੀਂ Gemini ਨਾਲ ਕੋਈ ਟੈਬ ਸਾਂਝੀ ਕਰਦੇ ਹੋ, ਤਾਂ ਉਨ੍ਹਾਂ ਦੀ ਸਮੱਗਰੀ ਅਤੇ URL Google ਨੂੰ ਭੇਜੇ ਜਾਂਦੇ ਹਨ। <ph name="BEGIN_LINK" />ਹੋਰ ਜਾਣੋ<ph name="END_LINK" /></translation>
 <translation id="3572607909481582402">ਤੁਹਾਡੇ Google ਖਾਤੇ ਵਿੱਚ</translation>
 <translation id="3575234738189584619">Lens ਨਾਲ ਖੋਜੋ</translation>
@@ -786,7 +788,6 @@
 <translation id="3838691874161539578">ਆਪਣੀ ਸੁਰੱਖਿਆ ਨੂੰ ਮਜ਼ਬੂਤ ਬਣਾਉਣ ਅਤੇ ਆਨਲਾਈਨ ਵਧੇਰੇ ਸੁਰੱਖਿਅਤ ਰਹਿਣ ਲਈ ਆਪਣੇ ਰੱਖਿਅਤ ਕੀਤੇ ਪਾਸਵਰਡਾਂ ਦੀ ਜਾਂਚ ਕਰੋ</translation>
 <translation id="3838985624086228724">ਤੁਹਾਡੇ ਟਰੈਕ ਕੀਤੇ ਉਤਪਾਦ 'ਤੇ ਕੀਮਤ ਘਟੀ, <ph name="DOMAIN" /> 'ਤੇ <ph name="PRODUCT_NAME" /> ਦੀ ਕੀਮਤ <ph name="PREVIOUS_PRICE" /> ਤੋਂ ਘਟ ਕੇ <ph name="PRICE" /> ਹੋ ਗਈ ਹੈ</translation>
 <translation id="385051799172605136">ਪਿੱਛੇ</translation>
-<translation id="3850952228519377137">"ਆਪਣੀਆਂ ਟੈਬਾਂ ਤੋਂ ਕੀਮਤਾਂ ਟਰੈਕ ਕਰੋ" ਨੂੰ ਲੁਕਾਓ</translation>
 <translation id="3851938967634752633"><ph name="WEBSITE" />, <ph name="SECOND_WEBSITE" />, ਅਤੇ ਹੋਰ <ph name="NUMBER_OF_ACCOUNTS" /> ਦੇ ਪਾਸਵਰਡਾਂ ਨੂੰ ਮਿਟਾ ਦਿੱਤਾ ਜਾਵੇਗਾ। ਤੁਹਾਡੇ ਖਾਤਿਆਂ ਨੂੰ ਮਿਟਾਇਆ ਨਹੀਂ ਜਾਵੇਗਾ।</translation>
 <translation id="3853162385423733133">ਆਪਣੇ Google ਖਾਤੇ <ph name="EMAIL" /> ਵਿੱਚ ਪਾਸਵਰਡਾਂ ਨੂੰ ਵਰਤਣਾ ਅਤੇ ਉਨ੍ਹਾਂ ਨੂੰ ਰੱਖਿਅਤ ਕਰਨਾ ਜਾਰੀ ਰੱਖੋ</translation>
 <translation id="3853873210696342070">ਆਯਾਤ ਕਰੋ</translation>
@@ -934,7 +935,6 @@
 <translation id="4323122584592971322">OID.</translation>
 <translation id="4324735664183300693">ਸੂਚਨਾਵਾਂ ਚਾਲੂ ਕਰੋ</translation>
 <translation id="4326912346867677256">ਸੁਰੱਖਿਅਤ ਢੰਗ ਨਾਲ ਸਾਈਨ-ਇਨ ਕਰਨ ਲਈ "ਪਾਸਵਰਡ ਦੀ ਵਰਤੋਂ ਕਰੋ" 'ਤੇ ਟੈਪ ਕਰੋ।</translation>
-<translation id="4327017157997423717"><ph name="DOMAIN" /> 'ਤੇ <ph name="PRODUCT_NAME" /> ਦੀ ਕੀਮਤ ਟਰੈਕ ਕਰੋ, ਇਸਦੀ ਮੌਜੂਦਾ ਕੀਮਤ <ph name="PRICE" /> ਹੈ</translation>
 <translation id="4328843285884395590">ਮੇਰੀ ਡਰਾਈਵ</translation>
 <translation id="4331177082088332784">ਤੁਸੀਂ ਇਸਦਾ ਪ੍ਰਬੰਧਨ BEGIN_LINK ਸਮੱਗਰੀ ਸੈਟਿੰਗਾਂ END_LINK ਵਿੱਚ ਜਾ ਕੇ ਕਰ ਸਕਦੇ ਹੋ</translation>
 <translation id="4334428914252001502">1 ਨਾ-ਪੜ੍ਹਿਆ ਲੇਖ।</translation>
@@ -958,6 +958,7 @@
 <translation id="441868831736628555">ਪ੍ਰਾਈਵੇਸੀ ਸੂਚਨਾ</translation>
 <translation id="4420409367264901497">ਬੁੱਕਮਾਰਕ ਦਾ ਸੰਪਾਦਨ ਕਰੋ</translation>
 <translation id="4425365312778464779">ਇਹ ਖਾਤਾ ਪ੍ਰਬੰਧਿਤ ਹੈ</translation>
+<translation id="443008484043213881">ਔਜ਼ਾਰ</translation>
 <translation id="4430277756566635951">ਫ਼ਿਲਹਾਲ <ph name="EMAIL" /> ਨੂੰ ਚੁਣਿਆ ਗਿਆ ਹੈ। ਕੋਈ ਖਾਤਾ ਚੁਣੋ।</translation>
 <translation id="4430505936695785931">ਹੋਰ ਐਪਾਂ ਵਿੱਚ ਰੱਖਿਅਤ ਕੀਤੇ ਪਾਸਵਰਡ ਪ੍ਰਾਪਤ ਕਰੋ</translation>
 <translation id="4431224949908513835">ਭਰਨ ਲਈ ਕੋਈ ਭੁਗਤਾਨ ਵਿਧੀ ਚੁਣੋ।</translation>
@@ -1294,6 +1295,7 @@ Handoff ਨੂੰ ਵੀ ਸੈਟਿੰਗਾਂ ਦੇ 'ਆਮ' ਸੈਕਸ਼�
 <translation id="5581786858144165447">AI ਮੋਡ ਤੋਂ ਪੁੱਛੋ</translation>
 <translation id="5585019845078534178">ਕਾਰਡ</translation>
 <translation id="5591526871732898147">ਨੱਥੀ ਕੀਤਾ ਚਿੱਤਰ {index}</translation>
+<translation id="5594597292424622277">ਵੀਡੀਓ ਰੋਕੋ</translation>
 <translation id="5595485650161345191">ਪਤਾ ਸੰਪਾਦਿਤ ਕਰੋ</translation>
 <translation id="559567008082979829">ਆਪਣੇ ਡਾਊਨਲੋਡਾਂ ਨੂੰ ਇੱਕ ਮਹੀਨੇ ਬਾਅਦ ਮਿਟਾਉਣ ਲਈ ਸੈੱਟ ਕਰੋ।</translation>
 <translation id="5596627076506792578">ਹੋਰ ਵਿਕਲਪ</translation>
@@ -1518,7 +1520,6 @@ Handoff ਨੂੰ ਵੀ ਸੈਟਿੰਗਾਂ ਦੇ 'ਆਮ' ਸੈਕਸ਼�
 <translation id="6321526113093607004">ਬੁੱਕਮਾਰਕਾਂ ਵਿੱਚ ਸ਼ਾਮਲ ਕਰੋ</translation>
 <translation id="6327249202318869726">ਤੁਹਾਡੇ ਖਾਤੇ ਲਈ Gemini ਬੰਦ ਹੈ। ਹੋਰ ਜਾਣਕਾਰੀ ਲਈ ਆਪਣੇ ਪ੍ਰਸ਼ਾਸਕ ਨਾਲ ਸੰਪਰਕ ਕਰੋ।</translation>
 <translation id="6331836477476466332">ਤੁਹਾਡੇ ਲਈ ਜ਼ਿਆਦਾ ਸੁਰੱਖਿਅਤ ਅਤੇ ਸ਼ਾਨਦਾਰ ਬ੍ਰਾਊਜ਼ਰ</translation>
-<translation id="6335744088476213315">ਇਹ ਕਾਰਡ ਉਨ੍ਹਾਂ ਉਤਪਾਦਾਂ ਨੂੰ ਦਿਖਾਉਂਦਾ ਹੈ ਜੋ ਤੁਸੀਂ ਹਾਲ ਹੀ ਵਿੱਚ ਦੇਖੇ ਹਨ ਅਤੇ ਹੋ ਸਕਦਾ ਹੈ ਕਿ ਕੀਮਤ ਘਟਣ ਸੰਬੰਧੀ ਅਲਰਟ ਪ੍ਰਾਪਤ ਕਰਨ ਵਿੱਚ ਤੁਹਾਡੀ ਦਿਲਚਸਪੀ ਹੋਵੇ</translation>
 <translation id="6337234675334993532">ਇਨਕ੍ਰਿਪਸ਼ਨ</translation>
 <translation id="6337313937331295309">Gemini ਐਪਾਂ ਸੰਬੰਧੀ ਪਰਦੇਦਾਰੀ ਨੋਟਿਸ</translation>
 <translation id="633809752005859102">ਸਚਮੁਚ ਕੁਝ ਗ਼ਲਤ ਹੋਇਆ ਸੀ। ਅਸੀਂ ਉਸਤੇ ਕੰਮ ਕਰਾਂਗੇ।</translation>
@@ -1573,6 +1574,7 @@ Handoff ਨੂੰ ਵੀ ਸੈਟਿੰਗਾਂ ਦੇ 'ਆਮ' ਸੈਕਸ਼�
 <translation id="6476800141292307438">ਪੰਨੇ ਦਾ <ph name="LANGUAGE" /> ਵਿੱਚ ਅਨੁਵਾਦ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ। ਵਿਕਲਪ ਸਕ੍ਰੀਨ ਦੇ ਹੇਠਲੇ ਪਾਸੇ ਉਪਲਬਧ ਹਨ।</translation>
 <translation id="647867789226964031">ਆਪਣੇ ਪਾਸਵਰਡ ਬਦਲੋ</translation>
 <translation id="6480363549849064919">ਕਲਾਇੰਟ ਪ੍ਰਮਾਣੀਕਰਨ</translation>
+<translation id="6489174933860678546">ਵੈੱਬ ਨੂੰ ਹੋਰ ਨਿੱਜੀ ਤੌਰ 'ਤੇ ਬ੍ਰਾਊਜ਼ ਕਰਨ ਲਈ, ਇਨਕੋਗਨਿਟੋ ਟੈਬਾਂ ਖੋਲ੍ਹੋ।</translation>
 <translation id="6494931198667773526">ਸਮਾਪਤੀ ਤਾਰੀਖ</translation>
 <translation id="6503077044568424649">ਸਭ ਤੋਂ ਵੱਧ ਵਿਜਿਟ ਕੀਤੇ</translation>
 <translation id="6503763061813913607">ਸੁਰੱਖਿਆ ਜਾਂਚ ਸੂਚਨਾਵਾਂ</translation>
@@ -1630,6 +1632,7 @@ Handoff ਨੂੰ ਵੀ ਸੈਟਿੰਗਾਂ ਦੇ 'ਆਮ' ਸੈਕਸ਼�
 <translation id="6640268266988685324">ਟੈਬ ਖੋਲ੍ਹੋ</translation>
 <translation id="6641465290890659327">ਆਪਣੇ ਪਾਸਵਰਡ ਦੀ ਇੱਕ ਕਾਪੀ ਸਾਂਝੀ ਕਰੋ</translation>
 <translation id="6642362222295953972">ਮੌਜੂਦਾ ਟੈਬ 'ਤੇ ਜਾਓ</translation>
+<translation id="6643016212128521049">ਹਟਾਓ</translation>
 <translation id="6645899968535965230">QR ਕੋਡ: <ph name="PAGE_TITLE" /></translation>
 <translation id="6657585470893396449">ਪਾਸਵਰਡ</translation>
 <translation id="6659660757330712663">ਤੁਸੀਂ ਟੈਬਾਂ ਵਿਚਾਲੇ ਸਵਿੱਚ ਕਰਨ ਲਈ ਟੂਲਬਾਰ ਨੂੰ ਸਵਾਈਪ ਕਰ ਸਕਦੇ ਹੋ।</translation>
@@ -1696,6 +1699,7 @@ Handoff ਨੂੰ ਵੀ ਸੈਟਿੰਗਾਂ ਦੇ 'ਆਮ' ਸੈਕਸ਼�
 <translation id="6871397658902960384">ਬ੍ਰਾਊਜ਼ਿੰਗ ਸ਼ੁਰੂ ਕਰੋ</translation>
 <translation id="6874328931822449112">{COUNT,plural, =1{ਪਾਸਵਰਡ ਨੂੰ ਖਾਤੇ ਵਿੱਚ ਰੱਖਿਅਤ ਕਰੋ}one{ਪਾਸਵਰਡ ਨੂੰ ਖਾਤੇ ਵਿੱਚ ਰੱਖਿਅਤ ਕਰੋ}other{ਪਾਸਵਰਡਾਂ ਨੂੰ ਖਾਤੇ ਵਿੱਚ ਰੱਖਿਅਤ ਕਰੋ}}</translation>
 <translation id="6875166646976836138">ਤੁਸੀਂ ਇਨ੍ਹਾਂ ਆਈਟਮਾਂ ਨੂੰ ਆਪਣੇ ਬੁੱਕਮਾਰਕਾਂ, ਪੜ੍ਹਨ-ਸੂਚੀ ਜਾਂ Password Manager ਵਿੱਚ ਵੀ ਦੇਖ ਸਕਦੇ ਹੋ ਅਤੇ ਉਨ੍ਹਾਂ ਦਾ ਪ੍ਰਬੰਧਨ ਕਰ ਸਕਦੇ ਹੋ।</translation>
+<translation id="6878052248816456143">ਕਿਸੇ ਵੀ ਸਮੇਂ ਆਪਣੀ Google Drive ਵਿੱਚ ਫ਼ਾਈਲਾਂ ਤੱਕ ਪਹੁੰਚ ਕਰੋ।</translation>
 <translation id="6882836635272038266">ਉਹਨਾਂ ਵੈੱਬਸਾਈਟਾਂ, ਡਾਊਨਲੋਡਾਂ ਅਤੇ ਐਕਸਟੈਂਸ਼ਨਾਂ ਤੋਂ ਮਿਆਰੀ ਸੁਰੱਖਿਆ ਜੋ ਖਤਰਨਾਕ ਮੰਨੀਆਂ ਜਾਂਦੀਆਂ ਹਨ।</translation>
 <translation id="6884135917113737984">{COUNT,plural, =1{ਆਪਣੇ Google ਖਾਤੇ ਵਿੱਚ {COUNT} ਪਾਸਵਰਡ ਰੱਖਿਅਤ ਕਰੋ}one{ਆਪਣੇ Google ਖਾਤੇ ਵਿੱਚ {COUNT} ਪਾਸਵਰਡ ਰੱਖਿਅਤ ਕਰੋ}other{ਆਪਣੇ Google ਖਾਤੇ ਵਿੱਚ {COUNT} ਪਾਸਵਰਡ ਰੱਖਿਅਤ ਕਰੋ}}</translation>
 <translation id="6888009575607455378">ਕੀ ਤੁਸੀਂ ਪੱਕਾ ਆਪਣੀਆਂ ਤਬਦੀਲੀਆਂ ਨੂੰ ਰੱਦ ਕਰਨਾ ਚਾਹੁੰਦੇ ਹੋ?</translation>
@@ -1809,6 +1813,7 @@ Handoff ਨੂੰ ਵੀ ਸੈਟਿੰਗਾਂ ਦੇ 'ਆਮ' ਸੈਕਸ਼�
 <translation id="7345061034321640811">ਆਯਾਤ ਕਰਨ ਦੀ ਆਗਿਆ ਨਹੀਂ ਹੈ</translation>
 <translation id="7347998088283246662">ਪਾਸਵਰਡ, ਇਤਿਹਾਸ, ਬੁੱਕਮਾਰਕ ਅਤੇ ਹੋਰ ਚੀਜ਼ਾਂ ਆਯਾਤ ਕਰੋ</translation>
 <translation id="7352651011704765696">ਕੋਈ ਗੜਬੜ ਹੋ ਗਈ</translation>
+<translation id="7363497636543208734">ਐਪ ਦੀ ਵਰਤੋਂ ਕਰਨਾ ਹੁਣ ਹੋਰ ਵੀ ਆਸਾਨ ਹੋ ਗਿਆ ਹੈ।</translation>
 <translation id="7364796246159120393">ਫਾਈਲ ਚੁਣੋ</translation>
 <translation id="736564850024123010">ਵਿਉਂਤਬੱਧ ਅਨੁਭਵ ਲਈ ਆਪਣੇ ਪਤਾ ਬਾਰ ਦੀ ਸਥਿਤੀ ਨੂੰ ਬਦਲੋ।</translation>
 <translation id="7366909168761621528">ਬ੍ਰਾਊਜ਼ਿੰਗ  ਡਾਟਾ </translation>
@@ -2108,7 +2113,6 @@ Handoff ਨੂੰ ਵੀ ਸੈਟਿੰਗਾਂ ਦੇ 'ਆਮ' ਸੈਕਸ਼�
 <translation id="8319282042900445670"><ph name="DATE" />, <ph name="TIME" /> ਲਈ ਰਿਮਾਈਂਡਰ ਸੈੱਟ ਕੀਤਾ ਗਿਆ</translation>
 <translation id="8320212361750431956">ਹਾਲੀਆ ਸਰਗਰਮੀ</translation>
 <translation id="8325455175867928593">"ਤੁਹਾਡੀਆਂ ਦਿਲਚਸਪੀਆਂ ਦੇ ਆਧਾਰ 'ਤੇ ਸਮੀਖਿਆਵਾਂ" ਨੂੰ ਲੁਕਾਓ</translation>
-<translation id="8328777765163860529">ਸਭ ਬੰਦ ਕਰੋ</translation>
 <translation id="833647236762414178">ਸਾਈਟਾਂ ਅਤੇ ਐਪਾਂ ਵਿੱਚ ਆਸਾਨੀ ਨਾਲ ਸਾਈਨ-ਇਨ ਕਰਨ ਲਈ ਆਪਣੇ ਪਾਸਵਰਡ ਅਤੇ ਪਾਸਕੀਆਂ ਬਣਾਓ, ਉਨ੍ਹਾਂ ਨੂੰ ਰੱਖਿਅਤ ਕਰੋ ਅਤੇ ਉਨ੍ਹਾਂ ਦਾ ਪ੍ਰਬੰਧਨ ਕਰੋ। <ph name="BEGIN_LINK" />ਹੋਰ ਜਾਣੋ<ph name="END_LINK" /></translation>
 <translation id="8343993175958086504">ਆਪਣੀ ਸਮੱਗਰੀ ਦਾ ਬੈਕਅੱਪ ਲਓ ਅਤੇ ਇਸਨੂੰ ਕਿਸੇ ਵੀ ਡੀਵਾਈਸ 'ਤੇ ਵਰਤੋ।</translation>
 <translation id="8348530355586151720">ਤਿੰਨ-ਬਿੰਦੂਆਂ ਵਾਲੇ ਮੀਨੂ 'ਤੇ ਟੈਪ ਕਰੋ</translation>
@@ -2163,6 +2167,7 @@ Handoff ਨੂੰ ਵੀ ਸੈਟਿੰਗਾਂ ਦੇ 'ਆਮ' ਸੈਕਸ਼�
 <translation id="8528009254289981965">ਇਨਕੋਗਨਿਟੋ ਵਿੱਚ ਹੋਰ ਐਪਾਂ ਤੋਂ ਆਉਣ ਵਾਲੇ ਲਿੰਕਾਂ ਨੂੰ ਖੋਲ੍ਹੋ</translation>
 <translation id="8529767659511976195">ਨਵਾਂ</translation>
 <translation id="8531572740963685410">PDF</translation>
+<translation id="8532059953132740592">ਵੀਡੀਓ ਚਲਾਓ</translation>
 <translation id="8533411848724153701">Gemini</translation>
 <translation id="8533670235862049797">ਸੁਰੱਖਿਅਤ ਬ੍ਰਾਊਜ਼ਿੰਗ ਚਾਲੂ ਹੈ</translation>
 <translation id="8534481786647257214">Google+ ਪੋਸਟ ਪੂਰੀ ਕੀਤੀ</translation>
@@ -2291,6 +2296,7 @@ Handoff ਨੂੰ ਵੀ ਸੈਟਿੰਗਾਂ ਦੇ 'ਆਮ' ਸੈਕਸ਼�
 <translation id="8915916167043355778">ਸਭ ਬੰਦ ਕਰੋ</translation>
 <translation id="892185197271200809">ਹਰ ਕੋਈ "<ph name="GROUP_NAME" />" ਟੈਬ ਗਰੁੱਪ ਤੱਕ ਤੁਰੰਤ ਪਹੁੰਚ ਗੁਆ ਦੇਵੇਗਾ ਅਤੇ ਇਸ ਨੂੰ ਸਾਰੇ ਡੀਵਾਈਸਾਂ ਤੋਂ ਮਿਟਾ ਦਿੱਤਾ ਜਾਵੇਗਾ</translation>
 <translation id="8923178205567790913">ਪਾਸਵਰਡ</translation>
+<translation id="8926498511977337209">ਇਨਕੋਗਨਿਟੋ ਵਿੱਚ ਬ੍ਰਾਊਜ਼ ਕਰੋ</translation>
 <translation id="892776311701544612">ਹੋਰ ਜਾਣੋ…</translation>
 <translation id="8928133177108699615">ਡੈਸਕਟਾਪ</translation>
 <translation id="8928426232677696166"><ph name="EMAIL" />, ਤੁਹਾਡੀ ਸੰਸਥਾ ਵੱਲੋਂ ਪ੍ਰਬੰਧਿਤ ਹੈ, ਇਸ ਵੇਲੇ ਚੁਣੀ ਗਈ। ਕੋਈ ਖਾਤਾ ਚੁਣੋ।</translation>

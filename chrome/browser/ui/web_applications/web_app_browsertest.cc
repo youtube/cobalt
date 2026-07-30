@@ -44,13 +44,14 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+#include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
+#include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/omnibox/omnibox_tab_helper.h"
 #include "chrome/browser/ui/page_info/page_info_dialog.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
@@ -412,6 +413,7 @@ IN_PROC_BROWSER_TEST_F(WebAppWebDXManifestBrowserTest, UsageMeasured) {
 
   const webapps::AppId app_id = test::InstallPwaForCurrentUrl(browser());
 
+  content::FetchHistogramsFromChildProcesses();
   histogram_tester.ExpectBucketCount("Blink.UseCounter.WebDXFeatures",
                                      blink::mojom::WebDXFeature::kManifest, 1);
 }
@@ -424,6 +426,7 @@ IN_PROC_BROWSER_TEST_F(WebAppWebDXManifestBrowserTest, DefaultNotMeasured) {
 
   const webapps::AppId app_id = test::InstallPwaForCurrentUrl(browser());
 
+  content::FetchHistogramsFromChildProcesses();
   histogram_tester.ExpectBucketCount("Blink.UseCounter.WebDXFeatures",
                                      blink::mojom::WebDXFeature::kManifest, 0);
 }
@@ -436,6 +439,7 @@ IN_PROC_BROWSER_TEST_F(WebAppWebDXManifestBrowserTest, InvalidNotMeasured) {
 
   const webapps::AppId app_id = test::InstallPwaForCurrentUrl(browser());
 
+  content::FetchHistogramsFromChildProcesses();
   histogram_tester.ExpectBucketCount("Blink.UseCounter.WebDXFeatures",
                                      blink::mojom::WebDXFeature::kManifest, 0);
 }
@@ -476,7 +480,7 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest, ThemeColor) {
     blink::mojom::Manifest manifest;
     manifest.manifest_url = GURL(kExampleManifestURL);
     manifest.start_url = start_url;
-    manifest.id = GenerateManifestIdFromStartUrlOnly(start_url);
+    manifest.id = GenerateManifestIdFromStartUrlOnly(start_url).value();
     manifest.scope = manifest.start_url.GetWithoutFilename();
     manifest.theme_color = theme_color;
     std::unique_ptr<WebAppInstallInfo> web_app_info =
@@ -508,7 +512,7 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest, BackgroundColor) {
   blink::mojom::Manifest manifest;
   manifest.manifest_url = GURL(kExampleManifestURL);
   manifest.start_url = GURL(kExampleURL);
-  manifest.id = GenerateManifestIdFromStartUrlOnly(manifest.start_url);
+  manifest.id = GenerateManifestIdFromStartUrlOnly(manifest.start_url).value();
   manifest.scope = GURL(kExampleURL);
   manifest.background_color = SkColorSetA(SK_ColorBLUE, 0xF0);
   std::unique_ptr<WebAppInstallInfo> web_app_info =
@@ -761,7 +765,8 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest, OpenInChrome) {
 
     EXPECT_EQ(1, app_browser->tab_strip_model()->count());
     EXPECT_EQ(1, browser()->tab_strip_model()->count());
-    ASSERT_EQ(2u, chrome::GetBrowserCount(browser()->profile()));
+    ASSERT_EQ(2u, ProfileBrowserCollection::GetForProfile(browser()->profile())
+                      ->GetSize());
 
     ui_test_utils::BrowserDestroyedObserver browser_destroyed_observer(
         app_browser);
@@ -782,7 +787,9 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest, OpenInChrome) {
   }
 
   content::RunAllPendingInMessageLoop();
-  ASSERT_EQ(1u, chrome::GetBrowserCount(browser()->profile()));
+  ASSERT_EQ(
+      1u,
+      ProfileBrowserCollection::GetForProfile(browser()->profile())->GetSize());
 }
 
 // Check the 'App info' menu button for web app windows.
@@ -2485,6 +2492,7 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest, ManifestShareTarget) {
 
   const webapps::AppId app_id = test::InstallPwaForCurrentUrl(browser());
 
+  content::FetchHistogramsFromChildProcesses();
   histogram_tester.ExpectBucketCount(
       "Blink.UseCounter.WebDXFeatures",
       blink::mojom::WebDXFeature::kAppShareTargets, 1);
@@ -2499,6 +2507,7 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest, ManifestShortcut) {
 
   const webapps::AppId app_id = test::InstallPwaForCurrentUrl(browser());
 
+  content::FetchHistogramsFromChildProcesses();
   histogram_tester.ExpectBucketCount("Blink.UseCounter.WebDXFeatures",
                                      blink::mojom::WebDXFeature::kAppShortcuts,
                                      1);
@@ -2515,6 +2524,7 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest, ManifestWithUseCounterFields) {
 
   const webapps::AppId app_id = test::InstallPwaForCurrentUrl(browser());
 
+  content::FetchHistogramsFromChildProcesses();
   histogram_tester.ExpectBucketCount(
       kUseCounterHistogram, blink::mojom::WebFeature::kWebAppManifestStartUrl,
       1);
@@ -2564,6 +2574,7 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest, ManifestWithNoUseCounterFields) {
 
   const webapps::AppId app_id = test::InstallPwaForCurrentUrl(browser());
 
+  content::FetchHistogramsFromChildProcesses();
   histogram_tester.ExpectBucketCount(
       "Blink.UseCounter.Features",
       blink::mojom::WebFeature::kWebAppManifestStartUrl, 0);
@@ -2710,7 +2721,7 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest_NoDestroyProfile, Shutdown) {
 
   web_app::WebAppProvider* provider =
       web_app::WebAppProvider::GetForLocalAppsUnchecked(profile);
-  base::test::TestFuture<base::WeakPtr<Browser>,
+  base::test::TestFuture<base::WeakPtr<BrowserWindowInterface>,
                          base::WeakPtr<content::WebContents>,
                          apps::LaunchContainer>
       future;
@@ -2732,7 +2743,7 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserTest_ManifestId, NoManifestId) {
                 /*manifest_id_path=*/std::nullopt,
                 provider->registrar_unsafe().GetAppStartUrl(app_id)),
             app_id);
-  EXPECT_EQ(app->start_url(), app->manifest_id());
+  EXPECT_EQ(app->start_url(), app->manifest_id().value());
 }
 
 IN_PROC_BROWSER_TEST_F(WebAppBrowserTest_ManifestId, ManifestIdSpecified) {

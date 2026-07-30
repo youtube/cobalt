@@ -90,10 +90,16 @@ class CustomCornersBackground : public views::Background, public CustomCorners {
   // Sets the outline strokes to use.
   void SetOutline(const Outline& outline);
 
+  // Value in [0,1] for saving an alpha layer on the canvas before paint.
+  void SetAlpha(float alpha) { alpha_ = alpha; }
+  float alpha() { return alpha_; }
+
   // Returns an appropriate window corner for the current platform.
   // Specify `upper` to switch between upper (true) and lower (false) corners,
   // as they may be different on some platforms.
   Corner GetWindowCorner(bool upper) const;
+
+  bool visible_for_testing() const { return visible_; }
 
   // views::Background:
   void Paint(gfx::Canvas* canvas, views::View* view) const override;
@@ -118,6 +124,7 @@ class CustomCornersBackground : public views::Background, public CustomCorners {
   Outline GetMirroredOutline() const;
 
   bool visible_ = true;
+  float alpha_ = 1.0f;
   ColorChoice primary_color_;
   ColorChoice corner_color_;
   int default_radius_;

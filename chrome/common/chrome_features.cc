@@ -1156,14 +1156,12 @@ BASE_FEATURE(kHttpsFirstModeIncognito, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Experimental image replacement feature. b/482792874
 BASE_FEATURE(kIndigo, base::FEATURE_DISABLED_BY_DEFAULT);
-const base::FeatureParam<std::string> kIndigoAlphaGenerateUrl{
-    &kIndigo, "indigo_alpha_generate_url", ""};
-const base::FeatureParam<std::string> kIndigoAlphaStatusUrl{
-    &kIndigo, "indigo_alpha_status_url", ""};
 const base::FeatureParam<base::TimeDelta> kIndigoAnchoredMessageResetDuration{
     &kIndigo, "indigo_anchored_message_reset_duration", base::Hours(24)};
 const base::FeatureParam<std::string> kIndigoGenerateUrl{
     &kIndigo, "indigo_generate_url", ""};
+const base::FeatureParam<std::string> kIndigoStatusUrl{&kIndigo,
+                                                       "indigo_status_url", ""};
 const base::FeatureParam<std::string> kIndigoScopes{
     &kIndigo, "indigo_scopes",
     "https://www.googleapis.com/auth/userinfo.email"};
@@ -1772,6 +1770,10 @@ BASE_FEATURE(kWebUIBackForwardButton, base::FEATURE_DISABLED_BY_DEFAULT);
 // from chrome://webui-toolbar.top-chrome.
 // crbug.com/474061420
 BASE_FEATURE(kWebUIPinnedToolbarActions, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, the extensions container will be replaced with WebUI loaded
+// from chrome://webui-toolbar.top-chrome.
+BASE_FEATURE(kWebUIExtensionsContainer, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 // Enables the User-Agent override fix for SearchPrefetch. This will work only

@@ -4,11 +4,12 @@
 
 #import "ios/chrome/browser/intelligence/actor/tools/model/type_tool_java_script_feature.h"
 
+#import "base/strings/stringprintf.h"
 #import "base/test/test_future.h"
 #import "components/optimization_guide/proto/features/actions_data.pb.h"
 #import "ios/chrome/browser/intelligence/actor/tools/model/actor_tool.h"
 #import "ios/chrome/browser/intelligence/actor/tools/model/actor_tool_java_script_feature_test_base.h"
-#import "ios/chrome/browser/intelligence/actor/tools/public/actor_tool_error.h"
+#import "ios/chrome/browser/intelligence/actor/tools/public/actor_tool_types.h"
 #import "testing/gtest/include/gtest/gtest.h"
 
 using optimization_guide::proto::TypeAction;
@@ -61,7 +62,7 @@ class TypeToolJavaScriptFeatureTest
 };
 
 TEST_F(TypeToolJavaScriptFeatureTest, JsReturnsNonDict) {
-  MockTypeJsFunctions(/*mock_return_value=*/"'unexpected type'");
+  MockTypeJsFunctions(/*mock_return_value=*/"[]");
   TypeAction type_by_coordinate = CreateTypeActionWithCoordinates();
   TypeAction type_by_node_id = CreateTypeActionWithIdentifiers();
   base::test::TestFuture<ToolExecutionResult> coordinate_future;
@@ -73,19 +74,22 @@ TEST_F(TypeToolJavaScriptFeatureTest, JsReturnsNonDict) {
                   node_id_future.GetCallback());
 
   auto coordinate_result = coordinate_future.Get();
-  EXPECT_FALSE(coordinate_result.has_value());
-  EXPECT_EQ(coordinate_result.error().code,
-            ActorToolErrorCode::kJavascriptFeatureGotInvalidResult);
+  EXPECT_FALSE(coordinate_result.IsOk());
+  EXPECT_EQ(coordinate_result.internal_code().value(),
+            InternalToolErrorCode::kJavascriptFeatureGotInvalidResult);
 
   auto node_id_result = node_id_future.Get();
-  EXPECT_FALSE(node_id_result.has_value());
-  EXPECT_EQ(node_id_result.error().code,
-            ActorToolErrorCode::kJavascriptFeatureGotInvalidResult);
+  EXPECT_FALSE(node_id_result.IsOk());
+  EXPECT_EQ(node_id_result.internal_code().value(),
+            InternalToolErrorCode::kJavascriptFeatureGotInvalidResult);
 }
 
 TEST_F(TypeToolJavaScriptFeatureTest, JsReturnsError) {
+  TypeToolResultCode js_code = TypeToolResultCode::kTypeTargetNotElement;
+  auto expected_code = mojom::ActionResultCode::kTypeTargetNotElement;
   MockTypeJsFunctions(
-      /*mock_return_value=*/"{success: false, message: 'Custom JS Error'}");
+      /*mock_return_value=*/base::StringPrintf(
+          "{resultCode: %d, message: 'Custom JS Error'}", js_code));
   TypeAction type_by_coordinate = CreateTypeActionWithCoordinates();
   TypeAction type_by_node_id = CreateTypeActionWithIdentifiers();
   base::test::TestFuture<ToolExecutionResult> coordinate_future;
@@ -97,16 +101,14 @@ TEST_F(TypeToolJavaScriptFeatureTest, JsReturnsError) {
                   node_id_future.GetCallback());
 
   auto coordinate_result = coordinate_future.Get();
-  EXPECT_FALSE(coordinate_result.has_value());
-  EXPECT_EQ(coordinate_result.error().code,
-            ActorToolErrorCode::kJavascriptFeatureFailedInJavaScriptExecution);
-  EXPECT_EQ(coordinate_result.error().message, "Custom JS Error");
+  EXPECT_FALSE(coordinate_result.IsOk());
+  EXPECT_EQ(coordinate_result.code(), expected_code);
+  EXPECT_EQ(coordinate_result.message().value(), "Custom JS Error");
 
   auto node_id_result = node_id_future.Get();
-  EXPECT_FALSE(node_id_result.has_value());
-  EXPECT_EQ(node_id_result.error().code,
-            ActorToolErrorCode::kJavascriptFeatureFailedInJavaScriptExecution);
-  EXPECT_EQ(node_id_result.error().message, "Custom JS Error");
+  EXPECT_FALSE(node_id_result.IsOk());
+  EXPECT_EQ(node_id_result.code(), expected_code);
+  EXPECT_EQ(node_id_result.message().value(), "Custom JS Error");
 }
 
 TEST_F(TypeToolJavaScriptFeatureTest, InvalidatedWebFrame) {
@@ -121,37 +123,35 @@ TEST_F(TypeToolJavaScriptFeatureTest, InvalidatedWebFrame) {
                   node_id_future.GetCallback());
 
   auto coordinate_result = coordinate_future.Get();
-  EXPECT_FALSE(coordinate_result.has_value());
-  EXPECT_EQ(coordinate_result.error().code,
-            ActorToolErrorCode::kActorTargetWebFrameInvalidated);
+  EXPECT_FALSE(coordinate_result.IsOk());
+  EXPECT_EQ(coordinate_result.code(), mojom::ActionResultCode::kFrameWentAway);
   auto node_id_result = node_id_future.Get();
-  EXPECT_FALSE(node_id_result.has_value());
-  EXPECT_EQ(node_id_result.error().code,
-            ActorToolErrorCode::kActorTargetWebFrameInvalidated);
+  EXPECT_FALSE(node_id_result.IsOk());
+  EXPECT_EQ(node_id_result.code(), mojom::ActionResultCode::kFrameWentAway);
 }
 
 TEST_F(TypeToolJavaScriptFeatureTest, TypeByCoordinate_Success) {
   MockTypeJsFunctions(
-      /*mock_return_value=*/"{success: true, message: 'fake success!'}");
+      /*mock_return_value=*/"{resultCode: 0, message: 'fake success!'}");
   TypeAction action = CreateTypeActionWithCoordinates();
   base::test::TestFuture<ToolExecutionResult> future;
 
   feature()->Type(GetMainFrame(feature()), action, future.GetCallback());
 
   auto result = future.Get();
-  EXPECT_TRUE(result.has_value());
+  EXPECT_TRUE(result.IsOk());
 }
 
 TEST_F(TypeToolJavaScriptFeatureTest, TypeByIdentifier_Success) {
   MockTypeJsFunctions(
-      /*mock_return_value=*/"{success: true, message: 'fake success!'}");
+      /*mock_return_value=*/"{resultCode: 0, message: 'fake success!'}");
   TypeAction action = CreateTypeActionWithIdentifiers();
   base::test::TestFuture<ToolExecutionResult> future;
 
   feature()->Type(GetMainFrame(feature()), action, future.GetCallback());
 
   auto result = future.Get();
-  EXPECT_TRUE(result.has_value());
+  EXPECT_TRUE(result.IsOk());
 }
 
 }  // namespace actor

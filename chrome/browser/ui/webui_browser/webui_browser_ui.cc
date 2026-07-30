@@ -13,6 +13,7 @@
 #include "chrome/browser/ui/interaction/browser_elements.h"
 #include "chrome/browser/ui/omnibox/omnibox_next_features.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry_id.h"
+#include "chrome/browser/ui/tabs/tab_strip_api/controllers/tab_strip_ui_controller_impl.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/tab_strip_service_feature.h"
 #include "chrome/browser/ui/webui/cr_components/searchbox/searchbox_handler.h"
 #include "chrome/browser/ui/webui/favicon_source.h"
@@ -42,10 +43,6 @@
 #include "ui/views/interaction/element_tracker_views.h"
 #include "ui/webui/tracked_element/tracked_element_handler.h"
 #include "ui/webui/webui_util.h"
-
-#if BUILDFLAG(IS_MAC)
-#include "base/mac/mac_util.h"
-#endif
 
 namespace {
 
@@ -206,6 +203,14 @@ void WebUIBrowserUI::BindInterface(
 }
 
 void WebUIBrowserUI::BindInterface(
+    mojo::PendingReceiver<tabs_api::mojom::TabStripUIController> receiver) {
+  auto* ui_controller =
+      browser_->browser_window_features()->tab_strip_ui_controller();
+  CHECK(ui_controller) << "Browser missing TabStripUIController";
+  ui_controller->Bind(std::move(receiver));
+}
+
+void WebUIBrowserUI::BindInterface(
     mojo::PendingReceiver<tracked_element::mojom::TrackedElementHandler>
         receiver) {
   const ui::ElementContext context =
@@ -227,17 +232,6 @@ void WebUIBrowserUI::CreatePageHandler(
   auto* render_frame_host = web_ui()->GetRenderFrameHost();
   WebUIBrowserPageHandler::CreateForRenderFrameHost(*render_frame_host,
                                                     std::move(receiver), this);
-}
-
-void WebUIBrowserUI::GetTabStripInset(GetTabStripInsetCallback callback) {
-  std::move(callback).Run(
-#if BUILDFLAG(IS_MAC)
-      // Values from BrowserFrameViewMac::GetCaptionButtonBounds()
-      (base::mac::MacOSVersion() >= 26'00'00) ? 76 : 82
-#else
-      0
-#endif
-  );
 }
 
 void WebUIBrowserUI::CreatePageHandler(

@@ -17,6 +17,12 @@ import android.os.Handler;
 import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
+import android.transition.ChangeBounds;
+import android.transition.Fade;
+import android.transition.Transition;
+import android.transition.TransitionListenerAdapter;
+import android.transition.TransitionManager;
+import android.transition.TransitionSet;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -439,6 +445,7 @@ public class SettingsSearchCoordinator
                             public void onPanelOpened(View panel) {
                                 if (mUseMultiColumn) return;
 
+                                mMultiColumnSettings.getMainSettings().saveListState();
                                 showUiInSingleColumn(searchBox, /* show= */ false);
                                 disableBackgroundTalkbackNavigation();
                             }
@@ -446,6 +453,8 @@ public class SettingsSearchCoordinator
                             @Override
                             public void onPanelClosed(View panel) {
                                 if (mUseMultiColumn) return;
+
+                                mMultiColumnSettings.getMainSettings().restoreListState();
 
                                 // The detail panel can be force-closed immediately after we enter
                                 // the search state + open the detail pane. Because
@@ -470,12 +479,19 @@ public class SettingsSearchCoordinator
                     @Override
                     public void onFragmentResumed(FragmentManager fm, Fragment f) {
                         updateSearchUiWidth();
+                        maybeInitSearchResultsFragmentCallback(f);
                     }
                 },
                 false);
 
         fm.addOnBackStackChangedListener(this::disableBackgroundTalkbackNavigation);
         adjustTalkbackTraversalOrder(searchBox);
+    }
+
+    private void maybeInitSearchResultsFragmentCallback(Fragment f) {
+        if (f instanceof SearchResultsPreferenceFragment srpf) {
+            srpf.setSelectedCallback(this::onResultSelected);
+        }
     }
 
     // Prevent TalkBack from navigating background fragments.
@@ -543,6 +559,7 @@ public class SettingsSearchCoordinator
                                 } else if (f instanceof PreferenceFragmentCompat) {
                                     showUiInSingleColumn(searchBox, false);
                                 }
+                                maybeInitSearchResultsFragmentCallback(f);
                             }
                         },
                         false);
@@ -556,6 +573,21 @@ public class SettingsSearchCoordinator
             mHandler.post(() -> showUiInSingleColumn(searchBox, show));
             return;
         }
+        searchBox.setOnClickListener(v -> {}); // Temporary disables search during the animation
+        Transition transition =
+                new TransitionSet()
+                        .addTransition(new Fade(show ? Fade.IN : Fade.OUT))
+                        .addTransition(new ChangeBounds())
+                        .setOrdering(TransitionSet.ORDERING_TOGETHER)
+                        .addListener(
+                                new TransitionListenerAdapter() {
+                                    @Override
+                                    public void onTransitionEnd(Transition transition) {
+                                        searchBox.setOnClickListener(v -> onClickSearchBox(v));
+                                    }
+                                });
+        var parentView = (ViewGroup) mActivity.findViewById(R.id.settings_activity);
+        TransitionManager.beginDelayedTransition(parentView, transition);
         searchBox.setVisibility(show ? View.VISIBLE : View.GONE);
     }
 

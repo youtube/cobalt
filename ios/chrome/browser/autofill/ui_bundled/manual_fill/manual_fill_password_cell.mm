@@ -4,10 +4,12 @@
 
 #import "ios/chrome/browser/autofill/ui_bundled/manual_fill/manual_fill_password_cell.h"
 
+#import "base/feature_list.h"
 #import "base/metrics/histogram_functions.h"
 #import "base/metrics/user_metrics.h"
 #import "base/strings/strcat.h"
 #import "base/strings/sys_string_conversions.h"
+#import "components/webauthn/ios/features.h"
 #import "ios/chrome/browser/autofill/ui_bundled/manual_fill/manual_fill_cell_utils.h"
 #import "ios/chrome/browser/autofill/ui_bundled/manual_fill/manual_fill_constants.h"
 #import "ios/chrome/browser/autofill/ui_bundled/manual_fill/manual_fill_content_injector.h"
@@ -62,7 +64,8 @@
                          cellIndex:(NSInteger)cellIndex
        cellIndexAccessibilityLabel:(NSString*)cellIndexAccessibilityLabel
             showAutofillFormButton:(BOOL)showAutofillFormButton
-           fromAllPasswordsContext:(BOOL)fromAllPasswordsContext {
+           fromAllPasswordsContext:(BOOL)fromAllPasswordsContext
+                    credentialType:(ManualFillCredentialType)credentialType {
   self = [super initWithType:kItemTypeEnumZero];
   if (self) {
     _credential = credential;
@@ -72,6 +75,7 @@
     _cellIndexAccessibilityLabel = [cellIndexAccessibilityLabel copy];
     _showAutofillFormButton = showAutofillFormButton;
     _fromAllPasswordsContext = fromAllPasswordsContext;
+    _credentialType = credentialType;
     self.cellClass = [ManualFillPasswordCell class];
   }
   return self;
@@ -86,7 +90,8 @@
                         cellIndex:_cellIndex
       cellIndexAccessibilityLabel:_cellIndexAccessibilityLabel
            showAutofillFormButton:_showAutofillFormButton
-          fromAllPasswordsContext:_fromAllPasswordsContext];
+          fromAllPasswordsContext:_fromAllPasswordsContext
+                   credentialType:self.credentialType];
 }
 
 - (const GURL&)faviconURL {
@@ -220,7 +225,8 @@ void LogAutofillFormButtonTappedMetrics(BOOL from_all_passwords_context,
                       cellIndex:(NSInteger)cellIndex
     cellIndexAccessibilityLabel:(NSString*)cellIndexAccessibilityLabel
          showAutofillFormButton:(BOOL)showAutofillFormButton
-        fromAllPasswordsContext:(BOOL)fromAllPasswordsContext {
+        fromAllPasswordsContext:(BOOL)fromAllPasswordsContext
+                 credentialType:(ManualFillCredentialType)credentialType {
   _cellIndex = cellIndex;
   _fromAllPasswordsContext = fromAllPasswordsContext;
 
@@ -253,6 +259,11 @@ void LogAutofillFormButtonTappedMetrics(BOOL from_all_passwords_context,
   GiveAccessibilityContextToCellAndButton(
       self.contentView, self.overflowMenuButton, self.autofillFormButton,
       accessibilityLabel);
+  if (IsConditionalPasskeyLoginEnabled()) {
+    self.autofillFormButton.accessibilityLabel = l10n_util::GetNSStringF(
+        IDS_IOS_MANUAL_FALLBACK_SIGN_IN_BUTTON_ACCESSIBILITY_LABEL,
+        base::SysNSStringToUTF16(accessibilityLabel));
+  }
   self.siteNameLabel.hidden = NO;
   self.faviconContainerView.hidden = NO;
   AddViewToVerticalLeadViews(self.headerView,
@@ -291,7 +302,8 @@ void LogAutofillFormButtonTappedMetrics(BOOL from_all_passwords_context,
   [credentialGroupVerticalLeadChips addObject:self.usernameButton];
 
   // Password chip button.
-  if (credential.password.length) {
+  if (credentialType == ManualFillCredentialType::kPassword &&
+      credential.password.length) {
     [self.passwordButton setTitle:manual_fill::kMaskedPasswordButtonText
                          forState:UIControlStateNormal];
     self.passwordButton.accessibilityLabel = l10n_util::GetNSString(
@@ -411,7 +423,11 @@ void LogAutofillFormButtonTappedMetrics(BOOL from_all_passwords_context,
       staticConstraints, @[ self.passwordButton ], self.layoutGuide,
       AppendConstraintsHorizontalEqualOrSmallerThanGuide);
 
-  self.autofillFormButton = CreateAutofillFormButton();
+  NSString* buttonTitle = l10n_util::GetNSString(
+      IsConditionalPasskeyLoginEnabled()
+          ? IDS_IOS_MANUAL_FALLBACK_SIGN_IN_BUTTON_TITLE
+          : IDS_IOS_MANUAL_FALLBACK_AUTOFILL_FORM_BUTTON_TITLE);
+  self.autofillFormButton = CreateAutofillFormButton(buttonTitle);
   [self.contentView addSubview:self.autofillFormButton];
   [self.autofillFormButton addTarget:self
                               action:@selector(onAutofillFormButtonTapped)

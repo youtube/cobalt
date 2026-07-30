@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <stack>
 #include <string>
 #include <utility>
 
@@ -60,24 +61,6 @@ const ui::AXNode* GetUnignoredParentForSelection(const ui::AXNode* node) {
     parent = ancestor;
   }
   return parent == node ? nullptr : parent;
-}
-
-// These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
-// LINT.IfChange(ReadAnythingHeuristics)
-enum class ReadAnythingHeuristics {
-  kNone = 0,
-  kNodeNotFound = 1,
-  kInvisibleOrIgnored = 2,
-  kNotExpanded = 3,
-  kNoDeepsetLastDecendent = 4,
-  kMaxValue = kNoDeepsetLastDecendent
-};
-// LINT.ThenChange(//tools/metrics/histograms/metadata/accessibility/enums.xml:ReadAnythingHeuristics)
-
-void RecordHeuristicMetric(ReadAnythingHeuristics heuristic) {
-  base::UmaHistogramEnumeration("Accessibility.ReadAnything.Heuristics",
-                                heuristic);
 }
 
 }  // namespace
@@ -369,12 +352,10 @@ void ReadAnythingAppModel::ComputeDisplayNodeIdsForDistilledTree() {
     // may not be the correct approach. Do we need a version of
     // GetDeepestLastUnignoredDescendant() that works on ignored nodes?
     if (!content_node) {
-      RecordHeuristicMetric(ReadAnythingHeuristics::kNodeNotFound);
       continue;
     }
 
     if (content_node->IsInvisibleOrIgnored()) {
-      RecordHeuristicMetric(ReadAnythingHeuristics::kInvisibleOrIgnored);
       continue;
     }
 
@@ -386,7 +367,6 @@ void ReadAnythingAppModel::ComputeDisplayNodeIdsForDistilledTree() {
       // attribute directly for that reason.
       if (!content_node->HasState(ax::mojom::State::kExpanded)) {
         // Don't include collapsed aria-expanded items.
-        RecordHeuristicMetric(ReadAnythingHeuristics::kNotExpanded);
         continue;
       }
     }
@@ -417,15 +397,12 @@ void ReadAnythingAppModel::ComputeDisplayNodeIdsForDistilledTree() {
     ui::AXNode* deepest_last_descendant =
         content_node->GetDeepestLastUnignoredDescendant();
     if (!deepest_last_descendant) {
-      RecordHeuristicMetric(ReadAnythingHeuristics::kNoDeepsetLastDecendent);
       continue;
     }
     while (next_node != deepest_last_descendant) {
       next_node = next_node->GetNextUnignoredInTreeOrder();
       InsertIdIfNotIgnored(next_node->id(), display_node_ids_);
     }
-
-    RecordHeuristicMetric(ReadAnythingHeuristics::kNone);
   }
 }
 
@@ -1261,18 +1238,27 @@ bool ReadAnythingAppModel::ProcessAXTreeAnchors() {
     return false;
   }
 
-  if (active_tree_id_ == ui::AXTreeIDUnknown() || !ContainsActiveTree()) {
-    return false;
-  }
-
-  ui::AXSerializableTree* tree = GetActiveTree();
-  if (!tree || !tree->root()) {
+  ui::AXSerializableTree* tree = GetValidActiveTree();
+  if (!tree) {
     return false;
   }
 
   should_extract_anchors_from_tree_for_readability_ = false;
   ax_tree_anchors_ = CollectAnchorsFromAXTree(tree);
   return true;
+}
+
+ui::AXSerializableTree* ReadAnythingAppModel::GetValidActiveTree() const {
+  if (active_tree_id_ == ui::AXTreeIDUnknown() || !ContainsActiveTree()) {
+    return nullptr;
+  }
+
+  ui::AXSerializableTree* tree = GetActiveTree();
+  if (!tree || !tree->root()) {
+    return nullptr;
+  }
+
+  return tree;
 }
 
 std::map<std::string, std::vector<ReadAnythingAppModel::AnchorData>>
@@ -1380,4 +1366,93 @@ ReadAnythingAppModel::CollectAnchorsFromAXTree(ui::AXSerializableTree* tree) {
 
 void ReadAnythingAppModel::ResetAXTreeAnchors() {
   ax_tree_anchors_.clear();
+}
+
+bool ReadAnythingAppModel::MapRenderedTextToTree(
+    const std::vector<std::string>& blocks) {
+  if (!should_map_rendered_text_to_tree_for_readability()) {
+    return false;
+  }
+
+  ui::AXSerializableTree* tree = GetValidActiveTree();
+  if (!tree) {
+    return false;
+  }
+
+  text_to_ax_map_.clear();
+  text_to_ax_map_index_.clear();
+  should_map_rendered_text_to_tree_for_readability_ = false;
+
+  FlattenAXTree(tree);
+
+  // TODO: crbug.com/507448617 - Implement mapping algorithm
+  // The mapping algorithm results are populated into |text_to_ax_map_|, where
+  // each block string maps to a vector of its occurrences in the page.
+  // |text_to_ax_map_index_| tracks sequential consumption by the WebUI,
+  // ensuring that identical strings (e.g., multiple "Read More" links) are
+  // linked to their respective AXNodes in the order they appear in the
+  // distilled DOM.
+  return true;
+}
+
+// TODO: crbug.com/509578412 - Evaluate consolidating logic with existing text
+// traversal methods.
+void ReadAnythingAppModel::FlattenAXTree(ui::AXSerializableTree* tree) {
+  flattened_ax_tree_nodes_.clear();
+  global_ax_tree_text_.clear();
+  if (!tree || !tree->root()) {
+    return;
+  }
+
+  std::stack<ui::AXNode*> stack;
+  stack.push(tree->root());
+
+  // Traverse tree in pre-order DFS to build a contiguous text representation.
+  while (!stack.empty()) {
+    ui::AXNode* node = stack.top();
+    stack.pop();
+
+    // Check if current node should be added to |global_ax_tree_text_|.
+    // We use IsLeaf() because it identifies nodes that the accessibility engine
+    // considers semantic units (like StaticText). This automatically skips
+    // "virtual" internal layout nodes like kInlineTextBox (negative IDs)
+    // while keeping structural nodes that contain text.
+    if (node->IsLeaf()) {
+      // Only process nodes that actually contribute readable
+      // text. This helper (from read_anything_node_utils.cc) filters out
+      // decorative/empty tags that shouldn't be part of the text alignment.
+      if (!a11y::IsTextForReadAnything(node, is_pdf_, IsDocs())) {
+        continue;
+      }
+
+      // Use a11y::GetTextContent to get the node's normalized text. Add this
+      // text to the global string and record the node's position.
+      std::u16string node_text = a11y::GetTextContent(node, is_pdf_, IsDocs());
+      if (!node_text.empty()) {
+        flattened_ax_tree_nodes_.push_back(
+            {node->id(), node_text, global_ax_tree_text_.length()});
+        global_ax_tree_text_ += node_text;
+      }
+      // Since this is a leaf node we don't need to process its children.
+      continue;
+    }
+
+    // Add unignored descendants to the stack for processing.
+    std::vector<ui::AXNode*> children_to_push;
+    for (auto it = node->UnignoredChildrenBegin();
+         it != node->UnignoredChildrenEnd(); ++it) {
+      children_to_push.push_back(&*it);
+    }
+    // Push children in reverse order for pre-order traversal.
+    for (ui::AXNode* child : base::Reversed(children_to_push)) {
+      stack.push(child);
+    }
+  }
+}
+
+std::vector<ReadAnythingAppModel::MappingSegment>
+ReadAnythingAppModel::GetAXMappingForText(const std::string& text) const {
+  // TODO: crbug.com/507447796 - 10. Implement getter for frontend to receive
+  // mapped segments from a block.
+  return {};
 }

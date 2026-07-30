@@ -15,6 +15,7 @@
 #include "chrome/browser/ui/webui_browser/webui_browser_window.h"
 #include "components/browser_apis/tab_strip/tab_strip_api.mojom.h"
 #include "components/browser_apis/tab_strip/tab_strip_experiment_api.mojom.h"
+#include "components/browser_apis/tab_strip/tab_strip_ui_controller.mojom.h"
 #include "components/guest_contents/common/guest_contents.mojom.h"
 #include "components/omnibox/browser/searchbox.mojom.h"
 #include "content/public/browser/web_contents.h"
@@ -80,6 +81,8 @@ class WebUIBrowserUI : public ui::MojoWebUIController,
       mojo::PendingReceiver<tabs_api::mojom::TabStripExperimentService>
           receiver);
   void BindInterface(
+      mojo::PendingReceiver<tabs_api::mojom::TabStripUIController> receiver);
+  void BindInterface(
       mojo::PendingReceiver<tracked_element::mojom::TrackedElementHandler>
           receiver);
 
@@ -101,16 +104,12 @@ class WebUIBrowserUI : public ui::MojoWebUIController,
 
  private:
   WEB_UI_CONTROLLER_TYPE_DECL();
-  // Lazily creates and returns a reference to the owned contextual search
-  // session handle for `realbox_handler_`.
-  contextual_search::ContextualSearchSessionHandle*
-  GetOrCreateContextualSessionHandle();
+
   // webui_browser::mojom::PageHandlerFactory:
   void CreatePageHandler(
       mojo::PendingRemote<webui_browser::mojom::Page> page,
       mojo::PendingReceiver<webui_browser::mojom::PageHandler> receiver)
       override;
-  void GetTabStripInset(GetTabStripInsetCallback callback) override;
 
   // bookmark_bar::mojom::PageHandlerFactory:
   void CreatePageHandler(mojo::PendingRemote<bookmark_bar::mojom::Page> page,
@@ -132,6 +131,11 @@ class WebUIBrowserUI : public ui::MojoWebUIController,
   // elements tracked by ui/webui/tracked_element. Used for anchoring secondary
   // UIs.
   const std::vector<ui::ElementIdentifier>& GetKnownElementIdentifiers() const;
+
+  // Lazily creates and returns a reference to the owned contextual search
+  // session handle for `realbox_handler_`.
+  contextual_search::ContextualSearchSessionHandle*
+  GetOrCreateContextualSessionHandle();
 
   // Must outlive `realbox_handler_`.
   std::unique_ptr<contextual_search::ContextualSearchSessionHandle>

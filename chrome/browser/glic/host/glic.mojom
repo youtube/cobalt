@@ -253,7 +253,9 @@ union InvokeConversationSelection {
 struct DefaultSurfaceMojo {};
 
 // Targets a new tab for the invocation.
-struct NewTabMojo {};
+struct NewTabMojo {
+  bool open_in_foreground;
+};
 
 // Defines the surface an invocation targets.
 union InvokeTargetSurface {
@@ -967,6 +969,12 @@ enum CancelActionsResult {
   kFailed = 3,
 };
 
+// Options used to customize region capture.
+struct CaptureRegionParams {
+  int32 tab_id;
+  GetTabContextOptions options;
+};
+
 // Access to the browser from the web client by proxy through the WebUI.
 // A single WebClientHandler will provide access to the browser for only
 // a single web client. If the webview navigates or refreshes, a new
@@ -1208,9 +1216,13 @@ interface WebClientHandler {
   // terminated by either the browser (e.g., on user cancellation) or the
   // client.
   //
+  // The optional `params` can be used to specify a target tab or request
+  // specific capture behavior.
+  //
   // If another capture is already in progress, the previous capture session
   // will be terminated and a new one will begin.
-  CaptureRegion(pending_remote<CaptureRegionObserver> observer);
+  CaptureRegion(pending_remote<CaptureRegionObserver> observer,
+                CaptureRegionParams? params);
 
   // Deletes a captured region.
   DeleteCapturedRegion(int32 tab_id, mojo_base.mojom.UnguessableToken id);
@@ -1281,6 +1293,10 @@ interface WebClientHandler {
   // `PageHandler.SyncWebviewCookies()`, except this call originates from the
   // webview.
   SyncCookies() => (bool success);
+
+  // Notifies the browser that the client error dialog state has changed.
+  // `shown_dialog_type` is null when no dialog is shown (e.g., it was closed).
+  ClientErrorDialogStateChanged(ClientErrorDialogType? shown_dialog_type);
 
   // Log a begin event in the journal.
   LogBeginAsyncEvent(
@@ -1614,6 +1630,20 @@ enum FeatureMode {
 };
 
 // @generate glic_api
+// Target for actuation.
+[Stable, Extensible]
+enum ActuationTarget {
+  // Will default to the agent if the target is unknown.
+  [Default] kUnknown = 0,
+  // Agent infers the best location based on the prompt.
+  kAgentDecides = 1,
+  // Forces actuation on the initiating tab.
+  kCurrentTab = 2,
+  // Forces actuation in a new tab.
+  kNewTab = 3,
+};
+
+// @generate glic_api
 // Options for the Invoke method.
 struct InvokeOptions {
   // Source that triggered this invocation.
@@ -1632,6 +1662,9 @@ struct InvokeOptions {
 
   // Feature mode to use.
   FeatureMode feature_mode;
+
+  // Target for actuation.
+  ActuationTarget actuation_target;
 
   // Whether to suppress Zero State Suggestions.
   bool disable_zero_state_suggestions;
@@ -1686,6 +1719,8 @@ enum WebUseCounter {
   kSubmitPromptWithAutoMode = 1,
   kTaskInterruptedForUserConfirmation = 2,
   kTaskInterruptedForUserClarification = 3,
+  kSelectionToggledViaSharedMenu = 4,
+  kSelectionToggledViaHotKey = 5,
 };
 
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicWebUseCounter)
@@ -2221,6 +2256,10 @@ enum HostCapability {
   // Indicates that the host supports auto browse attempting login using Sign in
   // with Google.
   kAutoLoginSignInWithGoogle = 10,
+  // Indicates that the host supports sharing images via the invoke mechanism.
+  kShareImageViaInvoke = 11,
+  // Indicates that the host supports image drag and drop from the web
+  kImgWebDragDrop = 12,
 };
 
 // @generate glic_api

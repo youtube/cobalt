@@ -112,8 +112,16 @@ BASE_FEATURE(kContextualTasksVideoCitations, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kContextualTasksPdfCitations, base::FEATURE_ENABLED_BY_DEFAULT);
 
+// Enables lazy fetching of cluster info for multimodal queries.
+BASE_FEATURE(kContextualTasksLazyFetchClusterInfo,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Enables custom UI for NLM.
 BASE_FEATURE(kContextualTasksCustomNlmUi, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// When enabled, the back button expands the side panel.
+BASE_FEATURE(kContextualTasksBackButtonExpandsSidePanel,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool GetIsContextualTasksUpdateModeOnNavigationEnabled() {
   return base::FeatureList::IsEnabled(kContextualTasksUpdateModelOnNavigation);
@@ -121,6 +129,10 @@ bool GetIsContextualTasksUpdateModeOnNavigationEnabled() {
 
 bool GetIsContextualTasksPdfCitationsEnabled() {
   return base::FeatureList::IsEnabled(kContextualTasksPdfCitations);
+}
+
+bool GetIsContextualTasksLazyFetchClusterInfoEnabled() {
+  return base::FeatureList::IsEnabled(kContextualTasksLazyFetchClusterInfo);
 }
 
 const base::FeatureParam<bool> kContextualTasksLockAndUnlockInputCapability(
@@ -584,6 +596,11 @@ const char kContextualTasksSuggestionsEnabledName[] =
     "Contextual Tasks Suggestions Enabled";
 const char kContextualTasksSuggestionsEnabledDescription[] =
     "Enables suggestions for contextual tasks.";
+
+const char kContextualTasksBackButtonExpandsSidePanelName[] =
+    "Contextual Tasks Back Button Expands Side Panel";
+const char kContextualTasksBackButtonExpandsSidePanelDescription[] =
+    "Enables expanding the side panel on back navigations.";
 
 }  // namespace flag_descriptions
 

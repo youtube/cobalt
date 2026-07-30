@@ -22,7 +22,7 @@ function startXHRRequests(
   const xhr = new XMLHttpRequest();
 
   const validateResponse = function() {
-    if (xhr.status == 200 && xhr.responseText.indexOf('Hello Google') != -1) {
+    if (xhr.status === 200 && xhr.responseText.indexOf('Hello Google') !== -1) {
       chrome.test.sendMessage('google-xhr-received');
       googleResponseReceived = true;
       googlePageCheckCallback();
@@ -39,6 +39,8 @@ function startXHRRequests(
       case XMLHttpRequest.DONE:
         validateResponse();
         break;
+      default:
+        // Uninteresting state.
     }
   };
   chrome.test.sendMessage(`opening ${googlePageUrl}`);
@@ -56,7 +58,8 @@ function startNonGoogleXHRRequests(
   const xhr = new XMLHttpRequest();
 
   const validateResponse = function() {
-    if (xhr.status == 200 && xhr.responseText.indexOf('SomethingElse') != -1) {
+    if (xhr.status === 200 &&
+        xhr.responseText.indexOf('SomethingElse') !== -1) {
       chrome.test.sendMessage('non-google-xhr-received');
       nonGoogleResponseReceived = true;
       nonGooglePageCheckCallback();
@@ -73,6 +76,8 @@ function startNonGoogleXHRRequests(
       case XMLHttpRequest.DONE:
         validateResponse();
         break;
+      default:
+        // Uninteresting state.
     }
   };
   xhr.open('GET', nonGooglePageUrl, isAsync);

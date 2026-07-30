@@ -11,8 +11,8 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
-#include "base/test/trace_event_analyzer.h"
-#include "base/test/trace_test_utils.h"
+#include "base/test/tracing/trace_event_analyzer.h"
+#include "base/test/tracing/trace_test_utils.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "components/viz/common/frame_timing_details.h"
@@ -147,8 +147,7 @@ class WindowPerformanceTest : public testing::Test,
   void SetUp() override {
     std::vector<base::test::FeatureRef> features{
         blink::features::
-            kEventTimingIgnorePresentationTimeFromUnexpectedFrameSource,
-        blink::kEventTimingReportingInStrictOrderOnly};
+            kEventTimingIgnorePresentationTimeFromUnexpectedFrameSource};
     if (GetParam()) {
       features_.InitWithFeatures(features, {});
     } else {

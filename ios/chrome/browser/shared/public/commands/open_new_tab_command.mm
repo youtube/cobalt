@@ -18,6 +18,7 @@
 @synthesize originPoint = _originPoint;
 @synthesize extraHeaders = _extraHeaders;
 @synthesize fromChrome = _fromChrome;
+@synthesize sendTabToSelfEntryGUID = _sendTabToSelfEntryGUID;
 @synthesize appendTo = _appendTo;
 @synthesize userInitiated = _userInitiated;
 @synthesize shouldFocusOmnibox = _shouldFocusOmnibox;
@@ -112,6 +113,10 @@
 
 - (const web::Referrer&)referrer {
   return _referrer;
+}
+
+- (BOOL)fromSendTabToSelf {
+  return self.sendTabToSelfEntryGUID.length > 0;
 }
 
 @end

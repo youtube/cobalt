@@ -37,6 +37,7 @@ struct SidePanelShowOptions {
   bool suppress_opening_animation = false;
   bool pin_on_bind = true;
   GlicPinTrigger pin_trigger = GlicPinTrigger::kUnknown;
+  bool prefer_peek = false;
 };
 
 struct FloatingShowOptions {
@@ -75,7 +76,6 @@ struct ShowOptions {
   bool focus_on_show = false;
   bool reinitialize_if_already_active = false;
   std::optional<std::string> prompt_suggestion = std::nullopt;
-  bool auto_send = false;
   mojom::InvocationSource invocation_source =
       mojom::InvocationSource::kTopChromeButton;
   mojom::FreOverride fre_override = mojom::FreOverride::kUnspecified;

@@ -31,6 +31,7 @@
 #include "components/contextual_tasks/public/features.h"
 #include "components/omnibox/browser/aim_eligibility_service_features.h"
 #include "components/omnibox/browser/mock_aim_eligibility_service.h"
+#include "components/omnibox/common/omnibox_features.h"
 #include "components/prefs/pref_service.h"
 #include "components/search/ntp_features.h"
 #include "components/user_education/common/user_education_features.h"
@@ -959,20 +960,10 @@ class NtpRealboxCyclingPlaceholderInteractiveTest
     : public NtpRealboxUiTestBase {
  public:
   NtpRealboxCyclingPlaceholderInteractiveTest() {
-    std::vector<base::test::FeatureRefAndParams> default_features =
+    std::vector<base::test::FeatureRefAndParams> enabled_features =
         GetEnabledFeatures();
-    std::vector<base::test::FeatureRefAndParams> enabled_features;
-    for (const auto& feature_ref_and_params : default_features) {
-      if (feature_ref_and_params.feature->name ==
-          ntp_realbox::kNtpRealboxNext.name) {
-        base::FieldTrialParams new_params = feature_ref_and_params.params;
-        new_params[ntp_realbox::kCyclingPlaceholders.name] = "true";
-        enabled_features.emplace_back(*feature_ref_and_params.feature,
-                                      new_params);
-      } else {
-        enabled_features.push_back(feature_ref_and_params);
-      }
-    }
+    enabled_features.emplace_back(ntp_realbox::kNtpRealboxCyclingPlaceholders,
+                                  base::FieldTrialParams());
     feature_list_.InitWithFeaturesAndParameters(enabled_features,
                                                 GetDisabledFeatures());
   }
@@ -1037,7 +1028,8 @@ class NtpRealboxDefaultExperienceInteractiveTest : public NtpRealboxUiTestBase {
     }
     disabled_features.push_back(ntp_features::kNtpNextFeatures);
 
-    feature_list_.InitWithFeaturesAndParameters({}, disabled_features);
+    feature_list_.InitWithFeaturesAndParameters(
+        {{omnibox::kOmniboxAppendInvocationSource, {}}}, disabled_features);
   }
 
  protected:

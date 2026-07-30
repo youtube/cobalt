@@ -53,6 +53,7 @@
 #include "chrome/browser/ui/intent_picker_tab_helper.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/omnibox/omnibox_view.h"
+#include "chrome/browser/ui/page_actions/page_action_properties_provider.h"
 #include "chrome/browser/ui/tab_search_feature.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/glic_actor_task_icon_manager_factory.h"
@@ -83,7 +84,6 @@
 #include "chrome/browser/ui/views/page_action/page_action_container_view.h"
 #include "chrome/browser/ui/views/page_action/page_action_icon_container.h"
 #include "chrome/browser/ui/views/page_action/page_action_icon_controller.h"
-#include "chrome/browser/ui/views/page_action/page_action_properties_provider.h"
 #include "chrome/browser/ui/views/page_action/page_action_view.h"
 #include "chrome/browser/ui/views/performance_controls/battery_saver_button.h"
 #include "chrome/browser/ui/views/performance_controls/performance_intervention_button.h"
@@ -308,7 +308,7 @@ void ToolbarView::Init() {
   // Avoid generating too many occlusion tracking calculation events before this
   // function returns. The occlusion status will be computed only once once this
   // function returns.
-  // See crbug.com/40171404#c2
+  // See crbug.com/40171404#comment3
   aura::WindowOcclusionTracker::ScopedPause pause_occlusion;
 #endif
 
@@ -387,7 +387,8 @@ void ToolbarView::Init() {
 
   // Do not create the extensions or browser actions container if it is a guest
   // profile (only regular and incognito profiles host extensions).
-  if (!browser_->profile()->IsGuestSession()) {
+  if (!browser_->profile()->IsGuestSession() &&
+      !features::IsWebUIExtensionsContainerEnabled()) {
     extensions_container = std::make_unique<ExtensionsToolbarDesktop>(browser_);
 
     toolbar_divider = std::make_unique<ToolbarDivider>();
@@ -446,7 +447,13 @@ void ToolbarView::Init() {
       AddChildView(std::make_unique<ContextualTasksButton>(browser_));
     } else if (contextual_tasks::kShowEntryPoint.Get() ==
                contextual_tasks::EntryPointOption::kToolbarEphemeralBranded) {
-      AddChildViewAt(std::make_unique<ContextualTasksButton>(browser_), 0);
+      auto button = std::make_unique<ContextualTasksButton>(browser_);
+      auto* vts_controller =
+          tabs::VerticalTabStripStateController::From(browser_);
+      if (!vts_controller || !vts_controller->ShouldDisplayVerticalTabs()) {
+        button->SetProperty(views::kMarginsKey, gfx::Insets());
+      }
+      AddChildViewAt(std::move(button), 0);
     }
   }
 
@@ -458,9 +465,10 @@ void ToolbarView::Init() {
   }
 
   bool is_glic_left_of_profile =
-      base::FeatureList::IsEnabled(features::kGlicToolbarButtonLocation) &&
       features::kGlicToolbarButtonLocationParam.Get() ==
-          features::GlicToolbarButtonLocation::kLeftOfProfileChip;
+          features::GlicToolbarButtonLocation::kLeftOfProfileChip ||
+      features::kGlicToolbarButtonLocationParam.Get() ==
+          features::GlicToolbarButtonLocation::kLeftOfProfileChipWithBackground;
   if (glic::GlicEnabling::IsProfileEligible(browser_view_->GetProfile()) &&
       !is_glic_left_of_profile) {
     InitGlicContainer();
@@ -588,18 +596,6 @@ void ToolbarView::Init() {
     avatar_->SetVisible(show_avatar_toolbar_button);
   }
 
-#if BUILDFLAG(ENABLE_WEBUI_TAB_STRIP)
-  auto new_tab_button = std::make_unique<ToolbarButton>(base::BindRepeating(
-      &ToolbarView::NewTabButtonPressed, base::Unretained(this)));
-  new_tab_button->SetTooltipText(
-      l10n_util::GetStringUTF16(IDS_TOOLTIP_NEW_TAB));
-  new_tab_button->SetHorizontalAlignment(gfx::ALIGN_CENTER);
-  new_tab_button->SetVectorIcon(kNewTabToolbarButtonIcon);
-  new_tab_button->SetVisible(false);
-  new_tab_button->SetProperty(views::kElementIdentifierKey,
-                              kToolbarNewTabButtonElementId);
-  new_tab_button_ = AddChildView(std::move(new_tab_button));
-#endif  // BUILDFLAG(ENABLE_WEBUI_TAB_STRIP)
 
   overflow_button_ = AddChildView(std::make_unique<OverflowButton>());
   overflow_button_->SetVisible(false);
@@ -1094,8 +1090,8 @@ void ToolbarView::UpdateGlicActorVisibility() {
         base::FeatureList::IsEnabled(features::kGlicToolbarButtonLocation) &&
         features::kGlicToolbarButtonLocationParam.Get() ==
             features::GlicToolbarButtonLocation::kLeftOfProfileChip;
-    glic_button_->UpdateStyle(
-        !(is_glic_left_of_profile && is_glic_actor_visible));
+    glic_button_->UpdateStyle(is_glic_left_of_profile &&
+                              !is_glic_actor_visible);
   }
 }
 
@@ -1125,7 +1121,7 @@ void ToolbarView::UpdateGlicButtonVisibility() {
           features::GlicToolbarButtonLocation::kLeftOfProfileChip;
   bool is_task_icon_visible =
       glic_actor_task_icon_ && glic_actor_task_icon_->GetVisible();
-  glic_button_->UpdateStyle(!(is_glic_left_of_profile && is_task_icon_visible));
+  glic_button_->UpdateStyle(is_glic_left_of_profile && !is_task_icon_visible);
 }
 
 void ToolbarView::SetGlicActorShowState(bool show) {
@@ -1586,6 +1582,14 @@ void ToolbarView::LayoutCommon() {
   gfx::Insets interior_margin =
       GetLayoutInsets(LayoutInset::TOOLBAR_INTERIOR_MARGIN);
 
+  auto* vts_controller = tabs::VerticalTabStripStateController::From(browser_);
+  if (base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks) &&
+      (contextual_tasks::kShowEntryPoint.Get() ==
+       contextual_tasks::EntryPointOption::kToolbarEphemeralBranded) &&
+      (!vts_controller || !vts_controller->ShouldDisplayVerticalTabs())) {
+    interior_margin.set_left(0);
+  }
+
   if (app_menu_button_->IsLabelPresentAndVisible()) {
     // The interior margin in an expanded state should be more than in a
     // collapsed state.
@@ -1804,10 +1808,10 @@ IntentChipButton* ToolbarView::GetIntentChipButton() {
 }
 
 ToolbarButton* ToolbarView::GetDownloadButton() {
-    return pinned_toolbar_actions_container_
-               ? pinned_toolbar_actions_container_->GetButtonFor(
-                     kActionShowDownloads)
-               : nullptr;
+  return pinned_toolbar_actions_container_
+             ? pinned_toolbar_actions_container_->GetButtonFor(
+                   kActionShowDownloads)
+             : nullptr;
 }
 
 WebUIToolbarWebView* ToolbarView::GetWebUIToolbarViewForTesting() {

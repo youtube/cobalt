@@ -39,10 +39,8 @@
 
 namespace feed {
 namespace {
-StreamKind kStreamKinds[] = {StreamKind::kForYou, StreamKind::kFollowing,
-                             StreamKind::kSingleWebFeed};
-// TODO(crbug.com/40869325) Add kSingleWebFeed streams to metrics reporting
-// below
+StreamKind kStreamKinds[] = {StreamKind::kForYou, StreamKind::kFollowing};
+
 using feed::FeedEngagementType;
 using feed::FeedUserActionType;
 const int kMaxSuggestionsTotal = 50;
@@ -83,8 +81,6 @@ std::string_view HistogramReplacement(const StreamType& stream_type) {
       return "Feed.";
     case StreamKind::kFollowing:
       return "Feed.WebFeed.";
-    case StreamKind::kSingleWebFeed:
-      return "Feed.SingleWebFeed.";
     case StreamKind::kUnknown:
       DCHECK(false) << "unknown feed kind";
       return "Feed.";
@@ -115,11 +111,6 @@ void ReportContentSuggestionsOpened(const StreamType& stream_type,
       base::UmaHistogramExactLinear("ContentSuggestions.Feed.WebFeed.Opened",
                                     index_in_stream, kMaxSuggestionsTotal);
       break;
-    case StreamKind::kSingleWebFeed:
-      base::UmaHistogramExactLinear(
-          "ContentSuggestions.Feed.SingleWebFeed.Opened", index_in_stream,
-          kMaxSuggestionsTotal);
-      break;
     case StreamKind::kUnknown:
       DCHECK(false) << "unknown feed kind";
       break;
@@ -143,17 +134,6 @@ std::string LoadLatencyStepName(LoadLatencyTimes::StepKind kind) {
       return "QueryRequest";
     case LoadLatencyTimes::kStreamViewed:
       return "StreamView";
-  }
-}
-
-std::string_view ContentOrderToString(ContentOrder content_order) {
-  switch (content_order) {
-    case ContentOrder::kUnspecified:
-      NOTREACHED();
-    case ContentOrder::kGrouped:
-      return "Grouped";
-    case ContentOrder::kReverseChron:
-      return "ReverseChron";
   }
 }
 
@@ -214,16 +194,12 @@ std::string_view NetworkRequestTypeUmaName(NetworkRequestType type) {
       return "ListRecommendedWebFeeds";
     case NetworkRequestType::kWebFeedListContents:
       return "WebFeedListContents";
-    case NetworkRequestType::kSingleWebFeedListContents:
-      return "SingleWebFeedListContents";
     case NetworkRequestType::kQueryInteractiveFeed:
       return "QueryInteractiveFeed";
     case NetworkRequestType::kQueryBackgroundFeed:
       return "QueryBackgroundFeed";
     case NetworkRequestType::kQueryNextPage:
       return "QueryNextPage";
-    case NetworkRequestType::kQueryWebFeed:
-      return "QueryWebFeed";
   }
 }
 
@@ -483,11 +459,6 @@ void MetricsReporter::ContentSliceViewed(const StreamType& stream_type,
       base::UmaHistogramExactLinear("ContentSuggestions.Feed.WebFeed.Shown",
                                     index_in_stream, kMaxSuggestionsTotal);
       break;
-    case StreamKind::kSingleWebFeed:
-      base::UmaHistogramExactLinear(
-          "ContentSuggestions.Feed.SingleWebFeed.Shown", index_in_stream,
-          kMaxSuggestionsTotal);
-      break;
     case StreamKind::kUnknown:
       DCHECK(false) << "unknown feed kind";
       break;
@@ -738,19 +709,13 @@ void MetricsReporter::ReportStableContentSliceVisibilityTimeForGoodVisits(
   good_visit_state_.AddTimeInFeed(delta);
 }
 
-void MetricsReporter::SurfaceOpened(
-    const StreamType& stream_type,
-    SurfaceId surface_id,
-    SingleWebFeedEntryPoint single_web_feed_entry_point) {
+void MetricsReporter::SurfaceOpened(const StreamType& stream_type,
+                                    SurfaceId surface_id) {
   VVLOG << "Feed SurfaceOpened " << stream_type << " id=" << surface_id;
   ReportPersistentDataIfDayIsDone();
   surfaces_waiting_for_content_.emplace(
       surface_id, SurfaceWaiting{stream_type, base::TimeTicks::Now()});
   ReportUserActionHistogram(FeedUserActionType::kOpenedFeedSurface);
-  if (stream_type.IsSingleWebFeed()) {
-    base::UmaHistogramEnumeration("ContentSuggestions.SingleWebFeed.EntryPoint",
-                                  single_web_feed_entry_point);
-  }
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
       FROM_HERE,
       base::BindOnce(&MetricsReporter::ReportOpenFeedIfNeeded, GetWeakPtr(),
@@ -844,15 +809,6 @@ void MetricsReporter::ReportCardOpenEndIfNeeded(bool success) {
   pending_open_ = {};
 }
 
-void MetricsReporter::NetworkRefreshRequestStarted(
-    const StreamType& stream_type,
-    ContentOrder content_order) {
-  if (stream_type.IsWebFeed()) {
-    base::UmaHistogramEnumeration(
-        "ContentSuggestions.Feed.WebFeed.RefreshContentOrder", content_order);
-  }
-}
-
 void MetricsReporter::NetworkRequestComplete(
     NetworkRequestType type,
     const NetworkResponseInfo& response_info) {
@@ -891,7 +847,6 @@ void MetricsReporter::OnLoadStream(
   base::TimeDelta stored_content_age = result_summary.stored_content_age;
   std::optional<feedstore::Metadata::StreamMetadata> stream_metadata =
       result_summary.stream_metadata;
-  ContentOrder content_order = result_summary.content_order;
   VVLOG << "OnLoadStream load_from_store_status=" << load_from_store_status
         << " final_status=" << final_status;
   load_latencies_ = std::move(load_latencies);
@@ -947,12 +902,6 @@ void MetricsReporter::OnLoadStream(
         base::StrCat({"ContentSuggestions.", HistogramReplacement(stream_type),
                       "LoadedCardCount"}),
         content_stats.card_count);
-    if (stream_type.IsWebFeed()) {
-      base::UmaHistogramSparse(
-          base::StrCat({"ContentSuggestions.Feed.WebFeed.LoadedCardCount.",
-                        ContentOrderToString(content_order)}),
-          content_stats.card_count);
-    }
   }
   LogContentStats(stream_type, content_stats);
 }
@@ -1100,7 +1049,6 @@ MetricsReporter::StreamStats& MetricsReporter::ForStream(
     case StreamKind::kForYou:
       return for_you_stats_;
     case StreamKind::kFollowing:
-    case StreamKind::kSingleWebFeed:
       return web_feed_stats_;
     case StreamKind::kUnknown:
       DCHECK(false) << "unknown feed kind";

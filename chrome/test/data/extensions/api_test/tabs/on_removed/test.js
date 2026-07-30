@@ -28,16 +28,16 @@ function setupWindow(tabUrls, callback) {
     let removedCount = 0;
     chrome.windows.getAll({}, function(windows) {
       for (const i in windows) {
-        if (windows[i].id != winId) {
+        if (windows[i].id !== winId) {
           chrome.windows.remove(windows[i].id, function() {
             removedCount++;
-            if (removedCount == windows.length - 1) {
+            if (removedCount === windows.length - 1) {
               callback(winId, tabIds);
             }
           });
         }
       }
-      if (windows.length == 1) {
+      if (windows.length === 1) {
         callback(winId, tabIds);
       }
     });
@@ -70,8 +70,12 @@ chrome.test.runTests([
   // Open some pages, so that we can try to close them.
   function setupLetterPages() {
     const pages = [
-      'chrome://version/', pageUrl('a'), pageUrl('b'), pageUrl('c'),
-      pageUrl('d'), pageUrl('e')
+      'chrome://version/',
+      pageUrl('a'),
+      pageUrl('b'),
+      pageUrl('c'),
+      pageUrl('d'),
+      pageUrl('e'),
     ];
     setupWindow(pages, pass(function(winId, tabIds) {
                   firstWindowId = winId;

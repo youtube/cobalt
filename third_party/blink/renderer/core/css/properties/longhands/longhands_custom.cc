@@ -7740,7 +7740,7 @@ const CSSValue* PaddingBottom::CSSValueFromComputedStyleInternal(
                                                                style);
   }
   return ZoomAdjustedPixelValue(
-      To<LayoutBox>(layout_object)->ComputedCSSPaddingBottom(), style);
+      To<LayoutBox>(layout_object)->ComputedPaddingOutsets().bottom, style);
 }
 
 bool PaddingInlineEnd::IsLayoutDependent(const ComputedStyle* style,
@@ -7799,7 +7799,7 @@ const CSSValue* PaddingLeft::CSSValueFromComputedStyleInternal(
                                                                style);
   }
   return ZoomAdjustedPixelValue(
-      To<LayoutBox>(layout_object)->ComputedCSSPaddingLeft(), style);
+      To<LayoutBox>(layout_object)->ComputedPaddingOutsets().left, style);
 }
 
 const CSSValue* PaddingRight::ParseSingleValue(
@@ -7830,7 +7830,7 @@ const CSSValue* PaddingRight::CSSValueFromComputedStyleInternal(
                                                                style);
   }
   return ZoomAdjustedPixelValue(
-      To<LayoutBox>(layout_object)->ComputedCSSPaddingRight(), style);
+      To<LayoutBox>(layout_object)->ComputedPaddingOutsets().right, style);
 }
 
 const CSSValue* PaddingTop::ParseSingleValue(
@@ -7861,7 +7861,7 @@ const CSSValue* PaddingTop::CSSValueFromComputedStyleInternal(
                                                                style);
   }
   return ZoomAdjustedPixelValue(
-      To<LayoutBox>(layout_object)->ComputedCSSPaddingTop(), style);
+      To<LayoutBox>(layout_object)->ComputedPaddingOutsets().top, style);
 }
 
 const CSSValue* Page::ParseSingleValue(
@@ -11388,6 +11388,25 @@ const CSSValue* RubyAlign::CSSValueFromComputedStyleInternal(
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
   return CSSIdentifierValue::Create(style.RubyAlign());
+}
+
+const CSSValue* RubyOverhang::ParseSingleValue(
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    CSSParserLocalContext& local_context) const {
+  CSSValueID value_id = stream.Peek().Id();
+  // https://drafts.csswg.org/css-ruby-1/#ruby-overhang
+  // For compatibility reasons, user agents must support an additional value of
+  // none for the ruby-overhang property, as a legacy value alias of spaces.
+  if (css_parsing_utils::IdentMatches<CSSValueID::kNone, CSSValueID::kSpaces>(
+          value_id)) {
+    stream.ConsumeIncludingWhitespace();
+    return CSSIdentifierValue::Create(CSSValueID::kSpaces);
+  }
+  if (css_parsing_utils::IdentMatches<CSSValueID::kAuto>(value_id)) {
+    return css_parsing_utils::ConsumeIdent(stream);
+  }
+  return nullptr;
 }
 
 const CSSValue* RubyOverhang::CSSValueFromComputedStyleInternal(

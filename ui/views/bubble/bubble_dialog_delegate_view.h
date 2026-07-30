@@ -244,19 +244,19 @@ class VIEWS_EXPORT BubbleDialogDelegate : public DialogDelegate {
   ax::mojom::Role GetAccessibleWindowRole() final;
 
   // Create and initialize the bubble Widget with proper bounds.
-  // The default ownership for now is NATIVE_WIDGET_OWNS_WIDGET. If any other
-  // ownership mode is used, the returned Widget's lifetime must be managed by
-  // the caller. This is usually done by wrapping the pointer as a unique_ptr
-  // using base::WrapUnique().
-  static Widget* CreateBubble(
+  // It's preferred to used `CLIENT_OWNS_WIDGET` as ownership. With
+  // `CLIENT_OWNS_WIDGET` as ownership, the returned Widget's lifetime must be
+  // managed by the caller. This is usually done by wrapping the pointer as a
+  // unique_ptr using base::WrapUnique().
+  //
+  //  If you encounter problems with this ownership mode, please file a bug.
+  static Widget* CreateBubbleDeprecated(
       std::unique_ptr<BubbleDialogDelegate> bubble_delegate,
-      Widget::InitParams::Ownership ownership =
-          Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET);
+      Widget::InitParams::Ownership ownership);
 
-  static Widget* CreateBubble(
+  static Widget* CreateBubbleDeprecated(
       BubbleDialogDelegate* bubble_delegate,
-      Widget::InitParams::Ownership ownership =
-          Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET);
+      Widget::InitParams::Ownership ownership);
 
   //////////////////////////////////////////////////////////////////////////////
   // The anchor view and rectangle:
@@ -734,17 +734,19 @@ class VIEWS_EXPORT BubbleDialogDelegateView : public View,
   }
 
   // Create and initialize the bubble Widget(s) with proper bounds.
-  // Like BubbleDialogDelegate::CreateBubble, the default ownership for now is
-  // NATIVE_WIDGET_OWNS_WIDGET. If any other ownership mode is used, the
-  // returned Widget's lifetime must be managed by the caller. This is usually
-  // done by wrapping the pointer as a unique_ptr using base::WrapUnique().
+  // Like BubbleDialogDelegate::CreateBubbleDeprecated, the default ownership
+  // for now is NATIVE_WIDGET_OWNS_WIDGET. If any other ownership mode is used,
+  // the returned Widget's lifetime must be managed by the caller. This is
+  // usually done by wrapping the pointer as a unique_ptr using
+  // base::WrapUnique().
   template <typename T>
   static Widget* CreateBubble(
       std::unique_ptr<T> delegate,
       Widget::InitParams::Ownership ownership =
           Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET) {
     CHECK(IsBubbleDialogDelegateView<T>(delegate.get()));
-    return BubbleDialogDelegate::CreateBubble(std::move(delegate), ownership);
+    return BubbleDialogDelegate::CreateBubbleDeprecated(std::move(delegate),
+                                                        ownership);
   }
   static Widget* CreateBubble(
       BubbleDialogDelegateView* bubble_delegate,

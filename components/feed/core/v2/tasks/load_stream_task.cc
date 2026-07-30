@@ -45,14 +45,9 @@ feedwire::FeedQuery::RequestReason GetRequestReason(
   switch (load_type) {
     case LoadType::kInitialLoad:
     case LoadType::kManualRefresh:
-      return stream_type.IsForYou() ? feedwire::FeedQuery::MANUAL_REFRESH
-                                    : feedwire::FeedQuery::INTERACTIVE_WEB_FEED;
+      return feedwire::FeedQuery::MANUAL_REFRESH;
     case LoadType::kBackgroundRefresh:
-      return stream_type.IsForYou()
-                 ? feedwire::FeedQuery::SCHEDULED_REFRESH
-                 // TODO(b/185848601): Switch back to PREFETCHED_WEB_FEED when
-                 // the server supports it.
-                 : feedwire::FeedQuery::INTERACTIVE_WEB_FEED;
+      return feedwire::FeedQuery::SCHEDULED_REFRESH;
     case LoadType::kFeedCloseBackgroundRefresh:
       return feedwire::FeedQuery::APP_CLOSE_REFRESH;
     case LoadType::kLoadMore:
@@ -287,9 +282,6 @@ void LoadStreamTask::SendFeedQueryRequest() {
     else if (options_.stream_type.IsWebFeed())
       network_request_id_ =
           GetLaunchReliabilityLogger().LogWebFeedRequestStart();
-    else if (options_.stream_type.IsSingleWebFeed())
-      network_request_id_ =
-          GetLaunchReliabilityLogger().LogSingleWebFeedRequestStart();
   }
   RequestMetadata request_metadata =
       stream_->GetRequestMetadata(options_.stream_type,
@@ -299,11 +291,9 @@ void LoadStreamTask::SendFeedQueryRequest() {
       options_.stream_type,
       GetRequestReason(options_.stream_type, options_.load_type),
       request_metadata, stream_->GetMetadata().consistency_token(),
-      options_.single_feed_entry_point, doc_view_counts_);
+      doc_view_counts_);
 
   const AccountInfo account_info = stream_->GetAccountInfo();
-  stream_->GetMetricsReporter().NetworkRefreshRequestStarted(
-      options_.stream_type, request_metadata.content_order);
 
   FeedNetwork& network = stream_->GetNetwork();
   const bool force_feed_query = GetFeedConfig().use_feed_query_requests;
@@ -311,12 +301,6 @@ void LoadStreamTask::SendFeedQueryRequest() {
     // Special case: web feed that is not using Feed Query requests go to
     // WebFeedListContentsDiscoverApi.
     network.SendApiRequest<WebFeedListContentsDiscoverApi>(
-        std::move(request), account_info, std::move(request_metadata),
-        base::BindOnce(&LoadStreamTask::QueryApiRequestComplete, GetWeakPtr()));
-  } else if (!force_feed_query && options_.stream_type.IsSingleWebFeed()) {
-    // Special case: web feed that is not using Feed Query requests go to
-    // WebFeedListContentsDiscoverApi.
-    network.SendApiRequest<SingleWebFeedListContentsDiscoverApi>(
         std::move(request), account_info, std::move(request_metadata),
         base::BindOnce(&LoadStreamTask::QueryApiRequestComplete, GetWeakPtr()));
   } else if (options_.stream_type.IsForYou() &&
@@ -489,7 +473,6 @@ void LoadStreamTask::Done(LaunchResult launch_result) {
   result.upload_actions_result = std::move(upload_actions_result_);
   result.experiments = experiments_;
   result.launch_result = launch_result.launch_result;
-  result.single_feed_entry_point = options_.single_feed_entry_point;
   std::move(done_callback_).Run(std::move(result));
   TaskComplete();
 }
@@ -509,9 +492,7 @@ std::ostream& operator<<(std::ostream& os,
   if (result.network_response_info)
     os << " network_response_info=" << *result.network_response_info;
   return os << " loaded_new_content_from_network="
-            << result.loaded_new_content_from_network
-            << " single_feed_entry_point=" << result.single_feed_entry_point
-            << "}";
+            << result.loaded_new_content_from_network << "}";
 }
 
 }  // namespace feed

@@ -16,22 +16,19 @@ function updateBrowserAction() {
 }
 
 chrome.extension.isAllowedIncognitoAccess(function(isAllowedAccess) {
-  switch (isAllowedAccess) {
-    case false:
-      chrome.test.sendMessage('incognito not allowed');
-      break;
-    case true:
-      chrome.test.sendMessage('incognito allowed', function(message) {
-        if (message == 'incognito update') {
-          updateBrowserAction();
-        }
-      });
-      break;
+  if (isAllowedAccess) {
+    chrome.test.sendMessage('incognito allowed', function(message) {
+      if (message === 'incognito update') {
+        updateBrowserAction();
+      }
+    });
+  } else {
+    chrome.test.sendMessage('incognito not allowed');
   }
 });
 
 chrome.test.sendMessage('ready', function(message) {
-  if (message == 'update') {
+  if (message === 'update') {
     updateBrowserAction();
   }
 });

@@ -2,8 +2,12 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//ios/web/public/js_messaging/optimize_ts.gni")
+
 source_set("model") {
   sources = [
+    "aim_cobrowse_java_script_feature.h",
+    "aim_cobrowse_java_script_feature.mm",
     "cobrowse_browser_agent.h",
     "cobrowse_browser_agent.mm",
     "cobrowse_context.h",
@@ -12,8 +16,11 @@ source_set("model") {
     "cobrowse_tab_helper.mm",
   ]
   deps = [
+    ":aim_cobrowse_ts",
     "//base",
+    "//components/omnibox/browser",
     "//components/search_engines",
+    "//ios/chrome/browser/aim/model:aim_availability",
     "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
     "//ios/chrome/browser/shared/coordinator/scene/state",
     "//ios/chrome/browser/shared/model/browser",
@@ -24,7 +31,9 @@ source_set("model") {
     "//ios/chrome/browser/shared/public/features:system_flags",
     "//ios/chrome/browser/tabs/model:dependency_installer",
     "//ios/web/public",
+    "//ios/web/public/js_messaging",
     "//ios/web/public/navigation",
+    "//third_party/lens_server_proto:lens_overlay_proto",
     "//url",
   ]
 }
@@ -53,9 +62,15 @@ source_set("factory") {
   ]
 }
 
+optimize_ts("aim_cobrowse_ts") {
+  sources = [ "aim_cobrowse.ts" ]
+  deps = [ "//ios/web/public/js_messaging:gcrweb" ]
+}
+
 source_set("unit_tests") {
   testonly = true
   sources = [
+    "aim_cobrowse_java_script_feature_unittest.mm",
     "cobrowse_context_unittest.mm",
     "cobrowse_tab_helper_unittest.mm",
   ]
@@ -63,7 +78,9 @@ source_set("unit_tests") {
     ":model",
     "//base",
     "//base/test:test_support",
+    "//components/omnibox/browser:test_support",
     "//components/search_engines",
+    "//ios/chrome/browser/aim/model:aim_availability",
     "//ios/chrome/browser/search_engines/model:template_url_service_factory",
     "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
     "//ios/chrome/browser/shared/coordinator/scene/state",
@@ -73,9 +90,11 @@ source_set("unit_tests") {
     "//ios/chrome/browser/shared/public/commands",
     "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/browser/shared/public/features:system_flags",
+    "//ios/chrome/browser/signin/model",
     "//ios/web/public/test",
     "//ios/web/public/test/fakes",
     "//testing/gtest",
+    "//third_party/lens_server_proto:lens_overlay_proto",
     "//third_party/ocmock",
   ]
 }

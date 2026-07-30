@@ -25,7 +25,7 @@
 #include "cc/resources/ui_resource_manager.h"
 #include "cc/test/fake_impl_task_runner_provider.h"
 #include "cc/test/fake_layer_tree_host.h"
-#include "cc/test/fake_layer_tree_host_client.h"
+#include "cc/test/fake_layer_tree_host_delegate.h"
 #include "cc/test/fake_layer_tree_host_impl.h"
 #include "cc/test/fake_scrollbar.h"
 #include "cc/test/fake_scrollbar_layer.h"
@@ -143,7 +143,7 @@ class BaseScrollbarLayerTest : public testing::Test {
   }
 
  protected:
-  FakeLayerTreeHostClient fake_client_;
+  FakeLayerTreeHostDelegate fake_client_;
   StubLayerTreeHostSingleThreadClient single_thread_client_;
   TestTaskGraphRunner task_graph_runner_;
   LayerTreeSettings layer_tree_settings_;
@@ -952,7 +952,7 @@ TEST_F(ScrollbarLayerTest, ScrollbarLayerOpacity) {
 
   // This tests that the initial opacity(0) of the scrollbar gets pushed onto
   // the pending tree and then onto the active tree.
-  LayerTreeHostImpl* host_impl = layer_tree_host_->host_impl();
+  ClientLayerTreeHostImpl* host_impl = layer_tree_host_->host_impl();
   host_impl->CreatePendingTree();
   LayerImpl* layer_impl_tree_root = layer_tree_host_->CommitToPendingTree();
   LayerTreeImpl* layer_tree_impl = layer_impl_tree_root->layer_tree_impl();
@@ -1013,7 +1013,7 @@ TEST_P(AuraScrollbarLayerTest, ScrollbarLayerPushProperties) {
   scroll_layer->SetBounds(gfx::Size(10, 10));
   scroll_layer->SetScrollable(layer_tree_root->bounds());
   layer_tree_host_->UpdateLayers();
-  LayerTreeHostImpl* host_impl = layer_tree_host_->host_impl();
+  ClientLayerTreeHostImpl* host_impl = layer_tree_host_->host_impl();
   host_impl->CreatePendingTree();
   layer_tree_host_->CommitToPendingTree();
   host_impl->ActivateSyncTree();
@@ -1097,7 +1097,7 @@ TEST_P(AuraScrollbarLayerTest, ScrollbarLayerCreateAfterSetScrollable) {
   scroll_layer->SetBounds(gfx::Size(10, 10));
   scroll_layer->SetScrollable(layer_tree_root->bounds());
   layer_tree_host_->UpdateLayers();
-  LayerTreeHostImpl* host_impl = layer_tree_host_->host_impl();
+  ClientLayerTreeHostImpl* host_impl = layer_tree_host_->host_impl();
   host_impl->CreatePendingTree();
   layer_tree_host_->CommitToPendingTree();
   host_impl->ActivateSyncTree();

@@ -7,18 +7,18 @@ let testWindowId2;
 
 function contains(arr, value) {
   return arr.some(function(element) {
-    return element == value;
+    return element === value;
   });
 }
 
 function checkEqualSets(set1, set2) {
-  if (set1.length != set2.length) {
+  if (set1.length !== set2.length) {
     return false;
   }
 
   for (let x = 0; x < set1.length; x++) {
     if (!set2.some(function(v) {
-          return v == set1[x];
+          return v === set1[x];
         })) {
       return false;
     }
@@ -36,13 +36,17 @@ loadScript.then(async function() {
   chrome.test.runTests([
     async function setup() {
       const tabs1 = [
-        'http://e.com', 'http://a.com', 'http://a.com/b.html', 'http://b.com',
-        'http://a.com/d.html', 'http://a.com/c.html'
+        'http://e.com',
+        'http://a.com',
+        'http://a.com/b.html',
+        'http://b.com',
+        'http://a.com/d.html',
+        'http://a.com/c.html',
       ];
       const tabs2 = ['http://c.com/', 'http://a.com', 'http://a.com/b.html'];
       testWindowId1 = (await chrome.windows.create({url: tabs1})).id;
       testWindowId2 = (await chrome.windows.create({url: tabs2})).id;
-      isAndroid = (await chrome.runtime.getPlatformInfo()).os == 'android';
+      isAndroid = (await chrome.runtime.getPlatformInfo()).os === 'android';
       waitForAllTabs(chrome.test.succeed);
     },
 
@@ -176,7 +180,7 @@ loadScript.then(async function() {
               chrome.test.listenOnce(
                   chrome.tabs.onHighlighted, function(highlightInfo) {
                     assertEq(1, highlightInfo.tabIds.length);
-                    assertTrue(tabId != highlightInfo.tabIds[0]);
+                    assertTrue(tabId !== highlightInfo.tabIds[0]);
                   });
             }
             chrome.tabs.remove(tabId, pass(function() {

@@ -6,7 +6,6 @@ package org.chromium.chrome.browser.omnibox.status;
 
 import static org.chromium.build.NullUtil.assertNonNull;
 
-import android.animation.Animator;
 import android.app.Activity;
 import android.content.res.Resources;
 import android.os.Handler;
@@ -26,6 +25,7 @@ import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.browser_controls.BrowserStateBrowserControlsVisibilityDelegate;
+import org.chromium.chrome.browser.omnibox.FuseboxSessionState;
 import org.chromium.chrome.browser.omnibox.LocationBarDataProvider;
 import org.chromium.chrome.browser.omnibox.R;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.FuseboxState;
@@ -34,7 +34,6 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.chrome.browser.user_education.UserEducationHelper;
-import org.chromium.components.omnibox.AutocompleteInput.SiteSearchData;
 import org.chromium.components.permissions.PermissionDialogController;
 import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.ui.base.WindowAndroid;
@@ -42,7 +41,6 @@ import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 import org.chromium.url.GURL;
 
-import java.util.List;
 import java.util.function.Supplier;
 
 /**
@@ -118,7 +116,6 @@ public class StatusCoordinator implements LocationBarDataProvider.Observer {
                 new StatusMediator(
                         mModel,
                         mStatusView.getContext(),
-                        isTablet,
                         locationBarDataProvider,
                         PermissionDialogController.getInstance(),
                         templateUrlServiceSupplier,
@@ -163,15 +160,20 @@ public class StatusCoordinator implements LocationBarDataProvider.Observer {
     /** Signals that native initialization has completed. */
     public void onNativeInitialized() {
         mMediator.updateLocationBarIcon(StatusView.IconTransitionType.CROSSFADE);
-        mMediator.updateStatusVisibility();
     }
 
     /**
-     * @param urlHasFocus Whether the url currently has focus.
+     * Signals that the Omnibox input session has begun.
+     *
+     * @param sessionState The state of the current input session.
      */
-    public void onUrlFocusChange(boolean urlHasFocus) {
-        mMediator.setUrlHasFocus(urlHasFocus);
-        updateVerboseStatusVisibility();
+    public void beginInput(FuseboxSessionState sessionState) {
+        mMediator.beginInput(sessionState);
+    }
+
+    /** Signals that the Omnibox input session has ended. */
+    public void endInput() {
+        mMediator.endInput();
     }
 
     /**
@@ -184,15 +186,6 @@ public class StatusCoordinator implements LocationBarDataProvider.Observer {
     /** Toggle whether the status icon should be hidden for secure origins. */
     public void setShowStatusIconForSecureOrigins(boolean showStatusIconForSecureOrigins) {
         mMediator.setShowStatusIconForSecureOrigins(showStatusIconForSecureOrigins);
-    }
-
-    /**
-     * Set the url focus change percent.
-     *
-     * @param percent The current focus percent.
-     */
-    public void setUrlFocusChangePercent(float percent) {
-        mMediator.setUrlFocusChangePercent(percent);
     }
 
     /** Set the x translation of the status view. */
@@ -223,9 +216,7 @@ public class StatusCoordinator implements LocationBarDataProvider.Observer {
 
     // LocationBarDataProvider.Observer implementation.
     @Override
-    public void onNtpStartedLoading() {
-        mMediator.updateStatusVisibility();
-    }
+    public void onNtpStartedLoading() {}
 
     @Override
     public void onSecurityStateChanged() {
@@ -334,11 +325,6 @@ public class StatusCoordinator implements LocationBarDataProvider.Observer {
      *
      * @param supplier the supplier.
      */
-    public void setSiteSearchDataSupplier(
-            @Nullable NullableObservableSupplier<SiteSearchData> supplier) {
-        mMediator.setSiteSearchDataSupplier(supplier);
-    }
-
     @SuppressWarnings("NullAway")
     public StatusMediator getMediatorForTesting() {
         return mMediator;
@@ -356,15 +342,7 @@ public class StatusCoordinator implements LocationBarDataProvider.Observer {
         return mStatusView.isStatusIconAnimating();
     }
 
-    /** Returns the start time (ms) of the current or most recent status icon animation. */
     public long getAnimationStartTimeMs() {
         return mStatusView.getAnimationStartTimeMs();
     }
-
-    /**
-     * Populates an animation that fades =/unfades the entire StatusView container with the given
-     * start delay and duration, adding it to the given list of animators.
-     */
-    public void populateFadeAnimation(
-            List<Animator> animators, long startDelayMs, long durationMs, float targetAlpha) {}
 }

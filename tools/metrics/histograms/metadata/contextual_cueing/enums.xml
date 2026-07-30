@@ -117,9 +117,35 @@ chromium-metrics-reviews@google.com.
   <int value="23" label="Cue not shown: no eligible cue surfaces">
     Cue could not be shown because there were no eligible cue surfaces.
   </int>
+  <int value="24" label="Cue not shown: infobar visible">
+    Cue could not be shown because an infobar was visible.
+  </int>
+  <int value="25" label="Cue not shown: user opted out">
+    Cue could not be shown because the user has opted out.
+  </int>
+  <int value="26" label="Cue not shown: disabled by enterprise policy">
+    Cue could not be shown because it is disabled by enterprise policy.
+  </int>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/contextual_cueing/contextual_cueing_enums.h:ContextualCueingDecision) -->
+
+<!-- LINT.IfChange(ContextualCueingInteraction) -->
+
+<enum name="ContextualCueingInteraction">
+  <int value="0" label="Clicked">The user clicked on the cue.</int>
+  <int value="1" label="Dismissed">
+    The user clicked into the menu and dismissed the cue.
+  </int>
+  <int value="2" label="EditPrompt">
+    The user clicked into the menu and clicked the edit prompt option.
+  </int>
+  <int value="3" label="SuggestionsSettings">
+    The user clicked into the menu and clicked the suggestions settings option.
+  </int>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/contextual_cueing/contextual_cueing_enums.h:ContextualCueingInteraction) -->
 
 <!-- LINT.IfChange(NudgeDecision) -->
 
@@ -264,6 +290,7 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="Failed with unknown reason"/>
   <int value="5" label="Prevented From Window Too Narrow"/>
   <int value="6" label="Prevented From Button Not Visible"/>
+  <int value="7" label="Prevented From PDF Page Count Below Threshold"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/glic/suggestions/contextual_cueing_enums.h:GlicAutoOpenResult) -->

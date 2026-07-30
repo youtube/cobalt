@@ -102,6 +102,7 @@ std::unique_ptr<KeyframeModel> KeyframeModel::CreateImplInstance(
   to_return->set_direction(direction());
   to_return->set_playback_rate(playback_rate());
   to_return->set_fill_mode(fill_mode());
+  to_return->set_auto_fills_on_finish(auto_fills_on_finish());
   DCHECK(!to_return->is_controlling_instance_);
   to_return->is_controlling_instance_ = true;
 #if DCHECK_IS_ON()
@@ -166,9 +167,9 @@ void KeyframeModel::SetRunState(RunState new_run_state,
   base::SpanPrintf(state_buffer, "%s->%s", old_run_state_name.c_str(),
                    new_run_state_name.c_str());
 
-  TRACE_EVENT_INSTANT2(
-      "cc", "ElementAnimations::SetRunState", TRACE_EVENT_SCOPE_THREAD, "Name",
-      TRACE_STR_COPY(name_buffer), "State", TRACE_STR_COPY(state_buffer));
+  TRACE_EVENT_INSTANT("cc", "ElementAnimations::SetRunState", "Name",
+                      TRACE_STR_COPY(name_buffer), "State",
+                      TRACE_STR_COPY(state_buffer));
 }
 
 bool KeyframeModel::InEffect(base::TimeTicks monotonic_time) const {
@@ -183,8 +184,7 @@ void KeyframeModel::PushPropertiesTo(KeyframeModel* other) const {
          "model ids are reused.";
 #endif
   other->element_id_ = element_id_;
-  if (run_state() == KeyframeModel::PAUSED ||
-      other->run_state() == KeyframeModel::PAUSED) {
+  if (IsPaused(run_state()) || IsPaused(other->run_state())) {
     other->ForceRunState(run_state());
     other->set_hold_time(hold_time());
   }

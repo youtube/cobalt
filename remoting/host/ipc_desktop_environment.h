@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
@@ -81,6 +82,7 @@ class IpcDesktopEnvironment : public DesktopEnvironment {
   void SetCapabilities(const std::string& capabilities) override;
   std::unique_ptr<RemoteWebAuthnStateChangeNotifier>
   CreateRemoteWebAuthnStateChangeNotifier() override;
+  std::unique_ptr<AudioInjector> CreateAudioInjector() override;
 
  private:
   scoped_refptr<DesktopSessionProxy> desktop_session_proxy_;
@@ -137,6 +139,13 @@ class IpcDesktopEnvironmentFactory : public DesktopEnvironmentFactory,
   friend class IpcDesktopEnvironmentTest;
 
   struct DesktopConnection {
+    DesktopConnection(DesktopSessionProxy* desktop_session_proxy,
+                      std::string_view client_id);
+    ~DesktopConnection();
+
+    DesktopConnection(DesktopConnection&&);
+    DesktopConnection& operator=(DesktopConnection&&);
+
     // If `persist_desktop_sessions_` is true, this will be nullptr whenever
     // the client has disconnected.
     raw_ptr<DesktopSessionProxy> desktop_session_proxy;
@@ -145,6 +154,9 @@ class IpcDesktopEnvironmentFactory : public DesktopEnvironmentFactory,
     // is reused in case the host is configured to accept connections from
     // multiple client users.
     std::string client_id;
+
+    // A pipe that was received before the `desktop_session_proxy` was set.
+    mojo::ScopedMessagePipeHandle pending_desktop_pipe;
   };
 
   // List of DesktopEnvironment instances we've told the daemon process about.

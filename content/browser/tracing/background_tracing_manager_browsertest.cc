@@ -30,7 +30,7 @@
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_proto_loader.h"
-#include "base/test/trace_event_analyzer.h"
+#include "base/test/tracing/trace_event_analyzer.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/trace_event/interned_args_helper.h"
 #include "base/trace_event/named_trigger.h"
@@ -39,7 +39,6 @@
 #include "content/browser/devtools/protocol/devtools_protocol_test_support.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/tracing/background_tracing_manager_impl.h"
-#include "content/browser/tracing/background_tracing_rule.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/web_contents.h"
@@ -54,6 +53,7 @@
 #include "content/shell/browser/shell.h"
 #include "net/dns/mock_host_resolver.h"
 #include "services/tracing/perfetto/privacy_filtering_check.h"
+#include "services/tracing/public/cpp/background_tracing/background_tracing_rule.h"
 #include "services/tracing/public/cpp/stack_sampling/tracing_sampler_profiler.h"
 #include "services/tracing/public/cpp/trace_startup_config.h"
 #include "services/tracing/public/cpp/tracing_features.h"
@@ -302,7 +302,7 @@ IN_PROC_BROWSER_TEST_F(BackgroundTracingManagerBrowserTest,
     scenario->scenario_name = "test_scenario";
     scenario->is_local_scenario = true;
     scenario->is_enabled = false;
-    scenario->current_state = TracingScenario::State::kDisabled;
+    scenario->current_state = tracing::TracingScenario::State::kDisabled;
     expected.push_back(std::move(scenario));
     EXPECT_EQ(expected, all_scenarios);
   }

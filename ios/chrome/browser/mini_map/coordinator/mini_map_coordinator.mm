@@ -9,8 +9,10 @@
 #import "components/search_engines/template_url_service.h"
 #import "ios/chrome/browser/mini_map/coordinator/mini_map_mediator.h"
 #import "ios/chrome/browser/mini_map/coordinator/mini_map_mediator_delegate.h"
+#import "ios/chrome/browser/mini_map/model/mini_map_tab_helper.h"
 #import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
@@ -28,6 +30,8 @@
 #import "ios/web/public/web_state.h"
 #import "net/base/apple/url_conversions.h"
 #import "ui/base/l10n/l10n_util.h"
+#import "ui/base/page_transition_types.h"
+#import "ui/base/window_open_disposition.h"
 
 @interface MiniMapCoordinator () <MiniMapMediatorDelegate>
 
@@ -52,6 +56,9 @@
   // The text to be recognized as an address.
   NSString* _text;
 
+  // The URL to be displayed.
+  NSURL* _URL;
+
   // Whether IPH should be shown (on first presentation).
   BOOL _showIPH;
 }
@@ -59,12 +66,14 @@
 - (instancetype)initWithBaseViewController:(UIViewController*)viewController
                                    browser:(Browser*)browser
                                       text:(NSString*)text
+                                       URL:(NSURL*)URL
                                    withIPH:(BOOL)withIPH
                                       mode:(MiniMapMode)mode {
   self = [super initWithBaseViewController:viewController browser:browser];
   if (self) {
-    CHECK(text);
+    CHECK((text && !URL) || (!text && URL));
     _text = text;
+    _URL = URL;
     web::WebState* currentWebState =
         browser->GetWebStateList()->GetActiveWebState();
     if (currentWebState) {
@@ -82,8 +91,10 @@
   [super start];
 
   PrefService* prefService = self.profile->GetPrefs();
-  self.mediator = [[MiniMapMediator alloc] initWithPrefs:prefService
-                                                webState:self.webState.get()];
+  self.mediator = [[MiniMapMediator alloc]
+      initWithPrefs:prefService
+           webState:self.webState.get()
+               type:_URL ? MiniMapQueryType::kURL : MiniMapQueryType::kText];
   self.mediator.delegate = self;
   [self.mediator userInitiatedMiniMapWithIPH:_showIPH];
 }
@@ -105,15 +116,19 @@
 
 - (void)doShowMapWithIPH:(BOOL)showIPH {
   __weak __typeof(self) weakSelf = self;
-  MiniMapControllerCompletionWithURL completion = ^(NSURL* url) {
-    [weakSelf mapDismissedRequestingURL:url];
+  MiniMapControllerCompletionWithURL completion = ^(NSURL* URL) {
+    [weakSelf mapDismissedRequestingURL:URL];
   };
   MiniMapControllerCompletionWithString completionWithQuery =
       ^(NSString* query) {
         [weakSelf mapDismissedRequestingQuery:query];
       };
   self.miniMapController = ios::provider::CreateMiniMapController();
-  [self configureForText];
+  if (_text) {
+    [self configureForText];
+  } else {
+    [self configureForURL];
+  }
   [self.miniMapController configureCompletion:completion];
   [self.miniMapController
       configureCompletionWithSearchQuery:completionWithQuery];
@@ -141,12 +156,29 @@
                                  viewController];
                        }];
   }
-  if (self.mode == MiniMapMode::kDirections) {
-    [self.miniMapController
-        presentDirectionsWithPresentingViewController:self.baseViewController];
-  } else {
-    [self.miniMapController
-        presentMapsWithPresentingViewController:self.baseViewController];
+  switch (self.mode) {
+    case MiniMapMode::kMapNativePreviewURL:
+      [self.miniMapController
+          presentMapsNativePreviewWithPresentingViewController:
+              self.baseViewController];
+      // Resolve the deferred navigation policy decision as canceled immediately
+      // since the UI presentation succeeded.
+      if (self.webState.get()) {
+        MiniMapTabHelper* tabHelper =
+            MiniMapTabHelper::FromWebState(self.webState.get());
+        if (tabHelper) {
+          tabHelper->OnMiniMapSuccess();
+        }
+      }
+      break;
+    case MiniMapMode::kDirections:
+      [self.miniMapController presentDirectionsWithPresentingViewController:
+                                  self.baseViewController];
+      break;
+    case MiniMapMode::kMap:
+      [self.miniMapController
+          presentMapsWithPresentingViewController:self.baseViewController];
+      break;
   }
 }
 
@@ -161,6 +193,27 @@
                               IDS_IOS_OPTIONS_REPORT_AN_ISSUE)
       leadingButtonAction:^(UIViewController* viewController) {
         [weakSelf disableOneTapMinimapFromViewController:viewController];
+      }
+      trailingButtonAction:^(UIViewController* viewController) {
+        [weakSelf reportAnIssueFromMiniMapInViewController:viewController];
+      }];
+}
+
+- (void)configureForURL {
+  __weak __typeof(self) weakSelf = self;
+  [self.miniMapController configureURL:_URL];
+  [self.miniMapController configureFailureCompletion:^{
+    [weakSelf fallbackToOriginalURL];
+  }];
+  [self.miniMapController
+      configureFooterWithTitle:l10n_util::GetNSString(
+                                   IDS_IOS_MINI_MAP_URL_FOOTER_STRING)
+      leadingButtonTitle:l10n_util::GetNSString(
+                             IDS_IOS_MINI_MAP_DISABLE_PREVIEW_STRING)
+      trailingButtonTitle:l10n_util::GetNSString(
+                              IDS_IOS_OPTIONS_REPORT_AN_ISSUE)
+      leadingButtonAction:^(UIViewController* viewController) {
+        [weakSelf disableMiniMapURLFromViewController:viewController];
       }
       trailingButtonAction:^(UIViewController* viewController) {
         [weakSelf reportAnIssueFromMiniMapInViewController:viewController];
@@ -207,12 +260,34 @@
       }];
 }
 
+- (void)disableMiniMapURLFromViewController:(UIViewController*)viewController {
+  [self.mediator userDisabledURLSettingFromMiniMap];
+
+  [viewController.presentingViewController dismissViewControllerAnimated:YES
+                                                              completion:nil];
+  id<SnackbarCommands> snackbarHandler = HandlerForProtocol(
+      self.browser->GetCommandDispatcher(), SnackbarCommands);
+  __weak __typeof(self) weakSelf = self;
+  [snackbarHandler showSnackbarWithMessage:
+                       l10n_util::GetNSString(
+                           IDS_IOS_MINI_MAP_DISABLE_PREVIEW_CONFIRMATION_STRING)
+      buttonText:l10n_util::GetNSString(
+                     IDS_IOS_MINI_MAP_DISABLE_CONFIRMATION_BUTTON_STRING)
+      messageAction:^{
+        [weakSelf userOpenedSettingsFromConfirmation];
+      }
+      completionAction:^(BOOL) {
+        [weakSelf workflowEnded];
+      }];
+}
+
 - (void)userOpenedSettingsFromConfirmation {
   [self.mediator userOpenedSettingsFromDisableConfirmation];
   id<SettingsCommands> settingsCommandHandler = HandlerForProtocol(
       self.browser->GetCommandDispatcher(), SettingsCommands);
   [settingsCommandHandler
       showContentsSettingsFromViewController:self.baseViewController];
+  [self workflowEnded];
 }
 
 - (void)reportAnIssueFromMiniMapInViewController:
@@ -225,12 +300,27 @@
                                    sender:UserFeedbackSender::MiniMap];
 }
 
-- (void)mapDismissedRequestingURL:(NSURL*)url {
+// Handles failure by allowing the intercepted navigation to proceed.
+- (void)fallbackToOriginalURL {
   _showingMap = NO;
-  if (url) {
+  if (self.webState.get()) {
+    [self.mediator miniMapFallbackToURL];
+
+    MiniMapTabHelper* tabHelper =
+        MiniMapTabHelper::FromWebState(self.webState.get());
+    if (tabHelper) {
+      tabHelper->OnMiniMapFailure();
+    }
+  }
+  [self workflowEnded];
+}
+
+- (void)mapDismissedRequestingURL:(NSURL*)URL {
+  _showingMap = NO;
+  if (URL) {
     [self.mediator userOpenedURLFromMiniMap];
     OpenNewTabCommand* command =
-        [OpenNewTabCommand commandWithURLFromChrome:net::GURLWithNSURL(url)
+        [OpenNewTabCommand commandWithURLFromChrome:net::GURLWithNSURL(URL)
                                         inIncognito:self.isOffTheRecord];
     id<SceneCommands> sceneHandler =
         HandlerForProtocol(self.browser->GetCommandDispatcher(), SceneCommands);
@@ -238,6 +328,7 @@
   } else {
     [self.mediator userClosedMiniMap];
   }
+
   [self workflowEnded];
 }
 

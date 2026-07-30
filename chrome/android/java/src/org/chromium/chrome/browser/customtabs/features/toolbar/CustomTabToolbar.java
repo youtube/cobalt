@@ -53,7 +53,6 @@ import androidx.annotation.ColorInt;
 import androidx.annotation.ColorRes;
 import androidx.annotation.DimenRes;
 import androidx.annotation.Dimension;
-import androidx.annotation.DrawableRes;
 import androidx.annotation.IntDef;
 import androidx.annotation.Px;
 import androidx.annotation.VisibleForTesting;
@@ -94,14 +93,12 @@ import org.chromium.chrome.browser.customtabs.features.branding.ToolbarBrandingO
 import org.chromium.chrome.browser.customtabs.features.branding.ToolbarBrandingOverlayProperties;
 import org.chromium.chrome.browser.customtabs.features.minimizedcustomtab.CustomTabMinimizeDelegate;
 import org.chromium.chrome.browser.customtabs.features.minimizedcustomtab.MinimizedFeatureUtils;
-import org.chromium.chrome.browser.customtabs.features.partialcustomtab.PartialCustomTabSideSheetStrategy.MaximizeButtonCallback;
 import org.chromium.chrome.browser.customtabs.features.toolbar.ButtonVisibilityRule.ButtonId;
 import org.chromium.chrome.browser.dom_distiller.ReaderModeManager;
 import org.chromium.chrome.browser.ephemeraltab.EphemeralTabCoordinator;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.CustomTabProfileType;
-import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.omnibox.LocationBar;
 import org.chromium.chrome.browser.omnibox.LocationBarDataProvider;
 import org.chromium.chrome.browser.omnibox.OmniboxStub;
@@ -149,7 +146,6 @@ import org.chromium.components.security_state.ConnectionSecurityLevel;
 import org.chromium.content_public.browser.BrowserContextHandle;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.common.ContentUrlConstants;
-import org.chromium.ui.UiUtils;
 import org.chromium.ui.base.Clipboard;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.interpolators.Interpolators;
@@ -202,14 +198,12 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
     // Whether the maximization button should be shown when it can. Set to {@code true}
     // while the side sheet is running with the maximize button option on.
     private boolean mMaximizeButtonEnabled;
-    private boolean mMinimizeButtonEnabled;
 
     private @Nullable CookieControlsBridge mCookieControlsBridge;
     private boolean mShouldHighlightCookieControlsIcon;
     private @MonotonicNonNull BrowserServicesIntentDataProvider mIntentDataProvider;
 
-    @SuppressWarnings("NullAway")
-    private Supplier<AppMenuHandler> mAppMenuHandler = () -> null;
+    private Supplier<@Nullable AppMenuHandler> mAppMenuHandler = () -> null;
 
     private @Nullable AppMenuObserver mAppMenuObserver;
     private @MonotonicNonNull Activity mActivity;
@@ -256,7 +250,7 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
         public SearchActivityClient searchClient;
 
         /** The package name of the Custom Tabs embedder. */
-        public String clientPackageName;
+        public @Nullable String clientPackageName;
 
         /** A handler for taps on the omnibox, or null if the default handler should be used. */
         public @Nullable Consumer<Tab> tapHandler;
@@ -269,7 +263,7 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
 
         public OmniboxParams(
                 SearchActivityClient searchClient,
-                String clientPackageName,
+                @Nullable String clientPackageName,
                 @Nullable Consumer<Tab> tapHandler,
                 Function<Tab, Boolean> tapHandlerWithVerification) {
             this.searchClient = searchClient;
@@ -380,8 +374,6 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
         mMenuButton = findViewById(R.id.menu_button_wrapper);
         mButtonVisibilityRule.addButton(ButtonId.MENU, findViewById(R.id.menu_button), true);
         mLocationBar.onFinishInflate(this);
-
-        maybeInitMinimizeButton();
     }
 
     @Override
@@ -502,7 +494,7 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
     }
 
     // TODO(crbug.com/428261559): Delete this after the refactoring.
-    public void setAppMenuHandler(Supplier<AppMenuHandler> appMenuHandler) {
+    public void setAppMenuHandler(Supplier<@Nullable AppMenuHandler> appMenuHandler) {
         mAppMenuHandler = appMenuHandler;
     }
 
@@ -571,11 +563,13 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
 
         int menuId = menuInfo.first;
 
-        mAppMenuHandler.get().setMenuHighlight(menuId, false);
+        var handler = mAppMenuHandler.get();
+        assumeNonNull(handler);
+        handler.setMenuHighlight(menuId, false);
         View menuIcon = mMenuButton.findViewById(R.id.menu_button);
         menuIcon.setContentDescription(
                 getContext().getString(R.string.accessibility_custom_tab_menu_with_dot));
-        if (mAppMenuObserver != null) mAppMenuHandler.get().removeObserver(mAppMenuObserver);
+        if (mAppMenuObserver != null) handler.removeObserver(mAppMenuObserver);
         mAppMenuObserver =
                 new AppMenuObserver() {
                     @Override
@@ -587,14 +581,14 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
                             String menuTitle = getContext().getString(menuInfo.second);
                             int textId = R.string.accessibility_custom_tab_menu_item_highlight;
                             String highlightedMenu = getContext().getString(textId, menuTitle);
-                            mAppMenuHandler.get().setContentDescription(highlightedMenu);
+                            handler.setContentDescription(highlightedMenu);
                         }
                     }
 
                     @Override
                     public void onMenuHighlightChanged(boolean highlighting) {}
                 };
-        mAppMenuHandler.get().addObserver(mAppMenuObserver);
+        handler.addObserver(mAppMenuObserver);
     }
 
     private @Nullable Pair<Integer, Integer> getHighlightMenuInfo(
@@ -604,9 +598,10 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
                 // Figure out which of the two menu items (enable/disable) appears and needs
                 // highlighting.
                 // TODO(crbug.com/424807997): Avoid casting.
+                var handler = mAppMenuHandler.get();
+                assumeNonNull(handler);
                 var appMenuDelegate =
-                        (AppMenuPropertiesDelegateImpl)
-                                mAppMenuHandler.get().getMenuPropertiesDelegate();
+                        (AppMenuPropertiesDelegateImpl) handler.getMenuPropertiesDelegate();
                 var showEnabled = appMenuDelegate.getPriceTrackingMenuItemInfo(getCurrentTab());
                 if (showEnabled == null) yield null;
                 yield showEnabled
@@ -676,7 +671,7 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
      */
     public void initVisibilityRule(
             Activity activity,
-            Supplier<AppMenuHandler> appMenuHandler,
+            Supplier<@Nullable AppMenuHandler> appMenuHandler,
             BrowserServicesIntentDataProvider intentDataProvider) {
         mActivity = activity;
         mAppMenuHandler = appMenuHandler;
@@ -830,31 +825,6 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
     }
 
     /**
-     * Initialize the maximize button for side sheet CCT. Create one if not instantiated.
-     *
-     * @param maximizedOnInit {@code true} if the side sheet is starting in maximized state.
-     */
-    public void initSideSheetMaximizeButton(
-            boolean maximizedOnInit, MaximizeButtonCallback callback) {
-        assert !ChromeFeatureList.sCctToolbarRefactor.isEnabled();
-        ImageButton maximizeButton = findViewById(R.id.custom_tabs_sidepanel_maximize);
-        if (maximizeButton == null) {
-            ViewStub maximizeButtonStub = findViewById(R.id.maximize_button_stub);
-            maximizeButtonStub.inflate();
-            maximizeButton = findViewById(R.id.custom_tabs_sidepanel_maximize);
-            mButtonVisibilityRule.addButton(ButtonId.EXPAND, maximizeButton, true);
-        }
-        mMaximizeButtonEnabled = true;
-        setMaximizeButtonDrawable(maximizedOnInit);
-        maximizeButton.setOnClickListener((v) -> setMaximizeButtonDrawable(callback.onClick()));
-
-        // The visibility will set after the location bar completes its layout. But there are
-        // cases where the location bar layout gets already completed. Trigger the visibility
-        // update manually here.
-        setMaximizeButtonVisibility();
-    }
-
-    /**
      * Sets the {@link CustomTabMinimizeDelegate} to allow the toolbar to minimize the tab.
      *
      * @param delegate The {@link CustomTabMinimizeDelegate}.
@@ -872,33 +842,6 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
         mLocationBar.setOmniboxParams(omniboxParams);
     }
 
-    private void setButtonsVisibility() {
-        setMaximizeButtonVisibility();
-        setMinimizeButtonVisibility();
-    }
-
-    private void setMaximizeButtonVisibility() {
-        if (ChromeFeatureList.sCctToolbarRefactor.isEnabled()) return;
-
-        ImageButton maximizeButton = findViewById(R.id.custom_tabs_sidepanel_maximize);
-        if (!mMaximizeButtonEnabled || maximizeButton == null) {
-            if (maximizeButton != null) maximizeButton.setVisibility(View.GONE);
-            mButtonVisibilityRule.update(ButtonId.EXPAND, false);
-            setUrlTitleBarMargin(0);
-            return;
-        }
-        // Find the title/url width threshold that turns the maximize button visible.
-        int containerWidthPx = mLocationBar.mTitleUrlContainer.getWidth();
-        if (containerWidthPx == 0) return;
-        mButtonVisibilityRule.refresh();
-        if (maximizeButton.getVisibility() == View.VISIBLE) {
-            mLocationBar.removeButtonsVisibilityUpdater();
-            int maximizeButtonWidthPx =
-                    getResources().getDimensionPixelSize(R.dimen.location_bar_action_icon_width);
-            setUrlTitleBarMargin(maximizeButtonWidthPx);
-        }
-    }
-
     private void setUrlTitleBarMargin(int margin) {
         setViewRightMargin(mLocationBar.mTitleBar, margin);
         setViewRightMargin(mLocationBar.mUrlBar, margin);
@@ -911,80 +854,6 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
             lp.rightMargin = margin;
             view.setLayoutParams(lp);
         }
-    }
-
-    private void setMaximizeButtonDrawable(boolean maximized) {
-        @DrawableRes
-        int drawableId = maximized ? R.drawable.ic_fullscreen_exit : R.drawable.ic_fullscreen_enter;
-        int buttonDescId =
-                maximized
-                        ? R.string.custom_tab_side_sheet_minimize
-                        : R.string.custom_tab_side_sheet_maximize;
-        ImageButton maximizeButton = findViewById(R.id.custom_tabs_sidepanel_maximize);
-        var d = UiUtils.getTintedDrawable(getContext(), drawableId, mTint);
-        updateCustomActionButtonVisuals(maximizeButton, d, getResources().getString(buttonDescId));
-    }
-
-    /** Remove maximize button from side sheet CCT toolbar. */
-    public void removeSideSheetMaximizeButton() {
-        assert !ChromeFeatureList.sCctToolbarRefactor.isEnabled();
-        ImageButton maximizeButton = findViewById(R.id.custom_tabs_sidepanel_maximize);
-        mMaximizeButtonEnabled = false;
-        if (maximizeButton == null) return; // Toolbar could be already destroyed.
-
-        maximizeButton.setOnClickListener(null);
-        maximizeButton.setVisibility(View.GONE);
-    }
-
-    /**
-     * Inflates and prepares the minimize button if it should be enabled, when CCTToolbarRefactor is
-     * disabled.
-     */
-    @VisibleForTesting
-    void maybeInitMinimizeButton() {
-        if (ChromeFeatureList.sCctToolbarRefactor.isEnabled()) return;
-        if (!MinimizedFeatureUtils.isMinimizedCustomTabAvailable(getContext())) {
-            return;
-        }
-
-        ViewStub minimizeButtonStub = findViewById(R.id.minimize_button_stub);
-        if (minimizeButtonStub != null) {
-            minimizeButtonStub.inflate();
-        }
-        mMinimizeButton = findViewById(R.id.custom_tabs_minimize_button);
-        var d = UiUtils.getTintedDrawable(getContext(), R.drawable.ic_minimize, mTint);
-        mMinimizeButton.setTag(R.id.custom_tabs_toolbar_tintable, true);
-        mMinimizeButton.setImageDrawable(d);
-        updateButtonTint(mMinimizeButton);
-        mMinimizeButton.setOnLongClickListener(this);
-        mMinimizeButtonEnabled = true;
-        mButtonVisibilityRule.addButton(ButtonId.MINIMIZE, mMinimizeButton, true);
-    }
-
-    private void setMinimizeButtonVisibility() {
-        if (ChromeFeatureList.sCctToolbarRefactor.isEnabled()) return;
-        if (mMinimizeButton == null) return;
-
-        if (!mMinimizeButtonEnabled || isInMultiWindowMode()) {
-            if (mMinimizeButton.getVisibility() != View.GONE) {
-                mMinimizeButton.setVisibility(View.GONE);
-                mButtonVisibilityRule.update(ButtonId.MINIMIZE, false);
-                maybeAdjustButtonSpacingForCloseButtonPosition();
-            }
-            return;
-        } else if (!mButtonVisibilityRule.isSuppressed(ButtonId.MINIMIZE)
-                && mMinimizeButton.getVisibility() == View.GONE) {
-            mMinimizeButton.setVisibility(View.VISIBLE);
-            mButtonVisibilityRule.update(ButtonId.MINIMIZE, true);
-        }
-        updateToolbarLayoutMargin();
-    }
-
-    private boolean isInMultiWindowMode() {
-        Activity activity = getActivityFromCurrentTab();
-        if (activity == null) return false;
-        return !activity.isInPictureInPictureMode()
-                && MultiWindowUtils.getInstance().isInMultiWindowMode(activity);
     }
 
     /** Returns {@link OneshotSupplier} indicating if the optional button will be visible. */
@@ -1053,9 +922,7 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
     }
 
     public void setMinimizeButtonEnabled(boolean enabled) {
-        mMinimizeButtonEnabled = enabled;
         mButtonVisibilityRule.update(ButtonId.MINIMIZE, enabled);
-        setMinimizeButtonVisibility();
     }
 
     /**
@@ -1361,7 +1228,6 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
     @Override
     protected void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
-        mLocationBar.addButtonsVisibilityUpdater();
         assumeNonNull(mLocationBarModel).notifyTitleChanged();
         mLocationBarModel.notifyUrlChanged(false);
         mLocationBarModel.notifyPrimaryColorChanged();
@@ -1472,8 +1338,6 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
 
         updateToolbarLayoutMargin();
         maybeAdjustButtonSpacingForCloseButtonPosition();
-        setMaximizeButtonVisibility();
-        setMinimizeButtonVisibility();
 
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
     }
@@ -1670,8 +1534,6 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
 
         private final @Nullable Runnable[] mAfterBrandingRunnables =
                 new Runnable[TOTAL_POST_BRANDING_KEYS];
-        private final View.OnLayoutChangeListener mButtonsVisibilityUpdater =
-                (v, l, t, r, b, ol, ot, or, ob) -> setButtonsVisibility();
         private boolean mCurrentlyShowingBranding;
         private boolean mBrandingStarted;
         private boolean mOmniboxEnabled;
@@ -2059,7 +1921,6 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
                                     ? R.dimen.custom_tabs_security_icon_width
                                     : R.dimen.location_bar_icon_width);
 
-            addButtonsVisibilityUpdater();
             adjustLocationBarPadding();
         }
 
@@ -2074,16 +1935,6 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
                         mLocationBarFrameLayout.getPaddingTop(),
                         horizontalPadding,
                         mLocationBarFrameLayout.getPaddingBottom());
-            }
-        }
-
-        private void removeButtonsVisibilityUpdater() {
-            mTitleUrlContainer.removeOnLayoutChangeListener(mButtonsVisibilityUpdater);
-        }
-
-        private void addButtonsVisibilityUpdater() {
-            if (mTitleUrlContainer != null) {
-                mTitleUrlContainer.addOnLayoutChangeListener(mButtonsVisibilityUpdater);
             }
         }
 

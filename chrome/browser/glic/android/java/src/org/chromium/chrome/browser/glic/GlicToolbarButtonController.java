@@ -551,7 +551,13 @@ public class GlicToolbarButtonController extends BaseButtonDataProvider
 
         if (mCurrentActorService != null) {
             List<ActorTask> tasks = mCurrentActorService.getActiveTasks();
-            if (!tasks.isEmpty()) {
+            Tab currentTab = mActiveTabSupplier.get();
+            boolean isOnActingTab =
+                    currentTab != null
+                            && mCurrentActorService.getActiveTaskIdOnTab(currentTab.getId())
+                                    != null;
+
+            if (!isOnActingTab && !tasks.isEmpty()) {
                 showTaskMenu(view, tasks);
                 return;
             }
@@ -580,14 +586,7 @@ public class GlicToolbarButtonController extends BaseButtonDataProvider
     }
 
     @Override
-    public void onGlobalShowHide(boolean isOpened) {
-        if (!isOpened) {
-            if (mIsPanelOpen) {
-                mIsPanelOpen = false;
-                notifyObservers(true);
-            }
-            return;
-        }
+    public void onGlobalShowHide() {
         updateIsPanelOpen();
     }
 }

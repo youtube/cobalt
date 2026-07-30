@@ -779,6 +779,7 @@ test("components_unittests") {
   if (!is_android && !is_ios && !is_fuchsia && !is_castos) {
     deps += [
       "//components/accessibility_annotator/content/content_annotator:unit_tests",
+      "//components/accessibility_annotator/content/live_tab_context:unit_tests",
       "//components/accessibility_annotator/core/live_tab_context:unit_tests",
       "//components/private_ai:unit_tests",
     ]
@@ -1137,6 +1138,8 @@ if (use_blink) {
       "optimization_guide/content/browser/page_content_metadata_observer_browsertest.cc",
       "optimization_guide/content/browser/page_content_proto_provider_browsertest.cc",
       "optimization_guide/content/renderer/page_text_agent_browsertest.cc",
+      "page_content_annotations/content/browser/page_settled_monitor_browsertest.cc",
+      "page_content_annotations/content/renderer/paint_stability_monitor_browsertest.cc",
       "paint_preview/renderer/paint_preview_recorder_browsertest.cc",
       "password_manager/content/browser/bad_message_browsertest.cc",
       "ukm/content/source_url_recorder_browsertest.cc",
@@ -1188,6 +1191,10 @@ if (use_blink) {
       "//components/optimization_guide/content/browser:test_support",
       "//components/optimization_guide/content/renderer",
       "//components/page_content_annotations/content",
+      "//components/page_content_annotations/content/browser",
+      "//components/page_content_annotations/content/mojom",
+      "//components/page_content_annotations/content/renderer",
+      "//components/page_content_annotations/core:features",
       "//components/paint_preview/renderer",
       "//components/password_manager/content/browser",
       "//components/performance_manager:browser_tests",

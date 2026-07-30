@@ -14,6 +14,7 @@
 
 #include "base/auto_reset.h"
 #include "base/compiler_specific.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
@@ -27,6 +28,7 @@
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "media/ffmpeg/scoped_av_packet.h"
 #include "media/filters/ffmpeg_audio_decoder.h"
+#include "media/filters/opus_audio_decoder.h"
 #include "media/formats/mpeg/mpeg1_audio_stream_parser.h"
 
 #if BUILDFLAG(ENABLE_SYMPHONIA)
@@ -81,6 +83,13 @@ bool AudioFileReader::OpenDecoder() {
         SymphoniaAudioDecoder::ExecutionMode::kSynchronous);
   }
 #endif
+
+  if (!decoder_ && config.codec() == AudioCodec::kOpus &&
+      base::FeatureList::IsEnabled(kDirectOpusAudioDecoding)) {
+    decoder_ = std::make_unique<OpusAudioDecoder>(
+        nullptr, OpusAudioDecoder::ExecutionMode::kSynchronous);
+  }
+
   // By default, use the FFmpegAudioDecoder.
   if (!decoder_) {
     decoder_ = std::make_unique<FFmpegAudioDecoder>(
@@ -266,14 +275,13 @@ void AudioFileReader::OnOutput(scoped_refptr<AudioBuffer> buffer) {
   }
 
   // Ensure that there are no unsupported midstream configuration changes.
+  // We allow channel layout changes as long as the channel count remains the
+  // same, to handle cases where FFmpeg refines the layout during decoding.
   if (buffer->sample_rate() != config_->samples_per_second() ||
-      buffer->channel_count() != config_->channels() ||
-      buffer->channel_layout() != config_->channel_layout()) {
+      buffer->channel_count() != config_->channels()) {
     DLOG(ERROR) << "Unsupported midstream configuration change! sample_rate="
                 << buffer->sample_rate() << " (expected "
                 << config_->samples_per_second()
-                << "), channel_layout=" << buffer->channel_layout()
-                << " (expected " << config_->channel_layout()
                 << "), channels=" << buffer->channel_count() << " (expected "
                 << config_->channels() << "\")";
 

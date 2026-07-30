@@ -32,6 +32,24 @@ BASE_DECLARE_FEATURE(kSafetyCheckAutorunByManagerKillswitch);
 // Stack if no issues are found.
 BASE_DECLARE_FEATURE(kSafetyCheckModuleHiddenIfNoIssuesKillswitch);
 
+// Enum defining the available Tab Grid setup modes.
+enum class TabGridSetupMode {
+  // The Tab Grid is set up immediately at startup (legacy behavior).
+  kImmediate = 0,
+  // The Tab Grid is set up after startup, once the UI thread is idle.
+  kDeferred = 1,
+
+  // For simulating the race condition where the user navigates to
+  // the tab grid before deferred setup is complete.
+  kLazy_ForTesting = 2,
+};
+
+// Feature flag to control Tab Grid setup mode.
+BASE_DECLARE_FEATURE(kTabGridSetupMode);
+extern const base::FeatureParam<int> kTabGridSetupModeParam;
+extern const char kTabGridSetupModeParamName[];
+TabGridSetupMode GetTabGridSetupMode();
+
 // Feature to enable the refactored implementation of the `OmahaService`, using
 // new `OmahaServiceObserver`(s) for Omaha clients. Acts as a killswitch.
 BASE_DECLARE_FEATURE(kOmahaServiceRefactor);
@@ -164,9 +182,6 @@ BASE_DECLARE_FEATURE(kIOSDateToCalendarSignedOut);
 
 // Feature flag enabling a fix for the Download manager mediator.
 BASE_DECLARE_FEATURE(kIOSDownloadNoUIUpdateInBackground);
-
-// Feature flag enabling the client folder implementation of Save to Drive.
-BASE_DECLARE_FEATURE(kIOSSaveToDriveClientFolder);
 
 // Feature flag enabling the save to drive feature for signed out users.
 BASE_DECLARE_FEATURE(kIOSSaveToDriveSignedOut);
@@ -391,6 +406,9 @@ bool IsBlueDotOnToolsMenuButtoneEnabled();
 // DO NOT CHECK DIRECTLY, use AreSeparateProfilesForManagedAccountsEnabled()!
 BASE_DECLARE_FEATURE(kSeparateProfilesForManagedAccounts);
 
+// Killswitch for the reauth-first step in AuthenticationFlowInProfile.
+BASE_DECLARE_FEATURE(kAuthenticationFlowReauthFirstKillswitch);
+
 // Feature param for kSeparateProfilesForManagedAccountsForceMigration to
 // specify how much time to wait before force-migrating the primary managed
 // account to its own separate profile.
@@ -571,6 +589,10 @@ extern const base::FeatureParam<double>
 // Feature flag to forward Maps Universal links to native maps.
 BASE_DECLARE_FEATURE(kIOSMiniMapUniversalLink);
 
+// Feature flag for counterfactual logging for the universal link native map
+// experiment.
+BASE_DECLARE_FEATURE(kIOSMiniMapUniversalLinkCounterfactual);
+
 // Returns whether notification collision management is enabled.
 bool IsNotificationCollisionManagementEnabled();
 
@@ -724,6 +746,13 @@ extern const char kEnableFuseboxKeyboardAccessoryParam[];
 extern const char kEnableFuseboxKeyboardAccessoryOnlySymbols[];
 extern const char kEnableFuseboxKeyboardAccessoryOnlyFeatures[];
 extern const char kEnableFuseboxKeyboardAccessoryBoth[];
+
+// Enables the placeholder text to be "Ask..." instead of "Search..." when
+// AI Omnibox is available.
+BASE_DECLARE_FEATURE(kAIOmniboxAskPlaceholder);
+
+// Returns true if the AIOmniboxAskPlaceholder feature is enabled.
+bool IsAIOmniboxAskPlaceholderEnabled();
 
 // Returns true if keyboard accessory is enabled.
 bool ShouldShowKeyboardAccessory();
@@ -991,5 +1020,8 @@ BASE_DECLARE_FEATURE(kAssistantAimMinimizedState);
 
 // Returns true if the `AssistantAimMinimizedState` feature is enabled.
 bool IsAssistantAimMinimizedStateEnabled();
+
+// Feature flag to enable the use of UIGraphicsImageRenderer for fallback icons.
+BASE_DECLARE_FEATURE(kUseUIGraphicsImageRendererForFallbackIcons);
 
 #endif  // IOS_CHROME_BROWSER_SHARED_PUBLIC_FEATURES_FEATURES_H_

@@ -51,10 +51,10 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_commands.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/send_tab_to_self/send_tab_to_self_bubble.h"
 #include "chrome/browser/ui/tab_ui_helper.h"
 #include "chrome/browser/ui/tabs/features.h"
@@ -2588,6 +2588,13 @@ void TabStripModel::ExecuteContextMenuCommand(int context_index,
       base::UmaHistogramCounts1000("Tab.ContextMenu.CloseTab.SelectedTabsCount",
                                    selection_model_.size());
       base::RecordAction(UserMetricsAction("TabContextMenu_CloseTab"));
+
+      std::optional<split_tabs::SplitTabId> split_id =
+          GetSplitForTab(context_index);
+      if (split_id.has_value()) {
+        delegate_->WillCloseSplit(split_id.value());
+      }
+
       ExecuteCloseTabs(
           base::BindRepeating(&TabStripModel::GetTabsForCommand,
                               base::Unretained(this), context_index),
@@ -2965,7 +2972,8 @@ void TabStripModel::ExecuteContextMenuCommand(int context_index,
           "Tab.ContextMenu.ToggleVertical.SelectedTabsCount",
           selection_model_.size());
       const BrowserWindowInterface* const browser =
-          chrome::FindBrowserWithTab(GetWebContentsAt(context_index));
+          GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
+              GetWebContentsAt(context_index));
       if (auto* controller =
               tabs::VerticalTabStripStateController::From(browser)) {
         const bool is_vertical = !controller->ShouldDisplayVerticalTabs();

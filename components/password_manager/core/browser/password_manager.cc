@@ -1096,6 +1096,10 @@ void PasswordManager::OnPasswordFormsParsed(
   }
   CreatePendingLoginManagers(driver, form_data);
 
+  for (Observer& observer : observers_) {
+    observer.OnPasswordFormsParsed(driver, form_data);
+  }
+
   PasswordGenerationFrameHelper* password_generation_manager =
       driver ? driver->GetPasswordGenerationHelper() : nullptr;
   if (password_generation_manager) {
@@ -1277,6 +1281,9 @@ void PasswordManager::NotifyStorePasswordCalled() {
 void PasswordManager::OnNonPasswordLoginDetected() {
   if (base::FeatureList::IsEnabled(
           features::kPreventPasswordManagerOnFederatedLogin)) {
+    base::UmaHistogramBoolean(
+        "PasswordManager.FederatedLogin.SavePromptPrevented",
+        GetSubmittedManager() != nullptr);
     ResetSubmittedManager();
     return;
   }

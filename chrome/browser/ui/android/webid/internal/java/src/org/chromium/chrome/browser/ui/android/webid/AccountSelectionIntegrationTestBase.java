@@ -201,6 +201,7 @@ public class AccountSelectionIntegrationTestBase {
                                     mActivityTestRule.getActivity().getWindowAndroid(),
                                     mBottomSheetController,
                                     mRpMode,
+                                    /* canShowUi= */ true,
                                     mMockBridge);
                 });
     }

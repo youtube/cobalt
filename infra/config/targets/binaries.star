@@ -1127,12 +1127,6 @@ targets.binaries.windowed_test_launcher(
 )
 
 targets.binaries.windowed_test_launcher(
-    name = "extensions_browsertests",
-    label = "//extensions:extensions_browsertests",
-    module_scheme = "gtest",
-)
-
-targets.binaries.windowed_test_launcher(
     name = "extensions_unittests",
     label = "//extensions:extensions_unittests",
     module_scheme = "gtest",
@@ -1890,6 +1884,12 @@ targets.binaries.console_test_launcher(
     name = "pdf_unittests",
     label = "//pdf:pdf_unittests",
     module_scheme = "gtest",
+)
+
+targets.binaries.generated_script(
+    name = "perfetto_diff_tests",
+    label = "//base/tracing:perfetto_diff_tests",
+    skip_usage_check = True,
 )
 
 targets.binaries.console_test_launcher(

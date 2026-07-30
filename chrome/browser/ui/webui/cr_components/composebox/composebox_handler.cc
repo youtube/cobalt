@@ -15,7 +15,6 @@
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/webui/cr_components/searchbox/contextual_searchbox_handler.h"
 #include "chrome/browser/ui/webui/cr_components/searchbox/searchbox_utils.h"
-#include "chrome/browser/ui/webui/top_chrome/top_chrome_web_ui_controller.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "components/contextual_search/contextual_search_types.h"
 #include "components/contextual_search/input_state_model.h"
@@ -184,6 +183,15 @@ void ComposeboxHandler::HandleLensButtonClick() {
 
 void ComposeboxHandler::HandleFileUpload(bool is_image) {
   // Ignore, intentionally unimplemented for NTP.
+}
+
+void ComposeboxHandler::OnContextMenuOpened() {
+  if (contextual_tasks::GetIsContextualTasksLazyFetchClusterInfoEnabled()) {
+    auto* session_handle = GetContextualSessionHandle();
+    if (session_handle && session_handle->GetController()) {
+      session_handle->GetController()->TriggerFetchClusterInfo();
+    }
+  }
 }
 
 void ComposeboxHandler::NavigateUrl(const GURL& url) {

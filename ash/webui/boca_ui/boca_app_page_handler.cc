@@ -59,7 +59,6 @@
 #include "chromeos/ui/wm/constants.h"
 #include "components/content_settings/core/common/pref_names.h"
 #include "components/prefs/pref_service.h"
-#include "components/sessions/core/session_id.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
@@ -295,7 +294,6 @@ BocaAppHandler::BocaAppHandler(
     mojo::PendingReceiver<boca::mojom::PageHandler> receiver,
     mojo::PendingRemote<boca::mojom::Page> remote,
     content::WebUI* web_ui,
-    std::unique_ptr<WebviewAuthHandler> auth_handler,
     std::unique_ptr<ClassroomPageHandlerImpl> classroom_client_impl,
     std::unique_ptr<ContentSettingsHandler> content_settings_handler,
     OnTaskSystemWebAppManager* system_web_app_manager,
@@ -303,7 +301,6 @@ BocaAppHandler::BocaAppHandler(
     bool is_producer)
     : is_producer_(is_producer),
       tab_info_collector_(web_ui, is_producer),
-      auth_handler_(std::move(auth_handler)),
       class_room_page_handler_(std::move(classroom_client_impl)),
       content_settings_handler_(std::move(content_settings_handler)),
       receiver_(this, std::move(receiver)),
@@ -351,10 +348,6 @@ BocaAppHandler::~BocaAppHandler() {
   if (ash::features::IsAnnotatorModeEnabled() && is_producer_) {
     ash::boca::util::EnableOrDisableMarkerMode(/*enable=*/false);
   }
-}
-
-void BocaAppHandler::AuthenticateWebview(AuthenticateWebviewCallback callback) {
-  auth_handler_->AuthenticateWebview(std::move(callback));
 }
 
 void BocaAppHandler::GetWindowsTabsList(GetWindowsTabsListCallback callback) {
@@ -719,25 +712,6 @@ void BocaAppHandler::SetSitePermission(const std::string& url,
   const bool success = content_settings_handler_->SetContentSettingForOrigin(
       url, permission, setting);
   std::move(callback).Run(success);
-}
-
-void BocaAppHandler::CloseTab(const SessionID::id_type tab_id,
-                              CloseTabCallback callback) {
-  if (!system_web_app_manager_) {
-    std::move(callback).Run(false);
-    return;
-  }
-
-  const SessionID window_id =
-      system_web_app_manager_->GetActiveSystemWebAppWindowID();
-  const SessionID id = SessionID::FromSerializedValue(tab_id);
-  if (!window_id.is_valid() || !id.is_valid()) {
-    std::move(callback).Run(false);
-    return;
-  }
-
-  system_web_app_manager_->RemoveTabsWithTabIds(window_id, {id});
-  std::move(callback).Run(true);
 }
 
 void BocaAppHandler::OpenFeedbackDialog(OpenFeedbackDialogCallback callback) {

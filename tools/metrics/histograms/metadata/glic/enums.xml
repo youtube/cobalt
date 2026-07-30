@@ -122,6 +122,20 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//chrome/browser/glic/glic_metrics.cc:BrowserActiveState) -->
 
+<!-- LINT.IfChange(GlicCheckAuthBeforeLoadOutcome) -->
+
+<enum name="GlicCheckAuthBeforeLoadOutcome">
+  <int value="0" label="Skipped sync: test automation is enabled"/>
+  <int value="1" label="Skipped sync: user must manually sign in"/>
+  <int value="2"
+      label="Skipped sync: GlicCookieSyncOnTokenChange is on and sync is not
+             needed"/>
+  <int value="3" label="Skipped sync: GlicSkipCookieSyncOnOpen is on"/>
+  <int value="4" label="Cookie sync was attempted"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/glic/host/auth_controller.h:CheckAuthBeforeLoadOutcome) -->
+
 <!-- LINT.IfChange(ClientErrorDialogType) -->
 
 <enum name="GlicClientErrorDialogType">
@@ -366,6 +380,8 @@ chromium-metrics-reviews@google.com.
   <int value="94" label="SubscribeToTabFavicon"/>
   <int value="95" label="ShowBrowseSkillsUi"/>
   <int value="96" label="OnExperimentalTriggeringUpdate"/>
+  <int value="97" label="SubscribeToZoomLevel"/>
+  <int value="98" label="UnsubscribeFromZoomLevel"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/resources/glic/glic_api_impl/request_types.ts:ApiRequestType) -->
@@ -597,6 +613,8 @@ chromium-metrics-reviews@google.com.
   <int value="8" label="LocalGlicNotReady"/>
   <int value="9" label="LocalGlicActuationNotAllowed"/>
   <int value="10" label="LocalGlicNotEnabledAndConsented"/>
+  <int value="11" label="LocalAccountMismatch"/>
+  <int value="12" label="LocalInvalidDocumentId"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/extensions/api/glic_private/glic_private_api.cc:GlicPrivateApiStatusCodeHistogramValue) -->
@@ -896,6 +914,8 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Submit Prompt with Auto Mode"/>
   <int value="2" label="Task interrupted for user confirmation"/>
   <int value="3" label="Task interrupted for user cancellation"/>
+  <int value="4" label="Selection toggled via shared menu"/>
+  <int value="5" label="Selection toggled via hotkey"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/glic/host/glic.mojom:WebUseCounter) -->
@@ -947,6 +967,21 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/resources/glic/glic_app_controller.ts:LoadingStage) -->
+
+<!-- LINT.IfChange(PanelWebUiStateErrorReason) -->
+
+<enum name="PanelWebUiStateErrorReason">
+  <int value="0" label="Webview Error"/>
+  <int value="1" label="Load Error"/>
+  <int value="2" label="Cookie Sync Error"/>
+  <int value="3" label="Timeout Waiting For NotifyPanelWillOpen"/>
+  <int value="4" label="Timeout Loading Client"/>
+  <int value="5" label="Timeout Warmed"/>
+  <int value="6" label="Client Error"/>
+  <int value="7" label="Close Debug View"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/resources/glic/glic_app_controller.ts:PanelWebUiStateErrorReason) -->
 
 <enum name="PdfRequestStates">
   <int value="0" label="PDF main doc; PDF found"/>

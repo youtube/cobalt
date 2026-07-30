@@ -35,6 +35,8 @@
 #include "chrome/browser/background/glic/glic_launcher_configuration.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
+#include "chrome/browser/feedback/feedback_uploader_chrome.h"
+#include "chrome/browser/feedback/feedback_uploader_factory_chrome.h"
 #include "chrome/browser/glic/actor/glic_actor_policy_checker.h"
 #include "chrome/browser/glic/common/future_browser_features.h"
 #include "chrome/browser/glic/common/glic_navigation.h"
@@ -77,12 +79,12 @@
 #include "chrome/browser/skills/skills_glic_mojom_util.h"
 #include "chrome/browser/skills/skills_service_factory.h"
 #include "chrome/browser/skills/skills_ui_tab_controller_interface.h"
-#include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
+#include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/common/actor/journal_details_builder.h"
@@ -141,8 +143,6 @@
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/feedback/feedback_uploader_chrome.h"
-#include "chrome/browser/feedback/feedback_uploader_factory_chrome.h"
 #include "chrome/browser/feedback/system_logs/chrome_system_logs_fetcher.h"
 #include "chrome/browser/glic/glic_hotkey.h"
 #include "chrome/browser/glic/host/context/glic_focused_browser_manager.h"
@@ -261,8 +261,7 @@ class ActiveStateCalculator : public PanelStateObserver {
 
   explicit ActiveStateCalculator(Host* host) : host_(host) {
     host_->AddPanelStateObserver(this);
-    PanelStateChanged(host_->GetPanelState(nullptr),
-                      {.attached_browser = nullptr, .glic_widget = nullptr});
+    PanelStateChanged(host_->GetPanelState(nullptr));
     // Calculate state immediately to avoid having an outdated state before
     // calc_timer_ triggers recalculation and any observers are attached.
     RecalculateAndNotify();
@@ -276,10 +275,8 @@ class ActiveStateCalculator : public PanelStateObserver {
   }
 
   // GlicInstanceCoordinator::StateObserver implementation.
-  void PanelStateChanged(const glic::mojom::PanelState& panel_state,
-                         const PanelStateContext& context) override {
+  void PanelStateChanged(const glic::mojom::PanelState& panel_state) override {
     panel_state_kind_ = panel_state.kind;
-    SetAttachedBrowser(context.attached_browser);
     PostRecalcAndNotify();
   }
 
@@ -300,56 +297,17 @@ class ActiveStateCalculator : public PanelStateObserver {
     }
   }
 
-  void AttachedBrowserActiveChanged(BrowserWindowInterface* browser) {
-    PostRecalcAndNotify();
-  }
-
-  void AttachedBrowserDidClose(BrowserWindowInterface* browser) {
-    SetAttachedBrowser(nullptr);
-    PostRecalcAndNotify();
-  }
-
-  bool SetAttachedBrowser(BrowserWindowInterface* attached_browser) {
-    if (attached_browser_ == attached_browser) {
-      return false;
-    }
-    attached_browser_subscriptions_.clear();
-    attached_browser_ = attached_browser;
-
-    // attached_browser is always null in Multi-instance, and ANDROID implies
-    // Multi-instance.
-#if !BUILDFLAG(IS_ANDROID)
-    if (attached_browser_ && !attached_browser_->IsDeleteScheduled()) {
-      attached_browser_subscriptions_.push_back(
-          attached_browser_->RegisterDidBecomeActive(base::BindRepeating(
-              &ActiveStateCalculator::AttachedBrowserActiveChanged,
-              base::Unretained(this))));
-      attached_browser_subscriptions_.push_back(
-          attached_browser_->RegisterDidBecomeInactive(base::BindRepeating(
-              &ActiveStateCalculator::AttachedBrowserActiveChanged,
-              base::Unretained(this))));
-      attached_browser_subscriptions_.push_back(
-          attached_browser_->RegisterBrowserDidClose(base::BindRepeating(
-              &ActiveStateCalculator::AttachedBrowserDidClose,
-              base::Unretained(this))));
-    }
-#endif
-    return true;
-  }
-
   bool Calculate() {
     // TODO(b:444463509): Implement better calculation.
     return panel_state_kind_ != glic::mojom::PanelStateKind::kHidden;
   }
 
   base::OneShotTimer calc_timer_;
-  std::vector<base::CallbackListSubscription> attached_browser_subscriptions_;
 
   raw_ptr<Host> host_;
   base::ObserverList<Observer> observers_;
   glic::mojom::PanelStateKind panel_state_kind_;
   bool is_active_ = false;
-  raw_ptr<BrowserWindowInterface> attached_browser_ = nullptr;
 };
 
 class BrowserIsOpenCalculator : public BrowserCollectionObserver {
@@ -570,8 +528,6 @@ class JournalHandler {
 
  private:
   void SendResponseFeedback(const std::string& reason) {
-// NEEDS_ANDROID_IMPL: FeedbackUploaderFactoryChrome
-#if !BUILDFLAG(IS_ANDROID)
     base::WeakPtr<feedback::FeedbackUploader> uploader =
         feedback::FeedbackUploaderFactoryChrome::GetForBrowserContext(
             actor_keyed_service_->GetProfile())
@@ -601,6 +557,11 @@ class JournalHandler {
               .email);
     }
 
+// NEEDS_ANDROID_IMPL: ChromeSystemLogsFetcher
+#if BUILDFLAG(IS_ANDROID)
+    feedback_data->CompressSystemInfo();
+    feedback_data->OnFeedbackPageDataComplete();
+#else
     system_logs::BuildChromeSystemLogsFetcher(
         actor_keyed_service_->GetProfile(), /*scrub_data=*/false)
         ->Fetch(base::BindOnce(
@@ -1396,16 +1357,25 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     host().CaptureScreenshot(std::move(callback));
   }
 
-  void CaptureRegion(
-      mojo::PendingRemote<mojom::CaptureRegionObserver> observer) override {
+  void CaptureRegion(mojo::PendingRemote<mojom::CaptureRegionObserver> observer,
+                     mojom::CaptureRegionParamsPtr params) override {
 #if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL: CaptureRegion (b/494315475)
-    const FocusedTabData& focus = sharing_manager().GetFocusedTabData();
-    // Prioritize the focused tab, but fall back to the unfocused tab if one is
-    // available. This is useful in cases where the active tab is not
-    // "focusable" by Glic (e.g. chrome:// pages).
-    tabs::TabInterface* active_tab =
-        focus.is_focus() ? focus.focus() : focus.unfocused_tab();
-    glic_service_->CaptureRegion(active_tab, std::move(observer));
+    std::optional<int32_t> tab_id =
+        params ? std::optional<int32_t>(params->tab_id) : std::nullopt;
+    mojom::GetTabContextOptionsPtr tab_context_options =
+        params ? std::move(params->options) : nullptr;
+    tabs::TabInterface* tab = nullptr;
+    if (tab_id.has_value()) {
+      tab = tabs::TabHandle(*tab_id).Get();
+    } else {
+      const FocusedTabData& focus = sharing_manager().GetFocusedTabData();
+      // Prioritize the focused tab, but fall back to the unfocused tab if one
+      // is available. This is useful in cases where the active tab is not
+      // "focusable" by Glic (e.g. chrome:// pages).
+      tab = focus.is_focus() ? focus.focus() : focus.unfocused_tab();
+    }
+    glic_service_->CaptureRegion(tab, std::move(observer),
+                                 std::move(tab_context_options));
 #else
     NOTIMPLEMENTED();
 #endif
@@ -1418,7 +1388,7 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     if (!tab) {
       return;
     }
-    if (tab->GetBrowserWindowInterface()->GetProfile() != profile_) {
+    if (tab->GetProfile() != profile_) {
       return;
     }
     glic_service_->DeleteCapturedRegion(tab, id);
@@ -1597,6 +1567,14 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
 
   void SyncCookies(SyncCookiesCallback callback) override {
     glic_service_->GetAuthController().ForceSyncCookies(std::move(callback));
+  }
+
+  void ClientErrorDialogStateChanged(
+      std::optional<glic::mojom::ClientErrorDialogType> shown_dialog_type)
+      override {
+    if (shown_dialog_type) {
+      glic_service_->GetAuthController().OnClientError();
+    }
   }
 
   void LogBeginAsyncEvent(uint64_t event_async_id,
@@ -1794,9 +1772,7 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
   }
 
   // GlicInstanceCoordinator::StateObserver implementation.
-  void PanelStateChanged(
-      const glic::mojom::PanelState& panel_state,
-      const GlicInstanceCoordinator::PanelStateContext& context) override {
+  void PanelStateChanged(const glic::mojom::PanelState& panel_state) override {
     web_client_->NotifyPanelStateChange(panel_state.Clone());
   }
 
@@ -1833,10 +1809,6 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
 
   void StopMicrophone(base::OnceClosure done) override {
     web_client_->StopMicrophone(std::move(done));
-  }
-
-  void PanelStateChanged(const glic::mojom::PanelState& panel_state) override {
-    web_client_->NotifyPanelStateChange(panel_state.Clone());
   }
 
   void ManualResizeChanged(bool resizing) override {
@@ -2653,8 +2625,7 @@ void GlicPageHandler::WebUiStateChanged(glic::mojom::WebUiState new_state) {
 }
 
 void GlicPageHandler::PanelStateChanged(
-    const glic::mojom::PanelState& panel_state,
-    const PanelStateContext& context) {
+    const glic::mojom::PanelState& panel_state) {
   UpdatePageState(panel_state.kind);
 }
 

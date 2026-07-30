@@ -11,6 +11,7 @@
 #import "base/test/ios/wait_util.h"
 #import "components/keyed_service/core/service_access_type.h"
 #import "components/password_manager/core/browser/password_form.h"
+#import "components/password_manager/core/browser/password_store/password_form_converters.h"
 #import "components/password_manager/core/browser/password_store/password_store_consumer.h"
 #import "components/password_manager/core/browser/password_store/password_store_interface.h"
 #import "components/password_manager/core/common/password_manager_pref_names.h"
@@ -50,17 +51,33 @@ class PasswordStoreConsumerHelper : public PasswordStoreConsumer {
   PasswordStoreConsumerHelper& operator=(const PasswordStoreConsumerHelper&) =
       delete;
 
-  void OnGetPasswordStoreResults(
-      std::vector<std::unique_ptr<PasswordForm>> results) override {
-    result_.swap(results);
+  void OnGetPasswordStoreResultsOrErrorFrom(
+      PasswordStoreInterface* store,
+      password_manager::LoginsResultOrError results_or_error) override {
+    if (std::holds_alternative<password_manager::PasswordStoreBackendError>(
+            results_or_error)) {
+      result_ = std::vector<PasswordForm>();
+    } else {
+      result_ = password_manager::ToPasswordForms(
+          std::get<password_manager::LoginsResult>(
+              std::move(results_or_error)));
+    }
   }
 
   std::vector<std::unique_ptr<PasswordForm>> WaitForResult() {
     bool unused = WaitUntilConditionOrTimeout(kWaitForActionTimeout, ^{
-      return result_.size() > 0;
+      return result_.has_value();
     });
     (void)unused;
-    return std::move(result_);
+    if (!result_.has_value()) {
+      return {};
+    }
+    std::vector<std::unique_ptr<PasswordForm>> unique_results;
+    unique_results.reserve(result_->size());
+    for (auto& form : *result_) {
+      unique_results.push_back(std::make_unique<PasswordForm>(std::move(form)));
+    }
+    return unique_results;
   }
 
   base::WeakPtr<PasswordStoreConsumer> GetWeakPtr() {
@@ -68,7 +85,7 @@ class PasswordStoreConsumerHelper : public PasswordStoreConsumer {
   }
 
  private:
-  std::vector<std::unique_ptr<PasswordForm>> result_;
+  std::optional<std::vector<PasswordForm>> result_;
   base::WeakPtrFactory<PasswordStoreConsumerHelper> weak_ptr_factory_{this};
 };
 

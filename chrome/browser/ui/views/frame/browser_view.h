@@ -42,7 +42,6 @@
 #include "components/enterprise/buildflags/buildflags.h"
 #include "components/infobars/core/infobar_container.h"
 #include "components/user_education/common/feature_promo/feature_promo_handle.h"
-#include "components/user_education/views/view_subregion_anchor.h"
 #include "components/viz/common/frame_timing_details.h"
 #include "components/webapps/browser/banners/app_banner_manager.h"
 #include "content/public/browser/page_user_data.h"
@@ -59,6 +58,7 @@
 #include "ui/gfx/native_ui_types.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/controls/webview/unhandled_keyboard_event_handler.h"
+#include "ui/views/interaction/view_subregion_anchor.h"
 #include "ui/views/widget/widget_delegate.h"
 #include "ui/views/widget/widget_observer.h"
 #include "ui/views/window/client_view.h"
@@ -267,11 +267,7 @@ class BrowserView : public BrowserWindow,
 
   views::View* main_shadow_overlay() { return main_shadow_overlay_; }
 
-  SidePanel* toolbar_height_side_panel() { return toolbar_height_side_panel_; }
-
-  SidePanel* contents_height_side_panel() {
-    return contents_height_side_panel_;
-  }
+  SidePanel* side_panel() { return side_panel_; }
 
   MultiContentsView* multi_contents_view() { return multi_contents_view_; }
 
@@ -543,11 +539,7 @@ class BrowserView : public BrowserWindow,
   void Restore() override;
   bool GetCanResize() override;
   ui::mojom::WindowShowState GetWindowShowState() const override;
-  bool ShouldHideUIForFullscreen() const override;
   bool IsFullscreen() const override;
-  bool IsFullscreenBubbleVisible() const override;
-  bool IsForceFullscreen() const override;
-  void SetForceFullscreen(bool force_fullscreen) override;
   void UpdatePageActionIcon(PageActionIconType type) override;
   autofill::AutofillBubbleHandler* GetAutofillBubbleHandler() override;
   void ExecutePageActionIconForTesting(PageActionIconType type) override;
@@ -1156,13 +1148,11 @@ class BrowserView : public BrowserWindow,
   // |  |  MultiContentsView (multi_contents_view_)                        |  |
   // |  --------------------------------------------------------------------  |
   // |------------------------------------------------------------------------|
-  // | ContentHeightSidePanel (contents_height_side_panel_)                   |
-  // |------------------------------------------------------------------------|
-  // | ToolbarHeightSidePanel (toolbar_height_side_panel_)                    |
+  // | SidePanel (side_panel_)                                                |
   // |------------------------------------------------------------------------|
 
   // The view that draws the background the main_container and
-  // toolbar_height_side_panel are displayed on.
+  // side_panel are displayed on.
   raw_ptr<views::View> main_background_region_ = nullptr;
 
   // The view that contains the primary UI (Toolbar, BookmarksBar, InfoBar,
@@ -1278,14 +1268,11 @@ class BrowserView : public BrowserWindow,
   // The view responsible for housing the contents of the projects panel.
   raw_ptr<ProjectsPanelView> projects_panel_container_ = nullptr;
 
-  // Side panel that extends to the height of the toolbar.
-  raw_ptr<SidePanel> toolbar_height_side_panel_ = nullptr;
-
-  // The side panel aligned to the left or the right side of the browser window
-  // depending on the kSidePanelHorizontalAlignment pref's value.
-  // Conceptually this member should exist if and only if the
-  // side_panel_coordinator is created.
-  raw_ptr<SidePanel> contents_height_side_panel_ = nullptr;
+  // Side panel that extends to the height of the page content or toolbar,
+  // aligned to the left or the right side of the browser window depending on
+  // the kSidePanelHorizontalAlignment pref's value. Conceptually this member
+  // should exist if and only if the side_panel_coordinator is created.
+  raw_ptr<SidePanel> side_panel_ = nullptr;
 
   // The handler responsible for showing autofill bubbles.
   std::unique_ptr<autofill::AutofillBubbleHandler> autofill_bubble_handler_;
@@ -1298,7 +1285,7 @@ class BrowserView : public BrowserWindow,
 
   // Anchor point for help bubbles and other dialogs that want to reliably
   // anchor outside the content area of the window.
-  std::unique_ptr<user_education::ViewSubregionAnchor> dialog_anchor_;
+  std::unique_ptr<views::ViewSubregionAnchor> dialog_anchor_;
 
   // A mapping between accelerators and command IDs.
   std::map<ui::Accelerator, int> accelerator_table_;
@@ -1316,10 +1303,6 @@ class BrowserView : public BrowserWindow,
   // to ignore requests to layout while in ProcessFullscreen() to reduce
   // jankiness.
   bool in_process_fullscreen_ = false;
-
-  // True when we do not want to allow exiting fullscreen, e.g. in Chrome OS
-  // Kiosk session.
-  bool force_fullscreen_ = false;
 
   // The runner used for displaying tab-loading animations.
   std::unique_ptr<gfx::AnimationRunner> loading_animation_;

@@ -2700,11 +2700,9 @@ ax::mojom::blink::Role AXNodeObject::NativeRoleIgnoringAria() const {
   }
 
   if (IsA<HTMLFormElement>(*GetNode())) {
-    // Only treat <form> as role="form" when it has an accessible name, which
-    // can only occur when the name is assigned by the author via aria-label,
-    // aria-labelledby, or title. Otherwise, treat as a <section>.
-    return IsNameFromAuthorAttribute() ? ax::mojom::blink::Role::kForm
-                                       : ax::mojom::blink::Role::kSection;
+    // Always return kForm for <form> elements. Each platform decides how to
+    // expose named vs unnamed forms per Core AAM and HTML AAM specifications.
+    return ax::mojom::blink::Role::kForm;
   }
 
   if (GetNode()->HasTagName(html_names::kAbbrTag))
@@ -2808,6 +2806,19 @@ ax::mojom::blink::Role AXNodeObject::NativeRoleIgnoringAria() const {
 
   if (IsFieldset())
     return ax::mojom::blink::Role::kGroup;
+
+  // Check for a platform-provided behavior's default role.
+  // See:
+  // https://github.com/MicrosoftEdge/MSEdgeExplainers/blob/main/PlatformProvidedBehaviors/explainer.md.
+  if (RuntimeEnabledFeatures::ElementInternalsBehaviorsEnabled()) {
+    if (auto* internals =
+            GetElement() ? GetElement()->GetElementInternals() : nullptr) {
+      ax::mojom::blink::Role role = internals->BehaviorBasedDefaultRole();
+      if (role != ax::mojom::blink::Role::kUnknown) {
+        return role;
+      }
+    }
+  }
 
   return RoleFromLayoutObjectOrNode();
 }
@@ -6963,14 +6974,11 @@ String AXNodeObject::TextAlternativeFromTooltip(
     return title_text;
   }
 
-  // First try for interest for, then for hint popover.
+  // First try for interestfor, then for hint popover.
   // TODO(accessibility) Consider only using interest for.
-  AXObject* popover_ax_object = nullptr;
-  if (RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled()) {
-    popover_ax_object = AXObjectCache().Get(GetElement()->InterestForElement());
-  }
+  AXObject* popover_ax_object =
+      AXObjectCache().Get(GetElement()->InterestForElement());
   if (popover_ax_object) {
-    DCHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled());
     name_from = ax::mojom::blink::NameFrom::kInterestFor;
   } else {
     auto* form_control = DynamicTo<HTMLFormControlElement>(GetElement());
@@ -7974,10 +7982,8 @@ String AXNodeObject::Description(
 
   // For form controls that act as interest for triggering elements, use
   // the target for a description if it only contains plain contents.
-  if (RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled() &&
-      name_from != ax::mojom::blink::NameFrom::kInterestFor) {
+  if (name_from != ax::mojom::blink::NameFrom::kInterestFor) {
     if (Element* target = element->InterestForElement()) {
-      DCHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled());
       description_from = ax::mojom::blink::DescriptionFrom::kInterestFor;
       if (description_sources) {
         description_sources->push_back(

@@ -18,13 +18,13 @@
 #include "ui/views/controls/menu/menu_runner.h"
 #include "url/gurl.h"
 
-class WebUIToolbarWebView;
+class WebUIToolbarControlDelegate;
 
 // WebUIHomeControl implements C++-side functionality for the WebUI-based
 // implementation of the home button in the toolbar.
 class WebUIHomeControl {
  public:
-  explicit WebUIHomeControl(WebUIToolbarWebView* webui_toolbar_web_view);
+  explicit WebUIHomeControl(WebUIToolbarControlDelegate* delegate);
   WebUIHomeControl(const WebUIHomeControl&) = delete;
   WebUIHomeControl& operator=(const WebUIHomeControl&) = delete;
   ~WebUIHomeControl();
@@ -45,6 +45,8 @@ class WebUIHomeControl {
   // and displays the undo bubble.
   void OnHomeButtonDropUrl(const GURL& url);
 
+  ui::MenuModel* GetMenuModelForTesting() { return &home_menu_; }
+
  private:
   FRIEND_TEST_ALL_PREFIXES(WebUIToolbarWebViewPixelBrowserTest,
                            CheckHomeButtonColor);
@@ -54,13 +56,15 @@ class WebUIHomeControl {
                            LongPressHomeButton);
   FRIEND_TEST_ALL_PREFIXES(WebUIToolbarButtonPressAndDragTest,
                            PressAndDragDown);
-  void UpdateIsPinned(bool is_pinned);
+
+  void OnIsPinnedChanged();
+
   void UpdateState();
 
   // Displays the bubble confirming the home page was set.
   void ShowSetHomePageBubble(const GURL& undo_url, bool undo_is_ntp);
 
-  raw_ptr<WebUIToolbarWebView> webui_toolbar_web_view_;
+  raw_ptr<WebUIToolbarControlDelegate> delegate_;
   BooleanPrefMember pin_state_;
   bool is_pinned_ = false;
   bool is_context_menu_visible_ = false;

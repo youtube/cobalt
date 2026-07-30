@@ -135,7 +135,8 @@ public class FuseboxMetricsTest {
                         /* enabled= */ true,
                         /* selected= */ false,
                         PopupButtonType.MODEL,
-                        ModelMode.MODEL_MODE_GEMINI_PRO_VALUE);
+                        ModelMode.MODEL_MODE_GEMINI_PRO_VALUE,
+                        /* hasColor= */ false);
         PopupButtonData data2 =
                 new PopupButtonData(
                         (data) -> {},
@@ -144,7 +145,8 @@ public class FuseboxMetricsTest {
                         /* enabled= */ true,
                         /* selected= */ false,
                         PopupButtonType.MODEL,
-                        ModelMode.MODEL_MODE_GEMINI_PRO_AUTOROUTE_VALUE);
+                        ModelMode.MODEL_MODE_GEMINI_PRO_AUTOROUTE_VALUE,
+                        /* hasColor= */ false);
         mPropertyModel.set(
                 FuseboxProperties.POPUP_MODEL_BUTTON_DATA_LIST, Arrays.asList(data1, data2));
 
@@ -232,10 +234,39 @@ public class FuseboxMetricsTest {
 
     @Test
     public void testNotifyAttachmentsPopupToggled_ShowPopup_ToolButtonsVisible() {
-        mPropertyModel.set(FuseboxProperties.POPUP_TOOL_AI_MODE_VISIBLE, true);
-        mPropertyModel.set(FuseboxProperties.POPUP_TOOL_CREATE_IMAGE_VISIBLE, true);
-        mPropertyModel.set(FuseboxProperties.POPUP_TOOL_DEEP_SEARCH_VISIBLE, true);
-        mPropertyModel.set(FuseboxProperties.POPUP_TOOL_CANVAS_VISIBLE, false);
+        PopupButtonData dataAi =
+                new PopupButtonData(
+                        (data) -> {},
+                        "AI Mode",
+                        /* iconId= */ 0,
+                        /* enabled= */ true,
+                        /* selected= */ false,
+                        PopupButtonType.TOOL,
+                        ToolMode.TOOL_MODE_UNSPECIFIED_VALUE,
+                        /* hasColor= */ false);
+        PopupButtonData dataImage =
+                new PopupButtonData(
+                        (data) -> {},
+                        "Create Image",
+                        /* iconId= */ 0,
+                        /* enabled= */ true,
+                        /* selected= */ false,
+                        PopupButtonType.TOOL,
+                        ToolMode.TOOL_MODE_IMAGE_GEN_VALUE,
+                        /* hasColor= */ false);
+        PopupButtonData dataDeep =
+                new PopupButtonData(
+                        (data) -> {},
+                        "Deep Search",
+                        /* iconId= */ 0,
+                        /* enabled= */ true,
+                        /* selected= */ false,
+                        PopupButtonType.TOOL,
+                        ToolMode.TOOL_MODE_DEEP_SEARCH_VALUE,
+                        /* hasColor= */ false);
+        mPropertyModel.set(
+                FuseboxProperties.POPUP_TOOL_BUTTON_DATA_LIST,
+                Arrays.asList(dataAi, dataImage, dataDeep));
 
         var histogramWatcher =
                 HistogramWatcher.newBuilder()
@@ -346,11 +377,17 @@ public class FuseboxMetricsTest {
                                 "Omnibox.MobileFusebox.AttachmentButtonShown",
                                 FuseboxMetrics.FuseboxAttachmentButtonType.FILES)
                         .expectIntRecord(
+                                "Omnibox.MobileFusebox.AttachmentButtonShown",
+                                FuseboxMetrics.FuseboxAttachmentButtonType.SUGGESTED_TAB)
+                        .expectIntRecord(
                                 "Omnibox.MobileFusebox.AttachmentButtonUsed",
                                 FuseboxMetrics.FuseboxAttachmentButtonType.CAMERA)
                         .expectIntRecord(
                                 "Omnibox.MobileFusebox.AttachmentButtonUsed",
                                 FuseboxMetrics.FuseboxAttachmentButtonType.TAB_PICKER)
+                        .expectIntRecord(
+                                "Omnibox.MobileFusebox.AttachmentButtonUsed",
+                                FuseboxMetrics.FuseboxAttachmentButtonType.SUGGESTED_TAB)
 
                         // Session End Metrics:
                         .expectBooleanRecord(
@@ -372,6 +409,9 @@ public class FuseboxMetricsTest {
                                 false)
                         .expectBooleanRecord(
                                 "Omnibox.MobileFusebox.AttachmentButtonUsedInSession.Files", false)
+                        .expectBooleanRecord(
+                                "Omnibox.MobileFusebox.AttachmentButtonUsedInSession.SuggestedTab",
+                                true)
                         .expectIntRecord(
                                 "Omnibox.MobileFusebox.AutocompleteRequestTypeAtAbandon",
                                 AutocompleteRequestType.AI_MODE)
@@ -384,6 +424,10 @@ public class FuseboxMetricsTest {
 
         mMetrics.notifyAttachmentButtonUsed(FuseboxMetrics.FuseboxAttachmentButtonType.CAMERA);
         mMetrics.notifyAttachmentButtonUsed(FuseboxMetrics.FuseboxAttachmentButtonType.TAB_PICKER);
+        mMetrics.notifyAttachmentButtonShown(
+                FuseboxMetrics.FuseboxAttachmentButtonType.SUGGESTED_TAB);
+        mMetrics.notifyAttachmentButtonUsed(
+                FuseboxMetrics.FuseboxAttachmentButtonType.SUGGESTED_TAB);
 
         mMetrics.notifyOmniboxSessionEnded(
                 false, AutocompleteRequestType.AI_MODE, ModelMode.MODEL_MODE_GEMINI_PRO_VALUE);

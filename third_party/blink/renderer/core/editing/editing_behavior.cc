@@ -102,6 +102,12 @@ const KeyboardCodeKeyDownEntry kKeyboardCodeKeyDownEntries[] = {
     {VKEY_RIGHT, OPTION_OR_CTRL_KEY, "MoveWordRight"},
     {VKEY_RIGHT, OPTION_OR_CTRL_KEY | kShiftKey,
      "MoveWordRightAndModifySelection"},
+#if BUILDFLAG(IS_ANDROID)
+    {VKEY_LEFT, kAltKey, "MoveToBeginningOfLine"},
+    {VKEY_RIGHT, kAltKey, "MoveToEndOfLine"},
+    {VKEY_LEFT, kAltKey | kShiftKey, "MoveToBeginningOfLineAndModifySelection"},
+    {VKEY_RIGHT, kAltKey | kShiftKey, "MoveToEndOfLineAndModifySelection"},
+#endif
     {VKEY_UP, 0, "MoveUp"},
     {VKEY_UP, kShiftKey, "MoveUpAndModifySelection"},
     {VKEY_PRIOR, kShiftKey, "MovePageUpAndModifySelection"},

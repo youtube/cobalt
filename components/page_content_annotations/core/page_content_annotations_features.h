@@ -30,6 +30,11 @@ BASE_DECLARE_FEATURE(kAnnotatedPageContentExtraction);
 COMPONENT_EXPORT(PAGE_CONTENT_ANNOTATIONS_FEATURES)
 BASE_DECLARE_FEATURE(kAnnotatedPageContentNonSalientFiltering);
 
+// Enables PDF text extraction for local consumers such as page embeddings
+// service.
+COMPONENT_EXPORT(PAGE_CONTENT_ANNOTATIONS_FEATURES)
+BASE_DECLARE_FEATURE(kAnnotatedPageContentPDFTextExtraction);
+
 // Whether non-salient content filtering should exclude ad-related content.
 COMPONENT_EXPORT(PAGE_CONTENT_ANNOTATIONS_FEATURES)
 extern const base::FeatureParam<bool>
@@ -54,6 +59,51 @@ extern const base::FeatureParam<bool> kPageContentCacheEnableScreenshot;
 // Whether to consider user engagement when enabling page content cache.
 COMPONENT_EXPORT(PAGE_CONTENT_ANNOTATIONS_FEATURES)
 extern const base::FeatureParam<bool> kPageContentCacheUseUserEngagement;
+
+// Enables the shared component for monitoring page stability to determine when
+// a page has settled enough for observations to take place.
+COMPONENT_EXPORT(PAGE_CONTENT_ANNOTATIONS_FEATURES)
+BASE_DECLARE_FEATURE(kPageSettledMonitor);
+
+// The overall observation timeout when waiting on a renderer tool to complete.
+COMPONENT_EXPORT(PAGE_CONTENT_ANNOTATIONS_FEATURES)
+extern const base::FeatureParam<base::TimeDelta> kPageStabilityTimeout;
+
+// The minimum amount of time to wait for page stability before invoking the
+// callback.
+COMPONENT_EXPORT(PAGE_CONTENT_ANNOTATIONS_FEATURES)
+extern const base::FeatureParam<base::TimeDelta> kPageStabilityMinWait;
+
+// Timeout controlling how long the paint stability monitor waits for the
+// initial contentful paint before considering the UI to have stabilized.
+COMPONENT_EXPORT(PAGE_CONTENT_ANNOTATIONS_FEATURES)
+extern const base::FeatureParam<base::TimeDelta>
+    kPaintStabilityInitialPaintTimeout;
+
+// Timeout controlling how long the paint stability monitor waits for subsequent
+// contentful paints before considering the UI to have stabilized.
+COMPONENT_EXPORT(PAGE_CONTENT_ANNOTATIONS_FEATURES)
+extern const base::FeatureParam<base::TimeDelta>
+    kPaintStabilitySubsequentPaintTimeout;
+
+// The overall observation timeout when waiting for the page to settle.
+// This timeout is long but based on the NavigationToLoadEventFired UMA. This
+// should be tuned with real world usage.
+COMPONENT_EXPORT(PAGE_CONTENT_ANNOTATIONS_FEATURES)
+extern const base::FeatureParam<base::TimeDelta> kObservationDelayTimeout;
+
+// The additional delay before completing a tool if LCP is not detected yet upon
+// loading.
+COMPONENT_EXPORT(PAGE_CONTENT_ANNOTATIONS_FEATURES)
+extern const base::FeatureParam<base::TimeDelta> kObservationDelayLcp;
+
+// If enabled, observation for page load excludes load in ad frames.
+COMPONENT_EXPORT(PAGE_CONTENT_ANNOTATIONS_FEATURES)
+BASE_DECLARE_FEATURE(kPageSettledMonitorExcludeAdFrameLoading);
+
+// Kill switch for skipping waiting for visual state update on new tabs.
+COMPONENT_EXPORT(PAGE_CONTENT_ANNOTATIONS_FEATURES)
+BASE_DECLARE_FEATURE(kPageSettledMonitorSkipAwaitVisualStateForHiddenTabs);
 
 // The maximum number of "related searches" entries allowed to be maintained in
 // a least-recently-used cache for "related searches" data obtained via ZPS

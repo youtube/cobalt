@@ -49,6 +49,7 @@
 #include "build/buildflag.h"
 #include "components/viz/host/host_frame_sink_manager.h"
 #include "content/browser/agent_cluster_key.h"
+#include "content/browser/back_forward_cache/back_forward_cache_impl.h"
 #include "content/browser/blob_storage/chrome_blob_storage_context.h"
 #include "content/browser/browsing_topics/header_util.h"
 #include "content/browser/child_process_security_policy_impl.h"
@@ -78,7 +79,6 @@
 #include "content/browser/preloading/prerender/prerender_metrics.h"
 #include "content/browser/preloading/prerender/prerender_navigation_utils.h"
 #include "content/browser/process_lock.h"
-#include "content/browser/renderer_host/back_forward_cache_impl.h"
 #include "content/browser/renderer_host/concurrent_navigations_commit_deferring_condition.h"
 #include "content/browser/renderer_host/cookie_utils.h"
 #include "content/browser/renderer_host/debug_urls.h"
@@ -1339,33 +1339,6 @@ std::unique_ptr<NavigationRequest> NavigationRequest::Create(
                   .GetBrowserContext()
                   ->GetStoragePartition(frame_entry->site_instance()),
               common_params->url);
-    }
-  }
-
-  // Ensure that top-level navigations initiated from fenced frames (such as
-  // _unfencedTop, pop-ups, and "Open Link in...") fail if the fenced frame's
-  // network access is revoked. Some of these paths have additional checks for
-  // UX reasons (see: RenderFrameHostImpl::CreateNewWindow and
-  // RenderViewContextMenu::IsCommandIdEnabled). This check is only needed for
-  // navigations that escape the fenced frame boundary, as the target will have
-  // no knowledge of the fenced frame's network revocation nonce. This check
-  // does not exist in CreateRendererInitiated() because that path is not hit
-  // for navigations that cross fenced frame boundaries.
-  if (initiator_frame_token) {
-    // It is okay to use the current frame host's storage partition because
-    // the storage partition does not change over the lifetime of the fenced
-    // frame.
-    std::optional<bool> is_untrusted_network_disabled =
-        RenderFrameHostImpl::GetIsUntrustedNetworkDisabled(
-            base::OptionalToPtr(initiator_frame_token), initiator_process_id,
-            static_cast<StoragePartitionImpl*>(
-                frame_tree_node->current_frame_host()->GetStoragePartition()));
-    if (is_untrusted_network_disabled == true) {
-      frame_tree_node->current_frame_host()->AddMessageToConsole(
-          blink::mojom::ConsoleMessageLevel::kError,
-          "Navigations cannot be initiated from a fenced frame after its "
-          "network has been disabled.");
-      return nullptr;
     }
   }
 
@@ -2842,7 +2815,6 @@ void NavigationRequest::OnFencedFrameURLMappingComplete(
 
   // For urns loaded into iframes, we disable certain aspects of fenced frames:
   // * a storage/network partition nonce
-  // * the ability to call window.fence.disableUntrustedNetwork
   if (!frame_tree_node_->IsFencedFrameRoot()) {
     CHECK(blink::features::IsAllowURNsInIframeEnabled());
     fenced_frame_properties_->AdjustPropertiesForUrnIframe();
@@ -2885,7 +2857,7 @@ void NavigationRequest::BeginNavigationImpl() {
       // actually be failing: crbug.com/408969974. This dump is useful for
       // debugging it.
       std::string prerender_type = GeneratePrerenderHistogramSuffix(
-          GetPrerenderTriggerType(), GetPrerenderEmbedderHistogramSuffix());
+          GetPrerenderTriggerType(), GetPrerenderHistogramSuffix());
       SCOPED_CRASH_KEY_STRING64("Bug411566699", "prerender_type",
                                 prerender_type);
       base::debug::DumpWithoutCrashing();
@@ -4888,25 +4860,6 @@ void NavigationRequest::OnResponseStarted(
 
   const auto& url = common_params_->url;
 
-  if (IsDisabledEmbedderInitiatedFencedFrameNavigation()) {
-    frame_tree_node_->current_frame_host()->AddMessageToConsole(
-        blink::mojom::ConsoleMessageLevel::kError,
-        "Embedder-initiated navigations of fenced frames are not allowed after "
-        "both the embedder and embedded fenced frame network access has been "
-        "disabled.");
-    auto completion_status =
-        network::URLLoaderCompletionStatus(net::ERR_ABORTED);
-    error_navigation_trigger_ =
-        ErrorNavigationTrigger::kFencedFrameEmbedderInitiatedNavigation;
-    OnRequestFailedInternal(completion_status,
-                            /*skip_throttles=*/false,
-                            /*error_page_content=*/std::nullopt,
-                            /*collapse_frame=*/false);
-    // DO NOT ADD CODE after this. The previous call to
-    // OnRequestFailedInternal has destroyed the NavigationRequest.
-    return;
-  }
-
   // The fenced frame root and the nested iframes are required to have the
   // Supports-Loading-Mode HTTP response header "fenced-frame" to be able to
   // load. Otherwise a console error is emitted.
@@ -5383,7 +5336,7 @@ void NavigationRequest::OnRequestFailedInternal(
     // be failing: crbug.com/411566699, crbug.com/408969974. This dump is useful
     // for debugging it.
     std::string prerender_type = GeneratePrerenderHistogramSuffix(
-        GetPrerenderTriggerType(), GetPrerenderEmbedderHistogramSuffix());
+        GetPrerenderTriggerType(), GetPrerenderHistogramSuffix());
     SCOPED_CRASH_KEY_STRING64("Bug411566699", "prerender_type", prerender_type);
     base::debug::DumpWithoutCrashing();
   }
@@ -5574,9 +5527,6 @@ NavigationRequest::ComputeErrorPageProcess() {
   }
 
   if (state_ < NavigationRequest::CANCELING) {
-    CHECK(browser_initiated_error_navigation_type_ !=
-          BrowserInitiatedErrorNavigationType::kNone);
-
     if (browser_initiated_error_navigation_type_ ==
         BrowserInitiatedErrorNavigationType::kPostCommit) {
       // Post-commit error page normally goes through the "non-error page"
@@ -5584,9 +5534,8 @@ NavigationRequest::ComputeErrorPageProcess() {
       return ErrorPageProcess::kPostCommitErrorPage;
     }
 
-    // Otherwise, this is a normal browser-initiated error navigation, which
-    // should fall out of this block and use existing process selection
-    // behavior.
+    // Otherwise, this is a normal error navigation, which should fall out of
+    // this block and use existing process selection behavior.
   }
 
   // By policy we can isolate all error pages from both the current and
@@ -6572,19 +6521,13 @@ void NavigationRequest::CommitErrorPage(
           previous_origin.GetTupleOrPrecursorTupleIfOpaque();
   if (!is_error_page_with_same_precursor) {
     commit_params_->force_new_document_sequence_number = true;
-  }
-
-  // If the outermost main frame is performing an error navigation, capture the
-  // state of fenced frames rendered in the viewport before the entire FrameTree
-  // is torn down. We have to do this now, because the renderer will change the
-  // visibility of its frames after receiving the commit.
-  if (previous_rfh->IsOutermostMainFrame() && !IsSameDocument()) {
-    auto* monitor =
-        PageUserData<FencedFrameViewportMonitor>::GetOrCreateForPage(
-            previous_rfh->GetPage());
-    if (monitor) {
-      monitor->ComputeSameSiteFencedFrameMaximumBeforePrimaryPageChange();
-    }
+  } else {
+    // We only preserve the document sequence number for temporary errors that
+    // could later be reloaded and succeed, which don't stay in the current
+    // process. Fatal errors routed to kCurrentProcess have a pure opaque origin
+    // and will not share the precursor, so they will always force a new
+    // document sequence number.
+    CHECK_NE(ComputeErrorPageProcess(), ErrorPageProcess::kCurrentProcess);
   }
 
   PopulateDocumentTokenForCrossDocumentNavigation();
@@ -6743,20 +6686,6 @@ void NavigationRequest::CommitNavigation() {
     // We want to record this for the frame that we are navigating away from.
     old_frame_host->RecordNavigationSuddenTerminationHandlers();
   }
-
-  // If the outermost main frame is being navigated, capture the state of fenced
-  // frames rendered in the viewport before the entire FrameTree is torn down.
-  // We have to do this now, because the renderer will change the visibility of
-  // its frames after receiving the commit.
-  if (old_frame_host->IsOutermostMainFrame() && !IsSameDocument()) {
-    auto* monitor =
-        PageUserData<FencedFrameViewportMonitor>::GetOrCreateForPage(
-            old_frame_host->GetPage());
-    if (monitor) {
-      monitor->ComputeSameSiteFencedFrameMaximumBeforePrimaryPageChange();
-    }
-  }
-
   if (IsServedFromBackForwardCache() || IsPrerenderedPageActivation()) {
     CommitPageActivation();
     return;
@@ -8794,14 +8723,6 @@ void NavigationRequest::DidCommitNavigation(
 
     fetch_later_loader_factory_context_->OnDidCommitNavigation(this);
   }
-
-  // Network status of the entire frame tree needs to be updated once a
-  // NavigationRequest commits. When fenced frames revoke network access by
-  // calling `window.fence.disableUntrustedNetwork`, the returned promise cannot
-  // be resolved until ongoing navigations in descendant frames complete.
-  GetRenderFrameHost()
-      ->GetOutermostMainFrame()
-      ->CalculateUntrustedNetworkStatus();
 
   if (!pending_commit_metrics_.start_time.is_null()) {
     const bool is_for_mhtml = IsMhtmlMimeType(GetMimeType());
@@ -11542,9 +11463,9 @@ PreloadingTriggerType NavigationRequest::GetPrerenderTriggerType() {
   return reserved_prerender_host_info_->trigger_type;
 }
 
-std::string NavigationRequest::GetPrerenderEmbedderHistogramSuffix() {
+std::string NavigationRequest::GetPrerenderHistogramSuffix() {
   CHECK(reserved_prerender_host_info_.has_value());
-  return reserved_prerender_host_info_->embedder_histogram_suffix;
+  return reserved_prerender_host_info_->histogram_suffix;
 }
 
 bool NavigationRequest::IsPrerenderHostReused() {
@@ -11592,55 +11513,6 @@ void NavigationRequest::ResetViewTransitionState() {
     previous_rfh->GetAssociatedLocalFrame()
         ->NotifyViewTransitionAbortedToOldDocument();
   }
-}
-
-bool NavigationRequest::IsDisabledEmbedderInitiatedFencedFrameNavigation() {
-  // The untrusted network access check only applies to embedder-initiated
-  // fenced frame root navigations. Note that
-  // `is_embedder_initiated_fenced_frame_navigation_` being true includes fenced
-  // frame and urn iframe embedder initiated navigations, so we need the
-  // additional `IsFencedFrameRoot` check.
-  if (frame_tree_node_->IsFencedFrameRoot() &&
-      is_embedder_initiated_fenced_frame_navigation_ &&
-      base::FeatureList::IsEnabled(
-          blink::features::kFencedFramesLocalUnpartitionedDataAccess)) {
-    const std::optional<FencedFrameProperties>&
-        embedder_fenced_frame_properties = GetParentFrameOrOuterDocument()
-                                               ->frame_tree_node()
-                                               ->GetFencedFrameProperties();
-    const std::optional<FencedFrameProperties>& target_fenced_frame_properties =
-        frame_tree_node_->GetFencedFrameProperties(
-            FencedFramePropertiesNodeSource::kFrameTreeRoot);
-
-    if (target_fenced_frame_properties.has_value() &&
-        target_fenced_frame_properties
-            ->HasDisabledNetworkForCurrentFrameTree() &&
-        embedder_fenced_frame_properties.has_value() &&
-        embedder_fenced_frame_properties
-            ->HasDisabledNetworkForCurrentFrameTree()) {
-      // Navigation should be aborted if:
-      // 1. The nested fenced frame has disabled the untrusted network access.
-      // 2. The embedder fenced frame has disabled the untrusted network access
-      // after the navigation starts.
-      //
-      // Note: The navigation is allowed if only embedder fenced frame has
-      // disabled the untrusted network access. This allows the fenced frame
-      // to navigate its nested fenced frame to a nested config while the parent
-      // fenced frame disables its own network.
-      //
-      // After top-level FF disables its network, the nested FF's navigation
-      // may not have committed yet. Top-level FF has no way of knowing when it
-      // is safe to disable network for nested FF (and it would be a privacy
-      // violation for it to know), so nested FF has to disable network for
-      // itself if it wants to get shared storage access.
-      //
-      // For top-level FF, it does not have shared storage access until all
-      // its descendants have also disabled network.
-      return true;
-    }
-  }
-
-  return false;
 }
 
 blink::RuntimeFeatureStateContext&
@@ -11870,10 +11742,16 @@ void NavigationRequest::RecordEarlyRenderFrameHostSwapMetrics() {
 url::Origin NavigationRequest::GetOriginForURLLoaderFactoryUnchecked() {
   if (DidEncounterError()) {
     // Error pages commit in an opaque origin in the renderer process. If this
-    // NavigationRequest resulted in committing an error page, return an
-    // opaque origin that has precursor information consistent with the URL
-    // being requested.  Note: this is intentionally done first; cases like
-    // errors in srcdoc frames need not inherit the parent's origin for errors.
+    // NavigationRequest resulted in committing an error page, return an opaque
+    // origin. We usually derive the precursor for that opaque origin from the
+    // destination URL, with one exception: if the error page commits in the
+    // current process (e.g., for unrecoverable errors in subframes), we leave
+    // the precursor empty. This prevents compromised renderers from gaining
+    // access to opaque origins with precursors that aren't normally allowed in
+    // the process (crbug.com/502348223).
+    if (ComputeErrorPageProcess() == ErrorPageProcess::kCurrentProcess) {
+      return url::Origin();
+    }
     return url::Origin::Create(common_params().url).DeriveNewOpaqueOrigin();
   }
 

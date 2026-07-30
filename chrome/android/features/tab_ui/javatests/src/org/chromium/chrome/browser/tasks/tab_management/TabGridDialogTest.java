@@ -124,6 +124,7 @@ import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.base.test.util.RequiresRestart;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.base.test.util.TestAnimations.EnableAnimations;
+import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.app.bookmarks.BookmarkEditActivity;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
@@ -141,9 +142,9 @@ import org.chromium.chrome.browser.tab_ui.ActionConfirmationManager;
 import org.chromium.chrome.browser.tabmodel.TabClosureParams;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
+import org.chromium.chrome.browser.theme.ThemeModuleUtils;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.test.ChromeJUnit4RunnerDelegate;
-import org.chromium.chrome.test.R;
 import org.chromium.chrome.test.transit.AutoResetCtaTransitTestRule;
 import org.chromium.chrome.test.transit.ChromeTransitTestRules;
 import org.chromium.chrome.test.transit.page.WebPageStation;
@@ -579,11 +580,13 @@ public class TabGridDialogTest {
         final ChromeTabbedActivity cta = mActivityTestRule.getActivity();
 
         String blueColor = cta.getString(R.string.tab_group_color_blue);
-        String notSelectedStringBlue =
-                cta.getString(
-                        R.string
-                                .accessibility_tab_group_color_picker_color_item_not_selected_description,
-                        blueColor);
+        String blueColorContentDescription =
+                ThemeModuleUtils.isEnabled()
+                        ? blueColor
+                        : cta.getString(
+                                R.string
+                                        .accessibility_tab_group_color_picker_color_item_not_selected_description,
+                                blueColor);
 
         createTabs(cta, false, 2);
         enterTabSwitcher(cta);
@@ -610,7 +613,7 @@ public class TabGridDialogTest {
                 .check(matches(isDisplayed()));
 
         // Select a non default color and assert the pop up closes.
-        onView(withContentDescription(notSelectedStringBlue)).perform(click());
+        onView(withContentDescription(blueColorContentDescription)).perform(click());
         onView(
                         allOf(
                                 instanceOf(TabGroupColorPickerContainer.class),
@@ -639,11 +642,13 @@ public class TabGridDialogTest {
         final ChromeTabbedActivity cta = mActivityTestRule.getActivity();
 
         String blueColor = cta.getString(R.string.tab_group_color_blue);
-        String notSelectedStringBlue =
-                cta.getString(
-                        R.string
-                                .accessibility_tab_group_color_picker_color_item_not_selected_description,
-                        blueColor);
+        String blueColorContentDescription =
+                ThemeModuleUtils.isEnabled()
+                        ? blueColor
+                        : cta.getString(
+                                R.string
+                                        .accessibility_tab_group_color_picker_color_item_not_selected_description,
+                                blueColor);
 
         createTabs(cta, false, 2);
         enterTabSwitcher(cta);
@@ -669,7 +674,7 @@ public class TabGridDialogTest {
                 .check(matches(isDisplayed()));
 
         // Select a non default color and assert the pop up closes.
-        onView(withContentDescription(notSelectedStringBlue)).perform(click());
+        onView(withContentDescription(blueColorContentDescription)).perform(click());
         onView(
                         allOf(
                                 instanceOf(TabGroupColorPickerContainer.class),

@@ -26,6 +26,8 @@ interface UkmSource {
   type: string;
   events: UkmEvent[];
   url?: string;
+  webdx_features?: string[];
+  redirects?: string[];
 }
 
 /**
@@ -166,7 +168,11 @@ function populateSourceHtmlRow(
     isExpanded: boolean): void {
   const urlElement = document.createElement('td');
   urlElement.classList.add('url');
-  urlElement.innerText = sourceData.url || URL_EMPTY;
+  let urlText = sourceData.url || URL_EMPTY;
+  if (sourceData.redirects && sourceData.redirects.length > 1) {
+    urlText += ' (from redirect)';
+  }
+  urlElement.innerText = urlText;
   const idElement = document.createElement('td');
   idElement.classList.add('sourceid');
   idElement.innerText = as64Bit(sourceData.id);
@@ -218,8 +224,41 @@ function createEventMetricTablesForSource(
   // Apply the display state
   eventMetricsElement.style.display = displayState;
 
+  if (sourceData.webdx_features && sourceData.webdx_features.length > 0) {
+    const featuresDiv = document.createElement('div');
+    featuresDiv.classList.add('webdx-features-list');
+    const label = document.createElement('b');
+    label.textContent = 'WebDX Features: ';
+    featuresDiv.appendChild(label);
+    featuresDiv.appendChild(
+        document.createTextNode(sourceData.webdx_features.sort().join(', ')));
+    eventMetricsElement.appendChild(featuresDiv);
+  }
+
+  const redirects = sourceData.redirects;
+  if (redirects) {
+    const redirectsInfoDiv = document.createElement('div');
+    redirectsInfoDiv.style.paddingLeft = '10px';
+
+    const redirectsInfoLabel = document.createElement('b');
+    redirectsInfoLabel.textContent = 'Full redirect chain:';
+    redirectsInfoDiv.appendChild(redirectsInfoLabel);
+
+    redirects.forEach((url, index) => {
+      const redirectUrlDiv = document.createElement('div');
+      const isFinalUrl = index === redirects.length - 1;
+      redirectUrlDiv.textContent = url + (isFinalUrl ? '' : '  ==>');
+      redirectUrlDiv.style.paddingLeft = '10px';
+      redirectUrlDiv.style.paddingBottom = isFinalUrl ? '10px' : '0px';
+      redirectsInfoDiv.appendChild(redirectUrlDiv);
+    });
+    eventMetricsElement.appendChild(redirectsInfoDiv);
+  }
+
   if (sourceData.events.length === 0) {
-    eventMetricsElement.textContent = '(no events)';
+    const noEventsDiv = document.createElement('div');
+    noEventsDiv.textContent = '(no events)';
+    eventMetricsElement.appendChild(noEventsDiv);
     return;
   }
 
@@ -398,19 +437,33 @@ function updateUkmCache(data: UkmSession) {
   for (const source of data.sources) {
     const key = as64Bit(source.id);
     if (!cachedSources.has(key)) {
-      const mergedSource:
-          UkmSource = {id: source.id, type: source.type, events: source.events};
-      if (source.url) {
-        mergedSource.url = source.url;
-      }
+      const mergedSource: UkmSource = {
+        id: source.id,
+        type: source.type,
+        events: source.events,
+        webdx_features: source.webdx_features || [],
+        url: source.url,
+        redirects: source.redirects,
+      };
       cachedSources.set(key, mergedSource);
     } else {
+      const cached = cachedSources.get(key)!;
+      if (source.redirects && !cached.redirects) {
+        cached.redirects = source.redirects;
+      }
       // Merge distinct events from the source.
-      const existingEvents = new Set(cachedSources.get(key)!.events.map(
-          event => normalizeToString(event)));
+      const existingEvents =
+          new Set(cached.events.map(event => normalizeToString(event)));
       for (const event of source.events) {
         if (!existingEvents.has(normalizeToString(event))) {
           cachedSources.get(key)!.events.push(event);
+        }
+      }
+      // Merge distinct webdx features.
+      const existingFeatures = new Set(cachedSources.get(key)!.webdx_features);
+      for (const feature of source.webdx_features || []) {
+        if (!existingFeatures.has(feature)) {
+          cachedSources.get(key)!.webdx_features!.push(feature);
         }
       }
     }

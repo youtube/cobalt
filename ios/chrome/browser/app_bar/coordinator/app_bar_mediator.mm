@@ -26,6 +26,7 @@
 #import "ios/chrome/browser/intents/model/intents_donation_helper.h"
 #import "ios/chrome/browser/lens/ui_bundled/lens_entrypoint.h"
 #import "ios/chrome/browser/policy/model/policy_util.h"
+#import "ios/chrome/browser/search_engines/model/search_engine_observer_bridge.h"
 #import "ios/chrome/browser/shared/coordinator/scene/state/incognito_state.h"
 #import "ios/chrome/browser/shared/coordinator/scene/state/tab_grid_state.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
@@ -53,6 +54,7 @@
 #import "url/gurl.h"
 
 @interface AppBarMediator () <IncognitoStateObserver,
+                              SearchEngineObserving,
                               TabGridStateObserver,
                               ToolbarButtonMenuFactoryDelegate,
                               WebStateListObserving>
@@ -84,6 +86,8 @@
   raw_ptr<GeminiService> _geminiService;
   raw_ptr<UrlLoadingBrowserAgent> _URLLoader;
   raw_ptr<TemplateURLService> _templateURLService;
+  // Observer for the TemplateURLService.
+  std::unique_ptr<SearchEngineObserverBridge> _searchEngineObserver;
   TabGridPage _currentPage;
   TabGridState* _tabGridState;
   IncognitoState* _incognitoState;
@@ -128,6 +132,8 @@
     _URLLoader = URLLoader;
     _prefService = prefService;
     _templateURLService = templateURLService;
+    _searchEngineObserver =
+        std::make_unique<SearchEngineObserverBridge>(self, _templateURLService);
 
     _authenticationService = authenticationService;
 
@@ -269,6 +275,7 @@
   _regularWebStateList = nullptr;
   _incognitoWebStateList = nullptr;
   _prefService = nullptr;
+  _searchEngineObserver.reset();
   _templateURLService = nullptr;
   _authenticationService = nullptr;
   _geminiService = nullptr;
@@ -403,6 +410,19 @@
   }
 }
 
+#pragma mark - SearchEngineObserving
+
+- (void)searchEngineChanged {
+  BOOL incognito = self.currentWebStateList == _incognitoWebStateList;
+  ToolbarButtonMenuFactory* buttonMenuFactory =
+      incognito ? _incognitoButtonMenuFactory : _regularButtonMenuFactory;
+
+  // Update the long press menu actions to replace lens with QR scanner or vice
+  // versa, based on the new default search engine.
+  [self.consumer setMenu:[buttonMenuFactory menuForNewTabButton]
+           forButtonType:AppBarButtonType::AppBarButtonTypeNewTab];
+}
+
 #pragma mark - AppBarMutator
 
 - (void)createNewTabFromView:(UIView*)sender {
@@ -482,13 +502,11 @@
     return;
   }
 
-  GURL URL(kChromeUINewTabURL);
-  UrlLoadParams params = UrlLoadParams::InNewTab(URL);
-  params.in_incognito = _incognitoState.incognitoContentVisible;
-  params.load_in_group = true;
-  params.tab_group = self.currentTabGroup->GetWeakPtr();
-  _URLLoader->Load(params);
-  [self updateConsumer];
+  [self.tabGridHandler prepareToExitTabGrid];
+  if ([self addNewTabInGroup:self.currentTabGroup
+                   incognito:_incognitoState.incognitoContentVisible]) {
+    [self.tabGridHandler exitTabGrid];
+  }
 }
 
 - (void)navigateToPageForItem:(web::NavigationItem*)item {
@@ -540,14 +558,6 @@
     tabCount = static_cast<NSUInteger>(self.currentWebStateList->count());
   }
 
-  [self.consumer updateTabCount:tabCount];
-  [self.consumer setTabGridVisible:_tabGridState.tabGridVisible];
-  [self.consumer setTabGroupsPageVisible:_tabGridState.currentPage ==
-                                         TabGridPageTabGroups];
-  [self.consumer setTabGroupVisible:_tabGridState.visibleTabGroup];
-  [self.consumer
-      setInTabGroup:GetGroupForActiveWebState(self.currentWebStateList)];
-
   BOOL incognito = self.currentWebStateList == _incognitoWebStateList;
   ToolbarButtonMenuFactory* buttonMenuFactory =
       incognito ? _incognitoButtonMenuFactory : _regularButtonMenuFactory;
@@ -558,6 +568,15 @@
            forButtonType:AppBarButtonTypeNewTab];
   [self.consumer setMenu:[buttonMenuFactory menuForTabGridButton]
            forButtonType:AppBarButtonTypeTabGrid];
+
+  [self.consumer updateTabCount:tabCount];
+  [self.consumer setTabGridVisible:_tabGridState.tabGridVisible];
+  [self.consumer setTabGroupsPageVisible:_tabGridState.currentPage ==
+                                         TabGridPageTabGroups];
+  [self.consumer setTabGroupVisible:self.currentTabGroup != nullptr];
+  [self.consumer
+      setInTabGroup:GetGroupForActiveWebState(self.currentWebStateList)];
+
   [self updateAssistantButton];
   [self updateButtonsForCurrentTabGridPage];
 }
@@ -634,6 +653,13 @@
   // example).
   if (!IsAddNewTabAllowedByPolicy(_prefService, incognito)) {
     return;
+  }
+
+  if (_tabGridState.visibleTabGroup) {
+    id<TabGroupsCommands> tabGroupsHandler =
+        incognito ? self.incognitoTabGroupsCommands
+                  : self.regularTabGroupsCommands;
+    [tabGroupsHandler hideTabGroup];
   }
 
   [self.tabGridHandler prepareToExitTabGrid];
@@ -716,6 +742,24 @@
     // Create a Tab Group with 'identifiers'.
     [tabGroupsHandler showTabGroupCreationForTabs:identifiers];
   }
+}
+
+// Adds a new tab in `group` and returns its success.
+- (BOOL)addNewTabInGroup:(const TabGroup*)group incognito:(BOOL)incognito {
+  CHECK(group);
+  WebStateList* webStateList =
+      incognito ? _incognitoWebStateList : _regularWebStateList;
+  int webStateListCount = webStateList->count();
+
+  GURL URL(kChromeUINewTabURL);
+  UrlLoadParams params = UrlLoadParams::InNewTab(URL);
+  params.in_incognito = incognito;
+  params.load_in_group = true;
+  params.tab_group = group->GetWeakPtr();
+  _URLLoader->Load(params);
+
+  [self updateConsumer];
+  return webStateListCount != webStateList->count();
 }
 
 @end

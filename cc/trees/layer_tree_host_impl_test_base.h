@@ -25,7 +25,7 @@
 #include "cc/test/test_task_graph_runner.h"
 #include "cc/trees/frame_data.h"
 #include "cc/trees/layer_tree_host_impl.h"
-#include "cc/trees/layer_tree_host_impl_client.h"
+#include "cc/trees/layer_tree_host_impl_delegate.h"
 #include "cc/trees/layer_tree_impl.h"
 #include "components/viz/common/quads/compositor_render_pass.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -39,7 +39,7 @@ constexpr gfx::Size kDefaultLayerSize(100, 100);
 
 std::unique_ptr<LayerTreeHostImpl> CreateLayerTreeHostImplForTesting(
     const LayerTreeSettings& settings,
-    LayerTreeHostImplClient* client,
+    LayerTreeHostImplDelegate* delegate,
     TaskRunnerProvider* task_runner_provider,
     RenderingStatsInstrumentation* rendering_stats_instrumentation,
     TaskGraphRunner* task_graph_runner,
@@ -86,8 +86,72 @@ class DidDrawCheckLayer : public FakePictureLayerImpl {
   bool did_draw_called_;
 };
 
+class TestVizLayerTreeHostImpl : public LayerTreeHostImpl {
+ public:
+  static std::unique_ptr<LayerTreeHostImpl> Create(
+      const LayerTreeSettings& settings,
+      LayerTreeHostImplDelegate* delegate,
+      TaskRunnerProvider* task_runner_provider,
+      RenderingStatsInstrumentation* rendering_stats_instrumentation,
+      TaskGraphRunner* task_graph_runner,
+      std::unique_ptr<MutatorHost> mutator_host,
+      RasterDarkModeFilter* dark_mode_filter,
+      int id,
+      scoped_refptr<base::SequencedTaskRunner> image_worker_task_runner,
+      LayerTreeHostSchedulingClient* scheduling_client) {
+    CHECK(settings.trees_in_viz_in_viz_process);
+    return base::WrapUnique(new TestVizLayerTreeHostImpl(
+        settings, delegate, task_runner_provider,
+        rendering_stats_instrumentation, task_graph_runner,
+        std::move(mutator_host), dark_mode_filter, id,
+        std::move(image_worker_task_runner), scheduling_client));
+  }
+  using LayerTreeHostImpl::LayerTreeHostImpl;
+  ~TestVizLayerTreeHostImpl() override = default;
+
+  void set_current_local_surface_id_from_client(
+      const viz::LocalSurfaceId& local_surface_id_from_client) {
+    current_local_surface_id_from_client_ = local_surface_id_from_client;
+  }
+
+  void set_next_frame_token_from_client(uint32_t frame_token) {
+    next_frame_token_from_client_ = frame_token;
+  }
+
+  void CreateUIResourceFromImportedResource(UIResourceId uid,
+                                            viz::ResourceId resource_id,
+                                            const gfx::Size& size,
+                                            bool is_opaque) {
+    DCHECK_GT(uid, 0);
+
+    viz::ResourceId id = ResourceIdForUIResource(uid);
+    if (id) {
+      DeleteUIResource(uid);
+    }
+
+    if (!has_valid_layer_tree_frame_sink_) {
+      EvictAllUIResources();
+      return;
+    }
+
+    UIResourceData data;
+    data.resource_id_for_export = resource_id;
+    data.opaque = is_opaque;
+    data.size = size;
+    ui_resource_map_[uid] = std::move(data);
+  }
+
+  void set_send_frame_token_to_embedder(bool send_frame_token_to_embedder) {
+    send_frame_token_to_embedder_ = send_frame_token_to_embedder;
+  }
+
+  void set_is_handling_interaction_from_client(bool is_handling_interaction) {
+    is_handling_interaction_from_client_ = is_handling_interaction;
+  }
+};
+
 class LayerTreeHostImplTestBase : public testing::Test,
-                                  public LayerTreeHostImplClient {
+                                  public LayerTreeHostImplDelegate {
  public:
   LayerTreeHostImplTestBase();
   ~LayerTreeHostImplTestBase() override;
@@ -101,7 +165,7 @@ class LayerTreeHostImplTestBase : public testing::Test,
   void EnsureSyncTree();
   void CreatePendingTree();
 
-  // LayerTreeHostImplClient implementation.
+  // LayerTreeHostImplDelegate implementation.
   void DidLoseLayerTreeFrameSinkOnImplThread() override;
   void SetBeginFrameSource(viz::BeginFrameSource* source) override;
   void DidReceiveCompositorFrameAckOnImplThread() override;

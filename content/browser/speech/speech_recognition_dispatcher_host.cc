@@ -17,6 +17,7 @@
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/content_browser_client.h"
+#include "content/public/browser/global_routing_id.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/speech_recognition_audio_forwarder_config.h"
 #include "content/public/browser/speech_recognition_manager_delegate.h"
@@ -61,9 +62,8 @@ std::string SpeechRecognitionDispatcherHost::GetAcceptedLanguages(
 }
 
 SpeechRecognitionDispatcherHost::SpeechRecognitionDispatcherHost(
-    int render_process_id,
-    int render_frame_id)
-    : render_process_id_(render_process_id), render_frame_id_(render_frame_id) {
+    GlobalRenderFrameHostId global_id)
+    : global_id_(global_id) {
   // Do not add any non-trivial initialization here, instead do it lazily when
   // required (e.g. see the method |SpeechRecognitionManager::GetInstance()|) or
   // add an Init() method.
@@ -71,12 +71,11 @@ SpeechRecognitionDispatcherHost::SpeechRecognitionDispatcherHost(
 
 // static
 void SpeechRecognitionDispatcherHost::Create(
-    int render_process_id,
-    int render_frame_id,
+    GlobalRenderFrameHostId global_id,
     mojo::PendingReceiver<media::mojom::SpeechRecognizer> receiver) {
-  mojo::MakeSelfOwnedReceiver(std::make_unique<SpeechRecognitionDispatcherHost>(
-                                  render_process_id, render_frame_id),
-                              std::move(receiver));
+  mojo::MakeSelfOwnedReceiver(
+      std::make_unique<SpeechRecognitionDispatcherHost>(global_id),
+      std::move(receiver));
 }
 
 SpeechRecognitionDispatcherHost::~SpeechRecognitionDispatcherHost() {}
@@ -106,23 +105,19 @@ void SpeechRecognitionDispatcherHost::Start(
   GetUIThreadTaskRunner({})->PostTask(
       FROM_HERE,
       base::BindOnce(&SpeechRecognitionDispatcherHost::StartRequestOnUI,
-                     AsWeakPtr(), render_process_id_, render_frame_id_,
-                     std::move(params)));
+                     AsWeakPtr(), global_id_, std::move(params)));
 }
 
 // static
 void SpeechRecognitionDispatcherHost::StartRequestOnUI(
     base::WeakPtr<SpeechRecognitionDispatcherHost>
         speech_recognition_dispatcher_host,
-    int render_process_id,
-    int render_frame_id,
+    GlobalRenderFrameHostId global_id,
     media::mojom::StartSpeechRecognitionRequestParamsPtr params) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  int embedder_render_process_id = 0;
-  int embedder_render_frame_id = IPC::mojom::kRoutingIdNone;
+  GlobalRenderFrameHostId embedder_global_id;
 
-  RenderFrameHostImpl* rfh =
-      RenderFrameHostImpl::FromID(render_process_id, render_frame_id);
+  RenderFrameHostImpl* rfh = RenderFrameHostImpl::FromID(global_id);
   if (!rfh) {
     DLOG(ERROR) << "SRDH::OnStartRequest, invalid frame";
     return;
@@ -158,11 +153,9 @@ void SpeechRecognitionDispatcherHost::StartRequestOnUI(
       embedder_frame = outer_web_contents->GetPrimaryMainFrame();
     }
 
-    embedder_render_process_id =
-        embedder_frame->GetProcess()->GetDeprecatedID();
-    DCHECK_NE(embedder_render_process_id, 0);
-    embedder_render_frame_id = embedder_frame->GetRoutingID();
-    DCHECK_NE(embedder_render_frame_id, IPC::mojom::kRoutingIdNone);
+    embedder_global_id = embedder_frame->GetGlobalId();
+    DCHECK(embedder_global_id.child_id);
+    DCHECK(embedder_global_id);
   }
 
   content::BrowserContext* browser_context = web_contents->GetBrowserContext();
@@ -194,16 +187,14 @@ void SpeechRecognitionDispatcherHost::StartRequestOnUI(
       base::BindOnce(
           &SpeechRecognitionDispatcherHost::StartSessionOnIO,
           speech_recognition_dispatcher_host, std::move(params),
-          embedder_render_process_id, embedder_render_frame_id,
-          rfh->GetLastCommittedOrigin(),
+          embedder_global_id, rfh->GetLastCommittedOrigin(),
           storage_partition->GetURLLoaderFactoryForBrowserProcessIOThread(),
           language, can_render_frame_use_on_device, on_device_available));
 }
 
 void SpeechRecognitionDispatcherHost::StartSessionOnIO(
     media::mojom::StartSpeechRecognitionRequestParamsPtr params,
-    int embedder_render_process_id,
-    int embedder_render_frame_id,
+    GlobalRenderFrameHostId embedder_global_id,
     const url::Origin& origin,
     std::unique_ptr<network::PendingSharedURLLoaderFactory>
         pending_shared_url_loader_factory,
@@ -214,10 +205,8 @@ void SpeechRecognitionDispatcherHost::StartSessionOnIO(
 
   SpeechRecognitionSessionContext context;
   context.security_origin = origin;
-  context.render_process_id = render_process_id_;
-  context.render_frame_id = render_frame_id_;
-  context.embedder_render_process_id = embedder_render_process_id;
-  context.embedder_render_frame_id = embedder_render_frame_id;
+  context.global_id = global_id_;
+  context.embedder_global_id = embedder_global_id;
 
   SpeechRecognitionSessionConfig config;
   config.language = language;

@@ -60,6 +60,7 @@ source_set("browser_tests") {
       "data_sharing/data_sharing_browsertest.cc",
       "device_log/device_log_ui_browsertest.cc",
       "downloads/downloads_browsertest.cc",
+      "drive_picker/drive_picker_browsertest.cc",
       "engagement/site_engagement_browsertest.cc",
       "feedback/feedback_browsertest.cc",
       "glic/glic_browsertest.cc",
@@ -134,10 +135,6 @@ source_set("browser_tests") {
 
   if (enable_extensions) {
     sources += [ "extensions_zero_state/zero_state_promo_browsertest.cc" ]
-  }
-
-  if (enable_webui_tab_strip) {
-    sources += [ "tab_strip/tab_strip_browsertest.cc" ]
   }
 
   if (enable_print_preview && !is_chromeos) {
@@ -366,10 +363,6 @@ source_set("interactive_ui_tests") {
     deps += [ "//chrome/test/data/webui:composebox_pixel_test_support" ]
   }
 
-  if (enable_webui_tab_strip) {
-    sources += [ "tab_strip/tab_strip_focus_test.cc" ]
-  }
-
   if (enable_extensions_core) {
     sources += [ "extensions/extensions_focus_test.cc" ]
   }
@@ -589,6 +582,7 @@ generate_grd("build_grd") {
       "device_log:build_grdp",
       "discards:build_grdp",
       "downloads:build_grdp",
+      "drive_picker:build_grdp",
       "engagement:build_grdp",
       "feedback:build_grdp",
       "glic:build_grdp",
@@ -651,6 +645,7 @@ generate_grd("build_grd") {
       "$target_gen_dir/device_log/resources.grdp",
       "$target_gen_dir/discards/resources.grdp",
       "$target_gen_dir/downloads/resources.grdp",
+      "$target_gen_dir/drive_picker/resources.grdp",
       "$target_gen_dir/engagement/resources.grdp",
       "$target_gen_dir/feedback/resources.grdp",
       "$target_gen_dir/glic/resources.grdp",
@@ -718,11 +713,6 @@ generate_grd("build_grd") {
   if (chrome_root_store_cert_management_ui) {
     deps += [ "certificate_manager:build_grdp" ]
     grdp_files += [ "$target_gen_dir/certificate_manager/resources.grdp" ]
-  }
-
-  if (enable_webui_tab_strip) {
-    deps += [ "tab_strip:build_grdp" ]
-    grdp_files += [ "$target_gen_dir/tab_strip/resources.grdp" ]
   }
 
   if (enable_pdf) {

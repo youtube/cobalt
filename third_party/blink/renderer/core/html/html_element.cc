@@ -1354,12 +1354,9 @@ void AddBeforetoggleConsoleWarning(Document& document) {
   document.AddConsoleMessage(MakeGarbageCollected<ConsoleMessage>(
       mojom::blink::ConsoleMessageSource::kOther,
       mojom::blink::ConsoleMessageLevel::kWarning,
-      RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled()
-          ? "The `beforetoggle` event handler for a popover triggered "
-            "another popover to be shown, or a `loseinterest` "
-            "event handler was cancelled. This is not recommended."
-          : "The `beforetoggle` event handler for a popover triggered "
-            "another popover to be shown. This is not recommended."));
+      "The `beforetoggle` event handler for a popover triggered "
+      "another popover to be shown, or a `loseinterest` "
+      "event handler was cancelled. This is not recommended."));
 }
 }  // namespace
 
@@ -2266,7 +2263,6 @@ PopoverHideResult HTMLElement::HidePopoverInternal(
     // If this is the target of an active interest invoker, closing the popover
     // constitutes an automatic loss of interest in the invoker.
     if (Element* upstream_invoker = SourceInterestInvoker()) {
-      DCHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled());
       DCHECK_EQ(upstream_invoker->InterestForElement(), this);
       DCHECK_NE(upstream_invoker->GetInvokerData()->GetInterestState(),
                 InterestState::kNoInterest);
@@ -3827,16 +3823,23 @@ FocusgroupFlags HTMLElement::NativeArrowKeyAxes() const {
 }
 
 void HTMLElement::DefaultEventHandler(Event& event) {
+  auto* submit_behavior = SubmitBehavior();
+
   if (event.type() == event_type_names::kDOMActivate) {
     // Delegate to `HTMLSubmitButtonBehavior` if present.
-    if (auto* submit_behavior = SubmitBehavior();
-        submit_behavior && submit_behavior->HandleActivation(event)) {
+    if (submit_behavior && submit_behavior->HandleActivation(event)) {
       return;
     }
 
     if (HandleCommandForActivation()) {
       return;
     }
+  }
+
+  // For custom elements with a submit behavior, handle keyboard activation
+  // by converting key events into a simulated click.
+  if (submit_behavior && HandleKeyboardActivation(event)) {
+    return;
   }
 
   if (auto* keyboard_event = DynamicTo<KeyboardEvent>(event);
@@ -4245,7 +4248,20 @@ FocusableState HTMLElement::SupportsFocus(
   if (IsDisabledFormControl()) {
     return FocusableState::kNotFocusable;
   }
+  // Custom elements with `HTMLSubmitButtonBehavior` should be implicitly
+  // focusable, like native <button> elements.
+  if (auto* behavior = SubmitBehavior()) {
+    return behavior->IsEffectivelyDisabled() ? FocusableState::kNotFocusable
+                                             : FocusableState::kFocusable;
+  }
   return Element::SupportsFocus(update_behavior);
+}
+
+int HTMLElement::DefaultTabIndex() const {
+  // Custom elements with `HTMLSubmitButtonBehavior` should have a default
+  // tabindex of 0, like native <button> elements, so they appear in the
+  // tab order.
+  return SubmitBehavior() ? 0 : -1;
 }
 
 bool HTMLElement::IsDisabledFormControl() const {

@@ -1,0 +1,20 @@
+source_set("coordinator") {
+  sources = [
+    "composebox_picker_image_result.h",
+    "composebox_picker_image_result.mm",
+    "composebox_picker_presenter.h",
+    "composebox_picker_presenter.mm",
+  ]
+  deps = [
+    "//base",
+    "//components/lens",
+    "//ios/chrome/browser/shared/public/commands",
+    "//ios/chrome/browser/tab_picker/coordinator",
+    "//ios/chrome/browser/tab_switcher/ui_bundled:utils",
+    "//ios/chrome/browser/tabs/model",
+  ]
+  public_deps = [
+    "//ios/chrome/browser/shared/model/browser",
+    "//ios/web/public",
+  ]
+}

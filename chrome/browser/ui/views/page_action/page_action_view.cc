@@ -13,10 +13,10 @@
 #include "base/memory/ptr_util.h"
 #include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/ui/layout_constants.h"
+#include "chrome/browser/ui/page_actions/page_action_controller.h"
+#include "chrome/browser/ui/page_actions/page_action_model.h"
+#include "chrome/browser/ui/page_actions/page_action_triggers.h"
 #include "chrome/browser/ui/views/location_bar/icon_label_bubble_view.h"
-#include "chrome/browser/ui/views/page_action/page_action_controller.h"
-#include "chrome/browser/ui/views/page_action/page_action_model.h"
-#include "chrome/browser/ui/views/page_action/page_action_triggers.h"
 #include "chrome/browser/ui/views/page_action/page_action_view_params.h"
 #include "ui/actions/actions.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
@@ -82,14 +82,26 @@ bool PageActionView::IsChipVisible() const {
   return ShouldShowLabel();
 }
 
+bool PageActionView::IsAnchoredMessageVisible() const {
+  return (anchored_message_ != nullptr);
+}
+
 base::CallbackListSubscription PageActionView::AddChipVisibilityChangedCallback(
     ChipVisibilityChanged callback) {
   return chip_visibility_changed_callbacks_.Add(std::move(callback));
 }
 
+base::CallbackListSubscription
+PageActionView::AddAnchoredMessageVisibilityChangedCallback(
+    AnchoredMessageVisibilityCallback callback) {
+  return anchored_message_visibility_changed_callbacks_.Add(
+      std::move(callback));
+}
+
 void PageActionView::SetIsChipShowingChangedCallback(
     IsChipShowingChangedCallback callback) {
   is_chip_showing_changed_callback_ = std::move(callback);
+  last_notified_is_chip_showing_.reset();
 }
 
 void PageActionView::SetAnchoredMessageCloseCallback(
@@ -135,11 +147,15 @@ void PageActionView::OnNewActiveController(PageActionController* controller) {
 
 void PageActionView::OnPageActionModelChanged(
     const PageActionModelInterface& model) {
-  SetEnabled(model.GetVisible());
-  SetVisible(model.GetVisible());
-  SetLabel(model.GetText(), model.GetAccessibleName());
-  SetTooltipText(model.GetTooltipText());
-  UpdateIconImage();
+  const bool visible = model.GetVisible();
+  SetEnabled(visible);
+  SetVisible(visible);
+
+  if (visible) {
+    SetLabel(model.GetText(), model.GetAccessibleName());
+    SetTooltipText(model.GetTooltipText());
+    UpdateIconImage();
+  }
 
   if (model.GetActionActive() && !highlight_) {
     highlight_ = AddAnchorHighlight();
@@ -148,7 +164,7 @@ void PageActionView::OnPageActionModelChanged(
   }
 
   const bool was_chip_visible = IsChipVisible();
-  if (!model.GetVisible()) {
+  if (!visible) {
     ResetSlideAnimation(/*show=*/false);
     NotifyIsChipShowingChange();
   } else if (model.ShouldShowSuggestionChip()) {
@@ -165,7 +181,7 @@ void PageActionView::OnPageActionModelChanged(
     NotifyIsChipShowingChange();
   }
 
-  if (model.GetVisible() && model.ShouldShowAnchoredMessage()) {
+  if (visible && model.ShouldShowAnchoredMessage()) {
     CreateAndShowAnchoredMessage(model);
   } else if (anchored_message_ && anchored_message_widget_) {
     anchored_message_ = nullptr;
@@ -263,10 +279,11 @@ void PageActionView::AnimationEnded(const gfx::Animation* animation) {
 }
 
 void PageActionView::UpdateIconImage() {
-  if (observation_.GetSource() == nullptr ||
+  if (!GetVisible() || observation_.GetSource() == nullptr ||
       observation_.GetSource()->GetImage().IsEmpty()) {
     return;
   }
+
   const auto& icon_image = observation_.GetSource()->GetImage();
   const SkColor icon_color = observation_.GetSource()->GetColorSource() ==
                                      PageActionColorSource::kForeground
@@ -345,6 +362,10 @@ bool PageActionView::IsTriggerableEvent(const ui::Event& event) {
 }
 
 void PageActionView::OnLabelVisibilityChanged() {
+  if (!GetVisible()) {
+    chip_visibility_changed_callbacks_.Notify(this);
+    return;
+  }
   UpdateBackground();
   UpdateLabelColors();
   UpdateIconImage();
@@ -360,10 +381,15 @@ gfx::SlideAnimation& PageActionView::GetSlideAnimationForTesting() {
 }
 
 void PageActionView::NotifyIsChipShowingChange() {
+  const bool is_chip_showing = IsChipVisible();
+  if (last_notified_is_chip_showing_ == is_chip_showing) {
+    return;
+  }
+  last_notified_is_chip_showing_ = is_chip_showing;
   // Defer to avoid re-entrancy into PageActionModel::NotifyChange().
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
-      base::BindOnce(is_chip_showing_changed_callback_, IsChipVisible()));
+      base::BindOnce(is_chip_showing_changed_callback_, is_chip_showing));
 }
 
 void PageActionView::CreateAndShowAnchoredMessage(
@@ -380,7 +406,7 @@ void PageActionView::CreateAndShowAnchoredMessage(
   anchored_message_ = message_delegate.get();
 
   anchored_message_widget_ =
-      base::WrapUnique(views::BubbleDialogDelegate::CreateBubble(
+      base::WrapUnique(views::BubbleDialogDelegate::CreateBubbleDeprecated(
           std::move(message_delegate),
           views::Widget::InitParams::CLIENT_OWNS_WIDGET));
 
@@ -392,6 +418,8 @@ void PageActionView::CreateAndShowAnchoredMessage(
   } else {
     anchored_message_ = nullptr;
   }
+
+  anchored_message_visibility_changed_callbacks_.Notify(this);
 }
 void PageActionView::OnAnchoredMessageWidgetClose(
     views::Widget::ClosedReason closed_reason) {
@@ -399,6 +427,7 @@ void PageActionView::OnAnchoredMessageWidgetClose(
   CHECK(anchored_message_widget_);
   anchored_message_ = nullptr;
   anchored_message_widget_ = nullptr;
+  anchored_message_visibility_changed_callbacks_.Notify(this);
 }
 
 void PageActionView::AnchoredMessageChipClick() {

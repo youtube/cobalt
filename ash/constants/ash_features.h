@@ -93,6 +93,12 @@ extern const base::FeatureParam<base::TimeDelta>
 COMPONENT_EXPORT(ASH_CONSTANTS) BASE_DECLARE_FEATURE(kBocaSpotlight);
 COMPONENT_EXPORT(ASH_CONSTANTS)
 extern const base::FeatureParam<std::string> kBocaSpotlightUrlTemplate;
+COMPONENT_EXPORT(ASH_CONSTANTS)
+BASE_DECLARE_FEATURE(kBocaGeminiIntegration);
+COMPONENT_EXPORT(ASH_CONSTANTS)
+extern const base::FeatureParam<std::string> kBocaGeminiUrl;
+COMPONENT_EXPORT(ASH_CONSTANTS)
+extern const base::FeatureParam<std::string> kBocaGeminiGuidedLearningUrl;
 COMPONENT_EXPORT(ASH_CONSTANTS) BASE_DECLARE_FEATURE(kBocaNetworkRestriction);
 COMPONENT_EXPORT(ASH_CONSTANTS)
 BASE_DECLARE_FEATURE(kBocaSequentialSessionLoad);
@@ -619,6 +625,8 @@ COMPONENT_EXPORT(ASH_CONSTANTS) BASE_DECLARE_FEATURE(kOobePerksDiscovery);
 COMPONENT_EXPORT(ASH_CONSTANTS)
 BASE_DECLARE_FEATURE(kOobePersonalizedOnboarding);
 COMPONENT_EXPORT(ASH_CONSTANTS) BASE_DECLARE_FEATURE(kOobePreConsentMetrics);
+COMPONENT_EXPORT(ASH_CONSTANTS)
+BASE_DECLARE_FEATURE(kOobeSkipArcAppsOn4GbDevices);
 COMPONENT_EXPORT(ASH_CONSTANTS) BASE_DECLARE_FEATURE(kOobeSoftwareUpdate);
 COMPONENT_EXPORT(ASH_CONSTANTS)
 BASE_DECLARE_FEATURE(kFeatureManagementOobeAiIntro);
@@ -1015,6 +1023,7 @@ bool IsBocaStudentHeartbeatEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS)
 bool IsBocaStudentHeartbeatCustomIntervalEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsBocaSpotlightEnabled();
+COMPONENT_EXPORT(ASH_CONSTANTS) bool IsBocaGeminiIntegrationEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsBocaNetworkRestrictionEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS)
 bool IsBocaClientTypeForSpeechRecognitionEnabled();
@@ -1212,6 +1221,7 @@ COMPONENT_EXPORT(ASH_CONSTANTS) bool IsBootAnimationEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsOobeAiIntroEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsOobePersonalizedOnboardingEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsOobePreConsentMetricsEnabled();
+COMPONENT_EXPORT(ASH_CONSTANTS) bool IsOobeSkipArcAppsOn4GbDevicesEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsOobeSoftwareUpdateEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsOobeQuickStartOnLoginScreenEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsOobeRemoveShutdownButtonEnabled();

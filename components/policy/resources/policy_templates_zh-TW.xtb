@@ -123,7 +123,6 @@
 
 注意：如要進一步瞭解程序控管政策，請前往 https://chromium.googlesource.com/chromium/src/+/HEAD/docs/design/sandbox.md#Process-mitigation-policies。</translation>
 <translation id="1068801725746725727">啟用接收安全瀏覽問卷調查功能</translation>
-<translation id="1069651607236021905">強制將特定來源設為用前景優先等級執行</translation>
 <translation id="107045325503547419">視功能啟動程序而定。</translation>
 <translation id="1073983258515362346">回報有關裝置背光的資訊。
 
@@ -1110,7 +1109,7 @@ Chrome 政策的優先順序高於這項政策，例如擴充功能是否列在 
 
       如果不設定這項政策，使用者就能完全控制偏好語言清單。</translation>
 <translation id="1803646570632580723">要顯示在啟動器中的固定應用程式清單</translation>
-<translation id="1807539058116290184">不允許在 Kiosk 模式下使用雙指撥動縮放功能</translation>
+<translation id="1807539058116290184">不允許在 Kiosk 模式使用雙指撥動縮放功能</translation>
 <translation id="1808715480127969042">封鎖這些網站的 Cookie</translation>
 <translation id="1810261428246410396">允許使用即時網路共用功能。</translation>
 <translation id="1813638828646876133">在鎖定畫面和登入畫面上啟用 PIN 碼自動提交功能</translation>
@@ -3144,6 +3143,7 @@ PAC 樣式的字串：
 <translation id="3127816006382989270">允許在無痕模式下存取清單中的網址。</translation>
 <translation id="3128072319047570212">Keygen 設定</translation>
 <translation id="3131703464330936425">不允許行動數據漫遊服務</translation>
+<translation id="3131928857191083710">通訊端集區大小設定</translation>
 <translation id="3135820765957090754">如果啟用這項設定，使用者將可在搭載 <ph name="PRODUCT_OS_NAME" /> 的裝置和已連結的 Android 手機上，將 Wi-Fi 網路設定保持同步。使用者必須完成設定流程來明確選擇要啟用這項功能，才能同步 Wi-Fi 網路設定。
 
       如果停用這項設定，使用者就無法同步 Wi-Fi 網路設定。
@@ -4991,7 +4991,7 @@ Protected Audience API 已淘汰，因此這項政策已在 <ph name="PRODUCT_NA
 <translation id="4463675333222095358">啟用快速解答的單位轉換功能</translation>
 <translation id="4464365009416584564">停用 <ph name="CHROME_SYNC_NAME" /></translation>
 <translation id="4467952432486360968">封鎖第三方 Cookie</translation>
-<translation id="4468220154891570994">允許在 Kiosk 模式下使用雙指撥動縮放功能</translation>
+<translation id="4468220154891570994">允許在 Kiosk 模式使用雙指撥動縮放功能</translation>
 <translation id="4472740647327683596">頁面的寬度 (以微米為單位)</translation>
 <translation id="4474167089968829729">允許將密碼儲存到密碼管理員</translation>
 <translation id="4474266799109921560">如果將這項政策設為 2，系統會自動禁止隔離網頁應用程式來源使用 WebPrinting API。
@@ -5188,17 +5188,6 @@ Protected Audience API 已淘汰，因此這項政策已在 <ph name="PRODUCT_NA
           請注意，這項政策會分別套用至各個轉譯器程序，轉譯器程序啟動時會使用這項政策最新的設定值。系統必須徹底重新啟動，確保所有載入的分頁都可收到一致的政策設定。即使不同程序採用不同的政策設定值，也不會影響正常運作。
           </translation>
 <translation id="4578265298946081589">不要在使用者登出時重新啟動。</translation>
-<translation id="4580711645933054901">你可以透過這項政策指定網址模式清單。符合這些模式的背景網頁內容強制用前景優先等級執行。
-
-如果啟用 <ph name="FORCE_FOREGROUND_PRIORITY_FOR_ALL_TABS_POLICY_NAME" /> 政策，系統會忽略這份清單，因為所有分頁都會強制用前景優先等級執行。
-
-如果 <ph name="FORCE_FOREGROUND_PRIORITY_FOR_ALL_TABS_POLICY_NAME" /> 已停用或未設定，系統只會強制讓符合這份清單模式的內容用前景優先等級執行。
-
-如要進一步瞭解有效的<ph name="URL_LABEL" />模式，請參閱 https://support.google.com/chrome/a?p=url_blocklist_filter_format。
-
-這項政策只會根據來源進行比對，因此會忽略模式中的路徑或查詢參數 (支援通訊協定、主機和通訊埠)。
-
-如果這份清單空白或未設定，系統就不會強制用前景優先等級執行任何背景內容。</translation>
 <translation id="4581507927311097234">關閉螢幕前的閒置時間長度 (以毫秒為單位)。如果使用者在這段時間內沒有任何動作，系統就會關閉螢幕</translation>
 <translation id="4582027661281685066">網址模式清單。來自相符來源提供的網站所傳送的要求，不受<ph name="PRIVATE_NETWORK_ACCESS" />檢查影響。
 
@@ -9151,9 +9140,9 @@ Origin-Agent-Cluster HTTP 標頭會控制文件要在 origin-keyed 代理程式�
 
 如果不設定這項政策，系統會在初次顯示登入畫面時停用放大鏡，但使用者隨時可以啟用這項功能。</translation>
 <translation id="7109384070286741861">停用 CECPQ2</translation>
-<translation id="711246451611873603">如果將這項政策設為啟用或未設定，就能在 Kiosk 工作階段中使用雙指撥動縮放功能。
+<translation id="711246451611873603">如果將這項政策設為啟用或未設定，就能在 Kiosk 工作階段使用雙指撥動縮放功能。
 
-如果將這項政策設為停用，就不允許在 Kiosk 工作階段中使用雙指撥動縮放功能。</translation>
+如果將這項政策設為停用，就不得在 Kiosk 工作階段使用雙指撥動縮放功能。</translation>
 <translation id="7113439794629928551">顯示由其他裝置啟動的 <ph name="PRODUCT_NAME" /> 工作階段媒體控制項</translation>
 <translation id="7113803652772945829">如果將這項政策設為 True，使用者就能使用第三方密碼管理工具。
 該密碼管理工具會負責儲存及填入所有密碼、付款和自動填入資料。

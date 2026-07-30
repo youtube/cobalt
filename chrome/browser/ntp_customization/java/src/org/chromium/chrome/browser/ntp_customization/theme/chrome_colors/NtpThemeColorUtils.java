@@ -21,6 +21,9 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ntp_customization.R;
 import org.chromium.chrome.browser.ntp_customization.theme.chrome_colors.NtpThemeColorInfo.NtpThemeColorId;
+import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataBase;
+import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataColor;
+import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataCustomizedColor;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 
 import java.util.ArrayList;
@@ -39,7 +42,7 @@ public class NtpThemeColorUtils {
      */
     public static @Nullable NtpThemeColorInfo createNtpThemeColorInfo(
             Context context, @NtpThemeColorId int colorId) {
-        if (colorId < NtpThemeColorId.NTP_COLORS_BLUE || colorId >= NtpThemeColorId.NUM_ENTRIES) {
+        if (colorId < NtpThemeColorId.DEFAULT || colorId >= NtpThemeColorId.NUM_ENTRIES) {
             return null;
         }
 
@@ -138,7 +141,7 @@ public class NtpThemeColorUtils {
         if (primaryColorIndex == RecyclerView.NO_POSITION
                 && hasPrimaryColor
                 && primaryColorInfo instanceof NtpThemeColorFromHexInfo info
-                && info.backgroundColor != NtpThemeColorInfo.COLOR_NOT_SET) {
+                && info.backgroundColorLight != NtpThemeColorInfo.COLOR_NOT_SET) {
             chromeColorsList.add(primaryColorInfo);
             return chromeColorsList.size() - 1;
         }
@@ -184,39 +187,58 @@ public class NtpThemeColorUtils {
 
         if (primaryColorInfo instanceof NtpThemeColorFromHexInfo primaryColorFromHexInfo) {
             if (ntpThemeColorInfo instanceof NtpThemeColorFromHexInfo ntpThemeColorFromHexInfo) {
-                return primaryColorFromHexInfo.primaryColor
-                        == ntpThemeColorFromHexInfo.primaryColor;
+                return primaryColorFromHexInfo.primaryColorLight
+                        == ntpThemeColorFromHexInfo.primaryColorLight;
             }
 
-            return primaryColorFromHexInfo.primaryColor
+            return primaryColorFromHexInfo.primaryColorLight
                     == context.getColor(ntpThemeColorInfo.primaryColorResId);
         }
 
         if (ntpThemeColorInfo instanceof NtpThemeColorFromHexInfo ntpThemeColorFromHexInfo) {
             return context.getColor(primaryColorInfo.primaryColorResId)
-                    == ntpThemeColorFromHexInfo.primaryColor;
+                    == ntpThemeColorFromHexInfo.primaryColorLight;
         }
 
         return ntpThemeColorInfo.primaryColorResId == primaryColorInfo.primaryColorResId;
     }
 
     /**
-     * Gets the background color from the given colorInfo. Returns the default background color if
-     * colorInfo is null.
+     * Gets the background color from the given backgroundData. Returns the default background color
+     * if backgroundData is null.
      *
      * @param context Used to get a color's int value based on the theme.
-     * @param colorInfo The NtpThemeColorInfo instance.
+     * @param backgroundData The NtpBackgroundDataBase instance.
      */
-    public static @ColorInt int getBackgroundColorFromColorInfo(
-            Context context, @Nullable NtpThemeColorInfo colorInfo) {
-        if (colorInfo == null) return getDefaultBackgroundColor(context);
+    public static @ColorInt int getBackgroundColorFromNtpBackgroundData(
+            Context context, @Nullable NtpBackgroundDataBase backgroundData) {
+        if (backgroundData == null) return getDefaultBackgroundColor(context);
 
-        if (colorInfo instanceof NtpThemeColorFromHexInfo) {
-            return ((NtpThemeColorFromHexInfo) colorInfo).backgroundColor;
+        if (backgroundData
+                instanceof NtpBackgroundDataCustomizedColor ntpBackgroundDataCustomizedColor) {
+            return ntpBackgroundDataCustomizedColor.getNtpThemeColorFromHexInfo()
+                    .backgroundColorLight;
         }
 
         // Use ?attr/colorSurfaceContainerHigh for NTP's background color for color theme.
         return SemanticColorUtils.getColorSurfaceContainerHigh(context);
+    }
+
+    /** Returns the NtpThemeColorInfo instance from a given NtpBackgroundDataBase instance. */
+    public static @Nullable NtpThemeColorInfo getNtpThemeColorInfoFromNtpBackgroundData(
+            @Nullable NtpBackgroundDataBase backgroundData) {
+        if (backgroundData == null) return null;
+
+        if (backgroundData instanceof NtpBackgroundDataColor ntpBackgroundDataColor) {
+            return ntpBackgroundDataColor.getNtpThemeColorInfo();
+        }
+
+        if (backgroundData
+                instanceof NtpBackgroundDataCustomizedColor ntpBackgroundDataCustomizedColor) {
+            return ntpBackgroundDataCustomizedColor.getNtpThemeColorFromHexInfo();
+        }
+
+        return null;
     }
 
     /**
@@ -238,15 +260,18 @@ public class NtpThemeColorUtils {
     public static @ColorInt int getPrimaryColorFromColorInfo(
             Context context, NtpThemeColorInfo colorInfo) {
         if (colorInfo instanceof NtpThemeColorFromHexInfo ntpThemeColorFromHexInfo) {
-            return ntpThemeColorFromHexInfo.primaryColor;
+            return ntpThemeColorFromHexInfo.primaryColorLight;
         }
 
         return context.getColor(colorInfo.primaryColorResId);
     }
 
     /** Creates a colored circle drawable based on provides three colors. */
-    static LayerDrawable createColoredCircle(
-            Context context, int topColor, int bottomLeftColor, int bottomRightColor) {
+    public static LayerDrawable createColoredCircle(
+            Context context,
+            @Nullable @ColorInt Integer topColor,
+            @Nullable @ColorInt Integer bottomLeftColor,
+            @Nullable @ColorInt Integer bottomRightColor) {
         // 1. Loads each drawable layer.
         Drawable iconTopHalf =
                 assumeNonNull(context.getDrawable(R.drawable.chrome_color_icon_top_half));
@@ -262,9 +287,15 @@ public class NtpThemeColorUtils {
         Drawable tintedIconBottomRight = DrawableCompat.wrap(iconBottomRight).mutate();
 
         // 3. Applies the specific colors (tints).
-        DrawableCompat.setTint(tintedIconTopHalf, topColor);
-        DrawableCompat.setTint(tintedIconBottomLeft, bottomLeftColor);
-        DrawableCompat.setTint(tintedIconBottomRight, bottomRightColor);
+        if (topColor != null) {
+            DrawableCompat.setTint(tintedIconTopHalf, topColor);
+        }
+        if (bottomLeftColor != null) {
+            DrawableCompat.setTint(tintedIconBottomLeft, bottomLeftColor);
+        }
+        if (bottomRightColor != null) {
+            DrawableCompat.setTint(tintedIconBottomRight, bottomRightColor);
+        }
 
         // 4. Combines them into a LayerDrawable.
         Drawable[] layers =

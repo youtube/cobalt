@@ -8,7 +8,9 @@
 #include <utility>
 
 #include "base/check_op.h"
+#include "base/feature_list.h"
 #include "base/values.h"
+#include "net/base/features.h"
 #include "net/base/proxy_chain.h"
 #include "net/base/proxy_server.h"
 #include "net/base/proxy_string_util.h"
@@ -67,15 +69,21 @@ ClientSocketPool* ClientSocketPoolManagerImpl::GetSocketPool(
   size_t sockets_per_proxy_chain;
   size_t sockets_per_group;
   SocketPoolAdditionalCapacity additional_capacity =
-      SocketPoolAdditionalCapacity::Create();
+      SocketPoolAdditionalCapacity::CreateEmpty();
   if (proxy_chain.is_direct()) {
     sockets_per_proxy_chain = socket_soft_cap_per_pool(pool_type_);
     sockets_per_group = max_sockets_per_group(pool_type_);
+    additional_capacity = SocketPoolAdditionalCapacity::Create(
+        socket_soft_cap_per_pool(pool_type_));
   } else {
     sockets_per_proxy_chain = max_sockets_per_proxy_chain(pool_type_);
     sockets_per_group =
         std::min(sockets_per_proxy_chain, max_sockets_per_group(pool_type_));
-    additional_capacity = SocketPoolAdditionalCapacity::CreateEmpty();
+    if (base::FeatureList::IsEnabled(
+            features::kTcpSocketPoolLimitRandomizationForProxy)) {
+      additional_capacity = SocketPoolAdditionalCapacity::Create(
+          max_sockets_per_proxy_chain(pool_type_));
+    }
   }
 
   std::unique_ptr<ClientSocketPool> new_pool;

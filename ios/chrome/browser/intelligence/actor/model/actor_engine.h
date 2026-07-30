@@ -13,6 +13,7 @@
 #import "base/memory/weak_ptr.h"
 #import "ios/chrome/browser/intelligence/actor/model/aggregated_journal.h"
 #import "ios/chrome/browser/intelligence/actor/public/actor_types.h"
+#import "ios/chrome/browser/intelligence/actor/tools/model/observation_delay_controller.h"
 
 namespace actor {
 
@@ -93,7 +94,8 @@ class ActorEngine {
 
   // Callback invoked when a tool completes execution, which bridges the tool's
   // `ToolExecutionResult` into an `ActionResult`.
-  void OnToolExecutionComplete(ToolExecutionResult tool_result);
+  void OnToolExecutionComplete(ActorTool* tool,
+                               ToolExecutionResult tool_result);
 
   // Callback for when tool execution is finished.
   void FinishedToolInvoke(ActionResult result);
@@ -142,6 +144,12 @@ class ActorEngine {
 
   // Current async entry for journal logging.
   std::unique_ptr<AggregatedJournal::PendingAsyncEntry> current_async_entry_;
+
+  // This is used to add delays after tool invocations to ensure that the page
+  // is ready for another tool invocation.
+  //
+  // TODO(crbug.com/504625981): Replace this with a ToolController once setup.
+  raw_ptr<ObservationDelayController> observation_delay_controller_;
 
   // Weak pointer factory.
   base::WeakPtrFactory<ActorEngine> weak_ptr_factory_{this};

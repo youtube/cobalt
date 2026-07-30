@@ -1,7 +1,7 @@
 <?xml version="1.0" ?>
 <!DOCTYPE translationbundle>
 <translationbundle lang="ja">
-<translation id="1007349221964075684">画面ロックを使用して、開いているシークレット ウィンドウを表示します</translation>
+<translation id="1007349221964075684">開いているシークレット ウィンドウを表示するには、画面ロックを使用します</translation>
 <translation id="1010283278930414892">このデバイスに保存されているパスワードはありません</translation>
 <translation id="1011749477052068769">ここに移動</translation>
 <translation id="1014083013111769343">リーディング モードの設定が画面全体に表示されています</translation>
@@ -283,7 +283,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="2251809247798634662">新しいシークレット ウィンドウ</translation>
 <translation id="2253927598983295051"><ph name="APP_NAME" /> と共有する情報を選択する</translation>
 <translation id="2261570557291037252">アプリの詳細情報</translation>
-<translation id="2270544918551255912">端からスワイプすると前の画面に戻ります</translation>
 <translation id="2276696007612801991">パスワードを確認するには、Google アカウントにログインしてください</translation>
 <translation id="2281243904606300427"><ph name="TAB_TITLE" />、選択したシークレット タブ</translation>
 <translation id="2286841657746966508">請求先住所</translation>
@@ -555,7 +554,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="3439276997620616816">最近使ったタブがここに表示されます</translation>
 <translation id="3443221991560634068">現在のページを再読み込みする</translation>
 <translation id="3444179773590444986">サイトのダークモードに関するフィードバックを共有しますか？</translation>
-<translation id="3448874648066942074">AI を使用してページを要約</translation>
 <translation id="3452832259067974318">プライバシー保護のため、Chrome ではこの欄のパスワードの自動入力は行われません。</translation>
 <translation id="3474624961160222204"><ph name="NAME" /> として続行</translation>
 <translation id="3478363558367712427">検索エンジンを選択できます</translation>
@@ -855,7 +853,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="4698757800236023795">アクティブ（<ph name="ITEM_COUNT" />）</translation>
 <translation id="4699172675775169585">キャッシュされた画像とファイル</translation>
 <translation id="4710167854527459075">新しい順に並べ替え</translation>
-<translation id="4718044610319080485">AI アシスタントを起動します</translation>
 <translation id="4719927025381752090">翻訳するか尋ねる</translation>
 <translation id="4720556299488643018">登録解除</translation>
 <translation id="4732120983431207637">スタック アンワインダー</translation>
@@ -1661,7 +1658,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="7914399737746719723">アプリをインストールしました</translation>
 <translation id="7917574899775263813">最後のタブに移動する</translation>
 <translation id="7919123827536834358">これらの言語を自動的に翻訳する</translation>
-<translation id="7921782882718083488">このページを要約</translation>
 <translation id="7926975587469166629">カードのニックネーム</translation>
 <translation id="7927073875790626822">XR</translation>
 <translation id="7929587383660661825">通知を不正に使用しているサイトや最近アクセスしていないサイトから権限を自動的に削除します</translation>
@@ -1825,7 +1821,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="8538291624121505885"><ph name="TAB_TITLE" />、複数選択されたピクチャー イン ピクチャーの固定タブ</translation>
 <translation id="8540136935098276800">正しい形式の URL を入力してください</translation>
 <translation id="854522910157234410">このページを開く</translation>
-<translation id="8547466829003330976">AI を使用して PDF をレビュー</translation>
 <translation id="8551513938758868521">Chrome を終了するときにシークレット タブをロックする</translation>
 <translation id="8559961053328923750">Chrome は、ウェブサイトが広告効果を測定するためにブラウザを介して共有できるデータの量を制限しています</translation>
 <translation id="8559990750235505898">他の言語のページで翻訳するかどうかを尋ねます</translation>

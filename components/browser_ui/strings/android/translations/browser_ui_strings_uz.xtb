@@ -37,6 +37,7 @@
 <translation id="1384959399684842514">Yuklab olish pauza qilindi.</translation>
 <translation id="1396327438254055134">Sayt V8 optimizer ishlatishiga ruxsat berish.</translation>
 <translation id="1409338233051621926">Ilovalar &gt; Birlamchi ilovalar ustiga bosing</translation>
+<translation id="1414315029670184034">Saytlarga kameradan foydalanishni taqiqlash</translation>
 <translation id="1415402041810619267">URL manzil qisqartirildi</translation>
 <translation id="1415855080660575082">Qurilmadagi ilovalar roʻyxati va qidiruv natijalarida oxirgi varaqlar chiqishi uchun Chrome ularni qurilmaga ulashishiga ruxsat bering. Buni Chrome sozlamalarida faolsizlantirish mumkin.</translation>
 <translation id="1420688843103859429">Sensorli panelda ikki barmoq bilan surish orqali orqaga va oldinga qayting</translation>
@@ -80,7 +81,6 @@
 <translation id="1781533683087883868">Oʻqish rejimi havolalarini faolsizlantirish</translation>
 <translation id="1785415724048343560">Nuqsonlarsiz ishlashi uchun tavsiya etiladi</translation>
 <translation id="1796588414813960292">Ovozdan foydalanadigan funksiyalar ishlamaydi</translation>
-<translation id="1799920918471566157">Chrome maslahatlari</translation>
 <translation id="1816835383954230954">Yoqilsa, Chrome tezroq ishlaydi va JavaScript ishlatadigan funksiyalar bexato ishlaydi. Yoqilmasa, unumdorlik pasayadi, ammo V8 hujumlarga yaxshiroq qarshilik qiladi.</translation>
 <translation id="1818308510395330587"><ph name="APP_NAME" /> AR ishlatishi uchun <ph name="BEGIN_LINK" />Android sozlamalari<ph name="END_LINK" /> orqali kamerani yoqing.</translation>
 <translation id="1822318649925991542">Brauzerdan moslangan tarzda foydalanish uchun joylashuvni almashtiring</translation>
@@ -99,6 +99,7 @@
 <translation id="1985247341569771101">Yoqilsa, saytlar qurilmangiz harakat sensoridan foydalana oladi. Oʻchirilsa, foydalana olmaydi.</translation>
 <translation id="1985716030964443178">Roʻyxatdagi barcha saytlar uchun birlamchi zum tiklanadi</translation>
 <translation id="1989112275319619282">Tanlash</translation>
+<translation id="1991370806334788445">Tashqi cookie fayllarga ruxsat bering, bunda himoya pasayadi, lekin sayt funksiyalari kutilganidek ishlaydi.</translation>
 <translation id="1994173015038366702">Sayt URL manzili</translation>
 <translation id="1994558116414798016">Lexend shrifti</translation>
 <translation id="2004697686368036666">Ayrim saytlardagi funksiyalar ishlamay qolishi mumkin.</translation>
@@ -164,6 +165,7 @@
 <translation id="257931822824936280">Kengaytirilgan - yig‘ish uchun bosing</translation>
 <translation id="2586657967955657006">Klipbord</translation>
 <translation id="2588271083332682494">Varaqlar guruhlari yordamida tartibga soling</translation>
+<translation id="2592917252160773942">Saytlar kameradan foydalanishga ruxsat soʻrashi mumkin</translation>
 <translation id="2597457036804169544">Saytlar uchun tungi mavzu tatbiq etilmaydi</translation>
 <translation id="2606760465469169465">Avtomatik tekshiruv</translation>
 <translation id="2621115761605608342">Ko‘rsatilgan saytga JavaScript ishga tushirishga ruxsat berish.</translation>
@@ -360,6 +362,7 @@
 <translation id="4635969503923889910">Saytlarga NFC qurilmalardan foydalanish taqiqlansin</translation>
 <translation id="4644713492825682049">Oʻchirish va tiklash</translation>
 <translation id="4645575059429386691">Ota-onangiz tomonidan boshqariladi</translation>
+<translation id="4651224148644053314">Boshqa ranglar va parametrlar</translation>
 <translation id="4652266463001779298">Ruxsat berilmagan</translation>
 <translation id="4655846733459137112">Keyingi kirishda bu paroldan oson foydalanish uchun Ha tugmasini bosing</translation>
 <translation id="4663373278480897665">Kameradan foydalanish mumkin</translation>
@@ -742,7 +745,6 @@ Kuchaytirilgan himoya boshqaruvida quyidagi Chrome sozlamalari mavjud:</translat
 <translation id="8676374126336081632">Tozalash</translation>
 <translation id="8681886425883659911">Yoqimsiz yoki befoyda reklamalar chiqadigan saytlarda reklamalar bloklanadi</translation>
 <translation id="868929229000858085">Kontaktlarni qidirish</translation>
-<translation id="8707904142362025782">Saytlar kameradan foydalanishga ruxsat soʻrashi mumkin</translation>
 <translation id="8712637175834984815">Tushunarli</translation>
 <translation id="8715862698998036666">Butun ekrandan chiqish uchun tepadan pastga tortib, ekran chetini chapga yoki oʻngga suring.</translation>
 <translation id="8716050156658570300">Saytlar harakat va yorugʻlik sensorlaridan foydalanish ruxsatini soʻrashi mumkin</translation>

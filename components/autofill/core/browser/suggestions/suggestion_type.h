@@ -183,8 +183,18 @@ enum class SuggestionType {
   // bold and link text.
   kBnplFootnote = 79,
 
-  // Next ID: 80
-  kMaxValue = kBnplFootnote
+  // Shows a suggestion after a period of inactivity to encourage the user to
+  // use AtMemory (opens AtMemory UI when clicked).
+  kAtMemoryInactivityNudge = 80,
+
+  // Static button in Autocomplete menu prompting use of AtMemory.
+  kAutocompleteAtMemoryButton = 81,
+
+  // Suggestion to open Gemini in the sidebar.
+  kOpenGemini = 82,
+
+  // Next ID: 83
+  kMaxValue = kOpenGemini
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/autofill/enums.xml:SuggestionType)
 

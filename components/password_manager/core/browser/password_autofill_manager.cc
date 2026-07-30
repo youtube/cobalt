@@ -115,6 +115,8 @@ bool IsSuggestionHandledInPasswordManager(SuggestionType type) {
     case SuggestionType::kMixedFormMessage:
     case SuggestionType::kAddressEntryOnTyping:
     case SuggestionType::kAtMemorySearchResult:
+    case SuggestionType::kAtMemoryInactivityNudge:
+    case SuggestionType::kOpenGemini:
     case SuggestionType::kIdentityCredential:
     case SuggestionType::kLoyaltyCardEntry:
     case SuggestionType::kOneTimePasswordEntry:
@@ -137,6 +139,7 @@ bool IsSuggestionHandledInPasswordManager(SuggestionType type) {
     case SuggestionType::kPendingStateSignin:
     case SuggestionType::kLoadingThrobber:
     case SuggestionType::kBnplFootnote:
+    case SuggestionType::kAutocompleteAtMemoryButton:
       return false;
   }
 }

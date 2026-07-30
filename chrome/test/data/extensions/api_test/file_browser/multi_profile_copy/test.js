@@ -97,6 +97,9 @@ async function fileCopy(
         chrome.fileManagerPrivate.onIOTaskProgressStatus.removeListener(
             onProgress);
         successCallback();
+        break;
+      default:
+        // Uninteresting event state.
     }
   };
 
@@ -157,7 +160,7 @@ async function main() {
   const volumeMetadataList = await promisifyWithLastError(
       chrome.fileManagerPrivate.getVolumeMetadataList);
   const driveVolumes =
-      volumeMetadataList.filter((volume) => volume.volumeType == 'drive');
+      volumeMetadataList.filter((volume) => volume.volumeType === 'drive');
 
   if (driveVolumes.length !== 1) {
     chrome.test.fail('Unexpected number of Drive volumes.');

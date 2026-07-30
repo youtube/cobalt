@@ -7,7 +7,7 @@ const bounds = {
   top: 0,
   left: 0,
   width: 0,
-  height: 0
+  height: 0,
 };
 
 chrome.windows.onBoundsChanged.addListener(function(window) {
@@ -19,13 +19,13 @@ chrome.windows.onBoundsChanged.addListener(function(window) {
 });
 
 chrome.test.sendMessage('ready', function(actualBounds) {
-  var actualBounds = JSON.parse(actualBounds);
+  const parsedBounds = JSON.parse(actualBounds);
 
   chrome.test.assertEq(1, count);
-  chrome.test.assertEq(bounds.top, actualBounds.top);
-  chrome.test.assertEq(bounds.left, actualBounds.left);
-  chrome.test.assertEq(bounds.width, actualBounds.width);
-  chrome.test.assertEq(bounds.height, actualBounds.height);
+  chrome.test.assertEq(bounds.top, parsedBounds.top);
+  chrome.test.assertEq(bounds.left, parsedBounds.left);
+  chrome.test.assertEq(bounds.width, parsedBounds.width);
+  chrome.test.assertEq(bounds.height, parsedBounds.height);
 
   chrome.test.notifyPass();
 });

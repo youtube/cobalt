@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import type {WebClientInitialState} from '../glic.mojom-webui.js';
-import type {ActorTaskInterruptReason, ActorTaskPauseReason, ActorTaskState, ActorTaskStopReason, AdditionalContext, AdditionalContextPart, AnnotatedPageData, AutofillSuggestion, CancelActionsResult, CaptureRegionErrorReason, CaptureRegionResult, ChromeVersion, ClientCapabilities, ClientErrorDialogType, ConversationInfo, CreateSkillRequest, Credential, DraggableArea, ErrorReasonTypes, ErrorWithReason, ExperimentalTriggeringUpdate, FocusedTabDataHasFocus, FocusedTabDataHasNoFocus, FormFactor, FormFillingRequest, FormFillingResponse, GetPinCandidatesOptions, HostCapability, InvokeOptions, Journal, MetricUserInputReactionType, MicrophoneStatus, NavigationConfirmationRequest, NavigationConfirmationResponse, OnResponseStoppedDetails, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, PinTabsOptions, Platform, ResumeActorTaskResult, Screenshot, ScrollToParams, SelectAutofillSuggestionsDialogRequest, SelectAutofillSuggestionsDialogResponse, SelectCredentialDialogRequest, SelectCredentialDialogResponse, Skill, SkillPreview, SkillsWebClientEvent, TabContextOptions, TabContextResult, TabData, TaskOptions, UnpinTabsOptions, UpdateSkillRequest, UserConfirmationDialogRequest, UserConfirmationDialogResponse, UserProfileInfo, WebClientMode, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
+import type {ActorTaskInterruptReason, ActorTaskPauseReason, ActorTaskState, ActorTaskStopReason, AdditionalContext, AdditionalContextPart, AnnotatedPageData, AutofillSuggestion, CancelActionsResult, CaptureRegionErrorReason, CaptureRegionParams, CaptureRegionResult, ChromeVersion, ClientCapabilities, ClientErrorDialogType, ConversationInfo, CreateSkillRequest, Credential, DraggableArea, ErrorReasonTypes, ErrorWithReason, ExperimentalTriggeringUpdate, FocusedTabDataHasFocus, FocusedTabDataHasNoFocus, FormFactor, FormFillingRequest, FormFillingResponse, GetPinCandidatesOptions, HostCapability, InvokeOptions, Journal, MetricUserInputReactionType, MicrophoneStatus, NavigationConfirmationRequest, NavigationConfirmationResponse, OnResponseStoppedDetails, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, PinTabsOptions, Platform, ResumeActorTaskResult, Screenshot, ScrollToParams, SelectAutofillSuggestionsDialogRequest, SelectAutofillSuggestionsDialogResponse, SelectCredentialDialogRequest, SelectCredentialDialogResponse, Skill, SkillPreview, SkillsWebClientEvent, TabContextOptions, TabContextResult, TabData, TaskOptions, UnpinTabsOptions, UpdateSkillRequest, UserConfirmationDialogRequest, UserConfirmationDialogResponse, UserProfileInfo, WebClientMode, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
 
 
 /*
@@ -21,10 +21,10 @@ readability, and ensures that each name is unique.
 export interface RequestDef {
   // The type of payload sent. Defaults to 'undefined', which means the request
   // has no request payload.
-  request?: any;
+  request?: unknown;
   // The type of response payload. Defaults to 'void', which means the request
   // sends no response payload.
-  response?: any;
+  response?: unknown;
   /**
    * Whether the request can be processed in the background.
    *
@@ -549,6 +549,7 @@ export declare type HostRequestTypes = ValidateRequestMap<{
   glicBrowserSubscribeToCaptureRegion: {
     request: {
       observationId: number,
+      params?: CaptureRegionParams,
     },
     backgroundAllowed: true,
   },
@@ -668,6 +669,12 @@ export declare type HostRequestTypes = ValidateRequestMap<{
     request: {
       shownDialogType?: ClientErrorDialogType,
     },
+    backgroundAllowed: true,
+  },
+  glicBrowserSubscribeToZoomLevel: {
+    backgroundAllowed: true,
+  },
+  glicBrowserUnsubscribeFromZoomLevel: {
     backgroundAllowed: true,
   },
 }>;
@@ -936,6 +943,12 @@ export declare type WebClientRequestTypes = ValidateRequestMap<{
     },
     backgroundAllowed: true,
   },
+  glicWebClientNotifyZoomLevelChanged: {
+    request: {
+      zoomFactor: number,
+    },
+    backgroundAllowed: true,
+  },
 }>;
 
 // Each host request needs to be added to either UnreportedRequests or
@@ -1054,6 +1067,8 @@ const RECORDED_REQUEST_IDS = {
   SubscribeToTabFavicon: 94,
   ShowBrowseSkillsUi: 95,
   OnExperimentalTriggeringUpdate: 96,
+  SubscribeToZoomLevel: 97,
+  UnsubscribeFromZoomLevel: 98,
 } as const satisfies HostRequestEnumNamesType;
 // LINT.ThenChange(
 //  //tools/metrics/histograms/metadata/glic/histograms.xml:ApiRequestType,
@@ -1065,11 +1080,26 @@ export const HOST_REQUEST_TYPES: HostRequestEnumNamesType&
       MAX_VALUE: Math.max(...Object.values(RECORDED_REQUEST_IDS)),
     };
 
-export function requestTypeToHistogramSuffix(type: string): string|undefined {
-  if (!type.startsWith('glicBrowser')) {
+// Provides metrics histogram information for a host request type.
+export interface HostRequestHistogramInfo {
+  // The name of the host request type, used as histogram suffix.
+  name: string;
+  // The histogram enum value for this host request type.
+  id: number;
+}
+
+export function getHostRequestHistogramInfo(requestType: string):
+    HostRequestHistogramInfo|undefined {
+  if (!requestType.startsWith('glicBrowser')) {
     return undefined;
   }
-  return type.substring(11);
+  const requestName = requestType.substring(11);
+  const id: number|undefined =
+      (HOST_REQUEST_TYPES as unknown as Record<string, number>)[requestName];
+  if (id === undefined) {
+    return undefined;
+  }
+  return {name: requestName, id: id};
 }
 
 export type AllRequestTypes = HostRequestTypes&WebClientRequestTypes;
@@ -1103,14 +1133,14 @@ type ArrayElement<ArrayType extends unknown[]> =
 type TransferableTypes = ArrayBuffer|Blob;
 type StructuredClonableBasicType = string|boolean|number|void|undefined|null;
 type CheckStructuredClonable<T> =
-    T extends StructuredClonableBasicType ? never : T extends any[] ?
+    T extends StructuredClonableBasicType ? never : T extends unknown[] ?
     CheckStructuredClonable<ArrayElement<T>>:
     T extends Map<infer K, infer V>?
     (CheckStructuredClonable<K>&CheckStructuredClonable<V>) :
     T extends Function ?
     ['Function not structured cloneable', T] :
-    T extends Promise<any>? ['Promise not structured cloneable', T] :
-                            CheckStructuredClonableObject<T>;
+    T extends Promise<unknown>? ['Promise not structured cloneable', T] :
+                                CheckStructuredClonableObject<T>;
 type CheckStructuredClonableObject<T> = T extends TransferableTypes ?
     never :
     AllValues<{[K in keyof T] -?: CheckStructuredClonable<T[K]>;}>;

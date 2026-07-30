@@ -32,7 +32,7 @@ ready.then(async function() {
     async function testGetFrame() {
       const done = chrome.test.listenForever(
           chrome.webNavigation.onCommitted, function(details) {
-            if (details.tabId != tab.id || details.url != url) {
+            if (details.tabId !== tab.id || details.url !== url) {
               return;
             }
             processId = details.processId;
@@ -104,7 +104,7 @@ ready.then(async function() {
             tabId: tab.id,
             frameId: 0,
             processId: processId,
-            documentId: documentId
+            documentId: documentId,
           },
           function(details) {
             chrome.test.assertEq(
@@ -127,7 +127,7 @@ ready.then(async function() {
             tabId: tab.id,
             frameId: 1,
             processId: processId,
-            documentId: documentId
+            documentId: documentId,
           },
           function(details) {
             chrome.test.assertEq(null, details);
@@ -156,7 +156,7 @@ ready.then(async function() {
               url: url,
               documentId: documentId,
               documentLifecycle: 'active',
-              frameType: 'outermost_frame'
+              frameType: 'outermost_frame',
             }],
             details);
         chrome.test.succeed();
@@ -181,11 +181,12 @@ ready.then(async function() {
       const done = chrome.test.listenForever(
           chrome.webNavigation.onCommitted, function(details) {
             // Ignore frames other than the pre-rendered frame.
-            if (details.tabId != tab.id || details.url != prerenderTargetUrl) {
+            if (details.tabId !== tab.id ||
+                details.url !== prerenderTargetUrl) {
               return;
             }
             // prerendered main frame shouldn't have frameId = 0.
-            if (details.frameId == 0) {
+            if (details.frameId === 0) {
               return;
             }
             chrome.webNavigation.getAllFrames(
@@ -199,7 +200,7 @@ ready.then(async function() {
                         url: prerenderTargetUrl,
                         documentId: details.documentId,
                         documentLifecycle: 'prerender',
-                        frameType: 'outermost_frame'
+                        frameType: 'outermost_frame',
                       }],
                       frameDetails.filter(ob => ob.url === prerenderTargetUrl));
                   done();
@@ -225,13 +226,13 @@ ready.then(async function() {
           chrome.webNavigation.onCommitted, function(details) {
             // Ignore frames other than the pre-rendered subframe to ensure all
             // frames are loaded.
-            if (details.tabId != tab.id ||
-                details.url != prerenderTargetSubframeUrl) {
+            if (details.tabId !== tab.id ||
+                details.url !== prerenderTargetSubframeUrl) {
               return;
             }
 
             // A prerendered subframe is expected to have a parent.
-            if (details.parentFrameId == -1) {
+            if (details.parentFrameId === -1) {
               return;
             }
 
@@ -247,7 +248,7 @@ ready.then(async function() {
                           url: prerenderTargetUrl,
                           documentId: details.parentDocumentId,
                           documentLifecycle: 'prerender',
-                          frameType: 'outermost_frame'
+                          frameType: 'outermost_frame',
                         },
                         {
                           errorOccurred: false,
@@ -258,8 +259,8 @@ ready.then(async function() {
                           documentId: details.documentId,
                           parentDocumentId: details.parentDocumentId,
                           documentLifecycle: 'prerender',
-                          frameType: 'sub_frame'
-                        }
+                          frameType: 'sub_frame',
+                        },
                       ],
                       frameDetails.filter(
                           ob => ob.documentLifecycle === 'prerender'));
@@ -290,7 +291,7 @@ ready.then(async function() {
       const done = chrome.test.listenForever(
           chrome.webNavigation.onCommitted, function(details) {
             // Ignore frames other than the pre-rendered frame.
-            if (details.url != prerenderTargetUrl) {
+            if (details.url !== prerenderTargetUrl) {
               return;
             }
 
@@ -348,7 +349,8 @@ ready.then(async function() {
       const done = chrome.test.listenForever(
           chrome.webNavigation.onCommitted, function(details) {
             // Ignore frames other than the pre-rendered frame.
-            if (details.tabId != tab.id || details.url != prerenderTargetUrl) {
+            if (details.tabId !== tab.id ||
+                details.url !== prerenderTargetUrl) {
               return;
             }
 
@@ -371,7 +373,7 @@ ready.then(async function() {
                         url: prerenderTargetUrl,
                         documentId: details.documentId,
                         documentLifecycle: 'active',
-                        frameType: 'outermost_frame'
+                        frameType: 'outermost_frame',
                       }],
                       frameDetails.filter(ob => ob.url === prerenderTargetUrl));
                   done();
@@ -393,7 +395,7 @@ ready.then(async function() {
       const tab = await promise(chrome.tabs.create, {url: 'about:blank'});
       const done = chrome.test.listenForever(
           chrome.webNavigation.onCommitted, function(details) {
-            if (details.tabId != tab.id || details.url != urlFrames) {
+            if (details.tabId !== tab.id || details.url !== urlFrames) {
               return;
             }
             processId = details.processId;
@@ -409,7 +411,7 @@ ready.then(async function() {
                         url: urlFrames,
                         documentId: documentId,
                         documentLifecycle: 'active',
-                        frameType: 'outermost_frame'
+                        frameType: 'outermost_frame',
                       }],
                       details);
                   chrome.test.succeed();

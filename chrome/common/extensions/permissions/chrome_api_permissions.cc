@@ -177,6 +177,7 @@ constexpr APIPermissionInfo::InitInfo permissions_to_register[] = {
     {APIPermissionID::kPasswordsPrivate, "passwordsPrivate",
      APIPermissionInfo::kFlagCannotBeOptional},
     {APIPermissionID::kPdfViewerPrivate, "pdfViewerPrivate"},
+    {APIPermissionID::kIndigoPrivate, "indigoPrivate"},
     {APIPermissionID::kProxyOverrideRulesPrivate, "proxyOverrideRulesPrivate",
      APIPermissionInfo::kFlagCannotBeOptional},
     {APIPermissionID::kResourcesPrivate, "resourcesPrivate",
@@ -200,8 +201,6 @@ constexpr APIPermissionInfo::InitInfo permissions_to_register[] = {
      APIPermissionInfo::kFlagCannotBeOptional},
     {APIPermissionID::kWebrtcLoggingPrivateAudioDebug,
      "webrtcLoggingPrivate.audioDebug",
-     APIPermissionInfo::kFlagCannotBeOptional},
-    {APIPermissionID::kWebstorePrivate, "webstorePrivate",
      APIPermissionInfo::kFlagCannotBeOptional},
 
     // Full url access permissions.

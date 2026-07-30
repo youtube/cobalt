@@ -30,9 +30,9 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_commands.h"
-#include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/tab_ui_helper.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
@@ -647,8 +647,12 @@ gfx::Range BrowserTabStripController::ListTabsInGroup(
 
 std::u16string BrowserTabStripController::GetAccessibleTabName(
     const Tab* tab) const {
-  int tab_index = tabstrip_->GetModelIndexOf(tab).value();
-  return tabs::GetAccessibleTabLabel(model_->GetTabAtIndex(tab_index),
+  tabs::TabInterface* interface = tab->tab_handle().Get();
+  if (!interface) {
+    return std::u16string();
+  }
+
+  return tabs::GetAccessibleTabLabel(interface,
                                      /*is_for_tab=*/true);
 }
 

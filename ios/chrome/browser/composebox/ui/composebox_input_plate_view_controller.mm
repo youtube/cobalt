@@ -25,6 +25,8 @@
 #import "ios/chrome/browser/composebox/public/composebox_model_option.h"
 #import "ios/chrome/browser/composebox/public/composebox_theme.h"
 #import "ios/chrome/browser/composebox/public/features.h"
+#import "ios/chrome/browser/composebox/shared/ui/composebox_snackbar_presenter.h"
+#import "ios/chrome/browser/composebox/shared/ui/composebox_ui_constants.h"
 #import "ios/chrome/browser/composebox/ui/composebox_animation_context.h"
 #import "ios/chrome/browser/composebox/ui/composebox_input_item.h"
 #import "ios/chrome/browser/composebox/ui/composebox_input_item_cell.h"
@@ -32,9 +34,7 @@
 #import "ios/chrome/browser/composebox/ui/composebox_input_plate_mutator.h"
 #import "ios/chrome/browser/composebox/ui/composebox_input_plate_view_controller_delegate.h"
 #import "ios/chrome/browser/composebox/ui/composebox_metrics_recorder.h"
-#import "ios/chrome/browser/composebox/ui/composebox_snackbar_presenter.h"
 #import "ios/chrome/browser/composebox/ui/composebox_strings.h"
-#import "ios/chrome/browser/composebox/ui/composebox_ui_constants.h"
 #import "ios/chrome/browser/composebox/ui/composebox_ui_input_state.h"
 #import "ios/chrome/browser/composebox/ui/composebox_ui_util.h"
 #import "ios/chrome/browser/drag_and_drop/model/drag_item_util.h"
@@ -247,6 +247,8 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
 
   /// Whether the input plate was presented.
   BOOL _inputPlatePresented;
+  /// Caches the items list if set before viewDidLoad.
+  NSArray<ComposeboxInputItem*>* _cachedItems;
 }
 
 /// ComposeboxAnimationContext
@@ -285,6 +287,9 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   _askAboutThisPageButton = [self createAskAboutThisPageButton];
   [self updatePlusButtonItems];
   [self setupCarouselContainer];
+  if (_cachedItems.count > 0) {
+    [self setItems:_cachedItems];
+  }
 
   _inputPlateStackView =
       [[UIStackView alloc] initWithArrangedSubviews:@[ _omniboxContainer ]];
@@ -410,6 +415,13 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
 #pragma mark - ComposeboxInputPlateConsumer
 
 - (void)setItems:(NSArray<ComposeboxInputItem*>*)items {
+  // Cache the items if called before `viewDidLoad` initializes `_dataSource`.
+  // They will be applied once the view loads.
+  if (!_dataSource) {
+    _cachedItems = [items copy];
+    return;
+  }
+  _cachedItems = nil;
   _carouselContainer.hidden = !items.count;
   [self updateInputPlateStackViewTopConstraint];
   NSDiffableDataSourceSnapshot<NSString*, ComposeboxInputItem*>* snapshot =
@@ -637,10 +649,6 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   [self.mutator attachCurrentTabContent];
 }
 
-- (void)plusButtonTouchDown {
-  [self.delegate composeboxViewControllerMayShowGalleryPicker:self];
-}
-
 - (void)plusButtonDidOpenMenu {
   using enum ComposeboxAttachmentOption;
   std::vector<FuseboxAttachmentButtonType> visibleButtons;
@@ -668,7 +676,8 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
 }
 
 - (void)plusButtonTapped {
-  [self.delegate composeboxViewControllerDidTapPlusButton:self];
+  [self.delegate composeboxViewControllerDidTapPlusButton:self
+                                         withUIInputState:_state];
   [self plusButtonDidOpenMenu];
 }
 
@@ -990,12 +999,8 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
 /// Updates the placeholder text based on the current operating mode of the
 /// composebox.
 - (void)updatePlaceholderText {
-  if (_state.activeTool == ComposeboxMode::kRegularSearch) {
-    [_editView setCustomPlaceholderText:nil];
-  } else {
-    [_editView setCustomPlaceholderText:[_state.strings
-                                            hintTextForTool:_state.activeTool]];
-  }
+  [_editView setCustomPlaceholderText:[_state.strings
+                                          hintTextForTool:_state.activeTool]];
 }
 
 /// Adds and constraints the 'X' mark indicator to the given button.
@@ -1095,10 +1100,6 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
         constraintGreaterThanOrEqualToConstant:kAIMButtonHeight],
     [plusButton.widthAnchor constraintEqualToConstant:kAIMButtonHeight],
   ]];
-
-  [plusButton addTarget:self
-                 action:@selector(plusButtonTouchDown)
-       forControlEvents:UIControlEventTouchDown];
 
   if (IsComposeboxPlusButtonBottomSheet()) {
     [plusButton addTarget:self

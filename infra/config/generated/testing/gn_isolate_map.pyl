@@ -1075,11 +1075,6 @@
     "type": "windowed_test_launcher",
     "module_scheme": "gtest",
   },
-  "extensions_browsertests": {
-    "label": "//extensions:extensions_browsertests",
-    "type": "windowed_test_launcher",
-    "module_scheme": "gtest",
-  },
   "extensions_unittests": {
     "label": "//extensions:extensions_unittests",
     "type": "windowed_test_launcher",
@@ -1696,6 +1691,11 @@
   "pdfium_test": {
     "label": "//third_party/pdfium/testing:pdfium_test",
     "type": "additional_compile_target",
+  },
+  "perfetto_diff_tests": {
+    "label": "//base/tracing:perfetto_diff_tests",
+    "type": "generated_script",
+    "skip_usage_check": True,
   },
   "perfetto_unittests": {
     "label": "//third_party/perfetto:perfetto_unittests",

@@ -691,23 +691,6 @@ interface LocalFrameHost {
       url.mojom.Url destination_url,
       bool cross_origin_exposed);
 
-  // See:
-  // https://github.com/WICG/fenced-frame/blob/master/explainer/fenced_frames_with_local_unpartitioned_data_access.md
-  //
-  // This implements the API:
-  // window.fence.disableUntrustedNetwork()
-  //
-  // A document in a fenced frame can invoke the disableUntrustedNetwork API to
-  // disable the frame tree's access to the network (except trusted servers in
-  // the future) and gain access to unpartitioned storage.
-  DisableUntrustedNetworkInFencedFrame() => ();
-
-  // A test-only IPC to exempt `exempted_url` from fenced frames network
-  // revocation immediately above (`DisableUntrustedNetworkInFencedFrame`).
-  // Used primarily to exempt the fenced frames remote context executor pattern
-  // in WPT from network revocation.
-  ExemptUrlFromNetworkRevocationForTesting(url.mojom.Url exempted_url) => ();
-
   // Notify the browser that there is a legacy technology used by the page.
   // The event contains the technology `type` and code location from the
   // ExecutionContext.
@@ -761,14 +744,6 @@ interface LocalFrameHost {
       RemoteFrameInterfacesFromRenderer remote_frame_interfaces,
       blink.mojom.RemoteFrameToken frame_token,
       mojo_base.mojom.UnguessableToken devtools_frame_token);
-
-  // Can be called when a DOM event named `event_type` fires within a fenced
-  // frame's DOM tree. Propagates a censored version of the event to the
-  // embedder that omits privacy-sensitive information like mouse coordinates or
-  // timestamps. User activation is also consumed in the fenced frame tree and
-  // notified to the embedder's DOM tree, if this method determines that
-  // `event_type` should result in the embedder receiving user activation.
-  ForwardFencedFrameEventAndUserActivationToEmbedder(string event_type);
 
   // Notifies when the ViewTransition opt-in state for the current Document
   // changes.

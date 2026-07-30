@@ -23,6 +23,7 @@
 #import "ios/chrome/browser/first_run/coordinator/first_run_screen_provider.h"
 #import "ios/chrome/browser/first_run/guided_tour/coordinator/guided_tour_coordinator.h"
 #import "ios/chrome/browser/first_run/guided_tour/coordinator/guided_tour_promo_coordinator.h"
+#import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/safari_data_import/public/safari_data_import_entry_point.h"
 #import "ios/chrome/browser/safari_data_import/public/safari_data_import_ui_handler.h"
 #import "ios/chrome/browser/scoped_ui_blocker/ui_bundled/scoped_ui_blocker.h"
@@ -44,8 +45,14 @@
 #import "ios/chrome/browser/synced_set_up/public/synced_set_up_metrics.h"
 #import "ios/chrome/browser/synced_set_up/utils/utils.h"
 
-namespace first_run {
+// Used to create PassKey to access the UIViewController through the
+// BrowserProvider interface (crbug.com/40606165).
+class FirstRunProfileAgentHelper {
+ public:
+  static BrowserProviderPassKey CreateKey() { return BrowserProviderPassKey{}; }
+};
 
+namespace first_run {
 // Helper class used to access the passkey needed to call
 // MetricsService::StartOutOfBandUploadIfPossible().
 class FirstRunProfileAgentMetricsHelper final {
@@ -133,6 +140,7 @@ const char kGuidedTourStepDidFinishHistogram[] = "IOS.GuidedTour.DidFinishStep";
         HandlerForProtocol([self commandDispatcher], TabGridToolbarCommands);
     __weak FirstRunProfileAgent* weakSelf = self;
     ProceduralBlock completion = ^{
+      [weakSelf stepCompleted:GuidedTourStep::kTabGridIncognito];
       [weakSelf showLongPressStep];
     };
     [handler showGuidedTourIncognitoStepWithDismissalCompletion:completion];
@@ -208,7 +216,8 @@ const char kGuidedTourStepDidFinishHistogram[] = "IOS.GuidedTour.DidFinishStep";
   AppState* appState = profileState.appState;
   if (appState.startupInformation.isFirstRun) {
     _scopedForceOrientation = ForcePortraitOrientationOnIphone(appState);
-    if (IsBestOfAppFREEnabled()) {
+
+    if (IsBestOfAppFREEnabled() || IsAppStoreInAppEventsEnabled()) {
       id<BrowserProvider> presentingInterface =
           _presentingSceneState.browserProviderInterface.currentBrowserProvider;
       Browser* browser = presentingInterface.browser;
@@ -257,6 +266,7 @@ const char kGuidedTourStepDidFinishHistogram[] = "IOS.GuidedTour.DidFinishStep";
 - (void)stepCompleted:(GuidedTourStep)step {
   CHECK(_currentGuidedTourStep);
   CHECK_EQ(step, _currentGuidedTourStep.value());
+  base::UmaHistogramEnumeration(kGuidedTourStepDidFinishHistogram, step);
   if (step == GuidedTourStep::kNTP) {
     [_guidedTourCoordinator stop];
     _guidedTourCoordinator = nil;
@@ -269,7 +279,6 @@ const char kGuidedTourStepDidFinishHistogram[] = "IOS.GuidedTour.DidFinishStep";
 }
 
 - (void)nextTappedForStep:(GuidedTourStep)step {
-  base::UmaHistogramEnumeration(kGuidedTourStepDidFinishHistogram, step);
   if (IsManualUploadForBestOfAppEnabled()) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(^{
@@ -380,17 +389,16 @@ const char kGuidedTourStepDidFinishHistogram[] = "IOS.GuidedTour.DidFinishStep";
   _firstRunUIBlocker = std::make_unique<ScopedUIBlocker>(_presentingSceneState);
 
   if (!base::FeatureList::IsEnabled(switches::kBuildExternalPrivacyContext)) {
-    // Capabilities prefetching must happen after
-    // `SystemIdentityManager::BuildExternalPrivacyContext()`. This is handled
-    // by `SigninAccountCapabilitiesSceneAgent` instead.
+    // Capabilities prefetching is no longer necessary; all capabilities fetches
+    // are deferred until External Privacy Contexts are built.
     RunSystemCapabilitiesPrefetch(signin::GetIdentitiesOnDevice(profile));
   }
 
   FirstRunScreenProvider* provider =
       [[FirstRunScreenProvider alloc] initForProfile:profile];
   UIViewController* baseViewController =
-      _presentingSceneState.browserProviderInterface.currentBrowserProvider
-          .viewController;
+      [_presentingSceneState.browserProviderInterface.currentBrowserProvider
+          viewController:FirstRunProfileAgentHelper::CreateKey()];
   Browser* mainBrowser = _presentingSceneState.browserProviderInterface
                              .mainBrowserProvider.browser;
   _firstRunCoordinator =
@@ -447,7 +455,9 @@ const char kGuidedTourStepDidFinishHistogram[] = "IOS.GuidedTour.DidFinishStep";
       _presentingSceneState.browserProviderInterface.currentBrowserProvider;
   Browser* browser = presentingInterface.browser;
   _guidedTourPromoCoordinator = [[GuidedTourPromoCoordinator alloc]
-      initWithBaseViewController:presentingInterface.viewController
+      initWithBaseViewController:
+          [presentingInterface
+              viewController:FirstRunProfileAgentHelper::CreateKey()]
                          browser:browser];
   _guidedTourPromoCoordinator.delegate = self;
   [_guidedTourPromoCoordinator start];
@@ -464,7 +474,9 @@ const char kGuidedTourStepDidFinishHistogram[] = "IOS.GuidedTour.DidFinishStep";
       _presentingSceneState.browserProviderInterface.currentBrowserProvider;
   _guidedTourCoordinator = [[GuidedTourCoordinator alloc]
             initWithStep:GuidedTourStep::kNTP
-      baseViewController:presentingInterface.viewController
+      baseViewController:
+          [presentingInterface
+              viewController:FirstRunProfileAgentHelper::CreateKey()]
                  browser:presentingInterface.browser
                 delegate:self];
   [_guidedTourCoordinator start];
@@ -475,6 +487,7 @@ const char kGuidedTourStepDidFinishHistogram[] = "IOS.GuidedTour.DidFinishStep";
   _currentGuidedTourStep = GuidedTourStep::kTabGridLongPress;
   __weak FirstRunProfileAgent* weakSelf = self;
   ProceduralBlock completion = ^{
+    [weakSelf stepCompleted:GuidedTourStep::kTabGridLongPress];
     [weakSelf showTabGroupStep];
   };
   id<TabGridCommands> handler =
@@ -489,6 +502,7 @@ const char kGuidedTourStepDidFinishHistogram[] = "IOS.GuidedTour.DidFinishStep";
       HandlerForProtocol([self commandDispatcher], TabGridToolbarCommands);
   __weak FirstRunProfileAgent* weakSelf = self;
   ProceduralBlock completion = ^{
+    [weakSelf stepCompleted:GuidedTourStep::kTabGridTabGroup];
     [weakSelf guidedTourCompleted];
   };
   [handler showGuidedTourTabGroupStepWithDismissalCompletion:completion];

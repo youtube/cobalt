@@ -54,6 +54,7 @@
 <translation id="1179890706672152411">Votre espace de stockage est plein</translation>
 <translation id="1181037720776840403">Supprimer</translation>
 <translation id="1190609913194133056">Centre de notification</translation>
+<translation id="1199631150313925648">Entrer manuellement</translation>
 <translation id="1199963004393929848">Thème vert</translation>
 <translation id="1201402288615127009">Suivant</translation>
 <translation id="1204075260022434100">{count,plural, =1{Favori enregistré dans « {title} » dans votre compte, {email}}one{{count} favori enregistré dans « {title} » dans votre compte, {email}.}other{{count} favoris enregistrés dans « {title} » dans votre compte, {email}.}}</translation>
@@ -720,6 +721,7 @@
 <translation id="3565012355885596568">Impossible de charger les images</translation>
 <translation id="3565930036634619844">Onglet. <ph name="TAB_INDEX" /> sur <ph name="NUMBER_OF_TABS" />.</translation>
 <translation id="3567168891086460374">Enregistrer autrement</translation>
+<translation id="3571703298474554279">Un moyen plus rapide d'utiliser l'appli</translation>
 <translation id="3572503683475187385">L'onglet actuel est partagé avec Gemini lorsque vous démarrez un nouveau clavardage. Lorsque vous partagez un onglet avec Gemini, son URL et son contenu sont envoyés à Google. <ph name="BEGIN_LINK" />En savoir plus<ph name="END_LINK" /></translation>
 <translation id="3572607909481582402">Dans votre compte Google</translation>
 <translation id="3575234738189584619">Rechercher avec Lentille</translation>
@@ -786,7 +788,6 @@
 <translation id="3838691874161539578">Vérifiez vos mots de passe enregistrés pour renforcer votre sécurité et mieux vous protéger en ligne</translation>
 <translation id="3838985624086228724">Baisse de prix sur votre produit suivi, de <ph name="PREVIOUS_PRICE" /> à <ph name="PRICE" />, <ph name="PRODUCT_NAME" />, <ph name="DOMAIN" /></translation>
 <translation id="385051799172605136">Retour</translation>
-<translation id="3850952228519377137">Masquer « Suivre les prix dans vos onglets »</translation>
 <translation id="3851938967634752633">Les mots de passe de <ph name="WEBSITE" />, <ph name="SECOND_WEBSITE" /> et de<ph name="NUMBER_OF_ACCOUNTS" /> autres comptes seront supprimés. Vos comptes ne seront pas supprimés.</translation>
 <translation id="3853162385423733133">Continuez à utiliser et à enregistrer les mots de passe dans votre compte Google <ph name="EMAIL" /></translation>
 <translation id="3853873210696342070">Importer</translation>
@@ -934,7 +935,6 @@
 <translation id="4323122584592971322">OID.</translation>
 <translation id="4324735664183300693">Activer les notifications</translation>
 <translation id="4326912346867677256">Touchez « Utiliser le mot de passe » pour vous connecter en toute sécurité.</translation>
-<translation id="4327017157997423717">Suivre le prix pour <ph name="PRODUCT_NAME" />, <ph name="PRICE" />, <ph name="DOMAIN" /></translation>
 <translation id="4328843285884395590">Mon disque</translation>
 <translation id="4331177082088332784">Vous pouvez gérer cela dans les BEGIN_LINKparamètres de contenuEND_LINK</translation>
 <translation id="4334428914252001502">1 article non lu.</translation>
@@ -958,6 +958,7 @@
 <translation id="441868831736628555">Avis de confidentialité</translation>
 <translation id="4420409367264901497">Modifier le favori</translation>
 <translation id="4425365312778464779">Ce compte est géré</translation>
+<translation id="443008484043213881">Outils</translation>
 <translation id="4430277756566635951">Actuellement sélectionné : <ph name="EMAIL" />. Sélectionnez un compte.</translation>
 <translation id="4430505936695785931">Obtenez des mots de passe enregistrés dans d'autres applis</translation>
 <translation id="4431224949908513835">Sélectionner un mode de paiement à entrer.</translation>
@@ -1294,6 +1295,7 @@ La fonction de transfert doit également être activée dans la section Généra
 <translation id="5581786858144165447">Mode Demander à l'IA</translation>
 <translation id="5585019845078534178">Cartes</translation>
 <translation id="5591526871732898147">Image {index} en pièce jointe</translation>
+<translation id="5594597292424622277">Mettre la vidéo en pause</translation>
 <translation id="5595485650161345191">Modifier l'adresse</translation>
 <translation id="559567008082979829">Faites en sorte que vos téléchargements soient supprimés après un mois.</translation>
 <translation id="5596627076506792578">Autres options</translation>
@@ -1518,7 +1520,6 @@ La fonction de transfert doit également être activée dans la section Généra
 <translation id="6321526113093607004">Ajouter aux favoris</translation>
 <translation id="6327249202318869726">Gemini est désactivé pour votre compte. Communiquez avec votre administrateur pour en savoir plus.</translation>
 <translation id="6331836477476466332">Un navigateur plus sécurisé et plus puissant pour vous</translation>
-<translation id="6335744088476213315">Cette carte indique les produits que vous avez récemment consultés et que vous pourriez vouloir suivre pour recevoir des alertes de baisse de prix</translation>
 <translation id="6337234675334993532">Chiffrement</translation>
 <translation id="6337313937331295309">avis de confidentialité des applis Gemini</translation>
 <translation id="633809752005859102">Une erreur s'est produite. Nous examinerons ce point.</translation>
@@ -1573,6 +1574,7 @@ La fonction de transfert doit également être activée dans la section Généra
 <translation id="6476800141292307438">Traduction de la page en <ph name="LANGUAGE" /> en cours… Les options sont affichées dans le bas de l'écran.</translation>
 <translation id="647867789226964031">Modifier vos mots de passe</translation>
 <translation id="6480363549849064919">Authentification du client</translation>
+<translation id="6489174933860678546">Ouvrez des onglets de navigation privée pour naviguer sur le Web de manière plus privée.</translation>
 <translation id="6494931198667773526">Fin</translation>
 <translation id="6503077044568424649">Les plus visités</translation>
 <translation id="6503763061813913607">Notifications de Vérification de sécurité</translation>
@@ -1630,6 +1632,7 @@ La fonction de transfert doit également être activée dans la section Généra
 <translation id="6640268266988685324">Onglet ouvert</translation>
 <translation id="6641465290890659327">Partager une copie de votre mot de passe</translation>
 <translation id="6642362222295953972">Passer à l'onglet déjà ouvert</translation>
+<translation id="6643016212128521049">Effacer</translation>
 <translation id="6645899968535965230">Code QR : <ph name="PAGE_TITLE" /></translation>
 <translation id="6657585470893396449">Mot de passe</translation>
 <translation id="6659660757330712663">Vous pouvez faire glisser la barre d'outils pour basculer entre les onglets.</translation>
@@ -1696,6 +1699,7 @@ La fonction de transfert doit également être activée dans la section Généra
 <translation id="6871397658902960384">Commencer à parcourir</translation>
 <translation id="6874328931822449112">{COUNT,plural, =1{Enregistrer le mot de passe dans le compte}one{Enregistrer le mot de passe dans le compte}other{Enregistrer les mots de passe dans les comptes}}</translation>
 <translation id="6875166646976836138">Vous pouvez également afficher et gérer ces éléments dans vos favoris, votre Liste de lecture ou votre gestionnaire de mots de passe.</translation>
+<translation id="6878052248816456143">Accédez aux fichiers de votre Google Disque à tout moment.</translation>
 <translation id="6882836635272038266">Protection standard contre les sites Web, les téléchargements et les extensions qui sont réputés être dangereux.</translation>
 <translation id="6884135917113737984">{COUNT,plural, =1{Enregistrer {COUNT} mot de passe dans votre compte Google}one{Enregistrer {COUNT} mot de passe dans votre compte Google}other{Enregistrer {COUNT} mots de passe dans votre compte Google}}</translation>
 <translation id="6888009575607455378">Voulez-vous vraiment supprimer les modifications?</translation>
@@ -1809,6 +1813,7 @@ La fonction de transfert doit également être activée dans la section Généra
 <translation id="7345061034321640811">Importation non autorisée</translation>
 <translation id="7347998088283246662">Importez des mots de passe, un historique, des favoris et plus encore</translation>
 <translation id="7352651011704765696">Une erreur s’est produite</translation>
+<translation id="7363497636543208734">Il est désormais plus facile de naviguer dans l'appli.</translation>
 <translation id="7364796246159120393">Sélectionner un fichier</translation>
 <translation id="736564850024123010">Modifiez la position de votre barre d'adresse pour une expérience personnalisée.</translation>
 <translation id="7366909168761621528">Données de navigation</translation>
@@ -2108,7 +2113,6 @@ La fonction de transfert doit également être activée dans la section Généra
 <translation id="8319282042900445670">Rappel défini à <ph name="TIME" />, le <ph name="DATE" /></translation>
 <translation id="8320212361750431956">Activité récente</translation>
 <translation id="8325455175867928593">Masquer les « Critiques basées sur vos centres d'intérêt »</translation>
-<translation id="8328777765163860529">Tout fermer</translation>
 <translation id="833647236762414178">Créez, enregistrez et gérez vos mots de passe et vos clés d'accès pour vous connecter facilement aux sites et aux applis. <ph name="BEGIN_LINK" />En savoir plus<ph name="END_LINK" /></translation>
 <translation id="8343993175958086504">Sauvegardez vos données et utilisez-les sur n'importe quel appareil</translation>
 <translation id="8348530355586151720">Touchez le menu à trois points</translation>
@@ -2163,6 +2167,7 @@ La fonction de transfert doit également être activée dans la section Généra
 <translation id="8528009254289981965">Ouvrir des liens d'autres applications en navigation privée</translation>
 <translation id="8529767659511976195">Nouveau</translation>
 <translation id="8531572740963685410">Fichiers PDF</translation>
+<translation id="8532059953132740592">Faire jouer la vidéo</translation>
 <translation id="8533411848724153701">Gemini</translation>
 <translation id="8533670235862049797">Navigation sécuritaire activée</translation>
 <translation id="8534481786647257214">Message Google+ terminé.</translation>
@@ -2291,6 +2296,7 @@ La fonction de transfert doit également être activée dans la section Généra
 <translation id="8915916167043355778">Tout fermer</translation>
 <translation id="892185197271200809">Tous les utilisateurs perdront immédiatement l'accès au groupe d'onglets « <ph name="GROUP_NAME" /> », et celui-ci sera supprimé de tous les appareils</translation>
 <translation id="8923178205567790913">Mots de passe</translation>
+<translation id="8926498511977337209">Naviguer en mode Navigation privée</translation>
 <translation id="892776311701544612">En savoir plus…</translation>
 <translation id="8928133177108699615">Bureau</translation>
 <translation id="8928426232677696166"><ph name="EMAIL" />, géré par votre organisation, actuellement sélectionné. Sélectionnez un compte.</translation>

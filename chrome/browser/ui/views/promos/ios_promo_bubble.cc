@@ -622,7 +622,9 @@ void IOSPromoBubble::ShowPromoBubble(
   }
 
   views::Widget* const widget =
-      views::BubbleDialogDelegate::CreateBubble(std::move(promo_bubble));
+      views::BubbleDialogDelegate::CreateBubbleDeprecated(
+          std::move(promo_bubble),
+          views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET);
   widget->Show();
   widget->GetContentsView()->SetProperty(views::kElementIdentifierKey,
                                          kIOSPromoBubbleElementId);

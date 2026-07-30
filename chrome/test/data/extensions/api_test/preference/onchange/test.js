@@ -11,7 +11,7 @@ function listenUntil(event, expected) {
     for (let i = 0; i < expected.length; i++) {
       if (chrome.test.checkDeepEq(expected[i], value)) {
         expected.splice(i, 1);
-        if (expected.length == 0) {
+        if (expected.length === 0) {
           done();
         }
         return;
@@ -35,7 +35,7 @@ chrome.test.runTests([
         value: false,
         incognitoSpecific: false,
         levelOfControl: 'controlled_by_this_extension',
-      }
+      },
     ]);
     pw.hyperlinkAuditingEnabled.set(
         {
@@ -104,7 +104,7 @@ chrome.test.runTests([
         value: true,
         incognitoSpecific: false,
         levelOfControl: 'controllable_by_this_extension',
-      }
+      },
     ]);
     pw.hyperlinkAuditingEnabled.clear({}, chrome.test.callbackPass());
   },

@@ -372,8 +372,9 @@ NSString* const kFormInputAccessoryViewOmniboxTypingShieldAccessibilityID =
 
   [self addSubview:effectView];
   [NSLayoutConstraint activateConstraints:@[
-    [_closeButton.trailingAnchor constraintEqualToAnchor:self.trailingAnchor
-                                                constant:-kSurroundingPadding],
+    [_closeButton.trailingAnchor
+        constraintEqualToAnchor:self.safeAreaLayoutGuide.trailingAnchor
+                       constant:-kSurroundingPadding],
     [_closeButton.widthAnchor
         constraintEqualToConstant:kManualFillCloseButtonWidth],
     [_closeButton.heightAnchor
@@ -994,8 +995,9 @@ NSString* const kFormInputAccessoryViewOmniboxTypingShieldAccessibilityID =
                                       constant:kSurroundingPadding]
           .active = YES;
       if (![self isSplitViewActive]) {
-        [self.trailingAnchor constraintEqualToAnchor:effectView.trailingAnchor
-                                            constant:kSurroundingPadding]
+        [self.safeAreaLayoutGuide.trailingAnchor
+            constraintEqualToAnchor:effectView.trailingAnchor
+                           constant:kSurroundingPadding]
             .active = YES;
       }
 
@@ -1005,9 +1007,9 @@ NSString* const kFormInputAccessoryViewOmniboxTypingShieldAccessibilityID =
         [effectView.widthAnchor constraintEqualToConstant:kSmallAccessoryWidth]
             .active = YES;
       } else {
-        _effectViewLeadingConstraint =
-            [self.leadingAnchor constraintEqualToAnchor:effectView.leadingAnchor
-                                               constant:-kSurroundingPadding];
+        _effectViewLeadingConstraint = [self.safeAreaLayoutGuide.leadingAnchor
+            constraintEqualToAnchor:effectView.leadingAnchor
+                           constant:-kSurroundingPadding];
         _effectViewLeadingConstraint.active = YES;
       }
 
@@ -1069,6 +1071,36 @@ NSString* const kFormInputAccessoryViewOmniboxTypingShieldAccessibilityID =
   _omniboxTypingShieldHiddenBottomConstraint.active = hidden;
 
   [self layoutIfNeeded];
+}
+
+- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent*)event {
+  if (!self.passThroughTouchesEnabled) {
+    return [super pointInside:point withEvent:event];
+  }
+
+  // Check if the point is inside the omnibox typing shield.
+  if (_omniboxTypingShield && !_omniboxTypingShield.hidden) {
+    if ([_omniboxTypingShield
+            pointInside:[self convertPoint:point toView:_omniboxTypingShield]
+              withEvent:event]) {
+      return YES;
+    }
+  }
+
+  // Only receive touches for subviews and let the others go through.
+  for (UIView* subview in self.subviews) {
+    if (subview == _omniboxTypingShield) {
+      continue;
+    }
+    if (subview.hidden || subview.alpha < 0.01) {
+      continue;
+    }
+    if ([subview pointInside:[self convertPoint:point toView:subview]
+                   withEvent:event]) {
+      return YES;
+    }
+  }
+  return NO;
 }
 
 @end

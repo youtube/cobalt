@@ -40,13 +40,21 @@ const SendTabToSelfEntry* FakeSendTabToSelfModel::GetEntryByGUID(
   return it != entries_.end() ? it->second.get() : nullptr;
 }
 
-const SendTabToSelfEntry* FakeSendTabToSelfModel::AddEntry(
+const SendTabToSelfEntry* FakeSendTabToSelfModel::SendEntry(
     const GURL& url,
     const std::string& title,
     const std::string& target_device_cache_guid,
     const PageContext& context,
     NavigationHistory navigation_history,
     base::OnceCallback<void(SendTabToSelfResult)> commit_confirmation) {
+  if (!IsReady()) {
+    if (commit_confirmation) {
+      std::move(commit_confirmation)
+          .Run(SendTabToSelfResult::kFailureNotTrackingMetadata);
+    }
+    return nullptr;
+  }
+
   std::string guid = base::Uuid::GenerateRandomV4().AsLowercaseString();
   std::unique_ptr<SendTabToSelfEntry> entry =
       std::make_unique<SendTabToSelfEntry>(
@@ -56,8 +64,8 @@ const SendTabToSelfEntry* FakeSendTabToSelfModel::AddEntry(
   const SendTabToSelfEntry* result = entry.get();
   entries_[guid] = std::move(entry);
 
-  if (add_entry_callback_) {
-    add_entry_callback_.Run(result);
+  if (send_entry_callback_) {
+    send_entry_callback_.Run(result);
   }
 
   for (auto& observer : observers_) {
@@ -127,8 +135,8 @@ void FakeSendTabToSelfModel::SetLocalDeviceName(std::string_view device_name) {
   local_device_name_ = std::string(device_name);
 }
 
-void FakeSendTabToSelfModel::SetAddEntryCallback(AddEntryCallback callback) {
-  add_entry_callback_ = std::move(callback);
+void FakeSendTabToSelfModel::SetSendEntryCallback(SendEntryCallback callback) {
+  send_entry_callback_ = std::move(callback);
 }
 
 const SendTabToSelfEntry* FakeSendTabToSelfModel::AddEntryRemotely(

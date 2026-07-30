@@ -30,7 +30,7 @@ ci.defaults.set(
     os = os.LINUX_DEFAULT,
     gardener_rotations = gardener_rotations.ANDROID,
     tree_closing_notifiers = ci_constants.DEFAULT_TREE_CLOSING_NOTIFIERS,
-    execution_timeout = ci_constants.DEFAULT_EXECUTION_TIMEOUT,
+    execution_timeout = 4 * time.hour,
     experiments = {
         "chromium_tests.resultdb_module": 100,
     },
@@ -125,7 +125,6 @@ ci.builder(
     ),
     cq_mirrors_console_view = "mirrors",
     contact_team_email = "clank-engprod@google.com",
-    execution_timeout = 4 * time.hour,
     siso_remote_jobs = siso.remote_jobs.HIGH_JOBS_FOR_CI,
 )
 
@@ -1196,7 +1195,6 @@ ci.builder(
         short_name = "bfc",
     ),
     contact_team_email = "clank-engprod@google.com",
-    execution_timeout = 4 * time.hour,
 )
 
 ci.builder(
@@ -2320,6 +2318,8 @@ ci.builder(
             "remoteexec",
             "minimal_symbols",
             "x86",
+            # See crbug.com/507825820
+            "strip_debug_info",
             "android_fastbuild",
             "webview_trichrome",
             "webview_shell",
@@ -2526,6 +2526,7 @@ ci.builder(
             "remoteexec",
             "minimal_symbols",
             "x86",
+            "strip_debug_info",
             "android_fastbuild",
             "webview_trichrome",
             "webview_shell",
@@ -2833,7 +2834,6 @@ ci.builder(
         category = "builder_tester|x86",
         short_name = "11",
     ),
-    execution_timeout = 4 * time.hour,
 )
 
 ci.builder(
@@ -3007,7 +3007,6 @@ ci.builder(
         short_name = "12",
     ),
     contact_team_email = "clank-engprod@google.com",
-    execution_timeout = 4 * time.hour,
 )
 
 ci.builder(
@@ -3210,6 +3209,9 @@ ci.builder(
         ],
         per_test_modifications = {
             "android_browsertests": targets.mixin(
+                # TODO Re-enable on CQ once the high
+                # pending time is gone
+                ci_only = True,
                 swarming = targets.swarming(
                     shards = 7,
                 ),
@@ -3248,7 +3250,6 @@ ci.builder(
     ),
     cq_mirrors_console_view = "mirrors",
     contact_team_email = "clank-engprod@google.com",
-    execution_timeout = 4 * time.hour,
 )
 
 ci.builder(
@@ -3425,7 +3426,6 @@ ci.builder(
         short_name = "14",
     ),
     contact_team_email = "clank-engprod@google.com",
-    execution_timeout = 4 * time.hour,
 )
 
 ci.builder(
@@ -3498,7 +3498,6 @@ ci.builder(
         short_name = "14A",
     ),
     contact_team_email = "clank-engprod@google.com",
-    execution_timeout = 4 * time.hour,
 )
 
 ci.builder(
@@ -3615,7 +3614,6 @@ ci.builder(
         short_name = "14T-L",
     ),
     contact_team_email = "clank-engprod@google.com",
-    execution_timeout = 3 * time.hour,
     # crbug.com/372192123 - downloading with "minimum" strategy doesn't work
     # well for Android builds because some steps have additional inputs/outputs
     # they are not configured in the build graph.
@@ -3778,7 +3776,6 @@ ci.builder(
         short_name = "15",
     ),
     contact_team_email = "clank-engprod@google.com",
-    execution_timeout = 4 * time.hour,
 )
 
 ci.builder(
@@ -3851,7 +3848,6 @@ ci.builder(
         short_name = "15T-L",
     ),
     contact_team_email = "clank-engprod@google.com",
-    execution_timeout = 4 * time.hour,
 )
 
 ci.builder(
@@ -3978,7 +3974,6 @@ ci.builder(
         short_name = "15T",
     ),
     contact_team_email = "clank-engprod@google.com",
-    execution_timeout = 4 * time.hour,
 )
 
 ci.builder(
@@ -4095,7 +4090,6 @@ ci.builder(
         short_name = "16",
     ),
     contact_team_email = "clank-engprod@google.com",
-    execution_timeout = 4 * time.hour,
 )
 
 ci.builder(
@@ -4255,7 +4249,6 @@ ci.builder(
         short_name = "16",
     ),
     contact_team_email = "clank-engprod@google.com",
-    execution_timeout = 4 * time.hour,
 )
 
 ci.builder(

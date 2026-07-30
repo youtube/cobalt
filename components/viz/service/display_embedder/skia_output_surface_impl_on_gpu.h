@@ -214,7 +214,8 @@ class SkiaOutputSurfaceImplOnGpu
           image_contexts);
   void ScheduleOverlays(SkiaOutputSurface::OverlayList overlays);
 
-  void SetVSyncDisplayID(int64_t display_id);
+  void SetVSyncDisplayID(int64_t display_id, bool force_update);
+  void RefreshRateChangedOnSameDisplay();
 
 #if BUILDFLAG(IS_ANDROID)
   void SetFrameRate(gfx::SurfaceControlFrameRate frame_rate);

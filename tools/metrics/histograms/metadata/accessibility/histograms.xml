@@ -3032,28 +3032,6 @@ even if they fit the naming pattern. -->
   </token>
 </histogram>
 
-<histogram name="Accessibility.ReadAnything.Algorithm.AddedToScreen2x"
-    enum="BooleanYesNo" expires_after="2027-06-01">
-  <owner>rhalavati@chromium.org</owner>
-  <owner>chrome-a11y-core@google.com</owner>
-  <summary>
-    Records if main content extraction algorithm had any nodes to add to
-    Screen2x results. This metric is recorded only when Screen2x has some
-    results.
-  </summary>
-</histogram>
-
-<histogram name="Accessibility.ReadAnything.Algorithm.HadWhenScreen2xEmpty"
-    enum="BooleanYesNo" expires_after="2026-10-04">
-  <owner>rhalavati@chromium.org</owner>
-  <owner>chrome-a11y-core@google.com</owner>
-  <summary>
-    Records if main content extraction algorithm had any nodes when Screen2x
-    results was empty. This metric is recorded only when Screen2x has no
-    results.
-  </summary>
-</histogram>
-
 <histogram name="Accessibility.ReadAnything.AudioStartTime.{Result}" units="ms"
     expires_after="2026-10-04">
   <owner>kristislee@google.com</owner>
@@ -3136,18 +3114,6 @@ even if they fit the naming pattern. -->
   <owner>chrome-a11y-core@google.com</owner>
   <summary>
     Records the user-chosen font scale for the Read Anything panel.
-  </summary>
-</histogram>
-
-<histogram name="Accessibility.ReadAnything.Heuristics"
-    enum="ReadAnythingHeuristics" expires_after="2026-10-04">
-  <owner>rhalavati@chromium.org</owner>
-  <owner>chrome-a11y-core@google.com</owner>
-  <summary>
-    For each node returned by main content extractor, records if the node is
-    pruned by one of the heuristics, or value none if it was not puned. This
-    metric would be used to find out which heuristics are needed and can be
-    passed to Screen2x pre/post processing.
   </summary>
 </histogram>
 
@@ -3696,25 +3662,6 @@ even if they fit the naming pattern. -->
   </summary>
 </histogram>
 
-<histogram
-    name="Accessibility.ScreenAI.MainContentExtraction.Error.{error_type}"
-    enum="MainContentExtractionClientType" expires_after="2027-06-01">
-  <owner>rhalavati@chromium.org</owner>
-  <owner>chrome-a11y-core@google.com</owner>
-  <summary>
-    Records if main content extraction failed because {error_type}.
-  </summary>
-  <token key="error_type">
-    <variant name="ResultEmpty" summary="Screen2x returned empty"/>
-    <variant name="ResultNull" summary="Screen2x returned null"/>
-    <variant name="SnapshotEmpty" summary="input snapshot was empty"/>
-    <variant name="SnapshotProto"
-        summary="input snapshot failed to convert to proto"/>
-    <variant name="SnapshotUnserialize"
-        summary="input snapshot could not be unserialized"/>
-  </token>
-</histogram>
-
 <histogram name="Accessibility.ScreenAI.MainContentExtraction.Latency.{result}"
     units="ms" expires_after="2027-06-01">
   <owner>rhalavati@chromium.org</owner>
@@ -4172,6 +4119,44 @@ even if they fit the naming pattern. -->
   <summary>
     Whether Windows system settings show that Sticky Keys are enabled.
   </summary>
+</histogram>
+
+<histogram name="Accessibility.WinUIA.ClientDisconnected" units="hash"
+    expires_after="2027-04-28">
+  <owner>lucasradaelli@google.com</owner>
+  <owner>benjamin.beaudry@microsoft.com</owner>
+  <owner>chrome-a11y-core@google.com</owner>
+  <summary>
+    Records the base::PersistentHash of the lowercased process name of a UIA
+    client when it disconnects from Chrome's UI Automation provider. Helps
+    measure how often Chrome receives disconnect signals. This exploratory
+    metric may be replaced by richer disconnect telemetry. Common client hash
+    values are listed in
+    docs/accessibility/browser/uia_client_process_hashes.md. Only available on
+    Windows build 26100 (24H2) or later.
+  </summary>
+</histogram>
+
+<histogram name="Accessibility.WinUIA.ClientProcess.{AXModeFlag}" units="hash"
+    expires_after="2027-04-28">
+  <owner>lucasradaelli@google.com</owner>
+  <owner>benjamin.beaudry@microsoft.com</owner>
+  <owner>chrome-a11y-core@google.com</owner>
+  <summary>
+    Records the base::PersistentHash of each distinct lowercased UIA client
+    process basename connected when the existing AXMode metrics record
+    {AXModeFlag}. Use the corresponding Accessibility.ModeFlag count as the
+    denominator. Multiple different clients can be recorded for the same AXMode
+    snapshot, but duplicate process basenames are recorded once. Common client
+    hash values are listed in
+    docs/accessibility/browser/uia_client_process_hashes.md. Only available on
+    Windows build 26100 (24H2) or later.
+  </summary>
+  <token key="AXModeFlag">
+    <variant name="NativeAPIs"
+        summary="kNativeAPIs flag (platform APIs enabled)"/>
+    <variant name="WebContents" summary="kWebContents flag (web content tree)"/>
+  </token>
 </histogram>
 
 <histogram name="Accessibility.WinZoomText" enum="BooleanEnabled"

@@ -15,7 +15,6 @@
 #include "cc/paint/paint_recorder.h"
 #include "chrome/browser/enterprise/watermark/settings.h"
 #include "components/enterprise/watermarking/watermark.h"
-#include "components/prefs/pref_service.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/compositor/layer.h"
@@ -24,7 +23,7 @@
 #include "ui/gfx/render_text.h"
 #include "ui/views/accessibility/view_accessibility.h"
 
-namespace enterprise_watermark {
+namespace enterprise_data_protection {
 
 DataProtectionOverlayView::DataProtectionOverlayView()
     : background_color_(SkColorSetARGB(0, 0, 0, 0)) {
@@ -32,8 +31,9 @@ DataProtectionOverlayView::DataProtectionOverlayView()
   SetPaintToLayer();
   layer()->SetFillsBoundsOpaquely(false);
   UpdateWatermarkBlock(/*watermark_text=*/std::string(""),
-                       GetDefaultFillColor(), GetDefaultOutlineColor(),
-                       GetDefaultFontSize());
+                       enterprise_watermark::GetDefaultFillColor(),
+                       enterprise_watermark::GetDefaultOutlineColor(),
+                       enterprise_watermark::GetDefaultFontSize());
   GetViewAccessibility().SetIsInvisible(true);
 }
 
@@ -81,7 +81,7 @@ void DataProtectionOverlayView::SetString(const std::string& text,
 
 void DataProtectionOverlayView::OnPaint(gfx::Canvas* canvas) {
   gfx::Rect contents_bounds = GetContentsBounds();
-  DrawWatermark(
+  enterprise_watermark::DrawWatermark(
       canvas->sk_canvas(), &watermark_block_.record, watermark_block_.width,
       watermark_block_.height,
       SkSize::Make(contents_bounds.width(), contents_bounds.height()));
@@ -91,8 +91,8 @@ void DataProtectionOverlayView::UpdateWatermarkBlock(const std::string& text,
                                                      SkColor fill_color,
                                                      SkColor outline_color,
                                                      int font_size) {
-  watermark_block_ =
-      DrawWatermarkToPaintRecord(text, fill_color, outline_color, font_size);
+  watermark_block_ = enterprise_watermark::DrawWatermarkToPaintRecord(
+      text, fill_color, outline_color, font_size);
   InvalidateView();
 }
 
@@ -104,4 +104,4 @@ void DataProtectionOverlayView::SetBackgroundColor(SkColor background_color) {
 BEGIN_METADATA(DataProtectionOverlayView)
 END_METADATA
 
-}  // namespace enterprise_watermark
+}  // namespace enterprise_data_protection

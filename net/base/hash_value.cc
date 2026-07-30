@@ -26,15 +26,8 @@ constexpr std::string_view kSha256Slash = "sha256/";
 
 }  // namespace
 
-
-HashValue::HashValue(const SHA256HashValue& hash)
-    : HashValue(HASH_VALUE_SHA256) {
+HashValue::HashValue(const SHA256HashValue& hash) : tag_(HASH_VALUE_SHA256) {
   fingerprint.sha256 = hash;
-}
-
-HashValue::HashValue(base::span<const uint8_t> hash)
-    : HashValue(HASH_VALUE_SHA256) {
-  base::span(fingerprint.sha256).copy_from(hash);
 }
 
 HashValue::HashValue(HashValueTag tag, base::span<const uint8_t> hash)
@@ -56,7 +49,7 @@ std::optional<HashValue> HashValue::FromString(std::string_view value) {
     return std::nullopt;
   }
 
-  return HashValue(*decoded);
+  return HashValue(HASH_VALUE_SHA256, *decoded);
 }
 
 std::string HashValue::ToString() const {
@@ -69,14 +62,7 @@ std::string HashValue::ToString() const {
   NOTREACHED();
 }
 
-base::span<uint8_t> HashValue::span() {
-  switch (tag_) {
-    case HASH_VALUE_SHA256:
-      return fingerprint.sha256;
-  }
 
-  NOTREACHED();
-}
 
 base::span<const uint8_t> HashValue::span() const {
   switch (tag_) {

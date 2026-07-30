@@ -344,6 +344,7 @@ class CORE_EXPORT LocalFrameView final
   void ViewportSizeChanged();
   void InvalidateLayoutForViewportConstrainedObjects();
   void DynamicViewportUnitsChanged();
+  void LargeViewportUnitsChanged();
 
   AtomicString MediaType() const;
   void SetMediaType(const AtomicString&);
@@ -1145,8 +1146,6 @@ class CORE_EXPORT LocalFrameView final
   DarkModeFilter& EnsureDarkModeFilter();
 
   void UpdateCanCompositeBackgroundAttachmentFixed();
-
-  void EnqueueScrollSnapChangingFromImplIfNecessary();
 
   void RunCanvasOnpaintSteps();
 

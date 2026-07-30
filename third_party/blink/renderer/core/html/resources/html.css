@@ -1553,19 +1553,15 @@ button[interestfor] {
 }
 
 [interestfor]::interest-button {
-  content: "?";
+  content: '\24D8' / '';
   display: inline-block;
-  box-sizing: border-box;
-  border: 1px solid currentColor;
-  border-radius: 0.5em;
   color: inherit;
   background-color: transparent;
-  padding-block: 0.25em;
-  padding-inline: 0.5em;
+  box-sizing: border-box;
+  margin-inline-start: 0.25em;
   min-block-size: max(24px, 1lh);
   min-inline-size: 24px;
   text-align: center;
-  margin-inline-start: 0.5em;
   user-select: none;
   cursor: help;
 }
@@ -2361,19 +2357,21 @@ select optgroup optgroup {
   }
 
   menulist {
-    display: flex;
-    flex-direction: column;
-    position: absolute;
+    display: block;
+    position: fixed;
     position-anchor: auto;
+    margin: 0;
+    inset: auto;
+    /* TODO(https://crbug.com/406566432): width:max-content probably isn't
+     * ideal, but ::picker(select) has the same desired behavior without
+     * setting width. We should figure out how ::picker(select) does this and
+     * copy it here. */
     width: max-content;
-    min-width: 150px;
+    max-block-size: stretch;
+    overflow: auto;
     color: CanvasText;
     background-color: Canvas;
     border: 1px solid currentColor;
-    /* TODO(https://crbug.com/406566432): Enable this, or some variation of it,
-     * once we figure out why the border radius contributes to subtle pixel
-     * differences in reference tests. */
-    /*border-radius: 0.25em;*/
     padding: 0.25em;
   }
 
@@ -2434,6 +2432,7 @@ select optgroup optgroup {
     menuitem {
       align-items: center;
       user-select: none;
+      gap: 0.5em;
 
       /* The min-*-size rules below were inspired by the same rules for
        * customizable select, and mostly cater to WCAG accessibility guidelines
@@ -2444,7 +2443,7 @@ select optgroup optgroup {
       min-block-size: max(24px, 1lh);
 
       font-weight: inherit;
-      padding: 1em;
+      padding-inline: 0.5em;
     }
 
     menuitem:enabled:hover {
@@ -2465,19 +2464,6 @@ select optgroup optgroup {
 [overscrollarea],
 :-internal-overscroll-target {
   -internal-overscroll-position: auto;
-}
-
-/* TODO(crbug.com/475971937): This is just placeholder style. */
-/* Note that this rule isn't flag-guarded, but the :tool-*-active
-   pseudo classes will not match if the flag is disabled. */
-form:tool-form-active {
-  outline: light-dark(blue, cyan) dashed 1px;
-  outline-offset: -1px;
-}
-
-input:tool-submit-active {
-  outline: light-dark(red, pink) dashed 1px;
-  outline-offset: -1px;
 }
 
 @supports blink-feature(CustomizableCombobox) {

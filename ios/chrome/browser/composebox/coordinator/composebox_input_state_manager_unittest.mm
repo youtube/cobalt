@@ -30,18 +30,34 @@
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/platform_test.h"
 
+@interface ComposeboxInputStateManager (Testing)
+- (void)didUpdateInputState:(const contextual_search::InputState&)inputState;
+- (ComposeboxMode)defaultTool;
+- (ComposeboxModelOption)defaultModel;
+@end
+
 @interface FakeComposeboxInputStateManagerDelegate
     : NSObject <ComposeboxInputStateManagerDelegate>
-@property(nonatomic, assign) BOOL didUpdateInputStateCalled;
-@property(nonatomic, assign) contextual_search::InputState lastInputState;
+@property(nonatomic, assign) BOOL didUpdateUIStateCalled;
+@property(nonatomic, assign) BOOL didChangeModeCalled;
+@property(nonatomic, assign) ComposeboxMode lastMode;
+@property(nonatomic, strong)
+    NSArray<ComposeboxInputItem*>* lastInvalidatedItems;
 @end
 
 @implementation FakeComposeboxInputStateManagerDelegate
 
+- (void)inputStateManagerDidUpdateUIState:
+    (ComposeboxInputStateManager*)manager {
+  self.didUpdateUIStateCalled = YES;
+}
+
 - (void)inputStateManager:(ComposeboxInputStateManager*)manager
-      didUpdateInputState:(const contextual_search::InputState&)inputState {
-  self.didUpdateInputStateCalled = YES;
-  self.lastInputState = inputState;
+             didChangeMode:(ComposeboxMode)mode
+    invalidatedAttachments:(NSArray<ComposeboxInputItem*>*)invalidatedItems {
+  self.didChangeModeCalled = YES;
+  self.lastMode = mode;
+  self.lastInvalidatedItems = invalidatedItems;
 }
 
 @end
@@ -98,8 +114,8 @@ class ComposeboxInputStateManagerTest : public PlatformTest {
 TEST_F(ComposeboxInputStateManagerTest, Initialization) {
   // Expect manager to be created.
   EXPECT_NE(manager_, nil);
-  // Expect default active tool to be unspecified.
-  EXPECT_EQ(manager_.activeTool, omnibox::TOOL_MODE_UNSPECIFIED);
+  // Expect default active mode to be regular search.
+  EXPECT_EQ(mode_holder_.mode, ComposeboxMode::kRegularSearch);
   // Expect default active model to be none.
   EXPECT_EQ(manager_.activeModel, ComposeboxModelOption::kNone);
 }
@@ -107,9 +123,15 @@ TEST_F(ComposeboxInputStateManagerTest, Initialization) {
 // Tests that the manager correctly observes state updates from the model
 // and notifies its delegate.
 TEST_F(ComposeboxInputStateManagerTest, StateObservation) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kComposeboxAdditionalAdvancedTools);
+
   FakeComposeboxInputStateManagerDelegate* delegate =
       [[FakeComposeboxInputStateManagerDelegate alloc] init];
   manager_.delegate = delegate;
+
+  EXPECT_CALL(*mock_aim_service_, IsFuseboxEligible())
+      .WillRepeatedly(testing::Return(true));
 
   omnibox::SearchboxConfig config;
   config.mutable_rule_set()->add_allowed_tools(
@@ -123,16 +145,17 @@ TEST_F(ComposeboxInputStateManagerTest, StateObservation) {
   // Setting searchbox config should trigger the initial state update.
   [manager_ setSearchboxConfig:config];
 
-  EXPECT_TRUE(delegate.didUpdateInputStateCalled);
-  delegate.didUpdateInputStateCalled = NO;  // Reset flag
+  EXPECT_TRUE(delegate.didUpdateUIStateCalled);
+  delegate.didUpdateUIStateCalled = NO;  // Reset flag
 
-  // Changing active tool should trigger another state update.
-  [manager_ setActiveTool:omnibox::ToolMode::TOOL_MODE_CANVAS];
+  // Changing active mode should trigger another state update.
+  mode_holder_.mode = ComposeboxMode::kCanvas;
 
-  // Verify delegate was notified and received the correct state.
-  EXPECT_TRUE(delegate.didUpdateInputStateCalled);
-  EXPECT_EQ(delegate.lastInputState.active_tool,
-            omnibox::ToolMode::TOOL_MODE_CANVAS);
+  // Verify delegate was notified and state was updated.
+  EXPECT_TRUE(delegate.didUpdateUIStateCalled);
+  EXPECT_TRUE(delegate.didChangeModeCalled);
+  EXPECT_EQ(delegate.lastMode, ComposeboxMode::kCanvas);
+  EXPECT_EQ(mode_holder_.mode, ComposeboxMode::kCanvas);
 }
 
 // Tests that the manager correctly notifies its delegate when the searchbox
@@ -149,22 +172,28 @@ TEST_F(ComposeboxInputStateManagerTest, StateObservationOnConfigChange) {
   tool_config->set_tool(omnibox::ToolMode::TOOL_MODE_CANVAS);
 
   [manager_ setSearchboxConfig:config];
-  EXPECT_TRUE(delegate.didUpdateInputStateCalled);
-  delegate.didUpdateInputStateCalled = NO;  // Reset flag
+  EXPECT_TRUE(delegate.didUpdateUIStateCalled);
+  delegate.didUpdateUIStateCalled = NO;  // Reset flag
 
   // Reload config.
   [manager_ setSearchboxConfig:config];
 
   // Verify delegate was notified again on config change.
-  EXPECT_TRUE(delegate.didUpdateInputStateCalled);
+  EXPECT_TRUE(delegate.didUpdateUIStateCalled);
 }
 
 // Tests that the manager preserves the user's active tool choice across
 // searchbox configuration reloads if the tool is still allowed.
 TEST_F(ComposeboxInputStateManagerTest, Preselection) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kComposeboxAdditionalAdvancedTools);
+
   FakeComposeboxInputStateManagerDelegate* delegate =
       [[FakeComposeboxInputStateManagerDelegate alloc] init];
   manager_.delegate = delegate;
+
+  EXPECT_CALL(*mock_aim_service_, IsFuseboxEligible())
+      .WillRepeatedly(testing::Return(true));
 
   omnibox::SearchboxConfig config;
   config.mutable_rule_set()->add_allowed_tools(
@@ -177,27 +206,29 @@ TEST_F(ComposeboxInputStateManagerTest, Preselection) {
 
   // Load initial config.
   [manager_ setSearchboxConfig:config];
-  delegate.didUpdateInputStateCalled = NO;  // Reset flag
+  delegate.didUpdateUIStateCalled = NO;  // Reset flag
 
   // User selects a tool.
-  [manager_ setActiveTool:omnibox::ToolMode::TOOL_MODE_CANVAS];
-  EXPECT_EQ(manager_.activeTool, omnibox::ToolMode::TOOL_MODE_CANVAS);
-  delegate.didUpdateInputStateCalled = NO;  // Reset flag
+  mode_holder_.mode = ComposeboxMode::kCanvas;
+  EXPECT_EQ(mode_holder_.mode, ComposeboxMode::kCanvas);
+  delegate.didUpdateUIStateCalled = NO;  // Reset flag
 
   // Reload same config.
   [manager_ setSearchboxConfig:config];
 
   // Verify that the user's choice is preserved (preselected).
-  EXPECT_EQ(manager_.activeTool, omnibox::ToolMode::TOOL_MODE_CANVAS);
-  // Verify delegate was notified with the correct state.
-  EXPECT_TRUE(delegate.didUpdateInputStateCalled);
-  EXPECT_EQ(delegate.lastInputState.active_tool,
-            omnibox::ToolMode::TOOL_MODE_CANVAS);
+  EXPECT_EQ(mode_holder_.mode, ComposeboxMode::kCanvas);
+  // Verify delegate was notified and state was updated.
+  EXPECT_TRUE(delegate.didUpdateUIStateCalled);
+  EXPECT_EQ(mode_holder_.mode, ComposeboxMode::kCanvas);
 }
 
 // Tests that the manager falls back to default state when a previously
 // selected tool becomes disallowed after a configuration reload.
 TEST_F(ComposeboxInputStateManagerTest, PreselectionRestricted) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kComposeboxAdditionalAdvancedTools);
+
   FakeComposeboxInputStateManagerDelegate* delegate =
       [[FakeComposeboxInputStateManagerDelegate alloc] init];
   manager_.delegate = delegate;
@@ -213,24 +244,25 @@ TEST_F(ComposeboxInputStateManagerTest, PreselectionRestricted) {
 
   // Load initial config where Canvas is allowed.
   [manager_ setSearchboxConfig:config];
-  delegate.didUpdateInputStateCalled = NO;  // Reset flag
+  delegate.didUpdateUIStateCalled = NO;  // Reset flag
 
   // User selects Canvas.
-  [manager_ setActiveTool:omnibox::ToolMode::TOOL_MODE_CANVAS];
-  EXPECT_EQ(manager_.activeTool, omnibox::ToolMode::TOOL_MODE_CANVAS);
-  delegate.didUpdateInputStateCalled = NO;  // Reset flag
+  mode_holder_.mode = ComposeboxMode::kCanvas;
+  EXPECT_EQ(manager_.inputState->active_tool,
+            omnibox::ToolMode::TOOL_MODE_CANVAS);
+  delegate.didUpdateUIStateCalled = NO;  // Reset flag
 
   // Load new config where Canvas is NOT allowed.
   omnibox::SearchboxConfig new_config;
   [manager_ setSearchboxConfig:new_config];
 
-  // Verify that the tool falls back to unspecified because it's no longer
+  // Verify that the tool falls back to regular search because it's no longer
   // allowed.
-  EXPECT_EQ(manager_.activeTool, omnibox::TOOL_MODE_UNSPECIFIED);
+  EXPECT_EQ(mode_holder_.mode, ComposeboxMode::kRegularSearch);
   // Verify delegate was notified with the correct state.
-  EXPECT_TRUE(delegate.didUpdateInputStateCalled);
-  EXPECT_EQ(delegate.lastInputState.active_tool,
-            omnibox::TOOL_MODE_UNSPECIFIED);
+  EXPECT_TRUE(delegate.didUpdateUIStateCalled);
+  EXPECT_TRUE(delegate.didChangeModeCalled);
+  EXPECT_EQ(delegate.lastMode, ComposeboxMode::kRegularSearch);
 }
 
 #pragma mark - Tool Availability and Disabled State
@@ -247,8 +279,9 @@ TEST_F(ComposeboxInputStateManagerTest, ToolAllowed_ServerSideEnabled) {
   // Setting searchbox config should trigger the initial state update.
   [manager_ setSearchboxConfig:config];
 
-  const auto& state = manager_.inputState;
-  EXPECT_THAT(state.allowed_tools,
+  std::optional<contextual_search::InputState> state_opt = manager_.inputState;
+  ASSERT_TRUE(state_opt.has_value());
+  EXPECT_THAT(state_opt->allowed_tools,
               testing::Contains(omnibox::ToolMode::TOOL_MODE_IMAGE_GEN));
 }
 
@@ -272,8 +305,9 @@ TEST_F(ComposeboxInputStateManagerTest, ToolDisabled_ServerSideEnabled) {
 
   [manager_ setSearchboxConfig:config];
 
-  const auto& state = manager_.inputState;
-  EXPECT_THAT(state.disabled_tools,
+  std::optional<contextual_search::InputState> state_opt = manager_.inputState;
+  ASSERT_TRUE(state_opt.has_value());
+  EXPECT_THAT(state_opt->disabled_tools,
               testing::Contains(omnibox::ToolMode::TOOL_MODE_IMAGE_GEN));
 }
 
@@ -287,11 +321,13 @@ TEST_F(ComposeboxInputStateManagerTest, ImageToolAllowed_ServerSideDisabled) {
 
   // Set up mock expectation for AIM eligibility service.
   EXPECT_CALL(*mock_aim_service_, IsFuseboxEligible())
-      .WillOnce(testing::Return(true));
+      .WillRepeatedly(testing::Return(true));
   EXPECT_CALL(*mock_aim_service_, IsCreateImagesEligible())
-      .WillOnce(testing::Return(true));
+      .WillRepeatedly(testing::Return(true));
 
-  EXPECT_TRUE([manager_ isToolAllowed:ComposeboxMode::kImageGeneration]);
+  ComposeboxUIInputState* state = [manager_ computeUIInputStateWithFavicon:nil
+                                                       attachedWebStateIDs:{}];
+  EXPECT_TRUE([state isToolAvailable:ComposeboxMode::kImageGeneration]);
 }
 
 // Tests that the image tool is disabled in local fallback mode when there are
@@ -311,7 +347,62 @@ TEST_F(ComposeboxInputStateManagerTest, ImageToolDisabled_HasTabOrFile) {
 
   manager_.items = collection;
 
-  EXPECT_TRUE([manager_ isToolDisabled:ComposeboxMode::kImageGeneration]);
+  ComposeboxUIInputState* state = [manager_ computeUIInputStateWithFavicon:nil
+                                                       attachedWebStateIDs:{}];
+  EXPECT_TRUE([state isToolDisabled:ComposeboxMode::kImageGeneration]);
+}
+
+// Tests that onItemsUpdated correctly updates the tool mode in image generation
+// mode.
+TEST_F(ComposeboxInputStateManagerTest, OnItemsUpdated_ImageGenerationMode) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kComposeboxAdditionalAdvancedTools);
+
+  EXPECT_CALL(*mock_aim_service_, IsFuseboxEligible())
+      .WillRepeatedly(testing::Return(true));
+
+  omnibox::SearchboxConfig config;
+  config.mutable_rule_set()->add_allowed_tools(
+      omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
+  omnibox::ToolConfig* tool_config = config.add_tool_configs();
+  tool_config->set_tool(omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
+  [manager_ setSearchboxConfig:config];
+
+  // Set active mode to image generation.
+  mode_holder_.mode = ComposeboxMode::kImageGeneration;
+
+  // Initially no items, should be TOOL_MODE_IMAGE_GEN.
+  EXPECT_EQ(manager_.inputState->active_tool,
+            omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
+
+  // Add an image to the collection.
+  ComposeboxInputItemCollection* collection =
+      [[ComposeboxInputItemCollection alloc] init];
+  [collection
+      addItem:[[ComposeboxInputItem alloc]
+                  initWithComposeboxInputItemType:
+                      ComposeboxInputItemType::kComposeboxInputItemTypeImage]];
+
+  manager_.items = collection;
+
+  // Notify items updated.
+  [manager_ onItemsUpdated];
+
+  // Should now be TOOL_MODE_IMAGE_GEN_UPLOAD.
+  EXPECT_EQ(manager_.inputState->active_tool,
+            omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD);
+
+  // Remove items.
+  ComposeboxInputItemCollection* emptyCollection =
+      [[ComposeboxInputItemCollection alloc] init];
+  manager_.items = emptyCollection;
+
+  // Notify items updated.
+  [manager_ onItemsUpdated];
+
+  // Should fallback to TOOL_MODE_IMAGE_GEN.
+  EXPECT_EQ(manager_.inputState->active_tool,
+            omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
 }
 
 // Tests that tab attachments are disabled in local fallback mode when the
@@ -324,7 +415,9 @@ TEST_F(ComposeboxInputStateManagerTest, TabAttachmentDisabled_ImageGenMode) {
   // Set the active mode to image generation.
   mode_holder_.mode = ComposeboxMode::kImageGeneration;
 
-  EXPECT_TRUE([manager_ isAttachmentDisabled:ComposeboxAttachmentOption::kTab]);
+  ComposeboxUIInputState* state = [manager_ computeUIInputStateWithFavicon:nil
+                                                       attachedWebStateIDs:{}];
+  EXPECT_TRUE([state isAttachmentDisabled:ComposeboxAttachmentOption::kTab]);
 }
 
 #pragma mark - Attachment Capacity
@@ -373,6 +466,10 @@ TEST_F(ComposeboxInputStateManagerTest,
   // Set a max total inputs limit in the config.
   omnibox::SearchboxConfig config;
   config.mutable_rule_set()->set_max_total_inputs(5);
+  config.mutable_rule_set()->add_allowed_tools(
+      omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
+  omnibox::ToolConfig* tool_config = config.add_tool_configs();
+  tool_config->set_tool(omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
   [manager_ setSearchboxConfig:config];
 
   // Set active mode to image generation.
@@ -530,6 +627,16 @@ TEST_F(ComposeboxInputStateManagerTest, ComputeUIInputState) {
 // state.
 TEST_F(ComposeboxInputStateManagerTest,
        ComputeUIInputState_ActiveModePropagation) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kComposeboxAdditionalAdvancedTools);
+
+  omnibox::SearchboxConfig config;
+  config.mutable_rule_set()->add_allowed_tools(
+      omnibox::ToolMode::TOOL_MODE_CANVAS);
+  omnibox::ToolConfig* tool_config = config.add_tool_configs();
+  tool_config->set_tool(omnibox::ToolMode::TOOL_MODE_CANVAS);
+  [manager_ setSearchboxConfig:config];
+
   mode_holder_.mode = ComposeboxMode::kCanvas;
 
   ComposeboxUIInputState* state = [manager_ computeUIInputStateWithFavicon:nil
@@ -709,4 +816,271 @@ TEST_F(ComposeboxInputStateManagerTest,
 
   EXPECT_NE(state, nil);
   EXPECT_TRUE([state isToolHidden:ComposeboxMode::kAIM]);
+}
+
+#pragma mark - Model Selection Tests
+
+// Tests that the manager notifies its delegate when the active model changes.
+TEST_F(ComposeboxInputStateManagerTest, SetActiveModel_NotifiesDelegate) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kComposeboxAdditionalAdvancedTools);
+
+  EXPECT_CALL(*mock_aim_service_, IsFuseboxEligible())
+      .WillRepeatedly(testing::Return(true));
+  omnibox::SearchboxConfig config;
+  omnibox::ModelConfig* model_config = config.add_model_configs();
+  model_config->set_model(omnibox::ModelMode::MODEL_MODE_GEMINI_PRO);
+  config.mutable_rule_set()->add_allowed_models(
+      omnibox::ModelMode::MODEL_MODE_GEMINI_PRO);
+  [manager_ setSearchboxConfig:config];
+
+  FakeComposeboxInputStateManagerDelegate* delegate =
+      [[FakeComposeboxInputStateManagerDelegate alloc] init];
+  manager_.delegate = delegate;
+
+  [manager_ setActiveModel:ComposeboxModelOption::kThinking
+        explicitUserAction:YES];
+
+  EXPECT_TRUE(delegate.didUpdateUIStateCalled);
+}
+
+// Tests that the manager switches to AIM mode when the user explicitly
+// selects an advanced model while in regular search mode.
+TEST_F(ComposeboxInputStateManagerTest, SetActiveModel_SwitchesToAIM) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kComposeboxAdditionalAdvancedTools);
+
+  EXPECT_CALL(*mock_aim_service_, IsFuseboxEligible())
+      .WillRepeatedly(testing::Return(true));
+  omnibox::SearchboxConfig config;
+  omnibox::ModelConfig* model_config = config.add_model_configs();
+  model_config->set_model(omnibox::ModelMode::MODEL_MODE_GEMINI_PRO);
+  config.mutable_rule_set()->add_allowed_models(
+      omnibox::ModelMode::MODEL_MODE_GEMINI_PRO);
+  [manager_ setSearchboxConfig:config];
+
+  mode_holder_.mode = ComposeboxMode::kRegularSearch;
+
+  [manager_ setActiveModel:ComposeboxModelOption::kThinking
+        explicitUserAction:YES];
+
+  EXPECT_EQ(mode_holder_.mode, ComposeboxMode::kAIM);
+}
+
+// Tests that the manager falls back to the default model when attempting
+// to select a model that is not allowed by the configuration.
+TEST_F(ComposeboxInputStateManagerTest, SetActiveModel_FallbackToDefault) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kComposeboxAdditionalAdvancedTools);
+
+  EXPECT_CALL(*mock_aim_service_, IsFuseboxEligible())
+      .WillRepeatedly(testing::Return(true));
+
+  omnibox::SearchboxConfig config;
+  config.set_initial_model_mode(omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR);
+  [manager_ setSearchboxConfig:config];
+
+  mode_holder_.mode = ComposeboxMode::kAIM;
+
+  [manager_ setActiveModel:ComposeboxModelOption::kThinking
+        explicitUserAction:YES];
+
+  EXPECT_EQ(manager_.activeModel, ComposeboxModelOption::kRegular);
+}
+
+#pragma mark - Reconciliation Tests
+
+// Tests that reconciliation does not trigger updates when state matches.
+TEST_F(ComposeboxInputStateManagerTest, Reconcile_NoOpWhenMatching) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kComposeboxAdditionalAdvancedTools);
+
+  omnibox::SearchboxConfig config;
+  config.mutable_rule_set()->add_allowed_tools(
+      omnibox::ToolMode::TOOL_MODE_CANVAS);
+  omnibox::ToolConfig* tool_config = config.add_tool_configs();
+  tool_config->set_tool(omnibox::ToolMode::TOOL_MODE_CANVAS);
+  [manager_ setSearchboxConfig:config];
+
+  // Set mode to Canvas, which sets tool to Canvas.
+  mode_holder_.mode = ComposeboxMode::kCanvas;
+  EXPECT_EQ(mode_holder_.mode, ComposeboxMode::kCanvas);
+
+  FakeComposeboxInputStateManagerDelegate* delegate =
+      [[FakeComposeboxInputStateManagerDelegate alloc] init];
+  manager_.delegate = delegate;
+
+  // Get current state and call didUpdateInputState manually.
+  std::optional<contextual_search::InputState> state_opt = manager_.inputState;
+  ASSERT_TRUE(state_opt.has_value());
+  contextual_search::InputState state = state_opt.value();
+  [manager_ didUpdateInputState:state];
+
+  // Verify delegate was notified.
+  EXPECT_TRUE(delegate.didUpdateUIStateCalled);
+
+  // Reset flag and verify no more updates are triggered.
+  delegate.didUpdateUIStateCalled = NO;
+  EXPECT_FALSE(delegate.didUpdateUIStateCalled);
+}
+
+// Tests that reconciliation updates external state when tool mismatches but
+// internal state is valid.
+TEST_F(ComposeboxInputStateManagerTest,
+       Reconcile_ToolMismatch_ValidInternalState) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kComposeboxAdditionalAdvancedTools);
+
+  omnibox::SearchboxConfig config;
+  config.mutable_rule_set()->add_allowed_tools(
+      omnibox::ToolMode::TOOL_MODE_CANVAS);
+  omnibox::ToolConfig* tool_config = config.add_tool_configs();
+  tool_config->set_tool(omnibox::ToolMode::TOOL_MODE_CANVAS);
+  [manager_ setSearchboxConfig:config];
+
+  mode_holder_.mode = ComposeboxMode::kCanvas;
+  EXPECT_EQ(mode_holder_.mode, ComposeboxMode::kCanvas);
+
+  FakeComposeboxInputStateManagerDelegate* delegate =
+      [[FakeComposeboxInputStateManagerDelegate alloc] init];
+  manager_.delegate = delegate;
+
+  // Simulate update with mismatched tool (unspecified).
+  std::optional<contextual_search::InputState> state_opt = manager_.inputState;
+  ASSERT_TRUE(state_opt.has_value());
+  contextual_search::InputState state = state_opt.value();
+  state.active_tool = omnibox::ToolMode::TOOL_MODE_UNSPECIFIED;
+
+  [manager_ didUpdateInputState:state];
+
+  // Reconciliation should have updated the mode to Canvas,
+  // which triggers another update.
+  EXPECT_EQ(mode_holder_.mode, ComposeboxMode::kCanvas);
+}
+
+// Tests that reconciliation resets internal mode to default when tool
+// mismatches and internal state is invalid.
+TEST_F(ComposeboxInputStateManagerTest,
+       Reconcile_ToolMismatch_InvalidInternalState) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kComposeboxAdditionalAdvancedTools);
+
+  // 1. Load config that allows Canvas.
+  omnibox::SearchboxConfig allow_config;
+  allow_config.mutable_rule_set()->add_allowed_tools(
+      omnibox::ToolMode::TOOL_MODE_CANVAS);
+  omnibox::ToolConfig* tool_config = allow_config.add_tool_configs();
+  tool_config->set_tool(omnibox::ToolMode::TOOL_MODE_CANVAS);
+  [manager_ setSearchboxConfig:allow_config];
+
+  mode_holder_.mode = ComposeboxMode::kCanvas;
+  EXPECT_EQ(mode_holder_.mode, ComposeboxMode::kCanvas);
+
+  // 2. Load config that DOES NOT allow Canvas.
+  omnibox::SearchboxConfig deny_config;
+  [manager_ setSearchboxConfig:deny_config];
+
+  // Now internal mode is kCanvas, but it is invalid in the new config.
+  // And setSearchboxConfig: calls Initialize(), which triggers update with
+  // TOOL_MODE_UNSPECIFIED. Reconciliation should see mismatch and invalid
+  // state, and fallback to default mode!
+
+  EXPECT_EQ(mode_holder_.mode, [manager_ defaultTool]);
+}
+// Tests that reconciliation updates external state when model mismatches but
+// internal state is valid.
+TEST_F(ComposeboxInputStateManagerTest,
+       Reconcile_ModelMismatch_ValidInternalState) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kComposeboxAdditionalAdvancedTools);
+
+  omnibox::SearchboxConfig config;
+  omnibox::ModelConfig* model_config = config.add_model_configs();
+  model_config->set_model(omnibox::ModelMode::MODEL_MODE_GEMINI_PRO);
+  config.mutable_rule_set()->add_allowed_models(
+      omnibox::ModelMode::MODEL_MODE_GEMINI_PRO);
+  [manager_ setSearchboxConfig:config];
+
+  mode_holder_.mode = ComposeboxMode::kAIM;
+  [manager_ setActiveModel:ComposeboxModelOption::kThinking
+        explicitUserAction:YES];
+  EXPECT_EQ(manager_.activeModel, ComposeboxModelOption::kThinking);
+
+  FakeComposeboxInputStateManagerDelegate* delegate =
+      [[FakeComposeboxInputStateManagerDelegate alloc] init];
+  manager_.delegate = delegate;
+
+  // Simulate update with mismatched model (unspecified).
+  std::optional<contextual_search::InputState> state_opt = manager_.inputState;
+  ASSERT_TRUE(state_opt.has_value());
+  contextual_search::InputState state = state_opt.value();
+  state.active_model = omnibox::ModelMode::MODEL_MODE_UNSPECIFIED;
+
+  [manager_ didUpdateInputState:state];
+
+  // Reconciliation should have called setActiveModelInInputState:kThinking,
+  // which triggers another update.
+  EXPECT_EQ(manager_.activeModel, ComposeboxModelOption::kThinking);
+}
+
+// Tests that reconciliation falls back to default model when model
+// mismatches and internal state is invalid.
+TEST_F(ComposeboxInputStateManagerTest,
+       Reconcile_ModelMismatch_InvalidInternalState) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kComposeboxAdditionalAdvancedTools);
+
+  // 1. Load config that allows Gemini Pro.
+  omnibox::SearchboxConfig allow_config;
+  omnibox::ModelConfig* model_config = allow_config.add_model_configs();
+  model_config->set_model(omnibox::ModelMode::MODEL_MODE_GEMINI_PRO);
+  allow_config.mutable_rule_set()->add_allowed_models(
+      omnibox::ModelMode::MODEL_MODE_GEMINI_PRO);
+  [manager_ setSearchboxConfig:allow_config];
+
+  mode_holder_.mode = ComposeboxMode::kAIM;
+  [manager_ setActiveModel:ComposeboxModelOption::kThinking
+        explicitUserAction:YES];
+  EXPECT_EQ(manager_.activeModel, ComposeboxModelOption::kThinking);
+
+  // 2. Load config that DOES NOT allow Gemini Pro.
+  omnibox::SearchboxConfig deny_config;
+  [manager_ setSearchboxConfig:deny_config];
+
+  // Now internal model is kThinking, but it is invalid in the new config.
+  // Reconciliation should see mismatch and invalid state, and fallback to
+  // default model!
+
+  EXPECT_EQ(manager_.activeModel, [manager_ defaultModel]);
+}
+
+// Tests that reconciliation ignores model mismatch in regular search mode.
+TEST_F(ComposeboxInputStateManagerTest,
+       Reconcile_RegularSearch_IgnoresModelMismatch) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kComposeboxAdditionalAdvancedTools);
+
+  omnibox::SearchboxConfig config;
+  [manager_ setSearchboxConfig:config];
+
+  mode_holder_.mode = ComposeboxMode::kRegularSearch;
+  EXPECT_EQ(manager_.activeModel, ComposeboxModelOption::kNone);
+
+  FakeComposeboxInputStateManagerDelegate* delegate =
+      [[FakeComposeboxInputStateManagerDelegate alloc] init];
+  manager_.delegate = delegate;
+
+  // Simulate update with a specific model.
+  std::optional<contextual_search::InputState> state_opt = manager_.inputState;
+  ASSERT_TRUE(state_opt.has_value());
+  contextual_search::InputState state = state_opt.value();
+  state.active_model = omnibox::ModelMode::MODEL_MODE_GEMINI_PRO;
+
+  [manager_ didUpdateInputState:state];
+
+  // Reconciliation should ignore it, so activeModel remains kNone.
+  EXPECT_EQ(manager_.activeModel, ComposeboxModelOption::kNone);
+
+  // UI update should still be triggered because strings might have changed.
+  EXPECT_TRUE(delegate.didUpdateUIStateCalled);
 }

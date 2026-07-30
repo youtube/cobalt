@@ -22,6 +22,7 @@
 <translation id="1036348656032585052">Απενεργοποίηση</translation>
 <translation id="1036436692654972538">Αποθηκεύεται στη συσκευή σας</translation>
 <translation id="1036881361735705143">Φάκελος C4</translation>
+<translation id="1038106730571050514">Εμφάνιση προτάσεων</translation>
 <translation id="1038168778161626396">Μόνο κρυπτογράφηση</translation>
 <translation id="1038842779957582377">άγνωστο όνομα</translation>
 <translation id="1041998700806130099">Μήνυμα φύλλου εργασίας</translation>
@@ -152,6 +153,7 @@
 <translation id="1228893227497259893">Εσφαλμένο αναγνωριστικό οντότητας</translation>
 <translation id="1230244617745022071"><ph name="SOURCE" /> (εντοπίστηκε αυτόματα)</translation>
 <translation id="1232569758102978740">Χωρίς τίτλο</translation>
+<translation id="1234539281285007945">Το πεδίο <ph name="FIELD_1" /> είναι υποχρεωτικό</translation>
 <translation id="1236081509407217141">Να επιτρέπεται το VR;</translation>
 <translation id="1236689197410206751">AfterPay</translation>
 <translation id="1240347957665416060">Το όνομα της συσκευής σας</translation>
@@ -472,6 +474,7 @@
 <translation id="1721424275792716183">* Το πεδίο είναι υποχρεωτικό</translation>
 <translation id="1723636263173393300">Αυτή η πολιτική δεν πρέπει να έχει περισσότερες από <ph name="MAX_ITEMS_LIMIT" /> συντομεύσεις.</translation>
 <translation id="1725591448053514783">Φάκελος You 6</translation>
+<translation id="172754119609519423">Το πεδίο <ph name="FIELD_1" />, το πεδίο <ph name="FIELD_2" /> ή το πεδίο <ph name="FIELD_3" /> είναι υποχρεωτικό</translation>
 <translation id="1727613060316725209">Το πιστοποιητικό είναι έγκυρο</translation>
 <translation id="1728677426644403582">Βλέπετε την πηγή μιας ιστοσελίδας</translation>
 <translation id="173080396488393970">Αυτός ο τύπος κάρτας δεν υποστηρίζεται</translation>
@@ -627,6 +630,7 @@
 <translation id="1979156660928743046">Πληροφορίες μέσων</translation>
 <translation id="1987486584747170374">Οι αναζητήσεις σας, οι καλύτερες αντιστοιχίσεις και το περιεχόμενο των σελίδων τους αποστέλλονται στην Google. Δεν θα χρησιμοποιηθεί από αναθεωρητές για τη βελτίωση του AI. Ο οργανισμός σας μπορεί να αλλάξει αυτές τις ρυθμίσεις ανά πάσα στιγμή.</translation>
 <translation id="1988881251331415125">Εάν δεν υπάρχει ορθογραφικό λάθος, <ph name="BEGIN_LINK" />δοκιμάστε να εκτελέσετε έναν έλεγχο Διαγνωστικών συνδεσιμότητας<ph name="END_LINK" />.</translation>
+<translation id="1991370806334788445">Δοκιμάστε να επιτρέψετε τα cookie τρίτου μέρους, κάτι που σημαίνει ότι θα έχετε λιγότερη προστασία κατά την περιήγηση, αλλά οι λειτουργίες ιστοτόπων θα είναι πιο πιθανό να λειτουργούν όπως αναμένεται.</translation>
 <translation id="1992331125980284532">JIS B3</translation>
 <translation id="1997484222658892567">Ο ιστότοπος <ph name="URL" /> θέλει να αποθηκεύσει μόνιμα δεδομένα μεγάλου όγκου στον τοπικό υπολογιστή σας</translation>
 <translation id="1997774360448418989">Χαρτί (Ελαφρύ)</translation>
@@ -1432,6 +1436,7 @@
 <translation id="3220264767789936523">Επίσημη ένδυση</translation>
 <translation id="3223287115535306850">Ένδειξη εκκίνησης εφαρμογής</translation>
 <translation id="3223425961342298674">Η πρόσβαση στην τοποθεσία δεν επιτράπηκε</translation>
+<translation id="3225277284238802910">Το πεδίο <ph name="FIELD_1" /> ή το πεδίο <ph name="FIELD_2" /> είναι υποχρεωτικό</translation>
 <translation id="3225319735946384299">Υπογραφή κώδικα</translation>
 <translation id="3225919329040284222">Ο διακομιστής παρουσίασε ένα πιστοποιητικό που δεν αντιστοιχεί στις ενσωματωμένες προϋποθέσεις. Αυτές οι προϋποθέσεις συμπεριλαμβάνονται σε συγκεκριμένους ιστότοπους υψηλής ασφάλειας για την προστασία σας.</translation>
 <translation id="3226128629678568754">Πατήστε το κουμπί της επανάληψης φόρτωσης για να υποβάλετε ξανά τα δεδομένα που απαιτούνται για τη φόρτωση της σελίδας.</translation>
@@ -2130,7 +2135,6 @@
 <translation id="4282280603030594840">Αγορά οχήματος</translation>
 <translation id="4282346679996504092">Οι ειδοποιήσεις για αυτό το προϊόν έχουν απενεργοποιηθεί και ο σελιδοδείκτης καταργήθηκε.</translation>
 <translation id="4284885181066817063">Αποκλείστηκε από το <ph name="DOMAIN" /></translation>
-<translation id="4285498937028063278">Ξεκαρφίτσωμα</translation>
 <translation id="4288101205645068104">Διαγραφή οχήματος</translation>
 <translation id="4290920330097335010">Να μην επιτρέπεται ποτέ</translation>
 <translation id="4297502707443874121">Μικρογραφία για τη σελίδα <ph name="THUMBNAIL_PAGE" /></translation>
@@ -2218,7 +2222,6 @@
 <translation id="4419287616181386201">Οι κωδικοί πρόσβασης μπορούν να διαγραφούν από τις ρυθμίσεις διαχείρισης</translation>
 <translation id="4424024547088906515">Ο διακομιστής δεν μπόρεσε να αποδείξει ότι είναι <ph name="DOMAIN" />. Το πιστοποιητικό ασφαλείας του δεν θεωρείται έμπιστο από τον Chrome. Αυτό μπορεί να οφείλεται σε λανθασμένη ρύθμιση ή σε κάποιον τρίτο που επιτίθεται στη σύνδεσή σας.</translation>
 <translation id="4425750422187370446">Αθλητική ένδυση</translation>
-<translation id="443008484043213881">Εργαλεία</translation>
 <translation id="443121186588148776">Σειριακή θύρα</translation>
 <translation id="4432688616882109544">Ο κεντρικός υπολογιστής <ph name="HOST_NAME" /> δεν αποδέχτηκε το πιστοποιητικό σύνδεσής σας ή μπορεί να μην διατέθηκε πιστοποιητικό σύνδεσης.</translation>
 <translation id="4432792777822557199">Από εδώ και στο εξής, οι σελίδες στα <ph name="SOURCE_LANGUAGE" /> θα μεταφράζονται στα <ph name="TARGET_LANGUAGE" /></translation>
@@ -2604,7 +2607,6 @@
 <translation id="5056587122125565772">Δημιουργία εικόνας</translation>
 <translation id="505757197798929356">Καταχωρίστε τον λόγο για το άνοιγμα (απαιτείται)</translation>
 <translation id="5058282932481719070">μάθετε περισσότερα σχετικά με τη βελτιωμένη αυτόματη συμπλήρωση στις ρυθμίσεις</translation>
-<translation id="5060419232449737386">Ρυθμίσεις υποτίτλων</translation>
 <translation id="5061227663725596739">Μήπως εννοούσατε <ph name="LOOKALIKE_DOMAIN" />;</translation>
 <translation id="5066056036849835175">Ιστορικό εκτύπωσης</translation>
 <translation id="5068524481479508725">A10</translation>
@@ -2973,6 +2975,7 @@
 <translation id="5600044805561809264">Μπορείτε εύκολα να κάνετε ερωτήσεις σχετικά με τις καρτέλες που μοιράζεστε κατά την περιήγηση.</translation>
 <translation id="5603469469737324249"><ph name="ISSUER_1_NAME" /> ή <ph name="ISSUER_2_NAME" /></translation>
 <translation id="560412284261940334">Η διαχείριση δεν υποστηρίζεται</translation>
+<translation id="5604254791550001355">Επεξεργασία προτροπής</translation>
 <translation id="560431066250575003">{HOURS,plural, =1{Ενεργό πριν από 1 ώρα}other{Ενεργό πριν από # ώρες}}</translation>
 <translation id="5605249000617390290">Μάθετε περισσότερα σχετικά με την παρακολούθηση τιμής</translation>
 <translation id="5605670050355397069">Ledger</translation>
@@ -3404,6 +3407,7 @@
 <translation id="6293309776179964942">JIS B5</translation>
 <translation id="6295618774959045776">CVC:</translation>
 <translation id="629730747756840877">Λογαριασμός</translation>
+<translation id="6299098428775578517">Ρυθμίσεις προτάσεων</translation>
 <translation id="6300452962057769623">{0,plural, =0{Η επανεκκίνηση της συσκευής σας θα γίνει τώρα}=1{Η επανεκκίνηση της συσκευής σας θα γίνει σε 1 δευτερόλεπτο}other{Η επανεκκίνηση της συσκευής σας θα γίνει σε # δευτερόλεπτα}}</translation>
 <translation id="6301104306974789820">Λάβετε ειδοποιήσεις παρακολούθησης τιμών</translation>
 <translation id="6302546952464230349">Εμφάνιση λεπτομερειών άδειας <ph name="PERMISSION_NAME" /></translation>
@@ -3566,7 +3570,6 @@
 <translation id="6518133107902771759">Επαλήθευση</translation>
 <translation id="6519885440226079262">Μπορεί να ζητήσει να παρακολουθεί τις κινήσεις των χεριών σας</translation>
 <translation id="6520026037299163656">Εφαρμογές ιστού και εργαλεία στο διαδίκτυο</translation>
-<translation id="65203098586853226">Μετάφραση <ph name="SOURCE" /> προς <ph name="TARGET" /></translation>
 <translation id="6520509611422418552">Ο χρήστης <ph name="MEMBER_FIRST_NAME" /> έγινε μέλος της ομάδας καρτελών <ph name="GROUP_NAME" /></translation>
 <translation id="6521745193039995384">Ανενεργή</translation>
 <translation id="6522682797352430154">Κλασική μουσική</translation>
@@ -4167,7 +4170,6 @@
 <translation id="7455452752247248289">Τεχνολογία επιχειρήσεων</translation>
 <translation id="745640750744109667">A0x3</translation>
 <translation id="7457071735008326060">Φορτηγά και τρέιλερ</translation>
-<translation id="7461924472993315131">Καρφίτσωμα</translation>
 <translation id="7463068149674892185">Αυτή η ενέργεια δεν συνιστάται</translation>
 <translation id="746329643760972486">MacOS</translation>
 <translation id="746412105358554870">Βελτιστοποίηση και ασφάλεια JavaScript</translation>
@@ -4629,7 +4631,6 @@
 <translation id="8175796834047840627">Το Chrome προσφέρεται να αποθηκεύσει τις κάρτες σας στον Λογαριασμό σας Google επειδή έχετε συνδεθεί. Μπορείτε να αλλάξετε αυτήν τη συμπεριφορά στις ρυθμίσεις.</translation>
 <translation id="8176440868214972690">Ο διαχειριστής αυτής της συσκευής έστειλε ορισμένες πληροφορίες στους παρακάτω ιστοτόπους, όπως ρυθμίσεις ή πολιτικές.</translation>
 <translation id="817820454357658398">Προϊόντα γυναικείας υγιεινής</translation>
-<translation id="8182470873445638343"><ph name="BEGIN_BOLD" />Το περιεχόμενο της σελίδας ολοκλήρωσης αγοράς κοινοποιείται στην Google για την παροχή αυτών των επιλογών.<ph name="END_BOLD" /> Τα προγράμματα πληρωμών εξαρτώνται από την καταλληλότητα. Για να αποκρύψετε τις επιλογές πληρωμής αργότερα, μεταβείτε στις <ph name="BEGIN_LINK" />ρυθμίσεις πληρωμής<ph name="END_LINK" /></translation>
 <translation id="818254048113802060">{0,plural, =1{Το αρχείο <ph name="FILE_NAME" /> αποκλείστηκε λόγω περιεχομένου}other{<ph name="FILE_COUNT" /> αρχεία αποκλείστηκαν λόγω περιεχομένου}}</translation>
 <translation id="8183800802493617952">Οικογενειακά παιχνίδια και δραστηριότητες</translation>
 <translation id="8184538546369750125">Χρήση καθολικής προεπιλεγμένης ρύθμισης (Επιτρέπεται)</translation>
@@ -4673,7 +4674,6 @@
 <translation id="8246482227229072868">Δαχτυλίδια</translation>
 <translation id="8248406213705193919">Ασφαλής αποθήκευση κάρτας;</translation>
 <translation id="8249296373107784235">Ματαίωση</translation>
-<translation id="824968735947741546">Μετάφραση <ph name="SOURCE" /> (εντοπίστηκε αυτόματα) σε <ph name="TARGET" /></translation>
 <translation id="8250094606476360498">Αυτή η διεύθυνση είναι αποθηκευμένη σε αυτήν τη συσκευή. Για να τη χρησιμοποιήσετε σε όλα τα προϊόντα Google, αποθηκεύστε τη στον Λογαριασμό σας Google, <ph name="ACCOUNT" />.</translation>
 <translation id="8250533425540303610">Εγκατάσταση <ph name="LANGUAGE" />…</translation>
 <translation id="8251493595871259082">Συμπληρώστε τη διεύθυνσή σας πληκτρολογώντας λιγότερο</translation>

@@ -39,7 +39,7 @@
 #include "chrome/browser/serial/serial_chooser_context.h"
 #include "chrome/browser/serial/serial_chooser_context_factory.h"
 #include "chrome/browser/subresource_filter/subresource_filter_profile_context_factory.h"
-#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/hats/hats_service.h"
 #include "chrome/browser/ui/hats/hats_service_factory.h"
 #include "chrome/browser/ui/hats/survey_config.h"
@@ -452,7 +452,7 @@ ChromePermissionsClient::DetermineIgnoreReason(
   Profile* profile =
       Profile::FromBrowserContext(web_contents->GetBrowserContext());
   BrowserWindowInterface* const browser =
-      chrome::FindLastActiveWithProfile(profile);
+      ProfileBrowserCollection::GetForProfile(profile)->GetLastActiveBrowser();
   if (browser) {
     if (browser->GetTabStripModel()->empty()) {
       return permissions::PermissionIgnoredReason::WINDOW_CLOSED;
@@ -668,10 +668,8 @@ bool ChromePermissionsClient::CanBypassEmbeddingOriginCheck(
   // Omnibox Popup and Contextual Tasks:
   // Bypass embedding origin check as the `requesting_origin` will later be
   // transformed to the DSE origin in `GetCanonicalOriginOverride()`.
-  if (embedding_origin ==
-          GURL(chrome::kChromeUIOmniboxPopupURL).DeprecatedGetOriginAsURL() ||
-      embedding_origin == GURL(chrome::kChromeUIContextualTasksURL)
-                              .DeprecatedGetOriginAsURL()) {
+  if (embedding_origin == chrome::kChromeUIOmniboxPopupURL ||
+      embedding_origin == chrome::kChromeUIContextualTasksURL) {
     return true;
   }
 
@@ -699,10 +697,8 @@ std::optional<GURL> ChromePermissionsClient::GetCanonicalOriginOverride(
   // Transform chrome:// origins to the DSE origin so that permissions are
   // stored under and shared with the DSE.
   if (requesting_origin == embedding_origin &&
-      (requesting_origin ==
-           GURL(chrome::kChromeUIOmniboxPopupURL).DeprecatedGetOriginAsURL() ||
-       requesting_origin == GURL(chrome::kChromeUIContextualTasksURL)
-                                .DeprecatedGetOriginAsURL())) {
+      (requesting_origin == chrome::kChromeUIOmniboxPopupURL ||
+       requesting_origin == chrome::kChromeUIContextualTasksURL)) {
     return GURL(UIThreadSearchTermsData().GoogleBaseURLValue())
         .DeprecatedGetOriginAsURL();
   }
@@ -736,9 +732,8 @@ std::optional<GURL> ChromePermissionsClient::GetEmbeddingOriginOverride(
     return embedding_origin;
   }
 
-  if (embedding_origin ==
-          GURL(chrome::kChromeUIOmniboxPopupURL).DeprecatedGetOriginAsURL() ||
-      embedding_origin == GURL(chrome::kChromeUIContextualTasksURL)) {
+  if (embedding_origin == chrome::kChromeUIOmniboxPopupURL ||
+      embedding_origin == chrome::kChromeUIContextualTasksURL) {
     // Omnibox Popup and Contextual Tasks:
     // Use the WebContents URL as the embedding origin.
     // Note that the embedding origin is later transformed to the DSE origin via

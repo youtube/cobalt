@@ -12,14 +12,18 @@
 #include "base/types/pass_key.h"
 #include "base/unguessable_token.h"
 #include "third_party/blink/public/mojom/content_extraction/script_tools.mojom-blink.h"
+#include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
+#include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_model_context.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_tool_execute_callback.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/abort_signal.h"
 #include "third_party/blink/renderer/core/dom/document.h"
+#include "third_party/blink/renderer/core/dom/events/event_target.h"
 #include "third_party/blink/renderer/core/script_tools/script_tool_types.h"
 #include "third_party/blink/renderer/platform/allow_discouraged_type.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 
 namespace blink {
@@ -29,6 +33,7 @@ class SourceLocation;
 class ModelContextOptions;
 class ModelContextRegisterToolOptions;
 class ModelContextTool;
+class RegisteredTool;
 
 class DeclarativeWebMCPTool : public GarbageCollectedMixin {
  public:
@@ -104,11 +109,16 @@ class CORE_EXPORT ToolData : public GarbageCollected<ToolData> {
   Member<AbortSignal::AlgorithmHandle> abort_algorithm_handle_ = nullptr;
 };
 
-class CORE_EXPORT ModelContext : public ScriptWrappable {
+class CORE_EXPORT ModelContext : public EventTarget,
+                                 public mojom::blink::ModelContext {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
   ModelContext(Document& document, scoped_refptr<base::SingleThreadTaskRunner>);
+
+  DEFINE_ATTRIBUTE_EVENT_LISTENER(toolchange, kToolchange)
+
+  const AtomicString& InterfaceName() const override;
 
   void ForEachScriptTool(
       base::FunctionRef<void(const mojom::blink::ScriptTool&)>) const;
@@ -117,6 +127,8 @@ class CORE_EXPORT ModelContext : public ScriptWrappable {
                     ModelContextTool* tool,
                     ModelContextRegisterToolOptions* options,
                     ExceptionState& exception_state);
+  ScriptPromise<IDLSequence<RegisteredTool>> getTools(
+      ScriptState* script_state);
   void UnregisterTool(const String& name);
 
   std::optional<ScriptToolDeclaration> GetScriptToolDeclaration(
@@ -143,6 +155,9 @@ class CORE_EXPORT ModelContext : public ScriptWrappable {
                                DeclarativeWebMCPTool* tool);
   void PauseExecution();
 
+  // mojom::blink::ScriptToolReceiver implementation:
+  void NotifyToolChange() override;
+
   void DidFinishParsing();
 
   void MaybeNotifyToolChanged();
@@ -150,7 +165,11 @@ class CORE_EXPORT ModelContext : public ScriptWrappable {
   // Returns registered tools, sorted by CodeUnitCompareLessThan().
   HeapVector<Member<const ToolData>> ListTools() const;
 
-  ExecutionContext* GetExecutionContext() const;
+  ExecutionContext* GetExecutionContext() const override;
+
+  void OnGetScriptToolsCompleted(
+      ScriptPromiseResolver<IDLSequence<RegisteredTool>>* resolver,
+      Vector<mojom::blink::ScriptToolPtr> tools);
 
   void Trace(Visitor*) const override;
 
@@ -197,7 +216,11 @@ class CORE_EXPORT ModelContext : public ScriptWrappable {
   std::optional<base::RepeatingClosure> tool_change_closure_;
   Member<Document> document_;
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+
   HeapMojoRemote<mojom::blink::ScriptToolHost> script_tool_host_remote_;
+  HeapMojoRemote<mojom::blink::ModelContextHost> model_context_host_remote_;
+  HeapMojoReceiver<mojom::blink::ModelContext, ModelContext>
+      model_context_receiver_{this, nullptr};
 
   // True when a task to invoke tool_change_closure_ is pending.
   // This batches multiple synchronous tool changes into a single notification.

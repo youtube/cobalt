@@ -32,6 +32,7 @@
 #include "third_party/blink/renderer/core/style/computed_style_constants.h"
 #include "third_party/blink/renderer/core/style/shape_clip_path_operation.h"
 #include "third_party/blink/renderer/core/style/shape_offset_path_operation.h"
+#include "third_party/blink/renderer/core/style/shape_value.h"
 #include "third_party/blink/renderer/core/style/style_shape.h"
 #include "third_party/blink/renderer/core/svg/svg_path_blender.h"
 #include "third_party/blink/renderer/core/svg/svg_path_byte_stream_source.h"
@@ -248,14 +249,23 @@ ShapeNonInterpolableValue* MakeShapeNonInterpolableValue(
     std::optional<CoordBox> coord_box) {
   switch (property.PropertyID()) {
     case CSSPropertyID::kClipPath:
+      return MakeGarbageCollected<GeometryBoxShapeNonInterpolableValue>(
+          wind_rule, std::move(params),
+          geometry_box.value_or(GeometryBox::kBorderBox));
+    case CSSPropertyID::kBorderShape:
       CHECK(geometry_box.has_value());
       return MakeGarbageCollected<GeometryBoxShapeNonInterpolableValue>(
           wind_rule, std::move(params), *geometry_box);
-    case CSSPropertyID::kOffsetPath: {
-      CHECK(coord_box.has_value());
+    case CSSPropertyID::kOffsetPath:
       return MakeGarbageCollected<CoordBoxShapeNonInterpolableValue>(
-          wind_rule, std::move(params), *coord_box);
-    }
+          wind_rule, std::move(params),
+          coord_box.value_or(CoordBox::kBorderBox));
+    case CSSPropertyID::kShapeOutside:
+      // shape-outside only interpolates path()/shape() when no explicit
+      // <shape-box> is present, so the box remains unset on both sides.
+      CHECK(!geometry_box && !coord_box);
+      return MakeGarbageCollected<ShapeNonInterpolableValue>(wind_rule,
+                                                             std::move(params));
     default:
       NOTREACHED();
   }
@@ -547,6 +557,15 @@ const ShapeOrPathInfo GetShapeOrPath(const CSSProperty& property,
       coord_box = operation->GetCoordBox();
       break;
     }
+    case CSSPropertyID::kShapeOutside: {
+      const ShapeValue* shape_value = style.ShapeOutside();
+      if (!shape_value || shape_value->GetType() != ShapeValue::kShape ||
+          shape_value->CssBox() != CSSBoxType::kMissing) {
+        return ShapeOrPathInfo();
+      }
+      shape = shape_value->Shape();
+      break;
+    }
     default:
       NOTREACHED();
   }
@@ -586,6 +605,10 @@ bool BoxesMatches(const CSSPropertyID& property_id,
       return value1.GetGeometryBox() == value2.GetGeometryBox();
     case CSSPropertyID::kOffsetPath:
       return value1.GetCoordBox() == value2.GetCoordBox();
+    case CSSPropertyID::kShapeOutside:
+      // shape-outside only enters this path with no explicit <shape-box>,
+      // so both sides always carry nullopt for both box kinds.
+      return true;
     default:
       NOTREACHED();
   }
@@ -724,6 +747,11 @@ void CSSShapeInterpolationType::ApplyStandardPropertyValue(
               : nullptr);
       break;
     }
+    case CSSPropertyID::kShapeOutside:
+      state.StyleBuilder().SetShapeOutside(
+          shape ? MakeGarbageCollected<ShapeValue>(shape, CSSBoxType::kMissing)
+                : nullptr);
+      break;
     default:
       NOTREACHED();
   }
@@ -846,8 +874,8 @@ InterpolationValue CSSShapeInterpolationType::MaybeConvertValue(
     const StyleResolverState&,
     ConversionCheckers&) const {
   const CSSValue* first_value = &value;
-  GeometryBox geometry_box = GeometryBox::kBorderBox;
-  CoordBox coord_box = CoordBox::kBorderBox;
+  std::optional<GeometryBox> geometry_box;
+  std::optional<CoordBox> coord_box;
   if (const auto* list = DynamicTo<CSSValueList>(value)) {
     first_value = &list->First();
     if (list->length() == 2) {
@@ -856,18 +884,56 @@ InterpolationValue CSSShapeInterpolationType::MaybeConvertValue(
           geometry_box = ident->ConvertTo<GeometryBox>();
         } else if (CssProperty().PropertyID() == CSSPropertyID::kOffsetPath) {
           coord_box = ident->ConvertTo<CoordBox>();
+        } else if (CssProperty().PropertyID() == CSSPropertyID::kShapeOutside) {
+          // shape-outside with an explicit <shape-box> component cannot
+          // interpolate via shape()/path(); fall back to discrete animation.
+          return nullptr;
         }
       }
     }
   }
+  return MaybeConvertCSSValue(*first_value, CssProperty(), geometry_box,
+                              coord_box);
+}
 
-  if (const auto* path = DynamicTo<cssvalue::CSSPathValue>(first_value)) {
-    return ConvertPath(path->GetStylePath(), CssProperty(), geometry_box,
-                       coord_box);
+InterpolationValue
+CSSShapeInterpolationType::MaybeConvertStandardPropertyUnderlyingValue(
+    const ComputedStyle& style) const {
+  auto info = GetShapeOrPath(CssProperty(), style);
+  return ConvertShapeOrPath(info.shape, CssProperty(), style.EffectiveZoom(),
+                            info.geometry_box, info.coord_box);
+}
+
+PairwiseInterpolationValue CSSShapeInterpolationType::MaybeMergeSingles(
+    InterpolationValue&& start,
+    InterpolationValue&& end) const {
+  auto& start_params =
+      To<ShapeNonInterpolableValue>(*start.non_interpolable_value);
+  auto& end_params = To<ShapeNonInterpolableValue>(*end.non_interpolable_value);
+  bool boxes_match =
+      BoxesMatches(CssProperty().PropertyID(), start_params, end_params);
+
+  if (start_params.GetWindRule() != end_params.GetWindRule() ||
+      start_params.GetParams() != end_params.GetParams() || !boxes_match) {
+    return nullptr;
   }
 
-  const auto* shape_value = DynamicTo<cssvalue::CSSShapeValue>(first_value);
+  return PairwiseInterpolationValue(std::move(start.interpolable_value),
+                                    std::move(end.interpolable_value),
+                                    std::move(end.non_interpolable_value));
+}
 
+// static
+InterpolationValue CSSShapeInterpolationType::MaybeConvertCSSValue(
+    const CSSValue& value,
+    const CSSProperty& property,
+    std::optional<GeometryBox> geometry_box,
+    std::optional<CoordBox> coord_box) {
+  if (const auto* path = DynamicTo<cssvalue::CSSPathValue>(value)) {
+    return ConvertPath(path->GetStylePath(), property, geometry_box, coord_box);
+  }
+
+  const auto* shape_value = DynamicTo<cssvalue::CSSShapeValue>(value);
   if (!shape_value) {
     return nullptr;
   }
@@ -990,38 +1056,111 @@ InterpolationValue CSSShapeInterpolationType::MaybeConvertValue(
 
   ShapeNonInterpolableValue* non_interpolable = MakeShapeNonInterpolableValue(
       shape_value->GetWindRule(), std::move(non_interpolable_segments),
-      CssProperty(), geometry_box, coord_box);
+      property, geometry_box, coord_box);
 
   return InterpolationValue(
       MakeGarbageCollected<InterpolableList>(std::move(interpolable_segments)),
       non_interpolable);
 }
 
-InterpolationValue
-CSSShapeInterpolationType::MaybeConvertStandardPropertyUnderlyingValue(
-    const ComputedStyle& style) const {
-  auto info = GetShapeOrPath(CssProperty(), style);
-  return ConvertShapeOrPath(info.shape, CssProperty(), style.EffectiveZoom(),
-                            info.geometry_box, info.coord_box);
+// static
+InterpolationValue CSSShapeInterpolationType::MaybeConvertBasicShape(
+    const BasicShape* shape,
+    const CSSProperty& property,
+    double zoom,
+    GeometryBox geometry_box,
+    CoordBox coord_box) {
+  return ConvertShapeOrPath(shape, property, zoom, geometry_box, coord_box);
 }
 
-PairwiseInterpolationValue CSSShapeInterpolationType::MaybeMergeSingles(
-    InterpolationValue&& start,
-    InterpolationValue&& end) const {
-  auto& start_params =
-      To<ShapeNonInterpolableValue>(*start.non_interpolable_value);
-  auto& end_params = To<ShapeNonInterpolableValue>(*end.non_interpolable_value);
-  bool boxes_match =
-      BoxesMatches(CssProperty().PropertyID(), start_params, end_params);
+// static
+bool CSSShapeInterpolationType::ShapesAreCompatible(
+    const NonInterpolableValue& a,
+    const NonInterpolableValue& b) {
+  const auto& sa = To<ShapeNonInterpolableValue>(a);
+  const auto& sb = To<ShapeNonInterpolableValue>(b);
+  return sa.GetWindRule() == sb.GetWindRule() &&
+         sa.GetParams() == sb.GetParams() &&
+         sa.GetGeometryBox() == sb.GetGeometryBox() &&
+         sa.GetCoordBox() == sb.GetCoordBox();
+}
 
-  if (start_params.GetWindRule() != end_params.GetWindRule() ||
-      start_params.GetParams() != end_params.GetParams() || !boxes_match) {
-    return nullptr;
+// static
+InterpolableValue* CSSShapeInterpolationType::CreateNeutralValue(
+    const NonInterpolableValue& non_interpolable) {
+  const auto& shape_non_interpolable =
+      To<ShapeNonInterpolableValue>(non_interpolable);
+  HeapVector<Member<InterpolableValue>> values;
+  auto WriteLength = [&](size_t number = 1) {
+    for (size_t i = 0; i < number; ++i) {
+      values.push_back(InterpolableLength::CreateNeutral());
+    }
+  };
+
+  WriteLength(2);
+
+  for (const auto& params : shape_non_interpolable.GetParams()) {
+    switch (params.type) {
+      case SVGPathSegType::kPathSegLineToAbs:
+      case SVGPathSegType::kPathSegLineToRel:
+      case SVGPathSegType::kPathSegMoveToAbs:
+      case SVGPathSegType::kPathSegMoveToRel:
+      case SVGPathSegType::kPathSegCurveToQuadraticSmoothAbs:
+      case SVGPathSegType::kPathSegCurveToQuadraticSmoothRel:
+        WriteLength(2);
+        break;
+      case SVGPathSegType::kPathSegLineToHorizontalAbs:
+      case SVGPathSegType::kPathSegLineToHorizontalRel:
+      case SVGPathSegType::kPathSegLineToVerticalAbs:
+      case SVGPathSegType::kPathSegLineToVerticalRel:
+        WriteLength(1);
+        break;
+      case SVGPathSegType::kPathSegClosePath:
+        break;
+      case SVGPathSegType::kPathSegCurveToCubicAbs:
+      case SVGPathSegType::kPathSegCurveToCubicRel: {
+        WriteLength(6);
+        break;
+      }
+      case SVGPathSegType::kPathSegCurveToQuadraticAbs:
+      case SVGPathSegType::kPathSegCurveToQuadraticRel:
+      case SVGPathSegType::kPathSegCurveToCubicSmoothAbs:
+      case SVGPathSegType::kPathSegCurveToCubicSmoothRel:
+        WriteLength(4);
+        break;
+      case SVGPathSegType::kPathSegArcAbs:
+      case SVGPathSegType::kPathSegArcRel: {
+        WriteLength(2);
+        values.push_back(*MakeGarbageCollected<InterpolableNumber>(
+            0, CSSPrimitiveValue::UnitType::kDegrees));
+        WriteLength(2);
+        values.push_back(*MakeGarbageCollected<InterpolableNumber>(0));
+        values.push_back(*MakeGarbageCollected<InterpolableNumber>(0));
+        break;
+      }
+      case SVGPathSegType::kPathSegUnknown:
+        NOTREACHED();
+    }
   }
 
-  return PairwiseInterpolationValue(std::move(start.interpolable_value),
-                                    std::move(end.interpolable_value),
-                                    std::move(end.non_interpolable_value));
+  return MakeGarbageCollected<InterpolableList>(std::move(values));
+}
+
+// static
+NonInterpolableValue::Type
+CSSShapeInterpolationType::ShapeNonInterpolableValueType() {
+  return ShapeNonInterpolableValue::static_type_;
+}
+// static
+std::optional<GeometryBox> CSSShapeInterpolationType::GetGeometryBox(
+    const NonInterpolableValue& value) {
+  return To<ShapeNonInterpolableValue>(value).GetGeometryBox();
+}
+
+// static
+std::optional<CoordBox> CSSShapeInterpolationType::GetCoordBox(
+    const NonInterpolableValue& value) {
+  return To<ShapeNonInterpolableValue>(value).GetCoordBox();
 }
 
 }  // namespace blink

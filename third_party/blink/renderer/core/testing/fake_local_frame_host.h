@@ -186,11 +186,6 @@ class FakeLocalFrameHost : public mojom::blink::LocalFrameHost {
       const Vector<blink::FencedFrame::ReportingDestination>& destinations,
       bool once,
       bool cross_origin_exposed) override;
-  void DisableUntrustedNetworkInFencedFrame(
-      DisableUntrustedNetworkInFencedFrameCallback callback) override;
-  void ExemptUrlFromNetworkRevocationForTesting(
-      const blink::KURL& exempted_url,
-      ExemptUrlFromNetworkRevocationForTestingCallback callback) override;
   void SendLegacyTechEvent(
       const String& type,
       mojom::blink::LegacyTechEventCodeLocationPtr code_location) override;
@@ -202,8 +197,6 @@ class FakeLocalFrameHost : public mojom::blink::LocalFrameHost {
           remote_frame_interfaces,
       const RemoteFrameToken& frame_token,
       const base::UnguessableToken& devtools_frame_token) override;
-  void ForwardFencedFrameEventAndUserActivationToEmbedder(
-      const String& event_type) override;
   void OnViewTransitionOptInChanged(
       mojom::blink::ViewTransitionSameOriginOptIn) override {}
   void StartDragging(const blink::WebDragData& drag_data,

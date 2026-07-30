@@ -281,7 +281,6 @@
         "webui_untrusted"
       ],
       "matches": [
-        "chrome-untrusted://boca-app/*",
         "chrome-untrusted://lens/*"
       ],
       // "desktop_android" is not supported.
@@ -434,6 +433,16 @@
     "channel": "stable",
     "source": "metricsPrivate"
    },
+  "metricsPrivate.getHistogram": {
+    "allowlist": [
+      // The Autotest extension is loaded with --allowlisted-extension-id, so it
+      // technically bypasses this check, but this entry is included anyway to
+      // restrict access to this function under normal circumstances.
+      // TODO(crbug.com/508312478): getHistogram should be moved back to the
+      // autotestPrivate namespace.
+      "0D209B5E4401BB8E7873B5AB5B1346A1CB067015"  // ChromeOS Autotest extension
+    ]
+  },
   "metricsPrivate.getIsCrashReportingEnabled": {
     "allowlist": [
       // This function inherits the extension restrictions of metricsPrivate,
@@ -490,6 +499,13 @@
     "matches": [
       "chrome-untrusted://demo-mode-app/*"
     ]
+  },
+  "mimeHandler": {
+    "dependencies": ["manifest:mime_types_handler"],
+    "contexts": ["privileged_extension"],
+    // "desktop_android" is not supported.
+    "platforms": ["chromeos", "linux", "mac", "win"],
+    "feature_flag": "ApiMimeHandler"
   },
   "mimeHandlerPrivate": {
     "dependencies": ["manifest:mime_types_handler"],
@@ -922,7 +938,6 @@
       "webui_untrusted"
     ],
     "matches": [
-      "chrome-untrusted://boca-app/*",
       "chrome-untrusted://lens/*"
     ]
   }, {
@@ -968,7 +983,6 @@
       "webui_untrusted"
     ],
     "matches": [
-      "chrome-untrusted://boca-app/*",
       "chrome-untrusted://lens/*"
     ]
   }, {
@@ -1008,7 +1022,6 @@
       "webui_untrusted"
     ],
     "matches": [
-      "chrome-untrusted://boca-app/*",
       "chrome-untrusted://lens/*"
     ]
   }]

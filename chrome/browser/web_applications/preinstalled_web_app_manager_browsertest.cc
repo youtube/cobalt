@@ -1878,9 +1878,8 @@ class PreinstalledWebAppManagerSimpleBrowserTest
                   provider->DisableDelayedPostStartupWorkForTesting();
               provider->preinstalled_web_app_manager()
                   .SetPreinstalledAppForUpdatingForTesting(
-                      PreinstalledAppForUpdating{
-                          .manifest_id = test->GetManifestId(),
-                          .install_url = test->GetInstallUrl()});
+                      PreinstalledAppForUpdating{test->GetManifestId(),
+                                                 test->GetInstallUrl()});
               provider->Start();
               return provider;
             },
@@ -2045,7 +2044,7 @@ IN_PROC_BROWSER_TEST_F(PreinstalledWebAppManagerSimpleBrowserTest,
 
   StartRedirecting();
 
-  base::test::TestFuture<base::WeakPtr<Browser>,
+  base::test::TestFuture<base::WeakPtr<BrowserWindowInterface>,
                          base::WeakPtr<content::WebContents>,
                          apps::LaunchContainer>
       launch;
@@ -2073,7 +2072,7 @@ IN_PROC_BROWSER_TEST_F(PreinstalledWebAppManagerSimpleBrowserTest,
   StartRedirecting();
 
   base::HistogramTester histogram_tester;
-  base::test::TestFuture<base::WeakPtr<Browser>,
+  base::test::TestFuture<base::WeakPtr<BrowserWindowInterface>,
                          base::WeakPtr<content::WebContents>,
                          apps::LaunchContainer>
       launch;

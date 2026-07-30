@@ -15,6 +15,7 @@
 #import "components/keyed_service/core/service_access_type.h"
 #import "components/password_manager/core/browser/password_form.h"
 #import "components/password_manager/core/browser/password_manager_test_utils.h"
+#import "components/password_manager/core/browser/password_store/password_form_converters.h"
 #import "components/password_manager/core/browser/password_store/password_store_consumer.h"
 #import "components/password_manager/core/browser/password_store/password_store_interface.h"
 #import "components/password_manager/core/common/password_manager_pref_names.h"
@@ -71,24 +72,32 @@ webauthn::PasskeyModel* GetPasskeyStore() {
 // processing.
 class FakeStoreConsumer : public password_manager::PasswordStoreConsumer {
  public:
-  void OnGetPasswordStoreResults(
-      std::vector<std::unique_ptr<password_manager::PasswordForm>> obtained)
-      override {
-    obtained_ = std::move(obtained);
+  void OnGetPasswordStoreResultsOrErrorFrom(
+      password_manager::PasswordStoreInterface* store,
+      password_manager::LoginsResultOrError results_or_error) override {
+    if (std::holds_alternative<password_manager::PasswordStoreBackendError>(
+            results_or_error)) {
+      obtained_ = std::vector<PasswordForm>();
+    } else {
+      obtained_ = password_manager::ToPasswordForms(
+          std::get<password_manager::LoginsResult>(
+              std::move(results_or_error)));
+    }
   }
 
   // Retrieves all logins from the profile password store and updates
   // `results_`. Returns true if the logins retrieved successfully.
   bool FetchProfileStoreResults() {
     results_.clear();
-    ResetObtained();
+    obtained_.reset();
     GetPasswordProfileStore()->GetAllLogins(weak_ptr_factory_.GetWeakPtr());
     bool responded =
         base::test::ios::WaitUntilConditionOrTimeout(base::Seconds(2), ^bool {
-          return !AreObtainedReset();
+          return obtained_.has_value();
         });
-    if (responded) {
-      AppendObtainedToResults();
+    if (responded && obtained_.has_value()) {
+      results_ = std::move(obtained_.value());
+      obtained_.reset();
     }
     return responded;
   }
@@ -97,14 +106,15 @@ class FakeStoreConsumer : public password_manager::PasswordStoreConsumer {
   // `results_`. Returns true if the logins retrieved successfully.
   bool FetchAccountStoreResults() {
     results_.clear();
-    ResetObtained();
+    obtained_.reset();
     GetPasswordAccountStore()->GetAllLogins(weak_ptr_factory_.GetWeakPtr());
     bool responded =
         base::test::ios::WaitUntilConditionOrTimeout(base::Seconds(2), ^bool {
-          return !AreObtainedReset();
+          return obtained_.has_value();
         });
-    if (responded) {
-      AppendObtainedToResults();
+    if (responded && obtained_.has_value()) {
+      results_ = std::move(obtained_.value());
+      obtained_.reset();
     }
     return responded;
   }
@@ -114,25 +124,8 @@ class FakeStoreConsumer : public password_manager::PasswordStoreConsumer {
   }
 
  private:
-  // Puts `obtained_` in a known state not corresponding to any PasswordStore
-  // state.
-  void ResetObtained() {
-    obtained_.clear();
-    obtained_.emplace_back(nullptr);
-  }
-
-  // Returns true if `obtained_` are in the reset state.
-  bool AreObtainedReset() { return obtained_.size() == 1 && !obtained_[0]; }
-
-  void AppendObtainedToResults() {
-    for (const auto& source : obtained_) {
-      results_.emplace_back(*source);
-    }
-    ResetObtained();
-  }
-
   // Temporary cache of obtained store results.
-  std::vector<std::unique_ptr<password_manager::PasswordForm>> obtained_;
+  std::optional<std::vector<password_manager::PasswordForm>> obtained_;
 
   // Combination of fillable and blocked credentials from the store.
   std::vector<password_manager::PasswordForm> results_;

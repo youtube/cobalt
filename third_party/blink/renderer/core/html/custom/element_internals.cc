@@ -20,9 +20,11 @@
 #include "third_party/blink/renderer/core/html/forms/form_data.h"
 #include "third_party/blink/renderer/core/html/forms/html_field_set_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_form_element.h"
+#include "third_party/blink/renderer/core/html/forms/html_submit_button_behavior.h"
 #include "third_party/blink/renderer/core/html/forms/validity_state.h"
 #include "third_party/blink/renderer/core/html/html_element.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
+#include "ui/accessibility/ax_enums.mojom-blink.h"
 
 namespace blink {
 
@@ -421,6 +423,16 @@ const FrozenArray<ElementBehavior>& ElementInternals::behaviors() const {
   return *behaviors_;
 }
 
+ax::mojom::blink::Role ElementInternals::BehaviorBasedDefaultRole() const {
+  if (!behaviors_ || behaviors_->size() == 0) {
+    return ax::mojom::blink::Role::kUnknown;
+  }
+  ax::mojom::blink::Role role =
+      (*behaviors_)[behaviors_->size() - 1]->DefaultAriaRole();
+  CHECK_NE(role, ax::mojom::blink::Role::kUnknown);
+  return role;
+}
+
 void ElementInternals::SetBehaviors(
     HeapVector<Member<ElementBehavior>> behaviors,
     ExceptionState& exception_state) {
@@ -555,15 +567,31 @@ bool ElementInternals::IsEnumeratable() const {
 }
 
 void ElementInternals::AppendToFormData(FormData& form_data) {
-  if (Target().IsDisabledFormControl())
+  if (Target().IsDisabledFormControl()) {
     return;
+  }
 
-  if (!value_)
+  // Elements with HTMLSubmitButtonBehavior contribute their submitter
+  // name/value pair only when activated (mirroring native submit buttons'
+  // is_activated_submit_ pattern). The setFormValue() path is skipped to
+  // avoid duplicate entries.
+  if (RuntimeEnabledFeatures::ElementInternalsBehaviorsEnabled()) {
+    if (auto* behavior = FindBehavior<HTMLSubmitButtonBehavior>()) {
+      if (behavior->IsActivatedSubmit() && !behavior->name().empty()) {
+        form_data.AppendFromElement(behavior->name(), behavior->value());
+      }
+      return;
+    }
+  }
+
+  if (!value_) {
     return;
+  }
 
   const AtomicString& name = Target().FastGetAttribute(html_names::kNameAttr);
-  if (!value_->IsFormData() && name.empty())
+  if (!value_->IsFormData() && name.empty()) {
     return;
+  }
 
   switch (value_->GetContentType()) {
     case V8ControlValue::ContentType::kFile: {

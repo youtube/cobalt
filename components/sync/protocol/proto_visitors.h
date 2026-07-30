@@ -668,7 +668,7 @@ VISIT_PROTO_FIELDS(const sync_pb::FeatureSpecificFields& proto) {
   VISIT(auto_sign_out_last_signin_timestamp_windows_epoch_micros);
   VISIT(desktop_to_ios_promo_receiving_enabled);
   VISIT_REP(desktop_to_ios_promo_receiving_types);
-  VISIT(glic_experimental_triggering_opted_in);
+  VISIT_ENUM(glic_experimental_triggering_state);
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::SharingSpecificFields& proto) {
@@ -1408,6 +1408,9 @@ VISIT_PROTO_FIELDS(const sync_pb::FormField& proto) {
   VISIT(name_attribute);
   VISIT(form_control_type);
   VISIT(value);
+  VISIT(form_signature);
+  VISIT(field_signature);
+  VISIT_REP(autofill_types);
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::SessionHeader& proto) {

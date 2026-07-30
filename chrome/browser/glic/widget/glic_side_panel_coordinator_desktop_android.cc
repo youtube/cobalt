@@ -67,14 +67,13 @@ void GlicSidePanelCoordinatorDesktopAndroid::CreateAndRegisterEntry() {
           &GlicSidePanelCoordinatorDesktopAndroid::GetPreferredWidth,
           base::Unretained(this)));
   entry->set_should_show_header(false);
-  entry->set_should_show_outline(false);
   entry->set_should_show_ephemerally_in_toolbar(false);
   entry->AddObserver(this);
   entry_ = entry->GetWeakPtr();
   side_panel_registry_->Register(std::move(entry));
 }
 
-void GlicSidePanelCoordinatorDesktopAndroid::Show(bool suppress_animations) {
+void GlicSidePanelCoordinatorDesktopAndroid::Show(const ShowOptions& options) {
   auto* window_side_panel_ui = GetWindowSidePanelUI();
   if (!window_side_panel_ui || !entry_) {
     return;
@@ -89,7 +88,8 @@ void GlicSidePanelCoordinatorDesktopAndroid::Show(bool suppress_animations) {
     }
     return;
   }
-  window_side_panel_ui->Show(entry_->key(), std::nullopt, suppress_animations);
+  window_side_panel_ui->Show(entry_->key(), std::nullopt,
+                             options.suppress_animations);
 }
 
 void GlicSidePanelCoordinatorDesktopAndroid::Close(
@@ -99,14 +99,13 @@ void GlicSidePanelCoordinatorDesktopAndroid::Close(
     return;
   }
   if (state_ == State::kShown) {
-    window_side_panel_ui->Close(entry_->type(),
-                                SidePanelEntryHideReason::kSidePanelClosed,
+    window_side_panel_ui->Close(SidePanelEntryHideReason::kSidePanelClosed,
                                 options.suppress_animations);
     return;
   }
   if (state_ == State::kBackgrounded) {
     CHECK(IsGlicSidePanelActive());
-    side_panel_registry_->ResetActiveEntryFor(entry_->type());
+    side_panel_registry_->ResetActiveEntry();
     SetState(State::kClosed);
   }
 }
@@ -118,6 +117,10 @@ bool GlicSidePanelCoordinatorDesktopAndroid::IsShowing() const {
 GlicSidePanelCoordinator::State
 GlicSidePanelCoordinatorDesktopAndroid::state() {
   return state_;
+}
+
+bool GlicSidePanelCoordinatorDesktopAndroid::SupportsPeek() const {
+  return false;
 }
 
 void GlicSidePanelCoordinatorDesktopAndroid::OnEntryHiddenWithReason(
@@ -147,7 +150,8 @@ void GlicSidePanelCoordinatorDesktopAndroid::OnGlicEnabledChanged() {
 SidePanelNativeView GlicSidePanelCoordinatorDesktopAndroid::CreateView(
     SidePanelEntryScope& scope) {
   if (!cobrowse_views_bridge_) {
-    cobrowse_views_bridge_ = std::make_unique<CoBrowseViewsBridge>(*tab_);
+    cobrowse_views_bridge_ = std::make_unique<CoBrowseViewsBridge>(
+        *tab_, context_sharing::TabBottomSheetClientType::kGlic);
     cobrowse_views_bridge_->CreateCoBrowseViews(web_contents_.get());
   }
   auto view = cobrowse_views_bridge_->GetView();
@@ -186,8 +190,7 @@ bool GlicSidePanelCoordinatorDesktopAndroid::IsGlicSidePanelActive() {
   if (!glic_side_panel_entry) {
     return false;
   }
-  const auto& active_entry =
-      side_panel_registry_->GetActiveEntryFor(glic_side_panel_entry->type());
+  const auto& active_entry = side_panel_registry_->GetActiveEntry();
   if (!active_entry.has_value() ||
       active_entry.value() != glic_side_panel_entry) {
     return false;

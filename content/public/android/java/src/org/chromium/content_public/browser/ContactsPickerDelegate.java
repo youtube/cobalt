@@ -5,6 +5,7 @@
 package org.chromium.content_public.browser;
 
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 /** A delegate interface for the contacts picker. */
 @NullMarked
@@ -35,5 +36,12 @@ public interface ContactsPickerDelegate {
             boolean includeAddresses,
             boolean includeIcons,
             String formattedOrigin,
-            ContactsFetcher contactsFetcher);
+            @Nullable ContactsFetcher contactsFetcher);
+
+    /**
+     * Called to cancel the contacts picker.
+     *
+     * @param picker The contacts picker object returned by showContactsPicker.
+     */
+    void cancelContactsPicker(Object picker);
 }

@@ -7,11 +7,12 @@
 
 import {assertNotReached} from '//resources/js/assert.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
+import type {BitmapN32} from '//resources/mojo/skia/public/mojom/bitmap.mojom-webui.js';
 
 import {ContentSettingsType} from '../../content_settings_types.mojom-webui.js';
 import type {CaptureRegionObserver, CaptureRegionResult as CaptureRegionResultMojo, OpenSettingsOptions as OpenSettingsOptionsMojo, PinCandidate as PinCandidateMojo, PinCandidatesObserver, ScrollToSelector as ScrollToSelectorMojo, TabDataHandlerInterface, TabDataMojoType, TabFaviconHandlerInterface, WebClientHandlerInterface} from '../../glic.mojom-webui.js';
 import {CaptureRegionErrorReason as CaptureRegionErrorReasonMojo, CaptureRegionObserverReceiver, ClientErrorDialogType as ClientErrorDialogTypeMojo, PinCandidatesObserverReceiver, ResponseStopCause as ResponseStopCauseMojo, SettingsPageField as SettingsPageFieldMojo, SkillSource as SkillSourceMojo, TabDataHandlerReceiver, TabFaviconHandlerReceiver, WebClientReceiver} from '../../glic.mojom-webui.js';
-import type {ActorTaskInterruptReason, ActorTaskPauseReason, ActorTaskStopReason, CancelActionsResult, ClientErrorDialogType, ConversationInfo, CreateSkillRequest, DraggableArea, ExperimentalTriggeringUpdate, FormFillingResponse, GetPinCandidatesOptions, Journal, MicrophoneStatus, OnResponseStoppedDetails, OpenSettingsOptions, PinTabsOptions, Screenshot, ScrollToParams, Skill, SkillsWebClientEvent, TabContextOptions, TaskOptions, UnpinTabsOptions, UpdateSkillRequest, WebClientMode, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../../glic_api/glic_api.js';
+import type {ActorTaskInterruptReason, ActorTaskPauseReason, ActorTaskStopReason, CancelActionsResult, CaptureRegionParams, ClientErrorDialogType, ConversationInfo, CreateSkillRequest, DraggableArea, ExperimentalTriggeringUpdate, FormFillingResponse, GetPinCandidatesOptions, Journal, MicrophoneStatus, OnResponseStoppedDetails, OpenSettingsOptions, PinTabsOptions, Screenshot, ScrollToParams, Skill, SkillsWebClientEvent, TabContextOptions, TaskOptions, UnpinTabsOptions, UpdateSkillRequest, WebClientMode, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../../glic_api/glic_api.js';
 import {CaptureScreenshotErrorReason, ClientCapabilities, CreateTaskErrorReason, PerformActionsErrorReason, ResponseStopCause, ScrollToErrorReason} from '../../glic_api/glic_api.js';
 import {replaceProperties} from '../conversions.js';
 import {enumFromClient, enumToClient} from '../enum_conversions.js';
@@ -520,10 +521,13 @@ export class HostMessageHandler implements HostMessageHandlerInterface {
     return this.embedder.enableDragResize(request.enabled);
   }
 
-  glicBrowserSubscribeToCaptureRegion(request: {observationId: number}): void {
+  glicBrowserSubscribeToCaptureRegion(request: {
+    observationId: number,
+    params?: CaptureRegionParams,
+  }): void {
     this.host.captureRegionObserver?.destroy();
     this.host.captureRegionObserver = new CaptureRegionObserverImpl(
-        this.sender, this.handler, request.observationId);
+        this.sender, this.handler, request.observationId, request.params);
   }
 
   glicBrowserUnsubscribeFromCaptureRegion(request: {observationId: number}):
@@ -536,6 +540,14 @@ export class HostMessageHandler implements HostMessageHandlerInterface {
       this.host.captureRegionObserver.destroy();
       this.host.captureRegionObserver = undefined;
     }
+  }
+
+  glicBrowserSubscribeToZoomLevel(): void {
+    this.host.subscribeToZoomLevel();
+  }
+
+  glicBrowserUnsubscribeFromZoomLevel(): void {
+    this.host.unsubscribeFromZoomLevel();
   }
 
   glicBrowserDeleteCapturedRegion(request: {tabId: string, regionId: string}) {
@@ -1007,6 +1019,8 @@ export class HostMessageHandler implements HostMessageHandlerInterface {
       chrome.histograms.recordEnumerationValue(
           'Glic.Api.Client.ErrorDialogShown', request.shownDialogType,
           ClientErrorDialogTypeMojo.MAX_VALUE + 1);
+      this.handler.clientErrorDialogStateChanged(
+          enumFromClient(request.shownDialogType));
     }
     // TODO(b/506142920): Avoid showing error panels to the user if it is
     // presented while the panel is backgrounded. Automatically reload the
@@ -1019,7 +1033,7 @@ export class CaptureRegionObserverImpl implements CaptureRegionObserver {
   receiver?: CaptureRegionObserverReceiver;
   constructor(
       private sender: GatedSender, private handler: WebClientHandlerInterface,
-      public observationId: number) {
+      public observationId: number, private params?: CaptureRegionParams) {
     this.connectToSource();
   }
 
@@ -1054,7 +1068,13 @@ export class CaptureRegionObserverImpl implements CaptureRegionObserver {
       // The connection was closed without OnUpdate being called with an error.
       this.onUpdate(null, CaptureRegionErrorReasonMojo.kUnknown);
     });
-    this.handler.captureRegion(remote);
+    this.handler.captureRegion(
+        remote,
+        this.params ? {
+          tabId: idFromClient(this.params.tabId),
+          options: tabContextOptionsFromClient(this.params.options),
+        } :
+                      null);
   }
 
   onUpdate(
@@ -1183,7 +1203,7 @@ class TabFaviconHandlerImpl implements TabFaviconHandlerInterface {
         'glicWebClientTabFaviconChanged',
         {observationId: this.observationId, tabRemoved: true});
   }
-  onTabFaviconChanged(favicon: any): void {
+  onTabFaviconChanged(favicon: BitmapN32|null): void {
     const extras = new ResponseExtras();
     let faviconImage: RgbaImage|undefined = undefined;
     if (favicon) {

@@ -79,6 +79,7 @@ namespace {
 // This may still consume tokens if it fails
 AtomicString ConsumeStringOrURI(
     CSSParserTokenStream& stream,
+    const CSSParserContext& context,
     base::optional_ref<CSSUrlRequestModifiers> modifiers) {
   const CSSParserToken& token = stream.Peek();
 
@@ -109,7 +110,8 @@ AtomicString ConsumeStringOrURI(
           modifiers.has_value();
       const bool consumed_modifiers =
           should_consume_modifiers &&
-          css_parsing_utils::ConsumeUrlRequestModifiers(stream, *modifiers);
+          css_parsing_utils::ConsumeUrlRequestModifiers(stream, context,
+                                                        *modifiers);
       if ((!should_consume_modifiers || consumed_modifiers) &&
           stream.UncheckedAtEnd()) {
         DCHECK_EQ(uri.GetType(), kStringToken);
@@ -943,7 +945,7 @@ StyleRuleBase* CSSParserImpl::ConsumeAtRuleContents(
       // @import rules have a URI component that is not technically part of the
       // prelude.
       CSSUrlRequestModifiers modifiers;
-      AtomicString uri = ConsumeStringOrURI(stream, modifiers);
+      AtomicString uri = ConsumeStringOrURI(stream, *context_, modifiers);
       stream.EnsureLookAhead();
       return ConsumeImportRule(std::move(uri), stream, modifiers);
     }
@@ -1210,7 +1212,8 @@ StyleRuleNamespace* CSSParserImpl::ConsumeNamespaceRule(
         stream.ConsumeIncludingWhitespace().Value().ToAtomicString();
   }
 
-  AtomicString uri(ConsumeStringOrURI(stream, /*modifiers=*/std::nullopt));
+  AtomicString uri(
+      ConsumeStringOrURI(stream, *context_, /*modifiers=*/std::nullopt));
   if (uri.IsNull()) {
     // Parse error, expected string or URI.
     ConsumeErroneousAtRule(stream, CSSAtRuleID::kCSSAtRuleNamespace);
@@ -2207,31 +2210,16 @@ StyleRuleContainer* CSSParserImpl::ConsumeContainerRule(
     StyleRule* parent_rule_for_nesting) {
   // Consume the prelude.
   wtf_size_t prelude_offset_start = stream.LookAheadOffset();
-  ContainerQueryParser query_parser(*context_);
 
-  // <container-name>
-  AtomicString name;
-  if (stream.Peek().GetType() == kIdentToken) {
-    CSSParserLocalContext local_context =
-        CSSParserLocalContext::CreateWithoutPropertyForAtRules();
-    auto* ident = DynamicTo<CSSCustomIdentValue>(
-        css_parsing_utils::ConsumeSingleContainerName(stream, *context_,
-                                                      local_context));
-    if (ident) {
-      name = ident->Value();
-    }
-  }
-
-  const ConditionalExpNode* query = query_parser.ParseCondition(stream);
-  if (!query &&
-      (name.IsNull() || !RuntimeEnabledFeatures::ContainerNameOnlyEnabled())) {
+  const ContainerQuerySet* container_query_set =
+      ContainerQueryParser::ParseContainerQuerySet(stream, *context_);
+  if (!container_query_set) {
     ConsumeErroneousAtRule(stream, CSSAtRuleID::kCSSAtRuleContainer);
     return nullptr;
   }
-  ContainerQuery* container_query = MakeGarbageCollected<ContainerQuery>(
-      ContainerSelector(std::move(name), query), query);
 
   wtf_size_t prelude_offset_end = stream.LookAheadOffset();
+
   if (!ConsumeEndOfPreludeForAtRuleWithBlock(
           stream, CSSAtRuleID::kCSSAtRuleContainer)) {
     return nullptr;
@@ -2256,7 +2244,7 @@ StyleRuleContainer* CSSParserImpl::ConsumeContainerRule(
 
   // NOTE: There will be a copy of rules here, to deal with the different inline
   // size.
-  return MakeGarbageCollected<StyleRuleContainer>(*container_query,
+  return MakeGarbageCollected<StyleRuleContainer>(*container_query_set,
                                                   std::move(rules));
 }
 

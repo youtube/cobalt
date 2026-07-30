@@ -214,8 +214,10 @@ WebUIToolbarWebView::WebUIToolbarWebView(
           toolbar_ui_api::mojom::SecurityChipState::New(
               toolbar_ui_api::mojom::SecurityChipIcon::kHttp,
               toolbar_ui_api::mojom::SecurityLevel::kNone, std::u16string(),
-              false, false),
-          std::vector<toolbar_ui_api::mojom::ContentSettingImageStatePtr>());
+              /*is_clickable=*/false, /*is_text_dangerous=*/false,
+              /*is_visible=*/true),
+          std::vector<toolbar_ui_api::mojom::ContentSettingImageStatePtr>(),
+          /*permission_dashboard=*/nullptr);
   last_queued_state_.layout_constants_version = 0;
   last_queued_state_.back_forward_control_state = GetBackForwardState();
 
@@ -318,10 +320,10 @@ gfx::Size WebUIToolbarWebView::CalculatePreferredSize(
   button_count += features::IsWebUIAvatarButtonEnabled();
 
   const int size = GetLayoutConstant(LayoutConstant::kToolbarButtonHeight);
+  const int gap = GetLayoutConstant(LayoutConstant::kToolbarIconDefaultMargin);
   int width = button_count * size;
   if (button_count > 0) {
-    width += (button_count - 1) *
-             GetLayoutConstant(LayoutConstant::kToolbarIconDefaultMargin);
+    width += (button_count - 1) * gap;
   }
 
   if (location_bar_) {
@@ -331,6 +333,13 @@ gfx::Size WebUIToolbarWebView::CalculatePreferredSize(
 
   if (features::IsWebUIBackForwardButtonEnabled()) {
     width += back_button_leading_margin_;
+  }
+
+  if (features::IsWebUIPinnedToolbarActionsEnabled()) {
+    if (int pinned_width = pinned_toolbar_actions_.GetWidth()) {
+      width += !!width * gap;  // Add gap if prior controls.
+      width += pinned_width;
+    }
   }
 
   return gfx::Size(width, size);
@@ -473,6 +482,27 @@ ReloadControl* WebUIToolbarWebView::GetReloadControl() {
 AvatarToolbarButtonInterface*
 WebUIToolbarWebView::GetAvatarToolbarButtonInterface() {
   return &avatar_control_;
+}
+
+BrowserWindowInterface* WebUIToolbarWebView::GetBrowser() {
+  return browser_;
+}
+
+chrome::BrowserCommandController* WebUIToolbarWebView::GetCommandController() {
+  return controller_;
+}
+
+views::View* WebUIToolbarWebView::GetView() {
+  return this;
+}
+
+void WebUIToolbarWebView::OnPreferredSizeChanged() {
+  PreferredSizeChanged();
+}
+
+const std::vector<toolbar_ui_api::mojom::PinnedToolbarActionStatePtr>&
+WebUIToolbarWebView::GetPinnedToolbarActionsState() const {
+  return last_queued_state_.pinned_toolbar_actions_state;
 }
 
 browser_controls_api::BrowserControlsService::BrowserControlsServiceDelegate*
@@ -754,6 +784,20 @@ void WebUIToolbarWebView::OnLhsChipClicked(
     bool is_mouse_interaction) {
   if (location_bar_) {
     location_bar_->OnLhsChipClicked(identifier, is_mouse_interaction);
+  }
+}
+
+void WebUIToolbarWebView::OnLhsChipPointerEntered(
+    toolbar_ui_api::mojom::LhsChipIdentifier identifier) {
+  if (location_bar_) {
+    location_bar_->OnLhsChipPointerEntered(identifier);
+  }
+}
+
+void WebUIToolbarWebView::OnLhsChipPointerExited(
+    toolbar_ui_api::mojom::LhsChipIdentifier identifier) {
+  if (location_bar_) {
+    location_bar_->OnLhsChipPointerExited(identifier);
   }
 }
 

@@ -39,7 +39,7 @@ class ReadAnythingMochaBrowserTest : public WebUIMochaBrowserTest {
     content::WaitForLoadStop(web_contents);
 
     ASSERT_TRUE(RunTestOnWebContents(web_contents, file, trigger, true));
-    side_panel_ui->Close(SidePanelType::kContent);
+    side_panel_ui->Close();
   }
 
  private:
@@ -220,7 +220,8 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingMochaTest, LineSpacing) {
                    "mocha.run()");
 }
 
-IN_PROC_BROWSER_TEST_F(ReadAnythingMochaTest, Movement) {
+// TODO(crbug.com/501840500): It is flaky on all platforms.
+IN_PROC_BROWSER_TEST_F(ReadAnythingMochaTest, DISABLED_Movement) {
   RunSidePanelTest("side_panel/read_anything/movement_test.js", "mocha.run()");
 }
 

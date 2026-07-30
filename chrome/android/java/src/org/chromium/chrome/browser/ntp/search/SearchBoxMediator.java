@@ -9,9 +9,7 @@ import android.content.res.ColorStateList;
 import android.graphics.Point;
 import android.graphics.Rect;
 import android.view.View;
-import android.view.View.OnClickListener;
 import android.view.View.OnDragListener;
-import android.view.ViewGroup;
 
 import androidx.annotation.StyleRes;
 
@@ -23,38 +21,59 @@ import org.chromium.chrome.browser.feed.FeedSurfaceScrollDelegate;
 import org.chromium.chrome.browser.lens.LensController;
 import org.chromium.chrome.browser.lens.LensEntryPoint;
 import org.chromium.chrome.browser.lens.LensIntentParams;
+import org.chromium.chrome.browser.lens.LensMetrics;
 import org.chromium.chrome.browser.lens.LensQueryParams;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.lifecycle.DestroyObserver;
+import org.chromium.chrome.browser.ntp.NewTabPageManager;
 import org.chromium.chrome.browser.omnibox.R;
-import org.chromium.chrome.browser.omnibox.status.StatusProperties;
+import org.chromium.chrome.browser.omnibox.status.StatusProperties.StatusIconResource;
+import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
+import org.chromium.components.omnibox.AutocompleteRequestType;
+import org.chromium.components.omnibox.OmniboxFeatures;
+import org.chromium.components.search_engines.TemplateUrlService;
+import org.chromium.components.search_engines.TemplateUrlService.TemplateUrlServiceObserver;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.function.Supplier;
 
 @NullMarked
 class SearchBoxMediator implements DestroyObserver {
     private final Context mContext;
     private final PropertyModel mModel;
-    private final ViewGroup mView;
-    private final List<OnClickListener> mVoiceSearchClickListeners = new ArrayList<>();
-    private final List<OnClickListener> mLensClickListeners = new ArrayList<>();
+    private final SearchBoxContainerView mView;
+    private final NewTabPageManager mNewTabPageManager;
+    private final boolean mIsIncognito;
+    private final WindowAndroid mWindowAndroid;
+    private final TemplateUrlService mTemplateUrlService;
     private final float mTransitionEndOffset;
     private final ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
+    private final TemplateUrlServiceObserver mTemplateUrlServiceObserver =
+            this::onTemplateURLServiceChanged;
+
+    private boolean mIsFuseboxEligible;
 
     SearchBoxMediator(
             Context context,
             PropertyModel model,
-            ViewGroup view,
+            SearchBoxContainerView view,
             boolean isTablet,
-            ActivityLifecycleDispatcher activityLifecycleDispatcher) {
+            ActivityLifecycleDispatcher activityLifecycleDispatcher,
+            NewTabPageManager newTabPageManager,
+            boolean isIncognito,
+            WindowAndroid windowAndroid,
+            Profile profile) {
         mContext = context;
         mModel = model;
         mView = view;
+        mNewTabPageManager = newTabPageManager;
+        mIsIncognito = isIncognito;
+        mWindowAndroid = windowAndroid;
+        mTemplateUrlService = TemplateUrlServiceFactory.getForProfile(profile);
+        mTemplateUrlService.addObserver(mTemplateUrlServiceObserver);
         PropertyModelChangeProcessor.create(mModel, mView, new SearchBoxViewBinder());
 
         mTransitionEndOffset =
@@ -65,6 +84,13 @@ class SearchBoxMediator implements DestroyObserver {
 
         mActivityLifecycleDispatcher = activityLifecycleDispatcher;
         mActivityLifecycleDispatcher.register(this);
+
+        mModel.set(SearchBoxProperties.SEARCH_BOX_CLICK_CALLBACK, this::onSearchBoxClick);
+        mModel.set(SearchBoxProperties.VOICE_SEARCH_CLICK_CALLBACK, this::onVoiceSearchClick);
+        mModel.set(SearchBoxProperties.PLUS_BUTTON_CLICK_CALLBACK, this::onPlusButtonClick);
+        mModel.set(SearchBoxProperties.LENS_CLICK_CALLBACK, this::onLensClick);
+
+        updateStartIcon();
     }
 
     @Override
@@ -73,24 +99,51 @@ class SearchBoxMediator implements DestroyObserver {
 
         mModel.set(SearchBoxProperties.LENS_CLICK_CALLBACK, null);
         mModel.set(SearchBoxProperties.VOICE_SEARCH_CLICK_CALLBACK, null);
-        mModel.set(SearchBoxProperties.VOICE_SEARCH_DRAWABLE, null);
+        mModel.set(SearchBoxProperties.PLUS_BUTTON_CLICK_CALLBACK, null);
         mModel.set(SearchBoxProperties.SEARCH_BOX_CLICK_CALLBACK, null);
         mModel.set(SearchBoxProperties.SEARCH_BOX_DRAG_CALLBACK, null);
         mModel.set(SearchBoxProperties.SEARCH_BOX_TEXT_WATCHER, null);
         mModel.set(SearchBoxProperties.DSE_ICON_DRAWABLE, null);
 
-        mLensClickListeners.clear();
-        mVoiceSearchClickListeners.clear();
+        mTemplateUrlService.removeObserver(mTemplateUrlServiceObserver);
     }
 
-    /** Called to set a click listener for the search box. */
-    void setSearchBoxClickListener(OnClickListener listener) {
-        mModel.set(SearchBoxProperties.SEARCH_BOX_CLICK_CALLBACK, v -> listener.onClick(v));
+    private void onSearchBoxClick(View v) {
+        mNewTabPageManager.focusSearchBox(
+                /* beginVoiceSearch= */ false,
+                AutocompleteRequestType.SEARCH,
+                /* showFuseboxPopup= */ false,
+                /* pastedText= */ null);
     }
 
-    void setSearchEngineIcon(StatusProperties.@Nullable StatusIconResource newIcon) {
+    private void onVoiceSearchClick(View v) {
+        mNewTabPageManager.focusSearchBox(
+                /* beginVoiceSearch= */ true,
+                AutocompleteRequestType.SEARCH,
+                /* showFuseboxPopup= */ false,
+                /* pastedText= */ null);
+    }
+
+    private void onPlusButtonClick(View v) {
+        mNewTabPageManager.focusSearchBox(
+                /* beginVoiceSearch= */ false,
+                AutocompleteRequestType.SEARCH,
+                /* showFuseboxPopup= */ true,
+                /* pastedText= */ null);
+    }
+
+    private void onLensClick(View v) {
+        LensMetrics.recordClicked(LensEntryPoint.NEW_TAB_PAGE);
+        LensIntentParams lensIntentParams =
+                new LensIntentParams.Builder(LensEntryPoint.NEW_TAB_PAGE, mIsIncognito).build();
+        LensController.getInstance().startLens(mWindowAndroid, lensIntentParams);
+    }
+
+    void setSearchEngineIcon(@Nullable StatusIconResource newIcon) {
         if (newIcon == null) {
-            mModel.set(SearchBoxProperties.DSE_ICON_RESOURCE_ID, R.drawable.ic_search_24dp);
+            mModel.set(
+                    SearchBoxProperties.DSE_ICON_DRAWABLE,
+                    mContext.getDrawable(R.drawable.ic_search_24dp));
             return;
         }
 
@@ -98,13 +151,29 @@ class SearchBoxMediator implements DestroyObserver {
         // NewTabPageLayout#setSearchProviderInfo(). Thus, we check the icon's resource id to change
         // the icon to be R.drawable.ic_logo_googleg_24dp which doesn't have a padding.
         if (newIcon.getIconRes() == R.drawable.ic_logo_googleg_20dp) {
-            mModel.set(SearchBoxProperties.DSE_ICON_RESOURCE_ID, R.drawable.ic_logo_googleg_24dp);
+            mModel.set(
+                    SearchBoxProperties.DSE_ICON_DRAWABLE,
+                    mContext.getDrawable(R.drawable.ic_logo_googleg_24dp));
             return;
         }
 
+        mModel.set(SearchBoxProperties.DSE_ICON_DRAWABLE, newIcon.getDrawable(mContext));
+    }
+
+    private void updateStartIcon() {
+        boolean isMultimodalInputEnabled = OmniboxFeatures.isMultimodalInputEnabled(mContext);
+        boolean isFuseboxSupportedDeviceType = OmniboxFeatures.isFuseboxSupportedDeviceType();
+
         mModel.set(
-                SearchBoxProperties.DSE_ICON_DRAWABLE,
-                newIcon.getDrawable(mContext, mContext.getResources()));
+                SearchBoxProperties.PLUS_BUTTON_VISIBILITY,
+                isMultimodalInputEnabled
+                        && mIsFuseboxEligible
+                        && isFuseboxSupportedDeviceType
+                        && mTemplateUrlService.isDefaultSearchEngineGoogle());
+    }
+
+    private void onTemplateURLServiceChanged() {
+        updateStartIcon();
     }
 
     /** Called to set a drag listener for the search box. */
@@ -112,51 +181,14 @@ class SearchBoxMediator implements DestroyObserver {
         mModel.set(SearchBoxProperties.SEARCH_BOX_DRAG_CALLBACK, listener);
     }
 
-    /** Called to add a click listener for the voice search button. */
-    void addVoiceSearchButtonClickListener(OnClickListener listener) {
-        boolean hasExistingListeners = !mVoiceSearchClickListeners.isEmpty();
-        mVoiceSearchClickListeners.add(listener);
-        if (hasExistingListeners) return;
-        mModel.set(
-                SearchBoxProperties.VOICE_SEARCH_CLICK_CALLBACK,
-                v -> {
-                    for (OnClickListener clickListener : mVoiceSearchClickListeners) {
-                        clickListener.onClick(v);
-                    }
-                });
-    }
-
-    /** Called to add a click listener for the voice search button. */
-    void addLensButtonClickListener(OnClickListener listener) {
-        boolean hasExistingListeners = !mLensClickListeners.isEmpty();
-        mLensClickListeners.add(listener);
-        if (hasExistingListeners) return;
-        mModel.set(
-                SearchBoxProperties.LENS_CLICK_CALLBACK,
-                v -> {
-                    for (OnClickListener clickListener : mLensClickListeners) {
-                        clickListener.onClick(v);
-                    }
-                });
-    }
-
-    /**
-     * Launch the Lens app.
-     *
-     * @param lensEntryPoint A {@link LensEntryPoint}.
-     * @param windowAndroid A {@link WindowAndroid} instance.
-     * @param isIncognito Whether the request is from a Incognito tab.
-     */
-    void startLens(
-            @LensEntryPoint int lensEntryPoint, WindowAndroid windowAndroid, boolean isIncognito) {
-        LensController.getInstance()
-                .startLens(
-                        windowAndroid,
-                        new LensIntentParams.Builder(lensEntryPoint, isIncognito).build());
+    void setIsFuseboxEligible(boolean isEligible) {
+        mIsFuseboxEligible = isEligible;
+        updateStartIcon();
     }
 
     /**
      * Check whether the Lens is enabled for an entry point.
+     *
      * @param lensEntryPoint A {@link LensEntryPoint}.
      * @param isIncognito Whether the request is from a Incognito tab.
      * @param isTablet Whether the request is from a tablet.

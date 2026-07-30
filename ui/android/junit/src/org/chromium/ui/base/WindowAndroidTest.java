@@ -55,7 +55,10 @@ import java.util.List;
 
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(sdk = BaseRobolectricTestRunner.MAX_SDK)
-@EnableFeatures({UiAndroidFeatures.ANDROID_USE_CORRECT_WINDOW_BOUNDS})
+@EnableFeatures({
+    UiAndroidFeatures.ANDROID_USE_CORRECT_WINDOW_BOUNDS,
+    UiAndroidFeatures.ANDROID_WINDOW_OCCLUSION
+})
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 public class WindowAndroidTest {
 
@@ -99,7 +102,6 @@ public class WindowAndroidTest {
         WindowAndroidJni.setInstanceForTesting(mWindowAndroidNativeInterface);
         mWindowAndroid = new WindowAndroid(mContext, false, null, mInsetObserver, true);
         mWindowAndroid.setNativePointerForTesting(MOCK_NATIVE_POINTER);
-        WindowAndroid.postPeriodicMetricRunner();
     }
 
     @After
@@ -107,6 +109,7 @@ public class WindowAndroidTest {
         if (!mWindowAndroid.isDestroyed()) {
             mWindowAndroid.destroy();
         }
+        WindowAndroid.resetPeriodicMetricsForTesting();
     }
 
     @Test
@@ -282,11 +285,11 @@ public class WindowAndroidTest {
 
         mWindowAndroid.setIsOcclusionTracked(true);
 
-        ShadowSystemClock.advanceBy(java.time.Duration.ofSeconds(1));
+        ShadowSystemClock.advanceBy(Duration.ofSeconds(1));
         mWindowAndroid.setOccluded(true, null, null);
-        ShadowSystemClock.advanceBy(java.time.Duration.ofSeconds(4));
+        ShadowSystemClock.advanceBy(Duration.ofSeconds(4));
         mWindowAndroid.setOccluded(false, null, null);
-        ShadowSystemClock.advanceBy(java.time.Duration.ofSeconds(5));
+        ShadowSystemClock.advanceBy(Duration.ofSeconds(5));
 
         mWindowAndroid.destroy();
 
@@ -302,11 +305,11 @@ public class WindowAndroidTest {
 
         // Do not call setIsOcclusionTracked().
 
-        ShadowSystemClock.advanceBy(java.time.Duration.ofSeconds(1));
+        ShadowSystemClock.advanceBy(Duration.ofSeconds(1));
         mWindowAndroid.setOccluded(true, null, null);
-        ShadowSystemClock.advanceBy(java.time.Duration.ofSeconds(4));
+        ShadowSystemClock.advanceBy(Duration.ofSeconds(4));
         mWindowAndroid.setOccluded(false, null, null);
-        ShadowSystemClock.advanceBy(java.time.Duration.ofSeconds(5));
+        ShadowSystemClock.advanceBy(Duration.ofSeconds(5));
 
         mWindowAndroid.destroy();
 
@@ -332,7 +335,7 @@ public class WindowAndroidTest {
         mWindowAndroid.setIsOcclusionTracked(true);
         mWindowAndroid.setOccluded(true, new Rect(0, 0, 1000, 1000), null); // 1 megapixel
 
-        ShadowSystemClock.advanceBy(java.time.Duration.ofMinutes(5));
+        ShadowSystemClock.advanceBy(Duration.ofMinutes(5));
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
 
         histogramWatcher.assertExpected();
@@ -353,11 +356,11 @@ public class WindowAndroidTest {
         // Both windows occluded for 2.5 minutes (150s)
         window1.setOccluded(true, new Rect(0, 0, 1000, 1000), null); // 1 megapixel
         window2.setOccluded(true, new Rect(0, 0, 1000, 2000), null); // 2 megapixels
-        ShadowSystemClock.advanceBy(java.time.Duration.ofSeconds(150));
+        ShadowSystemClock.advanceBy(Duration.ofSeconds(150));
 
         // Only window 1 occluded for the next 2.5 minutes (150s)
         window2.setOccluded(false, null, null);
-        ShadowSystemClock.advanceBy(java.time.Duration.ofSeconds(150));
+        ShadowSystemClock.advanceBy(Duration.ofSeconds(150));
 
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
 
@@ -381,13 +384,13 @@ public class WindowAndroidTest {
         window.setOccluded(true, new Rect(0, 0, 1000, 1000), null); // 1 megapixel
 
         // Window occluded for 2.5 minutes (150s)
-        ShadowSystemClock.advanceBy(java.time.Duration.ofSeconds(150));
+        ShadowSystemClock.advanceBy(Duration.ofSeconds(150));
 
         window.destroy();
 
         // Another 2.5 minutes passes, but window was destroyed so shouldn't add to accumulated
         // value
-        ShadowSystemClock.advanceBy(java.time.Duration.ofSeconds(150));
+        ShadowSystemClock.advanceBy(Duration.ofSeconds(150));
 
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
 
@@ -403,7 +406,7 @@ public class WindowAndroidTest {
         mWindowAndroid.setIsOcclusionTracked(true);
         mWindowAndroid.setOccluded(true, null, null);
 
-        ShadowSystemClock.advanceBy(java.time.Duration.ofMinutes(5));
+        ShadowSystemClock.advanceBy(Duration.ofMinutes(5));
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
 
         histogramWatcher.assertExpected();
@@ -419,7 +422,7 @@ public class WindowAndroidTest {
         window.setIsOcclusionTracked(true);
         window.setOccluded(true, new Rect(0, 0, 1000, 1000), null); // 1 megapixel
 
-        ShadowSystemClock.advanceBy(java.time.Duration.ofMinutes(5));
+        ShadowSystemClock.advanceBy(Duration.ofMinutes(5));
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
 
         histogramWatcher.assertExpected();
@@ -444,7 +447,7 @@ public class WindowAndroidTest {
         window2.setOccluded(true, new Rect(0, 0, 1000, 2000), null); // 2 megapixels
 
         // Both windows occluded
-        ShadowSystemClock.advanceBy(java.time.Duration.ofMinutes(5));
+        ShadowSystemClock.advanceBy(Duration.ofMinutes(5));
 
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
 
@@ -467,12 +470,12 @@ public class WindowAndroidTest {
         window.setOccluded(true, new Rect(0, 0, 1000, 1000), null); // 1 megapixel
 
         // Window occluded for 2.5 minutes (150s)
-        ShadowSystemClock.advanceBy(java.time.Duration.ofSeconds(150));
+        ShadowSystemClock.advanceBy(Duration.ofSeconds(150));
 
         window.destroy();
 
         // Another 2.5 minutes passes
-        ShadowSystemClock.advanceBy(java.time.Duration.ofSeconds(150));
+        ShadowSystemClock.advanceBy(Duration.ofSeconds(150));
 
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
 

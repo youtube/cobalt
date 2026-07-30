@@ -12,9 +12,10 @@
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
+#include "chrome/browser/ui/page_actions/page_action_controller.h"
 #include "chrome/browser/ui/views/js_optimization/js_optimizations_infobar_delegate.h"
-#include "chrome/browser/ui/views/page_action/page_action_controller.h"
 #include "chrome/browser/ui/views/page_action/page_action_icon_view.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/infobars/content/content_infobar_manager.h"
 #include "content/public/browser/web_contents.h"
@@ -131,7 +132,9 @@ views::BubbleDialogModelHost* JsOptimizationsPageActionController::CreateBubble(
   }
   // TODO(crbug.com/464011395): Refactor to use CLIENT_OWNS_WIDGET.
   views::Widget* const widget =
-      views::BubbleDialogDelegate::CreateBubble(std::move(bubble_unique));
+      views::BubbleDialogDelegate::CreateBubbleDeprecated(
+          std::move(bubble_unique),
+          views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET);
   widget->Show();
   return bubble;
 }

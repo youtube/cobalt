@@ -13,6 +13,7 @@
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/interaction/browser_elements.h"
+#include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/side_panel/side_panel_action_callback.h"
 #include "chrome/browser/ui/side_panel/side_panel_enums.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_ids.h"
@@ -20,14 +21,41 @@
 #include "chrome/browser/ui/views/toolbar/webui_toolbar_web_view.h"
 #include "chrome/browser/ui/webui/webui_toolbar/utils/toolbar_button_utils.h"
 #include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar_ui.h"
+#include "chrome/grit/generated_resources.h"
 #include "ui/base/interaction/element_identifier.h"
+#include "ui/base/l10n/l10n_util.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/controls/menu/menu_runner.h"
 
+struct WebUIPinnedToolbarActions::PendingAnchorRequest {
+  PendingAnchorRequest(
+      actions::ActionId id,
+      base::OnceCallback<
+          void(base::expected<views::BubbleAnchor, GetAnchorFailureReason>)> cb,
+      ui::ElementTracker::Subscription sub);
+  ~PendingAnchorRequest();
+  const actions::ActionId action_id;
+  base::OnceCallback<void(
+      base::expected<views::BubbleAnchor, GetAnchorFailureReason>)>
+      callback;
+  const ui::ElementTracker::Subscription subscription;
+};
+
+WebUIPinnedToolbarActions::PendingAnchorRequest::PendingAnchorRequest(
+    actions::ActionId id,
+    base::OnceCallback<
+        void(base::expected<views::BubbleAnchor, GetAnchorFailureReason>)> cb,
+    ui::ElementTracker::Subscription sub)
+    : action_id(id), callback(std::move(cb)), subscription(std::move(sub)) {}
+
+WebUIPinnedToolbarActions::PendingAnchorRequest::~PendingAnchorRequest() =
+    default;
+
 WebUIPinnedToolbarActions::WebUIPinnedToolbarActions(
-    WebUIToolbarWebView* webui_toolbar_web_view)
-    : webui_toolbar_web_view_(webui_toolbar_web_view),
+    WebUIToolbarControlDelegate* delegate)
+    : delegate_(delegate),
       model_(PinnedToolbarActionsModel::Get(
-          webui_toolbar_web_view->browser_->GetProfile())) {}
+          delegate_->GetBrowser()->GetProfile())) {}
 
 WebUIPinnedToolbarActions::~WebUIPinnedToolbarActions() = default;
 
@@ -100,8 +128,11 @@ void WebUIPinnedToolbarActions::OnActionsChanged() {
     add_state(id, /*highlighted=*/true);
   }
 
-  webui_toolbar_web_view_->OnPinnedToolbarActionsStateChanged(
-      std::move(states));
+  int old_width = GetWidth();
+  delegate_->OnPinnedToolbarActionsStateChanged(std::move(states));
+  if (old_width != GetWidth()) {
+    delegate_->OnPreferredSizeChanged();
+  }
 }
 
 const std::vector<actions::ActionId>&
@@ -112,7 +143,7 @@ WebUIPinnedToolbarActions::PinnedActionIds() const {
 actions::ActionItem* WebUIPinnedToolbarActions::GetActionItemFor(
     actions::ActionId id) {
   return actions::ActionManager::Get().FindAction(
-      id, webui_toolbar_web_view_->browser_->GetActions()->root_action_item());
+      id, delegate_->GetBrowser()->GetActions()->root_action_item());
 }
 
 bool WebUIPinnedToolbarActions::IsOverflowed(actions::ActionId id) {
@@ -180,16 +211,55 @@ ToolbarButton* WebUIPinnedToolbarActions::GetDownloadButton() {
 views::BubbleAnchor WebUIPinnedToolbarActions::GetBubbleAnchor(
     actions::ActionId action_id) {
   if (IsActionPinnedOrPoppedOut(action_id)) {
-    // TODO(https://crbug.com/493870881): Add support for cases where the button
-    // was very recently pinned or popped out and the WebUI hasn't had a chance
-    // to call TrackedElementHandler::TrackedElementVisibilityChanged(), so the
-    // code below will return nullptr.
-    return views::BubbleAnchor(
-        BrowserElements::From(webui_toolbar_web_view_->browser_)
-            ->GetElement(
-                webui_toolbar::ActionIdToElementIdentifier(action_id)));
+    ui::TrackedElement* element =
+        BrowserElements::From(delegate_->GetBrowser())
+            ->GetElement(webui_toolbar::ActionIdToElementIdentifier(action_id));
+    DCHECK(element);
+    return views::BubbleAnchor(element);
   }
   return views::BubbleAnchor();
+}
+
+void WebUIPinnedToolbarActions::GetBubbleAnchorAsync(
+    actions::ActionId action_id,
+    base::OnceCallback<void(base::expected<views::BubbleAnchor,
+                                           GetAnchorFailureReason>)> callback) {
+  auto element_id = webui_toolbar::ActionIdToElementIdentifier(action_id);
+  if (!element_id || !IsActionPinnedOrPoppedOut(action_id)) {
+    std::move(callback).Run(
+        base::unexpected(GetAnchorFailureReason::kAnchorNotFound));
+    return;
+  }
+
+  ui::TrackedElement* element =
+      BrowserElements::From(delegate_->GetBrowser())->GetElement(element_id);
+  if (element) {
+    std::move(callback).Run(views::BubbleAnchor(element));
+    return;
+  }
+
+  auto subscription =
+      ui::ElementTracker::GetElementTracker()->AddElementShownCallback(
+          element_id,
+          BrowserElements::From(delegate_->GetBrowser())->GetContext(),
+          base::BindRepeating(&WebUIPinnedToolbarActions::OnElementShown,
+                              base::Unretained(this), action_id));
+
+  pending_anchor_requests_.push_back(std::make_unique<PendingAnchorRequest>(
+      action_id, std::move(callback), std::move(subscription)));
+}
+
+void WebUIPinnedToolbarActions::OnElementShown(actions::ActionId action_id,
+                                               ui::TrackedElement* element) {
+  auto it = pending_anchor_requests_.begin();
+  while (it != pending_anchor_requests_.end()) {
+    if ((*it)->action_id == action_id) {
+      std::move((*it)->callback).Run(views::BubbleAnchor(element));
+      it = pending_anchor_requests_.erase(it);
+    } else {
+      ++it;
+    }
+  }
 }
 
 PinnedActionToolbarButton* WebUIPinnedToolbarActions::GetChromeLabsButton() {
@@ -199,7 +269,14 @@ PinnedActionToolbarButton* WebUIPinnedToolbarActions::GetChromeLabsButton() {
 void WebUIPinnedToolbarActions::UpdatePinnedStateAndAnnounce(
     actions::ActionId id,
     bool pin) {
-  NOTIMPLEMENTED();
+  if (pin == IsActionPinned(id) ||
+      !GetActionItemFor(id)->GetProperty(actions::kActionItemPinnableKey)) {
+    return;
+  }
+  delegate_->GetView()->GetViewAccessibility().AnnounceAlert(
+      l10n_util::GetStringUTF16(pin ? IDS_TOOLBAR_BUTTON_PINNED
+                                    : IDS_TOOLBAR_BUTTON_UNPINNED));
+  model_->UpdatePinnedState(id, pin);
 }
 
 void WebUIPinnedToolbarActions::Invoke(
@@ -332,7 +409,7 @@ void WebUIPinnedToolbarActions::HandleContextMenu(
 
   menu_runner_.reset();
   menu_model_ = std::make_unique<PinnedActionToolbarButtonMenuModel>(
-      webui_toolbar_web_view_->browser_, action_id);
+      delegate_->GetBrowser(), action_id);
   active_context_menu_action_ = action_id;
 
   menu_runner_ = std::make_unique<views::MenuRunner>(
@@ -340,8 +417,29 @@ void WebUIPinnedToolbarActions::HandleContextMenu(
       base::BindRepeating(&WebUIPinnedToolbarActions::OnActionsChanged,
                           base::Unretained(this)));
 
-  menu_runner_->RunMenuAt(webui_toolbar_web_view_->GetWidget(), nullptr,
+  menu_runner_->RunMenuAt(delegate_->GetView()->GetWidget(), nullptr,
                           screen_rect, views::MenuAnchorPosition::kTopLeft,
                           source_type);
+
   OnActionsChanged();
+}
+
+int WebUIPinnedToolbarActions::GetWidth() const {
+  const int gap = GetLayoutConstant(LayoutConstant::kToolbarIconDefaultMargin);
+  int width = 0;
+  for (const auto& it : delegate_->GetPinnedToolbarActionsState()) {
+    if (it->action == toolbar_ui_api::mojom::PinnedToolbarAction::kDivider) {
+      // Matches toolbar_divider.css
+      width += GetLayoutConstant(LayoutConstant::kToolbarDividerWidth) +
+               2 * GetLayoutConstant(LayoutConstant::kToolbarDividerSpacing) -
+               2 * gap;
+    } else {
+      // Matches toolbar_button.css
+      width += GetLayoutConstant(LayoutConstant::kToolbarButtonHeight);
+    }
+    // Matches gap from pinned_toolbar_actions.css
+    width += gap;
+  }
+  width -= !!width * gap;  // Remove last gap if there was a last gap.
+  return width;
 }

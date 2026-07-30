@@ -54,6 +54,7 @@
 <translation id="1179890706672152411">Geymslurýmið þitt er fullt</translation>
 <translation id="1181037720776840403">Fjarlægja</translation>
 <translation id="1190609913194133056">Tilkynningamiðstöð</translation>
+<translation id="1199631150313925648">Færa inn handvirkt</translation>
 <translation id="1199963004393929848">Grænt þema</translation>
 <translation id="1201402288615127009">Áfram</translation>
 <translation id="1204075260022434100">{count,plural, =1{Bókamerki vistað í „{title}“ á reikningnum þínum: {email}}one{{count} bókamerki vistað í „{title}“ á reikningnum þínum: {email}}other{{count} bókamerki vistuð í „{title}“ á reikningnum þínum: {email}}}</translation>
@@ -720,6 +721,7 @@
 <translation id="3565012355885596568">Ekki tókst að hlaða myndum</translation>
 <translation id="3565930036634619844">Flipi. <ph name="TAB_INDEX" /> af <ph name="NUMBER_OF_TABS" />.</translation>
 <translation id="3567168891086460374">Vista á annan hátt</translation>
+<translation id="3571703298474554279">Fljótlegri leið til að nota forritið</translation>
 <translation id="3572503683475187385">Núverandi flipa er deilt með Gemini þegar þú byrjar nýtt spjall. Þegar þú deilir flipa með Gemini er efni hans og vefslóð send til Google. <ph name="BEGIN_LINK" />Nánar<ph name="END_LINK" /></translation>
 <translation id="3572607909481582402">Á Google-reikningnum þínum</translation>
 <translation id="3575234738189584619">Leita með Linsu</translation>
@@ -786,7 +788,6 @@
 <translation id="3838691874161539578">Athugaðu vistuð aðgangsorð til að efla öryggi og netöryggi</translation>
 <translation id="3838985624086228724">Verðlækkun á vaktaðri vöru, úr <ph name="PREVIOUS_PRICE" /> í <ph name="PRICE" />, <ph name="PRODUCT_NAME" />, <ph name="DOMAIN" /></translation>
 <translation id="385051799172605136">Til baka</translation>
-<translation id="3850952228519377137">Fela „Vakta verð í flipunum mínum“</translation>
 <translation id="3851938967634752633">Aðgangsorðum fyrir <ph name="WEBSITE" />, <ph name="SECOND_WEBSITE" /> og <ph name="NUMBER_OF_ACCOUNTS" /> í viðbót verður eytt. Reikningunum þínum verður ekki eytt.</translation>
 <translation id="3853162385423733133">Halda áfram að nota og vista aðgangsorð á Google-reikningnum þínum<ph name="EMAIL" /></translation>
 <translation id="3853873210696342070">Flytja inn</translation>
@@ -934,7 +935,6 @@
 <translation id="4323122584592971322">OID.</translation>
 <translation id="4324735664183300693">Kveikja á tilkynningum</translation>
 <translation id="4326912346867677256">Ýttu á „Nota aðgangsorð“ til að skrá þig inn á öruggan hátt.</translation>
-<translation id="4327017157997423717">Vakta verð á <ph name="PRODUCT_NAME" />, <ph name="PRICE" />, <ph name="DOMAIN" /></translation>
 <translation id="4328843285884395590">Drifið mitt</translation>
 <translation id="4331177082088332784">Þú getur stjórnað þessu í BEGIN_LINK efnisstillingunum END_LINK</translation>
 <translation id="4334428914252001502">1 ólesin grein.</translation>
@@ -958,6 +958,7 @@
 <translation id="441868831736628555">Persónuverndartilkynning</translation>
 <translation id="4420409367264901497">Breyta bókamerki</translation>
 <translation id="4425365312778464779">Stjórnandi hefur umsjón með þessum reikningi</translation>
+<translation id="443008484043213881">Verkfæri</translation>
 <translation id="4430277756566635951">Núverandi val: <ph name="EMAIL" />. Veldu reikning.</translation>
 <translation id="4430505936695785931">Fáðu vistuð aðgangsorð í öðrum forritum</translation>
 <translation id="4431224949908513835">Veldu greiðslumáta til að fylla inn.</translation>
@@ -1294,6 +1295,7 @@ Einnig þarf að vera kveikt á Handoff í hlutanum General í Settings og tæki
 <translation id="5581786858144165447">Stillingin „Spyrja gervigreind“</translation>
 <translation id="5585019845078534178">Kort</translation>
 <translation id="5591526871732898147">Viðhengd mynd {index}</translation>
+<translation id="5594597292424622277">Gera hlé á spilun myndskeiðs</translation>
 <translation id="5595485650161345191">Breyta heimilisfangi</translation>
 <translation id="559567008082979829">Stilla niðurhal á eyðingu eftir einn mánuð.</translation>
 <translation id="5596627076506792578">Fleiri valkostir</translation>
@@ -1518,7 +1520,6 @@ Einnig þarf að vera kveikt á Handoff í hlutanum General í Settings og tæki
 <translation id="6321526113093607004">Bæta við bókamerki</translation>
 <translation id="6327249202318869726">Slökkt er á Gemini fyrir  reikninginn þinn. Hafðu samband við stjórnanda til að fá frekari upplýsingar.</translation>
 <translation id="6331836477476466332">Öruggari og öflugri vafri fyrir þig</translation>
-<translation id="6335744088476213315">Þetta spjald sýnir vörur sem þú hefur skoðað nýlega og gætir haft áhuga á að vakta til að fá tilkynningar þegar verð á þeim lækkar</translation>
 <translation id="6337234675334993532">Dulkóðun</translation>
 <translation id="6337313937331295309">upplýsingar um persónuvernd Gemini-forrita</translation>
 <translation id="633809752005859102">Eitthvað fór mikið úrskeiðis. Við vinnum í þessu.</translation>
@@ -1573,6 +1574,7 @@ Einnig þarf að vera kveikt á Handoff í hlutanum General í Settings og tæki
 <translation id="6476800141292307438">Þýðir síðuna á <ph name="LANGUAGE" />. Valkostir eru í boði neðarlega á skjánum.</translation>
 <translation id="647867789226964031">Breyttu aðgangsorðunum þínum</translation>
 <translation id="6480363549849064919">Auðkenning biðlara</translation>
+<translation id="6489174933860678546">Opnaðu huliðsflipa til að vafra á vefnum í meira næði.</translation>
 <translation id="6494931198667773526">Lýkur</translation>
 <translation id="6503077044568424649">Oftast heimsótt</translation>
 <translation id="6503763061813913607">Tilkynningar fyrir öryggisathugun</translation>
@@ -1630,6 +1632,7 @@ Einnig þarf að vera kveikt á Handoff í hlutanum General í Settings og tæki
 <translation id="6640268266988685324">Opna flipa</translation>
 <translation id="6641465290890659327">Deildu afriti af aðgangsorðinu þínu</translation>
 <translation id="6642362222295953972">Skipta yfir í núverandi flipa</translation>
+<translation id="6643016212128521049">Hreinsa</translation>
 <translation id="6645899968535965230">QR-kóði: <ph name="PAGE_TITLE" /></translation>
 <translation id="6657585470893396449">Aðgangsorð</translation>
 <translation id="6659660757330712663">Þú getur strokið tækjastikuna til að skipta á milli flipa.</translation>
@@ -1696,6 +1699,7 @@ Einnig þarf að vera kveikt á Handoff í hlutanum General í Settings og tæki
 <translation id="6871397658902960384">Byrja að skoða</translation>
 <translation id="6874328931822449112">{COUNT,plural, =1{Vista aðgangsorð á reikningi}one{Vista aðgangsorð á reikningi}other{Vista aðgangsorð á reikningi}}</translation>
 <translation id="6875166646976836138">Þú getur einnig skoðað og stjórnað þessum atriðum í bókamerkjum, á leslista eða í Aðgangsorðastjórnun</translation>
+<translation id="6878052248816456143">Fáðu aðgang að skrám á Google Drive hvenær sem er.</translation>
 <translation id="6882836635272038266">Hefðbundin vörn gegn vefsvæðum, niðurhali og viðbótum sem vitað er að eru hættuleg.</translation>
 <translation id="6884135917113737984">{COUNT,plural, =1{Vista {COUNT} aðgangsorð á Google-reikningnum þínum}one{Vista {COUNT} aðgangsorð á Google-reikningnum þínum}other{Vista {COUNT} aðgangsorð á Google-reikningnum þínum}}</translation>
 <translation id="6888009575607455378">Ertu viss um að þú viljir fleygja breytingunum?</translation>
@@ -1809,6 +1813,7 @@ Einnig þarf að vera kveikt á Handoff í hlutanum General í Settings og tæki
 <translation id="7345061034321640811">Innflutningur ekki leyfður</translation>
 <translation id="7347998088283246662">Flyttu inn aðgangsorð, feril, bókamerki og fleira</translation>
 <translation id="7352651011704765696">Eitthvað fór úrskeiðis</translation>
+<translation id="7363497636543208734">Nú er auðveldara að fara á milli staða í forritinu.</translation>
 <translation id="7364796246159120393">Veldu skrá</translation>
 <translation id="736564850024123010">Sérstilltu upplifun þína með því að breyta staðsetningu veffangastikunnar.</translation>
 <translation id="7366909168761621528">Vefskoðunargögn</translation>
@@ -2108,7 +2113,6 @@ Einnig þarf að vera kveikt á Handoff í hlutanum General í Settings og tæki
 <translation id="8319282042900445670">Áminning er stillt fyrir <ph name="TIME" />, <ph name="DATE" /></translation>
 <translation id="8320212361750431956">Nýlegar aðgerðir</translation>
 <translation id="8325455175867928593">Fela „Umsagnir sem byggjast á áhugasviðunum mínum“</translation>
-<translation id="8328777765163860529">Loka öllu</translation>
 <translation id="833647236762414178">Búðu til, vistaðu og stjórnaðu aðgangsorðum og aðgangslyklum til að skrá þig inn á vefsvæði og forrit á einfaldan hátt. <ph name="BEGIN_LINK" />Nánar<ph name="END_LINK" /></translation>
 <translation id="8343993175958086504">Afritaðu efnið þitt og notaðu það í hvaða tæki sem er.</translation>
 <translation id="8348530355586151720">Ýttu á þriggja punkta valmyndina</translation>
@@ -2163,6 +2167,7 @@ Einnig þarf að vera kveikt á Handoff í hlutanum General í Settings og tæki
 <translation id="8528009254289981965">Opna tengla úr öðrum forritum í huliðsstillingu</translation>
 <translation id="8529767659511976195">Nýtt</translation>
 <translation id="8531572740963685410">PDF-skrár</translation>
+<translation id="8532059953132740592">Spila myndskeiðið</translation>
 <translation id="8533411848724153701">Gemini</translation>
 <translation id="8533670235862049797">Kveikt er á öruggri vefnotkun</translation>
 <translation id="8534481786647257214">Google+ færsla birt.</translation>
@@ -2291,6 +2296,7 @@ Einnig þarf að vera kveikt á Handoff í hlutanum General í Settings og tæki
 <translation id="8915916167043355778">Loka öllu</translation>
 <translation id="892185197271200809">Allir notendur munu umsvifalaust missa aðgang að flipahópnum „<ph name="GROUP_NAME" />“ og honum verður eytt úr öllum tækjum</translation>
 <translation id="8923178205567790913">Aðgangsorð</translation>
+<translation id="8926498511977337209">Skoðaðu netið í huliðsstillingu</translation>
 <translation id="892776311701544612">Nánar…</translation>
 <translation id="8928133177108699615">Tölvuútgáfa</translation>
 <translation id="8928426232677696166"><ph name="EMAIL" /> er valinn (stjórnað af fyrirtækinu þínu). Veldu reikning.</translation>

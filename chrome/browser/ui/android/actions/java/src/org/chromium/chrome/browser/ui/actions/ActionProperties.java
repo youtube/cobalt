@@ -4,12 +4,14 @@
 
 package org.chromium.chrome.browser.ui.actions;
 
+import android.content.res.ColorStateList;
 import android.graphics.drawable.Drawable;
 import android.view.View;
 
 import org.chromium.base.Callback;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.ui.actions.button.ButtonState;
+import org.chromium.chrome.browser.ui.android.bars_common.IphIntent;
 import org.chromium.chrome.browser.user_education.UserEducationHelper;
 import org.chromium.components.browser_ui.util.TextResolver;
 import org.chromium.ui.modelutil.PropertyKey;
@@ -24,6 +26,10 @@ public class ActionProperties {
 
     /** Setting this property will override the drawable set by the ICON_ID property, if set. */
     public static final WritableObjectPropertyKey<Drawable> ICON_DRAWABLE =
+            new WritableObjectPropertyKey<>();
+
+    /** This property will be controlled by the host of the action. */
+    public static final WritableObjectPropertyKey<ColorStateList> ICON_TINT =
             new WritableObjectPropertyKey<>();
 
     /** This property should have a {@link ButtonState} value. */
@@ -47,6 +53,7 @@ public class ActionProperties {
     public static final PropertyKey[] BASE_KEYS =
             new PropertyKey[] {
                 ICON_ID,
+                ICON_TINT,
                 ICON_DRAWABLE,
                 CONTENT_DESCRIPTION_RESOLVER,
                 TOOLTIP_TEXT_RESOLVER,
@@ -62,6 +69,7 @@ public class ActionProperties {
      */
     public static final PropertyKey[] BASE_KEYS_WITH_BUTTON_STATE_AND_NO_ICON =
             new PropertyKey[] {
+                ICON_TINT,
                 BUTTON_STATE,
                 CONTENT_DESCRIPTION_RESOLVER,
                 TOOLTIP_TEXT_RESOLVER,

@@ -103,14 +103,9 @@ void BrowserAccessibilityManagerAuraLinux::FireFocusEvent(AXNode* node) {
 
 void BrowserAccessibilityManagerAuraLinux::FireSelectedEvent(
     BrowserAccessibility* node) {
-  // Some browser UI widgets, such as the omnibox popup, only send notifications
-  // when they become selected. In contrast elements in a page, such as options
-  // in the select element, also send notifications when they become unselected.
-  // Since AXPlatformNodeAuraLinux must handle firing a platform event for the
-  // unselected case, we can safely ignore the unselected case for rendered
-  // elements.
-  if (!node->GetBoolAttribute(ax::mojom::BoolAttribute::kSelected))
+  if (!node->HasBoolAttribute(ax::mojom::BoolAttribute::kSelected)) {
     return;
+  }
 
   FireEvent(node, ax::mojom::Event::kSelection);
 }
@@ -369,6 +364,11 @@ void BrowserAccessibilityManagerAuraLinux::FireGeneratedEvent(
     case AXEventGenerator::Event::TEXT_ATTRIBUTE_CHANGED:
       FireTextAttributesChangedEvent(wrapper);
       break;
+    case AXEventGenerator::Event::TEXT_SELECTION_CHANGED:
+      if (delegate() && !delegate()->AccessibilityIsWebContentSource()) {
+        FireEvent(wrapper, ax::mojom::Event::kTextSelectionChanged);
+      }
+      break;
     case AXEventGenerator::Event::VALUE_IN_TEXT_FIELD_CHANGED:
     case AXEventGenerator::Event::VALUE_IN_SPIN_BUTTON_DECREMENTED:
     case AXEventGenerator::Event::VALUE_IN_SPIN_BUTTON_INCREMENTED:
@@ -427,7 +427,6 @@ void BrowserAccessibilityManagerAuraLinux::FireGeneratedEvent(
     case AXEventGenerator::Event::SET_SIZE_CHANGED:
     case AXEventGenerator::Event::SPELLING_MARKER_CHANGED:
     case AXEventGenerator::Event::STATE_CHANGED:
-    case AXEventGenerator::Event::TEXT_SELECTION_CHANGED:
     case AXEventGenerator::Event::WIN_IACCESSIBLE_STATE_CHANGED:
       break;
   }

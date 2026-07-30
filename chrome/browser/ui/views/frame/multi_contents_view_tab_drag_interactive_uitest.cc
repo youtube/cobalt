@@ -95,9 +95,14 @@ void Poll(base::RepeatingCallback<bool()> condition,
 class QuitTabDraggingObserver {
  public:
   explicit QuitTabDraggingObserver(TabStripRegionView* tab_strip_view) {
-    tab_strip_view->GetDragContext()->SetDragControllerCallbackForTesting(
-        base::BindOnce(&QuitTabDraggingObserver::OnDragControllerSet,
-                       weak_ptr_factory_.GetWeakPtr()));
+    TabDragContext* context = tab_strip_view->GetDragContext();
+    if (auto* controller = context->GetDragController()) {
+      OnDragControllerSet(controller);
+    } else {
+      context->SetDragControllerCallbackForTesting(
+          base::BindOnce(&QuitTabDraggingObserver::OnDragControllerSet,
+                         weak_ptr_factory_.GetWeakPtr()));
+    }
   }
 
   QuitTabDraggingObserver(const QuitTabDraggingObserver&) = delete;
@@ -205,8 +210,8 @@ class MultiContentsViewTabDragEntrypointsUiTest
   // Returns a `DragStep` that releases the left mouse button.
   DragStep ReleaseMouse() {
     return base::BindOnce([](base::OnceClosure callback) {
-      ui_controls::SendMouseEvents(ui_controls::LEFT, ui_controls::UP);
-      std::move(callback).Run();
+      ui_controls::SendMouseEventsNotifyWhenDone(
+          ui_controls::LEFT, ui_controls::UP, std::move(callback));
     });
   }
 
@@ -299,7 +304,7 @@ IN_PROC_BROWSER_TEST_P(MultiContentsViewTabDragEntrypointsUiParamTest,
 }
 
 // TODO(crbug.com/500937645): Re-enable the test
-#if BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN) || (BUILDFLAG(IS_LINUX) && defined(ARCH_CPU_ARM64))
 #define MAYBE_ShowAndHideDropTarget DISABLED_ShowAndHideDropTarget
 #else
 #define MAYBE_ShowAndHideDropTarget ShowAndHideDropTarget
@@ -336,7 +341,7 @@ IN_PROC_BROWSER_TEST_P(MultiContentsViewTabDragEntrypointsUiParamTest,
 }
 
 // TODO(crbug.com/500937645): Re-enable the test
-#if BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN) || (BUILDFLAG(IS_LINUX) && defined(ARCH_CPU_ARM64))
 #define MAYBE_DragAndDropDisabledForChromePage \
   DISABLED_DragAndDropDisabledForChromePage
 #else
@@ -376,7 +381,8 @@ IN_PROC_BROWSER_TEST_P(MultiContentsViewTabDragEntrypointsUiParamTest,
 }
 
 // TODO(crbug.com/500937645): Re-enable the test
-#if (BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)) && defined(ARCH_CPU_ARM64)
+#if (BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)) && \
+    defined(ARCH_CPU_ARM64)
 #define MAYBE_DragAndDropDisabled DISABLED_DragAndDropDisabled
 #else
 #define MAYBE_DragAndDropDisabled DragAndDropDisabled
@@ -391,7 +397,7 @@ IN_PROC_BROWSER_TEST_F(MultiContentsViewTabDragEntrypointsUiTest,
   }
 #endif
 
-#if BUILDFLAG(IS_LINUX) && !defined(NDEBUG)
+#if BUILDFLAG(IS_LINUX)
   if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
     GTEST_SKIP() << "Skipping test because it fails with InitialWebUI enabled. "
                     "See crbug.com/477426026.";

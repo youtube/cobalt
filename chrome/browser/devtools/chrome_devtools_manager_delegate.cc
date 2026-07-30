@@ -30,10 +30,10 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/browser_navigator.h"
-#include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+#include "chrome/browser/ui/navigator/browser_navigator.h"
+#include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/webui_browser/webui_browser.h"
 #include "chrome/browser/web_applications/proto/web_app_install_state.pb.h"
 #include "chrome/browser/web_applications/web_app.h"
@@ -69,6 +69,9 @@
 #include "ash/constants/ash_switches.h"
 #include "chromeos/constants/chromeos_features.h"
 #endif
+
+static_assert(!BUILDFLAG(IS_ANDROID),
+              "This file should not be included in Android build");
 
 using content::DevToolsAgentHost;
 
@@ -364,16 +367,14 @@ bool ChromeDevToolsManagerDelegate::AllowInspectingRenderFrameHost(
 
 bool ChromeDevToolsManagerDelegate::AllowInspectingTarget(
     content::DevToolsAgentHost* agent_host) {
-#if BUILDFLAG(IS_ANDROID)
-  return true;
-#else
+  // For Android, we have the same implementation
+  // in DevToolsManagerDelegateAndroid.
   Profile* profile =
       Profile::FromBrowserContext(agent_host->GetBrowserContext());
   if (!profile) {
     return true;
   }
   return IsInspectionAllowed(profile, agent_host);
-#endif
 }
 
 void ChromeDevToolsManagerDelegate::ClientAttached(

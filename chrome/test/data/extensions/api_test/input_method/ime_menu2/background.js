@@ -18,7 +18,7 @@ const MENU_ITEMS = [
     visible: true,
     checked: false,
     enabled: true,
-  }
+  },
 ];
 
 const MENU_ITEMS_UPDATE = [
@@ -37,7 +37,7 @@ const MENU_ITEMS_UPDATE = [
     visible: false,
     checked: false,
     enabled: false,
-  }
+  },
 ];
 
 const MENU_ITEMS_ACTIVATED = [
@@ -56,7 +56,7 @@ const MENU_ITEMS_ACTIVATED = [
     visible: true,
     checked: true,
     enabled: true,
-  }
+  },
 ];
 
 const compareMenuItems = function(items1, items2) {
@@ -79,7 +79,7 @@ chrome.test.runTests([
     });
     chrome.inputMethodPrivate.onImeMenuListChanged.addListener(function() {
       ++listChangeCount;
-      if (listChangeCount == 2) {
+      if (listChangeCount === 2) {
         chrome.test.sendMessage('list_change');
         chrome.test.succeed();
       }
@@ -90,7 +90,7 @@ chrome.test.runTests([
     chrome.inputMethodPrivate.onImeMenuItemsChanged.addListener(
         function(engineID, items) {
           chrome.test.assertEq('test', engineID);
-          if (onMenuItemChangeCount == 0) {
+          if (onMenuItemChangeCount === 0) {
             compareMenuItems(MENU_ITEMS, items);
             ++onMenuItemChangeCount;
           } else {

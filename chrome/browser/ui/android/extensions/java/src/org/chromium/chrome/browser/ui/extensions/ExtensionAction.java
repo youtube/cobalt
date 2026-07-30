@@ -11,6 +11,9 @@ import org.jni_zero.JNINamespace;
 import org.jni_zero.JniType;
 
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.ui.toolbar.AdminPolicy;
+import org.chromium.chrome.browser.ui.toolbar.SiteAccess;
 
 import java.util.Objects;
 
@@ -24,20 +27,63 @@ import java.util.Objects;
 public class ExtensionAction {
     private final String mId;
     private final String mName;
-    private final String mTooltip;
     private final String mAccessibleName;
+    private final HoverCardState mHoverCardState;
+
+    public static class HoverCardState {
+        private final @SiteAccess int mSiteAccess;
+        private final @Nullable String mSiteAccessTitle;
+        private final @Nullable String mSiteAccessDescription;
+
+        private final @AdminPolicy int mPolicy;
+        private final @Nullable String mPolicyText;
+
+        @CalledByNative
+        public HoverCardState(
+                @SiteAccess int siteAccess,
+                @JniType("std::optional<std::string>") @Nullable String siteAccessTitle,
+                @JniType("std::optional<std::string>") @Nullable String siteAccessDescription,
+                @AdminPolicy int policy,
+                @JniType("std::optional<std::string>") @Nullable String policyText) {
+            mSiteAccess = siteAccess;
+            mSiteAccessTitle = siteAccessTitle;
+            mSiteAccessDescription = siteAccessDescription;
+            mPolicy = policy;
+            mPolicyText = policyText;
+        }
+
+        public @SiteAccess int getSiteAccess() {
+            return mSiteAccess;
+        }
+
+        public @Nullable String getSiteAccessTitle() {
+            return mSiteAccessTitle;
+        }
+
+        public @Nullable String getSiteAccessDescription() {
+            return mSiteAccessDescription;
+        }
+
+        public @AdminPolicy int getAdminPolicy() {
+            return mPolicy;
+        }
+
+        public @Nullable String getPolicyText() {
+            return mPolicyText;
+        }
+    }
 
     @CalledByNative
     @VisibleForTesting
     public ExtensionAction(
             @JniType("std::string") String id,
             @JniType("std::string") String name,
-            @JniType("std::string") String tooltip,
-            @JniType("std::string") String accessibleName) {
+            @JniType("std::string") String accessibleName,
+            HoverCardState hoverCardState) {
         mId = id;
         mName = name;
-        mTooltip = tooltip;
         mAccessibleName = accessibleName;
+        mHoverCardState = hoverCardState;
     }
 
     public String getName() {
@@ -48,12 +94,12 @@ public class ExtensionAction {
         return mId;
     }
 
-    public String getTooltip() {
-        return mTooltip;
-    }
-
     public String getAccessibleName() {
         return mAccessibleName;
+    }
+
+    public HoverCardState getHoverCardState() {
+        return mHoverCardState;
     }
 
     @Override
@@ -61,7 +107,6 @@ public class ExtensionAction {
         if (o instanceof ExtensionAction other) {
             return mId.equals(other.mId)
                     && mName.equals(other.mName)
-                    && mTooltip.equals(other.mTooltip)
                     && mAccessibleName.equals(other.mAccessibleName);
         }
         return false;
@@ -69,6 +114,6 @@ public class ExtensionAction {
 
     @Override
     public int hashCode() {
-        return Objects.hash(mId, mName, mTooltip, mAccessibleName);
+        return Objects.hash(mId, mName, mAccessibleName);
     }
 }

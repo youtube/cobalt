@@ -17,6 +17,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -39,7 +40,6 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.Robolectric;
@@ -50,6 +50,7 @@ import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.RobolectricUtil;
+import org.chromium.chrome.browser.omnibox.FuseboxSessionState;
 import org.chromium.chrome.browser.omnibox.LocationBarDataProvider;
 import org.chromium.chrome.browser.omnibox.OmniboxStub;
 import org.chromium.chrome.browser.omnibox.suggestions.AutocompleteController;
@@ -62,7 +63,9 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.components.omnibox.AutocompleteInput;
 import org.chromium.components.omnibox.AutocompleteMatch;
+import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.components.prefs.PrefService;
 import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.components.user_prefs.UserPrefs;
@@ -95,6 +98,8 @@ public class VoiceRecognitionHandlerUnitTest {
     private @Mock LocationBarDataProvider mDataProvider;
     private @Mock OmniboxStub mOmniboxStub;
     private @Mock AndroidPermissionDelegate mPermissionDelegate;
+    private @Mock FuseboxSessionState mFuseboxSessionState;
+    private @Mock AutocompleteInput mAutocompleteInput;
     private @Mock Profile mProfile;
     private @Mock PrefService mPrefs;
     private @Mock TemplateUrlService mTemplateUrlService;
@@ -285,7 +290,7 @@ public class VoiceRecognitionHandlerUnitTest {
         clearInvocations(mObserver);
 
         mHandler.destroy();
-        mProfileSupplier.set(Mockito.mock(Profile.class));
+        mProfileSupplier.set(mock(Profile.class));
         // Stop propagating changes after destroy.
         verifyNoInteractions(mObserver);
     }
@@ -485,5 +490,23 @@ public class VoiceRecognitionHandlerUnitTest {
                 results,
                 new String[] {"a", "www.b.co.uk", "engadget.com", "www.google.com"},
                 new float[] {1.0f, 1.0f, 1.0f, 1.0f});
+    }
+
+    @Test
+    @SmallTest
+    public void testHandleTranscriptionResult_aimRequestLowConfidence_noUrlNavigation() {
+        float confidence = 0;
+        setVoiceResult(Activity.RESULT_OK, /* text= */ "voice text", confidence);
+
+        doReturn(mFuseboxSessionState).when(mDataProvider).getFuseboxSessionState();
+        doReturn(mAutocompleteInput).when(mFuseboxSessionState).getAutocompleteInput();
+        doReturn(AutocompleteRequestType.AI_MODE).when(mAutocompleteInput).getRequestType();
+
+        mHandler.startVoiceRecognition(VoiceInteractionSource.OMNIBOX, () -> {});
+
+        ArgumentCaptor<AutocompleteInput> inputCaptor =
+                ArgumentCaptor.forClass(AutocompleteInput.class);
+        verify(mOmniboxStub).beginInput(inputCaptor.capture());
+        assertEquals(AutocompleteRequestType.AI_MODE, inputCaptor.getValue().getRequestType());
     }
 }

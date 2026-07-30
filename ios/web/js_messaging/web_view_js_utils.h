@@ -13,6 +13,7 @@
 
 namespace base {
 class Value;
+class DictValue;
 }  // namespace base
 
 #import "ios/web/public/js_messaging/web_view_js_utils.h"
@@ -36,6 +37,9 @@ enum JSEvaluationErrorCode {
 // Converts base::Value to an equivalent Foundation object.
 id NSObjectFromValueResult(const base::Value* value_result);
 
+// Converts base::DictValue to an equivalent NSDictionary.
+id NSDictionaryFromValue(const base::DictValue& dict);
+
 // Executes JavaScript on WKWebView. If the web view cannot execute JS at the
 // moment, `completion_handler` is called with an NSError.
 void ExecuteJavaScript(WKWebView* web_view,
@@ -51,6 +55,17 @@ void ExecuteJavaScript(WKWebView* web_view,
                        WKFrameInfo* frame_info,
                        NSString* script,
                        void (^completion_handler)(id, NSError*));
+
+// Executes JavaScript asynchronously for a `web_view` in `frame_info` within
+// `content_world` and calls `completion_handler` with the result.
+// `content_world` and `frame_info` are required. If the web view cannot execute
+// JS at the moment, `completion_handler` is called with an NSError.
+void ExecuteAsyncJavaScript(WKWebView* web_view,
+                            WKContentWorld* content_world,
+                            WKFrameInfo* frame_info,
+                            NSString* script,
+                            NSDictionary<NSString*, id>* arguments,
+                            void (^completion_handler)(id, NSError*));
 
 // Calls into the JavaScript in `content_world` to trigger the registration of
 // all web frames.

@@ -23,8 +23,8 @@ import org.chromium.base.ThreadUtils;
 import org.chromium.base.Token;
 import org.chromium.base.test.transit.ScrollableFacility;
 import org.chromium.base.test.transit.ViewElement;
+import org.chromium.chrome.R;
 import org.chromium.chrome.browser.tab.TabId;
-import org.chromium.chrome.test.R;
 import org.chromium.chrome.test.transit.SoftKeyboardFacility;
 import org.chromium.chrome.test.transit.tabmodel.TabsPinnedStatusCondition;
 import org.chromium.components.browser_ui.widget.list_view.TouchTrackingListView;
@@ -93,9 +93,7 @@ public class TabSwitcherTabCardContextMenuFacility<HostStationT extends TabSwitc
 
         List<Token> allTabGroupIds =
                 ThreadUtils.runOnUiThreadBlocking(
-                        () ->
-                                new ArrayList<>(
-                                        mHostStation.getTabGroupModelFilter().getAllTabGroupIds()));
+                        () -> new ArrayList<>(mHostStation.getTabModel().getAllTabGroupIds()));
         return addTabToGroup
                 .scrollToAndSelectTo()
                 .enterFacility(

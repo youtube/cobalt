@@ -169,15 +169,10 @@ void GlicShareImageHandler::DidFinishNavigation(
   }
 }
 
-void GlicShareImageHandler::PanelStateChanged(
-    const mojom::PanelState& panel_state,
-    const PanelStateContext& context) {}
-
-void GlicShareImageHandler::OnInstanceDestroyed() {
+void GlicShareImageHandler::OnInstanceWillBeDestroyed(GlicInstance* instance) {
   if (!instance_change_permitted_) {
     ShareComplete(ShareImageResult::kFailedLostInstance);
   }
-  instance_observation_.Reset();
 }
 
 void GlicShareImageHandler::OnWillDiscardContents(
@@ -454,7 +449,36 @@ void GlicShareImageHandler::OnPastePolicyCheckComplete(
   // WebContents destruction.
   StopObservingNavigation();
 
-  ShareComplete(ShareImageResult::kSentImageToClient);
+  WaitForOnboardingCompletion();
+}
+
+void GlicShareImageHandler::WaitForOnboardingCompletion() {
+  if (GlicEnabling::HasConsentedForProfile(service_->profile())) {
+    ShareComplete(ShareImageResult::kSentImageToClient);
+    return;
+  }
+
+  onboarding_timeout_timer_.Start(
+      FROM_HERE, base::Minutes(1),
+      base::BindOnce(&GlicShareImageHandler::OnOnboardingTimeout,
+                     weak_ptr_factory_.GetWeakPtr()));
+
+  onboarding_subscription_ = service_->enabling().RegisterOnConsentChanged(
+      base::BindRepeating(&GlicShareImageHandler::OnOnboardingStatusChanged,
+                          weak_ptr_factory_.GetWeakPtr()));
+}
+
+void GlicShareImageHandler::OnOnboardingStatusChanged() {
+  if (GlicEnabling::HasConsentedForProfile(service_->profile())) {
+    onboarding_timeout_timer_.Stop();
+    onboarding_subscription_ = base::CallbackListSubscription();
+    ShareComplete(ShareImageResult::kSentImageToClient);
+  }
+}
+
+void GlicShareImageHandler::OnOnboardingTimeout() {
+  onboarding_subscription_ = base::CallbackListSubscription();
+  ShareComplete(ShareImageResult::kFailedTimedOutDidNotCompleteOnboarding);
 }
 
 std::optional<bool> GlicShareImageHandler::IsClientReady(
@@ -464,8 +488,7 @@ std::optional<bool> GlicShareImageHandler::IsClientReady(
     return std::nullopt;
   }
   if (GlicInstance* instance = *optional_instance) {
-    return instance->host().IsWebClientConnected() &&
-           GlicEnabling::HasConsentedForProfile(service_->profile());
+    return instance->host().IsWebClientConnected();
   }
   return false;
 }
@@ -483,11 +506,11 @@ std::optional<GlicInstance*> GlicShareImageHandler::GetAndVerifyInstance(
       return std::nullopt;
     }
     instance_id_ = id;
-    if (instance_observation_.GetSource() != instance) {
-      instance_observation_.Reset();
-      if (instance) {
-        instance_observation_.Observe(instance);
-      }
+    instance_destruction_subscription_ = {};
+    if (instance) {
+      instance_destruction_subscription_ = instance->RegisterWillBeDestroyed(
+          base::BindOnce(&GlicShareImageHandler::OnInstanceWillBeDestroyed,
+                         base::Unretained(this)));
     }
   }
   return instance;
@@ -561,9 +584,11 @@ void GlicShareImageHandler::Reset() {
   thumbnail_data_.clear();
   mime_type_ = "";
   StopObservingNavigation();
-  instance_observation_.Reset();
+  instance_destruction_subscription_ = {};
   instance_id_ = InstanceId::CreateNullId();
   instance_change_permitted_ = true;
+  onboarding_timeout_timer_.Stop();
+  onboarding_subscription_ = base::CallbackListSubscription();
 
   // Ensure that async callbacks aren't invoked.
   weak_ptr_factory_.InvalidateWeakPtrs();

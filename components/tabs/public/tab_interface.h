@@ -27,6 +27,7 @@ class WebContents;
 }  // namespace content
 
 class BrowserWindowInterface;
+class Profile;
 
 namespace split_tabs {
 class SplitTabId;
@@ -90,6 +91,8 @@ class TabInterface : public SupportsTabHandles {
   // unavoidable, this method may be used. Features that live entirely above the
   // //content layer should not use this method.
   static TabInterface* MaybeGetFromContents(content::WebContents* web_contents);
+  static const TabInterface* MaybeGetFromContents(
+      const content::WebContents* web_contents);
 
   // Returns a weak pointer to `this`.
   //
@@ -134,6 +137,9 @@ class TabInterface : public SupportsTabHandles {
   //   Windows/Mac/Linux, the recommendation is to hold a pointer to the
   //   TabInterface and call GetContents() when needed as described above.
   virtual content::WebContents* GetContents() const = 0;
+
+  // Returns the Profile associated with this tab.
+  virtual Profile* GetProfile() const = 0;
 
   // Closes the tab.
   virtual void Close() = 0;

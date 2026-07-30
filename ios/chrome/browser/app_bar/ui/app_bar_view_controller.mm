@@ -4,15 +4,19 @@
 
 #import "ios/chrome/browser/app_bar/ui/app_bar_view_controller.h"
 
+#import <CoreGraphics/CoreGraphics.h>
+
 #import <optional>
 
 #import "base/metrics/user_metrics.h"
 #import "base/metrics/user_metrics_action.h"
 #import "components/strings/grit/components_strings.h"
+#import "ios/chrome/browser/app_bar/ui/app_bar_background_view.h"
 #import "ios/chrome/browser/app_bar/ui/app_bar_constants.h"
+#import "ios/chrome/browser/app_bar/ui/app_bar_iph_background_view.h"
 #import "ios/chrome/browser/app_bar/ui/app_bar_mutator.h"
 #import "ios/chrome/browser/app_bar/ui/app_bar_utils.h"
-#import "ios/chrome/browser/app_bar/ui/app_bar_view.h"
+#import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_animator.h"
 #import "ios/chrome/browser/intents/model/intents_donation_helper.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/commands/tab_grid_commands.h"
@@ -49,10 +53,6 @@ constexpr CGFloat kSpotlightViewHorizontalInset = 12;
 constexpr CGFloat kSpotlightViewVerticalInset = 2;
 // Offset of the tab count label in the tab grid button tab group state.
 constexpr CGFloat kTabGroupLabelOffset = 3;
-// Corner radius for the symbol preview.
-constexpr CGFloat kSymbolPreviewCornerRadius = 4;
-// Corner radius for the label preview.
-constexpr CGFloat kLabelPreviewCornerRadius = 2;
 
 // The spacing inside the stack view.
 constexpr CGFloat kStackViewSpacing = 4;
@@ -64,6 +64,9 @@ constexpr CGFloat kStackViewLandscapeVerticalOffset = 2;
 // The inner padding of the buttons.
 constexpr CGFloat kButtonHorizontalPadding = 4;
 constexpr CGFloat kButtonVerticalPadding = 12;
+
+// Duration of the IPH show/hide animation.
+constexpr CGFloat kIPHAnimationDuration = 0.3;
 
 // Returns the color to be used as foreground color for the buttons.
 UIColor* ButtonsForegroundColor() {
@@ -138,14 +141,26 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
   // Cached avatar for the assistant button.
   UIImage* _assistantButtonAvatar;
   // The background view.
-  AppBarView* _backgroundView;
+  AppBarBackgroundView* _backgroundView;
   // The stack view constraints that are updated on rotation.
   NSLayoutConstraint* _stackViewTopConstraint;
   NSLayoutConstraint* _stackViewBottomConstraint;
   // Container view for the Tab Grid button's custom preview.
-  UIView* _tabGridPreviewContainer;
+  UIView* _tabGridContentView;
   // The alpha for the titles of the buttons.
   CGFloat _buttonsTitleAlpha;
+  // Background view for the IPH.
+  AppBarIPHBackgroundView* _IPHBackgroundView;
+  // Whether the App Bar content is rotated.
+  BOOL _isRotated;
+  // Constraints to make buttons square in landscape so that long press
+  // animation does not leak beyond bounds of app bar.
+  NSArray<NSLayoutConstraint*>* _buttonWidthConstraints;
+  // Stack view for buttons.
+  UIStackView* _stackView;
+  // Spacers to for button layout in landscape.
+  UIView* _leadingSpacer;
+  UIView* _trailingSpacer;
 }
 
 #pragma mark - Accessors & Mutators
@@ -168,12 +183,26 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
 - (void)updateForAngle:(CGFloat)angle {
   [self loadViewIfNeeded];
 
+  _isRotated = (angle != 0);
+
   CGAffineTransform transform = CGAffineTransformMakeRotation(angle);
   _assistantButton.transform = transform;
   _openNewTabButton.transform = transform;
   _tabGridButton.transform = transform;
 
-  [self updateStackViewConstraintsForPortrait:(angle == 0)];
+  if (_isRotated) {
+    _stackView.distribution = UIStackViewDistributionEqualSpacing;
+    [NSLayoutConstraint activateConstraints:_buttonWidthConstraints];
+    _leadingSpacer.hidden = NO;
+    _trailingSpacer.hidden = NO;
+  } else {
+    _stackView.distribution = UIStackViewDistributionFillEqually;
+    [NSLayoutConstraint deactivateConstraints:_buttonWidthConstraints];
+    _leadingSpacer.hidden = YES;
+    _trailingSpacer.hidden = YES;
+  }
+
+  [self updateStackViewConstraintsForPortrait:!_isRotated];
 }
 
 - (void)toggleSpotlightView:(BOOL)shouldShow {
@@ -181,12 +210,38 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
   _spotlightView.hidden = !shouldShow;
 }
 
+- (void)showIPHBackground {
+  if (!_IPHBackgroundView) {
+    _IPHBackgroundView = [[AppBarIPHBackgroundView alloc] init];
+    _IPHBackgroundView.translatesAutoresizingMaskIntoConstraints = NO;
+    _IPHBackgroundView.alpha = 0;
+    [_backgroundView insertSubview:_IPHBackgroundView atIndex:0];
+
+    AddSameConstraints(_backgroundView, _IPHBackgroundView);
+  }
+
+  UIView* background = _IPHBackgroundView;
+
+  [UIView animateWithDuration:kIPHAnimationDuration
+                   animations:^{
+                     background.alpha = 1.0;
+                   }];
+}
+
+- (void)hideIPHBackground {
+  UIView* background = _IPHBackgroundView;
+  [UIView animateWithDuration:kIPHAnimationDuration
+                   animations:^{
+                     background.alpha = 0.0;
+                   }];
+}
+
 #pragma mark - UIViewController
 
 - (void)viewDidLoad {
   [super viewDidLoad];
 
-  _backgroundView = [[AppBarView alloc] init];
+  _backgroundView = [[AppBarBackgroundView alloc] init];
   _backgroundView.translatesAutoresizingMaskIntoConstraints = NO;
   [self.view insertSubview:_backgroundView atIndex:0];
 
@@ -198,21 +253,41 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
   [self updateTabGridButtonForTabGridVisibility];
   [self updateNewTabButtonAccessibilityLabel];
 
-  UIStackView* stackView = [[UIStackView alloc] initWithArrangedSubviews:@[
-    _assistantButton, _openNewTabButton, _tabGridButton
+  // When rotated in landscape, add spacers at the beginning and end of the
+  // stack view so that the buttons width match the "height" of the stack view,
+  // thus not leaking outside of the stack view's frame during the long press
+  // animation.
+  _leadingSpacer = [[UIView alloc] init];
+  _trailingSpacer = [[UIView alloc] init];
+  _leadingSpacer.translatesAutoresizingMaskIntoConstraints = NO;
+  _trailingSpacer.translatesAutoresizingMaskIntoConstraints = NO;
+  _leadingSpacer.hidden = YES;
+  _trailingSpacer.hidden = YES;
+
+  _stackView = [[UIStackView alloc] initWithArrangedSubviews:@[
+    _leadingSpacer, _assistantButton, _openNewTabButton, _tabGridButton,
+    _trailingSpacer
   ]];
-  stackView.translatesAutoresizingMaskIntoConstraints = NO;
-  stackView.distribution = UIStackViewDistributionFillEqually;
-  stackView.spacing = kStackViewSpacing;
-  stackView.tintAdjustmentMode = UIViewTintAdjustmentModeNormal;
+  _stackView.translatesAutoresizingMaskIntoConstraints = NO;
+  _stackView.distribution = UIStackViewDistributionFillEqually;
+  _stackView.spacing = kStackViewSpacing;
+  _stackView.tintAdjustmentMode = UIViewTintAdjustmentModeNormal;
+
+  _buttonWidthConstraints = @[
+    [_assistantButton.widthAnchor
+        constraintEqualToAnchor:_stackView.heightAnchor],
+    [_openNewTabButton.widthAnchor
+        constraintEqualToAnchor:_stackView.heightAnchor],
+    [_tabGridButton.widthAnchor constraintEqualToAnchor:_stackView.heightAnchor]
+  ];
 
   UIView* view = self.view;
-  [view addSubview:stackView];
+  [view addSubview:_stackView];
 
   _stackViewTopConstraint =
-      [stackView.topAnchor constraintEqualToAnchor:view.topAnchor];
+      [_stackView.topAnchor constraintEqualToAnchor:view.topAnchor];
   _stackViewBottomConstraint =
-      [stackView.bottomAnchor constraintEqualToAnchor:view.bottomAnchor];
+      [_stackView.bottomAnchor constraintEqualToAnchor:view.bottomAnchor];
 
   [NSLayoutConstraint activateConstraints:@[
     [_backgroundView.leadingAnchor constraintEqualToAnchor:view.leadingAnchor],
@@ -221,18 +296,18 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
     [_backgroundView.bottomAnchor constraintEqualToAnchor:view.bottomAnchor],
     [_backgroundView.topAnchor constraintEqualToAnchor:view.topAnchor
                                               constant:-kAppBarCornerRadius],
-    [stackView.leadingAnchor
+    [_stackView.leadingAnchor
         constraintEqualToAnchor:view.leadingAnchor
                        constant:kStackViewHorizontalMargin],
     _stackViewTopConstraint,
-    [stackView.trailingAnchor
+    [_stackView.trailingAnchor
         constraintEqualToAnchor:view.trailingAnchor
                        constant:-kStackViewHorizontalMargin],
     _stackViewBottomConstraint,
     [view.heightAnchor constraintEqualToConstant:kAppBarHeight],
   ]];
 
-  [self.layoutGuideCenter referenceView:stackView underName:kAppBarGuide];
+  [self.layoutGuideCenter referenceView:_stackView underName:kAppBarGuide];
 
   // The AppBar is created in "portrait" orientation.
   [self updateStackViewConstraintsForPortrait:YES];
@@ -275,6 +350,7 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
   _isTabGridVisible = tabGridVisible;
   _backgroundView.hideColorBackground = tabGridVisible;
   [self updateTabGridButtonForTabGridVisibility];
+  [self updateNewTabButtonForTabGroupsVisibility];
   [self updateNewTabButtonAccessibilityLabel];
 }
 
@@ -304,6 +380,7 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
       return;
     case AppBarButtonTypeNewTab:
       _openNewTabButtonMenu = menu;
+      _openNewTabButton.menu = menu;
       return;
     case AppBarButtonTypeTabGrid:
       _tabGridButtonMenu = menu;
@@ -354,6 +431,14 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
   [self setButtonsTitleAlpha:targetAlpha animationDuration:0];
 }
 
+- (void)animateFullscreenWithAnimator:(FullscreenAnimator*)animator {
+  CGFloat targetAlpha =
+      AppBarPositionForView(self.view) == AppBarPosition::kBottom
+          ? animator.finalProgress
+          : 1.0;
+  [self setButtonsTitleAlpha:targetAlpha animationDuration:animator.duration];
+}
+
 #pragma mark - FullscreenBrowserAgentObserving
 
 - (void)fullscreenWillUpdateState:(FullscreenBrowserAgent*)agent {
@@ -366,99 +451,6 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
 }
 
 #pragma mark - Private
-
-// Lays out the Tab Grid subviews in the given container.
-- (void)layoutTabGridSubviewsInContainer:(UIView*)container {
-  [container addSubview:_tabGridSymbolView];
-  [container addSubview:_tabCountLabel];
-
-  [NSLayoutConstraint activateConstraints:@[
-    [_tabGridSymbolView.centerXAnchor
-        constraintEqualToAnchor:container.centerXAnchor],
-    [_tabGridSymbolView.centerYAnchor
-        constraintEqualToAnchor:container.centerYAnchor],
-  ]];
-
-  BOOL shouldShowTabGroupSymbol = _isTabGroupVisible || _inTabGroup;
-  if (shouldShowTabGroupSymbol) {
-    [NSLayoutConstraint activateConstraints:@[
-      [_tabCountLabel.centerXAnchor
-          constraintEqualToAnchor:container.centerXAnchor
-                         constant:kTabGroupLabelOffset],
-      [_tabCountLabel.centerYAnchor
-          constraintEqualToAnchor:container.centerYAnchor
-                         constant:kTabGroupLabelOffset],
-    ]];
-  } else {
-    [NSLayoutConstraint activateConstraints:@[
-      [_tabCountLabel.centerXAnchor
-          constraintEqualToAnchor:container.centerXAnchor],
-      [_tabCountLabel.centerYAnchor
-          constraintEqualToAnchor:container.centerYAnchor],
-    ]];
-  }
-}
-
-// Helper to create the custom preview for the Tab Grid button.
-- (UITargetedPreview*)tabGridPreviewAndStoreContainer:(BOOL)shouldStore {
-  UIView* container =
-      [[UIView alloc] initWithFrame:_tabGridButton.imageView.frame];
-  container.backgroundColor = [UIColor clearColor];
-
-  [_tabGridSymbolView removeFromSuperview];
-  [_tabCountLabel removeFromSuperview];
-
-  [self layoutTabGridSubviewsInContainer:container];
-  [container layoutIfNeeded];
-
-  UIPreviewParameters* parameters = [[UIPreviewParameters alloc] init];
-  parameters.backgroundColor = [UIColor clearColor];
-
-  UIBezierPath* path =
-      [UIBezierPath bezierPathWithRoundedRect:_tabGridSymbolView.frame
-                                 cornerRadius:kSymbolPreviewCornerRadius];
-  [path appendPath:[UIBezierPath
-                       bezierPathWithRoundedRect:_tabCountLabel.frame
-                                    cornerRadius:kLabelPreviewCornerRadius]];
-  parameters.visiblePath = path;
-
-  UIPreviewTarget* target = [[UIPreviewTarget alloc]
-      initWithContainer:_tabGridButton
-                 center:_tabGridButton.imageView.center];
-
-  if (shouldStore) {
-    _tabGridPreviewContainer = container;
-  }
-
-  return [[UITargetedPreview alloc] initWithView:container
-                                      parameters:parameters
-                                          target:target];
-}
-
-// Helper to restore the Tab Grid button subviews after context menu dismissal.
-- (void)restoreTabGridButtonSubviews {
-  [_tabGridSymbolView removeFromSuperview];
-  [_tabCountLabel removeFromSuperview];
-
-  [_tabGridButton addSubview:_tabGridSymbolView];
-  [_tabGridButton addSubview:_tabCountLabel];
-
-  AddSameCenterConstraints(_tabGridSymbolView, _tabGridButton.imageView);
-
-  BOOL shouldShowTabGroupSymbol = _isTabGroupVisible || _inTabGroup;
-  if (shouldShowTabGroupSymbol) {
-    [NSLayoutConstraint
-        activateConstraints:_tabGridButtonTabGroupStateConstraints];
-  } else {
-    [NSLayoutConstraint
-        activateConstraints:_tabGridButtonNormalStateConstraints];
-  }
-
-  [_tabGridButton bringSubviewToFront:_tabCountLabel];
-  [_tabGridButton layoutIfNeeded];
-
-  _tabGridPreviewContainer = nil;
-}
 
 // Updates the stack view constraints based on the orientation.
 - (void)updateStackViewConstraintsForPortrait:(BOOL)portrait {
@@ -485,10 +477,16 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
     NSFontAttributeName : AssistantButtonFontSize(self.traitCollection)
   }];
 
-  CGFloat availableWidthForButton =
-      (self.view.bounds.size.width - 2 * kStackViewHorizontalMargin -
-       2 * kStackViewSpacing) /
-      3.0;
+  CGFloat availableWidthForButton;
+  if (_isRotated) {
+    availableWidthForButton = self.view.bounds.size.height;
+  } else {
+    availableWidthForButton =
+        (self.view.bounds.size.width - 2 * kStackViewHorizontalMargin -
+         2 * kStackViewSpacing) /
+        3.0;
+  }
+
   CGFloat availableWidthForTitle =
       availableWidthForButton - 2 * kButtonHorizontalPadding;
 
@@ -631,16 +629,9 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
   return button;
 }
 
-// Updates the configuration for standard buttons.
-- (void)updateStandardButtonConfiguration:(UIButton*)button {
-  UIButtonConfiguration* config = button.configuration;
-  CGFloat highlightAlpha = ButtonHighlightAlpha(button);
-
-  // Image only fades on highlight/disabled.
-  config.imageColorTransformer = ^UIColor*(UIColor* color) {
-    return [ButtonsForegroundColor() colorWithAlphaComponent:highlightAlpha];
-  };
-
+// Updates the title configuration for buttons.
+- (void)updateButtonTitleConfiguration:(UIButtonConfiguration*)config
+                        highlightAlpha:(CGFloat)highlightAlpha {
   // Text fades on highlight/disabled AND scroll.
   CGFloat textAlpha = highlightAlpha * _buttonsTitleAlpha;
 
@@ -654,6 +645,19 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
         [ButtonsForegroundColor() colorWithAlphaComponent:textAlpha];
     return mutableAttributes;
   };
+}
+
+// Updates the configuration for standard buttons.
+- (void)updateStandardButtonConfiguration:(UIButton*)button {
+  UIButtonConfiguration* config = button.configuration;
+  CGFloat highlightAlpha = ButtonHighlightAlpha(button);
+
+  // Image only fades on highlight/disabled.
+  config.imageColorTransformer = ^UIColor*(UIColor* color) {
+    return [ButtonsForegroundColor() colorWithAlphaComponent:highlightAlpha];
+  };
+
+  [self updateButtonTitleConfiguration:config highlightAlpha:highlightAlpha];
 
   button.configuration = config;
 }
@@ -669,6 +673,8 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
   };
 
   CGFloat highlightAlpha = ButtonHighlightAlpha(button);
+
+  [self updateButtonTitleConfiguration:config highlightAlpha:highlightAlpha];
 
   UIColor* symbolColor = ButtonsForegroundColor();
   UIColor* baseLabelColor =
@@ -710,43 +716,55 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
   [button addTarget:self
                 action:@selector(didTapTabGridButton)
       forControlEvents:UIControlEventTouchUpInside];
-  [button addSubview:tabGridSymbolView];
-  AddSameCenterConstraints(tabGridSymbolView, button.imageView);
+  _tabGridContentView = [[UIView alloc] init];
+  _tabGridContentView.translatesAutoresizingMaskIntoConstraints = NO;
+  _tabGridContentView.userInteractionEnabled = NO;
+  [button addSubview:_tabGridContentView];
+
+  [NSLayoutConstraint activateConstraints:@[
+    [_tabGridContentView.centerXAnchor
+        constraintEqualToAnchor:button.imageView.centerXAnchor],
+    [_tabGridContentView.centerYAnchor
+        constraintEqualToAnchor:button.imageView.centerYAnchor],
+    [_tabGridContentView.widthAnchor
+        constraintEqualToAnchor:button.imageView.widthAnchor],
+    [_tabGridContentView.heightAnchor
+        constraintEqualToAnchor:button.imageView.heightAnchor],
+  ]];
+
+  [_tabGridContentView addSubview:tabGridSymbolView];
+  AddSameCenterConstraints(tabGridSymbolView, _tabGridContentView);
 
   _tabCountLabel = [[UILabel alloc] init];
   _tabCountLabel.translatesAutoresizingMaskIntoConstraints = NO;
   _tabCountLabel.textColor = ButtonsForegroundColor();
   [self updateTabCount:_tabCount];
-  [button addSubview:_tabCountLabel];
+  [_tabGridContentView addSubview:_tabCountLabel];
 
   __weak __typeof(self) weakSelf = self;
   __weak UIImageView* weakTabGridSymbolView = tabGridSymbolView;
   __weak UILabel* weakTabCountLabel = _tabCountLabel;
-  void (^previousHandler)(UIButton*) = button.configurationUpdateHandler;
   button.configurationUpdateHandler = ^(UIButton* incomingButton) {
-    if (previousHandler) {
-      previousHandler(incomingButton);
-    }
     [weakSelf updateTabGridButtonConfiguration:incomingButton
                                     symbolView:weakTabGridSymbolView
                                     countLabel:weakTabCountLabel];
   };
   _tabGridButtonNormalStateConstraints = @[
     [_tabCountLabel.centerXAnchor
-        constraintEqualToAnchor:button.imageView.centerXAnchor],
+        constraintEqualToAnchor:_tabGridContentView.centerXAnchor],
     [_tabCountLabel.centerYAnchor
-        constraintEqualToAnchor:button.imageView.centerYAnchor],
+        constraintEqualToAnchor:_tabGridContentView.centerYAnchor],
   ];
   _tabGridButtonTabGroupStateConstraints = @[
     [_tabCountLabel.centerXAnchor
-        constraintEqualToAnchor:button.imageView.centerXAnchor
+        constraintEqualToAnchor:_tabGridContentView.centerXAnchor
                        constant:kTabGroupLabelOffset],
     [_tabCountLabel.centerYAnchor
-        constraintEqualToAnchor:button.imageView.centerYAnchor
+        constraintEqualToAnchor:_tabGridContentView.centerYAnchor
                        constant:kTabGroupLabelOffset],
   ];
 
-  [button bringSubviewToFront:_tabCountLabel];
+  [_tabGridContentView bringSubviewToFront:_tabCountLabel];
 
   if (IsBestOfAppGuidedTourEnabled()) {
     _spotlightView = [[UIView alloc] init];
@@ -813,8 +831,8 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
 // Updates the new tab button for whether the tab groups page in the tab grid or
 // a tab group is visible.
 - (void)updateNewTabButtonForTabGroupsVisibility {
-  if (_isTabGroupsPageVisible || _isTabGroupVisible) {
-    _openNewTabButton.menu = _openNewTabButtonMenu;
+  _openNewTabButton.menu = _openNewTabButtonMenu;
+  if (_isTabGroupsPageVisible || (_isTabGridVisible && _isTabGroupVisible)) {
     _openNewTabButton.showsMenuAsPrimaryAction = YES;
     return;
   }
@@ -957,72 +975,37 @@ CGFloat ButtonHighlightAlpha(UIButton* button) {
                    }];
 }
 
-// Helper to apply visible path to preview parameters.
-- (void)applyVisiblePathToParameters:(UIPreviewParameters*)parameters
-                           forButton:(UIButton*)button {
-  if (button.imageView && !CGRectIsEmpty(button.imageView.bounds)) {
-    CGFloat radius = MIN(button.imageView.bounds.size.width,
-                         button.imageView.bounds.size.height) /
-                     2.0;
-    parameters.visiblePath =
-        [UIBezierPath bezierPathWithRoundedRect:button.imageView.bounds
-                                   cornerRadius:radius];
-  }
-}
-
 - (UITargetedPreview*)contextMenuInteraction:
                           (UIContextMenuInteraction*)interaction
-    previewForHighlightingMenuWithConfiguration:
-        (UIContextMenuConfiguration*)configuration {
+                               configuration:
+                                   (UIContextMenuConfiguration*)configuration
+       highlightPreviewForItemWithIdentifier:(id<NSCopying>)identifier {
   UIView* view = interaction.view;
   if ([view isKindOfClass:[UIButton class]]) {
-    UIButton* button = (UIButton*)view;
-
-    if (button == _tabGridButton) {
-      return [self tabGridPreviewAndStoreContainer:YES];
-    }
-
     UIPreviewParameters* parameters = [[UIPreviewParameters alloc] init];
-    parameters.backgroundColor = [UIColor clearColor];
-    [self applyVisiblePathToParameters:parameters forButton:button];
+    parameters.backgroundColor =
+        _backgroundView.incognito ? [UIColor colorNamed:kAppBarIncognitoColor]
+                                  : [UIColor colorNamed:kAppBarColor];
 
-    return [[UITargetedPreview alloc] initWithView:button.imageView
-                                        parameters:parameters];
+    return [[UITargetedPreview alloc] initWithView:view parameters:parameters];
   }
   return nil;
 }
 
 - (UITargetedPreview*)contextMenuInteraction:
                           (UIContextMenuInteraction*)interaction
-    previewForDismissingMenuWithConfiguration:
-        (UIContextMenuConfiguration*)configuration {
+                               configuration:
+                                   (UIContextMenuConfiguration*)configuration
+       dismissalPreviewForItemWithIdentifier:(id<NSCopying>)identifier {
   UIView* view = interaction.view;
   if ([view isKindOfClass:[UIButton class]]) {
-    UIButton* button = (UIButton*)view;
-
-    if (button == _tabGridButton) {
-      return [self tabGridPreviewAndStoreContainer:NO];
-    }
-
     UIPreviewParameters* parameters = [[UIPreviewParameters alloc] init];
+    parameters.shadowPath = [UIBezierPath bezierPath];
     parameters.backgroundColor = [UIColor clearColor];
-    [self applyVisiblePathToParameters:parameters forButton:button];
 
-    return [[UITargetedPreview alloc] initWithView:button.imageView
-                                        parameters:parameters];
+    return [[UITargetedPreview alloc] initWithView:view parameters:parameters];
   }
   return nil;
-}
-
-- (void)contextMenuInteraction:(UIContextMenuInteraction*)interaction
-       willEndForConfiguration:(UIContextMenuConfiguration*)configuration
-                      animator:(id<UIContextMenuInteractionAnimating>)animator {
-  if (interaction.view == _tabGridButton) {
-    __weak __typeof(self) weakSelf = self;
-    [animator addCompletion:^{
-      [weakSelf restoreTabGridButtonSubviews];
-    }];
-  }
 }
 
 @end

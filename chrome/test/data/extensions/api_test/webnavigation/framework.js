@@ -38,7 +38,7 @@ function deepCopy(obj) {
     return obj;
   }
   if (Array.isArray(obj)) {
-    const tmpArray = new Array();
+    const tmpArray = [];
     for (let i = 0; i < obj.length; i++) {
       tmpArray.push(deepCopy(obj[i]));
     }
@@ -115,7 +115,7 @@ function checkExpectations() {
 function captureEvent(name, details) {
   if ('url' in details) {
     // Skip about:blank navigations
-    if (details.url == 'about:blank') {
+    if (details.url === 'about:blank') {
       return;
     }
     // Strip query parameter as it is hard to predict.
@@ -140,7 +140,7 @@ function captureEvent(name, details) {
     }
     details.documentId = documentIds[details.documentId];
   }
-  if (('frameId' in details) && (details.frameId != 0)) {
+  if (('frameId' in details) && (details.frameId !== 0)) {
     if (frameIds[details.frameId] === undefined) {
       frameIds[details.frameId] = nextFrameId++;
     }
@@ -152,7 +152,7 @@ function captureEvent(name, details) {
     }
     details.parentFrameId = frameIds[details.parentFrameId];
   }
-  if (('sourceFrameId' in details) && (details.sourceFrameId != 0)) {
+  if (('sourceFrameId' in details) && (details.sourceFrameId !== 0)) {
     if (frameIds[details.sourceFrameId] === undefined) {
       frameIds[details.sourceFrameId] = nextFrameId++;
     }
@@ -190,14 +190,14 @@ function captureEvent(name, details) {
   }
 
   if (debug) {
-    console.log('Received event `${name}`:' + JSON.stringify(details));
+    console.info('Received event `${name}`:' + JSON.stringify(details));
   }
 
   // find |details| in expectedEventData
   let found = false;
   let label = undefined;
   expectedEventData.forEach(function(exp) {
-    if (exp.event == name) {
+    if (exp.event === name) {
       let expDetails;
       let altDetails;
       if ('transitionQualifiers' in exp.details) {
@@ -271,8 +271,10 @@ function initListeners() {
 // Returns the usual order of navigation events.
 function navigationOrder(prefix) {
   return [
-    `${prefix}onBeforeNavigate`, `${prefix}onCommitted`,
-    `${prefix}onDOMContentLoaded`, `${prefix}onCompleted`
+    `${prefix}onBeforeNavigate`,
+    `${prefix}onCommitted`,
+    `${prefix}onDOMContentLoaded`,
+    `${prefix}onCompleted`,
   ];
 }
 
@@ -280,8 +282,10 @@ function navigationOrder(prefix) {
 // frame.
 function isIFrameOf(iframe, main_frame) {
   return [
-    `${main_frame}onCommitted`, `${iframe}onBeforeNavigate`,
-    `${iframe}onCompleted`, `${main_frame}onCompleted`
+    `${main_frame}onCommitted`,
+    `${iframe}onBeforeNavigate`,
+    `${iframe}onCompleted`,
+    `${main_frame}onCompleted`,
   ];
 }
 

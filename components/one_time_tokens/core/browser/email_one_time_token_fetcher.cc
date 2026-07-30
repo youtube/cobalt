@@ -49,14 +49,17 @@ void EmailOneTimeTokenFetcher::StartAccessTokenFetch() {
       std::make_unique<signin::PrimaryAccountAccessTokenFetcher>(
           signin::OAuthConsumerId::kOneTimeTokenService, &*identity_manager_,
           base::BindOnce(&EmailOneTimeTokenFetcher::OnAccessTokenFetched,
-                         weakptr_factory_.GetWeakPtr()),
+                         weakptr_factory_.GetWeakPtr(), base::TimeTicks::Now()),
           signin::PrimaryAccountAccessTokenFetcher::Mode::kWaitUntilAvailable,
           signin::ConsentLevel::kSignin);
 }
 
 void EmailOneTimeTokenFetcher::OnAccessTokenFetched(
+    base::TimeTicks auth_start_time,
     GoogleServiceAuthError error,
     signin::AccessTokenInfo info) {
+  base::UmaHistogramTimes("Autofill.OneTimeTokens.Backend.Gmail.AuthLatency",
+                          base::TimeTicks::Now() - auth_start_time);
   access_token_fetcher_.reset();
   if (error.state() == GoogleServiceAuthError::NONE) {
     StartOneTimeTokenServiceCall(std::move(info));
@@ -69,7 +72,7 @@ void EmailOneTimeTokenFetcher::OnAccessTokenFetched(
 void EmailOneTimeTokenFetcher::StartOneTimeTokenServiceCall(
     signin::AccessTokenInfo info) {
   auto resource_request = std::make_unique<network::ResourceRequest>();
-  GURL url(features::kOneTimeTokenServiceUrl.Get());
+  GURL url(features::kFetchEmailOneTimeTokenEndpointUrl.Get());
 
   // TODO(crbug.com/486806779): figure out correct encoding.
   std::string encoded_reference;
@@ -87,12 +90,10 @@ void EmailOneTimeTokenFetcher::StartOneTimeTokenServiceCall(
       kOneTimeTokenServiceCriticalityHeaderName,
       kOneTimeTokenServiceCriticalityHeaderValue);
 
-  // TODO(crbug.com/486136247): Update the traffic annotation to include the
-  // enterprise policy.
   net::NetworkTrafficAnnotationTag traffic_annotation =
       net::DefineNetworkTrafficAnnotation("fetch_email_one_time_token", R"(
         semantics {
-          sender: "Gmail OTP filling in Autofill."
+          sender: "Gmail OTP filling by Gemini Live in Chrome."
           description:
             "Sends a request to OneTimeTokenService to fetch an OTP that sits "
             "in user's email. At this point the OTP is already parsed on the "
@@ -117,11 +118,14 @@ void EmailOneTimeTokenFetcher::StartOneTimeTokenServiceCall(
         policy {
           cookies_allowed: NO
           setting:
-            "The feature can be controlled by a dedicated setting in Password "
-            "Manager. Navigate to chrome://password-manager/settings, and "
-            "toggle the 'Autofill Verification Codes from Gmail' setting."
-          policy_exception_justification:
-            "The feature is in progress."
+            "These requests are sent only by Glic trying to fetch email OTP "
+            "from user's Gmail. IT Admins can turn the feature off by "
+            "disabling Glic using GeminiActOnWebSettings."
+          chrome_policy {
+            GeminiActOnWebSettings {
+              GeminiActOnWebSettings: 1
+            }
+          }
         })");
 
   simple_url_loader_ = network::SimpleURLLoader::Create(

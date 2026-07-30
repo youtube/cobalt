@@ -4,11 +4,15 @@
 
 package org.chromium.ui.base;
 
+import static android.view.View.MeasureSpec.EXACTLY;
+import static android.view.View.MeasureSpec.makeMeasureSpec;
+
 import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Region;
+import android.transition.Transition;
 import android.util.DisplayMetrics;
 import android.util.TypedValue;
 import android.view.View;
@@ -19,6 +23,9 @@ import androidx.core.graphics.drawable.RoundedBitmapDrawableFactory;
 
 import org.chromium.base.TraceEvent;
 import org.chromium.build.annotations.NullMarked;
+
+import java.util.Collection;
+import java.util.Set;
 
 /** A utility class that has helper methods for Android view. */
 @NullMarked
@@ -275,5 +282,41 @@ public final class ViewUtils {
         assert view != null;
         TraceEvent.instant("requestLayout caller: " + caller);
         view.requestLayout();
+    }
+
+    /**
+     * Triggers a synchronous measure and layout pass for a view. This can be crucial when immediate
+     * geometry information is required, such as during animations performed via {@link Transition}.
+     *
+     * @param view The view to measure and layout.
+     */
+    public static void triggerSynchronousMeasureAndLayout(View view) {
+        view.measure(
+                makeMeasureSpec(view.getMeasuredWidth(), EXACTLY),
+                makeMeasureSpec(view.getMeasuredHeight(), EXACTLY));
+        view.layout(view.getLeft(), view.getTop(), view.getRight(), view.getBottom());
+    }
+
+    /**
+     * Recursively collects all descendants of a View, excluding specific IDs and their entire
+     * subtrees.
+     *
+     * @param view The starting View.
+     * @param outCollection The collection to populate with descendants.
+     * @param excludedIds A Set of view IDs (R.id.name) to ignore.
+     */
+    public static void getAllDescendants(
+            View view, Collection<View> outCollection, Set<Integer> excludedIds) {
+        if (view instanceof ViewGroup viewGroup) {
+            for (int i = 0; i < viewGroup.getChildCount(); i++) {
+                View child = viewGroup.getChildAt(i);
+
+                // If the ID is in the exclusion set, skip this child AND its descendants
+                if (excludedIds.contains(child.getId())) continue;
+
+                outCollection.add(child);
+                getAllDescendants(child, outCollection, excludedIds);
+            }
+        }
     }
 }

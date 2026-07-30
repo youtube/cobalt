@@ -154,6 +154,15 @@ public class WindowAndroid
         ThreadUtils.postOnUiThreadDelayed(PERIODIC_METRICS_TASK, PERIODIC_METRIC_DELAY_MS);
     }
 
+    public static void resetPeriodicMetricsForTesting() {
+        sOccludedCount = 0;
+        sTotalOccludedPixels = 0;
+        sAccumulatedPixelMilliseconds = 0;
+        sLastPixelUpdateTimeMs = 0;
+        sPeriodicMetricsRunning = false;
+        ThreadUtils.getUiThreadHandler().removeCallbacks(PERIODIC_METRICS_TASK);
+    }
+
     // Constants that must be consistent with ui_controls::KeyEventType in C++.
     private static final int KEY_EVENT_TYPE_KEY_PRESS = 1;
     private static final int KEY_EVENT_TYPE_KEY_RELEASE = 2;
@@ -1172,7 +1181,16 @@ public class WindowAndroid
 
         Context context = mContextRef.get();
         if (context != null && mComponentCallbacks != null) {
-            context.unregisterComponentCallbacks(mComponentCallbacks);
+            try {
+                context.unregisterComponentCallbacks(mComponentCallbacks);
+            } catch (IllegalStateException e) {
+                // If unregistering gets skipped, it's probably a real leak, but it's an app
+                // embedding
+                // WebView doing something sketchy with the context (e.g. detaching the base
+                // context),
+                // so it's not like there's anything better we can do here.
+                Log.w(TAG, "Failed to unregister ComponentCallbacks", e);
+            }
             mComponentCallbacks = null;
         }
 

@@ -412,6 +412,15 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//components/desktop_to_mobile_promos/promos_types.h:PromoType) -->
 
+<!-- LINT.IfChange(IOSDataProtectionScreenshotBlockSource) -->
+
+<enum name="IOSDataProtectionScreenshotBlockSource">
+  <int value="0" label="Data Controls"/>
+  <int value="1" label="Real-time Lookup"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/enterprise/data_protection/model/data_protection_tab_helper.h:ScreenshotBlockSource) -->
+
 <!-- LINT.IfChange(IOSDefaultBrowserBannerPromoPromoSessionEndedReason) -->
 
 <enum name="IOSDefaultBrowserBannerPromoPromoSessionEndedReason">
@@ -598,6 +607,7 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Open NTP"/>
   <int value="2" label="Default Browser Settings"/>
   <int value="3" label="Skipped Default Browser Settings For NTP"/>
+  <int value="4" label="App Store Event For Gemini Promo"/>
 </enum>
 
 <enum name="IOSFilePickerDriveAccountSelection">
@@ -653,6 +663,26 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="Cancel without triggering search"/>
   <int value="5" label="Cancel after triggering search"/>
 </enum>
+
+<!-- LINT.IfChange(IOSFilePickerDriveSignInResult) -->
+
+<enum name="IOSFilePickerDriveSignInResult">
+  <int value="0" label="Sign in success"/>
+  <int value="1" label="Sign in cancelled"/>
+  <int value="2" label="Sign in failed"/>
+</enum>
+
+<!-- LINT.ThenChange(//ios/chrome/browser/drive_file_picker/coordinator/drive_file_picker_metrics_constants.h:IOSFilePickerDriveSignInResult) -->
+
+<!-- LINT.IfChange(IOSFilePickerDriveSignInStatus) -->
+
+<enum name="IOSFilePickerDriveSignInStatus">
+  <int value="0" label="Signed in"/>
+  <int value="1" label="Signed out without account on device"/>
+  <int value="2" label="Signed out with account on device"/>
+</enum>
+
+<!-- LINT.ThenChange(//ios/chrome/browser/drive_file_picker/coordinator/drive_file_picker_metrics_constants.h:IOSFilePickerDriveSignInStatus) -->
 
 <enum name="IOSFilePickerDriveSorting">
   <int value="0" label="Sorted by name ascending"/>
@@ -786,6 +816,7 @@ chromium-metrics-reviews@google.com.
   <int value="8" label="Edit Menu (Explain)"/>
   <int value="9" label="Direct Omnibox Badge"/>
   <int value="10" label="AI Hub Sign-in Sheet"/>
+  <int value="11" label="External App Store Event"/>
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h:EntryPoint) -->
@@ -1954,6 +1985,17 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="Invalid URL"/>
   <int value="1" label="Invalid Version"/>
 </enum>
+
+<!-- LINT.IfChange(IOSUserInterfaceStyle) -->
+
+<enum name="IOSUserInterfaceStyle">
+  <int value="0" label="Unspecified"/>
+  <int value="1" label="Light"/>
+  <int value="2" label="Dark"/>
+  <int value="3" label="Unsupported"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/metrics/model/user_interface_style_recorder.mm:InterfaceStyleForReporting) -->
 
 <!-- LINT.IfChange(IOSUserUploadedImageError) -->
 

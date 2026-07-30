@@ -17,6 +17,7 @@
 #include "remoting/host/linux/clipboard_portal.h"
 #include "remoting/host/linux/ei_input_injector.h"
 #include "remoting/host/linux/ei_keyboard_layout_monitor.h"
+#include "remoting/host/linux/pipewire_audio_injector.h"
 #include "remoting/host/linux/pipewire_desktop_capturer.h"
 #include "remoting/host/linux/pipewire_local_input_monitor.h"
 #include "remoting/host/linux/pipewire_mouse_cursor_monitor.h"
@@ -93,6 +94,10 @@ std::unique_ptr<ActiveDisplayMonitor>
 PortalInteractionStrategy::CreateActiveDisplayMonitor(
     base::RepeatingCallback<void(webrtc::ScreenId)> callback) {
   return nullptr;
+}
+std::unique_ptr<AudioInjector>
+PortalInteractionStrategy::CreateAudioInjector() {
+  return PipewireAudioInjector::Create();
 }
 std::unique_ptr<DesktopDisplayInfoMonitor>
 PortalInteractionStrategy::CreateDisplayInfoMonitor() {

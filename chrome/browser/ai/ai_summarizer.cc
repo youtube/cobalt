@@ -151,7 +151,8 @@ std::optional<base::flat_set<std::string>>
 AISummarizer::GetEnabledLanguageBaseCodes() {
   // Comma-separated language codes to enable; or "*" enables all supported.
   const base::FeatureParam<std::string> kAISummarizationAPILanguagesEnabled{
-      &blink::features::kAISummarizationAPI, "langs", /*default=*/"en,es,ja"};
+      &blink::features::kAISummarizationAPI, "langs",
+      /*default_value=*/"en,es,ja,de,fr"};
   return on_device_ai::GetEnabledLanguagesForFeature(
       GetDefaultSupportedLanguageBaseCodes(),
       kAISummarizationAPILanguagesEnabled);
@@ -162,9 +163,15 @@ base::flat_set<std::string>
 AISummarizer::GetDefaultSupportedLanguageBaseCodes() {
   // TODO(crbug.com/394841624): Get supported languages from the model config.
   auto kSupportedBaseLanguages =
-      base::MakeFixedFlatSet<std::string_view>({"en", "ja", "es"});
+      base::MakeFixedFlatSet<std::string_view>({"en", "ja", "es", "de", "fr"});
   return base::flat_set<std::string>(kSupportedBaseLanguages.begin(),
                                      kSupportedBaseLanguages.end());
+}
+
+// static
+base::flat_set<std::string>
+AISummarizer::GetSupportedLanguagesForSpeedPreference() {
+  return base::flat_set<std::string>({"en"});
 }
 
 void AISummarizer::Summarize(
@@ -172,6 +179,16 @@ void AISummarizer::Summarize(
     const std::string& context,
     mojo::PendingRemote<blink::mojom::ModelStreamingResponder>
         pending_responder) {
+  if (options_->preference == blink::mojom::PerformancePreference::kSpeed &&
+      !context.empty()) {
+    mojo::Remote<blink::mojom::ModelStreamingResponder> responder(
+        std::move(pending_responder));
+    on_device_ai::SendStreamingStatus(
+        responder,
+        blink::mojom::ModelStreamingResponseStatus::kErrorInvalidRequest);
+    return;
+  }
+
   auto* session = session_wrapper_.session();
   if (!session) {
     mojo::Remote<blink::mojom::ModelStreamingResponder> responder(

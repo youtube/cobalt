@@ -96,6 +96,7 @@ class ColumnPseudoElement;
 class ComputedStyleBuilder;
 class ContainerQueryData;
 class ContainerQueryEvaluator;
+class ContainerQueryList;
 class ContentData;
 class CSSPropertyName;
 class CSSPropertyValueSet;
@@ -565,8 +566,8 @@ class CORE_EXPORT Element : public ContainerNode {
   int clientWidth();
   int clientHeight();
   double currentCSSZoom();
-  double scrollLeft();
-  double scrollTop();
+  virtual double scrollLeft();
+  virtual double scrollTop();
   void setScrollLeft(double);
   void setScrollTop(double);
   virtual int scrollWidth();
@@ -628,6 +629,8 @@ class CORE_EXPORT Element : public ContainerNode {
   gfx::RectF GetBoundingClientRectNoLifecycleUpdate() const;
   DOMRect* GetBoundingClientRect();
   DOMRect* GetBoundingClientRectForBinding();
+
+  ContainerQueryList* matchContainer(const String& query);
 
   // Call the NoLifecycleUpdate variants if you are sure that the lifcycle is
   // already updated to at least pre-paint clean.
@@ -1636,6 +1639,12 @@ class CORE_EXPORT Element : public ContainerNode {
   // Returns the HTMLSubmitButtonBehavior for this element, if any.
   HTMLSubmitButtonBehavior* SubmitBehavior() const;
 
+  // Activated-submit flag for form submission. For native submit buttons
+  // (HTMLButtonElement, HTMLInputElement), subclasses override these. For
+  // custom elements with HTMLSubmitButtonBehavior, delegates to the behavior.
+  virtual void SetActivatedSubmit(bool flag);
+  virtual bool IsActivatedSubmit() const;
+
   bool ContainsFullScreenElement() const {
     return HasElementFlag(ElementFlags::kContainsFullScreenElement);
   }
@@ -2370,10 +2379,10 @@ class CORE_EXPORT Element : public ContainerNode {
   }
 
   void AttachSucceedingPseudoElements(AttachContext& context) {
-    AttachPseudoElement(kPseudoIdInterestButton, context);
     AttachPseudoElement(kPseudoIdPickerIcon, context);
     AttachPseudoElement(kPseudoIdExpandIcon, context);
     AttachPseudoElement(kPseudoIdAfter, context);
+    AttachPseudoElement(kPseudoIdInterestButton, context);
     AttachDocumentElementSucceedingPseudoElements(context);
     AttachPseudoElement(kPseudoIdBackdrop, context);
     UpdateFirstLetterPseudoElement(StyleUpdatePhase::kAttachLayoutTree);
@@ -2408,10 +2417,10 @@ class CORE_EXPORT Element : public ContainerNode {
   }
 
   void DetachSucceedingPseudoElements(bool performing_reattach) {
-    DetachPseudoElement(kPseudoIdInterestButton, performing_reattach);
     DetachPseudoElement(kPseudoIdPickerIcon, performing_reattach);
     DetachPseudoElement(kPseudoIdExpandIcon, performing_reattach);
     DetachPseudoElement(kPseudoIdAfter, performing_reattach);
+    DetachPseudoElement(kPseudoIdInterestButton, performing_reattach);
     DetachPseudoElement(kPseudoIdScrollButtonBlockStart, performing_reattach);
     DetachPseudoElement(kPseudoIdScrollButtonInlineStart, performing_reattach);
     DetachPseudoElement(kPseudoIdScrollButtonInlineEnd, performing_reattach);

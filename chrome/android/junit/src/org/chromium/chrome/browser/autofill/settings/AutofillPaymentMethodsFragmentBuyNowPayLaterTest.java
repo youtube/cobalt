@@ -19,7 +19,6 @@ import androidx.fragment.app.FragmentFactory;
 import androidx.fragment.app.testing.FragmentScenario;
 import androidx.preference.Preference;
 
-import org.jspecify.annotations.NonNull;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -56,9 +55,6 @@ import java.util.List;
 @DisableFeatures({
     ChromeFeatureList.AUTOFILL_ENABLE_SEPARATE_PIX_PREFERENCE_ITEM,
     ChromeFeatureList.AUTOFILL_SYNC_EWALLET_ACCOUNTS,
-    ChromeFeatureList.AUTOFILL_ENABLE_CARD_BENEFITS_FOR_AMERICAN_EXPRESS,
-    ChromeFeatureList.AUTOFILL_ENABLE_CARD_BENEFITS_FOR_BMO,
-    ChromeFeatureList.AUTOFILL_ENABLE_FLAT_RATE_CARD_BENEFITS_FROM_CURINOS,
     ChromeFeatureList.YOUR_SAVED_INFO_SETTINGS_PAGE_ANDROID
 })
 public class AutofillPaymentMethodsFragmentBuyNowPayLaterTest {
@@ -113,10 +109,8 @@ public class AutofillPaymentMethodsFragmentBuyNowPayLaterTest {
                         Bundle.EMPTY,
                         R.style.Theme_Chromium_Settings,
                         new FragmentFactory() {
-                            @NonNull
                             @Override
-                            public Fragment instantiate(
-                                    @NonNull ClassLoader classLoader, @NonNull String className) {
+                            public Fragment instantiate(ClassLoader classLoader, String className) {
                                 Fragment fragment = super.instantiate(classLoader, className);
                                 if (fragment instanceof AutofillPaymentMethodsFragment) {
                                     ((AutofillPaymentMethodsFragment) fragment)

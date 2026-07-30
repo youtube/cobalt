@@ -15,7 +15,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
-#include "remoting/protocol/fake_stream_socket.h"
 #include "remoting/protocol/session.h"
 #include "remoting/protocol/transport.h"
 #include "remoting/signaling/jingle_data_structures.h"
@@ -56,7 +55,6 @@ class FakeSession : public Session {
   void SetEventHandler(EventHandler* event_handler) override;
   ErrorCode error() const override;
   const std::string& jid() override;
-  const SessionConfig& config() override;
   const Authenticator& authenticator() const override;
   void SetTransport(Transport* transport) override;
   void Close(ErrorCode error,
@@ -73,7 +71,6 @@ class FakeSession : public Session {
       std::unique_ptr<JingleTransportInfo> transport_info);
 
   raw_ptr<EventHandler> event_handler_ = nullptr;
-  std::unique_ptr<SessionConfig> config_;
 
   std::string jid_;
 

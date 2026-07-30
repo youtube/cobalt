@@ -156,6 +156,7 @@ TEST_F(ActorLoginDuplicatePermissionCleanerTest,
   credential.request_origin = kOrigin;
   credential.username = kExcludeUser;
   credential.type = CredentialType::kPassword;
+  credential.signon_realm = kSignonRealm;
 
   EXPECT_CALL(*permission_service(),
               DeletePermission(kOrigin, Eq(base::UTF16ToUTF8(kExcludeUser)), _))
@@ -169,7 +170,7 @@ TEST_F(ActorLoginDuplicatePermissionCleanerTest,
 
   base::test::TestFuture<void> future;
 
-  cleaning_service()->ClearConflictingPermissions(credential, kSignonRealm,
+  cleaning_service()->ClearConflictingPermissions(credential,
                                                   future.GetCallback());
   EXPECT_TRUE(future.Wait());
 
@@ -277,15 +278,22 @@ TEST_F(ActorLoginDuplicatePermissionCleanerTest,
       });
 
   base::test::TestFuture<void> future;
-  cleaning_service()->ClearConflictingPermissions(credential, std::nullopt,
+  cleaning_service()->ClearConflictingPermissions(credential,
                                                   future.GetCallback());
   EXPECT_TRUE(future.Wait());
 
   // All updates are guaranteed to be finished here.
   EXPECT_TRUE(
       GetAllLoginsSync(store()).at(kSignonRealm)[0].actor_login_approved);
+#if !BUILDFLAG(IS_ANDROID)
+  // On Android, the `FakePasswordStoreBackend` ignores web affiliations due to
+  // the C++ filter in `AffiliatedMatchHelper` (which is dead code in prod but
+  // active in tests). So the affiliated credential is not cleared in the test.
+  // TODO(crbug.com/504896739): Update the test once the fake backend supports
+  // affiliation without the helper on Android.
   EXPECT_FALSE(
       GetAllLoginsSync(store()).at(kAffiliatedRealm)[0].actor_login_approved);
+#endif
 }
 
 // Tests that when a new permission is saved for a federated credential
@@ -354,7 +362,7 @@ TEST_F(ActorLoginDuplicatePermissionCleanerTest,
       });
 
   base::test::TestFuture<void> future;
-  cleaning_service()->ClearConflictingPermissions(credential, std::nullopt,
+  cleaning_service()->ClearConflictingPermissions(credential,
                                                   future.GetCallback());
   EXPECT_TRUE(future.Wait());
 
@@ -386,6 +394,7 @@ TEST_F(ActorLoginDuplicatePermissionCleanerTest,
   form2.url = GURL("https://affiliated.com/login");
   form2.signon_realm = kOtherSignonRealm;
   form2.username_value = kExcludeUser;
+  form2.password_value = u"pass2";
   form2.actor_login_approved = true;
   form2.match_type = password_manager::PasswordForm::MatchType::kAffiliated;
   store()->AddLogin(form2);
@@ -411,17 +420,25 @@ TEST_F(ActorLoginDuplicatePermissionCleanerTest,
   credential.request_origin = kOrigin;
   credential.username = kExcludeUser;
   credential.type = CredentialType::kPassword;
+  credential.signon_realm = kExcludedSignonRealm;
 
   base::test::TestFuture<void> future;
-  cleaning_service()->ClearConflictingPermissions(
-      credential, kExcludedSignonRealm, future.GetCallback());
+  cleaning_service()->ClearConflictingPermissions(credential,
+                                                  future.GetCallback());
   EXPECT_TRUE(future.Wait());
 
   EXPECT_TRUE(GetAllLoginsSync(store())
                   .at(kExcludedSignonRealm)[0]
                   .actor_login_approved);
+#if !BUILDFLAG(IS_ANDROID)
+  // On Android, the `FakePasswordStoreBackend` ignores web affiliations due to
+  // the C++ filter in `AffiliatedMatchHelper` (which is dead code in prod but
+  // active in tests). So the affiliated credential is not cleared in the test.
+  // TODO(crbug.com/504896739): Update the test once the fake backend supports
+  // affiliation without the helper on Android.
   EXPECT_FALSE(
       GetAllLoginsSync(store()).at(kOtherSignonRealm)[0].actor_login_approved);
+#endif
 }
 
 TEST_F(ActorLoginDuplicatePermissionCleanerTest,
@@ -470,9 +487,10 @@ TEST_F(ActorLoginDuplicatePermissionCleanerTest,
   credential.request_origin = kOrigin;
   credential.username = u"user1";
   credential.type = CredentialType::kPassword;
+  credential.signon_realm = kSignonRealm;
 
   base::test::TestFuture<void> future;
-  cleaning_service()->ClearConflictingPermissions(credential, kSignonRealm,
+  cleaning_service()->ClearConflictingPermissions(credential,
                                                   future.GetCallback());
   EXPECT_TRUE(future.Wait());
 

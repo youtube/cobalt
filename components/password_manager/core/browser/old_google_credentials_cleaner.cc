@@ -6,6 +6,7 @@
 
 #include "base/time/time.h"
 #include "components/password_manager/core/browser/password_form.h"
+#include "components/password_manager/core/browser/password_store/password_form_converters.h"
 #include "components/password_manager/core/browser/password_store/password_store_interface.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/prefs/pref_service.h"
@@ -30,8 +31,15 @@ void OldGoogleCredentialCleaner::StartCleaning(Observer* observer) {
   store_->GetAutofillableLogins(weak_ptr_factory_.GetWeakPtr());
 }
 
-void OldGoogleCredentialCleaner::OnGetPasswordStoreResults(
-    std::vector<std::unique_ptr<PasswordForm>> results) {
+void OldGoogleCredentialCleaner::OnGetPasswordStoreResultsOrErrorFrom(
+    PasswordStoreInterface* store,
+    LoginsResultOrError results_or_error) {
+  if (std::holds_alternative<PasswordStoreBackendError>(results_or_error)) {
+    observer_->CleaningCompleted();
+    return;
+  }
+  auto results = std::get<LoginsResult>(std::move(results_or_error));
+
   base::Time cutoff;  // the null time
   static const base::Time::Exploded kExplodedCutoff = {
       .year = 2012, .month = 1, .day_of_month = 1};
@@ -39,18 +47,18 @@ void OldGoogleCredentialCleaner::OnGetPasswordStoreResults(
       base::Time::FromUTCExploded(kExplodedCutoff, &cutoff);
   DCHECK(conversion_success);
 
-  auto IsOldGoogleForm = [&cutoff](const std::unique_ptr<PasswordForm>& form) {
-    return (form->scheme == PasswordForm::Scheme::kHtml &&
-            (form->signon_realm == "http://www.google.com" ||
-             form->signon_realm == "http://www.google.com/" ||
-             form->signon_realm == "https://www.google.com" ||
-             form->signon_realm == "https://www.google.com/")) &&
-           form->date_created < cutoff;
+  auto IsOldGoogleForm = [&cutoff](const StoredCredential& form) {
+    return (form.scheme == PasswordForm::Scheme::kHtml &&
+            (form.signon_realm == "http://www.google.com" ||
+             form.signon_realm == "http://www.google.com/" ||
+             form.signon_realm == "https://www.google.com" ||
+             form.signon_realm == "https://www.google.com/")) &&
+           form.date_created < cutoff;
   };
 
   for (const auto& form : results) {
     if (IsOldGoogleForm(form)) {
-      store_->RemoveLogin(FROM_HERE, *form);
+      store_->RemoveLogin(FROM_HERE, ToPasswordForm(form));
     }
   }
   prefs_->SetBoolean(prefs::kWereOldGoogleLoginsRemoved, true);

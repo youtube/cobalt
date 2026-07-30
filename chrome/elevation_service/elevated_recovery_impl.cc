@@ -25,6 +25,7 @@
 #include "base/version.h"
 #include "base/win/registry.h"
 #include "base/win/scoped_process_information.h"
+#include "chrome/elevation_service/elevator.h"
 #include "chrome/install_static/install_modes.h"
 #include "chrome/install_static/install_util.h"
 #include "chrome/installer/util/util_constants.h"
@@ -56,6 +57,13 @@ constexpr base::FilePath::CharType kRecoveryExeName[] =
 // The hard-coded SHA256 of the SubjectPublicKeyInfo used to sign the Recovery
 // CRX which contains ChromeRecovery.exe.
 std::vector<uint8_t> GetRecoveryCRXHash() {
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kAllowUntrustedRecoveryHashForTesting)) {
+    return std::vector<uint8_t>{0x69, 0xfc, 0x41, 0xf6, 0x17, 0x20, 0xc6, 0x36,
+                                0x92, 0xcd, 0x95, 0x76, 0x69, 0xf6, 0x28, 0xcc,
+                                0xbe, 0x98, 0x4b, 0x93, 0x17, 0xd6, 0x9c, 0xb3,
+                                0x64, 0x0c, 0x0d, 0x25, 0x61, 0xc5, 0x80, 0x1d};
+  }
   return std::vector<uint8_t>{0x5f, 0x94, 0xe0, 0x3c, 0x64, 0x30, 0x9f, 0xbc,
                               0xfe, 0x00, 0x9a, 0x27, 0x3e, 0x52, 0xbf, 0xa5,
                               0x84, 0xb9, 0xb3, 0x75, 0x07, 0x29, 0xde, 0xfa,
@@ -241,16 +249,8 @@ HRESULT LaunchCmd(const base::CommandLine& command_line,
   return S_OK;
 }
 
-HRESULT ValidateCRXArgs(const std::wstring& browser_appid,
-                        const std::wstring& browser_version,
+HRESULT ValidateCRXArgs(const std::wstring& browser_version,
                         const std::wstring& session_id) {
-  if (!browser_appid.empty()) {
-    GUID guid = {};
-    HRESULT hr = ::IIDFromString(browser_appid.c_str(), &guid);
-    if (FAILED(hr))
-      return hr;
-  }
-
   const base::Version version(base::WideToASCII(browser_version));
   if (!version.IsValid())
     return E_INVALIDARG;
@@ -309,7 +309,6 @@ HRESULT CleanupChromeRecoveryDirectory() {
 }
 
 HRESULT RunChromeRecoveryCRX(const base::FilePath& crx_path,
-                             const std::wstring& browser_appid,
                              const std::wstring& browser_version,
                              const std::wstring& session_id,
                              uint32_t caller_proc_id,
@@ -317,15 +316,16 @@ HRESULT RunChromeRecoveryCRX(const base::FilePath& crx_path,
   if (crx_path.empty() || !caller_proc_id || !proc_handle)
     return E_INVALIDARG;
 
-  HRESULT hr = ValidateCRXArgs(browser_appid, browser_version, session_id);
+  HRESULT hr = ValidateCRXArgs(browser_version, session_id);
   if (FAILED(hr))
     return hr;
 
   // Read version autonomously from secured HKLM machine registries based on
-  // AppID.
+  // AppID. We use the installed app GUID instead of the potentially spoofable
+  // |browser_appid| passed over RPC.
   base::win::RegKey key(
       HKEY_LOCAL_MACHINE,
-      install_static::GetClientsKeyPath(browser_appid.c_str()).c_str(),
+      install_static::GetClientsKeyPath(install_static::GetAppGuid()).c_str(),
       KEY_QUERY_VALUE);
   std::wstring registry_version;
   if (key.ReadValue(FILE_PATH_LITERAL("version"), &registry_version) !=
@@ -352,8 +352,7 @@ HRESULT RunChromeRecoveryCRX(const base::FilePath& crx_path,
   }
 
   base::CommandLine args(base::CommandLine::NO_PROGRAM);
-  if (!browser_appid.empty())
-    args.AppendSwitchNative("appguid", browser_appid);
+  args.AppendSwitchNative("appguid", install_static::GetAppGuid());
   args.AppendSwitchNative(installer::switches::kBrowserVersionSwitch,
                           browser_version);
   args.AppendSwitchNative("sessionid", session_id);
@@ -364,8 +363,14 @@ HRESULT RunChromeRecoveryCRX(const base::FilePath& crx_path,
   if (FAILED(hr))
     return hr;
 
-  return RunCRX(crx_path, args, browser_version_parsed,
-                crx_file::VerifierFormat::CRX3_WITH_PUBLISHER_PROOF,
+  crx_file::VerifierFormat format =
+      crx_file::VerifierFormat::CRX3_WITH_PUBLISHER_PROOF;
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kAllowUntrustedRecoveryHashForTesting)) {
+    format = crx_file::VerifierFormat::CRX3;
+  }
+
+  return RunCRX(crx_path, args, browser_version_parsed, format,
                 GetRecoveryCRXHash(), unpack_dir,
                 base::FilePath(kRecoveryExeName), caller_proc_id, proc_handle);
 }

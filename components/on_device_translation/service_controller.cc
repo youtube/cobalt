@@ -24,7 +24,6 @@
 #include "base/types/pass_key.h"
 #include "build/build_config.h"
 #include "components/component_updater/component_updater_paths.h"
-#include "components/on_device_translation/component_manager.h"
 #include "components/on_device_translation/constants.h"
 #include "components/on_device_translation/features.h"
 #include "components/on_device_translation/installer.h"
@@ -105,31 +104,6 @@ std::optional<std::string> GetBestFitLanguageCode(
                                        std::move(best_fit));
 }
 
-LanguagePackRequirements GetLanguagePackRequirements(
-    const std::string& source_lang,
-    const std::string& target_lang) {
-  LanguagePackRequirements language_pack_requirements;
-
-  // Calculate required language packs.
-  language_pack_requirements.required_packs =
-      CalculateRequiredLanguagePacks(source_lang, target_lang);
-
-  // Calculate required, not installed language packs.
-  const auto installed_packs = ComponentManager::GetInstalledLanguagePacks();
-  std::ranges::set_difference(
-      language_pack_requirements.required_packs, installed_packs,
-      std::back_inserter(
-          language_pack_requirements.required_not_installed_packs));
-
-  // Calculate to be registered language packs.
-  const auto registered_packs = ComponentManager::GetRegisteredLanguagePacks();
-  std::ranges::set_difference(
-      language_pack_requirements.required_not_installed_packs, registered_packs,
-      std::back_inserter(language_pack_requirements.to_be_registered_packs));
-
-  return language_pack_requirements;
-}
-
 // Converts on_device_translation::mojom::CreateTranslatorResult to
 // OnDeviceTranslationController::CreateTranslatorError.
 OnDeviceTranslationController::CreateTranslatorError ToCreateTranslatorError(
@@ -172,15 +146,44 @@ OnDeviceTranslationServiceController::PendingTask::operator=(PendingTask&&) =
 
 OnDeviceTranslationServiceController::OnDeviceTranslationServiceController(
     std::unique_ptr<OnDeviceTranslationServiceLauncher> launcher,
-    std::string service_display_name_suffix)
+    std::string service_display_name_suffix,
+    OnDeviceTranslationInstaller* installer)
     : launcher_(std::move(launcher)),
       service_display_name_suffix_(service_display_name_suffix),
-      service_idle_timeout_(kTranslationAPIServiceIdleTimeout.Get()) {
-  OnDeviceTranslationInstaller::GetInstance()->AddObserver(this);
+      service_idle_timeout_(kTranslationAPIServiceIdleTimeout.Get()),
+      installer_(installer) {
+  CHECK(installer_);
+  installer_->AddObserver(this);
 }
 
 OnDeviceTranslationServiceController::~OnDeviceTranslationServiceController() {
-  OnDeviceTranslationInstaller::GetInstance()->RemoveObserver(this);
+  installer_->RemoveObserver(this);
+}
+
+LanguagePackRequirements
+OnDeviceTranslationServiceController::GetLanguagePackRequirements(
+    const std::string& source_lang,
+    const std::string& target_lang) {
+  LanguagePackRequirements language_pack_requirements;
+
+  // Calculate required language packs.
+  language_pack_requirements.required_packs =
+      CalculateRequiredLanguagePacks(source_lang, target_lang);
+
+  // Calculate required, not installed language packs.
+  const auto installed_packs = installer_->InstalledLanguagePacks();
+  std::ranges::set_difference(
+      language_pack_requirements.required_packs, installed_packs,
+      std::back_inserter(
+          language_pack_requirements.required_not_installed_packs));
+
+  // Calculate to be registered language packs.
+  const auto registered_packs = installer_->RegisteredLanguagePacks();
+  std::ranges::set_difference(
+      language_pack_requirements.required_not_installed_packs, registered_packs,
+      std::back_inserter(language_pack_requirements.to_be_registered_packs));
+
+  return language_pack_requirements;
 }
 
 void OnDeviceTranslationServiceController::CreateTranslator(
@@ -221,18 +224,17 @@ void OnDeviceTranslationServiceController::CreateTranslator(
           GetSourceLanguageCode(language_pack),
           GetTargetLanguageCode(language_pack));
       // Register the language pack component.
-      ComponentManager::GetInstance().RegisterTranslateKitLanguagePackComponent(
-          language_pack);
+      installer_->InstallLanguagePack(language_pack);
     }
   }
 
   // Registers the TranslateKit component.
-  ComponentManager::GetInstance().RegisterTranslateKitComponent();
+  installer_->Init(base::DoNothing());
 
   // If there is no TranslateKit or there are required language packs that are
   // not installed, we will wait until they are installed to create the
   // translator.
-  if (!OnDeviceTranslationInstaller::GetInstance()->IsInit() ||
+  if (!installer_->IsInit() ||
       !language_pack_requirements.required_not_installed_packs.empty()) {
     // When the size of pending tasks is too large, we will not queue the new
     // task and handle the request as failure to avoid OOM of the browser
@@ -264,8 +266,8 @@ void OnDeviceTranslationServiceController::CreateTranslatorImpl(
   auto pending_receiver = pending_remote.InitWithNewPipeAndPassReceiver();
 
   if (!MaybeStartService()) {
-    // If the service can't be started, returns `kExceedsServiceCountLimitation`
-    // error.
+    // If the service can't be started, returns
+    // `kExceedsServiceCountLimitation` error.
     std::move(callback).Run(base::unexpected(
         CreateTranslatorError::kExceedsServiceCountLimitation));
     return;
@@ -338,7 +340,7 @@ OnDeviceTranslationServiceController::CanTranslateImpl(
 
   if (language_pack_requirements.required_not_installed_packs.empty()) {
     // All required language packages are installed.
-    if (!OnDeviceTranslationInstaller::GetInstance()->IsInit()) {
+    if (!installer_->IsInit()) {
       // The TranslateKit library is not ready.
       return CanTranslateResult::kAfterDownloadLibraryNotReady;
     }
@@ -346,7 +348,7 @@ OnDeviceTranslationServiceController::CanTranslateImpl(
     return CanTranslateResult::kReadily;
   }
 
-  if (!OnDeviceTranslationInstaller::GetInstance()->IsInit()) {
+  if (!installer_->IsInit()) {
     // Both the TranslateKit library and the language packs are not ready.
     return CanTranslateResult::kAfterDownloadLibraryAndLanguagePackNotReady;
   }
@@ -372,10 +374,10 @@ void OnDeviceTranslationServiceController::MaybeRunPendingTasks() {
   if (pending_tasks_.empty()) {
     return;
   }
-  if (!OnDeviceTranslationInstaller::GetInstance()->IsInit()) {
+  if (!installer_->IsInit()) {
     return;
   }
-  const auto installed_packs = ComponentManager::GetInstalledLanguagePacks();
+  const auto installed_packs = installer_->InstalledLanguagePacks();
   std::vector<PendingTask> pending_tasks = std::move(pending_tasks_);
   for (auto& task : pending_tasks) {
     if (std::ranges::all_of(task.required_packs.begin(),
@@ -399,7 +401,8 @@ bool OnDeviceTranslationServiceController::MaybeStartService() {
     return true;
   }
 
-  service_remote_.Bind(launcher_->Launch(service_display_name_suffix_));
+  service_remote_.Bind(
+      launcher_->Launch(service_display_name_suffix_, installer_));
   service_remote_.reset_on_disconnect();
   service_remote_.set_idle_handler(
       service_idle_timeout_,

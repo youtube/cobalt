@@ -54,14 +54,21 @@ suite('DiscoverSkillsPage', function() {
   // Helper to update the 1P map and wait for the UI to settle.
   // Accepts a simple object: { "Category": [{ PartialSkill }] }
   async function setFirstPartySkills(
-      data: Record<string, Array<Partial<Skill>>>) {
+      data: Record<string, Array<Partial<Skill>>>, topicsList?: string[]) {
     const fullSkillsMap: Record<string, Skill[]> = {};
-
     for (const [category, skills] of Object.entries(data)) {
       fullSkillsMap[category] = skills.map(createSkill);
     }
 
-    browserProxy.callbackRouterRemote.update1PMap(fullSkillsMap);
+    const topicsInfoList = (topicsList ?? []).map(topic => ({
+                                                    categoryName: topic,
+                                                    displayName: topic,
+                                                  }));
+
+    browserProxy.callbackRouterRemote.update1PSkills({
+      skillMap: fullSkillsMap,
+      topicsInfoList: topicsInfoList,
+    });
     await microtasksFinished();
   }
 
@@ -72,10 +79,28 @@ suite('DiscoverSkillsPage', function() {
     });
 
     const titles = page.shadowRoot.querySelectorAll('.page-title');
+    assertEquals(1, titles.length);
+    assertTrue(!!titles[0]);
+    assertEquals(
+        loadTimeData.getString('browseSkillsTitle'),
+        titles[0].textContent.trim());
+  });
+
+  test('DiscoverSkillsPageShowsSubheaders', async function() {
+    loadTimeData.overrideValues({isSubheadersEnabled: true});
+
+    await setFirstPartySkills(
+        {
+          'Top Pick': [{id: '1', name: 'Top Skill'}],
+          'Learning': [{id: '2', name: 'Learn something'}],
+        },
+        ['Top Pick']);
+
+    const titles = page.shadowRoot.querySelectorAll('.page-title');
     assertEquals(2, titles.length);
     assertTrue(!!titles[0]);
     assertTrue(!!titles[1]);
-    assertEquals('Selected by Chrome', titles[0].textContent.trim());
+    assertEquals('Top Pick', titles[0].textContent.trim());
     assertEquals(
         loadTimeData.getString('browseSkillsTitle'),
         titles[1].textContent.trim());
@@ -347,25 +372,26 @@ suite('DiscoverSkillsPage', function() {
   });
 
   test('ShowsPartnerSkillsCorrectly', async function() {
-    await setFirstPartySkills({
-      'Partner picks': [
-        {id: '1', name: 'Partner 1'},
-        {id: '2', name: 'Partner 2'},
-        {id: '3', name: 'Partner 3'},
-        {id: '4', name: 'Partner 4'},
-      ],
-    });
+    await setFirstPartySkills(
+        {
+          'Partner picks': [
+            {id: '1', name: 'Partner 1'},
+            {id: '2', name: 'Partner 2'},
+            {id: '3', name: 'Partner 3'},
+            {id: '4', name: 'Partner 4'},
+          ],
+        },
+        ['Partner picks']);
 
-    const partnerContainer =
-        page.shadowRoot.querySelector<HTMLElement>('#partnerSkillsContainer');
-    assertTrue(!!partnerContainer);
+    const partnerCarousel = page.shadowRoot.querySelector('skills-carousel');
+    assertTrue(!!partnerCarousel);
 
-    const cards = partnerContainer.querySelectorAll('skill-card');
-    assertEquals(3, cards.length);
+    const cards = partnerCarousel.querySelectorAll('skill-card');
+    assertEquals(4, cards.length);
 
     const titles = page.shadowRoot.querySelectorAll('.page-title');
-    assertEquals(2, titles.length);
+    assertEquals(1, titles.length);
     assertTrue(!!titles[0]);
-    assertEquals('Partner Spotlight', titles[0].textContent.trim());
+    assertEquals('Partner picks', titles[0].textContent.trim());
   });
 });

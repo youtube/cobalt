@@ -19,11 +19,15 @@
   BOOL _passwordsEnabled;
   BOOL _autofillCreditCardEnabled;
   BOOL _autofillProfileEnabled;
+  BOOL _identityDocsEnabled;
+  BOOL _travelInfoEnabled;
 
   // Updatable Items.
   TableViewDetailIconItem* _passwordsDetailItem;
   TableViewDetailIconItem* _autofillCreditCardDetailItem;
   TableViewDetailIconItem* _autofillProfileDetailItem;
+  TableViewDetailIconItem* _identityDocsDetailItem;
+  TableViewDetailIconItem* _travelInfoDetailItem;
 
   BOOL _settingsAreDismissed;
 }
@@ -67,6 +71,14 @@
   _autofillProfileDetailItem = AutofillProfileItem(_autofillProfileEnabled);
   [model addItem:_autofillProfileDetailItem
       toSectionWithIdentifier:SettingsSectionIdentifierBasics];
+
+  _identityDocsDetailItem = IdentityDocsItem(_identityDocsEnabled);
+  [model addItem:_identityDocsDetailItem
+      toSectionWithIdentifier:SettingsSectionIdentifierBasics];
+
+  _travelInfoDetailItem = TravelInfoItem(_travelInfoEnabled);
+  [model addItem:_travelInfoDetailItem
+      toSectionWithIdentifier:SettingsSectionIdentifierBasics];
 }
 
 #pragma mark - UITableViewDelegate
@@ -90,6 +102,14 @@
     case SettingsItemTypeAutofillProfile:
       [self.delegate
           autofillAndPasswordsTableViewControllerDidSelectAutofillProfile:self];
+      break;
+    case SettingsItemTypeIdentityDocs:
+      [self.delegate
+          autofillAndPasswordsTableViewControllerDidSelectIdentityDocs:self];
+      break;
+    case SettingsItemTypeTravelInfo:
+      [self.delegate
+          autofillAndPasswordsTableViewControllerDidSelectTravelInfo:self];
       break;
     default:
       break;
@@ -133,6 +153,31 @@
     _autofillProfileDetailItem.detailText =
         AutofillProfileItemDetailText(enabled);
     [self reconfigureCellsForItems:@[ _autofillProfileDetailItem ]];
+  }
+}
+
+- (void)setIdentityDocsEnabled:(BOOL)enabled {
+  if (_identityDocsEnabled == enabled) {
+    return;
+  }
+  _identityDocsEnabled = enabled;
+
+  if (_identityDocsDetailItem) {
+    _identityDocsDetailItem.detailText =
+        IdentityDocsItemDetailText(enabled);
+    [self reconfigureCellsForItems:@[ _identityDocsDetailItem ]];
+  }
+}
+
+- (void)setTravelInfoEnabled:(BOOL)enabled {
+  if (_travelInfoEnabled == enabled) {
+    return;
+  }
+  _travelInfoEnabled = enabled;
+
+  if (_travelInfoDetailItem) {
+    _travelInfoDetailItem.detailText = TravelInfoItemDetailText(enabled);
+    [self reconfigureCellsForItems:@[ _travelInfoDetailItem ]];
   }
 }
 

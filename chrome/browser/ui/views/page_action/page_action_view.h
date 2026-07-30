@@ -15,10 +15,10 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
+#include "chrome/browser/ui/page_actions/page_action_controller.h"
+#include "chrome/browser/ui/page_actions/page_action_model_observer.h"
 #include "chrome/browser/ui/views/location_bar/icon_label_bubble_view.h"
 #include "chrome/browser/ui/views/page_action/anchored_message_view.h"
-#include "chrome/browser/ui/views/page_action/page_action_controller.h"
-#include "chrome/browser/ui/views/page_action/page_action_model_observer.h"
 #include "ui/actions/actions.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/models/image_model.h"
@@ -61,10 +61,19 @@ class PageActionView : public IconLabelBubbleView,
   // expanding and collapsing).
   bool IsChipVisible() const;
 
+  // Indicates whether this view is showing an anchored message
+  bool IsAnchoredMessageVisible() const;
+
   // Reports the chip visibility change state at the beginning of the animation.
   using ChipVisibilityChanged = base::RepeatingCallback<void(PageActionView*)>;
   base::CallbackListSubscription AddChipVisibilityChangedCallback(
       ChipVisibilityChanged callback);
+
+  // Reports the anchored message visibility change state
+  using AnchoredMessageVisibilityCallback =
+      base::RepeatingCallback<void(PageActionView*)>;
+  base::CallbackListSubscription AddAnchoredMessageVisibilityChangedCallback(
+      AnchoredMessageVisibilityCallback callback);
 
   // PageActionController::Delegate:
   // Reports the chip visibility change state at the end of the animation.
@@ -156,11 +165,18 @@ class PageActionView : public IconLabelBubbleView,
   base::RepeatingCallbackList<void(PageActionView*)>
       chip_visibility_changed_callbacks_;
 
+  // Client-provided callbacks for changes to anchored message state.
+  base::RepeatingCallbackList<void(PageActionView*)>
+      anchored_message_visibility_changed_callbacks_;
+
   // Used to notify when the chip state changes (expanded/hidden). The state is
   // only reported when there is not an ongoing animation. It's initialized to
   // base::DoNothing() for testing purpose.
   IsChipShowingChangedCallback is_chip_showing_changed_callback_ =
       base::DoNothing();
+
+  // The last "chip showing" state that was sent for a notification.
+  std::optional<bool> last_notified_is_chip_showing_;
 
   // Used to record click event histogram. It's initialized to base::DoNothing()
   // for testing purpose.

@@ -18,6 +18,7 @@
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/bind.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "components/prefs/testing_pref_service.h"
@@ -38,6 +39,7 @@
 #include "google_apis/gaia/oauth_multilogin_result.h"
 #include "net/http/http_status_code.h"
 #include "services/network/public/cpp/resource_request.h"
+#include "services/network/public/mojom/url_response_head.mojom.h"
 #include "services/network/test/test_cookie_manager.h"
 #include "services/network/test/test_url_loader_factory.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -45,7 +47,6 @@
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 #include "base/test/gmock_callback_support.h"
-#include "base/test/metrics/histogram_tester.h"
 #include "components/signin/public/base/hybrid_encryption_key.h"
 #include "components/signin/public/base/hybrid_encryption_key_test_utils.h"
 #include "services/network/test/mock_device_bound_session_manager.h"
@@ -484,6 +485,11 @@ class OAuthMultiloginHelperTest
   network::mojom::CookieManager* GetCookieManagerForPartition() override {
     return &mock_cookie_manager_;
   }
+
+  PartitionSuffix GetPartitionSuffix() const override {
+    return partition_suffix_;
+  }
+
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
   network::MockDeviceBoundSessionManager& mock_device_bound_session_manager() {
     return mock_device_bound_session_manager_;
@@ -524,8 +530,9 @@ class OAuthMultiloginHelperTest
   TestSigninClient test_signin_client_;
   std::unique_ptr<MockTokenService> mock_token_service_;
   std::unique_ptr<OAuthMultiloginHelper> helper_;
+  PartitionSuffix partition_suffix_ = PartitionSuffix::kTest;
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
-  bool should_return_device_bound_session_manager_ = true;
+  bool should_return_device_bound_session_manager_ = false;
   network::MockDeviceBoundSessionManager mock_device_bound_session_manager_;
   bool should_return_bound_session_delegate_ = true;
   raw_ptr<MockBoundSessionOAuthMultiLoginDelegate> bound_session_delegate_ =
@@ -945,8 +952,93 @@ TEST_F(OAuthMultiloginHelperTest, InvalidTokenErrorMaxRetries) {
   EXPECT_EQ(result_, SetAccountsInCookieResult::kTransientError);
 }
 
+TEST_F(OAuthMultiloginHelperTest,
+       ResponseStatusHistogramSkippedOnNetworkError) {
+  base::HistogramTester histogram_tester;
+  token_service()->UpdateCredentials(kAccountId, "refresh_token");
+  CreateHelper({{kAccountId, kGaiaId}});
+
+  // Issue access token.
+  OAuth2AccessTokenConsumer::TokenResponse success_response;
+  success_response.access_token = kAccessToken;
+  token_service()->IssueAllTokensForAccount(kAccountId, success_response);
+
+  // Multilogin call fails with a network error.
+  EXPECT_TRUE(url_loader()->IsPending(multilogin_url()));
+  url_loader()->SimulateResponseForPendingRequest(
+      GURL(multilogin_url()),
+      network::URLLoaderCompletionStatus(net::ERR_FAILED),
+      network::mojom::URLResponseHead::New(), "");
+
+  // Histogram should not be recorded for NetworkError to prevent skewing.
+  histogram_tester.ExpectTotalCount("Signin.OAuthMultiloginResponseStatus", 0);
+  histogram_tester.ExpectTotalCount("Signin.OAuthMultiloginResponseStatus.Test",
+                                    0);
+}
+
+TEST_F(OAuthMultiloginHelperTest,
+       ResponseStatusHistogramRecordedOnServerRetry) {
+  base::HistogramTester histogram_tester;
+  token_service()->UpdateCredentials(kAccountId, "refresh_token");
+  CreateHelper({{kAccountId, kGaiaId}});
+
+  // Issue access token.
+  OAuth2AccessTokenConsumer::TokenResponse success_response;
+  success_response.access_token = kAccessToken;
+  token_service()->IssueAllTokensForAccount(kAccountId, success_response);
+
+  // Multilogin call fails with server-side retry status.
+  EXPECT_TRUE(url_loader()->IsPending(multilogin_url()));
+  url_loader()->SimulateResponseForPendingRequest(multilogin_url(),
+                                                  kMultiloginRetryResponse);
+
+  // Histogram should be successfully recorded for kRetry.
+  histogram_tester.ExpectUniqueSample("Signin.OAuthMultiloginResponseStatus",
+                                      OAuthMultiloginResponseStatus::kRetry,
+                                      /*expected_bucket_count=*/1);
+  histogram_tester.ExpectUniqueSample(
+      "Signin.OAuthMultiloginResponseStatus.Test",
+      OAuthMultiloginResponseStatus::kRetry,
+      /*expected_bucket_count=*/1);
+}
+
+TEST_F(OAuthMultiloginHelperTest, ResponseStatusHistogramWithSuffix) {
+  base::HistogramTester histogram_tester;
+  partition_suffix_ = PartitionSuffix::kGlic;
+  token_service()->UpdateCredentials(kAccountId, "refresh_token");
+  CreateHelper({{kAccountId, kGaiaId}});
+
+  EXPECT_CALL(
+      *cookie_manager(),
+      SetCanonicalCookie(CookieMatcher("SID", "SID_value", ".google.fr"),
+                         CookieSourceMatcher("google.fr"), _, _))
+      .WillOnce(RunSetCookieCallbackWithSuccess);
+
+  // Issue access token.
+  OAuth2AccessTokenConsumer::TokenResponse success_response;
+  success_response.access_token = kAccessToken;
+  token_service()->IssueAllTokensForAccount(kAccountId, success_response);
+
+  const network::ResourceRequest* multilogin_request = nullptr;
+  ASSERT_TRUE(url_loader()->IsPending(multilogin_url(), &multilogin_request));
+
+  url_loader()->SimulateResponseForPendingRequest(multilogin_url(),
+                                                  kMultiloginSuccessResponse);
+  EXPECT_EQ(result_, SetAccountsInCookieResult::kSuccess);
+
+  histogram_tester.ExpectUniqueSample("Signin.OAuthMultiloginResponseStatus",
+                                      OAuthMultiloginResponseStatus::kOk,
+                                      /*expected_bucket_count=*/1);
+  // Suffix specific histogram should be recorded.
+  histogram_tester.ExpectUniqueSample(
+      "Signin.OAuthMultiloginResponseStatus.Glic",
+      OAuthMultiloginResponseStatus::kOk,
+      /*expected_bucket_count=*/1);
+}
+
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 TEST_F(OAuthMultiloginHelperTest, BoundTokenSuccessNoChallenge) {
+  base::HistogramTester histogram_tester;
   ReplaceTokenService(/*use_refresh_tokens_for_multilogin=*/true);
   std::vector<uint8_t> kFakeWrappedBindingKey = {1, 2, 3};
   token_service()->UpdateCredentials(
@@ -977,6 +1069,13 @@ TEST_F(OAuthMultiloginHelperTest, BoundTokenSuccessNoChallenge) {
   url_loader()->AddResponse(multilogin_url(), kMultiloginSuccessResponse);
   EXPECT_FALSE(url_loader()->IsPending(multilogin_url()));
   EXPECT_EQ(result_, SetAccountsInCookieResult::kSuccess);
+  histogram_tester.ExpectUniqueSample("Signin.OAuthMultiloginResponseStatus",
+                                      OAuthMultiloginResponseStatus::kOk,
+                                      /*expected_bucket_count=*/1);
+  histogram_tester.ExpectUniqueSample(
+      "Signin.OAuthMultiloginResponseStatus.Test",
+      OAuthMultiloginResponseStatus::kOk,
+      /*expected_bucket_count=*/1);
 }
 
 TEST_F(OAuthMultiloginHelperTest, BoundTokenSuccessWithChallenge) {
@@ -1418,7 +1517,9 @@ class OAuthMultiloginHelperStandardBoundSessionsEnabledTest
              {switches::kEnableOAuthMultiloginCookiesBinding, {}},
              {switches::kEnableOAuthMultiloginCookiesBindingServerExperiment,
               {{"enforced", "true"}}}},
-            /*disabled_features=*/{}) {}
+            /*disabled_features=*/{}) {
+    SetShouldReturnDeviceBoundSessionManager(true);
+  }
 
  protected:
   std::string multilogin_url_with_cookie_enforcement() {
@@ -1505,6 +1606,10 @@ TEST_F(OAuthMultiloginHelperStandardBoundSessionsEnabledTest,
   EXPECT_EQ(SetAccountsInCookieResult::kSuccess, result_);
   histogram_tester.ExpectUniqueSample(
       "Signin.DeviceBoundSessions.OAuthMultilogin.CreateSessionsResult",
+      OAuthMultiloginHelper::DeviceBoundSessionCreateSessionsResult::kSuccess,
+      /*expected_bucket_count=*/1);
+  histogram_tester.ExpectUniqueSample(
+      "Signin.DeviceBoundSessions.OAuthMultilogin.CreateSessionsResult.Test",
       OAuthMultiloginHelper::DeviceBoundSessionCreateSessionsResult::kSuccess,
       /*expected_bucket_count=*/1);
   histogram_tester.ExpectUniqueSample(
@@ -1999,7 +2104,9 @@ class OAuthMultiloginHelperStandardBoundSessionsEnabledPrototypeDisabledTest
             /*enabled_features=*/
             {{switches::kEnableOAuthMultiloginStandardCookiesBinding, {}}},
             /*disabled_features=*/{
-                switches::kEnableOAuthMultiloginCookiesBinding}) {}
+                switches::kEnableOAuthMultiloginCookiesBinding}) {
+    SetShouldReturnDeviceBoundSessionManager(true);
+  }
 };
 
 TEST_F(OAuthMultiloginHelperStandardBoundSessionsEnabledPrototypeDisabledTest,

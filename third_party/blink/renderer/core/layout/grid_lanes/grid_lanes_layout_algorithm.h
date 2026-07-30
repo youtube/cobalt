@@ -265,7 +265,7 @@ class CORE_EXPORT GridLanesLayoutAlgorithm
       SizingConstraint sizing_constraint);
 
   ConstraintSpace CreateConstraintSpaceForMeasure(
-      const GridItemData& grid_lanes_item,
+      const SubgriddedItemData& subgridded_item,
       std::optional<LayoutUnit> opt_fixed_inline_size = std::nullopt,
       const GridLayoutTrackCollection* track_collection = nullptr,
       bool is_for_min_max_sizing = false) const;
@@ -287,8 +287,12 @@ class CORE_EXPORT GridLanesLayoutAlgorithm
       const ConstraintSpace& space_for_measure,
       SizingConstraint sizing_constraint) const;
 
+  // `track_baseline` is the shared baseline for the track that `virtual_item`
+  // participates in, or `LayoutUnit::Min()` if the item is not
+  // baseline-aligned.
   LayoutUnit ContributionSizeForVirtualItem(
       const GridLayoutTrackCollection& track_collection,
+      LayoutUnit track_baseline,
       GridItemContributionType contribution_type,
       GridItemData* virtual_item) const;
 

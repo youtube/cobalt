@@ -60,6 +60,9 @@
 #include "chrome/browser/ui/omnibox/omnibox_popup_state_manager.h"
 #include "chrome/browser/ui/omnibox/omnibox_popup_view.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
+#include "chrome/browser/ui/page_actions/action_ids.h"
+#include "chrome/browser/ui/page_actions/page_action_controller.h"
+#include "chrome/browser/ui/page_actions/page_action_properties_provider.h"
 #include "chrome/browser/ui/passwords/manage_passwords_ui_controller.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
@@ -87,14 +90,11 @@
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_webui_base_content.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_webui_content.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_view_views.h"
-#include "chrome/browser/ui/views/page_action/action_ids.h"
 #include "chrome/browser/ui/views/page_action/page_action_container_view.h"
-#include "chrome/browser/ui/views/page_action/page_action_controller.h"
 #include "chrome/browser/ui/views/page_action/page_action_icon_container.h"
 #include "chrome/browser/ui/views/page_action/page_action_icon_controller.h"
 #include "chrome/browser/ui/views/page_action/page_action_icon_params.h"
 #include "chrome/browser/ui/views/page_action/page_action_icon_view.h"
-#include "chrome/browser/ui/views/page_action/page_action_properties_provider.h"
 #include "chrome/browser/ui/views/page_action/page_action_view_params.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_specification.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_view.h"
@@ -371,7 +371,7 @@ void LocationBarView::Init() {
 
   const bool web_ui_popup_dropdown_only =
       omnibox::IsWebUIOmniboxPopupEnabled() &&
-      !base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup);
+      !omnibox::IsWebUIOmniboxFullPopupEnabled();
 
   // Default to the legacy popup view for web apps and devtools windows since
   // creating the WebUI popup results in an extra Omnibox process being created
@@ -382,7 +382,7 @@ void LocationBarView::Init() {
   if (!is_web_app && !is_devtools &&
       ((web_ui_popup_dropdown_only &&
         !base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxPopupDebug)) ||
-       base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup))) {
+       omnibox::IsWebUIOmniboxFullPopupEnabled())) {
     omnibox_popup_view_ = std::make_unique<OmniboxPopupViewWebUI>(
         /*omnibox_view=*/omnibox_view_, omnibox_controller_.get(),
         /*location_bar=*/this, /*presenter_delegate=*/*this);
@@ -1974,7 +1974,8 @@ void LocationBarView::ValidatePopupState(OmniboxPopupState state) {
   // Note: GetWidget() returns the BrowserView's widget, not the popup widget.
   if (views::Widget* widget = GetWidget();
       !widget || !widget->IsVisible() ||
-      base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup)) {
+      base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup) ||
+      base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopupV2)) {
     return;
   }
 

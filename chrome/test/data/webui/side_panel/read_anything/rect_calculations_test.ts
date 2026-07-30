@@ -6,6 +6,7 @@ import {calculateTextBounds, isRectMostlyVisible, isRectVisible, MOSTLY_VISIBLE_
 import {assertEquals, assertFalse, assertTrue} from 'chrome-untrusted://webui-test/chai_assert.js';
 
 import {FakeReadingMode} from './fake_reading_mode.js';
+import {setWindowSize} from './common.js';
 
 suite('RectCalculations', () => {
   setup(() => {
@@ -18,9 +19,10 @@ suite('RectCalculations', () => {
     let halfHeight: number;
 
     setup(() => {
-      windowHeight = document.documentElement.clientHeight;
+      windowHeight = document.documentElement.clientHeight || 600;
       halfHeight = windowHeight / 2;
-      window.innerHeight = windowHeight;
+      setWindowSize(
+          windowHeight, document.documentElement.clientWidth || 1000);
     });
 
     test('fully inside window returns true', () => {
@@ -69,10 +71,11 @@ suite('RectCalculations', () => {
     let minorityHeight: number;
 
     setup(() => {
-      windowHeight = document.documentElement.clientHeight;
+      windowHeight = document.documentElement.clientHeight || 600;
       majorityHeight = windowHeight * MOSTLY_VISIBLE_PERCENT;
       minorityHeight = windowHeight - majorityHeight;
-      window.innerHeight = windowHeight;
+      setWindowSize(
+          windowHeight, document.documentElement.clientWidth || 1000);
     });
 
     test('fully inside window returns true', () => {

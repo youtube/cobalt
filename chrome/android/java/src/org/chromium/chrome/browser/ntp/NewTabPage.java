@@ -58,6 +58,7 @@ import org.chromium.chrome.browser.lifecycle.PauseResumeWithNativeObserver;
 import org.chromium.chrome.browser.magic_stack.ModuleRegistry;
 import org.chromium.chrome.browser.metrics.StartupMetricsTracker;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager.HomepageStateListener;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundType;
 import org.chromium.chrome.browser.ntp_customization.theme.chrome_colors.NtpThemeColorInfo;
@@ -182,7 +183,7 @@ public class NewTabPage
     private TopInsetProvider.@Nullable Observer mTopInsetChangeObserver;
     private boolean mIsUseEdgeToEdgeForCustomizedTheme;
 
-    private NtpCustomizationConfigManager.@Nullable HomepageStateListener mHomepageStateListener;
+    private @Nullable HomepageStateListener mHomepageStateListener;
 
     // A flag to use light tint on toolbar and status bar icons. The light tint isn't applied on
     // tablet mode.
@@ -264,6 +265,7 @@ public class NewTabPage
         public void focusSearchBox(
                 boolean beginVoiceSearch,
                 @AutocompleteRequestType int requestType,
+                boolean showFuseboxPopup,
                 @Nullable String pastedText) {
             if (mIsDestroyed) return;
             FeedReliabilityLogger feedReliabilityLogger =
@@ -288,6 +290,8 @@ public class NewTabPage
                                 : OmniboxFocusReason.FAKE_BOX_LONG_PRESS;
                 if (requestType == AutocompleteRequestType.AI_MODE) {
                     focusReason = OmniboxFocusReason.NTP_AI_MODE;
+                } else if (showFuseboxPopup) {
+                    focusReason = OmniboxFocusReason.FAKE_BOX_PLUS_BUTTON_TAP;
                 }
 
                 mOmniboxStub.beginInput(
@@ -657,7 +661,7 @@ public class NewTabPage
     // HomepageStateListener.
     private void initHomepageStateListener() {
         mHomepageStateListener =
-                new NtpCustomizationConfigManager.HomepageStateListener() {
+                new HomepageStateListener() {
                     @Override
                     public void onBackgroundImageChanged(
                             Bitmap originalBitmap,

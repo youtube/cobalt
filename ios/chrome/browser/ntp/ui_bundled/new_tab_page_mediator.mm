@@ -24,6 +24,7 @@
 #import "components/image_fetcher/core/request_metadata.h"
 #import "components/ntp_tiles/pref_names.h"
 #import "components/omnibox/browser/aim_eligibility_service.h"
+#import "components/omnibox/browser/omnibox_pref_names.h"
 #import "components/omnibox/browser/omnibox_prefs.h"
 #import "components/omnibox/common/omnibox_features.h"
 #import "components/prefs/ios/pref_observer_bridge.h"
@@ -73,9 +74,11 @@
 #import "ios/chrome/browser/policy/model/policy_util.h"
 #import "ios/chrome/browser/search_engines/model/search_engine_observer_bridge.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
+#import "ios/chrome/browser/shared/model/prefs/pref_backed_boolean.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
 #import "ios/chrome/browser/shared/model/utils/first_run_util.h"
+#import "ios/chrome/browser/shared/model/utils/observable_boolean.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/util/custom_ui_trait_accessor.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
@@ -89,6 +92,7 @@
 #import "ios/chrome/common/ui/favicon/favicon_attributes.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/public/provider/chrome/browser/voice_search/voice_search_api.h"
+#import "ios/web/public/js_image_transcoder/java_script_image_transcoder.h"
 #import "ios/web/public/navigation/navigation_item.h"
 #import "ios/web/public/navigation/navigation_manager.h"
 #import "ios/web/public/navigation/referrer.h"
@@ -163,7 +167,8 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
 
 }  // namespace
 
-@interface NewTabPageMediator () <HomeBackgroundCustomizationServiceObserving,
+@interface NewTabPageMediator () <BooleanObserver,
+                                  HomeBackgroundCustomizationServiceObserving,
                                   IdentityManagerObserverBridgeDelegate,
                                   PlaceholderServiceObserving,
                                   PrefObserverDelegate,
@@ -227,6 +232,8 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
   raw_ptr<image_fetcher::ImageFetcherService> _imageFetcherService;
   raw_ptr<UserUploadedImageManager, DanglingUntriaged>
       _userUploadedImageManager;
+  // Transcoder used to decode images.
+  std::unique_ptr<web::JavaScriptImageTranscoder> _imageTranscoder;
   // Observer to keep track of the syncing status.
   std::unique_ptr<SyncObserverBridge> _syncObserver;
   raw_ptr<signin::IdentityManager> _identityManager;
@@ -250,6 +257,8 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
   GURL _pendingBackgroundURL;
   // Sequence number for fetch requests to generate unique flow IDs.
   uint64_t _fetchSequenceNumber;
+  // Holds whether the omnibox should be pinned to the bottom position.
+  PrefBackedBoolean* _bottomOmniboxEnabled;
 }
 
 // Synthesized from NewTabPageMutator.
@@ -315,6 +324,7 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
     _backgroundCustomizationService = backgroundCustomizationService;
     _backgroundImageCacheService = backgroundImageCacheService;
     _imageFetcherService = imageFetcherService;
+    _imageTranscoder = std::make_unique<web::JavaScriptImageTranscoder>();
     _userUploadedImageManager = userUploadedImageManager;
     _signedInIdentity = _authService->GetPrimaryIdentity();
     _tracker = tracker;
@@ -327,8 +337,23 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
                 [weakSelf updateAIMAvailability];
               }));
     }
+    if (IsChromeNextIaEnabled() && IsBottomOmniboxAvailable()) {
+      _bottomOmniboxEnabled = [[PrefBackedBoolean alloc]
+          initWithPrefService:GetApplicationContext()->GetLocalState()
+                     prefName:omnibox::kIsOmniboxInBottomPosition];
+      _bottomOmniboxEnabled.observer = self;
+      [_bottomOmniboxEnabled.observer booleanDidChange:_bottomOmniboxEnabled];
+    }
   }
   return self;
+}
+
+- (void)setHeaderConsumer:(id<NewTabPageHeaderConsumer>)headerConsumer {
+  _headerConsumer = headerConsumer;
+  if (IsChromeNextIaEnabled() && IsBottomOmniboxAvailable()) {
+    [self.headerConsumer
+        setOmniboxInBottomPosition:_bottomOmniboxEnabled.value];
+  }
 }
 
 #pragma mark - NewTabPageMutator
@@ -487,6 +512,17 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
       [self isFeedHeaderVisible]) {
     self.discoverFeedService->UpdateFeedViewVisibilityState(
         self.contentCollectionView, currentState, previousState);
+  }
+}
+
+#pragma mark - BooleanObserver
+
+- (void)booleanDidChange:(id<ObservableBoolean>)observableBoolean {
+  CHECK(IsChromeNextIaEnabled());
+  if (observableBoolean == _bottomOmniboxEnabled) {
+    CHECK(IsBottomOmniboxAvailable());
+    [self.headerConsumer
+        setOmniboxInBottomPosition:_bottomOmniboxEnabled.value];
   }
 }
 
@@ -833,6 +869,29 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
                                 HomeCustomizationBackgroundStyle::kDefault);
 }
 
+// Sanitizes and decodes downloaded image data in a sandboxed process before
+// applying it as the custom background.
+- (void)processDownloadedImageData:(const std::string&)imageData
+                          metadata:
+                              (const image_fetcher::RequestMetadata&)metadata
+                        background:(sync_pb::NtpCustomBackground)background
+                             cache:(BOOL)cache {
+  if (imageData.empty()) {
+    return;
+  }
+
+  __weak __typeof(self) weakSelf = self;
+  _imageTranscoder->TranscodeImage(
+      [NSData dataWithBytes:imageData.data() length:imageData.length()],
+      base::SysUTF8ToNSString(metadata.mime_type), nil, nil, @1.0,
+      base::BindOnce(^(NSData* safeData, NSError* error) {
+        UIImage* image = [UIImage imageWithData:safeData];
+        if (image) {
+          [weakSelf setCustomBackground:background image:image cache:cache];
+        }
+      }));
+}
+
 // Fetches and applies a custom background image.
 - (void)fetchCustomBackground:(sync_pb::NtpCustomBackground)background {
   GURL imageURL = GURL(background.url());
@@ -871,17 +930,14 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
       const std::string&, const image_fetcher::RequestMetadata&)>>(
       base::BindOnce(^(const std::string& image_data,
                        const image_fetcher::RequestMetadata& metadata) {
-        if (!image_data.empty()) {
-          NSData* data = [NSData dataWithBytes:image_data.data()
-                                        length:image_data.length()];
-          UIImage* image = [UIImage imageWithData:data];
-          if (image) {
-            // Temporarily sets the thumbnail as the background until the
-            // high-resolution image is loaded.
-            [weakSelf setCustomBackground:background image:image cache:NO];
-          }
+        __typeof(self) strongSelf = weakSelf;
+        if (!strongSelf) {
           return;
         }
+        [strongSelf processDownloadedImageData:image_data
+                                      metadata:metadata
+                                    background:background
+                                         cache:NO];
       }));
 
   _imageCallback = std::make_unique<base::CancelableOnceCallback<void(
@@ -905,18 +961,16 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
           strongSelf->_thumbnailCallback.reset();
         }
 
-        if (!image_data.empty()) {
-          NSData* data = [NSData dataWithBytes:image_data.data()
-                                        length:image_data.length()];
-          UIImage* image = [UIImage imageWithData:data];
-          if (image) {
-            [strongSelf setCustomBackground:background image:image cache:YES];
-          }
-        } else {
+        if (image_data.empty()) {
           base::UmaHistogramSparse(
               "IOS.HomeCustomization.Background.Ntp.ImageDownloadErrorCode",
               metadata.http_response_code);
         }
+
+        [strongSelf processDownloadedImageData:image_data
+                                      metadata:metadata
+                                    background:background
+                                         cache:YES];
 
         // Clear state.
         strongSelf->_pendingBackgroundURL = GURL();

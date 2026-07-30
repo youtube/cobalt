@@ -91,7 +91,7 @@ void DefaultDecoderFactory::CreateAudioDecoders(
 #endif
 
   if (base::FeatureList::IsEnabled(kDirectOpusAudioDecoding)) {
-    audio_decoders->push_back(std::make_unique<OpusAudioDecoder>());
+    audio_decoders->push_back(std::make_unique<OpusAudioDecoder>(task_runner));
   }
 
 #if BUILDFLAG(ENABLE_FFMPEG)
@@ -146,7 +146,8 @@ void DefaultDecoderFactory::CreateVideoDecoders(
 #endif
 
 #if BUILDFLAG(ENABLE_FFMPEG_VIDEO_DECODERS)
-  video_decoders->push_back(std::make_unique<FFmpegVideoDecoder>(media_log));
+  video_decoders->push_back(
+      std::make_unique<FFmpegVideoDecoder>(media_log->Clone()));
 #endif
 }
 

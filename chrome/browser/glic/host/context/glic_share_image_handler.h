@@ -44,8 +44,7 @@ class GlicKeyedService;
 
 // Manages the capturing of context images (i.e., images for which the user has
 // opened the context menu), and sending to the web client as additional data.
-class GlicShareImageHandler : public content::WebContentsObserver,
-                              public PanelStateObserver {
+class GlicShareImageHandler : public content::WebContentsObserver {
  public:
   explicit GlicShareImageHandler(GlicKeyedService& service);
   ~GlicShareImageHandler() override;
@@ -55,13 +54,10 @@ class GlicShareImageHandler : public content::WebContentsObserver,
                          content::RenderFrameHost* render_frame_host,
                          const GURL& src_url);
 
-  // PanelStateObserver implementation:
-  void PanelStateChanged(const mojom::PanelState& panel_state,
-                         const PanelStateContext& context) override;
-  void OnInstanceDestroyed() override;
-
  private:
   friend class GlicShareImageHandlerTest;
+
+  void OnInstanceWillBeDestroyed(GlicInstance* instance);
 
   // content::WebContentsObserver.
   void DidFinishNavigation(
@@ -128,6 +124,15 @@ class GlicShareImageHandler : public content::WebContentsObserver,
   void OnPastePolicyCheckComplete(
       std::optional<content::ClipboardPasteData> data);
 
+  // Waits for the user to consent to the onboarding flow.
+  void WaitForOnboardingCompletion();
+
+  // Called, eg, when the user finishes onboarding.
+  void OnOnboardingStatusChanged();
+
+  // Called when we timeout waiting for onboarding completion.
+  void OnOnboardingTimeout();
+
   raw_ref<GlicKeyedService> service_;  // owns this
 
   bool is_share_in_progress_ = false;
@@ -148,14 +153,16 @@ class GlicShareImageHandler : public content::WebContentsObserver,
   std::vector<uint8_t> thumbnail_data_;
   base::CallbackListSubscription will_discard_web_contents_subscription_;
   base::CallbackListSubscription will_detach_subscription_;
-  base::ScopedObservation<GlicInstance, PanelStateObserver>
-      instance_observation_{this};
+  base::CallbackListSubscription instance_destruction_subscription_;
   InstanceId instance_id_ = InstanceId::CreateNullId();
   bool instance_change_permitted_ = true;
 
   // This is used for communicating with the renderer to capture image context.
   std::unique_ptr<mojo::AssociatedRemote<chrome::mojom::ChromeRenderFrame>>
       chrome_render_frame_remote_;
+
+  base::OneShotTimer onboarding_timeout_timer_;
+  base::CallbackListSubscription onboarding_subscription_;
 
   base::WeakPtrFactory<GlicShareImageHandler> weak_ptr_factory_{this};
 };

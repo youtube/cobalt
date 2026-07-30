@@ -44,6 +44,7 @@ suite('LocationIconTest', function() {
       text: 'Not secure',
       isClickable: true,
       isTextDangerous: false,
+      isVisible: true,
     };
     await microtasksFinished();
 
@@ -72,6 +73,7 @@ suite('LocationIconTest', function() {
       text: 'Dangerous',
       isClickable: true,
       isTextDangerous: true,
+      isVisible: true,
     };
     await microtasksFinished();
 
@@ -95,6 +97,7 @@ suite('LocationIconTest', function() {
       text: 'Not secure',
       isClickable: true,
       isTextDangerous: false,
+      isVisible: true,
     };
     await microtasksFinished();
 
@@ -114,6 +117,7 @@ suite('LocationIconTest', function() {
       text: 'Not secure',
       isClickable: true,
       isTextDangerous: false,
+      isVisible: true,
     };
     await microtasksFinished();
 
@@ -128,6 +132,7 @@ suite('LocationIconTest', function() {
       text: '',
       isClickable: false,
       isTextDangerous: false,
+      isVisible: true,
     };
     await microtasksFinished();
 
@@ -151,6 +156,7 @@ suite('LocationIconTest', function() {
       text: '',
       isClickable: true,
       isTextDangerous: false,
+      isVisible: true,
     };
     await microtasksFinished();
 
@@ -163,6 +169,10 @@ suite('LocationIconTest', function() {
     assertEquals(
         LhsChipIdentifier.kLocationIcon,
         toolbarUiHandler.getArgs('onLhsChipMousePressed')[0]);
+
+    // Simulate right click pointerdown
+    container.dispatchEvent(new PointerEvent('pointerdown', {button: 2}));
+    assertEquals(2, toolbarUiHandler.getCallCount('onLhsChipMousePressed'));
 
     container.click();
     assertEquals(1, toolbarUiHandler.getCallCount('onLhsChipClicked'));

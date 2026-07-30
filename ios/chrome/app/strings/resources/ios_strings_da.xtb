@@ -54,6 +54,7 @@
 <translation id="1179890706672152411">Der er ikke mere lagerplads</translation>
 <translation id="1181037720776840403">Fjern</translation>
 <translation id="1190609913194133056">Underretningcenter</translation>
+<translation id="1199631150313925648">Angiv manuelt</translation>
 <translation id="1199963004393929848">Grønt tema</translation>
 <translation id="1201402288615127009">Næste</translation>
 <translation id="1204075260022434100">{count,plural, =1{Bogmærket er gemt i "{title}" på din konto {email}}one{{count} bogmærke er gemt i "{title}" på din konto {email}}other{{count} bogmærker er gemt i "{title}" på din konto {email}}}</translation>
@@ -720,6 +721,7 @@
 <translation id="3565012355885596568">Billederne kunne ikke indlæses</translation>
 <translation id="3565930036634619844">Fane. <ph name="TAB_INDEX" /> af <ph name="NUMBER_OF_TABS" />.</translation>
 <translation id="3567168891086460374">Gem på en anden måde</translation>
+<translation id="3571703298474554279">En hurtigere måde at bruge appen på</translation>
 <translation id="3572503683475187385">Den aktuelle fane deles med Gemini, når du starter en ny chat. Når du deler en fane med Gemini, sendes dens indhold og webadresse til Google. <ph name="BEGIN_LINK" />Få flere oplysninger<ph name="END_LINK" /></translation>
 <translation id="3572607909481582402">På din Google-konto</translation>
 <translation id="3575234738189584619">Søg med Lens</translation>
@@ -786,7 +788,6 @@
 <translation id="3838691874161539578">Tjek dine gemte adgangskoder for at forbedre sikkerheden og beskytte dig selv online</translation>
 <translation id="3838985624086228724">Prisfald på det produkt, du holder øje med, fra <ph name="PREVIOUS_PRICE" /> til <ph name="PRICE" />, <ph name="PRODUCT_NAME" />, <ph name="DOMAIN" /></translation>
 <translation id="385051799172605136">Tilbage</translation>
-<translation id="3850952228519377137">Skjul "Overvåg priser på dine faner"</translation>
 <translation id="3851938967634752633">Adgangskoderne til <ph name="WEBSITE" />, <ph name="SECOND_WEBSITE" /> og <ph name="NUMBER_OF_ACCOUNTS" /> andre slettes. Dine konti slettes ikke.</translation>
 <translation id="3853162385423733133">Fortsæt med at bruge og gemme adgangskoder på din Google-konto <ph name="EMAIL" /></translation>
 <translation id="3853873210696342070">Importér</translation>
@@ -934,7 +935,6 @@
 <translation id="4323122584592971322">OID.</translation>
 <translation id="4324735664183300693">Aktivér notifikationer</translation>
 <translation id="4326912346867677256">Tryk på "Brug adgangskode" for at logge ind på en sikker måde.</translation>
-<translation id="4327017157997423717">Overvåg prisen på <ph name="PRODUCT_NAME" />, <ph name="PRICE" />, <ph name="DOMAIN" /></translation>
 <translation id="4328843285884395590">Mit drev</translation>
 <translation id="4331177082088332784">Du kan administrere dette under BEGIN_LINKIndstillinger for indholdEND_LINK</translation>
 <translation id="4334428914252001502">1 ulæst artikel.</translation>
@@ -958,6 +958,7 @@
 <translation id="441868831736628555">Privatlivsmeddelelse</translation>
 <translation id="4420409367264901497">Rediger bogmærke</translation>
 <translation id="4425365312778464779">Dette er en administreret konto</translation>
+<translation id="443008484043213881">Værktøjer</translation>
 <translation id="4430277756566635951"><ph name="EMAIL" /> er valgt i øjeblikket. Vælg en konto.</translation>
 <translation id="4430505936695785931">Få adgang til gemte adgangskoder i andre apps</translation>
 <translation id="4431224949908513835">Vælg en betalingsmetode, der skal udfyldes.</translation>
@@ -1294,6 +1295,7 @@ Handoff skal være aktiveret i afsnittet Generelt i Indstillinger, og dine enhed
 <translation id="5581786858144165447">Spørg AI-tilstand</translation>
 <translation id="5585019845078534178">Kort</translation>
 <translation id="5591526871732898147">Vedhæftet billede {index}</translation>
+<translation id="5594597292424622277">Sæt videoen på pause</translation>
 <translation id="5595485650161345191">Rediger adresse</translation>
 <translation id="559567008082979829">Angiv, at dine downloads skal slettes efter én måned.</translation>
 <translation id="5596627076506792578">Flere valgmuligheder</translation>
@@ -1518,7 +1520,6 @@ Handoff skal være aktiveret i afsnittet Generelt i Indstillinger, og dine enhed
 <translation id="6321526113093607004">Føj til Bogmærker</translation>
 <translation id="6327249202318869726">Gemini er deaktiveret for din konto. Kontakt din administrator for at få flere oplysninger.</translation>
 <translation id="6331836477476466332">En mere sikker og effektiv browser til dig</translation>
-<translation id="6335744088476213315">Dette kort viser produkter, du har kigget på for nylig, og som du muligvis er interesseret i at holde øje med for at få notifikationer om prisfald</translation>
 <translation id="6337234675334993532">Kryptering</translation>
 <translation id="6337313937331295309">Privatlivsmeddelelse for Gemini-apps</translation>
 <translation id="633809752005859102">Der gik noget helt galt. Vi arbejder på sagen.</translation>
@@ -1573,6 +1574,7 @@ Handoff skal være aktiveret i afsnittet Generelt i Indstillinger, og dine enhed
 <translation id="6476800141292307438">Siden oversættes til <ph name="LANGUAGE" />. Valgmulighederne findes nederst på skærmen.</translation>
 <translation id="647867789226964031">Skift dine adgangskoder</translation>
 <translation id="6480363549849064919">Klientgodkendelse</translation>
+<translation id="6489174933860678546">Åbn inkognitofaner for at browse mere privat på nettet.</translation>
 <translation id="6494931198667773526">Slutter</translation>
 <translation id="6503077044568424649">Mest besøgte</translation>
 <translation id="6503763061813913607">Notifikationer om Sikkerhedstjek</translation>
@@ -1630,6 +1632,7 @@ Handoff skal være aktiveret i afsnittet Generelt i Indstillinger, og dine enhed
 <translation id="6640268266988685324">Åben fane</translation>
 <translation id="6641465290890659327">Del en kopi af din adgangskode</translation>
 <translation id="6642362222295953972">Skift til den eksisterende fane</translation>
+<translation id="6643016212128521049">Ryd</translation>
 <translation id="6645899968535965230">QR-kode: <ph name="PAGE_TITLE" /></translation>
 <translation id="6657585470893396449">Adgangskode</translation>
 <translation id="6659660757330712663">Du kan stryge på værktøjslinjen for at skifte mellem faner.</translation>
@@ -1696,6 +1699,7 @@ Handoff skal være aktiveret i afsnittet Generelt i Indstillinger, og dine enhed
 <translation id="6871397658902960384">Browse</translation>
 <translation id="6874328931822449112">{COUNT,plural, =1{Gem adgangskoden på kontoen}one{Gem adgangskoden på kontoen}other{Gem adgangskoderne på kontoen}}</translation>
 <translation id="6875166646976836138">Du kan også se og administrere disse elementer i dine bogmærker, på din læseliste eller via Adgangskodeadministrator.</translation>
+<translation id="6878052248816456143">Få adgang til filer i Google Drev når som helst.</translation>
 <translation id="6882836635272038266">Standardbeskyttelse mod websites, downloads og udvidelser, som er registreret som skadelige.</translation>
 <translation id="6884135917113737984">{COUNT,plural, =1{Gem {COUNT} adgangskode på din Google-konto}one{Gem {COUNT} adgangskode på din Google-konto}other{Gem {COUNT} adgangskoder på din Google-konto}}</translation>
 <translation id="6888009575607455378">Er du sikker på, at du vil kassere dine ændringer?</translation>
@@ -1809,6 +1813,7 @@ Handoff skal være aktiveret i afsnittet Generelt i Indstillinger, og dine enhed
 <translation id="7345061034321640811">Import er ikke tilladt</translation>
 <translation id="7347998088283246662">Importér adgangskoder, historik, bogmærker m.m.</translation>
 <translation id="7352651011704765696">Noget gik galt</translation>
+<translation id="7363497636543208734">Det er nemmere at navigere i appen nu.</translation>
 <translation id="7364796246159120393">Vælg fil</translation>
 <translation id="736564850024123010">Flyt din adresselinje for at få en tilpasset oplevelse.</translation>
 <translation id="7366909168761621528">Browserdata</translation>
@@ -2108,7 +2113,6 @@ Handoff skal være aktiveret i afsnittet Generelt i Indstillinger, og dine enhed
 <translation id="8319282042900445670">Påmindelsen er indstillet til <ph name="TIME" />, <ph name="DATE" /></translation>
 <translation id="8320212361750431956">Seneste aktivitet</translation>
 <translation id="8325455175867928593">Skjul "Anmeldelser baseret på dine interesser"</translation>
-<translation id="8328777765163860529">Luk alt</translation>
 <translation id="833647236762414178">Opret, gem og administrer dine adgangskoder og adgangsnøgler, så du nemt kan logge ind på websites og i apps. <ph name="BEGIN_LINK" />Få flere oplysninger<ph name="END_LINK" /></translation>
 <translation id="8343993175958086504">Sikkerhedskopiér dit indhold, og få adgang til det på enhver enhed.</translation>
 <translation id="8348530355586151720">Tryk på prikmenuen</translation>
@@ -2163,6 +2167,7 @@ Handoff skal være aktiveret i afsnittet Generelt i Indstillinger, og dine enhed
 <translation id="8528009254289981965">Åbn links fra andre apps i inkognito</translation>
 <translation id="8529767659511976195">Ny</translation>
 <translation id="8531572740963685410">PDF'er</translation>
+<translation id="8532059953132740592">Afspil videoen</translation>
 <translation id="8533411848724153701">Gemini</translation>
 <translation id="8533670235862049797">Beskyttet browsing er aktiveret</translation>
 <translation id="8534481786647257214">Opslag delt på Google+.</translation>
@@ -2291,6 +2296,7 @@ Handoff skal være aktiveret i afsnittet Generelt i Indstillinger, og dine enhed
 <translation id="8915916167043355778">Luk alle</translation>
 <translation id="892185197271200809">Alle mister øjeblikkeligt adgangen til fanegruppen "<ph name="GROUP_NAME" />", og den slettes fra alle enheder</translation>
 <translation id="8923178205567790913">Adgangskoder</translation>
+<translation id="8926498511977337209">Brug nettet i inkognitotilstand</translation>
 <translation id="892776311701544612">Få flere oplysninger…</translation>
 <translation id="8928133177108699615">Computer</translation>
 <translation id="8928426232677696166"><ph name="EMAIL" />, som administreres af din organisation, er valgt i øjeblikket. Vælg en konto.</translation>

@@ -38,6 +38,7 @@
 #include "content/common/navigation_params_utils.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/content_browser_client.h"
+#include "content/public/browser/disallow_activation_reason.h"
 #include "content/public/browser/global_request_id.h"
 #include "content/public/browser/invalidate_type.h"
 #include "content/public/browser/navigation_controller.h"
@@ -1228,8 +1229,16 @@ void Navigator::NavigateFromFrameProxy(
     return;
   }
 
-  if (!will_navigate_from_frame_proxy_callback_for_testing_.is_null()) {
-    will_navigate_from_frame_proxy_callback_for_testing_.Run();
+  // Only active and prerendered documents are allowed to start navigation in
+  // their frame.
+  if (render_frame_host->lifecycle_state() !=
+      RenderFrameHostImpl::LifecycleStateImpl::kPrerendering) {
+    // If this is reached in case the RenderFrameHost is in BackForwardCache
+    // evict the document from BackForwardCache.
+    if (render_frame_host->IsInactiveAndDisallowActivation(
+            DisallowActivationReasonId::kBeginNavigation)) {
+      return;
+    }
   }
 
   controller_.NavigateFromFrameProxy(
@@ -1243,11 +1252,6 @@ void Navigator::NavigateFromFrameProxy(
       navigation_start_time, is_embedder_initiated_fenced_frame_navigation,
       is_unfenced_top_navigation, force_new_browsing_instance,
       is_container_initiated, has_rel_opener, embedder_shared_storage_context);
-}
-
-void Navigator::SetWillNavigateFromFrameProxyCallbackForTesting(
-    const base::RepeatingClosure& callback) {
-  will_navigate_from_frame_proxy_callback_for_testing_ = callback;
 }
 
 void Navigator::BeforeUnloadCompleted(FrameTreeNode* frame_tree_node,

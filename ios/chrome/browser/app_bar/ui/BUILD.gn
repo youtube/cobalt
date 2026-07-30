@@ -2,23 +2,44 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-source_set("ui") {
+source_set("constants") {
   sources = [
     "app_bar_constants.h",
     "app_bar_constants.mm",
+  ]
+  deps = [ "//base" ]
+}
+
+source_set("utils") {
+  sources = [
+    "app_bar_utils.h",
+    "app_bar_utils.mm",
+  ]
+  deps = [
+    "//base",
+    "//ios/chrome/browser/shared/ui/util",
+  ]
+}
+
+source_set("ui") {
+  sources = [
+    "app_bar_background_view.h",
+    "app_bar_background_view.mm",
     "app_bar_consumer.h",
     "app_bar_container_view.h",
     "app_bar_container_view.mm",
     "app_bar_container_view_controller.h",
     "app_bar_container_view_controller.mm",
     "app_bar_container_view_delegate.h",
+    "app_bar_iph_background_view.h",
+    "app_bar_iph_background_view.mm",
     "app_bar_mutator.h",
-    "app_bar_utils.h",
-    "app_bar_utils.mm",
-    "app_bar_view.h",
-    "app_bar_view.mm",
     "app_bar_view_controller.h",
     "app_bar_view_controller.mm",
+  ]
+  public_deps = [
+    ":constants",
+    ":utils",
   ]
   deps = [
     "//base",
@@ -38,5 +59,15 @@ source_set("ui") {
     "//ios/chrome/common/ui/util",
     "//ios/chrome/common/ui/util:dynamic_type_util",
     "//ui/base",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "app_bar_view_controller_unittest.mm" ]
+  deps = [
+    ":ui",
+    "//base",
+    "//testing/gtest",
   ]
 }

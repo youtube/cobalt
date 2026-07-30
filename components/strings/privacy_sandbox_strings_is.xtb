@@ -10,6 +10,7 @@
 <translation id="19426210786412737">Núverandi Chrome-stillingar þínar hafa verið uppfærðar til að veita vefsvæðum aðgang að fótsporum þriðju aðila. Þú getur breytt þessari stillingu hvenær sem er.</translation>
 <translation id="1954777269544683286">Google krefst þess að fyrirtæki lýsi því opinberlega yfir að þau muni ekki nota þessi gögn til að rekja virkni þína á vefsvæðum. Fyrirtæki bera ábyrgð á því að láta þig vita hvernig þau nota gögnin þín. <ph name="BEGIN_LINK" />Þú getur nálgast frekari upplýsingar í persónuverndarstefnunni okkar<ph name="END_LINK" />.</translation>
 <translation id="2004697686368036666">Eiginleikar á sumum vefsvæðum virka hugsanlega ekki</translation>
+<translation id="2183376768278472507">Ef vefsvæði virkar ekki sem skyldi geturðu prófað að veita því tiltekna vefsvæði aðgang að fótsporum þriðja aðila</translation>
 <translation id="2235344399760031203">Lokað er á fótspor þriðja aðila</translation>
 <translation id="235832722106476745">Chrome eyðir umfjöllunarefnum auglýsinga sem eru eldri en fjögurra vikna sjálfkrafa.</translation>
 <translation id="2496115946829713659">Vefsvæði geta notað fótspor þriðja aðila til að sérsníða efni og auglýsingar og sjá aðgerðir sem þú framkvæmir á öðrum vefsvæðum</translation>
@@ -39,7 +40,6 @@
 <translation id="4616029578858572059">Chromium skráir umfjöllunarefni sem þú virðist hafa áhuga á út frá nýlegum vafraferli þínum, til dæmis „íþróttir“, „klæðnaður“ og fleira.</translation>
 <translation id="4692439979815346597">Þú getur séð umfjöllunarefni auglýsinga í stillingum Chrome og lokað á þau sem þú vilt ekki deila með vefsvæðum</translation>
 <translation id="4711259472133554310">Þú getur tilgreint undantekningar í stillingunum til að leyfa tilteknum vefsvæðum ávallt að nota fótspor þriðja aðila</translation>
-<translation id="4894490899128180322">Ef vefsvæði virkar ekki sem skyldi geturðu prófað að veita því tiltekna vefsvæði tímabundinn aðgang að fótsporum þriðja aðila</translation>
 <translation id="5055880590417889642">Virknin þín er ein af mörgum þáttum sem vefsvæði getur notað til að leggja til auglýsingar. Ef slökkt er á auglýsingatillögum vefsvæða geta vefsvæði samt sem áður birt þér auglýsingar en þær kunna að eiga síður við þig. Nánar um</translation>
 <translation id="5117284457376555514">Vefsvæði geta ekki notað fótspor þriðja aðila til að sérsníða efni og auglýsingar og sjá hvaða aðgerðir þú framkvæmir á öðrum vefsvæðum, nema þú veitir tengdum vefsvæðum aðgang að þeim. Sumir eiginleikar vefsvæða virka hugsanlega ekki sem skyldi.</translation>
 <translation id="544199055391706031">Virknin þín er ein af mörgum þáttum sem vefsvæði getur notað til að leggja til auglýsingar. Ef slökkt er á auglýsingatillögum vefsvæða geta vefsvæði samt sem áður birt þér auglýsingar en þær kunna að eiga síður við þig. Nánar um <ph name="BEGIN_LINK" />auglýsingatillögur vefsvæða<ph name="END_LINK" />.</translation>

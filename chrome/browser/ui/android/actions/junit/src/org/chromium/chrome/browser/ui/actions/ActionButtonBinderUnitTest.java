@@ -19,6 +19,7 @@ import static org.mockito.Mockito.verify;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.content.res.Resources;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
@@ -43,6 +44,10 @@ import org.chromium.base.MathUtils;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.RobolectricUtil;
 import org.chromium.chrome.browser.ui.actions.button.ButtonState;
+import org.chromium.chrome.browser.ui.android.bars_common.IphIntent;
+import org.chromium.chrome.browser.ui.android.bars_common.TabSwitcherButtonView;
+import org.chromium.chrome.browser.ui.android.bars_common.TabSwitcherDrawable;
+import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.chrome.browser.user_education.IphCommand;
 import org.chromium.chrome.browser.user_education.UserEducationHelper;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -101,6 +106,14 @@ public class ActionButtonBinderUnitTest {
         mModel.set(ActionProperties.ICON_ID, android.R.drawable.ic_delete);
         mModel.set(ActionProperties.ICON_ID, Resources.ID_NULL);
         assertNull(mView.getDrawable());
+    }
+
+    @Test
+    @SmallTest
+    public void testIconTint() {
+        ColorStateList tint = ColorStateList.valueOf(Color.BLUE);
+        mModel.set(ActionProperties.ICON_TINT, tint);
+        assertEquals(tint, mView.getImageTintList());
     }
 
     @Test
@@ -358,5 +371,26 @@ public class ActionButtonBinderUnitTest {
 
         assertNotNull(targetView.getDrawable());
         assertNull(delegatingView.getDrawable());
+    }
+
+    @Test
+    @SmallTest
+    public void testTabSwitcherButtonView_IconTintUpdatesDrawable() throws Exception {
+        TabSwitcherButtonView tabSwitcherButtonView = new TabSwitcherButtonView(mActivity, null);
+        TabSwitcherDrawable realDrawable =
+                TabSwitcherDrawable.createTabSwitcherDrawable(
+                        mActivity,
+                        BrandedColorScheme.APP_DEFAULT,
+                        TabSwitcherDrawable.TabSwitcherDrawableLocation.TAB_TOOLBAR);
+
+        tabSwitcherButtonView.setDrawableForTesting(realDrawable);
+
+        PropertyModel model = new PropertyModel.Builder(ActionProperties.ALL_KEYS).build();
+        PropertyModelChangeProcessor.create(model, tabSwitcherButtonView, ActionButtonBinder::bind);
+
+        ColorStateList tint = ColorStateList.valueOf(Color.BLUE);
+        model.set(ActionProperties.ICON_TINT, tint);
+
+        assertEquals(tint, tabSwitcherButtonView.getImageTintList());
     }
 }

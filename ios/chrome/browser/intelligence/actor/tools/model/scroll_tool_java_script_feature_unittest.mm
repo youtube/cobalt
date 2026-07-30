@@ -4,12 +4,13 @@
 
 #import "ios/chrome/browser/intelligence/actor/tools/model/scroll_tool_java_script_feature.h"
 
+#import "base/strings/stringprintf.h"
 #import "base/test/bind.h"
 #import "base/test/test_future.h"
 #import "components/optimization_guide/proto/features/actions_data.pb.h"
 #import "ios/chrome/browser/intelligence/actor/tools/model/actor_tool.h"
 #import "ios/chrome/browser/intelligence/actor/tools/model/actor_tool_java_script_feature_test_base.h"
-#import "ios/chrome/browser/intelligence/actor/tools/public/actor_tool_error.h"
+#import "ios/chrome/browser/intelligence/actor/tools/public/actor_tool_types.h"
 #import "testing/gtest/include/gtest/gtest.h"
 
 using optimization_guide::proto::ScrollAction;
@@ -94,19 +95,22 @@ TEST_F(ScrollToolJavaScriptFeatureTest, JsReturnsNonDict) {
                       scroll_to_future.GetCallback());
 
   auto scroll_result = scroll_future.Get();
-  EXPECT_FALSE(scroll_result.has_value());
-  EXPECT_EQ(scroll_result.error().code,
-            ActorToolErrorCode::kJavascriptFeatureGotInvalidResult);
+  EXPECT_FALSE(scroll_result.IsOk());
+  EXPECT_EQ(scroll_result.internal_code().value(),
+            InternalToolErrorCode::kJavascriptFeatureGotInvalidResult);
 
   auto scroll_to_result = scroll_to_future.Get();
-  EXPECT_FALSE(scroll_to_result.has_value());
-  EXPECT_EQ(scroll_to_result.error().code,
-            ActorToolErrorCode::kJavascriptFeatureGotInvalidResult);
+  EXPECT_FALSE(scroll_to_result.IsOk());
+  EXPECT_EQ(scroll_to_result.internal_code().value(),
+            InternalToolErrorCode::kJavascriptFeatureGotInvalidResult);
 }
 
 TEST_F(ScrollToolJavaScriptFeatureTest, JsReturnsError) {
+  auto js_code = ScrollToolResultCode::kScrollTargetNotUserScrollable;
+  auto expected_code = mojom::ActionResultCode::kScrollTargetNotUserScrollable;
   MockScrollJsFunctions(
-      /*mock_return_value=*/"{success: false, message: 'Custom JS Error'}");
+      /*mock_return_value=*/base::StringPrintf(
+          "{resultCode: %d, message: 'Custom JS Error'}", js_code));
   ScrollAction scroll_by_coordinate = CreateScrollActionWithCoordinates();
   ScrollToAction scroll_to_by_node_id = CreateScrollToActionWithIdentifiers();
   base::test::TestFuture<ToolExecutionResult> scroll_future;
@@ -118,86 +122,83 @@ TEST_F(ScrollToolJavaScriptFeatureTest, JsReturnsError) {
                       scroll_to_future.GetCallback());
 
   auto scroll_result = scroll_future.Get();
-  EXPECT_FALSE(scroll_result.has_value());
-  EXPECT_EQ(scroll_result.error().code,
-            ActorToolErrorCode::kJavascriptFeatureFailedInJavaScriptExecution);
-  EXPECT_EQ(scroll_result.error().message, "Custom JS Error");
+  EXPECT_FALSE(scroll_result.IsOk());
+  EXPECT_EQ(scroll_result.code(), expected_code);
+  EXPECT_EQ(GetToolExecutionResultMessage(scroll_result), "Custom JS Error");
 
   auto scroll_to_result = scroll_to_future.Get();
-  EXPECT_FALSE(scroll_to_result.has_value());
-  EXPECT_EQ(scroll_to_result.error().code,
-            ActorToolErrorCode::kJavascriptFeatureFailedInJavaScriptExecution);
-  EXPECT_EQ(scroll_to_result.error().message, "Custom JS Error");
+  EXPECT_FALSE(scroll_to_result.IsOk());
+  EXPECT_EQ(scroll_to_result.code(), expected_code);
+  EXPECT_EQ(GetToolExecutionResultMessage(scroll_to_result), "Custom JS Error");
 }
 
 TEST_F(ScrollToolJavaScriptFeatureTest, WebFrameInvalidated) {
   MockScrollJsFunctions(
-      /*mock_return_value=*/"{success: true, message: 'fake success!'}");
+      /*mock_return_value=*/"{resultCode: 0, message: 'fake success!'}");
   ScrollAction scroll_by_coordinate = CreateScrollActionWithCoordinates();
   ScrollToAction scroll_to_by_node_id = CreateScrollToActionWithIdentifiers();
   base::test::TestFuture<ToolExecutionResult> scroll_future;
   base::test::TestFuture<ToolExecutionResult> scroll_to_future;
 
-  feature()->Scroll(nullptr, scroll_by_coordinate, scroll_future.GetCallback());
-  feature()->ScrollTo(nullptr, scroll_to_by_node_id,
+  feature()->Scroll(/*target_frame=*/nullptr, scroll_by_coordinate,
+                    scroll_future.GetCallback());
+  feature()->ScrollTo(/*target_frame=*/nullptr, scroll_to_by_node_id,
                       scroll_to_future.GetCallback());
 
   auto scroll_result = scroll_future.Get();
-  EXPECT_FALSE(scroll_result.has_value());
-  EXPECT_EQ(scroll_result.error().code,
-            ActorToolErrorCode::kActorTargetWebFrameInvalidated);
+  EXPECT_FALSE(scroll_result.IsOk());
+  EXPECT_EQ(scroll_result.code(), mojom::ActionResultCode::kFrameWentAway);
   auto scroll_to_result = scroll_to_future.Get();
-  EXPECT_FALSE(scroll_to_result.has_value());
-  EXPECT_EQ(scroll_to_result.error().code,
-            ActorToolErrorCode::kActorTargetWebFrameInvalidated);
+  EXPECT_FALSE(scroll_to_result.IsOk());
+  EXPECT_EQ(scroll_to_result.code(), mojom::ActionResultCode::kFrameWentAway);
 }
 
 TEST_F(ScrollToolJavaScriptFeatureTest, Scroll_ByCoordinate_Success) {
   MockScrollJsFunctions(
-      /*mock_return_value=*/"{success: true, message: 'fake success!'}");
+      /*mock_return_value=*/"{resultCode: 0, message: 'fake success!'}");
   ScrollAction action = CreateScrollActionWithCoordinates();
   base::test::TestFuture<ToolExecutionResult> future;
 
   feature()->Scroll(GetMainFrame(feature()), action, future.GetCallback());
 
   auto result = future.Get();
-  EXPECT_TRUE(result.has_value());
+  EXPECT_TRUE(result.IsOk());
 }
 
 TEST_F(ScrollToolJavaScriptFeatureTest, Scroll_ByIdentifier_Success) {
   MockScrollJsFunctions(
-      /*mock_return_value=*/"{success: true, message: 'fake success!'}");
+      /*mock_return_value=*/"{resultCode: 0, message: 'fake success!'}");
   ScrollAction action = CreateScrollActionWithIdentifiers();
   base::test::TestFuture<ToolExecutionResult> future;
 
   feature()->Scroll(GetMainFrame(feature()), action, future.GetCallback());
 
   auto result = future.Get();
-  EXPECT_TRUE(result.has_value());
+  EXPECT_TRUE(result.IsOk());
 }
 
 TEST_F(ScrollToolJavaScriptFeatureTest, ScrollTo_ByCoordinate_Success) {
   MockScrollJsFunctions(
-      /*mock_return_value=*/"{success: true, message: 'fake success!'}");
+      /*mock_return_value=*/"{resultCode: 0, message: 'fake success!'}");
   ScrollToAction action = CreateScrollToActionWithCoordinates();
   base::test::TestFuture<ToolExecutionResult> future;
 
   feature()->ScrollTo(GetMainFrame(feature()), action, future.GetCallback());
 
   auto result = future.Get();
-  EXPECT_TRUE(result.has_value());
+  EXPECT_TRUE(result.IsOk());
 }
 
 TEST_F(ScrollToolJavaScriptFeatureTest, ScrollTo_ByIdentifier_Success) {
   MockScrollJsFunctions(
-      /*mock_return_value=*/"{success: true, message: 'fake success!'}");
+      /*mock_return_value=*/"{resultCode: 0, message: 'fake success!'}");
   ScrollToAction action = CreateScrollToActionWithIdentifiers();
   base::test::TestFuture<ToolExecutionResult> future;
 
   feature()->ScrollTo(GetMainFrame(feature()), action, future.GetCallback());
 
   auto result = future.Get();
-  EXPECT_TRUE(result.has_value());
+  EXPECT_TRUE(result.IsOk());
 }
 
 }  // namespace actor

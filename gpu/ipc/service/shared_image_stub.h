@@ -8,6 +8,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "build/build_config.h"
+#include "gpu/command_buffer/common/shared_image_info.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
 #include "gpu/command_buffer/service/memory_tracking.h"
 #include "gpu/command_buffer/service/sequence_id.h"
@@ -40,9 +41,6 @@ class GPU_IPC_SERVICE_EXPORT SharedImageStub {
  public:
   ~SharedImageStub();
 
-  using SharedImageDestructionCallback =
-      base::OnceCallback<void(const gpu::SyncToken&)>;
-
   static std::unique_ptr<SharedImageStub> Create(GpuChannel* channel,
                                                  int32_t route_id);
 
@@ -60,24 +58,6 @@ class GPU_IPC_SERVICE_EXPORT SharedImageStub {
   }
   const scoped_refptr<gpu::GpuChannelSharedImageInterface>&
   shared_image_interface();
-
-  SharedImageDestructionCallback GetSharedImageDestructionCallback(
-      const Mailbox& mailbox);
-
-  bool CreateSharedImage(
-      const Mailbox& mailbox,
-      gfx::GpuMemoryBufferHandle handle,
-      viz::SharedImageFormat format,
-      const gfx::Size& size,
-      const gfx::ColorSpace& color_space,
-      GrSurfaceOrigin surface_origin,
-      SkAlphaType alpha_type,
-      SharedImageUsageSet usage,
-      std::string debug_label,
-      std::optional<SharedImagePoolId> pool_id = std::nullopt);
-
-  bool UpdateSharedImage(const Mailbox& mailbox,
-                         gfx::GpuFenceHandle in_fence_handle);
 
 #if BUILDFLAG(IS_WIN)
   void CopyToGpuMemoryBufferAsync(const Mailbox& mailbox,
@@ -106,8 +86,17 @@ class GPU_IPC_SERVICE_EXPORT SharedImageStub {
       mojom::CreateSharedImageWithDataParamsPtr params);
   void OnCreateSharedImageWithBuffer(
       mojom::CreateSharedImageWithBufferParamsPtr params);
+  bool CreateSharedImage(
+      const Mailbox& mailbox,
+      const SharedImageInfo& info,
+      gfx::GpuMemoryBufferHandle handle,
+      std::optional<SharedImagePoolId> pool_id = std::nullopt);
+
   void OnUpdateSharedImage(const Mailbox& mailbox,
                            gfx::GpuFenceHandle in_fence_handle);
+  bool UpdateSharedImage(const Mailbox& mailbox,
+                         gfx::GpuFenceHandle in_fence_handle);
+
   void OnAddReference(const Mailbox& mailbox);
 
   void OnDestroySharedImage(const Mailbox& mailbox);
@@ -129,9 +118,6 @@ class GPU_IPC_SERVICE_EXPORT SharedImageStub {
 
   ContextResult Initialize();
   void OnError();
-
-  // Wait on the sync token if any and destroy the shared image.
-  void DestroySharedImage(const Mailbox& mailbox, const SyncToken& sync_token);
 
   std::string GetLabel(const std::string& debug_label) const;
 

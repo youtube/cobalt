@@ -26,13 +26,13 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+#include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/tab_contents/tab_contents_iterator.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/toolbar/app_menu_model.h"
@@ -42,6 +42,7 @@
 #include "chrome/browser/web_applications/external_install_options.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
+#include "chrome/browser/web_applications/test/web_app_page_waiter.h"
 #include "chrome/browser/web_applications/web_app_command_manager.h"
 #include "chrome/browser/web_applications/web_app_command_scheduler.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
@@ -112,80 +113,6 @@ void AutoAcceptDialogCallback(
                launch));
 }
 
-// An utility that observes a `WebContents` instance to either finish loading
-// (with possible waiting for manifest changes to be propagated) or for it to be
-// destroyed. Useful for ensuring that the observed `WebContents` has reached an
-// end state.
-class WebContentsLoadAndManifestWaiter final
-    : public content::WebContentsObserver {
- public:
-  explicit WebContentsLoadAndManifestWaiter(content::WebContents* web_contents)
-      : WebContentsObserver(web_contents) {
-    CHECK(web_contents);
-  }
-  ~WebContentsLoadAndManifestWaiter() override = default;
-
-  void Wait() {
-    manifest_url_specified_ =
-        web_contents()->GetPrimaryPage().GetManifestUrl().has_value();
-    loaded_ = web_contents()->IsDocumentOnLoadCompletedInPrimaryMainFrame();
-    if (loaded_ && manifest_url_specified_) {
-      SubscribeToManifest();
-    }
-    MaybeQuit();
-    run_loop_.Run();
-  }
-
-  void DocumentOnLoadCompletedInPrimaryMainFrame() override {
-    manifest_url_specified_ =
-        web_contents()->GetPrimaryPage().GetManifestUrl().has_value();
-    loaded_ = true;
-    if (!manifest_found_ && manifest_url_specified_ &&
-        !manifest_subscription_) {
-      SubscribeToManifest();
-    }
-    MaybeQuit();
-  }
-
-  void WebContentsDestroyed() override {
-    Observe(nullptr);
-    run_loop_.Quit();
-  }
-
- private:
-  void SubscribeToManifest() {
-    manifest_subscription_ =
-        content::PageManifestManager::GetOrCreate(
-            web_contents()->GetPrimaryPage())
-            ->GetSpecifiedManifest(
-                base::IgnoreArgs<
-                    const content::PageManifestManager::ManifestResult&>(
-                    base::BindOnce(
-                        &WebContentsLoadAndManifestWaiter::OnManifestSpecified,
-                        base::Unretained(this))));
-  }
-
-  void OnManifestSpecified() {
-    manifest_found_ = true;
-    MaybeQuit();
-  }
-
-  void MaybeQuit() {
-    if (!loaded_) {
-      return;
-    }
-    if (!manifest_url_specified_ || manifest_found_) {
-      run_loop_.Quit();
-    }
-  }
-
-  bool loaded_ = false;
-  bool manifest_url_specified_ = false;
-  bool manifest_found_ = false;
-
-  base::CallbackListSubscription manifest_subscription_;
-  base::RunLoop run_loop_;
-};
 
 }  // namespace
 
@@ -299,7 +226,7 @@ Browser* LaunchWebAppBrowser(Profile* profile,
 
   web_app::WebAppProvider* provider =
       web_app::WebAppProvider::GetForLocalAppsUnchecked(profile);
-  base::test::TestFuture<base::WeakPtr<Browser>,
+  base::test::TestFuture<base::WeakPtr<BrowserWindowInterface>,
                          base::WeakPtr<content::WebContents>,
                          apps::LaunchContainer>
       future;
@@ -368,7 +295,7 @@ Browser* LaunchBrowserForWebAppInTab(Profile* profile,
 
   web_app::WebAppProvider* provider =
       web_app::WebAppProvider::GetForLocalAppsUnchecked(profile);
-  base::test::TestFuture<base::WeakPtr<Browser>,
+  base::test::TestFuture<base::WeakPtr<BrowserWindowInterface>,
                          base::WeakPtr<content::WebContents>,
                          apps::LaunchContainer>
       future;
@@ -422,7 +349,7 @@ Browser* LaunchWebAppToURL(Profile* profile,
 
   web_app::WebAppProvider* provider =
       web_app::WebAppProvider::GetForLocalAppsUnchecked(profile);
-  base::test::TestFuture<base::WeakPtr<Browser>,
+  base::test::TestFuture<base::WeakPtr<BrowserWindowInterface>,
                          base::WeakPtr<content::WebContents>,
                          apps::LaunchContainer>
       future;
@@ -697,12 +624,19 @@ void RunForAllTabs(
 }
 
 void WaitForLoadCompleteAndMaybeManifestSeen(content::WebContents& contents) {
-  WebContentsLoadAndManifestWaiter(&contents).Wait();
+  EXPECT_TRUE(WebAppPageWaiter(&contents)
+                  .ManifestOrLoadedNoManifest()
+                  .WaitAndFlushCommands());
 }
 
 void CompletePageLoadForAllWebContents() {
   RunForAllTabs(base::BindRepeating([](content::WebContents& web_contents) {
-    WebContentsLoadAndManifestWaiter(&web_contents).Wait();
+    if (web_contents.GetVisibleURL().GetPath() == "/hung") {
+      return;
+    }
+    EXPECT_TRUE(WebAppPageWaiter(&web_contents)
+                    .ManifestOrLoadedNoManifest()
+                    .WaitAndFlushCommands());
   }));
 }
 

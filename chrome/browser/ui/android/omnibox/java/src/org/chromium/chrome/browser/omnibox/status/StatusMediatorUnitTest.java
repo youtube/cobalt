@@ -52,14 +52,15 @@ import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.omnibox.FuseboxSessionState;
 import org.chromium.chrome.browser.omnibox.LocationBarDataProvider;
 import org.chromium.chrome.browser.omnibox.NewTabPageDelegate;
+import org.chromium.chrome.browser.omnibox.R;
 import org.chromium.chrome.browser.omnibox.SearchEngineUtils;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxCoordinator.FuseboxState;
 import org.chromium.chrome.browser.omnibox.status.StatusCoordinator.PageInfoAction;
 import org.chromium.chrome.browser.omnibox.status.StatusProperties.StatusIconResource;
 import org.chromium.chrome.browser.omnibox.status.StatusView.IconTransitionType;
-import org.chromium.chrome.browser.omnibox.test.R;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
@@ -70,6 +71,7 @@ import org.chromium.components.content_settings.CookieControlsBridgeJni;
 import org.chromium.components.content_settings.CookieControlsState;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.metrics.OmniboxEventProtos.OmniboxEventProto.PageClassification;
+import org.chromium.components.omnibox.AutocompleteInput;
 import org.chromium.components.permissions.PermissionDialogController;
 import org.chromium.components.prefs.PrefService;
 import org.chromium.components.search_engines.TemplateUrlService;
@@ -93,6 +95,8 @@ public final class StatusMediatorUnitTest {
 
     @Mock private NewTabPageDelegate mNewTabPageDelegate;
     @Mock private LocationBarDataProvider mLocationBarDataProvider;
+    @Mock private FuseboxSessionState mFuseboxSessionState;
+    @Mock private AutocompleteInput mAutocompleteInput;
     @Mock private SearchEngineUtils mSearchEngineUtils;
     @Mock private Profile mProfile;
     @Mock private TemplateUrlService mTemplateUrlService;
@@ -132,6 +136,7 @@ public final class StatusMediatorUnitTest {
         doReturn(mPrefs).when(mMockUserPrefsJni).get(mProfile);
         doReturn(false).when(mLocationBarDataProvider).isIncognito();
         doReturn(mNewTabPageDelegate).when(mLocationBarDataProvider).getNewTabPageDelegate();
+        doReturn(mAutocompleteInput).when(mFuseboxSessionState).getAutocompleteInput();
 
         mContext =
                 new ContextThemeWrapper(
@@ -142,7 +147,6 @@ public final class StatusMediatorUnitTest {
                 new StatusMediator(
                         mModel,
                         mContext,
-                        /* isTablet= */ false,
                         mLocationBarDataProvider,
                         mPermissionDialogController,
                         mTemplateUrlServiceSupplier,
@@ -189,8 +193,7 @@ public final class StatusMediatorUnitTest {
     @Test
     @SmallTest
     public void searchEngineLogo_isGoogleLogo() {
-        mMediator.setUrlHasFocus(true);
-        mMediator.setShowIconsWhenUrlFocused(true);
+        mMediator.beginInput(mFuseboxSessionState);
         assertEquals(
                 R.drawable.ic_logo_googleg_20dp,
                 mModel.get(StatusProperties.STATUS_ICON_RESOURCE).getIconRes());
@@ -204,31 +207,10 @@ public final class StatusMediatorUnitTest {
                 .getPageClassification(/* prefetch= */ false);
         doReturn(true).when(mNewTabPageDelegate).isCurrentlyVisible();
 
-        mMediator.setUrlHasFocus(true);
-        mMediator.setShowIconsWhenUrlFocused(true);
+        mMediator.beginInput(mFuseboxSessionState);
 
         // It should NOT show the status view at all (to avoid the gap).
         assertFalse(mModel.get(StatusProperties.SHOW_STATUS_VIEW));
-    }
-
-    @Test
-    @SmallTest
-    public void testStatusViewHoverActions() {
-        doReturn(PageClassification.NTP_VALUE)
-                .when(mLocationBarDataProvider)
-                .getPageClassification(/* prefetch= */ false);
-
-        // Tooltip and background should be set when StatusViewIcon is visible.
-        mMediator.setStatusIconShown(true);
-        assertEquals(
-                R.string.accessibility_menu_info,
-                mModel.get(StatusProperties.STATUS_VIEW_TOOLTIP_TEXT));
-        assertNotNull(mModel.get(StatusProperties.STATUS_VIEW_BACKGROUND));
-
-        // Tooltip and background should NOT be set when StatusViewIcon is gone.
-        mMediator.setStatusIconShown(false);
-        assertEquals(Resources.ID_NULL, mModel.get(StatusProperties.STATUS_VIEW_TOOLTIP_TEXT));
-        assertNull(mModel.get(StatusProperties.STATUS_VIEW_BACKGROUND));
     }
 
     @Test
@@ -237,51 +219,21 @@ public final class StatusMediatorUnitTest {
     public void searchEngineLogoPersistent() {
         doReturn(true).when(mNewTabPageDelegate).isCurrentlyVisible();
 
-        mMediator.setUrlHasFocus(true);
-        mMediator.setUrlHasFocus(false);
-        assertTrue(mModel.get(StatusProperties.SHOW_STATUS_ICON));
+        mMediator.beginInput(mFuseboxSessionState);
+        mMediator.endInput();
         assertTrue(mMediator.shouldDisplaySearchEngineIcon());
-
-        mMediator.setUrlFocusChangePercent(0.5f);
-        assertEquals(1f, mModel.get(StatusProperties.STATUS_ICON_ALPHA), 0f);
 
         doReturn(false).when(mNewTabPageDelegate).isCurrentlyVisible();
 
-        mMediator.setUrlHasFocus(true);
-        mMediator.setUrlHasFocus(false);
+        mMediator.beginInput(mFuseboxSessionState);
+        mMediator.endInput();
         assertFalse(mMediator.shouldDisplaySearchEngineIcon());
     }
 
     @Test
     @SmallTest
-    public void searchEngineLogo_isGoogleLogo_noHideIconAfterUnfocusedWhenScrolled() {
-        mMediator.setUrlHasFocus(false);
-        mMediator.setShowIconsWhenUrlFocused(true);
-        mMediator.setUrlFocusChangePercent(1f);
-        mMediator.setUrlHasFocus(true);
-        mMediator.setUrlHasFocus(false);
-        assertTrue(mModel.get(StatusProperties.SHOW_STATUS_ICON));
-    }
-
-    @Test
-    @SmallTest
-    public void searchEngineLogo_isGoogleLogo_whenScrolled() {
-        doReturn(false).when(mLocationBarDataProvider).isLoading();
-        doReturn(true).when(mNewTabPageDelegate).isCurrentlyVisible();
-
-        mMediator.setUrlHasFocus(false);
-        mMediator.setShowIconsWhenUrlFocused(true);
-        mMediator.setUrlFocusChangePercent(1f);
-        assertEquals(
-                R.drawable.ic_logo_googleg_20dp,
-                mModel.get(StatusProperties.STATUS_ICON_RESOURCE).getIconRes());
-    }
-
-    @Test
-    @SmallTest
     public void searchEngineLogo_onTextChanged_globeReplacesIconWhenTextIsSite() {
-        mMediator.setUrlHasFocus(true);
-        mMediator.setShowIconsWhenUrlFocused(true);
+        mMediator.beginInput(mFuseboxSessionState);
 
         mExactMatchUrlSupplier.set(JUnitTestGURLs.BLUE_1);
         assertEquals(
@@ -292,8 +244,7 @@ public final class StatusMediatorUnitTest {
     @Test
     @SmallTest
     public void searchEngineLogo_onTextChanged_noGlobeReplacementWhenUrlBarTextDoesNotMatch() {
-        mMediator.setUrlHasFocus(true);
-        mMediator.setShowIconsWhenUrlFocused(true);
+        mMediator.beginInput(mFuseboxSessionState);
 
         mExactMatchUrlSupplier.set(null);
         assertNotEquals(
@@ -304,8 +255,7 @@ public final class StatusMediatorUnitTest {
     @Test
     @SmallTest
     public void searchEngineLogo_onTextChanged_noGlobeReplacementWhenUrlBarTextIsEmpty() {
-        mMediator.setUrlHasFocus(true);
-        mMediator.setShowIconsWhenUrlFocused(true);
+        mMediator.beginInput(mFuseboxSessionState);
 
         mExactMatchUrlSupplier.set(JUnitTestGURLs.BLUE_1);
         mExactMatchUrlSupplier.set(null);
@@ -319,8 +269,7 @@ public final class StatusMediatorUnitTest {
     public void searchEngineLogo_incognitoNoIcon() {
         doReturn(true).when(mLocationBarDataProvider).isIncognito();
 
-        mMediator.setUrlHasFocus(false);
-        mMediator.setShowIconsWhenUrlFocused(true);
+        mMediator.endInput();
         mMediator.updateSecurityIcon(0, 0, 0);
 
         assertNull(mModel.get(StatusProperties.STATUS_ICON_RESOURCE));
@@ -329,8 +278,7 @@ public final class StatusMediatorUnitTest {
     @Test
     @SmallTest
     public void searchEngineLogo_maybeUpdateStatusIconForSearchEngineIconChanges() {
-        mMediator.setUrlHasFocus(true);
-        mMediator.setShowIconsWhenUrlFocused(true);
+        mMediator.beginInput(mFuseboxSessionState);
         mMediator.updateSecurityIcon(0, 0, 0);
 
         assertTrue(mMediator.maybeUpdateStatusIconForSearchEngineIcon());
@@ -342,20 +290,8 @@ public final class StatusMediatorUnitTest {
 
     @Test
     @SmallTest
-    public void searchEngineLogo_maybeUpdateStatusIconForSearchEngineIconNoChanges() {
-        mMediator.setUrlHasFocus(true);
-        mMediator.setShowIconsWhenUrlFocused(false);
-        mMediator.updateSecurityIcon(0, 0, 0);
-
-        assertFalse(mMediator.maybeUpdateStatusIconForSearchEngineIcon());
-    }
-
-    @Test
-    @SmallTest
     public void testIncognitoStateChange() {
-        mMediator.setShowIconsWhenUrlFocused(true);
         doReturn(true).when(mLocationBarDataProvider).isIncognito();
-        assertTrue(mModel.get(StatusProperties.SHOW_STATUS_ICON));
         assertFalse(mModel.get(StatusProperties.INCOGNITO_BADGE_VISIBLE));
 
         doReturn(true).when(mNewTabPageDelegate).isIncognitoNewTabPageCurrentlyVisible();
@@ -366,7 +302,7 @@ public final class StatusMediatorUnitTest {
                 mModel.get(StatusProperties.STATUS_ICON_RESOURCE).getIconRes());
         assertFalse(mModel.get(StatusProperties.INCOGNITO_BADGE_VISIBLE));
 
-        mMediator.setUrlHasFocus(true);
+        mMediator.beginInput(mFuseboxSessionState);
         assertEquals(
                 R.drawable.ic_logo_googleg_20dp,
                 mModel.get(StatusProperties.STATUS_ICON_RESOURCE).getIconRes());
@@ -431,7 +367,6 @@ public final class StatusMediatorUnitTest {
                 .getPageClassification(/* prefetch= */ false);
         mMediator.updateLocationBarIcon(IconTransitionType.CROSSFADE);
 
-        assertTrue(mModel.get(StatusProperties.SHOW_STATUS_ICON));
         assertEquals(
                 R.string.hub_search_status_view_back_button_icon_description,
                 mModel.get(StatusProperties.STATUS_ICON_DESCRIPTION_RES));
@@ -449,7 +384,6 @@ public final class StatusMediatorUnitTest {
                 .when(mLocationBarDataProvider)
                 .getPageClassification(/* prefetch= */ false);
 
-        mModel.set(StatusProperties.SHOW_STATUS_ICON, true);
         mMediator.setTooltipText(Resources.ID_NULL);
         // Assert that the below accessibility string is always set when #setTooltipText is called.
         assertEquals(
@@ -464,7 +398,6 @@ public final class StatusMediatorUnitTest {
                 .when(mLocationBarDataProvider)
                 .getPageClassification(/* prefetch= */ false);
 
-        mModel.set(StatusProperties.SHOW_STATUS_ICON, true);
         mMediator.setBackground();
         // Assert that the non verbose drawable is always set when #setBackground is called.
         assertNotNull(mModel.get(StatusProperties.STATUS_VIEW_BACKGROUND));
@@ -507,7 +440,7 @@ public final class StatusMediatorUnitTest {
     }
 
     private void setupCookieControlsTest() {
-        mMediator.setUrlHasFocus(true);
+        mMediator.beginInput(mFuseboxSessionState);
         mMediator.updateVerboseStatus(ConnectionSecurityLevel.SECURE, false, false);
         mMediator.setCookieControlsBridgeForTesting(mCookieControlsBridge);
         doReturn(true).when(mTracker).wouldTriggerHelpUi(any());
@@ -656,10 +589,10 @@ public final class StatusMediatorUnitTest {
     @EnableFeatures({ChromeFeatureList.ANDROID_PAGE_INFO_AS_APP_MENU_ITEM})
     public void testUpdateStatusViewVisibility() {
         // Focused URL should always show the status view.
-        mMediator.setUrlHasFocus(true);
+        mMediator.beginInput(mFuseboxSessionState);
         assertTrue(mModel.get(StatusProperties.SHOW_STATUS_VIEW));
 
-        mMediator.setUrlHasFocus(false);
+        mMediator.endInput();
         assertFalse(mModel.get(StatusProperties.SHOW_STATUS_VIEW));
 
         // Non-secure pages should show the status view.
@@ -745,7 +678,7 @@ public final class StatusMediatorUnitTest {
     @Test
     @SmallTest
     public void testStatusClickListener_showPageInfo() {
-        mMediator.setUrlHasFocus(false);
+        mMediator.endInput();
         doReturn(true).when(mLocationBarDataProvider).hasTab();
         doReturn(mTab).when(mLocationBarDataProvider).getTab();
         doReturn(mWebContents).when(mTab).getWebContents();
@@ -772,7 +705,7 @@ public final class StatusMediatorUnitTest {
     @Test
     @SmallTest
     public void testStatusClickListener_whenUrlHasFocus() {
-        mMediator.setUrlHasFocus(true);
+        mMediator.beginInput(mFuseboxSessionState);
         assertNull(mModel.get(StatusProperties.STATUS_CLICK_LISTENER));
     }
 
@@ -785,8 +718,6 @@ public final class StatusMediatorUnitTest {
         assertEquals(
                 R.drawable.ic_add_round_20dp_with_inset,
                 mModel.get(StatusProperties.STATUS_ICON_RESOURCE).getIconRes());
-
-        assertNotNull(mModel.get(StatusProperties.STATUS_VIEW_BACKGROUND));
 
         assertNotNull(mModel.get(StatusProperties.STATUS_CLICK_LISTENER));
         mModel.get(StatusProperties.STATUS_CLICK_LISTENER).onClick(/* view= */ null);

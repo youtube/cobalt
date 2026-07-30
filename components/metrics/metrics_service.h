@@ -139,6 +139,9 @@ class MetricsService {
   int GetOldLowEntropySource();
   int GetPseudoLowEntropySource();
 
+  // Deletes all UMA data, in memory and on disk.
+  void Purge();
+
   // Returns the date at which the current metrics client ID was created as
   // an int64_t containing seconds since the epoch.
   int64_t GetMetricsReportingEnabledDate();
@@ -168,10 +171,12 @@ class MetricsService {
   // Called when the application is going into background mode.
   // If |keep_recording_in_background| is true, UMA is still recorded and
   // reported while in the background.
-  void OnAppEnterBackground(bool keep_recording_in_background = false);
+  void OnAppEnterBackground(bool keep_recording_in_background = false,
+                            bool emit_uma_action = true);
 
   // Called when the application is coming out of background mode.
-  void OnAppEnterForeground(bool force_open_new_log = false);
+  void OnAppEnterForeground(bool force_open_new_log = false,
+                            bool emit_uma_action = true);
 
 #endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
 

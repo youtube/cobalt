@@ -17,6 +17,8 @@
 #import "components/autofill/ios/browser/autofill_util.h"
 #import "components/autofill/ios/form_util/child_frame_registrar.h"
 #import "components/optimization_guide/proto/features/actions_data.pb.h"
+#import "ios/chrome/browser/intelligence/actor/tools/model/actor_tool_java_script_feature_util.h"
+#import "ios/chrome/browser/intelligence/actor/tools/public/actor_tool_types.h"
 #import "ios/web/public/js_messaging/web_frame.h"
 #import "ios/web/public/js_messaging/web_frames_manager.h"
 #import "ios/web/public/web_state.h"
@@ -32,26 +34,29 @@ struct ChildFrameData {
   double frame_y;
 };
 
+mojom::ActionResultCode ToActionResultCode(int code) {
+  auto result_code = static_cast<ActionTargetResultCode>(code);
+  switch (result_code) {
+    case ActionTargetResultCode::kOk:
+      return mojom::ActionResultCode::kOk;
+    case ActionTargetResultCode::kCoordinatesOutOfBounds:
+      return mojom::ActionResultCode::kCoordinatesOutOfBounds;
+  }
+  NOTREACHED();
+}
+
 /**
  * Parses and validates the result of action_target.resolveTargetIframe.
  */
-base::expected<std::optional<ChildFrameData>, ActorToolError>
+base::expected<std::optional<ChildFrameData>, ToolExecutionResult>
 ParseResolveTargetIframeResult(const base::Value* result) {
-  if (!result || !result->is_dict()) {
-    return base::unexpected(
-        ActorToolError{ActorToolErrorCode::kJavascriptFeatureGotInvalidResult});
+  ToolExecutionResult tool_result =
+      ParseJavaScriptResultWithResultCode(&ToActionResultCode, result);
+  if (!tool_result.IsOk()) {
+    return base::unexpected(tool_result);
   }
-  const base::DictValue& result_dict = result->GetDict();
-
-  std::optional<bool> success = result_dict.FindBool("success");
-  if (!success.value_or(false)) {
-    const std::string* error_message = result_dict.FindString("message");
-    return base::unexpected(ActorToolError{
-        ActorToolErrorCode::kJavascriptFeatureFailedInJavaScriptExecution,
-        error_message ? *error_message : "Unknown error in JS."});
-  }
-
-  const base::DictValue* child_frame = result_dict.FindDict("childFrame");
+  CHECK(result->is_dict());
+  const base::DictValue* child_frame = result->GetDict().FindDict("childFrame");
   if (!child_frame) {
     return std::nullopt;
   }
@@ -59,15 +64,15 @@ ParseResolveTargetIframeResult(const base::Value* result) {
   const std::string* remote_frame_token =
       child_frame->FindString("remoteFrameToken");
   if (!remote_frame_token) {
-    return base::unexpected(
-        ActorToolError{ActorToolErrorCode::kJavascriptFeatureGotInvalidResult});
+    return base::unexpected(ToolExecutionResult(
+        InternalToolErrorCode::kJavascriptFeatureGotInvalidResult));
   }
 
   std::optional<double> frame_x = child_frame->FindDouble("frameX");
   std::optional<double> frame_y = child_frame->FindDouble("frameY");
   if (!frame_x || !frame_y) {
-    return base::unexpected(
-        ActorToolError{ActorToolErrorCode::kJavascriptFeatureGotInvalidResult});
+    return base::unexpected(ToolExecutionResult(
+        InternalToolErrorCode::kJavascriptFeatureGotInvalidResult));
   }
 
   return ChildFrameData{*remote_frame_token, *frame_x, *frame_y};
@@ -93,17 +98,17 @@ void ActionTargetJavaScriptFeature::GetTargetFrame(
 
   if (depth >= kMaxTargetIframeDepth) {
     std::move(callback).Run(base::unexpected(
-        ActorToolError{ActorToolErrorCode::kActorTargetMaxDepthExceeded}));
+        ToolExecutionResult(mojom::ActionResultCode::kToolTimeout)));
     return;
   }
 
   if (target.has_document_identifier()) {
     GetTargetFrameByDocumentIdentifier(web_state, target, std::move(callback));
     return;
+  } else if (target.has_coordinate()) {
+    GetTargetFrameByCoordinate(web_state, web_frame, target,
+                               std::move(callback), depth);
   }
-
-  GetTargetFrameByCoordinate(web_state, web_frame, target, std::move(callback),
-                             depth);
 }
 
 ActionTargetJavaScriptFeature::ActionTargetJavaScriptFeature()
@@ -153,9 +158,9 @@ void ActionTargetJavaScriptFeature::GetTargetFrameByCoordinate(
       base::Milliseconds(web::kJavaScriptFunctionCallDefaultTimeout));
   if (!sent) {
     std::move(cb_for_error)
-        .Run(base::unexpected(ActorToolError{
-            ActorToolErrorCode::
-                kJavascriptFeatureFailedToCallJavaScriptFunction}));
+        .Run(base::unexpected(ToolExecutionResult(
+            InternalToolErrorCode::
+                kJavascriptFeatureFailedToCallJavaScriptFunction)));
   }
 }
 
@@ -167,15 +172,14 @@ void ActionTargetJavaScriptFeature::OnTargetIframeResolved(
     int depth,
     const base::Value* result) {
   if (!web_state) {
-    std::move(callback).Run(base::expected<TargetFrameResult, ActorToolError>(
-        base::unexpected(ActorToolError{
-            ActorToolErrorCode::kActorTargetWebStateDestroyed})));
+    std::move(callback).Run(base::unexpected(
+        ToolExecutionResult(mojom::ActionResultCode::kTabWentAway)));
     return;
   }
 
   if (!current_frame) {
     std::move(callback).Run(base::unexpected(
-        ActorToolError{ActorToolErrorCode::kActorTargetFrameNotFoundById}));
+        ToolExecutionResult(mojom::ActionResultCode::kFrameWentAway)));
     return;
   }
 
@@ -208,15 +212,15 @@ void ActionTargetJavaScriptFeature::OnTargetIframeResolved(
                  std::move(callback), depth + 1);
 }
 
-base::expected<web::WebFrame*, ActorToolError>
+base::expected<web::WebFrame*, ToolExecutionResult>
 ActionTargetJavaScriptFeature::GetWebFrameByRemoteFrameToken(
     web::WebState* web_state,
     const std::string& remote_frame_token) {
   std::optional<base::UnguessableToken> remote_token =
       autofill::DeserializeJavaScriptFrameId(remote_frame_token);
   if (!remote_token) {
-    return base::unexpected(ActorToolError{
-        ActorToolErrorCode::kActorTargetInvalidRemoteFrameToken});
+    return base::unexpected(
+        ToolExecutionResult(mojom::ActionResultCode::kArgumentsInvalid));
   }
 
   autofill::ChildFrameRegistrar* registrar =
@@ -229,7 +233,7 @@ ActionTargetJavaScriptFeature::GetWebFrameByRemoteFrameToken(
 
   if (!local_token) {
     return base::unexpected(
-        ActorToolError{ActorToolErrorCode::kActorTargetFrameNotRegistered});
+        ToolExecutionResult(mojom::ActionResultCode::kArgumentsInvalid));
   }
 
   web::WebFrame* target_frame =
@@ -237,7 +241,7 @@ ActionTargetJavaScriptFeature::GetWebFrameByRemoteFrameToken(
 
   if (!target_frame) {
     return base::unexpected(
-        ActorToolError{ActorToolErrorCode::kActorTargetFrameNotFoundById});
+        ToolExecutionResult(mojom::ActionResultCode::kArgumentsInvalid));
   }
 
   return target_frame;

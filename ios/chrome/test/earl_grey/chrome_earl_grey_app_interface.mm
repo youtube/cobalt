@@ -203,6 +203,10 @@ UIViewController* FindBrowserViewController(UIViewController* root) {
 
 @implementation ChromeEarlGreyAppInterface
 
++ (BOOL)isTabGridSetUp {
+  return chrome_test_util::IsTabGridSetUp();
+}
+
 + (BOOL)isRTL {
   return UseRTLLayout();
 }
@@ -675,7 +679,7 @@ UIViewController* FindBrowserViewController(UIViewController* root) {
         base::apple::ObjCCastStrict<UIWindowScene>(scene);
 
     for (UIWindow* window in windowScene.windows) {
-      if (window.isKeyWindow) {
+      if (window.keyWindow) {
         return window;
       }
     }

@@ -14,6 +14,7 @@
 #include "gpu/command_buffer/common/shared_image_usage.h"
 #include "gpu/command_buffer/service/memory_tracking.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_backing.h"
+#include "gpu/command_buffer/service/shared_image/shared_image_factory.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_manager.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_representation.h"
 #include "gpu/command_buffer/service/shared_image/shared_memory_image_backing.h"
@@ -29,6 +30,7 @@ class D3DImageBackingFactoryTest;
 class SharedImageBackingFactory;
 class SharedImageCopyManager;
 class SharedImageFactory;
+class SharedImageFactoryRef;
 
 // TODO(kylechar): Merge with OzoneImageBacking::AccessStream enum.
 //
@@ -111,6 +113,35 @@ using AccessStreamSet = base::EnumSet<SharedImageAccessStream,
 // copy to/from shared memory backing.
 // 2.The GPU backing must not have its own separate shared memory segment, as it
 // relies on the primary shared memory backing for data transfers.
+//
+// ---------------------------------------
+// Thread Safety and Multi-threading
+// ---------------------------------------
+//
+// CompoundImageBacking serves as a thread-safe container when multi-threaded
+// access is required (e.g., in DrDC or WebView environments).
+//
+// 1. Requirement Detection: Thread safety is no longer solely determined based
+// on initial shared image usage. Evolution of CSI to a dynamic-CSI have relaxed
+// the requirements for clients to specify all shared image usages during
+// creation time. Hence capturing the thread safety requirements based on
+// initial usage set is no longer enough. The backing automatically determines
+// its thread safety requirement during creation by consulting both client usage
+// flags and global environmental flags (DrDC/WebView) provided by the factory.
+//
+// 2. Container Protection: If created as thread-safe, it enables an internal
+// lock (via the base class) that protects its metadata, such as the
+// |elements_| vector, from concurrent access during Produce*() calls.
+//
+// 3. Underlying Backings thread safety: The underlying backings/elements
+// currently themselves may or may not be thread-safe. Future changes will make
+// the underlying backings thread-safety needs more robust. The dynamically
+// allocated backings are currently never thread safe which is an issue and will
+// be addressed in future. Note that indiscriminately making all backings
+// thread-safe (especially for internal images like Render Passes which are
+// typically only accessed on the display compositor thread, such as Android RT
+// for WebView) could lead to performance regressions. Future refinements
+// should account for these single-threaded but high-traffic use cases.
 class GPU_GLES2_EXPORT CompoundImageBacking
     : public ClearTrackingSharedImageBacking {
  public:
@@ -356,16 +387,16 @@ class GPU_GLES2_EXPORT CompoundImageBacking
       SharedImageUsageSet usage,
       std::string debug_label,
       std::unique_ptr<SharedImageBacking> shm_backing,
-      base::WeakPtr<SharedImageFactory> shared_image_factory,
+      scoped_refptr<SharedImageFactoryRef> shared_image_factory,
       base::WeakPtr<SharedImageBackingFactory> gpu_backing_factory,
       scoped_refptr<SharedImageCopyManager> copy_manager,
       std::optional<gfx::BufferUsage> buffer_usage = std::nullopt);
 
-  CompoundImageBacking(bool is_thread_safe,
-                       std::optional<gfx::BufferUsage> buffer_usage,
-                       std::unique_ptr<SharedImageBacking> backing,
-                       scoped_refptr<SharedImageCopyManager> copy_manager,
-                       base::WeakPtr<SharedImageFactory> shared_image_factory);
+  CompoundImageBacking(
+      std::optional<gfx::BufferUsage> buffer_usage,
+      std::unique_ptr<SharedImageBacking> backing,
+      scoped_refptr<SharedImageCopyManager> copy_manager,
+      scoped_refptr<SharedImageFactoryRef> shared_image_factory);
 
   base::trace_event::MemoryAllocatorDump* OnMemoryDump(
       const std::string& dump_name,
@@ -420,14 +451,17 @@ class GPU_GLES2_EXPORT CompoundImageBacking
 
   void OnCopyToGpuMemoryBufferComplete(bool success);
 
+  // Computes the thread safety requirement for the backing based on the
+  // usage and environment flags from the factory.
+  static bool ComputeIsThreadSafe(SharedImageFactoryRef* factory_ref,
+                                  SharedImageUsageSet usage);
+
   // This is required for CompoundImageBacking to be able to query an
   // appropriate SharedImageBackingFactory dynamically based on clients
   // required usage(Produce*) which typically happens after the backing
-  // creation time. WeakPtr since backings can outlive SharedImageFactory.
-  // Note that CompoundImageBacking is not thread-safe at this moment and
-  // we would need to switch WeakPtr to something else if we make it
-  // thread-safe.
-  base::WeakPtr<SharedImageFactory> shared_image_factory_;
+  // creation time. This uses a thread-safe ref-holder to safely access the
+  // factory from any thread.
+  scoped_refptr<SharedImageFactoryRef> shared_image_factory_;
 
   uint32_t latest_content_id_ GUARDED_BY(lock_) = 1;
 

@@ -9,13 +9,13 @@ function ResponseCounter() {
   this.responsesReceived = 0;
   this.expectedResponses = -1;
   const listenerFunction = function(request, sender, sendResponse) {
-    if (request == 'fail') {
+    if (request === 'fail') {
       chrome.test.fail('Received bad message');
     } else {
       chrome.test.assertEq('complete', request);
       ++this.responsesReceived;
       chrome.test.assertTrue(this.responsesReceived <= this.expectedResponses);
-      if (this.responsesReceived == this.expectedResponses &&
+      if (this.responsesReceived === this.expectedResponses &&
           this.doneCallback) {
         this.removeListener();
         this.doneCallback();
@@ -24,7 +24,7 @@ function ResponseCounter() {
   }.bind(this);
   this.removeListener = function() {
     chrome.runtime.onMessage.removeListener(listenerFunction);
-  }
+  };
   chrome.runtime.onMessage.addListener(listenerFunction);
 }
 
@@ -32,7 +32,7 @@ const waitForCommittedAndRun = function(functionToRun, numCommits, url) {
   let committedCount = 0;
   const counter = new ResponseCounter();  // Every test gets a counter.
   const onCommitted = function(details) {
-    if (++committedCount == numCommits) {
+    if (++committedCount === numCommits) {
       functionToRun(counter, details.tabId);
       chrome.webNavigation.onCommitted.removeListener(onCommitted);
     }
@@ -46,12 +46,12 @@ chrome.test.getConfig(function(config) {
       '/extensions/api_test/executescript/removed_frames/outer.html';
   // Regression tests for crbug.com/40422771.
   chrome.test.runTests([
-   function testInjectAndDeleteIframeFromMainFrame() {
+    function testInjectAndDeleteIframeFromMainFrame() {
       waitForCommittedAndRun(injectAndDeleteIframeFromMainFrame, 2, url);
     },
     function testInjectAndDeleteIframeFromIframe() {
       waitForCommittedAndRun(injectAndDeleteIframeFromIframe, 2, url);
-    }
+    },
   ]);
 });
 
@@ -71,9 +71,8 @@ function injectAndDeleteIframeFromMainFrame(counter, tabId) {
         chrome.runtime.sendMessage('complete');
       }`;
   chrome.tabs.executeScript(
-      tabId,
-      {code: injectFrameCode, allFrames: true, runAt: 'document_idle'});
-};
+      tabId, {code: injectFrameCode, allFrames: true, runAt: 'document_idle'});
+}
 
 function injectAndDeleteIframeFromIframe(counter, tabId) {
   // Inject code into each frame. Have the child frame remove itself, deleting
@@ -97,9 +96,7 @@ function injectAndDeleteIframeFromIframe(counter, tabId) {
   // We also use two 'executeScript' calls here so that we have a pending script
   // execution on a frame that gets deleted.
   chrome.tabs.executeScript(
-      tabId,
-      {code: injectFrameCode, allFrames: true, runAt: 'document_idle'});
+      tabId, {code: injectFrameCode, allFrames: true, runAt: 'document_idle'});
   chrome.tabs.executeScript(
-      tabId,
-      {code: injectFrameCode, allFrames: true, runAt: 'document_idle'});
+      tabId, {code: injectFrameCode, allFrames: true, runAt: 'document_idle'});
 }

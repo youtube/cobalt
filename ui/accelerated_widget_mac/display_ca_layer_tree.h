@@ -8,6 +8,7 @@
 #include <IOSurface/IOSurfaceRef.h>
 
 #include "base/apple/scoped_cftyperef.h"
+#include "base/containers/circular_deque.h"
 #include "ui/accelerated_widget_mac/accelerated_widget_mac_export.h"
 #include "ui/accelerated_widget_mac/ca_layer_frame_sink.h"
 
@@ -31,7 +32,7 @@ class ACCELERATED_WIDGET_MAC_EXPORT DisplayCALayerTree
   explicit DisplayCALayerTree(CALayer* root_layer);
   ~DisplayCALayerTree() override;
 
-  void UpdateCALayerTree(const gfx::CALayerParams& ca_layer_params) override;
+  void UpdateCALayerTree(gfx::CALayerParams ca_layer_params) override;
 
  private:
   void GotCALayerFrame(uint32_t ca_context_id);
@@ -62,6 +63,11 @@ class ACCELERATED_WIDGET_MAC_EXPORT DisplayCALayerTree
 
   // A CALayer that has its content set to an IOSurface.
   CALayer* __strong io_surface_layer_;
+
+  // Mach ports that keep the last three frames alive until they are released
+  // by the window server.
+  base::circular_deque<base::apple::ScopedMachSendRight>
+      ca_context_fence_mach_ports_;
 };
 
 }  // namespace ui

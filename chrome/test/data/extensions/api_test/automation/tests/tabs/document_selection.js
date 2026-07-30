@@ -24,7 +24,7 @@ const allTests = [
       anchorObject: textNode,
       anchorOffset: 0,
       focusObject: textNode,
-      focusOffset: 3
+      focusOffset: 3,
     });
     listenOnce(rootNode, EventType.DOCUMENT_SELECTION_CHANGED, function(evt) {
       assertEq(textNode, rootNode.anchorObject);
@@ -41,7 +41,7 @@ const allTests = [
     assertTrue(!!textField);
     // Focusing the textfield will cause a text selection changed event in it.
     listenOnce(textField, EventType.TEXT_SELECTION_CHANGED, function(evt2) {
-      assertTrue(evt2.target == textField);
+      assertTrue(evt2.target === textField);
       assertEq(textField, rootNode.anchorObject);
       assertEq(0, rootNode.anchorOffset);
       assertEq(textField, rootNode.focusObject);
@@ -53,7 +53,7 @@ const allTests = [
         anchorObject: textField,
         anchorOffset: 1,
         focusObject: textField,
-        focusOffset: 3
+        focusOffset: 3,
       });
       listenOnce(rootNode, EventType.DOCUMENT_SELECTION_CHANGED, function(evt) {
         listenOnce(textField, EventType.TEXT_SELECTION_CHANGED, function(evt) {

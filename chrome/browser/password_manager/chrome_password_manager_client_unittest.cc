@@ -688,6 +688,27 @@ TEST_F(ChromePasswordManagerClientTest,
   EXPECT_FALSE(client->IsFillingEnabled(kUrlOn));
 }
 
+TEST_F(ChromePasswordManagerClientTest, OnFedCmFederatedLogin) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      password_manager::features::kPreventPasswordManagerOnFederatedLogin);
+
+  base::HistogramTester histogram_tester;
+
+  // Call with success = false. Should not record histogram.
+  static_cast<content::WebContentsObserver*>(GetClient())
+      ->OnFedCmFederatedLogin(false);
+  histogram_tester.ExpectTotalCount(
+      "PasswordManager.FederatedLogin.SavePromptPrevented", 0);
+
+  // Call with success = true. Should record histogram (false because no
+  // submitted manager).
+  static_cast<content::WebContentsObserver*>(GetClient())
+      ->OnFedCmFederatedLogin(true);
+  histogram_tester.ExpectUniqueSample(
+      "PasswordManager.FederatedLogin.SavePromptPrevented", false, 1);
+}
+
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS)
 // Test for the PasswordManagerBlocklist policy.
@@ -1721,11 +1742,11 @@ TEST_F(ChromePasswordManagerClientAndroidTest,
 
   std::vector<PasswordForm> account_store_forms = {MakePasswordForm()};
   store_consumer->OnGetPasswordStoreResultsOrErrorFrom(
-      mock_account_store, std::move(account_store_forms));
+      mock_account_store, FromPasswordForms(std::move(account_store_forms)));
 
   std::vector<PasswordForm> profile_store_forms = {MakePasswordForm()};
   store_consumer->OnGetPasswordStoreResultsOrErrorFrom(
-      mock_profile_store, std::move(profile_store_forms));
+      mock_profile_store, FromPasswordForms(std::move(profile_store_forms)));
 
   MockPasswordAccessoryControllerImpl* weak_mock_pwd_controller =
       SetUpMockPwdAccessoryForClientUse(driver.get());
@@ -1761,8 +1782,8 @@ TEST_F(ChromePasswordManagerClientAndroidTest,
                                                       {observed_form_data});
 
   std::vector<PasswordForm> forms = {MakePasswordForm()};
-  store_consumer->OnGetPasswordStoreResultsOrErrorFrom(mock_profile_store,
-                                                       std::move(forms));
+  store_consumer->OnGetPasswordStoreResultsOrErrorFrom(
+      mock_profile_store, FromPasswordForms(std::move(forms)));
 
   MockPasswordAccessoryControllerImpl* weak_mock_pwd_controller =
       SetUpMockPwdAccessoryForClientUse(driver.get());

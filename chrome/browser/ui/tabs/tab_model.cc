@@ -201,6 +201,10 @@ content::WebContents* TabModel::GetContents() const {
   return contents_;
 }
 
+Profile* TabModel::GetProfile() const {
+  return Profile::FromBrowserContext(contents_->GetBrowserContext());
+}
+
 base::CallbackListSubscription TabModel::RegisterWillDiscardContents(
     TabInterface::WillDiscardContentsCallback callback) {
   return will_discard_contents_callback_list_.Add(std::move(callback));
@@ -292,7 +296,7 @@ BrowserWindowInterface* TabModel::GetBrowserWindowInterface() {
 }
 
 const BrowserWindowInterface* TabModel::GetBrowserWindowInterface() const {
-  return GetModelForTabInterface()->delegate()->GetBrowserWindowInterface();
+  return const_cast<TabModel*>(this)->GetBrowserWindowInterface();
 }
 
 tabs::TabFeatures* TabModel::GetTabFeatures() {
@@ -435,12 +439,14 @@ void TabModel::WriteIntoTrace(perfetto::TracedValue context) const {
 
 std::unique_ptr<content::WebContents> TabModel::DiscardContents(
     std::unique_ptr<content::WebContents> contents) {
+  CHECK_EQ(contents_->GetBrowserContext(), contents->GetBrowserContext());
   will_discard_contents_callback_list_.Notify(this, contents_, contents.get());
   contents_->RemoveUserData(tabs::TabLookupFromWebContents::UserDataKey());
   std::unique_ptr<content::WebContents> old_contents =
       std::move(contents_owned_);
   contents_owned_ = std::move(contents);
   contents_ = contents_owned_.get();
+  WebContentsObserver::Observe(contents_);
 
   const SessionID session_id = sessions::SessionTabHelper::IdForTab(contents_);
   CHECK(session_id.is_valid());

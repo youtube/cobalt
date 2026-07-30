@@ -990,22 +990,6 @@ void AutocompleteController::UpdateSearchTermsArgsWithAdditionalSearchboxStats(
   // can stop logging this deprecated field.
   search_terms_args.searchbox_stats.set_experiment_stats(experiment_stats);
 
-  if (zero_suggest_provider_) {
-    // Append the ExperimentStatsV2 to the searchbox stats parameter to be
-    // logged in searchbox_stats.proto's `experiment_stats_v2` field.
-    for (const auto& experiment_stat_v2 :
-         zero_suggest_provider_->experiment_stats_v2s()) {
-      // The string value consists of suggestion type/subtype pairs delimited
-      // with colons. However, the SearchboxStats logging flow expects
-      // suggestion type/subtype pairs to be delimited with commas instead.
-      std::string value = experiment_stat_v2.string_value();
-      std::replace(value.begin(), value.end(), ':', ',');
-      auto* reported_experiment_stats_v2 =
-          search_terms_args.searchbox_stats.add_experiment_stats_v2();
-      reported_experiment_stats_v2->set_type_int(experiment_stat_v2.type_int());
-      reported_experiment_stats_v2->set_string_value(value);
-    }
-  }
 #if BUILDFLAG(IS_IOS)
   // Append the omnibox position when it's set to experiment_stats_v2.
   if (steady_state_omnibox_position_ !=
@@ -1939,7 +1923,6 @@ void AutocompleteController::UpdateKeywordDescriptions(
 #endif
 
   std::u16string last_keyword;
-  bool last_contextual = false;
   for (auto i(result->begin()); i != result->end(); ++i) {
     if (AutocompleteMatch::IsSearchType(i->type)) {
       if (i->HasCustomDescription() || IsUnscopedExtensionMatch(*i)) {
@@ -1956,7 +1939,7 @@ void AutocompleteController::UpdateKeywordDescriptions(
       i->description_class.clear();
       DCHECK(!i->keyword.empty());
       bool is_contextual = i->IsContextualSearchSuggestion();
-      if (i->keyword != last_keyword || is_contextual != last_contextual) {
+      if (i->keyword != last_keyword || is_contextual) {
         const TemplateURL* template_url =
             i->GetTemplateURL(template_url_service_);
         if (template_url) {
@@ -1966,8 +1949,12 @@ void AutocompleteController::UpdateKeywordDescriptions(
           //   alternative UX because they're opened in the side panel.
           i->description = template_url->AdjustedShortNameForLocaleDirection();
           if (is_contextual) {
-            i->description = l10n_util::GetStringUTF16(
-                IDS_AUTOCOMPLETE_SEARCH_IN_SIDE_PANEL_DESCRIPTION);
+            if (!i->IsStaticContextualSearchSuggestion()) {
+              i->description = l10n_util::GetStringUTF16(
+                  IDS_CONTEXTUAL_SEARCH_OPEN_LENS_ACTION_LABEL);
+            } else {
+              i->description.clear();
+            }
           } else if (template_url->is_ask_type()) {
             i->description = l10n_util::GetStringFUTF16(
                 IDS_AUTOCOMPLETE_ASK_DESCRIPTION, i->description);
@@ -1981,7 +1968,6 @@ void AutocompleteController::UpdateKeywordDescriptions(
         }
 
         last_keyword = i->keyword;
-        last_contextual = is_contextual;
       }
     } else {
       last_keyword.clear();
@@ -2104,6 +2090,23 @@ void AutocompleteController::UpdateSearchboxStats(AutocompleteResult* result) {
   for (const auto& gws_event_id_hash :
        result->gws_event_id_hashes_in_session()) {
     searchbox_stats.add_gws_event_id_hash(gws_event_id_hash);
+  }
+
+  if (zero_suggest_provider_) {
+    // Append the ExperimentStatsV2 to the searchbox stats parameter to be
+    // logged in searchbox_stats.proto's `experiment_stats_v2` field.
+    for (const auto& experiment_stat_v2 :
+         zero_suggest_provider_->experiment_stats_v2s()) {
+      // The string value consists of suggestion type/subtype pairs delimited
+      // with colons. However, the SearchboxStats logging flow expects
+      // suggestion type/subtype pairs to be delimited with commas instead.
+      std::string value = experiment_stat_v2.string_value();
+      std::replace(value.begin(), value.end(), ':', ',');
+      auto* reported_experiment_stats_v2 =
+          searchbox_stats.add_experiment_stats_v2();
+      reported_experiment_stats_v2->set_type_int(experiment_stat_v2.type_int());
+      reported_experiment_stats_v2->set_string_value(value);
+    }
   }
 
   // Go over all matches and set searchbox stats if the match supports it.

@@ -20,13 +20,13 @@ import org.chromium.base.test.params.ParameterAnnotations;
 import org.chromium.base.test.params.ParameterizedRunner;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Feature;
+import org.chromium.chrome.R;
 import org.chromium.chrome.browser.autofill.AutofillTestHelper;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.night_mode.ChromeNightModeTestUtils;
 import org.chromium.chrome.browser.payments.PaymentRequestTestRule.AppPresence;
 import org.chromium.chrome.browser.payments.PaymentRequestTestRule.FactorySpeed;
 import org.chromium.chrome.test.ChromeJUnit4RunnerDelegate;
-import org.chromium.chrome.test.R;
 import org.chromium.components.autofill.AutofillProfile;
 import org.chromium.components.payments.Event2;
 import org.chromium.ui.test.util.NightModeTestUtils;
@@ -194,7 +194,7 @@ public class PaymentRequestFreeShippingTest {
         mPaymentRequestTestRule.clickInShippingAddressAndWait(
                 R.id.payments_add_option_button, mPaymentRequestTestRule.getReadyToEdit());
         mPaymentRequestTestRule.setSpinnerSelectionInEditorAndWait(
-                0 /* Afghanistan */, mPaymentRequestTestRule.getEditorTextUpdate());
+                0, mPaymentRequestTestRule.getEditorTextUpdate());
         mPaymentRequestTestRule.setTextInEditorAndWait(
                 new String[] {
                     "Alice", "Supreme Court", "Airport Road", "Kabul", "1043", "020-253-0000"

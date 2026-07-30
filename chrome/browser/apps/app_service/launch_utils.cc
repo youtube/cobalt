@@ -20,10 +20,10 @@
 #include "chrome/browser/apps/app_service/intent_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_navigator.h"
-#include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/navigator/browser_navigator.h"
+#include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/web_applications/link_capturing_features.h"
 #include "chrome/common/chrome_switches.h"
@@ -97,7 +97,7 @@ Browser* CreateBrowserWithNewTabPage(Profile* profile) {
   Browser::CreateParams create_params(profile, /*user_gesture=*/false);
   Browser* browser = Browser::Create(create_params);
 
-  NavigateParams params(browser, GURL(chrome::kChromeUINewTabURL),
+  NavigateParams params(browser, chrome::ChromeUINewTabURLAsGURL(),
                         ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
   params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
   params.tabstrip_add_types = AddTabTypes::ADD_ACTIVE;

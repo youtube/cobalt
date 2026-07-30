@@ -10,6 +10,7 @@
 <translation id="19426210786412737">De aktive Chrome-innstillingene dine er oppdatert, slik at nettsteder kan bruke informasjonskapsler fra tredjeparter. Du kan endre denne innstillingen når som helst.</translation>
 <translation id="1954777269544683286">Google krever at bedrifter offentlig erklærer at de ikke bruker disse dataene for å spore deg på ulike nettsteder. Bedrifter har et ansvar om å informere deg om hvordan de bruker dataene dine. <ph name="BEGIN_LINK" />Finn ut mer i personvernreglene våre<ph name="END_LINK" />.</translation>
 <translation id="2004697686368036666">Det kan hende at funksjoner på noen nettsteder ikke fungerer</translation>
+<translation id="2183376768278472507">Hvis et nettsted ikke fungerer som forventet, kan du prøve å tillate informasjonskapsler fra tredjeparter for det aktuelle nettstedet</translation>
 <translation id="2235344399760031203">Informasjonskapsler fra tredjeparter er blokkert</translation>
 <translation id="235832722106476745">Chrome sletter automatisk annonseemner som er eldre enn fire uker</translation>
 <translation id="2496115946829713659">Nettsteder kan bruke informasjonskapsler fra tredjeparter for å tilpasse innhold og annonser og finne ut hva du gjør på andre nettsteder</translation>
@@ -39,7 +40,6 @@
 <translation id="4616029578858572059">Chromium merker seg interessante emner basert på den nylige nettleserloggen din. Eksempler på dette kan være sport og klær.</translation>
 <translation id="4692439979815346597">Du kan se annonseemnene dine i Chrome-innstillingene og blokkere dem du ikke vil dele med nettsteder</translation>
 <translation id="4711259472133554310">Du kan opprette unntak i innstillingene for alltid å tillate at bestemte nettsteder bruker informasjonskapsler fra tredjeparter</translation>
-<translation id="4894490899128180322">Hvis et nettsted ikke fungerer som forventet, kan du prøve å tillate informasjonskapsler fra tredjeparter midlertidig for det aktuelle nettstedet</translation>
 <translation id="5055880590417889642">Aktiviteten din er én av mange ting nettsteder kan bruke for å foreslå annonser. Når annonser foreslått av nettsteder er slått av, kan nettsteder fortsatt vise deg annonser, men de er kanskje mindre personlig tilpasset. Finn ut mer om</translation>
 <translation id="5117284457376555514">Nettsteder kan ikke bruke informasjonskapsler fra tredjeparter for å tilpasse innhold og annonser eller for å finne ut hva du gjør på andre nettsteder, med mindre du gir relaterte nettsteder tilgang til dem. Det kan hende at noen nettstedsfunksjoner ikke fungerer som forventet.</translation>
 <translation id="544199055391706031">Aktiviteten din er én av mange ting nettsteder kan bruke for å foreslå annonser. Når annonser foreslått av nettsteder er slått av, kan nettsteder fortsatt vise deg annonser, men de er kanskje mindre personlig tilpasset. Finn ut mer om <ph name="BEGIN_LINK" />annonser foreslått av nettsteder<ph name="END_LINK" />.</translation>

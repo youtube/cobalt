@@ -130,6 +130,7 @@
 #include "services/shape_detection/public/mojom/facedetection_provider.mojom.h"
 #include "services/shape_detection/public/mojom/shape_detection_service.mojom.h"
 #include "services/shape_detection/public/mojom/textdetection.mojom.h"
+#include "services/webnn/host/weights_file_creator_impl.h"
 #include "services/webnn/public/mojom/features.mojom-features.h"
 #include "services/webnn/public/mojom/webnn_context_provider.mojom.h"
 #include "storage/browser/quota/quota_internals.mojom.h"
@@ -188,7 +189,6 @@
 #include "third_party/blink/public/mojom/presentation/presentation.mojom.h"
 #include "third_party/blink/public/mojom/push_messaging/push_messaging.mojom.h"
 #include "third_party/blink/public/mojom/quota/quota_manager_host.mojom.h"
-#include "third_party/blink/public/mojom/rtc_logging/rtc_logging.mojom.h"
 #include "third_party/blink/public/mojom/sensor/web_sensor_provider.mojom.h"
 #include "third_party/blink/public/mojom/serial/serial.mojom.h"
 #include "third_party/blink/public/mojom/sms/webotp_service.mojom.h"
@@ -201,6 +201,7 @@
 #include "third_party/blink/public/mojom/webauthn/authenticator.mojom.h"
 #include "third_party/blink/public/mojom/webid/digital_identity_request.mojom.h"
 #include "third_party/blink/public/mojom/webid/federated_auth_request.mojom.h"
+#include "third_party/blink/public/mojom/webrtc/rtc_logging.mojom.h"
 #include "third_party/blink/public/mojom/websockets/websocket_connector.mojom.h"
 #include "third_party/blink/public/mojom/webtransport/web_transport_connector.mojom.h"
 #include "third_party/blink/public/mojom/worker/dedicated_worker_host_factory.mojom.h"
@@ -326,6 +327,22 @@ void BindWebNNContextProviderForWorker(
   process_host->GetGpuClient()->BindWebNNContextProvider(std::move(receiver),
                                                          is_incognito);
 #endif
+}
+
+void BindWebNNWeightsFileCreatorForRenderFrame(
+    RenderFrameHost* host,
+    mojo::PendingReceiver<webnn::mojom::WebNNWeightsFileCreator> receiver) {
+  const bool is_incognito = host->GetBrowserContext()->IsOffTheRecord();
+  webnn::WeightsFileCreatorImpl::Create(std::move(receiver), is_incognito);
+}
+
+template <typename WorkerHost>
+void BindWebNNWeightsFileCreatorForWorker(
+    WorkerHost* host,
+    mojo::PendingReceiver<webnn::mojom::WebNNWeightsFileCreator> receiver) {
+  const bool is_incognito =
+      host->GetProcessHost()->GetBrowserContext()->IsOffTheRecord();
+  webnn::WeightsFileCreatorImpl::Create(std::move(receiver), is_incognito);
 }
 
 #if BUILDFLAG(IS_MAC)
@@ -713,6 +730,12 @@ void BindSocketManager(
 }
 #endif  // BUILDFLAG(IS_P2P_ENABLED)
 
+void BindImageCaptureImpl(
+    RenderFrameHost* frame_host,
+    mojo::PendingReceiver<media::mojom::ImageCapture> receiver) {
+  ImageCaptureImpl::Create(frame_host, std::move(receiver));
+}
+
 void BindDevicePostureProvider(
     RenderFrameHost* frame_host,
     mojo::PendingReceiver<blink::mojom::DevicePostureProvider> receiver) {
@@ -876,11 +899,22 @@ void PopulateBinderMapWithContext(
   // WebRTC p2p connections are disallowed in fenced frames. Creation of
   // RTCPeerConnection is already disabled in the renderer, so in theory this
   // unbound interface should never present an issue.
-  bool should_ban_p2p =
+  bool should_ban_p2p_for_fenced_frames =
       base::FeatureList::IsEnabled(
           blink::features::kFencedFramesLocalUnpartitionedDataAccess) &&
       host->IsNestedWithinFencedFrame();
-  if (!should_ban_p2p) {
+
+  bool should_ban_p2p_for_connection_allowlist =
+      host->HasPolicyContainerHost() &&
+      host->policy_container_host()
+          ->connection_allowlists()
+          .enforced.has_value() &&
+      host->policy_container_host()
+              ->connection_allowlists()
+              .enforced->webrtc_behavior ==
+          network::ConnectionAllowlist::WebRtcBehavior::kBlock;
+  if (!should_ban_p2p_for_fenced_frames &&
+      !should_ban_p2p_for_connection_allowlist) {
     map->Add<network::mojom::P2PSocketManager>(&BindSocketManager);
   }
 #endif  // BUILDFLAG(IS_P2P_ENABLED)
@@ -904,8 +938,7 @@ void PopulateBinderMapWithContext(
 
   map->Add<media::mojom::SpeechRecognizer>(
       base::BindRepeating(&SpeechRecognitionDispatcherHost::Create,
-                          host->GetProcess()->GetDeprecatedID(),
-                          host->GetRoutingID()),
+                          host->GetGlobalId()),
       GetIOThreadTaskRunner({}));
 
   map->Add<blink::mojom::SpeechSynthesis>(
@@ -957,6 +990,8 @@ void PopulateBinderMapWithContext(
           webnn::mojom::features::kWebMachineLearningNeuralNetwork)) {
     map->Add<webnn::mojom::WebNNContextProvider>(
         &BindWebNNContextProviderForRenderFrame);
+    map->Add<webnn::mojom::WebNNWeightsFileCreator>(
+        &BindWebNNWeightsFileCreatorForRenderFrame);
   }
 
   map->Add<blink::mojom::WebBluetoothService>(
@@ -1008,7 +1043,7 @@ void PopulateBinderMapWithContext(
       &BindRenderFrameHostImpl<
           &RenderFrameHostImpl::CreateAudioOutputStreamFactory>);
 
-  map->Add<media::mojom::ImageCapture>(&ImageCaptureImpl::Create);
+  map->Add<media::mojom::ImageCapture>(&BindImageCaptureImpl);
 
   map->Add<media::mojom::InterfaceFactory>(
       &BindRenderFrameHostImpl<
@@ -1124,6 +1159,9 @@ void PopulateBinderMapWithContext(
 
   map->Add<blink::mojom::SerialService>(
       &BindRenderFrameHostImpl<&RenderFrameHostImpl::BindSerialService>);
+
+  map->Add<blink::mojom::ModelContextHost>(
+      &BindRenderFrameHostImpl<&RenderFrameHostImpl::BindModelContextHost>);
 
 #if BUILDFLAG(IS_CHROMEOS)
   map->Add<blink::mojom::SmartCardService>(
@@ -1358,6 +1396,9 @@ void PopulateDedicatedWorkerBinders(DedicatedWorkerHost* host,
     map->Add<webnn::mojom::WebNNContextProvider>(base::BindRepeating(
         &BindWebNNContextProviderForWorker<DedicatedWorkerHost>,
         base::Unretained(host)));
+    map->Add<webnn::mojom::WebNNWeightsFileCreator>(base::BindRepeating(
+        &BindWebNNWeightsFileCreatorForWorker<DedicatedWorkerHost>,
+        base::Unretained(host)));
   }
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -1553,6 +1594,9 @@ void PopulateSharedWorkerBinders(SharedWorkerHost* host, mojo::BinderMap* map) {
     map->Add<webnn::mojom::WebNNContextProvider>(base::BindRepeating(
         &BindWebNNContextProviderForWorker<SharedWorkerHost>,
         base::Unretained(host)));
+    map->Add<webnn::mojom::WebNNWeightsFileCreator>(base::BindRepeating(
+        &BindWebNNWeightsFileCreatorForWorker<SharedWorkerHost>,
+        base::Unretained(host)));
   }
   map->Add<blink::mojom::TranslationManager>(base::BindRepeating(
       [](SharedWorkerHost* host,
@@ -1722,6 +1766,9 @@ void PopulateServiceWorkerBinders(ServiceWorkerHost* host,
           webnn::mojom::features::kWebMachineLearningNeuralNetwork)) {
     map->Add<webnn::mojom::WebNNContextProvider>(base::BindRepeating(
         &BindWebNNContextProviderForWorker<ServiceWorkerHost>,
+        base::Unretained(host)));
+    map->Add<webnn::mojom::WebNNWeightsFileCreator>(base::BindRepeating(
+        &BindWebNNWeightsFileCreatorForWorker<ServiceWorkerHost>,
         base::Unretained(host)));
   }
   map->Add<blink::mojom::TranslationManager>(base::BindRepeating(

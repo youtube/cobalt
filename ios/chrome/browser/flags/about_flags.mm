@@ -59,6 +59,7 @@
 #import "components/page_content_annotations/core/page_content_annotations_features.h"
 #import "components/password_manager/core/browser/features/password_features.h"
 #import "components/password_manager/core/common/password_manager_features.h"
+#import "components/password_manager/ios/features.h"
 #import "components/payments/core/features.h"
 #import "components/policy/core/common/policy_loader_ios_constants.h"
 #import "components/policy/policy_constants.h"
@@ -144,13 +145,15 @@ const FeatureEntry::Choice kSendTabToSelfEnhancedHandoffChoices[] = {
      "SendTabToSelfImprovedLastActiveLabels,"
      "SendTabToSelfPropagateFormFields,"
      "SendTabToSelfPropagateNavigationHistory,"
-     "SendTabToSelfPropagateScrollPosition,"},
+     "SendTabToSelfPropagateScrollPosition,"
+     "SendTabToSelfPostSendToast"},
     {flags_ui::kGenericExperimentChoiceDisabled, switches::kDisableFeatures,
      "SendTabToSelfAutoOpen,"
      "SendTabToSelfImprovedLastActiveLabels,"
      "SendTabToSelfPropagateFormFields,"
      "SendTabToSelfPropagateNavigationHistory,"
-     "SendTabToSelfPropagateScrollPosition,"},
+     "SendTabToSelfPropagateScrollPosition,"
+     "SendTabToSelfPostSendToast"},
 };
 
 const FeatureEntry::Choice
@@ -159,6 +162,13 @@ const FeatureEntry::Choice
         {"200", signin::kWaitThresholdMillisecondsForCapabilitiesApi, "200"},
         {"500", signin::kWaitThresholdMillisecondsForCapabilitiesApi, "500"},
         {"5000", signin::kWaitThresholdMillisecondsForCapabilitiesApi, "5000"},
+};
+
+const FeatureEntry::FeatureParam kActorToolsPageStabilityEnabled[] = {
+    {kActorToolsPageStabilityParam, "true"},
+};
+const FeatureEntry::FeatureVariation kActorToolsPageStabilityVariations[] = {
+    {"PageStabilityEnabled", kActorToolsPageStabilityEnabled, nullptr},
 };
 
 const FeatureEntry::FeatureParam kAIMCobrowseHeaderOptionA[] = {
@@ -566,9 +576,7 @@ const FeatureEntry::FeatureParam kPriceTrackingPromoForceHideArm[] = {
 const FeatureEntry::FeatureParam kPriceDropOnTabArm[] = {
     {"ShopCardVariant", "arm_3"},
 };
-const FeatureEntry::FeatureParam kPriceTrackableProductOnTabArm[] = {
-    {"ShopCardVariant", "arm_4"},
-};
+
 const FeatureEntry::FeatureParam kTabResumptionWithImpressionLimitsArm[] = {
     {"ShopCardVariant", "arm_5"},
 };
@@ -576,10 +584,7 @@ const FeatureEntry::FeatureParam kPriceDropOnTabFront[] = {
     {"ShopCardVariant", "arm_3"},
     {"ShopCardPosition", "shop_card_front"},
 };
-const FeatureEntry::FeatureParam kPriceTrackableProductOnTabFront[] = {
-    {"ShopCardVariant", "arm_4"},
-    {"ShopCardPosition", "shop_card_front"},
-};
+
 const FeatureEntry::FeatureParam kTabResumptionWithImpressionLimitsFront[] = {
     {"ShopCardVariant", "arm_5"},
     {"ShopCardPosition", "shop_card_front"},
@@ -696,14 +701,12 @@ const FeatureEntry::FeatureParam kDefaultBrowserPromoForceHideArm[] = {
 // ShopCard experiment arms
 const FeatureEntry::FeatureVariation kShopCardOverrideOptions[] = {
     {"Card 3 Price Drop on Tab Resumption", kPriceDropOnTabArm, nullptr},
-    {"Card 4 Price Trackable on Tab Resumption", kPriceTrackableProductOnTabArm,
-     nullptr},
+
     {"Card 5 Tab Resumption with Impression Limits",
      kTabResumptionWithImpressionLimitsArm, nullptr},
     {"Card 3 Price Drop on Tab Resumption at front of magic stack",
      kPriceDropOnTabFront, nullptr},
-    {"Card 4 Price Trackable on Tab Resumption at front of magic stack",
-     kPriceTrackableProductOnTabFront, nullptr},
+
     {"Card 5 Tab Resumption with Impression Limits at front of magic stack",
      kTabResumptionWithImpressionLimitsFront, nullptr},
     {"Card 6 Price Drop on Tab Resumption with delayed data acquisition",
@@ -1388,6 +1391,40 @@ const FeatureEntry::FeatureVariation kAssistantContainerVariations[] = {
     {"30% medium detent", kAssistantContainer30, nullptr},
     {"60% medium detent", kAssistantContainer60, nullptr}};
 
+const FeatureEntry::FeatureParam kAutoSubmissionDismissThenSubmit[] = {
+    {"auto-submission-type", "DismissThenSubmit"},
+};
+const FeatureEntry::FeatureParam kAutoSubmissionSubmitThenDismiss[] = {
+    {"auto-submission-type", "SubmitThenDismiss"},
+};
+const FeatureEntry::FeatureParam kAutoSubmissionDismissThenBlockThenSubmit[] = {
+    {"auto-submission-type", "DismissThenBlockThenSubmit"},
+};
+const FeatureEntry::FeatureParam
+    kAutoSubmissionDismissThenBlockThenSubmitWithWait[] = {
+        {"auto-submission-type", "DismissThenBlockThenSubmit"},
+        {"auto-submission-use-wait-period", "true"},
+};
+const FeatureEntry::FeatureParam kAutoSubmissionDismissThenSubmitWithWait[] = {
+    {"auto-submission-type", "DismissThenSubmit"},
+    {"auto-submission-use-wait-period", "true"},
+};
+const FeatureEntry::FeatureParam kAutoSubmissionScriptSubmit[] = {
+    {"auto-submission-type", "ScriptSubmit"},
+};
+
+const FeatureEntry::FeatureVariation kAutoSubmissionVariations[] = {
+    {"Dismiss then Submit", kAutoSubmissionDismissThenSubmit, nullptr},
+    {"Submit then Dismiss", kAutoSubmissionSubmitThenDismiss, nullptr},
+    {"Dismiss then Block then Submit",
+     kAutoSubmissionDismissThenBlockThenSubmit, nullptr},
+    {"Dismiss then Block then Submit (Wait)",
+     kAutoSubmissionDismissThenBlockThenSubmitWithWait, nullptr},
+    {"Dismiss then Submit (Wait)", kAutoSubmissionDismissThenSubmitWithWait,
+     nullptr},
+    {"Script Submit", kAutoSubmissionScriptSubmit, nullptr},
+};
+
 // To add a new entry, add to the end of kFeatureEntries. There are four
 // distinct types of entries:
 // . ENABLE_DISABLE_VALUE: entry is either enabled, disabled, or uses the
@@ -1745,18 +1782,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"disable-lens-camera", flag_descriptions::kDisableLensCameraName,
      flag_descriptions::kDisableLensCameraDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kDisableLensCamera)},
-    {"autofill-enable-card-benefits-for-american-express",
-     flag_descriptions::kAutofillEnableCardBenefitsForAmericanExpressName,
-     flag_descriptions::
-         kAutofillEnableCardBenefitsForAmericanExpressDescription,
-     flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(
-         autofill::features::kAutofillEnableCardBenefitsForAmericanExpress)},
-    {"autofill-enable-card-benefits-sync",
-     flag_descriptions::kAutofillEnableCardBenefitsSyncName,
-     flag_descriptions::kAutofillEnableCardBenefitsSyncDescription,
-     flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(autofill::features::kAutofillEnableCardBenefitsSync)},
     {"autofill-enable-prefetching-risk-data-for-retrieval",
      flag_descriptions::kAutofillEnablePrefetchingRiskDataForRetrievalName,
      flag_descriptions::
@@ -1868,10 +1893,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kEnableTraitCollectionRegistrationName,
      flag_descriptions::kEnableTraitCollectionRegistrationDescription,
      flags_ui::kOsIos, FEATURE_VALUE_TYPE(kEnableTraitCollectionRegistration)},
-    {"safe-browsing-local-lists-use-sbv5",
-     flag_descriptions::kSafeBrowsingLocalListsUseSBv5Name,
-     flag_descriptions::kSafeBrowsingLocalListsUseSBv5Description,
-     flags_ui::kOsIos, FEATURE_VALUE_TYPE(safe_browsing::kLocalListsUseSBv5)},
     {"ios-shop-card", flag_descriptions::kShopCardName,
      flag_descriptions::kShopCardDescription, flags_ui::kOsIos,
      FEATURE_WITH_PARAMS_VALUE_TYPE(commerce::kTabResumptionShopCard,
@@ -1947,11 +1968,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      FEATURE_WITH_PARAMS_VALUE_TYPE(first_run::kUpdatedFirstRunSequence,
                                     kUpdatedFirstRunSequenceVariations,
                                     "UpdatedFirstRunSequence")},
-    {"autofill-enable-card-benefits-for-bmo",
-     flag_descriptions::kAutofillEnableCardBenefitsForBmoName,
-     flag_descriptions::kAutofillEnableCardBenefitsForBmoDescription,
-     flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(autofill::features::kAutofillEnableCardBenefitsForBmo)},
     {"download-auto-deletion", flag_descriptions::kDownloadAutoDeletionName,
      flag_descriptions::kDownloadAutoDeletionDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kDownloadAutoDeletionFeatureEnabled)},
@@ -2100,6 +2116,10 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kPageActionMenuAuthFlowName,
      flag_descriptions::kPageActionMenuAuthFlowDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kPageActionMenuAuthFlow)},
+    {"generalized-gemini-entry-flow",
+     flag_descriptions::kGeneralizedGeminiEntryFlowName,
+     flag_descriptions::kGeneralizedGeminiEntryFlowDescription,
+     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kGeneralizedGeminiEntryFlow)},
     {"proactive-suggestions-framework",
      flag_descriptions::kProactiveSuggestionsFrameworkName,
      flag_descriptions::kProactiveSuggestionsFrameworkDescription,
@@ -2144,13 +2164,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      FEATURE_WITH_PARAMS_VALUE_TYPE(kWelcomeBack,
                                     kWelcomeBackVariations,
                                     "WelcomeBack")},
-    {"autofill-enable-flat-rate-card-benefits-from-curinos",
-     flag_descriptions::kAutofillEnableFlatRateCardBenefitsFromCurinosName,
-     flag_descriptions::
-         kAutofillEnableFlatRateCardBenefitsFromCurinosDescription,
-     flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(
-         autofill::features::kAutofillEnableFlatRateCardBenefitsFromCurinos)},
     {"reader-mode-translation-with-infobar-enabled",
      flag_descriptions::kReaderModeTranslationWithInfobarName,
      flag_descriptions::kReaderModeTranslationWithInfobarDescription,
@@ -2434,16 +2447,16 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"gemini-floaty-all-pages", flag_descriptions::kGeminiFloatyAllPagesName,
      flag_descriptions::kGeminiFloatyAllPagesDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kGeminiFloatyAllPages)},
-    {"ios-save-to-drive-client-folder",
-     flag_descriptions::kIOSSaveToDriveClientFolderName,
-     flag_descriptions::kIOSSaveToDriveClientFolderDescription,
-     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kIOSSaveToDriveClientFolder)},
     {"disable-keyboard-accessory",
      flag_descriptions::kDisableKeyboardAccessoryName,
      flag_descriptions::kDisableKeyboardAccessoryDescription, flags_ui::kOsIos,
      FEATURE_WITH_PARAMS_VALUE_TYPE(kDisableKeyboardAccessory,
                                     kDisableKeyboardAccessoryVariations,
                                     "DisableKeyboardAccessoryVariations")},
+    {"ai-omnibox-ask-placeholder",
+     flag_descriptions::kAIOmniboxAskPlaceholderName,
+     flag_descriptions::kAIOmniboxAskPlaceholderDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kAIOmniboxAskPlaceholder)},
     {"enable-fusebox-keyboard-accessory",
      flag_descriptions::kEnableFuseboxKeyboardAccessoryName,
      flag_descriptions::kEnableFuseboxKeyboardAccessoryDescription,
@@ -2537,9 +2550,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kIOSWebContextMenuNewTitleName,
      flag_descriptions::kIOSWebContextMenuNewTitleDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kIOSWebContextMenuNewTitle)},
-    {"gemini-refactored-fre", flag_descriptions::kGeminiRefactoredFREName,
-     flag_descriptions::kGeminiRefactoredFREDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kGeminiRefactoredFRE)},
     {"composebox-fetch-contextual-suggestions-for-multiple-attachments",
      flag_descriptions::
          kComposeboxFetchContextualSuggestionsForMultipleAttachmentsName,
@@ -2847,10 +2857,16 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flags_ui::kOsIos, FEATURE_VALUE_TYPE(kOpenEditGroupViewByTappingTitle)},
     {"ios-actor-tools", flag_descriptions::kIOSActorToolsName,
      flag_descriptions::kIOSActorToolsDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kActorTools)},
+     FEATURE_WITH_PARAMS_VALUE_TYPE(kActorTools,
+                                    kActorToolsPageStabilityVariations,
+                                    "ActorTools")},
     {"gemini-client-migration", flag_descriptions::kGeminiClientMigrationName,
      flag_descriptions::kGeminiClientMigrationDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kGeminiClientMigration)},
+    {"gemini-screen-context-migration",
+     flag_descriptions::kGeminiScreenContextMigrationName,
+     flag_descriptions::kGeminiScreenContextMigrationDescription,
+     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kGeminiScreenContextMigration)},
     {"ios-cobalt-developer-mode",
      flag_descriptions::kIOSCobaltDeveloperModeName,
      flag_descriptions::kIOSCobaltDeveloperModeDescription, flags_ui::kOsIos,
@@ -2888,6 +2904,23 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"app-store-in-app-events", flag_descriptions::kAppStoreInAppEventsName,
      flag_descriptions::kAppStoreInAppEventsDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kAppStoreInAppEvents)},
+    {"use-ui-graphics-image-renderer-for-fallback-icons",
+     flag_descriptions::kUseUIGraphicsImageRendererForFallbackIconsName,
+     flag_descriptions::kUseUIGraphicsImageRendererForFallbackIconsDescription,
+     flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kUseUIGraphicsImageRendererForFallbackIcons)},
+    {"password-auto-submission-ios",
+     flag_descriptions::kIOSPasswordAutoSubmissionName,
+     flag_descriptions::kIOSPasswordAutoSubmissionDescription, flags_ui::kOsIos,
+     FEATURE_WITH_PARAMS_VALUE_TYPE(
+         password_manager::features::kIOSPasswordAutoSubmission,
+         kAutoSubmissionVariations,
+         "PasswordAutofillAutoSubmission")},
+    {"ios-mini-map-universal-links-counterfactual",
+     flag_descriptions::kIOSMiniMapUniversalLinkCounterfactualName,
+     flag_descriptions::kIOSMiniMapUniversalLinkCounterfactualDescription,
+     flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kIOSMiniMapUniversalLinkCounterfactual)},
 });
 
 bool SkipConditionalFeatureEntry(const flags_ui::FeatureEntry& entry) {

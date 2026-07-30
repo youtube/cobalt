@@ -200,7 +200,7 @@ class SendTabToSelfPageHandlerTest : public ChromeRenderViewHostTestHarness {
 };
 
 TEST_F(SendTabToSelfPageHandlerTest,
-       ShouldAddEntryWithScrollPositionWhenGenerationSucceeds) {
+       ShouldSendEntryWithScrollPositionWhenGenerationSucceeds) {
   SendTabToSelfPageHandler* handler =
       SendTabToSelfPageHandler::GetOrCreateForWebContents(web_contents());
   handler->SetSelectorGenerationTimeoutForTesting(base::Milliseconds(200));
@@ -212,7 +212,7 @@ TEST_F(SendTabToSelfPageHandlerTest,
   // Prepare the model to capture the finalized entry once the generation
   // process completes.
   TestFuture<const SendTabToSelfEntry*> future;
-  model()->SetAddEntryCallback(future.GetRepeatingCallback());
+  model()->SetSendEntryCallback(future.GetRepeatingCallback());
 
   // Initiate the send to device action. This will trigger an asynchronous
   // Mojo call to the renderer to generate the scroll position context.
@@ -231,7 +231,7 @@ TEST_F(SendTabToSelfPageHandlerTest,
 }
 
 TEST_F(SendTabToSelfPageHandlerTest,
-       ShouldAddEntryWithoutScrollPositionWhenBrowserTimesOut) {
+       ShouldSendEntryWithoutScrollPositionWhenBrowserTimesOut) {
   const GURL url(kExampleUrl);
   const std::string title = "Title";
   const std::string device_id = "device_id";
@@ -242,7 +242,7 @@ TEST_F(SendTabToSelfPageHandlerTest,
 
   // Prepare the model to capture the entry when the handler falls back.
   TestFuture<const SendTabToSelfEntry*> future;
-  model()->SetAddEntryCallback(future.GetRepeatingCallback());
+  model()->SetSendEntryCallback(future.GetRepeatingCallback());
 
   // Initiate the send to device action.
   handler->SendTabToDevice(device_id, url, title);
@@ -262,7 +262,7 @@ TEST_F(SendTabToSelfPageHandlerTest,
 }
 
 TEST_F(SendTabToSelfPageHandlerTest,
-       ShouldAddEntryWithoutScrollPositionWhenRendererTimesOut) {
+       ShouldSendEntryWithoutScrollPositionWhenRendererTimesOut) {
   const GURL url(kExampleUrl);
   const std::string title = "Title";
   const std::string device_id = "device_id";
@@ -273,7 +273,7 @@ TEST_F(SendTabToSelfPageHandlerTest,
 
   // Prepare the model to capture the finalized entry.
   TestFuture<const SendTabToSelfEntry*> future;
-  model()->SetAddEntryCallback(future.GetRepeatingCallback());
+  model()->SetSendEntryCallback(future.GetRepeatingCallback());
 
   // Initiate the send to device action.
   handler->SendTabToDevice(device_id, url, title);
@@ -293,7 +293,7 @@ TEST_F(SendTabToSelfPageHandlerTest,
 }
 
 TEST_F(SendTabToSelfPageHandlerTest,
-       ShouldAddEntryWithoutScrollPositionWhenPageNavigatesDuringGeneration) {
+       ShouldSendEntryWithoutScrollPositionWhenPageNavigatesDuringGeneration) {
   const GURL url(kExampleUrl);
   const std::string title = "Title";
   const std::string device_id = "device_id";
@@ -304,7 +304,7 @@ TEST_F(SendTabToSelfPageHandlerTest,
 
   // Prepare the model to capture the entry when the fallback is triggered.
   TestFuture<const SendTabToSelfEntry*> future;
-  model()->SetAddEntryCallback(future.GetRepeatingCallback());
+  model()->SetSendEntryCallback(future.GetRepeatingCallback());
 
   // Initiate the send to device action.
   handler->SendTabToDevice(device_id, url, title);
@@ -327,7 +327,7 @@ TEST_F(SendTabToSelfPageHandlerTest,
 }
 
 TEST_F(SendTabToSelfPageHandlerTest,
-       ShouldAddEntryWhenWebContentsIsDestroyedDuringGeneration) {
+       ShouldSendEntryWhenWebContentsIsDestroyedDuringGeneration) {
   const GURL url(kExampleUrl);
   const std::string title = "Title";
   const std::string device_id = "device_id";
@@ -339,7 +339,7 @@ TEST_F(SendTabToSelfPageHandlerTest,
   // Prepare the model to capture the entry when the fallback is triggered by
   // the tab closure.
   TestFuture<const SendTabToSelfEntry*> future;
-  model()->SetAddEntryCallback(future.GetRepeatingCallback());
+  model()->SetSendEntryCallback(future.GetRepeatingCallback());
 
   // Initiate the send to device action.
   handler->SendTabToDevice(device_id, url, title);
@@ -369,7 +369,7 @@ class SendTabToSelfPageHandlerWithNavigationHistoryTest
 };
 
 TEST_F(SendTabToSelfPageHandlerWithNavigationHistoryTest,
-       ShouldAddEntryWithNavigationHistoryWhenFeatureEnabled) {
+       ShouldSendEntryWithNavigationHistoryWhenFeatureEnabled) {
   SendTabToSelfPageHandler* handler =
       SendTabToSelfPageHandler::GetOrCreateForWebContents(web_contents());
 
@@ -379,7 +379,7 @@ TEST_F(SendTabToSelfPageHandlerWithNavigationHistoryTest,
 
   // Navigation history should have at least the current page.
   TestFuture<const SendTabToSelfEntry*> future;
-  model()->SetAddEntryCallback(future.GetRepeatingCallback());
+  model()->SetSendEntryCallback(future.GetRepeatingCallback());
 
   handler->SendTabToDevice(device_id, url, title);
 
@@ -403,9 +403,10 @@ TEST_F(SendTabToSelfPageHandlerTest,
   TestFuture<SendTabToSelfResult> result_future;
   handler->SendTabToDevice(device_id, url, title, result_future.GetCallback());
 
-  // Verify the callback is invoked immediately with kFailureModelNotReady,
-  // bypassing the entire generation flow.
-  EXPECT_EQ(SendTabToSelfResult::kFailureModelNotReady, result_future.Get());
+  // Verify the callback is invoked immediately with
+  // kFailureNotTrackingMetadata, bypassing the entire generation flow.
+  EXPECT_EQ(SendTabToSelfResult::kFailureNotTrackingMetadata,
+            result_future.Get());
 }
 
 TEST_F(SendTabToSelfPageHandlerTest, ShouldInvokeCallbackOnSuccess) {
@@ -418,7 +419,7 @@ TEST_F(SendTabToSelfPageHandlerTest, ShouldInvokeCallbackOnSuccess) {
 
   // Prepare the model to accept the entry.
   TestFuture<const SendTabToSelfEntry*> future;
-  model()->SetAddEntryCallback(future.GetRepeatingCallback());
+  model()->SetSendEntryCallback(future.GetRepeatingCallback());
 
   // Initiate the send to device action, providing a result callback.
   TestFuture<SendTabToSelfResult> result_future;
@@ -434,7 +435,7 @@ TEST_F(SendTabToSelfPageHandlerTest, ShouldInvokeCallbackOnSuccess) {
 }
 
 TEST_F(SendTabToSelfPageHandlerTest,
-       ShouldAddEntryWithoutContextWhenSharingLink) {
+       ShouldSendEntryWithoutContextWhenSharingLink) {
   // This is different from the current page URL.
   const GURL link_url("https://www.other.com");
   const std::string title = "Title";
@@ -445,7 +446,7 @@ TEST_F(SendTabToSelfPageHandlerTest,
 
   // Prepare the model to capture the entry.
   TestFuture<const SendTabToSelfEntry*> future;
-  model()->SetAddEntryCallback(future.GetRepeatingCallback());
+  model()->SetSendEntryCallback(future.GetRepeatingCallback());
 
   // We don't expect any Mojo calls to the renderer since this is link sharing.
   EXPECT_CALL(mock_receiver_, RequestSelector(_)).Times(0);

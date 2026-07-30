@@ -26,6 +26,7 @@
 #include "components/password_manager/core/browser/password_change_service_interface.h"
 #include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_store/mock_password_store_interface.h"
+#include "components/password_manager/core/browser/password_store/password_form_converters.h"
 #include "components/password_manager/core/browser/password_store/password_store_consumer.h"
 #include "components/password_manager/core/browser/password_sync_util.h"
 #include "components/password_manager/core/browser/stub_password_manager_client.h"
@@ -113,7 +114,7 @@ class MockPasswordChangeService : public PasswordChangeServiceInterface {
   MOCK_METHOD(bool, IsPasswordChangeAvailable, (), (const override));
   MOCK_METHOD(bool,
               IsPasswordChangeSupported,
-              (const PasswordForm&),
+              (const PasswordForm&, bool),
               (const override));
   MOCK_METHOD(void,
               RecordLoginAttemptQuality,
@@ -219,7 +220,8 @@ class LeakDetectionDelegateTest : public testing::Test {
               FROM_HERE,
               base::BindOnce(
                   &PasswordStoreConsumer::OnGetPasswordStoreResultsOrErrorFrom,
-                  consumer, base::Unretained(store), std::move(results)));
+                  consumer, base::Unretained(store),
+                  password_manager::FromPasswordForms(std::move(results))));
         }));
   }
 
@@ -780,7 +782,8 @@ TEST_F(LeakDetectionDelegateTest, LeakNotifiedAfterChangePwdUrlIsFetched) {
   PasswordForm expected_form = form;
   expected_form.change_password_url = GURL("https://example.com/change");
   EXPECT_CALL(mock_password_change_service,
-              IsPasswordChangeSupported(expected_form))
+              IsPasswordChangeSupported(
+                  expected_form, /*is_non_password_login_detected=*/false))
       .WillOnce(Return(true));
   EXPECT_CALL(client(), NotifyUserCredentialsWereLeaked(LeakedPasswordDetails(
                             password_manager::CreateLeakType(
@@ -801,7 +804,9 @@ TEST_F(LeakDetectionDelegateTest, LeakDetectionDoneWithChangePwdFlag) {
       .WillRepeatedly(Return(profile_store()));
   EXPECT_CALL(client(), GetPasswordChangeService())
       .WillRepeatedly(Return(&mock_password_change_service));
-  EXPECT_CALL(mock_password_change_service, IsPasswordChangeSupported(form))
+  EXPECT_CALL(
+      mock_password_change_service,
+      IsPasswordChangeSupported(form, /*is_non_password_login_detected=*/false))
       .WillOnce(Return(true));
 
   ExpectPasswords({});
@@ -834,7 +839,9 @@ TEST_F(LeakDetectionDelegateTest, ApcNotSuggestedWhenFederatedLoginDetected) {
       .WillRepeatedly(Return(profile_store()));
   EXPECT_CALL(client(), GetPasswordChangeService())
       .WillRepeatedly(Return(&mock_password_change_service));
-  EXPECT_CALL(mock_password_change_service, IsPasswordChangeSupported(form))
+  EXPECT_CALL(
+      mock_password_change_service,
+      IsPasswordChangeSupported(form, /*is_non_password_login_detected=*/true))
       .WillRepeatedly(Return(true));
 
   ExpectPasswords({});

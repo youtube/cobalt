@@ -97,19 +97,20 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/browser_navigator.h"
-#include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+#include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/exclusive_access/keyboard_lock_controller.h"
 #include "chrome/browser/ui/lens/lens_overlay_entry_point_controller.h"
 #include "chrome/browser/ui/lens/lens_search_controller.h"
 #include "chrome/browser/ui/lens/lens_string_utils.h"
+#include "chrome/browser/ui/navigator/browser_navigator.h"
+#include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/passwords/ui_utils.h"
 #include "chrome/browser/ui/profiles/profile_colors_util.h"
 #include "chrome/browser/ui/profiles/profile_view_utils.h"
@@ -891,7 +892,7 @@ bool IsLensOptionEnteredThroughKeyboard(int event_flags) {
 
 bool IsGlicWindow(const RenderViewContextMenu* menu,
                   content::BrowserContext* browser_context) {
-  if (glic::GlicEnabling::IsEnabledByFlags()) {
+  if (glic::GlicEnabling::IsEnabledByGlobalCriteria()) {
     return glic::GetGlicGuestWebContents(
                menu->GetWebContents()->GetOuterWebContents()) != nullptr;
   }
@@ -1045,12 +1046,6 @@ void RenderViewContextMenu::AppendCurrentExtensionItems() {
                                         /*is_action_menu=*/false, title);
 }
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
-
-// static
-bool RenderViewContextMenu::IsCommandGatedByFencedFrameUntrustedNetworkStatus(
-    int id) {
-  return kFencedFrameUntrustedNetworkStatusGatedCommands.contains(id);
-}
 
 std::u16string RenderViewContextMenu::FormatURLForClipboard(const GURL& url) {
   DCHECK(url.is_valid());
@@ -1587,7 +1582,8 @@ void RenderViewContextMenu::RecordShownItem(int id, bool is_submenu) {
 
 bool RenderViewContextMenu::IsHTML5Fullscreen() const {
   BrowserWindowInterface* browser =
-      chrome::FindBrowserWithTab(embedder_web_contents_);
+      GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
+          embedder_web_contents_);
   if (!browser) {
     return false;
   }
@@ -1600,7 +1596,8 @@ bool RenderViewContextMenu::IsHTML5Fullscreen() const {
 
 bool RenderViewContextMenu::IsPressAndHoldEscRequiredToExitFullscreen() const {
   BrowserWindowInterface* browser =
-      chrome::FindBrowserWithTab(source_web_contents_);
+      GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
+          source_web_contents_);
   if (!browser) {
     return false;
   }
@@ -1871,7 +1868,9 @@ void RenderViewContextMenu::AppendLinkItems() {
         if (profile_for_path != GetProfile() && !entry->IsOmitted() &&
             !entry->IsSigninRequired()) {
           target_profiles_entries.push_back(entry);
-          if (chrome::FindLastActiveWithProfile(profile_for_path)) {
+          ProfileBrowserCollection* collection =
+              ProfileBrowserCollection::GetForProfile(profile_for_path);
+          if (collection && collection->GetLastActiveBrowser()) {
             multiple_profiles_open_ = true;
           }
           if (ProfileMetrics::IsProfileActive(entry)) {
@@ -2913,18 +2912,9 @@ bool RenderViewContextMenu::IsCommandIdEnabled(int id) const {
     return false;
   }
 
-  // If the command makes network requests and the frame does not have untrusted
-  // network access, the command is disabled.
-  if (IsCommandGatedByFencedFrameUntrustedNetworkStatus(id) &&
-      IsUntrustedNetworkDisabled()) {
-    return false;
-  }
-
-  {
-    bool enabled = false;
-    if (RenderViewContextMenuBase::IsCommandIdKnown(id, &enabled)) {
-      return enabled;
-    }
+  bool enabled = false;
+  if (RenderViewContextMenuBase::IsCommandIdKnown(id, &enabled)) {
+    return enabled;
   }
 
   CoreTabHelper* core_tab_helper =
@@ -3265,31 +3255,6 @@ void RenderViewContextMenu::OpenURLWithExtraHeaders(
 }
 
 void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
-  if (IsCommandGatedByFencedFrameUntrustedNetworkStatus(id) &&
-      IsUntrustedNetworkDisabled()) {
-    // Fenced frame untrusted network status can change between the time the
-    // command is shown and the time it is executed.
-    //
-    // This can be done by a `contextmenu` listener that disables the fenced
-    // frame untrusted network, granting fenced frame access to unpartitioned
-    // cross-site data. When context menu is shown, commands that are gated on
-    // fenced frame untrusted network status will still be enabled. But by the
-    // time the command executes, the listener has been invoked. The URL that
-    // the context menu operates upon may have been tampered to include
-    // cross-site information.
-    //
-    // The execution must be blocked if the untrusted network is disabled.
-    for (auto& observer : observers_) {
-      observer.CommandBlocked(id);
-    }
-
-    GetRenderFrameHost()->AddMessageToConsole(
-        blink::mojom::ConsoleMessageLevel::kWarning,
-        "Context menu command is not executed because the fenced frame has "
-        "untrusted network disabled.");
-    return;
-  }
-
   RenderViewContextMenuBase::ExecuteCommand(id, event_flags);
   if (command_executed_) {
     return;
@@ -3443,7 +3408,7 @@ void RenderViewContextMenu::ExecuteCommand(int id, int event_flags) {
       break;
 
     case IDC_CONTENT_CONTEXT_RELOAD_GLIC:
-      if (glic::GlicEnabling::IsEnabledByFlags()) {
+      if (glic::GlicEnabling::IsEnabledByGlobalCriteria()) {
         auto* glic_service = glic::GlicKeyedService::Get(browser_context_);
         if (glic_service) {
           glic_service->Reload(GetRenderFrameHost());
@@ -3867,11 +3832,6 @@ bool RenderViewContextMenu::IsSaveAsItemAllowedByPolicy(
   }
 
   return true;
-}
-
-bool RenderViewContextMenu::IsUntrustedNetworkDisabled() const {
-  return GetRenderFrameHost() &&
-         GetRenderFrameHost()->IsUntrustedNetworkDisabled();
 }
 
 bool RenderViewContextMenu::ShouldOpenTextQueryInLens() const {

@@ -205,10 +205,6 @@
 #include "ui/webui/resources/js/batch_upload_promo/batch_upload_promo.mojom.h"
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
-#if BUILDFLAG(ENABLE_WEBUI_TAB_STRIP)
-#include "chrome/browser/ui/webui/tab_strip/tab_strip_ui.h"
-#endif
-
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/default_browser/default_browser_features.h"
 #include "chrome/browser/ui/webui/default_browser/default_browser_modal.mojom.h"
@@ -239,15 +235,6 @@ void BindMetricsReporterService(
   service->BindReceiver(std::move(receiver));
 }
 
-void BindColorChangeListener(
-    content::RenderFrameHost* frame_host,
-    mojo::PendingReceiver<color_change_listener::mojom::PageHandler>
-        pending_receiver) {
-  auto* color_change_handler =
-      ui::ColorChangeHandler::GetOrCreateForCurrentDocument(frame_host);
-  color_change_handler->Bind(std::move(pending_receiver));
-}
-
 }  // namespace
 
 void PopulateChromeWebUIFrameBindersPartsDesktop(
@@ -275,13 +262,6 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
         actor::ui::ActorOverlayUI>(map);
   }
 
-  RegisterWebUIControllerInterfaceBinder<
-      customize_buttons::mojom::CustomizeButtonsHandlerFactory, NewTabPageUI>(
-      map);
-
-  RegisterWebUIControllerInterfaceBinder<
-      new_tab_page::mojom::PageHandlerFactory, NewTabPageUI>(map);
-
   if (user_education::features::GetNtpBrowserPromoType() !=
       user_education::features::NtpBrowserPromoType::kNone) {
     RegisterWebUIControllerInterfaceBinder<
@@ -292,10 +272,6 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
     RegisterWebUIControllerInterfaceBinder<
         action_chips::mojom::ActionChipsHandlerFactory, NewTabPageUI>(map);
   }
-
-  RegisterWebUIControllerInterfaceBinder<
-      most_visited::mojom::MostVisitedPageHandlerFactory, NewTabPageUI>(map);
-
   if (HistorySidePanelCoordinator::IsSupported()) {
     RegisterWebUIControllerInterfaceBinder<history::mojom::PageHandler,
                                            HistorySidePanelUI, HistoryUI>(map);
@@ -531,8 +507,6 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
   map->Add<metrics_reporter::mojom::PageMetricsHost>(
       &BindMetricsReporterService);
 
-  map->Add<color_change_listener::mojom::PageHandler>(&BindColorChangeListener);
-
   if (base::FeatureList::IsEnabled(surface_embed::features::kSurfaceEmbed)) {
     map->Add<surface_embed::mojom::SurfaceEmbedHost>(base::BindRepeating(
         [](content::RenderFrameHost* render_frame_host,
@@ -664,11 +638,8 @@ void PopulateChromeWebUIFrameInterfaceBrokersTrustedPartsDesktop(
     content::WebUIBrowserInterfaceBrokerRegistry& registry) {
   // Note: The MetricsReporterService & ColorChangeListener are available to all
   // WebUIs in the registry
-  registry
-      .AddGlobal<metrics_reporter::mojom::PageMetricsHost>(
-          base::BindRepeating(&BindMetricsReporterService))
-      .AddGlobal<color_change_listener::mojom::PageHandler>(
-          base::BindRepeating(&BindColorChangeListener));
+  registry.AddGlobal<metrics_reporter::mojom::PageMetricsHost>(
+      base::BindRepeating(&BindMetricsReporterService));
 
   registry.ForWebUI<TabSearchUI>().Add<tab_search::mojom::PageHandlerFactory>();
 
@@ -709,6 +680,7 @@ void PopulateChromeWebUIFrameInterfaceBrokersTrustedPartsDesktop(
         .Add<searchbox::mojom::PageHandlerFactory>()
         .Add<tabs_api::mojom::TabStripService>()
         .Add<tabs_api::mojom::TabStripExperimentService>()
+        .Add<tabs_api::mojom::TabStripUIController>()
         .Add<tracked_element::mojom::TrackedElementHandler>();
   }
 
@@ -727,9 +699,6 @@ void PopulateChromeWebUIFrameInterfaceBrokersTrustedPartsDesktop(
 
 void PopulateChromeWebUIFrameInterfaceBrokersUntrustedPartsDesktop(
     content::WebUIBrowserInterfaceBrokerRegistry& registry) {
-  registry.AddGlobal<color_change_listener::mojom::PageHandler>(
-      base::BindRepeating(&BindColorChangeListener));
-
   if (lens::features::IsLensOverlayEnabled()) {
     registry.ForWebUI<lens::LensSidePanelUntrustedUI>()
         .Add<lens::mojom::LensSidePanelPageHandlerFactory>()

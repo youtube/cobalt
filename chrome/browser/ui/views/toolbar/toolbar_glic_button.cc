@@ -60,6 +60,14 @@ ToolbarGlicButton::ToolbarGlicButton(
 
 ToolbarGlicButton::~ToolbarGlicButton() = default;
 
+gfx::Size ToolbarGlicButton::CalculatePreferredSize(
+    const views::SizeBounds& available_size) const {
+  gfx::Size size =
+      GlicButton<ToolbarButton>::CalculatePreferredSize(available_size);
+  size.set_height(GetLayoutConstant(LayoutConstant::kToolbarButtonHeight));
+  return size;
+}
+
 void ToolbarGlicButton::AddedToWidget() {
   split_rounded_edge_radius_ = GetRoundedCornerRadius();
   SetLeftRightCornerRadii(GetRoundedCornerRadius(), GetRoundedCornerRadius());
@@ -101,9 +109,16 @@ void ToolbarGlicButton::SetLeftRightCornerRadii(int left, int right) {
 }
 
 float ToolbarGlicButton::GetCornerRadiusFor(ToolbarButton::Edge edge) const {
-  return edge == ToolbarButton::Edge::kLeft
-             ? left_corner_radius_.value_or(GetRoundedCornerRadius())
-             : right_corner_radius_.value_or(GetRoundedCornerRadius());
+  switch (edge) {
+    case ToolbarButton::Edge::kLeft:
+    case ToolbarButton::Edge::kTopLeft:
+    case ToolbarButton::Edge::kBottomLeft:
+      return left_corner_radius_.value_or(GetRoundedCornerRadius());
+    case ToolbarButton::Edge::kRight:
+    case ToolbarButton::Edge::kTopRight:
+    case ToolbarButton::Edge::kBottomRight:
+      return right_corner_radius_.value_or(GetRoundedCornerRadius());
+  }
 }
 
 int ToolbarGlicButton::GetSplitRoundedEdgeRadius() {

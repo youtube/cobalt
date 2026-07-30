@@ -25,6 +25,7 @@
 #import "components/autofill/core/browser/data_quality/addresses/profile_requirement_utils.h"
 #import "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_labels.h"
 #import "components/autofill/core/browser/integrators/autofill_ai/management_utils.h"
+#import "components/autofill/core/browser/integrators/autofill_ai/metrics/autofill_ai_metrics.h"
 #import "components/autofill/core/common/autofill_features.h"
 #import "components/autofill/core/common/autofill_prefs.h"
 #import "components/autofill/ios/browser/personal_data_manager_observer_bridge.h"
@@ -136,6 +137,7 @@ typedef NS_ENUM(NSInteger, ItemType) {
   ItemTypePlusAddress,
   ItemTypePlusAddressFooter,
   ItemTypeEnhancedAutofill,
+  ItemTypeEnhancedAutofillManaged,
   ItemTypeVerificationSwitch,
   ItemTypeVerificationFooter,
   ItemTypeWalletPromoInfo,
@@ -374,8 +376,14 @@ ItemType ItemTypeForEntitySectionHeader(SectionIdentifier section_identifier) {
       autofill::features::kAutofillAiWithDataSchema);
   if (isEnhancedAutofillEnabled) {
     [model addSectionWithIdentifier:SectionIdentifierEnhancedAutofill];
-    [model addItem:[self enhancedAutofillItem]
-        toSectionWithIdentifier:SectionIdentifierEnhancedAutofill];
+    if (_browser->GetProfile()->GetPrefs()->IsManagedPreference(
+            autofill::prefs::kAutofillProfileEnabled)) {
+      [model addItem:[self managedEnhancedAutofillItem]
+          toSectionWithIdentifier:SectionIdentifierEnhancedAutofill];
+    } else {
+      [model addItem:[self enhancedAutofillItem]
+          toSectionWithIdentifier:SectionIdentifierEnhancedAutofill];
+    }
 
     [self populateVerificationAndWalletSections];
   }
@@ -429,6 +437,7 @@ ItemType ItemTypeForEntitySectionHeader(SectionIdentifier section_identifier) {
   item.typeDescription =
       base::SysUTF16ToNSString(instance.type().GetNameForI18n());
   item.guid = instance.guid();
+  item.entityTypeName = instance.type().name();
 
   if (instance.IsServerInstance()) {
     item.isServerWalletItem = YES;
@@ -525,6 +534,22 @@ ItemType ItemTypeForEntitySectionHeader(SectionIdentifier section_identifier) {
   managedAddressItem.selector = @selector(didTapManagedUIInfoButton:);
   managedAddressItem.accessibilityIdentifier = kAutofillAddressManagedViewId;
   return managedAddressItem;
+}
+
+- (TableViewInfoButtonItem*)managedEnhancedAutofillItem {
+  TableViewInfoButtonItem* managedEnhancedAutofillItem =
+      [[TableViewInfoButtonItem alloc]
+          initWithType:ItemTypeEnhancedAutofillManaged];
+  managedEnhancedAutofillItem.text =
+      l10n_util::GetNSString(IDS_SETTINGS_AUTOFILL_AI_PAGE_TITLE);
+  // The status could only be off when the pref is managed.
+  managedEnhancedAutofillItem.statusText =
+      l10n_util::GetNSString(IDS_IOS_SETTING_OFF);
+  managedEnhancedAutofillItem.accessibilityHint =
+      l10n_util::GetNSString(IDS_IOS_TOGGLE_SETTING_MANAGED_ACCESSIBILITY_HINT);
+  managedEnhancedAutofillItem.target = self;
+  managedEnhancedAutofillItem.selector = @selector(didTapManagedUIInfoButton:);
+  return managedEnhancedAutofillItem;
 }
 
 - (TableViewHeaderFooterItem*)addressSwitchFooter {
@@ -696,9 +721,11 @@ ItemType ItemTypeForEntitySectionHeader(SectionIdentifier section_identifier) {
       [[TableViewSwitchItem alloc] initWithType:ItemTypeVerificationSwitch];
   switchItem.text =
       l10n_util::GetNSString(IDS_IOS_AUTOFILL_VERIFICATION_INFO_LABEL);
-  switchItem.on = autofill::prefs::IsAutofillAiReauthBeforeFillingEnabled(
-      _browser->GetProfile()->GetPrefs());
-  switchItem.enabled = [_reauthenticationModule canAttemptReauth];
+  BOOL canAttemptReauth = [_reauthenticationModule canAttemptReauth];
+  switchItem.on = canAttemptReauth &&
+                  autofill::prefs::IsAutofillAiReauthBeforeFillingEnabled(
+                      _browser->GetProfile()->GetPrefs());
+  switchItem.enabled = canAttemptReauth;
   switchItem.target = self;
   switchItem.selector = @selector(verificationSwitchChanged:);
   switchItem.accessibilityIdentifier = kAutofillVerificationSwitchTableViewId;
@@ -1187,6 +1214,12 @@ ItemType ItemTypeForEntitySectionHeader(SectionIdentifier section_identifier) {
     return;
   }
 
+  if ([self.tableView isEditing]) {
+    // Turn off edit mode.
+    [self setEditing:NO animated:NO];
+  }
+
+  [self updateUIForEditState];
   [self reloadData];
 }
 
@@ -1336,30 +1369,13 @@ ItemType ItemTypeForEntitySectionHeader(SectionIdentifier section_identifier) {
   _addProfileBottomSheetHandler = nil;
 }
 
-// Performs a batch update to delete the selected items and clean up empty
-// sections.
-- (void)performDeletionAtIndexPaths:(NSArray<NSIndexPath*>*)indexPaths {
-  _deletionInProgress = YES;
-
-  __weak __typeof(self) weakSelf = self;
-
-  [self.tableView
-      performBatchUpdates:^{
-        [weakSelf willDeleteItemsAtIndexPaths:indexPaths];
-        [weakSelf removeEmptySections];
-      }
-      completion:^(BOOL finished) {
-        [weakSelf updateEditingStateAfterDeletion];
-      }];
-}
-
-// Removes the item from the personal data manager model or the entity data
-// manager model.
+// Removes the item from the personal data manager model.
 - (void)willDeleteItemsAtIndexPaths:(NSArray*)indexPaths {
   if (_settingsAreDismissed) {
     return;
   }
 
+  _deletionInProgress = YES;
   for (NSIndexPath* indexPath in indexPaths) {
     TableViewItem* item = [self.tableViewModel itemAtIndexPath:indexPath];
     if ([item isKindOfClass:[AutofillProfileItem class]]) {
@@ -1371,34 +1387,25 @@ ItemType ItemTypeForEntitySectionHeader(SectionIdentifier section_identifier) {
       AutofillAIEntityItem* aiItem =
           base::apple::ObjCCastStrict<AutofillAIEntityItem>(item);
       if (_entityDataManager) {
+        autofill::EntityInstance::RecordType recordType =
+            aiItem.isServerWalletItem
+                ? autofill::EntityInstance::RecordType::kServerWallet
+                : autofill::EntityInstance::RecordType::kLocal;
+        autofill::LogEntityDeletedFromSettings(
+            autofill::EntityType(aiItem.entityTypeName), recordType);
         _entityDataManager->RemoveEntityInstance(aiItem.guid);
       }
     }
   }
 
-  [self removeFromModelItemAtIndexPaths:indexPaths];
-  [self.tableView deleteRowsAtIndexPaths:indexPaths
-                        withRowAnimation:UITableViewRowAnimationAutomatic];
-}
-
-// Removes all the empty sections in the tableView.
-- (void)removeEmptySections {
-  // TODO(crbug.com/41277594) Generalize removing empty sections
-  [self removeSectionIfEmptyForSectionWithIdentifier:SectionIdentifierProfiles];
-  [self removeSectionIfEmptyForSectionWithIdentifier:
-            SectionIdentifierIdentityDocs];
-  [self removeSectionIfEmptyForSectionWithIdentifier:SectionIdentifierTravel];
-  [self removeSectionIfEmptyForSectionWithIdentifier:SectionIdentifierOther];
-}
-
-// Finalizes the view state after items have been deleted.
-- (void)updateEditingStateAfterDeletion {
-  // Editing mode is exited after each deletion.
-  if ([self.tableView isEditing]) {
-    [self setEditing:NO animated:YES];
-  }
-  [self updateUIForEditState];
-  self->_deletionInProgress = NO;
+  [self.tableView
+      performBatchUpdates:^{
+        [self removeFromModelItemAtIndexPaths:indexPaths];
+        [self.tableView
+            deleteRowsAtIndexPaths:indexPaths
+                  withRowAnimation:UITableViewRowAnimationAutomatic];
+      }
+               completion:nil];
 }
 
 // Remove the section from the model and collectionView if there are no more
@@ -1407,17 +1414,46 @@ ItemType ItemTypeForEntitySectionHeader(SectionIdentifier section_identifier) {
     (SectionIdentifier)sectionIdentifier {
   if (_settingsAreDismissed ||
       ![self.tableViewModel hasSectionForSectionIdentifier:sectionIdentifier]) {
+    _deletionInProgress = NO;
     return;
   }
-  NSArray* items =
-      [self.tableViewModel itemsInSectionWithIdentifier:sectionIdentifier];
-  if (items.count == 0) {
-    NSInteger section =
-        [self.tableViewModel sectionForSectionIdentifier:sectionIdentifier];
+  NSInteger section =
+      [self.tableViewModel sectionForSectionIdentifier:sectionIdentifier];
+  if ([self.tableView numberOfRowsInSection:section] == 0) {
+    // Avoid reference cycle in block.
+    __weak AutofillProfileTableViewController* weakSelf = self;
+    [self.tableView
+        performBatchUpdates:^{
+          // Obtain strong reference again.
+          AutofillProfileTableViewController* strongSelf = weakSelf;
+          if (!strongSelf) {
+            return;
+          }
 
-    [self.tableViewModel removeSectionWithIdentifier:sectionIdentifier];
-    [self.tableView deleteSections:[NSIndexSet indexSetWithIndex:section]
-                  withRowAnimation:UITableViewRowAnimationAutomatic];
+          // Remove section from model and collectionView.
+          [[strongSelf tableViewModel]
+              removeSectionWithIdentifier:sectionIdentifier];
+          [[strongSelf tableView]
+                deleteSections:[NSIndexSet indexSetWithIndex:section]
+              withRowAnimation:UITableViewRowAnimationAutomatic];
+        }
+        completion:^(BOOL finished) {
+          // Obtain strong reference again.
+          AutofillProfileTableViewController* strongSelf = weakSelf;
+          if (!strongSelf) {
+            return;
+          }
+
+          // Turn off edit mode if there is nothing to edit.
+          if (![strongSelf localProfilesExist] &&
+              [strongSelf.tableView isEditing]) {
+            [strongSelf setEditing:NO animated:YES];
+          }
+          [strongSelf updateUIForEditState];
+          strongSelf->_deletionInProgress = NO;
+        }];
+  } else {
+    _deletionInProgress = NO;
   }
 }
 
@@ -1530,7 +1566,14 @@ ItemType ItemTypeForEntitySectionHeader(SectionIdentifier section_identifier) {
   [_deletionSheetCoordinator
       addItemWithTitle:confirmationButtonText
                 action:^{
-                  [weakSelf performDeletionAtIndexPaths:indexPaths];
+                  [weakSelf willDeleteItemsAtIndexPaths:indexPaths];
+                  // TODO(crbug.com/41277594) Generalize removing empty sections
+                  [weakSelf removeSectionIfEmptyForSectionWithIdentifier:
+                                SectionIdentifierProfiles];
+                  [weakSelf removeSectionIfEmptyForSectionWithIdentifier:
+                                SectionIdentifierIdentityDocs];
+                  [weakSelf removeSectionIfEmptyForSectionWithIdentifier:
+                                SectionIdentifierTravel];
                   [weakSelf dismissDeletionSheet];
                 }
                  style:UIAlertActionStyleDestructive];
@@ -1647,6 +1690,7 @@ ItemType ItemTypeForEntitySectionHeader(SectionIdentifier section_identifier) {
     _addButtonInToolbar.target = nil;
     _addButtonInToolbar.menu =
         [self buildAddEntitiesMenuWithProfileEnabled:profileEnabled];
+    _addButtonInToolbar.enabled = YES;
   } else {
     _addButtonInToolbar.enabled = profileEnabled;
   }

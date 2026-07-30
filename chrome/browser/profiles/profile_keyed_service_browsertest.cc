@@ -281,6 +281,7 @@ IN_PROC_BROWSER_TEST_F(ProfileKeyedServiceBrowserTest,
 
     // in chrome: using `BrowserContextKeyedServiceShutdownNotifierFactory`:
     // which does not yet have an implementation using `ProfileSelections`.
+    "BrowserManagerService",
 #if BUILDFLAG(IS_CHROMEOS)
     "GalleryWatchManager",
     "MediaFileSystemRegistry",
@@ -334,6 +335,7 @@ IN_PROC_BROWSER_TEST_F(ProfileKeyedServiceBrowserTest,
 
     // in chrome: using `BrowserContextKeyedServiceShutdownNotifierFactory`:
     // which does not yet have an implementation using `ProfileSelections`.
+    "BrowserManagerService",
 #if BUILDFLAG(IS_CHROMEOS)
     "GalleryWatchManager",
     "MediaFileSystemRegistry",
@@ -465,6 +467,7 @@ IN_PROC_BROWSER_TEST_F(ProfileKeyedServiceGuestBrowserTest,
     "PrivacySandboxSettings",
     "ProcessManager",
     "ProfileNetworkContextService",
+    "ProtocolHandlerRegistry",
     "ReadAnythingServiceFactory",
     "RealtimeReportingClient",
     "ReduceAcceptLanguage",
@@ -952,7 +955,6 @@ IN_PROC_BROWSER_TEST_F(ProfileKeyedServiceGuestBrowserTest,
     "OwnerSettingsService",
     "Pkcs12Migrator",
     "PlatformKeysService",
-    "PluginVmEngagementMetricsService",
     "PolicyCertService",
     "PrintJobHistoryService",
     "PrintJobReportingServiceFactory",

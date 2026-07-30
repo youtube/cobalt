@@ -10,8 +10,10 @@
 #import "base/functional/callback_forward.h"
 #import "base/ios/block_types.h"
 #import "components/policy/core/browser/signin/profile_separation_policies.h"
+#import "components/signin/public/identity_manager/tribool.h"
 #import "components/sync/base/data_type.h"
 #import "ios/chrome/browser/authentication/ui_bundled/authentication_flow/authentication_flow_performer_base_delegate.h"
+#import "ios/chrome/browser/signin/model/capabilities_types.h"
 #import "ios/chrome/browser/signin/model/constants.h"
 
 class Browser;
@@ -21,6 +23,9 @@ class Browser;
 // Handles completion of AuthenticationFlowPerformerBase steps.
 @protocol AuthenticationFlowPerformerDelegate <
     AuthenticationFlowPerformerBaseDelegate>
+
+// Indicates that the reauthentication flow completed.
+- (void)didCompleteReauthWithSuccess:(BOOL)success;
 
 // Called after `-[AuthenticationFlowPerformerBase
 // fetchUnsyncedDataWithSyncService:]`, to return the list of data types
@@ -39,6 +44,14 @@ class Browser;
 
 // Indicates that the requested identity managed status fetch failed.
 - (void)didFailFetchManagedStatus:(NSError*)error;
+
+// Indicates that the capability can_sign_in_to_chrome was fetched.
+- (void)didFetchCanSigninToChromeCapability:
+    (SystemIdentityCapabilityResult)result;
+
+// Indicates that the Age Mismatch dialog was dismissed.
+- (void)didDismissAgeMismatchDialogWithCancelationReason:
+    (signin_ui::CancelationReason)reason;
 
 // Indicates that the value for ProfileSeparationDataMigrationSettings has been
 // fetched from the server.

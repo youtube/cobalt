@@ -33,14 +33,13 @@
 #include "base/unguessable_token.h"
 #include "build/build_config.h"
 #include "components/viz/common/features.h"
+#include "content/browser/back_forward_cache/back_forward_cache_metrics.h"
 #include "content/browser/child_process_security_policy_impl.h"
 #include "content/browser/devtools/render_frame_devtools_agent_host.h"
-#include "content/browser/fenced_frame/fenced_frame_viewport_observer.h"
 #include "content/browser/preloading/prefetch/prefetch_features.h"
 #include "content/browser/process_lock.h"
 #include "content/browser/process_reuse_policy.h"
 #include "content/browser/renderer_host/agent_scheduling_group_host.h"
-#include "content/browser/renderer_host/back_forward_cache_metrics.h"
 #include "content/browser/renderer_host/debug_urls.h"
 #include "content/browser/renderer_host/frame_navigation_entry.h"
 #include "content/browser/renderer_host/frame_tree.h"
@@ -1444,17 +1443,6 @@ void RenderFrameHostManager::UnloadOldFrame(
                                     ->GetRelatedActiveContentsCount());
         SCOPED_CRASH_KEY_BOOL("rvh-double", "is_same_process", is_same_process);
         base::debug::DumpWithoutCrashing();
-      }
-
-      // If the outermost main frame is about to enter bfcache, log UMA metrics
-      // about how many same-site fenced frames are in the viewport.
-      if (old_render_frame_host->IsOutermostMainFrame()) {
-        auto* monitor =
-            PageUserData<FencedFrameViewportMonitor>::GetOrCreateForPage(
-                old_render_frame_host->GetPage());
-        if (monitor) {
-          monitor->OnPrimaryPageEnteringBFCache();
-        }
       }
 
       auto stored_page = CollectPage(std::move(old_render_frame_host));
@@ -3411,6 +3399,14 @@ RenderFrameHostManager::GetSiteInstanceForNavigation(
       coop_process_reuse_type = ProcessReuseOnCOOPType::kPrerender;
       process_to_reuse = current_instance->GetProcess();
     }
+  }
+
+  // 4) When a GuestView is first created, a SiteInstance is associated with it
+  // without a URL, and a process is allocated to it. This process can be reused
+  // for the first navigation in the GuestView.
+  if (current_instance->GetSiteInfo().IsGuest() &&
+      current_instance->GetSiteInfo().site_url().is_empty()) {
+    process_to_reuse = current_instance->GetProcess();
   }
 
   if (process_to_reuse) {

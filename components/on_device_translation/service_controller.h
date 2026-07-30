@@ -83,7 +83,8 @@ class OnDeviceTranslationServiceController
  public:
   OnDeviceTranslationServiceController(
       std::unique_ptr<OnDeviceTranslationServiceLauncher> launcher,
-      std::string service_display_name_suffix);
+      std::string service_display_name_suffix,
+      OnDeviceTranslationInstaller* installer);
   ~OnDeviceTranslationServiceController() override;
 
   OnDeviceTranslationServiceController(
@@ -139,6 +140,10 @@ class OnDeviceTranslationServiceController
   CanTranslateResult CanTranslateImpl(const std::string& source_lang,
                                       const std::string& target_lang);
 
+  LanguagePackRequirements GetLanguagePackRequirements(
+      const std::string& source_lang,
+      const std::string& target_lang);
+
   // Send the CreateTranslator IPC call to the OnDeviceTranslationService.
   void CreateTranslatorImpl(const std::string& source_lang,
                             const std::string& target_lang,
@@ -165,6 +170,8 @@ class OnDeviceTranslationServiceController
   mojo::Remote<mojom::OnDeviceTranslationService> service_remote_;
   // The pending tasks that are waiting for the language packs to be installed.
   std::vector<PendingTask> pending_tasks_;
+
+  raw_ptr<OnDeviceTranslationInstaller> installer_;
 };
 
 }  // namespace on_device_translation

@@ -18,10 +18,20 @@
 @property(nonatomic, strong, readonly) UIImage* image;
 // The composebox menu item type.
 @property(nonatomic, assign, readonly) ComposeboxMenuItemType type;
+// Whether the composebox menu item is disabled.
+@property(nonatomic, readonly, getter=isDisabled) BOOL disabled;
+
+- (instancetype)initWithTitle:(NSString*)title
+                        image:(UIImage*)image
+                         type:(ComposeboxMenuItemType)type
+                     disabled:(BOOL)disabled;
 
 - (instancetype)initWithTitle:(NSString*)title
                         image:(UIImage*)image
                          type:(ComposeboxMenuItemType)type;
+
+// Returns YES if the item is an attachment type.
+- (BOOL)isAttachmentType;
 
 @end
 

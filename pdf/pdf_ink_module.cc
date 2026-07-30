@@ -143,6 +143,51 @@ SkColor GetColorFromDict(const base::DictValue& dict) {
   return SkColorSetRGB(color_r, color_g, color_b);
 }
 
+InkTextBoxAttributes GetTextBoxAttributesFromDict(const base::DictValue& data) {
+  const base::DictValue& text_box_rect = *data.FindDict("textBoxRect");
+  gfx::RectF textbox(text_box_rect.FindDouble("locationX").value(),
+                     text_box_rect.FindDouble("locationY").value(),
+                     text_box_rect.FindDouble("width").value(),
+                     text_box_rect.FindDouble("height").value());
+
+  const base::DictValue& text_attributes = *data.FindDict("textAttributes");
+  const float css_font_size = text_attributes.FindDouble("size").value();
+
+  const std::string& typeface_str = *text_attributes.FindString("typeface");
+  TextTypeface typeface;
+  if (typeface_str == "sans-serif") {
+    typeface = TextTypeface::kSansSerif;
+  } else if (typeface_str == "serif") {
+    typeface = TextTypeface::kSerif;
+  } else {
+    CHECK_EQ(typeface_str, "monospace");
+    typeface = TextTypeface::kMonospace;
+  }
+
+  const std::string& alignment_str = *text_attributes.FindString("alignment");
+  TextAlignment alignment;
+  if (alignment_str == "left") {
+    alignment = TextAlignment::kLeft;
+  } else if (alignment_str == "center") {
+    alignment = TextAlignment::kCenter;
+  } else {
+    CHECK_EQ(alignment_str, "right");
+    alignment = TextAlignment::kRight;
+  }
+
+  const int orientation = data.FindInt("textOrientation").value();
+  CHECK_GE(orientation, 0);
+  CHECK_LE(orientation, 3);
+
+  const base::DictValue& styles = *text_attributes.FindDict("styles");
+  bool is_bold = styles.FindBool("bold").value();
+  bool is_italic = styles.FindBool("italic").value();
+
+  return InkTextBoxAttributes(textbox, GetColorFromDict(text_attributes),
+                              css_font_size, typeface, alignment, orientation,
+                              /*is_bold=*/is_bold, /*is_italic=*/is_italic);
+}
+
 ink::Rect GetEraserRect(const gfx::PointF& center) {
   return ink::Rect::FromTwoPoints(
       {center.x() - kEraserSize, center.y() - kEraserSize},
@@ -1563,23 +1608,15 @@ void PdfInkModule::HandleFinishTextAnnotationMessage(
 
   int page_index = data.FindInt("pageIndex").value();
 
-  const base::DictValue& text_attributes = *data.FindDict("textAttributes");
-  SkColor color = GetColorFromDict(text_attributes);
-  float font_size = text_attributes.FindDouble("size").value();
-
   // Note: `pdf_zoom` is similar to GetZoom() but GetZoom() is multiplied by
   // device scale factor while this value isn't. Additionally `pdf_zoom` comes
   // from the frontend at the exact same time as the annotation commit happens
   // to avoid any potential sync race issues between the frontend and backend.
   double pdf_zoom = data.FindDouble("pdfZoom").value();
 
-  const base::DictValue& text_box_rect = *data.FindDict("textBoxRect");
-  gfx::RectF textbox(text_box_rect.FindDouble("locationX").value(),
-                     text_box_rect.FindDouble("locationY").value(),
-                     text_box_rect.FindDouble("width").value(),
-                     text_box_rect.FindDouble("height").value());
-
-  client_->DrawText(page_index, ink_info, color, font_size, pdf_zoom, textbox);
+  InkTextId new_id = id_generator_.GetTextIdAndAdvance();
+  client_->DrawText(page_index, new_id, ink_info, pdf_zoom,
+                    GetTextBoxAttributesFromDict(data));
 }
 
 bool PdfInkModule::IsHighlightingTextAtPosition(
@@ -1809,6 +1846,7 @@ void PdfInkModule::ApplyUndoRedoDiscards(std::optional<IdType> lowest_discard) {
   // `page_ink_strokes` values in `strokes_` are in sorted order, so all
   // elements in `page_ink_strokes` with the start ID or larger IDs can be
   // discarded.
+  std::vector<int> empty_keys_to_erase;
   for (auto& [page_index, page_ink_strokes] : strokes_) {
     // Find the first element in `page_ink_strokes` whose ID >=
     // `lowest_stroke_id`.
@@ -1820,15 +1858,12 @@ void PdfInkModule::ApplyUndoRedoDiscards(std::optional<IdType> lowest_discard) {
       client_->DiscardStroke(page_index, it->id);
     }
     page_ink_strokes.erase(start, end);
-  }
-
-  // Check the pages with strokes and remove the ones that are now empty.
-  for (auto it = strokes_.begin(); it != strokes_.end();) {
-    if (it->second.empty()) {
-      it = strokes_.erase(it);
-    } else {
-      ++it;
+    if (page_ink_strokes.empty()) {
+      empty_keys_to_erase.push_back(page_index);
     }
+  }
+  for (int page_index : empty_keys_to_erase) {
+    strokes_.erase(page_index);
   }
 
   // Now that some annotations have been discarded, Let the IdGenerator know

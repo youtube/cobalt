@@ -116,9 +116,6 @@ BASE_FEATURE(kIPHGlicPromoFeature,
 BASE_FEATURE(kIPHGlicTrustFirstOnboardingShortcutSnoozePromoFeature,
              "IPH_GlicTrustFirstOnboardingShortcutSnoozePromo",
              base::FEATURE_ENABLED_BY_DEFAULT);
-BASE_FEATURE(kIPHGlicTrustFirstOnboardingShortcutToastPromoFeature,
-             "IPH_GlicTrustFirstOnboardingShortcutToastPromo",
-             base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHGlicTryItFeature,
              "IPH_GlicTryIt",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -231,13 +228,18 @@ BASE_FEATURE(kIPHSideBySidePinnableFeature,
              base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHSideBySideTabSwitchFeature,
              "IPH_SideBySideTabSwitchFeature",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHVerticalTabsExpandOnHoverFeature,
              "IPH_VerticalTabsExpandOnHoverFeature",
              base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHVerticalTabstripTutorialFeature,
              "IPH_VerticalTabstripTutorialFeature",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
 BASE_FEATURE(kIPHSidePanelGenericPinnableFeature,
              "IPH_SidePanelGenericPinnableFeature",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -528,6 +530,9 @@ BASE_FEATURE(kIPHReaderModeDistillInAppFeature,
 BASE_FEATURE(kIPHShoppingListMenuItemFeature,
              "IPH_ShoppingListMenuItem",
              base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kIPHSiteControlsFeature,
+             "IPH_SiteControls",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHTabGroupCreationDialogSyncTextFeature,
              "IPH_TabGroupCreationDialogSyncText",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -881,6 +886,10 @@ BASE_FEATURE(kIPHiOSGeminiImageRemixFeature,
              "IPH_iOSGeminiImageRemixFeature",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kIPHiOSNewIAPromoFeature,
+             "IPH_iOSNewIAPromoFeature",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 BASE_FEATURE(kIPHiOSPinMostVisitedSiteFeature,
              "IPH_iOSPinMostVisitedSiteFeature",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1022,18 +1031,18 @@ BASE_FEATURE(kIPHResumptionRailFeature,
 #endif  // !BUILDFLAG(IS_IOS)
 
 #if BUILDFLAG(IS_WIN)
-BASE_FEATURE(kIPHSearchExtensionSideloadFeature,
-             "IPH_SearchExtensionSideloadFeature",
+BASE_FEATURE(kIPHSearchPromotionFeature,
+             "IPH_SearchPromotionFeature",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-const base::FeatureParam<std::string> kSideloadExtensionArm{
-    &kIPHSearchExtensionSideloadFeature, "arm", "disabled"};
-const base::FeatureParam<std::string> kSideloadExtensionEdgeStoreUrl{
-    &kIPHSearchExtensionSideloadFeature, "edge_store_url",
+constinit const base::FeatureParam<std::string> kSearchPromotionArm{
+    &kIPHSearchPromotionFeature, "arm", "disabled"};
+constinit const base::FeatureParam<std::string> kSearchPromotionStoreUrl{
+    &kIPHSearchPromotionFeature, "store_url",
     "https://microsoftedge.microsoft.com/addons/detail/google-search-for-edge/"
     "dakcooigljlhlgibgdfadgphfnoooacj"};
-const base::FeatureParam<std::string> kSideloadExtensionInstructionsUrl{
-    &kIPHSearchExtensionSideloadFeature, "instructions_url", ""};
+constinit const base::FeatureParam<std::string> kSearchPromotionInstructionsUrl{
+    &kIPHSearchPromotionFeature, "instructions_url", ""};
 #endif  // BUILDFLAG(IS_WIN)
 
 }  // namespace feature_engagement

@@ -19,6 +19,7 @@ import android.os.ParcelFileDescriptor;
 import android.util.Pair;
 import android.util.SparseArray;
 import android.view.Display;
+import android.view.View;
 import android.view.ViewConfiguration;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.inputmethod.EditorInfo;
@@ -244,7 +245,7 @@ public interface AconfigFlaggedApiDelegate {
      */
     default void setSelection(
             AccessibilityNodeInfoCompat info,
-            android.view.View view,
+            View view,
             int startVirtualDescendantId,
             int startOffset,
             int endVirtualDescendantId,
@@ -505,5 +506,25 @@ public interface AconfigFlaggedApiDelegate {
      */
     default boolean isNativeWebViewZygoteEnabled(WebViewDelegate delegate) {
         return false;
+    }
+
+    /** Checks if the system contacts picker is enabled. */
+    default boolean isSystemContactsPickerEnabled() {
+        return false;
+    }
+
+    /** Returns the ACTION_PICK_CONTACTS intent action string if supported. */
+    default @Nullable String getSystemContactsPickerAction() {
+        return null;
+    }
+
+    /** Returns the EXTRA_PICK_CONTACTS_REQUESTED_DATA_FIELDS intent extra string if supported. */
+    default @Nullable String getSystemContactsPickerExtraRequestedDataFields() {
+        return null;
+    }
+
+    /** Returns the Contacts Picker session provider authority string if supported. */
+    default @Nullable String getSystemContactsPickerAuthority() {
+        return null;
     }
 }

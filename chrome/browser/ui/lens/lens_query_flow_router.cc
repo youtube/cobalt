@@ -481,6 +481,10 @@ void LensQueryFlowRouter::OnContextualizedComplete(
         !request_info->image_crop.has_value() &&
         request_info->search_url_type == SearchUrlType::kAim;
 
+    if (is_contextual_text_query) {
+      effective_session_handle->set_is_contextual_lens_session(true);
+    }
+
     // We do not add the token to file_tokens here because
     // CreateSearchUrl will automatically add all uploaded context tokens from
     // the session if file_tokens is empty.
@@ -788,6 +792,14 @@ LensQueryFlowRouter::CreateSearchUrlRequestInfoFromInteraction(
   }
   request_info->query_start_time = query_start_time;
   request_info->lens_overlay_selection_type = lens_selection_type;
+  // Explicitly add the saved overlay token if present to maintain context
+  // for follow-up searches, as CreateSearchUrl will clear it from the handle's
+  // list.
+  if (overlay_tab_context_file_token_.has_value()) {
+    request_info->file_tokens.push_back(
+        overlay_tab_context_file_token_.value());
+  }
+
   // We do not add the token to file_tokens here because
   // ContextualSearchSessionHandle::CreateSearchUrl will automatically add all
   // uploaded context tokens from the session if file_tokens is empty.

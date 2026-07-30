@@ -30,10 +30,10 @@
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/feature_first_run/autofill_ai_first_run_dialog.h"
+#include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
 #include "chrome/browser/ui/performance_controls/performance_controls_metrics.h"
 #include "chrome/browser/ui/singleton_tabs.h"
@@ -781,24 +781,6 @@ void MaybeRegisterChromeFeaturePromos(
           .SetMetadata(
               142, "dewittj@chromium.org",
               "Attempts to trigger when the user is on a supported page.")));
-
-  // kGlicTrustFirstOnboarding shortcut toast IPH:
-  registry.RegisterFeature(std::move(
-      FeaturePromoSpecification::CreateForToastPromo(
-          feature_engagement::
-              kIPHGlicTrustFirstOnboardingShortcutToastPromoFeature,
-          kGlicButtonElementId, IDS_GLIC_SHORTCUT_IPH_TEXT_TEMPLATE,
-          IDS_GLIC_SHORTCUT_IPH_SCREENREADER,
-          FeaturePromoSpecification::AcceleratorInfo(
-              glic::GlicLauncherConfiguration::GetGlobalHotkey()))
-          .SetAdditionalConditions(std::move(
-              AdditionalConditions().AddAdditionalCondition(AdditionalCondition{
-                  feature_engagement::events::kGlicOnboardingCompleted,
-                  AdditionalConditions::Constraint::kAtLeast, 1})))
-          .SetBubbleArrow(HelpBubbleArrow::kTopRight)
-          .SetMetadata(144, "zalmashni@google.com",
-                       "Triggered after the Glic side panel is closed or the "
-                       "user navigates to a new tab.")));
 
   // kGlicTrustFirstOnboarding shortcut snooze IPH:
   registry.RegisterFeature(std::move(

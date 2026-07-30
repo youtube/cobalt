@@ -184,11 +184,6 @@ if (!is_android && !is_mac) {
       deps += [ "//components/exo/wayland:ui_controls_protocol_stub" ]
     }
 
-    if (!is_mac) {
-      data_deps +=
-          [ "//third_party/search_engines_data:prepopulated_engines_file" ]
-    }
-
     if (is_win) {
       sources += [
         "app/chrome_exe.rc",
@@ -1218,9 +1213,6 @@ if (is_win) {
       bundle_deps += [ ":angle_binaries" ]
     }
 
-    bundle_deps +=
-        [ "//third_party/search_engines_data:prepopulated_engines_bundle_data" ]
-
     configs += [ ":chrome_dll_symbol_order" ]
     if (!is_component_build && !using_sanitizer) {
       configs += [ ":chrome_dll_symbol_exports" ]
@@ -1256,7 +1248,7 @@ if (is_win) {
   assert(_framework_binary_path != "",
          "Ignore configuration-dependent unused variable warning")
 
-  # TOOD(crbug.com/40740432#c8) - thakis@ look into why profile and coverage
+  # TOOD(crbug.com/40740432#comment9) - thakis@ look into why profile and coverage
   # instrumentation adds these symbols in different orders
   if (!is_component_build && chrome_pgo_phase != 1 && !using_sanitizer) {
     action("verify_chrome_framework_order") {

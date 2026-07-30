@@ -65,6 +65,8 @@ extern const char kApplyNativeOcclusionToCompositorTypeThrottleAndRelease[];
 #if BUILDFLAG(IS_MAC)
 COMPONENT_EXPORT(UI_BASE_FEATURES)
 BASE_DECLARE_FEATURE(kOnlyUseWindowResizeHelperOnResize);
+
+COMPONENT_EXPORT(UI_BASE_FEATURES) BASE_DECLARE_FEATURE(kCATransactionV2);
 #endif  // BUILDFLAG(IS_MAC)
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -269,6 +271,15 @@ BASE_DECLARE_FEATURE(kHandleIMESpanChangesOnUpdateComposition);
 
 COMPONENT_EXPORT(UI_BASE_FEATURES)
 bool IsHandleIMESpanChangesOnUpdateCompositionEnabled();
+
+// Kill switch for honoring the HTML autocorrect="off" attribute by detecting
+// and reverting touch keyboard autocorrections in TSF.
+// See https://issues.chromium.org/issues/487613498.
+COMPONENT_EXPORT(UI_BASE_FEATURES)
+BASE_DECLARE_FEATURE(kTSFHonorAutocorrectOff);
+
+COMPONENT_EXPORT(UI_BASE_FEATURES)
+bool IsTSFHonorAutocorrectOffEnabled();
 
 // Controls whether the default system accent colors should be used.
 COMPONENT_EXPORT(UI_BASE_FEATURES)

@@ -1973,7 +1973,8 @@ class JniRegistrationGeneratorSanitizer(BaseActionSanitizer):
         self._update_value_arg('--placeholder-srcjar-path',
                                self._sanitize_filepath, False)
         self._delete_value_arg('--depfile', False)
-        self._set_value_arg('--java-sources-file', '$(genDir)/java.sources')
+        self._set_value_arg('--java-sources-file',
+                            '$(genDir)/java_sources.json')
 
         self._delete_value_arg('--package-prefix', throw_if_absent=False)
         self._delete_value_arg('--package-prefix-filter',
@@ -1989,15 +1990,26 @@ class JniRegistrationGeneratorSanitizer(BaseActionSanitizer):
         # So creating sources file in cmd based on the srcs of this target.
         # Adding ../$(current_dir)/ to the head because jni_registration_generator.py uses the files
         # whose path startswith(..)
+        module_name = ''
+        if '--module-name' in self.target.args:
+            module_name = self.target.args[
+                self.target.args.index('--module-name') + 1]
+
+        lines = [
+            'import json',
+            'import sys',
+            'd = {"java_files": [f"../{sys.argv[1]}/{f}" for f in sys.argv[2:]]}',
+        ]
+        if module_name:
+            lines.append(f'd["module_name"] = "{module_name}"')
+        lines.append('print(json.dumps([d]))')
+
+        python_script = '; '.join(lines)
         base_cmd = ([
             "current_dir=`basename \\`pwd\\``;",
-            "for f in $(in);",
-            "do",
-            "echo \"../$$current_dir/$$f\" >> $(genDir)/java.sources;",
-            "done;",
-        ] +
-                    # jni_registration_generator.py doesn't work with python2
-                    [f"python3 {base_cmd[0]}"] + base_cmd[1:])
+            f"python3 -c '{python_script}' $$current_dir $(in) > $(genDir)/java_sources.json;",
+            f"python3 {base_cmd[0]}"
+        ] + base_cmd[1:])
 
         return self.get_pre_cmd() + base_cmd
 
@@ -2154,7 +2166,7 @@ class ProtocJavaSanitizer(BaseActionSanitizer):
         # build protoc from source from //third_party/protobuf:protoc. We don't
         # need to add that as an input because it's already a tool dependency in
         # the generated module.
-        self.target.inputs.remove(
+        self.target.inputs.discard(
             "//third_party/android_build_tools/protoc/cipd/protoc")
 
     def get_tools(self):
@@ -2373,7 +2385,7 @@ def create_java_module(bp_module_name, target, blueprint):
 
     def add_java_library_properties(module):
         module.min_sdk_version = cronet_utils.MIN_SDK_VERSION_FOR_AOSP
-        module.apex_available = [tethering_apex]
+        module.apex_available.add(tethering_apex)
         module.defaults.add(java_framework_defaults_module)
         module.build_file_path = target.build_file_path
 
@@ -2551,7 +2563,7 @@ def _create_extract_rust_files_target(bindgen_module, blueprint):
     module.host_supported = bindgen_module.host_supported
     module.host_cross_supported = bindgen_module.host_cross_supported
     module.target['host'].compile_multilib = '64'
-    module.apex_available = [tethering_apex]
+    module.apex_available.add(tethering_apex)
     blueprint.add_module(module)
     return module
 
@@ -2594,7 +2606,7 @@ def create_bindgen_module(blueprint: Blueprint, target,
         f"{MODULE_PREFIX}repository_root_include_dirs_anchor"
     }
     module.min_sdk_version = cronet_utils.MIN_SDK_VERSION_FOR_AOSP
-    module.apex_available = [tethering_apex]
+    module.apex_available.add(tethering_apex)
     blueprint.add_module(module)
     return module
 
@@ -2614,7 +2626,7 @@ def create_generated_headers_export_module(
         cc_genrule_module_name
     ]
     module.build_file_path = cc_genrule_module.build_file_path
-    module.defaults = [cc_defaults_module]
+    module.defaults.add(cc_defaults_module)
     module.host_supported = cc_genrule_module.host_supported
     module.host_cross_supported = cc_genrule_module.host_cross_supported
     module.device_supported = cc_genrule_module.device_supported
@@ -3184,7 +3196,7 @@ def create_modules_from_target(blueprint, gn, gn_target_name, parent_gn_type,
                 module.cargo_env_compat = True
                 module.cargo_pkg_version = target.rust_package_version
             module.min_sdk_version = cronet_utils.MIN_SDK_VERSION_FOR_AOSP
-            module.apex_available = [tethering_apex]
+            module.apex_available.add(tethering_apex)
             for arch_name, arch in target.get_archs().items():
                 _set_rust_flags(module.target[arch_name], arch.rust_flags,
                                 arch_name)
@@ -3213,7 +3225,7 @@ def create_modules_from_target(blueprint, gn, gn_target_name, parent_gn_type,
                 and not module.type.startswith("rust")):
             # Don't try to inject library/source dependencies into genrules or
             # filegroups because they are not compiled in the traditional sense.
-            module.defaults = [cc_defaults_module]
+            module.defaults.add(cc_defaults_module)
 
         if module.type == 'cc_library_static':
             module.export_generated_headers = module.generated_headers
@@ -3595,6 +3607,13 @@ def create_cc_defaults_module():
         # Required to correctly compile quiche tests.
         # TODO(crbug.com/433273929): Remove once fixed.
         "-Wno-nonnull",
+        # Work around std::vector __swap_layouts _LIBCPP_NODEBUG breakage
+        # causing the build to fail with:
+        #   Function profile not used [-Werror,-Wbackend-plugin]
+        # See https://crbug.com/506893855
+        # TODO(https://crbug.com/506893855): remove this once the root cause is
+        # fixed.
+        "-Wno-backend-plugin",
     ]
     defaults.build_file_path = ""
     defaults.include_build_directory = False
@@ -3705,8 +3724,8 @@ def make_cc_defaults_from_boringssl(boringssl_module: Module) -> Module:
 
     cc_default_flags_module.build_file_path = ""
     libcrypto_cc_defaults_flags_module.build_file_path = ""
-    cc_default_flags_module.defaults = [cc_defaults_module]
-    libcrypto_cc_defaults_flags_module.defaults = [cc_defaults_module]
+    cc_default_flags_module.defaults.add(cc_defaults_module)
+    libcrypto_cc_defaults_flags_module.defaults.add(cc_defaults_module)
     return (cc_default_flags_module, libcrypto_cc_defaults_flags_module)
 
 

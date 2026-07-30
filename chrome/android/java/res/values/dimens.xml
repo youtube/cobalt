@@ -69,7 +69,6 @@ found in the LICENSE file.
     <dimen name="address_prompt_edit_button_padding">12dp</dimen>
 
     <!-- Autofill keyboard accessory dimensions -->
-    <dimen name="keyboard_accessory_height_with_shadow">56dp</dimen>
     <dimen name="keyboard_accessory_sheet_height">330dp</dimen>
 
     <!-- Password manager illustration dialogs -->
@@ -374,7 +373,7 @@ found in the LICENSE file.
     <dimen name="sharing_hub_3p_icon_padding_top">20dp</dimen>
 
     <!-- Long Screenshots dimensions -->
-    <dimen name="long_screenshots_button_size">40dp</dimen>
+    <dimen name="long_screenshots_button_size">@dimen/min_touch_target_size</dimen>
     <dimen name="long_screenshots_button_padding">8dp</dimen>
     <dimen name="long_screenshots_button_margin">17dp</dimen>
     <dimen name="long_screenshots_button_elev">6dp</dimen>
@@ -497,15 +496,16 @@ found in the LICENSE file.
 
     <!-- Gesture User Education Iph-->
     <dimen name="gesture_user_education_arrow_margin_bottom">36dp</dimen>
-    <dimen name="iph_bubble_margin_top">255dp</dimen>
     <dimen name="iph_bubble_margin_start">5dp</dimen>
     <dimen name="iph_bubble_text_padding">16dp</dimen>
     <dimen name="iph_bubble_triangle_width">8dp</dimen>
     <dimen name="iph_bubble_triangle_height">20dp</dimen>
-    <dimen name="tap_to_dismiss_text_margin_bottom">36dp</dimen>
+    <dimen name="tap_to_dismiss_text_margin">53dp</dimen>
 
     <!-- Accessibility Annotator dimensions -->
     <dimen name="accessibility_annotator_sheet_padding_horizontal">24dp</dimen>
     <dimen name="accessibility_annotator_spacing_large">16dp</dimen>
     <dimen name="accessibility_annotator_spacing_medium">12dp</dimen>
+    <!-- Toast dimensions -->
+    <dimen name="background_tab_toast_y_margin">16dp</dimen>
 </resources>

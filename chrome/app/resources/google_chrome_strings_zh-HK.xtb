@@ -280,6 +280,7 @@
 
           **建議問題：**以項目符號清單形式生成 3 至 5 條可以啟發思考的問題，幫助使用者深入瞭解螢幕截圖。應該有至少一條具體關於可視物件、其設計或位置的問題。</translation>
 <translation id="386202838227397562">請關閉所有 Google Chrome 視窗，然後再試一次。</translation>
+<translation id="3869083394918739976">無需切換分頁，也可繼續與「AI 模式」對話。如要開始使用，請登入 Chrome。你也可在你的所有裝置上取得密碼和其他資料。</translation>
 <translation id="3873044882194371212">在 Chrome 無痕式視窗中開啟連結(&amp;G)</translation>
 <translation id="3885770153807205175">語言選擇器</translation>
 <translation id="3889417619312448367">解除安裝 Google Chrome</translation>
@@ -784,7 +785,6 @@ Google Chrome 無法復原您的設定。</translation>
 <translation id="8862326446509486874">您沒有在系統層級進行安裝的權限，請以管理員的身分執行安裝程式。</translation>
 <translation id="8865415417596392024">帳戶中的 Chrome 資料</translation>
 <translation id="8883862939660515976">問「Google 智能鏡頭」關於此圖片的問題</translation>
-<translation id="8892956691293410744">如想問「AI 模式」有關分頁的問題而不離開頁面，請登入 Chrome。你也可在你的所有裝置上取得密碼和其他資料。</translation>
 <translation id="8914504000324227558">重新啟動 Chrome</translation>
 <translation id="8922193594870374009">如要將號碼從 <ph name="ORIGIN" /> 傳送至 Android 手機，請在這兩部裝置上登入 Chrome。</translation>
 <translation id="8922998289262614701">從 Chrome 移除此應用程式的資料</translation>

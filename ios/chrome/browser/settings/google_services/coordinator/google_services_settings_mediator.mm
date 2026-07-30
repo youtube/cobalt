@@ -9,6 +9,7 @@
 #import "base/feature_list.h"
 #import "base/notreached.h"
 #import "components/metrics/metrics_pref_names.h"
+#import "components/metrics/metrics_reporting_choice_service.h"
 #import "components/password_manager/core/common/password_manager_features.h"
 #import "components/password_manager/core/common/password_manager_pref_names.h"
 #import "components/prefs/pref_service.h"
@@ -304,28 +305,30 @@ bool GetStatusForSigninPolicy() {
         kAllowSigninItemAccessibilityIdentifier;
     [items addObject:allowSigninItem];
 
-    if (self.localPrefService->IsManagedPreference(
-            metrics::prefs::kMetricsReportingEnabled) &&
-        !self.localPrefService->GetBoolean(
-            metrics::prefs::kMetricsReportingEnabled)) {
-      TableViewInfoButtonItem* improveChromeItem = [self
-          tableViewInfoButtonItemType:ImproveChromeManagedItemType
-                         textStringID:
-                             IDS_IOS_GOOGLE_SERVICES_SETTINGS_IMPROVE_CHROME_TEXT
-                       detailStringID:
-                           IDS_IOS_GOOGLE_SERVICES_SETTINGS_IMPROVE_CHROME_DETAIL
-                               status:self.sendDataUsagePreference];
-      [items addObject:improveChromeItem];
-    } else {
-      SyncSwitchItem* improveChromeItem = [self
-          switchItemWithItemType:ImproveChromeItemType
-                    textStringID:
-                        IDS_IOS_GOOGLE_SERVICES_SETTINGS_IMPROVE_CHROME_TEXT
-                  detailStringID:
-                      IDS_IOS_GOOGLE_SERVICES_SETTINGS_IMPROVE_CHROME_DETAIL];
-      improveChromeItem.accessibilityIdentifier =
-          kImproveChromeItemAccessibilityIdentifier;
-      [items addObject:improveChromeItem];
+    // TODO(b/483043192): Add UI for new Metrics Consent settings.
+    if (!metrics::MetricsReportingChoiceService::
+            ShouldUseMetricsConsentRestructure(self.localPrefService)) {
+      constexpr int textID =
+          IDS_IOS_GOOGLE_SERVICES_SETTINGS_IMPROVE_CHROME_TEXT;
+      constexpr int detailID =
+          IDS_IOS_GOOGLE_SERVICES_SETTINGS_IMPROVE_CHROME_DETAIL;
+      if (metrics::MetricsReportingChoiceService::
+              IsMetricsReportingDisabledByPolicy(self.localPrefService)) {
+        TableViewInfoButtonItem* improveChromeItem =
+            [self tableViewInfoButtonItemType:ImproveChromeManagedItemType
+                                 textStringID:textID
+                               detailStringID:detailID
+                                       status:self.sendDataUsagePreference];
+        [items addObject:improveChromeItem];
+      } else {
+        SyncSwitchItem* improveChromeItem =
+            [self switchItemWithItemType:ImproveChromeItemType
+                            textStringID:textID
+                          detailStringID:detailID];
+        improveChromeItem.accessibilityIdentifier =
+            kImproveChromeItemAccessibilityIdentifier;
+        [items addObject:improveChromeItem];
+      }
     }
     if (self.userPrefService->IsManagedPreference(
             unified_consent::prefs::kUrlKeyedAnonymizedDataCollectionEnabled)) {

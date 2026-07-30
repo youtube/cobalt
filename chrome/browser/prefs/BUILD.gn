@@ -92,6 +92,7 @@ source_set("impl") {
     "//chrome/browser/preloading/prefetch/search_prefetch",
     "//chrome/browser/privacy_sandbox/notice:core",
     "//chrome/browser/profiles",
+    "//chrome/browser/profiles:misc",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/profiles:profile_util",
     "//chrome/browser/push_messaging",
@@ -155,7 +156,6 @@ source_set("impl") {
     "//components/password_manager/core/browser",
     "//components/performance_manager",
     "//components/permissions",
-    "//components/plus_addresses/core/common:prefs",
     "//components/policy/resources/webui/mojom:mojo_bindings",
     "//components/pref_registry",
     "//components/privacy_sandbox:privacy_sandbox_prefs",
@@ -188,6 +188,7 @@ source_set("impl") {
     "//services/preferences/public/mojom",
     "//services/preferences/tracked",
     "//services/preferences/tracked:features",
+    "//ui/webui:buildflags",
   ]
 
   if (enable_print_preview) {
@@ -339,6 +340,7 @@ source_set("impl") {
     deps += [
       "//chrome/browser/accessibility/accessibility_prefs",
       "//chrome/browser/auxiliary_search",
+      "//chrome/browser/lens",
       "//chrome/browser/notifications",
       "//chrome/browser/notifications:notifications_java_enum_srcjar",
       "//chrome/browser/partnerbookmarks:android",
@@ -346,6 +348,9 @@ source_set("impl") {
       "//chrome/browser/readaloud/android:native",
       "//chrome/browser/search_engines",
     ]
+    if (enable_webui_ntp) {
+      deps += [ "//chrome/browser/new_tab_page" ]
+    }
   } else {
     deps += [
       "//chrome/browser/actor/ui",

@@ -33,10 +33,10 @@ import org.chromium.base.task.TaskTraits;
 import org.chromium.base.test.BaseJUnit4ClassRunner;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.DoNotBatch;
+import org.chromium.chrome.R;
 import org.chromium.chrome.browser.browserservices.permissiondelegation.InstalledWebappPermissionManager;
 import org.chromium.chrome.browser.notifications.NotificationUmaTracker;
 import org.chromium.chrome.browser.notifications.StandardNotificationBuilder;
-import org.chromium.chrome.test.R;
 import org.chromium.components.browser_ui.notifications.NotificationProxyUtils;
 import org.chromium.components.content_settings.ContentSetting;
 import org.chromium.components.embedder_support.util.Origin;
@@ -49,7 +49,7 @@ import java.util.concurrent.TimeoutException;
  *
  * <p>The control flow in these tests is a bit complicated since attempting to connect to a test
  * TrustedWebActivityService in the chrome_public_test results in a ClassLoader error (see
- * https://crbug.com/40575521#c1). Therefore we must put the test TrustedWebActivityService in
+ * https://crbug.com/40575521#comment2). Therefore we must put the test TrustedWebActivityService in
  * chrome_public_test_support.
  *
  * <p>We don't want to open up the TrustedWebActivityService API, so an additional Service (the

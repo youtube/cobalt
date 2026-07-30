@@ -11,13 +11,13 @@
 #include "base/check_deref.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/values.h"
 #include "chrome/browser/ash/login/oobe_screen.h"
 #include "chrome/browser/ash/login/quick_unlock/pin_backend.h"
 #include "chrome/browser/ash/login/quick_unlock/quick_unlock_factory.h"
 #include "chrome/browser/ash/login/screens/base_screen.h"
 #include "chrome/browser/ash/login/wizard_context.h"
-#include "chrome/browser/enterprise/util/managed_browser_utils.h"
 #include "chrome/browser/ui/webui/ash/login/remove_local_auth_factors_screen_handler.h"
 #include "chromeos/ash/components/cryptohome/auth_factor.h"
 #include "chromeos/ash/components/login/auth/public/auth_factors_configuration.h"
@@ -59,6 +59,8 @@ RemoveLocalAuthFactorsScreen::RemoveLocalAuthFactorsScreen(
 RemoveLocalAuthFactorsScreen::~RemoveLocalAuthFactorsScreen() = default;
 
 void RemoveLocalAuthFactorsScreen::ShowImpl() {
+  base::UmaHistogramBoolean("Enterprise.RemoveLocalAuthFactorsScreen.Shown",
+                            true);
   if (!view_) {
     return;
   }
@@ -68,14 +70,13 @@ void RemoveLocalAuthFactorsScreen::ShowImpl() {
     LOG(ERROR) << "Invalid AccountId detected";
   }
 
-  std::string domain = enterprise_util::GetDomainFromEmail(
-      context()->user_context->GetAccountId().GetUserEmail());
-  if (domain.empty()) {
-    LOG(ERROR) << "Unable to resolve a domain name for remove local auth "
+  std::string email = context()->user_context->GetAccountId().GetUserEmail();
+  if (email.empty()) {
+    LOG(ERROR) << "Unable to resolve user email for remove local auth "
                   "factors screen";
   }
 
-  view_->Show(domain);
+  view_->Show(email);
 
   GetAuthFactorEditor()->GetAuthFactorsConfiguration(
       std::move(context()->user_context),
@@ -94,6 +95,8 @@ void RemoveLocalAuthFactorsScreen::OnGetAuthFactorsConfiguration(
                << error->get_cryptohome_error();
     context()->user_context = std::move(user_context);
     context()->osauth_error = WizardContext::OSAuthErrorKind::kFatal;
+    base::UmaHistogramBoolean("Enterprise.RemoveLocalAuthFactorsScreen.Success",
+                              false);
     exit_callback_.Run(Result::kError);
     return;
   }
@@ -132,6 +135,8 @@ void RemoveLocalAuthFactorsScreen::RemoveLocalAuthFactors(
   online_password_.reset();
   if (result != auth::mojom::ConfigureResult::kSuccess) {
     context()->osauth_error = WizardContext::OSAuthErrorKind::kFatal;
+    base::UmaHistogramBoolean("Enterprise.RemoveLocalAuthFactorsScreen.Success",
+                              false);
     exit_callback_.Run(Result::kError);
     LOG(ERROR) << "Could not set online password";
     return;
@@ -144,6 +149,8 @@ void RemoveLocalAuthFactorsScreen::RemoveLocalAuthFactors(
     LOG(WARNING) << "No pin configured, showing success.";
     context()->knowledge_factor_setup.modified_factors.Put(
         AshAuthFactor::kGaiaPassword);
+    base::UmaHistogramBoolean("Enterprise.RemoveLocalAuthFactorsScreen.Success",
+                              true);
     ShowRemoveLocalAuthFactorsSucess();
     return;
   }
@@ -165,6 +172,8 @@ void RemoveLocalAuthFactorsScreen::OnPinRemoved(
     // We still let the user login, to make sure that they do not get locked out
     // of their account due to any cryptohome related issue with removing the
     // pin.
+    base::UmaHistogramBoolean("Enterprise.RemoveLocalAuthFactorsScreen.Success",
+                              false);
     exit_callback_.Run(Result::kSuccess);
     return;
   }
@@ -172,6 +181,8 @@ void RemoveLocalAuthFactorsScreen::OnPinRemoved(
 
   context()->knowledge_factor_setup.modified_factors.Put(
       AshAuthFactor::kCryptohomePin);
+  base::UmaHistogramBoolean("Enterprise.RemoveLocalAuthFactorsScreen.Success",
+                            true);
   ShowRemoveLocalAuthFactorsSucess();
 }
 

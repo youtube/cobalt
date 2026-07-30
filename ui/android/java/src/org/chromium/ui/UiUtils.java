@@ -19,6 +19,7 @@ import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.os.Build;
 import android.os.StrictMode;
 import android.text.Spanned;
 import android.text.TextUtils;
@@ -31,6 +32,7 @@ import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
+import android.view.WindowMetrics;
 import android.view.inputmethod.InputMethodInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.view.inputmethod.InputMethodSubtype;
@@ -54,6 +56,8 @@ import org.chromium.base.DeviceInfo;
 import org.chromium.base.Log;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.ui.base.UiAndroidFeatureMap;
+import org.chromium.ui.base.UiAndroidFeatures;
 
 import java.io.File;
 import java.io.IOException;
@@ -61,10 +65,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-/**
- * Utility functions for common Android UI tasks.
- * This class is not supposed to be instantiated.
- */
+/** Utility functions for common Android UI tasks. This class is not supposed to be instantiated. */
 @NullMarked
 public class UiUtils {
     private static final String TAG = "UiUtils";
@@ -386,7 +387,7 @@ public class UiUtils {
      * @param lightNavigationBar Whether the navigation bar has a light appearance with dark icons.
      */
     public static void setNavigationBarIconColor(View rootView, boolean lightNavigationBar) {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             WindowInsetsController controller = rootView.getWindowInsetsController();
             if (controller != null) {
                 controller.setSystemBarsAppearance(
@@ -430,7 +431,7 @@ public class UiUtils {
      * @param lightStatusBar Whether the status bar has a light appearance with dark icons.
      */
     public static void setStatusBarIconColor(View rootView, boolean lightStatusBar) {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             WindowInsetsController controller = rootView.getWindowInsetsController();
             if (controller != null) {
                 controller.setSystemBarsAppearance(
@@ -463,10 +464,18 @@ public class UiUtils {
      * @return True if gesture navigation mode is on.
      */
     public static boolean isGestureNavigationMode(Window window) {
-        // https://stackoverflow.com/a/70514883
-        WindowInsetsCompat windowInsets =
-                WindowInsetsCompat.toWindowInsetsCompat(
-                        window.getDecorView().getRootWindowInsets());
+        WindowInsetsCompat windowInsets;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+                && UiAndroidFeatureMap.isEnabled(
+                        UiAndroidFeatures.MAXIMUM_WINDOW_FOR_GESTURE_NAV_DETECTION)) {
+            WindowMetrics maxMetrics = window.getWindowManager().getMaximumWindowMetrics();
+            windowInsets = WindowInsetsCompat.toWindowInsetsCompat(maxMetrics.getWindowInsets());
+        } else {
+            // https://stackoverflow.com/a/70514883
+            windowInsets =
+                    WindowInsetsCompat.toWindowInsetsCompat(
+                            window.getDecorView().getRootWindowInsets());
+        }
         // Use systemGestures rather than tappableElements.
         // In some devices, like Samsung Fold, which has a dock, the bottom inset of
         // tappableElements is non-zero even when gesture mode is on.

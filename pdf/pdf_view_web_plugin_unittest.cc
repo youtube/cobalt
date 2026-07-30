@@ -6,6 +6,7 @@
 
 #include <stdint.h>
 
+#include <array>
 #include <functional>
 #include <memory>
 #include <string>
@@ -118,6 +119,7 @@ using ::testing::InSequence;
 using ::testing::IsEmpty;
 using ::testing::IsFalse;
 using ::testing::IsTrue;
+using ::testing::Matcher;
 using ::testing::MockFunction;
 using ::testing::NiceMock;
 using ::testing::Pair;
@@ -3583,6 +3585,38 @@ TEST_P(PdfViewWebPluginInkTest, DrawInProgressStrokeWithPenWithPressure) {
           "diagonal_stroke_pen_with_pressure.png"),
       events.start_event, {&events.move_event1, &events.move_event2},
       events.end_event);
+}
+
+TEST_P(PdfViewWebPluginInkTest, AddFont) {
+  static constexpr FontId kFontId(1);
+  static constexpr auto kSerializedTypeface =
+      std::to_array<const uint8_t>({1, 2, 3});
+
+  EXPECT_CALL(*engine_ptr_, AddFont(kFontId, Matcher<base::span<const uint8_t>>(
+                                                 kSerializedTypeface)));
+
+  plugin_->ink_module_client_for_testing()->AddFont(kFontId,
+                                                    kSerializedTypeface);
+}
+
+TEST_P(PdfViewWebPluginInkTest, DrawText) {
+  static constexpr int kPageIndex = 0;
+  static constexpr InkTextId kTextId(1);
+  static constexpr double kZoom = 1.5;
+
+  EXPECT_CALL(*engine_ptr_, DrawText(kPageIndex, kTextId, _, kZoom, _));
+
+  const InkTextBoxAttributes text_box_attributes(
+      /*rect=*/gfx::RectF(20.0f, 20.0f, 100.0f, 100.0f),
+      /*color=*/SK_ColorBLACK,
+      /*css_font_size=*/10.0f,
+      /*typeface=*/TextTypeface::kSansSerif,
+      /*alignment=*/TextAlignment::kLeft,
+      /*orientation=*/0,
+      /*is_bold=*/true,
+      /*is_italic=*/false);
+  plugin_->ink_module_client_for_testing()->DrawText(
+      kPageIndex, kTextId, {}, kZoom, text_box_attributes);
 }
 
 class PdfViewWebPluginInkTextHighlightTest : public PdfViewWebPluginInkTest {

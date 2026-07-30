@@ -6,9 +6,14 @@
 
 #include <inttypes.h>
 
+#include <algorithm>
+#include <cmath>
+
 #include "base/base64.h"
 #include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
+#include "base/memory_coordinator/memory_coordinator_features.h"
+#include "base/memory_coordinator/utils.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/single_thread_task_runner.h"
@@ -41,12 +46,16 @@ sk_sp<SkData> MakeData(const std::string& str) {
 GrShaderCache::GrShaderCache(size_t max_cache_size_bytes, Client* client)
     : cache_size_limit_(max_cache_size_bytes),
       curr_size_bytes_(0u),
+      current_max_size_bytes_(max_cache_size_bytes),
       store_(Store::NO_AUTO_EVICT),
       client_(client),
-      memory_pressure_listener_registration_(
-          FROM_HERE,
-          base::MemoryPressureListenerTag::kGrShaderCache,
-          this) {
+      memory_consumer_registration_(
+          "GrShaderCache",
+          std::nullopt,  // TODO(crbug.com/489671163): Add traits..
+          this,
+          base::AsyncMemoryConsumerRegistration::CheckUnregister::kEnabled,
+          base::AsyncMemoryConsumerRegistration::CheckRegistryExists::
+              kDisabled) {
   if (base::SingleThreadTaskRunner::HasCurrentDefault()) {
     base::trace_event::MemoryDumpManager::GetInstance()->RegisterDumpProvider(
         this, "GrShaderCache",
@@ -192,13 +201,32 @@ bool GrShaderCache::OnMemoryDump(const base::trace_event::MemoryDumpArgs& args,
   return true;
 }
 
-void GrShaderCache::OnMemoryPressure(
-    base::MemoryPressureLevel memory_pressure_level) {
+void GrShaderCache::OnUpdateMemoryLimit() {
   base::AutoLock auto_lock(lock_);
-  memory_pressure_level_ = memory_pressure_level;
-  // Memory pressure has changed, so the cache limit may have been updated.
-  // Evict entries to match the new limit.
+  if (base::FeatureList::IsEnabled(base::kStatefulMemoryPressure)) {
+    int clamped_memory_limit =
+        std::clamp(memory_limit(), base::kCriticalMemoryPressureThreshold,
+                   base::kNoMemoryPressureThreshold);
+    size_t target_limit = gpu::UpdateShaderCacheSizeOnMemoryLimit(
+        cache_size_limit_, clamped_memory_limit);
+    current_max_size_bytes_ = std::max(curr_size_bytes_, target_limit);
+  }
+}
+
+void GrShaderCache::OnReleaseMemory() {
+  base::AutoLock auto_lock(lock_);
+
+  int clamped_memory_limit =
+      std::clamp(memory_limit(), base::kCriticalMemoryPressureThreshold,
+                 base::kNoMemoryPressureThreshold);
+  size_t target_limit = gpu::UpdateShaderCacheSizeOnMemoryLimit(
+      cache_size_limit_, clamped_memory_limit);
+  current_max_size_bytes_ = target_limit;
   EnforceLimits(0u);
+
+  if (!base::FeatureList::IsEnabled(base::kStatefulMemoryPressure)) {
+    current_max_size_bytes_ = cache_size_limit_;
+  }
 }
 
 size_t GrShaderCache::num_cache_entries() const {
@@ -237,8 +265,7 @@ void GrShaderCache::EnforceLimits(size_t size_needed) {
 }
 
 size_t GrShaderCache::GetCurrentCacheSizeLimit() const {
-  return gpu::UpdateShaderCacheSizeOnMemoryPressure(cache_size_limit_,
-                                                    memory_pressure_level_);
+  return current_max_size_bytes_;
 }
 
 void GrShaderCache::StoreVkPipelineCacheIfNeeded(GrDirectContext* gr_context) {
@@ -273,15 +300,19 @@ int32_t GrShaderCache::current_client_id() const {
 GrShaderCache::ScopedCacheUse::ScopedCacheUse(GrShaderCache* cache,
                                               int32_t client_id)
     : cache_(cache) {
-  base::AutoLock auto_lock(cache_->lock_);
-  DCHECK_EQ(cache_->current_client_id(), kInvalidClientId);
-  DCHECK_NE(client_id, kInvalidClientId);
-  cache_->current_client_id_[base::PlatformThread::CurrentId()] = client_id;
+  if (cache_) {
+    base::AutoLock auto_lock(cache_->lock_);
+    DCHECK_EQ(cache_->current_client_id(), kInvalidClientId);
+    DCHECK_NE(client_id, kInvalidClientId);
+    cache_->current_client_id_[base::PlatformThread::CurrentId()] = client_id;
+  }
 }
 
 GrShaderCache::ScopedCacheUse::~ScopedCacheUse() {
-  base::AutoLock auto_lock(cache_->lock_);
-  cache_->current_client_id_.erase(base::PlatformThread::CurrentId());
+  if (cache_) {
+    base::AutoLock auto_lock(cache_->lock_);
+    cache_->current_client_id_.erase(base::PlatformThread::CurrentId());
+  }
 }
 
 GrShaderCache::CacheKey::CacheKey(sk_sp<SkData> data) : data(std::move(data)) {

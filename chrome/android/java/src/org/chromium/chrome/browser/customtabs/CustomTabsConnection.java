@@ -68,6 +68,8 @@ import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntent
 import org.chromium.chrome.browser.browserservices.intents.SessionHolder;
 import org.chromium.chrome.browser.content.WebContentsFactory;
 import org.chromium.chrome.browser.customtabs.ClientManager.CalledWarmup;
+import org.chromium.chrome.browser.customtabs.HiddenTabHolder.HiddenTab;
+import org.chromium.chrome.browser.customtabs.HiddenTabHolder.SpeculationParams;
 import org.chromium.chrome.browser.customtabs.content.EngagementSignalsHandler;
 import org.chromium.chrome.browser.customtabs.features.branding.MismatchNotificationData;
 import org.chromium.chrome.browser.device.DeviceClassManager;
@@ -1060,7 +1062,7 @@ public class CustomTabsConnection {
      *     Custom Tabs Intent.
      * @return The hidden tab, or null.
      */
-    public HiddenTabHolder.@Nullable HiddenTab takeHiddenTab(
+    public @Nullable HiddenTab takeHiddenTab(
             @Nullable SessionHolder<?> session,
             String url,
             BrowserServicesIntentDataProvider intentDataProvider) {
@@ -1424,7 +1426,7 @@ public class CustomTabsConnection {
      *
      * @param intent The intent that launched the custom tab.
      */
-    boolean isAppForAccountMismatchNotification(Intent intent) {
+    boolean isAppForAccountMismatchNotification(@Nullable Intent intent) {
         return false;
     }
 
@@ -1439,7 +1441,7 @@ public class CustomTabsConnection {
      * @return Whether the notification was shown or not.
      */
     boolean shouldShowAccountMismatchNotification(
-            Intent intent,
+            @Nullable Intent intent,
             Profile profile,
             String accountId,
             long lastShownTime,
@@ -2064,8 +2066,7 @@ public class CustomTabsConnection {
         }
     }
 
-    @VisibleForTesting
-    HiddenTabHolder.@Nullable SpeculationParams getSpeculationParamsForTesting() {
+    @Nullable SpeculationParams getSpeculationParamsForTesting() {
         return mHiddenTabHolder.getSpeculationParamsForTesting();
     }
 

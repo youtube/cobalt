@@ -43,7 +43,10 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.BaseSwitches;
+import org.chromium.base.Callback;
 import org.chromium.base.ThreadUtils;
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableNullableObservableSupplier;
 import org.chromium.base.test.BaseActivityTestRule;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CallbackHelper;
@@ -59,8 +62,9 @@ import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.lifecycle.LifecycleObserver;
+import org.chromium.chrome.browser.ui.actions.ActionProperties;
+import org.chromium.chrome.browser.ui.actions.AppMenuActionProperties;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuHandler.AppMenuItemType;
-import org.chromium.chrome.browser.ui.appmenu.test.R;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.components.browser_ui.widget.chips.ChipView;
 import org.chromium.components.browser_ui.widget.highlight.ViewHighlighterTestUtils;
@@ -507,6 +511,63 @@ public class AppMenuTest {
                 "App menu should be allowed to show, only blocker2 registered",
                 AppMenuTestSupport.shouldShowAppMenu(mAppMenuCoordinator));
         showMenuAndAssert(mAppMenuHandler);
+    }
+
+    @Test
+    @MediumTest
+    public void testSetActionModelSupplier() throws TimeoutException {
+        AppMenuCoordinatorImpl.setHasPermanentMenuKeyForTesting(false);
+
+        PropertyModel model =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> {
+                            SettableNullableObservableSupplier<PropertyModel> supplier =
+                                    ObservableSuppliers.createNullable();
+                            PropertyModel m =
+                                    new PropertyModel.Builder(AppMenuActionProperties.ALL_KEYS)
+                                            .build();
+                            mAppMenuCoordinator.setActionModelSupplier(supplier);
+                            supplier.set(m);
+                            return m;
+                        });
+
+        Callback<View> onPressCallback = model.get(ActionProperties.ON_PRESS_CALLBACK);
+        Assert.assertNotNull("Callback should be set on the model", onPressCallback);
+
+        int currentCallCount = mMenuObserver.menuShownCallback.getCallCount();
+        View testView = mTestMenuButtonDelegate.getMenuButtonView();
+
+        ThreadUtils.runOnUiThreadBlocking(() -> onPressCallback.onResult(testView));
+
+        waitForMenuToShow(currentCallCount, mAppMenuHandler);
+    }
+
+    @Test
+    @MediumTest
+    public void testSetActionModelSupplier_SetupCallback() throws TimeoutException {
+        AppMenuCoordinatorImpl.setHasPermanentMenuKeyForTesting(false);
+
+        PropertyModel model =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> {
+                            SettableNullableObservableSupplier<PropertyModel> supplier =
+                                    ObservableSuppliers.createNullable();
+                            PropertyModel m =
+                                    new PropertyModel.Builder(AppMenuActionProperties.ALL_KEYS)
+                                            .build();
+                            mAppMenuCoordinator.setActionModelSupplier(supplier);
+                            supplier.set(m);
+                            return m;
+                        });
+
+        Callback<View> setupCallback = model.get(AppMenuActionProperties.APP_MENU_SETUP_CALLBACK);
+        Assert.assertNotNull("Setup callback should be set on the model", setupCallback);
+
+        View mockView = Mockito.mock(View.class);
+        ThreadUtils.runOnUiThreadBlocking(() -> setupCallback.onResult(mockView));
+
+        verify(mockView).setOnTouchListener(any(View.OnTouchListener.class));
+        verify(mockView).setAccessibilityDelegate(any(View.AccessibilityDelegate.class));
     }
 
     @Test

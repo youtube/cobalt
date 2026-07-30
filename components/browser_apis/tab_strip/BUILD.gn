@@ -27,6 +27,23 @@ mojom("mojom_experiment") {
   ]
 }
 
+mojom("mojom_ui_controller") {
+  sources = [ "tab_strip_ui_controller.mojom" ]
+
+  deps = [
+    ":mojom",
+    "//ui/gfx/geometry/mojom",
+  ]
+
+  webui_module_path = "/"
+  visibility = [
+    "//chrome/browser/ui/tabs/tab_strip_api/controllers",
+    "//chrome/browser/ui/tabs/tab_strip_api/tab_strip_model_impl:browser_tests",
+    "//chrome/browser/ui/webui_browser",
+    "//components/browser_apis/tab_strip/resources",
+  ]
+}
+
 mojom("mojom") {
   sources = [
     "tab_strip_api.mojom",

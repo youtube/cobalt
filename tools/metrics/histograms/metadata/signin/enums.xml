@@ -788,6 +788,7 @@ chromium-metrics-reviews@google.com.
   <int value="95" label="Multistep Filter"/>
   <int value="96" label="Indigo"/>
   <int value="97" label="Glic Invoke API"/>
+  <int value="98" label="Secure Gateway Service"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/signin/public/base/oauth_consumer_id.h:OAuthConsumerId) -->
@@ -819,6 +820,7 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="kInvalidTokens"/>
   <int value="5" label="kError"/>
   <int value="6" label="kRetryWithTokenBindingChallenge"/>
+  <int value="7" label="kNetworkError (not recorded)"/>
 </enum>
 
 <!-- LINT.ThenChange(//google_apis/gaia/oauth_multilogin_result.h:OAuthMultiloginResponseStatus) -->
@@ -1590,6 +1592,16 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//google_apis/gaia/token_binding_response_encryption_error.h:TokenBindingResponseEncryptionError) -->
+
+<!-- LINT.IfChange(WebSigninLoadingDialogStatus) -->
+
+<enum name="WebSigninLoadingDialogStatus">
+  <int value="0" label="Not shown"/>
+  <int value="1" label="Shown"/>
+  <int value="2" label="Dismissed by user"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/android/java/src/org/chromium/chrome/browser/signin/WebSigninRedirectCoordinator.java:DialogState) -->
 
 </enums>
 

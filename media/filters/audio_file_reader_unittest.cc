@@ -31,12 +31,17 @@ namespace media {
 class AudioFileReaderTest : public testing::TestWithParam<bool> {
  public:
   AudioFileReaderTest() {
+    std::vector<base::test::FeatureRef> features = {kDirectOpusAudioDecoding};
+
 #if BUILDFLAG(ENABLE_SYMPHONIA)
-    const std::vector<base::test::FeatureRef> features = {
+    const std::vector<base::test::FeatureRef> symphonia_features = {
         { kSymphoniaAudioDecoding,
           kSymphoniaMp3Decoding,
           kSymphoniaPcmDecoding,
           kSymphoniaVorbisDecoding }};
+    features.insert(features.end(), symphonia_features.begin(),
+                    symphonia_features.end());
+#endif
 
     if (GetParam()) {
       feature_list_.InitWithFeatures(features,
@@ -44,7 +49,6 @@ class AudioFileReaderTest : public testing::TestWithParam<bool> {
     } else {
       feature_list_.InitWithFeatures(/*enabled_features=*/{}, features);
     }
-#endif
   }
 
   AudioFileReaderTest(const AudioFileReaderTest&) = delete;
@@ -215,6 +219,11 @@ TEST_P(AudioFileReaderTest, WithVideo) {
 TEST_P(AudioFileReaderTest, FLAC) {
   RunTest("sfx.flac", "3.03,2.86,2.99,3.31,3.57,4.06,", 1, 44100,
           base::Microseconds(288414), 12720, 12719);
+}
+
+TEST_P(AudioFileReaderTest, FLAC_WithMask) {
+  RunTest("with_mask.flac", "9.04,3.45,11.95,4.69,10.32,2.10,", 4, 44100,
+          base::Microseconds(1875012), 82689, 82688);
 }
 
 TEST_P(AudioFileReaderTest, Vorbis) {

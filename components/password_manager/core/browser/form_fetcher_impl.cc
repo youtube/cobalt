@@ -30,6 +30,7 @@
 #include "components/password_manager/core/browser/password_manager_client.h"
 #include "components/password_manager/core/browser/password_manager_util.h"
 #include "components/password_manager/core/browser/password_store/interactions_stats.h"
+#include "components/password_manager/core/browser/password_store/password_form_converters.h"
 #include "components/password_manager/core/browser/password_store/password_store_interface.h"
 #include "components/password_manager/core/browser/password_store/password_store_util.h"
 #include "components/password_manager/core/browser/password_store/psl_matching_helper.h"
@@ -42,16 +43,6 @@ using password_manager_util::GetMatchType;
 namespace password_manager {
 
 namespace {
-
-std::vector<std::unique_ptr<PasswordForm>> ConvertToUniquePtr(
-    std::vector<PasswordForm> forms) {
-  std::vector<std::unique_ptr<PasswordForm>> result;
-  result.reserve(forms.size());
-  for (auto& form : forms) {
-    result.push_back(std::make_unique<PasswordForm>(std::move(form)));
-  }
-  return result;
-}
 
 // Given |non_federated| matches where all matches with the |scheme| are in the
 // beginning of the vector, returns a span with those matches.
@@ -128,7 +119,7 @@ void FormFetcherImpl::Fetch() {
       logger->LogMessage(Logger::STRING_NO_STORE);
     }
 
-    std::vector<std::unique_ptr<PasswordForm>> results;
+    std::vector<PasswordForm> results;
     AggregatePasswordStoreResults(std::move(results));
     return;
   }
@@ -307,7 +298,7 @@ void FormFetcherImpl::NotifyConsumer(FormFetcher::Consumer* consumer) {
 }
 
 void FormFetcherImpl::FindMatchesAndNotifyConsumers(
-    std::vector<std::unique_ptr<PasswordForm>> results) {
+    std::vector<PasswordForm> results) {
   DCHECK_EQ(State::WAITING, state_);
   SplitResults(std::move(results));
 
@@ -321,8 +312,7 @@ void FormFetcherImpl::FindMatchesAndNotifyConsumers(
   }
 }
 
-void FormFetcherImpl::SplitResults(
-    std::vector<std::unique_ptr<PasswordForm>> forms) {
+void FormFetcherImpl::SplitResults(std::vector<PasswordForm> forms) {
   is_blocklisted_in_profile_store_ = false;
   is_blocklisted_in_account_store_ = false;
   non_federated_.clear();
@@ -331,28 +321,28 @@ void FormFetcherImpl::SplitResults(
   std::vector<PasswordForm> non_federated_other_schemas;
 
   for (auto& form : forms) {
-    if (form->blocked_by_user) {
+    if (form.blocked_by_user) {
       // Ignore non-exact matches for blocklisted entries. PLS, affiliated and
       // grouped matches are ignored.
-      if (password_manager_util::GetMatchType(*form) ==
+      if (password_manager_util::GetMatchType(form) ==
               password_manager_util::GetLoginMatchType::kExact &&
-          form->scheme == form_digest_.scheme) {
-        if (form->IsUsingAccountStore()) {
+          form.scheme == form_digest_.scheme) {
+        if (form.IsUsingAccountStore()) {
           is_blocklisted_in_account_store_ = true;
         } else {
           is_blocklisted_in_profile_store_ = true;
         }
       }
     } else {
-      if (!form->password_issues.empty()) {
-        insecure_credentials_.push_back(*form);
+      if (!form.password_issues.empty()) {
+        insecure_credentials_.push_back(form);
       }
-      if (form->IsFederatedCredential()) {
-        federated_.push_back(*form);
-      } else if (form->scheme == form_digest_.scheme) {
-        non_federated_.push_back(*form);
+      if (form.IsFederatedCredential()) {
+        federated_.push_back(form);
+      } else if (form.scheme == form_digest_.scheme) {
+        non_federated_.push_back(form);
       } else {
-        non_federated_other_schemas.push_back(*form);
+        non_federated_other_schemas.push_back(form);
       }
     }
   }
@@ -361,20 +351,6 @@ void FormFetcherImpl::SplitResults(
       non_federated_.end(),
       std::make_move_iterator(non_federated_other_schemas.begin()),
       std::make_move_iterator(non_federated_other_schemas.end()));
-}
-
-void FormFetcherImpl::OnGetPasswordStoreResults(
-    std::vector<std::unique_ptr<PasswordForm>> results) {
-  // This class overrides OnGetPasswordStoreResultsFrom() (the version of this
-  // method that also receives the originating store), so the store-less version
-  // never gets called.
-  NOTREACHED();
-}
-
-void FormFetcherImpl::OnGetPasswordStoreResultsFrom(
-    PasswordStoreInterface* store,
-    std::vector<std::unique_ptr<PasswordForm>> results) {
-  NOTIMPLEMENTED();
 }
 
 void FormFetcherImpl::OnGetPasswordStoreResultsOrErrorFrom(
@@ -394,8 +370,8 @@ void FormFetcherImpl::OnGetPasswordStoreResultsOrErrorFrom(
     }
   }
 
-  std::vector<PasswordForm> results =
-      GetLoginsOrEmptyListOnFailure(std::move(results_or_error));
+  std::vector<PasswordForm> results = ToPasswordForms(
+      GetLoginsOrEmptyListOnFailure(std::move(results_or_error)));
   if (filter_grouped_credentials_) {
     std::erase_if(results, [this](const auto& form) {
       if (form.match_type == PasswordForm::MatchType::kGrouped) {
@@ -433,11 +409,11 @@ void FormFetcherImpl::OnGetPasswordStoreResultsOrErrorFrom(
     return;
   }
 
-  AggregatePasswordStoreResults(ConvertToUniquePtr(std::move(results)));
+  AggregatePasswordStoreResults(std::move(results));
 }
 
 void FormFetcherImpl::AggregatePasswordStoreResults(
-    std::vector<std::unique_ptr<PasswordForm>> results) {
+    std::vector<PasswordForm> results) {
   // Store the results.
   for (auto& form : results) {
     partial_results_.push_back(std::move(form));
@@ -470,8 +446,7 @@ void FormFetcherImpl::OnGetSiteStatistics(
   interactions_stats_ = std::move(stats);
 }
 
-void FormFetcherImpl::ProcessMigratedForms(
-    std::vector<std::unique_ptr<PasswordForm>> forms) {
+void FormFetcherImpl::ProcessMigratedForms(std::vector<PasswordForm> forms) {
   // The migration from HTTP to HTTPS (within the profile store) was finished.
   // Continue processing with the migrated results.
   AggregatePasswordStoreResults(std::move(forms));

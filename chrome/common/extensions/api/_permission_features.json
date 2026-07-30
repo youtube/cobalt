@@ -415,7 +415,9 @@
     "channel": "stable",
     "location": "component",
     "platforms": ["chromeos", "desktop_android", "linux", "mac", "win"],
-    "allowlist": ["56D158B3E10A304CB840CD4C28C7AF74A4B11433"],
+    "allowlist": [
+      "56D158B3E10A304CB840CD4C28C7AF74A4B11433"  // Glic Component Extension
+    ],
     "feature_flag": "ApiGlicPrivate"
   },
   "glicPrivate.invoke": {
@@ -424,7 +426,9 @@
     "location": "component",
     // "desktop_android" is not supported.
     "platforms": ["chromeos", "linux", "mac", "win"],
-    "allowlist": ["56D158B3E10A304CB840CD4C28C7AF74A4B11433"],
+    "allowlist": [
+      "56D158B3E10A304CB840CD4C28C7AF74A4B11433"  // Glic Component Extension
+    ],
     "feature_flag": "ApiGlicPrivate"
   },
   "favicon": {
@@ -488,6 +492,12 @@
   "idltest": {
     "channel": "trunk",
     "extension_types": ["extension"]
+  },
+  "indigoPrivate": {
+    "channel": "stable",
+    "extension_types": ["extension"],
+    "allowlist": ["632DD33AD22AD33ED4197BB6F191F3841C52A9D6"],
+    "location": "component"
   },
   "input": {
     "channel": "stable",
@@ -706,13 +716,6 @@
         "898FB5A39687D210766B8998BA4530B99C9E6586",  // http://crbug.com/40565964
         "82F30B65397BC3E4ADE627BBD857AB8A58210648",  // http://crbug.com/40565964
         "C74B2AF138F9EDECD04D0965AB36CA66C8290466"   // http://crbug.com/40625183
-      ]
-    },
-    {
-      "channel": "stable",
-      "extension_types": ["hosted_app"],
-      "allowlist": [
-        "B44D08FD98F1523ED5837D78D0A606EA9D6206E5"  // Web Store
       ]
     }, {
       "channel": "stable",
@@ -1146,13 +1149,6 @@
       "BD8781D757D830FC2E85470A1B6E8A718B7EE0D9",  // http://crbug.com/40546373
       "4AC2B6C63C6480D150DFDA13E4A5956EB1D0DDBB",  // http://crbug.com/40546373
       "81986D4F846CEDDDB962643FA501D1780DD441BB"   // http://crbug.com/40546373
-    ]
-  },
-  "webstorePrivate": {
-    "channel": "stable",
-    "extension_types": ["extension", "legacy_packaged_app", "hosted_app"],
-    "allowlist": [
-      "B44D08FD98F1523ED5837D78D0A606EA9D6206E5"  // Web Store
     ]
   },
   "wmDesksPrivate": {

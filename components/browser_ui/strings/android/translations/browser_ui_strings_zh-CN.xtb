@@ -37,6 +37,7 @@
 <translation id="1384959399684842514">已暂停下载</translation>
 <translation id="1396327438254055134">允许网站使用 V8 优化工具。</translation>
 <translation id="1409338233051621926">点按“应用”，然后点按“默认应用”</translation>
+<translation id="1414315029670184034">不允许网站使用您的摄像头</translation>
 <translation id="1415402041810619267">网址被截断了</translation>
 <translation id="1415855080660575082">允许 Chrome 与您的设备分享您近期打开的标签页，以便在设备的应用列表和搜索结果中查看这些标签页。您可以在 Chrome 设置中开启或关闭此功能。</translation>
 <translation id="1420688843103859429">在触控板上用两根手指滑动，即可向后/向前导航</translation>
@@ -80,7 +81,6 @@
 <translation id="1781533683087883868">关闭阅读模式下的链接</translation>
 <translation id="1785415724048343560">建议勾选此选项以获得最佳体验</translation>
 <translation id="1796588414813960292">所有需要使用声音的功能都将无法正常运行</translation>
-<translation id="1799920918471566157">Chrome 提示</translation>
 <translation id="1816835383954230954">启用此设置后，Chrome 的运行速度会更快，并且使用 JavaScript 的功能能按预期运行。关闭此设置会降低性能，但提高 V8 防范攻击的能力。</translation>
 <translation id="1818308510395330587">若要允许 <ph name="APP_NAME" /> 使用 AR 功能，您还需在 <ph name="BEGIN_LINK" />Android 设置<ph name="END_LINK" />中开启摄像头。</translation>
 <translation id="1822318649925991542">调整位置，获享个性化的浏览体验</translation>
@@ -99,6 +99,7 @@
 <translation id="1985247341569771101">开启此设置后，网站可以使用设备的移动传感器。关闭此设置后，网站无法使用移动传感器。</translation>
 <translation id="1985716030964443178">这会将列表中所有网站的缩放级别重置为默认值</translation>
 <translation id="1989112275319619282">浏览</translation>
+<translation id="1991370806334788445">请尝试允许使用第三方 Cookie。虽然这会降低浏览保护力度，但更有助于确保网站功能按预期正常运行。</translation>
 <translation id="1994173015038366702">网站网址</translation>
 <translation id="1994558116414798016">字体：Lexend</translation>
 <translation id="2004697686368036666">某些网站上的功能可能无法正常运行</translation>
@@ -164,6 +165,7 @@
 <translation id="257931822824936280">已展开 - 点击此处即可收起。</translation>
 <translation id="2586657967955657006">剪贴板</translation>
 <translation id="2588271083332682494">使用标签页分组整理标签页</translation>
+<translation id="2592917252160773942">网站可以请求使用摄像头</translation>
 <translation id="2597457036804169544">不对网站应用深色主题</translation>
 <translation id="2606760465469169465">自动验证</translation>
 <translation id="2621115761605608342">允许特定网站运行 JavaScript。</translation>
@@ -360,6 +362,7 @@
 <translation id="4635969503923889910">不允许网站使用 NFC 设备</translation>
 <translation id="4644713492825682049">删除并重置</translation>
 <translation id="4645575059429386691">由您父母管理</translation>
+<translation id="4651224148644053314">更多颜色和选项</translation>
 <translation id="4652266463001779298">不允许</translation>
 <translation id="4655846733459137112">点按“是”，即可在下次登录时轻松使用此密码</translation>
 <translation id="4663373278480897665">已允许使用摄像头</translation>
@@ -742,7 +745,6 @@
 <translation id="8676374126336081632">清除输入的内容</translation>
 <translation id="8681886425883659911">在已知会展示侵扰性或误导性广告的网站上屏蔽广告</translation>
 <translation id="868929229000858085">搜索联系人</translation>
-<translation id="8707904142362025782">网站可以请求使用摄像头</translation>
 <translation id="8712637175834984815">知道了</translation>
 <translation id="8715862698998036666">从顶部拖动并从左侧或右侧边缘滑动即可退出全屏模式。</translation>
 <translation id="8716050156658570300">网站可以请求使用移动传感器和光传感器</translation>

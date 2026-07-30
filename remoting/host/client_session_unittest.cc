@@ -46,7 +46,6 @@
 #include "remoting/protocol/message_pipe.h"
 #include "remoting/protocol/protocol_mock_objects.h"
 #include "remoting/protocol/test_event_matchers.h"
-#include "remoting/signaling/session_config.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/webrtc/modules/desktop_capture/desktop_capture_types.h"
@@ -897,60 +896,5 @@ TEST_F(ClientSessionTest, ActiveDisplayMessageSent) {
   ASSERT_TRUE(monitor);
   monitor->SetActiveDisplay(static_cast<webrtc::ScreenId>(kDisplay1Id));
 }
-
-// Display selection behaves quite differently if capturing of the full desktop
-// is enabled or not. To simplify things these tests only handle the ChromeOS
-// situation, where full desktop capturing is disabled.
-#if BUILDFLAG(IS_CHROMEOS)
-TEST_F(ClientSessionTest, ShouldSelectFirstDesktopByDefault) {
-  CreateClientSession();
-  ConnectClientSession();
-
-  SetupMultiDisplay();
-
-  EXPECT_THAT(GetSelectedSourceDisplayId(), Eq(kDisplay1Id));
-}
-
-TEST_F(ClientSessionTest,
-       ShouldChangeSelectedSourceDisplayWhenSwitchingDisplay) {
-  CreateClientSession();
-  ConnectClientSession();
-  SetupMultiDisplay();
-
-  MultiMon_SelectSecondDisplay();
-  EXPECT_THAT(GetSelectedSourceDisplayId(), Eq(kDisplay2Id));
-
-  MultiMon_SelectFirstDisplay();
-  EXPECT_THAT(GetSelectedSourceDisplayId(), Eq(kDisplay1Id));
-}
-
-TEST_F(ClientSessionTest,
-       ShouldFallBackToPrimaryDisplayWhenSwitchingToInvalidDisplay) {
-  CreateClientSession();
-  ConnectClientSession();
-  SetupMultiDisplay();
-
-  MultiMon_SelectDisplay("Not an integer");
-  EXPECT_THAT(GetSelectedSourceDisplayId(), Eq(kDisplay1Id));
-
-  MultiMon_SelectDisplay("123456");  // There is no display with this id.
-  EXPECT_THAT(GetSelectedSourceDisplayId(), Eq(kDisplay1Id));
-
-  // Full desktop capturing is not supported on ChromeOS.
-  MultiMon_SelectDisplay("all");
-  EXPECT_THAT(GetSelectedSourceDisplayId(), Eq(kDisplay1Id));
-}
-
-TEST_F(ClientSessionTest,
-       ShouldFallBackToPrimaryDisplayWhenSelectedDisplayIsDisconnected) {
-  CreateClientSession();
-  ConnectClientSession();
-  SetupMultiDisplay();
-  MultiMon_SelectSecondDisplay();
-
-  SetupSingleDisplay();
-  EXPECT_THAT(GetSelectedSourceDisplayId(), Eq(kDisplay1Id));
-}
-#endif  // if BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace remoting

@@ -556,7 +556,9 @@ DocumentProvider::DocumentProvider(AutocompleteProviderClient* client,
                                    AutocompleteProviderListener* listener)
     : AutocompleteProvider(AutocompleteProvider::TYPE_DOCUMENT),
       client_(client),
-      debouncer_(std::make_unique<AutocompleteProviderDebouncer>(true, 300)),
+      debouncer_(std::make_unique<AutocompleteProviderDebouncer>(
+          true,
+          omnibox_feature_configs::DocumentProvider::Get().debounce_delay_ms)),
       matches_cache_(20),
       task_runner_(base::SequencedTaskRunner::GetCurrentDefault()) {
   AddListener(listener);
@@ -590,7 +592,9 @@ void DocumentProvider::OnURLLoadComplete(
   // expected to be semi-persistent, it does not make sense to continue to issue
   // requests during the current session after receiving one.
   if (response_code == 400 || response_code == 401 || response_code == 403 ||
-      response_code == 499) {
+      response_code == 499 ||
+      (response_code == 429 &&
+       omnibox_feature_configs::DocumentProvider::Get().backoff_on_429)) {
     bool scope_backoff_to_profile =
         omnibox_feature_configs::DocumentProvider::Get()
             .scope_backoff_to_profile;

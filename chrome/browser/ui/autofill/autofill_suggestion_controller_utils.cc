@@ -59,6 +59,7 @@ bool IsFooterSuggestionType(SuggestionType type) {
     case SuggestionType::kViewPasswordDetails:
     case SuggestionType::kPendingStateSignin:
     case SuggestionType::kBnplFootnote:
+    case SuggestionType::kAutocompleteAtMemoryButton:
       return true;
     case SuggestionType::kAccountStoragePasswordEntry:
     case SuggestionType::kAddressEntry:
@@ -98,6 +99,8 @@ bool IsFooterSuggestionType(SuggestionType type) {
     case SuggestionType::kBnplEntry:
     case SuggestionType::kOneTimePasswordEntry:
     case SuggestionType::kLoadingThrobber:
+    case SuggestionType::kAtMemoryInactivityNudge:
+    case SuggestionType::kOpenGemini:
       return false;
     case SuggestionType::kWebauthnSignInWithAnotherDevice:
       // The hybrid item is reintroduced as a footer.

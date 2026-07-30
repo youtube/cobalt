@@ -2915,6 +2915,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_CONTEXTMENU_SEARCH_IMAGE_WITH_GOOGLE_LENS" desc="Context sensitive menu item for deep linking into google lens. [CHAR_LIMIT=30]">
         Search image with Google Lens <ph name="BEGIN_NEW">&lt;new&gt;</ph>New<ph name="END_NEW">&lt;/new&gt;</ph>
       </message>
+      <message name="IDS_LENS_OVERLAY_APP_MENU" desc="Text for the Lens overlay item in the app menu. [CHAR_LIMIT=30]">
+        Search with Google Lens
+      </message>
       <message name="IDS_CONTEXTMENU_TRANSLATE_IMAGE_WITH_GOOGLE_LENS" desc="Context sensitive chip for deep linking into google lens for translate results. [CHAR_LIMIT=30]">
           Translate image with Google Lens <ph name="BEGIN_NEW">&lt;new&gt;</ph>New<ph name="END_NEW">&lt;/new&gt;</ph>
       </message>
@@ -5184,9 +5187,6 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_ACCESSIBILITY_OMNIBOX_ADD_TABS" desc="Accessibility announcement when the 'Tabs' option in the Omnibox 'Add context' popup is highlighted.">
         Attach tabs
       </message>
-      <message name="IDS_ACCESSIBILITY_OMNIBOX_CREATE_IMAGE" desc="Accessibility announcement when the 'Create Image' option in the Omnibox 'Add context' popup is highlighted.">
-        Create image
-      </message>
 
       <message name="IDS_ACCESSIBILITY_SHARE_SELECTED_ITEMS" desc="Content description for the button to share selected items. [ICU Syntax]">
         {NUM_SELECTED, plural,
@@ -5915,6 +5915,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_IPH_TRANSLATE_MESSAGE_DISMISSED_ACCESSIBILITY_TEXT" desc="The in-product-help message spoken by screen readers after the prompt for the user to translate the current page has disappeared, in order to show the user how to bring the translate prompt back.">
         Translate pages from the More Options button
       </message>
+      <message name="IDS_IPH_SITE_CONTROLS_TEXT" desc="The in-product-help message to notify the user that Site Controls have moved to the app menu.">
+        View site information and permissions
+      </message>
       <message name="IDS_IPH_SHARED_HIGHLIGHTING_BUILDER" desc="The in-product-help message to notify the user that the share action can preemptively share a link-to-text.">
         New: share a link that scrolls to this text
       </message>
@@ -5924,8 +5927,11 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_IPH_TAB_TEARING_XR" desc="The in-product-help message to notify the user about the new tab switcher on an XR device.">
         Pinch, hold, and drag to open tabs in a new window
       </message>
-      <message name="IDS_IPH_GESTURE_USER_EDUCATION_TEXT_BUBBLE" desc="The in-product-help message to notify the user about edge swipe for navigation.">
-        Swipe from the edge to go back
+      <message name="IDS_IPH_GESTURE_USER_EDUCATION_TEXT_BUBBLE_LEFT" desc="The in-product-help message to notify the user about edge swipe for navigation.">
+        Swipe from left edge to go back
+      </message>
+      <message name="IDS_IPH_GESTURE_USER_EDUCATION_TEXT_BUBBLE_RIGHT" desc="The in-product-help message to notify the user about edge swipe for navigation.">
+        Swipe from right edge to go back
       </message>
       <message name="IDS_IPH_GESTURE_USER_EDUCATION_TAP_TO_DISMISS" desc="The in-product-help message to notify users how to dismiss.">
         Tap to dismiss

@@ -5,7 +5,9 @@
 package org.chromium.components.browser_ui.bottomsheet;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.robolectric.Robolectric.buildActivity;
 
@@ -18,20 +20,30 @@ import android.view.ViewGroup;
 import android.view.ViewGroup.MarginLayoutParams;
 import android.widget.FrameLayout;
 
+import androidx.core.graphics.Insets;
+import androidx.core.view.WindowInsetsCompat;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheet.ShadowLayerView;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent.HeightMode;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetController.SheetState;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
+import org.chromium.ui.KeyboardVisibilityDelegate;
+import org.chromium.ui.KeyboardVisibilityDelegate.KeyboardVisibilityListener;
 import org.chromium.ui.insets.InsetObserver;
 import org.chromium.ui.util.ColorUtils;
 
@@ -50,7 +62,16 @@ public class BottomSheetUnitTest {
     @Mock private BottomSheetContent mSheetContent;
     @Mock private TouchRestrictingFrameLayout mToolbarHolder;
     @Mock private InsetObserver mInsetObserver;
+    @Mock private KeyboardVisibilityDelegate mKeyboardDelegate;
 
+    @Captor
+    private ArgumentCaptor<InsetObserver.WindowInsetsAnimationListener>
+            mInsetsAnimationListenerCaptor;
+
+    @Captor private ArgumentCaptor<KeyboardVisibilityListener> mKeyboardListenerCaptor;
+    @Captor private ArgumentCaptor<InsetObserver.WindowInsetObserver> mInsetObserverCaptor;
+
+    private SettableNonNullObservableSupplier<Integer> mKeyboardInsetSupplier;
     private BottomSheet mBottomSheet;
     private ViewGroup mSheetContainer;
     private Activity mActivity;
@@ -82,9 +103,12 @@ public class BottomSheetUnitTest {
         mBottomSheet.setBottomSheetContentContainerForTesting(
                 mBottomSheet.findViewById(R.id.bottom_sheet_content));
 
+        mKeyboardInsetSupplier = ObservableSuppliers.createNonNull(0);
+        doReturn(mKeyboardInsetSupplier).when(mInsetObserver).getSupplierForKeyboardInset();
+
         mBottomSheet.init(
                 mActivity.getWindow(),
-                /* keyboardDelegate= */ null,
+                /* keyboardDelegate= */ mKeyboardDelegate,
                 /* alwaysFullWidth= */ false,
                 /* edgeToEdgeBottomInsetSupplier= */ () -> 0,
                 /* appHeaderHeight= */ 0,
@@ -391,5 +415,158 @@ public class BottomSheetUnitTest {
         int defaultSize =
                 mActivity.getResources().getDimensionPixelSize(R.dimen.bottom_sheet_shadow_length);
         verify(mShadowLayerView).setShadowLength(defaultSize);
+    }
+
+    @Test
+    public void testWindowInsetsAnimationListener() {
+        verify(mInsetObserver)
+                .addWindowInsetsAnimationListener(mInsetsAnimationListenerCaptor.capture());
+        InsetObserver.WindowInsetsAnimationListener listener =
+                mInsetsAnimationListenerCaptor.getValue();
+
+        BottomSheet.setSmallScreenForTesting(false);
+        doReturn((float) HeightMode.RESIZE_CONTENT).when(mSheetContent).getFullHeightRatio();
+        doReturn(0.5f).when(mSheetContent).getHalfHeightRatio();
+        doReturn(HeightMode.DEFAULT).when(mSheetContent).getPeekHeight();
+        doReturn(new View(mActivity)).when(mSheetContent).getContentView();
+        mBottomSheet.showContent(mSheetContent);
+
+        mActivity.getWindow().getDecorView().layout(0, 0, 1080, 200);
+
+        View contentContainer = mBottomSheet.findViewById(R.id.bottom_sheet_content);
+
+        WindowInsetsCompat insets = mock(WindowInsetsCompat.class);
+        doReturn(insets).when(mInsetObserver).getLastRawWindowInsets();
+
+        // Full viewport.
+        doReturn(Insets.of(0, 0, 0, 0)).when(insets).getInsets(anyInt());
+
+        mBottomSheet.setSheetOffsetFromBottom(150.0f, BottomSheetController.StateChangeReason.NONE);
+        assertEquals(150, contentContainer.getLayoutParams().height);
+
+        // Simulate keyboard showing up, shrinking viewport to 100.
+        doReturn(Insets.of(0, 0, 0, 100)).when(insets).getInsets(anyInt());
+
+        listener.onStart(null, null);
+        assertEquals(100, contentContainer.getLayoutParams().height);
+
+        // Viewport shrinks to 50.
+        doReturn(Insets.of(0, 0, 0, 150)).when(insets).getInsets(anyInt());
+
+        listener.onProgress(null, null);
+        assertEquals(50, contentContainer.getLayoutParams().height);
+
+        // Viewport shrinks to 20.
+        doReturn(Insets.of(0, 0, 0, 180)).when(insets).getInsets(anyInt());
+
+        listener.onEnd(null);
+        assertEquals(20, contentContainer.getLayoutParams().height);
+    }
+
+    @Test
+    public void testRevertStateOnKeyboardHiding() {
+        BottomSheet.setSmallScreenForTesting(false);
+        doReturn((float) HeightMode.RESIZE_CONTENT).when(mSheetContent).getFullHeightRatio();
+        doReturn(0.5f).when(mSheetContent).getHalfHeightRatio();
+        doReturn(HeightMode.DEFAULT).when(mSheetContent).getPeekHeight();
+        doReturn(android.R.string.ok).when(mSheetContent).getSheetHalfHeightAccessibilityStringId();
+        doReturn(android.R.string.ok).when(mSheetContent).getSheetFullHeightAccessibilityStringId();
+
+        mBottomSheet.showContent(mSheetContent);
+        mBottomSheet.setSheetState(SheetState.HALF, false);
+
+        // Simulate keyboard showing
+        verify(mInsetObserver).addObserver(mInsetObserverCaptor.capture());
+        InsetObserver.WindowInsetObserver observer = mInsetObserverCaptor.getValue();
+
+        mKeyboardInsetSupplier.set(100);
+        observer.onInsetChanged();
+
+        // Simulate layout change while keyboard is showing (Pass 1)
+        mSheetContainer.layout(0, 0, SHEET_CONTAINER_WIDTH, SHEET_CONTAINER_HEIGHT - 10);
+
+        // Simulate keyboard hiding.
+        mKeyboardInsetSupplier.set(0);
+        observer.onInsetChanged();
+        mSheetContainer.layout(0, 0, SHEET_CONTAINER_WIDTH, SHEET_CONTAINER_HEIGHT);
+
+        // Verify that state is restored to HALF.
+        assertEquals(SheetState.HALF, mBottomSheet.getSheetState());
+    }
+
+    @Test
+    public void testCancelRevertStateDueToHeightChange() {
+        BottomSheet.setSmallScreenForTesting(false);
+        doReturn((float) HeightMode.RESIZE_CONTENT).when(mSheetContent).getFullHeightRatio();
+        doReturn(0.5f).when(mSheetContent).getHalfHeightRatio();
+        doReturn(HeightMode.DEFAULT).when(mSheetContent).getPeekHeight();
+        doReturn(android.R.string.ok).when(mSheetContent).getSheetHalfHeightAccessibilityStringId();
+        doReturn(android.R.string.ok).when(mSheetContent).getSheetFullHeightAccessibilityStringId();
+
+        mBottomSheet.showContent(mSheetContent);
+        mBottomSheet.setSheetState(SheetState.HALF, false);
+
+        // Set initial decor view size and trigger layout to set mPreviousScreenHeight
+        View decorView = mActivity.getWindow().getDecorView();
+        decorView.layout(0, 0, 1080, 1920);
+        mSheetContainer.layout(0, 0, SHEET_CONTAINER_WIDTH, SHEET_CONTAINER_HEIGHT);
+
+        // Simulate keyboard showing
+        verify(mInsetObserver).addObserver(mInsetObserverCaptor.capture());
+        InsetObserver.WindowInsetObserver observer = mInsetObserverCaptor.getValue();
+
+        mKeyboardInsetSupplier.set(100);
+        observer.onInsetChanged();
+
+        // Simulate layout change while keyboard is showing
+        mSheetContainer.layout(0, 0, SHEET_CONTAINER_WIDTH, SHEET_CONTAINER_HEIGHT - 10);
+
+        // Change state while keyboard is showing
+        mBottomSheet.setSheetState(SheetState.FULL, false);
+
+        // Simulate screen height change
+        decorView.layout(0, 0, 1080, 1820);
+
+        // Simulate keyboard hiding.
+        mKeyboardInsetSupplier.set(0);
+        observer.onInsetChanged();
+
+        // Trigger layout change on container
+        mSheetContainer.layout(0, 0, SHEET_CONTAINER_WIDTH, SHEET_CONTAINER_HEIGHT);
+
+        // Verify that state is NOT restored to HALF, but stays FULL.
+        assertEquals(SheetState.FULL, mBottomSheet.getSheetState());
+    }
+
+    @Test
+    public void testRecreateStateOnKeyboardShowingWithHeightChange() {
+        BottomSheet.setSmallScreenForTesting(false);
+        doReturn((float) HeightMode.RESIZE_CONTENT).when(mSheetContent).getFullHeightRatio();
+        doReturn(0.5f).when(mSheetContent).getHalfHeightRatio();
+        doReturn(HeightMode.DEFAULT).when(mSheetContent).getPeekHeight();
+        doReturn(android.R.string.ok).when(mSheetContent).getSheetHalfHeightAccessibilityStringId();
+        doReturn(android.R.string.ok).when(mSheetContent).getSheetFullHeightAccessibilityStringId();
+
+        mBottomSheet.showContent(mSheetContent);
+        mBottomSheet.setSheetState(SheetState.HALF, false);
+
+        View decorView = mActivity.getWindow().getDecorView();
+        decorView.layout(0, 0, 1080, 1920);
+        mSheetContainer.layout(0, 0, SHEET_CONTAINER_WIDTH, SHEET_CONTAINER_HEIGHT);
+
+        verify(mInsetObserver).addObserver(mInsetObserverCaptor.capture());
+        InsetObserver.WindowInsetObserver observer = mInsetObserverCaptor.getValue();
+        mKeyboardInsetSupplier.set(100);
+        observer.onInsetChanged();
+
+        // Simulate layout change while keyboard is showing.
+        mSheetContainer.layout(0, 0, SHEET_CONTAINER_WIDTH, SHEET_CONTAINER_HEIGHT - 10);
+
+        // Simulate screen height change.
+        decorView.layout(0, 0, 1080, 1820);
+        mSheetContainer.layout(0, 0, SHEET_CONTAINER_WIDTH, SHEET_CONTAINER_HEIGHT);
+
+        mKeyboardInsetSupplier.set(150);
+        observer.onInsetChanged();
     }
 }

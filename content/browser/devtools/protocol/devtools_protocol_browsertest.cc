@@ -6,17 +6,20 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <string_view>
 #include <utility>
 
 #include "base/base64.h"
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/json/json_reader.h"
+#include "base/json/json_writer.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/safe_sprintf.h"
@@ -34,6 +37,8 @@
 #include "components/download/public/common/download_file_impl.h"
 #include "components/download/public/common/download_task_runner.h"
 #include "components/services/storage/shared_storage/shared_storage_manager.h"
+#include "content/browser/devtools/devtools_agent_host_impl.h"
+#include "content/browser/devtools/devtools_session.h"
 #include "content/browser/devtools/protocol/browser_handler.h"
 #include "content/browser/devtools/protocol/devtools_download_manager_delegate.h"
 #include "content/browser/devtools/protocol/devtools_protocol_test_support.h"
@@ -43,6 +48,7 @@
 #include "content/browser/host_zoom_map_impl.h"
 #include "content/browser/preloading/prerender/prerender_final_status.h"
 #include "content/browser/renderer_host/navigator.h"
+#include "content/browser/renderer_host/render_process_host_impl.h"
 #include "content/browser/renderer_host/render_widget_host_view_base.h"
 #include "content/browser/screen_orientation/screen_orientation_provider.h"
 #include "content/browser/service_worker/embedded_worker_test_helper.h"
@@ -54,6 +60,7 @@
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/ssl_status.h"
@@ -93,6 +100,9 @@
 #include "third_party/blink/public/common/page/page_zoom.h"
 #include "third_party/boringssl/src/include/openssl/nid.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
+#include "third_party/inspector_protocol/crdtp/cbor.h"
+#include "third_party/inspector_protocol/crdtp/dispatch.h"
+#include "third_party/inspector_protocol/crdtp/json.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "third_party/zlib/google/compression_utils.h"
@@ -1554,6 +1564,188 @@ IN_PROC_BROWSER_TEST_F(SitePerProcessDevToolsProtocolTest,
     params = WaitForNotification("Target.targetCrashed", true);
   }
   EXPECT_EQ(frame_target_id, *params.FindString("targetId"));
+}
+
+class FlattenedDevToolsProtocolTest
+    : public SitePerProcessDevToolsProtocolTest {
+ public:
+  void DispatchProtocolNotification(DevToolsAgentHostImpl* host,
+                                    const std::string& session_id,
+                                    const std::string& message_json,
+                                    bool expect_crash,
+                                    bool use_cbor = false) {
+    DevToolsSession* session = host->GetSessionByIdForTesting(session_id);
+
+    std::unique_ptr<RenderProcessHostWatcher> watcher;
+    if (expect_crash) {
+      watcher = std::make_unique<RenderProcessHostWatcher>(
+          session->GetAgentHost()->GetProcessHost(),
+          RenderProcessHostWatcher::WATCH_FOR_PROCESS_EXIT);
+    }
+
+    blink::mojom::DevToolsMessagePtr message =
+        blink::mojom::DevToolsMessage::New();
+    if (use_cbor) {
+      std::vector<uint8_t> cbor;
+      crdtp::Status status =
+          crdtp::json::ConvertJSONToCBOR(crdtp::SpanFrom(message_json), &cbor);
+      CHECK(status.ok()) << status.ToASCIIString();
+      message->data = mojo_base::BigBuffer(cbor);
+    } else {
+      message->data = mojo_base::BigBuffer(base::as_byte_span(message_json));
+    }
+
+    session->DispatchProtocolNotification(std::move(message), nullptr);
+
+    if (expect_crash) {
+      watcher->Wait();
+      EXPECT_FALSE(watcher->did_exit_normally());
+    }
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(FlattenedDevToolsProtocolTest,
+                       SessionIdValidationSucceeds) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL test_url =
+      embedded_test_server()->GetURL("/devtools/page-with-oopif.html");
+  NavigateToURLBlockUntilNavigationsComplete(shell(), test_url, 1);
+  Attach();
+
+  // Root session of the client.
+  DevToolsAgentHostImpl* host_impl =
+      static_cast<DevToolsAgentHostImpl*>(agent_host_.get());
+
+  // Enable auto-attach to attach OOPIF subframe.
+  base::DictValue command_params;
+  command_params.Set("autoAttach", true);
+  command_params.Set("waitForDebuggerOnStart", false);
+  command_params.Set("flatten", true);
+  SendCommandSync("Target.setAutoAttach", std::move(command_params));
+
+  // Get session id of subframe.
+  auto notification = WaitForNotification("Target.attachedToTarget", true);
+  const std::string* session_id_ptr = notification.FindString("sessionId");
+  ASSERT_TRUE(session_id_ptr);
+  std::string session_id = *session_id_ptr;
+
+  // Simulate a message from the renderer that HAS the correct sessionId.
+  std::string message_json =
+      "{\"method\":\"Test.test\",\"params\":{},\"sessionId\":\"" + session_id +
+      "\"}";
+
+  ClearNotifications();
+  DispatchProtocolNotification(host_impl, session_id, message_json, false);
+
+  WaitForNotification("Test.test", true);
+}
+
+IN_PROC_BROWSER_TEST_F(FlattenedDevToolsProtocolTest,
+                       SessionIdValidationFails) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL test_url =
+      embedded_test_server()->GetURL("/devtools/page-with-oopif.html");
+  NavigateToURLBlockUntilNavigationsComplete(shell(), test_url, 1);
+  Attach();
+
+  // Root session, auto-attach OOPIF.
+  base::DictValue command_params;
+  command_params.Set("autoAttach", true);
+  command_params.Set("waitForDebuggerOnStart", false);
+  command_params.Set("flatten", true);
+  SendCommandSync("Target.setAutoAttach", std::move(command_params));
+
+  auto notification = WaitForNotification("Target.attachedToTarget", true);
+  const std::string* session_id_ptr = notification.FindString("sessionId");
+  ASSERT_TRUE(session_id_ptr);
+  std::string session_id = *session_id_ptr;
+
+  DevToolsAgentHostImpl* host_impl =
+      static_cast<DevToolsAgentHostImpl*>(agent_host_.get());
+
+  // Simulate a message from the renderer that MISSES the sessionId.
+  std::string message_json = "{\"method\":\"Test.test\",\"params\":{}}";
+
+  DispatchProtocolNotification(host_impl, session_id, message_json, true);
+}
+
+IN_PROC_BROWSER_TEST_F(FlattenedDevToolsProtocolTest,
+                       SessionIdValidationFailsWrongId) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL test_url =
+      embedded_test_server()->GetURL("/devtools/page-with-oopif.html");
+  NavigateToURLBlockUntilNavigationsComplete(shell(), test_url, 1);
+  Attach();
+
+  // Root session, auto-attach OOPIF.
+  base::DictValue command_params;
+  command_params.Set("autoAttach", true);
+  command_params.Set("waitForDebuggerOnStart", false);
+  command_params.Set("flatten", true);
+  SendCommandSync("Target.setAutoAttach", std::move(command_params));
+
+  auto notification = WaitForNotification("Target.attachedToTarget", true);
+  const std::string* session_id_ptr = notification.FindString("sessionId");
+  ASSERT_TRUE(session_id_ptr);
+  std::string session_id = *session_id_ptr;
+
+  DevToolsAgentHostImpl* host_impl =
+      static_cast<DevToolsAgentHostImpl*>(agent_host_.get());
+
+  // Simulate a message from the renderer that has a WRONG sessionId.
+  std::string message_json =
+      "{\"method\":\"Test.test\",\"params\":{},\"sessionId\":\"wrong_id\"}";
+
+  DispatchProtocolNotification(host_impl, session_id, message_json, true);
+}
+
+IN_PROC_BROWSER_TEST_F(FlattenedDevToolsProtocolTest,
+                       RootSessionValidationFails) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL test_url =
+      embedded_test_server()->GetURL("/devtools/page-with-oopif.html");
+  NavigateToURLBlockUntilNavigationsComplete(shell(), test_url, 1);
+  Attach();
+
+  DevToolsAgentHostImpl* host_impl =
+      static_cast<DevToolsAgentHostImpl*>(agent_host_.get());
+
+  // Root session message with a sessionId should fail.
+  std::string message_json =
+      "{\"method\":\"Test.test\",\"params\":{},\"sessionId\":\"12345\"}";
+
+  DispatchProtocolNotification(host_impl, "", message_json, true);
+}
+
+IN_PROC_BROWSER_TEST_F(FlattenedDevToolsProtocolTest,
+                       SessionIdValidationFailsCBOR) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL test_url =
+      embedded_test_server()->GetURL("/devtools/page-with-oopif.html");
+  NavigateToURLBlockUntilNavigationsComplete(shell(), test_url, 1);
+  Attach();
+
+  // Root session, auto-attach OOPIF.
+  base::DictValue command_params;
+  command_params.Set("autoAttach", true);
+  command_params.Set("waitForDebuggerOnStart", false);
+  command_params.Set("flatten", true);
+  SendCommandSync("Target.setAutoAttach", std::move(command_params));
+
+  auto notification = WaitForNotification("Target.attachedToTarget", true);
+  const std::string* session_id_ptr = notification.FindString("sessionId");
+  ASSERT_TRUE(session_id_ptr);
+  std::string session_id = *session_id_ptr;
+
+  DevToolsAgentHostImpl* host_impl =
+      static_cast<DevToolsAgentHostImpl*>(agent_host_.get());
+
+  // Simulate a message from the renderer that has a WRONG sessionId in CBOR.
+  std::string message_json =
+      "{\"method\":\"Test.test\",\"params\":{},\"sessionId\":\"wrong_id\"}";
+
+  DispatchProtocolNotification(host_impl, session_id, message_json, true,
+                               /*use_cbor=*/true);
 }
 
 // TODO(crbug.com/440535492): Flaky on Win dbg. Re-enable this test.
@@ -3884,6 +4076,88 @@ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, TracingWithPerfettoConfig) {
   EXPECT_TRUE(SendCommandSync("Tracing.end"));
 
   WaitForNotification("Tracing.tracingComplete", true);
+}
+
+IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, TracingPerfettoSiteIsolation) {
+  content::SetupCrossSiteRedirector(embedded_test_server());
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  GURL url_a = embedded_test_server()->GetURL("a.com", "/title1.html");
+  GURL url_b = embedded_test_server()->GetURL("b.com", "/title1.html");
+
+  NavigateToURLBlockUntilNavigationsComplete(shell(), url_a, 1);
+  Shell* shell_b = CreateBrowser();
+  NavigateToURLBlockUntilNavigationsComplete(shell_b, url_b, 1);
+
+  Attach();
+
+  base::trace_event::TraceConfig chrome_config("blink.user_timing", "");
+  perfetto::TraceConfig perfetto_config =
+      tracing::GetDefaultPerfettoConfig(chrome_config,
+                                        /*privacy_filtering_enabled=*/false,
+                                        /*convert_to_legacy_json=*/true);
+
+  std::optional<perfetto::DataSourceConfig> track_event_config;
+  for (auto& ds : *perfetto_config.mutable_data_sources()) {
+    if (ds.config().name() == "track_event") {
+      ds.add_producer_name_regex_filter(".*");
+      track_event_config = ds.config();
+    }
+  }
+
+  if (track_event_config) {
+    auto* ds2 = perfetto_config.add_data_sources();
+    *ds2->mutable_config() = *track_event_config;
+    ds2->add_producer_name_regex_filter(".*");
+  }
+
+  auto* ds3 = perfetto_config.add_data_sources();
+  ds3->mutable_config()->set_name("org.chromium.sampler_profiler");
+
+  std::string perfetto_config_encoded =
+      base::Base64Encode(perfetto_config.SerializeAsString());
+
+  base::DictValue params;
+  params.Set("perfettoConfig", perfetto_config_encoded);
+  params.Set("transferMode", "ReturnAsStream");
+
+  EXPECT_TRUE(SendCommandSync("Tracing.start", std::move(params)));
+
+  EXPECT_TRUE(content::ExecJs(shell(), "performance.mark('mark_a');"));
+  EXPECT_TRUE(content::ExecJs(shell_b, "performance.mark('mark_b');"));
+
+  EXPECT_TRUE(SendCommandSync("Tracing.end"));
+
+  base::DictValue complete_notification =
+      WaitForNotification("Tracing.tracingComplete", true);
+  const std::string* stream_handle_ptr =
+      complete_notification.FindString("stream");
+  ASSERT_TRUE(stream_handle_ptr);
+  std::string stream_handle = *stream_handle_ptr;
+
+  std::string trace_json;
+  bool eof = false;
+  while (!eof) {
+    base::DictValue read_params;
+    read_params.Set("handle", stream_handle);
+    const base::DictValue* response =
+        SendCommandSync("IO.read", std::move(read_params));
+    ASSERT_TRUE(response);
+    const std::string* data = response->FindString("data");
+    ASSERT_TRUE(data);
+    std::optional<bool> base64_encoded = response->FindBool("base64Encoded");
+    if (base64_encoded.value_or(false)) {
+      std::string decoded;
+      ASSERT_TRUE(base::Base64Decode(*data, &decoded));
+      trace_json += decoded;
+    } else {
+      trace_json += *data;
+    }
+    eof = response->FindBool("eof").value_or(false);
+  }
+
+  EXPECT_THAT(trace_json, testing::HasSubstr("mark_a"));
+  EXPECT_THAT(trace_json, testing::Not(testing::HasSubstr("mark_b")));
 }
 
 IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, NavigateToAboutBlankLoaderId) {

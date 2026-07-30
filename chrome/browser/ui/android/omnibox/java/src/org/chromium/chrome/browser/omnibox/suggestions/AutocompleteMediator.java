@@ -5,7 +5,6 @@
 package org.chromium.chrome.browser.omnibox.suggestions;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
-import static org.chromium.chrome.browser.url_constants.UrlConstantResolver.getOriginalNonNativeNtpGurl;
 
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
@@ -60,6 +59,7 @@ import org.chromium.chrome.browser.share.ShareDelegate;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.Tab.LoadUrlResult;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
+import org.chromium.chrome.browser.url_constants.UrlConstantResolver;
 import org.chromium.components.metrics.OmniboxEventProtos.OmniboxEventProto.PageClassification;
 import org.chromium.components.omnibox.AutocompleteInput;
 import org.chromium.components.omnibox.AutocompleteInput.AutocompleteState;
@@ -783,10 +783,9 @@ class AutocompleteMediator
         }
         mNumTouchDownEventForwardedInOmniboxSession++;
 
-        var tab = mDataProvider.getTab();
-        WebContents webContents = tab != null ? tab.getWebContents() : null;
         boolean wasPrefetchStarted =
-                mAutocomplete.onSuggestionTouchDown(suggestion, matchIndex, webContents);
+                mAutocomplete.onSuggestionTouchDown(
+                        mSessionState.getContextualTasksWebContents(), suggestion, matchIndex);
         if (wasPrefetchStarted) {
             mNumPrefetchesStartedInOmniboxSession++;
             mLastPrefetchStartedSuggestion = suggestion;
@@ -1108,7 +1107,10 @@ class AutocompleteMediator
                         startMeasuringSuggestionRequestToUiModelTime();
                         if (isInInputSession()) {
                             mAutocomplete.start(
-                                    mAutocompleteInput, cursorPosition, preventAutocomplete);
+                                    mSessionState.getContextualTasksWebContents(),
+                                    mAutocompleteInput,
+                                    cursorPosition,
+                                    preventAutocomplete);
                         }
                     },
                     OMNIBOX_SUGGESTION_START_DELAY_MS);
@@ -1178,6 +1180,11 @@ class AutocompleteMediator
             return false;
         }
 
+        // If a site search is already active, do not trigger another site search.
+        if (mAutocompleteInput.getSiteSearchData() != null) {
+            return false;
+        }
+
         Profile profile = mSessionState.getProfile();
         if (profile == null) {
             return false;
@@ -1202,21 +1209,7 @@ class AutocompleteMediator
             // Pass full text, C++ handles the splitting and lookup
             templateUrl = mAutocomplete.getTemplateUrlForText(text);
 
-        } else if (source == SiteSearchActivationSource.TAB) {
-            AutocompleteResult result = mAutocompleteResult;
-            if (result == null || result.getSuggestionsList().isEmpty()) {
-                return false;
-            }
-
-            AutocompleteMatch match = result.getSuggestionsList().get(0);
-            String keyword = match.getAssociatedKeyword();
-            if (keyword == null) return false;
-
-            // Pass the specific keyword from the suggestion
-            templateUrl = mAutocomplete.getTemplateUrlForText(keyword);
-        }
-
-        if (templateUrl != null) {
+            if (templateUrl == null) return false;
             SiteSearchData data =
                     new SiteSearchData(templateUrl.getKeyword(), templateUrl.getShortName());
             onKeywordModeEntered(data);
@@ -1433,6 +1426,8 @@ class AutocompleteMediator
                                 finalTransition);
                     };
 
+            String rawQuery = mAutocompleteInput.getUserText();
+
             if (OmniboxFeatures.sShowModelPicker.getValue()) {
                 @AutocompleteRequestType int requestType = mAutocompleteInput.getRequestType();
                 boolean isVerbatimMatch =
@@ -1444,16 +1439,16 @@ class AutocompleteMediator
                     assert ToolModeUtils.isAimRequest(requestType);
                     ComposeboxQueryControllerBridge bridge =
                             assumeNonNull(mSessionState.getComposeboxQueryControllerBridge());
-                    bridge.getAimUrlFromInputState(url, onUrlReady);
+                    bridge.getAimUrlFromInputState(url, rawQuery, onUrlReady);
                 }
             } else {
                 switch (mAutocompleteInput.getRequestType()) {
                     case AutocompleteRequestType.AI_MODE ->
                             assumeNonNull(mSessionState.getComposeboxQueryControllerBridge())
-                                    .getAimUrl(url, onUrlReady);
+                                    .getAimUrl(url, rawQuery, onUrlReady);
                     case AutocompleteRequestType.IMAGE_GENERATION ->
                             assumeNonNull(mSessionState.getComposeboxQueryControllerBridge())
-                                    .getImageGenerationUrl(url, onUrlReady);
+                                    .getImageGenerationUrl(url, rawQuery, onUrlReady);
                     default -> onUrlReady.onResult(url);
                 }
             }
@@ -1511,7 +1506,7 @@ class AutocompleteMediator
             input.setPageClassification(mDataProvider.getPageClassification(true));
             input.setPageUrl(mDataProvider.getCurrentGurl());
             input.setPageTitle(mDataProvider.getTitle());
-            mAutocomplete.startPrefetch(input, webContents);
+            mAutocomplete.startPrefetch(webContents, input);
         }
     }
 
@@ -1527,7 +1522,8 @@ class AutocompleteMediator
         startMeasuringSuggestionRequestToUiModelTime();
 
         if (!isInInputSession()) return;
-        mAutocomplete.startZeroSuggest(mAutocompleteInput);
+        mAutocomplete.startZeroSuggest(
+                mSessionState.getContextualTasksWebContents(), mAutocompleteInput);
     }
 
     /** Update whether the Omnibox session is active. */
@@ -1602,7 +1598,8 @@ class AutocompleteMediator
         if (!isInInputSession()) return;
         stopAutocomplete(false);
         mAutocompleteInput.setUserText(query);
-        mAutocomplete.start(mAutocompleteInput, -1, false);
+        mAutocomplete.start(
+                mSessionState.getContextualTasksWebContents(), mAutocompleteInput, -1, false);
     }
 
     /**
@@ -1666,11 +1663,10 @@ class AutocompleteMediator
             int autocompleteLength =
                     mUrlBarEditingTextProvider.getTextWithAutocomplete().length()
                             - mAutocompleteInput.getUserText().length();
-            var tab = mDataProvider.getTab();
-            WebContents webContents = tab != null ? tab.getWebContents() : null;
 
             if (mAutocomplete != null) {
                 mAutocomplete.onSuggestionSelected(
+                        mSessionState.getContextualTasksWebContents(),
                         match,
                         suggestionLine,
                         disposition,
@@ -1678,7 +1674,6 @@ class AutocompleteMediator
                         mAutocompleteInput.getPageClassification(),
                         elapsedTimeSinceModified,
                         autocompleteLength,
-                        webContents,
                         action);
             }
         }
@@ -1914,7 +1909,7 @@ class AutocompleteMediator
         if (!isInInputSession()) return;
 
         // Default page context to prefetch suggestions for.
-        GURL pageUrl = getOriginalNonNativeNtpGurl();
+        GURL pageUrl = UrlConstantResolver.getOriginalNonNativeNtpGurl();
         int pageClass = PageClassification.INSTANT_NTP_WITH_OMNIBOX_AS_STARTING_FOCUS_VALUE;
 
         // Preserve current page context for Jump-start Omnibox feature.
@@ -1939,7 +1934,7 @@ class AutocompleteMediator
         // Retrieve suggestions related to the most recently visited page.
         // This is a best-effort action and may not always work (e.g. if Chrome gets killed or
         // swiped away before we manage to retrieve and persist the information).
-        mAutocomplete.startZeroSuggest(input);
+        mAutocomplete.startZeroSuggest(mSessionState.getContextualTasksWebContents(), input);
     }
 
     /**

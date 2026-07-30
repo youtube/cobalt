@@ -45,7 +45,6 @@
 #include "remoting/protocol/webrtc_connection_to_host.h"
 #include "remoting/signaling/ftl_client_uuid_device_id_provider.h"
 #include "remoting/signaling/ftl_signal_strategy.h"
-#include "remoting/signaling/session_config.h"
 #include "remoting/signaling/signaling_address.h"
 #include "remoting/signaling/signaling_id_util.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
@@ -152,14 +151,8 @@ void RemotingClient::StartConnection() {
       webrtc::SdpVideoFormat::AV1Profile0());
 
   CLIENT_LOG << "Creating session manager...";
-  auto protocol_config = CandidateSessionConfig::CreateDefault();
-  protocol_config->set_webrtc_supported(true);
-  if (!audio_stream_consumer_) {
-    protocol_config->DisableAudioChannel();
-  }
   session_manager_ =
       std::make_unique<protocol::JingleSessionManager>(signal_strategy_.get());
-  session_manager_->set_protocol_config(std::move(protocol_config));
 
   CLIENT_LOG << "Creating session...";
   auto host_signaling_id = NormalizeSignalingId(chrome_os_host_->ftl_id());
@@ -255,6 +248,12 @@ void RemotingClient::SetTransportInfo(
 
 void RemotingClient::SetActiveDisplay(
     const protocol::ActiveDisplay& active_display) {
+  NOTIMPLEMENTED();
+}
+
+void RemotingClient::ControlMicrophone(
+    const protocol::MicrophoneControl& control) {
+  // This client implementation does not support microphone remoting.
   NOTIMPLEMENTED();
 }
 

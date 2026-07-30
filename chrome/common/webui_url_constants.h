@@ -530,11 +530,6 @@ inline constexpr char kChromeUISessionServiceInternalsPath[] =
     "session-service";
 #endif
 
-#if BUILDFLAG(ENABLE_WEBUI_TAB_STRIP)
-inline constexpr char kChromeUITabStripHost[] = "tab-strip.top-chrome";
-inline constexpr char kChromeUITabStripURL[] = "chrome://tab-strip.top-chrome";
-#endif
-
 #if BUILDFLAG(ENTERPRISE_WATERMARK)
 inline constexpr char kChromeUIWatermarkHost[] = "watermark";
 inline constexpr char kChromeUIWatermarkURL[] = "chrome://watermark/";
@@ -607,6 +602,7 @@ inline constexpr char kSearchSubPage[] = "search";
 inline constexpr char kSecuritySubPage[] = "security";
 inline constexpr char kSignOutSubPage[] = "signOut";
 inline constexpr char kSiteDetailsSubpage[] = "content/siteDetails";
+inline constexpr char kSuggestionsSubPage[] = "ai/suggestions";
 inline constexpr char kSyncSetupSubPage[] = "syncSetup";
 inline constexpr char kSyncSetupAdvancedSubPage[] = "syncSetup/advanced";
 inline constexpr char kTriggeredResetProfileSettingsSubPage[] =

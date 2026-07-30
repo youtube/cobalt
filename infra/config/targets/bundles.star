@@ -6189,7 +6189,6 @@ targets.bundle(
         "browser_tests",
         "chrome_app_unittests",
         "chromedriver_unittests",
-        "extensions_browsertests",
         "extensions_unittests",
         "filesystem_service_unittests",
         "interactive_ui_tests",
@@ -6232,6 +6231,13 @@ targets.bundle(
             "skia_gold_test",
         ],
     },
+)
+
+targets.bundle(
+    name = "perfetto_diff_tests_bundle",
+    targets = [
+        "perfetto_diff_tests",
+    ],
 )
 
 targets.bundle(

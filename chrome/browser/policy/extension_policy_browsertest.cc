@@ -1692,7 +1692,7 @@ IN_PROC_BROWSER_TEST_F(
 // Verifies that corrupted non-webstore policy-based extension is not repaired
 // if there are no computed_hashes.json for it. Note that this behavior will
 // change in the future.
-// See https://crbug.com/40625642#c22 for details.
+// See https://crbug.com/40625642#comment23 for details.
 // TODO(crbug.com/40669814): Change this test so extension without hashes
 // will be also reinstalled.
 IN_PROC_BROWSER_TEST_F(ExtensionPolicyTest,
@@ -2531,9 +2531,16 @@ class WebAppInstallForceListPolicyPlaceholderWithAppFallbackNameTest
       delete;
 };
 
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_StartUpInstallationPlaceholderFallbackName \
+  DISABLED_StartUpInstallationPlaceholderFallbackName
+#else
+#define MAYBE_StartUpInstallationPlaceholderFallbackName \
+  StartUpInstallationPlaceholderFallbackName
+#endif
 IN_PROC_BROWSER_TEST_F(
     WebAppInstallForceListPolicyPlaceholderWithAppFallbackNameTest,
-    StartUpInstallationPlaceholderFallbackName) {
+    MAYBE_StartUpInstallationPlaceholderFallbackName) {
   const web_app::WebAppRegistrar& registrar =
       web_app::WebAppProvider::GetForTest(browser()->profile())
           ->registrar_unsafe();

@@ -5,6 +5,7 @@
 package org.chromium.components.browser_ui.contacts_picker;
 
 import android.content.Context;
+import android.graphics.Typeface;
 import android.text.style.StyleSpan;
 import android.util.AttributeSet;
 import android.view.View;
@@ -91,8 +92,9 @@ public class TopView extends RelativeLayout
         super.onFinishInflate();
 
         mCheckboxContainer = findViewById(R.id.content);
-        if (ContactsPickerFeatureMap.isEnabled(
-                ContactsPickerFeatureList.CONTACTS_PICKER_SELECT_ALL)) {
+        if (!ContactsPickerFeatureMap.shouldShowSystemContactsPicker()
+                && ContactsPickerFeatureMap.isEnabled(
+                        ContactsPickerFeatureList.CONTACTS_PICKER_SELECT_ALL)) {
             mCheckboxContainer.setVisibility(View.VISIBLE);
         }
         mSelectAllBox = findViewById(R.id.checkbox);
@@ -207,7 +209,7 @@ public class TopView extends RelativeLayout
     @Initializer
     public void setSiteString(String origin) {
         TextView explanation = findViewById(R.id.explanation);
-        StyleSpan boldSpan = new StyleSpan(android.graphics.Typeface.BOLD);
+        StyleSpan boldSpan = new StyleSpan(Typeface.BOLD);
         explanation.setText(
                 SpanApplier.applySpans(
                         mContext.getString(R.string.disclaimer_sharing_contact_details, origin),

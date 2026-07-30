@@ -157,12 +157,36 @@ CreateStandardDeviceBoundSessionParamsFromRegistrationPayload(
 }
 
 void RecordCreateBoundSessionsResult(
-    OAuthMultiloginHelper::DeviceBoundSessionCreateSessionsResult result) {
-  base::UmaHistogramEnumeration(
-      "Signin.DeviceBoundSessions.OAuthMultilogin.CreateSessionsResult",
-      result);
+    OAuthMultiloginHelper::DeviceBoundSessionCreateSessionsResult result,
+    PartitionSuffix partition_suffix) {
+  static constexpr std::string_view kBaseHistogramName =
+      "Signin.DeviceBoundSessions.OAuthMultilogin.CreateSessionsResult";
+  base::UmaHistogramEnumeration(kBaseHistogramName, result);
+  std::string_view suffix_str = PartitionSuffixToString(partition_suffix);
+  if (!suffix_str.empty()) {
+    base::UmaHistogramEnumeration(
+        base::JoinString({kBaseHistogramName, suffix_str}, "."), result);
+  }
 }
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
+
+void RecordMultiloginResponseStatus(OAuthMultiloginResponseStatus status,
+                                    PartitionSuffix partition_suffix) {
+  // TODO(crbug.com/509497240): Consider recording network errors in the future
+  // (e.g., in a v2 histogram) to avoid skewing existing metrics.
+  if (status == OAuthMultiloginResponseStatus::kNetworkError) {
+    return;
+  }
+
+  static constexpr std::string_view kBaseHistogramName =
+      "Signin.OAuthMultiloginResponseStatus";
+  base::UmaHistogramEnumeration(kBaseHistogramName, status);
+  std::string_view suffix_str = PartitionSuffixToString(partition_suffix);
+  if (!suffix_str.empty()) {
+    base::UmaHistogramEnumeration(
+        base::JoinString({kBaseHistogramName, suffix_str}, "."), status);
+  }
+}
 
 }  // namespace
 
@@ -326,6 +350,9 @@ void OAuthMultiloginHelper::StartFetchingMultiLogin() {
 
 void OAuthMultiloginHelper::OnOAuthMultiloginFinished(
     const OAuthMultiloginResult& result) {
+  RecordMultiloginResponseStatus(result.status(),
+                                 partition_delegate_->GetPartitionSuffix());
+
   if (result.status() == OAuthMultiloginResponseStatus::kOk) {
     if (VLOG_IS_ON(1)) {
       std::vector<std::string> account_ids;
@@ -397,6 +424,7 @@ void OAuthMultiloginHelper::OnOAuthMultiloginFinished(
   bool is_transient_error =
       result.status() == OAuthMultiloginResponseStatus::kInvalidTokens ||
       result.status() == OAuthMultiloginResponseStatus::kRetry ||
+      result.status() == OAuthMultiloginResponseStatus::kNetworkError ||
       result.status() ==
           OAuthMultiloginResponseStatus::kRetryWithTokenBindingChallenge;
 
@@ -462,9 +490,7 @@ void OAuthMultiloginHelper::OnCookiesSet(
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 OAuthMultiloginHelper::CookieBindingSupport
 OAuthMultiloginHelper::GetCookieBindingSupport() const {
-  if (partition_delegate_->GetDeviceBoundSessionManagerForPartition() &&
-      base::FeatureList::IsEnabled(
-          switches::kEnableOAuthMultiloginStandardCookiesBinding)) {
+  if (partition_delegate_->GetDeviceBoundSessionManagerForPartition()) {
     return CookieBindingSupport::kStandard;
   }
   if (bound_session_delegate_ &&
@@ -489,7 +515,8 @@ bool OAuthMultiloginHelper::StartSettingCookiesViaDeviceBoundSessionManager(
   }
   if (sessions_params.empty()) {
     RecordCreateBoundSessionsResult(
-        DeviceBoundSessionCreateSessionsResult::kFallbackNoBoundSessions);
+        DeviceBoundSessionCreateSessionsResult::kFallbackNoBoundSessions,
+        partition_delegate_->GetPartitionSuffix());
     return false;
   }
 
@@ -502,7 +529,8 @@ bool OAuthMultiloginHelper::StartSettingCookiesViaDeviceBoundSessionManager(
   }
   if (wrapped_key.empty()) {
     RecordCreateBoundSessionsResult(
-        DeviceBoundSessionCreateSessionsResult::kFallbackNoBindingKey);
+        DeviceBoundSessionCreateSessionsResult::kFallbackNoBindingKey,
+        partition_delegate_->GetPartitionSuffix());
     return false;
   }
 
@@ -533,7 +561,8 @@ void OAuthMultiloginHelper::OnBoundSessionsCreated(
 
   RecordCreateBoundSessionsResult(
       all_success ? DeviceBoundSessionCreateSessionsResult::kSuccess
-                  : DeviceBoundSessionCreateSessionsResult::kFailure);
+                  : DeviceBoundSessionCreateSessionsResult::kFailure,
+      partition_delegate_->GetPartitionSuffix());
 
   for (const auto& status : cookie_results) {
     base::UmaHistogramBoolean("Signin.SetCookieSuccess", status.IsInclude());

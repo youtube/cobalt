@@ -26,6 +26,7 @@ class MockContextualSearchContextController
 
   MOCK_METHOD(void, InitializeIfNeeded, (), (override));
   MOCK_METHOD(void, SetIsBackgrounded, (bool backgrounded), (override));
+  MOCK_METHOD(void, TriggerFetchClusterInfo, (), (override));
   MOCK_METHOD(
       void,
       CreateSearchUrl,
@@ -66,10 +67,6 @@ class MockContextualSearchContextController
               (const base::UnguessableToken& file_token),
               (override));
   MOCK_METHOD(std::vector<const FileInfo*>, GetFileInfoList, (), (override));
-  MOCK_METHOD(std::optional<base::UnguessableToken>,
-              FindTokenForInjectedInput,
-              (const std::string& id),
-              (override));
   MOCK_METHOD(base::WeakPtr<ContextualSearchContextController>,
               AsWeakPtr,
               (),

@@ -430,7 +430,8 @@ void AddChromeColorMixer(ui::ColorProvider* provider,
   mixer[kColorFrameCaptionInactive] =
       ui::GetColorWithMaxContrast({ui::kColorFrameInactive});
 
-  mixer[kColorGlicBackground] = {ui::kColorBubbleBackground};
+  mixer[kColorGlicBackground] = {dark_mode ? SkColorSetRGB(0x13, 0x13, 0x14)
+                                           : ui::kColorBubbleBackground};
   // Invert modal colors w.r.t. Chrome dark mode.
   mixer[kColorGlicModalBackground] = {dark_mode
                                           ? SkColorSetRGB(0xE3, 0xE3, 0xE3)
@@ -684,7 +685,6 @@ void AddChromeColorMixer(ui::ColorProvider* provider,
   mixer[kColorSharingRecentActivityDialogFaviconContainer] = {
       ui::kColorSysSurface};
 
-
   mixer[kColorTabHoverCardBackground] = {dark_mode ? gfx::kGoogleGrey900
                                                    : gfx::kGoogleGrey050};
   mixer[kColorTabHoverCardForeground] = {dark_mode ? gfx::kGoogleGrey700
@@ -735,6 +735,8 @@ void AddChromeColorMixer(ui::ColorProvider* provider,
   mixer[kColorThumbnailTabStripBackgroundInactive] = {ui::kColorFrameInactive};
   mixer[kColorToolbar] = {dark_mode ? SkColorSetRGB(0x35, 0x36, 0x3A)
                                     : SK_ColorWHITE};
+  mixer[kColorToolbarContextualTasksButtonShadow] = {
+      ui::SetAlpha(ui::kColorShadowBase, 0x255 * 17 / 100)};
   mixer[kColorToolbarButtonBackgroundHighlightedDefault] =
       ui::SetAlpha(ui::GetColorWithMaxContrast(kColorToolbarButtonText), 0xCC);
   mixer[kColorAvatarButtonHighlightIncognito] = {

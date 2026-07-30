@@ -12,6 +12,10 @@
 #include "extensions/buildflags/buildflags.h"
 #include "ui/base/unowned_user_data/user_data_factory.h"
 
+namespace content_settings {
+class CookieControlsController;
+}  // namespace content_settings
+
 namespace glic {
 class GlicButtonController;
 class GlicIphController;
@@ -41,6 +45,7 @@ class BrowserLocationBarModelDelegate;
 class BrowserSyncedWindowDelegate;
 class BrowserUserEducationInterface;
 class BrowserView;
+class BrowserWindowFullscreenController;
 class BrowserWindowInterface;
 class BrowserWindowModalDialogDelegate;
 class BrowserWindowThemeObserver;
@@ -96,6 +101,7 @@ class ToastController;
 class ToastService;
 class TranslateBubbleController;
 class UpgradeNotificationController;
+class UnloadController;
 class VerticalTabIphController;
 class WebUIBrowserExclusiveAccessContext;
 class WebUIBrowserSidePanelUI;
@@ -148,6 +154,10 @@ class ExtensionBrowserWindowHelper;
 class ExtensionSidePanelManager;
 class Mv2DisabledDialogController;
 }  // namespace extensions
+
+namespace tabs_api {
+class TabStripUIControllerImpl;
+}
 
 namespace tabs {
 class VerticalTabStripStateController;
@@ -374,6 +384,10 @@ class BrowserWindowFeatures {
     return tab_strip_service_feature_.get();
   }
 
+  tabs_api::TabStripUIControllerImpl* tab_strip_ui_controller() {
+    return tab_strip_ui_controller_.get();
+  }
+
   LocationBarModel* location_bar_model() { return location_bar_model_.get(); }
   const LocationBarModel* location_bar_model() const {
     return location_bar_model_.get();
@@ -489,6 +503,10 @@ class BrowserWindowFeatures {
     return contextual_cueing_controller_.get();
   }
 
+  content_settings::CookieControlsController* cookie_controls_controller() {
+    return cookie_controls_controller_.get();
+  }
+
   static ui::UserDataFactoryWithOwner<BrowserWindowInterface>&
   GetUserDataFactoryForTesting();
 
@@ -507,6 +525,8 @@ class BrowserWindowFeatures {
   // This must be initialized before |command_controller_| to ensure the correct
   // set of commands are enabled.
   std::unique_ptr<web_app::AppBrowserController> app_browser_controller_;
+
+  std::unique_ptr<BrowserWindowFullscreenController> fullscreen_controller_;
 
   std::unique_ptr<BrowserActions> browser_actions_;
 
@@ -672,6 +692,9 @@ class BrowserWindowFeatures {
   std::unique_ptr<TabSearchToolbarButtonController>
       tab_search_toolbar_button_controller_;
 
+  std::unique_ptr<content_settings::CookieControlsController>
+      cookie_controls_controller_;
+
   std::unique_ptr<CookieControlsBubbleCoordinator>
       cookie_controls_bubble_coordinator_;
 
@@ -718,6 +741,9 @@ class BrowserWindowFeatures {
   // This is an experimental API that interacts with the TabStripModel.
   std::unique_ptr<TabStripServiceFeature> tab_strip_service_feature_;
 
+  // Controller for managing TabStrip UI decoupled TabStrip platform.
+  std::unique_ptr<tabs_api::TabStripUIControllerImpl> tab_strip_ui_controller_;
+
   // The Find Bar. This may be NULL if there is no Find Bar, and if it is
   // non-NULL, it may or may not be visible.
   std::unique_ptr<FindBarController> find_bar_controller_;
@@ -733,6 +759,8 @@ class BrowserWindowFeatures {
 
   std::unique_ptr<UpgradeNotificationController>
       upgrade_notification_controller_;
+
+  std::unique_ptr<UnloadController> unload_controller_;
 
   // Helper which implements the ContentSettingBubbleModel interface.
   std::unique_ptr<BrowserContentSettingBubbleModelDelegate>

@@ -173,10 +173,18 @@ const base::FeatureParam<bool> kGlicActorTransientTasksForceTransient{
 
 BASE_FEATURE(kGlicActorEnableScriptTools, base::FEATURE_ENABLED_BY_DEFAULT);
 
+const base::FeatureParam<base::TimeDelta> kActorScriptToolExecutionTimeout{
+    &kGlicActorEnableScriptTools, "execution_timeout", base::Seconds(30)};
+
+const base::FeatureParam<base::TimeDelta> kActorScriptToolCrossDocumentTimeout{
+    &kGlicActorEnableScriptTools, "cross_document_timeout", base::Seconds(5)};
+
 BASE_FEATURE(kActorScriptToolDelayObservation,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 const base::FeatureParam<int> kActorScriptToolDelayObservationMillis{
     &kActorScriptToolDelayObservation, "script_tool_delay_observation_ms", 0};
 
+BASE_FEATURE(kGlicActorTabObservationController,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 }  // namespace actor

@@ -51,11 +51,12 @@ class AccountSelectionBridge implements AccountSelectionComponent.Delegate {
             Tab tab,
             WindowAndroid windowAndroid,
             BottomSheetController bottomSheetController,
-            @RpMode.EnumType int rpMode) {
+            @RpMode.EnumType int rpMode,
+            boolean canShowUi) {
         mNativeView = nativeView;
         mAccountSelectionComponent =
                 new AccountSelectionCoordinator(
-                        tab, windowAndroid, bottomSheetController, rpMode, this);
+                        tab, windowAndroid, bottomSheetController, rpMode, canShowUi, this);
     }
 
     @CalledByNative
@@ -84,19 +85,25 @@ class AccountSelectionBridge implements AccountSelectionComponent.Delegate {
             long nativeView,
             WebContents webContents,
             WindowAndroid windowAndroid,
-            @RpMode.EnumType int rpMode) {
+            @RpMode.EnumType int rpMode,
+            boolean canShowUi) {
         BottomSheetController bottomSheetController =
                 BottomSheetControllerProvider.from(windowAndroid);
         if (bottomSheetController == null) return null;
         Tab tab = TabUtils.fromWebContents(webContents);
         return new AccountSelectionBridge(
-                nativeView, tab, windowAndroid, bottomSheetController, rpMode);
+                nativeView, tab, windowAndroid, bottomSheetController, rpMode, canShowUi);
     }
 
     @CalledByNative
     private void destroy() {
         mAccountSelectionComponent.close();
         mNativeView = 0;
+    }
+
+    @CalledByNative
+    private void setCanShowUi(boolean canShowUi) {
+        mAccountSelectionComponent.setCanShowUi(canShowUi);
     }
 
     /**

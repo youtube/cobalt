@@ -54,6 +54,7 @@
 <translation id="1179890706672152411">Jou berging is vol</translation>
 <translation id="1181037720776840403">Verwyder</translation>
 <translation id="1190609913194133056">Kennisgewingsentrum</translation>
+<translation id="1199631150313925648">Voer self in</translation>
 <translation id="1199963004393929848">Groen tema</translation>
 <translation id="1201402288615127009">Volgende</translation>
 <translation id="1204075260022434100">{count,plural, =1{Boekmerk is gestoor na “{title}” in jou rekening, {email}}other{{count} boekmerke is gestoor na “{title}” in jou rekening, {email}}}</translation>
@@ -720,6 +721,7 @@
 <translation id="3565012355885596568">Kon nie prente laai nie</translation>
 <translation id="3565930036634619844">Oortjie. <ph name="TAB_INDEX" /> van <ph name="NUMBER_OF_TABS" />.</translation>
 <translation id="3567168891086460374">Stoor op ’n ander manier</translation>
+<translation id="3571703298474554279">’n Vinniger manier om die app te gebruik</translation>
 <translation id="3572503683475187385">Die huidige oortjie word met Gemini gedeel wanneer jy ’n nuwe klets begin. Wanneer jy ’n oortjie met Gemini deel, word hul inhoud en URL na Google toe gestuur. <ph name="BEGIN_LINK" />Meer inligting<ph name="END_LINK" /></translation>
 <translation id="3572607909481582402">In jou Google-rekening</translation>
 <translation id="3575234738189584619">Soek met Lens</translation>
@@ -786,7 +788,6 @@
 <translation id="3838691874161539578">Gaan jou gestoorde wagwoorde na om jou sekuriteit te versterk en veiliger te bly aanlyn</translation>
 <translation id="3838985624086228724">Prysdaling op jou naspoorproduk, van <ph name="PREVIOUS_PRICE" /> tot <ph name="PRICE" />, <ph name="PRODUCT_NAME" />, <ph name="DOMAIN" /></translation>
 <translation id="385051799172605136">Terug</translation>
-<translation id="3850952228519377137">Versteek “Spoor pryse na vanaf jou oortjies”</translation>
 <translation id="3851938967634752633">Wagwoorde vir <ph name="WEBSITE" />, <ph name="SECOND_WEBSITE" /> en <ph name="NUMBER_OF_ACCOUNTS" /> ander sal uitgevee word. Jou rekeninge sal nie uitgevee word nie.</translation>
 <translation id="3853162385423733133">Hou aan om hierdie wagwoorde in jou Googl-rekening <ph name="EMAIL" /> te gebruik en te stoor</translation>
 <translation id="3853873210696342070">Voer in</translation>
@@ -934,7 +935,6 @@
 <translation id="4323122584592971322">OID.</translation>
 <translation id="4324735664183300693">Skakel kennisgewings aan</translation>
 <translation id="4326912346867677256">Tik op “Gebruik wagwoord” om veilig aan te meld.</translation>
-<translation id="4327017157997423717">Spoor prys na op <ph name="PRODUCT_NAME" />, <ph name="PRICE" />, <ph name="DOMAIN" /></translation>
 <translation id="4328843285884395590">My Drive</translation>
 <translation id="4331177082088332784">Jy kan dit bestuur in BEGIN_LINK inhoudinstellings END_LINK</translation>
 <translation id="4334428914252001502">1 ongeleesde artikel.</translation>
@@ -958,6 +958,7 @@
 <translation id="441868831736628555">Privaatheidkennisgewing</translation>
 <translation id="4420409367264901497">Wysig boekmerk</translation>
 <translation id="4425365312778464779">Hierdie rekening word bestuur</translation>
+<translation id="443008484043213881">Nutsgoed</translation>
 <translation id="4430277756566635951"><ph name="EMAIL" /> is tans gekies. Kies ’n rekening.</translation>
 <translation id="4430505936695785931">Kry gestoorde wagwoorde in ander apps</translation>
 <translation id="4431224949908513835">Kies ’n betaalmetode om in te vul.</translation>
@@ -1294,6 +1295,7 @@ Oorgee moet ook in die Algemene afdeling van Instellings geaktiveer word, en jou
 <translation id="5581786858144165447">Vra KI-modus</translation>
 <translation id="5585019845078534178">Kaarte</translation>
 <translation id="5591526871732898147">Aangehegde prent {index}</translation>
+<translation id="5594597292424622277">Onderbreek die video</translation>
 <translation id="5595485650161345191">Wysig adres</translation>
 <translation id="559567008082979829">Stel aflaaie op om na een maand uitgevee te word.</translation>
 <translation id="5596627076506792578">Meer opsies</translation>
@@ -1518,7 +1520,6 @@ Oorgee moet ook in die Algemene afdeling van Instellings geaktiveer word, en jou
 <translation id="6321526113093607004">Voeg by Boekmerke</translation>
 <translation id="6327249202318869726">Gemini is afgeskakel vir jou rekening. Kontak jou admin vir meer inligting.</translation>
 <translation id="6331836477476466332">’n Veiliger, kragtiger blaaier vir jou</translation>
-<translation id="6335744088476213315">Hierdie kaart wys produkte waarna jy onlangs gekyk het en stel dalk belang in nasporing om opletberigte oor prysverlagings te kry</translation>
 <translation id="6337234675334993532">Enkriptering</translation>
 <translation id="6337313937331295309">Gemini-apps se privaatheidkennisgewing</translation>
 <translation id="633809752005859102">Iets het baie verkeerd geloop. Ons sal daaraan werk.</translation>
@@ -1573,6 +1574,7 @@ Oorgee moet ook in die Algemene afdeling van Instellings geaktiveer word, en jou
 <translation id="6476800141292307438">Vertaal tans die bladsy in <ph name="LANGUAGE" />. Opsies is naby die onderkant van die skerm beskikbaar.</translation>
 <translation id="647867789226964031">Verander jou wagwoorde</translation>
 <translation id="6480363549849064919">Kliëntstawing</translation>
+<translation id="6489174933860678546">Maak Incognito-oortjies oop om meer privaat deur die web te blaai.</translation>
 <translation id="6494931198667773526">Eindig</translation>
 <translation id="6503077044568424649">Mees besoekte</translation>
 <translation id="6503763061813913607">Kennisgewings vir veiligheidskontrole</translation>
@@ -1630,6 +1632,7 @@ Oorgee moet ook in die Algemene afdeling van Instellings geaktiveer word, en jou
 <translation id="6640268266988685324">Oop oortjie</translation>
 <translation id="6641465290890659327">Deel ’n kopie van jou wagwoord</translation>
 <translation id="6642362222295953972">Skakel oor na bestaande oortjie</translation>
+<translation id="6643016212128521049">Vee uit</translation>
 <translation id="6645899968535965230">QR-kode: <ph name="PAGE_TITLE" /></translation>
 <translation id="6657585470893396449">Wagwoord</translation>
 <translation id="6659660757330712663">Jy kan die nutsbalk swiep om tussen oortjies te wissel.</translation>
@@ -1696,6 +1699,7 @@ Oorgee moet ook in die Algemene afdeling van Instellings geaktiveer word, en jou
 <translation id="6871397658902960384">Begin blaai</translation>
 <translation id="6874328931822449112">{COUNT,plural, =1{Stoor wagwoord in rekening}other{Stoor wagwoorde in rekening}}</translation>
 <translation id="6875166646976836138">Jy kan ook hierdie items in jou boekmerke, leeslys of wagwoordbestuurder bekyk en bestuur.</translation>
+<translation id="6878052248816456143">Kry enige tyd toegang tot lêers in jou Google Drive.</translation>
 <translation id="6882836635272038266">Standaardbeskerming teen webwerwe, aflaaie en uitbreidings wat bekend is daarvoor dat hulle gevaarlik is.</translation>
 <translation id="6884135917113737984">{COUNT,plural, =1{Stoor {COUNT} wagwoord in jou Google-rekening}other{Stoor {COUNT} wagwoorde in jou Google-rekening}}</translation>
 <translation id="6888009575607455378">Is jy seker jy wil jou veranderinge weggooi?</translation>
@@ -1809,6 +1813,7 @@ Oorgee moet ook in die Algemene afdeling van Instellings geaktiveer word, en jou
 <translation id="7345061034321640811">Invoer word nie toegelaat nie</translation>
 <translation id="7347998088283246662">Voer wagwoorde, geskiedenis, boekmerke en meer in</translation>
 <translation id="7352651011704765696">Iets het verkeerd geloop</translation>
+<translation id="7363497636543208734">Dis nou makliker om in die app rond te beweeg.</translation>
 <translation id="7364796246159120393">Kies lêer</translation>
 <translation id="736564850024123010">Verander die posisie van jou adresbalk vir ’n gepasmaakte ervaring.</translation>
 <translation id="7366909168761621528">Blaaierdata</translation>
@@ -2108,7 +2113,6 @@ Oorgee moet ook in die Algemene afdeling van Instellings geaktiveer word, en jou
 <translation id="8319282042900445670">Onthounota is gestel vir <ph name="TIME" />, <ph name="DATE" /></translation>
 <translation id="8320212361750431956">Onlangse aktiwiteit</translation>
 <translation id="8325455175867928593">Versteek “Resensies gegrond op jou belangstellings”</translation>
-<translation id="8328777765163860529">Maak almal toe</translation>
 <translation id="833647236762414178">Skep, stoor en bestuur jou wagwoorde en toegangsleutels om maklik by werwe en apps aan te meld. <ph name="BEGIN_LINK" />Meer inligting<ph name="END_LINK" /></translation>
 <translation id="8343993175958086504">Rugsteun jou goed en gebruik dit op enige toestel.</translation>
 <translation id="8348530355586151720">Tik op die driekol-kieslys</translation>
@@ -2163,6 +2167,7 @@ Oorgee moet ook in die Algemene afdeling van Instellings geaktiveer word, en jou
 <translation id="8528009254289981965">Maak skakels van ander apps af in Incognito oop.</translation>
 <translation id="8529767659511976195">Nuut</translation>
 <translation id="8531572740963685410">PDF's</translation>
+<translation id="8532059953132740592">Speel die video</translation>
 <translation id="8533411848724153701">Gemini</translation>
 <translation id="8533670235862049797">Veiligblaai is aan</translation>
 <translation id="8534481786647257214">Google+-plasing is voltooi.</translation>
@@ -2291,6 +2296,7 @@ Oorgee moet ook in die Algemene afdeling van Instellings geaktiveer word, en jou
 <translation id="8915916167043355778">Maak alles toe</translation>
 <translation id="892185197271200809">Almal sal onmiddellik toegang tot die “<ph name="GROUP_NAME" />”-oortjiegroep verloor en dit sal van alle toestelle uitgevee word</translation>
 <translation id="8923178205567790913">Wagwoorde</translation>
+<translation id="8926498511977337209">Blaai in Incognito</translation>
 <translation id="892776311701544612">Meer inligting …</translation>
 <translation id="8928133177108699615">Rekenaar</translation>
 <translation id="8928426232677696166"><ph name="EMAIL" />, bestuur deur jou organisasie, tans gekies. Kies ’n rekening.</translation>

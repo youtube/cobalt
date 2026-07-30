@@ -86,6 +86,7 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/prerender_test_util.h"
+#include "content/public/test/service_worker_test_helpers.h"
 #include "content/public/test/simple_url_loader_test_helper.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "content/public/test/url_loader_interceptor.h"
@@ -142,6 +143,7 @@
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
 #include "third_party/blink/public/common/service_worker/service_worker_status_code.h"
+#include "ui/webui/buildflags.h"
 #include "ui/webui/untrusted_web_ui_browsertest_util.h"  // nogncheck
 #include "url/origin.h"
 
@@ -154,20 +156,22 @@
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/browser/extensions/test_extension_action_dispatcher_observer.h"
-#include "chrome/browser/new_tab_page/one_google_bar/one_google_bar_loader.h"
-#include "chrome/browser/new_tab_page/one_google_bar/one_google_bar_service.h"
-#include "chrome/browser/new_tab_page/one_google_bar/one_google_bar_service_factory.h"
 #include "chrome/browser/search/search.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_navigator_params.h"  // nogncheck
-#include "chrome/browser/ui/login/login_handler.h"       // nogncheck
+#include "chrome/browser/ui/login/login_handler.h"                 // nogncheck
+#include "chrome/browser/ui/navigator/browser_navigator_params.h"  // nogncheck
 #include "chrome/browser/ui/search/ntp_test_utils.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/network_session_configurator/common/network_switches.h"
 #include "net/cert/x509_certificate.h"
 #include "ui/base/ui_base_features.h"
+#if BUILDFLAG(ENABLE_WEBUI_NTP)
+#include "chrome/browser/new_tab_page/one_google_bar/one_google_bar_loader.h"
+#include "chrome/browser/new_tab_page/one_google_bar/one_google_bar_service.h"
+#include "chrome/browser/new_tab_page/one_google_bar/one_google_bar_service_factory.h"
+#endif  // BUILDFLAG(ENABLE_WEBUI_NTP)
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -658,7 +662,8 @@ IN_PROC_BROWSER_TEST_F(ExtensionWebRequestApiTest,
         const text = await res.text();
         const expected = 'p {\n  color: __MSG_text_color__;\n}\n';
         // "__MSG_text_color__" must not be replaced with "red".
-        if (text == expected) {
+        // We use `includes` because there's also a license in the file.
+        if (text.includes(expected)) {
           chrome.test.notifyPass();
         } else {
           chrome.test.notifyFail('Unexpected content :' + text);
@@ -3173,6 +3178,7 @@ IN_PROC_BROWSER_TEST_P(NTPInterceptionWebRequestAPITest,
   EXPECT_TRUE(was_script_request_intercepted(extension->id()));
 }
 
+#if BUILDFLAG(ENABLE_WEBUI_NTP)
 // Test fixture testing that requests made for the OneGoogleBar on behalf of
 // the WebUI NTP can't be intercepted by extensions.
 class WebUiNtpInterceptionWebRequestAPITest
@@ -3311,6 +3317,7 @@ IN_PROC_BROWSER_TEST_P(WebUiNtpInterceptionWebRequestAPITest,
   EXPECT_TRUE(was_script_request_intercepted(extension->id()));
   ASSERT_TRUE(GetAndResetOneGoogleBarRequestSeen());
 }
+#endif  // BUILDFLAG(ENABLE_WEBUI_NTP)
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 class WebRequestApiTestWithManagementPolicy
@@ -6288,8 +6295,7 @@ class ExtensionWebRequestApiFencedFrameTest
         {{blink::features::kFencedFrames, {}},
          {blink::features::kFencedFramesAPIChanges, {}},
          {blink::features::kFencedFramesDefaultMode, {}},
-         {features::kPrivacySandboxAdsAPIsOverride, {}},
-         {blink::features::kFencedFramesLocalUnpartitionedDataAccess, {}}},
+         {features::kPrivacySandboxAdsAPIsOverride, {}}},
         {/* disabled_features */});
     // Fenced frames are only allowed in secure contexts.
     UseHttpsTestServer();
@@ -6312,15 +6318,6 @@ IN_PROC_BROWSER_TEST_F(ExtensionWebRequestApiFencedFrameTest,
   ASSERT_TRUE(StartEmbeddedTestServer());
   ASSERT_TRUE(RunExtensionTest(
       "webrequest", {.extension_url = "test_fenced_frames_send_message.html"}))
-      << message_;
-}
-
-IN_PROC_BROWSER_TEST_F(ExtensionWebRequestApiFencedFrameTest,
-                       NetworkRevocation) {
-  ASSERT_TRUE(StartEmbeddedTestServer());
-  ASSERT_TRUE(RunExtensionTest(
-      "webrequest",
-      {.extension_url = "test_fenced_frames_network_revocation.html"}))
       << message_;
 }
 
@@ -7331,6 +7328,105 @@ IN_PROC_BROWSER_TEST_F(
   auto* web_contents = GetActiveWebContents();
   EXPECT_FALSE(NavigateToURL(web_contents, embedded_test_server()->GetURL(
                                                "example.com", "/simple.html")));
+}
+
+// Tests that removing a webRequest listener that exists in the in-memory
+// EventRouter but is absent from the persisted preferences (due to being
+// overwritten by a listener with a different filter in a previous run)
+// does not cause a crash. Regression test for crbug.com/508602546.
+IN_PROC_BROWSER_TEST_F(
+    ManifestV3WebRequestApiTestWithEventRouterPersistence,
+    ServiceWorkerWithWebRequest_RemoveStaleListenerDoesNotCrash) {
+  ASSERT_TRUE(StartEmbeddedTestServer());
+  static constexpr char kManifest[] =
+      R"({
+           "name": "MV3 WebRequest",
+           "version": "0.1",
+           "manifest_version": 3,
+           "permissions": ["webRequest", "storage"],
+           "host_permissions": ["*://*.filter1.com/*", "*://*.filter2.com/*"],
+           "background": {"service_worker": "background.js"}
+         })";
+
+  static constexpr char kBackgroundJs[] =
+      R"(function myListener(details) {}
+         const key = 'run';
+         chrome.storage.local.get([key], async (result) => {
+           const run = result[key] || 0;
+           if (run === 0) {
+             chrome.webRequest.onBeforeRequest.addListener(
+                 myListener,
+                 {urls: ['http://filter1.com/*']});
+             await chrome.storage.local.set({[key]: 1});
+             chrome.test.sendMessage('ready_1');
+           } else if (run === 1) {
+             chrome.webRequest.onBeforeRequest.addListener(
+                 myListener,
+                 {urls: ['http://filter2.com/*']});
+             await chrome.storage.local.set({[key]: 2});
+             chrome.test.sendMessage('ready_2');
+           } else if (run === 2) {
+             chrome.webRequest.onBeforeRequest.addListener(
+                 myListener,
+                 {urls: ['http://filter1.com/*']});
+             chrome.webRequest.onBeforeRequest.removeListener(myListener);
+             chrome.test.sendMessage('ready_3');
+           }
+         });)";
+
+  TestExtensionDir test_dir;
+  test_dir.WriteManifest(kManifest);
+  test_dir.WriteFile(FILE_PATH_LITERAL("background.js"), kBackgroundJs);
+
+  ExtensionTestMessageListener ready_1("ready_1");
+  ExtensionTestMessageListener ready_2("ready_2");
+  ExtensionTestMessageListener ready_3("ready_3");
+
+  // ======= RUN 1 =======
+  const Extension* extension = LoadExtension(
+      test_dir.UnpackedPath(), {.wait_for_registration_stored = true});
+  ASSERT_TRUE(extension);
+  ASSERT_TRUE(ready_1.WaitUntilSatisfied());
+
+  std::optional<WorkerId> worker_id = GetWorkerIdForExtension(extension->id());
+  ASSERT_TRUE(worker_id);
+  int version_id = worker_id->version_id;
+
+  // Stop the service worker.
+  browsertest_util::StopServiceWorkerForExtensionGlobalScope(profile(),
+                                                             extension->id());
+  ASSERT_TRUE(content::CheckServiceWorkerIsStopped(GetServiceWorkerContext(),
+                                                   version_id));
+  // At this point, prefs and in-memory lazy listeners contain
+  // `webRequest.onBeforeRequest/s1` with filter1 details.
+
+  // ======= RUN 2 =======
+  // Wake up the worker by triggering the lazy event listener for filter1.
+  ASSERT_TRUE(NavigateToURL(
+      GetActiveWebContents(),
+      embedded_test_server()->GetURL("filter1.com", "/simple.html")));
+  ASSERT_TRUE(ready_2.WaitUntilSatisfied());
+
+  // Stop the service worker again.
+  browsertest_util::StopServiceWorkerForExtensionGlobalScope(profile(),
+                                                             extension->id());
+  ASSERT_TRUE(content::CheckServiceWorkerIsStopped(GetServiceWorkerContext(),
+                                                   version_id));
+  // At this point, prefs contains `webRequest.onBeforeRequest/s1` with filter2
+  // details. However, in-memory lazy listeners still contain filter1 details
+  // too.
+
+  // ======= RUN 3 =======
+  // Wake up the worker by triggering the lazy event listener for filter2.
+  ASSERT_TRUE(NavigateToURL(
+      GetActiveWebContents(),
+      embedded_test_server()->GetURL("filter2.com", "/simple.html")));
+  ASSERT_TRUE(ready_3.WaitUntilSatisfied());
+
+  // This run registers and removes filter1 again, but because it was already
+  // in the in-memory lazy listeners, it assumes it's also in the prefs and
+  // tries to remove it. That should be handled gracefully nad this test should
+  // NOT crash.
 }
 
 // Tests unloading an extension with lazy listeners while the worker is

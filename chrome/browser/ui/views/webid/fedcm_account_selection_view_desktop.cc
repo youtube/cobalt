@@ -16,7 +16,9 @@
 #include "chrome/browser/actor/actor_util.h"
 #include "chrome/browser/net/system_network_context_manager.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
-#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+#include "chrome/browser/ui/page_actions/page_action_controller.h"
 #include "chrome/browser/ui/tabs/inactive_window_mouse_event_controller.h"
 #include "chrome/browser/ui/tabs/public/tab_dialog_manager.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
@@ -24,7 +26,6 @@
 #include "chrome/browser/ui/views/extensions/security_dialog_tracker.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
-#include "chrome/browser/ui/views/page_action/page_action_controller.h"
 #include "chrome/browser/ui/views/webid/account_selection_bubble_view.h"
 #include "chrome/browser/ui/views/webid/account_selection_modal_view.h"
 #include "chrome/browser/ui/views/webid/account_selection_view_base.h"
@@ -40,6 +41,7 @@
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
+#include "third_party/blink/public/mojom/manifest/display_mode.mojom.h"
 #include "third_party/blink/public/mojom/webid/federated_auth_request.mojom.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/gfx/image/image_skia_operations.h"
@@ -533,11 +535,11 @@ bool FedCmAccountSelectionView::ShowLoadingDialog(
   return true;
 }
 
-void FedCmAccountSelectionView::SetCanShowWidget(bool can_show_widget) {
-  if (can_show_widget == can_show_widget_) {
+void FedCmAccountSelectionView::SetCanShowUi(bool can_show_ui) {
+  if (can_show_ui == can_show_ui_) {
     return;
   }
-  can_show_widget_ = can_show_widget;
+  can_show_ui_ = can_show_ui;
   UpdateDialogVisibilityAndPosition();
 }
 
@@ -599,7 +601,8 @@ bool FedCmAccountSelectionView::ShowVerifyingDialog(
 
 void FedCmAccountSelectionView::ShowUrl(LinkType link_type, const GURL& url) {
   BrowserWindowInterface* browser =
-      chrome::FindBrowserWithTab(delegate_->GetWebContents());
+      GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
+          delegate_->GetWebContents());
   TabStripModel* tab_strip_model = browser->GetTabStripModel();
 
   DCHECK(tab_strip_model);
@@ -872,8 +875,19 @@ content::WebContents* FedCmAccountSelectionView::ShowModalDialog(
   UpdateDialogVisibilityAndPosition();
 
   if (tabs::TabInterface* initiating_task_tab = InitiatingTaskTab(tab_)) {
-    if (actor::IsRunningBackgroundActorTask(
-            *initiating_task_tab->GetContents())) {
+    content::WebContents* initiating_contents =
+        initiating_task_tab->GetContents();
+    // We check `GetDisplayMode` to track both tab and browser fullscreen.
+    bool in_fullscreen =
+        initiating_contents->GetDelegate() &&
+        initiating_contents->GetDelegate()->GetDisplayMode(
+            initiating_contents) == blink::mojom::DisplayMode::kFullscreen;
+    // If the tab is running a background actor task and is not in fullscreen,
+    // withhold the pop-up until the tab is foregrounded. Fullscreen tabs are
+    // not withheld because in that case we'd open a new tab instead of a pop-up
+    // window, so there's no need to withhold.
+    if (actor::IsRunningBackgroundActorTask(*initiating_contents) &&
+        !in_fullscreen) {
       tab_subscriptions_.push_back(
           initiating_task_tab->RegisterDidActivate(base::BindRepeating(
               &FedCmAccountSelectionView::BackgroundTaskTabForegrounded,
@@ -1119,9 +1133,10 @@ std::unique_ptr<views::Widget> FedCmAccountSelectionView::CreateDialogWidget() {
         base::WrapUnique(views::AsViewClass<AccountSelectionBubbleView>(
             parked_dialog_view_.release())),
         GetAnchorView());
-    dialog_widget = base::WrapUnique(views::BubbleDialogDelegate::CreateBubble(
-        widget_delegate_.get()->AsBubbleDialogDelegate(),
-        views::Widget::InitParams::CLIENT_OWNS_WIDGET));
+    dialog_widget =
+        base::WrapUnique(views::BubbleDialogDelegate::CreateBubbleDeprecated(
+            widget_delegate_.get()->AsBubbleDialogDelegate(),
+            views::Widget::InitParams::CLIENT_OWNS_WIDGET));
   } else {
     // Create and show the dialog widget. This is functionally a tab-modal
     // dialog.
@@ -1434,7 +1449,7 @@ gfx::Rect FedCmAccountSelectionView::GetDialogBounds() {
 }
 
 void FedCmAccountSelectionView::ShouldShowDialog(bool& should_show) {
-  if (!can_show_widget_) {
+  if (!can_show_ui_) {
     should_show = false;
     return;
   }
