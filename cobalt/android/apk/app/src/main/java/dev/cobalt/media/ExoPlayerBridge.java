@@ -56,10 +56,12 @@ public class ExoPlayerBridge {
   private final HandlerThread mExoPlayerThread;
   private final Handler mExoPlayerHandler;
   // The following variables are accessed on both the Handler and native threads
-  private volatile long mLastPlaybackPosUsec = 0;
-  private volatile long mPlaybackPosLastUpdatedMsec = 0;
-  private volatile float mPlaybackRate = 1.0f;
-  private volatile boolean mIsProgressing = false;
+  private final Object mPositionLock = new Object();
+  // Guarded by mPositionLock
+  private long mLastPlaybackPosUsec = 0;
+  private long mPlaybackPosLastUpdatedMsec = 0;
+  private float mPlaybackRate = 1.0f;
+  private boolean mIsProgressing = false;
   private volatile boolean mIsReleased = false;
 
   private final ExoPlayerListener mPlayerListener;
@@ -105,9 +107,11 @@ public class ExoPlayerBridge {
     }
 
     @Override
-    public synchronized void onIsPlayingChanged(boolean isPlaying) {
-      updatePositionAnchor();
-      mIsProgressing = isPlaying;
+    public void onIsPlayingChanged(boolean isPlaying) {
+      synchronized (mPositionLock) {
+        updatePositionAnchorLocked();
+        mIsProgressing = isPlaying;
+      }
       if (!mIsReleased) {
         synchronized (mNativeLock) {
           if (mNativeExoPlayerBridge != 0) {
@@ -120,13 +124,17 @@ public class ExoPlayerBridge {
     @Override
     public void onPositionDiscontinuity(
         Player.PositionInfo oldPosition, Player.PositionInfo newPosition, int reason) {
-      updatePositionAnchor();
+      synchronized (mPositionLock) {
+        updatePositionAnchorLocked();
+      }
     }
 
     @Override
     public void onPlaybackParametersChanged(PlaybackParameters playbackParameters) {
-      updatePositionAnchor();
-      mPlaybackRate = playbackParameters.speed;
+      synchronized (mPositionLock) {
+        updatePositionAnchorLocked();
+        mPlaybackRate = playbackParameters.speed;
+      }
     }
 
     @Override
@@ -243,9 +251,10 @@ public class ExoPlayerBridge {
   /**
    * Updates the position anchor by reading the current position from ExoPlayer. This method must be
    * called on the ExoPlayer thread to ensure thread safety. It saves the position and current time
-   * for interpolation in getCurrentPositionUsec.
+   * for interpolation in getCurrentPositionUsec. Must be called while holding mPositionLock.
    */
-  private synchronized void updatePositionAnchor() {
+  private void updatePositionAnchorLocked() {
+    assert Thread.holdsLock(mPositionLock);
     if (!mIsReleased && mPlayer != null) {
       mLastPlaybackPosUsec = mPlayer.getCurrentPosition() * 1000;
       mPlaybackPosLastUpdatedMsec = SystemClock.elapsedRealtime();
@@ -256,7 +265,9 @@ public class ExoPlayerBridge {
   @CalledByNative
   public void release() {
     mIsReleased = true;
-    mIsProgressing = false;
+    synchronized (mPositionLock) {
+      mIsProgressing = false;
+    }
     synchronized (mNativeLock) {
       mNativeExoPlayerBridge = 0;
     }
@@ -303,7 +314,9 @@ public class ExoPlayerBridge {
     mExoPlayerHandler.post(
         () -> {
           mPlayer.seekTo(seekToTimeUsec / 1000);
-          updatePositionAnchor();
+          synchronized (mPositionLock) {
+            updatePositionAnchorLocked();
+          }
           if (mPlayer.getPlaybackState() == Player.STATE_READY) {
             synchronized (mNativeLock) {
               if (mNativeExoPlayerBridge != 0) {
@@ -323,7 +336,9 @@ public class ExoPlayerBridge {
     mExoPlayerHandler.post(
         () -> {
           mPlayer.pause();
-          updatePositionAnchor();
+          synchronized (mPositionLock) {
+            updatePositionAnchorLocked();
+          }
         });
   }
 
@@ -335,9 +350,15 @@ public class ExoPlayerBridge {
     }
     mExoPlayerHandler.post(
         () -> {
-          if (!mPlayer.isPlaying() && mPlaybackRate > 0.0) {
+          boolean shouldPlay;
+          synchronized (mPositionLock) {
+            shouldPlay = !mPlayer.isPlaying() && mPlaybackRate > 0.0;
+          }
+          if (shouldPlay) {
             mPlayer.play();
-            updatePositionAnchor();
+            synchronized (mPositionLock) {
+              updatePositionAnchorLocked();
+            }
           }
         });
   }
@@ -349,7 +370,9 @@ public class ExoPlayerBridge {
       return;
     }
 
-    mPlaybackRate = playbackRate;
+    synchronized (mPositionLock) {
+      mPlaybackRate = playbackRate;
+    }
 
     if (playbackRate > 0.0f) {
       mExoPlayerHandler.post(
@@ -381,7 +404,9 @@ public class ExoPlayerBridge {
     mExoPlayerHandler.post(
         () -> {
           mPlayer.stop();
-          updatePositionAnchor();
+          synchronized (mPositionLock) {
+            updatePositionAnchorLocked();
+          }
         });
   }
 
@@ -394,20 +419,22 @@ public class ExoPlayerBridge {
    * player thread, adjusted by the current playback rate.
    */
   @CalledByNative
-  private synchronized long getCurrentPositionUsec() {
-    if (mIsReleased) {
-      return mLastPlaybackPosUsec;
-    }
-    long currentPositionUsec = mLastPlaybackPosUsec;
-    if (mIsProgressing) {
-      currentPositionUsec +=
-          (long)
-              ((SystemClock.elapsedRealtime() - mPlaybackPosLastUpdatedMsec)
-                  * mPlaybackRate
-                  * 1000);
-    }
+  private long getCurrentPositionUsec() {
+    synchronized (mPositionLock) {
+      if (mIsReleased) {
+        return mLastPlaybackPosUsec;
+      }
+      long currentPositionUsec = mLastPlaybackPosUsec;
+      if (mIsProgressing) {
+        currentPositionUsec +=
+            (long)
+                ((SystemClock.elapsedRealtime() - mPlaybackPosLastUpdatedMsec)
+                    * mPlaybackRate
+                    * 1000);
+      }
 
-    return currentPositionUsec;
+      return currentPositionUsec;
+    }
   }
 
   private void reportError(String errorMessage) {
