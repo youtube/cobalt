@@ -4,13 +4,13 @@
 
 #include "chrome/browser/ash/accessibility/switch_access_test_utils.h"
 
+#include "ash/constants/ash_extension_constants.h"
 #include "ash/constants/ash_pref_names.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/path_service.h"
 #include "base/strings/stringprintf.h"
 #include "chrome/browser/ash/accessibility/accessibility_manager.h"
-#include "chrome/common/extensions/extension_constants.h"
 #include "extensions/browser/browsertest_util.h"
 #include "extensions/browser/extension_host_test_helper.h"
 #include "extensions/browser/extension_registry_test_helper.h"

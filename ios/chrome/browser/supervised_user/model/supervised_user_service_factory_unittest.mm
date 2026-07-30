@@ -10,10 +10,13 @@
 #import "components/prefs/pref_notifier_impl.h"
 #import "components/prefs/pref_value_store.h"
 #import "components/supervised_user/core/browser/supervised_user_service.h"
+#import "components/sync/test/test_sync_service.h"
 #import "components/sync_preferences/testing_pref_service_syncable.h"
 #import "ios/chrome/browser/first_run/model/first_run.h"
 #import "ios/chrome/browser/shared/model/prefs/browser_prefs.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/test_sync_service_utils.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/web/public/test/web_task_environment.h"
 #import "testing/platform_test.h"
@@ -22,7 +25,10 @@
 class SupervisedUserServiceFactoryTest : public PlatformTest {
  public:
   SupervisedUserServiceFactoryTest() {
-    profile_ = TestProfileIOS::Builder().Build();
+    TestProfileIOS::Builder builder;
+    builder.AddTestingFactory(SyncServiceFactory::GetInstance(),
+                              base::BindRepeating(&CreateTestSyncService));
+    profile_ = std::move(builder).Build();
   }
 
   ProfileIOS* GetRegularProfile() { return profile_.get(); }

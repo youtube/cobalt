@@ -16,12 +16,15 @@
 #include "base/test/task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
+#include "ui/accessibility/ax_tree_id.h"
 #include "ui/accessibility/ax_tree_update.h"
 #include "ui/accessibility/ax_updates_and_events.h"
+#include "ui/accessibility/platform/ax_private_webkit_constants_mac.h"
 #include "ui/accessibility/platform/browser_accessibility_cocoa.h"
 #include "ui/accessibility/platform/browser_accessibility_manager.h"
 #include "ui/accessibility/platform/browser_accessibility_manager_mac.h"
 #include "ui/accessibility/platform/test_ax_node_id_delegate.h"
+#include "ui/accessibility/test_ax_tree_update.h"
 #import "ui/base/test/cocoa_helper.h"
 
 namespace ui {
@@ -976,6 +979,340 @@ TEST_F(BrowserAccessibilityMacTest,
   NSRange visibleRange = [accessibility_ accessibilityVisibleCharacterRange];
   EXPECT_EQ(visibleRange.location, 0U);
   EXPECT_EQ(visibleRange.length, 11U);
+}
+
+namespace {
+
+constexpr char kEmptyGroupChainTree[] = R"HTML(
+  ++1 kRootWebArea
+  ++++2 kGenericContainer
+  ++++++3 kGenericContainer
+)HTML";
+
+// Node ids in `kEmptyGroupChainTree`: outer empty wrapper and its leaf
+// descendant.
+constexpr int32_t kEmptyGroupSubroleOuterId = 2;
+constexpr int32_t kEmptyGroupSubroleLeafId = 3;
+
+}  // namespace
+
+// AXEmptyGroup subrole: predicate correctness, invalidation hooks, landmark
+// override.
+class BrowserAccessibilityMacEmptyGroupSubroleTest
+    : public BrowserAccessibilityMacTest {
+ protected:
+  void SetUp() override {
+    CocoaTest::SetUp();
+    BuildTree(kEmptyGroupChainTree);
+  }
+
+  void BuildTree(const char* tree) {
+    manager_ = std::make_unique<BrowserAccessibilityManagerMac>(
+        TestAXTreeUpdate(std::string(tree)), node_id_delegate_, nullptr);
+  }
+
+  BrowserAccessibilityCocoa* CocoaForId(int32_t id) {
+    return base::apple::ObjCCastStrict<BrowserAccessibilityCocoa>(
+        manager_->GetFromID(id)->GetNativeViewAccessible().Get());
+  }
+
+  AXNodeData DataForId(int32_t id) {
+    return manager_->GetFromID(id)->GetData();
+  }
+
+  void ApplyNodeDataUpdate(const AXNodeData& updated_node) {
+    AXUpdatesAndEvents bundle;
+    bundle.updates.resize(1);
+    bundle.updates[0].nodes.push_back(updated_node);
+    ASSERT_TRUE(manager_->OnAccessibilityEvents(bundle));
+  }
+
+  void ExpectSubrole(int32_t id, NSString* expected) {
+    EXPECT_NSEQ(expected, [CocoaForId(id) subrole]);
+  }
+
+  void ExpectNotSubrole(int32_t id, NSString* unexpected) {
+    EXPECT_NSNE(unexpected, [CocoaForId(id) subrole]);
+  }
+
+  void ExpectEmptyGroupSubrole(int32_t id) {
+    ExpectSubrole(id, ui::NSAccessibilityEmptyGroupSubrole);
+  }
+
+  void ExpectNotEmptyGroupSubrole(int32_t id) {
+    ExpectNotSubrole(id, ui::NSAccessibilityEmptyGroupSubrole);
+  }
+
+  template <typename MutateFn>
+  void ExpectEmptyGroupSubroleInvalidatedOnLeafMutation(MutateFn mutate) {
+    ExpectEmptyGroupSubrole(kEmptyGroupSubroleOuterId);
+    AXNodeData updated_leaf = DataForId(kEmptyGroupSubroleLeafId);
+    mutate(updated_leaf);
+    ApplyNodeDataUpdate(updated_leaf);
+    ExpectNotEmptyGroupSubrole(kEmptyGroupSubroleOuterId);
+  }
+};
+
+// Empty wrapper chain: every layout-only group in the path reports
+// AXEmptyGroup.
+TEST_F(BrowserAccessibilityMacEmptyGroupSubroleTest, EmptyGroupChain) {
+  ExpectEmptyGroupSubrole(kEmptyGroupSubroleOuterId);
+  ExpectEmptyGroupSubrole(kEmptyGroupSubroleLeafId);
+}
+
+// WebKit parity: a group's OWN name does not exempt it from AXEmptyGroup --
+// isEmptyGroup() looks only at children, not the group's own name. A named but
+// childless group is therefore AXEmptyGroup on itself (so VoiceOver walks past
+// it instead of landing on a dead-end labeled container).
+TEST_F(BrowserAccessibilityMacEmptyGroupSubroleTest, NamedGroupOnSelfIsEmpty) {
+  BuildTree(R"HTML(
+    ++1 kRootWebArea
+    ++++2 kGenericContainer name="Label"
+  )HTML");
+  ExpectEmptyGroupSubrole(2);
+}
+
+// Like the name, the root ignores the node's OWN description (a
+// label/annotation on empty content is a dead-end), so a plain group whose only
+// signal is a description still flattens. Live-region roles are the exception
+// that keeps such a node (see LiveRegionRolesKeepTheirSubrole) -- via the role,
+// not the text.
+TEST_F(BrowserAccessibilityMacEmptyGroupSubroleTest,
+       OwnDescriptionDoesNotPreventEmptyGroup) {
+  BuildTree(R"HTML(
+    ++1 kRootWebArea
+    ++++2 kGenericContainer stringAttribute=kDescription,Message
+  )HTML");
+  ExpectEmptyGroupSubrole(2);
+}
+
+// Focusable nodes are tab stops; flattening them to AXEmptyGroup would skip
+// them during VoiceOver linear navigation while they remain tab stops. A
+// focusable node is never AXEmptyGroup, even when childless. (A plain childless
+// group is AXEmptyGroup -- see EmptyGroupChain.)
+TEST_F(BrowserAccessibilityMacEmptyGroupSubroleTest, FocusableGroupIsNotEmpty) {
+  BuildTree(R"HTML(
+    ++1 kRootWebArea
+    ++++2 kGenericContainer state=kFocusable
+  )HTML");
+  ExpectNotEmptyGroupSubrole(2);
+}
+
+// Live-region / status roles (alert, status, log) map to
+// NSAccessibilityGroupRole but must not be flattened to AXEmptyGroup even when
+// childless, or VoiceOver would skip a critical announcement region; they keep
+// their native subrole. This is what protects the native form-validation bubble
+// (a childless alert whose message lives in its description) -- via the role,
+// not the description (cf. OwnDescriptionDoesNotPreventEmptyGroup).
+TEST_F(BrowserAccessibilityMacEmptyGroupSubroleTest,
+       LiveRegionRolesKeepTheirSubrole) {
+  BuildTree(R"HTML(
+    ++1 kRootWebArea
+    ++++2 kAlert
+    ++++3 kStatus
+    ++++4 kLog
+  )HTML");
+  ExpectSubrole(2, @"AXApplicationAlert");
+  ExpectSubrole(3, @"AXApplicationStatus");
+  ExpectSubrole(4, @"AXApplicationLog");
+}
+
+// Contract #4: empty landmark wrappers report AXEmptyGroup, not the landmark
+// subrole.
+TEST_F(BrowserAccessibilityMacEmptyGroupSubroleTest,
+       EmptyLandmarkBeatsLandmarkSubrole) {
+  BuildTree(R"HTML(
+    ++1 kRootWebArea
+    ++++2 kBanner
+    ++++++3 kGenericContainer
+  )HTML");
+  ExpectEmptyGroupSubrole(2);
+  ExpectNotSubrole(2, @"AXLandmarkBanner");
+}
+
+// The flip side of WebKit's split between isEmptyGroup() (ignores own name) and
+// computeIsIgnored() (keeps named nodes unignored): a named childless group is
+// AXEmptyGroup on itself, yet as an unignored descendant it still keeps its
+// ancestor non-empty. Removing the descendant name check would instead swallow
+// named / text leaves into an AXEmptyGroup ancestor and hide them.
+TEST_F(BrowserAccessibilityMacEmptyGroupSubroleTest,
+       NamedDescendantGroupKeepsAncestorNonEmpty) {
+  BuildTree(R"HTML(
+    ++1 kRootWebArea
+    ++++2 kGenericContainer
+    ++++++3 kGenericContainer name="Label"
+  )HTML");
+  ExpectEmptyGroupSubrole(3);
+  ExpectNotEmptyGroupSubrole(2);
+}
+
+// OnNodeDataChanged -> -invalidateEmptyGroupCacheUpwards (representative string
+// attribute).
+TEST_F(BrowserAccessibilityMacEmptyGroupSubroleTest,
+       InvalidationOnDescendantNameChange) {
+  ExpectEmptyGroupSubroleInvalidatedOnLeafMutation(
+      [](AXNodeData& leaf) { leaf.SetName("Hello"); });
+}
+
+// Deep descendant change must flip an ancestor even though the intermediate
+// group was previously cached as empty (exercises the kEmptyGroupCacheEmpty
+// short-circuit in resolveEmptyGroupSubtree after invalidation).
+TEST_F(BrowserAccessibilityMacEmptyGroupSubroleTest,
+       InvalidationThroughCachedIntermediateGroup) {
+  BuildTree(R"HTML(
+    ++1 kRootWebArea
+    ++++2 kGenericContainer
+    ++++++3 kGenericContainer
+    ++++++++4 kGenericContainer
+  )HTML");
+  // Prime caches: outer (2), intermediate (3) and leaf (4) all empty.
+  ExpectEmptyGroupSubrole(2);
+  ExpectEmptyGroupSubrole(3);
+  ExpectEmptyGroupSubrole(4);
+
+  AXNodeData named_leaf = DataForId(4);
+  named_leaf.SetName("Hello");
+  ApplyNodeDataUpdate(named_leaf);
+
+  // The intermediate group's cache must have been invalidated too; otherwise
+  // the outer group would short-circuit on a stale empty verdict.
+  ExpectNotEmptyGroupSubrole(2);
+  ExpectNotEmptyGroupSubrole(3);
+}
+
+// State diff path (not covered by the string-attribute loop in the manager
+// hook).
+TEST_F(BrowserAccessibilityMacEmptyGroupSubroleTest,
+       InvalidationOnDescendantFocusableStateChange) {
+  ExpectEmptyGroupSubroleInvalidatedOnLeafMutation(
+      [](AXNodeData& leaf) { leaf.AddState(ax::mojom::State::kFocusable); });
+}
+
+// Embedded-content host short-circuit (iframe / OOPIF / plugin hosts).
+TEST_F(BrowserAccessibilityMacEmptyGroupSubroleTest,
+       InvalidationOnDescendantChildTreeIdChange) {
+  ExpectEmptyGroupSubroleInvalidatedOnLeafMutation([](AXNodeData& leaf) {
+    leaf.AddChildTreeId(ui::AXTreeID::CreateNewAXTreeID());
+  });
+}
+
+// kDefaultActionVerb diff path (IsClickable without a role change).
+TEST_F(BrowserAccessibilityMacEmptyGroupSubroleTest,
+       InvalidationOnDescendantDefaultActionVerbChange) {
+  ExpectEmptyGroupSubroleInvalidatedOnLeafMutation([](AXNodeData& leaf) {
+    leaf.SetDefaultActionVerb(ax::mojom::DefaultActionVerb::kClick);
+  });
+}
+
+// Range-value descendants (meter/progress/etc.) carry announceable value via
+// kValueForRange, not the string kValue attribute.
+TEST_F(BrowserAccessibilityMacEmptyGroupSubroleTest,
+       RangeValueDescendantSuppressesEmptyGroupOnAncestor) {
+  BuildTree(R"HTML(
+    ++1 kRootWebArea
+    ++++2 kGenericContainer
+    ++++++3 kGenericContainer
+  )HTML");
+
+  AXNodeData meter = DataForId(3);
+  meter.role = ax::mojom::Role::kMeter;
+  meter.AddFloatAttribute(ax::mojom::FloatAttribute::kValueForRange, 2.0f);
+  ApplyNodeDataUpdate(meter);
+
+  ExpectNotEmptyGroupSubrole(2);
+}
+
+// A leaf turning into (and back from) a range role flips the ancestor verdict.
+// The invalidation is driven by the role change; the kValueForRange value is
+// not an independently-watched axis (see HasNonEmptyGroupSemantics and the
+// invalidation diff in BrowserAccessibilityManagerMac::OnNodeDataChanged).
+TEST_F(BrowserAccessibilityMacEmptyGroupSubroleTest,
+       InvalidationOnDescendantBecomingRangeRole) {
+  ExpectEmptyGroupSubrole(kEmptyGroupSubroleOuterId);
+
+  AXNodeData range_leaf = DataForId(kEmptyGroupSubroleLeafId);
+  range_leaf.role = ax::mojom::Role::kProgressIndicator;
+  range_leaf.AddFloatAttribute(ax::mojom::FloatAttribute::kValueForRange,
+                               22.0f);
+  ApplyNodeDataUpdate(range_leaf);
+  ExpectNotEmptyGroupSubrole(kEmptyGroupSubroleOuterId);
+
+  AXNodeData cleared = DataForId(kEmptyGroupSubroleLeafId);
+  cleared.role = ax::mojom::Role::kGenericContainer;
+  cleared.RemoveFloatAttribute(ax::mojom::FloatAttribute::kValueForRange);
+  ApplyNodeDataUpdate(cleared);
+  ExpectEmptyGroupSubrole(kEmptyGroupSubroleOuterId);
+}
+
+// Invalidation must allow the verdict to flip back to empty when semantics are
+// removed.
+TEST_F(BrowserAccessibilityMacEmptyGroupSubroleTest,
+       InvalidationRestoresEmptyGroupWhenSemanticRemoved) {
+  ExpectEmptyGroupSubrole(kEmptyGroupSubroleOuterId);
+
+  AXNodeData named_leaf = DataForId(kEmptyGroupSubroleLeafId);
+  named_leaf.SetName("Hello");
+  ApplyNodeDataUpdate(named_leaf);
+  ExpectNotEmptyGroupSubrole(kEmptyGroupSubroleOuterId);
+
+  AXNodeData cleared_leaf = DataForId(kEmptyGroupSubroleLeafId);
+  cleared_leaf.SetName("");
+  ApplyNodeDataUpdate(cleared_leaf);
+  ExpectEmptyGroupSubrole(kEmptyGroupSubroleOuterId);
+}
+
+// Structural changes: -childrenChanged invalidates cached empty verdicts.
+TEST_F(BrowserAccessibilityMacEmptyGroupSubroleTest,
+       StructuralChildAdditionInvalidates) {
+  ExpectEmptyGroupSubrole(kEmptyGroupSubroleOuterId);
+
+  AXNodeData updated_mid = DataForId(kEmptyGroupSubroleOuterId);
+  updated_mid.child_ids = {kEmptyGroupSubroleLeafId, 4};
+
+  AXNodeData new_child;
+  new_child.id = 4;
+  new_child.role = ax::mojom::Role::kGenericContainer;
+  new_child.SetName("Hello");
+
+  AXUpdatesAndEvents bundle;
+  bundle.updates.resize(1);
+  bundle.updates[0].nodes.push_back(updated_mid);
+  bundle.updates[0].nodes.push_back(new_child);
+  ASSERT_TRUE(manager_->OnAccessibilityEvents(bundle));
+
+  // Harness has no delegate, so CHILDREN_CHANGED is not dispatched; call
+  // directly.
+  [CocoaForId(kEmptyGroupSubroleOuterId) childrenChanged];
+
+  ExpectNotEmptyGroupSubrole(kEmptyGroupSubroleOuterId);
+}
+
+// A group whose only children are indirect (kIndirectChildIds) and carry
+// content must not be AXEmptyGroup: the predicate has to walk
+// -accessibilityChildren (which includes indirect children), not platform
+// children alone. Mac table header containers are the real-world instance of
+// this shape; the synthesis path itself is covered by
+// BrowserAccessibilityMacTest.TableAPIs.
+TEST_F(BrowserAccessibilityMacEmptyGroupSubroleTest,
+       GroupWithIndirectContentChildIsNotEmptyGroup) {
+  BuildTree(R"HTML(
+    ++1 kRootWebArea
+    ++++2 kGenericContainer intListAttribute=kIndirectChildIds,4
+    ++++4 kStaticText name="Header"
+  )HTML");
+  // Node 2 has zero platform children but one content-bearing indirect child.
+  ExpectNotEmptyGroupSubrole(2);
+}
+
+// Math roles keep their native subrole (e.g. AXDocumentMath), not AXEmptyGroup.
+TEST_F(BrowserAccessibilityMacEmptyGroupSubroleTest,
+       MathRolePreservesNativeSubrole) {
+  BuildTree(R"HTML(
+    ++1 kRootWebArea
+    ++++2 kMathMLMath
+  )HTML");
+  ExpectSubrole(2, @"AXDocumentMath");
+  ExpectNotEmptyGroupSubrole(2);
 }
 
 }  // namespace ui

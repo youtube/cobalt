@@ -8,6 +8,7 @@
 #include <stddef.h>
 
 #include <functional>
+#include <map>
 #include <memory>
 #include <queue>
 #include <vector>

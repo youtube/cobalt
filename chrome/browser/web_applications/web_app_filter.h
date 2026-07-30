@@ -74,7 +74,10 @@ class WebAppFilter {
   static WebAppFilter LaunchableFromInstallApi();
 
   // Only consider web apps that have been installed in Chrome by trusted
-  // sources, like admin or preinstalled apps.
+  // sources, like admin or preinstalled apps. Useful in a variety of cases,
+  // like to skip showing of the manifest update dialog. Extending this logic
+  // to cover more use-cases could have security complications, please
+  // consult a web_applications/ OWNER if in doubt.
   static WebAppFilter IsTrusted();
 
   // Only consider web apps that are in the middle of an app migration, and will

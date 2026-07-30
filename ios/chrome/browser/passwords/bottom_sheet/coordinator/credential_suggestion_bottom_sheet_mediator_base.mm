@@ -10,6 +10,7 @@
 #import "components/autofill/ios/browser/form_suggestion.h"
 #import "components/password_manager/core/browser/password_ui_utils.h"
 #import "components/webauthn/ios/ios_passkey_client.h"
+#import "components/webauthn/ios/passkey_tab_helper.h"
 #import "ios/chrome/browser/favicon/model/favicon_loader.h"
 #import "ios/chrome/browser/passwords/bottom_sheet/coordinator/credential_suggestion_bottom_sheet_mediator_base+Subclassing.h"
 #import "ios/chrome/browser/passwords/bottom_sheet/coordinator/password_suggestion_bottom_sheet_exit_reason.h"
@@ -53,6 +54,10 @@
 
   // Information about the pending passkey request.
   std::optional<webauthn::IOSPasskeyClient::RequestInfo> _requestInfo;
+
+  // Whether the last selected suggestion successfully completed user
+  // verification.
+  BOOL _didCompleteUserVerification;
 }
 
 - (instancetype)
@@ -107,9 +112,14 @@
   return [self.suggestions count] > 0;
 }
 
+- (BOOL)didCompleteUserVerification {
+  return _didCompleteUserVerification;
+}
+
 - (void)didSelectSuggestion:(FormSuggestion*)formSuggestion
                     atIndex:(NSInteger)index
                  completion:(ProceduralBlock)completion {
+  _didCompleteUserVerification = NO;
   if (!formSuggestion.requiresReauth) {
     [self selectSuggestion:formSuggestion atIndex:index completion:completion];
     return;
@@ -124,9 +134,11 @@
     };
 
     NSString* reason = l10n_util::GetNSString(IDS_IOS_AUTOFILL_REAUTH_REASON);
+    BOOL canReusePreviousAuth =
+        [self canReusePreviousAuthForSuggestion:formSuggestion];
     [_reauthenticationModule
         attemptReauthWithLocalizedReason:reason
-                    canReusePreviousAuth:YES
+                    canReusePreviousAuth:canReusePreviousAuth
                                  handler:completionHandler];
   } else {
     [self selectSuggestion:formSuggestion atIndex:index completion:completion];
@@ -145,6 +157,7 @@
     reauthenticationResult:(ReauthenticationResult)result
                 completion:(ProceduralBlock)completion {
   if (result != ReauthenticationResult::kFailure) {
+    _didCompleteUserVerification = result == ReauthenticationResult::kSuccess;
     [self selectSuggestion:suggestion atIndex:index completion:completion];
   } else {
     [self disconnect];
@@ -191,6 +204,29 @@
 }
 
 #pragma mark - Private
+
+// Returns whether the previous authentication can be reused for the given
+// suggestion.
+- (BOOL)canReusePreviousAuthForSuggestion:(FormSuggestion*)formSuggestion {
+  if (formSuggestion.type != autofill::SuggestionType::kWebauthnCredential) {
+    return YES;
+  }
+
+  BOOL canReusePreviousAuth = NO;
+  web::WebState* activeWebState = _webStateList->GetActiveWebState();
+  webauthn::PasskeyTabHelper* passkeyTabHelper =
+      activeWebState ? webauthn::PasskeyTabHelper::FromWebState(activeWebState)
+                     : nullptr;
+  if (passkeyTabHelper && _requestInfo.has_value()) {
+    std::optional<bool> shouldPerformUserVerification =
+        passkeyTabHelper->ShouldPerformUserVerification(
+            _requestInfo->request_id);
+    if (shouldPerformUserVerification.has_value()) {
+      canReusePreviousAuth = !*shouldPerformUserVerification;
+    }
+  }
+  return canReusePreviousAuth;
+}
 
 // Closes the current bottom sheet when the web state changes.
 - (void)onWebStateChanged {

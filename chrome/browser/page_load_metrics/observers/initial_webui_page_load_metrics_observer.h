@@ -144,6 +144,9 @@ class InitialWebUIPageLoadMetricsObserver
 
   // The navigation start timestamp.
   base::Time navigation_start_time_;
+
+  // True if we have already recorded the one-time metrics.
+  bool metrics_recorded_ = false;
 };
 
 #endif  // CHROME_BROWSER_PAGE_LOAD_METRICS_OBSERVERS_INITIAL_WEBUI_PAGE_LOAD_METRICS_OBSERVER_H_

@@ -87,15 +87,7 @@ class CORE_EXPORT PointerLockController final
   static Element* GetPointerLockedElement(LocalFrame* frame);
 
  private:
-  friend class PointerLockControllerRateLimitTest;
-  FRIEND_TEST_ALL_PREFIXES(PointerLockControllerRateLimitTest,
-                           SuccessfulLockAddsToRecentTimestamps);
-  FRIEND_TEST_ALL_PREFIXES(PointerLockControllerRateLimitTest,
-                           FailedLockDoesNotAffectRateLimit);
-  FRIEND_TEST_ALL_PREFIXES(PointerLockControllerRateLimitTest,
-                           RequestRejectedAfterThresholdExceeded);
-  FRIEND_TEST_ALL_PREFIXES(PointerLockControllerRateLimitTest,
-                           RequestAcceptedAfterRateLimitWindowPasses);
+  friend class PointerLockControllerTest;
 
   void ClearElement();
   void EnqueueEvent(const AtomicString& type, Element*);

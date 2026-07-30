@@ -176,7 +176,10 @@ enum class GlicPrewarmingChecksResult {
   // restrictions.
   kProfileNotEligibleAccountCapabilities = 19,
 
-  kMaxValue = kProfileNotEligibleAccountCapabilities,
+  // The device has less than the minimum required memory for warming.
+  kDeviceLowMemory = 20,
+
+  kMaxValue = kDeviceLowMemory,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicPrewarmingChecksResult)
 

@@ -248,8 +248,10 @@ base::expected<String, String> CanonicalizePortInternal(const String& protocol,
 
   // Using the HTTPS dummy URL results in deletion of the default port number
   // (443), use a dummy scheme to avoid this.
-  // TODO(crbug.com/520829534): This behavior is NOT spec-compliant as of June,
-  // 2026. Discuss the proper way and update the code.
+  // In spec, the default scheme of the fake URL is the empty string.
+  // (https://urlpattern.spec.whatwg.org/#canonicalize-a-port) However, GURL
+  // refuses the empty scheme. Use "dummy:" as a workaround.
+  // TODO(crbug.com/528332878): Consider how to align with the spec.
   constexpr const char kDummyNonSpecialScheme[] = "dummy";
   KURL dummy_url(StrCat({kDummyNonSpecialScheme, kDummyUrlWithoutSchemeName}));
   if (!protocol.empty() && !dummy_url.SetProtocol(protocol)) {

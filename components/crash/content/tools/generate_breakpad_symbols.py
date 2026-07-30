@@ -219,6 +219,14 @@ def GetSharedLibraryDependenciesChromeOS(binary):
   return _GetSharedLibraryDependenciesAndroidOrChromeOS(binary)
 
 
+def GetSharedLibraryDependenciesFuchsia(binary):
+  """Return absolute paths to all shared library dependencies of the binary.
+
+  This implementation assumes that we're running on a Linux system, but
+  compiled for Fuchsia."""
+  return _GetSharedLibraryDependenciesAndroidOrChromeOS(binary)
+
+
 def GetSharedLibraryDependencies(options, binary, exe_path):
   """Return absolute paths to all shared library dependencies of the binary."""
   deps = []
@@ -230,6 +238,8 @@ def GetSharedLibraryDependencies(options, binary, exe_path):
     deps = GetSharedLibraryDependenciesMac(binary, exe_path)
   elif options.platform == 'chromeos':
     deps = GetSharedLibraryDependenciesChromeOS(binary)
+  elif options.platform == 'fuchsia':
+    deps = GetSharedLibraryDependenciesFuchsia(binary)
   else:
     print("Platform not supported.")
     sys.exit(1)
@@ -254,7 +264,7 @@ def GetTransitiveDependencies(options):
     deps.add(binary)
     return list(deps)
   elif (options.platform == 'darwin' or options.platform == 'android'
-        or options.platform == 'chromeos'):
+        or options.platform == 'chromeos' or options.platform == 'fuchsia'):
     binaries = set([binary])
     q = [binary]
     while q:

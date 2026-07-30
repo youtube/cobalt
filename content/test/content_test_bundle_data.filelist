@@ -512,6 +512,12 @@ data/accessibility/aria/aria-actions-reference-target.html
 data/accessibility/aria/aria-actions-target-id-change-expected-blink.txt
 data/accessibility/aria/aria-actions-target-id-change-expected-mac.txt
 data/accessibility/aria/aria-actions-target-id-change.html
+data/accessibility/aria/aria-actions-visibility-hidden-expected-auralinux.txt
+data/accessibility/aria/aria-actions-visibility-hidden-expected-blink.txt
+data/accessibility/aria/aria-actions-visibility-hidden-expected-mac.txt
+data/accessibility/aria/aria-actions-visibility-hidden-expected-uia-win.txt
+data/accessibility/aria/aria-actions-visibility-hidden-expected-win.txt
+data/accessibility/aria/aria-actions-visibility-hidden.html
 data/accessibility/aria/aria-actions.html
 data/accessibility/aria/aria-activedescendant-expected-auralinux.txt
 data/accessibility/aria/aria-activedescendant-expected-blink.txt
@@ -895,6 +901,9 @@ data/accessibility/aria/aria-feed-expected-auralinux.txt
 data/accessibility/aria/aria-feed-expected-mac.txt
 data/accessibility/aria/aria-feed-expected-win.txt
 data/accessibility/aria/aria-feed.html
+data/accessibility/aria/aria-fieldset-describedby-expected-blink.txt
+data/accessibility/aria/aria-fieldset-describedby-expected-mac.txt
+data/accessibility/aria/aria-fieldset-describedby.html
 data/accessibility/aria/aria-figure-expected-android-assist-data.txt
 data/accessibility/aria/aria-figure-expected-android-external.txt
 data/accessibility/aria/aria-figure-expected-android.txt
@@ -6105,6 +6114,9 @@ data/accessibility/html/time-expected-uia-win.txt
 data/accessibility/html/time-expected-win.txt
 data/accessibility/html/time.html
 data/accessibility/html/title-attribute-expected-blink.txt
+data/accessibility/html/title-attribute-with-children-expected-android.txt
+data/accessibility/html/title-attribute-with-children-expected-blink.txt
+data/accessibility/html/title-attribute-with-children.html
 data/accessibility/html/title-attribute.html
 data/accessibility/html/title-changed-expected-blink.txt
 data/accessibility/html/title-changed.html
@@ -6330,6 +6342,8 @@ data/accessibility/mac/attributes/ax-selected-rows.html
 data/accessibility/mac/attributes/ax-selected.html
 data/accessibility/mac/attributes/ax-size-expected.txt
 data/accessibility/mac/attributes/ax-size.html
+data/accessibility/mac/attributes/ax-subrole-expected.txt
+data/accessibility/mac/attributes/ax-subrole.html
 data/accessibility/mac/attributes/ax-title-expected.txt
 data/accessibility/mac/attributes/ax-title-ui-element-expected.txt
 data/accessibility/mac/attributes/ax-title-ui-element.html
@@ -6534,10 +6548,10 @@ data/accessibility/mathml/annotation-xml-node-expected-auralinux.txt
 data/accessibility/mathml/annotation-xml-node-expected-mac.txt
 data/accessibility/mathml/annotation-xml.html
 data/accessibility/mathml/annotation.html
-data/accessibility/mathml/intent.html
-data/accessibility/mathml/intent-expected-android.txt
 data/accessibility/mathml/intent-expected-android-external.txt
+data/accessibility/mathml/intent-expected-android.txt
 data/accessibility/mathml/intent-expected-blink.txt
+data/accessibility/mathml/intent.html
 data/accessibility/mathml/maction-expected-blink.txt
 data/accessibility/mathml/maction-expected-uia-win.txt
 data/accessibility/mathml/maction-node-expected-auralinux.txt
@@ -8154,6 +8168,8 @@ data/indexeddb/delete_compact.html
 data/indexeddb/delete_open_use.html
 data/indexeddb/delete_open_use.js
 data/indexeddb/delete_over_quota.html
+data/indexeddb/dexie_leak_repro.html
+data/indexeddb/dexie_leak_repro.js
 data/indexeddb/disk_full_on_commit.html
 data/indexeddb/empty_blob.html
 data/indexeddb/fill_quota.html
@@ -8728,7 +8744,6 @@ data/prerender/doc-with-display-none-iframe.html
 data/prerender/duplicate_prerenders.html
 data/prerender/empty.html
 data/prerender/external_sync_script.html
-data/prerender/form_submission_origin_trial_initiator.html
 data/prerender/image_loading_lazy.html
 data/prerender/inline_script.html
 data/prerender/inline_script_iframe.html

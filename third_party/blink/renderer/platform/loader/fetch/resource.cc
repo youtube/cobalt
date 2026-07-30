@@ -191,8 +191,7 @@ Resource::Resource(const ResourceRequestHead& request,
           "Resource",
           /*traits=*/std::nullopt,  // TODO(crbug.com/489671163): Fill traits.
           this,
-          MemoryConsumerRegistration::CheckUnregister::kDisabled,
-          MemoryConsumerRegistration::CheckRegistryExists::kDisabled) {
+          MemoryConsumerRegistration::CheckUnregister::kDisabled) {
   InstanceCounters::IncrementCounter(InstanceCounters::kResourceCounter);
 }
 

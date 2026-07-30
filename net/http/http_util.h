@@ -72,6 +72,16 @@ class NET_EXPORT HttpUtil {
   static bool ParseRangeHeader(std::string_view range_specifier,
                                std::vector<HttpByteRange>* ranges);
 
+  // Parses the Fetch Standard's "single range header value" for the
+  // "bytes" range unit. Optional HTTP tab/space around '=' and '-' is
+  // accepted only when |allow_whitespace| is true. At least one side of
+  // the range must contain digits. Returns the parsed range on success
+  // and std::nullopt on failure.
+  // https://fetch.spec.whatwg.org/#simple-range-header-value
+  static std::optional<HttpByteRange> ParseFetchSingleRange(
+      std::string_view range_header_value,
+      bool allow_whitespace);
+
   // Extracts the values in a Content-Range header and returns true if all three
   // values are present and valid for a 206 response; otherwise returns false.
   // The following values will be outputted:

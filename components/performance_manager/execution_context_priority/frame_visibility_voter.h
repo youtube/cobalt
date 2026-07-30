@@ -23,7 +23,9 @@ class FrameVisibilityVoter : public PriorityVoter, public FrameNodeObserver {
  public:
   static const char kFrameVisibilityReason[];
 
-  FrameVisibilityVoter();
+  // If `ignore_main_frame_visibility` is true, this voter will not cast votes
+  // for main frame nodes; only subframes will have their visibility considered.
+  explicit FrameVisibilityVoter(bool ignore_main_frame_visibility);
   ~FrameVisibilityVoter() override;
 
   FrameVisibilityVoter(const FrameVisibilityVoter&) = delete;
@@ -48,7 +50,10 @@ class FrameVisibilityVoter : public PriorityVoter, public FrameNodeObserver {
   VoterId voter_id() const { return voting_channel_.voter_id(); }
 
  private:
+  bool ShouldVoteForFrame(const FrameNode* frame_node) const;
+
   VotingChannel voting_channel_;
+  const bool ignore_main_frame_visibility_;
 };
 
 }  // namespace execution_context_priority

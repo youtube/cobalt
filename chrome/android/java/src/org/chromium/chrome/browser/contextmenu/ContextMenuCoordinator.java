@@ -27,6 +27,7 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils;
+import org.chromium.chrome.browser.ui.vertical_tabs.VerticalTabUtils;
 import org.chromium.components.browser_ui.widget.ContextMenuDialog;
 import org.chromium.components.embedder_support.contextmenu.ChipDelegate;
 import org.chromium.components.embedder_support.contextmenu.ContextMenuNativeDelegate;
@@ -37,6 +38,7 @@ import org.chromium.content_public.browser.LoadCommittedDetails;
 import org.chromium.content_public.browser.Visibility;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.WebContentsObserver;
+import org.chromium.ui.base.ViewUtils;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.hierarchicalmenu.FlyoutController;
 import org.chromium.ui.hierarchicalmenu.FlyoutController.FlyoutHandler;
@@ -193,6 +195,11 @@ public class ContextMenuCoordinator implements ContextMenuUi, FlyoutHandler<Cont
 
         View containerView = assumeNonNull(webContents.getViewAndroidDelegate()).getContainerView();
 
+        int leftContentOffsetPx =
+                VerticalTabUtils.isVerticalTabsEnabled(mActivity)
+                        ? ViewUtils.dpToPx(mActivity, VerticalTabUtils.SIDE_UI_CONTAINER_WIDTH_DP)
+                        : 0;
+
         // Calculate the Rect used to display the context menu dialog.
         Rect contextMenuRect =
                 ContextMenuUtils.getContextMenuAnchorRect(
@@ -200,7 +207,8 @@ public class ContextMenuCoordinator implements ContextMenuUi, FlyoutHandler<Cont
                         assertNonNull(window.getWindow()),
                         webContents,
                         params,
-                        mTopContentOffsetPx,
+                        leftContentOffsetPx,
+                        (int) mTopContentOffsetPx,
                         mUsePopupWindow,
                         assertNonNull(containerView));
         boolean shouldRemoveScrim = ContextMenuUtils.isPopupSupported(mActivity);

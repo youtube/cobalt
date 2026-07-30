@@ -193,14 +193,17 @@ TextTrackCueList* TextTrack::activeCues() {
   // order. Otherwise, it must return null. When an object is returned, the same
   // object must be returned each time.
   // http://www.whatwg.org/specs/web-apps/current-work/#dom-texttrack-activecues
-  if (!cues_ || mode_ == TextTrackMode::kDisabled)
+  if (mode_ == TextTrackMode::kDisabled) {
     return nullptr;
+  }
 
   if (!active_cues_) {
     active_cues_ = MakeGarbageCollected<TextTrackCueList>();
   }
 
-  cues_->CollectActiveCues(*active_cues_);
+  if (cues_) {
+    cues_->CollectActiveCues(*active_cues_);
+  }
   return active_cues_.Get();
 }
 

@@ -196,7 +196,7 @@ void SettingsWindowManager::ShowChromePageForProfile(
   // operator[] not used because SessionID has no default constructor.
   settings_session_map_.emplace(profile, SessionID::InvalidValue())
       .first->second = browser->GetSessionID();
-  DCHECK(browser->GetBrowserForMigrationOnly()->is_trusted_source());
+  DCHECK(WindowFeatureController::From(browser)->IsTrustedSource());
 
   // Configure the created window property.
   auto* window = browser->GetWindow()->GetNativeWindow();

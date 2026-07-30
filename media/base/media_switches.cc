@@ -1044,6 +1044,13 @@ BASE_FEATURE(kHardwareSecureDecryptionAv1, base::FEATURE_DISABLED_BY_DEFAULT);
 // and the OS Content Decryption Module (CDM).
 BASE_FEATURE(kHardwareSecureDecryptionVp9, base::FEATURE_DISABLED_BY_DEFAULT);
 
+#if BUILDFLAG(ENABLE_PLATFORM_ENCRYPTED_DOLBY_VISION)
+// Enables hardware secure Dolby Vision decoding always with HDR display check
+// if supported by the hardware and the OS Content Decryption Module (CDM).
+BASE_FEATURE(kHardwareSecureDecryptionDolbyVisionWithHdrCheck,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // ENABLE_PLATFORM_ENCRYPTED_DOLBY_VISION
+
 #if BUILDFLAG(IS_WIN)
 // Enables showing permission indicator in the omnibox when a site is allowed or
 // denied to to use protected content IDs to play protected content.
@@ -1604,6 +1611,11 @@ const base::FeatureParam<double>
 
 BASE_FEATURE(kCastStreamingHardwareHevc, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kCastStreamingMaxVideoBitrate, base::FEATURE_ENABLED_BY_DEFAULT);
+
+const base::FeatureParam<int> kCastStreamingMaxVideoBitrateMbps{
+    &kCastStreamingMaxVideoBitrate, "max_bitrate_mbps", 5};
+
 BASE_FEATURE(kCastStreamingPerformanceOverlay,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -1765,6 +1777,8 @@ BASE_FEATURE(kMP4TimedMetadataTrack, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kWebRtcAudioNeuralResidualEchoEstimation,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kWebRtcVoiceIsolationDenoiser, base::FEATURE_DISABLED_BY_DEFAULT);
+
 bool IsAudioProcessMlModelUsageEnabled() {
   if (!media::IsChromeWideEchoCancellationEnabled()) {
     // The feature relies on Chrome-wide echo cancellation being enabled,
@@ -1772,7 +1786,9 @@ bool IsAudioProcessMlModelUsageEnabled() {
     // model.
     return false;
   }
-  return base::FeatureList::IsEnabled(kWebRtcAudioNeuralResidualEchoEstimation);
+  return base::FeatureList::IsEnabled(
+             kWebRtcAudioNeuralResidualEchoEstimation) ||
+         base::FeatureList::IsEnabled(kWebRtcVoiceIsolationDenoiser);
 }
 
 #if BUILDFLAG(IS_MAC)
@@ -1988,5 +2004,9 @@ uint32_t GetPassthroughAudioFormats() {
   return 0;
 #endif  // BUILDFLAG(ENABLE_PASSTHROUGH_AUDIO_CODECS)
 }
+
+#if BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kUseMediaFormatCodedSize, base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
 
 }  // namespace media

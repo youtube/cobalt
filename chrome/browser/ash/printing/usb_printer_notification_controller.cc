@@ -4,6 +4,8 @@
 
 #include "chrome/browser/ash/printing/usb_printer_notification_controller.h"
 
+#include <map>
+
 #include "base/memory/raw_ptr.h"
 #include "base/strings/stringprintf.h"
 #include "chrome/browser/profiles/profile.h"

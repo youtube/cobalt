@@ -210,7 +210,9 @@ enum class AccountLinkingFlowExitedReason {
   kGetDetailsFailed = 15,
   kNotEligiblePerPaymentsBackend = 16,
   kActionTokenNotAvailable = 17,
-  kMaxValue = kActionTokenNotAvailable
+  kUserLoggedOut = 18,
+  kApiClientNotAvailable = 19,
+  kMaxValue = kApiClientNotAvailable
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/facilitated_payments/enums.xml:FacilitatedPayments.AccountLinking.FlowExitedReason)
 

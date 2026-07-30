@@ -59,7 +59,7 @@ public class AutofillNameFixFlowPrompt extends AutofillSaveCardPromptBase
      * @param confirmButtonLabel Label for the confirm button.
      * @return A {@link AutofillNameFixFlowPrompt} to confirm name.
      */
-    public static AutofillNameFixFlowPrompt createAsInfobarFixFlowPrompt(
+    public static AutofillNameFixFlowPrompt createAsMessageFixFlowPrompt(
             Context context,
             AutofillNameFixFlowPromptDelegate delegate,
             String inferredName,

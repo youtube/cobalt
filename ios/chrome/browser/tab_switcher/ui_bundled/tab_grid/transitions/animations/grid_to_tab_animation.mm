@@ -213,6 +213,8 @@
 
   // The completion block for the animation. Also executes the provided
   // completion block.
+  __weak __typeof(id<TabGridCommands>) weakHandler =
+      _animationParameters.handler;
   void (^animationCompletion)(BOOL) = ^(BOOL finished) {
     // Reset the active grid view.
     activeGridView.transform = CGAffineTransformIdentity;
@@ -236,6 +238,8 @@
     [contentImageView removeFromSuperview];
     [activeGridBlurView removeFromSuperview];
 
+    [weakHandler activateGridContainerConstraints];
+
     if (completion) {
       completion();
     }
@@ -257,6 +261,7 @@
                             completion:nil];
 
   // Perform the main animation.
+  [weakHandler deactivateGridContainerConstraints];
   [UIView animateWithDuration:kGridToTabAnimationDuration
                         delay:0
        usingSpringWithDamping:kGridToTabAnimationDamping

@@ -267,6 +267,10 @@ CONTENT_EXPORT std::ostream& operator<<(
     std::ostream& out,
     const AgentClusterKey& agent_cluster_key);
 
+CONTENT_EXPORT std::ostream& operator<<(
+    std::ostream& out,
+    const AgentClusterKey::OACStatus& status);
+
 }  // namespace content
 
 #endif  // CONTENT_BROWSER_AGENT_CLUSTER_KEY_H_

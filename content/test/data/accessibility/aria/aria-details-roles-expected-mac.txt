@@ -1,12 +1,12 @@
 AXWebArea
-++AXGroup AXDetailsElements=[:10]
-++AXGroup AXDetailsElements=[:12]
-++AXGroup AXDetailsElements=[:18]
-++AXGroup AXDetailsElements=[:21]
-++AXGroup AXDetailsElements=[:24]
-++AXGroup AXDetailsElements=[:26]
-++AXGroup AXDetailsElements=[:28]
-++AXGroup AXDetailsElements=[:12, :10, :24, :28]
+++AXGroup AXSubrole=AXEmptyGroup AXDetailsElements=[:10]
+++AXGroup AXSubrole=AXEmptyGroup AXDetailsElements=[:12]
+++AXGroup AXSubrole=AXEmptyGroup AXDetailsElements=[:18]
+++AXGroup AXSubrole=AXEmptyGroup AXDetailsElements=[:21]
+++AXGroup AXSubrole=AXEmptyGroup AXDetailsElements=[:24]
+++AXGroup AXSubrole=AXEmptyGroup AXDetailsElements=[:26]
+++AXGroup AXSubrole=AXEmptyGroup AXDetailsElements=[:28]
+++AXGroup AXSubrole=AXEmptyGroup AXDetailsElements=[:12, :10, :24, :28]
 ++AXGroup
 ++++AXStaticText AXValue='x'
 ++AXGroup AXSubrole=AXApplicationGroup

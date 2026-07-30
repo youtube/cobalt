@@ -5,11 +5,12 @@
 #include "components/viz/common/gpu/vulkan_in_process_context_provider.h"
 
 #include "base/functional/callback_helpers.h"
-#include "base/memory/memory_pressure_listener.h"
-#include "base/memory/memory_pressure_listener_registry.h"
 #include "base/memory_coordinator/memory_coordinator_features.h"
+#include "base/memory_coordinator/test_memory_consumer_registry.h"
+#include "base/memory_coordinator/utils.h"
 #include "base/run_loop.h"
 #include "base/test/scoped_feature_list.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace viz {
@@ -31,16 +32,19 @@ class VulkanInProcessContextProviderTest : public testing::Test {
 
   void TearDown() override { context_provider_.reset(); }
 
-  void SendMemoryPressureSignal(base::MemoryPressureLevel level) {
+  void SendMemoryPressureSignal(int memory_limit_percentage) {
     base::RunLoop run_loop;
-    base::MemoryPressureListenerRegistry::SimulatePressureNotificationAsync(
-        level, run_loop.QuitClosure());
+    registry_.NotifyUpdateMemoryLimitAsync(
+        memory_limit_percentage,
+        base::BindOnce(
+            &base::TestMemoryConsumerRegistry::NotifyReleaseMemoryAsync,
+            base::Unretained(&registry_), run_loop.QuitClosure()));
     run_loop.Run();
   }
 
  protected:
   base::test::ScopedFeatureList feature_list_;
-  base::MemoryPressureListenerRegistry registry_;
+  base::TestMemoryConsumerRegistry registry_;
   scoped_refptr<VulkanInProcessContextProvider> context_provider_;
 };
 
@@ -51,26 +55,22 @@ TEST_F(VulkanInProcessContextProviderTest,
 
   // Initial state.
   auto limit = context_provider_->GetSyncCpuMemoryLimit();
-  EXPECT_TRUE(limit.has_value());
-  EXPECT_EQ(kTestSyncCpuMemoryLimit, limit.value());
+  EXPECT_THAT(limit, testing::Optional(kTestSyncCpuMemoryLimit));
 
   // Critical pressure -> 0% limit.
-  SendMemoryPressureSignal(base::MEMORY_PRESSURE_LEVEL_CRITICAL);
+  SendMemoryPressureSignal(base::kCriticalMemoryPressureThreshold);
   limit = context_provider_->GetSyncCpuMemoryLimit();
-  EXPECT_TRUE(limit.has_value());
-  EXPECT_EQ(0u, limit.value());
+  EXPECT_THAT(limit, testing::Optional(0u));
 
   // Pressure subsides -> 100% limit.
-  SendMemoryPressureSignal(base::MEMORY_PRESSURE_LEVEL_NONE);
+  SendMemoryPressureSignal(base::kNoMemoryPressureThreshold);
   limit = context_provider_->GetSyncCpuMemoryLimit();
-  EXPECT_TRUE(limit.has_value());
-  EXPECT_EQ(kTestSyncCpuMemoryLimit, limit.value());
+  EXPECT_THAT(limit, testing::Optional(kTestSyncCpuMemoryLimit));
 
   // Moderate pressure -> 50% limit.
-  SendMemoryPressureSignal(base::MEMORY_PRESSURE_LEVEL_MODERATE);
+  SendMemoryPressureSignal(base::kModerateMemoryPressureThreshold);
   limit = context_provider_->GetSyncCpuMemoryLimit();
-  EXPECT_TRUE(limit.has_value());
-  EXPECT_EQ(kTestSyncCpuMemoryLimit / 2, limit.value());
+  EXPECT_THAT(limit, testing::Optional(kTestSyncCpuMemoryLimit / 2));
 }
 
 TEST_F(VulkanInProcessContextProviderTest,
@@ -80,11 +80,11 @@ TEST_F(VulkanInProcessContextProviderTest,
   auto limit = context_provider_->GetSyncCpuMemoryLimit();
   EXPECT_FALSE(limit.has_value());
 
-  SendMemoryPressureSignal(base::MEMORY_PRESSURE_LEVEL_CRITICAL);
+  SendMemoryPressureSignal(base::kCriticalMemoryPressureThreshold);
   limit = context_provider_->GetSyncCpuMemoryLimit();
   EXPECT_FALSE(limit.has_value());
 
-  SendMemoryPressureSignal(base::MEMORY_PRESSURE_LEVEL_MODERATE);
+  SendMemoryPressureSignal(base::kModerateMemoryPressureThreshold);
   limit = context_provider_->GetSyncCpuMemoryLimit();
   EXPECT_FALSE(limit.has_value());
 }
@@ -100,28 +100,67 @@ TEST_F(VulkanInProcessContextProviderTest,
 
   // Initial state.
   auto limit = context_provider_->GetSyncCpuMemoryLimit();
-  EXPECT_TRUE(limit.has_value());
-  EXPECT_EQ(kTestSyncCpuMemoryLimit, limit.value());
+  EXPECT_THAT(limit, testing::Optional(kTestSyncCpuMemoryLimit));
 
   // Critical pressure -> 0 limit.
-  SendMemoryPressureSignal(base::MEMORY_PRESSURE_LEVEL_CRITICAL);
+  SendMemoryPressureSignal(base::kCriticalMemoryPressureThreshold);
   limit = context_provider_->GetSyncCpuMemoryLimit();
-  EXPECT_TRUE(limit.has_value());
-  EXPECT_EQ(0u, limit.value());
+  EXPECT_THAT(limit, testing::Optional(0u));
 
   // Pressure level subsides, but we are still in the cooldown period.
-  SendMemoryPressureSignal(base::MEMORY_PRESSURE_LEVEL_NONE);
+  SendMemoryPressureSignal(base::kNoMemoryPressureThreshold);
   limit = context_provider_->GetSyncCpuMemoryLimit();
-  EXPECT_TRUE(limit.has_value());
-  EXPECT_EQ(0u, limit.value());
+  EXPECT_THAT(limit, testing::Optional(0u));
 
   // Reset the provider with zero cooldown to verify restoration.
   CreateVulkanInProcessContextProvider(kTestSyncCpuMemoryLimit,
                                        base::TimeDelta());
-  SendMemoryPressureSignal(base::MEMORY_PRESSURE_LEVEL_CRITICAL);
+  SendMemoryPressureSignal(base::kCriticalMemoryPressureThreshold);
   limit = context_provider_->GetSyncCpuMemoryLimit();
-  EXPECT_TRUE(limit.has_value());
-  EXPECT_EQ(kTestSyncCpuMemoryLimit, limit.value());
+  EXPECT_THAT(limit, testing::Optional(kTestSyncCpuMemoryLimit));
+}
+
+TEST_F(VulkanInProcessContextProviderTest,
+       StatefulMemoryPressureLimitApplicationWithZeroUsage) {
+  const uint32_t kTestSyncCpuMemoryLimit = 1200;
+  CreateVulkanInProcessContextProvider(kTestSyncCpuMemoryLimit);
+
+  // Initial state.
+  auto limit = context_provider_->GetSyncCpuMemoryLimit();
+  EXPECT_THAT(limit, testing::Optional(kTestSyncCpuMemoryLimit));
+
+  // 1. Decrease limit to 50%.
+  // Since usage is 0 (< 50% target), the limit is applied immediately:
+  // std::max(0, 600) = 600.
+  {
+    base::RunLoop run_loop;
+    registry_.NotifyUpdateMemoryLimitAsync(
+        base::kModerateMemoryPressureThreshold, run_loop.QuitClosure());
+    run_loop.Run();
+  }
+  limit = context_provider_->GetSyncCpuMemoryLimit();
+  EXPECT_THAT(limit, testing::Optional(kTestSyncCpuMemoryLimit / 2));
+
+  // 2. Trigger release.
+  // No-op because the limit was already applied (usage < target).
+  {
+    base::RunLoop run_loop;
+    registry_.NotifyReleaseMemoryAsync(run_loop.QuitClosure());
+    run_loop.Run();
+  }
+  limit = context_provider_->GetSyncCpuMemoryLimit();
+  EXPECT_THAT(limit, testing::Optional(kTestSyncCpuMemoryLimit / 2));
+
+  // 3. Increase limit to 100%.
+  // Increases are always applied immediately.
+  {
+    base::RunLoop run_loop;
+    registry_.NotifyUpdateMemoryLimitAsync(base::kNoMemoryPressureThreshold,
+                                           run_loop.QuitClosure());
+    run_loop.Run();
+  }
+  limit = context_provider_->GetSyncCpuMemoryLimit();
+  EXPECT_THAT(limit, testing::Optional(kTestSyncCpuMemoryLimit));
 }
 
 }  // namespace viz

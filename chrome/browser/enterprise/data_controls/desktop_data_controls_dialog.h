@@ -9,6 +9,7 @@
 
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "components/enterprise/data_controls/core/browser/data_controls_dialog.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -83,6 +84,8 @@ class DesktopDataControlsDialog : public DataControlsDialog,
       scoped_ignore_input_events_;
 
   base::OnceClosure on_destructed_;
+
+  base::WeakPtrFactory<DesktopDataControlsDialog> weak_ptr_factory_{this};
 };
 
 }  // namespace data_controls

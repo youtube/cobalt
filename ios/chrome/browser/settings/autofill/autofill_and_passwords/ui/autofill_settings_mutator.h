@@ -13,6 +13,9 @@
 // Sets whether Enhanced Autofill is enabled.
 - (void)setEnhancedAutofillEnabled:(BOOL)enabled;
 
+// Sets whether user verification is enabled before filling sensitive data.
+- (void)setUserVerificationEnabled:(BOOL)enabled;
+
 @end
 
 #endif  // IOS_CHROME_BROWSER_SETTINGS_AUTOFILL_AUTOFILL_AND_PASSWORDS_UI_AUTOFILL_SETTINGS_MUTATOR_H_

@@ -60,6 +60,8 @@ public class ImmersivePlaybackSnackbarController implements SnackbarManager.Snac
     private @Nullable ImmersiveVideoFormatSelectionDialog mDialog;
     private @Nullable CancelableRunnable mPendingShowTask;
     private boolean mAreObserversRegistered;
+    private int mRecommendedStereoMode = ImmersiveStereoMode.MONO;
+    private int mRecommendedProjectionType = ImmersiveProjectionType.QUAD;
 
     public ImmersivePlaybackSnackbarController(
             Context context,
@@ -78,11 +80,19 @@ public class ImmersivePlaybackSnackbarController implements SnackbarManager.Snac
      * Shows the snackbar after a delay.
      *
      * @param callback Callback to be invoked when the snackbar is dismissed.
+     * @param recommendedStereoMode The recommended stereo mode for the video.
+     * @param recommendedProjectionType The recommended projection type for the video.
      * @param delayMs Delay before showing the snackbar.
      */
-    public void show(ImmersivePlaybackConfirmationCallback callback, long delayMs) {
+    public void show(
+            ImmersivePlaybackConfirmationCallback callback,
+            @ImmersiveStereoMode int recommendedStereoMode,
+            @ImmersiveProjectionType int recommendedProjectionType,
+            long delayMs) {
         dismiss();
         mCallback = callback;
+        mRecommendedStereoMode = recommendedStereoMode;
+        mRecommendedProjectionType = recommendedProjectionType;
 
         if (mModalDialogManagerSupplier.get() == null) {
             reportResultAndReset(
@@ -105,11 +115,27 @@ public class ImmersivePlaybackSnackbarController implements SnackbarManager.Snac
             mDialog.dismiss();
             mDialog = null;
         }
+        if (mCallback != null) {
+            reportResultAndReset(
+                    ImmersivePlaybackConfirmationStatus.CANCELED,
+                    ImmersiveStereoMode.MONO,
+                    ImmersiveProjectionType.QUAD);
+        }
     }
 
     @Override
     public void onAction(@Nullable Object actionData) {
         unregisterObservers();
+
+        if (mRecommendedStereoMode != ImmersiveStereoMode.MONO
+                || mRecommendedProjectionType != ImmersiveProjectionType.QUAD) {
+            reportResultAndReset(
+                    ImmersivePlaybackConfirmationStatus.CONFIRMED,
+                    mRecommendedStereoMode,
+                    mRecommendedProjectionType);
+            return;
+        }
+
         ModalDialogManager modalDialogManager = mModalDialogManagerSupplier.get();
         if (modalDialogManager == null) {
             reportResultAndReset(

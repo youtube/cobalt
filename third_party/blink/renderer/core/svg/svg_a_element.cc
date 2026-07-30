@@ -30,11 +30,11 @@
 #include "third_party/blink/renderer/core/editing/editing_utilities.h"
 #include "third_party/blink/renderer/core/events/keyboard_event.h"
 #include "third_party/blink/renderer/core/events/mouse_event.h"
+#include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
 #include "third_party/blink/renderer/core/html/anchor_element_utils.h"
 #include "third_party/blink/renderer/core/html/forms/html_form_element.h"
-#include "third_party/blink/renderer/core/html/html_anchor_element.h"
 #include "third_party/blink/renderer/core/html/parser/html_parser_idioms.h"
 #include "third_party/blink/renderer/core/layout/svg/layout_svg_inline.h"
 #include "third_party/blink/renderer/core/layout/svg/layout_svg_transformable_container.h"
@@ -118,13 +118,13 @@ LayoutObject* SVGAElement::CreateLayoutObject(const ComputedStyle&) {
 
 void SVGAElement::DefaultEventHandler(Event& event) {
   if (IsLink()) {
-    if (IsFocused() && IsEnterKeyKeydownEvent(event)) {
+    if (IsFocused() && KeyboardEvent::IsEnterKeyKeydownEvent(event)) {
       event.SetDefaultHandled();
       DispatchSimulatedClick(&event);
       return;
     }
 
-    if (IsLinkClick(event)) {
+    if (AnchorElementUtils::IsLinkClick(event)) {
       // It's unclear whether synthesized middle-button "click" events should be
       // allowed to be dispatched and create a navigation. Measure how common
       // this is to see if we can disallow it. Per Pointer Events: "The click

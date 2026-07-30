@@ -255,6 +255,111 @@ if (enable_printing) {
       sources += [ "print_view_manager_basic.cc" ]
     }
   }
+
+  source_set("unit_tests") {
+    testonly = true
+
+    sources = [ "print_job_unittest.cc" ]
+
+    deps = [
+      ":printing",
+      "//base",
+      "//content/public/browser",
+      "//content/test:test_support",
+      "//printing",
+      "//printing:test_support",
+      "//printing/backend",
+      "//printing/mojom",
+      "//testing/gtest",
+    ]
+
+    if (enable_print_preview) {
+      sources += [
+        "print_preview_sticky_settings_unittest.cc",
+        "print_view_manager_unittest.cc",
+      ]
+      deps += [
+        ":test_support",
+        "//chrome/browser/ui",
+        "//chrome/browser/ui/webui/print_preview:unit_tests",
+        "//chrome/test:test_support",
+        "//components/printing/common",
+      ]
+    } else {
+      sources += [ "print_view_manager_basic_unittest.cc" ]
+      deps += [ "//chrome/test:test_support" ]
+    }
+
+    if (enable_oop_printing) {
+      sources += [ "print_backend_service_manager_unittest.cc" ]
+      deps += [ "//chrome/services/printing/public/mojom" ]
+    }
+  }
+
+  if (!is_android) {
+    source_set("browser_tests") {
+      testonly = true
+
+      defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+      sources = []
+
+      deps = [
+        ":printing",
+        "//base",
+        "//chrome/common:constants",
+        "//chrome/test:test_support",
+        "//chrome/test:test_support_ui",
+        "//content/public/browser",
+        "//content/test:test_support",
+        "//printing",
+        "//testing/gtest",
+      ]
+
+      if (is_win) {
+        sources += [ "pdf_to_emf_converter_browsertest.cc" ]
+      }
+
+      if (is_chromeos && use_cups) {
+        sources += [ "web_api/web_printing_browsertest.cc" ]
+        deps += [
+          "//chrome/browser/chromeos/printing",
+          "//chrome/browser/content_settings:content_settings_factory",
+          "//chrome/browser/web_applications",
+          "//chrome/browser/web_applications:web_applications_test_support",
+          "//components/content_settings/core/browser",
+          "//printing/backend",
+        ]
+      }
+
+      if (enable_oop_printing) {
+        sources += [ "print_backend_browsertest.cc" ]
+        deps += [
+          "//chrome/browser",
+          "//chrome/services/printing:lib",
+          "//chrome/services/printing/public/mojom",
+          "//components/printing/browser",
+          "//components/printing/common:mojo_interfaces",
+          "//mojo/public/cpp/bindings",
+          "//printing:test_support",
+          "//printing/backend",
+          "//printing/backend:test_support",
+        ]
+      }
+
+      if (enable_print_preview) {
+        sources += [ "pwg_raster_converter_browsertest.cc" ]
+      }
+
+      if (enable_pdf) {
+        sources += [ "pdf_nup_converter_client_browsertest.cc" ]
+        deps += [
+          "//chrome/browser/ui",
+          "//pdf",
+        ]
+      }
+    }
+  }
 }
 
 if (enable_print_preview) {

@@ -52,6 +52,8 @@ TEST_F(AutofillEnterprisePolicyServiceTest,
       url, AutofillClient::AutofillPolicyDataCategory::kIdentityDocs));
   EXPECT_FALSE(service()->IsAutofillTypeBlockedByPolicy(
       url, AutofillClient::AutofillPolicyDataCategory::kTravel));
+  EXPECT_FALSE(service()->IsAutofillTypeBlockedByPolicy(
+      url, AutofillClient::AutofillPolicyDataCategory::kShopping));
 }
 
 // Tests that categories explicitly configured in the policy rule are blocked
@@ -226,6 +228,24 @@ TEST_F(AutofillEnterprisePolicyServiceTest,
   EXPECT_FALSE(service()->IsAutofillTypeBlockedByPolicy(
       GURL("https://www.example.com"),
       AutofillClient::AutofillPolicyDataCategory::kTravel));
+}
+
+TEST_F(AutofillEnterprisePolicyServiceTest, ShoppingCategoryBlocksAutofill) {
+  base::ListValue blocked_list;
+  base::DictValue entry;
+  entry.Set("url_pattern", "https://[*.]example.com");
+  base::ListValue blocked_types;
+  blocked_types.Append("shopping");
+  entry.Set("blocked_types", std::move(blocked_types));
+  blocked_list.Append(std::move(entry));
+  SetPolicy(std::move(blocked_list));
+
+  EXPECT_TRUE(service()->IsAutofillTypeBlockedByPolicy(
+      GURL("https://www.example.com"),
+      AutofillClient::AutofillPolicyDataCategory::kShopping));
+  EXPECT_FALSE(service()->IsAutofillTypeBlockedByPolicy(
+      GURL("https://www.google.com"),
+      AutofillClient::AutofillPolicyDataCategory::kShopping));
 }
 
 }  // namespace

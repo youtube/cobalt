@@ -92,7 +92,8 @@ class ProjectsPanelTabGroupsView : public views::View,
   // Returns the number of tab groups currently displayed in the UI.
   int num_tab_groups() { return item_views_.size(); }
 
-  std::vector<ProjectsPanelTabGroupsItemView*> item_views_for_testing() const {
+  std::vector<raw_ptr<ProjectsPanelTabGroupsItemView>> item_views_for_testing()
+      const {
     return item_views_;
   }
 
@@ -146,7 +147,7 @@ class ProjectsPanelTabGroupsView : public views::View,
   DragExitedCallback drag_exited_callback_;
   raw_ptr<views::Label> title_ = nullptr;
   raw_ptr<ProjectsPanelNoTabGroupsView> no_tab_groups_view_ = nullptr;
-  std::vector<ProjectsPanelTabGroupsItemView*> item_views_;
+  std::vector<raw_ptr<ProjectsPanelTabGroupsItemView>> item_views_;
 
   // Used to track drops on the view.
   std::unique_ptr<DropInfo> drop_info_;

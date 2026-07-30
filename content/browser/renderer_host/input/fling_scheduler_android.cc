@@ -10,6 +10,7 @@
 #include "content/browser/renderer_host/render_widget_host_view_android.h"
 #include "content/public/common/content_features.h"
 #include "ui/android/view_android.h"
+#include "ui/base/ui_base_features.h"
 
 namespace content {
 
@@ -65,8 +66,12 @@ bool FlingSchedulerAndroid::ProgressFlingOnFlingStart() {
 }
 
 bool FlingSchedulerAndroid::ShouldUseMobileFlingCurve() {
+  if (base::FeatureList::IsEnabled(features::kDesktopFlingCurveOnAndroid)) {
+    return false;
+  }
   return true;
 }
+
 gfx::Vector2dF FlingSchedulerAndroid::GetPixelsPerInch(
     const gfx::PointF& position_in_screen) {
   return gfx::Vector2dF(input::kDefaultPixelsPerInch,

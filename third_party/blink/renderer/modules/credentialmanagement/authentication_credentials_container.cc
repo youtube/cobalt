@@ -10,6 +10,7 @@
 
 #include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
+#include "base/types/expected.h"
 #include "build/build_config.h"
 #include "device/fido/public/fido_constants.h"
 #include "mojo/public/mojom/base/values.mojom-blink.h"
@@ -20,6 +21,7 @@
 #include "third_party/blink/public/mojom/credentialmanagement/credential_type_flags.mojom-blink.h"
 #include "third_party/blink/public/mojom/payments/secure_payment_confirmation_service.mojom-blink.h"
 #include "third_party/blink/public/mojom/sms/webotp_service.mojom-blink.h"
+#include "third_party/blink/public/mojom/webid/federated_auth_request.mojom-blink.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/platform/web_v8_value_converter.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
@@ -84,6 +86,7 @@
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
@@ -530,7 +533,8 @@ void OnRequestToken(std::unique_ptr<ScopedPromiseResolver> scoped_resolver,
         return;
       }
       resolver->Reject(MakeGarbageCollected<IdentityCredentialError>(
-          "Error retrieving a token.", error->code, error->url));
+          "Error retrieving a token.", error->code,
+          error->url ? error->url->GetString() : String()));
       return;
     }
     case RequestTokenStatus::kSuccess: {
@@ -1154,6 +1158,62 @@ bool HasCredentialTypeInRequest(const CredentialRequestOptions* options) {
   return options->hasFederated() || options->hasIdentity() ||
          options->password() || options->hasOtp() || options->hasPublicKey() ||
          options->hasDigital();
+}
+
+class FedCmRequestAbortAlgorithm final : public AbortSignal::Algorithm {
+ public:
+  FedCmRequestAbortAlgorithm(
+      ExecutionContext* context,
+      mojo::PendingRemote<mojom::blink::FederatedRequest> federated_request)
+      : federated_request_(context) {
+    federated_request_.Bind(std::move(federated_request),
+                            context->GetTaskRunner(TaskType::kInternalDefault));
+  }
+  ~FedCmRequestAbortAlgorithm() override = default;
+
+  // Abort an ongoing FederatedCredential get() operation.
+  void Run() override {
+    // Call the explicit Abort() Mojo method to abort the request session.
+    federated_request_->Abort();
+  }
+
+  void Trace(Visitor* visitor) const override {
+    visitor->Trace(federated_request_);
+    Algorithm::Trace(visitor);
+  }
+
+ private:
+  HeapMojoRemote<mojom::blink::FederatedRequest> federated_request_;
+};
+
+void OnStartTokenRequestComplete(
+    std::unique_ptr<ScopedPromiseResolver> scoped_resolver,
+    std::unique_ptr<ScopedAbortState> scoped_abort_state,
+    const CredentialRequestOptions* options,
+    mojo::Remote<mojom::blink::FederatedRequest> federated_request,
+    base::expected<mojom::blink::TokenRequestSuccessPtr,
+                   mojom::blink::TokenRequestFailurePtr> result) {
+  if (!result.has_value()) {
+    mojom::blink::TokenErrorPtr error;
+    RequestTokenStatus status = RequestTokenStatus::kError;
+    const mojom::blink::TokenRequestFailurePtr& failure = result.error();
+    if (failure) {
+      status = failure->status;
+      error = std::move(failure->error);
+    }
+    OnRequestToken(std::move(scoped_resolver), std::move(scoped_abort_state),
+                   options, status,
+                   /*selected_idp_config_url=*/std::nullopt,
+                   /*token=*/std::nullopt, std::move(error),
+                   /*is_auto_selected=*/false);
+    return;
+  }
+
+  auto& success = result.value();
+  OnRequestToken(std::move(scoped_resolver), std::move(scoped_abort_state),
+                 options, RequestTokenStatus::kSuccess,
+                 success->selected_idp_config_url, std::move(success->token),
+                 /*error=*/nullptr, success->is_auto_selected);
 }
 
 }  // namespace
@@ -2409,32 +2469,57 @@ void AuthenticationCredentialsContainer::GetForIdentity(
     }
   }
 
-  std::unique_ptr<ScopedAbortState> scoped_abort_state;
-  if (auto* signal = options.getSignalOr(nullptr)) {
-    // Checked signal->aborted() at the top of get().
-
-    auto callback =
-        BindOnce(&AbortIdentityCredentialRequest, WrapPersistent(script_state));
-
-    auto* handle = signal->AddAlgorithm(std::move(callback));
-    scoped_abort_state = std::make_unique<ScopedAbortState>(signal, handle);
-  }
-
   Vector<mojom::blink::IdentityProviderGetParametersPtr> idp_get_params;
   mojom::blink::IdentityProviderGetParametersPtr get_params =
       mojom::blink::IdentityProviderGetParameters::New(
           std::move(identity_provider_ptrs), rp_context, rp_mode);
   idp_get_params.push_back(std::move(get_params));
 
-  auto* auth_request =
-      CredentialManagerProxy::From(script_state)->FederatedAuthRequest();
-  auth_request->RequestToken(
-      std::move(idp_get_params), mediation_requirement,
-      blink::BindOnce(
-          &OnRequestToken,
-          std::make_unique<ScopedPromiseResolver>(
-              resolver, ScopedPromiseResolver::ConnectionType::kFedCm),
-          std::move(scoped_abort_state), WrapPersistent(&options)));
+  auto* proxy = CredentialManagerProxy::From(script_state);
+  if (RuntimeEnabledFeatures::FedCmMultipleRequestsEnabled(context)) {
+    auto* service = proxy->FederatedRequestService();
+    mojo::PendingRemote<mojom::blink::FederatedRequest> pending_remote;
+    auto receiver = pending_remote.InitWithNewPipeAndPassReceiver();
+
+    std::unique_ptr<ScopedAbortState> scoped_abort_state;
+    mojo::Remote<mojom::blink::FederatedRequest> callback_remote;
+
+    if (auto* signal = options.getSignalOr(nullptr)) {
+      auto* abort_algorithm = MakeGarbageCollected<FedCmRequestAbortAlgorithm>(
+          context, std::move(pending_remote));
+      auto* handle = signal->AddAlgorithm(abort_algorithm);
+      scoped_abort_state = std::make_unique<ScopedAbortState>(signal, handle);
+    } else {
+      callback_remote.Bind(std::move(pending_remote),
+                           context->GetTaskRunner(TaskType::kInternalDefault));
+    }
+
+    service->StartTokenRequest(
+        std::move(idp_get_params), mediation_requirement, std::move(receiver),
+        blink::BindOnce(
+            &OnStartTokenRequestComplete,
+            std::make_unique<ScopedPromiseResolver>(
+                resolver, ScopedPromiseResolver::ConnectionType::kFedCm),
+            std::move(scoped_abort_state), WrapPersistent(&options),
+            std::move(callback_remote)));
+  } else {
+    std::unique_ptr<ScopedAbortState> scoped_abort_state;
+    if (auto* signal = options.getSignalOr(nullptr)) {
+      auto callback = BindOnce(&AbortIdentityCredentialRequest,
+                               WrapPersistent(script_state));
+      auto* handle = signal->AddAlgorithm(std::move(callback));
+      scoped_abort_state = std::make_unique<ScopedAbortState>(signal, handle);
+    }
+
+    auto* auth_request = proxy->FederatedAuthRequest();
+    auth_request->RequestToken(
+        std::move(idp_get_params), mediation_requirement,
+        blink::BindOnce(
+            &OnRequestToken,
+            std::make_unique<ScopedPromiseResolver>(
+                resolver, ScopedPromiseResolver::ConnectionType::kFedCm),
+            std::move(scoped_abort_state), WrapPersistent(&options)));
+  }
 }
 
 }  // namespace blink

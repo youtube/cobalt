@@ -21,6 +21,7 @@ import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.browser_controls.BottomControlsStacker.LayerScrollBehavior;
+import org.chromium.chrome.browser.layouts.LayoutStateProvider;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.theme.ThemeColorProvider;
@@ -99,7 +100,8 @@ public class BottomBarContainerCoordinator
             NullableObservableSupplier<Profile> profileSupplier,
             NonNullObservableSupplier<Boolean> omniboxFocusStateSupplier,
             NonNullObservableSupplier<ModalDialogManager> modalDialogManagerSupplier,
-            OneshotSupplier<AppMenuCoordinator> appMenuCoordinatorSupplier) {
+            OneshotSupplier<AppMenuCoordinator> appMenuCoordinatorSupplier,
+            LayoutStateProvider layoutStateProvider) {
         mBottomBarContainer = bottomBarContainer;
         Context context = bottomBarContainer.getContext();
         mContext = context;
@@ -118,7 +120,8 @@ public class BottomBarContainerCoordinator
                         this,
                         profileSupplier,
                         omniboxFocusStateSupplier,
-                        modalDialogManagerSupplier);
+                        modalDialogManagerSupplier,
+                        layoutStateProvider);
         if (BottomBarConfigUtils.shouldIncludeAppMenuButton()
                 && BottomBarConfigUtils.shouldShowAppMenuUpdateBadge()) {
             mAppMenuUpdateBadgeController =

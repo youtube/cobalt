@@ -35,8 +35,7 @@ class TestAutofillExternalDelegate : public AutofillExternalDelegate {
   void OnQuery(const FormData& form,
                const FormFieldData& field,
                const gfx::Rect& caret_bounds,
-               AutofillSuggestionTriggerSource trigger_source,
-               bool update_datalist) override;
+               AutofillSuggestionTriggerSource trigger_source) override;
   void OnSuggestionsReturned(
       const FormFieldData& trigger_field,
       const std::vector<Suggestion>& suggestions) override;

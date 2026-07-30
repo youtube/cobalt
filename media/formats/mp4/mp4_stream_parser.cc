@@ -20,6 +20,7 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "media/base/audio_decoder_config.h"
+#include "media/base/channel_layout.h"
 #include "media/base/encryption_pattern.h"
 #include "media/base/encryption_scheme.h"
 #include "media/base/media_client.h"
@@ -511,9 +512,9 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
 #if BUILDFLAG(ENABLE_PLATFORM_MPEG_H_AUDIO)
           audio_format != FOURCC_MHM1 && audio_format != FOURCC_MHA1 &&
 #endif
-#if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
+#if BUILDFLAG(ENABLE_IAMF_AUDIO)
           audio_format != FOURCC_IAMF &&
-#endif  // BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
+#endif  // BUILDFLAG(ENABLE_IAMF_AUDIO)
           audio_format != FOURCC_MP4A) {
         MEDIA_LOG(ERROR, media_log_)
             << "Unsupported audio format 0x" << std::hex << entry.format
@@ -528,10 +529,9 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
       base::TimeDelta seek_preroll;
       std::vector<uint8_t> extra_data;
 
-#if BUILDFLAG(USE_PROPRIETARY_CODECS) || BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
+#if BUILDFLAG(USE_PROPRIETARY_CODECS) || BUILDFLAG(ENABLE_IAMF_AUDIO)
       AudioCodecProfile profile = AudioCodecProfile::kUnknown;
-#endif  // BUILDFLAG(USE_PROPRIETARY_CODECS) ||
-        // BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
+#endif  // BUILDFLAG(USE_PROPRIETARY_CODECS) || BUILDFLAG(ENABLE_IAMF_AUDIO)
 
       if (audio_format == FOURCC_OPUS) {
         codec = AudioCodec::kOpus;
@@ -555,7 +555,7 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
         channel_layout_config = ChannelLayoutConfig::Guess(entry.channelcount);
         sample_per_second = entry.samplerate;
         extra_data = entry.dfla.stream_info;
-#if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
+#if BUILDFLAG(ENABLE_IAMF_AUDIO)
       } else if (audio_format == FOURCC_IAMF) {
         // ISOBMFF IAMF streams do not use object type indication.
         // |audio_format| is sufficient for identifying IAMF.
@@ -579,7 +579,7 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
         // values here.
         channel_layout_config = ChannelLayoutConfig::Stereo();
         sample_per_second = 48000;
-#endif  // BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
+#endif  // BUILDFLAG(ENABLE_IAMF_AUDIO)
 #if BUILDFLAG(USE_PROPRIETARY_CODECS)
 #if BUILDFLAG(ENABLE_PLATFORM_MPEG_H_AUDIO)
       } else if (audio_format == FOURCC_MHM1 || audio_format == FOURCC_MHA1) {
@@ -735,11 +735,11 @@ bool MP4StreamParser::ParseMoov(BoxReader* reader) {
         audio_config.set_profile(profile);
       }
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
-#if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
+#if BUILDFLAG(ENABLE_IAMF_AUDIO)
       if (codec == AudioCodec::kIAMF) {
         audio_config.set_profile(profile);
       }
-#endif  // BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
+#endif  // BUILDFLAG(ENABLE_IAMF_AUDIO)
 
       DVLOG(1) << "audio_track_id=" << audio_track_id
                << " config=" << audio_config.AsHumanReadableString();

@@ -8,13 +8,13 @@
 
 - (instancetype)initWithTitle:(NSString*)title
                      subtitle:(NSString*)subtitle
-                        image:(UIImage*)image
+              imageLottieName:(NSString*)imageLottieName
                          type:(LevelUpTaskStatType)type {
   self = [super init];
   if (self) {
     _title = title;
     _subtitle = subtitle;
-    _image = image;
+    _imageLottieName = imageLottieName;
     _type = type;
   }
   return self;

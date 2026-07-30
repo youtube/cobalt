@@ -43,6 +43,7 @@
 #include "extensions/browser/ui_util.h"
 #include "extensions/common/api/oauth2.h"
 #include "extensions/common/manifest_handlers/oauth2_manifest_handler.h"
+#include "extensions/common/utils/extension_utils.h"
 #include "google_apis/gaia/gaia_auth_util.h"
 #include "google_apis/gaia/gaia_constants.h"
 #include "google_apis/gaia/gaia_id.h"
@@ -962,11 +963,14 @@ std::string IdentityGetAuthTokenFunction::GetOAuth2ClientId() const {
     client_id = *oauth2_info.client_id;
   }
 
+  const bool can_use_auto_approve =
+      extension()->location() == mojom::ManifestLocation::kComponent ||
+      IsExtensionAllowlistedByCommandLine(*extension());
+
   // Component apps using auto_approve may use Chrome's client ID by
   // omitting the field.
-  if (client_id.empty() &&
-      extension()->location() == mojom::ManifestLocation::kComponent &&
-      oauth2_info.auto_approve && *oauth2_info.auto_approve) {
+  if (client_id.empty() && can_use_auto_approve && oauth2_info.auto_approve &&
+      *oauth2_info.auto_approve) {
     client_id = GaiaUrls::GetInstance()->oauth2_chrome_client_id();
   }
   return client_id;

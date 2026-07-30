@@ -285,15 +285,15 @@ scoped_refptr<StaticBitmapImage> CanvasRenderingContext::GetElementImage(
     }
   }
 
-  auto resource_provider = Canvas2DResourceProviderBitmap::CreateWithClear(
+  auto bitmap_provider = Canvas2DBitmapProvider::CreateWithClear(
       dest_size, GetN32FormatForCanvas(), kPremul_SkAlphaType,
       gfx::ColorSpace::CreateSRGB());
 
-  resource_provider->SetAnimatedImageFrameIndexes(
+  bitmap_provider->SetAnimatedImageFrameIndexes(
       child_paint_record->paint_state.animated_image_frame_index_map);
 
-  resource_provider->RasterRecord(draw_to_canvas);
-  return resource_provider->Snapshot();
+  bitmap_provider->RasterRecord(draw_to_canvas);
+  return bitmap_provider->Snapshot();
 }
 
 void CanvasRenderingContext::DidDraw(

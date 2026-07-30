@@ -42,8 +42,12 @@ class BrowserInfoBarManager : public BrowserCollectionObserver,
   // Registers an InfoBarSpec with the manager.
   void Register(InfoBarSpec spec);
 
-  // Shows the InfoBar with the given identifier.
-  void Show(infobars::InfoBarDelegate::InfoBarIdentifier identifier);
+  // Shows the InfoBar with the given identifier for a specific WebContents.
+  void Show(content::WebContents* web_contents,
+            infobars::InfoBarDelegate::InfoBarIdentifier identifier);
+
+  // Shows the InfoBar with the given identifier globally.
+  void ShowGlobally(infobars::InfoBarDelegate::InfoBarIdentifier identifier);
 
   // Hides the InfoBar with the given identifier.
   void Hide(infobars::InfoBarDelegate::InfoBarIdentifier identifier);

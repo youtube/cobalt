@@ -479,6 +479,23 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Accessibility.Android.Performance.FakeCache.NodeLifetime"
+    units="ms" expires_after="2026-09-02">
+  <owner>gmarcoesau@google.com</owner>
+  <owner>chrome-a11y-core@google.com</owner>
+  <summary>
+    Tracks how long (in milliseconds) a node lived in the fake Android cache.
+    Recorded when a node is removed or cleared from the fake cache.
+  </summary>
+</histogram>
+
+<histogram name="Accessibility.Android.Performance.FakeCache.Size"
+    units="nodes" expires_after="2026-09-02">
+  <owner>gmarcoesau@google.com</owner>
+  <owner>chrome-a11y-core@google.com</owner>
+  <summary>Tracks the size of the fake Android cache.</summary>
+</histogram>
+
 <histogram name="Accessibility.Android.Performance.FakeCache.{Metric}"
     units="%" expires_after="2027-04-09">
   <owner>gmarcoesau@google.com</owner>
@@ -496,16 +513,9 @@ chromium-metrics-reviews@google.com.
     <variant name="PercentageChurn"
         summary="Measures the percentage of the fake cache that was removed
                  compared to the last cache size."/>
-    <variant name="PercentageEfficiency"
-        summary="Measure how much we're deleting from the fake cache."/>
-    <variant name="PercentageOccupancy"
-        summary="Measures how much of the tree is being covered by the cache."/>
     <variant name="PercentageStaleNodes"
         summary="Measure how many nodes have become stale compared to the
                  cache size."/>
-    <variant name="PercentageThrashing"
-        summary="Measures how much was instantly removed after just being
-                 added to the fake cache."/>
   </token>
 </histogram>
 
@@ -790,6 +800,21 @@ chromium-metrics-reviews@google.com.
   <summary>
     Tracks usage of ATK APIs on Linux Desktop. Recorded when ATK APIs that are
     supposed to trigger AX mode enabled is called.
+  </summary>
+</histogram>
+
+<histogram name="Accessibility.AXEmptyGroupSubrolePredicate.Latency"
+    units="microseconds" expires_after="2027-06-01">
+  <owner>dtseng@chromium.org</owner>
+  <owner>chrome-a11y-core@google.com</owner>
+  <summary>
+    Time spent evaluating the AXEmptyGroup mac subrole predicate (-subrole on
+    NSAccessibilityGroupRole) per top-level call on macOS. Escalate to eager
+    build-time compute if p99 exceeds 100 microseconds on representative pages
+    during normal VoiceOver linear navigation.
+
+    This histogram is recorded via base::UmaHistogramMicrosecondsTimes, so it is
+    only reported for clients with high-resolution clocks.
   </summary>
 </histogram>
 
@@ -2433,6 +2458,17 @@ even if they fit the naming pattern. -->
   </summary>
 </histogram>
 
+<histogram name="Accessibility.PDF.Heuristic.BuildPageTreeTime" units="ms"
+    expires_after="2027-05-01">
+  <owner>kristislee@google.com</owner>
+  <owner>chrome-a11y-core@google.com</owner>
+  <owner>komo-eng@google.com</owner>
+  <summary>
+    Records the time taken to build the accessibility page tree using heuristic
+    algorithms. Logged once per PDF page.
+  </summary>
+</histogram>
+
 <histogram name="Accessibility.PDF.IsPDFTagged" enum="BooleanExists"
     expires_after="2026-11-15">
   <owner>dtseng@chromium.org</owner>
@@ -3034,6 +3070,21 @@ even if they fit the naming pattern. -->
   </summary>
 </histogram>
 
+<histogram
+    name="Accessibility.ReadAnything.DistillationQuality.EvaluationStatus"
+    enum="ReadAnythingDistillationQualityEvaluationStatus"
+    expires_after="2027-01-01">
+  <owner>alfredohiguera@google.com</owner>
+  <owner>chrome-a11y-core@google.com</owner>
+  <summary>
+    Records the skip or evaluation status when assessing the distillation
+    quality of a page inside Reading Mode. This covers both browser-side skips
+    (empty snapshots, HTML size bounds, etc.) and utility-side extraction
+    failures, as well as final evaluation successes. Recorded once for every
+    evaluation attempt.
+  </summary>
+</histogram>
+
 <histogram name="Accessibility.ReadAnything.DistillationScheme"
     enum="ReadAnythingDistillationScheme" expires_after="2027-01-01">
   <owner>davidsegovia@google.com</owner>
@@ -3311,6 +3362,66 @@ even if they fit the naming pattern. -->
   </summary>
 </histogram>
 
+<histogram
+    name="Accessibility.ReadAnything.PageDuration.{PageType}In{ViewMode}"
+    units="ms" expires_after="2027-06-01">
+  <owner>kristislee@google.com</owner>
+  <owner>chrome-a11y-core@google.com</owner>
+  <summary>
+    Measures the duration a user spent reading a {PageType} page in {ViewMode}
+    view mode. Logged when the page is changed, or the panel is closed or
+    destroyed.
+  </summary>
+  <token key="PageType">
+    <variant name="Pdf" summary="PDF"/>
+    <variant name="WebPage" summary="Webpage"/>
+  </token>
+  <token key="ViewMode">
+    <variant name="FullPage" summary="immersive overlay (Full Page)"/>
+    <variant name="SidePanel" summary="Side Panel"/>
+  </token>
+</histogram>
+
+<histogram name="Accessibility.ReadAnything.Pdf.Headings.{HeadingLevel}"
+    units="count" expires_after="2027-05-01">
+  <owner>kristislee@google.com</owner>
+  <owner>komo-eng@google.com</owner>
+  <summary>
+    Records the total count of {HeadingLevel} headings distilled from a PDF
+    document. This is logged once per distilled PDF document to analyze document
+    structure complexity and distribution of heading levels (as opposed to
+    logging each heading type as a separate categorical enum sample).
+  </summary>
+  <token key="HeadingLevel">
+    <variant name="H1"/>
+    <variant name="H2"/>
+    <variant name="H3"/>
+    <variant name="H4"/>
+    <variant name="H5"/>
+    <variant name="H6"/>
+  </token>
+</histogram>
+
+<histogram name="Accessibility.ReadAnything.Pdf.HeadingToParagraphRatio"
+    units="ratio * 100" expires_after="2027-05-01">
+  <owner>kristislee@google.com</owner>
+  <owner>komo-eng@google.com</owner>
+  <summary>
+    Records the ratio of headings to paragraphs on the distilled PDF. This is
+    logged once per distilled PDF document.
+  </summary>
+</histogram>
+
+<histogram name="Accessibility.ReadAnything.Pdf.NumberParagraphs" units="count"
+    expires_after="2027-05-01">
+  <owner>kristislee@google.com</owner>
+  <owner>komo-eng@google.com</owner>
+  <summary>
+    Records the number of paragraphs distilled from a PDF. This is logged once
+    per distilled PDF document
+  </summary>
+</histogram>
+
 <histogram name="Accessibility.ReadAnything.Readability.EarlySelection"
     enum="ReadAnythingEarlySelection" expires_after="2027-03-01">
   <owner>gusmartin@google.com</owner>
@@ -3583,8 +3694,30 @@ even if they fit the naming pattern. -->
   <summary>
     Records the length of time of a speech playback session from play to pause
     or from play to speech stopped, either due to reaching the end of content or
-    an error.
+    an error. To not disrupt any active experiments, this metric will remain,
+    but in a few milestones the team will evaluate if the metric below can
+    replace this entirely.
   </summary>
+</histogram>
+
+<histogram
+    name="Accessibility.ReadAnything.SpeechPlaybackSession.{PageType}In{ViewMode}"
+    units="ms" expires_after="2026-12-06">
+  <owner>kristislee@google.com</owner>
+  <owner>komo-eng@google.com</owner>
+  <summary>
+    Records the length of time of a speech playback session from play to pause
+    or from play to speech stopped, either due to reaching the end of content or
+    an error. Recorded for a {PageType} in {ViewMode}.
+  </summary>
+  <token key="PageType">
+    <variant name="Pdf" summary="PDF document"/>
+    <variant name="WebPage" summary="Standard Web Page"/>
+  </token>
+  <token key="ViewMode">
+    <variant name="FullPage" summary="Full page immersive view"/>
+    <variant name="SidePanel" summary="Side panel view"/>
+  </token>
 </histogram>
 
 <histogram name="Accessibility.ReadAnything.SpeechStopSource"

@@ -103,6 +103,7 @@
 <translation id="1335767868357998043">Velg plassering for adressefeltet</translation>
 <translation id="1347468774581902829">Administrer aktivitet</translation>
 <translation id="1348596747084433075">https://www.amazon.com/Wife-Gifts/s?k=for+Wife+Gifts</translation>
+<translation id="1353169676553627502">Slå av fremdriftsoppdateringer</translation>
 <translation id="1355337783640312381">Trykk på kontoikonet for å bytte mellom kontoer</translation>
 <translation id="135806768612505061">Alle faner</translation>
 <translation id="1358106883354237005">Administrert konto</translation>
@@ -609,6 +610,7 @@
 <translation id="3073633853887034268">Greit</translation>
 <translation id="3080525922482950719">Du kan lagre sider for å lese dem senere eller uten nett</translation>
 <translation id="3081338492074632642">Sørg for at passordet du lagrer, samsvarer med passordet ditt for <ph name="WEBSITE" /></translation>
+<translation id="3084484227247071193">Slå på fremdriftsoppdateringer</translation>
 <translation id="3087734570205094154">Bunn</translation>
 <translation id="309710370695886264">Du har ett gjenbrukt passord. Løs problemet nå for å ivareta sikkerheten.</translation>
 <translation id="3099402981545350675">Dette sletter adresser som er lagret på denne enheten. Den fjerner også valgt informasjon fra Chrome, men den sletter ikke denne informasjonen fra Google-kontoen din.</translation>
@@ -708,6 +710,7 @@
 <translation id="3449029510150690417">Opprett en ny fanegruppe ved å gi den et navn og en farge</translation>
 <translation id="345348365500626747">Fant adressen</translation>
 <translation id="3459644598174926977">Bruk Live-modus med Gemini for å stille spørsmål om siden, tenke høyt og snakke sammen.</translation>
+<translation id="3462768334899086950">Dette betyr at du vil miste den ulagrede filen og de nåværende fanene.</translation>
 <translation id="3464194322481586217">Kunne ikke spore prisen.</translation>
 <translation id="3469117812148449995">Alternativer for lagring av passord</translation>
 <translation id="3472469028191701821">Åpnes i en ny fane</translation>
@@ -793,6 +796,7 @@
 <translation id="3753618528540214374">Viridian tema</translation>
 <translation id="3759491607478608474">Del innholdet i den aktive fanen med Gemini for å få mer relevante svar</translation>
 <translation id="3762232513783804601">Laget for iPaden din</translation>
+<translation id="3767529805486761639">Rediger-menyen</translation>
 <translation id="3768725474733206671">Åpne sist lukkede fane på nytt</translation>
 <translation id="3779810277399252432">Ingen internettilkobling.</translation>
 <translation id="3782614601387961027">Lukk varsel</translation>
@@ -836,7 +840,6 @@
 <translation id="391904960191284041">Produktanmeldelser</translation>
 <translation id="3921585859122905677">Posisjon for adressefeltet</translation>
 <translation id="3922185497376658606">Forhåndslast nettsider</translation>
-<translation id="3922395466317605522">Tilpass menyen</translation>
 <translation id="3926703470020109118">Nedlastingen er avbrutt</translation>
 <translation id="3929457972718048006">Adresser</translation>
 <translation id="3931215329146376310">{count,plural, =1{Nytt passord for dette nettstedet}other{Nye passord for dette nettstedet}}</translation>
@@ -965,6 +968,7 @@
 <translation id="4326912346867677256">Trykk på «Bruk passord» for å logge på trygt.</translation>
 <translation id="4328843285884395590">Min disk</translation>
 <translation id="4331177082088332784">Du kan administrere dette i BEGIN_LINK innholdsinnstillingene END_LINK</translation>
+<translation id="4331712008356052424">For å sende denne linken, logg på den andre enheten med <ph name="USER_EMAIL" /></translation>
 <translation id="4334428914252001502">1 ulest artikkel.</translation>
 <translation id="4338258232580025606">Kan ikke logge på</translation>
 <translation id="4338650699862464074">Sender Google nettadressene til sider du besøker.</translation>
@@ -1269,6 +1273,7 @@
 <translation id="5336910966955551309">Trykk og hold for å feste favorittnettstedene dine</translation>
 <translation id="5338512273860059533">Pålogging pågår.</translation>
 <translation id="5343472494710226394">Nyheter, sport og innhold basert på interessene dine.</translation>
+<translation id="5351613737248079168">Du må være logget på for å bruke Level Up</translation>
 <translation id="5352128922772839949">Lagre fil</translation>
 <translation id="5355191726083956201">Økt beskyttelse er på</translation>
 <translation id="536067926684072644">Vis bokmerker</translation>
@@ -1471,6 +1476,7 @@ Handoff må også være aktivert i Generelt-delen av Innstillinger, og enhetene 
 <translation id="6040143037577758943">Lukk</translation>
 <translation id="6042308850641462728">Mer</translation>
 <translation id="6045460247888249350">Legg til en tittel</translation>
+<translation id="6050237559175440178">Bekreft at det er deg, for å bruke og lagre informasjonen på alle enhetene</translation>
 <translation id="6052269326659653305">Bytt profil</translation>
 <translation id="605721222689873409">ÅÅ</translation>
 <translation id="6059830886158432458">Styr nyhetssakene dine og aktiviteten din her</translation>
@@ -1633,6 +1639,7 @@ Handoff må også være aktivert i Generelt-delen av Innstillinger, og enhetene 
 <translation id="6523575793810663688">Vis meg hvordan</translation>
 <translation id="6524082013156754186">Lagre i kontoen</translation>
 <translation id="6524918542306337007">Inkognitomodus er ikke tilgjengelig</translation>
+<translation id="6525550806864373485">Rediger-menyen</translation>
 <translation id="6527208859483186860">bakgrunn {position} av {total}</translation>
 <translation id="6527303717912515753">Del</translation>
 <translation id="6532106788206463496">Lagre endringene</translation>
@@ -1690,7 +1697,6 @@ Handoff må også være aktivert i Generelt-delen av Innstillinger, og enhetene 
 <translation id="6674917187596384849">Du kan enkelt bytte mellom kontoer</translation>
 <translation id="6676349090816247042">Påloggingsalternativer.</translation>
 <translation id="667999046851023355">Dokument</translation>
-<translation id="6680416467695217368">Tilpass menyen</translation>
 <translation id="6681791404926413601">{count,plural, =1{{count} alternativ for betalingsmåte er tilgjengelig over tastaturet.}other{{count} alternativer for betalingsmåte er tilgjengelige over tastaturet.}}</translation>
 <translation id="6682680306647339111">Påminnelsen er fjernet</translation>
 <translation id="6684262542644248484">Logg på et nettsted</translation>
@@ -1846,6 +1852,7 @@ Bytt til <ph name="OTHER_EMAIL" /> for å fortsette fra datamaskinen. Du får pa
 <translation id="722339453342442311">Sjekk nå</translation>
 <translation id="7227235818314667565">Administrer deling</translation>
 <translation id="7233006041370588369">Velg passordet du vil fylle ut.</translation>
+<translation id="723874023660911012">Bytt profil</translation>
 <translation id="7241135764990439166">Inkognitomodus er ikke tilgjengelig</translation>
 <translation id="7248046129087111453"><ph name="BEGIN_LINK" />Søkeloggen<ph name="END_LINK" /> og <ph name="BEGIN_LINK" />andre typer aktivitet<ph name="END_LINK" /> kan lagres i Google-kontoen din.</translation>
 <translation id="7253951228444156601">Sjekker passord …</translation>
@@ -2072,6 +2079,7 @@ Bytt til <ph name="OTHER_EMAIL" /> for å fortsette fra datamaskinen. Du får pa
 <translation id="7996239959906074962">Konfigurer…</translation>
 <translation id="800361585186029508">Åpner de oppgitte nettadressene i Google Chrome.</translation>
 <translation id="8005666035647241369">I Google Passordlagring på denne enheten</translation>
+<translation id="8007106936382123905">{count,plural, =1{1 fullført oppgave}other{# fullførte oppgaver}}</translation>
 <translation id="8010488806779226127">Utforsk funksjoner som kan hjelpe deg med å gjøre mer mens du surfer</translation>
 <translation id="8011489434346330032">Nettinspektør</translation>
 <translation id="8014007212279733632">Bekreft at det er deg, for å autofylle sensitiv informasjon</translation>
@@ -2155,6 +2163,7 @@ Bytt til <ph name="OTHER_EMAIL" /> for å fortsette fra datamaskinen. Du får pa
 <translation id="826614135184049678">Du ble logget av kontoen din, <ph name="USER_NAME" />, som en del av tilbakestillingen av iPad. For å logge på igjen, trykk på «Fortsett» nedenfor.</translation>
 <translation id="8270320981823560179">Disk</translation>
 <translation id="8273982424131314219">Du fyller ut informasjon på <ph name="URL" /></translation>
+<translation id="8274795744553482834">Du er i ferd med å bytte profil</translation>
 <translation id="8275068909952022340">Mer…</translation>
 <translation id="8280797717392145626">Mottatte linker</translation>
 <translation id="8281781826761538115">Standard – <ph name="DEFAULT_LOCALE" /></translation>

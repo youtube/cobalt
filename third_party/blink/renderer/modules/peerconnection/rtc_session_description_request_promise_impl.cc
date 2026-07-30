@@ -17,16 +17,18 @@ namespace blink {
 RTCSessionDescriptionRequestPromiseImpl*
 RTCSessionDescriptionRequestPromiseImpl::Create(
     RTCPeerConnection* requester,
-    ScriptPromiseResolver<RTCSessionDescriptionInit>* resolver) {
+    ScriptPromiseResolver<RTCSessionDescriptionInit>* resolver,
+    bool is_offer) {
   return MakeGarbageCollected<RTCSessionDescriptionRequestPromiseImpl>(
-      requester, resolver);
+      requester, resolver, is_offer);
 }
 
 RTCSessionDescriptionRequestPromiseImpl::
     RTCSessionDescriptionRequestPromiseImpl(
         RTCPeerConnection* requester,
-        ScriptPromiseResolver<RTCSessionDescriptionInit>* resolver)
-    : requester_(requester), resolver_(resolver) {
+        ScriptPromiseResolver<RTCSessionDescriptionInit>* resolver,
+        bool is_offer)
+    : requester_(requester), resolver_(resolver), is_offer_(is_offer) {
   DCHECK(requester_);
   DCHECK(resolver_);
 }
@@ -54,8 +56,16 @@ void RTCSessionDescriptionRequestPromiseImpl::RequestSucceeded(
 
 void RTCSessionDescriptionRequestPromiseImpl::RequestFailed(
     const webrtc::RTCError& error) {
-  if (requester_ && requester_->ShouldFireDefaultCallbacks()) {
-    RejectPromiseFromRTCError(error, resolver_);
+  if (requester_) {
+    is_offer_ ? requester_->NoteCreateOfferFailed()
+              : requester_->NoteCreateAnswerFailed();
+    if (requester_->ShouldFireDefaultCallbacks()) {
+      RejectPromiseFromRTCError(error, resolver_);
+    } else {
+      // This is needed to have the resolver release its internal resources
+      // while leaving the associated promise pending as specified.
+      resolver_->Detach();
+    }
   } else {
     // This is needed to have the resolver release its internal resources
     // while leaving the associated promise pending as specified.

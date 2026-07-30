@@ -6,6 +6,7 @@
 
 #include "base/android/jni_array.h"
 #include "base/check.h"
+#include "base/feature_list.h"
 #include "base/notreached.h"
 #include "net/android/network_change_notifier_android.h"
 #include "net/base/features.h"
@@ -122,6 +123,11 @@ NetworkChangeNotifierDelegateAndroid::NetworkChangeNotifierDelegateAndroid(
   SetCurrentNetworksAndTypes(network_map);
   java_network_active_notifier_ = Java_NetworkActiveNotifier_build(
       base::android::AttachCurrentThread(), reinterpret_cast<intptr_t>(this));
+  // Mirror the feature flag into Java; Cronet excludes FeatureList from its
+  // package.
+  Java_NetworkChangeNotifier_setDeriveConnectionTypeFromCapabilities(
+      env, base::FeatureList::IsEnabled(
+               features::kDeriveConnectionTypeFromCapabilities));
 }
 
 NetworkChangeNotifierDelegateAndroid::~NetworkChangeNotifierDelegateAndroid() {

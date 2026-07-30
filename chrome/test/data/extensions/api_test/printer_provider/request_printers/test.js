@@ -33,32 +33,41 @@ chrome.test.sendMessage('loaded', function(test) {
       }
 
       if (test === 'NOT_ARRAY') {
-        chrome.test.assertThrows(callback, ['XXX'], 'No matching signature.');
+        // Verify `callback` throws when passed a non-array argument.
+        chrome.test.assertThrows(
+            callback.bind(null, /* printerInfo */ 'XXX'),
+            'No matching signature.');
       } else if (test === 'INVALID_PRINTER_TYPE') {
         const expectedError =
             `Error at parameter 'printerInfo': Error at index 1: ` +
             'Invalid type: expected printerProvider.PrinterInfo, ' +
             'found string.';
+        // Verify `callback` throws when printer info list contains invalid
+        // type.
         chrome.test.assertThrows(
-            callback, [[
-              {
-                id: 'printer1',
-                name: 'Printer 1',
-                description: 'Test printer',
-              },
-              'printer2',
-            ]],
+            callback.bind(
+                null,
+                [
+                  {
+                    id: 'printer1',
+                    name: 'Printer 1',
+                    description: 'Test printer',
+                  },
+                  'printer2',
+                ]),
             expectedError);
       } else if (test === 'INVALID_PRINTER') {
         const expectedError = `Error at parameter 'printerInfo': ` +
             `Error at index 0: Unexpected property: 'unsupported'.`;
+        // Verify `callback` throws when printer info object has unsupported
+        // property.
         chrome.test.assertThrows(
-            callback, [[{
-              id: 'printer1',
-              name: 'Printer 1',
-              description: 'Test printer',
-              unsupported: 'print',
-            }]],
+            callback.bind(null, [{
+                            id: 'printer1',
+                            name: 'Printer 1',
+                            description: 'Test printer',
+                            unsupported: 'print',
+                          }]),
             expectedError);
       } else {
         chrome.test.assertEq('OK', test);
@@ -75,8 +84,10 @@ chrome.test.sendMessage('loaded', function(test) {
         ]);
       }
 
+      // Verify `callback` throws when called more than once.
       chrome.test.assertThrows(
-          callback, [], 'Event callback must not be called more than once.');
+          callback.bind(null),
+          'Event callback must not be called more than once.');
 
       chrome.test.succeed();
     });

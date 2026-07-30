@@ -21,10 +21,16 @@ public final class WebXrAndroidFeatureMap {
         return WebXrAndroidFeatureMapJni.get().isHandTrackingEnabled();
     }
 
+    public static boolean isOpenXrAndroidSystemKeyboardEnabled() {
+        return WebXrAndroidFeatureMapJni.get().isOpenXrAndroidSystemKeyboardEnabled();
+    }
+
     @NativeMethods
     public interface Natives {
         boolean isOpenXrEnabled();
 
         boolean isHandTrackingEnabled();
+
+        boolean isOpenXrAndroidSystemKeyboardEnabled();
     }
 }

@@ -2473,8 +2473,6 @@ chromium-metrics-reviews@google.com.
   <int value="1437" label="KrispNoiseCancellationEnabled"/>
   <int value="1438" label="AndroidEntraSsoEnabled"/>
   <int value="1439" label="FindsSettings"/>
-  <int value="1440" label="MetricsReportingLevel"/>
-  <int value="1441" label="DeviceMetricsReportingLevel"/>
   <int value="1442" label="CpuPerformanceTierOverride"/>
   <int value="1443" label="ForceForegroundPriorityForUrls"/>
   <int value="1444" label="DataUrlInWebWorkerOpaqueOriginEnabled"/>
@@ -2498,6 +2496,10 @@ chromium-metrics-reviews@google.com.
   <int value="1462" label="DefaultAutomaticDownloadsSetting"/>
   <int value="1463" label="AutomaticDownloadsAllowedForUrls"/>
   <int value="1464" label="AutomaticDownloadsBlockedForUrls"/>
+  <int value="1465" label="VoiceTypingSettings"/>
+  <int value="1466" label="ProxyProvisioningDomains"/>
+  <int value="1467" label="ThirdPartyAiChatSettings"/>
+  <int value="1468" label="ProcessIsolationEnabled"/>
 </enum>
 
 <enum name="EnterprisePoliciesSources">
@@ -2618,6 +2620,12 @@ chromium-metrics-reviews@google.com.
   <int value="12" label="Extension telemetry event"/>
   <int value="13" label="Saas usage report event"/>
   <int value="14" label="Browser launch event"/>
+</enum>
+
+<enum name="EnterpriseReportingUploadResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="Failed (Retry Limit Reached)"/>
+  <int value="2" label="Failed (Permanent Error)"/>
 </enum>
 
 <!-- LINT.IfChange(EnterpriseSkyVaultMigrationDialogAction) -->

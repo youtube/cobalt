@@ -12,16 +12,52 @@ import {sendWebKitMessage} from '//ios/web/public/js_messaging/resources/utils.j
  */
 
 /**
+ * Returns true if the target is an editable element.
+ */
+function isEditableTarget(target: EventTarget|null): boolean {
+  if (!target) {
+    return false;
+  }
+  if (target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement) {
+    return true;
+  }
+  if (target instanceof HTMLElement && target.isContentEditable) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Returns the actual event target, resolving target inside Shadow DOM.
+ */
+function getRealTarget(event: Event): EventTarget|null {
+  return (event.composedPath && event.composedPath().length > 0) ?
+      (event.composedPath()[0] || null) :
+      event.target;
+}
+
+/**
  * Listens for keydown events and forwards the entered key to the browser.
  */
 function onKeydownEvent(event: KeyboardEvent): void {
+  if (!event.isTrusted) {
+    return;
+  }
+
   // Only forward events where the entered key has length 1, to avoid
   // forwarding special keys like "Enter".
-  if (event.isTrusted && [...event.key].length === 1 && !event.ctrlKey &&
-      !event.metaKey) {
+  if ([...event.key].length === 1 && !event.ctrlKey && !event.metaKey) {
     sendWebKitMessage(
         'PasswordProtectionTextEntered',
         {eventType: 'KeyDown', text: event.key});
+  } else if (
+      (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v') {
+    if (isEditableTarget(getRealTarget(event))) {
+      sendWebKitMessage(
+          'PasswordProtectionTextEntered',
+          {eventType: 'PasteKeyDetected', text: ''});
+    }
   }
 }
 

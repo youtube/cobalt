@@ -20,6 +20,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
+#include "base/test/gmock_callback_support.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "build/build_config.h"
@@ -78,16 +79,6 @@ const char kDefaultAudioDeviceID[] = "fake_audio_input_2";
 const char kHashedDeviceId[] =
     "6e8234b71bf42fc1be87430dd3305da590577819e2bacef805b2cab540fd291e";
 const char kRawDeviceId[] = "Speaker (High Definition Audio)";
-
-// testing::InvokeArgument<N> does not work with base::OnceCallback. Use this
-// gmock action template to invoke base::OnceCallback. `k` is the k-th argument
-// and `T` is the callback's type.
-ACTION_TEMPLATE(InvokeCallbackArgument,
-                HAS_2_TEMPLATE_PARAMS(int, k, typename, T),
-                AND_4_VALUE_PARAMS(status, param, device_id, renderer)) {
-  std::move(const_cast<T&>(std::get<k>(args)))
-      .Run(status, param, device_id, renderer);
-}
 
 void PhysicalDevicesEnumerated(base::OnceClosure quit_closure,
                                MediaDeviceEnumeration* out,
@@ -1121,12 +1112,9 @@ TEST_P(SetPreferredSinkIdTest, DispatchPreferredAudioOutputDeviceManager) {
 
   EXPECT_CALL(*mock_authorization_handler,
               RequestDeviceAuthorization(_, _, kHashedDeviceId, _))
-      .WillOnce(
-          InvokeCallbackArgument<
-              3,
-              AudioOutputAuthorizationHandler::AuthorizationCompletedCallback>(
-              media::OutputDeviceStatus::OUTPUT_DEVICE_STATUS_OK,
-              media::AudioParameters(), kRawDeviceId, ""));
+      .WillOnce(base::test::RunOnceCallback<3>(
+          media::OutputDeviceStatus::OUTPUT_DEVICE_STATUS_OK,
+          media::AudioParameters(), kRawDeviceId, ""));
 
   EXPECT_CALL(*manager, SetPreferredSinkId(_, kRawDeviceId, _)).Times(1);
   host_->SetPreferredSinkId(kHashedDeviceId, base::DoNothing());
@@ -1151,8 +1139,7 @@ TEST_P(SetPreferredSinkIdTest,
 
   EXPECT_CALL(*mock_authorization_handler,
               RequestDeviceAuthorization(_, _, kHashedDeviceId, _))
-      .WillOnce(InvokeCallbackArgument<3, AudioOutputAuthorizationHandler::
-                                              AuthorizationCompletedCallback>(
+      .WillOnce(base::test::RunOnceCallback<3>(
           media::OutputDeviceStatus::OUTPUT_DEVICE_STATUS_ERROR_NOT_AUTHORIZED,
           media::AudioParameters(), kRawDeviceId, ""));
 

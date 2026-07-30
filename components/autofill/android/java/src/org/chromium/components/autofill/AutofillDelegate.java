@@ -5,6 +5,7 @@
 package org.chromium.components.autofill;
 
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.components.autofill.autofill_ai.EntityTypeName;
 
 /** An interface to handle the touch interaction with an autofill popup or keyboard accessory. */
 @NullMarked
@@ -43,4 +44,11 @@ public interface AutofillDelegate {
      * TYPE_VIEW_ACCESSIBILITY_FOCUS_CLEARED} accessibility event.
      */
     void accessibilityFocusCleared();
+
+    /**
+     * Opens settings for the given entity type.
+     *
+     * @param entityType The entity type for which to open settings.
+     */
+    default void openSettingsForEntityType(@EntityTypeName int entityType) {}
 }

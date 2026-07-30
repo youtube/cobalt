@@ -23,6 +23,12 @@
       });
     }
 
+    function getGeolocationPermissionState() {
+      navigator.permissions.query({name: 'geolocation'}).then(permission => {
+        domAutomationController.send(permission.state);
+      });
+    }
+
     document.getElementById('parent').addEventListener('promptaction', (event) => {
       window.document.title = 'promptaction';
     });

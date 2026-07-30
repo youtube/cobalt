@@ -14645,12 +14645,12 @@ class CrossProcessSubframeRenderProcessGoneLogger
     crashed_rfhs_.push_back(render_frame_host);
   }
 
-  const std::vector<RenderFrameHost*>& crashed_rfhs() const {
+  const std::vector<raw_ptr<RenderFrameHost>>& crashed_rfhs() const {
     return crashed_rfhs_;
   }
 
  private:
-  std::vector<RenderFrameHost*> crashed_rfhs_;
+  std::vector<raw_ptr<RenderFrameHost>> crashed_rfhs_;
 };
 
 // Test that when a process hosting multiple subframes dies,

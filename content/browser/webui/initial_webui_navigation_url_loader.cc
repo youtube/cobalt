@@ -31,8 +31,6 @@ InitialWebUINavigationURLLoader::InitialWebUINavigationURLLoader(
     : browser_context_(browser_context),
       request_info_(std::move(request_info)),
       delegate_(delegate) {
-  CHECK(base::FeatureList::IsEnabled(
-      features::kInitialWebUISyncNavStartToCommit));
 #if BUILDFLAG(IS_ANDROID)
   NOTREACHED();
 #else

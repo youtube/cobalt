@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://settings/settings.js';
-
+import {PrefsBrowserProxy, PrefService} from 'chrome://settings/settings.js';
 import type {SettingsDropdownMenuElement} from 'chrome://settings/settings.js';
 import {assertEquals, assertFalse, assertNotReached, assertTrue} from 'chrome://webui-test/chai_assert.js';
-import {waitAfterNextRender} from 'chrome://webui-test/polymer_test_util.js';
+import {microtasksFinished} from 'chrome://webui-test/test_util.js';
+
+import {TestPrefsBrowserProxy} from './test_prefs_browser_proxy.js';
 
 /** @fileoverview Suite of tests for settings-dropdown-menu. */
 suite('SettingsDropdownMenu', function() {
@@ -18,8 +19,11 @@ suite('SettingsDropdownMenu', function() {
   // The "Custom" option in the <select> menu.
   let customOption: HTMLOptionElement;
 
+  let prefsBrowserProxy: TestPrefsBrowserProxy;
+  let prefService: PrefService;
+
   function waitUntilDropdownUpdated(): Promise<void> {
-    return waitAfterNextRender(dropdown);
+    return microtasksFinished();
   }
 
   function simulateChangeEvent(value: string): Promise<void> {
@@ -28,11 +32,35 @@ suite('SettingsDropdownMenu', function() {
     return waitUntilDropdownUpdated();
   }
 
-  setup(function() {
+  setup(async function() {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
+
+    const initialPrefs = [
+      {
+        key: 'test.number',
+        type: chrome.settingsPrivate.PrefType.NUMBER,
+        value: 100,
+      },
+      {
+        key: 'test.string',
+        type: chrome.settingsPrivate.PrefType.STRING,
+        value: 'c',
+      },
+      {
+        key: 'test.number2',
+        type: chrome.settingsPrivate.PrefType.NUMBER,
+        value: 200,
+      },
+    ];
+    prefsBrowserProxy = new TestPrefsBrowserProxy(initialPrefs);
+    PrefsBrowserProxy.setInstance(prefsBrowserProxy);
+    PrefService.resetInstanceForTesting();
+    prefService = PrefService.getInstance();
+    await prefService.whenInitialized();
+
     dropdown = document.createElement('settings-dropdown-menu');
     document.body.appendChild(dropdown);
-    selectElement = dropdown.shadowRoot!.querySelector('select')!;
+    selectElement = dropdown.shadowRoot.querySelector('select')!;
     assertTrue(!!selectElement);
     const options = selectElement.options;
     customOption = options[options.length - 1]!;
@@ -40,11 +68,7 @@ suite('SettingsDropdownMenu', function() {
   });
 
   test('with number options', async function() {
-    dropdown.pref = {
-      key: 'test.number',
-      type: chrome.settingsPrivate.PrefType.NUMBER,
-      value: 100,
-    };
+    dropdown.prefKey = 'test.number';
     dropdown.menuOptions = [
       {value: 100, name: 'Option 100'},
       {value: 200, name: 'Option 200'},
@@ -59,22 +83,20 @@ suite('SettingsDropdownMenu', function() {
 
     // Selecting an item updates the pref.
     await simulateChangeEvent('200');
-    assertEquals(200, dropdown.pref.value);
+    assertEquals(200, prefService.getPref<number>('test.number').value);
     assertEquals('200', dropdown.getSelectedValue());
 
     // Updating the pref selects an item.
-    dropdown.set('pref.value', 400);
+    prefsBrowserProxy.fakeApi.sendPrefChanges([
+      {key: 'test.number', value: 400},
+    ]);
     await waitUntilDropdownUpdated();
     assertEquals('400', selectElement.value);
     assertEquals('400', dropdown.getSelectedValue());
   });
 
   test('with string options', async function() {
-    dropdown.pref = {
-      key: 'test.string',
-      type: chrome.settingsPrivate.PrefType.STRING,
-      value: 'c',
-    };
+    dropdown.prefKey = 'test.string';
     dropdown.menuOptions = [
       {value: 'a', name: 'AAA'},
       {value: 'b', name: 'BBB'},
@@ -88,7 +110,7 @@ suite('SettingsDropdownMenu', function() {
 
     // Selecting an item updates the pref.
     await simulateChangeEvent('a');
-    assertEquals('a', dropdown.pref.value);
+    assertEquals('a', prefService.getPref<string>('test.string').value);
     assertEquals('a', dropdown.getSelectedValue());
 
     // Item remains selected after updating menu items.
@@ -96,16 +118,11 @@ suite('SettingsDropdownMenu', function() {
     dropdown.menuOptions = newMenuOptions;
     await waitUntilDropdownUpdated();
     assertEquals('AAA', selectElement.selectedOptions[0]!.textContent.trim());
-    assertEquals('AAA', selectElement.selectedOptions[0]!.textContent.trim());
   });
 
   test('with noSetPref', async function() {
     dropdown.noSetPref = true;
-    dropdown.pref = {
-      key: 'test.number',
-      type: chrome.settingsPrivate.PrefType.NUMBER,
-      value: 100,
-    };
+    dropdown.prefKey = 'test.number';
     dropdown.menuOptions = [
       {value: 100, name: 'Option 100'},
       {value: 200, name: 'Option 200'},
@@ -118,27 +135,28 @@ suite('SettingsDropdownMenu', function() {
         'Option 100', selectElement.selectedOptions[0]!.textContent.trim());
 
     // Updating the pref selects an item also with noSetPref.
-    dropdown.set('pref.value', 200);
+    prefsBrowserProxy.fakeApi.sendPrefChanges([
+      {key: 'test.number', value: 200},
+    ]);
     await waitUntilDropdownUpdated();
     assertEquals('200', selectElement.value);
     assertEquals('200', dropdown.getSelectedValue());
 
     // Selecting an item does not automatically update the pref with noSetPref.
     await simulateChangeEvent('300');
-    assertEquals(200, dropdown.pref.value);
+    assertEquals(200, prefService.getPref<number>('test.number').value);
     assertEquals('300', dropdown.getSelectedValue());
 
     // Calling |sendPrefChange()| updates the pref.
     dropdown.sendPrefChange();
-    assertEquals(300, dropdown.pref.value);
+    assertEquals(300, prefService.getPref<number>('test.number').value);
   });
 
   test('with custom value', async function() {
-    dropdown.pref = {
-      key: 'test.string',
-      type: chrome.settingsPrivate.PrefType.STRING,
-      value: 'f',
-    };
+    prefsBrowserProxy.fakeApi.sendPrefChanges([
+      {key: 'test.string', value: 'f'},
+    ]);
+    dropdown.prefKey = 'test.string';
     dropdown.menuOptions = [
       {value: 'a', name: 'AAA'},
       {value: 'b', name: 'BBB'},
@@ -159,15 +177,14 @@ suite('SettingsDropdownMenu', function() {
     assertFalse(customOption.disabled);
 
     // Pref should not have changed.
-    assertEquals('f', dropdown.pref.value);
+    assertEquals('f', prefService.getPref<string>('test.string').value);
   });
 
   test('with hidden options', async function() {
-    dropdown.pref = {
-      key: 'test.string',
-      type: chrome.settingsPrivate.PrefType.STRING,
-      value: 'f',
-    };
+    prefsBrowserProxy.fakeApi.sendPrefChanges([
+      {key: 'test.string', value: 'f'},
+    ]);
+    dropdown.prefKey = 'test.string';
     dropdown.menuOptions = [
       {value: 'a', name: 'AAA', hidden: true},
       {value: 'b', name: 'BBB', hidden: false},
@@ -184,20 +201,12 @@ suite('SettingsDropdownMenu', function() {
     assertFalse(selectElement.options[3]!.hidden);
   });
 
-  function waitForTimeout(timeMs: number): Promise<void> {
-    return new Promise<void>(function(resolve) {
-      setTimeout(resolve, timeMs);
-    });
-  }
+
 
   test('delay setting options', async function() {
-    dropdown.pref = {
-      key: 'test.number2',
-      type: chrome.settingsPrivate.PrefType.NUMBER,
-      value: 200,
-    };
+    dropdown.prefKey = 'test.number2';
 
-    await waitForTimeout(100);
+    await microtasksFinished();
     await waitUntilDropdownUpdated();
     assertTrue(selectElement.disabled);
     assertEquals('SETTINGS_DROPDOWN_NOT_FOUND_ITEM', selectElement.value);
@@ -218,52 +227,5 @@ suite('SettingsDropdownMenu', function() {
     // reachable via type-ahead.
     assertEquals('none', getComputedStyle(customOption).display);
     assertTrue(customOption.disabled);
-  });
-
-  test('works with dictionary pref', async function() {
-    let settingsControlChangeCount = 0;
-    dropdown.pref = {
-      key: 'test.dictionary',
-      type: chrome.settingsPrivate.PrefType.DICTIONARY,
-      value: {
-        'key1': 'value1',
-        'key2': 'value2',
-      },
-    };
-    dropdown.prefKey = 'key2';
-    dropdown.menuOptions = [
-      {value: 'value2', name: 'Option 2'},
-      {value: 'value3', name: 'Option 3'},
-      {value: 'value4', name: 'Option 4'},
-    ];
-    dropdown.addEventListener('settings-control-change', () => {
-      ++settingsControlChangeCount;
-    });
-
-    await waitUntilDropdownUpdated();
-    // Initially selected item.
-    assertEquals(
-        'Option 2', selectElement.selectedOptions[0]!.textContent.trim());
-
-    // Setup does not call the settings-control-change event.
-    assertEquals(0, settingsControlChangeCount);
-
-    // Selecting an item updates the pref.
-    await simulateChangeEvent('value3');
-    assertEquals('value3', dropdown.pref.value['key2']);
-
-    // The settings-control-change callback should have been triggered
-    // exactly once.
-    assertEquals(1, settingsControlChangeCount);
-
-    // Updating the pref selects an item.
-    dropdown.set('pref.value.key2', 'value4');
-    await waitUntilDropdownUpdated();
-    assertEquals('value4', selectElement.value);
-
-    // The settings-control-change callback should have been triggered
-    // exactly once still -- manually updating the pref is not a user
-    // action so the count should not be incremented.
-    assertEquals(1, settingsControlChangeCount);
   });
 });

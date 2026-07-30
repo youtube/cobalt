@@ -57,6 +57,10 @@
 
 namespace {
 constexpr int kSnapDistance = 15;
+
+constexpr float kSplitViewContentCornerRadius = 6;
+constexpr gfx::RoundedCornersF kSplitViewContentRoundedCorners{
+    kSplitViewContentCornerRadius};
 }
 
 void MultiContentsView::ContentsSeparators::Reset() {
@@ -118,7 +122,7 @@ MultiContentsView::MultiContentsView(
 
   contents_separators_.corner_separator =
       AddChildView(std::make_unique<CustomFloatingCorner>(
-          *browser_view_, CustomFloatingCorner::CornerOrientation::kTopLeading,
+          *browser_view_, CornerOrientation::kTopLeading,
           views::ShapeContextTokens::kContentSeparatorRadius,
           CustomFloatingCorner::ToolbarTheme(),
           kColorToolbarContentAreaSeparator));
@@ -204,12 +208,22 @@ ContentsContainerView* MultiContentsView::GetInactiveContentsContainerView()
   return contents_container_views_[GetInactiveIndex()];
 }
 
-const gfx::RoundedCornersF& MultiContentsView::background_radii() const {
+const gfx::RoundedCornersF& MultiContentsView::GetBackgroundRadii() const {
   return background_view_->GetRoundedCorners();
 }
 
 void MultiContentsView::SetBackgroundRadii(const gfx::RoundedCornersF& radii) {
+  if (radii == GetBackgroundRadii()) {
+    return;
+  }
+
   background_view_->SetRoundedCorners(radii);
+
+  if (!IsInSplitView()) {
+    GetActiveContentsContainerView()->SetRoundedCorners(radii);
+    GetInactiveContentsContainerView()->SetRoundedCorners(
+        gfx::RoundedCornersF());
+  }
 }
 
 ContentsContainerView* MultiContentsView::GetContentsContainerViewFor(
@@ -279,23 +293,7 @@ void MultiContentsView::CloseSplitView() {
   }
 
   if (active_index_ != 0) {
-    ContentsContainerView* start_view = contents_container_views_[0];
-    ContentsContainerView* active_view =
-        contents_container_views_[active_index_];
-
-    // Move the active WebContents so that the first ContentsContainerView in
-    // contents_container_views_ can always be visible.
-    std::iter_swap(contents_container_views_.begin(),
-                   contents_container_views_.begin() + active_index_);
-
-    // Reorder the child views so that focus order will be consistent with
-    // contents_container_views_.
-    size_t start_view_child_index = GetIndexOf(start_view).value();
-    size_t active_view_child_index = GetIndexOf(active_view).value();
-    ReorderChildView(start_view, active_view_child_index);
-    ReorderChildView(active_view, start_view_child_index);
-
-    active_index_ = 0;
+    SwapContentsInSplitView();
   }
   contents_container_views_[1]->contents_view()->SetWebContents(nullptr);
   contents_container_views_[1]->SetVisible(false);
@@ -307,6 +305,21 @@ void MultiContentsView::CloseSplitView() {
       sad_tab_helper->ReinstallInWebView();
     }
   }
+}
+
+void MultiContentsView::SwapContentsInSplitView() {
+  // Reorder the child views so that focus order will be consistent with
+  // contents_container_views_.
+  ContentsContainerView* start_view = contents_container_views_[0];
+  ContentsContainerView* end_view = contents_container_views_[1];
+  size_t start_view_child_index = GetIndexOf(start_view).value();
+  size_t end_view_child_index = GetIndexOf(end_view).value();
+  ReorderChildView(start_view, end_view_child_index);
+  ReorderChildView(end_view, start_view_child_index);
+
+  std::swap(contents_container_views_[0], contents_container_views_[1]);
+
+  active_index_ = active_index_ == 0 ? 1 : 0;
 }
 
 void MultiContentsView::SetActiveIndex(int index) {
@@ -542,16 +555,9 @@ void MultiContentsView::BeforeApplyLayout(const views::ProposedLayout& layout) {
   }
 
   if (!IsInSplitView()) {
-    auto* const contents = GetActiveContentsContainerView();
-    contents->SetTargetContentBounds(
-        -target_content_bounds_->clipped_area.ToOutsets());
-
-    // Clear out the other contents just in case.
-    for (auto* other : contents_container_views_) {
-      if (other != contents) {
-        other->SetTargetContentBounds(std::nullopt);
-      }
-    }
+    const auto outsets = -target_content_bounds_->clipped_area.ToOutsets();
+    GetActiveContentsContainerView()->SetTargetContentBounds(outsets);
+    GetInactiveContentsContainerView()->SetTargetContentBounds(std::nullopt);
     return;
   }
 
@@ -688,15 +694,13 @@ gfx::Rect MultiContentsView::CalculateSeparatorLayouts(
     if (should_show_leading) {
       corner_layout.bounds =
           gfx::Rect(available_space.origin(), corner_preferred_size);
-      corner_separator->SetOrientation(
-          CustomFloatingCorner::CornerOrientation::kTopLeading);
+      corner_separator->SetOrientation(CornerOrientation::kTopLeading);
     } else {
       corner_layout.bounds = gfx::Rect(
           gfx::Point(available_space.right() - corner_preferred_size.width(),
                      available_space.y()),
           corner_preferred_size);
-      corner_separator->SetOrientation(
-          CustomFloatingCorner::CornerOrientation::kTopTrailing);
+      corner_separator->SetOrientation(CornerOrientation::kTopTrailing);
     }
   }
   child_layouts.push_back(corner_layout);
@@ -771,12 +775,16 @@ int MultiContentsView::GetMinViewSize(gfx::Rect available_space) const {
 }
 
 void MultiContentsView::UpdateContentsBorderAndOverlay() {
+  const bool is_in_split = IsInSplitView();
   for (auto* contents_container_view : contents_container_views_) {
     const bool is_active =
         contents_container_view->contents_view() == GetActiveContentsView();
+    contents_container_view->SetRoundedCorners(
+        is_in_split
+            ? kSplitViewContentRoundedCorners
+            : (is_active ? GetBackgroundRadii() : gfx::RoundedCornersF()));
     contents_container_view->UpdateBorderAndOverlay(
-        IsInSplitView(), is_active,
-        is_active && active_contents_view_highlighted_);
+        is_in_split, is_active, is_active && active_contents_view_highlighted_);
   }
 }
 

@@ -118,6 +118,8 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
             ObservableSuppliers.createNonNull(PopupState.HIDDEN);
     private final SettableNonNullObservableSupplier<Boolean> mActivationChipVisibilitySupplier =
             ObservableSuppliers.createNonNull(false);
+    private final SettableNonNullObservableSupplier<Boolean> mHasAttachmentsSupplier =
+            ObservableSuppliers.createNonNull(false);
     private final SnackbarManager mSnackbarManager;
     private @Nullable ViewportRectProvider mViewportRectProvider;
     private @Nullable FuseboxMetrics mMetrics;
@@ -307,7 +309,8 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
                         mActivationChipVisibilitySupplier,
                         mOnActivationChipClickedWithQuery,
                         mClearUrlBarTextCallback,
-                        mUrlBarTextSupplier);
+                        mUrlBarTextSupplier,
+                        mHasAttachmentsSupplier);
         mMediator.onContextualTaskFocusChanged(mHasContextualTasksFocus);
         if (mLastBrandedColorScheme != null) {
             mMediator.updateVisualsForState(mLastBrandedColorScheme);
@@ -544,6 +547,11 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
     /** Registers a callback notified when the popup state of the fusebox changes. */
     public NonNullObservableSupplier<@PopupState Integer> getPopupStateSupplier() {
         return mPopupStateSupplier;
+    }
+
+    /** Returns whether there are any attachments present in the current session. */
+    public NonNullObservableSupplier<Boolean> getHasAttachmentsSupplier() {
+        return mHasAttachmentsSupplier;
     }
 
     /** Set callback to be invoked when the popup is dismissed. */

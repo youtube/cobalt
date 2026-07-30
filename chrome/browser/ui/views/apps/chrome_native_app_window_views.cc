@@ -31,7 +31,6 @@
 #include "ui/base/hit_test.h"
 #include "ui/base/models/image_model.h"
 #include "ui/base/mojom/window_show_state.mojom.h"
-#include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/gfx/geometry/skia_conversions.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/gfx/image/image_skia_operations.h"

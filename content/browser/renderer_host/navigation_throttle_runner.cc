@@ -152,9 +152,7 @@ void NavigationThrottleRunner::ResumeProcessingNavigationEvent(
 void NavigationThrottleRunner::ProcessInternal() {
   TRACE_EVENT("navigation", "NavigationThrottleRunner::ProcessInternal",
               "current_event", current_event_);
-  // TODO(https://crbug.com/526542430): CHECK-exclusion: Convert to CHECK once
-  // we are sure this isn't hit.
-  DCHECK_NE(NavigationThrottleEvent::kNoEvent, current_event_);
+  CHECK_NE(NavigationThrottleEvent::kNoEvent, current_event_);
   base::Time start_time = base::Time::Now();
   if (!event_process_start_time_.has_value()) {
     event_process_start_time_ = start_time;
@@ -163,7 +161,7 @@ void NavigationThrottleRunner::ProcessInternal() {
   base::WeakPtr<NavigationThrottleRunner> weak_ref = weak_factory_.GetWeakPtr();
 
   auto& throttles = registry_->GetThrottles();
-  if (registry_->GetNavigationHandle().IsInitialWebUISyncNavigation()) {
+  if (registry_->GetNavigationHandle().IsInitialWebUINavigation()) {
     // We've skipped adding throttles for navigations to the initial WebUI.
     CHECK_EQ(throttles.size(), 0u);
   }

@@ -23,7 +23,6 @@
 #include "base/values.h"
 #include "components/prefs/pref_service.h"
 #include "components/safe_search_api/url_checker.h"
-#include "components/supervised_user/core/browser/kids_chrome_management_url_checker_client.h"
 #include "components/supervised_user/core/browser/supervised_user_preferences.h"
 #include "components/supervised_user/core/browser/supervised_user_utils.h"
 #include "components/supervised_user/core/common/features.h"

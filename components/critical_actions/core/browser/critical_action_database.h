@@ -7,6 +7,7 @@
 
 #include <optional>
 #include <string>
+#include <string_view>
 
 #include "base/files/file_path.h"
 #include "base/sequence_checker.h"
@@ -39,11 +40,11 @@ class CriticalActionDatabase {
   // Retrieves a critical action record by its ID.
   // Returns std::nullopt if the action ID is not found.
   std::optional<CriticalActionEntry> GetCriticalAction(
-      const std::string& critical_action_id);
+      std::string_view critical_action_id);
 
   // Deletes a single critical action record by its ID.
   // Returns true on success.
-  bool DeleteCriticalAction(const std::string& critical_action_id);
+  bool DeleteCriticalAction(std::string_view critical_action_id);
 
   // Deletes all critical action records within the given time range,
   // inclusive of start_time and exclusive of end_time.

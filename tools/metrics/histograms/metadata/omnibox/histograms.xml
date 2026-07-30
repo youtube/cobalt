@@ -59,6 +59,13 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//components/omnibox/browser/aim_eligibility_service.h:RequestSource) -->
 
+<variants name="AimEntrypointParty">
+  <variant name=""
+      summary="Unsliced; recorded for google and 3rd party AIM entrypoint."/>
+  <variant name=".3p" summary="Recorded for 3rd party AIM entrypoint."/>
+  <variant name=".google" summary="Recorded for google entrypoint."/>
+</variants>
+
 <variants name="ClipboardSuggestionType">
   <variant name="" summary="Aggregated across all clipboard suggestion types"/>
   <variant name=".IMAGE" summary="IMAGE from clipboard."/>
@@ -108,6 +115,12 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <!-- LINT.ThenChange(//ios/chrome/browser/composebox/public/composebox_entrypoint.h:ComposeboxEntrypoint) -->
+
+<variants name="CrossDeviceTabTarget">
+  <variant name="Action"
+      summary="action button (which opens chrome://history/syncedTabs)"/>
+  <variant name="Match" summary="match row itself (which opens the tab URL)"/>
+</variants>
 
 <variants name="DsePreloadTriggerType">
   <variant name=".OnPress" summary="on-press trigger"/>
@@ -246,6 +259,7 @@ chromium-metrics-reviews@google.com.
   <variant name="BLANK" summary="about:blank"/>
   <variant name="CHROMEOS_APP_LIST" summary="ChromeOS app list"/>
   <variant name="CO_BROWSING_COMPOSEBOX" summary="Co-browsing composebox"/>
+  <variant name="COMPOSEBOX_EVERYWHERE" summary="Composebox everywhere"/>
   <variant name="CONTEXTUAL_SEARCHBOX" summary="Contextual searchbox"/>
   <variant name="HOME_PAGE" summary="the user's home page"/>
   <variant name="INSTANT_NTP_WITH_OMNIBOX_AS_STARTING_FOCUS"
@@ -279,6 +293,7 @@ chromium-metrics-reviews@google.com.
                in Aug 2024. Shouldn't be reported on any platform as of M129."/>
   <variant name="OBSOLETE_SEARCH_RESULT_PAGE_DOING_SEARCH_TERM_REPLACEMENT"
       summary="obsolete: search results page with search term replacement"/>
+  <variant name="OMNIBOX_EVERYWHERE" summary="omnibox everywhere"/>
   <variant name="OTHER"
       summary="other (typically an arbitrary URL, not a search results page,
                new tab page, etc.)"/>
@@ -815,24 +830,8 @@ Keep consistent with active providers. Doesn't need to include every provider in
   <token key="Feature" variants="AimEligibilityBooleanFeature"/>
 </histogram>
 
-<histogram name="Omnibox.AimEntrypoint.Activated.UserTextPresent"
-    enum="Boolean" expires_after="2026-11-12">
-  <owner>khalidpeer@chromium.org</owner>
-  <owner>jdonnelly@chromium.org</owner>
-  <owner>chrome-desktop-search@google.com</owner>
-  <summary>
-    Recorded when the user activates the AIM entrypoint (page action) in the
-    Omnibox. More specifically, this metric records whether the user had text in
-    the Omnibox at the time they activated the AIM entrypoint.
-
-    Activation can be achieved via keyboard events (e.g. hitting [ENTER] or
-    [SPACE] while the page action is focused) or via mouse/gesture events (e.g.
-    clicking or tapping on the page action).
-  </summary>
-</histogram>
-
 <histogram
-    name="Omnibox.AimEntrypoint.Activated.UserTextPresent.ByPageContext.{OmniboxPageContext}"
+    name="Omnibox.AimEntrypoint.Activated.UserTextPresent.ByPageContext.{OmniboxPageContext}{AimEntrypointParty}"
     enum="Boolean" expires_after="2026-11-12">
   <owner>khalidpeer@chromium.org</owner>
   <owner>jdonnelly@chromium.org</owner>
@@ -843,33 +842,42 @@ Keep consistent with active providers. Doesn't need to include every provider in
     the Omnibox at the time they activated the AIM entrypoint.
 
     Activation can be achieved via keyboard events (e.g. hitting [ENTER] or
-    [SPACE] while the page action is focused) or via mouse/gesture events (e.g.
-    clicking or tapping on the page action).
+    [SPACE] while the page action is focused), via mouse/gesture events (e.g.
+    clicking or tapping on the page action), or by adding context (e.g. an open
+    tab).
 
     Sliced by {OmniboxPageContext} which represents the page classification at
     the time of AIM page action activation.
+
+    {AimEntrypointParty}
   </summary>
   <token key="OmniboxPageContext" variants="OmniboxPageContext"/>
+  <token key="AimEntrypointParty" variants="AimEntrypointParty"/>
 </histogram>
 
-<histogram name="Omnibox.AimEntrypoint.Activated.ViaKeyboard" enum="Boolean"
-    expires_after="2026-11-12">
+<histogram
+    name="Omnibox.AimEntrypoint.Activated.UserTextPresent{AimEntrypointParty}"
+    enum="Boolean" expires_after="2026-11-12">
   <owner>khalidpeer@chromium.org</owner>
   <owner>jdonnelly@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
     Recorded when the user activates the AIM entrypoint (page action) in the
-    Omnibox.
+    Omnibox. More specifically, this metric records whether the user had text in
+    the Omnibox at the time they activated the AIM entrypoint.
 
-    This metric records `true` when the user activates the entrypoint via
-    keyboard (e.g. hitting [ENTER] or [SPACE]) and records `false` when the user
-    activates the entrypoint via mouse/gesture events (e.g. clicking or tapping
-    on the page action).
+    Activation can be achieved via keyboard events (e.g. hitting [ENTER] or
+    [SPACE] while the page action is focused), via mouse/gesture events (e.g.
+    clicking or tapping on the page action), or by adding context (e.g. an open
+    tab).
+
+    {AimEntrypointParty}
   </summary>
+  <token key="AimEntrypointParty" variants="AimEntrypointParty"/>
 </histogram>
 
 <histogram
-    name="Omnibox.AimEntrypoint.Activated.ViaKeyboard.ByPageContext.{OmniboxPageContext}"
+    name="Omnibox.AimEntrypoint.Activated.ViaKeyboard.ByPageContext.{OmniboxPageContext}{AimEntrypointParty}"
     enum="Boolean" expires_after="2026-11-12">
   <owner>khalidpeer@chromium.org</owner>
   <owner>jdonnelly@chromium.org</owner>
@@ -881,41 +889,80 @@ Keep consistent with active providers. Doesn't need to include every provider in
     This metric records `true` when the user activates the entrypoint via
     keyboard (e.g. hitting [ENTER] or [SPACE]) and records `false` when the user
     activates the entrypoint via mouse/gesture events (e.g. clicking or tapping
-    on the page action).
+    on the page action) or by adding context (e.g. an open tab).
 
     Sliced by {OmniboxPageContext} which represents the page classification at
     the time of AIM page action activation.
+
+    {AimEntrypointParty}
   </summary>
   <token key="OmniboxPageContext" variants="OmniboxPageContext"/>
+  <token key="AimEntrypointParty" variants="AimEntrypointParty"/>
 </histogram>
 
-<histogram name="Omnibox.AimEntrypoint.Shown" enum="Boolean"
-    expires_after="2026-11-15">
+<histogram
+    name="Omnibox.AimEntrypoint.Activated.ViaKeyboard{AimEntrypointParty}"
+    enum="Boolean" expires_after="2026-11-12">
   <owner>khalidpeer@chromium.org</owner>
   <owner>jdonnelly@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
-    Recorded when the AIM entrypoint (page action) is shown in the Omnibox. This
-    is recorded once per Omnibox navigation. The entrypoint will only be shown
-    if the user is eligible for AIM functionality.
+    Recorded when the user activates the AIM entrypoint (page action) in the
+    Omnibox.
+
+    This metric records `true` when the user activates the entrypoint via
+    keyboard (e.g. hitting [ENTER] or [SPACE]) and records `false` when the user
+    activates the entrypoint via mouse/gesture events (e.g. clicking or tapping
+    on the page action) or by adding context (e.g. an open tab).
+
+    {AimEntrypointParty}
   </summary>
+  <token key="AimEntrypointParty" variants="AimEntrypointParty"/>
 </histogram>
 
 <histogram
-    name="Omnibox.AimEntrypoint.Shown.ByPageContext.{OmniboxPageContext}"
+    name="Omnibox.AimEntrypoint.Shown.ByPageContext.{OmniboxPageContext}{AimEntrypointParty}"
     enum="Boolean" expires_after="2026-08-09">
   <owner>khalidpeer@chromium.org</owner>
   <owner>jdonnelly@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
-    Recorded when the AIM entrypoint (page action) is shown in the Omnibox. This
-    is recorded once per Omnibox navigation. The entrypoint will only be shown
-    if the user is eligible for AIM functionality.
+    Recorded whether the AIM entrypoint (page action) was shown at least once
+    during an Omnibox session. This is recorded once per Omnibox navigation or
+    AIM entrypoint activation. The entrypoint will only be shown if the user is
+    eligible for AIM functionality.
+
+    Showing the AIM entrypoint on focus only won't log true for navigations; it
+    must be shown as the user is typing in order to log true. Showing the AIM
+    entrypoint on focus only and activating the entrypoint will log true.
 
     Sliced by {OmniboxPageContext} which represents the page classification when
     the AIM page action was shown to the user.
+
+    {AimEntrypointParty}
   </summary>
   <token key="OmniboxPageContext" variants="OmniboxPageContext"/>
+  <token key="AimEntrypointParty" variants="AimEntrypointParty"/>
+</histogram>
+
+<histogram name="Omnibox.AimEntrypoint.Shown{AimEntrypointParty}"
+    enum="Boolean" expires_after="2026-11-15">
+  <owner>khalidpeer@chromium.org</owner>
+  <owner>jdonnelly@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Recorded whether the AIM entrypoint (page action) was shown at least once
+    during an Omnibox session. This is recorded once per Omnibox navigation or
+    AIM entrypoint activation. The entrypoint will only be shown if the user is
+    eligible for AIM functionality.
+
+    Showing the AIM entrypoint on focus only won't log true for navigations; it
+    must be shown as the user is typing in order to log true. Showing the AIM
+    entrypoint on focus only and activating the entrypoint will log true.
+
+    {AimEntrypointParty}
+  </summary>
+  <token key="AimEntrypointParty" variants="AimEntrypointParty"/>
 </histogram>
 
 <histogram name="Omnibox.AiModePageAction.IconSource"
@@ -1442,6 +1489,110 @@ Keep consistent with active providers. Doesn't need to include every provider in
 
     (Usage = Precision * Recall)
   </summary>
+</histogram>
+
+<histogram name="Omnibox.CrossDeviceTab.Match.ShowAge" units="ms"
+    expires_after="2027-05-01">
+  <owner>mastiz@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    The age of the remote tab when the cross-device suggestion was shown.
+
+    Background: When the omnibox is focused (Zero-Suggest state), it may show at
+    most one cross-device tab suggestion. This suggestion always corresponds to
+    the user's most recently active tab across all synced devices. If this most
+    recent tab is not eligible (e.g., URL is invalid or the tab is too old), no
+    suggestion is shown. These suggestions always include an action chip to open
+    the synced tabs history page (chrome://history/syncedTabs).
+
+    Recorded when the user completes their omnibox interaction with a
+    navigation, provided the cross-device suggestion was present in the list
+    (impressed). It is recorded even if the user navigated to a different
+    suggestion, but is not recorded if the cross-device suggestion was not shown
+    at all.
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.CrossDeviceTab.Provider.Eligibility"
+    enum="CrossDeviceTabProviderEligibility" expires_after="2027-05-01">
+  <owner>mastiz@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Tracks the eligibility of showing the cross-device tab match.
+
+    Background: When the omnibox is focused (Zero-Suggest state), it may show at
+    most one cross-device tab suggestion. This suggestion always corresponds to
+    the user's most recently active tab across all synced devices. If this most
+    recent tab is not eligible (e.g., URL is invalid or the tab is too old), no
+    suggestion is shown. These suggestions always include an action chip to open
+    the synced tabs history page (chrome://history/syncedTabs).
+
+    Recorded every time CrossDeviceTabProvider is run in Zero-Suggest state (but
+    not in typed state), indicating whether a match was created or why it
+    wasn't.
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.CrossDeviceTab.Provider.MostRecentTabAge" units="ms"
+    expires_after="2027-05-01">
+  <owner>mastiz@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    The age of the most recent tab found across all foreign sessions, before
+    applying the age filter (i.e. selection of recent tabs only).
+
+    Background: When the omnibox is focused (Zero-Suggest state), it may show at
+    most one cross-device tab suggestion. This suggestion always corresponds to
+    the user's most recently active tab across all synced devices. If this most
+    recent tab is not eligible (e.g., URL is invalid or the tab is too old), no
+    suggestion is shown. These suggestions always include an action chip to open
+    the synced tabs history page (chrome://history/syncedTabs).
+
+    Recorded every time CrossDeviceTabProvider is run in Zero-Suggest state (but
+    not in typed state) and at least one tab is found.
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.CrossDeviceTab.{Target}.ClickAge" units="ms"
+    expires_after="2027-05-01">
+  <owner>mastiz@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    The age of the remote tab when the user navigated by selecting the
+    cross-device tab {Target}.
+
+    Background: When the omnibox is focused (Zero-Suggest state), it may show at
+    most one cross-device tab suggestion. This suggestion always corresponds to
+    the user's most recently active tab across all synced devices. If this most
+    recent tab is not eligible (e.g., URL is invalid or the tab is too old), no
+    suggestion is shown. These suggestions always include an action chip to open
+    the synced tabs history page (chrome://history/syncedTabs).
+
+    Recorded on navigation, only if the user selected this specific target. It
+    is not recorded if another suggestion was selected.
+  </summary>
+  <token key="Target" variants="CrossDeviceTabTarget"/>
+</histogram>
+
+<histogram name="Omnibox.CrossDeviceTab.{Target}.FocusToOpenTime" units="ms"
+    expires_after="2027-05-01">
+  <owner>mastiz@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    The amount of time between the user focusing the location bar and navigating
+    by selecting the cross-device tab {Target}.
+
+    Background: When the omnibox is focused (Zero-Suggest state), it may show at
+    most one cross-device tab suggestion. This suggestion always corresponds to
+    the user's most recently active tab across all synced devices. If this most
+    recent tab is not eligible (e.g., URL is invalid or the tab is too old), no
+    suggestion is shown. These suggestions always include an action chip to open
+    the synced tabs history page (chrome://history/syncedTabs).
+
+    Recorded on navigation, only if the user selected this specific target. It
+    is not recorded if another suggestion was selected.
+  </summary>
+  <token key="Target" variants="CrossDeviceTabTarget"/>
 </histogram>
 
 <histogram name="Omnibox.CutOrCopyAllText" units="count"
@@ -2089,6 +2240,62 @@ Keep consistent with active providers. Doesn't need to include every provider in
     synchronous autocomplete providers (sub-providers) using alternative inputs:
     what the user might have typed, the automatic corrections.
   </summary>
+</histogram>
+
+<histogram name="Omnibox.InlineLocationSuggestion.Ask.ShownState"
+    enum="OmniboxInlineLocationSuggestionShown" expires_after="2026-11-12">
+  <owner>andypaicu@chromium.org</owner>
+  <owner>chrome-permissions@google.com</owner>
+  <summary>
+    Recorded when an autocomplete pass completes, for Default Search Engines
+    where the geolocation permission is set to ASK. Tracks whether an inline
+    location suggestion was shown, or whether there was or not a eligible parent
+    suggestion.
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.InlineLocationSuggestion.Deny.ShownState"
+    enum="OmniboxInlineLocationSuggestionShown" expires_after="2026-11-12">
+  <owner>andypaicu@chromium.org</owner>
+  <owner>chrome-permissions@google.com</owner>
+  <summary>
+    Recorded when an autocomplete pass completes, for Default Search Engines
+    where the geolocation permission is set to DENY. Tracks whether an inline
+    location suggestion was shown, or whether there was or not a eligible parent
+    suggestion.
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.InlineLocationSuggestion.Index" units="position"
+    expires_after="2026-11-12">
+  <owner>andypaicu@chromium.org</owner>
+  <owner>chrome-permissions@google.com</owner>
+  <summary>
+    Recorded when a duplicate inline location suggestion is shown. Tracks the
+    0-based position index of the suggestion in the matches list.
+  </summary>
+</histogram>
+
+<histogram
+    name="Omnibox.InlineLocationSuggestion.{DSEPermissionState}.{ClickType}"
+    enum="Boolean" expires_after="2026-11-12">
+  <owner>andypaicu@chromium.org</owner>
+  <owner>chrome-permissions@google.com</owner>
+  <summary>
+    Recorded when the user performs a click on an inline location suggestion or
+    its parent. Always emits true.
+  </summary>
+  <token key="DSEPermissionState">
+    <variant name="Ask" summary="DSE permission status is 'Ask'"/>
+    <variant name="Deny" summary="DSE permission status is 'Deny'"/>
+  </token>
+  <token key="ClickType">
+    <variant name="Clicked"
+        summary="Click directly on the location suggestion"/>
+    <variant name="ParentClicked"
+        summary="Click on the parent suggestion instead of the location
+                 suggestion"/>
+  </token>
 </histogram>
 
 <histogram name="Omnibox.InputToAcceptNonAction" units="microseconds"
@@ -3855,6 +4062,18 @@ Keep consistent with active providers. Doesn't need to include every provider in
     This histogram records the number of searches done from omnibox using
     default search engine on desktop and android devices, sliced based on being
     in regular mode or private modes.
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.Search.XGeoHeaderAttached" enum="Boolean"
+    expires_after="2026-11-20">
+  <owner>andypaicu@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Records whether the X-Geo HTTP header was attached to a search request
+    originating from the omnibox. Emitted when the network loader throttle
+    processes WillStartRequest or WillRedirectRequest for default search engine
+    search requests.
   </summary>
 </histogram>
 

@@ -27,7 +27,6 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
-#include "services/data_decoder/public/cpp/test_support/in_process_data_decoder.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -189,7 +188,6 @@ class CastMediaRouteProviderTest : public testing::Test {
 
  protected:
   content::BrowserTaskEnvironment task_environment_;
-  data_decoder::test::InProcessDataDecoder in_process_data_decoder_;
 
   mojo::Remote<mojom::MediaRouteProvider> provider_remote_;
   NiceMock<MockMojoMediaRouter> mock_router_;

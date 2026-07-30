@@ -17,9 +17,11 @@
 <translation id="1052842760770519282">Не може да се пристапи до некои од вашите лозинки</translation>
 <translation id="1057623954802068161">Лизгај до врвот на страницата</translation>
 <translation id="1066338698580889414">Промоцијата на „Известувања за совети“ е отворена на целосна висина</translation>
+<translation id="1067048845568873861">Создадено</translation>
 <translation id="1070689840697074178">Може да преземате PDF-датотеки овде</translation>
 <translation id="107147699690128016">Ако ја промените наставката на датотеката, таа може да се отвори во друга апликација и да стане потенцијална опасност за вашиот уред.</translation>
 <translation id="1073328695547557412">Допрете ја иконата за Google Lens</translation>
+<translation id="1075811647922107217">Големина на страницата</translation>
 <translation id="1080116354587839789">Приспособете на ширината</translation>
 <translation id="1086486568852410168">Пребарај со Google Lens</translation>
 <translation id="1087799850623149508">Може да допрете и да задржите за да ја преместите лентата за адреса најдолу</translation>
@@ -32,7 +34,6 @@
 <translation id="1108938384783527433">Синхронизација на историја</translation>
 <translation id="1111673857033749125">Обележувачите зачувани на другите уреди ќе се појават тука.</translation>
 <translation id="1123537484474186311"><ph name="TAB_TITLE" />, картичка „Слика во слика“</translation>
-<translation id="1124357650933674597">{NUM_WINDOWS,plural, =1{Врати 1 прозорец}one{Врати # прозорец}other{Врати # прозорци}}</translation>
 <translation id="1126696498560056882">Управувајте со сметките на уредов</translation>
 <translation id="1135018701024399762">Режимот „Инкогнито“ ја штити приватноста на вашето прелистување од другите што го користат уредот</translation>
 <translation id="113752097246673894">За да ги добиете обележувачите и друго на сите ваши уреди, најавете се на Chrome како <ph name="EMAIL" /></translation>
@@ -183,6 +184,7 @@
 <translation id="1792959175193046959">Променете ја стандардната локација за преземање во секое време</translation>
 <translation id="1796666869097395659">Минимизирајте ја картичката за да се вратите на неа подоцна</translation>
 <translation id="1799920918471566157">Совети за Chrome</translation>
+<translation id="1803799720926799756">Големина на датотека</translation>
 <translation id="1807246157184219062">Светла</translation>
 <translation id="1807709131360304325">Отвори нов прозорец</translation>
 <translation id="1812027881030482584"><ph name="SITE_ETLD_PLUS_ONE" /> не може да продолжи со <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>
@@ -325,6 +327,7 @@
 <translation id="2411239243988279592"><ph name="TAB_TITLE" />, избрана картичка со пуштен звук</translation>
 <translation id="2413014528833954543">Не може да се проверат лозинките на уредов</translation>
 <translation id="2414886740292270097">Темна</translation>
+<translation id="2415037988255164008">Да се вратат прозорците?</translation>
 <translation id="2421705177906985956">Нема сајтови за прикажување во моментов</translation>
 <translation id="2426805022920575512">Изберете друга сметка</translation>
 <translation id="2427025860753516072">{FILE_COUNT,plural, =1{Видеа, 1 видео во список}one{Видеа, # видео во список}other{Видеа, # видеа во список}}</translation>
@@ -518,7 +521,6 @@
 <translation id="3166827708714933426">Кратенки за картичката и прозорецот</translation>
 <translation id="3167258285411721858">Можете да го побарате сајтот за мобилен за <ph name="HOST_NAME" /></translation>
 <translation id="3181145110929454111"><ph name="TAB_TITLE" />, повеќекратно избрана прикачена картичка „Инкогнито“ со исклучен звук</translation>
-<translation id="3183941812169784232">Да се вратат сите прозорци?</translation>
 <translation id="3187472288455401631">Мерење реклами</translation>
 <translation id="3189635831478931757">Група картички <ph name="GROUP_TITLE" /></translation>
 <translation id="3200536777393523575">Да се затвори тековниот прозорец?</translation>
@@ -567,6 +569,7 @@
 <translation id="3435575784518354875">За да го задржите пристапот до лозинките, извезете ги сега, ажурирајте ја „Услуги на Google Play“, па увезете ги повторно во Google Password Manager. <ph name="BEGIN_LINK" />Погледнете ги целосните инструкции<ph name="END_LINK" />.</translation>
 <translation id="3435738964857648380">Безбедност</translation>
 <translation id="3435914367318771664">Додајте картичка во нова група</translation>
+<translation id="3436118221454753036">Прашајте го „AI-режимот“</translation>
 <translation id="3438681572027105609">За да ги добиете лозинките и друго на сите ваши уреди, најавете се на Chrome</translation>
 <translation id="3439276997620616816">Вашите неодамнешни картички ќе ги најдете тука</translation>
 <translation id="3443221991560634068">Вчитајте ја тековната страница</translation>
@@ -642,6 +645,7 @@
 <translation id="3739899004075612870">Обележано во <ph name="PRODUCT_NAME" /></translation>
 <translation id="3740290940447881599">Уверете се дека имате доверба во сајтов</translation>
 <translation id="3740525748616366977">Гласовното пребарување не е достапено на уредов</translation>
+<translation id="3749289110408117711">Име на датотека</translation>
 <translation id="3756823472711156529">Врати ја групата</translation>
 <translation id="3763110477555836428">Ќе се пополни број на виртуелна картичка кога ќе платите со картичкава за да се заштитат вашите вистински податоци. Управувајте во Google Wallet. <ph name="BEGIN_LINK1" />Дознајте повеќе за виртуелните картички<ph name="END_LINK1" /></translation>
 <translation id="376561056759077985">Некои податоци сѐ уште не се зачувани</translation>
@@ -673,6 +677,7 @@
 <translation id="3870538285500327859"><ph name="TAB_TITLE" />, избрана картичка „Слика во слика“</translation>
 <translation id="3870908470613821006">Сите веднаш ќе го изгубат пристапот до групата картички „<ph name="GROUP_NAME" />“, а групата картички ќе се избрише од сите уреди</translation>
 <translation id="3873174561423636563">За да продолжите, <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> ќе ги сподели вашето <ph name="FIELDS_STRING" /> со сајтов. Погледнете ги <ph name="BEGIN_LINK1" />Условите за користење<ph name="END_LINK1" /> на сајтов.</translation>
+<translation id="3882323608730650973">Изменето</translation>
 <translation id="3892148308691398805">Копирај текст</translation>
 <translation id="3893858854379998374">За да зачувувате обележувачи во вашата сметка, избришете ги некористените обележувачи</translation>
 <translation id="3898498281932368596">Блокирај и напушти</translation>
@@ -703,6 +708,7 @@
 <translation id="399788104667917863">Закачи за алатникот</translation>
 <translation id="4000212216660919741">Офлајн</translation>
 <translation id="4000670338830950598">Приспособете го и контролирајте го Google Chrome со нагласена ставка</translation>
+<translation id="4002066346123236978">Наслов</translation>
 <translation id="4015643064997321279">{NUM_PASSWORDS,plural, =1{1 компромитирана лозинка во вашата сметка на Google}one{# компромитирана лозинка во вашата сметка на Google}other{# компромитирани лозинки во вашата сметка на Google}}</translation>
 <translation id="4023638601467301498">За да ги добиете обележувачите и друго на сите ваши уреди, најавете се на Chrome</translation>
 <translation id="4024768890073681126">Твојот родител управува со прелистувачот</translation>
@@ -1333,6 +1339,7 @@
 <translation id="6556501700899673703">Lexend</translation>
 <translation id="6560414384669816528">Пребарување со Sogou</translation>
 <translation id="656065428026159829">Прикажи повеќе</translation>
+<translation id="6565781844089373403">Врати ги прозорците</translation>
 <translation id="6565959834589222080">Се користи Wi-Fi кога е достапна</translation>
 <translation id="657177046675873214">За да ги добиете обележувачите на сите ваши уреди, вклучете „Обележувачи“ во „Поставки“</translation>
 <translation id="6573096386450695060">Секогаш дозволувај</translation>
@@ -1411,6 +1418,7 @@
 <translation id="6846298663435243399">Се вчитува…</translation>
 <translation id="6850409657436465440">Вашето преземање е сѐ уште е во тек</translation>
 <translation id="6850830437481525139"><ph name="TAB_COUNT" /> затворени картички</translation>
+<translation id="6852437757508328589">{NUM_RESULTS,plural, =1{Најдени резултати: 1}one{Најдени резултати: #}other{Најдени резултати: #}}</translation>
 <translation id="685340923442249391">{FILE_COUNT,plural, =1{Аудиодатотеки, 1 аудиодатотека во список}one{Аудиодатотеки, # аудиодатотека во список}other{Аудиодатотеки, # аудиодатотеки во список}}</translation>
 <translation id="685850645784703949">Discover од Google - исклучена</translation>
 <translation id="6864459304226931083">Преземи слика</translation>
@@ -1987,6 +1995,7 @@
 <translation id="9093915805850895575">Отвори во прозорец во Chrome</translation>
 <translation id="909756639352028172">За да го добиете најперсонализираното доживување, опфатете го Chrome во „Активноста на интернет и апликации“ и поврзаните услуги на Google</translation>
 <translation id="9099220545925418560">Според вашата историја на прелистувањето. Оваа поставка е исклучена.</translation>
+<translation id="9099674669267916096">Број на страници</translation>
 <translation id="9100610230175265781">Потребна е лозинка-фраза</translation>
 <translation id="9101137867221042551">Управување</translation>
 <translation id="9102803872260866941">Картичката за преглед е отворена</translation>
@@ -2032,7 +2041,6 @@
 <translation id="939598580284253335">Внеси пристапна фраза</translation>
 <translation id="94161319503679839"><ph name="TAB_TITLE" />, закачена картичка „Инкогнито“ со слика во слика</translation>
 <translation id="945522503751344254">Испратете повратни информации</translation>
-<translation id="949667118776341807">Ротирај</translation>
 <translation id="95817756606698420">Chrome може да го користи <ph name="BEGIN_BOLD" />Sogou<ph name="END_BOLD" /> за пребарување во Кина. Тоа може да го промените во <ph name="BEGIN_LINK" />Поставки<ph name="END_LINK" />.</translation>
 <translation id="961856697154696964">Избришете го прелистувањето</translation>
 <translation id="963246339335003378">Отвори „Управник со задачи“</translation>

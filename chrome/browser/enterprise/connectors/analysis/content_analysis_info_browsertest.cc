@@ -15,18 +15,22 @@
 #include "chrome/test/base/mixin_based_in_process_browser_test.h"
 #include "chrome/test/base/test_browser_window.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/download/public/common/mock_download_item.h"
 #include "components/enterprise/connectors/core/content_area_user_provider.h"
 #include "components/safe_browsing/content/browser/safe_browsing_navigation_observer_manager.h"
 #include "components/signin/public/identity_manager/test_identity_manager_observer.h"
 #include "content/public/browser/browser_context.h"
+#include "content/public/browser/download_item_utils.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/browser_test_utils.h"
 #include "google_apis/gaia/fake_gaia.h"
 #include "google_apis/gaia/gaia_constants.h"
 #include "google_apis/gaia/gaia_id.h"
 #include "google_apis/gaia/gaia_switches.h"
 #include "google_apis/gaia/gaia_urls.h"
 #include "net/dns/mock_host_resolver.h"
+#include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/embedded_test_server/http_response.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -491,5 +495,45 @@ IN_PROC_BROWSER_TEST_P(ReferrerChainActiveUserEmailBrowserTest,
 INSTANTIATE_TEST_SUITE_P(,
                          ReferrerChainActiveUserEmailBrowserTest,
                          testing::ValuesIn(ReferrerChainTestCases()));
+
+using DownloadContentAreaUserProviderTest = InProcessBrowserTest;
+
+IN_PROC_BROWSER_TEST_F(DownloadContentAreaUserProviderTest, FrameUrlChain) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  // Navigate to a page with an existing iframe.
+  GURL main_url = embedded_test_server()->GetURL("/iframe.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), main_url));
+
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+
+  // Focus the iframe.
+  ASSERT_TRUE(content::ExecJs(web_contents,
+                              "document.getElementById('test').focus();"));
+  GURL iframe_url = embedded_test_server()->GetURL("/title1.html");
+
+  // Construct a mock DownloadItem.
+  GURL empty_url;
+  std::vector<GURL> empty_url_chain;
+  testing::NiceMock<download::MockDownloadItem> mock_download_item;
+  ON_CALL(mock_download_item, GetURL())
+      .WillByDefault(testing::ReturnRef(empty_url));
+  ON_CALL(mock_download_item, GetTabUrl())
+      .WillByDefault(testing::ReturnRef(empty_url));
+  ON_CALL(mock_download_item, GetUrlChain())
+      .WillByDefault(testing::ReturnRef(empty_url_chain));
+
+  content::DownloadItemUtils::AttachInfoForTesting(
+      &mock_download_item, browser()->profile(), web_contents);
+
+  // Initialize the provider, trigger iframe urls collection.
+  DownloadContentAreaUserProvider provider(mock_download_item);
+
+  // Verify that the iframe url chain contains only the focused iframe.
+  auto frame_url_chain = provider.frame_url_chain();
+  ASSERT_EQ(1u, frame_url_chain.size());
+  EXPECT_EQ(iframe_url.spec(), frame_url_chain[0]);
+}
 
 }  // namespace enterprise_connectors

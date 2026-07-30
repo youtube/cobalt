@@ -113,7 +113,8 @@ class UrlIndex : public HistoryBookmarkModel {
   // urls.
   // WARNING: `nodes_ordered_by_url_set_` is accessed on multiple threads. As
   // such, be sure and wrap all usage of it around `url_lock_`.
-  using NodesOrderedByUrlSet = std::multiset<BookmarkNode*, NodeUrlComparator>;
+  using NodesOrderedByUrlSet =
+      std::multiset<raw_ptr<BookmarkNode>, NodeUrlComparator>;
   NodesOrderedByUrlSet nodes_ordered_by_url_set_;
   mutable base::Lock url_lock_;
 };

@@ -416,21 +416,14 @@ Process LaunchProcess(const CommandLine::StringType& cmdline,
   } else {
     wchar_t* new_environment = nullptr;
     std::wstring env_storage;
+    base::HeapArray<wchar_t> current_env;
     if (options.clear_environment || !options.environment.empty()) {
-      if (options.clear_environment) {
-        static const wchar_t kEmptyEnvironment[] = {0};
-        env_storage =
-            internal::AlterEnvironment(kEmptyEnvironment, options.environment);
-      } else {
-        wchar_t* old_environment = GetEnvironmentStrings();
-        if (!old_environment) {
-          DPLOG(ERROR);
-          return Process();
-        }
-        env_storage =
-            internal::AlterEnvironment(old_environment, options.environment);
-        FreeEnvironmentStrings(old_environment);
+      if (!options.clear_environment) {
+        current_env = internal::GetEnvironment();
       }
+
+      env_storage =
+          internal::AlterEnvironment(current_env, options.environment);
       new_environment = data(env_storage);
       flags |= CREATE_UNICODE_ENVIRONMENT;
     }

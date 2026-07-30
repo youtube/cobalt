@@ -16,7 +16,7 @@ AXWebArea
 ++++++AXColumn
 ++++++++AXCell
 ++++++++++AXStaticText AXValue='Always expose editable tables as tables.'
-++++++AXGroup
+++++++AXGroup AXSubrole=AXEmptyGroup
 ++++AXList AXSubrole=AXContentList
 ++++++AXGroup
 ++++++++AXListMarker AXValue='1. '

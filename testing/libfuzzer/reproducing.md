@@ -51,6 +51,8 @@ label. This workflow applies to those cases.
 
    This will open up an editor. Copy the gn configuration parameters from the
    values provided in `GN Config` section in the ClusterFuzz testcase report.
+   If the "GN Config" section is missing from the report, please file a bug
+   under [Chromium > Security > Fuzzing > ClusterFuzz].
 
 
 3. Build the fuzzer:
@@ -90,7 +92,8 @@ ensure reproduction even if the crash has minor flakiness.
 2. Configure and build the application:
 
    Generate the build configuration using the arguments from the “GN Config”
-   section.
+   section. If the "GN Config" section is missing from the report, please file a
+   bug under [Chromium > Security > Fuzzing > ClusterFuzz].
    ```
    gn args out/fuzz
    ```
@@ -181,6 +184,12 @@ can symbolize them by piping the output into:
 src/tools/valgrind/asan/asan_symbolize.py
 ```
 
+## Variable-level Debugging
+
+For debugging issues where you need to inspect variables in a debugger (like gdb
+or lldb), note that `optimize_for_fuzzing = true` collides with
+`symbol_level = 2`. In those cases, set `optimize_for_fuzzing = false`.
+
 ## Minimizing a crash input (optional)
 
 ClusterFuzz does crash input minimization automatically, and a typical crash
@@ -209,3 +218,4 @@ cause of a crash. You can leave the minimization running locally for a while
 
 [File a bug]: https://bugs.chromium.org/p/chromium/issues/entry?components=Tools%3EStability%3ElibFuzzer&comment=What%20problem%20are%20you%20seeing
 [these tips]: https://github.com/google/sanitizers/wiki/AddressSanitizerWindowsPort#debugging
+[Chromium > Security > Fuzzing > ClusterFuzz]: https://issues.chromium.org/issues/new?component=1457062&template=0

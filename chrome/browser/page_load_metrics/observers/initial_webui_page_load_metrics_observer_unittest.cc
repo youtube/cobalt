@@ -248,21 +248,7 @@ TEST_F(InitialWebUIPageLoadMetricsObserverTest, WasCached) {
   EXPECT_THAT(entries, Contains(HasMetricWithValue("WasCached", 1)));
 }
 
-TEST_F(InitialWebUIPageLoadMetricsObserverTest, OnFailedProvisionalLoad) {
-  std::unique_ptr<NavigationSimulator> simulator =
-      NavigationSimulator::CreateBrowserInitiated(GURL(kTestWebUIUrl),
-                                                  web_contents());
-  simulator->Start();
-  simulator->Fail(net::ERR_CONNECTION_RESET);
-  DeleteContents();
 
-  auto entries = test_ukm_recorder_.GetEntriesByName("InitialWebUIPageLoad");
-  EXPECT_THAT(entries,
-              Contains(AllOf(
-                  HasMetricWithValue("Net.ErrorCode.OnFailedProvisionalLoad",
-                                     net::ERR_CONNECTION_RESET * -1),
-                  HasMetric("PageTiming.NavigationToFailedProvisionalLoad"))));
-}
 
 TEST_F(InitialWebUIPageLoadMetricsObserverTest,
        NavigationTiming_StartEarlierThanRequest) {

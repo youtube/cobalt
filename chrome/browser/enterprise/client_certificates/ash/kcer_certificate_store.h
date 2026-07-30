@@ -18,6 +18,7 @@
 #include "components/enterprise/client_certificates/core/store_error.h"
 
 class PrefService;
+class Profile;
 
 namespace net {
 class X509Certificate;
@@ -39,6 +40,13 @@ class PrivateKey;
 // persistence across restarts.
 class KcerCertificateStore : public CertificateStore {
  public:
+  // Creates a CertificateStore for `profile`, or returns nullptr if the profile
+  // is not eligible. Managed client cert provisioning is restricted to regular
+  // signed-in users; Guest, Managed Guest Session, Child, and Kiosk sessions are
+  // excluded, as is the case where Kcer is unavailable. Must be called on the UI
+  // thread.
+  static std::unique_ptr<CertificateStore> CreateForProfile(Profile* profile);
+
   KcerCertificateStore(
       PrefService* pref_service,
       base::WeakPtr<kcer::Kcer> kcer,

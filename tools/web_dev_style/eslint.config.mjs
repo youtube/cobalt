@@ -583,6 +583,9 @@ export default [
       'chrome/test/data/webui/cr_components/composebox/composebox_input_placeholder_test.ts',
       'chrome/test/data/webui/cr_components/composebox/composebox_test.ts',
       'chrome/test/data/webui/cr_components/composebox/composebox_voice_search_test.ts',
+      'chrome/test/data/webui/cr_components/composebox/composebox_voice_search_recognition_test.ts',
+      'chrome/test/data/webui/cr_components/composebox/composebox_voice_search_flags_test.ts',
+      'chrome/test/data/webui/cr_components/composebox/composebox_test_utils.ts',
       'chrome/test/data/webui/lens/side_panel/composebox_test.ts',
     ],
     rules: {

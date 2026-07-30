@@ -23,5 +23,6 @@ specific_include_rules = {
   r"|contextual_tasks_side_panel_coordinator_unittest"
   r").*\.(cc|h)": [
      "+chrome/browser/ui/tabs/tab_strip_model.h",
+     "+chrome/browser/ui/lens/test_lens_search_controller.h",
   ],
 }

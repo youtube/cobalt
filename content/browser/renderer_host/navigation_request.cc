@@ -57,6 +57,7 @@
 #include "content/browser/browsing_topics/header_util.h"
 #include "content/browser/client_hints/client_hints.h"
 #include "content/browser/connection_allowlist_utils.h"
+#include "content/browser/declarative_performance_observer/declarative_performance_observer.h"
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/devtools/network_service_devtools_observer.h"
 #include "content/browser/download/download_manager_impl.h"
@@ -1021,7 +1022,7 @@ bool IsSharedStorageWritableEligibleForNavigationRequest(
 std::optional<base::SafeRef<RenderFrameHostImpl>>
 GetRenderFrameHostForBackForwardCacheRestore(FrameTreeNode* frame_tree_node,
                                              NavigationEntryImpl* entry) {
-  if (!entry) {
+  if (!entry || !frame_tree_node->frame_tree().is_primary()) {
     return std::nullopt;
   }
 
@@ -1466,6 +1467,11 @@ std::unique_ptr<NavigationRequest> NavigationRequest::CreateRendererInitiated(
           /*should_have_sticky_user_activation=*/false,
           /*old_page_info=*/nullptr, /*http_response_code=*/-1,
           blink::mojom::NavigationApiHistoryEntryArrays::New(),
+          /*early_hints_preloaded_resources=*/
+          std::vector<network::mojom::LinkHeaderPtr>(),
+          /*early_hints_preconnects=*/
+          std::vector<network::mojom::LinkHeaderPtr>(),
+          /*navigation_preconnects=*/
           std::vector<network::mojom::LinkHeaderPtr>(),
           // This timestamp will be populated when the commit IPC is sent.
           /*commit_sent=*/base::TimeTicks(), /*srcdoc_value=*/std::string(),
@@ -1487,7 +1493,7 @@ std::unique_ptr<NavigationRequest> NavigationRequest::CreateRendererInitiated(
           /*lcpp_hint=*/nullptr, blink::CreateDefaultRendererContentSettings(),
           /*visited_link_salt=*/std::nullopt,
           /*local_surface_id=*/std::nullopt,
-          /*initial_permission_statuses=*/std::nullopt,
+          frame_tree_node->current_frame_host()->GetCachedPermissionStatuses(),
           /*should_skip_screenshot=*/false,
           /*force_new_document_sequence_number=*/false,
           /*navigation_metrics_token=*/base::UnguessableToken::Create(),
@@ -1635,6 +1641,11 @@ NavigationRequest::CreateForSynchronousRendererCommit(
           /*should_have_sticky_user_activation=*/false,
           /*old_page_info=*/nullptr, http_response_code,
           blink::mojom::NavigationApiHistoryEntryArrays::New(),
+          /*early_hints_preloaded_resources=*/
+          std::vector<network::mojom::LinkHeaderPtr>(),
+          /*early_hints_preconnects=*/
+          std::vector<network::mojom::LinkHeaderPtr>(),
+          /*navigation_preconnects=*/
           std::vector<network::mojom::LinkHeaderPtr>(),
           // This timestamp will be populated when the commit IPC is sent.
           /*commit_sent=*/base::TimeTicks(), /*srcdoc_value=*/std::string(),
@@ -1656,7 +1667,7 @@ NavigationRequest::CreateForSynchronousRendererCommit(
           /*lcpp_hint=*/nullptr, blink::CreateDefaultRendererContentSettings(),
           /*visited_link_salt=*/std::nullopt,
           /*local_surface_id=*/std::nullopt,
-          /*initial_permission_statuses=*/std::nullopt,
+          render_frame_host->GetCachedPermissionStatuses(),
           /*should_skip_screenshot=*/false,
           /*force_new_document_sequence_number=*/false,
           /*navigation_metrics_token=*/base::UnguessableToken::Create(),
@@ -2391,6 +2402,12 @@ NavigationRequest::~NavigationRequest() {
     net_error_ = net::ERR_ABORTED;
   }
 
+  if (!early_navigation_failure_recorded_ && !response() &&
+      IsInPrimaryMainFrame() && net_error_ == net::ERR_ABORTED) {
+    DeclarativePerformanceObserver::RecordEarlyNavigationFailure(
+        this, GetStoragePartitionWithCurrentSiteInfo(), net::ERR_ABORTED);
+  }
+
   // IMPORTANT NOTE: DO NOT return early from the destructor before this line.
   // Otherwise, a queued navigation might get stuck in a queueing state forever.
   // This navigation has finished. See if there is another NavigationRequest
@@ -3087,6 +3104,13 @@ void NavigationRequest::BeginNavigationImpl() {
 
   // Connection Allowlist: check whether navigation to the url is allowed.
   if (!IsAllowedByConnectionAllowlist(/*is_redirect=*/false)) {
+    // Record that this navigation is blocked by the initiator's
+    // Connection-Allowlist before StartNavigation() notifies observers. This
+    // lets observers (e.g. //chrome's LoadingPredictor) suppress speculative
+    // network activity that would otherwise leak the destination host even
+    // though the navigation is blocked. See
+    // https://github.com/WICG/connection-allowlists.
+    is_blocked_by_connection_allowlist_ = true;
     // Create a navigation handle so that the correct error code can be set on
     // it by OnRequestFailedInternal().
     StartNavigation();
@@ -3339,13 +3363,13 @@ bool NavigationRequest::ShouldAddDeviceBoundSessionObserver() {
   // prerendering a main frame, as the device-bound session change information
   // will only be used to determine if a page can be restored from back/forward
   // cache, so subframe navigation can be ignored.
-  return frame_tree_node_->navigator()
-             .controller()
-             .GetBackForwardCache()
-             .should_allow_storing_pages_with_cache_control_no_store() &&
+  return (IsInPrimaryMainFrame() || IsInPrerenderedMainFrame()) &&
          !IsPageActivation() && !IsSameDocument() &&
-         (IsInPrimaryMainFrame() || IsInPrerenderedMainFrame()) &&
-         common_params_->url.SchemeIsHTTPOrHTTPS();
+         common_params_->url.SchemeIsHTTPOrHTTPS() &&
+         frame_tree_node_->current_frame_host()
+             ->delegate()
+             ->GetBackForwardCache()
+             .should_allow_storing_pages_with_cache_control_no_store();
 }
 
 void NavigationRequest::StartNavigation() {
@@ -3487,7 +3511,7 @@ void NavigationRequest::StartNavigation() {
   // For initial WebUI navigations, CommitDeferringConditions and
   // ProcessSelectionDeferringConditions are not run, so that the navigation can
   // run synchronously from start to commit.
-  if (!IsPrerenderedPageActivation() && !IsInitialWebUISyncNavigation()) {
+  if (!IsPrerenderedPageActivation() && !IsInitialWebUINavigation()) {
     commit_deferrer_ = CommitDeferringConditionRunner::Create(
         *this, CommitDeferringCondition::NavigationType::kOther,
         /*candidate_prerender_frame_tree_node_id=*/std::nullopt);
@@ -3771,6 +3795,12 @@ void NavigationRequest::OnRequestRedirected(
 
   if (!was_redirected_ &&
       !IsAllowedByConnectionAllowlist(/*is_redirect=*/true)) {
+    // As in BeginNavigationImpl(), record that this navigation is blocked by
+    // the initiator's Connection-Allowlist so observers can suppress
+    // speculative network activity for it. (Today no speculative work runs
+    // after a blocked redirect, but this keeps IsBlockedByConnectionAllowlist()
+    // truthful for any future post-redirect consumer.)
+    is_blocked_by_connection_allowlist_ = true;
     auto completion_status =
         network::URLLoaderCompletionStatus(net::ERR_UNSAFE_REDIRECT);
     error_navigation_trigger_ = ErrorNavigationTrigger::kRedirectNotAllowed;
@@ -5577,6 +5607,12 @@ void NavigationRequest::OnRequestFailedInternal(
           error_page_content.has_value()));
   ScopedCrashKeys crash_keys(*this);
 
+  if (!response() && IsInPrimaryMainFrame() && status.error_code != net::OK) {
+    DeclarativePerformanceObserver::RecordEarlyNavigationFailure(
+        this, GetStoragePartitionWithCurrentSiteInfo(), status.error_code);
+    early_navigation_failure_recorded_ = true;
+  }
+
   if (reserved_prerender_host_info_.has_value()) {
     // Prerender activation must not fail but some reports imply it can actually
     // be failing: crbug.com/411566699, crbug.com/408969974. This dump is useful
@@ -5964,7 +6000,7 @@ void NavigationRequest::OnStartChecksComplete(
     // confident it won't be triggered.
     DCHECK(last_response_head);
     cached_response_head = last_response_head->Clone();
-  } else if (IsInitialWebUISyncNavigation()) {
+  } else if (IsInitialWebUINavigation()) {
     loader_type = NavigationURLLoader::LoaderType::kNoopForInitialWebUI;
   }
 
@@ -6649,7 +6685,7 @@ void NavigationRequest::OnWillProcessResponseChecksComplete(
   // When this request is for prerender activation, `commit_deferrer_` has
   // already been processed. If it's an initial WebUI navigation, commit
   // deferring conditions are skipped.
-  if (IsPrerenderedPageActivation() || IsInitialWebUISyncNavigation()) {
+  if (IsPrerenderedPageActivation() || IsInitialWebUINavigation()) {
     CHECK(!commit_deferrer_);
     CommitNavigation();
     // DO NOT ADD CODE after this. The previous call to CommitNavigation
@@ -6865,6 +6901,7 @@ void NavigationRequest::AddOldPageInfoToCommitParamsIfNeeded() {
   // will send our best guess by checking if the page can be persisted at this
   // point.
   bool can_store_old_page_in_bfcache =
+      frame_tree_node_->frame_tree().is_primary() &&
       frame_tree_node_->frame_tree()
           .controller()
           .GetBackForwardCache()
@@ -7174,6 +7211,20 @@ void NavigationRequest::CommitNavigation() {
   if (early_hints_manager_) {
     commit_params_->early_hints_preloaded_resources =
         early_hints_manager_->TakePreloadedResources();
+    commit_params_->early_hints_preconnects =
+        early_hints_manager_->TakePreconnectedResources();
+  }
+
+  if (response_head_ && response_head_->parsed_headers) {
+    // Collect `Link: rel=preconnect` headers from the final navigation response
+    // (not 103 Early Hints) for the SpeculationMeasurement API. The renderer
+    // issues these preconnects; here we only forward them so they can be
+    // recorded at commit.
+    for (const auto& link : response_head_->parsed_headers->link_headers) {
+      if (link->rel == network::mojom::LinkRelAttribute::kPreconnect) {
+        commit_params_->navigation_preconnects.push_back(link.Clone());
+      }
+    }
   }
 
   if (response_head_) {
@@ -9722,14 +9773,16 @@ NavigationRequest::GetOriginForURLLoaderFactoryAfterResponse() {
   //   policy of the process being used. This is because the content is loaded
   //   from the MHTML archive within the process. There are no data loaded from
   //   the network.
+  //
+  // Note: This is a security-critical check that needs to be a CHECK rather
+  // than a DCHECK, and it should never be reverted, even if there are crashes
+  // in the wild.
   if (HasRenderFrameHost() &&
       !GetRenderFrameHost()->ShouldBypassSecurityChecksForErrorPage(this) &&
       !IsForMhtmlSubframe()) {
     int process_id = GetRenderFrameHost()->GetProcess()->GetDeprecatedID();
     auto* policy = ChildProcessSecurityPolicyImpl::GetInstance();
-    // TODO(https://crbug.com/526541544): CHECK-exclusion: Convert to CHECK once
-    // we are sure this isn't hit.
-    DCHECK(policy->CanAccessOrigin(
+    CHECK(policy->CanAccessOrigin(
         process_id, origin,
         ChildProcessSecurityPolicyImpl::AccessType::kCanCommitNewOrigin));
   }
@@ -9926,11 +9979,29 @@ const net::HttpResponseHeaders* NavigationRequest::GetResponseHeaders() {
 
 const network::mojom::DeclarativePerformanceObserverPolicy*
 NavigationRequest::GetDeclarativePerformanceObserverPolicy() {
-  if (!response_head_.get() || !response_head_->parsed_headers) {
+  if (!response_head_.get() || !response_head_->parsed_headers ||
+      !response_head_->parsed_headers
+           ->declarative_performance_observer_policy) {
     return nullptr;
   }
-  return response_head_->parsed_headers->declarative_performance_observer_policy
-      .get();
+
+  // If globally enabled, return the parsed policy.
+  if (base::FeatureList::IsEnabled(
+          network::features::kDeclarativePerformanceObserver)) {
+    return response_head_->parsed_headers
+        ->declarative_performance_observer_policy.get();
+  }
+
+  // Otherwise, check if enabled via Origin Trial.
+  if (response_head_->headers &&
+      blink::TrialTokenValidator().RequestEnablesFeature(
+          GetURL(), response_head_->headers.get(),
+          "DeclarativePerformanceObserver", base::Time::Now())) {
+    return response_head_->parsed_headers
+        ->declarative_performance_observer_policy.get();
+  }
+
+  return nullptr;
 }
 
 mojom::DidCommitProvisionalLoadParamsPtr
@@ -10287,9 +10358,7 @@ NavigationRequest::GetAssociatedRFHType() const {
   // we only update the value for non-pending commit navigations (i.e. the
   // NavigationRequest owned by the FrameTreeNode). See the comments in
   // `RenderFrameHostManager::CommitPendingIfNecessary()` for more details.
-  // TODO(https://crbug.com/526542284): CHECK-exclusion: Convert to CHECK once
-  // we are sure this isn't hit.
-  DCHECK(state_ < READY_TO_COMMIT || state_ == WILL_FAIL_REQUEST)
+  CHECK(state_ < READY_TO_COMMIT || state_ == WILL_FAIL_REQUEST)
       << "Use GetRenderFrameHost() instead when the final RenderFrameHost "
          "for the navigation has been picked";
   return associated_rfh_type_;
@@ -11724,6 +11793,10 @@ bool NavigationRequest::IsNavigatingFromInitialEmptyDocument() const {
   return frame_tree_node_->is_on_initial_empty_document();
 }
 
+bool NavigationRequest::IsBlockedByConnectionAllowlist() const {
+  return is_blocked_by_connection_allowlist_;
+}
+
 std::unique_ptr<NavigationEntryImpl>
 NavigationRequest::TakePrerenderNavigationEntry() {
   CHECK(IsPrerenderedPageActivation());
@@ -12957,12 +13030,6 @@ void NavigationRequest::MaybeResumeAsyncBeforeUnloadCommit(
 
 bool NavigationRequest::IsWaitingForAsyncBeforeUnload() const {
   return !async_before_unload_pending_replies_.empty();
-}
-
-bool NavigationRequest::IsInitialWebUISyncNavigation() {
-  return IsInitialWebUINavigation() &&
-         base::FeatureList::IsEnabled(
-             features::kInitialWebUISyncNavStartToCommit);
 }
 
 bool NavigationRequest::IsInitialWebUINavigation() {

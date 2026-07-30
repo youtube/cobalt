@@ -128,8 +128,7 @@ OnDeviceTailModelService::OnDeviceTailModelService(
   memory_consumer_registration_ =
       std::make_unique<base::MemoryConsumerRegistration>(
           "OnDeviceTailModelService", kMemoryConsumerTraits, this,
-          base::MemoryConsumerRegistration::CheckUnregister::kDisabled,
-          base::MemoryConsumerRegistration::CheckRegistryExists::kDisabled);
+          base::MemoryConsumerRegistration::CheckUnregister::kDisabled);
 }
 
 OnDeviceTailModelService::OnDeviceTailModelService()

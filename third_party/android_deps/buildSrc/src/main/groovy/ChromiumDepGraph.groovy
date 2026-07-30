@@ -33,6 +33,9 @@ class ChromiumDepGraph {
             com_android_extensions_xr_extensions_xr: new PropertyOverride(
                     licenseUrl: 'https://www.apache.org/licenses/LICENSE-2.0.txt',
                     licenseName: 'Apache-2.0'),
+            com_github_kevinstern_software_and_algorithms: new PropertyOverride(
+                    licenseUrl: 'https://raw.githubusercontent.com/KevinStern/software-and-algorithms/master/LICENSE',
+                    licenseName: 'MIT'),
             com_google_android_datatransport_transport_api: new PropertyOverride(
                     description: 'Interfaces for data logging in gmscore SDKs.'),
             com_google_android_gms_play_services_cloud_messaging: new PropertyOverride(
@@ -131,6 +134,9 @@ class ChromiumDepGraph {
                     cpePrefix: 'cpe:/a:google:protobuf-javalite',
                     licenseUrl: 'https://raw.githubusercontent.com/protocolbuffers/protobuf/master/LICENSE',
                     licenseName: 'BSD'),
+            io_github_eisop_dataflow_errorprone: new PropertyOverride(
+                    licenseName: 'GPL-2.0-with-classpath-exception',
+                    licenseUrl: 'https://www.gnu.org/software/classpath/license.html'),
             io_github_java_diff_utils_java_diff_utils: new PropertyOverride(
                     licenseUrl: 'https://raw.githubusercontent.com/java-diff-utils/java-diff-utils/refs/heads/master/LICENSE',
                     licenseName: 'Apache 2.0'),
@@ -292,6 +298,7 @@ class ChromiumDepGraph {
             'https://scripts.sil.org/cms/scripts/page.php?item_id=OFL_web': 'licenses/SIL_Open_Font.txt',
             'https://www.unicode.org/copyright.html#License': 'licenses/Unicode.txt',
             'https://www.unicode.org/license.html': 'licenses/Unicode.txt',
+            'https://www.gnu.org/software/classpath/license.html': 'licenses/GNU_v2_with_Classpath_Exception_1991.txt',
     ]
 
     final Map<String, DependencyDescription> dependencies = [:] as ConcurrentHashMap<String, DependencyDescription>
@@ -639,18 +646,6 @@ class ChromiumDepGraph {
     }
 
     private void customizeLicenses(DependencyDescription dep, PropertyOverride overrides) {
-        for (LicenseSpec license : dep.licenses) {
-            if (!license.url) {
-                continue
-            }
-            String normalizedLicenseUrl = license.url.replace('http://', 'https://')
-            String licenseOverridePath = LICENSE_OVERRIDES[normalizedLicenseUrl]
-            if (licenseOverridePath) {
-                license.url = ''
-                license.path = licenseOverridePath
-            }
-        }
-
         if (dep.id?.startsWith('com_google_android_')) {
             logger.debug("Using Android license for $dep.id")
             dep.licenses.clear()
@@ -673,6 +668,21 @@ class ChromiumDepGraph {
                     throw new IllegalStateException('PropertyOverride must specify "licenseName" if either ' +
                             '"licensePath" or "licenseUrl" is specified.')
                 }
+            }
+        }
+
+        for (LicenseSpec license : dep.licenses) {
+            if (license.path) {
+                continue
+            }
+            if (!license.url) {
+                continue
+            }
+            String normalizedLicenseUrl = license.url.replace('http://', 'https://')
+            String licenseOverridePath = LICENSE_OVERRIDES[normalizedLicenseUrl]
+            if (licenseOverridePath) {
+                license.url = ''
+                license.path = licenseOverridePath
             }
         }
     }

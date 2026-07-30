@@ -5,6 +5,8 @@
 #ifndef COMPONENTS_PERFORMANCE_MANAGER_PUBLIC_DECORATORS_PAGE_LIVE_STATE_DECORATOR_H_
 #define COMPONENTS_PERFORMANCE_MANAGER_PUBLIC_DECORATORS_PAGE_LIVE_STATE_DECORATOR_H_
 
+#include <iosfwd>
+
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
@@ -23,6 +25,14 @@ namespace performance_manager {
 
 class PageNode;
 class PageLiveStateObserver;
+
+enum class GlicActuationState {
+  kNone,
+  kActuatingOnBackgroundTab,
+  kActuatingOnVisibleTab,
+};
+
+std::ostream& operator<<(std::ostream& os, GlicActuationState state);
 
 // Used to record some live state information about the PageNode.
 // All the functions that take a WebContents* as a parameter should only be
@@ -97,6 +107,9 @@ class PageLiveStateDecorator
   static void SetIsDevToolsOpen(content::WebContents* contents,
                                 bool is_dev_tools_open);
 
+  static void SetGlicActuationState(content::WebContents* contents,
+                                    GlicActuationState glic_actuation_state);
+
   // Convenience functions to look up the given properties from the
   // PageLiveStateDecorator::Data for the given `contents`.
   static bool IsConnectedToUSBDevice(content::WebContents* contents);
@@ -113,6 +126,8 @@ class PageLiveStateDecorator
   static bool IsActiveTab(content::WebContents* contents);
   static bool IsPinnedTab(content::WebContents* contents);
   static bool IsDevToolsOpen(content::WebContents* contents);
+  static GlicActuationState GetGlicActuationState(
+      content::WebContents* contents);
   static bool UpdatedTitleOrFaviconInBackground(content::WebContents* contents);
 
  private:
@@ -163,6 +178,7 @@ class PageLiveStateDecorator::Data {
   virtual bool IsActiveTab() const = 0;
   virtual bool IsPinnedTab() const = 0;
   virtual bool IsDevToolsOpen() const = 0;
+  virtual GlicActuationState GetGlicActuationState() const = 0;
   virtual bool UpdatedTitleOrFaviconInBackground() const = 0;
 
   static const Data* FromPageNode(const PageNode* page_node);
@@ -182,6 +198,7 @@ class PageLiveStateDecorator::Data {
   virtual void SetIsActiveTabForTesting(bool value) = 0;
   virtual void SetIsPinnedTabForTesting(bool value) = 0;
   virtual void SetIsDevToolsOpenForTesting(bool value) = 0;
+  virtual void SetGlicActuationStateForTesting(GlicActuationState value) = 0;
   virtual void SetUpdatedTitleOrFaviconInBackgroundForTesting(bool value) = 0;
 
  protected:
@@ -212,6 +229,8 @@ class PageLiveStateObserver : public base::CheckedObserver {
   virtual void OnIsActiveTabChanged(const PageNode* page_node) {}
   virtual void OnIsPinnedTabChanged(const PageNode* page_node) {}
   virtual void OnIsDevToolsOpenChanged(const PageNode* page_node) {}
+  virtual void OnGlicActuationStateChanged(const PageNode* page_node,
+                                           GlicActuationState previous_state) {}
   virtual void OnUpdatedTitleOrFaviconInBackgroundChanged(
       const PageNode* page_node) {}
 };

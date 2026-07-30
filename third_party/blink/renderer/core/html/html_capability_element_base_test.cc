@@ -158,7 +158,7 @@ protocol::Audits::PermissionElementIssueDetails* GetPermissionElementIssue(
         bool(protocol::Audits::PermissionElementIssueDetails&)> matcher =
         base::NullCallback()) {
   auto& storage = document.GetPage()->GetInspectorIssueStorage();
-  for (size_t i = 0; i < storage.size(); ++i) {
+  for (wtf_size_t i = 0; i < storage.size(); ++i) {
     auto* issue = storage.at(i);
     if (issue->getCode() ==
             protocol::Audits::InspectorIssueCodeEnum::PermissionElementIssue &&
@@ -178,7 +178,7 @@ protocol::Audits::PermissionElementIssueDetails* GetPermissionElementIssue(
 size_t CountPermissionElementIssues(Document& document) {
   auto& storage = document.GetPage()->GetInspectorIssueStorage();
   size_t count = 0;
-  for (size_t i = 0; i < storage.size(); ++i) {
+  for (wtf_size_t i = 0; i < storage.size(); ++i) {
     auto* issue = const_cast<protocol::Audits::InspectorIssue*>(storage.at(i));
     if (issue->getCode() ==
         protocol::Audits::InspectorIssueCodeEnum::PermissionElementIssue) {

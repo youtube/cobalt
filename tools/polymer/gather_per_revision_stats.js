@@ -24,12 +24,10 @@
  *     exits.
  *  2) Repeatedly checks out the repository at the revisions that are detected
  *     in step #1
- *  3) Invokes the --stats-script for each revision.
- *     Note: If the script passed via --stats-script is checked into the
- *     repository and some of the visited revisions predate the addition of the
- *     script to the repository, need to make a manual copy that is not tracked
- *     by the repository and pass the copy to the --stats-script flag for the
- *     script to work across all visited revisions.
+ *  3) Invokes the --stats-script for each revision. Internally it makes a
+ *     temporary copy of the script to ensure it exists even when checking out
+ *     older revisions, which may predate the addition of the script to the
+ *     repo.
  *  4) Restores the repository to its initial state.
  *  5) Updates the file specified by --known-revisions to avoid processing the
  *     same revisions the next time it is invoked.
@@ -68,7 +66,9 @@ function isRepoDirty() {
 }
 
 function extractRevision(commitBody) {
-  const match = commitBody.match(/Cr-Commit-Position:.*@{#(\d+)}/m);
+  // Match Cr-Commit-Position only at the absolute beginning of a line.
+  // Quoted positions (like in reverts) start with '>' and will be ignored.
+  const match = commitBody.match(/^Cr-Commit-Position:.*@{#(\d+)}/m);
   return match ? match[1] : null;
 }
 
@@ -187,6 +187,14 @@ function main() {
   }
 
   const processedSuccessfully = [];
+  // Make a temporary copy of the stats script to ensure it remains available
+  // when checking out older revisions where the script might not exist yet.
+  const tempStatsScriptPath = path.join(
+      path.dirname(statsScriptPath), `.temp_${path.basename(statsScriptPath)}`);
+  console.info(
+      `Creating temporary copy of stats script at ${tempStatsScriptPath}`);
+  fs.copyFileSync(statsScriptPath, tempStatsScriptPath);
+
   try {
     for (let i = 0; i < newCommits.length; i++) {
       const c = newCommits[i];
@@ -202,8 +210,8 @@ function main() {
       try {
         const nodeBinary = './third_party/node/linux/node-linux-x64/bin/node';
         const extraArgs = forwardedArgs ? ` ${forwardedArgs}` : '';
-        const cmd =
-            `${nodeBinary} ${statsScriptPath} --revision=${c.rev}${extraArgs}`;
+        const cmd = `${nodeBinary} ${tempStatsScriptPath} --revision=${c.rev}${
+            extraArgs}`;
         runCommand(cmd, {stdio: 'inherit'});
         processedSuccessfully.push(c.rev);
         console.info(
@@ -216,6 +224,12 @@ function main() {
     }
   } finally {
     runCommand(`git checkout -q ${originalState}`);
+
+    if (fs.existsSync(tempStatsScriptPath)) {
+      console.info(
+          `Cleaning up temporary stats script: ${tempStatsScriptPath}`);
+      fs.unlinkSync(tempStatsScriptPath);
+    }
 
     if (processedSuccessfully.length > 0) {
       for (const rev of processedSuccessfully) {

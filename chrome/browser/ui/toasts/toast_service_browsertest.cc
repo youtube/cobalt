@@ -55,7 +55,8 @@ class ToastServiceBrowserTest : public InProcessBrowserTest {
          {toast_features::kTranslateToast, {}},
          {features::kGlicActorUi, {{features::kGlicActorUiToastName, "true"}}},
          {multistep_filter::kMultistepFilter, {}},
-         {features::kIndigo, {}}},
+         {features::kIndigo, {}},
+         {autofill::features::kAutofillAmbientAutofill, {}}},
         /*disabled_features*/ {});
     InProcessBrowserTest::SetUp();
   }

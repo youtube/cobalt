@@ -102,6 +102,9 @@ void WaapUIMetricsRecorder::DidExecuteReloadCommand(base::TimeTicks time) {
 
   waap_service_->OnReloadButtonInputToReload(last_input_info_->time, time,
                                              last_input_info_->type);
+
+  waap_service_->RecordReloadButtonInteractionToReload(
+      last_input_info_->time, time, last_input_info_->type);
 }
 
 void WaapUIMetricsRecorder::OnChangeVisibleMode(ReloadButtonMode current_mode,

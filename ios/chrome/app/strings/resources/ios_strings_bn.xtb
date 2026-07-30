@@ -103,6 +103,7 @@
 <translation id="1335767868357998043">অ্যাড্রেস বারের পজিশন বেছে নিন</translation>
 <translation id="1347468774581902829">অ্যাক্টিভিটি ম্যানেজ করুন</translation>
 <translation id="1348596747084433075">https://www.amazon.com/Wife-Gifts/s?k=for+Wife+Gifts</translation>
+<translation id="1353169676553627502">প্রোগ্রেস আপডেট বন্ধ করুন</translation>
 <translation id="1355337783640312381">অ্যাকাউন্টের মধ্যে পরিবর্তন করতে, আপনার অ্যাকাউন্ট আইকনে ট্যাপ করুন</translation>
 <translation id="135806768612505061">সব ট্যাব</translation>
 <translation id="1358106883354237005">ম্যানেজ করা অ্যাকাউন্ট</translation>
@@ -609,6 +610,7 @@
 <translation id="3073633853887034268">বুঝেছি</translation>
 <translation id="3080525922482950719">পরে বা অফলাইনে পড়ার জন্য আপনি পৃষ্ঠা সেভ করে রাখতে পারেন</translation>
 <translation id="3081338492074632642">আপনি যে পাসওয়ার্ডটি সেভ করছেন, সেটি <ph name="WEBSITE" />-এ আপনার দেওয়া পাসওয়ার্ডের সাথে মিলছে কিনা ভাল করে দেখে নিন</translation>
+<translation id="3084484227247071193">প্রোগ্রেস আপডেট চালু করুন</translation>
 <translation id="3087734570205094154">নিচে</translation>
 <translation id="309710370695886264">আপনার কাছে ১টি একই পাসওয়ার্ড আছে যা আবার ব্যবহার করা হয়েছে। নিরাপদ থাকতে এই সমস্যার সমাধান করুন।</translation>
 <translation id="3099402981545350675">এটি এই ডিভাইসে সেভ করা ঠিকানাগুলি মুছে দেয়। এছাড়াও এটি Chrome থেকে বেছে নেওয়া তথ্য সরিয়ে দেয়, তবে এটি আপনার Google অ্যাকাউন্ট থেকে এই তথ্য মুছে দেয় না।</translation>
@@ -708,6 +710,7 @@
 <translation id="3449029510150690417">নাম ও রং যোগ দিয়ে আপনার নতুন ট্যাব গ্রুপ তৈরি করুন</translation>
 <translation id="345348365500626747">ঠিকানা পাওয়া গেছে</translation>
 <translation id="3459644598174926977">কোনও পৃষ্ঠা সম্পর্কে জিজ্ঞাসা করতে, উচ্চস্বরে ব্রেনস্টর্ম করতে এবং কথোপকথন চালাতে Gemini-র সাথে Live-এ যান।</translation>
+<translation id="3462768334899086950">এর অর্থ হল, সেভ না করা ফাইল ও বর্তমান ট্যাব আপনি হারিয়ে ফেলবেন</translation>
 <translation id="3464194322481586217">দাম ট্র্যাক করা যায়নি।</translation>
 <translation id="3469117812148449995">পাসওয়ার্ড সেভ করার বিকল্প</translation>
 <translation id="3472469028191701821">নতুন ট্যাবে খোলে</translation>
@@ -836,7 +839,6 @@
 <translation id="391904960191284041">প্রোডাক্টের রিভিউ</translation>
 <translation id="3921585859122905677">অ্যাড্রেস বারের পজিশন</translation>
 <translation id="3922185497376658606">ওয়েবপেজ প্রিলোড করুন</translation>
-<translation id="3922395466317605522">মেনু কাস্টমাইজ করুন</translation>
 <translation id="3926703470020109118">ডাউনলোড বাতিল করা হয়েছে</translation>
 <translation id="3929457972718048006">ঠিকানা</translation>
 <translation id="3931215329146376310">{count,plural, =1{এই সাইটের জন্য নতুন পাসওয়ার্ড}one{এই সাইটের জন্য নতুন পাসওয়ার্ড}other{এই সাইটের জন্য নতুন পাসওয়ার্ড}}</translation>
@@ -965,6 +967,7 @@
 <translation id="4326912346867677256">নিরাপদে সাইন-ইন করতে, "পাসওয়ার্ড ব্যবহার করুন" বিকল্পে ট্যাপ করুন।</translation>
 <translation id="4328843285884395590">আমার ড্রাইভ</translation>
 <translation id="4331177082088332784">আপনি এটি BEGIN_LINK কন্টেন্ট সেটিংস END_LINK থেকে ম্যানেজ করতে পারবেন</translation>
+<translation id="4331712008356052424">এই লিঙ্ক পাঠাতে, <ph name="USER_EMAIL" /> ব্যবহার করে অন্য ডিভাইসে সাইন-ইন করুন</translation>
 <translation id="4334428914252001502">পড়া হয়নি এমন ১টি নিবন্ধ।</translation>
 <translation id="4338258232580025606">সাইন-ইন করা যাচ্ছে না</translation>
 <translation id="4338650699862464074">আপনার দেখা পৃষ্ঠাগুলির ইউআরএল Google-এ পাঠায়।</translation>
@@ -1269,6 +1272,7 @@
 <translation id="5336910966955551309">আপনার পছন্দের সাইট পিন করতে ট্যাপ করে ধরে থাকুন</translation>
 <translation id="5338512273860059533">সাইন-ইন করার কাজ চলছে।</translation>
 <translation id="5343472494710226394">আপনার আগ্রহ অনুযায়ী খবর, খেলাধূলা ও কন্টেন্ট।</translation>
+<translation id="5351613737248079168">Level Up ব্যবহার করতে হলে আপনাকে সাইন-ইন করে রাখতে হবে</translation>
 <translation id="5352128922772839949">ফাইল সেভ করুন</translation>
 <translation id="5355191726083956201">"উন্নত সুরক্ষা" ফিচার চালু করা আছে</translation>
 <translation id="536067926684072644">বুকমার্ক দেখান</translation>
@@ -1472,6 +1476,7 @@
 <translation id="6040143037577758943">বন্ধ</translation>
 <translation id="6042308850641462728">আরও</translation>
 <translation id="6045460247888249350">শিরোনাম যোগ করুন</translation>
+<translation id="6050237559175440178">সব ডিভাইস জুড়ে নিজের তথ্য ব্যবহার ও সেভ করতে, পরিচয় যাচাই করুন</translation>
 <translation id="6052269326659653305">প্রোফাইল পাল্টান</translation>
 <translation id="605721222689873409">YY</translation>
 <translation id="6059830886158432458">আপনার খবর ও গতিবিধি এখানে নিয়ন্ত্রণ করুন</translation>
@@ -1691,7 +1696,6 @@
 <translation id="6674917187596384849">আপনি সহজেই অ্যাকাউন্টের মধ্যে পরিবর্তন করতে পারবেন</translation>
 <translation id="6676349090816247042">সাইন-ইন করার বিকল্প।</translation>
 <translation id="667999046851023355">দস্তাবেজ</translation>
-<translation id="6680416467695217368">মেনু কাস্টমাইজ করুন</translation>
 <translation id="6681791404926413601">{count,plural, =1{আপনার কীবোর্ডের উপরে পেমেন্ট পদ্ধতির জন্য {count}টি বিকল্প উপলভ্য আছে।}one{আপনার কীবোর্ডের উপরে পেমেন্ট পদ্ধতির জন্য {count}টি বিকল্প উপলভ্য আছে।}other{আপনার কীবোর্ডের উপরে পেমেন্ট পদ্ধতির জন্য {count}টি বিকল্প উপলভ্য আছে।}}</translation>
 <translation id="6682680306647339111">রিমাইন্ডার সরানো হয়েছে</translation>
 <translation id="6684262542644248484">ওয়েবসাইটে সাইন-ইন করুন</translation>
@@ -1847,6 +1851,7 @@
 <translation id="722339453342442311">এখনই চেক করুন</translation>
 <translation id="7227235818314667565">শেয়ারিং ম্যানেজ করুন</translation>
 <translation id="7233006041370588369">লেখার জন্য পাসওয়ার্ড বেছে নিন।</translation>
+<translation id="723874023660911012">প্রোফাইল সুইচ করুন</translation>
 <translation id="7241135764990439166">ছদ্মবেশী মোড উপলভ্য নেই</translation>
 <translation id="7248046129087111453"><ph name="BEGIN_LINK" />সার্চ ইতিহাস<ph name="END_LINK" /> এবং <ph name="BEGIN_LINK" />অন্যান্য ধরনের অ্যাক্টিভিটি<ph name="END_LINK" /> আপনার Google অ্যাকাউন্টে সেভ করা হতে পারে।</translation>
 <translation id="7253951228444156601">পাসওয়ার্ড চেক করে দেখা হচ্ছে…</translation>
@@ -2073,6 +2078,7 @@
 <translation id="7996239959906074962">সেট-আপ করুন…</translation>
 <translation id="800361585186029508">Google Chrome-এ ইনপুট করা ইউআরএলগুলি খোলে।</translation>
 <translation id="8005666035647241369">এই ডিভাইসে Google পাসওয়ার্ড ম্যানেজারে</translation>
+<translation id="8007106936382123905">{count,plural, =1{১টি সম্পূর্ণ হওয়া টাস্ক}one{#টি সম্পূর্ণ হওয়া টাস্ক}other{#টি সম্পূর্ণ হওয়া টাস্ক}}</translation>
 <translation id="8010488806779226127">ব্রাউজ করার সময় আপনাকে আরও অনেক কিছু করতে সাহায্য করে এমন ফিচার এক্সপ্লোর করুন</translation>
 <translation id="8011489434346330032">ওয়েব ইন্সপেক্টর</translation>
 <translation id="8014007212279733632">সংবেদনশীল তথ্য অটোফিল করতে, আপনার পরিচয় যাচাই করান</translation>
@@ -2156,6 +2162,7 @@
 <translation id="826614135184049678">আপনার iPad রিসেটের অংশ হিসেবে আপনার অ্যাকাউন্ট <ph name="USER_NAME" /> থেকে সাইন-আউট হয়ে গেছেন। আবার সাইন ইন করতে, নিচে "চালিয়ে যান" বিকল্পে ট্যাপ করুন।</translation>
 <translation id="8270320981823560179">Drive</translation>
 <translation id="8273982424131314219">আপনি <ph name="URL" />-এ তথ্য পূরণ করবেন</translation>
+<translation id="8274795744553482834">আপনি প্রোফাইল সুইচ করতে চলেছেন</translation>
 <translation id="8275068909952022340">আরও…</translation>
 <translation id="8280797717392145626">লিঙ্ক পাওয়া গেছে</translation>
 <translation id="8281781826761538115">ডিফল্ট - <ph name="DEFAULT_LOCALE" /></translation>
@@ -2235,6 +2242,7 @@
 <translation id="8534481786647257214">Google+ পোষ্ট সম্পূর্ণ হয়েছে৷</translation>
 <translation id="8535368836838588657">পাসওয়ার্ড দেখুন</translation>
 <translation id="8540426897269305488"><ph name="CELL_ACCESSIBILITY_LABEL" /> দিয়ে সাইন-ইন করুন</translation>
+<translation id="8542331710562073430">কোনও সমস্যা হয়েছে। আবার Live শুরু করার চেষ্টা করতে Live বোতামে ট্যাপ করুন।</translation>
 <translation id="8545276357312221485">আপনার ডিফল্ট ব্রাউজার সেটিংস চেক করুন</translation>
 <translation id="854938212724803178">আপনার ১টি চুরি হয়ে যাওয়া পাসওয়ার্ড আছে। নিরাপদ থাকতে এই সমস্যার সমাধান করুন।</translation>
 <translation id="8551311254462607218">অ্যাড্রেস বারে, Google Lens ক্যামেরা আইকনে ট্যাপ করুন</translation>

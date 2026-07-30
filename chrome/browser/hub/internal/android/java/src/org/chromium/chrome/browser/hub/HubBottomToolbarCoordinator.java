@@ -31,6 +31,8 @@ public class HubBottomToolbarCoordinator {
     /** The delegate that provides bottom toolbar functionality. */
     private final HubBottomToolbarDelegate mDelegate;
 
+    private final PropertyModel mModel;
+
     private @Nullable EdgeToEdgePadAdjuster mEdgeToEdgePadAdjuster;
 
     /**
@@ -51,7 +53,7 @@ public class HubBottomToolbarCoordinator {
             MonotonicObservableSupplier<EdgeToEdgeController> edgeToEdgeSupplier) {
         mDelegate = delegate;
 
-        PropertyModel model =
+        mModel =
                 new PropertyModel.Builder(HubBottomToolbarProperties.ALL_BOTTOM_KEYS)
                         .with(COLOR_MIXER, hubColorMixer)
                         .build();
@@ -63,10 +65,10 @@ public class HubBottomToolbarCoordinator {
 
         if (hubBottomToolbarView != null) {
             PropertyModelChangeProcessor.create(
-                    model, hubBottomToolbarView, HubBottomToolbarViewBinder::bind);
+                    mModel, hubBottomToolbarView, HubBottomToolbarViewBinder::bind);
         }
 
-        mMediator = new HubBottomToolbarMediator(model, mDelegate);
+        mMediator = new HubBottomToolbarMediator(mModel, mDelegate);
 
         if (hubBottomToolbarView != null) {
             mEdgeToEdgePadAdjuster =
@@ -77,6 +79,7 @@ public class HubBottomToolbarCoordinator {
 
     /** Cleans up observers and resources. */
     public void destroy() {
+        mModel.set(COLOR_MIXER, null);
         mMediator.destroy();
         mDelegate.destroy();
         if (mEdgeToEdgePadAdjuster != null) {

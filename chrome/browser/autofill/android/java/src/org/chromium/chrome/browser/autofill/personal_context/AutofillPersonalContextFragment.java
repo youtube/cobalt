@@ -36,8 +36,6 @@ public class AutofillPersonalContextFragment extends ChromeBaseSettingsFragment 
             "autofill_personal_context_switch";
     public static final String PREF_AUTOFILL_PERSONAL_CONTEXT_MANAGE_CONNECTED_APPS =
             "autofill_personal_context_manage_connected_apps";
-    public static final String PREF_AUTOFILL_PERSONAL_CONTEXT_MANAGE_SUGGESTIONS =
-            "autofill_personal_context_manage_suggestions";
 
     // User action constants for external entry points
     public static final String ACTION_ENTRY_FROM_IDENTITY_DOCS =
@@ -54,8 +52,6 @@ public class AutofillPersonalContextFragment extends ChromeBaseSettingsFragment 
     public static final String ACTION_TOGGLED_OFF = "PersonalContext.Settings.ToggledOff";
     public static final String ACTION_MANAGE_CONNECTED_APPS =
             "PersonalContext.Settings.ManageConnectedAppsClick";
-    public static final String ACTION_MANAGE_SUGGESTIONS =
-            "PersonalContext.Settings.ManageSuggestionsClick";
 
     private final SettableMonotonicObservableSupplier<String> mPageTitle =
             ObservableSuppliers.createMonotonic();
@@ -108,10 +104,6 @@ public class AutofillPersonalContextFragment extends ChromeBaseSettingsFragment 
         return findPreference(PREF_AUTOFILL_PERSONAL_CONTEXT_MANAGE_CONNECTED_APPS);
     }
 
-    @Nullable Preference getAutofillPersonalContextManageSuggestions() {
-        return findPreference(PREF_AUTOFILL_PERSONAL_CONTEXT_MANAGE_SUGGESTIONS);
-    }
-
     public static boolean shouldShowPersonalContext(Profile profile) {
         if (!ChromeFeatureList.isEnabled(ChromeFeatureList.YOUR_SAVED_INFO_SETTINGS_PAGE_ANDROID)
                 || !ChromeFeatureList.isEnabled(ChromeFeatureList.AUTOFILL_AI_WITH_DATA_SCHEMA)) {
@@ -132,8 +124,6 @@ public class AutofillPersonalContextFragment extends ChromeBaseSettingsFragment 
                         indexData.removeEntry(getUniqueId(PREF_AUTOFILL_PERSONAL_CONTEXT_SWITCH));
                         indexData.removeEntry(
                                 getUniqueId(PREF_AUTOFILL_PERSONAL_CONTEXT_MANAGE_CONNECTED_APPS));
-                        indexData.removeEntry(
-                                getUniqueId(PREF_AUTOFILL_PERSONAL_CONTEXT_MANAGE_SUGGESTIONS));
                     }
                 }
             };

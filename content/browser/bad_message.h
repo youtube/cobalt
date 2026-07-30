@@ -380,6 +380,7 @@ enum BadMessageReason {
   RFH_DID_COMMIT_NAVIGATION_WHILE_BFCACHED = 352,
   BIBI_BIND_WEBNN_CONTEXT_PROVIDER_BLOCKED_BY_PERMISSIONS_POLICY = 353,
   BIBI_BIND_WEBNN_WEIGHTS_FILE_CREATOR_BLOCKED_BY_PERMISSIONS_POLICY = 354,
+  RFH_AUTHENTICATOR_PDF_PROCESS_BLOCKED = 355,
 
   // Please add new elements here. The naming convention is abbreviated class
   // name (e.g. RenderFrameHost becomes RFH) plus a unique description of the

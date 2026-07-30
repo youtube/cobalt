@@ -49,7 +49,8 @@ public class SearchEngineChoiceMetrics {
         EventsV2.CHOICE_REQUEST_PARSE_FAILED,
         EventsV2.PREVIOUS_CHOICE_REQUEST_FAILED,
         EventsV2.CHOICE_REQUEST_SUCCESS,
-        EventsV2.CHOICE_ALREADY_APPLIED
+        EventsV2.CHOICE_ALREADY_APPLIED,
+        EventsV2.CHOICE_RENEWAL_SKIPPED
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface EventsV2 {
@@ -62,7 +63,8 @@ public class SearchEngineChoiceMetrics {
         int PREVIOUS_CHOICE_REQUEST_FAILED = 6;
         int CHOICE_REQUEST_SUCCESS = 7;
         int CHOICE_ALREADY_APPLIED = 8;
-        int MAX = 9;
+        int CHOICE_RENEWAL_SKIPPED = 9;
+        int MAX = 10;
     }
 
     /**

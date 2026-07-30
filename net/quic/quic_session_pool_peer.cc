@@ -128,6 +128,11 @@ void QuicSessionPoolPeer::SetTickClock(QuicSessionPool* pool,
   pool->tick_clock_ = tick_clock;
 }
 
+void QuicSessionPoolPeer::SetClockForTesting(QuicSessionPool* pool,
+                                             base::Clock* clock) {
+  pool->clock_for_testing_ = clock;
+}
+
 quic::QuicTime::Delta QuicSessionPoolPeer::GetPingTimeout(
     QuicSessionPool* pool) {
   return pool->ping_timeout_;

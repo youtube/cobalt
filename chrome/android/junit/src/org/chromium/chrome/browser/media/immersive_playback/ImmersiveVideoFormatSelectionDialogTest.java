@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verify;
 
 import android.app.Activity;
 import android.content.Context;
+import android.view.View;
 import android.widget.RadioButton;
 
 import org.junit.Before;
@@ -23,6 +24,7 @@ import org.robolectric.Robolectric;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.content_public.browser.ImmersivePlaybackConfirmationStatus;
 import org.chromium.content_public.browser.ImmersiveProjectionType;
 import org.chromium.content_public.browser.ImmersiveStereoMode;
@@ -101,19 +103,24 @@ public class ImmersiveVideoFormatSelectionDialogTest {
                 (ImmersiveVideoFormatRadioGroup) model.get(ModalDialogProperties.CUSTOM_VIEW);
         assertNotNull(radioGroup);
 
-        // Change selection to the 3rd option (VR180)
-        RadioButton radioButton = (RadioButton) radioGroup.getChildAt(2);
+        // Change selection to 180° stereoscopic
+        RadioButton radioButton =
+                getRadioButtonForFormat(
+                        radioGroup,
+                        ImmersiveStereoMode.SIDE_BY_SIDE,
+                        ImmersiveProjectionType.HEMISPHERE);
+        assertNotNull(radioButton);
         radioButton.setChecked(true);
 
         // Dismiss with positive button click
         model.get(ModalDialogProperties.CONTROLLER)
                 .onDismiss(model, DialogDismissalCause.POSITIVE_BUTTON_CLICKED);
 
-        // VR180 options are MONO and HEMISPHERE
+        // 180° stereoscopic options are SIDE_BY_SIDE and HEMISPHERE
         verify(mCallback)
                 .onResult(
                         ImmersivePlaybackConfirmationStatus.CONFIRMED,
-                        ImmersiveStereoMode.MONO,
+                        ImmersiveStereoMode.SIDE_BY_SIDE,
                         ImmersiveProjectionType.HEMISPHERE);
     }
 
@@ -159,5 +166,23 @@ public class ImmersiveVideoFormatSelectionDialogTest {
                         ImmersivePlaybackConfirmationStatus.CANCELED,
                         ImmersiveStereoMode.MONO,
                         ImmersiveProjectionType.QUAD);
+    }
+
+    private @Nullable RadioButton getRadioButtonForFormat(
+            ImmersiveVideoFormatRadioGroup radioGroup,
+            @ImmersiveStereoMode int stereoMode,
+            @ImmersiveProjectionType int projectionType) {
+        for (int i = 0; i < radioGroup.getChildCount(); i++) {
+            View child = radioGroup.getChildAt(i);
+            if (child instanceof RadioButton) {
+                RadioButton radioButton = (RadioButton) child;
+                ImmersiveVideoFormatRadioGroup.FormatOption option =
+                        (ImmersiveVideoFormatRadioGroup.FormatOption) radioButton.getTag();
+                if (option.stereoMode == stereoMode && option.projectionType == projectionType) {
+                    return radioButton;
+                }
+            }
+        }
+        return null;
     }
 }

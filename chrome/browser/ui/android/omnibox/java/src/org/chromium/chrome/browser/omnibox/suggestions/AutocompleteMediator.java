@@ -26,6 +26,8 @@ import org.chromium.base.TraceEvent;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
+import org.chromium.base.task.PostTask;
+import org.chromium.base.task.TaskTraits;
 import org.chromium.build.BuildConfig;
 import org.chromium.build.annotations.EnsuresNonNullIf;
 import org.chromium.build.annotations.NullMarked;
@@ -1453,7 +1455,12 @@ class AutocompleteMediator
                 // return.
             }
 
-            findMatchAndLoadUrl(urlText, eventTime, openInNewTab, openInNewWindow);
+            if (TextUtils.isEmpty(urlText)
+                    && mFuseboxCoordinator.getHasAttachmentsSupplier().get()) {
+                loadUrlAttachmentsOnly(eventTime, openInNewTab, openInNewWindow);
+            } else {
+                findMatchAndLoadUrl(urlText, eventTime, openInNewTab, openInNewWindow);
+            }
         }
     }
 
@@ -1574,6 +1581,22 @@ class AutocompleteMediator
         }
     }
 
+    private void loadUrlAttachmentsOnly(
+            long eventTime, boolean openInNewTab, boolean openInNewWindow) {
+        Callback<GURL> onUrlReady =
+                (finalUrl) -> {
+                    mDelegate.loadUrl(
+                            new OmniboxLoadUrlParams.Builder(
+                                            finalUrl.getSpec(), PageTransition.TYPED)
+                                    .setInputStartTimestamp(eventTime)
+                                    .setOpenInNewTab(openInNewTab)
+                                    .setOpenInNewWindow(openInNewWindow)
+                                    .build());
+                    mHandler.post(this::finishInteraction);
+                };
+        adjustGurlForRequestType(GURL.emptyGURL(), "", onUrlReady);
+    }
+
     /**
      * Potentially adjust the given URL based on the current request type (e.g. AIM mode, Image
      * Generation) and model picker flag, and invoke the callback with that URL.
@@ -1687,16 +1710,26 @@ class AutocompleteMediator
     /**
      * Sends a zero suggest request to the server in order to pre-populate the result cache.
      *
-     * @param webContents The WebContents for the current tab.
+     * <p>This call must be static to guarantee no dependency on AutocompleteMediator's internal
+     * state, specifically this method must not depend on mAutocomplete being available.
+     *
+     * @param profile The profile to prefetch ZPS for.
+     * @param dataProvider Context describing page to prefetch ZPS for.
      */
-    /* package */ void startPrefetch(@Nullable WebContents webContents) {
-        if (mAutocomplete != null) {
-            final AutocompleteInput input = new AutocompleteInput(OmniboxFocusReason.OMNIBOX_TAP);
-            input.setPageClassification(mDataProvider.getPageClassification(true));
-            input.setPageUrl(mDataProvider.getCurrentGurl());
-            input.setPageTitle(mDataProvider.getTitle());
-            mAutocomplete.startPrefetch(webContents, input);
-        }
+    /* package */ static void startPrefetch(Profile profile, LocationBarDataProvider dataProvider) {
+        if (dataProvider.isLoading()) return;
+
+        var autocomplete = AutocompleteController.getForProfile(profile);
+        if (autocomplete == null) return;
+
+        AutocompleteInput input =
+                new AutocompleteInput(OmniboxFocusReason.OMNIBOX_TAP)
+                        .setPageClassification(dataProvider.getPageClassification(true))
+                        .setPageUrl(dataProvider.getCurrentGurl())
+                        .setPageTitle(dataProvider.getTitle());
+        PostTask.postTask(
+                TaskTraits.UI_BEST_EFFORT,
+                () -> autocomplete.startPrefetch(dataProvider.getWebContents(), input));
     }
 
     /**

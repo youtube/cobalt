@@ -119,3 +119,10 @@ bool IsComposeboxDriveOptionEnabled() {
   return base::FeatureList::IsEnabled(
       omnibox::kComposeboxDriveContextMenuOption);
 }
+
+BASE_FEATURE(kComposeboxPhysicalKeyboardReturnKeys,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsComposeboxPhysicalKeyboardReturnKeysEnabled() {
+  return base::FeatureList::IsEnabled(kComposeboxPhysicalKeyboardReturnKeys);
+}

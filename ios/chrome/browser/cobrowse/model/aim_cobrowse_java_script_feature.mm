@@ -82,10 +82,10 @@ void AimCobrowseJavaScriptFeature::ScriptMessageReceived(
       (!IsAimURL(*request_url) && !IsAimZeroStateURL(*request_url))) {
     return;
   }
-  if (!message.body() || !message.body()->is_dict()) {
+  if (!message.legacy_body() || !message.legacy_body()->is_dict()) {
     return;
   }
-  const base::DictValue& dict = message.body()->GetDict();
+  const base::DictValue& dict = message.legacy_body()->GetDict();
   const std::string* base64_message = dict.FindString("message");
   if (!base64_message) {
     return;

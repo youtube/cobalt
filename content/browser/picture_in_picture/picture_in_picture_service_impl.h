@@ -15,6 +15,10 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "third_party/blink/public/mojom/picture_in_picture/picture_in_picture.mojom.h"
 
+namespace media {
+struct VideoSpatialFormat;
+}  // namespace media
+
 namespace content {
 
 class VideoPictureInPictureWindowControllerImpl;
@@ -52,33 +56,13 @@ class CONTENT_EXPORT PictureInPictureServiceImpl final
       mojo::PendingRemote<blink::mojom::PictureInPictureSessionObserver>,
       const gfx::Rect& source_bounds,
       bool request_immersive,
+      const media::VideoSpatialFormat& spatial_format,
       StartSessionCallback) final;
 
  private:
   friend class PictureInPictureSession;
 
-  struct PendingSession {
-    PendingSession(
-        uint32_t player_id,
-        mojo::PendingAssociatedRemote<media::mojom::MediaPlayer> player_remote,
-        const viz::SurfaceId& surface_id,
-        const gfx::Size& natural_size,
-        bool show_play_pause_button,
-        mojo::PendingRemote<blink::mojom::PictureInPictureSessionObserver>
-            observer,
-        const gfx::Rect& source_bounds,
-        StartSessionCallback callback);
-    ~PendingSession();
-
-    uint32_t player_id;
-    mojo::PendingAssociatedRemote<media::mojom::MediaPlayer> player_remote;
-    viz::SurfaceId surface_id;
-    gfx::Size natural_size;
-    bool show_play_pause_button;
-    mojo::PendingRemote<blink::mojom::PictureInPictureSessionObserver> observer;
-    gfx::Rect source_bounds;
-    StartSessionCallback callback;
-  };
+  struct PendingSession;
 
   PictureInPictureServiceImpl(
       RenderFrameHost&,

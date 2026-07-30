@@ -338,7 +338,7 @@ static SystemClipboard::SmartReplaceOption GetSmartReplaceOption(
 
 void ClipboardCommands::WriteSelectionToClipboard(LocalFrame& frame) {
   const KURL& url = frame.GetDocument()->Url();
-  const String html = frame.Selection().SelectedHTMLForClipboard();
+  const String html = frame.Selection().SelectedHtmlForClipboard();
   String plain_text = frame.SelectedTextForClipboard();
   frame.GetSystemClipboard()->WriteHTML(html, url,
                                         GetSmartReplaceOption(frame));

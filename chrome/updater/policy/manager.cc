@@ -9,9 +9,9 @@
 #include <vector>
 
 #include "base/memory/ref_counted.h"
-#include "base/strings/stringprintf.h"
 #include "base/time/time.h"
 #include "chrome/updater/constants.h"
+#include "third_party/abseil-cpp/absl/strings/str_format.h"
 
 namespace updater {
 
@@ -36,8 +36,8 @@ bool UpdatesSuppressedTimes::contains(int hour, int minute) const {
 }
 
 std::string UpdatesSuppressedTimes::ToString() const {
-  return base::StringPrintf("%d, %d, %d", start_hour_, start_minute_,
-                            duration_minute_);
+  return absl::StrFormat("%d, %d, %d", start_hour_, start_minute_,
+                         duration_minute_);
 }
 
 // DefaultValuesPolicyManager returns the default values for policies when no

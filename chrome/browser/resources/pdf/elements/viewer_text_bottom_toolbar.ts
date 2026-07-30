@@ -67,7 +67,7 @@ export class ViewerTextBottomToolbarElement extends
     this.onTypefaceSelected(e);
   }
 
-  protected onSizeChange_(e: CustomEvent<{value: number}>) {
+  protected onSizeChange_(e: Event) {
     this.onSizeSelected(e);
   }
 

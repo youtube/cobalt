@@ -38,9 +38,55 @@
 #include "third_party/blink/renderer/core/editing/visible_units.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/html/html_span_element.h"
+#include "third_party/blink/renderer/core/html/html_wbr_element.h"
+#include "third_party/blink/renderer/core/layout/layout_text.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
+
+namespace {
+
+// Resolves a parent-anchored caret into an adjacent text node so the insert
+// merges into it. Skips replaced content (<br>/<img>) and whitespace-only
+// text (sweep target, not merge target), except in `pre*` modes where the
+// whitespace IS rendered and is a valid merge target.
+Position ReanchorIntoSiblingText(const Position& caret, bool look_before) {
+  Node* neighbor = look_before ? caret.ComputeNodeBeforePosition()
+                               : caret.ComputeNodeAfterPosition();
+  Text* text = DynamicTo<Text>(neighbor);
+  if (!text) {
+    return Position();
+  }
+  if (text->ContainsOnlyWhitespaceOrEmpty()) {
+    LayoutText* layout_text = text->GetLayoutObject();
+    if (!layout_text || !layout_text->StyleRef().ShouldPreserveWhiteSpaces()) {
+      return Position();
+    }
+  }
+  return look_before ? Position(text, text->length()) : Position(text, 0);
+}
+
+// Hops out of a fully-collapsed source-formatting whitespace text node
+// (contains `\n`, not `pre*`) so the insert lands in a fresh sibling
+// instead of being NBSP-rebalanced into the preserved run.
+Position BounceOutOfWhitespaceText(const Position& caret) {
+  auto* text = DynamicTo<Text>(caret.ComputeContainerNode());
+  if (!text || !text->ContainsOnlyWhitespaceOrEmpty()) {
+    return Position();
+  }
+  if (text->data().find('\n') == kNotFound) {
+    return Position();
+  }
+  LayoutText* layout_text = text->GetLayoutObject();
+  if (layout_text && layout_text->StyleRef().ShouldPreserveWhiteSpaces()) {
+    return Position();
+  }
+  return caret.ComputeOffsetInContainerNode() == 0
+             ? Position::InParentBeforeNode(*text)
+             : Position::InParentAfterNode(*text);
+}
+
+}  // namespace
 
 InsertTextCommand::InsertTextCommand(
     Document& document,
@@ -60,7 +106,20 @@ Position InsertTextCommand::PositionInsideTextNode(
     const Position& p,
     EditingState* editing_state) {
   Position pos = p;
-  if (IsTabHTMLSpanElementTextNode(pos.AnchorNode())) {
+  // A caret anchored inside <wbr> (which is void in HTML serialization but
+  // not marked EditingIgnoresContent) would cause InsertNodeAt to append
+  // the new text node as a child of <wbr>, where the void serializer drops
+  // it. Reanchor to a sibling position so the text lands next to the <wbr>.
+  // DOM-position lane only; the legacy path canonicalizes the caret first.
+  if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
+    if (auto* wbr = DynamicTo<HTMLWBRElement>(pos.AnchorNode());
+        wbr && wbr->parentNode()) {
+      pos = pos.ComputeOffsetInContainerNode() == 0
+                ? Position::InParentBeforeNode(*wbr)
+                : Position::InParentAfterNode(*wbr);
+    }
+  }
+  if (IsTabSpanElementTextNode(pos.AnchorNode())) {
     Text* text_node = GetDocument().CreateEditingTextNode("");
     InsertNodeAtTabSpanPosition(text_node, pos, editing_state);
     if (editing_state->IsAborted())
@@ -109,8 +168,11 @@ bool InsertTextCommand::PerformTrivialReplace(const String& text) {
   if (text.empty())
     return false;
 
-  if (!EndingSelection().IsRange())
+  if (!(RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()
+            ? EndingDomSelection().IsRange()
+            : EndingSelection().IsRange())) {
     return false;
+  }
 
   if (text.contains('\t') || text.contains(' ') || text.contains('\n')) {
     return false;
@@ -121,7 +183,7 @@ bool InsertTextCommand::PerformTrivialReplace(const String& text) {
   // character because the user wouldn't be able to edit the link if it has only
   // one character.
   Position start = RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()
-                       ? EndingSelection().Start()
+                       ? EndingDomSelection().Start()
                        : EndingVisibleSelection().Start();
   Element* enclosing_anchor = EnclosingAnchorElement(start);
   if (enclosing_anchor && text.length() <= 1) {
@@ -130,7 +192,7 @@ bool InsertTextCommand::PerformTrivialReplace(const String& text) {
     VisiblePosition last_in_anchor =
         VisiblePosition::LastPositionInNode(*enclosing_anchor);
     Position end = RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()
-                       ? EndingSelection().End()
+                       ? EndingDomSelection().End()
                        : EndingVisibleSelection().End();
     if (first_in_anchor.DeepEquivalent() == start &&
         last_in_anchor.DeepEquivalent() == end)
@@ -149,7 +211,7 @@ bool InsertTextCommand::PerformTrivialReplace(const String& text) {
   SetEndingSelection(SelectionForUndoStep::From(
       SelectionInDomTree::Builder()
           .Collapse(RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()
-                        ? EndingSelection().End()
+                        ? EndingDomSelection().End()
                         : EndingVisibleSelection().End())
           .Build()));
   if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
@@ -167,7 +229,7 @@ void InsertTextCommand::DoApply(EditingState* editing_state) {
   // TODO(editing-dev): We shouldn't construct an InsertTextCommand with none or
   // invalid selection.
   if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
-    const SelectionForUndoStep& selection = EndingSelection();
+    const SelectionForUndoStep& selection = EndingDomSelection();
     if (selection.IsNone() || !selection.IsValidFor(GetDocument())) {
       return;
     }
@@ -181,14 +243,16 @@ void InsertTextCommand::DoApply(EditingState* editing_state) {
 
   // Delete the current selection.
   // FIXME: This delete operation blows away the typing style.
-  if (EndingSelection().IsRange()) {
+  if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()
+          ? EndingDomSelection().IsRange()
+          : EndingSelection().IsRange()) {
     if (PerformTrivialReplace(text_))
       return;
     GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kEditing);
     bool end_of_selection_was_at_start_of_block;
     if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
       end_of_selection_was_at_start_of_block =
-          IsStartOfBlock(EndingSelection().End());
+          IsStartOfBlock(EndingDomSelection().End());
     } else {
       end_of_selection_was_at_start_of_block =
           IsStartOfBlock(EndingVisibleSelection().VisibleEnd());
@@ -202,8 +266,11 @@ void InsertTextCommand::DoApply(EditingState* editing_state) {
     // in the DOM), the VisibleSelection cannot be canonicalized to anything
     // other than NoSelection. The rest of this function requires a real
     // endingSelection, so bail out.
-    if (EndingSelection().IsNone())
+    if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()
+            ? EndingDomSelection().IsNone()
+            : EndingSelection().IsNone()) {
       return;
+    }
     if (end_of_selection_was_at_start_of_block) {
       if (EditingStyle* typing_style =
               GetDocument().GetFrame()->GetEditor().TypingStyle()) {
@@ -223,13 +290,13 @@ void InsertTextCommand::DoApply(EditingState* editing_state) {
     // Reached by InsertTextCommandTest.NoVisibleSelectionAfterDeletingSelection
     ABORT_EDITING_COMMAND_IF(
         RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()
-            ? EndingSelection().IsNone()
+            ? EndingDomSelection().IsNone()
             : EndingVisibleSelection().IsNone());
   }
 
   Position start_position(
       RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()
-          ? EndingSelection().Start()
+          ? EndingDomSelection().Start()
           : EndingVisibleSelection().Start());
 
   Position placeholder = ComputePlaceholderToCollapseAt(start_position);
@@ -237,6 +304,9 @@ void InsertTextCommand::DoApply(EditingState* editing_state) {
   // Insert the character at the leftmost candidate.
   if (!RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
     start_position = MostBackwardCaretPosition(start_position);
+  } else if (Position bounced = BounceOutOfWhitespaceText(start_position);
+             bounced.IsNotNull()) {
+    start_position = bounced;
   }
 
   // It is possible for the node that contains startPosition to contain only
@@ -250,12 +320,19 @@ void InsertTextCommand::DoApply(EditingState* editing_state) {
     // canonicalizing start_position. MostBackward/MostForward only define
     // the cleanup range; RelocatablePosition recovers start_position after
     // deletions so the user's insertion point is preserved.
-    Position cleanup_start = MostBackwardCaretPosition(start_position);
-    Position cleanup_end = MostForwardCaretPosition(start_position);
-    auto* relocatable_start =
-        MakeGarbageCollected<RelocatablePosition>(start_position);
-    DeleteInsignificantText(cleanup_start, cleanup_end);
-    start_position = relocatable_start->GetPosition();
+    //
+    // Skip when parent-anchored: the sweep would reach adjacent
+    // whitespace-only text nodes and collapse load-bearing newlines into
+    // spaces (e.g. `<div>|\n</div>`).
+    Node* start_container = start_position.ComputeContainerNode();
+    if (start_container && start_container->IsTextNode()) {
+      Position cleanup_start = MostBackwardCaretPosition(start_position);
+      Position cleanup_end = MostForwardCaretPosition(start_position);
+      auto* relocatable_start =
+          MakeGarbageCollected<RelocatablePosition>(start_position);
+      DeleteInsignificantText(cleanup_start, cleanup_end);
+      start_position = relocatable_start->GetPosition();
+    }
   } else {
     DeleteInsignificantText(start_position,
                             MostForwardCaretPosition(start_position));
@@ -270,6 +347,22 @@ void InsertTextCommand::DoApply(EditingState* editing_state) {
   if (!RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
     if (!IsVisuallyEquivalentCandidate(start_position)) {
       start_position = MostForwardCaretPosition(start_position);
+    }
+  } else if (Node* container = start_position.ComputeContainerNode();
+             container && !container->IsTextNode()) {
+    // The caret is parent-anchored (e.g., between siblings). Re-anchor
+    // into an adjacent sibling text node so the insert merges instead of
+    // creating a new sibling text node. Done after the sweep so the
+    // sweep's parent-anchored early-stop preserves an adjacent
+    // unrendered-whitespace text node as the insertion target.
+    if (Position reanchored =
+            ReanchorIntoSiblingText(start_position, /*look_before=*/true);
+        reanchored.IsNotNull()) {
+      start_position = reanchored;
+    } else if (Position fallback = ReanchorIntoSiblingText(
+                   start_position, /*look_before=*/false);
+               fallback.IsNotNull()) {
+      start_position = fallback;
     }
   }
 
@@ -286,8 +379,14 @@ void InsertTextCommand::DoApply(EditingState* editing_state) {
       return;
     start_position =
         PreviousPositionOf(end_position, PositionMoveType::kGraphemeCluster);
-    if (placeholder.IsNotNull())
+    // Re-check (DOM-position lane only): intervening DOM mutations can
+    // invalidate the placeholder captured before insertion (e.g., the <br>
+    // that made the position a line break is no longer the last child).
+    if (placeholder.IsNotNull() &&
+        (!RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled() ||
+         LineBreakExistsAtPosition(placeholder))) {
       RemovePlaceholderAt(placeholder);
+    }
   } else {
     // Make sure the document is set up to receive text_
     start_position = PositionInsideTextNode(start_position, editing_state);
@@ -297,8 +396,11 @@ void InsertTextCommand::DoApply(EditingState* editing_state) {
     DCHECK(start_position.ComputeContainerNode()) << start_position;
     DCHECK(start_position.ComputeContainerNode()->IsTextNode())
         << start_position;
-    if (placeholder.IsNotNull())
+    if (placeholder.IsNotNull() &&
+        (!RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled() ||
+         LineBreakExistsAtPosition(placeholder))) {
       RemovePlaceholderAt(placeholder);
+    }
     auto* text_node = To<Text>(start_position.ComputeContainerNode());
     const unsigned offset = start_position.OffsetInContainerNode();
 
@@ -311,8 +413,9 @@ void InsertTextCommand::DoApply(EditingState* editing_state) {
       RebalanceWhitespaceAt(end_position);
       // Rebalancing on both sides isn't necessary if we've inserted only
       // spaces.
-      if (!text_.ContainsOnlyWhitespaceOrEmpty())
+      if (!text_.ContainsOnlyWhitespaceOrEmpty()) {
         RebalanceWhitespaceAt(start_position);
+      }
     } else {
       DCHECK_EQ(rebalance_type_, kRebalanceAllWhitespaces);
       if (CanRebalance(start_position) && CanRebalance(end_position))
@@ -329,7 +432,10 @@ void InsertTextCommand::DoApply(EditingState* editing_state) {
           GetDocument().GetFrame()->GetEditor().TypingStyle()) {
     typing_style->PrepareToApplyAt(end_position,
                                    EditingStyle::kPreserveWritingDirection);
-    if (!typing_style->IsEmpty() && !EndingSelection().IsNone()) {
+    if (!typing_style->IsEmpty() &&
+        !(RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()
+              ? EndingDomSelection().IsNone()
+              : EndingSelection().IsNone())) {
       ApplyStyle(typing_style, editing_state);
       if (editing_state->IsAborted())
         return;
@@ -339,7 +445,7 @@ void InsertTextCommand::DoApply(EditingState* editing_state) {
   TextAffinity selection_affinity;
   Position selection_end;
   if (RuntimeEnabledFeatures::EditingUseDomPositionApiEnabled()) {
-    const SelectionForUndoStep& end_selection = EndingSelection();
+    const SelectionForUndoStep& end_selection = EndingDomSelection();
     selection_affinity = end_selection.Affinity();
     selection_end = end_selection.End();
   } else {
@@ -377,7 +483,7 @@ Position InsertTextCommand::InsertTab(const Position& pos,
   unsigned offset = text_node ? insert_pos.OffsetInContainerNode() : 0;
 
   // keep tabs coalesced in tab span
-  if (IsTabHTMLSpanElementTextNode(node)) {
+  if (IsTabSpanElementTextNode(node)) {
     InsertTextIntoNode(text_node, offset, "\t",
                        PasswordEchoBehavior::kDoNotEcho);
     return Position(text_node, offset + 1);

@@ -228,6 +228,9 @@ proto::ContentTransferMethod ToProtoContentTransferMethod(
   if (method == kContentTransferMethodFilePaste) {
     return proto::CONTENT_TRANSFER_METHOD_FILE_PASTE;
   }
+  if (method == kContentTransferMethodClipboardCopy) {
+    return proto::CONTENT_TRANSFER_METHOD_CLIPBOARD_COPY;
+  }
   NOTREACHED();
 }
 

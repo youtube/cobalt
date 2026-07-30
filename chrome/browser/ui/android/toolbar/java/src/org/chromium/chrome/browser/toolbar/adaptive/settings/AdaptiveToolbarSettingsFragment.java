@@ -86,8 +86,7 @@ public class AdaptiveToolbarSettingsFragment extends ChromeBaseSettingsFragment 
             mRadioButtonGroup.setCanUseTranslate(
                     AdaptiveToolbarFeatures.isTranslateEnabled(profile));
             mRadioButtonGroup.setCanUseGlic(
-                    AdaptiveToolbarFeatures.isGlicEnabledForProfile(profile)
-                            && !isBottomBarEnabled);
+                    AdaptiveToolbarFeatures.isGlicEnabledForAdaptiveToolbar(context, profile));
             maybeSetUiStateFromBundleArgs();
             mRadioButtonGroup.setStatePredictor(
                     new AdaptiveToolbarStatePredictor(

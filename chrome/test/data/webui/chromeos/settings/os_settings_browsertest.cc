@@ -1042,12 +1042,6 @@ IN_PROC_BROWSER_TEST_F(OSSettingsMochaTest,
 }
 
 IN_PROC_BROWSER_TEST_F(OSSettingsMochaTest,
-                       OsAppsPageAppManagementPagePluginVmDetailView) {
-  RunSettingsTest(
-      "os_apps_page/app_management_page/plugin_vm_detail_view_test.js");
-}
-
-IN_PROC_BROWSER_TEST_F(OSSettingsMochaTest,
                        OsAppsPageAppManagementPagePwaDetailView) {
   RunSettingsTest("os_apps_page/app_management_page/pwa_detail_view_test.js");
 }

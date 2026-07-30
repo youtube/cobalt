@@ -47,8 +47,7 @@ void OffscreenCanvasPlaceholder::Client::UpdatePlaceholderImage(
     scoped_refptr<blink::ExportedCanvasResource>&& canvas_resource) {
   DCHECK(IsMainThread());
 
-  if (placeholder_canvas_id == OffscreenCanvasPlaceholder::kNoPlaceholderId ||
-      placeholder_canvas_id == kInvalidDOMNodeId) {
+  if (placeholder_canvas_id == kInvalidDOMNodeId) {
     return;
   }
 
@@ -143,7 +142,6 @@ OffscreenCanvasPlaceholder::Client::Client(
       placeholder_task_runner_(std::move(placeholder_task_runner)) {
   CHECK(canvas_task_runner_);
   CHECK(placeholder_task_runner_);
-  CHECK_NE(placeholder_canvas_id_, kNoPlaceholderId);
 
   RegisterWithPlaceholder();
 }
@@ -199,7 +197,6 @@ void OffscreenCanvasPlaceholder::SetSuspendOffscreenCanvasAnimation(
 OffscreenCanvasPlaceholder*
 OffscreenCanvasPlaceholder::GetPlaceholderCanvasById(DOMNodeId placeholder_id) {
   CHECK_NE(placeholder_id, kInvalidDOMNodeId);
-  CHECK_NE(placeholder_id, kNoPlaceholderId);
 
   PlaceholderIdMap::iterator it = placeholderRegistry().find(placeholder_id);
   if (it == placeholderRegistry().end())
@@ -210,7 +207,6 @@ OffscreenCanvasPlaceholder::GetPlaceholderCanvasById(DOMNodeId placeholder_id) {
 void OffscreenCanvasPlaceholder::RegisterPlaceholderCanvas(
     DOMNodeId placeholder_id) {
   CHECK_NE(placeholder_id, kInvalidDOMNodeId);
-  CHECK_NE(placeholder_id, kNoPlaceholderId);
 
   DCHECK(!placeholderRegistry().Contains(placeholder_id));
   DCHECK(!IsOffscreenCanvasRegistered());
@@ -223,7 +219,7 @@ void OffscreenCanvasPlaceholder::UnregisterPlaceholderCanvas() {
     return;
   DCHECK(placeholderRegistry().find(placeholder_id_)->value == this);
   placeholderRegistry().erase(placeholder_id_);
-  placeholder_id_ = kNoPlaceholderId;
+  placeholder_id_ = kInvalidDOMNodeId;
 }
 
 bool OffscreenCanvasPlaceholder::PostSetAnimationStateToOffscreenCanvasThread(

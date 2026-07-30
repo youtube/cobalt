@@ -251,7 +251,7 @@ PseudoElement* GetPseudoElementForCSSPseudoElement(
   // E.g. for ::before::marker, first get ::before from the element, then (after
   // cycle) get ::marker from that ::before pseudo-element.
   Element* current_owner = base_element;
-  for (size_t i = pseudo_chain.size(); i > 0; --i) {
+  for (wtf_size_t i = pseudo_chain.size(); i > 0; --i) {
     PseudoId id = pseudo_chain[i - 1];
     PseudoElement* next_pseudo = current_owner->GetPseudoElement(id);
     if (!next_pseudo) {

@@ -14,6 +14,24 @@
 <translation id="1185924365081634987">همچنین می‌توانید برای برطرف کردن این خطای شبکه، <ph name="GUEST_SIGNIN_LINK_START" />به عنوان مهمان مرور کنید<ph name="GUEST_SIGNIN_LINK_END" />.</translation>
 <translation id="1201402288615127009">بعدی</translation>
 <translation id="1222835797152767346">برای ورود راحت‌تر به سیستم، پین تنظیم کنید</translation>
+<translation id="1346669614038013595">‏<ph name="BEGIN_H3" />ویژگی‌های اشکال‌زدایی<ph name="END_H3" />
+      <ph name="BR" />
+       می‌توانید ویژگی‌های اشکال‌زدایی را در «دستگاه ChromeOS» خود فعال کرده تا بتوانید کد سفارشی را روی دستگاهتان نصب و آزمایش کنید. با این کار می‌توانید:<ph name="BR" />
+      <ph name="BEGIN_LIST" />
+        <ph name="LIST_ITEM" />درستی‌سنجی rootfs را بردارید تا بتوانید فایل‌های سیستم‌عامل را اصلاح کنید
+        <ph name="LIST_ITEM" />دسترسی SSH به دستگاه را بااستفاده از کلیدهای استاندارد آزمایشی فعال کرده تا بتوانید از ابزارهایی مثل <ph name="BEGIN_CODE" />'cros flash'<ph name="END_CODE" /> برای دسترسی به دستگاه استفاده کنید
+        <ph name="LIST_ITEM" />راه‌اندازی ازطریق USB را فعال کرده تا بتوانید تصویر سیستم‌عامل را ازطریق درایو USB نصب کنید
+        <ph name="LIST_ITEM" />برای اینکه بتوانید SSH را به‌صورت دستی در دستگاه اجرا کنید، گذرواژه ورود به سیستم توسعه‌دهنده و ریشه سیستم را به یک مقدار سفارشی تنظیم کنید 
+      <ph name="END_LIST" />
+      <ph name="BR" />
+      پس‌از فعال‌سازی، بیشتر ویژگی‌های اشکال‌زدایی حتی پس‌از اجرا Powerwash یا «محو کردن داده‌ها» در یک دستگاه تحت مدیریت سازمانی نیز فعال باقی می‌مانند. برای غیرفعال کردن کامل همه ویژگی‌های اشکال‌زدایی، فرایند بازیابی ChromeOS را تکمیل کنید. (https://support.google.com/chromebook/answer/1080595).
+          <ph name="BR" />
+          <ph name="BR" />
+          برای کسب اطلاعات بیشتر درباره ویژگی‌های اشکال‌زدایی به این نشانی مراجعه کنید:<ph name="BR" />
+      https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+      <ph name="BR" />
+      <ph name="BR" />
+      <ph name="BEGIN_BOLD" />توجه:<ph name="END_BOLD" />  سیستم درطول پردازش باز راه‌اندازی می‌شود.</translation>
 <translation id="1347625331607114917">‏کد را در تلفن Android خود تأیید کنید</translation>
 <translation id="1347975661240122359">وقتی شارژ باتری به <ph name="BATTERY_LEVEL" />% رسید، به‌روزرسانی شروع خواهد شد.</translation>
 <translation id="1375938286942050085">راه‌اندازی کامل شد! سپس، دستگاهتان را برای بازی آماده کنید</translation>
@@ -126,9 +144,29 @@
 <translation id="503155457707535043">درحال بارگیری برنامه‌ها</translation>
 <translation id="5045550434625856497">گذرواژه نادرست</translation>
 <translation id="5062930723426326933">ورود به سیستم انجام نشد، لطفاً به اینترنت متصل شوید و دوباره امتحان کنید.</translation>
+<translation id="5107486920067578245">‏<ph name="BEGIN_PARAGRAPH1" />برای شروع نوشتن، برنامه‌ریزی، یادگیری، و کارهای دیگر با کمک هوشواره Google، با Gemini گپ بزنید.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />پس‌از راه‌اندازی، با انتخاب برنامه Gemini در قفسه پایین صفحه‌نمایش، شروع به استفاده از Gemini کنید.<ph name="END_PARAGRAPH2" /></translation>
 <translation id="5115309401544567011">لطفاً <ph name="DEVICE_TYPE" /> خود را به منبع نیرو وصل کنید.</translation>
 <translation id="5147516217412920887">برای تأیید کد، دستورالعمل‌های روی تلفنتان را دنبال کنید</translation>
 <translation id="5160857336552977725">وارد سیستم <ph name="DEVICE_TYPE" /> خودتان شوید</translation>
+<translation id="5171185788583376591">‏<ph name="BEGIN_H3" />ویژگی‌های اشکال‌زدایی<ph name="END_H3" />
+      <ph name="BR" />
+      می‌توانید ویژگی‌های اشکال‌زدایی را در دستگاه «ChromeOS Flex» خود فعال کرده تا بتوانید کد سفارشی را در دستگاهتان نصب و آزمایش کنید. با این کار قادر خواهید بود:<ph name="BR" />
+      <ph name="BEGIN_LIST" />
+        <ph name="LIST_ITEM" />درستی‌سنجی rootfs را بردارید تا بتوانید فایل‌های سیستم‌عامل را اصلاح کنید
+        <ph name="LIST_ITEM" />دسترسی SSH به دستگاه را بااستفاده از کلیدهای استاندارد آزمایشی فعال کرده تا بتوانید از ابزارهایی مثل <ph name="BEGIN_CODE" />'cros flash'<ph name="END_CODE" /> برای دسترسی به دستگاه استفاده کنید
+        <ph name="LIST_ITEM" />راه‌اندازی ازطریق USB را فعال کرده تا بتوانید تصویر سیستم‌عامل را ازطریق درایو USB نصب کنید
+        <ph name="LIST_ITEM" />برای اینکه بتوانید SSH را به‌صورت دستی در دستگاه اجرا کنید، گذرواژه ورود به سیستم توسعه‌دهنده و ریشه سیستم را به یک مقدار سفارشی تنظیم کنید 
+      <ph name="END_LIST" />
+      <ph name="BR" />
+      پس‌از فعال‌سازی، بیشتر ویژگی‌های اشکال‌زدایی حتی پس‌از اجرا Powerwash یا محو کردن داده‌ها در یک دستگاه تحت مدیریت سازمانی نیز فعال باقی می‌مانند. برای غیرفعال کردن کامل همه ویژگی‌های اشکال‌زدایی، فرایند بازیابی ChromeOS را تکمیل کنید.(https://support.google.com/chromebook/answer/1080595).
+      <ph name="BR" />
+      <ph name="BR" />
+      برای کسب اطلاعات بیشتر درباره ویژگی‌های اشکال‌زدایی به این نشانی مراجعه کنید:<ph name="BR" />
+      https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+      <ph name="BR" />
+      <ph name="BR" />
+      <ph name="BEGIN_BOLD" />توجه:<ph name="END_BOLD" /> سیستم درطول پردازش باز راه‌اندازی می‌شود.</translation>
 <translation id="523505283826916779">تنظیمات دسترس‌پذیری</translation>
 <translation id="5240931875940563122">‏ورود به سیستم با تلفن Android</translation>
 <translation id="5255859108402770436">ورود مجدد به سیستم</translation>
@@ -193,6 +231,7 @@
 <translation id="6955698182324067397">‏درحال فعال کردن ویژگی‌های اشکال‌زدایی ChromeOS هستید؛ با این کار، sshd daemon راه‌اندازی خواهد شد و راه‌اندازی ازطریق درایوهای USB فعال خواهد شد.</translation>
 <translation id="6965382102122355670">تأیید</translation>
 <translation id="6981982820502123353">دسترس‌پذیری</translation>
+<translation id="6984652455487792101">اگر از یک سرور پروکسی استفاده می‌کنید، تنظمیات پروکسی خود را بررسی کنید یا با سرپرست شبکه خود تماس بگیرید و مطمئن شوید که سرور پروکسی کار می‌کند. اگر فکر نمی‌کنید که درحال استفاده از سرور پروکسی باشید، <ph name="LINK_START" />تنظیمات پروکسی<ph name="LINK_END" /> خود را تنظیم کنید.</translation>
 <translation id="6996245928508281884">‏بلوتوث و Wi-Fi تلفنتان را روشن کنید</translation>
 <translation id="7077829361966535409">بارگیری صفحه ورود به سیستم با استفاده از تنظمیات کنونی پروکسی انجام نشد. لطفاً <ph name="GAIA_RELOAD_LINK_START" />دوباره به سیستم وارد شوید<ph name="GAIA_RELOAD_LINK_END" /> یا از <ph name="PROXY_SETTINGS_LINK_START" />تنظمیات پروکسی<ph name="PROXY_SETTINGS_LINK_END" /> متفاوتی استفاده نمایید.</translation>
 <translation id="7114054701490058191">گذرواژه‌ها مطابقت ندارند</translation>
@@ -205,6 +244,9 @@
 <translation id="7345706641791090287">گذرواژه‌تان را تأیید کنید</translation>
 <translation id="7352651011704765696">مشکلی پیش آمد</translation>
 <translation id="7476454130948140105">شارژ باتری برای به‌روزرسانی خیلی کم است (<ph name="BATTERY_PERCENT" />٪)</translation>
+<translation id="7504187084873714912">‏<ph name="BEGIN_PARAGRAPH1" />پیش‌از ثبت‌نام، باید «ماژول پلاتفرم مورداعتماد» را پاک کنید تا <ph name="DEVICE_OS" /> بتواند مالک این دستگاه شود.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />همچنین می‌توانید دستگاه «ماژول پلاتفرم مورداعتماد» را به‌طور کامل خاموش کنید. داده‌های شما همچنان بااستفاده از رمزگذاری نرم‌افزار به‌طور ایمن ذخیره می‌شود، اما برخی‌از ویژگی‌های امنیتی مثل گواهینامه‌های دارای پشتیبان سخت‌افزاری غیرفعال می‌شود.<ph name="END_PARAGRAPH2" />
+        <ph name="BEGIN_PARAGRAPH3" />می‌توانید با راه‌اندازی مجدد سیستم و وارد شدن به تنظیمات «سامانه ورودی/خروجی پایه»/«میانای سفت‌افزار یکپارچه توسعه‌پذیر» سیستم، تنظیمات «ماژول پلاتفرم مورداعتماد» را تغییر دهید. مراحل بسته به مدل دستگاه متفاوت است. برای کسب اطلاعات بیشتر، پیش‌از راه‌اندازی مجدد، اسناد <ph name="DEVICE_OS" /> را در دستگاه دیگری باز کنید: reboot: g.co/flex/TPMHelp.<ph name="END_PARAGRAPH3" /></translation>
 <translation id="7543104066686362383">فعال کردن ویژگی‌های رفع اشکال در این دستگاه <ph name="IDS_SHORT_PRODUCT_NAME" /></translation>
 <translation id="7553242001898162573">گذرواژه‌تان را وارد کنید</translation>
 <translation id="7556242789364317684">‏متأسفانه <ph name="SHORT_PRODUCT_NAME" /> قادر به بازیابی تنظیماتتان نیست. برای رفع این خطا، <ph name="SHORT_PRODUCT_NAME" /> باید دستگاهتان را با Powerwash بازنشانی کند.</translation>
@@ -251,6 +293,10 @@
 <translation id="8452105022015742247">‏درحال انتقال اطلاعات «حساب Google» از تلفن Android</translation>
 <translation id="8524841856047224176">پس‌زمینه‌های دوربینتان را برای تماس‌های تصویری و موارد دیگر شخصی‌سازی کنید</translation>
 <translation id="8569673829373920831">اطلاعات بیشتر درباره <ph name="APP_NAME" /></translation>
+<translation id="8628232294964836490">برای اسکن رمزینه پاسخ‌سریع، دستورالعمل‌های روی تلفن را دنبال کنید. بلوتوث تلفن باید روشن باشد.
+        <ph name="BR" />
+        <ph name="BR" />
+        رؤیت‌پذیر برای دستگاه‌های اطراف با نام <ph name="QUICK_START_DEVICE_DISPLAY_NAME" />...</translation>
 <translation id="8655972064210167941">ورود به سیستم ناموفق بود زیرا گذرواژه شما تأیید نشد. لطفاً با سرپرستتان تماس بگیرید یا دوباره امتحان کنید.</translation>
 <translation id="8674903726754070732">‏متأسفانه رایانه شما با شناسه سخت‌افزار ناقص پیکربندی شده است. به‌دلیل وجود این مشکل، ChromeOS نمی‌تواند با جدیدترین اصلاحات امنیتی به‌روز شود و رایانه‌تان <ph name="BEGIN_BOLD" />ممکن است دربرابر حملات مخرب آسیب‌پذیر باشد<ph name="END_BOLD" />.</translation>
 <translation id="8695139659682234808">افزودن کنترل‌های والدین بعد از راه‌اندازی</translation>
@@ -264,10 +310,20 @@
 <translation id="8830796635868321089">با تنظیمات پراکسی کنونی، بررسی برای به‌روزرسانی ناموفق بود. لطفاً <ph name="PROXY_SETTINGS_LINK_START" />تنظیمات پراکسی<ph name="PROXY_SETTINGS_LINK_END" />تان را تغییر دهید.</translation>
 <translation id="885746075120788020">‏وقتی با «حساب Google» خودتان به سیستم وارد شوید، فعالیت‌ها و اولویت‌هایی که ذخیره کرده‌اید در همه دستگاه‌های ChromeOS آماده خواهد بود. می‌توانید مواردی را که می‌خواهید همگام‌سازی شود در «تنظیمات» انتخاب کنید.</translation>
 <translation id="8875221558267407626">خلاصه کردن محتوا، ساده کردن زبان پیچیده، یا پرسیدن سؤال</translation>
+<translation id="8913163265790894442">‏به‌راحتی <ph name="DEVICE_TYPE" /> را با تلفنتان راه‌اندازی کنید. می‌توانید Wi-Fi و «حساب Google» را بدون وارد کردن دستی گذرواژه‌ها اضافه کنید.
+        <ph name="BR" />
+    <ph name="BR" />
+    رؤیت‌پذیر با نام <ph name="DEVICE_TYPE" />…</translation>
 <translation id="8946359700442089734">ویژگی‌های رفع اشکال در این دستگاه <ph name="IDS_SHORT_PRODUCT_NAME" /> کاملاً فعال نشدند.</translation>
 <translation id="8965037249707889821">گذرواژه قدیمی را وارد کنید</translation>
 <translation id="8975396729541388937">با کلیک کردن روی پیوند درج‌شده در ایمیل‌هایی که دریافت می‌کنید، هرزمان خواستید لغو اشتراک کنید.</translation>
 <translation id="9033765790910064284">ادامه درهرصورت</translation>
 <translation id="903480517321259405">پین را دوباره تایپ کنید</translation>
 <translation id="9076523132036239772">متأسفم، ایمیل و گذرواژه شما تأیید نشد. ابتدا به یک شبکه متصل شوید.</translation>
+<translation id="9217002308921247002"><ph name="BEGIN_PARAGRAPH1" />اختصاصی برای <ph name="DEVICE_TYPE" />.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />هوشواره زایا آزمایشی و در مراحل اولیه توسعه است و درحال‌حاضر به‌صورت محدود دردسترس است.<ph name="END_PARAGRAPH2" /></translation>
+<translation id="936479314588646618">‏به‌راحتی <ph name="DEVICE_TYPE" /> را با تلفنتان راه‌اندازی کنید. می‌توانید «حساب Google» خود را بدون وارد کردن دستی گذرواژه اضافه کنید.
+        <ph name="BR" />
+    <ph name="BR" />
+    رؤیت‌پذیر با نام <ph name="DEVICE_TYPE" />…</translation>
 </translationbundle>

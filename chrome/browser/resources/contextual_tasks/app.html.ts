@@ -18,6 +18,7 @@ export function getHtml(this: ContextualTasksAppElement) {
           .darkMode="${this.darkMode_}"
           .isAiPage="${this.isAiPage_}"
           .isAimEligible="${this.isAimEligible_}"
+          .isUserSignedIn="${this.isUserSignedIn_}"
           .enableOpenInNewTabButton="${this.isAiPage_ && !this.isErrorPageVisible_}"
           .onboardingTooltipShowing="${this.onboardingTooltipShowing_}"
           @new-thread-click="${this.onNewThreadClick_}">
@@ -86,7 +87,7 @@ export function getHtml(this: ContextualTasksAppElement) {
     <contextual-tasks-composebox id="composebox"
           style="${this.getComposeboxBoundsStyles()}"
           ?hidden="${this.isComposeboxHidden_()}"
-          .isZeroState="${!!this.isZeroState_}"
+          .isZeroState="${this.isZeroState_}"
           .isSidePanel="${!this.isShownInTab_}"
           .isLensOverlayShowing="${this.isLensOverlayShowing_}"
           .isOverlayOpenForAimVisualSearch="${

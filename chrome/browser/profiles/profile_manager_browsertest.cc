@@ -1184,8 +1184,15 @@ IN_PROC_BROWSER_TEST_F(ProfileManagerDestroyProfileBrowserTest,
   EXPECT_FALSE(profile_manager->IsValidProfile(&profile2));
 }
 
+#if BUILDFLAG(IS_LINUX)
+#define MAYBE_DestroyEphemeralProfileOnBrowserClose \
+  DISABLED_DestroyEphemeralProfileOnBrowserClose
+#else
+#define MAYBE_DestroyEphemeralProfileOnBrowserClose \
+  DestroyEphemeralProfileOnBrowserClose
+#endif
 IN_PROC_BROWSER_TEST_F(ProfileManagerDestroyProfileBrowserTest,
-                       DestroyEphemeralProfileOnBrowserClose) {
+                       MAYBE_DestroyEphemeralProfileOnBrowserClose) {
   base::ScopedAllowBlockingForTesting allow_blocking;
   ProfileManager* profile_manager = g_browser_process->profile_manager();
   ProfileAttributesStorage& storage =

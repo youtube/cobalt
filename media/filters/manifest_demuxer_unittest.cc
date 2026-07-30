@@ -2,8 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "media/filters/manifest_demuxer.h"
+
 #include <stdint.h>
 
+#include "base/memory/raw_ptr.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/task_environment.h"
 #include "base/threading/thread.h"
@@ -12,7 +15,6 @@
 #include "media/base/mock_demuxer_host.h"
 #include "media/base/mock_media_log.h"
 #include "media/base/test_data_util.h"
-#include "media/filters/manifest_demuxer.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -50,9 +52,9 @@ class MockEngine : public ManifestDemuxer::Engine {
   MOCK_METHOD(void, Stop, (), (override));
   MOCK_METHOD(void, SelectAudioTrack, (const MediaTrack::Id&), (override));
   MOCK_METHOD(void, SelectVideoTrack, (const MediaTrack::Id&), (override));
-  MOCK_METHOD(std::vector<DemuxerStream*>,
+  MOCK_METHOD(std::vector<raw_ptr<DemuxerStream>>,
               FilterDemuxerStreams,
-              (std::vector<DemuxerStream*>&&),
+              (std::vector<raw_ptr<DemuxerStream>>&&),
               (override));
 };
 
@@ -380,7 +382,8 @@ TEST_F(ManifestDemuxerTest, TrackChanges) {
   manifest_demuxer_->AppendAndParseData("test", base::Seconds(10), &offset,
                                         *bear);
 
-  std::vector<DemuxerStream*> streams = manifest_demuxer_->GetAllStreams();
+  std::vector<raw_ptr<DemuxerStream>> streams =
+      manifest_demuxer_->GetAllStreams();
   ASSERT_EQ(streams.size(), 2u);
 
   // Disable video track:
@@ -444,7 +447,7 @@ TEST_F(ManifestDemuxerTest, DoesNotExposeTracksForAudioOnlyManifests) {
       .WillOnce(RunOnceCallback<2>(kNoTimestamp));
 
   EXPECT_CALL(*mock_engine_, FilterDemuxerStreams(_))
-      .WillRepeatedly([](std::vector<DemuxerStream*>&& streams) {
+      .WillRepeatedly([](std::vector<raw_ptr<DemuxerStream>>&& streams) {
         std::erase_if(streams, [](DemuxerStream* stream) {
           return stream->type() != DemuxerStream::AUDIO;
         });
@@ -465,7 +468,8 @@ TEST_F(ManifestDemuxerTest, DoesNotExposeTracksForAudioOnlyManifests) {
   manifest_demuxer_->AppendAndParseData("test", base::Seconds(10), &offset,
                                         *bear);
 
-  std::vector<DemuxerStream*> streams = manifest_demuxer_->GetAllStreams();
+  std::vector<raw_ptr<DemuxerStream>> streams =
+      manifest_demuxer_->GetAllStreams();
   ASSERT_EQ(streams.size(), 1u);
 
   // Disable audio track:

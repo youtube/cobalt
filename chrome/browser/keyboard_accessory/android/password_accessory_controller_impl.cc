@@ -664,7 +664,7 @@ bool PasswordAccessoryControllerImpl::AppearsInSuggestions(
 
 bool PasswordAccessoryControllerImpl::ShouldShowRecoveryToggle(
     const url::Origin& origin) const {
-  return password_client_->IsSavingAndFillingEnabled(origin.GetURL());
+  return password_client_->IsSavingAndFillingEnabled(origin);
 }
 
 base::WeakPtr<ManualFillingController>

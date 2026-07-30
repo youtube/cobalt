@@ -447,6 +447,10 @@ std::string DiceHeaderHelper::BuildRequestHeader(const GaiaId& sync_gaia_id,
     parts.push_back("sync_account_id=" + sync_gaia_id.ToString());
   }
 
+  if (base::FeatureList::IsEnabled(switches::kDiceLinkedAccounts)) {
+    parts.push_back("linked_accounts=1");
+  }
+
   // Restrict Signin to Sync account only when fixing auth errors.
   std::string signin_mode = kRequestSigninAll;
   parts.push_back("signin_mode=" + signin_mode);

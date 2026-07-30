@@ -224,11 +224,11 @@ void WebRtcEventLogManager::EnableForBrowserContext(
     // will not be dereferenced after destruction.
     task_runner_->PostTask(
         FROM_HERE,
-        base::BindOnce(
-            &WebRtcEventLogManager::
-                RemovePendingRemoteBoundLogsForNotEnabledBrowserContext,
-            base::Unretained(this), GetBrowserContextId(browser_context),
-            browser_context->GetPath(), std::move(reply)));
+        base::BindOnce(&WebRtcEventLogManager::
+                           RemoveRemoteBoundLogsForNotEnabledBrowserContext,
+                       base::Unretained(this),
+                       GetBrowserContextId(browser_context),
+                       browser_context->GetPath(), std::move(reply)));
     return;
   }
 
@@ -330,6 +330,7 @@ void WebRtcEventLogManager::StartRemoteLogging(
     int output_period_ms,
     size_t web_app_id,
     std::optional<std::string> diagnostic_uuid,
+    bool local_only,
     base::OnceCallback<void(bool, const std::string&, const std::string&)>
         reply) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
@@ -372,7 +373,7 @@ void WebRtcEventLogManager::StartRemoteLogging(
                      base::Unretained(this), render_process_id,
                      browser_context_id, session_id, browser_context->GetPath(),
                      max_file_size_bytes, output_period_ms, web_app_id,
-                     std::move(diagnostic_uuid), std::move(reply)));
+                     std::move(diagnostic_uuid), local_only, std::move(reply)));
 }
 
 void WebRtcEventLogManager::FinishLogging(int render_process_id,
@@ -1018,14 +1019,13 @@ void WebRtcEventLogManager::DisableRemoteBoundLoggingForBrowserContext(
   MaybeReply(FROM_HERE, std::move(reply));
 }
 
-void WebRtcEventLogManager::
-    RemovePendingRemoteBoundLogsForNotEnabledBrowserContext(
-        BrowserContextId browser_context_id,
-        const base::FilePath& browser_context_dir,
-        base::OnceClosure reply) {
+void WebRtcEventLogManager::RemoveRemoteBoundLogsForNotEnabledBrowserContext(
+    BrowserContextId browser_context_id,
+    const base::FilePath& browser_context_dir,
+    base::OnceClosure reply) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
-  remote_logs_manager_.RemovePendingLogsForNotEnabledBrowserContext(
+  remote_logs_manager_.RemoveLogsForNotEnabledBrowserContext(
       browser_context_id, browser_context_dir);
 
   MaybeReply(FROM_HERE, std::move(reply));
@@ -1140,6 +1140,7 @@ void WebRtcEventLogManager::StartRemoteLoggingInternal(
     int output_period_ms,
     size_t web_app_id,
     std::optional<std::string> diagnostic_uuid,
+    bool local_only,
     base::OnceCallback<void(bool, const std::string&, const std::string&)>
         reply) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
@@ -1149,7 +1150,7 @@ void WebRtcEventLogManager::StartRemoteLoggingInternal(
   const bool result = remote_logs_manager_.StartRemoteLogging(
       render_process_id, browser_context_id, session_id, browser_context_dir,
       max_file_size_bytes, output_period_ms, web_app_id,
-      std::move(diagnostic_uuid), &log_id, &error_message);
+      std::move(diagnostic_uuid), local_only, &log_id, &error_message);
 
   // |log_id| set only if successful; |error_message| set only if unsuccessful.
   DCHECK_EQ(result, !log_id.empty());

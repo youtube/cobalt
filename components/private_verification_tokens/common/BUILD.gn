@@ -7,7 +7,10 @@ source_set("private_verification_tokens_public_key") {
     "private_verification_tokens_public_key.cc",
     "private_verification_tokens_public_key.h",
   ]
-  public_deps = [ "//base" ]
+  public_deps = [
+    "//base",
+    "//url",
+  ]
 }
 
 source_set("private_verification_tokens_public_key_unittest") {
@@ -17,6 +20,7 @@ source_set("private_verification_tokens_public_key_unittest") {
     ":private_verification_tokens_public_key",
     "//testing/gmock",
     "//testing/gtest",
+    "//url",
   ]
 }
 
@@ -25,7 +29,10 @@ source_set("private_verification_tokens_token") {
     "private_verification_tokens_token.cc",
     "private_verification_tokens_token.h",
   ]
-  public_deps = [ "//base" ]
+  public_deps = [
+    "//base",
+    "//url",
+  ]
 }
 
 source_set("private_verification_tokens_token_unittest") {
@@ -35,6 +42,7 @@ source_set("private_verification_tokens_token_unittest") {
     ":private_verification_tokens_token",
     "//base",
     "//testing/gtest",
+    "//url",
   ]
 }
 
@@ -94,6 +102,7 @@ source_set("private_verification_tokens_database_unittest") {
     "//sql:test_support",
     "//testing/gmock",
     "//testing/gtest",
+    "//url",
   ]
 }
 
@@ -123,6 +132,7 @@ source_set("private_verification_tokens_store_unittest") {
     "//sql:test_support",
     "//testing/gmock",
     "//testing/gtest",
+    "//url",
   ]
 }
 
@@ -148,7 +158,10 @@ source_set("private_verification_tokens_issuer_config") {
     "private_verification_tokens_issuer_config.h",
     "private_verification_tokens_issuer_config_internal.h",
   ]
-  public_deps = [ "//base" ]
+  public_deps = [
+    "//base",
+    "//url",
+  ]
   deps = [
     ":private_verification_tokens_parameters",
     ":private_verification_tokens_public_key",
@@ -165,5 +178,6 @@ source_set("private_verification_tokens_issuer_config_unittest") {
     "//base",
     "//testing/gmock",
     "//testing/gtest",
+    "//url",
   ]
 }

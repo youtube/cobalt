@@ -174,4 +174,15 @@ AutofillBubbleBase* TestAutofillBubbleHandler::ShowOmniboxAutofillBubble(
   return omnibox_autofill_bubble_view_.get();
 }
 
+AutofillBubbleBase* TestAutofillBubbleHandler::ShowPaymentsChurnedUsersBubble(
+    content::WebContents* web_contents,
+    PaymentsChurnedUsersBubbleController* controller,
+    bool is_user_gesture) {
+  if (!payments_churned_users_bubble_view_) {
+    payments_churned_users_bubble_view_ =
+        std::make_unique<TestAutofillBubble>();
+  }
+  return payments_churned_users_bubble_view_.get();
+}
+
 }  // namespace autofill

@@ -33,6 +33,7 @@ export enum ContentSettingsTypes {
   HID_DEVICES = 'hid-devices',
   IDLE_DETECTION = 'idle-detection',
   IMAGES = 'images',
+  INLINE_CUE_MENU = 'inline-cue-menu',
   JAVASCRIPT = 'javascript',
   JAVASCRIPT_OPTIMIZER = 'javascript-optimizer',
   KEYBOARD_LOCK = 'keyboard-lock',

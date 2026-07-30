@@ -27,6 +27,7 @@
 #include "chrome/browser/glic/host/webui_contents_container.h"
 #include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
+#include "chrome/browser/glic/public/glic_invoke_options.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/service/glic_instance_coordinator_impl.h"
@@ -68,6 +69,7 @@
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/skills/features.h"
 #include "components/skills/public/skills_service.h"
+#include "components/subscription_eligibility/subscription_eligibility_prefs.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
@@ -162,6 +164,7 @@ std::vector<std::string> GetTestSuiteNames() {
       "NewGlicApiTestWithGeminiActOnWebPolicy",
       "NewGlicApiMultiProfileTest",
       "NewGlicApiTestWithDefaultTabContextDisabled",
+      "NewGlicApiTestWithBlankInstanceDelay",
       "NewGlicApiTestWithDefaultTabContextEnabled",
       "NewGlicApiTestWithWebActuationSettingDisabled",
       "NewGlicApiTestWithWebActuationSettingEnabled",
@@ -429,6 +432,17 @@ class NewGlicApiTestWithDefaultTabContextDisabled : public NewGlicApiTest {
   base::test::ScopedFeatureList feature_list_;
 };
 
+class NewGlicApiTestWithBlankInstanceDelay : public NewGlicApiTest {
+ public:
+  NewGlicApiTestWithBlankInstanceDelay() {
+    feature_list_.InitAndEnableFeatureWithParameters(
+        kGlicRemoveBlankInstancesOnClose, {{"delay", "100ms"}});
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
 IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithDefaultTabContextDisabled,
                        testDefaultTabContextApiIsUndefinedWhenFeatureDisabled) {
   ASSERT_OK(OpenGlicForActiveTab());
@@ -627,6 +641,37 @@ IN_PROC_BROWSER_TEST_P(
 }
 
 IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithContextualCueing,
+                       testNoZssWarmingForPromotionPage) {
+  tabs::TabInterface* tab1 = GetTabListInterface()->GetActiveTab();
+
+  // 1. Initial Open via Blocked Source (kPromotionPage)
+  coordinator().Toggle(GetBrowser(), /*prevent_close=*/true,
+                       mojom::InvocationSource::kPromotionPage);
+  ASSERT_OK(WaitForGlicOpen());
+
+  // Since warming is disabled for the promotion page, no calls to the cueing
+  // service should have occurred.
+  EXPECT_EQ(fake_cueing_service()->focused_tab_call_count(), 0);
+  EXPECT_EQ(fake_cueing_service()->pinned_tabs_call_count(), 0);
+
+  // 2. Simulate showing Glic again with a different invocation source
+  // (kTopChromeButton) that would normally trigger warming, targeting the same
+  // active tab.
+  coordinator().Invoke(GlicInvokeOptions(
+      Target(*tab1), mojom::InvocationSource::kTopChromeButton));
+
+  // Warming should still be skipped (call count remains 0) because warming was
+  // permanently disabled by the initial kPromotionPage open.
+  EXPECT_EQ(fake_cueing_service()->focused_tab_call_count(), 0);
+  EXPECT_EQ(fake_cueing_service()->pinned_tabs_call_count(), 0);
+
+  // 3. However, if the web client explicitly requests ZSS, it should still get
+  // results.
+  ExecuteJsTest();
+  EXPECT_GE(fake_cueing_service()->focused_tab_call_count(), 1);
+}
+
+IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithContextualCueing,
                        testGetZeroStateSuggestionsApi) {
   ASSERT_OK(OpenGlicForActiveTab());
   ExecuteJsTest();
@@ -713,12 +758,19 @@ IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testCreateTabSimple) {
 // response). Also, tab group inheritance is not supported by default on
 // Android.
 #if BUILDFLAG(IS_ANDROID)
+#define MAYBE_testActivateTabWithUrl DISABLED_testActivateTabWithUrl
 #define MAYBE_testCreateTab DISABLED_testCreateTab
 #define MAYBE_testCreateTabInBackground DISABLED_testCreateTabInBackground
 #else
+#define MAYBE_testActivateTabWithUrl testActivateTabWithUrl
 #define MAYBE_testCreateTab testCreateTab
 #define MAYBE_testCreateTabInBackground testCreateTabInBackground
 #endif
+
+IN_PROC_BROWSER_TEST_P(NewGlicApiTest, MAYBE_testActivateTabWithUrl) {
+  ASSERT_OK(OpenGlicForActiveTab());
+  ExecuteJsTest();
+}
 
 IN_PROC_BROWSER_TEST_P(NewGlicApiTest, MAYBE_testCreateTab) {
   ASSERT_OK(OpenGlicForActiveTab());
@@ -755,6 +807,28 @@ IN_PROC_BROWSER_TEST_P(NewGlicApiTest,
   EXPECT_EQ(GetTabListInterface()->GetTabCount(), 1);
   ExecuteJsTest();
   EXPECT_EQ(GetTabListInterface()->GetTabCount(), 1);
+}
+
+IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithBlankInstanceDelay,
+                       testNoRemoveBlankInstanceOnCloseIfInputSubmitted) {
+  ASSERT_OK_AND_ASSIGN(GlicInstanceImpl * instance, OpenGlicForActiveTab());
+  ExecuteJsTest();
+
+  // Close Glic to trigger the blank instance removal check.
+  instance->CloseAllEmbedders();
+  ASSERT_OK(WaitForGlicClose());
+
+  // Wait for the blank instance removal timer (configured to 100ms in this
+  // suite).
+  {
+    base::RunLoop loop;
+    base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+        FROM_HERE, loop.QuitClosure(), base::Milliseconds(200));
+    loop.Run();
+  }
+
+  // The instance should still exist and match the original.
+  EXPECT_EQ(GetOnlyGlicInstance(), instance);
 }
 
 IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testGetImageBytesFromTab) {
@@ -2087,6 +2161,9 @@ class NewGlicApiTestWithGeminiActOnWebPolicy : public NewGlicApiTest {
         account_info.account_id, account_info.email, account_info.gaia,
         "bar.com", "Full Name", "Given Name", "Locale", "Picture URL");
 
+    GetProfile()->GetPrefs()->SetInteger(
+        subscription_eligibility::prefs::kAiSubscriptionTier, 1);
+
     policy_provider_.SetupPolicyServiceForPolicyUpdates(
         GetProfile()->GetProfilePolicyConnector()->policy_service());
   }
@@ -2255,10 +2332,7 @@ IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithSkills,
       mojom::SkillSource::kFirstParty, "contextual_skill_description_2",
       /*curated_by=*/std::nullopt, /*image_url=*/GURL("https://example.com")));
 
-  GlicInstance* instance =
-      GlicKeyedServiceFactory::GetGlicKeyedService(GetProfile())
-          ->instance_coordinator()
-          .GetActiveInstance();
+  GlicInstanceImpl* instance = GetOnlyGlicInstance();
   ASSERT_TRUE(instance);
   instance->host().NotifyContextualSkillsChanged(std::move(skills_batch_1));
 
@@ -2375,6 +2449,11 @@ INSTANTIATE_TEST_SUITE_P(,
                          &WithTestParams::PrintTestVariant);
 
 INSTANTIATE_TEST_SUITE_P(,
+                         NewGlicApiTestWithBlankInstanceDelay,
+                         DefaultTestParamSet(),
+                         &WithTestParams::PrintTestVariant);
+
+INSTANTIATE_TEST_SUITE_P(,
                          NewGlicApiTestWithDefaultTabContextEnabled,
                          DefaultTestParamSet(),
                          &WithTestParams::PrintTestVariant);
@@ -2429,6 +2508,8 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(NewGlicApiMultiProfileTest);
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
     NewGlicApiTestWithDefaultTabContextDisabled);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
+    NewGlicApiTestWithBlankInstanceDelay);
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
     NewGlicApiTestWithDefaultTabContextEnabled);
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(

@@ -28,7 +28,7 @@ import {assert} from '//resources/js/assert.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
-import {DriveDisclaimerStatus} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import {DriveDisclaimerStatus, SideType} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {DriveUploadError, PageCallbackRouter, PageHandlerInterface, TabInfo} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {InputState} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import {InputType, ModelMode, ToolMode} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
@@ -254,6 +254,7 @@ export class NtpSearchboxElement extends NtpSearchboxElementBase implements
   private contextMenuOpened_: boolean = false;
   private pageHandler_: PageHandlerInterface;
   private autocompleteResultChangedListenerId_: number|null = null;
+  private inputStateListenerId_: number|null = null;
 
   constructor() {
     performance.mark('searchbox-creation-start');
@@ -276,6 +277,12 @@ export class NtpSearchboxElement extends NtpSearchboxElementBase implements
     this.onTabStripChangedListenerId_ =
         this.callbackRouter_.onTabStripChanged.addListener(
             this.refreshTabSuggestions_.bind(this));
+    this.inputStateListenerId_ =
+        this.callbackRouter_.onInputStateChanged.addListener(
+            (inputState: InputState) => {
+              this.inputState_ = inputState;
+              this.inputState_.activeModel = ModelMode.kUnspecified;
+            });
     this.inputState_ =
         (await this.pageHandler().getInputState())?.state ?? null;
     if (this.inputState_) {
@@ -290,6 +297,11 @@ export class NtpSearchboxElement extends NtpSearchboxElementBase implements
       this.callbackRouter_.removeListener(
           this.autocompleteResultChangedListenerId_);
       this.autocompleteResultChangedListenerId_ = null;
+    }
+
+    if (this.inputStateListenerId_ !== null) {
+      this.callbackRouter_.removeListener(this.inputStateListenerId_);
+      this.inputStateListenerId_ = null;
     }
 
     this.placeholderCycler_?.stop();
@@ -373,6 +385,14 @@ export class NtpSearchboxElement extends NtpSearchboxElementBase implements
       return;
     }
 
+    if (!this.dropdownIsVisible &&
+        (e.key === 'ArrowUp' || e.key === 'ArrowDown') &&
+        this.multiLineEnabled &&
+        this.shouldSuppressDropdownForMultiline_(
+            this.result?.matches?.length || 0)) {
+      return;
+    }
+
     super.handleKeyNavigation(e);
   }
 
@@ -407,6 +427,33 @@ export class NtpSearchboxElement extends NtpSearchboxElementBase implements
 
   override pageHandler(): PageHandlerInterface {
     return this.pageHandler_;
+  }
+
+  override updateDropdownVisibility(): void {
+    if (!this.result) {
+      this.dropdownIsVisible = false;
+      return;
+    }
+
+    const hasPrimaryMatches = this.result.matches?.some(match => {
+      const sideType =
+          this.result!.suggestionGroupsMap[match.suggestionGroupId]?.sideType ||
+          SideType.kDefaultPrimary;
+      return sideType === SideType.kDefaultPrimary;
+    });
+
+    this.dropdownIsVisible = hasPrimaryMatches;
+
+    // In multi-line mode, suppress the dropdown when text wraps or when the
+    // only match is the mirror query.
+    if (this.multiLineEnabled && this.dropdownIsVisible) {
+      const isUserTyping = this.result.input.trim().length > 0;
+      if (isUserTyping &&
+          this.shouldSuppressDropdownForMultiline_(
+              this.result.matches?.length || 0)) {
+        this.dropdownIsVisible = false;
+      }
+    }
   }
 
   //============================================================================
@@ -739,6 +786,12 @@ export class NtpSearchboxElement extends NtpSearchboxElementBase implements
   protected inputHasMatches_(): boolean {
     return !!this.result && !!this.result.matches &&
         this.result.matches.length > 0;
+  }
+
+  private shouldSuppressDropdownForMultiline_(numMatches: number): boolean {
+    const inputHasWrapped = this.initialInputScrollHeight > 0 &&
+        this.$.input.scrollHeight > this.initialInputScrollHeight;
+    return inputHasWrapped || numMatches === 1;
   }
 
   private calculateShowComposeButton_(): boolean {

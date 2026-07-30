@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/barrier_closure.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_file.h"
 #include "base/functional/bind.h"
@@ -38,8 +39,11 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "mojo/public/cpp/platform/platform_channel.h"
+#include "mojo/public/cpp/system/data_pipe.h"
+#include "mojo/public/cpp/system/data_pipe_drainer.h"
 #include "mojo/public/cpp/system/invitation.h"
 #include "mojo/public/cpp/system/message_pipe.h"
+#include "mojo/public/cpp/system/wait.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_status_code.h"
@@ -50,6 +54,31 @@
 #include "url/gurl.h"
 
 namespace updater {
+
+namespace {
+
+class TestDrainer : public mojo::DataPipeDrainer::Client {
+ public:
+  TestDrainer(mojo::ScopedDataPipeConsumerHandle consumer,
+              base::OnceClosure on_complete)
+      : drainer_(this, std::move(consumer)),
+        on_complete_(std::move(on_complete)) {}
+
+  // mojo::DataPipeDrainer::Client:
+  void OnDataAvailable(base::span<const uint8_t> data) override {
+    data_.append(reinterpret_cast<const char*>(data.data()), data.size());
+  }
+  void OnDataComplete() override { std::move(on_complete_).Run(); }
+
+  const std::string& data() const { return data_; }
+
+ private:
+  mojo::DataPipeDrainer drainer_;
+  base::OnceClosure on_complete_;
+  std::string data_;
+};
+
+}  // namespace
 
 class AppNetWorkerTest : public ::testing::Test {
  protected:
@@ -155,14 +184,17 @@ TEST_F(AppNetWorkerTest, DownloadFile) {
       }));
   ASSERT_TRUE(test_server.Start());
 
-  base::ScopedTempFile output;
-  ASSERT_TRUE(output.Create());
-  base::File output_file(output.path(),
-                         base::File::FLAG_OPEN_ALWAYS | base::File::FLAG_WRITE);
-  ASSERT_TRUE(output_file.IsValid());
+  mojo::ScopedDataPipeProducerHandle producer;
+  mojo::ScopedDataPipeConsumerHandle consumer;
+  ASSERT_EQ(mojo::CreateDataPipe(nullptr, producer, consumer), MOJO_RESULT_OK);
+
   base::RunLoop run_loop;
-  remote_->DownloadToFile(
-      test_server.GetURL("/"), std::move(output_file),
+
+  base::RepeatingClosure barrier =
+      base::BarrierClosure(2, run_loop.QuitClosure());
+
+  remote_->DownloadToStream(
+      test_server.GetURL("/"), std::move(producer),
       MakeFileDownloadObserver(
           base::BindLambdaForTesting(
               [&](int32_t http_status_code, int64_t content_length) {
@@ -171,20 +203,89 @@ TEST_F(AppNetWorkerTest, DownloadFile) {
                   EXPECT_EQ(content_length, payload_size.value());
                 }
               }),
-          base::BindLambdaForTesting([&](int64_t current) {
-            EXPECT_LE(current, payload_size.value());
-          }),
           base::BindLambdaForTesting(
               [&](int32_t net_error, int64_t content_length) {
                 EXPECT_EQ(net_error, 0);
                 EXPECT_EQ(content_length, payload_size.value());
-                run_loop.Quit();
+                barrier.Run();
               })));
+
+  TestDrainer drainer(std::move(consumer), barrier);
   run_loop.Run();
-  EXPECT_TRUE(base::ContentsEqual(output.path(), payload_path));
+
+  EXPECT_EQ(drainer.data(), payload);
 }
 
-TEST_F(AppNetWorkerTest, DownloadMultipleFiles) {
+TEST_F(AppNetWorkerTest, DownloadFileRecoversFromFullPipe) {
+  std::string payload(5000, 'A');
+  net::EmbeddedTestServer test_server;
+  test_server.RegisterRequestHandler(base::BindLambdaForTesting(
+      [&](const net::test_server::HttpRequest& request)
+          -> std::unique_ptr<net::test_server::HttpResponse> {
+        auto http_response =
+            std::make_unique<net::test_server::BasicHttpResponse>();
+        http_response->set_code(net::HTTP_OK);
+        http_response->set_content(payload);
+        http_response->set_content_type("application/octet-stream");
+        return http_response;
+      }));
+  ASSERT_TRUE(test_server.Start());
+
+  mojo::ScopedDataPipeProducerHandle producer;
+  mojo::ScopedDataPipeConsumerHandle consumer;
+  constexpr static size_t kPipeCapacity = 1024;
+  ASSERT_EQ(mojo::CreateDataPipe(kPipeCapacity, producer, consumer),
+            MOJO_RESULT_OK);
+
+  base::RunLoop run_loop;
+
+  base::RepeatingClosure barrier =
+      base::BarrierClosure(2, run_loop.QuitClosure());
+
+  base::RunLoop response_wait_loop;
+  bool response_started = false;
+
+  remote_->DownloadToStream(
+      test_server.GetURL("/"), std::move(producer),
+      MakeFileDownloadObserver(
+          base::BindLambdaForTesting(
+              [&](int32_t http_status_code, int64_t content_length) {
+                EXPECT_EQ(http_status_code, net::HTTP_OK);
+                EXPECT_EQ(content_length, 5000);
+                response_started = true;
+                response_wait_loop.Quit();
+              }),
+          base::BindLambdaForTesting(
+              [&](int32_t net_error, int64_t content_length) {
+                EXPECT_EQ(net_error, 0);
+                EXPECT_EQ(content_length, 5000);
+                barrier.Run();
+              })));
+
+  response_wait_loop.Run();
+  EXPECT_TRUE(response_started);
+
+  // Wait until the writer in the child process has filled the pipe.
+  while (true) {
+    size_t bytes_available = 0;
+    MojoResult result = consumer->ReadData(
+        MOJO_READ_DATA_FLAG_QUERY, base::span<uint8_t>(), bytes_available);
+    if (result == MOJO_RESULT_OK && bytes_available >= kPipeCapacity) {
+      break;
+    }
+    base::RunLoop loop;
+    base::ThreadPool::PostDelayedTask(FROM_HERE, loop.QuitClosure(),
+                                      base::Milliseconds(10));
+    loop.Run();
+  }
+
+  TestDrainer drainer(std::move(consumer), barrier);
+  run_loop.Run();
+
+  EXPECT_EQ(drainer.data(), payload);
+}
+
+TEST_F(AppNetWorkerTest, DownloadMultiple) {
   base::FilePath payload_path = updater::test::GetTestFilePath("signed.exe.gz");
   std::optional<int64_t> payload_size = base::GetFileSize(payload_path);
   ASSERT_TRUE(payload_size.has_value());
@@ -207,14 +308,17 @@ TEST_F(AppNetWorkerTest, DownloadMultipleFiles) {
   ASSERT_TRUE(test_server.Start());
 
   for (int i = 0; i < 2; ++i) {
-    base::ScopedTempFile output;
-    ASSERT_TRUE(output.Create());
-    base::File output_file(
-        output.path(), base::File::FLAG_OPEN_ALWAYS | base::File::FLAG_WRITE);
-    ASSERT_TRUE(output_file.IsValid());
+    mojo::ScopedDataPipeProducerHandle producer;
+    mojo::ScopedDataPipeConsumerHandle consumer;
+    ASSERT_EQ(mojo::CreateDataPipe(nullptr, producer, consumer),
+              MOJO_RESULT_OK);
+
     base::RunLoop loop;
-    remote_->DownloadToFile(
-        test_server.GetURL("/payload"), std::move(output_file),
+    base::RepeatingClosure barrier =
+        base::BarrierClosure(2, loop.QuitClosure());
+
+    remote_->DownloadToStream(
+        test_server.GetURL("/payload"), std::move(producer),
         MakeFileDownloadObserver(
             base::BindLambdaForTesting(
                 [&](int32_t http_status_code, int64_t content_length) {
@@ -223,17 +327,16 @@ TEST_F(AppNetWorkerTest, DownloadMultipleFiles) {
                     EXPECT_EQ(content_length, payload_size.value());
                   }
                 }),
-            base::BindLambdaForTesting([&](int64_t current) {
-              EXPECT_LE(current, payload_size.value());
-            }),
             base::BindLambdaForTesting(
                 [&](int32_t net_error, int64_t content_length) {
                   EXPECT_EQ(net_error, 0);
                   EXPECT_EQ(content_length, payload_size.value());
-                  loop.Quit();
+                  barrier.Run();
                 })));
+
+    TestDrainer drainer(std::move(consumer), barrier);
     loop.Run();
-    EXPECT_TRUE(base::ContentsEqual(output.path(), payload_path));
+    EXPECT_EQ(drainer.data(), payload);
   }
 }
 

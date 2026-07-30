@@ -8,8 +8,8 @@
 #include "base/android/scoped_java_ref.h"
 #include "chrome/browser/ui/android/extensions/extensions_toolbar_android.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/extensions/extensions_menu_handler.h"
 #include "chrome/browser/ui/extensions/extensions_menu_view_model.h"
-#include "chrome/browser/ui/views/extensions/extensions_menu_handler.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "url/origin.h"
 

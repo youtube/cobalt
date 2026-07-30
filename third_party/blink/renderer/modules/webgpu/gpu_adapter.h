@@ -43,7 +43,6 @@ class GPUAdapter final : public ScriptWrappable, DawnObject<wgpu::Adapter> {
   GPUSupportedLimits* limits() const { return limits_.Get(); }
   GPUAdapterInfo* info() const;
   wgpu::BackendType backendType() const;
-  bool SupportsMultiPlanarFormats() const;
 
   ScriptPromise<GPUDevice> requestDevice(ScriptState* script_state,
                                          GPUDeviceDescriptor* descriptor);

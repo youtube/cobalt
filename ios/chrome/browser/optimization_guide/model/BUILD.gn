@@ -26,6 +26,13 @@ source_set("model") {
     "tab_url_provider_impl.h",
     "tab_url_provider_impl.mm",
   ]
+
+  if (build_with_model_execution) {
+    sources += [
+      "ios_model_execution_manager_delegate.h",
+      "ios_model_execution_manager_delegate.mm",
+    ]
+  }
   deps = [
     "//base",
     "//components/application_locale_storage",
@@ -60,6 +67,13 @@ source_set("model") {
     "//ios/web/public",
     "//ios/web/public:web_state_observer",
   ]
+
+  if (build_with_model_execution) {
+    deps += [
+      "//components/private_ai",
+      "//ios/chrome/browser/private_ai/model",
+    ]
+  }
   frameworks = [ "UIKit.framework" ]
   public_deps = [
     ":download_client_header",

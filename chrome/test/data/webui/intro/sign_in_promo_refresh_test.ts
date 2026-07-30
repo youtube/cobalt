@@ -201,22 +201,32 @@ suite('SignInPromoRefreshTest', function() {
     loadTimeData.overrideValues({
       isDeviceManaged: false,
       signInPromoVariation: Variation.DONT_SIGN_IN_IN_TOP_RIGHT_CORNER,
+      isFirstRunDesktopRevampEnabled: false,
     });
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     signInPromoElement = document.createElement('sign-in-promo-refresh');
     document.body.appendChild(signInPromoElement);
     await microtasksFinished();
 
-    const createAccountDisclaimer = signInPromoElement.shadowRoot.querySelector(
-        '#create-account-disclaimer');
+    const createAccountDisclaimer =
+        signInPromoElement.shadowRoot.querySelector(
+            '#create-account-disclaimer');
     assertTrue(!!createAccountDisclaimer);
 
-    const topRightCornerContainer = signInPromoElement.shadowRoot.querySelector(
-        '#top-right-corner-container');
+    const topRightCornerContainer =
+        signInPromoElement.shadowRoot.querySelector(
+            '#top-right-corner-container');
     assertTrue(!!topRightCornerContainer);
+    assertFalse(topRightCornerContainer.classList.contains(
+        'has-effects-control-button'));
     assertEquals(
         signInPromoElement.$.declineSignInButton,
         topRightCornerContainer.querySelector('#declineSignInButton'));
+    assertTrue(signInPromoElement.$.declineSignInButton.classList.contains(
+        'tangible-button'));
+
+    const separator = topRightCornerContainer.querySelector('#separator');
+    assertFalse(!!separator);
 
     const buttonContainer =
         signInPromoElement.shadowRoot.querySelector('#buttonContainer');
@@ -225,6 +235,49 @@ suite('SignInPromoRefreshTest', function() {
         buttonContainer.querySelector('#declineSignInButton');
     assertFalse(!!declineSignInButtonInButtonContainer);
   });
+
+  test(
+      'don\'t sign in in top right corner promo variation with revamp',
+      async function() {
+        loadTimeData.overrideValues({
+          isDeviceManaged: false,
+          signInPromoVariation: Variation.DONT_SIGN_IN_IN_TOP_RIGHT_CORNER,
+          isFirstRunDesktopRevampEnabled: true,
+        });
+        document.body.innerHTML = window.trustedTypes!.emptyHTML;
+        signInPromoElement = document.createElement('sign-in-promo-refresh');
+        document.body.appendChild(signInPromoElement);
+        await microtasksFinished();
+
+        const createAccountDisclaimer =
+            signInPromoElement.shadowRoot.querySelector(
+                '#create-account-disclaimer');
+        assertTrue(!!createAccountDisclaimer);
+
+        const topRightCornerContainer =
+            signInPromoElement.shadowRoot.querySelector(
+                '#top-right-corner-container');
+        assertTrue(!!topRightCornerContainer);
+        assertTrue(topRightCornerContainer.classList.contains(
+            'has-effects-control-button'));
+        assertEquals(
+            signInPromoElement.$.declineSignInButton,
+            topRightCornerContainer.querySelector('#declineSignInButton'));
+        assertFalse(signInPromoElement.$.declineSignInButton.classList.contains(
+            'tangible-button'));
+        assertTrue(signInPromoElement.$.declineSignInButton.classList.contains(
+            'no-border'));
+
+        const separator = topRightCornerContainer.querySelector('#separator');
+        assertTrue(!!separator);
+
+        const buttonContainer =
+            signInPromoElement.shadowRoot.querySelector('#buttonContainer');
+        assertTrue(!!buttonContainer);
+        const declineSignInButtonInButtonContainer =
+            buttonContainer.querySelector('#declineSignInButton');
+        assertFalse(!!declineSignInButtonInButtonContainer);
+      });
 
   test('don\'t sign in on Gaia page promo variation', async function() {
     loadTimeData.overrideValues({

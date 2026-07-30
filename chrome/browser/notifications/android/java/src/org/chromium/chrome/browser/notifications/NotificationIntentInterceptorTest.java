@@ -122,13 +122,17 @@ public class NotificationIntentInterceptorTest {
         return builder.buildNotificationWrapper();
     }
 
-    private void sendPendingIntent(PendingIntent pendingIntent) {
-        // Simulate to send a PendingIntent by manually starting the TrampolineActivity.
+    private void sendPendingIntent(PendingIntent pendingIntent) throws Exception {
         ShadowPendingIntent shadowPendingIntent = Shadows.shadowOf(pendingIntent);
-        Robolectric.buildActivity(
-                        NotificationIntentInterceptor.TrampolineActivity.class,
-                        shadowPendingIntent.getSavedIntent())
-                .create();
+        if (shadowPendingIntent.isActivity()) {
+            // Simulate to send a PendingIntent by manually starting the TrampolineActivity.
+            Robolectric.buildActivity(
+                            NotificationIntentInterceptor.TrampolineActivity.class,
+                            shadowPendingIntent.getSavedIntent())
+                    .create();
+        } else {
+            pendingIntent.send();
+        }
     }
 
     /**

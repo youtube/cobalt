@@ -367,7 +367,7 @@ bool StyledMarkupSerializer<Strategy>::DetermineParentTagAndUpdateLastClosed(
   last_closed_ =
       StyledMarkupTraverser<Strategy>().Traverse(first_node, past_end);
   if (last_closed_ && last_closed_->IsTextNode() &&
-      IsPresentationalHTMLElement(last_closed_->parentNode())) {
+      IsPresentationalHtmlElement(last_closed_->parentNode())) {
     last_closed_ = last_closed_->parentElement();
     return true;
   }

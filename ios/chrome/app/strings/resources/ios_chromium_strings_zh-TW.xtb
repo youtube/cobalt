@@ -76,6 +76,7 @@
 <translation id="2386292341327187942">在「搜尋小工具」方塊中輸入「Chromium」</translation>
 <translation id="2389827884654658221">從 iPad 主畫面更快存取 Chromium。</translation>
 <translation id="2426113998523353159">貴機構要求你先登入才能使用 Chromium。</translation>
+<translation id="244367646885670394">驗證身分才能儲存這個密碼，並在所有裝置上使用 Chromium 資料</translation>
 <translation id="2450140762465183767">現在只要在訊息、文件和其他應用程式中輕觸連結，即可透過 Chromium 開啟。</translation>
 <translation id="2459183986985456602">在 Chromium 中開啟我的最新分頁。</translation>
 <translation id="2476409803017965813">你隨時可以在 Chromium 設定中更新所選項目。</translation>
@@ -106,6 +107,7 @@
 <translation id="3054480780637153380">在 iOS 設定中開啟 Chromium，然後依序輕觸「預設瀏覽器 App」和「Chromium」。</translation>
 <translation id="3115956258722352278">要將 Chromium 設為預設瀏覽器嗎？</translation>
 <translation id="3180939591219927904">開啟「關閉 Chromium 時鎖定無痕分頁」</translation>
+<translation id="327628223428512207">輸入通關密語才能儲存這個密碼，並在所有裝置上使用 Chromium 資料</translation>
 <translation id="328933489847748230">{count,plural, =1{目前顯示 1 個 Chromium 視窗}other{目前顯示 {count} 個 Chromium 視窗}}</translation>
 <translation id="3344973607274501920">Chromium 無法檢查你的密碼，請查看網際網路連線狀態。</translation>
 <translation id="3366305173356742781">帳戶中的 Chromium 資料</translation>

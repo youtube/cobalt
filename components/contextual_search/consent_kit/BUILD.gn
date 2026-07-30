@@ -1,0 +1,18 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("consent_kit") {
+  sources = [
+    "consent_kit_url_builder.cc",
+    "consent_kit_url_builder.h",
+  ]
+
+  public_deps = [ "//components/contextual_search/consent_kit/proto:privacy_primitive_config_proto" ]
+
+  deps = [
+    "//base",
+    "//net",
+    "//url",
+  ]
+}

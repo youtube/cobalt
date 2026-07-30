@@ -303,36 +303,46 @@ public class LauncherShortcutTest {
         }
 
         IncognitoUtils.setEnabledForTesting(true);
-        LauncherShortcutActivity.updateIncognitoShortcut(
-                mActivityTestRule.getActivity(), mActivityTestRule.getProfile(false));
+        LauncherShortcutActivity.updateIncognitoShortcut(mActivityTestRule.getProfile(false));
         ShortcutManager shortcutManager =
                 mActivityTestRule.getActivity().getSystemService(ShortcutManager.class);
-        List<ShortcutInfo> shortcuts = shortcutManager.getDynamicShortcuts();
-        List<String> actualLabels =
-                shortcuts.stream()
-                        .map(shortcut -> shortcut.getLongLabel().toString())
-                        .collect(Collectors.toList());
 
-        Assert.assertEquals(
-                "The number of shortcuts was incorrect.", expectedSize, actualLabels.size());
-        Assert.assertTrue(
-                "The list did not contain all expected labels.",
-                actualLabels.containsAll(expectedLabels));
+        CriteriaHelper.pollInstrumentationThread(
+                () -> {
+                    List<ShortcutInfo> shortcuts = shortcutManager.getDynamicShortcuts();
+                    List<String> actualLabels =
+                            shortcuts.stream()
+                                    .map(shortcut -> shortcut.getLongLabel().toString())
+                                    .collect(Collectors.toList());
+                    Criteria.checkThat(
+                            "The number of shortcuts was incorrect.",
+                            actualLabels.size(),
+                            Matchers.is(expectedSize));
+                    Criteria.checkThat(
+                            "The list did not contain all expected labels.",
+                            actualLabels.containsAll(expectedLabels),
+                            Matchers.is(true));
+                });
 
         IncognitoUtils.setEnabledForTesting(false);
-        LauncherShortcutActivity.updateIncognitoShortcut(
-                mActivityTestRule.getActivity(), mActivityTestRule.getProfile(false));
-        shortcuts = shortcutManager.getDynamicShortcuts();
-        Assert.assertEquals("Incorrect number of dynamic shortcuts.", 0, shortcuts.size());
+        LauncherShortcutActivity.updateIncognitoShortcut(mActivityTestRule.getProfile(false));
+        CriteriaHelper.pollInstrumentationThread(
+                () -> {
+                    Criteria.checkThat(
+                            "Incorrect number of dynamic shortcuts.",
+                            shortcutManager.getDynamicShortcuts().size(),
+                            Matchers.is(0));
+                });
 
         IncognitoUtils.setEnabledForTesting(true);
-        LauncherShortcutActivity.updateIncognitoShortcut(
-                mActivityTestRule.getActivity(), mActivityTestRule.getProfile(false));
-        shortcuts = shortcutManager.getDynamicShortcuts();
-        Assert.assertEquals(
-                "Incorrect number of dynamic shortcuts after re-enabling incognito.",
-                expectedSize,
-                shortcuts.size());
+        LauncherShortcutActivity.updateIncognitoShortcut(mActivityTestRule.getProfile(false));
+        CriteriaHelper.pollInstrumentationThread(
+                () -> {
+                    Criteria.checkThat(
+                            "Incorrect number of dynamic shortcuts after re-enabling incognito.",
+                            shortcutManager.getDynamicShortcuts().size(),
+                            Matchers.is(expectedSize));
+                });
     }
 
     @Test
@@ -343,8 +353,7 @@ public class LauncherShortcutTest {
 
     private void testDynamicShortcuts_LanguageChangeInternal() {
         IncognitoUtils.setEnabledForTesting(true);
-        LauncherShortcutActivity.updateIncognitoShortcut(
-                mActivityTestRule.getActivity(), mActivityTestRule.getProfile(false));
+        LauncherShortcutActivity.updateIncognitoShortcut(mActivityTestRule.getProfile(false));
 
         List<String> expectedLabels;
         int expectedSize;
@@ -358,29 +367,39 @@ public class LauncherShortcutTest {
 
         ShortcutManager shortcutManager =
                 mActivityTestRule.getActivity().getSystemService(ShortcutManager.class);
-        List<ShortcutInfo> shortcuts = shortcutManager.getDynamicShortcuts();
-        List<String> actualLabels =
-                shortcuts.stream()
-                        .map(shortcut -> shortcut.getLongLabel().toString())
-                        .collect(Collectors.toList());
 
-        Assert.assertEquals(
-                "The number of shortcuts was incorrect.", expectedSize, actualLabels.size());
-        Assert.assertTrue(
-                "The list did not contain all expected labels.",
-                actualLabels.containsAll(expectedLabels));
+        CriteriaHelper.pollInstrumentationThread(
+                () -> {
+                    List<ShortcutInfo> shortcuts = shortcutManager.getDynamicShortcuts();
+                    List<String> actualLabels =
+                            shortcuts.stream()
+                                    .map(shortcut -> shortcut.getLongLabel().toString())
+                                    .collect(Collectors.toList());
+                    Criteria.checkThat(
+                            "The number of shortcuts was incorrect.",
+                            actualLabels.size(),
+                            Matchers.is(expectedSize));
+                    Criteria.checkThat(
+                            "The list did not contain all expected labels.",
+                            actualLabels.containsAll(expectedLabels),
+                            Matchers.is(true));
+                });
 
         LauncherShortcutActivity.setDynamicShortcutStringForTesting("Foo");
-        LauncherShortcutActivity.updateIncognitoShortcut(
-                mActivityTestRule.getActivity(), mActivityTestRule.getProfile(false));
-        shortcuts = shortcutManager.getDynamicShortcuts();
-        Assert.assertEquals(
-                "Incorrect number of dynamic shortcuts after updating.",
-                expectedSize,
-                shortcuts.size());
+        LauncherShortcutActivity.updateIncognitoShortcut(mActivityTestRule.getProfile(false));
 
-        Assert.assertEquals(
-                "Incorrect label after updating.", "Foo", shortcuts.get(0).getLongLabel());
+        CriteriaHelper.pollInstrumentationThread(
+                () -> {
+                    List<ShortcutInfo> shortcuts = shortcutManager.getDynamicShortcuts();
+                    Criteria.checkThat(
+                            "Incorrect number of dynamic shortcuts after updating.",
+                            shortcuts.size(),
+                            Matchers.is(expectedSize));
+                    Criteria.checkThat(
+                            "Incorrect label after updating.",
+                            shortcuts.get(0).getLongLabel().toString(),
+                            Matchers.is("Foo"));
+                });
     }
 
     @Test

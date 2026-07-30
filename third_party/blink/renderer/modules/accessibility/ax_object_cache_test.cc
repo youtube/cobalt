@@ -6,6 +6,7 @@
 
 #include <vector>
 
+#include "base/auto_reset.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -230,6 +231,176 @@ TEST_F(AccessibilityTest, UpdateAXForAllDocumentsAfterPausedUpdates) {
   ax_object_cache->UpdateAXForAllDocuments();
   ScopedFreezeAXCache freeze(*ax_object_cache);
   CHECK(!root->NeedsToUpdateCachedValues());
+}
+
+// A node-less AXObject, like AXValidationMessage, with hooks for controlling
+// notifications and removals during queued dispatch.
+class QueuedDispatchTestAXObject final : public AXObject {
+ public:
+  QueuedDispatchTestAXObject(AXObjectCacheImpl& ax_object_cache, String name)
+      : AXObject(ax_object_cache), name_(std::move(name)) {}
+
+  static Vector<String>* log_;
+
+  void SetNotifyTargetOnComputeIsIgnored(AXObject* obj) {
+    notify_target_on_compute_is_ignored_ = obj;
+  }
+  void SetNotifyTargetOnDispatch(AXObject* obj) {
+    notify_target_on_dispatch_ = obj;
+  }
+  void SetRemoveTargetOnDispatch(AXObject* obj) {
+    remove_target_on_dispatch_ = obj;
+  }
+
+  // AXObject:
+  void ChildrenChangedWithCleanLayout() final {
+    if (log_) {
+      log_->push_back(name_ + "-begin");
+    }
+    if (AXObject* target = notify_target_on_dispatch_) {
+      notify_target_on_dispatch_ = nullptr;
+      AXObjectCache().ChildrenChangedOnAncestorOf(target);
+    }
+    if (AXObject* target = remove_target_on_dispatch_) {
+      remove_target_on_dispatch_ = nullptr;
+      AXObjectCache().Remove(target, /*notify_parent=*/false);
+    }
+    if (log_) {
+      log_->push_back(name_ + "-end");
+    }
+  }
+  bool ComputeIsIgnored(IgnoredReasons*) const final {
+    if (AXObject* target = notify_target_on_compute_is_ignored_) {
+      notify_target_on_compute_is_ignored_ = nullptr;
+      AXObjectCache().ChildrenChangedOnAncestorOf(target);
+    }
+    return false;
+  }
+  Document* GetDocument() const final { return &AXObjectCache().GetDocument(); }
+  void AddChildren() final {}
+  ax::mojom::blink::Role NativeRoleIgnoringAria() const final {
+    return ax::mojom::blink::Role::kUnknown;
+  }
+  String ToString(bool verbose) const final { return name_; }
+
+  void Trace(Visitor* visitor) const final {
+    visitor->Trace(notify_target_on_compute_is_ignored_);
+    visitor->Trace(notify_target_on_dispatch_);
+    visitor->Trace(remove_target_on_dispatch_);
+    AXObject::Trace(visitor);
+  }
+
+ private:
+  String name_;
+  mutable Member<AXObject> notify_target_on_compute_is_ignored_;
+  Member<AXObject> notify_target_on_dispatch_;
+  Member<AXObject> remove_target_on_dispatch_;
+};
+
+Vector<String>* QueuedDispatchTestAXObject::log_ = nullptr;
+
+// A and B are included ancestors. During kProcessDeferredUpdates, a
+// children-changed notification raised inside a
+// ScopedCachedAttributeValuesUpdate queues A instead of dispatching it. When
+// the scope exits and A is dispatched, its handler raises another
+// notification, which must append B to the queue and run it after A's
+// handler returns, not nested inside it.
+TEST_F(AccessibilityTest, QueuedChildrenChangedFlattensReentrantDispatch) {
+  SetBodyInnerHTML(R"HTML(<p>text</p>)HTML");
+  auto& cache = GetAXObjectCache();
+  UpdateAllLifecyclePhasesForTest();
+  AXObject* root = cache.Root();
+  ASSERT_NE(nullptr, root);
+
+  Vector<String> log;
+  base::AutoReset<Vector<String>*> scoped_log(&QueuedDispatchTestAXObject::log_,
+                                              &log);
+  auto* parent_a = MakeGarbageCollected<QueuedDispatchTestAXObject>(cache, "A");
+  auto* child_a =
+      MakeGarbageCollected<QueuedDispatchTestAXObject>(cache, "child-a");
+  auto* parent_b = MakeGarbageCollected<QueuedDispatchTestAXObject>(cache, "B");
+  auto* child_b =
+      MakeGarbageCollected<QueuedDispatchTestAXObject>(cache, "child-b");
+  cache.AssociateAXID(parent_a);
+  cache.AssociateAXID(child_a);
+  cache.AssociateAXID(parent_b);
+  cache.AssociateAXID(child_b);
+  parent_a->SetParent(root);
+  parent_b->SetParent(root);
+  child_a->SetParent(parent_a);
+  child_b->SetParent(parent_b);
+  // A and B are clean, included ancestors.
+  for (QueuedDispatchTestAXObject* included : {parent_a, parent_b}) {
+    included->cached_is_ignored_ = false;
+    included->cached_is_ignored_but_included_in_tree_ = false;
+    included->cached_values_need_update_ = false;
+  }
+
+  // While A is being dispatched, raise a notification that queues B.
+  parent_a->SetNotifyTargetOnDispatch(child_b);
+
+  ASSERT_EQ(AXObjectCacheLifecycle::kDeferTreeUpdates,
+            cache.lifecycle().GetState());
+  cache.lifecycle_.AdvanceTo(AXObjectCacheLifecycle::kProcessDeferredUpdates);
+  {
+    AXObjectCacheImpl::ScopedCachedAttributeValuesUpdate guard(cache);
+    cache.ChildrenChangedOnAncestorOf(child_a);
+    // Not dispatched while the scope is alive.
+    EXPECT_TRUE(log.empty());
+  }
+  cache.lifecycle_.EnsureStateAtMost(AXObjectCacheLifecycle::kDeferTreeUpdates);
+
+  EXPECT_EQ((Vector<String>{"A-begin", "A-end", "B-begin", "B-end"}), log);
+  EXPECT_TRUE(cache.queued_children_changed_ancestors_.empty());
+  EXPECT_FALSE(cache.in_cached_attribute_values_update_);
+}
+
+// The child has dirty children and stale cached values. Recomputing them
+// from UpdateChildrenIfNecessary() raises a children-changed notification
+// that queues the parent; when the outermost scope dispatches it, the parent
+// removes the child, like a RemoveSubtree() cascade. On return,
+// UpdateChildrenIfNecessary() must notice the removal instead of reaching
+// the CHECK in ClearChildren().
+TEST_F(AccessibilityTest,
+       UpdateChildrenIfNecessaryToleratesDetachDuringCachedValueUpdate) {
+  SetBodyInnerHTML(R"HTML(<p>text</p>)HTML");
+  auto& cache = GetAXObjectCache();
+  UpdateAllLifecyclePhasesForTest();
+  AXObject* root = cache.Root();
+  ASSERT_NE(nullptr, root);
+
+  auto* parent =
+      MakeGarbageCollected<QueuedDispatchTestAXObject>(cache, "parent");
+  auto* child =
+      MakeGarbageCollected<QueuedDispatchTestAXObject>(cache, "child");
+  cache.AssociateAXID(parent);
+  cache.AssociateAXID(child);
+  parent->SetParent(root);
+  child->SetParent(parent);
+  parent->cached_is_ignored_ = false;
+  parent->cached_is_ignored_but_included_in_tree_ = false;
+  parent->cached_values_need_update_ = false;
+  // Like an object invalidated while updates are being processed: the child
+  // needs both a children update and a cached-value update.
+  child->cached_is_ignored_ = false;
+  child->cached_is_ignored_but_included_in_tree_ = false;
+  child->children_dirty_ = true;
+
+  // The child's update raises a notification on its parent; dispatching it
+  // removes the child, like a RemoveSubtree() cascade.
+  child->SetNotifyTargetOnComputeIsIgnored(child);
+  parent->SetRemoveTargetOnDispatch(child);
+
+  ASSERT_EQ(AXObjectCacheLifecycle::kDeferTreeUpdates,
+            cache.lifecycle().GetState());
+  cache.lifecycle_.AdvanceTo(AXObjectCacheLifecycle::kProcessDeferredUpdates);
+  child->UpdateChildrenIfNecessary();
+  cache.lifecycle_.EnsureStateAtMost(AXObjectCacheLifecycle::kDeferTreeUpdates);
+
+  EXPECT_TRUE(child->IsDetached());
+  EXPECT_TRUE(parent->NeedsToUpdateChildren());
+  EXPECT_TRUE(cache.queued_children_changed_ancestors_.empty());
+  EXPECT_FALSE(cache.in_cached_attribute_values_update_);
 }
 
 TEST_F(AccessibilityTest,

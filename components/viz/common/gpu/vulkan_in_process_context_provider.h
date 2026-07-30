@@ -9,8 +9,9 @@
 #include <memory>
 #include <vector>
 
-#include "base/memory/memory_pressure_listener.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory_coordinator/async_memory_consumer_registration.h"
+#include "base/memory_coordinator/memory_consumer.h"
 #include "base/time/time.h"
 #include "components/viz/common/gpu/vulkan_context_provider.h"
 #include "components/viz/common/viz_vulkan_context_provider_export.h"
@@ -27,7 +28,7 @@ namespace viz {
 
 class VIZ_VULKAN_CONTEXT_PROVIDER_EXPORT VulkanInProcessContextProvider
     : public VulkanContextProvider,
-      public base::MemoryPressureListener {
+      public base::MemoryConsumer {
  public:
   // If |sync_cpu_memory_limit| is set and greater than zero, it is the
   // threshold above which GPU work should be synchronized with the CPU to free
@@ -89,10 +90,13 @@ class VIZ_VULKAN_CONTEXT_PROVIDER_EXPORT VulkanInProcessContextProvider
   void InitializeForCompositorGpuThread(
       std::unique_ptr<gpu::VulkanDeviceQueue> vulkan_device_queue);
 
-  // Memory pressure handler, called by |memory_pressure_listener_|.
-  void OnMemoryPressure(base::MemoryPressureLevel level) override;
+  // base::MemoryConsumer:
+  void OnReleaseMemory() override;
+  void OnUpdateMemoryLimit() override;
 
 #if BUILDFLAG(ENABLE_VULKAN)
+  uint32_t GetCurrentGpuMemoryUsage() const;
+
   sk_sp<GrDirectContext> gr_context_;
   raw_ptr<gpu::VulkanImplementation> vulkan_implementation_;
   std::unique_ptr<gpu::VulkanDeviceQueue> device_queue_;
@@ -103,8 +107,8 @@ class VIZ_VULKAN_CONTEXT_PROVIDER_EXPORT VulkanInProcessContextProvider
   std::atomic<uint32_t> active_sync_cpu_memory_limit_;
 #endif
 
-  std::unique_ptr<base::AsyncMemoryPressureListenerRegistration>
-      memory_pressure_listener_registration_;
+  std::unique_ptr<base::AsyncMemoryConsumerRegistration>
+      memory_consumer_registration_;
 };
 
 }  // namespace viz

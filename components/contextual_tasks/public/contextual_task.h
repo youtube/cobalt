@@ -88,6 +88,9 @@ struct UrlResource {
 
   // The type of resource.
   ResourceType resource_type = ResourceType::kUnknown;
+
+  // The timestamp when the resource was selected/uploaded.
+  std::optional<base::Time> timestamp;
 };
 
 // A task is a representation of a user's journey to accomplish a goal. It

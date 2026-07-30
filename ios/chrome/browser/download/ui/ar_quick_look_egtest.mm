@@ -6,8 +6,10 @@
 
 #import "base/functional/bind.h"
 #import "base/test/ios/wait_util.h"
+#import "components/policy/core/common/policy_pref_names.h"
 #import "ios/chrome/browser/download/model/download_test_util.h"
 #import "ios/chrome/browser/shared/model/utils/mime_type_util.h"
+#import "ios/chrome/grit/ios_strings.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey.h"
 #import "ios/chrome/test/earl_grey/chrome_test_case.h"
 #import "ios/testing/earl_grey/earl_grey_test.h"
@@ -123,6 +125,27 @@ std::unique_ptr<net::test_server::HttpResponse> GetResponse(
   [[EarlGrey
       selectElementWithMatcher:grey_accessibilityID(@"QLPreviewControllerView")]
       assertWithMatcher:grey_nil()];
+}
+
+// Tests that when downloads are restricted by enterprise policy, USDZ download
+// is blocked and a restriction snackbar is presented.
+- (void)testDownloadUsdzRestricted {
+  [ChromeEarlGrey setIntegerValue:3 /* ALL_FILES */
+                      forUserPref:policy::policy_prefs::kDownloadRestrictions];
+
+  [ChromeEarlGrey loadURL:self.testServer->GetURL("/")];
+  [ChromeEarlGrey waitForWebStateContainingText:"Good"];
+  [ChromeEarlGrey tapWebStateElementWithID:@"good"];
+
+  // Verify QLPreviewControllerView is not presented.
+  [[EarlGrey
+      selectElementWithMatcher:grey_accessibilityID(@"QLPreviewControllerView")]
+      assertWithMatcher:grey_nil()];
+
+  // Verify that the restriction snackbar is presented.
+  [ChromeEarlGrey waitForSufficientlyVisibleElementWithMatcher:
+                      grey_text(l10n_util::GetNSString(
+                          IDS_IOS_DOWNLOAD_RESTRICTION_SNACKBAR_TEXT))];
 }
 
 @end

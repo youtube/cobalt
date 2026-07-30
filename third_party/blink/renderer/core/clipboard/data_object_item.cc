@@ -38,6 +38,7 @@
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/image-encoders/image_encoder.h"
 #include "third_party/blink/renderer/platform/network/mime/mime_type_registry.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "ui/base/clipboard/clipboard_constants.h"
 
 namespace blink {
@@ -175,8 +176,12 @@ File* DataObjectItem::GetAsFile() const {
   }
 
   if (GetType() == ui::kMimeTypePng) {
-    mojo_base::BigBuffer png_data =
-        system_clipboard_->ReadPng(mojom::blink::ClipboardBuffer::kStandard);
+    mojom::blink::ClipboardBuffer buffer =
+        RuntimeEnabledFeatures::ClipboardPasteImageRespectBufferEnabled() &&
+                system_clipboard_->IsSelectionMode()
+            ? mojom::blink::ClipboardBuffer::kSelection
+            : mojom::blink::ClipboardBuffer::kStandard;
+    mojo_base::BigBuffer png_data = system_clipboard_->ReadPng(buffer);
 
     auto data = std::make_unique<BlobData>();
     data->SetContentType(ui::kMimeTypePng);

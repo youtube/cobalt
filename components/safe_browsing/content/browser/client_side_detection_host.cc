@@ -40,7 +40,6 @@
 #include "components/prefs/pref_service.h"
 #include "components/safe_browsing/content/browser/client_side_detection_feature_cache.h"
 #include "components/safe_browsing/content/browser/client_side_detection_service.h"
-#include "components/safe_browsing/content/browser/client_side_phishing_model.h"
 #include "components/safe_browsing/content/browser/content_unsafe_resource_util.h"
 #include "components/safe_browsing/content/browser/credit_card_form_event.h"
 #include "components/safe_browsing/content/common/safe_browsing.mojom.h"
@@ -2157,6 +2156,10 @@ void ClientSideDetectionHost::OnIntelligentScanDone(
   if (response.execution_success) {
     intelligent_scan_info.set_brand(response.brand);
     intelligent_scan_info.set_intent(response.intent);
+    if (base::FeatureList::IsEnabled(kClientSideDetectionScamScore) &&
+        response.scam_score.has_value()) {
+      intelligent_scan_info.set_scam_score(response.scam_score.value());
+    }
   } else {
     intelligent_scan_info.set_no_info_reason(response.no_info_reason);
   }

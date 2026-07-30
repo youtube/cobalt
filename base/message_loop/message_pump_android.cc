@@ -25,6 +25,7 @@
 #include "base/check.h"
 #include "base/check_op.h"
 #include "base/message_loop/io_watcher.h"
+#include "base/message_loop/message_pump_wakeup_counter.h"
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/run_loop.h"
@@ -232,6 +233,10 @@ class IOWatcherImpl : public IOWatcher {
     auto* read_watch = watches.read_watch.get();
     auto* write_watch = watches.write_watch.get();
 
+    if ((read_watch && is_readable) || (write_watch && is_writable)) {
+      MessagePumpWakeupCounter::GetForCurrentThread().RecordWakeup();
+    }
+
     // Any event dispatch can stop any number of watches, so we're careful to
     // set up destruction observation before dispatching anything.
     bool read_watch_destroyed = false;
@@ -400,6 +405,9 @@ void MessagePumpAndroid::OnDelayedLooperCallback() {
     return;
   }
 
+  // Record non-spurious wakeup. Work is guaranteed in DoDelayedLooperWork().
+  MessagePumpWakeupCounter::GetForCurrentThread().RecordWakeup();
+
   // Clear the fd.
   uint64_t value;
   long ret = read(delayed_fd_, &value, sizeof(value));
@@ -453,6 +461,9 @@ void MessagePumpAndroid::OnNonDelayedLooperCallback() {
   if (ShouldQuit()) {
     return;
   }
+
+  // Record non-spurious wakeup. Work is guaranteed in DoNonDelayedLooperWork().
+  MessagePumpWakeupCounter::GetForCurrentThread().RecordWakeup();
 
   // We're about to process all the work requested by ScheduleWork().
   // MessagePump users are expected to do their best not to invoke

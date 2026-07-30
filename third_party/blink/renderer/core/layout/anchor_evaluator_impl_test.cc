@@ -47,7 +47,7 @@ struct AnchorTestData {
     for (auto entry : anchor_map) {
       if (auto** name = std::get_if<const AnchorScopedName*>(&entry.key)) {
         items.push_back(AnchorTestData{(*name)->GetName(),
-                                       entry.value->RectWithoutTransforms()});
+                                       entry.value->TransformedBoundingRect()});
       }
     }
     std::sort(items.begin(), items.end(),
@@ -326,7 +326,7 @@ TEST_F(AnchorEvaluatorImplTest, Relative) {
                   AtomicString("--relpos"), PhysicalRect(20, 10, 800, 0)}));
 }
 
-// CSS Transform should not shift the rectangles.
+// CSS Transform should shift the rectangles.
 TEST_F(AnchorEvaluatorImplTest, Transform) {
   SetBodyInnerHTML(R"HTML(
     <style>
@@ -341,9 +341,10 @@ TEST_F(AnchorEvaluatorImplTest, Transform) {
   )HTML");
   const AnchorMap* anchor_map = AnchorMapByElementId("container");
   ASSERT_NE(anchor_map, nullptr);
-  EXPECT_THAT(AnchorTestData::ToList(*anchor_map),
-              testing::ElementsAre(AnchorTestData{AtomicString("--transform"),
-                                                  PhysicalRect(0, 0, 800, 0)}));
+  EXPECT_THAT(
+      AnchorTestData::ToList(*anchor_map),
+      testing::ElementsAre(AnchorTestData{AtomicString("--transform"),
+                                          PhysicalRect(100, 100, 800, 0)}));
 }
 
 // Scroll positions should not shift the rectangles.

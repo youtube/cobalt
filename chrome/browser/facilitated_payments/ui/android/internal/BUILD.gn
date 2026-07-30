@@ -20,6 +20,7 @@ android_library("java") {
     "java/src/org/chromium/chrome/browser/facilitated_payments/BankAccountViewBinder.java",
     "java/src/org/chromium/chrome/browser/facilitated_payments/ContinueButtonViewBinder.java",
     "java/src/org/chromium/chrome/browser/facilitated_payments/EwalletViewBinder.java",
+    "java/src/org/chromium/chrome/browser/facilitated_payments/FacilitatedPaymentsAccountLinkingSuccessScreen.java",
     "java/src/org/chromium/chrome/browser/facilitated_payments/FacilitatedPaymentsErrorScreen.java",
     "java/src/org/chromium/chrome/browser/facilitated_payments/FacilitatedPaymentsFopSelectorScreen.java",
     "java/src/org/chromium/chrome/browser/facilitated_payments/FacilitatedPaymentsPaymentMethodsControllerBridge.java",
@@ -90,6 +91,7 @@ android_resources("java_resources") {
     "java/res/layout/pix_account_linking_prompt.xml",
     "java/res/layout/pix_account_linking_prompt_b.xml",
     "java/res/layout/pix_account_linking_prompt_c.xml",
+    "java/res/layout/pix_account_linking_success_screen.xml",
     "java/res/values/dimens.xml",
   ]
 }
@@ -154,6 +156,7 @@ android_library("javatests") {
     "//components/browser_ui/bottomsheet/android:java",
     "//components/browser_ui/bottomsheet/android:manager_java",
     "//components/browser_ui/bottomsheet/android/test:java",
+    "//components/payments/content/android/ui:java",
     "//third_party/android_deps:espresso_java",
     "//third_party/androidx:androidx_recyclerview_recyclerview_java",
     "//third_party/androidx:androidx_test_runner_java",

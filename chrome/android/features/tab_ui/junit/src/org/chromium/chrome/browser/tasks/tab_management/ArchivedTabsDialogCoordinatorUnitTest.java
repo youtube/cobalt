@@ -19,8 +19,6 @@ import static org.mockito.Mockito.when;
 import android.app.Activity;
 import android.graphics.drawable.ColorDrawable;
 import android.text.SpannableString;
-import android.text.style.ForegroundColorSpan;
-import android.text.style.UnderlineSpan;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -75,6 +73,7 @@ import org.chromium.components.tab_group_sync.TabGroupUiActionHandler;
 import org.chromium.ui.base.TestActivity;
 import org.chromium.ui.edge_to_edge.EdgeToEdgePadAdjuster;
 import org.chromium.ui.modaldialog.ModalDialogManager;
+import org.chromium.ui.text.ChromeClickableSpan;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -371,7 +370,8 @@ public class ArchivedTabsDialogCoordinatorUnitTest {
         when(mTabArchiveSettings.isAutoDeleteEnabled()).thenReturn(true);
 
         CharSequence description =
-                ArchivedTabsDialogCoordinator.getIphDescription(mActivity, mTabArchiveSettings);
+                ArchivedTabsDialogCoordinator.getIphDescription(
+                        mActivity, mTabArchiveSettings, (view) -> {});
         assertTrue(description instanceof SpannableString);
         SpannableString ss = (SpannableString) description;
 
@@ -380,12 +380,8 @@ public class ArchivedTabsDialogCoordinatorUnitTest {
         int start = ss.toString().indexOf(settingsTitle);
         int end = start + settingsTitle.length();
 
-        // Verify ForegroundColorSpan
-        ForegroundColorSpan[] colorSpans = ss.getSpans(start, end, ForegroundColorSpan.class);
-        assertEquals(1, colorSpans.length);
-
-        // Verify UnderlineSpan
-        UnderlineSpan[] underlineSpans = ss.getSpans(start, end, UnderlineSpan.class);
-        assertEquals(1, underlineSpans.length);
+        // Verify ChromeClickableSpan
+        ChromeClickableSpan[] clickableSpans = ss.getSpans(start, end, ChromeClickableSpan.class);
+        assertEquals(1, clickableSpans.length);
     }
 }

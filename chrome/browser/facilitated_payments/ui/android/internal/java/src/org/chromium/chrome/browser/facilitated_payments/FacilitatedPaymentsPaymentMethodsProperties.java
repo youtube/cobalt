@@ -86,6 +86,8 @@ class FacilitatedPaymentsPaymentMethodsProperties {
         int ERROR_SCREEN = 3;
         // The screen showing the PIX account linking prompt.
         int PIX_ACCOUNT_LINKING_PROMPT = 4;
+        // The screen showing the account linking success screen.
+        int ACCOUNT_LINKING_SUCCESS_SCREEN = 5;
     }
 
     /**
@@ -272,6 +274,21 @@ class FacilitatedPaymentsPaymentMethodsProperties {
             VIDEO_LINK_CALLBACK,
             DECLINE_BUTTON_TEXT_ID
         };
+    }
+
+    /**
+     * Properties defined here reflect the visible state of the account linking success screen shown
+     * in a bottom sheet.
+     */
+    static class AccountLinkingSuccessScreenProperties {
+        /** Primary button callback. */
+        static final WritableObjectPropertyKey<OnClickListener> PRIMARY_BUTTON_CALLBACK =
+                new WritableObjectPropertyKey<>("primary_button_callback");
+
+        /** All the properties of account linking success screen. */
+        static final PropertyKey[] ALL_KEYS = {PRIMARY_BUTTON_CALLBACK};
+
+        private AccountLinkingSuccessScreenProperties() {}
     }
 
     private FacilitatedPaymentsPaymentMethodsProperties() {}

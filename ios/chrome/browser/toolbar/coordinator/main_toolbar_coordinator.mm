@@ -32,7 +32,10 @@
 #import "ios/chrome/browser/shared/coordinator/scene/state/layout_state.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/model/browser/browser_provider.h"
+#import "ios/chrome/browser/shared/model/browser/browser_provider_interface.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
+#import "ios/chrome/browser/shared/model/url/url_util.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/activity_service_commands.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
@@ -81,9 +84,23 @@
 #import "ios/components/webui/web_ui_url_constants.h"
 #import "ios/web/public/web_state.h"
 
+namespace layout_state {
+class MainToolbarCoordinatorPassKeyFactory {
+ public:
+  static base::PassKey<MainToolbarCoordinatorPassKeyFactory> CreateKey() {
+    return base::PassKey<MainToolbarCoordinatorPassKeyFactory>();
+  }
+};
+}  // namespace layout_state
+
 namespace {
 // Extra vertical spacing when the banner promo is active on split mode.
 constexpr CGFloat kBannerPromoVerticalSpacing = 8;
+
+// Helper function to return the domain passkey used to mutate the layout state.
+inline LayoutStateToolbarPassKey PassKey() {
+  return layout_state::MainToolbarCoordinatorPassKeyFactory::CreateKey();
+}
 }  // namespace
 
 @interface MainToolbarCoordinator () <ContextualPanelEntrypointCommands,
@@ -123,6 +140,8 @@ constexpr CGFloat kBannerPromoVerticalSpacing = 8;
 @implementation MainToolbarCoordinator {
   // The mediator for this coordinator.
   MainToolbarMediator* _mainToolbarMediator;
+  // The layout state for the scene.
+  __weak LayoutState* _layoutState;
   /// Type of toolbar containing the omnibox. Unlike
   /// `_steadyStateOmniboxPosition`, this tracks the omnibox position at all
   /// time.
@@ -188,7 +207,7 @@ constexpr CGFloat kBannerPromoVerticalSpacing = 8;
   _omniboxPosition = ToolbarType::kPrimary;
 
   Browser* browser = self.browser;
-  LayoutState* layoutState = browser->GetSceneState().layoutState;
+  _layoutState = browser->GetSceneState().layoutState;
   [browser->GetCommandDispatcher()
       startDispatchingToTarget:self
                    forProtocol:@protocol(FakeboxFocuser)];
@@ -213,13 +232,13 @@ constexpr CGFloat kBannerPromoVerticalSpacing = 8;
 
   _mainToolbarMediator = [[MainToolbarMediator alloc]
       initWithPrefService:GetApplicationContext()->GetLocalState()
-              layoutState:layoutState];
+              layoutState:_layoutState];
   [browser->GetCommandDispatcher()
       startDispatchingToTarget:self
                    forProtocol:@protocol(ReaderModeChipCommands)];
   BOOL isToolbarAtBottom = [self isToolbarPositionBottom];
 
-  [layoutState addObserver:self];
+  [_layoutState addObserver:self];
 
   if (IsChromeNextIaEnabled()) {
     _topLocationBarCoordinator =
@@ -287,7 +306,7 @@ constexpr CGFloat kBannerPromoVerticalSpacing = 8;
           startDispatchingToTarget:self
                        forProtocol:@protocol(PageActionMenuEntryPointCommands)];
     }
-    [self updateLayoutForToolbarPosition:layoutState.toolbarPosition];
+    [self updateLayoutForToolbarPosition:_layoutState.toolbarPosition];
     self.started = YES;
     return;
   }
@@ -323,7 +342,7 @@ constexpr CGFloat kBannerPromoVerticalSpacing = 8;
   // Force the initial layout setup to ensure the view hierarchy is constructed
   // and the location bar view is loaded before setting up the command
   // dispatchers.
-  [self updateLayoutForToolbarPosition:layoutState.toolbarPosition];
+  [self updateLayoutForToolbarPosition:_layoutState.toolbarPosition];
 
   if (IsPageActionMenuEnabled()) {
     [self.locationBarCoordinator setPageActionMenuEntryPointDispatcher];
@@ -381,7 +400,7 @@ constexpr CGFloat kBannerPromoVerticalSpacing = 8;
   [_mainToolbarMediator disconnect];
   _mainToolbarMediator = nil;
 
-  [self.browser->GetSceneState().layoutState removeObserver:self];
+  [_layoutState removeObserver:self];
   [self.browser->GetCommandDispatcher() stopDispatchingToTarget:self];
   self.started = NO;
 }
@@ -538,7 +557,7 @@ constexpr CGFloat kBannerPromoVerticalSpacing = 8;
 
 - (CGFloat)collapsedPrimaryToolbarHeight {
   if (IsChromeNextIaEnabled()) {
-    if (self.primaryToolbarViewController.view.hidden) {
+    if ([self isToolbarHidden:_topToolbarViewController.view]) {
       // TODO(crbug.com/40279063): Find out why primary toolbar height cannot be
       // zero. This is a temporary fix for the pdf bug.
       return IsFullscreenRefactoringEnabled() ? 0.0 : 1.0;
@@ -568,7 +587,7 @@ constexpr CGFloat kBannerPromoVerticalSpacing = 8;
 
 - (CGFloat)expandedPrimaryToolbarHeight {
   if (IsChromeNextIaEnabled()) {
-    if (self.primaryToolbarViewController.view.hidden) {
+    if ([self isToolbarHidden:_topToolbarViewController.view]) {
       // TODO(crbug.com/40279063): Find out why primary toolbar height cannot be
       // zero. This is a temporary fix for the pdf bug.
       return IsFullscreenRefactoringEnabled() ? 0.0 : 1.0;
@@ -615,7 +634,7 @@ constexpr CGFloat kBannerPromoVerticalSpacing = 8;
 
 - (CGFloat)collapsedSecondaryToolbarHeight {
   if (IsChromeNextIaEnabled()) {
-    if (self.secondaryToolbarViewController.view.hidden) {
+    if ([self isToolbarHidden:_bottomToolbarViewController.view]) {
       return 0.0;
     }
     if ([self isToolbarPositionBottom]) {
@@ -632,7 +651,7 @@ constexpr CGFloat kBannerPromoVerticalSpacing = 8;
 
 - (CGFloat)expandedSecondaryToolbarHeight {
   if (IsChromeNextIaEnabled()) {
-    if (self.secondaryToolbarViewController.view.hidden) {
+    if ([self isToolbarHidden:_bottomToolbarViewController.view]) {
       return 0.0;
     }
     if ([self isToolbarPositionBottom]) {
@@ -1062,6 +1081,15 @@ constexpr CGFloat kBannerPromoVerticalSpacing = 8;
   if (IsChromeNextIaEnabled()) {
     return;
   }
+
+  // Only the visible coordinator (normal vs. incognito) is allowed to update
+  // the shared LayoutState.
+  if (self.browser !=
+      self.browser->GetSceneState()
+          .browserProviderInterface.currentBrowserProvider.browser) {
+    return;
+  }
+
   ToolbarPosition position = (toolbarType == ToolbarType::kSecondary)
                                  ? ToolbarPosition::kBottom
                                  : ToolbarPosition::kTop;
@@ -1077,8 +1105,7 @@ constexpr CGFloat kBannerPromoVerticalSpacing = 8;
 
 - (CGFloat)keyboardAttachedBottomOmniboxHeight {
   if (IsChromeNextIaEnabled()) {
-    if (self.browser->GetSceneState().layoutState.appBarPosition ==
-        AppBarPosition::kBottom) {
+    if (_layoutState.appBarPosition == AppBarPosition::kBottom) {
       return kKeyboardAttachedOmniboxBottomPadding;
     } else {
       return kKeyboardAttachedOmniboxBottomPaddingLandscape;
@@ -1112,6 +1139,13 @@ constexpr CGFloat kBannerPromoVerticalSpacing = 8;
   agent->AddObscuredInset(UIRectEdgeBottom, bottomInset);
   [_bottomToolbarViewController
       updateForFullscreenProgress:agent->bottom_progress()];
+}
+
+#pragma mark - LayoutStateObserver
+
+- (void)layoutState:(LayoutState*)layoutState
+    didChangeToolbarPosition:(ToolbarPosition)toolbarPosition {
+  [self updateLayoutForToolbarPosition:toolbarPosition];
 }
 
 #pragma mark - Private
@@ -1226,7 +1260,7 @@ constexpr CGFloat kBannerPromoVerticalSpacing = 8;
                                          topPosition:topPosition];
   toolbarViewController.layoutGuideCenter =
       LayoutGuideCenterForBrowser(browser);
-  toolbarViewController.layoutState = browser->GetSceneState().layoutState;
+  toolbarViewController.layoutState = _layoutState;
   toolbarViewController.buttonFactory =
       [[ToolbarButtonFactory alloc] initWithIncognito:incognito];
   toolbarViewController.mutator = mediator;
@@ -1317,10 +1351,10 @@ constexpr CGFloat kBannerPromoVerticalSpacing = 8;
   return toolbarMediator;
 }
 
-// Returns the current position of the toolbar.
+// Returns whether the toolbar position is currently at the bottom of the
+// screen.
 - (BOOL)isToolbarPositionBottom {
-  return IsBottomOmniboxAvailable() &&
-         [_mainToolbarMediator isOmniboxInBottomPosition];
+  return _layoutState.toolbarPosition == ToolbarPosition::kBottom;
 }
 
 // Returns whether `point` in window coordinates is inside the frame of
@@ -1339,14 +1373,7 @@ constexpr CGFloat kBannerPromoVerticalSpacing = 8;
 // Updates the LayoutState's toolbarPosition property.
 - (void)updateLayoutStateToolbarPosition:(ToolbarPosition)position {
   CHECK(!IsChromeNextIaEnabled());
-  self.browser->GetSceneState().layoutState.toolbarPosition = position;
-}
-
-#pragma mark - LayoutStateObserver
-
-- (void)layoutState:(LayoutState*)layoutState
-    didChangeToolbarPosition:(ToolbarPosition)toolbarPosition {
-  [self updateLayoutForToolbarPosition:toolbarPosition];
+  [_layoutState setToolbarPosition:position passKey:PassKey()];
 }
 
 // Updates the visual layout and child coordinators to match the given position.
@@ -1354,7 +1381,6 @@ constexpr CGFloat kBannerPromoVerticalSpacing = 8;
   BOOL isToolbarAtBottom = toolbarPosition == ToolbarPosition::kBottom;
   _omniboxPosition =
       isToolbarAtBottom ? ToolbarType::kSecondary : ToolbarType::kPrimary;
-
 
   if (!IsChromeNextIaEnabled()) {
     [self updateOrchestratorAnimatee];
@@ -1378,6 +1404,42 @@ constexpr CGFloat kBannerPromoVerticalSpacing = 8;
   }
 
   [self.toolbarHeightDelegate toolbarsHeightChanged];
+}
+
+// Helper for public methods returning the toolbar height. Returns whether the
+// toolbar is hidden. This check requires the active WebState to be the NTP to
+// ensure that during NTP-to-webpage transitions, the full toolbar height is
+// returned immediately when the navigation starts. Otherwise, checking only
+// `toolbarView.isHidden` would return a height of 0.0 to the caller during the
+// loading phase, causing the webpage to layout with incorrect content insets.
+- (BOOL)isToolbarHidden:(UIView*)toolbarView {
+  CHECK(IsChromeNextIaEnabled());
+  if (!toolbarView.isHidden) {
+    return NO;
+  }
+
+  web::WebState* webState =
+      self.browser->GetWebStateList()->GetActiveWebState();
+  if (!webState) {
+    // No web state to have a toolbar for.
+    return YES;
+  }
+
+  // If the active page is the NTP, the toolbar is legitimately hidden.
+  if (IsVisibleURLNewTabPage(webState)) {
+    return YES;
+  }
+
+  // If the toolbar is hidden, but in the middle of transitioning from the NTP
+  // to a non-NTP page, treat it as NOT hidden so the full height is returned
+  // immediately.
+  BOOL transitioningFromNTP =
+      webState->IsLoading() && IsUrlNtp(webState->GetLastCommittedURL());
+  if (transitioningFromNTP) {
+    return NO;
+  }
+
+  return YES;
 }
 
 @end

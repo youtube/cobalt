@@ -363,6 +363,28 @@ void AccountTrackerService::SetAccountCapabilities(
   SaveToPrefs(account_info);
 }
 
+void AccountTrackerService::SetCapabilityOverride(
+    const CoreAccountId& account_id,
+    std::string_view capability_name,
+    std::optional<signin::Tribool> override_value) {
+  if (!accounts_.contains(account_id)) {
+    return;
+  }
+  AccountInfo& account_info = accounts_[account_id];
+
+  AccountCapabilities capabilities = account_info.GetAccountCapabilities();
+  capabilities.SetCapabilityOverride(capability_name, override_value);
+
+  account_info = AccountInfo::Builder(account_info)
+                     .SetAccountCapabilities(capabilities)
+                     .Build();
+
+  if (!account_info.gaia.empty()) {
+    NotifyAccountUpdated(account_info);
+  }
+  SaveToPrefs(account_info);
+}
+
 void AccountTrackerService::SetIsChildAccount(const CoreAccountId& account_id,
                                               bool is_child_account) {
   DCHECK(accounts_.contains(account_id)) << account_id.ToString();
@@ -767,6 +789,7 @@ void AccountTrackerService::SaveToPrefs(const AccountInfo& account_info) {
   ScopedListPrefUpdate update(pref_service_, prefs::kAccountInfo);
   base::DictValue* dict =
       FindOrCreateDictForAccount(update, account_info.account_id);
+  dict->Remove(signin::kAccountCapabilityOverridesKey);
   dict->Merge(signin::SerializeAccountInfo(account_info));
 }
 

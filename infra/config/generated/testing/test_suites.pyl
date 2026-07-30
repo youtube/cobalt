@@ -281,6 +281,7 @@
           ],
           'cros_test_names_exclude_from_file': [
             'chromeos/tast_control_disabled_tests.txt',
+            'chromeos/tast_control_flaky_tests.txt',
           ],
           'cros_ctp_suite_name': 'chrome-uprev-hw',
         },
@@ -304,6 +305,7 @@
           ],
           'cros_test_names_exclude_from_file': [
             'chromeos/tast_control_disabled_tests.txt',
+            'chromeos/tast_control_flaky_tests.txt',
           ],
         },
         'experiment_percentage': 100,
@@ -320,6 +322,22 @@
           'timeout_sec': 14400,
           'cros_test_names_from_file': [
             'chromeos/tast_control_disabled_tests.txt',
+          ],
+        },
+        'experiment_percentage': 100,
+      },
+    },
+
+    'chromeos_chrome_flaky_tast_tests': {
+      'chrome_flaky_tast_tests': {
+        'args': [
+          '-retries=2',
+        ],
+        'ci_only': True,
+        'skylab': {
+          'timeout_sec': 7200,
+          'cros_test_names_from_file': [
+            'chromeos/tast_control_flaky_tests.txt',
           ],
         },
         'experiment_percentage': 100,
@@ -2858,6 +2876,15 @@
           'CROS_LKGM',
         ],
       },
+      'chromeos_chrome_flaky_tast_tests': {
+        'mixins': [
+          'skylab-20-tests-per-shard',
+          'skylab-rdb-tast',
+        ],
+        'variants': [
+          'CROS_LKGM',
+        ],
+      },
       'chromeos_integration_tests_suite': {
         'mixins': [
           'skylab-rdb-gtest',
@@ -2997,6 +3024,15 @@
           'CROS_LKGM',
         ],
       },
+      'chromeos_chrome_flaky_tast_tests': {
+        'mixins': [
+          'skylab-20-tests-per-shard',
+          'skylab-rdb-tast',
+        ],
+        'variants': [
+          'CROS_LKGM',
+        ],
+      },
       'chromeos_device_only_gtests': {
         'mixins': [
           'skylab-rdb-gtest',
@@ -3063,6 +3099,15 @@
           'CROS_LKGM',
         ],
       },
+      'chromeos_chrome_flaky_tast_tests': {
+        'mixins': [
+          'skylab-20-tests-per-shard',
+          'skylab-rdb-tast',
+        ],
+        'variants': [
+          'CROS_LKGM',
+        ],
+      },
       'chromeos_device_only_gtests': {
         'mixins': [
           'skylab-rdb-gtest',
@@ -3086,6 +3131,15 @@
         'mixins': [
           'skylab-rdb-tast',
           'tfc-cq-tast',
+        ],
+        'variants': [
+          'CROS_LKGM',
+        ],
+      },
+      'chromeos_chrome_flaky_tast_tests': {
+        'mixins': [
+          'skylab-20-tests-per-shard',
+          'skylab-rdb-tast',
         ],
         'variants': [
           'CROS_LKGM',
@@ -3149,6 +3203,15 @@
           'CROS_LKGM',
         ],
       },
+      'chromeos_chrome_flaky_tast_tests': {
+        'mixins': [
+          'skylab-20-tests-per-shard',
+          'skylab-rdb-tast',
+        ],
+        'variants': [
+          'CROS_LKGM',
+        ],
+      },
     },
 
     'chromeos_vmlab_tests': {
@@ -3171,6 +3234,15 @@
         ],
       },
       'chromeos_chrome_disabled_tast_tests': {
+        'mixins': [
+          'skylab-20-tests-per-shard',
+          'skylab-rdb-tast',
+        ],
+        'variants': [
+          'CROS_LKGM',
+        ],
+      },
+      'chromeos_chrome_flaky_tast_tests': {
         'mixins': [
           'skylab-20-tests-per-shard',
           'skylab-rdb-tast',
@@ -3234,6 +3306,15 @@
           'CROS_LKGM',
         ],
       },
+      'chromeos_chrome_flaky_tast_tests': {
+        'mixins': [
+          'skylab-20-tests-per-shard',
+          'skylab-rdb-tast',
+        ],
+        'variants': [
+          'CROS_LKGM',
+        ],
+      },
       'chromeos_integration_tests_suite': {
         'mixins': [
           'skylab-rdb-gtest',
@@ -3264,6 +3345,15 @@
         ],
       },
       'chromeos_chrome_disabled_tast_tests': {
+        'mixins': [
+          'skylab-20-tests-per-shard',
+          'skylab-rdb-tast',
+        ],
+        'variants': [
+          'CROS_LKGM',
+        ],
+      },
+      'chromeos_chrome_flaky_tast_tests': {
         'mixins': [
           'skylab-20-tests-per-shard',
           'skylab-rdb-tast',
@@ -3303,6 +3393,15 @@
         ],
       },
       'chromeos_chrome_disabled_tast_tests': {
+        'mixins': [
+          'skylab-20-tests-per-shard',
+          'skylab-rdb-tast',
+        ],
+        'variants': [
+          'CROS_LKGM',
+        ],
+      },
+      'chromeos_chrome_flaky_tast_tests': {
         'mixins': [
           'skylab-20-tests-per-shard',
           'skylab-rdb-tast',

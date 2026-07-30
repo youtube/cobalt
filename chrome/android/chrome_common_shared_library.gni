@@ -61,10 +61,6 @@ template("chrome_common_shared_library") {
       configs += [ "//third_party/androidx/third_party/ink:ink_jni_registration_version_script" ]
     }
 
-    if (enable_javaless_renderers) {
-      deps += [ "//content/app:javaless_renderer" ]
-    }
-
     if (!(defined(testonly) && testonly)) {
       configs -= [ "//build/config/compiler:thinlto_optimize_default" ]
       configs += [ "//build/config/compiler:thinlto_optimize_max" ]

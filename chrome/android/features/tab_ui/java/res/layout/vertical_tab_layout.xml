@@ -11,6 +11,7 @@ found in the LICENSE file.
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@macro/vertical_tabs_rail_bg_color"
+    android:clipToPadding="false"
     android:orientation="vertical"
     android:paddingStart="@dimen/vertical_tabs_rail_horizontal_margin"
     android:paddingEnd="@dimen/vertical_tabs_rail_horizontal_margin">
@@ -56,8 +57,13 @@ found in the LICENSE file.
         android:id="@+id/tab_list_recycler_view"
         android:layout_width="match_parent"
         android:layout_height="0dp"
+        android:layout_marginEnd="@dimen/vertical_tabs_scrollbar_margin_end"
         android:layout_weight="1"
         android:clipToPadding="false"
+        android:paddingEnd="@dimen/vertical_tabs_scrollbar_padding_end"
+        android:scrollbarSize="@dimen/vertical_tabs_scrollbar_width"
+        android:scrollbarStyle="outsideOverlay"
+        android:scrollbarThumbVertical="@drawable/vertical_tabs_scrollbar_thumb"
         android:scrollbars="vertical" />
 
     <!-- New Tab Button -->

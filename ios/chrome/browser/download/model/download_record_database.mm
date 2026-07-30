@@ -14,18 +14,17 @@
 #import "base/strings/stringprintf.h"
 #import "base/strings/utf_string_conversions.h"
 #import "base/time/time.h"
+#import "ios/chrome/browser/download/model/download_filename_util.h"
 #import "ios/chrome/browser/download/model/download_filter_util.h"
 #import "ios/web/public/download/download_task.h"
 #import "sql/error_delegate_util.h"
 #import "sql/meta_table.h"
 #import "sql/statement.h"
 #import "sql/transaction.h"
-#import "third_party/icu/source/common/unicode/normalizer2.h"
-#import "third_party/icu/source/common/unicode/uchar.h"
-#import "third_party/icu/source/common/unicode/unistr.h"
-#import "third_party/icu/source/common/unicode/utypes.h"
 
 namespace {
+
+using ::download_model::NormalizeFileName;
 
 // Database schema version.
 // v1: initial schema.
@@ -67,51 +66,6 @@ const char kIndexName[] = "idx_records_created_time";
 // by advancing the (created_time, download_id) cursor, not by choosing a size.
 // 50 balances index scan cost, peak memory, and per-frame UI rendering.
 constexpr int kPageSize = 50;
-
-// Returns the search-friendly normalized form of a UTF-8 file name. The
-// transform is a performance pre-filter only: a LIKE '%needle%' on the
-// normalized column returns a superset of what
-// base::i18n::FixedPatternStringSearchIgnoringCaseAndAccents would match,
-// and GetDownloadRecordsPage re-verifies each candidate with that ICU
-// search to guarantee semantic parity (no false negatives even if ICU
-// behavior shifts vs. this NFD+stripMn+FoldCase approximation).
-//   1. NFD-decompose so accented base letters split into (letter, combining
-//      mark) pairs.
-//   2. Drop characters in category Mn (Non-Spacing Mark), i.e. combining
-//      diacritics.
-//   3. FoldCase for locale-independent case-insensitive comparison.
-// Both the stored column and the user's query string are run through this
-// helper so they meet on the same normalized form.
-std::string NormalizeFileName(const std::string& file_name) {
-  if (file_name.empty()) {
-    return std::string();
-  }
-  icu::UnicodeString u16 = icu::UnicodeString::fromUTF8(file_name);
-  UErrorCode status = U_ZERO_ERROR;
-  const icu::Normalizer2* nfd = icu::Normalizer2::getNFDInstance(status);
-  if (U_SUCCESS(status) && nfd) {
-    icu::UnicodeString decomposed = nfd->normalize(u16, status);
-    if (U_SUCCESS(status)) {
-      u16 = decomposed;
-    }
-  }
-  // Strip Non-Spacing Marks (Mn) in place.
-  icu::UnicodeString stripped;
-  for (int32_t i = 0; i < u16.length();) {
-    UChar32 cp = u16.char32At(i);
-    int32_t cp_len = U16_LENGTH(cp);
-    if (u_charType(cp) != U_NON_SPACING_MARK) {
-      stripped.append(cp);
-    }
-    i += cp_len;
-  }
-  // Case-fold in place via ICU directly to avoid extra UTF-16/UTF-8 round-
-  // trips through base::i18n::FoldCase.
-  stripped.foldCase();
-  std::string utf8;
-  stripped.toUTF8String(utf8);
-  return utf8;
-}
 
 const std::string& CreateTableSql() {
   static const base::NoDestructor<std::string> sql(base::StringPrintf(

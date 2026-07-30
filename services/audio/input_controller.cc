@@ -183,7 +183,10 @@ class InputController::StatsReporter {
         last_periodic_log_time_(start_time_),
         aec_type_(GetAecTypeFromReferenceSignal(reference_signal_provider)),
         report_cb_(GetOnReportCallback(aec_type_)),
-        controller_(controller) {}
+        controller_(controller),
+        task_runner_(base::SingleThreadTaskRunner::GetCurrentDefault()) {
+    weak_this_ = weak_ptr_factory_.GetWeakPtr();
+  }
 
   ~StatsReporter() { LogStats("Dtor", base::TimeTicks::Now()); }
 
@@ -203,18 +206,28 @@ class InputController::StatsReporter {
     }
   }
 
-  void LogStats(const std::string& call_name, base::TimeTicks now) {
+  void LogStats(const char* call_name, base::TimeTicks now) {
     const base::TimeDelta total_duration = now - start_time_;
     const double glitch_percentage =
         total_duration.is_zero()
             ? 0
             : glitch_info_.duration.InSecondsF() / total_duration.InSecondsF();
+    task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&StatsReporter::DoLogStats, weak_this_, call_name,
+                       total_duration, glitch_info_, glitch_percentage));
+  }
+
+  void DoLogStats(const char* call_name,
+                  base::TimeDelta total_duration,
+                  media::AudioGlitchInfo glitch_info,
+                  double glitch_percentage) {
     controller_->SendLogMessage(
-        base::StringPrintf("%s => (duration=%" PRId64 " sec)",
-                           call_name.c_str(), total_duration.InSeconds()));
+        base::StringPrintf("%s => (duration=%" PRId64 " sec)", call_name,
+                           total_duration.InSeconds()));
     controller_->SendLogMessage(base::StringPrintf(
-        "%s => (glitches=[%s], glitch_percentage=%.3f%%)", call_name.c_str(),
-        glitch_info_.ToString().c_str(), glitch_percentage * 100));
+        "%s => (glitches=[%s], glitch_percentage=%.3f%%)", call_name,
+        glitch_info.ToString().c_str(), glitch_percentage * 100));
   }
 
   AECType GetAecType() const { return aec_type_; }
@@ -271,6 +284,11 @@ class InputController::StatsReporter {
   // RAW_PTR_EXCLUSION: InputController object will outlive the
   // StatsReporter object.
   RAW_PTR_EXCLUSION InputController* const controller_;
+
+  const scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+
+  base::WeakPtr<StatsReporter> weak_this_;
+  base::WeakPtrFactory<StatsReporter> weak_ptr_factory_{this};
 };
 
 // This class implements the AudioInputCallback interface in place of the

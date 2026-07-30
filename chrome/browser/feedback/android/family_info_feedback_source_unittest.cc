@@ -233,8 +233,9 @@ class FamilyInfoFeedbackSourceTest
       base::WeakPtr<FamilyInfoFeedbackSource> feedback_source) {
     feedback_source->OnFailure(
         supervised_user::ProtoFetcherStatus::GoogleServiceAuthError(
-            GoogleServiceAuthError(
-                GoogleServiceAuthError::State::INVALID_GAIA_CREDENTIALS)));
+            GoogleServiceAuthError::FromInvalidGaiaCredentialsReason(
+                GoogleServiceAuthError::InvalidGaiaCredentialsReason::
+                    UNKNOWN)));
   }
 
   // Creates a new instance of FamilyInfoFeedbackSource that is destroyed on

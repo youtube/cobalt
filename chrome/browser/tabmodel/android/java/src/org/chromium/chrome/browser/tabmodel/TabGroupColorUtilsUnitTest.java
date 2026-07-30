@@ -36,6 +36,8 @@ import org.robolectric.annotation.Config;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.Token;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.Features.DisableFeatures;
+import org.chromium.components.tab_groups.TabGroupsFeatureMap;
 
 import java.util.Map;
 import java.util.Set;
@@ -43,6 +45,7 @@ import java.util.Set;
 /** Tests for {@link TabGroupColorUtils}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
+@DisableFeatures({TabGroupsFeatureMap.UPDATE_TAB_GROUP_COLORS})
 public class TabGroupColorUtilsUnitTest {
 
     private static final String TAB_GROUP_COLORS_FILE_NAME = "tab_group_colors";

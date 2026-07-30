@@ -274,7 +274,7 @@ structures: `AutocompleteInput` and `AutocompleteMatch`.
 ### `AutocompleteInput`
 
 The `AutocompleteInput` object represents the user's query and the omnibox's state. It has two key
-fields, `prefer_keyword_` and `allow_exact_keyword_match_`, which are used to signal that when the
+fields, `in_keyword_mode_` and `allow_exact_keyword_match_`, which are used to signal that when the
 user is in keyword mode, providers should show more "keyword-y" suggestions. For example, a search
 for 'query' should suggest 'youtube.com/q=query' instead of 'google.com/q=query' when the user is in
 the YouTube keyword mode.

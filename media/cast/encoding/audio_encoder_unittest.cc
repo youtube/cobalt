@@ -141,15 +141,15 @@ class AudioEncoderTest : public ::testing::TestWithParam<TestScenario>,
       AdvanceClock(duration);
 
       if (codec == AudioCodec::kOpus) {
-        const int bitrate = audio_encoder_->GetBitrate();
-        EXPECT_GT(bitrate, 0);
+        const uint32_t bitrate = audio_encoder_->GetBitrate();
+        EXPECT_GT(bitrate, 0u);
         // Typically Opus has a max of 120000, but this may change if the
         // library gets rolled. It would be very surprising for it to
         // surpass this value and getting a test failure is reasonable.
-        EXPECT_LT(bitrate, 256000);
+        EXPECT_LT(bitrate, 256000u);
       } else {
         // Bit rate is only implemented for opus.
-        EXPECT_EQ(0, audio_encoder_->GetBitrate());
+        EXPECT_EQ(0u, audio_encoder_->GetBitrate());
       }
     }
 

@@ -12,7 +12,6 @@ import {PageCallbackRouter, PageHandlerRemote} from 'chrome://resources/cr_compo
 import type {ComposeboxFaviconGroupElement} from 'chrome://resources/cr_components/composebox/composebox_favicon_group.js';
 import {ContextUploadErrorType, ContextUploadStatus, InputType, ToolMode} from 'chrome://resources/cr_components/composebox/composebox_query.mojom-webui.js';
 import type {InputState} from 'chrome://resources/cr_components/composebox/composebox_query.mojom-webui.js';
-import type {ContextualEntrypointButtonElement} from 'chrome://resources/cr_components/composebox/contextual_entrypoint_button.js';
 import type {ComposeboxFileCarouselElement} from 'chrome://resources/cr_components/composebox/file_carousel.js';
 import {WindowProxy} from 'chrome://resources/cr_components/composebox/window_proxy.js';
 import {GlowAnimationState} from 'chrome://resources/cr_components/search/constants.js';
@@ -26,10 +25,15 @@ import {microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {TestSearchboxBrowserProxy} from './test_searchbox_browser_proxy.js';
 
-interface TestOmniboxComposeboxElement extends OmniboxComposeboxElement {
-  keepMenuOpenForMultiSelection: () => void;
-  keepMenuOpenOnTabSelectForRealbox: boolean;
-  composeboxSource: string;
+declare global {
+  interface SpeechRecognition extends EventTarget {
+    interimResults: boolean;
+    lang: string;
+    continuous: boolean;
+    abort(): void;
+    start(): void;
+    stop(): void;
+  }
 }
 
 suite('OmniboxComposeboxTest', () => {
@@ -978,6 +982,14 @@ suite('OmniboxComposeboxTest', () => {
       async () => {
         const windowProxy = TestMock.fromClass(WindowProxy);
         windowProxy.setResultFor('hasWebkitSpeechRecognition', true);
+        windowProxy.setResultMapperFor('createSpeechRecognition', () => {
+          const mock = new EventTarget();
+          const speechMock = mock as unknown as SpeechRecognition;
+          speechMock.abort = () => {};
+          speechMock.start = () => {};
+          speechMock.stop = () => {};
+          return speechMock;
+        });
         windowProxy.setResultMapperFor(
             'matchMedia', (query: string) => window.matchMedia(query));
         WindowProxy.setInstance(windowProxy);
@@ -1004,6 +1016,14 @@ suite('OmniboxComposeboxTest', () => {
       async () => {
         const windowProxy = TestMock.fromClass(WindowProxy);
         windowProxy.setResultFor('hasWebkitSpeechRecognition', true);
+        windowProxy.setResultMapperFor('createSpeechRecognition', () => {
+          const mock = new EventTarget();
+          const speechMock = mock as unknown as SpeechRecognition;
+          speechMock.abort = () => {};
+          speechMock.start = () => {};
+          speechMock.stop = () => {};
+          return speechMock;
+        });
         windowProxy.setResultMapperFor(
             'matchMedia', (query: string) => window.matchMedia(query));
         WindowProxy.setInstance(windowProxy);
@@ -1027,6 +1047,14 @@ suite('OmniboxComposeboxTest', () => {
       async () => {
         const windowProxy = TestMock.fromClass(WindowProxy);
         windowProxy.setResultFor('hasWebkitSpeechRecognition', true);
+        windowProxy.setResultMapperFor('createSpeechRecognition', () => {
+          const mock = new EventTarget();
+          const speechMock = mock as unknown as SpeechRecognition;
+          speechMock.abort = () => {};
+          speechMock.start = () => {};
+          speechMock.stop = () => {};
+          return speechMock;
+        });
         windowProxy.setResultMapperFor(
             'matchMedia', (query: string) => window.matchMedia(query));
         WindowProxy.setInstance(windowProxy);
@@ -1069,8 +1097,8 @@ suite('OmniboxComposeboxTest', () => {
             }));
         await voiceSearchOverlay.updateComplete;
 
-        assertTrue(voiceSearchOverlay.classList.contains(
-            'embedded-permission-prompt-showing'));
+        assertTrue(
+            voiceSearchOverlay.classList.contains('permission-prompt-showing'));
         assertEquals('0', window.getComputedStyle(bottomActions).opacity);
       });
 
@@ -1079,6 +1107,14 @@ suite('OmniboxComposeboxTest', () => {
       async () => {
         const windowProxy = TestMock.fromClass(WindowProxy);
         windowProxy.setResultFor('hasWebkitSpeechRecognition', true);
+        windowProxy.setResultMapperFor('createSpeechRecognition', () => {
+          const mock = new EventTarget();
+          const speechMock = mock as unknown as SpeechRecognition;
+          speechMock.abort = () => {};
+          speechMock.start = () => {};
+          speechMock.stop = () => {};
+          return speechMock;
+        });
         windowProxy.setResultMapperFor(
             'matchMedia', (query: string) => window.matchMedia(query));
         WindowProxy.setInstance(windowProxy);
@@ -1133,8 +1169,7 @@ suite('OmniboxComposeboxTest', () => {
         await omniboxComposebox.updateComplete;
 
         // Verify the class was added and opacity turned to 0.
-        assertTrue(
-            glow.classList.contains('embedded-permission-prompt-showing'));
+        assertTrue(glow.classList.contains('permission-prompt-showing'));
         assertEquals('0', window.getComputedStyle(audioWave).opacity);
       });
 
@@ -1143,6 +1178,14 @@ suite('OmniboxComposeboxTest', () => {
       async () => {
         const windowProxy = TestMock.fromClass(WindowProxy);
         windowProxy.setResultFor('hasWebkitSpeechRecognition', true);
+        windowProxy.setResultMapperFor('createSpeechRecognition', () => {
+          const mock = new EventTarget();
+          const speechMock = mock as unknown as SpeechRecognition;
+          speechMock.abort = () => {};
+          speechMock.start = () => {};
+          speechMock.stop = () => {};
+          return speechMock;
+        });
         windowProxy.setResultMapperFor(
             'matchMedia', (query: string) => window.matchMedia(query));
         WindowProxy.setInstance(windowProxy);
@@ -1197,8 +1240,7 @@ suite('OmniboxComposeboxTest', () => {
         await omniboxComposebox.updateComplete;
 
         // Verify the class was added and opacity turned to 0.
-        assertTrue(
-            glow.classList.contains('embedded-permission-prompt-showing'));
+        assertTrue(glow.classList.contains('permission-prompt-showing'));
         assertEquals('0', window.getComputedStyle(recordingWave).opacity);
       });
 
@@ -1765,76 +1807,6 @@ suite('OmniboxComposeboxTest', () => {
     });
   });
 
-  test(
-      'keepMenuOpenForMultiSelection called on add/delete tab context',
-      async () => {
-        let keepMenuOpenCalled = false;
-        const testElement = omniboxComposebox as TestOmniboxComposeboxElement;
-        testElement.keepMenuOpenForMultiSelection = () => {
-          keepMenuOpenCalled = true;
-        };
-
-        await omniboxComposebox.onAddTabContext(
-            new CustomEvent('add-tab-context', {
-              detail: {
-                id: 1,
-                title: 'Test',
-                url: 'about:blank',  // Mojo converts obj to str.
-                delayUpload: false,
-                origin: TabUploadOrigin.CONTEXT_MENU,
-              },
-            }));
-        assertTrue(keepMenuOpenCalled);
-
-        keepMenuOpenCalled = false;
-        await omniboxComposebox.onDeleteTabContext(
-            new CustomEvent('delete-tab-context', {
-              detail: {
-                uuid: '0',
-              },
-            }));
-        assertTrue(keepMenuOpenCalled);
-      });
-
-  test('onContextMenuClosed sets shareTabsFlyoutOpen to false', async () => {
-    omniboxComposebox.shareTabsFlyoutOpen = true;
-    await omniboxComposebox.onContextMenuClosed();
-    assertFalse(omniboxComposebox.shareTabsFlyoutOpen);
-  });
-
-  test(
-      'keepMenuOpenForMultiSelection is gated' +
-          ' by keepMenuOpenOnTabSelectForRealbox',
-      () => {
-        let openMenuCalled = false;
-        omniboxComposebox.getContextEntrypointElement = () => {
-          return {
-            openMenuForMultiSelection: () => {
-              openMenuCalled = true;
-            },
-          } as unknown as ContextualEntrypointButtonElement;
-        };
-
-        const testElement = omniboxComposebox as TestOmniboxComposeboxElement;
-
-        // Omnibox source: always returns early
-        testElement.composeboxSource = 'Omnibox';
-        testElement.keepMenuOpenForMultiSelection();
-        assertFalse(openMenuCalled);
-
-        // NewTabPage source, flag off: returns early
-        testElement.composeboxSource = 'NewTabPage';
-        testElement.keepMenuOpenOnTabSelectForRealbox = false;
-        testElement.keepMenuOpenForMultiSelection();
-        assertFalse(openMenuCalled);
-
-        // NewTabPage source, flag on: calls openMenuForMultiSelection
-        testElement.composeboxSource = 'NewTabPage';
-        testElement.keepMenuOpenOnTabSelectForRealbox = true;
-        testElement.keepMenuOpenForMultiSelection();
-        assertTrue(openMenuCalled);
-      });
-
   suite('SmartCompose', () => {
     setup(async () => {
       loadTimeData.overrideValues({composeboxSmartComposeEnabled: true});
@@ -2063,6 +2035,14 @@ suite('OmniboxComposeboxTest', () => {
     setup(async () => {
       const windowProxy = TestMock.fromClass(WindowProxy);
       windowProxy.setResultFor('hasWebkitSpeechRecognition', true);
+      windowProxy.setResultMapperFor('createSpeechRecognition', () => {
+        const mock = new EventTarget();
+        const speechMock = mock as unknown as SpeechRecognition;
+        speechMock.abort = () => {};
+        speechMock.start = () => {};
+        speechMock.stop = () => {};
+        return speechMock;
+      });
       windowProxy.setResultMapperFor(
           'matchMedia', (query: string) => window.matchMedia(query));
       WindowProxy.setInstance(windowProxy);

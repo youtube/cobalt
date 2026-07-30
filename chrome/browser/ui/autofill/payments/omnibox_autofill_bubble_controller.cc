@@ -4,13 +4,20 @@
 
 #include "chrome/browser/ui/autofill/payments/omnibox_autofill_bubble_controller.h"
 
+#include "chrome/browser/autofill/personal_data_manager_factory.h"
 #include "chrome/browser/ui/autofill/autofill_bubble_handler.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+#include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
+#include "components/autofill/core/browser/data_manager/personal_data_manager.h"
+#include "components/autofill/core/browser/data_model/payments/credit_card.h"
 #include "components/autofill/core/browser/ui/payments/payments_ui_closed_reasons.h"
+#include "components/strings/grit/components_strings.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 
 namespace autofill {
@@ -21,8 +28,10 @@ OmniboxAutofillBubbleController::OmniboxAutofillBubbleController(
     tabs::TabInterface& tab_interface,
     content::WebContents* web_contents)
     : AutofillBubbleControllerBase(web_contents),
-      scoped_unowned_user_data_(tab_interface.GetUnownedUserDataHost(), *this) {
-}
+      scoped_unowned_user_data_(tab_interface.GetUnownedUserDataHost(), *this),
+      payments_data_manager_(PersonalDataManagerFactory::GetForBrowserContext(
+                                 web_contents->GetBrowserContext())
+                                 ->payments_data_manager()) {}
 
 OmniboxAutofillBubbleController::~OmniboxAutofillBubbleController() = default;
 
@@ -72,6 +81,30 @@ void OmniboxAutofillBubbleController::DoShowBubble() {
               web_contents(), this)) {
     SetBubbleView(*bubble_view);
   }
+}
+
+AutofillBubbleBase* OmniboxAutofillBubbleController::GetBubbleView() const {
+  return bubble_view();
+}
+
+std::u16string OmniboxAutofillBubbleController::GetWindowTitle() const {
+  return l10n_util::GetStringUTF16(IDS_AUTOFILL_OMNIBOX_BUBBLE_TITLE);
+}
+
+const std::vector<Suggestion>& OmniboxAutofillBubbleController::GetSuggestions()
+    const {
+  return suggestions_;
+}
+
+bool OmniboxAutofillBubbleController::ShouldShowGooglePayLogo() const {
+  for (const auto& suggestion : suggestions_) {
+    const CreditCard* credit_card = payments_data_manager_->GetCreditCardByGUID(
+        std::get<Suggestion::Guid>(suggestion.payload).value());
+    if (credit_card && payments_data_manager_->IsServerCard(credit_card)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 void OmniboxAutofillBubbleController::OnBubbleClosed(

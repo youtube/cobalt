@@ -465,6 +465,7 @@ if (is_android) {
       ":usage_stats_proto",
       "//cc/slim",
       "//chrome/android:jni_headers",
+      "//chrome/app:command_ids",
       "//chrome/browser:profile_key_startup_accessor",
       "//chrome/browser/accessibility/settings",
       "//chrome/browser/android/content:jni_headers",
@@ -737,6 +738,7 @@ if (is_android) {
       "//third_party/libphonenumber",
       "//ui/accessibility",
       "//ui/base/unowned_user_data",
+      "//ui/menus",
       "//url",
 
       # TODO(crbug.com/372647115): When c/b/android/oom_intervention gets

@@ -19,9 +19,6 @@
 // Sets the group title.
 - (void)setGroupTitle:(NSString*)title;
 
-// Sets the group color.
-- (void)setGroupColor:(UIColor*)color;
-
 // Sets the TabGroupColorPalette.
 - (void)setTabGroupColorPalette:(TabGroupColorPalette*)tabGroupColorPalette;
 

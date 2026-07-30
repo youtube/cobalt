@@ -12,13 +12,16 @@
 
     <!--suppress HardcodedText -->
     <application>
+        <!-- Internal repo overrides it with channel-specific banners. -->
         <activity-alias android:name="org.chromium.android_webview.devui.LauncherActivity"
                   android:targetActivity="org.chromium.android_webview.devui.MainActivity"
                   android:label="WebView DevTools"
-                  android:exported="true">
+                  android:exported="true"
+                  android:banner="@drawable/webview_devui_banner">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER"/>
             </intent-filter>
         </activity-alias>
     </application>

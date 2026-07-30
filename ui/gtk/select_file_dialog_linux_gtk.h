@@ -61,6 +61,10 @@ class SelectFileDialogLinuxGtk : public ui::SelectFileDialogLinux,
     raw_ptr<aura::Window> parent = nullptr;
 
     base::OnceClosure reenable_parent_events;
+
+    raw_ptr<GtkWidget> preview_widget = nullptr;
+
+    base::FilePath preview_file_path;
   };
 
   bool HasMultipleFileTypeChoicesImpl() override;
@@ -129,13 +133,29 @@ class SelectFileDialogLinuxGtk : public ui::SelectFileDialogLinux,
   // GTK3.
   void OnUpdatePreview(GtkWidget* dialog);
 
-  // Only used on GTK3 since GTK4 provides its own preview.
-  // The GtkImage widget for showing previews of selected images.
-  raw_ptr<GtkWidget, DanglingUntriaged> preview_ = nullptr;
+  // Callback for when the preview file is read from disk on a background
+  // thread. Only used on GTK3.
+  void OnPreviewFileRead(const base::FilePath& file_path,
+                         ScopedGObject<GtkWidget> chooser,
+                         std::optional<std::vector<uint8_t>> bytes);
+
+  // Callback for when the preview image is decoded out-of-process. Only used
+  // on GTK3.
+  void OnPreviewImageDecoded(const base::FilePath& file_path,
+                             ScopedGObject<GtkWidget> chooser,
+                             const SkBitmap& bitmap);
+
+  // Callback for when the preview image is resized on a background thread.
+  // Only used on GTK3.
+  void OnPreviewImageResized(const base::FilePath& file_path,
+                             ScopedGObject<GtkWidget> chooser,
+                             const SkBitmap& bitmap);
 
   const raw_ptr<GtkUiPlatform> platform_;
 
   base::flat_map<GtkWidget*, DialogState> dialogs_;
+
+  base::WeakPtrFactory<SelectFileDialogLinuxGtk> weak_factory_{this};
 };
 
 }  // namespace gtk

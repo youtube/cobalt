@@ -290,7 +290,7 @@ class WebSocketBasicStreamSwitchTest : public WebSocketBasicStreamSocketTest {
   // This is used to specify the read start/end time.
   base::TimeTicks MicrosecondsFromStart(int microseconds) {
     static const base::TimeTicks kStartPoint =
-        base::TimeTicks::UnixEpoch() + base::Seconds(60);
+        base::TimeTicks() + base::Seconds(60);
     return kStartPoint + base::Microseconds(microseconds);
   }
 

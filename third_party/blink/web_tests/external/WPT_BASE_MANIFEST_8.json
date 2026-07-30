@@ -361095,21 +361095,6 @@
        ]
       ]
      },
-     "closepath": {
-      "segment-completing.svg": [
-       "06c75a00e47f06b129ae90bf44927f3f0de5ad21",
-       [
-        null,
-        [
-         [
-          "/svg/path/closepath/segment-completing-ref.svg",
-          "=="
-         ]
-        ],
-        {}
-       ]
-      ]
-     },
      "distance": {
       "path-length-css-overrides-presentation-attribute.tentative.svg": [
        "fc082681acf7b0a4b9760c69bf8bee1ea8eff42d",
@@ -491949,12 +491934,6 @@
       ],
       "zero-ref.svg": [
        "3558de3153e198abd66a150ca74fae9d72647e0f",
-       []
-      ]
-     },
-     "closepath": {
-      "segment-completing-ref.svg": [
-       "cc068cefe32d0713603d06b74b585c4f68f552ed",
        []
       ]
      },

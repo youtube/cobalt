@@ -127,7 +127,7 @@ std::string TimeZone::GetRegion() const {
   return std::string();
 }
 
-std::u16string TimeZone::GetDisplayName(const base::LanguageTag& language_tag,
+std::u16string TimeZone::GetDisplayName(const LanguageTag& language_tag,
                                         DisplayType style) const {
   icu::UnicodeString name;
   UErrorCode status = U_ZERO_ERROR;

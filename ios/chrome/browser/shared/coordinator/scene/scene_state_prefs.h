@@ -7,31 +7,31 @@
 
 #import <Foundation/Foundation.h>
 
-#import <optional>
-#import <string>
 #import <string_view>
 
 #import "base/time/time.h"
 
 @class UISceneSession;
+class ProfileManagerIOS;
 
 // Provides access to SceneState scoped preferences.
 @interface SceneStatePrefs : NSObject
 
 // Designated initializer.
-- (instancetype)initWithSessionIdentifier:(std::string)sessionIdentifier
-                              profileName:(std::string)profileName
-                             sceneSession:(UISceneSession*)sceneSession
+- (instancetype)initWithProfileManager:(ProfileManagerIOS*)profileManager
+                           profileName:(std::string_view)profileName
+                     sessionIdentifier:(std::string_view)sessionIdentifier
+                          sceneSession:(UISceneSession*)sceneSession
     NS_DESIGNATED_INITIALIZER;
 - (instancetype)init NS_UNAVAILABLE;
 
 // Getter and setter for boolean preference with the given key.
-- (std::optional<bool>)boolForKey:(NSString*)key;
-- (void)setBool:(bool)value forKey:(NSString*)key;
+- (bool)boolForKey:(std::string_view)key;
+- (void)setBool:(bool)value forKey:(std::string_view)key;
 
 // Getter and setter for base::Time preference with the given key.
-- (std::optional<base::Time>)timeForKey:(NSString*)key;
-- (void)setTime:(base::Time)value forKey:(NSString*)key;
+- (base::Time)timeForKey:(std::string_view)key;
+- (void)setTime:(base::Time)value forKey:(std::string_view)key;
 
 @end
 

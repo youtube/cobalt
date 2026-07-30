@@ -262,7 +262,7 @@ bool SkiaImageRepresentation::NeedGraphiteContextSubmitBeforeEndAccess() {
     return false;
   }
 
-  if (!features::kSkiaGraphiteEnableDeferredSubmit.Get()) {
+  if (!features::SkiaGraphiteEnableDeferredSubmit()) {
     // If deferred submit is disabled, then a submit is always required.
     return true;
   }

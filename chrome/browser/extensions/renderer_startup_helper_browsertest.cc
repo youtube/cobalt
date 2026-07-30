@@ -85,11 +85,8 @@ class RendererStartupHelperBrowserTest : public InProcessBrowserTest {
     content::WebUIControllerFactory::RegisterFactory(
         &webui_controller_factory_);
 
-    // Enable the feature and any WebUI dependencies.
     feature_list_.InitWithFeatures(
-        {blink::features::kInitialWebUIWithoutExtensions,
-         features::kInitialWebUISyncNavStartToCommit},
-        {});
+        {blink::features::kInitialWebUIWithoutExtensions}, {});
   }
 
  protected:

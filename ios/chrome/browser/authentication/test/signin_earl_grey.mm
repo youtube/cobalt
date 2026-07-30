@@ -155,7 +155,8 @@ using base::test::ios::WaitUntilConditionOrTimeout;
                  ^bool {
                    NSString* primaryAccountGaiaIDString =
                        [SigninEarlGreyAppInterface primaryAccountGaiaIDString];
-                   return primaryAccountGaiaIDString.length > 0;
+                   return [primaryAccountGaiaIDString
+                       isEqualToString:fakeIdentity.gaiaId.ToNSString()];
                  }),
              @"Sign in did not complete.");
   GREYWaitForAppToIdle(@"App failed to idle");
@@ -182,7 +183,7 @@ using base::test::ios::WaitUntilConditionOrTimeout;
                  ^bool {
                    NSString* primaryAccountEmail =
                        [SigninEarlGreyAppInterface primaryAccountEmail];
-                   return primaryAccountEmail.length > 0;
+                   return [primaryAccountEmail isEqualToString:expectedEmail];
                  }),
              @"Sign in did not complete.");
   GREYWaitForAppToIdle(@"App failed to idle");

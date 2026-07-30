@@ -487,7 +487,7 @@ class COMPONENT_EXPORT(URL) GURL {
   bool is_valid_;
 
   // Cached result of SchemeIsHTTPOrHTTPS().
-  mutable std::optional<bool> is_http_or_https_cache_;
+  std::optional<bool> is_http_or_https_cache_;
 
   // Identified components of the canonical spec.
   url::Parsed parsed_;

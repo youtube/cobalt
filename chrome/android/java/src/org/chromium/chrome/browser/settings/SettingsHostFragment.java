@@ -16,6 +16,7 @@ import androidx.preference.PreferenceFragmentCompat;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 
 /** Hosts settings preference fragments inside a native page. See {@link SettingsPage}. */
 @NullMarked
@@ -23,6 +24,11 @@ public class SettingsHostFragment extends Fragment
         implements PreferenceFragmentCompat.OnPreferenceStartFragmentCallback {
 
     private static final int CONTAINER_ID = View.generateViewId();
+
+    SettingsHostFragment() {
+        assert ChromeFeatureList.sSettingsInTab.isEnabled()
+                : "SettingsInTab feature must be enabled to use SettingsHostFragment.";
+    }
 
     @Override
     public View onCreateView(
@@ -52,7 +58,7 @@ public class SettingsHostFragment extends Fragment
      * to use simpler fragments.
      */
     protected Fragment createInitialFragment() {
-        return new MainSettings();
+        return new MultiColumnSettings();
     }
 
     @Override

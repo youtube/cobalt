@@ -270,6 +270,30 @@ class PLATFORM_EXPORT ResourceFetcher
     return preload_records_;
   }
 
+  // Information about a preconnect for the SpeculationMeasurement API.
+  struct PreconnectInfo {
+    // The serialized origin the connection was opened to.
+    String origin;
+    // The reflected crossorigin attribute value of the preconnect.
+    CrossOriginAttributeValue crossorigin = kCrossOriginAttributeNotSet;
+    // Whether the preconnect was delivered via an Early Hints response.
+    bool early_hints = false;
+  };
+
+  // Records a developer-initiated preconnect for the SpeculationMeasurement
+  // API. `crossorigin` is the reflected crossorigin attribute value.
+  // Preconnects are deduped by (origin, crossorigin); a duplicate that arrives
+  // via Early Hints upgrades the existing entry's `early_hints` flag to true.
+  void RecordPreconnect(const KURL& url,
+                        CrossOriginAttributeValue crossorigin,
+                        bool early_hints);
+
+  // Returns a map keyed by (origin, crossorigin) to PreconnectInfo for all
+  // developer-initiated preconnects.
+  const HashMap<String, PreconnectInfo>& GetPreconnectRecords() const {
+    return preconnect_records_;
+  }
+
   MHTMLArchive* Archive() const { return archive_.Get(); }
 
   // Set the deferring state of each loader owned by this ResourceFetcher. This
@@ -670,6 +694,10 @@ class PLATFORM_EXPORT ResourceFetcher
   // Records of all preloads (used and unused) for the SpeculationMeasurement
   // API.
   HashMap<KURL, PreloadInfo> preload_records_;
+
+  // Records of all developer-initiated preconnects for the
+  // SpeculationMeasurement API, keyed by (origin, credentials).
+  HashMap<String, PreconnectInfo> preconnect_records_;
 
   // Keeps preloads which are deferred to start loading based on the LCPP
   // signal of potentially unused preloads, in order to prevent subsequent

@@ -153,7 +153,12 @@ class TestVizLayerTreeHostImpl : public LayerTreeHostImpl {
 class LayerTreeHostImplTestBase : public testing::Test,
                                   public LayerTreeHostImplDelegate {
  public:
-  LayerTreeHostImplTestBase();
+  // Derived classes should create and initialize a ScopedFeatureList with
+  // the features they want to enable/disable and pass it to the base class (via
+  // this constructor) instead of storing it themselves. If they don't want to
+  // override any features, they can simply pass `ScopedFeatureList()`.
+  explicit LayerTreeHostImplTestBase(
+      base::test::ScopedFeatureList scoped_feature_list);
   ~LayerTreeHostImplTestBase() override;
 
   virtual LayerTreeSettings DefaultSettings();
@@ -364,6 +369,11 @@ class LayerTreeHostImplTestBase : public testing::Test,
   FakeImplTaskRunnerProvider task_runner_provider_;
   DebugScopedSetMainThreadBlocked always_main_thread_blocked_;
 
+  // Note: `scoped_feature_list_` should always be declared (and initialized)
+  // before `task_graph_runner_`. `task_graph_runner_` spins up a background
+  // thread on initialization that might try to access the global feature list
+  // while it's being reset by `scoped_feature_list_`.
+  base::test::ScopedFeatureList scoped_feature_list_;
   TestTaskGraphRunner task_graph_runner_;
   std::unique_ptr<LayerTreeFrameSink> layer_tree_frame_sink_;
   std::unique_ptr<LayerTreeHostImpl> host_impl_;
@@ -396,9 +406,6 @@ class LayerTreeHostImplTest
   ~LayerTreeHostImplTest() override;
   static bool CommitsToActiveTree();
   LayerTreeSettings DefaultSettings() override;
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 }  // namespace cc

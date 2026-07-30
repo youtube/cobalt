@@ -49,6 +49,8 @@
 #include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/controls/native/native_view_host.h"
+#include "ui/views/focus/native_view_focus_manager.h"
+#include "ui/views/test/focus_manager_test.h"
 #include "ui/views/test/native_widget_factory.h"
 #include "ui/views/test/test_widget_observer.h"
 #include "ui/views/test/widget_test.h"
@@ -1009,6 +1011,46 @@ TEST_F(NativeWidgetMacTest, NonWidgetParent) {
   EXPECT_TRUE(child_observer.widget_closed());
 
   EXPECT_EQ(0u, [[native_parent childWindows] count]);
+  [native_parent close];
+}
+
+// Tests that a key-status change does not crash when the child widget has no
+// top-level widget, so Widget::GetFocusManager() returns null.
+TEST_F(NativeWidgetMacTest, KeyStatusChangeWithNoTopLevelDoesNotCrash) {
+  NSWindow* native_parent = MakeBorderlessNativeParent();
+  Widget* child = AttachPopupToNativeParent(native_parent);
+  child->Show();
+  ASSERT_FALSE(child->is_top_level());
+
+  NativeWidgetMacNSWindowHost* host =
+      NativeWidgetMacNSWindowHost::GetFromNativeWindow(
+          child->GetNativeWindow());
+  ASSERT_TRUE(host);
+
+  // Without a parent host, GetTopLevelNativeWidget() resolves to the child,
+  // which is not top-level and owns no FocusManager.
+  host->SetParent(nullptr);
+  ASSERT_EQ(nullptr, child->GetFocusManager());
+
+  TestNativeViewFocusChangeListener focus_listener;
+  base::ScopedObservation<NativeViewFocusManager, NativeViewFocusChangeListener>
+      observation(&focus_listener);
+  observation.Observe(NativeViewFocusManager::GetInstance());
+
+  NativeWidgetMac* native_widget = host->native_widget_mac();
+
+  // Pre-fix both branches dereference the null FocusManager and crash.
+  native_widget->OnWindowKeyStatusChanged(
+      /*is_key=*/true, /*is_content_first_responder=*/true);
+  native_widget->OnWindowKeyStatusChanged(
+      /*is_key=*/false, /*is_content_first_responder=*/true);
+
+  // OnNativeFocus()/OnNativeBlur() still run; only the null deref is skipped.
+  EXPECT_THAT(focus_listener.focus_changes(),
+              testing::Contains(child->GetNativeView()));
+
+  // The child is detached from `native_parent`, so close it directly.
+  [child->GetNativeWindow().GetNativeNSWindow() close];
   [native_parent close];
 }
 

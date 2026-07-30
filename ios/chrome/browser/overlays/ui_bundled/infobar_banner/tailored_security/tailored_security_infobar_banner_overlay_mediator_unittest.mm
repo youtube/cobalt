@@ -52,7 +52,6 @@ class TailoredSecurityInfobarBannerOverlayMediatorTest : public PlatformTest {
     consumer_ = [[FakeInfobarBannerConsumer alloc] init];
     mediator_ = [[TailoredSecurityInfobarBannerOverlayMediator alloc]
         initWithRequest:request_.get()];
-    ;
     mediator_.consumer = consumer_;
   }
 

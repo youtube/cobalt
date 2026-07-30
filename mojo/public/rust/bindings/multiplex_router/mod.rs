@@ -31,6 +31,7 @@
 //! rest of the crate.
 
 mod arc_or_weak;
+mod control_messages;
 mod endpoint_registry;
 mod handle;
 mod response_sender;

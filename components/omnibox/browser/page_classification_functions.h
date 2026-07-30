@@ -16,6 +16,10 @@ bool IsNTPPage(::metrics::OmniboxEventProto::PageClassification classification);
 bool IsSearchResultsPage(
     ::metrics::OmniboxEventProto::PageClassification classification);
 
+// Return true, if supplied page classification applies to Android Widget.
+bool IsAndroidWidget(
+    ::metrics::OmniboxEventProto::PageClassification classification);
+
 // Return true, if supplied page classification is neither a new tab page or
 // search results page.
 bool IsOtherWebPage(

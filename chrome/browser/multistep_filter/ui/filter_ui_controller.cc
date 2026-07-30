@@ -11,6 +11,7 @@
 #include "base/notreached.h"
 #include "base/strings/strcat.h"
 #include "base/strings/utf_string_conversions.h"
+#include "chrome/browser/contextual_cueing/prefs.h"
 #include "chrome/browser/favicon/favicon_service_factory.h"
 #include "chrome/browser/multistep_filter/core/multistep_filter_log_router_factory.h"
 #include "chrome/browser/multistep_filter/core/multistep_filter_service_factory.h"
@@ -23,9 +24,11 @@
 #include "chrome/grit/generated_resources.h"
 #include "components/favicon/core/favicon_service.h"
 #include "components/multistep_filter/content/filter_initiated_navigation_marker.h"
+#include "components/multistep_filter/core/data_models/suggestion_user_decision.h"
 #include "components/multistep_filter/core/logging/log_entry.h"
 #include "components/multistep_filter/core/logging/multistep_filter_logger.h"
 #include "components/multistep_filter/core/multistep_filter_service.h"
+#include "components/optimization_guide/core/feature_registry/feature_registration.h"
 #include "components/optimization_guide/core/model_execution/feature_keys.h"
 #include "components/optimization_guide/core/optimization_guide_prefs.h"
 #include "components/prefs/pref_service.h"
@@ -45,19 +48,19 @@ namespace multistep_filter {
 
 namespace {
 
-void LogSuggestionUiDecision(
-    MultistepFilterLogRouter* log_router,
-    const FilterUiController::SuggestionState& state,
-    FilterUiController::SuggestionUserDecision decision) {
+void LogSuggestionUiDecision(MultistepFilterLogRouter* log_router,
+                             const FilterUiController::SuggestionState& state,
+                             SuggestionUserDecision decision) {
   LogEventType event_type;
   switch (decision) {
-    case FilterUiController::SuggestionUserDecision::kAccepted:
+    case SuggestionUserDecision::kAccepted:
       event_type = LogEventType::kSuggestionAccepted;
       break;
-    case FilterUiController::SuggestionUserDecision::kDismissed:
+    case SuggestionUserDecision::kDismissed:
       event_type = LogEventType::kSuggestionDismissed;
       break;
-    case FilterUiController::SuggestionUserDecision::kIgnored:
+    case SuggestionUserDecision::kIgnored:
+    case SuggestionUserDecision::kSettingsOpened:
       event_type = LogEventType::kSuggestionIgnored;
       break;
   }
@@ -69,13 +72,15 @@ void LogSuggestionUiDecision(
       trigger_source = "Cue";
       break;
     case FilterUiController::SuggestionViewState::kCollapsedInOmnibox:
+    case FilterUiController::SuggestionViewState::
+        kCollapsedInOmniboxAfterReopen:
       trigger_source = "Omnibox";
       break;
     case FilterUiController::SuggestionViewState::kInactive:
       NOTREACHED();
   }
 
-  if (decision == FilterUiController::SuggestionUserDecision::kAccepted) {
+  if (decision == SuggestionUserDecision::kAccepted) {
     MULTISTEP_FILTER_LOG(log_router, state.suggestion.triggering_navigation_id,
                          event_type, state.suggestion.triggering_host)
         << LogDetail{"navigation_attempted", true}
@@ -138,6 +143,10 @@ FilterUiController::~FilterUiController() {
       suggestion_state_->view_state == SuggestionViewState::kInactive) {
     return;
   }
+  if (service_) {
+    service_->RecordUserInteractionWithSuggestion(
+        SuggestionUserDecision::kIgnored);
+  }
   LogSuggestionUiDecision(log_router_, *suggestion_state_,
                           SuggestionUserDecision::kIgnored);
 }
@@ -172,6 +181,9 @@ void FilterUiController::ClearSuggestion(SuggestionUserDecision decision) {
     return;
   }
   if (suggestion_state_->view_state != SuggestionViewState::kInactive) {
+    if (service_) {
+      service_->RecordUserInteractionWithSuggestion(decision);
+    }
     LogSuggestionUiDecision(log_router_, *suggestion_state_, decision);
   }
   dismissal_weak_factory_.InvalidateWeakPtrs();
@@ -202,6 +214,7 @@ void FilterUiController::OnActionInvoked() {
     case SuggestionViewState::kInactive:
       NOTREACHED();
     case SuggestionViewState::kCollapsedInOmnibox:
+    case SuggestionViewState::kCollapsedInOmniboxAfterReopen:
       ShowCue(suggestion_state_->suggestion);
       break;
   }
@@ -239,7 +252,7 @@ void FilterUiController::ExecuteCommand(int command_id, int event_flags) {
       ClearSuggestion(SuggestionUserDecision::kDismissed);
       break;
     case internal::kSettingsCommand:
-      ClearSuggestion(SuggestionUserDecision::kIgnored);
+      ClearSuggestion(SuggestionUserDecision::kSettingsOpened);
       OpenSettings();
       break;
   }
@@ -267,9 +280,21 @@ bool FilterUiController::ShouldShowCue() const {
   int opt_in_state = pref_service_->GetInteger(
       optimization_guide::prefs::GetSettingEnabledPrefName(
           optimization_guide::UserVisibleFeatureKey::kContextualCueing));
-  return opt_in_state !=
-         std::to_underlying(
-             optimization_guide::prefs::FeatureOptInState::kDisabled);
+  if (opt_in_state ==
+      std::to_underlying(
+          optimization_guide::prefs::FeatureOptInState::kDisabled)) {
+    return false;
+  }
+
+  // Check enterprise policy.
+  if (pref_service_->GetInteger(
+          optimization_guide::prefs::kChromeSuggestionsSettings) ==
+      std::to_underlying(
+          contextual_cueing::ChromeSuggestionsSettingsValue::kDisabled)) {
+    return false;
+  }
+
+  return true;
 }
 
 void FilterUiController::ShowCue(const UrlFilterSuggestion& suggestion) {
@@ -309,6 +334,7 @@ void FilterUiController::OnPageActionAnchoredMessageShown(
       LogSuggestionUiShown(log_router_, suggestion_state_->suggestion,
                            /*ui_shown=*/true, /*reason=*/"");
       if (service_) {
+        service_->RecordSuggestionImpression();
         // Delete similar suggestions from the service as this one is being
         // shown.
         service_->DeleteAnnotationsForTask(
@@ -318,6 +344,7 @@ void FilterUiController::OnPageActionAnchoredMessageShown(
       }
       break;
     case SuggestionViewState::kCollapsedInOmnibox:
+    case SuggestionViewState::kCollapsedInOmniboxAfterReopen:
       if (page_action_controller_) {
         page_action_controller_->OverrideText(
             kActionMultistepFilter,
@@ -340,7 +367,6 @@ void FilterUiController::OnPageActionAnchoredMessageHidden(
 
   switch (suggestion_state_->view_state) {
     case SuggestionViewState::kShowingInitialCue:
-    case SuggestionViewState::kReopenedFromOmnibox:
       LogSuggestionUiDecision(log_router_, *suggestion_state_,
                               SuggestionUserDecision::kIgnored);
       suggestion_state_->view_state = SuggestionViewState::kCollapsedInOmnibox;
@@ -350,8 +376,20 @@ void FilterUiController::OnPageActionAnchoredMessageHidden(
             suggestion_state_->suggestion.short_suggestion_message);
       }
       break;
+    case SuggestionViewState::kReopenedFromOmnibox:
+      LogSuggestionUiDecision(log_router_, *suggestion_state_,
+                              SuggestionUserDecision::kIgnored);
+      suggestion_state_->view_state =
+          SuggestionViewState::kCollapsedInOmniboxAfterReopen;
+      if (page_action_controller_) {
+        page_action_controller_->OverrideText(
+            kActionMultistepFilter,
+            suggestion_state_->suggestion.short_suggestion_message);
+      }
+      break;
     case SuggestionViewState::kInactive:
     case SuggestionViewState::kCollapsedInOmnibox:
+    case SuggestionViewState::kCollapsedInOmniboxAfterReopen:
       NOTREACHED();
   }
 }

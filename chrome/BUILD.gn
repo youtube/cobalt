@@ -22,6 +22,7 @@ import("//chrome/process_version_rc_template.gni")
 import("//components/optimization_guide/features.gni")
 import("//extensions/buildflags/buildflags.gni")
 import("//media/media_options.gni")
+import("//services/on_device_model/on_device_model.gni")
 import("//services/shape_detection/features.gni")
 import("//third_party/angle/gni/angle.gni")
 import("//third_party/blink/public/public_features.gni")
@@ -1012,12 +1013,10 @@ if (is_win) {
     public_deps = [ "//ui/gl:swiftshader_vk_library_copy" ]
   }
 
-  if (shared_libvulkan_on_mac) {
-    bundle_data("vulkan_loader_binaries") {
-      sources = [ "$root_out_dir/vulkan_intermediates/libvulkan.dylib" ]
-      outputs = [ "{{bundle_contents_dir}}/Libraries/{{source_file_part}}" ]
-      public_deps = [ "//ui/gl:vulkan_loader_library_copy" ]
-    }
+  bundle_data("vulkan_loader_binaries") {
+    sources = [ "$root_out_dir/vulkan_intermediates/libvulkan.dylib" ]
+    outputs = [ "{{bundle_contents_dir}}/Libraries/{{source_file_part}}" ]
+    public_deps = [ "//ui/gl:vulkan_loader_library_copy" ]
   }
 
   if (bundle_widevine_cdm) {
@@ -1224,9 +1223,7 @@ if (is_win) {
       bundle_deps += [ ":angle_binaries" ]
     }
 
-    if (shared_libvulkan_on_mac) {
-      bundle_deps += [ ":vulkan_loader_binaries" ]
-    }
+    bundle_deps += [ ":vulkan_loader_binaries" ]
 
     configs += [ ":chrome_dll_symbol_order" ]
     if (!is_component_build && !using_sanitizer) {
@@ -1312,9 +1309,7 @@ if (is_win) {
       "$root_out_dir/libvk_swiftshader.dylib",
       _framework_binary_path,
     ]
-    if (shared_libvulkan_on_mac) {
-      _chrome_symbols_sources += [ "$root_out_dir/libvulkan.dylib" ]
-    }
+    _chrome_symbols_sources += [ "$root_out_dir/libvulkan.dylib" ]
     if (build_with_internal_optimization_guide) {
       _chrome_symbols_sources +=
           [ "$root_out_dir/liboptimization_guide_internal.dylib" ]
@@ -1358,9 +1353,7 @@ if (is_win) {
         "//third_party/swiftshader/src/Vulkan:swiftshader_libvulkan",
         dump_syms,
       ]
-      if (shared_libvulkan_on_mac) {
-        deps += [ "//third_party/vulkan-loader/src:libvulkan" ]
-      }
+      deps += [ "//third_party/vulkan-loader/src:libvulkan" ]
       if (build_with_internal_optimization_guide) {
         deps += [ "//components/optimization_guide/internal:optimization_guide_internal" ]
       }
@@ -1398,9 +1391,7 @@ if (is_win) {
         "$root_out_dir/chrome_crashpad_handler.dSYM",
         "$root_out_dir/libvk_swiftshader.dylib.dSYM",
       ]
-      if (shared_libvulkan_on_mac) {
-        _dsyms += [ "$root_out_dir/libvulkan.dylib.dSYM" ]
-      }
+      _dsyms += [ "$root_out_dir/libvulkan.dylib.dSYM" ]
       if (build_with_internal_optimization_guide) {
         _dsyms += [ "$root_out_dir/liboptimization_guide_internal.dylib.dSYM" ]
       }
@@ -1415,9 +1406,7 @@ if (is_win) {
         "//components/crash/core/app:chrome_crashpad_handler",
         "//third_party/swiftshader/src/Vulkan:swiftshader_libvulkan",
       ]
-      if (shared_libvulkan_on_mac) {
-        deps += [ "//third_party/vulkan-loader/src:libvulkan" ]
-      }
+      deps += [ "//third_party/vulkan-loader/src:libvulkan" ]
       if (build_with_internal_optimization_guide) {
         deps += [ "//components/optimization_guide/internal:optimization_guide_internal" ]
       }
@@ -1701,6 +1690,9 @@ if (is_linux || is_chromeos) {
       }
       if (build_with_internal_optimization_guide) {
         deps += [ ":optimization_guide_symbols" ]
+        if (enable_ml_internal) {
+          deps += [ ":lite_rt_web_gpu_accelerator_symbols" ]
+        }
       }
       if (build_with_internal_shape_detection) {
         deps += [ ":shape_detection_symbols" ]
@@ -1805,6 +1797,19 @@ if (is_linux || is_chromeos) {
         }
 
         deps = [ "//components/optimization_guide/internal:optimization_guide_internal" ]
+      }
+      if (enable_ml_internal) {
+        extract_symbols("lite_rt_web_gpu_accelerator_symbols") {
+          binary = "$root_out_dir/libLiteRtWebGpuAccelerator.so"
+          if (current_cpu == "x86") {
+            symbol_file =
+                "$root_out_dir/lite_rt_web_gpu_accelerator.breakpad.ia32"
+          } else {
+            symbol_file = "$root_out_dir/lite_rt_web_gpu_accelerator.breakpad.$current_cpu"
+          }
+
+          deps = [ "//components/optimization_guide/internal/third_party/odml:ml_drift_webgpu_accelerator_so" ]
+        }
       }
     }
     if (build_with_internal_shape_detection) {

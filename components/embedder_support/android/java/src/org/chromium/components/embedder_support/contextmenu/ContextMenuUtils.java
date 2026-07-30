@@ -273,6 +273,7 @@ public final class ContextMenuUtils {
      * @param context The application {@link Context}.
      * @param webContents The {@link WebContents} instance.
      * @param params The {@link ContextMenuParams} for the context menu.
+     * @param leftContentOffsetPx The left content offset in pixels.
      * @param topContentOffsetPx The top content offset in pixels.
      * @param usePopupWindow Whether the menu should be displayed as a popup window.
      * @param containerView The container {@link View} for the context menu.
@@ -283,12 +284,19 @@ public final class ContextMenuUtils {
             Window window,
             WebContents webContents,
             ContextMenuParams params,
-            float topContentOffsetPx,
+            int leftContentOffsetPx,
+            int topContentOffsetPx,
             boolean usePopupWindow,
             View containerView) {
         Point touchPoint =
                 getTouchPointCoordinates(
-                        context, window, params, topContentOffsetPx, usePopupWindow, containerView);
+                        context,
+                        window,
+                        params,
+                        leftContentOffsetPx,
+                        topContentOffsetPx,
+                        usePopupWindow,
+                        containerView);
 
         // If drag drop is enabled, the context menu needs to be anchored next to the drag shadow.
         // Otherwise, the Rect used to display the context menu dialog can be a single point.
@@ -307,6 +315,7 @@ public final class ContextMenuUtils {
      *
      * @param context The application {@link Context}.
      * @param params The {@link ContextMenuParams} for the context menu.
+     * @param leftContentOffsetPx The left content offset in pixels.
      * @param topContentOffsetPx The top content offset in pixels.
      * @param usePopupWindow Whether the menu should be displayed as a popup window.
      * @param containerView The container {@link View} for the context menu.
@@ -317,14 +326,15 @@ public final class ContextMenuUtils {
             Context context,
             Window window,
             ContextMenuParams params,
-            float topContentOffsetPx,
+            int leftContentOffsetPx,
+            int topContentOffsetPx,
             boolean usePopupWindow,
             View containerView) {
         final float density = context.getResources().getDisplayMetrics().density;
         final float touchPointXPx = params.getTriggeringTouchXDp() * density;
         final float touchPointYPx = params.getTriggeringTouchYDp() * density;
 
-        int x = (int) touchPointXPx;
+        int x = (int) (touchPointXPx + leftContentOffsetPx);
         int y = (int) (touchPointYPx + topContentOffsetPx);
 
         // When context menu is a popup, the coordinates are expected to be screen coordinates as

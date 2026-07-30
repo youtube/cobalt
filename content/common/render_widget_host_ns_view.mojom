@@ -91,6 +91,9 @@ interface RenderWidgetHostNSView {
   // Indicate if the WebContext is showing a context menu or not.
   SetShowingContextMenu(bool showing);
 
+  // Indicate if the native context menu should display "AutoFill" items.
+  SetSupportsAutoFill(bool supports);
+
   // Set the cursor type to display.
   DisplayCursor(ui.mojom.Cursor cursor);
 

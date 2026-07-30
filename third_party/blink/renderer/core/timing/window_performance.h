@@ -268,13 +268,16 @@ class CORE_EXPORT WindowPerformance final : public Performance,
   // order; stop as soon as seeing an event with pending presentation promise.
   void TryFlushEventTimingQueue();
   void FlushEventTiming(InteractiveDetector* interactive_detector,
-                        Member<PerformanceEventTiming> event_timing_entry);
+                        Member<PerformanceEventTiming> event_timing_entry,
+                        PerformanceEventTiming* primary_entry);
 
   void TryReportAsFirstInputTiming(PerformanceEventTiming* event_timing_entry);
 
   // Notify observer that an event timing entry is ready and add it to the event
   // timing buffer if needed.
-  void ReportEventTimingToPerformanceTimeline(PerformanceEventTiming* entry);
+  void ReportEventTimingToPerformanceTimeline(
+      PerformanceEventTiming* entry,
+      PerformanceEventTiming* primary_entry);
 
   template <typename Callback>
   void IterateEventTimingsByAnimationFrame(uint64_t frame_index,

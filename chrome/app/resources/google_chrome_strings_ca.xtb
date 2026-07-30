@@ -147,6 +147,7 @@
 <translation id="2472092250898121027">Aquesta extensió conté programari maliciós i no és segura. Suprimeix-la de Chrome perquè ja no pugui veure ni canviar les teves dades als llocs web que visitis, inclosa la teva informació personal.</translation>
 <translation id="2485422356828889247">Desinstal·la</translation>
 <translation id="2513154137948333830">Reinici necessari: <ph name="INSTALL_SUCCESS" /></translation>
+<translation id="2523492931736391680">La teva feina està protegida a Chrome</translation>
 <translation id="2534365042754120737">Per protegir les teves dades, permet que Chrome suprimeixi els permisos dels llocs web que no has visitat recentment. En continuaràs rebent notificacions.</translation>
 <translation id="2556847002339236023">La teva organització tanca Chrome quan no s'utilitza durant <ph name="TIMEOUT_DURATION" />. Les dades de navegació s'han suprimit. Això pot incloure l'historial, les dades d'Emplenament automàtic i les baixades.</translation>
 <translation id="2563121210305478421">Vols tornar a iniciar Chrome?</translation>
@@ -314,6 +315,7 @@ Si aquesta pàgina no funciona de la manera prevista, prova de permetre l'optimi
 <translation id="4149882025268051530">L'instal·lador no ha pogut descomprimir el fitxer. Torna a baixar Google Chrome.</translation>
 <translation id="415112847282352845">Per obtenir les teves adreces i altres dades en tots els dispositius, inicia la sessió a Chrome. Aquesta adreça es desarà al teu Compte de Google després d'iniciar-hi la sessió.</translation>
 <translation id="4153934450158521343">Chrome es tancarà aviat i les dades se suprimiran</translation>
+<translation id="4159985264221160808">Per protegir la teva feina a Chrome, la teva organització podrà veure o gestionar determinada informació</translation>
 <translation id="4173512894976930765">És probable que els llocs web funcionin de la manera prevista. Quan tanquis totes les finestres de Chrome, se't tancarà la sessió de la majoria de llocs web, tret del Compte de Google si tens la sessió iniciada a Chrome.</translation>
 <translation id="4175922240926474352">Chrome ha bloquejat aquesta baixada perquè el lloc web no utilitza una connexió segura i és possible que el fitxer s'hagi manipulat</translation>
 <translation id="4191857738314598978">{0,plural, =1{Reinicia Chrome en 1 dia}other{Reinicia Chrome en # dies}}</translation>
@@ -702,6 +704,7 @@ Si aquesta pàgina no funciona de la manera prevista, prova de permetre l'optimi
 <translation id="8064965390968184078">1. Fes clic a <ph name="BUTTON_LABEL" /> a continuació.
 2. Fes clic a <ph name="BUTTON_2" /> a la configuració de Windows.
 3. Fes clic a <ph name="BUTTON_3" /> a la notificació de Windows per fixar Chrome a la barra de tasques i accedir-hi ràpidament</translation>
+<translation id="8069447462453318634">Selecciona Fixa a la barra d'eines</translation>
 <translation id="8074398340364918139">Per cercar una funció o una extensió específiques de Chrome, escriu la seva drecera a la barra d'adreces, seguida de la tecla que hagis seleccionat</translation>
 <translation id="8077579734294125741">Altres perfils de Chrome</translation>
 <translation id="8086881907087796310">La instal·lació ha fallat perquè l'ordinador no compleix els requisits mínims de maquinari.</translation>
@@ -798,6 +801,7 @@ No es poden desar adreces d'interès noves al teu compte fins que no en suprimei
             Les adreces d'interès, l'historial i les contrasenyes desades no es veuran afectats.</translation>
 <translation id="8948460679427074738">Aquesta extensió no ha publicat les seves pràctiques de privadesa, per exemple, la manera com recull i utilitza les dades. Chrome et recomana que la suprimeixis.</translation>
 <translation id="8958307504142971576">Ara tens més funcions disponibles a Chrome</translation>
+<translation id="8987061207681586800">Personalitzar Chrome</translation>
 <translation id="8991530961471831170">Obre Gemini a Chrome</translation>
 <translation id="8992769679401294069">Les teves dades s'encripten amb la teva frase de contrasenya. Per utilitzar i desar les dades de Chrome al teu Compte de Google, introdueix la frase de contrasenya.</translation>
 <translation id="8999117580775242387">Quan l'HTTPS no estigui disponible, Chrome utilitzarà una connexió no segura sense avisar-te</translation>

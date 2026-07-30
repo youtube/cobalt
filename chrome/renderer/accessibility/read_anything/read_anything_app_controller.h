@@ -187,6 +187,7 @@ class ReadAnythingAppController
                      const std::string& content) override;
   void OnReadabilityDistillationStateChanged(
       read_anything::mojom::ReadAnythingDistillationState new_state) override;
+  void OnMainFrameSameDocumentNavigation(const GURL& url) override;
 
 #if BUILDFLAG(IS_CHROMEOS)
   void OnDeviceLocked() override;
@@ -268,6 +269,7 @@ class ReadAnythingAppController
   int LineFocusStaticLine() const;
   int LineFocusCursorLine() const;
   int MaxLineWidth() const;
+  int ActivePresentationState() const;
   int InHiddenPresentationState() const;
   int InSidePanelPresentationState() const;
   int InImmersiveOverlayPresentationState() const;
@@ -319,6 +321,7 @@ class ReadAnythingAppController
   void OnRenderedTextBlocksAvailable(const std::vector<std::u16string>& blocks);
   v8::Local<v8::Value> GetAXMapping(int index);
   bool IsGoogleDocs() const;
+  bool IsPdf() const;
   bool IsImmersiveEnabled() const;
   bool IsImprovedReadAloudEnabled() const;
   bool IsTsTextSegmentationEnabled() const;
@@ -458,6 +461,10 @@ class ReadAnythingAppController
   // new distillation if the tree is ready.
   void DistillNewTree();
 
+  // Helper function that resets the distillation state and metrics in
+  // preparation for a new content distillation.
+  void PrepareForNewContentDistillation();
+
   // Returns the initial distillation method state based on feature flags and
   // page type (e.g. if it's PDF).
   ReadAnythingAppModel::DistillationMethod GetInitialDistillationMethod(
@@ -541,6 +548,10 @@ class ReadAnythingAppController
 
   void LogSpeechStop(int source);
 
+  // Logs the duration a user spent reading a page, broken down by page type
+  // (PDF vs WebPage) and view mode (FullPage overlay vs SidePanel).
+  void LogPageDuration();
+
   // Methods for logging line focus session info.
   void StartLineFocusSession();
   void LogLineFocusSession();
@@ -617,11 +628,13 @@ class ReadAnythingAppController
   // drawing instead.
   std::unique_ptr<base::RetainingOneShotTimer> pdf_draw_debouncer_;
 
-  base::OneShotTimer timer_;
+  // Since Screen2x distillation takes some time to occur, distillation success
+  // and failure occurs after kDistillationLoggingDelayMs.
+  base::OneShotTimer distillation_status_logging_delay_timer_;
 
   // The number of times distillation completes successfully after a page
   // change. Used for logging.
-  int distillationsCompleted_;
+  int distillations_completed_;
 
   // The distilled title result of DOM distiller distillation.
   std::string dom_distiller_title_;

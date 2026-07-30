@@ -336,6 +336,9 @@ class CONTENT_EXPORT RenderWidgetHostView {
   virtual void SetForceSpecifiedDeadline(
       std::optional<uint32_t> deadline_in_frames) {}
 
+  // Set whether macOS "AutoFill" is allowed for this view.
+  virtual void SetSupportsAutoFill(bool supports) {}
+
   virtual std::optional<uint32_t> GetForceSpecifiedDeadlineForTesting();
 };
 

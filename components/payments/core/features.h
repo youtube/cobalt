@@ -51,9 +51,6 @@ BASE_DECLARE_FEATURE(kPaymentRequestUseRendererUrlLoader);
 // browser window is too small to contain them.
 BASE_DECLARE_FEATURE(kPaymentRequestRejectTooSmallWindows);
 
-// Used to control whether Payment Request allows Payment Handlers to
-// differentiate between 'internal error' and 'user cancelled' as outcomes.
-BASE_DECLARE_FEATURE(kPaymentRequestSupportReportingAppError);
 
 // Used to control whether Payment Handler dialog includes an initiator during
 // the URL load.

@@ -375,9 +375,8 @@ void LocationBarView::Init() {
         omnibox::IsWebUIOmniboxPopupEnabled() &&
         !omnibox::IsWebUIOmniboxFullPopupEnabled();
 
-    if ((web_ui_popup_dropdown_only &&
-         !base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxPopupDebug)) ||
-        base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup)) {
+    if (web_ui_popup_dropdown_only &&
+        !base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxPopupDebug)) {
       omnibox_popup_view_ = std::make_unique<OmniboxPopupViewWebUI>(
           /*omnibox_view=*/omnibox_view_,
           /*controller=*/omnibox_controller_.get(), /*location_bar=*/this,
@@ -386,7 +385,7 @@ void LocationBarView::Init() {
       omnibox_popup_view_ =
           std::make_unique<OmniboxPopupViewBrowserView>(this, browser_);
     } else if (base::FeatureList::IsEnabled(
-                   omnibox::kWebUIOmniboxFullPopupV2)) {
+                   omnibox::kWebUIOmniboxFullPopup)) {
       omnibox_popup_view_ = std::make_unique<OmniboxPopupViewFullWebUI>(
           /*omnibox_view=*/omnibox_view_,
           /*controller=*/omnibox_controller_.get(), /*location_bar=*/this,
@@ -706,7 +705,7 @@ void LocationBarView::FocusLocation(bool is_user_initiated,
 
 void LocationBarView::Revert() {
   omnibox_view_->RevertAll();
-  if (base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopupV2) &&
+  if (base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup) &&
       !in_popup_state_transition_) {
     GetOmniboxController()->popup_state_manager()->SetPopupState(
         OmniboxPopupState::kNone);
@@ -1155,7 +1154,7 @@ void LocationBarView::Update(WebContents* contents) {
 
   if (contents) {
     omnibox_view_->OnTabChanged(contents);
-    if (base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopupV2) &&
+    if (base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup) &&
         !omnibox::IsWebUIOmniboxInBrowserViewEnabled()) {
       omnibox_popup_view_->OnTabChanged(contents);
     }
@@ -1186,7 +1185,7 @@ void LocationBarView::Update(WebContents* contents) {
 //   that we can call `OmniboxTabHelper::ClearOmniboxInputState(contents)` in
 //   all cases.
 void LocationBarView::ResetTabState(WebContents* contents) {
-  if (base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopupV2)) {
+  if (base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup)) {
     OmniboxTabHelper::ClearOmniboxInputState(contents);
   } else {
     omnibox_view_->ResetTabState(contents);
@@ -1613,17 +1612,35 @@ bool LocationBarView::RefreshContentSettingViews() {
   }
 
   bool visibility_changed = false;
+  bool dashboard_updated = false;
+
   for (ContentSettingImageView* v : content_setting_views_) {
     const bool was_visible = v->GetVisible();
-    // The Left-Hand Side indicators currently supports only
-    // `ImageType::kMediaStream`.
-    if (v->GetType() == ContentSettingImageModel::ImageType::kMediaStream &&
-        // WebApps do not support the Left-Hand Side indicators.
-        !web_app::AppBrowserController::IsWebApp(browser_) &&
-        base::FeatureList::IsEnabled(
-            content_settings::features::kLeftHandSideActivityIndicators)) {
-      visibility_changed |= permission_dashboard_controller()->Update(
-          v->content_setting_image_model());
+
+    bool is_lhs_indicator = false;
+    if (!web_app::AppBrowserController::IsWebApp(browser_)) {
+      if (v->GetType() == ContentSettingImageModel::ImageType::kMediaStream) {
+        is_lhs_indicator = base::FeatureList::IsEnabled(
+            content_settings::features::kLeftHandSideActivityIndicators);
+      } else if (v->GetType() ==
+                 ContentSettingImageModel::ImageType::kSensors) {
+        is_lhs_indicator = base::FeatureList::IsEnabled(
+            content_settings::features::kLeftHandSideSensorActivityIndicators);
+      }
+    }
+
+    if (is_lhs_indicator) {
+      // Prioritize Media Stream (kMediaStream) over Sensors (kSensors) by
+      // selecting the first visible model. `kMediaStream` is always evaluated
+      // first because of the ordering in
+      // `ContentSettingImageModel::GenerateContentSettingImageModels()`.
+      if (!dashboard_updated) {
+        visibility_changed |= permission_dashboard_controller()->Update(
+            v->content_setting_image_model());
+        if (v->content_setting_image_model()->is_visible()) {
+          dashboard_updated = true;
+        }
+      }
     } else {
       v->Update();
       if (was_visible != v->GetVisible()) {
@@ -1631,6 +1648,7 @@ bool LocationBarView::RefreshContentSettingViews() {
       }
     }
   }
+
   return visibility_changed;
 }
 
@@ -1755,7 +1773,7 @@ void LocationBarView::UpdateContentSettingsIcons() {
 }
 
 void LocationBarView::SaveStateToContents(WebContents* contents) {
-  if (base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopupV2)) {
+  if (base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup)) {
     omnibox_popup_view_->SaveStateToTab(contents);
   } else {
     omnibox_view_->SaveStateToTab(contents);
@@ -1963,13 +1981,6 @@ void LocationBarView::OnPopupStateChanged(OmniboxPopupState old_state,
   RefreshBackground();
   UpdateWithoutTabRestore();
 
-  if (base::FeatureList::IsEnabled(
-          omnibox::kOmniboxAimDeferShowUntilVisualStateReady)) {
-    // Ensure the omnibox view repaints to reflect potential placeholder text
-    // visibility changes.
-    omnibox_view_->SchedulePaint();
-  }
-
   // Update the focus ring visibility.
   if (views::FocusRing::Get(this)) {
     views::FocusRing::Get(this)->Refresh();
@@ -1986,7 +1997,7 @@ void LocationBarView::ValidatePopupState(OmniboxPopupState state) {
   }
 
   // TODO(b/517240222): Re-enable popup state validation for the full popup
-  //   (`omnibox::kWebUIOmniboxFullPopupV2`).
+  //   (`omnibox::kWebUIOmniboxFullPopup`).
   // Skip validation if the browser window widget is closing or not visible.
   // During shutdown, the widget is hidden which can trigger omnibox view blur
   // and autocomplete stop before child popup widgets are destroyed and the
@@ -1995,8 +2006,7 @@ void LocationBarView::ValidatePopupState(OmniboxPopupState state) {
   // Note: GetWidget() returns the BrowserView's widget, not the popup widget.
   if (views::Widget* widget = GetWidget();
       !widget || !widget->IsVisible() ||
-      base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup) ||
-      base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopupV2)) {
+      base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup)) {
     return;
   }
 
@@ -2027,6 +2037,14 @@ void LocationBarView::ValidatePopupState(OmniboxPopupState state) {
 
 void LocationBarView::ClearInPopupStateTransition() {
   in_popup_state_transition_ = false;
+  // Since there is a 100ms delay, the omnibox_view never gets repainted.
+  // Ensure the omnibox view repaints to reflect potential placeholder text
+  // visibility changes.
+  if (omnibox_view_ &&
+      base::FeatureList::IsEnabled(
+          omnibox::kOmniboxAimDeferShowUntilVisualStateReady)) {
+    omnibox_view_->SchedulePaint();
+  }
 }
 
 void LocationBarView::AnimationProgressed(const gfx::Animation* animation) {
@@ -2087,8 +2105,10 @@ void LocationBarView::OnOmniboxFocused() {
   // The AI mode page action icon view should only be visible when the omnibox
   // is focused, so if there is a change in focus, refresh the icon.
   RefreshAiModePageActionIconView();
+}
 
-  if (base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopupV2) &&
+void LocationBarView::OpenOmniboxPopup() {
+  if (base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup) &&
       !in_popup_state_transition_) {
     if (auto* popup_view = GetOmniboxPopupView()) {
       popup_view->OnFocus();
@@ -2148,6 +2168,10 @@ bool LocationBarView::ShouldChipOverrideLocationIcon() {
 
 bool LocationBarView::IsEditingOrEmpty() const {
   return omnibox_view_ && omnibox_view_->IsEditingOrEmpty();
+}
+
+bool LocationBarView::IsMouseHovered() const {
+  return views::View::IsMouseHovered();
 }
 
 bool LocationBarView::OpenContextMenu() {

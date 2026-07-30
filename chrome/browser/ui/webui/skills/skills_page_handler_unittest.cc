@@ -103,7 +103,7 @@ TEST_F(SkillsPageHandlerTest, OnDiscoverySkillsUpdated) {
   skill_proto.set_prompt("Skill prompt");
   skill_proto.set_category("Category");
   skill_proto.set_description("Skill description");
-  skill_proto.set_image_url("https://example.com/image.png");
+  skill_proto.set_image_url("https://gstatic.com/image.png");
 
   first_party_skill_data->skills_list.push_back(skill_proto);
 
@@ -125,7 +125,7 @@ TEST_F(SkillsPageHandlerTest, OnDiscoverySkillsUpdated) {
         EXPECT_EQ("icon", skill.icon);
         EXPECT_EQ("Skill prompt", skill.prompt);
         EXPECT_EQ("Skill description", skill.description);
-        EXPECT_EQ("https://example.com/image.png", skill.image_url);
+        EXPECT_EQ("https://gstatic.com/image.png", skill.image_url);
         EXPECT_EQ(sync_pb::SkillSource::SKILL_SOURCE_FIRST_PARTY, skill.source);
 
         ASSERT_EQ(1u, state->topics_info_list.size());
@@ -256,6 +256,44 @@ TEST_F(SkillsPageHandlerTest, HidesInternalSkillsFromBrowser) {
         ASSERT_EQ(1u, skills.size());
         EXPECT_EQ("visible_id", skills[0].id);
 
+        run_loop.Quit();
+      });
+
+  handler_->OnDiscoverySkillsUpdated(first_party_skill_data.get());
+  run_loop.Run();
+}
+
+TEST_F(SkillsPageHandlerTest, 1pSkills_OnlyShowAcceptsHttpsImageUrls) {
+  auto first_party_skill_data = std::make_unique<FirstPartySkillData>();
+  const std::vector<std::pair<std::string, std::string>> kCases = {
+      {"invalid_https_id", "https://example.com/image.png"},
+      {"http_id", "http://gstatic.com/image.png"},
+      {"https_id", "https://gstatic.com/image.png"},
+      {"data_id", "data:image/png;base64,iVBORw0KGgo="},
+      {"empty_id", ""},
+  };
+
+  for (const auto& [id, image_url] : kCases) {
+    skills::proto::Skill skill_proto;
+    skill_proto.set_id(id);
+    skill_proto.set_name("Skill Name");
+    skill_proto.set_category("Category");
+    skill_proto.set_image_url(image_url);
+    first_party_skill_data->skills_list.push_back(skill_proto);
+  }
+
+  base::RunLoop run_loop;
+  EXPECT_CALL(mock_page_, Update1PSkills(_))
+      .WillOnce([&run_loop](mojom::BrowseSkillsInitialStatePtr state) {
+        ASSERT_TRUE(state->skill_map.contains("Category"));
+        const auto& skills = state->skill_map.at("Category");
+        for (const auto& skill : skills) {
+          if (skill.id == "http_id" || skill.id == "https_id") {
+            EXPECT_FALSE(skill.image_url.is_empty());
+          } else {
+            EXPECT_TRUE(skill.image_url.is_empty());
+          }
+        }
         run_loop.Quit();
       });
 

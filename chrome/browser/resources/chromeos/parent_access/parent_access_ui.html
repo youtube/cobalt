@@ -42,7 +42,7 @@
 <parent-access-template>
   <span slot="main">
     <div id="webviewDiv" role="dialog"
-        aria-label="$i18n{pageTitle}">
+        aria-label="$i18n{pageTitle}" tabindex="-1">
       <webview id="webview" hidden$="[[webviewLoading]]"></webview>
       <div class="spinner-container" hidden$="[[!webviewLoading]]">
         <paper-spinner-lite class="spinner" active="[[webviewLoading]]">

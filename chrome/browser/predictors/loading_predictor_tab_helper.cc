@@ -363,6 +363,19 @@ void LoadingPredictorTabHelper::DidStartNavigation(
     return;
   }
 
+  // If the navigation is blocked by the initiator's Connection-Allowlist, it
+  // will not commit. Skip all of this tab helper's work for it -- speculative
+  // network activity (preconnect, preresolve, resource prewarming) as well as
+  // predictor bookkeeping -- since the navigation won't load. Otherwise the
+  // destination host would leak (e.g. via its DNS resolution) even though the
+  // navigation is blocked. See https://github.com/WICG/connection-allowlists.
+  // TODO(crbug.com/447954811): Once the real network_restrictions_id is plumbed
+  // into the speculative preconnect/preresolve path, the network service will
+  // enforce the allowlist directly and this gate can be removed.
+  if (navigation_handle->IsBlockedByConnectionAllowlist()) {
+    return;
+  }
+
   MaybeSetLCPPNavigationHint(*navigation_handle, *predictor_);
 
   MaybePrewarmMainResourceAndSubresourcesOnNavigation(*navigation_handle,

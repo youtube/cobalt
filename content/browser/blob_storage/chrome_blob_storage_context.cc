@@ -101,12 +101,12 @@ ChromeBlobStorageContext* ChromeBlobStorageContext::GetFor(
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   if (!context->GetUserData(kBlobStorageContextKeyName)) {
-    scoped_refptr<ChromeBlobStorageContext> blob_storage_context =
-        new ChromeBlobStorageContext();
+    auto blob_storage_context =
+        base::MakeRefCounted<ChromeBlobStorageContext>();
     context->SetUserData(
         kBlobStorageContextKeyName,
         std::make_unique<UserDataAdapter<ChromeBlobStorageContext>>(
-            blob_storage_context.get()));
+            blob_storage_context));
 
     // Check first to avoid memory leak in unittests.
     bool io_thread_valid =
@@ -140,7 +140,7 @@ ChromeBlobStorageContext* ChromeBlobStorageContext::GetFor(
       GetIOThreadTaskRunner({})->PostTask(
           FROM_HERE,
           base::BindOnce(&ChromeBlobStorageContext::InitializeOnIOThread,
-                         blob_storage_context, context->GetPath(),
+                         std::move(blob_storage_context), context->GetPath(),
                          std::move(blob_storage_dir),
                          std::move(file_task_runner)));
     }

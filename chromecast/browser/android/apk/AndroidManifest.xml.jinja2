@@ -74,6 +74,22 @@
                  android:exported="false" />
         {% endfor %}
 
+        {% if javaless_renderers is defined and javaless_renderers %}
+        {% for i in range(2) %}
+        <service android:name="org.chromium.content.app.NativeOnlySandboxedProcessService{{ i }}"
+                 android:process=":sandboxed_process{{ i }}"
+                 android:permission="org.chromium.chromecast.shell.permission.SANDBOX"
+                 android:isolatedProcess="true"
+                 android:nativeService="true"
+                 android:exported="false" >
+             <property android:name="android.app.PROPERTY_NATIVE_SERVICE_LIBRARY_NAME"
+                       android:value="lib{{ library_name }}.so" />
+             <property android:name="android.app.PROPERTY_NATIVE_SERVICE_FUNCTION_NAME"
+                       android:value="NativeChildProcessService_onCreate" />
+        </service>
+        {% endfor %}
+        {% endif %}
+
         {% set num_privileged_services = 5 %}
         <meta-data android:name="org.chromium.content.browser.NUM_PRIVILEGED_SERVICES"
                    android:value="{{ num_privileged_services }}"/>

@@ -65,6 +65,7 @@ source_set("browser_tests") {
 
   deps = [
     ":office_fallback",
+    "//ash/constants",
     "//base/test:test_support",
     "//chrome/app:generated_resources",
     "//chrome/browser/ash/file_manager",

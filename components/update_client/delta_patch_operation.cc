@@ -101,8 +101,10 @@ void DeltaPatchOperation::Patch(const base::FilePath& old_file) {
       patch_file_.DirName().Append(FILE_PATH_LITERAL("delta_patch_out"));
 
   std::move(strategy_).Run(
-      base::File(old_file, base::File::FLAG_OPEN | base::File::FLAG_READ),
-      base::File(patch_file_, base::File::FLAG_OPEN | base::File::FLAG_READ),
+      base::File(old_file, base::File::FLAG_OPEN | base::File::FLAG_READ |
+                               base::File::FLAG_NO_FOLLOW),
+      base::File(patch_file_, base::File::FLAG_OPEN | base::File::FLAG_READ |
+                                  base::File::FLAG_NO_FOLLOW),
       base::File(new_file, new_file_flags_),
       base::BindOnce(&DeltaPatchOperation::VerifyAndCleanUp, this, new_file));
 }

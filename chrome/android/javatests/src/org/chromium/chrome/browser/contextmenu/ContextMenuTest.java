@@ -745,7 +745,7 @@ public class ContextMenuTest {
         Integer[] expectedItems = {
             R.id.contextmenu_save_image,
             R.id.contextmenu_open_image_in_new_tab,
-            R.id.contextmenu_search_with_google_lens,
+            R.id.contextmenu_search_image_with_google_lens,
             R.id.contextmenu_share_image,
             R.id.contextmenu_copy_image
         };
@@ -823,7 +823,7 @@ public class ContextMenuTest {
             R.id.contextmenu_save_link_as,
             R.id.contextmenu_save_image,
             R.id.contextmenu_open_image_in_new_tab,
-            R.id.contextmenu_search_with_google_lens,
+            R.id.contextmenu_search_image_with_google_lens,
             R.id.contextmenu_share_image,
             R.id.contextmenu_share_link,
             R.id.contextmenu_copy_image
@@ -878,7 +878,7 @@ public class ContextMenuTest {
             R.id.contextmenu_open_image_in_new_tab,
             R.id.contextmenu_share_image,
             R.id.contextmenu_copy_image,
-            R.id.contextmenu_search_with_google_lens
+            R.id.contextmenu_search_image_with_google_lens
         };
         expectedItems =
                 addItemsIf(
@@ -887,7 +887,8 @@ public class ContextMenuTest {
                         new Integer[] {R.id.contextmenu_open_image_in_ephemeral_tab});
         expectedItems = maybeAddInspectElementItem(expectedItems);
         String title =
-                getMenuTitleFromItem(mMenuCoordinator, R.id.contextmenu_search_with_google_lens);
+                getMenuTitleFromItem(
+                        mMenuCoordinator, R.id.contextmenu_search_image_with_google_lens);
         Assert.assertTrue(
                 "Context menu item name should be \'Search image with Google Lens\'.",
                 title.startsWith("Search image with Google Lens"));

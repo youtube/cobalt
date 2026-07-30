@@ -15,7 +15,6 @@
 #import "components/keyed_service/core/service_access_type.h"
 #import "components/language/ios/browser/ios_language_detection_tab_helper.h"
 #import "components/omnibox/common/omnibox_features.h"
-#import "components/password_manager/core/browser/features/password_features.h"
 #import "components/safe_browsing/core/common/features.h"
 #import "components/safe_browsing/ios/browser/safe_browsing_url_allow_list.h"
 #import "components/send_tab_to_self/features.h"
@@ -388,8 +387,7 @@ void AttachTabHelpers(web::WebState* web_state, TabHelperFilter filter_flags) {
       IsActorEnabled() && !attacher.IsForPrerender();
   attacher.CreateWhen<ActorTabHelper>(is_actor_tab_helper_enabled);
   attacher.CreateWhen<IOSChromeActorLoginDelegateClient>(
-      is_actor_tab_helper_enabled &&
-      base::FeatureList::IsEnabled(password_manager::features::kActorLogin));
+      is_actor_tab_helper_enabled);
 
   attacher.Create<WebViewProxyTabHelper>();
 

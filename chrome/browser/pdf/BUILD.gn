@@ -4,6 +4,7 @@
 
 import("//pdf/features.gni")
 import("//printing/buildflags/buildflags.gni")
+import("//services/screen_ai/buildflags/features.gni")
 
 assert(enable_pdf)
 
@@ -108,4 +109,92 @@ source_set("pdf_extension_test_utils") {
     "//pdf:features",
     "//testing/gtest",
   ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+
+  sources = [ "mime_handler_stream_manager_pdf_unittest.cc" ]
+
+  deps = [
+    ":pdf",
+    "//base",
+    "//chrome/test:test_support",
+    "//content/public/browser",
+    "//content/test:test_support",
+    "//extensions/browser/mime_handler",
+    "//extensions/browser/mime_handler:stream_container",
+    "//extensions/browser/mime_handler:test_helpers",
+    "//pdf:features",
+    "//testing/gtest",
+  ]
+}
+
+if (!is_android) {
+  source_set("browser_tests") {
+    testonly = true
+
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+    sources = [ "pdf_find_request_manager_browsertest.cc" ]
+
+    deps = [
+      ":pdf_extension_test_utils",
+      "//base",
+      "//chrome/browser/ui",
+      "//chrome/browser/ui/tabs:tab_strip",
+      "//chrome/test:test_support",
+      "//chrome/test:test_support_ui",
+      "//content/public/browser",
+      "//content/public/common",
+      "//content/test:test_support",
+      "//pdf:features",
+      "//pdf/loader",
+      "//testing/gtest",
+    ]
+
+    if (enable_screen_ai_browsertests) {
+      sources += [ "pdf_searchify_browsertest.cc" ]
+      deps += [
+        "//chrome/browser/screen_ai:screen_ai_install_state",
+        "//chrome/browser/ui/user_education",
+        "//components/feature_engagement/public",
+        "//components/metrics:content",
+        "//components/pdf/browser",
+        "//services/screen_ai/public/cpp:utilities",
+        "//ui/accessibility",
+      ]
+
+      # Notifies testing builders that this test needs the ScreenAI library,
+      # downloaded from CIPD as defined in //DEPS.
+      data_deps = [ "//third_party/screen-ai:screen_ai" ]
+    }
+  }
+
+  source_set("interactive_ui_tests") {
+    testonly = true
+
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+    sources = [ "pdf_extension_interactive_uitest.cc" ]
+
+    deps = [
+      ":pdf_extension_test_utils",
+      "//base",
+      "//chrome/app:command_ids",
+      "//chrome/browser/extensions:test_support",
+      "//chrome/browser/renderer_context_menu:test_support",
+      "//chrome/browser/ui",
+      "//chrome/test:test_support",
+      "//chrome/test:test_support_ui",
+      "//components/pdf/browser",
+      "//content/public/browser",
+      "//content/test:test_support",
+      "//extensions/browser",
+      "//pdf:features",
+      "//testing/gtest",
+      "//ui/events",
+      "//ui/gfx/geometry",
+    ]
+  }
 }

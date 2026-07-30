@@ -503,7 +503,6 @@ void MediaInternals::SendGeneralAudioInformation() {
 
   set_feature_data(features::kAudioServiceOutOfProcess);
 
-  set_feature_data(features::kAudioServiceLaunchOnStartup);
   set_explicit_feature_data(
       features::kAudioServiceSandbox,
       GetContentClient()->browser()->ShouldSandboxAudioService());

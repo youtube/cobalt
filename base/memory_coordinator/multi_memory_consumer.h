@@ -51,14 +51,11 @@ class BASE_EXPORT MultiMemoryConsumerRegistration {
   };
 
   using CheckUnregister = MemoryConsumerRegistration::CheckUnregister;
-  using CheckRegistryExists = MemoryConsumerRegistration::CheckRegistryExists;
 
   MultiMemoryConsumerRegistration(
       base::span<const Intervention> interventions,
       MultiMemoryConsumer* consumer,
-      CheckUnregister check_unregister = CheckUnregister::kEnabled,
-      CheckRegistryExists check_registry_exists =
-          CheckRegistryExists::kEnabled);
+      CheckUnregister check_unregister = CheckUnregister::kEnabled);
 
   MultiMemoryConsumerRegistration(const MultiMemoryConsumerRegistration&) =
       delete;
@@ -83,15 +80,11 @@ class BASE_EXPORT AsyncMultiMemoryConsumerRegistration {
  public:
   using Intervention = MultiMemoryConsumerRegistration::Intervention;
   using CheckUnregister = MultiMemoryConsumerRegistration::CheckUnregister;
-  using CheckRegistryExists =
-      MultiMemoryConsumerRegistration::CheckRegistryExists;
 
   AsyncMultiMemoryConsumerRegistration(
       base::span<const Intervention> interventions,
       MultiMemoryConsumer* consumer,
-      CheckUnregister check_unregister = CheckUnregister::kEnabled,
-      CheckRegistryExists check_registry_exists =
-          CheckRegistryExists::kEnabled);
+      CheckUnregister check_unregister = CheckUnregister::kEnabled);
 
   AsyncMultiMemoryConsumerRegistration(
       const AsyncMultiMemoryConsumerRegistration&) = delete;

@@ -10,8 +10,6 @@ source_set("routines") {
     "routine_control.h",
     "routine_converters.cc",
     "routine_converters.h",
-    "routine_events_forwarder.cc",
-    "routine_events_forwarder.h",
     "telemetry_diagnostic_routine_service_ash.cc",
     "telemetry_diagnostic_routine_service_ash.h",
   ]

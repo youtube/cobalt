@@ -6,6 +6,7 @@
 #define CHROMEOS_ASH_SERVICES_AUTH_FACTOR_CONFIG_PIN_FACTOR_EDITOR_H_
 
 #include "chromeos/ash/components/login/auth/auth_factor_editor.h"
+#include "chromeos/ash/services/auth_factor_config/auth_factor_config_utils.h"
 #include "chromeos/ash/services/auth_factor_config/chrome_browser_delegates.h"
 #include "chromeos/ash/services/auth_factor_config/public/mojom/auth_factor_config.mojom.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
@@ -23,17 +24,14 @@ class PinFactorEditor : public mojom::PinFactorEditor {
   PinFactorEditor(const PinFactorEditor&) = delete;
   PinFactorEditor& operator=(const PinFactorEditor&) = delete;
 
-  void SetPin(
-      const std::string& auth_token,
-      const std::string& pin,
-      base::OnceCallback<void(mojom::ConfigureResult)> callback) override;
-  void UpdatePin(
-      const std::string& auth_token,
-      const std::string& pin,
-      base::OnceCallback<void(mojom::ConfigureResult)> callback) override;
-  void RemovePin(
-      const std::string& auth_token,
-      base::OnceCallback<void(mojom::ConfigureResult)> callback) override;
+  void SetPin(const std::string& auth_token,
+              const std::string& pin,
+              ConfigureResultCallback callback) override;
+  void UpdatePin(const std::string& auth_token,
+                 const std::string& pin,
+                 ConfigureResultCallback callback) override;
+  void RemovePin(const std::string& auth_token,
+                 ConfigureResultCallback callback) override;
   void GetConfiguredPinFactor(
       const std::string& auth_token,
       base::OnceCallback<void(std::optional<mojom::AuthFactor>)> callback)
@@ -49,62 +47,50 @@ class PinFactorEditor : public mojom::PinFactorEditor {
                                       mojom::AuthFactor::kMinValue,
                                       mojom::AuthFactor::kMaxValue>;
 
-  void ObtainContext(
-      const std::string& auth_token,
-      base::OnceCallback<void(std::unique_ptr<UserContext>)> callback);
-
-  void OnRemovePinConfigured(
-      const std::string& auth_token,
-      base::OnceCallback<void(mojom::ConfigureResult)> callback,
-      AuthFactorSet factors);
-  void OnRemovePinConfiguredWithContext(
-      const std::string& auth_token,
-      base::OnceCallback<void(mojom::ConfigureResult)> callback,
-      mojom::AuthFactor factor,
-      std::unique_ptr<UserContext> context);
+  void OnRemovePinConfigured(const std::string& auth_token,
+                             ConfigureResultCallback callback,
+                             AuthFactorSet factors);
+  void OnRemovePinConfiguredWithContext(const std::string& auth_token,
+                                        mojom::AuthFactor factor,
+                                        ConfigureResultCallback callback,
+                                        std::unique_ptr<UserContext> context);
 
   void OnPinRemove(const std::string& auth_token,
                    mojom::AuthFactor factor,
-                   base::OnceCallback<void(mojom::ConfigureResult)> callback,
+                   ConfigureResultCallback callback,
                    bool success);
 
-  void OnPinRemoveWithContext(
-      const std::string& auth_token,
-      mojom::AuthFactor factor,
-      base::OnceCallback<void(mojom::ConfigureResult)> callback,
-      bool success,
-      std::unique_ptr<UserContext> context);
+  void OnPinRemoveWithContext(const std::string& auth_token,
+                              mojom::AuthFactor factor,
+                              bool success,
+                              ConfigureResultCallback callback,
+                              std::unique_ptr<UserContext> context);
 
-  void SetPinWithContext(
-      const std::string& auth_token,
-      const std::string& pin,
-      base::OnceCallback<void(mojom::ConfigureResult)> callback,
-      std::unique_ptr<UserContext> context);
+  void SetPinWithContext(const std::string& auth_token,
+                         const std::string& pin,
+                         ConfigureResultCallback callback,
+                         std::unique_ptr<UserContext> context);
   void OnPinSet(const std::string& auth_token,
-                base::OnceCallback<void(mojom::ConfigureResult)> callback,
+                ConfigureResultCallback callback,
                 bool success);
-  void OnPinSetWithContext(
-      const std::string& auth_token,
-      base::OnceCallback<void(mojom::ConfigureResult)> callback,
-      bool success,
-      std::unique_ptr<UserContext> context);
+  void OnPinSetWithContext(const std::string& auth_token,
+                           bool success,
+                           ConfigureResultCallback callback,
+                           std::unique_ptr<UserContext> context);
 
-  void UpdatePinWithContext(
-      const std::string& auth_token,
-      const std::string& pin,
-      base::OnceCallback<void(mojom::ConfigureResult)> callback,
-      std::unique_ptr<UserContext> context);
-  void OnUpdatePinConfigured(
-      const std::string& auth_token,
-      mojom::AuthFactor old_pin_factor_type,
-      base::OnceCallback<void(mojom::ConfigureResult)> callback,
-      bool success);
-  void OnUpdatePinConfiguredWithContext(
-      const std::string& auth_token,
-      mojom::AuthFactor old_pin_factor_type,
-      base::OnceCallback<void(mojom::ConfigureResult)> callback,
-      bool success,
-      std::unique_ptr<UserContext> context);
+  void UpdatePinWithContext(const std::string& auth_token,
+                            const std::string& pin,
+                            ConfigureResultCallback callback,
+                            std::unique_ptr<UserContext> context);
+  void OnUpdatePinConfigured(const std::string& auth_token,
+                             mojom::AuthFactor old_pin_factor_type,
+                             ConfigureResultCallback callback,
+                             bool success);
+  void OnUpdatePinConfiguredWithContext(const std::string& auth_token,
+                                        mojom::AuthFactor old_pin_factor_type,
+                                        bool success,
+                                        ConfigureResultCallback callback,
+                                        std::unique_ptr<UserContext> context);
 
   void GetConfiguredPinFactorResponse(
       base::OnceCallback<void(std::optional<mojom::AuthFactor>)> callback,

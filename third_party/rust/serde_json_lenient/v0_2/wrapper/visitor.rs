@@ -190,10 +190,13 @@ impl<'de> Visitor<'de> for ValueVisitor<'_, '_> {
             DeserializationTarget::List { ctx } => ffi::list_append_list(ctx),
             DeserializationTarget::Dict { ctx, key } => ffi::dict_set_list(ctx, key),
         };
-        while access.next_element_seed(ValueVisitor {
-            aggregate: DeserializationTarget::List { ctx: inner_ctx.as_mut() },
-            recursion_depth_check: self.recursion_depth_check.recurse()?,
-        })?.is_some() {}
+        while access
+            .next_element_seed(ValueVisitor {
+                aggregate: DeserializationTarget::List { ctx: inner_ctx.as_mut() },
+                recursion_depth_check: self.recursion_depth_check.recurse()?,
+            })?
+            .is_some()
+        {}
         Ok(())
     }
 }

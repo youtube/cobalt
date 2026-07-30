@@ -237,7 +237,7 @@ void EventHandlerTest::SetHtmlInnerHTML(const char* html_content) {
 ShadowRoot* EventHandlerTest::SetShadowContent(const char* shadow_content,
                                                const char* host) {
   ShadowRoot* shadow_root =
-      EditingTestBase::CreateShadowRootForElementWithIDAndSetInnerHTML(
+      EditingTestBase::CreateShadowRootForElementWithIdAndSetInnerHtml(
           GetDocument(), host, shadow_content);
   return shadow_root;
 }

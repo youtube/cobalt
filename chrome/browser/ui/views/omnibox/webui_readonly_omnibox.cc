@@ -10,6 +10,7 @@
 #include "base/notimplemented.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/supports_user_data.h"
+#include "chrome/browser/external_protocol/external_protocol_handler.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_tab_helper.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_util.h"
@@ -92,6 +93,9 @@ WebUIReadOnlyOmnibox::OnOmniboxAction(
 
     case toolbar_ui_api::mojom::OmniboxAction::Tag::kKey:
       return OnKey(*action->get_key());
+
+    case toolbar_ui_api::mojom::OmniboxAction::Tag::kMouse:
+      return OnMouse(*action->get_mouse());
   }
 }
 
@@ -119,10 +123,7 @@ void WebUIReadOnlyOmnibox::SetTextAndSelectedRange(
     const gfx::Range& selection) {
   text_ = text;
   inline_autocompletion_ = inline_autocompletion;
-
-  // The JS side will likely render the inline completion using selection,
-  // but conceptually we're at end of text.
-  selection_ = gfx::Range(text.size());
+  selection_ = selection;
   ResetFormatting();
 }
 
@@ -345,9 +346,12 @@ WebUIReadOnlyOmnibox::ComputeMojoState() const {
   if (selection_.IsValid()) {
     state->selection = selection_;
   }
+  state->formatted_full_url = controller()->client()->GetFormattedFullURL();
   state->inline_autocompletion = inline_autocompletion_;
   state->text_is_url = text_is_url_;
   state->additional_text = additional_text_;
+  state->user_input_in_progress =
+      controller()->edit_model()->user_input_in_progress();
 
   // Figure out all the breakpoints so we can go through text span-by-span.
   std::vector<size_t> breakpoints;
@@ -409,10 +413,20 @@ base::expected<std::monostate, mojo_base::mojom::ErrorPtr>
 WebUIReadOnlyOmnibox::OnFocusChange(
     const toolbar_ui_api::mojom::OmniboxActionFocusChange& focus_change) {
   if (focus_change.has_focus) {
+    selection_ = focus_change.selection;
     // TODO(crbug.com/500653057): Key state, though Views impl doesn't have it.
-    // TODO(crbug.com/503784990): May have to call ConsumeCtrlKey() when
-    //   acquiring focus, including via Ctrl-L.
     controller()->edit_model()->OnSetFocus(/*control_down=*/false);
+
+    if (focus_change.request_clear_keyword) {
+      controller()->edit_model()->ClearKeyword();
+    }
+    if (focus_change.start_zero_suggest) {
+      controller()->edit_model()->StartZeroSuggestRequest();
+    }
+    if (focus_change.activate_default_search) {
+      EnterKeywordModeForDefaultSearchProvider();
+    }
+    RequestUpdateWebUI();
   } else {
     controller()->edit_model()->OnWillKillFocus();
     if (auto* popup_closer = controller()->client()->GetOmniboxPopupCloser()) {
@@ -430,7 +444,7 @@ WebUIReadOnlyOmnibox::OnTextInput(
     OnBeforePossibleChange();
     ui_version_ = text_input.ui_version;
     SetTextAndSelectedRange(text_input.text, text_input.inline_autocompletion,
-                            gfx::Range(text_input.text.size()));
+                            text_input.selection);
     OnAfterPossibleChange(/*allow_keyword_ui_change=*/true);
   }
   return base::ok(std::monostate());
@@ -518,6 +532,32 @@ WebUIReadOnlyOmnibox::OnKey(
     default:
       break;
   }
+  return base::ok(std::monostate());
+}
+
+base::expected<std::monostate, mojo_base::mojom::ErrorPtr>
+WebUIReadOnlyOmnibox::OnMouse(
+    const toolbar_ui_api::mojom::OmniboxActionMouse& mouse) {
+  // Either mouse up or mouse down permit launches.
+  ExternalProtocolHandler::PermitLaunchUrl();
+
+  if (mouse.is_mouse_down) {
+    // Mouse down clears the pseudo-focus the popup has.
+    if (controller()->IsPopupOpen()) {
+      OmniboxPopupSelection selection =
+          controller()->edit_model()->GetPopupSelection();
+      if (selection.state != OmniboxPopupSelection::KEYWORD_MODE) {
+        selection.state = OmniboxPopupSelection::NORMAL;
+        controller()->edit_model()->SetPopupSelection(selection);
+      }
+    }
+  } else {
+    // Mouse up may start zero-suggest.
+    if (mouse.start_zero_suggest) {
+      controller()->edit_model()->StartZeroSuggestRequest();
+    }
+  }
+
   return base::ok(std::monostate());
 }
 

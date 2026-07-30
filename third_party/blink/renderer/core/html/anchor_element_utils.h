@@ -8,6 +8,7 @@
 #include <cstdint>
 
 #include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/core/dom/events/event.h"
 
 namespace blink {
 
@@ -78,6 +79,8 @@ class CORE_EXPORT AnchorElementUtils {
                                             const AtomicString& referrer_policy,
                                             uint32_t link_relations,
                                             Document& document);
+
+  static bool IsLinkClick(Event& event);
 
   // Enforces noopener on blob: URL navigations when the blob URL's site
   // differs from the initiator's top-level site, to prevent storage

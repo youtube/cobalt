@@ -183,11 +183,17 @@ Process LaunchProcess(const std::vector<std::string>& argv,
   // By default the calling process' environment is copied, and the collated
   // modifications applied, to create the new process' environment. If
   // |clear_environment| is set then only the collated modifications are used.
-  char* const kEmptyEnviron = nullptr;
-  char* const* old_environ =
-      options.clear_environment ? &kEmptyEnviron : environ;
-  base::HeapArray<char*> new_environ =
-      internal::AlterEnvironment(old_environ, environ_modifications);
+  base::span<const char* const> old_environ;
+  if (!options.clear_environment) {
+    old_environ = internal::GetEnvironment();
+  }
+  // SAFETY: AlterEnvironment() requires each string in the input span to be
+  // null-terminated. internal::GetEnvironment() promises in its header
+  // contract (see environment_internal.h) that each string it returns is
+  // null-terminated, satisfying this requirement. See:
+  // https://man7.org/linux/man-pages/man7/environ.7.html
+  base::HeapArray<char*> new_environ = UNSAFE_BUFFERS(
+      internal::AlterEnvironment(old_environ, environ_modifications));
 
   // Always clone the library loader service and UTC clock to new processes,
   // in addition to any flags specified by the caller.

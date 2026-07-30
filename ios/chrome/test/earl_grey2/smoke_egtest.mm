@@ -76,8 +76,17 @@
   // Mock successful reauth when opening the Password Manager.
   [ReauthenticationAppInterface mockReauthenticationModuleExpectedResult:
                                     ReauthenticationResult::kSuccess];
-  [ChromeEarlGreyUI
-      tapSettingsMenuButton:chrome_test_util::SettingsMenuPasswordsButton()];
+  if ([ChromeEarlGrey isYourSavedInfoSettingsPageIosEnabled]) {
+    [ChromeEarlGreyUI
+        tapSettingsMenuButton:grey_accessibilityID(
+                                  @"kSettingsAutofillAndPasswordsCellId")];
+    [[EarlGrey selectElementWithMatcher:chrome_test_util::
+                                            SettingsMenuPasswordsButton()]
+        performAction:grey_tap()];
+  } else {
+    [ChromeEarlGreyUI
+        tapSettingsMenuButton:chrome_test_util::SettingsMenuPasswordsButton()];
+  }
 
   // Open password settings.
   [[EarlGrey selectElementWithMatcher:grey_accessibilityID(
@@ -346,6 +355,35 @@
 // A test designed to fail, to verify test expectations.
 - (void)testFailingMethod {
   GREYAssertTrue(NO, @"This test is expected to fail.");
+}
+
+// A test designed to crash, to verify test expectations.
+- (void)testCrashingMethod {
+  [NSException raise:@"SmokeTestCrashException"
+              format:@"Expected smoke test crash"];
+}
+
+// A test designed to fail (or pass), to verify flaky expectations.
+- (void)testFlakyFailureMethod {
+  GREYAssertTrue(NO, @"This test is expected to fail flakily.");
+}
+
+// A test designed to crash (or pass), to verify flaky crash expectations.
+- (void)testFlakyCrashMethod {
+  [NSException raise:@"SmokeTestFlakyCrashException"
+              format:@"Expected smoke test flaky crash"];
+}
+
+// A test designed to pass, to verify flaky expectations allow passing runs.
+- (void)testFlakyPassingMethod {
+  GREYAssertTrue(YES, @"This test is expected to pass.");
+}
+
+// A test designed to pass, to verify flaky crash expectations allow passing
+// runs.
+- (void)testFlakyCrashPassingMethod {
+  GREYAssertTrue(
+      YES, @"This test is expected to pass under flaky crash expectations.");
 }
 
 @end

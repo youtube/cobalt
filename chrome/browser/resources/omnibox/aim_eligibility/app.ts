@@ -49,6 +49,7 @@ export class AimEligibilityAppElement extends CrLitElement {
     isEligible: false,
     isEligibleByDse: false,
     isEligibleByPolicy: false,
+    isThirdPartyEligibleByPolicy: false,
     isEligibleByServer: false,
     isServerEligibilityEnabled: false,
     lastUpdated: new Date(0),
@@ -131,6 +132,11 @@ export class AimEligibilityAppElement extends CrLitElement {
   protected getPolicyEligibilityText_(): string {
     return this.eligibilityState_.isEligibleByPolicy ? '✓ Allowed' :
                                                        '✗ Blocked';
+  }
+
+  protected getThirdPartyPolicyEligibilityText_(): string {
+    return this.eligibilityState_.isThirdPartyEligibleByPolicy ? '✓ Allowed' :
+                                                                 '✗ Blocked';
   }
 
   protected getDseEligibilityText_(): string {

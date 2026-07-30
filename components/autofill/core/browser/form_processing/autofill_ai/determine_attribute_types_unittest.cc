@@ -209,7 +209,6 @@ TEST_F(DetermineAttributeTypesTest, AssignsDynamicTypesToTheVicinity) {
 }
 
 TEST_F(DetermineAttributeTypesTest, AssignsDynamicTypesToOrderAccount) {
-  base::test::ScopedFeatureList features{features::kAutofillAiOrder};
   std::vector<std::unique_ptr<AutofillField>> fields =
       CreateFields({{ORDER_ID}, {EMAIL_ADDRESS}});
   EXPECT_THAT(

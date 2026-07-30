@@ -5,6 +5,7 @@
 #ifndef BASE_ENVIRONMENT_H_
 #define BASE_ENVIRONMENT_H_
 
+#include <functional>
 #include <map>
 #include <memory>
 #include <optional>
@@ -53,11 +54,18 @@ class BASE_EXPORT Environment {
 
 #if BUILDFLAG(IS_WIN)
 using NativeEnvironmentString = std::wstring;
+using NativeEnvironmentStringView = std::wstring_view;
+using NativeEnvironmentCStringView = base::wcstring_view;
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 using NativeEnvironmentString = std::string;
+using NativeEnvironmentStringView = std::string_view;
+using NativeEnvironmentCStringView = base::cstring_view;
 #endif
+// EnvironmentMap uses std::less<> to enable transparent (heterogeneous) lookup,
+// allowing NativeEnvironmentCStringView to be used for search without creating
+// temporary std::string or std::wstring objects.
 using EnvironmentMap =
-    std::map<NativeEnvironmentString, NativeEnvironmentString>;
+    std::map<NativeEnvironmentString, NativeEnvironmentString, std::less<>>;
 
 }  // namespace base
 

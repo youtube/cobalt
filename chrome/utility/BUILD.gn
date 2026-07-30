@@ -142,6 +142,7 @@ static_library("utility") {
     deps += [
       "//chrome/common:mojo_bindings",
       "//chrome/common/importer:interfaces",
+      "//chrome/services/reading_mode_metrics:lib",
       "//components/autofill/core/common",
       "//components/user_data_importer/common",
       "//components/user_data_importer/content",

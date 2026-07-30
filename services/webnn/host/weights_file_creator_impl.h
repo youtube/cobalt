@@ -5,6 +5,7 @@
 #ifndef SERVICES_WEBNN_HOST_WEIGHTS_FILE_CREATOR_IMPL_H_
 #define SERVICES_WEBNN_HOST_WEIGHTS_FILE_CREATOR_IMPL_H_
 
+#include "base/component_export.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "services/webnn/public/mojom/webnn_context_provider.mojom.h"
 
@@ -13,7 +14,8 @@ namespace webnn {
 // Browser-process implementation of WebNNWeightsFileCreator. Creates temporary
 // files for storing WebNN model weights on behalf of sandboxed renderer
 // processes that cannot create files directly.
-class WeightsFileCreatorImpl : public mojom::WebNNWeightsFileCreator {
+class COMPONENT_EXPORT(WEBNN_HOST) WeightsFileCreatorImpl
+    : public mojom::WebNNWeightsFileCreator {
  public:
   static void Create(
       mojo::PendingReceiver<mojom::WebNNWeightsFileCreator> receiver,

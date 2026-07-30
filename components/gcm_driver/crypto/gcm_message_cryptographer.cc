@@ -276,6 +276,11 @@ class WebPushEncryptionDraft08
         return false;
     }
 
+    // The record is invalid if no padding delimiter (0x02) was found.
+    if (padding_length > record.size()) {
+      return false;
+    }
+
     record.remove_suffix(padding_length);
     return true;
   }

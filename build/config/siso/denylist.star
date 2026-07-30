@@ -67,7 +67,6 @@ def __step_config(ctx, step_config):
         "third_party/dawn/webgpu-cts/scripts/copy_files.py",
         "third_party/dawn/webgpu-cts/scripts/gen_ts_dep_lists.py",
         "third_party/devtools-frontend/src/scripts/build/build_inspector_overlay.py",
-        "third_party/devtools-frontend/src/scripts/build/typescript/ts_library.py",
         "third_party/inspector_protocol/check_protocol_compatibility.py",
         "third_party/inspector_protocol/code_generator.py",
         "third_party/inspector_protocol/concatenate_protocols.py",
@@ -84,7 +83,6 @@ def __step_config(ctx, step_config):
         "tools/grit/grit_info.py",
         "tools/grit/grit.py",
         "tools/grit/pak_util.py",
-        "tools/grit/preprocess_if_expr.py",
         "tools/licenses/licenses.py",
 
         # merge_xml.py relies on expand_owners.py, which
@@ -132,7 +130,6 @@ def __step_config(ctx, step_config):
         })
 
     binary_files = [
-        "flatc",
         "./v8_context_snapshot_generator",
     ]
 

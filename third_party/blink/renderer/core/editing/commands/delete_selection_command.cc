@@ -442,7 +442,7 @@ void DeleteSelectionCommand::SaveTypingStyleState() {
   // of start(). We'll use this later in computeTypingStyleAfterDelete if we end
   // up outside of a Mail blockquote
   if (EnclosingNodeOfType(selection_to_delete_.Start(),
-                          IsMailHTMLBlockquoteElement)) {
+                          IsMailHtmlBlockquoteElement)) {
     delete_into_blockquote_style_ =
         MakeGarbageCollected<EditingStyle>(selection_to_delete_.End());
     return;
@@ -1199,9 +1199,10 @@ void DeleteSelectionCommand::CalculateTypingStyleAfterDelete() {
   // If we deleted into a blockquote, but are now no longer in a blockquote, use
   // the alternate typing style
   if (delete_into_blockquote_style_ &&
-      !EnclosingNodeOfType(ending_position_, IsMailHTMLBlockquoteElement,
-                           kCanCrossEditingBoundary))
+      !EnclosingNodeOfType(ending_position_, IsMailHtmlBlockquoteElement,
+                           kCanCrossEditingBoundary)) {
     typing_style_ = delete_into_blockquote_style_;
+  }
   delete_into_blockquote_style_ = nullptr;
 
   // |editing_position_| can be null. See http://crbug.com/1299189

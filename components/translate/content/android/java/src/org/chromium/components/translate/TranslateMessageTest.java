@@ -362,7 +362,7 @@ public final class TranslateMessageTest {
                 MessageIdentifier.TRANSLATE,
                 messageProperties.get(MessageBannerProperties.MESSAGE_IDENTIFIER));
         Assert.assertEquals(
-                R.drawable.infobar_translate_compact,
+                R.drawable.message_translate_compact,
                 messageProperties.get(MessageBannerProperties.ICON_RESOURCE_ID));
         Assert.assertEquals(
                 MessageBannerProperties.TINT_NONE,

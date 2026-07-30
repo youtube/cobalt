@@ -6,6 +6,8 @@ package org.chromium.chrome.browser.lens;
 
 import android.text.TextUtils;
 
+import org.jni_zero.CalledByNative;
+
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.gsa.GSAUtils;
@@ -52,5 +54,15 @@ public class LensSupportStatusHelper {
         }
 
         return LensMetrics.LensSupportStatus.LENS_SEARCH_SUPPORTED;
+    }
+
+    /**
+     * @return Whether Lens search is currently supported.
+     */
+    @CalledByNative
+    public static boolean isLensSearchSupported(@Nullable Profile profile, boolean isIncognito) {
+        Integer supportStatus = getLensSupportStatus(profile, isIncognito);
+        return supportStatus != null
+                && supportStatus == LensMetrics.LensSupportStatus.LENS_SEARCH_SUPPORTED;
     }
 }

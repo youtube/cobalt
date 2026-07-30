@@ -496,6 +496,19 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Switch to tab from filtered search tab list"/>
 </enum>
 
+<!-- LINT.IfChange(TabSearchWebUIAction) -->
+
+<enum name="TabSearchWebUIAction">
+  <int value="0" label="Opened recently closed item from filtered list"/>
+  <int value="1" label="Switched to tab from filtered list"/>
+  <int value="2" label="Closed tab from filtered list"/>
+  <int value="3" label="Opened recently closed item from unfiltered list"/>
+  <int value="4" label="Switched to tab from unfiltered list"/>
+  <int value="5" label="Closed tab from unfiltered list"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/resources/tab_search/tab_search_page.ts:TabSearchUserAction) -->
+
 <enum name="TabStateFlatBufferDeserializeResult">
   <int value="0" label="Success"/>
   <int value="1" label="Failure Unknown Reason"/>

@@ -59,6 +59,8 @@ class WindowFeatureController {
   // in |SupportsWindowFeature| for details on this.
   bool CanSupportWindowFeature(WindowFeature feature) const;
 
+  bool IsTrustedSource() const;
+
 #if BUILDFLAG(IS_MAC)
   // Returns if the window will use immersive fullscreen mode.
   bool UsesImmersiveFullscreenMode() const;

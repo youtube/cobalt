@@ -58,6 +58,7 @@
 
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/common/importer/profile_import.mojom.h"
+#include "chrome/services/reading_mode_metrics/reading_mode_metrics_service.h"
 #include "chrome/utility/importer/profile_import_impl.h"
 #include "components/mirroring/service/mirroring_service.h"
 #include "services/proxy_resolver/proxy_resolver_factory_impl.h"  // nogncheck
@@ -267,6 +268,14 @@ auto RunSpeechRecognitionService(
 #endif  // !BUILDFLAG(ENABLE_BROWSER_SPEECH_SERVICE)
 
 #if !BUILDFLAG(IS_ANDROID)
+
+auto RunReadingModeMetricsService(
+    mojo::PendingReceiver<reading_mode::mojom::DistillationEvaluator>
+        receiver) {
+  return std::make_unique<reading_mode::ReadingModeMetricsService>(
+      std::move(receiver));
+}
+
 auto RunScreenAIServiceFactory(
     mojo::PendingReceiver<screen_ai::mojom::ScreenAIServiceFactory> receiver) {
   return std::make_unique<screen_ai::ScreenAIService>(std::move(receiver));
@@ -451,6 +460,7 @@ void RegisterMainThreadServices(mojo::ServiceFactory& services) {
 #if !BUILDFLAG(IS_ANDROID)
   services.Add(RunProfileImporter);
   services.Add(RunMirroringService);
+  services.Add(RunReadingModeMetricsService);
   services.Add(RunScreenAIServiceFactory);
 #endif  // !BUILDFLAG(IS_ANDROID)
 

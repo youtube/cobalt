@@ -36,5 +36,6 @@ found in the LICENSE file.
 
     <style name="ColorPickerButtonStyle" parent="Widget.Material3Expressive.Button.IconButton.Filled">
         <item name="materialSizeOverlay">?attr/colorButtonSizeOverlay</item>
+        <item name="containerShapeChecked">?attr/shapeAppearanceCornerMedium</item>
     </style>
 </resources>

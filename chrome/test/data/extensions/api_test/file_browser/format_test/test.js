@@ -19,8 +19,10 @@ chrome.test.runTests([
 
     // Test an unsupported filesystem.
     chrome.test.assertThrows(
-        chrome.fileManagerPrivate.formatVolume,
-        ['removable:mount_path3', 'invalid-fs', 'NEWLABEL3'], expectedError);
+        chrome.fileManagerPrivate.formatVolume.bind(
+            null, /* volumeId */ 'removable:mount_path3',
+            /* filesystem */ 'invalid-fs', /* volumeLabel */ 'NEWLABEL3'),
+        expectedError);
 
     // This test is also checked on the C++ side, which tests that
     // disk_mount_manager.FormatMountedVolume() gets called exactly once for

@@ -17,6 +17,12 @@
 namespace arc {
 
 // Manages a notification for ARCVM /data migration.
+//
+// Note: We are in the process of deprecating the ARCVM data migrator.
+// We no longer show the migration prompt to prevent new migrations.
+// This class is currently kept around so that users who have already started
+// the migration (kStarted) can resume if needed.
+// TODO(b/465619720): Fully remove this file and associated UI.
 class ArcVmDataMigrationNotifier : public ArcSessionManagerObserver {
  public:
   explicit ArcVmDataMigrationNotifier(Profile* profile);

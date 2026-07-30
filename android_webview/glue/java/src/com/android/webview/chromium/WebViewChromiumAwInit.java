@@ -71,6 +71,8 @@ import java.util.ArrayDeque;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -208,7 +210,7 @@ public class WebViewChromiumAwInit {
     // This is only accessed during WebViewChromiumFactoryProvider.initialize() which is guarded by
     // the WebViewFactory lock in the framework, and on the UI thread during startChromium
     // which cannot be called before initialize() has completed.
-    private Thread mSetUpResourcesThread;
+    private FutureTask<Void> mSetUpResourcesTask;
 
     // Guards access to fields that are initialized on first use rather than by startChromium.
     // This lock is used across WebViewChromium startup classes ie WebViewChromiumAwInit,
@@ -222,6 +224,8 @@ public class WebViewChromiumAwInit {
     private boolean mThreadIsSet;
 
     private final CountDownLatch mStartupFinished = new CountDownLatch(1);
+
+    private final CountDownLatch mNonUiThreadCapableStartupTasksLatch = new CountDownLatch(1);
 
     // mInitState should only transition from INIT_NOT_STARTED to INIT_FINISHED with possibly
     // INIT_POSTED as an intermediate state. INIT_POSTED is set right before posting `startChromium`
@@ -371,10 +375,38 @@ public class WebViewChromiumAwInit {
         CallSite.GET_PROFILE_STORE,
         CallSite.WEBVIEW_INSTANCE_GET_SETTINGS,
         CallSite.WEBVIEW_INSTANCE_GET_AW_CONTENTS,
-        CallSite.GET_PROFILE,
-        CallSite.GET_OR_CREATE_PROFILE,
-        CallSite.GET_ALL_PROFILE_NAMES,
-        CallSite.DELETE_PROFILE,
+        CallSite.PROFILE_STORE_GET_PROFILE,
+        CallSite.PROFILE_STORE_GET_OR_CREATE_PROFILE,
+        CallSite.PROFILE_STORE_GET_ALL_PROFILE_NAMES,
+        CallSite.PROFILE_STORE_DELETE_PROFILE,
+        CallSite.PROFILE_PRECONNECT,
+        CallSite.PROFILE_GET_COOKIE_MANAGER,
+        CallSite.PROFILE_GET_WEB_STORAGE,
+        CallSite.PROFILE_GET_GEOLOCATION_PERMISSIONS,
+        CallSite.PROFILE_GET_SERVICE_WORKER_CONTROLLER,
+        CallSite.PROFILE_PREFETCH_URL,
+        CallSite.PROFILE_PREFETCH_URL_ASYNC,
+        CallSite.PROFILE_CANCEL_PREFETCH,
+        CallSite.PROFILE_SET_MAX_PRERENDERS,
+        CallSite.PROFILE_CLEAR_MAX_PRERENDERS,
+        CallSite.PROFILE_GET_MAX_PRERENDERS,
+        CallSite.PROFILE_SET_MAX_PREFETCHES,
+        CallSite.PROFILE_CLEAR_MAX_PREFETCHES,
+        CallSite.PROFILE_GET_MAX_PREFETCHES,
+        CallSite.PROFILE_SET_PREFETCH_TTL_SECONDS,
+        CallSite.PROFILE_CLEAR_PREFETCH_TTL,
+        CallSite.PROFILE_GET_PREFETCH_TTL_SECONDS,
+        CallSite.PROFILE_SET_SPECULATIVE_LOADING_CONFIG,
+        CallSite.PROFILE_GET_BROWSER_CONTEXT,
+        CallSite.PROFILE_WARM_UP_RENDERER_PROCESS,
+        CallSite.PROFILE_SET_ORIGIN_MATCHED_HEADER,
+        CallSite.PROFILE_ADD_ORIGIN_MATCHED_HEADER,
+        CallSite.PROFILE_HAS_ORIGIN_MATCHED_HEADER,
+        CallSite.PROFILE_FIND_ORIGIN_MATCHED_HEADERS,
+        CallSite.PROFILE_CLEAR_ORIGIN_MATCHED_HEADER,
+        CallSite.PROFILE_CLEAR_ALL_ORIGIN_MATCHED_HEADERS,
+        CallSite.PROFILE_ADD_QUIC_HINTS,
+        CallSite.PROFILE_GET_HTTP_CACHE_MANAGER,
         CallSite.COUNT,
     })
     public @interface CallSite {
@@ -488,12 +520,40 @@ public class WebViewChromiumAwInit {
         int GET_PROFILE_STORE = 108;
         int WEBVIEW_INSTANCE_GET_SETTINGS = 109;
         int WEBVIEW_INSTANCE_GET_AW_CONTENTS = 110;
-        int GET_PROFILE = 111;
-        int GET_OR_CREATE_PROFILE = 112;
-        int GET_ALL_PROFILE_NAMES = 113;
-        int DELETE_PROFILE = 114;
+        int PROFILE_STORE_GET_PROFILE = 111;
+        int PROFILE_STORE_GET_OR_CREATE_PROFILE = 112;
+        int PROFILE_STORE_GET_ALL_PROFILE_NAMES = 113;
+        int PROFILE_STORE_DELETE_PROFILE = 114;
+        int PROFILE_PRECONNECT = 115;
+        int PROFILE_GET_COOKIE_MANAGER = 116;
+        int PROFILE_GET_WEB_STORAGE = 117;
+        int PROFILE_GET_GEOLOCATION_PERMISSIONS = 118;
+        int PROFILE_GET_SERVICE_WORKER_CONTROLLER = 119;
+        int PROFILE_PREFETCH_URL = 120;
+        int PROFILE_PREFETCH_URL_ASYNC = 121;
+        int PROFILE_CANCEL_PREFETCH = 122;
+        int PROFILE_SET_MAX_PRERENDERS = 123;
+        int PROFILE_CLEAR_MAX_PRERENDERS = 124;
+        int PROFILE_GET_MAX_PRERENDERS = 125;
+        int PROFILE_SET_MAX_PREFETCHES = 126;
+        int PROFILE_CLEAR_MAX_PREFETCHES = 127;
+        int PROFILE_GET_MAX_PREFETCHES = 128;
+        int PROFILE_SET_PREFETCH_TTL_SECONDS = 129;
+        int PROFILE_CLEAR_PREFETCH_TTL = 130;
+        int PROFILE_GET_PREFETCH_TTL_SECONDS = 131;
+        int PROFILE_SET_SPECULATIVE_LOADING_CONFIG = 132;
+        int PROFILE_GET_BROWSER_CONTEXT = 133;
+        int PROFILE_WARM_UP_RENDERER_PROCESS = 134;
+        int PROFILE_SET_ORIGIN_MATCHED_HEADER = 135;
+        int PROFILE_ADD_ORIGIN_MATCHED_HEADER = 136;
+        int PROFILE_HAS_ORIGIN_MATCHED_HEADER = 137;
+        int PROFILE_FIND_ORIGIN_MATCHED_HEADERS = 138;
+        int PROFILE_CLEAR_ORIGIN_MATCHED_HEADER = 139;
+        int PROFILE_CLEAR_ALL_ORIGIN_MATCHED_HEADERS = 140;
+        int PROFILE_ADD_QUIC_HINTS = 141;
+        int PROFILE_GET_HTTP_CACHE_MANAGER = 142;
         // Remember to update WebViewStartupCallSite in enums.xml when adding new values here.
-        int COUNT = 115;
+        int COUNT = 143;
     };
 
     // LINT.ThenChange(//tools/metrics/histograms/metadata/android/enums.xml:WebViewStartupCallSite)
@@ -576,20 +636,35 @@ public class WebViewChromiumAwInit {
     // This is extracted out so that we can experiment with calling this in either of these
     // locations.
     public void runNonUiThreadCapableStartupTasks() {
-        ResourceBundle.setAvailablePakLocales(AwLocaleConfig.getWebViewSupportedPakLocales());
+        try {
+            ResourceBundle.setAvailablePakLocales(AwLocaleConfig.getWebViewSupportedPakLocales());
 
-        try (DualTraceEvent ignored2 = DualTraceEvent.scoped("LibraryLoader.ensureInitialized")) {
-            LibraryLoader.getInstance().ensureInitialized();
+            try (DualTraceEvent ignored2 =
+                    DualTraceEvent.scoped("LibraryLoader.ensureInitialized")) {
+                LibraryLoader.getInstance().ensureInitialized();
+            }
+
+            // TODO(crbug.com/400414092): PathService overrides should be obsolete now.
+            PathService.override(PathService.DIR_MODULE, "/system/lib/");
+            PathService.override(DIR_RESOURCE_PAKS_ANDROID, "/system/framework/webview/paks");
+
+            initPlatSupportLibrary();
+            AwContentsStatics.setCheckClearTextPermitted(
+                    ContextUtils.getApplicationContext().getApplicationInfo().targetSdkVersion
+                            >= Build.VERSION_CODES.O);
+        } finally {
+            mNonUiThreadCapableStartupTasksLatch.countDown();
         }
+    }
 
-        // TODO(crbug.com/400414092): PathService overrides should be obsolete now.
-        PathService.override(PathService.DIR_MODULE, "/system/lib/");
-        PathService.override(DIR_RESOURCE_PAKS_ANDROID, "/system/framework/webview/paks");
-
-        initPlatSupportLibrary();
-        AwContentsStatics.setCheckClearTextPermitted(
-                ContextUtils.getApplicationContext().getApplicationInfo().targetSdkVersion
-                        >= Build.VERSION_CODES.O);
+    private void waitForNonUiThreadCapableStartupTasks() {
+        try (DualTraceEvent e2 =
+                DualTraceEvent.scoped(
+                        "WebViewChromiumAwInit.waitForNonUiThreadCapableStartupTasks")) {
+            mNonUiThreadCapableStartupTasksLatch.await();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     // Initializes a new StartupTaskRunner with a list of tasks to run for chromium startup.
@@ -623,9 +698,11 @@ public class WebViewChromiumAwInit {
                         TrackExitReasons.startTrackingStartup();
                     }
 
-                    if (!WebViewCachedFlags.get()
+                    if (WebViewCachedFlags.get()
                             .isCachedFeatureEnabled(
                                     AwFeatures.WEBVIEW_MOVE_WORK_TO_PROVIDER_INIT)) {
+                        waitForNonUiThreadCapableStartupTasks();
+                    } else {
                         runNonUiThreadCapableStartupTasks();
                     }
                     waitUntilSetUpResources();
@@ -911,7 +988,7 @@ public class WebViewChromiumAwInit {
     void setUpResourcesOnBackgroundThread(int packageId, Context context) {
         try (DualTraceEvent e =
                 DualTraceEvent.scoped("WebViewChromiumAwInit.setUpResourcesOnBackgroundThread")) {
-            assert mSetUpResourcesThread == null : "This method shouldn't be called twice.";
+            assert mSetUpResourcesTask == null : "This method shouldn't be called twice.";
 
             Runnable setUpResourcesRunnable =
                     new Runnable() {
@@ -929,16 +1006,16 @@ public class WebViewChromiumAwInit {
                     };
 
             // Make sure that ResourceProvider is initialized before starting the browser process.
-            mSetUpResourcesThread = new Thread(setUpResourcesRunnable);
-            mSetUpResourcesThread.start();
+            mSetUpResourcesTask = new FutureTask<>(setUpResourcesRunnable, null);
+            PostTask.postTask(TaskTraits.USER_VISIBLE, mSetUpResourcesTask);
         }
     }
 
     private void waitUntilSetUpResources() {
         try (DualTraceEvent e =
                 DualTraceEvent.scoped("WebViewChromiumAwInit.waitUntilSetUpResources")) {
-            mSetUpResourcesThread.join();
-        } catch (InterruptedException e) {
+            mSetUpResourcesTask.get();
+        } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException(e);
         }
     }

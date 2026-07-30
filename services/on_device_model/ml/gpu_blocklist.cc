@@ -23,15 +23,17 @@ namespace {
 const base::FeatureParam<std::string> kGpuBlockList{
     &optimization_guide::features::kOnDeviceModelPerformanceParams,
     "on_device_model_gpu_block_list",
-    // These devices are nearly always crashing or have very low performance.
 #if BUILDFLAG(IS_LINUX)
     "8086:64a0|8086:e20b|"  // TODO(b/456603738): Remove when fixed.
 #endif  // BUILDFLAG(IS_LINUX)
+    // These devices are nearly always crashing or have very low performance.
     "8086:412|8086:a16|8086:41e|8086:416|8086:402|8086:166|8086:1616|8086:22b1|"
     "8086:22b0|8086:1916|8086:5a84|8086:5a85|8086:416|1414:8c|"
     "8086:*:*31.0.101.4824*|8086:*:*31.0.101.4676*|8086:*:*20.19.15.4835*|"
     "8086:*:*25.20.100.*|8086:*:*26.20.100.*|8086:*:*27.20.100.*|"
-    "8086:*:*30.0.101.3111*|8086:*:*31.0.101.4826*|8086:*:*31.0.101.4672*"};
+    "8086:*:*30.0.101.3111*|8086:*:*31.0.101.4826*|8086:*:*31.0.101.4672*"
+    "1414:8c"  // Microsoft WARP (software-rendering)
+};
 
 void LogGpuBlocked(GpuBlockedReason reason) {
   base::UmaHistogramEnumeration("OnDeviceModel.GpuBlockedReason", reason);
@@ -60,7 +62,8 @@ DeviceInfo QueryDeviceInfoInternal(const ChromeML& api) {
   }
   DeviceInfo query_device_info;
   if (device->IsSoftwareRenderer()) {
-    query_device_info.gpu_blocked_reason = GpuBlockedReason::kBlocklisted;
+    query_device_info.gpu_blocked_reason =
+        GpuBlockedReason::kBlocklistedForCpuAdapter;
     return query_device_info;
   }
   if (device) {

@@ -11,7 +11,7 @@ import type {SettingsSearchEnginesListElement, SettingsSearchEnginesPageElement}
 import type {SearchEnginesInfo} from 'chrome://settings/settings.js';
 import {loadTimeData, SearchEnginesBrowserProxyImpl, SearchEnginesInteractions} from 'chrome://settings/settings.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
-import {eventToPromise} from 'chrome://webui-test/test_util.js';
+import {eventToPromise, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {createSampleOmniboxExtension, createSampleSearchEngine, TestSearchEnginesBrowserProxy} from './test_search_engines_browser_proxy.js';
 // clang-format on
@@ -338,9 +338,7 @@ suite('SearchEnginePageTests', function() {
 
   // Tests that filtering the three search engines lists works, and that the
   // "no search results" message is shown as expected.
-  test('FilterSearchEngines', function() {
-    flush();
-
+  test('FilterSearchEngines', async function() {
     // TODO: Lookup via array index  may not be the best approach, because
     // changing the order or number of settings-search-engines-list elements
     // can break this test. Maybe we can add an id to every relevant element and
@@ -377,32 +375,32 @@ suite('SearchEnginePageTests', function() {
 
     // Search by name
     subpage.searchTerm = searchEnginesInfo.defaults[0]!.name;
-    flush();
+    await microtasksFinished();
     assertSearchResults(1, 0, 0, 0);
 
     // Search by displayName
     subpage.searchTerm = searchEnginesInfo.others[0]!.displayName;
-    flush();
+    await microtasksFinished();
     assertSearchResults(0, 0, 1, 0);
 
     // Search by keyword
     subpage.searchTerm = searchEnginesInfo.others[1]!.keyword;
-    flush();
+    await microtasksFinished();
     assertSearchResults(0, 0, 1, 0);
 
     // Search by URL
     subpage.searchTerm = 'search?';
-    flush();
+    await microtasksFinished();
     assertSearchResults(4, 3, 7, 0);
 
     // Test case where none of the sublists have results.
     subpage.searchTerm = 'does not exist';
-    flush();
+    await microtasksFinished();
     assertSearchResults(0, 0, 0, 0);
 
     // Test case where an 'extension' search engine matches.
     subpage.searchTerm = 'extension';
-    flush();
+    await microtasksFinished();
     assertSearchResults(0, 0, 0, 1);
   });
 

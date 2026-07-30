@@ -494,7 +494,13 @@ def BuildFFmpeg(target_os, target_arch, host_os, host_arch, parallel_jobs,
     if target_arch == 'ia32':
         pre_make_rewrites += [
             (r'(#define HAVE_EBP_AVAILABLE [01])',
-             r'/* \1 -- ebp selection is done by the chrome build */')
+             r'/* \1 -- ebp selection is done by the chrome build */'),
+            (r'(#define HAVE_X86_32_7REGS [01])',
+             r'#define HAVE_X86_32_7REGS 0 /* \1 -- forced to 0 to avoid inline asm register exhaustion */')
+        ]
+        pre_make_asm_rewrites += [
+            (r'(%define HAVE_X86_32_7REGS [01])',
+             r'%define HAVE_X86_32_7REGS 0 ; \1 -- forced to 0 to avoid inline asm register exhaustion')
         ]
 
     RewriteFile(os.path.join(config_dir, 'config.h'), pre_make_rewrites)
@@ -672,6 +678,8 @@ def ConfigureAndBuild(target_arch, target_os, host_os, host_arch,
         '--disable-faan',
         '--disable-alsa',
         '--disable-iamf',
+        '--disable-checkasm',
+
 
         # Disable automatically detected external libraries. This prevents
         # automatic inclusion of things like hardware decoders. Each roll should

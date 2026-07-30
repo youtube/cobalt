@@ -382,11 +382,17 @@ ResponseAction PasswordsPrivateExportPasswordsFunction::Run() {
 }
 
 void PasswordsPrivateExportPasswordsFunction::ExportRequestCompleted(
-    const std::string& error) {
-  if (error.empty()) {
-    Respond(NoArguments());
-  } else {
-    Respond(Error(error));
+    PasswordsPrivateDelegate::ExportPasswordsResult result) {
+  switch (result) {
+    case PasswordsPrivateDelegate::ExportPasswordsResult::kSuccess:
+      Respond(NoArguments());
+      break;
+    case PasswordsPrivateDelegate::ExportPasswordsResult::kInProgress:
+      Respond(Error("in-progress"));
+      break;
+    case PasswordsPrivateDelegate::ExportPasswordsResult::kReauthFailed:
+      Respond(Error("reauth-failed"));
+      break;
   }
 }
 

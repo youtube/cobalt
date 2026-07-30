@@ -12,6 +12,7 @@
 #include "components/version_info/channel.h"
 #include "services/metrics/public/cpp/ukm_recorder.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
+#include "url/origin.h"
 
 namespace password_manager {
 
@@ -21,11 +22,14 @@ StubPasswordManagerClient::StubPasswordManagerClient()
 StubPasswordManagerClient::~StubPasswordManagerClient() = default;
 
 bool StubPasswordManagerClient::IsSavingAndFillingEnabled(
-    const GURL& url) const {
+    const url::Origin& origin,
+    base::optional_ref<const GURL> url) const {
   return true;
 }
 
-bool StubPasswordManagerClient::IsFillingEnabled(const GURL& url) const {
+bool StubPasswordManagerClient::IsFillingEnabled(
+    const url::Origin& origin,
+    base::optional_ref<const GURL> url) const {
   return true;
 }
 
@@ -235,7 +239,7 @@ version_info::Channel StubPasswordManagerClient::GetChannel() const {
 void StubPasswordManagerClient::OpenPasswordDetailsBubble(
     const password_manager::PasswordForm& form) {}
 void StubPasswordManagerClient::MaybeShowSavePasswordPrimingPromo(
-    const GURL& current_url) {}
+    const url::Origin& origin) {}
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) ||
         // BUILDFLAG(IS_CHROMEOS)
 

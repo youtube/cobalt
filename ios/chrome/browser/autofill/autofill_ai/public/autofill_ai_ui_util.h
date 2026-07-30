@@ -15,6 +15,7 @@ namespace autofill {
 
 // Returns the default icon for the Autofill AI entity type.
 UIImage* DefaultIconForAutofillAiEntityType(EntityTypeName entity_type_name,
+                                            bool is_personal_context,
                                             CGFloat symbol_point_size,
                                             UIColor* tint_color);
 

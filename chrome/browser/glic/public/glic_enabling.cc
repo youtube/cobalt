@@ -658,22 +658,15 @@ bool GlicGlobalEnabling::IsSystemRequirementMet() const {
   return supported_system_requirements;
 }
 
-bool GlicGlobalEnabling::IsOsVersionSupported() const {
-  static const bool supported_os_version = [] {
+bool GlicGlobalEnabling::IsOsVersionSupported() {
 #if BUILDFLAG(IS_ANDROID)
-    // Glic requires Foreground Services (FGS) to run, which has strict
-    // requirements starting from Android S (see b/515767943).
-    if (base::android::android_info::sdk_int() <
-        base::android::android_info::SDK_VERSION_S) {
-      return false;
-    }
-    return true;
+  // Glic requires Foreground Services (FGS) to run, which has strict
+  // requirements starting from Android S (see b/515767943).
+  return base::android::android_info::sdk_int() >=
+         base::android::android_info::SDK_VERSION_S;
 #else
-    return true;
+  return true;
 #endif
-  }();
-
-  return supported_os_version;
 }
 
 bool GlicGlobalEnabling::IsEnabledByGlobalCriteria() {
@@ -687,6 +680,10 @@ bool GlicGlobalEnabling::IsEnabledByGlobalCriteria() {
                     country_enablement_.value_or(true);
 
   return is_enabled && IsOsVersionSupported() && IsSystemRequirementMet();
+}
+
+bool GlicEnabling::IsOsVersionSupported() {
+  return GlicGlobalEnabling::IsOsVersionSupported();
 }
 
 // static
@@ -715,6 +712,11 @@ bool GlicEnabling::IsProfileEligible(Profile* profile) {
   // Glic is supported only in regular profiles (i.e. disabled in incognito,
   // guest, system profile, etc.).
   if (!profile || !profile->IsRegularProfile()) {
+    return false;
+  }
+
+  // If the main feature flag is disabled, completely kill the feature.
+  if (!base::FeatureList::IsEnabled(features::kGlic)) {
     return false;
   }
 
@@ -1020,9 +1022,15 @@ bool GlicEnabling::IsAutoOpenForPdfEnabled(Profile* profile) {
 }
 
 // static
-bool GlicEnabling::IsContextualMenuItemEnabled(Profile* profile) {
-  bool enabled = IsEnabledForProfile(profile) &&
-                 base::FeatureList::IsEnabled(features::kGlicContextMenu);
+bool GlicEnabling::IsContextualMenuItemEnabled(
+    Profile* profile, const std::u16string& selection_text) {
+  const bool text_selection_menu_enabled =
+      base::FeatureList::IsEnabled(features::kGlicTextSelectionContextMenu) &&
+      !selection_text.empty();
+  const bool enabled =
+      IsEnabledForProfile(profile) &&
+      (base::FeatureList::IsEnabled(features::kGlicContextMenu) ||
+       text_selection_menu_enabled);
   base::UmaHistogramBoolean("Glic.WebContentContextMenu.Enabled", enabled);
   return enabled;
 }

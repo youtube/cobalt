@@ -44,7 +44,7 @@ public class CreditCardAccessorySheetCoordinator extends AccessorySheetTabCoordi
             Context context, Profile profile, @Nullable OnScrollListener scrollListener) {
         super(
                 context.getString(R.string.autofill_payment_methods),
-                R.drawable.infobar_autofill_cc,
+                R.drawable.ic_autofill_cc,
                 context.getString(R.string.credit_card_accessory_sheet_toggle),
                 R.layout.credit_card_accessory_sheet,
                 AccessoryTabType.CREDIT_CARDS,

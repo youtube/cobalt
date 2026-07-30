@@ -291,7 +291,11 @@ int RawPtrAsanService::IgnoreFreeHook(const volatile void* ptr) {
     if (it == map.GetMap().end()) {
       return 0;
     }
-    if (it->second.count == 0) {
+    // Quarantine the allocation if it is kept alive by any raw_ptr ref,
+    // including unprotected-in-release ones: those don't provide protection in
+    // release, but quarantining here lets the dangling access still be detected
+    // and reported as unprotected-in-release.
+    if (it->second.count == 0 && it->second.unprotected_in_release_count == 0) {
       map.GetMap().erase(it);
       return 0;
     }
@@ -405,7 +409,8 @@ const uint8_t* RawPtrAsanService::GetShadow(const void* ptr) const {
 #if !PA_BUILDFLAG(USE_ASAN_BACKUP_REF_PTR_V2)
 // static
 void RawPtrAsanService::SetPendingReport(ReportType type,
-                                         const volatile void* ptr) {
+                                         const volatile void* ptr,
+                                         bool unprotected_in_release) {
   // The actual ASan crash may occur at an offset from the pointer passed
   // here, so track the whole region.
   void* region_base;
@@ -413,8 +418,8 @@ void RawPtrAsanService::SetPendingReport(ReportType type,
   __asan_locate_address(const_cast<void*>(ptr), nullptr, 0, &region_base,
                         &region_size);
 
-  pending_report = {type, reinterpret_cast<uintptr_t>(region_base),
-                    region_size};
+  pending_report = {type, reinterpret_cast<uintptr_t>(region_base), region_size,
+                    unprotected_in_release};
 }
 #endif  // !PA_BUILDFLAG(USE_ASAN_BACKUP_REF_PTR_V2)
 
@@ -424,6 +429,11 @@ enum class ProtectionStatus {
   kNotProtected,
   kManualAnalysisRequired,
   kProtected,
+  // The crash involves a raw_ptr<T> marked kUnprotectedInRelease. It is
+  // instrumented in this build, but in a release build it uses the no-op
+  // implementation and provides no protection, so the crash remains
+  // exploitable in release.
+  kUnprotectedInRelease,
 };
 
 NO_SANITIZE("address")
@@ -437,6 +447,8 @@ const char* ProtectionStatusToString(ProtectionStatus status) {
       return "MANUAL ANALYSIS REQUIRED";
     case ProtectionStatus::kProtected:
       return "PROTECTED";
+    case ProtectionStatus::kUnprotectedInRelease:
+      return "NOT PROTECTED IN RELEASE BUILD";
   }
 }
 
@@ -486,6 +498,15 @@ bool CheckLog(uintptr_t fault_address, CrashInfo& crash_info) {
     // We're now at a quarantine-entry event. We want to scan through the rest
     // of the events for this allocation, and determine whether the accesses
     // to this particular quarantined allocation were safe.
+    //
+    // If the allocation is currently kept alive only by
+    // raw_ptr<T, kUnprotectedInRelease> references (no protective refs), its
+    // accesses are reported as unprotected-in-release rather than protected:
+    // such fields use the no-op impl (no protection) in a release build. This
+    // is what the exit-time report (read by the automatic bug classifier) uses.
+    const bool unprotected_in_release_only =
+        RawPtrAsanService::GetInstance().IsUnprotectedInReleaseOnly(
+            events[i].address);
     for (size_t j = i + 1; j < events.size(); ++j) {
       if (!events[i].IsSameAllocation(events[j])) {
         continue;
@@ -509,21 +530,43 @@ bool CheckLog(uintptr_t fault_address, CrashInfo& crash_info) {
             fault_address && fault_address == events[j].fault_address) {
           fault_address_matched = true;
         }
-        SetCrashInfo(
-            crash_info, ProtectionStatus::kProtected,
-            "This crash is an access to an allocation quarantined by "
-            "MiraclePtr, which did not result in a memory safety error that "
-            "would be observed in production builds.",
-            "This crash is not exploitable with MiraclePtr.");
+        if (unprotected_in_release_only) {
+          SetCrashInfo(
+              crash_info, ProtectionStatus::kUnprotectedInRelease,
+              "This crash is an access to an allocation that was only kept "
+              "quarantined by raw_ptr<T> objects marked kUnprotectedInRelease. "
+              "Such pointers use the no-op implementation (no protection) in "
+              "release builds.",
+              "This crash is still exploitable with MiraclePtr in release "
+              "builds, where these raw_ptr<T> objects are unprotected.");
+        } else {
+          SetCrashInfo(
+              crash_info, ProtectionStatus::kProtected,
+              "This crash is an access to an allocation quarantined by "
+              "MiraclePtr, which did not result in a memory safety error that "
+              "would be observed in production builds.",
+              "This crash is not exploitable with MiraclePtr.");
+        }
       } else if (events[j].type ==
                  internal::RawPtrAsanEvent::Type::kQuarantineAssignment) {
-        SetCrashInfo(
-            crash_info, ProtectionStatus::kProtected,
-            "This crash is an assignment to a raw_ptr<T> of a pointer to a "
-            "dangling (quarantined) allocation. This is a bug, but it did "
-            "not result in a memory safety error that would be observed in "
-            "production builds.",
-            "This crash is not exploitable with MiraclePtr.");
+        if (unprotected_in_release_only) {
+          SetCrashInfo(
+              crash_info, ProtectionStatus::kUnprotectedInRelease,
+              "This crash is an assignment to a raw_ptr<T> of a pointer to an "
+              "allocation that was only kept quarantined by raw_ptr<T> objects "
+              "marked kUnprotectedInRelease. Such pointers use the no-op "
+              "implementation (no protection) in release builds.",
+              "This crash is still exploitable with MiraclePtr in release "
+              "builds, where these raw_ptr<T> objects are unprotected.");
+        } else {
+          SetCrashInfo(
+              crash_info, ProtectionStatus::kProtected,
+              "This crash is an assignment to a raw_ptr<T> of a pointer to a "
+              "dangling (quarantined) allocation. This is a bug, but it did "
+              "not result in a memory safety error that would be observed in "
+              "production builds.",
+              "This crash is not exploitable with MiraclePtr.");
+        }
       }
     }
   }
@@ -605,7 +648,24 @@ bool RawPtrAsanService::CheckFaultAddress(uintptr_t fault_address,
         fault_address_matched = true;
       }
     }
-    if (fault_address_matched) {
+    if (fault_address_matched && (crash_info.protection_status ==
+                                      ProtectionStatus::kUnprotectedInRelease ||
+                                  IsUnprotectedInReleaseOnly(fault_address))) {
+      // The allocation was only kept quarantined by
+      // raw_ptr<T, kUnprotectedInRelease> references (as determined here, or
+      // already by CheckLog). Those use the no-op impl (no protection) in
+      // release builds, so this access would not be protected there. The
+      // `crash_info` check also prevents downgrading CheckLog's verdict back to
+      // kProtected.
+      SetCrashInfo(
+          crash_info, ProtectionStatus::kUnprotectedInRelease,
+          "This crash is an access through a zapped pointer to an allocation "
+          "that was only kept alive by raw_ptr<T> objects marked "
+          "kUnprotectedInRelease. Such pointers use the no-op implementation "
+          "(no protection) in release builds.",
+          "This crash is still exploitable with MiraclePtr in release builds, "
+          "where these raw_ptr<T> objects are unprotected.");
+    } else if (fault_address_matched) {
       SetCrashInfo(
           crash_info, ProtectionStatus::kProtected,
           "This crash is an access through a zapped pointer, resulting from a "
@@ -674,7 +734,16 @@ void RawPtrAsanService::ErrorReportCallback(const char* reason,
             reinterpret_cast<void*>(pending_report.allocation_base));
     switch (pending_report.type) {
       case ReportType::kDereference: {
-        if (is_supported_allocation) {
+        if (pending_report.unprotected_in_release) {
+          crash_info = {
+              ProtectionStatus::kUnprotectedInRelease,
+              "This crash occurred while dereferencing a raw_ptr<T> marked "
+              "kUnprotectedInRelease. Such pointers are instrumented in this "
+              "build, but use the no-op implementation (no protection) in "
+              "release builds.",
+              "This crash is still exploitable with MiraclePtr in release "
+              "builds, where this raw_ptr<T> is unprotected."};
+        } else if (is_supported_allocation) {
           crash_info = {ProtectionStatus::kProtected,
                         "This crash occurred while a raw_ptr<T> object "
                         "containing a dangling pointer was being dereferenced.",
@@ -689,7 +758,16 @@ void RawPtrAsanService::ErrorReportCallback(const char* reason,
         break;
       }
       case ReportType::kExtraction: {
-        if (is_supported_allocation && bound_arg_ptr) {
+        if (pending_report.unprotected_in_release) {
+          crash_info = {
+              ProtectionStatus::kUnprotectedInRelease,
+              "A pointer was extracted from a raw_ptr<T> marked "
+              "kUnprotectedInRelease prior to this crash. Such pointers are "
+              "instrumented in this build, but use the no-op implementation "
+              "(no protection) in release builds.",
+              "This crash is still exploitable with MiraclePtr in release "
+              "builds, where this raw_ptr<T> is unprotected."};
+        } else if (is_supported_allocation && bound_arg_ptr) {
           crash_info = {
               ProtectionStatus::kProtected,
               "This crash occurred inside a callback where a raw_ptr<T> "
@@ -746,8 +824,11 @@ void RawPtrAsanService::ErrorReportCallback(const char* reason,
         "This crash is still exploitable with MiraclePtr."};
   }
 
-  // The race condition check below may override the protection status.
-  if (crash_info.protection_status != ProtectionStatus::kNotProtected) {
+  // The race condition check below may override the protection status. It's
+  // skipped for kUnprotectedInRelease, whose verdict (no protection in release)
+  // holds regardless of whether the use-after-free is actually a race.
+  if (crash_info.protection_status != ProtectionStatus::kNotProtected &&
+      crash_info.protection_status != ProtectionStatus::kUnprotectedInRelease) {
     int free_thread_id = -1;
     __asan_get_free_stack(reinterpret_cast<void*>(ptr), nullptr, 0,
                           &free_thread_id);

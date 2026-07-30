@@ -125,11 +125,15 @@ bool StructTraits<network::mojom::DeviceBoundSessionParamsDataView,
     return false;
   }
 
-  *out = net::device_bound_sessions::SessionParams(
-      std::move(session_id), std::move(fetcher_url), std::move(refresh_url),
-      std::move(scope), std::move(credentials),
-      unexportable_keys::UnexportableSigningKeyId(),
-      std::move(allowed_refresh_initiators));
+  *out = net::device_bound_sessions::SessionParams{
+      .session_id = std::move(session_id),
+      .fetcher_url = std::move(fetcher_url),
+      .refresh_url = std::move(refresh_url),
+      .scope = std::move(scope),
+      .credentials = std::move(credentials),
+      .key_id = unexportable_keys::UnexportableSigningKeyId(),
+      .allowed_refresh_initiators = std::move(allowed_refresh_initiators),
+  };
 
   return true;
 }

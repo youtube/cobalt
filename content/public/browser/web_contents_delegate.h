@@ -959,6 +959,7 @@ class CONTENT_EXPORT WebContentsDelegate {
 
   // Requests a confirmation from the user to enter immersive playback.
   virtual void RequestImmersivePlaybackConfirmation(
+      const ImmersiveOptions& default_options,
       base::OnceCallback<void(ImmersivePlaybackConfirmationResult)> callback);
 
  protected:

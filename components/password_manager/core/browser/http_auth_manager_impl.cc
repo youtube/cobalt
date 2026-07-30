@@ -66,11 +66,11 @@ void HttpAuthManagerImpl::SetObserverAndDeliverCredentials(
     authenticator_->Cancel();
   }
   observer_ = observer;
+  observed_origin_ = url::Origin::Create(observed_form.url);
 
-  if (!client_->IsFillingEnabled(observed_form.url)) {
+  if (!client_->IsFillingEnabled(observed_origin_)) {
     return;
   }
-  observed_origin_ = url::Origin::Create(observed_form.url);
   // Initialize the form manager.
   form_manager_ = std::make_unique<PasswordFormManager>(
       client_, PasswordFormDigest(observed_form), nullptr /* form_fetcher */,
@@ -92,7 +92,7 @@ void HttpAuthManagerImpl::Autofill(const PasswordForm& preferred_match,
     return;
   }
 
-  if (!client_->IsFillingEnabled(form_manager_->GetURL())) {
+  if (!client_->IsFillingEnabled(observed_origin_, form_manager_->GetURL())) {
     return;
   }
 
@@ -148,7 +148,7 @@ void HttpAuthManagerImpl::OnReauthCompleted(
 
 void HttpAuthManagerImpl::OnPasswordFormSubmitted(
     const PasswordForm& password_form) {
-  if (client_->IsSavingAndFillingEnabled(password_form.url) &&
+  if (client_->IsSavingAndFillingEnabled(observed_origin_, password_form.url) &&
       !password_form.password_value.empty()) {
     ProvisionallySaveForm(password_form);
   }
@@ -185,8 +185,8 @@ void HttpAuthManagerImpl::OnDidFinishMainFrameNavigation() {
 
 void HttpAuthManagerImpl::OnLoginSuccesfull() {
   LogMessage(Logger::STRING_HTTPAUTH_ON_ASK_USER_OR_SAVE_PASSWORD);
-  if (!form_manager_ ||
-      !client_->IsSavingAndFillingEnabled(form_manager_->GetURL())) {
+  if (!form_manager_ || !client_->IsSavingAndFillingEnabled(
+                            observed_origin_, form_manager_->GetURL())) {
     return;
   }
 

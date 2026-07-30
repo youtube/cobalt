@@ -62,7 +62,7 @@ export class SettingsGuestOsSharedUsbDevicesElement extends
         value: false,
       },
       /**
-       * The type of Guest OS to share with. Should be 'crostini' or 'pluginVm'.
+       * The type of Guest OS to share with. Should be 'crostini'.
        */
       guestOsType: {
         type: String,

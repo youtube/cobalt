@@ -589,7 +589,6 @@ TEST_F(BookmarkProviderTest, KeywordModeExtractUserInput) {
   AutocompleteInput input4(u"@bookmarks domain",
                            metrics::OmniboxEventProto::OTHER,
                            TestSchemeClassifier());
-  input4.set_prefer_keyword(true);
   input4.set_in_keyword_mode(true);
   provider_->Start(input4, /*minimal_changes=*/false);
 
@@ -619,7 +618,6 @@ TEST_F(BookmarkProviderTest, MaxMatches) {
 
   // Turn keyword mode on. we should be able to get more matches now.
   input.set_in_keyword_mode(true);
-  input.set_prefer_keyword(true);
   provider_->Start(input, /*minimal_changes=*/false);
 
   matches = provider_->matches();
@@ -629,7 +627,6 @@ TEST_F(BookmarkProviderTest, MaxMatches) {
   // w/increased candidates is enabled. Any matches beyond the limit should be
   // marked as culled_by_provider and have a relevance of 0.
   input.set_in_keyword_mode(false);
-  input.set_prefer_keyword(false);
 
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeaturesAndParameters(

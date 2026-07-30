@@ -273,6 +273,76 @@ TEST_F(SearchEngineChoiceServiceTest, RecordChoiceMade_NotOverwritten) {
       kSearchEngineChoiceWipeReasonHistogram, 0);
 }
 
+TEST_F(SearchEngineChoiceServiceTest, RecordChoiceMade_DeviceChoiceImport_Initial) {
+  base::CommandLine::ForCurrentProcess()->RemoveSwitch(
+      switches::kSearchEngineChoiceCountry);
+  base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
+      switches::kSearchEngineChoiceCountry, kBelgiumCountryId.CountryCode());
+
+  // Test that the choice is recorded for DeviceChoiceImport on initial run.
+  search_engine_choice_service().RecordChoiceMade(
+      search_engines::ChoiceMadeLocation::kDeviceChoiceImport,
+      &template_url_service());
+
+  ExpectHistogramsSampleCount(
+      histogram_tester_,
+      search_engines::kSearchEngineChoiceScreenDefaultSearchEngineTypeHistogram,
+      SearchEngineType::SEARCH_ENGINE_GOOGLE, 1);
+  ExpectHistogramsSampleCount(
+      histogram_tester_,
+      search_engines::
+          kSearchEngineChoiceScreenDefaultSearchEngineType2Histogram,
+      SearchEngineType::SEARCH_ENGINE_GOOGLE, 1);  // Recorded for DeviceChoiceImport based on alignment
+
+  EXPECT_NEAR(pref_service()->GetInt64(
+                  prefs::kDefaultSearchProviderChoiceScreenCompletionTimestamp),
+              base::Time::Now().ToDeltaSinceWindowsEpoch().InSeconds(),
+              /*abs_error=*/2);
+  EXPECT_EQ(pref_service()->GetString(
+                prefs::kDefaultSearchProviderChoiceScreenCompletionVersion),
+            version_info::GetVersionNumber());
+}
+
+TEST_F(SearchEngineChoiceServiceTest, RecordChoiceMade_DeviceChoiceImport_Redundant) {
+  base::CommandLine::ForCurrentProcess()->RemoveSwitch(
+      switches::kSearchEngineChoiceCountry);
+  base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
+      switches::kSearchEngineChoiceCountry, kBelgiumCountryId.CountryCode());
+
+  // Write initial choice record.
+  search_engine_choice_service().RecordChoiceMade(
+      search_engines::ChoiceMadeLocation::kDeviceChoiceImport,
+      &template_url_service());
+
+  ASSERT_TRUE(pref_service()->HasPrefPath(
+      prefs::kDefaultSearchProviderChoiceScreenCompletionTimestamp));
+
+  const int kModifiedTimestamp = 5;
+  pref_service()->SetInt64(
+      prefs::kDefaultSearchProviderChoiceScreenCompletionTimestamp,
+      kModifiedTimestamp);
+
+  base::HistogramTester scoped_histogram_tester;
+
+  // Test that redundant DeviceChoiceImport calls are dropped safely (no crash) and do not overwrite prefs or log duplicate metrics.
+  search_engine_choice_service().RecordChoiceMade(
+      search_engines::ChoiceMadeLocation::kDeviceChoiceImport,
+      &template_url_service());
+
+  EXPECT_EQ(pref_service()->GetInt64(
+                prefs::kDefaultSearchProviderChoiceScreenCompletionTimestamp),
+            kModifiedTimestamp);
+  ExpectHistogramsSampleCount(
+      scoped_histogram_tester,
+      search_engines::kSearchEngineChoiceScreenDefaultSearchEngineTypeHistogram,
+      SearchEngineType::SEARCH_ENGINE_GOOGLE, 0);
+  ExpectHistogramsSampleCount(
+      scoped_histogram_tester,
+      search_engines::
+          kSearchEngineChoiceScreenDefaultSearchEngineType2Histogram,
+      SearchEngineType::SEARCH_ENGINE_GOOGLE, 0);
+}
+
 // Regression test for https://crbug.com/515743795.
 TEST_F(SearchEngineChoiceServiceTest,
        RecordChoiceMade_OverwrittenForProgramChange) {
@@ -356,6 +426,7 @@ TEST_F(SearchEngineChoiceServiceTest, RecordChoiceMade_ByLocation_Waffle) {
   for (const ChoiceMadeLocation& choice_location : locations) {
     switch (choice_location) {
       case ChoiceMadeLocation::kChoiceScreen:
+      case ChoiceMadeLocation::kDeviceChoiceImport:
         // For the choice screen, the choice should be recorded in the both
         // histograms.
         expected_v1_records += 1;
@@ -413,6 +484,7 @@ TEST_F(SearchEngineChoiceServiceTest, RecordChoiceMade_ByLocation_Taiyaki) {
     bool expect_choice_prefs_presence = false;
     switch (choice_location) {
       case ChoiceMadeLocation::kChoiceScreen:
+      case ChoiceMadeLocation::kDeviceChoiceImport:
         // For the choice screen, the choice should be recorded in the both
         // histograms.
         expected_v1_records = 1;

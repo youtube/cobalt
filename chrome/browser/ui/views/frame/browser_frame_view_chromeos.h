@@ -11,9 +11,9 @@
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
+#include "chrome/browser/ui/immersive/immersive_mode_controller.h"
 #include "chrome/browser/ui/views/frame/browser_frame_header_chromeos.h"
 #include "chrome/browser/ui/views/frame/browser_frame_view.h"
-#include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "chrome/browser/ui/views/tab_icon_view_model.h"
 #include "chromeos/ui/frame/highlight_border_overlay.h"
 #include "components/services/app_service/public/cpp/app_registry_cache.h"
@@ -188,6 +188,8 @@ class BrowserFrameViewChromeOS
 
   // Updates the icon that indicates a teleported window.
   void UpdateProfileIcons();
+
+  void MaybeAddAppIconToLayoutParams(BrowserLayoutParams& params) const;
 
   void LayoutProfileIndicator();
 

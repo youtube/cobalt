@@ -29,10 +29,10 @@ import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.RobolectricUtil;
 import org.chromium.base.test.util.CallbackHelper;
-import org.chromium.chrome.browser.enterprise.util.EnterpriseInfo;
-import org.chromium.chrome.browser.enterprise.util.EnterpriseInfo.OwnedState;
 import org.chromium.chrome.browser.signin.AppRestrictionSupplier;
 import org.chromium.chrome.browser.signin.PolicyLoadListener;
+import org.chromium.components.policy.EnterpriseInfo;
+import org.chromium.components.policy.EnterpriseInfo.OwnedState;
 import org.chromium.components.policy.PolicyService;
 
 /**

@@ -533,6 +533,15 @@ targets.binaries.generated_script(
     module_scheme = "tast",
 )
 
+targets.binaries.generated_script(
+    name = "chrome_flaky_tast_tests",
+    label = "//chromeos:chrome_flaky_tast_tests",
+    args = [
+        "--logs-dir=${ISOLATED_OUTDIR}",
+    ],
+    module_scheme = "tast",
+)
+
 targets.binaries.console_test_launcher(
     name = "chrome_elf_unittests",
     label = "//chrome/chrome_elf:chrome_elf_unittests",
@@ -2544,6 +2553,13 @@ targets.binaries.windowed_test_launcher(
     name = "views_unittests",
     label = "//ui/views:views_unittests",
     module_scheme = "gtest",
+)
+
+targets.binaries.windowed_test_launcher(
+    name = "gtk_unittests",
+    label = "//ui/gtk:gtk_unittests",
+    module_scheme = "gtest",
+    skip_usage_check = True,
 )
 
 targets.binaries.windowed_test_launcher(

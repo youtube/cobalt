@@ -1,0 +1,7 @@
+{
+  "inherits": [
+    {
+      "path": "agents/projects/code-health/skills.json"
+    }
+  ]
+}

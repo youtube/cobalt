@@ -566,43 +566,34 @@ export class ContentController {
       return false;
     }
 
+    const pageUrlString = chrome.readingMode.documentUrl;
+    if (!pageUrlString) {
+      return false;
+    }
+
+    const pageUrl = this.safeParseUrl_(pageUrlString);
+    const linkUrl = pageUrl ? this.safeParseUrl_(url, pageUrl.href) : null;
+
+    if (!pageUrl || !linkUrl) {
+      return false;
+    }
+
+    // The browser is only sending same document links, but this is an
+    // additional safety check.
+    const isSameDocument = linkUrl.origin === pageUrl.origin &&
+        linkUrl.pathname === pageUrl.pathname &&
+        linkUrl.search === pageUrl.search;
+
+    if (!isSameDocument) {
+      return false;
+    }
+
     let targetId: string|null = null;
-
-    if (url.startsWith('#')) {
+    if (linkUrl.hash) {
       try {
-        targetId = decodeURIComponent(url.substring(1));
+        targetId = decodeURIComponent(linkUrl.hash.substring(1));
       } catch (e) {
-        targetId = url.substring(1);
-      }
-    } else {
-      const pageUrlString = chrome.readingMode.documentUrl;
-      if (!pageUrlString) {
-        return false;
-      }
-
-      const pageUrl = this.safeParseUrl_(pageUrlString);
-      const linkUrl = pageUrl ? this.safeParseUrl_(url, pageUrl.href) : null;
-
-      if (!pageUrl || !linkUrl) {
-        return false;
-      }
-
-      const isSameDocument = linkUrl.origin === pageUrl.origin &&
-          linkUrl.pathname === pageUrl.pathname &&
-          linkUrl.search === pageUrl.search;
-
-      if (!isSameDocument) {
-        return false;
-      }
-
-      if (linkUrl.hash) {
-        try {
-          targetId = decodeURIComponent(linkUrl.hash.substring(1));
-        } catch (e) {
-          targetId = linkUrl.hash.substring(1);
-        }
-      } else {
-        targetId = null;
+        targetId = linkUrl.hash.substring(1);
       }
     }
 
@@ -634,10 +625,6 @@ export class ContentController {
     element.setAttribute('href', url);
     element.onclick = (event: MouseEvent) => {
       event.preventDefault();
-      const root = element.getRootNode();
-      if (root instanceof ShadowRoot || root instanceof Document) {
-        this.scrollToAnchor(url, root);
-      }
       if (nodeId) {
         chrome.readingMode.onLinkClicked(nodeId);
       }

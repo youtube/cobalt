@@ -19,6 +19,7 @@
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/message_loop/message_pump_type.h"
+#include "base/message_loop/message_pump_wakeup_counter.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/numerics/clamped_math.h"
 #include "base/process/current_process.h"
@@ -95,7 +96,7 @@
 #include "base/posix/eintr_wrapper.h"
 #include "base/trace_event/memory_dump_manager.h"
 #include "components/tracing/common/graphics_memory_dump_provider_android.h"
-#include "sandbox/linux/services/thread_helpers.h" // nogncheck
+#include "sandbox/linux/services/thread_helpers.h"  // nogncheck
 #include "sandbox/policy/features.h"
 #include "sandbox/policy/linux/landlock_gpu_policy_android.h"
 #include "sandbox/policy/sandbox_type.h"
@@ -340,6 +341,7 @@ int GpuMain(MainFunctionParams parameters) {
 
   base::PlatformThread::SetName("CrGpuMain");
   mojo::InterfaceEndpointClient::SetThreadNameSuffixForMetrics("GpuMain");
+  base::MessagePumpWakeupCounter::InitializeForCurrentThread("GpuMain");
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   // Thread type delegate of the process should be registered before

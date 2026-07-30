@@ -232,6 +232,9 @@ class CONTENT_EXPORT StoragePartition {
     // user-initiated clearing.
     REMOVE_KEEPALIVE_LOADS_ATTEMPTING_RETRY = 1 << 21,
 
+    // Declarative Performance Observer data.
+    REMOVE_DATA_MASK_DECLARATIVE_PERFORMANCE_OBSERVER = 1 << 22,
+
     REMOVE_DATA_MASK_ALL = 0xFFFFFFFF,
   };
 

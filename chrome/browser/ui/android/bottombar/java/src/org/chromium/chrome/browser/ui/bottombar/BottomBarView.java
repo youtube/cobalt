@@ -164,6 +164,7 @@ public class BottomBarView extends LinearLayout {
             case ActionId.HOME_BUTTON:
                 return mHomeContainer;
             case ActionId.GLIC:
+            case ActionId.AI_MODE:
                 return mExtraContainer;
             case ActionId.NEW_TAB:
                 return mNewTabContainer;

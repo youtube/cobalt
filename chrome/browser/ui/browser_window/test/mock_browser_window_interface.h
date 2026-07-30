@@ -8,6 +8,7 @@
 #include "base/callback_list.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "testing/gmock/include/gmock/gmock.h"
+#include "ui/base/unowned_user_data/unowned_user_data_host.h"
 
 class MockBrowserWindowInterface : public BrowserWindowInterface {
  public:
@@ -23,7 +24,7 @@ class MockBrowserWindowInterface : public BrowserWindowInterface {
               (BrowserDidCloseCallback callback),
               (override));
   // The non-const version should never return something different from the
-  // const version, so implement one in terms of th other.
+  // const version, so implement one in terms of the other.
   ui::UnownedUserDataHost& GetUnownedUserDataHost() override;
   MOCK_METHOD(const ui::UnownedUserDataHost&,
               GetUnownedUserDataHost,
@@ -99,6 +100,8 @@ class MockBrowserWindowInterface : public BrowserWindowInterface {
               (),
               (const, override));
 #endif
+ private:
+  ui::UnownedUserDataHost unowned_user_data_host_;
 };
 
 #endif  // CHROME_BROWSER_UI_BROWSER_WINDOW_TEST_MOCK_BROWSER_WINDOW_INTERFACE_H_

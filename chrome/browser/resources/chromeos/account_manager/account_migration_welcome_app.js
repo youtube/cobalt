@@ -38,7 +38,7 @@ Polymer({
   browserProxy_: null,
 
   /** @override */
-  ready() {
+  ready: function() {
     this.browserProxy_ = AccountManagerBrowserProxyImpl.getInstance();
 
     const dialogArgs = chrome.getVariableValue('dialogArguments');
@@ -60,12 +60,12 @@ Polymer({
   },
 
   /** @private */
-  closeDialog_() {
+  closeDialog_: function() {
     this.browserProxy_.closeDialog();
   },
 
   /** @private */
-  reauthenticateAccount_() {
+  reauthenticateAccount_: function() {
     this.browserProxy_.reauthenticateAccount(this.userEmail_);
   },
 });

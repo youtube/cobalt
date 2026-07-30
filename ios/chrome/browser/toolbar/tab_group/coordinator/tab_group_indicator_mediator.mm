@@ -191,30 +191,15 @@ using tab_groups::SharingState;
     if (tabGroup) {
       tab_groups::TabGroupColorId tabGroupColorId = tabGroup->GetColor();
 
-      // TODO(crbug.com/481997646): Cleanup this groupColor flow once feature
-      // hits stable.
-      if (!IsTabGroupColorOnSurfaceEnabled()) {
-        UIColor* groupColor =
-            tab_groups::ColorForTabGroupColorId(tabGroupColorId);
+      TabGroupColorPalette* tabGroupColorPalette =
+          [[TabGroupColorPalette alloc] initWithColorId:tabGroupColorId];
 
-        [_consumer setTabGroupTitle:tabGroup->GetTitle() groupColor:groupColor];
-      } else {
-        TabGroupColorPalette* tabGroupColorPalette =
-            [[TabGroupColorPalette alloc] initWithColorId:tabGroupColorId];
-
-        [_consumer setTabGroupTitle:tabGroup->GetTitle()
-               tabGroupColorPalette:tabGroupColorPalette];
-      }
+      [_consumer setTabGroupTitle:tabGroup->GetTitle()
+             tabGroupColorPalette:tabGroupColorPalette];
 
       [self updateTabGroupSharingState:tabGroup];
     } else {
-      // TODO(crbug.com/481997646): Cleanup this groupColor flow once feature
-      // hits stable.
-      if (!IsTabGroupColorOnSurfaceEnabled()) {
-        [_consumer setTabGroupTitle:nil groupColor:nil];
-      } else {
-        [_consumer setTabGroupTitle:nil tabGroupColorPalette:nil];
-      }
+      [_consumer setTabGroupTitle:nil tabGroupColorPalette:nil];
       [_consumer setSharingState:SharingState::kNotShared];
     }
     [self updateFacePileUI];

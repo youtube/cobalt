@@ -77,6 +77,7 @@ source_set("renderer_context_menu") {
 }
 
 source_set("impl") {
+  friend = [ ":unit_tests" ]
   public = [ "context_menu_content_type_factory.h" ]
   sources = [ "context_menu_content_type_factory.cc" ]
 
@@ -121,6 +122,7 @@ source_set("impl") {
       "//chrome/browser/apps/platform_apps",
       "//chrome/browser/autocomplete",
       "//chrome/browser/compose",
+      "//chrome/browser/context_hub",
       "//chrome/browser/custom_handlers",
       "//chrome/browser/devtools",
       "//chrome/browser/dictation",
@@ -310,6 +312,7 @@ if (!is_android) {
     testonly = true
 
     sources = [
+      "context_menu_content_type_read_anything_unittest.cc",
       "context_menu_content_type_unittest.cc",
       "render_view_context_menu_unittest.cc",
     ]
@@ -367,6 +370,7 @@ if (!is_android) {
       "//base/test:test_support",
       "//chrome/browser",
       "//chrome/browser/compose:test_support",
+      "//chrome/browser/context_hub",
       "//chrome/browser/devtools",
       "//chrome/browser/enterprise/data_controls:test_support",
       "//chrome/browser/pdf:pdf_extension_test_utils",

@@ -384,6 +384,7 @@ public class WebappNavigationTest {
     @Test
     @LargeTest
     @Feature({"Webapps"})
+    @DisabledTest(message = "crbug.com/529449577")
     public void testCloseButtonReturnsToUrlBeforeRedirects() throws Exception {
         Intent launchIntent = mActivityTestRule.createIntent();
         mActivityTestRule.addTwaExtrasToIntent(launchIntent);

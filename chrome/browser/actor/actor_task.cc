@@ -786,7 +786,13 @@ void ActorTask::RecomputeHasVisibleTab() {
     }
   }
 
+  if (has_visible_tab_ == has_any_visible_tab) {
+    return;
+  }
   has_visible_tab_ = has_any_visible_tab;
+  if (delegate_) {
+    delegate_->OnTaskTabsVisibilityChanged(id_, has_visible_tab_);
+  }
 }
 
 void ActorTask::ResetToObserveTabsSet() {

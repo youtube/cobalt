@@ -63,10 +63,4 @@
   <message name="IDS_PERSONAL_CONTEXT_AUTOFILL_SETTINGS_MANAGE_CONNECTED_APPS_SUMMARY_ANDROID" desc="" formatter_data="android_java" translateable="false">
     Lorem ipsum dolor sit amet, consectetur adipiscing elit.
   </message>
-  <message name="IDS_PERSONAL_CONTEXT_AUTOFILL_SETTINGS_MANAGE_SUGGESTIONS_TITLE_ANDROID" desc="" formatter_data="android_java" translateable="false">
-    Lorem ipsum
-  </message>
-  <message name="IDS_PERSONAL_CONTEXT_AUTOFILL_SETTINGS_MANAGE_SUGGESTIONS_SUMMARY_ANDROID" desc="" formatter_data="android_java" translateable="false">
-    Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-  </message>
 </grit-part>

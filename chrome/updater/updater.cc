@@ -20,7 +20,6 @@
 #include "base/message_loop/message_pump_type.h"
 #include "base/process/memory.h"
 #include "base/process/process_handle.h"
-#include "base/strings/stringprintf.h"
 #include "base/system/sys_info.h"
 #include "base/task/single_thread_task_executor.h"
 #include "base/task/thread_pool/thread_pool_instance.h"
@@ -54,6 +53,7 @@
 #include "chrome/updater/util/util.h"
 #include "components/crash/core/common/crash_key.h"
 #include "components/crash/core/common/crash_keys.h"
+#include "third_party/abseil-cpp/absl/strings/str_format.h"
 #include "third_party/crashpad/crashpad/client/crash_report_database.h"
 #include "third_party/crashpad/crashpad/client/settings.h"
 
@@ -293,7 +293,7 @@ std::string OperatingSystemVersion() {
 #if BUILDFLAG(IS_WIN)
   const base::win::OSInfo::VersionNumber v =
       base::win::OSInfo::GetInstance()->version_number();
-  return base::StringPrintf("%u.%u.%u.%u", v.major, v.minor, v.build, v.patch);
+  return absl::StrFormat("%u.%u.%u.%u", v.major, v.minor, v.build, v.patch);
 #else
   return base::SysInfo().OperatingSystemVersion();
 #endif

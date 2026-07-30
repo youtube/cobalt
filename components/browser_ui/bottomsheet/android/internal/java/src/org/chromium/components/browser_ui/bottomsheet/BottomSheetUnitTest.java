@@ -607,18 +607,18 @@ public class BottomSheetUnitTest {
         mBottomSheet.setSheetState(SheetState.FULL, false);
         CharSequence expectedOpenTitle = mActivity.getResources().getString(openStringId);
         assertEquals(
-                "Accessibility pane title should be set on the sheet container when opened",
+                "Accessibility pane title should be set on the bottom sheet when opened",
                 expectedOpenTitle,
-                ViewCompat.getAccessibilityPaneTitle(mSheetContainer));
+                ViewCompat.getAccessibilityPaneTitle(mBottomSheet));
 
         // Verify title when closed
         mBottomSheet.setSheetState(SheetState.HIDDEN, false);
         CharSequence expectedClosedTitle = mActivity.getResources().getString(closedStringId);
         assertEquals(
-                "Accessibility pane title should be set to closed on the sheet container when"
+                "Accessibility pane title should be set to closed on the bottom sheet when"
                         + " closed",
                 expectedClosedTitle,
-                ViewCompat.getAccessibilityPaneTitle(mSheetContainer));
+                ViewCompat.getAccessibilityPaneTitle(mBottomSheet));
     }
 
     @Test

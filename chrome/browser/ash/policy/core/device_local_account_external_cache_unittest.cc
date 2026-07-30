@@ -217,6 +217,7 @@ void DeviceLocalAccountExternalCacheTest::SetUp() {
       base::MakeRefCounted<chromeos::DeviceLocalAccountExternalPolicyLoader>();
 
   external_cache_ = std::make_unique<DeviceLocalAccountExternalCache>(
+      TestingBrowserProcess::GetGlobal()->shared_url_loader_factory(),
       /*loader=*/
       base::BindRepeating(
           [](scoped_refptr<chromeos::DeviceLocalAccountExternalPolicyLoader>

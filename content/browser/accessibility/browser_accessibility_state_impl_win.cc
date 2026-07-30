@@ -644,7 +644,8 @@ void BrowserAccessibilityStateImplWin::OnDiscoveredAssistiveTech(
   if (ui::IsScreenReader(most_important_assistive_tech)) {
     if (!screen_reader_mode_) {
       screen_reader_mode_ = CreateScopedModeForProcess(
-          ui::kAXModeComplete | ui::AXMode::kScreenReader);
+          ui::kAXModeComplete | ui::AXMode::kScreenReader |
+          ui::AXMode::kFromPlatform);
     }
   } else {
     screen_reader_mode_.reset();

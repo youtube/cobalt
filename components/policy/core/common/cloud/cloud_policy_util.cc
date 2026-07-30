@@ -313,6 +313,7 @@ bool IsUserLevelPolicyType(const std::string& policy_type) {
          policy_type == dm_protocol::kChromeExtensionInstallUserCloudPolicyType;
 }
 
+
 std::string PolicyTypeLogPrefix(std::string_view policy_type,
                                 std::string_view settings_entity_id) {
   if (settings_entity_id.empty()) {

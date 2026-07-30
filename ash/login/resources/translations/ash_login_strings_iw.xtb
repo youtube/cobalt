@@ -14,6 +14,24 @@
 <translation id="1185924365081634987">כדאי גם לנסות <ph name="GUEST_SIGNIN_LINK_START" />לגלוש כאורח<ph name="GUEST_SIGNIN_LINK_END" /> כדי לתקן את שגיאת הרשת הזו.</translation>
 <translation id="1201402288615127009">הבא</translation>
 <translation id="1222835797152767346">אפשר להגדיר קוד אימות כדי שיהיה יותר קל להיכנס לחשבון</translation>
+<translation id="1346669614038013595">‏<ph name="BEGIN_H3" />תכונות לניפוי באגים<ph name="END_H3" />
+          <ph name="BR" />
+          כדי להתקין ולבדוק קוד מותאם אישית במכשיר ה-ChromeOS שלך, יש לך אפשרות להפעיל תכונות לניפוי באגים במכשיר. הפעולה הזו תאפשר לך:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />להסיר אימות rootfs כדי לשנות קבצים של מערכת ההפעלה
+            <ph name="LIST_ITEM" />להפעיל גישת SSH למכשיר באמצעות מפתחות הבדיקה הרגילים, כדי שאפשר יהיה לגשת למכשיר באמצעות כלים כמו <ph name="BEGIN_CODE" />cros flash<ph name="END_CODE" />
+            <ph name="LIST_ITEM" />להפעיל אתחול מ-USB כדי שאפשר יהיה להתקין קובץ אימג' של מערכת ההפעלה מכונן USB
+            <ph name="LIST_ITEM" />להגדיר את סיסמת הכניסה של המפתח וגם של הרמה הבסיסית (root) לערך מותאם אישית כדי להתחבר ידנית למכשיר באמצעות SSH
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          לאחר ההפעלה של התכונות לניפוי באגים, רובן יישארו מופעלות גם לאחר ביצוע Powerwash או איפוס של הנתונים במכשיר שמנוהל בארגון. כדי להשבית את כל התכונות לניפוי באגים במלואן, צריך לבצע את תהליך השחזור של ChromeOS ‏(https://support.google.com/chromebook/answer/1080595).
+          <ph name="BR" />
+          <ph name="BR" />
+          מידע נוסף על התכונות לניפוי באגים מופיע בכתובת:<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />הערה:<ph name="END_BOLD" /> המערכת תבצע הפעלה מחדש בזמן התהליך.</translation>
 <translation id="1347625331607114917">‏אימות הקוד בטלפון Android</translation>
 <translation id="1347975661240122359">העדכון יתחיל כשהסוללה תיטען ל-%<ph name="BATTERY_LEVEL" />.</translation>
 <translation id="1375938286942050085">ההגדרה הושלמה. עכשיו אפשר להכין את המכשיר לגיימינג</translation>
@@ -126,9 +144,29 @@
 <translation id="503155457707535043">הורדת האפליקציות מתבצעת</translation>
 <translation id="5045550434625856497">סיסמה שגויה</translation>
 <translation id="5062930723426326933">הכניסה לחשבון נכשלה. צריך להתחבר לאינטרנט ולנסות שוב.</translation>
+<translation id="5107486920067578245">‏<ph name="BEGIN_PARAGRAPH1" />רוצה להתחיל לכתוב, לתכנן, ללמוד ועוד בעזרת Google AI? כל מה שצריך הוא להתכתב בצ׳אט עם Gemini<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />כדי להתחיל להשתמש ב-Gemini אחרי ההגדרה, אפשר לבחור את האפליקציה במדף, שנמצא בחלק התחתון של המסך.<ph name="END_PARAGRAPH2" /></translation>
 <translation id="5115309401544567011">חבר את ה-<ph name="DEVICE_TYPE" /> למקור חשמל.</translation>
 <translation id="5147516217412920887">כדי לאמת את הקוד, עליך לפעול לפי ההוראות בטלפון</translation>
 <translation id="5160857336552977725">יש להיכנס אל ה-<ph name="DEVICE_TYPE" /></translation>
+<translation id="5171185788583376591">‏<ph name="BEGIN_H3" />תכונות לניפוי באגים<ph name="END_H3" />
+          <ph name="BR" />
+          כדי להתקין ולבדוק קוד מותאם אישית במכשיר ה-ChromeOS Flex שלך, יש לך אפשרות להפעיל תכונות לניפוי באגים במכשיר. הצעד הזה יאפשר לך:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />להסיר אימות rootfs כדי לשנות קבצים של מערכת ההפעלה
+            <ph name="LIST_ITEM" />להפעיל גישת SSH למכשיר באמצעות מפתחות הבדיקה הרגילים, באופן שיאפשר לך להשתמש בכלים כמו <ph name="BEGIN_CODE" />cros flash<ph name="END_CODE" /> לצורך גישה למכשיר
+            <ph name="LIST_ITEM" />להפעיל אתחול מ-USB כדי שתהיה לך אפשרות להתקין קובץ אימג' של מערכת ההפעלה מכונן USB
+            <ph name="LIST_ITEM" />להגדיר את סיסמת הכניסה של המפתח ואת סיסמת הרמה הבסיסית (root) לערך מותאם אישית כדי להתחבר ידנית למכשיר באמצעות SSH
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          לאחר ההפעלה של התכונות לניפוי באגים, רובן יישארו מופעלות גם לאחר ביצוע Powerwash או איפוס של הנתונים במכשיר שמנוהל בארגון.  כדי להשבית את כל התכונות לניפוי באגים במלואן, צריך להשלים את תהליך השחזור של ChromeOS ‏(https://support.google.com/chromebook/answer/1080595).
+          <ph name="BR" />
+          <ph name="BR" />
+          מידע נוסף על התכונות לניפוי באגים מפורט בכתובת:<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />הערה:<ph name="END_BOLD" />  המערכת תבצע הפעלה מחדש בזמן התהליך.</translation>
 <translation id="523505283826916779">הגדרות נגישות</translation>
 <translation id="5240931875940563122">‏כניסה באמצעות טלפון Android</translation>
 <translation id="5255859108402770436">כניסה חוזרת</translation>
@@ -193,6 +231,10 @@
 <translation id="6955698182324067397">‏הפעולה הזו מאפשרת את פעילות התכונות לניפוי באגים ב-ChromeOS שיגדירו sshd daemon ויאפשרו אתחול מכונני USB.</translation>
 <translation id="6965382102122355670">אישור</translation>
 <translation id="6981982820502123353">נגישות</translation>
+<translation id="6984652455487792101">‏בזמן השימוש בשרת proxy צריך לבדוק את ההגדרות שלו, או
+        ליצור קשר עם מנהל הרשת כדי לוודא שהשרת פועל.
+        אם אין צורך להשתמש
+        בו, צריך לשנות את <ph name="LINK_START" />ההגדרות לשרת proxy<ph name="LINK_END" />.</translation>
 <translation id="6996245928508281884">‏עליך להפעיל את ה-Bluetooth וה-Wi-Fi בטלפון</translation>
 <translation id="7077829361966535409">‏טעינת דף הכניסה באמצעות הגדרות שרת ה-proxy הנוכחיות נכשלה. <ph name="GAIA_RELOAD_LINK_START" />יש לנסות להיכנס שוב<ph name="GAIA_RELOAD_LINK_END" /> או להשתמש ב<ph name="PROXY_SETTINGS_LINK_START" />הגדרות שונות לשרת ה-proxy<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="7114054701490058191">הסיסמאות לא תואמות</translation>
@@ -205,6 +247,9 @@
 <translation id="7345706641791090287">עליך לאשר את הסיסמה שלך</translation>
 <translation id="7352651011704765696">משהו השתבש</translation>
 <translation id="7476454130948140105">‏הסוללה חלשה מדי להתקנת העדכון (‎<ph name="BATTERY_PERCENT" />%‎)</translation>
+<translation id="7504187084873714912">‏<ph name="BEGIN_PARAGRAPH1" />לפני ההרשמה צריך לנקות את מודול הפלטפורמה המהימנה (TPM) כדי ש-<ph name="DEVICE_OS" /> תוכל לקבל בעלות על המכשיר.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />יש לך אפשרות גם לכבות לגמרי את ה-TPM. הנתונים שלך עדיין יישמרו באופן מאובטח באמצעות הצפנת תוכנה, אבל חלק מתכונות האבטחה, כמו אישורים בגיבוי חומרה, יושבתו.<ph name="END_PARAGRAPH2" />
+        <ph name="BEGIN_PARAGRAPH3" />כדי לשנות את הגדרות ה-TPM אפשר להפעיל מחדש את המכשיר ולהיכנס להגדרות ה-BIOS‏/UEFI של המערכת. השלבים משתנים בהתאם לדגם. למידע נוסף, צריך לפתוח את מאמרי העזרה בנושא <ph name="DEVICE_OS" /> במכשיר אחר לפני ההפעלה מחדש: g.co/flex/TPMHelp.<ph name="END_PARAGRAPH3" /></translation>
 <translation id="7543104066686362383">יש להפעיל תכונות ניפוי באגים במכשיר <ph name="IDS_SHORT_PRODUCT_NAME" /> זה</translation>
 <translation id="7553242001898162573">הזנת הסיסמה</translation>
 <translation id="7556242789364317684">‏לצערנו, <ph name="SHORT_PRODUCT_NAME" /> לא יכול לשחזר את ההגדרות שלך. כדי לתקן את השגיאה, <ph name="SHORT_PRODUCT_NAME" /> צריך לאפס את המכשיר שלך באמצעות Powerwash.</translation>
@@ -251,6 +296,10 @@
 <translation id="8452105022015742247">‏פרטי חשבון Google מועברים מטלפון Android</translation>
 <translation id="8524841856047224176">התאמה אישית של הרקעים במצלמה לשיחות וידאו ועוד</translation>
 <translation id="8569673829373920831">מידע נוסף על <ph name="APP_NAME" /></translation>
+<translation id="8628232294964836490">‏כדי לסרוק את קוד ה-QR, צריך לפעול לפי ההוראות בטלפון. חשוב לוודא שה-Bluetooth בטלפון מופעל.
+        <ph name="BR" />
+        <ph name="BR" />
+        גלוי למכשירים בקרבת מקום בתור <ph name="QUICK_START_DEVICE_DISPLAY_NAME" />...</translation>
 <translation id="8655972064210167941">הכניסה נכשלה מפני שלא ניתן היה לאמת את הסיסמה. יש לפנות למנהל המערכת או לנסות שוב.</translation>
 <translation id="8674903726754070732">‏לצערנו, המחשב שלך מוגדר באמצעות מזהה חומרה פגום. המצב הזה מונע מ-ChromeOS להתקין את עדכוני האבטחה האחרונים, <ph name="BEGIN_BOLD" />ויכול להיות שהמחשב שלך יהיה חשוף להתקפות זדוניות<ph name="END_BOLD" />.</translation>
 <translation id="8695139659682234808">הוספה של בקרת הורים לאחר ההגדרה</translation>
@@ -264,10 +313,20 @@
 <translation id="8830796635868321089">‏בדיקת העדכון נכשלה עם ההגדרות הנוכחיות של שרת ה-proxy‏. יש להתאים את <ph name="PROXY_SETTINGS_LINK_START" />הגדרות שרת ה-proxy שלך<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="885746075120788020">‏הפעילות וההעדפות השמורות שלך יהיו מוכנות בכל מכשיר ChromeOS לאחר הכניסה באמצעות חשבון Google. יש לך אפשרות לבחור מה לסנכרן בהגדרות.</translation>
 <translation id="8875221558267407626">מסכמים תכנים, מפשטים שפה מורכבת או שואלים שאלות</translation>
+<translation id="8913163265790894442">‏קל להגדיר את ה-<ph name="DEVICE_TYPE" /> באמצעות הטלפון. אפשר להוסיף את ה-Wi-Fi ואת החשבון שלך ב-Google, גם בלי להקליד את הסיסמאות.
+        <ph name="BR" />
+        <ph name="BR" />
+        גלוי בתור <ph name="DEVICE_TYPE" />...</translation>
 <translation id="8946359700442089734">תכונות לניפוי באגים לא הופעלו באופן מלא במכשיר <ph name="IDS_SHORT_PRODUCT_NAME" /> זה.</translation>
 <translation id="8965037249707889821">יש להזין את הסיסמה הישנה</translation>
 <translation id="8975396729541388937">ניתן לבטל את ההרשמה בכל שלב בלחיצה על הקישור בהודעות האימייל שמקבלים.</translation>
 <translation id="9033765790910064284">אני רוצה להמשיך בכל זאת</translation>
 <translation id="903480517321259405">יש להקליד שוב את קוד האימות</translation>
 <translation id="9076523132036239772">מצטערים, לא ניתן לאמת את האימייל או הסיסמה שלך. יש לנסות תחילה להתחבר לרשת.</translation>
+<translation id="9217002308921247002">‏<ph name="BEGIN_PARAGRAPH1" />בלעדי ל-<ph name="DEVICE_TYPE" />.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />ה-AI הגנרטיבי הוא ניסיוני, ונמצא בשלבי פיתוח ראשוניים. כרגע הזמינות שלו מוגבלת.<ph name="END_PARAGRAPH2" /></translation>
+<translation id="936479314588646618">‏קל להגדיר את ה-<ph name="DEVICE_TYPE" /> באמצעות הטלפון. עליך פשוט להוסיף את החשבון שלך ב-Google, אפילו בלי להקליד את הסיסמה.
+        <ph name="BR" />
+        <ph name="BR" />
+        גלוי בתור <ph name="DEVICE_TYPE" />...</translation>
 </translationbundle>

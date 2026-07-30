@@ -129,6 +129,14 @@ export function hexToColor(hex: string): Color {
     b: Number.parseInt(hex.substring(5, 7), 16),
   };
 }
+
+/**
+ * @returns Whether `color1` and `color2` have the same RGB values or not.
+ */
+export function colorsEqual(color1: Color, color2: Color): boolean {
+  return color1.r === color2.r && color1.g === color2.g &&
+      color1.b === color2.b;
+}
 // </if>
 
 /* Verifies that the array buffer is suitable for the beginning of a PDF.

@@ -14,7 +14,7 @@
 #include "chrome/browser/supervised_user/supervised_user_browser_utils.h"
 #include "chrome/browser/supervised_user/supervised_user_service_factory.h"
 #include "components/supervised_user/core/browser/device_parental_controls_url_filter.h"
-#include "components/supervised_user/core/browser/kids_chrome_management_url_checker_client.h"
+#include "components/supervised_user/core/browser/supervised_user_url_checker_client.h"
 #include "components/supervised_user/core/browser/supervised_user_url_filtering_service.h"
 #include "content/public/browser/storage_partition.h"
 
@@ -74,7 +74,7 @@ SupervisedUserUrlFilteringServiceFactory::BuildServiceInstanceForBrowserContext(
       CHECK_DEREF(SupervisedUserServiceFactory::GetForProfile(profile)),
       std::make_unique<DeviceParentalControlsUrlFilter>(
           g_browser_process->device_parental_controls(),
-          std::make_unique<KidsChromeManagementURLCheckerClient>(
+          std::make_unique<SupervisedUserUrlCheckerClient>(
               context->GetDefaultStoragePartition()
                   ->GetURLLoaderFactoryForBrowserProcess(),
               platform_delegate.GetCountryCode(),

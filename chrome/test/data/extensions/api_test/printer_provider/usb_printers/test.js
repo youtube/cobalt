@@ -25,8 +25,10 @@ chrome.test.sendMessage('loaded', function(test) {
         });
       }
 
+      // Verify `callback` throws when called more than once.
       chrome.test.assertThrows(
-          callback, [], 'Event callback must not be called more than once.');
+          callback.bind(null),
+          'Event callback must not be called more than once.');
 
       chrome.test.succeed();
     });

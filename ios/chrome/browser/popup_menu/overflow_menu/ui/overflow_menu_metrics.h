@@ -104,7 +104,8 @@ enum class IOSOverflowMenuAction {
   kShareThisPage = 23,
   kSignin = 24,
   kIdentity = 25,
-  kMaxValue = kIdentity,
+  kCustomizeHomePage = 26,
+  kMaxValue = kCustomizeHomePage,
 };
 // LINT.ThenChange(/ios/chrome/browser/popup_menu/overflow_menu/public/overflow_menu_constants.h:actionType,
 // /tools/metrics/histograms/metadata/ios/enums.xml:IOSOverflowMenuAction)

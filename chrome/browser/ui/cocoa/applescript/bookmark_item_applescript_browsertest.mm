@@ -6,8 +6,11 @@
 
 #import <Foundation/Foundation.h>
 
+#include <utility>
+
 #include "base/strings/sys_string_conversions.h"
 #include "chrome/browser/profiles/profile.h"
+#import "chrome/browser/ui/cocoa/applescript/applescript_test_utils.h"
 #import "chrome/browser/ui/cocoa/applescript/bookmark_applescript_test_utils.h"
 #import "chrome/browser/ui/cocoa/applescript/error_applescript.h"
 #include "chrome/common/pref_names.h"
@@ -43,7 +46,7 @@ IN_PROC_BROWSER_TEST_F(BookmarkItemAppleScriptTest, GetAndSetURL) {
   // If scripter enters invalid URL.
   FakeScriptCommand* fake_script_command = [[FakeScriptCommand alloc] init];
   item1.URL = @"invalid-url.org";
-  EXPECT_EQ(static_cast<int>(Error::kInvalidURL),
+  EXPECT_EQ(std::to_underlying(Error::kInvalidURL),
             fake_script_command.scriptErrorNumber);
 }
 
@@ -57,7 +60,7 @@ IN_PROC_BROWSER_TEST_F(BookmarkItemAppleScriptTest, GetAndSetJavascriptURL) {
 
   FakeScriptCommand* fake_script_command = [[FakeScriptCommand alloc] init];
   item1.URL = @"javascript:alert('hi');";
-  EXPECT_EQ(static_cast<int>(Error::kJavaScriptUnsupported),
+  EXPECT_EQ(std::to_underlying(Error::kJavaScriptUnsupported),
             fake_script_command.scriptErrorNumber);
 
   prefs->SetBoolean(prefs::kAllowJavascriptAppleEvents, true);

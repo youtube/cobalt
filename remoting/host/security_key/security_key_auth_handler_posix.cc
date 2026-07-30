@@ -19,11 +19,13 @@
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
-#include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/no_destructor.h"
 #include "base/notimplemented.h"
-#include "base/task/single_thread_task_runner.h"
+#include "base/synchronization/lock.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/task_traits.h"
+#include "base/task/thread_pool.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
 #include "net/base/net_errors.h"
@@ -38,12 +40,6 @@ namespace remoting {
 namespace {
 
 const int64_t kDefaultRequestTimeoutSeconds = 60;
-
-base::FilePath& GetMutableSecurityKeySocketName() {
-  static base::NoDestructor<base::FilePath> path{
-      GetDefaultSecurityKeySocketName()};
-  return *path;
-}
 
 // Socket authentication function that only allows connections from callers with
 // the current uid.
@@ -61,61 +57,128 @@ unsigned int GetCommandCode(const std::string& data) {
   return data.empty() ? -1 : static_cast<unsigned int>(data[0]);
 }
 
+base::Lock& GetGlobalResourceLock() {
+  static base::NoDestructor<base::Lock> lock;
+  return *lock;
+}
+
+base::FilePath& GetMutableSecurityKeySocketName() {
+  static base::NoDestructor<base::FilePath> socket_name;
+  return *socket_name;
+}
+
+scoped_refptr<base::SequencedTaskRunner>& GetFileTaskRunnerRef() {
+  static base::NoDestructor<scoped_refptr<base::SequencedTaskRunner>> runner;
+  return *runner;
+}
+
+scoped_refptr<base::SequencedTaskRunner> GetFileTaskRunner() {
+  base::AutoLock l(GetGlobalResourceLock());
+  auto& runner = GetFileTaskRunnerRef();
+  if (!runner) {
+    // We use a single, shared, global task runner to serialize all socket file
+    // operations (creation and deletion) across multiple sessions. This
+    // prevents concurrency race conditions, such as one session deleting the
+    // socket file currently in use by another concurrent session.
+    runner = base::ThreadPool::CreateSequencedTaskRunner(
+        {base::MayBlock(),
+         // We use USER_VISIBLE priority to ensure prompt socket file cleanup
+         // during session termination. Using BEST_EFFORT could delay cleanup
+         // under load, causing subsequent quick reconnects to fail with
+         // "Address already in use" (EADDRINUSE) if the old file still exists.
+         base::TaskPriority::USER_VISIBLE,
+         base::TaskShutdownBehavior::BLOCK_SHUTDOWN});
+  }
+  return runner;
+}
+
 }  // namespace
 
 // static
-const base::FilePath& SecurityKeyAuthHandlerPosix::GetSecurityKeySocketName() {
+base::FilePath SecurityKeyAuthHandlerPosix::GetSecurityKeySocketName() {
+  base::AutoLock l(GetGlobalResourceLock());
+  if (GetMutableSecurityKeySocketName().empty()) {
+    GetMutableSecurityKeySocketName() = GetDefaultSecurityKeySocketName();
+  }
   return GetMutableSecurityKeySocketName();
 }
 
 // static
 void SecurityKeyAuthHandlerPosix::SetSecurityKeySocketName(
     const base::FilePath& security_key_socket_name) {
+  base::AutoLock l(GetGlobalResourceLock());
   GetMutableSecurityKeySocketName() = security_key_socket_name;
 }
 
+// static
+void SecurityKeyAuthHandlerPosix::ResetTaskRunnerForTesting() {
+  base::AutoLock l(GetGlobalResourceLock());
+  GetFileTaskRunnerRef() = nullptr;
+}
+
+// static
+std::unique_ptr<SecurityKeyAuthHandlerPosix>
+SecurityKeyAuthHandlerPosix::CreateForTesting(
+    const base::FilePath& socket_name,
+    scoped_refptr<base::SequencedTaskRunner> file_task_runner) {
+  return base::WrapUnique(new SecurityKeyAuthHandlerPosix(
+      socket_name, std::move(file_task_runner)));
+}
+
+SecurityKeyAuthHandlerPosix::SecurityKeyAuthHandlerPosix()
+    : socket_name_(GetSecurityKeySocketName()),
+      file_task_runner_(GetFileTaskRunner()),
+      request_timeout_(base::Seconds(kDefaultRequestTimeoutSeconds)) {
+  DCHECK(!socket_name_.empty());
+  DCHECK(file_task_runner_);
+}
+
 SecurityKeyAuthHandlerPosix::SecurityKeyAuthHandlerPosix(
-    scoped_refptr<base::SingleThreadTaskRunner> file_task_runner)
-    : file_task_runner_(file_task_runner),
-      request_timeout_(base::Seconds(kDefaultRequestTimeoutSeconds)) {}
+    const base::FilePath& socket_name,
+    scoped_refptr<base::SequencedTaskRunner> file_task_runner)
+    : socket_name_(socket_name),
+      file_task_runner_(std::move(file_task_runner)),
+      request_timeout_(base::Seconds(kDefaultRequestTimeoutSeconds)) {
+  DCHECK(!socket_name_.empty());
+  DCHECK(file_task_runner_);
+}
 
 SecurityKeyAuthHandlerPosix::~SecurityKeyAuthHandlerPosix() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  if (file_task_runner_) {
+  if (!socket_name_.empty() && file_task_runner_) {
     // Attempt to clean up the socket before being destroyed.
-    file_task_runner_->PostTask(
-        FROM_HERE, base::GetDeleteFileCallback(GetSecurityKeySocketName()));
+    file_task_runner_->PostTask(FROM_HERE,
+                                base::GetDeleteFileCallback(socket_name_));
   }
 }
 
 void SecurityKeyAuthHandlerPosix::CreateSecurityKeyConnection() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  DCHECK(!GetSecurityKeySocketName().empty());
+  DCHECK(!socket_name_.empty());
 
-  // We need to run the DeleteFile method on |file_task_runner_| as it is a
+  // We need to run the DeleteFile method on the ThreadPool as it is a
   // blocking function call which cannot be run on the main thread.  Once
   // that task has completed, the main thread will be called back and we will
   // resume setting up our security key auth socket there.
   file_task_runner_->PostTask(
       FROM_HERE, base::GetDeleteFileCallback(
-                     GetSecurityKeySocketName(),
+                     socket_name_,
                      base::BindOnce(&SecurityKeyAuthHandlerPosix::CreateSocket,
                                     weak_factory_.GetWeakPtr())));
 }
 
 void SecurityKeyAuthHandlerPosix::CreateSocket(bool success) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  HOST_LOG << "Listening for security key requests on "
-           << GetSecurityKeySocketName().value();
+  HOST_LOG << "Listening for security key requests on " << socket_name_.value();
 
   if (!success) {
-    LOG(ERROR) << "Delete g_security_key_socket_name failed";
+    LOG(ERROR) << "Delete socket file failed: " << socket_name_.value();
     return;
   }
 
   auth_socket_ = std::make_unique<net::UnixDomainServerSocket>(
       base::BindRepeating(MatchUid), false);
-  int rv = auth_socket_->BindAndListen(GetSecurityKeySocketName().value(),
+  int rv = auth_socket_->BindAndListen(socket_name_.value(),
                                        /*backlog=*/1);
   if (rv != net::OK) {
     LOG(ERROR) << "Failed to open socket for auth requests: '" << rv << "'";
@@ -156,6 +219,11 @@ void SecurityKeyAuthHandlerPosix::SendErrorAndCloseConnection(int id) {
 void SecurityKeyAuthHandlerPosix::SetSendMessageCallback(
     const SendMessageCallback& callback) {
   send_message_callback_ = callback;
+}
+
+base::WeakPtr<SecurityKeyAuthHandler>
+SecurityKeyAuthHandlerPosix::GetWeakPtr() {
+  return weak_factory_.GetWeakPtr();
 }
 
 size_t SecurityKeyAuthHandlerPosix::GetActiveConnectionCountForTest() const {

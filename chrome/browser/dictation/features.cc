@@ -4,8 +4,16 @@
 
 #include "chrome/browser/dictation/features.h"
 
+#include "base/metrics/field_trial_params.h"
+
 namespace dictation {
 
 BASE_FEATURE(kDictation, base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<bool> kUseComponentExtension{
+    &kDictation, "use_component_extension", true};
+
+const base::FeatureParam<bool> kSendContextAsync{&kDictation,
+                                                 "send_context_async", false};
 
 }  // namespace dictation

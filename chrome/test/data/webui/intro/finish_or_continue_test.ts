@@ -4,22 +4,30 @@
 
 import 'chrome://intro/finish_or_continue/app.js';
 
-import {IntroBrowserProxyImpl} from 'chrome://intro/intro_browser_proxy.js';
 import type {FinishOrContinueAppElement} from 'chrome://intro/finish_or_continue/app.js';
+import {FinishOrContinueBrowserProxyImpl} from 'chrome://intro/finish_or_continue/finish_or_continue_browser_proxy.js';
+import {IntroBrowserProxyImpl} from 'chrome://intro/intro_browser_proxy.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {isWindows} from 'chrome://resources/js/platform.js';
 import {assertEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {microtasksFinished} from 'chrome://webui-test/test_util.js';
 
+import {TestFinishOrContinueBrowserProxy} from './test_finish_or_continue_browser_proxy.js';
 import {TestIntroMojoBrowserProxy} from './test_intro_mojo_browser_proxy.js';
 
 suite('FinishOrContinueTest', function() {
-  let testMojoBrowserProxy: TestIntroMojoBrowserProxy;
+  let testIntroMojoBrowserProxy: TestIntroMojoBrowserProxy;
+  let testBrowserProxy: TestFinishOrContinueBrowserProxy;
 
   setup(function() {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
-    testMojoBrowserProxy = new TestIntroMojoBrowserProxy();
-    IntroBrowserProxyImpl.setInstance(testMojoBrowserProxy);
+
+    testIntroMojoBrowserProxy = new TestIntroMojoBrowserProxy();
+    IntroBrowserProxyImpl.setInstance(testIntroMojoBrowserProxy);
+
+    testBrowserProxy = new TestFinishOrContinueBrowserProxy();
+    FinishOrContinueBrowserProxyImpl.setInstance(testBrowserProxy);
+
     loadTimeData.overrideValues({
       disableAnimations: false,
     });
@@ -104,14 +112,14 @@ suite('FinishOrContinueTest', function() {
     assertTrue(!!rightAnimation);
     assertTrue(!!bottomAnimation);
 
-    testMojoBrowserProxy.setMatchMediaMatches(false);
+    testBrowserProxy.setMatchMediaMatches(false);
     await microtasksFinished();
 
     assertTrue(leftAnimation.animationUrl.includes('light'));
     assertTrue(rightAnimation.animationUrl.includes('light'));
     assertTrue(bottomAnimation.animationUrl.includes('light'));
 
-    testMojoBrowserProxy.setMatchMediaMatches(true);
+    testBrowserProxy.setMatchMediaMatches(true);
     await microtasksFinished();
 
     assertTrue(leftAnimation.animationUrl.includes('dark'));
@@ -139,7 +147,7 @@ suite('FinishOrContinueTest', function() {
     };
 
     const pageRemote =
-        testMojoBrowserProxy.callbackRouter.$.bindNewPipeAndPassRemote();
+        testIntroMojoBrowserProxy.callbackRouter.$.bindNewPipeAndPassRemote();
     pageRemote.toggleAnimations(false);
     await pageRemote.$.flushForTesting();
     await microtasksFinished();
@@ -172,8 +180,8 @@ suite('FinishOrContinueTest', function() {
           leftPlay = play;
         };
 
-        const pageRemote =
-            testMojoBrowserProxy.callbackRouter.$.bindNewPipeAndPassRemote();
+        const pageRemote = testIntroMojoBrowserProxy.callbackRouter.$
+                               .bindNewPipeAndPassRemote();
         pageRemote.toggleAnimations(false);
         await pageRemote.$.flushForTesting();
         await microtasksFinished();
@@ -181,4 +189,18 @@ suite('FinishOrContinueTest', function() {
         // Verify that setPlay was NOT called because animations are disabled.
         assertEquals(null, leftPlay);
       });
+
+  test('StartBrowsingClicked', async function() {
+    const testElement = await createElement();
+    testElement.$.startBrowsingButton.click();
+    await microtasksFinished();
+    assertEquals(1, testBrowserProxy.handler.getCallCount('startBrowsing'));
+  });
+
+  test('ContinueEducationClicked', async function() {
+    const testElement = await createElement();
+    testElement.$.continueEducationButton.click();
+    await microtasksFinished();
+    assertEquals(1, testBrowserProxy.handler.getCallCount('continueEducation'));
+  });
 });

@@ -773,18 +773,25 @@ void EditContext::DeleteSurroundingText(int before, int after) {
   TRACE_EVENT1("ime", "EditContext::DeleteSurroundingText", "before, after",
                std::to_string(before) + ", " + std::to_string(after));
   const bool is_backwards_selection = selection_start_ > selection_end_;
-  const uint32_t update_range_start =
-      std::max(OrderedSelectionStart() - before, 0U);
-  const uint32_t update_range_end =
-      std::min(OrderedSelectionEnd() + after, text_.length());
-  SetSelection(
-      update_range_start,
-      OrderedSelectionEnd() - (OrderedSelectionStart() - update_range_start));
-  CHECK_GE(selection_end_, selection_start_);
+
+  // Safe clamping to avoid unsigned underflow and negative before / after.
+  int clamped_before =
+      std::max(0, std::min(before, static_cast<int>(OrderedSelectionStart())));
+  int clamped_after = std::max(
+      0, std::min(after,
+                  static_cast<int>(text_.length() - OrderedSelectionEnd())));
+
+  const uint32_t update_range_start = OrderedSelectionStart() - clamped_before;
+  const uint32_t update_range_end = OrderedSelectionEnd() + clamped_after;
+
   text_ = StrCat({text_.subview(0, update_range_start),
                   text_.DeprecatedSubstring(selection_start_,
                                             selection_end_ - selection_start_),
                   text_.DeprecatedSubstring(update_range_end)});
+  SetSelection(
+      update_range_start,
+      OrderedSelectionEnd() - (OrderedSelectionStart() - update_range_start));
+  CHECK_GE(selection_end_, selection_start_);
   String update_event_text(text_.DeprecatedSubstring(
       selection_start_, selection_end_ - selection_start_));
 

@@ -74,17 +74,63 @@ namespace autofill {
 
 namespace {
 
-// Trigger sources for which no paint checks are enforced on the popup row
-// level.
-constexpr DenseSet<AutofillSuggestionTriggerSource>
-    kTriggerSourcesExemptFromPaintChecks = {
-        AutofillSuggestionTriggerSource::kPlusAddressUpdatedInBrowserProcess};
+// Paint checks (i.e. mouse hover checks) are normally enforced on the popup row
+// level to prevent accidental acceptances. Returns whether `trigger_source`
+// enforces these paint checks.
+bool ShouldEnforcePaintChecks(AutofillSuggestionTriggerSource trigger_source) {
+  switch (trigger_source) {
+    case AutofillSuggestionTriggerSource::kPlusAddressUpdatedInBrowserProcess:
+    case AutofillSuggestionTriggerSource::kAtMemory:
+    case AutofillSuggestionTriggerSource::kAtMemoryContextMenu:
+    case AutofillSuggestionTriggerSource::kAtMemoryInactivityNudge:
+      return false;
+    case AutofillSuggestionTriggerSource::kUnspecified:
+    case AutofillSuggestionTriggerSource::kFormControlElementClicked:
+    case AutofillSuggestionTriggerSource::kTextareaFocusedWithoutClick:
+    case AutofillSuggestionTriggerSource::kContentEditableClicked:
+    case AutofillSuggestionTriggerSource::kTextFieldValueChanged:
+    case AutofillSuggestionTriggerSource::kTextFieldDidReceiveKeyDown:
+    case AutofillSuggestionTriggerSource::kOpenTextDataListChooser:
+    case AutofillSuggestionTriggerSource::kPasswordManager:
+    case AutofillSuggestionTriggerSource::kiOS:
+    case AutofillSuggestionTriggerSource::kManualFallbackPasswords:
+    case AutofillSuggestionTriggerSource::kComposeDialogLostFocus:
+    case AutofillSuggestionTriggerSource::kComposeDelayedProactiveNudge:
+    case AutofillSuggestionTriggerSource::kPasswordManagerProcessedFocusedField:
+    case AutofillSuggestionTriggerSource::kProactivePasswordRecovery:
+    case AutofillSuggestionTriggerSource::kGlic:
+      return true;
+  }
+}
 
-// Trigger sources for which the `NextIdleBarrier` is not reset. Note that this
-// requires that the trigger sources is only used to update the popup.
-constexpr DenseSet<AutofillSuggestionTriggerSource>
-    kTriggerSourcesExemptFromTimeReset = {
-        AutofillSuggestionTriggerSource::kPlusAddressUpdatedInBrowserProcess};
+// When suggestions update in an open popup, a 500ms lockout against accidental
+// clicks is normally restarted. Returns whether `trigger_source` restarts this
+// lockout.
+bool ShouldResetIdleBarrier(AutofillSuggestionTriggerSource trigger_source) {
+  switch (trigger_source) {
+    case AutofillSuggestionTriggerSource::kPlusAddressUpdatedInBrowserProcess:
+    case AutofillSuggestionTriggerSource::kAtMemory:
+    case AutofillSuggestionTriggerSource::kAtMemoryContextMenu:
+    case AutofillSuggestionTriggerSource::kAtMemoryInactivityNudge:
+      return false;
+    case AutofillSuggestionTriggerSource::kUnspecified:
+    case AutofillSuggestionTriggerSource::kFormControlElementClicked:
+    case AutofillSuggestionTriggerSource::kTextareaFocusedWithoutClick:
+    case AutofillSuggestionTriggerSource::kContentEditableClicked:
+    case AutofillSuggestionTriggerSource::kTextFieldValueChanged:
+    case AutofillSuggestionTriggerSource::kTextFieldDidReceiveKeyDown:
+    case AutofillSuggestionTriggerSource::kOpenTextDataListChooser:
+    case AutofillSuggestionTriggerSource::kPasswordManager:
+    case AutofillSuggestionTriggerSource::kiOS:
+    case AutofillSuggestionTriggerSource::kManualFallbackPasswords:
+    case AutofillSuggestionTriggerSource::kComposeDialogLostFocus:
+    case AutofillSuggestionTriggerSource::kComposeDelayedProactiveNudge:
+    case AutofillSuggestionTriggerSource::kPasswordManagerProcessedFocusedField:
+    case AutofillSuggestionTriggerSource::kProactivePasswordRecovery:
+    case AutofillSuggestionTriggerSource::kGlic:
+      return true;
+  }
+}
 
 struct SuggestionFiltrationResult {
   void AddSuggestion(
@@ -303,8 +349,8 @@ void AutofillPopupControllerImpl::Show(
   SetSuggestions(std::move(suggestions));
 
   should_ignore_mouse_observed_outside_item_bounds_check_ =
-      kTriggerSourcesExemptFromPaintChecks.contains(trigger_source_);
-  if (!kTriggerSourcesExemptFromTimeReset.contains(trigger_source_)) {
+      !ShouldEnforcePaintChecks(trigger_source_);
+  if (ShouldResetIdleBarrier(trigger_source_)) {
     barrier_for_accepting_.reset();
   }
 

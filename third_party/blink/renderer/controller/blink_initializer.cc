@@ -83,6 +83,8 @@
 #include "third_party/blink/renderer/controller/oom_intervention_impl.h"
 #include "third_party/blink/renderer/controller/private_memory_footprint_provider.h"
 #include "third_party/blink/renderer/controller/user_level_memory_pressure_signal_generator.h"
+#include "third_party/blink/renderer/platform/fonts/android/font_prewarmer_android.h"
+#include "third_party/blink/renderer/platform/fonts/font_cache.h"
 #endif
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
@@ -173,6 +175,13 @@ void InitializeCommon(Platform* platform, mojo::BinderMap* binders) {
   // is enabled. For that reason, the partition can only be initialized after V8
   // has been initialized.
   Partitions::InitializeArrayBufferPartition();
+
+#if BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(features::kAndroidSystemFontPrewarming)) {
+    DEFINE_STATIC_LOCAL(FontPrewarmer, font_prewarmer, ());
+    FontCache::SetFontPrewarmer(&font_prewarmer);
+  }
+#endif
 }
 
 void InitializeCommonWithIsolate(v8::Isolate* isolate) {

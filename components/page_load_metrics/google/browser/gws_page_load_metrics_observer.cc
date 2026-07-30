@@ -15,6 +15,7 @@
 #include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
+#include "base/notreached.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
@@ -61,6 +62,8 @@ const char kHistogramGWSInteractionToActualNavigationStart[] =
     HISTOGRAM_PREFIX "InteractionToActualNavigationStart";
 const char kHistogramGWSInteractionToNavigationStart[] =
     HISTOGRAM_PREFIX "InteractionToNavigationStart";
+const char kHistogramGWSInteractionToAFTEnd[] =
+    HISTOGRAM_PREFIX "InteractionToAFTEnd";
 const char kHistogramGWSNavigationStartToNavigationCommitSent[] =
     HISTOGRAM_PREFIX "NavigationStartToNavigationCommitSent";
 const char kHistogramGWSNavigationCommitSentToParseStart[] =
@@ -446,6 +449,37 @@ std::optional<base::TimeDelta> CalculateActualNavigationOffset(
   }
   return std::nullopt;
 }
+
+std::string_view GetScriptSuffix(page_load_metrics::mojom::ScriptType type) {
+  switch (type) {
+    case page_load_metrics::mojom::ScriptType::kLatin:
+      return "Latn";
+    case page_load_metrics::mojom::ScriptType::kHan:
+      return "Hani";
+    case page_load_metrics::mojom::ScriptType::kHangul:
+      return "Hang";
+    case page_load_metrics::mojom::ScriptType::kHiragana:
+      return "Hira";
+    case page_load_metrics::mojom::ScriptType::kKatakana:
+      return "Kana";
+    case page_load_metrics::mojom::ScriptType::kArabic:
+      return "Arab";
+    case page_load_metrics::mojom::ScriptType::kBengali:
+      return "Beng";
+    case page_load_metrics::mojom::ScriptType::kDevanagari:
+      return "Deva";
+    case page_load_metrics::mojom::ScriptType::kCyrillic:
+      return "Cyrl";
+    case page_load_metrics::mojom::ScriptType::kCommon:
+      return "Zyyy";
+    case page_load_metrics::mojom::ScriptType::kEmoji:
+      return "Emoji";
+    case page_load_metrics::mojom::ScriptType::kOther:
+      return "Other";
+  }
+  NOTREACHED();
+}
+
 void RecordFontMetrics(
     const page_load_metrics::mojom::FontLoadingMetricsPtr& font_loading_metrics,
     std::string_view suffix) {
@@ -466,6 +500,17 @@ void RecordFontMetrics(
       base::StrCat(
           {"PageLoad.Clients.GoogleSearch.FontLoading.FallbackCount.", suffix}),
       font_loading_metrics->fallback_count);
+
+  for (const auto& script_metric :
+       font_loading_metrics->script_fallback_metrics) {
+    std::string_view script_suffix =
+        GetScriptSuffix(script_metric->script_type);
+    base::UmaHistogramCounts100(
+        base::StrCat(
+            {"PageLoad.Clients.GoogleSearch.FontLoading.FallbackCount.",
+             script_suffix, ".", suffix}),
+        script_metric->fallback_count);
+  }
 }
 
 }  // namespace
@@ -1122,6 +1167,19 @@ void GWSPageLoadMetricsObserver::LogMetricsOnComplete(
             internal::
                 kHistogramGWSActualNavigationStartToAFTEndWithPreNavigationLatency,
             *actual_navigation_offset + aft_end_with_prenavigation_latency);
+      }
+    }
+    if (!is_prerendered_ &&
+        !navigation_handle_timing_.user_interaction.is_null() &&
+        navigation_handle_timing_.user_interaction <=
+            GetDelegate().GetNavigationStart()) {
+      base::TimeDelta duration =
+          GetDelegate().GetNavigationStart() -
+          navigation_handle_timing_.user_interaction -
+          navigation_handle_timing_.before_unload_dialog_duration;
+      if (!duration.is_negative()) {
+        PAGE_LOAD_HISTOGRAM2(internal::kHistogramGWSInteractionToAFTEnd,
+                             duration + base_time);
       }
     }
     if (is_traverse_navigation_) {

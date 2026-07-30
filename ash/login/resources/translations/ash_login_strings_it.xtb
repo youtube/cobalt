@@ -14,6 +14,24 @@
 <translation id="1185924365081634987">Puoi anche provare a <ph name="GUEST_SIGNIN_LINK_START" />navigare come ospite<ph name="GUEST_SIGNIN_LINK_END" /> per correggere questo errore di rete.</translation>
 <translation id="1201402288615127009">Avanti</translation>
 <translation id="1222835797152767346">Imposta un PIN per facilitare l'accesso</translation>
+<translation id="1346669614038013595"><ph name="BEGIN_H3" />Funzionalità di debug<ph name="END_H3" />
+          <ph name="BR" />
+          Puoi attivare le funzionalità di debug sul tuo dispositivo ChromeOS per installare e testare codice personalizzato. In questo modo potrai:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />Rimuovere la verifica rootfs per poter modificare i file del sistema operativo
+            <ph name="LIST_ITEM" />Attivare l'accesso SSH al dispositivo tramite chiavi di test standard per poter utilizzare strumenti come <ph name="BEGIN_CODE" />"cros flash"<ph name="END_CODE" /> per accedere al dispositivo
+            <ph name="LIST_ITEM" />Attivare l'avvio da USB per poter installare un'immagine sistema operativo da un'unità USB
+            <ph name="LIST_ITEM" />Impostare le password di accesso dev e root di sistema su un valore personalizzato per poter accedere manualmente al dispositivo tramite SSH
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          Una volta attivate, la maggior parte delle funzionalità di debug rimarrà attivata anche dopo un powerwash o la cancellazione dei dati su un dispositivo gestito a livello aziendale. Per disattivare completamente tutte le funzionalità di debug, completa la procedura di ripristino di ChromeOS (https://support.google.com/chromebook/answer/1080595).
+          <ph name="BR" />
+          <ph name="BR" />
+          Per ulteriori informazioni sulle funzionalità di debug, consulta:<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />Nota:<ph name="END_BOLD" /> il sistema verrà riavviato durante la procedura.</translation>
 <translation id="1347625331607114917">Verifica il codice sullo smartphone Android</translation>
 <translation id="1347975661240122359">L'aggiornamento inizierà quando la carica della batteria raggiunge il <ph name="BATTERY_LEVEL" />%.</translation>
 <translation id="1375938286942050085">Configurazione completata. Dopodiché prepara il tuo dispositivo per giocare</translation>
@@ -126,9 +144,29 @@
 <translation id="503155457707535043">Download delle app in corso</translation>
 <translation id="5045550434625856497">Password non corretta</translation>
 <translation id="5062930723426326933">Accesso non riuscito, connettiti a Internet e riprova.</translation>
+<translation id="5107486920067578245"><ph name="BEGIN_PARAGRAPH1" />Prova Gemini per iniziare a scrivere, pianificare, imparare e altro ancora con Google AI.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Dopo la configurazione, inizia a utilizzare Gemini selezionando l'app Gemini nella barra delle app posizionata nella parte inferiore dello schermo.<ph name="END_PARAGRAPH2" /></translation>
 <translation id="5115309401544567011">Collega il dispositivo <ph name="DEVICE_TYPE" /> a una fonte di alimentazione.</translation>
 <translation id="5147516217412920887">Segui le istruzioni sullo smartphone per verificare il codice</translation>
 <translation id="5160857336552977725">Accedi al tuo dispositivo <ph name="DEVICE_TYPE" /></translation>
+<translation id="5171185788583376591"><ph name="BEGIN_H3" />Funzionalità di debug<ph name="END_H3" />
+          <ph name="BR" />
+          Puoi attivare le funzionalità di debug sul tuo dispositivo ChromeOS Flex per installare e testare codice personalizzato. In questo modo potrai:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />Rimuovere la verifica rootfs per poter modificare i file del sistema operativo
+            <ph name="LIST_ITEM" />Attivare l'accesso SSH al dispositivo tramite chiavi di test standard per poter utilizzare strumenti come <ph name="BEGIN_CODE" />"cros flash"<ph name="END_CODE" /> per accedere al dispositivo
+            <ph name="LIST_ITEM" />Attivare l'avvio da USB per poter installare un'immagine sistema operativo da un'unità USB
+            <ph name="LIST_ITEM" />Impostare le password di accesso dev e root di sistema su un valore personalizzato per poter accedere manualmente al dispositivo tramite SSH
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          Una volta attivate, la maggior parte delle funzionalità di debug rimarrà abilitata anche dopo un powerwash o la cancellazione dei dati su un dispositivo gestito a livello aziendale. Per disattivare completamente tutte le funzionalità di debug, completa la procedura di ripristino di ChromeOS (https://support.google.com/chromebook/answer/1080595).
+          <ph name="BR" />
+          <ph name="BR" />
+          Per ulteriori informazioni sulle funzionalità di debug, consulta:<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />Nota:<ph name="END_BOLD" /> il sistema verrà riavviato durante la procedura.</translation>
 <translation id="523505283826916779">Impostazioni di accessibilità</translation>
 <translation id="5240931875940563122">Accedi con uno smartphone Android</translation>
 <translation id="5255859108402770436">Accedi di nuovo</translation>
@@ -193,6 +231,9 @@
 <translation id="6955698182324067397">Stai attivando le funzioni di debug di ChromeOS, che a loro volta impostano il daemon sshd e abilitano l'avvio da unità USB.</translation>
 <translation id="6965382102122355670">Ok</translation>
 <translation id="6981982820502123353">Accessibilità</translation>
+<translation id="6984652455487792101">Se utilizzi un server proxy, controlla le relative impostazioni o
+         contatta l'amministratore di rete per verificare che il server proxy funzioni correttamente. Se ritieni di non dover utilizzare
+        un server proxy, modifica le <ph name="LINK_START" />impostazioni del proxy<ph name="LINK_END" />.</translation>
 <translation id="6996245928508281884">Attiva la connessione Wi-Fi e Bluetooth sullo smartphone</translation>
 <translation id="7077829361966535409">Caricamento della pagina di accesso non riuscito utilizzando le impostazioni proxy correnti. <ph name="GAIA_RELOAD_LINK_START" />Prova ad accedere di nuovo<ph name="GAIA_RELOAD_LINK_END" /> o utilizza altre <ph name="PROXY_SETTINGS_LINK_START" />impostazioni proxy<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="7114054701490058191">Le password non corrispondono</translation>
@@ -205,6 +246,9 @@
 <translation id="7345706641791090287">Conferma la password</translation>
 <translation id="7352651011704765696">Si è verificato un problema</translation>
 <translation id="7476454130948140105">Livello della batteria troppo basso per eseguire l'aggiornamento (<ph name="BATTERY_PERCENT" />%)</translation>
+<translation id="7504187084873714912"><ph name="BEGIN_PARAGRAPH1" />Prima di procedere con la registrazione, devi cancellare il TPM in modo che <ph name="DEVICE_OS" /> possa acquisire la proprietà del dispositivo.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Puoi anche disattivare completamente il dispositivo TPM. I tuoi dati rimarranno comunque memorizzati in modo sicuro tramite la crittografia software, ma alcune funzionalità di sicurezza, come i certificati basati sull'hardware, verranno disattivate.<ph name="END_PARAGRAPH2" />
+        <ph name="BEGIN_PARAGRAPH3" />Puoi modificare le impostazioni del TPM riavviando il dispositivo e accedendo alle impostazioni BIOS/UEFI di sistema. I passaggi variano in base al modello del dispositivo. Per maggiori informazioni, apri la documentazione relativa a <ph name="DEVICE_OS" /> su un altro dispositivo prima del riavvio: g.co/flex/TPMHelp.<ph name="END_PARAGRAPH3" /></translation>
 <translation id="7543104066686362383">Attiva funzioni di debug su questo dispositivo <ph name="IDS_SHORT_PRODUCT_NAME" /></translation>
 <translation id="7553242001898162573">Inserisci la password</translation>
 <translation id="7556242789364317684">Purtroppo <ph name="SHORT_PRODUCT_NAME" /> non può recuperare le tue impostazioni. Per correggere l'errore, <ph name="SHORT_PRODUCT_NAME" /> deve ripristinare il tuo dispositivo con Powerwash.</translation>
@@ -251,6 +295,10 @@
 <translation id="8452105022015742247">Trasferimento dei dati dell'Account Google dal tuo smartphone Android in corso…</translation>
 <translation id="8524841856047224176">Personalizza gli sfondi della fotocamera per le videochiamate e molto altro</translation>
 <translation id="8569673829373920831">Altro su <ph name="APP_NAME" /></translation>
+<translation id="8628232294964836490">Segui le istruzioni sullo smartphone per scansionare il codice QR. Assicurati che il Bluetooth dello smartphone sia attivo.
+        <ph name="BR" />
+        <ph name="BR" />
+        Visibile ai dispositivi nelle vicinanze come <ph name="QUICK_START_DEVICE_DISPLAY_NAME" />…</translation>
 <translation id="8655972064210167941">Accesso non riuscito perché non è stato possibile verificare la password. Contatta l'amministratore o riprova.</translation>
 <translation id="8674903726754070732">Purtroppo il tuo computer è configurato con un ID hardware non valido. Ciò impedisce a ChromeOS di aggiornarsi con le ultime correzioni relative alla sicurezza e il tuo computer <ph name="BEGIN_BOLD" />potrebbe essere vulnerabile ad attacchi dannosi<ph name="END_BOLD" />.</translation>
 <translation id="8695139659682234808">Aggiungi la funzionalità Controllo genitori dopo la configurazione</translation>
@@ -264,10 +312,20 @@
 <translation id="8830796635868321089">Il controllo degli aggiornamenti utilizzando le impostazioni proxy correnti non è riuscito. Regola le tue <ph name="PROXY_SETTINGS_LINK_START" />impostazioni proxy<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="885746075120788020">Le tue preferenze e le tue attività salvate saranno pronte per l'utilizzo su tutti i dispositivi ChromeOS quando accedi con il tuo Account Google. Puoi scegliere quali dati sincronizzare in Impostazioni.</translation>
 <translation id="8875221558267407626">Riepiloga i contenuti, semplifica il linguaggio complesso o poni domande</translation>
+<translation id="8913163265790894442">Configura facilmente <ph name="DEVICE_TYPE" /> con lo smartphone. Puoi aggiungere la tua rete Wi-Fi e il tuo Account Google senza inserire manualmente le password.
+        <ph name="BR" />
+        <ph name="BR" />
+        Visibile come <ph name="DEVICE_TYPE" />...</translation>
 <translation id="8946359700442089734">Le funzioni di debug non sono state attivate completamente su questo dispositivo <ph name="IDS_SHORT_PRODUCT_NAME" />.</translation>
 <translation id="8965037249707889821">Inserisci vecchia password</translation>
 <translation id="8975396729541388937">Puoi annullare l'iscrizione in qualsiasi momento facendo clic sul link nelle email ricevute.</translation>
 <translation id="9033765790910064284">Continua comunque</translation>
 <translation id="903480517321259405">Digita di nuovo il PIN</translation>
 <translation id="9076523132036239772">Spiacenti, impossibile verificare l'indirizzo email o la password. Prova a collegarti a una rete prima.</translation>
+<translation id="9217002308921247002"><ph name="BEGIN_PARAGRAPH1" />Solo per <ph name="DEVICE_TYPE" />.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />L'IA generativa è sperimentale, in fase di sviluppo iniziale, e attualmente ha una disponibilità limitata.<ph name="END_PARAGRAPH2" /></translation>
+<translation id="936479314588646618">Configura facilmente <ph name="DEVICE_TYPE" /> con lo smartphone. Puoi aggiungere il tuo Account Google senza inserire manualmente la password.
+        <ph name="BR" />
+        <ph name="BR" />
+        Visibile come <ph name="DEVICE_TYPE" />...</translation>
 </translationbundle>

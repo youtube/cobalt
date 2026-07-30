@@ -453,6 +453,14 @@ absl_test("sysinfo_test") {
   ]
 }
 
+absl_test("cpu_detect_test") {
+  sources = [ "internal/cpu_detect_test.cc" ]
+  deps = [
+    ":config",
+    ":cpu_detect",
+  ]
+}
+
 # low_level_alloc_test is not included because it has own main function.
 # absl_test("low_level_alloc_test")
 

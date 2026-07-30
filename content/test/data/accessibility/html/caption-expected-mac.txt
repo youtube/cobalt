@@ -50,4 +50,4 @@ AXWebArea
 ++++AXColumn
 ++++++AXCell
 ++++++++AXStaticText AXValue='B'
-++++AXGroup
+++++AXGroup AXSubrole=AXEmptyGroup

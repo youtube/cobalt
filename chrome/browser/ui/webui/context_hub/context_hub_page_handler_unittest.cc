@@ -12,6 +12,8 @@
 #include "base/test/gmock_callback_support.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
+#include "chrome/browser/context_hub/context_hub_service.h"
+#include "chrome/browser/context_hub/context_hub_service_factory.h"
 #include "chrome/browser/context_hub/features.h"
 #include "chrome/browser/personal_context/personal_context_service_factory.h"
 #include "chrome/browser/ui/webui/context_hub/context_hub.mojom.h"
@@ -35,7 +37,8 @@ class ContextHubPageHandlerTest : public testing::Test {
  public:
   ContextHubPageHandlerTest() {
     feature_list_.InitWithFeatures(
-        {features::kContextHub, features::kAutoTodos}, {});
+        {features::kContextHub, features::kAutoTodos, features::kMemoryBanks},
+        {});
   }
 
   void SetUp() override {
@@ -167,6 +170,66 @@ TEST_F(ContextHubPageHandlerTest, GenerateAutoTodos_Failure) {
   std::optional<std::vector<browser::context_hub::mojom::AutoTodoItemPtr>>
       result = future.Take();
   EXPECT_FALSE(result.has_value());
+}
+
+TEST_F(ContextHubPageHandlerTest, GetAllEntries_Empty) {
+  base::test::TestFuture<
+      std::vector<browser::context_hub::mojom::MemoryBankEntryPtr>>
+      future;
+  handler_->GetAllEntries(future.GetCallback());
+
+  std::vector<browser::context_hub::mojom::MemoryBankEntryPtr> result =
+      future.Take();
+  EXPECT_TRUE(result.empty());
+}
+
+TEST_F(ContextHubPageHandlerTest, GetAllEntries_Success) {
+  ContextHubService* service =
+      ContextHubServiceFactory::GetForProfile(&profile_);
+  ASSERT_TRUE(service);
+
+  base::test::TestFuture<void> save_tab_future;
+  service->SaveTab(GURL("https://example.com/tab"), "Tab Title",
+                   save_tab_future.GetCallback());
+  ASSERT_TRUE(save_tab_future.Wait());
+
+  base::test::TestFuture<void> save_selection_future;
+  service->SaveTextSelection(GURL("https://example.com/select"),
+                             "Selection Title", "Selected Text Detail",
+                             save_selection_future.GetCallback());
+  ASSERT_TRUE(save_selection_future.Wait());
+
+  base::test::TestFuture<
+      std::vector<browser::context_hub::mojom::MemoryBankEntryPtr>>
+      future;
+  handler_->GetAllEntries(future.GetCallback());
+
+  std::vector<browser::context_hub::mojom::MemoryBankEntryPtr> result =
+      future.Take();
+
+  ASSERT_EQ(result.size(), 2u);
+
+  const browser::context_hub::mojom::MemoryBankEntryPtr* tab_entry = nullptr;
+  const browser::context_hub::mojom::MemoryBankEntryPtr* text_entry = nullptr;
+  for (const auto& entry : result) {
+    if (entry->type == browser::context_hub::mojom::EntryType::kTab) {
+      tab_entry = &entry;
+    } else if (entry->type ==
+               browser::context_hub::mojom::EntryType::kTextSelection) {
+      text_entry = &entry;
+    }
+  }
+
+  ASSERT_TRUE(tab_entry);
+  EXPECT_EQ((*tab_entry)->url, GURL("https://example.com/tab"));
+  EXPECT_EQ((*tab_entry)->tab_title, "Tab Title");
+  EXPECT_FALSE((*tab_entry)->timestamp.is_null());
+
+  ASSERT_TRUE(text_entry);
+  EXPECT_EQ((*text_entry)->url, GURL("https://example.com/select"));
+  EXPECT_EQ((*text_entry)->tab_title, "Selection Title");
+  EXPECT_EQ((*text_entry)->selected_text, "Selected Text Detail");
+  EXPECT_FALSE((*text_entry)->timestamp.is_null());
 }
 
 }  // namespace

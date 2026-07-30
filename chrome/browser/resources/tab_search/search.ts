@@ -2,8 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
+
 import type {ItemData, SplitViewData, TabData, TabGroupData} from './tab_data.js';
 import {TabSearchApiProxyImpl} from './tab_search_api_proxy.js';
+
+// Regex covering Hiragana, Katakana, Kanji, and Hangul (CJK ranges).
+const CJK_REGEX = new RegExp(
+    '[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff' +
+    '\uff66-\uff9f\u3131-\uD79D]');
+
+let segmenter: Intl.Segmenter|null = null;
+
+function getSegmenter(): Intl.Segmenter {
+  if (!segmenter) {
+    segmenter = new Intl.Segmenter(undefined, {granularity: 'word'});
+  }
+  return segmenter;
+}
 
 export interface OptionKeyObject {
   name: string;
@@ -127,7 +143,7 @@ async function exactSearch<T extends ItemData>(
 
   // Reorder match result by priorities.
   return prioritizeMatchResult(
-      options.keys, exactMatches.map(item => item.tab));
+      options.keys, exactMatches.map(item => item.tab), searchText);
 }
 
 /**
@@ -164,10 +180,12 @@ function scoringFunction(
  *    the string.
  */
 function prioritizeMatchResult<T extends ItemData>(
-    searchFields: OptionKeyObject[], result: T[]): T[] {
+    searchFields: OptionKeyObject[], result: T[], input: string): T[] {
   const itemsMatchingStringStart = [];
   const itemsMatchingWordStart = [];
   const others = [];
+
+  const hasCjkQuery = CJK_REGEX.test(input);
 
   for (const tab of result) {
     let matchesStringStart = false;
@@ -189,12 +207,9 @@ function prioritizeMatchResult<T extends ItemData>(
           matchesStringStart = true;
           break;
         }
-        if (matchRange.start > 0) {
-          const prevChar = fieldText.charAt(matchRange.start - 1);
-          // Non-word character check (rough approximation of \b)
-          if (/\W/.test(prevChar)) {
-            matchesWordStart = true;
-          }
+        if (matchRange.start > 0 &&
+            isWordStart(fieldText, matchRange.start, hasCjkQuery)) {
+          matchesWordStart = true;
         }
       }
       // We can only early exit if we found a String Start match,
@@ -214,4 +229,30 @@ function prioritizeMatchResult<T extends ItemData>(
     }
   }
   return itemsMatchingStringStart.concat(itemsMatchingWordStart, others);
+}
+
+/**
+ * Returns true if the match starting at `index` aligns with a semantic word
+ * boundary in `text`.
+ */
+function isWordStart(
+    text: string, index: number, hasCjkQuery: boolean): boolean {
+  // If CJK word boundary detection feature is enabled and the search query
+  // contains CJK characters, use the locale-aware segmenter.
+  if (loadTimeData.getBoolean('cjkWordBoundaryEnabled') && hasCjkQuery) {
+    const currSegments = getSegmenter().segment(text);
+    const currSegment = currSegments.containing(index);
+    // segment.index represents the start index of the semantic word segment
+    // containing `index`. We verify:
+    // 1. The segment exists.
+    // 2. The match starts EXACTLY at the beginning of this segment.
+    // 3. The segment is a word-like token (not spaces or punctuation).
+    return !!currSegment && currSegment.index === index &&
+        !!currSegment.isWordLike;
+  }
+
+  // Fast fallback for non-CJK text where simple character boundaries are
+  // sufficient.
+  const prevChar = text.charAt(index - 1);
+  return /\W/.test(prevChar);
 }

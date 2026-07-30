@@ -24,8 +24,11 @@ constexpr CGFloat kWalletLogoSpacing = 6.0;
 namespace autofill {
 
 UIImage* DefaultIconForAutofillAiEntityType(EntityTypeName entity_type_name,
+                                            bool is_personal_context,
                                             CGFloat symbol_point_size,
                                             UIColor* tint_color) {
+  // TODO(crbug.com/523320919): Return different icons when is_personal_context
+  // is true.
   NSString* symbol_name = nil;
   UIColor* color = tint_color ?: [UIColor colorNamed:kTextPrimaryColor];
 
@@ -53,7 +56,20 @@ UIImage* DefaultIconForAutofillAiEntityType(EntityTypeName entity_type_name,
       }
       break;
     case EntityTypeName::kShipment:
-      symbol_name = kBoxTruckFillSymbol;
+      if (is_personal_context) {
+        return SymbolWithPalette(
+            CustomSymbolWithPointSize(kTruckBoxSparkSymbol, symbol_point_size),
+            @[ color ]);
+      }
+      symbol_name = kTruckBoxSymbol;
+      break;
+    case EntityTypeName::kOrder:
+      if (is_personal_context) {
+        return SymbolWithPalette(
+            CustomSymbolWithPointSize(kBagSparkSymbol, symbol_point_size),
+            @[ color ]);
+      }
+      symbol_name = kBagSymbol;
       break;
     default:
       return nil;

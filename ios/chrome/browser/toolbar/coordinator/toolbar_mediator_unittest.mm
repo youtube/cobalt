@@ -312,7 +312,10 @@ TEST_P(ToolbarMediatorTest, TestWebStateSelectionUpdatesConsumer) {
   OCMExpect([consumer_ setCanGoBack:YES]);
   OCMExpect([consumer_ setCanGoForward:NO animated:NO]);
   OCMExpect([consumer_ setShareEnabled:YES]);
-  OCMExpect([consumer_ setIsLoading:NO]);
+  OCMExpect([consumer_ setNTPVisible:NO
+                      isStartSurface:NO
+                           isLoading:NO
+                     loadingProgress:0.0]);
 
   browser_->GetWebStateList()->InsertWebState(
       CreateWebState(), WebStateList::InsertionParams::AtIndex(0).Activate());
@@ -329,7 +332,10 @@ TEST_P(ToolbarMediatorTest, TestWebStateSelectionNTPUpdatesConsumer) {
   NewTabPageTabHelper::FromWebState(web_state.get())
       ->SetShowStartSurface(false);
 
-  OCMExpect([consumer_ setNTPVisible:YES isStartSurface:NO]);
+  OCMExpect([consumer_ setNTPVisible:YES
+                      isStartSurface:NO
+                           isLoading:NO
+                     loadingProgress:0.0]);
 
   browser_->GetWebStateList()->InsertWebState(
       std::move(web_state),
@@ -344,7 +350,10 @@ TEST_P(ToolbarMediatorTest, TestWebStateSelectionNTPUpdatesConsumer) {
   NewTabPageTabHelper::FromWebState(start_web_state.get())
       ->SetShowStartSurface(true);
 
-  OCMExpect([consumer_ setNTPVisible:YES isStartSurface:YES]);
+  OCMExpect([consumer_ setNTPVisible:YES
+                      isStartSurface:YES
+                           isLoading:NO
+                     loadingProgress:0.0]);
 
   browser_->GetWebStateList()->InsertWebState(
       std::move(start_web_state),
@@ -363,11 +372,17 @@ TEST_P(ToolbarMediatorTest, TestWebStateUpdates) {
       WebStateList::InsertionParams::AtIndex(0).Activate());
 
   // Test loading state.
-  OCMExpect([consumer_ setIsLoading:YES]);
+  OCMExpect([consumer_ setNTPVisible:NO
+                      isStartSurface:NO
+                           isLoading:YES
+                     loadingProgress:0.0]);
   fake_web_state->SetLoading(true);
   EXPECT_OCMOCK_VERIFY(consumer_);
 
-  OCMExpect([consumer_ setIsLoading:NO]);
+  OCMExpect([consumer_ setNTPVisible:NO
+                      isStartSurface:NO
+                           isLoading:NO
+                     loadingProgress:0.0]);
   fake_web_state->SetLoading(false);
   EXPECT_OCMOCK_VERIFY(consumer_);
 

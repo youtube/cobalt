@@ -14,6 +14,24 @@
 <translation id="1185924365081634987">Anda juga dapat mencoba untuk <ph name="GUEST_SIGNIN_LINK_START" />menjelajahi sebagai tamu<ph name="GUEST_SIGNIN_LINK_END" /> untuk memperbaiki kesalahan jaringan ini.</translation>
 <translation id="1201402288615127009">Berikutnya</translation>
 <translation id="1222835797152767346">Setel PIN untuk memudahkan proses login</translation>
+<translation id="1346669614038013595"><ph name="BEGIN_H3" />Fitur Proses Debug<ph name="END_H3" />
+          <ph name="BR" />
+          Anda dapat mengaktifkan fitur proses debug di Perangkat ChromeOS untuk menginstal dan menguji kode kustom di perangkat Anda. Tindakan ini memungkinkan Anda untuk:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />Menghapus verifikasi rootfs agar Anda dapat memodifikasi file OS
+            <ph name="LIST_ITEM" />Mengaktifkan akses SSH ke perangkat menggunakan kunci pengujian standar sehingga Anda dapat menggunakan alat seperti <ph name="BEGIN_CODE" />'cros flash'<ph name="END_CODE" /> untuk mengakses perangkat
+            <ph name="LIST_ITEM" />Mengaktifkan booting dari USB agar Anda dapat menginstal OS image dari drive USB
+            <ph name="LIST_ITEM" />Menyetel sandi login dev dan root sistem ke nilai kustom agar Anda dapat melakukan SSH ke perangkat secara manual
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          Setelah diaktifkan, sebagian besar fitur proses debug akan tetap aktif meskipun Anda melakukan powerwash atau menghapus total data pada perangkat yang dikelola perusahaan. Untuk menonaktifkan semua fitur proses debug sepenuhnya, selesaikan proses pemulihan ChromeOS (https://support.google.com/chromebook/answer/1080595).
+          <ph name="BR" />
+          <ph name="BR" />
+          Untuk mengetahui informasi selengkapnya mengenai fitur proses debug, lihat:<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />Catatan:<ph name="END_BOLD" /> Sistem akan dimulai ulang selama proses berlangsung.</translation>
 <translation id="1347625331607114917">Verifikasi kode di ponsel Android</translation>
 <translation id="1347975661240122359">Update akan dimulai jika baterai mencapai <ph name="BATTERY_LEVEL" />%.</translation>
 <translation id="1375938286942050085">Penyiapan selesai. Siapkan perangkat Anda untuk bermain game</translation>
@@ -114,7 +132,7 @@
 <translation id="4568213207643490790">Maaf, akun Google tidak diizinkan di perangkat ini.</translation>
 <translation id="4611759022973144129">Anda dapat menggunakan sandi ini untuk login ke <ph name="DEVICE_TYPE" />.</translation>
 <translation id="4727847987444062305">Sesi tamu terkelola</translation>
-<translation id="473775607612524610">Update</translation>
+<translation id="473775607612524610">Perbarui</translation>
 <translation id="473936925429402449">Dipilih, konten tambahan <ph name="CURRENT_ELEMENT" /> dari <ph name="TOTAL_ELEMENTS" /></translation>
 <translation id="4830502475412647084">Menginstal update OS</translation>
 <translation id="4837926214103741331">Anda tidak diizinkan untuk menggunakan perangkat ini. Untuk izin masuk, hubungi pemilik perangkat.</translation>
@@ -126,9 +144,29 @@
 <translation id="503155457707535043">Aplikasi sedang didownload</translation>
 <translation id="5045550434625856497">Sandi salah</translation>
 <translation id="5062930723426326933">Gagal masuk, sambungkan ke internet lalu coba lagi.</translation>
+<translation id="5107486920067578245"><ph name="BEGIN_PARAGRAPH1" />Mulai percakapan dengan Gemini untuk mulai menulis, membuat rencana, belajar, dan banyak lagi dengan AI Google.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Setelah penyiapan, mulai gunakan Gemini dengan memilih aplikasi Gemini di panel aplikasi Anda, di bagian bawah layar.<ph name="END_PARAGRAPH2" /></translation>
 <translation id="5115309401544567011">Harap colokkan perangkat <ph name="DEVICE_TYPE" /> ke sumber listrik.</translation>
 <translation id="5147516217412920887">Ikuti petunjuk di ponsel Anda untuk memverifikasi kode</translation>
 <translation id="5160857336552977725">Login ke <ph name="DEVICE_TYPE" /> Anda</translation>
+<translation id="5171185788583376591"><ph name="BEGIN_H3" />Fitur Proses Debug<ph name="END_H3" />
+          <ph name="BR" />
+          Anda dapat mengaktifkan fitur proses debug di Perangkat ChromeOS Flex untuk menginstal dan menguji kode kustom di perangkat Anda. Tindakan ini memungkinkan Anda untuk:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />Menghapus verifikasi rootfs agar Anda dapat memodifikasi file OS
+            <ph name="LIST_ITEM" />Mengaktifkan akses SSH ke perangkat menggunakan kunci pengujian standar sehingga Anda dapat menggunakan alat seperti <ph name="BEGIN_CODE" />'cros flash'<ph name="END_CODE" /> untuk mengakses perangkat
+            <ph name="LIST_ITEM" />Mengaktifkan booting dari USB agar Anda dapat menginstal OS image dari drive USB
+            <ph name="LIST_ITEM" />Menyetel sandi login dev dan root sistem ke nilai kustom agar Anda dapat melakukan SSH ke perangkat secara manual
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          Setelah diaktifkan, sebagian besar fitur proses debug akan tetap aktif meskipun Anda melakukan powerwash atau menghapus total data pada perangkat yang dikelola perusahaan. Untuk menonaktifkan semua fitur proses debug sepenuhnya, selesaikan proses pemulihan ChromeOS (https://support.google.com/chromebook/answer/1080595).
+          <ph name="BR" />
+          <ph name="BR" />
+          Untuk mengetahui informasi selengkapnya mengenai fitur proses debug, lihat:<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />Catatan:<ph name="END_BOLD" /> Sistem akan dimulai ulang selama proses berlangsung.</translation>
 <translation id="523505283826916779">Setelan aksesibilitas</translation>
 <translation id="5240931875940563122">Login dengan ponsel Android</translation>
 <translation id="5255859108402770436">Login lagi</translation>
@@ -193,6 +231,9 @@
 <translation id="6955698182324067397">Anda mengaktifkan fitur proses debug ChromeOS yang akan menyiapkan daemon sshd dan memungkinkan booting dari drive USB.</translation>
 <translation id="6965382102122355670">Oke</translation>
 <translation id="6981982820502123353">Aksesibilitas</translation>
+<translation id="6984652455487792101">Jika Anda menggunakan server proxy, periksa setelan proxy
+        atau hubungi administrator jaringan untuk memastikan server proxy tersebut berfungsi. Jika Anda merasa tidak seharusnya menggunakan
+        server proxy, sesuaikan <ph name="LINK_START" />setelan proxy<ph name="LINK_END" /> Anda.</translation>
 <translation id="6996245928508281884">Aktifkan Bluetooth dan Wi-Fi ponsel</translation>
 <translation id="7077829361966535409">Halaman proses masuk gagal dimuat menggunakan setelan proxy saat ini. <ph name="GAIA_RELOAD_LINK_START" />Coba masuk lagi nanti<ph name="GAIA_RELOAD_LINK_END" />, atau gunakan <ph name="PROXY_SETTINGS_LINK_START" />setelan proxy yang lain<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="7114054701490058191">Sandi tidak cocok</translation>
@@ -205,6 +246,9 @@
 <translation id="7345706641791090287">Konfirmasi sandi Anda</translation>
 <translation id="7352651011704765696">Terjadi error</translation>
 <translation id="7476454130948140105">Baterai terlalu lemah untuk mengupdate (<ph name="BATTERY_PERCENT" />%)</translation>
+<translation id="7504187084873714912"><ph name="BEGIN_PARAGRAPH1" />Sebelum mendaftar, Anda perlu menghapus TPM agar <ph name="DEVICE_OS" /> dapat mengambil alih kepemilikan perangkat.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Anda juga dapat sepenuhnya menonaktifkan TPM di perangkat. Data Anda akan tetap disimpan secara aman dengan enkripsi software, tetapi fitur keamanan tertentu seperti sertifikat yang didukung hardware akan dinonaktifkan.<ph name="END_PARAGRAPH2" />
+        <ph name="BEGIN_PARAGRAPH3" />Anda dapat mengubah setelan TPM dengan memulai ulang dan masuk ke setelan BIOS/UEFI sistem. Langkah-langkah dapat berbeda bergantung pada model perangkat. Untuk mengetahui info selengkapnya, buka dokumentasi <ph name="DEVICE_OS" /> di perangkat lain sebelum Anda memulai ulang: g.co/flex/TPMHelp.<ph name="END_PARAGRAPH3" /></translation>
 <translation id="7543104066686362383">Aktifkan fitur debug pada perangkat <ph name="IDS_SHORT_PRODUCT_NAME" /></translation>
 <translation id="7553242001898162573">Masukkan sandi</translation>
 <translation id="7556242789364317684">Maaf, <ph name="SHORT_PRODUCT_NAME" /> tidak dapat memulihkan setelan Anda. Untuk memperbaiki kesalahan tersebut, <ph name="SHORT_PRODUCT_NAME" /> harus menyetel ulang perangkat Anda menggunakan Powerwash.</translation>
@@ -251,6 +295,10 @@
 <translation id="8452105022015742247">Mentransfer info Akun Google dari ponsel Android Anda</translation>
 <translation id="8524841856047224176">Personalisasi latar belakang kamera untuk panggilan video dan lainnya</translation>
 <translation id="8569673829373920831">Selengkapnya tentang <ph name="APP_NAME" /></translation>
+<translation id="8628232294964836490">Ikuti petunjuk di ponsel Anda untuk memindai kode QR. Pastikan Bluetooth ponsel Anda aktif.
+        <ph name="BR" />
+        <ph name="BR" />
+        Terlihat oleh perangkat di sekitar sebagai <ph name="QUICK_START_DEVICE_DISPLAY_NAME" />...</translation>
 <translation id="8655972064210167941">Proses masuk gagal karena sandi Anda tidak dapat diverifikasi. Hubungi administrator atau coba lagi.</translation>
 <translation id="8674903726754070732">Sayangnya, komputer Anda dikonfigurasi dengan ID hardware yang salah. Hal ini mencegah ChromeOS diupdate dengan perbaikan keamanan terbaru dan komputer Anda <ph name="BEGIN_BOLD" />mungkin rentan terhadap serangan berbahaya<ph name="END_BOLD" />.</translation>
 <translation id="8695139659682234808">Tambahkan kontrol orang tua setelah penyiapan selesai</translation>
@@ -264,10 +312,20 @@
 <translation id="8830796635868321089">Gagal melakukan pemeriksaan pembaruan menggunakan setelan proxy. Sesuaikan <ph name="PROXY_SETTINGS_LINK_START" />setelan proxy<ph name="PROXY_SETTINGS_LINK_END" /> Anda.</translation>
 <translation id="885746075120788020">Preferensi dan aktivitas yang Anda simpan akan siap di perangkat ChromeOS mana pun saat login dengan Akun Google Anda. Anda dapat memilih konten apa yang akan disinkronkan di Setelan.</translation>
 <translation id="8875221558267407626">Meringkas konten, menyederhanakan bahasa yang kompleks, atau mengajukan pertanyaan</translation>
+<translation id="8913163265790894442">Siapkan <ph name="DEVICE_TYPE" /> dengan mudah menggunakan ponsel Anda. Anda dapat menambahkan Wi-Fi dan Akun Google tanpa memasukkan sandi secara manual.
+        <ph name="BR" />
+        <ph name="BR" />
+        Terlihat sebagai <ph name="DEVICE_TYPE" />...</translation>
 <translation id="8946359700442089734">Fitur debug belum diaktifkan sepenuhnya di perangkat <ph name="IDS_SHORT_PRODUCT_NAME" />.</translation>
 <translation id="8965037249707889821">Masukkan sandi lama</translation>
 <translation id="8975396729541388937">Berhenti berlangganan kapan saja dengan mengklik link di email yang Anda terima.</translation>
 <translation id="9033765790910064284">Tetap lanjutkan</translation>
 <translation id="903480517321259405">Ketik PIN lagi</translation>
 <translation id="9076523132036239772">Maaf, email atau sandi Anda tidak dapat diverifikasi. Coba sambungkan ke jaringan terlebih dulu.</translation>
+<translation id="9217002308921247002"><ph name="BEGIN_PARAGRAPH1" />Eksklusif untuk <ph name="DEVICE_TYPE" />.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />AI generatif bersifat eksperimental, dalam pengembangan awal, dan saat ini memiliki ketersediaan terbatas.<ph name="END_PARAGRAPH2" /></translation>
+<translation id="936479314588646618">Siapkan <ph name="DEVICE_TYPE" /> dengan mudah menggunakan ponsel Anda. Anda dapat menambahkan Akun Google tanpa memasukkan sandi secara manual.
+        <ph name="BR" />
+        <ph name="BR" />
+        Terlihat sebagai <ph name="DEVICE_TYPE" />...</translation>
 </translationbundle>

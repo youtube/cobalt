@@ -39,9 +39,9 @@ suite('<settings-guest-os-shared-usb-devices>', () => {
         guid: '0002',
         label: 'usb_dev2',
         guestId: {
-          vm_name: 'PvmDefault',
+          vm_name: 'termina',
           container_name: '',
-          vm_type: VmType.PLUGIN_VM,
+          vm_type: VmType.TERMINA,
         },
         vendorId: '0000',
         productId: '0000',
@@ -64,7 +64,7 @@ suite('<settings-guest-os-shared-usb-devices>', () => {
     ];
     GuestOsBrowserProxyImpl.setInstanceForTesting(guestOsBrowserProxy);
     page = document.createElement('settings-guest-os-shared-usb-devices');
-    page.guestOsType = 'pluginVm';
+    page.guestOsType = 'crostini';
     document.body.appendChild(page);
     await flushTasks();
   });
@@ -87,7 +87,7 @@ suite('<settings-guest-os-shared-usb-devices>', () => {
 
     const args =
         await guestOsBrowserProxy.whenCalled('setGuestOsUsbDeviceShared');
-    assertEquals('PvmDefault', args[0]);
+    assertEquals('termina', args[0]);
     assertEquals('', args[1]);
     assertEquals('0001', args[2]);
     assertEquals(true, args[3]);
@@ -97,9 +97,9 @@ suite('<settings-guest-os-shared-usb-devices>', () => {
         guid: '0001',
         label: 'usb_dev1',
         guestId: {
-          vm_name: 'PvmDefault',
+          vm_name: 'termina',
           container_name: '',
-          vm_type: VmType.PLUGIN_VM,
+          vm_type: VmType.TERMINA,
         },
         vendorId: '0000',
         productId: '0000',
@@ -158,7 +158,7 @@ suite('<settings-guest-os-shared-usb-devices>', () => {
     assertEquals(null, page.shadowRoot!.querySelector('#reassignDialog'));
     const args =
         await guestOsBrowserProxy.whenCalled('setGuestOsUsbDeviceShared');
-    assertEquals('PvmDefault', args[0]);
+    assertEquals('termina', args[0]);
     assertEquals('', args[1]);
     assertEquals('0003', args[2]);
     assertEquals(true, args[3]);

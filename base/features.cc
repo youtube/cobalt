@@ -162,6 +162,9 @@ BASE_FEATURE(kUseSharedRebindServiceConnection, FEATURE_ENABLED_BY_DEFAULT);
 // default mechanism of pre-reading the memory from a forked process.
 BASE_FEATURE(kLibraryPrefetcherMadvise, FEATURE_DISABLED_BY_DEFAULT);
 
+// If enabled, only the ordered text section will be prefetched.
+BASE_FEATURE(kLibraryPrefetcherOnlyOrderedText, FEATURE_DISABLED_BY_DEFAULT);
+
 // When enabled, after start up the thread pool in PostTask.java will be
 // shutdown after pre-native to stop consuming resources.
 BASE_FEATURE(kShutdownPreNativeThreadPoolAfterStartup,

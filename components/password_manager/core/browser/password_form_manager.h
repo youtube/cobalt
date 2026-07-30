@@ -541,6 +541,10 @@ class PasswordFormManager : public PasswordFormManagerForUI,
   // For generating timing metrics on retrieving server-side predictions.
   std::unique_ptr<base::ElapsedTimer> server_side_predictions_timer_;
 
+  // True if automatic filling attempts should happen. Set to false if the user
+  // filled the form manually.
+  bool allow_filling_upon_fetching_ = true;
+
   base::ObserverList<PasswordFormManagerObserver> form_parsed_observers_;
 };
 

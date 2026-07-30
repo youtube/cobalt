@@ -20,7 +20,6 @@
 #include "base/json/values_util.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/process/launch.h"
-#include "base/strings/stringprintf.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_timeouts.h"
 #include "base/time/time.h"
@@ -40,6 +39,7 @@
 #include "chrome/updater/updater_branding.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/strings/str_format.h"
 
 #if BUILDFLAG(IS_WIN)
 #include "base/test/test_reg_util_win.h"
@@ -586,7 +586,7 @@ TEST_F(PolicyServiceTest, MultiplePolicyManagers) {
   EXPECT_EQ(download_preference_status.conflict_policy(), std::nullopt);
 
   EXPECT_EQ(policy_service->GetAllPoliciesAsString(),
-            base::StringPrintf(
+            absl::StrFormat(
                 "{\n"
                 "  CloudPolicyOverridesPlatformPolicy = false (Group Policy)\n"
                 "  DownloadPreference = cacheable (DictValuePolicy)\n"

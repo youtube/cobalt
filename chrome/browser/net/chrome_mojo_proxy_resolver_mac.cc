@@ -9,6 +9,7 @@
 #include "content/public/browser/service_process_host.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
+#include "services/strings/grit/services_strings.h"
 
 namespace {
 
@@ -20,9 +21,7 @@ SystemProxyResolver* GetProxyResolver(const base::TimeDelta& idle_timeout) {
     content::ServiceProcessHost::Launch(
         remote->BindNewPipeAndPassReceiver(),
         content::ServiceProcessHost::Options()
-            // TODO(crbug.com/442313607): Replace with a translatable string
-            // resource from services_strings.grd.
-            .WithDisplayName(u"macOS System Proxy Resolver")
+            .WithDisplayName(IDS_MAC_SYSTEM_PROXY_RESOLVER_DISPLAY_NAME)
             .Pass());
 
     // The service will report itself idle once there are no more bound

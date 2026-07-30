@@ -57,6 +57,10 @@ class PermissionUpdateMessageDelegate {
   std::unique_ptr<PermissionUpdateRequester> permission_update_requester_;
   std::unique_ptr<messages::MessageWrapper> message_;
   int title_id_;
+  // Whether DismissInternal() should dismiss the message. Set to false once
+  // HandleDismissCallback has been called, since the message is already
+  // dismissed at that point.
+  bool should_dismiss_internal_ = true;
 };
 
 #endif  // CHROME_BROWSER_PERMISSIONS_PERMISSION_UPDATE_MESSAGE_DELEGATE_ANDROID_H_

@@ -44,8 +44,10 @@ CastChannelMixerImpl::CastChannelMixerImpl(ChannelLayout input,
   ::media::ChannelLayout output_layout =
       DecoderConfigAdapter::ToMediaChannelLayout(output);
   channel_mixer_ = std::make_unique<::media::ChannelMixer>(
-      input_layout, ::media::ChannelLayoutToChannelCount(input_layout),
-      output_layout, ::media::ChannelLayoutToChannelCount(output_layout));
+      ::media::ChannelLayoutConfig(
+          input_layout, ::media::ChannelLayoutToChannelCount(input_layout)),
+      ::media::ChannelLayoutConfig(
+          output_layout, ::media::ChannelLayoutToChannelCount(output_layout)));
   input_bus_ = ::media::AudioBus::CreateWrapper(
       ::media::ChannelLayoutToChannelCount(input_layout));
   output_bus_ = ::media::AudioBus::CreateWrapper(

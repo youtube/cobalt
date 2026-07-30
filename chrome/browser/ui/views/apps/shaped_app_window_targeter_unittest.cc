@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "chrome/browser/ui/views/apps/shaped_app_window_targeter.h"
-
 #include <memory>
 #include <utility>
 

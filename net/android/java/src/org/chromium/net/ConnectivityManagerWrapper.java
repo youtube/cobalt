@@ -31,6 +31,7 @@ import org.chromium.build.annotations.Nullable;
 
 import java.io.IOException;
 import java.net.Socket;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Adds convenience methods for interacting with ConnectivityManager in production code and in
@@ -39,6 +40,28 @@ import java.net.Socket;
 @NullMarked
 public class ConnectivityManagerWrapper {
     private static final String TAG = "ConnectivityManagerW";
+
+    // Mirror of the kDeriveConnectionTypeFromCapabilities feature flag, set from native.
+    // Defaults to true (the flag's ENABLED_BY_DEFAULT value) so Cronet — which excludes
+    // FeatureList/FeatureMap classes — still uses the IPC-free path. AtomicBoolean because the
+    // native side may set this from the network thread while a NetworkChangeNotifier constructed
+    // on another thread reads it (e.g. BackgroundSyncNetworkObserver).
+    private static final AtomicBoolean sDeriveConnectionTypeFromCapabilities =
+            new AtomicBoolean(true);
+
+    static void setDeriveConnectionTypeFromCapabilities(boolean enabled) {
+        sDeriveConnectionTypeFromCapabilities.set(enabled);
+    }
+
+    @VisibleForTesting
+    public static boolean getDeriveConnectionTypeFromCapabilities() {
+        return sDeriveConnectionTypeFromCapabilities.get();
+    }
+
+    @VisibleForTesting
+    public static void setDeriveConnectionTypeFromCapabilitiesForTesting(boolean enabled) {
+        sDeriveConnectionTypeFromCapabilities.set(enabled);
+    }
 
     @SuppressWarnings("NullAway.Init") // Due to test-only constructor.
     private final ConnectivityManager mConnectivityManager;
@@ -193,6 +216,51 @@ public class ConnectivityManagerWrapper {
             return convertToConnectionType(networkInfo.getType(), networkInfo.getSubtype());
         }
         return ConnectionType.CONNECTION_NONE;
+    }
+
+    /**
+     * Derives the connection type from NetworkCapabilities, mimicking what the deprecated
+     * {@link android.net.NetworkInfo#getType} would have returned, while avoiding the synchronous
+     * ConnectivityManager calls that {@link #getConnectionType} makes. Unlike NetworkInfo,
+     * NetworkCapabilities has no cellular subtype, so it is approximated from
+     * {@link android.net.NetworkCapabilities#getLinkDownstreamBandwidthKbps}. A VPN with no
+     * underlying transport returns {@link ConnectionType#CONNECTION_UNKNOWN} to match the IPC
+     * path's default for {@code TYPE_VPN}.
+     */
+    @ConnectionType
+    static int getConnectionTypeFromCapabilities(NetworkCapabilitiesWrapper capabilities) {
+        if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+                || capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI_AWARE)) {
+            return convertToConnectionType(ConnectivityManager.TYPE_WIFI, -1);
+        }
+        if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) {
+            return convertToConnectionType(ConnectivityManager.TYPE_ETHERNET, -1);
+        }
+        if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_BLUETOOTH)) {
+            return convertToConnectionType(ConnectivityManager.TYPE_BLUETOOTH, -1);
+        }
+        if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
+            int kbps = capabilities.getLinkDownstreamBandwidthKbps();
+            return convertToConnectionType(
+                    ConnectivityManager.TYPE_MOBILE, cellularSubtypeFromKbps(kbps));
+        }
+        return ConnectionType.CONNECTION_UNKNOWN;
+    }
+
+    /**
+     * Approximates a {@link TelephonyManager} RAT type from a cellular downstream bandwidth
+     * estimate. Bucket bounds (100/20000/40000 Kbps) cover the canonical AOSP values from
+     * {@code LinkBandwidthEstimator.AVG_BW_PER_RAT}: 2G (14-70), 3G (115-13000), LTE (30000),
+     * NR (47000-145000). Non-positive {@code kbps} (unknown) falls back to LTE since the caller
+     * has already confirmed the transport is cellular.
+     */
+    @VisibleForTesting
+    static int cellularSubtypeFromKbps(int kbps) {
+        if (kbps <= 0) return TelephonyManager.NETWORK_TYPE_LTE;
+        if (kbps < 100) return TelephonyManager.NETWORK_TYPE_GPRS;
+        if (kbps < 20000) return TelephonyManager.NETWORK_TYPE_UMTS;
+        if (kbps < 40000) return TelephonyManager.NETWORK_TYPE_LTE;
+        return TelephonyManager.NETWORK_TYPE_NR;
     }
 
     /**

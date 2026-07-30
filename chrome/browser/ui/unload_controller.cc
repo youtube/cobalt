@@ -13,6 +13,7 @@
 #include "chrome/browser/lifetime/application_lifetime_desktop.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_delegate.h"
@@ -20,9 +21,11 @@
 #include "chrome/browser/ui/web_applications/web_app_tabbed_utils.h"
 #include "chrome/browser/web_applications/policy/web_app_policy_manager.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
+#include "chrome/common/chrome_features.h"
 #include "components/performance_manager/public/execution_context_priority/execution_context_priority.h"
 #include "components/tab_groups/tab_group_id.h"
 #include "components/tabs/public/tab_group.h"
+#include "components/tabs/public/tab_interface.h"
 #include "components/webapps/common/web_app_id.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/web_contents.h"
@@ -60,6 +63,11 @@ UnloadController::UnloadController(BrowserWindowInterface* browser)
       web_contents_collection_(this),
       is_attempting_to_close_browser_(false) {
   browser_->tab_strip_model()->AddObserver(this);
+}
+
+void UnloadController::AddTabUnloadHandler(
+    std::unique_ptr<TabUnloadHandler> handler) {
+  tab_unload_handlers_.push_back(std::move(handler));
 }
 
 UnloadController::~UnloadController() {
@@ -118,13 +126,49 @@ bool UnloadController::CanCloseContents(content::WebContents* contents) {
 
 bool UnloadController::ShouldRunUnloadEventsHelper(
     content::WebContents* contents) {
+  bool should_show_custom_confirmation = false;
+  for (const auto& handler : tab_unload_handlers_) {
+    if (handler->ShouldSkipBeforeUnload(contents)) {
+      return false;
+    }
+    if (handler->ShouldShowCustomConfirmation(contents)) {
+      should_show_custom_confirmation = true;
+    }
+  }
   // If |contents| is being inspected, devtools needs to intercept beforeunload
   // events.
-  return DevToolsWindow::GetInstanceForInspectedWebContents(contents) !=
-         nullptr;
+  if (DevToolsWindow::GetInstanceForInspectedWebContents(contents) != nullptr) {
+    return true;
+  }
+  return should_show_custom_confirmation;
 }
 
 bool UnloadController::RunUnloadEventsHelper(content::WebContents* contents) {
+  // If a tab unload handler indicates that beforeunload handling should be
+  // skipped (for example, because the user already confirmed closing the tab
+  // via a custom task confirmation dialog), return false immediately. This
+  // check must take precedence over all other checks so that once the user
+  // confirms closure, the tab closes directly without showing duplicate alerts
+  // or triggering standard website beforeunload handlers.
+  TabUnloadHandler* handler_to_show = nullptr;
+  for (const auto& handler : tab_unload_handlers_) {
+    if (handler->ShouldSkipBeforeUnload(contents)) {
+      return false;
+    }
+    if (!handler_to_show && handler->ShouldShowCustomConfirmation(contents)) {
+      handler_to_show = handler.get();
+    }
+  }
+
+  if (handler_to_show) {
+    if (handler_to_show->ShowCustomConfirmation(
+            contents,
+            base::BindOnce(&UnloadController::OnCustomConfirmationClosed,
+                           weak_factory_.GetWeakPtr(),
+                           contents->GetWeakPtr()))) {
+      return true;
+    }
+  }
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   // Don't run for extensions that are disabled or uninstalled; the tabs will
   // be killed if they make any network requests, and the extension shouldn't
@@ -542,6 +586,49 @@ void UnloadController::ClearUnloadState(content::WebContents* web_contents,
           FROM_HERE, base::BindOnce(&UnloadController::ProcessPendingTabs,
                                     weak_factory_.GetWeakPtr(), false));
     }
+  }
+}
+
+void UnloadController::OnCustomConfirmationClosed(
+    base::WeakPtr<content::WebContents> web_contents,
+    bool confirmed) {
+  if (!web_contents) {
+    return;
+  }
+  if (confirmed) {
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(
+            [](base::WeakPtr<UnloadController> controller,
+               base::WeakPtr<content::WebContents> web_contents) {
+              if (!controller || !web_contents) {
+                return;
+              }
+              // Retrieve the tab host browser via TabInterface. This works both
+              // when the tab remains in its original browser window and when it
+              // has been dragged to another window while the confirmation
+              // dialog was open.
+              BrowserWindowInterface* browser = nullptr;
+              if (tabs::TabInterface* tab =
+                      tabs::TabInterface::GetFromContents(web_contents.get())) {
+                browser = tab->GetBrowserWindowInterface();
+              }
+              if (browser && browser->GetTabStripModel()) {
+                int current_index =
+                    browser->GetTabStripModel()->GetIndexOfWebContents(
+                        web_contents.get());
+                if (current_index != TabStripModel::kNoTab) {
+                  // Note: Once the user has confirmed once via the custom
+                  // confirmation dialog, the tab closes directly without any
+                  // additional prompts.
+                  browser->GetTabStripModel()->CloseWebContentsAt(
+                      current_index, TabCloseTypes::CLOSE_USER_GESTURE);
+                }
+              }
+            },
+            weak_factory_.GetWeakPtr(), web_contents));
+  } else {
+    BeforeUnloadFired(web_contents.get(), false);
   }
 }
 

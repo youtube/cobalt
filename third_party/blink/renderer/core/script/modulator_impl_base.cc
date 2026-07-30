@@ -28,6 +28,7 @@
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/blink/renderer/platform/loader/integrity_report.h"
 #include "third_party/blink/renderer/platform/loader/subresource_integrity.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
 
@@ -273,6 +274,9 @@ ModuleType ModulatorImplBase::ModuleTypeFromRequest(
     // that entry.[[Key]] is "type", then:</spec>
     // <spec step="2.2"> Otherwise, set moduleType to entry.[[Value]].</spec>
     return ModuleType::kCSS;
+  } else if (module_type_string == "text" &&
+             RuntimeEnabledFeatures::JavaScriptImportTextEnabled()) {
+    return ModuleType::kTEXT;
   } else {
     // <spec step="2.1">If entry.[[Value]] is "javascript-or-wasm", then set
     // moduleType to null. </spec>

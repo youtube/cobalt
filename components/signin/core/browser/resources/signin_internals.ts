@@ -6,6 +6,10 @@
 import 'chrome://resources/js/ios/web_ui.js';
 // </if>
 
+declare namespace chrome {
+  function send(message: string, args?: unknown[]): void;
+}
+
 import '/strings.m.js';
 
 import {html, render} from '//resources/lit/v3_0/lit.rollup.js';
@@ -70,12 +74,26 @@ interface TokenInfo {
   data: TokenInfoData[];
 }
 
+interface CapabilityInfo {
+  name: string;
+  label: string;
+  value: string;
+  override: string;
+}
+
+interface AccountCapabilitiesInfo {
+  accountId: string;
+  capabilities: CapabilityInfo[];
+}
+
 interface SigninInfo {
   accountInfo: AccountInfo[];
   refreshTokenEvents: RefreshTokenEvent[];
   boundSessionInfo?: BoundSessionInfo[];
   signin_info: BasicInfo[];
   token_info: TokenInfo[];
+  accountCapabilities: AccountCapabilitiesInfo[];
+  canOverrideAccountInfo?: boolean;
 }
 
 function getSigninInfoHtml(infos: BasicInfo[]) {
@@ -254,6 +272,63 @@ function getBoundSessionInfoHtml(infos?: BoundSessionInfo[]) {
   // clang-format on
 }
 
+function onOverrideValueChange(accountId: string, capName: string, e: Event) {
+  const select = e.target as HTMLSelectElement;
+  const overrideValue = select.value;
+  chrome.send('overrideCapability', [accountId, capName, overrideValue]);
+}
+
+function getAccountCapabilitiesHtml(
+    infos: AccountCapabilitiesInfo[], canOverrideAccountInfo: boolean) {
+  if (!infos || infos.length === 0) {
+    return html``;
+  }
+  // clang-format off
+  return html`
+    <h2>Account Capabilities By Account</h2>
+    ${infos.map(item => html`
+      <div class="account-capabilities-section">
+        <h3>${item.accountId}</h3>
+        <table class="signin-details">
+          <tr class="header">
+            <td>Capability Name</td>
+            <td>Fetched Value</td>
+            <td>Override</td>
+          </tr>
+          ${item.capabilities.map(cap => html`
+            <tr>
+              <td><a href="http://go/capability-alias/${cap.name.replace('accountcapabilities/', '')}">${cap.label}</a></td>
+              <td>${cap.value}</td>
+              <td>
+                <select ?disabled="${!canOverrideAccountInfo}"
+                        @change="${(ev: Event) => onOverrideValueChange(
+                            item.accountId, cap.name, ev)}">
+                  <option value=""
+                          ?selected="${cap.override === ''}">
+                  </option>
+                  <option value="True"
+                          ?selected="${cap.override === 'True'}">
+                    True
+                  </option>
+                  <option value="False"
+                          ?selected="${cap.override === 'False'}">
+                    False
+                  </option>
+                  <option value="Unknown"
+                          ?selected="${cap.override === 'Unknown'}">
+                    Unknown
+                  </option>
+                </select>
+              </td>
+            </tr>
+          `)}
+        </table>
+      </div>
+    `)}
+  `;
+  // clang-format on
+}
+
 function getClassFromValue(value: string): string {
   if (value === 'Successful') {
     return 'ok';
@@ -265,6 +340,7 @@ function getClassFromValue(value: string): string {
 // Replace the displayed values with the latest fetched ones.
 function refreshSigninInfo(signinInfo: SigninInfo) {
   // Process templates even against an empty `signinInfo` to hide some sections.
+  const canOverrideAccountInfo = !!signinInfo.canOverrideAccountInfo;
   render(
       getSigninInfoHtml(signinInfo.signin_info),
       getRequiredElement('signin-info'));
@@ -280,6 +356,10 @@ function refreshSigninInfo(signinInfo: SigninInfo) {
   render(
       getBoundSessionInfoHtml(signinInfo.boundSessionInfo),
       getRequiredElement('bound-session-info'));
+  render(
+      getAccountCapabilitiesHtml(
+          signinInfo.accountCapabilities, canOverrideAccountInfo),
+      getRequiredElement('account-capabilities'));
 }
 
 // Replace the cookie information with the fetched values.

@@ -131,11 +131,6 @@ bool RestrictionBlocksRemapping(
   }
 }
 
-// "0111:185a" is from the list of supported device keys listed here:
-// google3/chrome/chromeos/apps_foundation/almanac/fondue/boq/
-// peripherals_service/manual_config/companion_apps.h
-constexpr char kWelcomeExperienceTestDeviceKey[] = "0111:185a";
-
 }  // namespace
 
 bool VendorProductId::operator==(const VendorProductId& other) const {
@@ -446,12 +441,5 @@ bool IsSplitModifierKeyboard(int device_id) {
          Shell::Get()->keyboard_capability()->HasQuickInsertKey(device_id);
 }
 
-std::string GetDeviceKeyForMetadataRequest(const std::string& device_key) {
-  if (features::IsWelcomeExperienceTestUnsupportedDevicesEnabled()) {
-    return kWelcomeExperienceTestDeviceKey;
-  }
-
-  return device_key;
-}
 
 }  // namespace ash

@@ -190,7 +190,16 @@ static ScopedJavaLocalRef<jobject> JNI_BookmarkBridge_NativeGetForProfile(
   if (!profile)
     return nullptr;
 
-  BookmarkModel* model = BookmarkModelFactory::GetForBrowserContext(profile);
+  // BookmarkModel and BookmarkBridge are always built for the regular profile.
+  // We extract the original profile here because `profile` might be the
+  // incognito profile (e.g., if opened via a cold-boot incognito intent).
+  // If we don't do this, the Java bridge will be incorrectly bound to the
+  // incognito profile, which breaks PartnerBookmarksShim and other native
+  // dependencies that explicitly reject incognito profiles.
+  Profile* original_profile = profile->GetOriginalProfile();
+
+  BookmarkModel* model =
+      BookmarkModelFactory::GetForBrowserContext(original_profile);
   if (!model)
     return nullptr;
 
@@ -198,15 +207,8 @@ static ScopedJavaLocalRef<jobject> JNI_BookmarkBridge_NativeGetForProfile(
       model->GetUserData(kBookmarkBridgeUserDataKey));
 
   if (!bookmark_bridge) {
-    // BookmarkModel factory redirects to the original profile, so it might
-    // happen that profile refers to the incognito profile, even though we're
-    // building the bridge for the regular profile. Some factories don't do
-    // this by default, so we need to pass the original profile instead. This
-    // is safe to do because BookmarkModel/Bridge is always built for the
-    // regular profile.
-    auto* original_profile = profile->GetOriginalProfile();
     bookmark_bridge = new BookmarkBridge(
-        profile, model,
+        original_profile, model,
         ManagedBookmarkServiceFactory::GetForProfile(original_profile),
         ReadingListModelFactory::GetAsDualReadingListForBrowserContext(
             original_profile),
@@ -336,8 +338,7 @@ BookmarkBridge::GetMostRecentlyAddedUserBookmarkIdForUrlImpl(const GURL& url) {
   }
 
   // Get all the nodes for |url| from BookmarkModel and sort them by date added.
-  bookmarks::ManagedBookmarkService* managed =
-      ManagedBookmarkServiceFactory::GetForProfile(profile_);
+  bookmarks::ManagedBookmarkService* managed = managed_bookmark_service_;
   std::vector<raw_ptr<const bookmarks::BookmarkNode, VectorExperimental>>
       bookmark_model_result = bookmark_model_->GetNodesByURL(url);
   nodes.insert(nodes.end(), bookmark_model_result.begin(),
@@ -1519,12 +1520,10 @@ bool BookmarkBridge::IsFolderAvailable(const BookmarkNode* folder) const {
       folder->children().empty())
     return false;
 
-  auto* identity_manager =
-      IdentityManagerFactory::GetForProfile(profile_->GetOriginalProfile());
   return (folder->type() != BookmarkNode::BOOKMARK_BAR &&
           folder->type() != BookmarkNode::OTHER_NODE) ||
-         (identity_manager &&
-          identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin));
+         (identity_manager_ &&
+          identity_manager_->HasPrimaryAccount(signin::ConsentLevel::kSignin));
 }
 
 void BookmarkBridge::NotifyIfDoneLoading() {

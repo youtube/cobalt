@@ -1,0 +1,120 @@
+// Copyright 2025 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "components/actor/core/aggregated_journal_serializer.h"
+
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "base/files/file_util.h"
+#include "base/files/scoped_temp_file.h"
+#include "base/test/task_environment.h"
+#include "base/test/test_future.h"
+#include "base/test/tracing/test_trace_processor_impl.h"
+#include "components/actor/core/aggregated_journal.h"
+#include "components/actor/core/aggregated_journal_file_serializer.h"
+#include "components/actor/core/aggregated_journal_in_memory_serializer.h"
+#include "components/actor/core/journal_details_builder.h"
+#include "testing/gmock/include/gmock/gmock.h"
+#include "testing/gtest/include/gtest/gtest.h"
+
+namespace actor {
+
+namespace {
+
+class AggregatedJournalSerializerTest : public testing::Test {
+ public:
+  AggregatedJournalSerializerTest() = default;
+  ~AggregatedJournalSerializerTest() override = default;
+
+ private:
+  base::test::TaskEnvironment task_environment_;
+};
+
+TEST_F(AggregatedJournalSerializerTest, SerializerInMemory) {
+  AggregatedJournal journal;
+  AggregatedJournalInMemorySerializer serializer(journal,
+                                                 /*max_bytes=*/1024 * 1024);
+  serializer.Init();
+  auto begin_entry = journal.CreatePendingAsyncEntry(
+      GURL("http://example.com"), TaskId(), MakeBrowserTrackUUID(TaskId()),
+      "Begin", JournalDetailsBuilder().Add("details", "Entry").Build());
+  journal.Log(GURL(), TaskId(0), "Test", /*details=*/{});
+  journal.Log(GURL(), TaskId(0), "Test2", /*details=*/{});
+  journal.Log(GURL(), TaskId(0), "Test3", /*details=*/{});
+  journal.Log(GURL(), TaskId(0), "Test4", /*details=*/{});
+  begin_entry.reset();
+
+  std::vector<uint8_t> result = serializer.Snapshot();
+  std::vector<char> char_buffer(result.begin(), result.end());
+  ASSERT_GT(result.size(), 0u);
+  base::test::TestTraceProcessorImpl ttp;
+  absl::Status status = ttp.ParseTrace(char_buffer);
+  ASSERT_TRUE(status.ok()) << status.message();
+}
+
+TEST_F(AggregatedJournalSerializerTest, SerializerInMemoryTooSmallBuffer) {
+  AggregatedJournal journal;
+  AggregatedJournalInMemorySerializer serializer(journal, /*max_bytes=*/8);
+  serializer.Init();
+  journal.Log(GURL(), TaskId(0), "Test",
+              JournalDetailsBuilder().Add("details", "Nothing").Build());
+
+  // Nothing will get logged because of the small buffer.
+  std::vector<uint8_t> result = serializer.Snapshot();
+  ASSERT_EQ(result.size(), 0u);
+}
+
+TEST_F(AggregatedJournalSerializerTest, SerializerInMemorySmallBuffer) {
+  AggregatedJournal journal;
+  AggregatedJournalInMemorySerializer serializer(journal, /*max_bytes=*/100);
+  serializer.Init();
+  for (size_t i = 0; i < 10; ++i) {
+    journal.Log(GURL(), TaskId(0), "Test",
+                JournalDetailsBuilder().Add("details", "Nothing").Build());
+  }
+
+  // We should something but at most 100 bytes.
+  std::vector<uint8_t> result = serializer.Snapshot();
+  ASSERT_LT(result.size(), 100u);
+  ASSERT_GT(result.size(), 0u);
+}
+
+TEST_F(AggregatedJournalSerializerTest, SerializerInFile) {
+  AggregatedJournal journal;
+  base::ScopedTempFile temp_file;
+  ASSERT_TRUE(temp_file.Create());
+  AggregatedJournalFileSerializer serializer(journal);
+
+  base::test::TestFuture<bool> init_future;
+  serializer.Init(temp_file.path(), init_future.GetCallback());
+  EXPECT_TRUE(init_future.Get<bool>());
+
+  auto begin_entry = journal.CreatePendingAsyncEntry(
+      GURL("http://example.com"), TaskId(), journal.AllocateDynamicTrackUUID(),
+      "Begin", JournalDetailsBuilder().Add("details", "Entry").Build());
+  journal.Log(GURL(), TaskId(0), "Test",
+              JournalDetailsBuilder().Add("details", "Nothing").Build());
+  journal.Log(GURL(), TaskId(0), "Test2", /*details=*/{});
+  journal.Log(GURL(), TaskId(0), "Test3", /*details=*/{});
+  journal.Log(GURL(), TaskId(0), "Test4", /*details=*/{});
+  begin_entry.reset();
+
+  base::test::TestFuture<void> shutdown_future;
+  serializer.Shutdown(shutdown_future.GetCallback());
+  EXPECT_TRUE(shutdown_future.Wait());
+
+  std::optional<std::vector<uint8_t>> result =
+      base::ReadFileToBytes(temp_file.path());
+  ASSERT_TRUE(result.has_value());
+  std::vector<char> char_buffer(result->begin(), result->end());
+  base::test::TestTraceProcessorImpl ttp;
+  absl::Status status = ttp.ParseTrace(char_buffer);
+  ASSERT_TRUE(status.ok()) << status.message();
+}
+
+}  // namespace
+
+}  // namespace actor

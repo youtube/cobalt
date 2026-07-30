@@ -28,7 +28,10 @@ chrome.test.sendMessage('loaded', function(test) {
       }
 
       if (test === 'INVALID_VALUE') {
-        chrome.test.assertThrows(callback, ['XXX'], 'No matching signature.');
+        // Verify `callback` throws when passed an invalid argument type.
+        chrome.test.assertThrows(
+            callback.bind(null, /* capabilities */ 'XXX'),
+            'No matching signature.');
       } else if (test === 'EMPTY') {
         callback({});
       } else {
@@ -36,8 +39,9 @@ chrome.test.sendMessage('loaded', function(test) {
         callback({capability: 'value'});
       }
 
+      // Verify `callback` throws when called more than once.
       chrome.test.assertThrows(
-          callback, [{cap: 'value'}],
+          callback.bind(null, /* capabilities */ {cap: 'value'}),
           'Event callback must not be called more than once.');
 
       chrome.test.succeed();

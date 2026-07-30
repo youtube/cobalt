@@ -41,25 +41,25 @@ class AutocompleteClassifier : public KeyedService {
   // be suppressed to reduce memory pressure.
   static int DefaultOmniboxProviders(bool is_low_memory_device = false);
 
-  // Given some string |text| that the user wants to use for navigation,
+  // Given some string `text` that the user wants to use for navigation,
   // determines how it should be interpreted.
-  // |prefer_keyword| should be true the when keyword UI is onscreen; see
-  // comments on AutocompleteController::Start().
-  // |allow_exact_keyword_match| should be true when treating the string as a
+  // `in_keyword_mode` should be true the when keyword UI is onscreen; see
+  // comments on `AutocompleteController::Start()`.
+  // `allow_exact_keyword_match` should be true when treating the string as a
   // potential keyword search is valid; see
   // AutocompleteInput::allow_exact_keyword_match().
-  // |page_classification| gives information about the context (e.g., is the
+  // `page_classification` gives information about the context (e.g., is the
   // user on a search results page doing search term replacement); this may
   // be useful in deciding how the input should be interpreted.
-  // |match| should be a non-NULL outparam that will be set to the default
+  // `match` should be a non-NULL out param that will be set to the default
   // match for this input, if any (for invalid input, there will be no default
-  // match, and |match| will be left unchanged).  |alternate_nav_url| is a
+  // match, and `match` will be left unchanged).  `alternate_nav_url` is a
   // possibly-NULL outparam that, if non-NULL, will be set to the navigational
   // URL (if any) in case of an accidental search; see comments on
   // AutocompleteResult::alternate_nav_url_ in autocomplete.h.
   void Classify(
       const std::u16string& text,
-      bool prefer_keyword,
+      bool in_keyword_mode,
       bool allow_exact_keyword_match,
       metrics::OmniboxEventProto::PageClassification page_classification,
       AutocompleteMatch* match,

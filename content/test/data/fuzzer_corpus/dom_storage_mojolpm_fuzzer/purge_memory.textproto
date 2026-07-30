@@ -1,0 +1,56 @@
+# Exercises SessionStorageImpl::PurgeMemory which iterates namespaces_ and
+# calls SessionStorageNamespaceImpl::PurgeUnboundAreas() on each.
+
+# actions[0]: Bind a session area on ORIGIN_A.
+actions {
+  new_session_storage_area {
+    id: 0
+    origin_id: ORIGIN_A
+    renderer_id: RENDERER_A
+  }
+}
+# actions[1]: Put a value into the ORIGIN_A area.
+actions {
+  storage_area_remote_action {
+    id: 0
+    m_put {
+      m_key { values { value: 49 } }
+      m_value { values { value: 50 } }
+    }
+  }
+}
+# actions[2]: Bind a session area on ORIGIN_B.
+actions {
+  new_session_storage_area {
+    id: 1
+    origin_id: ORIGIN_B
+    renderer_id: RENDERER_B
+  }
+}
+# actions[3]: Put a value into the ORIGIN_B area.
+actions {
+  storage_area_remote_action {
+    id: 1
+    m_put {
+      m_key { values { value: 51 } }
+      m_value { values { value: 52 } }
+    }
+  }
+}
+# actions[4]: IO-thread drain.
+actions { run_thread { id: IO } }
+# actions[5]: PurgeMemory across all namespaces.
+actions { purge_memory {} }
+# actions[6]: UI-thread drain.
+actions { run_thread { id: UI } }
+# actions[7]: Flush pending writes so the Put commit batches are committed.
+actions { flush_storage {} }
+
+# Sequence 0: covers PurgeMemory's actual map unload by flushing (7) and
+# draining IO (4) before Purge (5) so no commit batch is pending.
+sequences { action_indexes: [0, 1, 2, 3, 7, 4, 5, 4] }
+# Sequence 1: interleaving. UI (6) and IO (4) drains mixed, no IO drain before
+# the first purge (5), so purge races the queued bind/put work.
+sequences { action_indexes: [0, 1, 6, 2, 3, 5, 6, 4, 5, 4] }
+
+sequence_indexes: [0, 1]

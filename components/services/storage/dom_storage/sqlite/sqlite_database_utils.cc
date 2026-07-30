@@ -27,10 +27,14 @@ OpenDatabase(const base::FilePath& database_path,
              sql::Database::Tag database_tag,
              int current_schema_version,
              int compatible_schema_version,
-             CreateSchemaCallback create_schema_callback) {
+             CreateSchemaCallback create_schema_callback,
+             sql::Database::ErrorCallback error_callback) {
   std::unique_ptr<sql::Database> database = std::make_unique<sql::Database>(
       GetDatabaseOptions(), std::move(database_tag));
 
+  if (!error_callback.is_null()) {
+    database->set_error_callback(std::move(error_callback));
+  }
   // Open the database.
   bool is_opened = false;
   const bool is_in_memory = database_path.empty();

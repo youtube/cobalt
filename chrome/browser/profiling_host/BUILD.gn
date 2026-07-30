@@ -61,3 +61,18 @@ source_set("profiling_browsertests") {
     deps += [ "//chrome/test:test_support_ui" ]
   }
 }
+
+source_set("unit_tests") {
+  testonly = true
+
+  sources = [ "chrome_client_connection_manager_unittest.cc" ]
+
+  deps = [
+    ":profiling_host",
+    "//base",
+    "//chrome/test:test_support",
+    "//components/services/heap_profiling/public/cpp",
+    "//content/test:test_support",
+    "//testing/gtest",
+  ]
+}

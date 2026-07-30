@@ -1,0 +1,26 @@
+Name: iamf_tools
+URL: https://github.com/AOMediaCodec/iamf-tools
+Version: N/A
+Revision: 12d85d551290520ce4dd81581a39e40f2eac3d65
+License: Apache-2.0, BSD-3-Clause-Clear-with-Alliance-for-Open-Media-Patent
+License File: src/LICENSE
+Shipped: yes
+Security Critical: yes
+License Android Compatible: yes
+CPEPrefix: unknown
+Update Mechanism: Manual
+
+Description:
+iamf-tools is a library for working with Immersive Audio Model and Formats (IAMF).
+It provides a C++ API for reading, writing, and decoding IAMF content.
+This package contains a software decoder to decode and render IAMF audio streams.
+
+Security Considerations:
+The library parses untrusted audio streams (IAMF files and packets) from the internet. Because it is written in C++, memory safety is a concern. To mitigate risks:
+- The library is designed to run in sandboxed utility processes within Chromium (such as the audio service or a utility decoding process).
+- We have integrated fuzzing coverage under `test("iamf_tools_lib_fuzz_tests")` which leverages FuzzTest, and these fuzzers will run continuously on ClusterFuzz to find parsing vulnerabilities.
+
+Local Modifications:
+We have stripped unnecessary error strings in non-debug builds to minimize binary size footprint.
+
+Only part of the upstream code is copied to src, see update.py.

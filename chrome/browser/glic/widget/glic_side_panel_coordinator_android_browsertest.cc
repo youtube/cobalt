@@ -135,4 +135,43 @@ IN_PROC_BROWSER_TEST_F(GlicSidePanelCoordinatorAndroidBrowserTest,
                                     SidePanelEntryHideReason::kWindowResized);
 }
 
+IN_PROC_BROWSER_TEST_F(GlicSidePanelCoordinatorAndroidBrowserTest,
+                       BackgroundedOnTabSwitch) {
+  // Open Glic for the active tab (Tab 1).
+  ASSERT_OK(OpenGlicForActiveTab());
+  EXPECT_EQ(coordinator()->state(), GlicSidePanelCoordinator::State::kShown);
+
+  SidePanelEntry* entry = coordinator()->GetEntryForTesting();
+  ASSERT_TRUE(entry);
+  EXPECT_EQ(entry->last_open_trigger(), SidePanelOpenTrigger::kGlicOpened);
+
+  tabs::TabInterface* first_tab = GetTabListInterface()->GetActiveTab();
+  GlicSidePanelCoordinatorDesktopAndroid* first_coordinator = coordinator();
+
+  base::test::TestFuture<GlicSidePanelCoordinator::State> first_state_future;
+  base::CallbackListSubscription subscription =
+      first_coordinator->AddStateCallback(
+          first_state_future.GetRepeatingCallback());
+
+  // Create a new tab and switch to it.
+  tabs::TabInterface* second_tab = CreateAndActivateTab(GetSimpleTestUrl());
+  EXPECT_NE(first_tab, second_tab);
+
+  // The first tab's coordinator should transition to kBackgrounded.
+  EXPECT_EQ(first_state_future.Take(),
+            GlicSidePanelCoordinator::State::kBackgrounded);
+  EXPECT_EQ(first_coordinator->state(),
+            GlicSidePanelCoordinator::State::kBackgrounded);
+
+  // Switch back to the first tab.
+  GetTabListInterface()->ActivateTab(first_tab->GetHandle());
+
+  // It should transition back to kShown.
+  EXPECT_EQ(first_state_future.Take(), GlicSidePanelCoordinator::State::kShown);
+  EXPECT_EQ(first_coordinator->state(),
+            GlicSidePanelCoordinator::State::kShown);
+
+  EXPECT_EQ(entry->last_open_trigger(), SidePanelOpenTrigger::kTabChanged);
+}
+
 }  // namespace glic

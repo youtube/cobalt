@@ -115,6 +115,7 @@ class FakeAutocompleteController : public AutocompleteController {
   using AutocompleteController::providers_;
   using AutocompleteController::published_result_;
   using AutocompleteController::template_url_service_;
+  using AutocompleteController::zero_suggest_provider_;
 
   // Used to verify the correct number of notifications occur.
   std::unique_ptr<FakeAutocompleteControllerObserver> observer_;

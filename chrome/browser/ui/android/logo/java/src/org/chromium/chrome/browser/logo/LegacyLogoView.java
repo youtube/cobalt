@@ -73,6 +73,8 @@ public class LegacyLogoView extends FrameLayout implements OnClickListener {
     private LogoProperties.@Nullable ClickHandler mClickHandler;
     private @Nullable Callback<LogoBridge.Logo> mOnLogoAvailableCallback;
     private int mDoodleSize;
+    private boolean mIsNightMode;
+    private @Nullable String mAnimatedLogoUrl;
 
     private final FloatProperty<LegacyLogoView> mTransitionProperty =
             new FloatProperty<>("") {
@@ -175,6 +177,16 @@ public class LegacyLogoView extends FrameLayout implements OnClickListener {
         setLayoutParams(marginLayoutParams);
     }
 
+    /**
+     * Sets whether night mode is enabled. When enabled, the view will prefer to use the dark asset
+     * of the doodle if it is available.
+     *
+     * @param isNightMode True if night mode is enabled, false otherwise.
+     */
+    void setNightMode(boolean isNightMode) {
+        mIsNightMode = isNightMode;
+    }
+
     /** Jumps to the end of the logo cross-fading animation, if any. */
     void endFadeAnimation() {
         if (mFadeAnimation != null) {
@@ -249,6 +261,7 @@ public class LegacyLogoView extends FrameLayout implements OnClickListener {
     @VisibleForTesting(otherwise = VisibleForTesting.PROTECTED)
     public void updateLogo(Logo logo) {
         if (logo == null) {
+            mAnimatedLogoUrl = null;
             boolean isLogoAvailable;
             isLogoAvailable = maybeShowDefaultLogoDrawable();
 
@@ -263,6 +276,8 @@ public class LegacyLogoView extends FrameLayout implements OnClickListener {
             return;
         }
 
+        mAnimatedLogoUrl = getAnimatedLogoUrl(logo);
+
         String contentDescription =
                 TextUtils.isEmpty(logo.altText)
                         ? null
@@ -272,20 +287,37 @@ public class LegacyLogoView extends FrameLayout implements OnClickListener {
         if (mOnLogoAvailableCallback != null) {
             onAnimationFinished = mOnLogoAvailableCallback.bind(logo);
         }
+        Bitmap bitmap = getLogoBitmap(logo);
         updateLogoDrawableImpl(
-                new BitmapDrawable(getResources(), logo.image),
+                new BitmapDrawable(getResources(), bitmap),
                 contentDescription,
                 /* isDefaultLogo= */ false,
                 isLogoClickable(logo),
                 onAnimationFinished);
     }
 
+    private boolean useDarkImage(Logo logo) {
+        return mIsNightMode && logo.darkImage != null;
+    }
+
+    private Bitmap getLogoBitmap(Logo logo) {
+        return useDarkImage(logo) ? assumeNonNull(logo.darkImage) : logo.image;
+    }
+
+    private boolean useDarkAnimatedLogo(Logo logo) {
+        return mIsNightMode && logo.darkAnimatedLogoUrl != null;
+    }
+
+    private @Nullable String getAnimatedLogoUrl(Logo logo) {
+        return useDarkAnimatedLogo(logo) ? logo.darkAnimatedLogoUrl : logo.animatedLogoUrl;
+    }
+
     void setAnimationEnabled(boolean animationEnabled) {
         mAnimationEnabled = animationEnabled;
     }
 
-    private static boolean isLogoClickable(Logo logo) {
-        return !TextUtils.isEmpty(logo.animatedLogoUrl) || !TextUtils.isEmpty(logo.onClickUrl);
+    private boolean isLogoClickable(Logo logo) {
+        return !TextUtils.isEmpty(mAnimatedLogoUrl) || !TextUtils.isEmpty(logo.onClickUrl);
     }
 
     private void updateLogoDrawableImpl(
@@ -576,5 +608,9 @@ public class LegacyLogoView extends FrameLayout implements OnClickListener {
 
     int getDoodleSizeForTesting() {
         return mDoodleSize;
+    }
+
+    @Nullable String getAnimatedLogoUrlForTesting() {
+        return mAnimatedLogoUrl;
     }
 }

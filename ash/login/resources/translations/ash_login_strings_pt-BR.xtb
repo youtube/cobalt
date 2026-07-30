@@ -14,6 +14,24 @@
 <translation id="1185924365081634987">Tente <ph name="GUEST_SIGNIN_LINK_START" />navegar como convidado<ph name="GUEST_SIGNIN_LINK_END" /> para corrigir este erro da rede.</translation>
 <translation id="1201402288615127009">Avançar</translation>
 <translation id="1222835797152767346">Defina um PIN para facilitar o login</translation>
+<translation id="1346669614038013595"><ph name="BEGIN_H3" />Recursos de depuração<ph name="END_H3" />
+          <ph name="BR" />
+          Você pode ativar os recursos de depuração no seu dispositivo ChromeOS para instalar e testar códigos personalizados nele. Isso permitirá:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />Remover a verificação de rootfs para mudar arquivos do SO.
+            <ph name="LIST_ITEM" />Ativar o acesso SSH ao dispositivo com chaves de teste padrão para usar ferramentas como <ph name="BEGIN_CODE" />cros flash<ph name="END_CODE" /> e acessar o dispositivo.
+            <ph name="LIST_ITEM" />Inicializar pelo USB para instalar uma imagem do SO usando um drive USB.
+            <ph name="LIST_ITEM" />Definir senhas de login da raiz do sistema e de desenvolvimento com um valor personalizado para realizar o SSH no dispositivo de forma manual.
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          Depois que os recursos de depuração forem ativados, a maioria deles vai continuar ativada mesmo depois da execução de um Powerwash ou da exclusão permanente dos dados de um dispositivo gerenciado por empresa. Para desativar por completo todos os recursos de depuração, realize o processo de recuperação do ChromeOS (https://support.google.com/chromebook/answer/1080595).
+          <ph name="BR" />
+          <ph name="BR" />
+          Para mais informações sobre os recursos de depuração, acesse:<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />Observação<ph name="END_BOLD" />: o sistema será reiniciado durante o processo.</translation>
 <translation id="1347625331607114917">Verifique o código no smartphone Android</translation>
 <translation id="1347975661240122359">A atualização é iniciada quando a bateria chega a <ph name="BATTERY_LEVEL" />%.</translation>
 <translation id="1375938286942050085">A configuração está concluída. Nas próximas etapas vamos preparar o dispositivo para jogos</translation>
@@ -126,9 +144,29 @@
 <translation id="503155457707535043">Fazendo o download dos apps</translation>
 <translation id="5045550434625856497">Senha incorreta</translation>
 <translation id="5062930723426326933">Falha no login. Conecte-se à Internet e tente novamente.</translation>
+<translation id="5107486920067578245"><ph name="BEGIN_PARAGRAPH1" />Converse com o Gemini para começar a escrever, planejar, aprender e fazer muito mais usando a IA do Google.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Após a configuração, selecione o app do Gemini na estante na parte de baixo da tela para começar a usá-lo.<ph name="END_PARAGRAPH2" /></translation>
 <translation id="5115309401544567011">Conecte seu <ph name="DEVICE_TYPE" /> a uma fonte de energia.</translation>
 <translation id="5147516217412920887">Siga as instruções no seu smartphone para verificar o código.</translation>
 <translation id="5160857336552977725">Faça login no seu <ph name="DEVICE_TYPE" /></translation>
+<translation id="5171185788583376591"><ph name="BEGIN_H3" />Recursos de depuração<ph name="END_H3" />
+          <ph name="BR" />
+          Você pode ativar os recursos de depuração no seu dispositivo ChromeOS Flex para instalar e testar códigos personalizados nele. Isso permitirá:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />Remover a verificação de rootfs para mudar arquivos do SO.
+            <ph name="LIST_ITEM" />Ativar o acesso SSH ao dispositivo com chaves de teste padrão para usar ferramentas como <ph name="BEGIN_CODE" />cros flash<ph name="END_CODE" /> e acessar o dispositivo.
+            <ph name="LIST_ITEM" />Inicializar pelo USB para instalar uma imagem do SO usando um drive USB.
+            <ph name="LIST_ITEM" />Definir senhas de login da raiz do sistema e de desenvolvimento com um valor personalizado para realizar o SSH no dispositivo de forma manual.
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          A maioria os recursos de depuração permanece ativada mesmo após a execução de um Powerwash ou a exclusão permanente dos dados de um dispositivo gerenciado por empresa. Para desativar por completo todos os recursos de depuração, realize o processo de recuperação do ChromeOS (https://support.google.com/chromebook/answer/1080595).
+          <ph name="BR" />
+          <ph name="BR" />
+          Para mais informações sobre os recursos de depuração, acesse:<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />Observação<ph name="END_BOLD" />: o sistema será reiniciado durante o processo.</translation>
 <translation id="523505283826916779">Configurações de acessibilidade</translation>
 <translation id="5240931875940563122">Fazer login com o smartphone Android</translation>
 <translation id="5255859108402770436">Fazer login novamente</translation>
@@ -193,6 +231,10 @@
 <translation id="6955698182324067397">Você está ativando recursos de depuração do ChromeOS que vão definir sshd daemon e permitir a inicialização a partir de drives USB.</translation>
 <translation id="6965382102122355670">OK</translation>
 <translation id="6981982820502123353">Acessibilidade</translation>
+<translation id="6984652455487792101">Se você estiver usando um servidor proxy, verifique suas configurações de proxy ou
+        entre em contato com o admin da rede para conferir se o
+servidor proxy está funcionando. Se achar que não deve usar um
+        servidor proxy, ajuste as <ph name="LINK_START" />configurações relacionadas<ph name="LINK_END" />.</translation>
 <translation id="6996245928508281884">Ative o Bluetooth e o Wi-Fi do smartphone</translation>
 <translation id="7077829361966535409">Houve uma falha no carregamento da página de login usando as configurações de proxy atuais. <ph name="GAIA_RELOAD_LINK_START" />Tente fazer login novamente<ph name="GAIA_RELOAD_LINK_END" /> ou use <ph name="PROXY_SETTINGS_LINK_START" />configurações de proxy<ph name="PROXY_SETTINGS_LINK_END" /> diferentes.</translation>
 <translation id="7114054701490058191">As senhas não correspondem</translation>
@@ -205,6 +247,9 @@
 <translation id="7345706641791090287">Confirmar sua senha</translation>
 <translation id="7352651011704765696">Algo deu errado</translation>
 <translation id="7476454130948140105">Bateria muito fraca para atualizar (<ph name="BATTERY_PERCENT" />%</translation>
+<translation id="7504187084873714912"><ph name="BEGIN_PARAGRAPH1" />Antes de fazer o registro, limpe o TPM para que o <ph name="DEVICE_OS" /> possa assumir a propriedade do dispositivo.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Você também pode desativar por completo o TPM no dispositivo. Seus dados ainda serão armazenados com segurança e criptografia de software, mas alguns recursos de proteção, como certificados de hardware, serão desativados.<ph name="END_PARAGRAPH2" />
+        <ph name="BEGIN_PARAGRAPH3" />Para mudar as configurações do TPM, reinicie o sistema e acesse as configurações de BIOS/UEFI. As etapas variam conforme o modelo do dispositivo. Para mais informações, abra a documentação do <ph name="DEVICE_OS" /> em um dispositivo diferente antes de reiniciar: g.co/flex/TPMHelp.<ph name="END_PARAGRAPH3" /></translation>
 <translation id="7543104066686362383">Ativar os recursos de depuração neste dispositivo <ph name="IDS_SHORT_PRODUCT_NAME" /></translation>
 <translation id="7553242001898162573">Digite sua senha</translation>
 <translation id="7556242789364317684">O <ph name="SHORT_PRODUCT_NAME" /> não conseguiu recuperar suas configurações. Para corrigir o erro, o <ph name="SHORT_PRODUCT_NAME" /> deve redefinir seu dispositivo com o PowerWash.</translation>
@@ -251,6 +296,10 @@
 <translation id="8452105022015742247">Transferindo informações da Conta do Google do smartphone Android</translation>
 <translation id="8524841856047224176">Personalize os planos de fundo da câmera para videochamadas e muito mais</translation>
 <translation id="8569673829373920831">Mais sobre o app <ph name="APP_NAME" /></translation>
+<translation id="8628232294964836490">Siga as instruções no celular para ler o QR code. Verifique se o Bluetooth dele está ativado.
+        <ph name="BR" />
+        <ph name="BR" />
+        Visível para os dispositivos próximos como <ph name="QUICK_START_DEVICE_DISPLAY_NAME" />…</translation>
 <translation id="8655972064210167941">O login falhou porque não foi possível confirmar sua senha. Entre em contato com o administrador ou tente novamente.</translation>
 <translation id="8674903726754070732">Infelizmente, seu computador está configurado com um ID de hardware mal formado. Isso impede que o ChromeOS seja atualizado com as correções de segurança mais recentes e, por isso, ele <ph name="BEGIN_BOLD" />pode ficar vulnerável a ataques maliciosos<ph name="END_BOLD" />.</translation>
 <translation id="8695139659682234808">Adicionar o controle dos pais depois da configuração</translation>
@@ -264,10 +313,20 @@
 <translation id="8830796635868321089">A verificação de atualização não pode usar as configurações de proxy atuais. Ajuste suas <ph name="PROXY_SETTINGS_LINK_START" />configurações de proxy<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="885746075120788020">Suas preferências e atividades salvas estarão prontas em qualquer dispositivo ChromeOS quando você fizer login na Conta do Google. Você pode escolher o que é sincronizado nas Configurações.</translation>
 <translation id="8875221558267407626">Resuma conteúdos, simplifique textos complexos ou faça perguntas</translation>
+<translation id="8913163265790894442">Configure o <ph name="DEVICE_TYPE" /> de forma simples com seu celular. É possível adicionar o Wi-Fi e a Conta do Google sem precisar inserir senhas.
+        <ph name="BR" />
+        <ph name="BR" />
+        Visível como <ph name="DEVICE_TYPE" />…</translation>
 <translation id="8946359700442089734">Os recursos de depuração não foram completamente ativados neste dispositivo <ph name="IDS_SHORT_PRODUCT_NAME" />.</translation>
 <translation id="8965037249707889821">Digite a senha antiga</translation>
 <translation id="8975396729541388937">Cancele a inscrição a qualquer momento clicando no link nos e-mails recebidos.</translation>
 <translation id="9033765790910064284">Continuar mesmo assim</translation>
 <translation id="903480517321259405">Digite o PIN novamente</translation>
 <translation id="9076523132036239772">Seu e-mail ou sua senha não pode ser verificado. Tente conectar-se a uma rede.</translation>
+<translation id="9217002308921247002"><ph name="BEGIN_PARAGRAPH1" />Exclusivo para <ph name="DEVICE_TYPE" />.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />A IA generativa é uma tecnologia experimental e está nos estágios iniciais de desenvolvimento. No momento, ela tem disponibilidade limitada.<ph name="END_PARAGRAPH2" /></translation>
+<translation id="936479314588646618">Configure o <ph name="DEVICE_TYPE" /> de forma simples com seu celular. É possível adicionar sua Conta do Google sem precisar inserir a senha.
+        <ph name="BR" />
+        <ph name="BR" />
+        Visível como <ph name="DEVICE_TYPE" />…</translation>
 </translationbundle>

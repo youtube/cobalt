@@ -7,8 +7,6 @@
 
 namespace safe_browsing {
 
-// TODO(crbug.com/502615476): After client_side_phishing_model.h is moved into
-// core, move enum definition back into it and delete this file.
 enum class CSDModelType { kNone = 0, kFlatbuffer = 1 };
 
 }  // namespace safe_browsing

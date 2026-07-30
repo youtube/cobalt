@@ -5,6 +5,7 @@
 module blink.mojom;
 
 import "media/mojo/mojom/media_player.mojom";
+import "media/mojo/mojom/media_types.mojom";
 import "services/media_session/public/mojom/media_session.mojom";
 import "services/viz/public/mojom/compositing/surface_id.mojom";
 import "ui/gfx/geometry/mojom/geometry.mojom";
@@ -74,6 +75,8 @@ interface PictureInPictureService {
   //                transition into picture in picture.
   // request_immersive: Whether to start an immersive Picture-in-Picture
   //                    session (prompting the user for options if needed).
+  // spatial_format: Spatial format of the video to be played in the
+  //                 immersive Picture-in-Picture session.
   //
   // The callback returns:
   // session: The session interface pointer. This will be null if the session
@@ -92,7 +95,8 @@ interface PictureInPictureService {
       bool show_play_pause_button,
       pending_remote<PictureInPictureSessionObserver> observer,
       gfx.mojom.Rect source_bounds,
-      bool request_immersive)
+      bool request_immersive,
+      media.mojom.VideoSpatialFormat spatial_format)
           => (pending_remote<PictureInPictureSession>? session,
               gfx.mojom.Size size);
 };

@@ -5,8 +5,10 @@
 #include "chrome/browser/context_hub/context_hub_service_factory.h"
 
 #include "base/test/scoped_feature_list.h"
+#include "base/test/test_future.h"
 #include "chrome/browser/context_hub/context_hub_service.h"
 #include "chrome/browser/context_hub/features.h"
+#include "chrome/browser/context_hub/memory_bank/memory_bank_entry.h"
 #include "chrome/test/base/testing_profile.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -42,6 +44,48 @@ TEST_F(ContextHubServiceFactoryTest,
   Profile* otr_profile = profile.GetOffTheRecordProfile(
       Profile::OTRProfileID::PrimaryID(), /*create_if_needed=*/true);
   EXPECT_EQ(nullptr, ContextHubServiceFactory::GetForProfile(otr_profile));
+}
+
+TEST_F(ContextHubServiceFactoryTest,
+       CreatesServiceWithoutMemoryBankWhenFlagDisabled) {
+  scoped_feature_list_.InitWithFeatures(
+      /*enabled_features=*/{features::kContextHub},
+      /*disabled_features=*/{features::kMemoryBanks});
+  TestingProfile profile;
+  ContextHubService* service =
+      ContextHubServiceFactory::GetForProfile(&profile);
+  ASSERT_NE(nullptr, service);
+
+  base::test::TestFuture<void> save_future;
+  service->SaveTab(GURL("https://example.com"), "Title",
+                   save_future.GetCallback());
+  ASSERT_TRUE(save_future.Wait());
+
+  base::test::TestFuture<std::vector<MemoryBankEntry>> get_entries_future;
+  service->GetAllEntries(get_entries_future.GetCallback());
+  EXPECT_TRUE(get_entries_future.Get().empty());
+}
+
+TEST_F(ContextHubServiceFactoryTest,
+       CreatesServiceWithMemoryBankWhenFlagEnabled) {
+  scoped_feature_list_.InitWithFeatures(
+      /*enabled_features=*/{features::kContextHub, features::kMemoryBanks},
+      /*disabled_features=*/{});
+  TestingProfile profile;
+  ContextHubService* service =
+      ContextHubServiceFactory::GetForProfile(&profile);
+  ASSERT_NE(nullptr, service);
+
+  base::test::TestFuture<void> save_future;
+  service->SaveTab(GURL("https://example.com"), "Title",
+                   save_future.GetCallback());
+  ASSERT_TRUE(save_future.Wait());
+
+  base::test::TestFuture<std::vector<MemoryBankEntry>> get_entries_future;
+  service->GetAllEntries(get_entries_future.GetCallback());
+  auto entries = get_entries_future.Get();
+  EXPECT_EQ(entries.size(), 1u);
+  EXPECT_EQ(entries[0].tab_title, "Title");
 }
 
 }  // namespace context_hub

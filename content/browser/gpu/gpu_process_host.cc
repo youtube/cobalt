@@ -698,11 +698,15 @@ void GpuProcessHost::RequestWebNNCompilerContext(
     webnn::mojom::CreateContextOptionsPtr context_options,
     const webnn::ContextProperties& context_properties,
     const webnn::EpDeviceInfo& target_device,
-    RequestWebNNCompilerContextCallback callback) {
+    mojo::PendingReceiver<webnn::mojom::WebNNCompilerContext>
+        compiler_context_receiver,
+    mojo::PendingRemote<webnn::mojom::WebNNModelLoader> model_loader_remote) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   if (!gpu_service()) {
-    std::move(callback).Run(mojo::NullRemote(), mojo::NullReceiver());
+    LOG(ERROR) << "[WebNN] RequestWebNNCompilerContext() failed: GPU process "
+                  "is not available.";
+    // Drop the pipe endpoints — peer endpoints will observe a disconnect.
     return;
   }
 
@@ -712,7 +716,7 @@ void GpuProcessHost::RequestWebNNCompilerContext(
 
   webnn_compiler_process_host_->RequestCompilerContext(
       std::move(context_options), context_properties, target_device,
-      std::move(callback));
+      std::move(compiler_context_receiver), std::move(model_loader_remote));
 }
 #endif  // BUILDFLAG(IS_WIN)
 

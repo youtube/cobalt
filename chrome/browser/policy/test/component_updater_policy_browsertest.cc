@@ -198,7 +198,7 @@ void ComponentUpdaterPolicyTest::UpdateComponent(
     const component_updater::ComponentRegistration& reg) {
   post_interceptor_->Reset();
   EXPECT_TRUE(post_interceptor_->ExpectRequest(
-      std::make_unique<update_client::PartialMatch>("updatecheck")));
+      std::make_unique<update_client::PartialMatch>(component_id_)));
   EXPECT_TRUE(cus_->RegisterComponent(reg));
   cus_->GetOnDemandUpdater().OnDemandUpdate(
       component_id_, component_updater::OnDemandUpdater::Priority::FOREGROUND,
@@ -240,10 +240,23 @@ void ComponentUpdaterPolicyTest::EndTest() {
 void ComponentUpdaterPolicyTest::VerifyExpectations(bool update_disabled) {
   EXPECT_EQ(1, post_interceptor_->GetHitCount())
       << post_interceptor_->GetRequestsAsString();
-  ASSERT_EQ(1, post_interceptor_->GetCount())
-      << post_interceptor_->GetRequestsAsString();
 
-  const auto& request = post_interceptor_->GetRequestBody(0);
+  // Find the request for our component. Other components may have been
+  // requested during browser initialization.
+  std::string request;
+  int matching_request_count = 0;
+  for (int i = 0; i < post_interceptor_->GetCount(); ++i) {
+    std::string body = post_interceptor_->GetRequestBody(i);
+    if (body.find(component_id_) != std::string::npos) {
+      matching_request_count++;
+      request = body;
+    }
+  }
+
+  ASSERT_EQ(1, matching_request_count)
+      << "Expected exactly 1 request for " << component_id_ << ", found "
+      << matching_request_count
+      << ". Requests: " << post_interceptor_->GetRequestsAsString();
 
   // Handle XML and JSON protocols.
   if (base::StartsWith(request, "<?xml", base::CompareCase::SENSITIVE)) {

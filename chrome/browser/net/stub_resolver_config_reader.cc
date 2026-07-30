@@ -42,7 +42,7 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/android_info.h"
-#include "chrome/browser/enterprise/util/android_enterprise_info.h"
+#include "components/policy/core/common/management/android_enterprise_info.h"
 #endif
 
 #if BUILDFLAG(IS_WIN)
@@ -202,8 +202,8 @@ StubResolverConfigReader::StubResolverConfigReader(PrefService* local_state,
                      base::Unretained(this)));
 
 #if BUILDFLAG(IS_ANDROID)
-  enterprise_util::AndroidEnterpriseInfo::GetInstance()
-      ->GetAndroidEnterpriseInfoState(base::BindOnce(
+  policy::AndroidEnterpriseInfo::GetInstance()->GetAndroidEnterpriseInfoState(
+      base::BindOnce(
           &StubResolverConfigReader::OnAndroidOwnedStateCheckComplete,
           weak_factory_.GetWeakPtr()));
 #endif

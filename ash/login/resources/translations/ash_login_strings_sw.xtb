@@ -14,6 +14,24 @@
 <translation id="1185924365081634987">Pia unaweza kujaribu <ph name="GUEST_SIGNIN_LINK_START" />kuvinjari kama aliyealikwa<ph name="GUEST_SIGNIN_LINK_END" /> ili kurekebisha hitilafu hii ya mtandao.</translation>
 <translation id="1201402288615127009">Endelea</translation>
 <translation id="1222835797152767346">Weka PIN ili urahisishe zaidi mchakato wa kuingia katika akaunti</translation>
+<translation id="1346669614038013595"><ph name="BEGIN_H3" />Vipengele vya Utatuzi<ph name="END_H3" />
+          <ph name="BR" />
+          Unaweza kuwasha vipengele vya utatuzi kwenye Kifaa chako Kinachotumia Mfumo wa Uendeshaji wa ChromeOS ili uweke na ujaribu misimbo maalum kwenye kifaa chako.  Hatua hii itakuruhusu:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />Uondoe uthibitishaji wa msingi ili uweze kurekebisha faili za Mfumo wa Uendeshaji
+            <ph name="LIST_ITEM" />Uwashe ufikiaji wa SSH kwenye kifaa ukitumia funguo za kawaida za jaribio ili uweze kufikia kifaa ukitumia zana kama vile <ph name="BEGIN_CODE" />'cros flash'<ph name="END_CODE" />
+            <ph name="LIST_ITEM" />Uruhusu kuwasha kupitia USB ili uweze kuweka nakala ya Mfumo wa Uendeshaji kutoka kwenye hifadhi ya USB
+            <ph name="LIST_ITEM" />Uweke mipangilio ya nenosiri la kuingia katika akaunti ya msingi ya mfumo na ya usanidi, iwe thamani maalum ili uweze kuweka mwenyewe SSH kwenye kifaa
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          Baada ya kuwashwa, vipengele vingi vya utatuzi vitasalia katika hali ya kuwashwa hata baada ya kuondoa data iliyo kwenye kifaa isipatikane kabisa au kurejesha mipangilio kilichotoka nayo kiwandani kwenye kifaa kinachodhibitiwa na kampuni. Ili uzime kabisa vipengele vyote vya utatuzi, kamilisha mchakato wa urejeshaji data wa Mfumo wa Uendeshaji wa ChromeOS (https://support.google.com/chromebook/answer/1080595).
+          <ph name="BR" />
+          <ph name="BR" />
+          Ili upate maelezo zaidi kuhusu vipengele vya utatuzi angalia:<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />Kumbuka:<ph name="END_BOLD" />  Mfumo utazima kisha kuwashwa tena wakati wa mchakato huu.</translation>
 <translation id="1347625331607114917">Thibitisha msimbo kwenye simu yako ya Android</translation>
 <translation id="1347975661240122359">Usasishaji utaanza betri itakapofika <ph name="BATTERY_LEVEL" />%.</translation>
 <translation id="1375938286942050085">Uwekaji mipangilio umekamilika! Andaa kifaa chako kwa ajili ya michezo ya video inayofuata</translation>
@@ -126,9 +144,29 @@
 <translation id="503155457707535043">Inapakua programu</translation>
 <translation id="5045550434625856497">Nenosiri lisilo sahihi</translation>
 <translation id="5062930723426326933">Imeshindwa kuingia katika akaunti, tafadhali unganisha kwenye mtandao na ujaribu tena.</translation>
+<translation id="5107486920067578245"><ph name="BEGIN_PARAGRAPH1" />Piga gumzo na Gemini ili uanze kuandika, kupanga, kujifunza na zaidi ukitumia Google AI.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Baada ya kuweka mipangilio, anza kutumia Gemini kwa kuchagua programu ya Gemini kwenye rafu yako, katika sehemu ya chini ya skrini yako.<ph name="END_PARAGRAPH2" /></translation>
 <translation id="5115309401544567011">Tafadhali weka kifaa chako cha <ph name="DEVICE_TYPE" /> kwenye chaji.</translation>
 <translation id="5147516217412920887">Fuata maagizo kwenye simu yako ili uthibitishe msimbo</translation>
 <translation id="5160857336552977725">Ingia katika <ph name="DEVICE_TYPE" /></translation>
+<translation id="5171185788583376591"><ph name="BEGIN_H3" />Vipengele vya Utatuzi<ph name="END_H3" />
+          <ph name="BR" />
+          Unaweza kuwasha vipengele vya utatuzi kwenye Kifaa Kinachotumia Mfumo wa Uendeshaji wa ChromeOS Flex ili uweke na ujaribu misimbo maalum kwenye kifaa chako.  Hatua hii itakuruhusu:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />Uondoe uthibitishaji wa msingi ili uweze kurekebisha faili za Mfumo wa Uendeshaji
+            <ph name="LIST_ITEM" />Uwashe ufikiaji wa SSH kwenye kifaa ukitumia funguo za kawaida za jaribio ili uweze kufikia kifaa kwa kutumia zana kama vile <ph name="BEGIN_CODE" />'cros flash'<ph name="END_CODE" />
+            <ph name="LIST_ITEM" />Uruhusu kuwasha kupitia USB ili uweze kuweka nakala ya Mfumo wa Uendeshaji kutoka kwenye hifadhi ya USB
+            <ph name="LIST_ITEM" />Uweke mipangilio ya nenosiri la kuingia katika akaunti ya msingi ya mfumo na ya usanidi, iwe thamani maalum ili uweze kuweka mwenyewe SSH kwenye kifaa
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          Baada ya kuwashwa, vipengele vingi vya utatuzi vitasalia katika hali ya kuwashwa hata baada ya kuondoa data iliyo kwenye kifaa isipatikane kabisa au kurejesha mipangilio kilichotoka nayo kiwandani kwenye kifaa kinachodhibitiwa na kampuni. Ili uzime kabisa vipengele vyote vya utatuzi, kamilisha mchakato wa urejeshaji data wa Mfumo wa Uendeshaji wa ChromeOS (https://support.google.com/chromebook/answer/1080595).
+          <ph name="BR" />
+          <ph name="BR" />
+          Ili upate maelezo zaidi kuhusu vipengele vya utatuzi angalia:<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />Kumbuka:<ph name="END_BOLD" />  Mfumo utazima kisha kuwashwa tena wakati wa mchakato huu.</translation>
 <translation id="523505283826916779">Mipangilio ya ufikiaji</translation>
 <translation id="5240931875940563122">Ingia katika akaunti ukitumia simu ya Android</translation>
 <translation id="5255859108402770436">Ingia katika akaunti tena</translation>
@@ -193,6 +231,10 @@
 <translation id="6955698182324067397">Unawasha vipengele vya utatuzi vya Chrome OS ambavyo vitaweka mipangilio ya sshd daemon na kuruhusu uwashe kutoka kwenye hifadhi za USB.</translation>
 <translation id="6965382102122355670">Sawa</translation>
 <translation id="6981982820502123353">Ufikivu</translation>
+<translation id="6984652455487792101">Iwapo unatumia seva mbadala, angalia mipangilio yako ya seva mbadala au
+        uwasiliane na msimamizi wa mtandao wako ili kuhakikisha kuwa seva
+mbadala inafanya kazi. Ikiwa huamini kuwa unastahili kutumia
+        seva mbadala, rekebisha <ph name="LINK_START" />mipangilio yako ya seva mbadala<ph name="LINK_END" />.</translation>
 <translation id="6996245928508281884">Washa Bluetooth na Wi-Fi ya simu yako</translation>
 <translation id="7077829361966535409">Ukurasa wa kuingia ulishindwa kupakiwa kutumia mipangilio ya sasa ya proksi. Tafadhali <ph name="GAIA_RELOAD_LINK_START" />jaribu tena kuingia<ph name="GAIA_RELOAD_LINK_END" />, au tumia <ph name="PROXY_SETTINGS_LINK_START" />mipangilio ya proksi<ph name="PROXY_SETTINGS_LINK_END" /> tofauti.</translation>
 <translation id="7114054701490058191">Nenosiri halilingani</translation>
@@ -205,6 +247,9 @@
 <translation id="7345706641791090287">Thibitisha nenosiri lako</translation>
 <translation id="7352651011704765696">Hitilafu fulani imetokea</translation>
 <translation id="7476454130948140105">Betri haina chaji ya kutosha ili kuweza kusasisha (<ph name="BATTERY_PERCENT" />%)</translation>
+<translation id="7504187084873714912"><ph name="BEGIN_PARAGRAPH1" />Kabla ya kuandikisha, unahitaji kuondoa Chipu Inayolinda Mfumo (TPM) ili <ph name="DEVICE_OS" /> ichukue umiliki wa kifaa.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Unaweza pia kuzima kabisa Chipu Inayolinda Mfumo (TPM) kwenye kifaa. Data yako itaendelea kuhifadhiwa kwa usalama kwa kutumia mbinu ya kusimba programu kwa njia fiche, lakini vipengele fulani vya usalama kama vile vyeti vilivyohifadhiwa kwenye maunzi vitazimwa.<ph name="END_PARAGRAPH2" />
+        <ph name="BEGIN_PARAGRAPH3" />Unaweza kubadilisha mipangilio yako ya Chipu Inayolinda Mfumo (TPM) kwa kuwasha kifaa tena na kuweka mipangilio ya mfumo ya BIOS/UEFI. Hatua hizo hutofautiana kulingana na muundo wa kifaa. Kwa maelezo zaidi, fungua hati ya <ph name="DEVICE_OS" /> kwenye kifaa tofauti kabla ya kuwasha tena kifaa: g.co/flex/TPMHelp.<ph name="END_PARAGRAPH3" /></translation>
 <translation id="7543104066686362383">Washa vipengele vya kutatua kwenye kifaa hiki cha <ph name="IDS_SHORT_PRODUCT_NAME" /></translation>
 <translation id="7553242001898162573">Weka nenosiri lako</translation>
 <translation id="7556242789364317684">Kwa bahati mbaya, <ph name="SHORT_PRODUCT_NAME" /> imeshindwa kuokoa mipangilio yako. Kurekebisha hitilafu hii, <ph name="SHORT_PRODUCT_NAME" /> lazima uweke upya kifaa chako na Powerwash.</translation>
@@ -251,6 +296,10 @@
 <translation id="8452105022015742247">Kuhamisha maelezo ya Akaunti ya Google kutoka kwenye simu yako ya Android</translation>
 <translation id="8524841856047224176">Wekea mapendeleo mandharinyuma ya kamera ili uyatumie unapopiga simu za video na zaidi</translation>
 <translation id="8569673829373920831">Maelezo zaidi kuhusu <ph name="APP_NAME" /></translation>
+<translation id="8628232294964836490">Fuata maagizo kwenye simu yako ili uchanganue msimbo wa QR. Hakikisha kuwa umewasha Bluetooth kwenye simu yako.
+        <ph name="BR" />
+        <ph name="BR" />
+        Inaonekana kwa jina <ph name="QUICK_START_DEVICE_DISPLAY_NAME" /> kwenye vifaa vilivyo karibu...</translation>
 <translation id="8655972064210167941">Haikufaulu kuingia katika akaunti kwa sababu nenosiri lako halikuthibitishwa. Tafadhali wasiliana na msimamizi wako au jaribu tena.</translation>
 <translation id="8674903726754070732">Kwa bahati mbaya, kompyuta yako imewekewa mipangilio na kitambulisho cha maunzi yenye hitilafu. Hali hii huzuia Mfumo wa Uendeshaji wa Chrome usisasishe marekebisho ya usalama ya hivi karibuni na kompyuta yako <ph name="BEGIN_BOLD" />inaweza kuwa hatarini kutokana na mashambulizi hasidi<ph name="END_BOLD" />.</translation>
 <translation id="8695139659682234808">Ongeza vidhibiti vya wazazi baada ya kuweka mipangilio</translation>
@@ -264,10 +313,20 @@
 <translation id="8830796635868321089">Kuangalia sasisho kumeshindwa kutumia mipangilio ya sasa ya proksi. Tafadhali rekebisha <ph name="PROXY_SETTINGS_LINK_START" />mipangilio yako ya proksi<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="885746075120788020">Mapendeleo na shughuli ulizohifadhi zitakuwa tayari kwenye kifaa chochote kinachotumia Mfumo wa Uendeshaji wa Chrome ukiingia kwa kutumia Akaunti yako ya Google. Unaweza kuchagua unachotaka kusawazisha katika Mipangilio.</translation>
 <translation id="8875221558267407626">Andaa muhtasari wa maudhui, rahisisha lugha changamano au uulize maswali</translation>
+<translation id="8913163265790894442">Weka mipangilio kwa urahisi kwenye <ph name="DEVICE_TYPE" /> yako ukitumia simu yako. Unaweza kuweka Wi-Fi na Akaunti yako ya Google bila kuweka manenosiri mwenyewe.
+        <ph name="BR" />
+        <ph name="BR" />
+        Huonekana kwa jina la <ph name="DEVICE_TYPE" />...</translation>
 <translation id="8946359700442089734">Vipengele vya kutatua havikuwashwa kikamilifu kwenye kifaa hiki cha <ph name="IDS_SHORT_PRODUCT_NAME" />.</translation>
 <translation id="8965037249707889821">Weka nenosiri la zamani</translation>
 <translation id="8975396729541388937">Unaweza kujiondoa wakati wowote kwa kubofya kiungo katika barua pepe unazopokea.</translation>
 <translation id="9033765790910064284">Endelea tu</translation>
 <translation id="903480517321259405">Andika PIN tena</translation>
 <translation id="9076523132036239772">Samahani, barua pepe au nenosiri lako havingeweza kuthibitishwa. Jaribu kuunganisha kwenye mtandao kwanza.</translation>
+<translation id="9217002308921247002"><ph name="BEGIN_PARAGRAPH1" />Inapatikana kwenye <ph name="DEVICE_TYPE" /> pekee.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />AI Zalishi inafanyiwa majaribio, iko katika hatua za mwanzo za kubuniwa na kwa sasa upatikanaji wake unadhibitiwa.<ph name="END_PARAGRAPH2" /></translation>
+<translation id="936479314588646618">Weka mipangilio kwa urahisi kwenye <ph name="DEVICE_TYPE" /> yako ukitumia simu yako. Unaweza kuweka Akaunti yako ya Google bila kuweka nenosiri lako mwenyewe.
+        <ph name="BR" />
+        <ph name="BR" />
+        Huonekana kwa jina la <ph name="DEVICE_TYPE" />...</translation>
 </translationbundle>

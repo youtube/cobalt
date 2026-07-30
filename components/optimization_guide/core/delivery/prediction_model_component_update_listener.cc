@@ -14,7 +14,6 @@
 #include "base/task/thread_pool.h"
 #include "components/optimization_guide/core/delivery/model_info.h"
 #include "components/optimization_guide/core/delivery/model_provider_registry.h"
-#include "components/optimization_guide/core/delivery/prediction_model_store.h"
 #include "components/optimization_guide/core/optimization_guide_logger.h"
 
 namespace optimization_guide {
@@ -77,8 +76,7 @@ void PredictionModelComponentUpdateListener::MaybeUpdateModel(
   // Load the model in the background.
   GetTaskRunner(target)->PostTaskAndReplyWithResult(
       FROM_HERE,
-      base::BindOnce(&PredictionModelStore::LoadAndVerifyModelOffThread, target,
-                     install_dir),
+      base::BindOnce(&LoadAndVerifyModelInfoOffThread, target, install_dir),
       base::BindOnce(&PredictionModelComponentUpdateListener::OnModelLoaded,
                      GetWeakPtr(), target, version));
 }
@@ -86,7 +84,7 @@ void PredictionModelComponentUpdateListener::MaybeUpdateModel(
 void PredictionModelComponentUpdateListener::OnModelLoaded(
     proto::OptimizationTarget target,
     const base::Version& version,
-    std::unique_ptr<proto::PredictionModel> prediction_model) {
+    std::unique_ptr<ModelInfo> model_info) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   // Check if this target is still expected and the version matches.
@@ -96,8 +94,6 @@ void PredictionModelComponentUpdateListener::OnModelLoaded(
     return;
   }
 
-  auto model_info =
-      prediction_model ? ModelInfo::Create(*prediction_model) : nullptr;
   if (!model_info) {
     // The model is invalid. We keep it in component_info_map_, since we've
     // still "loaded" it and we don't want to re-do that, but we'll report it to

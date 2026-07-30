@@ -58,7 +58,7 @@ std::string GetCrxComponentID(const CrxComponent& component);
 std::string GetCrxIdFromPublicKeyHash(base::span<const uint8_t> pk_hash);
 
 // Returns true if the actual SHA-256 hash of the |filepath| matches the
-// |expected_hash|.
+// |expected_hash|. Does not follow symbolic links.
 bool VerifyFileHash256(const base::FilePath& filepath,
                        const std::string& expected_hash);
 

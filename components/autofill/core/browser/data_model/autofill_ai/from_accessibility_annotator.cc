@@ -217,8 +217,7 @@ std::optional<EntityInstance> FromAccessibilityAnnotator(
             add(&aa::Shipment::associated_order_id, kShipmentOrderIds);
             add(&aa::Shipment::carrier_name, kShipmentCarrierName);
             add(&aa::Shipment::carrier_domain, kShipmentCarrierDomain);
-            add(&aa::Shipment::estimated_delivery_date,
-                kShipmentEstimatedDeliveryDate);
+            add(&aa::Shipment::shipped_date, kShipmentShippedDate);
             add(&aa::Shipment::delivery_zip_code, kShipmentDeliveryZipCode);
           },
 
@@ -335,7 +334,7 @@ aa::MemoryDataType AttributeTypeToMemoryDataType(AttributeType type) {
     ATTRIBUTE_TO_QUERY_INTENT(kShipmentCarrierName);
     ATTRIBUTE_TO_QUERY_INTENT(kShipmentCarrierDomain);
     ATTRIBUTE_TO_QUERY_INTENT(kShipmentTrackingNumber);
-    ATTRIBUTE_TO_QUERY_INTENT(kShipmentEstimatedDeliveryDate);
+    ATTRIBUTE_TO_QUERY_INTENT(kShipmentShippedDate);
     case AttributeTypeName::kShipmentOrderIds:
       return aa::MemoryDataType::kShipmentAssociatedOrderId;
     case AttributeTypeName::kShipmentOrderDates:
@@ -456,7 +455,8 @@ std::u16string GetMemoryDataTypeNameForI18n(aa::MemoryDataType type) {
     case aa::MemoryDataType::kShipmentDeliveryZipCode:
     case aa::MemoryDataType::kShipmentCarrierName:
     case aa::MemoryDataType::kShipmentCarrierDomain:
-    case aa::MemoryDataType::kShipmentEstimatedDeliveryDate: {
+    case aa::MemoryDataType::kShipmentEstimatedDeliveryDate:
+    case aa::MemoryDataType::kShipmentShippedDate: {
       std::optional<AtMemoryDataType> data_type = ToAtMemoryDataType(type);
       const auto* attribute_type =
           data_type ? std::get_if<AttributeType>(&*data_type) : nullptr;

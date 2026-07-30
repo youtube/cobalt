@@ -80,6 +80,15 @@ class WebViewRendererState {
   // Returns the number of WebView guest instances tracked by this object.
   size_t guest_count_for_testing() { return web_view_info_map_.size(); }
 
+  void AddGuestForTesting(int guest_process_id,
+                          int guest_routing_id,
+                          const WebViewInfo& web_view_info) {
+    AddGuest(guest_process_id, guest_routing_id, web_view_info);
+  }
+  void RemoveGuestForTesting(int guest_process_id, int guest_routing_id) {
+    RemoveGuest(guest_process_id, guest_routing_id);
+  }
+
  private:
   friend class WebViewGuest;
   friend struct base::DefaultSingletonTraits<WebViewRendererState>;

@@ -509,6 +509,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Windows.SetWindowsHookEx.Result" enum="WinGetLastError"
+    expires_after="2027-06-01">
+  <owner>jackmil@google.com</owner>
+  <owner>robliao@chromium.org</owner>
+  <summary>
+    Records the result of calling SetWindowsHookEx inside
+    SafeAcceptFileDialogEventHandler every time a hook registration is
+    attempted.
+  </summary>
+</histogram>
+
 <histogram name="Windows.ShouldPinToTaskbarResult{PinAppToTaskbarChannel}"
     enum="TaskbarPinResult" expires_after="2026-12-16">
   <owner>davidbienvenu@chromium.org</owner>

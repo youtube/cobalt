@@ -39,8 +39,8 @@ class GpuFenceManagerTest : public GpuServiceTest {
  public:
   GpuFenceManagerTest() {
     GpuDriverBugWorkarounds gpu_driver_bug_workaround;
-    feature_info_ =
-        new FeatureInfo(gpu_driver_bug_workaround, GpuFeatureInfo());
+    feature_info_ = base::MakeRefCounted<FeatureInfo>(gpu_driver_bug_workaround,
+                                                      GpuFeatureInfo());
   }
 
   ~GpuFenceManagerTest() override {}

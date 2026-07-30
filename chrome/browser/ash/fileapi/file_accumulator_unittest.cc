@@ -37,7 +37,7 @@ class FileAccumulatorTest : public testing::Test {
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
 };
 
-TEST_F(FileAccumulatorTest, AddGetClear) {
+TEST_F(FileAccumulatorTest, AddGet) {
   RecentFile a_file = MakeRecentFile("a.jpg", base::Time::Now());
   RecentFile b_file = MakeRecentFile("b.jpg", base::Time::Now());
 
@@ -45,9 +45,6 @@ TEST_F(FileAccumulatorTest, AddGetClear) {
   EXPECT_TRUE(acc.Add(a_file));
   EXPECT_THAT(acc.Get(), testing::Pointwise(RecentFilesEq(), {a_file}));
   EXPECT_FALSE(acc.Add(b_file));
-  acc.Clear();
-  EXPECT_TRUE(acc.Add(b_file));
-  EXPECT_THAT(acc.Get(), testing::Pointwise(RecentFilesEq(), {b_file}));
 }
 
 TEST_F(FileAccumulatorTest, CapacityAndOrder) {

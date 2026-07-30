@@ -4,7 +4,7 @@
 
 import("//build/config/features.gni")
 
-static_library("test_support") {
+source_set("test_support") {
   testonly = true
   configs += [ "//components/enterprise:extra_warnings" ]
 
@@ -18,16 +18,24 @@ static_library("test_support") {
     "//chrome/browser:browser_process",
     "//chrome/browser/profiles:profile",
     "//chrome/common",
+    "//chrome/test:test_support",
     "//components/device_signals/core/browser",
     "//components/device_signals/core/common",
     "//components/enterprise",
+    "//components/enterprise:test_support",
     "//components/policy/core/common",
     "//components/prefs",
+    "//components/sync_preferences",
+    "//testing/gmock",
     "//testing/gtest",
   ]
 
   if (is_mac || is_linux || is_win) {
-    sources += [ "test_utils_desktop.cc" ]
+    public += [ "realtime_event_uploader_test_base.h" ]
+    sources += [
+      "realtime_event_uploader_test_base.cc",
+      "test_utils_desktop.cc",
+    ]
   } else if (is_android) {
     sources += [ "test_utils_android.cc" ]
     deps += [

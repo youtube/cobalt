@@ -15,7 +15,7 @@ SESSIONS_EXPORT BASE_DECLARE_FEATURE(kEncryptSessionStorage);
 
 // A string corresponding to one of the EncryptSessionStorageStage enum values.
 // See the conversion in |GetEncryptSessionStorageStage|.
-extern const base::FeatureParam<std::string> kEncryptSessionStorageStageParam;
+BASE_DECLARE_FEATURE_PARAM(std::string, kEncryptSessionStorageStageParam);
 
 namespace internal {
 

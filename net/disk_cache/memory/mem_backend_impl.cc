@@ -86,9 +86,7 @@ MemBackendImpl::MemBackendImpl(net::NetLog* net_log)
           "MemBackendImpl",
           kMemBackendImplTraits,
           this,
-          base::AsyncMemoryConsumerRegistration::CheckUnregister::kDisabled,
-          base::AsyncMemoryConsumerRegistration::CheckRegistryExists::
-              kDisabled) {}
+          base::AsyncMemoryConsumerRegistration::CheckUnregister::kDisabled) {}
 
 MemBackendImpl::~MemBackendImpl() {
   while (!entries_.empty())

@@ -16,12 +16,11 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.content_public.browser.ContentFeatureList;
 import org.chromium.ui.accessibility.AccessibilityState;
 
-import java.util.HashSet;
-import java.util.Set;
-
 /** Helper class for recording UMA histograms of accessibility events */
 @NullMarked
 public class AccessibilityHistogramRecorder {
+    private static final String TAG = "A11yHistRecorder";
+
     // OnDemand AX Mode histogram values
     @VisibleForTesting
     public static final String PERCENTAGE_DROPPED_HISTOGRAM =
@@ -147,12 +146,12 @@ public class AccessibilityHistogramRecorder {
             "Accessibility.Android.Performance.FakeCache.PercentageOccupancy";
 
     @VisibleForTesting
-    public static final String ACCESSIBILITY_FAKE_CACHE_PERCENTAGE_THRASHING =
-            "Accessibility.Android.Performance.FakeCache.PercentageThrashing";
+    public static final String ACCESSIBILITY_FAKE_CACHE_SIZE =
+            "Accessibility.Android.Performance.FakeCache.Size";
 
     @VisibleForTesting
-    public static final String ACCESSIBILITY_FAKE_CACHE_PERCENTAGE_EFFICIENCY =
-            "Accessibility.Android.Performance.FakeCache.PercentageEfficiency";
+    public static final String ACCESSIBILITY_FAKE_CACHE_NODE_LIFETIME =
+            "Accessibility.Android.Performance.FakeCache.NodeLifetime";
 
     @VisibleForTesting
     public static final String ACCESSIBILITY_CONTENT_CHANGED_SUBTREE =
@@ -189,15 +188,6 @@ public class AccessibilityHistogramRecorder {
     private int mNodeWasReturnedFromCache;
     private int mNodeWasCreatedFromScratch;
     private int mNodeWasFreshInCache;
-
-    // These track the usage if the | mFakeAndroidCache |.
-    private int mStaleNodesOnFakeCacheCount;
-    private long mTotalNodesCount;
-    private int mTotalFakeCacheNodesCount;
-    private int mTotalFakeCacheNodesCountAdded;
-    private int mTotalFakeCacheNodesCountRemoved;
-    private final Set<Integer> mNodesRemovedFromFakeCacheSet = new HashSet<>();
-    private final Set<Integer> mNodesAddedToFakeCacheSet = new HashSet<>();
 
     // These track the usage in time when a web contents is in the foreground.
     private long mTimeOfFirstShown = -1;
@@ -311,29 +301,10 @@ public class AccessibilityHistogramRecorder {
         mNodeWasReturnedFromCache++;
     }
 
-    /** Increment the count of instances when a node was stale in the fake cache */
-    public void incrementStaleNodeOnFakeCache() {
-        mStaleNodesOnFakeCacheCount++;
-    }
-
-    public void reportNodeAddedToFakeCache(int virtualViewId) {
-        mTotalFakeCacheNodesCountAdded++;
-        mNodesAddedToFakeCacheSet.add(virtualViewId);
-    }
-
-    public void reportNodeRemovedFromFakeCache(int virtualViewId) {
-        mTotalFakeCacheNodesCountRemoved++;
-        mNodesRemovedFromFakeCacheSet.add(virtualViewId);
-    }
-
-    /** Set the total amount of nodes across the accessibility tree */
-    public void setTotalNodesCount(long totalNodesCount) {
-        mTotalNodesCount = totalNodesCount;
-    }
-
-    /** Set the total amount of nodes in the fake cache */
-    public void setTotalFakeCacheNodesCount(int totalFakeCacheNodesCount) {
-        mTotalFakeCacheNodesCount = totalFakeCacheNodesCount;
+    /** Record UMA histogram for the lifetime of removed nodes */
+    public void reportNodeRemovedFromFakeCache(int virtualViewId, long lifetimeMs) {
+        RecordHistogram.recordMediumTimesHistogram(
+                ACCESSIBILITY_FAKE_CACHE_NODE_LIFETIME, lifetimeMs);
     }
 
     /** Increment the count of instances when a node was created from scratch */
@@ -388,7 +359,6 @@ public class AccessibilityHistogramRecorder {
         recordEventsHistograms();
         recordCacheHistograms();
         recordTotalTimeCreateAccessibilityNodeInfoHistogram();
-        recordFakeCacheHistograms();
     }
 
     /**
@@ -396,15 +366,6 @@ public class AccessibilityHistogramRecorder {
      * percentage truncated down. {@code total} must not be zero.
      */
     private static int computeIntegerPercent(int count, int total) {
-        // Cast to long to account for overflow
-        return (int) ((count * 100L) / total);
-    }
-
-    /**
-     * Calculates what percentage of {@code total} {@code count} is, expressed as an integer
-     * percentage truncated down. {@code total} must not be zero.
-     */
-    private static int computeIntegerPercent(int count, long total) {
         // Cast to long to account for overflow
         return (int) ((count * 100L) / total);
     }
@@ -563,68 +524,39 @@ public class AccessibilityHistogramRecorder {
     }
 
     /** Record UMA histogram for the number of stale nodes on the fake cache */
-    public void recordFakeCacheHistograms() {
-        if (mTotalNodesCount <= 0) {
-            return;
-        }
+    public void recordFakeCacheHistograms(
+            int peakCacheNodesInBatch, int removedCount, int staleNodes, int cacheSize) {
+        Integer cacheHealthIndex = null;
+        Integer churn = null;
+        int staleNodesPercent;
 
-        // Overrall efficiency of the fake cache across iterations.
-        if (mTotalFakeCacheNodesCountAdded > 0) {
-            RecordHistogram.recordPercentageHistogram(
-                    ACCESSIBILITY_FAKE_CACHE_PERCENTAGE_EFFICIENCY, // (a-b)/a given a > b
-                    computeIntegerPercent(
-                            mTotalFakeCacheNodesCountAdded - mTotalFakeCacheNodesCountRemoved,
-                            mTotalFakeCacheNodesCountAdded));
-        }
+        RecordHistogram.recordCustomCountHistogram(
+                ACCESSIBILITY_FAKE_CACHE_SIZE,
+                cacheSize,
+                CACHE_MAX_NODES_MIN_BUCKET,
+                CACHE_MAX_NODES_MAX_BUCKET,
+                CACHE_MAX_NODES_BUCKET_COUNT);
 
+        if (cacheSize == 0) {
+            staleNodesPercent = 0;
+        } else {
+            staleNodesPercent = computeIntegerPercent(staleNodes, cacheSize);
+        }
         RecordHistogram.recordPercentageHistogram(
-                ACCESSIBILITY_FAKE_CACHE_PERCENTAGE_STALE_NODES,
-                computeIntegerPercent(mStaleNodesOnFakeCacheCount, mTotalNodesCount));
+                ACCESSIBILITY_FAKE_CACHE_PERCENTAGE_STALE_NODES, staleNodesPercent);
 
-        int previousCacheSize =
-                mTotalFakeCacheNodesCount
-                        - mNodesAddedToFakeCacheSet.size()
-                        + mNodesRemovedFromFakeCacheSet.size();
-
-        if (previousCacheSize > 0
-                // This clause guards against the case where the number of removals in an iteration
-                // is larger than the previous cache size, e.g. previous cache size is 10, and we
-                // added and removed 100 nodes. We'd then have a churn = 100 / 10 = 1000%.
-                && previousCacheSize >= mNodesRemovedFromFakeCacheSet.size()
-                // This clause allows for the histograms not to be flooded with node creation
-                // exclusive iterations which take place a lot more often, yielding in less
-                // meaningful data.
-                && mNodesRemovedFromFakeCacheSet.size() > 0) {
-            Set<Integer> intersection = new HashSet<>(mNodesAddedToFakeCacheSet);
-            intersection.retainAll(mNodesRemovedFromFakeCacheSet);
-            if (mNodesAddedToFakeCacheSet.size() > 0) {
-                RecordHistogram.recordPercentageHistogram(
-                        ACCESSIBILITY_FAKE_CACHE_PERCENTAGE_THRASHING,
-                        computeIntegerPercent(
-                                intersection.size(), mNodesAddedToFakeCacheSet.size()));
-            }
-
+        if (peakCacheNodesInBatch > 0 && removedCount > 0) {
+            churn = computeIntegerPercent(removedCount, peakCacheNodesInBatch);
             RecordHistogram.recordPercentageHistogram(
-                    ACCESSIBILITY_FAKE_CACHE_PERCENTAGE_CHURN,
-                    computeIntegerPercent(mNodesRemovedFromFakeCacheSet.size(), previousCacheSize));
+                    ACCESSIBILITY_FAKE_CACHE_PERCENTAGE_CHURN, churn);
 
-            RecordHistogram.recordPercentageHistogram(
-                    ACCESSIBILITY_FAKE_CACHE_PERCENTAGE_OCCUPANCY,
-                    computeIntegerPercent(mTotalFakeCacheNodesCount, mTotalNodesCount));
-
-            float stability =
-                    1.0f - ((float) mNodesRemovedFromFakeCacheSet.size() / previousCacheSize);
-            float validity = 1.0f - ((float) mStaleNodesOnFakeCacheCount / mTotalNodesCount);
-            int cacheHealthIndex = (int) (stability * validity * 100);
+            float stability = 1.0f - ((float) churn / 100.0f);
+            float validity = 1.0f - ((float) staleNodesPercent / 100.0f);
+            cacheHealthIndex = (int) (stability * validity * 100.0f);
 
             RecordHistogram.recordPercentageHistogram(
                     ACCESSIBILITY_FAKE_CACHE_HEALTH_INDEX, cacheHealthIndex);
         }
-        if (mNodesRemovedFromFakeCacheSet.size() > 0) {
-            mNodesAddedToFakeCacheSet.clear();
-            mNodesRemovedFromFakeCacheSet.clear();
-        }
-        mStaleNodesOnFakeCacheCount = 0;
     }
 
     /** Record UMA histogram for whether a content changed event was for a subtree. */
@@ -669,11 +601,5 @@ public class AccessibilityHistogramRecorder {
                 /* numBuckets= */ 80);
 
         mTimeScrollToMakeVisible = -1;
-    }
-
-    public int getPreviousCacheSizeForTesting() {
-        return mTotalFakeCacheNodesCount
-                - mNodesAddedToFakeCacheSet.size()
-                + mNodesRemovedFromFakeCacheSet.size();
     }
 }

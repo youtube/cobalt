@@ -26,13 +26,7 @@ class MerchantTrustSignalsStorageFactory {
 
     MerchantTrustSignalsStorageFactory(NonNullObservableSupplier<Profile> profileSupplier) {
         if (sProfileToStorage == null) {
-            // TODO(crbug.com/40259781): MerchantTrustSignalsEventStorage has a native counterpart
-            // that is
-            //     never destroyed. So, this will leak native objects anytime a profile is
-            //     destroyed, which is infrequent given the single profile app behavior. To fix
-            //     this, add a cleanup/destroy method to MerchantTrustSignalsEventStorage and
-            //     switch to the ProfileKeyedMap variant that handles proper cleanup.
-            sProfileToStorage = new ProfileKeyedMap<>(ProfileKeyedMap.noRequiredCleanupAction());
+            sProfileToStorage = ProfileKeyedMap.createMapOfDestroyables();
         }
         mProfileSupplier = profileSupplier;
     }

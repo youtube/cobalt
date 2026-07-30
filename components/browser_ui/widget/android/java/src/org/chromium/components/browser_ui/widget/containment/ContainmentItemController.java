@@ -39,6 +39,8 @@ import java.util.List;
  */
 @NullMarked
 public class ContainmentItemController {
+    static final int TRANSPARENT_BACKGROUND_COLOR = Color.TRANSPARENT;
+
     private final float mDefaultRadius;
     private final float mInnerRadius;
     private final int mDefaultContainerVerticalMargin;
@@ -47,7 +49,8 @@ public class ContainmentItemController {
     private final int mDefaultPadding;
     private final int mMultiLineVerticalPadding;
     private final int mDefaultBackgroundColor;
-    static final int TRANSPARENT_BACKGROUND_COLOR = Color.TRANSPARENT;
+
+    private int mHorizontalMargin;
 
     /**
      * Constructor for the styling controller.
@@ -65,6 +68,7 @@ public class ContainmentItemController {
                 context.getResources()
                         .getDimensionPixelSize(R.dimen.settings_item_container_vertical_margin);
         mDefaultMargin = context.getResources().getDimensionPixelSize(R.dimen.settings_item_margin);
+        mHorizontalMargin = mDefaultMargin;
         mSectionBottomAdditionalMargin =
                 context.getResources()
                         .getDimensionPixelSize(R.dimen.settings_section_bottom_margin);
@@ -74,6 +78,11 @@ public class ContainmentItemController {
                 context.getResources()
                         .getDimensionPixelSize(R.dimen.settings_item_vertical_padding_multi_line);
         mDefaultBackgroundColor = getSettingsContainerBackgroundColor(context);
+    }
+
+    /** Sets the horizontal margin for container items. */
+    public void setHorizontalMargin(int margin) {
+        mHorizontalMargin = margin;
     }
 
     /**
@@ -127,7 +136,7 @@ public class ContainmentItemController {
         if (currentPref instanceof PreferenceCategory) {
             return new ContainerStyle.Builder()
                     .setBottomMargin(mDefaultMargin)
-                    .setHorizontalMargin(mDefaultMargin)
+                    .setHorizontalMargin(mHorizontalMargin)
                     .setBackgroundColor(TRANSPARENT_BACKGROUND_COLOR)
                     .build();
         }
@@ -252,7 +261,7 @@ public class ContainmentItemController {
             ContainerStyle.Builder containerStyleBuilder, boolean isSingleLine) {
         containerStyleBuilder
                 .setTopMargin(mDefaultContainerVerticalMargin)
-                .setHorizontalMargin(mDefaultMargin)
+                .setHorizontalMargin(mHorizontalMargin)
                 .setVerticalPadding(isSingleLine ? mDefaultPadding : mMultiLineVerticalPadding)
                 .setBackgroundColor(mDefaultBackgroundColor);
     }

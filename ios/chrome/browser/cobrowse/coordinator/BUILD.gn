@@ -27,6 +27,7 @@ source_set("coordinator") {
     "//ios/chrome/browser/composebox/public",
     "//ios/chrome/browser/composebox/ui",
     "//ios/chrome/browser/lens_overlay/model",
+    "//ios/chrome/browser/metrics/model:activity_reporter",
     "//ios/chrome/browser/shared/coordinator/chrome_coordinator",
     "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
     "//ios/chrome/browser/shared/coordinator/scene/state",
@@ -53,7 +54,10 @@ source_set("coordinator") {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "assistant_aim_mediator_unittest.mm" ]
+  sources = [
+    "assistant_aim_coordinator_unittest.mm",
+    "assistant_aim_mediator_unittest.mm",
+  ]
   deps = [
     ":coordinator",
     "//base",
@@ -61,12 +65,16 @@ source_set("unit_tests") {
     "//components/contextual_tasks/public",
     "//components/strings",
     "//ios/chrome/app/strings",
+    "//ios/chrome/browser/aim/model:aim_availability",
+    "//ios/chrome/browser/aim/model:test_support",
     "//ios/chrome/browser/assistant/coordinator:commands",
     "//ios/chrome/browser/assistant/ui:detent",
     "//ios/chrome/browser/cobrowse/debugger:unit_tests",
     "//ios/chrome/browser/cobrowse/model",
     "//ios/chrome/browser/cobrowse/ui",
     "//ios/chrome/browser/cobrowse/ui:constants",
+    "//ios/chrome/browser/metrics/model:activity_reporter",
+    "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
     "//ios/chrome/browser/shared/model/application_context",
     "//ios/chrome/browser/shared/model/browser/test:test_support",
     "//ios/chrome/browser/shared/model/profile/test",

@@ -18,7 +18,9 @@ absl_source_set("any_invocable") {
 
 absl_test("any_invocable_test") {
   sources = [
-    "any_invocable_test.cc",
+    "any_invocable_test.h",
+    "any_invocable_test_inst1.cc",
+    "any_invocable_test_inst2.cc",
     "internal/any_invocable.h",
   ]
   deps = [

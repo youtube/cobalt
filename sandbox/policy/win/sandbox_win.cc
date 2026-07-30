@@ -1146,11 +1146,9 @@ std::optional<size_t> SandboxWin::GetJobMemoryLimit(Sandbox sandbox_type) {
       // Scale based on available physical memory, up to 64 GB.
       return get_scaled_physical_memory_based_limit();
     case Sandbox::kWebNNModelCompilation:
-      // TODO(crbug.com/502616233): Consider adding a dedicated feature flag to
-      // allow higher memory limits (e.g. 1 TB) for the WebNN compilation
-      // process, similar to kWinSboxHighGPUJobMemoryLimits for the GPU process.
-      // Scale based on available physical memory, up to 64 GB.
-      return get_scaled_physical_memory_based_limit();
+      // Allow up to 1 TB for the WebNN Compiler process, matching the renderer
+      // process limit.
+      return 1024 * GB;
     case Sandbox::kRenderer:
       // Allow up to 1 TB for the renderer process.
       return 1024 * GB;

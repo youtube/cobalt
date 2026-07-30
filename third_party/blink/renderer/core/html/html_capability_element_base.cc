@@ -25,6 +25,7 @@
 #include "third_party/blink/renderer/core/css/resolver/style_resolver.h"
 #include "third_party/blink/renderer/core/css/style_change_reason.h"
 #include "third_party/blink/renderer/core/css/style_color.h"
+#include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/dom/dom_node_ids.h"
 #include "third_party/blink/renderer/core/dom/dom_token_list.h"
 #include "third_party/blink/renderer/core/dom/element.h"
@@ -68,6 +69,7 @@
 #include "third_party/blink/renderer/platform/wtf/std_lib_extras.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "third_party/blink/renderer/platform/wtf/text/strcat.h"
+#include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_utf8_adaptor.h"
 #include "ui/gfx/color_utils.h"
 #include "ui/gfx/geometry/rect_conversions.h"
@@ -984,6 +986,7 @@ void HTMLCapabilityElementBase::HandleActivation(Event& event,
           protocol::Audits::PermissionElementIssueTypeEnum::RequestInProgress,
           GetType(), /*is_warning=*/false);
       RecordPermissionElementUserInteractionAccepted(TagQName(), false);
+      OnActivationFailed("A permission request is already in progress.");
       return;
     }
 
@@ -992,6 +995,8 @@ void HTMLCapabilityElementBase::HandleActivation(Event& event,
                                                    is_user_interaction_enabled);
     if (is_user_interaction_enabled) {
       std::move(on_success).Run();
+    } else {
+      OnActivationFailed(GetActivationErrorMessage());
     }
   } else {
     // For automated testing purposes this behavior can be overridden by
@@ -1005,7 +1010,38 @@ void HTMLCapabilityElementBase::HandleActivation(Event& event,
 
     RecordPermissionElementUserInteractionDeniedReason(
         TagQName(), UserInteractionDeniedReason::kUntrustedEvent);
+    OnActivationFailed(
+        "The permission element activation must be triggered by a user "
+        "gesture.");
   }
+}
+
+String HTMLCapabilityElementBase::GetActivationErrorMessage() const {
+  String error_message = "The permission element is disabled.";
+
+  if (permission_descriptors_.empty()) {
+    error_message = "The permission element is not fully initialized.";
+  } else if (!is_registered_in_browser_process_) {
+    error_message =
+        "The permission element is not registered in the browser process.";
+  } else if (!clicking_disabled_reasons_.empty()) {
+    Vector<String> reasons;
+    for (const auto& it : clicking_disabled_reasons_) {
+      reasons.push_back(DisableReasonToString(it.key));
+    }
+    StringBuilder builder;
+    builder.Append("The permission element is disabled due to: ");
+    for (wtf_size_t i = 0; i < reasons.size(); ++i) {
+      if (i > 0) {
+        builder.Append(", ");
+      }
+      builder.Append(reasons[i]);
+    }
+    builder.Append(".");
+    error_message = builder.ToString();
+  }
+
+  return error_message;
 }
 
 void HTMLCapabilityElementBase::DefaultEventHandler(Event& event) {

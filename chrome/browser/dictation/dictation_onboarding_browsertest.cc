@@ -1,0 +1,122 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "chrome/browser/dictation/dictation_interactive_browser_test_base.h"
+#include "chrome/browser/dictation/dictation_keyed_service.h"
+#include "chrome/browser/dictation/session_state.h"
+#include "chrome/browser/dictation/test_util.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/views/dictation/onboarding_dialog_controller.h"
+#include "chrome/common/pref_names.h"
+#include "chrome/test/interaction/interactive_browser_test.h"
+#include "components/prefs/pref_service.h"
+#include "content/public/test/browser_test.h"
+#include "ui/base/interaction/element_identifier.h"
+
+namespace dictation {
+
+class DictationOnboardingInteractiveTest
+    : public DictationInteractiveBrowserTestBase {
+ public:
+  DictationOnboardingInteractiveTest() = default;
+  ~DictationOnboardingInteractiveTest() override = default;
+
+  StepBuilder CheckHasCompletedOnboardingPref(bool expected) {
+    return CheckResult(
+        [this]() {
+          return profile()->GetPrefs()->GetBoolean(
+              prefs::kPrefDictationOnboardingCompleted);
+        },
+        expected);
+  }
+
+  StepBuilder SetHasCompletedOnboardingPref(bool completed) {
+    return Do([this, completed]() {
+      profile()->GetPrefs()->SetBoolean(
+          prefs::kPrefDictationOnboardingCompleted, completed);
+    });
+  }
+
+  void SetUpOnMainThread() override {
+    DictationInteractiveBrowserTestBase::SetUpOnMainThread();
+    // Ensure onboarding is NOT complete at the start of the test.
+    profile()->GetPrefs()->SetBoolean(prefs::kPrefDictationOnboardingCompleted,
+                                      false);
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(DictationOnboardingInteractiveTest,
+                       InitialStateOfOnboardingPrefIsFalse) {
+  RunTestSequence(CheckHasCompletedOnboardingPref(false));
+}
+
+IN_PROC_BROWSER_TEST_F(DictationOnboardingInteractiveTest,
+                       ShowOnboardingAndComplete) {
+  // clang-format off
+  RunTestSequence(
+      // Try starting a session. It should show the onboarding dialog since it's
+      // the first run.
+      CheckHasSession(false),
+      StartSession(),
+      WaitForShow(kDictationOnboardingDialogElementId),
+
+      // The session must not be started.
+      CheckHasSession(false),
+
+      // Complete the onboarding
+      PressButton(kDictationOnboardingOkButtonElementId),
+      WaitForHide(kDictationOnboardingDialogElementId),
+
+      // Verify the pref is set to completed and the session started.
+      CheckHasCompletedOnboardingPref(true),
+      CheckHasSession(true)
+  );
+  // clang-format on
+}
+
+IN_PROC_BROWSER_TEST_F(DictationOnboardingInteractiveTest,
+                       ShowOnboardingAndCancel) {
+  // clang-format off
+  RunTestSequence(
+      // Try starting a session. It should show the onboarding dialog since it's
+      // the first run.
+      CheckHasSession(false),
+      StartSession(),
+      WaitForShow(kDictationOnboardingDialogElementId),
+
+      // The session must not be started.
+      CheckHasSession(false),
+
+      // Cancel the onboarding
+      PressButton(kDictationOnboardingCancelButtonElementId),
+      WaitForHide(kDictationOnboardingDialogElementId),
+
+      // Verify the pref is still false, and no session is started.
+      CheckHasCompletedOnboardingPref(false),
+      CheckHasSession(false)
+  );
+  // clang-format on
+}
+
+IN_PROC_BROWSER_TEST_F(DictationOnboardingInteractiveTest,
+                       BypassOnboardingIfAlreadyCompleted) {
+  // clang-format off
+  RunTestSequence(
+      // Set the pref to completed.
+      SetHasCompletedOnboardingPref(true),
+      CheckHasCompletedOnboardingPref(true),
+      CheckHasSession(false),
+
+      // Start the session. It should bypass onboarding and start immediately.
+      StartSession(),
+      CheckHasSession(true),
+
+      // Verify the dialog was never shown.
+      EnsureNotPresent(kDictationOnboardingDialogElementId)
+  );
+  // clang-format on
+}
+
+}  // namespace dictation

@@ -62,13 +62,8 @@ class NavigationCapturingBrowserNavigatorBrowserTest
     : public WebAppBrowserTestBase {
  public:
   NavigationCapturingBrowserNavigatorBrowserTest() {
-#if BUILDFLAG(IS_CHROMEOS)
-    enabled_features = apps::test::GetFeaturesToEnableLinkCapturingUX(
-        apps::test::LinkCapturingFeatureVersion::kV2DefaultOff);
-#else
     enabled_features = apps::test::GetFeaturesToEnableLinkCapturingUX(
         apps::test::LinkCapturingFeatureVersion::kV2DefaultOn);
-#endif
 
     enabled_features.emplace_back(blink::features::kDesktopPWAsTabStrip,
                                   base::FieldTrialParams());
@@ -133,10 +128,6 @@ class NavigationCapturingBrowserNavigatorBrowserTest
     web_app_info->launch_handler = blink::Manifest::LaunchHandler(client_mode);
     const webapps::AppId app_id =
         test::InstallWebApp(profile(), std::move(web_app_info));
-#if BUILDFLAG(IS_CHROMEOS)
-    EXPECT_EQ(apps::test::EnableLinkCapturingByUser(profile(), app_id),
-              base::ok());
-#endif
     return app_id;
   }
 
@@ -200,10 +191,6 @@ IN_PROC_BROWSER_TEST_F(NavigationCapturingBrowserNavigatorBrowserTest,
   provider().scheduler().SetUserDisplayMode(
       app_id, mojom::UserDisplayMode::kBrowser, future.GetCallback());
   ASSERT_TRUE(future.Wait());
-#if BUILDFLAG(IS_CHROMEOS)
-  EXPECT_EQ(apps::test::EnableLinkCapturingByUser(profile(), app_id),
-            base::ok());
-#endif
   base::HistogramTester histograms;
   // Create a new browser which will be considered the most recently active one.
   Browser* new_browser =
@@ -306,10 +293,6 @@ IN_PROC_BROWSER_TEST_F(NavigationCapturingBrowserNavigatorBrowserTest,
                        NavigateBrowserUsedForNavigateExistingAppWindow) {
   const webapps::AppId& app_id =
       InstallWebAppInNewTabAndClose(browser(), GetNavigateExistingUrl());
-#if BUILDFLAG(IS_CHROMEOS)
-  EXPECT_EQ(apps::test::EnableLinkCapturingByUser(profile(), app_id),
-            base::ok());
-#endif
 
   Browser* app_browser_1 = nullptr;
   Browser* app_browser_2 = nullptr;
@@ -366,10 +349,6 @@ IN_PROC_BROWSER_TEST_F(NavigationCapturingBrowserNavigatorBrowserTest,
                        NavigateBrowserUsedForFocusExistingAppWindow) {
   const webapps::AppId& app_id =
       InstallWebAppInNewTabAndClose(browser(), GetFocusExistingUrl());
-#if BUILDFLAG(IS_CHROMEOS)
-  EXPECT_EQ(apps::test::EnableLinkCapturingByUser(profile(), app_id),
-            base::ok());
-#endif
 
   // Launch 2 distinct app_browsers for the same app_id. Since `app_browser_2`
   // is created last, ensure that is activated.
@@ -432,10 +411,6 @@ IN_PROC_BROWSER_TEST_F(NavigationCapturingBrowserNavigatorBrowserTest,
                        FocusExistingUsesLatestActivatedAppWindow) {
   const webapps::AppId& app_id =
       InstallWebAppInNewTabAndClose(browser(), GetFocusExistingUrl());
-#if BUILDFLAG(IS_CHROMEOS)
-  EXPECT_EQ(apps::test::EnableLinkCapturingByUser(profile(), app_id),
-            base::ok());
-#endif
 
   // Launch 2 distinct app_browsers for the same app_id. Since `app_browser_2`
   // is created last, ensure that is activated, and will be used for launching
@@ -482,10 +457,6 @@ IN_PROC_BROWSER_TEST_F(NavigationCapturingBrowserNavigatorBrowserTest,
                        FocusExistingWithBrowserAvoidsOutOfScope) {
   const webapps::AppId& app_id =
       InstallWebAppInNewTabAndClose(browser(), GetFocusExistingUrl());
-#if BUILDFLAG(IS_CHROMEOS)
-  EXPECT_EQ(apps::test::EnableLinkCapturingByUser(profile(), app_id),
-            base::ok());
-#endif
   GURL out_of_scope =
       embedded_test_server()->GetURL("/web_apps/simple2/index.html");
 
@@ -534,10 +505,6 @@ IN_PROC_BROWSER_TEST_F(NavigationCapturingBrowserNavigatorBrowserTest,
                        NavigateExistingIgnoresNonHtml) {
   const webapps::AppId app_id =
       InstallWebAppInNewTabAndClose(browser(), GetFocusExistingUrl());
-#if BUILDFLAG(IS_CHROMEOS)
-  EXPECT_EQ(apps::test::EnableLinkCapturingByUser(profile(), app_id),
-            base::ok());
-#endif
 
   GURL image_url = embedded_test_server()->GetURL(
       "/web_apps/simple_focus_existing/basic-48.png");
@@ -722,10 +689,6 @@ IN_PROC_BROWSER_TEST_F(
   // separate browser is populated with a matching tab.
   const webapps::AppId& app_id =
       InstallWebAppInNewTabAndClose(browser(), GetNavigateExistingUrl());
-#if BUILDFLAG(IS_CHROMEOS)
-  EXPECT_EQ(apps::test::EnableLinkCapturingByUser(profile(), app_id),
-            base::ok());
-#endif
 
   // Launch app in an app browser that will be passed in as the browser for
   // NavigateParams.
@@ -797,10 +760,6 @@ IN_PROC_BROWSER_TEST_F(
   // separate browser is populated with a matching tab.
   const webapps::AppId& app_id =
       InstallWebAppInNewTabAndClose(browser(), GetFocusExistingUrl());
-#if BUILDFLAG(IS_CHROMEOS)
-  EXPECT_EQ(apps::test::EnableLinkCapturingByUser(profile(), app_id),
-            base::ok());
-#endif
 
   // Launch app in an app browser that will be passed in as the browser for
   // NavigateParams.
@@ -864,10 +823,6 @@ IN_PROC_BROWSER_TEST_F(LaunchQueueLatencyMetricBrowserTest,
   provider().scheduler().SetUserDisplayMode(
       app_id, mojom::UserDisplayMode::kBrowser, future.GetCallback());
   ASSERT_TRUE(future.Wait());
-#if BUILDFLAG(IS_CHROMEOS)
-  EXPECT_EQ(apps::test::EnableLinkCapturingByUser(profile(), app_id),
-            base::ok());
-#endif
 
   // Create a new browser which will be considered the most recently active one.
   Browser* new_browser =
@@ -927,11 +882,6 @@ IN_PROC_BROWSER_TEST_F(LaunchContainerMetricMeasurementTest,
       InstallWebAppInNewTabAndClose(browser(), GetFocusExistingUrl());
   const webapps::AppId& dest_app =
       InstallWebAppInNewTabAndClose(browser(), GetNavigateExistingUrl());
-
-#if BUILDFLAG(IS_CHROMEOS)
-  EXPECT_EQ(apps::test::EnableLinkCapturingByUser(profile(), dest_app),
-            base::ok());
-#endif
 
   // Trigger a navigation to `kNavigateExistingUrl`. This should end up in the
   // browser tab.
@@ -1010,10 +960,6 @@ IN_PROC_BROWSER_TEST_F(NavigationCapturingWithRedirectionBrowserNavigatorTest,
   provider().scheduler().SetUserDisplayMode(
       app_id, mojom::UserDisplayMode::kBrowser, future.GetCallback());
   ASSERT_TRUE(future.Wait());
-#if BUILDFLAG(IS_CHROMEOS)
-  EXPECT_EQ(apps::test::EnableLinkCapturingByUser(profile(), app_id),
-            base::ok());
-#endif
   InstallTestWebApp(GetRedirectFromPage(), mojom::UserDisplayMode::kStandalone);
   // Create a new browser which will be considered the most recently active one.
   Browser* new_browser =

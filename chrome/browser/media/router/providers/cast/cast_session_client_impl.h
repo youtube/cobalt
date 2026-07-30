@@ -13,7 +13,6 @@
 #include "components/media_router/common/providers/cast/channel/cast_message_handler.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
-#include "services/data_decoder/public/cpp/data_decoder.h"
 
 namespace media_router {
 
@@ -61,8 +60,6 @@ class CastSessionClientImpl : public CastSessionClient,
       blink::mojom::PresentationConnectionCloseReason reason) override;
 
  private:
-  void HandleParsedClientMessage(
-      data_decoder::DataDecoder::ValueOrError result);
   void HandleV2ProtocolMessage(const CastInternalMessage& cast_message);
 
   // Resets the PresentationConnection Mojo message pipes.

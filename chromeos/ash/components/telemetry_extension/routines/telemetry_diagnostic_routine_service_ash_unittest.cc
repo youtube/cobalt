@@ -28,7 +28,7 @@ namespace {
 namespace crosapi = ::crosapi::mojom;
 namespace healthd = cros_healthd::mojom;
 
-class TestRoutineObserver : crosapi::TelemetryDiagnosticRoutineObserver {
+class TestRoutineObserver : healthd::RoutineObserver {
  public:
   TestRoutineObserver() = default;
   TestRoutineObserver(const TestRoutineObserver&) = delete;
@@ -36,30 +36,23 @@ class TestRoutineObserver : crosapi::TelemetryDiagnosticRoutineObserver {
   ~TestRoutineObserver() override = default;
 
   // `TelemetryDiagnosticRoutineObserver`:
-  void OnRoutineStateChange(
-      crosapi::TelemetryDiagnosticRoutineStatePtr state) override {
+  void OnRoutineStateChange(healthd::RoutineStatePtr state) override {
     future_.AddValue(std::move(state));
   }
 
-  crosapi::TelemetryDiagnosticRoutineStatePtr WaitForNextValue() {
-    return future_.Take();
-  }
+  healthd::RoutineStatePtr WaitForNextValue() { return future_.Take(); }
 
-  mojo::PendingRemote<crosapi::TelemetryDiagnosticRoutineObserver>
-  GetPendingRemote() {
+  mojo::PendingRemote<healthd::RoutineObserver> GetPendingRemote() {
     return receiver_.BindNewPipeAndPassRemote();
   }
 
-  mojo::Receiver<crosapi::TelemetryDiagnosticRoutineObserver>& GetReceiver() {
-    return receiver_;
-  }
+  mojo::Receiver<healthd::RoutineObserver>& GetReceiver() { return receiver_; }
 
   void Reset() { receiver_.reset(); }
 
  private:
-  base::test::RepeatingTestFuture<crosapi::TelemetryDiagnosticRoutineStatePtr>
-      future_;
-  mojo::Receiver<crosapi::TelemetryDiagnosticRoutineObserver> receiver_{this};
+  base::test::RepeatingTestFuture<healthd::RoutineStatePtr> future_;
+  mojo::Receiver<healthd::RoutineObserver> receiver_{this};
 };
 
 }  // namespace
@@ -69,13 +62,12 @@ class TelemetryDiagnosticsRoutineServiceAshTest : public testing::Test {
   void SetUp() override { cros_healthd::FakeCrosHealthd::Initialize(); }
   void TearDown() override { cros_healthd::FakeCrosHealthd::Shutdown(); }
 
-  crosapi::TelemetryDiagnosticRoutinesService* routines_service() const {
+  ash::TelemetryDiagnosticsRoutineServiceAsh* routines_service() const {
     return routines_service_.get();
   }
 
-  mojo::PendingRemote<crosapi::TelemetryDiagnosticRoutineObserver>
-  GetEmptyObserver() {
-    return mojo::PendingRemote<crosapi::TelemetryDiagnosticRoutineObserver>();
+  mojo::PendingRemote<healthd::RoutineObserver> GetEmptyObserver() {
+    return mojo::PendingRemote<healthd::RoutineObserver>();
   }
 
  protected:
@@ -89,9 +81,8 @@ class TelemetryDiagnosticsRoutineServiceAshTest : public testing::Test {
   base::test::TaskEnvironment task_environment_;
 
   // Ash-side implementation of the interface.
-  std::unique_ptr<crosapi::TelemetryDiagnosticRoutinesService>
-      routines_service_{
-          TelemetryDiagnosticsRoutineServiceAsh::Factory::Create()};
+  std::unique_ptr<ash::TelemetryDiagnosticsRoutineServiceAsh> routines_service_{
+      std::make_unique<ash::TelemetryDiagnosticsRoutineServiceAsh>()};
   mojo_service_manager::FakeMojoServiceManager fake_service_manager_;
 };
 
@@ -226,11 +217,10 @@ TEST_F(TelemetryDiagnosticsRoutineServiceAshTest, CreateAndStartRoutine) {
           healthd::RoutineArgument::Tag::kUnrecognizedArgument);
   ASSERT_TRUE(fake_controller);
 
-  EXPECT_EQ(
-      observer.WaitForNextValue(),
-      crosapi::TelemetryDiagnosticRoutineState::New(
-          0, crosapi::TelemetryDiagnosticRoutineStateUnion::NewInitialized(
-                 crosapi::TelemetryDiagnosticRoutineStateInitialized::New())));
+  EXPECT_EQ(observer.WaitForNextValue(),
+            healthd::RoutineState::New(
+                0, healthd::RoutineStateUnion::NewInitialized(
+                       healthd::RoutineStateInitialized::New())));
   EXPECT_TRUE(fake_controller->has_start_been_called());
 }
 
@@ -265,15 +255,14 @@ TEST_F(TelemetryDiagnosticsRoutineServiceAshTest, RoutineObserver) {
   FlushForTesting();
 
   // The first event we observe is always the init event.
-  EXPECT_EQ(
-      observer.WaitForNextValue(),
-      crosapi::TelemetryDiagnosticRoutineState::New(
-          0, crosapi::TelemetryDiagnosticRoutineStateUnion::NewInitialized(
-                 crosapi::TelemetryDiagnosticRoutineStateInitialized::New())));
   EXPECT_EQ(observer.WaitForNextValue(),
-            crosapi::TelemetryDiagnosticRoutineState::New(
-                kPercentage, crosapi::TelemetryDiagnosticRoutineStateUnion::
-                                 NewUnrecognizedArgument(true)));
+            healthd::RoutineState::New(
+                0, healthd::RoutineStateUnion::NewInitialized(
+                       healthd::RoutineStateInitialized::New())));
+  EXPECT_EQ(observer.WaitForNextValue(),
+            healthd::RoutineState::New(
+                kPercentage,
+                healthd::RoutineStateUnion::NewUnrecognizedArgument(true)));
 }
 
 TEST_F(TelemetryDiagnosticsRoutineServiceAshTest, OnCrosapiDisconnectControl) {
@@ -413,25 +402,18 @@ TEST_F(TelemetryDiagnosticsRoutineServiceAshTest,
   ASSERT_TRUE(fake_controller->GetObserver());
 
   base::test::TestFuture<void> crosapi_control;
-  base::test::TestFuture<void> crosapi_observer;
   base::test::TestFuture<void> cros_healthd_control;
-  base::test::TestFuture<void> cros_healthd_observer;
 
   control_remote.set_disconnect_handler(crosapi_control.GetCallback());
-  observer.GetReceiver().set_disconnect_handler(crosapi_observer.GetCallback());
   fake_controller->GetReceiver()->set_disconnect_handler(
       cros_healthd_control.GetCallback());
-  fake_controller->GetObserver()->set_disconnect_handler(
-      cros_healthd_observer.GetCallback());
 
   ResetDiagnosticsRoutinesService();
 
   FlushForTesting();
 
   EXPECT_TRUE(crosapi_control.Wait());
-  EXPECT_TRUE(crosapi_observer.Wait());
   EXPECT_TRUE(cros_healthd_control.Wait());
-  EXPECT_TRUE(cros_healthd_observer.Wait());
 }
 
 }  // namespace ash

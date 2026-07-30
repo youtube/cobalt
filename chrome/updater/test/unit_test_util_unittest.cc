@@ -19,7 +19,6 @@
 #include "base/process/launch.h"
 #include "base/process/process.h"
 #include "base/strings/string_util.h"
-#include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/test/test_timeouts.h"
@@ -27,6 +26,7 @@
 #include "chrome/updater/test/integration_tests_impl.h"
 #include "chrome/updater/test/test_scope.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/strings/str_format.h"
 #include "third_party/re2/src/re2/re2.h"
 
 #if BUILDFLAG(IS_WIN)
@@ -59,7 +59,7 @@ TEST(UnitTestUtil, Processes) {
   auto print_processes_tester =
       [](const base::FilePath::StringType& process_name) {
         const std::string print_processes = PrintProcesses(process_name);
-        const std::string regex_string = base::StringPrintf(
+        const std::string regex_string = absl::StrFormat(
             R"(Found processes:\n)"
             R"(={72}\n(%s, pid=\d*, creation time=.*\n){2}={72}\n$)",
             ToString(process_name).c_str());

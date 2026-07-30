@@ -426,6 +426,8 @@ blink_core_sources_html = [
   "html_style_element.h",
   "html_stream.cc",
   "html_stream.h",
+  "html_sub_menu_element.cc",
+  "html_sub_menu_element.h",
   "html_summary_element.cc",
   "html_summary_element.h",
   "html_table_caption_element.cc",

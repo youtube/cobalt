@@ -15,6 +15,7 @@
 #include "third_party/blink/renderer/platform/fonts/font_description.h"
 #include "third_party/blink/renderer/platform/fonts/simple_font_data.h"
 #include "third_party/blink/renderer/platform/testing/font_test_base.h"
+#include "third_party/blink/renderer/platform/testing/font_test_helpers.h"
 #include "third_party/blink/renderer/platform/testing/testing_platform_support.h"
 
 namespace blink {
@@ -207,6 +208,15 @@ TEST_F(FontCacheTest, Locale) {
   key2.SetLocale(AtomicString("ja"));
   EXPECT_NE(key1.GetHash(), key2.GetHash());
   EXPECT_NE(key1, key2);
+}
+
+TEST_F(FontCacheTest, PrewarmFamily) {
+  test::ScopedTestFontPrewarmer prewarmer;
+  EXPECT_EQ(prewarmer.PrewarmedFamilyNames().size(), 0u);
+  FontCache::PrewarmFamily(AtomicString("test-font-cache-prewarm-family"));
+  EXPECT_EQ(prewarmer.PrewarmedFamilyNames().size(), 1u);
+  EXPECT_EQ(prewarmer.PrewarmedFamilyNames()[0],
+            "test-font-cache-prewarm-family");
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 

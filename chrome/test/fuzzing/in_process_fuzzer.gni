@@ -64,11 +64,7 @@ template("in_process_fuzzer") {
 
       msan_options = sanitizer_options
 
-      # Again, these are full browser tests, so it needs a fairly high memory
-      # limit so that it runs correctly.
       libfuzzer_options = [
-        "rss_limit_mb=8192",
-
         # We can't allow libfuzzer to fork because these fuzzers may have
         # pre-existing threads. See crbug.com/325928325
         "fork=0",
@@ -95,8 +91,6 @@ template("in_process_fuzzer") {
         # For testing. Those fuzzers are extremely slow on ClusterFuzz, and
         # using this option doesn't help.
         "fork_server=0",
-
-        "rss_limit_mb=8192",
 
         # This value is the one used by CF for Centipede fuzzers.
         # Default computed timeout per batch is ridiculously low (1127, which

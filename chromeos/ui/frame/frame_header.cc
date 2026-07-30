@@ -352,6 +352,15 @@ void FrameHeader::SetFrameTextOverride(
   SchedulePaintForTitle();
 }
 
+void FrameHeader::SetPaintTitleBar(bool paint_title_bar) {
+  if (paint_title_bar_ == paint_title_bar) {
+    return;
+  }
+
+  paint_title_bar_ = paint_title_bar;
+  SchedulePaintForTitle();
+}
+
 ui::ColorId FrameHeader::GetColorIdForCurrentMode() const {
   return mode_ == MODE_ACTIVE ? ui::kColorFrameActive : ui::kColorFrameInactive;
 }
@@ -432,6 +441,9 @@ void FrameHeader::UpdateCaptionButtonColors(
 }
 
 void FrameHeader::PaintTitleBar(gfx::Canvas* canvas) {
+  if (!paint_title_bar_) {
+    return;
+  }
   std::u16string text = frame_text_override_;
   views::WidgetDelegate* target_widget_delegate =
       target_widget_->widget_delegate();

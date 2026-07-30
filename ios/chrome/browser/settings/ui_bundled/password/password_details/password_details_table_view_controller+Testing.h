@@ -12,7 +12,6 @@
 @interface PasswordDetailsTableViewController (Testing)
 - (void)copyPasswordDetailsHelper:(NSInteger)itemType
                        completion:(void (^)())completion;
-;
 @end
 
 #endif  // IOS_CHROME_BROWSER_SETTINGS_UI_BUNDLED_PASSWORD_PASSWORD_DETAILS_PASSWORD_DETAILS_TABLE_VIEW_CONTROLLER_TESTING_H_

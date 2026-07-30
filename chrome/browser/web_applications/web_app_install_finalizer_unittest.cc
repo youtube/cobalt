@@ -21,10 +21,10 @@
 #include "build/buildflag.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/ui/web_applications/test/isolated_web_app_test_utils.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_integrity_block_data.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
 #include "chrome/browser/web_applications/isolated_web_apps/test/isolated_web_app_builder.h"
 #include "chrome/browser/web_applications/jobs/finalize_install_job.h"
+#include "chrome/browser/web_applications/model/integrity_block_data.h"
 #include "chrome/browser/web_applications/proto/web_app_install_state.pb.h"
 #include "chrome/browser/web_applications/scope_extension_info.h"
 #include "chrome/browser/web_applications/test/fake_os_integration_manager.h"
@@ -558,8 +558,7 @@ TEST_F(WebAppInstallFinalizerUnitTest, IsolationDataSetInWebAppDB) {
       IwaStorageUnownedBundle{base::FilePath(FILE_PATH_LITERAL("p"))});
   FinalizeJobOptions options(webapps::WebappInstallSource::EXTERNAL_POLICY);
 
-  auto integrity_block_data =
-      IsolatedWebAppIntegrityBlockData(test::CreateSignatures());
+  auto integrity_block_data = IntegrityBlockData(test::CreateSignatures());
   options.iwa_options =
       FinalizeJobOptions::IwaOptions(location, integrity_block_data);
 

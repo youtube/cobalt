@@ -135,6 +135,6 @@ export interface InkAnnotationTextMixinInterface {
   isSelectedSize(size: number): boolean;
   onTypefaceSelected(e: Event): void;
   onCurrentColorChanged(e: CustomEvent<{value: Color}>): void;
-  onSizeSelected(e: CustomEvent<{value: number}>): void;
+  onSizeSelected(e: Event): void;
   onTextAttributesChanged(attributes: TextAttributes): void;
 }

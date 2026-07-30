@@ -477,7 +477,7 @@ TEST_F(OverscrollAreaTrackerTest, BackdropClickDismiss) {
         left: -50%;
         top: -50%;
       }
-      #menu::backdrop {
+      #menu::overscroll-backdrop {
         background-color: rgba(0,0,0,0.5);
       }
     </style>
@@ -505,7 +505,7 @@ TEST_F(OverscrollAreaTrackerTest, BackdropClickDismiss) {
 
   EXPECT_NE(scrollable_area->GetScrollOffset(), ScrollOffset());
 
-  PseudoElement* backdrop = menu->GetPseudoElement(kPseudoIdBackdrop);
+  PseudoElement* backdrop = menu->GetPseudoElement(kPseudoIdOverscrollBackdrop);
   ASSERT_TRUE(backdrop);
 
   PointerEventInit* init = PointerEventInit::Create();

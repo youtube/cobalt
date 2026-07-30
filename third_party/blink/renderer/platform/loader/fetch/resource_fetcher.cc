@@ -133,18 +133,6 @@ String LinkAsAttributeToString(network::mojom::LinkAsAttribute as) {
   }
 }
 
-CrossOriginAttributeValue CrossOriginAttributeToBlink(
-    network::mojom::CrossOriginAttribute attr) {
-  switch (attr) {
-    case network::mojom::CrossOriginAttribute::kAnonymous:
-      return kCrossOriginAttributeAnonymous;
-    case network::mojom::CrossOriginAttribute::kUseCredentials:
-      return kCrossOriginAttributeUseCredentials;
-    case network::mojom::CrossOriginAttribute::kUnspecified:
-      return kCrossOriginAttributeNotSet;
-  }
-}
-
 constexpr base::TimeDelta kKeepaliveLoadersTimeout = base::Seconds(30);
 
 // Timeout for link preloads to be used after window.onload
@@ -2447,6 +2435,35 @@ void ResourceFetcher::SetEarlyHintsPreloadedResources(
     }
   }
   unused_early_hints_preloaded_resources_ = std::move(resources);
+}
+
+void ResourceFetcher::RecordPreconnect(const KURL& url,
+                                       CrossOriginAttributeValue crossorigin,
+                                       bool early_hints) {
+  if (!RuntimeEnabledFeatures::SpeculationMeasurementEnabled(
+          context_->GetFeatureContext())) {
+    return;
+  }
+  if (!url.IsValid()) {
+    return;
+  }
+  // Preconnect acts at origin granularity; collapse the URL to its origin.
+  const String origin = SecurityOrigin::Create(url)->ToString();
+  // Preconnects with distinct crossorigin values to the same origin are
+  // reported separately.
+  const String key =
+      origin + "|" + String::Number(static_cast<int>(crossorigin));
+  auto it = preconnect_records_.find(key);
+  if (it == preconnect_records_.end()) {
+    PreconnectInfo info;
+    info.origin = origin;
+    info.crossorigin = crossorigin;
+    info.early_hints = early_hints;
+    preconnect_records_.insert(key, std::move(info));
+  } else if (early_hints) {
+    // A duplicate that arrived via Early Hints upgrades the existing entry.
+    it->value.early_hints = true;
+  }
 }
 
 void ResourceFetcher::ScheduleWarnUnusedPreloads(

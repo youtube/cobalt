@@ -15,10 +15,8 @@ namespace media {
 
 class MEDIA_EXPORT ChannelMixingMatrix {
  public:
-  ChannelMixingMatrix(ChannelLayout input_layout,
-                      int input_channels,
-                      ChannelLayout output_layout,
-                      int output_channels);
+  ChannelMixingMatrix(ChannelLayoutConfig input_config,
+                      ChannelLayoutConfig output_config);
 
   ChannelMixingMatrix(const ChannelMixingMatrix&) = delete;
   ChannelMixingMatrix& operator=(const ChannelMixingMatrix&) = delete;
@@ -34,11 +32,9 @@ class MEDIA_EXPORT ChannelMixingMatrix {
   // Result transformation of input channels to output channels
   raw_ptr<std::vector<std::vector<float>>> matrix_;
 
-  // Input and output channel layout provided during construction.
-  ChannelLayout input_layout_;
-  int input_channels_;
-  ChannelLayout output_layout_;
-  int output_channels_;
+  // Input and output channel config provided during construction.
+  ChannelLayoutConfig input_config_;
+  ChannelLayoutConfig output_config_;
 
   // Helper variable for tracking which inputs are currently unaccounted,
   // should be empty after construction completes.

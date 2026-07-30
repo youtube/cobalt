@@ -38,7 +38,7 @@ public class PdfToolbar extends Toolbar {
         mOnWidthChangedListener = listener;
     }
     private @Nullable View mDownloadButton;
-    private @Nullable View mRotateButton;
+    private @Nullable View mDoneButton;
     private @Nullable View mFitToPageButton;
     private @Nullable List<View> mZoomControls;
     private @Nullable List<View> mPageNav;
@@ -46,7 +46,7 @@ public class PdfToolbar extends Toolbar {
 
     private @Nullable View mPageZoomDivider;
     private @Nullable View mZoomFitDivider;
-    private @Nullable View mRotateEditDivider;
+    private @Nullable View mFitEditDivider;
 
     private @Nullable ConstraintLayout mConstraintLayout;
     private @Nullable View mCenterGroup;
@@ -66,7 +66,7 @@ public class PdfToolbar extends Toolbar {
         currentPage.setFocusableInTouchMode(true);
 
         mDownloadButton = findViewById(R.id.download_button);
-        mRotateButton = findViewById(R.id.rotate_button);
+        mDoneButton = findViewById(R.id.done_button);
         mFitToPageButton = findViewById(R.id.fit_to_page_button);
 
         mZoomControls =
@@ -85,7 +85,7 @@ public class PdfToolbar extends Toolbar {
 
         mPageZoomDivider = findViewById(R.id.page_zoom_divider);
         mZoomFitDivider = findViewById(R.id.zoom_fit_divider);
-        mRotateEditDivider = findViewById(R.id.rotate_edit_divider);
+        mFitEditDivider = findViewById(R.id.fit_edit_divider);
 
         mConstraintLayout = findViewById(R.id.pdf_toolbar_layout);
         mCenterGroup = findViewById(R.id.pdf_toolbar_group_center);
@@ -106,9 +106,8 @@ public class PdfToolbar extends Toolbar {
         updateDividersAndConstraints();
     }
 
-    void setRotateButtonVisible(boolean visible) {
-        setViewVisibility(mRotateButton, visible);
-        updateDividersAndConstraints();
+    void setDoneButtonVisible(boolean visible) {
+        setViewVisibility(mDoneButton, visible);
     }
 
     void setFitToPageButtonVisible(boolean visible) {
@@ -135,14 +134,13 @@ public class PdfToolbar extends Toolbar {
                         && !mZoomControls.isEmpty()
                         && mZoomControls.get(0) != null
                         && mZoomControls.get(0).getVisibility() == View.VISIBLE;
-        boolean showRotate = mRotateButton != null && mRotateButton.getVisibility() == View.VISIBLE;
         boolean showFit =
                 mFitToPageButton != null && mFitToPageButton.getVisibility() == View.VISIBLE;
 
         // Dividers
         setViewVisibility(mPageZoomDivider, showNavEdit && showZoom);
         setViewVisibility(mZoomFitDivider, showZoom && showFit);
-        setViewVisibility(mRotateEditDivider, showRotate && showNavEdit);
+        setViewVisibility(mFitEditDivider, showFit && showNavEdit);
 
         // Adjust title constraints
         if (mConstraintLayout != null
@@ -177,9 +175,7 @@ public class PdfToolbar extends Toolbar {
         return mDownloadButton != null && mDownloadButton.getVisibility() == View.VISIBLE;
     }
 
-    public boolean isRotateButtonVisible() {
-        return mRotateButton != null && mRotateButton.getVisibility() == View.VISIBLE;
-    }
+
 
     public boolean isFitToPageButtonVisible() {
         return mFitToPageButton != null && mFitToPageButton.getVisibility() == View.VISIBLE;

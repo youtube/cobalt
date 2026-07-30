@@ -26,8 +26,12 @@ PerformanceMark::PerformanceMark(
     scoped_refptr<SerializedScriptValue> serialized_detail,
     ExceptionState& exception_state,
     DOMWindow* source,
-    uint32_t navigation_id)
-    : PerformanceEntry(/*duration=*/0.0, name, start_time, source, navigation_id),
+    uint64_t navigation_id)
+    : PerformanceEntry(/*duration=*/0.0,
+                       name,
+                       start_time,
+                       source,
+                       navigation_id),
       serialized_detail_(std::move(serialized_detail)),
       unsafe_time_for_traces_(unsafe_time_for_traces) {}
 

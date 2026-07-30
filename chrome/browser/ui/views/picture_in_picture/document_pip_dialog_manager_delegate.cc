@@ -12,6 +12,7 @@
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
+#include "build/build_config.h"
 #include "components/javascript_dialogs/tab_modal_dialog_view.h"
 #include "content/public/browser/javascript_dialog_manager.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -175,14 +176,15 @@ class DocumentPipJavaScriptDialogView
       GetWidget()->GetRootView()->GetViewAccessibility().SetDescription(
           message_text_);
     }
-    // On some platforms, the platform accessibility API automatically
-    // calculates the name of the native window based on the child RootView. We
-    // override that calculation here so that we can present both the title
-    // (e.g. "url.com says") and the message text on platforms where the
-    // accessible description is ignored.
+#if BUILDFLAG(IS_MAC)
+    // On Mac, the platform accessibility API automatically calculates the name
+    // of the native window based on the child RootView. Override that
+    // calculation so we can present both the title (e.g. "url.com says") and
+    // the message text, since the accessible description is ignored.
     message_box_view_->GetViewAccessibility().OverrideNativeWindowTitle(
         l10n_util::GetStringFUTF16(IDS_CONCAT_TWO_STRINGS_WITH_COMMA,
                                    GetWindowTitle(), message_text_));
+#endif
   }
 
   // views::WidgetObserver:

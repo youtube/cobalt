@@ -20,6 +20,7 @@
 #include "third_party/blink/renderer/platform/graphics/graphics_context_state_saver.h"
 #include "third_party/blink/renderer/platform/graphics/skia/skia_utils.h"
 #include "third_party/blink/renderer/platform/graphics/styled_stroke_data.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 #include "third_party/skia/include/core/SkPath.h"
 #include "third_party/skia/include/core/SkPathBuilder.h"
@@ -614,6 +615,26 @@ bool DarkenBoxSide(BoxSide side, EBorderStyle style) {
 }
 
 Color CalculateInsetOutsetColor(bool is_darken, const Color& color) {
+  if (RuntimeEnabledFeatures::TableDefaultBorderColorCurrentColorEnabled()) {
+    // This algorithm is chosen to match WebKit's behavior for softening
+    // inset/outset colors.
+    constexpr float kBaseDarkColorLuminance =
+        0.014443844f;  // Luminance of rgb(32, 32, 32)
+    constexpr float kBaseLightColorLuminance =
+        0.83077f;  // Luminance of rgb(235, 235, 235)
+    float luminance = color_utils::GetRelativeLuminance4f(color.toSkColor4f());
+
+    // Special case very dark colors to give them extra contrast.
+    if (luminance <= kBaseDarkColorLuminance) {
+      return is_darken ? color.Light() : color.Light().Light();
+    }
+    if (is_darken) {
+      return color.Dark();
+    }
+    // For very light colors, return the color as-is. Otherwise, lighten it.
+    return luminance > kBaseLightColorLuminance ? color : color.Light();
+  }
+
   const Color dark_color = color.Dark();
   // Inset, outset, ridge, and groove paint a darkened or "shadow" edge:
   // https://w3c.github.io/csswg-drafts/css-backgrounds/#border-style. By

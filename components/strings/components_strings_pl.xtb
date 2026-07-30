@@ -477,6 +477,7 @@ Jeśli się nie zgodzisz, zostaną one zablokowane ze względu na Twoje ustawien
 <translation id="173080396488393970">Ten typ karty nie jest obsługiwany</translation>
 <translation id="1731563515262205847">ML-DSA-65</translation>
 <translation id="1732445923934584865">Poproś osobiście</translation>
+<translation id="1732796940245838248">Zaktualizuj numer Redress w Portfelu Google</translation>
 <translation id="1733064249834771892">czcionki</translation>
 <translation id="1733631169686303142">Sprzęt audio</translation>
 <translation id="1733762317901693627">Nawet strony, które zazwyczaj są bezpieczne, mogą zostać przejęte przez hakerów. Odwiedzaj <ph name="BEGIN_LINK" />tę niebezpieczną stronę<ph name="END_LINK" /> tylko wtedy, gdy rozumiesz związane z nią zagrożenia.</translation>
@@ -581,6 +582,7 @@ Jeśli się nie zgodzisz, zostaną one zablokowane ze względu na Twoje ustawien
 <translation id="1902576642799138955">Okres ważności</translation>
 <translation id="1908217026282415406">Używanie kamery i poruszanie nią</translation>
 <translation id="1908690643053136980">Administrator nie zezwala na korzystanie z tego uprawnienia (<ph name="PERMISSION" />) w tej witrynie</translation>
+<translation id="1912750443952232242">Zapisz dowód tożsamości w Portfelu Google</translation>
 <translation id="1913037223029790376">Użyj kodu CVC tej karty wirtualnej</translation>
 <translation id="191374271204266022">Skopiuj jako JSON</translation>
 <translation id="1914326953223720820">Usługa rozpakowywania</translation>
@@ -711,6 +713,7 @@ Jeśli się nie zgodzisz, zostaną one zablokowane ze względu na Twoje ustawien
 <translation id="2122165854541876335">Informacje dla konsumentów</translation>
 <translation id="2122214041802369259">Cena jest wysoka</translation>
 <translation id="2122719317867821810">Ta zasada działa w oczekiwany sposób, ale zastąpiła pewną sprzeczną wartość, którą ustawiono w innym miejscu.</translation>
+<translation id="2124081665399116863">Zaktualizuj pojazd w Portfelu Google</translation>
 <translation id="2126374524350484896">Źródło pliku PDF:</translation>
 <translation id="2127090458081644412">Hasło zostało zapisane na tym urządzeniu</translation>
 <translation id="2127747486437921899">Kursywa</translation>
@@ -993,6 +996,7 @@ Jeśli się nie zgodzisz, zostaną one zablokowane ze względu na Twoje ustawien
 <translation id="2524962131655207565"><ph name="BEGIN_BOLD" />Aby oferować te opcje, Google otrzymuje informacje o zawartości strony płatności.<ph name="END_BOLD" /> Subskrypcje podlegają kryteriom kwalifikacji. Aby ukryć opcje płatności odroczonej, otwórz <ph name="BEGIN_LINK" />ustawienia płatności<ph name="END_LINK" />.</translation>
 <translation id="2526062290525841862">Aby uruchomić tę aplikację, ponownie włącz tryb programisty izolowanych aplikacji internetowych</translation>
 <translation id="2526280916094749336">Zapisanych adresów możesz używać w różnych usługach Google. Ten adres zostanie zapisany na Twoim koncie Google <ph name="ACCOUNT" />.</translation>
+<translation id="2526590354069164005">Pulpit</translation>
 <translation id="2527451058878391043">Kod CVC znajduje się z przodu karty. To 4-cyfrowy kod widoczny w prawym górnym rogu, nad numerem karty.</translation>
 <translation id="2529899080962247600">Maksymalna liczba wpisów w tym polu to <ph name="MAX_ITEMS_LIMIT" />. Wszystkie następne wpisy będą ignorowane.</translation>
 <translation id="2530042584066815841">Blokowanie i używanie myszy</translation>
@@ -1493,6 +1497,7 @@ Uruchamianie aplikacji może potrwać dłużej niż zwykle.</translation>
 <translation id="3325568918769906282">malejąco</translation>
 <translation id="3325662270238538525">Ostatnie przypadki używania i modyfikowania plików, w tym nazwy plików, odciski cyfrowe zawartości plików, źródła pobierania i metadane</translation>
 <translation id="3329013043687509092">Nasycenie</translation>
+<translation id="3330483197654063678">Gdy ta opcja jest włączona, Chrome udostępnia otwarte karty w tym oknie, aby pomóc Ci uzyskać bardziej precyzyjne odpowiedzi.</translation>
 <translation id="3333762389743153920">Nie spełnia wymagań dotyczących karty wirtualnej</translation>
 <translation id="3338095232262050444">Bezpieczna</translation>
 <translation id="333839153442689579">Bardzo intensywny trening interwałowy</translation>
@@ -1546,6 +1551,7 @@ Uruchamianie aplikacji może potrwać dłużej niż zwykle.</translation>
 <translation id="3422472998109090673">Strona <ph name="HOST_NAME" /> jest obecnie nieosiągalna.</translation>
 <translation id="3422794267539320056">Aby zagrać, kliknij dinozaura lub naciśnij spację</translation>
 <translation id="3423742043356668186">Określone przez system</translation>
+<translation id="3426672782316020729">Zaktualizuj paszport w Portfelu Google</translation>
 <translation id="3427342743765426898">&amp;Ponów edycję</translation>
 <translation id="342781501876943858">Chromium zaleca zresetowanie hasła, jeśli zostało użyte na innej stronie.</translation>
 <translation id="3428151540071562330">Co najmniej jeden identyfikator URI szablonu serwera DnsOverHttpsTemplates jest nieprawidłowy i nie zostanie użyty.</translation>
@@ -2406,6 +2412,7 @@ Uruchamianie aplikacji może potrwać dłużej niż zwykle.</translation>
 <translation id="4766713847338118463">Dwie zszywki na dole</translation>
 <translation id="4768816584204270288">Gdy płacisz w ratach, wypełniany jest jednorazowy numer karty wirtualnej. Możesz kliknąć, aby skopiować i wkleić dane karty używanej do tego zakupu.</translation>
 <translation id="4768864802656530630">Szczegółowe dzienniki systemowe. <ph name="BEGIN_LINK" />Więcej informacji<ph name="END_LINK" /></translation>
+<translation id="4770909831299304090">Zaktualizuj KTN w Portfelu Google</translation>
 <translation id="4771249073710170730">Modelarstwo i zdalne sterowanie</translation>
 <translation id="4771973620359291008">Wystąpił nieznany błąd.</translation>
 <translation id="4774055414220872623">Artykuły artystyczne i rzemieślnicze</translation>
@@ -2846,6 +2853,7 @@ Uruchamianie aplikacji może potrwać dłużej niż zwykle.</translation>
 <translation id="5458150163479425638">{CONTACT,plural, =0{<ph name="CONTACT_PREVIEW" />}=1{<ph name="CONTACT_PREVIEW" /> i jeszcze <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" />}few{<ph name="CONTACT_PREVIEW" /> i jeszcze <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" />}many{<ph name="CONTACT_PREVIEW" /> i jeszcze <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" />}other{<ph name="CONTACT_PREVIEW" /> i jeszcze <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" />}}</translation>
 <translation id="5463625433003343978">Szukam urządzeń...</translation>
 <translation id="5464236009658034488">Materiały biurowe</translation>
+<translation id="5465128270485645058">Otrzymuj lepiej dopasowane odpowiedzi dzięki automatycznemu udostępnianiu otwartych kart w tym oknie, jeśli są powiązane z tym wątkiem.</translation>
 <translation id="5465724643247062031">Szkło (nieprzezroczyste)</translation>
 <translation id="5466018172325111652">Kod nie dotarł? <ph name="BEGIN_LINK" />Uzyskaj nowy kod<ph name="END_LINK" /></translation>
 <translation id="5466818462212249084">Aplikacje płatnicze</translation>
@@ -3128,6 +3136,7 @@ Uruchamianie aplikacji może potrwać dłużej niż zwykle.</translation>
 <translation id="5911020115933784199">Kalendarze imprez</translation>
 <translation id="5911110632211230665">Otwieranie zostało zablokowane</translation>
 <translation id="5912796581727968237">Otwórz Portfel Google</translation>
+<translation id="5914185423510719251">Zapisz numer KTN w Portfelu Google</translation>
 <translation id="5914465277418006379"><ph name="MEMBER_FIRST_NAME" /> dodał(a) tę kartę</translation>
 <translation id="5915189366813702112">Elastyczne zarządzanie pracą</translation>
 <translation id="59174027418879706">Włączony</translation>
@@ -3651,6 +3660,7 @@ Uruchamianie aplikacji może potrwać dłużej niż zwykle.</translation>
 <translation id="6702851555558236418">Oprogramowanie muzyczne i audio</translation>
 <translation id="6702919718839027939">Tryb prezentacji</translation>
 <translation id="6704458454638854812">Właściwość „custom_size” jest ustawiona. Oczekiwana nazwa to „custom”.</translation>
+<translation id="670477556876354552">Wymagane ponowne uruchomienie</translation>
 <translation id="6706005862292023715">Zasłony i dekoracja okien</translation>
 <translation id="6706210727756204531">Zakres</translation>
 <translation id="6706678697074905703">Nie udało się zapisać tego numeru IBAN na Twoim koncie Google. Zamiast tego został on zapisany w Chrome na tym urządzeniu.</translation>
@@ -3908,6 +3918,7 @@ Uruchamianie aplikacji może potrwać dłużej niż zwykle.</translation>
 <translation id="7110116949943042888">Praca tymczasowa i sezonowa</translation>
 <translation id="7110368079836707726">Uczelnie wyższe</translation>
 <translation id="7111507312244504964">Wyceny i inspekcje nieruchomości</translation>
+<translation id="7117290130383718594">Adnotacje tekstowe</translation>
 <translation id="7118618213916969306">Wyszukaj URL ze schowka, <ph name="SHORT_URL" /></translation>
 <translation id="7118852830504022370">Widzisz to ostrzeżenie, ponieważ ta witryna nie obsługuje HTTPS. <ph name="BEGIN_LEARN_MORE_LINK" />Więcej informacji o tym ostrzeżeniu<ph name="END_LEARN_MORE_LINK" /></translation>
 <translation id="7119063404975271297">Dramaty telewizyjne</translation>
@@ -4217,6 +4228,7 @@ Dodatkowe informacje:
 <translation id="7569490014721427265">Golf</translation>
 <translation id="7569952961197462199">Usunąć tę kartę kredytową z Chrome?</translation>
 <translation id="7569983096843329377">Czarny</translation>
+<translation id="7570524564113479209">Zaktualizuj dowód tożsamości w Portfelu Google</translation>
 <translation id="7570862164055912832">Numery Redress</translation>
 <translation id="7571813784389228510">Tryb AI od Google</translation>
 <translation id="7574998639136359461">Sprzęt do sportów zimowych</translation>
@@ -4738,6 +4750,7 @@ Dodatkowe informacje:
 <translation id="8389940864052787379">Pojazdy zmodyfikowane i egzotyczne</translation>
 <translation id="8390725133630534698">Zasady administratora uniemożliwiają udostępnianie informacji z <ph name="ORIGIN_NAME" /> maszynie wirtualnej <ph name="VM_NAME" /></translation>
 <translation id="8392783408127179588">Ponownie ładuję zasady</translation>
+<translation id="8393948304336153065">Zaktualizuj prawo jazdy w Portfelu Google</translation>
 <translation id="8396522675989118466">To jest <ph name="NUMBER_OF_DIGITS" />-cyfrowy kod, który znajdziesz <ph name="SIDE_OF_CARD" /></translation>
 <translation id="8398335999901363925">Formy płatności dostępne do uzupełnienia kliknięciem są otwarte na całą wysokość.</translation>
 <translation id="8398446215576328011">Przywróć obowiązujące zasady</translation>
@@ -4899,7 +4912,6 @@ Dodatkowe informacje:
 <translation id="8671519637524426245">Wartość <ph name="SECURE_DNS_SALT" /> nie spełnia wymagań dotyczących rozmiaru.</translation>
 <translation id="867224526087042813">Podpis</translation>
 <translation id="8672535691554698269">Sieci komputerowe</translation>
-<translation id="8673710317985154384">{NUM_TABS,plural, =1{Pokaż szczegóły udostępniania karty. Udostępniam 1 kartę z witryn {WEBSITE_LIST_STR}}few{Pokaż szczegóły udostępniania kart. Udostępniam {NUM_TABS} karty z witryn {WEBSITE_LIST_STR}}many{Pokaż szczegóły udostępniania kart. Udostępniam {NUM_TABS} kart z witryn {WEBSITE_LIST_STR}}other{Pokaż szczegóły udostępniania kart. Udostępniam {NUM_TABS} karty z witryn {WEBSITE_LIST_STR}}}</translation>
 <translation id="8675446170353411473">Twoje pliki są przesyłane do usługi <ph name="CLOUD_PROVIDER" /></translation>
 <translation id="8676424191133491403">Bez opóźnienia</translation>
 <translation id="8680536109547170164"><ph name="QUERY" />, odpowiedź, <ph name="ANSWER" /></translation>

@@ -10,6 +10,7 @@
 #include "base/check.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/notreached.h"
 #include "base/path_service.h"
 #include "base/strings/string_split.h"
@@ -44,13 +45,20 @@
 #include "components/translate/core/browser/translate_metrics_logger.h"
 #include "components/translate/core/browser/translate_prefs.h"
 #include "components/translate/core/common/language_detection_details.h"
+#include "components/translate/core/common/translate_features.h"
 #include "components/translate/core/common/translate_util.h"
 #include "components/variations/service/variations_service.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/web_contents.h"
+#include "pdf/buildflags.h"
 #include "third_party/metrics_proto/translate_event.pb.h"
 #include "ui/base/ui_base_features.h"
 #include "url/gurl.h"
+
+#if BUILDFLAG(ENABLE_PDF)
+#include "components/pdf/browser/pdf_document_helper.h"
+#include "mojo/public/cpp/bindings/callback_helpers.h"
+#endif
 
 #if BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/android/android_theme_resources.h"
@@ -105,7 +113,24 @@ bool IsAutomaticTranslationType(translate::TranslationType type) {
                      kAutomaticTranslationToPredefinedTarget ||
          type == translate::TranslationType::kForcedTranslationByCommandline;
 }
-#endif
+#endif  // BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(ENABLE_PDF)
+void OnPdfDocumentLoadComplete(base::WeakPtr<ChromeTranslateClient> client,
+                               base::OnceCallback<void(bool)> callback) {
+  if (!client) {
+    std::move(callback).Run(false);
+    return;
+  }
+  pdf::PDFDocumentHelper* pdf_helper =
+      pdf::PDFDocumentHelper::MaybeGetForWebContents(client->web_contents());
+  if (!pdf_helper) {
+    std::move(callback).Run(false);
+    return;
+  }
+  pdf_helper->HasMeaningfulText(std::move(callback));
+}
+#endif  // BUILDFLAG(ENABLE_PDF)
 
 }  // namespace
 
@@ -322,6 +347,31 @@ bool ChromeTranslateClient::IsTranslatableURL(const GURL& url) {
   return TranslateService::IsTranslatableURL(url);
 }
 
+void ChromeTranslateClient::CheckIfPdfIsTranslatable(
+    base::OnceCallback<void(bool)> callback) {
+#if BUILDFLAG(ENABLE_PDF)
+  if (!base::FeatureList::IsEnabled(translate::kEnableTranslatePdf)) {
+    std::move(callback).Run(false);
+    return;
+  }
+  pdf::PDFDocumentHelper* pdf_helper =
+      pdf::PDFDocumentHelper::MaybeGetForWebContents(web_contents());
+  if (!pdf_helper) {
+    std::move(callback).Run(false);
+    return;
+  }
+
+  auto wrapped_callback =
+      mojo::WrapCallbackWithDefaultInvokeIfNotRun(std::move(callback), false);
+
+  pdf_helper->RegisterForDocumentLoadComplete(
+      base::BindOnce(&OnPdfDocumentLoadComplete, weak_factory_.GetWeakPtr(),
+                     std::move(wrapped_callback)));
+#else
+  std::move(callback).Run(false);
+#endif
+}
+
 void ChromeTranslateClient::UndoTranslate() {
   std::string source_language = GetLanguageState().source_language();
   std::string target_language = GetLanguageState().current_language();
@@ -443,9 +493,8 @@ ShowTranslateBubbleResult ChromeTranslateClient::ShowBubble(
           TranslateBubbleController::From(browser);
       if (controller && controller->GetTranslateBubble()) {
         return TranslateBubbleFactory::Show(
-            browser->GetBrowserForMigrationOnly()->window(), web_contents(),
-            step, source_language, target_language, error_type,
-            is_user_gesture);
+            BrowserWindow::FromBrowser(browser), web_contents(), step,
+            source_language, target_language, error_type, is_user_gesture);
       }
 
       if (is_toast_enabled) {
@@ -462,7 +511,7 @@ ShowTranslateBubbleResult ChromeTranslateClient::ShowBubble(
   }
 
   return TranslateBubbleFactory::Show(
-      browser->GetBrowserForMigrationOnly()->window(), web_contents(), step,
+      BrowserWindow::FromBrowser(browser), web_contents(), step,
       source_language, target_language, error_type, is_user_gesture);
 }
 #endif

@@ -220,7 +220,9 @@ bool ImmediatelyDispatchFirstScrollEventBeforeDeadline(
   return mode == cc::InputHandlerClient::ScrollEventDispatchMode::
                      kDispatchScrollEventsImmediately ||
          mode == cc::InputHandlerClient::ScrollEventDispatchMode::
-                     kUseScrollPredictorForDeadline;
+                     kUseScrollPredictorForDeadline ||
+         mode == cc::InputHandlerClient::ScrollEventDispatchMode::
+                     kDispatchScrollEventsUntilDeadline;
 }
 
 // Determines if we have exceeded our internal deadline for dispatching input,
@@ -237,6 +239,8 @@ bool ShouldNotDispatchLateInputEvent(
   // There is just potentially increased latency for the remainder of the
   // scroll.
   if (mode != cc::InputHandlerClient::ScrollEventDispatchMode::
+                  kDispatchScrollEventsUntilDeadline &&
+      mode != cc::InputHandlerClient::ScrollEventDispatchMode::
                   kUseScrollPredictorForDeadline) {
     return false;
   }

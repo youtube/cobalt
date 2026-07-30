@@ -13,6 +13,7 @@
 #include "third_party/blink/public/common/input/web_mouse_event.h"
 #include "third_party/blink/public/mojom/input/focus_type.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_gc_controller.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_mouse_event_init.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_pointer_event_init.h"
 #include "third_party/blink/renderer/core/css/css_property_value_set.h"
 #include "third_party/blink/renderer/core/css/document_style_environment_variables.h"
@@ -34,6 +35,7 @@
 #include "third_party/blink/renderer/core/input/event_handler.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
 #include "third_party/blink/renderer/core/loader/empty_clients.h"
+#include "third_party/blink/renderer/core/pointer_type_names.h"
 #include "third_party/blink/renderer/core/testing/page_test_base.h"
 #include "third_party/blink/renderer/modules/media_controls/elements/media_control_cast_button_element.h"
 #include "third_party/blink/renderer/modules/media_controls/elements/media_control_current_time_display_element.h"
@@ -218,6 +220,13 @@ class MediaControlsImplTest
   void SimulateOnWaiting() { media_controls_->OnWaiting(); }
   void SimulateOnPlaying() { media_controls_->OnPlaying(); }
 
+  void SetIsTouchInteraction(bool val) {
+    media_controls_->is_touch_interaction_ = val;
+  }
+  bool IsTouchInteraction() const {
+    return media_controls_->is_touch_interaction_;
+  }
+
   void SimulateMediaControlPlaying() {
     MediaControls().MediaElement().SetReadyState(
         HTMLMediaElement::kHaveEnoughData);
@@ -374,7 +383,21 @@ class MediaControlsImplTest
 
   PointerEvent* CreatePointerEvent(const AtomicString& name) {
     PointerEventInit* init = PointerEventInit::Create();
+    init->setPointerType(pointer_type_names::kMouse);
     return PointerEvent::Create(name, init);
+  }
+
+  PointerEvent* CreateTouchPointerEvent(const AtomicString& name) {
+    PointerEventInit* init = PointerEventInit::Create();
+    init->setPointerType(pointer_type_names::kTouch);
+    return PointerEvent::Create(name, init);
+  }
+
+  MouseEvent* CreateMouseEvent(const AtomicString& name) {
+    MouseEventInit* init = MouseEventInit::Create();
+    return MouseEvent::Create(name, init, base::TimeTicks::Now(),
+                              MouseEvent::kRealOrIndistinguishable,
+                              ui::mojom::blink::MenuSourceType::kNone);
   }
 
  private:
@@ -1723,6 +1746,42 @@ TEST_F(MediaControlsImplTest, OverlayPlayButtonHidesWhenTooShort) {
   // Set the size to be large enough.
   SetElementHeight(min_height);
   EXPECT_TRUE(overlay_play_button->DoesFit());
+}
+
+TEST_F(MediaControlsImplTest, TouchInteractionResetsOnMouseEvents) {
+  // --- Positive Tests: Mouse/Pointer events should reset touch interaction ---
+  for (const AtomicString& event_name :
+       {event_type_names::kPointermove, event_type_names::kPointerover,
+        event_type_names::kPointerdown, event_type_names::kClick}) {
+    SetIsTouchInteraction(true);
+    MediaControls().DispatchEvent(*CreatePointerEvent(event_name));
+    EXPECT_FALSE(IsTouchInteraction())
+        << "Touch interaction should be reset by pointer event: " << event_name;
+  }
+
+  for (const AtomicString& event_name :
+       {event_type_names::kMousedown, event_type_names::kMousemove}) {
+    SetIsTouchInteraction(true);
+    MediaControls().DispatchEvent(*CreateMouseEvent(event_name));
+    EXPECT_FALSE(IsTouchInteraction())
+        << "Touch interaction should be reset by mouse event: " << event_name;
+  }
+
+  // --- Negative Tests: Touch pointer events should NOT reset touch interaction
+  // ---
+  for (const AtomicString& event_name :
+       {event_type_names::kPointermove, event_type_names::kPointerover,
+        event_type_names::kPointerdown}) {
+    Event* native_touch = CreateTouchPointerEvent(event_name);
+    EXPECT_TRUE(MediaControls().IsTouchEvent(native_touch))
+        << "IsTouchEvent should be true for native touch: " << event_name;
+
+    SetIsTouchInteraction(true);
+    MediaControls().DispatchEvent(*native_touch);
+    EXPECT_TRUE(IsTouchInteraction())
+        << "Touch interaction should NOT be reset by touch-type event: "
+        << event_name;
+  }
 }
 
 }  // namespace blink

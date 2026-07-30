@@ -6,6 +6,7 @@ package org.chromium.ui.accessibility.testservice;
 
 import android.app.Service;
 import android.content.Intent;
+import android.os.Bundle;
 import android.os.IBinder;
 import android.view.accessibility.AccessibilityEvent;
 
@@ -23,27 +24,24 @@ public class AccessibilityTestHelperService extends Service {
     private final IAccessibilityTestHelperService.Stub mBinder =
             new IAccessibilityTestHelperService.Stub() {
                 @Override
-                public boolean waitForEvent(WaitForEventParams params) {
-                    String contentChangeTypesString =
-                            contentChangeTypesToString(params.contentChangeTypes);
-
+                public boolean waitFor(WaitForParams params) {
                     Log.i(
                             TAG,
-                            "waitForEvent called with type: "
-                                    + params.eventType
-                                    + ", class: "
-                                    + params.className
-                                    + ", ContentChangeTypes: "
-                                    + contentChangeTypesString
-                                    + ", text: "
-                                    + params.text);
-                    return AccessibilityTestService.tryWaitForEvent(params);
+                            "waitFor called, timeoutMs: "
+                                    + params.timeoutMs
+                                    + ", eventMatcher: "
+                                    + eventMatcherToString(params.eventMatcher)
+                                    + ", nodeMatcher: "
+                                    + nodeMatcherToString(params.nodeMatcher));
+                    return AccessibilityTestService.tryWaitFor(params);
                 }
 
                 @Override
-                public boolean performActionOnNode(String className, String text, int action) {
+                public boolean performActionOnNode(
+                        NodeMatcher matcher, int action, Bundle arguments) {
                     Log.i(TAG, "performActionOnNode called in HelperService");
-                    return AccessibilityTestService.tryPerformActionOnNode(className, text, action);
+                    return AccessibilityTestService.tryPerformActionOnNode(
+                            matcher, action, arguments);
                 }
 
                 @Override
@@ -135,5 +133,37 @@ public class AccessibilityTestHelperService extends Service {
             default:
                 return "UNKNOWN: " + Integer.toString(type);
         }
+    }
+
+    private String eventMatcherToString(EventMatcher matcher) {
+        if (matcher == null) {
+            return "null";
+        }
+        return "EventMatcher{eventType="
+                + matcher.eventType
+                + ", contentChangeTypes="
+                + contentChangeTypesToString(matcher.contentChangeTypes)
+                + ", sourceMatcher="
+                + nodeMatcherToString(matcher.sourceMatcher)
+                + "}";
+    }
+
+    private String nodeMatcherToString(NodeMatcher matcher) {
+        if (matcher == null) {
+            return "null";
+        }
+        return "NodeMatcher{className='"
+                + matcher.className
+                + ", text='"
+                + matcher.text
+                + ", hasInputFocused="
+                + matcher.hasInputFocused
+                + ", inputFocused="
+                + matcher.inputFocused
+                + ", hasAccessibilityFocused="
+                + matcher.hasAccessibilityFocused
+                + ", accessibilityFocused="
+                + matcher.accessibilityFocused
+                + "}";
     }
 }

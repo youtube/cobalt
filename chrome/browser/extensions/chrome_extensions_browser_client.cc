@@ -29,6 +29,7 @@
 #include "chrome/browser/extensions/activity_log/activity_actions.h"
 #include "chrome/browser/extensions/activity_log/activity_log.h"
 #include "chrome/browser/extensions/api/chrome_extensions_api_client.h"
+#include "chrome/browser/extensions/api/preference/autofill_settings_transformer.h"
 #include "chrome/browser/extensions/api/preference/cookie_controls_mode_transformer.h"
 #include "chrome/browser/extensions/api/preference/network_prediction_transformer.h"
 #include "chrome/browser/extensions/api/preference/privacy_sandbox_transformer.h"
@@ -87,6 +88,7 @@
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/url_constants.h"
+#include "components/autofill/core/common/autofill_prefs.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/pref_names.h"
 #include "components/embedder_support/user_agent_utils.h"
@@ -153,6 +155,9 @@ namespace extensions {
 
 namespace {
 
+constexpr std::string_view kCrxUrlPath = "/service/update2/crx";
+constexpr std::string_view kJsonUrlPath = "/service/update2/json";
+
 // If true, the extensions client will behave as though there is always a
 // new chrome update.
 bool g_did_chrome_update_for_testing = false;
@@ -217,6 +222,9 @@ void AddActionToExtensionActivityLog(content::BrowserContext* browser_context,
 
 bool RegisterTransformers() {
   PrefMapping* pref_mapping = PrefMapping::GetInstance();
+  pref_mapping->RegisterPrefTransformer(
+      autofill::prefs::kAutofillTypesBlocked,
+      std::make_unique<AutofillSettingsTransformer>());
   pref_mapping->RegisterPrefTransformer(
       prefs::kCookieControlsMode,
       std::make_unique<CookieControlsModeTransformer>());
@@ -665,7 +673,16 @@ ChromeExtensionsBrowserClient::CreateUpdateClient(
 scoped_refptr<update_client::Configurator>
 ChromeExtensionsBrowserClient::CreateUpdateClientConfigurator(
     content::BrowserContext* context) {
-  return ChromeUpdateClientConfig::Create(context);
+  std::optional<GURL> override_url;
+  GURL update_url = extension_urls::GetWebstoreUpdateUrl();
+  if (update_url != extension_urls::GetDefaultWebstoreUpdateUrl()) {
+    if (update_url.GetPath() == kCrxUrlPath) {
+      override_url = update_url.GetWithEmptyPath().Resolve(kJsonUrlPath);
+    } else {
+      override_url = update_url;
+    }
+  }
+  return ChromeUpdateClientConfig::Create(context, override_url);
 }
 
 std::unique_ptr<ScopedBrowserContextKeepAlive>

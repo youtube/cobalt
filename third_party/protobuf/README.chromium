@@ -24,7 +24,7 @@ Steps used to create the current version (or roll a newer one):
 
    $ git checkout origin/main -- BUILD.gn DEPS DIR_METADATA OWNERS \
      README.chromium gen_extra_chromium_files.py proto_library.gni \
-     proto_sources.gni patches/
+     proto_sources.gni proto_wkt.gni patches/
 
    Note: The `patches/` directory is already a part of the protobuf repository,
    but it uses subdirectories for its content, while in Chromium we store our
@@ -323,3 +323,9 @@ Description of the patches:
   This util was meant to be compiled with protobuf full. However, it depends on
   zlib, so instead of making Chromium's protobuf depend on zlib, the utility is
   compiled as a separate target, and not exported.
+
+- 0066-add-placeholder-cc.patch
+
+  Creates placeholder.cc, which is a placeholder file used to ensure that
+  wrapper libraries get built on all platforms.
+

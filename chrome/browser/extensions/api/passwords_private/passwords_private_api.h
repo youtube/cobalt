@@ -251,7 +251,8 @@ class PasswordsPrivateExportPasswordsFunction : public ExtensionFunction {
   ResponseAction Run() override;
 
  private:
-  void ExportRequestCompleted(const std::string& error);
+  void ExportRequestCompleted(
+      PasswordsPrivateDelegate::ExportPasswordsResult result);
 };
 
 class PasswordsPrivateRequestExportProgressStatusFunction

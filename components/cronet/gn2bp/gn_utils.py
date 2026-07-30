@@ -18,6 +18,7 @@ REPOSITORY_ROOT = os.path.abspath(
     os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir))
 sys.path.insert(0, REPOSITORY_ROOT)
 import components.cronet.gn2bp.common as gn2bp_common  # pylint: disable=wrong-import-position
+from components.cronet.gn2bp.arguments import CommandLineUtility
 
 TOOLCHAIN_SUFFIX = "__toolchain_"
 HOST_TOOLCHAIN_TO_SUFFIX = {
@@ -601,11 +602,9 @@ class GnParser:
                 self.jni_java_sources.update(sources)
             if gn2bp_common.is_rust_build_script(target.script):
 
-                def _extract_crate_path(args):
-                    return args[args.index("--src-dir") + 1].replace(
+                target.rust_source_dir = CommandLineUtility(
+                    desc['args']).get_flag_value('--src-dir').replace(
                         "../../", "")
-
-                target.rust_source_dir = _extract_crate_path(desc['args'])
                 # Don't continue the dependencies exploration.
                 return target
         elif target.type == 'group':
@@ -742,5 +741,6 @@ class GnParser:
 
     def get_proto_in_dir(self, proto_desc):
         args = proto_desc.get('args')
-        return re.sub('^\.\./\.\./', '',
-                      args[args.index('--proto-in-dir') + 1])
+        return re.sub(
+            '^\.\./\.\./', '',
+            CommandLineUtility(args).get_flag_value('--proto-in-dir'))

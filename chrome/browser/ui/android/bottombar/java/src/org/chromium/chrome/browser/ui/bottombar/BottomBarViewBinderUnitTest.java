@@ -87,7 +87,7 @@ public class BottomBarViewBinderUnitTest {
     @Test
     public void testButtonVisibilitiesProperty() {
         verifyButtonVisibility(BottomBarProperties.IS_HOME_BUTTON_VISIBLE, ActionId.HOME_BUTTON);
-        verifyButtonVisibility(BottomBarProperties.IS_GLIC_BUTTON_VISIBLE, ActionId.GLIC);
+        verifyButtonVisibility(BottomBarProperties.IS_EXTRA_BUTTON_VISIBLE, ActionId.GLIC);
         verifyButtonVisibility(BottomBarProperties.IS_NEW_TAB_BUTTON_VISIBLE, ActionId.NEW_TAB);
         verifyButtonVisibility(
                 BottomBarProperties.IS_TAB_SWITCHER_BUTTON_VISIBLE, ActionId.TAB_SWITCHER);
@@ -98,6 +98,10 @@ public class BottomBarViewBinderUnitTest {
             PropertyModel.WritableBooleanPropertyKey property, @ActionId int actionId) {
         View container = mBottomBarView.getContainerForAction(actionId);
         assertNotNull("Container should not be null for actionId: " + actionId, container);
+
+        if (property == BottomBarProperties.IS_EXTRA_BUTTON_VISIBLE) {
+            mModel.set(BottomBarProperties.EXTRA_BUTTON_ACTION_ID, actionId);
+        }
 
         mModel.set(property, true);
         assertEquals(View.VISIBLE, container.getVisibility());

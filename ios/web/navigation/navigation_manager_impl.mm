@@ -286,6 +286,16 @@ void NavigationManagerImpl::SerializeToProto(
   for (const auto* item : base::span(items).subspan(offset, length)) {
     item->SerializeToProto(*storage.add_items());
   }
+
+  // If the navigation history is empty but there is a pending navigation item,
+  // serialize the pending item as the initial committed item.
+  if (storage.items_size() == 0) {
+    const NavigationItemImpl* pending_item = GetPendingItemImpl();
+    if (pending_item) {
+      pending_item->SerializeToProto(*storage.add_items());
+      storage.set_last_committed_item_index(0);
+    }
+  }
 }
 
 void NavigationManagerImpl::SetNativeSessionFetcher(

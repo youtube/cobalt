@@ -175,6 +175,15 @@ const char kTestPageText[] = "pony";
   _settingsOpened = YES;
 }
 
+- (void)openAutofillSettingsPage {
+  [self openSettingsMenu];
+  if ([ChromeEarlGrey isYourSavedInfoSettingsPageIosEnabled]) {
+    [ChromeEarlGreyUI
+        tapSettingsMenuButton:grey_accessibilityID(
+                                  kSettingsAutofillAndPasswordsCellId)];
+  }
+}
+
 - (AppLaunchConfiguration)appConfigurationForTestCase {
   // Use commandline args to insert fake policy data into NSUserDefaults. To the
   // app, this policy data will appear under the
@@ -249,7 +258,7 @@ const char kTestPageText[] = "pony";
           userBooleanPref:password_manager::prefs::kCredentialsEnableService],
       @"Preference was unexpectedly true");
   // Open settings menu and tap password manager.
-  [self openSettingsMenu];
+  [self openAutofillSettingsPage];
 
   // Mock successful reauth when opening the Password Manager.
   [ReauthenticationAppInterface mockReauthenticationModuleExpectedResult:
@@ -276,7 +285,7 @@ const char kTestPageText[] = "pony";
       [ChromeEarlGrey userBooleanPref:autofill::prefs::kAutofillProfileEnabled],
       @"Preference was unexpectedly true");
   // Open settings menu and tap Address and More setting.
-  [self openSettingsMenu];
+  [self openAutofillSettingsPage];
   [ChromeEarlGreyUI
       tapSettingsMenuButton:chrome_test_util::AddressesAndMoreButton()];
 
@@ -293,7 +302,7 @@ const char kTestPageText[] = "pony";
           userBooleanPref:autofill::prefs::kAutofillCreditCardEnabled],
       @"Preference was unexpectedly true");
   // Open settings menu and tap Payment Method setting.
-  [self openSettingsMenu];
+  [self openAutofillSettingsPage];
   [ChromeEarlGreyUI
       tapSettingsMenuButton:chrome_test_util::PaymentMethodsButton()];
 

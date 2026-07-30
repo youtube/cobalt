@@ -66,6 +66,21 @@ struct WebAppInstallInfoConstructOptions {
   // Ensures that all manifest icons are treated as trusted icons. Used for
   // trusted installation/update flows like for policy and default installed
   // apps.
+  // Note: Setting this flag ensures that it completely bypasses the icon
+  // choosing algorithm outlined in `GetTrustedIconsFromManifest()`, and as a
+  // consequence, the corresponding icon bitmaps generation algorithm of
+  // `PopulateTrustedIconBitmaps()`. The default behavior of this
+  // flag (being set to `false`) provides the following guarantees as being
+  // a part of the single trusted icon architecture:
+  //
+  // - Prefer `maskable` icons over `any` icons if the manifest has both
+  //   provided on some OSes.
+  // - Ensure that icons of all sizes that the web apps system needs are
+  //   available for the `purpose` determined by the algorithm.
+  //
+  // That behavior is completely skipped if this flag is set to `true`, so
+  // systems relying on that behavior need to be aware of that and handle
+  // those use-cases accordingly.
   bool use_manifest_icons_as_trusted = false;
 };
 

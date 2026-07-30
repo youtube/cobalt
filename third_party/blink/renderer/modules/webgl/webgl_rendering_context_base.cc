@@ -311,7 +311,7 @@ bool CopyVideoFrameTexturesToGLTextureViaIntermediateSI(
   destination_gl->TexImage2D(
       target, level, internal_format, video_frame->visible_rect().width(),
       video_frame->visible_rect().height(), 0, format, type, nullptr);
-  gpu::SyncToken dest_sync_token =
+  base::OnceCallback<gpu::SyncToken()> sync_callback =
       destination_gl->CopySharedImageToGLTextureViaTextureCopy(
           video_frame->visible_rect(), rgb_shared_image.get(), sync_token,
           target, texture, internal_format, format, type, level, dst_alpha_type,
@@ -319,7 +319,7 @@ bool CopyVideoFrameTexturesToGLTextureViaIntermediateSI(
 
   // Update the `rgb_sync_token` to be waited upon based on gles tasks
   // performed earlier.
-  rgb_si_cache->UpdateSyncToken(dest_sync_token);
+  rgb_si_cache->UpdateSyncToken(std::move(sync_callback).Run());
 
   // We do not need to synchronize video frame read here since it's already
   // taken care of earlier.
@@ -922,6 +922,23 @@ scoped_refptr<StaticBitmapImage> WebGLRenderingContextBase::GetImage() {
 
   ScopedPixelLocalStorageInterrupt scoped_pls_interrupt(this);
   ScopedFramebufferRestorer fbo_restorer(this);
+
+  if (base::FeatureList::IsEnabled(features::kWebGLDiscardBackBuffer)) {
+    // Conceptually, getting an image from an uninitialized canvas or one that
+    // has completed its draw should get a cleared one. See the WebGL spec,
+    // section 2.2 (https://registry.khronos.org/webgl/specs/latest/1.0/#2.2):
+    //
+    // "If this [preserveDrawingBuffer] flag is false, attempting to perform
+    // operations using this context as a source image after the rendering
+    // function has returned can lead to undefined behavior. This includes
+    // readPixels or toDataURL calls"
+    //
+    // This is only done when the feature is active to test compatibility, and
+    // because it is required in this case: this indirectly ensures that the
+    // back buffer is recreated.
+    ClearIfComposited(kClearCallerOther);
+  }
+
   // In rare situations on macOS the drawing buffer can be destroyed
   // during the resolve process, specifically during automatic
   // graphics switching. Guard against this.
@@ -1410,8 +1427,6 @@ scoped_refptr<DrawingBuffer> WebGLRenderingContextBase::CreateDrawingBuffer(
                                                       ? DrawingBuffer::kPreserve
                                                       : DrawingBuffer::kDiscard;
 
-  const bool is_offscreen_canvas = Host()->IsOffscreenCanvas();
-
   gl::GpuPreference gpu_preference =
       PowerPreferenceToGpuPreference(attrs.power_preference);
 
@@ -1420,8 +1435,7 @@ scoped_refptr<DrawingBuffer> WebGLRenderingContextBase::CreateDrawingBuffer(
       std::move(context_provider), context_info, this, ClampedCanvasSize(),
       premultiplied_alpha, want_alpha_channel, want_depth_buffer,
       want_stencil_buffer, want_antialiasing, desynchronized, preserve,
-      context_type_, is_offscreen_canvas, drawing_buffer_color_space_,
-      gpu_preference);
+      context_type_, drawing_buffer_color_space_, gpu_preference);
 }
 
 void WebGLRenderingContextBase::InitializeNewContext() {
@@ -1774,6 +1788,13 @@ WebGLRenderingContextBase::ClearIfComposited(
     return kSkipped;
   }
 
+  if (!framebuffer_binding_) {
+    // DrawingBuffer may have discarded the back buffer, and we are about to use
+    // it, recreate it. Note: we don't call MarkContentsChanged(), because it
+    // hasn't (there is no new content to present).
+    GetDrawingBuffer()->EnsureBackColorBuffer();
+  }
+
   ScopedPixelLocalStorageInterrupt scoped_pls_interrupt(this);
 
   // Determine if it's possible to combine the clear the user asked for and this
@@ -2084,7 +2105,7 @@ WebGLRenderingContextBase::PaintRenderingResultsToSnapshot(
 
   bool copy_succeeded = false;
   scoped_refptr<StaticBitmapImage> snapshot;
-  if (resource_provider->IsAccelerated()) {
+  if (!resource_provider->IsSoftware()) {
     copy_succeeded = CopyRenderingResultsFromDrawingBufferAccelerated(
         resource_provider, source_buffer);
     if (copy_succeeded) {
@@ -2216,12 +2237,10 @@ WebGLRenderingContextBase::GetSharedImageResourceProvider() {
     return nullptr;
   }
 
-  if (resource_provider_->IsValid()) {
-    base::UmaHistogramBoolean("Blink.Canvas.ResourceProviderIsAccelerated",
-                              resource_provider_->IsAccelerated());
-    base::UmaHistogramEnumeration("Blink.Canvas.ResourceProviderType",
-                                  resource_provider_->GetType());
-  }
+  base::UmaHistogramBoolean("Blink.Canvas.ResourceProviderIsAccelerated",
+                            !resource_provider_->IsSoftware());
+  base::UmaHistogramEnumeration("Blink.Canvas.ResourceProviderType",
+                                CanvasResourceProviderType::kSharedImage);
 
   return resource_provider_.get();
 }
@@ -2253,7 +2272,7 @@ WebGLRenderingContextBase::CopyRenderingResultsFromDrawingBufferToResource(
 
   bool copy_succeeded = false;
   scoped_refptr<CanvasResource> resource;
-  if (resource_provider->IsAccelerated()) {
+  if (!resource_provider->IsSoftware()) {
     copy_succeeded = CopyRenderingResultsFromDrawingBufferAccelerated(
         resource_provider, source_buffer);
     if (copy_succeeded) {
@@ -2291,7 +2310,7 @@ bool WebGLRenderingContextBase::
         SourceDrawingBuffer source_buffer) {
   DCHECK(resource_provider);
   DCHECK(!resource_provider->IsSingleBuffered());
-  CHECK(resource_provider->IsAccelerated());
+  CHECK(!resource_provider->IsSoftware());
 
   // Early-out if the context has been lost.
   if (!GetDrawingBuffer()) {
@@ -6631,7 +6650,7 @@ void WebGLRenderingContextBase::TexImageHelperMediaVideoFrame(
                        media_video_frame->visible_rect().width(),
                        media_video_frame->visible_rect().height(), 0,
                        params.format, params.type, nullptr);
-        std::unique_ptr<gpu::RasterScopedAccess> destination_access =
+        base::OnceCallback<gpu::SyncToken()> sync_callback =
             gl->CopySharedImageDirectlyToGLTexture(
                 media_video_frame->visible_rect(), shared_image.get(),
                 media_video_frame->acquire_sync_token(),
@@ -6643,7 +6662,7 @@ void WebGLRenderingContextBase::TexImageHelperMediaVideoFrame(
         media::PaintCanvasVideoRenderer::SynchronizeVideoFrameRead(
             std::move(media_video_frame), gl,
             raster_context_provider->ContextSupport(),
-            std::move(destination_access));
+            std::move(sync_callback));
         return;
       }
 

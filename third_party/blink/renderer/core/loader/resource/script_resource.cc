@@ -88,6 +88,8 @@ bool IsRequestContextSupported(
     case mojom::blink::RequestContextType::JSON:
     // style
     case mojom::blink::RequestContextType::STYLE:
+    // text
+    case mojom::blink::RequestContextType::TEXT:
       return true;
     default:
       break;

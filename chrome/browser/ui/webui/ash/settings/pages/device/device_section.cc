@@ -586,9 +586,6 @@ void AddDeviceKeyboardStrings(content::WebUIDataSource* html_source) {
        IDS_OS_SETTINGS_KEYBOARD_SHOW_INPUT_SETTINGS},
       {"keyboardShowA11yKeyboardSettings",
        IDS_OS_SETTINGS_KEYBOARD_SHOW_A11Y_KEYBOARD_SETTINGS},
-      // TODO(crbug.com/1097328): Remove this string, as it is unused.
-      {"keyboardShowLanguageAndInput",
-       IDS_SETTINGS_KEYBOARD_SHOW_LANGUAGE_AND_INPUT},
       {"keyboardTitle", IDS_OS_SETTINGS_KEYBOARD_AND_INPUTS_TITLE},
       {"keyRepeatDelay", IDS_SETTINGS_KEYBOARD_AUTO_REPEAT_DELAY},
       {"keyRepeatDelayLong", IDS_SETTINGS_KEYBOARD_AUTO_REPEAT_DELAY_LONG},

@@ -30,8 +30,6 @@
 #include "components/omnibox/browser/autocomplete_controller.h"
 #include "components/omnibox/browser/autocomplete_result.h"
 #include "components/omnibox/common/omnibox_features.h"
-#include "components/permissions/permission_request_manager.h"
-#include "ui/views/focus/focus_manager.h"
 #include "ui/views/view_utils.h"
 
 OmniboxPopupFullPresenter::OmniboxPopupFullPresenter(
@@ -89,15 +87,10 @@ void OmniboxPopupFullPresenter::Show() {
   if (handler && omnibox_view) {
     handler->SetAimButtonVisible(omnibox_view->AimButtonVisible());
   }
-
-  if (GetWidget() && !widget_observation_.IsObserving()) {
-    widget_observation_.Observe(GetWidget());
-  }
 }
 
 void OmniboxPopupFullPresenter::Hide() {
   forward_events_timer_.Stop();
-  widget_observation_.Reset();
   OmniboxPopupPresenterBase::Hide();
 }
 
@@ -107,7 +100,6 @@ std::string_view OmniboxPopupFullPresenter::GetPopupMetricPrefix() const {
 
 void OmniboxPopupFullPresenter::WidgetDestroyed() {
   forward_events_timer_.Stop();
-  widget_observation_.Reset();
   // Update the popup state manager if widget was destroyed externally, e.g., by
   // the OS. This ensures the popup state manager stays in sync.
   if (controller()->popup_state_manager()->popup_state() ==
@@ -163,13 +155,16 @@ void OmniboxPopupFullPresenter::SynchronizePopupBounds() {
       -RoundedOmniboxResultsFrame::GetLocationBarAlignmentInsets());
 
   const int default_height = widget_bounds.height();
-  bool has_results = !controller()->autocomplete_controller()->result().empty();
+  bool has_results =
+      !controller()->autocomplete_controller()->result().empty() &&
+      (content_height_ > default_height);
+  int target_elevation =
+      has_results ? RoundedOmniboxResultsFrame::kDefaultElevation : 0;
 
   auto* results_frame =
       views::AsViewClass<FullWebUIOmniboxFrame>(GetResultsFrame());
   CHECK(results_frame);
-  results_frame->SetElevation(
-      has_results ? RoundedOmniboxResultsFrame::kDefaultElevation : 0);
+  results_frame->SetElevation(target_elevation);
 
   // Use the content height reported by WebUI. This avoids premature shrinking
   // before the WebUI has had a chance to update its content.
@@ -184,35 +179,6 @@ void OmniboxPopupFullPresenter::SynchronizePopupBounds() {
 
   widget_bounds.Inset(-results_frame->GetInsets());
   GetWidget()->SetBounds(widget_bounds);
-}
-
-void OmniboxPopupFullPresenter::OnWidgetActivationChanged(views::Widget* widget,
-                                                          bool active) {
-  if (!active &&
-      controller()->popup_state_manager()->popup_state() ==
-          OmniboxPopupState::kFull &&
-      !location_bar()->in_popup_state_transition()) {
-    // Don't close popup if there's an active permission prompt.
-    if (auto* content = GetWebUIContent()) {
-      auto* permission_manager =
-          permissions::PermissionRequestManager::FromWebContents(
-              content->GetWebContents());
-      if (permission_manager && permission_manager->IsRequestInProgress()) {
-        return;
-      }
-    }
-
-    controller()->client()->FocusWebContents();
-    controller()->edit_model()->OnKillFocus();
-    // TODO(b/519724566): Look into using popup_closer here.
-    controller()->StopAutocomplete(/*clear_result=*/true);
-
-    // If the user is currently typing do not close the popup.
-    if (!controller()->edit_model()->user_input_in_progress()) {
-      controller()->popup_state_manager()->SetPopupState(
-          OmniboxPopupState::kNone);
-    }
-  }
 }
 
 void OmniboxPopupFullPresenter::StopForwardingEvents() {

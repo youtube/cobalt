@@ -33,6 +33,7 @@
 #import "ios/web/history_state_util.h"
 #import "ios/web/js_features/scroll_helper/scroll_helper_java_script_feature.h"
 #import "ios/web/js_messaging/java_script_feature_util_impl.h"
+#import "ios/web/js_messaging/web_frame_impl.h"
 #import "ios/web/js_messaging/web_view_js_utils.h"
 #import "ios/web/js_messaging/web_view_web_state_map.h"
 #import "ios/web/navigation/back_forward_navigation_type.h"
@@ -49,6 +50,7 @@
 #import "ios/web/public/annotations/annotations_text_manager.h"
 #import "ios/web/public/browser_state.h"
 #import "ios/web/public/find_in_page/crw_find_interaction.h"
+#import "ios/web/public/js_messaging/web_frames_manager.h"
 #import "ios/web/public/permissions/permissions.h"
 #import "ios/web/public/ui/crw_web_view_scroll_view_proxy.h"
 #import "ios/web/public/web_client.h"
@@ -150,6 +152,31 @@ BOOL ExtractInteractionState(NSData* data, NSData** interactionState) {
 
   *interactionState = unarchived;
   return YES;
+}
+
+typedef void (^JavaScriptCompletionBlock)(id, NSError*);
+
+// Wraps the completion block to log script execution failures as warnings and,
+// if enabled, assert on JavaScript errors.
+JavaScriptCompletionBlock WrapCompletionBlock(
+    JavaScriptCompletionBlock completion) {
+  __block JavaScriptCompletionBlock stack_completion = [completion copy];
+  return ^(id value, NSError* error) {
+    if (error) {
+      DLOG(WARNING) << "Script execution failed with error: "
+                    << base::SysNSStringToUTF16(
+                           error.userInfo[NSLocalizedDescriptionKey]);
+
+      if (base::FeatureList::IsEnabled(
+              web::features::kAssertOnJavaScriptErrors)) {
+        CHECK(false) << "JavaScript error occurred with "
+                        "kAssertOnJavaScriptErrors enabled.";
+      }
+    }
+    if (stack_completion) {
+      stack_completion(value, error);
+    }
+  };
 }
 
 }  // namespace
@@ -1089,32 +1116,18 @@ BOOL ExtractInteractionState(NSData* data, NSData** interactionState) {
 
 - (void)executeJavaScript:(NSString*)javascript
         completionHandler:(void (^)(id result, NSError* error))completion {
-  __block void (^stack_completion_block)(id result, NSError* error) =
-      [completion copy];
-  web::ExecuteJavaScript(self.webView, javascript, ^(id value, NSError* error) {
-    if (error) {
-      DLOG(WARNING) << "Script execution failed with error: "
-                    << base::SysNSStringToUTF16(
-                           error.userInfo[NSLocalizedDescriptionKey]);
-
-      if (base::FeatureList::IsEnabled(
-              web::features::kAssertOnJavaScriptErrors)) {
-        CHECK(false) << "JavaScript error occurred with "
-                        "kAssertOnJavaScriptErrors enabled.";
-      }
-    }
-    if (stack_completion_block) {
-      stack_completion_block(value, error);
-    }
-  });
+  web::ExecuteJavaScript(self.webView, javascript,
+                         WrapCompletionBlock(completion));
 }
 
 - (void)executeUserJavaScript:(NSString*)javascript
             completionHandler:(void (^)(id result, NSError* error))completion {
-  // For security reasons, executing JavaScript on pages with app-specific URLs
-  // is not allowed, because those pages may have elevated privileges.
-  if (web::GetWebClient()->IsAppSpecificURL(
-          self.webStateImpl->GetLastCommittedURL())) {
+  web::WebFrame* mainFrame =
+      self.webStateImpl->GetPageWorldWebFramesManager()->GetMainWebFrame();
+  if (!mainFrame ||
+      // For security reasons, executing JavaScript on pages with app-specific
+      // URLs is not allowed, because those pages may have elevated privileges.
+      web::GetWebClient()->IsAppSpecificURL(mainFrame->GetUrl())) {
     if (completion) {
       dispatch_async(dispatch_get_main_queue(), ^{
         NSError* error = [[NSError alloc]
@@ -1129,7 +1142,12 @@ BOOL ExtractInteractionState(NSData* data, NSData** interactionState) {
 
   [self touched:YES];
 
-  [self executeJavaScript:javascript completionHandler:completion];
+  mainFrame->ExecuteJavaScript(
+      base::SysNSStringToUTF16(javascript),
+      base::BindOnce(^(const base::Value* value, NSError* error) {
+        id foundation_result = web::NSObjectFromValueResult(value);
+        WrapCompletionBlock(completion)(foundation_result, error);
+      }));
 }
 
 #pragma mark - CRWTouchTrackingDelegate (Public)

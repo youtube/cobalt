@@ -210,6 +210,12 @@ impl AssociatedSender for AssociatedSenderImpl {
         *self.request_receiver.lock().unwrap() = Some(remote.bind());
         response_callback(receiver);
     }
+    fn ClearActiveEndpoints(&mut self) {
+        *self.send_remote.lock().unwrap() = None;
+        *self.send_receiver.lock().unwrap() = None;
+        *self.request_remote.lock().unwrap() = None;
+        *self.request_receiver.lock().unwrap() = None;
+    }
 }
 
 bindings::register_mojom_state_object_impls!(impl AssociatedSender for AssociatedSenderImpl);

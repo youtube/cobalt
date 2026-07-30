@@ -206,6 +206,9 @@ bool CrxUpdateService::RegisterComponent(
     return false;
   }
 
+  // Cancel any pending unregistration for this component.
+  std::erase(components_pending_unregistration_, component.app_id);
+
   // Update the registration data if the component has been registered before.
   auto it = components_.find(component.app_id);
   if (it != components_.end()) {

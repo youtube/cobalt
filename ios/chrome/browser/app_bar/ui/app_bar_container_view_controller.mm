@@ -101,17 +101,20 @@
 - (void)fullscreenWillUpdateObscuredInsetRange:(FullscreenBrowserAgent*)agent {
   AppBarPosition position = self.layoutState.appBarPosition;
   switch (position) {
-    case AppBarPosition::kBottom:
-      agent->AddObscuredInsetRange(UIRectEdgeBottom, kAppBarHeightFullscreen,
-                                   kAppBarHeight);
+    case AppBarPosition::kBottom: {
+      CGFloat minHeight =
+          IsAppBarHiddenInFullscreen() ? 0 : kAppBarHeightFullscreen;
+      agent->AddObscuredInsetRange(UIRectEdgeBottom, minHeight,
+                                   AppBarHeightPortrait());
       break;
+    }
     case AppBarPosition::kLeft:
-      agent->AddObscuredInsetRange(UIRectEdgeLeft, kAppBarHeightLandscape,
-                                   kAppBarHeightLandscape);
+      agent->AddObscuredInsetRange(UIRectEdgeLeft, AppBarHeightLandscape(),
+                                   AppBarHeightLandscape());
       break;
     case AppBarPosition::kRight:
-      agent->AddObscuredInsetRange(UIRectEdgeRight, kAppBarHeightLandscape,
-                                   kAppBarHeightLandscape);
+      agent->AddObscuredInsetRange(UIRectEdgeRight, AppBarHeightLandscape(),
+                                   AppBarHeightLandscape());
       break;
     case AppBarPosition::kNone:
       break;
@@ -123,9 +126,10 @@
   switch (position) {
     case AppBarPosition::kBottom: {
       _fullscreenProgress = agent->bottom_progress();
-      CGFloat currentHeight =
-          kAppBarHeightFullscreen +
-          (kAppBarHeight - kAppBarHeightFullscreen) * agent->bottom_progress();
+      CGFloat minHeight =
+          IsAppBarHiddenInFullscreen() ? 0 : kAppBarHeightFullscreen;
+      CGFloat currentHeight = minHeight + (AppBarHeightPortrait() - minHeight) *
+                                              agent->bottom_progress();
       agent->AddObscuredInset(UIRectEdgeBottom, currentHeight);
       [self updateLayout];
       // If this is inside an animation, layout immediately.
@@ -135,10 +139,10 @@
       break;
     }
     case AppBarPosition::kLeft:
-      agent->AddObscuredInset(UIRectEdgeLeft, kAppBarHeightLandscape);
+      agent->AddObscuredInset(UIRectEdgeLeft, AppBarHeightLandscape());
       break;
     case AppBarPosition::kRight:
-      agent->AddObscuredInset(UIRectEdgeRight, kAppBarHeightLandscape);
+      agent->AddObscuredInset(UIRectEdgeRight, AppBarHeightLandscape());
       break;
     case AppBarPosition::kNone:
       break;

@@ -3,7 +3,7 @@ AXWebArea AXTitle='Material Web Menu Events'
 ++AXGroup AXDescription='Ready'
 ++++AXGroup
 ++++++AXGroup
-++++++++AXGroup
+++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++++AXButton AXDescription='Open Menu'
 === End accessibility tree ===
 AXFocusedUIElementChanged on AXMenuItem AXDescription='Menu Item 1'
@@ -13,19 +13,19 @@ AXWebArea AXTitle='Material Web Menu Events'
 ++AXGroup AXDescription='Ready'
 ++++AXGroup
 ++++++AXGroup
-++++++++AXGroup
+++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++++AXButton AXDescription='Open Menu'
 ++++++AXGroup
-++++++++AXGroup
+++++++++AXGroup <<<<<< CHANGED
 ++++++++++AXMenuItem AXDescription='Menu Item 1' <<<<<< CHANGED
-++++++++++++AXGroup <<<<<< CHANGED
-++++++++++++++AXGroup <<<<<< CHANGED
+++++++++++++AXGroup AXSubrole=AXEmptyGroup <<<<<< CHANGED
+++++++++++++++AXGroup AXSubrole=AXEmptyGroup <<<<<< CHANGED
 ++++++++++AXMenuItem AXDescription='Menu Item 2' <<<<<< CHANGED
-++++++++++++AXGroup <<<<<< CHANGED
-++++++++++++++AXGroup <<<<<< CHANGED
+++++++++++++AXGroup AXSubrole=AXEmptyGroup <<<<<< CHANGED
+++++++++++++++AXGroup AXSubrole=AXEmptyGroup <<<<<< CHANGED
 ++++++++++AXMenuItem AXDescription='Menu Item 3' <<<<<< CHANGED
-++++++++++++AXGroup <<<<<< CHANGED
-++++++++++++++AXGroup <<<<<< CHANGED
+++++++++++++AXGroup AXSubrole=AXEmptyGroup <<<<<< CHANGED
+++++++++++++++AXGroup AXSubrole=AXEmptyGroup <<<<<< CHANGED
 === End accessibility tree ===
 === Start Continuation ===
 === Accessibility tree before go() pass 2 ===
@@ -33,19 +33,19 @@ AXWebArea AXTitle='Material Web Menu Events'
 ++AXGroup AXDescription='Ready'
 ++++AXGroup
 ++++++AXGroup
-++++++++AXGroup
+++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++++AXButton AXDescription='Open Menu'
 ++++++AXGroup
 ++++++++AXGroup
 ++++++++++AXMenuItem AXDescription='Menu Item 1'
-++++++++++++AXGroup
-++++++++++++++AXGroup
+++++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++++++AXMenuItem AXDescription='Menu Item 2'
-++++++++++++AXGroup
-++++++++++++++AXGroup
+++++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++++++AXMenuItem AXDescription='Menu Item 3'
-++++++++++++AXGroup
-++++++++++++++AXGroup
+++++++++++++AXGroup AXSubrole=AXEmptyGroup
+++++++++++++++AXGroup AXSubrole=AXEmptyGroup
 === End accessibility tree ===
 AXFocusedUIElementChanged on AXButton AXDescription='Open Menu'
 AXMenuClosed on AXWebArea AXTitle='Material Web Menu Events'
@@ -54,6 +54,6 @@ AXWebArea AXTitle='Material Web Menu Events'
 ++AXGroup AXDescription='Ready'
 ++++AXGroup
 ++++++AXGroup
-++++++++AXGroup
+++++++++AXGroup AXSubrole=AXEmptyGroup
 ++++++++AXButton AXDescription='Open Menu'
 === End accessibility tree ===

@@ -8,8 +8,12 @@
 
 #include "base/values.h"
 #include "components/autofill/core/common/autofill_prefs.h"
+#include "components/policy/core/browser/configuration_policy_handler.h"
+#include "components/policy/core/browser/configuration_policy_handler_parameters.h"
+#include "components/policy/core/browser/policy_error_map.h"
 #include "components/policy/core/common/policy_map.h"
 #include "components/policy/core/common/policy_types.h"
+#include "components/policy/core/common/schema.h"
 #include "components/policy/policy_constants.h"
 #include "components/prefs/pref_value_map.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -109,6 +113,167 @@ TEST_F(AutofillPolicyHandlerTest, DeprecatedPolicyIgnored_CreditCardEnabled) {
   EXPECT_FALSE(prefs.GetValue(prefs::kAutofillEnabledDeprecated, nullptr));
   EXPECT_FALSE(prefs.GetValue(prefs::kAutofillProfileEnabled, nullptr));
   EXPECT_FALSE(prefs.GetValue(prefs::kAutofillCreditCardEnabled, nullptr));
+}
+
+TEST_F(AutofillPolicyHandlerTest, CheckPolicySettings_AllPoliciesWrongType) {
+  policy::PolicyMap policy;
+  policy.Set(policy::key::kAutofillAddressEnabled,
+             policy::POLICY_LEVEL_MANDATORY, policy::POLICY_SCOPE_USER,
+             policy::POLICY_SOURCE_CLOUD, base::Value("true"), nullptr);
+  policy.Set(policy::key::kAutofillCreditCardEnabled,
+             policy::POLICY_LEVEL_MANDATORY, policy::POLICY_SCOPE_USER,
+             policy::POLICY_SOURCE_CLOUD, base::Value(123), nullptr);
+  // Set kAutofillSettings with invalid schema (integer instead of list).
+  policy.Set(policy::key::kAutofillSettings, policy::POLICY_LEVEL_MANDATORY,
+             policy::POLICY_SCOPE_USER, policy::POLICY_SOURCE_CLOUD,
+             base::Value(999), nullptr);
+
+  AutofillSettingsPolicyHandler handler(
+      policy::Schema::Wrap(policy::GetChromeSchemaData()));
+  policy::PolicyErrorMap errors;
+
+  EXPECT_FALSE(handler.CheckPolicySettings(policy, &errors));
+  EXPECT_TRUE(errors.HasError(policy::key::kAutofillAddressEnabled));
+  EXPECT_TRUE(errors.HasError(policy::key::kAutofillCreditCardEnabled));
+  EXPECT_TRUE(errors.HasError(policy::key::kAutofillSettings));
+}
+
+TEST_F(AutofillPolicyHandlerTest, CheckPolicySettings_AllPoliciesCorrectType) {
+  policy::PolicyMap policy;
+  policy.Set(policy::key::kAutofillAddressEnabled,
+             policy::POLICY_LEVEL_MANDATORY, policy::POLICY_SCOPE_USER,
+             policy::POLICY_SOURCE_CLOUD, base::Value(true), nullptr);
+  policy.Set(policy::key::kAutofillCreditCardEnabled,
+             policy::POLICY_LEVEL_MANDATORY, policy::POLICY_SCOPE_USER,
+             policy::POLICY_SOURCE_CLOUD, base::Value(false), nullptr);
+  policy.Set(
+      policy::key::kAutofillSettings, policy::POLICY_LEVEL_MANDATORY,
+      policy::POLICY_SCOPE_USER, policy::POLICY_SOURCE_CLOUD,
+      base::Value(base::ListValue().Append(
+          base::DictValue()
+              .Set("url_pattern", "https://example.com")
+              .Set("blocked_types", base::ListValue().Append("travel")))),
+      nullptr);
+
+  AutofillSettingsPolicyHandler handler(
+      policy::Schema::Wrap(policy::GetChromeSchemaData()));
+  policy::PolicyErrorMap errors;
+
+  EXPECT_TRUE(handler.CheckPolicySettings(policy, &errors));
+  EXPECT_TRUE(errors.empty());
+}
+
+TEST_F(AutofillPolicyHandlerTest, MigrationHandler_AddressDisabled) {
+  policy::PolicyMap policy;
+  policy.Set(policy::key::kAutofillAddressEnabled,
+             policy::POLICY_LEVEL_MANDATORY, policy::POLICY_SCOPE_USER,
+             policy::POLICY_SOURCE_CLOUD, base::Value(false), nullptr);
+  PrefValueMap prefs;
+  AutofillSettingsPolicyHandler handler(
+      policy::Schema::Wrap(policy::GetChromeSchemaData()));
+  handler.ApplyPolicySettings(policy, &prefs);
+
+  const base::Value* value = nullptr;
+  EXPECT_TRUE(prefs.GetValue(prefs::kAutofillProfileEnabled, &value));
+  ASSERT_TRUE(value);
+  EXPECT_FALSE(value->GetBool());
+
+  value = nullptr;
+  EXPECT_TRUE(prefs.GetValue(prefs::kAutofillTypesBlocked, &value));
+  ASSERT_TRUE(value && value->is_list());
+  ASSERT_EQ(1u, value->GetList().size());
+  const auto& rule = value->GetList()[0].GetDict();
+  EXPECT_EQ("*", *rule.FindString("url_pattern"));
+  const auto* blocked_types = rule.FindList("blocked_types");
+  ASSERT_TRUE(blocked_types && blocked_types->size() == 1u);
+  EXPECT_EQ("contact_info", (*blocked_types)[0].GetString());
+}
+
+TEST_F(AutofillPolicyHandlerTest, MigrationHandler_CreditCardDisabled) {
+  policy::PolicyMap policy;
+  policy.Set(policy::key::kAutofillCreditCardEnabled,
+             policy::POLICY_LEVEL_MANDATORY, policy::POLICY_SCOPE_USER,
+             policy::POLICY_SOURCE_CLOUD, base::Value(false), nullptr);
+  PrefValueMap prefs;
+  AutofillSettingsPolicyHandler handler(
+      policy::Schema::Wrap(policy::GetChromeSchemaData()));
+  handler.ApplyPolicySettings(policy, &prefs);
+
+  const base::Value* value = nullptr;
+  EXPECT_TRUE(prefs.GetValue(prefs::kAutofillCreditCardEnabled, &value));
+  ASSERT_TRUE(value);
+  EXPECT_FALSE(value->GetBool());
+
+  value = nullptr;
+  EXPECT_TRUE(prefs.GetValue(prefs::kAutofillTypesBlocked, &value));
+  ASSERT_TRUE(value && value->is_list());
+  ASSERT_EQ(1u, value->GetList().size());
+  const auto& rule = value->GetList()[0].GetDict();
+  EXPECT_EQ("*", *rule.FindString("url_pattern"));
+  const auto* blocked_types = rule.FindList("blocked_types");
+  ASSERT_TRUE(blocked_types && blocked_types->size() == 1u);
+  EXPECT_EQ("payments", (*blocked_types)[0].GetString());
+}
+
+TEST_F(AutofillPolicyHandlerTest, MigrationHandler_BothDisabled) {
+  policy::PolicyMap policy;
+  policy.Set(policy::key::kAutofillAddressEnabled,
+             policy::POLICY_LEVEL_MANDATORY, policy::POLICY_SCOPE_USER,
+             policy::POLICY_SOURCE_CLOUD, base::Value(false), nullptr);
+  policy.Set(policy::key::kAutofillCreditCardEnabled,
+             policy::POLICY_LEVEL_MANDATORY, policy::POLICY_SCOPE_USER,
+             policy::POLICY_SOURCE_CLOUD, base::Value(false), nullptr);
+  PrefValueMap prefs;
+  AutofillSettingsPolicyHandler handler(
+      policy::Schema::Wrap(policy::GetChromeSchemaData()));
+  handler.ApplyPolicySettings(policy, &prefs);
+
+  const base::Value* value = nullptr;
+  EXPECT_TRUE(prefs.GetValue(prefs::kAutofillTypesBlocked, &value));
+  ASSERT_TRUE(value && value->is_list());
+  ASSERT_EQ(1u, value->GetList().size());
+  const auto* blocked_types =
+      value->GetList()[0].GetDict().FindList("blocked_types");
+  ASSERT_TRUE(blocked_types && blocked_types->size() == 2u);
+  EXPECT_EQ("contact_info", (*blocked_types)[0].GetString());
+  EXPECT_EQ("payments", (*blocked_types)[1].GetString());
+}
+
+TEST_F(AutofillPolicyHandlerTest,
+       ConfiguredAutofillSettingsMergesWithLegacyPolicies) {
+  policy::PolicyMap policy;
+  policy.Set(policy::key::kAutofillAddressEnabled,
+             policy::POLICY_LEVEL_MANDATORY, policy::POLICY_SCOPE_USER,
+             policy::POLICY_SOURCE_CLOUD, base::Value(false), nullptr);
+
+  policy.Set(
+      policy::key::kAutofillSettings, policy::POLICY_LEVEL_MANDATORY,
+      policy::POLICY_SCOPE_USER, policy::POLICY_SOURCE_CLOUD,
+      base::Value(base::ListValue().Append(
+          base::DictValue()
+              .Set("url_pattern", "https://example.com")
+              .Set("blocked_types", base::ListValue().Append("travel")))),
+      nullptr);
+
+  PrefValueMap prefs;
+  AutofillSettingsPolicyHandler migration_handler(
+      policy::Schema::Wrap(policy::GetChromeSchemaData()));
+  migration_handler.ApplyPolicySettings(policy, &prefs);
+
+  EXPECT_TRUE(prefs.GetValue(prefs::kAutofillProfileEnabled, nullptr));
+
+  const base::Value* value = nullptr;
+  EXPECT_TRUE(prefs.GetValue(prefs::kAutofillTypesBlocked, &value));
+  ASSERT_TRUE(value && value->is_list());
+  ASSERT_EQ(2u, value->GetList().size());
+
+  const auto& rule1 = value->GetList()[0].GetDict();
+  EXPECT_EQ("https://example.com", *rule1.FindString("url_pattern"));
+  EXPECT_EQ("travel", (*rule1.FindList("blocked_types"))[0].GetString());
+
+  const auto& rule2 = value->GetList()[1].GetDict();
+  EXPECT_EQ("*", *rule2.FindString("url_pattern"));
+  EXPECT_EQ("contact_info", (*rule2.FindList("blocked_types"))[0].GetString());
 }
 
 }  // namespace autofill

@@ -2,7 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import glob
 import os
 import posixpath
 import re
@@ -11,64 +10,69 @@ from pylib import constants
 
 _EXCLUSIONS = [
     # Misc files that exist to document directories
-    re.compile(r'.*METADATA'),
-    re.compile(r'.*OWNERS'),
-    re.compile(r'.*\.md'),
-    re.compile(r'.*\.crx'),  # Chrome extension zip files.
-    re.compile(r'.*/\.git.*'),  # Any '.git*' directories/files.
-    re.compile(r'.*\.so'),  # Libraries packed into .apk.
-    re.compile(r'.*Mojo.*manifest\.json'),  # Some source_set()s pull these in.
-    re.compile(r'.*\.py'),  # Some test_support targets include python deps.
-    re.compile(r'.*\.apk'),  # Should be installed separately.
-    re.compile(r'.*\.jar'),  # Never need java intermediates.
-    re.compile(r'.*\.crx'),  # Used by download_from_google_storage.
-    re.compile(r'.*\.wpr'),  # Web-page-relay files needed only on host.
-    re.compile(r'.*lib.java/.*'),  # Never need java intermediates.
+    r'.*METADATA',
+    r'.*OWNERS',
+    r'.*\.md',
+    r'.*\.crx',  # Chrome extension zip files.
+    r'.*/\.git.*',  # Any '.git*' directories/files.
+    r'.*\.so',  # Libraries packed into .apk.
+    r'.*Mojo.*manifest\.json',  # Some source_set()s pull these in.
+    r'.*\.py',  # Some test_support targets include python deps.
+    r'.*\.apk',  # Should be installed separately.
+    r'.*\.jar',  # Never need java intermediates.
+    r'.*\.crx',  # Used by download_from_google_storage.
+    r'.*\.wpr',  # Web-page-relay files needed only on host.
+    r'.*lib.java/.*',  # Never need java intermediates.
 
     # Test filter files:
-    re.compile(r'.*/clank/build/bot/filters/.*'),
-    re.compile(r'.*/testing/buildbot/filters/.*'),
+    r'.*/clank/build/bot/filters/.*',
+    r'.*/testing/buildbot/filters/.*',
 
     # Chrome external extensions config file.
-    re.compile(r'.*external_extensions\.json'),
+    r'.*external_extensions\.json',
 
     # v8's blobs and icu data get packaged into APKs.
-    re.compile(r'.*snapshot_blob.*\.bin'),
-    re.compile(r'.*icudtl\.bin'),
+    r'.*snapshot_blob.*\.bin',
+    r'.*icudtl\.bin',
 
     # Scripts that are needed by swarming, but not on devices:
-    re.compile(r'.*goldctl'),
-    re.compile(r'.*llvm-readelf'),
-    re.compile(r'.*llvm-readobj'),
-    re.compile(r'.*llvm-symbolizer'),
-    re.compile(r'.*devil_util_(?:bin|dist|host)'),
-    re.compile(r'.*md5sum_(?:bin|dist|host)'),
-    re.compile(r'.*/development/scripts/stack'),
-    re.compile(r'.*/build/android/pylib/symbols'),
-    re.compile(r'.*/build/android/stacktrace'),
+    r'.*goldctl',
+    r'.*llvm-readelf',
+    r'.*llvm-readobj',
+    r'.*llvm-symbolizer',
+    r'.*devil_util_(?:bin|dist|host)',
+    r'.*md5sum_(?:bin|dist|host)',
+    r'.*/development/scripts/stack',
+    r'.*/build/android/pylib/symbols',
+    r'.*/build/android/stacktrace',
 
     # Required for java deobfuscation on the host:
-    re.compile(r'.*build/android/stacktrace/.*'),
-    re.compile(r'.*third_party/jdk/.*'),
-    re.compile(r'.*third_party/proguard/.*'),
+    r'.*build/android/stacktrace/.*',
+    r'.*third_party/jdk/.*',
+    r'.*third_party/proguard/.*',
 
     # Our tests don't need these.
-    re.compile(r'.*/devtools-frontend/.*front_end/.*'),
-    re.compile(r'.*/devtools-frontend/.*inspector_overlay/.*'),
+    r'.*/devtools-frontend/.*front_end/.*',
+    r'.*/devtools-frontend/.*inspector_overlay/.*',
 
     # Build artifacts:
-    re.compile(r'.*\.stamp'),
-    re.compile(r'.*\.pak\.info'),
-    re.compile(r'.*\.build_config.json'),
-    re.compile(r'.*\.incremental\.json'),
+    r'.*\.stamp',
+    r'.*\.pak\.info',
+    r'.*\.build_config.json',
+    r'.*\.incremental\.json',
 ]
 
 
-def _FilterDataDeps(abs_host_files):
+def _GetExclusionsRE():
   exclusions = _EXCLUSIONS + [
-      re.compile(re.escape(os.path.join(constants.GetOutDirectory(), 'bin')))
+      re.escape(os.path.join(constants.GetOutDirectory(), 'bin'))
   ]
-  return [p for p in abs_host_files if not any(r.match(p) for r in exclusions)]
+  return re.compile('|'.join(exclusions))
+
+
+def _FilterDataDeps(abs_host_files):
+  exclusions_re = _GetExclusionsRE()
+  return [p for p in abs_host_files if not exclusions_re.search(p)]
 
 
 def DevicePathComponentsFor(host_path, output_directory=None):
@@ -170,8 +174,9 @@ def ExpandDataDependencies(host_device_tuples):
   ret = []
   for h, d in host_device_tuples:
     if os.path.isdir(h):
-      for subpath in glob.glob(f'{h}/**', recursive=True):
-        if not os.path.isdir(subpath):
+      for root, _, filenames in os.walk(h):
+        for filename in filenames:
+          subpath = os.path.join(root, filename)
           new_part = subpath[len(h):]
           ret.append((subpath, d + new_part))
     else:

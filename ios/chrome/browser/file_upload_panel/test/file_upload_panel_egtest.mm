@@ -1480,6 +1480,7 @@ std::unique_ptr<net::test_server::HttpResponse> TestPageResponse(
     [photosPickerApp.buttons[@"Cancel"] tap];
 
     [self addVideoToPhotoLibrary];
+    [self checkAndAcceptSystemDialog];
     [self loadURLAndTapInputWithPath:"" waitForText:"File input"];
 
     // Re-open picker.

@@ -76,11 +76,13 @@ class MockModelContextHost : public mojom::blink::ModelContextHost {
     model_context_.Bind(std::move(model_context));
   }
 
-  void RegisterScriptTool(mojom::blink::ScriptToolPtr tool) override {
+  void RegisterScriptTool(mojom::blink::ScriptToolPtr tool,
+                          RegisterScriptToolCallback callback) override {
     registered_tools_.push_back(tool->name);
     if (model_context_.is_bound()) {
       model_context_->NotifyToolChange();
     }
+    std::move(callback).Run();
   }
 
   void UnregisterScriptTool(const String& name) override {

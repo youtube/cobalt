@@ -148,6 +148,7 @@ class SVGUseElement final : public SVGGraphicsElement,
                            NullInstanceRootWhenConnectedToInactiveDocument);
   FRIEND_TEST_ALL_PREFIXES(SVGUseElementTest,
                            NullInstanceRootWhenShadowTreePendingRebuild);
+  FRIEND_TEST_ALL_PREFIXES(AnimationCompositorAnimationsTest, SVGUseInstancesIndependentlyAnimate);
 };
 
 }  // namespace blink

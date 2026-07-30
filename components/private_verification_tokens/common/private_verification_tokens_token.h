@@ -6,10 +6,10 @@
 #define COMPONENTS_PRIVATE_VERIFICATION_TOKENS_COMMON_PRIVATE_VERIFICATION_TOKENS_TOKEN_H_
 
 #include <cstdint>
-#include <string>
 #include <vector>
 
 #include "base/time/time.h"
+#include "url/origin.h"
 
 namespace private_verification_tokens {
 
@@ -18,7 +18,7 @@ using SerializedToken = std::vector<uint8_t>;
 // Type to store a single token.
 class PrivateVerificationTokensToken {
  public:
-  PrivateVerificationTokensToken(std::string etld_plus_one,
+  PrivateVerificationTokensToken(url::Origin issuer,
                                  SerializedToken token,
                                  uint32_t key_id,
                                  base::Time expiration,
@@ -32,8 +32,8 @@ class PrivateVerificationTokensToken {
 
   ~PrivateVerificationTokensToken();
 
-  // Returns the eTLD+1 this token is for.
-  const std::string& etld_plus_one() const;
+  // Returns the issuer Origin this token is for.
+  const url::Origin& issuer() const;
   // Returns the serialized token. This is a single serialized Token
   // from
   // https://www.ietf.org/archive/id/draft-yun-cfrg-athm-00.html#section-5.4.1
@@ -60,7 +60,7 @@ class PrivateVerificationTokensToken {
   bool operator==(const PrivateVerificationTokensToken&) const = default;
 
  private:
-  std::string etld_plus_one_;
+  url::Origin issuer_;
   SerializedToken token_;
   uint32_t key_id_;
   base::Time expiration_;

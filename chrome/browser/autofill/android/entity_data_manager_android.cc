@@ -91,13 +91,14 @@ EntityDataManagerAndroid::EntityDataManagerAndroid(
 EntityDataManagerAndroid::~EntityDataManagerAndroid() = default;
 
 bool EntityDataManagerAndroid::IsPersonalContextPreferenceVisible(JNIEnv* env) {
-  if (!autofill::AreAutofillPersonalContextFeaturesSupported(
-          google_groups_manager_)) {
-    return false;
-  }
-
   return autofill::ShouldShowPersonalContextAutofillSetting(
-      personal_context_enablement_service_);
+#if !BUILDFLAG(IS_FUCHSIA)
+      google_groups_manager_,
+#endif
+      prefs_, &entity_data_manager(), identity_manager_, sync_service_,
+      IsWalletPublicPassStorageEnabledHelper(), is_off_the_record_,
+      entity_data_manager_->GetVariationCountryCode(),
+      personal_context_enablement_service_, subscription_eligibility_service_);
 }
 
 bool EntityDataManagerAndroid::IsPersonalContextEnabled(JNIEnv* env) {
@@ -114,14 +115,7 @@ void EntityDataManagerAndroid::SetPersonalContextEnabled(JNIEnv* env,
 
 static std::string
 JNI_EntityDataManager_GetPersonalContextManageConnectedAppsUrl(JNIEnv* env) {
-  // TODO(b/516667536): Update url when final one is ready.
-  return personal_context::kPersonalContextSettingsURL;
-}
-
-static std::string JNI_EntityDataManager_GetPersonalContextManageSuggestionsUrl(
-    JNIEnv* env) {
-  // TODO(b/516667536): Update url when final one is ready.
-  return personal_context::kPersonalContextSettingsURL;
+  return personal_context::kPersonalContextConnectedAppsURL;
 }
 
 static int64_t JNI_EntityDataManager_Init(JNIEnv* env,

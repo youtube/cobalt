@@ -232,7 +232,6 @@ public class AppMenuItemViewBinderTest {
         ChromeImageView itemIcon = view.findViewById(R.id.menu_item_icon);
 
         Assert.assertEquals("Incorrect title text for item 1", TITLE_1, titleView.getText());
-        Assert.assertEquals("Incorrect tooltip text for item 1", TITLE_1, view.getTooltipText());
         Assert.assertNull("Should not have icon for item 1", itemIcon.getDrawable());
     }
 
@@ -390,7 +389,6 @@ public class AppMenuItemViewBinderTest {
         TextView titleView = view1.findViewById(R.id.menu_item_text);
 
         Assert.assertEquals("Incorrect title text for item 1", TITLE_2, titleView.getText());
-        Assert.assertEquals("Incorrect tooltip text for item 1", TITLE_2, view1.getTooltipText());
 
         ImageView iconView = view1.findViewById(R.id.menu_item_icon);
         Assert.assertNotNull(iconView);
@@ -399,7 +397,6 @@ public class AppMenuItemViewBinderTest {
         View view2 = mModelListAdapter.getView(1, view1, parentView);
         Assert.assertEquals("Convert view should have been re-used", view1, view2);
         Assert.assertEquals("Title should have been updated", TITLE_5, titleView.getText());
-        Assert.assertEquals("Tooltip should have been updated", TITLE_5, view2.getTooltipText());
     }
 
     @Test

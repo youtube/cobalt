@@ -5,9 +5,12 @@
 #ifndef CHROME_BROWSER_GLIC_GLIC_PREF_NAMES_H_
 #define CHROME_BROWSER_GLIC_GLIC_PREF_NAMES_H_
 
+#include <optional>
+
 #include "build/build_config.h"
 
 class PrefRegistrySimple;
+class PrefService;
 namespace user_prefs {
 class PrefRegistrySyncable;
 }  // namespace user_prefs
@@ -142,6 +145,10 @@ inline constexpr char kGlicPreviousPositionY[] = "glic.previous_bounds.y";
 inline constexpr char kGlicClosedCaptioningEnabled[] =
     "glic.closed_captioning_enabled";
 
+// Bool pref for the media understanding setting.
+inline constexpr char kGlicMediaUnderstandingEnabled[] =
+    "glic.media_understanding_enabled";
+
 // Bool pref that determines if errors are allowed to be shown.
 inline constexpr char kGlicShowErrorAllowed[] = "glic.show_error_allowed";
 
@@ -175,6 +182,11 @@ inline constexpr char kGlicPreviouslyNotAllowed[] =
 #if BUILDFLAG(IS_MAC)
 inline constexpr char kGlicUseAltOSIcon[] = "glic.use_alt_os_icon";
 #endif
+
+// Returns the actuation capability policy state if the preference contains a
+// valid enumerator value, or std::nullopt otherwise.
+std::optional<GlicActuationOnWebPolicyState> GetActuationOnWebCapability(
+    const PrefService* pref_service);
 
 void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry);
 void RegisterLocalStatePrefs(PrefRegistrySimple* registry);

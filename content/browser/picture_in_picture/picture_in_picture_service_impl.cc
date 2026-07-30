@@ -7,14 +7,39 @@
 #include <utility>
 
 #include "base/functional/bind.h"
-#include "content/browser/picture_in_picture/picture_in_picture_session.h"
 #include "content/browser/picture_in_picture/video_picture_in_picture_window_controller_impl.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_delegate.h"
+#include "media/base/video_spatial_format.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
 
 namespace content {
+
+struct PictureInPictureServiceImpl::PendingSession {
+  PendingSession(
+      uint32_t player_id,
+      mojo::PendingAssociatedRemote<media::mojom::MediaPlayer> player_remote,
+      const viz::SurfaceId& surface_id,
+      const gfx::Size& natural_size,
+      bool show_play_pause_button,
+      mojo::PendingRemote<blink::mojom::PictureInPictureSessionObserver>
+          observer,
+      const gfx::Rect& source_bounds,
+      const media::VideoSpatialFormat& spatial_format,
+      StartSessionCallback callback);
+  ~PendingSession();
+
+  uint32_t player_id;
+  mojo::PendingAssociatedRemote<media::mojom::MediaPlayer> player_remote;
+  viz::SurfaceId surface_id;
+  gfx::Size natural_size;
+  bool show_play_pause_button;
+  mojo::PendingRemote<blink::mojom::PictureInPictureSessionObserver> observer;
+  gfx::Rect source_bounds;
+  media::VideoSpatialFormat spatial_format;
+  StartSessionCallback callback;
+};
 
 // static
 void PictureInPictureServiceImpl::Create(
@@ -42,6 +67,7 @@ void PictureInPictureServiceImpl::StartSession(
     mojo::PendingRemote<blink::mojom::PictureInPictureSessionObserver> observer,
     const gfx::Rect& source_bounds,
     bool request_immersive,
+    const media::VideoSpatialFormat& spatial_format,
     StartSessionCallback callback) {
   // Invalidate any pending immersive confirmation flows. Note that this does
   // not immediately destroy the `PendingSession` stored in the pending
@@ -52,6 +78,7 @@ void PictureInPictureServiceImpl::StartSession(
   auto pending_session = std::make_unique<PendingSession>(
       player_id, std::move(player_remote), surface_id, natural_size,
       show_play_pause_button, std::move(observer), source_bounds,
+      spatial_format,
       mojo::WrapCallbackWithDefaultInvokeIfNotRun(
           std::move(callback), mojo::NullRemote(), gfx::Size()));
 
@@ -102,10 +129,41 @@ void PictureInPictureServiceImpl::StartSessionImmersive(
     return;
   }
 
-  GetController().RequestImmersivePlaybackConfirmation(base::BindOnce(
-      &PictureInPictureServiceImpl::OnImmersivePlaybackConfirmation,
-      immersive_confirmation_weak_factory_.GetWeakPtr(),
-      std::move(pending_session)));
+  auto map_stereo_mode = [](media::VideoStereoMode mode) {
+    switch (mode) {
+      case media::VideoStereoMode::kMono:
+        return ImmersiveStereoMode::kMono;
+      case media::VideoStereoMode::kSideBySideLeftFirst:
+        return ImmersiveStereoMode::kSideBySide;
+      case media::VideoStereoMode::kTopBottomLeftFirst:
+        return ImmersiveStereoMode::kTopBottom;
+      default:
+        return ImmersiveStereoMode::kMono;
+    }
+  };
+
+  auto map_projection_type = [](media::VideoProjectionType type) {
+    if (type == media::VideoProjectionType::kEquirect180) {
+      return ImmersiveProjectionType::kHemisphere;
+    } else if (type == media::VideoProjectionType::kEquirect360) {
+      return ImmersiveProjectionType::kSphere;
+    } else {
+      return ImmersiveProjectionType::kQuad;
+    }
+  };
+
+  ImmersiveOptions options;
+  options.stereo_mode =
+      map_stereo_mode(pending_session->spatial_format.stereo_mode);
+  options.projection_type =
+      map_projection_type(pending_session->spatial_format.projection_type);
+
+  GetController().RequestImmersivePlaybackConfirmation(
+      options,
+      base::BindOnce(
+          &PictureInPictureServiceImpl::OnImmersivePlaybackConfirmation,
+          immersive_confirmation_weak_factory_.GetWeakPtr(),
+          std::move(pending_session)));
 }
 
 void PictureInPictureServiceImpl::OnImmersivePlaybackConfirmation(
@@ -127,6 +185,7 @@ PictureInPictureServiceImpl::PendingSession::PendingSession(
     bool show_play_pause_button,
     mojo::PendingRemote<blink::mojom::PictureInPictureSessionObserver> observer,
     const gfx::Rect& source_bounds,
+    const media::VideoSpatialFormat& spatial_format,
     PictureInPictureServiceImpl::StartSessionCallback callback)
     : player_id(player_id),
       player_remote(std::move(player_remote)),
@@ -135,6 +194,7 @@ PictureInPictureServiceImpl::PendingSession::PendingSession(
       show_play_pause_button(show_play_pause_button),
       observer(std::move(observer)),
       source_bounds(source_bounds),
+      spatial_format(spatial_format),
       callback(std::move(callback)) {}
 
 PictureInPictureServiceImpl::PendingSession::~PendingSession() = default;

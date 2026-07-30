@@ -1,0 +1,51 @@
+private let mojoBuiltins: [String: ILType] = [
+]
+
+private let keepGenerators = [
+    "IntegerGenerator", "StringGenerator", "TernaryOperationGenerator",
+    "PlainFunctionGenerator", "AsyncFunctionGenerator", "AwaitGenerator",
+    "SubroutineReturnGenerator", "TryCatchGenerator",
+]
+
+private let mojoDisabledGenerators: [String] = CodeGenerators.map { $0.name }
+    .filter {
+        !keepGenerators.contains($0)
+    }
+
+let mojo{{primary.name}}Profile = Profile(
+    processArgs: { _ in return [] },
+    processArgsReference: nil,
+    processEnv: [
+        "ASAN_OPTIONS": "detect_odr_violation=0:abort_on_error=1", "DISPLAY": ":20",
+    ],
+    maxExecsBeforeRespawn: 1000,
+    timeout: Timeout.interval(11000, 11000),
+    codePrefix: "",
+    codeSuffix: "",
+    ecmaVersion: v8Profile.ecmaVersion,
+    startupTests: [
+        ("fuzzilli('FUZZILLI_PRINT', 'test')", .shouldSucceed),
+        (
+            """
+            if (typeof {{(primary.module.namespace|namespace_as_array)[0]}} == 'undefined' \
+            || {{((primary.module.namespace|namespace_as_array)+ [primary.name]) | join('?.')}} === undefined) \
+            throw '{{primary.name}} not found'
+            """,
+            .shouldSucceed
+        ),
+    ] + v8Profile.startupTests,
+    additionalCodeGenerators: [
+        (MojoMethodCallGenerator, 10000),
+        (MojoPropertyRetrievalGenerator, 10000),
+    ] + commonMojoCodeGenerators,
+    additionalProgramTemplates: WeightedList([]),
+    disabledCodeGenerators: mojoDisabledGenerators,
+    disabledMutators: v8Profile.disabledMutators,
+    additionalBuiltins: mojoBuiltins.merging(commonMojoBuiltins) { (existing, _) in existing },
+    additionalObjectGroups: [
+    ] + commonMojoObjectGroups,
+    additionalEnumerations: [
+    ] + commonMojoEnumerations,
+    additionalOptionsBags: [] + commonMojoOptionsBags,
+    optionalPostProcessor: nil
+)

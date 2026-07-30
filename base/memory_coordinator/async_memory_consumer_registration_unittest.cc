@@ -43,6 +43,17 @@ class TestAsyncMemoryConsumer : public MemoryConsumer {
   AsyncMemoryConsumerRegistration async_memory_consumer_registration_;
 };
 
+class TestPassiveAsyncMemoryConsumer : public PassiveMemoryConsumer {
+ public:
+  explicit TestPassiveAsyncMemoryConsumer(
+      std::string_view consumer_name,
+      std::optional<MemoryConsumerTraits> traits)
+      : async_memory_consumer_registration_(consumer_name, traits, this) {}
+
+ private:
+  AsyncMemoryConsumerRegistration async_memory_consumer_registration_;
+};
+
 class AsyncMemoryConsumerRegistrationTest : public testing::Test {
  protected:
   test::TaskEnvironment task_environment_;
@@ -100,6 +111,22 @@ TEST_F(AsyncMemoryConsumerRegistrationTest, DestroyRegistryBeforeAsyncCleanup) {
   // run yet, the destruction observer will be triggered. It should see that
   // the parent has been destroyed and skip the CHECK.
   registry.reset();
+}
+
+TEST_F(AsyncMemoryConsumerRegistrationTest, RegisterPassiveConsumer) {
+  TestMemoryConsumerRegistry registry;
+
+  auto async_task_runner = ThreadPool::CreateSequencedTaskRunner({});
+
+  MemoryConsumerTraits traits(MemoryConsumerTraits::ConsumerType::kPassive);
+  SequenceBound<TestPassiveAsyncMemoryConsumer> consumer(
+      async_task_runner, "passive_consumer", traits);
+
+  // Wait for registration.
+  ASSERT_TRUE(test::RunUntil([&]() { return registry.size() == 1u; }));
+
+  consumer.Reset();
+  ASSERT_TRUE(test::RunUntil([&]() { return registry.size() == 0u; }));
 }
 
 }  // namespace base

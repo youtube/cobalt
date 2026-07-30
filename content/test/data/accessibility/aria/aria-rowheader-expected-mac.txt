@@ -29,4 +29,4 @@ AXWebArea
 ++++++++AXStaticText AXValue='Safari'
 ++++++AXCell AXColumnIndexRange={loc: 2, len: 1} AXRowHeaderUIElements=[:11] AXRowIndexRange={loc: 1, len: 1}
 ++++++++AXStaticText AXValue='WebKit'
-++++AXGroup
+++++AXGroup AXSubrole=AXEmptyGroup

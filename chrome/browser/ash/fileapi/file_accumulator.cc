@@ -10,10 +10,8 @@ namespace ash {
 
 FileAccumulator::FileAccumulator(size_t max_capacity)
     : max_capacity_(max_capacity), sealed_(false) {}
-FileAccumulator::FileAccumulator(FileAccumulator&& accumulator)
-    : max_capacity_(accumulator.max_capacity_),
-      sealed_(accumulator.sealed_),
-      files_(std::move(accumulator.files_)) {}
+
+FileAccumulator::FileAccumulator(FileAccumulator&&) noexcept = default;
 
 FileAccumulator::~FileAccumulator() = default;
 
@@ -38,11 +36,6 @@ const std::vector<RecentFile>& FileAccumulator::Get() {
     std::sort_heap(files_.begin(), files_.end(), RecentFileComparator());
   }
   return files_;
-}
-
-void FileAccumulator::Clear() {
-  files_.clear();
-  sealed_ = false;
 }
 
 }  // namespace ash

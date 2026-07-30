@@ -70,9 +70,13 @@ void AddAskBeforeHttpDialogText(ui::DialogModel::Builder& dialog_model,
         AskBeforeHttpDialogController::kDescriptionTextId);
     return;
   } else if (warning_reason == HttpWarningReason::kAdvancedProtection) {
-    // TODO(crbug.com/351990829): Android text is slightly different.
+#if !BUILDFLAG(IS_ANDROID)
     auto description_text = ui::DialogModelLabel::CreateWithReplacement(
         IDS_ABH_PROMPT_ADVANCED_PROTECTION_PRIMARY_PARAGRAPH, link);
+#else
+    auto description_text = ui::DialogModelLabel::CreateWithReplacement(
+        IDS_ABH_PROMPT_ADVANCED_PROTECTION_PRIMARY_PARAGRAPH_ANDROID, link);
+#endif
     dialog_model.AddParagraph(
         description_text, /*header=*/u"",
         AskBeforeHttpDialogController::kDescriptionTextId);

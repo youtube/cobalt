@@ -38,7 +38,7 @@ base::OnceClosure PuffOperation(
   base::MakeRefCounted<DeltaPatchOperation>(
       crx_cache, event_adder, state_tracker, old_hash,
       base::File::FLAG_CREATE_ALWAYS | base::File::FLAG_WRITE |
-          base::File::FLAG_WIN_EXCLUSIVE_WRITE,
+          base::File::FLAG_WIN_EXCLUSIVE_WRITE | base::File::FLAG_NO_FOLLOW,
       output_hash, puffin::P_OK, patch_file, protocol_request::kEventPuff,
       is_foreground, std::move(callback))
       ->Operation(

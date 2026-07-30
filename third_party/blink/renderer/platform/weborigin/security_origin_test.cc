@@ -1224,6 +1224,58 @@ TEST_F(SecurityOriginTest, GetSchemefulSiteOnCopies) {
   EXPECT_EQ(site, origin->IsolatedCopy()->GetSchemefulSite());
 }
 
+TEST_F(SecurityOriginTest, AreSameOrigin) {
+  struct TestCase {
+    bool same_origin;
+    const char* a;
+    const char* b;
+  } tests[] = {
+      // Same origin (default port, implicit)
+      {true, "https://example.com/a", "https://example.com/b"},
+      // Same origin (explicit default port vs implicit)
+      {true, "https://example.com/a", "https://example.com:443/b"},
+      {true, "http://example.com/a", "http://example.com:80/b"},
+      // Different ports (explicit non-default vs default)
+      {false, "http://example.com:8080/a", "http://example.com/b"},
+      // Port 0 comparisons
+      {true, "http://example.com:0/a", "http://example.com:0/b"},
+      {false, "http://example.com:0/a", "http://example.com/b"},
+      // Host mismatch
+      {false, "https://a.example.com/", "https://b.example.com/"},
+      // Capitalization and IDN host canonicalization
+      {true, "https://EXAMPLE.com/", "https://example.com/"},
+      {true, "http://☃.net/", "http://xn--n3h.net/"},
+      // Trailing dot in host
+      {false, "https://example.com./", "https://example.com/"},
+      // Protocol mismatch
+      {false, "http://example.com/", "https://example.com/"},
+      // Userinfo (should be ignored)
+      {true, "http://user:pass@example.com/", "http://example.com/"},
+      // IPv6 host
+      {true, "https://[::1]/", "https://[::1]:443/"},
+      // Opaque URLs (passthrough to IsSameOriginWith comparison)
+      {false, "data:text/html,abc", "data:text/html,abc"},
+      {false, "about:blank", "about:blank"},
+      // Non-HTTP family schemes (passthrough to IsSameOriginWith comparison)
+      {true, "ws://example.com/a", "ws://example.com/b"},
+      {true, "wss://example.com/a", "wss://example.com/b"},
+      {true, "ftp://a.test/a", "ftp://a.test/b"},
+      {true, "file:///a/b/c", "file:///a/b/d"},
+      {true, "blob:https://example.com/uuid-1",
+       "blob:https://example.com/uuid-2"},
+      {true, "filesystem:https://example.com/temporary/a",
+       "filesystem:https://example.com/temporary/b"},
+  };
+
+  for (const auto& test : tests) {
+    SCOPED_TRACE(testing::Message() << "URL 1: `" << test.a << "` "
+                                    << "URL 2: `" << test.b << "`\n");
+    EXPECT_EQ(test.same_origin,
+              SecurityOrigin::AreSameOrigin(KURL(String::FromUtf8(test.a)),
+                                            KURL(String::FromUtf8(test.b))));
+  }
+}
+
 }  // namespace blink
 
 // Apparently INSTANTIATE_TYPED_TEST_SUITE_P needs to be used in the same

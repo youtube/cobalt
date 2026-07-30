@@ -194,28 +194,26 @@ void ChromeBrowserMainExtraPartsViews::
           infobars::InfoBarDelegate::COLLECTED_COOKIES_INFOBAR_DELEGATE)) {
     auto* browser_infobar_manager =
         infobars::BrowserInfoBarManager::From(g_browser_process);
-    if (browser_infobar_manager) {
-      auto spec =
-          infobars::InfoBarSpec::Builder(
-              infobars::InfoBarDelegate::COLLECTED_COOKIES_INFOBAR_DELEGATE)
-              .SetMessageText(l10n_util::GetStringUTF16(
-                  IDS_COLLECTED_COOKIES_INFOBAR_MESSAGE))
-              .SetIcon(features::IsRoundedIconsEnabled()
-                           ? vector_icons::kSettingsIcon
-                           : vector_icons::kSettingsChromeRefreshOldIcon)
-              .SetScope(infobars::InfoBarScope::kCurrentTab)
-              .AddOkButton(
-                  l10n_util::GetStringUTF16(
-                      IDS_COLLECTED_COOKIES_INFOBAR_BUTTON),
-                  base::BindRepeating([](content::WebContents* web_contents) {
-                    if (web_contents) {
-                      web_contents->GetController().Reload(
-                          content::ReloadType::NORMAL, true);
-                    }
-                  }))
-              .Build();
-      browser_infobar_manager->Register(std::move(spec));
-    }
+    CHECK(browser_infobar_manager);
+    auto spec =
+        infobars::InfoBarSpec::Builder(
+            infobars::InfoBarDelegate::COLLECTED_COOKIES_INFOBAR_DELEGATE)
+            .SetMessageText(l10n_util::GetStringUTF16(
+                IDS_COLLECTED_COOKIES_INFOBAR_MESSAGE))
+            .SetIcon(features::IsRoundedIconsEnabled()
+                         ? vector_icons::kSettingsIcon
+                         : vector_icons::kSettingsChromeRefreshOldIcon)
+            .SetScope(infobars::InfoBarScope::kTab)
+            .AddOkButton(
+                l10n_util::GetStringUTF16(IDS_COLLECTED_COOKIES_INFOBAR_BUTTON),
+                base::BindRepeating([](content::WebContents* web_contents) {
+                  if (web_contents) {
+                    web_contents->GetController().Reload(
+                        content::ReloadType::NORMAL, true);
+                  }
+                }))
+            .Build();
+    browser_infobar_manager->Register(std::move(spec));
   }
 }
 

@@ -34,6 +34,10 @@ class LevelUpService : public KeyedService {
   // Returns the current level of the user.
   int GetCurrentLevel() const;
 
+  // Returns the number of tasks remaining to reach the next level, or 0 if
+  // the max level is reached.
+  int GetTasksRemainingForNextLevel() const;
+
   // Marks a task as completed.
   void MarkTaskCompleted(TaskType task_type);
 
@@ -53,8 +57,28 @@ class LevelUpService : public KeyedService {
   static void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry);
 
  private:
+  // Populates the map of available tasks.
   void PopulateTasks();
+
+  // Loads saved completed tasks and UI state from preferences.
   void LoadPrefs();
+
+  // Recalculates the user's level based on completed tasks, enforcing
+  // monotonicity, and updates the saved highest level preference if the level
+  // increases.
+  void UpdateLevelAndPref();
+
+  // Returns the additional completed tasks required to reach the given level
+  // from the previous level.
+  int GetTasksIncrementForLevel(int level) const;
+
+  // Returns the total number of completed tasks required to reach the given
+  // level.
+  int GetTotalTasksRequiredForLevel(int level) const;
+
+  // Calculates the user level based on the count of completed tasks.
+  // Declared const since it does not modify any service state.
+  int CalculateLevel(size_t completed_count) const;
 
   raw_ptr<PrefService> pref_service_;
   std::map<TaskType, std::unique_ptr<TaskInfo>> tasks_;

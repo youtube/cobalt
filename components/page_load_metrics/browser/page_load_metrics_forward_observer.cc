@@ -81,17 +81,6 @@ PageLoadMetricsForwardObserver::OnPrerenderStart(
 }
 
 PageLoadMetricsObserverInterface::ObservePolicy
-PageLoadMetricsForwardObserver::OnPreviewStart(
-    content::NavigationHandle* navigation_handle,
-    const GURL& currently_committed_url) {
-  // TODO(crbug.com/40895492): Investigate whether this should truly be
-  // unreachable. Note that all NOTREACHED()s were made non-fatal in this file,
-  // they are not all necessarily hit.
-  DUMP_WILL_BE_NOTREACHED();
-  return STOP_OBSERVING;
-}
-
-PageLoadMetricsObserverInterface::ObservePolicy
 PageLoadMetricsForwardObserver::OnNavigationHandleTimingUpdated(
     content::NavigationHandle* navigation_handle) {
   // New events don't support forward observers.
@@ -454,9 +443,6 @@ void PageLoadMetricsForwardObserver::OnPrefetchLikely() {
 
 void PageLoadMetricsForwardObserver::DidActivatePrerenderedPage(
     content::NavigationHandle* navigation_handle) {}
-
-void PageLoadMetricsForwardObserver::DidActivatePreviewedPage(
-    base::TimeTicks activation_time) {}
 
 void PageLoadMetricsForwardObserver::OnSharedStorageWorkletHostCreated() {
   if (!parent_observer_)

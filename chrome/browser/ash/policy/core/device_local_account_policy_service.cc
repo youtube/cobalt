@@ -81,6 +81,7 @@ void DeleteObsoleteExtensionCache(const std::string& account_id_to_delete) {
 }  // namespace
 
 DeviceLocalAccountPolicyService::DeviceLocalAccountPolicyService(
+    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
     ash::SessionManagerClient* session_manager_client,
     ash::DeviceSettingsService* device_settings_service,
     ash::CrosSettings* cros_settings,
@@ -89,9 +90,9 @@ DeviceLocalAccountPolicyService::DeviceLocalAccountPolicyService(
     scoped_refptr<base::SequencedTaskRunner> store_first_load_task_runner,
     scoped_refptr<base::SequencedTaskRunner> extension_cache_task_runner,
     scoped_refptr<base::SequencedTaskRunner>
-        external_data_service_backend_task_runner,
-    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory)
-    : session_manager_client_(session_manager_client),
+        external_data_service_backend_task_runner)
+    : url_loader_factory_(url_loader_factory),
+      session_manager_client_(session_manager_client),
       device_settings_service_(device_settings_service),
       cros_settings_(cros_settings),
       invalidation_listener_(invalidation_listener),
@@ -103,7 +104,6 @@ DeviceLocalAccountPolicyService::DeviceLocalAccountPolicyService(
       extension_cache_task_runner_(extension_cache_task_runner),
       resource_cache_task_runner_(base::ThreadPool::CreateSequencedTaskRunner(
           {base::MayBlock(), base::TaskPriority::BEST_EFFORT})),
-      url_loader_factory_(url_loader_factory),
       local_accounts_subscription_(cros_settings_->AddSettingsObserver(
           ash::kAccountsPrefDeviceLocalAccounts,
           base::BindRepeating(
@@ -111,6 +111,8 @@ DeviceLocalAccountPolicyService::DeviceLocalAccountPolicyService(
               base::Unretained(this)))),
       component_policy_cache_root_(base::PathService::CheckedGet(
           ash::DIR_DEVICE_LOCAL_ACCOUNT_COMPONENT_POLICY)) {
+  CHECK(url_loader_factory_);
+
   external_data_service_ =
       std::make_unique<DeviceLocalAccountExternalDataService>(
           this, std::move(external_data_service_backend_task_runner));
@@ -142,7 +144,7 @@ void DeviceLocalAccountPolicyService::Connect(
   // Connect the brokers.
   for (auto& [user_id, broker] : policy_brokers_) {
     broker->ConnectIfPossible(device_settings_service_,
-                              device_management_service_, url_loader_factory_);
+                              device_management_service_);
   }
 }
 
@@ -303,7 +305,7 @@ void DeviceLocalAccountPolicyService::UpdateAccountList() {
       SYSLOG(INFO) << "Creating the broker for account: "
                    << device_local_account.account_id;
       broker = std::make_unique<DeviceLocalAccountPolicyBroker>(
-          device_local_account,
+          url_loader_factory_, device_local_account,
           component_policy_cache_root_.Append(GetUniqueSubDirectoryForAccountID(
               device_local_account.account_id)),
           std::move(store), external_data_manager,
@@ -317,7 +319,7 @@ void DeviceLocalAccountPolicyService::UpdateAccountList() {
     // Fire up the cloud connection for fetching policy for the account from
     // the cloud if this is an enterprise-managed device.
     broker->ConnectIfPossible(device_settings_service_,
-                              device_management_service_, url_loader_factory_);
+                              device_management_service_);
 
     policy_brokers_[device_local_account.user_id] = std::move(broker);
     if (!broker_initialized) {

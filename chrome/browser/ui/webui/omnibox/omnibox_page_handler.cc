@@ -198,7 +198,7 @@ void OmniboxPageHandler::StartOmniboxQuery(const std::string& input_string,
                                            int32_t cursor_position,
                                            bool zero_suggest,
                                            bool prevent_inline_autocomplete,
-                                           bool prefer_keyword,
+                                           bool in_keyword_mode,
                                            const std::string& current_url,
                                            int32_t page_classification) {
   // Reset the controller.  If we don't do this, then the
@@ -220,8 +220,7 @@ void OmniboxPageHandler::StartOmniboxQuery(const std::string& input_string,
   }
   input.set_current_title(base::UTF8ToUTF16(current_url));
   input.set_prevent_inline_autocomplete(prevent_inline_autocomplete);
-  input.set_prefer_keyword(prefer_keyword);
-  input.set_in_keyword_mode(prefer_keyword);
+  input.set_in_keyword_mode(in_keyword_mode);
   input.set_focus_type(zero_suggest
                            ? metrics::OmniboxFocusType::INTERACTION_FOCUS
                            : metrics::OmniboxFocusType::INTERACTION_DEFAULT);

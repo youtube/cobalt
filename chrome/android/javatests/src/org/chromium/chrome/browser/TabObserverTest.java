@@ -132,11 +132,39 @@ public class TabObserverTest {
 
     @Test
     @SmallTest
-    public void testTabDetach_observerUnregistered() {
+    public void testTabDetach_observerUnregistered() throws TimeoutException {
+        final Tab tempTab =
+                ChromeTabUtils.fullyLoadUrlInNewTab(
+                        InstrumentationRegistry.getInstrumentation(),
+                        mActivity,
+                        "about:blank",
+                        false);
+
+        final TestTabObserver tempObserver = new TestTabObserver();
+
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    mTab.updateAttachment(null, null);
-                    assertFalse(mTab.hasObserverForTesting(mTabObserver));
+                    tempTab.addObserver(tempObserver);
+                });
+
+        boolean hasObserverBefore =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> tempTab.hasObserverForTesting(tempObserver));
+        assertTrue("Tab should have the observer before detach.", hasObserverBefore);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    tempTab.updateAttachment(null, null);
+                });
+
+        boolean hasObserverAfter =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> tempTab.hasObserverForTesting(tempObserver));
+        assertFalse("Tab should not have the observer after detach.", hasObserverAfter);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    tempTab.destroy();
                 });
     }
 

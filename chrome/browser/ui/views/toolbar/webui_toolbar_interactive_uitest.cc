@@ -29,7 +29,6 @@
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/interaction/browser_elements.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
-#include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -171,10 +170,9 @@ class WebUIToolbarPixelInteractiveUiTest : public InteractiveBrowserTest {
         {features::kInitialWebUI, features::kWebUIReloadButton,
          features::kWebUISplitTabsButton, features::kWebUIBackForwardButton,
          features::kWebUIHomeButton, features::kWebUIPinnedToolbarActions,
-         ::tabs::kHorizontalTabStripComboButton, features::kWebUILocationBar,
+         features::kWebUILocationBar, features::kWebUIAppMenuButton,
          features::kSkipIPCChannelPausingForNonGuests,
-         features::kWebUIInProcessResourceLoadingV2,
-         features::kInitialWebUISyncNavStartToCommit},
+         features::kWebUIInProcessResourceLoadingV2},
         {});
   }
 
@@ -265,16 +263,14 @@ class WebUIToolbarViewsInteractiveUiTest
            features::kWebUIBackForwardButton,
 #endif  // BUILDFLAG(IS_MAC)
            features::kSkipIPCChannelPausingForNonGuests,
-           features::kWebUIInProcessResourceLoadingV2,
-           features::kInitialWebUISyncNavStartToCommit},
+           features::kWebUIInProcessResourceLoadingV2},
           {});
     } else {
       feature_list_.InitWithFeatures(
           {}, {features::kInitialWebUI, features::kWebUIReloadButton,
                features::kWebUIBackForwardButton,
                features::kSkipIPCChannelPausingForNonGuests,
-               features::kWebUIInProcessResourceLoadingV2,
-               features::kInitialWebUISyncNavStartToCommit});
+               features::kWebUIInProcessResourceLoadingV2});
     }
   }
 
@@ -1283,8 +1279,7 @@ class WebUIToolbarFocusMinimalInteractiveUiTest
          features::kWebUIReloadButton, features::kWebUIHomeButton,
          features::kWebUISplitTabsButton,
          features::kSkipIPCChannelPausingForNonGuests,
-         features::kWebUIInProcessResourceLoadingV2,
-         features::kInitialWebUISyncNavStartToCommit},
+         features::kWebUIInProcessResourceLoadingV2},
         {features::kWebUILocationBar, features::kWebUIPinnedToolbarActions});
   }
   ~WebUIToolbarFocusMinimalInteractiveUiTest() override = default;
@@ -1443,10 +1438,8 @@ class WebUIToolbarFocusFullInteractiveUiTest
          features::kWebUIReloadButton, features::kWebUIHomeButton,
          features::kWebUISplitTabsButton, features::kWebUILocationBar,
          features::kWebUIPinnedToolbarActions,
-         ::tabs::kHorizontalTabStripComboButton,
          features::kSkipIPCChannelPausingForNonGuests,
-         features::kWebUIInProcessResourceLoadingV2,
-         features::kInitialWebUISyncNavStartToCommit},
+         features::kWebUIInProcessResourceLoadingV2},
         {});
   }
   ~WebUIToolbarFocusFullInteractiveUiTest() override = default;

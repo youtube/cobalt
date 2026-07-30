@@ -41,7 +41,7 @@ function click(target) {
 
 promise_test(async () => {
   // Initially the menu is closed, backdrop should be display: none.
-  assert_equals(getComputedStyle(menu, '::backdrop').display, "none", "backdrop initially none (closed)");
+  assert_equals(getComputedStyle(menu, '::overscroll-backdrop').display, "none", "backdrop initially none (closed)");
 
   let event_promises = [
     new Promise(resolve => container.addEventListener("overscrollchanging", resolve, { once: true })),
@@ -53,7 +53,7 @@ promise_test(async () => {
   await Promise.all(event_promises);
 
   // The backdrop should now be visible.
-  let backdrop_style = getComputedStyle(menu, '::backdrop');
+  let backdrop_style = getComputedStyle(menu, '::overscroll-backdrop');
   assert_equals(backdrop_style.display, "block", "backdrop is block (open)");
   assert_equals(backdrop_style.backgroundColor, "rgba(0, 0, 0, 0.1)", "backdrop is rgba(0, 0, 0, 0.1)");
   assert_equals(backdrop_style.opacity, "1", "backdrop opacity is 1");
@@ -68,6 +68,6 @@ promise_test(async () => {
   await Promise.all(event_promises2);
 
   // The backdrop should be none again.
-  assert_equals(getComputedStyle(menu, '::backdrop').display, "none", "backdrop is none again (closed)");
-}, "::backdrop pseudo element is generated and styled correctly for overscroll targets");
+  assert_equals(getComputedStyle(menu, '::overscroll-backdrop').display, "none", "backdrop is none again (closed)");
+}, "::overscroll-backdrop pseudo element is generated and styled correctly for overscroll targets");
 </script>

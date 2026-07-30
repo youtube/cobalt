@@ -76,3 +76,27 @@ source_set("impl") {
     ]
   }
 }
+
+source_set("unit_tests") {
+  testonly = true
+
+  sources = [ "sharing_device_registration_impl_unittest.cc" ]
+
+  deps = [
+    ":impl",
+    ":sharing",
+    "//base",
+    "//base/test:test_support",
+    "//chrome/common:chrome_features",
+    "//components/gcm_driver/instance_id",
+    "//components/prefs",
+    "//components/sharing_message",
+    "//components/sync:test_support",
+    "//components/sync_device_info",
+    "//components/sync_device_info:test_support",
+    "//components/sync_preferences:test_support",
+    "//google_apis/gcm",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}

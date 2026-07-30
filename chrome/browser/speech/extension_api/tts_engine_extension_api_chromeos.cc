@@ -4,6 +4,7 @@
 
 #include "chrome/browser/speech/extension_api/tts_engine_extension_api_chromeos.h"
 
+#include "ash/constants/ash_extension_constants.h"
 #include "base/no_destructor.h"
 #include "base/system/sys_info.h"
 #include "chrome/browser/extensions/component_loader.h"
@@ -11,7 +12,6 @@
 #include "chrome/browser/speech/extension_api/tts_engine_extension_observer_chromeos.h"
 #include "chrome/browser/speech/extension_api/tts_engine_extension_observer_chromeos_factory.h"
 #include "chrome/browser/speech/extension_api/tts_extension_api_constants.h"
-#include "chrome/common/extensions/extension_constants.h"
 #include "extensions/common/api/speech/tts_engine_manifest_handler.h"
 #include "extensions/common/extension.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"

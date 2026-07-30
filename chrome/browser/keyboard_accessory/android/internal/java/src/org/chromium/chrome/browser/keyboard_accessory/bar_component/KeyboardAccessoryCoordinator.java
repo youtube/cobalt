@@ -49,6 +49,7 @@ import org.chromium.ui.AsyncViewStub;
 import org.chromium.ui.ViewProvider;
 import org.chromium.ui.edge_to_edge.EdgeToEdgeSupplier;
 import org.chromium.ui.insets.InsetObserver;
+import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modelutil.LazyConstructionPropertyMcp;
 import org.chromium.ui.modelutil.ListModel;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -134,6 +135,7 @@ public class KeyboardAccessoryCoordinator implements KeyboardAccessoryVisualStat
      * to keyboard visibility events.
      *
      * @param profile The {@link Profile} associated with the data.
+     * @param modalDialogManager The {@link ModalDialogManager} used to display modal dialogs.
      * @param barVisibilityDelegate A {@link BarVisibilityDelegate} for delegating the bar
      *     visibility changes.
      * @param sheetVisibilityDelegate A {@link AccessorySheetCoordinator.SheetVisibilityDelegate}
@@ -147,6 +149,7 @@ public class KeyboardAccessoryCoordinator implements KeyboardAccessoryVisualStat
      */
     public KeyboardAccessoryCoordinator(
             Profile profile,
+            ModalDialogManager modalDialogManager,
             BarVisibilityDelegate barVisibilityDelegate,
             AccessorySheetCoordinator.SheetVisibilityDelegate sheetVisibilityDelegate,
             MonotonicObservableSupplier<EdgeToEdgeController> edgeToEdgeControllerSupplier,
@@ -157,6 +160,7 @@ public class KeyboardAccessoryCoordinator implements KeyboardAccessoryVisualStat
         this(
                 barStub.getContext(),
                 profile,
+                modalDialogManager,
                 new KeyboardAccessoryButtonGroupCoordinator(),
                 barVisibilityDelegate,
                 sheetVisibilityDelegate,
@@ -172,6 +176,7 @@ public class KeyboardAccessoryCoordinator implements KeyboardAccessoryVisualStat
      *
      * @param context The {@link Context} associated with the current UI context.
      * @param profile The {@link Profile} associated with the data.
+     * @param modalDialogManager The {@link ModalDialogManager} used to display modal dialogs.
      * @param viewProvider A provider for the accessory.
      * @param edgeToEdgeControllerSupplier A {@link Supplier<EdgeToEdgeController>}.
      * @param insetObserver An {@link InsetObserver}.
@@ -183,6 +188,7 @@ public class KeyboardAccessoryCoordinator implements KeyboardAccessoryVisualStat
     public KeyboardAccessoryCoordinator(
             Context context,
             Profile profile,
+            ModalDialogManager modalDialogManager,
             KeyboardAccessoryButtonGroupCoordinator buttonGroup,
             BarVisibilityDelegate barVisibilityDelegate,
             AccessorySheetCoordinator.SheetVisibilityDelegate sheetVisibilityDelegate,
@@ -197,8 +203,10 @@ public class KeyboardAccessoryCoordinator implements KeyboardAccessoryVisualStat
 
         mMediator =
                 new KeyboardAccessoryMediator(
+                        context,
                         mModel,
                         profile,
+                        modalDialogManager,
                         barVisibilityDelegate,
                         sheetVisibilityDelegate,
                         mButtonGroup.getTabSwitchingDelegate(),

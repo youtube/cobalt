@@ -1707,9 +1707,8 @@ RenderProcessHostImpl::RenderProcessHostImpl(
           perfetto::NamedTrack::FromPointer("RenderProcessHostImpl",
                                             this,
                                             GetChildProcessTracingTrack(id_))) {
-  // TODO(https://crbug.com/526543416): CHECK-exclusion: Convert to CHECK once
-  // we are sure this isn't hit.
-  DCHECK(!browser_context->ShutdownStarted());
+
+  CHECK(!browser_context->ShutdownStarted());
   TRACE_EVENT("shutdown", "RenderProcessHostImpl",
               ChromeTrackEvent::kRenderProcessHost, *this);
   TRACE_EVENT_BEGIN("shutdown", "Browser.RenderProcessHostImpl", tracing_track_,
@@ -3399,12 +3398,14 @@ void RenderProcessHostImpl::OnImmersiveXrSessionStarted() {
   // TODO(https://crbug.com/397907158): Evaluate upgrading to CHECK.
   DUMP_WILL_BE_CHECK(!has_immersive_xr_session_);
   has_immersive_xr_session_ = true;
+  UpdateProcessPriority();
 }
 
 void RenderProcessHostImpl::OnImmersiveXrSessionStopped() {
   // TODO(https://crbug.com/397907158): Evaluate upgrading to CHECK.
   DUMP_WILL_BE_CHECK(has_immersive_xr_session_);
   has_immersive_xr_session_ = false;
+  UpdateProcessPriority();
 }
 
 bool RenderProcessHostImpl::HasImmersiveXrSessionForTesting() const {
@@ -4679,11 +4680,16 @@ void RenderProcessHostImpl::RemovePriorityClient(
   UpdateProcessPriorityInputs();
 }
 
-#if !BUILDFLAG(IS_ANDROID)
 void RenderProcessHostImpl::SetPriorityOverride(
     base::Process::Priority priority) {
   priority_override_ = priority;
+#if !BUILDFLAG(IS_ANDROID)
   UpdateProcessPriority();
+#else
+  // On Android, the priority override might boost the effective importance,
+  // which is calculated based on the client inputs.
+  UpdateProcessPriorityInputs();
+#endif
 }
 
 bool RenderProcessHostImpl::HasPriorityOverride() {
@@ -4692,9 +4698,14 @@ bool RenderProcessHostImpl::HasPriorityOverride() {
 
 void RenderProcessHostImpl::ClearPriorityOverride() {
   priority_override_.reset();
+#if !BUILDFLAG(IS_ANDROID)
   UpdateProcessPriority();
+#else
+  // On Android, the priority override might boost the effective importance,
+  // which is calculated based on the client inputs.
+  UpdateProcessPriorityInputs();
+#endif
 }
-#endif  // !BUILDFLAG(IS_ANDROID)
 
 void RenderProcessHostImpl::SetSuddenTerminationAllowed(bool allowed) {
   sudden_termination_allowed_ = allowed;
@@ -5878,7 +5889,8 @@ void RenderProcessHostImpl::UpdateProcessPriorityInputs() {
   bool new_is_discarding = false;
 #if BUILDFLAG(IS_ANDROID)
   ChildProcessImportance new_effective_importance =
-      ChildProcessImportance::NORMAL;
+      priority_override_ ? PriorityToChildProcessImportance(*priority_override_)
+                         : ChildProcessImportance::NORMAL;
 #endif
   for (RenderProcessHostPriorityClient* client : priority_clients_) {
     RenderProcessHostPriorityClient::Priority priority = client->GetPriority();

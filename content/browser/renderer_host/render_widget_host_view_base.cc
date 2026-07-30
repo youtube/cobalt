@@ -958,8 +958,15 @@ void RenderWidgetHostViewBase::DismissUnboundedSurface() {
   }
 }
 
-void RenderWidgetHostViewBase::DestroyUnboundedSurface() {
-  unbounded_surface_window_.reset();
+void RenderWidgetHostViewBase::DestroyUnboundedSurface(
+    base::WeakPtr<UnboundedSurfaceWindow> window) {
+  // Only destroy the window if it matches the active window to prevent
+  // asynchronous destruction tasks from destroying a newly created window.
+  // If the weak pointer is null, it means the window was already destroyed,
+  // so we do nothing.
+  if (window && unbounded_surface_window_.get() == window.get()) {
+    unbounded_surface_window_.reset();
+  }
 }
 
 bool RenderWidgetHostViewBase::HasActiveUnboundedSurface() const {

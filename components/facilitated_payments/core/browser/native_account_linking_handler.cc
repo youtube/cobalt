@@ -28,7 +28,7 @@ NativeAccountLinkingHandler::~NativeAccountLinkingHandler() = default;
 
 void NativeAccountLinkingHandler::FetchClientToken() {
   if (!GetApiClient()) {
-    OnAccountLinkingResult(false);
+    OnAccountLinkingResult(AccountLinkingResult{});
     return;
   }
   GetApiClient()->GetClientToken(
@@ -48,14 +48,15 @@ void NativeAccountLinkingHandler::OnClientTokenReceived(
     LogAccountLinkingFlowExitedReason(
         GetHistogramSuffix(),
         AccountLinkingFlowExitedReason::kClientTokenNotAvailable);
-    OnAccountLinkingResult(false);
+    OnAccountLinkingResult(AccountLinkingResult{});
     return;
   }
 
   DoOnClientTokenReceived(client_token);
 }
 
-void NativeAccountLinkingHandler::OnAccountLinkingResult(bool result) {
+void NativeAccountLinkingHandler::OnAccountLinkingResult(
+    AccountLinkingResult result) {
   DoOnAccountLinkingResult(result);
 }
 
@@ -67,7 +68,7 @@ void NativeAccountLinkingHandler::InitiateAccountLinkingNetworkCall(
     LogAccountLinkingFlowExitedReason(
         GetHistogramSuffix(),
         AccountLinkingFlowExitedReason::kNetworkInterfaceUnavailable);
-    OnAccountLinkingResult(false);
+    OnAccountLinkingResult(AccountLinkingResult{});
     return;
   }
 
@@ -82,9 +83,19 @@ void NativeAccountLinkingHandler::InitiateAccountLinkingNetworkCall(
       client_->GetPaymentsDataManager()->app_locale());
 }
 void NativeAccountLinkingHandler::InvokeInstrumentManager(
+    CoreAccountInfo primary_account,
     const std::vector<uint8_t>& action_token) {
-  // TODO(b:505507305): Trigger GMSCore InstrumentManager (Bender screens)
-  // once InvokeInstrumentManager JNI bridge is added.
+  if (!GetApiClient()) {
+    LogAccountLinkingFlowExitedReason(
+        GetHistogramSuffix(),
+        AccountLinkingFlowExitedReason::kApiClientNotAvailable);
+    OnAccountLinkingResult(AccountLinkingResult{});
+    return;
+  }
+  GetApiClient()->InvokeInstrumentManager(
+      primary_account, action_token,
+      base::BindOnce(&NativeAccountLinkingHandler::OnAccountLinkingResult,
+                     weak_ptr_factory_.GetWeakPtr()));
 }
 
 void NativeAccountLinkingHandler::DismissPrompt() {
@@ -129,7 +140,7 @@ void NativeAccountLinkingHandler::
           GetHistogramSuffix(),
           AccountLinkingFlowExitedReason::kNotEligiblePerPaymentsBackend);
     }
-    OnAccountLinkingResult(false);
+    OnAccountLinkingResult(AccountLinkingResult{});
   }
 }
 
@@ -139,15 +150,23 @@ void NativeAccountLinkingHandler::OnAccepted() {
     LogAccountLinkingFlowExitedReason(
         GetHistogramSuffix(),
         AccountLinkingFlowExitedReason::kActionTokenNotAvailable);
-    OnAccountLinkingResult(false);
+    OnAccountLinkingResult(AccountLinkingResult{});
     return;
   }
-  InvokeInstrumentManager(action_token_);
+  std::optional<CoreAccountInfo> account_info = client_->GetCoreAccountInfo();
+  if (!account_info.has_value() || account_info.value().IsEmpty()) {
+    LogAccountLinkingFlowExitedReason(
+        GetHistogramSuffix(), AccountLinkingFlowExitedReason::kUserLoggedOut);
+    OnAccountLinkingResult(AccountLinkingResult{});
+    return;
+  }
+  InvokeInstrumentManager(account_info.value(), action_token_);
 }
 
 void NativeAccountLinkingHandler::OnDeclined() {
   DismissPrompt();
-  OnAccountLinkingResult(false);
+  OnAccountLinkingResult(AccountLinkingResult{
+      false, 0, AccountLinkingResultCode::kResultCanceled});
 }
 
 }  // namespace payments::facilitated

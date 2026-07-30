@@ -120,6 +120,10 @@ class OmniboxPopupWebUIBaseContent : public views::WebView,
   // the renderer.
   void LoadContent();
 
+#if BUILDFLAG(IS_MAC)
+  void UpdateAutoFill();
+#endif
+
   raw_ptr<OmniboxPopupPresenterBase> popup_presenter_ = nullptr;
   raw_ptr<LocationBar> location_bar_ = nullptr;
   // The controller for the Omnibox.

@@ -5,6 +5,7 @@
 #include "content/browser/fenced_frame/fenced_frame.h"
 
 #include "base/notreached.h"
+#include "content/browser/back_forward_cache/back_forward_cache_impl.h"
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/renderer_host/initiator_navigation_state_impl.h"
 #include "content/browser/renderer_host/render_frame_proxy_host.h"
@@ -310,6 +311,10 @@ FencedFrame::InitInnerFrameTreeAndReturnProxyToOuterFrameTree(
 const base::UnguessableToken& FencedFrame::GetDevToolsFrameToken() const {
   DCHECK(frame_tree_);
   return frame_tree_->GetMainFrame()->GetDevToolsFrameToken();
+}
+
+BackForwardCacheImpl& FencedFrame::GetBackForwardCache() {
+  NOTREACHED();
 }
 
 void FencedFrame::NotifyBeforeFormRepostWarningShow() {}

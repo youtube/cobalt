@@ -1,5 +1,6 @@
 include_rules = [
   # keep-sorted start
-  "+ios/chrome/browser/ntp/model/new_tab_page_util.h",
+  "+ios/chrome/browser/home_customization/model",
+  "+ios/chrome/browser/ntp/model",
   # keep-sorted end
 ]

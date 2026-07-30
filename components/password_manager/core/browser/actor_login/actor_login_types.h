@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/callback_list.h"
+#include "base/containers/span.h"
 #include "base/functional/callback_forward.h"
 #include "base/types/expected.h"
 #include "base/types/id_type.h"
@@ -199,6 +200,8 @@ enum class LoginStatusResult {
 actor::mojom::ActionResultCode LoginResultToActorResult(
     LoginStatusResult login_result);
 
+using FrameFillingStartedCallback =
+    base::OnceCallback<void(base::span<const int> global_frame_ids)>;
 using LoginStatusResultOrError =
     base::expected<LoginStatusResult, ActorLoginError>;
 using LoginStatusResultOrErrorReply =

@@ -61,8 +61,7 @@ enum class PageLoadTrackerPageType {
   kPrimaryPage = 0,
   kPrerenderPage = 1,
   kFencedFramesPage = 2,
-  kPreviewPrimaryPage = 3,  // Primary page in the preview mode
-  kMaxValue = kPreviewPrimaryPage,
+  kMaxValue = kFencedFramesPage,
 };
 
 extern const char kErrorEvents[];
@@ -437,9 +436,6 @@ class PageLoadTracker : public PageLoadMetricsUpdateDispatcher::Client,
 
   // Called when the page tracked was just activated after being prerendered.
   void DidActivatePrerenderedPage(content::NavigationHandle* navigation_handle);
-
-  // Called when the previewed page was activated for the tab promotion.
-  void DidActivatePreviewedPage(base::TimeTicks activation_time);
 
   // Called when a `SharedStorageWorkletHost` is created.
   void OnSharedStorageWorkletHostCreated();

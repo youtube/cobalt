@@ -102,6 +102,11 @@ class StructTraits<remoting::mojom::DesktopEnvironmentOptionsDataView,
     return options.enable_remote_webauthn();
   }
 
+  static bool enable_security_key(
+      const ::remoting::DesktopEnvironmentOptions& options) {
+    return options.enable_security_key();
+  }
+
   static const webrtc::DesktopCaptureOptions& desktop_capture_options(
       const ::remoting::DesktopEnvironmentOptions& options) {
     return *options.desktop_capture_options();

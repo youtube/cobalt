@@ -15,6 +15,7 @@
 
 #include "base/containers/id_map.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/ref_counted.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/sequenced_task_runner.h"
@@ -60,8 +61,9 @@ namespace content {
 
 class CONTENT_EXPORT RendererBlinkPlatformImpl : public BlinkPlatformImpl {
  public:
-  explicit RendererBlinkPlatformImpl(
-      blink::scheduler::WebThreadScheduler* main_thread_scheduler);
+  RendererBlinkPlatformImpl(
+      blink::scheduler::WebThreadScheduler* main_thread_scheduler,
+      scoped_refptr<base::SingleThreadTaskRunner> io_thread_task_runner);
 
   RendererBlinkPlatformImpl(const RendererBlinkPlatformImpl&) = delete;
   RendererBlinkPlatformImpl& operator=(const RendererBlinkPlatformImpl&) =

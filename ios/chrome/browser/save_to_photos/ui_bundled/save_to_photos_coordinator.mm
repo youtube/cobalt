@@ -6,6 +6,7 @@
 
 #import <StoreKit/StoreKit.h>
 
+#import "base/metrics/histogram_functions.h"
 #import "base/metrics/user_metrics.h"
 #import "components/signin/public/identity_manager/account_info.h"
 #import "components/signin/public/identity_manager/identity_manager.h"
@@ -15,8 +16,10 @@
 #import "ios/chrome/browser/account_picker/ui_bundled/account_picker_logger.h"
 #import "ios/chrome/browser/authentication/signin/reauth/coordinator/signin_reauth_coordinator.h"
 #import "ios/chrome/browser/authentication/ui_bundled/continuation.h"
+#import "ios/chrome/browser/authentication/ui_bundled/signin/signin_constants.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_coordinator.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_utils.h"
+#import "ios/chrome/browser/photos/model/photos_metrics.h"
 #import "ios/chrome/browser/photos/model/photos_service_factory.h"
 #import "ios/chrome/browser/save_to_photos/ui_bundled/save_to_photos_mediator.h"
 #import "ios/chrome/browser/save_to_photos/ui_bundled/save_to_photos_mediator_delegate.h"
@@ -438,6 +441,14 @@
   _signinCoordinator = nil;
   if (result == SigninCoordinatorResultSuccess) {
     [_mediator userSignedInToSaveImageWithIdentity:identity];
+    base::UmaHistogramEnumeration(kSaveToPhotosSignInResultHistogram,
+                                  SaveToPhotosSignInResult::kSignInSuccess);
+  } else if (result == SigninCoordinatorResultCanceledByUser) {
+    base::UmaHistogramEnumeration(kSaveToPhotosSignInResultHistogram,
+                                  SaveToPhotosSignInResult::kSignInCanceled);
+  } else {
+    base::UmaHistogramEnumeration(kSaveToPhotosSignInResultHistogram,
+                                  SaveToPhotosSignInResult::kSignInFailed);
   }
 }
 

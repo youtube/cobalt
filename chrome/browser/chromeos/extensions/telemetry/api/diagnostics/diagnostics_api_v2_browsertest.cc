@@ -7,66 +7,24 @@
 #include <utility>
 
 #include "base/check_deref.h"
+#include "base/scoped_observation.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/bind.h"
 #include "base/test/test_future.h"
 #include "chrome/browser/chromeos/extensions/telemetry/api/common/base_telemetry_extension_browser_test.h"
-#include "chrome/browser/chromeos/extensions/telemetry/api/routines/fake_diagnostic_routines_service.h"
-#include "chrome/browser/chromeos/extensions/telemetry/api/routines/fake_diagnostic_routines_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/ui_test_utils.h"
-#include "chromeos/ash/components/telemetry_extension/routines/telemetry_diagnostic_routine_service_ash.h"
 #include "chromeos/ash/services/cros_healthd/public/cpp/fake_cros_healthd.h"
 #include "chromeos/ash/services/cros_healthd/public/mojom/cros_healthd_exception.mojom.h"
-#include "chromeos/crosapi/mojom/telemetry_diagnostic_routine_service.mojom.h"
-#include "chromeos/crosapi/mojom/telemetry_extension_exception.mojom.h"
+#include "chromeos/ash/services/cros_healthd/public/mojom/cros_healthd_routines.mojom.h"
 #include "content/public/test/browser_test.h"
 #include "extensions/common/extension_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace chromeos {
 
-namespace {
-namespace crosapi = ::crosapi::mojom;
-}  // namespace
-
-class TelemetryExtensionDiagnosticsApiV2BrowserTest
-    : public BaseTelemetryExtensionBrowserTest {
- public:
-  TelemetryExtensionDiagnosticsApiV2BrowserTest() = default;
-
-  ~TelemetryExtensionDiagnosticsApiV2BrowserTest() override = default;
-
-  TelemetryExtensionDiagnosticsApiV2BrowserTest(
-      const TelemetryExtensionDiagnosticsApiV2BrowserTest&) = delete;
-  TelemetryExtensionDiagnosticsApiV2BrowserTest& operator=(
-      const TelemetryExtensionDiagnosticsApiV2BrowserTest&) = delete;
-
-  void SetUpOnMainThread() override {
-    BaseTelemetryExtensionBrowserTest::SetUpOnMainThread();
-    fake_routines_service_ = new FakeDiagnosticRoutinesService();
-    fake_routines_service_factory_.SetCreateInstanceResponse(
-        std::unique_ptr<FakeDiagnosticRoutinesService>(
-            fake_routines_service_.get()));
-
-    ash::TelemetryDiagnosticsRoutineServiceAsh::Factory::SetForTesting(
-        &fake_routines_service_factory_);
-  }
-
-  void TearDownOnMainThread() override {
-    fake_routines_service_ = nullptr;
-    BaseTelemetryExtensionBrowserTest::TearDownOnMainThread();
-  }
-
- protected:
-  FakeDiagnosticRoutinesService& fake_service() {
-    return CHECK_DEREF(fake_routines_service_.get());
-  }
-
- private:
-  raw_ptr<FakeDiagnosticRoutinesService> fake_routines_service_;
-  FakeDiagnosticRoutinesServiceFactory fake_routines_service_factory_;
-};
+using TelemetryExtensionDiagnosticsApiV2BrowserTest =
+    BaseTelemetryExtensionBrowserTest;
 
 IN_PROC_BROWSER_TEST_F(TelemetryExtensionDiagnosticsApiV2BrowserTest,
                        IsRoutineArgSupportedParseArgumentsError) {
@@ -337,16 +295,24 @@ IN_PROC_BROWSER_TEST_F(TelemetryExtensionDiagnosticsApiV2BrowserTest,
 
 IN_PROC_BROWSER_TEST_F(TelemetryExtensionDiagnosticsApiV2BrowserTest,
                        CreateRoutineResetConnectionResultsInException) {
-  fake_service().SetOnCreateRoutineCalled(base::BindLambdaForTesting([this]() {
-    auto* control = fake_service().GetCreatedRoutineControlForRoutineType(
-        crosapi::TelemetryDiagnosticRoutineArgument::Tag::kMemory);
-    ASSERT_TRUE(control);
-
-    control->receiver().ResetWithReason(
-        static_cast<uint32_t>(
-            crosapi::TelemetryExtensionException::Reason::kUnsupported),
-        "test message");
-  }));
+  class TestObserver : public ash::cros_healthd::FakeCrosHealthd::Observer {
+   public:
+    void OnRoutineCreated() override {
+      auto* control =
+          ash::cros_healthd::FakeCrosHealthd::Get()
+              ->GetRoutineControlForArgumentTag(
+                  ash::cros_healthd::mojom::RoutineArgument::Tag::kMemory);
+      ASSERT_TRUE(control);
+      control->GetReceiver()->ResetWithReason(
+          static_cast<int32_t>(
+              ash::cros_healthd::mojom::Exception::Reason::kUnsupported),
+          "test message");
+    }
+  } observer;
+  base::ScopedObservation<ash::cros_healthd::FakeCrosHealthd,
+                          ash::cros_healthd::FakeCrosHealthd::Observer>
+      observation_{&observer};
+  observation_.Observe(ash::cros_healthd::FakeCrosHealthd::Get());
 
   OpenAppUiAndMakeItSecure();
 
@@ -381,28 +347,37 @@ IN_PROC_BROWSER_TEST_F(TelemetryExtensionDiagnosticsApiV2BrowserTest,
 
 IN_PROC_BROWSER_TEST_F(TelemetryExtensionDiagnosticsApiV2BrowserTest,
                        FinishedRoutineIsRemovedSuccess) {
-  fake_service().SetOnCreateRoutineCalled(base::BindLambdaForTesting([this]() {
-    auto* control = fake_service().GetCreatedRoutineControlForRoutineType(
-        crosapi::TelemetryDiagnosticRoutineArgument::Tag::kMemory);
-    ASSERT_TRUE(control);
+  class TestObserver : public ash::cros_healthd::FakeCrosHealthd::Observer {
+   public:
+    void OnRoutineCreated() override {
+      auto* control =
+          ash::cros_healthd::FakeCrosHealthd::Get()
+              ->GetRoutineControlForArgumentTag(
+                  ash::cros_healthd::mojom::RoutineArgument::Tag::kMemory);
+      ASSERT_TRUE(control);
 
-    auto mem_detail = crosapi::TelemetryDiagnosticMemoryRoutineDetail::New();
-    mem_detail->result = crosapi::TelemetryDiagnosticMemtesterResult::New();
+      auto memory_detail = ash::cros_healthd::mojom::MemoryRoutineDetail::New();
+      memory_detail->result = ash::cros_healthd::mojom::MemtesterResult::New();
 
-    auto finished_state =
-        crosapi::TelemetryDiagnosticRoutineStateFinished::New();
-    finished_state->detail =
-        crosapi::TelemetryDiagnosticRoutineDetail::NewMemory(
-            std::move(mem_detail));
-    finished_state->has_passed = true;
+      auto finished_state =
+          ash::cros_healthd::mojom::RoutineStateFinished::New();
+      finished_state->has_passed = true;
+      finished_state->detail =
+          ash::cros_healthd::mojom::RoutineDetail::NewMemory(
+              std::move(memory_detail));
 
-    auto state = crosapi::TelemetryDiagnosticRoutineState::New();
-    state->state_union =
-        crosapi::TelemetryDiagnosticRoutineStateUnion::NewFinished(
-            std::move(finished_state));
-
-    control->SetState(std::move(state));
-  }));
+      auto state = ash::cros_healthd::mojom::RoutineState::New();
+      state->state_union =
+          ash::cros_healthd::mojom::RoutineStateUnion::NewFinished(
+              std::move(finished_state));
+      CHECK_DEREF(control->GetObserver())
+          ->OnRoutineStateChange(std::move(state));
+    }
+  } observer;
+  base::ScopedObservation<ash::cros_healthd::FakeCrosHealthd,
+                          ash::cros_healthd::FakeCrosHealthd::Observer>
+      observation_{&observer};
+  observation_.Observe(ash::cros_healthd::FakeCrosHealthd::Get());
 
   OpenAppUiAndMakeItSecure();
 
@@ -450,13 +425,27 @@ IN_PROC_BROWSER_TEST_F(TelemetryExtensionDiagnosticsApiV2BrowserTest,
 
 IN_PROC_BROWSER_TEST_F(TelemetryExtensionDiagnosticsApiV2BrowserTest,
                        ClosingAppUiResultsInException) {
-  fake_service().SetOnCreateRoutineCalled(base::BindLambdaForTesting([this]() {
-    // Closing the tab results in an exception.
-    ASSERT_TRUE(browser()->tab_strip_model()->ContainsIndex(0));
-    browser()->tab_strip_model()->CloseWebContentsAt(0,
-                                                     TabCloseTypes::CLOSE_NONE);
-  }));
+  class TestObserver : public ash::cros_healthd::FakeCrosHealthd::Observer {
+   public:
+    explicit TestObserver(TabStripModel* tab_strip_model)
+        : tab_strip_model_(CHECK_DEREF(tab_strip_model)) {}
+
+    void OnRoutineCreated() override {
+      // Closing the tab results in an exception.
+      ASSERT_TRUE(tab_strip_model_->ContainsIndex(0));
+      tab_strip_model_->CloseWebContentsAt(0, TabCloseTypes::CLOSE_NONE);
+    }
+
+   private:
+    const raw_ref<TabStripModel> tab_strip_model_;
+  } observer(browser()->tab_strip_model());
+  base::ScopedObservation<ash::cros_healthd::FakeCrosHealthd,
+                          ash::cros_healthd::FakeCrosHealthd::Observer>
+      observation_{&observer};
+  observation_.Observe(ash::cros_healthd::FakeCrosHealthd::Get());
+
   OpenAppUiAndMakeItSecure();
+
   // Open a second tab so that we don't close the browser.
   ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
       browser(), GURL("chrome://version"),
@@ -485,35 +474,44 @@ IN_PROC_BROWSER_TEST_F(TelemetryExtensionDiagnosticsApiV2BrowserTest,
 
 IN_PROC_BROWSER_TEST_F(TelemetryExtensionDiagnosticsApiV2BrowserTest,
                        LegacyCreateMemoryRoutineSuccess) {
-  fake_service().SetOnCreateRoutineCalled(base::BindLambdaForTesting([this]() {
-    auto* control = fake_service().GetCreatedRoutineControlForRoutineType(
-        crosapi::TelemetryDiagnosticRoutineArgument::Tag::kMemory);
-    ASSERT_TRUE(control);
+  class TestObserver : public ash::cros_healthd::FakeCrosHealthd::Observer {
+   public:
+    void OnRoutineCreated() override {
+      auto* control =
+          ash::cros_healthd::FakeCrosHealthd::Get()
+              ->GetRoutineControlForArgumentTag(
+                  ash::cros_healthd::mojom::RoutineArgument::Tag::kMemory);
+      ASSERT_TRUE(control);
 
-    auto memtester_result = crosapi::TelemetryDiagnosticMemtesterResult::New();
-    memtester_result->passed_items = {
-        crosapi::TelemetryDiagnosticMemtesterTestItemEnum::kSixteenBitWrites};
-    memtester_result->failed_items = {
-        crosapi::TelemetryDiagnosticMemtesterTestItemEnum::kEightBitWrites};
+      auto memtester_result = ash::cros_healthd::mojom::MemtesterResult::New();
+      memtester_result->passed_items = {
+          ash::cros_healthd::mojom::MemtesterTestItemEnum::k16BitWrites};
+      memtester_result->failed_items = {
+          ash::cros_healthd::mojom::MemtesterTestItemEnum::k8BitWrites};
 
-    auto memory_detail = crosapi::TelemetryDiagnosticMemoryRoutineDetail::New();
-    memory_detail->bytes_tested = 42;
-    memory_detail->result = std::move(memtester_result);
+      auto memory_detail = ash::cros_healthd::mojom::MemoryRoutineDetail::New();
+      memory_detail->bytes_tested = 42;
+      memory_detail->result = std::move(memtester_result);
 
-    auto finished_state =
-        crosapi::TelemetryDiagnosticRoutineStateFinished::New();
-    finished_state->detail =
-        crosapi::TelemetryDiagnosticRoutineDetail::NewMemory(
-            std::move(memory_detail));
-    finished_state->has_passed = true;
+      auto finished_state =
+          ash::cros_healthd::mojom::RoutineStateFinished::New();
+      finished_state->has_passed = true;
+      finished_state->detail =
+          ash::cros_healthd::mojom::RoutineDetail::NewMemory(
+              std::move(memory_detail));
 
-    auto state = crosapi::TelemetryDiagnosticRoutineState::New();
-    state->state_union =
-        crosapi::TelemetryDiagnosticRoutineStateUnion::NewFinished(
-            std::move(finished_state));
-
-    control->SetState(std::move(state));
-  }));
+      auto state = ash::cros_healthd::mojom::RoutineState::New();
+      state->state_union =
+          ash::cros_healthd::mojom::RoutineStateUnion::NewFinished(
+              std::move(finished_state));
+      CHECK_DEREF(control->GetObserver())
+          ->OnRoutineStateChange(std::move(state));
+    }
+  } observer;
+  base::ScopedObservation<ash::cros_healthd::FakeCrosHealthd,
+                          ash::cros_healthd::FakeCrosHealthd::Observer>
+      observation_{&observer};
+  observation_.Observe(ash::cros_healthd::FakeCrosHealthd::Get());
 
   OpenAppUiAndMakeItSecure();
 
@@ -562,35 +560,44 @@ IN_PROC_BROWSER_TEST_F(TelemetryExtensionDiagnosticsApiV2BrowserTest,
 
 IN_PROC_BROWSER_TEST_F(TelemetryExtensionDiagnosticsApiV2BrowserTest,
                        LegacyCreateMemoryRoutineNoOptionalConfigSuccess) {
-  fake_service().SetOnCreateRoutineCalled(base::BindLambdaForTesting([this]() {
-    auto* control = fake_service().GetCreatedRoutineControlForRoutineType(
-        crosapi::TelemetryDiagnosticRoutineArgument::Tag::kMemory);
-    ASSERT_TRUE(control);
+  class TestObserver : public ash::cros_healthd::FakeCrosHealthd::Observer {
+   public:
+    void OnRoutineCreated() override {
+      auto* control =
+          ash::cros_healthd::FakeCrosHealthd::Get()
+              ->GetRoutineControlForArgumentTag(
+                  ash::cros_healthd::mojom::RoutineArgument::Tag::kMemory);
+      ASSERT_TRUE(control);
 
-    auto memtester_result = crosapi::TelemetryDiagnosticMemtesterResult::New();
-    memtester_result->passed_items = {
-        crosapi::TelemetryDiagnosticMemtesterTestItemEnum::kSixteenBitWrites};
-    memtester_result->failed_items = {
-        crosapi::TelemetryDiagnosticMemtesterTestItemEnum::kEightBitWrites};
+      auto memtester_result = ash::cros_healthd::mojom::MemtesterResult::New();
+      memtester_result->passed_items = {
+          ash::cros_healthd::mojom::MemtesterTestItemEnum::k16BitWrites};
+      memtester_result->failed_items = {
+          ash::cros_healthd::mojom::MemtesterTestItemEnum::k8BitWrites};
 
-    auto memory_detail = crosapi::TelemetryDiagnosticMemoryRoutineDetail::New();
-    memory_detail->bytes_tested = 42;
-    memory_detail->result = std::move(memtester_result);
+      auto memory_detail = ash::cros_healthd::mojom::MemoryRoutineDetail::New();
+      memory_detail->bytes_tested = 42;
+      memory_detail->result = std::move(memtester_result);
 
-    auto finished_state =
-        crosapi::TelemetryDiagnosticRoutineStateFinished::New();
-    finished_state->detail =
-        crosapi::TelemetryDiagnosticRoutineDetail::NewMemory(
-            std::move(memory_detail));
-    finished_state->has_passed = true;
+      auto finished_state =
+          ash::cros_healthd::mojom::RoutineStateFinished::New();
+      finished_state->has_passed = true;
+      finished_state->detail =
+          ash::cros_healthd::mojom::RoutineDetail::NewMemory(
+              std::move(memory_detail));
 
-    auto state = crosapi::TelemetryDiagnosticRoutineState::New();
-    state->state_union =
-        crosapi::TelemetryDiagnosticRoutineStateUnion::NewFinished(
-            std::move(finished_state));
-
-    control->SetState(std::move(state));
-  }));
+      auto state = ash::cros_healthd::mojom::RoutineState::New();
+      state->state_union =
+          ash::cros_healthd::mojom::RoutineStateUnion::NewFinished(
+              std::move(finished_state));
+      CHECK_DEREF(control->GetObserver())
+          ->OnRoutineStateChange(std::move(state));
+    }
+  } observer;
+  base::ScopedObservation<ash::cros_healthd::FakeCrosHealthd,
+                          ash::cros_healthd::FakeCrosHealthd::Observer>
+      observation_{&observer};
+  observation_.Observe(ash::cros_healthd::FakeCrosHealthd::Get());
 
   OpenAppUiAndMakeItSecure();
 
@@ -901,28 +908,32 @@ IN_PROC_BROWSER_TEST_F(TelemetryExtensionDiagnosticsApiV2BrowserTest,
 
 IN_PROC_BROWSER_TEST_F(TelemetryExtensionDiagnosticsApiV2BrowserTest,
                        LegacyCreateVolumeButtonRoutineSuccess) {
-  fake_service().SetOnCreateRoutineCalled(base::BindLambdaForTesting([this]() {
-    auto* control = fake_service().GetCreatedRoutineControlForRoutineType(
-        crosapi::TelemetryDiagnosticRoutineArgument::Tag::kVolumeButton);
-    ASSERT_TRUE(control);
+  class TestObserver : public ash::cros_healthd::FakeCrosHealthd::Observer {
+   public:
+    void OnRoutineCreated() override {
+      auto* control = ash::cros_healthd::FakeCrosHealthd::Get()
+                          ->GetRoutineControlForArgumentTag(
+                              ash::cros_healthd::mojom::RoutineArgument::Tag::
+                                  kVolumeButton);
+      ASSERT_TRUE(control);
 
-    auto volume_button_detail =
-        crosapi::TelemetryDiagnosticVolumeButtonRoutineDetail::New();
+      auto finished_state =
+          ash::cros_healthd::mojom::RoutineStateFinished::New();
+      finished_state->has_passed = true;
+      finished_state->detail = nullptr;
 
-    auto finished_state =
-        crosapi::TelemetryDiagnosticRoutineStateFinished::New();
-    finished_state->detail =
-        crosapi::TelemetryDiagnosticRoutineDetail::NewVolumeButton(
-            std::move(volume_button_detail));
-    finished_state->has_passed = true;
-
-    auto state = crosapi::TelemetryDiagnosticRoutineState::New();
-    state->state_union =
-        crosapi::TelemetryDiagnosticRoutineStateUnion::NewFinished(
-            std::move(finished_state));
-
-    control->SetState(std::move(state));
-  }));
+      auto state = ash::cros_healthd::mojom::RoutineState::New();
+      state->state_union =
+          ash::cros_healthd::mojom::RoutineStateUnion::NewFinished(
+              std::move(finished_state));
+      CHECK_DEREF(control->GetObserver())
+          ->OnRoutineStateChange(std::move(state));
+    }
+  } observer;
+  base::ScopedObservation<ash::cros_healthd::FakeCrosHealthd,
+                          ash::cros_healthd::FakeCrosHealthd::Observer>
+      observation_{&observer};
+  observation_.Observe(ash::cros_healthd::FakeCrosHealthd::Get());
 
   OpenAppUiAndMakeItSecure();
 
@@ -1054,30 +1065,39 @@ IN_PROC_BROWSER_TEST_F(TelemetryExtensionDiagnosticsApiV2BrowserTest,
 
 IN_PROC_BROWSER_TEST_F(TelemetryExtensionDiagnosticsApiV2BrowserTest,
                        LegacyCreateFanRoutineSuccess) {
-  fake_service().SetOnCreateRoutineCalled(base::BindLambdaForTesting([this]() {
-    auto* control = fake_service().GetCreatedRoutineControlForRoutineType(
-        crosapi::TelemetryDiagnosticRoutineArgument::Tag::kFan);
-    ASSERT_TRUE(control);
+  class TestObserver : public ash::cros_healthd::FakeCrosHealthd::Observer {
+   public:
+    void OnRoutineCreated() override {
+      auto* control =
+          ash::cros_healthd::FakeCrosHealthd::Get()
+              ->GetRoutineControlForArgumentTag(
+                  ash::cros_healthd::mojom::RoutineArgument::Tag::kFan);
+      ASSERT_TRUE(control);
 
-    auto fan_detail = crosapi::TelemetryDiagnosticFanRoutineDetail::New();
-    fan_detail->passed_fan_ids = {0};
-    fan_detail->failed_fan_ids = {1};
-    fan_detail->fan_count_status =
-        crosapi::TelemetryDiagnosticHardwarePresenceStatus::kMatched;
+      auto fan_detail = ash::cros_healthd::mojom::FanRoutineDetail::New();
+      fan_detail->passed_fan_ids = {0};
+      fan_detail->failed_fan_ids = {1};
+      fan_detail->fan_count_status =
+          ash::cros_healthd::mojom::HardwarePresenceStatus::kMatched;
 
-    auto finished_state =
-        crosapi::TelemetryDiagnosticRoutineStateFinished::New();
-    finished_state->detail = crosapi::TelemetryDiagnosticRoutineDetail::NewFan(
-        std::move(fan_detail));
-    finished_state->has_passed = true;
+      auto finished_state =
+          ash::cros_healthd::mojom::RoutineStateFinished::New();
+      finished_state->has_passed = true;
+      finished_state->detail = ash::cros_healthd::mojom::RoutineDetail::NewFan(
+          std::move(fan_detail));
 
-    auto state = crosapi::TelemetryDiagnosticRoutineState::New();
-    state->state_union =
-        crosapi::TelemetryDiagnosticRoutineStateUnion::NewFinished(
-            std::move(finished_state));
-
-    control->SetState(std::move(state));
-  }));
+      auto state = ash::cros_healthd::mojom::RoutineState::New();
+      state->state_union =
+          ash::cros_healthd::mojom::RoutineStateUnion::NewFinished(
+              std::move(finished_state));
+      CHECK_DEREF(control->GetObserver())
+          ->OnRoutineStateChange(std::move(state));
+    }
+  } observer;
+  base::ScopedObservation<ash::cros_healthd::FakeCrosHealthd,
+                          ash::cros_healthd::FakeCrosHealthd::Observer>
+      observation_{&observer};
+  observation_.Observe(ash::cros_healthd::FakeCrosHealthd::Get());
 
   OpenAppUiAndMakeItSecure();
 
@@ -1144,19 +1164,6 @@ IN_PROC_BROWSER_TEST_F(TelemetryExtensionDiagnosticsApiV2BrowserTest,
 
 IN_PROC_BROWSER_TEST_F(TelemetryExtensionDiagnosticsApiV2BrowserTest,
                        ReplyToRoutineInquirySuccess) {
-  base::test::TestFuture<crosapi::TelemetryDiagnosticRoutineInquiryReplyPtr>
-      on_reply_to_inquiry;
-
-  fake_service().SetOnCreateRoutineCalled(
-      base::BindLambdaForTesting([this, &on_reply_to_inquiry]() {
-        auto* control = fake_service().GetCreatedRoutineControlForRoutineType(
-            crosapi::TelemetryDiagnosticRoutineArgument::Tag::kMemory);
-        ASSERT_TRUE(control);
-
-        control->SetOnReplyToInquiryCalled(
-            on_reply_to_inquiry.GetRepeatingCallback());
-      }));
-
   OpenAppUiAndMakeItSecure();
 
   CreateExtensionAndRunServiceWorker(R"(
@@ -1201,20 +1208,24 @@ IN_PROC_BROWSER_TEST_F(TelemetryExtensionDiagnosticsApiV2BrowserTest,
     ]);
   )");
 
-  auto reply = on_reply_to_inquiry.Take();
+  auto* control =
+      ash::cros_healthd::FakeCrosHealthd::Get()
+          ->GetRoutineControlForArgumentTag(
+              ash::cros_healthd::mojom::RoutineArgument::Tag::kMemory);
+  ASSERT_TRUE(control);
+
+  // Ensures InquiryReply() is processed.
+  control->GetReceiver()->FlushForTesting();
+  auto reply = control->GetLastInquiryReply();
   ASSERT_TRUE(reply);
   ASSERT_TRUE(reply->is_check_led_lit_up_state());
-  EXPECT_EQ(reply->get_check_led_lit_up_state()->state,
-            crosapi::TelemetryDiagnosticCheckLedLitUpStateReply::State::
-                kCorrectColor);
+  EXPECT_EQ(
+      reply->get_check_led_lit_up_state()->state,
+      ash::cros_healthd::mojom::CheckLedLitUpStateReply::State::kCorrectColor);
 }
 
 IN_PROC_BROWSER_TEST_F(TelemetryExtensionDiagnosticsApiV2BrowserTest,
                        CreateLedLitUpRoutineSuccess) {
-  base::test::TestFuture<void> routine_created_future;
-  fake_service().SetOnCreateRoutineCalled(
-      routine_created_future.GetRepeatingCallback());
-
   OpenAppUiAndMakeItSecure();
 
   CreateExtensionAndRunServiceWorker(R"(
@@ -1244,17 +1255,14 @@ IN_PROC_BROWSER_TEST_F(TelemetryExtensionDiagnosticsApiV2BrowserTest,
     ]);
   )");
 
-  EXPECT_TRUE(routine_created_future.Wait());
-  EXPECT_TRUE(fake_service().GetCreatedRoutineControlForRoutineType(
-      crosapi::TelemetryDiagnosticRoutineArgument::Tag::kLedLitUp));
+  EXPECT_TRUE(
+      ash::cros_healthd::FakeCrosHealthd::Get()
+          ->GetRoutineControlForArgumentTag(
+              ash::cros_healthd::mojom::RoutineArgument::Tag::kLedLitUp));
 }
 
 IN_PROC_BROWSER_TEST_F(TelemetryExtensionDiagnosticsApiV2BrowserTest,
                        CreateKeyboardBacklightRoutineSuccess) {
-  base::test::TestFuture<void> routine_created_future;
-  fake_service().SetOnCreateRoutineCalled(
-      routine_created_future.GetRepeatingCallback());
-
   OpenAppUiAndMakeItSecure();
 
   CreateExtensionAndRunServiceWorker(R"(
@@ -1281,27 +1289,14 @@ IN_PROC_BROWSER_TEST_F(TelemetryExtensionDiagnosticsApiV2BrowserTest,
     ]);
   )");
 
-  EXPECT_TRUE(routine_created_future.Wait());
-  EXPECT_TRUE(fake_service().GetCreatedRoutineControlForRoutineType(
-      crosapi::TelemetryDiagnosticRoutineArgument::Tag::kKeyboardBacklight));
+  EXPECT_TRUE(ash::cros_healthd::FakeCrosHealthd::Get()
+                  ->GetRoutineControlForArgumentTag(
+                      ash::cros_healthd::mojom::RoutineArgument::Tag::
+                          kKeyboardBacklight));
 }
 
 IN_PROC_BROWSER_TEST_F(TelemetryExtensionDiagnosticsApiV2BrowserTest,
                        ReplyToKeyboardBacklightRoutineInquirySuccess) {
-  base::test::TestFuture<crosapi::TelemetryDiagnosticRoutineInquiryReplyPtr>
-      on_reply_to_inquiry;
-
-  fake_service().SetOnCreateRoutineCalled(
-      base::BindLambdaForTesting([this, &on_reply_to_inquiry]() {
-        auto* control = fake_service().GetCreatedRoutineControlForRoutineType(
-            crosapi::TelemetryDiagnosticRoutineArgument::Tag::
-                kKeyboardBacklight);
-        ASSERT_TRUE(control);
-
-        control->SetOnReplyToInquiryCalled(
-            on_reply_to_inquiry.GetRepeatingCallback());
-      }));
-
   OpenAppUiAndMakeItSecure();
 
   CreateExtensionAndRunServiceWorker(R"(
@@ -1348,40 +1343,57 @@ IN_PROC_BROWSER_TEST_F(TelemetryExtensionDiagnosticsApiV2BrowserTest,
     ]);
   )");
 
-  auto reply = on_reply_to_inquiry.Take();
+  auto* control = ash::cros_healthd::FakeCrosHealthd::Get()
+                      ->GetRoutineControlForArgumentTag(
+                          ash::cros_healthd::mojom::RoutineArgument::Tag::
+                              kKeyboardBacklight);
+  ASSERT_TRUE(control);
+
+  // Ensures InquiryReply() is processed.
+  control->GetReceiver()->FlushForTesting();
+  auto reply = control->GetLastInquiryReply();
   ASSERT_TRUE(reply);
   ASSERT_TRUE(reply->is_check_keyboard_backlight_state());
   EXPECT_EQ(
       reply->get_check_keyboard_backlight_state()->state,
-      crosapi::TelemetryDiagnosticCheckKeyboardBacklightStateReply::State::kOk);
+      ash::cros_healthd::mojom::CheckKeyboardBacklightStateReply::State::kOk);
 }
 
 IN_PROC_BROWSER_TEST_F(TelemetryExtensionDiagnosticsApiV2BrowserTest,
                        CreateNetworkBandwidthRoutineSuccess) {
-  fake_service().SetOnCreateRoutineCalled(base::BindLambdaForTesting([this]() {
-    auto* control = fake_service().GetCreatedRoutineControlForRoutineType(
-        crosapi::TelemetryDiagnosticRoutineArgument::Tag::kNetworkBandwidth);
-    ASSERT_TRUE(control);
+  class TestObserver : public ash::cros_healthd::FakeCrosHealthd::Observer {
+   public:
+    void OnRoutineCreated() override {
+      auto* control = ash::cros_healthd::FakeCrosHealthd::Get()
+                          ->GetRoutineControlForArgumentTag(
+                              ash::cros_healthd::mojom::RoutineArgument::Tag::
+                                  kNetworkBandwidth);
+      ASSERT_TRUE(control);
 
-    auto network_bandwidth_detail =
-        crosapi::TelemetryDiagnosticNetworkBandwidthRoutineDetail::New();
-    network_bandwidth_detail->download_speed_kbps = 123.0;
-    network_bandwidth_detail->upload_speed_kbps = 456.0;
+      auto network_bandwidth_detail =
+          ash::cros_healthd::mojom::NetworkBandwidthRoutineDetail::New();
+      network_bandwidth_detail->download_speed_kbps = 123.0;
+      network_bandwidth_detail->upload_speed_kbps = 456.0;
 
-    auto finished_state =
-        crosapi::TelemetryDiagnosticRoutineStateFinished::New();
-    finished_state->detail =
-        crosapi::TelemetryDiagnosticRoutineDetail::NewNetworkBandwidth(
-            std::move(network_bandwidth_detail));
-    finished_state->has_passed = true;
+      auto finished_state =
+          ash::cros_healthd::mojom::RoutineStateFinished::New();
+      finished_state->has_passed = true;
+      finished_state->detail =
+          ash::cros_healthd::mojom::RoutineDetail::NewNetworkBandwidth(
+              std::move(network_bandwidth_detail));
 
-    auto state = crosapi::TelemetryDiagnosticRoutineState::New();
-    state->state_union =
-        crosapi::TelemetryDiagnosticRoutineStateUnion::NewFinished(
-            std::move(finished_state));
-
-    control->SetState(std::move(state));
-  }));
+      auto state = ash::cros_healthd::mojom::RoutineState::New();
+      state->state_union =
+          ash::cros_healthd::mojom::RoutineStateUnion::NewFinished(
+              std::move(finished_state));
+      CHECK_DEREF(control->GetObserver())
+          ->OnRoutineStateChange(std::move(state));
+    }
+  } observer;
+  base::ScopedObservation<ash::cros_healthd::FakeCrosHealthd,
+                          ash::cros_healthd::FakeCrosHealthd::Observer>
+      observation_{&observer};
+  observation_.Observe(ash::cros_healthd::FakeCrosHealthd::Get());
 
   OpenAppUiAndMakeItSecure();
 
@@ -1430,10 +1442,6 @@ IN_PROC_BROWSER_TEST_F(TelemetryExtensionDiagnosticsApiV2BrowserTest,
 
 IN_PROC_BROWSER_TEST_F(TelemetryExtensionDiagnosticsApiV2BrowserTest,
                        CreateCameraFrameAnalysisRoutineSuccess) {
-  base::test::TestFuture<void> routine_created_future;
-  fake_service().SetOnCreateRoutineCalled(
-      routine_created_future.GetRepeatingCallback());
-
   OpenAppUiAndMakeItSecure();
 
   CreateExtensionAndRunServiceWorker(R"(
@@ -1460,9 +1468,10 @@ IN_PROC_BROWSER_TEST_F(TelemetryExtensionDiagnosticsApiV2BrowserTest,
     ]);
   )");
 
-  EXPECT_TRUE(routine_created_future.Wait());
-  EXPECT_TRUE(fake_service().GetCreatedRoutineControlForRoutineType(
-      crosapi::TelemetryDiagnosticRoutineArgument::Tag::kCameraFrameAnalysis));
+  EXPECT_TRUE(ash::cros_healthd::FakeCrosHealthd::Get()
+                  ->GetRoutineControlForArgumentTag(
+                      ash::cros_healthd::mojom::RoutineArgument::Tag::
+                          kCameraFrameAnalysis));
 }
 
 class NoExtraPermissionTelemetryExtensionDiagnosticsApiV2BrowserTest

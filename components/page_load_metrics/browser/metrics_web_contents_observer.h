@@ -129,7 +129,6 @@ class MetricsWebContentsObserver
                          const content::CookieAccessDetails& details) override;
   void OnCookiesAccessed(content::RenderFrameHost* rfh,
                          const content::CookieAccessDetails& details) override;
-  void DidActivatePreviewedPage(base::TimeTicks activation_time) override;
 
   void OnStorageAccessed(content::RenderFrameHost* rfh,
                          const GURL& url,

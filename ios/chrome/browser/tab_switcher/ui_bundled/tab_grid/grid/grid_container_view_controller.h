@@ -16,6 +16,14 @@
 // The currently embedded view controller. It is sized to fit the container.
 @property(nonatomic, strong) UIViewController* containedViewController;
 
+// Activates the NSLayoutConstraints which positions the contained
+// ViewController relative to the GridContainerVC.
+- (void)activateConstraints;
+
+// Deactivates the NSLayoutConstraints which positions the contained
+// ViewController relative to the GridContainerVC.
+- (void)deactivateConstraints;
+
 @end
 
 #endif  // IOS_CHROME_BROWSER_TAB_SWITCHER_UI_BUNDLED_TAB_GRID_GRID_GRID_CONTAINER_VIEW_CONTROLLER_H_

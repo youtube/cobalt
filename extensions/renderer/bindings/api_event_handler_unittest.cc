@@ -42,6 +42,13 @@ size_t GetNumListeners(v8::Isolate* isolate, v8::Local<v8::Object> event) {
   return emitter->GetNumListenersForTesting();
 }
 
+size_t GetNumPendingFilters(v8::Isolate* isolate, v8::Local<v8::Object> event) {
+  EventEmitter* emitter = nullptr;
+  gin::Converter<EventEmitter*>::FromV8(isolate, event, &emitter);
+  CHECK(emitter);
+  return emitter->GetNumPendingFiltersForTesting();
+}
+
 // Note: Not function-local to RemoveListener() because it's used in one place
 // that needs to circumvent RunFunction().
 constexpr char kRemoveListenerFunction[] =
@@ -872,6 +879,66 @@ TEST_F(APIEventHandlerTest, TestArgumentMassagersNeverDispatch) {
   // Nothing should blow up. (We tested in the previous test that the event
   // isn't notified without calling dispatch, so all there is to test here is
   // that we don't crash.)
+}
+
+// Test that an event dispatch handler receives the raw arguments and takes over
+// dispatch entirely: the emitter's listeners are not notified, and firing with
+// a non-null filter doesn't push (and leak) one, since the handler is never
+// given a dispatch function to pop it.
+TEST_F(APIEventHandlerTest, TestEventDispatchHandler) {
+  v8::HandleScope handle_scope(isolate());
+  v8::Local<v8::Context> context = MainContext();
+
+  const char kEventName[] = "alpha";
+  v8::Local<v8::Object> event = handler()->CreateEventInstance(
+      kEventName, /*supports_filters=*/true, true, binding::kNoListenerMax,
+      true, context);
+  ASSERT_FALSE(event.IsEmpty());
+
+  // A dispatch handler receives only the original arguments (no dispatch
+  // function) and is responsible for invoking listeners itself.
+  const char kDispatchHandler[] =
+      "(function(args) { this.handlerArgs = args; })";
+  v8::Local<v8::Function> dispatch_handler =
+      FunctionFromString(context, kDispatchHandler);
+  handler()->RegisterEventDispatchHandler(context, kEventName,
+                                          dispatch_handler);
+
+  // A listener registered on the emitter must never be notified, since the
+  // handler owns dispatch and never fans out to the emitter.
+  const char kListenerFunction[] =
+      "(function() { this.eventArgs = Array.from(arguments); })";
+  v8::Local<v8::Function> listener_function =
+      FunctionFromString(context, kListenerFunction);
+  ASSERT_FALSE(listener_function.IsEmpty());
+  auto filter =
+      V8ValueFromScriptSource(context, "({url: [{hostSuffix: 'test.com'}]})")
+          .As<v8::Object>();
+  AddFilteredListener(context, listener_function, event, filter);
+
+  ASSERT_EQ(0u, GetNumPendingFilters(isolate(), event));
+
+  // Fire twice with a non-null filter: the argument-massager path would push it
+  // onto the emitter and (since the handler never pops it) leak one entry per
+  // dispatch; the dispatch-handler path must not push a filter at all.
+  const char kArguments[] = "['first', 'second']";
+  base::ListValue event_args = ListValueFromString(kArguments);
+  for (int i = 0; i < 2; ++i) {
+    mojom::EventFilteringInfoPtr filter_info = mojom::EventFilteringInfo::New();
+    filter_info->url = GURL("https://test.com");
+    handler()->FireEventInContext(kEventName, context, event_args,
+                                  std::move(filter_info));
+  }
+
+  // The handler received the raw arguments...
+  EXPECT_EQ(
+      R"(["first","second"])",
+      GetStringPropertyFromObject(context->Global(), context, "handlerArgs"));
+  // ...the emitter's listener was not notified...
+  EXPECT_EQ("undefined", GetStringPropertyFromObject(context->Global(), context,
+                                                     "eventArgs"));
+  // ...and no filter was pushed (and leaked) for the dispatch-handler path.
+  EXPECT_EQ(0u, GetNumPendingFilters(isolate(), event));
 }
 
 // Test that event results of dispatch are passed to the calling argument

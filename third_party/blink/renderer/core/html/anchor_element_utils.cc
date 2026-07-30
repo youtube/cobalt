@@ -13,6 +13,7 @@
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/dom/space_split_string.h"
+#include "third_party/blink/renderer/core/events/mouse_event.h"
 #include "third_party/blink/renderer/core/frame/deprecation/deprecation.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
@@ -255,6 +256,16 @@ void AnchorElementUtils::HandleReferrerPolicyAttribute(
                       WebFeature::kHTMLAnchorElementReferrerPolicyAttribute);
     request.SetReferrerPolicy(policy);
   }
+}
+
+bool AnchorElementUtils::IsLinkClick(Event& event) {
+  auto* mouse_event = DynamicTo<MouseEvent>(event);
+  if ((event.type() != event_type_names::kClick &&
+       event.type() != event_type_names::kAuxclick) ||
+      !mouse_event) {
+    return false;
+  }
+  return mouse_event->IsLinkClickButton();
 }
 
 void AnchorElementUtils::EnforceBlobUrlNoopenerIfNeeded(

@@ -78,8 +78,24 @@ const char kTrackEventDataSourceName[] = "track_event";
 // Frames need to be at least 1x1, otherwise nothing would be captured.
 constexpr gfx::Size kMinFrameSize = gfx::Size(1, 1);
 
-// Frames do not need to be greater than 500x500 for tracing.
-constexpr gfx::Size kMaxFrameSize = gfx::Size(500, 500);
+// Default maximum width and height (in pixels) of each captured screenshot.
+// Callers can override this via the `screenshotMaxSize` parameter on
+// `Tracing.start` (subject to clamping in ResolveScreenshotParams).
+constexpr gfx::Size kDefaultMaxFrameSize = gfx::Size(500, 500);
+
+// Upper sanity bound on each screenshot dimension to reject pathological
+// values from the protocol surface.
+constexpr int kMaxScreenshotDimension = 4096;
+
+// Upper sanity bound on the total number of screenshots per session.
+constexpr int kMaxScreenshotCount = 100000;
+
+// Per-session memory budget for screenshot capture, in bytes. Matches the
+// pre-existing implicit budget of `500 * 500 * 4 * 450` = ~450 MB.
+constexpr int64_t kScreenshotMemoryBudgetBytes =
+    static_cast<int64_t>(kDefaultMaxFrameSize.width()) *
+    kDefaultMaxFrameSize.height() * 4 *
+    DevToolsTraceableScreenshot::kDefaultMaximumNumberOfScreenshots;
 
 // Convert from camel case to separator + lowercase.
 std::string ConvertFromCamelCase(const std::string& in_str, char separator) {
@@ -702,6 +718,8 @@ void TracingHandler::Start(
     std::unique_ptr<Tracing::TraceConfig> config,
     std::optional<Binary> perfetto_config,
     std::optional<std::string> tracing_backend,
+    std::optional<int> screenshot_max_size,
+    std::optional<int> screenshot_max_count,
     std::unique_ptr<StartCallback> callback) {
   bool return_as_stream = transfer_mode.value_or("") ==
                           Tracing::Start::TransferModeEnum::ReturnAsStream;
@@ -764,6 +782,16 @@ void TracingHandler::Start(
     return;
   }
 
+  gfx::Size resolved_screenshot_max_frame_size;
+  int resolved_screenshot_max_count = 0;
+  Response screenshot_params_response = ResolveScreenshotParams(
+      screenshot_max_size, screenshot_max_count,
+      &resolved_screenshot_max_frame_size, &resolved_screenshot_max_count);
+  if (!screenshot_params_response.IsSuccess()) {
+    callback->sendFailure(std::move(screenshot_params_response));
+    return;
+  }
+
   // Check if we should adopt the startup tracing session. Only the first
   // Tracing.start() sent to the browser endpoint can adopt it.
   // TODO(crbug.com/40171330): Add tests for system-controlled startup traces.
@@ -802,6 +830,8 @@ void TracingHandler::Start(
       buffer_usage_reporting_interval.value_or(0);
   did_initiate_recording_ = true;
   trace_config_ = std::move(trace_config);
+  screenshot_max_frame_size_ = resolved_screenshot_max_frame_size;
+  screenshot_max_count_ = resolved_screenshot_max_count;
 
   if (session_for_process_filter_) {
     process_set_monitor_ = TracingProcessSetMonitor::Start(
@@ -952,7 +982,8 @@ void TracingHandler::OnRecordingEnabled(std::unique_ptr<StartCallback> callback,
       video_consumer_->SetFrameSinkId(
           frame_host->GetRenderWidgetHost()->GetFrameSinkId());
     }
-    video_consumer_->SetMinAndMaxFrameSize(kMinFrameSize, kMaxFrameSize);
+    video_consumer_->SetMinAndMaxFrameSize(kMinFrameSize,
+                                           screenshot_max_frame_size_);
     video_consumer_->StartCapture();
   }
 }
@@ -1043,8 +1074,7 @@ void TracingHandler::OnFrameFromVideoConsumer(
 
   ++number_of_screenshots_from_video_consumer_;
   DCHECK(video_consumer_);
-  if (number_of_screenshots_from_video_consumer_ >=
-      DevToolsTraceableScreenshot::kMaximumNumberOfScreenshots) {
+  if (number_of_screenshots_from_video_consumer_ >= screenshot_max_count_) {
     video_consumer_->StopCapture();
   }
 }
@@ -1192,6 +1222,40 @@ void TracingHandler::AddPidsToProcessFilter(
 // static
 bool TracingHandler::IsStartupTracingActive() {
   return ::tracing::TraceStartupConfig::GetInstance().IsEnabled();
+}
+
+// static
+Response TracingHandler::ResolveScreenshotParams(
+    std::optional<int> requested_max_size,
+    std::optional<int> requested_max_count,
+    gfx::Size* resolved_max_frame_size,
+    int* resolved_max_count) {
+  const int max_size =
+      requested_max_size.value_or(kDefaultMaxFrameSize.width());
+  const int max_count = requested_max_count.value_or(
+      DevToolsTraceableScreenshot::kDefaultMaximumNumberOfScreenshots);
+
+  if (max_size <= 0 || max_size > kMaxScreenshotDimension) {
+    return Response::InvalidParams(base::StringPrintf(
+        "screenshotMaxSize must be in [1, %d].", kMaxScreenshotDimension));
+  }
+  if (max_count <= 0 || max_count > kMaxScreenshotCount) {
+    return Response::InvalidParams(base::StringPrintf(
+        "screenshotMaxCount must be in [1, %d].", kMaxScreenshotCount));
+  }
+
+  const int64_t budget =
+      static_cast<int64_t>(max_size) * max_size * 4 * max_count;
+  if (budget > kScreenshotMemoryBudgetBytes) {
+    return Response::InvalidParams(base::StringPrintf(
+        "screenshotMaxSize^2 * 4 * screenshotMaxCount (%" PRId64
+        ") exceeds the per-session screenshot memory budget (%" PRId64 ").",
+        budget, kScreenshotMemoryBudgetBytes));
+  }
+
+  *resolved_max_frame_size = gfx::Size(max_size, max_size);
+  *resolved_max_count = max_count;
+  return Response::Success();
 }
 
 // static

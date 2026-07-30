@@ -11,7 +11,11 @@
 #include "base/compiler_specific.h"
 #include "base/memory_coordinator/memory_consumer.h"
 #include "base/memory_coordinator/memory_coordinator_features.h"
+#include "base/memory_coordinator/traits.h"
+#include "base/memory_coordinator/utils.h"
+#include "base/numerics/safe_conversions.h"
 #include "gpu/vulkan/buildflags.h"
+#include "gpu/vulkan/vma_wrapper.h"
 #include "gpu/vulkan/vulkan_device_queue.h"
 #include "gpu/vulkan/vulkan_fence_helper.h"
 #include "gpu/vulkan/vulkan_function_pointers.h"
@@ -28,6 +32,16 @@ namespace {
 
 // Setting this limit to 0 practically forces sync at every submit.
 constexpr uint32_t kSyncCpuMemoryLimitAtMemoryPressureCritical = 0;
+
+constexpr base::MemoryConsumerTraits kMemoryConsumerTraits(
+    // Deferred Vulkan resources can accumulate to a moderate amount of memory.
+    base::MemoryConsumerTraits::EstimatedMemoryUsage::kMedium,
+    // Callback only updates atomics without traversing structures.
+    base::MemoryConsumerTraits::ReleaseMemoryCost::kFreesPagesWithoutTraversal,
+    // Syncing GPU work does not lose user state or cached data.
+    base::MemoryConsumerTraits::InformationRetention::kLossless,
+    // Pre-determined by AsyncMemoryConsumerRegistration on the GPU thread.
+    base::MemoryConsumerTraits::ExecutionType::kAsynchronous);
 
 }  // namespace
 
@@ -83,11 +97,9 @@ VulkanInProcessContextProvider::VulkanInProcessContextProvider(
           cooldown_duration_at_memory_pressure_critical),
       critical_memory_pressure_expiration_time_(base::TimeTicks()),
       active_sync_cpu_memory_limit_(sync_cpu_memory_limit) {
-  memory_pressure_listener_registration_ =
-      std::make_unique<base::AsyncMemoryPressureListenerRegistration>(
-          FROM_HERE,
-          base::MemoryPressureListenerTag::kVulkanInProcessContextProvider,
-          this);
+  memory_consumer_registration_ =
+      std::make_unique<base::AsyncMemoryConsumerRegistration>(
+          "VulkanInProcessContextProvider", kMemoryConsumerTraits, this);
 }
 
 VulkanInProcessContextProvider::~VulkanInProcessContextProvider() {
@@ -262,8 +274,16 @@ std::optional<uint32_t> VulkanInProcessContextProvider::GetSyncCpuMemoryLimit()
              : sync_cpu_memory_limit_;
 }
 
-void VulkanInProcessContextProvider::OnMemoryPressure(
-    base::MemoryPressureLevel level) {
+uint32_t VulkanInProcessContextProvider::GetCurrentGpuMemoryUsage() const {
+  if (device_queue_) {
+    return base::saturated_cast<uint32_t>(
+        gpu::vma::GetTotalAllocatedAndUsedMemory(device_queue_->vma_allocator())
+            .first);
+  }
+  return 0;
+}
+
+void VulkanInProcessContextProvider::OnUpdateMemoryLimit() {
   if (!sync_cpu_memory_limit_) {
     return;
   }
@@ -272,7 +292,34 @@ void VulkanInProcessContextProvider::OnMemoryPressure(
     // We cap the ratio to 1.0 to ensure that we never exceed the
     // user-provided sync_cpu_memory_limit, even if the memory coordinator
     // allows for more memory usage (ratio > 1.0).
-    int capped_memory_limit = std::min(100, GetMemoryLimit());
+    int capped_memory_limit = std::min(100, memory_limit());
+    uint32_t target_limit =
+        base::ScaleByMemoryLimit(*sync_cpu_memory_limit_, capped_memory_limit);
+
+    uint32_t new_limit = target_limit;
+    uint32_t current_active =
+        active_sync_cpu_memory_limit_.load(std::memory_order_relaxed);
+
+    if (target_limit <= current_active) {
+      // Limit decreased: cap at current usage to prevent growth without
+      // triggering immediate eviction.
+      new_limit = std::max(GetCurrentGpuMemoryUsage(), target_limit);
+    }
+
+    active_sync_cpu_memory_limit_.store(new_limit, std::memory_order_relaxed);
+  }
+}
+
+void VulkanInProcessContextProvider::OnReleaseMemory() {
+  if (!sync_cpu_memory_limit_) {
+    return;
+  }
+
+  if (base::FeatureList::IsEnabled(base::kStatefulMemoryPressure)) {
+    // We cap the ratio to 1.0 to ensure that we never exceed the
+    // user-provided sync_cpu_memory_limit, even if the memory coordinator
+    // allows for more memory usage (ratio > 1.0).
+    int capped_memory_limit = std::min(100, memory_limit());
     uint32_t new_sync_cpu_memory_limit =
         base::ScaleByMemoryLimit(*sync_cpu_memory_limit_, capped_memory_limit);
     active_sync_cpu_memory_limit_.store(new_sync_cpu_memory_limit,
@@ -280,7 +327,7 @@ void VulkanInProcessContextProvider::OnMemoryPressure(
     return;
   }
 
-  if (level != base::MEMORY_PRESSURE_LEVEL_CRITICAL) {
+  if (memory_limit() > base::kCriticalMemoryPressureThreshold) {
     return;
   }
 

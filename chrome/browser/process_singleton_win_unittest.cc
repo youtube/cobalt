@@ -13,13 +13,16 @@
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
 #include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/notreached.h"
 #include "base/process/launch.h"
 #include "base/process/process.h"
 #include "base/process/process_handle.h"
 #include "base/strings/string_number_conversions_win.h"
+#include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/multiprocess_test.h"
 #include "base/time/time.h"
@@ -38,6 +41,8 @@ const char kReadyEventNameFlag[] = "ready_event_name";
 const char kContinueEventNameFlag[] = "continue_event_name";
 const char kCreateWindowFlag[] = "create_window";
 const int kErrorResultCode = 0x345;
+
+const char kLockfile[] = "lockfile";
 
 bool NotificationCallback(base::CommandLine command_line,
                           const base::FilePath& current_directory) {
@@ -365,4 +370,48 @@ TEST_F(ProcessSingletonTest, KillWithUserPermission) {
   EXPECT_TRUE(
       browser_victim()->WaitForExitWithTimeout(base::TimeDelta(), &exit_code));
   EXPECT_EQ(content::RESULT_CODE_HUNG, exit_code);
+}
+
+// Verifies that during ProcessSingleton destruction, the message window
+// is destroyed while the lockfile is STILL actively held by the exiting
+// process.
+TEST_F(ProcessSingletonTest, DeterministicDestructionOrder) {
+  base::ScopedTempDir profile_dir;
+  ASSERT_TRUE(profile_dir.CreateUniqueTempDir());
+
+  // Initialize ProcessSingleton directly with base::NullCallback()
+  auto ps = std::make_unique<ProcessSingleton>(profile_dir.GetPath(),
+                                               base::NullCallback());
+
+  // Acquire the lock (we become the master)
+  ASSERT_TRUE(ps->Create());
+  bool observer_ran = false;
+
+  // Set the observer callback to intercept the exact middle of the destructor
+  ps->SetOnWindowDestroyedCallbackForTesting(base::BindLambdaForTesting([&]() {
+    observer_ran = true;
+    // CHECKPOINT A: The window must be GONE.
+    HWND hwnd = FindRunningChromeWindow(profile_dir.GetPath());
+    EXPECT_EQ(hwnd, nullptr);
+    // CHECKPOINT B: The exiting process MUST still hold the lockfile!
+    base::FilePath lock_file_path =
+        profile_dir.GetPath().AppendASCII(kLockfile);
+    HANDLE lock = ::CreateFile(
+        lock_file_path.value().c_str(), GENERIC_WRITE, 0,  // 0 = No sharing
+        NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+
+    EXPECT_EQ(lock, INVALID_HANDLE_VALUE);
+    EXPECT_EQ(::GetLastError(), static_cast<DWORD>(ERROR_SHARING_VIOLATION));
+  }));
+
+  // Destroy the singleton. This triggers the destructor and our observer
+  // callback.
+  ps.reset();
+
+  // Verify the observer callback actually executed.
+  EXPECT_TRUE(observer_ran);
+
+  // CHECKPOINT C: Lock is released and the lockfile is deleted.
+  base::FilePath lock_file_path = profile_dir.GetPath().AppendASCII(kLockfile);
+  EXPECT_FALSE(base::PathExists(lock_file_path));
 }

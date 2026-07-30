@@ -29,6 +29,7 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/simple_test_clock.h"
 #include "base/test/simple_test_tick_clock.h"
 #include "base/test/test_future.h"
 #include "base/test/test_mock_time_task_runner.h"
@@ -1433,6 +1434,9 @@ TEST_P(QuicSessionPoolTest, MemoryPressureGlobalExclusion) {
        features::kIgnoreQuicCryptoConfigMemoryPressure},
       {});
   Initialize();
+  base::SimpleTestClock test_clock;
+  test_clock.SetNow(base::Time::UnixEpoch() + base::Days(365 * 50));
+  QuicSessionPoolPeer::SetClockForTesting(pool_.get(), &test_clock);
 
   quic::QuicServerId doh_server_id("doh.example.com", 443);
   quic::QuicServerId general_server_id("www.example.com", 443);
@@ -1459,10 +1463,12 @@ TEST_P(QuicSessionPoolTest, MemoryPressureGlobalExclusion) {
   bssl::UniquePtr<SSL_SESSION> doh_session(
       SSL_SESSION_new(doh_handle->GetConfig()->ssl_ctx()));
   ASSERT_TRUE(doh_session);
+  SSL_SESSION_set_time(doh_session.get(), test_clock.Now().ToTimeT());
 
   bssl::UniquePtr<SSL_SESSION> general_session(
       SSL_SESSION_new(general_handle->GetConfig()->ssl_ctx()));
   ASSERT_TRUE(general_session);
+  SSL_SESSION_set_time(general_session.get(), test_clock.Now().ToTimeT());
 
   quic::TransportParameters params;
   doh_handle->GetConfig()->session_cache()->Insert(
@@ -1486,6 +1492,22 @@ TEST_P(QuicSessionPoolTest, MemoryPressureGlobalExclusion) {
   EXPECT_FALSE(QuicSessionPoolPeer::CryptoConfigSessionCacheIsEmpty(pool_.get(),
                                                                     doh_key));
   EXPECT_FALSE(QuicSessionPoolPeer::CryptoConfigSessionCacheIsEmpty(
+      pool_.get(), general_key));
+
+  // 5. Fast forward time so they expire.
+  test_clock.Advance(base::Hours(3));
+
+  // 6. Trigger memory pressure again.
+  base::test::TestFuture<void> memory_pressure_future2;
+  base::MemoryPressureListener::SimulatePressureNotificationAsync(
+      base::MemoryPressureLevel::MEMORY_PRESSURE_LEVEL_CRITICAL,
+      memory_pressure_future2.GetCallback());
+  ASSERT_TRUE(memory_pressure_future2.Wait());
+
+  // 7. Verify that both DoH and General are now cleared.
+  EXPECT_TRUE(QuicSessionPoolPeer::CryptoConfigSessionCacheIsEmpty(pool_.get(),
+                                                                   doh_key));
+  EXPECT_TRUE(QuicSessionPoolPeer::CryptoConfigSessionCacheIsEmpty(
       pool_.get(), general_key));
 }
 

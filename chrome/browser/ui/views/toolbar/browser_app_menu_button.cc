@@ -15,6 +15,7 @@
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
+#include "chrome/browser/ui/views/toolbar/action_app_menu.h"
 #include "chrome/browser/ui/views/toolbar/app_menu.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_button.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_ink_drop_util.h"
@@ -94,6 +95,11 @@ void BrowserAppMenuButton::ShowMenu(int run_types) {
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
   Browser* browser = toolbar_view_->browser();
+
+  if (base::FeatureList::IsEnabled(features::kAppMenuGlowUp)) {
+    RunActionMenu(browser, run_types);
+    return;
+  }
 
   // Allow highlighting menu items when the menu was opened while
   // certain tutorials are running.

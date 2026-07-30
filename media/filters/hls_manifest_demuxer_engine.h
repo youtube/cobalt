@@ -9,6 +9,7 @@
 #include <string_view>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/sequence_checker.h"
 #include "base/task/sequenced_task_runner.h"
@@ -70,8 +71,8 @@ class MEDIA_EXPORT HlsManifestDemuxerEngine : public ManifestDemuxer::Engine,
 
   void SelectVideoTrack(const MediaTrack::Id&) override;
   void SelectAudioTrack(const MediaTrack::Id&) override;
-  std::vector<DemuxerStream*> FilterDemuxerStreams(
-      std::vector<DemuxerStream*>&&) override;
+  std::vector<raw_ptr<DemuxerStream>> FilterDemuxerStreams(
+      std::vector<raw_ptr<DemuxerStream>>&&) override;
 
   // HlsRenditionHost implementation.
   void ReadMediaSegment(const hls::MediaSegment& segment,

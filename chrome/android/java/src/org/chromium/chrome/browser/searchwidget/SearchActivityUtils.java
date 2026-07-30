@@ -21,7 +21,14 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.IntentHandler;
 import org.chromium.chrome.browser.document.ChromeLauncherActivity;
+import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.omnibox.suggestions.OmniboxLoadUrlParams;
+import org.chromium.chrome.browser.tab.TabLaunchType;
+import org.chromium.chrome.browser.tab.TabSelectionType;
+import org.chromium.chrome.browser.tabmodel.TabModel;
+import org.chromium.chrome.browser.tabmodel.TabModelSelector;
+import org.chromium.chrome.browser.tabmodel.TabModelUtils;
+import org.chromium.chrome.browser.tabwindow.TabWindowInfo;
 import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityExtras;
 import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityExtras.IntentOrigin;
 import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityExtras.ResolutionType;
@@ -225,5 +232,46 @@ public class SearchActivityUtils {
         }
 
         return intent;
+    }
+
+    /**
+     * Brings the specified tab to the front. If the tab is in the current window and same model,
+     * switches to it directly. Otherwise, launches an intent to bring it to the front.
+     *
+     * @param activity The current activity.
+     * @param tabModelSelector The TabModelSelector for the current activity.
+     * @param tabWindowInfo Information about the tab and its window.
+     * @param url The URL of the tab.
+     * @param onTabSwitched A callback to run after switching to the tab or launching the intent.
+     */
+    public static void bringTabToFront(
+            Activity activity,
+            @Nullable TabModelSelector tabModelSelector,
+            TabWindowInfo tabWindowInfo,
+            GURL url,
+            @Nullable Runnable onTabSwitched) {
+        if (tabModelSelector == null) return;
+        TabModel tabModel = tabWindowInfo.tabModel;
+        int tabId = tabWindowInfo.tab.getId();
+
+        if (tabModelSelector.getCurrentModel() == tabModel) {
+            int tabIndex = TabModelUtils.getTabIndexById(tabModel, tabId);
+            if (tabIndex == TabModel.INVALID_TAB_INDEX) return;
+            tabModel.setIndex(tabIndex, TabSelectionType.FROM_OMNIBOX);
+            if (onTabSwitched != null) {
+                onTabSwitched.run();
+            }
+            return;
+        }
+
+        Intent intent =
+                IntentHandler.createTrustedBringTabToFrontIntent(
+                        tabId, IntentHandler.BringToFrontSource.ACTIVATE_TAB);
+        intent.setData(Uri.parse(url.getSpec()));
+        IntentHandler.setTabLaunchType(intent, TabLaunchType.FROM_OMNIBOX);
+        MultiWindowUtils.launchIntentInMaybeClosedWindow(activity, intent, tabWindowInfo.windowId);
+        if (onTabSwitched != null) {
+            onTabSwitched.run();
+        }
     }
 }

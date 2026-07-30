@@ -240,7 +240,6 @@ SharedStorageDatabase::SharedStorageDatabase(
     scoped_refptr<storage::SpecialStoragePolicy> special_storage_policy,
     std::unique_ptr<SharedStorageDatabaseOptions> options)
     : db_(sql::DatabaseOptions()
-              .set_preload(true)
               .set_wal_mode(base::FeatureList::IsEnabled(
                   blink::features::kSharedStorageAPIEnableWALForDatabase))
               // Prevent SQLite from trying to use mmap, as SandboxedVfs does

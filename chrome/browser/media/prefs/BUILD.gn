@@ -11,6 +11,7 @@ source_set("prefs") {
     "//chrome/browser/media/webrtc",
     "//chrome/browser/prefs:impl",
     "//chrome/browser/ui",
+    "//chrome/browser/ui/views/media_preview/*",
     "//chrome/test/*",
   ]
   sources = [

@@ -86,6 +86,11 @@ class AudioProcessMlModelForwarder {
     }
     return false;
   }
+  void FlushForTesting() {
+    if (audio_process_model_manager_.is_bound()) {
+      audio_process_model_manager_.FlushForTesting();
+    }
+  }
 
   // Signal that an audio capture stream has been opened. Media may not yet be
   // flowing, but permission checks have concluded successfully.

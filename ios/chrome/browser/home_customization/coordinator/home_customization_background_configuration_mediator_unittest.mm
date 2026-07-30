@@ -10,7 +10,6 @@
 #import "base/strings/stringprintf.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/metrics/histogram_tester.h"
-#import "base/test/scoped_feature_list.h"
 #import "components/image_fetcher/core/image_fetcher.h"
 #import "components/image_fetcher/core/mock_image_fetcher.h"
 #import "components/image_fetcher/core/request_metadata.h"
@@ -105,8 +104,6 @@ class HomeCustomizationBackgroundConfigurationMediatorTest
     : public PlatformTest {
  public:
   void SetUp() override {
-    feature_list_.InitAndEnableFeature(kNTPBackgroundCustomization);
-
     TestProfileIOS::Builder test_profile_builder;
     test_profile_builder.SetPrefService(CreatePrefService());
     test_profile_builder.AddTestingFactory(
@@ -185,8 +182,6 @@ class HomeCustomizationBackgroundConfigurationMediatorTest
 
  protected:
   web::WebTaskEnvironment task_environment_;
-
-  base::test::ScopedFeatureList feature_list_;
 
   std::unique_ptr<TestProfileIOS> profile_;
 

@@ -6,7 +6,7 @@
 
 #include "chrome/browser/ntp_customization/ntp_android_custom_background_service.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/search/background/ntp_background_service_factory.h"
+#include "chrome/browser/ntp_customization/ntp_android_background_service_factory.h"
 #include "components/prefs/pref_service.h"
 
 // static
@@ -32,7 +32,7 @@ NtpAndroidCustomBackgroundServiceFactory::
               .WithGuest(ProfileSelection::kOriginalOnly)
               .WithAshInternals(ProfileSelection::kOriginalOnly)
               .Build()) {
-  DependsOn(NtpBackgroundServiceFactory::GetInstance());
+  DependsOn(NtpAndroidBackgroundServiceFactory::GetInstance());
 }
 
 NtpAndroidCustomBackgroundServiceFactory::

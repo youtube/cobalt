@@ -67,3 +67,17 @@ rust_static_library("zip_ffi_glue") {
     "//third_party/rust/zip/v8:lib",
   ]
 }
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "web_state_deferred_executor_unittest.mm" ]
+  deps = [
+    ":web_state_deferred_executor",
+    "//base",
+    "//base/test:test_support",
+    "//ios/web/public",
+    "//ios/web/public/test",
+    "//ios/web/public/test/fakes",
+    "//testing/gtest",
+  ]
+}

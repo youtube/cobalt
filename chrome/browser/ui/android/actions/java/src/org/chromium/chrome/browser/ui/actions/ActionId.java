@@ -21,6 +21,7 @@ import java.lang.annotation.Target;
     ActionId.BACK_BUTTON,
     ActionId.NEW_TAB,
     ActionId.GLIC,
+    ActionId.AI_MODE,
 })
 @Retention(RetentionPolicy.SOURCE)
 @Target(ElementType.TYPE_USE)
@@ -32,4 +33,5 @@ public @interface ActionId {
     int BACK_BUTTON = 3;
     int NEW_TAB = 4;
     int GLIC = 5;
+    int AI_MODE = 6;
 }

@@ -50,7 +50,7 @@ export class SettingsGuestOsSharedPathsElement extends
   static get properties() {
     return {
       /**
-       * The type of Guest OS to share with. Should be 'crostini', 'pluginVm' or
+       * The type of Guest OS to share with. Should be 'crostini' or
        * 'bruschetta'.
        */
       guestOsType: String,

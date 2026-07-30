@@ -22,6 +22,7 @@
 #include "extensions/common/manifest.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
+#include "ash/constants/ash_extension_constants.h"
 #include "chrome/browser/chromeos/upload_office_to_cloud/upload_office_to_cloud.h"
 #include "chrome/browser/extensions/forced_extensions/assessment_assistant_tracker.h"
 #include "chrome/browser/policy/profile_policy_connector.h"

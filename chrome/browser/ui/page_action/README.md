@@ -126,6 +126,116 @@ page_action_controller_->HideSuggestionChip(kActionFooFeature);
 page_action_controller_->Hide(kActionFooFeature);
 ```
 
+### Anchored Messages
+
+An Anchored Message is a bubble UI that is anchored to the Page Action icon in
+the URL bar. It allows features to display contextual information along with a
+prominent call-to-action button (which triggers the same action/invocation
+callback as clicking the page action icon or suggestion chip in the URL bar) and
+optional actions or secondary content.
+
+Note that the framework supports showing **either** a suggestion chip or an
+anchored message for a page action at any given time, not both. A subsequent
+show request will override an earlier one.
+
+#### Show or hide an anchored message
+
+Use the controller's
+[ShowAnchoredMessage()](https://source.chromium.org/chromium/chromium/src/+/main:chrome/browser/ui/page_action/page_action_controller.h;q=ShowAnchoredMessage)
+and
+[HideAnchoredMessage()](https://source.chromium.org/chromium/chromium/src/+/main:chrome/browser/ui/page_action/page_action_controller.h;q=HideAnchoredMessage)
+methods:
+
+```c++
+page_actions::AnchoredMessageConfig config;
+page_action_controller_->ShowAnchoredMessage(kActionFooFeature, config);
+
+// Hide the anchored message.
+page_action_controller_->HideAnchoredMessage(kActionFooFeature);
+```
+
+You can also check if there is an active anchored message showing on the tab:
+
+```c++
+std::optional<actions::ActionId> active_message =
+    page_action_controller_->GetActiveAnchoredMessage();
+```
+
+#### Configuring the message
+
+An anchored message has several customizable properties:
+
+*   **Message Text**: Set the text to be displayed next to the action button:
+    ```c++
+    page_action_controller_->SetAnchoredMessageText(kActionFooFeature, u"Message text");
+    ```
+*   **Leading Icon**: Set an optional icon at the start of the bubble. Setting
+    this icon will automatically remove the icon from the call-to-action button
+    inside the bubble.
+
+    **Guidance**: The leading icon should be visually identical to the page
+    action icon in the URL bar, except that the leading icon in the bubble may
+    be colored, whereas the page action icon in the URL bar should be
+    monochrome.
+    ```c++
+    ui::ImageModel icon_image_model;
+    page_action_controller_->SetAnchoredMessageIcon(
+        kActionFooFeature, icon_image_model);
+    ```
+*   **Action Button Text**: The main button inside the bubble uses the action's
+    text. You can override it dynamically:
+    ```c++
+    page_action_controller_->OverrideText(kActionFooFeature, u"Action button");
+    ```
+*   **Action/Dismiss Icon**: You can specify an action icon on the far right of
+    the bubble:
+    - **Close (X) Button**:
+      ```c++
+      page_action_controller_->SetAnchoredMessageAction(
+          kActionFooFeature,
+          page_actions::AnchoredMessageActionIconType::kClose, nullptr);
+      ```
+    - **Three-Dot Menu Button**: Displays a dropdown menu. Note that the menu
+      model must be fully populated before passing ownership to the controller:
+      ```c++
+      std::unique_ptr<ui::SimpleMenuModel> menu_model;
+      // Populate menu_model with items...
+      page_action_controller_->SetAnchoredMessageAction(
+          kActionFooFeature,
+          page_actions::AnchoredMessageActionIconType::kMenu,
+          std::move(menu_model));
+      ```
+    - **None**:
+      ```c++
+      page_action_controller_->SetAnchoredMessageAction(
+          kActionFooFeature,
+          page_actions::AnchoredMessageActionIconType::kNone, nullptr);
+      ```
+
+#### Adding expandable content
+
+An anchored message bubble can optionally contain an expandable section
+(collapsible drawer). When supplied, an expand/collapse button (showing
+previews of the items) is displayed in the bubble.
+
+Define an
+[AnchoredMessageExpandableContent](https://source.chromium.org/chromium/chromium/src/+/main:chrome/browser/ui/page_action/page_action_controller.h;q=struct%20AnchoredMessageExpandableContent)
+containing a heading and a list of items (each with an icon and text):
+
+```c++
+page_actions::AnchoredMessageExpandableContent expandable_content;
+expandable_content.heading = u"Heading Text";
+
+ui::ImageModel item_icon;
+page_actions::AnchoredMessageExpandableItem item1;
+item1.icon = item_icon;
+item1.text = u"Item text 1";
+expandable_content.items.push_back(item1);
+
+page_action_controller_->SetAnchoredMessageExpandableContent(
+    kActionFooFeature, std::move(expandable_content));
+```
+
 ### Dynamically customize the text and icon
 
 If the page action requires a different image or text than the default specified

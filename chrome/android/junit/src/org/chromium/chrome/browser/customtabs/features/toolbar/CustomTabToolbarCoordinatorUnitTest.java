@@ -67,6 +67,7 @@ public class CustomTabToolbarCoordinatorUnitTest {
     private static final Rect WINDOW_RECT = new Rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
     private static final Rect WIDEST_UNOCCLUDED_RECT =
             new Rect(LEFT_INSET, 0, SCREEN_WIDTH - RIGHT_INSET, SYS_APP_HEADER_HEIGHT);
+    private static final int CUSTOM_BUTTON_ID = 100;
 
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
 
@@ -115,6 +116,7 @@ public class CustomTabToolbarCoordinatorUnitTest {
         when(mTabProvider.getTab()).thenReturn(mTab);
         when(mTab.getOriginalUrl()).thenReturn(GURL.emptyGURL());
         when(mTab.getTitle()).thenReturn("");
+        when(mCustomButtonParams.getId()).thenReturn(CUSTOM_BUTTON_ID);
         when(mCustomButtonParams.getDescription()).thenReturn("");
         when(mCustomButtonParams.getPendingIntent()).thenReturn(mPendingIntent);
     }
@@ -140,6 +142,9 @@ public class CustomTabToolbarCoordinatorUnitTest {
             verify(mShareDelegate, never()).share(any(Tab.class), eq(false), anyInt());
             verify(mPendingIntent)
                     .send(any(), eq(0), any(Intent.class), any(), isNull(), isNull(), any());
+            verify(env.intentDataProvider)
+                    .maybeAddAdditionalContentExtrasToOutboundIntent(
+                            eq(mTabProvider), any(Intent.class), eq(CUSTOM_BUTTON_ID));
         } catch (PendingIntent.CanceledException e) {
             throw new AssertionError();
         }

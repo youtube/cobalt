@@ -431,6 +431,12 @@ bool ContentBrowserClient::IsTopChromeWebUIURL(const GURL& url) {
   return false;
 }
 
+bool ContentBrowserClient::ShouldAllowMojoJsBindingsForSite(
+    BrowserContext* browser_context,
+    const GURL& site_url) {
+  return false;
+}
+
 bool ContentBrowserClient::IsMultiCaptureAllowed(
     content::RenderFrameHost* render_frame_host) {
   return false;
@@ -1158,8 +1164,16 @@ bool ContentBrowserClient::WillInterceptWebSocket(RenderFrameHost*) {
   return false;
 }
 
-uint32_t ContentBrowserClient::GetWebSocketOptions(RenderFrameHost* frame) {
-  return network::mojom::kWebSocketOptionNone;
+ContentBrowserClient::WebSocketOptions::WebSocketOptions() = default;
+ContentBrowserClient::WebSocketOptions::~WebSocketOptions() = default;
+ContentBrowserClient::WebSocketOptions::WebSocketOptions(WebSocketOptions&&) =
+    default;
+
+ContentBrowserClient::WebSocketOptions
+ContentBrowserClient::GetWebSocketOptions(RenderFrameHost* frame) {
+  ContentBrowserClient::WebSocketOptions options;
+  options.options = network::mojom::kWebSocketOptionNone;
+  return options;
 }
 
 void ContentBrowserClient::CreateWebSocket(
@@ -1169,7 +1183,8 @@ void ContentBrowserClient::CreateWebSocket(
     const net::SiteForCookies& site_for_cookies,
     const std::optional<std::string>& user_agent,
     mojo::PendingRemote<network::mojom::WebSocketHandshakeClient>
-        handshake_client) {
+        handshake_client,
+    ContentBrowserClient::WebSocketOptions options) {
   // NOTREACHED because WillInterceptWebSocket returns false.
   NOTREACHED();
 }
@@ -1302,6 +1317,10 @@ BluetoothDelegate* ContentBrowserClient::GetBluetoothDelegate() {
 }
 
 UsbDelegate* ContentBrowserClient::GetUsbDelegate() {
+  return nullptr;
+}
+
+SensorDelegate* ContentBrowserClient::GetSensorDelegate() {
   return nullptr;
 }
 

@@ -94,6 +94,7 @@ namespace http://www.w3.org/1999/xhtml
     property attributeStyleMap
     property attributes
     property autocapitalize
+    property autocorrect
     property autofocus
     property baseURI
     property before
@@ -832,10 +833,12 @@ html element img
 html element input
     property accept
     property align
+    property alpha
     property alt
     property autocomplete
     property checkValidity
     property checked
+    property colorSpace
     property createValueRange
     property defaultChecked
     property defaultValue
@@ -1144,6 +1147,7 @@ html element style
     property sheet
     property type
 html element sub
+html element submenu
 html element summary
 html element sup
 html element table
@@ -2271,6 +2275,7 @@ svg element path
     property nearestViewportElement
     property pathLength
     property requiredExtensions
+    property setPathData
     property systemLanguage
     property transform
 svg element pattern

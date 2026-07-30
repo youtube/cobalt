@@ -6,11 +6,11 @@
 
 #include <algorithm>
 
+#include "ash/constants/ash_extension_constants.h"
 #include "base/run_loop.h"
 #include "base/strings/pattern.h"
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
-#include "chrome/common/extensions/extension_constants.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/tts_controller.h"

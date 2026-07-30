@@ -9,9 +9,9 @@ AXWebArea
 ++AXTable
 ++++AXRow AXTitle='Grid row'
 ++++++AXStaticText AXValue='Grid row'
-++++AXGroup
+++++AXGroup AXSubrole=AXEmptyGroup
 ++AXComboBox AXLinkedUIElements=[:14]
 ++AXTable
 ++++AXRow AXTitle='Treegrid row'
 ++++++AXStaticText AXValue='Treegrid row'
-++++AXGroup
+++++AXGroup AXSubrole=AXEmptyGroup

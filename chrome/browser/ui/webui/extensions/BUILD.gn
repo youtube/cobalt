@@ -70,6 +70,29 @@ if (enable_extensions_core) {
     ]
   }
 
+  source_set("test_support") {
+    testonly = true
+    sources = [
+      "extension_settings_test_base.cc",
+      "extension_settings_test_base.h",
+    ]
+    deps = [
+      "//base",
+      "//base/test:test_support",
+      "//chrome/browser/extensions",
+      "//chrome/browser/extensions:test_support",
+      "//chrome/browser/profiles:profile",
+      "//chrome/common:constants",
+      "//chrome/test:test_support",
+      "//extensions:test_support",
+      "//extensions/browser",
+      "//extensions/buildflags",
+    ]
+    if (!is_android) {
+      deps += [ "//chrome/browser/ui" ]
+    }
+  }
+
   source_set("unit_tests") {
     testonly = true
     sources = [ "extensions_internals_unittest.cc" ]
@@ -97,6 +120,7 @@ if (enable_extensions_core) {
 
     deps = [
       ":extensions",
+      ":test_support",
       "//base",
       "//chrome/browser/extensions",
       "//chrome/browser/extensions:test_support",

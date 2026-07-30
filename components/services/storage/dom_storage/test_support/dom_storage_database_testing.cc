@@ -113,7 +113,6 @@ std::vector<DomStorageDatabase::MapMetadata> CloneMapMetadataVector(
 DomStorageDatabase::Metadata CloneMetadata(
     const DomStorageDatabase::Metadata& source) {
   DomStorageDatabase::Metadata copy;
-  copy.next_map_id = source.next_map_id;
   copy.map_metadata = CloneMapMetadataVector(source.map_metadata);
   return copy;
 }

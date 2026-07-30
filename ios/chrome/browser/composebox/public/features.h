@@ -105,4 +105,10 @@ bool IsComposeboxConditionalPlusButtonEnabled();
 // Returns whether to enable Google Drive option in the composebox.
 bool IsComposeboxDriveOptionEnabled();
 
+// Used to enable physical keyboard Return key behaviors in the composebox.
+BASE_DECLARE_FEATURE(kComposeboxPhysicalKeyboardReturnKeys);
+
+// Returns whether the physical keyboard Return key behaviors are enabled.
+bool IsComposeboxPhysicalKeyboardReturnKeysEnabled();
+
 #endif  // IOS_CHROME_BROWSER_COMPOSEBOX_PUBLIC_FEATURES_H_

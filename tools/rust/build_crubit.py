@@ -137,7 +137,7 @@ def BuildCrubit(rust_sysroot, out_dir, skip_checkout):
 
     print(f'Installing `crubit/support` to {RUST_TOOLCHAIN_OUT_DIR} ...')
     crubit_target_dir = os.path.join(RUST_TOOLCHAIN_OUT_DIR, 'lib', 'crubit')
-    for item in ["BUILD.gn", "crubit.gni", "support"]:
+    for item in ["BUILD.gn", "LICENSE", "crubit.gni", "support"]:
         source_path = os.path.join(CRUBIT_SRC_DIR, item)
         target_path = os.path.join(crubit_target_dir, item)
         os.makedirs(os.path.dirname(target_path), exist_ok=True)

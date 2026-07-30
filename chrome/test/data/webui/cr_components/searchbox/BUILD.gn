@@ -19,6 +19,7 @@ build_webui_tests("build") {
     "searchbox_icon_test.ts",
     "searchbox_input_test.ts",
     "searchbox_match_test.ts",
+    "searchbox_mixin_test.ts",
     "searchbox_test_utils.ts",
     "test_searchbox_browser_proxy.ts",
     "placeholder_text_cycler_test.ts",
@@ -29,6 +30,7 @@ build_webui_tests("build") {
 
   ts_deps = [
     "//chrome/browser/resources/new_tab_page:build_ts",
+    "//third_party/lit/v3_0:build_ts",
     "//ui/webui/resources/cr_components/composebox:build_ts",
     "//ui/webui/resources/cr_components/searchbox:build_ts",
     "//ui/webui/resources/js:build_ts",

@@ -61,12 +61,6 @@ const base::FeatureParam<base::TimeDelta> kAwaitPageStabilityTimeout = {
 
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
-BASE_FEATURE(kRetryCapturePageContent, base::FEATURE_ENABLED_BY_DEFAULT);
-const base::FeatureParam<base::TimeDelta> kCapturePageContentDelay = {
-    &kRetryCapturePageContent, "retry_capture_delay", base::Milliseconds(500)};
-const base::FeatureParam<int> kCapturePageContentRetryCount = {
-    &kRetryCapturePageContent, "retry_count", 3};
-
 BASE_FEATURE(kBiometricTouchToFill, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCallOnAddPasswordFillDataAsynchronously,
@@ -107,6 +101,9 @@ BASE_FEATURE(kDisablePasswordChangeFromNewPasswordFields,
 BASE_FEATURE(kEnablePasswordManagerMojoApi, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
+BASE_FEATURE(kFallbackNoPreviewForCrossDomainCredentials,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 BASE_FEATURE(kFetchChangePasswordUrlForPasswordChange,
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
              // Desktop only since password change is not available on mobile.
@@ -118,13 +115,7 @@ BASE_FEATURE(kFetchChangePasswordUrlForPasswordChange,
 
 BASE_FEATURE(kFillOnAccountSelect,
              "fill-on-account-select",
-// TODO(504600482): Disable the feature again upon fixing the bug.
-#if BUILDFLAG(IS_LINUX)
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else
-             base::FEATURE_DISABLED_BY_DEFAULT
-#endif  // BUILDFLAG(IS_LINUX)
-);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_IOS)
 BASE_FEATURE(kIosCleanupHangingPasswordFormExtractionRequests,
@@ -139,19 +130,24 @@ BASE_FEATURE(kIOSProactivePasswordGenerationBottomSheet,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // IS_IOS
 
-BASE_FEATURE(kMagiChromeQrCodeAutofill, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kMarkAllCredentialsAsLeaked, base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kOtpPhishGuard, base::FEATURE_ENABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_ANDROID)
+
+BASE_FEATURE(kPasswordBlockOpaqueOrigins, base::FEATURE_ENABLED_BY_DEFAULT);
+
+#if BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kPassDeletionOriginToAndroidBackend,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 const base::FeatureParam<int> kPassDeletionOriginMinGmsVersion = {
     &kPassDeletionOriginToAndroidBackend, "min_gms_version", 261630000};
-
-BASE_FEATURE(kPassDeletionOriginToAndroidBackend,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
+
+BASE_FEATURE(kPasswordCheckupPrototype, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Temporarily disabled as mitigation for crbug.com/485895402.
 BASE_FEATURE(kPasswordDateLastFilled, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -169,10 +165,10 @@ BASE_FEATURE(kPasswordFormGroupedAffiliations,
 
 BASE_FEATURE(kPasswordManagerLogToTerminal, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kPreventPasswordManagerOnFederatedLogin,
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)  // Desktop
+BASE_FEATURE(kPasswordManualFallbackSecurityChecks,
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kPreventAPCOnFederatedLogin, base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
 BASE_FEATURE(kPasswordSaveInContextErrorResolution,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -180,12 +176,10 @@ BASE_FEATURE(kPasswordSaveInContextErrorResolution,
 BASE_FEATURE(kPasswordStorePropagatesActionableErrors,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kPasswordCheckupPrototype, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kPreventAPCOnFederatedLogin, base::FEATURE_DISABLED_BY_DEFAULT);
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)  // Desktop
-BASE_FEATURE(kPasswordManualFallbackSecurityChecks,
+BASE_FEATURE(kPreventPasswordManagerOnFederatedLogin,
              base::FEATURE_DISABLED_BY_DEFAULT);
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 BASE_FEATURE(kRestartToGainAccessToKeychain,
@@ -195,6 +189,12 @@ BASE_FEATURE(kRestartToGainAccessToKeychain,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 #endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+
+BASE_FEATURE(kRetryCapturePageContent, base::FEATURE_ENABLED_BY_DEFAULT);
+const base::FeatureParam<base::TimeDelta> kCapturePageContentDelay = {
+    &kRetryCapturePageContent, "retry_capture_delay", base::Milliseconds(500)};
+const base::FeatureParam<int> kCapturePageContentRetryCount = {
+    &kRetryCapturePageContent, "retry_count", 3};
 
 // Shows a confirmation dialog before filling grouped credentials from the
 // manual fallback popup on Desktop.
@@ -217,13 +217,10 @@ BASE_FEATURE(kTriggerPasswordResyncWhenUndecryptablePasswordsDetected,
 
 BASE_FEATURE(kUseDetachedWidget, base::FEATURE_ENABLED_BY_DEFAULT);
 
-
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)  // Desktop
-
 // Enabled by default in M138. Remove in or after M141.
 BASE_FEATURE(kWebAuthnUsePasskeyFromAnotherDeviceInContextMenu,
              base::FEATURE_ENABLED_BY_DEFAULT);
-
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
 BASE_FEATURE(kWebAuthnUsePasskeyFromAnotherDeviceInManualFallback,

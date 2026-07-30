@@ -31,6 +31,8 @@
 #include "ui/views/layout/flex_layout_types.h"
 #include "ui/views/view.h"
 #include "ui/views/view_class_properties.h"
+#include "ui/views/view_targeter.h"
+#include "ui/views/view_targeter_delegate.h"
 
 DEFINE_ELEMENT_IDENTIFIER_VALUE(kProfilePickerToolbarDontSignInButtonElementId);
 DEFINE_ELEMENT_IDENTIFIER_VALUE(
@@ -258,6 +260,36 @@ class EffectsControlButton : public ProfilePickerToolbarButton {
 BEGIN_METADATA(EffectsControlButton)
 END_METADATA
 
+// A custom view targeter delegate that allows mouse events to fall through
+// to the underlying WebUI/WebView in the empty space of the toolbar. This is
+// specifically needed for macOS, where `views::View` hit testing intercepts
+// events for the whole view bounds even without a layer.
+class ProfilePickerToolbarViewTargeterDelegate
+    : public views::ViewTargeterDelegate {
+ public:
+  ProfilePickerToolbarViewTargeterDelegate() = default;
+  ProfilePickerToolbarViewTargeterDelegate(
+      const ProfilePickerToolbarViewTargeterDelegate&) = delete;
+  ProfilePickerToolbarViewTargeterDelegate& operator=(
+      const ProfilePickerToolbarViewTargeterDelegate&) = delete;
+  ~ProfilePickerToolbarViewTargeterDelegate() override = default;
+
+  bool DoesIntersectRect(const views::View* target,
+                         const gfx::Rect& rect) const override {
+    for (const views::View* child : target->children()) {
+      if (!child->GetVisible() || !child->GetCanProcessEventsWithinSubtree()) {
+        continue;
+      }
+      gfx::RectF converted_rect(rect);
+      views::View::ConvertRectToTarget(target, child, &converted_rect);
+      if (child->HitTestRect(gfx::ToEnclosingRect(converted_rect))) {
+        return true;
+      }
+    }
+    return false;
+  }
+};
+
 }  // namespace
 
 ProfilePickerToolbar::Builder::Builder(base::RepeatingClosure on_back_callback)
@@ -331,12 +363,16 @@ ProfilePickerToolbar::ProfilePickerToolbar() {
   // Set the background to transparent to inherit the color from the underlying
   // WebUI / WebView.
   SetBackground(views::CreateSolidBackground(SK_ColorTRANSPARENT));
+
+  SetEventTargeter(std::make_unique<views::ViewTargeter>(
+      std::make_unique<ProfilePickerToolbarViewTargeterDelegate>()));
 }
 
 ProfilePickerToolbar::~ProfilePickerToolbar() = default;
 
 void ProfilePickerToolbar::AddSpacer() {
   auto spacer = std::make_unique<views::View>();
+  spacer->SetCanProcessEventsWithinSubtree(false);
   spacer->SetProperty(
       views::kFlexBehaviorKey,
       views::FlexSpecification(views::MinimumFlexSizeRule::kScaleToZero,

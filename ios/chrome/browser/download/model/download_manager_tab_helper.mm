@@ -19,6 +19,7 @@
 #import "components/policy/core/common/policy_pref_names.h"
 #import "components/prefs/pref_service.h"
 #import "ios/chrome/browser/download/model/auto_deletion/auto_deletion_service.h"
+#import "ios/chrome/browser/download/model/browser_download_service.h"
 #import "ios/chrome/browser/download/model/download_directory_util.h"
 #import "ios/chrome/browser/download/model/download_file_service.h"
 #import "ios/chrome/browser/download/model/download_file_service_factory.h"
@@ -41,6 +42,7 @@
 #import "ios/chrome/browser/shared/model/browser/browser_list_factory.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
+#import "ios/chrome/browser/shared/model/utils/mime_type_util.h"
 #import "ios/chrome/browser/shared/model/web_state_list/browser_util.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
@@ -69,42 +71,8 @@ DownloadManagerTabHelper::~DownloadManagerTabHelper() {
 
 #pragma mark - Public methods
 
-// static
-bool DownloadManagerTabHelper::ShouldRestrictDownloadToFile(
-    web::WebState* web_state) {
-  ProfileIOS* profile =
-      ProfileIOS::FromBrowserState(web_state->GetBrowserState());
-  PrefService* pref_service = profile->GetPrefs();
-  return static_cast<policy::DownloadRestriction>(pref_service->GetInteger(
-             policy::policy_prefs::kDownloadRestrictions)) ==
-         policy::DownloadRestriction::ALL_FILES;
-}
-
-// static
-bool DownloadManagerTabHelper::ShouldRestrictDownload(
-    web::WebState* web_state) {
-  ProfileIOS* profile =
-      ProfileIOS::FromBrowserState(web_state->GetBrowserState());
-  PrefService* pref_service = profile->GetPrefs();
-  AuthenticationService* auth_service =
-      AuthenticationServiceFactory::GetForProfile(profile);
-  bool is_save_to_drive_available = drive::IsSaveToDriveAvailable(
-      profile->IsOffTheRecord(), IdentityManagerFactory::GetForProfile(profile),
-      drive::DriveServiceFactory::GetForProfile(profile), pref_service,
-      auth_service);
-  return ShouldRestrictDownloadToFile(web_state) && !is_save_to_drive_available;
-}
-
 void DownloadManagerTabHelper::SetCurrentDownload(
     std::unique_ptr<web::DownloadTask> task) {
-  // Check if the download should be restricted.
-  if (task && ShouldRestrictDownload(web_state_)) {
-    if (web_state_->IsVisible()) {
-      ShowRestrictDownloadSnackbar();
-    }
-    return;
-  }
-
   // If downloads are persistent, they cannot be lost once completed.
   if (!task_ || (task_->GetState() == web::DownloadTask::State::kComplete &&
                  !WillDownloadTaskBeSavedToDrive())) {
@@ -212,7 +180,7 @@ bool DownloadManagerTabHelper::WillDownloadTaskBeSavedToDrive() const {
 
 void DownloadManagerTabHelper::WasShown(web::WebState* web_state) {
   if (task_ && delegate_ && !delegate_started_) {
-    if (ShouldRestrictDownload(web_state_)) {
+    if (BrowserDownloadService::ShouldRestrictAllDownloads(web_state_)) {
       SetCurrentDownload(nullptr);
       return;
     }

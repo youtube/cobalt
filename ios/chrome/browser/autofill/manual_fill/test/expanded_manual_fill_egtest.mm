@@ -4,6 +4,7 @@
 
 #import <string_view>
 
+#import "base/notreached.h"
 #import "base/strings/sys_string_conversions.h"
 #import "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #import "components/password_manager/core/browser/password_ui_utils.h"
@@ -169,6 +170,9 @@ void LoadForm(EmbeddedTestServer* test_server, ManualFillDataType data_type) {
       form_url = kAddressFormURL;
       form_text = "Profile form";
       break;
+    case ManualFillDataType::kAtMemory:
+      // TODO(crbug.com/522326512): Support kAtMemory.
+      NOTREACHED();
     case ManualFillDataType::kOther:
       form_url = kMultiFieldFormURL;
       form_text = "hello!";

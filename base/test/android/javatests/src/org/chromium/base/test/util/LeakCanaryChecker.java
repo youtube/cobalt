@@ -185,12 +185,25 @@ public class LeakCanaryChecker {
             String message = e.getMessage();
             if (message != null && isLikelyTestLeak(message)) {
                 throw new AssertionError(
-                        "LeakCanary detected a leak which is likely only in tests. "
-                                + "Do not consider this a revert-worthy exception, instead add "
-                                + "@DisableLeakChecks to this test class and open a bug.",
+                        "LeakCanary detected a test-only leak (not "
+                                + "revert-worthy). Please add "
+                                + "@DisableLeakChecks to the test class and "
+                                + "open a bug. See guide: "
+                                + "agents/skills/java-memory-leaks/"
+                                + "SKILL.md.",
+                        e);
+            } else {
+                throw new AssertionError(
+                        "LeakCanary detected a likely production leak. "
+                                + "If the culprit CL is not reverted, do NOT "
+                                + "use @DisabledTest (removes functional "
+                                + "coverage). Instead, use "
+                                + "@DisableLeakChecks to keep the test "
+                                + "running. See guide: "
+                                + "agents/skills/java-memory-leaks/"
+                                + "SKILL.md.",
                         e);
             }
-            throw e;
         }
     }
 

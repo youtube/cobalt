@@ -129,7 +129,7 @@ class CORE_EXPORT ReplaceSelectionCommand final : public CompositeEditCommand {
 
   bool ShouldPerformSmartReplace() const;
   void AddSpacesForSmartReplace(EditingState*);
-  void CompleteHTMLReplacement(const Position& last_position_to_select,
+  void CompleteHtmlReplacement(const Position& last_position_to_select,
                                EditingState*);
   void MergeTextNodesAroundPosition(Position&,
                                     Position& position_only_to_be_updated,

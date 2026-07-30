@@ -28,7 +28,7 @@ using AccessStatus =
 class AppsAccessManager {
  public:
   // Note: Numerical values should not be changed, they are persisted to logs
-  // and should not be renumbered or re-used. Keep in sync with the
+  // and should not be renumbered or reused. Keep in sync with the
   // OnboardingUserActionMetric UMA enum defined in
   // //tools/metrics/histograms/enums.xml.
   //

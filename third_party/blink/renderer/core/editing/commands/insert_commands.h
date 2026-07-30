@@ -58,7 +58,7 @@ class InsertCommands {
                                           Event*,
                                           EditorCommandSource,
                                           const String&);
-  static bool ExecuteInsertHTML(LocalFrame&,
+  static bool ExecuteInsertHtml(LocalFrame&,
                                 Event*,
                                 EditorCommandSource,
                                 const String&);

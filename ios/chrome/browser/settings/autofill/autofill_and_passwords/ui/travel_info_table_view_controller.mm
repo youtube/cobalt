@@ -11,12 +11,15 @@
 #import "base/metrics/user_metrics.h"
 #import "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
 #import "components/strings/grit/components_strings.h"
+#import "ios/chrome/browser/net/model/crurl.h"
 #import "ios/chrome/browser/settings/autofill/autofill_ai/ui/autofill_ai_add_entities_menu_builder.h"
 #import "ios/chrome/browser/settings/autofill/autofill_ai/ui/autofill_ai_entity_item.h"
 #import "ios/chrome/browser/settings/autofill/autofill_and_passwords/ui/autofill_ai_base_item_type.h"
 #import "ios/chrome/browser/settings/autofill/autofill_and_passwords/ui/travel_info_mutator.h"
 #import "ios/chrome/browser/settings/autofill/utils/autofill_settings_ui_util.h"
+#import "ios/chrome/browser/settings/ui_bundled/elements/enterprise_info_popover_view_controller.h"
 #import "ios/chrome/browser/settings/ui_bundled/settings_root_table_view_controller+toolbar_add.h"
+#import "ios/chrome/browser/shared/ui/table_view/cells/table_view_info_button_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_link_header_footer_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_switch_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_text_header_footer_item.h"
@@ -41,7 +44,8 @@ enum ItemType {
 };
 }  // namespace
 
-@interface TravelInfoTableViewController () <AutofillAIAddEntitiesMenuDelegate>
+@interface TravelInfoTableViewController () <AutofillAIAddEntitiesMenuDelegate,
+                                             PopoverLabelViewControllerDelegate>
 @end
 
 // View controller implementation for Travel Info.
@@ -56,12 +60,14 @@ enum ItemType {
   BOOL _hasLocalEntities;
   BOOL _travelInfoEnabled;
   BOOL _travelInfoToggleEnabled;
+  BOOL _travelInfoToggleManaged;
 }
 
 - (instancetype)init {
   self = [super initWithStyle:ChromeTableViewStyle()];
   if (self) {
     _travelInfoToggleEnabled = YES;
+    _travelInfoToggleManaged = NO;
   }
   return self;
 }
@@ -87,15 +93,28 @@ enum ItemType {
   TableViewModel* model = self.tableViewModel;
 
   [model addSectionWithIdentifier:SectionIdentifierToggle];
-  TableViewSwitchItem* toggleItem =
-      [[TableViewSwitchItem alloc] initWithType:ItemTypeToggle];
-  toggleItem.text =
-      l10n_util::GetNSString(IDS_AUTOFILL_TRAVEL_OPT_IN_TOGGLE_LABEL);
-  toggleItem.on = _travelInfoEnabled;
-  toggleItem.enabled = _travelInfoToggleEnabled;
-  toggleItem.target = self;
-  toggleItem.selector = @selector(travelInfoToggleChanged:);
-  [model addItem:toggleItem toSectionWithIdentifier:SectionIdentifierToggle];
+  if (_travelInfoToggleManaged) {
+    TableViewInfoButtonItem* managedItem =
+        [[TableViewInfoButtonItem alloc] initWithType:ItemTypeToggle];
+    managedItem.text =
+        l10n_util::GetNSString(IDS_AUTOFILL_TRAVEL_OPT_IN_TOGGLE_LABEL);
+    managedItem.statusText = l10n_util::GetNSString(IDS_IOS_SETTING_OFF);
+    managedItem.accessibilityHint = l10n_util::GetNSString(
+        IDS_IOS_TOGGLE_SETTING_MANAGED_ACCESSIBILITY_HINT);
+    managedItem.target = self;
+    managedItem.selector = @selector(didTapManagedUIInfoButton:);
+    [model addItem:managedItem toSectionWithIdentifier:SectionIdentifierToggle];
+  } else {
+    TableViewSwitchItem* toggleItem =
+        [[TableViewSwitchItem alloc] initWithType:ItemTypeToggle];
+    toggleItem.text =
+        l10n_util::GetNSString(IDS_AUTOFILL_TRAVEL_OPT_IN_TOGGLE_LABEL);
+    toggleItem.on = _travelInfoToggleEnabled && _travelInfoEnabled;
+    toggleItem.enabled = _travelInfoToggleEnabled;
+    toggleItem.target = self;
+    toggleItem.selector = @selector(travelInfoToggleChanged:);
+    [model addItem:toggleItem toSectionWithIdentifier:SectionIdentifierToggle];
+  }
 
   TableViewLinkHeaderFooterItem* footer =
       [[TableViewLinkHeaderFooterItem alloc] initWithType:ItemTypeFooter];
@@ -184,24 +203,42 @@ enum ItemType {
   }
 }
 
-- (void)setTravelInfoToggleState:(BOOL)on enabled:(BOOL)enabled {
-  if (_travelInfoEnabled == on && _travelInfoToggleEnabled == enabled) {
+- (void)setTravelInfoToggleState:(BOOL)on
+                         enabled:(BOOL)enabled
+                         managed:(BOOL)managed {
+  if (_travelInfoEnabled == on && _travelInfoToggleEnabled == enabled &&
+      _travelInfoToggleManaged == managed) {
     return;
   }
+
+  BOOL modelNeedsRebuild = (_travelInfoToggleManaged != managed);
   _travelInfoEnabled = on;
   _travelInfoToggleEnabled = enabled;
+  _travelInfoToggleManaged = managed;
+
   if (self.isViewLoaded) {
-    TableViewModel* model = self.tableViewModel;
-    NSIndexPath* switchPath =
-        [model indexPathForItemType:ItemTypeToggle
-                  sectionIdentifier:SectionIdentifierToggle];
-    if (switchPath) {
-      TableViewSwitchItem* switchItem =
-          base::apple::ObjCCastStrict<TableViewSwitchItem>(
-              [model itemAtIndexPath:switchPath]);
-      switchItem.enabled = enabled;
-      switchItem.on = on;
-      [self reconfigureCellsForItems:@[ switchItem ]];
+    if (modelNeedsRebuild) {
+      [self reloadData];
+    } else {
+      TableViewModel* model = self.tableViewModel;
+      NSIndexPath* togglePath =
+          [model indexPathForItemType:ItemTypeToggle
+                    sectionIdentifier:SectionIdentifierToggle];
+      if (togglePath) {
+        if (managed) {
+          TableViewInfoButtonItem* managedItem =
+              base::apple::ObjCCastStrict<TableViewInfoButtonItem>(
+                  [model itemAtIndexPath:togglePath]);
+          [self reconfigureCellsForItems:@[ managedItem ]];
+        } else {
+          TableViewSwitchItem* switchItem =
+              base::apple::ObjCCastStrict<TableViewSwitchItem>(
+                  [model itemAtIndexPath:togglePath]);
+          switchItem.enabled = enabled;
+          switchItem.on = enabled ? on : NO;
+          [self reconfigureCellsForItems:@[ switchItem ]];
+        }
+      }
     }
     [self updateAddButtonInToolbar];
   }
@@ -292,11 +329,12 @@ enum ItemType {
   _addButtonInToolbar.menu = [AutofillAIAddEntitiesMenuBuilder
       buildMenuWithTypes:_writableEntityTypes
           profileEnabled:NO
-         entitiesEnabled:_travelInfoEnabled && _travelInfoToggleEnabled
+         entitiesEnabled:_travelInfoEnabled && _travelInfoToggleEnabled &&
+                         !_travelInfoToggleManaged
                 delegate:self];
-  _addButtonInToolbar.enabled = _travelInfoEnabled &&
-                                _travelInfoToggleEnabled &&
-                                !_writableEntityTypes.empty();
+  _addButtonInToolbar.enabled =
+      _travelInfoEnabled && _travelInfoToggleEnabled &&
+      !_travelInfoToggleManaged && !_writableEntityTypes.empty();
 }
 
 #pragma mark - AutofillAIAddEntitiesMenuDelegate
@@ -525,6 +563,33 @@ enum ItemType {
 - (void)settingsWillBeDismissed {
   DCHECK(!_settingsAreDismissed);
   _settingsAreDismissed = YES;
+}
+
+// Called when the user clicks on the information button of the managed
+// setting's UI. Shows a textual bubble with the information of the enterprise.
+- (void)didTapManagedUIInfoButton:(UIButton*)buttonView {
+  if (_settingsAreDismissed) {
+    return;
+  }
+
+  EnterpriseInfoPopoverViewController* bubbleViewController =
+      [[EnterpriseInfoPopoverViewController alloc] initWithEnterpriseName:nil];
+  bubbleViewController.delegate = self;
+
+  // Set the anchor and arrow direction of the bubble.
+  bubbleViewController.popoverPresentationController.sourceView = buttonView;
+  bubbleViewController.popoverPresentationController.sourceRect =
+      buttonView.bounds;
+  bubbleViewController.popoverPresentationController.permittedArrowDirections =
+      UIPopoverArrowDirectionAny;
+
+  [self presentViewController:bubbleViewController animated:YES completion:nil];
+}
+
+#pragma mark - PopoverLabelViewControllerDelegate
+
+- (void)didTapLinkURL:(NSURL*)URL {
+  [self view:nil didTapLinkURL:[[CrURL alloc] initWithNSURL:URL]];
 }
 
 @end

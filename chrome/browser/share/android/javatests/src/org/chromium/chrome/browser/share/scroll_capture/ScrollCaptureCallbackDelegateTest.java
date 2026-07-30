@@ -45,7 +45,10 @@ import org.chromium.base.MemoryPressureLevel;
 import org.chromium.base.memory.MemoryPressureMonitor;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Batch;
+import org.chromium.base.test.util.Features.DisableFeatures;
+import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.paint_preview.PaintPreviewCompositorUtils;
 import org.chromium.chrome.browser.paint_preview.PaintPreviewCompositorUtilsJni;
 import org.chromium.chrome.browser.share.long_screenshots.bitmap_generation.EntryManager;
@@ -286,6 +289,32 @@ public class ScrollCaptureCallbackDelegateTest {
         when(mRenderCoordinates.getLastFrameViewportWidthPixInt()).thenReturn(500);
         when(mRenderCoordinates.getLastFrameViewportHeightPixInt()).thenReturn(2000);
 
+        Assert.assertEquals(
+                new Rect(0, 0, 500, 2000), scrollCaptureCallback.onScrollCaptureSearch(signal));
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures(ChromeFeatureList.LONG_SCREENSHOTS_NO_MEMORY_CHECK)
+    @DisableFeatures(ChromeFeatureList.LONG_SCREENSHOTS_LENIENT_MEMORY_CHECK)
+    public void testScrollCaptureSearch_MemoryPressure_NoMemoryCheck() {
+        ScrollCaptureCallbackDelegate scrollCaptureCallback =
+                (ScrollCaptureCallbackDelegate) mScrollCaptureCallbackObj;
+        CancellationSignal signal = new CancellationSignal();
+
+        // Memory pressure is MODERATE, but flag is enabled. Should NOT return empty Rect.
+        MemoryPressureMonitor.INSTANCE.setLastReportedPressureForTesting(
+                MemoryPressureLevel.MODERATE);
+
+        when(mRenderCoordinates.getLastFrameViewportWidthPixInt()).thenReturn(500);
+        when(mRenderCoordinates.getLastFrameViewportHeightPixInt()).thenReturn(2000);
+
+        Assert.assertEquals(
+                new Rect(0, 0, 500, 2000), scrollCaptureCallback.onScrollCaptureSearch(signal));
+
+        // Even under CRITICAL memory pressure, it should still work.
+        MemoryPressureMonitor.INSTANCE.setLastReportedPressureForTesting(
+                MemoryPressureLevel.CRITICAL);
         Assert.assertEquals(
                 new Rect(0, 0, 500, 2000), scrollCaptureCallback.onScrollCaptureSearch(signal));
     }

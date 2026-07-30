@@ -47,19 +47,18 @@ class ActorService : public KeyedService {
   ActorTaskId CreateTask(const std::string& title,
                          bool allow_incognito_web_states);
 
-  // Creates a vector of ActorToolRequests from a vector of Action protos. On
-  // failure, returns an ToolErrorResult describing the error.
-  CreateActorToolRequestsResult CreateActorToolRequests(
-      const std::vector<optimization_guide::proto::Action>& actions,
-      ActorTaskId task_id);
-
   // Submits actions to an active task with a task update string (a short
   // blurb which tells the user what the Actor is currently doing in plain
   // language).
-  void PerformActions(ActorTaskId task_id,
-                      std::vector<std::unique_ptr<ActorToolRequest>> actions,
-                      const std::string& task_update,
-                      PerformActionsCallback callback);
+  //
+  // Actions are validated and executed sequentially. If any action fails
+  // validation or execution, the sequence is aborted immediately, and
+  // subsequent actions will not be run.
+  void PerformActions(
+      ActorTaskId task_id,
+      const std::vector<optimization_guide::proto::Action>& actions,
+      const std::string& task_update,
+      PerformActionsCallback callback);
 
   // Requests a "tab observation" (nomenclature aligned with
   // `chrome/browser/actor`). Tab is equivalent to WebState and "observation" is
@@ -80,10 +79,6 @@ class ActorService : public KeyedService {
   // cleaned up.
   // Stops all active tasks.
   void StopAllTasks();
-
-  // Returns the list of supported capabilities.
-  std::vector<optimization_guide::proto::Action::ActionCase>
-  GetSupportedCapabilities() const;
 
   // Returns the aggregated journal for this service.
   AggregatedJournal* GetJournal() { return journal_.get(); }

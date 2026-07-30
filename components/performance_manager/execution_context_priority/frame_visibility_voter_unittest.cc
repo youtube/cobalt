@@ -31,7 +31,8 @@ class FrameVisibilityVoterTest : public GraphTestHarness {
  public:
   using Super = GraphTestHarness;
 
-  FrameVisibilityVoterTest() = default;
+  explicit FrameVisibilityVoterTest(bool ignore_main_frame_visibility = false)
+      : frame_visibility_voter_(ignore_main_frame_visibility) {}
   ~FrameVisibilityVoterTest() override = default;
 
   FrameVisibilityVoterTest(const FrameVisibilityVoterTest&) = delete;
@@ -112,6 +113,47 @@ TEST_F(FrameVisibilityVoterTest, UnimportantFrames) {
                                  GetExecutionContext(frame_node.get()),
                                  base::Process::Priority::kUserVisible,
                                  FrameVisibilityVoter::kFrameVisibilityReason));
+}
+
+class FrameVisibilityVoterIgnoreMainFrameTest
+    : public FrameVisibilityVoterTest {
+ public:
+  FrameVisibilityVoterIgnoreMainFrameTest()
+      : FrameVisibilityVoterTest(/*ignore_main_frame_visibility=*/true) {}
+};
+
+TEST_F(FrameVisibilityVoterIgnoreMainFrameTest, IgnoreMainFrameVisibility) {
+  {
+    MockSinglePageWithMultipleProcessesGraph mock_graph(graph());
+    EXPECT_EQ(mock_graph.frame->GetVisibility(),
+              FrameNode::Visibility::kUnknown);
+    // Main frame should have no vote.
+    EXPECT_FALSE(observer().HasVote(
+        voter_id(), GetExecutionContext(mock_graph.frame.get())));
+
+    EXPECT_EQ(mock_graph.child_frame->GetVisibility(),
+              FrameNode::Visibility::kUnknown);
+    // Child frame should have a vote!
+    EXPECT_TRUE(observer().HasVote(
+        voter_id(), GetExecutionContext(mock_graph.child_frame.get()),
+        base::Process::Priority::kUserBlocking,
+        FrameVisibilityVoter::kFrameVisibilityReason));
+
+    // Changing visibility of main frame should not cast any vote.
+    mock_graph.frame->SetVisibility(FrameNode::Visibility::kVisible);
+    EXPECT_FALSE(observer().HasVote(
+        voter_id(), GetExecutionContext(mock_graph.frame.get())));
+    mock_graph.frame->SetVisibility(FrameNode::Visibility::kNotVisible);
+    EXPECT_FALSE(observer().HasVote(
+        voter_id(), GetExecutionContext(mock_graph.frame.get())));
+
+    // Changing visibility of child frame should update its vote.
+    mock_graph.child_frame->SetVisibility(FrameNode::Visibility::kNotVisible);
+    EXPECT_TRUE(observer().HasVote(
+        voter_id(), GetExecutionContext(mock_graph.child_frame.get()),
+        base::Process::Priority::kBestEffort,
+        FrameVisibilityVoter::kFrameVisibilityReason));
+  }
 }
 
 }  // namespace execution_context_priority

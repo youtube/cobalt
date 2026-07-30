@@ -28,7 +28,7 @@ interface MediaPlayer {
   RequestSeekTo(mojo_base.mojom.TimeDelta seek_time);
 
   // Requests the media player to enter the Picture-in-Picture mode, optionally
-  // enforcing a minimum layout size constraint in the viewport (in CSS pixels,
+  // enforcing a minimum visual size constraint in the viewport (in DIPs,
   // accounting for transforms and zoom).
   RequestEnterPictureInPicture(gfx.mojom.Size? min_size);
 

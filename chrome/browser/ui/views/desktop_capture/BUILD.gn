@@ -1,0 +1,172 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/ui.gni")
+
+assert(toolkit_views)
+
+source_set("desktop_capture") {
+  public = [
+    "audio_capture_permission_checker.h",
+    "desktop_media_content_pane_view.h",
+    "desktop_media_delegated_source_list_view.h",
+    "desktop_media_list_controller.h",
+    "desktop_media_list_view.h",
+    "desktop_media_pane_view.h",
+    "desktop_media_picker_views.h",
+    "desktop_media_source_view.h",
+    "desktop_media_tab_list.h",
+    "screen_capture_permission_checker.h",
+    "share_audio_view.h",
+    "share_this_tab_dialog_views.h",
+    "share_this_tab_source_view.h",
+  ]
+  public_deps = [
+    "//base",
+    "//chrome/browser/media/webrtc",
+    "//chrome/browser/ui/color:color_headers",
+    "//components/web_modal",
+    "//content/public/browser",
+    "//ui/base",
+    "//ui/views",
+  ]
+  if (is_mac) {
+    public += [
+      "audio_capture_permission_checker_mac.h",
+      "audio_permission_warning_view.h",
+      "desktop_media_permission_pane_view_mac.h",
+      "screen_capture_permission_checker_mac.h",
+    ]
+    public_deps += [
+      "//media",
+      "//media/mojo/mojom",
+      "//mojo/public/cpp/bindings",
+    ]
+  }
+}
+
+source_set("impl") {
+  sources = [
+    "audio_capture_permission_checker.cc",
+    "desktop_media_content_pane_view.cc",
+    "desktop_media_delegated_source_list_view.cc",
+    "desktop_media_list_controller.cc",
+    "desktop_media_list_view.cc",
+    "desktop_media_pane_view.cc",
+    "desktop_media_picker_views.cc",
+    "desktop_media_source_view.cc",
+    "desktop_media_tab_list.cc",
+    "screen_capture_permission_checker.cc",
+    "share_audio_view.cc",
+    "share_this_tab_dialog_views.cc",
+    "share_this_tab_source_view.cc",
+  ]
+  deps = [
+    ":desktop_capture",
+    "//chrome/app/vector_icons",
+    "//chrome/browser/favicon",
+    "//chrome/browser/ui/extensions",
+    "//chrome/browser/ui/views:layout_provider",
+    "//components/constrained_window",
+    "//components/strings:components_strings",
+    "//components/vector_icons",
+    "//media/capture:capture_lib",
+    "//services/audio/public/cpp",
+    "//ui/color:color_headers",
+    "//ui/lottie",
+    "//ui/strings:ui_strings",
+  ]
+  public_deps = [ "//chrome/browser:browser_public_dependencies" ]
+
+  if (is_mac) {
+    sources += [
+      "audio_capture_permission_checker_mac.mm",
+      "audio_permission_warning_view.mm",
+      "desktop_media_permission_pane_view_mac.mm",
+      "screen_capture_permission_checker_mac.mm",
+    ]
+    deps += [
+      "//chrome/app:branded_strings",
+      "//chrome/app:generated_resources",
+      "//chrome/browser/resources:component_extension_resources",
+      "//ui/accessibility:ax_enums_mojo",
+      "//ui/compositor",
+      "//ui/events",
+      "//ui/gfx",
+    ]
+  }
+}
+
+source_set("test_support") {
+  testonly = true
+  public = [ "desktop_media_picker_views_test_api.h" ]
+  sources = [ "desktop_media_picker_views_test_api.cc" ]
+  deps = [
+    ":desktop_capture",
+    "//base",
+    "//content/public/browser",
+    "//ui/views",
+    "//ui/views:test_support",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "desktop_media_pane_view_unittest.cc",
+    "desktop_media_picker_views_unittest.cc",
+    "desktop_media_tab_list_unittest.cc",
+  ]
+  deps = [
+    ":desktop_capture",
+    ":test_support",
+    "//base",
+    "//chrome/browser/ui",
+    "//chrome/browser/ui/views:layout_provider",
+    "//chrome/test:test_support",
+    "//components/web_modal",
+    "//components/web_modal:test_support",
+    "//content/public/browser",
+    "//content/test:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//ui/base",
+    "//ui/events:test_support",
+    "//ui/views",
+    "//ui/views:test_support",
+  ]
+
+  if (is_mac) {
+    sources += [
+      "audio_capture_permission_checker_mac_unittest.mm",
+      "desktop_media_permission_pane_view_mac_unittest.mm",
+      "screen_capture_permission_checker_mac_unittest.mm",
+    ]
+    deps += [ "//services/audio/public/cpp:test_support" ]
+  }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+}
+
+source_set("browser_tests") {
+  testonly = true
+  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+  sources = [ "desktop_media_picker_views_browsertest.cc" ]
+  deps = [
+    ":desktop_capture",
+    ":test_support",
+    "//base",
+    "//chrome/browser/ui",
+    "//chrome/test:test_support",
+    "//components/web_modal",
+    "//content/public/browser",
+    "//content/test:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//ui/views",
+    "//ui/views:test_support",
+  ]
+}

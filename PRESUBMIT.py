@@ -486,6 +486,16 @@ _BANNED_IOS_OBJC_FUNCTIONS = (
             'ios/web_view',
         ),
     ),
+    BanRule(
+        r'/\bUIDevice\b(.*?)\buserInterfaceIdiom\b',
+        ('UIDevice.currentDevice.userInterfaceIdiom should not be used.',
+         'Use GetDeviceFormFactor() instead.'),
+        True,
+        excluded_paths=(
+            r'^ui/base/device_form_factor_ios\.mm$',
+            r'^ios/third_party/',
+        ),
+    ),
 )
 
 _BANNED_IOS_EGTEST_FUNCTIONS: Sequence[BanRule] = (BanRule(
@@ -996,7 +1006,9 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
 
             # Needed to implement Dawn wire interfaces.
             r'gpu/command_buffer/client/dawn_client_memory_transfer_service\.cc',
+            r'gpu/command_buffer/client/dawn_client_memory_transfer_service\.h',
             r'gpu/command_buffer/service/dawn_service_memory_transfer_service\.cc',
+            r'gpu/command_buffer/service/dawn_service_memory_transfer_service\.h',
 
             # Needed to implement and use Dawn caching interfaces.
             r'gpu/command_buffer/service/dawn_caching_interface\.cc',
@@ -1874,25 +1886,28 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
         ),
     ),
     BanRule(
-        r'/\bperfetto::Track::Global',
+        r'/\bperfetto::Track(\(|\{|::(Global|FromPointer|ThreadScoped)\b)',
         (
-            'Creating new global tracks is discouraged and should be reserved ',
-            'for high level, user visible state. Consider using scoped tracks ',
-            'instead, see ',
-            'https://chromium.googlesource.com/chromium/src.git/+/main/docs/trace_events.md#named-tracks',
+            'Creating tracks directly with perfetto::Track is discouraged. ',
+            'Using unnamed tracks or tracks based on raw pointers (like ',
+            'Track::FromPointer) risks track name collisions, name aliasing ',
+            '(when addresses are reused), or missing names in the trace due ',
+            'to descriptor loss. Consider using NamedTrack instead to ensure ',
+            'the track has a stable, explicit name, or a named subclass like ',
+            'CounterTrack. ',
+            'See https://chromium.googlesource.com/chromium/src.git/+/main/docs/trace_events.md#named-tracks',
         ),
         False,
-        (
-            r'^base/trace_event/.*',
-            r'^base/tracing/.*',
-        ),
+        (),
     ),
     BanRule(
-        r'/\bperfetto::Track::FromPointer',
+        r'/\bperfetto::DynamicString\b',
         (
-            'Creating tracks from pointer is discouraged because it risks aliasing when the address ',
-            'is reused. Consider using NamedTrack instead, see ',
-            'https://chromium.googlesource.com/chromium/src.git/+/main/docs/trace_events.md#named-tracks',
+            'Using perfetto::DynamicString is discouraged because they are ',
+            'stripped/erased in field traces for privacy reasons, resulting ',
+            'in unnamed tracks or events. Prefer perfetto::StaticString if ',
+            'possible. ',
+            'See https://chromium.googlesource.com/chromium/src.git/+/main/docs/trace_events.md#static-strings',
         ),
         False,
         (),
@@ -2647,6 +2662,7 @@ _GENERIC_PYDEPS_FILES = [
     'tools/flags/generate_expired_list.pydeps',
     'tools/grit/grit_info.pydeps',
     'tools/grit/grit.pydeps',
+    'tools/grit/preprocess_if_expr.pydeps',
     "tools/metrics/histograms/generate_allowlist_from_histograms_file.pydeps",
     'tools/perf/process_perf_results.pydeps',
     'tools/pgo/generate_profile.pydeps',

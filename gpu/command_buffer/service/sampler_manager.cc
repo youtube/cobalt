@@ -150,8 +150,8 @@ void SamplerManager::Destroy(bool have_context) {
 
 Sampler* SamplerManager::CreateSampler(GLuint client_id, GLuint service_id) {
   DCHECK_NE(0u, service_id);
-  auto result = samplers_.insert(std::make_pair(client_id,
-      scoped_refptr<Sampler>(new Sampler(this, client_id, service_id))));
+  auto result = samplers_.insert(std::make_pair(
+      client_id, base::MakeRefCounted<Sampler>(this, client_id, service_id)));
   DCHECK(result.second);
   return result.first->second.get();
 }

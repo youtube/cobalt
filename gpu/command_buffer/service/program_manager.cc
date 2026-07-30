@@ -2307,10 +2307,8 @@ void ProgramManager::StopTracking(Program* /* program */) {
 Program* ProgramManager::CreateProgram(
     GLuint client_id, GLuint service_id) {
   std::pair<ProgramMap::iterator, bool> result =
-      programs_.insert(
-          std::make_pair(client_id,
-                         scoped_refptr<Program>(
-                             new Program(this, service_id))));
+      programs_.insert(std::make_pair(
+          client_id, base::MakeRefCounted<Program>(this, service_id)));
   DCHECK(result.second);
   return result.first->second.get();
 }

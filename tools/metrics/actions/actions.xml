@@ -45,12 +45,17 @@ should be able to be added at any place in this file.
   <variant name=".kActionQrCodeGenerator" summary="QR code generator action"/>
   <variant name=".kActionRouteMedia" summary="Media router action"/>
   <variant name=".kActionSendTabToSelf" summary="Send tab to self action"/>
+  <variant name=".kActionShowAddresses" summary="Show addresses action"/>
   <variant name=".kActionShowAddressesBubbleOrPage"
       summary="Show addresses action"/>
   <variant name=".kActionShowChromeLabs" summary="Show Chrome Labs action"/>
   <variant name=".kActionShowDownloads" summary="Show downloads action"/>
+  <variant name=".kActionShowPasswordManager"
+      summary="Show passwords bubble or page action"/>
   <variant name=".kActionShowPasswordsBubbleOrPage"
       summary="Show passwords bubble or page action"/>
+  <variant name=".kActionShowPaymentMethods"
+      summary="Show payments bubble or page action"/>
   <variant name=".kActionShowPaymentsBubbleOrPage"
       summary="Show payments bubble or page action"/>
   <variant name=".kActionShowTranslate" summary="Show translate action"/>
@@ -234,6 +239,11 @@ should be able to be added at any place in this file.
       summary="For AddToHomescreen IPH feature using text bubble (obsolete)."/>
   <variant name="_AimActivationHint"
       summary="A hint to activate AI Mode on Android Desktop via keystrokes."/>
+  <variant name="_AndroidBottomBarAim"
+      summary="Describes the AI Mode button added in the bottom bar."/>
+  <variant name="_AndroidBottomBarAimPromoDialog"
+      summary="For the promo dialog shown to introduce AI Mode with the
+               bottom bar."/>
   <variant name="_AndroidBottomBarGlic"
       summary="Describes the GLIC button added in the bottom bar."/>
   <variant name="_AndroidBottomBarNewTab"
@@ -241,6 +251,8 @@ should be able to be added at any place in this file.
   <variant name="_AndroidBottomBarPromoDialog"
       summary="For the promo dialog shown to introduce the bottom bar."/>
   <variant name="_AndroidTabDeclutter" summary="For archived tabs on android."/>
+  <variant name="_AndroidVerticalTabsPromo"
+      summary="For the vertical tabs promo on android horizontal tab strip."/>
   <variant name="_AppRatingPrompt" summary="For App Rating Prompt feature."/>
   <variant name="_AppSpecificHistory"
       summary="For App Specific History feature."/>
@@ -907,7 +919,6 @@ should be able to be added at any place in this file.
 
 <variants name="PersonalContextManageTarget">
   <variant name="ConnectedApps" summary="'Manage connected apps'"/>
-  <variant name="Suggestions" summary="'Manage suggestions'"/>
 </variants>
 
 <variants name="PersonalContextToggleState">
@@ -5105,6 +5116,15 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Android.TabStripMenu.TaskManager">
+  <owner>mwoj@google.com</owner>
+  <owner>cros-ui-foundations@google.com</owner>
+  <description>
+    User tapped 'Task Manager' on the tab strip context menu to launch the Task
+    Manager.
+  </description>
+</action>
+
 <action name="Android.TabStripMenu.ToggleTabLayout">
   <owner>eleanorlee@google.com</owner>
   <description>
@@ -6914,6 +6934,24 @@ should be able to be added at any place in this file.
   <description>
     This user action is logged when a user uses Undo to revert a previous
     autofill operation on a form filled with Payments data.
+  </description>
+</action>
+
+<action name="AutofillAddressesAdded">
+  <owner>josefraska@google.com</owner>
+  <owner>chrome-autofill-team@google.com</owner>
+  <description>
+    Recorded when the user adds an address via the Contact info settings page on
+    Android.
+  </description>
+</action>
+
+<action name="AutofillAddressesEdited">
+  <owner>josefraska@google.com</owner>
+  <owner>chrome-autofill-team@google.com</owner>
+  <description>
+    Recorded when the user edits an address via the Contact info settings page
+    on Android.
   </description>
 </action>
 
@@ -11432,12 +11470,76 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="ContextualTasks.Composebox.UserAction.LensButtonClicked">
+  <owner>nguyenbryan@chromium.org</owner>
+  <owner>chrome-contextual-tasks-eng@google.com</owner>
+  <description>
+    Recorded when the user clicks the Lens Overlay button inside the Cobrowse
+    composebox.
+  </description>
+</action>
+
+<action name="ContextualTasks.Composebox.UserAction.QuerySubmitted">
+  <owner>nguyenbryan@chromium.org</owner>
+  <owner>chrome-contextual-tasks-eng@google.com</owner>
+  <description>
+    Recorded when the user submits a query from the Cobrowse composebox.
+  </description>
+</action>
+
 <action name="ContextualTasks.HistoryNavigation.UserAction.NavigatedInFullTab">
   <owner>hujasonx@google.com</owner>
   <owner>chrome-contextual-tasks-eng@google.com</owner>
   <description>
     Logged when the back or forward button is clicked in the Contextual Tasks
     full tab and results in a task switch.
+  </description>
+</action>
+
+<action name="ContextualTasks.SidePanel.UserAction.Close.AiModeLinkClick">
+  <owner>nguyenbryan@chromium.org</owner>
+  <owner>chrome-contextual-tasks-eng@google.com</owner>
+  <description>
+    Recorded when the user closes the side panel for a session entered via an AI
+    mode link click.
+  </description>
+</action>
+
+<action name="ContextualTasks.SidePanel.UserAction.Close.LensOverlay">
+  <owner>nguyenbryan@chromium.org</owner>
+  <owner>chrome-contextual-tasks-eng@google.com</owner>
+  <description>
+    Recorded when the user closes the side panel for a session entered via the
+    Lens Overlay.
+  </description>
+</action>
+
+<action name="ContextualTasks.SidePanel.UserAction.Close.Other">
+  <owner>nguyenbryan@chromium.org</owner>
+  <owner>chrome-contextual-tasks-eng@google.com</owner>
+  <description>
+    Recorded when the user closes the side panel for a session with an entry
+    point not covered by another action.
+  </description>
+</action>
+
+<action name="ContextualTasks.Tab.UserAction.ClosedActiveTabWithSidePanelOpen">
+  <owner>nguyenbryan@google.com</owner>
+  <owner>chrome-contextual-tasks-eng@google.com</owner>
+  <description>
+    The user closed an active content tab that had the contextual tasks side
+    panel open.
+  </description>
+</action>
+
+<action
+    name="ContextualTasks.Tab.UserAction.ClosedBackgroundTabWithSidePanelOpen">
+  <owner>nguyenbryan@google.com</owner>
+  <owner>chrome-contextual-tasks-eng@google.com</owner>
+  <description>
+    The user closed a background tab that had a contextual task and logically
+    had the side panel open (i.e., the panel was open before the tab was
+    backgrounded and would restore upon activation).
   </description>
 </action>
 
@@ -15079,7 +15181,7 @@ should be able to be added at any place in this file.
   <owner>chromeos-launcher@google.com</owner>
   <description>
     User performed an action in the tasks glanceables. This aggregates all user
-    actions that the user can perform intaskss glanceable.
+    actions that the user can perform in the tasks glanceable.
   </description>
 </action>
 
@@ -15087,7 +15189,7 @@ should be able to be added at any place in this file.
   <owner>perrier@google.com</owner>
   <owner>harringtond@chromium.org</owner>
   <description>
-    Logged anytime the Glic CookieSyncronizer timeout is reached.
+    Logged any time the Glic CookieSynchronizer timeout is reached.
   </description>
 </action>
 
@@ -15095,7 +15197,7 @@ should be able to be added at any place in this file.
   <owner>iwells@google.com</owner>
   <owner>erikchen@chromium.org</owner>
   <description>
-    Logged anytime glic is disabled, regardless of source. Note: Glic can only
+    Logged any time Glic is disabled, regardless of source. Note: Glic can only
     be disabled by account and policy changes that are not user initiated.
   </description>
 </action>
@@ -15206,8 +15308,8 @@ should be able to be added at any place in this file.
   <owner>andreaxg@google.com</owner>
   <owner>erikchen@chromium.org</owner>
   <description>
-    Logged if the user uses the focus hotkey while glic is open. Triggered by
-    hotkey presses captured in Chrome as well as in the glic window.
+    Logged if the user uses the focus hotkey while Glic is open. Triggered by
+    hotkey presses captured in Chrome as well as in the Glic window.
   </description>
 </action>
 
@@ -15274,7 +15376,7 @@ should be able to be added at any place in this file.
   <owner>birnie@google.com</owner>
   <owner>erikchen@chromium.org</owner>
   <description>
-    User closed the FRE by toggling the glic feature invocation source.
+    User closed the FRE by toggling the Glic feature invocation source.
   </description>
 </action>
 
@@ -15419,7 +15521,7 @@ should be able to be added at any place in this file.
   <owner>iwells@google.com</owner>
   <owner>erikchen@chromium.org</owner>
   <description>
-    Logged if the glic FRE is shown. Logged as soon as the widget is visible.
+    Logged if the Glic FRE is shown. Logged as soon as the widget is visible.
     This occurs before the UI is fully loaded.
   </description>
 </action>
@@ -15694,7 +15796,7 @@ should be able to be added at any place in this file.
   <owner>perrier@google.com</owner>
   <description>
     Logged when SwitchConversation is called from Floaty on a Glic instance to
-    switch to a different conversation (eg. loading a chat from 'recent'
+    switch to a different conversation (e.g. loading a chat from 'recent'
     conversations in the three-dots menu).
   </description>
 </action>
@@ -15704,7 +15806,7 @@ should be able to be added at any place in this file.
   <owner>perrier@google.com</owner>
   <description>
     Logged when SwitchConversation is called from Side Panel on a Glic instance
-    to switch to a different conversation (eg. loading a chat from 'recent'
+    to switch to a different conversation (e.g. loading a chat from 'recent'
     conversations in the three-dots menu).
   </description>
 </action>
@@ -15731,7 +15833,7 @@ should be able to be added at any place in this file.
   <owner>kenok@google.com</owner>
   <owner>chrstne@google.com</owner>
   <description>
-    Logged if the user activates a task controlled tab from a glic instance.
+    Logged if the user activates a task-controlled tab from a Glic instance.
   </description>
 </action>
 
@@ -15744,7 +15846,7 @@ should be able to be added at any place in this file.
 <action name="Glic.Instance.UnBind">
   <owner>birnie@google.com</owner>
   <owner>perrier@google.com</owner>
-  <description>Logged when a Glic instance is un bound from a tab.</description>
+  <description>Logged when a Glic instance is unbound from a tab.</description>
 </action>
 
 <action name="Glic.Instance.UninterruptActorTask">
@@ -15888,7 +15990,7 @@ should be able to be added at any place in this file.
   <owner>charlesmeng@chromium.org</owner>
   <owner>erikchen@chromium.org</owner>
   <description>
-    Logged anytime glic is pinned to the tabstrip, regardless of source.
+    Logged any time Glic is pinned to the tabstrip, regardless of source.
   </description>
 </action>
 
@@ -15896,7 +15998,7 @@ should be able to be added at any place in this file.
   <owner>wry@chromium.org</owner>
   <owner>perrier@chromium.org</owner>
   <description>
-    Logged anytime a pinned tab is navigated to a new origin.
+    Logged any time a pinned tab is navigated to a new origin.
   </description>
 </action>
 
@@ -15904,7 +16006,7 @@ should be able to be added at any place in this file.
   <owner>wry@chromium.org</owner>
   <owner>perrier@chromium.org</owner>
   <description>
-    Logged anytime a pinned tab is navigated to a new origin and the tab is
+    Logged any time a pinned tab is navigated to a new origin and the tab is
     unpinned as a result.
   </description>
 </action>
@@ -16043,15 +16145,53 @@ should be able to be added at any place in this file.
   <owner>charlesmeng@chromium.org</owner>
   <owner>erikchen@chromium.org</owner>
   <description>
-    Logged anytime glic is unpinned from the tabstrip, regardless of source.
+    Logged any time Glic is unpinned from the tabstrip, regardless of source.
   </description>
 </action>
 
 <action name="Glic.Widget.ResetPositionOnOpen">
   <owner>perrier@chromium.org</owner>
   <description>
-    Logged eachtime the position of the glic widget is reset when reopening
+    Logged each time the position of the Glic widget is reset when reopening
     before a minimum delay is reached.
+  </description>
+</action>
+
+<action name="Glic.ZoomIn">
+  <owner>cuianthony@chromium.org</owner>
+  <description>
+    Logged when the user zooms in on the Glic webview using keyboard shortcuts.
+  </description>
+</action>
+
+<action name="Glic.ZoomInAtMax">
+  <owner>cuianthony@chromium.org</owner>
+  <description>
+    Logged when the user attempts to zoom in on the Glic webview using keyboard
+    shortcuts, but is already at the maximum zoom level.
+  </description>
+</action>
+
+<action name="Glic.ZoomOut">
+  <owner>cuianthony@chromium.org</owner>
+  <description>
+    Logged when the user zooms out on the Glic webview using keyboard shortcuts.
+  </description>
+</action>
+
+<action name="Glic.ZoomOutAtMin">
+  <owner>cuianthony@chromium.org</owner>
+  <description>
+    Logged when the user attempts to zoom out on the Glic webview using keyboard
+    shortcuts, but is already at the minimum zoom level.
+  </description>
+</action>
+
+<action name="Glic.ZoomReset">
+  <owner>cuianthony@chromium.org</owner>
+  <description>
+    Logged when the user resets the zoom level on the Glic webview using
+    keyboard shortcuts.
   </description>
 </action>
 
@@ -16185,7 +16325,7 @@ should be able to be added at any place in this file.
   <owner>pauladedeji@google.com</owner>
   <owner>erikchen@chromium.org</owner>
   <description>
-    Logged anytime glic shortcut (aka hotkey) is disabled from
+    Logged any time the Glic shortcut (aka hotkey) is disabled from
     chrome://settings.
   </description>
 </action>
@@ -16194,7 +16334,8 @@ should be able to be added at any place in this file.
   <owner>pauladedeji@google.com</owner>
   <owner>erikchen@chromium.org</owner>
   <description>
-    Logged anytime glic shortcut (aka hotkey) is edited from chrome://settings.
+    Logged any time the Glic shortcut (aka hotkey) is edited from
+    chrome://settings.
   </description>
 </action>
 
@@ -16202,7 +16343,8 @@ should be able to be added at any place in this file.
   <owner>pauladedeji@google.com</owner>
   <owner>erikchen@chromium.org</owner>
   <description>
-    Logged anytime glic shortcut (aka hotkey) is enabled from chrome://settings.
+    Logged any time the Glic shortcut (aka hotkey) is enabled from
+    chrome://settings.
   </description>
 </action>
 
@@ -16210,8 +16352,8 @@ should be able to be added at any place in this file.
   <owner>ananyaseelam@google.com</owner>
   <owner>erikchen@chromium.org</owner>
   <description>
-    Logged anytime glic OS launcher entrypoint (aka hotkey) is toggled off from
-    chrome://settings.
+    Logged any time the Glic OS launcher entrypoint (aka hotkey) is toggled off
+    from chrome://settings.
   </description>
 </action>
 
@@ -16219,8 +16361,8 @@ should be able to be added at any place in this file.
   <owner>ananyaseelam@google.com</owner>
   <owner>erikchen@chromium.org</owner>
   <description>
-    Logged anytime glic OS launcher entrypoint (aka hotkey) is toggled on from
-    chrome://settings.
+    Logged any time the Glic OS launcher entrypoint (aka hotkey) is toggled on
+    from chrome://settings.
   </description>
 </action>
 
@@ -16374,7 +16516,7 @@ should be able to be added at any place in this file.
   <owner>pauladedeji@google.com</owner>
   <owner>erikchen@chromium.org</owner>
   <description>
-    Logged when glic web client requests the main settings page (no section
+    Logged when the Glic web client requests the main settings page (no section
     specified).
   </description>
 </action>
@@ -16383,8 +16525,8 @@ should be able to be added at any place in this file.
   <owner>pauladedeji@google.com</owner>
   <owner>erikchen@chromium.org</owner>
   <description>
-    Logged when glic web client requests os entrypoint toggle section of the
-    settings page.
+    Logged when the Glic web client requests the OS entrypoint toggle section of
+    the settings page.
   </description>
 </action>
 
@@ -16392,7 +16534,8 @@ should be able to be added at any place in this file.
   <owner>pauladedeji@google.com</owner>
   <owner>erikchen@chromium.org</owner>
   <description>
-    Logged when glic web client requests os hotkey section of the settings page.
+    Logged when the Glic web client requests the OS hotkey section of the
+    settings page.
   </description>
 </action>
 
@@ -16407,7 +16550,7 @@ should be able to be added at any place in this file.
   <owner>carlosk@chromium.org</owner>
   <owner>harringtond@chromium.org</owner>
   <owner>erikchen@chromium.org</owner>
-  <description>Tracks when glic webui crashes.</description>
+  <description>Tracks when the Glic WebUI crashes.</description>
 </action>
 
 <action name="GlicTabContextPermissionDisabled">
@@ -18554,8 +18697,8 @@ should be able to be added at any place in this file.
     Recorded when the user clicks on the intent picker icon that pops up
     whenever a navigation occurs to a site that is already installed by a PWA
     and controlled by the PWA's scope. This is measured regardless of whether
-    the intent picker icon is extended or not. This is currently measured only
-    on Windows, Mac and Linux platforms.
+    the intent picker icon is extended or not. This is currently measured on all
+    desktop platforms (ChromeOS, Mac, Windows and Linux).
   </description>
 </action>
 
@@ -18565,7 +18708,8 @@ should be able to be added at any place in this file.
   <description>
     Recorded when the user clicks on a PWA that shows up in the intent picker,
     and clicks on Open, leading to the current site being launched in the PWA.
-    This is currently measured only on Windows, Mac and Linux platforms.
+    This is currently measured on all desktop platforms (ChromeOS, Mac, Windows
+    and Linux).
   </description>
 </action>
 
@@ -18586,7 +18730,7 @@ should be able to be added at any place in this file.
   <description>
     Recorded when the user manually closes the intent picker bubble view,
     leading to the site not being launched in a PWA. This is currently measured
-    only on Windows, Mac and Linux platforms.
+    on all desktop platforms (ChromeOS, Mac, Windows and Linux).
   </description>
 </action>
 
@@ -18596,7 +18740,7 @@ should be able to be added at any place in this file.
   <description>
     Recorded when the user navigates away from the current site with an open
     intent picker bubble view, leading to it being closed. This is currently
-    only meaasured on Windows, Mac and Linux.
+    measured on all desktop platforms (ChromeOS, Mac, Windows and Linux).
   </description>
 </action>
 
@@ -25158,6 +25302,16 @@ should be able to be added at any place in this file.
   <description>
     The user opened the Payment Method Manual Fallback view through the keyboard
     accessory's expand icon. iOS only.
+  </description>
+</action>
+
+<action name="ManualFallback_OpenAtMemory">
+  <owner>leozhao@google.com</owner>
+  <owner>novakovica@google.com</owner>
+  <owner>sugoi@google.com</owner>
+  <owner>tmartino@chromium.org</owner>
+  <description>
+    The user opened the AtMemory manual fallback view. iOS only.
   </description>
 </action>
 
@@ -32889,6 +33043,16 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="MobileToolbarAssistantFullscreen">
+  <owner>gambard@chromium.org</owner>
+  <owner>hiramahmood@google.com</owner>
+  <description>
+    The user tapped on the Assistant button in the AppBar on an iPhone while in
+    portrait mode with Fullscreen active. Logged in addition to the general
+    metric.
+  </description>
+</action>
+
 <action name="MobileToolbarBack">
   <owner>Please list the metric's owners. Add more owner tags as needed.</owner>
   <description>Please enter the description of this user action.</description>
@@ -33043,6 +33207,16 @@ should be able to be added at any place in this file.
     User pressed the NewTab shortcut on the toolbar. iOS only. The UI of the bar
     changed from a toolbar UI to an an appbar UI, which may affect usage. This
     change happened when the flag ChromeNextIa was enabled.
+  </description>
+</action>
+
+<action name="MobileToolbarNewTabShortcutFullscreen">
+  <owner>gambard@chromium.org</owner>
+  <owner>hiramahmood@google.com</owner>
+  <description>
+    User pressed the NewTab shortcut on the AppBar on an iPhone while in
+    portrait mode with Fullscreen active. Logged in addition to the general
+    metric.
   </description>
 </action>
 
@@ -33242,6 +33416,16 @@ should be able to be added at any place in this file.
     User tapped on the toolbar button to show the TabGrid. On iOS the UI of the
     bar changed from a toolbar UI to an an appbar UI, which may affect usage.
     This change happened when the flag ChromeNextIa was enabled.
+  </description>
+</action>
+
+<action name="MobileToolbarShowStackViewFullscreen">
+  <owner>gambard@chromium.org</owner>
+  <owner>hiramahmood@google.com</owner>
+  <description>
+    User tapped on the toolbar button to show the TabGrid on an iPhone while in
+    portrait mode with Fullscreen active. Logged in addition to the general
+    metric.
   </description>
 </action>
 

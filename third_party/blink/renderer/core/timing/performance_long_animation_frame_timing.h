@@ -28,7 +28,7 @@ class PerformanceLongAnimationFrameTiming final : public PerformanceEntry {
       bool cross_origin_isolated_capability,
       DOMWindow*,
       const std::optional<DOMPaintTimingInfo>&,
-      uint32_t navigation_id);
+      uint64_t navigation_id);
   ~PerformanceLongAnimationFrameTiming() override;
 
   PerformanceLongAnimationFrameTiming(double duration,
@@ -37,7 +37,7 @@ class PerformanceLongAnimationFrameTiming final : public PerformanceEntry {
                                       base::TimeTicks time_origin,
                                       bool cross_origin_isolated_capability,
                                       DOMWindow*,
-                                      uint32_t navigation_id);
+                                      uint64_t navigation_id);
 
   const AtomicString& entryType() const override;
   PerformanceEntryType EntryTypeEnum() const override;

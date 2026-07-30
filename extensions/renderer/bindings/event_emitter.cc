@@ -95,6 +95,10 @@ size_t EventEmitter::GetNumListenersForTesting() const {
   return listeners_->GetNumListeners();
 }
 
+size_t EventEmitter::GetNumPendingFiltersForTesting() const {
+  return pending_filters_.size();
+}
+
 int EventEmitter::PushFilter(mojom::EventFilteringInfoPtr filter) {
   // In order to dispatch (potentially) asynchronously (such as when script is
   // suspended), use a helper function to run once JS is allowed to run,

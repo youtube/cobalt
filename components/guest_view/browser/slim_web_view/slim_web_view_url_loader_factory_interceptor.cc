@@ -52,7 +52,7 @@ class SlimWebViewHeaderClient : public network::mojom::TrustedHeaderClient {
       target_client_->OnBeforeSendHeaders(request_url, modified_headers,
                                           std::move(callback));
     } else {
-      std::move(callback).Run(net::OK, modified_headers);
+      std::move(callback).Run(net::OK, modified_headers, std::nullopt);
     }
   }
 

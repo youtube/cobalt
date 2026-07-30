@@ -90,6 +90,11 @@ public class StripTabUnderlineManager {
         mStripLayoutHelper.setTabUnderline(tabId, isUnderlined);
     }
 
+    @CalledByNative
+    void resetAnimationCycle(int tabId) {
+        mStripLayoutHelper.resetTabUnderlineAnimationCycle(tabId);
+    }
+
     @NativeMethods
     interface Natives {
         long init(StripTabUnderlineManager caller);

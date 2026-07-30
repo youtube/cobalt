@@ -7,10 +7,7 @@ import("//build/config/chrome_build.gni")
 
 declare_args() {
   # Should ANGLE be linked statically?
-  use_static_angle = is_android || is_ios || is_linux || is_win
-
-  # Should ANGLE use the shared Vulkan loader on Mac?
-  shared_libvulkan_on_mac = true
+  use_static_angle = true
 
   # Should Dawn support be compiled to back the WebGPU implementation?
   # Also controls linking Dawn dependencies in such as SPIRV-Tools or

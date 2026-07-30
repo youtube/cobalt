@@ -4,9 +4,9 @@
 
 #include "chrome/browser/ash/extensions/signin_screen_policy_provider.h"
 
+#include "ash/constants/ash_extension_constants.h"
 #include "base/memory/ref_counted.h"
 #include "base/strings/utf_string_conversions.h"
-#include "chrome/common/extensions/extension_constants.h"
 #include "components/version_info/version_info.h"
 #include "extensions/common/extension_builder.h"
 #include "extensions/common/features/feature_channel.h"

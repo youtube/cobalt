@@ -10,8 +10,8 @@
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_panel_controller.h"
+#include "chrome/browser/ui/immersive/immersive_mode_controller.h"
 #include "chrome/browser/ui/side_panel/side_panel_entry_observer.h"
-#include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 
 namespace contextual_tasks {

@@ -201,6 +201,7 @@ class CONTENT_EXPORT BrowsingInstance final
   // Note: This method is not intended to be called by code outside this object.
   scoped_refptr<SiteInstanceImpl> GetSiteInstanceForURLHelper(
       const UrlInfo& url_info,
+      const SiteInfo& site_info,
       bool allow_default_instance);
 
   // Adds the given SiteInstance to our map, to ensure that we do not create

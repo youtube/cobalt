@@ -72,7 +72,7 @@ void BufferManager::Destroy() {
 }
 
 void BufferManager::CreateBuffer(GLuint client_id, GLuint service_id) {
-  scoped_refptr<Buffer> buffer(new Buffer(this, service_id));
+  auto buffer = base::MakeRefCounted<Buffer>(this, service_id);
   std::pair<BufferMap::iterator, bool> result =
       buffers_.insert(std::make_pair(client_id, buffer));
   DCHECK(result.second);

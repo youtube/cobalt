@@ -14,6 +14,24 @@
 <translation id="1185924365081634987">Du kannst auch <ph name="GUEST_SIGNIN_LINK_START" />als Gast surfen<ph name="GUEST_SIGNIN_LINK_END" />, um den Netzwerkfehler zu beheben.</translation>
 <translation id="1201402288615127009">Weiter</translation>
 <translation id="1222835797152767346">PIN festlegen, um die Anmeldung zu vereinfachen</translation>
+<translation id="1346669614038013595"><ph name="BEGIN_H3" />Funktionen zur Fehlerbehebung<ph name="END_H3" />
+      <ph name="BR" />
+      Du kannst die Funktionen zur Fehlerbehebung auf deinem ChromeOS-Gerät aktivieren, um benutzerdefinierten Code auf dem Gerät zu installieren und zu testen. Dadurch kannst du<ph name="BR" />
+      <ph name="BEGIN_LIST" />
+        <ph name="LIST_ITEM" />die rootfs-Überprüfung entfernen, sodass du Dateien des Betriebssystems ändern kannst,
+        <ph name="LIST_ITEM" />den SSH-Zugriff auf das Gerät anhand der Standard-Testschlüssel ermöglichen, sodass du Tools wie <ph name="BEGIN_CODE" />cros flash<ph name="END_CODE" /> für den Gerätezugriff verwenden kannst,
+        <ph name="LIST_ITEM" />das Starten über USB aktivieren, sodass du ein Betriebssystem-Image über einen USB-Speicher installieren kannst, und
+        <ph name="LIST_ITEM" />für das Dev- und System-Root-Passwort einen benutzerdefinierten Wert festlegen, sodass du dich manuell per SSH mit dem Gerät verbinden kannst.
+      <ph name="END_LIST" />
+      <ph name="BR" />
+      Nach der Aktivierung bleiben die meisten Funktionen zur Fehlerbehebung auch dann aktiviert, wenn du das Gerät per Powerwash auf die Werkseinstellungen zurücksetzt oder die Daten auf einem verwalteten Unternehmensgerät löschst. Führe zur vollständigen Deaktivierung aller Funktionen zur Fehlerbehebung den ChromeOS-Wiederherstellungsprozess aus: https://support.google.com/chromebook/answer/1080595.
+      <ph name="BR" />
+      <ph name="BR" />
+      Weitere Informationen zu den Funktionen zur Fehlerbehebung findest du unter folgendem Link:<ph name="BR" />
+      https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+      <ph name="BR" />
+      <ph name="BR" />
+      <ph name="BEGIN_BOLD" />Hinweis:<ph name="END_BOLD" /> Das System wird während des Vorgangs neu gestartet.</translation>
 <translation id="1347625331607114917">Code auf deinem Android-Smartphone bestätigen</translation>
 <translation id="1347975661240122359">Das Update wird ausgeführt, sobald der Akkustand <ph name="BATTERY_LEVEL" /> % erreicht.</translation>
 <translation id="1375938286942050085">Die Einrichtung ist abgeschlossen! Bereite dein Gerät als Nächstes aufs Gaming vor</translation>
@@ -126,9 +144,29 @@
 <translation id="503155457707535043">Apps werden heruntergeladen</translation>
 <translation id="5045550434625856497">Falsches Passwort</translation>
 <translation id="5062930723426326933">Fehler bei der Anmeldung. Bitte stelle eine Internetverbindung her und versuche es erneut.</translation>
+<translation id="5107486920067578245"><ph name="BEGIN_PARAGRAPH1" />Starte eine Unterhaltung mit Gemini und hole dir beim Schreiben, Planen oder Lernen Unterstützung von Google AI.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Nach der Einrichtung kannst du Gemini verwenden, indem du unten auf dem Bildschirm in der Ablage die Gemini App auswählst.<ph name="END_PARAGRAPH2" /></translation>
 <translation id="5115309401544567011">Bitte schließe dein <ph name="DEVICE_TYPE" /> an eine Stromquelle an.</translation>
 <translation id="5147516217412920887">Folge der Anleitung auf deinem Smartphone, um den Code zu bestätigen</translation>
 <translation id="5160857336552977725">Auf deinem <ph name="DEVICE_TYPE" /> anmelden</translation>
+<translation id="5171185788583376591"><ph name="BEGIN_H3" />Funktionen zur Fehlerbehebung<ph name="END_H3" />
+      <ph name="BR" />
+      Du kannst die Funktionen zur Fehlerbehebung auf deinem ChromeOS Flex-Gerät aktivieren, um benutzerdefinierten Code auf dem Gerät zu installieren und zu testen. Dadurch kannst du<ph name="BR" />
+      <ph name="BEGIN_LIST" />
+        <ph name="LIST_ITEM" />die rootfs-Überprüfung entfernen, sodass du Dateien des Betriebssystems ändern kannst,
+        <ph name="LIST_ITEM" />den SSH-Zugriff auf das Gerät anhand der Standard-Testschlüssel ermöglichen, sodass du Tools wie <ph name="BEGIN_CODE" />cros flash<ph name="END_CODE" /> für den Gerätezugriff verwenden kannst,
+        <ph name="LIST_ITEM" />das Starten über USB aktivieren, sodass du ein Betriebssystem-Image über einen USB-Speicher installieren kannst, und
+        <ph name="LIST_ITEM" />für das Dev- und System-Root-Passwort einen benutzerdefinierten Wert festlegen, sodass du dich manuell per SSH mit dem Gerät verbinden kannst.
+      <ph name="END_LIST" />
+      <ph name="BR" />
+      Nach der Aktivierung bleiben die meisten Funktionen zur Fehlerbehebung auch dann aktiviert, wenn du das Gerät per Powerwash auf die Werkseinstellungen zurücksetzt oder die Daten auf einem verwalteten Unternehmensgerät löschst. Führe zur vollständigen Deaktivierung aller Funktionen zur Fehlerbehebung den ChromeOS-Wiederherstellungsprozess aus: https://support.google.com/chromebook/answer/1080595.
+      <ph name="BR" />
+      <ph name="BR" />
+      Weitere Informationen zu den Funktionen zur Fehlerbehebung findest du unter folgendem Link:<ph name="BR" />
+      https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+      <ph name="BR" />
+      <ph name="BR" />
+      <ph name="BEGIN_BOLD" />Hinweis:<ph name="END_BOLD" /> Das System wird während des Vorgangs neu gestartet.</translation>
 <translation id="523505283826916779">Einstellungen für Bedienungshilfen</translation>
 <translation id="5240931875940563122">Mit Android-Smartphone anmelden</translation>
 <translation id="5255859108402770436">Erneut anmelden</translation>
@@ -193,6 +231,7 @@
 <translation id="6955698182324067397">Du aktivierst Debugging-Funktionen für Chrome OS. Dadurch wird der SSHD-Daemon eingerichtet und das Starten über USB aktiviert.</translation>
 <translation id="6965382102122355670">OK</translation>
 <translation id="6981982820502123353">Bedienungshilfen</translation>
+<translation id="6984652455487792101">Wenn du einen Proxyserver verwendest, überprüfe deine Proxy-Einstellungen oder erkundige dich bei deinem Netzwerkadministrator, ob der Proxyserver funktioniert. Wenn du keinen Proxyserver verwenden möchtest, ändere deine <ph name="LINK_START" />Proxy-Einstellungen<ph name="LINK_END" />.</translation>
 <translation id="6996245928508281884">Aktiviere die Bluetooth- und die WLAN-Funktion deines Smartphones</translation>
 <translation id="7077829361966535409">Die Anmeldeseite konnte mit den aktuellen Proxy-Einstellungen nicht geladen werden. <ph name="GAIA_RELOAD_LINK_START" />Versuche erneut, dich anzumelden<ph name="GAIA_RELOAD_LINK_END" />, oder verwende andere <ph name="PROXY_SETTINGS_LINK_START" />Proxy-Einstellungen<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="7114054701490058191">Die Passwörter stimmen nicht überein</translation>
@@ -205,6 +244,9 @@
 <translation id="7345706641791090287">Passwort bestätigen</translation>
 <translation id="7352651011704765696">Ein Problem ist aufgetreten</translation>
 <translation id="7476454130948140105">Der Akku ist für ein Update zu schwach (<ph name="BATTERY_PERCENT" /> %)</translation>
+<translation id="7504187084873714912"><ph name="BEGIN_PARAGRAPH1" />Vor der Registrierung musst du das TPM löschen, damit <ph name="DEVICE_OS" /> Inhaber des Geräts werden kann.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Du kannst das TPM auch vollständig deaktivieren. Deine Daten werden trotzdem sicher mit Softwareverschlüsselung gespeichert. Einige Sicherheitsfunktionen werden jedoch deaktiviert (z. B. hardwaregestützte Zertifikate).<ph name="END_PARAGRAPH2" />
+        <ph name="BEGIN_PARAGRAPH3" />Zum Ändern der TPM-Einstellungen starte das Gerät neu und rufe die BIOS-/UEFI-Einstellungen auf. Je nach Gerätemodell können diese Schritte variieren. Am besten öffnest du vor dem Neustart die Dokumentation von <ph name="DEVICE_OS" /> auf einem anderen Gerät: g.co/flex/TPMHelp.<ph name="END_PARAGRAPH3" /></translation>
 <translation id="7543104066686362383">Debugging-Funktionen auf diesem <ph name="IDS_SHORT_PRODUCT_NAME" />-Gerät aktivieren</translation>
 <translation id="7553242001898162573">Passwort eingeben</translation>
 <translation id="7556242789364317684"><ph name="SHORT_PRODUCT_NAME" /> kann deine Einstellungen nicht wiederherstellen. Zur Behebung des Fehlers muss dein Gerät von <ph name="SHORT_PRODUCT_NAME" /> per Powerwash zurückgesetzt werden.</translation>
@@ -251,6 +293,10 @@
 <translation id="8452105022015742247">Google-Kontoinformationen werden von deinem Android-Smartphone übertragen</translation>
 <translation id="8524841856047224176">Personalisiere deine Kamerahintergründe für Videoanrufe und mehr</translation>
 <translation id="8569673829373920831">Mehr zu <ph name="APP_NAME" /></translation>
+<translation id="8628232294964836490">Folge der Anleitung auf dem Smartphone, um den QR-Code zu scannen. Prüfe, ob auf deinem Smartphone Bluetooth aktiviert ist.
+        <ph name="BR" />
+        <ph name="BR" />
+        Für Geräte in der Nähe sichtbar als <ph name="QUICK_START_DEVICE_DISPLAY_NAME" />…</translation>
 <translation id="8655972064210167941">Du konntest nicht angemeldet werden, weil dein Passwort nicht bestätigt werden konnte. Bitte wende dich an deinen Administrator oder versuche es noch einmal.</translation>
 <translation id="8674903726754070732">Dein Computer wurde mit einer ungültigen Hardware-ID konfiguriert. Daher kann Chrome OS keine aktuellen Sicherheitsupdates installieren und dein Computer ist <ph name="BEGIN_BOLD" />möglicherweise anfällig für schädliche Angriffe<ph name="END_BOLD" />.</translation>
 <translation id="8695139659682234808">Jugendschutzeinstellungen nach der Einrichtung hinzufügen</translation>
@@ -264,10 +310,20 @@
 <translation id="8830796635868321089">Mit den aktuellen Proxyeinstellungen ist bei der Suche nach Updates ein Fehler aufgetreten. Passe deine <ph name="PROXY_SETTINGS_LINK_START" />Proxyeinstellungen<ph name="PROXY_SETTINGS_LINK_END" /> an.</translation>
 <translation id="885746075120788020">Deine gespeicherten Einstellungen und Aktivitäten stehen auf jedem Chrome OS-Gerät zur Verfügung, auf dem du dich mit deinem Google-Konto anmeldest. In den Einstellungen kannst du festlegen, was synchronisiert werden soll.</translation>
 <translation id="8875221558267407626">Inhalte zusammenfassen, komplexe Sprache vereinfachen oder Fragen stellen</translation>
+<translation id="8913163265790894442">Richte dein Gerät (<ph name="DEVICE_TYPE" />) ganz einfach über dein Smartphone ein. Du kannst dein WLAN und dein Google-Konto hinzufügen, ohne deine Passwörter manuell eingeben zu müssen.
+        <ph name="BR" />
+        <ph name="BR" />
+        Sichtbar als <ph name="DEVICE_TYPE" />…</translation>
 <translation id="8946359700442089734">Die Debugging-Funktionen wurden auf diesem <ph name="IDS_SHORT_PRODUCT_NAME" />-Gerät nicht vollständig aktiviert.</translation>
 <translation id="8965037249707889821">Altes Passwort eingeben</translation>
 <translation id="8975396729541388937">Du kannst die E-Mails jederzeit abbestellen. Klicke hierfür in einer der E-Mails auf den entsprechenden Link.</translation>
 <translation id="9033765790910064284">Trotzdem fortfahren</translation>
 <translation id="903480517321259405">PIN noch einmal eingeben</translation>
 <translation id="9076523132036239772">Deine E-Mail-Adresse bzw. dein Passwort konnte nicht bestätigt werden. Stelle zunächst eine Netzwerkverbindung her.</translation>
+<translation id="9217002308921247002"><ph name="BEGIN_PARAGRAPH1" />Exklusiv für: <ph name="DEVICE_TYPE" />.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Generative KI ist experimentell, befindet sich noch in einem frühen Entwicklungsstadium und ist derzeit nur eingeschränkt verfügbar.<ph name="END_PARAGRAPH2" /></translation>
+<translation id="936479314588646618">Richte dein Gerät (<ph name="DEVICE_TYPE" />) ganz einfach über dein Smartphone ein. Du kannst dein Google-Konto hinzufügen, ohne dein Passwort manuell eingeben zu müssen.
+        <ph name="BR" />
+        <ph name="BR" />
+        Sichtbar als <ph name="DEVICE_TYPE" />…</translation>
 </translationbundle>

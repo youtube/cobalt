@@ -182,7 +182,7 @@ class GlicApiTestBase : public T {
   }
 
   Host* GetHost() {
-    GlicInstance* instance = T::GetGlicInstance();
+    GlicInstanceImpl* instance = T::GetGlicInstanceImpl();
     return instance ? &instance->host() : nullptr;
   }
 

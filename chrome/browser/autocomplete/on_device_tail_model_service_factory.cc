@@ -60,7 +60,7 @@ OnDeviceTailModelServiceFactory::BuildServiceInstanceForBrowserContext(
           profile);
   return global_state_service
              ? std::make_unique<OnDeviceTailModelService>(
-                   &global_state_service->GetGlobalState().prediction_manager())
+                   &global_state_service->GetGlobalState().model_provider())
              : nullptr;
 }
 

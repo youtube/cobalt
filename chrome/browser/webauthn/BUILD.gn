@@ -163,6 +163,7 @@ source_set("impl") {
       "//chrome/browser/sync",
       "//chrome/browser/ui/navigator",
       "//chrome/browser/ui/passwords",
+      "//chrome/browser/ui/signin",
       "//chrome/browser/ui/webauthn",
       "//components/cbor",
       "//components/device_event_log",
@@ -403,6 +404,8 @@ if (!is_android) {
 source_set("unit_tests") {
   testonly = true
 
+  # Several of these unittests have file-scope statics of non-trivial-destructor
+  # types, which -Wexit-time-destructors rejects.
   configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 
   sources = [
@@ -457,6 +460,7 @@ source_set("unit_tests") {
       "//chrome/browser/sync",
       "//chrome/browser/sync:factories",
       "//chrome/browser/ui/passwords",
+      "//chrome/browser/ui/signin",
       "//components/signin/public/identity_manager",
       "//components/signin/public/identity_manager:test_support",
       "//components/trusted_vault",
@@ -490,7 +494,6 @@ if (!is_android) {
   source_set("browser_tests") {
     testonly = true
 
-    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
     defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
     sources = [
@@ -509,6 +512,7 @@ if (!is_android) {
       "//chrome/browser/password_manager",
       "//chrome/browser/password_manager/factories",
       "//chrome/browser/profiles:profile",
+      "//chrome/browser/ssl:cert_verifier_test_support",
       "//chrome/browser/sync",
       "//chrome/browser/sync:factories",
       "//chrome/browser/sync/test/integration:sync_integration_test_support",
@@ -567,7 +571,10 @@ if (!is_android) {
     source_set("interactive_ui_tests") {
       testonly = true
 
+      # webauthn_immediate_get_interactive_uitest.cc has file-scope statics of
+      # non-trivial-destructor types, which -Wexit-time-destructors rejects.
       configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+
       defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
       sources = [
@@ -581,6 +588,7 @@ if (!is_android) {
         "//base",
         "//base/test:test_support",
         "//chrome/browser/devtools:test_support",
+        "//chrome/browser/ssl:cert_verifier_test_support",
         "//chrome/browser/sync",
         "//chrome/browser/ui",
         "//chrome/browser/ui/autofill",

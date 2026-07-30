@@ -289,10 +289,14 @@ class ConnectionCoordinator::OpenRequest
          new_version == IndexedDBDatabaseMetadata::NO_VERSION)) {
       Log(DatabaseConnectionOpenResult::kSuccessDirectOpen,
           bucket_context_->GetHistogramSuffix());
-      OnOpenSuccess(db_->CreateConnection(
-          std::move(pending_->database_callbacks),
-          std::move(pending_->client_state_checker), pending_->client_token,
-          pending_->scheduling_priority));
+      if (pending_->request_shared_connection && db_->ConnectionCount() > 0) {
+        OnOpenSuccess(nullptr);
+      } else {
+        OnOpenSuccess(db_->CreateConnection(
+            std::move(pending_->database_callbacks),
+            std::move(pending_->client_state_checker), pending_->client_token,
+            pending_->scheduling_priority));
+      }
       state_ = RequestState::kDone;
       return;
     }
@@ -356,8 +360,11 @@ class ConnectionCoordinator::OpenRequest
                        weak_factory_.GetWeakPtr()));
   }
 
-  // `connection` is null when the connection pipe was already established
-  // through OnUpgradeNeeded.
+  // `connection` is null when:
+  // 1. The connection pipe was already established through `UpgradeNeeded`
+  //    (during database upgrade), or
+  // 2. The request is sharing an existing connection (connection
+  //    deduplication).
   void OnOpenSuccess(std::unique_ptr<Connection> connection) {
     if (!factory_client_.is_connected()) {
       if (connection) {

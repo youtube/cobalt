@@ -112,9 +112,9 @@ TEST_F(SingleFieldFillRouterTest, RouteToAllFillers_OnWillSubmitForm) {
                       MERCHANT_PROMO_CODE});
 #endif
 
-  EXPECT_CALL(
-      history_manager(),
-      OnWillSubmitFormWithFields(SizeIs(number_of_fields_for_testing), true));
+  EXPECT_CALL(history_manager(),
+              OnWillSubmitFormWithFields(SizeIs(form_data.fields().size()),
+                                         &form_structure, true));
   router().OnWillSubmitForm(form_data, &form_structure,
                             /*is_autocomplete_enabled=*/true);
 }

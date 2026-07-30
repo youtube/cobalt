@@ -92,21 +92,10 @@ class FirstRunFinishOrContinuePixelTest
     view->ShowAndWait();
 
     // Wait for all cr-lotties to initialize to prevent flakiness.
-    EXPECT_EQ(true, content::EvalJs(view->GetPickerContents(), R"(
-      Promise.all(
-        Array.from(document.querySelector('finish-or-continue-app')
-            .shadowRoot.querySelectorAll('cr-lottie')).map(
-          anim => new Promise(resolve => {
-            if (anim.hasAttribute('is-animation-loaded')) {
-              resolve(true);
-            } else {
-              anim.addEventListener('cr-lottie-initialized',
-                                    () => resolve(true));
-            }
-          })
-        )
-      ).then(() => true);
-    )"));
+    CHECK_EQ(
+        content::EvalJs(view->GetPickerContents(),
+                        GetWaitForAnimationsScript("finish-or-continue-app")),
+        true);
   }
 
   bool VerifyUi() override {

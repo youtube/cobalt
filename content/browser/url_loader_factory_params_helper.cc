@@ -392,6 +392,12 @@ URLLoaderFactoryParamsHelper::CreateForEarlyHintsPreload(
           network::mojom::LocalNetworkAccessRequestPolicy::kBlock,
           network::DocumentIsolationPolicy());
 
+  // A NoOp network restrictions ID is used for Early Hints
+  // URLLoaderFactoryParams because the connection allowlists check is done by
+  // `NavigationEarlyHintsManager::HandleEarlyHints`. The check does not depend
+  // on the network restrictions ID. Instead, the URL of the preload and
+  // preconnect triggered by the Link header is checked against the connection
+  // allowlists in the Early Hints response directly.
   return CreateParams(
       process, /*origin=*/tentative_origin,
       /*request_initiator_origin_lock=*/tentative_origin,
@@ -410,8 +416,7 @@ URLLoaderFactoryParamsHelper::CreateForEarlyHintsPreload(
       net::CookieSettingOverrides(), "ParamHelper::CreateForEarlyHintsPreload",
       /*require_cross_site_request_for_cookies=*/false,
       /*is_for_service_worker=*/false,
-      /*TODO(crbug.com/447954811): network_restrictions_id*/
-      network::GetTODONetworkRestrictionsId(),
+      /*network_restrictions_id=*/network::GetNoOpNetworkRestrictionsId(),
       // TODO(crbug.com/495538206): Revisit if early-hints preloads
       // initiated from a frame with an effective top frame for storage
       // partitioning need the same browser-side `site_for_cookies`

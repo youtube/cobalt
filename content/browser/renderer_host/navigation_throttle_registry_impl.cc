@@ -8,6 +8,7 @@
 
 #include "base/check_deref.h"
 #include "base/debug/dump_without_crashing.h"
+#include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
@@ -68,7 +69,7 @@ NavigationThrottleRegistryImpl::NavigationThrottleRegistryImpl(
 NavigationThrottleRegistryImpl::~NavigationThrottleRegistryImpl() = default;
 
 void NavigationThrottleRegistryImpl::RegisterNavigationThrottles() {
-  if (navigation_request_->IsInitialWebUISyncNavigation()) {
+  if (navigation_request_->IsInitialWebUINavigation()) {
     // Skip adding throttles for navigations to the initial WebUI.
     return;
   }
@@ -168,7 +169,7 @@ void NavigationThrottleRegistryImpl::RegisterNavigationThrottles() {
 
 void NavigationThrottleRegistryImpl::
     RegisterNavigationThrottlesForCommitWithoutUrlLoader() {
-  if (navigation_request_->IsInitialWebUISyncNavigation()) {
+  if (navigation_request_->IsInitialWebUINavigation()) {
     // Skip adding throttles for navigations to the initial WebUI.
     return;
   }
@@ -260,7 +261,7 @@ void NavigationThrottleRegistryImpl::OnDeferProcessingNavigationEvent(
   deferring_throttles_.insert(deferring_throttle);
 }
 
-const std::set<NavigationThrottle*>&
+const std::set<raw_ptr<NavigationThrottle>>&
 NavigationThrottleRegistryImpl::GetDeferringThrottles() const {
   return deferring_throttles_;
 }
@@ -281,7 +282,7 @@ void NavigationThrottleRegistryImpl::AddThrottle(
   TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("navigation"),
               "NavigationThrottleRegistryImpl::AddThrottle",
               "navigation_throttle", navigation_throttle->GetNameForLogging());
-  CHECK(!navigation_request_->IsInitialWebUISyncNavigation());
+  CHECK(!navigation_request_->IsInitialWebUINavigation());
   throttles_.push_back(std::move(navigation_throttle));
 }
 

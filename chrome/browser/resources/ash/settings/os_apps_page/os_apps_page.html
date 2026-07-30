@@ -233,27 +233,6 @@
     </template>
   </template>
 
-  <!-- Plugin VM -->
-  <template is="dom-if" if="[[isPluginVmAvailable_]]" restamp>
-    <template is="dom-if" route-path="/app-management/pluginVm/sharedPaths">
-      <os-settings-subpage page-title="$i18n{guestOsSharedPaths}">
-        <settings-guest-os-shared-paths
-            guest-os-type="pluginVm" prefs="{{prefs}}">
-        </settings-guest-os-shared-paths>
-      </os-settings-subpage>
-    </template>
-    <template is="dom-if"
-        route-path="/app-management/pluginVm/sharedUsbDevices">
-      <os-settings-subpage page-title="$i18n{guestOsSharedUsbDevicesLabel}">
-        <settings-guest-os-shared-usb-devices guest-os-type="pluginVm"
-            prefs="{{prefs}}">
-        </settings-guest-os-shared-usb-devices>
-      </os-settings-subpage>
-    </template>
-  </template>
-
-
-
   <!-- On-device Apps Parental Controls -->
   <template is="dom-if" if="[[isAppParentalControlsFeatureAvailable_]]">
     <template is="dom-if" route-path="/app-parental-controls">

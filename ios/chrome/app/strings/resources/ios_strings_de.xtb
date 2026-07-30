@@ -103,6 +103,7 @@
 <translation id="1335767868357998043">Position der Adressleiste auswählen</translation>
 <translation id="1347468774581902829">Aktivitäten verwalten</translation>
 <translation id="1348596747084433075">https://www.amazon.com/Wife-Gifts/s?k=for+Wife+Gifts</translation>
+<translation id="1353169676553627502">Updates zu Fortschritten deaktivieren</translation>
 <translation id="1355337783640312381">Tippe auf dein Konto-Symbol, um zwischen Konten zu wechseln</translation>
 <translation id="135806768612505061">Alle Tabs</translation>
 <translation id="1358106883354237005">Verwaltetes Konto</translation>
@@ -609,6 +610,7 @@
 <translation id="3073633853887034268">Ok</translation>
 <translation id="3080525922482950719">Du kannst Seiten speichern, um sie später oder offline zu lesen</translation>
 <translation id="3081338492074632642">Das Passwort, das du speicherst, muss mit dem Passwort für <ph name="WEBSITE" /> übereinstimmen</translation>
+<translation id="3084484227247071193">Updates zu Fortschritten aktivieren</translation>
 <translation id="3087734570205094154">Unten</translation>
 <translation id="309710370695886264">Du nutzt 1 mehrfach verwendetes Passwort. Ändere es jetzt, um dich bestmöglich zu schützen.</translation>
 <translation id="3099402981545350675">Dadurch werden auf diesem Gerät gespeicherte Adressen gelöscht. Außerdem werden ausgewählte Informationen aus Chrome entfernt, aber nicht aus deinem Google-Konto gelöscht.</translation>
@@ -708,6 +710,7 @@
 <translation id="3449029510150690417">Erstelle eine neue Tabgruppe, indem du ihr einen Namen und eine Farbe gibst</translation>
 <translation id="345348365500626747">Adresse gefunden</translation>
 <translation id="3459644598174926977">Du kannst ganz natürliche Unterhaltungen mit Gemini Live führen, um Fragen zu einer Seite zu stellen oder Ideen zu sammeln.</translation>
+<translation id="3462768334899086950">Das bedeutet, dass deine ungespeicherte Datei und deine aktuellen Tabs verloren gehen</translation>
 <translation id="3464194322481586217">Preis kann nicht beobachtet werden.</translation>
 <translation id="3469117812148449995">Optionen zum Speichern von Passwörtern</translation>
 <translation id="3472469028191701821">Wird in neuem Tab geöffnet</translation>
@@ -836,7 +839,6 @@
 <translation id="391904960191284041">Rezensionen</translation>
 <translation id="3921585859122905677">Position der Adressleiste</translation>
 <translation id="3922185497376658606">Webseiten vorab laden</translation>
-<translation id="3922395466317605522">Menü anpassen</translation>
 <translation id="3926703470020109118">Download abgebrochen</translation>
 <translation id="3929457972718048006">Adressen</translation>
 <translation id="3931215329146376310">{count,plural, =1{Neues Passwort für diese Website}other{Neue Passwörter für diese Website}}</translation>
@@ -965,6 +967,7 @@
 <translation id="4326912346867677256">Tippe auf „Passwort verwenden“, um dich sicher anzumelden.</translation>
 <translation id="4328843285884395590">Meine Ablage</translation>
 <translation id="4331177082088332784">Du kannst diese Option in den BEGIN_LINK Inhaltseinstellungen END_LINK verwalten</translation>
+<translation id="4331712008356052424">Wenn du diesen Link senden möchtest, melde dich auf deinem anderen Gerät mit <ph name="USER_EMAIL" /> an</translation>
 <translation id="4334428914252001502">1 ungelesener Artikel.</translation>
 <translation id="4338258232580025606">Anmelden nicht möglich</translation>
 <translation id="4338650699862464074">URLs der von dir besuchten Seiten werden an Google gesendet.</translation>
@@ -1269,6 +1272,7 @@
 <translation id="5336910966955551309">Halte deine bevorzugten Websites gedrückt, um sie anzupinnen</translation>
 <translation id="5338512273860059533">Anmeldung läuft.</translation>
 <translation id="5343472494710226394">Nachrichten, Sport und Inhalte, die deinen Interessen entsprechen.</translation>
+<translation id="5351613737248079168">Du musst angemeldet sein, um die Vorteile des Level Up-Programms nutzen zu können</translation>
 <translation id="5352128922772839949">Datei speichern</translation>
 <translation id="5355191726083956201">Erweitertes Safe Browsing ist aktiviert</translation>
 <translation id="536067926684072644">Lesezeichen einblenden</translation>
@@ -1471,6 +1475,7 @@ Handoff muss auch im Abschnitt „Allgemein“ deiner Einstellungen aktiviert se
 <translation id="6040143037577758943">Schließen</translation>
 <translation id="6042308850641462728">Mehr</translation>
 <translation id="6045460247888249350">Titel hinzufügen</translation>
+<translation id="6050237559175440178">Bestätige deine Identität, um deine Daten auf all deinen Geräten zu verwenden und zu speichern</translation>
 <translation id="6052269326659653305">Profil wechseln</translation>
 <translation id="605721222689873409">JJ</translation>
 <translation id="6059830886158432458">Hier kannst du festlegen, welche Meldungen und Aktivitäten dir angezeigt werden</translation>
@@ -1690,7 +1695,6 @@ Handoff muss auch im Abschnitt „Allgemein“ deiner Einstellungen aktiviert se
 <translation id="6674917187596384849">Du kannst ganz einfach zwischen Konten wechseln</translation>
 <translation id="6676349090816247042">Anmeldeoptionen.</translation>
 <translation id="667999046851023355">Dokument</translation>
-<translation id="6680416467695217368">Menü anpassen</translation>
 <translation id="6681791404926413601">{count,plural, =1{{count} Zahlungsmethode oben auf der Tastatur verfügbar.}other{{count} verschiedene Zahlungsmethoden oben auf der Tastatur verfügbar.}}</translation>
 <translation id="6682680306647339111">Erinnerung entfernt</translation>
 <translation id="6684262542644248484">Melde dich auf einer Website an</translation>
@@ -1846,6 +1850,7 @@ Wenn du auf deinem Computer fortfahren möchtest, wechsle zu <ph name="OTHER_EMA
 <translation id="722339453342442311">Jetzt prüfen</translation>
 <translation id="7227235818314667565">Freigaben verwalten</translation>
 <translation id="7233006041370588369">Wähle ein Passwort für das automatische Ausfüllen aus.</translation>
+<translation id="723874023660911012">Profil wechseln</translation>
 <translation id="7241135764990439166">Inkognitomodus ist nicht verfügbar</translation>
 <translation id="7248046129087111453">Der <ph name="BEGIN_LINK" />Suchverlauf<ph name="END_LINK" /> und <ph name="BEGIN_LINK" />andere Arten von Aktivitäten<ph name="END_LINK" /> könnten in deinem Google-Konto gespeichert sein.</translation>
 <translation id="7253951228444156601">Passwörter werden geprüft…</translation>
@@ -2072,6 +2077,7 @@ Wenn du auf deinem Computer fortfahren möchtest, wechsle zu <ph name="OTHER_EMA
 <translation id="7996239959906074962">Einrichten…</translation>
 <translation id="800361585186029508">Öffnet die eingegebenen URLs in Google Chrome.</translation>
 <translation id="8005666035647241369">Im Google Passwortmanager auf diesem Gerät</translation>
+<translation id="8007106936382123905">{count,plural, =1{1 erledigte Aufgabe}other{# erledigte Aufgaben}}</translation>
 <translation id="8010488806779226127">Entdecke Funktionen, die dich beim Surfen unterstützen</translation>
 <translation id="8011489434346330032">Web Inspector</translation>
 <translation id="8014007212279733632">Identität bestätigen, um vertrauliche Daten automatisch ausfüllen zu lassen</translation>
@@ -2155,6 +2161,7 @@ Wenn du auf deinem Computer fortfahren möchtest, wechsle zu <ph name="OTHER_EMA
 <translation id="826614135184049678">Du wurdest beim Zurücksetzen deines iPads von deinem Konto <ph name="USER_NAME" /> abgemeldet. Tippe unten auf „Weiter“, um dich wieder anzumelden.</translation>
 <translation id="8270320981823560179">Drive</translation>
 <translation id="8273982424131314219">Du gibst Informationen in <ph name="URL" /> ein</translation>
+<translation id="8274795744553482834">Du bist dabei, das Profil zu wechseln</translation>
 <translation id="8275068909952022340">Mehr…</translation>
 <translation id="8280797717392145626">Links empfangen</translation>
 <translation id="8281781826761538115">Standard: <ph name="DEFAULT_LOCALE" /></translation>

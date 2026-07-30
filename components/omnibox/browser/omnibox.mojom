@@ -11,9 +11,10 @@ enum NavigationPredictor {
   kTouchDown = 3             // The user touched down on a suggestion.
 };
 
-// The type of page for which suggestions are prefetched from the server.
+// The type of page for which suggestions are fetched from the server.
 // Originally defined in third_party/metrics_proto/omnibox_event.proto.
 // Obsolete values are omitted.
+// This is ONLY used in typescript in debugging UIs.
 enum PageClassification {
   INVALID_SPEC = 0,
   NTP = 1,
@@ -48,5 +49,7 @@ enum PageClassification {
   SRP_OMNIBOX_COMPOSEBOX = 34,
   OTHER_OMNIBOX_COMPOSEBOX = 35,
   CO_BROWSING_COMPOSEBOX = 36,
-  NTP_COMPOSEBOX_PREFETCH = 37
+  NTP_COMPOSEBOX_PREFETCH = 37,
+  OMNIBOX_EVERYWHERE = 38,
+  COMPOSEBOX_EVERYWHERE = 39
 };

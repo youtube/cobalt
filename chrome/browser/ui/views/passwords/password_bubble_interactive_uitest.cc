@@ -4,6 +4,7 @@
 
 #include <memory>
 #include <string>
+#include <tuple>
 #include <utility>
 
 #include "base/command_line.h"
@@ -69,6 +70,7 @@
 #include "ui/views/focus/focus_manager.h"
 #include "ui/views/test/views_test_utils.h"
 #include "ui/views/test/widget_test.h"
+#include "ui/views/view_utils.h"
 #include "ui/views/window/dialog_client_view.h"
 
 using base::Bucket;
@@ -127,30 +129,50 @@ PasswordForm CreateSharedCredentials(
   return shared_credentials;
 }
 
+// UI variations of the password save/update bubble to test.
+enum PasswordBubbleTestFeature : uint32_t {
+  // Standard 2-button dialog (Save/Update and Cancel).
+  kNone = 0,
+  // 3-button dialog variant featuring an explicit "Never" button.
+  kThreeButtonSaveDialog = 1,
+  // Split-button variant replacing Cancel with a dropdown menu offering
+  // "Never".
+  kDropdownMenuExperiment = 2,
+};
+
+std::string GetPasswordBubbleSaveUiInteractiveUiTestName(
+    const testing::TestParamInfo<std::tuple<bool, PasswordBubbleTestFeature>>&
+        info) {
+  const auto& [priorities_enabled, experiment_feature] = info.param;
+  std::string name;
+  name += priorities_enabled ? "PrioritiesEnabled" : "PrioritiesDisabled";
+  switch (experiment_feature) {
+    case kNone:
+      name += "_Default";
+      break;
+    case kThreeButtonSaveDialog:
+      name += "_ThreeButtonSaveDialog";
+      break;
+    case kDropdownMenuExperiment:
+      name += "_DropdownMenuExperiment";
+      break;
+  }
+  return name;
+}
+
 }  // namespace
 
 namespace metrics_util = password_manager::metrics_util;
 
-class PasswordBubbleInteractiveUiTest : public ManagePasswordsTest,
-                                        public base::test::WithFeatureOverride {
+// Base fixture for interactive UI tests involving password management bubbles.
+// It provides shared utility methods and common feature flag initialization
+// (e.g., faking the Glic Actor environment) to prevent code duplication across
+// specialized test fixtures (such as PasswordBubbleInteractiveUiTest and
+// PasswordBubbleSaveUiInteractiveUiTest).
+class PasswordBubbleInteractiveUiTestBase : public ManagePasswordsTest {
  public:
-  PasswordBubbleInteractiveUiTest()
-      : base::test::WithFeatureOverride(
-            autofill::features::kAutofillShowBubblesBasedOnPriorities) {
-    scoped_feature_list_.InitWithFeaturesAndParameters(
-        /*enabled_features=*/{{features::kGlicActor,
-                               {{features::kGlicActorPolicyControlExemption
-                                     .name,
-                                 "true"}}}},
-        /*disabled_features=*/{features::kNonBlockingOsClipboardReads});
-  }
-
-  PasswordBubbleInteractiveUiTest(const PasswordBubbleInteractiveUiTest&) =
-      delete;
-  PasswordBubbleInteractiveUiTest& operator=(
-      const PasswordBubbleInteractiveUiTest&) = delete;
-
-  ~PasswordBubbleInteractiveUiTest() override = default;
+  PasswordBubbleInteractiveUiTestBase() = default;
+  ~PasswordBubbleInteractiveUiTestBase() override = default;
 
   void AddActorTask() {
     auto* actor_keyed_service = static_cast<actor::ActorKeyedServiceFake*>(
@@ -167,8 +189,48 @@ class PasswordBubbleInteractiveUiTest : public ManagePasswordsTest,
     loop.Run();
   }
 
+ protected:
+  void InitializeFeatures(
+      std::vector<base::test::FeatureRefAndParams> enabled_features = {},
+      std::vector<base::test::FeatureRef> disabled_features = {}) {
+    enabled_features.push_back(
+        {features::kGlicActor,
+         {{features::kGlicActorPolicyControlExemption.name, "true"}}});
+    disabled_features.push_back(features::kNonBlockingOsClipboardReads);
+
+    scoped_feature_list_.InitWithFeaturesAndParameters(enabled_features,
+                                                       disabled_features);
+  }
+
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+// Interactive UI test fixture for general password management bubbles (e.g.,
+// pending save, auto-signin, and manage). This suite is parameterized via
+// `base::test::WithFeatureOverride` to verify that all core bubble interactions
+// function correctly regardless of whether the Autofill bubble prioritization
+// feature (`kAutofillShowBubblesBasedOnPriorities`) is enabled or disabled.
+//
+// Test params:
+//  - bool : when true,
+//  autofill::features::kAutofillShowBubblesBasedOnPriorities is enabled.
+class PasswordBubbleInteractiveUiTest
+    : public base::test::WithFeatureOverride,
+      public PasswordBubbleInteractiveUiTestBase {
+ public:
+  PasswordBubbleInteractiveUiTest()
+      : base::test::WithFeatureOverride(
+            autofill::features::kAutofillShowBubblesBasedOnPriorities) {
+    InitializeFeatures();
+  }
+
+  PasswordBubbleInteractiveUiTest(const PasswordBubbleInteractiveUiTest&) =
+      delete;
+  PasswordBubbleInteractiveUiTest& operator=(
+      const PasswordBubbleInteractiveUiTest&) = delete;
+
+  ~PasswordBubbleInteractiveUiTest() override = default;
 };
 
 IN_PROC_BROWSER_TEST_P(PasswordBubbleInteractiveUiTest, BasicOpenAndClose) {
@@ -478,9 +540,19 @@ IN_PROC_BROWSER_TEST_P(PasswordBubbleInteractiveUiTest,
 IN_PROC_BROWSER_TEST_P(PasswordBubbleInteractiveUiTest, DontCloseOnLostFocus) {
   SetupPendingPassword();
   EXPECT_TRUE(IsBubbleShowing());
-  PasswordBubbleViewBase::manage_password_bubble()
-      ->GetOkButton()
-      ->RequestFocus();
+  // Focus the "OK" button. PasswordSaveUpdateView uses a specific test getter
+  // because the dropdown experiment moves the buttons into a custom view row,
+  // bypassing the standard dialog button layout.
+  PasswordBubbleViewBase* bubble =
+      PasswordBubbleViewBase::manage_password_bubble();
+  if (base::FeatureList::IsEnabled(
+          features::kPasswordSaveUpdateDropdownMenuExperiment)) {
+    auto* save_update_view = views::AsViewClass<PasswordSaveUpdateView>(bubble);
+    ASSERT_TRUE(save_update_view);
+    save_update_view->GetOkButtonForTesting()->RequestFocus();
+  } else {
+    bubble->GetOkButton()->RequestFocus();
+  }
 
   browser()->GetWindow()->Deactivate();
   EXPECT_TRUE(IsBubbleShowing());
@@ -1436,58 +1508,119 @@ IN_PROC_BROWSER_TEST_P(
                   EnsureNotPresent(SharedPasswordsNotificationView::kTopView));
 }
 
-class TwoButtonPasswordBubbleInteractiveUiTest
-    : public PasswordBubbleInteractiveUiTest {
+// Interactive UI test fixture specifically targeting the password save/update
+// bubble UI variations (standard 2-button dialog, 3-button dialog, and dropdown
+// split-button menu experiment). Tests user interaction sequences such as
+// clicking Cancel/Not Now and Never across feature configurations.
+//
+// Test params:
+//  - bool : when true,
+//  autofill::features::kAutofillShowBubblesBasedOnPriorities is enabled.
+//  - PasswordBubbleTestFeature : the UI feature variation tested (standard
+//    2-button dialog, 3-button dialog with "Never", or split-button dropdown).
+class PasswordBubbleSaveUiInteractiveUiTest
+    : public PasswordBubbleInteractiveUiTestBase,
+      public ::testing::WithParamInterface<
+          std::tuple<bool, PasswordBubbleTestFeature>> {
  public:
-  TwoButtonPasswordBubbleInteractiveUiTest() {
-    scoped_feature_list_.InitWithFeatureState(
-        features::kThreeButtonPasswordSaveDialog, false);
-  }
-  ~TwoButtonPasswordBubbleInteractiveUiTest() override = default;
+  PasswordBubbleSaveUiInteractiveUiTest() {
+    std::vector<base::test::FeatureRefAndParams> enabled_features;
+    std::vector<base::test::FeatureRef> disabled_features;
 
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
+    const auto& [priorities_enabled, experiment_feature] = GetParam();
+
+    // kAutofillShowBubblesBasedOnPriorities
+    if (priorities_enabled) {
+      enabled_features.push_back(
+          {autofill::features::kAutofillShowBubblesBasedOnPriorities, {}});
+    } else {
+      disabled_features.push_back(
+          autofill::features::kAutofillShowBubblesBasedOnPriorities);
+    }
+
+    switch (experiment_feature) {
+      case kNone:
+        disabled_features.push_back(features::kThreeButtonPasswordSaveDialog);
+        disabled_features.push_back(
+            features::kPasswordSaveUpdateDropdownMenuExperiment);
+        break;
+      case kThreeButtonSaveDialog:
+        enabled_features.push_back(
+            {features::kThreeButtonPasswordSaveDialog, {}});
+        disabled_features.push_back(
+            features::kPasswordSaveUpdateDropdownMenuExperiment);
+        break;
+      case kDropdownMenuExperiment:
+        enabled_features.push_back(
+            {features::kPasswordSaveUpdateDropdownMenuExperiment, {}});
+        disabled_features.push_back(features::kThreeButtonPasswordSaveDialog);
+        break;
+    }
+
+    InitializeFeatures(enabled_features, disabled_features);
+  }
+
+  ~PasswordBubbleSaveUiInteractiveUiTest() override = default;
 };
 
-IN_PROC_BROWSER_TEST_P(TwoButtonPasswordBubbleInteractiveUiTest, ClickNever) {
+IN_PROC_BROWSER_TEST_P(PasswordBubbleSaveUiInteractiveUiTest, ClickCancel) {
   SetupPendingPassword();
-  const auto button = views::DialogClientView::kCancelButtonElementId;
-  RunTestSequence(PressButton(button), WaitForHide(button),
-                  CheckHistogramUniqueSample(
-                      "PasswordManager.SaveUIDismissalReason",
-                      password_manager::metrics_util::CLICKED_NEVER, 1));
-}
 
-class ThreeButtonPasswordBubbleInteractiveUiTest
-    : public PasswordBubbleInteractiveUiTest {
- public:
-  ThreeButtonPasswordBubbleInteractiveUiTest() {
-    scoped_feature_list_.InitWithFeatureState(
-        features::kThreeButtonPasswordSaveDialog, true);
+  ui::ElementIdentifier button_id;
+  if (base::FeatureList::IsEnabled(
+          features::kPasswordSaveUpdateDropdownMenuExperiment)) {
+    button_id = PasswordSaveUpdateView::kNotNowButtonElementId;
+  } else {
+    button_id = views::DialogClientView::kCancelButtonElementId;
   }
-  ~ThreeButtonPasswordBubbleInteractiveUiTest() override = default;
 
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
-IN_PROC_BROWSER_TEST_P(ThreeButtonPasswordBubbleInteractiveUiTest,
-                       ClickNotNow) {
-  SetupPendingPassword();
-  const auto button = views::DialogClientView::kCancelButtonElementId;
-  RunTestSequence(PressButton(button), WaitForHide(button),
+  RunTestSequence(PressButton(button_id), WaitForHide(button_id),
                   CheckHistogramUniqueSample(
                       "PasswordManager.SaveUIDismissalReason",
-                      password_manager::metrics_util::CLICKED_NOT_NOW, 1));
+                      (base::FeatureList::IsEnabled(
+                           features::kThreeButtonPasswordSaveDialog) ||
+                       base::FeatureList::IsEnabled(
+                           features::kPasswordSaveUpdateDropdownMenuExperiment))
+                          ? password_manager::metrics_util::CLICKED_NOT_NOW
+                          : password_manager::metrics_util::CLICKED_NEVER,
+                      1));
 }
 
-IN_PROC_BROWSER_TEST_P(ThreeButtonPasswordBubbleInteractiveUiTest, ClickNever) {
+IN_PROC_BROWSER_TEST_P(PasswordBubbleSaveUiInteractiveUiTest, ClickNever) {
+  if (!base::FeatureList::IsEnabled(features::kThreeButtonPasswordSaveDialog) &&
+      !base::FeatureList::IsEnabled(
+          features::kPasswordSaveUpdateDropdownMenuExperiment)) {
+    GTEST_SKIP() << "Never button only exists in three-button or dropdown "
+                    "experiment mode.";
+  }
   SetupPendingPassword();
-  const auto button = PasswordSaveUpdateView::kExtraButtonElementId;
-  RunTestSequence(PressButton(button), WaitForHide(button),
-                  CheckHistogramUniqueSample(
-                      "PasswordManager.SaveUIDismissalReason",
-                      password_manager::metrics_util::CLICKED_NEVER, 1));
+
+  if (base::FeatureList::IsEnabled(
+          features::kPasswordSaveUpdateDropdownMenuExperiment)) {
+    RunTestSequence(
+        PressButton(PasswordSaveUpdateView::kCaretButtonElementId),
+        WaitForShow(PasswordSaveUpdateView::kNeverMenuItemElementId), Do([]() {
+          // using SelectMenuItem does not work for mac, so this solution was
+          // preferred
+          PasswordBubbleViewBase* bubble =
+              PasswordBubbleViewBase::manage_password_bubble();
+          auto* save_update_view =
+              views::AsViewClass<PasswordSaveUpdateView>(bubble);
+          ASSERT_TRUE(save_update_view);
+          ui::SimpleMenuModel* model = save_update_view->MenuModelForTesting();
+          ASSERT_TRUE(model && model->GetItemCount() > 0);
+          model->ActivatedAt(0);
+        }),
+        CheckHistogramUniqueSample(
+            "PasswordManager.SaveUIDismissalReason",
+            password_manager::metrics_util::CLICKED_NEVER, 1));
+  } else {
+    const auto button = PasswordSaveUpdateView::kExtraButtonElementId;
+    RunTestSequence(PressButton(button), WaitForHide(button),
+                    CheckHistogramUniqueSample(
+                        "PasswordManager.SaveUIDismissalReason",
+                        password_manager::metrics_util::CLICKED_NEVER, 1));
+  }
 }
 
 class PasswordBubbleWithUnifiedUiDisabledInteractiveUiTest
@@ -1562,11 +1695,11 @@ INSTANTIATE_TEST_SUITE_P(All, PasswordBubbleInteractiveUiTest, testing::Bool());
 INSTANTIATE_TEST_SUITE_P(All,
                          SharedPasswordsNotificationBubbleInteractiveUiTest,
                          testing::Bool());
-
-INSTANTIATE_TEST_SUITE_P(All,
-                         TwoButtonPasswordBubbleInteractiveUiTest,
-                         testing::Bool());
-
-INSTANTIATE_TEST_SUITE_P(All,
-                         ThreeButtonPasswordBubbleInteractiveUiTest,
-                         testing::Bool());
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    PasswordBubbleSaveUiInteractiveUiTest,
+    testing::Combine(testing::Bool(),
+                     testing::Values(kNone,
+                                     kThreeButtonSaveDialog,
+                                     kDropdownMenuExperiment)),
+    GetPasswordBubbleSaveUiInteractiveUiTestName);

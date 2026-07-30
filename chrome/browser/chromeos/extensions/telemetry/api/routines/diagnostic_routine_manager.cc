@@ -24,6 +24,7 @@
 #include "chrome/browser/chromeos/extensions/telemetry/api/routines/diagnostic_routine_info.h"
 #include "chrome/browser/chromeos/extensions/telemetry/api/routines/remote_diagnostic_routines_service_strategy.h"
 #include "chrome/common/chromeos/extensions/api/diagnostics.h"
+#include "chromeos/ash/components/telemetry_extension/routines/telemetry_diagnostic_routine_service_ash.h"
 #include "chromeos/crosapi/mojom/telemetry_diagnostic_routine_service.mojom.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/web_contents.h"
@@ -109,7 +110,7 @@ DiagnosticRoutineManager::CreateRoutine(
 
   mojo::PendingRemote<crosapi::TelemetryDiagnosticRoutineControl>
       control_remote;
-  mojo::PendingReceiver<crosapi::TelemetryDiagnosticRoutineObserver>
+  mojo::PendingReceiver<ash::cros_healthd::mojom::RoutineObserver>
       observer_receiver;
 
   GetService().CreateRoutine(std::move(routine_argument),
@@ -206,7 +207,7 @@ void DiagnosticRoutineManager::OnExtensionUnloaded(
   app_ui_observers_.erase(extension->id());
 }
 
-crosapi::TelemetryDiagnosticRoutinesService&
+ash::TelemetryDiagnosticsRoutineServiceAsh&
 DiagnosticRoutineManager::GetService() {
   if (!remote_strategy_) {
     remote_strategy_ = RemoteDiagnosticRoutineServiceStrategy::Create();

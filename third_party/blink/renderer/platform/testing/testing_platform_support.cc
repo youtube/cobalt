@@ -134,6 +134,18 @@ TestingPlatformSupport::GetBrowserInterfaceBroker() {
   return interface_broker_.get();
 }
 
+scoped_refptr<base::SequencedTaskRunner>
+TestingPlatformSupport::MediaThreadTaskRunner() {
+  return old_platform_ ? old_platform_->MediaThreadTaskRunner()
+                       : base::SequencedTaskRunner::GetCurrentDefault();
+}
+
+scoped_refptr<base::SingleThreadTaskRunner>
+TestingPlatformSupport::GetIOTaskRunner() const {
+  return old_platform_ ? old_platform_->GetIOTaskRunner()
+                       : base::SingleThreadTaskRunner::GetCurrentDefault();
+}
+
 // ValueConverter only for simple data types used in tests.
 class V8ValueConverterForTest final : public WebV8ValueConverter {
  public:

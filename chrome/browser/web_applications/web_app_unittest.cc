@@ -22,8 +22,8 @@
 #include "base/strings/to_string.h"
 #include "base/test/values_test_util.h"
 #include "base/values.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_integrity_block_data.h"
 #include "chrome/browser/web_applications/model/display_override.h"
+#include "chrome/browser/web_applications/model/integrity_block_data.h"
 #include "chrome/browser/web_applications/test/fake_web_app_provider.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
 #include "chrome/browser/web_applications/test/web_app_test.h"
@@ -135,7 +135,7 @@ static constexpr char kEcdsaP256SHA256SignatureHex[] =
     "3044022007381524F538B04F99CCC62703F06C87F66EF41BDA18A22D8E57952AA23E53A6"
     "022063C7F81D3A44798CB95823FA38FC23B15E0483744657FF49E1E83AB8C06B63C2";
 
-IsolatedWebAppIntegrityBlockData CreateIntegrityBlockData() {
+IntegrityBlockData CreateIntegrityBlockData() {
   std::vector<web_package::SignedWebBundleSignatureInfo> signatures;
 
   // EcdsaP256SHA256:
@@ -150,7 +150,7 @@ IsolatedWebAppIntegrityBlockData CreateIntegrityBlockData() {
             std::move(public_key), std::move(signature)));
   }
 
-  return IsolatedWebAppIntegrityBlockData(std::move(signatures));
+  return IntegrityBlockData(std::move(signatures));
 }
 
 }  // namespace

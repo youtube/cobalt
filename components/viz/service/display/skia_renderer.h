@@ -285,6 +285,9 @@ class VIZ_SERVICE_EXPORT SkiaRenderer : public DirectRenderer {
     RenderPassBacking& operator=(RenderPassBacking&&);
     ~RenderPassBacking();
 
+    bool IsSufficientForRequirements(
+        const RenderPassRequirements& requirements) const;
+
     gfx::Size size;
     bool generate_mipmap = false;
     gfx::ColorSpace color_space;

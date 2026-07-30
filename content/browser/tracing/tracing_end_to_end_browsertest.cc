@@ -277,7 +277,13 @@ IN_PROC_BROWSER_TEST_F(TracingEndToEndBrowserTest, TaskExecutionEvent) {
                              std::vector<std::string>{"my_file", "my_func"}));
 }
 
-IN_PROC_BROWSER_TEST_F(TracingEndToEndBrowserTest, ThreadAndProcessName) {
+// TODO(crbug.com/519488198): Flaky on Fuchsia.
+#if BUILDFLAG(IS_FUCHSIA)
+#define MAYBE_ThreadAndProcessName DISABLED_ThreadAndProcessName
+#else
+#define MAYBE_ThreadAndProcessName ThreadAndProcessName
+#endif
+IN_PROC_BROWSER_TEST_F(TracingEndToEndBrowserTest, MAYBE_ThreadAndProcessName) {
   base::test::TestTraceProcessor ttp;
   ttp.StartTrace("foo");
 

@@ -179,7 +179,7 @@
 /* Hide submit/stop buttons (if applicable) via fade if permission
  * prompt is showing.
  */
-:host(.embedded-permission-prompt-showing) #bottomActions {
+:host(.permission-prompt-showing) #bottomActions {
   opacity: 0;
   pointer-events: none;
 }

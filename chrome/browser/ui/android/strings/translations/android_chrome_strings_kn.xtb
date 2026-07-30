@@ -17,9 +17,11 @@
 <translation id="1052842760770519282">ನಿಮ್ಮ ಕೆಲವು ಪಾಸ್‌ವರ್ಡ್‌ಗಳನ್ನು ಆ್ಯಕ್ಸೆಸ್ ಮಾಡಲು ಸಾಧ್ಯವಿಲ್ಲ</translation>
 <translation id="1057623954802068161">ಪುಟದ ಮೇಲ್ಭಾಗಕ್ಕೆ ಸ್ಕ್ರಾಲ್ ಮಾಡಿ</translation>
 <translation id="1066338698580889414">ಸಲಹೆಗಳ ನೋಟಿಫಿಕೇಶನ್‌ಗಳ ಪ್ರೋಮೋವನ್ನು ಪೂರ್ಣ ಎತ್ತರದಲ್ಲಿ ತೆರೆಯಲಾಗಿದೆ</translation>
+<translation id="1067048845568873861">ರಚಿಸಲಾಗಿದೆ</translation>
 <translation id="1070689840697074178">ನೀವು PDF ಗಳನ್ನು ಇಲ್ಲಿ ಡೌನ್‌ಲೋಡ್ ಮಾಡಬಹುದು</translation>
 <translation id="107147699690128016">ಫೈಲ್ ವಿಸ್ತರಣೆಯನ್ನು ಬದಲಾಯಿಸಿದರೆ, ಇತರ ಅಪ್ಲಿಕೇಶನ್‌ಗಳಲ್ಲಿ ಫೈಲ್‌ ಅನ್ನು ತೆರೆಯಬಹುದು ಮತ್ತು ನಿಮ್ಮ ಸಾಧನವನ್ನು ಹಾನಿಗೊಳಿಸಬಹುದು.</translation>
 <translation id="1073328695547557412">Google Lens ಐಕಾನ್ ಅನ್ನು ಟ್ಯಾಪ್ ಮಾಡಿ</translation>
+<translation id="1075811647922107217">ಪುಟದ ಗಾತ್ರ</translation>
 <translation id="1080116354587839789">ಅಗಲಕ್ಕೆ ಹೊಂದಿಸಿ</translation>
 <translation id="1086486568852410168">Google Lens ಬಳಸಿಕೊಂಡು ಹುಡುಕಿ</translation>
 <translation id="1087799850623149508">ವಿಳಾಸ ಪಟ್ಟಿಯನ್ನು ಕೆಳಕ್ಕೆ ಸರಿಸಲು ನೀವು ಸ್ಪರ್ಶಿಸಿ ಮತ್ತು ಒತ್ತಿ ಹಿಡಿದುಕೊಳ್ಳಬಹುದು</translation>
@@ -32,7 +34,6 @@
 <translation id="1108938384783527433">ಇತಿಹಾಸ ಸಿಂಕ್</translation>
 <translation id="1111673857033749125">ನಿಮ್ಮ ಇತರ ಸಾಧನಗಳಲ್ಲಿ ಉಳಿಸಲಾದ ಬುಕ್‌ಮಾರ್ಕ್‌ಗಳು ಇಲ್ಲಿ ಗೋಚರಿಸುತ್ತವೆ.</translation>
 <translation id="1123537484474186311"><ph name="TAB_TITLE" />, ಪಿಕ್ಚರ್-ಇನ್-ಪಿಕ್ಚರ್ ಟ್ಯಾಬ್</translation>
-<translation id="1124357650933674597">{NUM_WINDOWS,plural, =1{1 ವಿಂಡೋವನ್ನು ಮರುಸ್ಥಾಪಿಸಿ}one{# ವಿಂಡೋಗಳನ್ನು ಮರುಸ್ಥಾಪಿಸಿ}other{# ವಿಂಡೋಗಳನ್ನು ಮರುಸ್ಥಾಪಿಸಿ}}</translation>
 <translation id="1126696498560056882">ಈ ಸಾಧನದಲ್ಲಿ ಖಾತೆಗಳನ್ನು ನಿರ್ವಹಿಸಿ</translation>
 <translation id="1135018701024399762">ಅಜ್ಞಾತ ಮೋಡ್ ನಿಮ್ಮ ಸಾಧನವನ್ನು ಬಳಸುವ ಇತರರಿಂದ ನಿಮ್ಮ ಬ್ರೌಸಿಂಗ್ ಅನ್ನು ಖಾಸಗಿಯಾಗಿರಿಸುತ್ತದೆ</translation>
 <translation id="113752097246673894">ನಿಮ್ಮ ಎಲ್ಲಾ ಸಾಧನಗಳಲ್ಲಿ ನಿಮ್ಮ ಬುಕ್‌ಮಾರ್ಕ್‌ಗಳು ಮತ್ತು ಇತ್ಯಾದಿಗಳನ್ನು ಪಡೆಯಲು, <ph name="EMAIL" /> ಆಗಿ Chrome ಗೆ ಸೈನ್ ಇನ್ ಮಾಡಿ</translation>
@@ -183,6 +184,7 @@
 <translation id="1792959175193046959">ಡಿಫಾಲ್ಟ್ ಡೌನ್‌ಲೋಡ್ ಸ್ಥಳವನ್ನು ಯಾವಾಗ ಬೇಕಾದರೂ ಬದಲಾಯಿಸಿ</translation>
 <translation id="1796666869097395659">ನಂತರ ಹಿಂತಿರುಗಲು ಟ್ಯಾಬ್ ಅನ್ನು ಮಿನಿಮೈಸ್ ಮಾಡಿ</translation>
 <translation id="1799920918471566157">Chrome ಸಲಹೆಗಳು</translation>
+<translation id="1803799720926799756">ಫೈಲ್ ಗಾತ್ರ</translation>
 <translation id="1807246157184219062">ತಿಳಿ</translation>
 <translation id="1807709131360304325">ಹೊಸ ವಿಂಡೋವನ್ನು ತೆರೆಯಿರಿ</translation>
 <translation id="1812027881030482584"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> ಅನ್ನು ಬಳಸಿಕೊಂಡು <ph name="SITE_ETLD_PLUS_ONE" /> ಮುಂದುವರಿಯಲು ಸಾಧ್ಯವಿಲ್ಲ</translation>
@@ -325,6 +327,7 @@
 <translation id="2411239243988279592"><ph name="TAB_TITLE" />, ಆಡಿಬಲ್ ಟ್ಯಾಬ್ ಅನ್ನು ಆಯ್ಕೆಮಾಡಲಾಗಿದೆ</translation>
 <translation id="2413014528833954543">ಈ ಸಾಧನದಲ್ಲಿ ಪಾಸ್‌ವರ್ಡ್‌ಗಳನ್ನು ಪರಿಶೀಲಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ</translation>
 <translation id="2414886740292270097">ಗಾಢ</translation>
+<translation id="2415037988255164008">ವಿಂಡೋಗಳನ್ನು ಮರುಸ್ಥಾಪಿಸಬೇಕೆ?</translation>
 <translation id="2421705177906985956">ಪ್ರದರ್ಶಿಸಲು ಪ್ರಸ್ತುತ ಯಾವುದೇ ಸೈಟ್‌ಗಳಿಲ್ಲ</translation>
 <translation id="2426805022920575512">ಇನ್ನೊಂದು ಖಾತೆಯನ್ನು ಆಯ್ಕೆಮಾಡಿ</translation>
 <translation id="2427025860753516072">{FILE_COUNT,plural, =1{ವೀಡಿಯೊಗಳು, ಪಟ್ಟಿಯಲ್ಲಿರುವ 1 ವೀಡಿಯೊ}one{ವೀಡಿಯೊಗಳು, ಪಟ್ಟಿಯಲ್ಲಿರುವ # ವೀಡಿಯೊಗಳು}other{ವೀಡಿಯೊಗಳು, ಪಟ್ಟಿಯಲ್ಲಿರುವ # ವೀಡಿಯೊಗಳು}}</translation>
@@ -518,7 +521,6 @@
 <translation id="3166827708714933426">ಟ್ಯಾಬ್ ಮತ್ತು ವಿಂಡೋ ಶಾರ್ಟ್‌ಕಟ್‌ಗಳು</translation>
 <translation id="3167258285411721858">ನೀವು <ph name="HOST_NAME" /> ಗಾಗಿ ಮೊಬೈಲ್ ಸೈಟ್ ಅನ್ನು ವಿನಂತಿಸಬಹುದು</translation>
 <translation id="3181145110929454111"><ph name="TAB_TITLE" />, ಬಹು ಆಯ್ಕೆಮಾಡಿದ ಪಿನ್ ಮಾಡಲಾದ ಮ್ಯೂಟ್ ಆಗಿರುವ ಅಜ್ಞಾತ ಟ್ಯಾಬ್</translation>
-<translation id="3183941812169784232">ಎಲ್ಲಾ ವಿಂಡೋಗಳನ್ನು ಮರುಸ್ಥಾಪಿಸಬೇಕೆ?</translation>
 <translation id="3187472288455401631">ಜಾಹೀರಾತು ಮಾಪನ</translation>
 <translation id="3189635831478931757"><ph name="GROUP_TITLE" /> ಟ್ಯಾಬ್ ಗುಂಪು</translation>
 <translation id="3200536777393523575">ನಿಮ್ಮ ಪ್ರಸ್ತುತ ವಿಂಡೋವನ್ನು ಮುಚ್ಚಬೇಕೆ?</translation>
@@ -567,6 +569,7 @@
 <translation id="3435575784518354875">ನಿಮ್ಮ ಪಾಸ್‌ವರ್ಡ್‌ಗಳಿಗೆ ಆ್ಯಕ್ಸೆಸ್ ಅನ್ನು ಉಳಿಸಿಕೊಳ್ಳಲು, ಅವುಗಳನ್ನು ಈಗಲೇ ಎಕ್ಸ್‌ಪೋರ್ಟ್ ಮಾಡಿ, Google Play ಸೇವೆಗಳನ್ನು ಅಪ್‌ಡೇಟ್ ಮಾಡಿ, ನಂತರ ಅವುಗಳನ್ನು Google Password Manager ಗೆ ಪುನಃ ಇಂಪೋರ್ಟ್ ಮಾಡಿಕೊಳ್ಳಿ. <ph name="BEGIN_LINK" />ಸಂಪೂರ್ಣ ಸೂಚನೆಗಳನ್ನು ನೋಡಿ<ph name="END_LINK" />.</translation>
 <translation id="3435738964857648380">ಭದ್ರತೆ</translation>
 <translation id="3435914367318771664">ಹೊಸ ಗುಂಪಿಗೆ ಟ್ಯಾಬ್ ಸೇರಿಸಿ</translation>
+<translation id="3436118221454753036">AI ಮೋಡ್ ಅನ್ನು ಕೇಳಿ</translation>
 <translation id="3438681572027105609">ನಿಮ್ಮ ಎಲ್ಲಾ ಸಾಧನಗಳಲ್ಲಿ ನಿಮ್ಮ ಪಾಸ್‌ವರ್ಡ್‌ಗಳು ಮತ್ತು ಹೆಚ್ಚಿನದನ್ನು ಪಡೆಯಲು, Chrome ಗೆ ಸೈನ್ ಇನ್ ಮಾಡಿ</translation>
 <translation id="3439276997620616816">ನಿಮ್ಮ ಇತ್ತೀಚಿನ ಟ್ಯಾಬ್‌ಗಳನ್ನು ನೀವು ಇಲ್ಲಿ ಕಾಣಬಹುದು</translation>
 <translation id="3443221991560634068">ಪ್ರಸ್ತುತ ಪುಟ ಮರುಲೋಡ್ ಮಾಡಿ</translation>
@@ -642,6 +645,7 @@
 <translation id="3739899004075612870"><ph name="PRODUCT_NAME" /> ನಲ್ಲಿ ಬುಕ್‌ಮಾರ್ಕ್ ಮಾಡಲಾಗಿದೆ</translation>
 <translation id="3740290940447881599">ನೀವು ಈ ಸೈಟ್ ಅನ್ನು ನಂಬುತ್ತೀರಿ ಎಂದು ಖಚಿತಪಡಿಸಿಕೊಳ್ಳಿ</translation>
 <translation id="3740525748616366977">ಈ ಸಾಧನದಲ್ಲಿ ಧ್ವನಿ ಹುಡುಕಾಟ ಲಭ್ಯವಿಲ.</translation>
+<translation id="3749289110408117711">ಫೈಲ್ ಹೆಸರು</translation>
 <translation id="3756823472711156529">ಗುಂಪನ್ನು ಮರುಸ್ಥಾಪಿಸಿ</translation>
 <translation id="3763110477555836428">ನಿಮ್ಮ ನೈಜ ವಿವರಗಳನ್ನು ರಕ್ಷಿಸಲು, ಈ ಕಾರ್ಡ್ ಮೂಲಕ ನೀವು ಚೆಕ್ ಔಟ್ ಮಾಡಿದಾಗ ವರ್ಚುವಲ್ ಕಾರ್ಡ್ ಸಂಖ್ಯೆಯನ್ನು ಭರ್ತಿ ಮಾಡಲಾಗುತ್ತದೆ. Google Wallet ನಲ್ಲಿ ನಿರ್ವಹಿಸಿ. <ph name="BEGIN_LINK1" />ವರ್ಚುವಲ್ ಕಾರ್ಡ್‌ಗಳ ಕುರಿತು ಇನ್ನಷ್ಟು ತಿಳಿಯಿರಿ<ph name="END_LINK1" /></translation>
 <translation id="376561056759077985">ಕೆಲವು ಡೇಟಾವನ್ನು ಇನ್ನೂ ಸೇವ್ ಮಾಡಲಾಗಿಲ್ಲ</translation>
@@ -673,6 +677,7 @@
 <translation id="3870538285500327859"><ph name="TAB_TITLE" />, ಪಿಕ್ಚರ್-ಇನ್-ಪಿಕ್ಚರ್ ಟ್ಯಾಬ್ ಅನ್ನು ಆಯ್ಕೆಮಾಡಲಾಗಿದೆ</translation>
 <translation id="3870908470613821006">ಪ್ರತಿಯೊಬ್ಬರೂ ತಕ್ಷಣವೇ "<ph name="GROUP_NAME" />" ಟ್ಯಾಬ್ ಗುಂಪಿಗೆ ಆ್ಯಕ್ಸೆಸ್ ಅನ್ನು ಕಳೆದುಕೊಳ್ಳುತ್ತಾರೆ ಮತ್ತು ಅದನ್ನು ಎಲ್ಲಾ ಸಾಧನಗಳಿಂದ ಅಳಿಸಲಾಗುತ್ತದೆ</translation>
 <translation id="3873174561423636563">ಮುಂದುವರಿಸಲು, <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> ಈ ಸೈಟ್‌ನ ಜೊತೆಗೆ ನಿಮ್ಮ <ph name="FIELDS_STRING" /> ಅನ್ನು ಹಂಚಿಕೊಳ್ಳುತ್ತದೆ. ಈ ಸೈಟ್‌ನ <ph name="BEGIN_LINK1" />ಸೇವಾ ನಿಯಮಗಳನ್ನು<ph name="END_LINK1" /> ನೋಡಿ.</translation>
+<translation id="3882323608730650973">ಮಾರ್ಪಾಡು ಮಾಡಲಾಗಿದೆ</translation>
 <translation id="3892148308691398805">ಪಠ್ಯ ಕಾಪಿ ಮಾಡಿ</translation>
 <translation id="3893858854379998374">ನಿಮ್ಮ ಖಾತೆಯಲ್ಲಿ ಬುಕ್‌ಮಾರ್ಕ್‌ಗಳನ್ನು ಸೇವ್ ಮಾಡಲು, ನಿಮ್ಮ ಬಳಕೆಯಾಗದ ಬುಕ್‌ಮಾರ್ಕ್‌ಗಳನ್ನು ಅಳಿಸಿ</translation>
 <translation id="3898498281932368596">ನಿರ್ಬಂಧಿಸಿ ಮತ್ತು ತೊರೆಯಿರಿ</translation>
@@ -703,6 +708,7 @@
 <translation id="399788104667917863">ಟೂಲ್‌ಬಾರ್‌ಗೆ ಪಿನ್ ಮಾಡಿ</translation>
 <translation id="4000212216660919741">ಆಫ್‌ಲೈನ್ ಹೋಮ್</translation>
 <translation id="4000670338830950598">ಹೈಲೈಟ್ ಮಾಡಿದ ಐಟಂನೊಂದಿಗೆ Google Chrome ಅನ್ನು ಕಸ್ಟಮೈಸ್ ಮಾಡಿ ಮತ್ತು ನಿಯಂತ್ರಿಸಿ</translation>
+<translation id="4002066346123236978">ಶೀರ್ಷಿಕೆ</translation>
 <translation id="4015643064997321279">{NUM_PASSWORDS,plural, =1{ನಿಮ್ಮ Google ಖಾತೆಯಲ್ಲಿ 1 ಅಪಾಯಕ್ಕೀಡಾದ ಪಾಸ್‌ವರ್ಡ್ ಇದೆ}one{ನಿಮ್ಮ Google ಖಾತೆಯಲ್ಲಿ # ಅಪಾಯಕ್ಕೀಡಾದ ಪಾಸ್‌ವರ್ಡ್‌ಗಳು ಇವೆ}other{ನಿಮ್ಮ Google ಖಾತೆಯಲ್ಲಿ # ಅಪಾಯಕ್ಕೀಡಾದ ಪಾಸ್‌ವರ್ಡ್‌ಗಳು ಇವೆ}}</translation>
 <translation id="4023638601467301498">ನಿಮ್ಮ ಎಲ್ಲಾ ಸಾಧನಗಳಲ್ಲಿ ನಿಮ್ಮ ಬುಕ್‌ಮಾರ್ಕ್‌ಗಳು ಮತ್ತು ಇತ್ಯಾದಿಗಳನ್ನು ಪಡೆಯಲು, Chrome ಗೆ ಸೈನ್ ಇನ್ ಮಾಡಿ</translation>
 <translation id="4024768890073681126">ನಿಮ್ಮ ಬ್ರೌಸರ್ ಅನ್ನು ನಿಮ್ಮ ಪೋಷಕರು ನಿರ್ವಹಿಸುತ್ತಾರೆ</translation>
@@ -1332,6 +1338,7 @@
 <translation id="6556501700899673703">Lexend</translation>
 <translation id="6560414384669816528">Sogou ಜೊತೆಗೆ ಹುಡುಕಿ</translation>
 <translation id="656065428026159829">ಇನ್ನಷ್ಟು ನೋಡಿ</translation>
+<translation id="6565781844089373403">ವಿಂಡೋಗಳನ್ನು ಮರುಸ್ಥಾಪಿಸಿ</translation>
 <translation id="6565959834589222080">ಲಭ್ಯವಿರುವಾಗ ವೈ-ಫೈ ಅನ್ನು ಬಳಸಲಾಗುತ್ತದೆ</translation>
 <translation id="657177046675873214">ನಿಮ್ಮ ಎಲ್ಲಾ ಸಾಧನಗಳಲ್ಲಿ ನಿಮ್ಮ ಬುಕ್‌ಮಾರ್ಕ್‌ಗಳನ್ನು ಪಡೆಯಲು, ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿ "ಬುಕ್‌ಮಾರ್ಕ್‌ಗಳು" ಎಂಬುದನ್ನು ಆನ್ ಮಾಡಿ</translation>
 <translation id="6573096386450695060">ಯಾವಾಗಲೂ ಅನುಮತಿಸಿ</translation>
@@ -1410,6 +1417,7 @@
 <translation id="6846298663435243399">ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ...</translation>
 <translation id="6850409657436465440">ನಿಮ್ಮ ಡೌನ್‌ಲೋಡ್ ಇನ್ನೂ ಪ್ರಗತಿಯಲ್ಲಿದೆ</translation>
 <translation id="6850830437481525139"><ph name="TAB_COUNT" /> ಟ್ಯಾಬ್‌ಗಳನ್ನು ಮುಚ್ಚಲಾಗಿದೆ</translation>
+<translation id="6852437757508328589">{NUM_RESULTS,plural, =1{1 ಫಲಿತಾಂಶ ಕಂಡುಬಂದಿದೆ}one{# ಫಲಿತಾಂಶಗಳು ಕಂಡುಬಂದಿವೆ}other{# ಫಲಿತಾಂಶಗಳು ಕಂಡುಬಂದಿವೆ}}</translation>
 <translation id="685340923442249391">{FILE_COUNT,plural, =1{ಆಡಿಯೋ ಫೈಲ್‌ಗಳು, ಪಟ್ಟಿಯಲ್ಲಿರುವ 1 ಆಡಿಯೋ ಫೈಲ್}one{ಆಡಿಯೋ ಫೈಲ್‌ಗಳು, ಪಟ್ಟಿಯಲ್ಲಿರುವ # ಆಡಿಯೋ ಫೈಲ್‌ಗಳು}other{ಆಡಿಯೋ ಫೈಲ್‌ಗಳು, ಪಟ್ಟಿಯಲ್ಲಿರುವ # ಆಡಿಯೋ ಫೈಲ್‌ಗಳು}}</translation>
 <translation id="685850645784703949">Google ನಿಂದ Discover - ಆಫ್ ಆಗಿದೆ</translation>
 <translation id="6864459304226931083">ಚಿತ್ರ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ</translation>
@@ -1986,6 +1994,7 @@
 <translation id="9093915805850895575">Chrome ವಿಂಡೋದಲ್ಲಿ ತೆರೆಯಿರಿ</translation>
 <translation id="909756639352028172">ಹೆಚ್ಚು ವೈಯಕ್ತೀಕರಿಸಿದ ಅನುಭವಕ್ಕಾಗಿ ವೆಬ್ ಮತ್ತು ಆ್ಯಪ್ ಚಟುವಟಿಕೆ ಮತ್ತು ಲಿಂಕ್ ಮಾಡಿದ Google ಸೇವೆಗಳಿಗೆ Chrome ಅನ್ನು ಸೇರಿಸಿ</translation>
 <translation id="9099220545925418560">ನಿಮ್ಮ ಬ್ರೌಸಿಂಗ್ ಇತಿಹಾಸವನ್ನು ಆಧರಿಸಿ. ಈ ಸೆಟ್ಟಿಂಗ್ ಆಫ್ ಆಗಿದೆ.</translation>
+<translation id="9099674669267916096">ಪುಟ ಎಣಿಕೆ</translation>
 <translation id="9100610230175265781">ಪಾಸ್‌ಫ್ರೇಸ್ ಅಗತ್ಯವಿದೆ</translation>
 <translation id="9101137867221042551">ನಿರ್ವಹಣೆ</translation>
 <translation id="9102803872260866941">ಪೂರ್ವವೀಕ್ಷಣೆ ಟ್ಯಾಬ್ ತೆರೆದಿದೆ</translation>
@@ -2031,7 +2040,6 @@
 <translation id="939598580284253335">ಪಾಸ್‌ಫ್ರೇಸ್ ಅನ್ನು ನಮೂದಿಸಿ</translation>
 <translation id="94161319503679839"><ph name="TAB_TITLE" />, ಪಿನ್ ಮಾಡಿರುವ ಪಿಕ್ಚರ್-ಇನ್-ಪಿಕ್ಚರ್ ಅಜ್ಞಾತ ಟ್ಯಾಬ್</translation>
 <translation id="945522503751344254">ಪ್ರತಿಕ್ರಿಯೆಯನ್ನು ಕಳುಹಿಸಿ</translation>
-<translation id="949667118776341807">ತಿರುಗಿಸಿ</translation>
 <translation id="95817756606698420">Chrome ಚೀನಾದಲ್ಲಿ ಹುಡುಕಲು <ph name="BEGIN_BOLD" />Sogou<ph name="END_BOLD" /> ಬಳಸಬಹುದು. ನೀವು ಇದನ್ನು <ph name="BEGIN_LINK" />ಸೆಟ್ಟಿಂಗ್‌ಗಳು<ph name="END_LINK" /> ನಲ್ಲಿ ಬದಲಾಯಿಸಬಹುದು.</translation>
 <translation id="961856697154696964">ಬ್ರೌಸಿಂಗ್ ಡೇಟಾವನ್ನು ಅಳಿಸಿ</translation>
 <translation id="963246339335003378">ಟಾಸ್ಕ್‌ ಮ್ಯಾನೇಜರ್‌ ಅನ್ನು ತೆರೆಯಿರಿ</translation>

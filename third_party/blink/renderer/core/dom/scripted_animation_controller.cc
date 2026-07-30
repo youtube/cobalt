@@ -226,9 +226,8 @@ void ScriptedAnimationController::EnqueuePerFrameEvent(Event* event) {
 void ScriptedAnimationController::EnqueueMediaQueryChangeListeners(
     HeapVector<Member<MediaQueryListListener>>& listeners) {
   for (const auto& listener : listeners) {
-    if (!media_query_list_listeners_set_.Contains(listener)) {
+    if (media_query_list_listeners_set_.insert(listener).is_new_entry) {
       media_query_list_listeners_.push_back(listener);
-      media_query_list_listeners_set_.insert(listener);
     }
   }
   DCHECK_EQ(media_query_list_listeners_.size(),

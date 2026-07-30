@@ -36,10 +36,12 @@ public class DoodleCacheUnitTest {
         Bitmap bitmap = Bitmap.createBitmap(/* width= */ 1, /* height= */ 1, Bitmap.Config.ALPHA_8);
         mLogo =
                 new Logo(
-                        bitmap,
+                        /* image= */ bitmap,
+                        /* darkImage= */ Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888),
                         /* onClickUrl= */ null,
                         /* altText= */ null,
-                        /* animatedLogoUrl= */ null);
+                        /* animatedLogoUrl= */ null,
+                        /* darkAnimatedLogoUrl= */ null);
     }
 
     @After
@@ -88,10 +90,12 @@ public class DoodleCacheUnitTest {
                 Bitmap.createBitmap(/* width= */ 1, /* height= */ 1, Bitmap.Config.ARGB_8888);
         Logo logo2 =
                 new Logo(
-                        bitmap2,
+                        /* image= */ bitmap2,
+                        /* darkImage= */ Bitmap.createBitmap(1, 1, Bitmap.Config.ALPHA_8),
                         /* onClickUrl= */ null,
                         /* altText= */ null,
-                        /* animatedLogoUrl= */ null);
+                        /* animatedLogoUrl= */ null,
+                        /* darkAnimatedLogoUrl= */ null);
 
         mDoodleCache.updateCachedDoodle(logo2, keyword);
         assertEquals(logo2, mDoodleCache.getCachedDoodle(keyword));

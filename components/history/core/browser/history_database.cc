@@ -80,8 +80,6 @@ HistoryDatabase::HistoryDatabase(
               // TODO(crbug.com/40159106) Remove this dependency on normal
               // locking mode.
               .set_exclusive_locking(false)
-              // Prime the cache.
-              .set_preload(true)
               // Set the cache size. The page size, plus a little extra, times
               // this value, tells us how much memory the cache will use
               // maximum. 1000 * 4kB = 4MB

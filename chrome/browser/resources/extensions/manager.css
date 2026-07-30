@@ -73,3 +73,17 @@ extensions-item {
 #right {
   flex: 1 1 0;
 }
+
+picture[slot='header-icon'] {
+  display: inline-block;
+  height: 24px;
+  margin-inline-end: 16px;
+  width: 24px;
+}
+
+picture[slot='header-icon'] img {
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+

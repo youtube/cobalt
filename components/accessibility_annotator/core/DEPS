@@ -9,5 +9,13 @@ include_rules = [
   "+components/subscription_eligibility",
   "+components/sync_preferences",
   "+components/sync/protocol",
+  "+net/base/network_change_notifier.h",
   "+sql",
 ]
+
+specific_include_rules = {
+  ".*unittest\\.cc": [
+    "+net/base/mock_network_change_notifier.h",
+  ],
+}
+

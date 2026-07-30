@@ -11,10 +11,17 @@ PRESUBMIT_VERSION = '2.0.0'
 
 
 def CheckPythonTests(input_api, output_api):
+    repo_root = input_api.change.RepositoryRoot()
+    if repo_root not in input_api.sys.path:
+        input_api.sys.path.insert(0, repo_root)
+    # pylint: disable=import-outside-toplevel
+    from agents import presubmit_support
+
     return input_api.RunTests(
         input_api.canned_checks.GetUnitTestsRecursively(
             input_api,
             output_api,
             input_api.PresubmitLocalPath(),
             files_to_check=[r'.+_(?:unit)?test\.py$'],
-            files_to_skip=[]))
+            files_to_skip=[],
+            env=presubmit_support.get_agents_env(input_api)))

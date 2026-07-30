@@ -10,12 +10,14 @@
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ref.h"
+#include "base/memory_coordinator/memory_consumer.h"
 #include "base/memory_coordinator/traits.h"
 #include "content/common/content_export.h"
 #include "content/common/memory_coordinator/memory_coordinator_policy.h"
-#include "content/common/memory_coordinator/memory_coordinator_policy_manager.h"
 
 namespace content {
+
+class MemoryCoordinatorPolicyManager;
 
 // A base class for memory coordinator policies that apply memory limits or
 // release requests to all memory consumers that match a single predicate.
@@ -30,8 +32,7 @@ namespace content {
 // renderers should be capped at 50%") without manually tracking every consumer
 // registration.
 class CONTENT_EXPORT PredicateMemoryCoordinatorPolicy
-    : public MemoryCoordinatorPolicy,
-      public MemoryCoordinatorPolicyManager::Observer {
+    : public MemoryCoordinatorPolicy {
  public:
   using ConsumerPredicate = base::RepeatingCallback<bool(
       uint32_t consumer_id,
@@ -49,7 +50,7 @@ class CONTENT_EXPORT PredicateMemoryCoordinatorPolicy
 
   ~PredicateMemoryCoordinatorPolicy() override;
 
-  // MemoryCoordinatorPolicyManager::Observer:
+  // MemoryCoordinatorPolicy:
   void OnConsumerGroupAdded(uint32_t consumer_id,
                             std::string_view consumer_name,
                             std::optional<base::MemoryConsumerTraits> traits,

@@ -149,7 +149,7 @@ void ServiceVideoCaptureProvider::GetDeviceInfosAsync(
 
 std::unique_ptr<VideoCaptureDeviceLauncher>
 ServiceVideoCaptureProvider::CreateDeviceLauncher() {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::IO);
+  CHECK_CURRENTLY_ON(content::BrowserThread::IO, base::NotFatalUntil::M152);
   return std::make_unique<ServiceVideoCaptureDeviceLauncher>(
       base::BindRepeating(
           &ServiceVideoCaptureProvider::OnLauncherConnectingToSourceProvider,
@@ -182,7 +182,7 @@ void ServiceVideoCaptureProvider::GetApplicationAudioCaptureId(
 #endif
 
 void ServiceVideoCaptureProvider::OnServiceStarted() {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::IO);
+  CHECK_CURRENTLY_ON(content::BrowserThread::IO, base::NotFatalUntil::M152);
   // Whenever the video capture service starts, we register a
   // VirtualVideoCaptureDevicesChangedObserver in order to propagate device
   // change events when virtual devices are added to or removed from the
@@ -198,7 +198,7 @@ void ServiceVideoCaptureProvider::OnServiceStarted() {
 }
 
 void ServiceVideoCaptureProvider::OnServiceStopped() {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::IO);
+  CHECK_CURRENTLY_ON(content::BrowserThread::IO, base::NotFatalUntil::M152);
   if (!get_device_infos_pending_callbacks_.empty()) {
     // The service stopped during a device info query.
     TRACE_EVENT_INSTANT0(
@@ -211,19 +211,19 @@ void ServiceVideoCaptureProvider::OnServiceStopped() {
 
 void ServiceVideoCaptureProvider::OnLauncherConnectingToSourceProvider(
     scoped_refptr<RefCountedVideoSourceProvider>* out_provider) {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::IO);
+  CHECK_CURRENTLY_ON(content::BrowserThread::IO, base::NotFatalUntil::M152);
   launcher_has_connected_to_source_provider_ = true;
   *out_provider = LazyConnectToService();
 }
 
 void ServiceVideoCaptureProvider::RegisterWithGpuDataManager() {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::IO);
+  CHECK_CURRENTLY_ON(content::BrowserThread::IO, base::NotFatalUntil::M152);
   content::GpuDataManager::GetInstance()->AddObserver(this);
 }
 
 scoped_refptr<RefCountedVideoSourceProvider>
 ServiceVideoCaptureProvider::LazyConnectToService() {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::IO);
+  CHECK_CURRENTLY_ON(content::BrowserThread::IO, base::NotFatalUntil::M152);
 
   if (weak_service_connection_) {
     // There already is a connection.
@@ -269,7 +269,7 @@ ServiceVideoCaptureProvider::LazyConnectToService() {
 }
 
 void ServiceVideoCaptureProvider::GetDeviceInfosAsyncForRetry() {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::IO);
+  CHECK_CURRENTLY_ON(content::BrowserThread::IO, base::NotFatalUntil::M152);
   auto service_connection = LazyConnectToService();
   // Make sure that the callback gets invoked with an empty result in case
   // that the service drops the request.
@@ -286,7 +286,7 @@ void ServiceVideoCaptureProvider::OnDeviceInfosReceived(
     scoped_refptr<RefCountedVideoSourceProvider> service_connection,
     GetSourceInfosResult result,
     const std::vector<media::VideoCaptureDeviceInfo>& infos) {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::IO);
+  CHECK_CURRENTLY_ON(content::BrowserThread::IO, base::NotFatalUntil::M152);
   for (GetDeviceInfosCallback& callback : get_device_infos_pending_callbacks_) {
     media::mojom::DeviceEnumerationResult callback_result;
     switch (result) {
@@ -307,7 +307,7 @@ void ServiceVideoCaptureProvider::OnDeviceInfosReceived(
 
 void ServiceVideoCaptureProvider::OnDeviceInfosRequestDropped(
     scoped_refptr<RefCountedVideoSourceProvider> service_connection) {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::IO);
+  CHECK_CURRENTLY_ON(content::BrowserThread::IO, base::NotFatalUntil::M152);
   // After too many retries, we just return an empty list
   for (GetDeviceInfosCallback& callback : get_device_infos_pending_callbacks_) {
     std::move(callback).Run(
@@ -318,7 +318,7 @@ void ServiceVideoCaptureProvider::OnDeviceInfosRequestDropped(
 }
 
 void ServiceVideoCaptureProvider::OnLostConnectionToSourceProvider() {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::IO);
+  CHECK_CURRENTLY_ON(content::BrowserThread::IO, base::NotFatalUntil::M152);
   emit_log_message_cb_.Run(
       "ServiceVideoCaptureProvider::OnLostConnectionToSourceProvider");
   // This may indicate that the video capture service has crashed. Uninitialize
@@ -329,13 +329,13 @@ void ServiceVideoCaptureProvider::OnLostConnectionToSourceProvider() {
 
 void ServiceVideoCaptureProvider::OnServiceConnectionClosed(
     ReasonForDisconnect reason) {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::IO);
+  CHECK_CURRENTLY_ON(content::BrowserThread::IO, base::NotFatalUntil::M152);
 
   time_of_last_uninitialize_ = base::TimeTicks::Now();
 }
 
 void ServiceVideoCaptureProvider::OnGpuInfoUpdate() {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::IO);
+  CHECK_CURRENTLY_ON(content::BrowserThread::IO, base::NotFatalUntil::M152);
   if (!weak_service_connection_) {
     // Only need to notify the service if it's already running.
     return;

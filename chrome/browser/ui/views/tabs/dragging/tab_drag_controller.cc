@@ -353,8 +353,7 @@ const int TabDragController::kTouchVerticalDetachMagnetism = 50;
 const int TabDragController::kVerticalDetachMagnetism = 15;
 
 TabDragController::TabDragController()
-    : current_state_(DragState::kNotStarted),
-      source_context_(nullptr),
+    : source_context_(nullptr),
       attached_context_(nullptr),
       can_release_capture_(true),
       old_focused_view_tracker_(std::make_unique<views::ViewTracker>()),
@@ -1839,7 +1838,7 @@ std::vector<TabSlotView*> TabDragController::GetViewsMatchingDraggedContents(
     // compatible with `TabDragController`, rather than relying on the tab
     // selection model to achieve expected behavior. As is, this is incompatible
     // with the vertical tab strip because the split tabs are contained within
-    // a single dedicated `VerticalSplitTabView`.
+    // a single dedicated `SplitTabView`.
     if (tab_drag_datum.view_type == TabSlotView::ViewType::kTab) {
       TabSlotView* tab_view =
           context->GetTabForContents(tab_drag_datum.contents);

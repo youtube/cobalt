@@ -371,10 +371,6 @@ void AppServiceProxyAsh::LaunchAppWithIntent(const std::string& app_id,
   }
 }
 
-base::WeakPtr<AppServiceProxyAsh> AppServiceProxyAsh::GetWeakPtr() {
-  return weak_ptr_factory_.GetWeakPtr();
-}
-
 void AppServiceProxyAsh::ReInitializeCrostiniForTesting() {
   if (publisher_host_) {
     publisher_host_->ReInitializeCrostiniForTesting();  // IN-TEST

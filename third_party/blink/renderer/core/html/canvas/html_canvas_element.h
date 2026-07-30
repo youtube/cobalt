@@ -195,7 +195,7 @@ class CORE_EXPORT HTMLCanvasElement final
   HTMLCanvasAccessibilityManager* GetAccessibilityManagerForTesting() {
     return accessibility_manager_.Get();
   }
-  bool GetNeedsAccessibilitySupportHeuristic();
+
   void ClearCanvas2DLayerTexture() override;
 
   void SetNeedsPushProperties();
@@ -274,13 +274,17 @@ class CORE_EXPORT HTMLCanvasElement final
   void SetOffscreenCanvasResource(
       scoped_refptr<ExportedCanvasResource>&&) override;
 
+  // Accessibility support related functions.
+  void OnAxObjectIgnoredStateChanged(bool is_ignored);
+  bool GetNeedsAccessibilitySupportHeuristic();
+  void EnsureAccessibilityManager();
   void RecordRenderedText(const String& text,
                           const gfx::RectF& bounds,
                           float font_height) override;
   void ClearRenderedText(const gfx::RectF& rect) override;
   void ClearRenderedText() override;
-  void UpdateCaptureRenderedText();
-
+  void UpdateCaptureRenderedText(bool capture);
+  bool ShouldCaptureRenderedText() override;
   String CanvasAnnotation() const;
 
   void Trace(Visitor*) const override;
@@ -378,9 +382,6 @@ class CORE_EXPORT HTMLCanvasElement final
       ExceptionState& exception_state) const;
 
   ElementImage* captureElementImage(Element* element, ExceptionState&);
-
-  // Called when AxObject is created or its ignored state is changed.
-  void OnAxObjectIgnoredStateChanged(bool is_ignored);
 
  protected:
   void DidMoveToNewDocument(Document& old_document) override;

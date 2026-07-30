@@ -39,7 +39,6 @@
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
-#include "base/strings/stringprintf.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/strings/to_string.h"
 #include "base/strings/utf_string_conversions.h"
@@ -94,6 +93,7 @@
 #include "components/crx_file/crx_verifier.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/strings/str_format.h"
 #include "url/gurl.h"
 
 namespace updater::test {
@@ -624,7 +624,7 @@ void RunOfflineInstallWithManifest(UpdaterScope scope,
 
     std::vector<std::string> commands;
     for (const auto& reg_item : reg_items) {
-      commands.push_back(base::StringPrintf(
+      commands.push_back(absl::StrFormat(
           "REG.exe ADD \"%s\\%s\" /v %s /t %s /d %s /f /reg:32",
           reg_hive.c_str(), reg_item.subkey.c_str(), reg_item.value_name,
           reg_item.type,
@@ -663,7 +663,7 @@ void RunOfflineInstallWithManifest(UpdaterScope scope,
     </data>
   </app>
 </response>)";
-  const std::string manifest = base::StringPrintf(
+  const std::string manifest = absl::StrFormat(
       kManifestFormat, platform.c_str(), kTestAppID, /*pv=*/"",
       kAppInstallerName, app_installer_size.value(), kAppInstallerName);
   EXPECT_TRUE(base::WriteFile(manifest_path, manifest));
@@ -1326,7 +1326,7 @@ HRESULT DoUpdate(UpdaterScope scope,
         state->get_totalBytesToDownload(&total_bytes_to_download);
         LONG download_time_remaining_ms = 0;
         state->get_downloadTimeRemainingMs(&download_time_remaining_ms);
-        extra_data = base::UTF8ToWide(base::StringPrintf(
+        extra_data = base::UTF8ToWide(absl::StrFormat(
             "[Bytes downloaded: %lu][Bytes total: %lu][Time remaining: %ld]",
             bytes_downloaded, total_bytes_to_download,
             download_time_remaining_ms));
@@ -1348,8 +1348,8 @@ HRESULT DoUpdate(UpdaterScope scope,
         ULONG total_bytes_to_download = 0;
         state->get_totalBytesToDownload(&total_bytes_to_download);
         extra_data = base::UTF8ToWide(
-            base::StringPrintf("[Bytes downloaded: %lu][Bytes total: %lu]",
-                               bytes_downloaded, total_bytes_to_download));
+            absl::StrFormat("[Bytes downloaded: %lu][Bytes total: %lu]",
+                            bytes_downloaded, total_bytes_to_download));
         EXPECT_HRESULT_SUCCEEDED(bundle->install());
         break;
       }
@@ -1362,8 +1362,8 @@ HRESULT DoUpdate(UpdaterScope scope,
         LONG install_time_remaining_ms = 0;
         state->get_installTimeRemainingMs(&install_time_remaining_ms);
         extra_data = base::UTF8ToWide(
-            base::StringPrintf("[Install Progress: %ld][Time remaining: %ld]",
-                               install_progress, install_time_remaining_ms));
+            absl::StrFormat("[Install Progress: %ld][Time remaining: %ld]",
+                            install_progress, install_time_remaining_ms));
         break;
       }
 
@@ -1387,7 +1387,7 @@ HRESULT DoUpdate(UpdaterScope scope,
         LONG installer_result_code = 0;
         EXPECT_HRESULT_SUCCEEDED(
             state->get_installerResultCode(&installer_result_code));
-        extra_data = base::UTF8ToWide(base::StringPrintf(
+        extra_data = base::UTF8ToWide(absl::StrFormat(
             "[errorCode: %ld][completionMessage: %ls][installerResultCode: "
             "%ld]",
             error_code, completion_message.Get(), installer_result_code));
@@ -2185,7 +2185,7 @@ void RunMockOfflineMetaInstall(UpdaterScope scope,
   const base::FilePath manifest_path =
       temp_dir.GetPath().Append(L"OfflineManifest.gup");
   ASSERT_TRUE(base::WriteFile(
-      manifest_path, base::StringPrintf(
+      manifest_path, absl::StrFormat(
                          R"(<?xml version="1.0" encoding="UTF-8"?>
 <response protocol="3.0">
   <systemrequirements platform="%s"/>
@@ -2238,7 +2238,7 @@ void SetPlatformPolicies(const base::DictValue& values) {
     ASSERT_TRUE(policies.is_dict());
     for (const auto [name, value] : policies.GetDict()) {
       const std::wstring& key = base::UTF8ToWide(
-          base::StringPrintf("%s%s", name.c_str(), app_id.c_str()));
+          absl::StrFormat("%s%s", name.c_str(), app_id.c_str()));
       if (value.is_string()) {
         policy_key.WriteValue(key.c_str(),
                               base::UTF8ToWide(value.GetString()).c_str());

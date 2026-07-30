@@ -130,7 +130,6 @@ ScrollTimeline::TimelineState ScrollTimeline::ComputeTimelineState() const {
   // Timeline is inactive unless the scroll offset range is positive.
   // github.com/w3c/csswg-drafts/issues/7401
   if (state.scroll_offsets->end - state.scroll_offsets->start > 0) {
-    state.phase = TimelinePhase::kActive;
     double offset = current_offset - state.scroll_offsets->start;
     double range = state.scroll_offsets->end - state.scroll_offsets->start;
     double duration_in_microseconds =

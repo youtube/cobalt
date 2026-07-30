@@ -61,6 +61,7 @@
 #include "content/browser/attribution_reporting/test/mock_attribution_manager.h"
 #include "content/browser/code_cache/generated_code_cache.h"
 #include "content/browser/code_cache/generated_code_cache_context.h"
+#include "content/browser/declarative_performance_observer/declarative_performance_observer_store.h"
 #include "content/browser/gpu/gpu_disk_cache_factory.h"
 #include "content/browser/interest_group/interest_group_manager_impl.h"
 #include "content/browser/interest_group/interest_group_permissions_cache.h"
@@ -788,7 +789,8 @@ class StoragePartitionImplTest : public testing::Test {
       bool is_local_storage_sqlite_enabled = false) {
     std::vector<base::test::FeatureRef> enabled_features{
         network::features::kInterestGroupStorage,
-        network::features::kSharedStorageAPI};
+        network::features::kSharedStorageAPI,
+        network::features::kDeclarativePerformanceObserver};
     std::vector<base::test::FeatureRef> disabled_features;
     if (is_local_storage_sqlite_enabled) {
       enabled_features.push_back(storage::kDomStorageSqlite);
@@ -2785,6 +2787,163 @@ TEST_F(StoragePartitionImplTest, GetPartitionUuidForOrigin) {
       partition2->GetPartitionUUIDPerStorageKey(kStorageKey1);
   EXPECT_TRUE(!uuid4.is_empty());
   EXPECT_NE(uuid1, uuid4);
+}
+
+TEST_F(StoragePartitionImplTest, RemoveDeclarativePerformanceObserverData) {
+  StoragePartitionImpl* partition = static_cast<StoragePartitionImpl*>(
+      browser_context()->GetDefaultStoragePartition());
+
+  DeclarativePerformanceObserverStore* store =
+      partition->GetDeclarativePerformanceObserverStore();
+  ASSERT_TRUE(store);
+
+  const url::Origin kOrigin = url::Origin::Create(GURL("https://example.com"));
+  const url::Origin kOtherOrigin =
+      url::Origin::Create(GURL("https://example.net"));
+
+  // Populate data in the store:
+  {
+    base::RunLoop run_loop;
+    store->SetEarlyFailurePolicy(kOrigin, true, run_loop.QuitClosure());
+    run_loop.Run();
+  }
+  {
+    base::RunLoop run_loop;
+    store->SetEarlyFailurePolicy(kOtherOrigin, true, run_loop.QuitClosure());
+    run_loop.Run();
+  }
+
+  base::DictValue sample;
+  sample.Set("entryType", "navigation");
+  {
+    base::RunLoop run_loop;
+    store->StoreEarlyFailureReport(kOrigin, sample.Clone(),
+                                   run_loop.QuitClosure());
+    run_loop.Run();
+  }
+  {
+    base::RunLoop run_loop;
+    store->StoreEarlyFailureReport(kOtherOrigin, sample.Clone(),
+                                   run_loop.QuitClosure());
+    run_loop.Run();
+  }
+
+  EXPECT_TRUE(store->HasEarlyFailurePolicy(kOrigin));
+  EXPECT_TRUE(store->HasEarlyFailurePolicy(kOtherOrigin));
+
+  // 1. Clear data for a specific origin with the correct mask:
+  {
+    base::RunLoop run_loop;
+    partition->ClearData(
+        StoragePartition::REMOVE_DATA_MASK_DECLARATIVE_PERFORMANCE_OBSERVER,
+        blink::StorageKey::CreateFirstParty(kOrigin), base::Time(),
+        base::Time::Max(), run_loop.QuitClosure());
+    run_loop.Run();
+  }
+
+  // kOrigin data should be cleared:
+  EXPECT_FALSE(store->HasEarlyFailurePolicy(kOrigin));
+  {
+    base::ListValue reports;
+    base::RunLoop run_loop;
+    store->TakeEarlyFailureReports(
+        kOrigin, base::BindOnce(
+                     [](base::ListValue* out, base::OnceClosure quit,
+                        base::ListValue res) {
+                       *out = std::move(res);
+                       std::move(quit).Run();
+                     },
+                     &reports, run_loop.QuitClosure()));
+    run_loop.Run();
+    EXPECT_TRUE(reports.empty());
+  }
+
+  // kOtherOrigin data should still be present:
+  EXPECT_TRUE(store->HasEarlyFailurePolicy(kOtherOrigin));
+  {
+    base::ListValue reports;
+    base::RunLoop run_loop;
+    store->TakeEarlyFailureReports(
+        kOtherOrigin, base::BindOnce(
+                          [](base::ListValue* out, base::OnceClosure quit,
+                             base::ListValue res) {
+                            *out = std::move(res);
+                            std::move(quit).Run();
+                          },
+                          &reports, run_loop.QuitClosure()));
+    run_loop.Run();
+    EXPECT_EQ(reports.size(), 1u);
+  }
+
+  // 2. Clear data with a wrong mask (should not delete anything):
+  {
+    // Re-populate kOrigin:
+    base::RunLoop run_loop;
+    store->SetEarlyFailurePolicy(kOrigin, true, run_loop.QuitClosure());
+    run_loop.Run();
+  }
+  EXPECT_TRUE(store->HasEarlyFailurePolicy(kOrigin));
+
+  {
+    base::RunLoop run_loop;
+    partition->ClearData(
+        StoragePartition::REMOVE_DATA_MASK_COOKIES,  // Wrong mask
+        blink::StorageKey::CreateFirstParty(kOrigin), base::Time(),
+        base::Time::Max(), run_loop.QuitClosure());
+    run_loop.Run();
+  }
+
+  // Data should still be present because of wrong mask:
+  EXPECT_TRUE(store->HasEarlyFailurePolicy(kOrigin));
+
+  // 3. Clear data with a filter (should selectively clear matching origin):
+  {
+    // Re-populate both:
+    base::RunLoop run_loop1;
+    store->SetEarlyFailurePolicy(kOrigin, true, run_loop1.QuitClosure());
+    run_loop1.Run();
+
+    base::RunLoop run_loop2;
+    store->SetEarlyFailurePolicy(kOtherOrigin, true, run_loop2.QuitClosure());
+    run_loop2.Run();
+  }
+  EXPECT_TRUE(store->HasEarlyFailurePolicy(kOrigin));
+  EXPECT_TRUE(store->HasEarlyFailurePolicy(kOtherOrigin));
+
+  {
+    std::unique_ptr<BrowsingDataFilterBuilder> filter_builder =
+        BrowsingDataFilterBuilder::Create(
+            BrowsingDataFilterBuilder::Mode::kDelete);
+    filter_builder->AddOrigin(kOrigin);
+
+    base::RunLoop run_loop;
+    partition->ClearData(
+        StoragePartition::REMOVE_DATA_MASK_DECLARATIVE_PERFORMANCE_OBSERVER,
+        filter_builder.get(),
+        StoragePartition::StorageKeyPolicyMatcherFunction(),
+        network::mojom::CookieDeletionFilter::New(),
+        /*perform_storage_cleanup=*/false, base::Time(), base::Time::Max(),
+        run_loop.QuitClosure());
+    run_loop.Run();
+  }
+
+  // kOrigin should be cleared, but kOtherOrigin should remain:
+  EXPECT_FALSE(store->HasEarlyFailurePolicy(kOrigin));
+  EXPECT_TRUE(store->HasEarlyFailurePolicy(kOtherOrigin));
+
+  // 4. Clear all data (empty/opaque storage key) with the correct mask:
+  {
+    base::RunLoop run_loop;
+    partition->ClearData(
+        StoragePartition::REMOVE_DATA_MASK_DECLARATIVE_PERFORMANCE_OBSERVER,
+        blink::StorageKey(), base::Time(), base::Time::Max(),
+        run_loop.QuitClosure());
+    run_loop.Run();
+  }
+
+  // All data should be cleared:
+  EXPECT_FALSE(store->HasEarlyFailurePolicy(kOrigin));
+  EXPECT_FALSE(store->HasEarlyFailurePolicy(kOtherOrigin));
 }
 
 }  // namespace content

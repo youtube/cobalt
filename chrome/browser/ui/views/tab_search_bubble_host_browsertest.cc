@@ -7,6 +7,9 @@
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
+#include "chrome/browser/themes/test/theme_service_changed_waiter.h"
+#include "chrome/browser/themes/theme_service.h"
+#include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
@@ -15,12 +18,16 @@
 #include "chrome/browser/ui/views/bubble/webui_bubble_manager.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/webui/tab_search/tab_search_prefs.h"
+#include "chrome/browser/ui/webui/top_chrome/webui_contents_preload_manager.h"
+#include "chrome/browser/ui/webui/top_chrome/webui_contents_preload_manager_test_api.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/prefs/pref_service.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "ui/base/accelerators/accelerator.h"
 #include "ui/gfx/geometry/rect.h"
+#include "ui/views/bubble/bubble_frame_view.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "chromeos/ui/frame/multitask_menu/multitask_menu_nudge_controller.h"
@@ -87,6 +94,34 @@ IN_PROC_BROWSER_TEST_F(TabSearchBubbleHostBrowserTest,
 
   tab_search_bubble_host()->CloseTabSearchBubble();
   RunUntilBubbleWidgetDestroyed();
+}
+
+IN_PROC_BROWSER_TEST_F(TabSearchBubbleHostBrowserTest,
+                       BubbleBackgroundColorMatchesBrowserTheme) {
+  // Set up browser theme
+  ThemeService* theme_service =
+      ThemeServiceFactory::GetForProfile(browser()->profile());
+  test::ThemeServiceChangedWaiter waiter(theme_service);
+  theme_service->SetUserColor(SK_ColorGREEN);
+  waiter.WaitForThemeChanged();
+
+  // Force preload Tab Search immediately using the Test API
+  WebUIContentsPreloadManagerTestAPI test_api;
+  test_api.PreloadUrl(browser()->profile(),
+                      GURL(chrome::kChromeUITabSearchURL));
+
+  auto* preload_manager = WebUIContentsPreloadManager::GetInstance();
+  SkColor expected_color =
+      browser_view()->GetColorProvider()->GetColor(ui::kColorBubbleBackground);
+
+  // Verify that the preloaded WebContents gets the correct theme color
+  // in the background *before* the bubble is shown on screen.
+  content::WebContents* preloaded_contents =
+      preload_manager->preloaded_web_contents();
+  ASSERT_TRUE(preloaded_contents);
+  EXPECT_EQ(preloaded_contents->GetColorProvider().GetColor(
+                ui::kColorBubbleBackground),
+            expected_color);
 }
 
 // On macOS, most accelerators are handled by CommandDispatcher.

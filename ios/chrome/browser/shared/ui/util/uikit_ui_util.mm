@@ -503,8 +503,6 @@ CGFloat RemainingScrollDistanceToBottom(UIScrollView* scroll_view) {
 }
 
 CGFloat DeviceCornerRadius() {
-  UIUserInterfaceIdiom idiom = [[UIDevice currentDevice] userInterfaceIdiom];
-
   UIWindow* window = nil;
   for (UIScene* scene in UIApplication.sharedApplication.connectedScenes) {
     UIWindowScene* windowScene =
@@ -517,12 +515,14 @@ CGFloat DeviceCornerRadius() {
   }
 
   // Estimated iPhone rounded corners radii.
-  if (window.safeAreaInsets.bottom && idiom == UIUserInterfaceIdiomPhone) {
+  if (window.safeAreaInsets.bottom &&
+      ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_PHONE) {
     return 50.0;
   }
 
   // Estimated iPad rounded corners radii.
-  if (window.safeAreaInsets.bottom && idiom == UIUserInterfaceIdiomPad) {
+  if (window.safeAreaInsets.bottom &&
+      ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
     return 18.0;
   }
 

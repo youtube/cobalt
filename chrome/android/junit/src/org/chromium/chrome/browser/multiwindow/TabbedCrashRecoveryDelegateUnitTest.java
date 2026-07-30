@@ -14,7 +14,6 @@ import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -431,10 +430,34 @@ public class TabbedCrashRecoveryDelegateUnitTest {
     }
 
     @Test
-    public void testRestoreWindows_restoresVisibleWindowsInNewTasks() {
+    public void
+            testMaybeShowCrashRecoveryDialog_allOtherWindowsHaveLiveTasksInMultiWindow_triggersDialog() {
+        // Setup.
+        when(mHostActivity.isInMultiWindowMode()).thenReturn(true);
+        setupOtherCrashedWindows(
+                /* numNonVisibleWindows= */ 1,
+                /* numDefaultDisplayWindows= */ 1,
+                /* numNonDefaultDisplayWindows= */ 0);
+        setupPreRecoveryAppTasks(0, 1, 2);
+        writeCrashExitReasonToPrefs();
+
+        // Act.
+        mDelegate.initializeCrashRecoveryMetadata();
+        boolean shown =
+                mDelegate.maybeShowCrashRecoveryDialog(mModalDialogManagerSupplier, mHostActivity);
+
+        // Verify.
+        assertTrue(shown);
+        verify(mModalDialogManager).showDialog(any(), anyInt());
+        assertTrue(ChromeMultiInstancePersistentStore.readIsRecoverable(1));
+        assertTrue(ChromeMultiInstancePersistentStore.readIsRecoverable(2));
+    }
+
+    @Test
+    public void testRestoreWindows_restoresWindowsInNewTasks() {
         // Setup.
         setupOtherCrashedWindows(
-                /* numNonVisibleWindows= */ 0,
+                /* numNonVisibleWindows= */ 1,
                 /* numDefaultDisplayWindows= */ 1,
                 /* numNonDefaultDisplayWindows= */ 1);
         setupPreRecoveryAppTasks(0);
@@ -446,107 +469,102 @@ public class TabbedCrashRecoveryDelegateUnitTest {
         // Verify.
         ArgumentCaptor<Intent> intentCaptor1 = ArgumentCaptor.forClass(Intent.class);
         ArgumentCaptor<Intent> intentCaptor2 = ArgumentCaptor.forClass(Intent.class);
+        ArgumentCaptor<Intent> intentCaptor3 = ArgumentCaptor.forClass(Intent.class);
 
         InOrder inOrderVerifier = inOrder(mHostActivity);
 
-        // Verify: Window from default display is restored.
+        // Verify: Non-visible window is restored first.
         inOrderVerifier.verify(mHostActivity).startActivity(intentCaptor1.capture());
         Intent intent1 = intentCaptor1.getValue();
-        assertNotNull(intent1);
         assertEquals(1, intent1.getIntExtra(IntentHandler.EXTRA_WINDOW_ID, -1));
         assertEquals(
                 NewWindowAppSource.CRASH_RECOVERY,
                 intent1.getIntExtra(IntentHandler.EXTRA_NEW_WINDOW_APP_SOURCE, -1));
         assertFalse(ChromeMultiInstancePersistentStore.readIsRecoverable(1));
 
-        // Verify: Window from non-default display is restored.
+        // Verify: Window from default display is restored.
         inOrderVerifier.verify(mHostActivity).startActivity(intentCaptor2.capture());
         Intent intent2 = intentCaptor2.getValue();
-        assertNotNull(intent2);
         assertEquals(2, intent2.getIntExtra(IntentHandler.EXTRA_WINDOW_ID, -1));
         assertEquals(
                 NewWindowAppSource.CRASH_RECOVERY,
                 intent2.getIntExtra(IntentHandler.EXTRA_NEW_WINDOW_APP_SOURCE, -1));
         assertFalse(ChromeMultiInstancePersistentStore.readIsRecoverable(2));
+
+        // Verify: Window from non-default display is restored.
+        inOrderVerifier.verify(mHostActivity).startActivity(intentCaptor3.capture());
+        Intent intent3 = intentCaptor3.getValue();
+        assertEquals(3, intent3.getIntExtra(IntentHandler.EXTRA_WINDOW_ID, -1));
+        assertEquals(
+                NewWindowAppSource.CRASH_RECOVERY,
+                intent3.getIntExtra(IntentHandler.EXTRA_NEW_WINDOW_APP_SOURCE, -1));
+        assertFalse(ChromeMultiInstancePersistentStore.readIsRecoverable(3));
     }
 
     @Test
-    public void testRestoreWindows_finishesOrphanedTask() {
+    public void testRestoreWindows_finishesOrphanedTask_hostWindowInMultiWindowMode() {
         // Setup.
-        setupOtherCrashedWindows(
-                /* numNonVisibleWindows= */ 0,
-                /* numDefaultDisplayWindows= */ 2,
-                /* numNonDefaultDisplayWindows= */ 0);
-        // Setup: windowId=2 has a task that sustained a crash.
-        setupPreRecoveryAppTasks(0, 2);
-        setupAndShowCrashRecoveryDialog();
-
-        // Act.
-        mDelegate.restoreWindows(mHostActivity);
-
-        // Verify.
-        AppTask liveTask = mPreRecoveryAppTasks.get(1);
-        verify(liveTask).finishAndRemoveTask();
-
-        ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
-        verify(mHostActivity, times(2)).startActivity(intentCaptor.capture());
-
-        List<Intent> intents = intentCaptor.getAllValues();
-        assertNotNull(intents.get(0));
-        assertEquals(1, intents.get(0).getIntExtra(IntentHandler.EXTRA_WINDOW_ID, -1));
-        assertEquals(
-                NewWindowAppSource.CRASH_RECOVERY,
-                intents.get(0).getIntExtra(IntentHandler.EXTRA_NEW_WINDOW_APP_SOURCE, -1));
-        assertNotNull(intents.get(1));
-        assertEquals(2, intents.get(1).getIntExtra(IntentHandler.EXTRA_WINDOW_ID, -1));
-        assertEquals(
-                NewWindowAppSource.CRASH_RECOVERY,
-                intents.get(1).getIntExtra(IntentHandler.EXTRA_NEW_WINDOW_APP_SOURCE, -1));
-
-        assertFalse(ChromeMultiInstancePersistentStore.readIsRecoverable(1));
-        assertFalse(ChromeMultiInstancePersistentStore.readIsRecoverable(2));
-    }
-
-    @Test
-    public void testRestoreWindows_restoresNonVisibleWindowInNewTask() {
-        // Setup.
+        when(mHostActivity.isInMultiWindowMode()).thenReturn(true);
         setupOtherCrashedWindows(
                 /* numNonVisibleWindows= */ 1,
-                /* numDefaultDisplayWindows= */ 1,
+                /* numDefaultDisplayWindows= */ 2,
                 /* numNonDefaultDisplayWindows= */ 0);
-        setupPreRecoveryAppTasks(0);
+        // Setup: Non-visible window with windowId=1 and visible window with windowId=3 have tasks
+        // that sustained a crash.
+        setupPreRecoveryAppTasks(0, 1, 3);
         setupAndShowCrashRecoveryDialog();
 
         // Act.
         mDelegate.restoreWindows(mHostActivity);
 
         // Verify.
+        AppTask liveTask1 = mPreRecoveryAppTasks.get(1);
+        AppTask liveTask3 = mPreRecoveryAppTasks.get(2);
+
         ArgumentCaptor<Intent> intentCaptor1 = ArgumentCaptor.forClass(Intent.class);
         ArgumentCaptor<Intent> intentCaptor2 = ArgumentCaptor.forClass(Intent.class);
+        ArgumentCaptor<Intent> intentCaptor3 = ArgumentCaptor.forClass(Intent.class);
 
-        InOrder inOrderVerifier = inOrder(mHostActivity);
+        InOrder inOrderVerifier = inOrder(mHostActivity, liveTask1, liveTask3);
 
-        // Verify: Non-visible window is restored without launch bounds bundle.
+        // Verify: Non-visible window (windowId=1) task is finished and then restored.
+        inOrderVerifier.verify(liveTask1).finishAndRemoveTask();
         inOrderVerifier.verify(mHostActivity).startActivity(intentCaptor1.capture());
-        Intent intent1 = intentCaptor1.getValue();
-        assertNotNull(intent1);
-        assertEquals(1, intent1.getIntExtra(IntentHandler.EXTRA_WINDOW_ID, -1));
+        assertEquals(1, intentCaptor1.getValue().getIntExtra(IntentHandler.EXTRA_WINDOW_ID, -1));
         assertEquals(
                 NewWindowAppSource.CRASH_RECOVERY,
-                intent1.getIntExtra(IntentHandler.EXTRA_NEW_WINDOW_APP_SOURCE, -1));
-        assertFalse(ChromeMultiInstancePersistentStore.readIsRecoverable(1));
+                intentCaptor1
+                        .getValue()
+                        .getIntExtra(IntentHandler.EXTRA_NEW_WINDOW_APP_SOURCE, -1));
 
-        // Verify: Visible window is restored with bundle.
+        // Verify: Visible window (windowId=2) is restored (no task to finish).
         inOrderVerifier.verify(mHostActivity).startActivity(intentCaptor2.capture());
-        Intent intent2 = intentCaptor2.getValue();
-        assertNotNull(intent2);
-        assertEquals(2, intent2.getIntExtra(IntentHandler.EXTRA_WINDOW_ID, -1));
+        assertEquals(2, intentCaptor2.getValue().getIntExtra(IntentHandler.EXTRA_WINDOW_ID, -1));
+        assertEquals(
+                NewWindowAppSource.CRASH_RECOVERY,
+                intentCaptor2
+                        .getValue()
+                        .getIntExtra(IntentHandler.EXTRA_NEW_WINDOW_APP_SOURCE, -1));
+
+        // Verify: Visible window (windowId=3) task is finished and then restored.
+        inOrderVerifier.verify(liveTask3).finishAndRemoveTask();
+        inOrderVerifier.verify(mHostActivity).startActivity(intentCaptor3.capture());
+        assertEquals(3, intentCaptor3.getValue().getIntExtra(IntentHandler.EXTRA_WINDOW_ID, -1));
+        assertEquals(
+                NewWindowAppSource.CRASH_RECOVERY,
+                intentCaptor3
+                        .getValue()
+                        .getIntExtra(IntentHandler.EXTRA_NEW_WINDOW_APP_SOURCE, -1));
+
+        assertFalse(ChromeMultiInstancePersistentStore.readIsRecoverable(1));
         assertFalse(ChromeMultiInstancePersistentStore.readIsRecoverable(2));
+        assertFalse(ChromeMultiInstancePersistentStore.readIsRecoverable(3));
     }
 
     @Test
-    public void testRestoreWindows_skipsNonVisibleWindowWithLiveTask() {
+    public void testRestoreWindows_skipsWindowWithLiveTask_hostWindowNotInMultiWindowMode() {
         // Setup.
+        when(mHostActivity.isInMultiWindowMode()).thenReturn(false);
         setupOtherCrashedWindows(
                 /* numNonVisibleWindows= */ 1,
                 /* numDefaultDisplayWindows= */ 1,
@@ -564,7 +582,8 @@ public class TabbedCrashRecoveryDelegateUnitTest {
         // Act.
         mDelegate.restoreWindows(mHostActivity);
 
-        // Verify: The live task for the non-visible window should not be finished.
+        // Verify: The live task for the non-visible window should not be finished when host window
+        // is launched in non-multi window mode.
         AppTask liveTask = mPreRecoveryAppTasks.get(1);
         verify(liveTask, never()).finishAndRemoveTask();
 
@@ -668,9 +687,9 @@ public class TabbedCrashRecoveryDelegateUnitTest {
         assertEquals(
                 mHostActivity.getString(R.string.crash_recovery_dialog_message),
                 model.get(ModalDialogProperties.MESSAGE_PARAGRAPH_1));
-        verify(mResources)
-                .getQuantityString(
-                        eq(R.plurals.crash_recovery_dialog_positive_button_text), eq(2), eq(2));
+        assertEquals(
+                mHostActivity.getString(R.string.crash_recovery_dialog_positive_button_text),
+                model.get(ModalDialogProperties.POSITIVE_BUTTON_TEXT));
 
         userActionTester.tearDown();
     }
@@ -696,9 +715,9 @@ public class TabbedCrashRecoveryDelegateUnitTest {
         ModalDialogProperties.Controller controller = model.get(ModalDialogProperties.CONTROLLER);
 
         // Verify: Positive button text is correctly set.
-        verify(mResources)
-                .getQuantityString(
-                        eq(R.plurals.crash_recovery_dialog_positive_button_text), eq(1), eq(1));
+        assertEquals(
+                mHostActivity.getString(R.string.crash_recovery_dialog_positive_button_text),
+                model.get(ModalDialogProperties.POSITIVE_BUTTON_TEXT));
 
         assertTrue(
                 userActionTester

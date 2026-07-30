@@ -235,6 +235,17 @@ class SendTabToSelfBridgeTest : public testing::Test {
     base::RunLoop().RunUntilIdle();
   }
 
+  void InitializeBridgeWithoutRunningLoop() {
+    InitializeLocalDeviceIfNeeded();
+    ON_CALL(mock_processor_, IsTrackingMetadata()).WillByDefault(Return(true));
+    bridge_ = std::make_unique<SendTabToSelfBridge>(
+        mock_processor_.CreateForwardingProcessor(), &clock_,
+        syncer::DataTypeStoreTestUtil::MoveStoreToFactory(std::move(store_)),
+        /*history_service=*/nullptr, &device_info_tracker_,
+        &session_sync_service_, &pref_service_);
+    bridge_->AddObserver(&mock_observer_);
+  }
+
   void ShutdownBridge() {
     bridge_->RemoveObserver(&mock_observer_);
     store_ =
@@ -637,6 +648,162 @@ TEST_F(SendTabToSelfBridgeTest, DismissEntryInformsServer) {
                   .notification_dismissed());
 }
 
+TEST_F(SendTabToSelfBridgeTest, MarkEntryActivatedInformsServer) {
+  InitializeBridge();
+
+  SendTabToSelfEntry entry("guid", GURL("http://g.com/"), "title",
+                           AdvanceAndGetTime(), "remote", "remote",
+                           PageContext(), NavigationHistory());
+  syncer::EntityChangeList remote_data;
+  remote_data.push_back(
+      syncer::EntityChange::CreateAdd("guid", MakeEntityData(entry)));
+  bridge()->MergeFullSyncData(bridge()->CreateMetadataChangeList(),
+                              std::move(remote_data));
+  ASSERT_THAT(bridge()->GetAllGuids(), UnorderedElementsAre("guid"));
+
+  // Mark it opened first (required before activating).
+  bridge()->MarkEntryOpened("guid");
+
+  syncer::EntityData uploaded_activated_entity;
+  EXPECT_CALL(*processor(), Put("guid", _, _))
+      .WillOnce(SaveArgPointeeMove<1>(&uploaded_activated_entity));
+  bridge()->MarkEntryActivated("guid", ShareActivatedEntryPoint::kTabStrip);
+
+  EXPECT_TRUE(uploaded_activated_entity.specifics.send_tab_to_self()
+                  .has_activated_time_windows_epoch_micros());
+}
+
+TEST_F(SendTabToSelfBridgeTest,
+       MarkEntryActivatedClosedWithoutActivationRecordsOnlyEntryPoint) {
+  InitializeBridge();
+
+  SendTabToSelfEntry entry("guid", GURL("https://g.com/"), "title",
+                           AdvanceAndGetTime(), "remote", "remote",
+                           PageContext(), NavigationHistory());
+  syncer::EntityChangeList remote_data;
+  remote_data.push_back(
+      syncer::EntityChange::CreateAdd("guid", MakeEntityData(entry)));
+  bridge()->MergeFullSyncData(bridge()->CreateMetadataChangeList(),
+                              std::move(remote_data));
+  ASSERT_THAT(bridge()->GetAllGuids(), UnorderedElementsAre("guid"));
+
+  // Mark it opened first.
+  bridge()->MarkEntryOpened("guid");
+
+  base::HistogramTester histogram_tester;
+
+  // We still expect Put because the activation state is synced.
+  EXPECT_CALL(*processor(), Put("guid", _, _)).Times(1);
+
+  bridge()->MarkEntryActivated(
+      "guid", ShareActivatedEntryPoint::kTabOrBrowserClosedWithoutActivation);
+
+  // Verify that the entry is marked activated locally.
+  EXPECT_TRUE(bridge()->GetEntryByGUID("guid")->IsActivated());
+
+  // Verify that NO time-to-activated metrics were recorded.
+  histogram_tester.ExpectTotalCount(
+      "Sharing.SendTabToSelf.TimeOpenedToActivated", 0);
+  histogram_tester.ExpectTotalCount("Sharing.SendTabToSelf.TimeSentToActivated",
+                                    0);
+
+  // Verify entry point was recorded.
+  histogram_tester.ExpectUniqueSample(
+      "Sharing.SendTabToSelf.ActivatedEntryPoint",
+      ShareActivatedEntryPoint::kTabOrBrowserClosedWithoutActivation, 1);
+}
+
+TEST_F(SendTabToSelfBridgeTest, MarkEntryActivatedRecordsMetric) {
+  InitializeBridge();
+
+  SendTabToSelfEntry entry("guid", GURL("https://g.com/"), "title",
+                           AdvanceAndGetTime(), "remote", "remote",
+                           PageContext(), NavigationHistory());
+  syncer::EntityChangeList remote_data;
+  remote_data.push_back(
+      syncer::EntityChange::CreateAdd("guid", MakeEntityData(entry)));
+  bridge()->MergeFullSyncData(bridge()->CreateMetadataChangeList(),
+                              std::move(remote_data));
+
+  // Mark it opened first (auto-opened in background).
+  bridge()->MarkEntryOpened("guid");
+
+  // Advance clock by 5 seconds.
+  clock()->Advance(base::Seconds(5));
+
+  base::HistogramTester histogram_tester;
+  syncer::EntityData uploaded_entity;
+  EXPECT_CALL(*processor(), Put("guid", _, _))
+      .WillOnce(SaveArgPointeeMove<1>(&uploaded_entity));
+
+  bridge()->MarkEntryActivated("guid", ShareActivatedEntryPoint::kTabStrip);
+
+  EXPECT_TRUE(uploaded_entity.specifics.send_tab_to_self()
+                  .has_activated_time_windows_epoch_micros());
+  // Verify that the entry is marked activated locally in the bridge.
+  EXPECT_TRUE(bridge()->GetEntryByGUID("guid")->IsActivated());
+
+  // Verify metric was recorded with 5 seconds (5000 ms).
+  histogram_tester.ExpectUniqueTimeSample(
+      "Sharing.SendTabToSelf.TimeOpenedToActivated", base::Seconds(5), 1);
+  histogram_tester.ExpectUniqueTimeSample(
+      "Sharing.SendTabToSelf.TimeSentToActivated", base::Seconds(5), 1);
+  // Verify entry point was recorded.
+  histogram_tester.ExpectUniqueSample(
+      "Sharing.SendTabToSelf.ActivatedEntryPoint",
+      ShareActivatedEntryPoint::kTabStrip, 1);
+}
+
+TEST_F(SendTabToSelfBridgeTest, MarkEntryActivatedBeforeLoadRecordsMetric) {
+  InitializeBridge();
+
+  SendTabToSelfEntry entry("guid", GURL("http://g.com/"), "title",
+                           AdvanceAndGetTime(), "remote", "remote",
+                           PageContext(), NavigationHistory());
+  syncer::EntityChangeList remote_data;
+  remote_data.push_back(
+      syncer::EntityChange::CreateAdd("guid", MakeEntityData(entry)));
+  bridge()->MergeFullSyncData(bridge()->CreateMetadataChangeList(),
+                              std::move(remote_data));
+
+  // Mark it opened (auto-opened in background).
+  bridge()->MarkEntryOpened("guid");
+
+  // Shutdown bridge to persist data to store_.
+  ShutdownBridge();
+
+  // Advance clock by 10 seconds.
+  clock()->Advance(base::Seconds(10));
+
+  // Re-create bridge but do NOT run the loop yet.
+  InitializeBridgeWithoutRunningLoop();
+
+  base::HistogramTester histogram_tester;
+
+  base::RunLoop run_loop;
+  EXPECT_CALL(*mock_observer(), OnModelReady()).WillOnce([&run_loop]() {
+    run_loop.Quit();
+  });
+
+  // Call MarkEntryActivated before the store is loaded.
+  bridge()->MarkEntryActivated("guid", ShareActivatedEntryPoint::kDesktopToast);
+
+  // Now run the loop to load the store and process the queued activation.
+  EXPECT_CALL(*processor(), Put("guid", _, _)).Times(1);
+  run_loop.Run();
+
+  // Verify metric was recorded with 10 seconds (10000 ms).
+  histogram_tester.ExpectUniqueTimeSample(
+      "Sharing.SendTabToSelf.TimeOpenedToActivated", base::Seconds(10), 1);
+  histogram_tester.ExpectUniqueTimeSample(
+      "Sharing.SendTabToSelf.TimeSentToActivated", base::Seconds(10), 1);
+
+  // Verify entry point was recorded.
+  histogram_tester.ExpectUniqueSample(
+      "Sharing.SendTabToSelf.ActivatedEntryPoint",
+      ShareActivatedEntryPoint::kDesktopToast, 1);
+}
+
 TEST_F(SendTabToSelfBridgeTest, PreserveDissmissalAfterRestartBridge) {
   InitializeBridge();
 
@@ -695,6 +862,45 @@ TEST_F(SendTabToSelfBridgeTest, ExpireEntryDuringInit) {
   EXPECT_EQ(1ul, guids.size());
   EXPECT_EQ(not_expired_specifics.url(),
             bridge()->GetEntryByGUID(guids[0])->GetURL().spec());
+}
+
+TEST_F(SendTabToSelfBridgeTest, ExpireOpenedEntryDuringInitLogsMetric) {
+  InitializeBridge();
+
+  SendTabToSelfEntry entry("guid", GURL("http://g.com/"), "title",
+                           AdvanceAndGetTime(), "remote", "remote",
+                           PageContext(), NavigationHistory());
+  syncer::EntityChangeList remote_data;
+  remote_data.push_back(
+      syncer::EntityChange::CreateAdd("guid", MakeEntityData(entry)));
+  bridge()->MergeFullSyncData(bridge()->CreateMetadataChangeList(),
+                              std::move(remote_data));
+
+  // Mark it opened (auto-opened in background).
+  bridge()->MarkEntryOpened("guid");
+
+  ShutdownBridge();
+
+  // Advance clock past expiry (11 days).
+  AdvanceAndGetTime(kExpiryTime + base::Days(1));
+
+  base::HistogramTester histogram_tester;
+
+  // Re-initialize bridge. This will trigger DoGarbageCollection during load.
+  InitializeBridge();
+
+  // Verify that the entry was deleted.
+  EXPECT_TRUE(bridge()->GetAllGuids().empty());
+
+  // Verify metric was recorded.
+  histogram_tester.ExpectUniqueSample(
+      "Sharing.SendTabToSelf.ActivatedEntryPoint",
+      ShareActivatedEntryPoint::kSTTSEntryExpiredWithoutActivation, 1);
+  // Verify that NO time-to-activated metrics were recorded.
+  histogram_tester.ExpectTotalCount(
+      "Sharing.SendTabToSelf.TimeOpenedToActivated", 0);
+  histogram_tester.ExpectTotalCount("Sharing.SendTabToSelf.TimeSentToActivated",
+                                    0);
 }
 
 TEST_F(SendTabToSelfBridgeTest, AddExpiredEntry) {
@@ -1404,6 +1610,57 @@ TEST_F(SendTabToSelfBridgeTest, SendTabToSelfEntryOpened_QueueUnknownGuid) {
 
   histogram_tester.ExpectTotalCount("Sharing.SendTabToSelf.TimeSentToOpened",
                                     1);
+}
+
+TEST_F(SendTabToSelfBridgeTest, SendTabToSelfEntryActivated_QueueUnknownGuid) {
+  InitializeBridge();
+  SetLocalDeviceCacheGuid("Device1");
+
+  base::HistogramTester histogram_tester;
+
+  // Create the entry first to establish shared_time (T=0).
+  SendTabToSelfEntry entry1("guid1", GURL("http://www.example.com/"), "title",
+                            AdvanceAndGetTime(), "device", "Device1",
+                            PageContext(), NavigationHistory());
+
+  // Advance clock to T=5, then call MarkEntryOpened (queued).
+  AdvanceAndGetTime(base::Seconds(5));
+  bridge()->MarkEntryOpened("guid1");
+
+  // Advance clock to T=15, then call MarkEntryActivated (queued).
+  AdvanceAndGetTime(base::Seconds(10));
+  const ShareActivatedEntryPoint entry_point =
+      ShareActivatedEntryPoint::kTabStrip;
+  bridge()->MarkEntryActivated("guid1", entry_point);
+
+  // Now deliver the entry via sync.
+  syncer::EntityChangeList remote_input;
+  remote_input.push_back(
+      syncer::EntityChange::CreateAdd("guid1", MakeEntityData(entry1)));
+
+  auto metadata_change_list =
+      std::make_unique<syncer::InMemoryMetadataChangeList>();
+
+  // We expect 1 Put because MarkEntryOpened triggers a re-upload.
+  EXPECT_CALL(*processor(), Put("guid1", _, _)).Times(1);
+
+  bridge()->MergeFullSyncData(std::move(metadata_change_list),
+                              std::move(remote_input));
+
+  // Verify that the entry is now in the bridge, opened, and activated.
+  const SendTabToSelfEntry* local_entry = bridge()->GetEntryByGUID("guid1");
+  ASSERT_THAT(local_entry, testing::NotNull());
+  EXPECT_TRUE(local_entry->IsOpened());
+  EXPECT_TRUE(local_entry->IsActivated());
+
+  // Verify metric was recorded from Opened (T=5) to Activated (T=15) -> 10s.
+  histogram_tester.ExpectUniqueTimeSample(
+      "Sharing.SendTabToSelf.TimeOpenedToActivated", base::Seconds(10), 1);
+  // Verify metric was recorded from Sent (T=0) to Activated (T=15) -> 15s.
+  histogram_tester.ExpectUniqueTimeSample(
+      "Sharing.SendTabToSelf.TimeSentToActivated", base::Seconds(15), 1);
+  histogram_tester.ExpectUniqueSample(
+      "Sharing.SendTabToSelf.ActivatedEntryPoint", entry_point, 1);
 }
 
 TEST_F(SendTabToSelfBridgeTest,

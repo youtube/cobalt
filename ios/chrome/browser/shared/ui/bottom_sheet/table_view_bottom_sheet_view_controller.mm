@@ -14,6 +14,7 @@
 #import "ios/chrome/browser/shared/ui/bottom_sheet/table_view_bottom_sheet_view_controller+subclassing.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/common/ui/table_view/table_view_cells_constants.h"
+#import "ui/base/device_form_factor.h"
 
 namespace {
 
@@ -84,9 +85,8 @@ NSString* const kCustomDetentIdentifier = @"customDetent";
 
 - (void)adjustTransactionsButtonHorizontalConstraints {
   CGFloat buttonHorizontalMargin =
-      ([[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPad
-           ? 64.0
-           : 24.0);
+      (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET ? 64.0
+                                                                  : 24.0);
 
   [self applyHorizontalConstraints:buttonHorizontalMargin
                          forButton:self.primaryActionButton];

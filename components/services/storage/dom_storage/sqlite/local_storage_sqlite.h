@@ -12,6 +12,7 @@
 namespace sql {
 class Database;
 class MetaTable;
+class Statement;
 }  // namespace sql
 
 namespace storage {
@@ -97,6 +98,8 @@ class LocalStorageSqlite : public DomStorageDatabase,
   // base::trace_event::MemoryDumpProvider implementation:
   bool OnMemoryDump(const base::trace_event::MemoryDumpArgs& args,
                     base::trace_event::ProcessMemoryDump* pmd) override;
+
+  void OnSqlError(int error, sql::Statement* statement);
 
   // `Open()` creates `database_`, `meta_table_` and `map_entries_table_`.
   std::unique_ptr<sql::Database> database_;

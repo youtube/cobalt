@@ -2001,8 +2001,8 @@ public class ExternalNavigationHandler implements ExternalNavigationHelper {
                     browserFallbackUrl);
         }
 
-        if (handleDigitalCredentialsIntent(params, targetIntent)) {
-            return OverrideUrlLoadingResult.forAsyncAction();
+        if (isDigitalCredentialsIntent(params.getUrl(), targetIntent)) {
+            return handleDigitalCredentialsIntent(params, targetIntent);
         }
 
         if (launchWebApkIfSoleIntentHandler(resolvingInfos, targetIntent, params)) {
@@ -2123,25 +2123,32 @@ public class ExternalNavigationHandler implements ExternalNavigationHelper {
         return handleFallbackUrl(params, fallbackUrl, false);
     }
 
-    private boolean handleDigitalCredentialsIntent(
-            ExternalNavigationParams params, Intent targetIntent) {
-        final @Nullable String scheme = getSchemeFromUrlOrIntent(params.getUrl(), targetIntent);
-        if (scheme != null
+    private boolean isDigitalCredentialsIntent(GURL url, Intent targetIntent) {
+        final @Nullable String scheme = getSchemeFromUrlOrIntent(url, targetIntent);
+        return scheme != null
                 && (scheme.startsWith(OPENID4VP_SCHEME_PREFIX_SUFFIX)
                         || scheme.endsWith(OPENID4VP_SCHEME_PREFIX_SUFFIX)
                         || scheme.equals(MDOC_SCHEME)
                         || scheme.equals(OPENID4VCI_SCHEME)
                         || scheme.equals(HAIP_VP_SCHEME)
-                        || scheme.equals(HAIP_VCI_SCHEME))) {
-            if (debug()) Log.i(TAG, "Digital Credentials intent detected");
-            Context context = mDelegate.getContext();
-            assumeNonNull(context);
-            mDigitalCredentialsWarningDialogDelegate =
-                    new DigitalCredentialsWarningDialogDelegate(context, params, targetIntent);
-            mDigitalCredentialsWarningDialogDelegate.showDialog();
-            return true;
+                        || scheme.equals(HAIP_VCI_SCHEME));
+    }
+
+    private OverrideUrlLoadingResult handleDigitalCredentialsIntent(
+            ExternalNavigationParams params, Intent targetIntent) {
+        Origin origin = params.getInitiatorOrigin();
+        if (origin != null && origin.isOpaque()) {
+            if (debug()) Log.i(TAG, "Blocking Digital Credentials intent due to opaque origin");
+            return OverrideUrlLoadingResult.forNoOverride();
         }
-        return false;
+
+        if (debug()) Log.i(TAG, "Digital Credentials intent detected");
+        Context context = mDelegate.getContext();
+        assumeNonNull(context);
+        mDigitalCredentialsWarningDialogDelegate =
+                new DigitalCredentialsWarningDialogDelegate(context, params, targetIntent);
+        mDigitalCredentialsWarningDialogDelegate.showDialog();
+        return OverrideUrlLoadingResult.forAsyncAction();
     }
 
     private void cancelDialogs() {

@@ -279,6 +279,7 @@ test("components_unittests") {
     "//components/open_from_clipboard:unit_tests",
     "//components/openscreen_platform:unittests",
     "//components/optimization_guide/core:unit_tests",
+    "//components/origin_gating/core:unit_tests",
     "//components/os_crypt/async/browser:unit_tests",
     "//components/os_crypt/async/common:unit_tests",
     "//components/os_crypt/common:unit_tests",
@@ -621,6 +622,7 @@ test("components_unittests") {
       "//components/password_manager/core/common:unit_tests",
       "//components/password_manager/ios:unit_tests",
       "//components/previous_session_info:unit_tests",
+      "//components/private_ai/ios:unit_tests",
       "//components/safe_browsing/ios/browser:unit_tests",
       "//components/security_state/ios:unit_tests",
       "//components/shared_highlighting/ios:unit_tests",
@@ -781,7 +783,7 @@ test("components_unittests") {
     ]
   }
 
-  if (!is_ios && !is_fuchsia && !is_castos) {
+  if (!is_fuchsia && !is_castos) {
     deps += [ "//components/private_ai:unit_tests" ]
   }
 
@@ -1120,6 +1122,10 @@ if (is_android) {
         "//components/test/android/browsertests_apk/AndroidManifest.xml.jinja2"
     output =
         "${target_gen_dir}/components_browsertests_manifest/AndroidManifest.xml"
+    variables = [
+      "javaless_renderers=$enable_javaless_renderers",
+      "library_name=components_browsertests__library",
+    ]
   }
 
   android_resources("components_browsertests_resources") {

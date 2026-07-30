@@ -51,6 +51,13 @@ public final class EventConstants {
     public static final String ADAPTIVE_TOOLBAR_PAGE_SUMMARY_WEB_USED =
             "adaptive_toolbar_page_summary_web_used";
 
+    /** The user interacted with the promo dialog shown to introduce AI Mode with the bottom bar. */
+    public static final String ANDROID_BOTTOM_BAR_AIM_PROMO_DIALOG_USED =
+            "android_bottom_bar_aim_promo_dialog_used";
+
+    /** The user interacted with the AI Mode button on the new bottom bar. */
+    public static final String ANDROID_BOTTOM_BAR_AIM_USED = "android_bottom_bar_aim_used";
+
     /** The user interacted with the GLIC button on the new bottom bar. */
     public static final String ANDROID_BOTTOM_BAR_GLIC_USED = "android_bottom_bar_glic_used";
 
@@ -63,6 +70,10 @@ public final class EventConstants {
 
     /** A generic event that any startup promo should notify when it is shown. */
     public static final String ANDROID_STARTUP_PROMO_SHOWN = "android_startup_promo_shown";
+
+    /** The user switched to Vertical Tabs. */
+    public static final String ANDROID_VERTICAL_TABS_PROMO_USED =
+            "android_vertical_tabs_promo_used";
 
     /** Read later related events. */
     public static final String APP_MENU_BOOKMARK_STAR_ICON_PRESSED =

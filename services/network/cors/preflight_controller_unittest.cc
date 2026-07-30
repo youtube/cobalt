@@ -281,7 +281,6 @@ TEST(PreflightControllerOptionsTest, CheckOptions) {
       NonWildcardRequestHeadersSupport(false),
       /*tainted=*/false, TRAFFIC_ANNOTATION_FOR_TESTS, &url_loader_factory,
       net::IsolationInfo(),
-      /*client_security_state=*/nullptr,
       /*devtools_observer=*/
       base::WeakPtr<mojo::Remote<mojom::DevToolsObserver>>(), net_log, true,
       mojo::PendingRemote<mojom::URLLoaderNetworkServiceObserver>());
@@ -292,7 +291,6 @@ TEST(PreflightControllerOptionsTest, CheckOptions) {
       NonWildcardRequestHeadersSupport(false),
       /*tainted=*/false, TRAFFIC_ANNOTATION_FOR_TESTS, &url_loader_factory,
       net::IsolationInfo(),
-      /*client_security_state=*/nullptr,
       /*devtools_observer=*/
       base::WeakPtr<mojo::Remote<mojom::DevToolsObserver>>(), net_log, true,
       mojo::PendingRemote<mojom::URLLoaderNetworkServiceObserver>());
@@ -515,8 +513,7 @@ class PreflightControllerTest : public testing::Test {
   void PerformPreflightCheck(
       const ResourceRequest& request,
       bool tainted = false,
-      net::IsolationInfo isolation_info = net::IsolationInfo(),
-      mojom::ClientSecurityStatePtr client_security_state = nullptr) {
+      net::IsolationInfo isolation_info = net::IsolationInfo()) {
     DCHECK(preflight_controller_);
     run_loop_ = std::make_unique<base::RunLoop>();
 
@@ -530,8 +527,7 @@ class PreflightControllerTest : public testing::Test {
         0, request, WithTrustedHeaderClient(false),
         non_wildcard_request_headers_support_, tainted,
         TRAFFIC_ANNOTATION_FOR_TESTS, url_loader_factory_remote_.get(),
-        isolation_info, std::move(client_security_state),
-        weak_devtools_observer_factory.GetWeakPtr(),
+        isolation_info, weak_devtools_observer_factory.GetWeakPtr(),
         net::NetLogWithSource::Make(net::NetLog::Get(),
                                     net::NetLogSourceType::URL_REQUEST),
         true, mojo::PendingRemote<mojom::URLLoaderNetworkServiceObserver>());

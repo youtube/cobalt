@@ -32,21 +32,19 @@ class MediaCapturePickerManagerBridge {
             DesktopMediaPicker::DoneCallback callback);
 
   // Called from Java via JNI when the dialog resolves.
-  void OnPickTab(JNIEnv* env,
-                 content::WebContents* web_contents,
-                 bool audio_share);
+  void OnPickTab(content::WebContents* web_contents, bool audio_share);
 
   // Called from Java via JNI when the dialog resolves.
-  void OnPickWindow(JNIEnv* env);
+  void OnPickWindow();
 
   // Called from Java via JNI when the dialog resolves.
-  void OnPickScreen(JNIEnv* env);
+  void OnPickScreen();
 
   // Called from Java via JNI when the dialog resolves.
-  void OnCancel(JNIEnv* env);
+  void OnCancel();
 
   // Called from Java via JNI to check if a tab should be filtered.
-  bool ShouldFilterWebContents(JNIEnv* env, content::WebContents* web_contents);
+  bool ShouldFilterWebContents(content::WebContents* web_contents);
 
  private:
   DesktopMediaPicker::DoneCallback callback_;

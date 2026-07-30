@@ -99,13 +99,15 @@ void GetFieldTrialActiveGroupIdsForActiveGroups(
 }
 
 void GetFieldTrialActiveGroupIds(std::string_view suffix,
-                                 std::vector<ActiveGroupId>* name_group_ids) {
+                                 std::vector<ActiveGroupId>* name_group_ids,
+                                 bool include_runtime_overrides) {
   DCHECK(name_group_ids->empty());
   // A note on thread safety: Since GetActiveFieldTrialGroups() is thread
   // safe, and we operate on a separate list of that data, this function is
   // technically thread safe as well, with respect to the FieldTrialList data.
   base::FieldTrial::ActiveGroups active_groups;
-  base::FieldTrialList::GetActiveFieldTrialGroups(&active_groups);
+  base::FieldTrialList::GetActiveFieldTrialGroups(&active_groups,
+                                                  include_runtime_overrides);
   GetFieldTrialActiveGroupIdsForActiveGroups(suffix, active_groups,
                                              name_group_ids);
 }

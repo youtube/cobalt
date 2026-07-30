@@ -183,12 +183,11 @@ TEST_F(FilterNavigationObserverTest, SameDocumentNavigation) {
   testing::Mock::VerifyAndClearExpectations(&mock_service());
 
   // Same-document navigations (like fragment changes) should NOT clear
-  // suggestions, but SHOULD still allow extraction if they are
-  // renderer-initiated with a user gesture.
+  // suggestions, but SHOULD still trigger extraction and suggestion generation.
   const GURL same_doc_url("https://www.example.com/#test");
   EXPECT_CALL(delegate(), ClearSuggestion()).Times(0);
   EXPECT_CALL(mock_service(), ExtractAnnotation(_, same_doc_url));
-  EXPECT_CALL(mock_service(), GenerateFilterSuggestions).Times(0);
+  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(_, same_doc_url, _));
   auto navigation = content::NavigationSimulator::CreateRendererInitiated(
       same_doc_url, main_rfh());
   navigation->CommitSameDocument();
@@ -408,15 +407,15 @@ TEST_F(FilterNavigationObserverTest, SubdomainNavigation) {
   testing::Mock::VerifyAndClearExpectations(&mock_service());
 
   // Second navigation (browser-initiated) to a different subdomain of the same
-  // domain.
+  // domain triggers new suggestions.
   EXPECT_CALL(delegate(), ClearSuggestion());
   EXPECT_CALL(mock_service(), ExtractAnnotation(_, url2));
-  EXPECT_CALL(mock_service(), GenerateFilterSuggestions).Times(0);
+  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(_, url2, _));
   content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
                                                              url2);
 }
 
-// Tests that navigating between pages on localhost suppresses suggestions.
+// Tests that navigating between pages on localhost triggers new suggestions.
 TEST_F(FilterNavigationObserverTest, LocalhostNavigation) {
   const GURL url1("https://localhost:8080/page1");
   const GURL url2("https://localhost:8080/page2");
@@ -430,10 +429,10 @@ TEST_F(FilterNavigationObserverTest, LocalhostNavigation) {
   testing::Mock::VerifyAndClearExpectations(&delegate());
   testing::Mock::VerifyAndClearExpectations(&mock_service());
 
-  // Second navigation on same localhost.
+  // Second navigation on same localhost triggers new suggestions.
   EXPECT_CALL(delegate(), ClearSuggestion());
   EXPECT_CALL(mock_service(), ExtractAnnotation(_, url2));
-  EXPECT_CALL(mock_service(), GenerateFilterSuggestions).Times(0);
+  EXPECT_CALL(mock_service(), GenerateFilterSuggestions(_, url2, _));
   content::NavigationSimulator::NavigateAndCommitFromBrowser(web_contents(),
                                                              url2);
 }

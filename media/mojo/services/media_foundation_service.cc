@@ -61,6 +61,11 @@ const char kDefaultFeatures[] =
 const char kRobustnessQueryName[] = "encryption-robustness";
 const char kEncryptionSchemeQueryName[] = "encryption-type";
 const char kEncryptionIvQueryName[] = "encryption-iv-size";
+#if BUILDFLAG(ENABLE_PLATFORM_ENCRYPTED_DOLBY_VISION)
+const char kHdrQueryName[] = "hdr";
+const char kDolbyVisionSupportUmaPrefix[] =
+    "Media.EME.MediaFoundationService.DolbyVisionSupport";
+#endif  // BUILDFLAG(ENABLE_PLATFORM_ENCRYPTED_DOLBY_VISION)
 
 const char kSwSecureRobustness[] = "SW_SECURE_DECODE";
 const char kHwSecureRobustness[] = "HW_SECURE_ALL";
@@ -438,10 +443,57 @@ CdmCapabilityOrStatus GetCdmCapability(
       }
     }
 
-    if (is_type_supported_cb.Run(
+    std::optional<bool> is_type_supported_result = std::nullopt;
+#if BUILDFLAG(ENABLE_PLATFORM_ENCRYPTED_DOLBY_VISION)
+    if (is_os_cdm && is_hw_secure && video_codec == VideoCodec::kDolbyVision) {
+      // 1. Query without HDR support.
+      bool dv_support_without_hdr = is_type_supported_cb.Run(
+          is_hw_secure, GetTypeString(video_codec, /*audio_codec=*/std::nullopt,
+                                      extra_features));
+
+      // 2. Query with HDR support. When multiple displays are connected to the
+      // device, the query result is expected to return TRUE if the primary
+      // display (internal) is HDR. If the query result without HDR check is
+      // FALSE, we know the quer result with HDR check is expected to return
+      // FALSE as well.
+      bool dv_support_with_hdr = false;
+      if (dv_support_without_hdr) {
+        extra_features.insert({{kHdrQueryName, "1"}});
+        dv_support_with_hdr = is_type_supported_cb.Run(
             is_hw_secure,
             GetTypeString(video_codec, /*audio_codec=*/std::nullopt,
-                          extra_features))) {
+                          extra_features));
+        extra_features.erase(kHdrQueryName);
+      }
+
+      DVLOG(3) << __func__ << ": Dolby Vision support - dv_support_with_hdr="
+               << dv_support_with_hdr
+               << ", dv_support_without_hdr=" << dv_support_without_hdr;
+
+      base::UmaHistogramBoolean(
+          std::string(kDolbyVisionSupportUmaPrefix) + ".WithHdrCheck",
+          dv_support_with_hdr);
+      base::UmaHistogramBoolean(
+          std::string(kDolbyVisionSupportUmaPrefix) + ".WithoutHdrCheck",
+          dv_support_without_hdr);
+
+      // 3. Determine the final support based on the feature flag.
+      is_type_supported_result =
+          base::FeatureList::IsEnabled(
+              kHardwareSecureDecryptionDolbyVisionWithHdrCheck)
+              ? dv_support_with_hdr
+              : dv_support_without_hdr;
+    }
+#endif
+
+    bool is_video_codec_supported =
+        is_type_supported_result.has_value()
+            ? is_type_supported_result.value()
+            : is_type_supported_cb.Run(
+                  is_hw_secure,
+                  GetTypeString(video_codec, /*audio_codec=*/std::nullopt,
+                                extra_features));
+    if (is_video_codec_supported) {
       // IsTypeSupported() does not support querying profiling, in general
       // assume all relevant profiles are supported.
       VideoCodecInfo video_codec_info;

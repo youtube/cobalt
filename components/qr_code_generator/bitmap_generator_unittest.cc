@@ -7,6 +7,7 @@
 #include "base/containers/span.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/skia/include/core/SkBitmap.h"
 
 namespace qr_code_generator {
 
@@ -51,6 +52,25 @@ TEST(QRBitmapGeneratorTest, RoundProductLogoWithNoMargins) {
 
   // More detailed test coverage of the bitmap contents is provided by the pixel
   // tests at //chrome/browser/share/qr_code_generator_pixeltest.cc
+}
+
+TEST(QRBitmapGeneratorTest, CustomCenterImage) {
+  constexpr SkColor kRed = 0xFFFF0000;
+
+  // Create a 20x20 dummy center image.
+  SkBitmap custom_image;
+  custom_image.allocN32Pixels(20, 20);
+  custom_image.eraseColor(kRed);
+
+  auto bitmap = GenerateBitmap(
+      base::as_byte_span(std::string_view("https://example.com")),
+      ModuleStyle::kSquares, LocatorStyle::kSquare, custom_image,
+      QuietZone::kIncluded);
+
+  ASSERT_TRUE(bitmap.has_value());
+  EXPECT_EQ(bitmap->width(), bitmap->height());
+  EXPECT_EQ(bitmap->width(), 450);
+  EXPECT_EQ(bitmap->getColor(225, 225), kRed);
 }
 #endif
 

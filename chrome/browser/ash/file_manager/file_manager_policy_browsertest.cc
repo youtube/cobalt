@@ -45,7 +45,6 @@
 #include "components/enterprise/connectors/core/reporting_constants.h"
 #include "components/file_access/test/mock_scoped_file_access_delegate.h"
 #include "components/policy/core/common/cloud/mock_cloud_policy_client.h"
-#include "components/policy/core/common/cloud/realtime_reporting_job_configuration.h"
 #include "components/prefs/pref_service.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
@@ -413,10 +412,6 @@ std::string GetFileTransferConnectorsPolicyForDlp(
 
 base::TimeDelta kResponseDelay = base::Seconds(0);
 
-const std::set<std::string>* JpgMimeTypes() {
-  static std::set<std::string> set = {"image/jpeg"};
-  return &set;
-}
 
 // Base class for Enterprise connectors setup needed for browsertests.
 class FileTransferConnectorFilesAppBrowserTestBase {
@@ -705,80 +700,51 @@ class FileTransferConnectorFilesAppBrowserTestBase {
               cloud_policy_client());
       validator_->SetDoneClosure(reporting_run_loop_->QuitClosure());
 
-      if (base::FeatureList::IsEnabled(
-              policy::kUploadRealtimeReportingEventsUsingProto)) {
-        std::vector<chrome::cros::reporting::proto::DlpSensitiveDataEvent>
-            expected_events;
+      std::vector<chrome::cros::reporting::proto::DlpSensitiveDataEvent>
+          expected_events;
 
-        for (const auto& file_name : file_names) {
-          chrome::cros::reporting::proto::DlpSensitiveDataEvent expected_event;
-          expected_event.set_url("");
-          expected_event.set_tab_url("");
-          expected_event.set_source(*source_volume_name);
-          expected_event.set_destination(*destination_volume_name);
+      for (const auto& file_name : file_names) {
+        chrome::cros::reporting::proto::DlpSensitiveDataEvent expected_event;
+        expected_event.set_url("");
+        expected_event.set_tab_url("");
+        expected_event.set_source(*source_volume_name);
+        expected_event.set_destination(*destination_volume_name);
 
-          expected_event.set_content_type("image/jpeg");
-          expected_event.set_content_size(886);
-          expected_event.set_trigger(
-              chrome::cros::reporting::proto::DataTransferEventTrigger::
-                  FILE_TRANSFER);
-          expect_proceed_warning_reports
-              ? expected_event.set_clicked_through(true)
-              : expected_event.set_clicked_through(false);
+        expected_event.set_content_type("image/jpeg");
+        expected_event.set_content_size(886);
+        expected_event.set_trigger(chrome::cros::reporting::proto::
+                                       DataTransferEventTrigger::FILE_TRANSFER);
+        expect_proceed_warning_reports
+            ? expected_event.set_clicked_through(true)
+            : expected_event.set_clicked_through(false);
 
-          chrome::cros::reporting::proto::TriggeredRuleInfo triggered_rule;
-          triggered_rule.set_rule_name("rule");
-          if (file_name.contains("blocked")) {
-            triggered_rule.set_action(
-                chrome::cros::reporting::proto::TriggeredRuleInfo::BLOCK);
-          } else if (file_name.contains("warned")) {
-            triggered_rule.set_action(
-                chrome::cros::reporting::proto::TriggeredRuleInfo::WARN);
-          }
-          *expected_event.add_triggered_rule_info() = triggered_rule;
+        chrome::cros::reporting::proto::TriggeredRuleInfo triggered_rule;
+        triggered_rule.set_rule_name("rule");
+        if (file_name.contains("blocked")) {
+          triggered_rule.set_action(
+              chrome::cros::reporting::proto::TriggeredRuleInfo::BLOCK);
+        } else if (file_name.contains("warned")) {
+          triggered_rule.set_action(
+              chrome::cros::reporting::proto::TriggeredRuleInfo::WARN);
+        }
+        *expected_event.add_triggered_rule_info() = triggered_rule;
 
-          if (expect_proceed_warning_reports &&
-              options.bypass_requires_justification) {
-            expected_event.set_user_justification(
-                base::UTF16ToUTF8(kUserJustification));
-          }
-
-          expected_event.set_profile_identifier(
-              profile->GetPath().AsUTF8Unsafe());
-          expected_event.set_profile_user_name(kUserName);
-
-          expected_events.emplace_back(expected_event);
+        if (expect_proceed_warning_reports &&
+            options.bypass_requires_justification) {
+          expected_event.set_user_justification(
+              base::UTF16ToUTF8(kUserJustification));
         }
 
-        validator_->ExpectSensitiveDataEvents(
-            std::move(expected_events), file_names, shas, expected_results,
-            expected_scan_ids);
-      } else {
-        validator_->ExpectSensitiveDataEvents(
-            /*url*/ "",
-            /*tab_url*/ "",
-            /*source*/ *source_volume_name,
-            /*destination*/ *destination_volume_name,
-            /*filenames*/ file_names,
-            /*sha*/
-            shas,
-            /*trigger*/
-            enterprise_connectors::kFileTransferDataTransferEventTrigger,
-            /*dlp_verdict*/ expected_dlp_verdicts,
-            /*mimetype*/ JpgMimeTypes(),
-            /*size*/ 886,
-            /*result*/
-            expected_results,
-            /*username*/ kUserName,
-            /*profile_identifier*/ profile->GetPath().AsUTF8Unsafe(),
-            /*scan_ids*/ expected_scan_ids,
-            /*content_transfer_method*/ std::nullopt,
-            /*user_justification*/
-            expect_proceed_warning_reports &&
-                    options.bypass_requires_justification
-                ? std::make_optional(kUserJustification)
-                : std::nullopt);
+        expected_event.set_profile_identifier(
+            profile->GetPath().AsUTF8Unsafe());
+        expected_event.set_profile_user_name(kUserName);
+
+        expected_events.emplace_back(expected_event);
       }
+
+      validator_->ExpectSensitiveDataEvents(std::move(expected_events),
+                                            file_names, shas, expected_results,
+                                            expected_scan_ids);
       return true;
     }
 
@@ -961,8 +927,7 @@ IN_PROC_BROWSER_TEST_P(DlpFilesAppBrowserTest, Test) {
 // connector.
 class FileTransferConnectorFilesAppBrowserTest
     : public FileManagerBrowserTestBase,
-      public ::testing::WithParamInterface<
-          std::tuple<file_manager::test::TestCase, /*use_proto_format=*/bool>>,
+      public ::testing::WithParamInterface<file_manager::test::TestCase>,
       public FileTransferConnectorFilesAppBrowserTestBase {
  public:
   FileTransferConnectorFilesAppBrowserTest(
@@ -971,16 +936,7 @@ class FileTransferConnectorFilesAppBrowserTest
       const FileTransferConnectorFilesAppBrowserTest&) = delete;
 
  protected:
-  FileTransferConnectorFilesAppBrowserTest() {
-    use_proto_format()
-        ? scoped_feature_list_.InitWithFeatures(
-              /*enabled_features=*/
-              {policy::kUploadRealtimeReportingEventsUsingProto},
-              /*disabled_features=*/{})
-        : scoped_feature_list_.InitWithFeatures(
-              /*enabled_features=*/{}, /*disabled_features=*/{
-                  policy::kUploadRealtimeReportingEventsUsingProto});
-  }
+  FileTransferConnectorFilesAppBrowserTest() = default;
   ~FileTransferConnectorFilesAppBrowserTest() override = default;
 
   void SetUpOnMainThread() override {
@@ -1010,12 +966,10 @@ class FileTransferConnectorFilesAppBrowserTest
     }
   }
 
-  const char* GetTestCaseName() const override {
-    return std::get<0>(GetParam()).name;
-  }
+  const char* GetTestCaseName() const override { return GetParam().name; }
 
   std::string GetFullTestCaseName() const override {
-    return std::get<0>(GetParam()).GetFullName();
+    return GetParam().GetFullName();
   }
 
   const char* GetTestExtensionManifestName() const override {
@@ -1023,10 +977,8 @@ class FileTransferConnectorFilesAppBrowserTest
   }
 
   FileManagerBrowserTestBase::Options GetOptions() const override {
-    return std::get<0>(GetParam()).options;
+    return GetParam().options;
   }
-
-  bool use_proto_format() const { return std::get<1>(GetParam()); }
 
   void VerifyFileTransferErrorDialogAndDismiss(const std::string& app_id) {
     DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
@@ -1132,9 +1084,6 @@ class FileTransferConnectorFilesAppBrowserTest
     // Verify that the dialog is closed.
     EXPECT_TRUE(widget->IsClosed());
   }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_P(FileTransferConnectorFilesAppBrowserTest, Test) {
@@ -1145,8 +1094,7 @@ IN_PROC_BROWSER_TEST_P(FileTransferConnectorFilesAppBrowserTest, Test) {
 // files restrictions.
 class DlpAndEnterpriseConnectorsFilesAppBrowserTest
     : public FileManagerBrowserTestBase,
-      public ::testing::WithParamInterface<
-          std::tuple<file_manager::test::TestCase, /*use_proto_format=*/bool>>,
+      public ::testing::WithParamInterface<file_manager::test::TestCase>,
       public DlpFilesAppBrowserTestBase,
       public FileTransferConnectorFilesAppBrowserTestBase {
  public:
@@ -1156,17 +1104,7 @@ class DlpAndEnterpriseConnectorsFilesAppBrowserTest
       const DlpAndEnterpriseConnectorsFilesAppBrowserTest&) = delete;
 
  protected:
-  DlpAndEnterpriseConnectorsFilesAppBrowserTest() {
-    use_proto_format()
-        ? scoped_feature_list_.InitWithFeatures(
-              /*enabled_features=*/
-              {policy::kUploadRealtimeReportingEventsUsingProto},
-              /*disabled_features=*/{})
-        : scoped_feature_list_.InitWithFeatures(
-              /*enabled_features=*/{},
-              /*disabled_features=*/{
-                  policy::kUploadRealtimeReportingEventsUsingProto});
-  }
+  DlpAndEnterpriseConnectorsFilesAppBrowserTest() = default;
   ~DlpAndEnterpriseConnectorsFilesAppBrowserTest() override = default;
 
   void SetUpOnMainThread() override {
@@ -1200,14 +1138,10 @@ class DlpAndEnterpriseConnectorsFilesAppBrowserTest
                                           output);
   }
 
-  bool use_proto_format() const { return std::get<1>(GetParam()); }
-
-  const char* GetTestCaseName() const override {
-    return std::get<0>(GetParam()).name;
-  }
+  const char* GetTestCaseName() const override { return GetParam().name; }
 
   std::string GetFullTestCaseName() const override {
-    return std::get<0>(GetParam()).GetFullName();
+    return GetParam().GetFullName();
   }
 
   const char* GetTestExtensionManifestName() const override {
@@ -1215,11 +1149,8 @@ class DlpAndEnterpriseConnectorsFilesAppBrowserTest
   }
 
   FileManagerBrowserTestBase::Options GetOptions() const override {
-    return std::get<0>(GetParam()).options;
+    return GetParam().options;
   }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_P(DlpAndEnterpriseConnectorsFilesAppBrowserTest, Test) {
@@ -1400,83 +1331,68 @@ WRAPPED_INSTANTIATE_TEST_SUITE_P(
       .EnableFilesPolicyNewUX()              \
       .EnableFileTransferConnectorNewUX()
 
-WRAPPED_INSTANTIATE_TEST_SUITE_P_WITH_BOOL(
+WRAPPED_INSTANTIATE_TEST_SUITE_P(
     FileTransferConnector, /* file_transfer_connector.ts */
     FileTransferConnectorFilesAppBrowserTest,
-    testing::Combine(
-        ::testing::Values(
-            FILE_TRANSFER_TEST_CASE(
-                "transferConnectorFromAndroidFilesToDownloadsDeep"),
-            FILE_TRANSFER_TEST_CASE(
-                "transferConnectorFromAndroidFilesToDownloadsFlat"),
-            FILE_TRANSFER_TEST_CASE(
-                "transferConnectorFromCrostiniToDownloadsDeep"),
-            FILE_TRANSFER_TEST_CASE(
-                "transferConnectorFromCrostiniToDownloadsFlat"),
-            FILE_TRANSFER_TEST_CASE(
-                "transferConnectorFromDriveToDownloadsDeep"),
-            FILE_TRANSFER_TEST_CASE("transferConnectorFromDriveToDownloadsDeep")
-                .FileTransferConnectorReportOnlyMode(),
-            FILE_TRANSFER_TEST_CASE(
-                "transferConnectorFromDriveToDownloadsFlat"),
-            FILE_TRANSFER_TEST_CASE("transferConnectorFromDriveToDownloadsFlat")
-                .FileTransferConnectorReportOnlyMode(),
-            FILE_TRANSFER_TEST_CASE(
-                "transferConnectorFromDriveToDownloadsFlatDesti"
-                "nationNoSpaceForReportOnly")
-                .FileTransferConnectorReportOnlyMode(),
-            FILE_TRANSFER_TEST_CASE(
-                "transferConnectorFromDriveToDownloadsMoveDeep"),
-            FILE_TRANSFER_TEST_CASE(
-                "transferConnectorFromDriveToDownloadsMoveDeep")
-                .FileTransferConnectorReportOnlyMode(),
-            FILE_TRANSFER_TEST_CASE(
-                "transferConnectorFromDriveToDownloadsMoveFlat"),
-            FILE_TRANSFER_TEST_CASE(
-                "transferConnectorFromDriveToDownloadsMoveFlat")
-                .FileTransferConnectorReportOnlyMode(),
-            FILE_TRANSFER_TEST_CASE("transferConnectorFromMtpToDownloadsDeep"),
-            FILE_TRANSFER_TEST_CASE("transferConnectorFromMtpToDownloadsFlat"),
-            FILE_TRANSFER_TEST_CASE(
-                "transferConnectorFromSmbfsToDownloadsDeep"),
-            FILE_TRANSFER_TEST_CASE(
-                "transferConnectorFromSmbfsToDownloadsFlat"),
-            FILE_TRANSFER_TEST_CASE("transferConnectorFromUsbToDownloadsDeep"),
-            FILE_TRANSFER_TEST_CASE("transferConnectorFromUsbToDownloadsFlat"),
-            FILE_TRANSFER_TEST_CASE_NEW_UX(
-                "transferConnectorFromUsbToDownloadsDeepNewUX"),
-            FILE_TRANSFER_TEST_CASE_NEW_UX(
-                "transferConnectorFromUsbToDownloadsFlatNewUX"),
-            FILE_TRANSFER_TEST_CASE_NEW_UX(
-                "transferConnectorFromUsbToDownloadsDeepMoveNewUX"),
-            FILE_TRANSFER_TEST_CASE_NEW_UX(
-                "transferConnectorFromUsbToDownloadsFlatMoveNewUX"),
-            FILE_TRANSFER_TEST_CASE_NEW_UX(
-                "transferConnectorFromUsbToDownloadsFlatWarnProceedNewUX"),
-            FILE_TRANSFER_TEST_CASE_NEW_UX(
-                "transferConnectorFromUsbToDownloadsFlat"
-                "WarnProceedWithJustificationNewUX")
-                .BypassRequiresJustification(),
-            FILE_TRANSFER_TEST_CASE_NEW_UX(
-                "transferConnectorFromUsbToDownloadsDeepWarnProceedNewUX"),
-            FILE_TRANSFER_TEST_CASE_NEW_UX(
-                "transferConnectorFromUsbToDownloadsDeep"
-                "WarnProceedWithJustificationNewUX")
-                .BypassRequiresJustification(),
-            FILE_TRANSFER_TEST_CASE_NEW_UX(
-                "transferConnectorFromUsbToDownloadsFlatWarnCancelNewUX"),
-            FILE_TRANSFER_TEST_CASE_NEW_UX(
-                "transferConnectorFromUsbToDownloadsDeepWarnCancelNewUX")),
-        ::testing::Bool()));
+    ::testing::Values(
+        FILE_TRANSFER_TEST_CASE(
+            "transferConnectorFromAndroidFilesToDownloadsDeep"),
+        FILE_TRANSFER_TEST_CASE(
+            "transferConnectorFromAndroidFilesToDownloadsFlat"),
+        FILE_TRANSFER_TEST_CASE("transferConnectorFromCrostiniToDownloadsDeep"),
+        FILE_TRANSFER_TEST_CASE("transferConnectorFromCrostiniToDownloadsFlat"),
+        FILE_TRANSFER_TEST_CASE("transferConnectorFromDriveToDownloadsDeep"),
+        FILE_TRANSFER_TEST_CASE("transferConnectorFromDriveToDownloadsDeep")
+            .FileTransferConnectorReportOnlyMode(),
+        FILE_TRANSFER_TEST_CASE("transferConnectorFromDriveToDownloadsFlat"),
+        FILE_TRANSFER_TEST_CASE("transferConnectorFromDriveToDownloadsFlat")
+            .FileTransferConnectorReportOnlyMode(),
+        FILE_TRANSFER_TEST_CASE("transferConnectorFromDriveToDownloadsFlatDesti"
+                                "nationNoSpaceForReportOnly")
+            .FileTransferConnectorReportOnlyMode(),
+        FILE_TRANSFER_TEST_CASE(
+            "transferConnectorFromDriveToDownloadsMoveDeep"),
+        FILE_TRANSFER_TEST_CASE("transferConnectorFromDriveToDownloadsMoveDeep")
+            .FileTransferConnectorReportOnlyMode(),
+        FILE_TRANSFER_TEST_CASE(
+            "transferConnectorFromDriveToDownloadsMoveFlat"),
+        FILE_TRANSFER_TEST_CASE("transferConnectorFromDriveToDownloadsMoveFlat")
+            .FileTransferConnectorReportOnlyMode(),
+        FILE_TRANSFER_TEST_CASE("transferConnectorFromMtpToDownloadsDeep"),
+        FILE_TRANSFER_TEST_CASE("transferConnectorFromMtpToDownloadsFlat"),
+        FILE_TRANSFER_TEST_CASE("transferConnectorFromSmbfsToDownloadsDeep"),
+        FILE_TRANSFER_TEST_CASE("transferConnectorFromSmbfsToDownloadsFlat"),
+        FILE_TRANSFER_TEST_CASE("transferConnectorFromUsbToDownloadsDeep"),
+        FILE_TRANSFER_TEST_CASE("transferConnectorFromUsbToDownloadsFlat"),
+        FILE_TRANSFER_TEST_CASE_NEW_UX(
+            "transferConnectorFromUsbToDownloadsDeepNewUX"),
+        FILE_TRANSFER_TEST_CASE_NEW_UX(
+            "transferConnectorFromUsbToDownloadsFlatNewUX"),
+        FILE_TRANSFER_TEST_CASE_NEW_UX(
+            "transferConnectorFromUsbToDownloadsDeepMoveNewUX"),
+        FILE_TRANSFER_TEST_CASE_NEW_UX(
+            "transferConnectorFromUsbToDownloadsFlatMoveNewUX"),
+        FILE_TRANSFER_TEST_CASE_NEW_UX(
+            "transferConnectorFromUsbToDownloadsFlatWarnProceedNewUX"),
+        FILE_TRANSFER_TEST_CASE_NEW_UX("transferConnectorFromUsbToDownloadsFlat"
+                                       "WarnProceedWithJustificationNewUX")
+            .BypassRequiresJustification(),
+        FILE_TRANSFER_TEST_CASE_NEW_UX(
+            "transferConnectorFromUsbToDownloadsDeepWarnProceedNewUX"),
+        FILE_TRANSFER_TEST_CASE_NEW_UX("transferConnectorFromUsbToDownloadsDeep"
+                                       "WarnProceedWithJustificationNewUX")
+            .BypassRequiresJustification(),
+        FILE_TRANSFER_TEST_CASE_NEW_UX(
+            "transferConnectorFromUsbToDownloadsFlatWarnCancelNewUX"),
+        FILE_TRANSFER_TEST_CASE_NEW_UX(
+            "transferConnectorFromUsbToDownloadsDeepWarnCancelNewUX")));
 
-WRAPPED_INSTANTIATE_TEST_SUITE_P_WITH_BOOL(
+WRAPPED_INSTANTIATE_TEST_SUITE_P(
     DlpEntrepriseConnectors, /* dlp_enterprise_connectors.ts */
     DlpAndEnterpriseConnectorsFilesAppBrowserTest,
-    testing::Combine(
-        ::testing::Values(
-            FILE_TRANSFER_TEST_CASE_NEW_UX("twoWarningsProceeded"),
-            FILE_TRANSFER_TEST_CASE_NEW_UX("differentBlockPolicies")),
-        ::testing::Bool()));
+    ::testing::Values(
+        FILE_TRANSFER_TEST_CASE_NEW_UX("twoWarningsProceeded"),
+        FILE_TRANSFER_TEST_CASE_NEW_UX("differentBlockPolicies")));
 
 #undef FILE_TRANSFER_TEST_CASE
 #undef FILE_TRANSFER_TEST_CASE_NEW_UX

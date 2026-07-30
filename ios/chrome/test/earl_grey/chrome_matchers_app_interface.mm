@@ -78,6 +78,7 @@
 #import "ios/chrome/test/app/window_test_util.h"
 #import "ios/testing/earl_grey/earl_grey_app.h"
 #import "ios/web/public/test/earl_grey/web_view_matchers.h"
+#import "ui/base/device_form_factor.h"
 #import "ui/base/l10n/l10n_util.h"
 #import "ui/base/test/ios/ui_image_test_utils.h"
 
@@ -134,7 +135,7 @@ NSString* IdentifierForRecentActivityLogCellAtIndex(unsigned int index) {
 }
 
 bool IsIPad() {
-  return UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad;
+  return ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET;
 }
 
 id<GREYMatcher> TableViewSwitchIsToggledOn(BOOL is_toggled_on) {
@@ -955,11 +956,17 @@ UIWindow* WindowWithAccessibilityIdentifier(NSString* accessibility_id) {
 }
 
 + (id<GREYMatcher>)addressesAndMoreButton {
+  if (IsYourSavedInfoSettingsPageIosEnabled()) {
+    return grey_accessibilityID(kSettingsAddressesAndMoreCellId);
+  }
   return [ChromeMatchersAppInterface
       buttonWithAccessibilityLabelID:(IDS_AUTOFILL_ADDRESSES_SETTINGS_TITLE)];
 }
 
 + (id<GREYMatcher>)paymentMethodsButton {
+  if (IsYourSavedInfoSettingsPageIosEnabled()) {
+    return grey_accessibilityID(kSettingsPaymentMethodsCellId);
+  }
   return [ChromeMatchersAppInterface
       buttonWithAccessibilityLabelID:(IDS_AUTOFILL_PAYMENT_METHODS)];
 }

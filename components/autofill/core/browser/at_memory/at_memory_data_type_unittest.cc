@@ -126,6 +126,13 @@ TEST(AtMemoryDataTypeTest, ToAtMemoryDataType) {
               Optional(VariantWith<AttributeType>(
                   AttributeType(AttributeTypeName::kShipmentOrderIds))));
 
+  EXPECT_THAT(ToAtMemoryDataType(MemoryDataType::kShipmentShippedDate),
+              Optional(VariantWith<AttributeType>(
+                  AttributeType(AttributeTypeName::kShipmentShippedDate))));
+  EXPECT_THAT(
+      ToAtMemoryDataType(MemoryDataType::kShipmentEstimatedDeliveryDate),
+      Eq(std::nullopt));
+
   EXPECT_THAT(ToAtMemoryDataType(MemoryDataType::kUnknown), Eq(std::nullopt));
 }
 
@@ -144,6 +151,10 @@ TEST(AtMemoryDataTypeTest, AttributeTypeToMemoryDataType) {
       AttributeTypeToMemoryDataType(
           AttributeType(AttributeTypeName::kShipmentOrderIds)),
       Eq(accessibility_annotator::MemoryDataType::kShipmentAssociatedOrderId));
+  EXPECT_THAT(
+      AttributeTypeToMemoryDataType(
+          AttributeType(AttributeTypeName::kShipmentShippedDate)),
+      Eq(accessibility_annotator::MemoryDataType::kShipmentShippedDate));
 }
 
 TEST(AtMemoryDataTypeTest, GetMemoryDataTypeNameForI18n) {

@@ -40,10 +40,6 @@ BASE_DECLARE_FEATURE(kFeedSwipeInProductHelp);
 // eligibility service instead of the new tab page mediator.
 BASE_DECLARE_FEATURE(kUseFeedEligibilityService);
 
-// iOS counterpart for `chrome::android::kMostVisitedTilesCustomization`;
-// enables customizable most visited tiles when enabled.
-BASE_DECLARE_FEATURE(kMostVisitedTilesCustomizationIOS);
-
 // Feature flag to enable the NTP background image cache.
 BASE_DECLARE_FEATURE(kEnableNTPBackgroundImageCache);
 
@@ -91,13 +87,16 @@ bool UseFeedEligibilityService();
 // Whether the AIM button is allowed in NTP.
 bool IsAimEnabledInNtp();
 
-// Whether customized most visited tiles is enabled on Chrome on iOS.
-bool IsContentSuggestionsCustomizable();
-
 // Whether the NTP background image cache is enabled.
 bool IsNTPBackgroundImageCacheEnabled();
 
 // Whether the NTP Logo and Doodle should have a consistent height.
 bool IsConsistentLogoDoodleHeightEnabled();
+
+// Feature flag to enable the New Tab Page Redesign.
+BASE_DECLARE_FEATURE(kNewTabPageRedesign);
+
+// Whether the New Tab Page Redesign is enabled.
+bool IsNTPRedesignEnabled();
 
 #endif  // IOS_CHROME_BROWSER_NTP_UI_BUNDLED_NEW_TAB_PAGE_FEATURE_H_

@@ -94,8 +94,11 @@ class RecentDiskSource : public RecentSource {
   // locks to guarantee its consistency.
   struct CallContext {
     CallContext(const Params& params, GetRecentFilesCallback callback);
-    // Move constructor; necessary as callback is a move-only type.
-    CallContext(CallContext&& context);
+
+    CallContext(const CallContext&) = delete;
+    CallContext& operator=(const CallContext&) = delete;
+    CallContext(CallContext&&) = delete;
+    CallContext& operator=(CallContext&&) = delete;
 
     ~CallContext();
 

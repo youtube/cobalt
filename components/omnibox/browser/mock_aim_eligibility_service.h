@@ -19,6 +19,8 @@ class MockAimEligibilityService : public AimEligibilityService {
   ~MockAimEligibilityService() override;
 
   MOCK_METHOD(bool, IsServerEligibilityEnabled, (), (const, override));
+  MOCK_METHOD(bool, IsAimAllowedByDse, (), (const, override));
+  MOCK_METHOD(bool, IsAimAllowedByFeatureAndPolicy, (), (const, override));
   MOCK_METHOD(bool, IsAimLocallyEligible, (), (const, override));
   MOCK_METHOD(bool, IsAimEligible, (), (const, override));
   MOCK_METHOD(bool, IsCanvasEligible, (), (const, override));

@@ -34,6 +34,8 @@ class StripTabUnderlineManager {
 
   void SetUnderlineState(int tab_id, bool is_underlined);
 
+  void ResetAnimationCycle(int tab_id);
+
  private:
   class UiDelegateImpl;
 

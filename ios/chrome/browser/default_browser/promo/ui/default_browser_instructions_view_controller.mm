@@ -13,6 +13,7 @@
 #import "ios/chrome/common/ui/instruction_view/instruction_view.h"
 #import "ios/chrome/grit/ios_branded_strings.h"
 #import "ios/chrome/grit/ios_strings.h"
+#import "ui/base/device_form_factor.h"
 #import "ui/base/l10n/l10n_util.h"
 
 namespace {
@@ -173,8 +174,7 @@ NSString* const kDefaultBrowserInstructionsViewDarkAnimationViewId =
 
 - (NSString*)animationAssetName {
   if (IsDefaultBrowserPromoIpadInstructions() &&
-      [[UIDevice currentDevice] userInterfaceIdiom] ==
-          UIUserInterfaceIdiomPad) {
+      ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
     return base::i18n::IsRTL() ? kDefaultBrowserAnimationRtlIpad
                                : kDefaultBrowserAnimationIpad;
   }
@@ -190,8 +190,7 @@ NSString* const kDefaultBrowserInstructionsViewDarkAnimationViewId =
 
 - (NSString*)animationAssetNameDarkmode {
   if (IsDefaultBrowserPromoIpadInstructions() &&
-      [[UIDevice currentDevice] userInterfaceIdiom] ==
-          UIUserInterfaceIdiomPad) {
+      ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
     // No separate dark mode asset for iPad when using dynamic colors.
     return nil;
   }
@@ -244,8 +243,7 @@ NSString* const kDefaultBrowserInstructionsViewDarkAnimationViewId =
 // Returns whether the animation supports dynamic colors.
 - (BOOL)areColorsDynamic {
   return IsDefaultBrowserPromoIpadInstructions() &&
-         [[UIDevice currentDevice] userInterfaceIdiom] ==
-             UIUserInterfaceIdiomPad;
+         ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET;
 }
 
 @end

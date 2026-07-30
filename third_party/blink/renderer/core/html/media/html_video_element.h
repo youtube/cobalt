@@ -257,10 +257,18 @@ class CORE_EXPORT HTMLVideoElement final
 
   void ResetCache(TimerBase*);
 
-  // Returns true if the video element meets the optional minimum size
-  // requirements for entering Picture-in-Picture (calculated in viewport
-  // coordinates, including CSS transforms and page zoom). If no constraint
-  // is provided (`min_size` is `std::nullopt`), this always returns true.
+  // Returns the visual size of the video element in DIPs, taking into account
+  // page zoom and CSS transforms.
+  gfx::Size GetVisualSizeInDIPs() const;
+
+  // Logs UMA metrics for the size constraint check result, and the blocked
+  // video size on failure.
+  void LogPictureInPictureSizeMetrics(bool meets_constraint) const;
+
+  // Returns true if the video element's visual size in DIPs (as calculated by
+  // `GetVisualSizeInDIPs`) meets the optional minimum size requirements
+  // for entering Picture-in-Picture. If no constraint is provided
+  // (`min_size` is `std::nullopt`), this always returns true.
   bool MeetsRequestEnterPictureInPictureSizeConstraint(
       const std::optional<gfx::Size>& min_size) const;
 

@@ -61,7 +61,7 @@ bool WaitableEventWatcher::StartWatching(
     // For automatic-reset events, only fire the callback if this watcher
     // can claim/dequeue the event. For manual-reset events, all watchers can
     // be called back.
-    if (auto_reset && !WaitableEvent::PeekPort(name, true)) {
+    if (auto_reset && !WaitableEvent::PeekPortImpl(name, true)) {
       return;
     }
 

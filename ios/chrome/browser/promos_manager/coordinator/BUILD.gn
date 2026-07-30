@@ -56,6 +56,8 @@ source_set("coordinator") {
     "//ios/chrome/browser/shared/public/commands",
     "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/browser/shared/public/features:system_flags",
+    "//ios/chrome/browser/signin/model",
+    "//ios/chrome/browser/signin/model:authentication_service_factory",
     "//ios/chrome/browser/sync/model",
     "//ios/chrome/browser/welcome_back/coordinator:display_handler",
     "//ios/chrome/browser/welcome_back/model:features",
@@ -96,6 +98,7 @@ source_set("unit_tests") {
   sources = [ "promos_manager_coordinator_unittest.mm" ]
   deps = [
     ":coordinator",
+    "//components/sync:test_support",
     "//ios/chrome/app/application_delegate:test_support",
     "//ios/chrome/app/profile",
     "//ios/chrome/browser/promos_manager/coordinator:promos",
@@ -109,6 +112,8 @@ source_set("unit_tests") {
     "//ios/chrome/browser/signin/model:authentication_service",
     "//ios/chrome/browser/signin/model:authentication_service_factory",
     "//ios/chrome/browser/signin/model:test_support",
+    "//ios/chrome/browser/sync/model",
+    "//ios/chrome/browser/sync/model:test_support",
     "//ios/chrome/test:test_support",
     "//ios/web/public/test",
     "//testing/gmock",

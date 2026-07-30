@@ -266,6 +266,28 @@ IN_PROC_BROWSER_TEST_F(GlicSidePanelCoordinatorStateTest, ShowAndClose) {
   EXPECT_FALSE(coordinator().IsShowing());
 }
 
+IN_PROC_BROWSER_TEST_F(GlicSidePanelCoordinatorStateTest, OpenTriggerTest) {
+  auto* entry = registry()->GetEntryForKey(
+      SidePanelEntry::Key(SidePanelEntry::Id::kGlic));
+  ASSERT_TRUE(entry);
+
+  // 1. Test general/default show. Should have kGlicOpened as the trigger.
+  coordinator().Show();
+  EXPECT_EQ(future_.Take(), GlicSidePanelCoordinator::State::kShown);
+  EXPECT_EQ(entry->last_open_trigger(), SidePanelOpenTrigger::kGlicOpened);
+
+  // Close the panel.
+  coordinator().Close();
+  EXPECT_EQ(future_.Take(), GlicSidePanelCoordinator::State::kClosed);
+
+  // 2. Test explicit trigger in options.
+  GlicSidePanelCoordinator::ShowOptions options;
+  options.open_trigger = SidePanelOpenTrigger::kToolbarButton;
+  coordinator().Show(options);
+  EXPECT_EQ(future_.Take(), GlicSidePanelCoordinator::State::kShown);
+  EXPECT_EQ(entry->last_open_trigger(), SidePanelOpenTrigger::kToolbarButton);
+}
+
 IN_PROC_BROWSER_TEST_F(GlicSidePanelCoordinatorStateTest, CloseSuppressed) {
   // Initial state should be kClosed.
   EXPECT_EQ(coordinator().state(), GlicSidePanelCoordinator::State::kClosed);
@@ -302,6 +324,11 @@ IN_PROC_BROWSER_TEST_F(GlicSidePanelCoordinatorStateTest, Backgrounded) {
   EXPECT_EQ(future_.Take(), GlicSidePanelCoordinator::State::kShown);
   EXPECT_EQ(initial_tab_coordinator.state(),
             GlicSidePanelCoordinator::State::kShown);
+
+  auto* entry = registry()->GetEntryForKey(
+      SidePanelEntry::Key(SidePanelEntry::Id::kGlic));
+  ASSERT_TRUE(entry);
+  EXPECT_EQ(entry->last_open_trigger(), SidePanelOpenTrigger::kTabChanged);
 }
 
 IN_PROC_BROWSER_TEST_F(GlicSidePanelCoordinatorStateTest, ShowCloseShowRace) {

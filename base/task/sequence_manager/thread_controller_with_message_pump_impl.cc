@@ -92,7 +92,7 @@ ThreadControllerWithMessagePumpImpl::ThreadControllerWithMessagePumpImpl(
       can_run_tasks_by_batches_(settings.can_run_tasks_by_batches),
       is_main_thread_(settings.is_main_thread) {
   if (settings.should_report_lock_metrics) {
-    LockMetricsRecorder::Get()->SetTargetCurrentThread();
+    LockMetricsRecorder::EnableRecordingOnCurrentThread();
   }
 }
 
@@ -583,7 +583,10 @@ void ThreadControllerWithMessagePumpImpl::DoIdleWork() {
   }
 #endif  // BUILDFLAG(IS_WIN)
 
-  LockMetricsRecorder::Get()->ReportLockAcquisitionTimes();
+  auto* recorder = base::LockMetricsRecorder::GetForCurrentThread();
+  if (recorder) {
+    recorder->ReportLockAcquisitionTimes();
+  }
 
   if (main_thread_only().task_source->OnIdle()) {
     work_id_provider_->IncrementWorkId();

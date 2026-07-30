@@ -93,7 +93,7 @@ PassageEmbedderModelObserverFactory::BuildServiceInstanceForBrowserContext(
 
   return std::make_unique<PassageEmbedderModelObserver>(
       global_state_service
-          ? &global_state_service->GetGlobalState().prediction_manager()
+          ? &global_state_service->GetGlobalState().model_provider()
           : nullptr,
       passage_embeddings::GetChromePassageEmbeddingsServiceController());
 }

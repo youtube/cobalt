@@ -33,6 +33,7 @@ class ContextHubPageHandler : public browser::context_hub::mojom::PageHandler {
 
   // browser::context_hub::mojom::PageHandler:
   void GenerateAutoTodos(GenerateAutoTodosCallback callback) override;
+  void GetAllEntries(GetAllEntriesCallback callback) override;
 
  private:
   void OnAutoTodosGenerated(

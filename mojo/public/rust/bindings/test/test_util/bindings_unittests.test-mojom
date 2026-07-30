@@ -39,4 +39,5 @@ interface AssociatedSender {
     // Requests that the receiver create a pipe, hold/bind one end, and send the other to us
     RequestRemote() => (pending_associated_remote<MathService> remote);
     RequestReceiver() => (pending_associated_receiver<MathService> receiver);
+    ClearActiveEndpoints();
 };

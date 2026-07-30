@@ -1,0 +1,6 @@
+Tests that disabling domains while paused on node removal DOM breakpoint works.
+removing the node
+paused in debugger, disabling domains
+resuming
+success
+

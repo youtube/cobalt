@@ -56,8 +56,14 @@ source_set("page_context_eligibility_api") {
 }
 
 static_library("page_context_eligibility") {
-  public = [ "page_context_eligibility.h" ]
-  sources = [ "page_context_eligibility.cc" ]
+  public = [
+    "page_context_eligibility.h",
+    "page_context_eligibility_observer.h",
+  ]
+  sources = [
+    "page_context_eligibility.cc",
+    "page_context_eligibility_observer.cc",
+  ]
 
   public_deps = [
     ":browser",
@@ -103,6 +109,7 @@ source_set("unit_tests") {
   sources = [
     "media_transcript_provider_unittest.cc",
     "page_content_proto_util_unittest.cc",
+    "page_context_eligibility_observer_unittest.cc",
     "page_context_eligibility_unittest.cc",
     "page_text_dump_result_unittest.cc",
     "page_text_observer_unittest.cc",

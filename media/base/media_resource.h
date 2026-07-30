@@ -7,6 +7,7 @@
 
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_export.h"
 
@@ -34,7 +35,7 @@ class MEDIA_EXPORT MediaResource {
   //   non-null pointer for the same stream type. In MSE Javascript code can
   //   remove SourceBuffer from a MediaSource at any point and this will make
   //   some previously existing streams inaccessible/unavailable.
-  virtual std::vector<DemuxerStream*> GetAllStreams() = 0;
+  virtual std::vector<raw_ptr<DemuxerStream>> GetAllStreams() = 0;
 
   // A helper function that return the first stream of the given `type` if one
   // exists or a null pointer if there is no streams of that type.

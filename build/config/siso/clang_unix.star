@@ -13,7 +13,7 @@ load("./gn_logs.star", "gn_logs")
 load("./win_sdk.star", "win_sdk")
 
 def __clang_link(ctx, cmd):
-    if not config.get(ctx, "remote-link"):
+    if not (config.get(ctx, "remote-link") or config.get(ctx, "default-remote")):
         return
     inputs = []
     sysroot = ""
@@ -84,6 +84,8 @@ def __rules(ctx):
     use_thin_lto = gn_logs_data.get("use_thin_lto") == "true"
     remote_link_timeout = "80m" if use_thin_lto else "10m"
 
+    remote_link = config.get(ctx, "remote-link") or config.get(ctx, "default-remote")
+
     rules = []
     if win_sdk.enabled(ctx):
         rules.extend([
@@ -137,7 +139,7 @@ def __rules(ctx):
                     "*.pak",
                     "*.py",
                 ],
-                "remote": config.get(ctx, "remote-link"),
+                "remote": remote_link,
                 "platform_ref": "large",
                 "input_root_absolute_path": input_root_absolute_path,
                 "timeout": remote_link_timeout,
@@ -158,7 +160,7 @@ def __rules(ctx):
                     "*.pak",
                     "*.py",
                 ],
-                "remote": config.get(ctx, "remote-link"),
+                "remote": remote_link,
                 "platform_ref": "large",
                 "input_root_absolute_path": input_root_absolute_path,
                 "timeout": remote_link_timeout,
@@ -179,7 +181,7 @@ def __rules(ctx):
                     "*.pak",
                     "*.py",
                 ],
-                "remote": config.get(ctx, "remote-link"),
+                "remote": remote_link,
                 "platform_ref": "large",
                 "input_root_absolute_path": input_root_absolute_path,
                 "timeout": remote_link_timeout,
@@ -331,7 +333,7 @@ def __rules(ctx):
                 "*.stamp",
             ],
             "handler": "lld_thin_archive",
-            "remote": config.get(ctx, "remote-link"),
+            "remote": remote_link,
             "timeout": "2m",
             "platform_ref": "large",
             "accumulate": True,
@@ -347,7 +349,7 @@ def __rules(ctx):
                 "*.pak",
                 "*.stamp",
             ],
-            "remote": config.get(ctx, "remote-link"),
+            "remote": remote_link,
             "restat_content": True,
             "platform_ref": "large",
             "timeout": remote_link_timeout,
@@ -363,7 +365,7 @@ def __rules(ctx):
                 "*.pak",
                 "*.stamp",
             ],
-            "remote": config.get(ctx, "remote-link"),
+            "remote": remote_link,
             "platform_ref": "large",
             "timeout": remote_link_timeout,
         },
@@ -379,7 +381,7 @@ def __rules(ctx):
                 "*.pak",
                 "*.stamp",
             ],
-            "remote": config.get(ctx, "remote-link"),
+            "remote": remote_link,
             "platform_ref": "large",
             "timeout": remote_link_timeout,
         },

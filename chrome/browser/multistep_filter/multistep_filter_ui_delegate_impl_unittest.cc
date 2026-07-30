@@ -9,6 +9,7 @@
 #include "base/time/time.h"
 #include "chrome/browser/multistep_filter/ui/filter_ui_controller.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
+#include "components/multistep_filter/core/data_models/suggestion_user_decision.h"
 #include "components/multistep_filter/core/data_models/url_filter_suggestion.h"
 #include "components/tabs/public/mock_tab_interface.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -66,9 +67,8 @@ TEST_F(MultistepFilterUiDelegateImplTest, ClearSuggestion_WithController) {
   auto mock_controller =
       std::make_unique<testing::NiceMock<MockFilterUiController>>(*mock_tab_);
 
-  EXPECT_CALL(
-      *mock_controller,
-      ClearSuggestion(FilterUiController::SuggestionUserDecision::kIgnored));
+  EXPECT_CALL(*mock_controller,
+              ClearSuggestion(SuggestionUserDecision::kIgnored));
   delegate_->ClearSuggestion();
 }
 

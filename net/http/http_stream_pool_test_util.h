@@ -115,6 +115,11 @@ class FakeServiceEndpointRequest : public HostResolver::ServiceEndpointRequest {
   // after calling CompleteStartSynchronously().
   FakeServiceEndpointRequest& CallOnServiceEndpointRequestFinished(int rv);
 
+  FakeServiceEndpointRequest& set_is_stale_while_refreshing(bool is_stale) {
+    is_stale_while_refreshing_ = is_stale;
+    return *this;
+  }
+
   RequestPriority priority() const { return resolution_.priority(); }
   const HostResolver::ResolveHostParameters& resolve_host_params() const {
     return resolve_host_params_;
@@ -137,6 +142,8 @@ class FakeServiceEndpointRequest : public HostResolver::ServiceEndpointRequest {
   void CompleteAsync(int rv);
 
   raw_ptr<Delegate> delegate_;
+
+  bool is_stale_while_refreshing_ = false;
 
   FakeServiceEndpointResolution resolution_;
 

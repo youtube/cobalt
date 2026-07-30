@@ -5,6 +5,7 @@ Update Mechanism: Manual
 Security Critical: no
 Shipped: yes
 License: Apache-2.0, MIT, SunPro, BSD-2-Clause, BSD-3-Clause, Apache-with-LLVM-Exception, NCSA, CERN, ISC, BSD-4-Clause-UC, Martin-Birgmeier, BSD-4-Clause-Wasabi, IBM-DHCP, Unicode-DFS-2015, Unicode-DFS-2016, ICU, NAIST-2003, MPL-2.0, Caffe, Zlib
+License Android Compatible: yes
 License File: NOTICE
 
 Description:

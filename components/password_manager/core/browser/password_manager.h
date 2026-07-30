@@ -137,7 +137,7 @@ class PasswordManager : public PasswordManagerInterface {
       const autofill::FormData& form,
       const std::u16string& generated_password) override;
   void ProcessAutofillPredictions(
-      PasswordManagerDriver* driver,
+      PasswordManagerDriver& driver,
       const autofill::FormData& form,
       const base::flat_map<autofill::FieldGlobalId,
                            autofill::AutofillServerPrediction>&
@@ -353,7 +353,7 @@ class PasswordManager : public PasswordManagerInterface {
   // |form_managers_| and returns it.
   // Returns nullptr if the manager should not be created for a form (e.g. when
   // filling is disabled).
-  PasswordFormManager* CreateFormManager(PasswordManagerDriver* driver,
+  PasswordFormManager* CreateFormManager(PasswordManagerDriver& driver,
                                          const autofill::FormData& form);
 
   // Passes |form| to PasswordFormManager that manages it for using it after

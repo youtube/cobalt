@@ -85,7 +85,7 @@ class CORE_EXPORT FindBuffer {
     return PositionInFlatTree::FirstPositionInNode(*node_after_block_);
   }
 
-  bool IsInvalidMatch(MatchResultICU match) const;
+  bool IsInvalidMatch(MatchResultIcu match) const;
 
   // Mapping for position in buffer -> actual node where the text came from,
   // along with the offset in the OffsetMapping of this find_buffer.
@@ -162,7 +162,7 @@ class CORE_EXPORT FindBuffer {
   // with display:ruby-text exists.
   Vector<Vector<UChar>> buffer_list_;
   HeapVector<BufferNodeMapping> buffer_node_mappings_;
-  TextSearcherICU text_searcher_;
+  TextSearcherIcu text_searcher_;
 
   const OffsetMapping* offset_mapping_ = nullptr;
 };

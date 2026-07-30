@@ -3,12 +3,15 @@
 // found in the LICENSE file.
 
 #include "base/memory/raw_ptr.h"
+#include "base/run_loop.h"
+#include "base/test/bind.h"
 #include "base/test/gmock_expected_support.h"
 #include "base/test/run_until.h"
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/host/host.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
+#include "chrome/browser/glic/public/glic_invoke_options.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/test_support/glic_browser_test.h"
@@ -139,6 +142,36 @@ IN_PROC_BROWSER_TEST_F(GlicBrowserTest, GlicEnablingDismissed) {
   // Simulate user shown FRE again and accepted.
   SetFRECompletion(profile, prefs::FreStatus::kCompleted);
   ASSERT_FALSE(GlicEnabling::DidDismissForProfile(profile));
+}
+
+IN_PROC_BROWSER_TEST_F(GlicBrowserTest, InvokeFailsWhenProfileNotEnabled) {
+  auto* profile = browser()->profile();
+  ScopedGlicCapability scoped_glic_capability(profile, false);
+  ASSERT_FALSE(GlicEnabling::IsEnabledForProfile(profile));
+
+  auto* glic_service = GlicKeyedServiceFactory::GetGlicKeyedService(profile);
+  ASSERT_TRUE(glic_service);
+
+  bool error_called = false;
+  GlicInvokeError error_received;
+
+  base::RunLoop run_loop;
+
+  GlicInvokeOptions options(mojom::InvocationSource::kTopChromeButton);
+  options.on_error = base::BindLambdaForTesting([&](GlicInvokeError error) {
+    error_called = true;
+    error_received = error;
+    run_loop.Quit();
+  });
+
+  auto instance = glic_service->Invoke(std::move(options));
+  EXPECT_FALSE(instance);
+
+  // on_error is posted asynchronously, so we wait for it
+  run_loop.Run();
+
+  EXPECT_TRUE(error_called);
+  EXPECT_EQ(error_received, GlicInvokeError::kProfileNotEnabled);
 }
 
 // This test verifies that focus is correctly trapped and forwarded to the

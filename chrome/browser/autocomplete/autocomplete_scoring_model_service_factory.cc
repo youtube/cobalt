@@ -60,7 +60,7 @@ AutocompleteScoringModelServiceFactory::BuildServiceInstanceForBrowserContext(
   if (!holder_service) {
     return nullptr;
   }
-  auto& opt_guide = holder_service->GetGlobalState().prediction_manager();
+  auto& opt_guide = holder_service->GetGlobalState().model_provider();
   return std::make_unique<AutocompleteScoringModelService>(&opt_guide);
 }
 

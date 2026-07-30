@@ -1535,30 +1535,7 @@ VideoCodecProfile H265Parser::ProfileIDCToVideoCodecProfile(int profile_idc) {
   }
 }
 
-skhdr::ContentLightLevelInformation H265SEIContentLightLevelInfo::ToSkHdr()
-    const {
-  return skhdr::ContentLightLevelInformation::MakeUint16(
-      /*maxCLL=*/max_content_light_level,
-      /*maxFALL=*/max_picture_average_light_level);
-}
 
-skhdr::MasteringDisplayColorVolume H265SEIMasteringDisplayInfo::ToSkHdr()
-    const {
-  constexpr auto kChromaDenominator = 50000.0f;
-  constexpr auto kLumaDenoninator = 10000.0f;
-  // display primaries are in G/B/R order in MDCV SEI.
-  return {
-      .fDisplayPrimaries = {display_primaries[2][0] / kChromaDenominator,
-                            display_primaries[2][1] / kChromaDenominator,
-                            display_primaries[0][0] / kChromaDenominator,
-                            display_primaries[0][1] / kChromaDenominator,
-                            display_primaries[1][0] / kChromaDenominator,
-                            display_primaries[1][1] / kChromaDenominator,
-                            white_points[0] / kChromaDenominator,
-                            white_points[1] / kChromaDenominator},
-      .fMaximumDisplayMasteringLuminance = max_luminance / kLumaDenoninator,
-      .fMinimumDisplayMasteringLuminance = min_luminance / kLumaDenoninator};
-}
 
 H265Parser::Result H265Parser::ParseProfileTierLevel(
     bool profile_present,
@@ -2215,6 +2192,7 @@ H265Parser::Result H265Parser::ParseSEI(H265SEI* sei) {
              << " payload size: " << payload_size;
 
     enum SEIType {
+      kSEIUserDataRegisteredItuTT35 = 4,
       kSEIMasteringDisplayInfo = 137,
       kSEIContentLightLevelInfo = 144,
       kSEIAlphaChannelInfo = 165,
@@ -2222,6 +2200,25 @@ H265Parser::Result H265Parser::ParseSEI(H265SEI* sei) {
 
     H265SEIMessage sei_msg;
     switch (type) {
+      case kSEIUserDataRegisteredItuTT35: {
+        auto& itu_t_t35 = sei_msg.emplace<H26xSEIUserDataRegisteredT35>();
+        READ_BITS_AND_MINUS_BITS_READ_OR_RETURN(8, &byte, &num_bits_remain);
+        itu_t_t35.country_code = byte;
+        if (itu_t_t35.country_code == 0xff) {
+          READ_BITS_AND_MINUS_BITS_READ_OR_RETURN(8, &byte, &num_bits_remain);
+          itu_t_t35.country_code_extension_byte = byte;
+        }
+        RETURN_IF_NUM_BITS_REMAIN_NEGATIVE(num_bits_remain);
+        size_t payload_bytes = num_bits_remain / 8;
+        if (payload_bytes > 0) {
+          itu_t_t35.payload = base::HeapArray<uint8_t>::Uninit(payload_bytes);
+          for (size_t i = 0; i < payload_bytes; ++i) {
+            READ_BITS_AND_MINUS_BITS_READ_OR_RETURN(8, &byte, &num_bits_remain);
+            itu_t_t35.payload[i] = byte;
+          }
+        }
+        break;
+      }
       case kSEIAlphaChannelInfo: {
         auto& info = sei_msg.emplace<H265SEIAlphaChannelInfo>();
         READ_BOOL_AND_MINUS_BITS_READ_OR_RETURN(&info.alpha_channel_cancel_flag,
@@ -2252,7 +2249,7 @@ H265Parser::Result H265Parser::ParseSEI(H265SEI* sei) {
         break;
       }
       case kSEIContentLightLevelInfo: {
-        auto& info = sei_msg.emplace<H265SEIContentLightLevelInfo>();
+        auto& info = sei_msg.emplace<H26xSEIContentLightLevelInfo>();
         READ_BITS_AND_MINUS_BITS_READ_OR_RETURN(
             16, &info.max_content_light_level, &num_bits_remain);
         READ_BITS_AND_MINUS_BITS_READ_OR_RETURN(
@@ -2260,7 +2257,7 @@ H265Parser::Result H265Parser::ParseSEI(H265SEI* sei) {
         break;
       }
       case kSEIMasteringDisplayInfo: {
-        auto& info = sei_msg.emplace<H265SEIMasteringDisplayInfo>();
+        auto& info = sei_msg.emplace<H26xSEIMasteringDisplayInfo>();
         for (auto& primary : info.display_primaries) {
           for (auto& component : primary) {
             READ_BITS_AND_MINUS_BITS_READ_OR_RETURN(16, &component,
@@ -2296,7 +2293,7 @@ H265Parser::Result H265Parser::ParseSEI(H265SEI* sei) {
       SKIP_BITS_OR_RETURN(num_bits_remain);
     // Only add parsed SEI messages.
     if (num_bits_remain < payload_size * 8) {
-      sei->msgs.push_back(sei_msg);
+      sei->msgs.push_back(std::move(sei_msg));
     }
     // In case the loop endless.
     if (++num_parsed_sei_msg > kMaxParsedSEIMessages)

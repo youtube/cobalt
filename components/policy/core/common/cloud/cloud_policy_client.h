@@ -59,6 +59,9 @@ inline constexpr char kPolicyFetchingTimeHistogramName[] =
 
 POLICY_EXPORT BASE_DECLARE_FEATURE(kPolicyFetchWithSha256);
 
+// Returns the form factor of the device.
+POLICY_EXPORT enterprise_management::FormFactor GetFormFactor();
+
 // Implements the core logic required to talk to the device management service.
 // Also keeps track of the current state of the association with the service,
 // such as whether there is a valid registration (DMToken is present in that

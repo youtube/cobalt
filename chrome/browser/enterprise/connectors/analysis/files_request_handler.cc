@@ -147,8 +147,9 @@ void FilesRequestHandler::SetFactoryForTesting(Factory factory) {
 
 // static
 void FilesRequestHandler::ResetFactoryForTesting() {
-  if (GetFactoryStorage())
+  if (GetFactoryStorage()) {
     GetFactoryStorage()->Reset();
+  }
 }
 
 FilesRequestHandler::~FilesRequestHandler() {

@@ -1424,6 +1424,19 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Memory.Coordinator.RegistrationBatchSize" units="count"
+    expires_after="2027-06-30">
+  <owner>kmg@google.com</owner>
+  <owner>catan-team@chromium.org</owner>
+  <summary>
+    The number of child-process memory consumer registrations coalesced into a
+    single batched RegisterMany() IPC to the browser's memory coordinator.
+    Recorded once each time a child process flushes its pending registrations. A
+    value of 1 means no coalescing happened for that flush; larger values
+    quantify how effectively the per-consumer registration IPCs are batched.
+  </summary>
+</histogram>
+
 <histogram name="Memory.Discardable.FreelistSize.Foreground" units="KiB"
     expires_after="2023-03-05">
   <owner>thiabaud@google.com</owner>

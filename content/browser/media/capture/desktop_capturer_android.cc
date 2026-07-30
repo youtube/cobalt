@@ -8,7 +8,7 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_bytebuffer.h"
 #include "base/numerics/checked_math.h"
-#include "third_party/webrtc/media/base/video_common.h"
+#include "third_party/webrtc/api/video/video_common.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "content/public/android/content_jni_headers/ScreenCapture_jni.h"

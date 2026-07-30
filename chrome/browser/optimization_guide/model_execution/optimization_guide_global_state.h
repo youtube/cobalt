@@ -43,6 +43,9 @@ class ChromePredictionManager {
     return prediction_model_store_;
   }
   PredictionManager& prediction_manager() { return prediction_manager_; }
+  OptimizationGuideModelProvider& model_provider() {
+    return prediction_manager_;
+  }
 
  private:
   PredictionModelStore prediction_model_store_;
@@ -75,6 +78,9 @@ class OptimizationGuideGlobalState final
   }
   PredictionManager& prediction_manager() {
     return prediction_manager_.prediction_manager();
+  }
+  OptimizationGuideModelProvider& model_provider() {
+    return prediction_manager_.model_provider();
   }
 
  private:

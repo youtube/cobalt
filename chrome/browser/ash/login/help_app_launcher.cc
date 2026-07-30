@@ -6,13 +6,13 @@
 
 #include <string>
 
+#include "ash/constants/ash_extension_constants.h"
 #include "ash/login/resources/grit/ash_login_strings.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/ash/login/login_web_dialog.h"
-#include "chrome/common/extensions/extension_constants.h"
 #include "chrome/grit/locale_settings.h"
 #include "content/public/browser/browser_thread.h"
 #include "extensions/browser/extension_registry.h"

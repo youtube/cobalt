@@ -374,7 +374,8 @@ base::flat_set<raw_ptr<const PageNode>> FreezingPolicy::GetConnectedPages(
       auto it = browsing_instance_states_.find(browsing_instance_id);
       CHECK(it != browsing_instance_states_.end());
       const BrowsingInstanceState& browsing_instance_state = it->second;
-      for (auto* browsing_instance_page : browsing_instance_state.pages) {
+      for (const performance_manager::PageNode* browsing_instance_page :
+           browsing_instance_state.pages) {
         if (!connected_pages.contains(browsing_instance_page)) {
           pages_to_visit.insert(browsing_instance_page);
         }

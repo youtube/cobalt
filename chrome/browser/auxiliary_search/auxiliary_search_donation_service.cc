@@ -29,6 +29,7 @@
 #include "components/page_content_annotations/core/page_content_annotations_service.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
+#include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/visited_url_ranking/public/features.h"
 #include "components/visited_url_ranking/public/fetch_options.h"
 #include "components/visited_url_ranking/public/url_visit.h"
@@ -110,6 +111,7 @@ AuxiliarySearchDonationService::AuxiliarySearchDonationService(
     page_content_annotations::PageContentAnnotationsService*
         page_content_annotations_service,
     visited_url_ranking::VisitedURLRankingService* ranking_service,
+    signin::IdentityManager* identity_manager,
     PrefService* pref_service,
     DonateCallback donate_callback)
     : page_content_annotations_service_(
@@ -118,6 +120,8 @@ AuxiliarySearchDonationService::AuxiliarySearchDonationService(
       ranking_service_(
           raw_ref<visited_url_ranking::VisitedURLRankingService>::from_ptr(
               ranking_service)),
+      identity_manager_(
+          raw_ref<signin::IdentityManager>::from_ptr(identity_manager)),
       pref_service_(raw_ref<PrefService>::from_ptr(pref_service)),
       donate_callback_(std::move(donate_callback)),
       application_status_listener_(
@@ -236,7 +240,9 @@ void AuxiliarySearchDonationService::DonateHistoryEntries(
     std::vector<HistoryData> entries,
     const visited_url_ranking::URLVisitsMetadata& metadata) {
   if (!entries.empty()) {
-    donate_callback_.Run(std::move(entries));
+    CoreAccountInfo account_info =
+        identity_manager_->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin);
+    donate_callback_.Run(std::move(entries), std::move(account_info));
   }
 
   if (!metadata.most_recent_timestamp.has_value()) {

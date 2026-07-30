@@ -66,7 +66,7 @@ class VideoSender : public FrameSender::Client {
 
   void SetTargetPlayoutDelay(base::TimeDelta new_target_playout_delay);
   base::TimeDelta GetTargetPlayoutDelay() const;
-  virtual int GetEncoderBitrate() const;
+  virtual uint32_t GetEncoderBitrate() const;
   virtual double GetEncoderUtilization() const;
   virtual double GetLossiness() const;
   virtual int GetFramesInserted() const;
@@ -110,7 +110,7 @@ class VideoSender : public FrameSender::Client {
 
   // Remember what we set the bitrate to before, no need to set it again if
   // we get the same value.
-  int last_bitrate_ = 0;
+  uint32_t last_bitrate_ = 0;
 
   // Keeps track of frame drops and uses that to drive the video bitrate.
   std::unique_ptr<VideoBitrateSuggester> bitrate_suggester_;

@@ -9,6 +9,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
@@ -34,6 +35,7 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.omnibox.UrlBar.ScrollType;
+import org.chromium.chrome.browser.omnibox.UrlBar.UrlBarDelegate;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxResourceProvider;
 import org.chromium.chrome.browser.search_engines.settings.SiteSearchSettings;
 import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
@@ -55,6 +57,7 @@ public class UrlBarMediatorUnitTest {
     Context mContext;
     PropertyModel mModel;
     UrlBarMediator mMediator;
+    UrlBarDelegate mDelegate;
 
     @Before
     public void setUp() {
@@ -74,6 +77,8 @@ public class UrlBarMediatorUnitTest {
                         return text.trim();
                     }
                 };
+        mDelegate = mock(UrlBarDelegate.class);
+        mModel.set(UrlBarProperties.DELEGATE, mDelegate);
     }
 
     @Test
@@ -387,7 +392,8 @@ public class UrlBarMediatorUnitTest {
                         "Blah");
         mMediator.setUrlBarHintText("Hint 1");
         assertTrue(mModel.get(UrlBarProperties.SHOW_HINT_TEXT));
-        mMediator.setUrlBarData(baseData, ScrollType.NO_SCROLL, TextSelection.SELECT_END);
+        doReturn(baseData).when(mDelegate).getUrlBarDataForCurrentInput();
+
         mMediator.beginInput(input);
         mModel.get(UrlBarProperties.TEXT_CHANGE_LISTENER).onResult("");
 
@@ -497,6 +503,18 @@ public class UrlBarMediatorUnitTest {
     public void testManageSearchEnginesCallback_featureDisabled() {
         Runnable callback = mModel.get(UrlBarProperties.MANAGE_SEARCH_ENGINES_CALLBACK);
         assertNull(callback);
+    }
+
+    @Test
+    public void testPushCurrentInputToModel_withDelegate() {
+        UrlBarData mockData = UrlBarData.forNonUrlText("Text");
+        doReturn(mockData).when(mDelegate).getUrlBarDataForCurrentInput();
+
+        var input = new AutocompleteInput();
+        mMediator.beginInput(input);
+
+        verify(mDelegate).getUrlBarDataForCurrentInput();
+        assertEquals("Text", mModel.get(UrlBarProperties.TEXT_STATE).text.toString());
     }
 
     private static SpannableStringBuilder spannable(String text) {

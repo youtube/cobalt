@@ -606,9 +606,7 @@ CanvasResourceDispatcher* OffscreenCanvas::GetOrCreateResourceDispatcher() {
     frame_dispatcher_ = std::make_unique<CanvasResourceDispatcher>(
         this, dispatcher_task_runner, client_id_, sink_id_, Size());
 
-    if (placeholder_canvas_id_ !=
-            OffscreenCanvasPlaceholder::kNoPlaceholderId &&
-        agent_group_scheduler_compositor_task_runner) {
+    if (agent_group_scheduler_compositor_task_runner) {
       placeholder_client_ =
           std::make_unique<OffscreenCanvasPlaceholder::Client>(
               placeholder_canvas_id_,
@@ -644,9 +642,7 @@ void OffscreenCanvas::DidDraw(const gfx::Rect& rect) {
       // main thread.
       if (GetOrCreateResourceDispatcher()->NeedsBeginFrame() &&
           IsMainThread()) {
-        if (placeholder_canvas_id_ !=
-                OffscreenCanvasPlaceholder::kNoPlaceholderId &&
-            placeholder_canvas_id_ != kInvalidDOMNodeId) {
+        if (placeholder_canvas_id_ != kInvalidDOMNodeId) {
           OffscreenCanvasPlaceholder* placeholder_canvas =
               OffscreenCanvasPlaceholder::GetPlaceholderCanvasById(
                   placeholder_canvas_id_);

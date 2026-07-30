@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/functional/callback_helpers.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/dom_distiller/dom_distiller_service_factory.h"
 #include "chrome/browser/readaloud/read_aloud_service_factory.h"
@@ -25,6 +26,50 @@
 namespace readaloud {
 
 namespace {
+
+class MockDelegate : public ReadAloudService::Delegate {
+ public:
+  MockDelegate() = default;
+  ~MockDelegate() override = default;
+
+  MOCK_METHOD(void,
+              OnMetadataAvailable,
+              (std::string_view title, std::string_view publisher),
+              (override));
+  MOCK_METHOD(void,
+              OnPlaybackProgressUpdated,
+              (base::TimeDelta elapsed, base::TimeDelta duration),
+              (override));
+  MOCK_METHOD(void,
+              OnPlaybackStateChanged,
+              (ReadAloudService::PlaybackState playback_state),
+              (override));
+  MOCK_METHOD(void,
+              OnVoicesAvailable,
+              (const std::vector<ReadAloudService::Voice>& voices,
+               std::string_view selected_voice_id),
+              (override));
+  MOCK_METHOD(void,
+              OnWordHighlightUpdated,
+              (int absolute_start_index, int absolute_end_index),
+              (override));
+  MOCK_METHOD(void, OnHighlightingSupported, (bool supported), (override));
+  MOCK_METHOD(void, OnFallbackEngaged, (), (override));
+  MOCK_METHOD(void,
+              OnPlaybackError,
+              (std::string_view error_message),
+              (override));
+  MOCK_METHOD(void,
+              OnVoicePreviewPlaybackStateChanged,
+              (std::string_view voice_id,
+               ReadAloudService::PlaybackState playback_state),
+              (override));
+  MOCK_METHOD(void,
+              OnReadabilityResult,
+              (const GURL& url, bool is_readable),
+              (override));
+  MOCK_METHOD(void, OnNativeDestroyed, (), (override));
+};
 
 class MockDomDistillerService
     : public dom_distiller::DomDistillerContextKeyedService {
@@ -86,6 +131,7 @@ TEST_F(ReadAloudServiceTest, DistillNullWebContents) {
 
 TEST_F(ReadAloudServiceTest, DistillPageAndArticleReady) {
   NavigateAndCommit(GURL("https://www.example.com/article"));
+  base::HistogramTester histograms;
 
   EXPECT_CALL(*mock_distiller_service(),
               CreateDefaultDistillerPageWithHandle(testing::_))
@@ -108,11 +154,48 @@ TEST_F(ReadAloudServiceTest, DistillPageAndArticleReady) {
   EXPECT_NE(nullptr, service()->GetViewerHandleForTesting());
   ASSERT_NE(nullptr, delegate_ptr);
 
-  // Simulate DomDistiller finishing distillation and triggering OnArticleReady.
+  // Simulate DomDistiller finishing distillation with success (contains pages).
+  dom_distiller::DistilledArticleProto proto;
+  proto.add_pages();
+  delegate_ptr->OnArticleReady(&proto);
+
+  EXPECT_EQ(nullptr, service()->GetViewerHandleForTesting());
+  histograms.ExpectTotalCount("ReadAloud.Distillation.Duration", 1);
+  histograms.ExpectUniqueSample("ReadAloud.Distillation.Success", true, 1);
+}
+
+TEST_F(ReadAloudServiceTest, DistillPageAndArticleFailure) {
+  NavigateAndCommit(GURL("https://www.example.com/article"));
+  base::HistogramTester histograms;
+
+  EXPECT_CALL(*mock_distiller_service(),
+              CreateDefaultDistillerPageWithHandle(testing::_))
+      .WillOnce(testing::Return(testing::ByMove(
+          std::make_unique<dom_distiller::test::MockDistillerPage>())));
+
+  dom_distiller::ViewRequestDelegate* delegate_ptr = nullptr;
+  EXPECT_CALL(*mock_distiller_service(),
+              ViewUrlIgnoreCache(service(), testing::_,
+                                 GURL("https://www.example.com/article")))
+      .WillOnce([&](dom_distiller::ViewRequestDelegate* delegate,
+                    std::unique_ptr<dom_distiller::DistillerPage> page,
+                    const GURL& url) {
+        delegate_ptr = delegate;
+        return std::make_unique<dom_distiller::ViewerHandle>(base::DoNothing());
+      });
+
+  service()->DistillPage(web_contents());
+
+  EXPECT_NE(nullptr, service()->GetViewerHandleForTesting());
+  ASSERT_NE(nullptr, delegate_ptr);
+
+  // Simulate DomDistiller finishing distillation with failure (no pages).
   dom_distiller::DistilledArticleProto proto;
   delegate_ptr->OnArticleReady(&proto);
 
   EXPECT_EQ(nullptr, service()->GetViewerHandleForTesting());
+  histograms.ExpectTotalCount("ReadAloud.Distillation.Duration", 1);
+  histograms.ExpectUniqueSample("ReadAloud.Distillation.Success", false, 1);
 }
 
 TEST_F(ReadAloudServiceTest, OnArticleUpdated) {
@@ -140,6 +223,24 @@ TEST_F(ReadAloudServiceTest, ShutdownClearsHandle) {
 
   service()->Shutdown();
   EXPECT_EQ(nullptr, service()->GetViewerHandleForTesting());
+}
+
+TEST_F(ReadAloudServiceTest, SetDelegateAndShutdownLifecycle) {
+  auto delegate = std::make_unique<testing::StrictMock<MockDelegate>>();
+  MockDelegate* delegate_ptr = delegate.get();
+
+  // Initially, there is no delegate.
+  EXPECT_EQ(nullptr, service()->delegate());
+
+  // Registering the delegate should succeed and be accessible.
+  service()->SetDelegate(std::move(delegate));
+  EXPECT_EQ(delegate_ptr, service()->delegate());
+
+  // Shutdown should trigger OnNativeDestroyed() exactly once and clear the
+  // delegate.
+  EXPECT_CALL(*delegate_ptr, OnNativeDestroyed()).Times(1);
+  service()->Shutdown();
+  EXPECT_EQ(nullptr, service()->delegate());
 }
 
 }  // namespace readaloud

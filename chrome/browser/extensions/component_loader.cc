@@ -35,11 +35,13 @@
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/extensions/extension_constants.h"
+#include "chrome/grit/aim_eligibility_extension_resources.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/browser_resources.h"
 #include "chrome/grit/component_extension_resources.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/crx_file/id_util.h"
+#include "components/omnibox/common/omnibox_features.h"
 #include "components/version_info/version_info.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/common/content_switches.h"
@@ -63,6 +65,7 @@
 #include "ui/base/resource/resource_bundle.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
+#include "ash/constants/ash_extension_constants.h"
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
 #include "ash/constants/ash_switches.h"
@@ -395,6 +398,14 @@ void ComponentLoader::AddNetworkSpeechSynthesisExtension() {
   }
 }
 
+void ComponentLoader::AddAimEligibilityExtension() {
+  if (base::FeatureList::IsEnabled(
+          omnibox::kAimEligibilityComponentExtension)) {
+    Add(IDR_AIM_ELIGIBILITY_EXTENSION_MANIFEST_JSON,
+        base::FilePath(FILE_PATH_LITERAL("aim_eligibility_extension")));
+  }
+}
+
 void ComponentLoader::AddGlicExtension() {
   if (IsApiGlicPrivateEnabled()) {
     Add(IDR_GLIC_EXTENSION_MANIFEST,
@@ -624,6 +635,7 @@ void ComponentLoader::AddDefaultComponentExtensionsWithBackgroundPages(
 #endif  // BUILDFLAG(IS_CHROMEOS)
   }
 
+  AddAimEligibilityExtension();
   AddGlicExtension();
   AddContextualTasksExtension();
 

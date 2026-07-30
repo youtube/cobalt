@@ -1066,10 +1066,10 @@ TEST_F(EditingUtilitiesTest, previousPositionOf_Backspace_TextTransform) {
                                PositionMoveType::kBackwardDeletion));
 }
 
-TEST_F(EditingUtilitiesTest, IsTabHTMLSpanElementOnDisplayNone) {
+TEST_F(EditingUtilitiesTest, IsTabHtmlSpanElementOnDisplayNone) {
   SetBodyContent("<span style=\"display:none\">\t</span>");
   const Node* const node = QuerySelector("span");
-  EXPECT_EQ(false, IsTabHTMLSpanElement(node));
+  EXPECT_EQ(false, IsTabSpanElement(node));
 }
 
 TEST_F(EditingUtilitiesTest, previousPositionOf_Backspace_SurrogatePairs) {

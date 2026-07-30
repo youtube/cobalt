@@ -11,7 +11,6 @@
 #include "base/containers/span.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
-#include "base/task/sequenced_task_runner.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_file_util.h"
@@ -24,7 +23,6 @@ class SqlSharedCacheIsolatedDatabaseTest : public testing::Test {
  public:
   void SetUp() override {
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
-    task_runner_ = base::SequencedTaskRunner::GetCurrentDefault();
     feature_list_.InitAndEnableFeature(
         net::features::kRendererAccessibleHttpCache);
   }
@@ -32,14 +30,12 @@ class SqlSharedCacheIsolatedDatabaseTest : public testing::Test {
  protected:
   base::test::TaskEnvironment task_environment_;
   base::ScopedTempDir temp_dir_;
-  scoped_refptr<base::SequencedTaskRunner> task_runner_;
   base::test::ScopedFeatureList feature_list_;
 };
 
 TEST_F(SqlSharedCacheIsolatedDatabaseTest, InitSuccess) {
   SqlSharedCacheDbId db_id(1);
-  SqlSharedCacheIsolatedDatabase db("nik", temp_dir_.GetPath(), db_id,
-                                    task_runner_);
+  SqlSharedCacheIsolatedDatabase db("nik", temp_dir_.GetPath(), db_id);
   EXPECT_TRUE(db.Init().has_value());
 
   // Verify that the isolated database file is created successfully.
@@ -49,8 +45,7 @@ TEST_F(SqlSharedCacheIsolatedDatabaseTest, InitSuccess) {
 
 TEST_F(SqlSharedCacheIsolatedDatabaseTest, InitFailureForTesting) {
   SqlSharedCacheDbId db_id(1);
-  SqlSharedCacheIsolatedDatabase db("nik", temp_dir_.GetPath(), db_id,
-                                    task_runner_);
+  SqlSharedCacheIsolatedDatabase db("nik", temp_dir_.GetPath(), db_id);
   db.SetSimulateDbFailureForTesting(true);
   EXPECT_EQ(db.Init().error(),
             SqlSharedCacheIsolatedDatabase::Error::kFailedForTesting);
@@ -62,7 +57,7 @@ TEST_F(SqlSharedCacheIsolatedDatabaseTest, InitFailedToOpenVfsFileSet) {
 
   {
     SqlSharedCacheIsolatedDatabase db(std::string(kNik), temp_dir_.GetPath(),
-                                      db_id, task_runner_);
+                                      db_id);
     EXPECT_TRUE(db.Init().has_value());
   }
 
@@ -71,7 +66,7 @@ TEST_F(SqlSharedCacheIsolatedDatabaseTest, InitFailedToOpenVfsFileSet) {
 
   {
     SqlSharedCacheIsolatedDatabase db(std::string(kNik), temp_dir_.GetPath(),
-                                      db_id, task_runner_);
+                                      db_id);
     EXPECT_EQ(db.Init().error(),
               SqlSharedCacheIsolatedDatabase::Error::kFailedToOpenVfsFileSet);
   }
@@ -92,7 +87,7 @@ TEST_F(SqlSharedCacheIsolatedDatabaseTest, InitializeAndNikMismatch) {
 
   {
     SqlSharedCacheIsolatedDatabase db(std::string(kNik1), temp_dir_.GetPath(),
-                                      db_id, task_runner_);
+                                      db_id);
     EXPECT_TRUE(db.Init().has_value());
 
     auto row_id_or_error = db.Insert(key, headers, 3, body);
@@ -103,7 +98,7 @@ TEST_F(SqlSharedCacheIsolatedDatabaseTest, InitializeAndNikMismatch) {
   {
     // Initialize with the same nik. Data should persist.
     SqlSharedCacheIsolatedDatabase db(std::string(kNik1), temp_dir_.GetPath(),
-                                      db_id, task_runner_);
+                                      db_id);
     EXPECT_TRUE(db.Init().has_value());
 
     auto read_buffer = base::MakeRefCounted<net::IOBufferWithSize>(3);
@@ -114,7 +109,7 @@ TEST_F(SqlSharedCacheIsolatedDatabaseTest, InitializeAndNikMismatch) {
   {
     // Initialize with a different nik. It should wipe the database.
     SqlSharedCacheIsolatedDatabase db(std::string(kNik2), temp_dir_.GetPath(),
-                                      db_id, task_runner_);
+                                      db_id);
     EXPECT_TRUE(db.Init().has_value());
 
     auto read_buffer = base::MakeRefCounted<net::IOBufferWithSize>(3);
@@ -127,8 +122,7 @@ TEST_F(SqlSharedCacheIsolatedDatabaseTest, InitializeAndNikMismatch) {
 
 TEST_F(SqlSharedCacheIsolatedDatabaseTest, InsertAndReadSuccess) {
   SqlSharedCacheDbId db_id(1);
-  SqlSharedCacheIsolatedDatabase db("nik", temp_dir_.GetPath(), db_id,
-                                    task_runner_);
+  SqlSharedCacheIsolatedDatabase db("nik", temp_dir_.GetPath(), db_id);
   ASSERT_TRUE(db.Init().has_value());
 
   CacheEntryKey key("0/0/https://example.com/");
@@ -149,8 +143,7 @@ TEST_F(SqlSharedCacheIsolatedDatabaseTest, InsertAndReadSuccess) {
 
 TEST_F(SqlSharedCacheIsolatedDatabaseTest, WriteBodyAndRead) {
   SqlSharedCacheDbId db_id(1);
-  SqlSharedCacheIsolatedDatabase db("nik", temp_dir_.GetPath(), db_id,
-                                    task_runner_);
+  SqlSharedCacheIsolatedDatabase db("nik", temp_dir_.GetPath(), db_id);
   ASSERT_TRUE(db.Init().has_value());
 
   CacheEntryKey key("0/0/https://example.com/");
@@ -174,8 +167,7 @@ TEST_F(SqlSharedCacheIsolatedDatabaseTest, WriteBodyAndRead) {
 
 TEST_F(SqlSharedCacheIsolatedDatabaseTest, ReadNotReady) {
   SqlSharedCacheDbId db_id(1);
-  SqlSharedCacheIsolatedDatabase db("nik", temp_dir_.GetPath(), db_id,
-                                    task_runner_);
+  SqlSharedCacheIsolatedDatabase db("nik", temp_dir_.GetPath(), db_id);
   ASSERT_TRUE(db.Init().has_value());
 
   CacheEntryKey key("0/0/https://example.com/");
@@ -193,8 +185,7 @@ TEST_F(SqlSharedCacheIsolatedDatabaseTest, ReadNotReady) {
 
 TEST_F(SqlSharedCacheIsolatedDatabaseTest, ReadKeyMismatch) {
   SqlSharedCacheDbId db_id(1);
-  SqlSharedCacheIsolatedDatabase db("nik", temp_dir_.GetPath(), db_id,
-                                    task_runner_);
+  SqlSharedCacheIsolatedDatabase db("nik", temp_dir_.GetPath(), db_id);
   ASSERT_TRUE(db.Init().has_value());
 
   CacheEntryKey key("0/0/https://example.com/");
@@ -214,8 +205,7 @@ TEST_F(SqlSharedCacheIsolatedDatabaseTest, ReadKeyMismatch) {
 
 TEST_F(SqlSharedCacheIsolatedDatabaseTest, InsertBodyTooLarge) {
   SqlSharedCacheDbId db_id(1);
-  SqlSharedCacheIsolatedDatabase db("nik", temp_dir_.GetPath(), db_id,
-                                    task_runner_);
+  SqlSharedCacheIsolatedDatabase db("nik", temp_dir_.GetPath(), db_id);
   ASSERT_TRUE(db.Init().has_value());
 
   CacheEntryKey key("0/0/https://example.com/");
@@ -230,8 +220,7 @@ TEST_F(SqlSharedCacheIsolatedDatabaseTest, InsertBodyTooLarge) {
 
 TEST_F(SqlSharedCacheIsolatedDatabaseTest, WriteBodyInvalidRange) {
   SqlSharedCacheDbId db_id(1);
-  SqlSharedCacheIsolatedDatabase db("nik", temp_dir_.GetPath(), db_id,
-                                    task_runner_);
+  SqlSharedCacheIsolatedDatabase db("nik", temp_dir_.GetPath(), db_id);
   ASSERT_TRUE(db.Init().has_value());
 
   CacheEntryKey key("0/0/https://example.com/");
@@ -257,8 +246,7 @@ TEST_F(SqlSharedCacheIsolatedDatabaseTest, WriteBodyInvalidRange) {
 
 TEST_F(SqlSharedCacheIsolatedDatabaseTest, ReadInvalidRange) {
   SqlSharedCacheDbId db_id(1);
-  SqlSharedCacheIsolatedDatabase db("nik", temp_dir_.GetPath(), db_id,
-                                    task_runner_);
+  SqlSharedCacheIsolatedDatabase db("nik", temp_dir_.GetPath(), db_id);
   ASSERT_TRUE(db.Init().has_value());
 
   CacheEntryKey key("0/0/https://example.com/");
@@ -281,8 +269,7 @@ TEST_F(SqlSharedCacheIsolatedDatabaseTest, ReadInvalidRange) {
 TEST_F(SqlSharedCacheIsolatedDatabaseTest,
        WriteBodyMultipleChunksAndReadAcross) {
   SqlSharedCacheDbId db_id(1);
-  SqlSharedCacheIsolatedDatabase db("nik", temp_dir_.GetPath(), db_id,
-                                    task_runner_);
+  SqlSharedCacheIsolatedDatabase db("nik", temp_dir_.GetPath(), db_id);
   ASSERT_TRUE(db.Init().has_value());
 
   CacheEntryKey key("0/0/https://example.com/");
@@ -312,8 +299,7 @@ TEST_F(SqlSharedCacheIsolatedDatabaseTest,
 
 TEST_F(SqlSharedCacheIsolatedDatabaseTest, ReadBeyondWrittenBody) {
   SqlSharedCacheDbId db_id(1);
-  SqlSharedCacheIsolatedDatabase db("nik", temp_dir_.GetPath(), db_id,
-                                    task_runner_);
+  SqlSharedCacheIsolatedDatabase db("nik", temp_dir_.GetPath(), db_id);
   ASSERT_TRUE(db.Init().has_value());
 
   CacheEntryKey key("0/0/https://example.com/");

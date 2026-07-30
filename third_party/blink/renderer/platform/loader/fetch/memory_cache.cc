@@ -211,8 +211,7 @@ MemoryCache::MemoryCache(
           "MemoryCache",
           kMemoryCacheTraits,
           this,
-          MemoryConsumerRegistration::CheckUnregister::kDisabled,
-          MemoryConsumerRegistration::CheckRegistryExists::kDisabled),
+          MemoryConsumerRegistration::CheckUnregister::kDisabled),
       strong_references_max_size_(
           features::kMemoryCacheStrongReferenceTotalSizeThresholdParam.Get()),
       strong_references_prune_duration_(

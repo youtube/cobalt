@@ -342,20 +342,6 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="Notification Body Clicked"/>
 </enum>
 
-<enum name="CrostiniUpgradeDialogEvent">
-  <int value="0" label="Dialog Shown"/>
-  <int value="1" label="Upgrade Succeeded"/>
-  <int value="2" label="Upgrade Canceled"/>
-  <int value="3" label="Upgrade Failed"/>
-  <int value="4" label="Upgrade Not Started"/>
-  <int value="5" label="Backup Started"/>
-  <int value="6" label="Backup Succeeded"/>
-  <int value="7" label="Backup Failed"/>
-  <int value="8" label="Restore Started"/>
-  <int value="9" label="Restore Succeeded"/>
-  <int value="10" label="Restore Failed"/>
-</enum>
-
 </enums>
 
 </histogram-configuration>

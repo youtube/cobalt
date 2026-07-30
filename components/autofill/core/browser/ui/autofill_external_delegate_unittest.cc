@@ -406,12 +406,11 @@ class AutofillExternalDelegateTest : public testing::Test,
   void IssueOnQuery(FormData form_data,
                     const gfx::Rect& caret_bounds = gfx::Rect(),
                     AutofillSuggestionTriggerSource trigger_source =
-                        kDefaultSuggestionTriggerSource,
-                    bool update_datalist = false) {
+                        kDefaultSuggestionTriggerSource) {
     queried_form_ = std::move(form_data);
     autofill_manager().OnFormsSeen({queried_form()}, {});
     external_delegate().OnQuery(queried_form(), queried_field(), caret_bounds,
-                                trigger_source, update_datalist);
+                                trigger_source);
   }
 
   void IssueOnQuery(test::FormDescription form_description) {
@@ -420,8 +419,7 @@ class AutofillExternalDelegateTest : public testing::Test,
                                    test::GetHeuristicTypes(form_description),
                                    test::GetServerTypes(form_description));
     external_delegate().OnQuery(queried_form(), queried_field(), gfx::Rect(),
-                                kDefaultSuggestionTriggerSource,
-                                /*update_datalist=*/false);
+                                kDefaultSuggestionTriggerSource);
   }
 
   void IssueOnQuery(const gfx::Rect& caret_bounds,
@@ -464,8 +462,7 @@ class AutofillExternalDelegateTest : public testing::Test,
             .host_frame = form_id.frame_token,
             .renderer_id = form_id.renderer_id,
         }),
-        /*caret_bounds=*/gfx::Rect(), kDefaultSuggestionTriggerSource,
-        /*update_datalist=*/true);
+        /*caret_bounds=*/gfx::Rect(), kDefaultSuggestionTriggerSource);
   }
 
   // Returns the triggering `AutofillField`. This is the only field in the form
@@ -1332,7 +1329,7 @@ TEST_F(AutofillExternalDelegateTest, AtMemoryRemoteQuery_NoConnection) {
 
   SetupMockAtMemoryQueryService(
       u"shoe size",
-      {accessibility_annotator::MemorySearchStatus::kDataFetchFailure, {}});
+      {accessibility_annotator::MemorySearchStatus::kNoConnectionFailure, {}});
 
   EXPECT_CALL(autofill_client(), UpdateAutofillSuggestions)
       .WillOnce(Return())
@@ -3162,7 +3159,7 @@ TEST_F(AutofillExternalDelegateWithAmbientAutofillTest,
       full_passport.attribute(kPassportNumberType)->GetCompleteRawInfo(),
       masked_passport.attribute(kPassportNumberType)->GetCompleteRawInfo());
   autofill_client().GetEntityDataManager()->OnPrefetchContextComplete(
-      personal_context_manager(), {masked_passport});
+      personal_context_manager(), std::vector<EntityInstance>{masked_passport});
 
   IssueOnQuery({.fields = {{.role = PASSPORT_NUMBER}}});
   Suggestion fill_suggestion(SuggestionType::kFillAutofillAi);
@@ -3605,8 +3602,7 @@ TEST_F(AutofillExternalDelegateTest, IgnoreAutocompleteOffForAutofill) {
   field.set_should_autocomplete(false);
 
   external_delegate().OnQuery(form, field, /*caret_bounds=*/gfx::Rect(),
-                              kDefaultSuggestionTriggerSource,
-                              /*update_datalist=*/false);
+                              kDefaultSuggestionTriggerSource);
 
   std::vector<Suggestion> autofill_items;
   autofill_items.emplace_back(SuggestionType::kAutocompleteEntry);

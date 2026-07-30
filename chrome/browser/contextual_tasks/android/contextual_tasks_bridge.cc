@@ -193,6 +193,29 @@ static bool JNI_ContextualTasksBridge_IsContextualTasksUrl(JNIEnv* env,
   return url.spec().starts_with(chrome::kChromeUIContextualTasksURL);
 }
 
+static bool JNI_ContextualTasksBridge_IsPanelOpen(
+    JNIEnv* env,
+    content::WebContents* web_contents) {
+  if (!web_contents) {
+    return false;
+  }
+
+  Profile* profile =
+      Profile::FromBrowserContext(web_contents->GetBrowserContext());
+  contextual_tasks::ContextualTasksService* contextual_tasks_service =
+      contextual_tasks::ContextualTasksServiceFactory::GetForProfile(profile);
+  if (!contextual_tasks_service) {
+    return false;
+  }
+
+  SessionID tab_id = sessions::SessionTabHelper::IdForTab(web_contents);
+  if (!tab_id.is_valid()) {
+    return false;
+  }
+
+  return contextual_tasks_service->GetContextualTaskForTab(tab_id).has_value();
+}
+
 // static
 ui::UserDataFactoryWithOwner<BrowserWindowInterface>&
 ContextualTasksBridge::GetUserDataFactory() {

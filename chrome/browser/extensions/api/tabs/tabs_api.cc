@@ -149,6 +149,8 @@ constexpr char kTabsCreateIwaUrlNotAllowedError[] =
 constexpr char kTabsUpdateIwaUrlNotAllowedError[] =
     "Cannot navigate to a URL with the 'isolated-app:' scheme via tabs.update. "
     "Use windows.create instead.";
+constexpr char kCannotDuplicateIwaTabError[] =
+    "The tab of an Isolated Web App cannot be duplicated.";
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
@@ -2371,6 +2373,13 @@ ExtensionFunction::ResponseAction TabsDuplicateFunction::Run() {
       !ExtensionTabUtil::IsTabStripEditable(*browser->GetProfile())) {
     return RespondNow(Error(ExtensionTabUtil::kTabStripNotEditableError));
   }
+
+#if !BUILDFLAG(IS_ANDROID)
+  if (web_contents->GetLastCommittedURL().SchemeIs(
+          webapps::kIsolatedAppScheme)) {
+    return RespondNow(Error(kCannotDuplicateIwaTabError));
+  }
+#endif
 
   TabListInterface* tab_list = TabListInterface::From(browser);
   if (!tab_list) {

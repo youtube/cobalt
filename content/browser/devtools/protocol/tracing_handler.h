@@ -24,6 +24,7 @@
 #include "services/resource_coordinator/public/mojom/memory_instrumentation/memory_instrumentation.mojom-forward.h"
 #include "services/tracing/public/cpp/perfetto/perfetto_config.h"
 #include "third_party/perfetto/include/perfetto/tracing/tracing.h"
+#include "ui/gfx/geometry/size.h"
 
 namespace base {
 
@@ -82,6 +83,8 @@ class TracingHandler : public DevToolsDomainHandler, public Tracing::Backend {
              std::unique_ptr<Tracing::TraceConfig> config,
              std::optional<Binary> perfetto_config,
              std::optional<std::string> tracing_backend,
+             std::optional<int> screenshot_max_size,
+             std::optional<int> screenshot_max_count,
              std::unique_ptr<StartCallback> callback) override;
   Response End() override;
   void GetCategories(std::unique_ptr<GetCategoriesCallback> callback) override;
@@ -141,6 +144,17 @@ class TracingHandler : public DevToolsDomainHandler, public Tracing::Backend {
   CONTENT_EXPORT static void AddPidsToProcessFilter(
       const std::unordered_set<base::ProcessId>& included_process_ids,
       perfetto::TraceConfig& trace_config);
+  // Resolves the screenshot-capture parameters supplied to `Tracing.start`,
+  // applying defaults when unset and validating that the combined memory
+  // budget (`size * size * 4 * count`) does not exceed the per-session cap.
+  // Returns Response::Success() and populates `resolved_max_frame_size` /
+  // `resolved_max_count` on success; otherwise returns Response::InvalidParams
+  // and leaves the outputs untouched.
+  CONTENT_EXPORT static Response ResolveScreenshotParams(
+      std::optional<int> requested_max_size,
+      std::optional<int> requested_max_count,
+      gfx::Size* resolved_max_frame_size,
+      int* resolved_max_count);
   perfetto::TraceConfig CreatePerfettoConfiguration(
       const base::trace_event::TraceConfig& browser_config,
       bool return_as_stream,
@@ -169,6 +183,11 @@ class TracingHandler : public DevToolsDomainHandler, public Tracing::Backend {
   TraceDataBufferState trace_data_buffer_state_;
   std::unique_ptr<DevToolsVideoConsumer> video_consumer_;
   int number_of_screenshots_from_video_consumer_ = 0;
+  // Resolved per-session screenshot capture settings. Populated from the
+  // optional `screenshotMaxSize` / `screenshotMaxCount` parameters on
+  // `Tracing.start` (or their defaults), after clamping.
+  gfx::Size screenshot_max_frame_size_;
+  int screenshot_max_count_ = 0;
   perfetto::TraceConfig trace_config_;
   std::unique_ptr<PerfettoTracingSession> session_;
   std::unique_ptr<TracingProcessSetMonitor> process_set_monitor_;
@@ -178,6 +197,7 @@ class TracingHandler : public DevToolsDomainHandler, public Tracing::Backend {
                            GetTraceConfigFromDevToolsConfig);
   FRIEND_TEST_ALL_PREFIXES(TracingHandlerTest, ProcessFilterClearsRegex);
   FRIEND_TEST_ALL_PREFIXES(TracingHandlerTest, ProcessFilterAppendsPids);
+  FRIEND_TEST_ALL_PREFIXES(TracingHandlerTest, ResolveScreenshotParams);
 };
 
 }  // namespace protocol

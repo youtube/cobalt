@@ -62,6 +62,7 @@ interface LogoProperties {
     WritableIntPropertyKey DOODLE_SIZE = new WritableIntPropertyKey();
     WritableObjectPropertyKey<Boolean> SHOW_DEFAULT_GOOGLE_LOGO =
             new WritableObjectPropertyKey<>(/* skipEquality= */ true);
+    WritableBooleanPropertyKey IS_NIGHT_MODE = new WritableBooleanPropertyKey();
 
     PropertyKey[] ALL_KEYS =
             new PropertyKey[] {
@@ -80,6 +81,7 @@ interface LogoProperties {
                 ANIMATED_LOGO,
                 LOGO_AVAILABLE_CALLBACK,
                 DOODLE_SIZE,
-                SHOW_DEFAULT_GOOGLE_LOGO
+                SHOW_DEFAULT_GOOGLE_LOGO,
+                IS_NIGHT_MODE
             };
 }

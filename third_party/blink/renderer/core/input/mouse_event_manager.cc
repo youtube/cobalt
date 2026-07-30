@@ -902,7 +902,7 @@ WebInputEventResult MouseEventManager::HandleMouseDraggedEvent(
 
   if (layout_object && mouse_down_may_start_autoscroll_ &&
       !scroll_manager_->MiddleClickAutoscrollInProgress() &&
-      !frame_->Selection().SelectedHTMLForClipboard().empty()) {
+      !frame_->Selection().SelectedHtmlForClipboard().empty()) {
     if (AutoscrollController* controller =
             scroll_manager_->GetAutoscrollController()) {
       // Avoid updating the lifecycle unless it's possible to autoscroll.

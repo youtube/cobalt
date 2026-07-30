@@ -851,6 +851,7 @@ crbug.com/446122639 [ android android-pixel-10 ] conformance/ogles/GL/build/buil
 crbug.com/446122639 [ android android-pixel-10 ] conformance/rendering/gl-scissor-fbo-test.html [ Failure ]
 crbug.com/446122639 [ android android-pixel-10 ] conformance/textures/canvas/tex-2d-rgb-rgb-unsigned_byte.html [ Failure ]
 crbug.com/446122639 [ android android-pixel-10 ] conformance/textures/canvas/tex-2d-rgba-rgba-unsigned_byte.html [ Failure ]
+crbug.com/446122639 [ android android-pixel-10 ] conformance/textures/canvas_sub_rectangle/tex-2d-rgba-rgba-unsigned_byte.html [ Failure ]
 crbug.com/446122639 [ android android-pixel-10 ] conformance/textures/misc/texture-upload-cube-maps.html [ Failure ]
 crbug.com/446122639 [ android android-pixel-10 ] conformance/textures/webgl_canvas/tex-2d-rgb-rgb-unsigned_byte.html [ Failure ]
 crbug.com/446122639 [ android android-pixel-10 ] conformance/textures/webgl_canvas/tex-2d-rgba-rgba-unsigned_byte.html [ Failure ]
@@ -879,6 +880,7 @@ crbug.com/446941342 [ android android-pixel-10 ] conformance2/textures/misc/tex-
 crbug.com/446941342 [ android android-pixel-10 ] conformance2/textures/misc/texel-fetch-undefined.html [ Failure ]
 crbug.com/446941342 [ android android-pixel-10 ] conformance2/textures/video/tex-2d-rg8-rg-unsigned_byte.html [ RetryOnFailure ]
 crbug.com/446941342 [ android android-pixel-10 ] deqp/functional/gles3/shaderstruct.html [ Failure ]
+crbug.com/527094637 [ android android-pixel-10 ] deqp/functional/gles3/uniformbuffers/random.html [ Failure ]
 
 # New failures from OS upgrade.
 crbug.com/513192891 [ android android-pixel-10 ] conformance/rendering/out-of-bounds-array-buffers.html [ Failure ]

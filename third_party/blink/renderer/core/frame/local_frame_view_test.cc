@@ -9,6 +9,7 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/with_feature_override.h"
+#include "cc/base/features.h"
 #include "content/test/test_blink_web_unit_test_support.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "third_party/blink/public/common/features.h"
@@ -738,6 +739,127 @@ TEST_F(LocalFrameViewTest,
   frame_view->AdjustMediaTypeForPrinting(false);
   GetDocument().GetSettings()->SetMediaTypeOverride(g_null_atom);
   EXPECT_EQ(frame_view->MediaType(), "screen");
+}
+
+// Test fixture that disables kStopDeferringCommitsInCompositeForTest so that
+// paint holding state can be observed through BeginFrame in tests.
+class PaintHoldingSimTest : public SimTest {
+ public:
+  PaintHoldingSimTest() {
+    feature_list_.InitWithFeatures(
+        /*enabled_features=*/{blink::features::kPaintHolding,
+                              blink::features::
+                                  kReleasePaintHoldingWithoutContentfulPaint},
+        /*disabled_features=*/{
+            ::features::kStopDeferringCommitsInCompositeForTest});
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+// Tests that a page not firing FCP (no text/images) releases paint
+// holding after First Paint when parsing is complete.
+TEST_F(PaintHoldingSimTest, ReleasedForBgColorOnlyPage) {
+  SimRequest resource("https://example.com/", "text/html");
+  LoadURL("https://example.com/");
+
+  resource.Complete(R"HTML(
+    <div style="width:100px;height:100px;background-color:red"></div>
+  )HTML");
+
+  // Paint holding should be active after parsing is complete but before FP.
+  PaintTiming& timing = PaintTiming::From(GetDocument());
+  ASSERT_TRUE(GetDocument().HasFinishedParsing());
+  ASSERT_TRUE(timing.FirstPaintRendered().is_null());
+  EXPECT_TRUE(Compositor().LayerTreeHost()->IsDeferringCommits());
+
+  // Trigger a paint frame — FP fires, FCP does not.
+  Compositor().BeginFrame();
+  ASSERT_TRUE(
+      timing.FirstContentfulPaintRenderedButNotPresentedAsMonotonicTime()
+          .is_null());
+
+  // Paint holding released after FP fires.
+  ASSERT_FALSE(timing.FirstPaintRendered().is_null());
+  EXPECT_FALSE(Compositor().LayerTreeHost()->IsDeferringCommits());
+}
+
+// Tests that a page not firing FCP (no text/images) doesn't release paint
+// holding after First Paint when parsing is still in progress. Verifies that
+// FinishedParsing is required.
+TEST_F(PaintHoldingSimTest, NotReleasedBeforeParsingComplete) {
+  SimRequest resource("https://example.com/", "text/html");
+  LoadURL("https://example.com/");
+
+  resource.Write(R"HTML(
+    <!DOCTYPE html>
+    <div style="width:100px;height:100px;background-color:green"></div>
+  )HTML");
+
+  // Parsing is not complete, FP is not fired, and paint holding is active.
+  ASSERT_TRUE(Compositor().LayerTreeHost()->IsDeferringCommits());
+  PaintTiming& timing = PaintTiming::From(GetDocument());
+  ASSERT_TRUE(timing.FirstPaintRendered().is_null());
+  ASSERT_FALSE(GetDocument().HasFinishedParsing());
+
+  // BeginFrame triggers FP but parsing is incomplete — paint holding stays.
+  Compositor().BeginFrame();
+  ASSERT_FALSE(timing.FirstPaintRendered().is_null());
+  ASSERT_FALSE(GetDocument().HasFinishedParsing());
+  EXPECT_TRUE(Compositor().LayerTreeHost()->IsDeferringCommits());
+
+  // Complete parsing, paint holding released.
+  resource.Complete("");
+  ASSERT_TRUE(GetDocument().HasFinishedParsing());
+  EXPECT_FALSE(Compositor().LayerTreeHost()->IsDeferringCommits());
+}
+
+// Tests that paint holding is released by FCP for pages with text content, not
+// by FP.
+TEST_F(PaintHoldingSimTest, ReleasedByFCPNotFP) {
+  SimRequest resource("https://example.com/", "text/html");
+  LoadURL("https://example.com/");
+
+  // Write a background-color-only div (no text yet).
+  resource.Write(R"HTML(
+    <div style="width:100px;height:100px;background-color:red"></div>
+  )HTML");
+
+  // Parsing is not complete, FP is not fired, and paint holding is active.
+  ASSERT_TRUE(Compositor().LayerTreeHost()->IsDeferringCommits());
+  PaintTiming& timing = PaintTiming::From(GetDocument());
+  ASSERT_TRUE(timing.FirstPaintRendered().is_null());
+  ASSERT_FALSE(GetDocument().HasFinishedParsing());
+
+  // First frame — FP fires (background painted), FCP does not (no text).
+  Compositor().BeginFrame();
+  ASSERT_FALSE(timing.FirstPaintRendered().is_null());
+  ASSERT_TRUE(
+      timing.FirstContentfulPaintRenderedButNotPresentedAsMonotonicTime()
+          .is_null());
+
+  // FP alone does not release paint holding.
+  EXPECT_TRUE(Compositor().LayerTreeHost()->IsDeferringCommits());
+
+  // Now write text content.
+  resource.Write("<p>Hello World</p>");
+  // Parsing is not complete.
+  ASSERT_FALSE(GetDocument().HasFinishedParsing());
+
+  // Second frame — FCP fires (text painted).
+  Compositor().BeginFrame();
+
+  ASSERT_FALSE(
+      timing.FirstContentfulPaintRenderedButNotPresentedAsMonotonicTime()
+          .is_null());
+  // Parsing is not complete yet, but FCP should release paint holding.
+  ASSERT_FALSE(GetDocument().HasFinishedParsing());
+
+  // Paint holding released by FCP.
+  EXPECT_FALSE(Compositor().LayerTreeHost()->IsDeferringCommits());
+
+  resource.Complete("");
 }
 
 class FencedFrameLocalFrameViewTest : private ScopedFencedFramesForTest,

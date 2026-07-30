@@ -85,7 +85,7 @@ data_sources: {
         name: "android.track_event"
     }
 }
-duration_ms: 40000
+duration_ms: 45000
 """
 
 
@@ -134,7 +134,7 @@ def connect_to_remote_driver(chrome_options, binary_location):
     raise RuntimeError("Could not connect to the remote chromedriver.")
 
 def setup_test_environment(args, chrome_version, chrome_options_list=None,
-                           codec_name=None):
+                           codec_name=None, video_name=None):
     """
     Sets up the remote chromedriver and SSH tunnel for testing.
 
@@ -143,6 +143,7 @@ def setup_test_environment(args, chrome_version, chrome_options_list=None,
         chrome_version (str): The version of Chrome to setup.
         chrome_options_list (list): Optional list of Chrome options.
         codec_name (str): The name of the codec being tested.
+        video_name (str): The name of the video being tested.
 
     Returns:
         tuple: A tuple containing the WebDriver, the tunnel process, and the
@@ -152,10 +153,22 @@ def setup_test_environment(args, chrome_version, chrome_options_list=None,
         chrome_options_list = CHROME_OPTIONS
 
     if args.sender_os == 'cros':
+        if chrome_options_list is None:
+            chrome_options_list = []
+        else:
+            chrome_options_list = list(chrome_options_list)
+        video_key = f"{codec_name}_{video_name}" if video_name else codec_name
+        trace_file_path = f'/tmp/{video_key}_sender.perfetto-trace'
+        chrome_options_list.extend([
+            '--trace-startup',
+            f'--trace-startup-file={trace_file_path}',
+            '--trace-startup-categories=cast,media,webrtc,gpu,blink',
+            '--trace-startup-duration=45'
+        ])
         driver, cb_platform, actual_version = common.setup_cros_environment(
             args, chrome_version, chrome_options_list)
         enable_tab_mirroring(driver)
-        return driver, cb_platform, actual_version
+        return driver, cb_platform, actual_version, trace_file_path
 
     common.terminate_old_chromedriver(args)
     remote_app_path, actual_version = common.install_and_setup_chrome(
@@ -164,15 +177,29 @@ def setup_test_environment(args, chrome_version, chrome_options_list=None,
     tunnel_proc = common.start_ssh_tunnel(args)
 
     chrome_options = ChromeOptions()
+
+    # Enable native Chrome tracing to file for the entire session.
+    video_key = f"{codec_name}_{video_name}" if video_name else codec_name
+    trace_file_path = (
+        f'{common.WIN_REMOTE_TMP_DIR}/{video_key}_sender.perfetto-trace'
+        if args.sender_os == 'win'
+        else f'/tmp/{video_key}_sender.perfetto-trace'
+    )
+    chrome_options.add_argument('--trace-startup')
+    chrome_options.add_argument(f'--trace-startup-file={trace_file_path}')
+    chrome_options.add_argument(
+        '--trace-startup-categories=cast,media,webrtc,gpu,blink')
+    chrome_options.add_argument('--trace-startup-duration=45')
+
     for option in chrome_options_list:
         chrome_options.add_argument(option)
 
     # Dynamically set the --log-file path.
-    codec_suffix = f"_{codec_name}" if codec_name else ""
+    video_key = f"{codec_name}_{video_name}" if video_name else codec_name
     log_file_path = (
-        f'{common.WIN_REMOTE_TMP_DIR}/chrome_debug{codec_suffix}.log'
+        f'{common.WIN_REMOTE_TMP_DIR}/chrome_debug_{video_key}.log'
         if args.sender_os == 'win'
-        else f'/tmp/chrome_debug{codec_suffix}.log'
+        else f'/tmp/chrome_debug_{video_key}.log'
     )
     chrome_options.add_argument(f'--log-file={log_file_path}')
 
@@ -194,7 +221,7 @@ def setup_test_environment(args, chrome_version, chrome_options_list=None,
 
     enable_tab_mirroring(driver)
 
-    return driver, tunnel_proc, actual_version
+    return driver, tunnel_proc, actual_version, trace_file_path
 
 
 def enable_tab_mirroring(driver):
@@ -311,7 +338,7 @@ def run_performance_test(
         # Set the Group of Pictures (GOP) size for better seeking.
         '-g', '60',
         # Set the duration of the recording.
-        '-t', '35',
+        '-t', '40',
         output_file
     ]
 
@@ -320,20 +347,9 @@ def run_performance_test(
                f'{common.SERVER_PORT}/video.html?file={video_file}')
     wait.until(ec.presence_of_element_located((By.ID, "video")))
 
-    # TODO(b/506206539): Refactor injected logging code into functions.
-    # Best-effort reset of tracing state in case a previous run leaked it.
-    try:
-        reset_resp = driver.execute_cdp_cmd('Tracing.end', {})
-        reset_stream = reset_resp.get('stream')
-        if reset_stream:
-            driver.execute_cdp_cmd('IO.close', {'handle': reset_stream})
-    except Exception: # pylint: disable=broad-exception-caught
-        pass
-
     casting = False
     rec_proc_local = None
     receiver_trace_proc = None
-    sender_tracing_started = False
     try:
         # pylint: disable=consider-using-with
         rec_proc_local = subprocess.Popen(
@@ -355,33 +371,6 @@ def run_performance_test(
                 logging.info("Started recording.")
                 break
 
-        logging.info("Starting Sender Perfetto trace via CDP...")
-        # Attempt to start sender trace with retries to handle state collision.
-        for attempt in range(3):
-            try:
-                driver.execute_cdp_cmd('Tracing.start', {
-                    'categories': 'cast,media,webrtc,gpu,blink',
-                    'transferMode': 'ReturnAsStream'
-                })
-                sender_tracing_started = True
-                break
-            except Exception as e:
-                if "Tracing has already been started" in str(e) and attempt < 2:
-                    logging.warning(
-                        "Tracing collision detected. Attempting reset and "
-                        "retry...")
-                    try:
-                        reset_resp = driver.execute_cdp_cmd('Tracing.end', {})
-                        reset_stream = reset_resp.get('stream')
-                        if reset_stream:
-                            driver.execute_cdp_cmd('IO.close',
-                                                   {'handle': reset_stream})
-                    except Exception: # pylint: disable=broad-exception-caught
-                        pass
-                    # Wait significantly longer for the browser state to clear.
-                    time.sleep(10)
-                else:
-                    raise
 
         logging.info("Starting Receiver Perfetto trace via ADB...")
         try:
@@ -446,6 +435,11 @@ def run_performance_test(
                 rec_proc_local.wait()
                 return None
 
+        # Let the WebRTC pipeline stabilize and adjust its bitrate before
+        # we start playback. This minimizes startup frame drops.
+        logging.info("Sleeping 2.5s to let mirroring stabilize...")
+        time.sleep(2.5)
+
         video.click()
         logging.info("Started playing video.")
 
@@ -490,31 +484,6 @@ def run_performance_test(
             except Exception as e:
                 logging.error("Error stopping cast: %s", e)
 
-        if driver and sender_tracing_started:
-            try:
-                logging.info("Stopping Sender Trace...")
-                tracing_end_resp = driver.execute_cdp_cmd('Tracing.end', {})
-                stream_id = tracing_end_resp.get('stream')
-                if stream_id:
-                    sender_trace_path = os.path.join(
-                        common.TRACES_DIR,
-                        f"{video_key}_sender.chrome-trace")
-                    try:
-                        with open(
-                                sender_trace_path, 'w',
-                                encoding='utf-8') as f:
-                            while True:
-                                read_resp = driver.execute_cdp_cmd(
-                                    'IO.read', {'handle': stream_id})
-                                f.write(read_resp.get('data', ''))
-                                if read_resp.get('eof'):
-                                    break
-                    finally:
-                        driver.execute_cdp_cmd(
-                            'IO.close', {'handle': stream_id})
-                        logging.info("Sender trace closed.")
-            except Exception as e:
-                logging.error("Failed to collect/stop sender trace: %s", e)
 
         # Collect the Receiver Trace
         try:
@@ -578,15 +547,14 @@ def run_performance_test(
         # Collect the Sender Chrome Log
         try:
             logging.info("Collecting Sender Chrome Log...")
-            codec_suffix = f"_{codec_name}" if codec_name else ""
             if args.sender_os == 'win':
                 # Use standard Windows path with forward slashes for scp.
                 log_file_path = (
                     f'{common.WIN_REMOTE_TMP_DIR}/'
-                    f'chrome_debug{codec_suffix}.log'
+                    f'chrome_debug_{video_key}.log'
                 )
             else:
-                log_file_path = f'/tmp/chrome_debug{codec_suffix}.log'
+                log_file_path = f'/tmp/chrome_debug_{video_key}.log'
             sender_log_local_path = os.path.join(
                 common.TRACES_DIR, f"{video_key}_chrome_debug.log")
             key_path = os.path.expanduser('~/.ssh/id_ed25519')
@@ -641,10 +609,6 @@ def main():
     if os.path.exists(common.TRACES_DIR):
         shutil.rmtree(common.TRACES_DIR)
     os.makedirs(common.TRACES_DIR)
-
-    driver = None
-    tunnel_proc = None
-    actual_version = None
 
     # Connect to the ADB receiver.
     try:
@@ -794,20 +758,25 @@ def main():
             logging.info(
                 "Chrome options for %s: %s", codec_name, chrome_options_list)
 
-            driver = None
-            tunnel_proc = None
-            try:
-                driver, tunnel_proc, actual_version = setup_test_environment(
-                    args, cv, chrome_options_list, codec_name)
+            for video in config['videos']:
+                # TODO(b/512198717): Enable HEVC tests on ChromeOS.
+                # Currently these tests are rendering a blank white screen,
+                # so we skip them to bring up the other cros tests.
+                if args.sender_os == 'cros' and 'HEVC' in video['name']:
+                    logging.info(
+                        "Skipping HEVC on ChromeOS: %s", video['name'])
+                    continue
 
-                for video in config['videos']:
-                    # TODO(b/512198717): Enable HEVC tests on ChromeOS.
-                    # Currently these tests are rendering a blank white screen,
-                    # so we skip them to bring up the other cros tests.
-                    if args.sender_os == 'cros' and 'HEVC' in video['name']:
-                        logging.info(
-                            "Skipping HEVC on ChromeOS: %s", video['name'])
-                        continue
+                driver = None
+                tunnel_proc = None
+                actual_version = None
+                trace_file_path = None
+                try:
+                    (driver, tunnel_proc, actual_version,
+                     trace_file_path) = setup_test_environment(
+                        args, cv, chrome_options_list, codec_name,
+                        video['name'])
+
                     logging.info("Starting test for video: %s", video['name'])
                     rec_proc = None
                     try:
@@ -825,9 +794,38 @@ def main():
                         raise
                     finally:
                         common.teardown_recording_process(rec_proc)
-            finally:
-                if driver or tunnel_proc:
-                    common.teardown_test_environment(driver, tunnel_proc, args)
+                finally:
+                    if driver or tunnel_proc:
+                        common.teardown_test_environment(
+                            driver, tunnel_proc, args)
+
+                    # Pull the sender trace from the remote machine.
+                    # Since the browser exited, we wait a few seconds
+                    # to finish flushing the trace file to disk.
+                    if actual_version and trace_file_path:
+                        try:
+                            logging.info(
+                                "Sleeping 5s to let Chrome finish flushing "
+                                "the trace...")
+                            time.sleep(5)
+
+                            logging.info("Collecting Sender Perfetto trace...")
+                            video_key = f"{codec_name}_{video['name']}"
+                            sender_trace_local_path = os.path.join(
+                                common.TRACES_DIR,
+                                f"{video_key}_sender.perfetto-trace")
+                            key_path = os.path.expanduser('~/.ssh/id_ed25519')
+                            subprocess.run([
+                                'scp', '-i', key_path,
+                                '-o', 'StrictHostKeyChecking=no',
+                                f'{args.username}@{args.sender}:'
+                                f'{trace_file_path}',
+                                sender_trace_local_path
+                            ], check=False, timeout=60)
+                        except Exception as e:
+                            logging.error(
+                                "Failed to collect sender perfetto trace: %s",
+                                e)
     finally:
         common.finalize_results(actual_version)
         common.cleanup_binaries(args, actual_version)

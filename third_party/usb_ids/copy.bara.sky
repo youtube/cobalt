@@ -33,19 +33,19 @@ None.
 # This is put here to make crowbar.txtpb the single source of truth for "Version"
 # metadata.
 def generate_readme(ctx):
-  content = ctx.read_path(ctx.new_path("src/usb.ids"))
+    content = ctx.read_path(ctx.new_path("src/usb.ids"))
 
-  matcher = re2.compile(r"#\s*Version:\s*(\S+)").matcher(content)
-  if not matcher.find():
-    fail("Failed to find version from usb.ids file")
+    matcher = re2.compile(r"#\s*Version:\s*(\S+)").matcher(content)
+    if not matcher.find():
+        fail("Failed to find version from usb.ids file")
 
-  ctx.write_path(
-    ctx.new_path("README.chromium"),
-    _readme_template.format(version=matcher.group(1)),
-  )
+    ctx.write_path(
+        ctx.new_path("README.chromium"),
+        _readme_template.format(version = matcher.group(1)),
+    )
 
 crowbar_workflow(
-  transformations = [
-    core.dynamic_transform(impl = generate_readme)
-  ]
+    transformations = [
+        core.dynamic_transform(impl = generate_readme),
+    ],
 )

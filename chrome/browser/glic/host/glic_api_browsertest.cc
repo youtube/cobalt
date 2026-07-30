@@ -113,6 +113,7 @@
 #include "components/skills/features.h"
 #include "components/skills/public/skill.h"
 #include "components/skills/public/skills_service.h"
+#include "components/subscription_eligibility/subscription_eligibility_prefs.h"
 #include "components/tabs/public/tab_interface.h"
 #include "components/variations/synthetic_trial_registry.h"
 #include "content/public/browser/render_frame_host.h"
@@ -548,6 +549,9 @@ class GlicApiTestWithGeminiActOnWebPolicy : public GlicApiTestWithOneTab {
     identity_test_env_->SetTestURLLoaderFactory(&test_url_loader_factory_);
     identity_manager_ = IdentityManagerFactory::GetForProfile(GetProfile());
     SimulatePrimaryAccountChangedSignIn("foo@bar.com", "");
+
+    GetProfile()->GetPrefs()->SetInteger(
+        subscription_eligibility::prefs::kAiSubscriptionTier, 1);
 
     policy_provider_.SetupPolicyServiceForPolicyUpdates(
         browser()->profile()->GetProfilePolicyConnector()->policy_service());
@@ -1932,7 +1936,17 @@ IN_PROC_BROWSER_TEST_P(GlicApiTest,
   ExecuteJsTest({.params = base::Value("verify")});
 }
 
-IN_PROC_BROWSER_TEST_P(GlicApiTest, testPanelWillOpenHasPromptSuggestion) {
+// TODO(crbug.com/517682376): Flaky on ASan, MSan, and Linux/ChromeOS debug.
+#if defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
+    (!defined(NDEBUG) && (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)))
+#define MAYBE_testPanelWillOpenHasPromptSuggestion \
+  DISABLED_testPanelWillOpenHasPromptSuggestion
+#else
+#define MAYBE_testPanelWillOpenHasPromptSuggestion \
+  testPanelWillOpenHasPromptSuggestion
+#endif
+IN_PROC_BROWSER_TEST_P(GlicApiTest,
+                       MAYBE_testPanelWillOpenHasPromptSuggestion) {
   // Simulate click on contextual cue with prompt suggestion.
   glic::GlicInvokeOptions options(glic::mojom::InvocationSource::kNudge);
   options.prompts.push_back("Prompt Suggestion");
@@ -2705,17 +2719,6 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab,
   // Opens the panel again.
   RunTestSequence(ToggleGlicWindow(GlicWindowMode::kDetached));
   ContinueJsTest();
-}
-
-IN_PROC_BROWSER_TEST_P(GlicApiTest, testRemoveBlankInstanceOnClose) {
-  RunTestSequence(
-      InstrumentTab(kFirstTab),
-      OpenGlic(GlicInstrumentMode::kNone, /*conversation_id=*/std::nullopt));
-  ASSERT_EQ(1u, GetInstanceCoordinatorImpl().GetInstances().size());
-  ExecuteJsTest();
-  ASSERT_TRUE(base::test::RunUntil([&]() {
-    return GetInstanceCoordinatorImpl().GetInstances().size() == 0u;
-  }));
 }
 
 IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab,

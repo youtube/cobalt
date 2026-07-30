@@ -12,6 +12,7 @@
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/disabled_grid_view_controller.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/grid_consumer.h"
+#import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/grid_container_view_controller.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_grid_consumer.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_grid_idle_status_handler.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_grid_paging.h"
@@ -42,6 +43,7 @@ enum class IPHDismissalReasonType;
 @protocol TabGridConsumer;
 @protocol TabGridMutator;
 @protocol TabGridToolbarsCommandsWrangler;
+@class TabGridViewController;
 @class TabGridTopToolbar;
 @class TabGroupsPanelViewController;
 
@@ -90,6 +92,10 @@ enum class TabGridPageConfiguration {
 
 // Closes the current active tab.
 - (void)closeCurrentTab;
+
+// Notifies the delegate that the current page has changed.
+- (void)tabGridViewController:(TabGridViewController*)tabGridViewController
+         didChangeCurrentPage:(TabGridPage)currentPage;
 
 @end
 
@@ -172,11 +178,12 @@ enum class TabGridPageConfiguration {
     UIViewController* tabGroupsDisabledGridViewController;
 
 // Contains grids (available or disabled one).
-@property(nonatomic, weak) UIViewController* regularGridContainerViewController;
 @property(nonatomic, weak)
-    UIViewController* incognitoGridContainerViewController;
+    GridContainerViewController* regularGridContainerViewController;
 @property(nonatomic, weak)
-    UIViewController* tabGroupsGridContainerViewController;
+    GridContainerViewController* incognitoGridContainerViewController;
+@property(nonatomic, weak)
+    GridContainerViewController* tabGroupsGridContainerViewController;
 
 // Active page of the tab grid. The active page is the page that
 // contains the most recent active tab.

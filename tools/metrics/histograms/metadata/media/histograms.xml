@@ -829,6 +829,18 @@ chromium-metrics-reviews@google.com.
   <token key="Direction" variants="AudioDirection"/>
 </histogram>
 
+<histogram name="Media.Audio.Android.AAudio.InputTimestampDiscontinuitySize"
+    units="ms" expires_after="2026-10-31">
+  <owner>tguilbert@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    The size (magnitude of deviation from expected callback interval) of a
+    timestamp discontinuity for AAudio input streams. Logged whenever a
+    discontinuity is detected (i.e. the actual interval differs from the
+    expected interval by more than 10% of the callback duration).
+  </summary>
+</histogram>
+
 <histogram name="Media.Audio.Android.AAudio.TimestampDiscontinuitiesPer10s"
     units="discontinuities" expires_after="2026-10-31">
   <owner>tguilbert@chromium.org</owner>
@@ -3261,6 +3273,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Media.CodedSizeGuessing" enum="CodedSizeGuessStatus"
+    expires_after="2026-12-23">
+  <owner>vasilyt@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Records if the guessed coded size and/or
+    MediaFormat.KEY_WIDTH/MediaFormat.KEY_HEIGHT were correct. Recorded once per
+    resolution change (including the first frame).
+  </summary>
+</histogram>
+
 <histogram name="Media.ContentAudioDecoder.CreateReaderSuccess"
     enum="BooleanSuccess" expires_after="2026-12-05">
   <owner>jophba@chromium.org</owner>
@@ -4091,6 +4114,18 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Media.EME.HardwareSecure.AllowedForSite" enum="BooleanEnabled"
+    expires_after="2026-12-09">
+  <owner>feras@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Whether Media Foundation based CDM is enabled or disabled based on previous
+    disabled timestamps in a &quot;User Profile&quot; pref. This is reported
+    once per browsing session when user requests hardware secure playback if
+    Media Foundation based CDM is enabled and available.
+  </summary>
+</histogram>
+
 <histogram name="Media.EME.IsIncognito" enum="BooleanIncognito"
     expires_after="2026-12-09">
   <owner>xhwang@chromium.org</owner>
@@ -4282,6 +4317,29 @@ chromium-metrics-reviews@google.com.
     Whether a MediaFoundationService process crash is within 5 seconds after
     power or display change. Reported when the MediaFoundationService process
     crashes.
+  </summary>
+</histogram>
+
+<histogram
+    name="Media.EME.MediaFoundationService.DolbyVisionSupport.WithHdrCheck"
+    enum="Boolean" expires_after="2026-12-09">
+  <owner>sangbaekpark@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Whether Dolby Vision codec with HDR check is supported or not. When multiple
+    displays are connected to the device, TRUE if the primary display (internal)
+    is HDR/HDR. Reported once per browser session lifetime.
+  </summary>
+</histogram>
+
+<histogram
+    name="Media.EME.MediaFoundationService.DolbyVisionSupport.WithoutHdrCheck"
+    enum="Boolean" expires_after="2026-12-09">
+  <owner>sangbaekpark@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Whether Dolby Vision codec without HDR check is supported or not. Reported
+    once per browser session lifetime.
   </summary>
 </histogram>
 
@@ -4561,34 +4619,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram
-    name="Media.EME.Widevine.HardwareSecure.ClearLeadSupport.{VideoCodec}"
-    enum="BooleanSupported" expires_after="2026-12-09">
-  <owner>vpasupathy@chromium.org</owner>
-  <owner>media-dev-uma@chromium.org</owner>
-  <summary>
-    Record for whether clear lead content is supported by the platform for
-    hardware security. This is reported only on Windows devices, only when codec
-    is supported for hardware security, per codec, and once per browser session
-    lifetime.
-  </summary>
-  <token key="VideoCodec" variants="VideoCodec"/>
-</histogram>
-
-<!-- Widevine in hardware secure mode only -->
-
-<histogram name="Media.EME.Widevine.HardwareSecure.Pref" enum="BooleanEnabled"
-    expires_after="2026-12-09">
-  <owner>xhwang@chromium.org</owner>
-  <owner>media-dev-uma@chromium.org</owner>
-  <summary>
-    Whether Media Foundation Widevine CDM is enabled or disabled based on
-    previous disabled timestamps in &quot;Local State&quot; pref. This is
-    reported once per browsing session around browser startup time if Media
-    Foundation Widevine CDM is enabled and available.
-  </summary>
-</histogram>
-
 <histogram name="Media.EME.Widevine.LibraryCdmAvailable"
     enum="BooleanAvailable" expires_after="2026-12-09">
   <owner>xhwang@chromium.org</owner>
@@ -4694,19 +4724,6 @@ chromium-metrics-reviews@google.com.
     The timeout status of MojoCdm::CreateSessionAndGenerateRequest() call.
   </summary>
   <token key="KeySystem" variants="KeySystemWithRobustness"/>
-</histogram>
-
-<histogram name="Media.EME.{KeySystem}.HardwareSecure.AllowedForSite"
-    enum="BooleanEnabled" expires_after="2026-12-09">
-  <owner>feras@chromium.org</owner>
-  <owner>media-dev-uma@chromium.org</owner>
-  <summary>
-    Whether Media Foundation based CDM is enabled or disabled based on previous
-    disabled timestamps in a &quot;User Profile&quot; pref. This is reported
-    once per browsing session when user requests hardware secure playback if
-    Media Foundation based CDM is enabled and available.
-  </summary>
-  <token key="KeySystem" variants="KeySystemForHardwareSecureOnly"/>
 </histogram>
 
 <histogram name="Media.EME.{KeySystem}.HardwareSecure.CdmCapabilityQueryStatus"
@@ -6621,6 +6638,27 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Media.PictureInPicture.AllowedVideoEncodedSize"
+    units="encoded" expires_after="2027-06-18">
+  <owner>bkeen@google.com</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Records the visual size in DIPs of the video that was allowed to enter
+    Picture-in-Picture after meeting the minimum size constraint.
+
+    The logged value is a 32-bit integer encoding width and height, both in DIPs
+    (Device Independent Pixels): - Upper 16 bits: Width in DIPs. - Lower 16
+    bits: Height in DIPs.
+
+    To decode the value: - width = sample &gt;&gt; 16 - height = sample &amp;
+    0xFFFF
+
+    Recorded when HTMLVideoElement::RequestEnterPictureInPicture() is called
+    with a minimum size constraint and the video's visual size is larger than or
+    equal to the requested minimum size.
+  </summary>
+</histogram>
+
 <histogram name="Media.PictureInPicture.Android.Action"
     enum="PictureInPictureButtonAction" expires_after="2026-11-29">
   <owner>philyan@chromium.org</owner>
@@ -6628,6 +6666,27 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records which Picture-in-Picture button was clicked. This is recorded when
     the user clicks on a button in the Android Picture-in-Picture window.
+  </summary>
+</histogram>
+
+<histogram name="Media.PictureInPicture.BlockedVideoEncodedSize"
+    units="encoded" expires_after="2027-06-18">
+  <owner>bkeen@google.com</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Records the visual size in DIPs of the video that was blocked from entering
+    Picture-in-Picture due to a minimum size constraint.
+
+    The logged value is a 32-bit integer encoding width and height, both in DIPs
+    (Device Independent Pixels): - Upper 16 bits: Width in DIPs. - Lower 16
+    bits: Height in DIPs.
+
+    To decode the value: - width = sample &gt;&gt; 16 - height = sample &amp;
+    0xFFFF
+
+    Recorded when HTMLVideoElement::RequestEnterPictureInPicture() is called
+    with a minimum size constraint and the video's visual size is smaller than
+    the requested minimum size.
   </summary>
 </histogram>
 
@@ -6640,6 +6699,24 @@ chromium-metrics-reviews@google.com.
     ScopedDisallowPictureInPicture object. Records whether the closed
     picture-in-picture window was just opened or already existed when the
     ScopedDisallowPictureInPicture was created.
+  </summary>
+</histogram>
+
+<histogram name="Media.PictureInPicture.SizeConstraintResult"
+    enum="PictureInPictureSizeConstraintResult" expires_after="2027-06-18">
+  <owner>bkeen@google.com</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Records whether a Picture-in-Picture request, that carries a minimum size
+    constraint, meets the size constraint (SizeConstraintMet) or is blocked
+    because of it (SizeConstraintNotMet).
+
+    Note that this metric only tells us information about the size constraint. A
+    Picture-in-Picture request that meets the size constraint can still fail due
+    to other unrelated constraints.
+
+    Recorded when HTMLVideoElement::RequestEnterPictureInPicture() is called
+    with a minimum size constraint.
   </summary>
 </histogram>
 

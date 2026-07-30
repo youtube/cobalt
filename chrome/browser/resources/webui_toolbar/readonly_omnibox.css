@@ -9,12 +9,10 @@
 
 :host {
   /* To help make things line up nicely between the rich-text readonly view and
-   * the interactive <input>, we give everything here the same height. This is
-   * a bit less than the height of the location bar so it can draw the focus
-   * ring without us painting over it. */
-  --omnibox-height: calc(var(--location-bar-height) - 6px);
+   * the interactive <input>, we give everything here the same height,
+   * the height of the location bar. */
+  --omnibox-height: calc(var(--location-bar-height));
   align-self: center;
-  background-color: inherit;
   border: none;
   color: var(--color-omnibox-text);
   display: flex;
@@ -31,7 +29,6 @@
  */
 #textContainerWrap {
   display: flex;
-  background-color: inherit;
   flex: 1;
   height: var(--omnibox-height);
   /* We want to position textInput off of us */
@@ -43,18 +40,20 @@
 }
 
 #textContainer {
-  /* We paint both possible widgets with opaque backgrounds and use z-index to
-     select which one shows
+  /* Both #textContainer and #textInput are included in the layout, with opacity
+   * used to determine which one is actually visible. Since the <input> element
+   * is always actually present, any interaction goes to it directly, making
+   * the switchover painless. #textContainer always being present lets
+   * #inlineAutocomplete use it to position itself in the right spot.
    */
-  background-color: inherit;
   flex: 0 1 min-content;
   height: var(--omnibox-height);
+  opacity: 1;
   outline: none;
   overflow: hidden;
   pointer-events: none;
   text-overflow: ellipsis;
   white-space: pre;
-  z-index: 1;
 }
 
 #textContainer span {
@@ -98,13 +97,14 @@
 
 #textInput {
   appearance: none;
-  background-color: inherit;
+  background-color: transparent;
   border: none;
   color: inherit;
   font-family: inherit;
   font-size: inherit;
   font-weight: inherit;
   height: var(--omnibox-height);
+  opacity: 0;
   outline: none;
   padding: 0;
   position: absolute;

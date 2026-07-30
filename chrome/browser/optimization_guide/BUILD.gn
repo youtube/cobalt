@@ -160,6 +160,7 @@ if (!is_android) {
       "model_execution/model_execution_browsertest.cc",
       "model_execution/model_execution_live_test.cc",
       "model_execution/model_execution_validation_browsertest.cc",
+      "model_execution/on_device_model_browsertest.cc",
       "optimization_guide_keyed_service_browsertest.cc",
       "optimization_guide_tab_url_provider_browsertest.cc",
       "prediction/prediction_manager_browsertest.cc",

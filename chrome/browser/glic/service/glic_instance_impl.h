@@ -58,6 +58,7 @@ class GlicZeroStateSuggestionsManager;
 
 BASE_DECLARE_FEATURE(kGlicRemoveDaisyChainingWhenFreShowing);
 BASE_DECLARE_FEATURE(kGlicUnbindOnClose);
+BASE_DECLARE_FEATURE(kGlicRemoveBlankInstancesOnClose);
 
 // A GlicInstance owns a single host keeping any state that must exist for the
 // lifetime of the host. When a host is showing, the GlicInstance creates a
@@ -100,6 +101,9 @@ class GlicInstanceImpl : public GlicInstance,
     virtual void ContextAccessIndicatorChanged(
         GlicInstanceImpl& source_instance,
         bool enabled) = 0;
+
+    virtual void OnInvoked() = 0;
+    virtual void OnUserInputSubmitted() = 0;
 
     // Called to create a new web contents for the glic instance.
     virtual std::unique_ptr<WebUIContentsContainer>
@@ -202,6 +206,8 @@ class GlicInstanceImpl : public GlicInstance,
   void CancelTask() override;
   GlicActorTaskManager* GetActorTaskManager() override;
   GlicSharingManager* GetSharingManager() override;
+  void UpdateSkillPreviews(
+      std::optional<tabs::TabInterface*> updated_tab) override;
 
   // Called exactly once, right before the instance is destroyed.
   using DestructionCallback = base::OnceCallback<void(GlicInstance*)>;
@@ -284,6 +290,8 @@ class GlicInstanceImpl : public GlicInstance,
   // GlicActorTaskManager::Delegate:
   void OnTabAddedToTask(actor::TaskId task_id,
                         const tabs::TabInterface::Handle& tab_handle) override;
+  void OnTaskTabsVisibilityChanged(actor::TaskId task_id,
+                                   bool has_visible_tab) override;
   void OnTaskIdChanged(std::optional<int> task_id) override;
 
  private:
@@ -334,7 +342,7 @@ class GlicInstanceImpl : public GlicInstance,
           callback,
       std::vector<std::string> returned_suggestions);
   void MaybeDeactivateEmbedder(EmbedderKey key);
-  void MaybeWarmZeroStateSuggestions();
+  void MaybeWarmZeroStateSuggestions(mojom::InvocationSource invocation_source);
 
   bool IsActiveEmbedder(EmbedderKey key) const;
   bool ShouldShowInactiveSidePanel(const SidePanelShowOptions& options) const;
@@ -411,12 +419,14 @@ class GlicInstanceImpl : public GlicInstance,
   base::ScopedObservation<GlobalBrowserCollection, BrowserCollectionObserver>
       browser_collection_observation_{this};
   base::ScopedObservation<Host, Host::Observer> host_observation_{this};
+  bool zss_warming_disabled_ = false;
 
   std::unique_ptr<GlicZeroStateSuggestionsManager>
       zero_state_suggestions_manager_;
   std::unique_ptr<GlicSkillsManagerImpl> skills_manager_;
   std::unique_ptr<GlicActorTaskManager> actor_task_manager_;
   base::CallbackListSubscription pinned_tabs_change_subscription_;
+  base::CallbackListSubscription actuating_changed_subscription_;
 
   base::OneShotTimer inactivity_timer_;
   base::Time last_activation_timestamp_;

@@ -1,4 +1,7 @@
 specific_include_rules = {
+  "matchers.mm": [
+    "+ui/base"
+  ],
   "base_earl_grey_test_case.mm": [
     "+ui/display"
   ]

@@ -33,7 +33,7 @@ These builders must pass before a CL may land that affects files outside of
 
 * [android-desktop-x64-rel](https://ci.chromium.org/p/chromium/builders/try/android-desktop-x64-rel) ([definition](https://cs.chromium.org/search?q=+file:/try/.*\.star$+""android-desktop-x64-rel""))
 
-    * Replaced with builder: [android-internal-desktop-x64-rel](https://ci.chromium.org/p/chrome/builders/try/android-internal-desktop-x64-rel) when CL owner is in group [google/chrome-al-eng@google.com](https://chrome-infra-auth.appspot.com/auth/lookup?p=google/chrome-al-eng@google.com) with percentage 25.0
+    * Replaced with builder: [android-internal-desktop-x64-rel](https://ci.chromium.org/p/chrome/builders/try/android-internal-desktop-x64-rel) when CL owner is in group [google/chrome-al-eng@google.com](https://chrome-infra-auth.appspot.com/auth/lookup?p=google/chrome-al-eng@google.com)
 
 * [android-x64-rel](https://ci.chromium.org/p/chromium/builders/try/android-x64-rel) ([definition](https://cs.chromium.org/search?q=+file:/try/.*\.star$+""android-x64-rel""))
 

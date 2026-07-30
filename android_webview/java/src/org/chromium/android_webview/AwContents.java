@@ -24,7 +24,6 @@ import android.net.http.SslCertificate;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.CancellationSignal;
-import android.os.Debug;
 import android.os.Handler;
 import android.os.Message;
 import android.os.SystemClock;
@@ -88,7 +87,6 @@ import org.chromium.base.RequiredCallback;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.TimeUtils;
 import org.chromium.base.TraceEvent;
-import org.chromium.base.memory.MemoryInfoBridge;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.task.AsyncTask;
 import org.chromium.base.task.PostTask;
@@ -437,27 +435,14 @@ public class AwContents implements SmartClipProvider {
      */
     private boolean mBrowserContextSetExplicitly;
 
-    /**
-     * Set to true if {@link AwContents#evaluateJavaScript(String, Callback)}
-     * has been called.
-     */
+    /** Set to true if {@link AwContents#evaluateJavaScript(String, Callback)} has been called. */
     private boolean mHasEvaluatedJavascript;
 
     @VisibleForTesting public static final long FUNCTOR_RECLAIM_DELAY_MS = 10000;
-    @VisibleForTesting public static final long METRICS_COLLECTION_DELAY_MS = 1000;
     private static final long CURRENTLY_VISIBLE = -1;
     private long mLastWindowVisibleTime = -1;
     private boolean mHasPendingReclaimTask;
     private BiFunction<Runnable, Long, Void> mPostDelayedTaskForTesting;
-    private static final long MEMORY_COLLECTION_INTERVAL_MS = 5 * 60 * 1000;
-    private static long sLastCollectionTime = -MEMORY_COLLECTION_INTERVAL_MS;
-
-    @VisibleForTesting
-    public static final String PSS_HISTOGRAM = "Android.WebView.Memory.FunctorReclaim.OtherPss";
-
-    @VisibleForTesting
-    public static final String PRIVATE_DIRTY_HISTOGRAM =
-            "Android.WebView.Memory.FunctorReclaim.OtherPrivateDirty";
 
     private @RendererPriority int mRendererPriority;
     private boolean mRendererPriorityWaivedWhenNotVisible;
@@ -3586,9 +3571,6 @@ public class AwContents implements SmartClipProvider {
                         .trimMemory(
                                 mNativeAwContents, ComponentCallbacks2.TRIM_MEMORY_COMPLETE, false);
             }
-            // Not immediately collecting memory metrics, because actual memory release can take
-            // some time, either through async tasks here, or in the driver.
-            postDelayedTaskWithOverride(this::maybeRecordMemory, METRICS_COLLECTION_DELAY_MS);
         }
     }
 
@@ -4325,12 +4307,7 @@ public class AwContents implements SmartClipProvider {
             ThreadUtils.runOnUiThreadBlocking(
                     () -> {
                         if (isDestroyed(NO_WARN)) return;
-                        // Post the task in the case where we would have cleared the functor if the
-                        // feature was enabled, so that the two experiment arms have the same
-                        // number of samples.
                         if (level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND) {
-                            postDelayedTaskWithOverride(
-                                    this::maybeRecordMemory, METRICS_COLLECTION_DELAY_MS);
                             if (mDrawFunctor != null) {
                                 setFunctor(null);
                             }
@@ -4338,58 +4315,6 @@ public class AwContents implements SmartClipProvider {
                         AwContentsJni.get().trimMemory(mNativeAwContents, level, visible);
                     });
         }
-    }
-
-    private void maybeRecordMemory() {
-        // Note: there is a corner case here: if there are no visible WebViews, but the last one
-        // was removed too recently to have had its functor reclaimed, we still collect data.
-        // This likely doesn't matter too much, especially since as noted below, the metrics are
-        // expected to only be useful to tell whether the experiment produces a signal.
-        if (AwContentsLifecycleNotifier.getInstance().getAppState() != AppState.BACKGROUND) return;
-
-        // Comment below from base/android/meminfo_dump_provider.cc:
-        //
-        // This is best-effort, and will be wrong if there are other callers of
-        // ActivityManager#getProcessMemoryInfo(), either in this process or from another
-        // process which is allowed to do so (typically, adb).
-        //
-        // However, since the framework doesn't document throttling in any non-vague terms and
-        // the results are not timestamped, this is the best we can do. The delay and the rest
-        // of the assumptions here come from
-        // https://android.googlesource.com/platform/frameworks/base/+/refs/heads/android13-dev/services/core/java/com/android/server/am/ActivityManagerService.java#4093.
-        //
-        // We could always report the value on pre-Q devices, but that would skew reported
-        // data. Also, some OEMs may have cherry-picked the Q change, meaning that it's safer
-        // and more accurate to not report likely-stale data on all Android releases.
-        //
-        // Nevertheless, this has proved useful to detect whether an experiment is doing
-        // *something* for Chromium (the browser, not WebView), where is it collected as part of
-        // memory metrics, that are not collected in WebView.
-        long now = SystemClock.uptimeMillis();
-        if (now - sLastCollectionTime < MEMORY_COLLECTION_INTERVAL_MS) return;
-        sLastCollectionTime = now;
-
-        Runnable recordMetrics =
-                () -> {
-                    Debug.MemoryInfo info = MemoryInfoBridge.getActivityManagerMemoryInfoForSelf();
-                    if (info == null) return;
-
-                    RecordHistogram.recordMemoryMediumMBHistogram(
-                            PSS_HISTOGRAM, info.otherPss / 1024);
-                    RecordHistogram.recordMemoryMediumMBHistogram(
-                            PRIVATE_DIRTY_HISTOGRAM, info.otherPrivateDirty / 1024);
-                };
-
-        // Record synchronously for testing, to reduce flakiness.
-        if (mPostDelayedTaskForTesting != null) {
-            recordMetrics.run();
-        } else {
-            AsyncTask.THREAD_POOL_EXECUTOR.execute(recordMetrics);
-        }
-    }
-
-    public static void resetRecordMemoryForTesting() {
-        sLastCollectionTime = -MEMORY_COLLECTION_INTERVAL_MS;
     }
 
     /**

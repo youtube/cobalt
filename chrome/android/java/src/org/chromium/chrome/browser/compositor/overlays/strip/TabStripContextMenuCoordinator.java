@@ -17,11 +17,13 @@ import android.view.View;
 
 import androidx.annotation.VisibleForTesting;
 
+import org.chromium.base.ContextUtils;
 import org.chromium.base.MathUtils;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.bookmarks.BookmarkAllTabsHandler;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.glic.GlicEnabling;
 import org.chromium.chrome.browser.glic.GlicUtils;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
@@ -30,6 +32,8 @@ import org.chromium.chrome.browser.multiwindow.UiUtils.NameWindowDialogSource;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModel.RecentlyClosedEntryType;
+import org.chromium.chrome.browser.task_manager.TaskManager;
+import org.chromium.chrome.browser.task_manager.TaskManagerFactory;
 import org.chromium.chrome.browser.tasks.tab_management.TabOverflowMenuCoordinator;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.vertical_tabs.VerticalTabUtils;
@@ -223,6 +227,16 @@ public class TabStripContextMenuCoordinator {
                                 .build());
             }
         }
+        // Add "Task Manager" option with divider.
+        if (ChromeFeatureList.isEnabled(ChromeFeatureList.TASK_MANAGER_CLANK)) {
+            itemList.add(BasicListMenu.buildMenuDivider(isIncognito));
+            itemList.add(
+                    new ListItemBuilder()
+                            .withTitleRes(R.string.menu_task_manager)
+                            .withMenuId(R.id.task_manager)
+                            .withIsIncognito(isIncognito)
+                            .build());
+        }
     }
 
     @VisibleForTesting
@@ -267,6 +281,10 @@ public class TabStripContextMenuCoordinator {
                     RecordUserAction.record("Android.TabStripMenu.UnpinGlic");
                 }
                 if (profile != null) GlicUtils.setButtonPinnedToTabStrip(profile, isPin);
+            } else if (model.get(MENU_ITEM_ID) == R.id.task_manager) {
+                RecordUserAction.record("Android.TabStripMenu.TaskManager");
+                TaskManager taskManager = TaskManagerFactory.createTaskManager();
+                taskManager.launch(ContextUtils.getApplicationContext());
             }
             assumeNonNull(mMenuWindow).dismiss();
         };

@@ -102,25 +102,22 @@ interface GpuHost {
   EnsureWebNNExecutionProvidersReady()
       => (map<string, webnn.mojom.EpPackageInfo> ep_package_info);
 
-  // Requests the Browser to create a CompilerContext in the Compiler process
-  // for a specific EP device. Each EP device has its own dedicated Compiler
-  // process and the Browser launches one on first use for that device.
-  // Browser creates all pipe pairs:
-  //   - CompilerContext pipe: returned as
-  //     compiler_context_remote (for Renderer)
-  //   - ModelLoader pipe: returned as model_loader_receiver (for GPU)
-  // GPU passes compiler_context_remote through to Renderer in
-  // CreateContextSuccess, and binds model_loader_receiver to
-  // DispatchContextImplOrt.
+  // Requests a CompilerContext in the Compiler process for a specific EP
+  // device. Each EP device has its own dedicated Compiler process and the
+  // Browser launches one on first use for that device.
+  //
+  // The caller (GPU process) creates both pipes and passes the endpoints
+  // here. The Browser forwards them to the Compiler process. If the Compiler
+  // cannot be launched, the pipes are simply dropped (disconnecting the
+  // peer endpoints).
   [EnableIf=is_win]
   RequestWebNNCompilerContext(
       webnn.mojom.CreateContextOptions context_options,
       webnn.mojom.ContextProperties context_properties,
-      webnn.mojom.EpDeviceInfo target_device)
-      => (pending_remote<webnn.mojom.WebNNCompilerContext>?
-              compiler_context_remote,
-          pending_receiver<webnn.mojom.WebNNModelLoader>?
-              model_loader_receiver);
+      webnn.mojom.EpDeviceInfo target_device,
+      pending_receiver<webnn.mojom.WebNNCompilerContext>
+          compiler_context_receiver,
+      pending_remote<webnn.mojom.WebNNModelLoader> model_loader_remote);
 
   // Tells the GPU host to create a temporary file that can be used to save all
   // weights in the WebNN graph. Returns the open file handle if the file was

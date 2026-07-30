@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <vector>
 
+#include "base/functional/callback.h"
 #include "components/private_ai/crypto/handshake_message.h"
 #include "components/private_ai/crypto/secure_session_impl.h"
 #include "components/private_ai/mojom/oak_session.mojom.h"
@@ -23,6 +24,10 @@ class OakSessionService : public mojom::OakSession {
  public:
   explicit OakSessionService(mojo::PendingReceiver<mojom::OakSession> receiver);
   ~OakSessionService() override;
+
+  void set_disconnect_handler(base::OnceClosure handler) {
+    receiver_.set_disconnect_handler(std::move(handler));
+  }
 
   OakSessionService(const OakSessionService&) = delete;
   OakSessionService& operator=(const OakSessionService&) = delete;

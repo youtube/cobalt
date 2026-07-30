@@ -12,13 +12,17 @@
 #include <string>
 
 #include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/memory/ptr_util.h"
 #include "base/run_loop.h"
 #include "base/strings/string_view_util.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/thread_pool.h"
+#include "base/test/run_until.h"
 #include "base/test/task_environment.h"
-#include "base/threading/thread.h"
 #include "base/time/time.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
@@ -58,37 +62,29 @@ const uint8_t kResponseData[] = {0x00, 0x00, 0x00, 0x01, 0x42};
 
 const uint8_t kSshErrorData[] = {0x00, 0x00, 0x00, 0x01, 0x05};
 
-void RunUntilIdle() {
-  base::RunLoop run_loop;
-  run_loop.RunUntilIdle();
-}
-
 }  // namespace
 
 class SecurityKeyAuthHandlerPosixTest : public testing::Test {
  public:
   SecurityKeyAuthHandlerPosixTest()
       : run_loop_(new base::RunLoop()),
-        file_thread_("SecurityKeyAuthHandlerPosixTest_FileThread"),
         expected_request_data_(
             base::as_string_view(base::span(kRequestData).subspan<4>())),
         client_response_data_(
             base::as_string_view(base::span(kResponseData).subspan<4>())) {
     EXPECT_TRUE(temp_dir_.CreateUniqueTempDir());
     socket_path_ = temp_dir_.GetPath().Append(kSocketFilename);
-    remoting::SecurityKeyAuthHandlerPosix::SetSecurityKeySocketName(
-        socket_path_);
-
-    EXPECT_TRUE(file_thread_.StartWithOptions(
-        base::Thread::Options(base::MessagePumpType::IO, 0)));
 
     send_message_callback_ = base::BindRepeating(
         &SecurityKeyAuthHandlerPosixTest::SendMessageToClient,
         base::Unretained(this));
 
-    auth_handler_ = remoting::SecurityKeyAuthHandler::Create(
-        /*client_session_details=*/nullptr, send_message_callback_,
-        file_thread_.task_runner());
+    auto file_task_runner = base::ThreadPool::CreateSequencedTaskRunner(
+        {base::MayBlock(), base::TaskPriority::BEST_EFFORT});
+
+    auth_handler_ = remoting::SecurityKeyAuthHandlerPosix::CreateForTesting(
+        socket_path_, file_task_runner);
+    auth_handler_->SetSendMessageCallback(send_message_callback_);
     EXPECT_NE(auth_handler_.get(), nullptr);
   }
 
@@ -101,10 +97,12 @@ class SecurityKeyAuthHandlerPosixTest : public testing::Test {
     ASSERT_EQ(auth_handler_->GetActiveConnectionCountForTest(), 0u);
     auth_handler_->CreateSecurityKeyConnection();
 
-    ASSERT_TRUE(file_thread_.task_runner()->PostTaskAndReply(
-        FROM_HERE, base::BindOnce(&RunUntilIdle), run_loop_->QuitClosure()));
-    run_loop_->Run();
-    run_loop_ = std::make_unique<base::RunLoop>();
+    // Wait until the socket file is created on disk, which indicates the
+    // background file task has completed and the handler is listening.
+    // This is 100% deterministic and avoids any manual RunLoops or banned
+    // RunUntilIdle patterns.
+    ASSERT_TRUE(
+        base::test::RunUntil([&]() { return base::PathExists(socket_path_); }));
 
     ASSERT_EQ(auth_handler_->GetActiveConnectionCountForTest(), 0u);
   }
@@ -181,11 +179,9 @@ class SecurityKeyAuthHandlerPosixTest : public testing::Test {
   }
 
  protected:
-  base::test::SingleThreadTaskEnvironment task_environment_{
-      base::test::SingleThreadTaskEnvironment::MainThreadType::IO};
+  base::test::TaskEnvironment task_environment_{
+      base::test::TaskEnvironment::MainThreadType::IO};
   std::unique_ptr<base::RunLoop> run_loop_;
-
-  base::Thread file_thread_;
 
   // Object under test.
   std::unique_ptr<SecurityKeyAuthHandler> auth_handler_;

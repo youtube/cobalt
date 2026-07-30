@@ -3,13 +3,18 @@
 # found in the LICENSE file.
 
 import("//build/buildflag_header.gni")
+import("//components/optimization_guide/features.gni")
 import("//services/webnn/public/webnn_features.gni")
+
+webnn_use_webgpu_accelerator =
+    build_with_internal_optimization_guide && webnn_use_litert
 
 buildflag_header("buildflags") {
   header = "webnn_buildflags.h"
   flags = [
     "WEBNN_ENABLE_GRAPH_DUMP=$webnn_enable_graph_dump",
     "WEBNN_USE_LITERT=$webnn_use_litert",
+    "WEBNN_USE_WEBGPU_ACCELERATOR=$webnn_use_webgpu_accelerator",
   ]
 }
 

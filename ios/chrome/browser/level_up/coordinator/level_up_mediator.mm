@@ -80,10 +80,24 @@
   return self;
 }
 
+- (void)setProfileConsumer:(id<LevelUpProfileConsumer>)profileConsumer {
+  _profileConsumer = profileConsumer;
+
+  // Skip doing unnecessary work if there's no consumer for it.
+  if (!self.profileConsumer) {
+    return;
+  }
+
+  [self updateProfileInfo];
+}
+
 - (void)setConsumer:(id<LevelUpConsumer>)consumer {
   _consumer = consumer;
 
-  [self updateProfileInfo];
+  // Skip doing unnecessary work if there's no consumer for it.
+  if (!self.consumer) {
+    return;
+  }
 
   if ([self.consumer
           respondsToSelector:@selector(setProgressUpdatesEnabled:)]) {
@@ -192,22 +206,22 @@
       l10n_util::GetPluralNSStringF(IDS_IOS_LEVEL_UP_STAT_TABS_DECLUTTERED, 3);
   NSString* subtitle1 =
       l10n_util::GetNSString(IDS_IOS_LEVEL_UP_STAT_SUBTITLE_TABS_DECLUTTERED);
-  LevelUpStat* stat1 = [[LevelUpStat alloc]
-      initWithTitle:title1
-           subtitle:subtitle1
-              image:DefaultSymbolTemplateWithPointSize(kBookmarksSymbol, 28.0)
-               type:LevelUpTaskStatType::kTabsDecluttered];
+  LevelUpStat* stat1 =
+      [[LevelUpStat alloc] initWithTitle:title1
+                                subtitle:subtitle1
+                         imageLottieName:@"tabs_decluttered"
+                                    type:LevelUpTaskStatType::kTabsDecluttered];
   [stats addObject:stat1];
 
   NSString* title2 =
       l10n_util::GetPluralNSStringF(IDS_IOS_LEVEL_UP_STAT_TYPING_SAVED, 5);
   NSString* subtitle2 =
       l10n_util::GetNSString(IDS_IOS_LEVEL_UP_STAT_SUBTITLE_TYPING_SAVED);
-  LevelUpStat* stat2 = [[LevelUpStat alloc]
-      initWithTitle:title2
-           subtitle:subtitle2
-              image:DefaultSymbolTemplateWithPointSize(kKeySymbol, 28.0)
-               type:LevelUpTaskStatType::kTypingSaved];
+  LevelUpStat* stat2 =
+      [[LevelUpStat alloc] initWithTitle:title2
+                                subtitle:subtitle2
+                         imageLottieName:@"typing_saved"
+                                    type:LevelUpTaskStatType::kTypingSaved];
   [stats addObject:stat2];
 
   NSString* title3 = l10n_util::GetPluralNSStringF(
@@ -215,10 +229,10 @@
   NSString* subtitle3 =
       l10n_util::GetNSString(IDS_IOS_LEVEL_UP_STAT_SUBTITLE_PASSWORDS_VERIFIED);
   LevelUpStat* stat3 = [[LevelUpStat alloc]
-      initWithTitle:title3
-           subtitle:subtitle3
-              image:DefaultSymbolTemplateWithPointSize(kKeySymbol, 28.0)
-               type:LevelUpTaskStatType::kPasswordsVerified];
+        initWithTitle:title3
+             subtitle:subtitle3
+      imageLottieName:@"passwords_verified"
+                 type:LevelUpTaskStatType::kPasswordsVerified];
   [stats addObject:stat3];
 
   NSString* title4 =
@@ -228,8 +242,7 @@
   LevelUpStat* stat4 =
       [[LevelUpStat alloc] initWithTitle:title4
                                 subtitle:subtitle4
-                                   image:DefaultSymbolTemplateWithPointSize(
-                                             kDefaultBrowserSymbol, 28.0)
+                         imageLottieName:@"searches_skipped"
                                     type:LevelUpTaskStatType::kSearchesSkipped];
   [stats addObject:stat4];
 

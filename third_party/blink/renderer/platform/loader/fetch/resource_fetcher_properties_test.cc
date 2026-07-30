@@ -10,7 +10,10 @@
 #include "third_party/blink/public/mojom/service_worker/controller_service_worker_mode.mojom-blink.h"
 #include "third_party/blink/renderer/platform/loader/fetch/fetch_client_settings_object.h"
 #include "third_party/blink/renderer/platform/loader/fetch/fetch_client_settings_object_snapshot.h"
+#include "third_party/blink/renderer/platform/loader/fetch/resource_request.h"
+#include "third_party/blink/renderer/platform/loader/fetch/resource_request_utils.h"
 #include "third_party/blink/renderer/platform/loader/testing/test_resource_fetcher_properties.h"
+#include "third_party/blink/renderer/platform/weborigin/referrer.h"
 
 namespace blink {
 
@@ -124,6 +127,86 @@ TEST_F(DetachableResourceFetcherPropertiesTest, DetachWithNonDefaultValues) {
   EXPECT_TRUE(properties.ShouldBlockLoadingSubResource());
   EXPECT_TRUE(properties.IsSubframeDeprioritizationEnabled());
   EXPECT_EQ(scheduler::FrameStatus::kNone, properties.GetFrameStatus());
+}
+
+TEST(FetchClientSettingsObjectSnapshotTest, OutgoingReferrerUrlStripping) {
+  // Test that credentials and fragments are stripped
+  auto* snapshot_with_credentials =
+      MakeGarbageCollected<FetchClientSettingsObjectSnapshot>(
+          KURL("https://example.com/foo.html"),
+          KURL("https://example.com/foo.html"),
+          SecurityOrigin::Create(KURL("https://example.com/")),
+          mojom::blink::PolicyContainerPolicies::New(),
+          "https://user:pass@example.com/foo.html#fragment",
+          HttpsState::kModern, AllowedByNosniff::MimeTypeCheck::kStrict,
+          mojom::blink::InsecureRequestPolicy::kLeaveInsecureRequestsAlone,
+          FetchClientSettingsObject::InsecureNavigationsSet());
+
+  EXPECT_EQ(KURL("https://example.com/foo.html"),
+            snapshot_with_credentials->GetOutgoingReferrerUrl());
+
+  // Test that disallowed schemes (like ftp) are resolved to an empty/invalid
+  // URL
+  auto* snapshot_with_ftp =
+      MakeGarbageCollected<FetchClientSettingsObjectSnapshot>(
+          KURL("https://example.com/foo.html"),
+          KURL("https://example.com/foo.html"),
+          SecurityOrigin::Create(KURL("https://example.com/")),
+          mojom::blink::PolicyContainerPolicies::New(),
+          "ftp://example.com/foo.html", HttpsState::kModern,
+          AllowedByNosniff::MimeTypeCheck::kStrict,
+          mojom::blink::InsecureRequestPolicy::kLeaveInsecureRequestsAlone,
+          FetchClientSettingsObject::InsecureNavigationsSet());
+
+  EXPECT_TRUE(snapshot_with_ftp->GetOutgoingReferrerUrl().IsEmpty());
+}
+
+TEST(ResourceFetcherPropertiesTest, SetReferrerFromFetchClientSettingsObject) {
+  auto* snapshot = MakeGarbageCollected<FetchClientSettingsObjectSnapshot>(
+      KURL("https://example.com/foo.html"),
+      KURL("https://example.com/foo.html"),
+      SecurityOrigin::Create(KURL("https://example.com/")),
+      []() {
+        auto policies = mojom::blink::PolicyContainerPolicies::New();
+        policies->referrer_policy = network::mojom::ReferrerPolicy::kAlways;
+        return policies;
+      }(),
+      "https://example.com/parent.html", HttpsState::kModern,
+      AllowedByNosniff::MimeTypeCheck::kStrict,
+      mojom::blink::InsecureRequestPolicy::kLeaveInsecureRequestsAlone,
+      FetchClientSettingsObject::InsecureNavigationsSet());
+
+  // Verify that request referrers set to "about:client" are routed to the
+  // snapshot's GetOutgoingReferrerUrl() and have their referrer and policy
+  // properly updated.
+  ResourceRequest client_referrer_request;
+  client_referrer_request.SetUrl(KURL("https://example.com/subresource.html"));
+  client_referrer_request.SetReferrerString(Referrer::ClientReferrerString());
+  client_referrer_request.SetReferrerPolicy(
+      network::mojom::ReferrerPolicy::kDefault);
+
+  SetReferrer(client_referrer_request, *snapshot);
+
+  EXPECT_EQ(KURL("https://example.com/parent.html"),
+            client_referrer_request.ReferrerString());
+  EXPECT_EQ(network::mojom::ReferrerPolicy::kAlways,
+            client_referrer_request.GetReferrerPolicy());
+
+  // Verify that custom request referrers are resolved directly and correctly
+  // stripped of fragments.
+  ResourceRequest custom_referrer_request;
+  custom_referrer_request.SetUrl(KURL("https://example.com/subresource.html"));
+  custom_referrer_request.SetReferrerString(
+      "https://example.com/custom.html#fragment");
+  custom_referrer_request.SetReferrerPolicy(
+      network::mojom::ReferrerPolicy::kDefault);
+
+  SetReferrer(custom_referrer_request, *snapshot);
+
+  EXPECT_EQ(KURL("https://example.com/custom.html"),
+            custom_referrer_request.ReferrerString());
+  EXPECT_EQ(network::mojom::ReferrerPolicy::kAlways,
+            custom_referrer_request.GetReferrerPolicy());
 }
 
 }  // namespace

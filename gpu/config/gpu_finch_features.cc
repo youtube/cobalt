@@ -10,6 +10,8 @@
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/logging.h"
+#include "base/no_destructor.h"
+#include "base/synchronization/atomic_flag.h"
 #include "build/build_config.h"
 #include "gpu/config/gpu_feature_info.h"
 #include "gpu/config/gpu_switches.h"
@@ -31,6 +33,74 @@
 
 namespace features {
 namespace {
+
+SkiaGraphiteFeatureParams g_skia_graphite_feature_params;
+
+base::AtomicFlag& GetGraphiteParamsInitFlag() {
+  static base::NoDestructor<base::AtomicFlag> flag;
+  return *flag;
+}
+
+void InitSkiaGraphiteFeatureParams(const base::Feature& feature) {
+  if (GetGraphiteParamsInitFlag().IsSet()) {
+    return;
+  }
+
+  g_skia_graphite_feature_params.dawn_skip_validation =
+      base::FeatureParam<bool>(
+          &feature, "dawn_skip_validation",
+          g_skia_graphite_feature_params.dawn_skip_validation)
+          .Get();
+  g_skia_graphite_feature_params.dawn_backend_validation =
+      base::FeatureParam<bool>(
+          &feature, "dawn_backend_validation",
+          g_skia_graphite_feature_params.dawn_backend_validation)
+          .Get();
+  g_skia_graphite_feature_params.dawn_backend_debug_labels =
+      base::FeatureParam<bool>(
+          &feature, "dawn_backend_debug_labels",
+          g_skia_graphite_feature_params.dawn_backend_debug_labels)
+          .Get();
+  g_skia_graphite_feature_params.dawn_enable_auto_map =
+      base::FeatureParam<bool>(
+          &feature, "dawn_enable_auto_map",
+          g_skia_graphite_feature_params.dawn_enable_auto_map)
+          .Get();
+  g_skia_graphite_feature_params.max_pending_recordings =
+      base::FeatureParam<int>(
+          &feature, "max_pending_recordings",
+          g_skia_graphite_feature_params.max_pending_recordings)
+          .Get();
+  g_skia_graphite_feature_params.enable_deferred_submit =
+      base::FeatureParam<bool>(
+          &feature, "enable_deferred_submit",
+          g_skia_graphite_feature_params.enable_deferred_submit)
+          .Get();
+  g_skia_graphite_feature_params.enable_msaa_on_newer_intel =
+      base::FeatureParam<bool>(
+          &feature, "enable_msaa_on_newer_intel",
+          g_skia_graphite_feature_params.enable_msaa_on_newer_intel)
+          .Get();
+#if BUILDFLAG(IS_WIN)
+  g_skia_graphite_feature_params.dawn_dumpwc_d3d_errors =
+      base::FeatureParam<bool>(
+          &feature, "dawn_dumpwc_d3d_errors",
+          g_skia_graphite_feature_params.dawn_dumpwc_d3d_errors)
+          .Get();
+  g_skia_graphite_feature_params.dawn_disable_d3d_shader_optimizations =
+      base::FeatureParam<bool>(
+          &feature, "dawn_disable_d3d_shader_optimizations",
+          g_skia_graphite_feature_params.dawn_disable_d3d_shader_optimizations)
+          .Get();
+  g_skia_graphite_feature_params.dawn_d3d11_delay_flush =
+      base::FeatureParam<bool>(
+          &feature, "dawn_d3d11_delay_flush",
+          g_skia_graphite_feature_params.dawn_d3d11_delay_flush)
+          .Get();
+#endif
+
+  GetGraphiteParamsInitFlag().Set();
+}
 
 #if BUILDFLAG(IS_ANDROID)
 bool IsDeviceBlocked(std::string_view field, std::string_view block_list) {
@@ -306,6 +376,15 @@ BASE_FEATURE(kSkiaGraphite,
 #endif
 );
 
+// Controls Skia Graphite specifically for Intel GPUs on Windows.
+// On Windows, the status of Graphite on Intel GPUs won't be controlled
+// by the standard SkiaGraphite feature, but by this feature flag
+// instead. This feature only works if `kLateGraphiteFeatureCheck` is
+// also enabled.
+BASE_FEATURE(kSkiaGraphiteWinIntel,
+             "SkiaGraphiteWinIntel",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Allows CompoundImageBacking to allocate backings during runtime if a
 // compatible backing to serve clients requested usage is not already present.
 BASE_FEATURE(kUseDynamicBackingAllocations, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -361,55 +440,25 @@ BASE_FEATURE(kConditionallySkipGpuChannelFlush,
 #endif
 );
 
-// Whether the Dawn "skip_validation" toggle is enabled for Skia Graphite.
-const base::FeatureParam<bool> kSkiaGraphiteDawnSkipValidation{
-    &kSkiaGraphite, "dawn_skip_validation", !DCHECK_IS_ON()};
+const SkiaGraphiteFeatureParams& GetSkiaGraphiteFeatureParams() {
+  DCHECK(GetGraphiteParamsInitFlag().IsSet());
+  return g_skia_graphite_feature_params;
+}
 
-// Whether Dawn backend validation is enabled for Skia Graphite.
-const base::FeatureParam<bool> kSkiaGraphiteDawnBackendValidation{
-    &kSkiaGraphite, "dawn_backend_validation", false};
+void InitSkiaGraphiteDefaultParamsForTesting() {
+  if (GetGraphiteParamsInitFlag().IsSet()) {
+    return;
+  }
 
-// Whether Dawn backend debug labels are enabled for Skia Graphite.
-// Only enable backend labels by default on DCHECK builds since it
-// can have non-trivial performance overhead e.g. with Metal.
-const base::FeatureParam<bool> kSkiaGraphiteDawnBackendDebugLabels{
-    &kSkiaGraphite, "dawn_backend_debug_labels", DCHECK_IS_ON()};
+  g_skia_graphite_feature_params = SkiaGraphiteFeatureParams();
 
-// Enables automatic buffer mappings in Dawn's backend.
-const base::FeatureParam<bool> kSkiaGraphiteDawnEnableAutoMap{
-    &kSkiaGraphite, "dawn_enable_auto_map", true};
-
-const base::FeatureParam<int> kSkiaGraphiteMaxPendingRecordings{
-    &kSkiaGraphite, "max_pending_recordings", 100};
+  GetGraphiteParamsInitFlag().Set();
+}
 
 const base::FeatureParam<int> kSkiaGraphiteMinPathSizeForMsaa{
     &kSkiaGraphiteSmallPathAtlas, "min_path_size_for_msaa", 0};
 
-// Whether to enable deferred submissions optimization (if possible). If it's
-// false, every SI's access will require a Graphite's Context::submit() call
-// before EndAccess()
-BASE_FEATURE_PARAM(bool,
-                   kSkiaGraphiteEnableDeferredSubmit,
-                   &kSkiaGraphite,
-                   "enable_deferred_submit",
-                   BUILDFLAG(IS_WIN));
-
-const base::FeatureParam<bool> kSkiaGraphiteEnableMSAAOnNewerIntel{
-    &kSkiaGraphite, "enable_msaa_on_newer_intel", true};
-
 #if BUILDFLAG(IS_WIN)
-// Whether the we should DumpWithoutCrashing when D3D related errors are detected.
-const base::FeatureParam<bool> kSkiaGraphiteDawnDumpWCOnD3DError{
-    &kSkiaGraphite, "dawn_dumpwc_d3d_errors", false};
-
-// Whether to disable D3D shader optimizations.
-const base::FeatureParam<bool> kSkiaGraphiteDawnDisableD3DShaderOptimizations{
-    &kSkiaGraphite, "dawn_disable_d3d_shader_optimizations", false};
-
-// Whether the Dawn D3D11 flush should be delayed until the end of the frame.
-const base::FeatureParam<bool> kSkiaGraphiteDawnD3D11DelayFlush{
-    &kSkiaGraphite, "dawn_d3d11_delay_flush", true};
-
 BASE_FEATURE(kSkiaGraphiteDawnUseD3D12, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
@@ -576,6 +625,9 @@ bool IsSkiaGraphiteEnabled(const base::CommandLine* command_line) {
 
   // Force Graphite on if --enable-skia-graphite flag is specified.
   if (command_line->HasSwitch(switches::kEnableSkiaGraphite)) {
+    // It is safe to query parameter values for the SkiaGraphite feature. If the
+    // feature is disabled, the default parameter values will be populated.
+    InitSkiaGraphiteFeatureParams(kSkiaGraphite);
     return true;
   }
 
@@ -585,7 +637,19 @@ bool IsSkiaGraphiteEnabled(const base::CommandLine* command_line) {
     return false;
   }
 
-  return base::FeatureList::IsEnabled(features::kSkiaGraphite);
+  if (base::FeatureList::IsEnabled(kSkiaGraphite)) {
+    InitSkiaGraphiteFeatureParams(kSkiaGraphite);
+    return true;
+  }
+  return false;
+}
+
+bool IsSkiaGraphiteWinIntelEnabled() {
+  if (base::FeatureList::IsEnabled(kSkiaGraphiteWinIntel)) {
+    InitSkiaGraphiteFeatureParams(kSkiaGraphiteWinIntel);
+    return true;
+  }
+  return false;
 }
 
 bool IsDrDcEnabled(const gpu::GpuFeatureInfo& gpu_feature_info) {

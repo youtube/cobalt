@@ -5,6 +5,8 @@
 #ifndef CONTENT_BROWSER_RENDERER_HOST_RECENTLY_DESTROYED_HOSTS_H_
 #define CONTENT_BROWSER_RENDERER_HOST_RECENTLY_DESTROYED_HOSTS_H_
 
+#include <map>
+
 #include "base/containers/flat_set.h"
 #include "base/supports_user_data.h"
 #include "base/time/time.h"

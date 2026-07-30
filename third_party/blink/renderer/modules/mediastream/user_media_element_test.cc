@@ -166,4 +166,31 @@ TEST_F(UserMediaElementTest, SanitizeTrackConstraintsMutatesCopy) {
   EXPECT_FALSE(sanitized_constraints->audio()->hasEchoCancellation());
 }
 
+TEST_F(UserMediaElementTest, TransitionFromLegacyToStandard) {
+  V8TestingScope scope;
+  auto* element =
+      MakeGarbageCollected<HTMLUserMediaElement>(scope.GetDocument());
+
+  // Enable legacy mode by setting type attribute.
+  element->setAttribute(html_names::kTypeAttr, AtomicString("camera"));
+  EXPECT_TRUE(element->IsLegacyMode());
+  ASSERT_EQ(element->GetPermissionDescriptors().size(), 1U);
+  EXPECT_EQ(element->GetPermissionDescriptors()[0]->name,
+            mojom::blink::PermissionName::VIDEO_CAPTURE);
+
+  // Call setConstraints with video AND audio.
+  HTMLMediaStreamConstraints* constraints = HTMLMediaStreamConstraints::Create();
+  constraints->setVideo(MediaTrackConstraintSet::Create());
+  constraints->setAudio(MediaTrackConstraintSet::Create());
+  UserMediaElementConstraints::setConstraints(*element, constraints);
+
+  // Now it should NOT be in legacy mode anymore.
+  EXPECT_FALSE(element->IsLegacyMode());
+
+  // But permission descriptors should still be camera only (type took precedence).
+  ASSERT_EQ(element->GetPermissionDescriptors().size(), 1U);
+  EXPECT_EQ(element->GetPermissionDescriptors()[0]->name,
+            mojom::blink::PermissionName::VIDEO_CAPTURE);
+}
+
 }  // namespace blink

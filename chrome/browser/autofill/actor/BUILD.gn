@@ -13,6 +13,8 @@ static_library("actor") {
     "actor_form_section_splitter.h",
     "actor_key_metrics_recorder.cc",
     "actor_key_metrics_recorder.h",
+    "one_time_tokens/actor_login_context.cc",
+    "one_time_tokens/actor_login_context.h",
     "one_time_tokens/actor_one_time_token_filling_service.h",
     "one_time_tokens/actor_one_time_token_filling_service_impl.cc",
     "one_time_tokens/actor_one_time_token_filling_service_impl.h",

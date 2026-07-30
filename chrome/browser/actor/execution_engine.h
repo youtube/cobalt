@@ -19,7 +19,7 @@
 #include "base/types/id_type.h"
 #include "base/types/optional_ref.h"
 #include "base/types/pass_key.h"
-#include "chrome/browser/actor/actor_container_config.h"
+#include "chrome/browser/actor/actor_container_config_slot.h"
 #include "chrome/browser/actor/enterprise_policy_checker.h"
 #include "chrome/browser/actor/site_policy.h"
 #include "chrome/browser/actor/tab_observation_strategy.h"
@@ -28,9 +28,10 @@
 #include "chrome/common/actor.mojom-forward.h"
 #include "chrome/common/buildflags.h"
 #include "components/actor/core/aggregated_journal.h"
-#include "components/actor/core/origin_gating_cache.h"
 #include "components/actor/public/mojom/actor_types.mojom.h"
 #include "components/autofill/core/browser/integrators/actor/actor_form_filling_types.h"
+#include "components/origin_gating/core/origin_gating_cache.h"
+#include "components/origin_gating/core/origin_gating_checker.h"
 #include "components/password_manager/core/browser/actor_login/actor_login_service.h"
 #include "components/password_manager/core/browser/actor_login/actor_login_types.h"
 #include "components/tabs/public/tab_interface.h"
@@ -73,7 +74,8 @@ class UiEventDispatcher;
 
 // Coordinates the execution of a multi-step task.
 class ExecutionEngine : public ToolDelegate,
-                        public actor_login::ActionSequenceDelegate {
+                        public actor_login::ActionSequenceDelegate,
+                        public origin_gating::OriginGatingChecker::Delegate {
  public:
   // State machine (success case)
   //
@@ -218,6 +220,8 @@ class ExecutionEngine : public ToolDelegate,
       std::vector<autofill::ActorFormFillingRequest> requests,
       base::WeakPtr<AutofillSelectionDialogEventHandler> event_handler,
       AutofillSuggestionSelectedCallback callback) override;
+  void RequestToShowGmailOtpOptInDialog(
+      GmailOtpOptInCallback callback) override;
   void InterruptFromTool() override;
   void InterruptFromTool(bool retain_user_control) override;
   void UninterruptFromTool() override;
@@ -293,8 +297,8 @@ class ExecutionEngine : public ToolDelegate,
 
   State state() const { return state_; }
 
-  const OriginGatingCache& origin_gating_cache() const {
-    return origin_gating_cache_;
+  const origin_gating::OriginGatingCache& origin_gating_cache() const {
+    return origin_gating_checker_.cache();
   }
 
   // Currently, navigations are generally forced to happen in the same tab (see
@@ -302,9 +306,21 @@ class ExecutionEngine : public ToolDelegate,
   // restriction for certain tools to function.
   bool TabsCanOpenNewWebContents() const;
 
-  ActorContainerConfig& actor_container_config() {
-    return actor_container_config_;
+  ActorContainerConfigSlot& actor_container_config_slot() {
+    return actor_container_config_slot_;
   }
+
+  // origin_gating::OriginGatingChecker::Delegate
+  void DoesOriginRequireUserConfirmation(
+      origin_gating::GatingDecisionContext* context,
+      const GURL& source,
+      const GURL& destination,
+      DoesOriginRequireUserConfirmationCallback callback) const override;
+  void OnNoVerdict(origin_gating::GatingDecisionContext* context,
+                   const GURL& source,
+                   const GURL& destination,
+                   bool requires_user_confirmation,
+                   base::OnceCallback<void(NoVerdictResult)> callback) override;
 
   // Invalidated when `this` is destroyed.
   base::WeakPtr<ExecutionEngine> GetWeakPtr();
@@ -377,32 +393,23 @@ class ExecutionEngine : public ToolDelegate,
   // blocking navigations over allowing (except on same origin navigations).
   GatingDecision DetermineGatingDecision(const GURL& source_url,
                                          const GURL& destination_url) const;
-
-  void CheckNavigationSensitiveUrlList(
-      const url::Origin& source,
-      const std::optional<url::Origin>& initiator,
-      const GURL& destination_url,
-      ukm::SourceId ukm_source_id,
-      bool skip_prompt,
-      base::ScopedUmaHistogramTimer timer,
-      NavigationDecisionCallback callback);
-  void OnNavigationSensitiveUrlListChecked(
-      const url::Origin& source,
-      const std::optional<url::Origin>& initiator,
-      const url::Origin& destination,
-      ukm::SourceId ukm_source_id,
-      bool skip_prompt,
-      base::ScopedUmaHistogramTimer timer,
+  void OnComputedGatingDecision(
       NavigationDecisionCallback callback,
-      bool not_sensitive);
-
+      const url::Origin& source_origin,
+      const url::Origin& destination_origin,
+      State initial_state,
+      std::optional<url::Origin> initiator,
+      std::unique_ptr<origin_gating::GatingDecisionContext> context,
+      origin_gating::GatingDecision decision);
   // Called when the browser detects the actor needs to confirm a
   // client-side-initiated navigation to a novel origin.
   void HandleNavigationToNewOrigin(
       const url::Origin& destination,
       ukm::SourceId ukm_source_id,
       base::ScopedUmaHistogramTimer timer,
-      ExecutionEngine::NavigationDecisionCallback callback);
+      base::OnceCallback<
+          void(origin_gating::OriginGatingChecker::Delegate::NoVerdictResult)>
+          callback);
 
   using NavigationConfirmationCallback =
       base::OnceCallback<void(webui::mojom::NavigationConfirmationResponsePtr)>;
@@ -424,7 +431,7 @@ class ExecutionEngine : public ToolDelegate,
       const url::Origin& destination,
       bool for_sensitive_origin,
       std::optional<base::ScopedUmaHistogramTimer> timer,
-      NavigationDecisionCallback callback);
+      base::OnceCallback<void(NoVerdictResult)> callback);
   void OnPromptUserToConfirmNavigationDecision(
       const url::Origin& destination,
       NavigationDecisionCallback callback,
@@ -466,17 +473,17 @@ class ExecutionEngine : public ToolDelegate,
   // The results for actions so far.
   std::vector<ActionResultWithLatencyInfo> action_results_;
 
-  // Manages the sets of origins that have been allowed for navigations and that
-  // the user has been prompted about.
-  OriginGatingCache origin_gating_cache_;
+  // The engine that will determine the origin gating behavior.
+  origin_gating::OriginGatingChecker origin_gating_checker_;
+
   // This will allow us to store already-recorded origins to avoid duplication
   // of dark launch metrics.
-  OriginGatingCache dark_launch_origin_gating_cache_;
+  origin_gating::OriginGatingCache dark_launch_origin_gating_cache_;
 
   TabObservationStrategy observation_strategy_;
 
   // Manages the container config settings that have been sent by the server.
-  ActorContainerConfig actor_container_config_;
+  ActorContainerConfigSlot actor_container_config_slot_;
 
   // For multi-step login, this is the credential that the user has chosen to
   // allow the actor to use. The key is the

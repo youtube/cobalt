@@ -81,7 +81,12 @@ void GURL::InitCanonical(T input_spec, bool trim_path_end) {
     inner_url_ =
         std::make_unique<GURL>(ParsedSpecView(), *parsed_.inner_parsed(), true);
   }
-  is_http_or_https_cache_.reset();
+  if (url::IsCacheGurlSchemeIsHttpOrHttpsResultEnabled()) {
+    is_http_or_https_cache_ =
+        SchemeIs(url::kHttpsScheme) || SchemeIs(url::kHttpScheme);
+  } else {
+    is_http_or_https_cache_.reset();
+  }
   // Valid URLs always have non-empty specs.
   DCHECK(!is_valid_ || !spec_.empty());
 }
@@ -90,6 +95,12 @@ void GURL::InitializeFromCanonicalSpec() {
   if (is_valid_ && SchemeIsFileSystem()) {
     inner_url_ =
         std::make_unique<GURL>(ParsedSpecView(), *parsed_.inner_parsed(), true);
+  }
+  if (url::IsCacheGurlSchemeIsHttpOrHttpsResultEnabled()) {
+    is_http_or_https_cache_ =
+        SchemeIs(url::kHttpsScheme) || SchemeIs(url::kHttpScheme);
+  } else {
+    is_http_or_https_cache_.reset();
   }
 
 #if DCHECK_IS_ON()
@@ -124,7 +135,6 @@ void GURL::InitializeFromCanonicalSpec() {
     }
   }
 #endif
-  is_http_or_https_cache_.reset();
 }
 
 GURL::~GURL() = default;
@@ -350,13 +360,9 @@ bool GURL::SchemeIs(std::string_view lower_ascii_scheme) const {
 }
 
 bool GURL::SchemeIsHTTPOrHTTPS() const {
-  if (url::IsCacheGurlSchemeIsHttpOrHttpsResultEnabled()) {
-    if (is_http_or_https_cache_.has_value()) {
-      return *is_http_or_https_cache_;
-    }
-    bool result = SchemeIs(url::kHttpsScheme) || SchemeIs(url::kHttpScheme);
-    is_http_or_https_cache_ = result;
-    return result;
+  if (url::IsCacheGurlSchemeIsHttpOrHttpsResultEnabled() &&
+      is_http_or_https_cache_.has_value()) {
+    return *is_http_or_https_cache_;
   }
   return SchemeIs(url::kHttpsScheme) || SchemeIs(url::kHttpScheme);
 }

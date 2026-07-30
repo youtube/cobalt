@@ -62,8 +62,7 @@ class WebUIToolbarWebViewContentSettingsInteractiveTest
         {features::kInitialWebUI, features::kWebUIReloadButton,
          features::kWebUILocationBar,
          features::kSkipIPCChannelPausingForNonGuests,
-         features::kWebUIInProcessResourceLoadingV2,
-         features::kInitialWebUISyncNavStartToCommit},
+         features::kWebUIInProcessResourceLoadingV2},
         {});
   }
 

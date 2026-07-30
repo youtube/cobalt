@@ -11,7 +11,7 @@
 namespace ash::privacy_hub_metrics {
 using Sensor = SensorDisabledNotificationDelegate::Sensor;
 
-// These values are persisted to logs and should not be renumbered or re-used.
+// These values are persisted to logs and should not be renumbered or reused.
 // Keep in sync with PrivacyHubNavigationOrigin in
 // tools/metrics/histograms/enums.xml and
 // c/b/resources/ash/settings/os_privacy_page/privacy_hub_subpage.js.
@@ -21,7 +21,7 @@ enum class PrivacyHubNavigationOrigin {
   kMaxValue = kNotification
 };
 
-// These values are persisted to logs and should not be renumbered or re-used.
+// These values are persisted to logs and should not be renumbered or reused.
 enum class PrivacyHubLearnMoreSensor {
   kMicrophone = 0,
   kCamera = 1,

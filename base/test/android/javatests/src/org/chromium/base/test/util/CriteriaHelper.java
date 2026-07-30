@@ -72,7 +72,7 @@ public class CriteriaHelper {
     public static final long DEFAULT_MAX_TIME_TO_POLL = 3000L;
 
     /** The default maximum time to wait for a criteria to become valid for long timeouts. */
-    private static final long DEFAULT_MAX_TIME_TO_POLL_LONG = 8000L;
+    public static final long DEFAULT_MAX_TIME_TO_POLL_LONG = 8000L;
 
     /** The default polling interval to wait between checking for a satisfied criteria. */
     public static final long DEFAULT_POLLING_INTERVAL = 50;

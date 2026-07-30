@@ -213,6 +213,7 @@ void PictureInPictureControllerImpl::EnterPictureInPictureInternal(
       video_element->GetWebMediaPlayer()->NaturalSize(),
       ShouldShowPlayPauseButton(*video_element), std::move(session_observer),
       video_bounds, request_immersive,
+      video_element->GetWebMediaPlayer()->GetSpatialFormat(),
       BindOnce(&PictureInPictureControllerImpl::OnEnteredPictureInPicture,
                WrapPersistent(this), WrapPersistent(video_element),
                request_immersive, WrapPersistent(resolver)));

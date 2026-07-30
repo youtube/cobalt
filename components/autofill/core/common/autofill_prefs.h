@@ -121,6 +121,16 @@ inline constexpr char kAutofillHasSeenIban[] = "autofill.has_seen_iban";
 // was run. This routine will be run once per version.
 inline constexpr char kAutofillLastVersionDeduped[] =
     "autofill.last_version_deduped";
+
+// Boolean that is true if the user enabled fetching OTPs from the signed in
+// Gmail account.
+inline constexpr char kAutofillGmailOtpFillingEnabled[] =
+    "autofill.gmail_otp_filling.enabled";
+// Timestamp the user dismissed the activation dialog to enable fetching Gmail
+// OTPs the last time.
+inline constexpr char kAutofillGmailOtpFillingActivationDismissalTimestamp[] =
+    "autofill.gmail_otp_filling.activation_dismissal_timestamp";
+
 // Boolean that is true, when users can save their CVCs.
 inline constexpr char kAutofillPaymentCvcStorage[] =
     "autofill.payment_cvc_storage";
@@ -136,6 +146,17 @@ inline constexpr char kAutofillSyncTransportOptIn[] =
 // A list of GURL wildcard patterns and data categories that are blocked
 // from Autofill by enterprise policy.
 inline constexpr char kAutofillTypesBlocked[] = "autofill.types_blocked";
+
+// Keys and values used in `kAutofillTypesBlocked` preference.
+inline constexpr char kAutofillBlockedTypesUrlPatternKey[] = "url_pattern";
+inline constexpr char kAutofillBlockedTypesBlockedTypesKey[] = "blocked_types";
+
+inline constexpr char kAutofillBlockedTypesContactInfoValue[] = "contact_info";
+inline constexpr char kAutofillBlockedTypesPaymentsValue[] = "payments";
+inline constexpr char kAutofillBlockedTypesIdentityDocsValue[] =
+    "identity_docs";
+inline constexpr char kAutofillBlockedTypesTravelValue[] = "travel";
+inline constexpr char kAutofillBlockedTypesShoppingValue[] = "shopping";
 // The file path where the autofill states data is downloaded to.
 inline constexpr char kAutofillStatesDataDir[] = "autofill.states_data_dir";
 // The (randomly inititialied) seed value to use when encoding form/field
@@ -284,6 +305,14 @@ bool IsAutofillTypesBlockedManaged(const PrefService* prefs);
 bool IsAutofillProfileEnabled(const PrefService* prefs);
 
 void SetAutofillProfileEnabled(PrefService* prefs, bool enabled);
+
+bool IsAutofillGmailOtpFillingEnabled(const PrefService* prefs);
+void SetAutofillGmailOtpFillingEnabled(PrefService* prefs, bool enabled);
+
+base::Time GetAutofillGmailOtpFillingActivationDismissalTimestamp(
+    const PrefService* prefs);
+void SetAutofillGmailOtpFillingActivationDismissalTimestamp(PrefService* prefs,
+                                                            base::Time time);
 
 bool IsAutofillAiSyncedOptInStatusEnabled(const PrefService* prefs);
 

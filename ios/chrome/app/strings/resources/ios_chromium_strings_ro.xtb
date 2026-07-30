@@ -78,6 +78,7 @@ Nu poți salva marcaje noi în cont până când nu ștergi câteva. Dacă te de
 <translation id="2386292341327187942">În caseta Caută widgeturi, introdu Chromium</translation>
 <translation id="2389827884654658221">Accesează Chromium mai rapid de pe ecranul de pornire al iPad-ului.</translation>
 <translation id="2426113998523353159">Organizația îți solicită să te conectezi pentru a folosi Chromium.</translation>
+<translation id="244367646885670394">Confirmă-ți identitatea pentru a salva această parolă și a accesa datele Chromium pe toate dispozitivele</translation>
 <translation id="2450140762465183767">Acum poți folosi Chromium oricând atingi linkuri în mesaje, documente și alte aplicații.</translation>
 <translation id="2459183986985456602">Deschide cea mai recentă filă în Chromium</translation>
 <translation id="2476409803017965813">Poți actualiza oricând opțiunile din Setările Chromium.</translation>
@@ -108,6 +109,7 @@ Pentru mai multe setări care folosesc date pentru a-ți îmbunătăți experien
 <translation id="3054480780637153380">Deschide Setările Chromium în iOS, apoi atinge Aplicația browser prestabilită și selectează Chromium.</translation>
 <translation id="3115956258722352278">Setezi Chromium ca browser prestabilit?</translation>
 <translation id="3180939591219927904">Activează Blochează filele incognito când închizi Chromium</translation>
+<translation id="327628223428512207">Introdu expresia de acces pentru a salva această parolă și a accesa datele Chromium pe toate dispozitivele</translation>
 <translation id="328933489847748230">{count,plural, =1{Se afișează o fereastră Chromium}few{Se afișează {count} ferestre Chromium}other{Se afișează {count} de ferestre Chromium}}</translation>
 <translation id="3344973607274501920">Chromium nu a putut verifica parolele. Verifică-ți conexiunea la internet.</translation>
 <translation id="3366305173356742781">Datele Chromium din cont</translation>

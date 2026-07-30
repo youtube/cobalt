@@ -35,22 +35,23 @@
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/browser/ui/views/animations/tab_strip_animations.h"
+#include "chrome/browser/ui/views/frame/base_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/custom_corners_background.h"
 #include "chrome/browser/ui/views/frame/shadow_frame_view.h"
 #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
+#include "chrome/browser/ui/views/tabs/common/pinned_tab_container_view.h"
+#include "chrome/browser/ui/views/tabs/common/root_tab_collection_node.h"
+#include "chrome/browser/ui/views/tabs/common/tab_collection_node.h"
+#include "chrome/browser/ui/views/tabs/common/tab_drag_handler.h"
+#include "chrome/browser/ui/views/tabs/common/tab_strip_collection_controller.h"
+#include "chrome/browser/ui/views/tabs/common/tab_strip_view.h"
+#include "chrome/browser/ui/views/tabs/common/tab_view.h"
+#include "chrome/browser/ui/views/tabs/common/unpinned_tab_container_view.h"
 #include "chrome/browser/ui/views/tabs/shared/drop_arrow.h"
-#include "chrome/browser/ui/views/tabs/vertical/root_tab_collection_node.h"
-#include "chrome/browser/ui/views/tabs/vertical/tab_collection_node.h"
 #include "chrome/browser/ui/views/tabs/vertical/top_container_button.h"
-#include "chrome/browser/ui/views/tabs/vertical/vertical_pinned_tab_container_view.h"
-#include "chrome/browser/ui/views/tabs/vertical/vertical_tab_drag_handler.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_bottom_container.h"
-#include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_controller.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.h"
-#include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_view.h"
-#include "chrome/browser/ui/views/tabs/vertical/vertical_tab_view.h"
-#include "chrome/browser/ui/views/tabs/vertical/vertical_unpinned_tab_container_view.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/tabs/public/tab_group.h"
@@ -103,17 +104,11 @@ VerticalTabStripRegionView::VerticalTabStripRegionView(
     tabs::VerticalTabStripStateController* state_controller,
     actions::ActionItem* root_action_item,
     BrowserView* browser_view)
-    : browser_view_(browser_view),
+    : BaseTabStripRegionView(browser_view,
+                             root_action_item,
+                             TabStripOrientation::kVertical),
       resize_area_width_(kResizeAreaWidth),
-      tab_strip_model_(browser_view->browser()->GetTabStripModel()),
-      state_controller_(state_controller),
-      root_action_item_(root_action_item),
-      hover_card_controller_(
-          std::make_unique<TabHoverCardController>(this,
-                                                   browser_view->browser())),
-      hover_tab_selector_(
-          std::make_unique<HoverTabSelector>(tab_strip_model_)) {
-  SetNotifyEnterExitOnChild(true);
+      state_controller_(state_controller) {
   // For z-ordering purposes this needs to be on a layer.
   SetPaintToLayer();
   // Because corners may be transparent, this must be set to false.
@@ -197,6 +192,7 @@ VerticalTabStripRegionView::VerticalTabStripRegionView(
       kExpandOnHoverShadowElevation, kExpandOnHoverShadowAlpha));
   shadow_frame_->SetProperty(views::kViewIgnoredByLayoutKey, true);
 
+  SetNotifyEnterExitOnChild(true);
   UpdateColors();
 }
 
@@ -206,29 +202,8 @@ VerticalTabStripRegionView::~VerticalTabStripRegionView() {
   }
   hover_locks_.clear();
 
-  if (root_node_) {
-    root_node_->SetController(nullptr);
-  }
-
-  tab_strip_controller_.reset();
-
-  if (drag_handler_) {
-    auto handler = RemoveChildViewT(drag_handler_->GetDragContext());
-    drag_handler_ = nullptr;
-  }
-
   // Prevent dangling pointer.
   state_controller_->SetDelegate(nullptr);
-}
-
-VerticalPinnedTabContainerView*
-VerticalTabStripRegionView::GetPinnedTabsContainer() {
-  return tab_strip_view_->GetPinnedTabsContainer();
-}
-
-VerticalUnpinnedTabContainerView*
-VerticalTabStripRegionView::GetUnpinnedTabsContainer() {
-  return tab_strip_view_->GetUnpinnedTabsContainer();
 }
 
 bool VerticalTabStripRegionView::IsAnimatingSize() const {
@@ -374,25 +349,6 @@ bool VerticalTabStripRegionView::WillWrapDueToOverflow(
   return top_button_container_->WillWrapDueToOverflow(available_width);
 }
 
-TabDragTarget* VerticalTabStripRegionView::GetTabDragTarget(
-    const gfx::Point& point_in_screen) {
-  if (!drag_handler_) {
-    return nullptr;
-  }
-  gfx::Rect tab_strip_draggable_bounds = GetTabStripDraggableBounds();
-  if (!tab_strip_draggable_bounds.Contains(point_in_screen)) {
-    return nullptr;
-  }
-
-  // Note: if the drag has not attached to this tab strip yet, it doesn't matter
-  // which container is used because the first drag loop iteration just attaches
-  // it.
-  if (drag_handler_->IsDraggingPinnedTabs()) {
-    return &GetPinnedTabsContainer()->GetTabDragTarget(point_in_screen);
-  }
-  return &GetUnpinnedTabsContainer()->GetTabDragTarget(point_in_screen);
-}
-
 void VerticalTabStripRegionView::AddedToWidget() {
   paint_as_active_subscription_ =
       GetWidget()->RegisterPaintAsActiveChangedCallback(base::BindRepeating(
@@ -410,7 +366,7 @@ void VerticalTabStripRegionView::RemovedFromWidget() {
   if (GetFocusManager()) {
     GetFocusManager()->RemoveFocusChangeListener(&focus_listener_);
   }
-  TabStripRegionView::RemovedFromWidget();
+  BaseTabStripRegionView::RemovedFromWidget();
 }
 
 void VerticalTabStripRegionView::Layout(PassKey) {
@@ -440,7 +396,7 @@ views::View* VerticalTabStripRegionView::GetDefaultFocusableChild() {
 }
 
 gfx::Size VerticalTabStripRegionView::GetMinimumSize() const {
-  auto min_size = TabStripRegionView::GetMinimumSize();
+  auto min_size = BaseTabStripRegionView::GetMinimumSize();
   min_size.set_width((state_controller_->IsCollapsed() || IsAnimatingSize())
                          ? kCollapsedWidth
                          : kUncollapsedMinWidth);
@@ -449,7 +405,7 @@ gfx::Size VerticalTabStripRegionView::GetMinimumSize() const {
 
 gfx::Size VerticalTabStripRegionView::CalculatePreferredSize(
     const views::SizeBounds& available_size) const {
-  auto size = TabStripRegionView::CalculatePreferredSize(available_size);
+  auto size = BaseTabStripRegionView::CalculatePreferredSize(available_size);
   const auto* controller =
       BrowserAnimationController::From(browser_view_->browser());
   const auto motion =
@@ -496,7 +452,7 @@ bool VerticalTabStripRegionView::OnKeyPressed(const ui::KeyEvent& event) {
     }
   }
 
-  return TabStripRegionView::OnKeyPressed(event);
+  return BaseTabStripRegionView::OnKeyPressed(event);
 }
 
 void VerticalTabStripRegionView::OnMouseEntered(const ui::MouseEvent& event) {
@@ -535,169 +491,6 @@ void VerticalTabStripRegionView::HandleMouseExited() {
   UpdateExpandOnHoverState(false);
 }
 
-void VerticalTabStripRegionView::InitializeTabStrip() {
-  if (root_node_) {
-    return;
-  }
-
-  root_node_ = std::make_unique<RootTabCollectionNode>(
-      tab_strip_model_,
-      base::BindRepeating(&VerticalTabStripRegionView::SetTabStripView,
-                          base::Unretained(this)),
-      base::BindRepeating(&VerticalTabStripRegionView::ClearTabStripView,
-                          base::Unretained(this)),
-      TabStripOrientation::kVertical);
-
-  std::unique_ptr<TabMenuModelFactory> tab_menu_model_factory;
-  if (browser_view_ &&
-      web_app::AppBrowserController::From(browser_view_->browser())) {
-    tab_menu_model_factory =
-        web_app::AppBrowserController::From(browser_view_->browser())
-            ->GetTabMenuModelFactory();
-  }
-
-  TabStripModel* tab_strip_model = browser_view_->browser()->GetTabStripModel();
-  CHECK(tab_strip_model);
-  auto drag_handler = std::make_unique<VerticalTabDragHandlerImpl>(
-      *tab_strip_model, *root_node_.get(), *this);
-  drag_handler_ = drag_handler.get();
-
-  CHECK(!tab_strip_controller_);
-  tab_strip_controller_ = std::make_unique<VerticalTabStripController>(
-      tab_strip_model, browser_view_, *AddChildView(std::move(drag_handler)),
-      hover_card_controller_.get(), std::move(tab_menu_model_factory));
-
-  root_node_->SetController(tab_strip_controller_.get());
-
-  root_node_->Init();
-
-  new_tab_button_pressed_start_time_ = std::nullopt;
-  on_children_added_subscription_ = root_node_->RegisterOnChildrenAddedCallback(
-      base::BindRepeating(&VerticalTabStripRegionView::OnChildrenAdded,
-                          base::Unretained(this)));
-  on_children_removed_subscription_ =
-      root_node_->RegisterOnChildRemovedCallback(
-          base::BindRepeating(&VerticalTabStripRegionView::OnChildrenRemoved,
-                              base::Unretained(this)));
-  on_child_moved_subscription_ =
-      root_node_->RegisterOnChildMovedCallback(base::BindRepeating(
-          &VerticalTabStripRegionView::OnChildMoved, base::Unretained(this)));
-}
-
-void VerticalTabStripRegionView::ResetTabStrip() {
-  if (!root_node_) {
-    return;
-  }
-
-  on_children_added_subscription_.reset();
-  on_children_removed_subscription_.reset();
-  on_child_moved_subscription_.reset();
-
-  root_node_->Reset();
-
-  root_node_->SetController(nullptr);
-  tab_strip_controller_.reset();
-
-  CHECK(drag_handler_);
-  auto* drag_handler = drag_handler_.get();
-  drag_handler_ = nullptr;
-  RemoveChildViewT(drag_handler->GetDragContext());
-
-  hover_tab_selector_->CancelTabTransition();
-
-  root_node_.reset();
-}
-
-bool VerticalTabStripRegionView::IsTabStripEditable() const {
-  return tab_strip_editable_for_testing_ &&
-         (!drag_handler_ ||
-          !drag_handler_->GetDragContext()->GetDragController());
-}
-
-bool VerticalTabStripRegionView::IsTabStripCloseable() const {
-  if (!drag_handler_) {
-    return true;
-  }
-  if (auto* drag_controller =
-          drag_handler_->GetDragContext()->GetDragController()) {
-    return drag_controller->IsMovingLastTab();
-  }
-  return true;
-}
-
-void VerticalTabStripRegionView::UpdateLoadingAnimations(
-    const base::TimeDelta& elapsed_time) {
-  for (tabs::TabInterface* tab : *tab_strip_model_) {
-    const TabCollectionNode* node =
-        root_node_->GetNodeForHandle(tab->GetHandle());
-    VerticalTabView* tab_view =
-        views::AsViewClass<VerticalTabView>(node->view());
-    CHECK(tab_view);
-    tab_view->StepLoadingAnimation(elapsed_time);
-  }
-}
-
-std::optional<int> VerticalTabStripRegionView::GetFocusedTabIndex() const {
-  const views::FocusManager* focus_manager = GetFocusManager();
-  if (!focus_manager) {
-    return std::nullopt;
-  }
-
-  const views::View* focused_view = focus_manager->GetFocusedView();
-  if (!focused_view) {
-    return std::nullopt;
-  }
-
-  int i = 0;
-  for (const tabs::TabInterface* tab : *tab_strip_model_) {
-    const TabCollectionNode* node =
-        root_node_->GetNodeForHandle(tab->GetHandle());
-    if (node && node->view() == focused_view) {
-      return i;
-    }
-    i++;
-  }
-
-  return std::nullopt;
-}
-
-const tabs::TabData& VerticalTabStripRegionView::GetTabData(
-    const tabs::TabHandle& tab) {
-  const TabCollectionNode* node = root_node_->GetNodeForHandle(tab);
-  CHECK(node);
-
-  VerticalTabView* tab_view = views::AsViewClass<VerticalTabView>(node->view());
-  CHECK(tab_view);
-
-  return tab_view->data();
-}
-
-views::View* VerticalTabStripRegionView::GetTabAnchorViewAt(int tab_index) {
-  tabs::TabInterface* tab = tab_strip_model_->GetTabAtIndex(tab_index);
-  CHECK(tab) << "No tab found for tab_index: " << tab_index;
-
-  const TabCollectionNode* node =
-      root_node_->GetNodeForHandle(tab->GetHandle());
-  CHECK(node) << "No node found for tab handle";
-
-  return node->view();
-}
-
-views::View* VerticalTabStripRegionView::GetTabGroupAnchorView(
-    const tab_groups::TabGroupId& group) {
-  if (!tab_strip_model_->SupportsTabGroups()) {
-    return nullptr;
-  }
-
-  if (const TabGroup* tab_group =
-          tab_strip_model_->group_model()->GetTabGroup(group)) {
-    return root_node_->GetNodeForHandle(tab_group->GetCollectionHandle())
-        ->view();
-  }
-
-  return nullptr;
-}
-
 void VerticalTabStripRegionView::OnTabGroupFocusChanged(
     std::optional<tab_groups::TabGroupId> new_focused_group_id,
     std::optional<tab_groups::TabGroupId> old_focused_group_id) {
@@ -710,112 +503,6 @@ void VerticalTabStripRegionView::OnTabGroupFocusChanged(
       actions::ActionManager::Get().FindAction(kActionToggleCollapseVertical,
                                                root_action_item_);
   collapse_action->SetVisible(!new_focused_group_id.has_value());
-}
-
-TabDragContext* VerticalTabStripRegionView::GetDragContext() {
-  return drag_handler_->GetDragContext();
-}
-
-std::optional<BrowserRootView::DropIndex>
-VerticalTabStripRegionView::GetDropIndex(const ui::DropTargetEvent& event) {
-  // Check pinned tabs.
-  VerticalPinnedTabContainerView* pinned_container = GetPinnedTabsContainer();
-  if (pinned_container && !pinned_container->children().empty()) {
-    gfx::Point loc_in_pinned = views::View::ConvertPointToTarget(
-        this, pinned_container, event.location());
-    if (loc_in_pinned.y() < 0) {
-      // If the point is above the pinned container, return the beginning of the
-      // container.
-      return pinned_container->GetLinkDropIndex(gfx::Point(0, 0));
-    } else if (loc_in_pinned.y() >= 0 &&
-               loc_in_pinned.y() < pinned_container->height()) {
-      return pinned_container->GetLinkDropIndex(loc_in_pinned);
-    }
-  }
-
-  // Check unpinned tabs.
-  VerticalUnpinnedTabContainerView* unpinned_container =
-      GetUnpinnedTabsContainer();
-  if (unpinned_container && !unpinned_container->children().empty()) {
-    gfx::Point loc_in_unpinned = views::View::ConvertPointToTarget(
-        this, unpinned_container, event.location());
-    if (loc_in_unpinned.y() < 0) {
-      // If the point is above the unpinned container, return the beginning of
-      // the container.
-      return unpinned_container->GetLinkDropIndex(gfx::Point(0, 0));
-    } else if (loc_in_unpinned.y() >= 0 &&
-               loc_in_unpinned.y() < unpinned_container->height()) {
-      return unpinned_container->GetLinkDropIndex(loc_in_unpinned);
-    }
-  }
-
-  // If it's at the end, return the end of the unpinned container.
-  if (unpinned_container) {
-    return unpinned_container->GetLinkDropIndex(
-        gfx::Point(0, unpinned_container->height()));
-  }
-
-  return std::nullopt;
-}
-
-BrowserRootView::DropTarget* VerticalTabStripRegionView::GetDropTarget(
-    gfx::Point loc_in_local_coords) {
-  if (tab_strip_view_ && IsTabStripEditable() &&
-      GetLocalBounds().Contains(loc_in_local_coords)) {
-    return this;
-  }
-  return nullptr;
-}
-
-views::View* VerticalTabStripRegionView::GetViewForDrop() {
-  return this;
-}
-
-bool VerticalTabStripRegionView::CanDrop(const OSExchangeData& data) {
-  if (drag_handler_ && drag_handler_->GetDragContext()) {
-    return drag_handler_->GetDragContext()->CanDrop(data);
-  }
-  return false;
-}
-
-bool VerticalTabStripRegionView::GetDropFormats(
-    int* formats,
-    std::set<ui::ClipboardFormatType>* format_types) {
-  if (drag_handler_ && drag_handler_->GetDragContext()) {
-    return drag_handler_->GetDragContext()->GetDropFormats(formats,
-                                                           format_types);
-  }
-  return false;
-}
-
-void VerticalTabStripRegionView::OnDragEntered(
-    const ui::DropTargetEvent& event) {
-  CHECK(drag_handler_ && drag_handler_->GetDragContext());
-  drag_handler_->GetDragContext()->OnDragEntered(event);
-}
-
-int VerticalTabStripRegionView::OnDragUpdated(
-    const ui::DropTargetEvent& event) {
-  CHECK(drag_handler_ && drag_handler_->GetDragContext());
-  return drag_handler_->GetDragContext()->OnDragUpdated(event);
-}
-
-void VerticalTabStripRegionView::OnDragExited() {
-  CHECK(drag_handler_ && drag_handler_->GetDragContext());
-  drag_handler_->GetDragContext()->OnDragExited();
-}
-
-void VerticalTabStripRegionView::SetTabStripObserver(
-    TabStripObserver* observer) {
-  // Do nothing.
-}
-
-views::View* VerticalTabStripRegionView::GetTabStripView() {
-  return tab_strip_view_;
-}
-
-bool VerticalTabStripRegionView::TraverseUsingUpDownKeys() {
-  return true;
 }
 
 std::unique_ptr<ExpandOnHoverLock>
@@ -838,6 +525,78 @@ void VerticalTabStripRegionView::HandleDragExited() {
   SetLinkDropArrow(std::nullopt);
   link_drag_lock_.reset();
   UpdateExpandOnHoverState(false);
+}
+
+gfx::Point VerticalTabStripRegionView::GetLinkDropArrowPosition(
+    const BrowserRootView::DropIndex& drop_index,
+    DropArrow::Direction* direction) {
+  int target_x = GetBoundsInScreen().x();
+  int target_y = 0;
+
+  // By default have the arrow outside of the browser window pointing towards
+  // the tab strip.
+  *direction = base::i18n::IsRTL() ? DropArrow::Direction::kLeft
+                                   : DropArrow::Direction::kRight;
+
+  const bool replace_index =
+      drop_index.relative_to_index ==
+      BrowserRootView::DropIndex::RelativeToIndex::kReplaceIndex;
+
+  if (drop_index.index < tab_strip_model_->count()) {
+    tabs::TabInterface* tab = tab_strip_model_->GetTabAtIndex(drop_index.index);
+    TabCollectionNode* node = root_node_->GetNodeForHandle(tab->GetHandle());
+    views::View* target_view = node->view();
+
+    // In the expanded view, pinned and split tabs will have an arrow pointing
+    // down at the tab. We don't support dropping a tab in the middle of a
+    // split view.
+    if ((tab->IsPinned() || (tab->IsSplit() && replace_index)) &&
+        !state_controller_->IsCollapsed()) {
+      if (replace_index) {
+        target_x = target_view->GetBoundsInScreen().CenterPoint().x();
+      } else {
+        target_x = base::i18n::IsRTL()
+                       ? target_view->GetBoundsInScreen().right()
+                       : target_view->GetBoundsInScreen().x();
+      }
+      target_y = target_view->GetBoundsInScreen().y();
+      *direction = DropArrow::Direction::kDown;
+    } else if (replace_index) {
+      // When a tab is being replaced, point at the middle of the tab.
+      target_y = target_view->GetBoundsInScreen().CenterPoint().y();
+    } else {
+      // Otherwise, we are pointing at the slot before the tab.
+      if (drop_index.group_inclusion ==
+              BrowserRootView::DropIndex::GroupInclusion::kDontIncludeInGroup &&
+          tab->GetGroup().has_value() &&
+          tab_strip_model_->group_model()
+                  ->GetTabGroup(tab->GetGroup().value())
+                  ->GetFirstTab() == tab) {
+        // Drop before the group header.
+        TabCollectionNode* group_node = root_node_->GetNodeForHandle(
+            tab_strip_model_->group_model()
+                ->GetTabGroup(tab->GetGroup().value())
+                ->GetCollectionHandle());
+        target_y = group_node->view()->GetBoundsInScreen().y();
+      } else {
+        target_y = target_view->GetBoundsInScreen().y();
+      }
+    }
+  } else {
+    // Drop at the end of the unpinned container.
+    if (auto* unpinned_container = GetUnpinnedTabsContainer()) {
+      target_y = unpinned_container->GetBoundsInScreen().bottom();
+    } else {
+      target_y = tab_strip_view_->GetBoundsInScreen().bottom();
+    }
+  }
+
+  // In RTL, shift `target_x` to the other side of the tab strip.
+  if (*direction == DropArrow::Direction::kLeft) {
+    target_x += GetBoundsInScreen().width();
+  }
+
+  return gfx::Point(target_x, target_y);
 }
 
 void VerticalTabStripRegionView::OnResize(int resize_amount,
@@ -921,15 +680,7 @@ void VerticalTabStripRegionView::RequestCollapse(bool collapse) {
       ->Start(TabStripAnimations::kVerticalTabStrip, motion);
 }
 
-void VerticalTabStripRegionView::DisableTabStripEditingForTesting() {
-  tab_strip_editable_for_testing_ = false;
-}
 
-gfx::Rect VerticalTabStripRegionView::GetLinkDropBoundsForTesting(
-    const BrowserRootView::DropIndex& drop_index,
-    DropArrow::Direction* direction) {
-  return GetLinkDropBounds(drop_index, direction);
-}
 
 VerticalTabStripRegionView::RegionViewFocusListener::RegionViewFocusListener(
     VerticalTabStripRegionView* region_view)
@@ -960,10 +711,9 @@ void VerticalTabStripRegionView::ClickEventHandler::OnMouseEvent(
 
 views::View* VerticalTabStripRegionView::SetTabStripView(
     std::unique_ptr<views::View> view) {
-  CHECK(views::IsViewClass<VerticalTabStripView>(view.get()));
+  CHECK(views::IsViewClass<TabStripView>(view.get()));
 
-  tab_strip_view_ =
-      static_cast<VerticalTabStripView*>(AddChildView(std::move(view)));
+  tab_strip_view_ = static_cast<TabStripView*>(AddChildView(std::move(view)));
   tab_strip_view_->SetProperty(
       views::kFlexBehaviorKey,
       views::FlexSpecification(views::MinimumFlexSizeRule::kScaleToMinimum,
@@ -1085,33 +835,6 @@ gfx::Rect VerticalTabStripRegionView::GetTabStripDraggableBounds() const {
       flex_layout_->interior_margin().height() -
       tab_strip_draggable_bounds.y());
   return tab_strip_draggable_bounds;
-}
-
-void VerticalTabStripRegionView::RecordNewTabButtonPressed() {
-  new_tab_button_pressed_start_time_ = base::TimeTicks::Now();
-
-  base::RecordAction(base::UserMetricsAction("NewTab_Button"));
-}
-
-void VerticalTabStripRegionView::OnChildrenAdded() {
-  if (new_tab_button_pressed_start_time_.has_value()) {
-    base::UmaHistogramTimes(
-        "TabStrip.TimeToCreateNewTabFromPress",
-        base::TimeTicks::Now() - new_tab_button_pressed_start_time_.value());
-    new_tab_button_pressed_start_time_.reset();
-  }
-  hover_tab_selector_->CancelTabTransition();
-}
-
-void VerticalTabStripRegionView::OnChildrenRemoved() {
-  hover_tab_selector_->CancelTabTransition();
-}
-
-void VerticalTabStripRegionView::OnChildMoved(TabCollectionNode* moved_node) {
-  hover_tab_selector_->CancelTabTransition();
-  if (tab_strip_view_) {
-    tab_strip_view_->OnChildMoved(moved_node);
-  }
 }
 
 void VerticalTabStripRegionView::OnExpandOnHoverEnabledChanged(bool enabled) {
@@ -1408,155 +1131,6 @@ void VerticalTabStripRegionView::OnActiveTabChanged(
   if (tab_strip_view_) {
     tab_strip_view_->OnTabChanged(active_tab);
   }
-}
-
-void VerticalTabStripRegionView::SetLinkDropArrow(
-    const std::optional<BrowserRootView::DropIndex>& index) {
-  if (!tab_strip_controller_) {
-    return;
-  }
-
-  if (!index.has_value()) {
-    hover_tab_selector_->CancelTabTransition();
-    drop_arrow_.reset();
-    return;
-  }
-
-  if (index->relative_to_index ==
-      BrowserRootView::DropIndex::RelativeToIndex::kInsertBeforeIndex) {
-    hover_tab_selector_->CancelTabTransition();
-  } else {
-    hover_tab_selector_->StartTabTransition(index->index);
-  }
-
-  if (!drop_arrow_) {
-    drop_arrow_ = std::make_unique<DropArrow>(
-        *index, GetWidget()->GetNativeWindow(),
-        base::BindRepeating(&VerticalTabStripRegionView::GetLinkDropBounds,
-                            base::Unretained(this)));
-  } else if (index != drop_arrow_->index()) {
-    drop_arrow_->SetIndex(*index);
-  }
-}
-
-gfx::Rect VerticalTabStripRegionView::GetLinkDropBounds(
-    const BrowserRootView::DropIndex& drop_index,
-    DropArrow::Direction* direction) {
-  CHECK_GE(drop_index.index, 0);
-
-  if (tab_strip_model_->count() == 0) {
-    return gfx::Rect();
-  }
-
-  gfx::Point arrow_position = GetLinkDropArrowPosition(drop_index, direction);
-  gfx::Rect drop_bounds =
-      GetLinkDropBoundsFromPosition(arrow_position, *direction);
-
-  // If the rect doesn't fit on the monitor, push the arrow to the other side.
-  display::Screen* screen = display::Screen::Get();
-  gfx::Rect display_bounds =
-      screen->GetDisplayNearestView(GetWidget()->GetNativeView()).bounds();
-
-  DropArrow::MaybeAdjustDisplayBounds(display_bounds);
-
-  if (!display_bounds.Contains(drop_bounds)) {
-    if (base::i18n::IsRTL() && *direction == DropArrow::Direction::kLeft) {
-      *direction = DropArrow::Direction::kRight;
-      drop_bounds.Offset(-GetBoundsInScreen().width() - DropArrow::kSize, 0);
-    } else if (!base::i18n::IsRTL() &&
-               *direction == DropArrow::Direction::kRight) {
-      *direction = DropArrow::Direction::kLeft;
-      drop_bounds.Offset(GetBoundsInScreen().width() + DropArrow::kSize, 0);
-    }
-  }
-
-  return drop_bounds;
-}
-
-gfx::Point VerticalTabStripRegionView::GetLinkDropArrowPosition(
-    const BrowserRootView::DropIndex& drop_index,
-    DropArrow::Direction* direction) {
-  int target_x = GetBoundsInScreen().x();
-  int target_y = 0;
-
-  // By default have the arrow outside of the browser window pointing towards
-  // the tab strip.
-  *direction = base::i18n::IsRTL() ? DropArrow::Direction::kLeft
-                                   : DropArrow::Direction::kRight;
-
-  const bool replace_index =
-      drop_index.relative_to_index ==
-      BrowserRootView::DropIndex::RelativeToIndex::kReplaceIndex;
-
-  if (drop_index.index < tab_strip_model_->count()) {
-    tabs::TabInterface* tab = tab_strip_model_->GetTabAtIndex(drop_index.index);
-    TabCollectionNode* node = root_node_->GetNodeForHandle(tab->GetHandle());
-    views::View* target_view = node->view();
-
-    if ((tab->IsPinned() || (tab->IsSplit() && replace_index)) &&
-        !state_controller_->IsCollapsed()) {
-      // In the expanded view, pinned and split tabs will have an arrow pointing
-      // down at the tab. We don't support dropping a tab in the middle of a
-      // split view.
-      if (replace_index) {
-        target_x = target_view->GetBoundsInScreen().CenterPoint().x();
-      } else {
-        target_x = base::i18n::IsRTL()
-                       ? target_view->GetBoundsInScreen().right()
-                       : target_view->GetBoundsInScreen().x();
-      }
-      target_y = target_view->GetBoundsInScreen().y();
-      *direction = DropArrow::Direction::kDown;
-    } else if (replace_index) {
-      // When a tab is being replaced, point at the middle of the tab.
-      target_y = target_view->GetBoundsInScreen().CenterPoint().y();
-    } else {
-      // Otherwise, we are pointing at the slot before the tab.
-      if (drop_index.group_inclusion ==
-              BrowserRootView::DropIndex::GroupInclusion::kDontIncludeInGroup &&
-          tab->GetGroup().has_value() &&
-          tab_strip_model_->group_model()
-                  ->GetTabGroup(tab->GetGroup().value())
-                  ->GetFirstTab() == tab) {
-        // Drop before the group header.
-        TabCollectionNode* group_node = root_node_->GetNodeForHandle(
-            tab_strip_model_->group_model()
-                ->GetTabGroup(tab->GetGroup().value())
-                ->GetCollectionHandle());
-        target_y = group_node->view()->GetBoundsInScreen().y();
-      } else {
-        target_y = target_view->GetBoundsInScreen().y();
-      }
-    }
-  } else {
-    // Drop at the end of the unpinned container.
-    if (auto* unpinned_container = GetUnpinnedTabsContainer()) {
-      target_y = unpinned_container->GetBoundsInScreen().bottom();
-    } else {
-      target_y = tab_strip_view_->GetBoundsInScreen().bottom();
-    }
-  }
-
-  if (*direction == DropArrow::Direction::kLeft) {
-    // In RTL, shift `target_x` to the other side of the tab strip.
-    target_x += GetBoundsInScreen().width();
-  }
-
-  return gfx::Point(target_x, target_y);
-}
-
-gfx::Rect VerticalTabStripRegionView::GetLinkDropBoundsFromPosition(
-    gfx::Point position,
-    DropArrow::Direction direction) {
-  if (direction == DropArrow::Direction::kRight) {
-    position.Offset(-DropArrow::kSize, -DropArrow::kSize / 2);
-  } else if (direction == DropArrow::Direction::kLeft) {
-    position.Offset(DropArrow::kSize, -DropArrow::kSize / 2);
-  } else {
-    position.Offset(-DropArrow::kSize / 2, -DropArrow::kSize);
-  }
-
-  return gfx::Rect(position, gfx::Size(DropArrow::kSize, DropArrow::kSize));
 }
 
 BEGIN_METADATA(VerticalTabStripRegionView)

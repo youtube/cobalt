@@ -35,6 +35,8 @@ class PrefService;
 
 namespace multistep_filter {
 
+enum class SuggestionUserDecision;
+
 namespace internal {
 inline constexpr int kDismissCommand = 1;
 inline constexpr int kSettingsCommand = 2;
@@ -66,13 +68,10 @@ class FilterUiController : public tabs::ContentsObservingTabFeature,
     // The user clicked the page action icon in the omnibox to reopen the
     // cue bubble.
     kReopenedFromOmnibox,
-  };
-
-  // The user's decision upon interacting with the suggestion.
-  enum class SuggestionUserDecision {
-    kAccepted,
-    kDismissed,
-    kIgnored,
+    // The reopened cue bubble went away (timed out or user clicked outside),
+    // leaving
+    // only the page action icon visible inside the location bar / omnibox.
+    kCollapsedInOmniboxAfterReopen,
   };
 
   // Holds the suggestion details and presentation state for the current tab.

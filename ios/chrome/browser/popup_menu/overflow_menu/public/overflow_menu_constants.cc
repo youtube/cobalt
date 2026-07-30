@@ -185,6 +185,8 @@ std::optional<ActionType> ActionTypeForStringName(std::string action) {
     return overflow_menu::ActionType::Signin;
   } else if (action == "Identity") {
     return overflow_menu::ActionType::Identity;
+  } else if (action == "CustomizeHomePage") {
+    return overflow_menu::ActionType::CustomizeHomePage;
   } else {
     return std::nullopt;
   }
@@ -244,6 +246,8 @@ std::string StringNameForActionType(ActionType action) {
       return "Signin";
     case overflow_menu::ActionType::Identity:
       return "Identity";
+    case overflow_menu::ActionType::CustomizeHomePage:
+      return "CustomizeHomePage";
   }
 }
 // LINT.ThenChange(/ios/chrome/browser/popup_menu/overflow_menu/public/overflow_menu_constants.cc:stringToActionType)

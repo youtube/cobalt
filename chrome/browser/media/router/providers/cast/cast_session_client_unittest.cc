@@ -29,7 +29,6 @@
 #include "content/public/test/browser_task_environment.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
-#include "services/data_decoder/public/cpp/test_support/in_process_data_decoder.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -91,7 +90,6 @@ class CastSessionClientImplTest : public testing::Test {
   void RunUntilIdle() { task_environment_.RunUntilIdle(); }
 
   content::BrowserTaskEnvironment task_environment_;
-  data_decoder::test::InProcessDataDecoder in_process_data_decoder_;
   cast_channel::MockCastSocketService socket_service_{
       content::GetUIThreadTaskRunner({})};
   cast_channel::MockCastMessageHandler message_handler_{&socket_service_};

@@ -42,17 +42,13 @@ class SessionController : public SessionUiDelegate,
   void UiRequestEndSession() override;
   void UiRequestEndActiveStream() override;
   SessionState GetState() const override;
+  base::CallbackListSubscription AddSessionStateChangedCallback(
+      SessionStateChangedCallback callback) override;
 
   // StreamProviderDelegate:
   void DidUpdateStreamProviderState(
       StreamProvider& stream_provider,
       StreamProvider::StreamState old_state) override;
-
-  using SessionStateChangedCallback =
-      base::RepeatingCallback<void(SessionState)>;
-  // Registers a callback to be notified of session state changes.
-  base::CallbackListSubscription AddSessionStateChangedCallback(
-      SessionStateChangedCallback callback);
 
   // Starts a new dictation stream by creating and attaching a new stream
   // provider. An existing stream must have been detached before calling this

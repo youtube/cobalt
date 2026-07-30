@@ -205,6 +205,7 @@ class COMPONENT_EXPORT(CHROMEOS_ONC) Validator : public Mapper {
   bool ValidateProxySettings(base::DictValue* result);
   bool ValidateProxyLocation(base::DictValue* result);
   bool ValidateEAP(base::DictValue* result);
+  bool ValidateL2TP(base::DictValue* result);
   bool ValidateSubjectAlternativeNameMatch(base::DictValue* result);
   bool ValidateCertificate(base::DictValue* result);
   bool ValidateScope(base::DictValue* result);

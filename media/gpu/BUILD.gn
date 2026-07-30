@@ -697,6 +697,7 @@ source_set("unit_tests") {
       "windows/d3d12_video_encode_delegate_unittest.cc",
       "windows/d3d12_video_encode_delegate_unittest.h",
       "windows/d3d12_video_encode_h264_delegate_unittest.cc",
+      "windows/d3d12_video_processor_wrapper_unittest.cc",
       "windows/media_foundation_video_encode_accelerator_win_unittest.cc",
       "windows/mf_audio_encoder_unittest.cc",
       "windows/mf_video_processor_accelerator_unittest.cc",

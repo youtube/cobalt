@@ -9,9 +9,11 @@
 
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/mock_callback.h"
+#include "base/test/scoped_feature_list.h"
 #include "chrome/browser/autofill/android/save_update_address_profile_prompt_mode.h"
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
 #include "chrome/browser/ui/autofill/autofill_message_model.h"
+#include "components/autofill/core/common/autofill_features.h"
 #include "chrome/browser/ui/autofill/autofill_message_model_test_api.h"
 #include "chrome/browser/ui/autofill/mock_autofill_dialog_controller.h"
 #include "chrome/browser/ui/autofill/mock_autofill_message_controller.h"
@@ -198,6 +200,49 @@ TEST_F(AutofillAiSaveUpdateEntityFlowManagerTest, ShowUpdateInWalletMessage) {
       test_api(*message_model).GetMessage().GetPrimaryButtonText(),
       l10n_util::GetStringUTF16(
           IDS_AUTOFILL_PREDICTION_IMPROVEMENTS_UPDATE_DIALOG_UPDATE_BUTTON));
+}
+
+TEST_F(AutofillAiSaveUpdateEntityFlowManagerTest,
+       ShowSaveToWalletMessage_Branding2026) {
+  base::test::ScopedFeatureList scoped_feature_list{
+      features::kAutofillAiWalletPassBranding2026};
+  SigninUser(TestingProfile::kDefaultProfileUserName,
+             signin::ConsentLevel::kSignin);
+  std::unique_ptr<AutofillMessageModel> message_model;
+  // Show the message and save the message model.
+  EXPECT_CALL(message_controller(), Show(_))
+      .WillOnce(SaveArgByMove<0>(&message_model));
+  flow_manager().OfferSave(
+      new_entity(EntityInstance::RecordType::kServerWallet),
+      /*old_entity=*/std::nullopt, prompt_closed_callback().Get());
+
+  // Message title should STILL be unbranded because it is a banner prompt
+  // (is_banner_prompt is true).
+  EXPECT_EQ(test_api(*message_model).GetMessage().GetTitle(),
+            l10n_util::GetStringUTF16(
+                IDS_AUTOFILL_AI_SAVE_PASSPORT_ENTITY_DIALOG_TITLE_ANDROID));
+}
+
+TEST_F(AutofillAiSaveUpdateEntityFlowManagerTest,
+       ShowUpdateInWalletMessage_Branding2026) {
+  base::test::ScopedFeatureList scoped_feature_list{
+      features::kAutofillAiWalletPassBranding2026};
+  SigninUser(TestingProfile::kDefaultProfileUserName,
+             signin::ConsentLevel::kSignin);
+  std::unique_ptr<AutofillMessageModel> message_model;
+  // Show the message and save the message model.
+  EXPECT_CALL(message_controller(), Show(_))
+      .WillOnce(SaveArgByMove<0>(&message_model));
+  flow_manager().OfferSave(
+      new_entity(EntityInstance::RecordType::kServerWallet),
+      old_entity(EntityInstance::RecordType::kServerWallet),
+      prompt_closed_callback().Get());
+
+  // Message title should STILL be unbranded because it is a banner prompt
+  // (is_banner_prompt is true).
+  EXPECT_EQ(test_api(*message_model).GetMessage().GetTitle(),
+            l10n_util::GetStringUTF16(
+                IDS_AUTOFILL_AI_UPDATE_PASSPORT_ENTITY_DIALOG_TITLE_ANDROID));
 }
 
 TEST_F(AutofillAiSaveUpdateEntityFlowManagerTest, ShowsMessage_MessageIngored) {

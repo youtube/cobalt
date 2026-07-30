@@ -4,17 +4,22 @@
 
 package org.chromium.chrome.test.transit.page;
 
-import static androidx.test.espresso.matcher.ViewMatchers.withText;
-
+import org.chromium.base.test.transit.Element;
 import org.chromium.base.test.transit.ViewElement;
-import org.chromium.chrome.R;
+import org.chromium.chrome.browser.ntp.RecentTabsPage;
+import org.chromium.components.embedder_support.util.UrlConstants;
 
 /** A station representing the Recent Tabs page. */
 public class RecentTabsPageStation extends CtaPageStation {
+    public static final String RECENT_TABS_URL = UrlConstants.RECENT_TABS_URL;
+    public final Element<RecentTabsPage> nativePageElement;
+
     protected RecentTabsPageStation(Config config) {
         super(config);
         declareView(URL_BAR, ViewElement.unscopedOption());
-        declareView(withText(R.string.recently_closed));
+        nativePageElement =
+                declareEnterConditionAsElement(
+                        new NativePageCondition<>(RecentTabsPage.class, loadedTabElement));
     }
 
     public static Builder<RecentTabsPageStation> newBuilder() {

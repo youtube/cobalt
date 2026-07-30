@@ -61,9 +61,10 @@
 #include "url/gurl.h"
 
 #if BUILDFLAG(IS_ANDROID)
+#include "base/strings/string_view_util.h"
+#include "crypto/obsolete/sha1.h"
 #include "base/android/content_uri_utils.h"
 #include "base/android/path_utils.h"
-#include "base/hash/sha1.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/test/android/content_uri_test_utils.h"
 #endif
@@ -607,7 +608,7 @@ TEST_F(FileSystemAccessAccessHandleContentUriTest, CreateFileWriter) {
   base::FilePath cache_dir;
   EXPECT_TRUE(base::android::GetCacheDirectory(&cache_dir));
   auto hex_encoded_hash =
-      base::HexEncode(base::SHA1HashString(test_file_url_.path().value()));
+      content::GetHashedUrlPath(test_file_url_.path().value());
   base::FilePath swap = cache_dir.Append("FileSystemAPISwap")
                             .Append(hex_encoded_hash)
                             .AddExtension(".crswap");

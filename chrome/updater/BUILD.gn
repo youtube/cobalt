@@ -9,6 +9,7 @@ import("//build/util/process_version.gni")
 import("//chrome/enterprise_companion/branding.gni")
 import("//chrome/updater/apply_updater_branding.gni")
 import("//chrome/updater/branding.gni")
+import("//chrome/updater/updater.gni")
 import("//components/crx_file/crx3.gni")
 import("//testing/test.gni")
 
@@ -41,7 +42,7 @@ group("updater") {
 
   # These packages have problematic license files that we need to avoid for
   # updater redistribution.
-  assert_no_deps = [ "//third_party/libaom" ]
+  assert_no_deps = updater_assert_no_deps
 }
 
 group("all") {
@@ -275,6 +276,8 @@ if (is_win || is_mac || is_linux) {
         "mac/setup/mac_setup.mm",
         "mac/setup/wake_task.h",
         "mac/setup/wake_task.mm",
+        "net/chunk_queue.h",
+        "net/chunk_queue.mm",
         "net/fetcher_callback_adapter.cc",
         "net/fetcher_callback_adapter.h",
         "net/network_fetcher_mac.mm",
@@ -1146,6 +1149,7 @@ if (is_win || is_mac || is_linux) {
         "mac/setup/ks_tickets_unittest.mm",
         "mac/setup/setup_unittest.mm",
         "mac/setup/wake_task_unittest.mm",
+        "net/chunk_queue_unittest.mm",
         "policy/mac/managed_preference_policy_manager_impl_unittest.mm",
         "policy/mac/managed_preference_policy_manager_unittest.cc",
         "test/integration_tests_mac.h",

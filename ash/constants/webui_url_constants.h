@@ -186,7 +186,6 @@ inline constexpr char kChromeUIUrgentPasswordExpiryNotificationHost[] =
 inline constexpr char kChromeUIUrgentPasswordExpiryNotificationURL[] =
     "chrome://urgent-password-expiry-notification/";
 inline constexpr char kChromeUIUserImageHost[] = "userimage";
-inline constexpr char kChromeUIVmHost[] = "vm";
 
 }  // namespace ash
 

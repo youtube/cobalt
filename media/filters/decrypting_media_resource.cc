@@ -39,7 +39,7 @@ DecryptingMediaResource::DecryptingMediaResource(
 
 DecryptingMediaResource::~DecryptingMediaResource() = default;
 
-std::vector<DemuxerStream*> DecryptingMediaResource::GetAllStreams() {
+std::vector<raw_ptr<DemuxerStream>> DecryptingMediaResource::GetAllStreams() {
   if (streams_.size()) {
     return streams_;
   }

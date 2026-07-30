@@ -87,10 +87,12 @@ export class TopToolbarElement extends TopToolbarElementBase {
         type: Boolean,
         reflect: true,
       },
+      isUserSignedIn: {type: Boolean},
       onboardingTooltipShowing: {type: Boolean},
       contextualTasksEnableSpatialModelToolbarLayout_: {type: Boolean},
       contextualTasksEnableSpatialModelToolbarLayoutNewThreadInOverflow_:
           {type: Boolean},
+      overflowMenuOpen_: {type: Boolean},
     };
   }
 
@@ -99,6 +101,7 @@ export class TopToolbarElement extends TopToolbarElementBase {
   accessor darkMode: boolean = false;
   accessor isAiPage: boolean = loadTimeData.getBoolean('isAiPage');
   accessor isAimEligible: boolean = loadTimeData.getBoolean('isAimEligible');
+  accessor isUserSignedIn: boolean = true;
   accessor enableOpenInNewTabButton: boolean = false;
   accessor showReopenTabs_: boolean = false;
   accessor onboardingTooltipShowing: boolean = false;
@@ -121,6 +124,7 @@ export class TopToolbarElement extends TopToolbarElementBase {
       loadTimeData.getBoolean('isSidePanelPinned');
   protected accessor contextManagementInComposeboxEnabled_: boolean =
       loadTimeData.getBoolean('contextManagementInComposeboxEnabled');
+  protected accessor overflowMenuOpen_: boolean = false;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -200,7 +204,7 @@ export class TopToolbarElement extends TopToolbarElementBase {
   }
 
   protected onNewThreadClick_() {
-    this.dispatchEvent(new CustomEvent('new-thread-click'));
+    this.fire('new-thread-click');
   }
 
   protected onThreadHistoryClick_() {
@@ -211,6 +215,10 @@ export class TopToolbarElement extends TopToolbarElementBase {
   protected onOverflowMenuButtonClick_(e: Event) {
     recordAction('ContextualTasks.WebUI.UserAction.OpenOverflowMenu');
     this.$.overflowMenu.get().showAt(e.target as HTMLElement);
+  }
+
+  protected onOverflowMenuOpenChanged_(e: CustomEvent<{value: boolean}>) {
+    this.overflowMenuOpen_ = e.detail.value;
   }
 
   protected onSourcesClick_(e: Event) {

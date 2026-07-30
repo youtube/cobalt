@@ -49,6 +49,7 @@
 #include "components/permissions/permission_decision_auto_blocker.h"
 #include "components/safe_browsing/core/browser/db/fake_database_manager.h"
 #include "components/ukm/test_ukm_recorder.h"
+#include "components/zoom/zoom_controller.h"
 #include "content/public/browser/media_session.h"
 #include "content/public/browser/media_session_service.h"
 #include "content/public/browser/navigation_entry.h"
@@ -73,6 +74,7 @@
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/input/web_mouse_event.h"
 #include "third_party/blink/public/common/input/web_mouse_wheel_event.h"
+#include "third_party/blink/public/common/page/page_zoom.h"
 #include "ui/events/base_event_utils.h"
 #include "ui/events/test/test_event.h"
 #include "ui/gfx/geometry/vector2d.h"
@@ -3523,6 +3525,8 @@ IN_PROC_BROWSER_TEST_F(BrowserInitiatedAutoPictureInPictureBrowserTest,
                          "requestAnimationFrame(() => resolve(true)));"
                          "});"));
 
+  base::HistogramTester histograms;
+
   // Trigger manual PiP via MediaSession.
   content::MediaStartStopObserver enter_pip_observer(
       web_contents,
@@ -3532,6 +3536,11 @@ IN_PROC_BROWSER_TEST_F(BrowserInitiatedAutoPictureInPictureBrowserTest,
 
   // It should open despite being small because it is manual.
   EXPECT_TRUE(web_contents->HasPictureInPictureVideo());
+
+  metrics::SubprocessMetricsProvider::MergeHistogramDeltasForTesting();
+  histograms.ExpectTotalCount("Media.PictureInPicture.SizeConstraintResult", 0);
+  histograms.ExpectTotalCount("Media.PictureInPicture.BlockedVideoEncodedSize",
+                              0);
 
   // Clean up by exiting PiP.
   content::MediaStartStopObserver exit_pip_observer(
@@ -3572,6 +3581,184 @@ IN_PROC_BROWSER_TEST_F(BrowserInitiatedAutoPictureInPictureBrowserTest,
   // We expect Auto-PiP to open.
   SwitchToNewTabAndBackAndExpectAutopip(/*should_video_pip=*/true,
                                         /*should_document_pip=*/false);
+}
+
+IN_PROC_BROWSER_TEST_F(BrowserInitiatedAutoPictureInPictureBrowserTest,
+                       SizeConstraintMetricsBlocked) {
+  LoadNotRegisteredPage(browser());
+  auto* web_contents = browser()->tab_strip_model()->GetActiveWebContents();
+  PlayVideo(web_contents);
+  WaitForAudioFocusGained();
+  WaitForMediaSessionPlaying(web_contents);
+  WaitForWasRecentlyAudible(web_contents);
+  SetExpectedHasHighEngagement(true);
+
+  // Resize to too small (50x50) and expect blocking.
+  EXPECT_EQ(true, EvalJs(web_contents,
+                         "new Promise(resolve => {"
+                         "  video.style.objectFit = 'fill';"
+                         "  video.style.width = '50px';"
+                         "  video.style.height = '50px';"
+                         "  requestAnimationFrame(() => "
+                         "requestAnimationFrame(() => resolve(true)));"
+                         "});"));
+
+  base::HistogramTester histograms;
+  SwitchToNewTabAndDontExpectAutopip(/*expect_preconditions_unmet=*/false);
+  metrics::SubprocessMetricsProvider::MergeHistogramDeltasForTesting();
+  histograms.ExpectUniqueSample("Media.PictureInPicture.SizeConstraintResult",
+                                1 /* SizeConstraintNotMet */, 1);
+  int32_t expected_encoded_size = (50 << 16) | 50;
+  histograms.ExpectUniqueSample(
+      "Media.PictureInPicture.BlockedVideoEncodedSize", expected_encoded_size,
+      1);
+  histograms.ExpectTotalCount("Media.PictureInPicture.AllowedVideoEncodedSize",
+                              0);
+}
+
+IN_PROC_BROWSER_TEST_F(BrowserInitiatedAutoPictureInPictureBrowserTest,
+                       SizeConstraintMetricsAllowed) {
+  LoadNotRegisteredPage(browser());
+  auto* web_contents = browser()->tab_strip_model()->GetActiveWebContents();
+  PlayVideo(web_contents);
+  WaitForAudioFocusGained();
+  WaitForMediaSessionPlaying(web_contents);
+  WaitForWasRecentlyAudible(web_contents);
+  SetExpectedHasHighEngagement(true);
+
+  // Resize to large enough (300x300) and expect success.
+  EXPECT_EQ(true, EvalJs(web_contents,
+                         "new Promise(resolve => {"
+                         "  video.style.objectFit = 'fill';"
+                         "  video.style.width = '300px';"
+                         "  video.style.height = '300px';"
+                         "  requestAnimationFrame(() => "
+                         "requestAnimationFrame(() => resolve(true)));"
+                         "});"));
+
+  base::HistogramTester histograms;
+  SwitchToNewTabAndBackAndExpectAutopip(/*should_video_pip=*/true,
+                                        /*should_document_pip=*/false);
+  metrics::SubprocessMetricsProvider::MergeHistogramDeltasForTesting();
+  histograms.ExpectUniqueSample("Media.PictureInPicture.SizeConstraintResult",
+                                0 /* SizeConstraintMet */, 1);
+  int32_t expected_encoded_size = (300 << 16) | 300;
+  histograms.ExpectUniqueSample(
+      "Media.PictureInPicture.AllowedVideoEncodedSize", expected_encoded_size,
+      1);
+  histograms.ExpectTotalCount("Media.PictureInPicture.BlockedVideoEncodedSize",
+                              0);
+}
+
+IN_PROC_BROWSER_TEST_F(BrowserInitiatedAutoPictureInPictureBrowserTest,
+                       SizeConstraintAllowedWithPageZoom) {
+  LoadNotRegisteredPage(browser());
+  auto* web_contents = browser()->tab_strip_model()->GetActiveWebContents();
+  PlayVideo(web_contents);
+  WaitForAudioFocusGained();
+  WaitForMediaSessionPlaying(web_contents);
+  WaitForWasRecentlyAudible(web_contents);
+  SetExpectedHasHighEngagement(true);
+
+  // Setup resize listener in before we zoom. We append "true;" so the script
+  // evaluates to a boolean instead of a Promise, preventing ExecJs from
+  // blocking here. We will wait on the Promise later using EvalJs.
+  ASSERT_TRUE(ExecJs(web_contents,
+                     "window.zoomPromise = new Promise(resolve => {"
+                     "  window.addEventListener('resize', () => "
+                     "resolve('ResizeCompleted'), {once: true});"
+                     "});"
+                     "true;"));
+
+  // Set page zoom to 200%.
+  auto* zoom_controller = zoom::ZoomController::FromWebContents(web_contents);
+  zoom_controller->SetZoomLevel(blink::ZoomFactorToZoomLevel(2.0));
+
+  // Wait for the renderer to apply the zoom and complete layout.
+  EXPECT_EQ("ResizeCompleted", EvalJs(web_contents, "window.zoomPromise"));
+
+  // Video is 80x80 CSS, but at 200% zoom it is 160x160 DIPs.
+  EXPECT_EQ(true, EvalJs(web_contents,
+                         "new Promise(resolve => {"
+                         "  video.style.objectFit = 'fill';"
+                         "  video.style.width = '80px';"
+                         "  video.style.height = '80px';"
+                         "  requestAnimationFrame(() => "
+                         "requestAnimationFrame(() => resolve(true)));"
+                         "});"));
+
+  base::HistogramTester histograms;
+
+  // Verify that the video is allowed to enter Auto-PiP because page zoom is
+  // 200% (making it 160x160 DIPs, which is >= 100x100 threshold).
+  SwitchToNewTabAndBackAndExpectAutopip(/*should_video_pip=*/true,
+                                        /*should_document_pip=*/false);
+
+  metrics::SubprocessMetricsProvider::MergeHistogramDeltasForTesting();
+  histograms.ExpectUniqueSample("Media.PictureInPicture.SizeConstraintResult",
+                                0 /* SizeConstraintMet */, 1);
+  int32_t expected_encoded_size = (160 << 16) | 160;
+  histograms.ExpectUniqueSample(
+      "Media.PictureInPicture.AllowedVideoEncodedSize", expected_encoded_size,
+      1);
+  histograms.ExpectTotalCount("Media.PictureInPicture.BlockedVideoEncodedSize",
+                              0);
+}
+
+IN_PROC_BROWSER_TEST_F(BrowserInitiatedAutoPictureInPictureBrowserTest,
+                       SizeConstraintBlockedWithPageZoom) {
+  LoadNotRegisteredPage(browser());
+  auto* web_contents = browser()->tab_strip_model()->GetActiveWebContents();
+  PlayVideo(web_contents);
+  WaitForAudioFocusGained();
+  WaitForMediaSessionPlaying(web_contents);
+  WaitForWasRecentlyAudible(web_contents);
+  SetExpectedHasHighEngagement(true);
+
+  // Setup resize listener in before we zoom. We append "true;" so the script
+  // evaluates to a boolean instead of a Promise, preventing ExecJs from
+  // blocking here. We will wait on the Promise later using EvalJs.
+  ASSERT_TRUE(ExecJs(web_contents,
+                     "window.zoomPromise = new Promise(resolve => {"
+                     "  window.addEventListener('resize', () => "
+                     "resolve('ResizeCompleted'), {once: true});"
+                     "});"
+                     "true;"));
+
+  // Set page zoom to 50%.
+  auto* zoom_controller = zoom::ZoomController::FromWebContents(web_contents);
+  zoom_controller->SetZoomLevel(blink::ZoomFactorToZoomLevel(0.5));
+
+  // Wait for the renderer to apply the zoom and complete layout.
+  EXPECT_EQ("ResizeCompleted", EvalJs(web_contents, "window.zoomPromise"));
+
+  // Video is 120x120 CSS, but at 50% zoom it is 60x60 DIPs.
+  EXPECT_EQ(true, EvalJs(web_contents,
+                         "new Promise(resolve => {"
+                         "  video.style.objectFit = 'fill';"
+                         "  video.style.width = '120px';"
+                         "  video.style.height = '120px';"
+                         "  requestAnimationFrame(() => "
+                         "requestAnimationFrame(() => resolve(true)));"
+                         "});"));
+
+  base::HistogramTester histograms;
+
+  // Verify that the video is blocked from Auto-PiP because page zoom is 50%
+  // (making it 60x60 DIPs, which is < 100x100 threshold).
+  SwitchToNewTabAndDontExpectAutopip(/*expect_preconditions_unmet=*/false);
+
+  metrics::SubprocessMetricsProvider::MergeHistogramDeltasForTesting();
+  histograms.ExpectUniqueSample("Media.PictureInPicture.SizeConstraintResult",
+                                1 /* SizeConstraintNotMet */, 1);
+
+  // Verify it logs the correct blocked size of 60x60 encoded in 32-bit.
+  int32_t expected_encoded_size = (60 << 16) | 60;
+  histograms.ExpectUniqueSample(
+      "Media.PictureInPicture.BlockedVideoEncodedSize", expected_encoded_size,
+      1);
+  histograms.ExpectTotalCount("Media.PictureInPicture.AllowedVideoEncodedSize",
+                              0);
 }
 
 IN_PROC_BROWSER_TEST_F(BrowserInitiatedAutoPictureInPictureBrowserTest,

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<title>SVGPathElement.setPathData() use counter</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<svg>
+  <path id="path" d="M 0 0 L 10 10"/>
+</svg>
+<script>
+// Must match WebFeature value in
+// third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom.
+const kSVGPathElementSetPathData = 5935;
+
+test(() => {
+  assert_true(!!window.internals,
+              'window.internals is required for this test');
+  assert_true('setPathData' in SVGPathElement.prototype,
+              'SVGPathDataAPI must be enabled for this test to run');
+
+  const path = document.getElementById('path');
+
+  internals.clearUseCounter(document, kSVGPathElementSetPathData);
+  assert_false(
+      internals.isUseCounted(document, kSVGPathElementSetPathData),
+      'baseline');
+
+  path.setPathData([
+    { type: 'M', values: [0, 0] },
+    { type: 'L', values: [20, 20] },
+  ]);
+  assert_true(
+      internals.isUseCounted(document, kSVGPathElementSetPathData),
+      'setPathData() should trigger SVGPathElementSetPathData');
+}, 'SVGPathElement.setPathData() triggers SVGPathElementSetPathData');
+</script>

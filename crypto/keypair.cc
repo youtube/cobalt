@@ -22,38 +22,25 @@ namespace {
 
 bssl::UniquePtr<EVP_PKEY> GenerateRsa(size_t bits) {
   OpenSSLErrStackTracer err_tracer(FROM_HERE);
-
-  bssl::UniquePtr<RSA> rsa_key(RSA_new());
-  bssl::UniquePtr<BIGNUM> bn(BN_new());
-
-  CHECK(rsa_key.get());
-  CHECK(bn.get());
-  CHECK(BN_set_word(bn.get(), 65537L));
-
-  CHECK(RSA_generate_key_ex(rsa_key.get(), bits, bn.get(), nullptr));
-
-  bssl::UniquePtr<EVP_PKEY> key(EVP_PKEY_new());
-  CHECK(EVP_PKEY_set1_RSA(key.get(), rsa_key.get()));
-
+  bssl::UniquePtr<EVP_PKEY> key(EVP_RSA_gen(bits));
+  CHECK(key);
   return key;
 }
 
-bssl::UniquePtr<EVP_PKEY> GenerateEc(int nid) {
+bssl::UniquePtr<EVP_PKEY> GeneratePkey(const EVP_PKEY_ALG* alg) {
   OpenSSLErrStackTracer err_tracer(FROM_HERE);
-
-  bssl::UniquePtr<EC_KEY> ec_key(EC_KEY_new_by_curve_name(nid));
-  CHECK(ec_key);
-  CHECK(EC_KEY_generate_key(ec_key.get()));
-
-  bssl::UniquePtr<EVP_PKEY> key(EVP_PKEY_new());
-  CHECK(EVP_PKEY_set1_EC_KEY(key.get(), ec_key.get()));
+  bssl::UniquePtr<EVP_PKEY> key(EVP_PKEY_generate_from_alg(alg));
+  CHECK(key);
   return key;
 }
 
-bool IsSupportedEvpId(int evp_id) {
-  return evp_id == EVP_PKEY_RSA || evp_id == EVP_PKEY_EC ||
-         evp_id == EVP_PKEY_ED25519 || evp_id == EVP_PKEY_X25519 ||
-         evp_id == EVP_PKEY_ML_DSA_44;
+base::span<const EVP_PKEY_ALG* const> SupportedEvpAlgorithms() {
+  static const EVP_PKEY_ALG* kAlgs[] = {
+      EVP_pkey_rsa(),       EVP_pkey_ec_p256(), EVP_pkey_ec_p384(),
+      EVP_pkey_ec_p521(),   EVP_pkey_ed25519(), EVP_pkey_x25519(),
+      EVP_pkey_ml_dsa_44(),
+  };
+  return kAlgs;
 }
 
 std::vector<uint8_t> CBBToVector(CBB* cbb) {
@@ -135,51 +122,32 @@ PrivateKey PrivateKey::GenerateRsa4096() {
 
 // static
 PrivateKey PrivateKey::GenerateEcP256() {
-  return PrivateKey(GenerateEc(NID_X9_62_prime256v1));
+  return PrivateKey(GeneratePkey(EVP_pkey_ec_p256()));
 }
 
 // static
 PrivateKey PrivateKey::GenerateEcP384() {
-  return PrivateKey(GenerateEc(NID_secp384r1));
+  return PrivateKey(GeneratePkey(EVP_pkey_ec_p384()));
 }
 
 // static
 PrivateKey PrivateKey::GenerateEcP521() {
-  return PrivateKey(GenerateEc(NID_secp521r1));
+  return PrivateKey(GeneratePkey(EVP_pkey_ec_p521()));
 }
 
 // static
 PrivateKey PrivateKey::GenerateEd25519() {
-  OpenSSLErrStackTracer err_tracer(FROM_HERE);
-
-  std::array<uint8_t, ED25519_PUBLIC_KEY_LEN> unused_pubkey;
-  std::array<uint8_t, ED25519_PRIVATE_KEY_LEN> privkey;
-
-  ED25519_keypair(unused_pubkey.data(), privkey.data());
-
-  // EVP_PKEY_new_raw_public_key() takes only the 32-byte RFC 8032 "seed" at the
-  // start of the private key, not the BoringSSL-format "full" private key.
-  return FromEd25519PrivateKey(base::span(privkey).first<32>());
+  return PrivateKey(GeneratePkey(EVP_pkey_ed25519()));
 }
 
 // static
 PrivateKey PrivateKey::GenerateX25519() {
-  OpenSSLErrStackTracer err_tracer(FROM_HERE);
-
-  std::array<uint8_t, X25519_PUBLIC_VALUE_LEN> unused_pubkey;
-  std::array<uint8_t, X25519_PRIVATE_KEY_LEN> privkey;
-
-  X25519_keypair(unused_pubkey.data(), privkey.data());
-
-  return FromX25519PrivateKey(privkey);
+  return PrivateKey(GeneratePkey(EVP_pkey_x25519()));
 }
 
 // static
 PrivateKey PrivateKey::GenerateMldsa44() {
-  OpenSSLErrStackTracer err_tracer(FROM_HERE);
-
-  return PrivateKey(bssl::UniquePtr<EVP_PKEY>(
-      EVP_PKEY_generate_from_alg(EVP_pkey_ml_dsa_44())));
+  return PrivateKey(GeneratePkey(EVP_pkey_ml_dsa_44()));
 }
 
 // static
@@ -187,16 +155,11 @@ std::optional<PrivateKey> PrivateKey::FromPrivateKeyInfo(
     base::span<const uint8_t> pki) {
   OpenSSLErrStackTracer err_tracer(FROM_HERE);
 
-  CBS cbs(pki);
-  bssl::UniquePtr<EVP_PKEY> pkey(EVP_parse_private_key(&cbs));
-  if (!pkey || CBS_len(&cbs) != 0) {
+  auto algs = SupportedEvpAlgorithms();
+  bssl::UniquePtr<EVP_PKEY> pkey(EVP_PKEY_from_private_key_info(
+      pki.data(), pki.size(), algs.data(), algs.size()));
+  if (!pkey) {
     LOG(WARNING) << "Malformed PrivateKeyInfo or trailing data";
-    return std::nullopt;
-  }
-
-  auto id = EVP_PKEY_id(pkey.get());
-  if (!IsSupportedEvpId(id)) {
-    LOG(WARNING) << "Unsupported key type (EVP ID: " << id << ")";
     return std::nullopt;
   }
 
@@ -382,7 +345,9 @@ PublicKey& PublicKey::operator=(const PublicKey& other) {
 
 // static
 PublicKey PublicKey::FromPrivateKey(const PrivateKey& key) {
-  return *FromSubjectPublicKeyInfo(key.ToSubjectPublicKeyInfo());
+  bssl::UniquePtr<EVP_PKEY> pub(EVP_PKEY_copy_public(key.key()));
+  CHECK(pub);
+  return PublicKey(std::move(pub));
 }
 
 // static
@@ -390,16 +355,11 @@ std::optional<PublicKey> PublicKey::FromSubjectPublicKeyInfo(
     base::span<const uint8_t> spki) {
   OpenSSLErrStackTracer err_tracer(FROM_HERE);
 
-  CBS cbs(spki);
-  bssl::UniquePtr<EVP_PKEY> pkey(EVP_parse_public_key(&cbs));
-  if (!pkey || CBS_len(&cbs) != 0) {
-    LOG(WARNING) << "Malformed PublicKeyInfo or trailing data";
-    return std::nullopt;
-  }
-
-  auto id = EVP_PKEY_id(pkey.get());
-  if (!IsSupportedEvpId(id)) {
-    LOG(WARNING) << "Unsupported key type (EVP ID: " << id << ")";
+  auto algs = SupportedEvpAlgorithms();
+  bssl::UniquePtr<EVP_PKEY> pkey(EVP_PKEY_from_subject_public_key_info(
+      spki.data(), spki.size(), algs.data(), algs.size()));
+  if (!pkey) {
+    LOG(WARNING) << "Malformed SubjectPublicKeyInfo or trailing data";
     return std::nullopt;
   }
 

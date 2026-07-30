@@ -4,6 +4,7 @@
 
 #include "components/page_load_metrics/renderer/metrics_render_frame_observer.h"
 
+#include <map>
 #include <string>
 #include <utility>
 
@@ -25,6 +26,7 @@
 #include "third_party/blink/public/web/web_local_frame.h"
 #include "third_party/blink/public/web/web_local_frame_client.h"
 #include "third_party/blink/public/web/web_performance_metrics_for_reporting.h"
+#include "third_party/icu/source/common/unicode/uscript.h"
 #include "url/gurl.h"
 
 namespace page_load_metrics {
@@ -45,6 +47,36 @@ base::TimeDelta CreateTimeDeltaFromTimestampsInSeconds(
 
 base::TimeTicks ClampToStart(base::TimeTicks event, base::TimeTicks start) {
   return event < start ? start : event;
+}
+
+mojom::ScriptType MapToMojoScriptType(UScriptCode script_code, bool is_emoji) {
+  if (is_emoji) {
+    return mojom::ScriptType::kEmoji;
+  }
+  switch (script_code) {
+    case USCRIPT_LATIN:
+      return mojom::ScriptType::kLatin;
+    case USCRIPT_HAN:
+      return mojom::ScriptType::kHan;
+    case USCRIPT_HANGUL:
+      return mojom::ScriptType::kHangul;
+    case USCRIPT_HIRAGANA:
+      return mojom::ScriptType::kHiragana;
+    case USCRIPT_KATAKANA:
+      return mojom::ScriptType::kKatakana;
+    case USCRIPT_ARABIC:
+      return mojom::ScriptType::kArabic;
+    case USCRIPT_BENGALI:
+      return mojom::ScriptType::kBengali;
+    case USCRIPT_DEVANAGARI:
+      return mojom::ScriptType::kDevanagari;
+    case USCRIPT_CYRILLIC:
+      return mojom::ScriptType::kCyrillic;
+    case USCRIPT_COMMON:
+      return mojom::ScriptType::kCommon;
+    default:
+      return mojom::ScriptType::kOther;
+  }
 }
 
 class MojoPageTimingSender : public PageTimingSender {
@@ -890,6 +922,17 @@ mojom::FontLoadingMetricsPtr MetricsRenderFrameObserver::GetFontLoadingMetrics()
         perf.SystemFallbackFontInitialDuration();
     font_metrics->shape_cache_hit_count = perf.ShapeCacheHitCount();
     font_metrics->shape_cache_miss_count = perf.ShapeCacheMissCount();
+    std::map<mojom::ScriptType, size_t> aggregated;
+    for (const auto& details : perf.GetScriptFontFallbackDetails()) {
+      aggregated[MapToMojoScriptType(details.script_code, details.is_emoji)] +=
+          details.fallback_count;
+    }
+    for (const auto& [type, count] : aggregated) {
+      auto info = mojom::ScriptFallbackInfo::New();
+      info->script_type = type;
+      info->fallback_count = static_cast<uint32_t>(count);
+      font_metrics->script_fallback_metrics.push_back(std::move(info));
+    }
     return font_metrics;
   }
   return nullptr;

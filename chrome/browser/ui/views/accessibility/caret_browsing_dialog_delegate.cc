@@ -5,7 +5,6 @@
 #include "chrome/browser/ui/views/accessibility/caret_browsing_dialog_delegate.h"
 
 #include <memory>
-#include <utility>
 
 #include "base/metrics/user_metrics.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
@@ -17,8 +16,6 @@
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/base/mojom/ui_base_types.mojom-shared.h"
-#include "ui/events/keycodes/keyboard_codes.h"
-#include "ui/gfx/geometry/size.h"
 #include "ui/gfx/text_constants.h"
 #include "ui/views/controls/button/checkbox.h"
 #include "ui/views/controls/label.h"

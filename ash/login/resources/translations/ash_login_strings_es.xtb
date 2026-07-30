@@ -14,6 +14,24 @@
 <translation id="1185924365081634987">También puedes intentar <ph name="GUEST_SIGNIN_LINK_START" />navegar como invitado<ph name="GUEST_SIGNIN_LINK_END" /> para solucionar el problema de red.</translation>
 <translation id="1201402288615127009">Siguiente</translation>
 <translation id="1222835797152767346">Configura un PIN para que sea más fácil iniciar sesión</translation>
+<translation id="1346669614038013595"><ph name="BEGIN_H3" />Funciones de depuración<ph name="END_H3" />
+          <ph name="BR" />
+          Puedes habilitar las funciones de depuración en tu dispositivo ChromeOS para instalar y probar código personalizado en tu dispositivo. De esta forma podrás:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />Eliminar la verificación de rootfs para poder modificar archivos del sistema operativo.
+            <ph name="LIST_ITEM" />Habilitar el acceso SSH al dispositivo mediante las claves de prueba de tipo estándar para poder utilizar herramientas como <ph name="BEGIN_CODE" />cros flash<ph name="END_CODE" /> para acceder al dispositivo.
+            <ph name="LIST_ITEM" />Habilitar el inicio desde USB para poder instalar una imagen del SO desde una unidad USB.
+            <ph name="LIST_ITEM" />Asignar un valor personalizado a las contraseñas de inicio de sesión de raíz del sistema y dev para acceder al dispositivo manualmente mediante SSH.
+            <ph name="END_LIST" />
+            <ph name="BR" />
+            Una vez habilitadas, la mayoría de las funciones de depuración seguirán estando habilitadas incluso después de hacer un Powerwash o borrar los datos en dispositivos administrados por la empresa. Para inhabilitar totalmente todas las funciones de depuración, completa el proceso de recuperación de ChromeOS (https://support.google.com/chromebook/answer/1080595).
+            <ph name="BR" />
+            <ph name="BR" />
+            Para obtener más información sobre las funciones de depuración, consulta esta página:<ph name="BR" />
+            https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+            <ph name="BR" />
+            <ph name="BR" />
+            <ph name="BEGIN_BOLD" />Nota:<ph name="END_BOLD" /> El sistema se reiniciará durante el proceso.</translation>
 <translation id="1347625331607114917">Verifica el código en tu teléfono Android</translation>
 <translation id="1347975661240122359">La actualización comenzará cuando tengas un <ph name="BATTERY_LEVEL" />% de batería.</translation>
 <translation id="1375938286942050085">¡Configuración completada! Prepara tu dispositivo para empezar a jugar</translation>
@@ -126,9 +144,29 @@
 <translation id="503155457707535043">Se están descargando las aplicaciones</translation>
 <translation id="5045550434625856497">Contraseña incorrecta</translation>
 <translation id="5062930723426326933">Se ha producido un error al iniciar sesión. Conéctate a Internet y vuelve a intentarlo.</translation>
+<translation id="5107486920067578245"><ph name="BEGIN_PARAGRAPH1" />Chatea con Gemini para empezar a escribir, planificar, aprender y más con la IA de Google.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Después de la configuración, selecciona la aplicación de Gemini en tu estantería, en la parte inferior de la pantalla, para empezar a usarla.<ph name="END_PARAGRAPH2" /></translation>
 <translation id="5115309401544567011">Enchufa tu <ph name="DEVICE_TYPE" /> a una fuente de alimentación.</translation>
 <translation id="5147516217412920887">Sigue las instrucciones de tu teléfono para verificar el código</translation>
 <translation id="5160857336552977725">Inicia sesión en tu <ph name="DEVICE_TYPE" /></translation>
+<translation id="5171185788583376591"><ph name="BEGIN_H3" />Funciones de depuración<ph name="END_H3" />
+          <ph name="BR" />
+          Puedes habilitar las funciones de depuración en tu dispositivo ChromeOS Flex para instalar y probar código personalizado en tu dispositivo. De esta forma podrás:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />Eliminar la verificación de rootfs para poder modificar archivos del sistema operativo.
+            <ph name="LIST_ITEM" />Habilitar el acceso SSH al dispositivo mediante las claves de prueba de tipo estándar para poder utilizar herramientas como <ph name="BEGIN_CODE" />cros flash<ph name="END_CODE" /> para acceder al dispositivo.
+            <ph name="LIST_ITEM" />Habilitar el inicio desde USB para poder instalar una imagen del SO desde una unidad USB.
+            <ph name="LIST_ITEM" />Asignar un valor personalizado a las contraseñas de inicio de sesión de raíz del sistema y dev para acceder al dispositivo manualmente mediante SSH.
+            <ph name="END_LIST" />
+            <ph name="BR" />
+            Una vez habilitadas, la mayoría de las funciones de depuración seguirán estando habilitadas incluso después de hacer un Powerwash o borrar los datos en dispositivos administrados por la empresa. Para inhabilitar totalmente todas las funciones de depuración, completa el proceso de recuperación de ChromeOS (https://support.google.com/chromebook/answer/1080595).
+            <ph name="BR" />
+            <ph name="BR" />
+            Para obtener más información sobre las funciones de depuración, consulta esta página:<ph name="BR" />
+            https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+            <ph name="BR" />
+            <ph name="BR" />
+            <ph name="BEGIN_BOLD" />Nota:<ph name="END_BOLD" /> El sistema se reiniciará durante el proceso.</translation>
 <translation id="523505283826916779">Ajustes de accesibilidad</translation>
 <translation id="5240931875940563122">Iniciar sesión con un teléfono Android</translation>
 <translation id="5255859108402770436">Vuelve a iniciar sesión</translation>
@@ -193,6 +231,7 @@
 <translation id="6955698182324067397">Vas a habilitar las funciones de depuración de ChromeOS, que configurarán el daemon sshd y habilitarán el inicio desde unidades USB.</translation>
 <translation id="6965382102122355670">Aceptar</translation>
 <translation id="6981982820502123353">Accesibilidad</translation>
+<translation id="6984652455487792101">Si utilizas un servidor proxy, comprueba la configuración de proxy o ponte en contacto con el administrador de red para comprobar si funciona el servidor proxy. Si crees que no debes usar un servidor proxy, cambia tu <ph name="LINK_START" />configuración de proxy<ph name="LINK_END" />.</translation>
 <translation id="6996245928508281884">Activa la conexión Bluetooth y Wi-Fi de tu teléfono</translation>
 <translation id="7077829361966535409">No se ha podido cargar la página de inicio de sesión con la configuración de proxy actual. <ph name="GAIA_RELOAD_LINK_START" />Intenta iniciar sesión de nuevo<ph name="GAIA_RELOAD_LINK_END" /> o utiliza otra <ph name="PROXY_SETTINGS_LINK_START" />configuración de proxy<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="7114054701490058191">Las contraseñas no coinciden</translation>
@@ -205,6 +244,9 @@
 <translation id="7345706641791090287">Confirma tu contraseña</translation>
 <translation id="7352651011704765696">Se ha producido un problema</translation>
 <translation id="7476454130948140105">No tienes suficiente batería para instalar la actualización (<ph name="BATTERY_PERCENT" />%)</translation>
+<translation id="7504187084873714912"><ph name="BEGIN_PARAGRAPH1" />Antes de registrarte, tienes que borrar el TPM para que <ph name="DEVICE_OS" /> pueda controlar el dispositivo.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />También puedes desactivar el TPM por completo. Tus datos seguirán almacenándose de forma segura con cifrado de software, pero algunas funciones de seguridad, como los certificados respaldados por hardware, se inhabilitarán.<ph name="END_PARAGRAPH2" />
+        <ph name="BEGIN_PARAGRAPH3" />Para cambiar la configuración del TPM, puedes reiniciar el dispositivo y acceder a los ajustes de BIOS/UEFI del sistema. Los pasos varían según el modelo del dispositivo. Para consultar más información, abre la documentación de <ph name="DEVICE_OS" /> en otro dispositivo antes de reiniciar: g.co/flex/TPMHelp.<ph name="END_PARAGRAPH3" /></translation>
 <translation id="7543104066686362383">Se habilitarán las funciones de depurado en este dispositivo <ph name="IDS_SHORT_PRODUCT_NAME" /></translation>
 <translation id="7553242001898162573">Introduce tu contraseña</translation>
 <translation id="7556242789364317684">Lamentablemente, <ph name="SHORT_PRODUCT_NAME" /> no puede recuperar tu configuración. Para solucionar el error, <ph name="SHORT_PRODUCT_NAME" /> debe restablecer tu dispositivo con Powerwash.</translation>
@@ -251,6 +293,10 @@
 <translation id="8452105022015742247">Transfiriendo la información de la cuenta de Google desde tu teléfono Android</translation>
 <translation id="8524841856047224176">Personaliza el fondo de tu cámara para videollamadas y más</translation>
 <translation id="8569673829373920831">Más sobre <ph name="APP_NAME" /></translation>
+<translation id="8628232294964836490">Sigue las instrucciones de tu teléfono para escanear el código QR. Asegúrate de que tu teléfono tenga el Bluetooth activado.
+        <ph name="BR" />
+        <ph name="BR" />
+        Se mostrará a los dispositivos cercanos como <ph name="QUICK_START_DEVICE_DISPLAY_NAME" />...</translation>
 <translation id="8655972064210167941">Se ha producido un error al iniciar sesión porque no ha sido posible verificar la contraseña. Ponte en contacto con el administrador o vuelve a intentarlo.</translation>
 <translation id="8674903726754070732">Lamentablemente, tu ordenador está configurado con un identificador de hardware incorrecto. Esto impide que ChromeOS se actualice con los últimos parches de seguridad y hace que el ordenador <ph name="BEGIN_BOLD" />pueda ser vulnerable a ataques maliciosos<ph name="END_BOLD" />.</translation>
 <translation id="8695139659682234808">Añade el control parental después de la configuración</translation>
@@ -264,10 +310,20 @@
 <translation id="8830796635868321089">La búsqueda de actualizaciones no ha podido utilizar la configuración de proxy actual. Ajusta la <ph name="PROXY_SETTINGS_LINK_START" />configuración de proxy<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="885746075120788020">Encontrarás tus preferencias y tu actividad guardadas en cualquier dispositivo ChromeOS cuando inicies sesión con tu cuenta de Google. Puedes elegir qué contenido quieres sincronizar en Configuración.</translation>
 <translation id="8875221558267407626">Resume contenido, simplifica lenguaje complejo o haz preguntas</translation>
+<translation id="8913163265790894442">Configura tu <ph name="DEVICE_TYPE" /> fácilmente con tu teléfono. Puedes añadir tu red Wi-Fi y tu cuenta de Google sin tener que introducir tus contraseñas manualmente.
+        <ph name="BR" />
+        <ph name="BR" />
+        Visible como <ph name="DEVICE_TYPE" />...</translation>
 <translation id="8946359700442089734">Las funciones de depuración no se han habilitado completamente en este dispositivo <ph name="IDS_SHORT_PRODUCT_NAME" />.</translation>
 <translation id="8965037249707889821">Introducir contraseña anterior</translation>
 <translation id="8975396729541388937">Puedes cancelar la suscripción en cualquier momento haciendo clic en el enlace de los correos que recibas.</translation>
 <translation id="9033765790910064284">Continuar de todos modos</translation>
 <translation id="903480517321259405">Vuelve a escribir el PIN</translation>
 <translation id="9076523132036239772">Tu dirección de correo electrónico y tu contraseña no se han podido verificar. Intenta conectarte primero a una red.</translation>
+<translation id="9217002308921247002"><ph name="BEGIN_PARAGRAPH1" />Solo disponible en <ph name="DEVICE_TYPE" />.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />La IA generativa es experimental, se encuentra en sus primeras fases de desarrollo y, por el momento, tiene una disponibilidad limitada.<ph name="END_PARAGRAPH2" /></translation>
+<translation id="936479314588646618">Configura tu <ph name="DEVICE_TYPE" /> fácilmente con tu teléfono. Puedes añadir tu cuenta de Google sin tener que introducir tu contraseña manualmente.
+        <ph name="BR" />
+        <ph name="BR" />
+        Visible como <ph name="DEVICE_TYPE" />...</translation>
 </translationbundle>

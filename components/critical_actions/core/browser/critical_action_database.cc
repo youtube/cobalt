@@ -137,7 +137,7 @@ bool CriticalActionDatabase::AddCriticalAction(
 }
 
 std::optional<CriticalActionEntry> CriticalActionDatabase::GetCriticalAction(
-    const std::string& critical_action_id) {
+    std::string_view critical_action_id) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   sql::Statement statement(db_.GetCachedStatement(
@@ -166,7 +166,7 @@ std::optional<CriticalActionEntry> CriticalActionDatabase::GetCriticalAction(
 }
 
 bool CriticalActionDatabase::DeleteCriticalAction(
-    const std::string& critical_action_id) {
+    std::string_view critical_action_id) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   sql::Statement statement(db_.GetCachedStatement(

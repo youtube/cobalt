@@ -129,6 +129,7 @@ import java.util.function.Supplier;
     private final Runnable mClearUrlBarTextRunnable;
     private final Supplier<String> mUrlBarTextSupplier;
     private final boolean mIsDesktopPlatform;
+    private final SettableNonNullObservableSupplier<Boolean> mHasAttachmentsSupplier;
 
     private boolean mIsTextWrapping;
     private boolean mHasContextualTasksFocus;
@@ -173,7 +174,8 @@ import java.util.function.Supplier;
             SettableNonNullObservableSupplier<Boolean> activationChipVisibilitySupplier,
             Runnable onActivationChipClickedWithQuery,
             Runnable clearUrlBarTextRunnable,
-            Supplier<String> urlBarTextSupplier) {
+            Supplier<String> urlBarTextSupplier,
+            SettableNonNullObservableSupplier<Boolean> hasAttachmentsSupplier) {
         mContext = context;
         mWindowAndroid = windowAndroid;
         mPermissionDelegate = windowAndroid;
@@ -197,6 +199,7 @@ import java.util.function.Supplier;
         // has uncommitted text, and use that instead.
         mUrlBarTextSupplier = urlBarTextSupplier;
         mIsDesktopPlatform = OmniboxCapabilities.isDesktopPlatform();
+        mHasAttachmentsSupplier = hasAttachmentsSupplier;
 
         // Create the upload failed snackbar.
         mAttachmentUploadFailedSnackbar =
@@ -320,10 +323,11 @@ import java.util.function.Supplier;
             mModelList.addObserver(mListObserver);
             onAttachmentsChanged();
         } else {
-            // need a safe fallback.
+            // Need a safe fallback.
             mViewHolder.attachmentsView.setAdapter(null);
             mModel.set(FuseboxProperties.ADAPTER, null);
             mModel.set(FuseboxProperties.ATTACHMENTS_VISIBLE, false);
+            mHasAttachmentsSupplier.set(false);
         }
     }
 
@@ -771,7 +775,9 @@ import java.util.function.Supplier;
     private void onAttachmentsChanged() {
         if (!isInInputSession()) return;
         updateFuseboxState();
-        mModel.set(FuseboxProperties.ATTACHMENTS_VISIBLE, !mModelList.isEmpty());
+        boolean hasAttachments = !mModelList.isEmpty();
+        mModel.set(FuseboxProperties.ATTACHMENTS_VISIBLE, hasAttachments);
+        mHasAttachmentsSupplier.set(hasAttachments);
         if (!OmniboxFeatures.sShowModelPicker.getValue()) {
             updateClientControlledToolButtonList();
             updatePopupButtonEnabledStates();
@@ -1076,8 +1082,7 @@ import java.util.function.Supplier;
         assert !OmniboxFeatures.sShowModelPicker.getValue();
         if (!isInInputSession()) return;
         List<PopupButtonData> toolButtons = new ArrayList<>();
-
-        if (!OmniboxCapabilities.isDesktopPlatform()) {
+        if (!mIsDesktopPlatform) {
             toolButtons.add(createAiModeToolButtonData());
         }
 

@@ -36,6 +36,8 @@ const CGFloat kMostVisitedBottomMargin = 13;
 
 const CGFloat kMagicStackFaviconWidth = 28;
 
+const NSUInteger kContentSuggestionsMostVisitedTilesMax = 8;
+
 ContentSuggestionsModuleType SetUpListModuleTypeForSetUpListType(
     SetUpListItemType type) {
   switch (type) {

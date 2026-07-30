@@ -18,8 +18,10 @@
 #include "base/strings/strcat.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
+#include "chrome/browser/android/preferences/autofill/settings_navigation_helper.h"
 #include "chrome/browser/autofill/personal_data_manager_factory.h"
 #include "chrome/browser/autofill/ui/ui_util.h"
+#include "chrome/browser/flags/android/chrome_feature_list.h"
 #include "chrome/browser/keyboard_accessory/android/manual_filling_controller.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/autofill/at_memory_suggestion_controller.h"
@@ -32,6 +34,7 @@
 #include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
 #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
+#include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
 #include "components/autofill/core/browser/filling/filling_product.h"
 #include "components/autofill/core/browser/suggestions/suggestion_hiding_reason.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
@@ -714,6 +717,41 @@ bool AutofillKeyboardAccessoryControllerImpl::GetRemovalConfirmationText(
   }
 
   return false;
+}
+
+void AutofillKeyboardAccessoryControllerImpl::OpenSettingsForEntityType(
+    int32_t entity_type) {
+  if (!web_contents_) {
+    return;
+  }
+  if (!base::FeatureList::IsEnabled(
+          chrome::android::kYourSavedInfoSettingsPageAndroid)) {
+    ShowAutofillProfileSettings(web_contents_.get());
+    return;
+  }
+  std::optional<EntityTypeName> safe_type = ToSafeEntityTypeName(entity_type);
+  if (!safe_type) {
+    return;
+  }
+  switch (*safe_type) {
+    case EntityTypeName::kPassport:
+    case EntityTypeName::kDriversLicense:
+    case EntityTypeName::kNationalIdCard:
+      ShowAutofillIdentityDocsSettings(web_contents_.get());
+      break;
+    case EntityTypeName::kFlightReservation:
+    case EntityTypeName::kKnownTravelerNumber:
+    case EntityTypeName::kRedressNumber:
+    case EntityTypeName::kVehicle:
+      ShowAutofillTravelSettings(web_contents_.get());
+      break;
+    case EntityTypeName::kOrder:
+    case EntityTypeName::kShipment:
+      ShowAutofillShoppingSettings(web_contents_.get());
+      break;
+    default:
+      break;
+  }
 }
 
 void AutofillKeyboardAccessoryControllerImpl::

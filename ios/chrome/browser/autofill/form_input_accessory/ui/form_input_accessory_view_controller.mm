@@ -76,7 +76,10 @@ void LogManualFallbackEntryThroughExpandIcon(ManualFillDataType data_type,
           "ManualFallback.VisibleSuggestions.ExpandIcon.OpenAddresses",
           suggestion_count);
       break;
-    case manual_fill::ManualFillDataType::kOther:
+    case ManualFillDataType::kAtMemory:
+      // TODO(crbug.com/522326512): Support kAtMemory.
+      NOTREACHED();
+    case ManualFillDataType::kOther:
       // The expand icon should only be available if the mapped `data_type` is
       // either associated with passwords, payment methods or addresses.
       NOTREACHED();
@@ -137,6 +140,7 @@ void LogManualFallbackEntryThroughExpandIcon(ManualFillDataType data_type,
 @synthesize creditCardButtonHidden = _creditCardButtonHidden;
 @synthesize navigationDelegate = _navigationDelegate;
 @synthesize passwordButtonHidden = _passwordButtonHidden;
+@synthesize atMemoryButtonHidden = _atMemoryButtonHidden;
 @synthesize mainFillingProduct = _mainFillingProduct;
 @synthesize currentFieldId = _currentFieldId;
 
@@ -272,6 +276,12 @@ void LogManualFallbackEntryThroughExpandIcon(ManualFillDataType data_type,
                     forDataType:ManualFillDataType::kAddress];
 }
 
+- (void)atMemoryManualFillButtonPressed:(UIButton*)button {
+  base::RecordAction(base::UserMetricsAction("ManualFallback_OpenAtMemory"));
+  [self manualFillButtonPressed:button
+                    forDataType:ManualFillDataType::kAtMemory];
+}
+
 - (void)newOmniboxPositionIsBottom:(BOOL)isBottomOmnibox {
   _isBottomOmnibox = isBottomOmnibox;
   [self updateOmniboxTypingShieldVisibility];
@@ -310,7 +320,7 @@ void LogManualFallbackEntryThroughExpandIcon(ManualFillDataType data_type,
 
 - (BOOL)isFormAccessoryVisible {
   return !(self.addressButtonHidden && self.creditCardButtonHidden &&
-           self.passwordButtonHidden &&
+           self.passwordButtonHidden && self.atMemoryButtonHidden &&
            self.formSuggestionView.suggestions.count == 0);
 }
 
@@ -330,6 +340,13 @@ void LogManualFallbackEntryThroughExpandIcon(ManualFillDataType data_type,
 
 - (void)setCreditCardButtonHidden:(BOOL)creditCardButtonHidden {
   _creditCardButtonHidden = creditCardButtonHidden;
+  self.brandingViewController.keyboardAccessoryVisible =
+      self.formAccessoryVisible;
+}
+
+- (void)setAtMemoryButtonHidden:(BOOL)atMemoryButtonHidden {
+  _atMemoryButtonHidden = atMemoryButtonHidden;
+  self.formInputAccessoryView.atMemoryButtonHidden = atMemoryButtonHidden;
   self.brandingViewController.keyboardAccessoryVisible =
       self.formAccessoryVisible;
 }
@@ -413,6 +430,10 @@ UIImage* GetManualFillSymbol() {
   UIImage* closeButtonSymbol =
       DefaultSymbolWithPointSize(kKeyboardDownSymbol, kSymbolActionPointSize);
 
+  // TODO(crbug.com/522326512): Verify this parameter.
+  UIImage* atMemorySymbol = CustomSymbolWithPointSize(
+      kMagnifyingglassSparkSymbol, kSymbolActionPointSize);
+
   [formInputAccessoryView
             setUpWithLeadingView:self.leadingView
               navigationDelegate:self.navigationDelegate
@@ -423,6 +444,7 @@ UIImage* GetManualFillSymbol() {
                                      kCreditCardSymbol, kSymbolActionPointSize)
          addressManualFillSymbol:CustomSymbolWithPointSize(
                                      kLocationSymbol, kSymbolActionPointSize)
+        atMemoryManualFillSymbol:atMemorySymbol
                closeButtonSymbol:closeButtonSymbol
               isTabletFormFactor:isTabletFormFactor];
   [formInputAccessoryView setIsCompact:[self isCompact]];
@@ -448,6 +470,7 @@ UIImage* GetManualFillSymbol() {
   formInputAccessoryView.passThroughTouchesEnabled =
       base::FeatureList::IsEnabled(kFormInputAccessoryPassThroughTouches);
 
+  formInputAccessoryView.atMemoryButtonHidden = _atMemoryButtonHidden;
   self.formInputAccessoryView = formInputAccessoryView;
 }
 

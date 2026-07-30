@@ -58,6 +58,7 @@
 #include "components/omnibox/browser/autocomplete_provider.h"
 #include "components/omnibox/browser/autocomplete_provider_client.h"
 #include "components/omnibox/browser/autocomplete_result.h"
+#include "components/omnibox/browser/geolocation_header_service.h"
 #include "components/omnibox/browser/history_fuzzy_provider.h"
 #include "components/omnibox/browser/keyword_provider.h"
 #include "components/omnibox/browser/lens_suggest_inputs_utils.h"
@@ -174,7 +175,6 @@ void AutocompleteControllerAndroid::Start(
     ::metrics::OmniboxEventProto::PageClassification page_classification,
     ::omnibox::ToolMode tool_mode,
     bool prevent_inline_autocomplete,
-    bool prefer_keyword,
     bool in_keyword_mode,
     bool allow_exact_keyword_match,
     bool want_asynchronous_matches) {
@@ -191,8 +191,7 @@ void AutocompleteControllerAndroid::Start(
                              ChromeAutocompleteSchemeClassifier(profile_));
   input_.set_current_url(current_url);
   input_.set_prevent_inline_autocomplete(prevent_inline_autocomplete);
-  input_.set_prefer_keyword(prefer_keyword);
-  input_.set_in_keyword_mode(prefer_keyword || in_keyword_mode);
+  input_.set_in_keyword_mode(in_keyword_mode);
   input_.set_allow_exact_keyword_match(allow_exact_keyword_match);
   input_.set_omit_asynchronous_matches(!want_asynchronous_matches);
 
@@ -238,7 +237,7 @@ ScopedJavaLocalRef<jobject> AutocompleteControllerAndroid::Classify(
 
   inside_synchronous_start_ = true;
   Start(env, nullptr, text, -1, "", GURL(), ::metrics::OmniboxEventProto::OTHER,
-        omnibox::TOOL_MODE_UNSPECIFIED, false, false, false, false, false);
+        omnibox::TOOL_MODE_UNSPECIFIED, false, false, false, false);
   inside_synchronous_start_ = false;
   DCHECK(autocomplete_controller_->done());
   AutocompleteResult& result =
@@ -468,6 +467,11 @@ void AutocompleteControllerAndroid::OnSuggestionSelected(
         "OnSuggestionSelected.AutocompleteActionPredictor.OnOmniboxOpenedUrl");
     predictors::AutocompleteActionPredictorFactory::GetForProfile(profile_)
         ->OnOmniboxOpenedUrl(log);
+  }
+  if (auto* geolocation_header_service =
+          autocomplete_controller_->autocomplete_provider_client()
+              ->GetGeolocationHeaderService()) {
+    geolocation_header_service->RecordInlineLocationSuggestionClicked(match);
   }
 }
 

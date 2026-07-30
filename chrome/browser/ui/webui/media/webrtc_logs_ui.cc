@@ -417,6 +417,10 @@ base::Value WebRtcLogsDOMHandler::FromNotUploadedLog(
   log.Set("capture_time",
           base::TimeFormatFriendlyDateAndTime(info.capture_time));
   log.Set("local_id", info.local_id);
+  if (info.local_id.find("_local") != std::string::npos) {
+    log.Set("local_file",
+            event_log_dir_.AppendASCII(info.local_id).AsUTF8Unsafe());
+  }
   return base::Value(std::move(log));
 }
 

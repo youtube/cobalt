@@ -50,6 +50,10 @@ def main(argv):
       "--input-public",
       metavar="FILE",
       help=("Input disabled tests file for public builders only."))
+  parser.add_argument("-f",
+                      "--flaky-input",
+                      metavar="FILE",
+                      help=("Input flaky tests file."))
 
   args, extras = parser.parse_known_args(argv[1:])
 
@@ -57,6 +61,7 @@ def main(argv):
   tmpl_file = args.template
   in_file = args.input
   in_public_file = args.input_public
+  flaky_in_file = args.flaky_input
 
   with open(out_file, 'w') as out, open(tmpl_file, 'r') as tmpl:
     for line in tmpl:
@@ -67,6 +72,10 @@ def main(argv):
       if line.strip() == 'TAST_CONTROL_DISABLED_TESTS_PUBLIC_BUILDERS':
         with open(in_public_file, 'r') as data:
           PopulateData(out, data, indent=4)
+          continue
+      if line.strip() == 'TAST_CONTROL_FLAKY_TESTS':
+        with open(flaky_in_file, 'r') as data:
+          PopulateData(out, data)
           continue
       out.write(line)
 

@@ -57,6 +57,7 @@
 #include "third_party/blink/renderer/core/html/custom/ce_reactions_scope.h"
 #include "third_party/blink/renderer/core/html/custom/custom_element_registry.h"
 #include "third_party/blink/renderer/core/html/html_html_element.h"
+#include "third_party/blink/renderer/core/html/html_iframe_element.h"
 #include "third_party/blink/renderer/core/html/html_template_element.h"
 #include "third_party/blink/renderer/core/html/parser/html_construction_site.h"
 #include "third_party/blink/renderer/core/html/parser/html_entity_parser.h"
@@ -121,14 +122,38 @@ static inline AtomicString ToAtomicString(const xmlChar* string) {
 
 static inline bool HasNoStyleInformation(Document* document) {
   if (document->SawElementsInKnownNamespaces() ||
-      DocumentXSLT::HasTransformSourceDocument(*document))
+      DocumentXSLT::HasTransformSourceDocument(*document)) {
     return false;
+  }
 
   if (!document->GetFrame() || !document->GetFrame()->GetPage())
     return false;
 
-  if (!document->IsInMainFrame() || document->GetFrame()->IsInFencedFrameTree())
+  if (document->GetFrame()->IsInFencedFrameTree()) {
     return false;  // This document has style information from a parent.
+  }
+
+  if (!document->IsInMainFrame()) {
+    if (!RuntimeEnabledFeatures::XMLViewerForIframesEnabled()) {
+      return false;
+    }
+    auto* owner = document->GetFrame()->DeprecatedLocalOwner();
+    if (!owner || !IsA<HTMLIFrameElement>(*owner)) {
+      return false;
+    }
+
+    // Script-created blob XML documents can be embedded in iframes as
+    // ordinary content. Do not replace them with the XML tree viewer.
+    if (document->Url().ProtocolIs("blob")) {
+      return false;
+    }
+
+    // SVG documents have their own rendering path and should not use the XML
+    // tree viewer.
+    if (document->contentType() == "image/svg+xml") {
+      return false;
+    }
+  }
 
   if (SVGImage::IsInSVGImage(document))
     return false;
@@ -1746,7 +1771,9 @@ void XMLDocumentParser::DoEnd() {
                          HasNoStyleInformation(GetDocument());
   if (xml_viewer_mode) {
     GetDocument()->SetIsViewSource(true);
-    TransformDocumentToXMLTreeView(*GetDocument());
+    TransformDocumentToXMLTreeView(
+        *GetDocument(),
+        /*preserve_document_element=*/!GetDocument()->IsInMainFrame());
   } else if (saw_xsl_transform_) {
     xmlDocPtr doc = XmlDocPtrForString(
         GetDocument(), original_source_for_transform_.ToString(),

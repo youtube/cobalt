@@ -92,8 +92,11 @@ class TouchToFillPaymentMethodControllerImpl
   bool ShowBnplIssuerTos(payments::BnplTosModel bnpl_tos_model,
                          base::OnceClosure accept_callback,
                          base::OnceClosure cancel_callback) override;
-  void Hide() override;
   void SetVisible(bool visible) override;
+
+  // TouchToFillControllerBase:
+  content::WebContents* GetWebContents() override;
+  void Hide() override;
 
   // ContentAutofillDriverFactory::Observer:
   void OnContentAutofillDriverFactoryDestroyed(
@@ -129,17 +132,11 @@ class TouchToFillPaymentMethodControllerImpl
   }
 
  private:
-  bool InitHideHelper(TouchToFillPaymentMethodDelegate& delegate);
-
-  // The controller must ignore user actions if the associated WebContents is
-  // not active anymore. This is to handle race conditions between, for example,
-  // a new tab being opened and TTF being shown.
-  bool IsActiveWebContents();
-
   content::WebContents* web_contents();
 
   // Observes creation of ContentAutofillDrivers to inject a
-  // TouchToFillDelegateAndroidImpl into the BrowserAutofillManager.
+  // TouchToFillPaymentMethodDelegateAndroidImpl into the
+  // BrowserAutofillManager.
   base::ScopedObservation<ContentAutofillDriverFactory,
                           ContentAutofillDriverFactory::Observer>
       driver_factory_observation_{this};
@@ -153,8 +150,6 @@ class TouchToFillPaymentMethodControllerImpl
   // AutofillManager::Observer::On{Before,After}AskForValuesToFill() events if
   // TTF may be shown.
   TouchToFillKeyboardSuppressor keyboard_suppressor_;
-  // Hides TTF when a relevant frame is destroyed or navigated.
-  std::optional<AutofillPopupHideHelper> hide_helper_;
 };
 
 }  // namespace autofill

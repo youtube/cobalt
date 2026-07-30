@@ -25,6 +25,12 @@
 // Subclasses must override to provide the items to the consumer.
 - (void)pushItemsToConsumer:(NSArray<TableViewItem*>*)items;
 
+// Called when observed preferences change.
+- (void)updateConsumerToggleState;
+
+// Returns whether Autofill AI is disabled by enterprise policy.
+- (BOOL)isAutofillAiDisabledByEnterprisePolicy;
+
 @end
 
 #endif  // IOS_CHROME_BROWSER_SETTINGS_AUTOFILL_AUTOFILL_AND_PASSWORDS_COORDINATOR_AUTOFILL_AI_BASE_MEDIATOR_PROTECTED_H_

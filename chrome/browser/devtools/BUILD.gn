@@ -5,6 +5,7 @@
 import("//content/browser/devtools/features.gni")
 import("//extensions/buildflags/buildflags.gni")
 import("//printing/buildflags/buildflags.gni")
+import("//third_party/blink/public/public_features.gni")
 
 if (enable_devtools_frontend) {
   import("//chrome/common/features.gni")
@@ -486,6 +487,8 @@ static_library("test_support") {
       "//chrome/browser",
       "//chrome/browser:browser_features",
       "//chrome/browser/ui",
+      "//chrome/test:test_support",
+      "//components/policy/core/common:test_support",
       "//content/public/browser",
       "//content/test:test_support",
     ]
@@ -493,6 +496,8 @@ static_library("test_support") {
     sources += [
       "devtools_window_testing.cc",
       "devtools_window_testing.h",
+      "protocol/devtools_protocol_test_support.cc",
+      "protocol/devtools_protocol_test_support.h",
     ]
   }
 
@@ -513,5 +518,202 @@ static_library("test_support") {
     ]
 
     defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+  }
+}
+
+source_set("unit_tests") {
+  testonly = true
+
+  sources = []
+
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+
+  deps = [
+    ":devtools",
+    ":test_support",
+    "//base",
+    "//chrome/browser/file_system_access",
+    "//chrome/browser/sync",
+    "//chrome/test:test_support",
+    "//content/test:test_support",
+    "//testing/gtest",
+  ]
+
+  if (enable_devtools_frontend) {
+    sources += [
+      "aida_client_unittest.cc",
+      "devtools_file_helper_unittest.cc",
+      "devtools_file_system_indexer_unittest.cc",
+      "devtools_file_watcher_unittest.cc",
+      "devtools_http_service_handler_unittest.cc",
+      "devtools_select_file_dialog_unittest.cc",
+      "devtools_settings_unittest.cc",
+      "devtools_ui_bindings_unittest.cc",
+    ]
+
+    if (!is_android) {
+      sources += [
+        "devtools_navigation_gating_rule_manager_unittest.cc",
+        "remote_debugging_server_unittest.cc",
+      ]
+    }
+  }
+
+  if (!is_android) {
+    sources += [
+      "device/android_device_manager_unittest.cc",
+      "device/devtools_device_discovery_unittest.cc",
+      "device/usb/android_rsa_unittest.cc",
+      "devtools_availability_checker_unittest.cc",
+      "protocol/cast_handler_unittest.cc",
+      "serialize_host_descriptions_unittest.cc",
+    ]
+
+    deps += [
+      "//chrome/browser/media/router",
+      "//chrome/browser/web_applications:web_applications_test_support",
+      "//components/media_router/browser",
+      "//components/media_router/browser:test_support",
+      "//components/media_router/common:test_support",
+      "//crypto:test_support",
+    ]
+
+    if (enable_service_discovery) {
+      sources += [ "device/cast_device_provider_unittest.cc" ]
+    }
+  }
+}
+
+if (enable_devtools_frontend) {
+  source_set("platform_browser_tests") {
+    testonly = true
+
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+    sources = [
+      "devtools_browsertest.cc",
+      "protocol/devtools_protocol_browsertest.cc",
+      "protocol/webmcp_browsertest.cc",
+    ]
+
+    deps = [
+      ":devtools",
+      ":test_support",
+      "//base",
+      "//chrome/browser/actor:test_support",
+      "//chrome/browser/actor:tools_test_support",
+      "//chrome/browser/custom_handlers",
+      "//chrome/browser/data_saver",
+      "//chrome/browser/lifetime",
+      "//chrome/browser/prefs:util",
+      "//chrome/browser/preloading:prefs",
+      "//chrome/browser/preloading:test_support",
+      "//chrome/browser/search_engines",
+      "//chrome/browser/sync/test/integration:sync_integration_test_support",
+      "//chrome/browser/ui/autofill",
+      "//chrome/test:test_support",
+      "//components/infobars/content",
+      "//components/javascript_dialogs",
+      "//components/language/core/browser",
+      "//components/ukm:test_support",
+      "//content/test:test_support",
+      "//testing/gtest",
+      "//ui/compositor",
+    ]
+
+    if (!is_android) {
+      deps += [
+        "//chrome/browser/apps/app_service",
+        "//chrome/browser/web_applications:web_applications_test_support",
+        "//chrome/test:test_support_ui",
+      ]
+    }
+
+    if (is_android) {
+      deps += [ "//components/privacy_sandbox/privacy_sandbox_attestations" ]
+    }
+
+    if (!is_android) {
+      sources += [ "devtools_remote_server_infobar_browsertest.cc" ]
+    }
+
+    if (!is_android || enable_desktop_android_extensions) {
+      sources += [ "global_confirm_info_bar_browsertest.cc" ]
+    }
+  }
+}
+
+if (!is_android) {
+  source_set("browser_tests") {
+    testonly = true
+
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+    sources = [
+      "device/adb/adb_client_socket_browsertest.cc",
+      "device/devtools_android_bridge_browsertest.cc",
+      "device/port_forwarding_browsertest.cc",
+      "device/usb/android_usb_browsertest.cc",
+      "devtools_navigation_throttle_browsertest.cc",
+      "devtools_policy_browsertest.cc",
+      "protocol/audits_protocol_test.cc",
+      "protocol/devtools_autofill_browsertest.cc",
+      "protocol/devtools_extensions_browsertest.cc",
+      "protocol/devtools_iwa_browsertest.cc",
+      "protocol/devtools_pwa_browsertest.cc",
+      "protocol/form_devtools_issues_browsertest.cc",
+    ]
+
+    deps = [
+      ":devtools",
+      ":test_support",
+      "//base",
+      "//chrome/browser/ui/extensions",
+      "//chrome/browser/ui/side_panel",
+      "//chrome/browser/ui/side_panel:side_panel_views_dependent",
+      "//chrome/browser/web_applications:web_applications_test_support",
+      "//chrome/test:test_support",
+      "//chrome/test:test_support_ui",
+      "//content/test:browsertest_support",
+      "//content/test:test_support",
+      "//testing/gtest",
+    ]
+
+    if (enable_pdf && enable_printing && !is_chromeos) {
+      sources += [ "protocol/devtools_printtopdf_browsertest.cc" ]
+      deps += [
+        "//components/headless/test",
+        "//components/printing/browser",
+        "//pdf",
+      ]
+    }
+
+    if (enable_pdf && enable_smart_card) {
+      sources += [ "protocol/smart_card_emulation_handler_browsertest.cc" ]
+    }
+  }
+
+  if (!is_chromeos_device) {
+    source_set("interactive_ui_tests") {
+      testonly = true
+
+      defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+      sources = [
+        "devtools_connection_dialog_browsertest.cc",
+        "devtools_interactive_uitest.cc",
+      ]
+
+      deps = [
+        ":devtools",
+        ":test_support",
+        "//base",
+        "//chrome/browser/web_applications:web_applications_test_support",
+        "//chrome/test:test_support",
+        "//chrome/test:test_support_ui",
+        "//content/test:test_support",
+        "//testing/gtest",
+      ]
+    }
   }
 }

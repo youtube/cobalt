@@ -184,11 +184,11 @@ class WebSocketDeflatePredictorMock : public WebSocketDeflatePredictor {
   // Data frames which will be recorded by |RecordInputFrames|.
   // Pushed by |AddFrameToBeInput| and popped and verified by
   // |RecordInputFrames|.
-  base::circular_deque<const WebSocketFrame*> frames_to_be_input_;
+  base::circular_deque<raw_ptr<const WebSocketFrame>> frames_to_be_input_;
   // Data frames recorded by |RecordWrittenFrames|.
   // Pushed by |RecordWrittenFrames| and popped and verified by
   // |VerifySentFrame|.
-  base::circular_deque<const WebSocketFrame*> frames_written_;
+  base::circular_deque<raw_ptr<const WebSocketFrame>> frames_written_;
 };
 
 class WebSocketDeflateStreamTest : public ::testing::Test {

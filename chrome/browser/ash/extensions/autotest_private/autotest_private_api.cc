@@ -5692,11 +5692,19 @@ AutotestPrivateGetLoginEventRecorderLoginEventsFunction::Run() {
       ash::LoginEventRecorder::Get()
           ->GetCollectedLoginEventsForTesting();  // IN-TEST
   std::vector<api::autotest_private::LoginEventRecorderData> result_data;
+  // Sample both clocks once, back-to-back, so every event is mapped through
+  // the same wall-clock/TimeTicks anchor and the (sub-microsecond) skew
+  // between the two Now() reads is shared rather than re-incurred per event.
+  const base::Time wall_now = base::Time::Now();
+  const base::TimeTicks ticks_now = base::TimeTicks::Now();
   for (const auto& data : collected_data) {
     api::autotest_private::LoginEventRecorderData event_data;
     event_data.name = data.name();
+    // Map the TimeTicks event time onto wall-clock time by anchoring both
+    // clocks to the current instant.
     event_data.microsecnods_since_unix_epoch =
-        (data.time() - base::TimeTicks::UnixEpoch()).InMicroseconds();
+        (wall_now - (ticks_now - data.time()) - base::Time::UnixEpoch())
+            .InMicroseconds();
     result_data.emplace_back(std::move(event_data));
   }
 

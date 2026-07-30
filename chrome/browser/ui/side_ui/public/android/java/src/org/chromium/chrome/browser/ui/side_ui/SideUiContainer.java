@@ -12,6 +12,7 @@ import androidx.annotation.Px;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.ui.side_ui.SideUiCoordinator.AnchorSide;
 import org.chromium.chrome.browser.ui.side_ui.SideUiCoordinator.SideUiId;
+import org.chromium.chrome.browser.ui.side_ui.SideUiCoordinator.SideUiSpecs;
 
 /**
  * Container for a side UI view that will be anchored to either the left or right side of the main
@@ -97,23 +98,29 @@ public interface SideUiContainer {
     void onContainerResized(@Px int containerWidth);
 
     /**
-     * Called when a window size change affects this container's visibility.
+     * Called when this container <i>will</i> be auto-closed due to space constraints.
      *
-     * <p>For example, when the window becomes too small, we may need to hide this container. When
-     * the window becomes large enough again, the container can be re-shown.
+     * <p>Examples:
      *
-     * <p>This method won't be called if a window size change doesn't affect the container's
+     * <ul>
+     *   <li>When the window becomes too small, we may need to hide this container.
+     *   <li>When the available space is limited, showing a higher-priority container may require
+     *       closing a lower-priority container.
+     * </ul>
      *
-     * <p>TODO(https://crbug.com/478338737): Delete this API.
+     * <p>In each example above, the container will be notified by this API.
      *
-     * @deprecated New {@link SideUiContainer}s should <i>not</i> implement this API as it is only
-     *     invoked for {@link SideUiId#SIDE_PANEL}. We'll create a new API to support all {@link
-     *     SideUiContainer}s (see <a href="https://crbug.com/478338737#comment6">the tracking
-     *     bug</a>).
-     * @param canShowSideUi Whether this container <i>can</i> be shown after a window size change.
-     *     This parameter doesn't mean this container <i>must</i> be shown or hidden. The final
-     *     decision should be made by this container.
+     * <p>This method is called during a UI update flow in {@link SideUiCoordinator}, immediately
+     * before the new {@link SideUiSpecs} is applied to the UI. Implementations should use this
+     * method to preserve states needed by {@link #onWillAutoRestore()}, but <i>not</i> request
+     * another UI update via {@link SideUiCoordinator#updateUi}.
      */
-    @Deprecated
-    default void onWindowResized(boolean canShowSideUi) {}
+    default void onWillAutoClose() {}
+
+    /**
+     * Called when this container <i>will</i> be auto-restored after it's auto-closed.
+     *
+     * @see #onWillAutoClose
+     */
+    default void onWillAutoRestore() {}
 }

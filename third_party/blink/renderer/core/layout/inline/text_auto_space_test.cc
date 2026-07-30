@@ -160,6 +160,8 @@ struct HtmlData {
     {u"あ\u309BX", {2}},  // Katakana-Hiragana Voiced Sound Mark
     {u"\u8279\uFE00\u8279\uFE01X", {4}},          // VS
     {u"\u795E\U000E0100\u793E\U000E0101X", {6}},  // IVS
+    {u"<ruby>\u6F22<rt>kan</rt></ruby>\u5B57", {}},
+    {u"<ruby>\u6F22<rt>\u304B\u3093</rt></ruby>abc", {5}},
 
 };
 class HtmlTest : public TextAutoSpaceTest,

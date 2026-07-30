@@ -5,9 +5,11 @@
 #ifndef CHROME_BROWSER_GLIC_E2E_TEST_GLIC_E2E_TEST_H_
 #define CHROME_BROWSER_GLIC_E2E_TEST_GLIC_E2E_TEST_H_
 
+#include "base/scoped_observation.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/autofill/captured_sites_test_utils.h"
+#include "chrome/browser/glic/host/host.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/service/glic_instance_coordinator.h"
 #include "chrome/browser/signin/e2e_tests/live_test.h"
@@ -34,7 +36,8 @@ using captured_sites_test_utils::WebPageReplayServerWrapper;
 namespace glic::test {
 
 // Note: Requires --run-live-tests to run any of the tests.
-class GlicE2ETest : public InteractiveBrowserTestMixin<signin::test::LiveTest> {
+class GlicE2ETest : public InteractiveBrowserTestMixin<signin::test::LiveTest>,
+                    public Host::Observer {
  public:
   explicit GlicE2ETest(const std::vector<base::test::FeatureRef>&
                            additional_enabled_features = {},
@@ -58,6 +61,9 @@ class GlicE2ETest : public InteractiveBrowserTestMixin<signin::test::LiveTest> {
   void TearDownOnMainThread() override;
 
   void PreRunTestOnMainThread() override;
+
+  // Host::Observer implementation:
+  void WebUiStateChanged(glic::mojom::WebUiState state) override;
 
   MultiStep WaitForAndInstrumentFre();
 
@@ -98,11 +104,18 @@ class GlicE2ETest : public InteractiveBrowserTestMixin<signin::test::LiveTest> {
     test_account_label_ = test_account_label;
   }
 
+  // Used in tests that expect Glic loading to fail with one of the error states
+  // (error pages) that are monitored by WebUiStateChanged and cause an early
+  // failure.
+  void set_expects_error(bool expects_error) { expects_error_ = expects_error; }
+
  protected:
   // Opt-in flag for using WPR for some requests in real_backend mode.
   bool use_wpr_for_real_backend_ = false;
 
  private:
+  void OnActiveInstanceChanged(GlicInstance* new_instance);
+
   base::test::ScopedFeatureList scoped_feature_list_;
   base::test::ScopedFeatureList exempt_actor_policy_control_feature_list_;
   bool enable_low_bandwidth_tests_ = false;
@@ -113,6 +126,11 @@ class GlicE2ETest : public InteractiveBrowserTestMixin<signin::test::LiveTest> {
            std::unique_ptr<content::TestDevToolsProtocolClient>>
       devtools_clients_;
   std::string test_account_label_;
+
+  bool expects_error_ = false;
+  base::CallbackListSubscription active_instance_subscription_;
+  base::ScopedObservation<Host, Host::Observer> host_observation_{this};
+  base::WeakPtrFactory<GlicE2ETest> weak_ptr_factory_{this};
 };
 
 // Observes Actor task state changes.

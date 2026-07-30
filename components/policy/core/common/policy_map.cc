@@ -474,51 +474,69 @@ void PolicyMap::MergePolicy(const std::string& policy_name,
   }
 
   Entry* policy = GetMutableUntrusted(policy_name);
-  Entry other_policy_copy = other_policy->DeepCopy();
 
   if (!policy) {
-    Set(policy_name, std::move(other_policy_copy));
+    Set(policy_name, other_policy->DeepCopy());
     return;
   }
 
+  // EntryHasHigherPriority() only examines metadata fields (level, scope,
+  // source, details), so the priority check can use the original entry
+  // without a deep copy.
 #if BUILDFLAG(IS_CHROMEOS)
   const bool other_is_higher_priority =
-      EntryHasHigherPriority(other_policy_copy, *policy);
+      EntryHasHigherPriority(*other_policy, *policy);
 #else   // BUILDFLAG(IS_CHROMEOS)
   const bool other_is_higher_priority = EntryHasHigherPriority(
-      other_policy_copy, *policy, using_default_precedence);
+      *other_policy, *policy, using_default_precedence);
 #endif  // BUILDFLAG(IS_CHROMEOS)
+
+  // Determine whether the lower-priority entry is an enterprise default being
+  // overwritten. This check also uses only metadata fields.
+  const Entry& higher_ref = other_is_higher_priority ? *other_policy : *policy;
+  const Entry& lower_ref = other_is_higher_priority ? *policy : *other_policy;
+  const bool overwriting_default_policy =
+      higher_ref.source != lower_ref.source &&
+      lower_ref.source == POLICY_SOURCE_ENTERPRISE_DEFAULT;
+
+  if (overwriting_default_policy) {
+    // No conflict recording needed. Only deep-copy if the incoming entry
+    // has higher priority and needs to replace the existing one.
+    if (other_is_higher_priority) {
+      *policy = other_policy->DeepCopy();
+    }
+    return;
+  }
+
+  // Conflict path: a deep copy is required for ownership transfer during
+  // conflict recording.
+  Entry other_policy_copy = other_policy->DeepCopy();
 
   Entry& higher_policy = other_is_higher_priority ? other_policy_copy : *policy;
   Entry& conflicting_policy =
       other_is_higher_priority ? *policy : other_policy_copy;
 
-  const bool overwriting_default_policy =
-      higher_policy.source != conflicting_policy.source &&
-      conflicting_policy.source == POLICY_SOURCE_ENTERPRISE_DEFAULT;
-  if (!overwriting_default_policy) {
-    const bool is_scope_conflict =
-        higher_policy.scope != conflicting_policy.scope;
-    bool are_values_equal =
-        (!policy->value_unsafe() && !other_policy_copy.value_unsafe()) ||
-        (policy->value_unsafe() && other_policy_copy.value_unsafe() &&
-         *policy->value_unsafe() == *other_policy_copy.value_unsafe());
-    if (higher_policy.UsesLocalStateAndProfilePrefs() && is_scope_conflict) {
-      higher_policy.AddMessage(
-          MessageType::kInfo,
-          are_values_equal ? IDS_POLICY_USES_SAME_LOCAL_STATE_AND_PROFILE_PREFS
-                           : IDS_POLICY_USES_LOCAL_STATE_AND_PROFILE_PREFS);
+  const bool is_scope_conflict =
+      higher_policy.scope != conflicting_policy.scope;
+  bool are_values_equal =
+      (!policy->value_unsafe() && !other_policy_copy.value_unsafe()) ||
+      (policy->value_unsafe() && other_policy_copy.value_unsafe() &&
+       *policy->value_unsafe() == *other_policy_copy.value_unsafe());
+  if (higher_policy.UsesLocalStateAndProfilePrefs() && is_scope_conflict) {
+    higher_policy.AddMessage(
+        MessageType::kInfo,
+        are_values_equal ? IDS_POLICY_USES_SAME_LOCAL_STATE_AND_PROFILE_PREFS
+                         : IDS_POLICY_USES_LOCAL_STATE_AND_PROFILE_PREFS);
+  } else {
+    if (are_values_equal) {
+      higher_policy.AddMessage(MessageType::kInfo,
+                               IDS_POLICY_CONFLICT_SAME_VALUE);
     } else {
-      if (are_values_equal) {
-        higher_policy.AddMessage(MessageType::kInfo,
-                                 IDS_POLICY_CONFLICT_SAME_VALUE);
-      } else {
-        higher_policy.AddMessage(MessageType::kWarning,
-                                 IDS_POLICY_CONFLICT_DIFF_VALUE);
-      }
+      higher_policy.AddMessage(MessageType::kWarning,
+                               IDS_POLICY_CONFLICT_DIFF_VALUE);
     }
-    higher_policy.AddConflictingPolicy(std::move(conflicting_policy));
   }
+  higher_policy.AddConflictingPolicy(std::move(conflicting_policy));
 
   if (other_is_higher_priority) {
     *policy = std::move(other_policy_copy);

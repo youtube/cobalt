@@ -5,7 +5,10 @@
 package org.chromium.chrome.browser.glic;
 
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.user_prefs.UserPrefs;
 
 /** Utility class for Glic related functions. */
@@ -29,5 +32,18 @@ public class GlicUtils {
      */
     public static void setButtonPinnedToTabStrip(Profile profile, boolean isPinned) {
         UserPrefs.get(profile).setBoolean(GlicPrefNames.GLIC_PINNED_TO_TABSTRIP, isPinned);
+    }
+
+    /**
+     * Determines if a tab is contextually eligible to show the Glic IPH.
+     *
+     * @param tab The current {@link Tab}.
+     * @return True if the tab is eligible for showing Glic IPH.
+     */
+    public static boolean isTabEligibleForGlicIph(@Nullable Tab tab) {
+        return tab != null
+                && GlicEnabling.isEnabledForProfile(tab.getProfile())
+                && !tab.isOffTheRecord()
+                && UrlUtilities.isHttpOrHttps(tab.getUrl());
     }
 }

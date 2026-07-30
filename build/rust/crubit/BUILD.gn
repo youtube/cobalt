@@ -19,3 +19,32 @@ group("cpp_api_from_rust_bindings_cpp_deps") {
 group("cpp_api_from_rust_bindings_rs_deps") {
   public_deps = [ "$crubit_src_dir:cpp_api_from_rust_bindings_rs_deps" ]
 }
+
+# This config is injected via `//build_overrides/crubit.gni`.
+#
+# The `_allowed_features` list below is based on
+# https://github.com/google/crubit/blob/main/docs/overview/unstable_features.md
+config("allow_unstable_features_required_by_crubit") {
+  _allowed_features = [
+    "abi_vectorcall",
+    "adt_const_params",
+    "allocator_api",
+    "allow_internal_unstable",
+    "arbitrary_self_types",
+    "auto_traits",
+    "c_variadic",
+    "cfg_accessible",
+    "cfg_sanitize",
+    "custom_inner_attributes",
+    "extern_types",
+    "impl_trait_in_assoc_type",
+    "negative_impls",
+    "never_type",
+    "proc_macro_hygiene",
+    "sized_hierarchy",
+    "stmt_expr_attributes",
+    "super_let",
+    "unsized_const_params",
+  ]
+  rustflags = [ "-Zallow-features=" + string_join(",", _allowed_features) ]
+}

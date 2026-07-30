@@ -53,6 +53,7 @@ source_set("payments") {
       "desktop_payments_window_manager.h",
       "omnibox_autofill_bubble_controller.h",
       "omnibox_autofill_page_action_controller.h",
+      "payments_churned_users_bubble_controller.h",
       "webauthn_dialog.h",
       "webauthn_dialog_controller.h",
       "webauthn_dialog_controller_impl.h",
@@ -150,6 +151,7 @@ source_set("impl") {
       "desktop_payments_window_manager.cc",
       "omnibox_autofill_bubble_controller.cc",
       "omnibox_autofill_page_action_controller.cc",
+      "payments_churned_users_bubble_controller.cc",
       "webauthn_dialog_controller_impl.cc",
       "webauthn_dialog_model.cc",
     ]
@@ -312,6 +314,7 @@ source_set("unit_tests") {
       "iban_bubble_controller_impl_unittest.cc",
       "mandatory_reauth_bubble_controller_impl_unittest.cc",
       "offer_notification_bubble_controller_impl_unittest.cc",
+      "omnibox_autofill_bubble_controller_unittest.cc",
       "omnibox_autofill_page_action_controller_unittest.cc",
       "save_card_bubble_controller_impl_unittest.cc",
     ]

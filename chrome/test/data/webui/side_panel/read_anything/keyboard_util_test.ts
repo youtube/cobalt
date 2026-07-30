@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 import 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
 
-import {getNewIndex, isActivationKey, isArrow, isBackwardArrow, isForwardArrow, isHorizontalArrow, isVerticalArrow} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
+import {getNewIndex, isActivationKey, isArrow, isBackwardArrow, isForwardArrow, isHorizontalArrow, isLineFocusShortcut, isPlayPauseShortcut, isVerticalArrow} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome-untrusted://webui-test/chai_assert.js';
 
 suite('Keyboard utils', () => {
@@ -101,6 +101,48 @@ suite('Keyboard utils', () => {
     assertFalse(isActivationKey('w'));
     assertTrue(isActivationKey('Enter'));
     assertTrue(isActivationKey(' '));
+  });
+
+  test('isLineFocusShortcut', () => {
+    // Standard 'l'
+    assertTrue(isLineFocusShortcut(new KeyboardEvent('keydown', {key: 'l'})));
+    // Uppercase 'L' (Caps Lock or Shift+L)
+    assertTrue(isLineFocusShortcut(new KeyboardEvent('keydown', {key: 'L'})));
+
+    // Modifiers should fail
+    assertFalse(isLineFocusShortcut(
+        new KeyboardEvent('keydown', {key: 'l', ctrlKey: true})));
+    assertFalse(isLineFocusShortcut(
+        new KeyboardEvent('keydown', {key: 'l', altKey: true})));
+    assertFalse(isLineFocusShortcut(
+        new KeyboardEvent('keydown', {key: 'l', metaKey: true})));
+    assertFalse(isLineFocusShortcut(
+        new KeyboardEvent('keydown', {key: 'l', shiftKey: true})));
+
+    // Other keys should fail
+    assertFalse(isLineFocusShortcut(new KeyboardEvent('keydown', {key: 'k'})));
+    assertFalse(isLineFocusShortcut(new KeyboardEvent('keydown', {key: 'a'})));
+  });
+
+  test('isPlayPauseShortcut', () => {
+    // Standard 'k'
+    assertTrue(isPlayPauseShortcut(new KeyboardEvent('keydown', {key: 'k'})));
+    // Uppercase 'K' (Caps Lock or Shift+K)
+    assertTrue(isPlayPauseShortcut(new KeyboardEvent('keydown', {key: 'K'})));
+
+    // Modifiers should fail
+    assertFalse(isPlayPauseShortcut(
+        new KeyboardEvent('keydown', {key: 'k', ctrlKey: true})));
+    assertFalse(isPlayPauseShortcut(
+        new KeyboardEvent('keydown', {key: 'k', altKey: true})));
+    assertFalse(isPlayPauseShortcut(
+        new KeyboardEvent('keydown', {key: 'k', metaKey: true})));
+    assertFalse(isPlayPauseShortcut(
+        new KeyboardEvent('keydown', {key: 'k', shiftKey: true})));
+
+    // Other keys should fail
+    assertFalse(isPlayPauseShortcut(new KeyboardEvent('keydown', {key: 'l'})));
+    assertFalse(isPlayPauseShortcut(new KeyboardEvent('keydown', {key: 'a'})));
   });
 
   suite('getNewIndex', () => {

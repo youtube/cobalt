@@ -76,6 +76,7 @@ CSSSelector::RelationType GetImplicitCombinatorForMatching(
     case CSSSelector::PseudoType::kPseudoFileSelectorButton:
     case CSSSelector::PseudoType::kPseudoPicker:
     case CSSSelector::PseudoType::kPseudoPermissionIcon:
+    case CSSSelector::PseudoType::kPseudoSelectListbox:
       return CSSSelector::RelationType::kUAShadow;
     case CSSSelector::PseudoType::kPseudoPart:
       return CSSSelector::RelationType::kShadowPart;

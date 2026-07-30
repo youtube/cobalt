@@ -39,6 +39,12 @@ AndroidBnplStrategy::GetBeforeViewSwitchAction() {
   return BeforeSwitchingViewAction::kDoNothing;
 }
 
+BnplStrategy::BnplAiBasedAmountExtractionReturnedNextAction
+AndroidBnplStrategy::GetNextActionOnAiBasedAmountExtractionReturned() {
+  return BnplAiBasedAmountExtractionReturnedNextAction::
+      kSwitchToIssuerSelectionScreenOnAndroid;
+}
+
 bool AndroidBnplStrategy::ShouldRemoveExistingUiOnServerReturn(
     PaymentsAutofillClient::PaymentsRpcResult result) {
   return result == PaymentsAutofillClient::PaymentsRpcResult::kSuccess;

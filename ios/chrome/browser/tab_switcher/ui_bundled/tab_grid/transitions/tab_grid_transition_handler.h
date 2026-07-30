@@ -11,6 +11,7 @@
 
 #import "base/ios/block_types.h"
 
+@protocol TabGridCommands;
 @protocol TabGridTransitionContextProvider;
 
 // TabGrid transitions directions available.
@@ -32,6 +33,7 @@ struct TabGridTransitionHandlerInitParams {
   UIViewController* parent_view_controller;
   // The view associated with the AppContent named guide.
   UIView* app_content_view;
+  id<TabGridCommands> handler;
 
   TabGridTransitionHandlerInitParams(
       TabGridTransitionDirection direction,
@@ -39,12 +41,14 @@ struct TabGridTransitionHandlerInitParams {
           browser_layout_view_controller,
       UIViewController* tab_grid_view_controller,
       UIViewController* parent_view_controller,
-      UIView* app_content_view)
+      UIView* app_content_view,
+      id<TabGridCommands> handler)
       : direction(direction),
         browser_layout_view_controller(browser_layout_view_controller),
         tab_grid_view_controller(tab_grid_view_controller),
         parent_view_controller(parent_view_controller),
-        app_content_view(app_content_view) {}
+        app_content_view(app_content_view),
+        handler(handler) {}
 
   TabGridTransitionHandlerInitParams() = delete;
 };

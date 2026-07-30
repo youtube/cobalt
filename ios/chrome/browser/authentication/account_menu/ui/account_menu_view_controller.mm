@@ -34,6 +34,7 @@
 #import "ios/chrome/common/ui/table_view/table_view_cells_constants.h"
 #import "ios/chrome/common/ui/util/image_util.h"
 #import "ios/chrome/grit/ios_strings.h"
+#import "ui/base/device_form_factor.h"
 #import "ui/base/l10n/l10n_util.h"
 
 namespace {
@@ -320,8 +321,7 @@ NSString* const kCustomExpandedDetentIdentifier = @"customExpandedDetent";
 
 // Decides if the Close button should be shown.
 - (BOOL)shouldShowCloseButton {
-  UIUserInterfaceIdiom idiom = [[UIDevice currentDevice] userInterfaceIdiom];
-  return idiom == UIUserInterfaceIdiomPhone ||
+  return ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_PHONE ||
          self.presentingViewController.traitCollection.horizontalSizeClass ==
              UIUserInterfaceSizeClassCompact;
 }

@@ -9,9 +9,9 @@
 #include "content/public/test/browser_test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-// TODO(crbug.com/40167066): Investigate why different macOS versions have
-// different fingerprints.
-#if BUILDFLAG(IS_MAC)
+// TODO(crbug.com/40167066): Investigate why different macOS and Android
+// versions have different fingerprints.
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID)
 #define MAYBE_VerifyDynamicsCompressorFingerprint \
   DISABLED_VerifyDynamicsCompressorFingerprint
 #else

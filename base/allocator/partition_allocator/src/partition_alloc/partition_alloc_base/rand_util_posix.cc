@@ -21,9 +21,9 @@
 #include "partition_alloc/partition_alloc_base/posix/eintr_wrapper.h"
 
 #if PA_BUILDFLAG(IS_MAC)
-// TODO(crbug.com/40641285): Waiting for this header to appear in the iOS SDK.
-// (See below.)
 #include <sys/random.h>
+#elif PA_BUILDFLAG(IS_IOS)
+#include <CommonCrypto/CommonRandom.h>
 #endif
 
 namespace {
@@ -97,9 +97,11 @@ void RandBytes(void* output, size_t output_length) {
     return;
   }
 #elif PA_BUILDFLAG(IS_MAC)
-  // TODO(crbug.com/40641285): Enable this on iOS too, when sys/random.h arrives
-  // in its SDK.
   if (getentropy(output, output_length) == 0) {
+    return;
+  }
+#elif PA_BUILDFLAG(IS_IOS)
+  if (CCRandomGenerateBytes(output, output_length) == kCCSuccess) {
     return;
   }
 #endif

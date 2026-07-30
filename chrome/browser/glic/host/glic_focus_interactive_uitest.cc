@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/test/bind.h"
+#include "chrome/browser/glic/public/glic_invoke_options.h"
 #include "chrome/browser/glic/test_support/glic_api_test.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
@@ -24,6 +25,18 @@ class GlicFocusInteractiveTest : public InteractiveGlicApiTest {
 // page does not receive focus on opening the side panel.
 IN_PROC_BROWSER_TEST_F(GlicFocusInteractiveTest, testFocusOnSidePanelOpen) {
   RunTestSequence(OpenGlic());
+  ExecuteJsTest();
+}
+
+IN_PROC_BROWSER_TEST_F(GlicFocusInteractiveTest, testFocusOnInvoke) {
+  RunTestSequence(
+      Do(base::BindLambdaForTesting([&]() {
+        glic::GlicInvokeOptions options(
+            glic::Target(*browser()->tab_strip_model()->GetActiveTab()),
+            glic::mojom::InvocationSource::kAutofill);
+        GetService()->Invoke(std::move(options));
+      })),
+      WaitForAndInstrumentGlic(GlicInstrumentMode::kHostAndContents));
   ExecuteJsTest();
 }
 

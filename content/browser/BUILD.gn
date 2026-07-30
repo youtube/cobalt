@@ -64,10 +64,15 @@ rust_static_library("child_process_security_policy_impl") {
   visibility = [ ":browser" ]
   configs += [ "//content:content_implementation" ]
   deps = [
+    "//base:feature",
     "//storage/common:storage_common_rust",
+    "//third_party/blink/public/common",
     "//third_party/rust/cxx/v1:lib",
     "//url:url_rust",
   ]
+  if (is_component_build) {
+    rustflags = [ "--cfg=component_build" ]
+  }
 }
 
 if (is_ios) {
@@ -873,6 +878,8 @@ source_set("browser") {
     "declarative_performance_observer/declarative_performance_observer.h",
     "declarative_performance_observer/declarative_performance_observer_coordinator.cc",
     "declarative_performance_observer/declarative_performance_observer_coordinator.h",
+    "declarative_performance_observer/declarative_performance_observer_store.cc",
+    "declarative_performance_observer/declarative_performance_observer_store.h",
     "device/device_service.cc",
     "device_posture/device_posture_platform_provider.cc",
     "device_posture/device_posture_platform_provider.h",
@@ -1580,6 +1587,8 @@ source_set("browser") {
     "notifications/platform_notification_service_proxy.h",
     "origin_agent_cluster_isolation_state.cc",
     "origin_agent_cluster_isolation_state.h",
+    "origin_agent_cluster_isolation_state_bridge.cc",
+    "origin_agent_cluster_isolation_state_bridge.h",
     "origin_trials/critical_origin_trials_throttle.cc",
     "origin_trials/critical_origin_trials_throttle.h",
     "origin_trials/origin_trials_utils.cc",
@@ -3919,10 +3928,4 @@ fuzzer_test("content_sms_parser_fuzzer") {
     "//content/public/browser:browser_sources",
     "//content/public/renderer:renderer_sources",
   ]
-}
-
-fuzzer_test("clear_site_data_handler_fuzzer") {
-  sources = [ "browsing_data/clear_site_data_handler_fuzzer.cc" ]
-  deps = [ "//content/test:test_support" ]
-  seed_corpus = "//content/test/data/fuzzer_corpus/clear_site_data/"
 }

@@ -446,14 +446,14 @@ void OptimizationGuideKeyedService::AddObserverForOptimizationTargetModel(
     const std::optional<optimization_guide::proto::Any>& model_metadata,
     scoped_refptr<base::SequencedTaskRunner> model_task_runner,
     optimization_guide::OptimizationTargetModelObserver* observer) {
-  GetPredictionManager()->AddObserverForOptimizationTargetModel(
+  GetGlobalState().model_provider().AddObserverForOptimizationTargetModel(
       optimization_target, model_metadata, model_task_runner, observer);
 }
 
 void OptimizationGuideKeyedService::RemoveObserverForOptimizationTargetModel(
     optimization_guide::proto::OptimizationTarget optimization_target,
     optimization_guide::OptimizationTargetModelObserver* observer) {
-  GetPredictionManager()->RemoveObserverForOptimizationTargetModel(
+  GetGlobalState().model_provider().RemoveObserverForOptimizationTargetModel(
       optimization_target, observer);
 }
 

@@ -448,14 +448,14 @@ TEST_F(AVCConversionTest, InvalidAnnexBConstructs) {
       // For these cases, lack of conformance is determined before detecting any
       // IDR or non-IDR slices, so the non-conformant frames' keyframe analysis
       // reports std::nullopt (which means undetermined analysis result).
-      {"AUD", std::nullopt},            // No VCL present.
-      {"AUD,SEI", std::nullopt},        // No VCL present.
-      {"SPS PPS", std::nullopt},        // No VCL present.
-      {"SPS PPS AUD I", std::nullopt},  // Parameter sets must come after AUD.
-      {"SPSExt SPS P", std::nullopt},   // SPS must come before SPSExt.
-      {"SPS PPS SPSExt P", std::nullopt},  // SPSExt must follow an SPS.
-      {"EOSeq", std::nullopt},             // EOSeq must come after a VCL.
-      {"EOStr", std::nullopt},             // EOStr must come after a VCL.
+      {"AUD", std::nullopt},        // No VCL present.
+      {"AUD,SEI", std::nullopt},    // No VCL present.
+      {"SPS PPS", std::nullopt},    // No VCL present.
+      {"SPS PPS AUD I", true},      // Parameter sets must come after AUD.
+      {"SPSExt SPS P", false},      // SPS must come before SPSExt.
+      {"SPS PPS SPSExt P", false},  // SPSExt must follow an SPS.
+      {"EOSeq", std::nullopt},      // EOSeq must come after a VCL.
+      {"EOStr", std::nullopt},      // EOStr must come after a VCL.
 
       // For these cases, IDR slice is first VCL and is detected before
       // conformance failure, so the non-conformant frame is reported as a
@@ -463,6 +463,7 @@ TEST_F(AVCConversionTest, InvalidAnnexBConstructs) {
       {"I EOStr EOSeq", true},  // EOSeq must come before EOStr.
       {"I Prefix", true},       // Reserved14-18 must come before first VCL.
       {"I SEI", true},          // SEI must come before first VCL.
+      {"SEI AUD I", true},      // AUD must be first NALU.
 
       // For this case, P slice is first VCL and is detected before conformance
       // failure, so the non-conformant frame is reported as a non-keyframe.

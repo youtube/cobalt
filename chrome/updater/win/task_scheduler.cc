@@ -30,7 +30,6 @@
 #include "base/notreached.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
-#include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "base/time/time.h"
@@ -41,6 +40,7 @@
 #include "chrome/updater/updater_branding.h"
 #include "chrome/updater/updater_scope.h"
 #include "chrome/updater/util/win_util.h"
+#include "third_party/abseil-cpp/absl/strings/str_format.h"
 
 namespace updater {
 namespace {
@@ -71,7 +71,7 @@ std::wstring GetTimestampString(base::Time timestamp) {
   base::Time::Exploded exploded_time;
   // The Z timezone info at the end of the string means UTC.
   timestamp.UTCExplode(&exploded_time);
-  return base::UTF8ToWide(base::StringPrintf(
+  return base::UTF8ToWide(absl::StrFormat(
       "%04d-%02d-%02dT%02d:%02d:%02dZ", exploded_time.year, exploded_time.month,
       exploded_time.day_of_month, exploded_time.hour, exploded_time.minute,
       exploded_time.second));
@@ -1442,7 +1442,7 @@ std::ostream& operator<<(std::ostream& stream,
     stream << ", exec_action: " << exec_action;
   }
 
-  return stream << ", logon_type: " << base::StringPrintf("0x%x", t.logon_type)
+  return stream << ", logon_type: " << absl::StrFormat("0x%x", t.logon_type)
                 << ", user_id: " << t.user_id;
 }
 

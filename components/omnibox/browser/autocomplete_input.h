@@ -294,16 +294,6 @@ class AutocompleteInput {
     prevent_inline_autocomplete_ = prevent_inline_autocomplete;
   }
 
-  // Returns whether, given an input string consisting solely of a substituting
-  // keyword, we should score it like a non-substituting keyword.
-  bool prefer_keyword() const { return prefer_keyword_; }
-  // |prefer_keyword| should be true when the keyword UI is onscreen; this
-  // will bias the autocomplete result set toward the keyword provider when
-  // the input string is a bare keyword.
-  void set_prefer_keyword(bool prefer_keyword) {
-    prefer_keyword_ = prefer_keyword;
-  }
-
   // Returns whether this input is allowed to be treated as an exact
   // keyword match.  If not, the default result is guaranteed not to be a
   // keyword search, even if the input is "<keyword> <search string>".
@@ -316,7 +306,7 @@ class AutocompleteInput {
     allow_exact_keyword_match_ = allow_exact_keyword_match;
   }
 
-  // Provides public read-only access to whether the user entered keyword mode.
+  // Whether the user entered keyword mode.
   bool in_keyword_mode() const { return in_keyword_mode_; }
 
   // Set by the edit model or driver of autocompletion to inform autocomplete
@@ -455,7 +445,6 @@ class AutocompleteInput {
   GURL canonicalized_url_;
   std::string desired_tld_;
   bool prevent_inline_autocomplete_;
-  bool prefer_keyword_;
   bool allow_exact_keyword_match_;
   bool in_keyword_mode_;
   bool omit_asynchronous_matches_;

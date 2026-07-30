@@ -20,11 +20,23 @@
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/chrome_overlay_window/chrome_overlay_container_view.h"
 #import "ios/chrome/browser/shared/ui/util/layout_constants.h"
+#import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
+#import "ios/chrome/browser/shared/ui/util/util_swift.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/chrome/common/ui/util/ui_util.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ui/base/l10n/l10n_util.h"
+
+namespace layout_state {
+class AssistantContainerViewControllerPassKeyFactory {
+ public:
+  static base::PassKey<AssistantContainerViewControllerPassKeyFactory>
+  CreateKey() {
+    return base::PassKey<AssistantContainerViewControllerPassKeyFactory>();
+  }
+};
+}  // namespace layout_state
 
 namespace {
 
@@ -52,6 +64,11 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
   return absoluteMax * (percentage / 100.0);
 }
 
+// Helper function to return the domain passkey used to mutate the layout state.
+inline LayoutStateAssistantPassKey PassKey() {
+  return layout_state::AssistantContainerViewControllerPassKeyFactory::
+      CreateKey();
+}
 }  // namespace
 
 @interface AssistantContainerViewController () <
@@ -302,8 +319,10 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
 }
 
 - (void)animateAlongsideTransitionPresented:(BOOL)presented {
-  self.layoutState.assistantContainerCutoutRadius =
+  CGFloat targetRadius =
       presented ? (_bottomCornerRadius + _bottomMargin) : 0.0;
+  [self.layoutState setAssistantContainerCutoutRadius:targetRadius
+                                              passKey:PassKey()];
 }
 
 #pragma mark - Properties
@@ -330,7 +349,7 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
   _presentationContext = presentationContext;
 
   if (_presentationContext != AssistantPresentationContext::kSheet) {
-    self.layoutState.assistantContainerCutoutRadius = 0.0;
+    [self.layoutState setAssistantContainerCutoutRadius:0.0 passKey:PassKey()];
   }
 
   if ([self.delegate respondsToSelector:@selector(assistantContainer:
@@ -396,12 +415,17 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
   [self updateDetentHeights];
 }
 
-- (void)setAnchorView:(UIView*)anchorView {
-  if (_anchorView == anchorView) {
+- (void)setGuideName:(GuideName*)guideName {
+  if ([_guideName isEqualToString:guideName]) {
     return;
   }
-  _anchorView = anchorView;
+  _guideName = [guideName copy];
   [self updateHeightConstraint];
+
+  UIView* parentView = self.view.superview;
+  if (parentView) {
+    [self layoutInParentView:parentView];
+  }
 }
 
 #pragma mark - AssistantContainerAnimatable
@@ -566,7 +590,8 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
   }
   if (IsCornerRadiusChangeSignificant(
           self.layoutState.assistantContainerCutoutRadius, radius)) {
-    self.layoutState.assistantContainerCutoutRadius = radius;
+    [self.layoutState setAssistantContainerCutoutRadius:radius
+                                                passKey:PassKey()];
   }
 }
 
@@ -977,9 +1002,23 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
     return;
   }
 
+  UIView* anchorView = nil;
+  if (self.guideName && self.layoutGuideCenter) {
+    anchorView =
+        [self.layoutGuideCenter referencedViewUnderName:self.guideName];
+  }
+
+  // Retains the existing constraint if the new anchor is not yet in the
+  // hierarchy.
+  if (self.guideName && _outerBottomConstraint) {
+    if (!anchorView || ![anchorView isDescendantOfView:parentView]) {
+      return;
+    }
+  }
+
   NSLayoutYAxisAnchor* bottomAnchor = nil;
-  if (self.anchorView && [self.anchorView isDescendantOfView:parentView]) {
-    bottomAnchor = self.anchorView.topAnchor;
+  if (anchorView && [anchorView isDescendantOfView:parentView]) {
+    bottomAnchor = anchorView.topAnchor;
   }
 
   if (!bottomAnchor) {
@@ -992,12 +1031,43 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
   if (!_innerBottomConstraint) {
     _innerBottomConstraint = [_assistantContainerView.bottomAnchor
         constraintEqualToAnchor:view.bottomAnchor];
-    _outerBottomConstraint =
-        [view.bottomAnchor constraintEqualToAnchor:bottomAnchor];
+    [_innerBottomConstraint setActive:YES];
+  }
 
-    [NSLayoutConstraint activateConstraints:@[
-      _outerBottomConstraint, _innerBottomConstraint
-    ]];
+  // If the constraint is already bound to the correct anchor, early return to
+  // avoid redundant constraint recreation.
+  if (_outerBottomConstraint &&
+      _outerBottomConstraint.secondAnchor == bottomAnchor) {
+    return;
+  }
+
+  // Animates the constraint update if it was already active, to ensure smooth
+  // transitions between layout guides.
+  BOOL shouldAnimate = _outerBottomConstraint != nil;
+
+  if (_outerBottomConstraint) {
+    [_outerBottomConstraint setActive:NO];
+    _outerBottomConstraint = nil;
+  }
+  _outerBottomConstraint =
+      [view.bottomAnchor constraintEqualToAnchor:bottomAnchor];
+  // The outer bottom constraint is only active in the sheet presentation
+  // context. In the panel presentation context, side panel constraints are
+  // used instead.
+  if (_presentationContext == AssistantPresentationContext::kSheet) {
+    [_outerBottomConstraint setActive:YES];
+  }
+
+  if (shouldAnimate) {
+    [UIView animateWithDuration:kAssistantSheetSpringDuration
+                          delay:0
+         usingSpringWithDamping:kAssistantSheetSpringDamping
+          initialSpringVelocity:0
+                        options:UIViewAnimationOptionBeginFromCurrentState
+                     animations:^{
+                       [parentView layoutIfNeeded];
+                     }
+                     completion:nil];
   }
 
   // Trigger initial adaptive layout once the view is successfully in the

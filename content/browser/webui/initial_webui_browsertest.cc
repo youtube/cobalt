@@ -94,9 +94,7 @@ class InitialWebUINavigationBrowserTest : public ContentBrowserTest {
   InitialWebUINavigationBrowserTest() {
     WebUIControllerFactory::RegisterFactory(&factory_);
     scoped_feature_list_.InitWithFeatures(
-        {features::kInitialWebUISyncNavStartToCommit,
-         features::kWebUIInProcessResourceLoadingV2},
-        {});
+        {features::kWebUIInProcessResourceLoadingV2}, {});
   }
 
  protected:

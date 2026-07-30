@@ -66,7 +66,7 @@ class PrintManager : public content::WebContentsObserver,
   GetPrintRenderFrame(content::RenderFrameHost* rfh);
 
   // Returns the RenderFrameHost currently targeted by message dispatch.
-  content::RenderFrameHost* GetCurrentTargetFrame();
+  content::RenderFrameHost& CurrentTargetFrame();
 
   content::RenderFrameHostReceiverSet<printing::mojom::PrintManagerHost>&
   print_manager_host_receivers_for_testing() {

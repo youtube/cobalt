@@ -17,12 +17,15 @@
 #import "ios/chrome/browser/settings/autofill/autofill_and_passwords/coordinator/autofill_ai_base_mediator.h"
 #import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
+#import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/sync/model/sync_service_factory.h"
 #import "ios/chrome/browser/sync/model/test_sync_service_utils.h"
 #import "ios/chrome/browser/webdata_services/model/web_data_service_factory.h"
 #import "ios/web/public/test/web_task_environment.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/platform_test.h"
+#import "third_party/ocmock/OCMock/OCMock.h"
 
 class IdentityDocsCoordinatorTest : public PlatformTest {
  protected:
@@ -42,6 +45,11 @@ class IdentityDocsCoordinatorTest : public PlatformTest {
     profile_ = std::move(builder).Build();
     browser_ = std::make_unique<TestBrowser>(profile_.get());
 
+    mock_scene_commands_ = OCMStrictProtocolMock(@protocol(SceneCommands));
+    [browser_->GetCommandDispatcher()
+        startDispatchingToTarget:mock_scene_commands_
+                     forProtocol:@protocol(SceneCommands)];
+
     navigation_controller_ = [[UINavigationController alloc] init];
 
     coordinator_ = [[IdentityDocsCoordinator alloc]
@@ -60,6 +68,7 @@ class IdentityDocsCoordinatorTest : public PlatformTest {
   base::test::ScopedFeatureList scoped_feature_list_;
   std::unique_ptr<TestProfileIOS> profile_;
   std::unique_ptr<TestBrowser> browser_;
+  id<SceneCommands> mock_scene_commands_;
   UINavigationController* navigation_controller_;
   IdentityDocsCoordinator* coordinator_;
 };

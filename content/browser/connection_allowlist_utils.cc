@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "base/feature_list.h"
+#include "base/metrics/field_trial_params.h"
 #include "base/time/time.h"
 #include "content/browser/renderer_host/policy_container_host.h"
 #include "net/http/http_response_headers.h"
@@ -18,6 +19,10 @@
 #include "url/gurl.h"
 
 namespace content {
+
+bool IsConnectionAllowlistsInEarlyHintsEnabled() {
+  return network::features::kConnectionAllowlistsEarlyHints.Get();
+}
 
 bool ResponseContainsConnectionAllowlist(
     const network::mojom::URLResponseHead* response_head) {

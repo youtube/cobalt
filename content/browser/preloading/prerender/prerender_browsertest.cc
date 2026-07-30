@@ -2906,7 +2906,17 @@ IN_PROC_BROWSER_TEST_P(AutoSpeculationRulesPrerenderBrowserTestWithHoldback,
   // request, and it should be ignored.
   registry_observer.WaitForTrigger(prerendering_url);
   EXPECT_FALSE(HasHostForUrl(prerendering_url));
-  EXPECT_EQ(GetRequestCount(prerendering_url), 0);
+  if (IsPrerender2FallbackPrefetchSpecRulesEnabled()) {
+    // kPrerender2FallbackPrefetchSpecRules is enabled by default on
+    // non-Android platforms (and disabled on Android). When it is on, a
+    // held-back prerender falls back to a prefetch, which issues a single
+    // request to the prerendering URL. Wait for that request before
+    // asserting so the check does not race the asynchronous prefetch.
+    WaitForRequest(prerendering_url, 1);
+    EXPECT_EQ(GetRequestCount(prerendering_url), 1);
+  } else {
+    EXPECT_EQ(GetRequestCount(prerendering_url), 0);
+  }
 
   NavigationHandleObserver next_page_observer(web_contents(), prerendering_url);
   NavigatePrimaryPage(prerendering_url);
@@ -4188,6 +4198,55 @@ IN_PROC_BROWSER_TEST_F(PrerenderTargetHintBrowserTest,
                        JsReplace("location = $1", prerendering_url)));
     prerender_observer.WaitForActivation();
   }
+}
+
+// Tests that once a prerender is consumed by activation, re-adding the same
+// speculation rule is able to start a fresh prerender (crbug.com/513412121).
+IN_PROC_BROWSER_TEST_F(
+    PrerenderTargetHintBrowserTest,
+    ActivateSameUrlAfterOriginalHasBeenConsumedByActivation) {
+  const GURL initial_url = GetUrl("/simple_links.html");
+  const GURL prerendering_url = GetUrl("/title2.html");
+
+  // Navigate to an initial page which has a link to `prerendering_url`.
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+
+  // Start prerendering `prerendering_url`.
+  PrerenderHostId host_id = prerender_helper()->AddPrerender(
+      prerendering_url, /*eagerness=*/std::nullopt, "_blank");
+  auto* prerender_web_contents =
+      test::PrerenderTestHelper::GetPrerenderWebContents(host_id);
+  ASSERT_NE(prerender_web_contents, web_contents_impl());
+
+  TestNavigationObserver activation_observer(prerendering_url);
+  activation_observer.WatchExistingWebContents();
+  test::PrerenderHostObserver prerender_observer(*prerender_web_contents,
+                                                 host_id);
+  prerender_helper()->OpenNewWindowWithoutOpener(*web_contents_impl(),
+                                                 prerendering_url);
+
+  activation_observer.WaitForNavigationFinished();
+  EXPECT_EQ(prerender_web_contents->GetLastCommittedURL(), prerendering_url);
+  EXPECT_EQ(activation_observer.last_navigation_url(), prerendering_url);
+  EXPECT_TRUE(prerender_observer.was_activated());
+  EXPECT_FALSE(HasHostForUrl(prerendering_url));
+
+  ExpectFinalStatusForSpeculationRule(PrerenderFinalStatus::kActivated);
+
+  // Re-add the same "_blank" speculation rule now that the original prerender
+  // has been consumed by activation. This should start a brand-new
+  // prerender-into-new-tab for the same URL.
+  PrerenderHostId new_host_id = prerender_helper()->AddPrerender(
+      prerendering_url, /*eagerness=*/std::nullopt, "_blank");
+  EXPECT_NE(new_host_id, host_id);
+
+  // The new prerender should live in its own new-tab WebContents, distinct from
+  // both the initiator and the now-activated original prerender.
+  auto* new_prerender_web_contents =
+      test::PrerenderTestHelper::GetPrerenderWebContents(new_host_id);
+  ASSERT_NE(new_prerender_web_contents, web_contents_impl());
+  ASSERT_NE(new_prerender_web_contents, prerender_web_contents);
+  ExpectWebContentsIsForNewTabPrerendering(*new_prerender_web_contents);
 }
 
 // Tests that window.open() annotated with "_blank" and "noopener" can activate
@@ -19287,6 +19346,129 @@ IN_PROC_BROWSER_TEST_F(ReuseInitiatorProcessAllActionsTest,
           *prerender_web_contents, host_id);
   ChildProcessId prerender_process_id = prerender_rfh->GetProcess()->GetID();
   EXPECT_NE(initiator_process_id, prerender_process_id);
+}
+
+// Tests that a same-site cross-origin prerender DOES NOT reuse the initiator's
+// process.
+IN_PROC_BROWSER_TEST_F(ReuseInitiatorProcessAllActionsTest,
+                       SameSiteCrossOriginDoesNotReuseProcess) {
+  GURL url = ssl_server().GetURL("a.test", "/empty.html");
+  // Use a same-site cross-origin URL with opt-in header.
+  GURL prerender_url = ssl_server().GetURL(
+      "sub.a.test", "/prerender/prerender_with_opt_in_header.html");
+
+  // 1. Navigate to the initiator page.
+  ASSERT_TRUE(NavigateToURL(shell(), url));
+  RenderFrameHost* initiator_rfh = current_frame_host();
+  ChildProcessId initiator_process_id = initiator_rfh->GetProcess()->GetID();
+
+  // 2. Start a same-site cross-origin prerender.
+  PrerenderHostId host_id = AddPrerender(prerender_url);
+  ASSERT_TRUE(host_id);
+
+  // 3. Verify the prerender process ID DOES NOT match the initiator's process
+  // ID.
+  RenderFrameHost* prerender_rfh = GetPrerenderedMainFrameHost(host_id);
+  ChildProcessId prerender_process_id = prerender_rfh->GetProcess()->GetID();
+  EXPECT_NE(initiator_process_id, prerender_process_id);
+}
+
+// Tests that a prerender whose initial navigation redirects from same-origin to
+// same-site cross-origin REUSES the initiator's process.
+IN_PROC_BROWSER_TEST_F(ReuseInitiatorProcessAllActionsTest,
+                       RedirectToSameSiteCrossOriginReusesProcess) {
+  GURL url = ssl_server().GetURL("a.test", "/empty.html");
+  GURL redirected_url = ssl_server().GetURL(
+      "sub.a.test", "/prerender/prerender_with_opt_in_header.html");
+  GURL prerender_url = ssl_server().GetURL(
+      "a.test", "/server-redirect?" + redirected_url.spec());
+
+  // 1. Navigate to the initiator page.
+  ASSERT_TRUE(NavigateToURL(shell(), url));
+  RenderFrameHost* initiator_rfh = current_frame_host();
+  ChildProcessId initiator_process_id = initiator_rfh->GetProcess()->GetID();
+
+  // 2. Start a prerender that redirects to a same-site cross-origin URL.
+  // The initial URL is same-origin, so it matches the same-origin restriction
+  // initially.
+  PrerenderHostId host_id = AddPrerender(prerender_url);
+  ASSERT_TRUE(host_id);
+
+  // 3. Verify the prerender process ID.
+  RenderFrameHost* prerender_rfh = GetPrerenderedMainFrameHost(host_id);
+  ChildProcessId prerender_process_id = prerender_rfh->GetProcess()->GetID();
+  // On redirection to a same-site cross-origin, it depends on origin-isolation
+  // config.
+  if (base::FeatureList::IsEnabled(features::kOriginKeyedProcessesByDefault)) {
+    EXPECT_NE(initiator_process_id, prerender_process_id);
+  } else {
+    EXPECT_EQ(initiator_process_id, prerender_process_id);
+  }
+}
+
+class ReuseInitiatorProcessMaxReuseCountTest : public PrerenderBrowserTest {
+ public:
+  ReuseInitiatorProcessMaxReuseCountTest() {
+    feature_list_.InitAndEnableFeatureWithParameters(
+        features::kPrerender2ReuseInitiatorProcess,
+        {{"max_reuse_count", "1"},
+         {"eagerness", "all"},
+         {"prerender_action_type", "all"}});
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+// Tests that the number of prerender attempts that can reuse the initiator's
+// process is limited by the feature parameter.
+IN_PROC_BROWSER_TEST_F(ReuseInitiatorProcessMaxReuseCountTest,
+                       MaxReuseCountLimit) {
+  GURL url = ssl_server().GetURL("a.test", "/empty.html");
+  ASSERT_TRUE(NavigateToURL(shell(), url));
+  RenderFrameHost* initiator_rfh = current_frame_host();
+  ChildProcessId initiator_process_id = initiator_rfh->GetProcess()->GetID();
+
+  // 1st prerender (immediate) should reuse the process.
+  GURL prerender_url1 = ssl_server().GetURL("a.test", "/title1.html");
+  PrerenderHostId host_id1 = AddPrerender(prerender_url1);
+  ASSERT_TRUE(host_id1);
+  EXPECT_EQ(initiator_process_id,
+            GetPrerenderedMainFrameHost(host_id1)->GetProcess()->GetID());
+
+  // 2nd prerender (immediate) should NOT reuse the process as it exceeds the
+  // limit (1).
+  GURL prerender_url2 = ssl_server().GetURL("a.test", "/title2.html");
+  PrerenderHostId host_id2 = AddPrerender(prerender_url2);
+  ASSERT_TRUE(host_id2);
+  EXPECT_NE(initiator_process_id,
+            GetPrerenderedMainFrameHost(host_id2)->GetProcess()->GetID());
+}
+
+IN_PROC_BROWSER_TEST_F(ReuseInitiatorProcessMaxReuseCountTest,
+                       MaxReuseCountLimit_Cancellation) {
+  GURL url = ssl_server().GetURL("a.test", "/empty.html");
+  ASSERT_TRUE(NavigateToURL(shell(), url));
+  RenderFrameHost* initiator_rfh = current_frame_host();
+  ChildProcessId initiator_process_id = initiator_rfh->GetProcess()->GetID();
+
+  // 1st prerender reuses the process.
+  GURL prerender_url1 = ssl_server().GetURL("a.test", "/title1.html");
+  PrerenderHostId host_id1 = AddPrerender(prerender_url1);
+  ASSERT_TRUE(host_id1);
+  EXPECT_EQ(initiator_process_id,
+            GetPrerenderedMainFrameHost(host_id1)->GetProcess()->GetID());
+
+  // Cancel the 1st prerender. It should decrement the reuse count.
+  web_contents_impl()->GetPrerenderHostRegistry()->CancelHost(
+      host_id1, PrerenderFinalStatus::kTriggerDestroyed);
+
+  // 2nd prerender reuses the process as the 1st one was cancelled.
+  GURL prerender_url2 = ssl_server().GetURL("a.test", "/title2.html");
+  PrerenderHostId host_id2 = AddPrerender(prerender_url2);
+  ASSERT_TRUE(host_id2);
+  EXPECT_EQ(initiator_process_id,
+            GetPrerenderedMainFrameHost(host_id2)->GetProcess()->GetID());
 }
 
 }  // namespace

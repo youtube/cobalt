@@ -53,7 +53,8 @@ IN_PROC_BROWSER_TEST_F(SessionServiceBrowserTest, Workspace) {
   const std::vector<std::unique_ptr<sessions::SessionCommand>>&
       pending_commands = command_storage_manager->pending_commands();
   bool found_workspace_command = false;
-  std::string expected_workspace = browser()->window()->GetWorkspace();
+  std::string expected_workspace =
+      BrowserWindow::FromBrowser(browser())->GetWorkspace();
   std::unique_ptr<sessions::SessionCommand> workspace_command =
       sessions::CreateSetWindowWorkspaceCommand(browser()->session_id(),
                                                 expected_workspace);
@@ -81,7 +82,8 @@ IN_PROC_BROWSER_TEST_F(SessionServiceBrowserTest, WorkspaceSavedOnOpened) {
   const std::vector<std::unique_ptr<sessions::SessionCommand>>&
       pending_commands = helper.command_storage_manager()->pending_commands();
   bool found_workspace_command = false;
-  std::string expected_workspace = browser()->window()->GetWorkspace();
+  std::string expected_workspace =
+      BrowserWindow::FromBrowser(browser())->GetWorkspace();
   std::unique_ptr<sessions::SessionCommand> workspace_command =
       sessions::CreateSetWindowWorkspaceCommand(browser()->session_id(),
                                                 expected_workspace);
@@ -105,7 +107,8 @@ IN_PROC_BROWSER_TEST_F(SessionServiceBrowserTest, VisibleOnAllWorkspaces) {
   const std::vector<std::unique_ptr<sessions::SessionCommand>>&
       pending_commands = command_storage_manager->pending_commands();
   bool found_visible_on_all_workspaces_command = false;
-  bool expected_visible = browser()->window()->IsVisibleOnAllWorkspaces();
+  bool expected_visible =
+      BrowserWindow::FromBrowser(browser())->IsVisibleOnAllWorkspaces();
   std::unique_ptr<sessions::SessionCommand> visible_on_all_workspaces_command =
       sessions::CreateSetWindowVisibleOnAllWorkspacesCommand(
           browser()->session_id(), expected_visible);

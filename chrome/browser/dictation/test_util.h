@@ -10,6 +10,8 @@
 #include <string_view>
 
 #include "base/memory/raw_ptr.h"
+#include "base/test/scoped_feature_list.h"
+#include "chrome/browser/dictation/dictation_context.h"
 #include "chrome/browser/dictation/dictation_multiplexer.h"
 #include "chrome/browser/dictation/session_controller_delegate.h"
 #include "chrome/browser/dictation/session_ui.h"
@@ -19,55 +21,64 @@
 #include "testing/gmock/include/gmock/gmock.h"
 
 class Profile;
+
+namespace content {
+class RenderFrameHost;
+}
+
 namespace extensions {
 class Extension;
 }
 
 namespace dictation {
 
-class ListenerStreamProvider;
-
 inline constexpr std::string_view kDictationTestExtensionId =
     "dfihfgggpgemecjdjahibncmmjlfjggp";
 
-// Loads an extension that provides an implementation of the connector
-// extension. The test extension has hooks that tests can use to control the
-// behavior of the extension.
-const extensions::Extension* LoadTestExtension(Profile* profile);
+// Returns a ScopedFeatureList that enables Dictation with common params for
+// testing.
+base::test::ScopedFeatureList CreateEnablingFeatureList();
 
-// Same as above but puts the test extension into "manual" mode which prevents
-// it from starting the speech API or responding to any events. Tests using this
+// Loads an extension that provides an implementation of the connector
+// extension in a "manual" mode usable from tests which prevents the extension
+// from starting the speech API or responding to any events. Tests using this
 // will manually simulate API calls from the extension using the send methods
 // below.
 const extensions::Extension* LoadTestExtensionInManualMode(Profile* profile);
 
-// Sets a canned string that the test extension will replay when the test
-// starts a stream.
-void SetMockTranscript(Profile* profile, const std::string& transcript);
-
-// Simulates the connector extension sending a transcript update. Returns
-// immediately, use WaitForTranscriptUpdate below to await the change in the
-// browser process.
+// Simulates the connector extension sending a transcript update and blocks
+// until the browser process processes the API call.
 void ExtensionSendTranscriptUpdate(
     Profile* profile,
     DictationMultiplexer::StreamId stream_id,
     extensions::api::dictation_private::TranscriptionType type,
     std::string_view data);
 
-// Simulates the connector extension sending a stream state update. Returns
-// immediately, use WaitForStreamState to await the change in the browser
-// process.
+// Simulates the connector extension sending a stream state update and blocks
+// until the browser process processes the API call.
 void ExtensionSendStreamStateUpdate(
     Profile* profile,
     DictationMultiplexer::StreamId stream_id,
     extensions::api::dictation_private::StreamState state);
 
-// Waits for the given stream provider to enter the specified state.
-void WaitForStreamState(ListenerStreamProvider* provider,
-                        StreamProvider::StreamState state);
+// Blocks until the extension has received the OnStartStream event for the given
+// stream ID.
+void ExtensionWaitForStreamStart(Profile* profile,
+                                 DictationMultiplexer::StreamId stream_id);
 
-// Waits for the given stream provider to receive any transcript update.
-void WaitForTranscriptUpdate(ListenerStreamProvider* provider);
+// Blocks until the extension has received the OnStartStream event for the given
+// stream ID, and returns the DictationContext containing the page context
+// passed to the extension, or nullopt if no context was passed.
+std::optional<DictationContext> ExtensionGetStartStreamDetails(
+    Profile* profile,
+    DictationMultiplexer::StreamId stream_id);
+
+// Blocks until the extension has received the OnContextUpdate event for the
+// given stream ID, and returns the DictationContext containing the page context
+// passed to the extension.
+DictationContext ExtensionGetUpdatedContext(
+    Profile* profile,
+    DictationMultiplexer::StreamId stream_id);
 
 class MockStreamProvider : public StreamProvider {
  public:
@@ -85,6 +96,7 @@ class MockStreamProvider : public StreamProvider {
               (override));
   MOCK_METHOD(void, OnStreamStateChanged, (StreamState state), (override));
   MOCK_METHOD(StreamState, GetState, (), (const, override));
+  MOCK_METHOD(const Target*, GetTarget, (), (const, override));
 };
 
 class MockSessionUi : public SessionUi {
@@ -111,7 +123,8 @@ class MockSessionControllerDelegate : public SessionControllerDelegate {
 
 class MockTarget : public Target {
  public:
-  MockTarget();
+  explicit MockTarget(content::RenderFrameHost* rfh = nullptr,
+                      const std::string& selected_text = "");
   ~MockTarget() override;
 };
 

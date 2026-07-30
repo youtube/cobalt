@@ -4,8 +4,6 @@
 
 package org.chromium.chrome.browser.media.immersive_playback.components;
 
-import android.view.View;
-
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.ui.xr.scenecore.XrPanelEntityHolder;
 
@@ -15,17 +13,17 @@ import org.chromium.ui.xr.scenecore.XrPanelEntityHolder;
  */
 @NullMarked
 public class ImmersiveVideoFormatSpatialView {
-    public final View androidView;
+    public final ImmersiveVideoFormatView androidView;
     public final XrPanelEntityHolder<?> spatialEntityHolder;
 
     /**
      * Creates a new {@link ImmersiveVideoFormatSpatialView}.
      *
-     * @param androidView The {@link View}.
+     * @param androidView The {@link ImmersiveVideoFormatView}.
      * @param spatialEntityHolder The {@link XrPanelEntityHolder}.
      */
     public ImmersiveVideoFormatSpatialView(
-            View androidView, XrPanelEntityHolder<?> spatialEntityHolder) {
+            ImmersiveVideoFormatView androidView, XrPanelEntityHolder<?> spatialEntityHolder) {
         this.androidView = androidView;
         this.spatialEntityHolder = spatialEntityHolder;
     }

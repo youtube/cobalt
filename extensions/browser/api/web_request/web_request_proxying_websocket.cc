@@ -64,6 +64,7 @@ WebRequestProxyingWebSocket::WebRequestProxyingWebSocket(
         handshake_client,
     bool has_extra_headers,
     bool has_security_info,
+    mojo::PendingRemote<network::mojom::TrustedHeaderClient> header_client,
     int process_id,
     int render_frame_id,
     content::BrowserContext* browser_context,
@@ -72,6 +73,7 @@ WebRequestProxyingWebSocket::WebRequestProxyingWebSocket(
     : factory_(std::move(factory)),
       browser_context_(browser_context),
       forwarding_handshake_client_(std::move(handshake_client)),
+      header_client_(std::move(header_client)),
       request_headers_(request.headers),
       response_(network::mojom::URLResponseHead::New()),
       has_extra_headers_(has_extra_headers),
@@ -103,7 +105,7 @@ WebRequestProxyingWebSocket::~WebRequestProxyingWebSocket() {
       ->OnRequestWillBeDestroyed(browser_context_, &info_);
   if (on_before_send_headers_callback_) {
     std::move(on_before_send_headers_callback_)
-        .Run(net::ERR_ABORTED, std::nullopt);
+        .Run(net::ERR_ABORTED, std::nullopt, std::nullopt);
   }
   if (on_headers_received_callback_) {
     std::move(on_headers_received_callback_)
@@ -331,6 +333,7 @@ void WebRequestProxyingWebSocket::StartProxying(
         handshake_client,
     bool has_extra_headers,
     bool has_security_info,
+    mojo::PendingRemote<network::mojom::TrustedHeaderClient> header_client,
     int process_id,
     int render_frame_id,
     WebRequestAPI::RequestIDGenerator* request_id_generator,
@@ -348,8 +351,9 @@ void WebRequestProxyingWebSocket::StartProxying(
 
   auto proxy = std::make_unique<WebRequestProxyingWebSocket>(
       std::move(factory), request, std::move(handshake_client),
-      has_extra_headers, has_security_info, process_id, render_frame_id,
-      browser_context, request_id_generator, proxies);
+      has_extra_headers, has_security_info, std::move(header_client),
+      process_id, render_frame_id, browser_context, request_id_generator,
+      proxies);
 
   auto* raw_proxy = proxy.get();
   proxies->AddProxy(std::move(proxy));
@@ -400,8 +404,14 @@ void WebRequestProxyingWebSocket::OnBeforeSendHeadersComplete(
 
   if (receiver_as_header_client_.is_bound()) {
     DCHECK(on_before_send_headers_callback_);
-    std::move(on_before_send_headers_callback_)
-        .Run(error_code, request_headers_);
+    if (forwarding_header_client_) {
+      forwarding_header_client_->OnBeforeSendHeaders(
+          info_.url, request_headers_,
+          std::move(on_before_send_headers_callback_));
+    } else {
+      std::move(on_before_send_headers_callback_)
+          .Run(error_code, request_headers_, std::nullopt);
+    }
   }
 
   WebRequestEventRouter::Get(browser_context_)
@@ -433,8 +443,11 @@ void WebRequestProxyingWebSocket::ContinueToStartRequest(int error_code) {
   }
 
   mojo::PendingRemote<network::mojom::TrustedHeaderClient>
-      trusted_header_client = mojo::NullRemote();
+      trusted_header_client = std::move(header_client_);
   if (has_extra_headers_ || has_security_info_) {
+    if (trusted_header_client) {
+      forwarding_header_client_.Bind(std::move(trusted_header_client));
+    }
     trusted_header_client =
         receiver_as_header_client_.BindNewPipeAndPassRemote();
   }
@@ -464,12 +477,18 @@ void WebRequestProxyingWebSocket::OnHeadersReceivedComplete(int error_code) {
   }
 
   if (on_headers_received_callback_) {
-    std::optional<std::string> headers;
-    if (override_headers_) {
-      headers = override_headers_->raw_headers();
+    if (forwarding_header_client_) {
+      forwarding_header_client_->OnHeadersReceived(
+          response_->headers->raw_headers(), response_->remote_endpoint,
+          std::nullopt, std::move(on_headers_received_callback_));
+    } else {
+      std::optional<std::string> headers;
+      if (override_headers_) {
+        headers = override_headers_->raw_headers();
+      }
+      std::move(on_headers_received_callback_)
+          .Run(net::OK, headers, std::nullopt);
     }
-    std::move(on_headers_received_callback_)
-        .Run(net::OK, headers, std::nullopt);
   }
 
   if (override_headers_) {

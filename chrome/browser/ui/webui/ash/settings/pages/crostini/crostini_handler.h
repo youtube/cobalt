@@ -31,7 +31,7 @@ struct CrostiniDiskInfo;
 namespace ash::settings {
 
 class CrostiniHandler : public content::WebUIMessageHandler,
-                        public crostini::CrostiniDialogStatusObserver,
+                        public crostini::CrostiniInstallerStatusObserver,
                         public crostini::CrostiniExportImport::Observer,
                         public crostini::CrostiniPortForwarder::Observer,
                         public guest_os::ContainerStartedObserver,
@@ -62,9 +62,8 @@ class CrostiniHandler : public content::WebUIMessageHandler,
   void HandleImportDiskImage(const base::ListValue& args);
   // Handle a request for the CrostiniInstallerView status.
   void HandleCrostiniInstallerStatusRequest(const base::ListValue& args);
-  // crostini::CrostiniDialogStatusObserver
-  void OnCrostiniDialogStatusChanged(crostini::DialogType dialog_type,
-                                     bool open) override;
+  // crostini::CrostiniInstallerStatusObserver
+  void OnCrostiniInstallerStatusChanged(bool open) override;
   // Handle a request for the CrostiniExportImport operation status.
   void HandleCrostiniExportImportOperationStatusRequest(
       const base::ListValue& args);

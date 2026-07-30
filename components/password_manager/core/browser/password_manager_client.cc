@@ -21,11 +21,24 @@
 
 namespace password_manager {
 
-bool PasswordManagerClient::IsSavingAndFillingEnabled(const GURL& url) const {
+bool PasswordManagerClient::IsSavingAndFillingEnabled(
+    const url::Origin& origin) const {
+  return IsSavingAndFillingEnabled(origin, std::nullopt);
+}
+
+bool PasswordManagerClient::IsSavingAndFillingEnabled(
+    const url::Origin& origin,
+    base::optional_ref<const GURL> url) const {
   return true;
 }
 
-bool PasswordManagerClient::IsFillingEnabled(const GURL& url) const {
+bool PasswordManagerClient::IsFillingEnabled(const url::Origin& origin) const {
+  return IsFillingEnabled(origin, std::nullopt);
+}
+
+bool PasswordManagerClient::IsFillingEnabled(
+    const url::Origin& origin,
+    base::optional_ref<const GURL> url) const {
   return true;
 }
 

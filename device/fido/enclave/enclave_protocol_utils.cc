@@ -59,6 +59,7 @@ const size_t kCredentialIdSize = 16;
 const char kRequestDataKey[] = "request";
 const char kRequestClientDataJSONHashKey[] = "client_data_json_hash";
 const char kRequestClaimedPINKey[] = "claimed_pin";
+const char kRequestUserPresentKey[] = "up";
 
 // JSON keys for GetAssertion request fields.
 const char kGetAssertionRequestProtobufKey[] = "protobuf";
@@ -73,6 +74,7 @@ const char kGetAssertionResponsePrfKey[] = "prf";
 // JSON keys for MakeCredential response fields.
 const char kMakeCredentialResponseEncryptedKey[] = "encrypted";
 const char kMakeCredentialResponsePubKeyKey[] = "pub_key";
+const char kMakeCredentialResponseAuthenticatorDataKey[] = "authenticator_data";
 const char kMakeCredentialResponsePrfKey[] = "prf";
 const char kMakeCredentialResponseLargeBlobSupportedKey[] =
     "largeBlobSupported";
@@ -459,15 +461,63 @@ ParseMakeCredentialResponse(cbor::Value response_value,
     large_blob_supported = it->second.GetBool();
   }
 
-  std::vector<uint8_t> credential_id =
-      crypto::RandBytesAsVector(kCredentialIdSize);
+  std::optional<AuthenticatorData> authenticator_data;
+  if (base::FeatureList::IsEnabled(
+          device::kWebAuthnEnclaveUseAuthDataFromEnclave)) {
+    const std::vector<uint8_t>* auth_data_field = cborFindBytestring(
+        *last_response, kMakeCredentialResponseAuthenticatorDataKey);
+    if (!auth_data_field) {
+      return ErrorResponse(
+          "MakeCredential response missing required authenticator_data field.");
+    }
+    authenticator_data =
+        AuthenticatorData::DecodeAuthenticatorData(*auth_data_field);
+    if (!authenticator_data || !authenticator_data->attested_data()) {
+      return ErrorResponse("Response contained invalid authenticatorData.");
+    }
+  } else {
+    std::vector<uint8_t> credential_id =
+        crypto::RandBytesAsVector(kCredentialIdSize);
+    auto public_key = P256PublicKey::ParseX962Uncompressed(
+        static_cast<int32_t>(CoseAlgorithmIdentifier::kEs256), *pubkey_field);
+    std::array<uint8_t, 2> encoded_credential_id_length = {
+        0, static_cast<uint8_t>(credential_id.size())};
+    AttestedCredentialData credential_data(
+        kAaguid, encoded_credential_id_length, std::move(credential_id),
+        std::move(public_key));
+
+    uint8_t flags =
+        static_cast<uint8_t>(AuthenticatorData::Flag::kAttestation) |
+        static_cast<uint8_t>(AuthenticatorData::Flag::kBackupEligible) |
+        static_cast<uint8_t>(AuthenticatorData::Flag::kBackupState);
+    switch (up_and_uv) {
+      case UserPresentAndVerifiedBits::kNeither:
+        break;
+      case UserPresentAndVerifiedBits::kPresentOnly:
+        flags |=
+            static_cast<uint8_t>(AuthenticatorData::Flag::kTestOfUserPresence);
+        break;
+      case UserPresentAndVerifiedBits::kPresentAndVerified:
+        flags |=
+            static_cast<uint8_t>(AuthenticatorData::Flag::kTestOfUserPresence) |
+            static_cast<uint8_t>(
+                AuthenticatorData::Flag::kTestOfUserVerification);
+        break;
+    }
+    authenticator_data.emplace(crypto::hash::Sha256(request.rp.id), flags,
+                               std::array<uint8_t, 4>({0, 0, 0, 0}),
+                               std::move(credential_data));
+  }
+
   std::vector<uint8_t> sync_id = crypto::RandBytesAsVector(kSyncIdSize);
 
   sync_pb::WebauthnCredentialSpecifics entity;
 
   entity.set_sync_id(std::string(sync_id.begin(), sync_id.end()));
+  const std::vector<uint8_t>& response_cred_id =
+      authenticator_data->attested_data()->credential_id();
   entity.set_credential_id(
-      std::string(credential_id.begin(), credential_id.end()));
+      std::string(response_cred_id.begin(), response_cred_id.end()));
   entity.set_rp_id(request.rp.id);
   entity.set_user_id(
       std::string(request.user.id.begin(), request.user.id.end()));
@@ -479,38 +529,8 @@ ParseMakeCredentialResponse(cbor::Value response_value,
   entity.set_encrypted(
       std::string(encrypted_field->begin(), encrypted_field->end()));
 
-  auto public_key = P256PublicKey::ParseX962Uncompressed(
-      static_cast<int32_t>(CoseAlgorithmIdentifier::kEs256), *pubkey_field);
-
-  std::array<uint8_t, 2> encoded_credential_id_length = {
-      0, static_cast<uint8_t>(credential_id.size())};
-  AttestedCredentialData credential_data(kAaguid, encoded_credential_id_length,
-                                         std::move(credential_id),
-                                         std::move(public_key));
-
-  uint8_t flags =
-      static_cast<uint8_t>(AuthenticatorData::Flag::kAttestation) |
-      static_cast<uint8_t>(AuthenticatorData::Flag::kBackupEligible) |
-      static_cast<uint8_t>(AuthenticatorData::Flag::kBackupState);
-  switch (up_and_uv) {
-    case UserPresentAndVerifiedBits::kNeither:
-      break;
-    case UserPresentAndVerifiedBits::kPresentOnly:
-      flags |=
-          static_cast<uint8_t>(AuthenticatorData::Flag::kTestOfUserPresence);
-      break;
-    case UserPresentAndVerifiedBits::kPresentAndVerified:
-      flags |=
-          static_cast<uint8_t>(AuthenticatorData::Flag::kTestOfUserPresence) |
-          static_cast<uint8_t>(
-              AuthenticatorData::Flag::kTestOfUserVerification);
-      break;
-  }
-  AuthenticatorData authenticator_data(
-      crypto::hash::Sha256(request.rp.id), flags,
-      std::array<uint8_t, 4>({0, 0, 0, 0}), std::move(credential_data));
   AttestationObject attestation_object(
-      std::move(authenticator_data),
+      std::move(*authenticator_data),
       std::make_unique<NoneAttestationStatement>());
 
   AuthenticatorMakeCredentialResponse response(FidoTransportProtocol::kInternal,
@@ -586,17 +606,26 @@ cbor::Value BuildMakeCredentialCommand(
     scoped_refptr<JSONRequest> request,
     std::unique_ptr<ClaimedPIN> claimed_pin,
     std::optional<std::vector<uint8_t>> wrapped_secret,
-    std::optional<std::vector<uint8_t>> secret) {
+    std::optional<std::vector<uint8_t>> secret,
+    UserPresentAndVerifiedBits up_and_uv_bits) {
   CHECK(wrapped_secret.has_value() ^ secret.has_value());
   cbor::Value::MapValue entry_map;
 
   entry_map.emplace(cbor::Value(kRequestCommandKey),
                     cbor::Value(kMakeCredentialCommandName));
+
+  std::vector<std::string_view> keys(kMakeCredentialKeys.begin(),
+                                     kMakeCredentialKeys.end());
+  if (base::FeatureList::IsEnabled(
+          device::kWebAuthnEnclaveUseAuthDataFromEnclave)) {
+    keys.push_back("rp");
+  }
+
   if (base::FeatureList::IsEnabled(
           device::kWebAuthnStripUnusedEnclaveParameters)) {
     base::DictValue request_dict;
     const base::DictValue& original_dict = request->value->GetDict();
-    for (std::string_view key : kMakeCredentialKeys) {
+    for (std::string_view key : keys) {
       if (const base::Value* val = original_dict.Find(key)) {
         request_dict.Set(key, val->Clone());
       }
@@ -606,6 +635,14 @@ cbor::Value BuildMakeCredentialCommand(
   } else {
     entry_map.emplace(cbor::Value(kRequestDataKey), toCbor(*request->value));
   }
+
+  if (base::FeatureList::IsEnabled(
+          device::kWebAuthnEnclaveUseAuthDataFromEnclave)) {
+    entry_map.emplace(
+        cbor::Value(kRequestUserPresentKey),
+        cbor::Value(up_and_uv_bits != UserPresentAndVerifiedBits::kNeither));
+  }
+
   if (wrapped_secret.has_value()) {
     entry_map.emplace(cbor::Value(kRequestWrappedSecretKey),
                       cbor::Value(std::move(*wrapped_secret)));

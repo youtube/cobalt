@@ -11,6 +11,7 @@
 
 #import "base/memory/weak_ptr.h"
 #import "base/scoped_observation.h"
+#import "base/types/optional_ref.h"
 #import "components/autofill/core/common/language_code.h"
 #import "components/password_manager/core/browser/leak_detection_dialog_utils.h"
 #import "components/password_manager/core/browser/password_feature_manager_impl.h"
@@ -134,8 +135,13 @@ class IOSChromePasswordManagerClient
   void NotifyUserCredentialsWereLeaked(
       password_manager::LeakedPasswordDetails details) override;
   void NotifyKeychainError() override;
-  bool IsSavingAndFillingEnabled(const GURL& url) const override;
-  bool IsFillingEnabled(const GURL& url) const override;
+  using password_manager::PasswordManagerClient::IsFillingEnabled;
+  using password_manager::PasswordManagerClient::IsSavingAndFillingEnabled;
+  bool IsSavingAndFillingEnabled(
+      const url::Origin& origin,
+      base::optional_ref<const GURL> url) const override;
+  bool IsFillingEnabled(const url::Origin& origin,
+                        base::optional_ref<const GURL> url) const override;
   bool IsFieldFilledWithOtp(autofill::FormGlobalId form_id,
                             autofill::FieldGlobalId field_id) override;
   bool IsCommittedMainFrameSecure() const override;

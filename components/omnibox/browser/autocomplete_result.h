@@ -303,6 +303,12 @@ class AutocompleteResult {
     session_.gws_event_id_hashes.clear();
   }
 
+  const std::vector<omnibox::metrics::ChromeSearchboxStats::ExperimentStatsV2>&
+  experiment_stats_v2s_in_session() const;
+
+  void add_experiment_stat_v2_in_session(
+      const omnibox::metrics::ChromeSearchboxStats::ExperimentStatsV2& stat);
+
   std::pair<bool, bool> contextual_suggestions_shown_in_session() {
     return {session_.contextual_search_suggestions_shown_in_session,
             session_.lens_action_shown_in_session};

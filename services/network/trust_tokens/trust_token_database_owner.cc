@@ -97,7 +97,6 @@ NOINLINE TrustTokenDatabaseOwner::TrustTokenDatabaseOwner(
     : on_done_initializing_(std::move(on_done_initializing)),
       backing_database_(std::make_unique<sql::Database>(
           sql::DatabaseOptions()
-              .set_preload(true)
               // TODO(pwnall): Add a meta table and remove this option.
               .set_mmap_alt_status_discouraged(true)
               .set_enable_views_discouraged(

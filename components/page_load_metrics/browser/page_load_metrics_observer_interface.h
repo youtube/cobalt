@@ -227,13 +227,6 @@ class PageLoadMetricsObserverInterface {
       content::NavigationHandle* navigation_handle,
       const GURL& currently_committed_url) = 0;
 
-  // For primary pages in the preview mode, OnPreviewStart is called instead of
-  // OnStart. The default implementation in PageLoadMetricsObserver returns
-  // STOP_OBSERVING. See b:291867362 to track the project progress.
-  virtual ObservePolicy OnPreviewStart(
-      content::NavigationHandle* navigation_handle,
-      const GURL& currently_committed_url) = 0;
-
   // Called when the NavigationHandleTiming associated with `navigation_handle`
   // has been updated. This is called only for main frame navigations. See the
   // comment at `WebContentsObserver::DidUpdateNavigationHandleTiming()` for
@@ -616,9 +609,6 @@ class PageLoadMetricsObserverInterface {
   // |navigation_handle| is for the activation navigation.
   virtual void DidActivatePrerenderedPage(
       content::NavigationHandle* navigation_handle) = 0;
-
-  // Called when the previewed page is activated for the tab promotion.
-  virtual void DidActivatePreviewedPage(base::TimeTicks activation_time) = 0;
 
   // Called when a `SharedStorageWorkletHost` is created.
   virtual void OnSharedStorageWorkletHostCreated() = 0;

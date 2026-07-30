@@ -16,7 +16,6 @@ import org.jni_zero.NativeMethods;
 
 import org.chromium.base.Log;
 import org.chromium.base.ResettersForTesting;
-import org.chromium.base.ThreadUtils;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 
@@ -27,6 +26,8 @@ import java.util.List;
 /**
  * Reads enterprise policies from one or more policy providers and plumbs them through to the policy
  * subsystem.
+ *
+ * The methods in this class should be called on the same sequence.
  */
 @JNINamespace("policy::android")
 @NullMarked
@@ -55,6 +56,11 @@ public class CombinedPolicyProvider {
         mNativeCombinedPolicyProvider = nativeCombinedPolicyProvider;
         mPolicyConverter = policyConverter;
         if (nativeCombinedPolicyProvider == 0) {
+            // Restore cache readability when unlinking the native provider to allow reading from
+            // the cache during the next initialization. This is required for environments where
+            // where the policy framework is re-initialized within the same JVM process, such as
+            // during tests.
+            PolicyCache.get().enableReadability();
             return;
         }
 
@@ -70,7 +76,6 @@ public class CombinedPolicyProvider {
     @CalledByNative
     public static CombinedPolicyProvider linkNative(
             long nativeCombinedPolicyProvider, PolicyConverter policyConverter) {
-        ThreadUtils.assertOnUiThread();
         get().linkNativeInternal(nativeCombinedPolicyProvider, policyConverter);
         return get();
     }

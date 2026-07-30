@@ -62,7 +62,7 @@ class VideoEncoder {
       FrameEncodedCallback frame_encoded_callback) = 0;
 
   // Inform the encoder about the new target bit rate.
-  virtual void SetBitRate(int new_bit_rate) = 0;
+  virtual void SetBitRate(uint32_t new_bit_rate) = 0;
 
   // Inform the encoder to encode the next frame as a key frame.
   virtual void GenerateKeyFrame() = 0;

@@ -217,6 +217,9 @@ message IntelligentScanInfo {
 
   // The model type that the client uses to perform intelligent scan.
   optional IntelligentScanModelType model_type = 5;
+
+  // Scam score of the page, if it was detected.
+  optional float scam_score = 6;
 }
 
 message ClientPhishingRequest {
@@ -1237,6 +1240,32 @@ message ClientDownloadRequest {
   // 15 minutes in Chrome on Android, and it is not persistent across restarting
   // Chrome, and will be different for different Chrome profiles on the device.
   optional string rate_limiting_key = 99;
+
+  // Field 100 is reserved for server-side use and is never sent by the
+  // client.
+  reserved 100;
+
+  // This field is used to store information on installed antivirus products
+  // and is propagated to User Risky Activity (URA) reports. This info is used
+  // to understand the correlation between users disabling their antivirus
+  // software and Google accounts that have been compromised. This field is
+  // only populated for Enhanced Protection users on Windows.
+  message AntiVirusProduct {
+    enum AntiVirusState {
+      STATE_UNKNOWN = 0;
+      STATE_ON = 1;
+      STATE_OFF = 2;
+      STATE_SNOOZED = 3;
+      STATE_EXPIRED = 4;
+    }
+
+    optional string product_name = 1;
+    optional fixed32 product_name_hash = 2;
+    optional string product_version = 3;
+    optional fixed32 product_version_hash = 4;
+    optional AntiVirusState product_state = 5;
+  }
+  repeated AntiVirusProduct antivirus_products = 101;
 }
 
 message ReferrerChainOptions {

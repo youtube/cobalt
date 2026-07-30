@@ -94,7 +94,7 @@ void CrOSPreChoiceMetricsManager::Enable() {
   // Force enable metrics. This will enable metrics and populate all appropriate
   // preferences.
   metrics::ChangeMetricsReportingState(
-      metrics::MetricsReportingLevel::kBasic,
+      is_enabled_,
       metrics::ChangeMetricsReportingStateCalledFrom::kCrosMetricsPreChoice);
 
   // Propagate the change to metrics services. This will create the Client ID

@@ -209,6 +209,21 @@ public class TabListViewBinderUtils {
         view.setContentDescription(contentDescriptionString);
     }
 
+    /**
+     * Updates the content description of the action button in the view using the resolver from
+     * model.
+     *
+     * @param model the model containing the tab properties.
+     * @param actionButton the action button View to update.
+     */
+    public static void updateActionButtonContentDescription(
+            PropertyModel model, View actionButton) {
+        @Nullable TextResolver resolver =
+                model.get(TabProperties.ACTION_BUTTON_DESCRIPTION_TEXT_RESOLVER);
+        actionButton.setContentDescription(
+                TabCardViewBinderUtils.resolveNullSafe(resolver, actionButton.getContext()));
+    }
+
     private static void runTabActionListener(
             TabActionListener tabActionListener,
             View view,

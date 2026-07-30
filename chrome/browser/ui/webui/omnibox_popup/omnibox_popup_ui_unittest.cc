@@ -10,10 +10,13 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
+#include "chrome/browser/ui/omnibox/omnibox_controller.h"
+#include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_web_contents_helper.h"
 #include "chrome/common/channel_info.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "components/contextual_search/contextual_search_service.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
+#include "components/omnibox/browser/test_omnibox_client.h"
 #include "components/variations/scoped_variations_ids_provider.h"
 #include "content/public/test/test_web_ui.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -38,6 +41,12 @@ TEST_F(OmniboxPopupUITest, SafeWithNullContextualSearchService) {
                          -> std::unique_ptr<KeyedService> { return nullptr; }));
 
   EXPECT_EQ(ContextualSearchServiceFactory::GetForProfile(profile()), nullptr);
+
+  auto omnibox_controller = std::make_unique<OmniboxController>(
+      std::make_unique<TestOmniboxClient>());
+  OmniboxPopupWebContentsHelper::CreateForWebContents(web_contents());
+  OmniboxPopupWebContentsHelper::FromWebContents(web_contents())
+      ->set_omnibox_controller(omnibox_controller.get());
 
   content::TestWebUI web_ui;
   web_ui.set_web_contents(web_contents());
@@ -101,4 +110,7 @@ TEST_F(OmniboxPopupUITest, SafeWithNullContextualSearchService) {
                                       std::move(pending_popup_handler));
 
   EXPECT_NE(omnibox_popup_ui->popup_handler(), nullptr);
+
+  OmniboxPopupWebContentsHelper::FromWebContents(web_contents())
+      ->set_omnibox_controller(nullptr);
 }

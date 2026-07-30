@@ -26,6 +26,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
+#include "chrome/browser/ui/immersive/immersive_mode_controller.h"
 #include "chrome/browser/ui/send_tab_to_self/send_tab_to_self_context_menu_delegate.h"
 #include "chrome/browser/ui/tabs/existing_tab_group_sub_menu_model.h"
 #include "chrome/browser/ui/tabs/existing_window_sub_menu_model.h"
@@ -41,7 +42,6 @@
 #include "chrome/browser/ui/tabs/tab_utils.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/browser/ui/ui_features.h"
-#include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "chrome/browser/ui/web_applications/web_app_tabbed_utils.h"
 #include "chrome/browser/user_education/user_education_service.h"
 #include "chrome/common/chrome_features.h"
@@ -507,28 +507,21 @@ void TabMenuModel::Build(int index) {
   }
 
   if (tabs::kVerticalTabsToggleInTabContextMenu.Get() && controller) {
-    // TODO(crbug.com/475222200): When in immersive, swapping between tab
-    // strip types create duplicate tab strips. Until that is resolved,
-    // disable the ability to swap between tab strips while in immersive.
-    BrowserWindowInterface* bwi =
-        tab_strip_->delegate()->GetBrowserWindowInterface();
-    if (bwi && !bwi->GetFeatures().immersive_mode_controller()->IsEnabled()) {
-      AddSeparator(ui::NORMAL_SEPARATOR);
-      if (controller->ShouldDisplayVerticalTabs()) {
-        AddItemWithStringId(TabStripModel::CommandToggleVertical,
-                            IDS_SWITCH_TO_HORIZONTAL_TAB);
-      } else {
-        AddItemWithStringId(TabStripModel::CommandToggleVertical,
-                            IDS_SWITCH_TO_VERTICAL_TAB);
-        const bool use_preview_badge =
-            base::FeatureList::IsEnabled(tabs::kVerticalTabsPreviewBadge);
-        const user_education::DisplayNewBadge show_badge =
-            UserEducationService::MaybeShowNewBadge(
-                tab_strip_->profile(), use_preview_badge
-                                           ? tabs::kVerticalTabsPreviewBadge
-                                           : tabs::kVerticalTabsNewBadge);
-        SetIsNewFeatureAt(GetItemCount() - 1, show_badge);
-      }
+    AddSeparator(ui::NORMAL_SEPARATOR);
+    if (controller->ShouldDisplayVerticalTabs()) {
+      AddItemWithStringId(TabStripModel::CommandToggleVertical,
+                          IDS_SWITCH_TO_HORIZONTAL_TAB);
+    } else {
+      AddItemWithStringId(TabStripModel::CommandToggleVertical,
+                          IDS_SWITCH_TO_VERTICAL_TAB);
+      const bool use_preview_badge =
+          base::FeatureList::IsEnabled(tabs::kVerticalTabsPreviewBadge);
+      const user_education::DisplayNewBadge show_badge =
+          UserEducationService::MaybeShowNewBadge(
+              tab_strip_->profile(), use_preview_badge
+                                         ? tabs::kVerticalTabsPreviewBadge
+                                         : tabs::kVerticalTabsNewBadge);
+      SetIsNewFeatureAt(GetItemCount() - 1, show_badge);
     }
   }
 

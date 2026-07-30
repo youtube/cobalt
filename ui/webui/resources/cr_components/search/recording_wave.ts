@@ -100,10 +100,6 @@ export interface RecordingWaveElement {
 // The time (in milliseconds) between rendering new volume bars.
 const BAR_INTERVAL_MS = 120;
 
-// Total number of bars allowed to move across the screen (both on and off
-// screen) for the sliding left recording wave effect.
-const MAX_BARS = 100;
-
 // The array index at which a background dot "wakes up" and springs into
 // an active volume bar. This creates the visual right-side padding delay.
 const ACTIVATION_DELAY_INDEX = 6;
@@ -138,9 +134,12 @@ const VOLUME_MULTIPLIER = 1;
 // Minimum volume level scaling (0-1):
 const MINIMUM_VOLUME_LEVEL = 0.1;
 
+// Minimum height that a bar can be at.
+const MINIMUM_BAR_HEIGHT = 8;
+
 // Represents in px the height of each volume bar that starts
 // off at. They start as balls, not bars.
-const DEFAULT_STARTING_HEIGHT = 8;
+const INITIAL_BALL_HEIGHT = 6;
 
 // ======Smaller parameters for fine tuning of shadows/color======:
 // Ratio of each pill's height used to determine the shadow offset of each pill.
@@ -188,7 +187,6 @@ const LIGHT_STOPS: ColorStop[] = [
   {ratio: 1.0, r: 236, g: 240, b: 255},  // #ECF0FF
 ];
 
-// Points to change color at in dark mode:
 const DARK_STOPS: ColorStop[] = [
   {ratio: 0.0, r: 55, g: 70, b: 109},    // #37466D
   {ratio: 0.03, r: 49, g: 134, b: 255},  // #3186FF
@@ -302,9 +300,30 @@ export class RecordingWaveElement extends CrLitElement {
   private barsData_: Bar[] = [];
   private lastDrawTimestamp_: number = performance.now();
   private animationFrameId_: number|null = null;
+  private containerWidth_: number = 0;
+
+  // Initially set at 100; dynamically calculated later based on width by
+  // `resizeObserver`.
+  private maxBars_: number = 100;
+  // Use `resizeObserver_` to figure out how many bars should show without being
+  // cut off. Without this, the gradient would not be fully shown, as many bars
+  // would be off screen.
+  private resizeObserver_: ResizeObserver = new ResizeObserver((entries) => {
+    for (const entry of entries) {
+      this.containerWidth_ = entry.contentRect.width;
+      this.maxBars_ =
+          Math.max(Math.floor(this.containerWidth_ / (BAR_WIDTH + BAR_GAP)), 1);
+    }
+  });
+
+  override connectedCallback() {
+    super.connectedCallback();
+    this.resizeObserver_.observe(this);
+  }
 
   override disconnectedCallback() {
     super.disconnectedCallback();
+    this.resizeObserver_.disconnect();
     AudioProcessor.stopListening();
     if (this.animationFrameId_ !== null) {
       cancelAnimationFrame(this.animationFrameId_);
@@ -333,7 +352,9 @@ export class RecordingWaveElement extends CrLitElement {
 
         this.$.barsContainer.style.setProperty('--bar-width', `${BAR_WIDTH}px`);
 
-        for (let i = 0; i < MAX_BARS; i++) {
+        // Add initial balls; `resizeObserver_` may change the number of balls
+        // to show, so the later while loop adds the remaining balls if needed.
+        for (let i = 0; i < this.maxBars_; i++) {
           this.barsData_.push({
             level: MINIMUM_VOLUME_LEVEL,
             // Is uninitialized.
@@ -346,7 +367,7 @@ export class RecordingWaveElement extends CrLitElement {
             currentScaleX: 0,
             currentScaleY: 0,
             jitterFactor: 0,
-            targetHeightPx: DEFAULT_STARTING_HEIGHT,
+            targetHeightPx: MINIMUM_BAR_HEIGHT,
           });
 
           const pill = document.createElement('div');
@@ -419,7 +440,7 @@ export class RecordingWaveElement extends CrLitElement {
         currentScaleX: 0,
         currentScaleY: 0,
         jitterFactor: jitterFactor,
-        targetHeightPx: DEFAULT_STARTING_HEIGHT,
+        targetHeightPx: MINIMUM_BAR_HEIGHT,
       });
 
       // Create the 'uninitialized'/'inactive'/unspawned pill (looks like a
@@ -430,16 +451,6 @@ export class RecordingWaveElement extends CrLitElement {
       pill.className = 'bar-pill is-unspawned';
       this.$.barsContainer.prepend(pill);
 
-      // While there are more bars than should be shown:
-      while (this.barsData_.length > MAX_BARS) {
-        this.barsData_.pop();
-        // Remove from DOM:
-        if (this.$.barsContainer.lastElementChild) {
-          this.$.barsContainer.removeChild(
-              this.$.barsContainer.lastElementChild);
-        }
-      }
-
       // Each frame should be drawn every X seconds. However, there are delays.
       // Take this excess delay and account for it in the next timeout for the
       // next frame. This is to avoid falling behind when operations take longer
@@ -447,6 +458,36 @@ export class RecordingWaveElement extends CrLitElement {
       const delayedRemainder = elapsed % BAR_INTERVAL_MS;
       this.lastDrawTimestamp_ = now - delayedRemainder;
       elapsed = delayedRemainder;
+    }
+
+    // While there are more bars than should be shown, even if between frames, remove
+    // from the array and DOM:
+    while (this.barsData_.length > this.maxBars_) {
+      this.barsData_.pop();
+      if (this.$.barsContainer.lastElementChild) {
+        this.$.barsContainer.removeChild(this.$.barsContainer.lastElementChild);
+      }
+    }
+    // Ensure that the animation starts off with enough bars to fill the screen,
+    // especially if `maxBars` has changed due to `resizeObserver_` reacting to
+    // window size change or rendering finishing.
+    while (this.barsData_.length < this.maxBars_) {
+      this.barsData_.push({
+        level: MINIMUM_VOLUME_LEVEL,
+        isUnspawned: true,
+        isSpawning: false,
+        initialScale: 1,
+        spawnTimeMs: 0,
+        currentScaleX: 0,
+        currentScaleY: 0,
+        jitterFactor: 0,
+        targetHeightPx: MINIMUM_BAR_HEIGHT,
+      });
+
+      const pill = document.createElement('div');
+      pill.style.width = `${BAR_WIDTH}px`;
+      pill.className = 'bar-pill is-unspawned';
+      this.$.barsContainer.append(pill);
     }
 
     // In case there is a delay (meaning part of the next frame has started)
@@ -474,11 +515,15 @@ export class RecordingWaveElement extends CrLitElement {
         }
 
         bar.level = liveLevel;
-        // Volume is overridden to be at most 1, but at least 0.1 as a
-        // percentage of the max allowed height.
-        bar.targetHeightPx =
-            Math.max(Math.min(liveLevel, 1), 0.1) * MAX_BAR_HEIGHT;
-        bar.initialScale = 4 / bar.targetHeightPx;
+        // The scale (clamped between 0 and 1) to determine the bar target
+        // height; should be between MINIMUM_BAR_HEIGHT and MAX_BAR_HEIGHT.
+        const boundedLevel = Math.max(Math.min(liveLevel, 1), 0);
+        bar.targetHeightPx = MINIMUM_BAR_HEIGHT +
+            boundedLevel * (MAX_BAR_HEIGHT - MINIMUM_BAR_HEIGHT);
+        // The current scale (fraction) of the final height so the spring
+        // animation starts seamlessly from the unspawned ball shape
+        // (INITIAL_BALL_HEIGHT) up to its targetHeightPx.
+        bar.initialScale = INITIAL_BALL_HEIGHT / bar.targetHeightPx;
         bar.spawnTimeMs = performance.now();
         bar.currentScaleX = 0;
         bar.currentScaleY = 0;
@@ -559,7 +604,7 @@ export class RecordingWaveElement extends CrLitElement {
           // Animate the volume bar's dimensions based on spawn progress (0
           // to 1.0)
           // - scaleX: Expands the width from 50% to full size.
-          // - scaleY: Stretches the height from the initial 4px scale up to
+          // - scaleY: Stretches the height from the initial px up to
           //   full size.
           const scaleX = lerp(0.5, 1, bar.currentScaleX);
           const scaleY = lerp(bar.initialScale, 1, bar.currentScaleY);

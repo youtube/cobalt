@@ -64,8 +64,12 @@ void ContextualTasksPanelHostDesktopAndroid::Show(AnimationStyle animation) {
   if (!side_panel_ui) {
     return;
   }
+  // TODO(crbug.com/526821301): Consider plumbing trigger from call site.
+  SidePanelOpenTrigger trigger = (animation == AnimationStyle::kNoAnimation)
+                                     ? SidePanelOpenTrigger::kTabChanged
+                                     : SidePanelOpenTrigger::kContextualTasks;
   side_panel_ui->Show(
-      SidePanelEntry::Key(SidePanelEntry::Id::kContextualTasks), std::nullopt,
+      SidePanelEntry::Key(SidePanelEntry::Id::kContextualTasks), trigger,
       /*suppress_animations=*/animation == AnimationStyle::kNoAnimation);
 }
 

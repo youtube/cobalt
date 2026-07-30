@@ -1,0 +1,102 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+assert(is_win || is_mac || is_linux)
+
+source_set("media_preview") {
+  public = [
+    "active_devices_media_coordinator.h",
+    "media_coordinator.h",
+    "media_preview_metrics.h",
+    "media_view.h",
+    "media_view_controller_base.h",
+    "page_info_previews_coordinator.h",
+    "permission_prompt_previews_coordinator.h",
+    "scroll_media_preview.h",
+  ]
+  sources = [
+    "active_devices_media_coordinator.cc",
+    "media_coordinator.cc",
+    "media_preview_metrics.cc",
+    "media_view.cc",
+    "media_view_controller_base.cc",
+    "page_info_previews_coordinator.cc",
+    "permission_prompt_previews_coordinator.cc",
+    "scroll_media_preview.cc",
+  ]
+  deps = [
+    "//chrome/browser/media/webrtc",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/ui/views:layout_provider",
+    "//components/content_settings/core/common",
+    "//components/user_prefs",
+    "//ui/color:color_headers",
+  ]
+  public_deps = [
+    "//base",
+    "//chrome/browser/ui/views/media_preview/camera_preview",
+    "//chrome/browser/ui/views/media_preview/mic_preview",
+    "//content/public/browser",
+    "//media/capture:capture_lib",
+    "//ui/base",
+    "//ui/views",
+  ]
+
+  # media_coordinator.h holds std::optional<CameraCoordinator> and
+  # std::optional<MicCoordinator> by value, so it must include (and depend
+  # on) the subdir targets. Their public headers in turn include this
+  # target's base headers (media_preview_metrics.h,
+  # media_view_controller_base.h, media_view.h), which can't be
+  # forward-declared. Permit that intra-cluster back-edge here so the
+  # subdirs don't need a (cyclic) dependency on this target.
+  allow_circular_includes_from = [
+    "//chrome/browser/ui/views/media_preview/camera_preview",
+    "//chrome/browser/ui/views/media_preview/mic_preview",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "active_devices_media_coordinator_unittest.cc",
+    "media_coordinator_unittest.cc",
+    "media_preview_metrics_unittest.cc",
+    "media_view_controller_base_unittest.cc",
+    "page_info_previews_coordinator_unittest.cc",
+    "permission_prompt_previews_coordinator_unittest.cc",
+  ]
+  deps = [
+    ":media_preview",
+    "//base",
+    "//base/test:test_support",
+    "//chrome/browser/media/prefs",
+    "//chrome/browser/ui/views:layout_provider",
+    "//chrome/browser/ui/views/media_preview/camera_preview",
+    "//chrome/browser/ui/views/media_preview/mic_preview",
+    "//chrome/test:test_support",
+    "//components/media_effects/test:test_support",
+    "//content/test:test_support",
+    "//services/audio/public/cpp:test_support",
+    "//services/video_capture/public/cpp:mocks",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//ui/views",
+    "//ui/views:test_support",
+  ]
+}
+
+source_set("interactive_ui_tests") {
+  testonly = true
+  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+  sources = [ "permission_prompt_preview_browsertest.cc" ]
+  deps = [
+    ":media_preview",
+    "//base",
+    "//chrome/test:test_support",
+    "//chrome/test:test_support_ui",
+    "//content/test:test_support",
+    "//testing/gmock",
+    "//ui/views",
+  ]
+}

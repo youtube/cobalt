@@ -7,11 +7,14 @@ package org.chromium.components.policy;
 import android.os.Bundle;
 
 import org.chromium.base.Log;
-import org.chromium.base.ThreadUtils;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 
-/** Base class for Policy providers. */
+/**
+ * Base class for Policy providers.
+ *
+ * Methods in this class should be called on the same sequence.
+ */
 @NullMarked
 public abstract class PolicyProvider {
     private static final String TAG = "PolicyProvider";
@@ -23,7 +26,6 @@ public abstract class PolicyProvider {
     protected PolicyProvider() {}
 
     public void notifySettingsAvailable(Bundle settings) {
-        ThreadUtils.assertOnUiThread();
         Log.i(TAG, "#notifySettingsAvailable() " + mSource);
         mCombinedPolicyProvider.onSettingsAvailable(mSource, settings);
     }

@@ -14,6 +14,24 @@
 <translation id="1185924365081634987">Du kan också försöka lösa nätverksproblemet genom att <ph name="GUEST_SIGNIN_LINK_START" />surfa som gäst<ph name="GUEST_SIGNIN_LINK_END" />.</translation>
 <translation id="1201402288615127009">Nästa</translation>
 <translation id="1222835797152767346">Ange en pinkod så att det blir enklare att logga in</translation>
+<translation id="1346669614038013595"><ph name="BEGIN_H3" />Felsökningsfunktioner<ph name="END_H3" />
+          <ph name="BR" />
+          Du kan aktivera felsökningsfunktionerna på ChromeOS-enheten så att du kan installera och testa egen kod på den. Med dessa funktioner kan du<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />ta bort rootfs-verifieringen så att du kan ändra filer i operativsystemet
+            <ph name="LIST_ITEM" />aktivera SSH-åtkomst till enheten med standardtestnycklarna så att du kan använda enheten med verktyg som <ph name="BEGIN_CODE" />'cros flash'<ph name="END_CODE" />
+            <ph name="LIST_ITEM" />aktivera systemstart från USB så att du kan installera en systemavbildning från en USB-enhet
+            <ph name="LIST_ITEM" />ange ett anpassat lösenord för inloggning både som utvecklare och rot på systemet så att du kan logga in manuellt på enheten med SSH.
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          När felsökningsfunktionerna har aktiverats förblir de flesta av dem aktiverade även om du gör en Powerwash eller raderar data på en företagshanterad enhet. Om du vill inaktivera alla felsökningsfunktionerna helt återställer du ChromeOS (https://support.google.com/chromebook/answer/1080595).
+          <ph name="BR" />
+          <ph name="BR" />
+          Mer information om felsökningsfunktionerna finns på:<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />Obs!<ph name="END_BOLD" /> Systemet startas om under aktiveringen.</translation>
 <translation id="1347625331607114917">Verifiera koden på Android-telefonen</translation>
 <translation id="1347975661240122359">Uppdateringen börjar när batterinivån är på <ph name="BATTERY_LEVEL" /> %.</translation>
 <translation id="1375938286942050085">Konfigureringen är klar. Nu kan du göra klart enheten för spel.</translation>
@@ -126,9 +144,29 @@
 <translation id="503155457707535043">Appar laddas ned</translation>
 <translation id="5045550434625856497">Felaktigt lösenord</translation>
 <translation id="5062930723426326933">Inloggningen misslyckades. Anslut till internet och försök igen.</translation>
+<translation id="5107486920067578245"><ph name="BEGIN_PARAGRAPH1" />Chatta med Gemini och börja skriva, planera, lära dig saker och mycket annat med Google AI.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />När du har konfigurerat Gemini kan du börja använda den genom att välja Gemini-appen på hyllan längst ned på skärmen.<ph name="END_PARAGRAPH2" /></translation>
 <translation id="5115309401544567011">Anslut <ph name="DEVICE_TYPE" /> till en strömkälla.</translation>
 <translation id="5147516217412920887">Följ anvisningarna på telefonen för att verifiera koden</translation>
 <translation id="5160857336552977725">Logga in på din <ph name="DEVICE_TYPE" /></translation>
+<translation id="5171185788583376591"><ph name="BEGIN_H3" />Felsökningsfunktioner<ph name="END_H3" />
+          <ph name="BR" />
+          Du kan aktivera felsökningsfunktionerna på ChromeOS Flex-enheten så att du kan installera och testa egen kod på den. Med dessa funktioner kan du<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />ta bort rootfs-verifieringen så att du kan ändra filer i operativsystemet
+            <ph name="LIST_ITEM" />aktivera SSH-åtkomst till enheten med standardtestnycklarna så att du kan använda enheten med verktyg som <ph name="BEGIN_CODE" />'cros flash'<ph name="END_CODE" />
+            <ph name="LIST_ITEM" />aktivera systemstart från USB så att du kan installera en systemavbildning från en USB-enhet
+            <ph name="LIST_ITEM" />ange ett anpassat lösenord för inloggning både som utvecklare och rot på systemet så att du kan logga in manuellt på enheten med SSH.
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          När felsökningsfunktionerna har aktiverats förblir de flesta av dem aktiverade även om du gör en Powerwash eller raderar data på en företagshanterad enhet. Om du vill inaktivera alla felsökningsfunktionerna helt återställer du ChromeOS (https://support.google.com/chromebook/answer/1080595).
+          <ph name="BR" />
+          <ph name="BR" />
+          Mer information om felsökningsfunktionerna finns på:<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />Obs!<ph name="END_BOLD" /> Systemet startas om under aktiveringen.</translation>
 <translation id="523505283826916779">Inställningar för tillgänglighet</translation>
 <translation id="5240931875940563122">Logga in med Android-telefon</translation>
 <translation id="5255859108402770436">Logga in igen</translation>
@@ -193,6 +231,10 @@
 <translation id="6955698182324067397">Du aktiverar felsökningsfunktioner i ChromeOS som konfigurerar sshd daemon och aktiverar start från USB-enheter.</translation>
 <translation id="6965382102122355670">OK</translation>
 <translation id="6981982820502123353">Tillgänglighet</translation>
+<translation id="6984652455487792101">Om du använder en proxyserver kontrollerar du proxyinställningarna eller
+        kontaktar nätverksadministratören för att kontrollera att
+proxyservern fungerar. Om du inte tror att du bör använda en
+        proxyserver ändrar du <ph name="LINK_START" />proxyinställningarna<ph name="LINK_END" />.</translation>
 <translation id="6996245928508281884">Aktivera Bluetooth och wifi på telefonen</translation>
 <translation id="7077829361966535409">Det gick inte att läsa in inloggningssidan med de aktuella proxyinställningarna. <ph name="GAIA_RELOAD_LINK_START" />Försök logga in igen<ph name="GAIA_RELOAD_LINK_END" /> eller använd andra <ph name="PROXY_SETTINGS_LINK_START" />proxyinställningar<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="7114054701490058191">Lösenorden matchar inte</translation>
@@ -205,6 +247,9 @@
 <translation id="7345706641791090287">Bekräfta lösenordet</translation>
 <translation id="7352651011704765696">Något gick fel</translation>
 <translation id="7476454130948140105">Batterinivån är för låg för uppdateringen (<ph name="BATTERY_PERCENT" /> %)</translation>
+<translation id="7504187084873714912"><ph name="BEGIN_PARAGRAPH1" />Innan du registrerar dig måste du rensa TPM så att <ph name="DEVICE_OS" /> kan ta ägarskap över enheten.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Du kan även stänga av TPM-enheten helt. Din data lagras på ett säkert sätt med mjukvarukryptering, men vissa säkerhetsfunktioner som hårdvarubaserade säkerhetscertifikat inaktiveras.<ph name="END_PARAGRAPH2" />
+        <ph name="BEGIN_PARAGRAPH3" />Du kan ändra TPM-inställningarna genom att starta om och öppna systeminställningarna för BIOS/UEFI. Stegen varierar beroende på enhetsmodell. Om du vill läsa mer kan du öppna dokumentationen för <ph name="DEVICE_OS" /> på en separat enhet innan du startar om: g.co/flex/TPMHelp.<ph name="END_PARAGRAPH3" /></translation>
 <translation id="7543104066686362383">Aktiverar felsökningsfunktioner på den här <ph name="IDS_SHORT_PRODUCT_NAME" />-enheten</translation>
 <translation id="7553242001898162573">Ange ditt lösenord</translation>
 <translation id="7556242789364317684">Tyvärr kan inte <ph name="SHORT_PRODUCT_NAME" /> återställa dina inställningar. <ph name="SHORT_PRODUCT_NAME" /> måste återställa enheten med en Powerwash för att åtgärda felet.</translation>
@@ -251,6 +296,10 @@
 <translation id="8452105022015742247">Överföra uppgifter för Google-kontot från din Android-telefon</translation>
 <translation id="8524841856047224176">Anpassa kamerabakgrunden för videosamtal med mera</translation>
 <translation id="8569673829373920831">Mer om <ph name="APP_NAME" /></translation>
+<translation id="8628232294964836490">Skanna QR-koden enligt anvisningarna på telefonen. Kontrollera att Bluetooth är aktiverat på telefonen.
+        <ph name="BR" />
+        <ph name="BR" />
+        Synlig för enheter i närheten som <ph name="QUICK_START_DEVICE_DISPLAY_NAME" /> …</translation>
 <translation id="8655972064210167941">Inloggningen misslyckades eftersom ditt lösenord inte kunde verifieras. Kontakta administratören eller försök igen.</translation>
 <translation id="8674903726754070732">Tyvärr är din dator konfigurerad med ett felaktigt hårdvaru-ID. Detta förhindrar att ChromeOS uppdateras med de senaste säkerhetskorrigeringarna och datorn <ph name="BEGIN_BOLD" />kan vara utsatt för skadlig kod<ph name="END_BOLD" />.</translation>
 <translation id="8695139659682234808">Lägg till föräldrakontroller efter konfigureringen</translation>
@@ -264,10 +313,20 @@
 <translation id="8830796635868321089">Det gick inte att genomföra uppdateringskontrollen med de aktuella proxyinställningarna. Justera dina <ph name="PROXY_SETTINGS_LINK_START" />proxyinställningar<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="885746075120788020">När du är inloggad med ditt Google-konto har du tillgång till dina sparade inställningar och din sparade aktivitet på alla ChromeOS-enheter. Du kan välja vad som ska synkroniseras i inställningarna.</translation>
 <translation id="8875221558267407626">Sammanfatta innehåll, förenkla komplicerat språk eller ställ frågor</translation>
+<translation id="8913163265790894442">Konfigurera enkelt <ph name="DEVICE_TYPE" /> med telefonen. Du kan lägga till ditt wifi och ditt Google-konto utan att ange lösenorden manuellt.
+        <ph name="BR" />
+        <ph name="BR" />
+        Synlig som <ph name="DEVICE_TYPE" /> …</translation>
 <translation id="8946359700442089734">Felsökningsfunktionerna aktiverades inte helt på den här <ph name="IDS_SHORT_PRODUCT_NAME" />-enheten.</translation>
 <translation id="8965037249707889821">Ange det gamla lösenordet</translation>
 <translation id="8975396729541388937">Du kan när som helst avsluta prenumerationen genom att klicka på länken i e-postmeddelandena du får.</translation>
 <translation id="9033765790910064284">Fortsätt ändå</translation>
 <translation id="903480517321259405">Skriv pinkoden en gång till</translation>
 <translation id="9076523132036239772">Det gick inte att verifiera e-postadressen eller lösenordet. Anslut till ett nätverk först.</translation>
+<translation id="9217002308921247002"><ph name="BEGIN_PARAGRAPH1" />Endast för <ph name="DEVICE_TYPE" />.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Generativ AI är experimentell, under utveckling och har för närvarande begränsad tillgänglighet.<ph name="END_PARAGRAPH2" /></translation>
+<translation id="936479314588646618">Konfigurera enkelt <ph name="DEVICE_TYPE" /> med telefonen. Du kan lägga till ditt Google-konto utan att ange lösenordet manuellt.
+        <ph name="BR" />
+        <ph name="BR" />
+        Synlig som <ph name="DEVICE_TYPE" /> …</translation>
 </translationbundle>

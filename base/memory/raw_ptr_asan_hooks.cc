@@ -40,7 +40,9 @@ bool IsInAllocatedChunk(const void* allocation_start_ptr, uintptr_t address) {
 }  // namespace
 
 NO_SANITIZE("address")
-void RawPtrAsanService::AcquireInternal(uintptr_t address, bool is_copy) const {
+void RawPtrAsanService::AcquireInternal(uintptr_t address,
+                                        bool is_copy,
+                                        bool unprotected_in_release) const {
   if (!address) {
     return;
   }
@@ -88,9 +90,15 @@ void RawPtrAsanService::AcquireInternal(uintptr_t address, bool is_copy) const {
     auto it =
         map.GetMap().find(reinterpret_cast<uintptr_t>(allocation_start_ptr));
     PA_DCHECK(it != map.GetMap().end());
-    // Check overflow.
-    PA_CHECK(it->second.count < kMaxPtrCount);
-    ++it->second.count;
+    if (unprotected_in_release) {
+      // Check overflow.
+      PA_CHECK(it->second.unprotected_in_release_count < kMaxPtrCount);
+      ++it->second.unprotected_in_release_count;
+    } else {
+      // Check overflow.
+      PA_CHECK(it->second.count < kMaxPtrCount);
+      ++it->second.count;
+    }
     quarantine_flag = it->second.quarantine_flag;
   }
 
@@ -131,7 +139,8 @@ uintptr_t RawPtrAsanService::GetAllocationStart(uintptr_t address) const {
 }
 
 NO_SANITIZE("address")
-void RawPtrAsanService::ReleaseInternal(uintptr_t address) const {
+void RawPtrAsanService::ReleaseInternal(uintptr_t address,
+                                        bool unprotected_in_release) const {
   if (!address) {
     return;
   }
@@ -147,10 +156,16 @@ void RawPtrAsanService::ReleaseInternal(uintptr_t address) const {
     internal::PartitionAutoLock lock(map.GetLock());
     auto it = map.GetMap().find(allocation_start_address);
     PA_CHECK(it != map.GetMap().end());
-    PA_CHECK(it->second.count > 0u);
-    --it->second.count;
-    // Still referenced or not quarantined, return.
+    if (unprotected_in_release) {
+      PA_CHECK(it->second.unprotected_in_release_count > 0u);
+      --it->second.unprotected_in_release_count;
+    } else {
+      PA_CHECK(it->second.count > 0u);
+      --it->second.count;
+    }
+    // Still referenced (by either kind) or not quarantined, return.
     if (it->second.count != 0u ||
+        it->second.unprotected_in_release_count != 0u ||
         it->second.quarantine_flag != QuarantineFlag::Quarantined) {
       return;
     }
@@ -247,6 +262,28 @@ bool RawPtrAsanService::IsFreed(uintptr_t address) const {
   return kAsanHeapFreeMagic == *GetShadow(ptr);
 }
 
+NO_SANITIZE("address")
+bool RawPtrAsanService::IsUnprotectedInReleaseOnly(uintptr_t address) const {
+  if (!address) {
+    return false;
+  }
+
+  uintptr_t allocation_start_address = GetAllocationStart(address);
+  if (!allocation_start_address) {
+    return false;
+  }
+
+  auto& map = GetAllocationMetadataMap(allocation_start_address);
+  internal::PartitionAutoLock lock(map.GetLock());
+  auto it = map.GetMap().find(allocation_start_address);
+  if (it == map.GetMap().end()) {
+    return false;
+  }
+  // No protective refs, but kept alive (quarantined) only by
+  // unprotected-in-release refs: this would be unprotected in a release build.
+  return it->second.count == 0u && it->second.unprotected_in_release_count > 0u;
+}
+
 #else   // PA_BUILDFLAG(USE_ASAN_BACKUP_REF_PTR_V2)
 
 namespace {
@@ -292,12 +329,12 @@ NOINLINE NOT_TAIL_CALLED void CrashImmediatelyOnUseAfterFree(
 
 namespace {
 
-void WrapPtr(uintptr_t address) {
+void WrapPtr(uintptr_t address, [[maybe_unused]] bool unprotected_in_release) {
   auto& service = RawPtrAsanService::GetInstance();
 
 #if PA_BUILDFLAG(USE_ASAN_BACKUP_REF_PTR_V2)
   if (service.IsEnabled()) {
-    service.AcquireInternal(address);
+    service.AcquireInternal(address, /*is_copy=*/false, unprotected_in_release);
   }
 #else
   if (service.is_instantiation_check_enabled() && IsFreedHeapPointer(address)) {
@@ -309,28 +346,31 @@ void WrapPtr(uintptr_t address) {
 #endif  // PA_BUILDFLAG(USE_ASAN_BACKUP_REF_PTR_V2)
 }
 
-void ReleaseWrappedPtr([[maybe_unused]] uintptr_t address) {
+void ReleaseWrappedPtr([[maybe_unused]] uintptr_t address,
+                       [[maybe_unused]] bool unprotected_in_release) {
 #if PA_BUILDFLAG(USE_ASAN_BACKUP_REF_PTR_V2)
   auto& service = RawPtrAsanService::GetInstance();
   if (service.IsEnabled()) {
-    service.ReleaseInternal(address);
+    service.ReleaseInternal(address, unprotected_in_release);
   }
 #endif  // PA_BUILDFLAG(USE_ASAN_BACKUP_REF_PTR_V2)
 }
 
-void SafelyUnwrapForDereference([[maybe_unused]] uintptr_t address) {
+void SafelyUnwrapForDereference([[maybe_unused]] uintptr_t address,
+                                [[maybe_unused]] bool unprotected_in_release) {
 #if !PA_BUILDFLAG(USE_ASAN_BACKUP_REF_PTR_V2)
   if (RawPtrAsanService::GetInstance().is_dereference_check_enabled() &&
       IsFreedHeapPointer(address)) {
     RawPtrAsanService::SetPendingReport(
         RawPtrAsanService::ReportType::kDereference,
-        reinterpret_cast<void*>(address));
+        reinterpret_cast<void*>(address), unprotected_in_release);
     CrashImmediatelyOnUseAfterFree(address);
   }
 #endif  // !PA_BUILDFLAG(USE_ASAN_BACKUP_REF_PTR_V2)
 }
 
-void SafelyUnwrapForExtraction([[maybe_unused]] uintptr_t address) {
+void SafelyUnwrapForExtraction([[maybe_unused]] uintptr_t address,
+                               [[maybe_unused]] bool unprotected_in_release) {
 #if !PA_BUILDFLAG(USE_ASAN_BACKUP_REF_PTR_V2)
   auto& service = RawPtrAsanService::GetInstance();
 
@@ -339,7 +379,7 @@ void SafelyUnwrapForExtraction([[maybe_unused]] uintptr_t address) {
       IsFreedHeapPointer(address)) {
     RawPtrAsanService::SetPendingReport(
         RawPtrAsanService::ReportType::kExtraction,
-        reinterpret_cast<void*>(address));
+        reinterpret_cast<void*>(address), unprotected_in_release);
     // If the dereference check is enabled, we still record the extraction event
     // to catch the potential subsequent dangling dereference, but don't report
     // the extraction itself.
@@ -354,7 +394,8 @@ void UnsafelyUnwrapForComparison(uintptr_t) {}
 
 void Advance(uintptr_t, uintptr_t) {}
 
-void Duplicate([[maybe_unused]] uintptr_t address) {
+void Duplicate([[maybe_unused]] uintptr_t address,
+               [[maybe_unused]] bool unprotected_in_release) {
 #if PA_BUILDFLAG(USE_ASAN_BACKUP_REF_PTR_V2)
   if (!address) {
     return;
@@ -362,13 +403,13 @@ void Duplicate([[maybe_unused]] uintptr_t address) {
 
   auto& service = RawPtrAsanService::GetInstance();
   if (service.IsEnabled()) {
-    service.AcquireInternal(address, /*is_copy=*/true);
+    service.AcquireInternal(address, /*is_copy=*/true, unprotected_in_release);
   }
 #endif  // PA_BUILDFLAG(USE_ASAN_BACKUP_REF_PTR_V2)
 }
 
-void WrapPtrForDuplication(uintptr_t address) {
-  Duplicate(address);
+void WrapPtrForDuplication(uintptr_t address, bool unprotected_in_release) {
+  Duplicate(address, unprotected_in_release);
 }
 
 void UnsafelyUnwrapForDuplication(uintptr_t) {}

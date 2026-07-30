@@ -32,8 +32,8 @@ class PaintAutoDarkModeTest : public testing::Test {
     dest_rect =
         gfx::RectF(50 * layout_zoom * css_zoom, 50 * layout_zoom * css_zoom);
     EXPECT_TRUE(filter.ShouldApplyFilterToImage(
-        ImageClassifierHelper::GetImageTypeForTesting(screen_info, dest_rect,
-                                                      src_rect, layout_zoom)));
+        ImageClassifierHelper::GetImageTypeForTesting(dest_rect, src_rect,
+                                                      layout_zoom)));
 
     // A 50x50 CSS icon with css zoom 5.0f becomes 250x250 and does not get
     // filterred as |dest_rect| is larger than threshold size.
@@ -44,8 +44,8 @@ class PaintAutoDarkModeTest : public testing::Test {
     dest_rect =
         gfx::RectF(50 * layout_zoom * css_zoom, 50 * layout_zoom * css_zoom);
     EXPECT_FALSE(filter.ShouldApplyFilterToImage(
-        ImageClassifierHelper::GetImageTypeForTesting(screen_info, dest_rect,
-                                                      src_rect, layout_zoom)));
+        ImageClassifierHelper::GetImageTypeForTesting(dest_rect, src_rect,
+                                                      layout_zoom)));
 
     // An image with 200x200 CSS size gets classified as photo and does not get
     // filtered, even if |dest_rect| becomes smaller 50x50 than threshold size
@@ -57,8 +57,8 @@ class PaintAutoDarkModeTest : public testing::Test {
     dest_rect =
         gfx::RectF(200 * layout_zoom * css_zoom, 200 * layout_zoom * css_zoom);
     EXPECT_FALSE(filter.ShouldApplyFilterToImage(
-        ImageClassifierHelper::GetImageTypeForTesting(screen_info, dest_rect,
-                                                      src_rect, layout_zoom)));
+        ImageClassifierHelper::GetImageTypeForTesting(dest_rect, src_rect,
+                                                      layout_zoom)));
 
     // An image with 200x200 CSS size becomes 20x20 CSS size and gets classified
     // as icon as the CSS size is below the threshold.
@@ -69,8 +69,8 @@ class PaintAutoDarkModeTest : public testing::Test {
     dest_rect =
         gfx::RectF(200 * layout_zoom * css_zoom, 200 * layout_zoom * css_zoom);
     EXPECT_TRUE(filter.ShouldApplyFilterToImage(
-        ImageClassifierHelper::GetImageTypeForTesting(screen_info, dest_rect,
-                                                      src_rect, layout_zoom)));
+        ImageClassifierHelper::GetImageTypeForTesting(dest_rect, src_rect,
+                                                      layout_zoom)));
   }
 };
 
@@ -78,44 +78,40 @@ TEST_F(PaintAutoDarkModeTest, ShouldApplyFilterToImage) {
   DarkModeSettings settings;
   DarkModeFilter filter(settings);
 
-  display::ScreenInfo screen_info;
-  screen_info.rect = gfx::Rect(1920, 1080);
-  screen_info.device_scale_factor = 1.0f;
-
   // |dst| is smaller than threshold size.
   EXPECT_TRUE(filter.ShouldApplyFilterToImage(
-      ImageClassifierHelper::GetImageTypeForTesting(
-          screen_info, gfx::RectF(50, 50), gfx::RectF(50, 50))));
+      ImageClassifierHelper::GetImageTypeForTesting(gfx::RectF(50, 50),
+                                                    gfx::RectF(50, 50))));
 
   // |dst| is smaller than threshold size, even |src| is larger.
   EXPECT_TRUE(filter.ShouldApplyFilterToImage(
-      ImageClassifierHelper::GetImageTypeForTesting(
-          screen_info, gfx::RectF(50, 50), gfx::RectF(200, 200))));
+      ImageClassifierHelper::GetImageTypeForTesting(gfx::RectF(50, 50),
+                                                    gfx::RectF(200, 200))));
 
   // |dst| is smaller than threshold size, |src| is smaller.
   EXPECT_TRUE(filter.ShouldApplyFilterToImage(
-      ImageClassifierHelper::GetImageTypeForTesting(
-          screen_info, gfx::RectF(50, 50), gfx::RectF(20, 20))));
+      ImageClassifierHelper::GetImageTypeForTesting(gfx::RectF(50, 50),
+                                                    gfx::RectF(20, 20))));
 
   // |src| having very smaller width, even |dst| is larger than threshold size.
   EXPECT_TRUE(filter.ShouldApplyFilterToImage(
-      ImageClassifierHelper::GetImageTypeForTesting(
-          screen_info, gfx::RectF(200, 5), gfx::RectF(200, 5))));
+      ImageClassifierHelper::GetImageTypeForTesting(gfx::RectF(200, 5),
+                                                    gfx::RectF(200, 5))));
 
   // |src| having very smaller height, even |dst| is larger than threshold size.
   EXPECT_TRUE(filter.ShouldApplyFilterToImage(
-      ImageClassifierHelper::GetImageTypeForTesting(
-          screen_info, gfx::RectF(5, 200), gfx::RectF(5, 200))));
+      ImageClassifierHelper::GetImageTypeForTesting(gfx::RectF(5, 200),
+                                                    gfx::RectF(5, 200))));
 
   // |dst| is larger than threshold size.
   EXPECT_FALSE(filter.ShouldApplyFilterToImage(
-      ImageClassifierHelper::GetImageTypeForTesting(
-          screen_info, gfx::RectF(200, 200), gfx::RectF(20, 20))));
+      ImageClassifierHelper::GetImageTypeForTesting(gfx::RectF(200, 200),
+                                                    gfx::RectF(20, 20))));
 
   // |dst| is larger than threshold size.
   EXPECT_FALSE(filter.ShouldApplyFilterToImage(
-      ImageClassifierHelper::GetImageTypeForTesting(
-          screen_info, gfx::RectF(20, 200), gfx::RectF(20, 200))));
+      ImageClassifierHelper::GetImageTypeForTesting(gfx::RectF(20, 200),
+                                                    gfx::RectF(20, 200))));
 }
 
 // Test for mobile display configuration
@@ -126,17 +122,19 @@ TEST_F(PaintAutoDarkModeTest, ShouldApplyFilterToImageOnMobile) {
   display::ScreenInfo screen_info;
   screen_info.rect = gfx::Rect(360, 780);
   screen_info.device_scale_factor = 3.0f;
+  const float layout_zoom = screen_info.device_scale_factor;
 
-  // 44x44 css image which is above the physical size threshold
-  // but with in the device ratio threshold
+  // 44x44 CSS icon (132x132 device pixels) is below the threshold and filtered
+  // after undoing the layout zoom (DSF).
   EXPECT_TRUE(filter.ShouldApplyFilterToImage(
       ImageClassifierHelper::GetImageTypeForTesting(
-          screen_info, gfx::RectF(132, 132), gfx::RectF(132, 132))));
+          gfx::RectF(132, 132), gfx::RectF(132, 132), layout_zoom)));
 
-  // 60x60 css image
+  // 70x70 CSS image (210x210 device pixels) is above the threshold and not
+  // filtered.
   EXPECT_FALSE(filter.ShouldApplyFilterToImage(
       ImageClassifierHelper::GetImageTypeForTesting(
-          screen_info, gfx::RectF(180, 180), gfx::RectF(180, 180))));
+          gfx::RectF(210, 210), gfx::RectF(210, 210), layout_zoom)));
 }
 
 TEST_F(PaintAutoDarkModeTest, ShouldApplyFilterToImageIrrespectiveOfPageZoom) {

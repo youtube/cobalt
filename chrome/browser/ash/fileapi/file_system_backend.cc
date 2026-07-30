@@ -297,17 +297,6 @@ void FileSystemBackend::RevokeAccessForOrigin(const url::Origin& origin) {
   file_access_permissions_->RevokePermissions(origin);
 }
 
-std::vector<base::FilePath> FileSystemBackend::GetRootDirectories() const {
-  std::vector<storage::MountPoints::MountPointInfo> mount_points;
-  mount_points_->AddMountPointInfosTo(&mount_points);
-  system_mount_points_->AddMountPointInfosTo(&mount_points);
-
-  std::vector<base::FilePath> root_dirs;
-  for (size_t i = 0; i < mount_points.size(); ++i)
-    root_dirs.push_back(mount_points[i].path);
-  return root_dirs;
-}
-
 storage::AsyncFileUtil* FileSystemBackend::GetAsyncFileUtil(
     storage::FileSystemType type) {
   switch (type) {

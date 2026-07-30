@@ -66,7 +66,7 @@ std::string EditingTestBase::GetCaretTextFromBody(
       SelectionInDomTree::Builder().Collapse(position).Build());
 }
 
-ShadowRoot* EditingTestBase::CreateShadowRootForElementWithIDAndSetInnerHTML(
+ShadowRoot* EditingTestBase::CreateShadowRootForElementWithIdAndSetInnerHtml(
     TreeScope& scope,
     const char* host_element_id,
     const char* shadow_root_content) {
@@ -81,7 +81,7 @@ ShadowRoot* EditingTestBase::CreateShadowRootForElementWithIDAndSetInnerHTML(
 
 ShadowRoot* EditingTestBase::SetShadowContent(const char* shadow_content,
                                               const char* host) {
-  ShadowRoot* shadow_root = CreateShadowRootForElementWithIDAndSetInnerHTML(
+  ShadowRoot* shadow_root = CreateShadowRootForElementWithIdAndSetInnerHtml(
       GetDocument(), host, shadow_content);
   return shadow_root;
 }

@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "ash/constants/ash_extension_constants.h"
 #include "ash/constants/webui_url_constants.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
@@ -15,7 +16,6 @@
 #include "chrome/browser/ash/file_system_provider/service.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/webui/ash/office_fallback/office_fallback_ui.h"
-#include "chrome/common/extensions/extension_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chromeos/constants/chromeos_features.h"

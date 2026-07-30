@@ -5,12 +5,13 @@
 #include "chrome/browser/ntp_customization/ntp_synced_theme_bridge.h"
 
 #include "base/android/callback_android.h"
+#include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/files/file_path.h"
 #include "chrome/browser/ntp_customization/jni_headers/NtpSyncedThemeBridge_jni.h"
-#include "chrome/browser/search/background/ntp_custom_background_service.h"
-#include "chrome/browser/search/background/ntp_custom_background_service_factory.h"
+#include "chrome/browser/ntp_customization/ntp_android_custom_background_service.h"
+#include "chrome/browser/ntp_customization/ntp_android_custom_background_service_factory.h"
 #include "url/android/gurl_android.h"
 
 using base::android::JavaRef;
@@ -31,7 +32,7 @@ NtpSyncedThemeBridge::NtpSyncedThemeBridge(JNIEnv* env,
                                            const JavaRef<jobject>& j_java_obj)
     : profile_(profile),
       ntp_custom_background_service_(
-          NtpCustomBackgroundServiceFactory::GetForProfile(profile)),
+          NtpAndroidCustomBackgroundServiceFactory::GetForProfile(profile)),
       j_java_obj_(env, j_java_obj) {
   CHECK(ntp_custom_background_service_);
   ntp_custom_background_service_->AddObserver(this);

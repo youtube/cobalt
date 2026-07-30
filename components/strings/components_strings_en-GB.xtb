@@ -477,6 +477,7 @@ This will otherwise be blocked by your privacy settings. This will allow the con
 <translation id="173080396488393970">This type of card isn’t supported</translation>
 <translation id="1731563515262205847">ML-DSA-65</translation>
 <translation id="1732445923934584865">Ask in-person instead</translation>
+<translation id="1732796940245838248">Update redress number in Google Wallet</translation>
 <translation id="1733064249834771892">fonts</translation>
 <translation id="1733631169686303142">Audio Equipment</translation>
 <translation id="1733762317901693627">Even sites that are normally safe are sometimes compromised by attackers. Only visit <ph name="BEGIN_LINK" />this unsafe site<ph name="END_LINK" /> if you're sure you understand the risks.</translation>
@@ -581,6 +582,7 @@ This will otherwise be blocked by your privacy settings. This will allow the con
 <translation id="1902576642799138955">Validity Period</translation>
 <translation id="1908217026282415406">Camera use and movement</translation>
 <translation id="1908690643053136980">Your administrator doesn't allow <ph name="PERMISSION" /> for this site</translation>
+<translation id="1912750443952232242">Save ID card in Google Wallet</translation>
 <translation id="1913037223029790376">Use CVC for this virtual card</translation>
 <translation id="191374271204266022">Copy as JSON</translation>
 <translation id="1914326953223720820">Unzip Service</translation>
@@ -711,6 +713,7 @@ This will otherwise be blocked by your privacy settings. This will allow the con
 <translation id="2122165854541876335">Consumer resources</translation>
 <translation id="2122214041802369259">Price is high</translation>
 <translation id="2122719317867821810">This policy is working as intended but a conflicting value is set elsewhere and is overridden by this policy.</translation>
+<translation id="2124081665399116863">Update vehicle in Google Wallet</translation>
 <translation id="2126374524350484896">PDF producer:</translation>
 <translation id="2127090458081644412">Password saved to this device</translation>
 <translation id="2127747486437921899">Italic</translation>
@@ -993,6 +996,7 @@ This will otherwise be blocked by your privacy settings. This will allow the con
 <translation id="2524962131655207565"><ph name="BEGIN_BOLD" />Content from the checkout page is shared with Google to offer these options.<ph name="END_BOLD" /> Payment plans are subject to eligibility. To hide pay later options, go to <ph name="BEGIN_LINK" />Payment settings<ph name="END_LINK" />.</translation>
 <translation id="2526062290525841862">To run this app, re-enable isolated web app developer mode</translation>
 <translation id="2526280916094749336">You can use saved addresses across Google products. This address will be saved in your Google Account, <ph name="ACCOUNT" />.</translation>
+<translation id="2526590354069164005">Desktop</translation>
 <translation id="2527451058878391043">Your CVC is on the front of your card. It’s the four-digit code at the top right above your card number.</translation>
 <translation id="2529899080962247600">This field should not have more than <ph name="MAX_ITEMS_LIMIT" /> entries. All further entries will be ignored.</translation>
 <translation id="2530042584066815841">Mouse lock and use</translation>
@@ -1493,6 +1497,7 @@ To hide pay later options, go to <ph name="BEGIN_LINK" />payment settings<ph nam
 <translation id="3325568918769906282">in descending order</translation>
 <translation id="3325662270238538525">Recent file access and modifications, including file names, digital fingerprints of the file content, download source and metadata</translation>
 <translation id="3329013043687509092">Saturation</translation>
+<translation id="3330483197654063678">When on, Chrome will share open tabs in this window to help you get more relevant responses.</translation>
 <translation id="3333762389743153920">Not eligible for virtual card</translation>
 <translation id="3338095232262050444">Secure</translation>
 <translation id="333839153442689579">High-Intensity Interval Training</translation>
@@ -1546,6 +1551,7 @@ To hide pay later options, go to <ph name="BEGIN_LINK" />payment settings<ph nam
 <translation id="3422472998109090673"><ph name="HOST_NAME" /> is currently unreachable.</translation>
 <translation id="3422794267539320056">Tap the dino or press space to play</translation>
 <translation id="3423742043356668186">System specified</translation>
+<translation id="3426672782316020729">Update passport in Google Wallet</translation>
 <translation id="3427342743765426898">&amp;Redo Edit</translation>
 <translation id="342781501876943858">Chromium recommends resetting your password if you reused it on other sites.</translation>
 <translation id="3428151540071562330">One or more of the DnsOverHttpsTemplates server template URIs is invalid and will not be used.</translation>
@@ -2406,6 +2412,7 @@ To hide pay later options, go to <ph name="BEGIN_LINK" />payment settings<ph nam
 <translation id="4766713847338118463">Dual staple bottom</translation>
 <translation id="4768816584204270288">When you pay over time, a one-time virtual card number is filled. You can click to copy and paste card details for this purchase.</translation>
 <translation id="4768864802656530630">Detailed system logs. <ph name="BEGIN_LINK" />Learn more<ph name="END_LINK" /></translation>
+<translation id="4770909831299304090">Update KTN in Google Wallet</translation>
 <translation id="4771249073710170730">Radio control and modelling</translation>
 <translation id="4771973620359291008">An unknown error has occurred.</translation>
 <translation id="4774055414220872623">Art and Craft Supplies</translation>
@@ -2846,6 +2853,7 @@ To hide pay later options, go to <ph name="BEGIN_LINK" />payment settings<ph nam
 <translation id="5458150163479425638">{CONTACT,plural, =0{<ph name="CONTACT_PREVIEW" />}=1{<ph name="CONTACT_PREVIEW" /> and <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" /> more}other{<ph name="CONTACT_PREVIEW" /> and <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" /> more}}</translation>
 <translation id="5463625433003343978">Finding devices…</translation>
 <translation id="5464236009658034488">Office Supplies</translation>
+<translation id="5465128270485645058">Get more tailored responses by automatically sharing open tabs in this window if they're related to this thread.</translation>
 <translation id="5465724643247062031">Glass (opaque)</translation>
 <translation id="5466018172325111652">Didn\u2019t receive your code? <ph name="BEGIN_LINK" />Get new code<ph name="END_LINK" /></translation>
 <translation id="5466818462212249084">Payments apps</translation>
@@ -3128,6 +3136,7 @@ To hide pay later options, go to <ph name="BEGIN_LINK" />payment settings<ph nam
 <translation id="5911020115933784199">Events and Listings</translation>
 <translation id="5911110632211230665">Blocked open</translation>
 <translation id="5912796581727968237">Open Google Wallet</translation>
+<translation id="5914185423510719251">Save KTN in Google Wallet</translation>
 <translation id="5914465277418006379"><ph name="MEMBER_FIRST_NAME" /> added this tab</translation>
 <translation id="5915189366813702112">Flexible work arrangements</translation>
 <translation id="59174027418879706">Enabled</translation>
@@ -3651,6 +3660,7 @@ To hide pay later options, go to <ph name="BEGIN_LINK" />payment settings<ph nam
 <translation id="6702851555558236418">Audio and music software</translation>
 <translation id="6702919718839027939">Present</translation>
 <translation id="6704458454638854812">The property 'custom_size' is set; expected name to be 'custom'.</translation>
+<translation id="670477556876354552">Restart required</translation>
 <translation id="6706005862292023715">Curtains and Window Treatments</translation>
 <translation id="6706210727756204531">Scope</translation>
 <translation id="6706678697074905703">This IBAN couldn't be saved in your Google Account. It's been saved to Chrome on this device instead.</translation>
@@ -3908,6 +3918,7 @@ To hide pay later options, go to <ph name="BEGIN_LINK" />payment settings<ph nam
 <translation id="7110116949943042888">Temporary and Seasonal Jobs</translation>
 <translation id="7110368079836707726">Colleges and universities</translation>
 <translation id="7111507312244504964">Property Inspections and Appraisals</translation>
+<translation id="7117290130383718594">Text annotations</translation>
 <translation id="7118618213916969306">Search for clipboard URL, <ph name="SHORT_URL" /></translation>
 <translation id="7118852830504022370">You are seeing this warning because this site does not support HTTPS. <ph name="BEGIN_LEARN_MORE_LINK" />Learn more about this warning<ph name="END_LEARN_MORE_LINK" /></translation>
 <translation id="7119063404975271297">TV dramas</translation>
@@ -4217,6 +4228,7 @@ Additional details:
 <translation id="7569490014721427265">Golf</translation>
 <translation id="7569952961197462199">Remove credit card from Chrome?</translation>
 <translation id="7569983096843329377">Black</translation>
+<translation id="7570524564113479209">Update ID card in Google Wallet</translation>
 <translation id="7570862164055912832">Redress numbers</translation>
 <translation id="7571813784389228510">Google AI Mode</translation>
 <translation id="7574998639136359461">Winter Sports Equipment</translation>
@@ -4738,6 +4750,7 @@ Additional details:
 <translation id="8389940864052787379">Custom and performance vehicles</translation>
 <translation id="8390725133630534698">Sharing from <ph name="ORIGIN_NAME" /> to <ph name="VM_NAME" /> has been blocked by administrator policy</translation>
 <translation id="8392783408127179588">Reloading policies</translation>
+<translation id="8393948304336153065">Update driving licence in Google Wallet</translation>
 <translation id="8396522675989118466">This is the <ph name="NUMBER_OF_DIGITS" />-digit code on the <ph name="SIDE_OF_CARD" /></translation>
 <translation id="8398335999901363925">Payment methods available to be filled on touch opened at full height.</translation>
 <translation id="8398446215576328011">Revert applied policies</translation>
@@ -4899,7 +4912,6 @@ Additional details:
 <translation id="8671519637524426245">The <ph name="SECURE_DNS_SALT" /> value does not meet the size requirements.</translation>
 <translation id="867224526087042813">Signature</translation>
 <translation id="8672535691554698269">Computer networks</translation>
-<translation id="8673710317985154384">{NUM_TABS,plural, =1{Show tab sharing details. Sharing 1 tab from {WEBSITE_LIST_STR}}other{Show tab sharing details. Sharing {NUM_TABS} tabs from {WEBSITE_LIST_STR}}}</translation>
 <translation id="8675446170353411473">Your files are being uploaded to <ph name="CLOUD_PROVIDER" /></translation>
 <translation id="8676424191133491403">No delay</translation>
 <translation id="8680536109547170164"><ph name="QUERY" />, answer, <ph name="ANSWER" /></translation>

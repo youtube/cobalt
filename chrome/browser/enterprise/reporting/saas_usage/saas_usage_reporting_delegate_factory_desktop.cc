@@ -52,9 +52,9 @@ SaasUsageReportingDelegateFactoryDesktop::GetSaasUsageReportFactoryDelegate()
 std::unique_ptr<SaasUsageReportUploader>
 SaasUsageReportingDelegateFactoryDesktop::GetSaasUsageReportUploader() const {
   if (profile_) {
-    return std::make_unique<SaasUsageProfileReportUploaderDesktop>(profile_);
+    return std::make_unique<SaasUsageReportUploaderDesktop>(profile_);
   }
-  return std::make_unique<SaasUsageBrowserReportUploaderDesktop>();
+  return std::make_unique<SaasUsageReportUploaderDesktop>();
 }
 
 std::unique_ptr<SaasUsageReportScheduler::Delegate>

@@ -14,7 +14,6 @@ import org.chromium.components.browser_ui.media.MediaSessionHelper;
 import org.chromium.components.favicon.LargeIconBridge;
 import org.chromium.content_public.browser.MediaSession;
 import org.chromium.content_public.browser.NavigationHandle;
-import org.chromium.content_public.browser.Page;
 import org.chromium.content_public.browser.Visibility;
 import org.chromium.content_public.browser.test.mock.MockWebContents;
 import org.chromium.media_session.mojom.MediaSessionAction;
@@ -121,23 +120,7 @@ public class MediaNotificationTestTabHolder {
         mMediaSessionTabHelper.mMediaSessionHelper.mWebContentsObserver
                 .didStartNavigationInPrimaryMainFrame(navigation);
 
-        navigation.didFinish(
-                gurl,
-                /* isErrorPage= */ false,
-                /* hasCommitted= */ true,
-                /* isPrimaryMainFrameFragmentNavigation= */ false,
-                /* isDownload= */ false,
-                /* isValidSearchFormUrl= */ false,
-                /* transition= */ 0,
-                /* errorCode= */ 0,
-                /* errorDescription= */ "",
-                /* httpStatuscode= */ 200,
-                /* isExternalProtocol= */ false,
-                /* isPdf= */ false,
-                /* mimeType= */ "",
-                Page.createForTesting(),
-                /* isSameOrigin= */ true,
-                /* ignoredDuplicateNavigationCount= */ 0);
+        navigation.callDidFinishForTesting(gurl);
         mMediaSessionTabHelper.mMediaSessionHelper.mWebContentsObserver
                 .didFinishNavigationInPrimaryMainFrame(navigation);
     }

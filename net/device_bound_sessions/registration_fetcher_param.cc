@@ -162,9 +162,26 @@ std::optional<RegistrationFetcherParam> RegistrationFetcherParam::ParseItem(
     return std::nullopt;
   }
 
-  if (provider_key.has_value() != provider_url.has_value() ||
-      provider_key.has_value() != provider_session_id.has_value()) {
+  // `provider_key` and `provider_url` must either both be present or
+  // both be absent.
+  if (provider_key.has_value() != provider_url.has_value()) {
     return std::nullopt;
+  }
+
+  if (base::FeatureList::IsEnabled(
+          features::kDeviceBoundSessionsForSingleSignOn)) {
+    // In SSO scenarios, `provider_session_id` can be absent.
+    // However, if `provider_session_id` is present, then `provider_key`
+    // (and by extension `provider_url`) must also be present.
+    if (provider_session_id.has_value() && !provider_key.has_value()) {
+      return std::nullopt;
+    }
+  } else {
+    // In non-SSO scenarios, `provider_session_id` must be present
+    // if and only if `provider_key` is present.
+    if (provider_session_id.has_value() != provider_key.has_value()) {
+      return std::nullopt;
+    }
   }
 
   if (provider_url.has_value() &&

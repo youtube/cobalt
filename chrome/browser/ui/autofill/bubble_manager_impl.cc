@@ -27,24 +27,26 @@ constexpr base::TimeDelta kPendingRequestTimeout = base::Seconds(3600);
 int GetPriorityForBubbleType(BubbleType type) {
   switch (type) {
     case BubbleType::kOmniboxAutofill:
-      return 11;
+      return 12;
     case BubbleType::kFilledCardInformation:
-      return 10;
+      return 11;
     case BubbleType::kPassword:
-      return 9;
+      return 10;
     case BubbleType::kSaveUpdateAutofillAi:
-      return 8;
+      return 9;
     case BubbleType::kSaveUpdateCard:
-      return 7;
+      return 8;
     case BubbleType::kVirtualCardEnrollConfirmation:
-      return 6;
+      return 7;
     case BubbleType::kSaveIban:
-      return 5;
+      return 6;
     case BubbleType::kMandatoryReauth:
-      return 4;
+      return 5;
     case BubbleType::kSaveUpdateAddress:
-      return 3;
+      return 4;
     case BubbleType::kOfferNotification:
+      return 3;
+    case BubbleType::kPaymentsChurnedUsers:
       return 2;
     case BubbleType::kWalletablePassConsent:
       return 1;
@@ -62,6 +64,7 @@ bool ShouldAlwaysPreemptSameType(BubbleType bubble_type) {
     case BubbleType::kPassword:
       return true;
     case BubbleType::kOmniboxAutofill:
+    case BubbleType::kPaymentsChurnedUsers:
     case BubbleType::kSaveUpdateAutofillAi:
     case BubbleType::kSaveUpdateCard:
     case BubbleType::kVirtualCardEnrollConfirmation:
@@ -79,6 +82,8 @@ bool ShouldAlwaysPreemptSameType(BubbleType bubble_type) {
 // LINT.IfChange(BubbleTypeToMetricSuffix)
 std::string_view BubbleTypeToMetricSuffix(BubbleType bubble_type) {
   switch (bubble_type) {
+    case BubbleType::kPaymentsChurnedUsers:
+      return "PaymentsChurnedUsers";
     case BubbleType::kOmniboxAutofill:
       return "OmniboxAutofill";
     case BubbleType::kSaveUpdateAddress:

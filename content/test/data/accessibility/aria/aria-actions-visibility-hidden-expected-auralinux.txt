@@ -1,0 +1,11 @@
+[document web] actions=(doDefault, showContextMenu)
+++[panel] actions=(doDefault, showContextMenu, custom_visible-target) has-actions:true
+++++[static] name='Host with visible target' actions=(doDefault, showContextMenu)
+++[push button] name='Save' actions=(press, showContextMenu)
+++[panel] actions=(doDefault, showContextMenu) has-actions:true
+++++[static] name='Host with hidden target' actions=(doDefault, showContextMenu)
+++[panel] actions=(doDefault, showContextMenu, custom_mixed-visible) has-actions:true
+++++[static] name='Host with mixed targets' actions=(doDefault, showContextMenu)
+++[push button] name='Open' actions=(press, showContextMenu)
+++[panel] actions=(doDefault, showContextMenu) has-actions:true
+++++[static] name='Host with ancestor-hidden target' actions=(doDefault, showContextMenu)

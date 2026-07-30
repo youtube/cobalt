@@ -27,11 +27,13 @@ cr-action-menu {
 }
 
 cr-action-menu > button {
-  padding: 4px 16px;
+  padding-block: 4px;
+  padding-inline-start: 16px;
   min-width: 230px;
 }
 
 button > cr-icon {
+  --iron-icon-fill-color: var(--toolbar-menu-icon-color);
   width: 20px;
   height: 20px;
 }
@@ -44,4 +46,5 @@ button > cr-icon {
   background-color: var(--toolbar-divider-color);
   height: 1px;
   width: 100%;
+  margin-block: 8px;
 }

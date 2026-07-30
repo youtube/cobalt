@@ -116,9 +116,7 @@ class BaseAutofillAiTest : public testing::Test {
   BaseAutofillAiTest() {
     scoped_feature_list_.InitWithFeatures(
         /*enabled_features=*/{features::kAutofillAiWithDataSchema,
-                              features::kAutofillAiWalletFlightReservation,
-                              features::kAutofillAiOrder,
-                              features::kAutofillAiShipment},
+                              features::kAutofillAiWalletFlightReservation},
         /*disabled_features=*/{});
     autofill_client().set_entity_data_manager(
         std::make_unique<EntityDataManager>(
@@ -149,7 +147,8 @@ class BaseAutofillAiTest : public testing::Test {
         webdata_helper_.WaitUntilIdle();
         break;
       case EntityInstance::RecordType::kPersonalContext:
-        edm.OnPrefetchContextComplete(pcontext_manager_, {entity});
+        edm.OnPrefetchContextComplete(pcontext_manager_,
+                                      std::vector<EntityInstance>{entity});
         break;
     }
   }

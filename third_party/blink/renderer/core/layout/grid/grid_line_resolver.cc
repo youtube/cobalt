@@ -42,7 +42,8 @@ GridLineResolver::GridLineResolver(const ComputedStyle& grid_style,
                                    const GridLineResolver& parent_line_resolver,
                                    GridArea subgrid_area,
                                    wtf_size_t column_auto_repetitions,
-                                   wtf_size_t row_auto_repetitions)
+                                   wtf_size_t row_auto_repetitions,
+                                   bool can_inherit_line_names_from_parent)
     : style_(&grid_style),
       column_auto_repetitions_(column_auto_repetitions),
       row_auto_repetitions_(row_auto_repetitions),
@@ -324,7 +325,7 @@ GridLineResolver::GridLineResolver(const ComputedStyle& grid_style,
       IsParallelWritingMode(grid_style.GetWritingMode(),
                             parent_line_resolver.style_->GetWritingMode());
 
-  if (has_subgridded_columns) {
+  if (has_subgridded_columns && can_inherit_line_names_from_parent) {
     const auto track_direction_in_parent =
         is_parallel_to_parent ? kForColumns : kForRows;
     MergeNamedGridLinesWithParent(
@@ -342,7 +343,7 @@ GridLineResolver::GridLineResolver(const ComputedStyle& grid_style,
         is_opposite_direction_to_parent,
         parent_line_resolver.IsSubgridded(track_direction_in_parent));
   }
-  if (has_subgridded_rows) {
+  if (has_subgridded_rows && can_inherit_line_names_from_parent) {
     const auto track_direction_in_parent =
         is_parallel_to_parent ? kForRows : kForColumns;
     MergeNamedGridLinesWithParent(
@@ -372,17 +373,19 @@ GridLineResolver::GridLineResolver(const ComputedStyle& grid_style,
                       subgrid_area);
   }
 
-  if (const NamedGridAreaMap* parent_areas =
-          parent_line_resolver.NamedAreasMap()) {
-    // If the subgrid doesn't have any grid areas defined, emplace an empty one.
-    // We still need to call `MergeAndClampGridAreasWithParent` to copy and
-    // clamp the parent's map to the subgrid range.
-    if (!subgrid_merged_named_areas_) {
-      subgrid_merged_named_areas_.emplace();
+  if (can_inherit_line_names_from_parent) {
+    if (const NamedGridAreaMap* parent_areas =
+            parent_line_resolver.NamedAreasMap()) {
+      // If the subgrid doesn't have any grid areas defined, emplace an empty
+      // one. We still need to call `MergeAndClampGridAreasWithParent` to copy
+      // and clamp the parent's map to the subgrid range.
+      if (!subgrid_merged_named_areas_) {
+        subgrid_merged_named_areas_.emplace();
+      }
+      MergeAndClampGridAreasWithParent(*subgrid_merged_named_areas_,
+                                       *parent_areas, subgrid_area,
+                                       is_parallel_to_parent);
     }
-    MergeAndClampGridAreasWithParent(*subgrid_merged_named_areas_,
-                                     *parent_areas, subgrid_area,
-                                     is_parallel_to_parent);
   }
 
   // If we have a merged named grid area map, we need to generate new implicit

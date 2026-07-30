@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "ash/constants/ash_extension_constants.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
 #include "base/memory/raw_ptr.h"
@@ -30,10 +31,10 @@
 #include "chrome/browser/ui/ash/system_web_apps/system_web_app_ui_utils.h"
 #include "chrome/browser/ui/webui/ash/cloud_upload/cloud_upload_util.h"
 #include "chrome/common/chrome_paths.h"
-#include "chrome/common/extensions/extension_constants.h"
 #include "components/services/app_service/public/cpp/intent_test_util.h"
 #include "extensions/browser/entry_info.h"
 #include "extensions/browser/extension_system.h"
+#include "extensions/common/constants.h"
 #include "net/base/mime_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

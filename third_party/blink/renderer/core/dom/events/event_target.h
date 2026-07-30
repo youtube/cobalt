@@ -203,13 +203,15 @@ class CORE_EXPORT EventTarget : public ScriptWrappable {
   bool HasEventListeners() const;
   bool HasEventListeners(const AtomicString& event_type) const;
   bool HasAnyEventListeners(const Vector<AtomicString>& event_types) const;
-  bool HasCapturingEventListeners(const AtomicString& event_type);
+  bool HasCapturingEventListeners(const AtomicString& event_type) const;
   bool HasJSBasedEventListeners(const AtomicString& event_type) const;
   EventListenerVector* GetEventListeners(const AtomicString& event_type);
+  const EventListenerVector* GetEventListeners(
+      const AtomicString& event_type) const;
   // Number of event listeners for |event_type| registered at this event target.
   int NumberOfEventListeners(const AtomicString& event_type) const;
 
-  Vector<AtomicString> EventTypes();
+  Vector<AtomicString> EventTypes() const;
 
   DispatchEventResult FireEventListeners(Event&);
 
@@ -223,7 +225,8 @@ class CORE_EXPORT EventTarget : public ScriptWrappable {
   // window.document.body.
   bool IsTopLevelNode();
 
-  EventTargetData* GetEventTargetData();
+  EventTargetData* GetEventTargetData() { return data_.Get(); }
+  const EventTargetData* GetEventTargetData() const { return data_.Get(); }
 
   // GlobalEventHandlers:
   // These event listener helpers are defined internally for all EventTargets,
@@ -403,9 +406,7 @@ class CORE_EXPORT EventTarget : public ScriptWrappable {
 
 DISABLE_CFI_PERF
 inline bool EventTarget::HasEventListeners() const {
-  // FIXME: We should have a const version of eventTargetData.
-  if (const EventTargetData* d =
-          const_cast<EventTarget*>(this)->GetEventTargetData())
+  if (const EventTargetData* d = GetEventTargetData())
     return !d->event_listener_map.IsEmpty();
   return false;
 }
@@ -413,9 +414,7 @@ inline bool EventTarget::HasEventListeners() const {
 DISABLE_CFI_PERF
 inline bool EventTarget::HasEventListeners(
     const AtomicString& event_type) const {
-  // FIXME: We should have const version of eventTargetData.
-  if (const EventTargetData* d =
-          const_cast<EventTarget*>(this)->GetEventTargetData())
+  if (const EventTargetData* d = GetEventTargetData())
     return d->event_listener_map.Contains(event_type);
   return false;
 }
@@ -431,8 +430,8 @@ inline bool EventTarget::HasAnyEventListeners(
 }
 
 inline bool EventTarget::HasCapturingEventListeners(
-    const AtomicString& event_type) {
-  EventTargetData* d = GetEventTargetData();
+    const AtomicString& event_type) const {
+  const EventTargetData* d = GetEventTargetData();
   if (!d)
     return false;
   return d->event_listener_map.ContainsCapturing(event_type);
@@ -440,9 +439,7 @@ inline bool EventTarget::HasCapturingEventListeners(
 
 inline bool EventTarget::HasJSBasedEventListeners(
     const AtomicString& event_type) const {
-  // TODO(rogerj): We should have const version of eventTargetData.
-  if (const EventTargetData* d =
-          const_cast<EventTarget*>(this)->GetEventTargetData())
+  if (const EventTargetData* d = GetEventTargetData())
     return d->event_listener_map.ContainsJSBasedEventListeners(event_type);
   return false;
 }

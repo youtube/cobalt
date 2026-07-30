@@ -240,6 +240,14 @@ void TranslateBubbleView::Init() {
 }
 
 views::View* TranslateBubbleView::GetInitiallyFocusedView() {
+  // Focus the selected tab of the tabbed pane (source / target language tabs)
+  // initially when visible. Focus should not fall back to default focus
+  // traversal because it may set focus to the "Choose target language" button.
+  if (tabbed_pane_ && tabbed_pane_->GetVisible() &&
+      tabbed_pane_->GetSelectedTabIndex() !=
+          views::TabbedPaneTabStrip::kNoSelectedTab) {
+    return tabbed_pane_->GetTabAt(tabbed_pane_->GetSelectedTabIndex());
+  }
   return GetCurrentView()->GetNextFocusableView();
 }
 
@@ -1138,6 +1146,16 @@ void TranslateBubbleView::SwitchView(
   }
 
   UpdateChildVisibilities();
+
+  // When the bubble menu transitions to the target language search view,
+  // request focus on the search bar instead of keeping it on the previous
+  // focused element.
+  if (view_state == TranslateBubbleModel::VIEW_STATE_TARGET_LANGUAGE &&
+      base::FeatureList::IsEnabled(translate::kTranslateLanguageSearchUI)) {
+    if (translate_language_search_view_) {
+      translate_language_search_view_->RequestFocus();
+    }
+  }
 
   if (view_state == TranslateBubbleModel::VIEW_STATE_AFTER_TRANSLATE) {
     AnnounceTextToScreenReader(l10n_util::GetStringFUTF16(

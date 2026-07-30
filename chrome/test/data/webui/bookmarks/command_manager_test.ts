@@ -603,7 +603,7 @@ suite('<bookmarks-command-manager>', function() {
       url: 'https://www.example.com',
       title: 'example',
     };
-    store.dispatch(createBookmark(item1.id, item1));
+    store.dispatch(createBookmark(item1.parentId, item1.index, item1));
     assertFalse(commandManager.canExecute(Command.SORT, new Set()));
 
     const item2 = {
@@ -613,7 +613,7 @@ suite('<bookmarks-command-manager>', function() {
       url: 'https://www.example.com',
       title: 'example',
     };
-    store.dispatch(createBookmark(item2.id, item2));
+    store.dispatch(createBookmark(item2.parentId, item2.index, item2));
     assertTrue(commandManager.canExecute(Command.SORT, new Set()));
   });
 });

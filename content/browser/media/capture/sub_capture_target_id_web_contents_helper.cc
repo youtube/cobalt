@@ -65,6 +65,11 @@ WebContents* SubCaptureTargetIdWebContentsHelper::GetRelevantWebContents(
   if (!rfhi || !rfhi->IsActive()) {
     return nullptr;
   }
+
+  if (rfhi->IsNestedWithinFencedFrame()) {
+    return nullptr;
+  }
+
   rfhi = rfhi->GetMainFrame();  // TODO(crbug.com/40287690): Remove this line.
 
   if (GetContentClient()

@@ -83,14 +83,14 @@ void SubSurfaceClient::Run(const ClientBase::InitParams& params) {
 
     // Only generate frames to child surface for the first 200 frames.
     if (frame_count < 200) {
-      SkScalar half_width = SkScalarHalf(kSubsurfaceWidth);
-      SkScalar half_height = SkScalarHalf(kSubsurfaceHeight);
-      SkIRect rect = SkIRect::MakeXYWH(-SkScalarHalf(half_width),
-                                       -SkScalarHalf(half_height), half_width,
-                                       half_height);
+      float half_width = kSubsurfaceWidth / 2.f;
+      float half_height = kSubsurfaceHeight / 2.f;
+      SkIRect rect = SkIRect::MakeXYWH(static_cast<int>(-half_width / 2.f),
+                                       static_cast<int>(-half_height / 2.f),
+                                       half_width, half_height);
       // Rotation speed (degrees/frame).
       const double kRotationSpeed = 5.;
-      SkScalar rotation = frame_count * kRotationSpeed;
+      float rotation = frame_count * kRotationSpeed;
       SkCanvas* canvas = subbuffer->sk_surface->getCanvas();
       canvas->save();
       canvas->clear(SK_ColorBLACK);

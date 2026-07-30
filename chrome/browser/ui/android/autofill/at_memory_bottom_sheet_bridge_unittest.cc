@@ -6,7 +6,11 @@
 
 #include <memory>
 
+#include "base/test/scoped_feature_list.h"
 #include "chrome/browser/autofill/android/at_memory_bottom_sheet_delegate.h"
+#include "chrome/test/base/testing_profile.h"
+#include "components/personal_context/core/personal_context_features.h"
+#include "content/public/test/browser_task_environment.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/android/window_android.h"
@@ -21,16 +25,30 @@ class MockAtMemoryBottomSheetDelegate : public AtMemoryBottomSheetDelegate {
               OnQuerySubmitted,
               (const std::u16string& query),
               (override));
+  MOCK_METHOD(void,
+              OnQueryTextChanged,
+              (const std::u16string& query),
+              (override));
   MOCK_METHOD(void, OnSuggestionSelected, (int position), (override));
+  MOCK_METHOD(bool, IsSearching, (), (const, override));
 };
 
 class AtMemoryBottomSheetBridgeTest : public testing::Test {
  protected:
-  void SetUp() override {
-    window_ = ui::WindowAndroid::CreateForTesting();
-    bridge_ = std::make_unique<AtMemoryBottomSheetBridge>(window_->get());
+  AtMemoryBottomSheetBridgeTest() {
+    scoped_feature_list_.InitAndEnableFeature(
+        personal_context::features::kPersonalContextFirstRunNoticePhase2);
   }
 
+  void SetUp() override {
+    window_ = ui::WindowAndroid::CreateForTesting();
+    bridge_ =
+        std::make_unique<AtMemoryBottomSheetBridge>(window_->get(), &profile_);
+  }
+
+  content::BrowserTaskEnvironment task_environment_;
+  base::test::ScopedFeatureList scoped_feature_list_;
+  TestingProfile profile_;
   std::unique_ptr<ui::WindowAndroid::ScopedWindowAndroidForTesting> window_;
   std::unique_ptr<AtMemoryBottomSheetBridge> bridge_;
 };

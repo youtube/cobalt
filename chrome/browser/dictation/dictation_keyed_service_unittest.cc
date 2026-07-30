@@ -5,23 +5,30 @@
 #include "chrome/browser/dictation/dictation_keyed_service.h"
 
 #include "base/test/scoped_feature_list.h"
-#include "chrome/browser/dictation/features.h"
 #include "chrome/browser/dictation/target.h"
+#include "chrome/browser/dictation/test_util.h"
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
+#include "chrome/common/pref_names.h"
+#include "chrome/test/base/testing_profile.h"
+#include "components/prefs/pref_service.h"
+#include "content/public/test/browser_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace dictation {
 
 class DictationKeyedServiceTest : public testing::Test {
  public:
-  DictationKeyedServiceTest() {
-    scoped_feature_list_.InitAndEnableFeature(kDictation);
-    // Passing nullptr for profile as it's not used in the methods we test.
-    service_ = std::make_unique<DictationKeyedService>(nullptr);
+  DictationKeyedServiceTest()
+      : scoped_feature_list_(CreateEnablingFeatureList()),
+        service_(std::make_unique<DictationKeyedService>(&profile_)) {
+    profile_.GetPrefs()->SetBoolean(prefs::kPrefDictationOnboardingCompleted,
+                                    true);
   }
   ~DictationKeyedServiceTest() override = default;
 
  protected:
+  content::BrowserTaskEnvironment task_environment_;
+  TestingProfile profile_;
   base::test::ScopedFeatureList scoped_feature_list_;
   testing::NiceMock<MockBrowserWindowInterface> window_;
   std::unique_ptr<DictationKeyedService> service_;

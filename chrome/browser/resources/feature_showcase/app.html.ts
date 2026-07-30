@@ -19,17 +19,6 @@ export function getHtml(this: FeatureShowcaseAppElement) {
 </cr-lottie>
 
 <cr-view-manager id="viewManager">
-  ${this.hasStep_('example') ? html`
-      <feature-showcase-example-step id="example" slot="view"
-          @step-completed="${this.onStepCompleted_}"
-          ?buttons-disabled="${this.areButtonsDisabled_}">
-        <feature-showcase-stepper slot="stepper"
-            .steps="${this.steps}"
-            .activeIndex="${this.activeStepIndex}">
-        </feature-showcase-stepper>
-      </feature-showcase-example-step>
-  ` : ''}
-
   ${this.hasStep_('default-browser') ? html`
       <feature-showcase-default-browser-step id="default-browser" slot="view"
           @step-completed="${this.onStepCompleted_}"
@@ -61,6 +50,19 @@ export function getHtml(this: FeatureShowcaseAppElement) {
             .activeIndex="${this.activeStepIndex}">
         </feature-showcase-stepper>
       </feature-showcase-google-lens-step>
+  ` : ''}
+
+  ${this.hasStep_('themes-and-customization') ? html`
+      <feature-showcase-themes-and-customization-step
+          id="themes-and-customization"
+          slot="view"
+          @step-completed="${this.onStepCompleted_}"
+          ?buttons-disabled="${this.areButtonsDisabled_}">
+        <feature-showcase-stepper slot="stepper"
+            .steps="${this.steps}"
+            .activeIndex="${this.activeStepIndex}">
+        </feature-showcase-stepper>
+      </feature-showcase-themes-and-customization-step>
   ` : ''}
 </cr-view-manager>
 <!--_html_template_end_-->`;

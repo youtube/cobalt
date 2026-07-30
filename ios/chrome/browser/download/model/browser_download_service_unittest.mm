@@ -10,6 +10,8 @@
 #import "base/strings/utf_string_conversions.h"
 #import "base/test/metrics/histogram_tester.h"
 #import "base/test/scoped_feature_list.h"
+#import "components/policy/core/common/policy_pref_names.h"
+#import "components/prefs/pref_service.h"
 #import "ios/chrome/browser/download/model/ar_quick_look_tab_helper.h"
 #import "ios/chrome/browser/download/model/browser_download_service_factory.h"
 #import "ios/chrome/browser/download/model/download_manager_tab_helper.h"
@@ -17,6 +19,8 @@
 #import "ios/chrome/browser/download/model/pass_kit_tab_helper.h"
 #import "ios/chrome/browser/download/model/vcard_tab_helper.h"
 #import "ios/chrome/browser/download/ui/features.h"
+#import "ios/chrome/browser/drive/model/drive_policy.h"
+#import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
 #import "ios/chrome/browser/shared/model/utils/mime_type_util.h"
 #import "ios/web/public/download/download_controller.h"
@@ -80,6 +84,14 @@ class StubTabHelper<DownloadManagerTabHelper>
     tasks_.push_back(std::move(task));
   }
 
+  void ShowRestrictDownloadSnackbar() override {
+    show_restrict_download_snackbar_called_ = true;
+  }
+
+  bool show_restrict_download_snackbar_called() const {
+    return show_restrict_download_snackbar_called_;
+  }
+
   // Tasks added via Download() call.
   using DownloadTasks = std::vector<std::unique_ptr<web::DownloadTask>>;
   const DownloadTasks& tasks() const { return tasks_; }
@@ -89,6 +101,7 @@ class StubTabHelper<DownloadManagerTabHelper>
 
  private:
   DownloadTasks tasks_;
+  bool show_restrict_download_snackbar_called_ = false;
 };
 
 }  // namespace
@@ -174,6 +187,98 @@ TEST_F(BrowserDownloadServiceTest, UsdzExtension) {
       "Download.IOSDownloadMimeType",
       static_cast<base::HistogramBase::Sample32>(DownloadMimeTypeResult::Other),
       1);
+}
+
+// Tests that when downloads are restricted by enterprise policy, specialized
+// downloads (such as .USDZ files) are blocked entirely and the restriction
+// snackbar is shown, instead of being routed to specialized tab helpers.
+TEST_F(BrowserDownloadServiceTest,
+       RestrictedDownloadBypassesSpecializedHelpers) {
+  profile_->GetPrefs()->SetInteger(policy::policy_prefs::kDownloadRestrictions,
+                                   3 /* ALL_FILES */);
+
+  ASSERT_TRUE(download_controller()->GetDelegate());
+  auto task = std::make_unique<web::FakeDownloadTask>(GURL(kUrl), "other");
+  task->SetGeneratedFileName(base::FilePath(kUsdzFileName));
+  web_state_.WasShown();
+
+  download_controller()->GetDelegate()->OnDownloadCreated(
+      download_controller(), &web_state_, std::move(task));
+
+  EXPECT_TRUE(ar_quick_look_tab_helper()->tasks().empty());
+  EXPECT_TRUE(pass_kit_tab_helper()->tasks().empty());
+  EXPECT_TRUE(vcard_tab_helper()->tasks().empty());
+  EXPECT_TRUE(download_manager_tab_helper()->tasks().empty());
+  EXPECT_TRUE(
+      download_manager_tab_helper()->show_restrict_download_snackbar_called());
+}
+
+// Tests that download is restricted for a visible web state when the download
+// restrictions policy is enabled.
+TEST_F(BrowserDownloadServiceTest, DownloadRestrictedForVisibleWebState) {
+  profile_->GetPrefs()->SetInteger(policy::policy_prefs::kDownloadRestrictions,
+                                   3 /* ALL_FILES */);
+  profile_->GetPrefs()->SetInteger(
+      prefs::kIosSaveToDriveDownloadManagerPolicySettings, 2 /* kDisabled */);
+
+  ASSERT_TRUE(download_controller()->GetDelegate());
+  auto task =
+      std::make_unique<web::FakeDownloadTask>(GURL(kUrl), "application/zip");
+  web_state_.WasShown();
+
+  download_controller()->GetDelegate()->OnDownloadCreated(
+      download_controller(), &web_state_, std::move(task));
+
+  EXPECT_TRUE(download_manager_tab_helper()->tasks().empty());
+  EXPECT_TRUE(
+      download_manager_tab_helper()->show_restrict_download_snackbar_called());
+}
+
+// Tests that download is restricted for a visible web state when the download
+// restrictions policy is enabled and browser is incognito.
+TEST_F(BrowserDownloadServiceTest,
+       DownloadRestrictedAndIncognitoForVisibleWebState) {
+  ProfileIOS* otr_profile = profile_->GetOffTheRecordProfile();
+  web_state_.SetBrowserState(otr_profile);
+  otr_profile->GetPrefs()->SetInteger(
+      policy::policy_prefs::kDownloadRestrictions, 3 /* ALL_FILES */);
+  otr_profile->GetPrefs()->SetInteger(
+      prefs::kIosSaveToDriveDownloadManagerPolicySettings, 1 /* kEnabled */);
+
+  ASSERT_TRUE(download_controller()->GetDelegate());
+  auto task =
+      std::make_unique<web::FakeDownloadTask>(GURL(kUrl), "application/zip");
+  web_state_.WasShown();
+
+  download_controller()->GetDelegate()->OnDownloadCreated(
+      download_controller(), &web_state_, std::move(task));
+
+  EXPECT_TRUE(download_manager_tab_helper()->tasks().empty());
+  EXPECT_TRUE(
+      download_manager_tab_helper()->show_restrict_download_snackbar_called());
+}
+
+// Tests that standard download is not restricted when download restrictions
+// policy is set to no restriction.
+TEST_F(BrowserDownloadServiceTest, NoDownloadRestrictionForVisibleWebState) {
+  profile_->GetPrefs()->SetInteger(policy::policy_prefs::kDownloadRestrictions,
+                                   0 /* NO_RESTRICTION */);
+  profile_->GetPrefs()->SetInteger(
+      prefs::kIosSaveToDriveDownloadManagerPolicySettings, 1 /* kEnabled */);
+
+  ASSERT_TRUE(download_controller()->GetDelegate());
+  auto task =
+      std::make_unique<web::FakeDownloadTask>(GURL(kUrl), "application/zip");
+  web::DownloadTask* task_ptr = task.get();
+  web_state_.WasShown();
+
+  download_controller()->GetDelegate()->OnDownloadCreated(
+      download_controller(), &web_state_, std::move(task));
+
+  ASSERT_EQ(1U, download_manager_tab_helper()->tasks().size());
+  EXPECT_EQ(task_ptr, download_manager_tab_helper()->tasks()[0].get());
+  EXPECT_FALSE(
+      download_manager_tab_helper()->show_restrict_download_snackbar_called());
 }
 
 // Tests that BrowserDownloadService uses ARQuickLookTabHelper for .REALITY

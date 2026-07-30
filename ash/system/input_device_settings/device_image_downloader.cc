@@ -72,7 +72,7 @@ GURL DeviceImageDownloader::GetResourceUrlFromDeviceKey(
     DeviceImageDestination destination) {
   CHECK(!device_key.empty());
 
-  std::string formatted_key = GetDeviceKeyForMetadataRequest(device_key);
+  std::string formatted_key = device_key;
   std::ranges::replace(formatted_key, ':', '_');
 
   // Format strings for building image URLs based on destination.

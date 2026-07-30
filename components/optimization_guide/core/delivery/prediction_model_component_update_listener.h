@@ -68,7 +68,7 @@ class PredictionModelComponentUpdateListener
   // Callback when model loading completes on the background thread.
   void OnModelLoaded(proto::OptimizationTarget target,
                      const base::Version& version,
-                     std::unique_ptr<proto::PredictionModel> prediction_model);
+                     std::unique_ptr<ModelInfo> model_info);
 
   // Returns the task runner to use for loading models for `target`.
   scoped_refptr<base::SequencedTaskRunner> GetTaskRunner(

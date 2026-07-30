@@ -20,7 +20,6 @@
 #include "components/enterprise/connectors/core/reporting_test_utils.h"
 #include "components/policy/core/common/cloud/dm_token.h"
 #include "components/policy/core/common/cloud/mock_cloud_policy_client.h"
-#include "components/policy/core/common/cloud/realtime_reporting_job_configuration.h"
 #include "components/safe_browsing/content/browser/safe_browsing_navigation_observer_manager.h"
 #include "components/safe_browsing/core/browser/referrer_chain_provider.h"
 #include "components/safe_browsing/core/common/features.h"
@@ -189,12 +188,7 @@ TEST_F(InterstitialEnterpriseUtilTest, RouterEventDisabledInIncognitoMode) {
               /*create_if_needed=*/true);
   EnableReportingPolicy(incognito_profile);
 
-  if (base::FeatureList::IsEnabled(
-          policy::kUploadRealtimeReportingEventsUsingProto)) {
-    EXPECT_CALL(*client_, UploadSecurityEvent).Times(0);
-  } else {
-    EXPECT_CALL(*client_, UploadSecurityEventReport).Times(0);
-  }
+  EXPECT_CALL(*client_, UploadSecurityEvent).Times(0);
 
   MaybeTriggerSecurityInterstitialShownEvent(
       web_contents_factory_.CreateWebContents(incognito_profile),
@@ -224,28 +218,16 @@ TEST_F(InterstitialEnterpriseUtilTest,
                       Return(safe_browsing::ReferrerChainProvider::SUCCESS)));
   base::RunLoop run_loop;
   ::chrome::cros::reporting::proto::UploadEventsRequest event_request;
-  base::DictValue report_dict;
 
-  if (base::FeatureList::IsEnabled(
-          policy::kUploadRealtimeReportingEventsUsingProto)) {
-    EXPECT_CALL(*client_, UploadSecurityEvent)
-        .Times(1)
-        .WillOnce(
-            [&](bool include_device_info,
-                ::chrome::cros::reporting::proto::UploadEventsRequest&& request,
-                policy::CloudPolicyClient::ResultCallback callback) {
-              event_request = std::move(request);
-              run_loop.Quit();
-            });
-  } else {
-    EXPECT_CALL(*client_, UploadSecurityEventReport)
-        .Times(1)
-        .WillOnce([&](bool include_device_info, base::DictValue&& report,
-                      policy::CloudPolicyClient::ResultCallback callback) {
-          report_dict = std::move(report);
-          run_loop.Quit();
-        });
-  }
+  EXPECT_CALL(*client_, UploadSecurityEvent)
+      .Times(1)
+      .WillOnce(
+          [&](bool include_device_info,
+              ::chrome::cros::reporting::proto::UploadEventsRequest&& request,
+              policy::CloudPolicyClient::ResultCallback callback) {
+            event_request = std::move(request);
+            run_loop.Quit();
+          });
 
   MaybeTriggerSecurityInterstitialShownEvent(
       web_contents_factory_.CreateWebContents(guest_profile),
@@ -253,12 +235,7 @@ TEST_F(InterstitialEnterpriseUtilTest,
       /*net_error_code=*/0);
   run_loop.Run();
 
-  if (base::FeatureList::IsEnabled(
-          policy::kUploadRealtimeReportingEventsUsingProto)) {
-    ValidateReferrerChainForInterstitialEvent(event_request);
-  } else {
-    ValidateReferrerChain(report_dict, "interstitialEvent");
-  }
+  ValidateReferrerChainForInterstitialEvent(event_request);
 }
 
 TEST_F(InterstitialEnterpriseUtilTest,
@@ -283,28 +260,16 @@ TEST_F(InterstitialEnterpriseUtilTest,
                       Return(safe_browsing::ReferrerChainProvider::SUCCESS)));
   base::RunLoop run_loop;
   ::chrome::cros::reporting::proto::UploadEventsRequest event_request;
-  base::DictValue report_dict;
 
-  if (base::FeatureList::IsEnabled(
-          policy::kUploadRealtimeReportingEventsUsingProto)) {
-    EXPECT_CALL(*client_, UploadSecurityEvent)
-        .Times(1)
-        .WillOnce(
-            [&](bool include_device_info,
-                ::chrome::cros::reporting::proto::UploadEventsRequest&& request,
-                policy::CloudPolicyClient::ResultCallback callback) {
-              event_request = std::move(request);
-              run_loop.Quit();
-            });
-  } else {
-    EXPECT_CALL(*client_, UploadSecurityEventReport)
-        .Times(1)
-        .WillOnce([&](bool include_device_info, base::DictValue&& report,
-                      policy::CloudPolicyClient::ResultCallback callback) {
-          report_dict = std::move(report);
-          run_loop.Quit();
-        });
-  }
+  EXPECT_CALL(*client_, UploadSecurityEvent)
+      .Times(1)
+      .WillOnce(
+          [&](bool include_device_info,
+              ::chrome::cros::reporting::proto::UploadEventsRequest&& request,
+              policy::CloudPolicyClient::ResultCallback callback) {
+            event_request = std::move(request);
+            run_loop.Quit();
+          });
 
   MaybeTriggerSecurityInterstitialProceededEvent(
       web_contents_factory_.CreateWebContents(guest_profile),
@@ -312,12 +277,7 @@ TEST_F(InterstitialEnterpriseUtilTest,
       /*net_error_code=*/0);
   run_loop.Run();
 
-  if (base::FeatureList::IsEnabled(
-          policy::kUploadRealtimeReportingEventsUsingProto)) {
-    ValidateReferrerChainForInterstitialEvent(event_request);
-  } else {
-    ValidateReferrerChain(report_dict, "interstitialEvent");
-  }
+  ValidateReferrerChainForInterstitialEvent(event_request);
 }
 
 TEST_F(InterstitialEnterpriseUtilTest,
@@ -351,40 +311,23 @@ TEST_F(InterstitialEnterpriseUtilTest,
                       Return(safe_browsing::ReferrerChainProvider::SUCCESS)));
   base::RunLoop run_loop;
   ::chrome::cros::reporting::proto::UploadEventsRequest event_request;
-  base::DictValue report_dict;
 
-  if (base::FeatureList::IsEnabled(
-          policy::kUploadRealtimeReportingEventsUsingProto)) {
-    EXPECT_CALL(*client_, UploadSecurityEvent)
-        .Times(1)
-        .WillOnce(
-            [&](bool include_device_info,
-                ::chrome::cros::reporting::proto::UploadEventsRequest&& request,
-                policy::CloudPolicyClient::ResultCallback callback) {
-              event_request = std::move(request);
-              run_loop.Quit();
-            });
-  } else {
-    EXPECT_CALL(*client_, UploadSecurityEventReport)
-        .Times(1)
-        .WillOnce([&](bool include_device_info, base::DictValue&& report,
-                      policy::CloudPolicyClient::ResultCallback callback) {
-          report_dict = std::move(report);
-          run_loop.Quit();
-        });
-  }
+  EXPECT_CALL(*client_, UploadSecurityEvent)
+      .Times(1)
+      .WillOnce(
+          [&](bool include_device_info,
+              ::chrome::cros::reporting::proto::UploadEventsRequest&& request,
+              policy::CloudPolicyClient::ResultCallback callback) {
+            event_request = std::move(request);
+            run_loop.Quit();
+          });
 
   MaybeTriggerUrlFilteringInterstitialEvent(
       web_contents_factory_.CreateWebContents(guest_profile),
       GURL("https://phishing.com/"), "ENTERPRISE_WARNED_SEEN", response);
   run_loop.Run();
 
-  if (base::FeatureList::IsEnabled(
-          policy::kUploadRealtimeReportingEventsUsingProto)) {
-    ValidateReferrerChainForUrlFilteringEvent(event_request);
-  } else {
-    ValidateReferrerChain(report_dict, "urlFilteringInterstitialEvent");
-  }
+  ValidateReferrerChainForUrlFilteringEvent(event_request);
 }
 
 TEST_F(InterstitialEnterpriseUtilTest, ReferrerChainFallsbackToEventUrl) {
@@ -423,38 +366,21 @@ TEST_F(InterstitialEnterpriseUtilTest, ReferrerChainFallsbackToEventUrl) {
                       Return(safe_browsing::ReferrerChainProvider::SUCCESS)));
   base::RunLoop run_loop;
   ::chrome::cros::reporting::proto::UploadEventsRequest event_request;
-  base::DictValue report_dict;
 
-  if (base::FeatureList::IsEnabled(
-          policy::kUploadRealtimeReportingEventsUsingProto)) {
-    EXPECT_CALL(*client_, UploadSecurityEvent)
-        .Times(1)
-        .WillOnce(
-            [&](bool include_device_info,
-                ::chrome::cros::reporting::proto::UploadEventsRequest&& request,
-                policy::CloudPolicyClient::ResultCallback callback) {
-              event_request = std::move(request);
-              run_loop.Quit();
-            });
-  } else {
-    EXPECT_CALL(*client_, UploadSecurityEventReport)
-        .Times(1)
-        .WillOnce([&](bool include_device_info, base::DictValue&& report,
-                      policy::CloudPolicyClient::ResultCallback callback) {
-          report_dict = std::move(report);
-          run_loop.Quit();
-        });
-  }
+  EXPECT_CALL(*client_, UploadSecurityEvent)
+      .Times(1)
+      .WillOnce(
+          [&](bool include_device_info,
+              ::chrome::cros::reporting::proto::UploadEventsRequest&& request,
+              policy::CloudPolicyClient::ResultCallback callback) {
+            event_request = std::move(request);
+            run_loop.Quit();
+          });
 
   MaybeTriggerUrlFilteringInterstitialEvent(
       web_contents_factory_.CreateWebContents(guest_profile),
       GURL("https://phishing.com/"), "ENTERPRISE_WARNED_SEEN", response);
   run_loop.Run();
 
-  if (base::FeatureList::IsEnabled(
-          policy::kUploadRealtimeReportingEventsUsingProto)) {
-    ValidateReferrerChainForUrlFilteringEvent(event_request);
-  } else {
-    ValidateReferrerChain(report_dict, "urlFilteringInterstitialEvent");
-  }
+  ValidateReferrerChainForUrlFilteringEvent(event_request);
 }

@@ -98,6 +98,8 @@ component("shell_dialogs") {
       "base_shell_dialog_win.h",
       "execute_select_file_win.cc",
       "execute_select_file_win.h",
+      "safe_accept_file_dialog_event_handler_win.cc",
+      "safe_accept_file_dialog_event_handler_win.h",
       "select_file_dialog_win.cc",
       "select_file_dialog_win.h",
       "select_file_utils_win.h",

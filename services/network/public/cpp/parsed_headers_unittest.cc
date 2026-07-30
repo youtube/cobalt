@@ -392,9 +392,7 @@ TEST(ParsedHeadersTest, ConnectionAllowlist) {
   EXPECT_TRUE(parsed_headers->connection_allowlists.report_only.has_value());
 }
 
-TEST(ParsedHeadersTest, DeclarativePerformanceObserverEnabled) {
-  base::test::ScopedFeatureList enable{
-      features::kDeclarativePerformanceObserver};
+TEST(ParsedHeadersTest, DeclarativePerformanceObserver) {
   const std::string_view headers =
       "HTTP/1.1 200 OK\r\n"
       "Performance-Observer: report-to=\"default\", "
@@ -412,19 +410,6 @@ TEST(ParsedHeadersTest, DeclarativePerformanceObserverEnabled) {
   EXPECT_EQ(
       parsed_headers->declarative_performance_observer_policy->entry_types[0],
       mojom::PerformanceEntryType::kMark);
-}
-
-TEST(ParsedHeadersTest, DeclarativePerformanceObserverDisabled) {
-  base::test::ScopedFeatureList disable;
-  disable.InitAndDisableFeature(features::kDeclarativePerformanceObserver);
-  const std::string_view headers =
-      "HTTP/1.1 200 OK\r\n"
-      "Performance-Observer: report-to=\"default\", "
-      "entry-types=(\"mark\")\r\n\r\n";
-  const auto parsed_headers = ParseHeaders(headers);
-
-  ASSERT_TRUE(parsed_headers);
-  EXPECT_FALSE(parsed_headers->declarative_performance_observer_policy);
 }
 
 TEST(ParsedHeadersTest, PrefetchActivationBeacon) {

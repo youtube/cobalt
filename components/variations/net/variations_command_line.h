@@ -10,6 +10,7 @@
 
 #include "build/build_config.h"
 #include "build/buildflag.h"
+#include "crypto/keypair.h"
 
 #if !BUILDFLAG(IS_CHROMEOS)
 #include "base/feature_list.h"
@@ -33,7 +34,7 @@ BASE_DECLARE_FEATURE(kFeedbackIncludeVariations);
 enum class VariationsStateEncryptionStatus {
   kSuccess = 0,
   kEmptyInput = 1,
-  kHpkeSetupFailure = 2,
+  // kHpkeSetupFailure = 2, // obsolete and unused
   kHpkeSealFailure = 3,
   kMaxValue = kHpkeSealFailure,
 };
@@ -109,12 +110,9 @@ struct VariationsCommandLine {
   // Test the internal function `EncryptStringWithPublicKey`.
   // The `ciphertext` is a combination of:
   //   The encapsulated shared secret + encrypted bytes.
-  // If `enc_len` is not null, it will store the length of the
-  // encapsulated shared secret.
   VariationsStateEncryptionStatus EncryptToStringForTesting(
       std::vector<uint8_t>* ciphertext,
-      base::span<const uint8_t> public_key,
-      size_t* enc_len) const;
+      const crypto::keypair::PublicKey& public_key) const;
 #endif
 };
 

@@ -183,7 +183,7 @@ TEST_F(SharedGpuContextTest, AccelerateImageBufferSurfaceAutoRecovery) {
           SharedGpuContext::ContextProviderWrapper(),
           gpu::SharedImageUsageSet());
   EXPECT_TRUE(resource_provider && resource_provider->IsValid());
-  EXPECT_TRUE(resource_provider->IsAccelerated());
+  EXPECT_FALSE(resource_provider->IsSoftware());
   EXPECT_TRUE(SharedGpuContext::IsValidWithoutRestoringForTesting());
 }
 

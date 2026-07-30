@@ -102,6 +102,9 @@ enum class SearchEngineLogoState;
 // Animation to expand this header in response to focusing the omnibox.
 - (void)expandHeaderForFocus;
 
+// Reverts the effects of expanding the header.
+- (void)revertHeaderExpansionOnUnfocus;
+
 // Updates the fake omnibox layout for the given scroll offset.
 - (void)updateFakeOmniboxForOffset:(CGFloat)offset
                        screenWidth:(CGFloat)screenWidth

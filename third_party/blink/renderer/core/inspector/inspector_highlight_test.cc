@@ -536,6 +536,52 @@ TEST_F(InspectorHighlightTest, FieldsetGrid) {
   EXPECT_EQ(2u, info->getArray("columnTrackSizes")->size());
 }
 
+TEST_F(InspectorHighlightTest, GridTrackSizesIgnoreDeviceScaleFactor) {
+  auto* chrome_client = MakeGarbageCollected<ScaledChromeClient>(2.f);
+  auto page_holder =
+      std::make_unique<DummyPageHolder>(gfx::Size(800, 600), chrome_client);
+  Document& document = page_holder->GetDocument();
+
+  document.body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <style>
+    #grid {
+      display: grid;
+      width: 200px;
+      height: 200px;
+      grid-template-columns: 100px 100px;
+      grid-template-rows: 100px 100px;
+    }
+    </style>
+    <div id="grid">
+      <div></div>
+      <div></div>
+      <div></div>
+      <div></div>
+    </div>
+  )HTML");
+  document.View()->UpdateAllLifecyclePhasesForTest();
+  Node* grid = document.getElementById(AtomicString("grid"));
+  EXPECT_TRUE(grid);
+  auto info =
+      InspectorGridHighlight(grid, InspectorHighlight::DefaultGridConfig());
+  EXPECT_TRUE(info);
+
+  auto ExpectComputedSizes = [](protocol::ListValue* track_sizes,
+                                double expected_size) {
+    ASSERT_TRUE(track_sizes);
+    for (wtf_size_t i = 0; i < track_sizes->size(); ++i) {
+      protocol::DictionaryValue* track_size =
+          static_cast<protocol::DictionaryValue*>(track_sizes->at(i));
+      double computed_size = 0;
+      EXPECT_TRUE(track_size->getDouble("computedSize", &computed_size));
+      EXPECT_DOUBLE_EQ(expected_size, computed_size);
+    }
+  };
+
+  ExpectComputedSizes(info->getArray("rowTrackSizes"), 100);
+  ExpectComputedSizes(info->getArray("columnTrackSizes"), 100);
+}
+
 TEST_F(InspectorHighlightTest, FieldsetFlex) {
   GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <style>

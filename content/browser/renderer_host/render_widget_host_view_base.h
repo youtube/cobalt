@@ -17,6 +17,7 @@
 #include "base/gtest_prod_util.h"
 #include "base/i18n/rtl.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/process/kill.h"
 #include "base/time/time.h"
@@ -436,7 +437,8 @@ class CONTENT_EXPORT RenderWidgetHostViewBase
       const gfx::Rect& bounds_in_dips);
   virtual void UpdateUnboundedSurfaceBounds(const gfx::Rect& bounds_in_screen);
   virtual void DismissUnboundedSurface();
-  virtual void DestroyUnboundedSurface();
+  virtual void DestroyUnboundedSurface(
+      base::WeakPtr<UnboundedSurfaceWindow> window);
   virtual bool HasActiveUnboundedSurface() const;
   virtual viz::FrameSinkId GetUnboundedSurfaceFrameSinkId() const;
   virtual viz::LocalSurfaceId GetUnboundedSurfaceLocalSurfaceId() const;
@@ -509,6 +511,8 @@ class CONTENT_EXPORT RenderWidgetHostViewBase
   // of context menu. The view can then perform platform specific tasks and
   // changes.
   virtual void SetShowingContextMenu(bool showing) {}
+
+  void SetSupportsAutoFill(bool supports) override {}
 
   // Gets the DisplayFeature whose offset and mask_length are expressed in DIPs
   // relative to the view. See display_feature.h for more details.

@@ -49,6 +49,8 @@ const PrefMappingEntry kMappings[] = {
      APIPermissionID::kPrivacy, APIPermissionID::kPrivacy},
     {"autofillCreditCardEnabled", autofill::prefs::kAutofillCreditCardEnabled,
      APIPermissionID::kPrivacy, APIPermissionID::kPrivacy},
+    {"autofillSettings", autofill::prefs::kAutofillTypesBlocked,
+     APIPermissionID::kPrivacy, APIPermissionID::kPrivacy},
     {"hyperlinkAuditingEnabled", prefs::kEnableHyperlinkAuditing,
      APIPermissionID::kPrivacy, APIPermissionID::kPrivacy},
     {"networkPredictionEnabled", prefetch::prefs::kNetworkPredictionOptions,

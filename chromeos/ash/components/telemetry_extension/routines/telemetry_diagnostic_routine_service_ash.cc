@@ -14,7 +14,6 @@
 #include "chromeos/ash/components/telemetry_extension/common/telemetry_extension_converters.h"
 #include "chromeos/ash/components/telemetry_extension/routines/routine_control.h"
 #include "chromeos/ash/components/telemetry_extension/routines/routine_converters.h"
-#include "chromeos/ash/components/telemetry_extension/routines/routine_events_forwarder.h"
 #include "chromeos/ash/services/cros_healthd/public/cpp/service_connection.h"
 #include "chromeos/ash/services/cros_healthd/public/mojom/cros_healthd_routines.mojom.h"
 #include "chromeos/crosapi/mojom/telemetry_diagnostic_routine_service.mojom.h"
@@ -32,53 +31,27 @@ using RoutineControlProxy =
     SelfOwnedMojoProxy<healthd::RoutineControl,
                        crosapi::TelemetryDiagnosticRoutineControl,
                        CrosHealthdRoutineControl>;
-using RoutineObserverProxy =
-    SelfOwnedMojoProxy<crosapi::TelemetryDiagnosticRoutineObserver,
-                       healthd::RoutineObserver,
-                       CrosHealthdRoutineEventsForwarder>;
 
 }  // namespace
-
-// static
-TelemetryDiagnosticsRoutineServiceAsh::Factory*
-    TelemetryDiagnosticsRoutineServiceAsh::Factory::test_factory_ = nullptr;
-
-// static
-std::unique_ptr<crosapi::TelemetryDiagnosticRoutinesService>
-TelemetryDiagnosticsRoutineServiceAsh::Factory::Create() {
-  if (test_factory_) {
-    return test_factory_->CreateInstance();
-  }
-
-  return std::make_unique<TelemetryDiagnosticsRoutineServiceAsh>();
-}
-
-// static
-void TelemetryDiagnosticsRoutineServiceAsh::Factory::SetForTesting(
-    Factory* test_factory) {
-  test_factory_ = test_factory;
-}
-
-TelemetryDiagnosticsRoutineServiceAsh::Factory::~Factory() = default;
 
 TelemetryDiagnosticsRoutineServiceAsh::TelemetryDiagnosticsRoutineServiceAsh() =
     default;
 
 TelemetryDiagnosticsRoutineServiceAsh::
     ~TelemetryDiagnosticsRoutineServiceAsh() {
-  for (auto&& proxy : routine_controls_and_observers_) {
+  for (auto&& proxy : routine_controls_) {
     if (proxy) {
       proxy->OnServiceDestroyed();
     }
   }
-  routine_controls_and_observers_.clear();
+  routine_controls_.clear();
 }
 
 void TelemetryDiagnosticsRoutineServiceAsh::CreateRoutine(
     crosapi::TelemetryDiagnosticRoutineArgumentPtr routine_argument,
     mojo::PendingReceiver<crosapi::TelemetryDiagnosticRoutineControl>
         routine_receiver,
-    mojo::PendingRemote<crosapi::TelemetryDiagnosticRoutineObserver> observer) {
+    mojo::PendingRemote<healthd::RoutineObserver> observer) {
   // Setup the RoutineControl.
   mojo::PendingRemote<healthd::RoutineControl> cros_healthd_remote;
   auto cros_healthd_receiver =
@@ -92,36 +65,21 @@ void TelemetryDiagnosticsRoutineServiceAsh::CreateRoutine(
   auto routine_control = RoutineControlProxy::Create(
       std::move(routine_receiver), std::move(cros_healthd_remote),
       std::move(control_delete_cb));
-  routine_controls_and_observers_.push_back(std::move(routine_control));
-
-  // Setup the RoutineObserver.
-  mojo::PendingRemote<healthd::RoutineObserver> cros_healthd_observer;
-  if (observer.is_valid()) {
-    // SAFETY: We can use `base::Unretained` here since we signal the
-    // `SelfOwnedMojoProxy` in the destructor.
-    auto observer_delete_cb = base::BindOnce(
-        &TelemetryDiagnosticsRoutineServiceAsh::OnConnectionClosed,
-        base::Unretained(this));
-    auto routine_observer = RoutineObserverProxy::Create(
-        cros_healthd_observer.InitWithNewPipeAndPassReceiver(),
-        std::move(observer), std::move(observer_delete_cb));
-    routine_controls_and_observers_.push_back(std::move(routine_observer));
-  }
+  routine_controls_.push_back(std::move(routine_control));
 
   // Register the two objects with cros_healthd.
   cros_healthd::ServiceConnection::GetInstance()
       ->GetRoutinesService()
       ->CreateRoutine(
           converters::ConvertRoutinePtr(std::move(routine_argument)),
-          std::move(cros_healthd_receiver), std::move(cros_healthd_observer));
+          std::move(cros_healthd_receiver), std::move(observer));
 }
 
 void TelemetryDiagnosticsRoutineServiceAsh::OnConnectionClosed(
     base::WeakPtr<SelfOwnedMojoProxyInterface> closed_connection) {
-  std::erase_if(routine_controls_and_observers_,
-                [&closed_connection](const auto& ptr) {
-                  return ptr.get() == closed_connection.get();
-                });
+  std::erase_if(routine_controls_, [&closed_connection](const auto& ptr) {
+    return ptr.get() == closed_connection.get();
+  });
 }
 
 }  // namespace ash

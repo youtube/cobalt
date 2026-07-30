@@ -829,12 +829,24 @@ IN_PROC_BROWSER_TEST_P(IntentPickerBubbleViewBrowserTestChromeOSParameterized,
   ASSERT_NO_FATAL_FAILURE(VerifyArcAppLaunched(app_name, test_url));
 }
 
+// TODO(crbug.com/528931249): Fix timeouts under MSAN/ASAN/Debug.
+#if BUILDFLAG(IS_CHROMEOS) && (defined(MEMORY_SANITIZER) || \
+                               defined(ADDRESS_SANITIZER) || !defined(NDEBUG))
+// Disable `MigrationEnabled` variants (`MigrationEnabled_V2DefaultOff` and
+// `MigrationEnabled_V2DefaultOn`) by only instantiating with `false`.
+#define MIGRATION_VALUES testing::Values(false)
+#else
+// Run both `MigrationEnabled` and `MigrationDisabled` variants.
+#define MIGRATION_VALUES testing::Bool()
+#endif
+
 INSTANTIATE_TEST_SUITE_P(
     All,
     IntentPickerBubbleViewBrowserTestChromeOSParameterized,
     testing::Combine(
-        testing::Values(apps::test::LinkCapturingFeatureVersion::kV2DefaultOff),
-        testing::Bool()),
+        testing::Values(apps::test::LinkCapturingFeatureVersion::kV2DefaultOff,
+                        apps::test::LinkCapturingFeatureVersion::kV2DefaultOn),
+        MIGRATION_VALUES),
     [](const testing::TestParamInfo<
         IntentPickerBubbleViewBrowserTestChromeOSParameterized::ParamType>&
            info) {
@@ -842,3 +854,5 @@ INSTANTIATE_TEST_SUITE_P(
           {std::get<1>(info.param) ? kMigrationEnabled : kMigrationDisabled,
            "_", apps::test::ToString(std::get<0>(info.param))});
     });
+
+#undef MIGRATION_VALUES

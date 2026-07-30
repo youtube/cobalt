@@ -197,11 +197,9 @@ viz::command_buffer_metrics::ContextType ToVizContextType(
 //------------------------------------------------------------------------------
 
 RendererBlinkPlatformImpl::RendererBlinkPlatformImpl(
-    blink::scheduler::WebThreadScheduler* main_thread_scheduler)
-    : BlinkPlatformImpl(RenderThreadImpl::current()
-                            ? RenderThreadImpl::current()->GetIOTaskRunner()
-                            : nullptr),
-      sudden_termination_disables_(0),
+    blink::scheduler::WebThreadScheduler* main_thread_scheduler,
+    scoped_refptr<base::SingleThreadTaskRunner> io_thread_task_runner)
+    : BlinkPlatformImpl(std::move(io_thread_task_runner)),
       is_locked_to_site_(false),
       main_thread_scheduler_(main_thread_scheduler),
       next_frame_sink_id_(uint32_t{std::numeric_limits<int32_t>::max()} + 1) {

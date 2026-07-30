@@ -922,6 +922,33 @@ TEST_F(TabRestoreServiceImplTest, DontLoadWhenSavingIsDisabled) {
   ASSERT_EQ(0U, service_->entries().size());
 }
 
+// Makes sure toggling the policy mid-session immediately clears temporary
+// in-memory tab restore entries and prevents subsequent entries.
+TEST_F(TabRestoreServiceImplTest,
+       SavingBrowserHistoryDisabledMidSessionClearsEntries) {
+  AddThreeNavigations();
+
+  // Have the service record a closed tab.
+  service_->CreateHistoricalTab(live_tab(), -1);
+  EXPECT_EQ(1U, service_->entries().size());
+
+  // Enable the policy mid-session.
+  profile()->GetPrefs()->SetBoolean(prefs::kSavingBrowserHistoryDisabled, true);
+
+  // Temporary restore entries should be wiped immediately from memory for
+  // privacy.
+  EXPECT_EQ(0U, service_->entries().size());
+
+  // Attempt to record another historical tab.
+  AddThreeNavigations();
+  std::optional<SessionID> result =
+      service_->CreateHistoricalTab(live_tab(), -1);
+
+  // New tab restores should be blocked.
+  EXPECT_EQ(std::nullopt, result);
+  EXPECT_EQ(0U, service_->entries().size());
+}
+
 // Regression test to ensure Window::show_state is set correctly when reading
 // TabRestoreSession from saved state.
 TEST_F(TabRestoreServiceImplTest, WindowShowStateIsSet) {

@@ -102,6 +102,10 @@ UnboundedSurfaceWindowAura::~UnboundedSurfaceWindowAura() {
   }
 }
 
+base::WeakPtr<UnboundedSurfaceWindow> UnboundedSurfaceWindowAura::GetWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
+}
+
 bool UnboundedSurfaceWindowAura::is_valid() const {
   return window_ != nullptr;
 }
@@ -314,7 +318,7 @@ void UnboundedSurfaceWindowAura::Dismiss() {
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
         base::BindOnce(&RenderWidgetHostViewBase::DestroyUnboundedSurface,
-                       parent_view_->GetWeakPtr()));
+                       parent_view_->GetWeakPtr(), GetWeakPtr()));
   }
 }
 

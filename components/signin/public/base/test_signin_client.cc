@@ -113,6 +113,19 @@ network::mojom::CookieManager* TestSigninClient::GetCookieManager() {
   return cookie_manager_.get();
 }
 
+network::mojom::DeviceBoundSessionManager*
+TestSigninClient::GetDeviceBoundSessionManager() const {
+  return device_bound_session_manager_;
+}
+
+std::unique_ptr<signin::BoundSessionOAuthMultiLoginDelegate>
+TestSigninClient::CreateBoundSessionOAuthMultiloginDelegate() const {
+  if (bound_session_oauth_multilogin_delegate_factory_) {
+    return bound_session_oauth_multilogin_delegate_factory_.Run();
+  }
+  return nullptr;
+}
+
 network::mojom::NetworkContext* TestSigninClient::GetNetworkContext() {
   if (!network_context_) {
     network_context_ = std::make_unique<network::TestNetworkContext>();

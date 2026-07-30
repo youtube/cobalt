@@ -25,6 +25,11 @@ public class HubColorBlendAnimatorSetHelper {
         mColorBlendList = new ArrayList<>();
     }
 
+    /** Unregisters a {@link HubViewColorBlend} to cease receiving color scheme updates. */
+    public void unregisterBlend(HubViewColorBlend colorBlend) {
+        mColorBlendList.remove(colorBlend);
+    }
+
     /**
      * Set the list of {@link HubViewColorBlend} objects which will be used to create the Animators
      * in the AnimatorSet. The primary use of this method is for dependency injection during

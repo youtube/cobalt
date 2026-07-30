@@ -1,0 +1,41 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+syntax = "proto2";
+
+package identity_consent;
+
+// Wire-compatible standalone definition of the Google3 PrivacyPrimitiveConfig
+// protobuf. Non-essential annotations and option definitions are omitted.
+// Original path:
+// google3/identity/consent/auth/primitives/api/v2/privacy_primitive_config.proto
+
+message FlowParams {
+  optional int32 flow_id = 1;
+}
+
+message ProductEntryPoint {
+  optional int32 product_id = 1;
+  optional string entrypoint_id = 3;
+}
+
+message SessionInfo {
+  optional bytes session_id = 1;
+}
+
+message PresentationParams {
+  optional string locale = 1;
+}
+
+message WebPlatformParams {}
+
+message PrivacyPrimitiveConfig {
+  optional FlowParams flow_params = 1;
+  optional ProductEntryPoint product_entry_point = 2;
+  optional SessionInfo session_info = 3;
+  optional PresentationParams presentation_params = 4;
+  oneof platform_params {
+    WebPlatformParams web_platform_params = 5;
+  }
+}

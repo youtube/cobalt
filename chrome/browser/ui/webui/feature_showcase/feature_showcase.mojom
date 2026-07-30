@@ -8,6 +8,9 @@ module feature_showcase.mojom;
 interface FeatureShowcasePageHandler {
   // Notifies the browser that the user has finished the feature showcase.
   FinishFeatureShowcase();
+
+  // Notifies the browser that the next step in the showcase has been shown.
+  NextStepShown();
 };
 
 // Used by the WebUI to bootstrap WebUI->Browser communication.

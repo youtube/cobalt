@@ -24,7 +24,6 @@ base::OnceCallback<void(mojo::PendingReceiver<mojom::FileDownloadObserver>)>
 MakeFileDownloadObserver(
     update_client::NetworkFetcher::ResponseStartedCallback
         response_started_callback,
-    update_client::NetworkFetcher::ProgressCallback progress_callback,
     update_client::NetworkFetcher::DownloadToFileCompleteCallback
         download_complete_callback);
 

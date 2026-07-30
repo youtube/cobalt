@@ -4383,8 +4383,8 @@ TEST_P(PartitionAllocTest, OverrideHooks) {
       memset(overridden_allocation, kOverriddenChar, kOverriddenSize));
 
   PartitionAllocHooks::SetOverrideHooks(
-      [](void** out, AllocFlags flags, size_t size,
-         const char* type_name) -> bool {
+      [](void** out, AllocFlags flags, size_t size, const char* type_name,
+         std::optional<size_t> alignment) -> bool {
         if (size == kOverriddenSize && type_name == kOverriddenType) {
           *out = overridden_allocation;
           return true;
@@ -5135,6 +5135,32 @@ TEST_P(PartitionAllocTest, BackupRefPtrGuardRegion) {
   }
 }
 #endif  // !PA_BUILDFLAG(HAS_64_BIT_POINTERS)
+
+#if PA_USE_DEATH_TESTS()
+TEST_P(PartitionAllocDeathTest, AcquireAfterQuarantined) {
+  if (!UseBRPPool()) {
+    return;
+  }
+
+  // Allocate memory. The object will be held by allocator and its refcount is
+  // equal to zero.
+  uint64_t* ptr = static_cast<uint64_t*>(
+      allocator.root()->Alloc(64 - ExtraAllocSize(allocator), type_name));
+  auto* in_slot_metadata =
+      allocator.root()->InSlotMetadataPointerFromObjectForTesting(ptr);
+  EXPECT_TRUE(in_slot_metadata->IsAliveWithNoKnownRefs());
+
+  // Make the object in-freelist or MO-quarantined.
+  allocator.root()->Free(ptr);
+  EXPECT_FALSE(in_slot_metadata->IsAlive());
+  EXPECT_FALSE(in_slot_metadata->HasNonZeroRefsForTesting());
+
+  // Because of PA_CHECK, expect Acquire() always crash if death test is
+  // supported.
+  EXPECT_DEATH(in_slot_metadata->Acquire(), "");
+}
+#endif  // PA_USE_DEATH_TESTS()
+
 #endif  // PA_BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
 
 #if PA_BUILDFLAG(ENABLE_DANGLING_RAW_PTR_CHECKS)
@@ -5543,6 +5569,29 @@ TEST_P(PartitionAllocDeathTest, ReleaseUnderflowDanglingPtr) {
 }
 
 #endif  //! PA_BUILDFLAG(OFFICIAL) || PA_BUILDFLAG(IS_DEBUG)
+
+TEST_P(PartitionAllocDeathTest, AcquireUnprotectedAfterQuarantined) {
+  if (!UseBRPPool()) {
+    return;
+  }
+
+  // Allocate memory. The object will be held by allocator and its refcount is
+  // equal to zero.
+  uint64_t* ptr = static_cast<uint64_t*>(
+      allocator.root()->Alloc(64 - ExtraAllocSize(allocator), type_name));
+  auto* in_slot_metadata =
+      allocator.root()->InSlotMetadataPointerFromObjectForTesting(ptr);
+  EXPECT_TRUE(in_slot_metadata->IsAliveWithNoKnownRefs());
+
+  // Make the object in-freelist or MO-quarantined.
+  allocator.root()->Free(ptr);
+  EXPECT_FALSE(in_slot_metadata->IsAlive());
+  EXPECT_FALSE(in_slot_metadata->HasNonZeroRefsForTesting());
+
+  // Because of PA_CHECK, expect AcquireFromProtectedPtr() always crash
+  // if death test is supported.
+  EXPECT_DEATH(in_slot_metadata->AcquireFromUnprotectedPtr(), "");
+}
 #endif  // PA_USE_DEATH_TESTS()
 #endif  // PA_BUILDFLAG(ENABLE_DANGLING_RAW_PTR_CHECKS)
 

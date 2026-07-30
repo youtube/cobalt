@@ -2527,5 +2527,47 @@ TEST_F(AccessibilityTest, MultipleRolesWithContext) {
   EXPECT_EQ(ax::mojom::blink::Role::kListBoxOption, owned->RoleValue());
 }
 
+TEST_F(AccessibilityTest, PopulateAXRelativeBoundsSanitizesNonFiniteValues) {
+  // Set up an element with extreme CSS that produces Infinity in transforms.
+  SetBodyInnerHTML(R"HTML(
+    <div id="target" style="transform: scale(calc(1/0))">
+      Extreme Transform
+    </div>
+  )HTML");
+
+  AXObject* target = GetAXObjectByElementId("target");
+  ASSERT_NE(nullptr, target);
+
+  ui::AXRelativeBounds bounds;
+  bool clips_children = false;
+  target->PopulateAXRelativeBounds(bounds, &clips_children);
+
+  // Verify that the transform is sanitized to identity (represented as null).
+  EXPECT_FALSE(bounds.transform);
+
+  // Set up an element with a negative infinity scale, which could produce
+  // negative width/height if not sanitized.
+  SetBodyInnerHTML(R"HTML(
+    <div id="target2" style="transform: scale(calc(log(0)))">
+      Negative Infinity Transform
+    </div>
+  )HTML");
+
+  AXObject* target2 = GetAXObjectByElementId("target2");
+  ASSERT_NE(nullptr, target2);
+
+  target2->PopulateAXRelativeBounds(bounds, &clips_children);
+
+  EXPECT_TRUE(std::isfinite(bounds.bounds.x()));
+  EXPECT_TRUE(std::isfinite(bounds.bounds.y()));
+  EXPECT_TRUE(std::isfinite(bounds.bounds.width()));
+  EXPECT_TRUE(std::isfinite(bounds.bounds.height()));
+  EXPECT_GE(bounds.bounds.width(), 0.0f);
+  EXPECT_GE(bounds.bounds.height(), 0.0f);
+
+  // null means identity
+  EXPECT_FALSE(bounds.transform);
+}
+
 }  // namespace test
 }  // namespace blink

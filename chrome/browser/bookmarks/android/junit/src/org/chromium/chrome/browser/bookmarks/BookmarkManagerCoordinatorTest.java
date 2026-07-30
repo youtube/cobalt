@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.bookmarks;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
@@ -25,6 +26,7 @@ import org.mockito.junit.MockitoRule;
 import org.robolectric.ParameterizedRobolectricTestRunner;
 import org.robolectric.ParameterizedRobolectricTestRunner.Parameters;
 import org.robolectric.annotation.Config;
+import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.FeatureOverrides;
 import org.chromium.base.test.BaseRobolectricTestRule;
@@ -197,5 +199,25 @@ public class BookmarkManagerCoordinatorTest {
                 "Back action should not be invoked on escape, but on non-tablet devices, the code"
                         + " flow will end up going through the back action flow.",
                 mCoordinator.invokeBackActionOnEscape());
+    }
+
+    @Test
+    public void testBuildEmptyStateView() {
+        int parentWidth = 500;
+        int parentHeight = 1000;
+        int topOffset = 120;
+        int paddingBottom = 80;
+        int targetHeight = parentHeight - topOffset - paddingBottom;
+
+        FrameLayout parent = new FrameLayout(mActivity);
+        parent.setPadding(0, 0, 0, paddingBottom);
+        parent.layout(0, 0, parentWidth, parentHeight);
+
+        View emptyStateView = mCoordinator.buildEmptyStateView(parent);
+        assertNotNull(emptyStateView);
+        emptyStateView.layout(0, topOffset, parentWidth, parentHeight - paddingBottom);
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+
+        assertEquals(targetHeight, emptyStateView.getLayoutParams().height);
     }
 }

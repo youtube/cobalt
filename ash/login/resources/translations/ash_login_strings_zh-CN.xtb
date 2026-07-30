@@ -14,6 +14,24 @@
 <translation id="1185924365081634987">您也可以尝试<ph name="GUEST_SIGNIN_LINK_START" />以访客身份浏览<ph name="GUEST_SIGNIN_LINK_END" />，以便修复该网络错误。</translation>
 <translation id="1201402288615127009">下一步</translation>
 <translation id="1222835797152767346">设置 PIN 码即可轻松登录</translation>
+<translation id="1346669614038013595"><ph name="BEGIN_H3" />调试功能<ph name="END_H3" />
+          <ph name="BR" />
+          您可在 ChromeOS 设备上启用调试功能，以便在相应设备上安装并测试自定义代码。启用这些功能后，您可以：<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />取消根文件系统验证，以便修改操作系统文件
+            <ph name="LIST_ITEM" />允许使用标准测试密钥以 SSH 方式访问设备，以便使用 <ph name="BEGIN_CODE" />cros flash<ph name="END_CODE" /> 等工具访问设备
+            <ph name="LIST_ITEM" />允许从 U 盘启动设备，以便通过 U 盘安装操作系统映像
+            <ph name="LIST_ITEM" />将 Dev 和系统根登录密码均设为自定义值，以便手动以 SSH 方式访问设备
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          如果您启用了调试功能，那么即使在企业管理的设备上执行了 Powerwash 或数据擦除操作，大部分调试功能仍将保持启用状态。若要完全停用所有调试功能，请执行 ChromeOS 恢复过程 (https://support.google.com/chromebook/answer/1080595)。
+          <ph name="BR" />
+          <ph name="BR" />
+          如需详细了解调试功能，请访问：<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />注意：<ph name="END_BOLD" />在此过程中，系统将会重启。</translation>
 <translation id="1347625331607114917">在您的 Android 手机上验证该码</translation>
 <translation id="1347975661240122359">当电池电量达到 <ph name="BATTERY_LEVEL" />% 时将开始更新。</translation>
 <translation id="1375938286942050085">设置完毕！准备好您的设备，畅享接下来的精彩游戏</translation>
@@ -126,9 +144,29 @@
 <translation id="503155457707535043">正在下载所选应用</translation>
 <translation id="5045550434625856497">密码不正确</translation>
 <translation id="5062930723426326933">登录失败，请连接到互联网，然后重试。</translation>
+<translation id="5107486920067578245"><ph name="BEGIN_PARAGRAPH1" />与 Gemini 聊天，在 Google AI 的帮助下撰写内容、制定规划、学习新知识等等。<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />设置完成后，选择屏幕底部任务栏上的 Gemini 应用，即可开始使用 Gemini。<ph name="END_PARAGRAPH2" /></translation>
 <translation id="5115309401544567011">请为您的 <ph name="DEVICE_TYPE" /> 接通电源。</translation>
 <translation id="5147516217412920887">按照手机上的说明验证该码</translation>
 <translation id="5160857336552977725">登录您的<ph name="DEVICE_TYPE" /></translation>
+<translation id="5171185788583376591"><ph name="BEGIN_H3" />调试功能<ph name="END_H3" />
+          <ph name="BR" />
+          您可在 ChromeOS Flex 设备上启用调试功能，以便在相应设备上安装并测试自定义代码。启用这些功能后，您可以：<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />取消根文件系统验证，以便修改操作系统文件
+            <ph name="LIST_ITEM" />允许使用标准测试密钥以 SSH 方式访问设备，以便使用 <ph name="BEGIN_CODE" />cros flash<ph name="END_CODE" /> 等工具访问设备
+            <ph name="LIST_ITEM" />允许从 U 盘启动设备，以便通过 U 盘安装操作系统映像
+            <ph name="LIST_ITEM" />将 Dev 和系统根登录密码均设为自定义值，以便手动以 SSH 方式访问设备
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          如果您启用了调试功能，那么即使在企业管理的设备上执行了 Powerwash 或数据擦除操作，大部分调试功能仍将保持启用状态。若要完全停用所有调试功能，请执行 ChromeOS 恢复过程 (https://support.google.com/chromebook/answer/1080595)。
+          <ph name="BR" />
+          <ph name="BR" />
+          如需详细了解调试功能，请访问：<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />注意：<ph name="END_BOLD" />在此过程中，系统将会重启。</translation>
 <translation id="523505283826916779">无障碍设置</translation>
 <translation id="5240931875940563122">使用 Android 手机登录</translation>
 <translation id="5255859108402770436">重新登录</translation>
@@ -193,6 +231,7 @@
 <translation id="6955698182324067397">您正在启用 Chrome 操作系统调试功能，这些功能将设置 sshd 守护程序并允许从 U 盘启动设备。</translation>
 <translation id="6965382102122355670">确定</translation>
 <translation id="6981982820502123353">无障碍</translation>
+<translation id="6984652455487792101">如果您正在使用代理服务器，请检查您的代理设置，或联系网络管理员以确认代理服务器是否运行正常。如果您认为自己不应使用代理服务器，请调整<ph name="LINK_START" />代理设置<ph name="LINK_END" />。</translation>
 <translation id="6996245928508281884">开启您手机的蓝牙和 WLAN</translation>
 <translation id="7077829361966535409">使用当前代理设置无法加载登录页面。请<ph name="GAIA_RELOAD_LINK_START" />尝试重新登录<ph name="GAIA_RELOAD_LINK_END" />，或者使用不同的<ph name="PROXY_SETTINGS_LINK_START" />代理设置<ph name="PROXY_SETTINGS_LINK_END" />。</translation>
 <translation id="7114054701490058191">密码不符</translation>
@@ -205,6 +244,9 @@
 <translation id="7345706641791090287">确认您的密码</translation>
 <translation id="7352651011704765696">出了点问题</translation>
 <translation id="7476454130948140105">电量太低 (<ph name="BATTERY_PERCENT" />%)，无法更新</translation>
+<translation id="7504187084873714912"><ph name="BEGIN_PARAGRAPH1" />注册之前，您需要清除 TPM，使 <ph name="DEVICE_OS" /> 拥有对设备的所有权。<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />您还可彻底关闭 TPM 设备。您的数据仍会通过软件加密技术得到妥善存储，但某些安全功能（例如由硬件支持的证书）将被停用。<ph name="END_PARAGRAPH2" />
+        <ph name="BEGIN_PARAGRAPH3" />若要更改您的 TPM 设置，请重启并进入系统 BIOS/UEFI 设置。具体步骤因设备型号而异。如需了解详情，请在重启前使用另一台设备打开 <ph name="DEVICE_OS" /> 文档：g.co/flex/TPMHelp。<ph name="END_PARAGRAPH3" /></translation>
 <translation id="7543104066686362383">在此<ph name="IDS_SHORT_PRODUCT_NAME" />设备上启用调试功能</translation>
 <translation id="7553242001898162573">输入您的密码</translation>
 <translation id="7556242789364317684">抱歉，“<ph name="SHORT_PRODUCT_NAME" />”无法恢复您的设置。要更正此错误，“<ph name="SHORT_PRODUCT_NAME" />”必须使用 Powerwash 重置您的设备。</translation>
@@ -251,6 +293,10 @@
 <translation id="8452105022015742247">正在从您的 Android 手机传输 Google 账号信息</translation>
 <translation id="8524841856047224176">对视频通话等场景的背景进行个性化设置</translation>
 <translation id="8569673829373920831">关于“<ph name="APP_NAME" />”的更多内容</translation>
+<translation id="8628232294964836490">按照手机上的说明扫描二维码。确保手机已开启蓝牙。
+        <ph name="BR" />
+        <ph name="BR" />
+        向附近的设备显示为“<ph name="QUICK_START_DEVICE_DISPLAY_NAME" />”…</translation>
 <translation id="8655972064210167941">由于无法验证您的密码，因此登录失败了。请与管理员联系或重试。</translation>
 <translation id="8674903726754070732">很遗憾，您的计算机配置了格式错误的硬件 ID。这导致 Chrome 操作系统无法使用最新的安全修正程序进行更新，以致您的计算机<ph name="BEGIN_BOLD" />很容易遭到恶意攻击<ph name="END_BOLD" />。</translation>
 <translation id="8695139659682234808">在完成设置后添加家长控制功能</translation>
@@ -264,10 +310,20 @@
 <translation id="8830796635868321089">无法使用当前代理设置来检查更新，请调整您的<ph name="PROXY_SETTINGS_LINK_START" />代理设置<ph name="PROXY_SETTINGS_LINK_END" />。</translation>
 <translation id="885746075120788020">无论是在哪部 Chrome 操作系统设备上，您只需登录自己的 Google 账号，便能使用您保存的偏好设置和活动记录。您可在“设置”中选择要同步的内容。</translation>
 <translation id="8875221558267407626">总结内容、简化复杂语言或提问</translation>
+<translation id="8913163265790894442">使用手机轻松设置 <ph name="DEVICE_TYPE" />。您无需手动输入密码，便能添加 Wi-Fi 和 Google 账号。
+        <ph name="BR" />
+        <ph name="BR" />
+        显示为：<ph name="DEVICE_TYPE" />…</translation>
 <translation id="8946359700442089734">此<ph name="IDS_SHORT_PRODUCT_NAME" />设备上未完全启用调试功能。</translation>
 <translation id="8965037249707889821">输入旧密码</translation>
 <translation id="8975396729541388937">您可以随时退订，只需点击您收到的电子邮件中的链接即可。</translation>
 <translation id="9033765790910064284">仍然继续</translation>
 <translation id="903480517321259405">重新输入 PIN 码</translation>
 <translation id="9076523132036239772">抱歉，您的电子邮件地址或密码无法进行验证。请先尝试连接到网络。</translation>
+<translation id="9217002308921247002"><ph name="BEGIN_PARAGRAPH1" /><ph name="DEVICE_TYPE" /> 专属功能。<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />生成式 AI 尚处于早期开发实验阶段，目前仅在部分设备上可用。<ph name="END_PARAGRAPH2" /></translation>
+<translation id="936479314588646618">使用手机轻松设置 <ph name="DEVICE_TYPE" />。您无需手动输入密码，便能添加 Google 账号。
+        <ph name="BR" />
+        <ph name="BR" />
+        显示为：<ph name="DEVICE_TYPE" />…</translation>
 </translationbundle>

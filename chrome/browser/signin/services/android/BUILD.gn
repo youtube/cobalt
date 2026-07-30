@@ -108,6 +108,7 @@ robolectric_library("junit") {
   sources = [
     "java/src/org/chromium/chrome/browser/signin/services/SigninFlowTimestampsLoggerUnitTest.java",
     "junit/src/org/chromium/chrome/browser/signin/services/BadgeConfigBuilderUnitTest.java",
+    "junit/src/org/chromium/chrome/browser/signin/services/DisplayableProfileDataUnitTest.java",
     "junit/src/org/chromium/chrome/browser/signin/services/ProfileDataCacheUnitTest.java",
     "junit/src/org/chromium/chrome/browser/signin/services/ProfileDataUtilsUnitTest.java",
     "junit/src/org/chromium/chrome/browser/signin/services/WebSigninBridgeTest.java",

@@ -55,6 +55,10 @@
 #include "base/mac/mac_util.h"
 #endif
 
+#if BUILDFLAG(IS_ANDROID)
+#include "content/browser/accessibility/browser_accessibility_android.h"
+#endif
+
 using ::testing::ElementsAre;
 using ::testing::Pair;
 
@@ -3694,7 +3698,7 @@ IN_PROC_BROWSER_TEST_F(AriaNotifyV2CrossPlatformAccessibilityBrowserTest,
   }
 }
 
-#if BUILDFLAG(HAS_NATIVE_ACCESSIBILITY)
+#if BUILDFLAG(HAS_NATIVE_ACCESSIBILITY) || BUILDFLAG(IS_ANDROID)
 class CanvasAccessibilityBrowserTest
     : public CrossPlatformAccessibilityBrowserTest {
  public:
@@ -3743,6 +3747,7 @@ IN_PROC_BROWSER_TEST_F(CanvasAccessibilityBrowserTest,
                 ax::mojom::StringAttribute::kCanvasAnnotation),
             "Hello World");
 
+#if BUILDFLAG(HAS_NATIVE_ACCESSIBILITY)
   gfx::NativeViewAccessible native_canvas =
       canvas_node->GetNativeViewAccessible();
   ui::AXPlatformNode* platform_node =
@@ -3752,7 +3757,13 @@ IN_PROC_BROWSER_TEST_F(CanvasAccessibilityBrowserTest,
   ui::AXPlatformNodeBase* platform_node_base =
       static_cast<ui::AXPlatformNodeBase*>(platform_node);
   EXPECT_EQ(platform_node_base->GetName(), "Hello World");
+#elif BUILDFLAG(IS_ANDROID)
+  BrowserAccessibilityAndroid* android_canvas =
+      static_cast<BrowserAccessibilityAndroid*>(canvas_node);
+  EXPECT_EQ(android_canvas->GetAndroidContentDescription(), u"Hello World");
+  EXPECT_EQ(android_canvas->GetAndroidSupplementalDescription(), u"");
+#endif
 }
-#endif  // BUILDFLAG(HAS_NATIVE_ACCESSIBILITY)
+#endif  // BUILDFLAG(HAS_NATIVE_ACCESSIBILITY) || BUILDFLAG(IS_ANDROID)
 
 }  // namespace content

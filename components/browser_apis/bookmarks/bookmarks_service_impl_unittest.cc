@@ -8,6 +8,7 @@
 #include "base/run_loop.h"
 #include "base/test/task_environment.h"
 #include "base/uuid.h"
+#include "build/build_config.h"
 #include "components/bookmarks/browser/bookmark_model.h"
 #include "components/bookmarks/test/bookmark_test_helpers.h"
 #include "components/bookmarks/test/test_bookmark_client.h"
@@ -28,7 +29,7 @@ class BookmarksServiceImplTest : public testing::Test {
     client_ = client.get();
     model_ = std::make_unique<bookmarks::BookmarkModel>(std::move(client));
     model_->LoadEmptyForTest();
-    service_ = std::make_unique<BookmarksServiceImpl>(model_.get());
+    service_ = std::make_unique<BookmarksServiceImpl>(model_.get(), nullptr);
 
     mojo::PendingRemote<mojom::BookmarksService> pending_remote;
     service_->Accept(pending_remote.InitWithNewPipeAndPassReceiver());
@@ -44,23 +45,35 @@ class BookmarksServiceImplTest : public testing::Test {
   mojo::Remote<mojom::BookmarksService> remote_service_;
 };
 
-TEST_F(BookmarksServiceImplTest, GetBookmarks_Empty) {
+#if BUILDFLAG(IS_ANDROID)
+// TODO(crbug.com/527150892): Permanent folders are handled differently on
+// Android.
+#define MAYBE_GetBookmarks_Empty DISABLED_GetBookmarks_Empty
+#else
+#define MAYBE_GetBookmarks_Empty GetBookmarks_Empty
+#endif
+TEST_F(BookmarksServiceImplTest, MAYBE_GetBookmarks_Empty) {
   base::RunLoop run_loop;
   remote_service_->GetBookmarks(base::BindOnce(
       [](base::OnceClosure quit_closure, const bookmarks::BookmarkModel* model,
          mojom::BookmarksService::GetBookmarksResult result) {
         ASSERT_TRUE(result.has_value());
-        ASSERT_TRUE(result.value()->root->is_folder());
-        const auto& root_folder = result.value()->root->get_folder();
-        EXPECT_EQ(root_folder->id, model->root_node()->uuid());
+        const auto& root = result.value()->root;
+        EXPECT_EQ(root->id, model->root_node()->uuid());
 
-        ASSERT_EQ(root_folder->children.size(), 3u);
-        ASSERT_TRUE(root_folder->children[0]->is_folder());
-        EXPECT_TRUE(root_folder->children[0]->get_folder()->children.empty());
-        ASSERT_TRUE(root_folder->children[1]->is_folder());
-        EXPECT_TRUE(root_folder->children[1]->get_folder()->children.empty());
-        ASSERT_TRUE(root_folder->children[2]->is_folder());
-        EXPECT_TRUE(root_folder->children[2]->get_folder()->children.empty());
+        ASSERT_EQ(root->children.size(), 3u);
+        EXPECT_TRUE(root->children[0]->children.empty());
+        // TODO(ffred): Add unit tests for `is_synced` field. We currently don't
+        // test it because we don't have a way to mock the managed bookmarks
+        // service.
+        EXPECT_EQ(root->children[0]->permanent_folder_type,
+                  mojom::PermanentFolderType::kBookmarkBar);
+        EXPECT_TRUE(root->children[1]->children.empty());
+        EXPECT_EQ(root->children[1]->permanent_folder_type,
+                  mojom::PermanentFolderType::kOther);
+        EXPECT_TRUE(root->children[2]->children.empty());
+        EXPECT_EQ(root->children[2]->permanent_folder_type,
+                  mojom::PermanentFolderType::kMobile);
 
         EXPECT_TRUE(result.value()->stream.is_valid());
         std::move(quit_closure).Run();
@@ -139,6 +152,7 @@ TEST_F(BookmarksServiceImplTest, CreateBookmarkNode_Folder_Success) {
   const auto& created_folder_node = result.value()->get_folder();
   EXPECT_EQ(created_folder_node->title, "New Folder");
   EXPECT_TRUE(created_folder_node->children.empty());
+  EXPECT_FALSE(created_folder_node->permanent_folder_type.has_value());
 
   // Verify it was actually added to the model.
   const bookmarks::BookmarkNode* model_node = model_->GetNodeByUuid(
@@ -446,30 +460,57 @@ TEST_F(BookmarksServiceImplTest, MoveBookmarkNode_IndexOutOfRange) {
   EXPECT_EQ(result.error()->code, mojo_base::mojom::Code::kInvalidArgument);
 }
 
-TEST_F(BookmarksServiceImplTest, DeleteBookmarkNode_Success) {
+TEST_F(BookmarksServiceImplTest, DeleteBookmarkNodes_PermanentNode_Error) {
+  const bookmarks::BookmarkNode* node = model_->bookmark_bar_node();
+  ASSERT_TRUE(node);
+
+  auto result = service_->DeleteBookmarkNodes({node->uuid()});
+  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(result.error()->code, mojo_base::mojom::Code::kInvalidArgument);
+}
+
+TEST_F(BookmarksServiceImplTest, DeleteBookmarkNodes_Success) {
+  const bookmarks::BookmarkNode* parent = model_->bookmark_bar_node();
+  ASSERT_TRUE(parent);
+  const bookmarks::BookmarkNode* node1 =
+      model_->AddURL(parent, 0, u"Title1", GURL("http://example1.com"));
+  const bookmarks::BookmarkNode* node2 =
+      model_->AddURL(parent, 1, u"Title2", GURL("http://example2.com"));
+
+  base::Uuid uuid1 = node1->uuid();
+  base::Uuid uuid2 = node2->uuid();
+
+  auto result = service_->DeleteBookmarkNodes({uuid1, uuid2});
+  EXPECT_TRUE(result.has_value());
+
+  // Verify they were removed from the model.
+  EXPECT_FALSE(model_->GetNodeByUuid(
+      uuid1,
+      bookmarks::BookmarkModel::NodeTypeForUuidLookup::kLocalOrSyncableNodes));
+  EXPECT_FALSE(model_->GetNodeByUuid(
+      uuid2,
+      bookmarks::BookmarkModel::NodeTypeForUuidLookup::kLocalOrSyncableNodes));
+  EXPECT_TRUE(parent->children().empty());
+}
+
+TEST_F(BookmarksServiceImplTest, DeleteBookmarkNodes_OnePermanent_NoneDeleted) {
   const bookmarks::BookmarkNode* parent = model_->bookmark_bar_node();
   ASSERT_TRUE(parent);
   const bookmarks::BookmarkNode* node =
       model_->AddURL(parent, 0, u"Title", GURL("http://example.com"));
 
   base::Uuid uuid = node->uuid();
-  auto result = service_->DeleteBookmarkNode(uuid);
-  EXPECT_TRUE(result.has_value());
+  base::Uuid permanent_uuid = model_->bookmark_bar_node()->uuid();
 
-  // Verify it was removed from the model.
-  EXPECT_FALSE(model_->GetNodeByUuid(
-      uuid,
-      bookmarks::BookmarkModel::NodeTypeForUuidLookup::kLocalOrSyncableNodes));
-  EXPECT_TRUE(parent->children().empty());
-}
-
-TEST_F(BookmarksServiceImplTest, DeleteBookmarkNode_PermanentNode_Error) {
-  const bookmarks::BookmarkNode* node = model_->bookmark_bar_node();
-  ASSERT_TRUE(node);
-
-  auto result = service_->DeleteBookmarkNode(node->uuid());
+  auto result = service_->DeleteBookmarkNodes({uuid, permanent_uuid});
   EXPECT_FALSE(result.has_value());
   EXPECT_EQ(result.error()->code, mojo_base::mojom::Code::kInvalidArgument);
+
+  // Verify the non-permanent node was NOT removed.
+  EXPECT_TRUE(model_->GetNodeByUuid(
+      uuid,
+      bookmarks::BookmarkModel::NodeTypeForUuidLookup::kLocalOrSyncableNodes));
+  EXPECT_EQ(parent->children().size(), 1u);
 }
 
 class TestBookmarksObserver : public mojom::BookmarksObserver {
@@ -480,6 +521,7 @@ class TestBookmarksObserver : public mojom::BookmarksObserver {
 
   void OnBookmarksEvents(
       std::vector<mojom::BookmarksEventPtr> events) override {
+    call_count_++;
     for (auto& event : events) {
       events_.push_back(std::move(event));
     }
@@ -501,12 +543,17 @@ class TestBookmarksObserver : public mojom::BookmarksObserver {
   const std::vector<mojom::BookmarksEventPtr>& events() const {
     return events_;
   }
-  void ClearEvents() { events_.clear(); }
+  int call_count() const { return call_count_; }
+  void ClearEvents() {
+    events_.clear();
+    call_count_ = 0;
+  }
 
  private:
   mojo::AssociatedReceiver<mojom::BookmarksObserver> receiver_;
   std::vector<mojom::BookmarksEventPtr> events_;
   raw_ptr<base::RunLoop> run_loop_ = nullptr;
+  int call_count_ = 0;
 };
 
 TEST_F(BookmarksServiceImplTest, Observation) {
@@ -625,6 +672,61 @@ TEST_F(BookmarksServiceImplTest, Observation) {
   EXPECT_EQ(observer.events()[0]->get_removed()->id, node3_uuid);
   EXPECT_TRUE(observer.events()[1]->is_removed());
   EXPECT_EQ(observer.events()[1]->get_removed()->id, node2_uuid);
+}
+
+TEST_F(BookmarksServiceImplTest, Observation_ExtensiveChanges) {
+  mojom::BookmarksSnapshotPtr snapshot;
+  {
+    base::RunLoop run_loop;
+    remote_service_->GetBookmarks(base::BindOnce(
+        [](mojom::BookmarksSnapshotPtr* out_snapshot,
+           base::OnceClosure quit_closure,
+           mojom::BookmarksService::GetBookmarksResult result) {
+          ASSERT_TRUE(result.has_value());
+          *out_snapshot = std::move(result.value());
+          std::move(quit_closure).Run();
+        },
+        &snapshot, run_loop.QuitClosure()));
+    run_loop.Run();
+  }
+
+  ASSERT_TRUE(snapshot);
+  TestBookmarksObserver observer(std::move(snapshot->stream));
+
+  const bookmarks::BookmarkNode* parent = model_->bookmark_bar_node();
+  ASSERT_TRUE(parent);
+
+  // Start extensive changes (e.g. import).
+  model_->BeginExtensiveChanges();
+
+  // Perform multiple changes.
+  const bookmarks::BookmarkNode* node1 =
+      model_->AddURL(parent, 0, u"Title 1", GURL("http://example1.com"));
+  model_->AddURL(parent, 1, u"Title 2", GURL("http://example2.com"));
+  base::Uuid node1_uuid = node1->uuid();
+  model_->Remove(node1, bookmarks::metrics::BookmarkEditSource::kUser,
+                 FROM_HERE);
+
+  // End extensive changes. This should flush the queued events.
+  model_->EndExtensiveChanges();
+
+  // Wait for the events to arrive.
+  observer.WaitForEvent();
+
+  // We expect 3 events: Add(node1), Add(node2), Remove(node1).
+  ASSERT_EQ(observer.events().size(), 3u);
+  EXPECT_EQ(observer.call_count(), 1);
+
+  EXPECT_TRUE(observer.events()[0]->is_added());
+  EXPECT_EQ(observer.events()[0]->get_added()->node->get_url()->title,
+            "Title 1");
+
+  EXPECT_TRUE(observer.events()[1]->is_added());
+  EXPECT_EQ(observer.events()[1]->get_added()->node->get_url()->title,
+            "Title 2");
+
+  EXPECT_TRUE(observer.events()[2]->is_removed());
+  EXPECT_EQ(observer.events()[2]->get_removed()->id, node1_uuid);
 }
 
 }  // namespace bookmarks_api

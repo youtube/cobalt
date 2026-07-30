@@ -860,7 +860,8 @@ void WebRequestAPI::ProxyWebSocket(
     const net::SiteForCookies& site_for_cookies,
     const std::optional<std::string>& user_agent,
     mojo::PendingRemote<network::mojom::WebSocketHandshakeClient>
-        handshake_client) {
+        handshake_client,
+    mojo::PendingRemote<network::mojom::TrustedHeaderClient> header_client) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   DCHECK(MayHaveProxiesForFrame(frame));
 
@@ -876,9 +877,10 @@ void WebRequestAPI::ProxyWebSocket(
   WebRequestProxyingWebSocket::StartProxying(
       std::move(factory), url, site_for_cookies, user_agent,
       std::move(handshake_client), has_extra_headers, has_security_info,
-      frame->GetProcess()->GetDeprecatedID(), frame->GetRoutingID(),
-      &request_id_generator_, frame->GetLastCommittedOrigin(),
-      frame->GetProcess()->GetBrowserContext(), proxies_.get());
+      std::move(header_client), frame->GetProcess()->GetDeprecatedID(),
+      frame->GetRoutingID(), &request_id_generator_,
+      frame->GetLastCommittedOrigin(), frame->GetProcess()->GetBrowserContext(),
+      proxies_.get());
 }
 
 void WebRequestAPI::ProxyWebTransport(

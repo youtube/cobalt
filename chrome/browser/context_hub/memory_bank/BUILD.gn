@@ -13,3 +13,32 @@ source_set("memory_bank") {
     "//url",
   ]
 }
+
+source_set("impl") {
+  sources = [
+    "in_memory_memory_bank.cc",
+    "in_memory_memory_bank.h",
+    "noop_memory_bank.cc",
+    "noop_memory_bank.h",
+  ]
+
+  public_deps = [
+    ":memory_bank",
+    "//base",
+    "//url",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "in_memory_memory_bank_unittest.cc" ]
+
+  deps = [
+    ":impl",
+    ":memory_bank",
+    "//base",
+    "//base/test:test_support",
+    "//testing/gtest",
+    "//url",
+  ]
+}

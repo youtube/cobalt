@@ -124,9 +124,9 @@ class WebSocketMockClientSocketFactoryMaker {
   // Tell the factory to create a socket which expects |expect_written| to be
   // written, and responds with |return_to_read|. The test will fail if the
   // expected text is not written, or all the bytes are not read. This adds data
-  // for a new mock-socket using AddRawExpections(), and so can be called
+  // for a new mock-socket using AddRawExpectations(), and so can be called
   // multiple times to queue up multiple mock sockets, but usually in those
-  // cases the lower-level AddRawExpections() interface is more appropriate.
+  // cases the lower-level AddRawExpectations() interface is more appropriate.
   void SetExpectations(const std::string& expect_written,
                        const std::string& return_to_read);
 
@@ -181,7 +181,7 @@ struct WebSocketTestURLRequestContextHost {
   // Do not call after GetURLRequestContext() has been called.
   void SetProxyConfig(const std::string& proxy_rules);
 
-  // Call after calling one of SetExpections() or AddRawExpectations(). The
+  // Call after calling one of SetExpectations() or AddRawExpectations(). The
   // returned pointer remains owned by this object.
   URLRequestContext* GetURLRequestContext();
 

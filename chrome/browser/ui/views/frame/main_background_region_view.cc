@@ -10,10 +10,8 @@
 MainBackgroundRegionView::MainBackgroundRegionView(BrowserView& browser_view) {
   SetCanProcessEventsWithinSubtree(false);
   SetVisible(false);
-  const auto primary_color = CustomCornersBackground::ColorChoice(
-      CustomCornersBackground::ToolbarTheme());
   SetBackground(std::make_unique<CustomCornersBackground>(
-      *this, browser_view, primary_color,
+      *this, browser_view, CustomCornersBackground::ToolbarTheme(),
       CustomCornersBackground::FrameTheme()));
 }
 

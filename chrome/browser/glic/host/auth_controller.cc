@@ -178,10 +178,17 @@ void AuthController::OnRefreshTokenUpdatedForAccount(
       account_info.account_id) {
     return;
   }
-
-  if (base::FeatureList::IsEnabled(features::kGlicCookieSyncOnTokenChange)) {
-    profile_->GetPrefs()->SetBoolean(prefs::kGlicPartitionNeedsCookieSync,
-                                     true);
+  if (!base::FeatureList::IsEnabled(features::kGlicCookieSyncOnTokenChange)) {
+    return;
+  }
+  if (!identity_manager_->AreRefreshTokensLoaded() &&
+      !profile_->GetPrefs()->GetBoolean(prefs::kGlicPartitionNeedsCookieSync)) {
+    // Don't trigger sync at startup when loading existing refresh tokens,
+    // unless a sync is explicitly required.
+    return;
+  }
+  profile_->GetPrefs()->SetBoolean(prefs::kGlicPartitionNeedsCookieSync, true);
+  if (GetTokenState() == TokenState::kOk) {
     ForceSyncCookies(GlicCookieSyncTrigger::kOnRefreshTokenUpdated,
                      base::DoNothing());
   }

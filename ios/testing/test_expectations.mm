@@ -10,12 +10,15 @@
 #import "base/strings/sys_string_conversions.h"
 #import "base/system/sys_info.h"
 
+@implementation TestExpectationEntry
+@end
+
 namespace {
 TestExpectations* g_current_expectations = nil;
 }  // namespace
 
 @implementation TestExpectations {
-  NSMutableDictionary<NSString*, NSString*>* _expectations;
+  NSMutableDictionary<NSString*, TestExpectationEntry*>* _expectations;
 
   // Override for active tags (used in tests).
   NSSet<NSString*>* _activeTagsOverride;
@@ -91,6 +94,13 @@ TestExpectations* g_current_expectations = nil;
 #else
   [tags addObject:@"device"];
 #endif
+
+  if ([UIDevice currentDevice].userInterfaceIdiom == UIUserInterfaceIdiomPad) {
+    [tags addObject:@"ipad"];
+  } else if ([UIDevice currentDevice].userInterfaceIdiom ==
+             UIUserInterfaceIdiomPhone) {
+    [tags addObject:@"iphone"];
+  }
 
   return [tags copy];
 }
@@ -170,7 +180,7 @@ TestExpectations* g_current_expectations = nil;
     }
 
     // Validate expectations
-    BOOL expectsFailure = NO;
+    TestExpectationType type = TestExpectationTypeNone;
     if (expectationsStr) {
       NSArray<NSString*>* expectations =
           [expectationsStr componentsSeparatedByString:@" "];
@@ -178,49 +188,46 @@ TestExpectations* g_current_expectations = nil;
         NSString* trimmedExp =
             [exp stringByTrimmingCharactersInSet:[NSCharacterSet
                                                      whitespaceCharacterSet]];
-        if ([[trimmedExp lowercaseString] isEqualToString:@"failure"]) {
-          expectsFailure = YES;
-          break;
+        NSString* lowercaseExp = [trimmedExp lowercaseString];
+        if ([lowercaseExp isEqualToString:@"failure"]) {
+          type |= TestExpectationTypeFailure;
+        } else if ([lowercaseExp isEqualToString:@"pass"]) {
+          type |= TestExpectationTypePass;
+        } else if ([lowercaseExp isEqualToString:@"skip"]) {
+          type |= TestExpectationTypeSkip;
+        } else if ([lowercaseExp isEqualToString:@"crash"]) {
+          type |= TestExpectationTypeCrash;
         }
       }
     }
 
-    if (!expectsFailure) {
+    if (type == TestExpectationTypeNone) {
       continue;
     }
 
     // Normalize test ID and store
     NSString* normalizedTestId = [self normalizeTestIdentifier:testId];
-    _expectations[normalizedTestId] = bug ? bug : @"Expected failure";
+    TestExpectationEntry* entry = [[TestExpectationEntry alloc] init];
+    entry.bug = bug ? bug : @"Expected failure";
+    entry.type = type;
+    _expectations[normalizedTestId] = entry;
   }
 }
 
-- (BOOL)shouldExpectFailureForTestCase:(NSString*)testClassName
-                            methodName:(NSString*)methodName
-                             outReason:(NSString**)outReason {
+- (TestExpectationEntry*)expectationEntryForTestCase:(NSString*)testClassName
+                                          methodName:(NSString*)methodName {
   NSString* methodId =
       [NSString stringWithFormat:@"%@/%@", testClassName, methodName];
   NSString* normalizedMethodId = [self normalizeTestIdentifier:methodId];
 
-  NSString* reason = _expectations[normalizedMethodId];
-  if (reason) {
-    if (outReason) {
-      *outReason = reason;
-    }
-    return YES;
+  TestExpectationEntry* entry = _expectations[normalizedMethodId];
+  if (entry) {
+    return entry;
   }
 
   // Try class-level expectation
   NSString* normalizedClassId = [self normalizeTestIdentifier:testClassName];
-  reason = _expectations[normalizedClassId];
-  if (reason) {
-    if (outReason) {
-      *outReason = reason;
-    }
-    return YES;
-  }
-
-  return NO;
+  return _expectations[normalizedClassId];
 }
 
 - (NSString*)normalizeTestIdentifier:(NSString*)identifier {

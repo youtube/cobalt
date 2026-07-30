@@ -101,6 +101,8 @@ class SendTabToSelfBridge : public syncer::DataTypeSyncBridge,
       std::string_view guid) const override;
   std::vector<const SendTabToSelfEntry*>
   GetUnopenedEntriesTargetedToLocalDevice() const override;
+  std::vector<const SendTabToSelfEntry*> GetOpenedEntriesTargetedToLocalDevice()
+      const override;
   const SendTabToSelfEntry* SendEntry(
       const GURL& url,
       const std::string& title,
@@ -111,6 +113,8 @@ class SendTabToSelfBridge : public syncer::DataTypeSyncBridge,
       ShareEntryPoint entry_point) override;
   void DismissEntry(std::string_view guid) override;
   void MarkEntryOpened(std::string_view guid) override;
+  void MarkEntryActivated(std::string_view guid,
+                          ShareActivatedEntryPoint entry_point) override;
   bool IsReady() override;
   bool HasValidTargetDevice() override;
   std::vector<TargetDeviceInfo> GetTargetDeviceInfoSortedList() override;
@@ -185,6 +189,13 @@ class SendTabToSelfBridge : public syncer::DataTypeSyncBridge,
   void EraseEntryInBatch(std::string_view guid,
                          syncer::DataTypeStore::WriteBatch* batch);
 
+  void MarkEntryActivatedImpl(std::string_view guid,
+                              ShareActivatedEntryPoint entry_point,
+                              base::Time activated_time);
+
+  // Helper to commit a local mutation of an entry to the store and processor.
+  void CommitLocalEntryMutation(const SendTabToSelfEntry& entry);
+
   // |entries_| is keyed by GUIDs.
   SendTabToSelfEntries entries_;
 
@@ -196,6 +207,14 @@ class SendTabToSelfBridge : public syncer::DataTypeSyncBridge,
   // using the stored timestamp. Entries are in-memory only and will be lost
   // on browser restart.
   base::flat_map<std::string, base::Time, std::less<>> unknown_opened_entries_;
+  // Stores guids of entries that have been activated from a layer other than
+  // SendTabToSelfModel, along with the time and entry point when the activation
+  // was requested. Entries are in-memory only and will be lost on browser
+  // restart.
+  base::flat_map<std::string,
+                 std::pair<base::Time, ShareActivatedEntryPoint>,
+                 std::less<>>
+      unknown_activated_entries_;
 
   // |clock_| isn't owned.
   const raw_ptr<const base::Clock> clock_;

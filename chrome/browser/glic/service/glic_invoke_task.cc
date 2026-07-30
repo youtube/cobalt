@@ -11,6 +11,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/enterprise/data_protection/data_protection_clipboard_utils.h"
+#include "chrome/browser/glic/public/glic_context_menu_invocation_helper.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/service/glic_instance_impl.h"
@@ -41,10 +42,10 @@ std::u16string GetImageMarkup(const GURL& src_url,
   return base::StrCat({u"<img src=\"", spec, u"\"", alt, u"></img>"});
 }
 
-ui::ClipboardMetadata CreateClipboardMetadata(size_t size,
-                                              bool is_drag_and_drop) {
+ui::ClipboardMetadata CreateClipboardMetadata(
+    ui::ClipboardFormatType format_type, size_t size, bool is_drag_and_drop) {
   ui::ClipboardMetadata metadata;
-  metadata.format_type = ui::ClipboardFormatType::PngType();
+  metadata.format_type = format_type;
   metadata.size = size;
   metadata.is_drag_and_drop = is_drag_and_drop;
   return metadata;
@@ -57,6 +58,21 @@ void ExtractThumbnailData(const GlicInvokeOptions& options,
       if (part->is_data() && part->get_data()->mime_type == "image/png") {
         const auto& buffer = part->get_data()->data;
         thumbnail_data = std::vector<uint8_t>(buffer.begin(), buffer.end());
+        break;
+      }
+    }
+  }
+}
+
+void ExtractTextData(const GlicInvokeOptions& options,
+                     std::u16string& text_data) {
+  if (options.additional_context && options.additional_context->context) {
+    for (const auto& part : options.additional_context->context->parts) {
+      if (part->is_data() &&
+          part->get_data()->mime_type == kMimeTypeGlicSelection) {
+        const auto& buffer = part->get_data()->data;
+        std::string utf8_text(buffer.begin(), buffer.end());
+        text_data = base::UTF8ToUTF16(utf8_text);
         break;
       }
     }
@@ -418,6 +434,7 @@ ClipboardPolicyTask::ClipboardPolicyTask(
   }
   source_rfh_id_ = options.additional_context->source_rfh_id;
   ExtractThumbnailData(options, thumbnail_data_);
+  ExtractTextData(options, text_data_);
   src_url_ = GURL(options.additional_context->context->name.value_or(""));
   is_drag_and_drop_ =
       (options.GetInvocationSource() == mojom::InvocationSource::kWebDragDrop);
@@ -455,11 +472,24 @@ void ClipboardPolicyTask::Start(base::OnceClosure done_callback) {
           source_rfh->GetGlobalId()),
       *source_rfh);
 
+  // Having both is invalid because ClipboardMetadata only supports one format.
+  if (!thumbnail_data_.empty() && !text_data_.empty()) {
+    std::move(error_callback_).Run(GlicInvokeError::kInvalidConfiguration);
+    return;
+  }
+  ui::ClipboardFormatType format_type = ui::ClipboardFormatType::PngType();
+  size_t data_size = thumbnail_data_.size();
+  if (!text_data_.empty()) {
+    format_type = ui::ClipboardFormatType::PlainTextType();
+    data_size = text_data_.size() * sizeof(char16_t);
+  }
+
   ui::ClipboardMetadata metadata =
-      CreateClipboardMetadata(thumbnail_data_.size(), is_drag_and_drop_);
+      CreateClipboardMetadata(format_type, data_size, is_drag_and_drop_);
 
   content::ClipboardPasteData data;
   data.png = thumbnail_data_;
+  data.text = text_data_;
   data.html = GetImageMarkup(src_url_, source_rfh);
 
   RunPolicyCheck(source, metadata, std::move(data), source_rfh);
@@ -512,7 +542,7 @@ void PastePolicyCheckTask::RunPolicyCheck(
     const ui::ClipboardMetadata& metadata,
     content::ClipboardPasteData paste_data,
     content::RenderFrameHost* source_rfh) {
-  if (thumbnail_data_.empty()) {
+  if (thumbnail_data_.empty() && text_data_.empty()) {
     std::move(error_callback_)
         .Run(GlicInvokeError::kAdditionalContextNoClipboardMetadata);
     return;
@@ -554,7 +584,8 @@ void PastePolicyCheckTask::DidFinishNavigation(
 void PastePolicyCheckTask::OnPastePolicyCheckComplete(
     std::optional<content::ClipboardPasteData> data) {
   Observe(nullptr);
-  if (!data || data->png.empty()) {
+  if (!data || (!thumbnail_data_.empty() && data->png.empty()) ||
+      (!text_data_.empty() && data->text.empty())) {
     // Policy denied or error.
     std::move(error_callback_)
         .Run(GlicInvokeError::kAdditionalContextFailedPastePolicy);

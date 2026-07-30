@@ -135,6 +135,8 @@ void DownloadRecordServiceImpl::GetDownloadsPageAsync(
     const DownloadRecordQuery& query,
     DownloadRecordsPageCallback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(main_sequence_checker_);
+  // Paginated readers require kDownloadListPagination.
+  DCHECK(pagination_enabled_);
   store_.AsyncCall(&DownloadRecordStore::GetDownloadsPage)
       .WithArgs(query)
       .Then(std::move(callback));
@@ -144,6 +146,7 @@ void DownloadRecordServiceImpl::GetDownloadsCountAsync(
     std::optional<DownloadFilterType> filter,
     DownloadRecordsCountCallback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(main_sequence_checker_);
+  DCHECK(pagination_enabled_);
 
   // Translate the optional filter into a count-only query. The cursor
   // fields are ignored by the DB layer for count queries.

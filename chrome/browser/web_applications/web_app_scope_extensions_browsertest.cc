@@ -109,6 +109,10 @@ class WebAppScopeExtensionsBrowserTest
     return *WebAppProvider::GetForTest(browser()->profile());
   }
 
+  bool LinkCapturingEnabledByDefault() const {
+    return GetParam() == apps::test::LinkCapturingFeatureVersion::kV2DefaultOn;
+  }
+
   webapps::AppId InstallScopeExtendedWebApp(std::string manifest_file,
                                             std::string association_file) {
     GURL manifest_url = primary_server_.GetURL("/web_apps/manifest.json");
@@ -124,13 +128,15 @@ class WebAppScopeExtensionsBrowserTest
 
     app_ = provider().registrar_unsafe().GetAppById(app_id);
 
-    // Turn on link capturing.
+    // Turn on link capturing if needed.
 #if BUILDFLAG(IS_CHROMEOS)
     apps::AppReadinessWaiter(browser()->profile(), app_id).Await();
 #endif
-    EXPECT_THAT(
-        apps::test::EnableLinkCapturingByUser(browser()->profile(), app_id),
-        base::test::HasValue());
+    if (!LinkCapturingEnabledByDefault()) {
+      EXPECT_THAT(
+          apps::test::EnableLinkCapturingByUser(browser()->profile(), app_id),
+          base::test::HasValue());
+    }
     return app_id;
   }
 
@@ -364,6 +370,16 @@ IN_PROC_BROWSER_TEST_P(WebAppScopeExtensionsBrowserTest,
 
 IN_PROC_BROWSER_TEST_P(WebAppScopeExtensionsBrowserTest,
                        PrimaryScopeTakesPriorityOverExtendedScope) {
+#if BUILDFLAG(IS_CHROMEOS)
+  // TODO(b/521860617): Under kV2DefaultOn on ChromeOS, auto-enablement yields
+  // to avoid conflicts, so App B is not auto-enabled and App A is not disabled.
+  // Skip this test under kV2DefaultOn until the default-on conflict behavior
+  // is resolved.
+  if (LinkCapturingEnabledByDefault()) {
+    GTEST_SKIP() << "Skipping due to default-on conflict yielding on ChromeOS";
+  }
+#endif
+
   // Install App A (regular scope on secondary_server_, no extended scope).
   GURL app_a_manifest_url =
       secondary_server_.GetURL("/web_apps/app_a.webmanifest");
@@ -378,9 +394,11 @@ IN_PROC_BROWSER_TEST_P(WebAppScopeExtensionsBrowserTest,
   webapps::AppId app_a_id = InstallWebAppFromPage(
       browser(), secondary_server_.GetURL(
                      "/web_apps/get_manifest.html?app_a.webmanifest"));
-  ASSERT_THAT(
-      apps::test::EnableLinkCapturingByUser(browser()->profile(), app_a_id),
-      base::test::HasValue());
+  if (!LinkCapturingEnabledByDefault()) {
+    ASSERT_EQ(
+        apps::test::EnableLinkCapturingByUser(browser()->profile(), app_a_id),
+        base::ok());
+  }
 
   // Install App B (regular scope on primary_server_, extended scope on
   // secondary_server_).
@@ -435,13 +453,8 @@ IN_PROC_BROWSER_TEST_P(WebAppScopeExtensionsBrowserTest,
 INSTANTIATE_TEST_SUITE_P(
     All,
     WebAppScopeExtensionsBrowserTest,
-#if BUILDFLAG(IS_CHROMEOS)
-    testing::Values(apps::test::LinkCapturingFeatureVersion::kV2DefaultOff)
-#else
     testing::Values(apps::test::LinkCapturingFeatureVersion::kV2DefaultOff,
-                    apps::test::LinkCapturingFeatureVersion::kV2DefaultOn)
-#endif  // BUILDFLAG(IS_CHROMEOS)
-        ,
+                    apps::test::LinkCapturingFeatureVersion::kV2DefaultOn),
     apps::test::LinkCapturingVersionToString);
 
 class WebAppScopeExtensionsDisabledBrowserTest
@@ -484,13 +497,8 @@ IN_PROC_BROWSER_TEST_P(WebAppScopeExtensionsDisabledBrowserTest,
 INSTANTIATE_TEST_SUITE_P(
     All,
     WebAppScopeExtensionsDisabledBrowserTest,
-#if BUILDFLAG(IS_CHROMEOS)
-    testing::Values(apps::test::LinkCapturingFeatureVersion::kV2DefaultOff)
-#else
     testing::Values(apps::test::LinkCapturingFeatureVersion::kV2DefaultOff,
-                    apps::test::LinkCapturingFeatureVersion::kV2DefaultOn)
-#endif  // BUILDFLAG(IS_CHROMEOS)
-        ,
+                    apps::test::LinkCapturingFeatureVersion::kV2DefaultOn),
     apps::test::LinkCapturingVersionToString);
 
 }  // namespace web_app

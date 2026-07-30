@@ -268,6 +268,7 @@ class RenderFrameHost;
 class RenderProcessHost;
 class ResponsivenessCalculatorDelegate;
 class SecurityPrincipal;
+class SensorDelegate;
 class SerialDelegate;
 class ServiceWorkerContext;
 class SiteInstance;
@@ -852,6 +853,10 @@ class CONTENT_EXPORT ContentBrowserClient {
   // This function is defined on all platforms, but is expected to always return
   // false on platforms that do not support Top Chrome WebUIs, e.g., Android.
   virtual bool IsTopChromeWebUIURL(const GURL& url);
+
+  // Returns true if the given `site_url` is allowed to use MojoJS bindings.
+  virtual bool ShouldAllowMojoJsBindingsForSite(BrowserContext* browser_context,
+                                                const GURL& site_url);
 
   // Returns whether the application running in the |render_frame_host| is
   // allowed to automatically capture all screens by using the
@@ -2133,8 +2138,21 @@ class CONTENT_EXPORT ContentBrowserClient {
   // Returns true when the embedder wants to intercept a websocket connection.
   virtual bool WillInterceptWebSocket(RenderFrameHost* frame);
 
+  struct CONTENT_EXPORT WebSocketOptions {
+    WebSocketOptions();
+    ~WebSocketOptions();
+    WebSocketOptions(WebSocketOptions&&);
+    WebSocketOptions& operator=(WebSocketOptions&&) = default;
+
+    WebSocketOptions(const WebSocketOptions&) = delete;
+    WebSocketOptions& operator=(const WebSocketOptions&) = delete;
+
+    uint32_t options = network::mojom::kWebSocketOptionNone;
+    mojo::PendingRemote<network::mojom::TrustedHeaderClient> header_client;
+  };
+
   // Returns the WebSocket creation options.
-  virtual uint32_t GetWebSocketOptions(RenderFrameHost* frame);
+  virtual WebSocketOptions GetWebSocketOptions(RenderFrameHost* frame);
 
   using WebSocketFactory = base::OnceCallback<void(
       const GURL& /* url */,
@@ -2159,7 +2177,8 @@ class CONTENT_EXPORT ContentBrowserClient {
       const net::SiteForCookies& site_for_cookies,
       const std::optional<std::string>& user_agent,
       mojo::PendingRemote<network::mojom::WebSocketHandshakeClient>
-          handshake_client);
+          handshake_client,
+      WebSocketOptions options);
 
   // Allows the embedder to control if establishing a WebTransport connection is
   // allowed.
@@ -2398,6 +2417,9 @@ class CONTENT_EXPORT ContentBrowserClient {
 
   // Allows the embedder to provide an implementation of the WebUSB API.
   virtual UsbDelegate* GetUsbDelegate();
+
+  // Allows the embedder to provide an implementation of the Generic Sensor API.
+  virtual SensorDelegate* GetSensorDelegate();
 
   // Allows the embedder to provide an implementation of the Local Font Access
   // API.

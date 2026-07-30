@@ -27,7 +27,7 @@ bool ScrollSnapshotTimeline::IsResolved() const {
 }
 
 bool ScrollSnapshotTimeline::IsActive() const {
-  return timeline_state_snapshotted_.phase != TimelinePhase::kInactive;
+  return timeline_state_snapshotted_.current_time.has_value();
 }
 
 std::optional<ScrollOffsets> ScrollSnapshotTimeline::GetResolvedScrollOffsets()
@@ -45,12 +45,8 @@ std::optional<ScrollOffsets> ScrollSnapshotTimeline::GetResolvedScrollLimits()
   return timeline_state_snapshotted_.scroll_limits;
 }
 
-// TODO(crbug.com/1336260): Since phase can only be kActive or kInactive and
-// currentTime  can only be null if phase is inactive or before the first
-// snapshot we can probably drop phase.
-AnimationTimeline::PhaseAndTime ScrollSnapshotTimeline::CurrentPhaseAndTime() {
-  return {timeline_state_snapshotted_.phase,
-          timeline_state_snapshotted_.current_time};
+std::optional<base::TimeDelta> ScrollSnapshotTimeline::CurrentTimeInternal() {
+  return timeline_state_snapshotted_.current_time;
 }
 
 V8CSSNumberish* ScrollSnapshotTimeline::ConvertTimeToProgress(
@@ -141,9 +137,7 @@ TimelineRange ScrollSnapshotTimeline::GetTimelineRange() const {
 void ScrollSnapshotTimeline::ServiceAnimations(TimingUpdateReason reason) {
   // When scroll timeline goes from inactive to active the animations may need
   // to be started and possibly composited.
-  bool was_active =
-      last_current_phase_and_time_ &&
-      last_current_phase_and_time_.value().phase == TimelinePhase::kActive;
+  bool was_active = last_current_time_ && last_current_time_.has_value();
   if (!was_active && IsActive()) {
     MarkAnimationsCompositorPending();
   }
@@ -157,8 +151,8 @@ bool ScrollSnapshotTimeline::ShouldScheduleNextService() {
   }
 
   auto state = ComputeTimelineState();
-  PhaseAndTime current_phase_and_time{state.phase, state.current_time};
-  return current_phase_and_time != last_current_phase_and_time_;
+  std::optional<base::TimeDelta> current_time = state.current_time;
+  return current_time != last_current_time_;
 }
 
 void ScrollSnapshotTimeline::ScheduleNextService() {

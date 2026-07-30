@@ -779,6 +779,7 @@ if (_is_default_toolchain) {
       "//media/base/android:media_java",
       "//media/capture/video/android:capture_java",
       "//media/midi:midi_java",
+      "//media/mojo/mojom:media_types_java",
       "//mojo/public/java:bindings_java",
       "//mojo/public/java:system_java",
       "//mojo/public/java/system:system_impl_java",

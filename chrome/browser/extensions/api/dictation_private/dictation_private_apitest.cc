@@ -52,8 +52,11 @@ class ExtensionApiTestStreamProvider : public dictation::StreamProvider {
     target_ = std::move(target);
     api::dictation_private::StartStreamDetails details;
     details.stream_id = stream_id_.value();
-    details.page_context = "Page context";
-    details.editable_content = "Existing content";
+    api::dictation_private::DictationContext context;
+    context.annotated_page_content = std::vector<uint8_t>{1, 2, 3};
+    context.inner_text = "Foo Bar";
+    context.editable_content = "Existing content";
+    details.context = std::move(context);
 
     base::ListValue event_args =
         api::dictation_private::OnStartStream::Create(details);
@@ -98,6 +101,8 @@ class ExtensionApiTestStreamProvider : public dictation::StreamProvider {
                : state_changes_.back();
   }
 
+  const dictation::Target* GetTarget() const override { return target_.get(); }
+
   struct TranscriptionUpdate {
     std::string data;
     bool is_final;
@@ -139,7 +144,8 @@ class DictationPrivateApiTest : public ExtensionApiTest {
   }
 
  private:
-  base::test::ScopedFeatureList feature_list_{dictation::kDictation};
+  base::test::ScopedFeatureList feature_list_ =
+      dictation::CreateEnablingFeatureList();
 };
 
 IN_PROC_BROWSER_TEST_F(DictationPrivateApiTest, Basic) {

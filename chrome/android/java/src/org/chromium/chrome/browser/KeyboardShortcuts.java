@@ -707,7 +707,8 @@ public class KeyboardShortcuts {
                             (KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON)),
                     new KeyCombo(
                             KeyEvent.KEYCODE_EQUALS,
-                            (KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON))
+                            (KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON)),
+                    new KeyCombo(KeyEvent.KEYCODE_NUMPAD_ADD, KeyEvent.META_CTRL_ON)
                 });
         new KeyboardShortcutDefinition(
                 KeyboardShortcutsSemanticMeaning.ZOOM_OUT,
@@ -718,7 +719,8 @@ public class KeyboardShortcuts {
                     new KeyCombo(KeyEvent.KEYCODE_ZOOM_OUT, NO_MODIFIER),
                     new KeyCombo(
                             KeyEvent.KEYCODE_MINUS,
-                            (KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON))
+                            (KeyEvent.META_CTRL_ON | KeyEvent.META_SHIFT_ON)),
+                    new KeyCombo(KeyEvent.KEYCODE_NUMPAD_SUBTRACT, KeyEvent.META_CTRL_ON)
                 });
         new KeyboardShortcutDefinition(
                 KeyboardShortcutsSemanticMeaning.ZOOM_RESET,

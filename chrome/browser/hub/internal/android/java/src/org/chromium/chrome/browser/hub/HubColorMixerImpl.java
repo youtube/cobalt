@@ -139,6 +139,11 @@ public class HubColorMixerImpl implements HubColorMixer {
     }
 
     @Override
+    public void unregisterBlend(HubViewColorBlend colorBlend) {
+        mAnimatorSetBuilder.unregisterBlend(colorBlend);
+    }
+
+    @Override
     public OverviewModeAlphaObserver getOverviewModeAlphaObserver() {
         return alpha -> {
             mOverviewColorAlpha = (float) alpha;

@@ -28,11 +28,11 @@ VideoBitrateSuggester::VideoBitrateSuggester(
 
 VideoBitrateSuggester::~VideoBitrateSuggester() = default;
 
-int VideoBitrateSuggester::GetSuggestedBitrate() {
+uint32_t VideoBitrateSuggester::GetSuggestedBitrate() {
   // The bitrate retrieved from the callback is based on network usage, however
   // we also need to consider how well this device is handling encoding at
   // this bitrate overall.
-  const int suggested_bitrate =
+  const uint32_t suggested_bitrate =
       std::min(get_bandwidth_cb_.Run(), suggested_bitrate_);
 
   // Honor the config boundaries.
@@ -78,8 +78,12 @@ void VideoBitrateSuggester::UpdateSuggestionUsingExponentialAlgorithm() {
 
     suggested_bitrate_ =
         (frames_dropped_ > drop_threshold)
-            ? std::max<int>(min_bitrate_, suggested_bitrate_ * decrease_factor)
-            : std::min<int>(max_bitrate_, suggested_bitrate_ * increase_factor);
+            ? std::max<uint32_t>(
+                  min_bitrate_,
+                  static_cast<uint32_t>(suggested_bitrate_ * decrease_factor))
+            : std::min<uint32_t>(
+                  max_bitrate_,
+                  static_cast<uint32_t>(suggested_bitrate_ * increase_factor));
 
     // Reset the frame counts to start a new window.
     frames_requested_ = 0;
@@ -88,6 +92,9 @@ void VideoBitrateSuggester::UpdateSuggestionUsingExponentialAlgorithm() {
 }
 
 void VideoBitrateSuggester::UpdateSuggestionUsingLinearAlgorithm() {
+  // The window size here is fixed at 100 frames, which ends up being between
+  // ~1.5 seconds at 60 FPS and ~3.3 seconds at 30 FPS. This is a relatively
+  // good balance between responsiveness and stability.
   static constexpr int kWindowSize = 100;
   if (frames_requested_ == kWindowSize) {
     // If more than 2% of frames were dropped, decrease the bitrate.
@@ -95,13 +102,24 @@ void VideoBitrateSuggester::UpdateSuggestionUsingLinearAlgorithm() {
     // sustained performance issues.
     static constexpr int kDropThreshold = 2;
 
+    // The adjust step allows for eight steps between the minimum and maximum
+    // bitrate. These concrete delta values ensure that the encoder does not
+    // have to make major adjustments for only minor changes in bitrate.
     static constexpr int kBitrateSteps = 8;
-    const int adjustment = (max_bitrate_ - min_bitrate_) / kBitrateSteps;
+    const uint32_t adjustment = (max_bitrate_ - min_bitrate_) / kBitrateSteps;
 
-    suggested_bitrate_ =
-        (frames_dropped_ > kDropThreshold)
-            ? std::max(min_bitrate_, suggested_bitrate_ - adjustment)
-            : std::min(max_bitrate_, suggested_bitrate_ + adjustment);
+    if (frames_dropped_ > kDropThreshold) {
+      // Decrease bitrate: protect against unsigned underflow first.
+      auto decreased_bitrate = (suggested_bitrate_ > adjustment)
+                                   ? suggested_bitrate_ - adjustment
+                                   : 0;
+
+      suggested_bitrate_ = std::max(min_bitrate_, decreased_bitrate);
+    } else {
+      // Increase bitrate: clamp to the absolute maximum
+      suggested_bitrate_ =
+          std::min(max_bitrate_, suggested_bitrate_ + adjustment);
+    }
 
     // Reset the frame counts to start a new window.
     frames_requested_ = 0;

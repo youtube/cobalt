@@ -142,6 +142,12 @@ DevtoolsOverriddenOutputParams ApplyEmulationOverrides(
     DevToolsAgentHostImpl* agent_host,
     net::HttpRequestHeaders* headers);
 
+// Applies extra headers set via Network.setExtraHTTPHeaders to a WebSocket
+// handshake request. This is needed because WebSocket connections bypass the
+// normal URLLoader path where ApplyNetworkRequestOverrides is called.
+void ApplyExtraHeadersForWebSocket(const GlobalRenderFrameHostId& frame_id,
+                                   net::HttpRequestHeaders* headers);
+
 // Returns true if devtools want |*override_out| to be used.
 // (A true return and |*override_out| being nullopt means no user agent client
 //  hints should be sent; a false return means devtools doesn't want to affect
@@ -250,6 +256,25 @@ void OnFetchKeepAliveResponseReceived(
     const network::mojom::URLResponseHead& head);
 void OnFetchKeepAliveRequestComplete(
     FrameTreeNode* frame_tree_node,
+    const std::string& request_id,
+    const network::URLLoaderCompletionStatus& status);
+
+// Logs prefetch/prerender activation beacon requests to the DevTools Network
+// panel as Ping resource types.
+void OnPrefetchActivationBeaconWillBeSent(
+    FrameTreeNodeId frame_tree_node_id,
+    const std::string& request_id,
+    const network::ResourceRequest& request,
+    std::optional<std::pair<const GURL&,
+                            const network::mojom::URLResponseHeadDevToolsInfo&>>
+        redirect_info = std::nullopt);
+void OnPrefetchActivationBeaconResponseReceived(
+    FrameTreeNodeId frame_tree_node_id,
+    const std::string& request_id,
+    const GURL& url,
+    const network::mojom::URLResponseHead& head);
+void OnPrefetchActivationBeaconRequestComplete(
+    FrameTreeNodeId frame_tree_node_id,
     const std::string& request_id,
     const network::URLLoaderCompletionStatus& status);
 

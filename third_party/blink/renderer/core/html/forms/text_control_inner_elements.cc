@@ -298,4 +298,12 @@ bool PasswordRevealButtonElement::WillRespondToMouseClickEvents() {
   return HTMLDivElement::WillRespondToMouseClickEvents();
 }
 
+EmailVerificationIndicatorElement::EmailVerificationIndicatorElement(
+    Document& document)
+    : HTMLDivElement(document) {
+  SetShadowPseudoId(shadow_element_names::kPseudoEmailVerificationIndicator);
+  setAttribute(html_names::kIdAttr,
+               shadow_element_names::kIdEmailVerificationIndicator);
+}
+
 }  // namespace blink

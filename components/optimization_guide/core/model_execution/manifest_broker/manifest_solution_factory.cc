@@ -546,7 +546,7 @@ ManifestSolutionFactory::GetOrLoadTextSafetyModel(const std::string& model_id) {
     if (recipe.has_weights_file()) {
       params.ts_paths.emplace();
       // We should not get here unless the asset is available.
-      params.ts_paths->data = *ResolveFile(recipe.weights_file());
+      params.ts_paths->model = *ResolveFile(recipe.weights_file());
     }
     if (recipe.has_language_detection_model_file()) {
       params.language_paths.emplace();

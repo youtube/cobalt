@@ -43,6 +43,7 @@ blink_platform_sources("loader") {
     "fetch/code_cache_host.cc",
     "fetch/code_cache_host.h",
     "fetch/console_logger.h",
+    "fetch/cross_origin_attribute_value.cc",
     "fetch/cross_origin_attribute_value.h",
     "fetch/data_pipe_bytes_consumer.cc",
     "fetch/data_pipe_bytes_consumer.h",

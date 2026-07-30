@@ -229,7 +229,7 @@ TEST_F(TextIteratorTest, NotEnteringShadowTree) {
       "<div>Hello, <span id='host'>text</span> iterator.</div>";
   static const char* shadow_content = "<span>shadow</span>";
   SetBodyContent(body_content);
-  CreateShadowRootForElementWithIDAndSetInnerHTML(GetDocument(), "host",
+  CreateShadowRootForElementWithIdAndSetInnerHtml(GetDocument(), "host",
                                                   shadow_content);
   // TextIterator doesn't emit "text" since its layoutObject is not created. The
   // shadow tree is ignored.
@@ -244,9 +244,9 @@ TEST_F(TextIteratorTest, NotEnteringShadowTreeWithNestedShadowTrees) {
       "<span>first <span id='host-in-shadow'>shadow</span></span>";
   static const char* shadow_content2 = "<span>second shadow</span>";
   SetBodyContent(body_content);
-  ShadowRoot* shadow_root1 = CreateShadowRootForElementWithIDAndSetInnerHTML(
+  ShadowRoot* shadow_root1 = CreateShadowRootForElementWithIdAndSetInnerHtml(
       GetDocument(), "host-in-document", shadow_content1);
-  CreateShadowRootForElementWithIDAndSetInnerHTML(
+  CreateShadowRootForElementWithIdAndSetInnerHtml(
       *shadow_root1, "host-in-shadow", shadow_content2);
   EXPECT_EQ("[Hello, ][ iterator.]", Iterate<DomTree>());
   EXPECT_EQ("[Hello, ][first ][second shadow][ iterator.]",
@@ -259,7 +259,7 @@ TEST_F(TextIteratorTest, NotEnteringShadowTreeWithContentInsertionPoint) {
   static const char* shadow_content =
       "<span>shadow <slot>content</slot></span>";
   SetBodyContent(body_content);
-  CreateShadowRootForElementWithIDAndSetInnerHTML(GetDocument(), "host",
+  CreateShadowRootForElementWithIdAndSetInnerHtml(GetDocument(), "host",
                                                   shadow_content);
   // In this case a layoutObject for "text" is created, so it shows up here.
   EXPECT_EQ("[Hello, ][text][ iterator.]", Iterate<DomTree>());
@@ -271,7 +271,7 @@ TEST_F(TextIteratorTest, EnteringShadowTreeWithOption) {
       "<div>Hello, <span id='host'>text</span> iterator.</div>";
   static const char* shadow_content = "<span>shadow</span>";
   SetBodyContent(body_content);
-  CreateShadowRootForElementWithIDAndSetInnerHTML(GetDocument(), "host",
+  CreateShadowRootForElementWithIdAndSetInnerHtml(GetDocument(), "host",
                                                   shadow_content);
   // TextIterator emits "shadow" since entersOpenShadowRootsBehavior() is
   // specified.
@@ -288,9 +288,9 @@ TEST_F(TextIteratorTest, EnteringShadowTreeWithNestedShadowTreesWithOption) {
       "<span>first <span id='host-in-shadow'>shadow</span></span>";
   static const char* shadow_content2 = "<span>second shadow</span>";
   SetBodyContent(body_content);
-  ShadowRoot* shadow_root1 = CreateShadowRootForElementWithIDAndSetInnerHTML(
+  ShadowRoot* shadow_root1 = CreateShadowRootForElementWithIdAndSetInnerHtml(
       GetDocument(), "host-in-document", shadow_content1);
-  CreateShadowRootForElementWithIDAndSetInnerHTML(
+  CreateShadowRootForElementWithIdAndSetInnerHtml(
       *shadow_root1, "host-in-shadow", shadow_content2);
   EXPECT_EQ("[Hello, ][first ][second shadow][ iterator.]",
             Iterate<DomTree>(EntersOpenShadowRootsBehavior()));
@@ -310,7 +310,7 @@ TEST_F(TextIteratorTest,
   // FIXME: Fix this. We probably need pure-renderer-based implementation of
   // TextIterator to achieve this.
   SetBodyContent(body_content);
-  CreateShadowRootForElementWithIDAndSetInnerHTML(GetDocument(), "host",
+  CreateShadowRootForElementWithIdAndSetInnerHtml(GetDocument(), "host",
                                                   shadow_content);
   EXPECT_EQ("[Hello, ][ shadow][text][ iterator.]",
             Iterate<DomTree>(EntersOpenShadowRootsBehavior()));
@@ -324,7 +324,7 @@ TEST_F(TextIteratorTest, StartingAtNodeInShadowRoot) {
   static const char* shadow_content =
       "<span><slot>content</slot> shadow</span>";
   SetBodyContent(body_content);
-  ShadowRoot* shadow_root = CreateShadowRootForElementWithIDAndSetInnerHTML(
+  ShadowRoot* shadow_root = CreateShadowRootForElementWithIdAndSetInnerHtml(
       GetDocument(), "host", shadow_content);
   Node* outer_div = GetDocument().getElementById(AtomicString("outer"));
   Node* span_in_shadow = shadow_root->firstChild();
@@ -349,7 +349,7 @@ TEST_F(TextIteratorTest, FinishingAtNodeInShadowRoot) {
   static const char* shadow_content =
       "<span><slot>content</slot> shadow</span>";
   SetBodyContent(body_content);
-  ShadowRoot* shadow_root = CreateShadowRootForElementWithIDAndSetInnerHTML(
+  ShadowRoot* shadow_root = CreateShadowRootForElementWithIdAndSetInnerHtml(
       GetDocument(), "host", shadow_content);
   Node* outer_div = GetDocument().getElementById(AtomicString("outer"));
   Node* span_in_shadow = shadow_root->firstChild();
@@ -416,7 +416,7 @@ TEST_F(TextIteratorTest, FullyClippedContentsDistributed) {
       "<slot></slot>"
       "</div>";
   SetBodyContent(body_content);
-  CreateShadowRootForElementWithIDAndSetInnerHTML(GetDocument(), "host",
+  CreateShadowRootForElementWithIdAndSetInnerHtml(GetDocument(), "host",
                                                   shadow_content);
   // FIXME: The text below is actually invisible but TextIterator currently
   // thinks it's visible.
@@ -436,7 +436,7 @@ TEST_F(TextIteratorTest, IgnoresContainersClipDistributed) {
       "<slot></slot>"
       "</div>";
   SetBodyContent(body_content);
-  CreateShadowRootForElementWithIDAndSetInnerHTML(GetDocument(), "host",
+  CreateShadowRootForElementWithIdAndSetInnerHtml(GetDocument(), "host",
                                                   shadow_content);
   // FIXME: The text below is actually visible but TextIterator currently thinks
   // it's invisible.

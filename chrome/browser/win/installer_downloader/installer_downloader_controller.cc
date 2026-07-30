@@ -327,11 +327,9 @@ void InstallerDownloaderController::OnEligibilityReady(
 
     auto* browser_infobar_manager =
         infobars::BrowserInfoBarManager::From(g_browser_process);
-    if (!browser_infobar_manager) {
-      return;
-    }
+    CHECK(browser_infobar_manager);
 
-    browser_infobar_manager->Show(
+    browser_infobar_manager->ShowGlobally(
         infobars::InfoBarDelegate::INSTALLER_DOWNLOADER_INFOBAR_DELEGATE);
 
     infobar_shown_ = true;

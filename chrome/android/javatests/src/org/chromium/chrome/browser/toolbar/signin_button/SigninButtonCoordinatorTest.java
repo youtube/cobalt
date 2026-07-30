@@ -28,7 +28,6 @@ import androidx.test.filters.MediumTest;
 import androidx.test.platform.app.InstrumentationRegistry;
 
 import org.junit.After;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -61,6 +60,7 @@ import org.chromium.chrome.test.util.browser.signin.SigninTestRule;
 import org.chromium.components.signin.SigninFeatures;
 import org.chromium.components.signin.test.util.TestAccounts;
 import org.chromium.components.user_prefs.UserPrefs;
+import org.chromium.content_public.browser.test.NativeLibraryTestUtils;
 import org.chromium.content_public.common.ContentUrlConstants;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.test.util.GmsCoreVersionRestriction;
@@ -74,34 +74,20 @@ import org.chromium.ui.widget.ChromeImageButton;
 @EnableFeatures({SigninFeatures.SIGNIN_LEVEL_UP_BUTTON, SigninFeatures.PROFILE_DISC_ON_ALL_PAGES})
 public class SigninButtonCoordinatorTest {
 
-    @Rule(order = 1)
-    public final FreshCtaTransitTestRule mActivityTestRule =
-            ChromeTransitTestRules.freshChromeTabbedActivityRule();
-
     // Mock sign-in environment needs to be destroyed after ChromeTabbedActivity in case there are
     // observers registered in the AccountManagerFacade mock.
     @Rule(order = 0)
     public final SigninTestRule mSigninTestRule = new SigninTestRule();
+
+    @Rule(order = 1)
+    public final FreshCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
 
     private FakeSyncServiceImpl mFakeSyncServiceImpl;
 
     private RegularNewTabPageStation mPage;
 
     private String mContentDescriptionWithNameAndEmail;
-
-    @Before
-    public void setUp() {
-        mPage = mActivityTestRule.startOnNtp();
-        NewTabPageTestUtils.waitForNtpLoaded(mPage.getTab());
-        mContentDescriptionWithNameAndEmail =
-                mActivityTestRule
-                        .getActivity()
-                        .getString(
-                                R.string
-                                        .accessibility_toolbar_btn_identity_disc_with_name_and_email,
-                                TestAccounts.ACCOUNT1.getFullName(),
-                                TestAccounts.ACCOUNT1.getEmail());
-    }
 
     @After
     public void tearDown() {
@@ -115,6 +101,8 @@ public class SigninButtonCoordinatorTest {
     @Test
     @MediumTest
     public void testSigninButtonVisibleOnNtp() {
+        startActivityOnNtp();
+
         // Button to sign-in should be visible on NTP.
         verifySignedOutButtonVisible();
     }
@@ -122,6 +110,8 @@ public class SigninButtonCoordinatorTest {
     @Test
     @MediumTest
     public void testSigninButton_DisabledSignin_ShowsAvatar() {
+        startActivityOnNtp();
+
         setSigninAllowed(false);
 
         // Should show signed-out avatar instead of text button.
@@ -145,6 +135,8 @@ public class SigninButtonCoordinatorTest {
     // UserActionableError.NEEDS_UPM_BACKEND_UPGRADE.
     @Restriction(GmsCoreVersionRestriction.RESTRICTION_TYPE_VERSION_GE_24W15)
     public void testSignIn_ShowsPersonalizedIdentityDisc() {
+        startActivityOnNtp();
+
         // Initially shows sign-in button.
         verifySignedOutButtonVisible();
 
@@ -165,6 +157,8 @@ public class SigninButtonCoordinatorTest {
     // UserActionableError.NEEDS_UPM_BACKEND_UPGRADE.
     @Restriction(GmsCoreVersionRestriction.RESTRICTION_TYPE_VERSION_GE_24W15)
     public void testSignIn_ShowsPersonalizedIdentityDiscNonDisplayableEmail() {
+        startActivityOnNtp();
+
         // Initially shows sign-in button.
         verifySignedOutButtonVisible();
 
@@ -192,6 +186,8 @@ public class SigninButtonCoordinatorTest {
     // UserActionableError.NEEDS_UPM_BACKEND_UPGRADE.
     @Restriction(GmsCoreVersionRestriction.RESTRICTION_TYPE_VERSION_GE_24W15)
     public void testSignIn_ShowsPersonalizedIdentityDiscNoName() {
+        startActivityOnNtp();
+
         // Initially shows sign-in button.
         verifySignedOutButtonVisible();
 
@@ -221,6 +217,8 @@ public class SigninButtonCoordinatorTest {
     // UserActionableError.NEEDS_UPM_BACKEND_UPGRADE.
     @Restriction(GmsCoreVersionRestriction.RESTRICTION_TYPE_VERSION_GE_24W15)
     public void testSignOut_ShowsSigninTextButton() {
+        startActivityOnNtp();
+
         mSigninTestRule.addAccountThenSignin(TestAccounts.ACCOUNT1);
 
         // Initially shows the user's avatar with a personalized description.
@@ -243,15 +241,15 @@ public class SigninButtonCoordinatorTest {
     // UserActionableError.NEEDS_UPM_BACKEND_UPGRADE.
     @Restriction(GmsCoreVersionRestriction.RESTRICTION_TYPE_VERSION_GE_24W15)
     public void testSigninButtonWithErrorBadge() {
+        // Injects the mock SyncService before the Activity launches as the toolbar instantiates
+        // SigninButtonCoordinator and binds the SyncService immediately upon creation.
+        NativeLibraryTestUtils.loadNativeLibraryAndInitBrowserProcess();
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     mFakeSyncServiceImpl = new FakeSyncServiceImpl();
                     SyncServiceFactory.setInstanceForTesting(mFakeSyncServiceImpl);
                 });
-
-        // SigninButton may have already been initialized with a real SyncService. As such,
-        // recreating the activity in order to ensure the fake SyncService override is used.
-        mActivityTestRule.recreateActivity();
+        startActivityOnNtp();
 
         // Test initial state with no error.
         mSigninTestRule.addAccountThenSignin(TestAccounts.ACCOUNT1);
@@ -294,14 +292,14 @@ public class SigninButtonCoordinatorTest {
     // UserActionableError.NEEDS_UPM_BACKEND_UPGRADE.
     @Restriction(GmsCoreVersionRestriction.RESTRICTION_TYPE_VERSION_GE_24W15)
     public void testSigninButtonWithNullSyncService() {
+        // Injects the null SyncService before the Activity launches as the toolbar instantiates
+        // SigninButtonCoordinator and binds the SyncService immediately upon creation.
+        NativeLibraryTestUtils.loadNativeLibraryAndInitBrowserProcess();
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     SyncServiceFactory.setInstanceForTesting(null);
                 });
-
-        // SigninButton may have already been initialized with a real SyncService. As such,
-        // recreating the activity in order to ensure the null SyncService override is used.
-        mActivityTestRule.recreateActivity();
+        startActivityOnNtp();
 
         mSigninTestRule.addAccountThenSignin(TestAccounts.ACCOUNT1);
 
@@ -317,6 +315,8 @@ public class SigninButtonCoordinatorTest {
     @MediumTest
     @Restriction(DeviceFormFactor.PHONE)
     public void testSigninButtonHiddenOnNavigationOnPhone() {
+        startActivityOnNtp();
+
         // Initially visible on NTP.
         ViewUtils.waitForVisibleView(withId(R.id.signin_button));
 
@@ -336,6 +336,8 @@ public class SigninButtonCoordinatorTest {
     @MediumTest
     @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
     public void testSigninButtonShownOnNavigationOnTablet() {
+        startActivityOnNtp();
+
         // Initially visible on NTP.
         ViewUtils.waitForVisibleView(withId(R.id.signin_button));
 
@@ -349,6 +351,8 @@ public class SigninButtonCoordinatorTest {
     @MediumTest
     @DisableFeatures(SigninFeatures.PROFILE_DISC_ON_ALL_PAGES)
     public void testSigninButtonHiddenOnNavigation() {
+        startActivityOnNtp();
+
         // Initially visible on NTP.
         ViewUtils.waitForVisibleView(withId(R.id.signin_button));
 
@@ -363,6 +367,8 @@ public class SigninButtonCoordinatorTest {
     // TODO(crbug.com/496912352): Not including Brya as inconsistent test state causes flakiness.
     @Restriction(DeviceFormFactor.PHONE_OR_TABLET)
     public void testSigninButtonHiddenOnIncognitoNtp() {
+        startActivityOnNtp();
+
         // Initially visible on NTP.
         ViewUtils.waitForVisibleView(withId(R.id.signin_button));
 
@@ -379,6 +385,8 @@ public class SigninButtonCoordinatorTest {
     @MediumTest
     @EnableFeatures(SigninFeatures.ENABLE_SEAMLESS_SIGNIN)
     public void testClickSigninButton_SignedOut() {
+        startActivityOnNtp();
+
         ViewUtils.waitForVisibleView(withId(R.id.signin_button));
 
         // Clicking the sign-in button should lead to the sign-in bottom sheet.
@@ -390,6 +398,8 @@ public class SigninButtonCoordinatorTest {
     @MediumTest
     @DisableFeatures(SigninFeatures.ENABLE_SEAMLESS_SIGNIN)
     public void testClickSigninButton_SignedOut_SeamlessSigninDisabled() {
+        startActivityOnNtp();
+
         ViewUtils.waitForVisibleView(withId(R.id.signin_button));
 
         // Clicking the signed-out button should lead to the sign-in activity.
@@ -406,6 +416,8 @@ public class SigninButtonCoordinatorTest {
     @Test
     @MediumTest
     public void testClickSigninButton_SignedOut_SigninDisabled() {
+        startActivityOnNtp();
+
         setSigninAllowed(false);
         ViewUtils.waitForVisibleView(withId(R.id.signin_button));
 
@@ -425,6 +437,8 @@ public class SigninButtonCoordinatorTest {
     // UserActionableError.NEEDS_UPM_BACKEND_UPGRADE.
     @Restriction(GmsCoreVersionRestriction.RESTRICTION_TYPE_VERSION_GE_24W15)
     public void testClickSigninButton_SignedIn() {
+        startActivityOnNtp();
+
         mSigninTestRule.addAccountThenSignin(TestAccounts.ACCOUNT1);
         ViewUtils.waitForVisibleView(
                 allOf(
@@ -445,6 +459,8 @@ public class SigninButtonCoordinatorTest {
     @MediumTest
     @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
     public void testClickSigninButton_ClearsUrlFocus() {
+        startActivityOnNtp();
+
         // Initially visible on NTP.
         ViewUtils.waitForVisibleView(withId(R.id.signin_button));
 
@@ -466,6 +482,8 @@ public class SigninButtonCoordinatorTest {
     @MediumTest
     @Restriction(DeviceFormFactor.PHONE)
     public void testSigninButtonHiddenOnUrlFocus() {
+        startActivityOnNtp();
+
         // Initially visible on NTP.
         ViewUtils.waitForVisibleView(withId(R.id.signin_button));
 
@@ -487,6 +505,8 @@ public class SigninButtonCoordinatorTest {
     @MediumTest
     @Restriction(DeviceFormFactor.DESKTOP_FREEFORM)
     public void testSigninButtonDisabledOnInactiveWindow() {
+        startActivityOnNtp();
+
         AppHeaderUtils.setAppInDesktopWindowForTesting(true);
         ViewUtils.waitForVisibleView(withId(R.id.avatar_button));
         onView(withId(R.id.avatar_button)).check(matches(isEnabled()));
@@ -510,6 +530,8 @@ public class SigninButtonCoordinatorTest {
     @MediumTest
     @Restriction(DeviceFormFactor.DESKTOP_FREEFORM)
     public void testSigninButtonAvatarTintChangesOnInactiveWindow() {
+        startActivityOnNtp();
+
         AppHeaderUtils.setAppInDesktopWindowForTesting(true);
         setSigninAllowed(false);
         ViewUtils.waitForVisibleView(withId(R.id.avatar_button));
@@ -526,6 +548,19 @@ public class SigninButtonCoordinatorTest {
         ColorStateList unfocusedTint = avatarButton.getImageTintList();
         assertNotNull(unfocusedTint);
         assertNotEquals("Tint should change when window is inactive", focusedTint, unfocusedTint);
+    }
+
+    private void startActivityOnNtp() {
+        mPage = mActivityTestRule.startOnNtp();
+        NewTabPageTestUtils.waitForNtpLoaded(mPage.getTab());
+        mContentDescriptionWithNameAndEmail =
+                mActivityTestRule
+                        .getActivity()
+                        .getString(
+                                R.string
+                                        .accessibility_toolbar_btn_identity_disc_with_name_and_email,
+                                TestAccounts.ACCOUNT1.getFullName(),
+                                TestAccounts.ACCOUNT1.getEmail());
     }
 
     private void verifySignedOutButtonVisible() {

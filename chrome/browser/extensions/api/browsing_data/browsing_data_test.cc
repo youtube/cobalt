@@ -420,12 +420,14 @@ IN_PROC_BROWSER_TEST_F(BrowsingDataApiTest, ValidateFilters) {
           chrome.test.succeed();
       },
       async function emptyOriginsFilter() {
+          // Define the expected error regex for empty `origins` list.
           const expectedError = new RegExp(
               '.* Array must have at least 1 items; found 0.');
+          // Verify `chrome.browsingData.remove` throws when `origins` is empty.
           chrome.test.assertThrows(
-              chrome.browsingData.remove,
-              chrome.browsingData,
-              [{'origins': []}, {'cookies': true}],
+              chrome.browsingData.remove.bind(
+                  null, /* options */ {'origins': []},
+                  /* dataToRemove */ {'cookies': true}),
               expectedError);
           chrome.test.succeed();
       },

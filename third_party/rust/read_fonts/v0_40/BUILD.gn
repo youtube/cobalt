@@ -28,6 +28,14 @@ cargo_crate("lib") {
     "//third_party/rust/chromium_crates_io/vendor/read-fonts-v0_40/src/font_data.rs",
     "//third_party/rust/chromium_crates_io/vendor/read-fonts-v0_40/src/lib.rs",
     "//third_party/rust/chromium_crates_io/vendor/read-fonts-v0_40/src/model.rs",
+    "//third_party/rust/chromium_crates_io/vendor/read-fonts-v0_40/src/model/font.rs",
+    "//third_party/rust/chromium_crates_io/vendor/read-fonts-v0_40/src/model/font/blob.rs",
+    "//third_party/rust/chromium_crates_io/vendor/read-fonts-v0_40/src/model/font/format.rs",
+    "//third_party/rust/chromium_crates_io/vendor/read-fonts-v0_40/src/model/font/instance.rs",
+    "//third_party/rust/chromium_crates_io/vendor/read-fonts-v0_40/src/model/font/interop.rs",
+    "//third_party/rust/chromium_crates_io/vendor/read-fonts-v0_40/src/model/font/source.rs",
+    "//third_party/rust/chromium_crates_io/vendor/read-fonts-v0_40/src/model/font/tables.rs",
+    "//third_party/rust/chromium_crates_io/vendor/read-fonts-v0_40/src/model/once.rs",
     "//third_party/rust/chromium_crates_io/vendor/read-fonts-v0_40/src/model/pen.rs",
     "//third_party/rust/chromium_crates_io/vendor/read-fonts-v0_40/src/offset.rs",
     "//third_party/rust/chromium_crates_io/vendor/read-fonts-v0_40/src/offset_array.rs",
@@ -130,6 +138,7 @@ cargo_crate("lib") {
   ]
   inputs = [
     "//third_party/rust/chromium_crates_io/vendor/read-fonts-v0_40/src/../data/generated/generated_agl.rs",
+    "//third_party/rust/chromium_crates_io/vendor/read-fonts-v0_40/src/../data/generated/generated_tables.rs",
     "//third_party/rust/chromium_crates_io/vendor/read-fonts-v0_40/src/../generated/font.rs",
     "//third_party/rust/chromium_crates_io/vendor/read-fonts-v0_40/src/../generated/generated_aat.rs",
     "//third_party/rust/chromium_crates_io/vendor/read-fonts-v0_40/src/../generated/generated_ankr.rs",
@@ -198,17 +207,19 @@ cargo_crate("lib") {
   cargo_pkg_name = "read-fonts"
   cargo_pkg_description = "Reading OpenType font files."
   cargo_pkg_repository = "https://github.com/googlefonts/fontations"
-  cargo_pkg_version = "0.40.1"
+  cargo_pkg_version = "0.40.2"
 
   allow_unsafe = false
 
   deps = [
     "//third_party/rust/bytemuck/v1:lib",
     "//third_party/rust/font_types/v0_12:lib",
+    "//third_party/rust/once_cell/v1:lib",
   ]
   features = [
     "agl",
     "default",
+    "experimental_font_api",
     "std",
   ]
 

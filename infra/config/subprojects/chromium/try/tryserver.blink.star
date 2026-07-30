@@ -18,6 +18,7 @@ try_.defaults.set(
     executable = try_constants.DEFAULT_EXECUTABLE,
     builder_group = "tryserver.blink",
     pool = try_constants.DEFAULT_POOL,
+    builderless = True,
     cores = 8,
     contact_team_email = "chrome-blink-engprod@google.com",
     execution_timeout = try_constants.DEFAULT_EXECUTION_TIMEOUT,
@@ -40,9 +41,25 @@ consoles.list_view(
     branch_selector = branches.selector.DESKTOP_BRANCHES,
 )
 
+def _rebaseline_builder_spec(*, target_platform):
+    return builder_config.builder_spec(
+        gclient_config = builder_config.gclient_config(
+            config = "chromium",
+        ),
+        chromium_config = builder_config.chromium_config(
+            config = "chromium",
+            apply_configs = [
+                "mb",
+            ],
+            build_config = builder_config.build_config.RELEASE,
+            target_bits = 64,
+            target_platform = target_platform,
+        ),
+    )
+
 def _mac_rebaseline_builder(*, name, **kwargs):
     kwargs.setdefault("branch_selector", branches.selector.MAC_BRANCHES)
-    kwargs.setdefault("builderless", True)
+    kwargs.setdefault("builder_spec", _rebaseline_builder_spec(target_platform = builder_config.target_platform.MAC))
     kwargs.setdefault("cores", None)
     kwargs.setdefault("os", os.MAC_DEFAULT)
     kwargs.setdefault("ssd", True)
@@ -61,20 +78,7 @@ def _rebaseline_builder(*, name, **kwargs):
 _rebaseline_builder(
     name = "linux-blink-rel",
     branch_selector = branches.selector.LINUX_BRANCHES,
-    builder_spec = builder_config.builder_spec(
-        gclient_config = builder_config.gclient_config(
-            config = "chromium",
-        ),
-        chromium_config = builder_config.chromium_config(
-            config = "chromium",
-            apply_configs = [
-                "mb",
-            ],
-            build_config = builder_config.build_config.RELEASE,
-            target_bits = 64,
-            target_platform = builder_config.target_platform.LINUX,
-        ),
-    ),
+    builder_spec = _rebaseline_builder_spec(target_platform = builder_config.target_platform.LINUX),
     builder_config_settings = builder_config.try_settings(
         retry_failed_shards = False,
     ),
@@ -145,7 +149,6 @@ try_.builder(
         retry_failed_shards = False,
     ),
     gn_args = "ci/win10-wpt-chromium-rel",
-    builderless = True,
     os = os.WINDOWS_10,
     main_list_view = "try",
 )
@@ -153,20 +156,7 @@ try_.builder(
 _rebaseline_builder(
     name = "win10.20h2-blink-rel",
     branch_selector = branches.selector.WINDOWS_BRANCHES,
-    builder_spec = builder_config.builder_spec(
-        gclient_config = builder_config.gclient_config(
-            config = "chromium",
-        ),
-        chromium_config = builder_config.chromium_config(
-            config = "chromium",
-            apply_configs = [
-                "mb",
-            ],
-            build_config = builder_config.build_config.RELEASE,
-            target_bits = 64,
-            target_platform = builder_config.target_platform.WIN,
-        ),
-    ),
+    builder_spec = _rebaseline_builder_spec(target_platform = builder_config.target_platform.WIN),
     builder_config_settings = builder_config.try_settings(
         retry_failed_shards = False,
     ),
@@ -206,27 +196,13 @@ _rebaseline_builder(
             ),
         },
     ),
-    builderless = True,
     os = os.WINDOWS_ANY,
 )
 
 _rebaseline_builder(
     name = "win11-arm64-blink-rel",
     branch_selector = branches.selector.WINDOWS_BRANCHES,
-    builder_spec = builder_config.builder_spec(
-        gclient_config = builder_config.gclient_config(
-            config = "chromium",
-        ),
-        chromium_config = builder_config.chromium_config(
-            config = "chromium",
-            apply_configs = [
-                "mb",
-            ],
-            build_config = builder_config.build_config.RELEASE,
-            target_bits = 64,
-            target_platform = builder_config.target_platform.WIN,
-        ),
-    ),
+    builder_spec = _rebaseline_builder_spec(target_platform = builder_config.target_platform.WIN),
     builder_config_settings = builder_config.try_settings(
         retry_failed_shards = False,
     ),
@@ -268,7 +244,6 @@ _rebaseline_builder(
             ),
         },
     ),
-    builderless = True,
     os = os.WINDOWS_ANY,
     siso_remote_linking = True,
 )
@@ -276,20 +251,7 @@ _rebaseline_builder(
 _rebaseline_builder(
     name = "win11-blink-rel",
     branch_selector = branches.selector.WINDOWS_BRANCHES,
-    builder_spec = builder_config.builder_spec(
-        gclient_config = builder_config.gclient_config(
-            config = "chromium",
-        ),
-        chromium_config = builder_config.chromium_config(
-            config = "chromium",
-            apply_configs = [
-                "mb",
-            ],
-            build_config = builder_config.build_config.RELEASE,
-            target_bits = 64,
-            target_platform = builder_config.target_platform.WIN,
-        ),
-    ),
+    builder_spec = _rebaseline_builder_spec(target_platform = builder_config.target_platform.WIN),
     builder_config_settings = builder_config.try_settings(
         retry_failed_shards = True,
     ),
@@ -328,26 +290,11 @@ _rebaseline_builder(
             ),
         },
     ),
-    builderless = True,
     os = os.WINDOWS_ANY,
 )
 
 _mac_rebaseline_builder(
     name = "mac13-blink-rel",
-    builder_spec = builder_config.builder_spec(
-        gclient_config = builder_config.gclient_config(
-            config = "chromium",
-        ),
-        chromium_config = builder_config.chromium_config(
-            config = "chromium",
-            apply_configs = [
-                "mb",
-            ],
-            build_config = builder_config.build_config.RELEASE,
-            target_bits = 64,
-            target_platform = builder_config.target_platform.MAC,
-        ),
-    ),
     builder_config_settings = builder_config.try_settings(
         retry_failed_shards = False,
     ),
@@ -369,7 +316,6 @@ _mac_rebaseline_builder(
             "mac_13_x64",
         ],
     ),
-    cores = None,
     cpu = cpu.ARM64,
 )
 
@@ -380,7 +326,6 @@ try_.builder(
         retry_failed_shards = False,
     ),
     gn_args = "ci/mac13-wpt-chromium-rel",
-    builderless = True,
     cores = None,
     os = os.MAC_ANY,
     cpu = cpu.ARM64,
@@ -389,20 +334,6 @@ try_.builder(
 
 _mac_rebaseline_builder(
     name = "mac13.arm64-blink-rel",
-    builder_spec = builder_config.builder_spec(
-        gclient_config = builder_config.gclient_config(
-            config = "chromium",
-        ),
-        chromium_config = builder_config.chromium_config(
-            config = "chromium",
-            apply_configs = [
-                "mb",
-            ],
-            build_config = builder_config.build_config.RELEASE,
-            target_bits = 64,
-            target_platform = builder_config.target_platform.MAC,
-        ),
-    ),
     builder_config_settings = builder_config.try_settings(
         retry_failed_shards = True,
     ),
@@ -424,26 +355,11 @@ _mac_rebaseline_builder(
             "mac_13_arm64",
         ],
     ),
-    cores = None,
     cpu = cpu.ARM64,
 )
 
 _mac_rebaseline_builder(
     name = "mac14-blink-rel",
-    builder_spec = builder_config.builder_spec(
-        gclient_config = builder_config.gclient_config(
-            config = "chromium",
-        ),
-        chromium_config = builder_config.chromium_config(
-            config = "chromium",
-            apply_configs = [
-                "mb",
-            ],
-            build_config = builder_config.build_config.RELEASE,
-            target_bits = 64,
-            target_platform = builder_config.target_platform.MAC,
-        ),
-    ),
     builder_config_settings = builder_config.try_settings(
         retry_failed_shards = False,
     ),
@@ -470,20 +386,6 @@ _mac_rebaseline_builder(
 
 _mac_rebaseline_builder(
     name = "mac14.arm64-blink-rel",
-    builder_spec = builder_config.builder_spec(
-        gclient_config = builder_config.gclient_config(
-            config = "chromium",
-        ),
-        chromium_config = builder_config.chromium_config(
-            config = "chromium",
-            apply_configs = [
-                "mb",
-            ],
-            build_config = builder_config.build_config.RELEASE,
-            target_bits = 64,
-            target_platform = builder_config.target_platform.MAC,
-        ),
-    ),
     builder_config_settings = builder_config.try_settings(
         retry_failed_shards = True,
     ),
@@ -510,20 +412,6 @@ _mac_rebaseline_builder(
 
 _mac_rebaseline_builder(
     name = "mac15-blink-rel",
-    builder_spec = builder_config.builder_spec(
-        gclient_config = builder_config.gclient_config(
-            config = "chromium",
-        ),
-        chromium_config = builder_config.chromium_config(
-            config = "chromium",
-            apply_configs = [
-                "mb",
-            ],
-            build_config = builder_config.build_config.RELEASE,
-            target_bits = 64,
-            target_platform = builder_config.target_platform.MAC,
-        ),
-    ),
     builder_config_settings = builder_config.try_settings(
         retry_failed_shards = False,
     ),
@@ -550,20 +438,6 @@ _mac_rebaseline_builder(
 
 _mac_rebaseline_builder(
     name = "mac15.arm64-blink-rel",
-    builder_spec = builder_config.builder_spec(
-        gclient_config = builder_config.gclient_config(
-            config = "chromium",
-        ),
-        chromium_config = builder_config.chromium_config(
-            config = "chromium",
-            apply_configs = [
-                "mb",
-            ],
-            build_config = builder_config.build_config.RELEASE,
-            target_bits = 64,
-            target_platform = builder_config.target_platform.MAC,
-        ),
-    ),
     builder_config_settings = builder_config.try_settings(
         retry_failed_shards = True,
     ),
@@ -583,6 +457,52 @@ _mac_rebaseline_builder(
         ],
         mixins = [
             "mac_15_arm64",
+        ],
+    ),
+    cpu = cpu.ARM64,
+)
+
+_mac_rebaseline_builder(
+    name = "mac26-x64-blink-rel",
+    gn_args = gn_args.config(
+        configs = [
+            "release_builder",
+            "remoteexec",
+            "chrome_with_codecs",
+            "minimal_symbols",
+            "mac",
+            "x64",
+        ],
+    ),
+    targets = targets.bundle(
+        targets = [
+            "chromium_blink_isolated_scripts",
+        ],
+        mixins = [
+            "mac_26_x64",
+        ],
+    ),
+    cpu = cpu.ARM64,
+)
+
+_mac_rebaseline_builder(
+    name = "mac26-arm64-blink-rel",
+    gn_args = gn_args.config(
+        configs = [
+            "release_builder",
+            "remoteexec",
+            "chrome_with_codecs",
+            "minimal_symbols",
+            "mac",
+            "arm64",
+        ],
+    ),
+    targets = targets.bundle(
+        targets = [
+            "chromium_blink_isolated_scripts",
+        ],
+        mixins = [
+            "mac_26_arm64",
         ],
     ),
     cpu = cpu.ARM64,
@@ -651,7 +571,6 @@ _rebaseline_builder(
     targets_settings = targets.settings(
         os_type = targets.os_type.ANDROID,
     ),
-    builderless = True,
     os = os.LINUX_DEFAULT,
     main_list_view = "try",
 )

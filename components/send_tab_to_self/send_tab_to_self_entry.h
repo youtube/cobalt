@@ -98,6 +98,18 @@ class SendTabToSelfEntry {
   // it hasn't been opened.
   base::Time GetOpenedTime() const;
 
+  // The activated state of the entry.
+  // Note: An entry is considered "activated" if the corresponding tab became
+  // visible to the user on the target device, either by the tab being opened in
+  // the foreground, or by the user manually switching to the tab.
+  bool IsActivated() const;
+  // Sets the activated state of the entry to true and records the activated
+  // time.
+  void MarkActivated(base::Time activated_time);
+  // Time when this entry was activated on the target device, or a null time if
+  // it hasn't been activated.
+  base::Time GetActivatedTime() const;
+
   // Time when this entry was first received by the target device's bridge.
   void MarkReceived(base::Time received_time);
   bool IsReceived() const;
@@ -156,6 +168,7 @@ class SendTabToSelfEntry {
   NavigationHistory navigation_history_;
   base::Time received_time_;
   base::Time opened_time_;
+  base::Time activated_time_;
 };
 
 }  // namespace send_tab_to_self

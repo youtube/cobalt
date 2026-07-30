@@ -21,11 +21,8 @@ class BreakToken;
 class LayoutBlockFlow;
 class PhysicalBoxFragment;
 
-// Base class for all LayoutNG Algorithms unit test classes.
-typedef bool TestParamLayoutNG;
-class BaseLayoutAlgorithmTest
-    : public testing::WithParamInterface<TestParamLayoutNG>,
-      public RenderingTest {
+// Base class for all Layout Algorithms unit test classes.
+class BaseLayoutAlgorithmTest : public RenderingTest {
  protected:
   void SetUp() override;
 

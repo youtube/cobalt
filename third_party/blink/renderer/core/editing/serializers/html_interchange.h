@@ -34,7 +34,7 @@ class Text;
 
 #define AppleInterchangeNewline "Apple-interchange-newline"
 
-String ConvertHTMLTextToInterchangeFormat(const String&, const Text&);
+String ConvertHtmlTextToInterchangeFormat(const String&, const Text&);
 
 }  // namespace blink
 

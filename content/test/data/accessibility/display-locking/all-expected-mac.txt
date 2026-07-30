@@ -9,7 +9,7 @@ AXWebArea
 ++++++AXStaticText AXValue='<newline>      nested activatable locked element will be in AX tree but without layout<newline>    '
 ++++AXStaticText AXValue='<newline>  '
 ++AXStaticText AXValue='normal text 1'
-++AXGroup
+++AXGroup AXSubrole=AXEmptyGroup
 ++AXStaticText AXValue='normal text 2'
-++AXGroup
+++AXGroup AXSubrole=AXEmptyGroup
 ++AXStaticText AXValue='normal text 3'

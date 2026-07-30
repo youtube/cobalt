@@ -7,6 +7,8 @@
 
 #include <stdint.h>
 
+#include <optional>
+
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "components/payments/content/payment_app.h"
@@ -18,15 +20,12 @@
 #include "third_party/blink/public/mojom/payments/payment_app.mojom.h"
 #include "third_party/blink/public/mojom/payments/payment_handler_host.mojom.h"
 #include "third_party/blink/public/mojom/payments/payment_request.mojom.h"
+#include "url/origin.h"
 
 namespace content {
 class PaymentAppProvider;
 class WebContents;
 }  // namespace content
-
-namespace url {
-class Origin;
-}  // namespace url
 
 namespace payments {
 
@@ -86,6 +85,7 @@ class ServiceWorkerPaymentApp : public PaymentApp {
   bool HasEnrolledInstrument() const override;
   bool NeedsInstallation() const override;
   std::string GetId() const override;
+  std::optional<url::Origin> GetPaymentHandlerOrigin() const override;
   std::u16string GetLabel() const override;
   std::u16string GetSublabel() const override;
   bool IsValidForModifier(const std::string& method) const override;

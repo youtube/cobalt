@@ -1432,6 +1432,10 @@ if (is_android) {
     input =
         "//content/shell/android/browsertests_apk/AndroidManifest.xml.jinja2"
     output = content_browsertests_manifest
+    variables = [
+      "javaless_renderers=$enable_javaless_renderers",
+      "library_name=content_browsertests__library",
+    ]
   }
 
   android_library("content_browsertests_java") {
@@ -1812,6 +1816,7 @@ test("content_browsertests") {
     "../browser/web_contents/opened_by_dom_browsertest.cc",
     "../browser/web_contents/web_contents_impl_browsertest.cc",
     "../browser/web_contents/web_contents_observer_browsertest.cc",
+    "../browser/web_package/signed_exchange_reporter_browsertest.cc",
     "../browser/web_package/signed_exchange_request_handler_browsertest.cc",
     "../browser/web_package/signed_exchange_subresource_prefetch_browsertest.cc",
     "../browser/webid/delegation/jwt_signer_browsertest.cc",
@@ -2310,6 +2315,7 @@ test("content_browsertests") {
       "//ui/events:motionevent_jni_headers",
       "//ui/touch_selection",
     ]
+
     android_manifest =
         "${target_gen_dir}/content_browsertests_manifest/AndroidManifest.xml"
     android_manifest_dep = ":content_browsertests_manifest"
@@ -2691,6 +2697,7 @@ test("content_unittests") {
     "../browser/content_index/content_index_service_impl_unittest.cc",
     "../browser/cookie_store/cookie_store_manager_unittest.cc",
     "../browser/cpu_performance/cpu_performance_unittest.cc",
+    "../browser/declarative_performance_observer/declarative_performance_observer_store_unittest.cc",
     "../browser/declarative_performance_observer/declarative_performance_observer_unittest.cc",
     "../browser/devtools/devtools_background_services_context_impl_unittest.cc",
     "../browser/devtools/devtools_frontend_host_impl_unittest.cc",
@@ -3188,6 +3195,7 @@ test("content_unittests") {
     "ActionsParserFuzzTest.ParsesJSONCorrectly",
     "FirstPartySetFuzzer.ParsesSetsCorrectly",
     "IndexedDbLevelDbCodingFuzzTest.CompareHandlesAnyInput",
+    "ClearSiteDataHandlerFuzzerTest.ParseHeader",
   ]
 
   if (is_mac) {
@@ -3290,6 +3298,10 @@ test("content_unittests") {
       "../browser/file_system_access/file_system_access_observer_observation_unittest.cc",
       "../browser/renderer_host/delegated_frame_host_unittest.cc",
     ]
+  }
+
+  if (is_linux || is_chromeos) {
+    sources += [ "../child/sandboxed_process_thread_type_handler_unittest.cc" ]
   }
 
   if (is_android || is_linux || is_chromeos || is_mac || is_win || is_fuchsia) {

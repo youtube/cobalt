@@ -16,6 +16,7 @@ import org.chromium.chrome.browser.tab.EmptyTabObserver;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.components.dom_distiller.content.DistillablePageUtils;
 import org.chromium.components.dom_distiller.content.DistillablePageUtils.PageDistillableDelegate;
+import org.chromium.components.dom_distiller.core.DomDistillerUrlUtils;
 import org.chromium.content_public.browser.NavigationHandle;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.WindowAndroid;
@@ -252,11 +253,18 @@ public class TabDistillabilityProvider extends EmptyTabObserver
     }
 
     private void resetStateIfUrlHasChanged(Tab tab) {
-        // If the current URL matches the distillation result URL, then the result is still fresh.
-        // TODO(crbug.com/428169696): Use more relaxed matching to avoid #fragments resetting this.
-        if (mDistillationResultUrl != null
-                && mDistillationResultUrl.equalsIgnoringRef(tab.getUrl())) {
-            return;
+        // The distillation result remains fresh if navigating within the same article or entering
+        // its reader mode view.
+        if (mDistillationResultUrl != null) {
+            if (mDistillationResultUrl.equalsIgnoringRef(tab.getUrl())) {
+                return;
+            } else if (DomDistillerUrlUtils.isDistilledPage(tab.getUrl())) {
+                GURL originalUrl =
+                        DomDistillerUrlUtils.getOriginalUrlFromDistillerUrl(tab.getUrl());
+                if (originalUrl != null && mDistillationResultUrl.equalsIgnoringRef(originalUrl)) {
+                    return;
+                }
+            }
         }
         resetState();
     }

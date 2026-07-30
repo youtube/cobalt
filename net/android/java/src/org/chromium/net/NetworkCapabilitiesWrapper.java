@@ -54,7 +54,17 @@ import org.chromium.build.annotations.Nullable;
         }
         return transportType >= 0
                 && transportType < Long.SIZE
-                && ((mTransportTypes & (1 << transportType)) != 0);
+                && ((mTransportTypes & (1L << transportType)) != 0);
+    }
+
+    /** Returns the estimated downstream bandwidth of the link in Kbps. */
+    public int getLinkDownstreamBandwidthKbps() {
+        if (mWrapped != null) {
+            return mWrapped.getLinkDownstreamBandwidthKbps();
+        }
+        throw new UnsupportedOperationException(
+                "getLinkDownstreamBandwidthKbps is unavailable without wrapped"
+                        + " NetworkCapabilities");
     }
 
     private static long packIntoLong(int[] bits) {
